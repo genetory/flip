@@ -1,0 +1,661 @@
+import { readAccessToken, refreshPlatformSession } from "./auth-client";
+
+function getApiBaseUrl() {
+  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+}
+
+const enableApiLogs =
+  process.env.NEXT_PUBLIC_DEBUG_API_LOGS === "true" || process.env.NODE_ENV !== "production";
+
+function summarizeRequestBodyForLog(body: RequestInit["body"]) {
+  if (!body) return undefined;
+  if (typeof body !== "string") return { type: typeof body };
+  try {
+    const parsed = JSON.parse(body) as Record<string, unknown>;
+    const thumbnailCount = Array.isArray(parsed.thumbnailImages) ? parsed.thumbnailImages.length : undefined;
+    return {
+      keys: Object.keys(parsed),
+      thumbnailImages: thumbnailCount !== undefined ? `${thumbnailCount} item(s)` : undefined
+    };
+  } catch {
+    return { textLength: body.length };
+  }
+}
+
+function withOptionalBearerHeader(headers: HeadersInit = {}) {
+  const token = readAccessToken();
+  if (!token) return headers;
+  return {
+    ...headers,
+    Authorization: `Bearer ${token}`
+  } satisfies HeadersInit;
+}
+
+async function getAccessTokenOrThrow() {
+  let token = readAccessToken();
+  if (!token) {
+    await refreshPlatformSession();
+    token = readAccessToken();
+  }
+  if (!token) throw new Error("로그인이 필요합니다.");
+  return token;
+}
+
+type ApiPayload<T = unknown> = {
+  ok?: boolean;
+  code?: string;
+  message?: string;
+  item?: T;
+  items?: T[];
+};
+
+async function readApiPayload<T = unknown>(response: Response) {
+  const text = await response.text();
+  if (!text) return {} as ApiPayload<T>;
+  try {
+    return JSON.parse(text) as ApiPayload<T>;
+  } catch {
+    return { message: text.trim() || undefined } as ApiPayload<T>;
+  }
+}
+
+function resolveApiErrorMessage(payload: { message?: unknown }, fallback: string) {
+  if (typeof payload.message === "string" && payload.message.trim()) return payload.message;
+  return fallback;
+}
+
+async function authedJsonFetch<T>(path: string, init: RequestInit = {}) {
+  const method = (init.method ?? "GET").toUpperCase();
+  const bodySummary = summarizeRequestBodyForLog(init.body);
+  if (enableApiLogs) {
+    console.info("[platform-web][api][request]", { method, path, body: bodySummary });
+  }
+
+  const request = async () => {
+    const token = await getAccessTokenOrThrow();
+    return fetch(`${getApiBaseUrl()}${path}`, {
+      ...init,
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+        Authorization: `Bearer ${token}`
+      }
+    });
+  };
+
+  let response = await request();
+  if (response.status === 401) {
+    if (enableApiLogs) {
+      console.warn("[platform-web][api][retry-after-401]", { method, path });
+    }
+    await refreshPlatformSession();
+    response = await request();
+  }
+
+  const payload = await readApiPayload<T>(response);
+  if (!response.ok || payload.ok !== true) {
+    if (enableApiLogs) {
+      console.warn("[platform-web][api][error-response]", {
+        method,
+        path,
+        status: response.status,
+        code: typeof payload.code === "string" ? payload.code : undefined,
+        message: resolveApiErrorMessage(payload, "요청을 처리하지 못했습니다."),
+        payload
+      });
+    }
+    throw new MemberProfileApiError(
+      resolveApiErrorMessage(payload, "요청을 처리하지 못했습니다."),
+      response.status,
+      typeof payload.code === "string" ? payload.code : undefined
+    );
+  }
+
+  if (enableApiLogs) {
+    console.info("[platform-web][api][response]", { method, path, status: response.status });
+  }
+
+  return payload;
+}
+
+class MemberProfileApiError extends Error {
+  status: number;
+  code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "MemberProfileApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+export function isMemberNotFoundError(error: unknown) {
+  return error instanceof MemberProfileApiError && error.status === 404;
+}
+
+export type MyCandidateProfile = {
+  userId: string;
+  visaType?:
+    | "D10_JOB_SEEKING"
+    | "D2_STUDENT"
+    | "D4_GENERAL_TRAINING"
+    | "F2_RESIDENCE"
+    | "F4_OVERSEAS_KOREAN"
+    | "F5_PERMANENT_RESIDENCE"
+    | "F6_MARRIAGE_IMMIGRATION"
+    | "E7_SPECIFIC_ACTIVITY"
+    | "H1_WORKING_HOLIDAY"
+    | "OTHER"
+    | null;
+  educations?: Array<{ id: string }>;
+  languageSkills?: Array<{ id: string }>;
+  careers?: Array<{ id: string }>;
+  activityExperiences?: Array<{ id: string }>;
+  residenceProvince?: string | null;
+  programStartOption?: "ASAP" | "SPECIFIC_DATE" | null;
+  programStartDate?: string | null;
+  preferenceConditionNote?: string | null;
+  skills?: string[];
+  selfIntroduction?: string | null;
+  programMotivation?: string | null;
+  additionalInfoNote?: string | null;
+  favoritePositionIds?: string[];
+  appliedPositionIds?: string[];
+};
+
+export type MyPartnerOrganization = {
+  id: string;
+  partnerType: "UNIVERSITY" | "COMPANY" | "AGENCY";
+  domain: string;
+  name: string;
+  companySize?: "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100" | null;
+  officeAddress?: string | null;
+  website?: string | null;
+  socialMedia?: string | null;
+  industry:
+    | "EDUCATION"
+    | "AGRICULTURE"
+    | "AGRICULTURAL_PRODUCTS"
+    | "PETS"
+    | "FITNESS"
+    | "WELLNESS"
+    | "BEAUTY"
+    | "TRAVEL"
+    | "GOLF"
+    | "IT"
+    | "DEVELOPMENT"
+    | "AI"
+    | "LLM"
+    | "DEEP_LEARNING"
+    | "IOT"
+    | "IMAGE_PROCESSING"
+    | "THREE_D"
+    | "DEVICE"
+    | "APP_TECH"
+    | "STARTUP"
+    | "PLATFORM"
+    | "COMMERCE"
+    | "AGENCY"
+    | "COMMUNITY"
+    | "GLOBAL"
+    | "B2B"
+    | "SAAS"
+    | "PRODUCTIVITY"
+    | "CRM"
+    | "AUTOMATION"
+    | "CONSULTING"
+    | "ADVERTISING"
+    | "MARKETING"
+    | "CONTENT"
+    | "WEB_NOVEL"
+    | "K_POP"
+    | "CHARACTER"
+    | "AVATAR"
+    | "VIRTUAL"
+    | "PUBLIC_DATA"
+    | "CONSTRUCTION"
+    | "FOREIGNER"
+    | "HR"
+    | "MENTAL_CARE"
+    | "B2C"
+    | "HEALTHCARE"
+    | "OTHER";
+  description?: string | null;
+  strengths?: string | null;
+  adminMemo?: string | null;
+  businessRegistrationDocumentData?: string | null;
+  fourInsuranceSubscriberListData?: string | null;
+  companyLogoImageData?: string | null;
+  officePhotoImageData?: string | null;
+  verification?: {
+    isVerified: boolean;
+    uploadedCount: number;
+    requiredCount: number;
+    missingItems: string[];
+  };
+  permissions?: {
+    canPostPositions: boolean;
+    canContactCandidates: boolean;
+  };
+  memberCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type MembersMeta = {
+  partnerIndustries: string[];
+  partnerCompanySizes: string[];
+};
+
+export type PositionsMeta = {
+  partnerIndustries: string[];
+  partnerCompanySizes: string[];
+  jobRoles: string[];
+  candidateVisaTypes: string[];
+  workTypes: string[];
+};
+
+export type PublicPositionListItem = {
+  id: string;
+  title: string;
+  status: "DRAFT" | "OPEN" | "MATCHING" | "CLOSED";
+  workType: "On-site" | "Hybrid" | "Remote" | null;
+  thumbnailImages: string[];
+  eligibleVisas: string[];
+  preferredNationalities: string[];
+  communicationLanguages: string[];
+  hiringProcess: string | null;
+  preferredJobRole: string | null;
+  hiringCount: number | null;
+  workingHours: string | null;
+  workLocation: string | null;
+  startDate: string | null;
+  mainResponsibilities: string | null;
+  requiredQualifications: string | null;
+  preferredQualifications: string | null;
+  dressCode: string | null;
+  wantsPreTraining: boolean | null;
+  additionalNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  matchingParticipantsCount: number;
+  partnerOrganization: {
+    id: string;
+    name: string;
+    domain: string;
+    industry: string;
+    companySize: "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100" | null;
+    officeAddress: string | null;
+  } | null;
+};
+
+export type PublicPositionsPage = {
+  items: PublicPositionListItem[];
+  nextCursor: string | null;
+};
+
+export type PublicPremiumPositionBannerItem = {
+  id: string;
+  positionId: string;
+  bannerImageUrl: string;
+  bannerTitle: string;
+  bannerSubtitle: string | null;
+  priority: number;
+  position: PublicPositionListItem;
+};
+
+export type PartnerPosition = {
+  id: string;
+  partnerOrganizationId: string | null;
+  title: string;
+  status: "DRAFT" | "OPEN" | "MATCHING" | "CLOSED";
+  workType: "On-site" | "Hybrid" | "Remote" | null;
+  thumbnailImages: string[];
+  eligibleVisas: string[];
+  preferredNationalities: string[];
+  communicationLanguages: string[];
+  hiringProcess: string | null;
+  preferredJobRole: string | null;
+  hiringCount: number | null;
+  workingHours: string | null;
+  workLocation: string | null;
+  startDate: string | null;
+  mainResponsibilities: string | null;
+  requiredQualifications: string | null;
+  preferredQualifications: string | null;
+  dressCode: string | null;
+  wantsPreTraining: boolean | null;
+  additionalNotes: string | null;
+  adminMemo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function getMyCandidateProfile() {
+  const result = await authedJsonFetch<MyCandidateProfile | null>("/members/me/profile", { method: "GET" });
+  return result.item ?? null;
+}
+
+export async function getMyPartnerOrganization() {
+  const result = await authedJsonFetch<MyPartnerOrganization | null>("/members/me/partner-organization", { method: "GET" });
+  return result.item ?? null;
+}
+
+export function isPartnerOrganizationProfileComplete(org: MyPartnerOrganization | null) {
+  if (!org) return false;
+  return Boolean(org.name?.trim()) && Boolean(org.industry);
+}
+
+export function isPartnerOrganizationVerificationComplete(org: MyPartnerOrganization | null) {
+  if (!org) return false;
+  if (org.verification) return org.verification.isVerified;
+  return Boolean(org.businessRegistrationDocumentData)
+    && Boolean(org.fourInsuranceSubscriberListData)
+    && Boolean(org.companyLogoImageData)
+    && Boolean(org.officePhotoImageData);
+}
+
+export async function updateMyPartnerOrganizationBasic(input: {
+  name?: string;
+  industry?: string;
+  website?: string | null;
+  officeAddress?: string | null;
+  description?: string | null;
+  businessRegistrationDocumentData?: string | null;
+  fourInsuranceSubscriberListData?: string | null;
+  companyLogoImageData?: string | null;
+  officePhotoImageData?: string | null;
+}) {
+  const result = await authedJsonFetch<MyPartnerOrganization | null>("/members/me/partner-organization", {
+    method: "PATCH",
+    body: JSON.stringify(input)
+  });
+  return result.item ?? null;
+}
+
+export async function getMembersMeta() {
+  const response = await fetch(`${getApiBaseUrl()}/members/meta`, { method: "GET" });
+  const payload = (await readApiPayload(response)) as {
+    ok?: boolean;
+    message?: string;
+    partnerIndustries?: string[];
+    partnerCompanySizes?: string[];
+  };
+  if (!response.ok || payload.ok !== true) {
+    throw new Error(resolveApiErrorMessage(payload, "메타 정보를 불러오지 못했습니다."));
+  }
+  return {
+    partnerIndustries: payload.partnerIndustries ?? [],
+    partnerCompanySizes: payload.partnerCompanySizes ?? []
+  } satisfies MembersMeta;
+}
+
+export async function getPositionsMeta() {
+  const response = await fetch(`${getApiBaseUrl()}/positions/meta`, { method: "GET" });
+  const payload = (await readApiPayload(response)) as {
+    ok?: boolean;
+    message?: string;
+    partnerIndustries?: string[];
+    partnerCompanySizes?: string[];
+    jobRoles?: string[];
+    candidateVisaTypes?: string[];
+    workTypes?: string[];
+  };
+  if (!response.ok || payload.ok !== true) {
+    throw new Error(resolveApiErrorMessage(payload, "포지션 메타 정보를 불러오지 못했습니다."));
+  }
+  return {
+    partnerIndustries: payload.partnerIndustries ?? [],
+    partnerCompanySizes: payload.partnerCompanySizes ?? [],
+    jobRoles: payload.jobRoles ?? [],
+    candidateVisaTypes: payload.candidateVisaTypes ?? [],
+    workTypes: payload.workTypes ?? []
+  } satisfies PositionsMeta;
+}
+
+export async function getPublicPositionsPage(input?: { cursor?: string | null; limit?: number }) {
+  const params = new URLSearchParams();
+  if (input?.cursor) params.set("cursor", input.cursor);
+  if (input?.limit && Number.isFinite(input.limit)) params.set("limit", String(Math.max(1, Math.floor(input.limit))));
+  const query = params.toString();
+
+  const response = await fetch(`${getApiBaseUrl()}/positions${query ? `?${query}` : ""}`, {
+    method: "GET",
+    headers: withOptionalBearerHeader()
+  });
+  const payload = (await readApiPayload(response)) as {
+    ok?: boolean;
+    message?: string;
+    items?: PublicPositionListItem[];
+    nextCursor?: string | null;
+  };
+  if (!response.ok || payload.ok !== true) {
+    throw new Error(resolveApiErrorMessage(payload, "포지션 목록을 불러오지 못했습니다."));
+  }
+  return {
+    items: payload.items ?? [],
+    nextCursor: typeof payload.nextCursor === "string" && payload.nextCursor.trim() ? payload.nextCursor : null
+  } satisfies PublicPositionsPage;
+}
+
+export async function getPublicPositions() {
+  const merged: PublicPositionListItem[] = [];
+  let cursor: string | null = null;
+
+  for (let i = 0; i < 200; i += 1) {
+    const page = await getPublicPositionsPage({ cursor, limit: 20 });
+    merged.push(...page.items);
+    if (!page.nextCursor) break;
+    cursor = page.nextCursor;
+  }
+
+  return merged;
+}
+
+export async function getPublicPositionById(id: string) {
+  const response = await fetch(`${getApiBaseUrl()}/positions/${encodeURIComponent(id)}`, {
+    method: "GET",
+    headers: withOptionalBearerHeader()
+  });
+  const payload = (await readApiPayload(response)) as {
+    ok?: boolean;
+    message?: string;
+    item?: PublicPositionListItem;
+  };
+  if (!response.ok || payload.ok !== true || !payload.item) {
+    throw new Error(resolveApiErrorMessage(payload, "포지션 상세 정보를 불러오지 못했습니다."));
+  }
+  return payload.item;
+}
+
+export async function getPublicPremiumPositionBanners() {
+  const response = await fetch(`${getApiBaseUrl()}/positions/premium-banners`, {
+    method: "GET",
+    headers: withOptionalBearerHeader()
+  });
+  const payload = (await readApiPayload(response)) as {
+    ok?: boolean;
+    message?: string;
+    items?: PublicPremiumPositionBannerItem[];
+  };
+  if (!response.ok || payload.ok !== true) {
+    throw new Error(resolveApiErrorMessage(payload, "프리미엄 배너를 불러오지 못했습니다."));
+  }
+  return payload.items ?? [];
+}
+
+export async function getMyFavoritePositions() {
+  const result = await authedJsonFetch<PublicPositionListItem>("/members/me/positions/favorites", {
+    method: "GET"
+  });
+  return result.items ?? [];
+}
+
+export async function getMyAppliedPositions() {
+  const result = await authedJsonFetch<PublicPositionListItem>("/members/me/positions/applied", {
+    method: "GET"
+  });
+  return result.items ?? [];
+}
+
+export async function addMyFavoritePosition(positionId: string) {
+  const result = await authedJsonFetch<unknown>(`/members/me/positions/${encodeURIComponent(positionId)}/favorite`, {
+    method: "POST"
+  });
+  return result;
+}
+
+export async function removeMyFavoritePosition(positionId: string) {
+  const result = await authedJsonFetch<unknown>(`/members/me/positions/${encodeURIComponent(positionId)}/favorite`, {
+    method: "DELETE"
+  });
+  return result;
+}
+
+export async function applyMyPosition(positionId: string) {
+  const result = await authedJsonFetch<unknown>(`/members/me/positions/${encodeURIComponent(positionId)}/apply`, {
+    method: "POST"
+  });
+  return result;
+}
+
+export async function createMyPartnerPosition(input: {
+  title: string;
+  status?: "DRAFT" | "OPEN";
+  workType?: "On-site" | "Hybrid" | "Remote";
+  thumbnailImages?: string[];
+  eligibleVisas?: string[];
+  preferredNationalities?: string[];
+  communicationLanguages?: string[];
+  hiringProcess?: string;
+  preferredJobRole?: string;
+  hiringCount?: number;
+  workingHours?: string;
+  workLocation?: string;
+  startDate?: string | null;
+  mainResponsibilities?: string;
+  requiredQualifications?: string;
+  preferredQualifications?: string;
+  dressCode?: string;
+  wantsPreTraining?: boolean;
+  additionalNotes?: string;
+}) {
+  const result = await authedJsonFetch<PartnerPosition>("/partner/positions", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+
+  if (!result.item) {
+    throw new Error("응답에 생성된 포지션이 없습니다.");
+  }
+  return result.item;
+}
+
+export async function getMyPartnerPositionById(id: string) {
+  const result = await authedJsonFetch<PartnerPosition>(`/partner/positions/${encodeURIComponent(id)}`, {
+    method: "GET"
+  });
+
+  if (!result.item) {
+    throw new Error("응답에 포지션 정보가 없습니다.");
+  }
+  return result.item;
+}
+
+export async function updateMyPartnerPosition(
+  id: string,
+  input: {
+    title?: string;
+    status?: "DRAFT" | "OPEN";
+    workType?: "On-site" | "Hybrid" | "Remote";
+    thumbnailImages?: string[];
+    eligibleVisas?: string[];
+    preferredNationalities?: string[];
+    communicationLanguages?: string[];
+    hiringProcess?: string;
+    preferredJobRole?: string;
+    hiringCount?: number;
+    workingHours?: string;
+    workLocation?: string;
+    startDate?: string | null;
+    mainResponsibilities?: string;
+    requiredQualifications?: string;
+    preferredQualifications?: string;
+    dressCode?: string;
+    wantsPreTraining?: boolean;
+    additionalNotes?: string;
+  }
+) {
+  const result = await authedJsonFetch<PartnerPosition>(`/partner/positions/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input)
+  });
+
+  if (!result.item) {
+    throw new Error("응답에 수정된 포지션 정보가 없습니다.");
+  }
+  return result.item;
+}
+
+export async function updateMyBasicInfo(input: {
+  realName?: string | null;
+  name?: string;
+  phoneNumber?: string | null;
+  birthDate?: string | null;
+  gender?: string | null;
+}) {
+  const result = await authedJsonFetch<{
+    id: string;
+    email: string;
+    realName?: string | null;
+    name?: string | null;
+    phoneNumber?: string | null;
+    birthDate?: string | null;
+    gender?: string | null;
+    role: "STUDENT" | "PARTNER" | "OPERATOR";
+    partnerType?: "UNIVERSITY" | "COMPANY" | "AGENCY" | null;
+  }>("/members/me", {
+    method: "PATCH",
+    body: JSON.stringify(input)
+  });
+
+  if (!result.item) {
+    throw new Error("응답에 회원 정보가 없습니다.");
+  }
+  return result.item;
+}
+
+export async function updateMyCandidateProfile(input: {
+  visaType?:
+    | "D10_JOB_SEEKING"
+    | "D2_STUDENT"
+    | "D4_GENERAL_TRAINING"
+    | "F2_RESIDENCE"
+    | "F4_OVERSEAS_KOREAN"
+    | "F5_PERMANENT_RESIDENCE"
+    | "F6_MARRIAGE_IMMIGRATION"
+    | "E7_SPECIFIC_ACTIVITY"
+    | "H1_WORKING_HOLIDAY"
+    | "OTHER"
+    | null;
+  residenceProvince?: string;
+  programStartOption?: "ASAP" | "SPECIFIC_DATE";
+  programStartDate?: string;
+  preferenceConditionNote?: string;
+  skills?: string[];
+  selfIntroduction?: string;
+  programMotivation?: string;
+  additionalInfoNote?: string;
+}) {
+  const result = await authedJsonFetch<MyCandidateProfile>("/members/me/profile", {
+    method: "PATCH",
+    body: JSON.stringify(input)
+  });
+
+  if (!result.item) {
+    throw new Error("응답에 후보자 프로필이 없습니다.");
+  }
+  return result.item;
+}

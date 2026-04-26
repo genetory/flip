@@ -1,0 +1,74 @@
+-- Expand partner industry enum to the new taxonomy.
+-- We replace the enum type and map existing legacy values safely.
+
+ALTER TYPE "PartnerIndustry" RENAME TO "PartnerIndustry_old";
+
+CREATE TYPE "PartnerIndustry" AS ENUM (
+  'EDUCATION',
+  'AGRICULTURE',
+  'AGRICULTURAL_PRODUCTS',
+  'PETS',
+  'FITNESS',
+  'WELLNESS',
+  'BEAUTY',
+  'TRAVEL',
+  'GOLF',
+  'IT',
+  'DEVELOPMENT',
+  'AI',
+  'LLM',
+  'DEEP_LEARNING',
+  'IOT',
+  'IMAGE_PROCESSING',
+  'THREE_D',
+  'DEVICE',
+  'APP_TECH',
+  'STARTUP',
+  'PLATFORM',
+  'COMMERCE',
+  'AGENCY',
+  'COMMUNITY',
+  'GLOBAL',
+  'B2B',
+  'SAAS',
+  'PRODUCTIVITY',
+  'CRM',
+  'AUTOMATION',
+  'CONSULTING',
+  'ADVERTISING',
+  'MARKETING',
+  'CONTENT',
+  'WEB_NOVEL',
+  'K_POP',
+  'CHARACTER',
+  'AVATAR',
+  'VIRTUAL',
+  'PUBLIC_DATA',
+  'CONSTRUCTION',
+  'FOREIGNER',
+  'HR',
+  'MENTAL_CARE',
+  'RENTAL'
+);
+
+ALTER TABLE "PartnerOrganization"
+ALTER COLUMN "industry"
+TYPE "PartnerIndustry"
+USING (
+  CASE "industry"::text
+    WHEN 'IT_SOFTWARE' THEN 'IT'
+    WHEN 'FINANCE_FINTECH' THEN 'CONSULTING'
+    WHEN 'MANUFACTURING' THEN 'DEVICE'
+    WHEN 'RETAIL_LOGISTICS' THEN 'COMMERCE'
+    WHEN 'MARKETING_ADVERTISING' THEN 'MARKETING'
+    WHEN 'EDUCATION' THEN 'EDUCATION'
+    WHEN 'HEALTHCARE' THEN 'WELLNESS'
+    WHEN 'ENTERTAINMENT' THEN 'CONTENT'
+    WHEN 'CONSTRUCTION_REAL_ESTATE' THEN 'CONSTRUCTION'
+    WHEN 'OTHER' THEN 'STARTUP'
+    ELSE 'STARTUP'
+  END
+)::"PartnerIndustry";
+
+DROP TYPE "PartnerIndustry_old";
+

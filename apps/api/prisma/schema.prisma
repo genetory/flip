@@ -1,0 +1,512 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String      @id @default(uuid())
+  email       String      @unique
+  emailVerified Boolean   @default(false)
+  realName    String?
+  name        String?
+  phoneNumber String?
+  nationality String?
+  affiliation String?
+  birthDate   DateTime?
+  gender      String?
+  jobTitle    String?
+  adminMemo   String?
+  passwordHash String
+  role        MemberRole  @default(STUDENT)
+  partnerType PartnerType?
+  partnerOrgRole PartnerOrgUserRole?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  positionParticipants   PositionMatchingParticipant[] @relation("PositionParticipantAuthor")
+  positionProgressLogs   PositionProgressLog[]         @relation("PositionLogAuthor")
+  positionStatusHistories PositionStatusHistory[]      @relation("PositionStatusAuthor")
+  candidateProfile CandidateProfile?
+  refreshTokens RefreshToken[]
+  emailVerificationTokens EmailVerificationToken[]
+
+  @@index([role])
+  @@index([partnerType])
+  @@index([partnerOrgRole])
+  @@index([emailVerified])
+  @@index([phoneNumber])
+  @@index([affiliation])
+}
+
+model EmailPreverificationToken {
+  id         String   @id @default(uuid())
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+  @@index([verifiedAt])
+  @@index([usedAt])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([usedAt])
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+enum MemberRole {
+  STUDENT
+  PARTNER
+  OPERATOR
+}
+
+enum PartnerType {
+  UNIVERSITY
+  COMPANY
+  AGENCY
+}
+
+enum PartnerOrgUserRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum PartnerIndustry {
+  EDUCATION
+  AGRICULTURE
+  AGRICULTURAL_PRODUCTS
+  PETS
+  FITNESS
+  WELLNESS
+  BEAUTY
+  TRAVEL
+  GOLF
+  IT
+  DEVELOPMENT
+  AI
+  LLM
+  DEEP_LEARNING
+  IOT
+  IMAGE_PROCESSING
+  THREE_D
+  DEVICE
+  APP_TECH
+  STARTUP
+  PLATFORM
+  COMMERCE
+  AGENCY
+  COMMUNITY
+  GLOBAL
+  B2B
+  SAAS
+  PRODUCTIVITY
+  CRM
+  AUTOMATION
+  CONSULTING
+  ADVERTISING
+  MARKETING
+  CONTENT
+  WEB_NOVEL
+  K_POP
+  CHARACTER
+  AVATAR
+  VIRTUAL
+  PUBLIC_DATA
+  CONSTRUCTION
+  FOREIGNER
+  HR
+  MENTAL_CARE
+  RENTAL
+}
+
+enum PartnerCompanySize {
+  SIZE_1_10
+  SIZE_UNDER_30
+  SIZE_UNDER_50
+  SIZE_OVER_100
+}
+
+enum PositionStatus {
+  DRAFT
+  OPEN
+  MATCHING
+  CLOSED
+}
+
+enum CandidateVisaType {
+  D10_JOB_SEEKING
+  D2_STUDENT
+  D4_GENERAL_TRAINING
+  F2_RESIDENCE
+  F4_OVERSEAS_KOREAN
+  F5_PERMANENT_RESIDENCE
+  F6_MARRIAGE_IMMIGRATION
+  E7_SPECIFIC_ACTIVITY
+  H1_WORKING_HOLIDAY
+  OTHER
+}
+
+enum CandidateEducationType {
+  HIGH_SCHOOL
+  ASSOCIATE
+  BACHELOR
+  MASTER
+  DOCTOR
+  BOOTCAMP
+  CERTIFICATE
+  OTHER
+}
+
+enum CandidateEducationStatus {
+  ENROLLED
+  GRADUATED
+  LEAVE_OF_ABSENCE
+  DROPPED_OUT
+  OTHER
+}
+
+enum CandidateLanguageType {
+  KOREAN
+  ENGLISH
+  CHINESE
+  JAPANESE
+  VIETNAMESE
+  INDONESIAN
+  THAI
+  MALAY
+  FILIPINO
+  HINDI
+  SPANISH
+  FRENCH
+  GERMAN
+  OTHER
+}
+
+enum CandidateLanguageLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  NATIVE
+}
+
+enum CandidateActivityType {
+  PROJECT
+  VOLUNTEER
+  INTERNSHIP
+  CERTIFICATE
+  AWARD
+  EXTRACURRICULAR
+  OTHER
+}
+
+enum CandidateProgramDuration {
+  WEEKS_6
+  WEEKS_8
+  WEEKS_10
+  WEEKS_12
+  WEEKS_14
+  WEEKS_16
+  NEGOTIABLE
+}
+
+enum CandidateProgramStartOption {
+  ASAP
+  SPECIFIC_DATE
+}
+
+enum CandidatePreferredJobRole {
+  SOFTWARE_DEVELOPMENT
+  FRONTEND_DEVELOPMENT
+  BACKEND_DEVELOPMENT
+  DATA_ANALYSIS_SCIENCE
+  UI_UX_DESIGN
+  PRODUCT_MANAGER
+  MARKETING
+  SALES
+  HR
+  FINANCE_ACCOUNTING
+  OPERATIONS_PLANNING
+  OTHER
+}
+
+model PartnerOrganization {
+  id                               String          @id @default(uuid())
+  partnerType                      PartnerType
+  domain                           String          @unique
+  name                             String
+  companySize                      PartnerCompanySize?
+  officeAddress                    String?
+  website                          String?
+  socialMedia                      String?
+  industry                         PartnerIndustry
+  description                      String?
+  strengths                        String?
+  adminMemo                        String?
+  businessRegistrationDocumentData String?
+  fourInsuranceSubscriberListData  String?
+  companyLogoImageData             String?
+  officePhotoImageData             String?
+  createdAt                        DateTime        @default(now())
+  updatedAt                        DateTime        @updatedAt
+  positions                        Position[]
+
+  @@index([partnerType])
+  @@index([companySize])
+  @@index([industry])
+  @@index([name])
+}
+
+model Position {
+  id                      String         @id @default(uuid())
+  partnerOrganizationId   String?
+  title                   String
+  status                  PositionStatus @default(DRAFT)
+  workType                String?
+  thumbnailImages         String[]       @default([])
+  eligibleVisas           String[]       @default([])
+  preferredNationalities  String[]       @default([])
+  communicationLanguages  String[]       @default([])
+  hiringProcess           String?
+  preferredJobRole        String?
+  hiringCount             Int?
+  workingHours            String?
+  workLocation            String?
+  startDate               DateTime?
+  mainResponsibilities    String?
+  requiredQualifications  String?
+  preferredQualifications String?
+  dressCode               String?
+  wantsPreTraining        Boolean?
+  additionalNotes         String?
+  adminMemo               String?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  partnerOrganization PartnerOrganization? @relation(fields: [partnerOrganizationId], references: [id], onDelete: SetNull)
+  matchingParticipants PositionMatchingParticipant[]
+  progressLogs PositionProgressLog[]
+  statusHistories PositionStatusHistory[]
+
+  @@index([partnerOrganizationId])
+  @@index([status])
+  @@index([title])
+  @@index([createdAt])
+}
+
+model PositionMatchingParticipant {
+  id              String   @id @default(uuid())
+  positionId      String
+  name            String
+  note            String?
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("PositionParticipantAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([positionId])
+  @@index([createdAt])
+}
+
+model PositionProgressLog {
+  id              String   @id @default(uuid())
+  positionId      String
+  message         String
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("PositionLogAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([positionId])
+  @@index([createdAt])
+}
+
+model PositionStatusHistory {
+  id              String         @id @default(uuid())
+  positionId      String
+  fromStatus      PositionStatus?
+  toStatus        PositionStatus
+  note            String?
+  createdByUserId String?
+  createdAt       DateTime       @default(now())
+
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("PositionStatusAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([positionId])
+  @@index([createdAt])
+}
+
+model MatchingRunHistory {
+  id             String   @id @default(uuid())
+  mode           String
+  source         String?
+  positionId     String?
+  candidateId    String?
+  positionTitle  String?
+  candidateLabel String?
+  resultCount    Int      @default(0)
+  results        Json
+  ranAt          DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([mode])
+  @@index([positionId])
+  @@index([candidateId])
+}
+
+model CandidateProfile {
+  id                String            @id @default(uuid())
+  userId            String            @unique
+  workPermit        Boolean?
+  visaType          CandidateVisaType?
+  visaExpiryDate    DateTime?
+  livesInKorea      Boolean?
+  hasAccommodation  Boolean?
+  residenceProvince String?
+  residenceDistrict String?
+  residenceAddress  String?
+  preferredProgramDuration CandidateProgramDuration?
+  programStartOption CandidateProgramStartOption?
+  programStartDate  DateTime?
+  preferredIndustries PartnerIndustry[] @default([])
+  preferredJobRoles CandidatePreferredJobRole[] @default([])
+  favoritePositionIds String[] @default([])
+  appliedPositionIds String[] @default([])
+  skills            String[] @default([])
+  selfIntroduction  String?
+  programMotivation String?
+  preferenceConditionNote String?
+  capabilityNote    String?
+  additionalInfoNote String?
+  emergencyContactName String?
+  emergencyContactRelation String?
+  emergencyContactPhone String?
+  emergencyContactEmail String?
+  emergencyContactAddress String?
+  matchingResultNote String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  educations CandidateEducation[]
+  languageSkills CandidateLanguageSkill[]
+  careers CandidateCareer[]
+  activityExperiences CandidateActivityExperience[]
+
+  @@index([visaType])
+  @@index([livesInKorea])
+}
+
+model CandidateCareer {
+  id                 String   @id @default(uuid())
+  candidateProfileId String
+  companyName        String
+  position           String
+  department         String?
+  isCurrent          Boolean  @default(false)
+  startDate          DateTime?
+  endDate            DateTime?
+  description        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  candidateProfile CandidateProfile @relation(fields: [candidateProfileId], references: [id], onDelete: Cascade)
+
+  @@index([candidateProfileId])
+  @@index([isCurrent])
+}
+
+model CandidateEducation {
+  id            String                  @id @default(uuid())
+  candidateProfileId String
+  schoolName    String
+  educationType CandidateEducationType
+  major         String?
+  status        CandidateEducationStatus
+  country       String?
+  city          String?
+  startDate     DateTime?
+  endDate       DateTime?
+  isKoreanSchool Boolean?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  candidateProfile CandidateProfile @relation(fields: [candidateProfileId], references: [id], onDelete: Cascade)
+
+  @@index([candidateProfileId])
+  @@index([educationType])
+  @@index([status])
+}
+
+model CandidateLanguageSkill {
+  id            String                @id @default(uuid())
+  candidateProfileId String
+  language      CandidateLanguageType
+  level         CandidateLanguageLevel
+  testName      String?
+  score         String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  candidateProfile CandidateProfile @relation(fields: [candidateProfileId], references: [id], onDelete: Cascade)
+
+  @@index([candidateProfileId])
+  @@index([language])
+  @@index([level])
+}
+
+model CandidateActivityExperience {
+  id                 String                @id @default(uuid())
+  candidateProfileId String
+  title              String
+  activityType       CandidateActivityType
+  organization       String?
+  startDate          DateTime?
+  endDate            DateTime?
+  description        String?
+  skills             String[]              @default([])
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  candidateProfile CandidateProfile @relation(fields: [candidateProfileId], references: [id], onDelete: Cascade)
+
+  @@index([candidateProfileId])
+  @@index([activityType])
+}
