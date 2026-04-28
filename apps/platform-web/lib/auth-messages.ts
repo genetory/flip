@@ -128,7 +128,7 @@ export function getAuthPageMessages(locale = getBrowserLocale()) {
 
 const headerMessages = {
   ko: {
-    brand: "Flip",
+    brand: "Aply",
     nav: {
       positions: "포지션 탐색",
       matching: "매칭 가능성 확인하기",
@@ -154,7 +154,7 @@ const headerMessages = {
     }
   },
   en: {
-    brand: "Flip",
+    brand: "Aply",
     nav: {
       positions: "Positions",
       matching: "Match Score",

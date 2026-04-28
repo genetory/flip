@@ -208,8 +208,8 @@ export function MatchingProbabilityPage() {
 
   const sections = useMemo<CompletionSection[]>(() => {
     const basicTips: string[] = [];
-    if (!user?.name?.trim()) basicTips.push(t("닉네임", "Nickname"));
-    if (!user?.phoneNumber?.trim()) basicTips.push(t("연락처", "Phone"));
+    if (!user?.name?.trim()) basicTips.push(t("이름", "Nickname"));
+    if (!user?.phoneNumber?.trim()) basicTips.push(t("전화번호", "Phone"));
     if (!user?.gender?.trim()) basicTips.push(t("성별", "Gender"));
     if (!user?.birthDate) basicTips.push(t("생년월일", "Birth date"));
     const basicDone = 4 - basicTips.length;
@@ -219,8 +219,8 @@ export function MatchingProbabilityPage() {
       && (profile?.programStartOption !== "SPECIFIC_DATE" || Boolean(profile?.programStartDate));
     const workTips: string[] = [];
     if (!profile?.visaType) workTips.push(t("비자 유형", "Visa type"));
-    if (!profile?.residenceProvince?.trim()) workTips.push(t("거주 지역", "Residence region"));
-    if (!startOptionDone) workTips.push(t("시작 가능 시점", "Available start timing"));
+    if (!profile?.residenceProvince?.trim()) workTips.push(t("사는 지역", "Residence region"));
+    if (!startOptionDone) workTips.push(t("시작 가능 시기", "Available start timing"));
     const workDone = 3 - workTips.length;
 
     const educationDone = Number(educationsCount > 0);
@@ -230,8 +230,8 @@ export function MatchingProbabilityPage() {
 
     const textTips: string[] = [];
     if (skillsCount < 3) textTips.push(t("스킬 3개 이상", "At least 3 skills"));
-    if (selfIntroLength < 120) textTips.push(t("자기소개 120자 이상", "Self introduction 120+ chars"));
-    if (motivationLength < 120) textTips.push(t("지원 동기 120자 이상", "Motivation 120+ chars"));
+    if (selfIntroLength < 120) textTips.push(t("자기소개 120자 이상 작성", "Self introduction 120+ chars"));
+    if (motivationLength < 120) textTips.push(t("지원 이유 120자 이상 작성", "Motivation 120+ chars"));
     if (preferenceLength < 80) textTips.push(t("선호 조건 80자 이상", "Preferences 80+ chars"));
     if (additionalLength < 80) textTips.push(t("추가 정보 80자 이상", "Additional notes 80+ chars"));
     const textDone = 5 - textTips.length;
@@ -240,7 +240,7 @@ export function MatchingProbabilityPage() {
       {
         id: "basic",
         title: t("기본 정보", "Basic information"),
-        description: t("실명, 닉네임, 연락처, 성별, 생년월일", "Legal name, nickname, phone, gender, birth date"),
+        description: t("이름, 전화번호, 성별, 생년월일", "Legal name, nickname, phone, gender, birth date"),
         done: basicDone,
         total: 4,
         href: "/profile/edit",
@@ -249,7 +249,7 @@ export function MatchingProbabilityPage() {
       {
         id: "work",
         title: t("근무 가능 조건", "Work availability"),
-        description: t("비자, 거주지, 근무 시작 가능 시점", "Visa, residence, available start timing"),
+        description: t("비자, 사는 곳, 시작 가능 시기", "Visa, residence, available start timing"),
         done: workDone,
         total: 3,
         href: "/profile/resume/edit/work-availability",
@@ -258,7 +258,7 @@ export function MatchingProbabilityPage() {
       {
         id: "education",
         title: t("학력", "Education"),
-        description: t("학교, 전공, 재학/졸업 상태", "School, major, enrollment/graduation status"),
+        description: t("학교, 전공, 재학/졸업", "School, major, enrollment/graduation status"),
         done: educationDone,
         total: 1,
         href: "/profile/resume/edit/education",
@@ -267,7 +267,7 @@ export function MatchingProbabilityPage() {
       {
         id: "language",
         title: t("언어 능력", "Language skills"),
-        description: t("업무 가능 언어와 레벨", "Working languages and levels"),
+        description: t("사용 가능한 언어와 수준", "Working languages and levels"),
         done: languageDone,
         total: 1,
         href: "/profile/resume/edit/language",
@@ -276,7 +276,7 @@ export function MatchingProbabilityPage() {
       {
         id: "career",
         title: t("경력", "Experience"),
-        description: t("인턴/아르바이트/정규 경력", "Internship/part-time/full-time experience"),
+        description: t("인턴, 아르바이트, 정규직 경험", "Internship/part-time/full-time experience"),
         done: careerDone,
         total: 1,
         href: "/profile/resume/edit/career",
@@ -285,7 +285,7 @@ export function MatchingProbabilityPage() {
       {
         id: "activity",
         title: t("활동 경험", "Activities"),
-        description: t("프로젝트/대외활동/수상 등", "Projects, extracurriculars, awards"),
+        description: t("프로젝트, 대외활동, 수상", "Projects, extracurriculars, awards"),
         done: activityDone,
         total: 1,
         href: "/profile/resume/edit/activity",
@@ -293,8 +293,8 @@ export function MatchingProbabilityPage() {
       },
       {
         id: "profile-text",
-        title: t("소개/동기", "Profile text"),
-        description: t("스킬, 자기소개, 지원동기, 선호, 추가정보", "Skills, intro, motivation, preferences, notes"),
+        title: t("소개/지원 이유", "Profile text"),
+        description: t("스킬, 자기소개, 지원 이유, 선호 조건, 추가 정보", "Skills, intro, motivation, preferences, notes"),
         done: textDone,
         total: 5,
         href: "/profile/resume/edit/profile-text",
@@ -355,12 +355,12 @@ export function MatchingProbabilityPage() {
           : t("낮음", "Low");
 
       const reasons: string[] = [];
-      if (visaRequired && !visaMatched) reasons.push(t("비자 조건 확인이 필요해요.", "Visa requirement needs attention."));
+      if (visaRequired && !visaMatched) reasons.push(t("비자 조건을 확인해 주세요.", "Visa requirement needs attention."));
       if (educationsCount <= 0) reasons.push(t("학력 정보를 추가해 주세요.", "Add education details."));
       if (languageSkillsCount <= 0) reasons.push(t("언어 능력 정보를 추가해 주세요.", "Add language skills."));
-      if (skillsCount < 3) reasons.push(t("핵심 스킬을 더 입력해 주세요.", "Add more core skills."));
-      if (selfIntroLength < 120) reasons.push(t("자기소개를 더 구체적으로 써주세요.", "Make self-introduction more specific."));
-      if (reasons.length === 0) reasons.push(t("필수 정보가 잘 채워져 있어요.", "Core profile information is well completed."));
+      if (skillsCount < 3) reasons.push(t("핵심 스킬을 더 추가해 주세요.", "Add more core skills."));
+      if (selfIntroLength < 120) reasons.push(t("자기소개를 조금 더 자세히 작성해 주세요.", "Make self-introduction more specific."));
+      if (reasons.length === 0) reasons.push(t("필수 정보를 잘 입력했습니다.", "Core profile information is well completed."));
 
       return {
         id: position.id,
@@ -431,21 +431,21 @@ export function MatchingProbabilityPage() {
           <div className="mx-auto max-w-4xl space-y-10">
             <section className="space-y-6 md:space-y-7">
               <h1 className="font-display text-3xl font-bold tracking-tight text-black">
-                {t("나의 현재 매칭 가능성은 어떨까?", "How is my current match potential?")}
+                {t("내 매칭 가능성은 얼마나 될까?", "How is my current match potential?")}
               </h1>
 
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
                 {isReady && isAuthenticated && user?.role !== "STUDENT" ? (
                   <p className="text-sm text-muted-foreground">
-                    {t("현재 계정은 학생이 아니어서 프로필을 지원하지 않습니다.", "This account is not a student account, so profile support is unavailable.")}
+                    {t("이 계정은 학생 계정이 아니어서 이 기능을 사용할 수 없습니다.", "This account is not a student account, so profile support is unavailable.")}
                   </p>
                 ) : (
                   <>
                     <div>
                       {!isReady ? (
-                        <p className="mt-2 text-sm text-muted-foreground">{t("세션 정보를 확인하는 중...", "Checking your session...")}</p>
+                        <p className="mt-2 text-sm text-muted-foreground">{t("로그인 정보를 확인하는 중입니다...", "Checking your session...")}</p>
                       ) : !isAuthenticated ? (
-                        <p className="mt-2 text-sm text-muted-foreground">{t("로그인 후 매칭 가능성을 확인할 수 있습니다.", "Sign in to view your match potential.")}</p>
+                        <p className="mt-2 text-sm text-muted-foreground">{t("로그인하면 매칭 가능성을 볼 수 있습니다.", "Sign in to view your match potential.")}</p>
                       ) : (
                         <>
                           <div className="mb-5 grid items-center gap-5 md:grid-cols-[130px_1fr]">
@@ -461,19 +461,19 @@ export function MatchingProbabilityPage() {
                             </div>
                             <div className="space-y-4">
                               <p className="text-sm text-muted-foreground">
-                                {t("버튼을 누르면 현재 올라온 포지션과 매칭율을 계산해 합격 가능성을 보여드립니다.", "Press the button to calculate your acceptance chance from current positions.")}
+                                {t("버튼을 누르면 현재 열린 포지션 기준으로 합격 가능성을 계산해 보여줍니다.", "Press the button to calculate your acceptance chance from current positions.")}
                               </p>
                               <Button
                                 variant="dark"
                                 className="h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                                 onClick={() => void handleCheckPositionMatches()}
                               >
-                                {t("매칭 가능성 확인하기", "Check matching chance")}
+                                {t("매칭 가능성 보기", "Check matching chance")}
                               </Button>
                             </div>
                           </div>
                           <p className="text-xs font-semibold tracking-wide text-muted-foreground">
-                            {t("현재 매칭 가능성", "Current match potential")}
+                            {t("현재 매칭 가능성 점수", "Current match potential")}
                           </p>
                           <div className="mt-3 flex items-end gap-2">
                             <p className="font-display text-3xl font-bold leading-none text-primary">{overallPercent}%</p>
@@ -489,9 +489,9 @@ export function MatchingProbabilityPage() {
                             <AccordionItem value="improve-match" className="border-b-0">
                               <AccordionTrigger className="py-0 text-sm font-semibold text-foreground hover:no-underline">
                                 <div className="flex w-full items-center justify-between pr-2">
-                                  <span>{t("항목을 더 채우면 매칭 가능성이 올라가요", "How to increase your match potential")}</span>
+                                  <span>{t("아래 항목을 채우면 매칭 가능성이 올라갑니다", "How to increase your match potential")}</span>
                                   <span className="text-xs font-medium text-muted-foreground">
-                                    {t("화살표를 눌러 확인해보세요!", "Tap the arrow to check details!")}
+                                    {t("화살표를 눌러 자세히 보기", "Tap the arrow to check details!")}
                                   </span>
                                 </div>
                               </AccordionTrigger>
@@ -507,7 +507,7 @@ export function MatchingProbabilityPage() {
                                             <p className="mt-1 text-xs text-muted-foreground">{section.description}</p>
                                           </div>
                                           <Button variant="outline" size="sm" asChild>
-                                            <Link href={section.href}>{t("편집", "Edit")}</Link>
+                                            <Link href={section.href}>{t("수정", "Edit")}</Link>
                                           </Button>
                                         </div>
                                         <div className="mt-2 flex items-center gap-2">
@@ -529,7 +529,7 @@ export function MatchingProbabilityPage() {
                                           </ul>
                                         ) : (
                                           <p className="mt-2 text-xs text-muted-foreground">
-                                            {t("필수 항목이 채워졌습니다.", "Required items are complete.")}
+                                            {t("필수 항목을 모두 입력했습니다.", "Required items are complete.")}
                                           </p>
                                         )}
                                       </div>
@@ -550,20 +550,20 @@ export function MatchingProbabilityPage() {
 
             <section className="space-y-6 md:space-y-7">
               <h2 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
-                {t("지금 올라온 포지션, 합격 가능성은 어떨까?", "How likely are you to pass for current positions?")}
+                {t("현재 포지션 기준 합격 가능성은?", "How likely are you to pass for current positions?")}
               </h2>
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
                 {!isReady ? (
-                  <p className="text-sm text-muted-foreground">{t("세션 정보를 확인하는 중...", "Checking your session...")}</p>
+                  <p className="text-sm text-muted-foreground">{t("로그인 정보를 확인하는 중입니다...", "Checking your session...")}</p>
                 ) : !isAuthenticated ? (
-                  <p className="text-sm text-muted-foreground">{t("로그인 후 포지션별 합격 가능성을 확인할 수 있습니다.", "Sign in to view position-by-position acceptance chances.")}</p>
+                  <p className="text-sm text-muted-foreground">{t("로그인하면 포지션별 합격 가능성을 볼 수 있습니다.", "Sign in to view position-by-position acceptance chances.")}</p>
                 ) : user?.role !== "STUDENT" ? (
-                  <p className="text-sm text-muted-foreground">{t("학생 계정에서만 포지션별 합격 가능성을 확인할 수 있습니다.", "Only student accounts can view position acceptance chances.")}</p>
+                  <p className="text-sm text-muted-foreground">{t("학생 계정만 포지션별 합격 가능성을 확인할 수 있습니다.", "Only student accounts can view position acceptance chances.")}</p>
                 ) : positionsLoading ? (
                   <div className="space-y-3">
                     <div className="mx-auto h-32 w-32" ref={lottieContainerRef} />
                     <p className="text-center text-sm text-muted-foreground">
-                      {t("나와 맞는 포지션 매칭하는중..", "Matching positions that fit me..")}
+                      {t("나와 맞는 포지션을 찾는 중입니다..", "Matching positions that fit me..")}
                     </p>
                   </div>
                 ) : positionsError ? (
@@ -575,19 +575,19 @@ export function MatchingProbabilityPage() {
                   </div>
                 ) : !hasCheckedPositions ? (
                   <p className="text-sm text-muted-foreground">
-                    {t("상단 카드에서 매칭 가능성 확인하기 버튼을 눌러주세요.", "Please use the check button in the upper card.")}
+                    {t("위 카드의 매칭 가능성 보기 버튼을 눌러주세요.", "Please use the check button in the upper card.")}
                   </p>
                 ) : drawnPositionEstimates.length === 0 ? (
                   <div className="space-y-3">
-                    <p className="text-sm text-muted-foreground">{t("현재 확인 가능한 포지션이 없습니다.", "No available positions to evaluate right now.")}</p>
+                    <p className="text-sm text-muted-foreground">{t("지금 확인할 수 있는 포지션이 없습니다.", "No available positions to evaluate right now.")}</p>
                     <Button variant="outline" size="sm" onClick={() => void handleCheckPositionMatches()}>
-                      {t("새로고침", "Refresh")}
+                      {t("다시 불러오기", "Refresh")}
                     </Button>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <p className="text-xs text-muted-foreground">
-                      {t("합격 가능성은 프로필 완성도와 공고 기본 조건을 바탕으로 계산한 참고 지표입니다.", "Acceptance chance is a reference estimate based on profile completeness and basic position requirements.")}
+                      {t("합격 가능성은 프로필 작성 상태와 공고 기본 조건을 기준으로 계산한 참고 점수입니다.", "Acceptance chance is a reference estimate based on profile completeness and basic position requirements.")}
                     </p>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {drawnPositionEstimates.map((item) => (

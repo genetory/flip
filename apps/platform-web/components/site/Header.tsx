@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, Sparkles } from "lucide-react";
+import { Menu } from "lucide-react";
 import { GlobeHemisphereWest } from "@phosphor-icons/react/dist/ssr";
 import { useEffect, useState } from "react";
 import { useLanguage } from "../i18n/LanguageProvider";
@@ -15,6 +16,7 @@ export const Header = () => {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [activeHash, setActiveHash] = useState("");
+  const [isScrolled, setIsScrolled] = useState(false);
   const { locale, setLocale } = useLanguage();
   const { user, isReady, isAuthenticated, logout, getAccountUrl } = useAuthSession();
   const copy = getHeaderMessages(locale);
@@ -38,6 +40,17 @@ export const Header = () => {
       window.removeEventListener("hashchange", syncHash);
     };
   }, [pathname]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setIsScrolled(window.scrollY > 18);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
 
   function isNavActive(href: string) {
     const [basePath, hash] = href.split("#");
@@ -76,13 +89,27 @@ export const Header = () => {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
-      <div className="container flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-dark text-accent">
-            <Sparkles className="h-4 w-4" />
-          </span>
-          {copy.brand}
+    <header
+      className={`sticky top-0 z-50 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        isScrolled
+          ? "top-3 mx-auto w-[min(96%,1200px)] translate-y-0 rounded-2xl border border-border/70 bg-white shadow-elevated backdrop-blur-xl"
+          : "top-0 border-b border-border/60 bg-background/80 backdrop-blur-xl"
+      }`}
+    >
+      <div
+        className={`container flex items-center justify-between transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          isScrolled ? "h-14 scale-[0.985]" : "h-16 scale-100"
+        }`}
+      >
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/aply-logo-20260428.webp"
+            alt={`${copy.brand} logo`}
+            width={180}
+            height={48}
+            className="h-8 w-auto md:h-9"
+            priority
+          />
         </Link>
         <nav className="hidden items-center gap-8 md:flex">
           {navItems.map((item) => (

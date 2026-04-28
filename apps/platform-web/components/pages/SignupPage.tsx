@@ -286,7 +286,7 @@ export function SignupPage() {
                     {locale === "ko" ? "파트너명" : "Partner name"}
                     <input
                       type="text"
-                      placeholder={locale === "ko" ? "예: 플립" : "e.g., Flip"}
+                      placeholder={locale === "ko" ? "예: Aply" : "e.g., Aply"}
                       value={companyName}
                       onChange={(event) => setCompanyName(event.target.value)}
                       className="mt-2 h-10 w-full rounded-md border border-input/60 bg-background px-3 text-sm outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"

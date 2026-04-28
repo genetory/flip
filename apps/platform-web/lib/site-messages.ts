@@ -10,7 +10,7 @@ const siteMessages = {
         { title: "Company", items: ["기업 소개", "채용", "문의", "이용약관"] }
       ],
       rights: "All rights reserved.",
-      tagline: "Made for global careers."
+      tagline: "Apply your next move."
     },
     hero: {
       badge: "2026 신규 기수 모집중",
@@ -200,7 +200,7 @@ const siteMessages = {
     },
     howItWorks: {
       sectionLabel: "How it works",
-      title: "Flip은 이렇게 작동합니다",
+      title: "Aply는 이렇게 작동합니다",
       steps: [
         {
           num: "01",
@@ -214,7 +214,7 @@ const siteMessages = {
         },
         {
           num: "03",
-          title: "Flip이 적합한 연결을 돕습니다",
+          title: "Aply가 적합한 연결을 돕습니다",
           description: "후보자의 준비 상태와 기업의 조건을 함께 분석해, 우선 검토할 인재와 포지션을 정확도 높게 연결합니다."
         },
         {
@@ -234,7 +234,21 @@ const siteMessages = {
       companyImageAlt: "기업 관점 시나리오 이미지",
       tabs: { student: "학생 관점", company: "기업 관점" },
       studentSteps: ["간단 가입", "기본 프로필 입력", "추천 포지션 확인", "추가 입력으로 기회 확대", "지원 / 매칭 시작"],
-      companySteps: ["포지션 등록", "조건에 맞는 학생 풀 확인", "준비도 높은 학생 우선 검토", "진행 상태 관리", "인터뷰 / 운영 연결"]
+      studentStepSubtitles: [
+        "몇 분 안에 가입을 완료하고 바로 시작할 수 있어요.",
+        "핵심 프로필 정보를 입력해 기본 매칭을 준비해요.",
+        "내 프로필에 맞는 추천 포지션을 바로 확인해요.",
+        "추가 정보를 입력해 더 다양한 기회를 열어가요.",
+        "지원을 시작하고 실제 매칭 과정을 진행해요."
+      ],
+      companySteps: ["포지션 등록", "조건에 맞는 학생 풀 확인", "준비도 높은 학생 우선 검토", "진행 상태 관리", "인터뷰 / 운영 연결"],
+      companyStepSubtitles: [
+        "직무와 조건을 등록해 채용 기준을 명확히 설정해요.",
+        "조건에 맞는 학생 후보 풀을 빠르게 확인할 수 있어요.",
+        "준비도가 높은 후보자를 우선 순위로 검토해요.",
+        "진행 단계를 한눈에 보며 상태를 계속 관리해요.",
+        "면접부터 운영까지 실행 단계를 자연스럽게 연결해요."
+      ]
     },
     cases: {
       sectionLabel: "Cases",
@@ -296,29 +310,29 @@ const siteMessages = {
       description: "더 궁금한 점이 있다면 기업 상담을 통해 운영팀에 직접 문의할 수 있습니다.",
       items: [
         {
-          question: "어떤 기업이 참여할 수 있나요?",
+          question: "Q. 프로그램 기간은 어떻게 되나요?",
           answer:
-            "스타트업, 중소기업, 대기업, 글로벌 운영 조직까지 모두 참여할 수 있습니다. 특히 외국인 인재 채용이나 글로벌 실무경험 프로그램을 운영하려는 기업이라면 규모와 업종에 관계없이 시작할 수 있습니다."
+            "프로그램 기간은 기본 4주이며, 기업과 참여자 상황에 따라 5주까지 조정 가능합니다. 구체적인 일정은 매칭 확정 후 조율됩니다."
         },
         {
-          question: "외국인 학생은 어떤 조건으로 지원할 수 있나요?",
+          question: "Q. 참여자가 성실히 참여하지 않으면 어떻게 하나요?",
           answer:
-            "회원가입 후 기본 프로필을 입력하고, 비자·체류 상태와 언어 능력, 희망 직무를 등록하면 됩니다. 입력한 정보에 맞는 포지션이 자동으로 추천되며, 프로필을 더 채울수록 추천 정확도와 기회 수가 함께 올라갑니다."
+            "참여자가 무단으로 결석하거나 프로그램에 성실히 참여하지 않는 경우, 플리퍼스 담당자에게 즉시 알려주세요. 상황에 따라 프로그램 조기 종료를 검토합니다."
         },
         {
-          question: "기업은 직접 학생을 검토할 수 있나요?",
+          question: "Q. 법적으로 문제될 소지가 있지는 않나요?",
           answer:
-            "네, 가능합니다. 기업은 학생의 구조화된 프로필, 직무 적합도, 준비 상태를 한 화면에서 확인하고 직접 검토할 수 있습니다. 필요한 경우 바로 인터뷰 단계로 연결해 채용 의사결정을 빠르게 진행할 수 있습니다."
+            "- 저희 프로그램은 교육 목적의 '실무 체험 프로그램'으로 운영되고 있기에 학생들은 근로자가 아니며, 따라서 급여나 근로 계약도 해당하지 않는 부분입니다.\n- 이에 따라 현금성 대가 지급이 불가하며, 비현금성으로 학생들의 점심 식사만 식권 지급 혹은 식비 지불의 방식으로 지원해주시기를 안내드리고 있습니다.\n- 관련 내용 노무사, 변호사 자문으로 검토 마쳐 교육생 200명 이상 매칭하고, 서울시 산하 서울글로벌센터 및 대학교들과 문제 없이 프로그램 운영하고 있습니다."
         },
         {
-          question: "학생은 언제부터 포지션 추천을 받을 수 있나요?",
+          question: "Q. 프로그램 후 참여자를 채용할 수 있나요?",
           answer:
-            "기본 정보 입력이 완료되면 즉시 추천 포지션이 표시됩니다. 이후 학력, 언어, 경력, 비자 정보 등 추가 항목을 입력할수록 더 다양한 포지션이 열리고, 기업과의 매칭 정확도도 높아집니다."
+            "가능합니다. 프로그램 종료 후 기업에서 직접 채용 제안을 하실 수 있으며, 이 경우 플리퍼스에 알려주시면 됩니다."
         },
         {
-          question: "운영팀은 어떤 역할을 하나요?",
+          question: "Q. 추가 인재 매칭이 가능한가요?",
           answer:
-            "운영팀은 기업과 학생 사이의 진행 과정을 함께 관리합니다. 포지션 매칭, 인터뷰 일정 조율, 초기 실무 적응 지원, 커뮤니케이션 정리까지 돕기 때문에 양측이 불필요한 시행착오를 줄이고 더 안정적으로 진행할 수 있습니다."
+            "가능합니다. celine@flip-ers.com 으로 문의해주시면 추가 인재를 매칭해드립니다."
         }
       ]
     },
@@ -342,7 +356,7 @@ const siteMessages = {
         { title: "Company", items: ["About", "Careers", "Contact", "Terms"] }
       ],
       rights: "All rights reserved.",
-      tagline: "Made for global careers."
+      tagline: "Apply your next move."
     },
     hero: {
       badge: "Now recruiting for 2026 cohort",
@@ -566,7 +580,21 @@ const siteMessages = {
       companyImageAlt: "Company-view scenario image",
       tabs: { student: "Student view", company: "Company view" },
       studentSteps: ["Quick signup", "Enter basic profile", "Check recommendations", "Unlock more with extra inputs", "Apply / start matching"],
-      companySteps: ["Post position", "Review matching student pool", "Prioritize high-readiness candidates", "Manage progress", "Connect interviews / operations"]
+      studentStepSubtitles: [
+        "Complete signup in minutes and get started right away.",
+        "Add core profile details to prepare your initial match setup.",
+        "See recommended positions that fit your current profile.",
+        "Unlock more opportunities by adding extra information.",
+        "Start applying and move into the active matching flow."
+      ],
+      companySteps: ["Post position", "Review matching student pool", "Prioritize high-readiness candidates", "Manage progress", "Connect interviews / operations"],
+      companyStepSubtitles: [
+        "Set clear hiring criteria by posting role and requirement details.",
+        "Quickly review the student pool that matches your conditions.",
+        "Prioritize and review candidates with stronger readiness first.",
+        "Track each step with a clear view of current progress.",
+        "Connect interviews and operations into one execution flow."
+      ]
     },
     cases: {
       sectionLabel: "Cases",

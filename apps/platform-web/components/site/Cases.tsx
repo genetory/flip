@@ -71,7 +71,7 @@ export const Cases = () => {
 
   return (
     <>
-      <section className="bg-gradient-to-br from-primary via-blue-600 to-[#0F172A] py-24 md:py-32">
+      <section className="bg-[#1D4ED8] py-24 md:py-32">
         <div className="container">
           <div className="mx-auto mb-10 max-w-3xl text-center text-primary-foreground">
             <p className="mb-2 text-sm font-semibold text-primary-foreground/75">{copy.resultsEyebrow}</p>
@@ -105,7 +105,7 @@ export const Cases = () => {
 
           <div className="grid gap-5 md:grid-cols-3">
             {copy.cards.map((item) => (
-              <article key={item.title} className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-card">
+              <article key={item.title} className="flex flex-col rounded-2xl border border-border bg-card px-8 py-6 shadow-card">
                 <span className="mb-4 inline-block w-fit rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   {item.tag}
                 </span>
@@ -129,9 +129,9 @@ export const Cases = () => {
             {testimonialsCopy.items.map((item) => (
               <article
                 key={item.by}
-                className="flex h-full flex-col rounded-2xl border border-border bg-card p-6 shadow-card"
+                className="flex h-full flex-col rounded-2xl border border-border bg-card px-8 py-6 shadow-card"
               >
-                <p className="mb-5 flex-1 text-sm leading-relaxed text-muted-foreground">"{item.quote}"</p>
+                <p className="mb-5 flex-1 text-sm font-normal leading-relaxed text-muted-foreground">"{item.quote}"</p>
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted/30 text-muted-foreground">
                     <UserCircle className="h-7 w-7" weight="duotone" />

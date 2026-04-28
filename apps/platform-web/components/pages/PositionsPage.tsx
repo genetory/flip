@@ -255,7 +255,7 @@ export function PositionsPage() {
     sortPopular: isKo ? "지원자 많은 순" : "Most applicants",
     search: isKo ? "검색" : "Search",
     popularSearch: isKo ? "인기 검색" : "Popular searches",
-    premiumTitle: isKo ? "이런 포지션은 어떠세요?" : "Flip’s curated featured positions",
+    premiumTitle: isKo ? "이런 포지션은 어떠세요?" : "Aply’s curated featured positions",
     noPremium: isKo ? "현재 노출 가능한 프리미엄 배너가 없습니다." : "No premium banners are available right now.",
     premiumError: isKo
       ? "프리미엄 배너를 불러오지 못했습니다. API 연결 상태와 배너 조건을 확인해주세요."

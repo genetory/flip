@@ -129,3 +129,54 @@ All colors MUST be HSL.
     letter-spacing: -0.02em;
   }
 }
+
+@keyframes card-hover-drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) rotateZ(0deg); }
+  50% { transform: translate3d(-3px, -5px, 0) rotateZ(-0.7deg); }
+}
+
+@keyframes card-hover-drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) rotateZ(0deg); }
+  50% { transform: translate3d(3px, -4px, 0) rotateZ(0.7deg); }
+}
+
+@keyframes card-hover-drift-c {
+  0%, 100% { transform: translate3d(0, 0, 0) rotateZ(0deg); }
+  50% { transform: translate3d(-2px, -6px, 0) rotateZ(0.5deg); }
+}
+
+@keyframes slide-in-left {
+  0% { opacity: 0; transform: translateX(-56px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slide-in-right {
+  0% { opacity: 0; transform: translateX(56px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+.slide-in-left {
+  animation: slide-in-left 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.slide-in-right {
+  animation: slide-in-right 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.card-hover-drift-a,
+.card-hover-drift-b,
+.card-hover-drift-c {
+  will-change: transform;
+}
+
+.group:hover .card-hover-drift-a {
+  animation: card-hover-drift-a 1.45s ease-in-out infinite;
+}
+
+.group:hover .card-hover-drift-b {
+  animation: card-hover-drift-b 1.35s ease-in-out infinite;
+}
+
+.group:hover .card-hover-drift-c {
+  animation: card-hover-drift-c 1.55s ease-in-out infinite;
+}

@@ -4,15 +4,16 @@ import { Button } from "../ui/button";
 import { ArrowRight, Building2, GraduationCap } from "lucide-react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
+import { Reveal } from "./Reveal";
 
 export const FinalCTA = () => {
   const { locale } = useLanguage();
   const copy = getSiteMessages(locale).finalCta;
 
   return (
-    <section className="bg-background py-20">
+    <section className="bg-[#F3F7FF] py-20">
       <div className="container grid max-w-[1200px] gap-5 md:grid-cols-2">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-dark p-10 text-background">
+        <Reveal className="relative overflow-hidden rounded-3xl bg-gradient-dark p-10 text-background" y="sm">
           <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-accent/30 blur-3xl" />
           <Building2 className="mb-5 h-8 w-8 text-accent" />
           <h3 className="font-display text-2xl font-bold leading-tight md:text-3xl">
@@ -24,8 +25,8 @@ export const FinalCTA = () => {
           <Button variant="hero" size="xl" className="mt-7">
             {copy.companyCta} <ArrowRight />
           </Button>
-        </div>
-        <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-10 shadow-card">
+        </Reveal>
+        <Reveal className="relative overflow-hidden rounded-3xl border border-border bg-card p-10 shadow-card" delayMs={120} y="sm">
           <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-accent/40 blur-3xl" />
           <GraduationCap className="mb-5 h-8 w-8" />
           <h3 className="font-display text-2xl font-bold leading-tight md:text-3xl">
@@ -37,7 +38,7 @@ export const FinalCTA = () => {
           <Button variant="dark" size="xl" className="mt-7">
             {copy.studentCta} <ArrowRight />
           </Button>
-        </div>
+        </Reveal>
       </div>
     </section>
   );

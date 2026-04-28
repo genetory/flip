@@ -92,8 +92,8 @@ export function PricingPage() {
   const copy = {
     title: isKo ? "채용 운영 단계에 맞는 비용 플랜" : "Pricing plans for each hiring stage",
     description: isKo
-      ? "플립은 시작부터 확장까지, 팀 상황에 맞춰 유연하게 운영할 수 있도록 플랜을 제공합니다."
-      : "Flip offers flexible plans that help your team scale hiring operations smoothly from day one.",
+      ? "Aply는 시작부터 확장까지, 팀 상황에 맞춰 유연하게 운영할 수 있도록 플랜을 제공합니다."
+      : "Aply offers flexible plans that help your team scale hiring operations smoothly from day one.",
     note: isKo
       ? "정확한 비용은 포지션 수, 운영 범위, 지원 형태에 따라 달라질 수 있어요."
       : "Final pricing can vary by number of positions, scope, and support needs.",
