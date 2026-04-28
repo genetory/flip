@@ -165,7 +165,9 @@ export function ProfileEditPage() {
                       className="h-20 w-20 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="grid h-20 w-20 place-items-center rounded-full bg-muted text-xl font-semibold">
+                    <div className={`grid h-20 w-20 place-items-center rounded-full text-xl font-semibold ${
+                      user.role === "STUDENT" ? "border border-border/60 bg-[#F8FAFC] text-muted-foreground" : "bg-muted"
+                    }`}>
                       {avatarFallback}
                     </div>
                   )}

@@ -14,7 +14,7 @@ export const BusinessValue = () => {
   return (
     <section id="for-business" className="relative overflow-hidden bg-foreground py-20 text-background">
       <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-accent/20 blur-3xl" />
-      <div className="container relative">
+      <div className="container relative max-w-[1200px]">
         <div className="mx-auto mb-14 max-w-2xl text-center">
           <p className="mb-2 text-sm font-semibold text-accent">{copy.sectionLabel}</p>
           <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
@@ -33,7 +33,7 @@ export const BusinessValue = () => {
                 key={card.title}
                 className="group rounded-2xl border border-background/10 bg-background/5 p-6 backdrop-blur transition-colors hover:bg-background/10"
               >
-                <div className="mb-5 inline-grid h-11 w-11 place-items-center rounded-xl bg-accent text-foreground">
+                <div className="mb-5 inline-grid h-11 w-11 place-items-center rounded-xl bg-primary text-primary-foreground">
                   <Icon className="h-5 w-5" />
                 </div>
                 <h3 className="mb-2 font-display text-lg font-semibold">{card.title}</h3>

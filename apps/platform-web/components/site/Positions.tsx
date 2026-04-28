@@ -92,8 +92,8 @@ export const Positions = () => {
   const sectionItems = latestPositions.length > 0 ? latestPositions : fallbackItems;
 
   return (
-    <section id="positions" className="border-t border-border bg-background py-20">
-      <div className="container">
+    <section id="positions" className="bg-background py-20">
+      <div className="container max-w-[1200px]">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">{copy.title}</h2>
@@ -192,17 +192,17 @@ export const Positions = () => {
 
         {isLoading ? <p className="mt-4 text-sm text-muted-foreground">{copy.loadingLabel}</p> : null}
 
-        <div className="mt-10 flex flex-col gap-4 rounded-2xl border border-dashed border-border bg-muted/40 p-5 md:flex-row md:items-center md:justify-between">
+        <div className="mt-14 flex flex-col gap-4 rounded-2xl border border-dashed border-border bg-muted/40 p-5 md:mt-16 md:flex-row md:items-center md:justify-between">
           <div className="w-full overflow-hidden rounded-xl bg-muted md:w-[260px] md:shrink-0">
             <div className="aspect-[16/9] w-full">
               <img src="/img_partner_recruit.webp" alt={copy.partnerRecruitAlt} className="h-full w-full object-contain" />
             </div>
           </div>
           <div className="md:flex-1">
-            <p className="font-display text-lg font-semibold">{copy.partnerTitle}</p>
+            <p className="font-display text-xl font-bold tracking-tight md:text-2xl">{copy.partnerTitle}</p>
             <p className="text-sm text-muted-foreground">{copy.partnerDescription}</p>
           </div>
-          <Button variant="dark" asChild>
+          <Button variant="hero" size="lg" className="h-11 px-5 text-sm font-semibold" asChild>
             <Link href="/login">{copy.partnerCta}</Link>
           </Button>
         </div>

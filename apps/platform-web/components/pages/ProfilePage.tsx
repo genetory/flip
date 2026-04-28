@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
@@ -10,11 +11,13 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import {
   addMyFavoritePosition,
   applyMyPosition,
+  getMyCandidateProfile,
   getMyAppliedPositions,
   getMyFavoritePositions,
   getMyPartnerOrganization,
   getPublicPositions,
   removeMyFavoritePosition,
+  type MyCandidateProfile,
   type MyPartnerOrganization,
   type PublicPositionListItem
 } from "../../lib/member-profile-client";
@@ -27,6 +30,23 @@ type ProfileSection = {
   description: string;
   fields: string[];
 };
+
+type StudentResumeSection = {
+  title: string;
+  description: string;
+  fields: Array<{ label: string; value: string }>;
+  href: string;
+};
+
+function formatIsoDate(value?: string | null) {
+  if (!value) return "-";
+  return value.slice(0, 10);
+}
+
+function formatList(values?: string[] | null) {
+  if (!values || values.length === 0) return "-";
+  return values.join(", ");
+}
 
 function inferWorkType(value?: string | null): "On-site" | "Hybrid" | "Remote" {
   const text = (value ?? "").toLowerCase();
@@ -76,6 +96,8 @@ export function ProfilePage() {
   const { locale } = useLanguage();
   const tr = (ko: string, en: string) => (locale === "ko" ? ko : en);
   const { user, isReady, isAuthenticated } = useAuthSession();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
 
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileImage, setProfileImage] = useState<string | null>(null);
@@ -89,8 +111,9 @@ export function ProfilePage() {
   const [favoritePositions, setFavoritePositions] = useState<PublicPositionListItem[]>([]);
   const [appliedPositions, setAppliedPositions] = useState<PublicPositionListItem[]>([]);
   const [studentPositionsError, setStudentPositionsError] = useState<string | null>(null);
+  const [studentProfile, setStudentProfile] = useState<MyCandidateProfile | null>(null);
 
-  const canEditBasic = user?.role === "PARTNER";
+  const canEditBasic = user?.role === "PARTNER" || user?.role === "STUDENT";
 
   const businessSections: ProfileSection[] = useMemo(
     () => [
@@ -184,10 +207,15 @@ export function ProfilePage() {
 
     void (async () => {
       try {
-        const [favorites, applied] = await Promise.all([getMyFavoritePositions(), getMyAppliedPositions()]);
+        const [favorites, applied, profile] = await Promise.all([
+          getMyFavoritePositions(),
+          getMyAppliedPositions(),
+          getMyCandidateProfile()
+        ]);
         if (!isMounted) return;
         setFavoritePositions(favorites);
         setAppliedPositions(applied);
+        setStudentProfile(profile ?? null);
         setStudentPositionsError(null);
       } catch (error) {
         if (!isMounted) return;
@@ -199,6 +227,25 @@ export function ProfilePage() {
       isMounted = false;
     };
   }, [locale, user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    if (user.role === "PARTNER" || user.role === "OPERATOR") {
+      if (tabParam === "positions") {
+        setActiveTab("positions");
+      } else {
+        setActiveTab("info");
+      }
+      return;
+    }
+
+    if (tabParam === "resume" || tabParam === "applied" || tabParam === "favorites" || tabParam === "info") {
+      setStudentTab(tabParam);
+    } else {
+      setStudentTab("info");
+    }
+  }, [tabParam, user]);
 
   const basicCompanyFields = useMemo(
     () => [
@@ -250,6 +297,103 @@ export function ProfilePage() {
     }
     return tr(`최종 인증 대기: ${missing.join(", ")} 업로드가 필요합니다.`, `Verification pending: upload ${missing.join(", ")}.`);
   }, [locale, verificationFields]);
+
+  const studentResumeSections = useMemo<StudentResumeSection[]>(
+    () => [
+      {
+        title: tr("근무 가능 조건", "Work availability"),
+        description: tr("매칭 정확도를 높이는 기본 조건입니다.", "Core conditions that improve matching accuracy."),
+        fields: [
+          { label: tr("비자 유형", "Visa type"), value: studentProfile?.visaType ?? "-" },
+          { label: tr("거주 지역", "Residence region"), value: studentProfile?.residenceProvince ?? "-" },
+          {
+            label: tr("시작 가능 시점", "Available start timing"),
+            value:
+              studentProfile?.programStartOption === "SPECIFIC_DATE"
+                ? `${tr("특정 날짜", "Specific date")} (${formatIsoDate(studentProfile?.programStartDate)})`
+                : studentProfile?.programStartOption === "ASAP"
+                  ? tr("즉시 가능", "ASAP")
+                  : "-"
+          }
+        ],
+        href: "/profile/resume/edit/work-availability"
+      },
+      {
+        title: tr("학력", "Education"),
+        description: tr("최종 학력과 현재 상태를 보여주세요.", "Share your latest education and current status."),
+        fields: [
+          { label: tr("학교명", "School"), value: studentProfile?.educations?.[0]?.schoolName ?? "-" },
+          { label: tr("전공", "Major"), value: studentProfile?.educations?.[0]?.major ?? "-" },
+          {
+            label: tr("학위/재학 상태", "Degree/enrollment status"),
+            value: studentProfile?.educations?.[0]
+              ? `${studentProfile.educations[0].educationType} / ${studentProfile.educations[0].status}`
+              : "-"
+          }
+        ],
+        href: "/profile/resume/edit/education"
+      },
+      {
+        title: tr("언어 능력", "Language skills"),
+        description: tr("업무 가능한 언어 수준을 입력해 주세요.", "Add your working language levels."),
+        fields: [
+          { label: tr("언어", "Language"), value: studentProfile?.languageSkills?.[0]?.language ?? "-" },
+          { label: tr("레벨", "Level"), value: studentProfile?.languageSkills?.[0]?.level ?? "-" },
+          {
+            label: tr("시험/인증", "Test/certificate"),
+            value: studentProfile?.languageSkills?.[0]
+              ? [studentProfile.languageSkills[0].testName, studentProfile.languageSkills[0].score].filter(Boolean).join(" / ") || "-"
+              : "-"
+          }
+        ],
+        href: "/profile/resume/edit/language"
+      },
+      {
+        title: tr("경력", "Experience"),
+        description: tr("인턴/아르바이트/정규 경력을 추가해 주세요.", "Add internship/part-time/full-time experience."),
+        fields: [
+          { label: tr("회사명", "Company"), value: studentProfile?.careers?.[0]?.companyName ?? "-" },
+          { label: tr("직무", "Role"), value: studentProfile?.careers?.[0]?.position ?? "-" },
+          {
+            label: tr("기간", "Period"),
+            value: studentProfile?.careers?.[0]
+              ? `${formatIsoDate(studentProfile.careers[0].startDate)} ~ ${
+                studentProfile.careers[0].isCurrent ? tr("현재", "Current") : formatIsoDate(studentProfile.careers[0].endDate)
+              }`
+              : "-"
+          }
+        ],
+        href: "/profile/resume/edit/career"
+      },
+      {
+        title: tr("활동 경험", "Activities"),
+        description: tr("프로젝트/대외활동/수상 이력을 보여주세요.", "Show projects, extracurriculars, and awards."),
+        fields: [
+          { label: tr("활동 유형", "Activity type"), value: studentProfile?.activityExperiences?.[0]?.activityType ?? "-" },
+          { label: tr("활동명", "Title"), value: studentProfile?.activityExperiences?.[0]?.title ?? "-" },
+          { label: tr("성과", "Outcome"), value: studentProfile?.activityExperiences?.[0]?.description ?? "-" }
+        ],
+        href: "/profile/resume/edit/activity"
+      },
+      {
+        title: tr("소개/동기", "Profile text"),
+        description: tr("나를 설명하는 핵심 텍스트 항목입니다.", "Key text areas that explain your profile."),
+        fields: [
+          { label: tr("스킬", "Skills"), value: formatList(studentProfile?.skills) },
+          { label: tr("자기소개", "Self introduction"), value: studentProfile?.selfIntroduction?.trim() || "-" },
+          {
+            label: tr("지원 동기/선호/추가 정보", "Motivation/preferences/additional notes"),
+            value: [studentProfile?.programMotivation, studentProfile?.preferenceConditionNote, studentProfile?.additionalInfoNote]
+              .map((item) => item?.trim())
+              .filter(Boolean)
+              .join(" / ") || "-"
+          }
+        ],
+        href: "/profile/resume/edit/profile-text"
+      }
+    ],
+    [locale, studentProfile, tr]
+  );
 
   async function toggleStudentFavorite(positionId: string) {
     if (!user || user.role !== "STUDENT") return;
@@ -322,7 +466,9 @@ export function ProfilePage() {
                   {profileImage ? (
                     <img src={profileImage} alt={tr("프로필 사진", "Profile photo")} className="h-16 w-16 rounded-full object-cover" />
                   ) : (
-                    <div className="grid h-16 w-16 place-items-center rounded-full bg-muted text-lg font-semibold">{avatarFallback}</div>
+                    <div className={`grid h-16 w-16 place-items-center rounded-full text-lg font-semibold ${
+                      user.role === "STUDENT" ? "border border-border/60 bg-[#F8FAFC] text-muted-foreground" : "bg-muted"
+                    }`}>{avatarFallback}</div>
                   )}
                   <div>
                     <div className="flex items-center gap-2">
@@ -418,7 +564,7 @@ export function ProfilePage() {
                       </>
                     ) : (
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-start justify-between gap-3">
                           <span className="text-sm text-muted-foreground">
                             {postedPositions.length}
                             {tr("개", "")}
@@ -468,76 +614,122 @@ export function ProfilePage() {
                     )}
                   </article>
                 ) : (
-                  <article className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setStudentTab("info")}
-                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                          studentTab === "info" ? "bg-foreground text-background" : "text-muted-foreground"
-                        }`}
-                      >
-                        {tr("정보", "Info")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setStudentTab("resume")}
-                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                          studentTab === "resume" ? "bg-foreground text-background" : "text-muted-foreground"
-                        }`}
-                      >
-                        {tr("이력관리", "Resume")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setStudentTab("applied")}
-                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                          studentTab === "applied" ? "bg-foreground text-background" : "text-muted-foreground"
-                        }`}
-                      >
-                        {tr("지원한 포지션", "Applied positions")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setStudentTab("favorites")}
-                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                          studentTab === "favorites" ? "bg-foreground text-background" : "text-muted-foreground"
-                        }`}
-                      >
-                        {tr("즐겨찾기한 포지션", "Favorite positions")}
-                      </button>
+                  <article className="space-y-5">
+                    <div className="flex items-center justify-between gap-3 pb-1">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setStudentTab("info")}
+                          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                            studentTab === "info" ? "bg-foreground text-background" : "text-muted-foreground"
+                          }`}
+                        >
+                          {tr("정보", "Info")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStudentTab("resume")}
+                          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                            studentTab === "resume" ? "bg-foreground text-background" : "text-muted-foreground"
+                          }`}
+                        >
+                          {tr("이력관리", "Resume")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStudentTab("applied")}
+                          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                            studentTab === "applied" ? "bg-foreground text-background" : "text-muted-foreground"
+                          }`}
+                        >
+                          {tr("지원한 포지션", "Applied positions")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStudentTab("favorites")}
+                          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                            studentTab === "favorites" ? "bg-foreground text-background" : "text-muted-foreground"
+                          }`}
+                        >
+                          {tr("즐겨찾기한 포지션", "Favorite positions")}
+                        </button>
+                      </div>
                     </div>
 
                     {studentTab === "info" ? (
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
-                          <p className="text-xs font-medium text-muted-foreground">{tr("이름", "Name")}</p>
-                          <p className="mt-1 break-words text-foreground">{user.name ?? "-"}</p>
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{tr("기본 정보", "Basic information")}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {tr("프로필의 핵심 연락/신상 정보를 관리합니다.", "Manage your core contact and personal profile information.")}
+                            </p>
+                          </div>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href="/profile/edit">{tr("편집", "Edit")}</Link>
+                          </Button>
                         </div>
-                        <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
-                          <p className="text-xs font-medium text-muted-foreground">{tr("이메일", "Email")}</p>
-                          <p className="mt-1 break-words text-foreground">{user.email}</p>
-                        </div>
-                        <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
-                          <p className="text-xs font-medium text-muted-foreground">{tr("회원 유형", "Account type")}</p>
-                          <p className="mt-1 break-words text-foreground">{roleLabel || tr("일반회원", "General")}</p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                            <p className="text-xs font-medium text-muted-foreground">{tr("프로필 사진", "Profile photo")}</p>
+                            <p className="mt-1 break-words text-foreground">{profileImage ? tr("등록됨", "Uploaded") : tr("미등록", "Not uploaded")}</p>
+                          </div>
+                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                            <p className="text-xs font-medium text-muted-foreground">{tr("실명", "Legal name")}</p>
+                            <p className="mt-1 break-words text-foreground">{user.realName ?? "-"}</p>
+                          </div>
+                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                            <p className="text-xs font-medium text-muted-foreground">{tr("닉네임", "Nickname")}</p>
+                            <p className="mt-1 break-words text-foreground">{user.name ?? "-"}</p>
+                          </div>
+                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                            <p className="text-xs font-medium text-muted-foreground">{tr("연락처", "Phone")}</p>
+                            <p className="mt-1 break-words text-foreground">{user.phoneNumber ?? "-"}</p>
+                          </div>
+                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                            <p className="text-xs font-medium text-muted-foreground">{tr("성별", "Gender")}</p>
+                            <p className="mt-1 break-words text-foreground">
+                              {user.gender === "MALE"
+                                ? tr("남성", "Male")
+                                : user.gender === "FEMALE"
+                                  ? tr("여성", "Female")
+                                  : user.gender === "OTHER"
+                                    ? tr("기타", "Other")
+                                    : tr("선택 안 함", "Prefer not to say")}
+                            </p>
+                          </div>
+                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                            <p className="text-xs font-medium text-muted-foreground">{tr("생년월일", "Date of birth")}</p>
+                            <p className="mt-1 break-words text-foreground">{user.birthDate ? user.birthDate.slice(0, 10) : "-"}</p>
+                          </div>
                         </div>
                       </div>
                     ) : studentTab === "resume" ? (
-                      <>
-                        <p className="text-sm text-muted-foreground">
-                          {tr(
-                            "일반회원 프로필 기능은 잠시 홀드되었습니다. 파트너회원 플로우를 우선 진행 중입니다.",
-                            "Student profile features are temporarily on hold while partner flows are prioritized."
-                          )}
-                        </p>
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">{tr("학력", "Education")}</div>
-                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">{tr("언어 능력", "Language skills")}</div>
-                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">{tr("경력", "Experience")}</div>
-                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">{tr("활동 경험", "Activities")}</div>
+                      <div className="space-y-4">
+                        <div className="space-y-5">
+                          {studentResumeSections.map((section) => (
+                            <section key={section.title} className="space-y-2">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-foreground">{section.title}</p>
+                                  <p className="mt-1 text-xs text-muted-foreground">{section.description}</p>
+                                </div>
+                                <Button variant="outline" size="sm" asChild>
+                                  <Link href={section.href}>{tr("편집", "Edit")}</Link>
+                                </Button>
+                              </div>
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                {section.fields.map((field) => (
+                                  <div key={`${section.title}-${field.label}`} className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                                    <p className="text-xs font-medium text-muted-foreground">{field.label}</p>
+                                    <p className="mt-1 break-words text-foreground">{field.value}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </section>
+                          ))}
                         </div>
-                      </>
+                      </div>
                     ) : (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-3">

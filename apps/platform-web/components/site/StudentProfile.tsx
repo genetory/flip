@@ -1,9 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import { Check, CheckCircle2, Users } from "lucide-react";
+import { Check, CheckCircle2 } from "lucide-react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { useAuthSession } from "../auth/AuthSessionProvider";
@@ -38,12 +39,18 @@ export const StudentProfile = () => {
 
   return (
     <section id="for-students" className="bg-muted/40 py-20">
-      <div className="container grid gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
+      <div className="container grid max-w-[1200px] gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
         <div className="order-2 lg:order-1">
           <div className="mx-auto w-full max-w-[500px] rounded-2xl border border-border bg-card p-5 shadow-elevated">
             <div className="mb-3 flex items-center gap-2">
-              <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-accent text-foreground">
-                <Users className="h-4 w-4" />
+              <div className="relative h-9 w-9 overflow-hidden rounded-full border border-border/60">
+                <Image
+                  src="/img_profile_0.webp"
+                  alt="Profile photo"
+                  fill
+                  className="object-cover"
+                  sizes="36px"
+                />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">{heroCopy.studentProfile}</p>
@@ -56,7 +63,7 @@ export const StudentProfile = () => {
               <span className="font-semibold">{Math.round(animatedProgress)}%</span>
             </div>
             <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-gradient-accent transition-[width] duration-150" style={{ width: `${animatedProgress}%` }} />
+              <div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${animatedProgress}%` }} />
             </div>
             <div className="mb-3 flex items-center gap-1.5 text-[11px] text-success">
               <CheckCircle2 className="h-3.5 w-3.5" />

@@ -2600,7 +2600,7 @@ async function generateCandidateMatchesWithOpenAI(params: {
             "reasonSummary에는 핵심 선택 이유를 한 문장으로 작성한다.",
             "reasonPoints에는 선택 근거를 가독성 좋은 불렛 문장으로 3~6개 작성한다.",
             "breakdown에는 각 세부항목을 0~1 숫자로 반드시 채운다.",
-            "feedback에는 매칭 확률을 높이기 위한 실행 가능한 개선 제안 1~3개를 한국어로 작성한다.",
+            "feedback에는 매칭 가능성을 높이기 위한 실행 가능한 개선 제안 1~3개를 한국어로 작성한다.",
             "사실 기반으로만 판단하고, 결과는 JSON 스키마를 반드시 지켜라."
           ].join("\n")
         },
@@ -2850,7 +2850,7 @@ async function generatePositionMatchesWithOpenAI(params: {
             "reasonSummary에는 핵심 선택 이유를 한 문장으로 작성한다.",
             "reasonPoints에는 선택 근거를 가독성 좋은 불렛 문장으로 3~6개 작성한다.",
             "breakdown에는 각 세부항목을 0~1 숫자로 반드시 채운다.",
-            "feedback에는 매칭 확률을 높이기 위한 실행 가능한 개선 제안 1~3개를 한국어로 작성한다.",
+            "feedback에는 매칭 가능성을 높이기 위한 실행 가능한 개선 제안 1~3개를 한국어로 작성한다.",
             "사실 기반으로만 판단하고, 결과는 JSON 스키마를 반드시 지켜라."
           ].join("\n")
         },
@@ -7187,6 +7187,10 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
   }
 });
 
-app.listen(port, () => {
-  console.log(`API server listening on http://localhost:${port}`);
-});
+if (process.env.VERCEL !== "1") {
+  app.listen(port, () => {
+    console.log(`API server listening on http://localhost:${port}`);
+  });
+}
+
+export default app;

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
@@ -196,6 +197,7 @@ function formatPostedDate(position: Position, locale: "ko" | "en") {
 }
 
 export function PositionsPage() {
+  const router = useRouter();
   const { locale } = useLanguage();
   const { user, isReady, isAuthenticated } = useAuthSession();
   const [positions, setPositions] = useState<Position[]>([]);
@@ -225,6 +227,8 @@ export function PositionsPage() {
   const [premiumBannerError, setPremiumBannerError] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
+  const [loginPromptMessage, setLoginPromptMessage] = useState("");
   const isKo = locale === "ko";
 
   const copy = {
@@ -251,7 +255,7 @@ export function PositionsPage() {
     sortPopular: isKo ? "지원자 많은 순" : "Most applicants",
     search: isKo ? "검색" : "Search",
     popularSearch: isKo ? "인기 검색" : "Popular searches",
-    premiumTitle: isKo ? "Flip이 엄선한 추천 포지션" : "Flip’s curated featured positions",
+    premiumTitle: isKo ? "이런 포지션은 어떠세요?" : "Flip’s curated featured positions",
     noPremium: isKo ? "현재 노출 가능한 프리미엄 배너가 없습니다." : "No premium banners are available right now.",
     premiumError: isKo
       ? "프리미엄 배너를 불러오지 못했습니다. API 연결 상태와 배너 조건을 확인해주세요."
@@ -276,6 +280,9 @@ export function PositionsPage() {
     applyDone: isKo ? "지원완료" : "Applied",
     apply: isKo ? "지원하기" : "Apply",
     viewDetails: isKo ? "상세보기" : "View details",
+    loginPromptTitle: isKo ? "로그인이 필요한 기능입니다." : "Sign in is required for this action.",
+    loginPromptLogin: isKo ? "로그인하기" : "Go to login",
+    cancel: isKo ? "취소" : "Cancel",
     countSuffix: isKo ? "개" : "",
     activeVisaLabel: (visa: string | null) =>
       `${isKo ? "내 비자로 지원 가능만" : "Only eligible for my visa"} ${visa ? `(${visa})` : `(${isKo ? "비자정보 필요" : "Visa info required"})`}`
@@ -489,7 +496,8 @@ export function PositionsPage() {
 
   async function toggleFavorite(positionId: string) {
     if (!isAuthenticated || !user?.id) {
-      window.alert(copy.loginRequiredFavorite);
+      setLoginPromptMessage(copy.loginRequiredFavorite);
+      setIsLoginPromptOpen(true);
       return;
     }
     if (user.role !== "STUDENT") {
@@ -515,7 +523,8 @@ export function PositionsPage() {
 
   async function applyFromList(positionId: string) {
     if (!isAuthenticated || !user?.id) {
-      window.alert(copy.loginRequiredApply);
+      setLoginPromptMessage(copy.loginRequiredApply);
+      setIsLoginPromptOpen(true);
       return;
     }
     if (user.role !== "STUDENT") {
@@ -1067,6 +1076,37 @@ export function PositionsPage() {
           </div>
         </section>
       </main>
+      {isLoginPromptOpen ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setIsLoginPromptOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-elevated"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="font-display text-lg font-bold tracking-tight">{copy.loginPromptTitle}</h3>
+            <p className="mt-2 text-sm text-muted-foreground">{loginPromptMessage}</p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsLoginPromptOpen(false)}
+              >
+                {copy.cancel}
+              </Button>
+              <Button
+                variant="dark"
+                onClick={() => {
+                  setIsLoginPromptOpen(false);
+                  router.push("/login");
+                }}
+              >
+                {copy.loginPromptLogin}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <Footer />
     </div>
   );

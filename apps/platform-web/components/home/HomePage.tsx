@@ -5,7 +5,6 @@ import { StudentProfile } from "../site/StudentProfile";
 import { BusinessValue } from "../site/BusinessValue";
 import { HowItWorks } from "../site/HowItWorks";
 import { Scenario } from "../site/Scenario";
-import { Cases } from "../site/Cases";
 import { FAQ } from "../site/FAQ";
 import { FinalCTA } from "../site/FinalCTA";
 import { Footer } from "../site/Footer";
@@ -21,7 +20,6 @@ export function HomePage() {
         <BusinessValue />
         <HowItWorks />
         <Scenario />
-        <Cases />
         <FAQ />
         <FinalCTA />
       </main>

@@ -15,7 +15,7 @@ export const FAQ = () => {
 
   return (
     <section className="bg-muted/40 py-20">
-      <div className="container grid gap-12 lg:grid-cols-[1fr_1.4fr]">
+      <div className="container grid max-w-[1200px] gap-12 lg:grid-cols-[1fr_1.4fr]">
         <div>
           <p className="mb-2 text-sm font-semibold text-muted-foreground">{copy.sectionLabel}</p>
           <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">{copy.title}</h2>

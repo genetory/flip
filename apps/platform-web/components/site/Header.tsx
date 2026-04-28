@@ -20,11 +20,12 @@ export const Header = () => {
   const copy = getHeaderMessages(locale);
   const roleBadgeLabel =
     user?.role === "PARTNER" ? copy.auth.rolePartner : user?.role === "OPERATOR" ? copy.auth.roleOperator : null;
-  const homeLabel = locale === "ko" ? "메인" : "Home";
+  const homeLabel = locale === "ko" ? "홈" : "Home";
   const navItems = [
     { label: homeLabel, href: "/" },
     { label: copy.nav.positions, href: "/positions" },
-    { label: copy.nav.matching, href: "/matching-probability" }
+    { label: copy.nav.matching, href: "/matching-probability" },
+    { label: copy.nav.pricing, href: "/pricing" }
   ];
 
   useEffect(() => {

@@ -11,7 +11,7 @@ export const FinalCTA = () => {
 
   return (
     <section className="bg-background py-20">
-      <div className="container grid gap-5 md:grid-cols-2">
+      <div className="container grid max-w-[1200px] gap-5 md:grid-cols-2">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-dark p-10 text-background">
           <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-accent/30 blur-3xl" />
           <Building2 className="mb-5 h-8 w-8 text-accent" />

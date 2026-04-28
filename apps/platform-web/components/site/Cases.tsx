@@ -71,23 +71,23 @@ export const Cases = () => {
 
   return (
     <>
-      <section className="bg-lime-300 py-24 md:py-32">
+      <section className="bg-gradient-to-br from-primary via-blue-600 to-[#0F172A] py-24 md:py-32">
         <div className="container">
-          <div className="mx-auto mb-10 max-w-3xl text-center text-black">
-            <p className="mb-2 text-sm font-semibold text-black/70">{copy.resultsEyebrow}</p>
+          <div className="mx-auto mb-10 max-w-3xl text-center text-primary-foreground">
+            <p className="mb-2 text-sm font-semibold text-primary-foreground/75">{copy.resultsEyebrow}</p>
             <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
               <span className="block">{copy.resultsTitle}</span>
               <span className="mt-1 block">{copy.resultsSubtitle}</span>
             </h2>
           </div>
 
-          <div ref={statsRef} className="grid grid-cols-2 gap-6 p-2 text-black md:grid-cols-4 md:gap-8">
+          <div ref={statsRef} className="grid grid-cols-2 gap-6 p-2 text-primary-foreground md:grid-cols-4 md:gap-8">
             {copy.stats.map((stat) => (
               <div key={stat.label} className="text-center">
-                <p className="font-display text-5xl font-extrabold leading-none tracking-[-0.02em] text-black md:text-7xl">
+                <p className="font-display text-5xl font-extrabold leading-none tracking-[-0.02em] text-primary-foreground md:text-7xl">
                   {formatAnimatedStat(stat.value, progress)}
                 </p>
-                <p className="mt-4 text-xs font-semibold uppercase tracking-[0.08em] text-black/70 md:mt-5 md:text-sm">
+                <p className="mt-6 text-xs font-semibold uppercase tracking-[0.08em] text-primary-foreground/75 md:mt-7 md:text-sm">
                   {stat.label}
                 </p>
               </div>

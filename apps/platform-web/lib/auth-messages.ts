@@ -131,7 +131,8 @@ const headerMessages = {
     brand: "Flip",
     nav: {
       positions: "포지션 탐색",
-      matching: "매칭 확률 확인하기",
+      matching: "매칭 가능성 확인하기",
+      pricing: "프리미엄 케어",
       how: "운영 방식",
       cases: "사례"
     },
@@ -157,6 +158,7 @@ const headerMessages = {
     nav: {
       positions: "Positions",
       matching: "Match Score",
+      pricing: "Premium Care",
       how: "How It Works",
       cases: "Success Stories"
     },

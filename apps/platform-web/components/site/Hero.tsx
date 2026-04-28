@@ -2,7 +2,7 @@
 
 import { Button } from "../ui/button";
 import Link from "next/link";
-import { Users, CheckCircle2, MapPin, Briefcase } from "lucide-react";
+import { CheckCircle2, MapPin, Briefcase } from "lucide-react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 
@@ -12,17 +12,16 @@ export const Hero = () => {
 
   return (
     <section className="relative overflow-hidden bg-gradient-hero md:h-[calc(100svh-4rem)]">
-      <div className="container grid items-center gap-10 py-12 md:h-full md:grid-cols-[1.05fr_1fr] md:py-8">
+      <div className="container grid max-w-[1200px] items-center gap-10 py-12 md:h-full md:grid-cols-[1.05fr_1fr] md:py-8">
         <div className="animate-fade-up space-y-7">
           <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
             <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-success" />
             {copy.badge}
           </div>
-          <h1 className="font-display text-4xl font-bold leading-[1.2] tracking-tight md:text-6xl">
+          <h1 className="font-display text-3xl font-bold leading-[1.2] tracking-tight md:text-5xl">
             <span className="block">{copy.titleTop}</span>
-            <span className="relative mt-2.5 inline-block">
+            <span className="mt-2.5 inline-block">
               {copy.titleAccent}
-              <span className="absolute -bottom-1 left-0 h-2 w-full rounded-full bg-accent/60" />
             </span>
           </h1>
           <p className="max-w-xl whitespace-pre-line text-lg leading-relaxed text-muted-foreground">{copy.description}</p>
@@ -61,13 +60,6 @@ const HeroVisual = () => {
         {copy.positionRows.slice(0, 2).map((row) => (
           <div key={row.role} className="rounded-xl border border-border/60 bg-card p-2.5">
             <div className="flex items-start gap-2.5">
-              <div className="h-10 w-14 shrink-0 overflow-hidden rounded-md bg-muted">
-                <img
-                  src="/img_position_search.webp?v=20260426"
-                  alt={`${row.company} ${copy.positionThumbnailAltSuffix}`}
-                  className="h-full w-full object-cover"
-                />
-              </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11px] font-semibold text-muted-foreground">{row.company}</p>
                 <p className="line-clamp-1 text-xs font-bold">{row.role}</p>
@@ -95,9 +87,6 @@ const HeroVisual = () => {
       <div className="rotate-[2deg] rounded-2xl border border-border/60 bg-card p-4 shadow-elevated">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{copy.companyPanelEyebrow}</p>
       <div className="mt-2 flex items-center gap-2.5">
-        <div className="grid h-10 w-10 place-items-center rounded-lg border border-border/60 bg-muted text-sm font-bold text-muted-foreground">
-          L
-        </div>
         <div>
           <p className="text-sm font-semibold">Lumen Studio</p>
           <p className="text-[11px] text-muted-foreground">{copy.companyPanelPartnerLabel}</p>
@@ -128,8 +117,12 @@ const HeroVisual = () => {
     <div className="absolute bottom-8 left-6 w-[60%] animate-float-y [animation-duration:3.2s] [animation-delay:0.15s]">
       <div className="rotate-[-1deg] rounded-2xl border border-border bg-card p-5 shadow-elevated">
       <div className="mb-3 flex items-center gap-2">
-        <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-accent text-foreground">
-          <Users className="h-4 w-4" />
+        <div className="h-9 w-9 overflow-hidden rounded-full border border-border/60">
+          <img
+            src="/img_profile_0.webp"
+            alt="Student profile"
+            className="h-full w-full object-cover"
+          />
         </div>
         <div>
           <p className="text-xs text-muted-foreground">{copy.studentProfile}</p>
@@ -141,7 +134,7 @@ const HeroVisual = () => {
         <span className="font-semibold">68%</span>
       </div>
       <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
-        <div className="h-full w-[68%] rounded-full bg-gradient-accent" />
+        <div className="h-full w-[68%] rounded-full bg-primary" />
       </div>
       <div className="flex items-center gap-1.5 text-[11px] text-success">
         <CheckCircle2 className="h-3.5 w-3.5" />

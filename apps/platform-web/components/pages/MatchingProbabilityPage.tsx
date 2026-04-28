@@ -2,14 +2,24 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "../ui/accordion";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
-import { getMyCandidateProfile, type MyCandidateProfile } from "../../lib/member-profile-client";
+import {
+  getMyCandidateProfile,
+  getPublicPositions,
+  type MyCandidateProfile,
+  type PublicPositionListItem
+} from "../../lib/member-profile-client";
 
 type CompletionSection = {
   id: string;
@@ -17,11 +27,47 @@ type CompletionSection = {
   description: string;
   done: number;
   total: number;
+  href: string;
+  tips: string[];
+};
+
+type PositionEstimate = {
+  id: string;
+  title: string;
+  company: string;
+  score: number;
+  confidence: string;
+  reasons: string[];
+  href: string;
+};
+
+type PositionEstimateCache = {
+  hasCheckedPositions: boolean;
+  drawnPositionEstimates: PositionEstimate[];
 };
 
 function percent(done: number, total: number) {
   if (total <= 0) return 0;
   return Math.round((done / total) * 100);
+}
+
+function mapVisaTypeToCode(visaType?: string | null) {
+  if (!visaType) return null;
+  if (visaType.includes("-")) return visaType;
+  if (visaType === "D10_JOB_SEEKING") return "D-10";
+  if (visaType === "D2_STUDENT") return "D-2";
+  if (visaType === "D4_GENERAL_TRAINING") return "D-4";
+  if (visaType === "F2_RESIDENCE") return "F-2";
+  if (visaType === "F4_OVERSEAS_KOREAN") return "F-4";
+  if (visaType === "F5_PERMANENT_RESIDENCE") return "F-5";
+  if (visaType === "F6_MARRIAGE_IMMIGRATION") return "F-6";
+  if (visaType === "E7_SPECIFIC_ACTIVITY") return "E-7";
+  if (visaType === "H1_WORKING_HOLIDAY") return "H-1";
+  return visaType;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 export function MatchingProbabilityPage() {
@@ -31,12 +77,69 @@ export function MatchingProbabilityPage() {
   const t = (ko: string, en: string) => (isKo ? ko : en);
 
   const [profile, setProfile] = useState<MyCandidateProfile | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [positions, setPositions] = useState<PublicPositionListItem[]>([]);
+  const [positionsLoading, setPositionsLoading] = useState(false);
+  const [positionsError, setPositionsError] = useState<string | null>(null);
+  const [hasCheckedPositions, setHasCheckedPositions] = useState(false);
+  const [drawnPositionEstimates, setDrawnPositionEstimates] = useState<PositionEstimate[]>([]);
+  const lottieContainerRef = useRef<HTMLDivElement | null>(null);
+  const positionEstimateStorageKey = useMemo(
+    () => `matching-probability:position-estimates:${user?.id ?? "anonymous"}`,
+    [user?.id]
+  );
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    if (!isAuthenticated || user?.role !== "STUDENT") {
+      setHasCheckedPositions(false);
+      setDrawnPositionEstimates([]);
+      return;
+    }
+
+    try {
+      const raw = window.sessionStorage.getItem(positionEstimateStorageKey);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as PositionEstimateCache;
+      if (!Array.isArray(parsed.drawnPositionEstimates)) return;
+
+      setHasCheckedPositions(Boolean(parsed.hasCheckedPositions));
+      setDrawnPositionEstimates(parsed.drawnPositionEstimates);
+    } catch {
+      // ignore invalid cache data
+    }
+  }, [isAuthenticated, isReady, positionEstimateStorageKey, user?.role]);
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    if (!isAuthenticated || user?.role !== "STUDENT") {
+      window.sessionStorage.removeItem(positionEstimateStorageKey);
+      return;
+    }
+
+    if (!hasCheckedPositions) {
+      window.sessionStorage.removeItem(positionEstimateStorageKey);
+      return;
+    }
+
+    const payload: PositionEstimateCache = {
+      hasCheckedPositions,
+      drawnPositionEstimates
+    };
+    window.sessionStorage.setItem(positionEstimateStorageKey, JSON.stringify(payload));
+  }, [
+    drawnPositionEstimates,
+    hasCheckedPositions,
+    isAuthenticated,
+    isReady,
+    positionEstimateStorageKey,
+    user?.role
+  ]);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "STUDENT") {
-      setLoadingProfile(false);
       return;
     }
 
@@ -46,19 +149,52 @@ export function MatchingProbabilityPage() {
         const item = await getMyCandidateProfile();
         if (ignore) return;
         setProfile(item ?? null);
-        setErrorMessage(null);
-      } catch (error) {
-        if (ignore) return;
-        setErrorMessage(error instanceof Error ? error.message : t("프로필을 불러오지 못했습니다.", "Failed to load your profile."));
-      } finally {
-        if (!ignore) setLoadingProfile(false);
+      } catch {
+        // keep fallback completion state when profile API fails
       }
     })();
 
     return () => {
       ignore = true;
     };
-  }, [isAuthenticated, t, user?.role]);
+  }, [isAuthenticated, user?.role]);
+
+  useEffect(() => {
+    if (!positionsLoading || !lottieContainerRef.current) return;
+
+    let mounted = true;
+    let cleanup: (() => void) | null = null;
+
+    void (async () => {
+      try {
+        const [{ default: lottie }, response] = await Promise.all([
+          import("lottie-web"),
+          fetch("/scan.json")
+        ]);
+        const animationData = await response.json();
+        if (!mounted || !lottieContainerRef.current) return;
+
+        const animation = lottie.loadAnimation({
+          container: lottieContainerRef.current,
+          renderer: "svg",
+          loop: true,
+          autoplay: true,
+          animationData
+        });
+
+        cleanup = () => {
+          animation.destroy();
+        };
+      } catch {
+        // no-op: keep text fallback only when animation load fails
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      if (cleanup) cleanup();
+    };
+  }, [positionsLoading]);
 
   const educationsCount = profile?.educations?.length ?? 0;
   const languageSkillsCount = profile?.languageSkills?.length ?? 0;
@@ -71,62 +207,98 @@ export function MatchingProbabilityPage() {
   const additionalLength = profile?.additionalInfoNote?.trim().length ?? 0;
 
   const sections = useMemo<CompletionSection[]>(() => {
-    const basicDone =
-      Number(Boolean(user?.name?.trim()))
-      + Number(Boolean(user?.phoneNumber?.trim()))
-      + Number(Boolean(user?.birthDate))
-      + Number(Boolean(user?.gender));
+    const basicTips: string[] = [];
+    if (!user?.name?.trim()) basicTips.push(t("닉네임", "Nickname"));
+    if (!user?.phoneNumber?.trim()) basicTips.push(t("연락처", "Phone"));
+    if (!user?.gender?.trim()) basicTips.push(t("성별", "Gender"));
+    if (!user?.birthDate) basicTips.push(t("생년월일", "Birth date"));
+    const basicDone = 4 - basicTips.length;
 
     const startOptionDone =
       Boolean(profile?.programStartOption)
       && (profile?.programStartOption !== "SPECIFIC_DATE" || Boolean(profile?.programStartDate));
+    const workTips: string[] = [];
+    if (!profile?.visaType) workTips.push(t("비자 유형", "Visa type"));
+    if (!profile?.residenceProvince?.trim()) workTips.push(t("거주 지역", "Residence region"));
+    if (!startOptionDone) workTips.push(t("시작 가능 시점", "Available start timing"));
+    const workDone = 3 - workTips.length;
 
-    const visaResidenceDone =
-      Number(Boolean(profile?.visaType))
-      + Number(Boolean(profile?.residenceProvince?.trim()))
-      + Number(startOptionDone);
+    const educationDone = Number(educationsCount > 0);
+    const languageDone = Number(languageSkillsCount > 0);
+    const careerDone = Number(careersCount > 0);
+    const activityDone = Number(activityExperiencesCount > 0);
 
-    const experienceDone =
-      Number(educationsCount > 0)
-      + Number(languageSkillsCount > 0)
-      + Number(careersCount > 0)
-      + Number(activityExperiencesCount > 0);
-
-    const profileTextDone =
-      Number(skillsCount >= 3)
-      + Number(selfIntroLength >= 120)
-      + Number(motivationLength >= 120)
-      + Number(preferenceLength >= 80)
-      + Number(additionalLength >= 80);
+    const textTips: string[] = [];
+    if (skillsCount < 3) textTips.push(t("스킬 3개 이상", "At least 3 skills"));
+    if (selfIntroLength < 120) textTips.push(t("자기소개 120자 이상", "Self introduction 120+ chars"));
+    if (motivationLength < 120) textTips.push(t("지원 동기 120자 이상", "Motivation 120+ chars"));
+    if (preferenceLength < 80) textTips.push(t("선호 조건 80자 이상", "Preferences 80+ chars"));
+    if (additionalLength < 80) textTips.push(t("추가 정보 80자 이상", "Additional notes 80+ chars"));
+    const textDone = 5 - textTips.length;
 
     return [
       {
         id: "basic",
-        title: t("프로필 기초 다지기", "Profile basics"),
-        description: t("이름, 연락처, 생년월일, 성별", "Name, phone, birth date, gender"),
+        title: t("기본 정보", "Basic information"),
+        description: t("실명, 닉네임, 연락처, 성별, 생년월일", "Legal name, nickname, phone, gender, birth date"),
         done: basicDone,
-        total: 4
+        total: 4,
+        href: "/profile/edit",
+        tips: basicTips
       },
       {
-        id: "visa-residence",
-        title: t("근무 가능 조건 정리", "Work availability setup"),
-        description: t("비자 유형, 거주 지역, 시작 가능 시점", "Visa type, residence, start option"),
-        done: visaResidenceDone,
-        total: 3
+        id: "work",
+        title: t("근무 가능 조건", "Work availability"),
+        description: t("비자, 거주지, 근무 시작 가능 시점", "Visa, residence, available start timing"),
+        done: workDone,
+        total: 3,
+        href: "/profile/resume/edit/work-availability",
+        tips: workTips
       },
       {
-        id: "experience",
-        title: t("경험치 채우기", "Experience stack"),
-        description: t("각 탭 최소 1개 이상", "At least one item in each tab"),
-        done: experienceDone,
-        total: 4
+        id: "education",
+        title: t("학력", "Education"),
+        description: t("학교, 전공, 재학/졸업 상태", "School, major, enrollment/graduation status"),
+        done: educationDone,
+        total: 1,
+        href: "/profile/resume/edit/education",
+        tips: educationDone ? [] : [t("학력 항목 1개 이상", "Add at least 1 education item")]
+      },
+      {
+        id: "language",
+        title: t("언어 능력", "Language skills"),
+        description: t("업무 가능 언어와 레벨", "Working languages and levels"),
+        done: languageDone,
+        total: 1,
+        href: "/profile/resume/edit/language",
+        tips: languageDone ? [] : [t("언어 능력 항목 1개 이상", "Add at least 1 language skill item")]
+      },
+      {
+        id: "career",
+        title: t("경력", "Experience"),
+        description: t("인턴/아르바이트/정규 경력", "Internship/part-time/full-time experience"),
+        done: careerDone,
+        total: 1,
+        href: "/profile/resume/edit/career",
+        tips: careerDone ? [] : [t("경력 항목 1개 이상", "Add at least 1 experience item")]
+      },
+      {
+        id: "activity",
+        title: t("활동 경험", "Activities"),
+        description: t("프로젝트/대외활동/수상 등", "Projects, extracurriculars, awards"),
+        done: activityDone,
+        total: 1,
+        href: "/profile/resume/edit/activity",
+        tips: activityDone ? [] : [t("활동 경험 항목 1개 이상", "Add at least 1 activity item")]
       },
       {
         id: "profile-text",
-        title: t("나를 보여주는 소개", "Personal pitch"),
-        description: t("스킬/자기소개/동기/선호/추가정보", "Skills/intro/motivation/preferences/notes"),
-        done: profileTextDone,
-        total: 5
+        title: t("소개/동기", "Profile text"),
+        description: t("스킬, 자기소개, 지원동기, 선호, 추가정보", "Skills, intro, motivation, preferences, notes"),
+        done: textDone,
+        total: 5,
+        href: "/profile/resume/edit/profile-text",
+        tips: textTips
       }
     ];
   }, [
@@ -153,185 +325,309 @@ export function MatchingProbabilityPage() {
   const totalDone = sections.reduce((acc, section) => acc + section.done, 0);
   const totalItems = sections.reduce((acc, section) => acc + section.total, 0);
   const overallPercent = percent(totalDone, totalItems);
-  const sectionsWithPercent = sections.map((section) => ({ ...section, sectionPercent: percent(section.done, section.total) }));
-  const nextFocusSection = sectionsWithPercent
-    .filter((section) => section.done < section.total)
-    .sort((a, b) => a.sectionPercent - b.sectionPercent)[0] ?? null;
-  const momentumLabel =
-    overallPercent >= 80
-      ? t("거의 다 왔어요. 마지막 몇 가지만 채우면 됩니다.", "You're almost there. Just a few fields left.")
-      : overallPercent >= 50
-        ? t("좋아요. 절반을 넘겼어요. 이제 디테일만 보강해요.", "Nice progress. You're past halfway. Add a bit more detail.")
-        : t("시작이 반이에요. 핵심 정보부터 차근차근 채워봐요.", "Great start. Fill in key info step by step.");
+
+  function buildPositionEstimates(sourcePositions: PublicPositionListItem[]) {
+    const myVisa = mapVisaTypeToCode(profile?.visaType ?? null);
+
+    return sourcePositions.slice(0, 8).map((position) => {
+      const visaRequired = position.eligibleVisas?.length > 0;
+      const visaMatched = !visaRequired || (myVisa ? position.eligibleVisas.includes(myVisa) : false);
+
+      let score = 20 + overallPercent * 0.45;
+      if (visaMatched) score += 18;
+      else if (visaRequired) score -= 22;
+
+      if (educationsCount > 0) score += 8;
+      if (languageSkillsCount > 0) score += 8;
+      if (careersCount > 0) score += 8;
+      if (activityExperiencesCount > 0) score += 4;
+      if (skillsCount >= 3) score += 6;
+      if (selfIntroLength >= 120) score += 4;
+      if (motivationLength >= 120) score += 4;
+      if (preferenceLength >= 80) score += 3;
+      if (additionalLength >= 80) score += 3;
+
+      const finalScore = clamp(Math.round(score), 5, 95);
+      const confidence = finalScore >= 80
+        ? t("높음", "High")
+        : finalScore >= 60
+          ? t("보통", "Medium")
+          : t("낮음", "Low");
+
+      const reasons: string[] = [];
+      if (visaRequired && !visaMatched) reasons.push(t("비자 조건 확인이 필요해요.", "Visa requirement needs attention."));
+      if (educationsCount <= 0) reasons.push(t("학력 정보를 추가해 주세요.", "Add education details."));
+      if (languageSkillsCount <= 0) reasons.push(t("언어 능력 정보를 추가해 주세요.", "Add language skills."));
+      if (skillsCount < 3) reasons.push(t("핵심 스킬을 더 입력해 주세요.", "Add more core skills."));
+      if (selfIntroLength < 120) reasons.push(t("자기소개를 더 구체적으로 써주세요.", "Make self-introduction more specific."));
+      if (reasons.length === 0) reasons.push(t("필수 정보가 잘 채워져 있어요.", "Core profile information is well completed."));
+
+      return {
+        id: position.id,
+        title: position.title,
+        company: position.partnerOrganization?.name ?? t("회사 정보 없음", "Unknown company"),
+        score: finalScore,
+        confidence,
+        reasons: reasons.slice(0, 2),
+        href: `/positions/${position.id}`
+      };
+    });
+  }
+
+  const positionEstimates = useMemo<PositionEstimate[]>(() => buildPositionEstimates(positions), [
+    activityExperiencesCount,
+    additionalLength,
+    careersCount,
+    educationsCount,
+    isKo,
+    languageSkillsCount,
+    motivationLength,
+    overallPercent,
+    positions,
+    preferenceLength,
+    profile?.visaType,
+    selfIntroLength,
+    skillsCount
+  ]);
+
+  async function handleCheckPositionMatches() {
+    if (positionsLoading) return;
+    setPositionsLoading(true);
+    setPositionsError(null);
+    setHasCheckedPositions(false);
+
+    try {
+      const [items] = await Promise.all([
+        getPublicPositions(),
+        new Promise((resolve) => setTimeout(resolve, 1200))
+      ]);
+      const published = items
+        .filter((item) => item.status === "OPEN" || item.status === "MATCHING")
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setPositions(
+        published
+      );
+      const picked = [...buildPositionEstimates(published)]
+        .sort((a, b) => (b.score + Math.random() * 22) - (a.score + Math.random() * 22))
+        .slice(0, 6);
+      setDrawnPositionEstimates(picked);
+      setHasCheckedPositions(true);
+    } catch (error) {
+      setPositionsError(
+        error instanceof Error
+          ? error.message
+          : (isKo ? "포지션을 불러오지 못했습니다." : "Failed to load positions.")
+      );
+    } finally {
+      setPositionsLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
       <Header />
-      <main className="bg-muted/40 pb-20">
-        <div className="container">
+      <main className="bg-[#F8FAFC] pb-20">
+        <div className="container py-12 md:py-16">
           <div className="mx-auto max-w-4xl space-y-10">
-            <section className="py-12 md:py-16">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <h1 className="font-display text-3xl font-bold tracking-tight text-black">
-                    {t("매칭 확률 확인하기", "Check matching probability")}
-                  </h1>
-                </div>
-
-                <div className="relative overflow-hidden rounded-2xl bg-card">
-                  <Image
-                    src="/img_profile_complete.webp"
-                    alt={t("프로필 완성도와 매칭 확률 진단 이미지", "Profile completion and matching probability visual")}
-                    width={1920}
-                    height={821}
-                    priority
-                    className="h-auto w-full object-contain"
-                  />
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
-                {t("나의 현재 매칭률은 어떤가요?", "How is my current matching rate?")}
-              </h2>
+            <section className="space-y-6 md:space-y-7">
+              <h1 className="font-display text-3xl font-bold tracking-tight text-black">
+                {t("나의 현재 매칭 가능성은 어떨까?", "How is my current match potential?")}
+              </h1>
 
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-              <div className="mb-5 border-b border-border pb-5">
-                <p className="text-xs font-semibold tracking-wide text-muted-foreground">
-                  {t("현재 매칭률", "Current matching rate")}
-                </p>
-                {!isReady ? (
-                  <p className="mt-2 text-sm text-muted-foreground">{t("세션 정보를 확인하는 중...", "Checking your session...")}</p>
-                ) : !isAuthenticated ? (
-                  <p className="mt-2 text-sm text-muted-foreground">{t("로그인 후 매칭률을 확인할 수 있습니다.", "Sign in to view your matching rate.")}</p>
-                ) : user?.role !== "STUDENT" ? (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {t("현재 role에서는 매칭률 보기를 지원하지 않습니다.", "Matching rate is not available for this role.")}
+                {isReady && isAuthenticated && user?.role !== "STUDENT" ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t("현재 계정은 학생이 아니어서 프로필을 지원하지 않습니다.", "This account is not a student account, so profile support is unavailable.")}
                   </p>
                 ) : (
                   <>
-                    <div className="mt-2 flex items-end gap-2">
-                      <p className="font-display text-3xl font-bold leading-none text-primary">{overallPercent}%</p>
-                      <p className="text-xs text-muted-foreground">{totalDone}/{totalItems}</p>
+                    <div>
+                      {!isReady ? (
+                        <p className="mt-2 text-sm text-muted-foreground">{t("세션 정보를 확인하는 중...", "Checking your session...")}</p>
+                      ) : !isAuthenticated ? (
+                        <p className="mt-2 text-sm text-muted-foreground">{t("로그인 후 매칭 가능성을 확인할 수 있습니다.", "Sign in to view your match potential.")}</p>
+                      ) : (
+                        <>
+                          <div className="mb-5 grid items-center gap-5 md:grid-cols-[130px_1fr]">
+                            <div className="relative mx-auto w-full max-w-[130px]">
+                              <Image
+                                src="/img_gatcha.webp"
+                                alt={t("매칭 가챠 이미지", "Matching gacha image")}
+                                width={1280}
+                                height={1280}
+                                className="h-auto w-full object-contain"
+                                priority
+                              />
+                            </div>
+                            <div className="space-y-4">
+                              <p className="text-sm text-muted-foreground">
+                                {t("버튼을 누르면 현재 올라온 포지션과 매칭율을 계산해 합격 가능성을 보여드립니다.", "Press the button to calculate your acceptance chance from current positions.")}
+                              </p>
+                              <Button
+                                variant="dark"
+                                className="h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                                onClick={() => void handleCheckPositionMatches()}
+                              >
+                                {t("매칭 가능성 확인하기", "Check matching chance")}
+                              </Button>
+                            </div>
+                          </div>
+                          <p className="text-xs font-semibold tracking-wide text-muted-foreground">
+                            {t("현재 매칭 가능성", "Current match potential")}
+                          </p>
+                          <div className="mt-3 flex items-end gap-2">
+                            <p className="font-display text-3xl font-bold leading-none text-primary">{overallPercent}%</p>
+                            <p className="text-xs text-muted-foreground">{totalDone}/{totalItems}</p>
+                          </div>
+                          <div className="mt-3 h-2 w-full rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-primary transition-all"
+                              style={{ width: `${overallPercent}%` }}
+                            />
+                          </div>
+                          <Accordion type="single" collapsible className="mt-4 w-full">
+                            <AccordionItem value="improve-match" className="border-b-0">
+                              <AccordionTrigger className="py-0 text-sm font-semibold text-foreground hover:no-underline">
+                                <div className="flex w-full items-center justify-between pr-2">
+                                  <span>{t("항목을 더 채우면 매칭 가능성이 올라가요", "How to increase your match potential")}</span>
+                                  <span className="text-xs font-medium text-muted-foreground">
+                                    {t("화살표를 눌러 확인해보세요!", "Tap the arrow to check details!")}
+                                  </span>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="pt-3">
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  {sections.map((section) => {
+                                    const sectionPercent = percent(section.done, section.total);
+                                    return (
+                                      <div key={section.id} className="rounded-lg border border-border/60 bg-muted/40 px-3 py-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div>
+                                            <p className="text-sm font-semibold text-foreground">{section.title}</p>
+                                            <p className="mt-1 text-xs text-muted-foreground">{section.description}</p>
+                                          </div>
+                                          <Button variant="outline" size="sm" asChild>
+                                            <Link href={section.href}>{t("편집", "Edit")}</Link>
+                                          </Button>
+                                        </div>
+                                        <div className="mt-2 flex items-center gap-2">
+                                          <div className="h-1.5 w-full rounded-full bg-muted">
+                                            <div
+                                              className="h-full rounded-full bg-primary transition-all"
+                                              style={{ width: `${sectionPercent}%` }}
+                                            />
+                                          </div>
+                                          <span className="text-[11px] font-medium text-muted-foreground">
+                                            {section.done}/{section.total}
+                                          </span>
+                                        </div>
+                                        {section.tips.length > 0 ? (
+                                          <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                            {section.tips.slice(0, 2).map((tip) => (
+                                              <li key={tip}>• {tip}</li>
+                                            ))}
+                                          </ul>
+                                        ) : (
+                                          <p className="mt-2 text-xs text-muted-foreground">
+                                            {t("필수 항목이 채워졌습니다.", "Required items are complete.")}
+                                          </p>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+                        </>
+                      )}
                     </div>
-                    <div className="mt-3 h-2 w-full rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all"
-                        style={{ width: `${overallPercent}%` }}
-                      />
-                    </div>
+
                   </>
                 )}
               </div>
+            </section>
 
-              <h2 className="font-display text-xl font-bold tracking-tight md:text-2xl">
-                {t("내 프로필 기본 정보", "My basic profile info")}
+            <section className="space-y-6 md:space-y-7">
+              <h2 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
+                {t("지금 올라온 포지션, 합격 가능성은 어떨까?", "How likely are you to pass for current positions?")}
               </h2>
-
-              {!isReady ? (
-                <p className="mt-4 text-sm text-muted-foreground">{t("세션 정보를 확인하는 중...", "Checking your session...")}</p>
-              ) : !isAuthenticated ? (
-                <p className="mt-4 text-sm text-muted-foreground">{t("로그인 후 기본 정보를 확인할 수 있습니다.", "Sign in to view your basic profile info.")}</p>
-              ) : user?.role !== "STUDENT" ? (
-                <p className="mt-4 text-sm text-muted-foreground">
-                  {t("현재 role에서는 학생 프로필 기본 정보를 지원하지 않습니다.", "Basic student profile info is not available for this role.")}
-                </p>
-              ) : (
-                <div className="mt-4 grid gap-2 sm:grid-cols-2 text-sm">
-                  <div className="rounded-md bg-muted/40 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">{t("실명", "Legal name")}</p>
-                    <p className="mt-1 font-medium">{user.realName?.trim() || "-"}</p>
+              <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+                {!isReady ? (
+                  <p className="text-sm text-muted-foreground">{t("세션 정보를 확인하는 중...", "Checking your session...")}</p>
+                ) : !isAuthenticated ? (
+                  <p className="text-sm text-muted-foreground">{t("로그인 후 포지션별 합격 가능성을 확인할 수 있습니다.", "Sign in to view position-by-position acceptance chances.")}</p>
+                ) : user?.role !== "STUDENT" ? (
+                  <p className="text-sm text-muted-foreground">{t("학생 계정에서만 포지션별 합격 가능성을 확인할 수 있습니다.", "Only student accounts can view position acceptance chances.")}</p>
+                ) : positionsLoading ? (
+                  <div className="space-y-3">
+                    <div className="mx-auto h-32 w-32" ref={lottieContainerRef} />
+                    <p className="text-center text-sm text-muted-foreground">
+                      {t("나와 맞는 포지션 매칭하는중..", "Matching positions that fit me..")}
+                    </p>
                   </div>
-                  <div className="rounded-md bg-muted/40 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">{t("닉네임", "Nickname")}</p>
-                    <p className="mt-1 font-medium">{user.name?.trim() || "-"}</p>
+                ) : positionsError ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-destructive">{positionsError}</p>
+                    <Button variant="dark" size="sm" onClick={() => void handleCheckPositionMatches()}>
+                      {t("다시 확인하기", "Try again")}
+                    </Button>
                   </div>
-                  <div className="rounded-md bg-muted/40 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">{t("연락처", "Phone")}</p>
-                    <p className="mt-1 font-medium">{user.phoneNumber?.trim() || t("예: 010-0000-0000", "e.g., +82-10-0000-0000")}</p>
+                ) : !hasCheckedPositions ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t("상단 카드에서 매칭 가능성 확인하기 버튼을 눌러주세요.", "Please use the check button in the upper card.")}
+                  </p>
+                ) : drawnPositionEstimates.length === 0 ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">{t("현재 확인 가능한 포지션이 없습니다.", "No available positions to evaluate right now.")}</p>
+                    <Button variant="outline" size="sm" onClick={() => void handleCheckPositionMatches()}>
+                      {t("새로고침", "Refresh")}
+                    </Button>
                   </div>
-                  <div className="rounded-md bg-muted/40 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">{t("성별", "Gender")}</p>
-                    <p className="mt-1 font-medium">{user.gender?.trim() || t("선택 안 함", "Prefer not to say")}</p>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-xs text-muted-foreground">
+                      {t("합격 가능성은 프로필 완성도와 공고 기본 조건을 바탕으로 계산한 참고 지표입니다.", "Acceptance chance is a reference estimate based on profile completeness and basic position requirements.")}
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {drawnPositionEstimates.map((item) => (
+                        <div key={item.id} className="rounded-lg border border-border/60 bg-muted/40 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                              <p className="mt-1 text-xs text-muted-foreground">{item.company}</p>
+                            </div>
+                            <span className="text-xs font-semibold text-primary">{item.confidence}</span>
+                          </div>
+                          <div className="mt-3 flex items-end gap-2">
+                            <p className="font-display text-2xl font-bold leading-none text-primary">{item.score}%</p>
+                          </div>
+                          <div className="mt-2 h-1.5 w-full rounded-full bg-muted">
+                            <div className="h-full rounded-full bg-primary" style={{ width: `${item.score}%` }} />
+                          </div>
+                          <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                            {item.reasons.map((reason) => (
+                              <li key={`${item.id}-${reason}`}>• {reason}</li>
+                            ))}
+                          </ul>
+                          <div className="mt-3 flex justify-end">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={item.href}>{t("포지션 보기", "View position")}</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-end">
+                      <Button variant="outline" size="sm" onClick={() => void handleCheckPositionMatches()}>
+                        {t("다시 돌려보기", "Roll again")}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="rounded-md bg-muted/40 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">{t("생년월일", "Date of birth")}</p>
-                    <p className="mt-1 font-medium">{user.birthDate ? user.birthDate.slice(0, 10) : "-"}</p>
-                  </div>
-                </div>
-              )}
+                )}
               </div>
             </section>
 
-            <section className="py-2">
-              <p className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
-                <Sparkles className="h-3.5 w-3.5" />
-                {t("프로필 완성도", "Profile completion")}
-              </p>
-
-              {!isReady ? (
-                <p className="mt-6 text-sm text-muted-foreground">{t("세션 정보를 확인하는 중...", "Checking your session...")}</p>
-              ) : !isAuthenticated ? (
-                <div className="mt-6 space-y-3">
-                  <p className="text-sm text-muted-foreground">{t("로그인 후 섹션별 완성도를 확인할 수 있습니다.", "Sign in to view your section completion.")}</p>
-                  <Button variant="dark" asChild>
-                    <Link href="/login">{t("로그인하러 가기", "Go to login")}</Link>
-                  </Button>
-                </div>
-              ) : user?.role !== "STUDENT" ? (
-                <p className="mt-6 text-sm text-muted-foreground">
-                  {t("현재 role에서는 프로필 완성도 보기를 지원하지 않습니다. (학생 role 전용)", "Section completion is not supported for this role. (Student role only)")}
-                </p>
-              ) : (
-                <div className="mt-6 space-y-6">
-                  {loadingProfile ? <p className="text-sm text-muted-foreground">{t("프로필 불러오는 중...", "Loading profile...")}</p> : null}
-                  {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
-
-                  <div>
-                    <h2 className="font-display text-2xl font-bold tracking-tight md:text-3xl">{t("어디부터 채우면 좋을까요?", "What should I fill in next?")}</h2>
-                    <p className="mt-2 text-sm text-muted-foreground md:text-base">
-                      {t(
-                        "완성도는 점수가 아니라 기회예요. 비어 있는 섹션부터 채우면 매칭 정확도가 올라갑니다.",
-                        "Completion is opportunity. Fill missing sections first to improve match quality."
-                      )}
-                    </p>
-                  </div>
-
-                  <section className="border-l-2 border-accent pl-3">
-                    <p className="text-sm font-semibold">{t("지금 추천하는 다음 단계", "Recommended next step")}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {nextFocusSection
-                        ? t(`"${nextFocusSection.title}" 섹션부터 채워보세요.`, `Start with "${nextFocusSection.title}".`)
-                        : t("모든 섹션이 채워졌어요. 이제 내용을 다듬어 완성도를 높여보세요.", "All sections are filled. Polish details to improve quality.")}
-                    </p>
-                    <p className="mt-2 text-xs text-muted-foreground">{momentumLabel}</p>
-                  </section>
-
-                  <section>
-                    <ul className="divide-y divide-border border-y border-border">
-                    {sectionsWithPercent.map((section) => {
-                      return (
-                        <li key={section.id} className="py-3">
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-semibold">{section.title}</p>
-                              <p className="text-xs text-muted-foreground">{section.description}</p>
-                            </div>
-                            <span className="text-sm font-semibold">{section.sectionPercent}%</span>
-                          </div>
-                          <div className="h-2 rounded-full bg-muted">
-                            <div className="h-2 rounded-full bg-gradient-accent transition-all duration-300" style={{ width: `${section.sectionPercent}%` }} />
-                          </div>
-                          <p className="mt-1 text-xs text-muted-foreground">{section.done}/{section.total} {t("완료", "done")}</p>
-                        </li>
-                      );
-                    })}
-                    </ul>
-                  </section>
-                </div>
-              )}
-            </section>
           </div>
         </div>
       </main>

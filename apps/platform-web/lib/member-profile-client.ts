@@ -135,24 +135,112 @@ export function isMemberNotFoundError(error: unknown) {
   return error instanceof MemberProfileApiError && error.status === 404;
 }
 
+export type CandidateVisaType =
+  | "D10_JOB_SEEKING"
+  | "D2_STUDENT"
+  | "D4_GENERAL_TRAINING"
+  | "F2_RESIDENCE"
+  | "F4_OVERSEAS_KOREAN"
+  | "F5_PERMANENT_RESIDENCE"
+  | "F6_MARRIAGE_IMMIGRATION"
+  | "E7_SPECIFIC_ACTIVITY"
+  | "H1_WORKING_HOLIDAY"
+  | "OTHER";
+
+export type CandidateEducationType =
+  | "HIGH_SCHOOL"
+  | "ASSOCIATE"
+  | "BACHELOR"
+  | "MASTER"
+  | "DOCTOR"
+  | "BOOTCAMP"
+  | "CERTIFICATE"
+  | "OTHER";
+
+export type CandidateEducationStatus =
+  | "ENROLLED"
+  | "GRADUATED"
+  | "LEAVE_OF_ABSENCE"
+  | "DROPPED_OUT"
+  | "OTHER";
+
+export type CandidateLanguageType =
+  | "KOREAN"
+  | "ENGLISH"
+  | "CHINESE"
+  | "JAPANESE"
+  | "VIETNAMESE"
+  | "INDONESIAN"
+  | "THAI"
+  | "MALAY"
+  | "FILIPINO"
+  | "HINDI"
+  | "SPANISH"
+  | "FRENCH"
+  | "GERMAN"
+  | "OTHER";
+
+export type CandidateLanguageLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "NATIVE";
+
+export type CandidateActivityType =
+  | "PROJECT"
+  | "VOLUNTEER"
+  | "INTERNSHIP"
+  | "CERTIFICATE"
+  | "AWARD"
+  | "EXTRACURRICULAR"
+  | "OTHER";
+
+export type CandidateEducation = {
+  id: string;
+  schoolName: string;
+  educationType: CandidateEducationType;
+  major?: string | null;
+  status: CandidateEducationStatus;
+  country?: string | null;
+  city?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  isKoreanSchool?: boolean | null;
+};
+
+export type CandidateLanguageSkill = {
+  id: string;
+  language: CandidateLanguageType;
+  level: CandidateLanguageLevel;
+  testName?: string | null;
+  score?: string | null;
+};
+
+export type CandidateCareer = {
+  id: string;
+  companyName: string;
+  position: string;
+  department?: string | null;
+  isCurrent?: boolean | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  description?: string | null;
+};
+
+export type CandidateActivityExperience = {
+  id: string;
+  title: string;
+  activityType: CandidateActivityType;
+  organization?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  description?: string | null;
+  skills?: string[];
+};
+
 export type MyCandidateProfile = {
   userId: string;
-  visaType?:
-    | "D10_JOB_SEEKING"
-    | "D2_STUDENT"
-    | "D4_GENERAL_TRAINING"
-    | "F2_RESIDENCE"
-    | "F4_OVERSEAS_KOREAN"
-    | "F5_PERMANENT_RESIDENCE"
-    | "F6_MARRIAGE_IMMIGRATION"
-    | "E7_SPECIFIC_ACTIVITY"
-    | "H1_WORKING_HOLIDAY"
-    | "OTHER"
-    | null;
-  educations?: Array<{ id: string }>;
-  languageSkills?: Array<{ id: string }>;
-  careers?: Array<{ id: string }>;
-  activityExperiences?: Array<{ id: string }>;
+  visaType?: CandidateVisaType | null;
+  educations?: CandidateEducation[];
+  languageSkills?: CandidateLanguageSkill[];
+  careers?: CandidateCareer[];
+  activityExperiences?: CandidateActivityExperience[];
   residenceProvince?: string | null;
   programStartOption?: "ASAP" | "SPECIFIC_DATE" | null;
   programStartDate?: string | null;
@@ -628,26 +716,15 @@ export async function updateMyBasicInfo(input: {
 }
 
 export async function updateMyCandidateProfile(input: {
-  visaType?:
-    | "D10_JOB_SEEKING"
-    | "D2_STUDENT"
-    | "D4_GENERAL_TRAINING"
-    | "F2_RESIDENCE"
-    | "F4_OVERSEAS_KOREAN"
-    | "F5_PERMANENT_RESIDENCE"
-    | "F6_MARRIAGE_IMMIGRATION"
-    | "E7_SPECIFIC_ACTIVITY"
-    | "H1_WORKING_HOLIDAY"
-    | "OTHER"
-    | null;
-  residenceProvince?: string;
-  programStartOption?: "ASAP" | "SPECIFIC_DATE";
-  programStartDate?: string;
-  preferenceConditionNote?: string;
+  visaType?: CandidateVisaType | null;
+  residenceProvince?: string | null;
+  programStartOption?: "ASAP" | "SPECIFIC_DATE" | null;
+  programStartDate?: string | null;
+  preferenceConditionNote?: string | null;
   skills?: string[];
-  selfIntroduction?: string;
-  programMotivation?: string;
-  additionalInfoNote?: string;
+  selfIntroduction?: string | null;
+  programMotivation?: string | null;
+  additionalInfoNote?: string | null;
 }) {
   const result = await authedJsonFetch<MyCandidateProfile>("/members/me/profile", {
     method: "PATCH",
@@ -658,4 +735,172 @@ export async function updateMyCandidateProfile(input: {
     throw new Error("응답에 후보자 프로필이 없습니다.");
   }
   return result.item;
+}
+
+export async function createMyEducation(input: {
+  schoolName: string;
+  educationType: CandidateEducationType;
+  major?: string | null;
+  status: CandidateEducationStatus;
+  country?: string | null;
+  city?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  isKoreanSchool?: boolean | null;
+}) {
+  const result = await authedJsonFetch<CandidateEducation>("/members/me/educations", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+  if (!result.item) throw new Error("응답에 학력 정보가 없습니다.");
+  return result.item;
+}
+
+export async function updateMyEducation(
+  educationId: string,
+  input: {
+    schoolName: string;
+    educationType: CandidateEducationType;
+    major?: string | null;
+    status: CandidateEducationStatus;
+    country?: string | null;
+    city?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    isKoreanSchool?: boolean | null;
+  }
+) {
+  const result = await authedJsonFetch<CandidateEducation>(`/members/me/educations/${encodeURIComponent(educationId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input)
+  });
+  if (!result.item) throw new Error("응답에 수정된 학력 정보가 없습니다.");
+  return result.item;
+}
+
+export async function deleteMyEducation(educationId: string) {
+  return authedJsonFetch<unknown>(`/members/me/educations/${encodeURIComponent(educationId)}`, { method: "DELETE" });
+}
+
+export async function createMyLanguageSkill(input: {
+  language: CandidateLanguageType;
+  level: CandidateLanguageLevel;
+  testName?: string | null;
+  score?: string | null;
+}) {
+  const result = await authedJsonFetch<CandidateLanguageSkill>("/members/me/language-skills", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+  if (!result.item) throw new Error("응답에 언어 능력 정보가 없습니다.");
+  return result.item;
+}
+
+export async function updateMyLanguageSkill(
+  languageSkillId: string,
+  input: {
+    language: CandidateLanguageType;
+    level: CandidateLanguageLevel;
+    testName?: string | null;
+    score?: string | null;
+  }
+) {
+  const result = await authedJsonFetch<CandidateLanguageSkill>(
+    `/members/me/language-skills/${encodeURIComponent(languageSkillId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input)
+    }
+  );
+  if (!result.item) throw new Error("응답에 수정된 언어 능력 정보가 없습니다.");
+  return result.item;
+}
+
+export async function deleteMyLanguageSkill(languageSkillId: string) {
+  return authedJsonFetch<unknown>(`/members/me/language-skills/${encodeURIComponent(languageSkillId)}`, { method: "DELETE" });
+}
+
+export async function createMyCareer(input: {
+  companyName: string;
+  position: string;
+  department?: string | null;
+  isCurrent?: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+  description?: string | null;
+}) {
+  const result = await authedJsonFetch<CandidateCareer>("/members/me/careers", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+  if (!result.item) throw new Error("응답에 경력 정보가 없습니다.");
+  return result.item;
+}
+
+export async function updateMyCareer(
+  careerId: string,
+  input: {
+    companyName: string;
+    position: string;
+    department?: string | null;
+    isCurrent?: boolean;
+    startDate?: string | null;
+    endDate?: string | null;
+    description?: string | null;
+  }
+) {
+  const result = await authedJsonFetch<CandidateCareer>(`/members/me/careers/${encodeURIComponent(careerId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input)
+  });
+  if (!result.item) throw new Error("응답에 수정된 경력 정보가 없습니다.");
+  return result.item;
+}
+
+export async function deleteMyCareer(careerId: string) {
+  return authedJsonFetch<unknown>(`/members/me/careers/${encodeURIComponent(careerId)}`, { method: "DELETE" });
+}
+
+export async function createMyActivityExperience(input: {
+  title: string;
+  activityType: CandidateActivityType;
+  organization?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  description?: string | null;
+  skills?: string[];
+}) {
+  const result = await authedJsonFetch<CandidateActivityExperience>("/members/me/activity-experiences", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+  if (!result.item) throw new Error("응답에 활동 경험 정보가 없습니다.");
+  return result.item;
+}
+
+export async function updateMyActivityExperience(
+  activityExperienceId: string,
+  input: {
+    title: string;
+    activityType: CandidateActivityType;
+    organization?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    description?: string | null;
+    skills?: string[];
+  }
+) {
+  const result = await authedJsonFetch<CandidateActivityExperience>(
+    `/members/me/activity-experiences/${encodeURIComponent(activityExperienceId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input)
+    }
+  );
+  if (!result.item) throw new Error("응답에 수정된 활동 경험 정보가 없습니다.");
+  return result.item;
+}
+
+export async function deleteMyActivityExperience(activityExperienceId: string) {
+  return authedJsonFetch<unknown>(`/members/me/activity-experiences/${encodeURIComponent(activityExperienceId)}`, { method: "DELETE" });
 }

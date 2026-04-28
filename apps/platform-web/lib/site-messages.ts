@@ -5,7 +5,7 @@ const siteMessages = {
     footer: {
       brandDescription: "글로벌 인재와 기업을 연결하는 커리어 플랫폼.",
       columns: [
-        { title: "Platform", items: ["포지션 탐색", "매칭 확률 확인하기", "운영 방식", "사례"] },
+        { title: "Platform", items: ["포지션 탐색", "매칭 가능성 확인하기", "운영 방식", "사례"] },
         { title: "Resources", items: ["사례", "FAQ", "블로그", "고객지원"] },
         { title: "Company", items: ["기업 소개", "채용", "문의", "이용약관"] }
       ],

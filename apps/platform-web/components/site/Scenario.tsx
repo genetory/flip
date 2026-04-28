@@ -76,7 +76,7 @@ export const Scenario = () => {
 
   return (
     <section className="border-y border-border bg-muted/30 py-16 md:py-20">
-      <div className="container">
+      <div className="container max-w-[1200px]">
         <div className="mx-auto mb-12 max-w-3xl text-center">
           <p className="mb-3 text-sm font-semibold text-muted-foreground">{copy.sectionLabel}</p>
           <div className="mb-6 flex justify-center">
@@ -101,8 +101,8 @@ export const Scenario = () => {
             </div>
           </div>
 
-          <div className="mx-auto mb-6 w-full max-w-4xl md:mb-7">
-            <img src={scenarioImage} alt={scenarioImageAlt} className="h-[180px] w-full object-contain md:h-[280px]" />
+          <div className="mx-auto mb-6 w-full max-w-3xl md:mb-7">
+            <img src={scenarioImage} alt={scenarioImageAlt} className="h-[150px] w-full object-contain md:h-[230px]" />
           </div>
           <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
             {tab === "student" ? copy.studentTitle : copy.companyTitle}

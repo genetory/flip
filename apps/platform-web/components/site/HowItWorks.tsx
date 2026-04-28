@@ -12,7 +12,7 @@ export const HowItWorks = () => {
 
   return (
     <section id="how" className="bg-background py-20">
-      <div className="container">
+      <div className="container max-w-[1200px]">
         <div className="mx-auto mb-14 max-w-2xl text-center">
           <p className="mb-2 text-sm font-semibold text-muted-foreground">{copy.sectionLabel}</p>
           <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">{copy.title}</h2>
