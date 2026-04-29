@@ -18,10 +18,8 @@ ENV NODE_ENV=production
 ENV PORT=8080
 ENV HOSTNAME=0.0.0.0
 
-COPY --from=builder /app/apps/platform-web/.next/standalone ./
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/platform-web/.next/static ./apps/platform-web/.next/static
-COPY --from=builder /app/apps/platform-web/public ./apps/platform-web/public
+COPY --from=builder /app/apps/platform-web ./apps/platform-web
 
 EXPOSE 8080
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "cd apps/platform-web && node ../../node_modules/next/dist/bin/next start -H 0.0.0.0 -p 8080"]
