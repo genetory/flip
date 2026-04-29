@@ -18,6 +18,7 @@ ENV PORT=8080
 ENV HOSTNAME=0.0.0.0
 
 COPY --from=builder /app/apps/platform-web/.next/standalone ./
+RUN npm install --omit=dev --ignore-scripts
 COPY --from=builder /app/apps/platform-web/.next/static ./apps/platform-web/.next/static
 COPY --from=builder /app/apps/platform-web/public ./apps/platform-web/public
 
