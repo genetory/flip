@@ -85,6 +85,7 @@ jobs:
           AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE }}
           AZURE_WEBAPP_API_NAME: ${{ secrets.AZURE_WEBAPP_API_NAME }}
           AZURE_WEBAPP_API_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_API_PUBLISH_PROFILE }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
         run: |
           test -n "${REGISTRY_SERVER:-}" || (echo "Missing secret: REGISTRY_SERVER" && exit 1)
           test -n "${REGISTRY_USERNAME:-}" || (echo "Missing secret: REGISTRY_USERNAME" && exit 1)
@@ -95,12 +96,16 @@ jobs:
           test -n "${AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE:-}" || (echo "Missing secret: AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE" && exit 1)
           test -n "${AZURE_WEBAPP_API_NAME:-}" || (echo "Missing secret: AZURE_WEBAPP_API_NAME" && exit 1)
           test -n "${AZURE_WEBAPP_API_PUBLISH_PROFILE:-}" || (echo "Missing secret: AZURE_WEBAPP_API_PUBLISH_PROFILE" && exit 1)
+          test -n "${NEXT_PUBLIC_API_URL:-}" || (echo "Missing secret: NEXT_PUBLIC_API_URL" && exit 1)
 
       - name: Build and push Web image
         if: steps.targets.outputs.deploy_web == 'true'
         run: |
           WEB_IMAGE=${{ secrets.REGISTRY_SERVER }}/${{ secrets.WEB_IMAGE_NAME }}:${{ steps.vars.outputs.env_tag }}-${{ steps.vars.outputs.sha_short }}
-          docker build -f apps/platform-web/Dockerfile -t "$WEB_IMAGE" .
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL="${{ secrets.NEXT_PUBLIC_API_URL }}" \
+            -f apps/platform-web/Dockerfile \
+            -t "$WEB_IMAGE" .
           docker push "$WEB_IMAGE"
           echo "WEB_IMAGE=$WEB_IMAGE" >> "$GITHUB_ENV"
 
