@@ -22,4 +22,4 @@ COPY --from=builder /app/apps/platform-web/.next/static ./apps/platform-web/.nex
 COPY --from=builder /app/apps/platform-web/public ./apps/platform-web/public
 
 EXPOSE 8080
-CMD ["node", "apps/platform-web/server.js"]
+CMD ["node", "server.js"]
