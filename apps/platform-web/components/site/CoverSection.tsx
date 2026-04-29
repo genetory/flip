@@ -56,7 +56,7 @@ export const CoverSection = () => {
       <div className="absolute inset-0 flex items-center justify-center px-4 text-center" style={{ transform: `translate3d(0, ${contentOffset}px, 0)` }}>
         <div className="animate-fade-up will-change-transform">
           <Image
-            src="/aply-logo-20260428.webp"
+            src="/img_logo.webp"
             alt="Aply logo"
             width={320}
             height={90}

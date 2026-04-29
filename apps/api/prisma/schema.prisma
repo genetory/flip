@@ -32,6 +32,9 @@ model User {
   candidateProfile CandidateProfile?
   refreshTokens RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
+  communityPosts CommunityPost[]
+  communityPostLikes CommunityPostLike[]
+  communityPostComments CommunityPostComment[]
 
   @@index([role])
   @@index([partnerType])
@@ -39,6 +42,12 @@ model User {
   @@index([emailVerified])
   @@index([phoneNumber])
   @@index([affiliation])
+}
+
+enum CommunityPostCategory {
+  FREE
+  CAREER
+  HELP
 }
 
 model EmailPreverificationToken {
@@ -509,4 +518,57 @@ model CandidateActivityExperience {
 
   @@index([candidateProfileId])
   @@index([activityType])
+}
+
+model CommunityPost {
+  id        String                @id @default(uuid())
+  authorId  String?
+  authorName String
+  category  CommunityPostCategory
+  title     String
+  body      String
+  imageUrls String[]              @default([])
+  likes     Int                   @default(0)
+  comments  Int                   @default(0)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  likedBy CommunityPostLike[]
+  commentItems CommunityPostComment[]
+
+  @@index([category])
+  @@index([createdAt])
+}
+
+model CommunityPostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model CommunityPostComment {
+  id         String   @id @default(uuid())
+  postId     String
+  authorId   String?
+  authorName String
+  body       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([createdAt])
 }

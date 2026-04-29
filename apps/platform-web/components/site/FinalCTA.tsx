@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "../ui/button";
-import { ArrowRight, Building2, GraduationCap } from "lucide-react";
+import { Building2, GraduationCap } from "lucide-react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { Reveal } from "./Reveal";
@@ -23,7 +23,7 @@ export const FinalCTA = () => {
           </h3>
           <p className="mt-3 max-w-md text-background/70">{copy.companyDescription}</p>
           <Button variant="hero" size="xl" className="mt-7">
-            {copy.companyCta} <ArrowRight />
+            {copy.companyCta}
           </Button>
         </Reveal>
         <Reveal className="relative overflow-hidden rounded-3xl border border-border bg-card p-10 shadow-card" delayMs={120} y="sm">
@@ -36,7 +36,7 @@ export const FinalCTA = () => {
           </h3>
           <p className="mt-3 max-w-md text-muted-foreground">{copy.studentDescription}</p>
           <Button variant="dark" size="xl" className="mt-7">
-            {copy.studentCta} <ArrowRight />
+            {copy.studentCta}
           </Button>
         </Reveal>
       </div>

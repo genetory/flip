@@ -19,8 +19,18 @@ export const StudentProfile = () => {
   const pendingChecklist = copy.checklist.filter((item) => !item.done).slice(0, 2);
   const previewChecklist = [...doneChecklist, ...pendingChecklist];
   const ctaHref = isAuthenticated ? "/profile" : "/login";
-  const targetProgress = 68;
+  const ctaLabel = isAuthenticated
+    ? locale === "ko"
+      ? "내 프로필 완성하기"
+      : "Complete my profile"
+    : locale === "ko"
+      ? "내 프로필 시작하기"
+      : "Start my profile";
+  const targetProfileProgress = 68;
+  const targetMatchChance = 74;
   const [animatedProgress, setAnimatedProgress] = useState(0);
+  const [animatedMatchChance, setAnimatedMatchChance] = useState(0);
+  const checklistBoosts = [2, 3, 4, 3];
 
   useEffect(() => {
     const duration = 900;
@@ -30,7 +40,8 @@ export const StudentProfile = () => {
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
       const eased = 1 - Math.pow(1 - t, 3);
-      setAnimatedProgress(targetProgress * eased);
+      setAnimatedProgress(targetProfileProgress * eased);
+      setAnimatedMatchChance(targetMatchChance * eased);
       if (t < 1) frame = requestAnimationFrame(tick);
     };
 
@@ -42,71 +53,71 @@ export const StudentProfile = () => {
     <section id="for-students" className="bg-white py-20">
       <div className="container grid max-w-[1200px] gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
         <Reveal className="order-2 lg:order-1" y="lg">
-          <div className="slide-in-right relative mx-auto w-full max-w-[500px] rotate-[-3deg] animate-float-y [animation-duration:4s] transition-transform duration-300 hover:-translate-y-1" style={{ animationDelay: "120ms" }}>
+          <div className="slide-in-right relative mx-auto w-full max-w-[460px] rotate-[-3deg] animate-float-y [animation-duration:4s] transition-transform duration-300 hover:-translate-y-1" style={{ animationDelay: "120ms" }}>
+            <div className="absolute -inset-3 rounded-[28px] bg-gradient-to-br from-[#60A5FA]/35 via-[#7DD3FC]/25 to-[#93C5FD]/30 blur-xl" />
             <div className="absolute -right-2 -top-2 h-full w-full rounded-3xl bg-[#7DD3FC]/35" />
-            <div className="relative rounded-3xl border-2 border-[#93C5FD] bg-white p-5 shadow-[0_26px_50px_-24px_rgba(37,99,235,0.65)]">
+            <div className="relative rounded-3xl border-2 border-[#60A5FA] bg-white p-5 ring-1 ring-[#BFDBFE] shadow-[0_34px_70px_-26px_rgba(37,99,235,0.75)]">
             <div className="mb-3 flex items-center gap-2">
-              <div className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-[#93C5FD]">
+              <div className="relative h-14 w-14 overflow-hidden rounded-full">
                 <Image
                   src="/img_profile_0.webp"
                   alt="Profile photo"
                   fill
                   className="object-cover"
-                  sizes="36px"
+                  sizes="56px"
                 />
               </div>
               <div>
-                <p className="text-[11px] font-bold text-[#1D4ED8]">{heroCopy.studentProfile}</p>
-                <p className="text-sm font-extrabold text-[#0B1227]">Mei L.</p>
-                <p className="text-[11px] text-slate-500">{copy.profileMeta}</p>
+                <p className="text-lg font-extrabold text-[#0B1227]">Mei L.</p>
+                <p className="text-xs text-slate-500">{copy.profileMeta}</p>
               </div>
-              <span className="ml-auto rounded-full bg-[#0B46E8] px-2.5 py-1 text-[10px] font-extrabold tracking-[0.04em] text-white">
-                READY
-              </span>
             </div>
-            <div className="mb-2 flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-500">{heroCopy.profileProgress}</span>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500">{heroCopy.profileProgress}</span>
               <span className="font-extrabold text-[#0B1227]">{Math.round(animatedProgress)}%</span>
             </div>
             <div className="mb-3 h-2 overflow-hidden rounded-full bg-[#DBEAFE]">
               <div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${animatedProgress}%` }} />
             </div>
-            <div className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold text-[#0B46E8]">
+            <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-[#0B46E8]">
               <CheckCircle2 className="h-3.5 w-3.5" />
               {heroCopy.readinessLabel} · {heroCopy.recommendationLabel}
             </div>
 
-            <div className="mb-3 grid grid-cols-2 gap-2">
-              <div className="rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] px-3 py-2">
-                <p className="text-[10px] font-semibold text-slate-500">{copy.recommendationsLabel}</p>
-                <p className="text-sm font-extrabold text-[#1D4ED8]">7</p>
+            <div className="mb-3 flex items-end justify-between pb-2">
+              <div>
+                <p className="text-xs font-semibold text-slate-600">
+                  {locale === "ko" ? "현재 매칭 가능성" : "Current match potential"}
+                </p>
               </div>
-              <div className="rounded-xl border border-[#C4B5FD] bg-[#F5F3FF] px-3 py-2">
-                <p className="text-[10px] font-semibold text-slate-500">{copy.unlockedLabel}</p>
-                <p className="text-sm font-extrabold text-[#6D28D9]">+12</p>
-              </div>
+              <p className="font-display text-[34px] font-black leading-none text-[#0B46E8]">{Math.round(animatedMatchChance)}%</p>
             </div>
-
-            <ul className="space-y-1.5">
-              {previewChecklist.map((item) => (
-                <li key={item.label} className="flex items-center gap-2 rounded-lg bg-white/90 px-2 py-1.5 text-xs text-foreground shadow-[0_8px_20px_-18px_rgba(37,99,235,0.45)]">
-                  {item.done ? (
-                    <Check className="h-3.5 w-3.5 text-[#0B46E8]" />
-                  ) : (
-                    <span className="h-3.5 w-3.5 rounded-full border border-muted-foreground/50" />
-                  )}
-                  <span>{item.label}</span>
+            <ul className="space-y-1">
+              {previewChecklist.map((item, index) => (
+                <li key={item.label} className="flex items-center justify-between gap-2 rounded-lg bg-white/90 px-2.5 py-1.5 text-sm text-foreground shadow-[0_8px_20px_-18px_rgba(37,99,235,0.45)]">
+                  <span className="flex items-center gap-1.5">
+                    {item.done ? (
+                      <Check className="h-3.5 w-3.5 text-[#0B46E8]" />
+                    ) : (
+                      <span className="h-3.5 w-3.5 rounded-full border border-muted-foreground/50" />
+                    )}
+                    <span>{item.label}</span>
+                  </span>
+                  <span className="text-xs font-semibold text-[#0B46E8]">+{checklistBoosts[index] ?? 2}%</span>
                 </li>
               ))}
             </ul>
+            <div className="mt-2 flex items-end justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#0B1227]">{copy.unlockedLabel}</p>
+              </div>
+              <p className="rounded-lg bg-[#b7ff5a] px-3.5 py-1.5 font-display text-[34px] font-black leading-none text-[#0B1227]">+12%</p>
+            </div>
             </div>
           </div>
         </Reveal>
 
         <Reveal className="order-1 lg:order-2" delayMs={90}>
-          <p className="slide-in-left mb-3 inline-flex rounded-full border border-[#93C5FD] bg-white px-3 py-1 text-xs font-extrabold tracking-[0.04em] text-[#1D4ED8] shadow-sm" style={{ animationDelay: "40ms" }}>
-            {copy.sectionLabel}
-          </p>
           <h2 className="slide-in-left font-display text-3xl font-black leading-[1.04] tracking-[-0.03em] text-[#0B1227] md:text-5xl" style={{ animationDelay: "90ms" }}>
             {copy.titleTop}
             <br />
@@ -130,7 +141,7 @@ export const StudentProfile = () => {
             style={{ animationDelay: "280ms" }}
             asChild
           >
-            <Link href={ctaHref}>{copy.cta}</Link>
+            <Link href={ctaHref}>{ctaLabel}</Link>
           </Button>
         </Reveal>
       </div>

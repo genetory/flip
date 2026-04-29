@@ -27,6 +27,7 @@ export const Header = () => {
     { label: homeLabel, href: "/" },
     { label: copy.nav.positions, href: "/positions" },
     { label: copy.nav.matching, href: "/matching-probability" },
+    { label: copy.nav.community, href: "/community" },
     { label: copy.nav.pricing, href: "/pricing" }
   ];
 
@@ -103,7 +104,7 @@ export const Header = () => {
       >
         <Link href="/" className="flex items-center">
           <Image
-            src="/aply-logo-20260428.webp"
+            src="/img_logo.webp"
             alt={`${copy.brand} logo`}
             width={180}
             height={48}
@@ -116,8 +117,8 @@ export const Header = () => {
             <Link
               key={item.label}
               href={item.href}
-              className={`text-sm font-medium transition-colors ${
-                isNavActive(item.href) ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              className={`text-base transition-colors ${
+                isNavActive(item.href) ? "font-extrabold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
               }`}
             >
               {item.label}
@@ -194,8 +195,8 @@ export const Header = () => {
               <Link
                 key={item.label}
                 href={item.href}
-                className={`text-sm font-medium ${
-                  isNavActive(item.href) ? "text-foreground" : "text-muted-foreground"
+                className={`text-base ${
+                  isNavActive(item.href) ? "font-extrabold text-foreground" : "font-medium text-muted-foreground"
                 }`}
               >
                 {item.label}

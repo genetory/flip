@@ -5,7 +5,7 @@ const siteMessages = {
     footer: {
       brandDescription: "글로벌 인재와 기업을 연결하는 커리어 플랫폼.",
       columns: [
-        { title: "Platform", items: ["포지션 탐색", "매칭 가능성 확인하기", "운영 방식", "사례"] },
+        { title: "Platform", items: ["포지션 탐색", "매칭 가능성", "운영 방식", "사례"] },
         { title: "Resources", items: ["사례", "FAQ", "블로그", "고객지원"] },
         { title: "Company", items: ["기업 소개", "채용", "문의", "이용약관"] }
       ],
@@ -51,7 +51,7 @@ const siteMessages = {
       companyPanelWorkTypeValue: "Remote · Hybrid",
       openLabel: "Open",
       studentProfile: "학생 프로필",
-      profileProgress: "완성도",
+      profileProgress: "프로필 완성도",
       readinessLabel: "매칭 준비도 높음",
       recommendationLabel: "추천 7",
       liveMatching: "Live matching"
@@ -59,7 +59,7 @@ const siteMessages = {
     positions: {
       liveLabel: "Live",
       title: "현재 모집 중인 포지션",
-      description: "기업이 글로벌 인재에게 열어둔 기회입니다.",
+      description: "Aply 에서 제공하는 포지션 입니다.",
       viewAll: "전체 포지션 보기",
       foreignerEligible: "외국인 지원 가능",
       details: "자세히 보기",
@@ -80,64 +80,54 @@ const siteMessages = {
       partnerCta: "파트너로 시작하기",
       items: [
         {
-          company: "Lumen Studio",
-          initial: "L",
-          role: "Product Design Intern",
-          category: "Design",
-          location: "Seoul",
-          workType: "Hybrid",
-          start: "2026 Spring",
-          badge: "Recommended"
-        },
-        {
-          company: "Northwave",
-          initial: "N",
-          role: "Global Marketing Assistant",
-          category: "Marketing",
-          location: "Singapore",
-          workType: "On-site",
-          start: "Immediate",
-          badge: "New"
-        },
-        {
-          company: "Orbit AI",
-          initial: "O",
-          role: "AI Operations Associate",
-          category: "Operations",
-          location: "Remote",
-          workType: "Remote",
-          start: "Q2 2026",
-          badge: "Hot"
-        },
-        {
-          company: "Forge & Co.",
-          initial: "F",
-          role: "Business Development Intern",
-          category: "Business",
-          location: "Tokyo",
-          workType: "Hybrid",
-          start: "2026 Spring",
-          badge: "Recommended"
-        },
-        {
-          company: "Pavo Labs",
-          initial: "P",
-          role: "Content Strategist",
-          category: "Content",
-          location: "Berlin",
-          workType: "Remote",
-          start: "Immediate",
-          badge: "New"
-        },
-        {
-          company: "Helio",
+          company: "H ******** Inc.",
           initial: "H",
-          role: "Data Analyst Intern",
-          category: "Data",
-          location: "Seoul",
+          role: "Social media manager, Marketing Team Assistant 모집",
+          category: "Marketing",
+          location: "협의",
           workType: "On-site",
-          start: "Q2 2026",
-          badge: "Hot"
+          start: "채용 시",
+          badge: "New"
+        },
+        {
+          company: "H******** Labs",
+          initial: "H",
+          role: "Business Development, Education Market Research 모집",
+          category: "Research, Business",
+          location: "협의",
+          workType: "On-site",
+          start: "채용 시",
+          badge: "New"
+        },
+        {
+          company: "g*****b",
+          initial: "G",
+          role: "중문번역업무 모집",
+          category: "Translation",
+          location: "협의",
+          workType: "On-site",
+          start: "채용 시",
+          badge: "New"
+        },
+        {
+          company: "(주)한*********업",
+          initial: "한",
+          role: "Tech Support, QA, R&D 모집",
+          category: "IT/Software engineering",
+          location: "협의",
+          workType: "On-site",
+          start: "채용 시",
+          badge: "New"
+        },
+        {
+          company: "주식회사 크**",
+          initial: "크",
+          role: "기계공학 / R&D 모집",
+          category: "Engineering(Mechanical, Electrical, etc,.)",
+          location: "협의",
+          workType: "On-site",
+          start: "채용 시",
+          badge: "New"
         }
       ]
     },
@@ -150,7 +140,7 @@ const siteMessages = {
       statusBadge: "매칭 준비도 높음",
       completionLabel: "프로필 완성도",
       recommendationsLabel: "추천 가능한 포지션",
-      unlockedLabel: "추가 입력 시 열리는",
+      unlockedLabel: "프로필 완성도를 올리면 매칭 가능성이 올라가요",
       profileMeta: "서울대 · Marketing",
       highlights: [
         "지금 나랑 맞는 포지션 바로 확인",
@@ -225,7 +215,7 @@ const siteMessages = {
       ]
     },
     scenario: {
-      sectionLabel: "Scenarios",
+      sectionLabel: "Process",
       studentTitle: "학생은 이렇게 기회를 넓혀갑니다",
       companyTitle: "기업은 이렇게 후보자를 만나게 됩니다",
       studentDescription: "가입부터 지원까지, 준비도를 높일수록 더 많은 기회가 열리는 흐름입니다.",
@@ -233,7 +223,7 @@ const siteMessages = {
       studentImageAlt: "학생 관점 시나리오 이미지",
       companyImageAlt: "기업 관점 시나리오 이미지",
       tabs: { student: "학생 관점", company: "기업 관점" },
-      studentSteps: ["간단 가입", "기본 프로필 입력", "추천 포지션 확인", "추가 입력으로 기회 확대", "지원 / 매칭 시작"],
+      studentSteps: ["간단 가입", "기본 프로필 입력", "추천 포지션 확인", "추가 입력으로 기회 확대", "지원 후 면접 진행 및 결과 확인"],
       studentStepSubtitles: [
         "몇 분 안에 가입을 완료하고 바로 시작할 수 있어요.",
         "핵심 프로필 정보를 입력해 기본 매칭을 준비해요.",
@@ -241,7 +231,7 @@ const siteMessages = {
         "추가 정보를 입력해 더 다양한 기회를 열어가요.",
         "지원을 시작하고 실제 매칭 과정을 진행해요."
       ],
-      companySteps: ["포지션 등록", "조건에 맞는 학생 풀 확인", "준비도 높은 학생 우선 검토", "진행 상태 관리", "인터뷰 / 운영 연결"],
+      companySteps: ["포지션 등록", "조건에 맞는 학생 풀 확인", "준비도 높은 학생 우선 검토", "면접 진행 및 결과 입력", "진행 상태 관리"],
       companyStepSubtitles: [
         "직무와 조건을 등록해 채용 기준을 명확히 설정해요.",
         "조건에 맞는 학생 후보 풀을 빠르게 확인할 수 있어요.",
@@ -308,7 +298,11 @@ const siteMessages = {
       sectionLabel: "FAQ",
       title: "자주 묻는 질문",
       description: "더 궁금한 점이 있다면 기업 상담을 통해 운영팀에 직접 문의할 수 있습니다.",
-      items: [
+      tabs: {
+        company: "기업용 질문답변",
+        student: "학생용 질문답변"
+      },
+      companyItems: [
         {
           question: "Q. 프로그램 기간은 어떻게 되나요?",
           answer:
@@ -333,6 +327,23 @@ const siteMessages = {
           question: "Q. 추가 인재 매칭이 가능한가요?",
           answer:
             "가능합니다. celine@flip-ers.com 으로 문의해주시면 추가 인재를 매칭해드립니다."
+        }
+      ],
+      studentItems: [
+        {
+          question: "Q. 무급 인턴십은 불법으로 알고 있는데, 법적으로 문제는 없는 건가요?",
+          answer:
+            "해당 프로그램을 통한 활동은 '근로'가 아닌, 교육 목적의 '직무 체험' 프로그램입니다. 정규업무 대체가 아닌 체험 중심의 활동을 제공하는 것이므로 법적으로 문제 없음을 확인하였습니다."
+        },
+        {
+          question: "Q. 추천서 발급은 누가 결정하나요?",
+          answer:
+            "전적으로 직무 체험에 참여한 기업이 결정합니다. 플리퍼스는 전혀 개입하지 않고 있습니다."
+        },
+        {
+          question: "Q. 점심 식대는 어떤 식으로 지원받나요?",
+          answer:
+            "점심 식대는 담당자가 직접 결제 하거나, 회사 법인 카드가 지급됩니다.\n부득이한 경우 개인 카드로 결제 후 영수증을 전달하면 회사에서 비용을 돌려주는 방식으로도 진행됩니다."
         }
       ]
     },
@@ -360,13 +371,13 @@ const siteMessages = {
     },
     hero: {
       badge: "Now recruiting for 2026 cohort",
-      titleTop: "Global talent meets",
-      titleAccent: "the right companies",
+      titleTop: "Connecting global talent",
+      titleAccent: "with companies",
       description:
-        "Companies find verified talent, and students prepare for real opportunities. Hiring, work experience, and matching in one place.",
+        "Companies find the right talent, and students prepare for real opportunities.\nFrom hiring and work experience to matching readiness, all in one place.",
       primaryCta: "Explore positions",
       secondaryCta: "Check my match potential",
-      positionsLink: "See open positions now",
+      positionsLink: "View open positions now",
       companyDashboard: "Company dashboard",
       companyStatus: "Active",
       stats: [
@@ -397,7 +408,7 @@ const siteMessages = {
       companyPanelWorkTypeValue: "Remote · Hybrid",
       openLabel: "Open",
       studentProfile: "Student profile",
-      profileProgress: "Completion",
+      profileProgress: "Profile completion",
       readinessLabel: "High matching readiness",
       recommendationLabel: "7 recommendations",
       liveMatching: "Live matching"
@@ -405,7 +416,7 @@ const siteMessages = {
     positions: {
       liveLabel: "Live",
       title: "Open positions",
-      description: "Opportunities opened by partner companies for global talent.",
+      description: "Positions provided through Aply.",
       viewAll: "View all positions",
       foreignerEligible: "International applicants welcome",
       details: "View details",
@@ -422,86 +433,76 @@ const siteMessages = {
       workTypeRemote: "Remote",
       workTypeHybrid: "Hybrid",
       partnerTitle: "Post a position for your company",
-      partnerDescription: "Join as a partner and receive recommendations for ready candidates.",
-      partnerCta: "Become a partner",
+      partnerDescription: "Join as a partner and get recommendations for ready candidates.",
+      partnerCta: "Start as a partner",
       items: [
         {
-          company: "Lumen Studio",
-          initial: "L",
-          role: "Product Design Intern",
-          category: "Design",
-          location: "Seoul",
-          workType: "Hybrid",
-          start: "Spring 2026",
-          badge: "Recommended"
-        },
-        {
-          company: "Northwave",
-          initial: "N",
-          role: "Global Marketing Assistant",
-          category: "Marketing",
-          location: "Singapore",
-          workType: "On-site",
-          start: "Immediate",
-          badge: "New"
-        },
-        {
-          company: "Orbit AI",
-          initial: "O",
-          role: "AI Operations Associate",
-          category: "Operations",
-          location: "Remote",
-          workType: "Remote",
-          start: "Q2 2026",
-          badge: "Hot"
-        },
-        {
-          company: "Forge & Co.",
-          initial: "F",
-          role: "Business Development Intern",
-          category: "Business",
-          location: "Tokyo",
-          workType: "Hybrid",
-          start: "Spring 2026",
-          badge: "Recommended"
-        },
-        {
-          company: "Pavo Labs",
-          initial: "P",
-          role: "Content Strategist",
-          category: "Content",
-          location: "Berlin",
-          workType: "Remote",
-          start: "Immediate",
-          badge: "New"
-        },
-        {
-          company: "Helio",
+          company: "H ******** Inc.",
           initial: "H",
-          role: "Data Analyst Intern",
-          category: "Data",
-          location: "Seoul",
+          role: "Social media manager, Marketing Team Assistant (Hiring)",
+          category: "Marketing",
+          location: "To be discussed",
           workType: "On-site",
-          start: "Q2 2026",
-          badge: "Hot"
+          start: "Open now",
+          badge: "New"
+        },
+        {
+          company: "H******** Labs",
+          initial: "H",
+          role: "Business Development, Education Market Research (Hiring)",
+          category: "Research, Business",
+          location: "To be discussed",
+          workType: "On-site",
+          start: "Open now",
+          badge: "New"
+        },
+        {
+          company: "g*****b",
+          initial: "G",
+          role: "Chinese translation work (Hiring)",
+          category: "Translation",
+          location: "To be discussed",
+          workType: "On-site",
+          start: "Open now",
+          badge: "New"
+        },
+        {
+          company: "(Ltd.) K**************",
+          initial: "K",
+          role: "Tech Support, QA, R&D (Hiring)",
+          category: "IT/Software engineering",
+          location: "To be discussed",
+          workType: "On-site",
+          start: "Open now",
+          badge: "New"
+        },
+        {
+          company: "C****** Co., Ltd.",
+          initial: "C",
+          role: "Mechanical Engineering / R&D (Hiring)",
+          category: "Engineering (Mechanical, Electrical, etc.)",
+          location: "To be discussed",
+          workType: "On-site",
+          start: "Open now",
+          badge: "New"
         }
       ]
     },
     studentProfile: {
       sectionLabel: "For Students",
-      titleTop: "The more you complete your profile,",
-      titleBottom: "the more opportunities you unlock",
+      titleTop: "The more you build your profile,",
+      titleBottom: "the more opportunities open up",
       description:
-        "Increase your match readiness with simple profile inputs. Filling missing fields unlocks more companies and opportunities.",
+        "You can start with basic information.\nAs you complete more profile fields, more companies and positions become available.",
       statusBadge: "High matching readiness",
       completionLabel: "Profile completion",
       recommendationsLabel: "Recommended positions",
-      unlockedLabel: "Unlock with extra inputs",
+      unlockedLabel: "Improve profile completeness to raise match potential",
       profileMeta: "SNU · Marketing",
       highlights: [
-        "See positions that match you right away",
-        "Unlock +12 recommended positions instantly",
-        "Auto-generate a structured profile companies can review"
+        "Check positions that fit you right away",
+        "Expand recommendations instantly by adding profile fields",
+        "Automatically structure your profile for company review"
       ],
       cta: "Start my profile",
       checklist: [
@@ -518,9 +519,9 @@ const siteMessages = {
       sectionLabel: "For Business",
       titleTop: "Meet better-matched",
       titleBottom: "global talent faster",
-      description: "Go beyond resumes and verify practical readiness and workplace fit in Korean business environments.",
-      primaryCta: "Talk to partner team",
-      secondaryCta: "See business workflow",
+      description: "Reduce hiring risk by checking practical readiness and workplace fit, not just resumes.",
+      primaryCta: "Talk to us",
+      secondaryCta: "See how it works for business",
       cards: [
         {
           title: "Practical readiness, verified",
@@ -546,7 +547,7 @@ const siteMessages = {
     },
     howItWorks: {
       sectionLabel: "How it works",
-      title: "How the platform works",
+      title: "How Aply works",
       steps: [
         {
           num: "01",
@@ -560,8 +561,8 @@ const siteMessages = {
         },
         {
           num: "03",
-          title: "The platform supports matching",
-          description: "The platform aligns candidate readiness with company requirements to surface higher-fit matches earlier."
+          title: "Aply supports precise matching",
+          description: "Aply analyzes candidate readiness and company requirements together to connect higher-fit matches first."
         },
         {
           num: "04",
@@ -571,11 +572,11 @@ const siteMessages = {
       ]
     },
     scenario: {
-      sectionLabel: "Scenarios",
+      sectionLabel: "Process",
       studentTitle: "How students expand opportunities",
-      companyTitle: "How companies meet candidates",
-      studentDescription: "From signup to application, better profile readiness unlocks more opportunities.",
-      companyDescription: "From position posting to interviews, manage hiring progress in one flow.",
+      companyTitle: "How companies discover candidates",
+      studentDescription: "From signup to application, stronger profile readiness unlocks more opportunities.",
+      companyDescription: "From posting to interviews, manage hiring progress in one connected flow.",
       studentImageAlt: "Student-view scenario image",
       companyImageAlt: "Company-view scenario image",
       tabs: { student: "Student view", company: "Company view" },
@@ -654,7 +655,11 @@ const siteMessages = {
       sectionLabel: "FAQ",
       title: "Frequently asked questions",
       description: "If you have more questions, contact the operations team through partner consultation.",
-      items: [
+      tabs: {
+        company: "Company FAQs",
+        student: "Student FAQs"
+      },
+      companyItems: [
         {
           question: "What companies can join as partners?",
           answer:
@@ -680,13 +685,30 @@ const siteMessages = {
           answer:
             "The operations team supports the full process between companies and students. They help with matching, interview scheduling, early adaptation, and communication flow so both sides can move faster with fewer operational issues."
         }
+      ],
+      studentItems: [
+        {
+          question: "Q. I heard unpaid internships are illegal. Is this legally safe?",
+          answer:
+            "Activities in this program are not classified as labor. They are educational job-experience programs. Since participation is designed as experience-based learning rather than replacing regular work, we have confirmed there are no legal issues."
+        },
+        {
+          question: "Q. Who decides whether I receive a recommendation letter?",
+          answer:
+            "The decision is made entirely by the company where you participated in the job-experience program. Flipers does not intervene in that decision."
+        },
+        {
+          question: "Q. How is lunch support provided?",
+          answer:
+            "Lunch expenses are either paid directly by the manager or covered with a company corporate card.\nIf needed, you may pay with a personal card first and submit a receipt for reimbursement."
+        }
       ]
     },
     finalCta: {
       companyTitleTop: "Start hiring global talent",
       companyTitleBottom: "today",
       companyDescription: "Meet ready candidates through position posting or partner consultation.",
-      companyCta: "Start as a company partner",
+      companyCta: "Start as a partner",
       studentTitleTop: "Build your profile",
       studentTitleBottom: "and discover opportunities",
       studentDescription: "Complete your profile to unlock recommended positions instantly.",

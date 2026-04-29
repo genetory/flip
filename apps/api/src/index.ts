@@ -14,6 +14,7 @@ import {
   CandidateLanguageType,
   CandidateLanguageLevel,
   CandidateActivityType,
+  CommunityPostCategory,
   PositionStatus,
   PartnerIndustry,
   PartnerOrgUserRole,
@@ -43,6 +44,7 @@ const prisma = new PrismaClient();
 const port = Number(process.env.API_PORT ?? 4000);
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 const openaiMatchingModel = process.env.OPENAI_MATCHING_MODEL ?? "gpt-5.4";
+const openaiTranslationModel = process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-5.4-mini";
 const openaiMatchingMaxPool = Number(process.env.OPENAI_MATCHING_MAX_POOL ?? 120);
 const openaiMatchingPrefilterMultiplier = Math.max(1, Number(process.env.OPENAI_MATCHING_PREFILTER_MULTIPLIER ?? 4));
 const openaiMatchingMinCompletionPercent = Math.max(0, Math.min(100, Number(process.env.OPENAI_MATCHING_MIN_COMPLETION_PERCENT ?? 45)));
@@ -471,6 +473,15 @@ const apiDocEndpoints: ApiDocEndpoint[] = [
   { method: "get", path: "/", summary: "Root endpoint", tag: "System" },
   { method: "get", path: "/members/meta", summary: "Members metadata", tag: "Members" },
   { method: "get", path: "/positions", summary: "Public positions list", tag: "Positions" },
+  { method: "get", path: "/community/posts", summary: "Public community posts list", tag: "Community" },
+  { method: "post", path: "/community/posts", summary: "Create community post", tag: "Community", secure: true, requestBody: true, successStatus: "201" },
+  { method: "patch", path: "/community/posts/:postId", summary: "Update my community post", tag: "Community", secure: true, requestBody: true },
+  { method: "delete", path: "/community/posts/:postId", summary: "Delete my community post", tag: "Community", secure: true },
+  { method: "post", path: "/community/posts/:postId/like", summary: "Like community post", tag: "Community", secure: true },
+  { method: "delete", path: "/community/posts/:postId/like", summary: "Unlike community post", tag: "Community", secure: true },
+  { method: "get", path: "/community/posts/:postId/comments", summary: "List community post comments", tag: "Community" },
+  { method: "post", path: "/community/posts/:postId/comments", summary: "Create community post comment", tag: "Community", secure: true, requestBody: true, successStatus: "201" },
+  { method: "post", path: "/community/translate", summary: "Translate text to Korean or English", tag: "Community", requestBody: true },
   { method: "get", path: "/positions/premium-banners", summary: "Public premium position banners", tag: "Positions" },
   { method: "get", path: "/positions/:id", summary: "Public position detail", tag: "Positions" },
   { method: "get", path: "/positions/meta", summary: "Public positions metadata", tag: "Positions" },
@@ -1233,6 +1244,34 @@ const listPublicPositionsCursorQuerySchema = z.object({
   cursor: z.string().trim().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional()
 });
+const listCommunityPostsCursorQuerySchema = z.object({
+  category: z.enum(["free", "career", "help"]).optional(),
+  sortBy: z.enum(["latest", "popular"]).optional(),
+  search: z.string().trim().max(120).optional(),
+  cursor: z.string().trim().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional()
+});
+const createCommunityPostSchema = z.object({
+  category: z.enum(["free", "career", "help"]),
+  body: z.string().trim().min(1).max(5_000),
+  imageUrls: z.array(z.string().trim().min(1).max(5_000_000)).max(5).optional()
+});
+const updateCommunityPostSchema = z.object({
+  category: z.enum(["free", "career", "help"]).optional(),
+  body: z.string().trim().min(1).max(5_000).optional(),
+  imageUrls: z.array(z.string().trim().min(1).max(5_000_000)).max(5).optional()
+});
+const communityPostParamSchema = z.object({
+  postId: z.string().uuid()
+});
+const createCommunityCommentSchema = z.object({
+  body: z.string().trim().min(1).max(2_000)
+});
+const translateCommunityPostSchema = z.object({
+  text: z.string().trim().min(1).max(10_000),
+  targetLanguage: z.enum(["ko", "en"]),
+  sourceLanguageHint: z.string().trim().max(40).optional()
+});
 const memberPositionActionParamSchema = z.object({
   positionId: z.string().uuid()
 });
@@ -1282,6 +1321,20 @@ const syncCandidateUsersSchema = z.object({
     )
     .max(5000)
 });
+
+type CommunityCategory = "free" | "career" | "help";
+
+function toCommunityPostCategory(category: CommunityCategory): CommunityPostCategory {
+  if (category === "career") return CommunityPostCategory.CAREER;
+  if (category === "help") return CommunityPostCategory.HELP;
+  return CommunityPostCategory.FREE;
+}
+
+function fromCommunityPostCategory(category: CommunityPostCategory): CommunityCategory {
+  if (category === CommunityPostCategory.CAREER) return "career";
+  if (category === CommunityPostCategory.HELP) return "help";
+  return "free";
+}
 
 function toSafeUser(user: {
   id: string;
@@ -1816,6 +1869,14 @@ async function resolvePublicViewer(req: express.Request): Promise<{ role: Member
   });
   const partnerDomain = user ? extractDomainFromEmail(user.email) : null;
   return { role: payload.role, partnerDomain };
+}
+
+function resolvePublicViewerUserId(req: express.Request): string | null {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) return null;
+  const payload = verifyAccessToken(header.slice("Bearer ".length));
+  if (!payload?.sub) return null;
+  return payload.sub;
 }
 
 function maskAdditionalNotesForPublic(
@@ -3105,6 +3166,460 @@ app.get("/positions/meta", async (_req, res) => {
       )
     )
   });
+});
+
+app.get("/community/posts", async (req, res) => {
+  const parsedQuery = listCommunityPostsCursorQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsedQuery.error.flatten() });
+  }
+
+  const limit = parsedQuery.data.limit ?? 20;
+  const category = parsedQuery.data.category;
+  const sortBy = parsedQuery.data.sortBy ?? "latest";
+  const search = parsedQuery.data.search?.toLowerCase();
+  const viewerUserId = resolvePublicViewerUserId(req);
+
+  let cursorValue: { createdAt: Date; id: string } | null = null;
+  if (parsedQuery.data.cursor) {
+    try {
+      const decoded = Buffer.from(parsedQuery.data.cursor, "base64").toString("utf8");
+      const [createdAtRaw, idRaw] = decoded.split("|");
+      const createdAt = createdAtRaw ? new Date(createdAtRaw) : null;
+      const id = idRaw?.trim();
+      if (!createdAt || Number.isNaN(createdAt.getTime()) || !id) {
+        return res.status(400).json({ ok: false, message: "invalid cursor" });
+      }
+      cursorValue = { createdAt, id };
+    } catch {
+      return res.status(400).json({ ok: false, message: "invalid cursor" });
+    }
+  }
+
+  const items = await prisma.communityPost.findMany({
+    where: {
+      ...(category ? { category: toCommunityPostCategory(category) } : {}),
+      ...(search
+        ? {
+            OR: [
+              { authorName: { contains: search, mode: "insensitive" } },
+              { title: { contains: search, mode: "insensitive" } },
+              { body: { contains: search, mode: "insensitive" } }
+            ]
+          }
+        : {}),
+      ...(cursorValue
+        ? {
+            OR: [
+              { createdAt: { lt: cursorValue.createdAt } },
+              {
+                AND: [
+                  { createdAt: cursorValue.createdAt },
+                  { id: { lt: cursorValue.id } }
+                ]
+              }
+            ]
+          }
+        : {})
+    },
+    orderBy:
+      sortBy === "popular"
+        ? [{ likes: "desc" }, { comments: "desc" }, { createdAt: "desc" }, { id: "desc" }]
+        : [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    include: viewerUserId
+      ? {
+          likedBy: {
+            where: { userId: viewerUserId },
+            select: { id: true },
+            take: 1
+          }
+        }
+      : undefined
+  });
+
+  const hasNext = items.length > limit;
+  const pageItems = hasNext ? items.slice(0, limit) : items;
+  const tail = pageItems[pageItems.length - 1];
+  const nextCursor = hasNext && tail
+    ? Buffer.from(`${tail.createdAt.toISOString()}|${tail.id}`, "utf8").toString("base64")
+    : null;
+
+  return res.json({
+    ok: true,
+    items: pageItems.map((item) => ({
+      id: item.id,
+      authorId: item.authorId,
+      category: fromCommunityPostCategory(item.category),
+      author: item.authorName,
+      title: item.title,
+      body: item.body,
+      imageUrls: item.imageUrls,
+      createdAt: item.createdAt.toISOString(),
+      likes: item.likes,
+      comments: item.comments,
+      likedByMe: viewerUserId ? (item as { likedBy?: Array<{ id: string }> }).likedBy?.length === 1 : false
+    })),
+    nextCursor
+  });
+});
+
+app.post("/community/posts", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsedBody = createCommunityPostSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsedBody.error.flatten() });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: req.auth!.userId },
+    select: { id: true, name: true, realName: true, email: true }
+  });
+  if (!user) {
+    return res.status(404).json({ ok: false, message: "user not found" });
+  }
+
+  const body = parsedBody.data.body.trim();
+  const firstLine = body.split("\n").find((line) => line.trim().length > 0)?.trim() ?? body.slice(0, 60);
+  const title = firstLine.length > 90 ? `${firstLine.slice(0, 90)}…` : firstLine;
+
+  try {
+    const created = await prisma.communityPost.create({
+      data: {
+        authorId: user.id,
+        authorName: user.name?.trim() || user.realName?.trim() || user.email.split("@")[0] || "User",
+        category: toCommunityPostCategory(parsedBody.data.category),
+        title,
+        body,
+        imageUrls: parsedBody.data.imageUrls ?? [],
+        likes: 0,
+        comments: 0
+      }
+    });
+
+    return res.status(201).json({
+      ok: true,
+      item: {
+        id: created.id,
+        authorId: created.authorId,
+        category: fromCommunityPostCategory(created.category),
+        author: created.authorName,
+        title: created.title,
+        body: created.body,
+        imageUrls: created.imageUrls,
+        createdAt: created.createdAt.toISOString(),
+        likes: created.likes,
+        comments: created.comments
+      }
+    });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to create community post" });
+  }
+});
+
+app.patch("/community/posts/:postId", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsedParam = communityPostParamSchema.safeParse(req.params);
+  if (!parsedParam.success) {
+    return res.status(400).json({ ok: false, message: "invalid params", errors: parsedParam.error.flatten() });
+  }
+  const parsedBody = updateCommunityPostSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsedBody.error.flatten() });
+  }
+
+  const existing = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { id: true, authorId: true, body: true, category: true, imageUrls: true }
+  });
+  if (!existing) return res.status(404).json({ ok: false, message: "post not found" });
+  if (existing.authorId !== req.auth!.userId) {
+    return res.status(403).json({ ok: false, message: "forbidden" });
+  }
+
+  const nextBody = parsedBody.data.body?.trim() ?? existing.body;
+  const firstLine = nextBody.split("\n").find((line) => line.trim().length > 0)?.trim() ?? nextBody.slice(0, 60);
+  const title = firstLine.length > 90 ? `${firstLine.slice(0, 90)}…` : firstLine;
+
+  const updated = await prisma.communityPost.update({
+    where: { id: parsedParam.data.postId },
+    data: {
+      category: parsedBody.data.category ? toCommunityPostCategory(parsedBody.data.category) : existing.category,
+      body: nextBody,
+      title,
+      imageUrls: parsedBody.data.imageUrls ?? existing.imageUrls
+    }
+  });
+
+  return res.json({
+    ok: true,
+    item: {
+      id: updated.id,
+      authorId: updated.authorId,
+      category: fromCommunityPostCategory(updated.category),
+      author: updated.authorName,
+      title: updated.title,
+      body: updated.body,
+      imageUrls: updated.imageUrls,
+      createdAt: updated.createdAt.toISOString(),
+      likes: updated.likes,
+      comments: updated.comments
+    }
+  });
+});
+
+app.delete("/community/posts/:postId", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsedParam = communityPostParamSchema.safeParse(req.params);
+  if (!parsedParam.success) {
+    return res.status(400).json({ ok: false, message: "invalid params", errors: parsedParam.error.flatten() });
+  }
+
+  const existing = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { id: true, authorId: true }
+  });
+  if (!existing) return res.status(404).json({ ok: false, message: "post not found" });
+  if (existing.authorId !== req.auth!.userId) {
+    return res.status(403).json({ ok: false, message: "forbidden" });
+  }
+
+  await prisma.communityPost.delete({ where: { id: parsedParam.data.postId } });
+  return res.json({ ok: true });
+});
+
+app.post("/community/posts/:postId/like", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsedParam = communityPostParamSchema.safeParse(req.params);
+  if (!parsedParam.success) {
+    return res.status(400).json({ ok: false, message: "invalid params", errors: parsedParam.error.flatten() });
+  }
+  const post = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { id: true }
+  });
+  if (!post) return res.status(404).json({ ok: false, message: "post not found" });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.communityPostLike.upsert({
+      where: {
+        postId_userId: {
+          postId: parsedParam.data.postId,
+          userId: req.auth!.userId
+        }
+      },
+      update: {},
+      create: {
+        postId: parsedParam.data.postId,
+        userId: req.auth!.userId
+      }
+    });
+
+    const likeCount = await tx.communityPostLike.count({
+      where: { postId: parsedParam.data.postId }
+    });
+    await tx.communityPost.update({
+      where: { id: parsedParam.data.postId },
+      data: { likes: likeCount }
+    });
+  });
+
+  const updated = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { likes: true }
+  });
+
+  return res.json({ ok: true, likes: updated?.likes ?? 0, likedByMe: true });
+});
+
+app.delete("/community/posts/:postId/like", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsedParam = communityPostParamSchema.safeParse(req.params);
+  if (!parsedParam.success) {
+    return res.status(400).json({ ok: false, message: "invalid params", errors: parsedParam.error.flatten() });
+  }
+  const post = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { id: true }
+  });
+  if (!post) return res.status(404).json({ ok: false, message: "post not found" });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.communityPostLike.deleteMany({
+      where: {
+        postId: parsedParam.data.postId,
+        userId: req.auth!.userId
+      }
+    });
+    const likeCount = await tx.communityPostLike.count({
+      where: { postId: parsedParam.data.postId }
+    });
+    await tx.communityPost.update({
+      where: { id: parsedParam.data.postId },
+      data: { likes: likeCount }
+    });
+  });
+
+  const updated = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { likes: true }
+  });
+
+  return res.json({ ok: true, likes: updated?.likes ?? 0, likedByMe: false });
+});
+
+app.get("/community/posts/:postId/comments", async (req, res) => {
+  const parsedParam = communityPostParamSchema.safeParse(req.params);
+  if (!parsedParam.success) {
+    return res.status(400).json({ ok: false, message: "invalid params", errors: parsedParam.error.flatten() });
+  }
+
+  const post = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { id: true }
+  });
+  if (!post) return res.status(404).json({ ok: false, message: "post not found" });
+
+  const comments = await prisma.communityPostComment.findMany({
+    where: { postId: parsedParam.data.postId },
+    orderBy: [{ createdAt: "asc" }],
+    take: 100
+  });
+
+  return res.json({
+    ok: true,
+    items: comments.map((item) => ({
+      id: item.id,
+      postId: item.postId,
+      authorName: item.authorName,
+      body: item.body,
+      createdAt: item.createdAt.toISOString()
+    }))
+  });
+});
+
+app.post("/community/posts/:postId/comments", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsedParam = communityPostParamSchema.safeParse(req.params);
+  if (!parsedParam.success) {
+    return res.status(400).json({ ok: false, message: "invalid params", errors: parsedParam.error.flatten() });
+  }
+  const parsedBody = createCommunityCommentSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsedBody.error.flatten() });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: req.auth!.userId },
+    select: { id: true, name: true, realName: true, email: true }
+  });
+  if (!user) {
+    return res.status(404).json({ ok: false, message: "user not found" });
+  }
+
+  const post = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { id: true }
+  });
+  if (!post) return res.status(404).json({ ok: false, message: "post not found" });
+
+  const created = await prisma.$transaction(async (tx) => {
+    const comment = await tx.communityPostComment.create({
+      data: {
+        postId: parsedParam.data.postId,
+        authorId: user.id,
+        authorName: user.name?.trim() || user.realName?.trim() || user.email.split("@")[0] || "User",
+        body: parsedBody.data.body.trim()
+      }
+    });
+    const commentCount = await tx.communityPostComment.count({
+      where: { postId: parsedParam.data.postId }
+    });
+    await tx.communityPost.update({
+      where: { id: parsedParam.data.postId },
+      data: { comments: commentCount }
+    });
+    return { comment, commentCount };
+  });
+
+  return res.status(201).json({
+    ok: true,
+    item: {
+      id: created.comment.id,
+      postId: created.comment.postId,
+      authorName: created.comment.authorName,
+      body: created.comment.body,
+      createdAt: created.comment.createdAt.toISOString()
+    },
+    commentCount: created.commentCount
+  });
+});
+
+app.post("/community/translate", async (req, res) => {
+  const parsedBody = translateCommunityPostSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ ok: false, message: "invalid body", errors: parsedBody.error.flatten() });
+  }
+  if (!openai) {
+    return res.status(503).json({ ok: false, message: "translation service unavailable" });
+  }
+
+  try {
+    const response = await openai.responses.create({
+      model: openaiTranslationModel,
+      input: [
+        {
+          role: "system",
+          content:
+            "You are a translation assistant. Translate user text into the requested target language naturally. Preserve meaning, tone, and line breaks. Return strict JSON."
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            targetLanguage: parsedBody.data.targetLanguage,
+            sourceLanguageHint: parsedBody.data.sourceLanguageHint ?? null,
+            text: parsedBody.data.text
+          })
+        }
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "community_translate_result",
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              translatedText: { type: "string", minLength: 1, maxLength: 12000 },
+              detectedLanguage: { type: "string", minLength: 2, maxLength: 40 }
+            },
+            required: ["translatedText", "detectedLanguage"]
+          },
+          strict: true
+        }
+      }
+    });
+
+    const outputText = (response as { output_text?: string }).output_text;
+    if (!outputText) {
+      return res.status(500).json({ ok: false, message: "empty translation output" });
+    }
+    const parsed = z
+      .object({
+        translatedText: z.string().min(1).max(12_000),
+        detectedLanguage: z.string().min(2).max(40)
+      })
+      .safeParse(JSON.parse(outputText));
+    if (!parsed.success) {
+      return res.status(500).json({ ok: false, message: "invalid translation output" });
+    }
+
+    return res.json({
+      ok: true,
+      translatedText: parsed.data.translatedText,
+      detectedLanguage: parsed.data.detectedLanguage
+    });
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      message: "failed to translate",
+      error: getErrorMessage(error)
+    });
+  }
 });
 
 app.get("/positions", async (req, res) => {

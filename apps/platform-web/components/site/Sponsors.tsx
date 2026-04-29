@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "../i18n/LanguageProvider";
 import { Reveal } from "./Reveal";
 
 const sponsors = [
@@ -13,13 +14,17 @@ const sponsors = [
 ];
 
 export const Sponsors = () => {
+  const { locale } = useLanguage();
+  const eyebrow = locale === "ko" ? "함께하는 파트너 기업" : "Partner Companies";
+  const title = locale === "ko" ? "Aply와 함께하는 검증된 한국 기업들" : "Verified Korean companies partnering with Aply";
+
   return (
     <section className="bg-white py-12 md:py-14">
       <div className="container max-w-[1200px]">
         <Reveal className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">함께하는 스폰서 기업</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{eyebrow}</p>
           <h2 className="mt-2 font-display text-2xl font-black tracking-[-0.02em] text-[#0B1227] md:text-3xl">
-            Aply와 함께하는 검증된 한국 기업들
+            {title}
           </h2>
         </Reveal>
 

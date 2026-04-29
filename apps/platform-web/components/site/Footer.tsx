@@ -14,7 +14,7 @@ export const Footer = () => {
         <div className="space-y-3">
           <div className="flex items-center gap-2 font-display text-lg font-bold">
             <Image
-              src="/aply-logo-20260428.webp"
+              src="/img_logo.webp"
               alt="Aply logo"
               width={160}
               height={42}

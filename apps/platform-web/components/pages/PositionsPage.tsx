@@ -202,6 +202,7 @@ export function PositionsPage() {
   const { user, isReady, isAuthenticated } = useAuthSession();
   const [positions, setPositions] = useState<Position[]>([]);
   const [isPositionsLoading, setIsPositionsLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
   const [jobRoles, setJobRoles] = useState<string[]>([]);
   const [workTypes, setWorkTypes] = useState<string[]>([]);
@@ -290,6 +291,10 @@ export function PositionsPage() {
 
   const toggle = (list: string[], setList: (v: string[]) => void, value: string) => {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+  };
+
+  const applySearch = () => {
+    setQuery(searchInput.trim());
   };
 
   const premiumPositionCards = useMemo(
@@ -657,8 +662,14 @@ export function PositionsPage() {
                   <div className="relative flex-1">
                     <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          applySearch();
+                        }
+                      }}
                       placeholder={copy.searchPlaceholder}
                       className="h-11 w-full rounded-md border-0 bg-transparent pl-11 text-base outline-none"
                     />
@@ -676,7 +687,7 @@ export function PositionsPage() {
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     </div>
-                    <Button variant="dark" size="lg" className="h-11">
+                    <Button variant="dark" size="lg" className="h-11" type="button" onClick={applySearch}>
                       {copy.search}
                     </Button>
                   </div>
@@ -687,7 +698,10 @@ export function PositionsPage() {
                   {["Design", "Remote", "IT", "D-10", "AI"].map((chip) => (
                     <button
                       key={chip}
-                      onClick={() => setQuery(chip)}
+                      onClick={() => {
+                        setSearchInput(chip);
+                        setQuery(chip);
+                      }}
                       className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
                     >
                       {chip}
