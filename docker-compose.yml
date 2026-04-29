@@ -1,16 +1,33 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: flip-postgres
-    restart: unless-stopped
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
     environment:
-      POSTGRES_USER: careerbridge
-      POSTGRES_PASSWORD: careerbridge
-      POSTGRES_DB: careerbridge
+      NODE_ENV: production
+      API_PORT: 8080
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      PLATFORM_WEB_URL: http://localhost:3000
+      PARTNER_ADMIN_URL: http://localhost:3001
+      OPS_ADMIN_URL: http://localhost:3002
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MATCHING_MODEL: ${OPENAI_MATCHING_MODEL:-gpt-5.4}
+      OPENAI_TRANSLATION_MODEL: ${OPENAI_TRANSLATION_MODEL:-gpt-5.4-mini}
     ports:
-      - "5432:5432"
-    volumes:
-      - flip_postgres_data:/var/lib/postgresql/data
+      - "4000:8080"
 
-volumes:
-  flip_postgres_data:
+  platform-web:
+    build:
+      context: .
+      dockerfile: apps/platform-web/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    ports:
+      - "3000:8080"
+    depends_on:
+      - api

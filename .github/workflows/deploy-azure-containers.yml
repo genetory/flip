@@ -1,0 +1,74 @@
+name: Deploy Azure Containers (Web + API)
+
+on:
+  push:
+    branches: ["develop", "main"]
+    paths:
+      - "apps/platform-web/**"
+      - "apps/api/**"
+      - "package.json"
+      - "package-lock.json"
+      - "docker-compose.yml"
+      - ".github/workflows/deploy-azure-containers.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    concurrency:
+      group: containers-${{ github.ref_name }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image tags
+        id: vars
+        run: |
+          echo "sha_short=$(echo $GITHUB_SHA | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_NAME" = "main" ]; then
+            echo "env_tag=prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "env_tag=stg" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY_SERVER }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push Web image
+        run: |
+          WEB_IMAGE=${{ secrets.REGISTRY_SERVER }}/${{ secrets.WEB_IMAGE_NAME }}:${{ steps.vars.outputs.env_tag }}-${{ steps.vars.outputs.sha_short }}
+          docker build -f apps/platform-web/Dockerfile -t "$WEB_IMAGE" .
+          docker push "$WEB_IMAGE"
+          echo "WEB_IMAGE=$WEB_IMAGE" >> "$GITHUB_ENV"
+
+      - name: Build and push API image
+        run: |
+          API_IMAGE=${{ secrets.REGISTRY_SERVER }}/${{ secrets.API_IMAGE_NAME }}:${{ steps.vars.outputs.env_tag }}-${{ steps.vars.outputs.sha_short }}
+          docker build -f apps/api/Dockerfile -t "$API_IMAGE" .
+          docker push "$API_IMAGE"
+          echo "API_IMAGE=$API_IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy Web container to Azure
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_PLATFORM_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE }}
+          images: ${{ env.WEB_IMAGE }}
+
+      - name: Deploy API container to Azure
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_API_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_API_PUBLISH_PROFILE }}
+          images: ${{ env.API_IMAGE }}
