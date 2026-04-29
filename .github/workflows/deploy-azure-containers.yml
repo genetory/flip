@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Resolve deploy targets
         id: targets
@@ -41,6 +43,16 @@ jobs:
               BASE_SHA="$(git rev-parse "${HEAD_SHA}^" 2>/dev/null || true)"
             fi
             CHANGED_FILES="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || true)"
+
+            if [ -z "$CHANGED_FILES" ]; then
+              echo "No diff detected (base/head unavailable). Fallback to deploy both."
+              echo "deploy_web=true" >> "$GITHUB_OUTPUT"
+              echo "deploy_api=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "Changed files:"
+            echo "$CHANGED_FILES"
 
             echo "$CHANGED_FILES" | grep -Eq '^apps/platform-web/|^package\.json$|^package-lock\.json$|^docker-compose\.yml$|^\.github/workflows/deploy-azure-containers\.yml$' \
               && echo "deploy_web=true" >> "$GITHUB_OUTPUT" || echo "deploy_web=false" >> "$GITHUB_OUTPUT"
