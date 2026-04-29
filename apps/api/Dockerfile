@@ -4,6 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/platform-web/package.json apps/platform-web/package.json
+COPY apps/api/prisma apps/api/prisma
 
 RUN npm ci
 
