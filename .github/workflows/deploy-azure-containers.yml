@@ -49,16 +49,26 @@ jobs:
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Validate required secrets
+        env:
+          REGISTRY_SERVER: ${{ secrets.REGISTRY_SERVER }}
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          WEB_IMAGE_NAME: ${{ secrets.WEB_IMAGE_NAME }}
+          API_IMAGE_NAME: ${{ secrets.API_IMAGE_NAME }}
+          AZURE_WEBAPP_PLATFORM_NAME: ${{ secrets.AZURE_WEBAPP_PLATFORM_NAME }}
+          AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE }}
+          AZURE_WEBAPP_API_NAME: ${{ secrets.AZURE_WEBAPP_API_NAME }}
+          AZURE_WEBAPP_API_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_API_PUBLISH_PROFILE }}
         run: |
-          test -n "${{ secrets.REGISTRY_SERVER }}" || (echo "Missing secret: REGISTRY_SERVER" && exit 1)
-          test -n "${{ secrets.REGISTRY_USERNAME }}" || (echo "Missing secret: REGISTRY_USERNAME" && exit 1)
-          test -n "${{ secrets.REGISTRY_PASSWORD }}" || (echo "Missing secret: REGISTRY_PASSWORD" && exit 1)
-          test -n "${{ secrets.WEB_IMAGE_NAME }}" || (echo "Missing secret: WEB_IMAGE_NAME" && exit 1)
-          test -n "${{ secrets.API_IMAGE_NAME }}" || (echo "Missing secret: API_IMAGE_NAME" && exit 1)
-          test -n "${{ secrets.AZURE_WEBAPP_PLATFORM_NAME }}" || (echo "Missing secret: AZURE_WEBAPP_PLATFORM_NAME" && exit 1)
-          test -n "${{ secrets.AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE }}" || (echo "Missing secret: AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE" && exit 1)
-          test -n "${{ secrets.AZURE_WEBAPP_API_NAME }}" || (echo "Missing secret: AZURE_WEBAPP_API_NAME" && exit 1)
-          test -n "${{ secrets.AZURE_WEBAPP_API_PUBLISH_PROFILE }}" || (echo "Missing secret: AZURE_WEBAPP_API_PUBLISH_PROFILE" && exit 1)
+          test -n "${REGISTRY_SERVER:-}" || (echo "Missing secret: REGISTRY_SERVER" && exit 1)
+          test -n "${REGISTRY_USERNAME:-}" || (echo "Missing secret: REGISTRY_USERNAME" && exit 1)
+          test -n "${REGISTRY_PASSWORD:-}" || (echo "Missing secret: REGISTRY_PASSWORD" && exit 1)
+          test -n "${WEB_IMAGE_NAME:-}" || (echo "Missing secret: WEB_IMAGE_NAME" && exit 1)
+          test -n "${API_IMAGE_NAME:-}" || (echo "Missing secret: API_IMAGE_NAME" && exit 1)
+          test -n "${AZURE_WEBAPP_PLATFORM_NAME:-}" || (echo "Missing secret: AZURE_WEBAPP_PLATFORM_NAME" && exit 1)
+          test -n "${AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE:-}" || (echo "Missing secret: AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE" && exit 1)
+          test -n "${AZURE_WEBAPP_API_NAME:-}" || (echo "Missing secret: AZURE_WEBAPP_API_NAME" && exit 1)
+          test -n "${AZURE_WEBAPP_API_PUBLISH_PROFILE:-}" || (echo "Missing secret: AZURE_WEBAPP_API_PUBLISH_PROFILE" && exit 1)
 
       - name: Build and push Web image
         run: |
