@@ -9,7 +9,7 @@ COPY apps/platform-web/package.json apps/platform-web/package.json
 COPY apps/api/package.json apps/api/package.json
 COPY apps/api/prisma apps/api/prisma
 
-RUN npm ci
+RUN for i in 1 2 3; do npm ci --no-audit --no-fund && exit 0; echo "npm ci failed (attempt $i), retrying..."; sleep 15; done; exit 1
 
 COPY . .
 RUN npm run build -w apps/platform-web
