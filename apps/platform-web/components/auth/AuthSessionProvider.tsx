@@ -67,6 +67,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
 
   const getAccountUrl = useCallback(() => {
     if (!user) return "/login";
+    if (user.role === "PARTNER") return "/partner/dashboard";
     return "/profile";
   }, [user]);
 

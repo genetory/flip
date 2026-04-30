@@ -88,7 +88,7 @@ export const Scenario = () => {
               {leftImage ? (
                 <div
                   className={cn(
-                    "relative h-[320px] overflow-visible transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:h-[430px]",
+                    "relative h-[320px] overflow-visible transition-all duration-700 ease-smooth md:h-[430px]",
                     active ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
                   )}
                 >
@@ -100,7 +100,7 @@ export const Scenario = () => {
                     <li
                       key={`${tab}-left-${step}-${index}`}
                       className={cn(
-                        "transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                        "transition-all duration-700 ease-smooth",
                         active ? "translate-x-0 translate-y-0 opacity-100" : "-translate-x-10 translate-y-3 opacity-0"
                       )}
                       style={{ transitionDelay: `${index * 90}ms` }}
@@ -123,7 +123,7 @@ export const Scenario = () => {
               {rightImage ? (
                 <div
                   className={cn(
-                    "relative h-[320px] overflow-visible transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:h-[430px]",
+                    "relative h-[320px] overflow-visible transition-all duration-700 ease-smooth md:h-[430px]",
                     active ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
                   )}
                 >
@@ -135,7 +135,7 @@ export const Scenario = () => {
                     <li
                       key={`${tab}-right-${step}-${index}`}
                       className={cn(
-                        "transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                        "transition-all duration-700 ease-smooth",
                         active ? "translate-x-0 translate-y-0 opacity-100" : "translate-x-10 translate-y-3 opacity-0"
                       )}
                       style={{ transitionDelay: `${index * 90}ms` }}

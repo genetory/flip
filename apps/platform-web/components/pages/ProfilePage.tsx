@@ -48,6 +48,14 @@ function formatList(values?: string[] | null) {
   return values.join(", ");
 }
 
+function toDisplayTitle(value: string) {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+    .join(" ");
+}
+
 function inferWorkType(value?: string | null): "On-site" | "Hybrid" | "Remote" {
   const text = (value ?? "").toLowerCase();
   if (text.includes("remote") || text.includes("재택")) return "Remote";
@@ -114,6 +122,80 @@ export function ProfilePage() {
   const [studentProfile, setStudentProfile] = useState<MyCandidateProfile | null>(null);
 
   const canEditBasic = user?.role === "PARTNER" || user?.role === "STUDENT";
+
+  const enumDisplay = (value?: string | null) => {
+    if (!value) return "-";
+    const visa: Record<string, string> = {
+      D10_JOB_SEEKING: tr("D-10 구직", "D-10 Job Seeking"),
+      D2_STUDENT: tr("D-2 유학", "D-2 Student"),
+      D4_GENERAL_TRAINING: tr("D-4 일반연수", "D-4 General Training"),
+      F2_RESIDENCE: tr("F-2 거주", "F-2 Residence"),
+      F4_OVERSEAS_KOREAN: tr("F-4 재외동포", "F-4 Overseas Korean"),
+      F5_PERMANENT_RESIDENCE: tr("F-5 영주", "F-5 Permanent Residence"),
+      F6_MARRIAGE_IMMIGRATION: tr("F-6 결혼이민", "F-6 Marriage Immigration"),
+      E7_SPECIFIC_ACTIVITY: tr("E-7 특정활동", "E-7 Specific Activity"),
+      H1_WORKING_HOLIDAY: tr("H-1 워킹홀리데이", "H-1 Working Holiday"),
+      OTHER: tr("기타", "Other")
+    };
+    const educationType: Record<string, string> = {
+      HIGH_SCHOOL: tr("고등학교", "High School"),
+      ASSOCIATE: tr("전문학사", "Associate"),
+      BACHELOR: tr("학사", "Bachelor"),
+      MASTER: tr("석사", "Master"),
+      DOCTOR: tr("박사", "Doctor"),
+      BOOTCAMP: tr("부트캠프", "Bootcamp"),
+      CERTIFICATE: tr("자격/수료", "Certificate"),
+      OTHER: tr("기타", "Other")
+    };
+    const educationStatus: Record<string, string> = {
+      ENROLLED: tr("재학", "Enrolled"),
+      GRADUATED: tr("졸업", "Graduated"),
+      LEAVE_OF_ABSENCE: tr("휴학", "Leave of Absence"),
+      DROPPED_OUT: tr("중퇴", "Dropped Out"),
+      OTHER: tr("기타", "Other")
+    };
+    const languageType: Record<string, string> = {
+      KOREAN: tr("한국어", "Korean"),
+      ENGLISH: tr("영어", "English"),
+      CHINESE: tr("중국어", "Chinese"),
+      JAPANESE: tr("일본어", "Japanese"),
+      VIETNAMESE: tr("베트남어", "Vietnamese"),
+      INDONESIAN: tr("인도네시아어", "Indonesian"),
+      THAI: tr("태국어", "Thai"),
+      MALAY: tr("말레이어", "Malay"),
+      FILIPINO: tr("필리핀어", "Filipino"),
+      HINDI: tr("힌디어", "Hindi"),
+      SPANISH: tr("스페인어", "Spanish"),
+      FRENCH: tr("프랑스어", "French"),
+      GERMAN: tr("독일어", "German"),
+      OTHER: tr("기타", "Other")
+    };
+    const languageLevel: Record<string, string> = {
+      BEGINNER: tr("초급", "Beginner"),
+      INTERMEDIATE: tr("중급", "Intermediate"),
+      ADVANCED: tr("고급", "Advanced"),
+      NATIVE: tr("원어민", "Native")
+    };
+    const activityType: Record<string, string> = {
+      PROJECT: tr("프로젝트", "Project"),
+      VOLUNTEER: tr("봉사활동", "Volunteer"),
+      INTERNSHIP: tr("인턴십", "Internship"),
+      CERTIFICATE: tr("자격증", "Certificate"),
+      AWARD: tr("수상", "Award"),
+      EXTRACURRICULAR: tr("대외활동", "Extracurricular"),
+      OTHER: tr("기타", "Other")
+    };
+
+    return (
+      visa[value] ??
+      educationType[value] ??
+      educationStatus[value] ??
+      languageType[value] ??
+      languageLevel[value] ??
+      activityType[value] ??
+      toDisplayTitle(value)
+    );
+  };
 
   const businessSections: ProfileSection[] = useMemo(
     () => [
@@ -304,7 +386,7 @@ export function ProfilePage() {
         title: tr("근무 가능 조건", "Work availability"),
         description: tr("매칭 정확도를 높이는 기본 조건입니다.", "Core conditions that improve matching accuracy."),
         fields: [
-          { label: tr("비자 유형", "Visa type"), value: studentProfile?.visaType ?? "-" },
+          { label: tr("비자 유형", "Visa type"), value: enumDisplay(studentProfile?.visaType) },
           { label: tr("거주 지역", "Residence region"), value: studentProfile?.residenceProvince ?? "-" },
           {
             label: tr("시작 가능 시점", "Available start timing"),
@@ -327,7 +409,7 @@ export function ProfilePage() {
           {
             label: tr("학위/재학 상태", "Degree/enrollment status"),
             value: studentProfile?.educations?.[0]
-              ? `${studentProfile.educations[0].educationType} / ${studentProfile.educations[0].status}`
+              ? `${enumDisplay(studentProfile.educations[0].educationType)} / ${enumDisplay(studentProfile.educations[0].status)}`
               : "-"
           }
         ],
@@ -337,8 +419,8 @@ export function ProfilePage() {
         title: tr("언어 능력", "Language skills"),
         description: tr("업무 가능한 언어 수준을 입력해 주세요.", "Add your working language levels."),
         fields: [
-          { label: tr("언어", "Language"), value: studentProfile?.languageSkills?.[0]?.language ?? "-" },
-          { label: tr("레벨", "Level"), value: studentProfile?.languageSkills?.[0]?.level ?? "-" },
+          { label: tr("언어", "Language"), value: enumDisplay(studentProfile?.languageSkills?.[0]?.language) },
+          { label: tr("레벨", "Level"), value: enumDisplay(studentProfile?.languageSkills?.[0]?.level) },
           {
             label: tr("시험/인증", "Test/certificate"),
             value: studentProfile?.languageSkills?.[0]
@@ -369,7 +451,7 @@ export function ProfilePage() {
         title: tr("활동 경험", "Activities"),
         description: tr("프로젝트/대외활동/수상 이력을 보여주세요.", "Show projects, extracurriculars, and awards."),
         fields: [
-          { label: tr("활동 유형", "Activity type"), value: studentProfile?.activityExperiences?.[0]?.activityType ?? "-" },
+          { label: tr("활동 유형", "Activity type"), value: enumDisplay(studentProfile?.activityExperiences?.[0]?.activityType) },
           { label: tr("활동명", "Title"), value: studentProfile?.activityExperiences?.[0]?.title ?? "-" },
           { label: tr("성과", "Outcome"), value: studentProfile?.activityExperiences?.[0]?.description ?? "-" }
         ],
@@ -381,13 +463,8 @@ export function ProfilePage() {
         fields: [
           { label: tr("스킬", "Skills"), value: formatList(studentProfile?.skills) },
           { label: tr("자기소개", "Self introduction"), value: studentProfile?.selfIntroduction?.trim() || "-" },
-          {
-            label: tr("지원 동기/선호/추가 정보", "Motivation/preferences/additional notes"),
-            value: [studentProfile?.programMotivation, studentProfile?.preferenceConditionNote, studentProfile?.additionalInfoNote]
-              .map((item) => item?.trim())
-              .filter(Boolean)
-              .join(" / ") || "-"
-          }
+          { label: tr("선호 조건", "Preferences"), value: studentProfile?.preferenceConditionNote?.trim() || "-" },
+          { label: tr("추가 정보", "Additional notes"), value: studentProfile?.additionalInfoNote?.trim() || "-" }
         ],
         href: "/profile/resume/edit/profile-text"
       }

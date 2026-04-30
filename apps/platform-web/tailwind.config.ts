@@ -76,6 +76,9 @@ export default {
         elevated: "var(--shadow-elevated)",
         glow: "var(--shadow-glow)"
       },
+      transitionTimingFunction: {
+        smooth: "cubic-bezier(0.22, 1, 0.36, 1)"
+      },
       fontFamily: {
         display: ["'Space Grotesk'", "system-ui", "sans-serif"],
         sans: ["Inter", "system-ui", "sans-serif"]

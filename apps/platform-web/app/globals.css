@@ -115,6 +115,10 @@ All colors MUST be HSL.
 }
 
 @layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
+
   * {
     @apply border-border;
   }
@@ -123,6 +127,7 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
     font-feature-settings: "ss01", "cv11";
+    overflow-y: scroll;
   }
   h1, h2, h3, h4 {
     font-family: 'Space Grotesk', system-ui, sans-serif;

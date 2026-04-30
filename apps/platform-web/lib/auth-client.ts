@@ -308,6 +308,7 @@ export async function logoutPlatformSession() {
   }
 }
 
-export function getPostLoginUrl(_role: AuthUser["role"]) {
+export function getPostLoginUrl(role: AuthUser["role"]) {
+  if (role === "PARTNER") return "/partner/dashboard";
   return "/positions";
 }

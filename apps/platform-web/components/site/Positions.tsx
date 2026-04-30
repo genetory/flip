@@ -220,7 +220,7 @@ export const Positions = () => {
               return (
               <article
                 key={`${position.id}-fan-${index}`}
-                className="absolute left-1/2 top-0 flex w-[280px] flex-col rounded-2xl bg-white p-3.5 shadow-[0_0_36px_-14px_rgba(37,99,235,0.52)] transition-[transform,opacity] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                className="absolute left-1/2 top-0 flex w-[280px] flex-col rounded-2xl bg-white p-3.5 shadow-[0_0_36px_-14px_rgba(37,99,235,0.52)] transition-[transform,opacity] duration-700 ease-smooth"
                 style={{
                   transform: deckOpen
                     ? `translateX(calc(-50% + ${(visualIndex - 2) * 186}px)) translateY(${Math.max(0, 16 - visualIndex * 2)}px) rotate(${randomTilt}deg)`

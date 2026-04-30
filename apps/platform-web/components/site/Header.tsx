@@ -17,6 +17,7 @@ export const Header = () => {
   const [open, setOpen] = useState(false);
   const [activeHash, setActiveHash] = useState("");
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   const { locale, setLocale } = useLanguage();
   const { user, isReady, isAuthenticated, logout, getAccountUrl } = useAuthSession();
   const copy = getHeaderMessages(locale);
@@ -26,7 +27,6 @@ export const Header = () => {
   const navItems = [
     { label: homeLabel, href: "/" },
     { label: copy.nav.positions, href: "/positions" },
-    { label: copy.nav.matching, href: "/matching-probability" },
     { label: copy.nav.community, href: "/community" },
     { label: copy.nav.pricing, href: "/pricing" }
   ];
@@ -43,6 +43,7 @@ export const Header = () => {
   }, [pathname]);
 
   useEffect(() => {
+    setIsHydrated(true);
     const onScroll = () => {
       setIsScrolled(window.scrollY > 18);
     };
@@ -91,14 +92,14 @@ export const Header = () => {
 
   return (
     <header
-      className={`sticky top-0 z-50 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+      className={`sticky top-0 z-50 ${isHydrated ? "transition-all duration-500 ease-smooth" : ""} ${
         isScrolled
           ? "top-3 mx-auto w-[min(96%,1200px)] translate-y-0 rounded-2xl border border-border/70 bg-white shadow-elevated backdrop-blur-xl"
           : "top-0 border-b border-border/60 bg-background/80 backdrop-blur-xl"
       }`}
     >
       <div
-        className={`container flex items-center justify-between transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        className={`container flex items-center justify-between ${isHydrated ? "transition-all duration-500 ease-smooth" : ""} ${
           isScrolled ? "h-14 scale-[0.985]" : "h-16 scale-100"
         }`}
       >

@@ -5,7 +5,8 @@ import Image from "next/image";
 
 export const CoverSection = () => {
   const sectionRef = useRef<HTMLElement | null>(null);
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(0.5);
+  const [hasScrolled, setHasScrolled] = useState(false);
   const frameRef = useRef<number | null>(null);
   const tickingRef = useRef(false);
 
@@ -22,6 +23,7 @@ export const CoverSection = () => {
     };
 
     const requestTick = () => {
+      setHasScrolled(true);
       if (tickingRef.current) return;
       tickingRef.current = true;
       frameRef.current = window.requestAnimationFrame(update);
@@ -37,8 +39,9 @@ export const CoverSection = () => {
     };
   }, []);
 
-  const imageOffset = (progress - 0.5) * 36;
-  const contentOffset = (0.5 - progress) * 22;
+  // Start from neutral offset to avoid first-paint jump on refresh/hydration.
+  const imageOffset = hasScrolled ? (progress - 0.5) * 36 : 0;
+  const contentOffset = hasScrolled ? (0.5 - progress) * 22 : 0;
 
   return (
     <section ref={sectionRef} className="relative w-full overflow-hidden">

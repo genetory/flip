@@ -575,10 +575,6 @@ export function ProfileResumeSectionEditPage() {
                     <textarea className="min-h-28 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={selfIntroduction} onChange={(e) => setSelfIntroduction(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{tr("지원 동기", "Motivation")}</label>
-                    <textarea className="min-h-28 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={programMotivation} onChange={(e) => setProgramMotivation(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
                     <label className="text-sm font-medium">{tr("선호 조건", "Preferences")}</label>
                     <textarea className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={preferenceConditionNote} onChange={(e) => setPreferenceConditionNote(e.target.value)} />
                   </div>
