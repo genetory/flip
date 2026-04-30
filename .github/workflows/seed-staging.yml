@@ -1,0 +1,49 @@
+name: Seed Staging DB
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Seed target"
+        required: true
+        default: "both"
+        type: choice
+        options:
+          - user
+          - community
+          - both
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate secret
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          test -n "${DATABASE_URL:-}" || (echo "Missing secret: STAGING_DATABASE_URL" && exit 1)
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install deps
+        run: npm ci --no-audit --no-fund
+
+      - name: Run user seed
+        if: ${{ github.event.inputs.target == 'user' || github.event.inputs.target == 'both' }}
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: node --import tsx apps/api/scripts/seed-dev-users.ts
+
+      - name: Run community seed
+        if: ${{ github.event.inputs.target == 'community' || github.event.inputs.target == 'both' }}
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: node --import tsx apps/api/scripts/seed-community-posts.ts
