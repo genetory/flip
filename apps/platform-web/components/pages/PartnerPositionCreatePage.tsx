@@ -208,7 +208,7 @@ export function PartnerPositionCreatePage() {
         wantsPreTraining: wantsPreTraining === "unset" ? undefined : wantsPreTraining === "yes",
         additionalNotes: additionalNotes.trim() || undefined
       });
-      router.push("/positions");
+      router.push("/partner/positions");
       router.refresh();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t("포지션 생성에 실패했습니다.", "Failed to create position."));
@@ -687,7 +687,7 @@ export function PartnerPositionCreatePage() {
               {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
 
               <div className="flex items-center justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => router.push("/positions")} disabled={isSubmitting}>
+                <Button variant="outline" onClick={() => router.push("/partner/positions")} disabled={isSubmitting}>
                   {t("취소", "Cancel")}
                 </Button>
                 <Button variant="dark" onClick={() => void handleSubmit()} disabled={isSubmitting}>

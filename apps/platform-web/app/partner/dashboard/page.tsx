@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
+import { Button } from "../../../components/ui/button";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import {
   getMyPartnerOrganization,
@@ -101,6 +103,18 @@ export default function PartnerDashboardPage() {
                 <li key={item}>- {item}</li>
               ))}
             </ol>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button size="sm" asChild>
+                <Link href="/partner/positions">포지션 관리</Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/partner/positions/new">포지션 등록</Link>
+              </Button>
+              <Button size="sm" variant="outline" disabled>
+                지원자 관리 (준비중)
+              </Button>
+            </div>
           </section>
         </div>
       </main>
@@ -108,4 +122,3 @@ export default function PartnerDashboardPage() {
     </div>
   );
 }
-
