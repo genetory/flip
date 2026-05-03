@@ -5,8 +5,15 @@ import { useState } from "react";
 import { getSiteMessages } from "../../lib/site-messages";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { Reveal } from "./Reveal";
+import { paperlogy } from "../../lib/fonts";
 
 const stickyColors = ["bg-white", "bg-white", "bg-white", "bg-white"] as const;
+const REVIEW_SQUIRCLE_CLIP_ID = "review-avatar-squircle-clip";
+const REVIEW_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
+const REVIEW_SQUIRCLE_STYLE = {
+  clipPath: `url(#${REVIEW_SQUIRCLE_CLIP_ID})`,
+  WebkitClipPath: `url(#${REVIEW_SQUIRCLE_CLIP_ID})`
+} as const;
 
 const ReviewAvatar = ({ src, alt }: { src?: string; alt: string }) => {
   const [hasError, setHasError] = useState(false);
@@ -14,13 +21,13 @@ const ReviewAvatar = ({ src, alt }: { src?: string; alt: string }) => {
 
   if (showFallback) {
     return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-slate-500">
+      <span className="inline-flex h-6 w-6 items-center justify-center bg-slate-200 text-slate-500" style={REVIEW_SQUIRCLE_STYLE}>
         <User className="h-3.5 w-3.5" weight="bold" />
       </span>
     );
   }
 
-  return <img src={src} alt={alt} className="h-6 w-6 rounded-full object-cover" onError={() => setHasError(true)} />;
+  return <img src={src} alt={alt} className="h-6 w-6 object-cover" style={REVIEW_SQUIRCLE_STYLE} onError={() => setHasError(true)} />;
 };
 
 export const TestimonialsSection = () => {
@@ -31,10 +38,17 @@ export const TestimonialsSection = () => {
 
   return (
     <section id="testimonials" className="bg-[#f6f9ff] py-20">
+      <svg width="0" height="0" aria-hidden className="absolute">
+        <defs>
+          <clipPath id={REVIEW_SQUIRCLE_CLIP_ID} clipPathUnits="objectBoundingBox">
+            <path d={REVIEW_SQUIRCLE_PATH} transform="scale(0.01)" />
+          </clipPath>
+        </defs>
+      </svg>
       <div className="container max-w-[1200px]">
         <Reveal className="mb-20">
           <p className="mb-2 text-sm font-semibold text-[#1D4ED8]">{copy.sectionLabel.toUpperCase()}</p>
-          <h2 className="font-display text-3xl font-bold tracking-tight text-[#0B1227] md:text-4xl">{copy.title}</h2>
+          <h2 className={`${paperlogy.className} text-3xl font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>{copy.title}</h2>
         </Reveal>
 
         <Reveal y="sm">

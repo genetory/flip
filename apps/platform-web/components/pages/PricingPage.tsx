@@ -7,6 +7,7 @@ import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { paperlogy } from "../../lib/fonts";
 
 type PricingPlan = {
   name: string;
@@ -26,7 +27,7 @@ export function PricingPage() {
   const plans: PricingPlan[] = isKo
     ? [
         {
-          name: "Starter",
+          name: "누구나 시작",
           price: "무료",
           description: "플랫폼을 가볍게 시작하고 기본 흐름을 확인할 수 있는 플랜",
           features: [
@@ -58,7 +59,7 @@ export function PricingPage() {
       ]
     : [
         {
-          name: "Starter",
+          name: "Start for Everyone",
           price: "Free",
           description: "A starter plan to explore the platform and experience the core workflow",
           features: [
@@ -90,10 +91,10 @@ export function PricingPage() {
       ];
 
   const copy = {
-    title: isKo ? "채용 운영 단계에 맞는 비용 플랜" : "Pricing plans for each hiring stage",
+    title: isKo ? "내 상황에 맞춰 선택하는 이용 플랜" : "Choose a plan that fits your situation",
     description: isKo
-      ? "Aply는 시작부터 확장까지, 팀 상황에 맞춰 유연하게 운영할 수 있도록 플랜을 제공합니다."
-      : "Aply offers flexible plans that help your team scale hiring operations smoothly from day one.",
+      ? "Aply는 시작부터 확장까지, 현재 상황에 맞게 부담 없이 선택할 수 있는 플랜을 제공합니다."
+      : "From getting started to scaling up, Aply offers plans you can choose based on your current situation.",
     note: isKo
       ? "정확한 비용은 포지션 수, 운영 범위, 지원 형태에 따라 달라질 수 있어요."
       : "Final pricing can vary by number of positions, scope, and support needs.",
@@ -163,6 +164,21 @@ export function PricingPage() {
         }
   };
 
+  const renderHousingPrice = (price: string) => {
+    const parts = price.split("/");
+    if (parts.length < 2) {
+      return <span>{price}</span>;
+    }
+    const main = parts[0]?.trim() ?? price;
+    const suffix = parts[1]?.trim() ?? "";
+    return (
+      <>
+        {main}
+        {suffix ? <span className="ml-1 text-sm font-semibold md:text-base">{suffix}</span> : null}
+      </>
+    );
+  };
+
   useEffect(() => {
     const target = refundCardRef.current;
     if (!target || isRefundCardVisible) return;
@@ -188,7 +204,7 @@ export function PricingPage() {
         <section className="bg-[#F8FAFC] pt-12 pb-16 md:pt-16 md:pb-24">
           <div className="container">
             <div className="mx-auto max-w-4xl text-center">
-              <h1 className="font-display text-3xl font-bold tracking-tight text-black">{copy.title}</h1>
+              <h1 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] text-black md:text-5xl`}>{copy.title}</h1>
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">{copy.description}</p>
             </div>
 
@@ -197,31 +213,37 @@ export function PricingPage() {
                 const match = plan.price.match(/^(.*)\s(KRW)$/);
                 const priceMain = match ? match[1] : plan.price;
                 const priceSuffix = match ? match[2] : null;
+                const isMiddleCard = plan.name === "한국 내 대학 출신" || plan.name === "Graduates of Korean Universities";
+                const cardToneClass = isMiddleCard ? "bg-[#0B46E8]" : "bg-white";
                 return (
                 <article
                   key={plan.name}
-                  className={`flex h-full flex-col rounded-2xl border bg-card p-6 shadow-card ${
-                    plan.highlighted ? "border-primary/35 ring-1 ring-primary/25" : "border-border"
+                  className={`flex h-full flex-col rounded-2xl p-6 shadow-card ${cardToneClass} ${
+                    isMiddleCard ? "border-0 ring-0" : "border border-border"
                   }`}
                 >
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{plan.name}</p>
-                  <p className="mt-3 font-display text-2xl font-bold tracking-tight md:text-3xl">
+                  <p className={`text-xs font-semibold uppercase tracking-[0.08em] ${isMiddleCard ? "text-white/80" : "text-muted-foreground"}`}>{plan.name}</p>
+                  <p className={`mt-3 font-display text-2xl font-bold tracking-tight md:text-3xl ${isMiddleCard ? "text-white" : "text-foreground"}`}>
                     {priceMain}
                     {priceSuffix ? <span className="ml-1 text-sm font-semibold md:text-base">{priceSuffix}</span> : null}
                   </p>
-                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{plan.description}</p>
+                  <p className={`mt-3 text-sm leading-relaxed ${isMiddleCard ? "text-white/85" : "text-muted-foreground"}`}>{plan.description}</p>
 
-                  <ul className="mt-6 space-y-2 text-sm text-foreground">
+                  <ul className={`mt-6 space-y-2 text-sm ${isMiddleCard ? "text-white" : "text-foreground"}`}>
                     {plan.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2">
-                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+                        <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${isMiddleCard ? "bg-white" : "bg-primary"}`} aria-hidden />
                         <span>{feature}</span>
                       </li>
                     ))}
                   </ul>
 
                   <div className="mt-8">
-                    <Button variant={plan.cta.variant} asChild className="w-full">
+                    <Button
+                      variant={plan.cta.variant}
+                      asChild
+                      className={`w-full ${isMiddleCard ? "border-0 bg-white text-[#0B46E8] hover:bg-white/90" : ""}`}
+                    >
                       <Link href={plan.cta.href}>{plan.cta.label}</Link>
                     </Button>
                   </div>
@@ -273,12 +295,12 @@ export function PricingPage() {
             </article>
 
             <section className="mx-auto mt-16 max-w-4xl md:mt-20">
-              <h2 className="font-display text-2xl font-bold tracking-tight text-black md:text-3xl">
+              <h2 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] text-black md:text-5xl`}>
                 {copy.housing.titleTop}
                 <br />
                 {copy.housing.titleBottom}
               </h2>
-              <p className="mt-3 text-xs leading-relaxed text-muted-foreground md:text-sm">
+              <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">
                 {copy.housing.description}
                 <br />
                 {copy.housing.note}
@@ -300,7 +322,7 @@ export function PricingPage() {
                     <p className="text-lg font-bold tracking-tight text-foreground">{copy.housing.privateRoom.name}</p>
                     <p className="mt-2 text-sm text-muted-foreground">{copy.housing.privateRoom.location}</p>
                     <p className="mt-1 text-sm text-foreground/90">{copy.housing.privateRoom.summary}</p>
-                    <p className="mt-4 text-xl font-bold text-primary">{copy.housing.privateRoom.price}</p>
+                    <p className="mt-4 text-2xl font-bold text-foreground md:text-3xl">{renderHousingPrice(copy.housing.privateRoom.price)}</p>
                   </div>
                 </article>
 
@@ -319,7 +341,7 @@ export function PricingPage() {
                     <p className="text-lg font-bold tracking-tight text-foreground">{copy.housing.sharedRoom.name}</p>
                     <p className="mt-2 text-sm text-muted-foreground">{copy.housing.sharedRoom.location}</p>
                     <p className="mt-1 text-sm text-foreground/90">{copy.housing.sharedRoom.summary}</p>
-                    <p className="mt-4 text-xl font-bold text-primary">{copy.housing.sharedRoom.price}</p>
+                    <p className="mt-4 text-2xl font-bold text-foreground md:text-3xl">{renderHousingPrice(copy.housing.sharedRoom.price)}</p>
                   </div>
                 </article>
               </div>

@@ -1,9 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { Reveal } from "./Reveal";
+import { paperlogy } from "../../lib/fonts";
+
+const getRandomProfileImage = () => `/img_profile_${Math.floor(Math.random() * 5)}.webp`;
+const AVATAR_SQUIRCLE_CLIP_ID = "faq-avatar-squircle-clip";
+const AVATAR_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
+const AVATAR_SQUIRCLE_STYLE = {
+  clipPath: `url(#${AVATAR_SQUIRCLE_CLIP_ID})`,
+  WebkitClipPath: `url(#${AVATAR_SQUIRCLE_CLIP_ID})`
+} as const;
 
 export const FAQ = () => {
   const { locale } = useLanguage();
@@ -11,12 +20,18 @@ export const FAQ = () => {
   const [audienceTab, setAudienceTab] = useState<"company" | "student">("company");
   const [activeIndex, setActiveIndex] = useState(0);
   const [isAnswerLoading, setIsAnswerLoading] = useState(false);
+  const [questionProfileSrc, setQuestionProfileSrc] = useState("/img_profile_0.webp");
+
+  useEffect(() => {
+    setQuestionProfileSrc(getRandomProfileImage());
+  }, []);
   const items = audienceTab === "company" ? copy.companyItems : copy.studentItems;
   const activeItem = items[activeIndex] ?? items[0];
 
   const handleSelectQuestion = (index: number) => {
     if (index === activeIndex) return;
     setIsAnswerLoading(true);
+    setQuestionProfileSrc(getRandomProfileImage());
     setActiveIndex(index);
     window.setTimeout(() => {
       setIsAnswerLoading(false);
@@ -25,12 +40,19 @@ export const FAQ = () => {
 
   return (
     <section className="relative overflow-hidden bg-[#eef3ff] py-14">
+      <svg width="0" height="0" aria-hidden className="absolute">
+        <defs>
+          <clipPath id={AVATAR_SQUIRCLE_CLIP_ID} clipPathUnits="objectBoundingBox">
+            <path d={AVATAR_SQUIRCLE_PATH} transform="scale(0.01)" />
+          </clipPath>
+        </defs>
+      </svg>
       <div className="pointer-events-none absolute -left-20 top-8 h-52 w-52 rounded-full bg-[#93C5FD]/45 blur-3xl" />
       <div className="pointer-events-none absolute -right-16 bottom-8 h-56 w-56 rounded-full bg-[#c4b5fd]/35 blur-3xl" />
       <div className="container max-w-[1200px]">
         <Reveal>
           <p className="mb-2 inline-flex rounded-full border border-[#bfdbfe] bg-white/80 px-3 py-1 text-xs font-bold tracking-[0.08em] text-[#1D4ED8]">{copy.sectionLabel}</p>
-          <h2 className="font-display text-3xl font-black tracking-[-0.02em] text-[#0B1227] md:text-5xl">{copy.title}</h2>
+          <h2 className={`${paperlogy.className} text-3xl font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>{copy.title}</h2>
           <p className="mt-3 text-slate-600">{copy.description}</p>
           <div className="mt-5 inline-flex gap-2">
             <button
@@ -39,6 +61,7 @@ export const FAQ = () => {
                 setAudienceTab("company");
                 setActiveIndex(0);
                 setIsAnswerLoading(false);
+                setQuestionProfileSrc(getRandomProfileImage());
               }}
               className={`rounded-xl border px-4 py-2 text-sm font-extrabold shadow-[0_10px_20px_-14px_rgba(15,23,42,0.45)] transition-all ${
                 audienceTab === "company"
@@ -54,6 +77,7 @@ export const FAQ = () => {
                 setAudienceTab("student");
                 setActiveIndex(0);
                 setIsAnswerLoading(false);
+                setQuestionProfileSrc(getRandomProfileImage());
               }}
               className={`rounded-xl border px-4 py-2 text-sm font-extrabold shadow-[0_10px_20px_-14px_rgba(15,23,42,0.45)] transition-all ${
                 audienceTab === "student"
@@ -75,11 +99,11 @@ export const FAQ = () => {
                   <button
                     key={item.question}
                     onClick={() => handleSelectQuestion(index)}
-                    className={`w-full px-1 py-3 text-left transition-colors duration-200 ${
+                    className={`w-full px-1 py-4 text-left transition-colors duration-200 ${
                       isActive ? "text-[#0B46E8]" : "text-slate-600 hover:text-[#0B46E8]"
                     }`}
                   >
-                    <p className={`font-display text-sm leading-snug ${isActive ? "font-bold" : "font-semibold"}`}>
+                    <p className={`font-display text-base leading-snug ${isActive ? "font-bold" : "font-semibold"}`}>
                       {item.question.replace(/^Q\.\s*/, "")}
                     </p>
                   </button>
@@ -94,11 +118,11 @@ export const FAQ = () => {
                     {activeItem.question.replace(/^Q\.\s*/, "")}
                   </h3>
                 </div>
-                <img src="/img_profile_0.webp" alt="Question profile" className="h-8 w-8 shrink-0 rounded-full object-cover md:h-9 md:w-9" />
+                <img src={questionProfileSrc} alt="Question profile" className="h-8 w-8 shrink-0 object-cover md:h-9 md:w-9" style={AVATAR_SQUIRCLE_STYLE} />
               </div>
 
               <div className="mr-auto flex w-full max-w-[96%] items-end justify-start gap-2">
-                <img src="/img_logo.webp" alt="Answer profile" className="h-8 w-8 shrink-0 rounded-full bg-white object-contain p-1 md:h-9 md:w-9" />
+                <img src="/img_logo.webp" alt="Answer profile" className="h-8 w-8 shrink-0 bg-white object-contain p-1 md:h-9 md:w-9" style={AVATAR_SQUIRCLE_STYLE} />
                 <div
                   className={`rounded-2xl rounded-tl-md bg-gradient-to-br from-[#f8fbff] to-[#f3f7ff] px-4 ${isAnswerLoading ? "py-1.5" : "py-3"} text-left text-slate-700 ${
                     isAnswerLoading ? "w-[86px]" : "w-full"

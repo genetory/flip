@@ -348,7 +348,7 @@ export type PositionsMeta = {
 export type PublicPositionListItem = {
   id: string;
   title: string;
-  status: "DRAFT" | "OPEN" | "MATCHING" | "CLOSED";
+  status: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
   workType: "On-site" | "Hybrid" | "Remote" | null;
   thumbnailImages: string[];
   eligibleVisas: string[];
@@ -398,7 +398,7 @@ export type PartnerPosition = {
   id: string;
   partnerOrganizationId: string | null;
   title: string;
-  status: "DRAFT" | "OPEN" | "MATCHING" | "CLOSED";
+  status: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
   workType: "On-site" | "Hybrid" | "Remote" | null;
   thumbnailImages: string[];
   eligibleVisas: string[];
@@ -611,7 +611,7 @@ export async function applyMyPosition(positionId: string) {
 
 export async function createMyPartnerPosition(input: {
   title: string;
-  status?: "DRAFT" | "OPEN";
+  status?: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
   workType?: "On-site" | "Hybrid" | "Remote";
   thumbnailImages?: string[];
   eligibleVisas?: string[];
@@ -656,7 +656,7 @@ export async function updateMyPartnerPosition(
   id: string,
   input: {
     title?: string;
-    status?: "DRAFT" | "OPEN";
+    status?: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
     workType?: "On-site" | "Hybrid" | "Remote";
     thumbnailImages?: string[];
     eligibleVisas?: string[];
@@ -684,6 +684,67 @@ export async function updateMyPartnerPosition(
   if (!result.item) {
     throw new Error("응답에 수정된 포지션 정보가 없습니다.");
   }
+  return result.item;
+}
+
+export type PartnerApplicantStatus =
+  | "APPLIED"
+  | "REVIEWING"
+  | "INTERVIEW"
+  | "OFFERED"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "WITHDRAWN"
+  | "COMPLETED";
+
+export type PartnerApplicantListItem = {
+  id: string;
+  name: string;
+  nationality: string | null;
+  email: string;
+  positionId: string;
+  positionTitle: string;
+  languages: string[];
+  school: string | null;
+  major: string | null;
+  residence: string | null;
+  appliedAt: string | null;
+  recommendation: "HIGH" | "NORMAL" | "CHECK";
+  status: PartnerApplicantStatus;
+};
+
+export type PartnerApplicantDetail = PartnerApplicantListItem & {
+  summary: string | null;
+  motivation: string | null;
+  portfolioUrl: string | null;
+  availableStartDate: string | null;
+  memo: string | null;
+};
+
+export async function getMyPartnerApplicants() {
+  const result = await authedJsonFetch<PartnerApplicantListItem>("/partner/applicants", {
+    method: "GET"
+  });
+  return result.items ?? [];
+}
+
+export async function getMyPartnerApplicantById(id: string) {
+  const result = await authedJsonFetch<PartnerApplicantDetail>(`/partner/applicants/${encodeURIComponent(id)}`, {
+    method: "GET"
+  });
+  if (!result.item) throw new Error("응답에 지원자 정보가 없습니다.");
+  return result.item;
+}
+
+export async function updateMyPartnerApplicantState(
+  id: string,
+  input: { status?: PartnerApplicantStatus; memo?: string | null }
+) {
+  const result = await authedJsonFetch<PartnerApplicantDetail>(`/partner/applicants/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input)
+  });
+  if (!result.item) throw new Error("응답에 수정된 지원자 정보가 없습니다.");
   return result.item;
 }
 

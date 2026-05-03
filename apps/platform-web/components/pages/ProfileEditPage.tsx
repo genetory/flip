@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
+import { PartnerAdminTwoColumn } from "../partner/PartnerAdminTwoColumn";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { logoutPlatformSession } from "../../lib/auth-client";
@@ -13,6 +14,12 @@ import { isMemberNotFoundError, updateMyBasicInfo } from "../../lib/member-profi
 import { getStoredProfilePhoto, setStoredProfilePhoto } from "../../lib/profile-media";
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const PROFILE_SQUIRCLE_CLIP_ID = "profile-edit-squircle-clip";
+const PROFILE_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
+const PROFILE_SQUIRCLE_STYLE = {
+  clipPath: `url(#${PROFILE_SQUIRCLE_CLIP_ID})`,
+  WebkitClipPath: `url(#${PROFILE_SQUIRCLE_CLIP_ID})`
+} as const;
 
 export function ProfileEditPage() {
   const router = useRouter();
@@ -140,10 +147,21 @@ export function ProfileEditPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
+      <svg width="0" height="0" aria-hidden className="absolute">
+        <defs>
+          <clipPath id={PROFILE_SQUIRCLE_CLIP_ID} clipPathUnits="objectBoundingBox">
+            <path d={PROFILE_SQUIRCLE_PATH} transform="scale(0.01)" />
+          </clipPath>
+        </defs>
+      </svg>
       <Header />
-      <main className="container py-12 md:py-16">
-        <div className="mx-auto max-w-4xl">
-          <h1 className="mb-6 font-display text-3xl font-bold tracking-tight">{copy.title}</h1>
+      <main className="container py-10 md:py-14">
+        <PartnerAdminTwoColumn>
+        <div className="space-y-6">
+          <div>
+            <h1 className="font-display text-2xl font-black tracking-[-0.02em] text-foreground md:text-3xl">{copy.title}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{locale === "ko" ? "기본 프로필 정보를 보기 쉽게 관리할 수 있어요." : "Manage your basic profile information with a clearer layout."}</p>
+          </div>
 
           {!isReady ? (
             <p className="text-sm text-muted-foreground">{copy.loading}</p>
@@ -155,19 +173,21 @@ export function ProfileEditPage() {
               </Button>
             </div>
           ) : (
-            <section className="space-y-8">
+            <section className="space-y-4">
+              <div className="rounded-2xl bg-white p-4 md:p-5">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
                   {previewImage ? (
                     <img
                       src={previewImage}
                       alt={copy.profilePhoto}
-                      className="h-20 w-20 rounded-full object-cover"
+                      className="h-20 w-20 object-cover"
+                      style={PROFILE_SQUIRCLE_STYLE}
                     />
                   ) : (
-                    <div className={`grid h-20 w-20 place-items-center rounded-full text-xl font-semibold ${
+                    <div className={`grid h-20 w-20 place-items-center text-xl font-semibold ${
                       user.role === "STUDENT" ? "border border-border/60 bg-[#F8FAFC] text-muted-foreground" : "bg-muted"
-                    }`}>
+                    }`} style={PROFILE_SQUIRCLE_STYLE}>
                       {avatarFallback}
                     </div>
                   )}
@@ -180,14 +200,17 @@ export function ProfileEditPage() {
                   </div>
                 </div>
               </div>
+              </div>
 
+              <div className="rounded-2xl bg-white p-4 md:p-5">
+              <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium" htmlFor="profile-real-name">
                   {copy.realName}
                 </label>
                 <input
                   id="profile-real-name"
-                  className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
                   value={realName}
                   onChange={(event) => setRealName(event.target.value)}
                   maxLength={120}
@@ -200,7 +223,7 @@ export function ProfileEditPage() {
                 </label>
                 <input
                   id="profile-nickname"
-                  className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   maxLength={120}
@@ -213,7 +236,7 @@ export function ProfileEditPage() {
                 </label>
                 <input
                   id="profile-phone"
-                  className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
                   value={phoneNumber}
                   onChange={(event) => setPhoneNumber(event.target.value)}
                   maxLength={30}
@@ -227,7 +250,7 @@ export function ProfileEditPage() {
                 </label>
                 <select
                   id="profile-gender"
-                  className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
                   value={gender}
                   onChange={(event) => setGender(event.target.value)}
                 >
@@ -245,14 +268,17 @@ export function ProfileEditPage() {
                 <input
                   id="profile-birth-date"
                   type="date"
-                  className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
                   value={birthDate}
                   onChange={(event) => setBirthDate(event.target.value)}
                 />
               </div>
+              </div>
+              </div>
 
               {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
 
+              <div className="rounded-2xl bg-white p-4 md:p-5">
               <div className="flex items-center justify-end gap-2">
                 <Button variant="outline" onClick={() => router.push("/profile")} disabled={isSaving}>
                   {copy.cancel}
@@ -261,9 +287,11 @@ export function ProfileEditPage() {
                   {isSaving ? copy.saving : copy.save}
                 </Button>
               </div>
+              </div>
             </section>
           )}
         </div>
+        </PartnerAdminTwoColumn>
       </main>
       <Footer />
     </div>

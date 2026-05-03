@@ -8,6 +8,7 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { getPublicPositionsPage, type PublicPositionListItem } from "../../lib/member-profile-client";
 import { Reveal } from "./Reveal";
+import { paperlogy } from "../../lib/fonts";
 
 type HomePositionCardItem = {
   id: string;
@@ -146,7 +147,7 @@ export const Positions = () => {
       <div className="container max-w-[1200px]">
         <Reveal className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="font-display text-3xl font-black tracking-[-0.03em] text-[#0B1227] md:text-4xl">{copy.title}</h2>
+            <h2 className={`${paperlogy.className} text-3xl font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>{copy.title}</h2>
             <p className="mt-2 max-w-xl text-slate-600">{copy.description}</p>
           </div>
           <Button
@@ -193,13 +194,13 @@ export const Positions = () => {
                     </span>
                   </div>
                   <div className="relative z-20 mt-2 flex items-center gap-2">
-                    <Button variant="outline" size="icon" aria-label={copy.saveAriaLabel} className="h-8 w-8 border-[#BFDBFE] bg-white opacity-60" disabled>
+                    <Button variant="outline" size="icon" aria-label={copy.saveAriaLabel} className="h-8 w-8 border-0 bg-white opacity-60" disabled>
                       <Bookmark className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="dark"
                       size="sm"
-                      className="h-8 rounded-xl bg-[#0B46E8] px-3 text-xs font-extrabold shadow-[0_12px_24px_-16px_rgba(30,64,175,0.9)] pointer-events-none"
+                      className="h-8 rounded-xl bg-[#b7ff5a] px-3 text-xs font-semibold text-[#111111] shadow-[0_12px_24px_-16px_rgba(124,174,38,0.55)] pointer-events-none"
                       aria-disabled="true"
                     >
                       {copy.applyCta}
@@ -254,12 +255,12 @@ export const Positions = () => {
                   </span>
                 </div>
                 <div className="relative z-20 mt-auto flex items-center gap-2 pt-3">
-                  <Button variant="outline" size="icon" className="border-[#BFDBFE] bg-white opacity-60" aria-label={copy.saveAriaLabel} disabled>
+                  <Button variant="outline" size="icon" className="border-0 bg-white opacity-60" aria-label={copy.saveAriaLabel} disabled>
                     <Bookmark />
                   </Button>
                   <Button
                     variant="dark"
-                    className="h-10 flex-1 rounded-xl bg-[#0B46E8] text-sm font-extrabold shadow-[0_14px_26px_-18px_rgba(30,64,175,0.9)] pointer-events-none"
+                    className="h-10 flex-1 rounded-xl bg-[#b7ff5a] text-sm font-semibold text-[#111111] shadow-[0_14px_26px_-18px_rgba(124,174,38,0.55)] pointer-events-none"
                     aria-disabled="true"
                   >
                     {copy.applyCta}
@@ -279,14 +280,19 @@ export const Positions = () => {
           </div>
           <div className="grid gap-0 md:grid-cols-[0.4fr_1fr]">
             <div className="relative min-h-[64px] overflow-hidden md:min-h-[72px]">
-              <img src="/img_company_recruit.webp" alt={copy.partnerRecruitAlt} className="h-full w-full object-cover" />
+              <img src="/img_company_recruit.webp?v=20260430" alt={copy.partnerRecruitAlt} className="h-full w-full object-cover" />
               <div className="pointer-events-none absolute inset-y-0 right-0 w-40 bg-gradient-to-l from-white to-transparent" />
             </div>
             <div className="flex flex-col justify-center gap-1 p-5 md:p-6">
-              <p className="font-display text-xl font-black leading-tight tracking-[-0.02em] text-[#0B1227] md:text-2xl">{copy.partnerTitle}</p>
+              <p className={`${paperlogy.className} text-xl font-black leading-tight tracking-[-0.02em] text-[#0B1227] md:text-2xl`}>{copy.partnerTitle}</p>
               <p className="max-w-md text-sm leading-relaxed text-slate-600">{copy.partnerDescription}</p>
               <div className="mt-4 md:mt-5">
-                <Button variant="hero" size="lg" className="h-10 rounded-xl bg-[#0B46E8] px-5 text-sm font-extrabold shadow-[0_16px_30px_-18px_rgba(30,64,175,0.8)] hover:bg-[#0A3FCF]" asChild>
+                <Button
+                  variant="hero"
+                  size="lg"
+                  className="h-10 rounded-xl bg-[#b7ff5a] px-5 text-sm font-semibold text-[#111111] shadow-[0_16px_30px_-18px_rgba(124,174,38,0.55)] hover:bg-[#a8ee4d]"
+                  asChild
+                >
                   <Link href="/login">{copy.partnerCta}</Link>
                 </Button>
               </div>

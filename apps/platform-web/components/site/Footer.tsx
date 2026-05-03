@@ -7,6 +7,8 @@ import { getSiteMessages } from "../../lib/site-messages";
 export const Footer = () => {
   const { locale } = useLanguage();
   const copy = getSiteMessages(locale).footer;
+  const isKo = locale === "ko";
+  const t = (ko: string, en: string) => (isKo ? ko : en);
 
   return (
     <footer className="border-t border-border bg-muted/40">
@@ -23,12 +25,12 @@ export const Footer = () => {
           </div>
           <p className="max-w-xs text-sm text-muted-foreground">{copy.brandDescription}</p>
           <div className="max-w-sm space-y-0.5 text-xs leading-relaxed text-muted-foreground">
-            <p>주식회사 플리퍼스</p>
-            <p>대표: 김남구</p>
-            <p>개인정보책임관리자: 김남구</p>
-            <p>사업자등록번호: 657-81-02986</p>
-            <p>서울특별시 중구 다동 140 10층</p>
-            <p>이메일: info@flip-ers.com</p>
+            <p>{t("주식회사 플리퍼스", "FLIPERS Co., Ltd.")}</p>
+            <p>{t("대표: 김남구", "CEO: Namgu Kim")}</p>
+            <p>{t("개인정보책임관리자: 김남구", "Privacy Officer: Namgu Kim")}</p>
+            <p>{t("사업자등록번호: 657-81-02986", "Business Registration No.: 657-81-02986")}</p>
+            <p>{t("서울특별시 중구 다동 140 10층", "10F, 140 Dadong, Jung-gu, Seoul, Republic of Korea")}</p>
+            <p>{t("이메일: info@flip-ers.com", "Email: info@flip-ers.com")}</p>
           </div>
         </div>
       </div>

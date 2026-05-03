@@ -2,6 +2,7 @@
 
 import { useLanguage } from "../i18n/LanguageProvider";
 import { Reveal } from "./Reveal";
+import { paperlogy } from "../../lib/fonts";
 
 const sponsors = [
   { src: "/img_sponcer_0.png", alt: "Sponsor 0" },
@@ -23,7 +24,7 @@ export const Sponsors = () => {
       <div className="container max-w-[1200px]">
         <Reveal className="text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{eyebrow}</p>
-          <h2 className="mt-2 font-display text-2xl font-black tracking-[-0.02em] text-[#0B1227] md:text-3xl">
+          <h2 className={`${paperlogy.className} mt-2 text-3xl font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>
             {title}
           </h2>
         </Reveal>

@@ -28,7 +28,8 @@ export const Header = () => {
     { label: homeLabel, href: "/" },
     { label: copy.nav.positions, href: "/positions" },
     { label: copy.nav.community, href: "/community" },
-    { label: copy.nav.pricing, href: "/pricing" }
+    { label: copy.nav.pricing, href: "/pricing" },
+    { label: copy.nav.resources, href: "/resources" }
   ];
 
   useEffect(() => {
@@ -92,15 +93,15 @@ export const Header = () => {
 
   return (
     <header
-      className={`sticky top-0 z-50 ${isHydrated ? "transition-all duration-500 ease-smooth" : ""} ${
+        className={`sticky top-0 z-50 ${isHydrated ? "transition-all duration-500 ease-smooth" : ""} ${
         isScrolled
-          ? "top-3 mx-auto w-[min(96%,1200px)] translate-y-0 rounded-2xl border border-border/70 bg-white shadow-elevated backdrop-blur-xl"
+          ? "top-5 mx-auto w-[min(70%,1200px)] md:min-w-[980px] translate-y-0 rounded-2xl border border-border/70 bg-white shadow-elevated backdrop-blur-xl"
           : "top-0 border-b border-border/60 bg-background/80 backdrop-blur-xl"
       }`}
     >
-      <div
+        <div
         className={`container flex items-center justify-between ${isHydrated ? "transition-all duration-500 ease-smooth" : ""} ${
-          isScrolled ? "h-14 scale-[0.985]" : "h-16 scale-100"
+          isScrolled ? "h-[52px] scale-[0.985]" : "h-[52px] scale-100"
         }`}
       >
         <Link href="/" className="flex items-center">
@@ -109,7 +110,7 @@ export const Header = () => {
             alt={`${copy.brand} logo`}
             width={180}
             height={48}
-            className="h-8 w-auto md:h-9"
+            className="h-6 w-auto md:h-7"
             priority
           />
         </Link>
@@ -118,7 +119,7 @@ export const Header = () => {
             <Link
               key={item.label}
               href={item.href}
-              className={`text-base transition-colors ${
+              className={`text-sm transition-colors ${
                 isNavActive(item.href) ? "font-extrabold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -205,7 +206,7 @@ export const Header = () => {
             ))}
             {isReady && isAuthenticated ? (
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" onClick={handleAccountClick}>
+                <Button variant="outline" size="sm" className="border-0" onClick={handleAccountClick}>
                   {user?.name ? copy.auth.myAccount : copy.auth.account}
                 </Button>
                 <Button variant="dark" size="sm" onClick={() => void handleLogout()}>
@@ -214,7 +215,7 @@ export const Header = () => {
               </div>
             ) : (
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" asChild>
+                <Button variant="outline" size="sm" className="border-0" asChild>
                   <Link href="/login">{copy.auth.login}</Link>
                 </Button>
                 <Button variant="dark" size="sm" asChild>

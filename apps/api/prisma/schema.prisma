@@ -35,6 +35,8 @@ model User {
   communityPosts CommunityPost[]
   communityPostLikes CommunityPostLike[]
   communityPostComments CommunityPostComment[]
+  partnerApplicantWorkflowsAsPartner PartnerApplicantWorkflow[] @relation("PartnerApplicantWorkflowPartnerUser")
+  partnerApplicantWorkflowsAsCandidate PartnerApplicantWorkflow[] @relation("PartnerApplicantWorkflowCandidateUser")
 
   @@index([role])
   @@index([partnerType])
@@ -171,9 +173,13 @@ enum PartnerCompanySize {
 
 enum PositionStatus {
   DRAFT
+  PENDING_REVIEW
+  APPROVED
   OPEN
+  PAUSED
   MATCHING
   CLOSED
+  REJECTED
 }
 
 enum CandidateVisaType {
@@ -329,6 +335,7 @@ model Position {
   matchingParticipants PositionMatchingParticipant[]
   progressLogs PositionProgressLog[]
   statusHistories PositionStatusHistory[]
+  applicantWorkflows PartnerApplicantWorkflow[]
 
   @@index([partnerOrganizationId])
   @@index([status])
@@ -379,6 +386,26 @@ model PositionStatusHistory {
 
   @@index([positionId])
   @@index([createdAt])
+}
+
+model PartnerApplicantWorkflow {
+  id              String   @id @default(uuid())
+  partnerUserId   String
+  candidateUserId String
+  positionId      String
+  status          String
+  memo            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  partnerUser User     @relation("PartnerApplicantWorkflowPartnerUser", fields: [partnerUserId], references: [id], onDelete: Cascade)
+  candidateUser User   @relation("PartnerApplicantWorkflowCandidateUser", fields: [candidateUserId], references: [id], onDelete: Cascade)
+  position      Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerUserId, candidateUserId, positionId])
+  @@index([partnerUserId])
+  @@index([candidateUserId])
+  @@index([positionId])
 }
 
 model MatchingRunHistory {

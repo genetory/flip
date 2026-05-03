@@ -67,6 +67,15 @@ const signupEmailVerificationCodeTtlMinutes = Math.max(1, Number(process.env.SIG
 const allowedOrigins = [platformWebUrl, partnerAdminUrl, opsAdminUrl];
 const refreshCookieName = "flip_refresh_token";
 const isProduction = process.env.NODE_ENV === "production";
+type PartnerApplicantWorkflowStatus =
+  | "APPLIED"
+  | "REVIEWING"
+  | "INTERVIEW"
+  | "OFFERED"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "WITHDRAWN"
+  | "COMPLETED";
 const publicEmailDomains = new Set([
   "gmail.com",
   "googlemail.com",
@@ -110,6 +119,17 @@ type AuthErrorCode =
   | "REFRESH_TOKEN_REVOKED"
   | "USER_NOT_FOUND"
   | "PARTNER_AFFILIATION_REQUIRED";
+
+const partnerApplicantStatusEnum = z.enum([
+  "APPLIED",
+  "REVIEWING",
+  "INTERVIEW",
+  "OFFERED",
+  "ACCEPTED",
+  "REJECTED",
+  "WITHDRAWN",
+  "COMPLETED"
+]);
 
 async function issueAuthTokens(user: AuthTokenUser) {
   const accessToken = signAccessToken({
@@ -524,6 +544,9 @@ const apiDocEndpoints: ApiDocEndpoint[] = [
   { method: "post", path: "/partner/positions", summary: "Create partner position", tag: "Partner", secure: true, requestBody: true, successStatus: "201" },
   { method: "get", path: "/partner/positions/:id", summary: "Get my partner position detail", tag: "Partner", secure: true },
   { method: "patch", path: "/partner/positions/:id", summary: "Update my partner position", tag: "Partner", secure: true, requestBody: true },
+  { method: "get", path: "/partner/applicants", summary: "List my partner applicants", tag: "Partner", secure: true },
+  { method: "get", path: "/partner/applicants/:id", summary: "Get my partner applicant detail", tag: "Partner", secure: true },
+  { method: "patch", path: "/partner/applicants/:id", summary: "Update my partner applicant state", tag: "Partner", secure: true, requestBody: true },
 
   { method: "get", path: "/ops/dashboard", summary: "Ops dashboard summary", tag: "Ops Dashboard", secure: true },
   { method: "get", path: "/ops/partners/meta", summary: "Partner metadata", tag: "Ops Partners", secure: true },
@@ -6920,6 +6943,118 @@ app.post("/members", authenticate, requireRoles([MemberRole.OPERATOR]), async (r
   }
 });
 
+function parsePartnerApplicantCompositeId(value: string) {
+  const idx = value.lastIndexOf(":");
+  if (idx <= 0 || idx >= value.length - 1) return null;
+  const candidateUserId = value.slice(0, idx);
+  const positionId = value.slice(idx + 1);
+  if (!candidateUserId || !positionId) return null;
+  return { candidateUserId, positionId };
+}
+
+function buildPartnerApplicantCompositeId(candidateUserId: string, positionId: string) {
+  return `${candidateUserId}:${positionId}`;
+}
+
+function languageLabel(language: CandidateLanguageType, level: CandidateLanguageLevel) {
+  return `${language} (${level})`;
+}
+
+async function listPartnerApplicantsForUser(userId: string) {
+  const affiliation = await resolvePartnerAffiliation(userId);
+  if (!affiliation?.organization) return { affiliation: null, items: [] as any[] };
+
+  const positions = await prisma.position.findMany({
+    where: { partnerOrganizationId: affiliation.organization.id },
+    select: { id: true, title: true }
+  });
+  const positionMap = new Map(positions.map((item) => [item.id, item.title]));
+  const positionIds = positions.map((item) => item.id);
+  if (positionIds.length === 0) return { affiliation, items: [] as any[] };
+
+  const profiles = await prisma.candidateProfile.findMany({
+    where: { appliedPositionIds: { hasSome: positionIds } },
+    include: {
+      user: {
+        select: { id: true, name: true, realName: true, email: true, nationality: true }
+      },
+      languageSkills: {
+        select: { language: true, level: true },
+        orderBy: { createdAt: "desc" }
+      },
+      educations: {
+        select: { schoolName: true, major: true },
+        orderBy: { createdAt: "desc" }
+      }
+    }
+  });
+
+  const items: Array<{
+    id: string;
+    candidateUserId: string;
+    positionId: string;
+    positionTitle: string;
+    name: string;
+    nationality: string | null;
+    email: string;
+    languages: string[];
+    school: string | null;
+    major: string | null;
+    residence: string | null;
+    appliedAt: string | null;
+    recommendation: "HIGH" | "NORMAL" | "CHECK";
+    status: PartnerApplicantWorkflowStatus;
+    summary: string | null;
+    motivation: string | null;
+    portfolioUrl: string | null;
+    availableStartDate: string | null;
+    memo: string | null;
+  }> = [];
+
+  const workflows = await prisma.partnerApplicantWorkflow.findMany({
+    where: { partnerUserId: userId, positionId: { in: positionIds } },
+    select: { candidateUserId: true, positionId: true, status: true, memo: true }
+  });
+  const workflowMap = new Map(
+    workflows.map((item) => [`${item.candidateUserId}:${item.positionId}`, item])
+  );
+
+  for (const profile of profiles) {
+    const appliedPositionId = profile.appliedPositionIds.find((id) => positionMap.has(id));
+    if (!appliedPositionId) continue;
+
+    const stateKey = buildPartnerApplicantCompositeId(profile.userId, appliedPositionId);
+    const state = workflowMap.get(stateKey);
+    const latestEducation = profile.educations[0];
+    const displayName = profile.user.realName?.trim() || profile.user.name?.trim() || "Unknown";
+    const languages = profile.languageSkills.map((item) => languageLabel(item.language, item.level));
+
+    items.push({
+      id: stateKey,
+      candidateUserId: profile.userId,
+      positionId: appliedPositionId,
+      positionTitle: positionMap.get(appliedPositionId) ?? "-",
+      name: displayName,
+      nationality: profile.user.nationality ?? null,
+      email: profile.user.email,
+      languages,
+      school: latestEducation?.schoolName ?? null,
+      major: latestEducation?.major ?? null,
+      residence: profile.residenceProvince ?? null,
+      appliedAt: profile.updatedAt?.toISOString?.() ?? null,
+      recommendation: languages.length >= 2 ? "HIGH" : "NORMAL",
+      status: (state?.status as PartnerApplicantWorkflowStatus | undefined) ?? "APPLIED",
+      summary: profile.selfIntroduction ?? null,
+      motivation: profile.programMotivation ?? null,
+      portfolioUrl: null,
+      availableStartDate: profile.programStartDate ? profile.programStartDate.toISOString().slice(0, 10) : null,
+      memo: state?.memo ?? null
+    });
+  }
+
+  return { affiliation, items };
+}
+
 app.get("/partner/dashboard", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   if (req.auth!.role === MemberRole.OPERATOR) {
     return res.json({
@@ -7259,6 +7394,167 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
       message: getErrorMessage(error)
     });
     return res.status(500).json({ ok: false, message: "failed to update partner position" });
+  }
+});
+
+app.get("/partner/applicants", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  try {
+    const result = await listPartnerApplicantsForUser(req.auth!.userId);
+    if (!result.affiliation?.organization) {
+      return sendAuthError(
+        res,
+        403,
+        "PARTNER_AFFILIATION_REQUIRED",
+        "partner affiliation is required. use a company email domain."
+      );
+    }
+    return res.json({
+      ok: true,
+      items: result.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        nationality: item.nationality,
+        email: item.email,
+        positionId: item.positionId,
+        positionTitle: item.positionTitle,
+        languages: item.languages,
+        school: item.school,
+        major: item.major,
+        residence: item.residence,
+        appliedAt: item.appliedAt,
+        recommendation: item.recommendation,
+        status: item.status
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid applicant id" });
+
+  try {
+    const result = await listPartnerApplicantsForUser(req.auth!.userId);
+    if (!result.affiliation?.organization) {
+      return sendAuthError(
+        res,
+        403,
+        "PARTNER_AFFILIATION_REQUIRED",
+        "partner affiliation is required. use a company email domain."
+      );
+    }
+
+    const found = result.items.find((item) => item.id === id);
+    if (!found) return res.status(404).json({ ok: false, message: "applicant not found" });
+
+    return res.json({
+      ok: true,
+      item: {
+        id: found.id,
+        name: found.name,
+        nationality: found.nationality,
+        email: found.email,
+        positionId: found.positionId,
+        positionTitle: found.positionTitle,
+        languages: found.languages,
+        school: found.school,
+        major: found.major,
+        residence: found.residence,
+        appliedAt: found.appliedAt,
+        recommendation: found.recommendation,
+        status: found.status,
+        summary: found.summary,
+        motivation: found.motivation,
+        portfolioUrl: found.portfolioUrl,
+        availableStartDate: found.availableStartDate,
+        memo: found.memo
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.patch("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid applicant id" });
+
+  const parsedBody = z
+    .object({
+      status: partnerApplicantStatusEnum.optional(),
+      memo: z.string().trim().max(2000).nullable().optional()
+    })
+    .safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsedBody.error.flatten() });
+  }
+
+  if (!parsePartnerApplicantCompositeId(id)) return res.status(400).json({ ok: false, message: "invalid applicant id" });
+
+  try {
+    const result = await listPartnerApplicantsForUser(req.auth!.userId);
+    if (!result.affiliation?.organization) {
+      return sendAuthError(
+        res,
+        403,
+        "PARTNER_AFFILIATION_REQUIRED",
+        "partner affiliation is required. use a company email domain."
+      );
+    }
+
+    const found = result.items.find((item) => item.id === id);
+    if (!found) return res.status(404).json({ ok: false, message: "applicant not found" });
+
+    const parsedId = parsePartnerApplicantCompositeId(id);
+    if (!parsedId) return res.status(400).json({ ok: false, message: "invalid applicant id" });
+
+    const existing = await prisma.partnerApplicantWorkflow.findUnique({
+      where: {
+        partnerUserId_candidateUserId_positionId: {
+          partnerUserId: req.auth!.userId,
+          candidateUserId: parsedId.candidateUserId,
+          positionId: parsedId.positionId
+        }
+      },
+      select: { status: true, memo: true }
+    });
+
+    const nextStatus = parsedBody.data.status ?? (existing?.status as PartnerApplicantWorkflowStatus | undefined) ?? found.status;
+    const nextMemo = parsedBody.data.memo !== undefined ? parsedBody.data.memo : existing?.memo ?? found.memo ?? null;
+
+    await prisma.partnerApplicantWorkflow.upsert({
+      where: {
+        partnerUserId_candidateUserId_positionId: {
+          partnerUserId: req.auth!.userId,
+          candidateUserId: parsedId.candidateUserId,
+          positionId: parsedId.positionId
+        }
+      },
+      create: {
+        partnerUserId: req.auth!.userId,
+        candidateUserId: parsedId.candidateUserId,
+        positionId: parsedId.positionId,
+        status: nextStatus,
+        memo: nextMemo
+      },
+      update: {
+        status: nextStatus,
+        memo: nextMemo
+      }
+    });
+
+    return res.json({
+      ok: true,
+      item: {
+        ...found,
+        status: nextStatus,
+        memo: nextMemo
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
 });
 

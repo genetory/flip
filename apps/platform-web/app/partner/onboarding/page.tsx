@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { Button } from "../../../components/ui/button";
+import { PartnerAdminTwoColumn } from "../../../components/partner/PartnerAdminTwoColumn";
 import {
   getMyPartnerOrganization,
   isPartnerOrganizationProfileComplete,
@@ -36,11 +37,12 @@ export default function PartnerOnboardingPage() {
   const verificationDone = isPartnerOrganizationVerificationComplete(org);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-muted/30">
       <Header />
       <main className="container py-10 md:py-14">
+        <PartnerAdminTwoColumn>
         <div className="mx-auto max-w-3xl space-y-6 rounded-2xl border border-border/70 bg-card p-6 md:p-8">
-          <div>
+                    <div>
             <h1 className="font-display text-2xl font-black tracking-[-0.02em] text-foreground md:text-3xl">
               파트너 온보딩
             </h1>
@@ -57,7 +59,7 @@ export default function PartnerOnboardingPage() {
               </p>
               <p className="mt-2 text-xs text-muted-foreground">회사명, 산업군, 웹사이트, 주소, 소개를 입력합니다.</p>
               <Button variant="outline" size="sm" className="mt-3" asChild>
-                <Link href="/profile/company/edit">기업 프로필 입력</Link>
+                <Link href="/partner/company-profile">기업 프로필 입력</Link>
               </Button>
             </div>
 
@@ -85,6 +87,7 @@ export default function PartnerOnboardingPage() {
             </Button>
           </div>
         </div>
+        </PartnerAdminTwoColumn>
       </main>
       <Footer />
     </div>

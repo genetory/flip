@@ -5,6 +5,7 @@ import { cn } from "../../lib/utils";
 import { getSiteMessages } from "../../lib/site-messages";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { Reveal } from "./Reveal";
+import { paperlogy } from "../../lib/fonts";
 
 type ScenarioTab = "student" | "company";
 
@@ -19,7 +20,7 @@ export const Scenario = () => {
   const title = isStudent ? copy.studentTitle : copy.companyTitle;
   const description = isStudent ? copy.studentDescription : copy.companyDescription;
   const steps = isStudent ? copy.studentSteps : copy.companySteps;
-  const imageSrc = isStudent ? "/img_scenario_student.webp" : "/img_scenario_company.webp";
+  const imageSrc = isStudent ? "/img_scenario_student.webp" : "/img_scenario_company.webp?v=20260430";
   const imageAlt = isStudent ? copy.studentImageAlt : copy.companyImageAlt;
 
   useEffect(() => {
@@ -73,7 +74,7 @@ export const Scenario = () => {
             </div>
           </div>
 
-          <h2 className="font-display text-3xl font-black tracking-[-0.03em] text-white md:text-5xl">{title}</h2>
+          <h2 className={`${paperlogy.className} text-3xl font-black leading-[1.15] tracking-[-0.03em] text-white md:text-5xl`}>{title}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm text-blue-100/95 md:text-base">{description}</p>
         </Reveal>
 
@@ -89,7 +90,7 @@ export const Scenario = () => {
                 <div
                   className={cn(
                     "relative h-[320px] overflow-visible transition-all duration-700 ease-smooth md:h-[430px]",
-                    active ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
+                    active ? "opacity-100" : "opacity-0"
                   )}
                 >
                   <img src={leftImage} alt={leftImageAlt} className="absolute -bottom-2 left-0 h-full w-auto object-contain" />
@@ -124,7 +125,7 @@ export const Scenario = () => {
                 <div
                   className={cn(
                     "relative h-[320px] overflow-visible transition-all duration-700 ease-smooth md:h-[430px]",
-                    active ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
+                    active ? "opacity-100" : "opacity-0"
                   )}
                 >
                   <img src={rightImage} alt={rightImageAlt} className="absolute -bottom-2 right-0 h-full w-auto object-contain" />

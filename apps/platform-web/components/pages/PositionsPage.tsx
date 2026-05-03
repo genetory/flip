@@ -24,8 +24,8 @@ import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import { ALL_POSITIONS, type Position } from "../../lib/positions-data";
+import { paperlogy } from "../../lib/fonts";
 import {
-  Search,
   MapPin,
   Briefcase,
   Bookmark,
@@ -216,7 +216,6 @@ export function PositionsPage() {
   const [workTypeOptions, setWorkTypeOptions] = useState<string[]>([...FALLBACK_WORK_TYPES]);
   const [myVisaCode, setMyVisaCode] = useState<string | null>(null);
   const [onlyMyVisaEligible, setOnlyMyVisaEligible] = useState(false);
-  const [sort, setSort] = useState<"match" | "recent" | "popular">("match");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
   const [filterPopupMode, setFilterPopupMode] = useState<"all" | "section">("all");
@@ -247,16 +246,17 @@ export function PositionsPage() {
     workType: isKo ? "근무 형태" : "Work type",
     listView: isKo ? "리스트 보기" : "List view",
     gridView: isKo ? "그리드 보기" : "Grid view",
-    title: isKo ? "글로벌 인재를 위한 오픈 포지션" : "Open positions for global talent",
+    title: isKo ? "글로벌 인재를 위한 오픈 포지션" : "Global Open Positions",
+    subtitle: isKo
+      ? "지금 열려 있는 포지션을 빠르게 둘러보고, 내 조건에 맞는 공고를 찾아보세요."
+      : "Find roles that fit you.",
     createPosition: isKo ? "포지션 생성하기" : "Create position",
     bannerAlt: isKo ? "글로벌 인재 포지션 탐색 배너" : "Global talent position banner",
     searchPlaceholder: isKo ? "직무, 기업, 스킬로 검색 (예: Designer, AI, Seoul)" : "Search by role, company, or skill (e.g., Designer, AI, Seoul)",
-    sortMatch: isKo ? "추천 매칭순" : "Best match",
-    sortRecent: isKo ? "최신순" : "Most recent",
-    sortPopular: isKo ? "지원자 많은 순" : "Most applicants",
     search: isKo ? "검색" : "Search",
     popularSearch: isKo ? "인기 검색" : "Popular searches",
-    premiumTitle: isKo ? "이런 포지션은 어떠세요?" : "Aply’s curated featured positions",
+    premiumTitle: isKo ? "이런 포지션은 어떠세요?" : "Featured Positions",
+    premiumSubtitle: isKo ? "지금 주목받는 포지션을 먼저 확인해보세요." : "See highlighted positions first.",
     noPremium: isKo ? "현재 노출 가능한 프리미엄 배너가 없습니다." : "No premium banners are available right now.",
     premiumError: isKo
       ? "프리미엄 배너를 불러오지 못했습니다. API 연결 상태와 배너 조건을 확인해주세요."
@@ -330,9 +330,7 @@ export function PositionsPage() {
       if (onlyMyVisaEligible && myVisaCode && !p.eligibleVisas.includes(myVisaCode)) return false;
       return true;
     });
-    if (sort === "match") result = [...result].sort((a, b) => b.match - a.match);
-    if (sort === "recent") result = [...result].sort((a, b) => a.postedDays - b.postedDays);
-    if (sort === "popular") result = [...result].sort((a, b) => b.applicants - a.applicants);
+    result = [...result].sort((a, b) => b.match - a.match);
     if (premiumPositionIdSet.size > 0) {
       result = [...result].sort((a, b) => {
         const aPremium = premiumPositionIdSet.has(a.id);
@@ -352,7 +350,6 @@ export function PositionsPage() {
     visaTypes,
     onlyMyVisaEligible,
     myVisaCode,
-    sort,
     premiumPositionIdSet
   ]);
 
@@ -633,61 +630,64 @@ export function PositionsPage() {
         <section className="bg-gradient-to-b from-muted/40 to-background">
           <div className="container py-12 md:py-16">
             <div className="mx-auto max-w-4xl">
-              <div className="flex flex-col gap-6">
+              <div className="flex flex-col">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <h1 className="font-display text-3xl font-bold tracking-tight text-black">
-                    {copy.title}
-                  </h1>
+                  <div>
+                    <h1 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] text-black md:text-5xl`}>
+                      {copy.title}
+                    </h1>
+                    <p className="mt-2 text-sm font-normal text-slate-600 md:text-base">
+                      {copy.subtitle}
+                    </p>
+                  </div>
                   {user?.role === "PARTNER" ? (
-                    <Button variant="dark" size="lg" asChild className="w-full md:w-auto">
+                    <Button
+                      variant="dark"
+                      size="lg"
+                      asChild
+                      className="w-full rounded-xl bg-[#b7ff5a] font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d] md:w-auto"
+                    >
                       <Link href="/positions/create">{copy.createPosition}</Link>
                     </Button>
                   ) : null}
                 </div>
 
-                <div className="relative overflow-hidden rounded-2xl bg-muted">
+                <div className="relative mt-4 h-[180px] overflow-hidden rounded-2xl bg-white md:h-[220px]">
                   <Image
-                    src="/img_position_explore.webp"
+                    src="/img_position_hero.webp"
                     alt={copy.bannerAlt}
                     width={1680}
                     height={945}
                     priority
-                    className="h-[180px] w-full object-cover md:h-[220px]"
+                    className="h-full w-full object-contain"
                   />
                 </div>
               </div>
 
-              <div className="mt-8 rounded-2xl border border-border bg-card p-3 md:p-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      value={searchInput}
-                      onChange={(e) => setSearchInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          applySearch();
-                        }
-                      }}
-                      placeholder={copy.searchPlaceholder}
-                      className="h-11 w-full rounded-md border-0 bg-transparent pl-11 text-base outline-none"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <select
-                        value={sort}
-                        onChange={(e) => setSort(e.target.value as "match" | "recent" | "popular")}
-                        className="h-11 w-[160px] appearance-none rounded-md border border-input bg-background pl-3 pr-10 text-sm"
-                      >
-                        <option value="match">{copy.sortMatch}</option>
-                        <option value="recent">{copy.sortRecent}</option>
-                        <option value="popular">{copy.sortPopular}</option>
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <div className="mt-8">
+                <div className="flex flex-col gap-3">
+                  <div className="mx-auto flex w-full items-center gap-2 rounded-2xl bg-white p-2">
+                    <div className="flex-1">
+                      <input
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            applySearch();
+                          }
+                        }}
+                        placeholder={copy.searchPlaceholder}
+                        className="h-11 w-full rounded-xl bg-transparent px-3 text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                      />
                     </div>
-                    <Button variant="dark" size="lg" className="h-11" type="button" onClick={applySearch}>
+                    <Button
+                      variant="dark"
+                      size="lg"
+                      className="h-11 shrink-0 rounded-xl bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d]"
+                      type="button"
+                      onClick={applySearch}
+                    >
                       {copy.search}
                     </Button>
                   </div>
@@ -727,7 +727,10 @@ export function PositionsPage() {
                 </section>
               ) : premiumBanners.length > 0 ? (
                 <section className="mt-12">
-                  <h2 className="mb-4 font-display text-2xl font-bold tracking-tight md:text-3xl">{copy.premiumTitle}</h2>
+                  <h2 className={`${paperlogy.className} mb-4 text-3xl font-black tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>
+                    {copy.premiumTitle}
+                  </h2>
+                  <p className="mb-4 text-sm text-slate-600 md:text-base">{copy.premiumSubtitle}</p>
                   <div className="flex gap-3 overflow-x-auto pb-1">
                     {premiumBanners.map((banner) => (
                       <Link

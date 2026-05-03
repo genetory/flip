@@ -148,7 +148,7 @@ export function PartnerCompanyVerificationEditPage() {
     const inputId = `verification-upload-${input.key}`;
     const isUploading = uploadingField === input.key;
     return (
-      <div key={input.key} className="rounded-md border border-border bg-background p-4">
+      <div key={input.key} className="rounded-md border border-border bg-white p-4">
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-medium">{input.title}</p>
@@ -177,7 +177,7 @@ export function PartnerCompanyVerificationEditPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
+    <div className="min-h-screen flex flex-col bg-muted/30 font-sans text-foreground antialiased">
       <Header />
       <main className="container py-12 md:py-16">
         <div className="mx-auto max-w-4xl">

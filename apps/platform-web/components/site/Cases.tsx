@@ -4,6 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { UserCircle } from "@phosphor-icons/react/dist/ssr";
+import { paperlogy } from "../../lib/fonts";
+
+const AVATAR_SQUIRCLE_CLIP_ID = "cases-avatar-squircle-clip";
+const AVATAR_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
+const AVATAR_SQUIRCLE_STYLE = {
+  clipPath: `url(#${AVATAR_SQUIRCLE_CLIP_ID})`,
+  WebkitClipPath: `url(#${AVATAR_SQUIRCLE_CLIP_ID})`
+} as const;
 
 function formatAnimatedStat(value: string, progress: number) {
   if (value.endsWith("+")) {
@@ -71,13 +79,21 @@ export const Cases = () => {
 
   return (
     <>
+      <svg width="0" height="0" aria-hidden className="absolute">
+        <defs>
+          <clipPath id={AVATAR_SQUIRCLE_CLIP_ID} clipPathUnits="objectBoundingBox">
+            <path d={AVATAR_SQUIRCLE_PATH} transform="scale(0.01)" />
+          </clipPath>
+        </defs>
+      </svg>
       <section className="bg-[#1D4ED8] py-24 md:py-32">
         <div className="container">
           <div className="mx-auto mb-10 max-w-3xl text-center text-primary-foreground">
             <p className="mb-2 text-sm font-semibold text-primary-foreground/75">{copy.resultsEyebrow}</p>
-            <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
-              <span className="block">{copy.resultsTitle}</span>
-              <span className="mt-1 block">{copy.resultsSubtitle}</span>
+            <h2 className={`${paperlogy.className} text-3xl font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>
+              {copy.resultsTitle}
+              <br />
+              <span className="mt-3 inline-block">{copy.resultsSubtitle}</span>
             </h2>
           </div>
 
@@ -133,7 +149,7 @@ export const Cases = () => {
               >
                 <p className="mb-5 flex-1 text-sm font-normal leading-relaxed text-muted-foreground">"{item.quote}"</p>
                 <div className="flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted/30 text-muted-foreground">
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center border border-border bg-muted/30 text-muted-foreground" style={AVATAR_SQUIRCLE_STYLE}>
                     <UserCircle className="h-7 w-7" weight="duotone" />
                   </span>
                   <p className="text-xs font-medium text-muted-foreground">— {item.by}</p>

@@ -5,6 +5,14 @@ import Link from "next/link";
 import { CheckCircle2, MapPin, Briefcase } from "lucide-react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
+import { paperlogy } from "../../lib/fonts";
+
+const AVATAR_SQUIRCLE_CLIP_ID = "hero-avatar-squircle-clip";
+const AVATAR_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
+const AVATAR_SQUIRCLE_STYLE = {
+  clipPath: `url(#${AVATAR_SQUIRCLE_CLIP_ID})`,
+  WebkitClipPath: `url(#${AVATAR_SQUIRCLE_CLIP_ID})`
+} as const;
 
 export const Hero = () => {
   const { locale } = useLanguage();
@@ -12,9 +20,16 @@ export const Hero = () => {
 
   return (
     <section className="relative overflow-hidden bg-white md:h-[calc(100svh-4rem)]">
+      <svg width="0" height="0" aria-hidden className="absolute">
+        <defs>
+          <clipPath id={AVATAR_SQUIRCLE_CLIP_ID} clipPathUnits="objectBoundingBox">
+            <path d={AVATAR_SQUIRCLE_PATH} transform="scale(0.01)" />
+          </clipPath>
+        </defs>
+      </svg>
       <div className="container grid max-w-[1200px] items-center gap-10 py-12 md:h-full md:grid-cols-[1.05fr_1fr] md:py-8">
         <div className="space-y-9">
-          <h1 className="slide-in-left font-display text-[1.8rem] font-black uppercase leading-[1.02] tracking-[-0.03em] text-[#0B1227] sm:text-[2.1rem] md:text-[2.9rem] lg:text-[3.35rem]" style={{ animationDelay: "40ms" }}>
+          <h1 className={`${paperlogy.className} slide-in-left text-3xl font-black uppercase leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`} style={{ animationDelay: "40ms" }}>
             <span className="block">{copy.titleTop}</span>
             <span className="mt-3 inline-block -rotate-[1.2deg] rounded-2xl bg-[#b7ff5a] px-5 py-2.5 text-[#0B1227] shadow-[0_16px_34px_-18px_rgba(30,64,175,0.35)] md:px-7 md:py-3">
               {copy.titleAccent}
@@ -25,7 +40,7 @@ export const Hero = () => {
             <Button
               variant="hero"
               size="xl"
-              className="h-12 rounded-2xl bg-[#0B46E8] px-6 text-sm font-extrabold tracking-[0.01em] text-white shadow-[0_20px_35px_-18px_rgba(30,64,175,0.9)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#0A3FCF] hover:shadow-[0_26px_42px_-20px_rgba(30,64,175,0.95)]"
+              className="h-12 rounded-2xl bg-[#b7ff5a] px-6 text-sm font-semibold tracking-[0.01em] text-[#111111] shadow-[0_20px_35px_-18px_rgba(124,174,38,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#a8ee4d] hover:shadow-[0_26px_42px_-20px_rgba(111,155,34,0.62)]"
               asChild
             >
               <Link href="/positions">
@@ -123,7 +138,7 @@ const HeroVisual = () => {
       <div className="absolute -top-2 -right-2 h-full w-full rounded-2xl bg-[#F9A8D4]/35" />
       <div className="relative rounded-2xl border-2 border-[#C4B5FD] bg-white p-5 shadow-[0_26px_50px_-24px_rgba(124,58,237,0.72)]">
       <div className="mb-3 flex items-center gap-2">
-        <div className="h-9 w-9 overflow-hidden rounded-full border border-border/60">
+        <div className="h-9 w-9 overflow-hidden border border-border/60" style={AVATAR_SQUIRCLE_STYLE}>
           <img
             src="/img_profile_0.webp"
             alt="Student profile"

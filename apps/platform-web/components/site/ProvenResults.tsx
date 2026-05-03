@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getSiteMessages } from "../../lib/site-messages";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { Reveal } from "./Reveal";
+import { paperlogy } from "../../lib/fonts";
 
 export const ProvenResults = () => {
   const { locale } = useLanguage();
@@ -40,10 +41,10 @@ export const ProvenResults = () => {
       <div className="container max-w-[1200px]">
         <Reveal className="mx-auto mb-14 max-w-2xl text-center">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{copy.resultsEyebrow}</p>
-            <h2 className="font-display text-3xl font-black tracking-[-0.03em] text-[#0B1227] md:text-5xl">
+            <h2 className={`${paperlogy.className} text-3xl font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>
             {copy.resultsTitle}
             <br />
-            {copy.resultsSubtitle}
+            <span className="mt-2 inline-block">{copy.resultsSubtitle}</span>
           </h2>
         </Reveal>
 

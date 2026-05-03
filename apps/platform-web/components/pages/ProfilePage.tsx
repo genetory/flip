@@ -25,6 +25,13 @@ import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import { Bookmark, Briefcase, LayoutGrid, List, MapPin } from "lucide-react";
 
+const PROFILE_SQUIRCLE_CLIP_ID = "profile-page-squircle-clip";
+const PROFILE_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
+const PROFILE_SQUIRCLE_STYLE = {
+  clipPath: `url(#${PROFILE_SQUIRCLE_CLIP_ID})`,
+  WebkitClipPath: `url(#${PROFILE_SQUIRCLE_CLIP_ID})`
+} as const;
+
 type ProfileSection = {
   title: string;
   description: string;
@@ -380,6 +387,7 @@ export function ProfilePage() {
     return tr(`최종 인증 대기: ${missing.join(", ")} 업로드가 필요합니다.`, `Verification pending: upload ${missing.join(", ")}.`);
   }, [locale, verificationFields]);
 
+
   const studentResumeSections = useMemo<StudentResumeSection[]>(
     () => [
       {
@@ -518,6 +526,13 @@ export function ProfilePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
+      <svg width="0" height="0" aria-hidden className="absolute">
+        <defs>
+          <clipPath id={PROFILE_SQUIRCLE_CLIP_ID} clipPathUnits="objectBoundingBox">
+            <path d={PROFILE_SQUIRCLE_PATH} transform="scale(0.01)" />
+          </clipPath>
+        </defs>
+      </svg>
       <Header />
       <main className="container py-12 md:py-16">
         <div className="mx-auto max-w-4xl">
@@ -541,11 +556,11 @@ export function ProfilePage() {
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   {profileImage ? (
-                    <img src={profileImage} alt={tr("프로필 사진", "Profile photo")} className="h-16 w-16 rounded-full object-cover" />
+                    <img src={profileImage} alt={tr("프로필 사진", "Profile photo")} className="h-16 w-16 object-cover" style={PROFILE_SQUIRCLE_STYLE} />
                   ) : (
-                    <div className={`grid h-16 w-16 place-items-center rounded-full text-lg font-semibold ${
+                    <div className={`grid h-16 w-16 place-items-center text-lg font-semibold ${
                       user.role === "STUDENT" ? "border border-border/60 bg-[#F8FAFC] text-muted-foreground" : "bg-muted"
-                    }`}>{avatarFallback}</div>
+                    }`} style={PROFILE_SQUIRCLE_STYLE}>{avatarFallback}</div>
                   )}
                   <div>
                     <div className="flex items-center gap-2">
@@ -567,25 +582,30 @@ export function ProfilePage() {
               <div className="space-y-6 border-t border-border/60 pt-6">
                 {user.role === "PARTNER" || user.role === "OPERATOR" ? (
                   <article className="space-y-5">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab("info")}
-                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                          activeTab === "info" ? "bg-foreground text-background" : "text-muted-foreground"
-                        }`}
-                      >
-                        {tr("정보", "Info")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab("positions")}
-                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                          activeTab === "positions" ? "bg-foreground text-background" : "text-muted-foreground"
-                        }`}
-                      >
-                        {tr("올려진 포지션", "Posted positions")}
-                      </button>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("info")}
+                          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                            activeTab === "info" ? "bg-foreground text-background" : "text-muted-foreground"
+                          }`}
+                        >
+                          {tr("정보", "Info")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("positions")}
+                          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                            activeTab === "positions" ? "bg-foreground text-background" : "text-muted-foreground"
+                          }`}
+                        >
+                          {tr("올려진 포지션", "Posted positions")}
+                        </button>
+                      </div>
+                      <Button size="sm" className="bg-[#b7ff5a] font-semibold text-[#111111] hover:bg-[#a8ee4d]" asChild>
+                        <Link href="/partner/dashboard">{tr("대시보드로 이동하기", "Go to dashboard")}</Link>
+                      </Button>
                     </div>
 
                     {activeTab === "info" ? (

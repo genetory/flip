@@ -58,8 +58,8 @@ const siteMessages = {
     },
     positions: {
       liveLabel: "Live",
-      title: "현재 모집 중인 포지션",
-      description: "Aply 에서 제공하는 포지션 입니다.",
+      title: "지금 모집 중인 포지션",
+      description: "Aply에서 지금 지원할 수 있는 포지션이에요.",
       viewAll: "전체 포지션 보기",
       foreignerEligible: "외국인 지원 가능",
       details: "자세히 보기",
@@ -133,10 +133,10 @@ const siteMessages = {
     },
     studentProfile: {
       sectionLabel: "For Students",
-      titleTop: "프로필 채울수록",
-      titleBottom: "기회가 더 열려요",
+      titleTop: "프로필을 채울수록",
+      titleBottom: "기회가 더 많아져요",
       description:
-        "기본 정보만 입력해도 시작할 수 있어요.\n항목을 채울수록 더 많은 기업과 포지션이 열립니다.",
+        "기본 정보만 입력해도 바로 시작할 수 있어요.\n프로필을 더 채울수록 더 많은 기업과 포지션을 만날 수 있어요.",
       statusBadge: "매칭 준비도 높음",
       completionLabel: "프로필 완성도",
       recommendationsLabel: "추천 가능한 포지션",
@@ -161,8 +161,8 @@ const siteMessages = {
     businessValue: {
       sectionLabel: "For Business",
       titleTop: "더 빠르게, 더 적합한",
-      titleBottom: "글로벌 인재를 만나세요",
-      description: "이력서만 보지 않고, 실무 준비도와 한국 업무 적응 가능성까지 확인해 채용 리스크를 줄입니다.",
+      titleBottom: "글로벌 인재를 만나보세요",
+      description: "이력서만 보지 않고 실무 준비도와 한국 업무 적응 가능성까지 함께 확인해 채용 리스크를 줄여드려요.",
       primaryCta: "기업 상담하기",
       secondaryCta: "기업 운영 방식 보기",
       cards: [
@@ -216,9 +216,9 @@ const siteMessages = {
     },
     scenario: {
       sectionLabel: "Process",
-      studentTitle: "학생은 이렇게 기회를 넓혀갑니다",
-      companyTitle: "기업은 이렇게 후보자를 만나게 됩니다",
-      studentDescription: "가입부터 지원까지, 준비도를 높일수록 더 많은 기회가 열리는 흐름입니다.",
+      studentTitle: "학생은 이렇게 기회를 넓혀가요",
+      companyTitle: "기업은 이렇게 후보자를 만나게 돼요",
+      studentDescription: "가입부터 지원까지, 준비도를 높일수록 더 많은 기회를 만날 수 있어요.",
       companyDescription: "포지션 등록부터 인터뷰 연결까지, 채용 진행을 한 흐름으로 관리합니다.",
       studentImageAlt: "학생 관점 시나리오 이미지",
       companyImageAlt: "기업 관점 시나리오 이미지",
@@ -244,8 +244,8 @@ const siteMessages = {
       sectionLabel: "Cases",
       title: "기업 사례 / 성과",
       resultsEyebrow: "Proven Results",
-      resultsTitle: "말뿐인 약속은 하지 않습니다.",
-      resultsSubtitle: "숫자로 증명합니다.",
+      resultsTitle: "말로만 약속하지 않아요.",
+      resultsSubtitle: "숫자로 확실하게 보여드려요.",
       stats: [
         { value: "200+", label: "누적 매칭 성공" },
         { value: "100+", label: "파트너 기업 수" },
@@ -275,7 +275,7 @@ const siteMessages = {
     },
     testimonials: {
       sectionLabel: "Testimonials",
-      title: "선배들의 리얼 후기",
+      title: "선배들의 진짜 후기",
       items: [
         {
           quote: "처음엔 어디서 시작해야 할지 막막했는데, 프로필 단계별 안내 덕분에 준비 방향이 명확해졌어요.",
@@ -297,7 +297,7 @@ const siteMessages = {
     faq: {
       sectionLabel: "FAQ",
       title: "자주 묻는 질문",
-      description: "더 궁금한 점이 있다면 기업 상담을 통해 운영팀에 직접 문의할 수 있습니다.",
+      description: "더 궁금한 점이 있다면 기업 상담으로 운영팀에 편하게 문의해 주세요.",
       tabs: {
         company: "기업용 질문답변",
         student: "학생용 질문답변"
@@ -348,13 +348,13 @@ const siteMessages = {
       ]
     },
     finalCta: {
-      companyTitleTop: "글로벌 인재 채용을",
-      companyTitleBottom: "지금 시작해보세요",
-      companyDescription: "포지션 등록 또는 파트너 상담으로 준비된 후보자를 만나보세요.",
+      companyTitleTop: "글로벌 인재 채용,",
+      companyTitleBottom: "지금 바로 시작해보세요",
+      companyDescription: "포지션 등록이나 파트너 상담으로 준비된 후보자를 만나보세요.",
       companyCta: "파트너로 시작하기",
-      studentTitleTop: "내 프로필을 만들고",
-      studentTitleBottom: "기회를 확인해보세요",
-      studentDescription: "프로필 완성으로 추천 포지션이 즉시 열립니다.",
+      studentTitleTop: "내 프로필 만들고",
+      studentTitleBottom: "기회를 바로 확인해보세요",
+      studentDescription: "프로필을 완성하면 추천 포지션이 바로 열려요.",
       studentCta: "내 매칭 가능성 확인하기"
     }
   },
@@ -362,7 +362,7 @@ const siteMessages = {
     footer: {
       brandDescription: "A career platform connecting global talent and companies.",
       columns: [
-        { title: "Platform", items: ["Browse Positions", "Check Match Score", "How It Works", "Cases"] },
+        { title: "Platform", items: ["Explore Positions", "Match Potential", "How It Works", "Cases"] },
         { title: "Resources", items: ["Cases", "FAQ", "Blog", "Support"] },
         { title: "Company", items: ["About", "Careers", "Contact", "Terms"] }
       ],
@@ -376,8 +376,8 @@ const siteMessages = {
       description:
         "Companies find the right talent, and students prepare for real opportunities.\nFrom hiring and work experience to matching readiness, all in one place.",
       primaryCta: "Explore positions",
-      secondaryCta: "Check my match potential",
-      positionsLink: "View open positions now",
+      secondaryCta: "See match potential",
+      positionsLink: "View currently open positions",
       companyDashboard: "Company dashboard",
       companyStatus: "Active",
       stats: [
@@ -398,25 +398,25 @@ const siteMessages = {
       ],
       companyPanelEyebrow: "Company",
       companyPanelPartnerLabel: "Partner company",
-      companyPanelIndustryLabel: "Industry",
+      companyPanelIndustryLabel: "Sector",
       companyPanelIndustryValue: "IT",
       companyPanelSizeLabel: "Company size",
       companyPanelSizeValue: "Under 30 employees",
-      companyPanelOpenPositionsLabel: "Open positions",
+      companyPanelOpenPositionsLabel: "Active positions",
       companyPanelOpenPositionsValue: "3",
       companyPanelWorkTypeLabel: "Work type",
       companyPanelWorkTypeValue: "Remote · Hybrid",
       openLabel: "Open",
       studentProfile: "Student profile",
       profileProgress: "Profile completion",
-      readinessLabel: "High matching readiness",
-      recommendationLabel: "7 recommendations",
+      readinessLabel: "High match readiness",
+      recommendationLabel: "Recommended 7",
       liveMatching: "Live matching"
     },
     positions: {
       liveLabel: "Live",
-      title: "Open positions",
-      description: "Positions provided through Aply.",
+      title: "Currently open positions",
+      description: "Positions provided by Aply.",
       viewAll: "View all positions",
       foreignerEligible: "International applicants welcome",
       details: "View details",
@@ -432,77 +432,77 @@ const siteMessages = {
       workTypeOnsite: "On-site",
       workTypeRemote: "Remote",
       workTypeHybrid: "Hybrid",
-      partnerTitle: "Post a position for your company",
+      partnerTitle: "Register your company position too",
       partnerDescription: "Join as a partner and get recommendations for ready candidates.",
       partnerCta: "Start as a partner",
       items: [
         {
           company: "H ******** Inc.",
           initial: "H",
-          role: "Social media manager, Marketing Team Assistant (Hiring)",
+          role: "Social media manager, Marketing Team Assistant opening",
           category: "Marketing",
           location: "To be discussed",
           workType: "On-site",
-          start: "Open now",
+          start: "Upon hiring",
           badge: "New"
         },
         {
           company: "H******** Labs",
           initial: "H",
-          role: "Business Development, Education Market Research (Hiring)",
+          role: "Business Development, Education Market Research opening",
           category: "Research, Business",
           location: "To be discussed",
           workType: "On-site",
-          start: "Open now",
+          start: "Upon hiring",
           badge: "New"
         },
         {
           company: "g*****b",
           initial: "G",
-          role: "Chinese translation work (Hiring)",
+          role: "Chinese translation opening",
           category: "Translation",
           location: "To be discussed",
           workType: "On-site",
-          start: "Open now",
+          start: "Upon hiring",
           badge: "New"
         },
         {
           company: "(Ltd.) K**************",
           initial: "K",
-          role: "Tech Support, QA, R&D (Hiring)",
+          role: "Tech Support, QA, R&D opening",
           category: "IT/Software engineering",
           location: "To be discussed",
           workType: "On-site",
-          start: "Open now",
+          start: "Upon hiring",
           badge: "New"
         },
         {
           company: "C****** Co., Ltd.",
           initial: "C",
-          role: "Mechanical Engineering / R&D (Hiring)",
+          role: "Mechanical Engineering / R&D opening",
           category: "Engineering (Mechanical, Electrical, etc.)",
           location: "To be discussed",
           workType: "On-site",
-          start: "Open now",
+          start: "Upon hiring",
           badge: "New"
         }
       ]
     },
     studentProfile: {
       sectionLabel: "For Students",
-      titleTop: "The more you build your profile,",
+      titleTop: "The more you complete your profile,",
       titleBottom: "the more opportunities open up",
       description:
         "You can start with basic information.\nAs you complete more profile fields, more companies and positions become available.",
-      statusBadge: "High matching readiness",
+      statusBadge: "High match readiness",
       completionLabel: "Profile completion",
-      recommendationsLabel: "Recommended positions",
-      unlockedLabel: "Improve profile completeness to raise match potential",
+      recommendationsLabel: "Recommended positions available",
+      unlockedLabel: "Improve profile completion to increase match potential",
       profileMeta: "SNU · Marketing",
       highlights: [
         "Check positions that fit you right away",
-        "Expand recommendations instantly by adding profile fields",
-        "Automatically structure your profile for company review"
+        "Expand recommended positions instantly by adding more fields",
+        "Automatically organize your profile for easier company review"
       ],
       cta: "Start my profile",
       checklist: [
@@ -517,31 +517,31 @@ const siteMessages = {
     },
     businessValue: {
       sectionLabel: "For Business",
-      titleTop: "Meet better-matched",
+      titleTop: "Find better-fit",
       titleBottom: "global talent faster",
-      description: "Reduce hiring risk by checking practical readiness and workplace fit, not just resumes.",
-      primaryCta: "Talk to us",
-      secondaryCta: "See how it works for business",
+      description: "Reduce hiring risk by checking practical readiness and Korean workplace adaptability, not resumes alone.",
+      primaryCta: "Book a company consultation",
+      secondaryCta: "See business operations",
       cards: [
         {
-          title: "Practical readiness, verified",
+          title: "Practical readiness verified",
           description:
-            "Review each candidate beyond basic resumes by combining profile depth, language capability, role competency, and task performance signals. This helps your team shortlist talent who can contribute from day one."
+            "Review not only major, language, and role competency, but also real task history and readiness. Instead of comparing specs alone, you can shortlist candidates who can contribute to the current role from day one."
         },
         {
           title: "Korean workplace fit",
           description:
-            "Assess communication style, collaboration behavior, and adaptation to Korean workplace culture before deeper interview rounds. Early fit validation reduces onboarding friction and mis-hire risk."
+            "Assess business communication style, collaboration behavior, and reporting/feedback adaptability. Validating fit with Korean workplace culture before deeper interviews helps reduce post-hire onboarding risk."
         },
         {
-          title: "Objective performance reports",
+          title: "Objective reports provided",
           description:
-            "Use structured reports that summarize strengths, gaps, and practical performance. Hiring managers and interviewers can align faster on evidence-based decisions and deliver clearer feedback."
+            "Get reports that summarize each candidate's strengths, improvement areas, and performance results. Hiring managers and interviewers can align faster on common criteria and communicate clearer interview decisions and feedback."
         },
         {
-          title: "From matching to hiring",
+          title: "Connected through hiring conversion",
           description:
-            "Run posting, matching, interviews, and early onboarding in one connected flow. Even teams with limited global hiring experience can operate with lower overhead and reach hiring conversion faster."
+            "Run position posting, matching, interview coordination, and early onboarding in one flow. Even teams with limited global hiring experience can reduce operational burden and move to stable hiring conversion."
         }
       ]
     },
@@ -551,61 +551,61 @@ const siteMessages = {
       steps: [
         {
           num: "01",
-          title: "Companies post positions",
-          description: "Define role expectations, required skills, work format, and hiring timeline in a structured way."
+          title: "Companies register positions",
+          description: "Enter structured hiring criteria such as role, required competency, work format, and timeline."
         },
         {
           num: "02",
           title: "Students complete profiles",
-          description: "Students add education, language, role interests, and visa status to unlock readiness scores and live recommendations."
+          description: "When students enter education, language, role interest, and visa/residency status, match readiness and recommended positions update instantly."
         },
         {
           num: "03",
-          title: "Aply supports precise matching",
-          description: "Aply analyzes candidate readiness and company requirements together to connect higher-fit matches first."
+          title: "Aply supports better-fit connections",
+          description: "Aply analyzes candidate readiness and company conditions together to connect priority candidates and positions with higher precision."
         },
         {
           num: "04",
           title: "Manage operations and progress",
-          description: "Track interviews, onboarding, work-experience milestones, and feedback in one continuous workflow."
+          description: "Track and manage interviews, joining progress, work-experience stages, and feedback in one place."
         }
       ]
     },
     scenario: {
       sectionLabel: "Process",
       studentTitle: "How students expand opportunities",
-      companyTitle: "How companies discover candidates",
-      studentDescription: "From signup to application, stronger profile readiness unlocks more opportunities.",
-      companyDescription: "From posting to interviews, manage hiring progress in one connected flow.",
+      companyTitle: "How companies meet candidates",
+      studentDescription: "From signup to application, stronger readiness opens more opportunities.",
+      companyDescription: "From position posting to interview connection, manage hiring in one flow.",
       studentImageAlt: "Student-view scenario image",
       companyImageAlt: "Company-view scenario image",
       tabs: { student: "Student view", company: "Company view" },
-      studentSteps: ["Quick signup", "Enter basic profile", "Check recommendations", "Unlock more with extra inputs", "Apply / start matching"],
+      studentSteps: ["Quick signup", "Enter basic profile", "Check recommended positions", "Unlock more with additional inputs", "Apply and proceed to interviews/results"],
       studentStepSubtitles: [
         "Complete signup in minutes and get started right away.",
-        "Add core profile details to prepare your initial match setup.",
-        "See recommended positions that fit your current profile.",
-        "Unlock more opportunities by adding extra information.",
-        "Start applying and move into the active matching flow."
+        "Enter core profile details to prepare your initial matching setup.",
+        "See recommended positions that match your profile right away.",
+        "Add more information to unlock a wider range of opportunities.",
+        "Start applying and proceed through real matching steps."
       ],
-      companySteps: ["Post position", "Review matching student pool", "Prioritize high-readiness candidates", "Manage progress", "Connect interviews / operations"],
+      companySteps: ["Register position", "Review condition-matched student pool", "Prioritize high-readiness candidates", "Run interviews and record results", "Manage progress status"],
       companyStepSubtitles: [
-        "Set clear hiring criteria by posting role and requirement details.",
-        "Quickly review the student pool that matches your conditions.",
-        "Prioritize and review candidates with stronger readiness first.",
-        "Track each step with a clear view of current progress.",
-        "Connect interviews and operations into one execution flow."
+        "Set clear hiring criteria by registering role and condition details.",
+        "Quickly review the student candidate pool that matches your conditions.",
+        "Prioritize candidates with higher readiness first.",
+        "Track status clearly while continuously managing each step.",
+        "Connect interview and operations steps into one natural flow."
       ]
     },
     cases: {
       sectionLabel: "Cases",
-      title: "Partner stories and outcomes",
+      title: "Company cases / outcomes",
       resultsEyebrow: "Proven Results",
       resultsTitle: "No empty promises.",
-      resultsSubtitle: "Proven by numbers.",
+      resultsSubtitle: "Proven with numbers.",
       stats: [
-        { value: "200+", label: "Total successful matches" },
-        { value: "100+", label: "Partner companies" },
+        { value: "200+", label: "Cumulative successful matches" },
+        { value: "100+", label: "Number of partner companies" },
         { value: "4.5/5.0", label: "Student satisfaction" },
         { value: "4.8/5.0", label: "Company satisfaction" }
       ],
@@ -618,13 +618,13 @@ const siteMessages = {
         },
         {
           tag: "Enterprise · Operations",
-          title: "Acme Global — Matching international student interns",
+          title: "Acme Global — International student intern matching",
           quote: "The best part was checking visa, language, and role fit in one place.",
           by: "Talent Manager, Acme"
         },
         {
           tag: "Student · Career",
-          title: "Mei L. — Work experience to full-time opportunity",
+          title: "Mei L. — From practical work experience to hiring connection",
           quote: "As I completed my profile, recommendations increased and I started my first global career.",
           by: "MA in Marketing, Seoul"
         }
@@ -632,11 +632,11 @@ const siteMessages = {
     },
     testimonials: {
       sectionLabel: "Testimonials",
-      title: "Real stories from seniors",
+      title: "Real reviews from seniors",
       items: [
         {
           quote: "I was unsure where to start, but the step-by-step profile flow made my preparation plan clear.",
-          by: "K. Kim · Business",
+          by: "K** · Business Administration",
           avatar: "/avatar_testimonial_kim.svg"
         },
         {
@@ -654,36 +654,36 @@ const siteMessages = {
     faq: {
       sectionLabel: "FAQ",
       title: "Frequently asked questions",
-      description: "If you have more questions, contact the operations team through partner consultation.",
+      description: "If you have more questions, you can contact the operations team directly through company consultation.",
       tabs: {
-        company: "Company FAQs",
-        student: "Student FAQs"
+        company: "Company Q&A",
+        student: "Student Q&A"
       },
       companyItems: [
         {
-          question: "What companies can join as partners?",
+          question: "Q. How long is the program period?",
           answer:
-            "Startups, SMEs, enterprises, and global operation teams can all join. If your company wants to hire international talent or run practical work-experience programs, you can start regardless of company size or industry."
+            "The standard program period is 4 weeks and can be adjusted up to 5 weeks depending on company and participant circumstances. Detailed schedules are coordinated after matching is confirmed."
         },
         {
-          question: "How can international students apply?",
+          question: "Q. What if a participant does not engage sincerely?",
           answer:
-            "After signup, students complete their basic profile and add visa status, language proficiency, and preferred roles. The platform then recommends matching positions automatically, and recommendation quality improves as profiles become more complete."
+            "If a participant is absent without notice or does not engage sincerely in the program, please inform the Flipers manager immediately. Depending on the situation, early termination of the program may be reviewed."
         },
         {
-          question: "Can companies review students directly?",
+          question: "Q. Are there any legal concerns?",
           answer:
-            "Yes. Companies can directly review structured student profiles, role-fit indicators, and readiness signals in one place. When a candidate fits, teams can move to interviews quickly and make decisions with less friction."
+            "- This program is operated as an educational practical work-experience program, so participants are not workers, and wages or labor contracts do not apply.\n- Accordingly, cash compensation is not allowed. Instead, we guide companies to provide only non-cash lunch support (meal vouchers or meal expense coverage).\n- This model has been reviewed with labor and legal advisors. We have matched over 200 trainees and have operated the program without issues with the Seoul Global Center and universities under the Seoul Metropolitan Government."
         },
         {
-          question: "When do students start receiving recommendations?",
+          question: "Q. Can we hire participants after the program?",
           answer:
-            "Recommendations appear as soon as basic profile information is completed. As students add more details such as education, language, experience, and visa information, more opportunities become available and matching accuracy increases."
+            "Yes. After the program ends, companies can directly make hiring offers to participants. In that case, please inform Flipers."
         },
         {
-          question: "What does the operations team do?",
+          question: "Q. Is additional talent matching available?",
           answer:
-            "The operations team supports the full process between companies and students. They help with matching, interview scheduling, early adaptation, and communication flow so both sides can move faster with fewer operational issues."
+            "Yes. Please contact celine@flip-ers.com and we can provide additional talent matching."
         }
       ],
       studentItems: [
