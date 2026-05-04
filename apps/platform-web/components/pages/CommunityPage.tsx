@@ -918,7 +918,10 @@ export const CommunityPage = () => {
                     alt={t("커뮤니티 피드 배너", "Community feed banner")}
                     width={1680}
                     height={945}
-                    priority
+                    preload
+                    fetchPriority="high"
+                    quality={70}
+                    sizes="(max-width: 768px) 100vw, 896px"
                     className="h-full w-full object-contain"
                   />
                 </div>

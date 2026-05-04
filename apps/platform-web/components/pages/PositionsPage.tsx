@@ -658,7 +658,10 @@ export function PositionsPage() {
                     alt={copy.bannerAlt}
                     width={1680}
                     height={945}
-                    priority
+                    preload
+                    fetchPriority="high"
+                    quality={70}
+                    sizes="(max-width: 768px) 100vw, 896px"
                     className="h-full w-full object-contain"
                   />
                 </div>

@@ -133,8 +133,11 @@ export function ResourcesPage() {
                   alt={t("자료실 히어로 이미지", "Resources hero image")}
                   width={1920}
                   height={640}
+                  preload
+                  fetchPriority="high"
+                  quality={70}
+                  sizes="(max-width: 768px) 100vw, 896px"
                   className="h-auto w-full object-cover"
-                  priority
                 />
               </div>
             </section>
