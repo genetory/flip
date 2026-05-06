@@ -69,9 +69,16 @@ const smtpUser = process.env.SMTP_USER?.trim() ?? "";
 const smtpPass = process.env.SMTP_PASS ?? "";
 const smtpSecure = String(process.env.SMTP_SECURE ?? "false").toLowerCase() === "true";
 const signupEmailVerificationCodeTtlMinutes = Math.max(1, Number(process.env.SIGNUP_EMAIL_VERIFICATION_CODE_TTL_MINUTES ?? 10));
-const allowedOrigins = [platformWebUrl, partnerAdminUrl, opsAdminUrl];
-const refreshCookieName = "flip_refresh_token";
 const isProduction = process.env.NODE_ENV === "production";
+const allowedOrigins = [platformWebUrl, partnerAdminUrl, opsAdminUrl]
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
+const allowedOriginHostSuffixes = (process.env.CORS_ALLOWED_ORIGIN_SUFFIXES ?? (isProduction ? "" : ".azurewebsites.net"))
+  .split(",")
+  .map((item) => item.trim().toLowerCase())
+  .filter((item) => item.length > 0)
+  .map((item) => (item.startsWith(".") ? item : `.${item}`));
+const refreshCookieName = "flip_refresh_token";
 type PartnerApplicantWorkflowStatus =
   | "APPLIED"
   | "REVIEWING"
@@ -683,9 +690,20 @@ function clearRefreshTokenCookie(res: express.Response) {
   res.append("Set-Cookie", parts.join("; "));
 }
 
+function isAllowedCorsOrigin(origin: string) {
+  if (allowedOrigins.includes(origin)) return true;
+  if (allowedOriginHostSuffixes.length === 0) return false;
+  try {
+    const hostname = new URL(origin).hostname.toLowerCase();
+    return allowedOriginHostSuffixes.some((suffix) => hostname.endsWith(suffix));
+  } catch {
+    return false;
+  }
+}
+
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || isAllowedCorsOrigin(origin)) {
       callback(null, true);
       return;
     }
