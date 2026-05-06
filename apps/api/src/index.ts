@@ -73,7 +73,7 @@ const isProduction = process.env.NODE_ENV === "production";
 const allowedOrigins = [platformWebUrl, partnerAdminUrl, opsAdminUrl]
   .map((origin) => origin.trim())
   .filter((origin) => origin.length > 0);
-const allowedOriginHostSuffixes = (process.env.CORS_ALLOWED_ORIGIN_SUFFIXES ?? (isProduction ? "" : ".azurewebsites.net"))
+const allowedOriginHostSuffixes = (process.env.CORS_ALLOWED_ORIGIN_SUFFIXES ?? ".azurewebsites.net")
   .split(",")
   .map((item) => item.trim().toLowerCase())
   .filter((item) => item.length > 0)
