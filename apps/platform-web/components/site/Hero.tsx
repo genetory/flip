@@ -29,18 +29,18 @@ export const Hero = () => {
       </svg>
       <div className="container grid max-w-[1200px] items-center gap-10 py-12 md:h-full md:grid-cols-[1.05fr_1fr] md:py-8">
         <div className="space-y-9">
-          <h1 className={`${paperlogy.className} slide-in-left text-3xl font-black uppercase leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`} style={{ animationDelay: "40ms" }}>
+          <h1 className={`${paperlogy.className} text-3xl font-black uppercase leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>
             <span className="block">{copy.titleTop}</span>
             <span className="mt-3 inline-block -rotate-[1.2deg] rounded-2xl bg-[#b7ff5a] px-5 py-2.5 text-[#0B1227] shadow-[0_16px_34px_-18px_rgba(30,64,175,0.35)] md:px-7 md:py-3">
               {copy.titleAccent}
             </span>
           </h1>
-          <p className="slide-in-left max-w-[560px] whitespace-pre-line text-base leading-relaxed text-slate-600 md:text-lg" style={{ animationDelay: "120ms" }}>{copy.description}</p>
-          <div className="slide-in-left flex flex-wrap items-center gap-3" style={{ animationDelay: "190ms" }}>
+          <p className="max-w-[560px] whitespace-pre-line text-base leading-relaxed text-slate-600 md:text-lg">{copy.description}</p>
+          <div className="flex flex-wrap items-center gap-3">
             <Button
-              variant="hero"
-              size="xl"
-              className="h-12 rounded-2xl bg-[#b7ff5a] px-6 text-sm font-semibold tracking-[0.01em] text-[#111111] shadow-[0_20px_35px_-18px_rgba(124,174,38,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#a8ee4d] hover:shadow-[0_26px_42px_-20px_rgba(111,155,34,0.62)]"
+              variant="dark"
+              size="lg"
+              className="h-11 rounded-xl border-0 bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
               asChild
             >
               <Link href="/positions">
@@ -63,7 +63,7 @@ const HeroVisual = () => {
   return (
   <div className="relative h-[460px] md:h-[500px]">
     {/* Card 1: Position Search List Style */}
-    <div className="slide-in-right absolute left-0 top-6 w-[80%] animate-float-y [animation-duration:3.8s]" style={{ animationDelay: "120ms" }}>
+    <div className="absolute left-0 top-6 w-[80%] animate-float-y [animation-duration:3.8s]">
       <div className="relative rotate-[-8deg]">
       <div className="absolute -bottom-2 -right-2 h-full w-full rounded-2xl bg-[#7DD3FC]/45" />
       <div className="relative rounded-2xl border-2 border-[#93C5FD] bg-white p-4 shadow-[0_26px_50px_-24px_rgba(37,99,235,0.7)]">
@@ -99,7 +99,7 @@ const HeroVisual = () => {
     </div>
 
     {/* Card 2: Company Detail Style */}
-    <div className="slide-in-right absolute right-0 top-[36%] w-[74%] animate-float-y [animation-duration:4.2s] [animation-delay:0.35s]" style={{ animationDelay: "210ms" }}>
+    <div className="absolute right-0 top-[36%] w-[74%] animate-float-y [animation-duration:4.2s] [animation-delay:0.35s]">
       <div className="relative rotate-[11deg]">
       <div className="absolute -bottom-2 -left-2 h-full w-full rounded-2xl bg-[#C4B5FD]/40" />
       <div className="relative rounded-2xl border-2 border-[#A5B4FC] bg-white p-4 shadow-[0_26px_50px_-24px_rgba(79,70,229,0.7)]">
@@ -133,7 +133,7 @@ const HeroVisual = () => {
     </div>
 
     {/* Card 3: Student profile */}
-    <div className="slide-in-right absolute bottom-6 left-10 w-[63%] animate-float-y [animation-duration:3.2s] [animation-delay:0.15s]" style={{ animationDelay: "300ms" }}>
+    <div className="absolute bottom-6 left-10 w-[63%] animate-float-y [animation-duration:3.2s] [animation-delay:0.15s]">
       <div className="relative rotate-[-12deg]">
       <div className="absolute -top-2 -right-2 h-full w-full rounded-2xl bg-[#F9A8D4]/35" />
       <div className="relative rounded-2xl border-2 border-[#C4B5FD] bg-white p-5 shadow-[0_26px_50px_-24px_rgba(124,58,237,0.72)]">

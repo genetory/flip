@@ -9,7 +9,6 @@ type PartnerDetailTab = "basic" | "members" | "jobs" | "memo";
 type PartnerDetailViewProps = {
   partnerId?: string;
   name: string;
-  domain: string;
   partnerTypeLabel: string;
   partnerType?: "UNIVERSITY" | "COMPANY" | "AGENCY";
   companySizeLabel?: string;
@@ -24,6 +23,8 @@ type PartnerDetailViewProps = {
   description?: string | null;
   strengths?: string | null;
   adminMemo?: string | null;
+  businessRegistrationDocumentData?: string | null;
+  fourInsuranceSubscriberListData?: string | null;
   basicContent?: ReactNode;
   memoContent?: ReactNode;
   membersRefreshKey?: number;
@@ -112,7 +113,6 @@ function companySizeToLabel(size: "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50
 export function PartnerDetailView({
   partnerId,
   name,
-  domain,
   partnerTypeLabel,
   partnerType,
   companySizeLabel,
@@ -127,6 +127,8 @@ export function PartnerDetailView({
   description,
   strengths,
   adminMemo,
+  businessRegistrationDocumentData,
+  fourInsuranceSubscriberListData,
   basicContent,
   memoContent,
   membersRefreshKey = 0,
@@ -149,7 +151,6 @@ export function PartnerDetailView({
   const [addMemberSubmitting, setAddMemberSubmitting] = useState(false);
   const [addMemberError, setAddMemberError] = useState<string | null>(null);
   const [draftName, setDraftName] = useState(name);
-  const [draftDomain, setDraftDomain] = useState(domain);
   const [draftPartnerType, setDraftPartnerType] = useState<"UNIVERSITY" | "COMPANY" | "AGENCY">(
     partnerType ?? "COMPANY"
   );
@@ -164,7 +165,6 @@ export function PartnerDetailView({
   const [draftStrengths, setDraftStrengths] = useState(strengths ?? "");
   const [draftAdminMemo, setDraftAdminMemo] = useState(adminMemo ?? "");
   const [displayName, setDisplayName] = useState(name);
-  const [displayDomain, setDisplayDomain] = useState(domain);
   const [displayPartnerTypeLabel, setDisplayPartnerTypeLabel] = useState(partnerTypeLabel);
   const [displayCompanySizeLabel, setDisplayCompanySizeLabel] = useState(companySizeLabel ?? "-");
   const [displayIndustryLabel, setDisplayIndustryLabel] = useState(industryLabel);
@@ -193,7 +193,6 @@ export function PartnerDetailView({
 
   useEffect(() => {
     setDraftName(name);
-    setDraftDomain(domain);
     setDraftPartnerType(partnerType ?? "COMPANY");
     setDraftCompanySize(companySize ?? null);
     setDraftIndustry(industry ?? industryLabel);
@@ -204,7 +203,6 @@ export function PartnerDetailView({
     setDraftStrengths(strengths ?? "");
     setDraftAdminMemo(adminMemo ?? "");
     setDisplayName(name);
-    setDisplayDomain(domain);
     setDisplayPartnerTypeLabel(partnerTypeLabel);
     setDisplayCompanySizeLabel(companySizeLabel ?? "-");
     setDisplayIndustryLabel(industryLabel);
@@ -218,7 +216,6 @@ export function PartnerDetailView({
     setIsMemoEditMode(false);
   }, [
     name,
-    domain,
     partnerType,
     companySize,
     industry,
@@ -259,8 +256,8 @@ export function PartnerDetailView({
 
   useEffect(() => {
     if (tab !== "members") return;
-    if (!domain) return;
-    const loadKey = `${domain}:${membersRefreshKey}`;
+    if (!partnerId) return;
+    const loadKey = `${partnerId}:${membersRefreshKey}`;
     if (membersLoadedKey === loadKey) return;
 
     let mounted = true;
@@ -270,7 +267,7 @@ export function PartnerDetailView({
       try {
         const token = readCookie(TOKEN_COOKIE_KEY);
         const params = new URLSearchParams();
-        params.set("domain", domain);
+        params.set("partnerOrganizationId", partnerId);
         params.set("page", "1");
         params.set("pageSize", "20");
         params.set("sortBy", "createdAt");
@@ -299,7 +296,7 @@ export function PartnerDetailView({
     return () => {
       mounted = false;
     };
-  }, [tab, domain, membersLoadedKey, membersRefreshKey, apiBaseUrl]);
+  }, [tab, partnerId, membersLoadedKey, membersRefreshKey, apiBaseUrl]);
 
   useEffect(() => {
     if (tab !== "jobs") return;
@@ -365,8 +362,8 @@ export function PartnerDetailView({
 
   async function handleSaveBasic() {
     if (!partnerId) return;
-    if (!draftDomain.trim() || !draftName.trim()) {
-      window.alert("도메인과 파트너명은 필수입니다.");
+    if (!draftName.trim()) {
+      window.alert("파트너명은 필수입니다.");
       return;
     }
     setSavingBasic(true);
@@ -380,7 +377,6 @@ export function PartnerDetailView({
         },
         body: JSON.stringify({
           partnerType: draftPartnerType,
-          domain: draftDomain.trim(),
           name: draftName.trim(),
           companySize: draftCompanySize ?? undefined,
           industry: draftIndustry,
@@ -396,7 +392,6 @@ export function PartnerDetailView({
         ok?: boolean;
         item?: {
           partnerType: "UNIVERSITY" | "COMPANY" | "AGENCY";
-          domain: string;
           name: string;
           companySize: "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100" | null;
           industry: string;
@@ -415,7 +410,6 @@ export function PartnerDetailView({
       }
 
       setDisplayName(payload.item.name);
-      setDisplayDomain(payload.item.domain);
       setDisplayPartnerTypeLabel(payload.item.partnerType);
       setDisplayCompanySizeLabel(companySizeToLabel(payload.item.companySize));
       setDisplayIndustryLabel(payload.item.industry);
@@ -426,7 +420,6 @@ export function PartnerDetailView({
       setDisplayStrengths(payload.item.strengths);
       setDisplayAdminMemo(payload.item.adminMemo);
       setDraftName(payload.item.name);
-      setDraftDomain(payload.item.domain);
       setDraftPartnerType(payload.item.partnerType);
       setDraftCompanySize(payload.item.companySize);
       setDraftIndustry(payload.item.industry);
@@ -459,7 +452,6 @@ export function PartnerDetailView({
         },
         body: JSON.stringify({
           partnerType: draftPartnerType,
-          domain: draftDomain.trim(),
           name: draftName.trim(),
           companySize: draftCompanySize ?? undefined,
           industry: draftIndustry,
@@ -570,10 +562,6 @@ export function PartnerDetailView({
 
                     <div className="ops-partner-form-two-cols">
                       <label>
-                        <span className="ops-label-required">(파트너 이메일) 도메인 <span className="ops-required">*</span></span>
-                        <input value={draftDomain} onChange={(e) => setDraftDomain(e.target.value)} />
-                      </label>
-                      <label>
                         <span className="ops-label-required">파트너명 <span className="ops-required">*</span></span>
                         <input value={draftName} onChange={(e) => setDraftName(e.target.value)} />
                       </label>
@@ -642,7 +630,6 @@ export function PartnerDetailView({
                 ) : (
                   <div className="ops-detail-grid">
                     <div><span>파트너명</span><strong>{displayName}</strong></div>
-                    <div><span>도메인</span><strong>{displayDomain}</strong></div>
                     <div><span>유형</span><strong>{displayPartnerTypeLabel}</strong></div>
                     <div><span>파트너 규모</span><strong>{displayCompanySizeLabel}</strong></div>
                     <div><span>산업</span><strong>{displayIndustryLabel}</strong></div>
@@ -691,6 +678,29 @@ export function PartnerDetailView({
                 </div>
               </section>
 
+              <section className="ops-detail-section">
+                <h3>인증 서류 목록</h3>
+                <div className="ops-detail-grid ops-detail-grid-single">
+                  {[
+                    ["사업자등록증", businessRegistrationDocumentData],
+                    ["4대 보험 사업장 가입자 명부", fourInsuranceSubscriberListData]
+                  ].map(([label, value]) => (
+                    <div key={String(label)}>
+                      <span>{String(label)}</span>
+                      <strong>
+                        {value ? (
+                          <a href={String(value)} target="_blank" rel="noopener noreferrer">
+                            업로드됨 (보기)
+                          </a>
+                        ) : (
+                          "미업로드"
+                        )}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
               {enableManagementActions ? (
                 <section className="ops-detail-section">
                   <div className="ops-detail-actions">
@@ -718,7 +728,7 @@ export function PartnerDetailView({
             <h3>멤버 관리</h3>
             {enableManagementActions ? (
               <div className="ops-position-inline-form" style={{ marginBottom: 12 }}>
-                <input value={memberEmail} onChange={(e) => setMemberEmail(e.target.value)} placeholder={`example@${displayDomain || "company.com"}`} />
+                <input value={memberEmail} onChange={(e) => setMemberEmail(e.target.value)} placeholder="example@company.com" />
                 <input value={memberName} onChange={(e) => setMemberName(e.target.value)} placeholder="담당자명(선택)" />
                 <select value={memberRole} onChange={(e) => setMemberRole(e.target.value as PartnerOrgRole)}>
                   <option value="OWNER">소유자</option>

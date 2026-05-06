@@ -208,6 +208,35 @@ export async function verifyBusinessEmailCode(input: { email: string; code: stri
   return payload;
 }
 
+export async function createPartnerSignupRequest(input: {
+  companyName: string;
+  companyIndustry: string;
+  companySize: string;
+  requesterName: string;
+  requesterEmail: string;
+  requesterPhone?: string;
+}) {
+  const response = await authFetch(`${getApiBaseUrl()}/partner-signup-requests`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input)
+  });
+
+  const payload = (await response.json()) as
+    | { ok: true; item: { id: string; status: string; createdAt: string } }
+    | AuthErrorPayload;
+
+  if (!response.ok || payload.ok !== true) {
+    const fallback = "message" in payload && typeof payload.message === "string" ? payload.message : undefined;
+    const code = "code" in payload && typeof payload.code === "string" ? payload.code : undefined;
+    const message = resolveAuthErrorMessage(code, fallback);
+    throw new AuthApiError(message, code);
+  }
+
+  return payload.item;
+}
+
 export async function refreshPlatformSession() {
   const response = await authFetch(`${getApiBaseUrl()}/auth/refresh`, {
     method: "POST",
@@ -309,6 +338,6 @@ export async function logoutPlatformSession() {
 }
 
 export function getPostLoginUrl(role: AuthUser["role"]) {
-  if (role === "PARTNER") return "/partner/dashboard";
+  if (role === "PARTNER") return "/profile";
   return "/positions";
 }

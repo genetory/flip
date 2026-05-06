@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
-  { href: "/partner/dashboard", label: "대시보드" },
-  { href: "/partner/company-profile", label: "파트너 프로필" },
-  { href: "/partner/positions", label: "포지션 관리" },
-  { href: "/partner/applicants", label: "지원자 관리" },
-  { href: "/partner/guide", label: "운영 가이드" },
-  { href: "/partner/settings", label: "설정" }
+  { href: "/profile", label: "대시보드" },
+  { href: "/partner-profile/edit", label: "파트너 프로필" },
+  { href: "/profile?tab=positions", label: "포지션 관리" },
+  { href: "/profile?tab=positions", label: "지원자 관리" },
+  { href: "/profile", label: "운영 가이드" },
+  { href: "/profile", label: "설정" }
 ] as const;
 
 export function PartnerAdminNav() {
@@ -18,7 +18,7 @@ export function PartnerAdminNav() {
   return (
     <nav className="mb-5 flex flex-col gap-1">
       {ITEMS.map((item) => {
-        const active = pathname === item.href || (item.href.startsWith("/partner") && item.href !== "/partner/dashboard" && pathname.startsWith(item.href));
+        const active = item.href === "/profile" ? pathname === "/profile" : pathname.startsWith(item.href.split("?")[0]);
         return (
           <Link
             key={item.href}

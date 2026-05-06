@@ -31,16 +31,9 @@ function workTypeLabel(value: string, locale: "ko" | "en") {
   return value;
 }
 
-function companyHref(domain?: string | null) {
-  if (!domain?.trim()) return null;
-  return `/companies/${encodeURIComponent(domain.trim())}`;
-}
-
-function extractDomainFromEmail(email?: string | null) {
-  if (!email) return null;
-  const at = email.lastIndexOf("@");
-  if (at < 0 || at === email.length - 1) return null;
-  return email.slice(at + 1).toLowerCase();
+function companyHref(partnerOrganizationId?: string | null) {
+  if (!partnerOrganizationId?.trim()) return null;
+  return `/companies/${encodeURIComponent(partnerOrganizationId.trim())}`;
 }
 
 function mapPublicPositionToCard(item: PublicPositionListItem, locale: "ko" | "en"): Position {
@@ -49,7 +42,7 @@ function mapPublicPositionToCard(item: PublicPositionListItem, locale: "ko" | "e
   const postedDays = Number.isNaN(createdAt.getTime())
     ? 0
     : Math.max(0, Math.floor((now - createdAt.getTime()) / (24 * 60 * 60 * 1000)));
-  const company = item.partnerOrganization?.name?.trim() || item.partnerOrganization?.domain || (locale === "ko" ? "파트너 기업" : "Partner company");
+  const company = item.partnerOrganization?.name?.trim() || (locale === "ko" ? "파트너 기업" : "Partner company");
   const role = item.title;
   const category = item.preferredJobRole?.trim() || (locale === "ko" ? "직무 미정" : "Role TBD");
   const workType = item.workType ?? inferWorkType(item.workingHours);
@@ -69,7 +62,7 @@ function mapPublicPositionToCard(item: PublicPositionListItem, locale: "ko" | "e
   return {
     id: item.id,
     createdAt: item.createdAt,
-    partnerDomain: item.partnerOrganization?.domain ?? undefined,
+    partnerDomain: item.partnerOrganization?.id ?? undefined,
     thumbnailUrl: item.thumbnailImages[0] ?? undefined,
     company,
     initial: company[0]?.toUpperCase() ?? "P",
@@ -217,10 +210,7 @@ export function CompanyPositionsSection({ items }: { items: PublicPositionListIt
       {viewMode === "grid" ? (
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {positions.map((p) => {
-            const isOwnPartnerPosting =
-              user?.role === "PARTNER"
-              && Boolean(p.partnerDomain)
-              && extractDomainFromEmail(user.email) === p.partnerDomain?.toLowerCase();
+            const isOwnPartnerPosting = false;
             return (
               <PositionGridCard
                 key={p.id}
@@ -244,10 +234,7 @@ export function CompanyPositionsSection({ items }: { items: PublicPositionListIt
       ) : (
         <div className="space-y-3">
           {positions.map((p) => {
-            const isOwnPartnerPosting =
-              user?.role === "PARTNER"
-              && Boolean(p.partnerDomain)
-              && extractDomainFromEmail(user.email) === p.partnerDomain?.toLowerCase();
+            const isOwnPartnerPosting = false;
             return (
               <PositionRow
                 key={p.id}

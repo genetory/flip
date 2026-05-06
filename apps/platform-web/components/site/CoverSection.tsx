@@ -49,7 +49,7 @@ export const CoverSection = () => {
             />
             <Link
               href="/positions"
-              className="inline-flex h-11 shrink-0 items-center rounded-xl bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d]"
+              className="inline-flex h-11 shrink-0 items-center rounded-xl border-0 bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
             >
               {t("검색", "Search")}
             </Link>

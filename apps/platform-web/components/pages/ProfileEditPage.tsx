@@ -156,7 +156,7 @@ export function ProfileEditPage() {
       </svg>
       <Header />
       <main className="container py-10 md:py-14">
-        <PartnerAdminTwoColumn>
+        <PartnerAdminTwoColumn className="p-0 md:p-0">
         <div className="space-y-6">
           <div>
             <h1 className="font-display text-2xl font-black tracking-[-0.02em] text-foreground md:text-3xl">{copy.title}</h1>

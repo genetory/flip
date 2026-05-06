@@ -1,15 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { PartnerAdminNav } from "./PartnerAdminNav";
+import { cn } from "../../lib/utils";
 
-export function PartnerAdminTwoColumn({ children }: { children: ReactNode }) {
+export function PartnerAdminTwoColumn({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className="grid gap-6 md:grid-cols-[220px_1fr] md:items-start">
-      <aside className="md:sticky md:top-24">
-        <PartnerAdminNav />
-      </aside>
-      <section className="rounded-2xl bg-muted/30 p-4 md:p-6">{children}</section>
-    </div>
+    <section className={cn("mx-auto w-full max-w-4xl rounded-2xl bg-muted/30 p-4 md:p-6", className)}>{children}</section>
   );
 }

@@ -26,16 +26,9 @@ function workTypeLabel(value: string, locale: "ko" | "en") {
   return value;
 }
 
-function companyHref(domain?: string | null) {
-  if (!domain?.trim()) return null;
-  return `/companies/${encodeURIComponent(domain.trim())}`;
-}
-
-function extractDomainFromEmail(email?: string | null) {
-  if (!email) return null;
-  const at = email.lastIndexOf("@");
-  if (at < 0 || at === email.length - 1) return null;
-  return email.slice(at + 1).toLowerCase();
+function companyHref(partnerOrganizationId?: string | null) {
+  if (!partnerOrganizationId?.trim()) return null;
+  return `/companies/${encodeURIComponent(partnerOrganizationId.trim())}`;
 }
 
 function formatPostedDate(value: string, locale: "ko" | "en") {
@@ -133,12 +126,12 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
   const [isThumbnailPreviewOpen, setIsThumbnailPreviewOpen] = useState(false);
   const [appliedPositionIds, setAppliedPositionIds] = useState<string[]>([]);
   const inlineGalleryRef = useRef<HTMLDivElement | null>(null);
-  const company = position.partnerOrganization?.name?.trim() || position.partnerOrganization?.domain || copy.partnerCompany;
+  const company = position.partnerOrganization?.name?.trim() || copy.partnerCompany;
   const initial = company[0]?.toUpperCase() ?? "P";
   const category = position.preferredJobRole?.trim() || copy.roleTbd;
   const location = position.workLocation?.trim() || position.partnerOrganization?.officeAddress?.trim() || copy.tbdLocation;
   const workType = position.workType ?? inferWorkType(position.workingHours);
-  const companyPageHref = companyHref(position.partnerOrganization?.domain);
+  const companyPageHref = companyHref(position.partnerOrganization?.id);
   const startRaw = position.startDate ? new Date(position.startDate) : null;
   const startLabel = startRaw && !Number.isNaN(startRaw.getTime()) ? startRaw.toLocaleDateString(locale === "ko" ? "ko-KR" : "en-US") : copy.immediate;
   const postedLabel = formatPostedDate(position.createdAt, locale);
@@ -146,10 +139,7 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
   const eligibleVisas = safeStringArray(position.eligibleVisas);
   const preferredNationalitiesRaw = safeStringArray(position.preferredNationalities);
   const communicationLanguagesRaw = safeStringArray(position.communicationLanguages);
-  const isOwnPartnerPosting =
-    user?.role === "PARTNER"
-    && Boolean(position.partnerOrganization?.domain)
-    && extractDomainFromEmail(user.email) === position.partnerOrganization?.domain?.toLowerCase();
+  const isOwnPartnerPosting = false;
   const tagItems = [
     ...(position.preferredJobRole ? [position.preferredJobRole] : []),
     ...communicationLanguagesRaw.slice(0, 3),
@@ -545,16 +535,13 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
               </div>
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {recommendedPositions.map((item) => {
-                  const itemCompany = item.partnerOrganization?.name?.trim() || item.partnerOrganization?.domain || copy.partnerCompany;
-                  const itemCompanyHref = companyHref(item.partnerOrganization?.domain);
+                  const itemCompany = item.partnerOrganization?.name?.trim() || copy.partnerCompany;
+                  const itemCompanyHref = companyHref(item.partnerOrganization?.id);
                   const itemWorkType = item.workType ?? inferWorkType(item.workingHours);
                   const itemLocation = item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || copy.tbdLocation;
                   const itemJobRole = item.preferredJobRole?.trim() || copy.roleTbd;
                   const itemThumbnailImages = safeStringArray(item.thumbnailImages);
-                  const itemIsOwnPartnerPosting =
-                    user?.role === "PARTNER"
-                    && Boolean(item.partnerOrganization?.domain)
-                    && extractDomainFromEmail(user.email) === item.partnerOrganization?.domain?.toLowerCase();
+                  const itemIsOwnPartnerPosting = false;
                   const itemIsApplied = user?.role === "STUDENT" && appliedPositionIds.includes(item.id);
                   return (
                     <article key={item.id} className="group relative flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-elevated">

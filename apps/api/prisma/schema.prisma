@@ -24,6 +24,7 @@ model User {
   role        MemberRole  @default(STUDENT)
   partnerType PartnerType?
   partnerOrgRole PartnerOrgUserRole?
+  partnerOrganizationId String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   positionParticipants   PositionMatchingParticipant[] @relation("PositionParticipantAuthor")
@@ -37,10 +38,12 @@ model User {
   communityPostComments CommunityPostComment[]
   partnerApplicantWorkflowsAsPartner PartnerApplicantWorkflow[] @relation("PartnerApplicantWorkflowPartnerUser")
   partnerApplicantWorkflowsAsCandidate PartnerApplicantWorkflow[] @relation("PartnerApplicantWorkflowCandidateUser")
+  partnerOrganization PartnerOrganization? @relation(fields: [partnerOrganizationId], references: [id], onDelete: SetNull)
 
   @@index([role])
   @@index([partnerType])
   @@index([partnerOrgRole])
+  @@index([partnerOrganizationId])
   @@index([emailVerified])
   @@index([phoneNumber])
   @@index([affiliation])
@@ -65,6 +68,26 @@ model EmailPreverificationToken {
   @@index([expiresAt])
   @@index([verifiedAt])
   @@index([usedAt])
+}
+
+model PartnerSignupRequest {
+  id               String   @id @default(uuid())
+  companyName      String
+  companyIndustry  String
+  companySize      String
+  requesterName    String
+  requesterEmail   String
+  requesterPhone   String?
+  status           String   @default("PENDING")
+  reviewedByUserId String?
+  reviewedAt       DateTime?
+  reviewNote       String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([status])
+  @@index([requesterEmail])
+  @@index([createdAt])
 }
 
 model EmailVerificationToken {
@@ -182,6 +205,13 @@ enum PositionStatus {
   REJECTED
 }
 
+enum PositionEmploymentType {
+  FULL_TIME
+  INTERN
+  PART_TIME
+  UNPAID_INTERN
+}
+
 enum CandidateVisaType {
   D10_JOB_SEEKING
   D2_STUDENT
@@ -281,7 +311,6 @@ enum CandidatePreferredJobRole {
 model PartnerOrganization {
   id                               String          @id @default(uuid())
   partnerType                      PartnerType
-  domain                           String          @unique
   name                             String
   companySize                      PartnerCompanySize?
   officeAddress                    String?
@@ -295,9 +324,12 @@ model PartnerOrganization {
   fourInsuranceSubscriberListData  String?
   companyLogoImageData             String?
   officePhotoImageData             String?
+  verificationApproved             Boolean         @default(false)
+  verificationApprovedAt           DateTime?
   createdAt                        DateTime        @default(now())
   updatedAt                        DateTime        @updatedAt
   positions                        Position[]
+  users                            User[]
 
   @@index([partnerType])
   @@index([companySize])
@@ -311,6 +343,7 @@ model Position {
   title                   String
   status                  PositionStatus @default(DRAFT)
   workType                String?
+  employmentType          PositionEmploymentType @default(UNPAID_INTERN)
   thumbnailImages         String[]       @default([])
   eligibleVisas           String[]       @default([])
   preferredNationalities  String[]       @default([])
@@ -598,4 +631,19 @@ model CommunityPostComment {
   @@index([postId])
   @@index([authorId])
   @@index([createdAt])
+}
+
+model CompanyConsultationInquiry {
+  id          String   @id @default(uuid())
+  companyName String
+  contactName String
+  email       String
+  phone       String?
+  message     String
+  locale      String   @default("ko")
+  source      String   @default("platform-web")
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([email])
 }

@@ -15,6 +15,7 @@ import {
   CandidateLanguageLevel,
   CandidateActivityType,
   CommunityPostCategory,
+  PositionEmploymentType,
   PositionStatus,
   PartnerIndustry,
   PartnerOrgUserRole,
@@ -57,6 +58,10 @@ const partnerAdminUrl = process.env.PARTNER_ADMIN_URL ?? "http://localhost:3001"
 const opsAdminUrl = process.env.OPS_ADMIN_URL ?? "http://localhost:3002";
 const emailVerificationTtlHours = Math.max(1, Number(process.env.EMAIL_VERIFICATION_TTL_HOURS ?? 24));
 const emailVerificationBaseUrl = process.env.EMAIL_VERIFICATION_BASE_URL ?? `${platformWebUrl}/verify-email`;
+const discordCompanyConsultationWebhookUrl = process.env.DISCORD_COMPANY_CONSULTATION_WEBHOOK_URL?.trim() ?? "";
+const discordSignupWebhookUrl = process.env.SIGNUP_DISCORD_WEBHOOK_URL?.trim() ?? "";
+const discordCommunityPostWebhookUrl = process.env.DISCORD_COMMUNITY_POST_WEBHOOK_URL?.trim() ?? "";
+const companyConsultationDiscordTestToken = process.env.COMPANY_CONSULTATION_DISCORD_TEST_TOKEN?.trim() ?? "";
 const emailFromAddress = process.env.EMAIL_FROM?.trim() ?? "";
 const smtpHost = process.env.SMTP_HOST?.trim() ?? "";
 const smtpPort = Number(process.env.SMTP_PORT ?? 587);
@@ -187,6 +192,221 @@ function getSmtpTransporter() {
     auth: smtpUser && smtpPass ? { user: smtpUser, pass: smtpPass } : undefined
   });
   return smtpTransporter;
+}
+
+async function sendCompanyConsultationDiscordNotification(input: {
+  id: string;
+  companyName: string;
+  contactName: string;
+  email: string;
+  phone: string | null;
+  message: string;
+  locale: string;
+  source: string;
+  createdAt: Date;
+}) {
+  if (!discordCompanyConsultationWebhookUrl) return;
+
+  const truncateForDiscord = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+
+  const safeCompanyName = truncateForDiscord(input.companyName || "-", 256);
+  const safeContactName = truncateForDiscord(input.contactName || "-", 256);
+  const safePhone = truncateForDiscord(input.phone ?? "-", 256);
+  const safeEmail = truncateForDiscord(input.email || "-", 1024);
+  const safeSource = truncateForDiscord(input.source || "-", 256);
+  const safeLocale = truncateForDiscord(input.locale || "-", 256);
+  const safeInquiryId = truncateForDiscord(input.id || "-", 256);
+  const safeMessage = truncateForDiscord(input.message || "-", 1024);
+
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 3447003,
+        title: "📩 기업 상담 문의 접수",
+        description: "담당자가 빠르게 확인이 필요한 신규 문의입니다.",
+        fields: [
+          { name: "기업명", value: safeCompanyName, inline: true },
+          { name: "담당자", value: safeContactName, inline: true },
+          { name: "연락처", value: safePhone, inline: true },
+          { name: "이메일", value: safeEmail, inline: false },
+          { name: "문의 ID", value: safeInquiryId, inline: true },
+          { name: "언어", value: safeLocale, inline: true },
+          { name: "유입경로", value: safeSource, inline: true },
+          { name: "문의 내용", value: safeMessage, inline: false }
+        ],
+        footer: { text: "CareerBridge • Company Consultation" },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch(discordCompanyConsultationWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("company_consultation_discord_webhook_failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("company_consultation_discord_webhook_error", {
+      error: getErrorMessage(error)
+    });
+  }
+}
+
+function getSignupRoleColor(role: MemberRole) {
+  if (role === MemberRole.STUDENT) return 0x2563eb;
+  if (role === MemberRole.PARTNER) return 0x10b981;
+  if (role === MemberRole.OPERATOR) return 0xf59e0b;
+  return 0x6b7280;
+}
+
+async function sendSignupDiscordNotification(input: {
+  id: string;
+  email: string;
+  name: string | null;
+  realName: string | null;
+  role: MemberRole;
+  partnerType: PartnerType | null;
+  createdAt: Date;
+}) {
+  if (!discordSignupWebhookUrl) return;
+
+  const truncateForDiscord = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+
+  const safeName = truncateForDiscord((input.name ?? "").trim() || "-", 256);
+  const safeRealName = truncateForDiscord((input.realName ?? "").trim() || "-", 256);
+  const safeEmail = truncateForDiscord(input.email || "-", 1024);
+  const safeRole = truncateForDiscord(input.role || "-", 256);
+  const safePartnerType = truncateForDiscord(input.partnerType ?? "-", 256);
+  const safeUserId = truncateForDiscord(input.id || "-", 256);
+
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: getSignupRoleColor(input.role),
+        title: "✅ 신규 회원가입",
+        description: "새 사용자가 가입했습니다.",
+        fields: [
+          { name: "Role", value: safeRole, inline: true },
+          { name: "Partner Type", value: safePartnerType, inline: true },
+          { name: "User ID", value: safeUserId, inline: true },
+          { name: "이름", value: safeName, inline: true },
+          { name: "실명", value: safeRealName, inline: true },
+          { name: "이메일", value: safeEmail, inline: false }
+        ],
+        footer: { text: "CareerBridge • Signup" },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch(discordSignupWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("signup_discord_webhook_failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("signup_discord_webhook_error", {
+      error: getErrorMessage(error)
+    });
+  }
+}
+
+async function sendCommunityPostDiscordNotification(input: {
+  id: string;
+  authorId: string | null;
+  authorName: string | null;
+  authorRole: MemberRole;
+  category: string;
+  title: string;
+  body: string;
+  imageUrls: string[];
+  createdAt: Date;
+}) {
+  if (!discordCommunityPostWebhookUrl) return;
+
+  const truncateForDiscord = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+
+  const safeCategory = truncateForDiscord(input.category || "-", 256);
+  const safeAuthor = truncateForDiscord(input.authorName || "-", 256);
+  const safeAuthorRole = truncateForDiscord(input.authorRole || "-", 256);
+  const safeAuthorId = truncateForDiscord(input.authorId || "-", 256);
+  const safeBody = truncateForDiscord(input.body || "-", 1024);
+  const safePostId = truncateForDiscord(input.id || "-", 256);
+  const safeImageCount = String(input.imageUrls.length);
+  const postUrl = `${platformWebUrl}/community?postId=${encodeURIComponent(input.id)}`;
+  const safePostUrlField = truncateForDiscord(`[게시글 바로가기](${postUrl})`, 1024);
+
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0x8b5cf6,
+        title: "📝 커뮤니티 새 글 등록",
+        description: "새 커뮤니티 게시글이 작성되었습니다.",
+        fields: [
+          { name: "카테고리", value: safeCategory, inline: true },
+          { name: "작성자", value: safeAuthor, inline: true },
+          { name: "Role", value: safeAuthorRole, inline: true },
+          { name: "작성자 ID", value: safeAuthorId, inline: true },
+          { name: "게시글 ID", value: safePostId, inline: true },
+          { name: "이미지 수", value: safeImageCount, inline: true },
+          { name: "바로가기", value: safePostUrlField, inline: false },
+          { name: "본문", value: safeBody, inline: false }
+        ],
+        footer: { text: "CareerBridge • Community" },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch(discordCommunityPostWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("community_post_discord_webhook_failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("community_post_discord_webhook_error", {
+      error: getErrorMessage(error)
+    });
+  }
+}
+
+function hasValidCompanyConsultationDiscordTestToken(req: express.Request) {
+  if (!companyConsultationDiscordTestToken) return false;
+  const token = req.header("x-internal-token")?.trim() ?? "";
+  return token.length > 0 && token === companyConsultationDiscordTestToken;
 }
 
 function buildEmailVerificationUrl(token: string) {
@@ -491,8 +711,10 @@ const apiDocEndpoints: ApiDocEndpoint[] = [
   { method: "get", path: "/openapi.json", summary: "OpenAPI JSON", tag: "System" },
   { method: "get", path: "/health", summary: "Health check", tag: "System" },
   { method: "get", path: "/", summary: "Root endpoint", tag: "System" },
+  { method: "post", path: "/internal/company-consultations/discord-test", summary: "Trigger company consultation Discord webhook test", tag: "System", requestBody: false },
   { method: "get", path: "/members/meta", summary: "Members metadata", tag: "Members" },
   { method: "get", path: "/positions", summary: "Public positions list", tag: "Positions" },
+  { method: "post", path: "/company-consultations", summary: "Create company consultation inquiry", tag: "Company Consultation", requestBody: true, successStatus: "201" },
   { method: "get", path: "/community/posts", summary: "Public community posts list", tag: "Community" },
   { method: "post", path: "/community/posts", summary: "Create community post", tag: "Community", secure: true, requestBody: true, successStatus: "201" },
   { method: "patch", path: "/community/posts/:postId", summary: "Update my community post", tag: "Community", secure: true, requestBody: true },
@@ -838,6 +1060,7 @@ const partnerCompanySizeEnum = z.enum(["SIZE_1_10", "SIZE_UNDER_30", "SIZE_UNDER
 const partnerOrgUserRoleEnum = z.nativeEnum(PartnerOrgUserRole);
 const positionStatusEnum = z.nativeEnum(PositionStatus);
 const positionWorkTypeEnum = z.enum(["On-site", "Hybrid", "Remote"]);
+const positionEmploymentTypeEnum = z.nativeEnum(PositionEmploymentType);
 const candidateVisaTypeEnum = z.nativeEnum(CandidateVisaType);
 const candidateEducationTypeEnum = z.nativeEnum(CandidateEducationType);
 const candidateEducationStatusEnum = z.nativeEnum(CandidateEducationStatus);
@@ -897,14 +1120,6 @@ function withPartnerValidation<T extends z.ZodTypeAny>(schema: T) {
       partnerOrganizationCompanySize?: z.infer<typeof partnerCompanySizeEnum>;
     };
     const resolvedRole = data.role ?? (data.accountType === "BUSINESS" ? MemberRole.PARTNER : MemberRole.STUDENT);
-
-    if (data.accountType === "BUSINESS" && data.email && !isBusinessEmail(data.email)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["email"],
-        message: "business account requires a company email"
-      });
-    }
 
     if (resolvedRole !== MemberRole.PARTNER && data.partnerType) {
       ctx.addIssue({
@@ -991,13 +1206,6 @@ const createMemberSchema = withPartnerValidation(
 );
 const createPartnerOrganizationSchema = z.object({
   partnerType: partnerTypeEnum,
-  domain: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .min(1)
-    .max(120)
-    .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, "invalid domain format"),
   name: z.string().trim().min(1).max(200),
   companySize: partnerCompanySizeEnum.optional(),
   officeAddress: z.string().trim().max(300).optional(),
@@ -1015,20 +1223,14 @@ const createPartnerOrganizationSchema = z.object({
 
 const listPartnerOrganizationsQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
-  sortBy: z.enum(["name", "domain", "createdAt"]).optional(),
+  sortBy: z.enum(["name", "createdAt"]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
   pageSize: z.coerce.number().int().refine((v) => [20, 40, 100].includes(v), "pageSize must be one of 20,40,100").optional()
 });
 const listPartnerUsersQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
-  domain: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .max(120)
-    .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, "invalid domain format")
-    .optional(),
+  partnerOrganizationId: z.string().uuid().optional(),
   sortBy: z.enum(["email", "name", "createdAt"]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
@@ -1037,13 +1239,6 @@ const listPartnerUsersQuerySchema = z.object({
 
 const updatePartnerOrganizationSchema = z.object({
   partnerType: partnerTypeEnum,
-  domain: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .min(1)
-    .max(120)
-    .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, "invalid domain format"),
   name: z.string().trim().min(1).max(200),
   companySize: partnerCompanySizeEnum.optional(),
   officeAddress: z.string().trim().max(300).optional(),
@@ -1072,6 +1267,17 @@ const createPartnerMemberSchema = z.object({
 
 const updatePartnerUserAdminMemoSchema = z.object({
   adminMemo: z.string().trim().max(4000).optional()
+});
+const updatePartnerVerificationApprovalSchema = z.object({
+  approved: z.boolean()
+});
+const createPartnerSignupRequestSchema = z.object({
+  companyName: z.string().trim().min(1).max(200),
+  companyIndustry: z.string().trim().min(1).max(80),
+  companySize: z.string().trim().min(1).max(80),
+  requesterName: z.string().trim().min(1).max(120),
+  requesterEmail: z.string().trim().toLowerCase().email().max(320),
+  requesterPhone: z.string().trim().max(30).optional()
 });
 
 const createCandidateSchema = z.object({
@@ -1196,6 +1402,7 @@ const createPositionSchema = z.object({
   title: z.string().trim().min(1).max(200),
   status: positionStatusEnum.optional(),
   workType: positionWorkTypeEnum.optional(),
+  employmentType: positionEmploymentTypeEnum.optional(),
   thumbnailImages: z.array(z.string().trim().min(1).max(5_000_000)).max(5).optional(),
   eligibleVisas: z.array(z.string().trim().min(1).max(20)).max(20).optional(),
   matchingParticipants: lineArraySchema,
@@ -1629,7 +1836,6 @@ async function getOrCreateCandidateProfile(userId: string) {
 function toPartnerOrganization(item: {
   id: string;
   partnerType: PartnerType;
-  domain: string;
   name: string;
   companySize?: string | null;
   officeAddress: string | null;
@@ -1643,6 +1849,8 @@ function toPartnerOrganization(item: {
   fourInsuranceSubscriberListData?: string | null;
   companyLogoImageData?: string | null;
   officePhotoImageData?: string | null;
+  verificationApproved?: boolean;
+  verificationApprovedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   memberCount?: number;
@@ -1655,17 +1863,16 @@ function toPartnerOrganization(item: {
   };
   const missingItems = [
     !verificationAssets.businessRegistrationDocumentData ? "BUSINESS_REGISTRATION_DOCUMENT" : null,
-    !verificationAssets.fourInsuranceSubscriberListData ? "FOUR_INSURANCE_SUBSCRIBER_LIST" : null,
-    !verificationAssets.companyLogoImageData ? "COMPANY_LOGO_IMAGE" : null,
-    !verificationAssets.officePhotoImageData ? "OFFICE_PHOTO_IMAGE" : null
+    !verificationAssets.fourInsuranceSubscriberListData ? "FOUR_INSURANCE_SUBSCRIBER_LIST" : null
   ].filter((itemName): itemName is string => Boolean(itemName));
-  const uploadedCount = 4 - missingItems.length;
-  const isVerified = missingItems.length === 0;
+  const uploadedCount = 2 - missingItems.length;
+  const hasRequiredDocuments = missingItems.length === 0;
+  const isApproved = Boolean(item.verificationApproved);
+  const isVerified = hasRequiredDocuments && isApproved;
 
   return {
     id: item.id,
     partnerType: item.partnerType,
-    domain: item.domain,
     name: item.name,
     companySize: item.companySize ?? null,
     officeAddress: item.officeAddress,
@@ -1677,9 +1884,12 @@ function toPartnerOrganization(item: {
     adminMemo: item.adminMemo ?? null,
     memberCount: item.memberCount ?? 0,
     verification: {
+      hasRequiredDocuments,
+      isApproved,
+      approvedAt: item.verificationApprovedAt ?? null,
       isVerified,
       uploadedCount,
-      requiredCount: 4,
+      requiredCount: 2,
       missingItems
     },
     permissions: {
@@ -1773,6 +1983,7 @@ function toPosition(item: {
   title: string;
   status: PositionStatus;
   workType: string | null;
+  employmentType: PositionEmploymentType;
   thumbnailImages: string[];
   eligibleVisas: string[];
   preferredNationalities: string[];
@@ -1816,7 +2027,6 @@ function toPosition(item: {
   partnerOrganization?: {
     id: string;
     name: string;
-    domain: string;
   } | null;
 }) {
   return {
@@ -1825,6 +2035,7 @@ function toPosition(item: {
     title: item.title,
     status: item.status,
     workType: item.workType,
+    employmentType: item.employmentType,
     thumbnailImages: item.thumbnailImages,
     eligibleVisas: item.eligibleVisas,
     preferredNationalities: item.preferredNationalities,
@@ -1922,6 +2133,7 @@ function toPublicPositionItem(
     title: string;
     status: PositionStatus;
     workType: string | null;
+    employmentType: PositionEmploymentType;
     thumbnailImages: string[];
     eligibleVisas: string[];
     preferredNationalities: string[];
@@ -1943,7 +2155,6 @@ function toPublicPositionItem(
     partnerOrganization?: {
       id: string;
       name: string;
-      domain: string;
       industry: PartnerIndustry;
       companySize: string | null;
       officeAddress: string | null;
@@ -1957,6 +2168,7 @@ function toPublicPositionItem(
     title: item.title,
     status: item.status,
     workType: item.workType,
+    employmentType: item.employmentType,
     thumbnailImages: item.thumbnailImages,
     eligibleVisas: item.eligibleVisas,
     preferredNationalities: item.preferredNationalities,
@@ -1972,7 +2184,7 @@ function toPublicPositionItem(
     preferredQualifications: item.preferredQualifications,
     dressCode: item.dressCode,
     wantsPreTraining: item.wantsPreTraining,
-    additionalNotes: maskAdditionalNotesForPublic(item.additionalNotes, item.partnerOrganization?.domain, viewer),
+    additionalNotes: maskAdditionalNotesForPublic(item.additionalNotes, null, viewer),
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     matchingParticipantsCount: item.matchingParticipants.length,
@@ -1988,22 +2200,18 @@ async function resolvePartnerAffiliation(userId: string) {
       email: true,
       role: true,
       partnerType: true,
-      partnerOrgRole: true
+      partnerOrgRole: true,
+      partnerOrganizationId: true
     }
   });
 
   if (!user) return null;
 
-  const domain = extractDomainFromEmail(user.email);
-  if (!domain) {
-    return { user, domain: null, organization: null as null };
+  if (!user.partnerOrganizationId) {
+    return { user, organization: null as null };
   }
-
-  const organization = await prisma.partnerOrganization.findUnique({
-    where: { domain }
-  });
-
-  return { user, domain, organization };
+  const organization = await prisma.partnerOrganization.findUnique({ where: { id: user.partnerOrganizationId } });
+  return { user, organization };
 }
 
 function createTemporaryPassword() {
@@ -2024,7 +2232,7 @@ type MatchingPosition = {
   mainResponsibilities: string | null;
   additionalNotes: string | null;
   matchingParticipants: Array<{ id: string }>;
-  partnerOrganization: { id: string; name: string; domain: string; industry: PartnerIndustry } | null;
+  partnerOrganization: { id: string; name: string; industry: PartnerIndustry } | null;
 };
 
 type MatchingCandidate = {
@@ -3113,6 +3321,100 @@ app.get("/", (_req, res) => {
   res.json({ ok: true, message: "Flip API is running" });
 });
 
+const companyConsultationCreateSchema = z.object({
+  companyName: z.string().trim().min(1).max(120),
+  contactName: z.string().trim().min(1).max(80),
+  email: z.string().trim().email().max(320),
+  phone: z.string().trim().max(40).optional(),
+  message: z.string().trim().min(1).max(4000),
+  locale: z.enum(["ko", "en"]).optional(),
+  source: z.string().trim().max(80).optional()
+});
+
+app.post("/company-consultations", async (req, res) => {
+  const parsed = companyConsultationCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      ok: false,
+      message: "Invalid request body",
+      issues: parsed.error.flatten()
+    });
+  }
+
+  const payload = parsed.data;
+  const created = await prisma.companyConsultationInquiry.create({
+    data: {
+      companyName: payload.companyName,
+      contactName: payload.contactName,
+      email: payload.email,
+      phone: payload.phone || null,
+      message: payload.message,
+      locale: payload.locale ?? "ko",
+      source: payload.source ?? "platform-web"
+    }
+  });
+
+  await sendCompanyConsultationDiscordNotification({
+    id: created.id,
+    companyName: created.companyName,
+    contactName: created.contactName,
+    email: created.email,
+    phone: created.phone,
+    message: created.message,
+    locale: created.locale,
+    source: created.source,
+    createdAt: created.createdAt
+  });
+
+  return res.status(201).json({
+    ok: true,
+    message: "Consultation inquiry created",
+    item: {
+      id: created.id,
+      createdAt: created.createdAt
+    }
+  });
+});
+
+app.post("/internal/company-consultations/discord-test", async (req, res) => {
+  if (!companyConsultationDiscordTestToken) {
+    return res.status(503).json({
+      ok: false,
+      message: "Test token is not configured (set COMPANY_CONSULTATION_DISCORD_TEST_TOKEN)"
+    });
+  }
+  if (!hasValidCompanyConsultationDiscordTestToken(req)) {
+    return res.status(401).json({
+      ok: false,
+      message: "Unauthorized"
+    });
+  }
+  if (!discordCompanyConsultationWebhookUrl) {
+    return res.status(503).json({
+      ok: false,
+      message: "Discord webhook is not configured (set DISCORD_COMPANY_CONSULTATION_WEBHOOK_URL)"
+    });
+  }
+
+  const now = new Date();
+  await sendCompanyConsultationDiscordNotification({
+    id: `test-${now.getTime()}`,
+    companyName: "Webhook Healthcheck",
+    contactName: "System",
+    email: "noreply@flip-ers.com",
+    phone: null,
+    message: "This is a test notification from /internal/company-consultations/discord-test",
+    locale: "ko",
+    source: "internal-test",
+    createdAt: now
+  });
+
+  return res.status(200).json({
+    ok: true,
+    message: "Discord test notification attempted. Check API logs for delivery errors."
+  });
+});
+
 app.get("/members/meta", (_req, res) => {
   res.json({
     ok: true,
@@ -3317,6 +3619,18 @@ app.post("/community/posts", authenticate, requireRoles([MemberRole.STUDENT, Mem
         likes: 0,
         comments: 0
       }
+    });
+
+    await sendCommunityPostDiscordNotification({
+      id: created.id,
+      authorId: created.authorId,
+      authorName: created.authorName,
+      authorRole: req.auth!.role,
+      category: fromCommunityPostCategory(created.category),
+      title: created.title,
+      body: created.body,
+      imageUrls: created.imageUrls ?? [],
+      createdAt: created.createdAt
     });
 
     return res.status(201).json({
@@ -3693,7 +4007,6 @@ app.get("/positions", async (req, res) => {
         select: {
           id: true,
           name: true,
-          domain: true,
           industry: true,
           companySize: true,
           officeAddress: true
@@ -3731,7 +4044,6 @@ app.get("/positions/premium-banners", async (req, res) => {
         select: {
           id: true,
           name: true,
-          domain: true,
           industry: true,
           companySize: true,
           officeAddress: true
@@ -3795,7 +4107,6 @@ app.get("/positions/:id", async (req, res) => {
           select: {
             id: true,
             name: true,
-            domain: true,
             industry: true,
             companySize: true,
             officeAddress: true
@@ -3824,14 +4135,14 @@ app.get("/ops/partners/meta", authenticate, requireRoles([MemberRole.OPERATOR]),
     partnerTypes: Object.values(PartnerType),
     partnerCompanySizes: partnerCompanySizeEnum.options,
     partnerIndustries: Object.values(PartnerIndustry),
-    sortableFields: ["name", "domain", "createdAt"]
+    sortableFields: ["name", "createdAt"]
   });
 });
 
 app.get("/ops/positions/meta", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
   const partners = await prisma.partnerOrganization.findMany({
     orderBy: { name: "asc" },
-    select: { id: true, name: true, domain: true, industry: true, companySize: true }
+    select: { id: true, name: true, industry: true, companySize: true }
   });
 
   const usedPartnerIndustries = Array.from(
@@ -3850,8 +4161,7 @@ app.get("/ops/positions/meta", authenticate, requireRoles([MemberRole.OPERATOR])
     statuses: Object.values(PositionStatus),
     partners: partners.map((partner) => ({
       id: partner.id,
-      name: partner.name,
-      domain: partner.domain
+      name: partner.name
     })),
     partnerIndustries: Object.values(PartnerIndustry),
     partnerCompanySizes: partnerCompanySizeEnum.options,
@@ -3973,7 +4283,7 @@ app.post("/ops/matching/run", authenticate, requireRoles([MemberRole.OPERATOR]),
         prisma.position.findUnique({
           where: { id: parsed.data.positionId! },
           include: {
-            partnerOrganization: { select: { id: true, name: true, domain: true, industry: true } },
+            partnerOrganization: { select: { id: true, name: true, industry: true } },
             matchingParticipants: { select: { id: true } }
           }
         }),
@@ -4157,7 +4467,7 @@ app.post("/ops/matching/run", authenticate, requireRoles([MemberRole.OPERATOR]),
         where: { status: { in: [PositionStatus.OPEN, PositionStatus.MATCHING] } },
         orderBy: { updatedAt: "desc" },
         include: {
-          partnerOrganization: { select: { id: true, name: true, domain: true, industry: true } },
+          partnerOrganization: { select: { id: true, name: true, industry: true } },
           matchingParticipants: { select: { id: true } }
         }
       })
@@ -4173,7 +4483,7 @@ app.post("/ops/matching/run", authenticate, requireRoles([MemberRole.OPERATOR]),
         : await prisma.position.findMany({
             orderBy: { updatedAt: "desc" },
             include: {
-              partnerOrganization: { select: { id: true, name: true, domain: true, industry: true } },
+              partnerOrganization: { select: { id: true, name: true, industry: true } },
               matchingParticipants: { select: { id: true } }
             }
           });
@@ -4290,7 +4600,7 @@ app.post("/ops/matching/run", authenticate, requireRoles([MemberRole.OPERATOR]),
             title: string;
             status: PositionStatus;
             preferredJobRole: string | null;
-            partnerOrganization: { id: string; name: string; domain: string; industry: PartnerIndustry } | null;
+            partnerOrganization: { id: string; name: string; industry: PartnerIndustry } | null;
           };
           score: number;
           reasons: string[];
@@ -4463,8 +4773,7 @@ app.get("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), asy
         partnerOrganization: {
           select: {
             id: true,
-            name: true,
-            domain: true
+            name: true
           }
         },
         matchingParticipants: {
@@ -4518,6 +4827,7 @@ app.post("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), as
         title: parsed.data.title,
         status: parsed.data.status ?? PositionStatus.DRAFT,
         workType: parsed.data.workType ?? "On-site",
+        employmentType: parsed.data.employmentType ?? PositionEmploymentType.UNPAID_INTERN,
         thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5),
         eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas),
         preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities),
@@ -4560,8 +4870,7 @@ app.post("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), as
         partnerOrganization: {
           select: {
             id: true,
-            name: true,
-            domain: true
+            name: true
           }
         },
         matchingParticipants: {
@@ -4630,6 +4939,7 @@ app.patch("/ops/positions/:id", authenticate, requireRoles([MemberRole.OPERATOR]
         ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
         ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
         ...(parsed.data.workType !== undefined ? { workType: parsed.data.workType } : {}),
+        ...(parsed.data.employmentType !== undefined ? { employmentType: parsed.data.employmentType } : {}),
         ...(parsed.data.thumbnailImages !== undefined
           ? { thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5) }
           : {}),
@@ -4681,8 +4991,7 @@ app.patch("/ops/positions/:id", authenticate, requireRoles([MemberRole.OPERATOR]
         partnerOrganization: {
           select: {
             id: true,
-            name: true,
-            domain: true
+            name: true
           }
         },
         matchingParticipants: {
@@ -4733,8 +5042,7 @@ app.get("/ops/positions/premium-banners", authenticate, requireRoles([MemberRole
       partnerOrganization: {
         select: {
           id: true,
-          name: true,
-          domain: true
+          name: true
         }
       }
     }
@@ -4805,8 +5113,7 @@ app.patch("/ops/positions/:id/premium-banner", authenticate, requireRoles([Membe
         partnerOrganization: {
           select: {
             id: true,
-            name: true,
-            domain: true
+            name: true
           }
         },
         matchingParticipants: {
@@ -4879,8 +5186,7 @@ app.patch("/ops/positions/:id/status", authenticate, requireRoles([MemberRole.OP
         partnerOrganization: {
           select: {
             id: true,
-            name: true,
-            domain: true
+            name: true
           }
         },
         matchingParticipants: {
@@ -5056,17 +5362,41 @@ app.post("/auth/business-email/verify", async (req, res) => {
   return res.json({ ok: true, verified: true });
 });
 
+app.post("/partner-signup-requests", async (req, res) => {
+  const parsed = createPartnerSignupRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  try {
+    const created = await prisma.partnerSignupRequest.create({
+      data: {
+        companyName: parsed.data.companyName,
+        companyIndustry: parsed.data.companyIndustry,
+        companySize: parsed.data.companySize,
+        requesterName: parsed.data.requesterName,
+        requesterEmail: parsed.data.requesterEmail,
+        requesterPhone: parsed.data.requesterPhone?.trim() || null
+      }
+    });
+
+    return res.status(201).json({
+      ok: true,
+      item: {
+        id: created.id,
+        status: created.status,
+        createdAt: created.createdAt
+      }
+    });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to create partner signup request" });
+  }
+});
+
 app.post("/auth/register", async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
-    const hasBusinessEmailIssue = parsed.error.issues.some((issue) => issue.message === "business account requires a company email");
-    return sendAuthError(
-      res,
-      400,
-      hasBusinessEmailIssue ? "BUSINESS_EMAIL_REQUIRED" : "INVALID_REQUEST",
-      hasBusinessEmailIssue ? "business account requires a company email" : "invalid request",
-      { errors: parsed.error.flatten() }
-    );
+    return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
   }
 
   const resolvedRole = parsed.data.role ?? (parsed.data.accountType === "BUSINESS" ? MemberRole.PARTNER : MemberRole.STUDENT);
@@ -5075,6 +5405,11 @@ app.post("/auth/register", async (req, res) => {
     resolvedRole === MemberRole.PARTNER ? (parsed.data.partnerOrgRole ?? PartnerOrgUserRole.MEMBER) : null;
   const passwordHash = await hashPassword(parsed.data.password);
   const normalizedEmail = parsed.data.email.trim().toLowerCase();
+  const normalizedDomain = extractDomainFromEmail(normalizedEmail);
+
+  if (resolvedRole === MemberRole.PARTNER && (!normalizedDomain || publicEmailDomains.has(normalizedDomain))) {
+    return sendAuthError(res, 400, "BUSINESS_EMAIL_REQUIRED", "business account requires a company email");
+  }
 
   const existingUser = await prisma.user.findUnique({
     where: { email: normalizedEmail },
@@ -5084,34 +5419,41 @@ app.post("/auth/register", async (req, res) => {
     return sendAuthError(res, 409, "EMAIL_ALREADY_EXISTS", "email already exists");
   }
 
-  let preverifiedTokenId: string | null = null;
-  if (resolvedRole === MemberRole.PARTNER) {
-    const preverified = await prisma.emailPreverificationToken.findFirst({
-      where: {
-        email: normalizedEmail,
-        verifiedAt: { not: null },
-        usedAt: null,
-        expiresAt: { gt: new Date() }
-      },
-      orderBy: { verifiedAt: "desc" }
-    });
-    if (!preverified) {
-      return sendAuthError(
-        res,
-        403,
-        "EMAIL_PREVERIFICATION_REQUIRED",
-        "business email verification is required before registration"
-      );
-    }
-    preverifiedTokenId = preverified.id;
-  }
-
   try {
     const created = await prisma.$transaction(async (tx) => {
+      let partnerOrganizationId: string | null = null;
+      if (resolvedRole === MemberRole.PARTNER) {
+        const orgName = parsed.data.partnerOrganizationName?.trim() || "";
+        const existing = orgName
+          ? await tx.partnerOrganization.findFirst({
+              where: {
+                name: orgName,
+                partnerType: PartnerType.COMPANY
+              },
+              select: { id: true }
+            })
+          : null;
+        if (existing) {
+          partnerOrganizationId = existing.id;
+        } else {
+          const createdOrg = await tx.partnerOrganization.create({
+            data: {
+              partnerType: PartnerType.COMPANY,
+              name: orgName,
+              industry: parsed.data.partnerOrganizationIndustry ?? PartnerIndustry.IT,
+              companySize: parsed.data.partnerOrganizationCompanySize,
+              adminMemo: "Auto-created from partner registration."
+            },
+            select: { id: true }
+          });
+          partnerOrganizationId = createdOrg.id;
+        }
+      }
+
       const user = await tx.user.create({
         data: {
           email: normalizedEmail,
-          emailVerified: resolvedRole === MemberRole.PARTNER,
+          emailVerified: false,
           realName: parsed.data.realName?.trim() || null,
           name: parsed.data.name,
           phoneNumber: parsed.data.phoneNumber,
@@ -5119,35 +5461,22 @@ app.post("/auth/register", async (req, res) => {
           passwordHash,
           role: resolvedRole,
           partnerType: resolvedPartnerType,
-          partnerOrgRole: resolvedPartnerOrgRole
+          partnerOrgRole: resolvedPartnerOrgRole,
+          partnerOrganizationId
         }
       });
 
-      if (resolvedRole === MemberRole.PARTNER) {
-        const domain = extractDomainFromEmail(normalizedEmail);
-        if (domain) {
-          await tx.partnerOrganization.upsert({
-            where: { domain },
-            update: {},
-            create: {
-              partnerType: PartnerType.COMPANY,
-              domain,
-              name: parsed.data.partnerOrganizationName?.trim() || "",
-              industry: parsed.data.partnerOrganizationIndustry ?? PartnerIndustry.IT,
-              companySize: parsed.data.partnerOrganizationCompanySize,
-              adminMemo: "Auto-created from partner registration."
-            }
-          });
-        }
-        if (preverifiedTokenId) {
-          await tx.emailPreverificationToken.update({
-            where: { id: preverifiedTokenId },
-            data: { usedAt: new Date() }
-          });
-        }
-      }
-
       return user;
+    });
+
+    await sendSignupDiscordNotification({
+      id: created.id,
+      email: created.email,
+      name: created.name,
+      realName: created.realName,
+      role: created.role,
+      partnerType: created.partnerType,
+      createdAt: created.createdAt
     });
 
     if (created.emailVerified) {
@@ -5180,12 +5509,7 @@ app.post("/auth/register", async (req, res) => {
         return sendAuthError(res, 409, "EMAIL_ALREADY_EXISTS", "email already exists");
       }
       if (error.code === "P2025") {
-        return sendAuthError(
-          res,
-          403,
-          "EMAIL_PREVERIFICATION_REQUIRED",
-          "business email verification is required before registration"
-        );
+        return sendAuthError(res, 404, "USER_NOT_FOUND", "user not found");
       }
     }
     const detail = getErrorMessage(error);
@@ -5424,20 +5748,19 @@ app.patch("/members/me", authenticate, requireRoles([MemberRole.STUDENT, MemberR
 app.get("/members/me/partner-organization", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.auth!.userId },
-    select: { email: true }
+    select: { partnerOrganizationId: true }
   });
 
   if (!user) {
     return res.status(404).json({ ok: false, message: "user not found" });
   }
 
-  const domain = extractDomainFromEmail(user.email);
-  if (!domain) {
+  if (!user.partnerOrganizationId) {
     return res.json({ ok: true, item: null });
   }
 
   const item = await prisma.partnerOrganization.findUnique({
-    where: { domain }
+    where: { id: user.partnerOrganizationId }
   });
 
   if (!item) {
@@ -5447,7 +5770,7 @@ app.get("/members/me/partner-organization", authenticate, requireRoles([MemberRo
   const memberCount = await prisma.user.count({
     where: {
       role: MemberRole.PARTNER,
-      email: { endsWith: `@${item.domain}` }
+      partnerOrganizationId: item.id
     }
   });
 
@@ -5462,28 +5785,48 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
 
   const user = await prisma.user.findUnique({
     where: { id: req.auth!.userId },
-    select: { email: true }
+    select: { email: true, partnerOrganizationId: true }
   });
 
   if (!user) {
     return res.status(404).json({ ok: false, message: "user not found" });
   }
 
-  const domain = extractDomainFromEmail(user.email);
-  if (!domain) {
+  if (!user.partnerOrganizationId) {
     return res.status(404).json({ ok: false, message: "partner organization not found" });
   }
 
-  try {
-    const orgByDomain = await prisma.partnerOrganization.findUnique({
-      where: { domain },
-      select: { id: true }
-    });
+  const currentOrganization = await prisma.partnerOrganization.findUnique({
+    where: { id: user.partnerOrganizationId },
+    select: {
+      id: true,
+      businessRegistrationDocumentData: true,
+      fourInsuranceSubscriberListData: true
+    }
+  });
 
-    // If organization does not exist yet, bootstrap it from partner account domain.
-    const updated = await prisma.partnerOrganization.upsert({
-      where: { domain },
-      update: {
+  if (!currentOrganization) {
+    return res.status(404).json({ ok: false, message: "partner organization not found" });
+  }
+
+  const normalizeDocField = (value?: string | null) => (value?.trim() || null);
+  const nextBusinessRegistrationDocumentData =
+    parsed.data.businessRegistrationDocumentData !== undefined
+      ? normalizeDocField(parsed.data.businessRegistrationDocumentData)
+      : normalizeDocField(currentOrganization.businessRegistrationDocumentData);
+  const nextFourInsuranceSubscriberListData =
+    parsed.data.fourInsuranceSubscriberListData !== undefined
+      ? normalizeDocField(parsed.data.fourInsuranceSubscriberListData)
+      : normalizeDocField(currentOrganization.fourInsuranceSubscriberListData);
+
+  const shouldResetVerificationApproval =
+    nextBusinessRegistrationDocumentData !== normalizeDocField(currentOrganization.businessRegistrationDocumentData)
+    || nextFourInsuranceSubscriberListData !== normalizeDocField(currentOrganization.fourInsuranceSubscriberListData);
+
+  try {
+    const updated = await prisma.partnerOrganization.update({
+      where: { id: user.partnerOrganizationId },
+      data: {
         ...(parsed.data.name !== undefined ? { name: parsed.data.name.trim() } : {}),
         ...(parsed.data.industry !== undefined ? { industry: parsed.data.industry } : {}),
         ...(parsed.data.website !== undefined ? { website: parsed.data.website?.trim() || null } : {}),
@@ -5500,28 +5843,15 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
           : {}),
         ...(parsed.data.officePhotoImageData !== undefined
           ? { officePhotoImageData: parsed.data.officePhotoImageData?.trim() || null }
-          : {})
-      },
-      create: {
-        partnerType: PartnerType.COMPANY,
-        domain,
-        name: parsed.data.name?.trim() || "",
-        industry: parsed.data.industry ?? PartnerIndustry.IT,
-        website: parsed.data.website?.trim() || null,
-        officeAddress: parsed.data.officeAddress?.trim() || null,
-        description: parsed.data.description?.trim() || null,
-        businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null,
-        fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null,
-        companyLogoImageData: parsed.data.companyLogoImageData?.trim() || null,
-        officePhotoImageData: parsed.data.officePhotoImageData?.trim() || null,
-        adminMemo: orgByDomain ? undefined : "Auto-created from partner profile edit."
+          : {}),
+        ...(shouldResetVerificationApproval ? { verificationApproved: false, verificationApprovedAt: null } : {})
       }
     });
 
     const memberCount = await prisma.user.count({
       where: {
         role: MemberRole.PARTNER,
-        email: { endsWith: `@${updated.domain}` }
+        partnerOrganizationId: updated.id
       }
     });
 
@@ -5667,7 +5997,6 @@ app.get("/members/me/positions/favorites", authenticate, requireRoles([MemberRol
           select: {
             id: true,
             name: true,
-            domain: true,
             industry: true,
             companySize: true,
             officeAddress: true
@@ -5702,7 +6031,6 @@ app.get("/members/me/positions/applied", authenticate, requireRoles([MemberRole.
           select: {
             id: true,
             name: true,
-            domain: true,
             industry: true,
             companySize: true,
             officeAddress: true
@@ -7065,12 +7393,12 @@ app.get("/partner/dashboard", authenticate, requireRoles([MemberRole.PARTNER, Me
   }
 
   const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
-  if (!affiliation || !affiliation.domain || !affiliation.organization) {
+  if (!affiliation || !affiliation.organization) {
     return sendAuthError(
       res,
       403,
       "PARTNER_AFFILIATION_REQUIRED",
-      "partner affiliation is required. use a company email domain."
+      "partner affiliation is required. request organization assignment."
     );
   }
 
@@ -7102,13 +7430,20 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]),
   }
 
   const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
-  if (!affiliation?.domain || !affiliation.organization) {
+  if (!affiliation?.organization) {
     return sendAuthError(
       res,
       403,
       "PARTNER_AFFILIATION_REQUIRED",
-      "partner affiliation is required. use a company email domain."
+      "partner affiliation is required. request organization assignment."
     );
+  }
+  const partnerAccess = toPartnerOrganization(affiliation.organization);
+  if (!partnerAccess.permissions.canPostPositions) {
+    return res.status(403).json({
+      ok: false,
+      message: "파트너 운영중이 승인되지 않으면 포지션을 등록할 수 없습니다"
+    });
   }
 
   try {
@@ -7118,6 +7453,7 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]),
         title: parsed.data.title,
         status: parsed.data.status ?? PositionStatus.DRAFT,
         workType: parsed.data.workType ?? "On-site",
+        employmentType: parsed.data.employmentType ?? PositionEmploymentType.UNPAID_INTERN,
         thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5),
         eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas),
         preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities),
@@ -7147,8 +7483,7 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]),
         partnerOrganization: {
           select: {
             id: true,
-            name: true,
-            domain: true
+            name: true
           }
         },
         matchingParticipants: {
@@ -7200,7 +7535,7 @@ app.get("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTNER
       res,
       403,
       "PARTNER_AFFILIATION_REQUIRED",
-      "partner affiliation is required. use a company email domain."
+      "partner affiliation is required. request organization assignment."
     );
   }
 
@@ -7213,8 +7548,7 @@ app.get("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTNER
       partnerOrganization: {
         select: {
           id: true,
-          name: true,
-          domain: true
+          name: true
         }
       },
       matchingParticipants: {
@@ -7284,7 +7618,7 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
       res,
       403,
       "PARTNER_AFFILIATION_REQUIRED",
-      "partner affiliation is required. use a company email domain."
+      "partner affiliation is required. request organization assignment."
     );
   }
 
@@ -7312,6 +7646,7 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
         ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
         ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
         ...(parsed.data.workType !== undefined ? { workType: parsed.data.workType } : {}),
+        ...(parsed.data.employmentType !== undefined ? { employmentType: parsed.data.employmentType } : {}),
         ...(parsed.data.thumbnailImages !== undefined
           ? { thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5) }
           : {}),
@@ -7355,8 +7690,7 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
         partnerOrganization: {
           select: {
             id: true,
-            name: true,
-            domain: true
+            name: true
           }
         },
         matchingParticipants: {
@@ -7405,7 +7739,7 @@ app.get("/partner/applicants", authenticate, requireRoles([MemberRole.PARTNER]),
         res,
         403,
         "PARTNER_AFFILIATION_REQUIRED",
-        "partner affiliation is required. use a company email domain."
+        "partner affiliation is required. request organization assignment."
       );
     }
     return res.json({
@@ -7442,7 +7776,7 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
         res,
         403,
         "PARTNER_AFFILIATION_REQUIRED",
-        "partner affiliation is required. use a company email domain."
+        "partner affiliation is required. request organization assignment."
       );
     }
 
@@ -7500,7 +7834,7 @@ app.patch("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PART
         res,
         403,
         "PARTNER_AFFILIATION_REQUIRED",
-        "partner affiliation is required. use a company email domain."
+        "partner affiliation is required. request organization assignment."
       );
     }
 
@@ -7575,7 +7909,6 @@ app.get("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asyn
   const { search, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
   const orderByMap = {
     name: { name: sortOrder },
-    domain: { domain: sortOrder },
     createdAt: { createdAt: sortOrder }
   } as const;
   const orderBy = orderByMap[sortBy];
@@ -7583,10 +7916,7 @@ app.get("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asyn
   const where = {
     ...(search
       ? {
-          OR: [
-            { name: { contains: search, mode: Prisma.QueryMode.insensitive } },
-            { domain: { contains: search, mode: Prisma.QueryMode.insensitive } }
-          ]
+          OR: [{ name: { contains: search, mode: Prisma.QueryMode.insensitive } }]
         }
       : {})
   };
@@ -7606,9 +7936,7 @@ app.get("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asyn
       prisma.user.count({
         where: {
           role: MemberRole.PARTNER,
-          email: {
-            endsWith: `@${item.domain}`
-          }
+          partnerOrganizationId: item.id
         }
       })
     )
@@ -7640,13 +7968,13 @@ app.get("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR]), 
   const memberCount = await prisma.user.count({
     where: {
       role: MemberRole.PARTNER,
-      email: { endsWith: `@${item.domain}` }
+      partnerOrganizationId: item.id
     }
   });
 
   return res.json({
     ok: true,
-    item: toPartnerOrganization({ ...item, memberCount })
+    item: toPartnerOrganization({ ...item, memberCount }, { includeVerificationAssets: true })
   });
 });
 
@@ -7656,7 +7984,7 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
     return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
   }
 
-  const { search, domain, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
+  const { search, partnerOrganizationId, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
   const orderByMap = {
     email: { email: sortOrder },
     name: { name: sortOrder },
@@ -7664,32 +7992,15 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
   } as const;
   const orderBy = orderByMap[sortBy];
 
-  let matchingPartnerDomains: string[] = [];
-  if (search) {
-    const partnerMatches = await prisma.partnerOrganization.findMany({
-      where: {
-        OR: [
-          { name: { contains: search, mode: Prisma.QueryMode.insensitive } },
-          { domain: { contains: search, mode: Prisma.QueryMode.insensitive } }
-        ]
-      },
-      select: { domain: true }
-    });
-    matchingPartnerDomains = partnerMatches.map((item) => item.domain.toLowerCase());
-  }
-
   const where: Prisma.UserWhereInput = {
     role: MemberRole.PARTNER,
-    ...(domain ? {} : { partnerType: PartnerType.COMPANY }),
-    ...(domain ? { email: { endsWith: `@${domain}` } } : {}),
+    ...( { partnerType: PartnerType.COMPANY }),
+    ...(partnerOrganizationId ? { partnerOrganizationId } : {}),
     ...(search
       ? {
           OR: [
             { email: { contains: search, mode: Prisma.QueryMode.insensitive } },
-            { name: { contains: search, mode: Prisma.QueryMode.insensitive } },
-            ...matchingPartnerDomains.map((matchedDomain) => ({
-              email: { endsWith: `@${matchedDomain}` }
-            }))
+            { name: { contains: search, mode: Prisma.QueryMode.insensitive } }
           ]
         }
       : {})
@@ -7713,26 +8024,26 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
         role: true,
         partnerType: true,
         partnerOrgRole: true,
+        partnerOrganizationId: true,
         createdAt: true
       }
     })
   ]);
 
-  const domains = Array.from(
-    new Set(users.map((user) => extractDomainFromEmail(user.email)).filter((domain): domain is string => Boolean(domain)))
+  const partnerIds = Array.from(
+    new Set(users.map((user) => user.partnerOrganizationId).filter((id): id is string => Boolean(id)))
   );
-  const partners = domains.length
+  const partners = partnerIds.length
     ? await prisma.partnerOrganization.findMany({
-        where: { domain: { in: domains } }
+        where: { id: { in: partnerIds } }
       })
     : [];
-  const partnerByDomain = new Map(partners.map((item) => [item.domain.toLowerCase(), item]));
+  const partnerById = new Map(partners.map((item) => [item.id, item]));
 
   return res.json({
     ok: true,
     items: users.map((user) => {
-      const domain = extractDomainFromEmail(user.email);
-      const partner = domain ? partnerByDomain.get(domain) : null;
+      const partner = user.partnerOrganizationId ? partnerById.get(user.partnerOrganizationId) : null;
       return {
         id: user.id,
         email: user.email,
@@ -7745,13 +8056,11 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
         partnerType: user.partnerType,
         partnerOrgRole: user.partnerOrgRole,
         createdAt: user.createdAt,
-        domain,
         partnerName: partner?.name ?? "-"
         ,
         partner: partner
           ? {
               id: partner.id,
-              domain: partner.domain,
               name: partner.name,
               companySize: partner.companySize ?? null,
               partnerType: partner.partnerType,
@@ -7805,6 +8114,35 @@ app.patch("/ops/partner-users/:id/admin-memo", authenticate, requireRoles([Membe
   }
 });
 
+app.patch("/ops/partners/:id/verification-approval", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) {
+    return res.status(400).json({ ok: false, message: "invalid partner id" });
+  }
+
+  const parsed = updatePartnerVerificationApprovalSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  try {
+    const updated = await prisma.partnerOrganization.update({
+      where: { id },
+      data: {
+        verificationApproved: parsed.data.approved,
+        verificationApprovedAt: parsed.data.approved ? new Date() : null
+      }
+    });
+
+    return res.json({ ok: true, item: toPartnerOrganization(updated) });
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+      return res.status(404).json({ ok: false, message: "partner not found" });
+    }
+    return res.status(500).json({ ok: false, message: "failed to update partner verification approval" });
+  }
+});
+
 app.post("/ops/partners/:id/members", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   if (!id) {
@@ -7818,18 +8156,10 @@ app.post("/ops/partners/:id/members", authenticate, requireRoles([MemberRole.OPE
 
   const partner = await prisma.partnerOrganization.findUnique({
     where: { id },
-    select: { id: true, domain: true, partnerType: true, name: true }
+    select: { id: true, partnerType: true, name: true }
   });
   if (!partner) {
     return res.status(404).json({ ok: false, message: "partner not found" });
-  }
-
-  const domain = extractDomainFromEmail(parsed.data.email);
-  if (!domain || domain !== partner.domain.toLowerCase()) {
-    return res.status(400).json({
-      ok: false,
-      message: `email domain must match partner domain (${partner.domain})`
-    });
   }
 
   const plainPassword = parsed.data.password ?? createTemporaryPassword();
@@ -7847,6 +8177,7 @@ app.post("/ops/partners/:id/members", authenticate, requireRoles([MemberRole.OPE
         role: MemberRole.PARTNER,
         partnerType: partner.partnerType,
         partnerOrgRole: parsed.data.partnerOrgRole,
+        partnerOrganizationId: partner.id,
         emailVerified: false
       },
       select: {
@@ -7870,7 +8201,6 @@ app.post("/ops/partners/:id/members", authenticate, requireRoles([MemberRole.OPE
       ok: true,
       item: {
         ...created,
-        domain,
         partnerName: partner.name
       },
       verificationDelivery: delivery.delivery,
@@ -7892,22 +8222,19 @@ app.delete("/ops/partners/:id/members/:memberId", authenticate, requireRoles([Me
     return res.status(400).json({ ok: false, message: "invalid request" });
   }
 
-  const partner = await prisma.partnerOrganization.findUnique({
-    where: { id },
-    select: { domain: true }
-  });
+  const partner = await prisma.partnerOrganization.findUnique({ where: { id }, select: { id: true } });
   if (!partner) {
     return res.status(404).json({ ok: false, message: "partner not found" });
   }
 
   const member = await prisma.user.findFirst({
-    where: {
-      id: memberId,
-      role: MemberRole.PARTNER,
-      email: { endsWith: `@${partner.domain}` }
-    },
-    select: { id: true }
-  });
+        where: {
+          id: memberId,
+          role: MemberRole.PARTNER,
+          partnerOrganizationId: id
+        },
+        select: { id: true }
+      });
   if (!member) {
     return res.status(404).json({ ok: false, message: "member not found in this partner" });
   }
@@ -7926,7 +8253,6 @@ app.post("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asy
     const created = await prisma.partnerOrganization.create({
       data: {
         partnerType: parsed.data.partnerType,
-        domain: parsed.data.domain,
         name: parsed.data.name,
         companySize: parsed.data.companySize,
         officeAddress: parsed.data.officeAddress,
@@ -7939,16 +8265,14 @@ app.post("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asy
         businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData,
         fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData,
         companyLogoImageData: parsed.data.companyLogoImageData,
-        officePhotoImageData: parsed.data.officePhotoImageData
+        officePhotoImageData: parsed.data.officePhotoImageData,
+        verificationApproved: false,
+        verificationApprovedAt: null
       }
     });
 
     return res.status(201).json({ ok: true, item: toPartnerOrganization(created) });
   } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002") {
-      return res.status(409).json({ ok: false, message: "domain already exists" });
-    }
-
     return res.status(500).json({ ok: false, message: "failed to create partner organization" });
   }
 });
@@ -7964,11 +8288,14 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
   }
 
   try {
+    const shouldResetVerificationApproval =
+      parsed.data.businessRegistrationDocumentData !== undefined
+      || parsed.data.fourInsuranceSubscriberListData !== undefined;
+
     const updated = await prisma.partnerOrganization.update({
       where: { id },
       data: {
         partnerType: parsed.data.partnerType,
-        domain: parsed.data.domain,
         name: parsed.data.name,
         companySize: parsed.data.companySize,
         officeAddress: parsed.data.officeAddress,
@@ -7981,15 +8308,13 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
         businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null,
         fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null,
         companyLogoImageData: parsed.data.companyLogoImageData?.trim() || null,
-        officePhotoImageData: parsed.data.officePhotoImageData?.trim() || null
+        officePhotoImageData: parsed.data.officePhotoImageData?.trim() || null,
+        ...(shouldResetVerificationApproval ? { verificationApproved: false, verificationApprovedAt: null } : {})
       }
     });
 
     return res.json({ ok: true, item: toPartnerOrganization(updated) });
   } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002") {
-      return res.status(409).json({ ok: false, message: "domain already exists" });
-    }
     if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
       return res.status(404).json({ ok: false, message: "partner not found" });
     }

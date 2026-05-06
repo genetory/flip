@@ -83,7 +83,7 @@ export const StudentProfile = () => {
       </svg>
       <div className="container grid max-w-[1200px] gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
         <Reveal className="order-2 lg:order-1" y="lg">
-          <div className="slide-in-right relative mx-auto w-full max-w-[560px] animate-float-y [animation-duration:4.2s]" style={{ animationDelay: "120ms" }}>
+          <div className="relative mx-auto w-full max-w-[560px] animate-float-y [animation-duration:4.2s]">
             <div className="relative h-[600px] overflow-hidden">
               <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-20 bg-gradient-to-b from-white via-white/80 to-transparent" />
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-20 bg-gradient-to-t from-white via-white/80 to-transparent" />
@@ -141,15 +141,15 @@ export const StudentProfile = () => {
         </Reveal>
 
         <Reveal className="order-1 lg:order-2" delayMs={90}>
-          <h2 className={`${paperlogy.className} slide-in-left text-3xl font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`} style={{ animationDelay: "90ms" }}>
+          <h2 className={`${paperlogy.className} text-3xl font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>
             {copy.titleTop}
             <br />
             <span className="mt-2 inline-block -rotate-[0.8deg] rounded-2xl bg-[#ffd36a] px-5 py-2.5 text-[#0B1227] shadow-[0_16px_34px_-18px_rgba(180,120,0,0.35)] md:px-7 md:py-3">
               {copy.titleBottom}
             </span>
           </h2>
-          <p className="slide-in-left mt-5 max-w-lg whitespace-pre-line text-slate-600" style={{ animationDelay: "150ms" }}>{copy.description}</p>
-          <ul className="slide-in-left mt-5 space-y-1.5" style={{ animationDelay: "210ms" }}>
+          <p className="mt-5 max-w-lg whitespace-pre-line text-slate-600">{copy.description}</p>
+          <ul className="mt-5 space-y-1.5">
             {copy.highlights.map((highlight) => (
               <li key={highlight} className="flex items-start gap-2 text-sm leading-snug text-slate-700">
                 <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#0B46E8]" />
@@ -158,10 +158,9 @@ export const StudentProfile = () => {
             ))}
           </ul>
           <Button
-            variant="hero"
-            size="xl"
-            className="slide-in-left mt-7 h-12 rounded-2xl bg-[#b7ff5a] px-6 text-sm font-semibold text-[#111111] shadow-[0_20px_35px_-18px_rgba(124,174,38,0.55)] hover:bg-[#a8ee4d]"
-            style={{ animationDelay: "280ms" }}
+            variant="dark"
+            size="lg"
+            className="mt-7 h-11 rounded-xl border-0 bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
             asChild
           >
             <Link href={ctaHref}>{ctaLabel}</Link>

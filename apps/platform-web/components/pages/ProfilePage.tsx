@@ -23,7 +23,7 @@ import {
 } from "../../lib/member-profile-client";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import { getStoredProfilePhoto } from "../../lib/profile-media";
-import { Bookmark, Briefcase, LayoutGrid, List, MapPin } from "lucide-react";
+import { BadgeCheck, Bookmark, Briefcase, LayoutGrid, List, MapPin } from "lucide-react";
 
 const PROFILE_SQUIRCLE_CLIP_ID = "profile-page-squircle-clip";
 const PROFILE_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
@@ -44,6 +44,8 @@ type StudentResumeSection = {
   fields: Array<{ label: string; value: string }>;
   href: string;
 };
+
+type CompanyFieldKind = "text" | "logo" | "additional";
 
 function formatIsoDate(value?: string | null) {
   if (!value) return "-";
@@ -95,16 +97,9 @@ function formatPostedDate(value: string, locale: "ko" | "en") {
   return `${y}. ${m}. ${d}`;
 }
 
-function extractDomainFromEmail(email?: string | null) {
-  if (!email) return null;
-  const at = email.lastIndexOf("@");
-  if (at < 0 || at === email.length - 1) return null;
-  return email.slice(at + 1).toLowerCase();
-}
-
-function companyHref(domain?: string | null) {
-  if (!domain?.trim()) return null;
-  return `/companies/${encodeURIComponent(domain.trim())}`;
+function companyHref(partnerOrganizationId?: string | null) {
+  if (!partnerOrganizationId?.trim()) return null;
+  return `/companies/${encodeURIComponent(partnerOrganizationId.trim())}`;
 }
 
 export function ProfilePage() {
@@ -208,7 +203,7 @@ export function ProfilePage() {
     () => [
       {
         title: tr("기본 정보", "Basic information"),
-        description: tr("파트너명, 산업군, 웹사이트, 주소, 소개를 관리합니다.", "Manage partner name, industry, website, address, and description."),
+        description: tr("파트너명, 산업군, 웹사이트, 주소, 소개, 기업 이미지, 추가 이미지를 관리합니다.", "Manage partner name, industry, website, address, description, company image, and additional images."),
         fields: []
       },
       {
@@ -227,6 +222,27 @@ export function ProfilePage() {
     if (user.role === "STUDENT") return tr("일반회원", "General");
     return "";
   }, [locale, user]);
+
+  const partnerVerificationBadge = useMemo(() => {
+    if (user?.role !== "PARTNER" && user?.role !== "OPERATOR") return null;
+    if (!partnerOrg) return null;
+    if (partnerOrg?.verification?.isVerified) {
+      return {
+        className: "bg-emerald-50 text-emerald-700",
+        label: tr("운영중", "Active")
+      };
+    }
+    if (partnerOrg?.verification?.hasRequiredDocuments) {
+      return {
+        className: "bg-amber-50 text-amber-700",
+        label: tr("검토중 (승인 대기)", "Under review (approval pending)")
+      };
+    }
+    return {
+      className: "bg-zinc-100 text-zinc-700",
+      label: tr("검토중 (서류 미비)", "Under review (documents missing)")
+    };
+  }, [partnerOrg, partnerOrg?.verification?.hasRequiredDocuments, partnerOrg?.verification?.isVerified, tr, user?.role]);
 
   const avatarFallback = useMemo(() => {
     if (user?.name?.trim()) return user.name.trim()[0].toUpperCase();
@@ -269,14 +285,14 @@ export function ProfilePage() {
         const all = await getPublicPositions();
         if (!isMounted) return;
 
-        const domain = partnerOrg?.domain?.toLowerCase() ?? extractDomainFromEmail(user.email);
-        if (!domain) {
+        const partnerOrganizationId = partnerOrg?.id;
+        if (!partnerOrganizationId) {
           setPostedPositions([]);
           setPositionsError(null);
           return;
         }
 
-        const mine = all.filter((item) => item.partnerOrganization?.domain?.toLowerCase() === domain);
+        const mine = all.filter((item) => item.partnerOrganization?.id === partnerOrganizationId);
         setPostedPositions(mine.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
         setPositionsError(null);
       } catch (error) {
@@ -288,7 +304,7 @@ export function ProfilePage() {
     return () => {
       isMounted = false;
     };
-  }, [locale, partnerOrg?.domain, user]);
+  }, [locale, partnerOrg?.id, user]);
 
   useEffect(() => {
     if (!user || user.role === "PARTNER" || user.role === "OPERATOR") return;
@@ -336,15 +352,39 @@ export function ProfilePage() {
     }
   }, [tabParam, user]);
 
+  const additionalCompanyImages = useMemo(() => {
+    const raw = partnerOrg?.officePhotoImageData;
+    if (!raw) return [] as string[];
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+      }
+      return [raw];
+    } catch {
+      return [raw];
+    }
+  }, [partnerOrg?.officePhotoImageData]);
+
   const basicCompanyFields = useMemo(
     () => [
-      { label: tr("파트너명", "Partner name"), value: partnerOrg?.name ?? "-" },
-      { label: tr("산업군", "Industry"), value: partnerIndustryLabel(partnerOrg?.industry) },
-      { label: tr("웹사이트", "Website"), value: partnerOrg?.website ?? "-" },
-      { label: tr("주소", "Address"), value: partnerOrg?.officeAddress ?? "-" },
-      { label: tr("소개", "Description"), value: partnerOrg?.description ?? "-" }
+      {
+        label: tr("로고 이미지", "Logo image"),
+        value: partnerOrg?.companyLogoImageData ? tr("업로드 완료", "Uploaded") : tr("미업로드", "Not uploaded"),
+        kind: "logo" as CompanyFieldKind
+      },
+      {
+        label: tr("추가 이미지", "Additional images"),
+        value: additionalCompanyImages.length > 0 ? tr("업로드 완료", "Uploaded") : tr("미업로드", "Not uploaded"),
+        kind: "additional" as CompanyFieldKind
+      },
+      { label: tr("파트너명", "Partner name"), value: partnerOrg?.name ?? "-", kind: "text" as CompanyFieldKind },
+      { label: tr("산업군", "Industry"), value: partnerIndustryLabel(partnerOrg?.industry), kind: "text" as CompanyFieldKind },
+      { label: tr("웹사이트", "Website"), value: partnerOrg?.website ?? "-", kind: "text" as CompanyFieldKind },
+      { label: tr("주소", "Address"), value: partnerOrg?.officeAddress ?? "-", kind: "text" as CompanyFieldKind },
+      { label: tr("소개", "Description"), value: partnerOrg?.description ?? "-", kind: "text" as CompanyFieldKind }
     ],
-    [locale, partnerOrg]
+    [additionalCompanyImages.length, locale, partnerOrg]
   );
 
   const verificationFields = useMemo(
@@ -356,36 +396,45 @@ export function ProfilePage() {
       {
         label: tr("4대보험 가입자명부", "4-insurance subscriber list"),
         value: partnerOrg?.fourInsuranceSubscriberListData ? tr("업로드 완료", "Uploaded") : tr("미업로드", "Not uploaded")
-      },
-      {
-        label: tr("회사 로고", "Company logo"),
-        value: partnerOrg?.companyLogoImageData ? tr("업로드 완료", "Uploaded") : tr("미업로드", "Not uploaded")
-      },
-      {
-        label: tr("사무실 사진", "Office photo"),
-        value: partnerOrg?.officePhotoImageData ? tr("업로드 완료", "Uploaded") : tr("미업로드", "Not uploaded")
       }
     ],
     [
       locale,
       partnerOrg?.businessRegistrationDocumentData,
-      partnerOrg?.companyLogoImageData,
-      partnerOrg?.fourInsuranceSubscriberListData,
-      partnerOrg?.officePhotoImageData
+      partnerOrg?.fourInsuranceSubscriberListData
     ]
   );
 
   const verificationSummary = useMemo(() => {
     const notUploadedLabel = tr("미업로드", "Not uploaded");
-    const missing = verificationFields.filter((field) => field.value === notUploadedLabel).map((field) => field.label);
-    if (missing.length === 0) {
+    const requiredLabels = new Set([
+      tr("사업자등록증", "Business registration"),
+      tr("4대보험 가입자명부", "4-insurance subscriber list")
+    ]);
+    const missingRequired = verificationFields
+      .filter((field) => requiredLabels.has(field.label) && field.value === notUploadedLabel)
+      .map((field) => field.label);
+
+    const isApproved = Boolean(partnerOrg?.verification?.isApproved);
+
+    if (missingRequired.length === 0 && isApproved) {
       return tr(
-        "최종 인증 완료: 공고 등록 및 후보자 연락 권한이 활성화됩니다.",
-        "Verification complete: posting and candidate contact permissions are enabled."
+        "운영중: 필수 서류 업로드 및 운영자 승인이 완료되었습니다.",
+        "Active: required documents are uploaded and operator approval is completed."
       );
     }
-    return tr(`최종 인증 대기: ${missing.join(", ")} 업로드가 필요합니다.`, `Verification pending: upload ${missing.join(", ")}.`);
-  }, [locale, verificationFields]);
+
+    if (missingRequired.length === 0 && !isApproved) {
+      return tr(
+        "검토 중: 필수 서류 업로드는 완료되었고 운영자 승인 대기 상태입니다.",
+        "Under review: required documents are uploaded and waiting for operator approval."
+      );
+    }
+    return tr(
+      `검토 요청 전 준비 필요: ${missingRequired.join(", ")} 업로드가 필요합니다.`,
+      `Before review request: upload ${missingRequired.join(", ")}.`
+    );
+  }, [locale, partnerOrg?.verification?.isApproved, verificationFields]);
 
 
   const studentResumeSections = useMemo<StudentResumeSection[]>(
@@ -539,11 +588,11 @@ export function ProfilePage() {
           <h1 className="mb-6 font-display text-3xl font-bold tracking-tight">{tr("내 프로필", "My profile")}</h1>
 
           {!isReady ? (
-            <section className="py-2">
+            <section className="rounded-2xl bg-white p-5 md:p-6">
               <p className="text-sm text-muted-foreground">{tr("프로필 정보를 불러오는 중...", "Loading profile information...")}</p>
             </section>
           ) : !isAuthenticated || !user ? (
-            <section className="py-2">
+            <section className="rounded-2xl bg-white p-5 md:p-6">
               <p className="mt-2 text-sm text-muted-foreground">{tr("로그인이 필요합니다.", "Sign in is required.")}</p>
               <div className="mt-4">
                 <Button variant="dark" asChild>
@@ -552,7 +601,8 @@ export function ProfilePage() {
               </div>
             </section>
           ) : (
-            <section className="space-y-8 py-2">
+            <section className="space-y-6">
+              <div className="rounded-2xl border border-border/70 bg-card p-5 md:p-6">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   {profileImage ? (
@@ -568,6 +618,12 @@ export function ProfilePage() {
                       {roleLabel ? (
                         <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{roleLabel}</span>
                       ) : null}
+                      {partnerVerificationBadge ? (
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${partnerVerificationBadge.className}`}>
+                          <BadgeCheck className="h-3.5 w-3.5" />
+                          {partnerVerificationBadge.label}
+                        </span>
+                      ) : null}
                     </div>
                     <p className="mt-0.5 text-sm text-muted-foreground">{user.email}</p>
                   </div>
@@ -578,10 +634,11 @@ export function ProfilePage() {
               </div>
 
               {profileError ? <p className="text-sm text-destructive">{profileError}</p> : null}
+              </div>
 
-              <div className="space-y-6 border-t border-border/60 pt-6">
+              <div className="space-y-6">
                 {user.role === "PARTNER" || user.role === "OPERATOR" ? (
-                  <article className="space-y-5">
+                  <article className="space-y-5 rounded-2xl border border-border/70 bg-card p-5 md:p-6">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <button
@@ -604,14 +661,14 @@ export function ProfilePage() {
                         </button>
                       </div>
                       <Button size="sm" className="bg-[#b7ff5a] font-semibold text-[#111111] hover:bg-[#a8ee4d]" asChild>
-                        <Link href="/partner/dashboard">{tr("대시보드로 이동하기", "Go to dashboard")}</Link>
+                        <Link href="/profile">{tr("대시보드로 이동하기", "Go to dashboard")}</Link>
                       </Button>
                     </div>
 
                     {activeTab === "info" ? (
                       <>
                         {businessSections.map((section) => (
-                          <div key={section.title} className="space-y-3">
+                          <div key={section.title} className="space-y-3 rounded-xl border border-border/60 bg-muted/10 p-4">
                             <div className="flex items-center justify-between gap-3">
                               <div>
                                 <h3 className="text-sm font-semibold">{section.title}</h3>
@@ -619,7 +676,7 @@ export function ProfilePage() {
                               </div>
                               {user.role === "PARTNER" ? (
                                 <Button variant="outline" size="sm" asChild>
-                                  <Link href={section.title === tr("인증 정보", "Verification") ? "/profile/company/verification/edit" : "/profile/company/edit"}>
+                                  <Link href={section.title === tr("인증 정보", "Verification") ? "/partner-profile/verification/edit" : "/partner-profile/edit"}>
                                     {tr("편집", "Edit")}
                                   </Link>
                                 </Button>
@@ -629,9 +686,49 @@ export function ProfilePage() {
                             {section.title === tr("기본 정보", "Basic information") ? (
                               <div className="grid gap-2 sm:grid-cols-2">
                                 {basicCompanyFields.map((field) => (
-                                  <div key={field.label} className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                                  <div
+                                    key={field.label}
+                                    className={`rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm ${
+                                      field.label === tr("소개", "Description") ? "sm:col-span-2" : ""
+                                    }`}
+                                  >
                                     <p className="text-xs font-medium text-muted-foreground">{field.label}</p>
-                                    <p className="mt-1 break-words text-foreground">{field.value}</p>
+                                    {field.kind === "logo" ? (
+                                      partnerOrg?.companyLogoImageData ? (
+                                        <div className="mt-2">
+                                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                                          <img
+                                            src={partnerOrg.companyLogoImageData}
+                                            alt={tr("로고 이미지", "Logo image")}
+                                            className="h-14 w-14 object-cover"
+                                            style={PROFILE_SQUIRCLE_STYLE}
+                                          />
+                                        </div>
+                                      ) : (
+                                        <p className="mt-1 break-words text-foreground">{field.value}</p>
+                                      )
+                                    ) : field.kind === "additional" ? (
+                                      additionalCompanyImages.length > 0 ? (
+                                        <div className="mt-2 flex flex-wrap gap-2">
+                                          {additionalCompanyImages.slice(0, 4).map((image, index) => (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                              key={`${field.label}-${index}`}
+                                              src={image}
+                                              alt={`${tr("추가 이미지", "Additional image")} ${index + 1}`}
+                                              className="h-14 w-14 object-cover"
+                                              style={PROFILE_SQUIRCLE_STYLE}
+                                            />
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <p className="mt-1 break-words text-foreground">{field.value}</p>
+                                      )
+                                    ) : (
+                                      <p className={`mt-1 break-words text-foreground ${
+                                        field.label === tr("소개", "Description") ? "whitespace-pre-wrap leading-relaxed" : ""
+                                      }`}>{field.value}</p>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -639,7 +736,7 @@ export function ProfilePage() {
                               <div className="space-y-3">
                                 <div className="grid gap-2 sm:grid-cols-2">
                                   {verificationFields.map((field) => (
-                                    <div key={field.label} className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                                    <div key={field.label} className="rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm">
                                       <p className="text-xs font-medium text-muted-foreground">{field.label}</p>
                                       <p className="mt-1 break-words text-foreground">{field.value}</p>
                                     </div>
@@ -650,7 +747,7 @@ export function ProfilePage() {
                             ) : (
                               <div className="grid gap-2 sm:grid-cols-2">
                                 {section.fields.map((field) => (
-                                  <div key={field} className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                                  <div key={field} className="rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
                                     {field}
                                   </div>
                                 ))}
@@ -661,11 +758,7 @@ export function ProfilePage() {
                       </>
                     ) : (
                       <div className="space-y-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <span className="text-sm text-muted-foreground">
-                            {postedPositions.length}
-                            {tr("개", "")}
-                          </span>
+                        <div className="flex items-start justify-end gap-3">
                           <div className="flex items-center gap-1">
                             <Button
                               type="button"
@@ -691,7 +784,7 @@ export function ProfilePage() {
                         {positionsError ? <p className="text-sm text-destructive">{positionsError}</p> : null}
 
                         {postedPositions.length === 0 ? (
-                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+                          <div className="rounded-md border border-border/50 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
                             {tr("아직 등록된 포지션이 없습니다.", "No posted positions yet.")}
                           </div>
                         ) : postedViewMode === "grid" ? (
@@ -711,7 +804,7 @@ export function ProfilePage() {
                     )}
                   </article>
                 ) : (
-                  <article className="space-y-5">
+                  <article className="space-y-5 rounded-2xl border border-border/70 bg-card p-5 md:p-6">
                     <div className="flex items-center justify-between gap-3 pb-1">
                       <div className="flex items-center gap-2">
                         <button
@@ -754,7 +847,7 @@ export function ProfilePage() {
                     </div>
 
                     {studentTab === "info" ? (
-                      <div className="space-y-2">
+                      <div className="space-y-2 rounded-xl border border-border/60 bg-muted/10 p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="text-sm font-semibold text-foreground">{tr("기본 정보", "Basic information")}</p>
@@ -767,23 +860,23 @@ export function ProfilePage() {
                           </Button>
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                          <div className="rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm">
                             <p className="text-xs font-medium text-muted-foreground">{tr("프로필 사진", "Profile photo")}</p>
                             <p className="mt-1 break-words text-foreground">{profileImage ? tr("등록됨", "Uploaded") : tr("미등록", "Not uploaded")}</p>
                           </div>
-                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                          <div className="rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm">
                             <p className="text-xs font-medium text-muted-foreground">{tr("실명", "Legal name")}</p>
                             <p className="mt-1 break-words text-foreground">{user.realName ?? "-"}</p>
                           </div>
-                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                          <div className="rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm">
                             <p className="text-xs font-medium text-muted-foreground">{tr("닉네임", "Nickname")}</p>
                             <p className="mt-1 break-words text-foreground">{user.name ?? "-"}</p>
                           </div>
-                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                          <div className="rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm">
                             <p className="text-xs font-medium text-muted-foreground">{tr("연락처", "Phone")}</p>
                             <p className="mt-1 break-words text-foreground">{user.phoneNumber ?? "-"}</p>
                           </div>
-                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                          <div className="rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm">
                             <p className="text-xs font-medium text-muted-foreground">{tr("성별", "Gender")}</p>
                             <p className="mt-1 break-words text-foreground">
                               {user.gender === "MALE"
@@ -795,17 +888,17 @@ export function ProfilePage() {
                                     : tr("선택 안 함", "Prefer not to say")}
                             </p>
                           </div>
-                          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                          <div className="rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm">
                             <p className="text-xs font-medium text-muted-foreground">{tr("생년월일", "Date of birth")}</p>
                             <p className="mt-1 break-words text-foreground">{user.birthDate ? user.birthDate.slice(0, 10) : "-"}</p>
                           </div>
                         </div>
                       </div>
                     ) : studentTab === "resume" ? (
-                      <div className="space-y-4">
+                      <div className="space-y-4 rounded-xl border border-border/60 bg-muted/10 p-4">
                         <div className="space-y-5">
                           {studentResumeSections.map((section) => (
-                            <section key={section.title} className="space-y-2">
+                            <section key={section.title} className="space-y-2 rounded-lg border border-border/50 bg-card/60 p-3">
                               <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <p className="text-sm font-semibold text-foreground">{section.title}</p>
@@ -817,7 +910,7 @@ export function ProfilePage() {
                               </div>
                               <div className="grid gap-2 sm:grid-cols-2">
                                 {section.fields.map((field) => (
-                                  <div key={`${section.title}-${field.label}`} className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                                  <div key={`${section.title}-${field.label}`} className="rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm">
                                     <p className="text-xs font-medium text-muted-foreground">{field.label}</p>
                                     <p className="mt-1 break-words text-foreground">{field.value}</p>
                                   </div>
@@ -865,7 +958,7 @@ export function ProfilePage() {
 
                           if (source.length === 0) {
                             return (
-                              <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+                              <div className="rounded-md border border-border/50 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
                                 {studentTab === "applied"
                                   ? tr("아직 지원한 포지션이 없습니다.", "No applied positions yet.")
                                   : tr("아직 즐겨찾기한 포지션이 없습니다.", "No favorite positions yet.")}
@@ -950,8 +1043,8 @@ const PostedPositionRow = ({
 }) => {
   const { locale } = useLanguage();
   const tr = (ko: string, en: string) => (locale === "ko" ? ko : en);
-  const itemCompany = item.partnerOrganization?.name?.trim() || item.partnerOrganization?.domain || tr("파트너 기업", "Partner company");
-  const itemCompanyHref = companyHref(item.partnerOrganization?.domain);
+  const itemCompany = item.partnerOrganization?.name?.trim() || tr("파트너 기업", "Partner company");
+  const itemCompanyHref = companyHref(item.partnerOrganization?.id);
   const itemWorkType = item.workType ?? inferWorkType(item.workingHours);
   const itemLocation = item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || tr("협의", "To be discussed");
   const itemJobRole = item.preferredJobRole?.trim() || tr("직무 미정", "Role TBD");
@@ -1043,8 +1136,8 @@ const PostedPositionGridCard = ({
 }) => {
   const { locale } = useLanguage();
   const tr = (ko: string, en: string) => (locale === "ko" ? ko : en);
-  const itemCompany = item.partnerOrganization?.name?.trim() || item.partnerOrganization?.domain || tr("파트너 기업", "Partner company");
-  const itemCompanyHref = companyHref(item.partnerOrganization?.domain);
+  const itemCompany = item.partnerOrganization?.name?.trim() || tr("파트너 기업", "Partner company");
+  const itemCompanyHref = companyHref(item.partnerOrganization?.id);
   const itemWorkType = item.workType ?? inferWorkType(item.workingHours);
   const itemLocation = item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || tr("협의", "To be discussed");
   const itemJobRole = item.preferredJobRole?.trim() || tr("직무 미정", "Role TBD");

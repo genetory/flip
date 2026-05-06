@@ -12,9 +12,8 @@ import { useAuthSession } from "../auth/AuthSessionProvider";
 import { Button } from "../ui/button";
 import {
   AuthApiError,
-  sendBusinessEmailVerification,
+  createPartnerSignupRequest,
   signupWithEmail,
-  verifyBusinessEmailCode
 } from "../../lib/auth-client";
 import { getAuthPageMessages } from "../../lib/auth-messages";
 import { getMembersMeta } from "../../lib/member-profile-client";
@@ -37,13 +36,6 @@ export function SignupPage() {
   const [companySize, setCompanySize] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [emailVerificationCode, setEmailVerificationCode] = useState("");
-  const [emailVerificationNotice, setEmailVerificationNotice] = useState<string | null>(null);
-  const [emailVerificationDebugCode, setEmailVerificationDebugCode] = useState<string | null>(null);
-  const [emailVerifiedEmail, setEmailVerifiedEmail] = useState<string | null>(null);
-  const [isSendingEmailVerification, setIsSendingEmailVerification] = useState(false);
-  const [isCheckingEmailVerification, setIsCheckingEmailVerification] = useState(false);
-  const [isEmailVerificationSent, setIsEmailVerificationSent] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [accountType, setAccountType] = useState<"GENERAL" | "BUSINESS">("GENERAL");
@@ -51,9 +43,11 @@ export function SignupPage() {
   const [companySizeOptions, setCompanySizeOptions] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  const [requestSuccessMessage, setRequestSuccessMessage] = useState<string | null>(null);
   const copy = getAuthPageMessages(locale).signup;
   const isBusiness = accountType === "BUSINESS";
-  const emailLabel = isBusiness ? (locale === "ko" ? "업무용 이메일" : "Work email") : copy.emailLabel;
+  const emailLabel = copy.emailLabel;
   const accountTypeOptions = [
     { value: "GENERAL" as const, label: copy.accountTypeGeneral },
     { value: "BUSINESS" as const, label: copy.accountTypeBusiness }
@@ -85,21 +79,8 @@ export function SignupPage() {
       setCompanyName("");
       setCompanyIndustry("");
       setCompanySize("");
-      setEmailVerificationCode("");
-      setEmailVerificationNotice(null);
-      setEmailVerificationDebugCode(null);
-      setEmailVerifiedEmail(null);
-      setIsEmailVerificationSent(false);
     }
   }, [isBusiness]);
-
-  useEffect(() => {
-    if (!isBusiness || businessStep !== 2) return;
-    setEmailVerifiedEmail((prev) => {
-      if (!prev) return prev;
-      return prev === email.trim().toLowerCase() ? prev : null;
-    });
-  }, [businessStep, email, isBusiness]);
 
   const submitLabel = useMemo(() => {
     if (!isBusiness) return copy.submitIdle;
@@ -107,69 +88,10 @@ export function SignupPage() {
     return copy.submitIdle;
   }, [businessStep, copy.submitIdle, isBusiness, locale]);
 
-  async function handleSendEmailVerification() {
-    if (!isBusiness || businessStep !== 2) return;
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) {
-      setErrorMessage(locale === "ko" ? "업무용 이메일을 입력해주세요." : "Please enter work email.");
-      return;
-    }
-
-    setErrorMessage(null);
-    setEmailVerificationNotice(null);
-    setEmailVerificationDebugCode(null);
-    setIsSendingEmailVerification(true);
-    try {
-      const result = await sendBusinessEmailVerification({ email: normalizedEmail, locale });
-      setIsEmailVerificationSent(Boolean(result.sent));
-      setEmailVerifiedEmail(null);
-      setEmailVerificationCode("");
-      setEmailVerificationNotice(
-        locale === "ko"
-          ? "인증 코드를 보냈습니다. 이메일에서 코드를 확인해주세요."
-          : "Verification code sent. Please check your email."
-      );
-      if (result.verificationCode) {
-        setEmailVerificationDebugCode(result.verificationCode);
-      }
-    } catch (error) {
-      if (error instanceof AuthApiError && error.code === "EMAIL_ALREADY_EXISTS") {
-        setErrorMessage(locale === "ko" ? "이미 가입된 이메일입니다. 로그인해주세요." : "This email is already registered. Please sign in.");
-        return;
-      }
-      setErrorMessage(error instanceof Error ? error.message : (locale === "ko" ? "이메일 인증 요청에 실패했습니다." : "Failed to send verification email."));
-    } finally {
-      setIsSendingEmailVerification(false);
-    }
-  }
-
-  async function handleConfirmEmailVerification() {
-    if (!isBusiness || businessStep !== 2) return;
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail || !emailVerificationCode.trim()) {
-      setErrorMessage(locale === "ko" ? "이메일과 인증 코드를 입력해주세요." : "Please enter email and verification code.");
-      return;
-    }
-
-    setErrorMessage(null);
-    setIsCheckingEmailVerification(true);
-    try {
-      await verifyBusinessEmailCode({
-        email: normalizedEmail,
-        code: emailVerificationCode.trim()
-      });
-      setEmailVerifiedEmail(normalizedEmail);
-      setEmailVerificationNotice(locale === "ko" ? "이메일 인증이 완료되었습니다." : "Email verified.");
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : (locale === "ko" ? "이메일 인증 확인에 실패했습니다." : "Failed to verify email."));
-    } finally {
-      setIsCheckingEmailVerification(false);
-    }
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage(null);
+    setRequestSuccessMessage(null);
 
     if (isBusiness && businessStep === 1) {
       if (!companyName.trim()) {
@@ -190,10 +112,6 @@ export function SignupPage() {
 
     if (isBusiness && !phoneNumber.trim()) {
       setErrorMessage(locale === "ko" ? "휴대폰 번호를 입력해주세요." : "Please enter phone number.");
-      return;
-    }
-    if (isBusiness && emailVerifiedEmail !== email.trim().toLowerCase()) {
-      setErrorMessage(locale === "ko" ? "업무용 이메일 인증을 완료해주세요." : "Please complete work email verification.");
       return;
     }
 
@@ -239,6 +157,37 @@ export function SignupPage() {
       setErrorMessage(error instanceof Error ? error.message : copy.submitFallbackError);
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleSubmitPartnerRequest() {
+    setErrorMessage(null);
+    setRequestSuccessMessage(null);
+    if (!isBusiness) return;
+    if (!companyName.trim() || !companyIndustry || !companySize || !name.trim() || !email.trim()) {
+      setErrorMessage(locale === "ko" ? "회사 등록 요청에 필요한 정보를 먼저 입력해주세요." : "Please fill in required fields before submitting request.");
+      return;
+    }
+
+    setIsSubmittingRequest(true);
+    try {
+      await createPartnerSignupRequest({
+        companyName: companyName.trim(),
+        companyIndustry: companyIndustry,
+        companySize: companySize,
+        requesterName: name.trim(),
+        requesterEmail: email.trim(),
+        requesterPhone: phoneNumber.trim() || undefined
+      });
+      setRequestSuccessMessage(
+        locale === "ko"
+          ? "회사 등록 요청이 접수되었습니다. 운영팀 검토 후 안내드릴게요."
+          : "Company registration request submitted. Our team will review and contact you."
+      );
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : (locale === "ko" ? "요청 접수에 실패했습니다." : "Failed to submit request."));
+    } finally {
+      setIsSubmittingRequest(false);
     }
   }
 
@@ -341,63 +290,15 @@ export function SignupPage() {
                   </label>
                   <label className="block text-sm font-medium">
                     {emailLabel}
-                    <div className="mt-2 flex items-center gap-2">
-                      <input
-                        type="email"
-                        placeholder={copy.emailPlaceholder}
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        className="h-10 w-full rounded-md border border-input/60 bg-background px-3 text-sm outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"
-                        required
-                      />
-                      {isBusiness ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-10 shrink-0 px-3"
-                          onClick={() => void handleSendEmailVerification()}
-                          disabled={isSendingEmailVerification || !email.trim()}
-                        >
-                          {isSendingEmailVerification ? (locale === "ko" ? "전송 중..." : "Sending...") : (locale === "ko" ? "인증하기" : "Verify")}
-                        </Button>
-                      ) : null}
-                    </div>
+                    <input
+                      type="email"
+                      placeholder={copy.emailPlaceholder}
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      className="mt-2 h-10 w-full rounded-md border border-input/60 bg-background px-3 text-sm outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"
+                      required
+                    />
                   </label>
-                  {isBusiness ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          maxLength={6}
-                          placeholder={locale === "ko" ? "인증코드 6자리" : "6-digit code"}
-                          value={emailVerificationCode}
-                          onChange={(event) => setEmailVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                          className="h-10 w-full rounded-md border border-input/60 bg-background px-3 text-sm outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"
-                          disabled={!isEmailVerificationSent}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-10 shrink-0 px-3"
-                          onClick={() => void handleConfirmEmailVerification()}
-                          disabled={!isEmailVerificationSent || isCheckingEmailVerification || emailVerificationCode.length !== 6}
-                        >
-                          {isCheckingEmailVerification ? (locale === "ko" ? "확인 중..." : "Checking...") : (locale === "ko" ? "코드확인" : "Confirm")}
-                        </Button>
-                      </div>
-                      {emailVerifiedEmail === email.trim().toLowerCase() ? (
-                        <p className="text-xs font-medium text-success">{locale === "ko" ? "업무용 이메일 인증 완료" : "Work email verified"}</p>
-                      ) : null}
-                      {emailVerificationNotice ? <p className="text-xs text-muted-foreground">{emailVerificationNotice}</p> : null}
-                      {emailVerificationDebugCode ? (
-                        <p className="text-xs text-muted-foreground">
-                          {locale === "ko" ? `개발환경 코드: ${emailVerificationDebugCode}` : `Dev code: ${emailVerificationDebugCode}`}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
                   {isBusiness ? (
                     <label className="block text-sm font-medium">
                       {locale === "ko" ? "휴대폰 번호" : "Phone number"}
@@ -430,6 +331,7 @@ export function SignupPage() {
                   : copy.generalHelperText}
               </p>
               {errorMessage ? <p className="text-sm font-medium text-destructive">{errorMessage}</p> : null}
+              {requestSuccessMessage ? <p className="text-sm font-medium text-emerald-600">{requestSuccessMessage}</p> : null}
               <div className="flex items-center gap-2">
                 {isBusiness && businessStep === 2 ? (
                   <Button
@@ -450,6 +352,20 @@ export function SignupPage() {
                   {isSubmitting ? copy.submitPending : <>{submitLabel} <ArrowRight /></>}
                 </Button>
               </div>
+              {isBusiness && businessStep === 2 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="h-11 w-full"
+                  disabled={isSubmittingRequest}
+                  onClick={() => void handleSubmitPartnerRequest()}
+                >
+                  {isSubmittingRequest
+                    ? (locale === "ko" ? "요청 접수 중..." : "Submitting request...")
+                    : (locale === "ko" ? "회사 등록 요청하기 (공용메일 사용자)" : "Request company registration (public email)")}
+                </Button>
+              ) : null}
             </form>
 
             <p className="mt-4 text-center text-sm text-muted-foreground">

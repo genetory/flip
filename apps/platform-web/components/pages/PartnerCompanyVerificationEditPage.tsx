@@ -30,41 +30,29 @@ export function PartnerCompanyVerificationEditPage() {
   const { user, isReady, isAuthenticated } = useAuthSession();
   const [businessRegistrationDocumentData, setBusinessRegistrationDocumentData] = useState<string | null>(null);
   const [fourInsuranceSubscriberListData, setFourInsuranceSubscriberListData] = useState<string | null>(null);
-  const [companyLogoImageData, setCompanyLogoImageData] = useState<string | null>(null);
-  const [officePhotoImageData, setOfficePhotoImageData] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   type VerificationFieldKey =
     | "businessRegistrationDocumentData"
-    | "fourInsuranceSubscriberListData"
-    | "companyLogoImageData"
-    | "officePhotoImageData";
+    | "fourInsuranceSubscriberListData";
 
   const labels = {
     businessRegistration: t("사업자등록증", "Business registration"),
-    insuranceList: t("4대보험 가입자명부", "4-insurance subscriber list"),
-    companyLogo: t("회사 로고", "Company logo"),
-    officePhoto: t("사무실 사진", "Office photo")
+    insuranceList: t("4대보험 가입자명부", "4-insurance subscriber list")
   };
 
   const verificationMissing = useMemo(
     () =>
       [
         !businessRegistrationDocumentData ? labels.businessRegistration : null,
-        !fourInsuranceSubscriberListData ? labels.insuranceList : null,
-        !companyLogoImageData ? labels.companyLogo : null,
-        !officePhotoImageData ? labels.officePhoto : null
+        !fourInsuranceSubscriberListData ? labels.insuranceList : null
       ].filter((item): item is string => Boolean(item)),
     [
       businessRegistrationDocumentData,
-      companyLogoImageData,
       fourInsuranceSubscriberListData,
-      officePhotoImageData,
       labels.businessRegistration,
-      labels.companyLogo,
-      labels.insuranceList,
-      labels.officePhoto
+      labels.insuranceList
     ]
   );
   const verificationReady = verificationMissing.length === 0;
@@ -80,8 +68,6 @@ export function PartnerCompanyVerificationEditPage() {
         if (!org) return;
         setBusinessRegistrationDocumentData(org.businessRegistrationDocumentData ?? null);
         setFourInsuranceSubscriberListData(org.fourInsuranceSubscriberListData ?? null);
-        setCompanyLogoImageData(org.companyLogoImageData ?? null);
-        setOfficePhotoImageData(org.officePhotoImageData ?? null);
       } catch (error) {
         if (!isMounted) return;
         setErrorMessage(error instanceof Error ? error.message : t("인증 정보를 불러오지 못했습니다.", "Failed to load verification data."));
@@ -111,8 +97,6 @@ export function PartnerCompanyVerificationEditPage() {
       const data = await readFileAsDataUrl(file, t("파일을 읽지 못했습니다.", "Failed to read file."));
       if (field === "businessRegistrationDocumentData") setBusinessRegistrationDocumentData(data);
       if (field === "fourInsuranceSubscriberListData") setFourInsuranceSubscriberListData(data);
-      if (field === "companyLogoImageData") setCompanyLogoImageData(data);
-      if (field === "officePhotoImageData") setOfficePhotoImageData(data);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t("파일 업로드에 실패했습니다.", "Failed to upload file."));
     } finally {
@@ -126,9 +110,7 @@ export function PartnerCompanyVerificationEditPage() {
     try {
       await updateMyPartnerOrganizationBasic({
         businessRegistrationDocumentData,
-        fourInsuranceSubscriberListData,
-        companyLogoImageData,
-        officePhotoImageData
+        fourInsuranceSubscriberListData
       });
       router.push("/profile");
       router.refresh();
@@ -203,8 +185,8 @@ export function PartnerCompanyVerificationEditPage() {
             <section className="space-y-4">
               <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
                 {t(
-                  "사업자등록증, 4대보험 가입자명부, 회사 로고, 사무실 사진을 업로드하면 최종 인증됩니다.",
-                  "Upload business registration, 4-insurance list, company logo, and office photo to complete verification."
+                  "사업자등록증, 4대보험 가입자명부를 업로드하면 운영자 인증 검토를 요청할 수 있습니다.",
+                  "Upload business registration and 4-insurance list to request operator verification review."
                 )}
               </div>
 
@@ -221,24 +203,15 @@ export function PartnerCompanyVerificationEditPage() {
                   accept: ".pdf,image/*",
                   uploaded: Boolean(fourInsuranceSubscriberListData)
                 })}
-                {renderUploadCard({
-                  key: "companyLogoImageData",
-                  title: labels.companyLogo,
-                  accept: "image/*",
-                  uploaded: Boolean(companyLogoImageData)
-                })}
-                {renderUploadCard({
-                  key: "officePhotoImageData",
-                  title: labels.officePhoto,
-                  accept: "image/*",
-                  uploaded: Boolean(officePhotoImageData)
-                })}
               </div>
 
               <div className={verificationReady ? "text-xs text-emerald-600" : "text-xs text-amber-600"}>
                 {verificationReady
-                  ? t("최종 인증 완료: 공고 등록 및 후보자 연락 권한이 활성화됩니다.", "Verification complete: posting and candidate contact permissions are enabled.")
-                  : t("최종 인증 대기", "Verification pending") + `: ${verificationMissing.join(", ")} ${t("업로드가 필요합니다.", "must be uploaded.")}`}
+                  ? t(
+                    "검토 중: 필수 서류 업로드가 완료되어 운영자 검토 리스트로 전달됩니다.",
+                    "Under review: required documents are uploaded and sent to the operator review list."
+                  )
+                  : t("검토 요청 전 준비 필요", "Before review request") + `: ${verificationMissing.join(", ")} ${t("업로드가 필요합니다.", "must be uploaded.")}`}
               </div>
               {uploadingField ? <div className="text-xs text-muted-foreground">{t("파일 처리 중...", "Processing file...")}</div> : null}
 

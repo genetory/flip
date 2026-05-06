@@ -256,7 +256,6 @@ export type MyCandidateProfile = {
 export type MyPartnerOrganization = {
   id: string;
   partnerType: "UNIVERSITY" | "COMPANY" | "AGENCY";
-  domain: string;
   name: string;
   companySize?: "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100" | null;
   officeAddress?: string | null;
@@ -319,6 +318,8 @@ export type MyPartnerOrganization = {
   officePhotoImageData?: string | null;
   verification?: {
     isVerified: boolean;
+    isApproved?: boolean;
+    hasRequiredDocuments?: boolean;
     uploadedCount: number;
     requiredCount: number;
     missingItems: string[];
@@ -350,6 +351,7 @@ export type PublicPositionListItem = {
   title: string;
   status: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
   workType: "On-site" | "Hybrid" | "Remote" | null;
+  employmentType: "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
   thumbnailImages: string[];
   eligibleVisas: string[];
   preferredNationalities: string[];
@@ -372,7 +374,6 @@ export type PublicPositionListItem = {
   partnerOrganization: {
     id: string;
     name: string;
-    domain: string;
     industry: string;
     companySize: "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100" | null;
     officeAddress: string | null;
@@ -400,6 +401,7 @@ export type PartnerPosition = {
   title: string;
   status: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
   workType: "On-site" | "Hybrid" | "Remote" | null;
+  employmentType: "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
   thumbnailImages: string[];
   eligibleVisas: string[];
   preferredNationalities: string[];
@@ -438,11 +440,8 @@ export function isPartnerOrganizationProfileComplete(org: MyPartnerOrganization 
 
 export function isPartnerOrganizationVerificationComplete(org: MyPartnerOrganization | null) {
   if (!org) return false;
-  if (org.verification) return org.verification.isVerified;
   return Boolean(org.businessRegistrationDocumentData)
-    && Boolean(org.fourInsuranceSubscriberListData)
-    && Boolean(org.companyLogoImageData)
-    && Boolean(org.officePhotoImageData);
+    && Boolean(org.fourInsuranceSubscriberListData);
 }
 
 export async function updateMyPartnerOrganizationBasic(input: {
@@ -613,6 +612,7 @@ export async function createMyPartnerPosition(input: {
   title: string;
   status?: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
   workType?: "On-site" | "Hybrid" | "Remote";
+  employmentType?: "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
   thumbnailImages?: string[];
   eligibleVisas?: string[];
   preferredNationalities?: string[];
@@ -658,6 +658,7 @@ export async function updateMyPartnerPosition(
     title?: string;
     status?: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
     workType?: "On-site" | "Hybrid" | "Remote";
+    employmentType?: "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
     thumbnailImages?: string[];
     eligibleVisas?: string[];
     preferredNationalities?: string[];

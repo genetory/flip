@@ -163,7 +163,7 @@ export function PartnerCompanyProfileEditPage() {
           }
 
           if (requiredMode && isPartnerOrganizationProfileComplete(org)) {
-            router.replace("/partner/dashboard");
+            router.replace("/profile");
             router.refresh();
             return;
           }
@@ -282,7 +282,7 @@ export function PartnerCompanyProfileEditPage() {
   return (
     <div className="min-h-screen flex flex-col bg-muted/30 font-sans text-foreground antialiased">
       <Header />
-      <main className="container py-10 md:py-14">
+      <main className="container py-12 md:py-16">
         <svg aria-hidden="true" width="0" height="0" className="absolute">
           <defs>
             <clipPath id={SQUIRCLE_CLIP_ID} clipPathUnits="objectBoundingBox">
@@ -290,13 +290,13 @@ export function PartnerCompanyProfileEditPage() {
             </clipPath>
           </defs>
         </svg>
-        <PartnerAdminTwoColumn>
+        <PartnerAdminTwoColumn className="p-0 md:p-0">
           <div className="space-y-6">
             <div>
-              <h1 className="font-display text-2xl font-black tracking-[-0.02em] text-foreground md:text-3xl">
+              <h1 className="mb-2 font-display text-3xl font-bold tracking-tight text-foreground">
                 {t("파트너 프로필", "Partner profile")}
               </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {t("파트너 조직의 기본 정보를 관리합니다.", "Manage basic information for your partner organization.")}
               </p>
             </div>
@@ -314,7 +314,7 @@ export function PartnerCompanyProfileEditPage() {
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">{t("파트너회원만 수정할 수 있습니다.", "Only partner accounts can edit this page.")}</p>
                   <Button variant="outline" asChild>
-                    <Link href="/partner/dashboard">{t("돌아가기", "Back")}</Link>
+                    <Link href="/profile">{t("돌아가기", "Back")}</Link>
                   </Button>
                 </div>
               ) : isLoadingForm ? (
@@ -328,9 +328,7 @@ export function PartnerCompanyProfileEditPage() {
                 ) : null}
 
                 <div className="rounded-2xl bg-white p-4 md:p-5">
-                  <p className="text-sm font-bold text-[#0B1227]">{t("기업 이미지", "Company images")}</p>
-                  <p className="mt-1 text-xs text-slate-500">{t("로고와 오피스 이미지를 등록하면 프로필 신뢰도가 높아집니다.", "Add logo and office images to improve profile trust.")}</p>
-                <div className="mt-4 grid gap-6 py-1 md:grid-cols-2">
+                <div className="grid gap-6 py-1 md:grid-cols-2">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <label className="text-sm font-medium" htmlFor="company-logo-upload">
@@ -563,7 +561,7 @@ export function PartnerCompanyProfileEditPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <label className="text-sm font-medium" htmlFor="company-website">{t("웹사이트", "Website")}</label>
                     <input
@@ -609,7 +607,7 @@ export function PartnerCompanyProfileEditPage() {
 
                 <div className="flex items-center justify-end gap-2 pt-2">
                   {!requiredMode ? (
-                    <Button variant="outline" onClick={() => router.push("/partner/dashboard")} disabled={isSaving}>
+                    <Button variant="outline" onClick={() => router.push("/profile")} disabled={isSaving}>
                       {t("취소", "Cancel")}
                     </Button>
                   ) : null}

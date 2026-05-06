@@ -59,7 +59,6 @@ type PartnerCompanySize = "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZ
 type PartnerOrganization = {
   id: string;
   partnerType: PartnerType;
-  domain: string;
   name: string;
   companySize: PartnerCompanySize | null;
   officeAddress: string | null;
@@ -70,6 +69,16 @@ type PartnerOrganization = {
   strengths: string | null;
   adminMemo: string | null;
   memberCount: number;
+  businessRegistrationDocumentData?: string | null;
+  fourInsuranceSubscriberListData?: string | null;
+  companyLogoImageData?: string | null;
+  officePhotoImageData?: string | null;
+  verification?: {
+    isApproved?: boolean;
+    hasRequiredDocuments?: boolean;
+    isVerified?: boolean;
+    approvedAt?: string | null;
+  };
   createdAt: string;
 };
 
@@ -134,7 +143,7 @@ const companySizeOptions: Array<{ value: PartnerCompanySize; label: string }> = 
   { value: "SIZE_OVER_100", label: "100인 이상" }
 ];
 
-type SortField = "name" | "domain" | "memberCount" | "createdAt";
+type SortField = "name" | "memberCount" | "createdAt";
 type SortOrder = "asc" | "desc";
 type PartnerDetailTab = "basic" | "members" | "jobs" | "memo";
 type PartnerOrgRole = "OWNER" | "ADMIN" | "MEMBER";
@@ -151,8 +160,11 @@ function formatDate(value: string) {
   return d.toLocaleDateString("ko-KR");
 }
 
-function partnerStatusLabel() {
-  return "운영중";
+function partnerStatusLabel(item: PartnerOrganization) {
+  if (item.verification?.isVerified) return "운영중";
+  if (!item.verification?.hasRequiredDocuments) return "검토중 (서류 미비)";
+  if (!item.verification?.isApproved) return "검토중 (승인 대기)";
+  return "검토중";
 }
 
 export default function PartnerManagementPage() {
@@ -173,6 +185,7 @@ export default function PartnerManagementPage() {
   const [selectedItem, setSelectedItem] = useState<PartnerOrganization | null>(null);
   const [detailDraft, setDetailDraft] = useState<PartnerOrganization | null>(null);
   const [detailSaving, setDetailSaving] = useState(false);
+  const [approvalUpdating, setApprovalUpdating] = useState(false);
   const [detailTab, setDetailTab] = useState<PartnerDetailTab>("basic");
   const [membersRefreshKey, setMembersRefreshKey] = useState(0);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
@@ -192,9 +205,7 @@ export default function PartnerManagementPage() {
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
-  const [partnerType, setPartnerType] = useState<PartnerType>("COMPANY");
-  const [domain, setDomain] = useState("");
-  const [name, setName] = useState("");
+  const [partnerType, setPartnerType] = useState<PartnerType>("COMPANY");  const [name, setName] = useState("");
   const [companySize, setCompanySize] = useState<PartnerCompanySize | "">("");
   const [officeAddress, setOfficeAddress] = useState("");
   const [website, setWebsite] = useState("");
@@ -205,9 +216,7 @@ export default function PartnerManagementPage() {
   const [adminMemo, setAdminMemo] = useState("");
 
   function resetForm() {
-    setPartnerType("COMPANY");
-    setDomain("");
-    setName("");
+    setPartnerType("COMPANY");    setName("");
     setCompanySize("");
     setOfficeAddress("");
     setWebsite("");
@@ -224,7 +233,6 @@ export default function PartnerManagementPage() {
       partnerType !== "COMPANY" ||
       industry !== "IT" ||
       companySize !== "" ||
-      domain.trim().length > 0 ||
       name.trim().length > 0 ||
       officeAddress.trim().length > 0 ||
       website.trim().length > 0 ||
@@ -233,7 +241,7 @@ export default function PartnerManagementPage() {
       strengths.trim().length > 0 ||
       adminMemo.trim().length > 0
     );
-  }, [partnerType, industry, companySize, domain, name, officeAddress, website, socialMedia, description, strengths, adminMemo]);
+  }, [partnerType, industry, companySize, name, officeAddress, website, socialMedia, description, strengths, adminMemo]);
 
   function requestCloseRegisterModal() {
     if (submitting) return;
@@ -301,10 +309,7 @@ export default function PartnerManagementPage() {
         case "name":
           cmp = a.name.localeCompare(b.name, "ko");
           break;
-        case "domain":
-          cmp = a.domain.localeCompare(b.domain, "en");
-          break;
-        case "memberCount":
+                case "memberCount":
           cmp = a.memberCount - b.memberCount;
           break;
         case "createdAt":
@@ -341,6 +346,28 @@ export default function PartnerManagementPage() {
     if (sortField !== field) return <ArrowsDownUp size={13} weight="bold" aria-hidden />;
     if (sortOrder === "asc") return <ArrowUp size={13} weight="bold" aria-hidden />;
     return <ArrowDown size={13} weight="bold" aria-hidden />;
+  }
+
+  async function openPartnerDetail(item: PartnerOrganization) {
+    setSelectedItem(item);
+    setDetailDraft(item);
+    setIsDetailEditMode(false);
+    setDetailTab("basic");
+    setIsDetailModalOpen(true);
+
+    try {
+      const token = readCookie(TOKEN_COOKIE_KEY);
+      const response = await fetch(`${apiBaseUrl}/ops/partners/${item.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const payload = (await response.json()) as { ok?: boolean; item?: PartnerOrganization };
+      if (!response.ok || !payload.ok || !payload.item) return;
+      setSelectedItem(payload.item);
+      setDetailDraft(payload.item);
+      setItems((prev) => prev.map((current) => (current.id === payload.item!.id ? { ...current, verification: payload.item!.verification } : current)));
+    } catch {
+      // keep initial list item as fallback
+    }
   }
 
   async function fetchPartners() {
@@ -425,8 +452,8 @@ export default function PartnerManagementPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!domain.trim() || !name.trim()) {
-      setFormErrorMessage("도메인과 파트너명은 필수입니다.");
+    if (!name.trim()) {
+      setFormErrorMessage("파트너명은 필수입니다.");
       return;
     }
 
@@ -442,7 +469,6 @@ export default function PartnerManagementPage() {
         },
         body: JSON.stringify({
           partnerType,
-          domain: domain.trim(),
           name: name.trim(),
           companySize: companySize || undefined,
           officeAddress: officeAddress.trim() || undefined,
@@ -473,8 +499,8 @@ export default function PartnerManagementPage() {
 
   async function saveDetail() {
     if (!detailDraft) return;
-    if (!detailDraft.domain.trim() || !detailDraft.name.trim()) {
-      alert("도메인과 파트너명은 필수입니다.");
+    if (!detailDraft.name.trim()) {
+      alert("파트너명은 필수입니다.");
       return;
     }
 
@@ -489,7 +515,6 @@ export default function PartnerManagementPage() {
         },
         body: JSON.stringify({
           partnerType: detailDraft.partnerType,
-          domain: detailDraft.domain.trim(),
           name: detailDraft.name.trim(),
           companySize: detailDraft.companySize || undefined,
           officeAddress: detailDraft.officeAddress?.trim() || undefined,
@@ -515,6 +540,37 @@ export default function PartnerManagementPage() {
       alert("수정 중 오류가 발생했습니다.");
     } finally {
       setDetailSaving(false);
+    }
+  }
+
+  async function updateVerificationApproval(approved: boolean) {
+    if (!detailDraft) return;
+    setApprovalUpdating(true);
+    try {
+      const token = readCookie(TOKEN_COOKIE_KEY);
+      const response = await fetch(`${apiBaseUrl}/ops/partners/${detailDraft.id}/verification-approval`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ approved })
+      });
+      const payload = (await response.json()) as { ok?: boolean; item?: PartnerOrganization; message?: string };
+      if (!response.ok || !payload.ok || !payload.item) {
+        window.alert(payload.message ?? "승인 상태 업데이트에 실패했습니다.");
+        return;
+      }
+
+      const updated = payload.item;
+      setDetailDraft(updated);
+      setSelectedItem(updated);
+      setItems((prev) => prev.map((item) => (item.id === updated.id ? { ...item, verification: updated.verification } : item)));
+      window.alert(approved ? "운영 승인이 완료되었습니다." : "운영 승인이 반려/해제되었습니다.");
+    } catch {
+      window.alert("승인 상태 업데이트 중 오류가 발생했습니다.");
+    } finally {
+      setApprovalUpdating(false);
     }
   }
 
@@ -593,7 +649,7 @@ export default function PartnerManagementPage() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="파트너명 또는 도메인 검색"
+            placeholder="파트너명 검색"
             className="ops-partner-filter-search"
           />
           <select
@@ -623,16 +679,6 @@ export default function PartnerManagementPage() {
                   >
                     <span>파트너명</span>
                     <SortIcon field="name" />
-                  </button>
-                </th>
-                <th>
-                  <button
-                    type="button"
-                    className={`ops-th-sort ${sortField === "domain" ? "is-active" : ""}`}
-                    onClick={() => toggleSort("domain")}
-                  >
-                    <span>도메인</span>
-                    <SortIcon field="domain" />
                   </button>
                 </th>
                 <th>
@@ -673,32 +719,22 @@ export default function PartnerManagementPage() {
                   <tr
                     key={item.id}
                     className="ops-clickable-row"
-                    onClick={() => {
-                      setSelectedItem(item);
-                      setDetailDraft(item);
-                      setIsDetailEditMode(false);
-                      setDetailTab("basic");
-                      setIsDetailModalOpen(true);
-                    }}
+                    onClick={() => void openPartnerDetail(item)}
                   >
                     <td>{item.name}</td>
-                    <td>{item.domain}</td>
+                    
                     <td>{item.memberCount}명</td>
                     <td>
-                      <span className={getOpsBadgeClassName("status-approved")}>{partnerStatusLabel()}</span>
+                      <span className={getOpsBadgeClassName(item.verification?.isVerified ? "status-approved" : "status-pending")}>
+                        {partnerStatusLabel(item)}
+                      </span>
                     </td>
                     <td>{formatDate(item.createdAt)}</td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         className="ops-detail-button"
-                        onClick={() => {
-                          setSelectedItem(item);
-                          setDetailDraft(item);
-                          setIsDetailEditMode(false);
-                          setDetailTab("basic");
-                          setIsDetailModalOpen(true);
-                        }}
+                        onClick={() => void openPartnerDetail(item)}
                       >
                         상세정보
                       </button>
@@ -759,10 +795,6 @@ export default function PartnerManagementPage() {
               </label>
 
               <div className="ops-partner-form-two-cols">
-                <label>
-                  <span className="ops-label-required">(파트너 이메일) 도메인 <span className="ops-required">*</span></span>
-                  <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="example.com" required />
-                </label>
                 <label>
                   <span className="ops-label-required">파트너명 <span className="ops-required">*</span></span>
                   <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Flip Inc." required />
@@ -847,7 +879,9 @@ export default function PartnerManagementPage() {
               <div className="ops-modal-header">
                 <div className="ops-detail-title-wrap">
                   <h2>{detailDraft.name}</h2>
-                  <span className={getOpsBadgeClassName("status-approved")}>{partnerStatusLabel()}</span>
+                  <span className={getOpsBadgeClassName(detailDraft.verification?.isVerified ? "status-approved" : "status-pending")}>
+                    {partnerStatusLabel(detailDraft)}
+                  </span>
                 </div>
                 <div className="ops-detail-top-right">
                   <button type="button" className="ops-modal-close" onClick={requestCloseDetailModal} aria-label="닫기">
@@ -861,7 +895,6 @@ export default function PartnerManagementPage() {
               <PartnerDetailView
                 partnerId={detailDraft.id}
                 name={detailDraft.name}
-                domain={detailDraft.domain}
                 partnerTypeLabel={partnerTypeOptions.find((opt) => opt.value === detailDraft.partnerType)?.label ?? "-"}
                 companySizeLabel={companySizeOptions.find((opt) => opt.value === detailDraft.companySize)?.label ?? "-"}
                 industryLabel={industryOptions.find((opt) => opt.value === detailDraft.industry)?.label ?? "-"}
@@ -873,6 +906,8 @@ export default function PartnerManagementPage() {
                 description={detailDraft.description}
                 strengths={detailDraft.strengths}
                 adminMemo={detailDraft.adminMemo}
+                businessRegistrationDocumentData={detailDraft.businessRegistrationDocumentData ?? null}
+                fourInsuranceSubscriberListData={detailDraft.fourInsuranceSubscriberListData ?? null}
                 membersRefreshKey={membersRefreshKey}
                 basicContent={
                   isDetailEditMode ? (
@@ -892,10 +927,6 @@ export default function PartnerManagementPage() {
                       </label>
 
                       <div className="ops-partner-form-two-cols">
-                        <label>
-                          <span className="ops-label-required">(파트너 이메일) 도메인 <span className="ops-required">*</span></span>
-                          <input value={detailDraft.domain} onChange={(e) => setDetailDraft({ ...detailDraft, domain: e.target.value })} />
-                        </label>
                         <label>
                           <span className="ops-label-required">파트너명 <span className="ops-required">*</span></span>
                           <input value={detailDraft.name} onChange={(e) => setDetailDraft({ ...detailDraft, name: e.target.value })} />
@@ -1027,9 +1058,17 @@ export default function PartnerManagementPage() {
               ) : (
                 <>
                   {detailTab === "basic" ? (
-                    <button type="button" className="ops-action-save" onClick={() => setIsDetailEditMode(true)}>
-                      수정
-                    </button>
+                    <>
+                      <button type="button" className="ops-action-cancel" onClick={() => void updateVerificationApproval(false)} disabled={approvalUpdating}>
+                        {approvalUpdating ? "처리 중..." : "승인 반려"}
+                      </button>
+                      <button type="button" className="ops-action-save" onClick={() => void updateVerificationApproval(true)} disabled={approvalUpdating || !detailDraft.verification?.hasRequiredDocuments}>
+                        {approvalUpdating ? "처리 중..." : "승인"}
+                      </button>
+                      <button type="button" className="ops-action-save" onClick={() => setIsDetailEditMode(true)}>
+                        수정
+                      </button>
+                    </>
                   ) : null}
                   {detailTab === "memo" ? (
                     <button type="button" className="ops-action-save" onClick={() => setIsDetailEditMode(true)}>
@@ -1078,7 +1117,7 @@ export default function PartnerManagementPage() {
                 <input
                   value={addMemberEmail}
                   onChange={(e) => setAddMemberEmail(e.target.value)}
-                  placeholder={detailDraft ? `example@${detailDraft.domain}` : "example@company.com"}
+                  placeholder="example@company.com"
                 />
               </label>
               <label>

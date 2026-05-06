@@ -41,7 +41,7 @@ function seededRotation(seed: string, min: number, max: number) {
 }
 
 function mapItemToHomeCard(item: PublicPositionListItem, copy: HomePositionsCopy): HomePositionCardItem {
-  const company = item.partnerOrganization?.name?.trim() || item.partnerOrganization?.domain || copy.defaultCompanyName;
+  const company = item.partnerOrganization?.name?.trim() || copy.defaultCompanyName;
   const normalizedWorkType = (item.workType ?? "").toLowerCase().replace(/[\s_-]/g, "");
   let workType = item.workType ?? copy.workTypeOnsite;
   if (normalizedWorkType === "remote") workType = copy.workTypeRemote;
@@ -151,8 +151,8 @@ export const Positions = () => {
             <p className="mt-2 max-w-xl text-slate-600">{copy.description}</p>
           </div>
           <Button
-            variant="outline"
-            className="h-11 rounded-2xl border-0 bg-white/95 px-5 text-sm font-extrabold text-[#1D4ED8] shadow-[0_14px_30px_-20px_rgba(37,99,235,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-white"
+            variant="dark"
+            className="h-11 rounded-xl border-0 bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
             asChild
           >
             <Link href="/positions">
@@ -288,9 +288,9 @@ export const Positions = () => {
               <p className="max-w-md text-sm leading-relaxed text-slate-600">{copy.partnerDescription}</p>
               <div className="mt-4 md:mt-5">
                 <Button
-                  variant="hero"
+                  variant="dark"
                   size="lg"
-                  className="h-10 rounded-xl bg-[#b7ff5a] px-5 text-sm font-semibold text-[#111111] shadow-[0_16px_30px_-18px_rgba(124,174,38,0.55)] hover:bg-[#a8ee4d]"
+                  className="h-11 rounded-xl border-0 bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                   asChild
                 >
                   <Link href="/login">{copy.partnerCta}</Link>

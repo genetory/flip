@@ -41,13 +41,13 @@ export function LoginPage() {
         try {
           const org = await getMyPartnerOrganization();
           if (!isPartnerOrganizationProfileComplete(org)) {
-            router.push("/partner/onboarding");
+            router.push("/profile");
             router.refresh();
             return;
           }
         } catch (error) {
           if (isMemberNotFoundError(error)) {
-            router.push("/partner/onboarding");
+            router.push("/profile");
             router.refresh();
             return;
           }

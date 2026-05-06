@@ -7,7 +7,7 @@ import { PartnerUnifiedDetailModal } from "../_components/PartnerUnifiedDetailMo
 
 const TOKEN_COOKIE_KEY = "ops_admin_token";
 
-type SortField = "email" | "name" | "partnerName" | "domain" | "partnerOrgRole" | "createdAt";
+type SortField = "email" | "name" | "partnerName" | "partnerOrgRole" | "createdAt";
 type SortOrder = "asc" | "desc";
 type PartnerCompanySize = "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100";
 
@@ -23,11 +23,9 @@ type PartnerUserItem = {
   partnerOrgRole: "OWNER" | "ADMIN" | "MEMBER" | null;
   emailVerified: boolean;
   createdAt: string;
-  domain: string | null;
   partnerName: string;
   partner: {
     id: string;
-    domain: string;
     name: string;
     companySize: PartnerCompanySize | null;
     partnerType: "COMPANY" | "UNIVERSITY" | "AGENCY";
@@ -117,9 +115,6 @@ export default function PartnerUsersPage() {
           break;
         case "partnerName":
           cmp = a.partnerName.localeCompare(b.partnerName, "ko");
-          break;
-        case "domain":
-          cmp = normalize(a.domain).localeCompare(normalize(b.domain), "en");
           break;
         case "partnerOrgRole": {
           const rank: Record<"OWNER" | "ADMIN" | "MEMBER", number> = {
@@ -304,7 +299,7 @@ export default function PartnerUsersPage() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="이메일, 이름, 파트너사, 도메인 검색"
+            placeholder="이메일, 이름, 파트너사 검색"
             className="ops-partner-filter-search"
           />
           <select
@@ -359,16 +354,6 @@ export default function PartnerUsersPage() {
                 <th>
                   <button
                     type="button"
-                    className={`ops-th-sort ${sortField === "domain" ? "is-active" : ""}`}
-                    onClick={() => toggleSort("domain")}
-                  >
-                    <span>도메인</span>
-                    <SortIcon field="domain" />
-                  </button>
-                </th>
-                <th>
-                  <button
-                    type="button"
                     className={`ops-th-sort ${sortField === "partnerOrgRole" ? "is-active" : ""}`}
                     onClick={() => toggleSort("partnerOrgRole")}
                   >
@@ -392,11 +377,11 @@ export default function PartnerUsersPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="ops-table-empty">목록을 불러오는 중입니다...</td>
+                  <td colSpan={6} className="ops-table-empty">목록을 불러오는 중입니다...</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="ops-table-empty">조건에 맞는 파트너 사용자가 없습니다.</td>
+                  <td colSpan={6} className="ops-table-empty">조건에 맞는 파트너 사용자가 없습니다.</td>
                 </tr>
               ) : (
                 sortedItems.map((item) => (
@@ -432,7 +417,6 @@ export default function PartnerUsersPage() {
                         item.partnerName
                       )}
                     </td>
-                    <td>{item.domain || "-"}</td>
                     <td>
                       {item.partnerOrgRole ? (
                         <OpsBadge tone={toneFromPartnerOrgRole(item.partnerOrgRole)}>{partnerOrgRoleLabel(item.partnerOrgRole)}</OpsBadge>
@@ -561,7 +545,6 @@ export default function PartnerUsersPage() {
                         <h3>연결 파트너 정보</h3>
                         <div className="ops-detail-grid">
                           <div><span>파트너사</span><strong>{selectedUser.partnerName}</strong></div>
-                          <div><span>도메인</span><strong>{selectedUser.domain || "-"}</strong></div>
                         </div>
                       </section>
                     </div>

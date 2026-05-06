@@ -19,7 +19,6 @@ type PartnerMetaPayload = {
 export type PartnerDetailModel = {
   id: string;
   partnerType: PartnerType;
-  domain: string;
   name: string;
   companySize: PartnerCompanySize | null;
   officeAddress: string | null;
@@ -239,8 +238,8 @@ export function PartnerUnifiedDetailModal({ open, partner, onClose, onUpdated }:
 
   async function saveDetail() {
     if (!detailDraft) return;
-    if (!detailDraft.domain.trim() || !detailDraft.name.trim()) {
-      window.alert("도메인과 파트너명은 필수입니다.");
+    if (!detailDraft.name.trim()) {
+      window.alert("파트너명은 필수입니다.");
       return;
     }
     setDetailSaving(true);
@@ -254,7 +253,6 @@ export function PartnerUnifiedDetailModal({ open, partner, onClose, onUpdated }:
         },
         body: JSON.stringify({
           partnerType: detailDraft.partnerType,
-          domain: detailDraft.domain.trim(),
           name: detailDraft.name.trim(),
           companySize: detailDraft.companySize || undefined,
           officeAddress: detailDraft.officeAddress?.trim() || undefined,
@@ -351,7 +349,6 @@ export function PartnerUnifiedDetailModal({ open, partner, onClose, onUpdated }:
               <PartnerDetailView
                 partnerId={detailDraft.id}
                 name={detailDraft.name}
-                domain={detailDraft.domain}
                 partnerTypeLabel={detailDraft.partnerType}
                 partnerType={detailDraft.partnerType}
                 companySizeLabel={companySizeLabel(detailDraft.companySize)}
@@ -383,10 +380,6 @@ export function PartnerUnifiedDetailModal({ open, partner, onClose, onUpdated }:
                       </label>
 
                       <div className="ops-partner-form-two-cols">
-                        <label>
-                          <span className="ops-label-required">(파트너 이메일) 도메인 <span className="ops-required">*</span></span>
-                          <input value={detailDraft.domain} onChange={(e) => setDetailDraft({ ...detailDraft, domain: e.target.value })} />
-                        </label>
                         <label>
                           <span className="ops-label-required">파트너명 <span className="ops-required">*</span></span>
                           <input value={detailDraft.name} onChange={(e) => setDetailDraft({ ...detailDraft, name: e.target.value })} />
@@ -550,7 +543,7 @@ export function PartnerUnifiedDetailModal({ open, partner, onClose, onUpdated }:
                 <input
                   value={addMemberEmail}
                   onChange={(e) => setAddMemberEmail(e.target.value)}
-                  placeholder={detailDraft ? `example@${detailDraft.domain}` : "example@company.com"}
+                  placeholder="example@company.com"
                 />
               </label>
               <label>

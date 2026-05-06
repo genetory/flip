@@ -8,6 +8,9 @@ const __dirname = path.dirname(__filename);
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
+  images: {
+    qualities: [70, 75, 80]
+  },
   turbopack: {
     root: __dirname
   }

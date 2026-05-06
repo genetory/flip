@@ -18,6 +18,7 @@ import {
 
 type WizardStep = 1 | 2 | 3 | 4 | 5;
 type PartnerPositionStatus = "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
+type EmploymentType = "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
 
 const VISA_OPTIONS = ["D-2", "D-4", "D-10", "E-7", "F-2", "F-4", "F-5", "F-6", "H-1"] as const;
 const NO_VISA_OPTION = "NO_VISA_REQUIRED";
@@ -26,6 +27,13 @@ function workTypeDisplayTitle(workType: "On-site" | "Hybrid" | "Remote", t: (ko:
   if (workType === "On-site") return t("오피스 출근", "On-site");
   if (workType === "Hybrid") return t("하이브리드", "Hybrid");
   return t("원격", "Remote");
+}
+
+function employmentTypeDisplayTitle(employmentType: EmploymentType, t: (ko: string, en: string) => string) {
+  if (employmentType === "FULL_TIME") return t("정직원", "Full-time");
+  if (employmentType === "PART_TIME") return t("알바", "Part-time");
+  if (employmentType === "UNPAID_INTERN") return t("무급 인턴", "Unpaid intern");
+  return t("인턴", "Intern");
 }
 
 function visaDisplayTitle(visa: string, t: (ko: string, en: string) => string) {
@@ -52,6 +60,10 @@ function toLines(value: string) {
 function toIsoDateStart(value: string) {
   if (!value) return null;
   return `${value}T00:00:00.000Z`;
+}
+
+function RequiredMark() {
+  return <span className="ml-1 text-red-500">*</span>;
 }
 
 async function readFileAsDataUrl(file: File) {
@@ -121,11 +133,14 @@ export function PartnerPositionCreatePage({
 
   const [isCheckingOrg, setIsCheckingOrg] = useState(false);
   const [canCreate, setCanCreate] = useState(false);
+  const [createBlockedReason, setCreateBlockedReason] = useState<"profile" | "verification" | null>(null);
+  const [currentVerificationStatus, setCurrentVerificationStatus] = useState<string | null>(null);
   const [step, setStep] = useState<WizardStep>(1);
 
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<PartnerPositionStatus>("OPEN");
   const [workType, setWorkType] = useState<"On-site" | "Hybrid" | "Remote">("On-site");
+  const [employmentType, setEmploymentType] = useState<EmploymentType>("UNPAID_INTERN");
   const [thumbnailImages, setThumbnailImages] = useState<string[]>([]);
   const [preferredJobRole, setPreferredJobRole] = useState("");
   const [hiringCount, setHiringCount] = useState("");
@@ -144,11 +159,7 @@ export function PartnerPositionCreatePage({
 
   const [isEducationalPurpose, setIsEducationalPurpose] = useState(false);
   const [notReplacingWorker, setNotReplacingWorker] = useState(false);
-  const [hasMentor, setHasMentor] = useState(false);
-  const [hasLearningPlan, setHasLearningPlan] = useState(false);
-  const [notSimpleRepetitive, setNotSimpleRepetitive] = useState(false);
-  const [reasonableHours, setReasonableHours] = useState(false);
-  const [hasFeedbackPlan, setHasFeedbackPlan] = useState(false);
+  const [hasMentorAndPlan, setHasMentorAndPlan] = useState(false);
   const [visaNoticeConfirmed, setVisaNoticeConfirmed] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -188,10 +199,28 @@ export function PartnerPositionCreatePage({
       try {
         const org = await getMyPartnerOrganization();
         if (ignore) return;
-        setCanCreate(isPartnerOrganizationProfileComplete(org));
+        const isProfileComplete = isPartnerOrganizationProfileComplete(org);
+        const canPostPositions = Boolean(org?.permissions?.canPostPositions);
+        const verificationStatus = org?.verification?.isVerified
+          ? t("운영중", "Active")
+          : org?.verification?.hasRequiredDocuments
+            ? t("검토중 (승인 대기)", "Under review (approval pending)")
+            : t("검토중 (서류 미비)", "Under review (documents missing)");
+        const allowed = isProfileComplete && canPostPositions;
+        setCurrentVerificationStatus(verificationStatus);
+        setCanCreate(allowed);
+        if (allowed) {
+          setCreateBlockedReason(null);
+        } else if (!isProfileComplete) {
+          setCreateBlockedReason("profile");
+        } else {
+          setCreateBlockedReason("verification");
+        }
       } catch (error) {
         if (ignore) return;
         setCanCreate(false);
+        setCreateBlockedReason("profile");
+        setCurrentVerificationStatus(null);
         setErrorMessage(error instanceof Error ? error.message : t("기업 정보를 불러오지 못했습니다.", "Failed to load company information."));
       } finally {
         if (!ignore) setIsCheckingOrg(false);
@@ -219,16 +248,8 @@ export function PartnerPositionCreatePage({
         return false;
       }
     }
-    if (step === 4) {
-      const ok =
-        isEducationalPurpose &&
-        notReplacingWorker &&
-        hasMentor &&
-        hasLearningPlan &&
-        notSimpleRepetitive &&
-        reasonableHours &&
-        hasFeedbackPlan &&
-        visaNoticeConfirmed;
+    if (step === 4 && employmentType === "UNPAID_INTERN") {
+      const ok = isEducationalPurpose && notReplacingWorker && hasMentorAndPlan && visaNoticeConfirmed;
       if (!ok) {
         setErrorMessage(t("체크리스트를 모두 확인해주세요.", "Please complete all compliance checks."));
         return false;
@@ -259,6 +280,7 @@ export function PartnerPositionCreatePage({
         title: title.trim(),
         status,
         workType,
+        employmentType,
         thumbnailImages,
         eligibleVisas: eligibleVisas.includes(NO_VISA_OPTION) ? [] : eligibleVisas,
         preferredJobRole: preferredJobRole.trim() || undefined,
@@ -273,7 +295,7 @@ export function PartnerPositionCreatePage({
         preferredQualifications: preferredQualifications.trim() || undefined,
         additionalNotes: additionalNotes.trim() || undefined
       });
-      router.push("/partner/positions");
+      router.push("/profile");
       router.refresh();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t("포지션 생성에 실패했습니다.", "Failed to create position."));
@@ -386,9 +408,22 @@ export function PartnerPositionCreatePage({
             <p className="text-sm text-muted-foreground">{t("기업 정보 상태를 확인하는 중...", "Checking company profile status...")}</p>
           ) : !canCreate ? (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">{t("포지션 생성 전 기업 기본 정보 입력이 필요합니다.", "Basic company information is required before creating positions.")}</p>
+              <p className="text-sm text-muted-foreground">
+                {createBlockedReason === "verification"
+                  ? t("파트너 운영중이 승인되지 않으면 포지션을 등록할 수 없습니다", "Positions cannot be created until partner operation is approved.")
+                  : t("포지션 생성 전 기업 기본 정보 입력이 필요합니다.", "Basic company information is required before creating positions.")}
+              </p>
+              {createBlockedReason === "verification" && currentVerificationStatus ? (
+                <p className="text-sm text-muted-foreground">
+                  {t("현재 인증상태", "Current verification status")}: {currentVerificationStatus}
+                </p>
+              ) : null}
               <Button variant="dark" asChild>
-                <Link href="/partner/company-profile?required=1">{t("기업 정보 입력하러 가기", "Go to company profile")}</Link>
+                <Link href={createBlockedReason === "verification" ? "/partner-profile/verification/edit" : "/partner-profile/edit?required=1"}>
+                  {createBlockedReason === "verification"
+                    ? t("인증 정보 확인하러 가기", "Go to verification")
+                    : t("기업 정보 입력하러 가기", "Go to company profile")}
+                </Link>
               </Button>
             </div>
           ) : (
@@ -416,12 +451,12 @@ export function PartnerPositionCreatePage({
               {step === 1 ? (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{t("포지션명", "Position title")}</label>
+                    <label className="text-sm font-medium">{t("포지션명", "Position title")}<RequiredMark /></label>
                     <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm" value={title} onChange={(e) => setTitle(e.target.value)} />
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("모집 분야", "Category/Role")}</label>
+                      <label className="text-sm font-medium">{t("모집 분야", "Category/Role")}<RequiredMark /></label>
                       <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm" value={preferredJobRole} onChange={(e) => setPreferredJobRole(e.target.value)} />
                     </div>
                   </div>
@@ -436,6 +471,15 @@ export function PartnerPositionCreatePage({
                         <option value="On-site">{t("오피스 출근", "On-site")}</option>
                         <option value="Hybrid">{t("하이브리드", "Hybrid")}</option>
                         <option value="Remote">{t("원격", "Remote")}</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{t("고용 형태", "Employment type")}<RequiredMark /></label>
+                      <select className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm" value={employmentType} onChange={(e) => setEmploymentType(e.target.value as EmploymentType)}>
+                        <option value="UNPAID_INTERN">{t("무급 인턴", "Unpaid intern")}</option>
+                        <option value="INTERN">{t("유급 인턴", "Paid intern")}</option>
+                        <option value="PART_TIME">{t("알바", "Part-time")}</option>
+                        <option value="FULL_TIME">{t("정직원", "Full-time")}</option>
                       </select>
                     </div>
                   </div>
@@ -515,7 +559,7 @@ export function PartnerPositionCreatePage({
                     <textarea className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm" value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{t("주요 업무", "Main responsibilities")}</label>
+                    <label className="text-sm font-medium">{t("주요 업무", "Main responsibilities")}<RequiredMark /></label>
                     <textarea className="min-h-28 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm" value={mainResponsibilities} onChange={(e) => setMainResponsibilities(e.target.value)} />
                   </div>
                   <div className="space-y-2">
@@ -578,22 +622,38 @@ export function PartnerPositionCreatePage({
 
               {step === 4 ? (
                 <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">{t("무급 인턴 운영 체크리스트를 모두 확인해야 제출할 수 있습니다.", "Please complete all compliance checks before submission.")}</p>
-                  {[
-                    [isEducationalPurpose, setIsEducationalPurpose, t("교육/경험 제공 목적입니다.", "This is for educational/experience purpose.")],
-                    [notReplacingWorker, setNotReplacingWorker, t("정규 인력을 대체하지 않습니다.", "It does not replace regular workforce.")],
-                    [hasMentor, setHasMentor, t("담당 멘토가 지정되어 있습니다.", "A mentor is assigned.")],
-                    [hasLearningPlan, setHasLearningPlan, t("학습/온보딩 계획이 있습니다.", "There is a learning/onboarding plan.")],
-                    [notSimpleRepetitive, setNotSimpleRepetitive, t("단순 반복업무 위주가 아닙니다.", "It is not simple repetitive work.")],
-                    [reasonableHours, setReasonableHours, t("과도한 활동 시간을 요구하지 않습니다.", "Hours are reasonable.")],
-                    [hasFeedbackPlan, setHasFeedbackPlan, t("피드백/수료 기준이 있습니다.", "Feedback/completion criteria exist.")],
-                    [visaNoticeConfirmed, setVisaNoticeConfirmed, t("비자/체류자격 안내를 확인했습니다.", "Visa/residency notice is acknowledged.")]
-                  ].map(([checked, setter, label]) => (
-                    <label key={String(label)} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
-                      <input type="checkbox" checked={Boolean(checked)} onChange={(e) => (setter as (v: boolean) => void)(e.target.checked)} />
-                      {String(label)}
-                    </label>
-                  ))}
+                  {employmentType === "UNPAID_INTERN" ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">{t("무급 인턴 운영 체크리스트를 모두 확인해야 제출할 수 있습니다.", "Please complete all compliance checks before submission.")}</p>
+                      <label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium">
+                        <input
+                          type="checkbox"
+                          checked={isEducationalPurpose && notReplacingWorker && hasMentorAndPlan && visaNoticeConfirmed}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setIsEducationalPurpose(checked);
+                            setNotReplacingWorker(checked);
+                            setHasMentorAndPlan(checked);
+                            setVisaNoticeConfirmed(checked);
+                          }}
+                        />
+                        {t("전체 선택", "Select all")}
+                      </label>
+                      {[
+                        [isEducationalPurpose, setIsEducationalPurpose, t("교육/경험 제공 목적입니다.", "This is for educational/experience purpose.")],
+                        [notReplacingWorker, setNotReplacingWorker, t("정규 인력을 대체하지 않습니다.", "It does not replace regular workforce.")],
+                        [hasMentorAndPlan, setHasMentorAndPlan, t("담당 멘토와 학습/온보딩 계획이 있습니다.", "A mentor and onboarding plan are prepared.")],
+                        [visaNoticeConfirmed, setVisaNoticeConfirmed, t("비자/체류자격 안내를 확인했습니다.", "Visa/residency notice is acknowledged.")]
+                      ].map(([checked, setter, label]) => (
+                        <label key={String(label)} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+                          <input type="checkbox" checked={Boolean(checked)} onChange={(e) => (setter as (v: boolean) => void)(e.target.checked)} />
+                          {String(label)}
+                        </label>
+                      ))}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{t("유급/정직원/알바 포지션은 체크리스트 없이 다음 단계로 진행됩니다.", "For paid/full-time/part-time positions, you can proceed without this checklist.")}</p>
+                  )}
                 </div>
               ) : null}
 
@@ -603,6 +663,7 @@ export function PartnerPositionCreatePage({
                     <p><span className="text-muted-foreground">{t("포지션", "Position")}:</span> {title || "-"}</p>
                     <p><span className="text-muted-foreground">{t("분야", "Role")}:</span> {preferredJobRole || "-"}</p>
                     <p><span className="text-muted-foreground">{t("근무 방식", "Work type")}:</span> {workTypeDisplayTitle(workType, t)}</p>
+                    <p><span className="text-muted-foreground">{t("고용 형태", "Employment type")}:</span> {employmentTypeDisplayTitle(employmentType, t)}</p>
                     <p><span className="text-muted-foreground">{t("근무 지역", "Location")}:</span> {workLocation || "-"}</p>
                     <p><span className="text-muted-foreground">{t("지원 비자", "Eligible visas")}:</span> {(eligibleVisas.length > 0 ? eligibleVisas.map((visa) => visaDisplayTitle(visa, t)).join(", ") : t("비자 무관", "No visa required"))}</p>
                     <p><span className="text-muted-foreground">{t("주요 업무", "Main responsibilities")}:</span> {mainResponsibilities || "-"}</p>
@@ -617,7 +678,7 @@ export function PartnerPositionCreatePage({
               <div className={embedded ? "sticky bottom-0 z-10 flex items-center justify-between gap-2 border-t border-border/50 bg-card pt-3" : "flex items-center justify-between gap-2 pt-2"}>
                 <Button
                   variant="outline"
-                  onClick={() => (embedded ? (onEmbeddedClose ? onEmbeddedClose() : router.back()) : router.push("/partner/positions"))}
+                  onClick={() => (embedded ? (onEmbeddedClose ? onEmbeddedClose() : router.back()) : router.push("/profile"))}
                   disabled={isSubmitting}
                 >
                   {t("취소", "Cancel")}

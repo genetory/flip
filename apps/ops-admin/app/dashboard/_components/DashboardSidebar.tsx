@@ -10,7 +10,7 @@ export function DashboardSidebar() {
   return (
     <aside className="ops-console-sidebar">
       <div className="ops-console-brand">
-        <img src="/icon_logo.svg" alt="Flip" />
+        <img src="/aply_logo.webp" alt="Aply" />
       </div>
 
       <nav className="ops-console-nav">

@@ -1219,8 +1219,7 @@ export default function PositionManagementPage() {
                     ...item,
                     partnerOrganization: {
                       ...item.partnerOrganization,
-                      name: updated.name,
-                      domain: updated.domain
+                      name: updated.name
                     }
                   }
                 : item
