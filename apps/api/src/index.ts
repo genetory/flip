@@ -88,26 +88,6 @@ type PartnerApplicantWorkflowStatus =
   | "REJECTED"
   | "WITHDRAWN"
   | "COMPLETED";
-const publicEmailDomains = new Set([
-  "gmail.com",
-  "googlemail.com",
-  "naver.com",
-  "hanmail.net",
-  "daum.net",
-  "kakao.com",
-  "hotmail.com",
-  "outlook.com",
-  "icloud.com",
-  "me.com",
-  "mac.com",
-  "yahoo.com",
-  "yahoo.co.kr",
-  "proton.me",
-  "protonmail.com",
-  "aol.com",
-  "msn.com"
-]);
-
 type AuthTokenUser = {
   id: string;
   role: MemberRole;
@@ -639,17 +619,6 @@ function parseCookies(cookieHeader: string | undefined) {
     acc[rawKey] = decodeURIComponent(rest.join("="));
     return acc;
   }, {});
-}
-
-function getEmailDomain(email: string) {
-  const normalized = email.trim().toLowerCase();
-  const atIndex = normalized.lastIndexOf("@");
-  return atIndex >= 0 ? normalized.slice(atIndex + 1) : "";
-}
-
-function isBusinessEmail(email: string) {
-  const domain = getEmailDomain(email);
-  return Boolean(domain) && !publicEmailDomains.has(domain);
 }
 
 function getRefreshTokenFromRequest(req: express.Request) {
@@ -5323,10 +5292,6 @@ app.post("/auth/business-email/send-verification", async (req, res) => {
     return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
   }
 
-  if (!isBusinessEmail(parsed.data.email)) {
-    return sendAuthError(res, 400, "BUSINESS_EMAIL_REQUIRED", "business account requires a company email");
-  }
-
   const existingUser = await prisma.user.findUnique({
     where: { email: parsed.data.email },
     select: { id: true }
@@ -5423,11 +5388,6 @@ app.post("/auth/register", async (req, res) => {
     resolvedRole === MemberRole.PARTNER ? (parsed.data.partnerOrgRole ?? PartnerOrgUserRole.MEMBER) : null;
   const passwordHash = await hashPassword(parsed.data.password);
   const normalizedEmail = parsed.data.email.trim().toLowerCase();
-  const normalizedDomain = extractDomainFromEmail(normalizedEmail);
-
-  if (resolvedRole === MemberRole.PARTNER && (!normalizedDomain || publicEmailDomains.has(normalizedDomain))) {
-    return sendAuthError(res, 400, "BUSINESS_EMAIL_REQUIRED", "business account requires a company email");
-  }
 
   const existingUser = await prisma.user.findUnique({
     where: { email: normalizedEmail },
