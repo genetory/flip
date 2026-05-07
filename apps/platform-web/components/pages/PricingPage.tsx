@@ -178,20 +178,18 @@ export function PricingPage() {
                     <p className="mt-1 text-sm font-medium text-foreground/90">{isKo ? "해외 대학 출신을 위한 한국 기업 일경험" : "Korean-company work experience for overseas graduates"}</p>
                     <p className="mt-3 text-xs leading-relaxed text-muted-foreground md:text-sm">
                       {isKo
-                        ? "한국 기업의 업무 방식과 직무 문화를 짧은 기간 동안 경험할 수 있는 교육 목적 프로그램입니다. 한국 취업을 바로 준비하기보다는, 글로벌 학생이 한국 기업과 산업을 먼저 이해해보는 데 적합합니다."
-                        : "An education-focused program to experience Korean work style and job culture over a short period before full job preparation."}
+                        ? "한국 기업의 업무 방식과 직무 문화를 짧은 기간 경험할 수 있는 교육 목적 프로그램입니다. 한국 취업을 바로 보장하는 과정이 아니라, 한국 기업과 산업을 먼저 이해하고 향후 취업 가능성을 탐색하는 데 적합합니다."
+                        : "An education-focused program to experience Korean work style and job culture over a short period. It does not guarantee employment and helps participants explore future career possibilities."}
                     </p>
                     <div className="mt-4 overflow-x-auto rounded-xl bg-white/92">
                       <table className="w-auto min-w-[360px] border-collapse text-left text-sm">
                         <tbody>
                           <tr className="border-b border-border/60"><th className="w-24 bg-muted/30 px-3 py-2 font-semibold">{isKo ? "대상" : "Target"}</th><td className="px-3 py-2">{isKo ? "해외 대학 출신" : "Overseas university graduates"}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "목적" : "Purpose"}</th><td className="px-3 py-2">{isKo ? "교육 목적" : "Training-focused"}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "언어" : "Language"}</th><td className="px-3 py-2">{isKo ? "모국어 및 영어" : "Native language and English"}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "기간" : "Duration"}</th><td className="px-3 py-2">{isKo ? "3주 ~ 16주" : "3 to 16 weeks"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "목적" : "Purpose"}</th><td className="px-3 py-2">{isKo ? "한국 기업 일경험 및 직무 이해" : "Korean-company work experience and role understanding"}</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "급여" : "Salary"}</th><td className="px-3 py-2">{isKo ? "없음" : "None"}</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "참여비" : "Applicant fee"}</th><td className="px-3 py-2">2,000,000원</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "기업 수수료" : "Company fee"}</th><td className="px-3 py-2">{isKo ? "없음" : "None"}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "비자" : "Visa"}</th><td className="px-3 py-2">{isKo ? "필요 없음" : "Not required"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "수료증" : "Certificate"}</th><td className="px-3 py-2">{isKo ? "발급" : "Provided"}</td></tr>
                           <tr><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "전환 가능성" : "Conversion"}</th><td className="px-3 py-2">{isKo ? "전환 가능, 보장하지 않음" : "Possible, not guaranteed"}</td></tr>
                         </tbody>
                       </table>
@@ -199,10 +197,10 @@ export function PricingPage() {
                     <div className="mt-4">
                       <p className="text-sm font-semibold">{isKo ? "제공 내용" : "What is provided"}</p>
                       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                        <li>{isKo ? "직무 교육 제공" : "Job training"}</li>
-                        <li>{isKo ? "담당자 정기 면담 제공" : "Regular mentor check-ins"}</li>
-                        <li>{isKo ? "한국 기업 실무 환경 경험" : "Korean workplace exposure"}</li>
-                        <li>{isKo ? "단기 프로젝트 또는 업무 체험 기회" : "Short-term project or task exposure"}</li>
+                        <li>{isKo ? "직무 교육 제공 (플리퍼스)" : "Job orientation/training (Flipers)"}</li>
+                        <li>{isKo ? "수료증 발급 (플리퍼스)" : "Completion certificate (Flipers)"}</li>
+                        <li>{isKo ? "정기 면담, 과제, 피드백 (기업 협조 기반)" : "Periodic check-ins, tasks, and feedback (company-supported)"}</li>
+                        <li>{isKo ? "추천서 제공은 기업 희망 시 자율 진행" : "Recommendation letter only if the company chooses to provide it"}</li>
                       </ul>
                     </div>
                     <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
@@ -219,38 +217,35 @@ export function PricingPage() {
                     <p className="mt-1 text-sm font-medium text-foreground/90">{isKo ? "국내 대학 유학생을 위한 실무 일경험" : "Practical work experience for international students in Korean universities"}</p>
                     <p className="mt-3 text-xs leading-relaxed text-muted-foreground md:text-sm">
                       {isKo
-                        ? "한국에 체류 중인 국내 대학 재학생 및 졸업생이 한국 기업에서 실제 직무 경험을 쌓을 수 있는 프로그램입니다. 한국어가 가능한 지원자가 많아, 보다 실무에 가까운 경험을 할 수 있습니다."
-                        : "A practical track for students/graduates in Korea to gain real job exposure in Korean companies."}
+                        ? "국내 대학 재학생 및 졸업생이 한국 기업의 직무 환경을 경험해볼 수 있는 교육형 프로그램입니다. 학교 연계나 학점 인정이 필요한 경우, 필요한 서류 작업을 함께 조율할 수 있습니다."
+                        : "An education-focused track for students and graduates in Korean universities to experience Korean-company job environments, with school-linked documentation support when needed."}
                     </p>
                     <div className="mt-4 overflow-x-auto rounded-xl bg-white/96 text-[#1f2342]">
                       <table className="w-auto min-w-[360px] border-collapse text-left text-sm">
                         <tbody>
                           <tr className="border-b border-border/60"><th className="w-24 bg-muted/30 px-3 py-2 font-semibold">{isKo ? "대상" : "Target"}</th><td className="px-3 py-2">{isKo ? "국내 대학 재학생 및 졸업생" : "Students/graduates of Korean universities"}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "목적" : "Purpose"}</th><td className="px-3 py-2">{isKo ? "교육 목적" : "Training-focused"}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "언어" : "Language"}</th><td className="px-3 py-2">{isKo ? "한국어 가능자 많음" : "Many Korean-capable participants"}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "기간" : "Duration"}</th><td className="px-3 py-2">{isKo ? "단기 중심" : "Mainly short-term"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "목적" : "Purpose"}</th><td className="px-3 py-2">{isKo ? "한국 기업 일경험 및 직무 이해" : "Korean-company work experience and role understanding"}</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "급여" : "Salary"}</th><td className="px-3 py-2">{isKo ? "없음" : "None"}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "참여비" : "Applicant fee"}</th><td className="px-3 py-2">7,000,000원</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "참여비" : "Applicant fee"}</th><td className="px-3 py-2">700,000원</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "기업 수수료" : "Company fee"}</th><td className="px-3 py-2">{isKo ? "없음" : "None"}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "비자" : "Visa"}</th><td className="px-3 py-2">{isKo ? "필요" : "Required"}</td></tr>
-                          <tr><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "전환 가능성" : "Conversion"}</th><td className="px-3 py-2">{isKo ? "전환 가능, 보장하지 않음" : "Possible, not guaranteed"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "수료증" : "Certificate"}</th><td className="px-3 py-2">{isKo ? "발급" : "Provided"}</td></tr>
+                          <tr><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "학교 연계" : "School linkage"}</th><td className="px-3 py-2">{isKo ? "평가서/서류 작성 조율 가능" : "Evaluation/report documents can be coordinated"}</td></tr>
                         </tbody>
                       </table>
                     </div>
                     <div className="mt-4">
                       <p className="text-sm font-semibold">{isKo ? "제공 내용" : "What is provided"}</p>
                       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                        <li>{isKo ? "직무 교육 제공" : "Job training"}</li>
-                        <li>{isKo ? "담당자 정기 면담 제공" : "Regular mentor check-ins"}</li>
-                        <li>{isKo ? "업무일지 작성" : "Work journal recording"}</li>
-                        <li>{isKo ? "수료증 발급" : "Certificate issuance"}</li>
-                        <li>{isKo ? "평가에 따라 추천서 자율 제공" : "Recommendation letter may be provided by evaluation"}</li>
+                        <li>{isKo ? "직무 교육 제공 (플리퍼스)" : "Job orientation/training (Flipers)"}</li>
+                        <li>{isKo ? "수료증 발급 (플리퍼스)" : "Completion certificate (Flipers)"}</li>
+                        <li>{isKo ? "학교 연계 시 평가서/학점 서류 요청 조율" : "School-linked evaluation/credit documents can be coordinated"}</li>
+                        <li>{isKo ? "기업 수수료 없음, 기업은 운영 협조 항목만 선택 참여" : "No company fee; companies participate through selected cooperation items only"}</li>
                       </ul>
                     </div>
                     <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
                       {isKo
-                        ? "추천서와 채용 전환은 보장되지 않으며, 참여자의 평가와 기업 상황에 따라 자율적으로 제공될 수 있습니다."
-                        : "Recommendation letters and hiring conversion are not guaranteed and may be provided based on evaluation and company conditions."}
+                        ? "전환 가능성은 있으나 정식 채용이나 추천서 제공은 보장되지 않습니다. 기업 협조 항목(정기 면담, 과제, 피드백 등)은 기업 상황에 맞춰 조정 가능합니다."
+                        : "Conversion and recommendation letters are possible but not guaranteed. Company cooperation items (check-ins, tasks, feedback) are adjustable by company circumstances."}
                     </p>
                   </article>
                 </div>
