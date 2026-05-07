@@ -6469,16 +6469,28 @@ app.post("/auth/resend-verification", async (req, res) => {
     return res.json({ ok: true, sent: false, alreadyVerified: true });
   }
 
-  const { token } = await createEmailVerificationToken(user.id);
-  const locale = resolveEmailLocale(req, parsed.data.locale);
-  const delivery = await sendVerificationEmail(user.email, token, locale);
+  try {
+    const { token } = await createEmailVerificationToken(user.id);
+    const locale = resolveEmailLocale(req, parsed.data.locale);
+    const delivery = await sendVerificationEmail(user.email, token, locale);
 
-  return res.json({
-    ok: true,
-    sent: true,
-    verificationDelivery: delivery.delivery,
-    ...(isProduction ? {} : { verifyUrl: delivery.verifyUrl })
-  });
+    return res.json({
+      ok: true,
+      sent: true,
+      verificationDelivery: delivery.delivery,
+      ...(isProduction ? {} : { verifyUrl: delivery.verifyUrl })
+    });
+  } catch (error) {
+    console.error("[auth/resend-verification] failed", {
+      email: parsed.data.email,
+      error: getErrorMessage(error)
+    });
+    return res.status(500).json({
+      ok: false,
+      message: "failed to resend verification email",
+      ...(isProduction ? {} : { detail: getErrorMessage(error) })
+    });
+  }
 });
 
 app.post("/auth/refresh", async (req, res) => {
