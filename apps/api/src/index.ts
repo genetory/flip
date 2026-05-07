@@ -109,6 +109,17 @@ const crawlerSummaryDiscordWebhookUrl =
   process.env.CRAWLER_SUMMARY_DISCORD_WEBHOOK_URL?.trim()
   || "https://discord.com/api/webhooks/1501899705385488455/27NCPq0khx4Cj8irz5s1VB0AWC7SKe5TzaI-C3oz78bWbic4zBplOx-vcul0UV_wyioR";
 
+function resolveRuntimeEnvironment(): "Local" | "Staging" | "Production" {
+  const appEnv = (process.env.APP_ENV ?? process.env.ENV ?? "").trim().toLowerCase();
+  const nodeEnv = (process.env.NODE_ENV ?? "").trim().toLowerCase();
+  if (appEnv === "production" || appEnv === "prod") return "Production";
+  if (appEnv === "staging" || appEnv === "stage" || appEnv === "stg") return "Staging";
+  if (nodeEnv === "production") {
+    return appEnv ? "Staging" : "Production";
+  }
+  return "Local";
+}
+
 function getDatabaseTargetMeta() {
   const raw = process.env.DATABASE_URL ?? "";
   try {
@@ -2345,6 +2356,35 @@ async function sendCrawlerSummaryDiscordNotification(input: {
 }) {
   if (!crawlerSummaryDiscordWebhookUrl) return;
   const asNum = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+  const [storedKoworkCount, storedBuddiesCount] = await Promise.all([
+    prisma.position.count({ where: { sourceProvider: PositionSourceProvider.KOWORK } }),
+    prisma.position.count({ where: { sourceProvider: PositionSourceProvider.BUDDIES } })
+  ]);
+  const runtimeEnv = resolveRuntimeEnvironment();
+  const envColor =
+    runtimeEnv === "Production"
+      ? 0xdc2626
+      : runtimeEnv === "Staging"
+        ? 0xf59e0b
+        : 0x2563eb;
+  const sourceMeta = (summary: CrawlerRunSummary | null, fallbackProvider: string, fallbackPlatform: string) => {
+    const provider = typeof summary?.sourceProvider === "string" && summary.sourceProvider.trim()
+      ? summary.sourceProvider.trim()
+      : fallbackProvider;
+    const platform = typeof summary?.sourcePlatform === "string" && summary.sourcePlatform.trim()
+      ? summary.sourcePlatform.trim()
+      : fallbackPlatform;
+    return `${provider}/${platform}`;
+  };
+  const sourceDetail = (summary: CrawlerRunSummary | null, fallbackProvider: string, fallbackPlatform: string) => {
+    if (!summary) return "이번 실행 제외";
+    const created = asNum(summary.created);
+    const updated = asNum(summary.updated);
+    const total = asNum(summary.total);
+    const imported = created + updated;
+    return `${sourceMeta(summary, fallbackProvider, fallbackPlatform)}\n신규 ${created}건 / 업데이트 ${updated}건 / 반영 ${imported}건 / DB 총 ${total}건`;
+  };
+
   const kCreated = asNum(input.kowork?.created);
   const kUpdated = asNum(input.kowork?.updated);
   const kTotal = asNum(input.kowork?.total);
@@ -2354,27 +2394,49 @@ async function sendCrawlerSummaryDiscordNotification(input: {
   const totalAdded = kCreated + bCreated;
   const totalUpdated = kUpdated + bUpdated;
   const totalRows = kTotal + bTotal;
-  const content = input.ok
+  const description = input.ok
     ? [
-        "✅ Daily crawler completed",
-        `- StartedAt: ${input.startedAt.toISOString()}`,
-        `- Elapsed: ${Math.round(input.elapsedMs / 1000)}s`,
-        `- KOWORK: +${kCreated} / ~${kUpdated} updated / total ${kTotal}`,
-        `- BUDDIES: +${bCreated} / ~${bUpdated} updated / total ${bTotal}`,
-        `- Summary: +${totalAdded} / ~${totalUpdated} updated / total ${totalRows}`
+        `실제 반영: 신규 ${totalAdded}건 / 업데이트 ${totalUpdated}건`,
+        `소스별 현재 저장: Kowork ${storedKoworkCount}건, Buddies ${storedBuddiesCount}건`
       ].join("\n")
-    : [
-        "❌ Daily crawler failed",
-        `- StartedAt: ${input.startedAt.toISOString()}`,
-        `- Elapsed: ${Math.round(input.elapsedMs / 1000)}s`,
-        `- Error: ${input.errorMessage ?? "unknown error"}`
-      ].join("\n");
+    : `오류: ${input.errorMessage ?? "unknown error"}`;
+
+  const embeds = [
+    {
+      title: input.ok ? "크롤러 실행 완료" : "크롤러 실행 실패",
+      description,
+      color: envColor,
+      fields: [
+        {
+          name: "실행 환경",
+          value: runtimeEnv,
+          inline: true
+        },
+        {
+          name: "Kowork",
+          value: `${sourceDetail(input.kowork, "kowork", "KOWORK")}\n현재 저장: ${storedKoworkCount}건`,
+          inline: false
+        },
+        {
+          name: "Buddies",
+          value: `${sourceDetail(input.buddies, "buddies", "BUDDIES")}\n현재 저장: ${storedBuddiesCount}건`,
+          inline: false
+        },
+        {
+          name: "실행 정보",
+          value: `시작: ${input.startedAt.toISOString()}\n소요: ${Math.round(input.elapsedMs / 1000)}s`,
+          inline: false
+        }
+      ],
+      timestamp: new Date().toISOString()
+    }
+  ];
 
   try {
     await fetch(crawlerSummaryDiscordWebhookUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content })
+      body: JSON.stringify({ embeds })
     });
   } catch (error) {
     console.error("[crawler-scheduler] discord webhook failed", {
