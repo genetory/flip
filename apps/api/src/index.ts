@@ -105,6 +105,9 @@ const crawlSchedulerEnabled = String(process.env.CRAWL_SCHEDULER_ENABLED ?? "fal
 const crawlSchedulerHourKst = Math.max(0, Math.min(23, Number(process.env.CRAWL_SCHEDULER_HOUR_KST ?? 4)));
 const crawlSchedulerMinuteKst = Math.max(0, Math.min(59, Number(process.env.CRAWL_SCHEDULER_MINUTE_KST ?? 10)));
 const crawlSchedulerRunOnBoot = String(process.env.CRAWL_SCHEDULER_RUN_ON_BOOT ?? "false").toLowerCase() === "true";
+const crawlerSummaryDiscordWebhookUrl =
+  process.env.CRAWLER_SUMMARY_DISCORD_WEBHOOK_URL?.trim()
+  || "https://discord.com/api/webhooks/1501899705385488455/27NCPq0khx4Cj8irz5s1VB0AWC7SKe5TzaI-C3oz78bWbic4zBplOx-vcul0UV_wyioR";
 type PartnerApplicantWorkflowStatus =
   | "APPLIED"
   | "REVIEWING"
@@ -2249,6 +2252,28 @@ async function uploadImageArrayIfNeeded(values: string[] | undefined, prefix: st
   return out;
 }
 
+type CrawlerRunSummary = {
+  sourceProvider?: string;
+  sourcePlatform?: string;
+  created?: number;
+  updated?: number;
+  skipped?: number;
+  total?: number;
+  [key: string]: unknown;
+};
+
+function extractLastJsonObject(text: string): CrawlerRunSummary | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const firstBrace = trimmed.lastIndexOf("\n{");
+  const candidate = (firstBrace >= 0 ? trimmed.slice(firstBrace + 1) : trimmed).trim();
+  try {
+    return JSON.parse(candidate) as CrawlerRunSummary;
+  } catch {
+    return null;
+  }
+}
+
 function nextRunAtKst(hour: number, minute: number): Date {
   const now = new Date();
   const nowKst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
@@ -2262,32 +2287,117 @@ function nextRunAtKst(hour: number, minute: number): Date {
   return new Date(nextKst.getTime() - 9 * 60 * 60 * 1000);
 }
 
-async function runCrawlerScript(scriptPath: string): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
+async function runCrawlerScript(scriptPath: string): Promise<CrawlerRunSummary | null> {
+  return await new Promise<CrawlerRunSummary | null>((resolve, reject) => {
     const child = spawn(process.execPath, ["--import", "tsx", scriptPath], {
       cwd: process.cwd(),
       env: process.env,
-      stdio: "inherit"
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    let stdoutText = "";
+    let stderrText = "";
+    child.stdout.on("data", (chunk: Buffer | string) => {
+      const text = chunk.toString();
+      stdoutText += text;
+      process.stdout.write(text);
+    });
+    child.stderr.on("data", (chunk: Buffer | string) => {
+      const text = chunk.toString();
+      stderrText += text;
+      process.stderr.write(text);
     });
     child.on("error", reject);
     child.on("exit", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`${scriptPath} exited with code ${code ?? "unknown"}`));
+      if (code === 0) {
+        resolve(extractLastJsonObject(stdoutText));
+        return;
+      }
+      reject(
+        new Error(
+          `${scriptPath} exited with code ${code ?? "unknown"}`
+          + (stderrText.trim() ? ` / stderr: ${stderrText.trim().slice(0, 300)}` : "")
+        )
+      );
     });
   });
 }
 
+async function sendCrawlerSummaryDiscordNotification(input: {
+  startedAt: Date;
+  elapsedMs: number;
+  kowork: CrawlerRunSummary | null;
+  buddies: CrawlerRunSummary | null;
+  ok: boolean;
+  errorMessage?: string;
+}) {
+  if (!crawlerSummaryDiscordWebhookUrl) return;
+  const asNum = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+  const kCreated = asNum(input.kowork?.created);
+  const kUpdated = asNum(input.kowork?.updated);
+  const kTotal = asNum(input.kowork?.total);
+  const bCreated = asNum(input.buddies?.created);
+  const bUpdated = asNum(input.buddies?.updated);
+  const bTotal = asNum(input.buddies?.total);
+  const totalAdded = kCreated + bCreated;
+  const totalUpdated = kUpdated + bUpdated;
+  const totalRows = kTotal + bTotal;
+  const content = input.ok
+    ? [
+        "✅ Daily crawler completed",
+        `- StartedAt: ${input.startedAt.toISOString()}`,
+        `- Elapsed: ${Math.round(input.elapsedMs / 1000)}s`,
+        `- KOWORK: +${kCreated} / ~${kUpdated} updated / total ${kTotal}`,
+        `- BUDDIES: +${bCreated} / ~${bUpdated} updated / total ${bTotal}`,
+        `- Summary: +${totalAdded} / ~${totalUpdated} updated / total ${totalRows}`
+      ].join("\n")
+    : [
+        "❌ Daily crawler failed",
+        `- StartedAt: ${input.startedAt.toISOString()}`,
+        `- Elapsed: ${Math.round(input.elapsedMs / 1000)}s`,
+        `- Error: ${input.errorMessage ?? "unknown error"}`
+      ].join("\n");
+
+  try {
+    await fetch(crawlerSummaryDiscordWebhookUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ content })
+    });
+  } catch (error) {
+    console.error("[crawler-scheduler] discord webhook failed", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
 async function runDailyExternalCrawlers() {
-  const startedAt = Date.now();
+  const startedAt = new Date();
   console.info("[crawler-scheduler] started");
   try {
-    await runCrawlerScript("scripts/import-kowork-job-postings.ts");
-    await runCrawlerScript("scripts/import-buddies-job-postings.ts");
-    console.info("[crawler-scheduler] completed", { elapsedMs: Date.now() - startedAt });
+    const kowork = await runCrawlerScript("scripts/import-kowork-job-postings.ts");
+    const buddies = await runCrawlerScript("scripts/import-buddies-job-postings.ts");
+    const elapsedMs = Date.now() - startedAt.getTime();
+    console.info("[crawler-scheduler] completed", { elapsedMs });
+    await sendCrawlerSummaryDiscordNotification({
+      startedAt,
+      elapsedMs,
+      kowork,
+      buddies,
+      ok: true
+    });
   } catch (error) {
+    const elapsedMs = Date.now() - startedAt.getTime();
     console.error("[crawler-scheduler] failed", {
-      elapsedMs: Date.now() - startedAt,
+      elapsedMs,
       error: error instanceof Error ? error.message : String(error)
+    });
+    await sendCrawlerSummaryDiscordNotification({
+      startedAt,
+      elapsedMs,
+      kowork: null,
+      buddies: null,
+      ok: false,
+      errorMessage: error instanceof Error ? error.message : String(error)
     });
   }
 }
