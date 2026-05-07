@@ -1337,7 +1337,12 @@ const openApiDocument = {
 app.get("/openapi.json", (_req, res) => {
   return res.json(openApiDocument);
 });
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
+const swaggerUiHandler = swaggerUi.setup(openApiDocument, {
+  explorer: true
+});
+app.use("/api-docs", swaggerUi.serve, swaggerUiHandler);
+app.use("/swagger", swaggerUi.serve, swaggerUiHandler);
+app.use("/docs", swaggerUi.serve, swaggerUiHandler);
 
 const memberRoleEnum = z.nativeEnum(MemberRole);
 const partnerTypeEnum = z.nativeEnum(PartnerType);
