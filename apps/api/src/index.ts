@@ -108,6 +108,19 @@ const crawlSchedulerRunOnBoot = String(process.env.CRAWL_SCHEDULER_RUN_ON_BOOT ?
 const crawlerSummaryDiscordWebhookUrl =
   process.env.CRAWLER_SUMMARY_DISCORD_WEBHOOK_URL?.trim()
   || "https://discord.com/api/webhooks/1501899705385488455/27NCPq0khx4Cj8irz5s1VB0AWC7SKe5TzaI-C3oz78bWbic4zBplOx-vcul0UV_wyioR";
+
+function getDatabaseTargetMeta() {
+  const raw = process.env.DATABASE_URL ?? "";
+  try {
+    const parsed = new URL(raw);
+    return {
+      host: parsed.host,
+      database: parsed.pathname.replace(/^\//, "") || null
+    };
+  } catch {
+    return { host: null as string | null, database: null as string | null };
+  }
+}
 type PartnerApplicantWorkflowStatus =
   | "APPLIED"
   | "REVIEWING"
@@ -3928,9 +3941,31 @@ async function generatePositionMatchesWithOpenAI(params: {
 app.get("/health", async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.json({ ok: true, service: "api", db: "connected" });
+    res.json({
+      ok: true,
+      service: "api",
+      db: "connected",
+      dbTarget: getDatabaseTargetMeta(),
+      crawlerScheduler: {
+        enabled: crawlSchedulerEnabled,
+        hourKst: crawlSchedulerHourKst,
+        minuteKst: crawlSchedulerMinuteKst,
+        runOnBoot: crawlSchedulerRunOnBoot
+      }
+    });
   } catch {
-    res.status(500).json({ ok: false, service: "api", db: "disconnected" });
+    res.status(500).json({
+      ok: false,
+      service: "api",
+      db: "disconnected",
+      dbTarget: getDatabaseTargetMeta(),
+      crawlerScheduler: {
+        enabled: crawlSchedulerEnabled,
+        hourKst: crawlSchedulerHourKst,
+        minuteKst: crawlSchedulerMinuteKst,
+        runOnBoot: crawlSchedulerRunOnBoot
+      }
+    });
   }
 });
 
@@ -9612,6 +9647,15 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
 if (process.env.VERCEL !== "1") {
   app.listen(port, () => {
     console.log(`API server listening on http://localhost:${port}`);
+    console.info("[runtime-config]", {
+      dbTarget: getDatabaseTargetMeta(),
+      crawlerScheduler: {
+        enabled: crawlSchedulerEnabled,
+        hourKst: crawlSchedulerHourKst,
+        minuteKst: crawlSchedulerMinuteKst,
+        runOnBoot: crawlSchedulerRunOnBoot
+      }
+    });
     startCrawlerScheduler();
   });
 }
