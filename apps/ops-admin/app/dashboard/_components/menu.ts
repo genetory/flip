@@ -46,7 +46,8 @@ export const dashboardMenuGroups: MenuGroup[] = [
     links: [
       { label: "관리자 사용자 관리", href: "/dashboard/system/admin-users" },
       { label: "결제 관리", href: "/dashboard/system/payments" },
-      { label: "설정값 관리", href: "/dashboard/system/settings" }
+      { label: "설정값 관리", href: "/dashboard/system/settings" },
+      { label: "크롤링", href: "/dashboard/system/crawlers" }
     ]
   }
 ];

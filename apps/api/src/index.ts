@@ -2389,12 +2389,13 @@ type DailyCrawlerRunResult = {
   elapsedMs: number;
   kowork: CrawlerRunSummary | null;
   buddies: CrawlerRunSummary | null;
+  source: "all" | "kowork" | "buddies";
   errorMessage?: string;
 };
 
 let crawlerRunInProgress = false;
 
-async function runDailyExternalCrawlers(): Promise<DailyCrawlerRunResult> {
+async function runExternalCrawlers(source: "all" | "kowork" | "buddies"): Promise<DailyCrawlerRunResult> {
   if (crawlerRunInProgress) {
     return {
       ok: false,
@@ -2402,17 +2403,22 @@ async function runDailyExternalCrawlers(): Promise<DailyCrawlerRunResult> {
       elapsedMs: 0,
       kowork: null,
       buddies: null,
+      source,
       errorMessage: "crawler run already in progress"
     };
   }
   crawlerRunInProgress = true;
   const startedAt = new Date();
-  console.info("[crawler-scheduler] started");
+  console.info("[crawler-scheduler] started", { source });
   try {
-    const kowork = await runCrawlerScript("scripts/import-kowork-job-postings.ts");
-    const buddies = await runCrawlerScript("scripts/import-buddies-job-postings.ts");
+    const kowork = source === "all" || source === "kowork"
+      ? await runCrawlerScript("scripts/import-kowork-job-postings.ts")
+      : null;
+    const buddies = source === "all" || source === "buddies"
+      ? await runCrawlerScript("scripts/import-buddies-job-postings.ts")
+      : null;
     const elapsedMs = Date.now() - startedAt.getTime();
-    console.info("[crawler-scheduler] completed", { elapsedMs });
+    console.info("[crawler-scheduler] completed", { elapsedMs, source });
     await sendCrawlerSummaryDiscordNotification({
       startedAt,
       elapsedMs,
@@ -2425,13 +2431,15 @@ async function runDailyExternalCrawlers(): Promise<DailyCrawlerRunResult> {
       startedAt: startedAt.toISOString(),
       elapsedMs,
       kowork,
-      buddies
+      buddies,
+      source
     };
   } catch (error) {
     const elapsedMs = Date.now() - startedAt.getTime();
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[crawler-scheduler] failed", {
       elapsedMs,
+      source,
       error: errorMessage
     });
     await sendCrawlerSummaryDiscordNotification({
@@ -2448,11 +2456,16 @@ async function runDailyExternalCrawlers(): Promise<DailyCrawlerRunResult> {
       elapsedMs,
       kowork: null,
       buddies: null,
+      source,
       errorMessage
     };
   } finally {
     crawlerRunInProgress = false;
   }
+}
+
+async function runDailyExternalCrawlers(): Promise<DailyCrawlerRunResult> {
+  return runExternalCrawlers("all");
 }
 
 function startCrawlerScheduler() {
@@ -4015,6 +4028,22 @@ app.get("/", (_req, res) => {
 
 app.post("/ops/crawlers/run", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
   const result = await runDailyExternalCrawlers();
+  return res.status(result.ok ? 200 : 409).json({
+    ok: result.ok,
+    result
+  });
+});
+
+app.post("/ops/crawlers/run/kowork", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  const result = await runExternalCrawlers("kowork");
+  return res.status(result.ok ? 200 : 409).json({
+    ok: result.ok,
+    result
+  });
+});
+
+app.post("/ops/crawlers/run/buddies", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  const result = await runExternalCrawlers("buddies");
   return res.status(result.ok ? 200 : 409).json({
     ok: result.ok,
     result
