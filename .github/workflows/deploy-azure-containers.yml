@@ -1,4 +1,4 @@
-name: Deploy Azure Containers (Web + API + Ops)
+name: Deploy Azure Containers (Web + API + Ops) # manual trigger commit
 
 on:
   push:
