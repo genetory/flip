@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { spawn } from "child_process";
 import { randomBytes, randomInt } from "crypto";
 import cors from "cors";
 import express from "express";
@@ -98,6 +99,12 @@ const allowedOriginHostSuffixes = (process.env.CORS_ALLOWED_ORIGIN_SUFFIXES ?? "
   .filter((item) => item.length > 0)
   .map((item) => (item.startsWith(".") ? item : `.${item}`));
 const refreshCookieName = "flip_refresh_token";
+const azureStorageConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING?.trim() ?? "";
+const azureStorageContainerName = process.env.AZURE_STORAGE_CONTAINER_NAME?.trim() || "uploads";
+const crawlSchedulerEnabled = String(process.env.CRAWL_SCHEDULER_ENABLED ?? "false").toLowerCase() === "true";
+const crawlSchedulerHourKst = Math.max(0, Math.min(23, Number(process.env.CRAWL_SCHEDULER_HOUR_KST ?? 4)));
+const crawlSchedulerMinuteKst = Math.max(0, Math.min(59, Number(process.env.CRAWL_SCHEDULER_MINUTE_KST ?? 10)));
+const crawlSchedulerRunOnBoot = String(process.env.CRAWL_SCHEDULER_RUN_ON_BOOT ?? "false").toLowerCase() === "true";
 type PartnerApplicantWorkflowStatus =
   | "APPLIED"
   | "REVIEWING"
@@ -2180,6 +2187,142 @@ function normalizeStringArray(value?: string[]) {
   return value.map((entry) => entry.trim()).filter((entry) => entry.length > 0);
 }
 
+let azureContainerClientCache: any | null | undefined;
+
+function getAzureContainerClient(): any | null {
+  if (azureContainerClientCache !== undefined) return azureContainerClientCache;
+  if (!azureStorageConnectionString) {
+    azureContainerClientCache = null;
+    return azureContainerClientCache;
+  }
+  // Lazy-load SDK to avoid hard failure when storage is not configured.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { BlobServiceClient } = require("@azure/storage-blob") as { BlobServiceClient: { fromConnectionString: (cs: string) => any } };
+  const service = BlobServiceClient.fromConnectionString(azureStorageConnectionString);
+  azureContainerClientCache = service.getContainerClient(azureStorageContainerName);
+  return azureContainerClientCache;
+}
+
+function inferImageExtFromMime(mime: string): string {
+  const normalized = mime.toLowerCase();
+  if (normalized === "image/jpeg") return "jpg";
+  if (normalized === "image/png") return "png";
+  if (normalized === "image/webp") return "webp";
+  if (normalized === "image/gif") return "gif";
+  if (normalized === "image/svg+xml") return "svg";
+  if (normalized === "image/heic") return "heic";
+  return "bin";
+}
+
+async function uploadDataUrlImageIfNeeded(value: string, prefix: string): Promise<string> {
+  const raw = value.trim();
+  if (!raw.startsWith("data:image/")) return raw;
+
+  const match = raw.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!match) return raw;
+
+  const container = getAzureContainerClient();
+  if (!container) return raw;
+
+  await container.createIfNotExists({ access: "blob" });
+  const mime = match[1]!;
+  const base64Data = match[2]!;
+  const content = Buffer.from(base64Data, "base64");
+  const ext = inferImageExtFromMime(mime);
+  const blobName = `${prefix}/${Date.now()}-${randomBytes(8).toString("hex")}.${ext}`;
+  const client = container.getBlockBlobClient(blobName);
+  await client.uploadData(content, {
+    blobHTTPHeaders: {
+      blobContentType: mime,
+      blobCacheControl: "public, max-age=31536000, immutable"
+    }
+  });
+  return client.url;
+}
+
+async function uploadImageArrayIfNeeded(values: string[] | undefined, prefix: string): Promise<string[]> {
+  const items = normalizeStringArray(values);
+  const out: string[] = [];
+  for (const item of items) {
+    out.push(await uploadDataUrlImageIfNeeded(item, prefix));
+  }
+  return out;
+}
+
+function nextRunAtKst(hour: number, minute: number): Date {
+  const now = new Date();
+  const nowKst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const y = nowKst.getUTCFullYear();
+  const m = nowKst.getUTCMonth();
+  const d = nowKst.getUTCDate();
+  const runKst = new Date(Date.UTC(y, m, d, hour, minute, 0, 0));
+  const nextKst = runKst.getTime() > nowKst.getTime()
+    ? runKst
+    : new Date(Date.UTC(y, m, d + 1, hour, minute, 0, 0));
+  return new Date(nextKst.getTime() - 9 * 60 * 60 * 1000);
+}
+
+async function runCrawlerScript(scriptPath: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(process.execPath, ["--import", "tsx", scriptPath], {
+      cwd: process.cwd(),
+      env: process.env,
+      stdio: "inherit"
+    });
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`${scriptPath} exited with code ${code ?? "unknown"}`));
+    });
+  });
+}
+
+async function runDailyExternalCrawlers() {
+  const startedAt = Date.now();
+  console.info("[crawler-scheduler] started");
+  try {
+    await runCrawlerScript("scripts/import-kowork-job-postings.ts");
+    await runCrawlerScript("scripts/import-buddies-job-postings.ts");
+    console.info("[crawler-scheduler] completed", { elapsedMs: Date.now() - startedAt });
+  } catch (error) {
+    console.error("[crawler-scheduler] failed", {
+      elapsedMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
+function startCrawlerScheduler() {
+  if (!crawlSchedulerEnabled) return;
+  let timer: NodeJS.Timeout | null = null;
+
+  const scheduleNext = () => {
+    const next = nextRunAtKst(crawlSchedulerHourKst, crawlSchedulerMinuteKst);
+    const delay = Math.max(1_000, next.getTime() - Date.now());
+    console.info("[crawler-scheduler] next run scheduled", {
+      kstHour: crawlSchedulerHourKst,
+      kstMinute: crawlSchedulerMinuteKst,
+      nextRunAt: next.toISOString(),
+      delayMs: delay
+    });
+    timer = setTimeout(async () => {
+      await runDailyExternalCrawlers();
+      scheduleNext();
+    }, delay);
+  };
+
+  if (crawlSchedulerRunOnBoot) {
+    void runDailyExternalCrawlers();
+  }
+  scheduleNext();
+
+  const shutdown = () => {
+    if (timer) clearTimeout(timer);
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
+}
+
 type PositionPremiumBannerMeta = {
   enabled: boolean;
   bannerImageUrl: string | null;
@@ -3972,6 +4115,7 @@ app.post("/community/posts", authenticate, requireRoles([MemberRole.STUDENT, Mem
   const title = firstLine.length > 90 ? `${firstLine.slice(0, 90)}…` : firstLine;
 
   try {
+    const imageUrls = await uploadImageArrayIfNeeded(parsedBody.data.imageUrls, "community/posts");
     const created = await prisma.communityPost.create({
       data: {
         authorId: user.id,
@@ -3979,7 +4123,7 @@ app.post("/community/posts", authenticate, requireRoles([MemberRole.STUDENT, Mem
         category: toCommunityPostCategory(parsedBody.data.category),
         title,
         body,
-        imageUrls: parsedBody.data.imageUrls ?? [],
+        imageUrls,
         likes: 0,
         comments: 0
       }
@@ -4040,13 +4184,17 @@ app.patch("/community/posts/:postId", authenticate, requireRoles([MemberRole.STU
   const firstLine = nextBody.split("\n").find((line) => line.trim().length > 0)?.trim() ?? nextBody.slice(0, 60);
   const title = firstLine.length > 90 ? `${firstLine.slice(0, 90)}…` : firstLine;
 
+  const nextImageUrls = parsedBody.data.imageUrls
+    ? await uploadImageArrayIfNeeded(parsedBody.data.imageUrls, "community/posts")
+    : existing.imageUrls;
+
   const updated = await prisma.communityPost.update({
     where: { id: parsedParam.data.postId },
     data: {
       category: parsedBody.data.category ? toCommunityPostCategory(parsedBody.data.category) : existing.category,
       body: nextBody,
       title,
-      imageUrls: parsedBody.data.imageUrls ?? existing.imageUrls
+      imageUrls: nextImageUrls
     }
   });
 
@@ -5229,6 +5377,7 @@ app.post("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), as
   }
 
   try {
+    const uploadedThumbnailImages = await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails");
     const created = await prisma.position.create({
       data: {
         partnerOrganizationId: parsed.data.partnerOrganizationId,
@@ -5241,7 +5390,7 @@ app.post("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), as
         status: parsed.data.status ?? PositionStatus.DRAFT,
         workType: parsed.data.workType ?? "On-site",
         employmentType: parsed.data.employmentType ?? PositionEmploymentType.UNPAID_INTERN,
-        thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5),
+        thumbnailImages: uploadedThumbnailImages.slice(0, 5),
         eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas),
         preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities),
         communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages),
@@ -5351,6 +5500,10 @@ app.patch("/ops/positions/:id", authenticate, requireRoles([MemberRole.OPERATOR]
   }
 
   try {
+    const uploadedThumbnailImages =
+      parsed.data.thumbnailImages !== undefined
+        ? await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails")
+        : undefined;
     const current = await prisma.position.findUnique({
       where: { id },
       select: { status: true, adminMemo: true }
@@ -5377,8 +5530,8 @@ app.patch("/ops/positions/:id", authenticate, requireRoles([MemberRole.OPERATOR]
         ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
         ...(parsed.data.workType !== undefined ? { workType: parsed.data.workType } : {}),
         ...(parsed.data.employmentType !== undefined ? { employmentType: parsed.data.employmentType } : {}),
-        ...(parsed.data.thumbnailImages !== undefined
-          ? { thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5) }
+        ...(uploadedThumbnailImages !== undefined
+          ? { thumbnailImages: uploadedThumbnailImages.slice(0, 5) }
           : {}),
         ...(parsed.data.eligibleVisas !== undefined
           ? { eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas) }
@@ -6223,6 +6376,19 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
   }
 
   try {
+    const companyLogoImageData =
+      parsed.data.companyLogoImageData !== undefined
+        ? (parsed.data.companyLogoImageData?.trim()
+          ? await uploadDataUrlImageIfNeeded(parsed.data.companyLogoImageData.trim(), "partner/company-logo")
+          : null)
+        : undefined;
+    const officePhotoImageData =
+      parsed.data.officePhotoImageData !== undefined
+        ? (parsed.data.officePhotoImageData?.trim()
+          ? await uploadDataUrlImageIfNeeded(parsed.data.officePhotoImageData.trim(), "partner/office-photo")
+          : null)
+        : undefined;
+
     const updated = currentOrganization
       ? await prisma.partnerOrganization.update({
           where: { id: user.partnerOrganizationId! },
@@ -6238,11 +6404,11 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
             ...(parsed.data.fourInsuranceSubscriberListData !== undefined
               ? { fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null }
               : {}),
-            ...(parsed.data.companyLogoImageData !== undefined
-              ? { companyLogoImageData: parsed.data.companyLogoImageData?.trim() || null }
+            ...(companyLogoImageData !== undefined
+              ? { companyLogoImageData }
               : {}),
-            ...(parsed.data.officePhotoImageData !== undefined
-              ? { officePhotoImageData: parsed.data.officePhotoImageData?.trim() || null }
+            ...(officePhotoImageData !== undefined
+              ? { officePhotoImageData }
               : {}),
             ...(shouldResetVerificationApproval ? { verificationApproved: false, verificationApprovedAt: null } : {})
           }
@@ -6260,8 +6426,8 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
               description: parsed.data.description?.trim() || null,
               businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null,
               fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null,
-              companyLogoImageData: parsed.data.companyLogoImageData?.trim() || null,
-              officePhotoImageData: parsed.data.officePhotoImageData?.trim() || null,
+              companyLogoImageData: companyLogoImageData ?? null,
+              officePhotoImageData: officePhotoImageData ?? null,
               adminMemo: "Created by partner profile setup."
             }
           });
@@ -8043,6 +8209,7 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]),
 
   try {
     const nextStatus = PositionStatus.PENDING_REVIEW;
+    const uploadedThumbnailImages = await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails");
     const created = await prisma.position.create({
       data: {
         partnerOrganizationId: affiliation.organization.id,
@@ -8050,7 +8217,7 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]),
         status: nextStatus,
         workType: parsed.data.workType ?? "On-site",
         employmentType: parsed.data.employmentType ?? PositionEmploymentType.UNPAID_INTERN,
-        thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5),
+        thumbnailImages: uploadedThumbnailImages.slice(0, 5),
         eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas),
         preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities),
         communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages),
@@ -8322,10 +8489,15 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
       return res.status(400).json({ ok: false, message: "변경할 내용이 없습니다." });
     }
 
+    const uploadedThumbnailImages =
+      parsed.data.thumbnailImages !== undefined
+        ? await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails")
+        : undefined;
+
     const normalizedPayload = {
       ...parsed.data,
-      ...(parsed.data.thumbnailImages !== undefined
-        ? { thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5) }
+      ...(uploadedThumbnailImages !== undefined
+        ? { thumbnailImages: uploadedThumbnailImages.slice(0, 5) }
         : {}),
       ...(parsed.data.eligibleVisas !== undefined ? { eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas) } : {}),
       ...(parsed.data.preferredNationalities !== undefined
@@ -9234,6 +9406,13 @@ app.post("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asy
   }
 
   try {
+    const companyLogoImageData = parsed.data.companyLogoImageData?.trim()
+      ? await uploadDataUrlImageIfNeeded(parsed.data.companyLogoImageData.trim(), "partner/company-logo")
+      : parsed.data.companyLogoImageData;
+    const officePhotoImageData = parsed.data.officePhotoImageData?.trim()
+      ? await uploadDataUrlImageIfNeeded(parsed.data.officePhotoImageData.trim(), "partner/office-photo")
+      : parsed.data.officePhotoImageData;
+
     const created = await prisma.partnerOrganization.create({
       data: {
         partnerType: parsed.data.partnerType,
@@ -9249,8 +9428,8 @@ app.post("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asy
         adminMemo: parsed.data.adminMemo,
         businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData,
         fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData,
-        companyLogoImageData: parsed.data.companyLogoImageData,
-        officePhotoImageData: parsed.data.officePhotoImageData,
+        companyLogoImageData,
+        officePhotoImageData,
         verificationApproved: false,
         verificationApprovedAt: null
       }
@@ -9273,6 +9452,18 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
   }
 
   try {
+    const companyLogoImageData =
+      parsed.data.companyLogoImageData === undefined
+        ? undefined
+        : (parsed.data.companyLogoImageData?.trim()
+          ? await uploadDataUrlImageIfNeeded(parsed.data.companyLogoImageData.trim(), "partner/company-logo")
+          : null);
+    const officePhotoImageData =
+      parsed.data.officePhotoImageData === undefined
+        ? undefined
+        : (parsed.data.officePhotoImageData?.trim()
+          ? await uploadDataUrlImageIfNeeded(parsed.data.officePhotoImageData.trim(), "partner/office-photo")
+          : null);
     const shouldResetVerificationApproval =
       parsed.data.businessRegistrationDocumentData !== undefined
       || parsed.data.fourInsuranceSubscriberListData !== undefined;
@@ -9292,8 +9483,8 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
         adminMemo: parsed.data.adminMemo,
         businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null,
         fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null,
-        companyLogoImageData: parsed.data.companyLogoImageData?.trim() || null,
-        officePhotoImageData: parsed.data.officePhotoImageData?.trim() || null,
+        ...(companyLogoImageData !== undefined ? { companyLogoImageData } : {}),
+        ...(officePhotoImageData !== undefined ? { officePhotoImageData } : {}),
         ...(shouldResetVerificationApproval ? { verificationApproved: false, verificationApprovedAt: null } : {})
       }
     });
@@ -9311,6 +9502,7 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
 if (process.env.VERCEL !== "1") {
   app.listen(port, () => {
     console.log(`API server listening on http://localhost:${port}`);
+    startCrawlerScheduler();
   });
 }
 
