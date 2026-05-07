@@ -2383,7 +2383,29 @@ async function sendCrawlerSummaryDiscordNotification(input: {
   }
 }
 
-async function runDailyExternalCrawlers() {
+type DailyCrawlerRunResult = {
+  ok: boolean;
+  startedAt: string;
+  elapsedMs: number;
+  kowork: CrawlerRunSummary | null;
+  buddies: CrawlerRunSummary | null;
+  errorMessage?: string;
+};
+
+let crawlerRunInProgress = false;
+
+async function runDailyExternalCrawlers(): Promise<DailyCrawlerRunResult> {
+  if (crawlerRunInProgress) {
+    return {
+      ok: false,
+      startedAt: new Date().toISOString(),
+      elapsedMs: 0,
+      kowork: null,
+      buddies: null,
+      errorMessage: "crawler run already in progress"
+    };
+  }
+  crawlerRunInProgress = true;
   const startedAt = new Date();
   console.info("[crawler-scheduler] started");
   try {
@@ -2398,11 +2420,19 @@ async function runDailyExternalCrawlers() {
       buddies,
       ok: true
     });
+    return {
+      ok: true,
+      startedAt: startedAt.toISOString(),
+      elapsedMs,
+      kowork,
+      buddies
+    };
   } catch (error) {
     const elapsedMs = Date.now() - startedAt.getTime();
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[crawler-scheduler] failed", {
       elapsedMs,
-      error: error instanceof Error ? error.message : String(error)
+      error: errorMessage
     });
     await sendCrawlerSummaryDiscordNotification({
       startedAt,
@@ -2410,8 +2440,18 @@ async function runDailyExternalCrawlers() {
       kowork: null,
       buddies: null,
       ok: false,
-      errorMessage: error instanceof Error ? error.message : String(error)
+      errorMessage
     });
+    return {
+      ok: false,
+      startedAt: startedAt.toISOString(),
+      elapsedMs,
+      kowork: null,
+      buddies: null,
+      errorMessage
+    };
+  } finally {
+    crawlerRunInProgress = false;
   }
 }
 
@@ -3971,6 +4011,14 @@ app.get("/health", async (_req, res) => {
 
 app.get("/", (_req, res) => {
   res.json({ ok: true, message: "Flip API is running" });
+});
+
+app.post("/ops/crawlers/run", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  const result = await runDailyExternalCrawlers();
+  return res.status(result.ok ? 200 : 409).json({
+    ok: result.ok,
+    result
+  });
 });
 
 const companyConsultationCreateSchema = z.object({
