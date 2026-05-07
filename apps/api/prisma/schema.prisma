@@ -39,6 +39,9 @@ model User {
   partnerApplicantWorkflowsAsPartner PartnerApplicantWorkflow[] @relation("PartnerApplicantWorkflowPartnerUser")
   partnerApplicantWorkflowsAsCandidate PartnerApplicantWorkflow[] @relation("PartnerApplicantWorkflowCandidateUser")
   partnerOrganization PartnerOrganization? @relation(fields: [partnerOrganizationId], references: [id], onDelete: SetNull)
+  createdPartnerJoinCodes PartnerOrganizationJoinCode[]
+  requestedPositionRevisions PositionRevision[] @relation("PositionRevisionRequester")
+  reviewedPositionRevisions PositionRevision[] @relation("PositionRevisionReviewer")
 
   @@index([role])
   @@index([partnerType])
@@ -197,11 +200,15 @@ enum PartnerCompanySize {
 enum PositionStatus {
   DRAFT
   PENDING_REVIEW
-  APPROVED
   OPEN
   PAUSED
-  MATCHING
   CLOSED
+  REJECTED
+}
+
+enum PositionRevisionStatus {
+  PENDING
+  APPROVED
   REJECTED
 }
 
@@ -210,6 +217,18 @@ enum PositionEmploymentType {
   INTERN
   PART_TIME
   UNPAID_INTERN
+}
+
+enum PositionSourceKind {
+  INTERNAL
+  EXTERNAL
+}
+
+enum PositionSourceProvider {
+  INTERNAL
+  BUDDIES
+  KOWORK
+  OTHER
 }
 
 enum CandidateVisaType {
@@ -312,6 +331,7 @@ model PartnerOrganization {
   id                               String          @id @default(uuid())
   partnerType                      PartnerType
   name                             String
+  slug                             String          @unique
   companySize                      PartnerCompanySize?
   officeAddress                    String?
   website                          String?
@@ -329,17 +349,43 @@ model PartnerOrganization {
   createdAt                        DateTime        @default(now())
   updatedAt                        DateTime        @updatedAt
   positions                        Position[]
+  positionRevisions                PositionRevision[]
   users                            User[]
+  joinCodes                        PartnerOrganizationJoinCode[]
 
   @@index([partnerType])
   @@index([companySize])
   @@index([industry])
   @@index([name])
+  @@index([slug])
+}
+
+model PartnerOrganizationJoinCode {
+  id                    String   @id @default(uuid())
+  partnerOrganizationId String
+  createdByUserId       String
+  codeHash              String   @unique
+  expiresAt             DateTime
+  usedAt                DateTime?
+  createdAt             DateTime @default(now())
+
+  partnerOrganization PartnerOrganization @relation(fields: [partnerOrganizationId], references: [id], onDelete: Cascade)
+  createdByUser       User                @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([partnerOrganizationId])
+  @@index([createdByUserId])
+  @@index([expiresAt])
+  @@index([usedAt])
 }
 
 model Position {
   id                      String         @id @default(uuid())
   partnerOrganizationId   String?
+  sourceKind              PositionSourceKind @default(INTERNAL)
+  sourceProvider          PositionSourceProvider @default(INTERNAL)
+  sourceExternalId        String?
+  sourceUrl               String?
+  sourceFetchedAt         DateTime?
   title                   String
   status                  PositionStatus @default(DRAFT)
   workType                String?
@@ -369,10 +415,39 @@ model Position {
   progressLogs PositionProgressLog[]
   statusHistories PositionStatusHistory[]
   applicantWorkflows PartnerApplicantWorkflow[]
+  revisions PositionRevision[]
 
   @@index([partnerOrganizationId])
+  @@index([sourceKind, sourceProvider])
+  @@unique([sourceProvider, sourceExternalId])
   @@index([status])
   @@index([title])
+  @@index([createdAt])
+}
+
+model PositionRevision {
+  id                    String                 @id @default(uuid())
+  positionId            String
+  partnerOrganizationId String
+  requestedByUserId     String
+  status                PositionRevisionStatus @default(PENDING)
+  payload               Json
+  reviewNote            String?
+  reviewedByUserId      String?
+  reviewedAt            DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  position            Position            @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  partnerOrganization PartnerOrganization @relation(fields: [partnerOrganizationId], references: [id], onDelete: Cascade)
+  requestedByUser     User                @relation("PositionRevisionRequester", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  reviewedByUser      User?               @relation("PositionRevisionReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([positionId])
+  @@index([partnerOrganizationId])
+  @@index([requestedByUserId])
+  @@index([reviewedByUserId])
+  @@index([status])
   @@index([createdAt])
 }
 

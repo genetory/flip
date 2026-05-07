@@ -15,12 +15,14 @@ import {
   getMyAppliedPositions,
   getMyFavoritePositions,
   getMyPartnerOrganization,
-  getPublicPositions,
+  getMyPartnerPositions,
   removeMyFavoritePosition,
   type MyCandidateProfile,
   type MyPartnerOrganization,
+  type PartnerPosition,
   type PublicPositionListItem
 } from "../../lib/member-profile-client";
+import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import { BadgeCheck, Bookmark, Briefcase, LayoutGrid, List, MapPin } from "lucide-react";
@@ -46,6 +48,14 @@ type StudentResumeSection = {
 };
 
 type CompanyFieldKind = "text" | "logo" | "additional";
+type PartnerPositionNotification = {
+  id: string;
+  positionId: string;
+  positionTitle: string;
+  kind: "status" | "progress";
+  message: string;
+  createdAt: string;
+};
 
 function formatIsoDate(value?: string | null) {
   if (!value) return "-";
@@ -97,6 +107,13 @@ function formatPostedDate(value: string, locale: "ko" | "en") {
   return `${y}. ${m}. ${d}`;
 }
 
+function getPositionStatusBadge(
+  status: PublicPositionListItem["status"],
+  locale: "ko" | "en"
+) {
+  return getPublicPositionStatusBadge(status, locale);
+}
+
 function companyHref(partnerOrganizationId?: string | null) {
   if (!partnerOrganizationId?.trim()) return null;
   return `/companies/${encodeURIComponent(partnerOrganizationId.trim())}`;
@@ -112,9 +129,10 @@ export function ProfilePage() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [partnerOrg, setPartnerOrg] = useState<MyPartnerOrganization | null>(null);
-  const [activeTab, setActiveTab] = useState<"info" | "positions">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "positions" | "notifications">("info");
   const [studentTab, setStudentTab] = useState<"info" | "resume" | "applied" | "favorites">("info");
   const [postedPositions, setPostedPositions] = useState<PublicPositionListItem[]>([]);
+  const [partnerPositions, setPartnerPositions] = useState<PartnerPosition[]>([]);
   const [positionsError, setPositionsError] = useState<string | null>(null);
   const [postedViewMode, setPostedViewMode] = useState<"grid" | "list">("list");
   const [studentViewMode, setStudentViewMode] = useState<"grid" | "list">("list");
@@ -124,6 +142,41 @@ export function ProfilePage() {
   const [studentProfile, setStudentProfile] = useState<MyCandidateProfile | null>(null);
 
   const canEditBasic = user?.role === "PARTNER" || user?.role === "STUDENT";
+
+  const positionNotifications = useMemo<PartnerPositionNotification[]>(() => {
+    const notifications = partnerPositions.flatMap((position) => {
+      const statusLogs = (position.statusHistories ?? []).map((history) => {
+        const fromLabel = history.fromStatus ? getPublicPositionStatusBadge(history.fromStatus, locale).label : null;
+        const toLabel = getPublicPositionStatusBadge(history.toStatus, locale).label;
+        const base = fromLabel ? `${fromLabel} -> ${toLabel}` : toLabel;
+        return {
+          id: `status-${history.id}`,
+          positionId: position.id,
+          positionTitle: position.title,
+          kind: "status" as const,
+          message: history.note?.trim()
+            ? `${tr("상태가 변경되었습니다", "Status has been changed")} (${base}, ${history.note.trim()})`
+            : `${tr("상태가 변경되었습니다", "Status has been changed")} (${base})`,
+          createdAt: history.createdAt
+        };
+      });
+
+      const progressLogs = (position.postingProgressLogs ?? []).map((log) => ({
+        id: `progress-${log.id}`,
+        positionId: position.id,
+        positionTitle: position.title,
+        kind: "progress" as const,
+        message: log.message,
+        createdAt: log.createdAt
+      }));
+
+      return [...statusLogs, ...progressLogs];
+    });
+
+    return notifications
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 30);
+  }, [locale, partnerPositions, tr]);
 
   const enumDisplay = (value?: string | null) => {
     if (!value) return "-";
@@ -226,23 +279,17 @@ export function ProfilePage() {
   const partnerVerificationBadge = useMemo(() => {
     if (user?.role !== "PARTNER" && user?.role !== "OPERATOR") return null;
     if (!partnerOrg) return null;
-    if (partnerOrg?.verification?.isVerified) {
+    if (partnerOrg?.verification?.isApproved) {
       return {
         className: "bg-emerald-50 text-emerald-700",
         label: tr("운영중", "Active")
       };
     }
-    if (partnerOrg?.verification?.hasRequiredDocuments) {
-      return {
-        className: "bg-amber-50 text-amber-700",
-        label: tr("검토중 (승인 대기)", "Under review (approval pending)")
-      };
-    }
     return {
-      className: "bg-zinc-100 text-zinc-700",
-      label: tr("검토중 (서류 미비)", "Under review (documents missing)")
+      className: "bg-amber-50 text-amber-700",
+      label: tr("검토중 (승인 대기)", "Under review (approval pending)")
     };
-  }, [partnerOrg, partnerOrg?.verification?.hasRequiredDocuments, partnerOrg?.verification?.isVerified, tr, user?.role]);
+  }, [partnerOrg, partnerOrg?.verification?.isApproved, tr, user?.role]);
 
   const avatarFallback = useMemo(() => {
     if (user?.name?.trim()) return user.name.trim()[0].toUpperCase();
@@ -282,18 +329,28 @@ export function ProfilePage() {
 
     void (async () => {
       try {
-        const all = await getPublicPositions();
+        const mine = await getMyPartnerPositions();
         if (!isMounted) return;
-
-        const partnerOrganizationId = partnerOrg?.id;
-        if (!partnerOrganizationId) {
-          setPostedPositions([]);
-          setPositionsError(null);
-          return;
-        }
-
-        const mine = all.filter((item) => item.partnerOrganization?.id === partnerOrganizationId);
-        setPostedPositions(mine.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        setPartnerPositions(mine);
+        const items: PublicPositionListItem[] = mine.map((item) => ({
+          ...item,
+          sourceKind: "INTERNAL",
+          sourceProvider: "INTERNAL",
+          sourceExternalId: null,
+          sourceUrl: null,
+          sourceFetchedAt: null,
+          matchingParticipantsCount: 0,
+          partnerOrganization: partnerOrg
+            ? {
+                id: partnerOrg.id,
+                name: partnerOrg.name ?? "-",
+                industry: partnerOrg.industry ?? "OTHER",
+                companySize: partnerOrg.companySize ?? null,
+                officeAddress: partnerOrg.officeAddress ?? null
+              }
+            : null
+        }));
+        setPostedPositions(items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
         setPositionsError(null);
       } catch (error) {
         if (!isMounted) return;
@@ -337,8 +394,8 @@ export function ProfilePage() {
     if (!user) return;
 
     if (user.role === "PARTNER" || user.role === "OPERATOR") {
-      if (tabParam === "positions") {
-        setActiveTab("positions");
+      if (tabParam === "positions" || tabParam === "notifications" || tabParam === "info") {
+        setActiveTab(tabParam);
       } else {
         setActiveTab("info");
       }
@@ -379,6 +436,7 @@ export function ProfilePage() {
         kind: "additional" as CompanyFieldKind
       },
       { label: tr("파트너명", "Partner name"), value: partnerOrg?.name ?? "-", kind: "text" as CompanyFieldKind },
+      { label: tr("회사 코드", "Company code"), value: partnerOrg?.slug ?? "-", kind: "text" as CompanyFieldKind },
       { label: tr("산업군", "Industry"), value: partnerIndustryLabel(partnerOrg?.industry), kind: "text" as CompanyFieldKind },
       { label: tr("웹사이트", "Website"), value: partnerOrg?.website ?? "-", kind: "text" as CompanyFieldKind },
       { label: tr("주소", "Address"), value: partnerOrg?.officeAddress ?? "-", kind: "text" as CompanyFieldKind },
@@ -417,22 +475,24 @@ export function ProfilePage() {
 
     const isApproved = Boolean(partnerOrg?.verification?.isApproved);
 
-    if (missingRequired.length === 0 && isApproved) {
+    if (isApproved) {
       return tr(
-        "운영중: 필수 서류 업로드 및 운영자 승인이 완료되었습니다.",
-        "Active: required documents are uploaded and operator approval is completed."
+        missingRequired.length === 0
+          ? "운영중: 운영자 승인이 완료되었습니다."
+          : `운영중: 운영자 승인 완료 (서류 보완 필요: ${missingRequired.join(", ")}).`,
+        missingRequired.length === 0
+          ? "Active: operator approval is completed."
+          : `Active: operator approved (documents to complete: ${missingRequired.join(", ")}).`
       );
     }
 
-    if (missingRequired.length === 0 && !isApproved) {
-      return tr(
-        "검토 중: 필수 서류 업로드는 완료되었고 운영자 승인 대기 상태입니다.",
-        "Under review: required documents are uploaded and waiting for operator approval."
-      );
-    }
     return tr(
-      `검토 요청 전 준비 필요: ${missingRequired.join(", ")} 업로드가 필요합니다.`,
-      `Before review request: upload ${missingRequired.join(", ")}.`
+      missingRequired.length === 0
+        ? "검토중: 운영자 승인 대기 상태입니다."
+        : `검토중: 운영자 승인 대기 (서류 보완 필요: ${missingRequired.join(", ")}).`,
+      missingRequired.length === 0
+        ? "Under review: waiting for operator approval."
+        : `Under review: waiting for operator approval (documents to complete: ${missingRequired.join(", ")}).`
     );
   }, [locale, partnerOrg?.verification?.isApproved, verificationFields]);
 
@@ -659,6 +719,15 @@ export function ProfilePage() {
                         >
                           {tr("올려진 포지션", "Posted positions")}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("notifications")}
+                          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                            activeTab === "notifications" ? "bg-foreground text-background" : "text-muted-foreground"
+                          }`}
+                        >
+                          {tr("알림", "Notifications")}
+                        </button>
                       </div>
                       <Button size="sm" className="bg-[#b7ff5a] font-semibold text-[#111111] hover:bg-[#a8ee4d]" asChild>
                         <Link href="/profile">{tr("대시보드로 이동하기", "Go to dashboard")}</Link>
@@ -756,7 +825,7 @@ export function ProfilePage() {
                           </div>
                         ))}
                       </>
-                    ) : (
+                    ) : activeTab === "positions" ? (
                       <div className="space-y-3">
                         <div className="flex items-start justify-end gap-3">
                           <div className="flex items-center gap-1">
@@ -797,6 +866,33 @@ export function ProfilePage() {
                           <div className="space-y-3">
                             {postedPositions.map((item) => (
                               <PostedPositionRow key={item.id} item={item} canEdit={user.role === "PARTNER"} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {positionNotifications.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            {tr("아직 알림이 없습니다.", "No notifications yet.")}
+                          </p>
+                        ) : (
+                          <div className="max-h-[560px] space-y-2 overflow-auto pr-1">
+                            {positionNotifications.map((notification) => (
+                              <article key={notification.id} className="rounded-md border border-border/50 bg-background p-3">
+                                <div className="mb-1 flex items-center gap-2">
+                                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                                    notification.kind === "status"
+                                      ? "bg-blue-50 text-blue-700"
+                                      : "bg-emerald-50 text-emerald-700"
+                                  }`}>
+                                    {notification.kind === "status" ? tr("상태 변경", "Status update") : tr("진행 로그", "Progress log")}
+                                  </span>
+                                  <span className="text-[11px] text-muted-foreground">{formatPostedDate(notification.createdAt, locale)}</span>
+                                </div>
+                                <p className="line-clamp-1 text-xs text-muted-foreground">{notification.positionTitle}</p>
+                                <p className="mt-1 text-sm text-foreground">{notification.message}</p>
+                              </article>
                             ))}
                           </div>
                         )}
@@ -1049,13 +1145,17 @@ const PostedPositionRow = ({
   const itemLocation = item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || tr("협의", "To be discussed");
   const itemJobRole = item.preferredJobRole?.trim() || tr("직무 미정", "Role TBD");
   const thumbnail = item.thumbnailImages?.[0];
+  const statusBadge = getPositionStatusBadge(item.status, locale);
 
   return (
     <article className="group relative rounded-xl border border-border/60 bg-card p-4">
       <Link href={`/positions/${item.id}`} aria-label={`${item.title} ${tr("상세보기", "View details")}`} className="absolute inset-0 z-10 rounded-xl" />
       <p className="absolute right-4 top-3 text-[11px] text-muted-foreground">{formatPostedDate(item.createdAt, locale)}</p>
       <div className="flex flex-col gap-2 md:grid md:grid-cols-[180px_1fr_auto] md:items-stretch md:gap-3">
-        <div className="aspect-[16/9] w-full shrink-0 self-start overflow-hidden rounded-xl md:w-[180px] md:self-auto">
+        <div className="relative aspect-[16/9] w-full shrink-0 self-start overflow-hidden rounded-xl md:w-[180px] md:self-auto">
+          <span className={`absolute left-2 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge.className}`}>
+            {statusBadge.label}
+          </span>
           {thumbnail ? (
             <img src={thumbnail} alt={`${itemCompany} ${tr("썸네일", "thumbnail")}`} className="block h-full w-full object-cover" />
           ) : (
@@ -1142,17 +1242,23 @@ const PostedPositionGridCard = ({
   const itemLocation = item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || tr("협의", "To be discussed");
   const itemJobRole = item.preferredJobRole?.trim() || tr("직무 미정", "Role TBD");
   const thumbnail = item.thumbnailImages?.[0];
+  const statusBadge = getPositionStatusBadge(item.status, locale);
 
   return (
     <article className="group relative flex h-full flex-col rounded-xl border border-border/60 bg-card p-4">
       <Link href={`/positions/${item.id}`} aria-label={`${item.title} ${tr("상세보기", "View details")}`} className="absolute inset-0 z-10 rounded-xl" />
-      {thumbnail ? (
-        <img src={thumbnail} alt={`${itemCompany} ${tr("썸네일", "thumbnail")}`} className="block aspect-[16/9] w-full rounded-xl object-cover" />
-      ) : (
-        <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-4xl font-bold text-muted-foreground">
-          {itemCompany[0]?.toUpperCase() ?? "P"}
-        </div>
-      )}
+      <div className="relative">
+        <span className={`absolute left-2 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge.className}`}>
+          {statusBadge.label}
+        </span>
+        {thumbnail ? (
+          <img src={thumbnail} alt={`${itemCompany} ${tr("썸네일", "thumbnail")}`} className="block aspect-[16/9] w-full rounded-xl object-cover" />
+        ) : (
+          <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-4xl font-bold text-muted-foreground">
+            {itemCompany[0]?.toUpperCase() ?? "P"}
+          </div>
+        )}
+      </div>
 
       <div className="mt-4 text-xs text-muted-foreground">
         <div className="min-w-0 md:flex md:flex-col md:justify-center">

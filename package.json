@@ -24,7 +24,9 @@
     "db:seed": "set -a; . ./.env; set +a; npm run db:seed -w apps/api",
     "db:seed:community": "set -a; . ./.env; set +a; npm run db:seed:community -w apps/api",
     "db:import:company-users": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-company-users.ts",
-    "db:import:job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-job-postings.ts"
+    "db:import:job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-job-postings.ts",
+    "db:import:buddies-job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-buddies-job-postings.ts",
+    "db:import:kowork-job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-kowork-job-postings.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

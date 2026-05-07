@@ -5,10 +5,10 @@ import { CaretLeft, X } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { getOpsBadgeClassName } from "../../partners/_components/OpsBadge";
 import MatchingCandidateDetailPopup from "./_components/MatchingCandidateDetailPopup";
+import { getOpsPositionStatusMeta, type PositionStatus } from "../../_components/position-status-meta";
 
 const TOKEN_COOKIE_KEY = "ops_admin_token";
 
-type PositionStatus = "DRAFT" | "OPEN" | "MATCHING" | "CLOSED";
 type MatchingMode = "position_to_candidates" | "candidate_to_positions" | "manual";
 type MatchingPopupStep = "select" | "loading" | "result";
 type MatchingRunLimit = 3 | 5 | 10;
@@ -137,17 +137,11 @@ function formatDateTime(value: string) {
 }
 
 function statusLabel(status: PositionStatus) {
-  if (status === "DRAFT") return "임시저장";
-  if (status === "OPEN") return "공개";
-  if (status === "MATCHING") return "매칭 진행";
-  return "마감";
+  return getOpsPositionStatusMeta(status).labelKo;
 }
 
 function statusTone(status: PositionStatus) {
-  if (status === "DRAFT") return "status-pending" as const;
-  if (status === "OPEN") return "status-approved" as const;
-  if (status === "MATCHING") return "role-admin" as const;
-  return "status-rejected" as const;
+  return getOpsPositionStatusMeta(status).tone;
 }
 
 async function readApiPayload<T>(response: Response): Promise<T & { message?: string }> {
@@ -252,7 +246,7 @@ export default function MatchingManagementPage() {
       const nextCandidates = (membersPayload.items ?? []).filter((item) => item.role === "STUDENT");
       const nextHistories = historyResponse.ok && historyPayload.ok ? historyPayload.items ?? [] : [];
       const nextOpenOrMatchingPositions = nextPositions.filter(
-        (position) => position.status === "OPEN" || position.status === "MATCHING"
+        (position) => position.status === "OPEN"
       );
       const nextPositionPool = nextOpenOrMatchingPositions.length > 0 ? nextOpenOrMatchingPositions : nextPositions;
       setPositions(nextPositions);
@@ -295,7 +289,7 @@ export default function MatchingManagementPage() {
   }, [selectedHistory]);
 
   const openOrMatchingPositions = useMemo(
-    () => positions.filter((position) => position.status === "OPEN" || position.status === "MATCHING"),
+    () => positions.filter((position) => position.status === "OPEN"),
     [positions]
   );
 
@@ -345,10 +339,12 @@ export default function MatchingManagementPage() {
     return [...positions]
       .sort((a, b) => {
         const statusOrder: Record<PositionStatus, number> = {
-          MATCHING: 0,
-          OPEN: 1,
+          OPEN: 0,
+          PENDING_REVIEW: 1,
           DRAFT: 2,
-          CLOSED: 3
+          PAUSED: 3,
+          CLOSED: 4,
+          REJECTED: 5
         };
         const statusGap = statusOrder[a.status] - statusOrder[b.status];
         if (statusGap !== 0) return statusGap;

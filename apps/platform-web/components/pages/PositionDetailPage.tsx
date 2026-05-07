@@ -6,7 +6,14 @@ import { useEffect, useRef, useState } from "react";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
-import { applyMyPosition, getMyAppliedPositions, getPublicPositions, type PublicPositionListItem } from "../../lib/member-profile-client";
+import {
+  applyMyPosition,
+  getMyAppliedPositions,
+  getMyPartnerOrganization,
+  getPublicPositions,
+  type PublicPositionListItem
+} from "../../lib/member-profile-client";
+import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { ArrowLeft, Briefcase, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
@@ -46,6 +53,10 @@ function formatPostedDate(value: string, locale: "ko" | "en") {
   const m = String(created.getMonth() + 1).padStart(2, "0");
   const d = String(created.getDate()).padStart(2, "0");
   return `${y}. ${m}. ${d}`;
+}
+
+function getPositionStatusBadge(status: PublicPositionListItem["status"], locale: "ko" | "en") {
+  return getPublicPositionStatusBadge(status, locale);
 }
 
 function textOrFallback(value: string | null | undefined, fallback: string) {
@@ -89,7 +100,7 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
     noDetails: isKo ? "상세 조건 확인" : "See details",
     infoUnavailable: isKo ? "정보 없음" : "No information",
     loginRequired: isKo ? "로그인한 회원만 지원할 수 있습니다." : "Only signed-in users can apply.",
-    studentRequired: isKo ? "학생 계정만 지원할 수 있습니다." : "Only student accounts can apply.",
+    studentRequired: isKo ? "파트너 회원, 어드민은 지원하기에 지원할 수 없습니다." : "Partner and admin accounts cannot apply.",
     appliedAdded: isKo ? "지원한 포지션에 추가되었습니다." : "Added to applied positions.",
     applyFailed: isKo ? "지원 처리에 실패했습니다." : "Failed to apply.",
     back: isKo ? "뒤로" : "Back",
@@ -125,6 +136,7 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
   const [selectedThumbnailIndex, setSelectedThumbnailIndex] = useState(0);
   const [isThumbnailPreviewOpen, setIsThumbnailPreviewOpen] = useState(false);
   const [appliedPositionIds, setAppliedPositionIds] = useState<string[]>([]);
+  const [myPartnerOrganizationId, setMyPartnerOrganizationId] = useState<string | null>(null);
   const inlineGalleryRef = useRef<HTMLDivElement | null>(null);
   const company = position.partnerOrganization?.name?.trim() || copy.partnerCompany;
   const initial = company[0]?.toUpperCase() ?? "P";
@@ -139,7 +151,8 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
   const eligibleVisas = safeStringArray(position.eligibleVisas);
   const preferredNationalitiesRaw = safeStringArray(position.preferredNationalities);
   const communicationLanguagesRaw = safeStringArray(position.communicationLanguages);
-  const isOwnPartnerPosting = false;
+  const isOwnPartnerPosting = !!myPartnerOrganizationId && position.partnerOrganization?.id === myPartnerOrganizationId;
+  const statusBadge = getPositionStatusBadge(position.status, locale);
   const tagItems = [
     ...(position.preferredJobRole ? [position.preferredJobRole] : []),
     ...communicationLanguagesRaw.slice(0, 3),
@@ -173,6 +186,26 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
       ignore = true;
     };
   }, [isAuthenticated, user?.id, user?.role]);
+
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== "PARTNER") {
+      setMyPartnerOrganizationId(null);
+      return;
+    }
+    let ignore = false;
+    void (async () => {
+      try {
+        const org = await getMyPartnerOrganization();
+        if (ignore) return;
+        setMyPartnerOrganizationId(org?.id ?? null);
+      } catch {
+        if (!ignore) setMyPartnerOrganizationId(null);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [isAuthenticated, user?.role]);
 
   useEffect(() => {
     let ignore = false;
@@ -264,6 +297,9 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
             {thumbnailImages.length > 0 ? (
               <div className="mb-5">
                 <div className="relative">
+                  <span className={`absolute left-2 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge.className}`}>
+                    {statusBadge.label}
+                  </span>
                   {thumbnailImages.length === 1 ? (
                     <button
                       type="button"
@@ -368,8 +404,13 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
                 </div>
               </div>
             ) : (
-              <div className="mb-5 grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-5xl font-bold text-muted-foreground">
-                {initial}
+              <div className="relative mb-5">
+                <span className={`absolute left-2 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge.className}`}>
+                  {statusBadge.label}
+                </span>
+                <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-5xl font-bold text-muted-foreground">
+                  {initial}
+                </div>
               </div>
             )}
 
@@ -541,7 +582,7 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
                   const itemLocation = item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || copy.tbdLocation;
                   const itemJobRole = item.preferredJobRole?.trim() || copy.roleTbd;
                   const itemThumbnailImages = safeStringArray(item.thumbnailImages);
-                  const itemIsOwnPartnerPosting = false;
+                  const itemIsOwnPartnerPosting = !!myPartnerOrganizationId && item.partnerOrganization?.id === myPartnerOrganizationId;
                   const itemIsApplied = user?.role === "STUDENT" && appliedPositionIds.includes(item.id);
                   return (
                     <article key={item.id} className="group relative flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-elevated">

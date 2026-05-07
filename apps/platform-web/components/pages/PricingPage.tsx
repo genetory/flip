@@ -1,103 +1,27 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
-import { Button } from "../ui/button";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { paperlogy } from "../../lib/fonts";
-
-type PricingPlan = {
-  name: string;
-  price: string;
-  description: string;
-  features: string[];
-  cta: { label: string; href: string; variant: "dark" | "outline" };
-  highlighted?: boolean;
-};
 
 export function PricingPage() {
   const { locale } = useLanguage();
   const isKo = locale === "ko";
   const refundCardRef = useRef<HTMLElement | null>(null);
   const [isRefundCardVisible, setIsRefundCardVisible] = useState(false);
-
-  const plans: PricingPlan[] = isKo
-    ? [
-        {
-          name: "누구나 시작",
-          price: "무료",
-          description: "플랫폼을 가볍게 시작하고 기본 흐름을 확인할 수 있는 플랜",
-          features: [
-            "포지션 탐색 및 저장",
-            "매칭 가능성 확인",
-            "기본 프로필/지원 관리"
-          ],
-          cta: { label: "무료로 시작", href: "/signup", variant: "outline" }
-        },
-        {
-          name: "한국 내 대학 출신",
-          price: "₩700,000 KRW",
-          description: "국내 대학교 재학/졸업생",
-          features: [
-            "인턴십 기간: 6주 ~ 16주 선택"
-          ],
-          cta: { label: "도입 상담 신청", href: "/signup", variant: "dark" },
-          highlighted: true
-        },
-        {
-          name: "한국 외 대학 출신",
-          price: "₩2,000,000 KRW",
-          description: "해외 대학교 재학/졸업생",
-          features: [
-            "인턴십 기간: 6주 ~ 16주 선택"
-          ],
-          cta: { label: "맞춤 견적 문의", href: "/signup", variant: "outline" }
-        }
-      ]
-    : [
-        {
-          name: "Start for Everyone",
-          price: "Free",
-          description: "A starter plan to explore the platform and experience the core workflow",
-          features: [
-            "Explore and save positions",
-            "Check match potential",
-            "Basic profile and application management"
-          ],
-          cta: { label: "Start for free", href: "/signup", variant: "outline" }
-        },
-        {
-          name: "Graduates of Korean Universities",
-          price: "₩700,000 KRW",
-          description: "Current students or graduates of universities in Korea",
-          features: [
-            "Internship period: choose from 6 to 16 weeks"
-          ],
-          cta: { label: "Book a consultation", href: "/signup", variant: "dark" },
-          highlighted: true
-        },
-        {
-          name: "Graduates of Non-Korean Universities",
-          price: "₩2,000,000 KRW",
-          description: "Current students or graduates of universities outside Korea",
-          features: [
-            "Internship period: choose from 6 to 16 weeks"
-          ],
-          cta: { label: "Request a custom quote", href: "/signup", variant: "outline" }
-        }
-      ];
+  const priceSuffixClassName = "text-sm font-semibold md:text-base";
 
   const copy = {
-    title: isKo ? "내 상황에 맞춰 선택하는 이용 플랜" : "Choose a plan that fits your situation",
+    title: isKo ? "내 상황에 맞춰 선택하는 이용 플랜" : "Service plans tailored to your situation",
     description: isKo
       ? "Aply는 시작부터 확장까지, 현재 상황에 맞게 부담 없이 선택할 수 있는 플랜을 제공합니다."
-      : "From getting started to scaling up, Aply offers plans you can choose based on your current situation.",
+      : "From getting started to scaling, Aply provides plans you can choose with confidence based on your current situation.",
     note: isKo
       ? "정확한 비용은 포지션 수, 운영 범위, 지원 형태에 따라 달라질 수 있어요."
-      : "Final pricing can vary by number of positions, scope, and support needs.",
+      : "Final pricing may vary depending on the number of positions, operating scope, and support format.",
     refundCard: isKo
       ? {
           title: "탈락 시 100% 환불",
@@ -133,13 +57,13 @@ export function PricingPage() {
             name: "Private Room (1인실)",
             location: "📍 서울 내 위치, 교통 편리",
             summary: "나만의 편안한 휴식 공간",
-            price: "₩2,800,000 / Month"
+            price: "₩700,000~2,000,000 월 (1인당)"
           },
           sharedRoom: {
             name: "Shared Room (2인실)",
             location: "📍 서울 내 위치, 교통 편리",
             summary: "합리적인 비용과 네트워킹",
-            price: "₩1,900,000 / Month"
+            price: "₩400,000~1,100,000 월 (1인당)"
           },
           disclaimer: "※ 제휴된 숙소의 예약 현황에 따라 실제 배정되는 숙소는 상이할 수 있습니다."
         }
@@ -152,19 +76,45 @@ export function PricingPage() {
             name: "Private Room (Single)",
             location: "📍 Located in Seoul with convenient transportation",
             summary: "Your own private and comfortable living space",
-            price: "₩2,800,000 / Month"
+            price: "₩700,000~2,000,000 per month (per person)"
           },
           sharedRoom: {
             name: "Shared Room (Double)",
             location: "📍 Located in Seoul with convenient transportation",
             summary: "A cost-effective option with built-in networking opportunities",
-            price: "₩1,900,000 / Month"
+            price: "₩400,000~1,100,000 per month (per person)"
           },
           disclaimer: "※ Actual accommodation assignments may vary depending on availability at partnered properties."
         }
   };
 
   const renderHousingPrice = (price: string) => {
+    if (price.includes(" 월 (1인당)")) {
+      const [main] = price.split(" 월 (1인당)");
+      return (
+        <>
+          <span className={priceSuffixClassName}>월 (1인당)</span>
+          <div className="mt-1 flex items-end gap-1">
+            <span className="whitespace-nowrap font-display text-2xl font-bold tracking-tight md:text-3xl">{main}</span>
+            <span className={priceSuffixClassName}>KRW</span>
+          </div>
+        </>
+      );
+    }
+
+    if (price.includes(" per month (per person)")) {
+      const [main] = price.split(" per month (per person)");
+      return (
+        <>
+          <span className={priceSuffixClassName}>per month (per person)</span>
+          <div className="mt-1 flex items-end gap-1">
+            <span className="whitespace-nowrap font-display text-2xl font-bold tracking-tight md:text-3xl">{main}</span>
+            <span className={priceSuffixClassName}>KRW</span>
+          </div>
+        </>
+      );
+    }
+
     const parts = price.split("/");
     if (parts.length < 2) {
       return <span>{price}</span>;
@@ -174,7 +124,7 @@ export function PricingPage() {
     return (
       <>
         {main}
-        {suffix ? <span className="ml-1 text-sm font-semibold md:text-base">{suffix}</span> : null}
+        {suffix ? <span className={`ml-1 ${priceSuffixClassName}`}>{suffix}</span> : null}
       </>
     );
   };
@@ -208,48 +158,118 @@ export function PricingPage() {
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">{copy.description}</p>
             </div>
 
-            <div className="mx-auto mt-10 grid max-w-4xl gap-5 md:grid-cols-3">
-              {plans.map((plan) => {
-                const match = plan.price.match(/^(.*)\s(KRW)$/);
-                const priceMain = match ? match[1] : plan.price;
-                const priceSuffix = match ? match[2] : null;
-                const isMiddleCard = plan.name === "한국 내 대학 출신" || plan.name === "Graduates of Korean Universities";
-                const cardToneClass = isMiddleCard ? "bg-[#0B46E8]" : "bg-white";
-                return (
-                <article
-                  key={plan.name}
-                  className={`flex h-full flex-col rounded-2xl p-6 shadow-card ${cardToneClass} ${
-                    isMiddleCard ? "border-0 ring-0" : "border border-border"
-                  }`}
-                >
-                  <p className={`text-xs font-semibold uppercase tracking-[0.08em] ${isMiddleCard ? "text-white/80" : "text-muted-foreground"}`}>{plan.name}</p>
-                  <p className={`mt-3 font-display text-2xl font-bold tracking-tight md:text-3xl ${isMiddleCard ? "text-white" : "text-foreground"}`}>
-                    {priceMain}
-                    {priceSuffix ? <span className="ml-1 text-sm font-semibold md:text-base">{priceSuffix}</span> : null}
-                  </p>
-                  <p className={`mt-3 text-sm leading-relaxed ${isMiddleCard ? "text-white/85" : "text-muted-foreground"}`}>{plan.description}</p>
+            <div className="mx-auto mt-10 w-fit max-w-full space-y-10">
+              <div className="w-full">
+                <Image
+                  src="/img_workperience_hero.webp"
+                  alt={isKo ? "일경험 소개 이미지" : "Work experience hero image"}
+                  width={1600}
+                  height={900}
+                  className="h-[220px] w-full object-contain md:h-[280px]"
+                  sizes="(max-width: 1024px) 100vw, 1024px"
+                />
+              </div>
+              <div className="grid w-fit max-w-full gap-3 md:grid-cols-2 md:items-stretch">
+                  <article className="flex h-full w-fit max-w-[440px] flex-col rounded-2xl bg-white p-6 text-[#111111] shadow-card">
+                    <span className="mb-3 inline-flex w-fit items-center rounded-full bg-[#B7FF5A] px-2.5 py-1 text-[11px] font-semibold text-black">
+                      {isKo ? "진행중" : "In Progress"}
+                    </span>
+                    <h4 className={`${paperlogy.className} text-xl font-black tracking-[-0.02em] md:text-2xl`}>{isKo ? "해외 대학 출신 일경험" : "Work Experience for Overseas Graduates"}</h4>
+                    <p className="mt-1 text-sm font-medium text-foreground/90">{isKo ? "해외 대학 출신을 위한 한국 기업 일경험" : "Korean-company work experience for overseas graduates"}</p>
+                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground md:text-sm">
+                      {isKo
+                        ? "한국 기업의 업무 방식과 직무 문화를 짧은 기간 동안 경험할 수 있는 교육 목적 프로그램입니다. 한국 취업을 바로 준비하기보다는, 글로벌 학생이 한국 기업과 산업을 먼저 이해해보는 데 적합합니다."
+                        : "An education-focused program to experience Korean work style and job culture over a short period before full job preparation."}
+                    </p>
+                    <div className="mt-4 overflow-x-auto rounded-xl bg-white/92">
+                      <table className="w-auto min-w-[360px] border-collapse text-left text-sm">
+                        <tbody>
+                          <tr className="border-b border-border/60"><th className="w-24 bg-muted/30 px-3 py-2 font-semibold">{isKo ? "대상" : "Target"}</th><td className="px-3 py-2">{isKo ? "해외 대학 출신" : "Overseas university graduates"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "목적" : "Purpose"}</th><td className="px-3 py-2">{isKo ? "교육 목적" : "Training-focused"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "언어" : "Language"}</th><td className="px-3 py-2">{isKo ? "모국어 및 영어" : "Native language and English"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "기간" : "Duration"}</th><td className="px-3 py-2">{isKo ? "3주 ~ 16주" : "3 to 16 weeks"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "급여" : "Salary"}</th><td className="px-3 py-2">{isKo ? "없음" : "None"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "참여비" : "Applicant fee"}</th><td className="px-3 py-2">2,000,000원</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "기업 수수료" : "Company fee"}</th><td className="px-3 py-2">{isKo ? "없음" : "None"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "비자" : "Visa"}</th><td className="px-3 py-2">{isKo ? "필요 없음" : "Not required"}</td></tr>
+                          <tr><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "전환 가능성" : "Conversion"}</th><td className="px-3 py-2">{isKo ? "전환 가능, 보장하지 않음" : "Possible, not guaranteed"}</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-sm font-semibold">{isKo ? "제공 내용" : "What is provided"}</p>
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                        <li>{isKo ? "직무 교육 제공" : "Job training"}</li>
+                        <li>{isKo ? "담당자 정기 면담 제공" : "Regular mentor check-ins"}</li>
+                        <li>{isKo ? "한국 기업 실무 환경 경험" : "Korean workplace exposure"}</li>
+                        <li>{isKo ? "단기 프로젝트 또는 업무 체험 기회" : "Short-term project or task exposure"}</li>
+                      </ul>
+                    </div>
+                    <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+                      {isKo
+                        ? "채용이나 전환이 보장되는 과정은 아니며, 한국 기업과 직무를 경험하기 위한 교육형 프로그램입니다."
+                        : "This is an educational experience track and does not guarantee hiring or conversion."}
+                    </p>
+                  </article>
+                  <article className="h-full w-fit max-w-[440px] rounded-2xl bg-white p-6 text-[#111111] shadow-card">
+                    <span className="mb-3 inline-flex w-fit items-center rounded-full bg-[#B7FF5A] px-2.5 py-1 text-[11px] font-semibold text-black">
+                      {isKo ? "진행중" : "In Progress"}
+                    </span>
+                    <h4 className={`${paperlogy.className} text-xl font-black tracking-[-0.02em] md:text-2xl`}>{isKo ? "국내 대학 재학생 및 졸업생 일경험" : "Work Experience for Korean-University Students/Graduates"}</h4>
+                    <p className="mt-1 text-sm font-medium text-foreground/90">{isKo ? "국내 대학 유학생을 위한 실무 일경험" : "Practical work experience for international students in Korean universities"}</p>
+                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground md:text-sm">
+                      {isKo
+                        ? "한국에 체류 중인 국내 대학 재학생 및 졸업생이 한국 기업에서 실제 직무 경험을 쌓을 수 있는 프로그램입니다. 한국어가 가능한 지원자가 많아, 보다 실무에 가까운 경험을 할 수 있습니다."
+                        : "A practical track for students/graduates in Korea to gain real job exposure in Korean companies."}
+                    </p>
+                    <div className="mt-4 overflow-x-auto rounded-xl bg-white/96 text-[#1f2342]">
+                      <table className="w-auto min-w-[360px] border-collapse text-left text-sm">
+                        <tbody>
+                          <tr className="border-b border-border/60"><th className="w-24 bg-muted/30 px-3 py-2 font-semibold">{isKo ? "대상" : "Target"}</th><td className="px-3 py-2">{isKo ? "국내 대학 재학생 및 졸업생" : "Students/graduates of Korean universities"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "목적" : "Purpose"}</th><td className="px-3 py-2">{isKo ? "교육 목적" : "Training-focused"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "언어" : "Language"}</th><td className="px-3 py-2">{isKo ? "한국어 가능자 많음" : "Many Korean-capable participants"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "기간" : "Duration"}</th><td className="px-3 py-2">{isKo ? "단기 중심" : "Mainly short-term"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "급여" : "Salary"}</th><td className="px-3 py-2">{isKo ? "없음" : "None"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "참여비" : "Applicant fee"}</th><td className="px-3 py-2">7,000,000원</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "기업 수수료" : "Company fee"}</th><td className="px-3 py-2">{isKo ? "없음" : "None"}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "비자" : "Visa"}</th><td className="px-3 py-2">{isKo ? "필요" : "Required"}</td></tr>
+                          <tr><th className="bg-muted/30 px-3 py-2 font-semibold">{isKo ? "전환 가능성" : "Conversion"}</th><td className="px-3 py-2">{isKo ? "전환 가능, 보장하지 않음" : "Possible, not guaranteed"}</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-sm font-semibold">{isKo ? "제공 내용" : "What is provided"}</p>
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                        <li>{isKo ? "직무 교육 제공" : "Job training"}</li>
+                        <li>{isKo ? "담당자 정기 면담 제공" : "Regular mentor check-ins"}</li>
+                        <li>{isKo ? "업무일지 작성" : "Work journal recording"}</li>
+                        <li>{isKo ? "수료증 발급" : "Certificate issuance"}</li>
+                        <li>{isKo ? "평가에 따라 추천서 자율 제공" : "Recommendation letter may be provided by evaluation"}</li>
+                      </ul>
+                    </div>
+                    <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+                      {isKo
+                        ? "추천서와 채용 전환은 보장되지 않으며, 참여자의 평가와 기업 상황에 따라 자율적으로 제공될 수 있습니다."
+                        : "Recommendation letters and hiring conversion are not guaranteed and may be provided based on evaluation and company conditions."}
+                    </p>
+                  </article>
+                </div>
 
-                  <ul className={`mt-6 space-y-2 text-sm ${isMiddleCard ? "text-white" : "text-foreground"}`}>
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2">
-                        <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${isMiddleCard ? "bg-white" : "bg-primary"}`} aria-hidden />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <div className="mt-8">
-                    <Button
-                      variant={plan.cta.variant}
-                      asChild
-                      className={`w-full ${isMiddleCard ? "border-0 bg-white text-[#0B46E8] hover:bg-white/90" : ""}`}
-                    >
-                      <Link href={plan.cta.href}>{plan.cta.label}</Link>
-                    </Button>
-                  </div>
-                </article>
-                );
-              })}
+              <article className="w-full rounded-2xl bg-white p-6 text-[#111111] shadow-card">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className={`${paperlogy.className} text-xl font-black tracking-[-0.02em] text-slate-900 md:text-2xl`}>
+                    {isKo ? "인턴십 · 계약직 · 정규직" : "Internship · Contract · Regular"}
+                  </h3>
+                  <span className="rounded-full bg-[#0B46E8] px-3 py-1 text-xs font-semibold text-white">
+                    {isKo ? "계획중" : "Planned"}
+                  </span>
+                </div>
+                <p className="mt-3 whitespace-pre-line text-sm text-muted-foreground md:text-base">
+                  {isKo
+                    ? "인턴십, 계약직(파트타임/풀타임), 정규직 트랙은\n향후 서비스 고도화 단계에서 순차적으로 제공될 예정입니다.\n기업과 지원자 모두에게 더 실질적인 연결이 되도록 완성도를 높여가고 있습니다."
+                    : "Internship, Contract (part-time/full-time), and Regular tracks\nwill be introduced step by step as the service evolves.\nWe are continuously improving the experience to create more practical outcomes for both companies and candidates."}
+                </p>
+              </article>
             </div>
 
             <p className="mx-auto mt-6 max-w-4xl text-center text-xs text-muted-foreground md:text-sm">{copy.note}</p>
@@ -322,7 +342,7 @@ export function PricingPage() {
                     <p className="text-lg font-bold tracking-tight text-foreground">{copy.housing.privateRoom.name}</p>
                     <p className="mt-2 text-sm text-muted-foreground">{copy.housing.privateRoom.location}</p>
                     <p className="mt-1 text-sm text-foreground/90">{copy.housing.privateRoom.summary}</p>
-                    <p className="mt-4 text-2xl font-bold text-foreground md:text-3xl">{renderHousingPrice(copy.housing.privateRoom.price)}</p>
+                    <div className="mt-4 text-2xl font-bold text-foreground md:text-3xl">{renderHousingPrice(copy.housing.privateRoom.price)}</div>
                   </div>
                 </article>
 
@@ -341,7 +361,7 @@ export function PricingPage() {
                     <p className="text-lg font-bold tracking-tight text-foreground">{copy.housing.sharedRoom.name}</p>
                     <p className="mt-2 text-sm text-muted-foreground">{copy.housing.sharedRoom.location}</p>
                     <p className="mt-1 text-sm text-foreground/90">{copy.housing.sharedRoom.summary}</p>
-                    <p className="mt-4 text-2xl font-bold text-foreground md:text-3xl">{renderHousingPrice(copy.housing.sharedRoom.price)}</p>
+                    <div className="mt-4 text-2xl font-bold text-foreground md:text-3xl">{renderHousingPrice(copy.housing.sharedRoom.price)}</div>
                   </div>
                 </article>
               </div>

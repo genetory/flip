@@ -1,0 +1,1 @@
+ALTER TYPE "PositionSourceProvider" ADD VALUE IF NOT EXISTS 'KOWORK';

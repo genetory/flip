@@ -11,9 +11,11 @@ import { Button } from "../ui/button";
 import { PartnerAdminTwoColumn } from "../partner/PartnerAdminTwoColumn";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import {
+  createMyPartnerOrganizationJoinCode,
   getMembersMeta,
   getMyPartnerOrganization,
   isPartnerOrganizationProfileComplete,
+  joinMyPartnerOrganizationByCode,
   updateMyPartnerOrganizationBasic
 } from "../../lib/member-profile-client";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
@@ -111,6 +113,12 @@ export function PartnerCompanyProfileEditPage() {
   const [officePhotoImages, setOfficePhotoImages] = useState<string[]>([]);
   const [officePhotoPreviewUrls, setOfficePhotoPreviewUrls] = useState<string[]>([]);
   const [industryOptions, setIndustryOptions] = useState<string[]>([]);
+  const [hasOrganization, setHasOrganization] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [isJoining, setIsJoining] = useState(false);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [inviteExpiresAt, setInviteExpiresAt] = useState<string | null>(null);
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -141,6 +149,7 @@ export function PartnerCompanyProfileEditPage() {
 
         setIndustryOptions(meta.partnerIndustries);
         if (org) {
+          setHasOrganization(true);
           setName(org.name ?? "");
           setIndustry(org.industry ?? "");
           setWebsite(org.website ?? "");
@@ -167,6 +176,9 @@ export function PartnerCompanyProfileEditPage() {
             router.refresh();
             return;
           }
+        }
+        if (!org) {
+          setHasOrganization(false);
         }
       } catch (error) {
         if (!isMounted) return;
@@ -271,11 +283,60 @@ export function PartnerCompanyProfileEditPage() {
         companyLogoImageData,
         officePhotoImageData: officePhotoImages.length > 0 ? JSON.stringify(officePhotoImages) : null
       });
+      setHasOrganization(true);
+      if (requiredMode) {
+        router.push("/profile");
+      }
       router.refresh();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t("파트너 정보 저장에 실패했습니다.", "Failed to save partner information."));
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleJoinOrganization() {
+    if (!joinCode.trim()) {
+      setErrorMessage(t("초대코드를 입력해주세요.", "Please enter invite code."));
+      return;
+    }
+    setIsJoining(true);
+    setErrorMessage(null);
+    try {
+      const joined = await joinMyPartnerOrganizationByCode(joinCode.trim());
+      if (!joined) {
+        setErrorMessage(t("회사 정보를 불러오지 못했습니다.", "Failed to load company."));
+        return;
+      }
+      setHasOrganization(true);
+      setName(joined.name ?? "");
+      setIndustry(joined.industry ?? "");
+      setWebsite(joined.website ?? "");
+      setOfficeAddress(joined.officeAddress ?? "");
+      setDescription(joined.description ?? "");
+      setCompanyLogoImageData(joined.companyLogoImageData ?? null);
+      setOfficePhotoImages([]);
+      setJoinCode("");
+      router.push("/profile");
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : t("회사 합류에 실패했습니다.", "Failed to join company."));
+    } finally {
+      setIsJoining(false);
+    }
+  }
+
+  async function handleGenerateInviteCode() {
+    setIsGeneratingCode(true);
+    setErrorMessage(null);
+    try {
+      const generated = await createMyPartnerOrganizationJoinCode();
+      setInviteCode(generated.code);
+      setInviteExpiresAt(generated.expiresAt);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : t("초대코드 생성에 실패했습니다.", "Failed to generate invite code."));
+    } finally {
+      setIsGeneratingCode(false);
     }
   }
 
@@ -323,7 +384,54 @@ export function PartnerCompanyProfileEditPage() {
                 <section className="space-y-4">
                 {requiredMode ? (
                   <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                    {t("온보딩 완료를 위해 기업 기본 정보 입력이 필요합니다.", "Complete this form to finish onboarding.")}
+                    {t(
+                      "파트너 회원으로 가입했는데 기업에 속해있지 않거나 기업이 등록되어 있지 않으면 로그인 후 기업 등록 절차가 필요합니다.",
+                      "If a partner account is not linked to a company or no company is registered, company registration is required after login."
+                    )}
+                  </div>
+                ) : null}
+
+                {!hasOrganization ? (
+                  <div className="rounded-2xl border border-border/70 bg-card p-4 md:p-5">
+                    <p className="text-sm font-semibold text-foreground">{t("기존 회사에 합류", "Join existing company")}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t("파트너 관리자가 전달한 초대코드를 입력하면 바로 합류할 수 있습니다.", "Enter an invite code from your partner admin to join instantly.")}
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                      <input
+                        className="h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm"
+                        value={joinCode}
+                        onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+                        placeholder={t("예: PJT-4K8Q2-M9W7D", "e.g. PJT-4K8Q2-M9W7D")}
+                        maxLength={120}
+                      />
+                      <Button variant="outline" onClick={() => void handleJoinOrganization()} disabled={isJoining || isSaving}>
+                        {isJoining ? t("합류 중...", "Joining...") : t("합류하기", "Join")}
+                      </Button>
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      {t("코드가 없다면 아래에서 회사 정보를 입력하고 새 회사를 생성하세요.", "If you don't have a code, fill out company info below to create a new one.")}
+                    </p>
+                  </div>
+                ) : null}
+
+                {hasOrganization && (user?.partnerOrgRole === "OWNER" || user?.partnerOrgRole === "ADMIN") ? (
+                  <div className="rounded-2xl border border-border/70 bg-card p-4 md:p-5">
+                    <p className="text-sm font-semibold text-foreground">{t("팀 합류 초대코드 발급", "Generate team invite code")}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t("코드는 1회 사용되며 일정 시간 후 자동 만료됩니다.", "The code is single-use and expires automatically after a limited time.")}
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <Button variant="outline" onClick={() => void handleGenerateInviteCode()} disabled={isGeneratingCode || isSaving}>
+                        {isGeneratingCode ? t("생성 중...", "Generating...") : t("새 초대코드 생성", "Generate new code")}
+                      </Button>
+                      {inviteCode ? (
+                        <p className="text-sm font-medium text-foreground">
+                          {inviteCode}
+                          {inviteExpiresAt ? ` · ${t("만료", "Expires")}: ${new Date(inviteExpiresAt).toLocaleString(locale === "ko" ? "ko-KR" : "en-US")}` : ""}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
 
@@ -612,7 +720,7 @@ export function PartnerCompanyProfileEditPage() {
                     </Button>
                   ) : null}
                   <Button variant="dark" onClick={() => void handleSave()} disabled={isSaving}>
-                    {isSaving ? t("저장 중...", "Saving...") : requiredMode ? t("입력 완료하고 계속", "Continue") : t("저장", "Save")}
+                    {isSaving ? t("저장 중...", "Saving...") : requiredMode ? t("입력 완료", "Complete") : t("저장", "Save")}
                   </Button>
                 </div>
                 </section>

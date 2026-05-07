@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImageSquare, X } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown, ImageSquare, X } from "@phosphor-icons/react/dist/ssr";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
@@ -12,13 +12,21 @@ import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import {
   createMyPartnerPosition,
+  getMyPartnerPositionById,
   getMyPartnerOrganization,
-  isPartnerOrganizationProfileComplete
+  isPartnerOrganizationProfileComplete,
+  updateMyPartnerPosition
 } from "../../lib/member-profile-client";
 
-type WizardStep = 1 | 2 | 3 | 4 | 5;
-type PartnerPositionStatus = "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
+type PartnerPositionStatus = "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED";
 type EmploymentType = "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
+type EmploymentClassification =
+  | "UNPAID_INTERN_EXPERIENCE"
+  | "UNPAID_INTERN_CONVERSION"
+  | "PAID_INTERN_EXPERIENCE"
+  | "PAID_INTERN_CONVERSION"
+  | "PART_TIME"
+  | "FULL_TIME";
 
 const VISA_OPTIONS = ["D-2", "D-4", "D-10", "E-7", "F-2", "F-4", "F-5", "F-6", "H-1"] as const;
 const NO_VISA_OPTION = "NO_VISA_REQUIRED";
@@ -34,6 +42,26 @@ function employmentTypeDisplayTitle(employmentType: EmploymentType, t: (ko: stri
   if (employmentType === "PART_TIME") return t("알바", "Part-time");
   if (employmentType === "UNPAID_INTERN") return t("무급 인턴", "Unpaid intern");
   return t("인턴", "Intern");
+}
+
+function employmentClassificationDisplayTitle(value: EmploymentClassification, t: (ko: string, en: string) => string) {
+  if (value === "UNPAID_INTERN_EXPERIENCE") return t("무급 체험형 인턴", "Unpaid experience intern");
+  if (value === "UNPAID_INTERN_CONVERSION") return t("무급 전환형 인턴", "Unpaid conversion intern");
+  if (value === "PAID_INTERN_EXPERIENCE") return t("유급 체험형 인턴", "Paid experience intern");
+  if (value === "PAID_INTERN_CONVERSION") return t("유급 전환형 인턴", "Paid conversion intern");
+  if (value === "PART_TIME") return t("알바", "Part-time");
+  return t("정직원", "Full-time");
+}
+
+function toEmploymentTypeFromClassification(value: EmploymentClassification): EmploymentType {
+  if (value === "FULL_TIME") return "FULL_TIME";
+  if (value === "PART_TIME") return "PART_TIME";
+  if (value === "UNPAID_INTERN_EXPERIENCE" || value === "UNPAID_INTERN_CONVERSION") return "UNPAID_INTERN";
+  return "INTERN";
+}
+
+function isUnpaidInternClassification(value: EmploymentClassification) {
+  return value === "UNPAID_INTERN_EXPERIENCE" || value === "UNPAID_INTERN_CONVERSION";
 }
 
 function visaDisplayTitle(visa: string, t: (ko: string, en: string) => string) {
@@ -121,26 +149,31 @@ async function convertImageFileToWebpDataUrl(
 
 export function PartnerPositionCreatePage({
   embedded = false,
-  onEmbeddedClose
+  onEmbeddedClose,
+  mode = "create",
+  positionId
 }: {
   embedded?: boolean;
   onEmbeddedClose?: () => void;
+  mode?: "create" | "edit";
+  positionId?: string;
 } = {}) {
+  const isEditMode = mode === "edit";
   const router = useRouter();
   const { locale } = useLanguage();
   const t = (ko: string, en: string) => (locale === "ko" ? ko : en);
   const { user, isReady, isAuthenticated } = useAuthSession();
 
   const [isCheckingOrg, setIsCheckingOrg] = useState(false);
+  const [isLoadingPosition, setIsLoadingPosition] = useState(false);
   const [canCreate, setCanCreate] = useState(false);
   const [createBlockedReason, setCreateBlockedReason] = useState<"profile" | "verification" | null>(null);
   const [currentVerificationStatus, setCurrentVerificationStatus] = useState<string | null>(null);
-  const [step, setStep] = useState<WizardStep>(1);
 
   const [title, setTitle] = useState("");
-  const [status, setStatus] = useState<PartnerPositionStatus>("OPEN");
+  const [status, setStatus] = useState<PartnerPositionStatus>("PENDING_REVIEW");
   const [workType, setWorkType] = useState<"On-site" | "Hybrid" | "Remote">("On-site");
-  const [employmentType, setEmploymentType] = useState<EmploymentType>("UNPAID_INTERN");
+  const [employmentClassification, setEmploymentClassification] = useState<EmploymentClassification>("UNPAID_INTERN_EXPERIENCE");
   const [thumbnailImages, setThumbnailImages] = useState<string[]>([]);
   const [preferredJobRole, setPreferredJobRole] = useState("");
   const [hiringCount, setHiringCount] = useState("");
@@ -180,18 +213,8 @@ export function PartnerPositionCreatePage({
     };
   }, [embedded]);
 
-  const stepTitles = useMemo(
-    () => [
-      t("1. 기본 정보", "1. Basics"),
-      t("2. 인턴십 내용", "2. Program"),
-      t("3. 지원 조건", "3. Eligibility"),
-      t("4. 무급 인턴 체크", "4. Compliance"),
-      t("5. 미리보기/제출", "5. Review")
-    ],
-    [locale]
-  );
-
   useEffect(() => {
+    if (mode !== "create") return;
     if (!isReady || !isAuthenticated || !user || user.role !== "PARTNER") return;
     let ignore = false;
     setIsCheckingOrg(true);
@@ -201,11 +224,9 @@ export function PartnerPositionCreatePage({
         if (ignore) return;
         const isProfileComplete = isPartnerOrganizationProfileComplete(org);
         const canPostPositions = Boolean(org?.permissions?.canPostPositions);
-        const verificationStatus = org?.verification?.isVerified
+        const verificationStatus = org?.verification?.isApproved
           ? t("운영중", "Active")
-          : org?.verification?.hasRequiredDocuments
-            ? t("검토중 (승인 대기)", "Under review (approval pending)")
-            : t("검토중 (서류 미비)", "Under review (documents missing)");
+          : t("검토중 (승인 대기)", "Under review (approval pending)");
         const allowed = isProfileComplete && canPostPositions;
         setCurrentVerificationStatus(verificationStatus);
         setCanCreate(allowed);
@@ -229,26 +250,78 @@ export function PartnerPositionCreatePage({
     return () => {
       ignore = true;
     };
-  }, [isAuthenticated, isReady, user, locale]);
+  }, [isAuthenticated, isReady, user, locale, mode]);
+
+  useEffect(() => {
+    if (mode !== "edit") return;
+    if (!positionId) return;
+    if (!isReady || !isAuthenticated || !user || user.role !== "PARTNER") return;
+    let ignore = false;
+    setIsLoadingPosition(true);
+    void (async () => {
+      try {
+        const item = await getMyPartnerPositionById(positionId);
+        if (ignore) return;
+        setTitle(item.title ?? "");
+        setStatus((item.status as PartnerPositionStatus) ?? "PENDING_REVIEW");
+        setWorkType(item.workType === "Hybrid" || item.workType === "Remote" ? item.workType : "On-site");
+        setEmploymentClassification(
+          (item.employmentClassification as EmploymentClassification | null | undefined)
+          ?? (item.employmentType === "FULL_TIME"
+            ? "FULL_TIME"
+            : item.employmentType === "PART_TIME"
+              ? "PART_TIME"
+              : item.employmentType === "UNPAID_INTERN"
+                ? "UNPAID_INTERN_EXPERIENCE"
+                : "PAID_INTERN_EXPERIENCE")
+        );
+        setThumbnailImages(item.thumbnailImages ?? []);
+        setEligibleVisas(item.eligibleVisas ?? []);
+        setPreferredJobRole(item.preferredJobRole ?? "");
+        setHiringCount(item.hiringCount ? String(item.hiringCount) : "");
+        setWorkLocation(item.workLocation ?? "");
+        setStartDate(item.startDate ? new Date(item.startDate).toISOString().slice(0, 10) : "");
+        setHiringProcess(item.hiringProcess ?? "");
+        setCommunicationLanguages((item.communicationLanguages ?? []).join("\n"));
+        setPreferredNationalities((item.preferredNationalities ?? []).join("\n"));
+        setMainResponsibilities(item.mainResponsibilities ?? "");
+        setRequiredQualifications(item.requiredQualifications ?? "");
+        setPreferredQualifications(item.preferredQualifications ?? "");
+        setAdditionalNotes(item.additionalNotes ?? "");
+      } catch (error) {
+        if (!ignore) {
+          setErrorMessage(error instanceof Error ? error.message : t("포지션 정보를 불러오지 못했습니다.", "Failed to load position information."));
+        }
+      } finally {
+        if (!ignore) setIsLoadingPosition(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [mode, positionId, isReady, isAuthenticated, user, locale]);
 
   function validateCurrentStep() {
-    if (step === 1) {
-      if (!title.trim()) {
-        setErrorMessage(t("포지션 제목을 입력해주세요.", "Please enter a position title."));
-        return false;
-      }
-      if (!preferredJobRole.trim()) {
-        setErrorMessage(t("모집 분야를 입력해주세요.", "Please enter the role/category."));
+    if (!title.trim()) {
+      setErrorMessage(t("포지션 제목을 입력해주세요.", "Please enter a position title."));
+      return false;
+    }
+    if (!preferredJobRole.trim()) {
+      setErrorMessage(t("모집 분야를 입력해주세요.", "Please enter the role/category."));
+      return false;
+    }
+    if (!mainResponsibilities.trim()) {
+      setErrorMessage(t("주요 활동/업무를 입력해주세요.", "Please enter main responsibilities."));
+      return false;
+    }
+    if (hiringCount.trim()) {
+      const parsedHiringCount = Number(hiringCount);
+      if (!Number.isFinite(parsedHiringCount)) {
+        setErrorMessage(t("모집 인원 형식을 확인해주세요.", "Please check hiring count format."));
         return false;
       }
     }
-    if (step === 2) {
-      if (!mainResponsibilities.trim()) {
-        setErrorMessage(t("주요 활동/업무를 입력해주세요.", "Please enter main responsibilities."));
-        return false;
-      }
-    }
-    if (step === 4 && employmentType === "UNPAID_INTERN") {
+    if (isUnpaidInternClassification(employmentClassification)) {
       const ok = isEducationalPurpose && notReplacingWorker && hasMentorAndPlan && visaNoticeConfirmed;
       if (!ok) {
         setErrorMessage(t("체크리스트를 모두 확인해주세요.", "Please complete all compliance checks."));
@@ -259,32 +332,24 @@ export function PartnerPositionCreatePage({
     return true;
   }
 
-  function goNext() {
-    if (!validateCurrentStep()) return;
-    setStep((prev) => (prev < 5 ? ((prev + 1) as WizardStep) : prev));
-  }
-
-  function goPrev() {
-    setErrorMessage(null);
-    setStep((prev) => (prev > 1 ? ((prev - 1) as WizardStep) : prev));
-  }
-
   async function handleSubmit() {
     if (!validateCurrentStep()) return;
 
+    const parsedHiringCount = hiringCount.trim() ? Number(hiringCount) : undefined;
+    const employmentType = toEmploymentTypeFromClassification(employmentClassification);
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
-      await createMyPartnerPosition({
+      const payload = {
         title: title.trim(),
-        status,
         workType,
         employmentType,
+        employmentClassification,
         thumbnailImages,
         eligibleVisas: eligibleVisas.includes(NO_VISA_OPTION) ? [] : eligibleVisas,
         preferredJobRole: preferredJobRole.trim() || undefined,
-        hiringCount: hiringCount.trim() ? Number(hiringCount) : undefined,
+        hiringCount: parsedHiringCount && parsedHiringCount >= 1 ? parsedHiringCount : undefined,
         workLocation: workLocation.trim() || undefined,
         startDate: toIsoDateStart(startDate),
         hiringProcess: hiringProcess.trim() || undefined,
@@ -294,11 +359,33 @@ export function PartnerPositionCreatePage({
         requiredQualifications: requiredQualifications.trim() || undefined,
         preferredQualifications: preferredQualifications.trim() || undefined,
         additionalNotes: additionalNotes.trim() || undefined
-      });
-      router.push("/profile");
+      };
+      if (mode === "edit" && positionId) {
+        await updateMyPartnerPosition(positionId, payload);
+        if (embedded) {
+          onEmbeddedClose?.();
+        } else {
+          window.alert(t("수정사항이 저장되었고 어드민 관리자 승인 요청이 접수되었습니다.", "Changes were saved and sent for ops admin approval."));
+          router.push("/profile");
+        }
+      } else {
+        const created = await createMyPartnerPosition(payload);
+        if (embedded) {
+          onEmbeddedClose?.();
+        } else {
+          window.alert(t("포지션이 등록되었고 어드민 관리자 승인 요청이 접수되었습니다.", "Position was created and sent for ops admin approval."));
+          router.push(`/positions/${encodeURIComponent(created.id)}`);
+        }
+      }
       router.refresh();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("포지션 생성에 실패했습니다.", "Failed to create position."));
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : mode === "edit"
+            ? t("포지션 수정에 실패했습니다.", "Failed to update position.")
+            : t("포지션 생성에 실패했습니다.", "Failed to create position.")
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -384,8 +471,8 @@ export function PartnerPositionCreatePage({
 
   const content = (
     <div className={embedded ? "mx-auto flex h-full max-w-4xl flex-col" : "mx-auto max-w-4xl"}>
-      <h1 className={embedded ? "shrink-0 pb-4 font-display text-3xl font-bold tracking-tight" : "mb-6 font-display text-3xl font-bold tracking-tight"}>
-        {t("포지션 등록", "Create position")}
+      <h1 className={embedded ? "shrink-0 pb-2 font-display text-3xl font-bold tracking-tight" : "mb-6 font-display text-3xl font-bold tracking-tight"}>
+        {mode === "edit" ? t("포지션 수정", "Edit position") : t("포지션 등록", "Create position")}
       </h1>
 
           {!isReady ? (
@@ -404,9 +491,11 @@ export function PartnerPositionCreatePage({
                 <Link href="/positions">{t("포지션 목록으로", "Go to positions")}</Link>
               </Button>
             </div>
+          ) : mode === "edit" && isLoadingPosition ? (
+            <p className="text-sm text-muted-foreground">{t("포지션 정보를 불러오는 중...", "Loading position information...")}</p>
           ) : isCheckingOrg ? (
             <p className="text-sm text-muted-foreground">{t("기업 정보 상태를 확인하는 중...", "Checking company profile status...")}</p>
-          ) : !canCreate ? (
+          ) : mode === "create" && !canCreate ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 {createBlockedReason === "verification"
@@ -427,72 +516,10 @@ export function PartnerPositionCreatePage({
               </Button>
             </div>
           ) : (
-            <section className={embedded ? "flex min-h-0 flex-1 flex-col space-y-6 p-1 [&_input]:focus-visible:outline-none [&_input]:focus-visible:ring-2 [&_input]:focus-visible:ring-inset [&_input]:focus-visible:ring-[#0B1227]/20 [&_select]:focus-visible:outline-none [&_select]:focus-visible:ring-2 [&_select]:focus-visible:ring-inset [&_select]:focus-visible:ring-[#0B1227]/20 [&_textarea]:focus-visible:outline-none [&_textarea]:focus-visible:ring-2 [&_textarea]:focus-visible:ring-inset [&_textarea]:focus-visible:ring-[#0B1227]/20" : "space-y-6 rounded-2xl border border-border/70 bg-card p-5 md:p-6 [&_input]:focus-visible:outline-none [&_input]:focus-visible:ring-2 [&_input]:focus-visible:ring-inset [&_input]:focus-visible:ring-[#0B1227]/20 [&_select]:focus-visible:outline-none [&_select]:focus-visible:ring-2 [&_select]:focus-visible:ring-inset [&_select]:focus-visible:ring-[#0B1227]/20 [&_textarea]:focus-visible:outline-none [&_textarea]:focus-visible:ring-2 [&_textarea]:focus-visible:ring-inset [&_textarea]:focus-visible:ring-[#0B1227]/20"}>
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
-                {stepTitles.map((label, index) => {
-                  const n = index + 1;
-                  const active = step === n;
-                  return (
-                    <div
-                      key={label}
-                      className={`inline-flex h-9 w-full items-center justify-center rounded-full border px-2 text-center text-[13px] transition-colors ${
-                        active
-                          ? "border-foreground bg-foreground font-semibold text-background"
-                          : "border-border bg-background font-medium text-muted-foreground"
-                      }`}
-                    >
-                      {label}
-                    </div>
-                  );
-                })}
-              </div>
-
+            <section className={embedded ? "flex min-h-0 flex-1 flex-col space-y-4 p-1 [&_input]:focus-visible:outline-none [&_input]:focus-visible:ring-2 [&_input]:focus-visible:ring-inset [&_input]:focus-visible:ring-[#0B1227]/20 [&_select]:focus-visible:outline-none [&_select]:focus-visible:ring-2 [&_select]:focus-visible:ring-inset [&_select]:focus-visible:ring-[#0B1227]/20 [&_textarea]:focus-visible:outline-none [&_textarea]:focus-visible:ring-2 [&_textarea]:focus-visible:ring-inset [&_textarea]:focus-visible:ring-[#0B1227]/20" : "space-y-6 rounded-2xl border border-border/70 bg-card p-5 md:p-6 [&_input]:focus-visible:outline-none [&_input]:focus-visible:ring-2 [&_input]:focus-visible:ring-inset [&_input]:focus-visible:ring-[#0B1227]/20 [&_select]:focus-visible:outline-none [&_select]:focus-visible:ring-2 [&_select]:focus-visible:ring-inset [&_select]:focus-visible:ring-[#0B1227]/20 [&_textarea]:focus-visible:outline-none [&_textarea]:focus-visible:ring-2 [&_textarea]:focus-visible:ring-inset [&_textarea]:focus-visible:ring-[#0B1227]/20"}>
               <div className={embedded ? "min-h-0 flex-1 overflow-y-auto px-1" : ""}>
-              {step === 1 ? (
+              <div className="space-y-6">
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">{t("포지션명", "Position title")}<RequiredMark /></label>
-                    <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm" value={title} onChange={(e) => setTitle(e.target.value)} />
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("모집 분야", "Category/Role")}<RequiredMark /></label>
-                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm" value={preferredJobRole} onChange={(e) => setPreferredJobRole(e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("모집 인원", "Hiring count")}</label>
-                      <input type="number" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm" value={hiringCount} onChange={(e) => setHiringCount(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("근무 방식", "Work type")}</label>
-                      <select className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm" value={workType} onChange={(e) => setWorkType(e.target.value as "On-site" | "Hybrid" | "Remote")}>
-                        <option value="On-site">{t("오피스 출근", "On-site")}</option>
-                        <option value="Hybrid">{t("하이브리드", "Hybrid")}</option>
-                        <option value="Remote">{t("원격", "Remote")}</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("고용 형태", "Employment type")}<RequiredMark /></label>
-                      <select className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm" value={employmentType} onChange={(e) => setEmploymentType(e.target.value as EmploymentType)}>
-                        <option value="UNPAID_INTERN">{t("무급 인턴", "Unpaid intern")}</option>
-                        <option value="INTERN">{t("유급 인턴", "Paid intern")}</option>
-                        <option value="PART_TIME">{t("알바", "Part-time")}</option>
-                        <option value="FULL_TIME">{t("정직원", "Full-time")}</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("근무 지역", "Location")}</label>
-                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm" value={workLocation} onChange={(e) => setWorkLocation(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("시작 예정일", "Start date")}</label>
-                      <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                    </div>
-                  </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">{t("썸네일 (최대 5장)", "Thumbnails (max 5)")}</label>
                     <input
@@ -549,28 +576,120 @@ export function PartnerPositionCreatePage({
                       </div>
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t("포지션명", "Position title")}<RequiredMark /></label>
+                    <input
+                      className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm"
+                      placeholder={t("예) 프론트엔드 개발 인턴", "e.g. Frontend Developer Intern")}
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{t("모집 분야", "Category/Role")}<RequiredMark /></label>
+                      <input
+                        className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm"
+                        placeholder={t("예) 프론트개발자, 디자이너", "e.g. Frontend Developer, Designer")}
+                        value={preferredJobRole}
+                        onChange={(e) => setPreferredJobRole(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{t("모집 인원", "Hiring count")}</label>
+                      <input
+                        type="number"
+                        className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm"
+                        placeholder={t("예) 3", "e.g. 3")}
+                        value={hiringCount}
+                        onChange={(e) => setHiringCount(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">{t("0 또는 비워두면 종료까지로 처리됩니다.", "If 0 or empty, it is treated as until closed.")}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{t("근무 방식", "Work type")}</label>
+                      <div className="relative">
+                        <select
+                          className="h-10 w-full appearance-none rounded-md border-0 bg-muted/50 px-3 pr-10 text-sm"
+                          value={workType}
+                          onChange={(e) => setWorkType(e.target.value as "On-site" | "Hybrid" | "Remote")}
+                        >
+                          <option value="On-site">{t("오피스 출근", "On-site")}</option>
+                          <option value="Hybrid">{t("하이브리드", "Hybrid")}</option>
+                          <option value="Remote">{t("원격", "Remote")}</option>
+                        </select>
+                        <CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{t("고용 형태", "Employment type")}<RequiredMark /></label>
+                      <div className="relative">
+                        <select
+                          className="h-10 w-full appearance-none rounded-md border-0 bg-muted/50 px-3 pr-10 text-sm"
+                          value={employmentClassification}
+                          onChange={(e) => setEmploymentClassification(e.target.value as EmploymentClassification)}
+                        >
+                          <option value="UNPAID_INTERN_EXPERIENCE">{t("무급 체험형 인턴", "Unpaid experience intern")}</option>
+                          <option value="UNPAID_INTERN_CONVERSION">{t("무급 전환형 인턴", "Unpaid conversion intern")}</option>
+                          <option value="PAID_INTERN_EXPERIENCE">{t("유급 체험형 인턴", "Paid experience intern")}</option>
+                          <option value="PAID_INTERN_CONVERSION">{t("유급 전환형 인턴", "Paid conversion intern")}</option>
+                          <option value="PART_TIME">{t("알바", "Part-time")}</option>
+                          <option value="FULL_TIME">{t("정직원", "Full-time")}</option>
+                        </select>
+                        <CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{t("근무 지역", "Location")}</label>
+                      <input
+                        className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm"
+                        placeholder={t("예) 서울 강남구", "e.g. Gangnam-gu, Seoul")}
+                        value={workLocation}
+                        onChange={(e) => setWorkLocation(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{t("시작 예정일", "Start date")}</label>
+                      <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                    </div>
+                  </div>
                 </div>
-              ) : null}
 
-              {step === 2 ? (
-                <div className="space-y-4">
+              <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">{t("프로그램 목적", "Program goal")}</label>
-                    <textarea className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm" value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} />
+                    <textarea
+                      className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
+                      placeholder={t("인턴십 목적과 기대 효과를 간단히 작성해주세요.", "Briefly describe the internship goal and expected outcomes.")}
+                      value={additionalNotes}
+                      onChange={(e) => setAdditionalNotes(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">{t("주요 업무", "Main responsibilities")}<RequiredMark /></label>
-                    <textarea className="min-h-28 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm" value={mainResponsibilities} onChange={(e) => setMainResponsibilities(e.target.value)} />
+                    <textarea
+                      className="min-h-28 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
+                      placeholder={t("담당 업무를 항목별로 작성해주세요.", "List key responsibilities by bullet points.")}
+                      value={mainResponsibilities}
+                      onChange={(e) => setMainResponsibilities(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">{t("채용/진행 프로세스", "Hiring process")}</label>
-                    <textarea className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm" value={hiringProcess} onChange={(e) => setHiringProcess(e.target.value)} />
+                    <textarea
+                      className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
+                      placeholder={t("예) 서류 검토 → 1차 인터뷰 → 최종 합격", "e.g. Resume review -> Interview -> Final decision")}
+                      value={hiringProcess}
+                      onChange={(e) => setHiringProcess(e.target.value)}
+                    />
                   </div>
                 </div>
-              ) : null}
 
-              {step === 3 ? (
-                <div className="space-y-4">
+              <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">{t("지원 가능 비자", "Eligible visas")}</label>
                     <div className="grid grid-cols-3 gap-2 text-sm">
@@ -602,27 +721,45 @@ export function PartnerPositionCreatePage({
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">{t("소통 언어(줄바꿈)", "Languages (one per line)")}</label>
-                      <textarea className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm" value={communicationLanguages} onChange={(e) => setCommunicationLanguages(e.target.value)} />
+                      <textarea
+                        className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
+                        placeholder={t("예) 한국어\n영어", "e.g. Korean\nEnglish")}
+                        value={communicationLanguages}
+                        onChange={(e) => setCommunicationLanguages(e.target.value)}
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">{t("선호 국적(줄바꿈)", "Preferred nationalities (one per line)")}</label>
-                      <textarea className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm" value={preferredNationalities} onChange={(e) => setPreferredNationalities(e.target.value)} />
+                      <textarea
+                        className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
+                        placeholder={t("예) 무관 또는 선호 국적 기재", "e.g. Any nationality or list preferred ones")}
+                        value={preferredNationalities}
+                        onChange={(e) => setPreferredNationalities(e.target.value)}
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">{t("필수 역량/조건", "Required qualifications")}</label>
-                    <textarea className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm" value={requiredQualifications} onChange={(e) => setRequiredQualifications(e.target.value)} />
+                    <textarea
+                      className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
+                      placeholder={t("필수 기술/경험/자격 요건을 작성해주세요.", "Describe required skills, experience, and qualifications.")}
+                      value={requiredQualifications}
+                      onChange={(e) => setRequiredQualifications(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">{t("우대 사항", "Preferred qualifications")}</label>
-                    <textarea className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm" value={preferredQualifications} onChange={(e) => setPreferredQualifications(e.target.value)} />
+                    <textarea
+                      className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
+                      placeholder={t("우대 기술/경험/포트폴리오 조건을 작성해주세요.", "Describe preferred skills, experiences, or portfolio criteria.")}
+                      value={preferredQualifications}
+                      onChange={(e) => setPreferredQualifications(e.target.value)}
+                    />
                   </div>
                 </div>
-              ) : null}
 
-              {step === 4 ? (
-                <div className="space-y-3">
-                  {employmentType === "UNPAID_INTERN" ? (
+              <div className="space-y-4">
+                  {isUnpaidInternClassification(employmentClassification) ? (
                     <>
                       <p className="text-sm text-muted-foreground">{t("무급 인턴 운영 체크리스트를 모두 확인해야 제출할 수 있습니다.", "Please complete all compliance checks before submission.")}</p>
                       <label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium">
@@ -655,27 +792,12 @@ export function PartnerPositionCreatePage({
                     <p className="text-sm text-muted-foreground">{t("유급/정직원/알바 포지션은 체크리스트 없이 다음 단계로 진행됩니다.", "For paid/full-time/part-time positions, you can proceed without this checklist.")}</p>
                   )}
                 </div>
-              ) : null}
-
-              {step === 5 ? (
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-border bg-muted/20 p-4 text-sm">
-                    <p><span className="text-muted-foreground">{t("포지션", "Position")}:</span> {title || "-"}</p>
-                    <p><span className="text-muted-foreground">{t("분야", "Role")}:</span> {preferredJobRole || "-"}</p>
-                    <p><span className="text-muted-foreground">{t("근무 방식", "Work type")}:</span> {workTypeDisplayTitle(workType, t)}</p>
-                    <p><span className="text-muted-foreground">{t("고용 형태", "Employment type")}:</span> {employmentTypeDisplayTitle(employmentType, t)}</p>
-                    <p><span className="text-muted-foreground">{t("근무 지역", "Location")}:</span> {workLocation || "-"}</p>
-                    <p><span className="text-muted-foreground">{t("지원 비자", "Eligible visas")}:</span> {(eligibleVisas.length > 0 ? eligibleVisas.map((visa) => visaDisplayTitle(visa, t)).join(", ") : t("비자 무관", "No visa required"))}</p>
-                    <p><span className="text-muted-foreground">{t("주요 업무", "Main responsibilities")}:</span> {mainResponsibilities || "-"}</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{t("제출 후 운영자 승인 전에는 공개 운영이 제한될 수 있습니다.", "Before admin approval, public operation may be limited.")}</p>
-                </div>
-              ) : null}
+              </div>
 
               {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
               </div>
 
-              <div className={embedded ? "sticky bottom-0 z-10 flex items-center justify-between gap-2 border-t border-border/50 bg-card pt-3" : "flex items-center justify-between gap-2 pt-2"}>
+              <div className={embedded ? "sticky bottom-0 z-10 flex items-center justify-between gap-2 bg-card pt-3" : "flex items-center justify-between gap-2 pt-2"}>
                 <Button
                   variant="outline"
                   onClick={() => (embedded ? (onEmbeddedClose ? onEmbeddedClose() : router.back()) : router.push("/profile"))}
@@ -685,21 +807,15 @@ export function PartnerPositionCreatePage({
                 </Button>
 
                 <div className="flex items-center gap-2">
-                  {step > 1 ? (
-                    <Button variant="outline" onClick={goPrev} disabled={isSubmitting}>
-                      {t("이전", "Previous")}
-                    </Button>
-                  ) : null}
-
-                  {step < 5 ? (
-                    <Button variant="dark" onClick={goNext} disabled={isSubmitting}>
-                      {t("다음", "Next")}
-                    </Button>
-                  ) : (
-                    <Button variant="dark" onClick={() => void handleSubmit()} disabled={isSubmitting}>
-                      {isSubmitting ? t("생성 중...", "Creating...") : t("승인 요청 제출", "Submit for review")}
-                    </Button>
-                  )}
+                  <Button variant="dark" onClick={() => void handleSubmit()} disabled={isSubmitting}>
+                    {isSubmitting
+                      ? isEditMode
+                        ? t("저장 중...", "Saving...")
+                        : t("생성 중...", "Creating...")
+                      : isEditMode
+                        ? t("수정사항 저장", "Save changes")
+                        : t("승인 요청 제출", "Submit for review")}
+                  </Button>
                 </div>
               </div>
             </section>

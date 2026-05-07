@@ -59,6 +59,11 @@ function partnerOrgRoleLabel(role: PartnerUserItem["partnerOrgRole"]) {
   return "-";
 }
 
+function roleLabel(role: PartnerUserItem["role"]) {
+  if (role === "PARTNER") return "파트너";
+  return role;
+}
+
 function companySizeLabel(size: PartnerCompanySize | null) {
   if (size === "SIZE_1_10") return "1~10인";
   if (size === "SIZE_UNDER_30") return "30인 이하";
@@ -342,6 +347,9 @@ export default function PartnerUsersPage() {
                   </button>
                 </th>
                 <th>
+                  <span>권한</span>
+                </th>
+                <th>
                   <button
                     type="button"
                     className={`ops-th-sort ${sortField === "partnerName" ? "is-active" : ""}`}
@@ -377,11 +385,11 @@ export default function PartnerUsersPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="ops-table-empty">목록을 불러오는 중입니다...</td>
+                  <td colSpan={7} className="ops-table-empty">목록을 불러오는 중입니다...</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="ops-table-empty">조건에 맞는 파트너 사용자가 없습니다.</td>
+                  <td colSpan={7} className="ops-table-empty">조건에 맞는 파트너 사용자가 없습니다.</td>
                 </tr>
               ) : (
                 sortedItems.map((item) => (
@@ -400,6 +408,7 @@ export default function PartnerUsersPage() {
                   >
                     <td>{item.name || "-"}</td>
                     <td>{item.email}</td>
+                    <td>{roleLabel(item.role)}</td>
                     <td onClick={(e) => e.stopPropagation()}>
                       {item.partner ? (
                         <button

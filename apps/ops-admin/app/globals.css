@@ -1062,21 +1062,39 @@ body {
 }
 
 .ops-status-pending {
-  background: #fff7ed;
-  color: #c2410c;
-  border: 1px solid #fed7aa;
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.ops-status-draft {
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid #cbd5e1;
 }
 
 .ops-status-approved {
-  background: #dcfce7;
-  color: #166534;
-  border: 1px solid #86efac;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
+.ops-status-closed {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
 }
 
 .ops-status-rejected {
   background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.ops-status-paused {
+  background: #ecfeff;
+  color: #155e75;
+  border: 1px solid #67e8f9;
 }
 
 .ops-role-owner {
@@ -1172,32 +1190,105 @@ body {
   padding: 0 10px;
 }
 
-.ops-position-status-toggle-menu button.ops-position-status-draft {
-  border-color: #fed7aa;
-  background: #fff7ed;
-  color: #c2410c;
+.ops-position-status-toggle-menu button.ops-position-status-draft,
+.ops-status-change-button.ops-position-status-draft {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
 }
 
-.ops-position-status-toggle-menu button.ops-position-status-open {
-  border-color: #86efac;
-  background: #dcfce7;
-  color: #166534;
+.ops-position-status-toggle-menu button.ops-position-status-pending,
+.ops-status-change-button.ops-position-status-pending {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
 }
 
-.ops-position-status-toggle-menu button.ops-position-status-matching {
+.ops-position-status-toggle-menu button.ops-position-status-approved,
+.ops-status-change-button.ops-position-status-approved {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.ops-position-status-toggle-menu button.ops-position-status-open,
+.ops-status-change-button.ops-position-status-open {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.ops-position-status-toggle-menu button.ops-position-status-paused,
+.ops-status-change-button.ops-position-status-paused {
+  border-color: #67e8f9;
+  background: #ecfeff;
+  color: #155e75;
+}
+
+.ops-position-status-toggle-menu button.ops-position-status-matching,
+.ops-status-change-button.ops-position-status-matching {
   border-color: #99f6e4;
   background: #ecfeff;
   color: #0f766e;
 }
 
-.ops-position-status-toggle-menu button.ops-position-status-closed {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
+.ops-position-status-toggle-menu button.ops-position-status-closed,
+.ops-status-change-button.ops-position-status-closed {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+  color: #374151;
 }
 
-.ops-position-status-toggle-menu button.is-active {
+.ops-position-status-toggle-menu button.ops-position-status-rejected,
+.ops-status-change-button.ops-position-status-rejected {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.ops-position-status-toggle-menu button.is-active,
+.ops-status-change-button.is-active {
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.1), 0 0 0 2px rgba(148, 163, 184, 0.2);
+}
+
+.ops-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2600;
+  background: rgba(2, 6, 23, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.ops-modal-panel {
+  width: min(560px, 100%);
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  padding: 16px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.24);
+}
+
+.ops-status-change-modal {
+  max-width: 620px;
+}
+
+.ops-status-change-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ops-status-change-button {
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .ops-pagination {
@@ -2111,6 +2202,12 @@ body {
 
 .ops-detail-button:hover {
   background: #e5e7eb;
+}
+
+.ops-inline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .ops-matching-run-meta {

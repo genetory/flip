@@ -71,7 +71,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const companySize = companySizeLabel(company?.companySize, isKo);
   const officeAddress = company?.officeAddress?.trim() || t("주소 정보 없음", "No address info");
   const totalPositions = companyPositions.length;
-  const activePositions = companyPositions.filter((item) => item.status === "OPEN" || item.status === "MATCHING").length;
+  const activePositions = companyPositions.filter((item) => item.status === "OPEN").length;
   const latestPositionDate = formatDate(companyPositions[0]?.createdAt);
   const uniqueWorkLocations = Array.from(
     new Set(

@@ -16,7 +16,10 @@ import {
   CandidateActivityType,
   CommunityPostCategory,
   PositionEmploymentType,
+  PositionSourceKind,
+  PositionSourceProvider,
   PositionStatus,
+  PositionRevisionStatus,
   PartnerIndustry,
   PartnerOrgUserRole,
   PartnerType,
@@ -58,9 +61,23 @@ const partnerAdminUrl = process.env.PARTNER_ADMIN_URL ?? "http://localhost:3001"
 const opsAdminUrl = process.env.OPS_ADMIN_URL ?? "http://localhost:3002";
 const emailVerificationTtlHours = Math.max(1, Number(process.env.EMAIL_VERIFICATION_TTL_HOURS ?? 24));
 const emailVerificationBaseUrl = process.env.EMAIL_VERIFICATION_BASE_URL ?? `${platformWebUrl}/verify-email`;
+const getTrimmedEnvOrFallback = (value: string | undefined, fallback: string) => {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : fallback;
+};
 const discordCompanyConsultationWebhookUrl = process.env.DISCORD_COMPANY_CONSULTATION_WEBHOOK_URL?.trim() ?? "";
 const discordSignupWebhookUrl = process.env.SIGNUP_DISCORD_WEBHOOK_URL?.trim() ?? "";
 const discordCommunityPostWebhookUrl = process.env.DISCORD_COMMUNITY_POST_WEBHOOK_URL?.trim() ?? "";
+const discordPositionApplyWebhookUrl =
+  getTrimmedEnvOrFallback(
+    process.env.DISCORD_POSITION_APPLY_WEBHOOK_URL,
+    "https://discord.com/api/webhooks/1501413270341554287/p2IEy5KPZqOy6nnMNHWO-wxAhpe5OixHBeJCDMzLfokse-kSwxIAONxTBVh6hQKO-XeY"
+  );
+const discordPositionCreateWebhookUrl =
+  getTrimmedEnvOrFallback(
+    process.env.DISCORD_POSITION_CREATE_WEBHOOK_URL,
+    "https://discord.com/api/webhooks/1501417599416799337/Viilar1RgIH0ID5Ok1HdxzGX8wR06mQMWuMn-extrtvgRC22rnAKQJVHZ9mrGss7bWJg"
+  );
 const companyConsultationDiscordTestToken = process.env.COMPANY_CONSULTATION_DISCORD_TEST_TOKEN?.trim() ?? "";
 const emailFromAddress = process.env.EMAIL_FROM?.trim() ?? "";
 const smtpHost = process.env.SMTP_HOST?.trim() ?? "";
@@ -69,6 +86,8 @@ const smtpUser = process.env.SMTP_USER?.trim() ?? "";
 const smtpPass = process.env.SMTP_PASS ?? "";
 const smtpSecure = String(process.env.SMTP_SECURE ?? "false").toLowerCase() === "true";
 const signupEmailVerificationCodeTtlMinutes = Math.max(1, Number(process.env.SIGNUP_EMAIL_VERIFICATION_CODE_TTL_MINUTES ?? 10));
+const partnerJoinCodeTtlMinutesDefault = Math.max(5, Number(process.env.PARTNER_JOIN_CODE_TTL_MINUTES ?? 120));
+const partnerJoinCodeTtlMinutesMax = Math.max(partnerJoinCodeTtlMinutesDefault, Number(process.env.PARTNER_JOIN_CODE_TTL_MAX_MINUTES ?? 10080));
 const isProduction = process.env.NODE_ENV === "production";
 const allowedOrigins = [platformWebUrl, partnerAdminUrl, opsAdminUrl]
   .map((origin) => origin.trim())
@@ -390,6 +409,214 @@ async function sendCommunityPostDiscordNotification(input: {
   }
 }
 
+async function sendPositionApplyDiscordNotification(input: {
+  positionId: string;
+  positionTitle: string;
+  applicantId: string;
+  applicantName: string | null;
+  applicantEmail: string;
+  partnerName: string | null;
+  appliedAt: Date;
+}) {
+  if (!discordPositionApplyWebhookUrl) return;
+
+  const truncateForDiscord = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+
+  const safePositionId = truncateForDiscord(input.positionId || "-", 256);
+  const safePositionTitle = truncateForDiscord(input.positionTitle || "-", 256);
+  const safeApplicantId = truncateForDiscord(input.applicantId || "-", 256);
+  const safeApplicantName = truncateForDiscord((input.applicantName ?? "").trim() || "-", 256);
+  const safeApplicantEmail = truncateForDiscord(input.applicantEmail || "-", 1024);
+  const safePartnerName = truncateForDiscord(input.partnerName || "-", 256);
+  const postUrl = `${platformWebUrl}/positions/${encodeURIComponent(input.positionId)}`;
+  const safePostUrlField = truncateForDiscord(`[포지션 바로가기](${postUrl})`, 1024);
+
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0x0ea5e9,
+        title: "📨 포지션 지원 접수",
+        description: "새로운 포지션 지원이 접수되었습니다.",
+        fields: [
+          { name: "포지션", value: safePositionTitle, inline: true },
+          { name: "파트너", value: safePartnerName, inline: true },
+          { name: "지원자", value: safeApplicantName, inline: true },
+          { name: "지원자 이메일", value: safeApplicantEmail, inline: false },
+          { name: "지원자 ID", value: safeApplicantId, inline: true },
+          { name: "포지션 ID", value: safePositionId, inline: true },
+          { name: "바로가기", value: safePostUrlField, inline: false }
+        ],
+        footer: { text: "CareerBridge • Position Apply" },
+        timestamp: input.appliedAt.toISOString()
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch(discordPositionApplyWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("position_apply_discord_webhook_failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("position_apply_discord_webhook_error", {
+      error: getErrorMessage(error)
+    });
+  }
+}
+
+async function sendPositionCreateDiscordNotification(input: {
+  positionId: string;
+  positionTitle: string;
+  partnerName: string | null;
+  employmentType: string;
+  employmentClassification?:
+    | "UNPAID_INTERN_EXPERIENCE"
+    | "UNPAID_INTERN_CONVERSION"
+    | "PAID_INTERN_EXPERIENCE"
+    | "PAID_INTERN_CONVERSION"
+    | "PART_TIME"
+    | "FULL_TIME"
+    | null;
+  workType: string | null;
+  workLocation: string | null;
+  createdByUserId: string;
+  createdByUserName: string | null;
+  createdByUserEmail: string | null;
+  createdAt: Date;
+}) {
+  if (!discordPositionCreateWebhookUrl) return;
+  const webhookTarget = (() => {
+    try {
+      const parsed = new URL(discordPositionCreateWebhookUrl);
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      const webhookId = parts.length >= 2 ? parts[parts.length - 2] : "unknown";
+      return `${parsed.host}/.../${webhookId}`;
+    } catch {
+      return "invalid_webhook_url";
+    }
+  })();
+
+  const truncateForDiscord = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+  const employmentTypeDisplayTitle = (() => {
+    switch (input.employmentClassification) {
+      case "UNPAID_INTERN_EXPERIENCE":
+        return "무급 체험형 인턴";
+      case "UNPAID_INTERN_CONVERSION":
+        return "무급 전환형 인턴";
+      case "PAID_INTERN_EXPERIENCE":
+        return "유급 체험형 인턴";
+      case "PAID_INTERN_CONVERSION":
+        return "유급 전환형 인턴";
+      case "PART_TIME":
+        return "알바";
+      case "FULL_TIME":
+        return "정직원";
+      default:
+        break;
+    }
+    switch (input.employmentType) {
+      case PositionEmploymentType.FULL_TIME:
+        return "정직원";
+      case PositionEmploymentType.INTERN:
+        return "인턴";
+      case PositionEmploymentType.PART_TIME:
+        return "파트타임";
+      case PositionEmploymentType.UNPAID_INTERN:
+        return "무급 인턴";
+      default:
+        return input.employmentType || "-";
+    }
+  })();
+  const workTypeDisplayTitle = (() => {
+    switch ((input.workType ?? "").trim().toLowerCase()) {
+      case "on-site":
+      case "onsite":
+        return "오피스 출근";
+      case "hybrid":
+        return "하이브리드";
+      case "remote":
+        return "원격";
+      default:
+        return input.workType || "-";
+    }
+  })();
+
+  const safePositionId = truncateForDiscord(input.positionId || "-", 256);
+  const safePositionTitle = truncateForDiscord(input.positionTitle || "-", 256);
+  const safePartnerName = truncateForDiscord(input.partnerName || "-", 256);
+  const safeEmploymentType = truncateForDiscord(employmentTypeDisplayTitle, 256);
+  const safeWorkType = truncateForDiscord(workTypeDisplayTitle, 256);
+  const safeWorkLocation = truncateForDiscord(input.workLocation || "-", 256);
+  const safeCreatorId = truncateForDiscord(input.createdByUserId || "-", 256);
+  const safeCreatorName = truncateForDiscord((input.createdByUserName ?? "").trim() || "-", 256);
+  const safeCreatorEmail = truncateForDiscord(input.createdByUserEmail || "-", 1024);
+  const postUrl = `${platformWebUrl}/positions/${encodeURIComponent(input.positionId)}`;
+  const safePostUrlField = truncateForDiscord(`[포지션 바로가기](${postUrl})`, 1024);
+
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0x22c55e,
+        title: "🆕 새로운 포지션 등록",
+        description: "파트너가 새로운 포지션을 등록했습니다.",
+        fields: [
+          { name: "포지션", value: safePositionTitle, inline: true },
+          { name: "파트너", value: safePartnerName, inline: true },
+          { name: "고용 형태", value: safeEmploymentType, inline: true },
+          { name: "근무 방식", value: safeWorkType, inline: true },
+          { name: "근무 지역", value: safeWorkLocation, inline: true },
+          { name: "포지션 ID", value: safePositionId, inline: true },
+          { name: "등록자", value: safeCreatorName, inline: true },
+          { name: "등록자 이메일", value: safeCreatorEmail, inline: true },
+          { name: "등록자 ID", value: safeCreatorId, inline: true },
+          { name: "바로가기", value: safePostUrlField, inline: false }
+        ],
+        footer: { text: "CareerBridge • Position Created" },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+
+  try {
+    console.info("position_create_discord_webhook_attempt", {
+      webhookTarget,
+      positionId: input.positionId
+    });
+    const response = await fetch(discordPositionCreateWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("position_create_discord_webhook_failed", {
+        webhookTarget,
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("position_create_discord_webhook_error", {
+      webhookTarget,
+      error: getErrorMessage(error)
+    });
+  }
+}
+
 function hasValidCompanyConsultationDiscordTestToken(req: express.Request) {
   if (!companyConsultationDiscordTestToken) return false;
   const token = req.header("x-internal-token")?.trim() ?? "";
@@ -630,6 +857,41 @@ function getRefreshTokenFromRequest(req: express.Request) {
   return null;
 }
 
+function slugifyPartnerOrganizationName(name: string) {
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return normalized || "partner";
+}
+
+async function generateUniquePartnerOrganizationSlug(
+  name: string,
+  db: Pick<Prisma.TransactionClient, "partnerOrganization"> | Pick<PrismaClient, "partnerOrganization">
+) {
+  const base = slugifyPartnerOrganizationName(name);
+  let candidate = base;
+  let sequence = 2;
+
+  while (true) {
+    const exists = await db.partnerOrganization.findUnique({
+      where: { slug: candidate },
+      select: { id: true }
+    });
+    if (!exists) return candidate;
+    candidate = `${base}-${sequence}`;
+    sequence += 1;
+  }
+}
+
+function generatePartnerJoinCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const chars = Array.from({ length: 10 }, () => alphabet[randomInt(0, alphabet.length)]).join("");
+  return `PJT-${chars.slice(0, 5)}-${chars.slice(5)}`;
+}
+
 function setRefreshTokenCookie(res: express.Response, refreshToken: string) {
   const maxAge = refreshTokenTtlDays * 24 * 60 * 60;
   const parts = [
@@ -765,9 +1027,12 @@ const apiDocEndpoints: ApiDocEndpoint[] = [
   { method: "post", path: "/ops/partners", summary: "Create partner", tag: "Ops Partners", secure: true, requestBody: true, successStatus: "201" },
   { method: "patch", path: "/ops/partners/:id", summary: "Update partner", tag: "Ops Partners", secure: true, requestBody: true },
   { method: "post", path: "/ops/partners/:id/members", summary: "Create partner member", tag: "Ops Partners", secure: true, requestBody: true, successStatus: "201" },
+  { method: "post", path: "/ops/partners/:id/join-codes", summary: "Create partner join code", tag: "Ops Partners", secure: true, requestBody: true, successStatus: "201" },
   { method: "delete", path: "/ops/partners/:id/members/:memberId", summary: "Delete partner member", tag: "Ops Partners", secure: true },
   { method: "get", path: "/ops/partner-users", summary: "List partner users", tag: "Ops Partners", secure: true },
   { method: "patch", path: "/ops/partner-users/:id/admin-memo", summary: "Update partner user admin memo", tag: "Ops Partners", secure: true, requestBody: true },
+  { method: "get", path: "/ops/users", summary: "List all users", tag: "Ops Users", secure: true },
+  { method: "patch", path: "/ops/users/:id/admin-memo", summary: "Update user admin memo", tag: "Ops Users", secure: true, requestBody: true },
 
   { method: "post", path: "/ops/matching/run", summary: "Run matching", tag: "Ops Matching", secure: true, requestBody: true },
   { method: "get", path: "/ops/matching/history", summary: "List matching history", tag: "Ops Matching", secure: true },
@@ -1048,6 +1313,8 @@ const partnerOrgUserRoleEnum = z.nativeEnum(PartnerOrgUserRole);
 const positionStatusEnum = z.nativeEnum(PositionStatus);
 const positionWorkTypeEnum = z.enum(["On-site", "Hybrid", "Remote"]);
 const positionEmploymentTypeEnum = z.nativeEnum(PositionEmploymentType);
+const positionSourceKindEnum = z.nativeEnum(PositionSourceKind);
+const positionSourceProviderEnum = z.nativeEnum(PositionSourceProvider);
 const candidateVisaTypeEnum = z.nativeEnum(CandidateVisaType);
 const candidateEducationTypeEnum = z.nativeEnum(CandidateEducationType);
 const candidateEducationStatusEnum = z.nativeEnum(CandidateEducationStatus);
@@ -1124,29 +1391,7 @@ function withPartnerValidation<T extends z.ZodTypeAny>(schema: T) {
       });
     }
 
-    if (resolvedRole === MemberRole.PARTNER) {
-      if (!data.partnerOrganizationName?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["partnerOrganizationName"],
-          message: "partner organization name is required for business account"
-        });
-      }
-      if (!data.partnerOrganizationIndustry) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["partnerOrganizationIndustry"],
-          message: "partner organization industry is required for business account"
-        });
-      }
-      if (!data.partnerOrganizationCompanySize) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["partnerOrganizationCompanySize"],
-          message: "partner organization company size is required for business account"
-        });
-      }
-    }
+    // Partner accounts may sign up first and create/join an organization later.
   });
 }
 
@@ -1310,6 +1555,12 @@ const updateMyPartnerOrganizationBasicSchema = z.object({
   companyLogoImageData: z.string().trim().max(4_000_000).nullable().optional(),
   officePhotoImageData: z.string().trim().max(4_000_000).nullable().optional()
 });
+const joinMyPartnerOrganizationSchema = z.object({
+  code: z.string().trim().min(6).max(64)
+});
+const createPartnerJoinCodeSchema = z.object({
+  expiresInMinutes: z.number().int().min(5).max(partnerJoinCodeTtlMinutesMax).optional()
+});
 
 const updateCandidateProfileSchema = z.object({
   workPermit: z.boolean().nullable().optional(),
@@ -1383,9 +1634,22 @@ const updateCandidateEmailVerifiedSchema = z.object({
 });
 
 const lineArraySchema = z.array(z.string().trim().min(1).max(200)).max(200).optional();
+const employmentClassificationSchema = z.enum([
+  "UNPAID_INTERN_EXPERIENCE",
+  "UNPAID_INTERN_CONVERSION",
+  "PAID_INTERN_EXPERIENCE",
+  "PAID_INTERN_CONVERSION",
+  "PART_TIME",
+  "FULL_TIME"
+]);
 
 const createPositionSchema = z.object({
   partnerOrganizationId: z.string().uuid().optional(),
+  sourceKind: positionSourceKindEnum.optional(),
+  sourceProvider: positionSourceProviderEnum.optional(),
+  sourceExternalId: z.string().trim().max(200).optional(),
+  sourceUrl: z.string().trim().url().max(5000).optional(),
+  sourceFetchedAt: z.string().datetime().optional(),
   title: z.string().trim().min(1).max(200),
   status: positionStatusEnum.optional(),
   workType: positionWorkTypeEnum.optional(),
@@ -1419,9 +1683,12 @@ const createPartnerPositionSchema = createPositionSchema
     adminMemo: true
   })
   .extend({
-    status: z.enum(["DRAFT", "OPEN"]).optional()
+    status: z.enum(["DRAFT", "PENDING_REVIEW"]).optional(),
+    employmentClassification: employmentClassificationSchema.optional()
   });
-const updatePartnerPositionSchema = createPartnerPositionSchema.partial();
+const updatePartnerPositionSchema = createPartnerPositionSchema.partial().extend({
+  status: z.enum(["OPEN", "PAUSED", "CLOSED"]).optional()
+});
 
 const updatePositionSchema = createPositionSchema.partial();
 const updatePositionPremiumBannerSchema = z.object({
@@ -1446,12 +1713,24 @@ const addPositionProgressLogSchema = z.object({
   message: z.string().trim().min(1).max(1000)
 });
 
+const listPositionRevisionsQuerySchema = z.object({
+  status: z.nativeEnum(PositionRevisionStatus).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(100).optional()
+});
+
+const reviewPositionRevisionSchema = z.object({
+  note: z.string().trim().max(500).optional()
+});
+
 const listPositionsQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
   status: positionStatusEnum.optional(),
   partnerOrganizationId: z.string().uuid().optional(),
   partnerIndustry: z.nativeEnum(PartnerIndustry).optional(),
   partnerCompanySize: partnerCompanySizeEnum.optional(),
+  sourceKind: positionSourceKindEnum.optional(),
+  sourceProvider: positionSourceProviderEnum.optional(),
   sortBy: z.enum(["title", "status", "hiringCount", "createdAt"]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
@@ -1459,7 +1738,11 @@ const listPositionsQuerySchema = z.object({
 });
 const listPublicPositionsCursorQuerySchema = z.object({
   cursor: z.string().trim().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional()
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  search: z.string().trim().max(120).optional(),
+  sourceProvider: z.union([positionSourceProviderEnum, z.array(positionSourceProviderEnum)]).optional(),
+  jobRole: z.union([z.string().trim().min(1).max(120), z.array(z.string().trim().min(1).max(120))]).optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional()
 });
 const listCommunityPostsCursorQuerySchema = z.object({
   category: z.enum(["free", "career", "help"]).optional(),
@@ -1824,6 +2107,7 @@ function toPartnerOrganization(item: {
   id: string;
   partnerType: PartnerType;
   name: string;
+  slug?: string | null;
   companySize?: string | null;
   officeAddress: string | null;
   website: string | null;
@@ -1855,12 +2139,14 @@ function toPartnerOrganization(item: {
   const uploadedCount = 2 - missingItems.length;
   const hasRequiredDocuments = missingItems.length === 0;
   const isApproved = Boolean(item.verificationApproved);
-  const isVerified = hasRequiredDocuments && isApproved;
+  // 운영 상태는 운영자 승인 여부를 단일 기준으로 사용한다.
+  const isVerified = isApproved;
 
   return {
     id: item.id,
     partnerType: item.partnerType,
     name: item.name,
+    slug: item.slug ?? null,
     companySize: item.companySize ?? null,
     officeAddress: item.officeAddress,
     website: item.website,
@@ -1880,8 +2166,8 @@ function toPartnerOrganization(item: {
       missingItems
     },
     permissions: {
-      canPostPositions: isVerified,
-      canContactCandidates: isVerified
+      canPostPositions: isApproved,
+      canContactCandidates: isApproved
     },
     ...(options?.includeVerificationAssets ? verificationAssets : {}),
     createdAt: item.createdAt,
@@ -1903,6 +2189,7 @@ type PositionPremiumBannerMeta = {
 };
 
 const PREMIUM_BANNER_MEMO_PREFIX = "[[PREMIUM_BANNER]]";
+const EMPLOYMENT_CLASSIFICATION_MEMO_PREFIX = "[[EMPLOYMENT_CLASSIFICATION]]";
 
 function normalizePremiumBannerMeta(value: unknown): PositionPremiumBannerMeta | null {
   if (!value || typeof value !== "object") return null;
@@ -1964,9 +2251,48 @@ function mergePremiumBannerMeta(adminMemo: string | null | undefined, meta: Posi
   return `${plain}\n${premiumLine}`.trim();
 }
 
+function extractEmploymentClassificationMeta(adminMemo: string | null | undefined) {
+  if (!adminMemo?.trim()) return null;
+  const line = adminMemo
+    .split("\n")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(EMPLOYMENT_CLASSIFICATION_MEMO_PREFIX));
+  if (!line) return null;
+  const value = line.slice(EMPLOYMENT_CLASSIFICATION_MEMO_PREFIX.length).trim();
+  if (!value) return null;
+  const parsed = employmentClassificationSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+function stripEmploymentClassificationMeta(adminMemo: string | null | undefined) {
+  if (!adminMemo?.trim()) return null;
+  const plain = adminMemo
+    .split("\n")
+    .filter((entry) => !entry.trim().startsWith(EMPLOYMENT_CLASSIFICATION_MEMO_PREFIX))
+    .join("\n")
+    .trim();
+  return plain.length > 0 ? plain : null;
+}
+
+function mergeEmploymentClassificationMeta(
+  adminMemo: string | null | undefined,
+  employmentClassification?: z.infer<typeof employmentClassificationSchema> | null
+) {
+  const plain = stripEmploymentClassificationMeta(adminMemo);
+  if (!employmentClassification) return plain;
+  const line = `${EMPLOYMENT_CLASSIFICATION_MEMO_PREFIX} ${employmentClassification}`;
+  if (!plain) return line;
+  return `${plain}\n${line}`.trim();
+}
+
 function toPosition(item: {
   id: string;
   partnerOrganizationId: string | null;
+  sourceKind: PositionSourceKind;
+  sourceProvider: PositionSourceProvider;
+  sourceExternalId: string | null;
+  sourceUrl: string | null;
+  sourceFetchedAt: Date | null;
   title: string;
   status: PositionStatus;
   workType: string | null;
@@ -2019,6 +2345,11 @@ function toPosition(item: {
   return {
     id: item.id,
     partnerOrganizationId: item.partnerOrganizationId,
+    sourceKind: item.sourceKind,
+    sourceProvider: item.sourceProvider,
+    sourceExternalId: item.sourceExternalId,
+    sourceUrl: item.sourceUrl,
+    sourceFetchedAt: item.sourceFetchedAt,
     title: item.title,
     status: item.status,
     workType: item.workType,
@@ -2039,7 +2370,8 @@ function toPosition(item: {
     dressCode: item.dressCode,
     wantsPreTraining: item.wantsPreTraining,
     additionalNotes: item.additionalNotes,
-    adminMemo: stripPremiumBannerMeta(item.adminMemo),
+    employmentClassification: extractEmploymentClassificationMeta(item.adminMemo),
+    adminMemo: stripEmploymentClassificationMeta(stripPremiumBannerMeta(item.adminMemo)),
     premiumBanner: extractPremiumBannerMeta(item.adminMemo),
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -2114,9 +2446,44 @@ function maskAdditionalNotesForPublic(
   return null;
 }
 
+function extractSourceCompanyName(additionalNotes: string | null): string | null {
+  if (!additionalNotes) return null;
+  const line = additionalNotes
+    .split("\n")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith("sourceCompanyName:"));
+  if (!line) return null;
+  const value = line.slice("sourceCompanyName:".length).trim();
+  return value.length > 0 ? value : null;
+}
+
+function extractSourceDeadlineDate(additionalNotes: string | null): string | null {
+  if (!additionalNotes) return null;
+  const line = additionalNotes
+    .split("\n")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith("sourceDeadlineDate:"));
+  if (!line) return null;
+  const value = line.slice("sourceDeadlineDate:".length).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}
+
+function extractSourceDeadlineRolling(additionalNotes: string | null): boolean {
+  if (!additionalNotes) return false;
+  return additionalNotes
+    .split("\n")
+    .map((entry) => entry.trim().toLowerCase())
+    .some((entry) => entry === "sourcedeadlinerolling: true");
+}
+
 function toPublicPositionItem(
   item: {
     id: string;
+    sourceKind: PositionSourceKind;
+    sourceProvider: PositionSourceProvider;
+    sourceExternalId: string | null;
+    sourceUrl: string | null;
+    sourceFetchedAt: Date | null;
     title: string;
     status: PositionStatus;
     workType: string | null;
@@ -2137,6 +2504,7 @@ function toPublicPositionItem(
     dressCode: string | null;
     wantsPreTraining: boolean | null;
     additionalNotes: string | null;
+    adminMemo: string | null;
     createdAt: Date;
     updatedAt: Date;
     partnerOrganization?: {
@@ -2152,10 +2520,19 @@ function toPublicPositionItem(
 ) {
   return {
     id: item.id,
+    sourceKind: item.sourceKind,
+    sourceProvider: item.sourceProvider,
+    sourceExternalId: item.sourceExternalId,
+    sourceUrl: item.sourceUrl,
+    sourceFetchedAt: item.sourceFetchedAt,
+    sourceCompanyName: extractSourceCompanyName(item.additionalNotes),
+    sourceDeadlineDate: extractSourceDeadlineDate(item.additionalNotes),
+    sourceDeadlineRolling: extractSourceDeadlineRolling(item.additionalNotes),
     title: item.title,
     status: item.status,
     workType: item.workType,
     employmentType: item.employmentType,
+    employmentClassification: extractEmploymentClassificationMeta(item.adminMemo),
     thumbnailImages: item.thumbnailImages,
     eligibleVisas: item.eligibleVisas,
     preferredNationalities: item.preferredNationalities,
@@ -2423,7 +2800,7 @@ function computeTimeFit(position: MatchingPosition, candidate: MatchingCandidate
   const positionWeeks = parseWeekCount(workingHoursText);
 
   let score = 0.5;
-  if (option === "ASAP" && (position.status === PositionStatus.OPEN || position.status === PositionStatus.MATCHING)) score += 0.2;
+  if (option === "ASAP" && position.status === PositionStatus.OPEN) score += 0.2;
   if (option === "SPECIFIC_DATE" && candidate.profile.programStartDate) score += 0.1;
   if (duration !== null && positionWeeks !== null) {
     const gap = Math.abs(duration - positionWeeks);
@@ -2554,7 +2931,7 @@ function scoreCandidateForPosition(position: MatchingPosition, candidate: Matchi
 
   let score = weightedScoreFromBreakdown(breakdown);
   if (candidate.emailVerified) score += 3;
-  if (position.status === PositionStatus.OPEN || position.status === PositionStatus.MATCHING) score += 2;
+  if (position.status === PositionStatus.OPEN) score += 2;
   if (completion.percent >= 80) score += openaiMatchingHighCompletionBonus;
   else if (completion.percent >= 60) score += Math.round(openaiMatchingHighCompletionBonus * 0.5);
   const hiringTarget = Math.max(1, position.hiringCount ?? 1);
@@ -3953,6 +4330,14 @@ app.get("/positions", async (req, res) => {
   }
 
   const limit = parsedQuery.data.limit ?? 20;
+  const search = parsedQuery.data.search?.trim();
+  const sourceProviders = parsedQuery.data.sourceProvider
+    ? Array.from(new Set(Array.isArray(parsedQuery.data.sourceProvider) ? parsedQuery.data.sourceProvider : [parsedQuery.data.sourceProvider]))
+    : [];
+  const jobRoles = parsedQuery.data.jobRole
+    ? Array.from(new Set(Array.isArray(parsedQuery.data.jobRole) ? parsedQuery.data.jobRole : [parsedQuery.data.jobRole]))
+    : [];
+  const sortOrder = parsedQuery.data.sortOrder ?? "desc";
   let cursorValue: { createdAt: Date; id: string } | null = null;
   if (parsedQuery.data.cursor) {
     try {
@@ -3972,7 +4357,19 @@ app.get("/positions", async (req, res) => {
   const viewer = await resolvePublicViewer(req);
   const items = await prisma.position.findMany({
     where: {
-      status: { in: [PositionStatus.OPEN, PositionStatus.MATCHING] },
+      status: { in: [PositionStatus.OPEN] },
+      ...(search
+        ? {
+            OR: [
+              { title: { contains: search, mode: "insensitive" } },
+              { preferredJobRole: { contains: search, mode: "insensitive" } },
+              { workLocation: { contains: search, mode: "insensitive" } },
+              { partnerOrganization: { is: { name: { contains: search, mode: "insensitive" } } } }
+            ]
+          }
+        : {}),
+      ...(jobRoles.length ? { preferredJobRole: { in: jobRoles } } : {}),
+      ...(sourceProviders.length ? { sourceProvider: { in: sourceProviders } } : {}),
       ...(cursorValue
         ? {
             OR: [
@@ -3987,7 +4384,7 @@ app.get("/positions", async (req, res) => {
           }
         : {})
     },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    orderBy: [{ createdAt: sortOrder }, { id: sortOrder }],
     take: limit + 1,
     include: {
       partnerOrganization: {
@@ -4023,7 +4420,7 @@ app.get("/positions/premium-banners", async (req, res) => {
   const viewer = await resolvePublicViewer(req);
   const items = await prisma.position.findMany({
     where: {
-      status: { in: [PositionStatus.OPEN, PositionStatus.MATCHING] }
+      status: { in: [PositionStatus.OPEN] }
     },
     orderBy: [{ createdAt: "desc" }],
     include: {
@@ -4082,29 +4479,49 @@ app.get("/positions/:id", async (req, res) => {
     return res.status(400).json({ ok: false, message: "invalid position id" });
   }
 
-  const [viewer, item] = await Promise.all([
-    resolvePublicViewer(req),
-    prisma.position.findFirst({
-      where: {
-        id,
-        status: { in: [PositionStatus.OPEN, PositionStatus.MATCHING] }
-      },
-      include: {
-        partnerOrganization: {
-          select: {
-            id: true,
-            name: true,
-            industry: true,
-            companySize: true,
-            officeAddress: true
+  const viewer = await resolvePublicViewer(req);
+  const viewerUserId = resolvePublicViewerUserId(req);
+  const viewerUser = viewerUserId
+    ? await prisma.user.findUnique({
+        where: { id: viewerUserId },
+        select: { partnerOrganizationId: true }
+      })
+    : null;
+  const viewerPartnerOrganizationId = viewerUser?.partnerOrganizationId ?? null;
+
+  const where: Prisma.PositionWhereInput =
+    viewer?.role === MemberRole.OPERATOR
+      ? { id }
+      : viewer?.role === MemberRole.PARTNER && viewerPartnerOrganizationId
+        ? {
+            id,
+            OR: [
+              { status: { in: [PositionStatus.OPEN] } },
+              { partnerOrganizationId: viewerPartnerOrganizationId }
+            ]
           }
-        },
-        matchingParticipants: {
-          select: { id: true }
+        : {
+            id,
+            status: { in: [PositionStatus.OPEN] }
+          };
+
+  const item = await prisma.position.findFirst({
+    where,
+    include: {
+      partnerOrganization: {
+        select: {
+          id: true,
+          name: true,
+          industry: true,
+          companySize: true,
+          officeAddress: true
         }
+      },
+      matchingParticipants: {
+        select: { id: true }
       }
-    })
-  ]);
+    }
+  });
 
   if (!item) {
     return res.status(404).json({ ok: false, message: "position not found" });
@@ -4451,7 +4868,7 @@ app.post("/ops/matching/run", authenticate, requireRoles([MemberRole.OPERATOR]),
         select: candidateSelect
       }),
       prisma.position.findMany({
-        where: { status: { in: [PositionStatus.OPEN, PositionStatus.MATCHING] } },
+        where: { status: { in: [PositionStatus.OPEN] } },
         orderBy: { updatedAt: "desc" },
         include: {
           partnerOrganization: { select: { id: true, name: true, industry: true } },
@@ -4709,6 +5126,8 @@ app.get("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), asy
     partnerOrganizationId,
     partnerIndustry,
     partnerCompanySize,
+    sourceKind,
+    sourceProvider,
     sortBy = "createdAt",
     sortOrder = "desc",
     page = 1,
@@ -4734,6 +5153,8 @@ app.get("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), asy
           }
         }
       : {}),
+    ...(sourceKind ? { sourceKind } : {}),
+    ...(sourceProvider ? { sourceProvider } : {}),
     ...(search
       ? {
           OR: [
@@ -4811,6 +5232,11 @@ app.post("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), as
     const created = await prisma.position.create({
       data: {
         partnerOrganizationId: parsed.data.partnerOrganizationId,
+        sourceKind: parsed.data.sourceKind ?? PositionSourceKind.INTERNAL,
+        sourceProvider: parsed.data.sourceProvider ?? PositionSourceProvider.INTERNAL,
+        sourceExternalId: parsed.data.sourceExternalId,
+        sourceUrl: parsed.data.sourceUrl,
+        sourceFetchedAt: parsed.data.sourceFetchedAt ? new Date(parsed.data.sourceFetchedAt) : undefined,
         title: parsed.data.title,
         status: parsed.data.status ?? PositionStatus.DRAFT,
         workType: parsed.data.workType ?? "On-site",
@@ -4887,6 +5313,23 @@ app.post("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), as
       }
     });
 
+    const creator = await prisma.user.findUnique({
+      where: { id: req.auth!.userId },
+      select: { id: true, name: true, email: true }
+    });
+    void sendPositionCreateDiscordNotification({
+      positionId: created.id,
+      positionTitle: created.title,
+      partnerName: created.partnerOrganization?.name ?? null,
+      employmentType: created.employmentType,
+      workType: created.workType ?? null,
+      workLocation: created.workLocation ?? null,
+      createdByUserId: req.auth!.userId,
+      createdByUserName: creator?.name ?? null,
+      createdByUserEmail: creator?.email ?? null,
+      createdAt: created.createdAt
+    });
+
     return res.status(201).json({ ok: true, item: toPosition(created) });
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2003") {
@@ -4923,6 +5366,13 @@ app.patch("/ops/positions/:id", authenticate, requireRoles([MemberRole.OPERATOR]
       where: { id },
       data: {
         ...(parsed.data.partnerOrganizationId !== undefined ? { partnerOrganizationId: parsed.data.partnerOrganizationId } : {}),
+        ...(parsed.data.sourceKind !== undefined ? { sourceKind: parsed.data.sourceKind } : {}),
+        ...(parsed.data.sourceProvider !== undefined ? { sourceProvider: parsed.data.sourceProvider } : {}),
+        ...(parsed.data.sourceExternalId !== undefined ? { sourceExternalId: parsed.data.sourceExternalId } : {}),
+        ...(parsed.data.sourceUrl !== undefined ? { sourceUrl: parsed.data.sourceUrl } : {}),
+        ...(parsed.data.sourceFetchedAt !== undefined
+          ? { sourceFetchedAt: parsed.data.sourceFetchedAt ? new Date(parsed.data.sourceFetchedAt) : null }
+          : {}),
         ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
         ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
         ...(parsed.data.workType !== undefined ? { workType: parsed.data.workType } : {}),
@@ -5022,7 +5472,7 @@ app.patch("/ops/positions/:id", authenticate, requireRoles([MemberRole.OPERATOR]
 app.get("/ops/positions/premium-banners", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
   const items = await prisma.position.findMany({
     where: {
-      status: { in: [PositionStatus.OPEN, PositionStatus.MATCHING] }
+      status: { in: [PositionStatus.OPEN] }
     },
     orderBy: [{ createdAt: "desc" }],
     include: {
@@ -5399,35 +5849,6 @@ app.post("/auth/register", async (req, res) => {
 
   try {
     const created = await prisma.$transaction(async (tx) => {
-      let partnerOrganizationId: string | null = null;
-      if (resolvedRole === MemberRole.PARTNER) {
-        const orgName = parsed.data.partnerOrganizationName?.trim() || "";
-        const existing = orgName
-          ? await tx.partnerOrganization.findFirst({
-              where: {
-                name: orgName,
-                partnerType: PartnerType.COMPANY
-              },
-              select: { id: true }
-            })
-          : null;
-        if (existing) {
-          partnerOrganizationId = existing.id;
-        } else {
-          const createdOrg = await tx.partnerOrganization.create({
-            data: {
-              partnerType: PartnerType.COMPANY,
-              name: orgName,
-              industry: parsed.data.partnerOrganizationIndustry ?? PartnerIndustry.IT,
-              companySize: parsed.data.partnerOrganizationCompanySize,
-              adminMemo: "Auto-created from partner registration."
-            },
-            select: { id: true }
-          });
-          partnerOrganizationId = createdOrg.id;
-        }
-      }
-
       const user = await tx.user.create({
         data: {
           email: normalizedEmail,
@@ -5440,7 +5861,7 @@ app.post("/auth/register", async (req, res) => {
           role: resolvedRole,
           partnerType: resolvedPartnerType,
           partnerOrgRole: resolvedPartnerOrgRole,
-          partnerOrganizationId
+          partnerOrganizationId: null
         }
       });
 
@@ -5770,61 +6191,89 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
     return res.status(404).json({ ok: false, message: "user not found" });
   }
 
-  if (!user.partnerOrganizationId) {
-    return res.status(404).json({ ok: false, message: "partner organization not found" });
-  }
-
-  const currentOrganization = await prisma.partnerOrganization.findUnique({
-    where: { id: user.partnerOrganizationId },
-    select: {
-      id: true,
-      businessRegistrationDocumentData: true,
-      fourInsuranceSubscriberListData: true
-    }
-  });
-
-  if (!currentOrganization) {
-    return res.status(404).json({ ok: false, message: "partner organization not found" });
-  }
+  const currentOrganization = user.partnerOrganizationId
+    ? await prisma.partnerOrganization.findUnique({
+        where: { id: user.partnerOrganizationId },
+        select: {
+          id: true,
+          businessRegistrationDocumentData: true,
+          fourInsuranceSubscriberListData: true
+        }
+      })
+    : null;
 
   const normalizeDocField = (value?: string | null) => (value?.trim() || null);
   const nextBusinessRegistrationDocumentData =
     parsed.data.businessRegistrationDocumentData !== undefined
       ? normalizeDocField(parsed.data.businessRegistrationDocumentData)
-      : normalizeDocField(currentOrganization.businessRegistrationDocumentData);
+      : normalizeDocField(currentOrganization?.businessRegistrationDocumentData);
   const nextFourInsuranceSubscriberListData =
     parsed.data.fourInsuranceSubscriberListData !== undefined
       ? normalizeDocField(parsed.data.fourInsuranceSubscriberListData)
-      : normalizeDocField(currentOrganization.fourInsuranceSubscriberListData);
+      : normalizeDocField(currentOrganization?.fourInsuranceSubscriberListData);
 
   const shouldResetVerificationApproval =
-    nextBusinessRegistrationDocumentData !== normalizeDocField(currentOrganization.businessRegistrationDocumentData)
-    || nextFourInsuranceSubscriberListData !== normalizeDocField(currentOrganization.fourInsuranceSubscriberListData);
+    currentOrganization
+      ? (nextBusinessRegistrationDocumentData !== normalizeDocField(currentOrganization.businessRegistrationDocumentData)
+        || nextFourInsuranceSubscriberListData !== normalizeDocField(currentOrganization.fourInsuranceSubscriberListData))
+      : false;
+
+  if (!currentOrganization && (!parsed.data.name?.trim() || !parsed.data.industry)) {
+    return res.status(400).json({ ok: false, message: "name and industry are required to create partner organization" });
+  }
 
   try {
-    const updated = await prisma.partnerOrganization.update({
-      where: { id: user.partnerOrganizationId },
-      data: {
-        ...(parsed.data.name !== undefined ? { name: parsed.data.name.trim() } : {}),
-        ...(parsed.data.industry !== undefined ? { industry: parsed.data.industry } : {}),
-        ...(parsed.data.website !== undefined ? { website: parsed.data.website?.trim() || null } : {}),
-        ...(parsed.data.officeAddress !== undefined ? { officeAddress: parsed.data.officeAddress?.trim() || null } : {}),
-        ...(parsed.data.description !== undefined ? { description: parsed.data.description?.trim() || null } : {}),
-        ...(parsed.data.businessRegistrationDocumentData !== undefined
-          ? { businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null }
-          : {}),
-        ...(parsed.data.fourInsuranceSubscriberListData !== undefined
-          ? { fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null }
-          : {}),
-        ...(parsed.data.companyLogoImageData !== undefined
-          ? { companyLogoImageData: parsed.data.companyLogoImageData?.trim() || null }
-          : {}),
-        ...(parsed.data.officePhotoImageData !== undefined
-          ? { officePhotoImageData: parsed.data.officePhotoImageData?.trim() || null }
-          : {}),
-        ...(shouldResetVerificationApproval ? { verificationApproved: false, verificationApprovedAt: null } : {})
-      }
-    });
+    const updated = currentOrganization
+      ? await prisma.partnerOrganization.update({
+          where: { id: user.partnerOrganizationId! },
+          data: {
+            ...(parsed.data.name !== undefined ? { name: parsed.data.name.trim() } : {}),
+            ...(parsed.data.industry !== undefined ? { industry: parsed.data.industry } : {}),
+            ...(parsed.data.website !== undefined ? { website: parsed.data.website?.trim() || null } : {}),
+            ...(parsed.data.officeAddress !== undefined ? { officeAddress: parsed.data.officeAddress?.trim() || null } : {}),
+            ...(parsed.data.description !== undefined ? { description: parsed.data.description?.trim() || null } : {}),
+            ...(parsed.data.businessRegistrationDocumentData !== undefined
+              ? { businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null }
+              : {}),
+            ...(parsed.data.fourInsuranceSubscriberListData !== undefined
+              ? { fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null }
+              : {}),
+            ...(parsed.data.companyLogoImageData !== undefined
+              ? { companyLogoImageData: parsed.data.companyLogoImageData?.trim() || null }
+              : {}),
+            ...(parsed.data.officePhotoImageData !== undefined
+              ? { officePhotoImageData: parsed.data.officePhotoImageData?.trim() || null }
+              : {}),
+            ...(shouldResetVerificationApproval ? { verificationApproved: false, verificationApprovedAt: null } : {})
+          }
+        })
+      : await prisma.$transaction(async (tx) => {
+          const orgName = parsed.data.name!.trim();
+          const created = await tx.partnerOrganization.create({
+            data: {
+              partnerType: PartnerType.COMPANY,
+              name: orgName,
+              slug: await generateUniquePartnerOrganizationSlug(orgName, tx),
+              industry: parsed.data.industry!,
+              website: parsed.data.website?.trim() || null,
+              officeAddress: parsed.data.officeAddress?.trim() || null,
+              description: parsed.data.description?.trim() || null,
+              businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null,
+              fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null,
+              companyLogoImageData: parsed.data.companyLogoImageData?.trim() || null,
+              officePhotoImageData: parsed.data.officePhotoImageData?.trim() || null,
+              adminMemo: "Created by partner profile setup."
+            }
+          });
+          await tx.user.update({
+            where: { id: req.auth!.userId },
+            data: {
+              partnerOrganizationId: created.id,
+              partnerOrgRole: PartnerOrgUserRole.OWNER
+            }
+          });
+          return created;
+        });
 
     const memberCount = await prisma.user.count({
       where: {
@@ -5840,6 +6289,91 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
     }
     return res.status(500).json({ ok: false, message: "failed to update partner organization" });
   }
+});
+
+app.post("/members/me/partner-organization/join-codes", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = createPartnerJoinCodeSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  const me = await prisma.user.findUnique({
+    where: { id: req.auth!.userId },
+    select: { partnerOrganizationId: true, partnerOrgRole: true }
+  });
+  if (!me?.partnerOrganizationId) {
+    return res.status(400).json({ ok: false, message: "partner organization required" });
+  }
+  if (me.partnerOrgRole !== PartnerOrgUserRole.OWNER && me.partnerOrgRole !== PartnerOrgUserRole.ADMIN) {
+    return res.status(403).json({ ok: false, message: "only owner/admin can create join code" });
+  }
+
+  const expiresInMinutes = parsed.data.expiresInMinutes ?? partnerJoinCodeTtlMinutesDefault;
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + expiresInMinutes * 60 * 1000);
+  const code = generatePartnerJoinCode();
+
+  await prisma.partnerOrganizationJoinCode.create({
+    data: {
+      partnerOrganizationId: me.partnerOrganizationId,
+      createdByUserId: req.auth!.userId,
+      codeHash: hashToken(code),
+      expiresAt
+    }
+  });
+
+  return res.status(201).json({
+    ok: true,
+    item: {
+      code,
+      expiresAt
+    }
+  });
+});
+
+app.post("/members/me/partner-organization/join", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = joinMyPartnerOrganizationSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  const hashed = hashToken(parsed.data.code.trim().toUpperCase());
+  const invite = await prisma.partnerOrganizationJoinCode.findFirst({
+    where: {
+      codeHash: hashed,
+      usedAt: null,
+      expiresAt: { gt: new Date() }
+    },
+    include: {
+      partnerOrganization: true
+    }
+  });
+  if (!invite) {
+    return res.status(404).json({ ok: false, message: "invalid or expired join code" });
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: req.auth!.userId },
+      data: {
+        partnerOrganizationId: invite.partnerOrganizationId,
+        partnerOrgRole: PartnerOrgUserRole.ADMIN
+      }
+    }),
+    prisma.partnerOrganizationJoinCode.update({
+      where: { id: invite.id },
+      data: { usedAt: new Date() }
+    })
+  ]);
+
+  const memberCount = await prisma.user.count({
+    where: { role: MemberRole.PARTNER, partnerOrganizationId: invite.partnerOrganizationId }
+  });
+
+  return res.json({
+    ok: true,
+    item: toPartnerOrganization({ ...invite.partnerOrganization, memberCount }, { includeVerificationAssets: true })
+  });
 });
 
 app.get("/members/me/profile", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
@@ -6082,7 +6616,16 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
   }
   const position = await prisma.position.findUnique({
     where: { id: parsed.data.positionId },
-    select: { id: true, status: true }
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      partnerOrganization: {
+        select: {
+          name: true
+        }
+      }
+    }
   });
   if (!position) return res.status(404).json({ ok: false, message: "position not found" });
   if (position.status === PositionStatus.DRAFT) {
@@ -6098,6 +6641,21 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
       where: { id: profile.id },
       data: { appliedPositionIds: next }
     });
+    const applicant = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true }
+    });
+    if (applicant) {
+      void sendPositionApplyDiscordNotification({
+        positionId: position.id,
+        positionTitle: position.title,
+        applicantId: applicant.id,
+        applicantName: applicant.name,
+        applicantEmail: applicant.email,
+        partnerName: position.partnerOrganization?.name ?? null,
+        appliedAt: new Date()
+      });
+    }
     return res.json({ ok: true, ids: next });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to apply position" });
@@ -7388,6 +7946,65 @@ app.get("/partner/dashboard", authenticate, requireRoles([MemberRole.PARTNER, Me
   });
 });
 
+app.get("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+  if (!affiliation?.organization) {
+    return sendAuthError(
+      res,
+      403,
+      "PARTNER_AFFILIATION_REQUIRED",
+      "partner affiliation is required. request organization assignment."
+    );
+  }
+  const organizationId = affiliation.organization.id;
+
+  try {
+    const items = await prisma.position.findMany({
+      where: { partnerOrganizationId: affiliation.organization.id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        partnerOrganization: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        matchingParticipants: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            createdBy: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        },
+        progressLogs: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            createdBy: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        },
+        statusHistories: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            createdBy: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        }
+      }
+    });
+
+    return res.json({
+      ok: true,
+      items: items.map((item) => toPosition(item))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   console.info("[partner/positions][create][request]", {
     userId: req.auth?.userId,
@@ -7425,11 +8042,12 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]),
   }
 
   try {
+    const nextStatus = PositionStatus.PENDING_REVIEW;
     const created = await prisma.position.create({
       data: {
         partnerOrganizationId: affiliation.organization.id,
         title: parsed.data.title,
-        status: parsed.data.status ?? PositionStatus.DRAFT,
+        status: nextStatus,
         workType: parsed.data.workType ?? "On-site",
         employmentType: parsed.data.employmentType ?? PositionEmploymentType.UNPAID_INTERN,
         thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5),
@@ -7448,11 +8066,12 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]),
         dressCode: parsed.data.dressCode,
         wantsPreTraining: parsed.data.wantsPreTraining,
         additionalNotes: parsed.data.additionalNotes,
+        adminMemo: mergeEmploymentClassificationMeta(null, parsed.data.employmentClassification ?? null),
         statusHistories: {
           create: {
             fromStatus: null,
-            toStatus: parsed.data.status ?? PositionStatus.DRAFT,
-            note: "파트너 공고 생성",
+            toStatus: nextStatus,
+            note: "파트너 공고 생성 (어드민 관리자 승인 대기)",
             createdByUserId: req.auth!.userId
           }
         }
@@ -7489,6 +8108,24 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]),
           }
         }
       }
+    });
+
+    const creator = await prisma.user.findUnique({
+      where: { id: req.auth!.userId },
+      select: { id: true, name: true, email: true }
+    });
+    void sendPositionCreateDiscordNotification({
+      positionId: created.id,
+      positionTitle: created.title,
+      partnerName: created.partnerOrganization?.name ?? null,
+      employmentType: created.employmentType,
+      employmentClassification: parsed.data.employmentClassification ?? null,
+      workType: created.workType ?? null,
+      workLocation: created.workLocation ?? null,
+      createdByUserId: req.auth!.userId,
+      createdByUserName: creator?.name ?? null,
+      createdByUserEmail: creator?.email ?? null,
+      createdAt: created.createdAt
     });
 
     return res.status(201).json({ ok: true, item: toPosition(created) });
@@ -7599,6 +8236,7 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
       "partner affiliation is required. request organization assignment."
     );
   }
+  const organizationId = affiliation.organization.id;
 
   const current = await prisma.position.findFirst({
     where: {
@@ -7607,98 +8245,144 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
     },
     select: {
       id: true,
-      status: true
+      status: true,
+      adminMemo: true
     }
   });
   if (!current) {
     return res.status(404).json({ ok: false, message: "position not found" });
   }
 
-  const nextStatus = parsed.data.status;
-  const shouldWriteStatusHistory = nextStatus !== undefined && nextStatus !== current.status;
-
   try {
-    const updated = await prisma.position.update({
-      where: { id: current.id },
-      data: {
-        ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
-        ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
-        ...(parsed.data.workType !== undefined ? { workType: parsed.data.workType } : {}),
-        ...(parsed.data.employmentType !== undefined ? { employmentType: parsed.data.employmentType } : {}),
-        ...(parsed.data.thumbnailImages !== undefined
-          ? { thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5) }
-          : {}),
-        ...(parsed.data.eligibleVisas !== undefined
-          ? { eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas) }
-          : {}),
-        ...(parsed.data.preferredNationalities !== undefined
-          ? { preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities) }
-          : {}),
-        ...(parsed.data.communicationLanguages !== undefined
-          ? { communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages) }
-          : {}),
-        ...(parsed.data.hiringProcess !== undefined ? { hiringProcess: parsed.data.hiringProcess } : {}),
-        ...(parsed.data.preferredJobRole !== undefined ? { preferredJobRole: parsed.data.preferredJobRole } : {}),
-        ...(parsed.data.hiringCount !== undefined ? { hiringCount: parsed.data.hiringCount } : {}),
-        ...(parsed.data.workingHours !== undefined ? { workingHours: parsed.data.workingHours } : {}),
-        ...(parsed.data.workLocation !== undefined ? { workLocation: parsed.data.workLocation } : {}),
-        ...(parsed.data.startDate !== undefined
-          ? { startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null }
-          : {}),
-        ...(parsed.data.mainResponsibilities !== undefined ? { mainResponsibilities: parsed.data.mainResponsibilities } : {}),
-        ...(parsed.data.requiredQualifications !== undefined ? { requiredQualifications: parsed.data.requiredQualifications } : {}),
-        ...(parsed.data.preferredQualifications !== undefined ? { preferredQualifications: parsed.data.preferredQualifications } : {}),
-        ...(parsed.data.dressCode !== undefined ? { dressCode: parsed.data.dressCode } : {}),
-        ...(parsed.data.wantsPreTraining !== undefined ? { wantsPreTraining: parsed.data.wantsPreTraining } : {}),
-        ...(parsed.data.additionalNotes !== undefined ? { additionalNotes: parsed.data.additionalNotes } : {}),
-        ...(shouldWriteStatusHistory
-          ? {
-              statusHistories: {
-                create: {
-                  fromStatus: current.status,
-                  toStatus: nextStatus!,
-                  note: "파트너 공고 수정",
-                  createdByUserId: req.auth!.userId
-                }
-              }
-            }
-          : {})
-      },
-      include: {
-        partnerOrganization: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        matchingParticipants: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            createdBy: {
-              select: { id: true, name: true, email: true }
-            }
-          }
-        },
-        progressLogs: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            createdBy: {
-              select: { id: true, name: true, email: true }
-            }
-          }
-        },
-        statusHistories: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            createdBy: {
-              select: { id: true, name: true, email: true }
-            }
-          }
-        }
+    const hasStatusUpdate = parsed.data.status !== undefined;
+    const hasContentUpdate = Object.entries(parsed.data).some(([key, value]) => key !== "status" && value !== undefined);
+
+    if (hasStatusUpdate) {
+      if (hasContentUpdate) {
+        return res.status(400).json({
+          ok: false,
+          message: "상태 변경과 내용 수정은 동시에 요청할 수 없습니다. 각각 따로 요청해주세요."
+        });
       }
+
+      if (current.status === PositionStatus.PENDING_REVIEW) {
+        return res.status(403).json({
+          ok: false,
+          message: "승인 대기 상태에서는 파트너가 상태를 변경할 수 없습니다. 어드민 승인 후 변경 가능합니다."
+        });
+      }
+
+      const nextStatus = parsed.data.status!;
+      const partnerAllowedStatuses: PositionStatus[] = [PositionStatus.OPEN, PositionStatus.PAUSED, PositionStatus.CLOSED];
+      if (!partnerAllowedStatuses.includes(nextStatus)) {
+        return res.status(403).json({
+          ok: false,
+          message: "파트너는 공개/정지/마감 상태만 변경할 수 있습니다."
+        });
+      }
+
+      if (nextStatus === current.status) {
+        const same = await prisma.position.findUnique({
+          where: { id: current.id },
+          include: {
+            partnerOrganization: { select: { id: true, name: true } },
+            matchingParticipants: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+            progressLogs: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+            statusHistories: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } }
+          }
+        });
+        if (!same) return res.status(404).json({ ok: false, message: "position not found" });
+        return res.json({ ok: true, item: toPosition(same) });
+      }
+
+      const updated = await prisma.position.update({
+        where: { id: current.id },
+        data: {
+          status: nextStatus,
+          statusHistories: {
+            create: {
+              fromStatus: current.status,
+              toStatus: nextStatus,
+              note: "파트너 상태 변경",
+              createdByUserId: req.auth!.userId
+            }
+          }
+        },
+        include: {
+          partnerOrganization: { select: { id: true, name: true } },
+          matchingParticipants: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+          progressLogs: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+          statusHistories: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } }
+        }
+      });
+      return res.json({ ok: true, item: toPosition(updated), message: "상태가 변경되었습니다." });
+    }
+
+    if (!hasContentUpdate) {
+      return res.status(400).json({ ok: false, message: "변경할 내용이 없습니다." });
+    }
+
+    const normalizedPayload = {
+      ...parsed.data,
+      ...(parsed.data.thumbnailImages !== undefined
+        ? { thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5) }
+        : {}),
+      ...(parsed.data.eligibleVisas !== undefined ? { eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas) } : {}),
+      ...(parsed.data.preferredNationalities !== undefined
+        ? { preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities) }
+        : {}),
+      ...(parsed.data.communicationLanguages !== undefined
+        ? { communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages) }
+        : {})
+    };
+
+    await prisma.$transaction(async (tx) => {
+      await tx.positionRevision.updateMany({
+        where: {
+          positionId: current.id,
+          partnerOrganizationId: organizationId,
+          status: PositionRevisionStatus.PENDING
+        },
+        data: {
+          status: PositionRevisionStatus.REJECTED,
+          reviewNote: "새 수정요청으로 대체됨",
+          reviewedByUserId: req.auth!.userId,
+          reviewedAt: new Date()
+        }
+      });
+
+      await tx.positionRevision.create({
+        data: {
+          positionId: current.id,
+          partnerOrganizationId: organizationId,
+          requestedByUserId: req.auth!.userId,
+          status: PositionRevisionStatus.PENDING,
+          payload: normalizedPayload
+        }
+      });
+
+      await tx.positionStatusHistory.create({
+        data: {
+          positionId: current.id,
+          fromStatus: current.status,
+          toStatus: PositionStatus.PENDING_REVIEW,
+          note: "파트너 공고 수정 요청 (어드민 관리자 승인 대기)",
+          createdByUserId: req.auth!.userId
+        }
+      });
     });
 
-    return res.json({ ok: true, item: toPosition(updated) });
+    const latest = await prisma.position.findUnique({
+      where: { id: current.id },
+      include: {
+        partnerOrganization: { select: { id: true, name: true } },
+        matchingParticipants: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+        progressLogs: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+        statusHistories: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } }
+      }
+    });
+    if (!latest) return res.status(404).json({ ok: false, message: "position not found" });
+    return res.json({ ok: true, item: toPosition(latest), message: "수정 요청이 접수되었습니다. 어드민 관리자 승인 후 반영됩니다." });
   } catch (error) {
     console.error("[partner/positions][update][failed]", {
       positionId: id,
@@ -7706,6 +8390,153 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
       message: getErrorMessage(error)
     });
     return res.status(500).json({ ok: false, message: "failed to update partner position" });
+  }
+});
+
+app.get("/ops/position-revisions", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = listPositionRevisionsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+
+  const page = parsed.data.page ?? 1;
+  const pageSize = parsed.data.pageSize ?? 50;
+  const where = parsed.data.status ? { status: parsed.data.status } : {};
+
+  try {
+    const [total, items] = await Promise.all([
+      prisma.positionRevision.count({ where }),
+      prisma.positionRevision.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          position: { select: { id: true, title: true, status: true } },
+          partnerOrganization: { select: { id: true, name: true } },
+          requestedByUser: { select: { id: true, name: true, email: true } },
+          reviewedByUser: { select: { id: true, name: true, email: true } }
+        }
+      })
+    ]);
+    return res.json({ ok: true, total, page, pageSize, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.post("/ops/position-revisions/:id/approve", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid revision id" });
+  const parsed = reviewPositionRevisionSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  try {
+    const reviewed = await prisma.$transaction(async (tx) => {
+      const revision = await tx.positionRevision.findUnique({ where: { id } });
+      if (!revision || revision.status !== PositionRevisionStatus.PENDING) return null;
+
+      const current = await tx.position.findUnique({ where: { id: revision.positionId }, select: { status: true, adminMemo: true } });
+      if (!current) return null;
+      const payload = revision.payload as Record<string, unknown>;
+
+      const updateData: Prisma.PositionUpdateInput = {
+        ...(typeof payload.title === "string" ? { title: payload.title } : {}),
+        ...(typeof payload.workType === "string" ? { workType: payload.workType } : {}),
+        ...(typeof payload.employmentType === "string" ? { employmentType: payload.employmentType as PositionEmploymentType } : {}),
+        ...(Array.isArray(payload.thumbnailImages) ? { thumbnailImages: normalizeStringArray(payload.thumbnailImages as string[]).slice(0, 5) } : {}),
+        ...(Array.isArray(payload.eligibleVisas) ? { eligibleVisas: normalizeStringArray(payload.eligibleVisas as string[]) } : {}),
+        ...(Array.isArray(payload.preferredNationalities) ? { preferredNationalities: normalizeStringArray(payload.preferredNationalities as string[]) } : {}),
+        ...(Array.isArray(payload.communicationLanguages) ? { communicationLanguages: normalizeStringArray(payload.communicationLanguages as string[]) } : {}),
+        ...(typeof payload.hiringProcess === "string" || payload.hiringProcess === null ? { hiringProcess: payload.hiringProcess as string | null } : {}),
+        ...(typeof payload.preferredJobRole === "string" || payload.preferredJobRole === null ? { preferredJobRole: payload.preferredJobRole as string | null } : {}),
+        ...(typeof payload.hiringCount === "number" || payload.hiringCount === null ? { hiringCount: payload.hiringCount as number | null } : {}),
+        ...(typeof payload.workingHours === "string" || payload.workingHours === null ? { workingHours: payload.workingHours as string | null } : {}),
+        ...(typeof payload.workLocation === "string" || payload.workLocation === null ? { workLocation: payload.workLocation as string | null } : {}),
+        ...(typeof payload.startDate === "string" || payload.startDate === null
+          ? { startDate: payload.startDate ? new Date(payload.startDate as string) : null }
+          : {}),
+        ...(typeof payload.mainResponsibilities === "string" || payload.mainResponsibilities === null ? { mainResponsibilities: payload.mainResponsibilities as string | null } : {}),
+        ...(typeof payload.requiredQualifications === "string" || payload.requiredQualifications === null ? { requiredQualifications: payload.requiredQualifications as string | null } : {}),
+        ...(typeof payload.preferredQualifications === "string" || payload.preferredQualifications === null ? { preferredQualifications: payload.preferredQualifications as string | null } : {}),
+        ...(typeof payload.dressCode === "string" || payload.dressCode === null ? { dressCode: payload.dressCode as string | null } : {}),
+        ...(typeof payload.wantsPreTraining === "boolean" || payload.wantsPreTraining === null ? { wantsPreTraining: payload.wantsPreTraining as boolean | null } : {}),
+        ...(typeof payload.additionalNotes === "string" || payload.additionalNotes === null ? { additionalNotes: payload.additionalNotes as string | null } : {}),
+        ...(payload.employmentClassification !== undefined
+          ? {
+              adminMemo: mergeEmploymentClassificationMeta(
+                current.adminMemo,
+                (payload.employmentClassification as
+                  | "UNPAID_INTERN_EXPERIENCE"
+                  | "UNPAID_INTERN_CONVERSION"
+                  | "PAID_INTERN_EXPERIENCE"
+                  | "PAID_INTERN_CONVERSION"
+                  | "PART_TIME"
+                  | "FULL_TIME"
+                  | null
+                ) ?? null
+              )
+            }
+          : {}),
+        statusHistories: {
+          create: {
+            fromStatus: current.status,
+            toStatus: current.status,
+            note: "포지션 수정요청 승인 반영",
+            createdByUserId: req.auth!.userId
+          }
+        }
+      };
+
+      const updatedPosition = await tx.position.update({
+        where: { id: revision.positionId },
+        data: updateData
+      });
+
+      const updatedRevision = await tx.positionRevision.update({
+        where: { id: revision.id },
+        data: {
+          status: PositionRevisionStatus.APPROVED,
+          reviewNote: parsed.data.note ?? "수정요청 승인",
+          reviewedByUserId: req.auth!.userId,
+          reviewedAt: new Date()
+        }
+      });
+
+      return { updatedRevision, updatedPosition };
+    });
+
+    if (!reviewed) return res.status(404).json({ ok: false, message: "pending revision not found" });
+    return res.json({ ok: true, item: reviewed.updatedRevision, position: reviewed.updatedPosition });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.post("/ops/position-revisions/:id/reject", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid revision id" });
+  const parsed = reviewPositionRevisionSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  try {
+    const updated = await prisma.positionRevision.updateMany({
+      where: { id, status: PositionRevisionStatus.PENDING },
+      data: {
+        status: PositionRevisionStatus.REJECTED,
+        reviewNote: parsed.data.note ?? "수정요청 반려",
+        reviewedByUserId: req.auth!.userId,
+        reviewedAt: new Date()
+      }
+    });
+    if (updated.count === 0) return res.status(404).json({ ok: false, message: "pending revision not found" });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
 });
 
@@ -8092,6 +8923,139 @@ app.patch("/ops/partner-users/:id/admin-memo", authenticate, requireRoles([Membe
   }
 });
 
+app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = listPartnerUsersQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+
+  const { search, partnerOrganizationId, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
+  const orderByMap = {
+    email: { email: sortOrder },
+    name: { name: sortOrder },
+    createdAt: { createdAt: sortOrder }
+  } as const;
+  const orderBy = orderByMap[sortBy];
+
+  const where: Prisma.UserWhereInput = {
+    ...(partnerOrganizationId ? { partnerOrganizationId } : {}),
+    ...(search
+      ? {
+          OR: [
+            { email: { contains: search, mode: Prisma.QueryMode.insensitive } },
+            { name: { contains: search, mode: Prisma.QueryMode.insensitive } }
+          ]
+        }
+      : {})
+  };
+
+  const [total, users] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        email: true,
+        emailVerified: true,
+        name: true,
+        phoneNumber: true,
+        jobTitle: true,
+        adminMemo: true,
+        role: true,
+        partnerType: true,
+        partnerOrgRole: true,
+        partnerOrganizationId: true,
+        createdAt: true
+      }
+    })
+  ]);
+
+  const partnerIds = Array.from(
+    new Set(users.map((user) => user.partnerOrganizationId).filter((id): id is string => Boolean(id)))
+  );
+  const partners = partnerIds.length
+    ? await prisma.partnerOrganization.findMany({
+        where: { id: { in: partnerIds } }
+      })
+    : [];
+  const partnerById = new Map(partners.map((item) => [item.id, item]));
+
+  return res.json({
+    ok: true,
+    items: users.map((user) => {
+      const partner = user.partnerOrganizationId ? partnerById.get(user.partnerOrganizationId) : null;
+      return {
+        id: user.id,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        name: user.name,
+        phoneNumber: user.phoneNumber,
+        jobTitle: user.jobTitle,
+        adminMemo: user.adminMemo,
+        role: user.role,
+        partnerType: user.partnerType,
+        partnerOrgRole: user.partnerOrgRole,
+        createdAt: user.createdAt,
+        partnerName: partner?.name ?? "-",
+        partner: partner
+          ? {
+              id: partner.id,
+              name: partner.name,
+              companySize: partner.companySize ?? null,
+              partnerType: partner.partnerType,
+              industry: partner.industry,
+              officeAddress: partner.officeAddress,
+              website: partner.website,
+              socialMedia: partner.socialMedia,
+              description: partner.description,
+              strengths: partner.strengths,
+              adminMemo: partner.adminMemo ?? null,
+              createdAt: partner.createdAt
+            }
+          : null
+      };
+    }),
+    page,
+    pageSize,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / pageSize))
+  });
+});
+
+app.patch("/ops/users/:id/admin-memo", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) {
+    return res.status(400).json({ ok: false, message: "invalid user id" });
+  }
+
+  const parsed = updatePartnerUserAdminMemoSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  try {
+    const updated = await prisma.user.update({
+      where: { id },
+      data: {
+        adminMemo: parsed.data.adminMemo?.trim() || null
+      },
+      select: {
+        id: true,
+        adminMemo: true
+      }
+    });
+    return res.json({ ok: true, item: updated });
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+      return res.status(404).json({ ok: false, message: "user not found" });
+    }
+    return res.status(500).json({ ok: false, message: "failed to update user admin memo" });
+  }
+});
+
 app.patch("/ops/partners/:id/verification-approval", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   if (!id) {
@@ -8193,6 +9157,48 @@ app.post("/ops/partners/:id/members", authenticate, requireRoles([MemberRole.OPE
   }
 });
 
+app.post("/ops/partners/:id/join-codes", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) {
+    return res.status(400).json({ ok: false, message: "invalid partner id" });
+  }
+
+  const parsed = createPartnerJoinCodeSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  const partner = await prisma.partnerOrganization.findUnique({
+    where: { id },
+    select: { id: true }
+  });
+  if (!partner) {
+    return res.status(404).json({ ok: false, message: "partner not found" });
+  }
+
+  const expiresInMinutes = parsed.data.expiresInMinutes ?? partnerJoinCodeTtlMinutesDefault;
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + expiresInMinutes * 60 * 1000);
+  const code = generatePartnerJoinCode();
+
+  await prisma.partnerOrganizationJoinCode.create({
+    data: {
+      partnerOrganizationId: partner.id,
+      createdByUserId: req.auth!.userId,
+      codeHash: hashToken(code),
+      expiresAt
+    }
+  });
+
+  return res.status(201).json({
+    ok: true,
+    item: {
+      code,
+      expiresAt
+    }
+  });
+});
+
 app.delete("/ops/partners/:id/members/:memberId", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const memberId = Array.isArray(req.params.memberId) ? req.params.memberId[0] : req.params.memberId;
@@ -8232,6 +9238,7 @@ app.post("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asy
       data: {
         partnerType: parsed.data.partnerType,
         name: parsed.data.name,
+        slug: await generateUniquePartnerOrganizationSlug(parsed.data.name, prisma),
         companySize: parsed.data.companySize,
         officeAddress: parsed.data.officeAddress,
         website: parsed.data.website,

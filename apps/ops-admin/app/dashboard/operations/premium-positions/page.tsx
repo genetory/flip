@@ -4,10 +4,10 @@ import { UploadSimple, X } from "@phosphor-icons/react";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { getOpsBadgeClassName } from "../../partners/_components/OpsBadge";
 import { PartnerUnifiedDetailModal } from "../../partners/_components/PartnerUnifiedDetailModal";
+import { getOpsPositionStatusMeta, type PositionStatus } from "../../_components/position-status-meta";
 
 const TOKEN_COOKIE_KEY = "ops_admin_token";
 
-type PositionStatus = "DRAFT" | "OPEN" | "MATCHING" | "CLOSED";
 type DetailTabKey = "basic" | "matching" | "logs" | "memo";
 
 type PositionParticipant = {
@@ -116,23 +116,17 @@ function formatDateTime(value: string) {
 }
 
 function statusLabel(status: PositionStatus) {
-  if (status === "DRAFT") return "임시저장";
-  if (status === "OPEN") return "공개";
-  if (status === "MATCHING") return "매칭 진행";
-  return "마감";
+  return getOpsPositionStatusMeta(status).labelKo;
 }
 
 function statusTone(status: PositionStatus) {
-  if (status === "DRAFT") return "status-pending" as const;
-  if (status === "OPEN") return "status-approved" as const;
-  if (status === "MATCHING") return "role-admin" as const;
-  return "status-rejected" as const;
+  return getOpsPositionStatusMeta(status).tone;
 }
 
 function premiumIneligibilityReasons(item: PositionItem) {
   const reasons: string[] = [];
-  if (item.status !== "OPEN" && item.status !== "MATCHING") {
-    reasons.push("상태가 OPEN/MATCHING 아님");
+  if (item.status !== "OPEN") {
+    reasons.push("상태가 OPEN 아님");
   }
   const directBanner = item.premiumBanner?.bannerImageUrl?.trim() ?? "";
   const fallbackImage = (item.thumbnailImages ?? []).find((image) => image.trim().length > 0) ?? "";

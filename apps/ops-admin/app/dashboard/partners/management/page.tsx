@@ -58,6 +58,7 @@ type PartnerCompanySize = "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZ
 
 type PartnerOrganization = {
   id: string;
+  slug?: string | null;
   partnerType: PartnerType;
   name: string;
   companySize: PartnerCompanySize | null;
@@ -162,7 +163,6 @@ function formatDate(value: string) {
 
 function partnerStatusLabel(item: PartnerOrganization) {
   if (item.verification?.isVerified) return "운영중";
-  if (!item.verification?.hasRequiredDocuments) return "검토중 (서류 미비)";
   if (!item.verification?.isApproved) return "검토중 (승인 대기)";
   return "검토중";
 }
@@ -186,6 +186,7 @@ export default function PartnerManagementPage() {
   const [detailDraft, setDetailDraft] = useState<PartnerOrganization | null>(null);
   const [detailSaving, setDetailSaving] = useState(false);
   const [approvalUpdating, setApprovalUpdating] = useState(false);
+  const [joinCodeGenerating, setJoinCodeGenerating] = useState(false);
   const [detailTab, setDetailTab] = useState<PartnerDetailTab>("basic");
   const [membersRefreshKey, setMembersRefreshKey] = useState(0);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
@@ -620,6 +621,46 @@ export default function PartnerManagementPage() {
     }
   }
 
+  async function generatePartnerJoinCodeForOps() {
+    if (!detailDraft) return;
+    setJoinCodeGenerating(true);
+    try {
+      const token = readCookie(TOKEN_COOKIE_KEY);
+      const response = await fetch(`${apiBaseUrl}/ops/partners/${detailDraft.id}/join-codes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({})
+      });
+      const payload = (await response.json()) as { ok?: boolean; item?: { code: string; expiresAt: string }; message?: string };
+      if (!response.ok || !payload.ok || !payload.item) {
+        window.alert(payload.message ?? "초대코드 생성에 실패했습니다.");
+        return;
+      }
+      let copied = false;
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(payload.item.code);
+          copied = true;
+        } catch {
+          copied = false;
+        }
+      }
+      const expiryLabel = new Date(payload.item.expiresAt).toLocaleString("ko-KR");
+      if (copied) {
+        window.alert(`초대코드: ${payload.item.code}\n만료: ${expiryLabel}\n\n클립보드에 복사되었습니다.`);
+      } else {
+        window.alert(`초대코드: ${payload.item.code}\n만료: ${expiryLabel}`);
+      }
+    } catch {
+      window.alert("초대코드 생성 중 오류가 발생했습니다.");
+    } finally {
+      setJoinCodeGenerating(false);
+    }
+  }
+
   return (
     <section className="ops-content-section">
       <header>
@@ -721,7 +762,9 @@ export default function PartnerManagementPage() {
                     className="ops-clickable-row"
                     onClick={() => void openPartnerDetail(item)}
                   >
-                    <td>{item.name}</td>
+                    <td>
+                      {item.name}
+                    </td>
                     
                     <td>{item.memberCount}명</td>
                     <td>
@@ -1062,8 +1105,11 @@ export default function PartnerManagementPage() {
                       <button type="button" className="ops-action-cancel" onClick={() => void updateVerificationApproval(false)} disabled={approvalUpdating}>
                         {approvalUpdating ? "처리 중..." : "승인 반려"}
                       </button>
-                      <button type="button" className="ops-action-save" onClick={() => void updateVerificationApproval(true)} disabled={approvalUpdating || !detailDraft.verification?.hasRequiredDocuments}>
+                      <button type="button" className="ops-action-save" onClick={() => void updateVerificationApproval(true)} disabled={approvalUpdating}>
                         {approvalUpdating ? "처리 중..." : "승인"}
+                      </button>
+                      <button type="button" className="ops-action-save" onClick={() => void generatePartnerJoinCodeForOps()} disabled={joinCodeGenerating}>
+                        {joinCodeGenerating ? "코드 생성 중..." : "초대코드 생성"}
                       </button>
                       <button type="button" className="ops-action-save" onClick={() => setIsDetailEditMode(true)}>
                         수정
@@ -1154,6 +1200,7 @@ export default function PartnerManagementPage() {
           </div>
         </article>
       </dialog>
+
     </section>
   );
 }

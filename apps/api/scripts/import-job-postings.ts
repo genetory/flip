@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { createHash } from "node:crypto";
-import { PartnerType, PositionStatus, PrismaClient } from "@prisma/client";
+import { PartnerType, PositionSourceKind, PositionSourceProvider, PositionStatus, PrismaClient } from "@prisma/client";
 
 type RawPosting = Record<string, unknown>;
 
@@ -22,8 +22,10 @@ const HASH_MARKER = "[[sourceSyncHash:";
 const DEFAULT_STATUS = (() => {
   const raw = (process.env.JOB_POSTINGS_DEFAULT_STATUS ?? "OPEN").toUpperCase();
   if (raw === PositionStatus.DRAFT) return PositionStatus.DRAFT;
-  if (raw === PositionStatus.MATCHING) return PositionStatus.MATCHING;
   if (raw === PositionStatus.CLOSED) return PositionStatus.CLOSED;
+  if (raw === PositionStatus.PENDING_REVIEW) return PositionStatus.PENDING_REVIEW;
+  if (raw === PositionStatus.PAUSED) return PositionStatus.PAUSED;
+  if (raw === PositionStatus.REJECTED) return PositionStatus.REJECTED;
   return PositionStatus.OPEN;
 })();
 
@@ -145,11 +147,17 @@ function pickStatus(raw: RawPosting): PositionStatus {
   if (normalized.includes("CLOSE") || normalized.includes("END") || normalized.includes("마감")) {
     return PositionStatus.CLOSED;
   }
-  if (normalized.includes("MATCH")) {
-    return PositionStatus.MATCHING;
-  }
   if (normalized.includes("APPROVED") || normalized.includes("ACTIVE") || normalized.includes("OPEN")) {
     return PositionStatus.OPEN;
+  }
+  if (normalized.includes("PENDING") || normalized.includes("REVIEW") || normalized.includes("승인_대기") || normalized.includes("승인대기")) {
+    return PositionStatus.PENDING_REVIEW;
+  }
+  if (normalized.includes("PAUSE") || normalized.includes("HOLD") || normalized.includes("중지")) {
+    return PositionStatus.PAUSED;
+  }
+  if (normalized.includes("REJECT") || normalized.includes("반려")) {
+    return PositionStatus.REJECTED;
   }
   if (normalized.includes("DRAFT") || normalized.includes("TEMP") || normalized.includes("임시")) {
     return PositionStatus.DRAFT;
@@ -537,6 +545,11 @@ async function run() {
           where: { id: existing.id },
           data: {
             partnerOrganizationId,
+            sourceKind: PositionSourceKind.EXTERNAL,
+            sourceProvider: PositionSourceProvider.OTHER,
+            sourceExternalId: postingId,
+            sourceUrl: `${API_BASE.replace(/\\/$/, "")}/${encodeURIComponent(postingId)}`,
+            sourceFetchedAt: new Date(),
             title,
             status,
             preferredNationalities,
@@ -558,6 +571,11 @@ async function run() {
         await prisma.position.create({
           data: {
             partnerOrganizationId,
+            sourceKind: PositionSourceKind.EXTERNAL,
+            sourceProvider: PositionSourceProvider.OTHER,
+            sourceExternalId: postingId,
+            sourceUrl: `${API_BASE.replace(/\\/$/, "")}/${encodeURIComponent(postingId)}`,
+            sourceFetchedAt: new Date(),
             title,
             status,
             preferredNationalities,

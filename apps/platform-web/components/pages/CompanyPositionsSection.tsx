@@ -7,14 +7,17 @@ import {
   applyMyPosition,
   getMyAppliedPositions,
   getMyFavoritePositions,
+  getMyPartnerOrganization,
   removeMyFavoritePosition,
   type PublicPositionListItem
 } from "../../lib/member-profile-client";
+import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { type Position } from "../../lib/positions-data";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { Button } from "../ui/button";
 import { Bookmark, Briefcase, LayoutGrid, List, MapPin } from "lucide-react";
 import { useLanguage } from "../i18n/LanguageProvider";
+type PositionCard = Position & { status: PublicPositionListItem["status"] };
 
 function inferWorkType(value?: string | null): "On-site" | "Hybrid" | "Remote" {
   const text = (value ?? "").toLowerCase();
@@ -36,7 +39,7 @@ function companyHref(partnerOrganizationId?: string | null) {
   return `/companies/${encodeURIComponent(partnerOrganizationId.trim())}`;
 }
 
-function mapPublicPositionToCard(item: PublicPositionListItem, locale: "ko" | "en"): Position {
+function mapPublicPositionToCard(item: PublicPositionListItem, locale: "ko" | "en"): PositionCard {
   const now = Date.now();
   const createdAt = new Date(item.createdAt);
   const postedDays = Number.isNaN(createdAt.getTime())
@@ -51,7 +54,7 @@ function mapPublicPositionToCard(item: PublicPositionListItem, locale: "ko" | "e
     startDate && !Number.isNaN(startDate.getTime())
       ? `${startDate.getFullYear()}.${String(startDate.getMonth() + 1).padStart(2, "0")}.${String(startDate.getDate()).padStart(2, "0")}`
       : locale === "ko" ? "즉시" : "Immediate";
-  const statusMatchBase = item.status === "MATCHING" ? 86 : 78;
+  const statusMatchBase = item.status === "OPEN" ? 86 : 78;
   const match = Math.min(99, Math.max(60, statusMatchBase + Math.min(8, item.matchingParticipantsCount)));
   const tags = [
     ...(item.preferredJobRole ? [item.preferredJobRole] : []),
@@ -78,8 +81,13 @@ function mapPublicPositionToCard(item: PublicPositionListItem, locale: "ko" | "e
     applicants: item.matchingParticipantsCount,
     match,
     tags,
-    highlight: postedDays <= 3 ? "New" : item.status === "MATCHING" ? "Hot" : undefined
+    highlight: postedDays <= 3 ? "New" : item.status === "OPEN" ? "Hot" : undefined,
+    status: item.status
   };
+}
+
+function getPositionStatusBadge(status: PublicPositionListItem["status"], locale: "ko" | "en") {
+  return getPublicPositionStatusBadge(status, locale);
 }
 
 function formatPostedDate(position: Position, locale: "ko" | "en") {
@@ -122,6 +130,7 @@ export function CompanyPositionsSection({ items }: { items: PublicPositionListIt
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [appliedIds, setAppliedIds] = useState<string[]>([]);
+  const [myPartnerOrganizationId, setMyPartnerOrganizationId] = useState<string | null>(null);
   const positions = items.map((item) => mapPublicPositionToCard(item, locale));
 
   useEffect(() => {
@@ -149,6 +158,26 @@ export function CompanyPositionsSection({ items }: { items: PublicPositionListIt
       ignore = true;
     };
   }, [isReady, isAuthenticated, user?.id, user?.role]);
+
+  useEffect(() => {
+    if (!isReady || !isAuthenticated || user?.role !== "PARTNER") {
+      setMyPartnerOrganizationId(null);
+      return;
+    }
+    let ignore = false;
+    void (async () => {
+      try {
+        const org = await getMyPartnerOrganization();
+        if (ignore) return;
+        setMyPartnerOrganizationId(org?.id ?? null);
+      } catch {
+        if (!ignore) setMyPartnerOrganizationId(null);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [isReady, isAuthenticated, user?.role]);
 
   async function toggleFavorite(positionId: string) {
     if (!isAuthenticated || !user?.id || user.role !== "STUDENT") return;
@@ -210,7 +239,7 @@ export function CompanyPositionsSection({ items }: { items: PublicPositionListIt
       {viewMode === "grid" ? (
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {positions.map((p) => {
-            const isOwnPartnerPosting = false;
+            const isOwnPartnerPosting = !!myPartnerOrganizationId && p.partnerDomain === myPartnerOrganizationId;
             return (
               <PositionGridCard
                 key={p.id}
@@ -234,7 +263,7 @@ export function CompanyPositionsSection({ items }: { items: PublicPositionListIt
       ) : (
         <div className="space-y-3">
           {positions.map((p) => {
-            const isOwnPartnerPosting = false;
+            const isOwnPartnerPosting = !!myPartnerOrganizationId && p.partnerDomain === myPartnerOrganizationId;
             return (
               <PositionRow
                 key={p.id}
@@ -271,7 +300,7 @@ const PositionRow = ({
   onToggleFavorite,
   onApply
 }: {
-  p: Position;
+  p: PositionCard;
   locale: "ko" | "en";
   copy: Record<string, string>;
   isOwnPartnerPosting: boolean;
@@ -282,6 +311,7 @@ const PositionRow = ({
   onApply: () => void;
 }) => {
   const href = companyHref(p.partnerDomain);
+  const statusBadge = getPositionStatusBadge(p.status, locale);
   return (
     <article className="group relative rounded-xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-elevated">
       <Link
@@ -291,7 +321,10 @@ const PositionRow = ({
       />
       <p className="absolute right-4 top-3 text-[11px] text-muted-foreground">{formatPostedDate(p, locale)}</p>
       <div className="flex flex-col gap-2 md:grid md:grid-cols-[180px_1fr_auto] md:items-stretch md:gap-3">
-        <div className="aspect-[16/9] w-full shrink-0 self-start overflow-hidden rounded-xl md:w-[180px] md:self-auto">
+        <div className="relative aspect-[16/9] w-full shrink-0 self-start overflow-hidden rounded-xl md:w-[180px] md:self-auto">
+          <span className={`absolute left-2 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge.className}`}>
+            {statusBadge.label}
+          </span>
           {p.thumbnailUrl ? (
             <img
               src={p.thumbnailUrl}
@@ -366,7 +399,7 @@ const PositionGridCard = ({
   onToggleFavorite,
   onApply
 }: {
-  p: Position;
+  p: PositionCard;
   locale: "ko" | "en";
   copy: Record<string, string>;
   isOwnPartnerPosting: boolean;
@@ -377,6 +410,7 @@ const PositionGridCard = ({
   onApply: () => void;
 }) => {
   const href = companyHref(p.partnerDomain);
+  const statusBadge = getPositionStatusBadge(p.status, locale);
   return (
     <article className="group relative flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-elevated">
       <Link
@@ -384,13 +418,18 @@ const PositionGridCard = ({
         aria-label={`${p.role} ${copy.viewDetailSuffix}`}
         className="absolute inset-0 z-10 rounded-xl"
       />
-      {p.thumbnailUrl ? (
-        <img src={p.thumbnailUrl} alt={`${p.company} ${copy.thumbnailSuffix}`} className="block aspect-[16/9] w-full rounded-xl object-cover" />
-      ) : (
-        <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-4xl font-bold text-muted-foreground">
-          {p.initial}
-        </div>
-      )}
+      <div className="relative">
+        <span className={`absolute left-2 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge.className}`}>
+          {statusBadge.label}
+        </span>
+        {p.thumbnailUrl ? (
+          <img src={p.thumbnailUrl} alt={`${p.company} ${copy.thumbnailSuffix}`} className="block aspect-[16/9] w-full rounded-xl object-cover" />
+        ) : (
+          <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-4xl font-bold text-muted-foreground">
+            {p.initial}
+          </div>
+        )}
+      </div>
       <div className="mt-4 text-xs text-muted-foreground">
         <div className="min-w-0 md:flex md:flex-col md:justify-center">
           {href ? (

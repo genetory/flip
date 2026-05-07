@@ -3,7 +3,7 @@ export const DEFAULT_PLATFORM_LOCALE = "ko";
 
 const authErrorMessages = {
   ko: {
-    BUSINESS_EMAIL_REQUIRED: "파트너회원은 파트너 이메일로 가입해주세요.",
+    BUSINESS_EMAIL_REQUIRED: "이 이메일로는 가입을 진행할 수 없습니다.",
     EMAIL_ALREADY_EXISTS: "이미 가입된 이메일입니다.",
     EMAIL_PREVERIFICATION_REQUIRED: "업무용 이메일 인증을 먼저 완료해주세요.",
     EMAIL_VERIFICATION_REQUIRED: "이메일 인증이 필요합니다. 받은 편지함의 인증 링크를 확인해주세요.",
@@ -20,7 +20,7 @@ const authErrorMessages = {
     REGISTRATION_FAILED: "회원가입에 실패했습니다."
   },
   en: {
-    BUSINESS_EMAIL_REQUIRED: "Business accounts require a company email.",
+    BUSINESS_EMAIL_REQUIRED: "This email cannot be used for signup.",
     EMAIL_ALREADY_EXISTS: "This email is already registered.",
     EMAIL_PREVERIFICATION_REQUIRED: "Please verify your work email first.",
     EMAIL_VERIFICATION_REQUIRED: "Email verification is required. Please check your inbox.",
@@ -62,7 +62,7 @@ const authPageMessages = {
       namePlaceholder: "홍길동",
       emailPlaceholder: "you@example.com",
       passwordPlaceholder: "8자 이상 입력해주세요",
-      businessHelperText: "파트너회원은 파트너 도메인 이메일로 가입해주세요.",
+      businessHelperText: "가입에 사용할 이메일을 입력해주세요.",
       generalHelperText: "가입 후 이메일 인증을 완료하면 로그인할 수 있습니다.",
       submitIdle: "회원가입",
       submitPending: "가입 중...",
@@ -94,7 +94,7 @@ const authPageMessages = {
       namePlaceholder: "Jane Doe",
       emailPlaceholder: "you@example.com",
       passwordPlaceholder: "Enter at least 8 characters",
-      businessHelperText: "Business accounts require a company email domain.",
+      businessHelperText: "Enter the email you want to use for signup.",
       generalHelperText: "You can sign in after completing email verification.",
       submitIdle: "Sign up",
       submitPending: "Signing up...",
@@ -162,7 +162,7 @@ const headerMessages = {
       matching: "Match Score",
       community: "Community",
       resources: "Resources",
-      pricing: "Personalized Support",
+      pricing: "Customized Support",
       how: "How It Works",
       cases: "Success Stories"
     },

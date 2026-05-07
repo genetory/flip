@@ -12,6 +12,7 @@ type AuthUser = {
   gender?: string | null;
   role: "STUDENT" | "PARTNER" | "OPERATOR";
   partnerType?: "UNIVERSITY" | "COMPANY" | "AGENCY" | null;
+  partnerOrgRole?: "OWNER" | "ADMIN" | "MEMBER" | null;
 };
 
 type AuthSuccessPayload = {

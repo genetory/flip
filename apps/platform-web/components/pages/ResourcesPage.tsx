@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { FileText, FileCheck2, BookOpen, ExternalLink } from "lucide-react";
+import { FileCheck2, BookOpen, ExternalLink } from "lucide-react";
 import { Sparkle } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { Header } from "../site/Header";
@@ -34,34 +34,100 @@ export function ResourcesPage() {
     }
   ];
 
-  const documentItems: ResourceItem[] = [
+  const documentRoadmap = [
     {
-      title: t("기본 제출 서류 가이드", "Required document guide"),
-      description: t("지원 전 준비해야 할 기본 서류를 정리해드립니다.", "See which baseline documents you should prepare before applying."),
-      href: "/resources/documents"
+      title: t("1단계: 입국 및 초기 정착", "Step 1: Entry & Initial Settlement"),
+      subtitle: t("가장 시급한 필수 서류", "Most urgent essential documents"),
+      description: t(
+        "한국 도착 후 신분증을 만들고 집을 구하는 데 필요한 최우선 서식입니다.",
+        "Top-priority forms used right after arrival for ID issuance and housing."
+      ),
+      items: [
+        {
+          title: t("통합신청서(신고서)", "Application Form (Report Form)"),
+          usage: t("외국인등록증 최초 발급, 체류기간 연장, 비자 변경 등 출입국사무소 핵심 업무 공통 서식", "Core all-purpose immigration form for ARC issuance, extension, and visa change"),
+          linkLabel: t("하이코리아 민원서식", "HiKorea forms"),
+          link: "https://www.hikorea.go.kr/board/BoardApplicationListR.pt"
+        },
+        {
+          title: t("주택임대차표준계약서 (영문 병기)", "Standard Housing Lease Agreement"),
+          usage: t("원룸·오피스텔 계약 시 사용. 영문 병기 서식 활용 시 계약 리스크 완화", "Used for housing contracts; bilingual format helps reduce contract risk"),
+          linkLabel: t("법무부 주택임대차표준계약서", "MOJ standard lease form"),
+          link: "https://www.moj.go.kr/moj/315/subview.do?enc=Zm5jdDF8QEB8JTJGYmJzJTJGbW9qJTJGMTE4JTJGNjA0MTkyJTJGYXJ0Y2xWaWV3LmRvJTNGcGFzc3dvcmQlM0QlMjZyZ3NCZ25kZVN0ciUzRCUyNmJic0NsU2VxJTNEJTI2cmdzRW5kZGVTdHIlM0QlMjZpc1ZpZXdNaW5lJTNEZmFsc2UlMjZwYWdlJTNEMSUyNmJic09wZW5XcmRTZXElM0QlMjZzcmNoQ29sdW1uJTNEJTI2c3JjaFdyZCUzRCUyNg%3D%3D"
+        },
+        {
+          title: t("거주/숙소 제공 확인서", "Confirmation of Residence/Accommodation"),
+          usage: t("기숙사·지인 집 거주 등 본인 명의 임대차가 아닐 때 체류지 증빙용", "Proof of residence when lease is not under your own name"),
+          linkLabel: t("하이코리아 민원서식", "HiKorea forms"),
+          link: "https://www.hikorea.go.kr/board/BoardApplicationListR.pt"
+        }
+      ]
     },
     {
-      title: t("서류 작성 예시", "Sample document formats"),
-      description: t("실제 작성 흐름을 참고할 수 있는 예시 템플릿입니다.", "Reference practical examples for formatting and content flow."),
-      href: "/resources/documents"
-    }
-  ];
-
-  const resumeItems: ResourceItem[] = [
-    {
-      title: t("국문 이력서 양식", "Korean resume template"),
-      description: t("한국 채용 환경에 맞춘 기본 이력서 양식입니다.", "A baseline resume format tailored to Korean hiring practices."),
-      href: "/resources/resume"
+      title: t("2단계: 근로 및 일상생활 유지", "Step 2: Work & Daily Administration"),
+      subtitle: t("자주 쓰는 실생활 서류", "Frequently used practical forms"),
+      description: t(
+        "한국에서 일하고 이사하며 행정 업무를 볼 때 빈번히 필요한 서류입니다.",
+        "Frequently used forms for work, moving, and day-to-day administration."
+      ),
+      items: [
+        {
+          title: t("표준근로계약서", "Standard Labor Contract"),
+          usage: t("취업 시 사업주와 체결. 고용노동부 다국어 버전 활용 가능", "Employment contract with multilingual versions provided"),
+          linkLabel: t("고용24 근로계약서 검색", "Work24 labor contract search"),
+          link: "https://www.work24.go.kr/cm/c/b/1100/selectBbttList.do?currentPageNo=1&recordCountPerPage=10&sortTycd=1&searchTxt=%EA%B7%BC%EB%A1%9C%EA%B3%84%EC%95%BD%EC%84%9C&searchTycd=1"
+        },
+        {
+          title: t("인턴 계약서", "Intern Contract"),
+          usage: t("양식은 근로계약서와 유사하나 문서 제목은 반드시 ‘인턴 계약서’ 명시", "Format is similar to labor contract, but title must clearly state intern contract")
+        },
+        {
+          title: t("체류지 변경 신고", "Report of Change of Residence"),
+          usage: t("이사 시 필수. 이사 후 14일 이내 미신고 시 범칙금(최대 100만원) 가능", "Required after moving; delayed report (over 14 days) may incur penalty"),
+          linkLabel: t("하이코리아 민원서식", "HiKorea forms"),
+          link: "https://www.hikorea.go.kr/board/BoardApplicationListR.pt"
+        },
+        {
+          title: t("외국인등록 사실증명 발급 신청", "Certificate of Alien Registration"),
+          usage: t("은행·대출·관공서 제출용 신분/주소 증명", "Official identity/address proof for banking and administration"),
+          linkLabel: t("법령별표서식(출입국관리법 시행규칙 서식138의2)", "Law form reference (Form 138-2)"),
+          link: "https://www.law.go.kr/%EB%B2%95%EB%A0%B9%EB%B3%84%ED%91%9C%EC%84%9C%EC%8B%9D/"
+        },
+        {
+          title: t("위임장", "Power of Attorney"),
+          usage: t("지인/행정사를 통한 대리 민원 처리 시 필요", "Needed when appointing an agent for civil processing"),
+          linkLabel: t("하이코리아 민원서식", "HiKorea forms"),
+          link: "https://www.hikorea.go.kr/board/BoardApplicationListR.pt"
+        }
+      ]
     },
     {
-      title: t("영문 이력서 양식", "English resume template"),
-      description: t("글로벌 포지션 지원을 위한 영문 이력서 양식입니다.", "A clean English resume format for global opportunities."),
-      href: "/resources/resume"
-    },
-    {
-      title: t("직무별 작성 팁", "Role-based resume tips"),
-      description: t("마케팅/운영/개발 등 직무별 강조 포인트를 확인해보세요.", "Review emphasis points by role such as marketing, ops, and engineering."),
-      href: "/resources/resume"
+      title: t("3단계: 세무 및 연례/특수 행정", "Step 3: Tax & Annual/Special Administration"),
+      subtitle: t("연 1회 또는 특정 상황", "Annual or special situations"),
+      description: t(
+        "정기 신고 또는 특정 요건에서만 필요한 서류입니다.",
+        "Forms needed for annual filings or specific conditions."
+      ),
+      items: [
+        {
+          title: t("외국인 근로자 소득공제 신고서", "Income Deduction Form for Foreign Workers"),
+          usage: t("연말정산 시 사용. 국세청 영문 페이지에서 연도별 가이드 확인", "Used for year-end tax settlement with annual guides"),
+          linkLabel: t("국세청 영문 안내", "NTS English guide"),
+          link: "https://www.nts.go.kr/english/cm/cntnts/cntntsView.do?mi=10791&cntntsId=8664"
+        },
+        {
+          title: t("건강보험 피부양자 자격취득 신고서", "Health Insurance Dependent Registration"),
+          usage: t("가족을 피부양자로 등록할 때 필요", "Required when registering family dependents"),
+          linkLabel: t("법령별표서식(국민건강보험법 시행규칙 서식1)", "Law form reference (NHIS Form 1)"),
+          link: "https://www.law.go.kr/%EB%B2%95%EB%A0%B9%EB%B3%84%ED%91%9C%EC%84%9C%EC%8B%9D/"
+        },
+        {
+          title: t("외국면허 교환발급 신청서", "Exchange of Foreign Driver's License"),
+          usage: t("본국 면허를 한국 면허로 교환할 때 사용", "Used to exchange foreign license for a Korean license"),
+          linkLabel: t("도로교통공단 안내", "Road Traffic Authority guide"),
+          link: "https://www.safedriving.or.kr/diGuide/selectDiGuide05.do?menuCd=MN-PO-1213"
+        }
+      ]
     }
   ];
 
@@ -119,12 +185,12 @@ export function ResourcesPage() {
                 {t("준비에 필요한 핵심 자료", "Essential resources for preparation")}
               </div>
               <h1 className={`${paperlogy.className} mt-4 text-3xl font-black tracking-[-0.03em] md:text-5xl`}>
-                {t("비자 · 서류 · 이력서 자료실", "Visa · Documents · Resume Resources")}
+                {t("비자 · 정착 서류 자료실", "Visa · Settlement Document Resources")}
               </h1>
               <p className="mt-4 text-sm leading-relaxed text-white/85 md:text-base">
                 {t(
-                  "한국 비자 정보, 제출 서류, 이력서 양식을 한 곳에서 확인해보세요.",
-                  "Find Korean visa information, required documents, and resume templates in one place."
+                  "한국 비자 정보와 정착·근로·행정에 필요한 핵심 서류를 한 곳에서 확인해보세요.",
+                  "Find Korean visa information and essential documents for settlement, work, and administration in one place."
                 )}
               </p>
               <div className="mt-6 overflow-hidden rounded-2xl bg-white/5">
@@ -149,18 +215,53 @@ export function ResourcesPage() {
                 description={t("비자 준비 전에 꼭 확인하면 좋은 핵심 정보", "Core information worth checking before visa preparation")}
                 items={visaItems}
               />
-              <Section
-                icon={<FileCheck2 className="h-5 w-5" />}
-                title={t("기타 서류 안내", "Additional Document Guidance")}
-                description={t("지원 과정에서 자주 필요한 서류 중심 안내", "Guidance for commonly required documents during application")}
-                items={documentItems}
-              />
-              <Section
-                icon={<FileText className="h-5 w-5" />}
-                title={t("이력서 양식", "Resume Templates")}
-                description={t("국문/영문 이력서 양식과 작성 참고 자료", "Korean/English resume formats and writing references")}
-                items={resumeItems}
-              />
+              <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 md:p-7">
+                <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-[#EAF2FF]" />
+                <div className="mb-5 flex items-start gap-3">
+                  <div className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#0B1227] text-white">
+                    <FileCheck2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className={`${paperlogy.className} text-2xl font-black tracking-[-0.02em] text-[#0B1227]`}>
+                      {t("외국인 정착·근로 서류 로드맵", "Foreign Resident Document Roadmap")}
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-600 md:text-base">
+                      {t("입국부터 근로·세무까지 단계별로 자주 쓰는 핵심 서식을 정리했습니다.", "A staged checklist of key forms from entry to work and tax.")}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {documentRoadmap.map((stage) => (
+                    <article key={stage.title} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 md:p-5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-base font-extrabold text-[#111111] md:text-lg">{stage.title}</p>
+                        <span className="inline-flex items-center rounded-full bg-[#EAF2FF] px-2 py-0.5 text-xs font-semibold text-[#0B46E8]">{stage.subtitle}</span>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-600">{stage.description}</p>
+                      <div className="mt-3 space-y-2">
+                        {stage.items.map((item) => (
+                          <div key={item.title} className="rounded-xl border border-slate-200 bg-white p-3">
+                            <p className="text-sm font-bold text-[#111111]">{item.title}</p>
+                            <p className="mt-1 text-sm text-slate-600">{item.usage}</p>
+                            {item.link ? (
+                              <a
+                                href={item.link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#0B46E8] underline underline-offset-2"
+                              >
+                                {item.linkLabel ?? t("바로가기", "Open link")}
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { Trash } from "@phosphor-icons/react";
 import { ReactNode, useEffect, useState } from "react";
 import { OpsBadge, toneFromEmailVerified, toneFromPartnerOrgRole } from "./OpsBadge";
+import { getOpsPositionStatusMeta, type PositionStatus } from "../../_components/position-status-meta";
 
 type PartnerDetailTab = "basic" | "members" | "jobs" | "memo";
 
@@ -45,7 +46,7 @@ type PartnerMember = {
 type PartnerPosition = {
   id: string;
   title: string;
-  status: "DRAFT" | "OPEN" | "MATCHING" | "CLOSED";
+  status: PositionStatus;
   preferredJobRole: string | null;
   hiringCount: number | null;
   createdAt: string;
@@ -89,17 +90,11 @@ function partnerOrgRoleLabel(role: PartnerMember["partnerOrgRole"]) {
 }
 
 function positionStatusLabel(status: PartnerPosition["status"]) {
-  if (status === "DRAFT") return "임시저장";
-  if (status === "OPEN") return "공개";
-  if (status === "MATCHING") return "매칭 진행";
-  return "마감";
+  return getOpsPositionStatusMeta(status).labelKo;
 }
 
 function positionStatusTone(status: PartnerPosition["status"]) {
-  if (status === "DRAFT") return "status-pending" as const;
-  if (status === "OPEN") return "status-approved" as const;
-  if (status === "MATCHING") return "role-admin" as const;
-  return "status-rejected" as const;
+  return getOpsPositionStatusMeta(status).tone;
 }
 
 function companySizeToLabel(size: "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100" | null) {

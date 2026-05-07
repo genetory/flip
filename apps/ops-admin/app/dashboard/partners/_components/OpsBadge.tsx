@@ -2,16 +2,22 @@ import { ReactNode } from "react";
 
 export type PartnerOrgRole = "OWNER" | "ADMIN" | "MEMBER";
 export type OpsBadgeTone =
+  | "status-draft"
   | "status-pending"
   | "status-approved"
+  | "status-closed"
+  | "status-paused"
   | "status-rejected"
   | "role-owner"
   | "role-admin"
   | "role-member";
 
 const toneClassMap: Record<OpsBadgeTone, string> = {
+  "status-draft": "ops-status-draft",
   "status-pending": "ops-status-pending",
   "status-approved": "ops-status-approved",
+  "status-closed": "ops-status-closed",
+  "status-paused": "ops-status-paused",
   "status-rejected": "ops-status-rejected",
   "role-owner": "ops-role-owner",
   "role-admin": "ops-role-admin",

@@ -5,10 +5,10 @@ import { MouseEvent, SyntheticEvent, useEffect, useMemo, useRef, useState } from
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getOpsBadgeClassName, OpsBadge } from "../../partners/_components/OpsBadge";
 import { PartnerUnifiedDetailModal } from "../../partners/_components/PartnerUnifiedDetailModal";
+import { getOpsPositionStatusMeta, type PositionStatus } from "../../_components/position-status-meta";
 
 const TOKEN_COOKIE_KEY = "ops_admin_token";
 
-type PositionStatus = "DRAFT" | "OPEN" | "MATCHING" | "CLOSED";
 type SortField = "title" | "status" | "hiringCount" | "createdAt";
 type SortOrder = "asc" | "desc";
 type TabKey = "basic" | "matching" | "logs" | "memo";
@@ -181,24 +181,15 @@ function readCookie(key: string) {
 }
 
 function statusLabel(status: PositionStatus) {
-  if (status === "DRAFT") return "임시저장";
-  if (status === "OPEN") return "공개";
-  if (status === "MATCHING") return "매칭 진행";
-  return "마감";
+  return getOpsPositionStatusMeta(status).labelKo;
 }
 
 function statusTone(status: PositionStatus) {
-  if (status === "DRAFT") return "status-pending" as const;
-  if (status === "OPEN") return "status-approved" as const;
-  if (status === "MATCHING") return "role-admin" as const;
-  return "status-rejected" as const;
+  return getOpsPositionStatusMeta(status).tone;
 }
 
 function statusOptionClass(status: PositionStatus) {
-  if (status === "DRAFT") return "ops-position-status-draft";
-  if (status === "OPEN") return "ops-position-status-open";
-  if (status === "MATCHING") return "ops-position-status-matching";
-  return "ops-position-status-closed";
+  return getOpsPositionStatusMeta(status).optionClass;
 }
 
 function formatDate(value: string) {
@@ -309,7 +300,7 @@ export default function PositionManagementPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedItem, setSelectedItem] = useState<PositionItem | null>(null);
   const [form, setForm] = useState<PositionForm>(emptyForm());
-  const [statusMenu, setStatusMenu] = useState<{
+  const [statusModalTarget, setStatusModalTarget] = useState<{
     id: string;
     currentStatus: PositionStatus;
     mode: "list" | "detail";
@@ -468,17 +459,12 @@ export default function PositionManagementPage() {
   }, [detailIdFromQuery, items, pathname, router, searchParams]);
 
   useEffect(() => {
-    if (!statusMenu) return;
-
-    const handlePointerDown = (event: globalThis.MouseEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.closest(".ops-status-menu-wrap")) return;
-      setStatusMenu(null);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setStatusModalTarget(null);
     };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [statusMenu]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   function openCreateModal() {
     setModalMode("create");
@@ -503,7 +489,7 @@ export default function PositionManagementPage() {
     setNewParticipantName("");
     setNewParticipantNote("");
     setNewLogMessage("");
-    setStatusMenu(null);
+    setStatusModalTarget(null);
     setIsModalOpen(true);
   }
 
@@ -513,7 +499,7 @@ export default function PositionManagementPage() {
     setFormErrorMessage(null);
     setSelectedItem(null);
     setIsEditMode(false);
-    setStatusMenu(null);
+    setStatusModalTarget(null);
   }
 
   function handleDialogCancel(event: SyntheticEvent<HTMLDialogElement, Event>) {
@@ -639,7 +625,7 @@ export default function PositionManagementPage() {
   }
 
   async function updateStatusFromList(id: string, currentStatus: PositionStatus, nextStatus: PositionStatus) {
-    setStatusMenu(null);
+    setStatusModalTarget(null);
     if (currentStatus === nextStatus) return;
     try {
       const token = readCookie(TOKEN_COOKIE_KEY);
@@ -669,7 +655,7 @@ export default function PositionManagementPage() {
   }
 
   function toggleStatusMenu(id: string, currentStatus: PositionStatus, mode: "list" | "detail") {
-    setStatusMenu((prev) => {
+    setStatusModalTarget((prev) => {
       if (prev && prev.id === id && prev.mode === mode) return null;
       return { id, currentStatus, mode };
     });
@@ -894,20 +880,6 @@ export default function PositionManagementPage() {
                         >
                           {statusLabel(item.status)}
                         </button>
-                        {statusMenu?.id === item.id && statusMenu.mode === "list" ? (
-                          <div className="ops-status-toggle-menu ops-position-status-toggle-menu">
-                            {(["DRAFT", "OPEN", "MATCHING", "CLOSED"] as PositionStatus[]).map((status) => (
-                              <button
-                                key={status}
-                                type="button"
-                                className={`${statusOptionClass(status)} ${statusMenu.currentStatus === status ? "is-active" : ""}`}
-                                onClick={() => void updateStatusFromList(item.id, item.status, status)}
-                              >
-                                {statusLabel(status)}
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
                       </div>
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
@@ -950,6 +922,30 @@ export default function PositionManagementPage() {
         </div>
       </article>
 
+      {statusModalTarget ? (
+        <div className="ops-modal-backdrop" onClick={() => setStatusModalTarget(null)}>
+          <div className="ops-modal-panel ops-status-change-modal" onClick={(event) => event.stopPropagation()}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>상태 변경</h3>
+            <p style={{ margin: "8px 0 0", color: "#6b7280", fontSize: 13 }}>변경할 상태를 선택하세요.</p>
+            <div className="ops-status-change-grid" style={{ marginTop: 14 }}>
+              {(["DRAFT", "PENDING_REVIEW", "OPEN", "PAUSED", "CLOSED", "REJECTED"] as PositionStatus[]).map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  className={`ops-status-change-button ${statusOptionClass(status)} ${statusModalTarget.currentStatus === status ? "is-active" : ""}`}
+                  onClick={() => void updateStatusFromList(statusModalTarget.id, statusModalTarget.currentStatus, status)}
+                >
+                  {statusLabel(status)}
+                </button>
+              ))}
+            </div>
+            <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
+              <button type="button" className="ops-detail-button" onClick={() => setStatusModalTarget(null)}>닫기</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <dialog ref={dialogRef} className="ops-modal-dialog" onCancel={handleDialogCancel} onClick={handleDialogClick}>
         <article className="ops-modal-card ops-detail-modal-card">
           <div className="ops-modal-fixed-top">
@@ -965,20 +961,6 @@ export default function PositionManagementPage() {
                     >
                       {statusLabel(selectedItem.status)}
                     </button>
-                    {statusMenu?.id === selectedItem.id && statusMenu.mode === "detail" ? (
-                      <div className="ops-status-toggle-menu ops-position-status-toggle-menu">
-                        {(["DRAFT", "OPEN", "MATCHING", "CLOSED"] as PositionStatus[]).map((status) => (
-                          <button
-                            key={status}
-                            type="button"
-                            className={`${statusOptionClass(status)} ${statusMenu.currentStatus === status ? "is-active" : ""}`}
-                            onClick={() => void updateStatusFromList(selectedItem.id, selectedItem.status, status)}
-                          >
-                            {statusLabel(status)}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -1040,7 +1022,7 @@ export default function PositionManagementPage() {
                   ) : (
                     <div className={`ops-detail-grid ${modalMode === "create" || (modalMode === "detail" && isEditMode) ? "ops-detail-grid-create" : ""}`}>
                       <label><span>제목 <em className="ops-required">*</em></span><input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} disabled={modalMode === "detail" && !isEditMode} /></label>
-                      <label><span>상태</span><select value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value as PositionStatus }))} disabled={modalMode === "detail" && !isEditMode}><option value="DRAFT">임시저장</option><option value="OPEN">공개</option><option value="MATCHING">매칭 진행</option><option value="CLOSED">마감</option></select></label>
+                      <label><span>상태</span><select value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value as PositionStatus }))} disabled={modalMode === "detail" && !isEditMode}><option value="DRAFT">임시저장</option><option value="PENDING_REVIEW">승인대기</option><option value="OPEN">모집중</option><option value="PAUSED">일시중지</option><option value="CLOSED">마감</option><option value="REJECTED">반려</option></select></label>
                       <label><span>파트너사</span><select value={form.partnerOrganizationId} onChange={(e) => setForm((p) => ({ ...p, partnerOrganizationId: e.target.value }))} disabled={modalMode === "detail" && !isEditMode}><option value="">선택 안 함</option>{partners.map((partner) => <option key={partner.id} value={partner.id}>{partner.name} ({partner.domain})</option>)}</select></label>
                       <label>
                         <span>선호 국적</span>

@@ -255,6 +255,7 @@ export type MyCandidateProfile = {
 
 export type MyPartnerOrganization = {
   id: string;
+  slug?: string | null;
   partnerType: "UNIVERSITY" | "COMPANY" | "AGENCY";
   name: string;
   companySize?: "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100" | null;
@@ -348,10 +349,26 @@ export type PositionsMeta = {
 
 export type PublicPositionListItem = {
   id: string;
+  sourceKind: "INTERNAL" | "EXTERNAL";
+  sourceProvider: "INTERNAL" | "BUDDIES" | "KOWORK" | "OTHER";
+  sourceExternalId: string | null;
+  sourceUrl: string | null;
+  sourceFetchedAt: string | null;
+  sourceCompanyName?: string | null;
+  sourceDeadlineDate?: string | null;
+  sourceDeadlineRolling?: boolean;
   title: string;
-  status: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
+  status: "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED";
   workType: "On-site" | "Hybrid" | "Remote" | null;
   employmentType: "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
+  employmentClassification?:
+    | "UNPAID_INTERN_EXPERIENCE"
+    | "UNPAID_INTERN_CONVERSION"
+    | "PAID_INTERN_EXPERIENCE"
+    | "PAID_INTERN_CONVERSION"
+    | "PART_TIME"
+    | "FULL_TIME"
+    | null;
   thumbnailImages: string[];
   eligibleVisas: string[];
   preferredNationalities: string[];
@@ -399,9 +416,17 @@ export type PartnerPosition = {
   id: string;
   partnerOrganizationId: string | null;
   title: string;
-  status: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
+  status: "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED";
   workType: "On-site" | "Hybrid" | "Remote" | null;
   employmentType: "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
+  employmentClassification?:
+    | "UNPAID_INTERN_EXPERIENCE"
+    | "UNPAID_INTERN_CONVERSION"
+    | "PAID_INTERN_EXPERIENCE"
+    | "PAID_INTERN_CONVERSION"
+    | "PART_TIME"
+    | "FULL_TIME"
+    | null;
   thumbnailImages: string[];
   eligibleVisas: string[];
   preferredNationalities: string[];
@@ -419,6 +444,20 @@ export type PartnerPosition = {
   wantsPreTraining: boolean | null;
   additionalNotes: string | null;
   adminMemo: string | null;
+  postingProgressLogs?: Array<{
+    id: string;
+    message: string;
+    createdAt: string;
+    createdBy: { id: string; name: string | null; email: string } | null;
+  }>;
+  statusHistories?: Array<{
+    id: string;
+    fromStatus: "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED" | null;
+    toStatus: "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED";
+    note: string | null;
+    createdAt: string;
+    createdBy: { id: string; name: string | null; email: string } | null;
+  }>;
   createdAt: string;
   updatedAt: string;
 };
@@ -502,10 +541,29 @@ export async function getPositionsMeta() {
   } satisfies PositionsMeta;
 }
 
-export async function getPublicPositionsPage(input?: { cursor?: string | null; limit?: number }) {
+export async function getPublicPositionsPage(input?: {
+  cursor?: string | null;
+  limit?: number;
+  search?: string;
+  jobRoles?: string[];
+  sortOrder?: "asc" | "desc";
+  sourceProviders?: Array<PublicPositionListItem["sourceProvider"]>;
+}) {
   const params = new URLSearchParams();
   if (input?.cursor) params.set("cursor", input.cursor);
   if (input?.limit && Number.isFinite(input.limit)) params.set("limit", String(Math.max(1, Math.floor(input.limit))));
+  if (input?.search && input.search.trim()) params.set("search", input.search.trim());
+  if (input?.jobRoles?.length) {
+    for (const role of Array.from(new Set(input.jobRoles.map((r) => r.trim()).filter((r) => r.length > 0)))) {
+      params.append("jobRole", role);
+    }
+  }
+  if (input?.sortOrder) params.set("sortOrder", input.sortOrder);
+  if (input?.sourceProviders?.length) {
+    for (const provider of Array.from(new Set(input.sourceProviders))) {
+      params.append("sourceProvider", provider);
+    }
+  }
   const query = params.toString();
 
   const response = await fetch(`${getApiBaseUrl()}/positions${query ? `?${query}` : ""}`, {
@@ -608,11 +666,25 @@ export async function applyMyPosition(positionId: string) {
   return result;
 }
 
+export async function getMyPartnerPositions() {
+  const result = await authedJsonFetch<PartnerPosition>("/partner/positions", {
+    method: "GET"
+  });
+  return result.items ?? [];
+}
+
 export async function createMyPartnerPosition(input: {
   title: string;
-  status?: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
+  status?: "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED";
   workType?: "On-site" | "Hybrid" | "Remote";
   employmentType?: "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
+  employmentClassification?:
+    | "UNPAID_INTERN_EXPERIENCE"
+    | "UNPAID_INTERN_CONVERSION"
+    | "PAID_INTERN_EXPERIENCE"
+    | "PAID_INTERN_CONVERSION"
+    | "PART_TIME"
+    | "FULL_TIME";
   thumbnailImages?: string[];
   eligibleVisas?: string[];
   preferredNationalities?: string[];
@@ -641,6 +713,23 @@ export async function createMyPartnerPosition(input: {
   return result.item;
 }
 
+export async function createMyPartnerOrganizationJoinCode(expiresInMinutes?: number) {
+  const result = await authedJsonFetch<{ code: string; expiresAt: string }>("/members/me/partner-organization/join-codes", {
+    method: "POST",
+    body: JSON.stringify(expiresInMinutes ? { expiresInMinutes } : {})
+  });
+  if (!result.item) throw new Error("응답에 초대코드 정보가 없습니다.");
+  return result.item;
+}
+
+export async function joinMyPartnerOrganizationByCode(code: string) {
+  const result = await authedJsonFetch<MyPartnerOrganization | null>("/members/me/partner-organization/join", {
+    method: "POST",
+    body: JSON.stringify({ code })
+  });
+  return result.item ?? null;
+}
+
 export async function getMyPartnerPositionById(id: string) {
   const result = await authedJsonFetch<PartnerPosition>(`/partner/positions/${encodeURIComponent(id)}`, {
     method: "GET"
@@ -656,9 +745,16 @@ export async function updateMyPartnerPosition(
   id: string,
   input: {
     title?: string;
-    status?: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "OPEN" | "PAUSED" | "MATCHING" | "CLOSED" | "REJECTED";
+    status?: "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED";
     workType?: "On-site" | "Hybrid" | "Remote";
     employmentType?: "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
+    employmentClassification?:
+      | "UNPAID_INTERN_EXPERIENCE"
+      | "UNPAID_INTERN_CONVERSION"
+      | "PAID_INTERN_EXPERIENCE"
+      | "PAID_INTERN_CONVERSION"
+      | "PART_TIME"
+      | "FULL_TIME";
     thumbnailImages?: string[];
     eligibleVisas?: string[];
     preferredNationalities?: string[];

@@ -26,6 +26,7 @@ export const dashboardMenuGroups: MenuGroup[] = [
       { label: "후보자 관리", href: "/dashboard/operations/candidates" },
       { label: "프리미엄 포지션 관리", href: "/dashboard/operations/premium-positions" },
       { label: "포지션 관리", href: "/dashboard/operations/positions" },
+      { label: "포지션 수정 관리", href: "/dashboard/operations/position-revisions" },
       { label: "매칭 관리", href: "/dashboard/operations/matching" },
       { label: "인터뷰/진행 현황", href: "/dashboard/operations/interviews" }
     ]
@@ -33,6 +34,7 @@ export const dashboardMenuGroups: MenuGroup[] = [
   {
     title: "운영 지원",
     links: [
+      { label: "전체 사용자 관리", href: "/dashboard/support/users" },
       { label: "유입 경로 관리", href: "/dashboard/support/inflow" },
       { label: "이메일 관리", href: "/dashboard/support/emails" },
       { label: "리포트", href: "/dashboard/support/reports" },

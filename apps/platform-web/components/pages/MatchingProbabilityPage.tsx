@@ -402,7 +402,7 @@ export function MatchingProbabilityPage() {
         new Promise((resolve) => setTimeout(resolve, 1200))
       ]);
       const published = items
-        .filter((item) => item.status === "OPEN" || item.status === "MATCHING")
+        .filter((item) => item.status === "OPEN")
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setPositions(
         published

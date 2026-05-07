@@ -113,7 +113,7 @@ async function main() {
     },
     {
       title: "Frontend Engineer",
-      status: PositionStatus.MATCHING,
+      status: PositionStatus.OPEN,
       workType: "Remote",
       eligibleVisas: ["D-10", "E-7", "F-2", "F-4", "F-6"],
       preferredJobRole: "Frontend Development",
@@ -181,7 +181,7 @@ async function main() {
     },
     {
       title: "Data Analyst",
-      status: PositionStatus.MATCHING,
+      status: PositionStatus.OPEN,
       workType: "On-site",
       eligibleVisas: ["D-10", "E-7", "F-2", "F-6"],
       preferredJobRole: "Data Analysis",
@@ -232,7 +232,7 @@ async function main() {
     },
     {
       title: "Customer Success Specialist",
-      status: PositionStatus.MATCHING,
+      status: PositionStatus.OPEN,
       workType: "Remote",
       eligibleVisas: ["D-2", "D-10", "F-2", "F-6", "H-1"],
       preferredJobRole: "Operations",

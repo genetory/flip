@@ -36,7 +36,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <main className="partner-dashboard">
+    <section className="ops-content-section partner-dashboard">
       <header className="dashboard-header">
         <div>
           <h1>파트너 대시보드</h1>
@@ -73,6 +73,6 @@ export default async function DashboardPage() {
           <p>다음 단계에서 공고 관리, 지원자 관리, 학생 검색 모듈을 이 영역에 배치하면 됩니다.</p>
         </article>
       </section>
-    </main>
+    </section>
   );
 }
