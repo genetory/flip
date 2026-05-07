@@ -4065,12 +4065,14 @@ async function generatePositionMatchesWithOpenAI(params: {
 }
 
 app.get("/health", async (_req, res) => {
+  const emailDeliveryMode = smtpHost && emailFromAddress ? "smtp" : "log";
   try {
     await prisma.$queryRaw`SELECT 1`;
     res.json({
       ok: true,
       service: "api",
       db: "connected",
+      emailDeliveryMode,
       dbTarget: getDatabaseTargetMeta(),
       crawlerScheduler: {
         enabled: crawlSchedulerEnabled,
@@ -4084,6 +4086,7 @@ app.get("/health", async (_req, res) => {
       ok: false,
       service: "api",
       db: "disconnected",
+      emailDeliveryMode,
       dbTarget: getDatabaseTargetMeta(),
       crawlerScheduler: {
         enabled: crawlSchedulerEnabled,
