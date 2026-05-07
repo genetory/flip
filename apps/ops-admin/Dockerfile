@@ -1,4 +1,5 @@
 FROM node:22-alpine AS builder
+# trigger deploy
 WORKDIR /app
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
