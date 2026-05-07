@@ -2243,9 +2243,20 @@ function inferImageExtFromMime(mime: string): string {
 
 async function uploadDataUrlImageIfNeeded(value: string, prefix: string): Promise<string> {
   const raw = value.trim();
-  if (!raw.startsWith("data:image/")) return raw;
+  // Policy:
+  // - Keep bundled/static/remote URLs as-is.
+  // - Upload only real user-upload payloads (data URLs) to Blob.
+  if (
+    raw.startsWith("/")
+    || raw.startsWith("./")
+    || raw.startsWith("../")
+    || /^https?:\/\//i.test(raw)
+  ) {
+    return raw;
+  }
+  if (!/^data:image\//i.test(raw)) return raw;
 
-  const match = raw.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  const match = raw.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/i);
   if (!match) return raw;
 
   const container = getAzureContainerClient();
