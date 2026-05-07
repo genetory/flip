@@ -1334,11 +1334,30 @@ const openApiDocument = {
   paths: generatedPaths
 } as const;
 
-app.get("/openapi.json", (_req, res) => {
-  return res.json(openApiDocument);
+function getRequestOrigin(req: express.Request) {
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  const proto = Array.isArray(forwardedProto)
+    ? forwardedProto[0]
+    : (forwardedProto?.split(",")[0]?.trim() || req.protocol);
+  const host = req.get("host");
+  return host ? `${proto}://${host}` : `http://localhost:${port}`;
+}
+
+app.get("/openapi.json", (req, res) => {
+  const origin = getRequestOrigin(req);
+  return res.json({
+    ...openApiDocument,
+    servers: [
+      { url: origin, description: "Current environment" },
+      { url: `http://localhost:${port}`, description: "Local development" }
+    ]
+  });
 });
-const swaggerUiHandler = swaggerUi.setup(openApiDocument, {
-  explorer: true
+const swaggerUiHandler = swaggerUi.setup(undefined, {
+  explorer: true,
+  swaggerOptions: {
+    url: "/openapi.json"
+  }
 });
 app.use("/api-docs", swaggerUi.serve, swaggerUiHandler);
 app.use("/swagger", swaggerUi.serve, swaggerUiHandler);
