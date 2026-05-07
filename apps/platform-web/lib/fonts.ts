@@ -12,5 +12,6 @@ export const paperlogy = localFont({
     { path: "../fonts/paperlogy/Paperlogy-8ExtraBold.ttf", weight: "800", style: "normal" },
     { path: "../fonts/paperlogy/Paperlogy-9Black.ttf", weight: "900", style: "normal" },
   ],
+  preload: false,
   display: "swap",
 });
