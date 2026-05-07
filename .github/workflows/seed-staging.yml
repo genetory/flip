@@ -1,6 +1,15 @@
 name: Seed Staging DB
 
 on:
+  push:
+    branches: [develop]
+    paths:
+      - ".github/workflows/seed-staging.yml"
+      - "apps/api/scripts/**"
+      - "apps/api/prisma/**"
+      - "apps/api/package.json"
+      - "package.json"
+      - "package-lock.json"
   workflow_dispatch:
     inputs:
       target:
@@ -35,6 +44,26 @@ jobs:
 
       - name: Install deps
         run: npm ci --no-audit --no-fund
+
+      - name: Run migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npm run db:migrate:deploy
+
+      - name: Import job postings
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npm run db:import:job-postings
+
+      - name: Import buddies postings
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npm run db:import:buddies-job-postings
+
+      - name: Import kowork postings
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npm run db:import:kowork-job-postings
 
       - name: Run user seed
         if: ${{ github.event.inputs.target == 'user' || github.event.inputs.target == 'both' }}
