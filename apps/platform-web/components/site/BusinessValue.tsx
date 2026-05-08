@@ -52,7 +52,43 @@ export const BusinessValue = () => {
             close: "닫기",
             submitError: "문의 전송에 실패했어요. 잠시 후 다시 시도해주세요."
           }
-        : {
+        : locale === "zh-CN"
+          ? {
+              title: "企业咨询",
+              subtitle: "请留下基础信息，方便负责人尽快联系您。",
+              company: "公司名称",
+              name: "联系人姓名",
+              email: "邮箱",
+              phone: "联系电话",
+              message: "咨询内容",
+              placeholderMessage: "请自由填写所需人才、招聘时间和咨询问题。",
+              cancel: "取消",
+              submit: "发送咨询",
+              submitting: "发送中...",
+              doneTitle: "咨询已提交",
+              doneBody: "我们将通过您提供的联系方式尽快联系您。",
+              close: "关闭",
+              submitError: "咨询提交失败，请稍后重试。"
+            }
+          : locale === "vi"
+            ? {
+                title: "Tư vấn doanh nghiệp",
+                subtitle: "Vui lòng để lại thông tin cơ bản để đội ngũ phản hồi nhanh hơn.",
+                company: "Tên công ty",
+                name: "Người phụ trách",
+                email: "Email",
+                phone: "Số điện thoại",
+                message: "Nội dung tư vấn",
+                placeholderMessage: "Hãy chia sẻ nhu cầu tuyển dụng, thời gian triển khai và câu hỏi của bạn.",
+                cancel: "Hủy",
+                submit: "Gửi tư vấn",
+                submitting: "Đang gửi...",
+                doneTitle: "Đã tiếp nhận yêu cầu",
+                doneBody: "Chúng tôi sẽ liên hệ sớm qua thông tin bạn đã để lại.",
+                close: "Đóng",
+                submitError: "Gửi yêu cầu thất bại. Vui lòng thử lại sau."
+              }
+            : {
             title: "Company Consultation",
             subtitle: "Leave your basic information so our team can follow up quickly.",
             company: "Company",
@@ -68,7 +104,7 @@ export const BusinessValue = () => {
             doneBody: "We will contact you shortly using the details you shared.",
             close: "Close",
             submitError: "Failed to submit inquiry. Please try again in a moment."
-          },
+            },
     [locale]
   );
 

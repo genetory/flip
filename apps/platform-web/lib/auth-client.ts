@@ -11,6 +11,7 @@ type AuthUser = {
   birthDate?: string | null;
   gender?: string | null;
   role: "STUDENT" | "PARTNER" | "OPERATOR";
+  authProvider?: "EMAIL" | "NAVER" | "KAKAO" | "GOOGLE";
   partnerType?: "UNIVERSITY" | "COMPANY" | "AGENCY" | null;
   partnerOrgRole?: "OWNER" | "ADMIN" | "MEMBER" | null;
 };
@@ -117,6 +118,19 @@ export async function loginWithEmail(input: { email: string; password: string })
     headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify(input)
+  });
+
+  return parseAuthResponse(response);
+}
+
+export type SocialProvider = "naver" | "google" | "kakao";
+
+export async function finalizeSocialSignup(input: { provider: SocialProvider; ctx: string; accountType: AccountType }) {
+  const response = await authFetch(`${getApiBaseUrl()}/auth/${input.provider}/finalize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ ctx: input.ctx, accountType: input.accountType })
   });
 
   return parseAuthResponse(response);

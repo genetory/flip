@@ -4,9 +4,20 @@ import { AuthSessionProvider } from "../components/auth/AuthSessionProvider";
 import { LanguageProvider } from "../components/i18n/LanguageProvider";
 
 export const metadata: Metadata = {
-  title: "Aply - 글로벌 인재와 파트너를 연결하는 커리어 플랫폼",
-  description: "Apply your next move.",
+  title: "Aply — The career platform connecting global talent with Korean partners",
+  description: "Apply your next move. Connect with Korean companies hiring international talent.",
   manifest: "/site.webmanifest",
+  other: {
+    google: "notranslate"
+  },
+  alternates: {
+    languages: {
+      ko: "/",
+      en: "/",
+      "zh-CN": "/",
+      vi: "/"
+    }
+  },
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -19,8 +30,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko">
-      <body>
+    <html lang="ko" suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <LanguageProvider>
           <AuthSessionProvider>{children}</AuthSessionProvider>
         </LanguageProvider>

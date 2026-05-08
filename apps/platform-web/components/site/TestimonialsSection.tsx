@@ -52,25 +52,28 @@ export const TestimonialsSection = () => {
         </Reveal>
 
         <Reveal y="sm">
-          <div className="relative lg:rotate-[5deg]">
+          <div className="relative rotate-[2deg] sm:rotate-[3deg] lg:rotate-[5deg]">
             <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-20 bg-gradient-to-b from-[#f6f9ff] to-transparent" />
             <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-20 bg-gradient-to-t from-[#f6f9ff] to-transparent" />
-            <div className="ml-auto grid max-w-[860px] grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-3">
+            <div className="ml-auto grid max-w-[860px] grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-4 lg:gap-3">
               {columns.map((colItems, colIndex) => {
                 const directionClass = colIndex === 0 || colIndex === 2 ? "[animation-direction:reverse]" : "";
                 return (
-                  <div key={`col-${colIndex}`} className="group relative h-[440px] overflow-hidden">
+                  <div
+                    key={`col-${colIndex}`}
+                    className={`group relative h-[260px] overflow-hidden sm:h-[320px] lg:h-[440px] ${colIndex === 3 ? "hidden lg:block" : ""}`}
+                  >
                     <div className={`flex animate-[testiMarquee_44s_linear_infinite] flex-col gap-3 group-hover:[animation-play-state:paused] ${directionClass}`}>
                       {[...colItems, ...colItems].map((item, itemIndex) => (
                         <article
                           key={`${item.by}-${colIndex}-${itemIndex}`}
-                          className={`${stickyColors[colIndex]} h-auto px-4 py-3.5 shadow-[0_20px_34px_-24px_rgba(15,23,42,0.45)]`}
+                          className={`${stickyColors[colIndex]} h-auto px-2.5 py-2.5 shadow-[0_20px_34px_-24px_rgba(15,23,42,0.45)] sm:px-3 sm:py-3 lg:px-4 lg:py-3.5`}
                         >
                           <span className="mb-2 block h-2 w-10 rounded bg-white/80" />
-                          <p className="text-[14px] font-normal leading-relaxed text-[#0B1227]">"{item.quote}"</p>
+                          <p className="text-[11px] font-normal leading-relaxed text-[#0B1227] sm:text-[12px] lg:text-[14px]">"{item.quote}"</p>
                           <div className="mt-2 flex items-center gap-2">
                             <ReviewAvatar src={item.avatar} alt={item.by} />
-                            <p className="text-[10px] font-semibold text-slate-700">{item.by}</p>
+                            <p className="text-[9px] font-semibold text-slate-700 sm:text-[10px]">{item.by}</p>
                           </div>
                         </article>
                       ))}

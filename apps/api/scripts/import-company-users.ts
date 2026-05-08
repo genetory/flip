@@ -1,6 +1,6 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { MemberRole, PartnerOrgUserRole, PartnerType, PrismaClient } from "@prisma/client";
+import { AuthProvider, MemberRole, PartnerOrgUserRole, PartnerType, PrismaClient } from "@prisma/client";
 
 type RawUser = Record<string, unknown>;
 
@@ -177,12 +177,12 @@ async function run() {
       }
 
       const existing = await prisma.user.findUnique({
-        where: { email },
+        where: { email_authProvider: { email, authProvider: AuthProvider.EMAIL } },
         select: { id: true }
       });
 
       await prisma.user.upsert({
-        where: { email },
+        where: { email_authProvider: { email, authProvider: AuthProvider.EMAIL } },
         create: {
           email,
           emailVerified,

@@ -7,6 +7,7 @@ import {
   CandidateLanguageLevel,
   CandidateLanguageType,
   CandidatePreferredJobRole,
+  AuthProvider,
   CandidateProgramDuration,
   CandidateProgramStartOption,
   CandidateVisaType,
@@ -239,7 +240,7 @@ async function importOneParticipant(participantId: string, passwordHash: string)
   if (!email) throw new Error(`participant ${participantId}: user email is missing`);
 
   const user = await prisma.user.upsert({
-    where: { email: email.toLowerCase() },
+    where: { email_authProvider: { email: email.toLowerCase(), authProvider: AuthProvider.EMAIL } },
     create: {
       email: email.toLowerCase(),
       passwordHash,

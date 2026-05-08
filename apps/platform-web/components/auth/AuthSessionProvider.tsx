@@ -8,17 +8,11 @@ import {
   useMemo,
   useState
 } from "react";
-import { usePathname, useRouter } from "next/navigation";
 import {
   clearAccessToken,
   logoutPlatformSession,
   refreshPlatformSession
 } from "../../lib/auth-client";
-import {
-  getMyPartnerOrganization,
-  isMemberNotFoundError,
-  isPartnerOrganizationProfileComplete
-} from "../../lib/member-profile-client";
 
 type SessionUser = {
   id: string;
@@ -29,6 +23,7 @@ type SessionUser = {
   birthDate?: string | null;
   gender?: string | null;
   role: "STUDENT" | "PARTNER" | "OPERATOR";
+  authProvider?: "EMAIL" | "NAVER" | "KAKAO" | "GOOGLE";
   partnerType?: "UNIVERSITY" | "COMPANY" | "AGENCY" | null;
   partnerOrgRole?: "OWNER" | "ADMIN" | "MEMBER" | null;
 };
@@ -46,8 +41,6 @@ type AuthSessionContextValue = {
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 
 export function AuthSessionProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [isReady, setIsReady] = useState(false);
 
@@ -83,40 +76,6 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     void refreshSession();
   }, [refreshSession]);
-
-  useEffect(() => {
-    if (!isReady || !user || user.role !== "PARTNER") return;
-
-    const allowedPaths = new Set([
-      "/login",
-      "/signup",
-      "/signup/completed",
-      "/signup/verify-email",
-      "/verify-email",
-      "/partner-profile/edit"
-    ]);
-    if (pathname && allowedPaths.has(pathname)) return;
-
-    let cancelled = false;
-    void (async () => {
-      try {
-        const org = await getMyPartnerOrganization();
-        if (cancelled) return;
-        if (!isPartnerOrganizationProfileComplete(org)) {
-          router.replace("/partner-profile/edit?required=1");
-        }
-      } catch (error) {
-        if (cancelled) return;
-        if (isMemberNotFoundError(error)) {
-          router.replace("/partner-profile/edit?required=1");
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isReady, pathname, router, user]);
 
   const value = useMemo<AuthSessionContextValue>(() => ({
     user,

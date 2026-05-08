@@ -1,5 +1,7 @@
 export const PLATFORM_LOCALE_STORAGE_KEY = "platform_locale";
 export const DEFAULT_PLATFORM_LOCALE = "ko";
+export const PLATFORM_LOCALES = ["ko", "en", "zh-CN", "vi"] as const;
+export type PlatformLocale = (typeof PLATFORM_LOCALES)[number];
 
 const authErrorMessages = {
   ko: {
@@ -35,6 +37,40 @@ const authErrorMessages = {
     REFRESH_TOKEN_REVOKED: "Your session has expired. Please sign in again.",
     USER_NOT_FOUND: "Account not found.",
     REGISTRATION_FAILED: "Registration failed."
+  },
+  "zh-CN": {
+    BUSINESS_EMAIL_REQUIRED: "此邮箱无法用于注册。",
+    EMAIL_ALREADY_EXISTS: "该邮箱已注册。",
+    EMAIL_PREVERIFICATION_REQUIRED: "请先完成工作邮箱验证。",
+    EMAIL_VERIFICATION_REQUIRED: "需要邮箱验证，请查看收件箱中的验证链接。",
+    INVALID_EMAIL_VERIFICATION_TOKEN: "验证链接无效。",
+    EXPIRED_EMAIL_VERIFICATION_TOKEN: "验证链接已过期，请重新请求验证邮件。",
+    INVALID_EMAIL_PREVERIFICATION_CODE: "邮箱验证码无效。",
+    EXPIRED_EMAIL_PREVERIFICATION_CODE: "邮箱验证码已过期，请重新验证。",
+    INVALID_CREDENTIALS: "邮箱或密码不正确。",
+    INVALID_REQUEST: "请检查输入内容后重试。",
+    MISSING_REFRESH_TOKEN: "会话已过期，请重新登录。",
+    INVALID_REFRESH_TOKEN: "会话无效，请重新登录。",
+    REFRESH_TOKEN_REVOKED: "会话已过期，请重新登录。",
+    USER_NOT_FOUND: "未找到该账号。",
+    REGISTRATION_FAILED: "注册失败。"
+  },
+  vi: {
+    BUSINESS_EMAIL_REQUIRED: "Email này không thể dùng để đăng ký.",
+    EMAIL_ALREADY_EXISTS: "Email này đã được đăng ký.",
+    EMAIL_PREVERIFICATION_REQUIRED: "Vui lòng xác minh email công việc trước.",
+    EMAIL_VERIFICATION_REQUIRED: "Cần xác minh email. Vui lòng kiểm tra hộp thư.",
+    INVALID_EMAIL_VERIFICATION_TOKEN: "Liên kết xác minh không hợp lệ.",
+    EXPIRED_EMAIL_VERIFICATION_TOKEN: "Liên kết xác minh đã hết hạn. Vui lòng yêu cầu lại.",
+    INVALID_EMAIL_PREVERIFICATION_CODE: "Mã xác minh email không hợp lệ.",
+    EXPIRED_EMAIL_PREVERIFICATION_CODE: "Mã xác minh email đã hết hạn. Vui lòng xác minh lại.",
+    INVALID_CREDENTIALS: "Email hoặc mật khẩu không đúng.",
+    INVALID_REQUEST: "Vui lòng kiểm tra lại thông tin đã nhập.",
+    MISSING_REFRESH_TOKEN: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    INVALID_REFRESH_TOKEN: "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.",
+    REFRESH_TOKEN_REVOKED: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    USER_NOT_FOUND: "Không tìm thấy tài khoản.",
+    REGISTRATION_FAILED: "Đăng ký thất bại."
   }
 } as const;
 
@@ -102,16 +138,82 @@ const authPageMessages = {
       loginPrompt: "Already have an account?",
       loginLink: "Sign in"
     }
+  },
+  "zh-CN": {
+    login: {
+      emailLabel: "邮箱",
+      passwordLabel: "密码",
+      emailPlaceholder: "you@example.com",
+      passwordPlaceholder: "请输入密码",
+      helperText: "使用邮箱和密码登录。",
+      submitIdle: "登录",
+      submitPending: "登录中...",
+      submitFallbackError: "登录失败。",
+      signupPrompt: "还没有账号？",
+      signupLink: "注册"
+    },
+    signup: {
+      accountTypeLabel: "账号类型",
+      accountTypeGeneral: "普通用户",
+      accountTypeBusiness: "企业用户",
+      nameLabel: "姓名",
+      emailLabel: "邮箱",
+      passwordLabel: "密码",
+      namePlaceholder: "张三",
+      emailPlaceholder: "you@example.com",
+      passwordPlaceholder: "请输入至少8个字符",
+      businessHelperText: "请输入用于注册的邮箱。",
+      generalHelperText: "完成邮箱验证后即可登录。",
+      submitIdle: "注册",
+      submitPending: "注册中...",
+      submitFallbackError: "注册失败。",
+      loginPrompt: "已有账号？",
+      loginLink: "登录"
+    }
+  },
+  vi: {
+    login: {
+      emailLabel: "Email",
+      passwordLabel: "Mật khẩu",
+      emailPlaceholder: "you@example.com",
+      passwordPlaceholder: "Nhập mật khẩu",
+      helperText: "Đăng nhập bằng email và mật khẩu.",
+      submitIdle: "Đăng nhập",
+      submitPending: "Đang đăng nhập...",
+      submitFallbackError: "Đăng nhập thất bại.",
+      signupPrompt: "Chưa có tài khoản?",
+      signupLink: "Đăng ký"
+    },
+    signup: {
+      accountTypeLabel: "Loại tài khoản",
+      accountTypeGeneral: "Người dùng",
+      accountTypeBusiness: "Doanh nghiệp",
+      nameLabel: "Tên",
+      emailLabel: "Email",
+      passwordLabel: "Mật khẩu",
+      namePlaceholder: "Nguyen Van A",
+      emailPlaceholder: "you@example.com",
+      passwordPlaceholder: "Nhập ít nhất 8 ký tự",
+      businessHelperText: "Nhập email bạn muốn dùng để đăng ký.",
+      generalHelperText: "Bạn có thể đăng nhập sau khi xác minh email.",
+      submitIdle: "Đăng ký",
+      submitPending: "Đang đăng ký...",
+      submitFallbackError: "Đăng ký thất bại.",
+      loginPrompt: "Đã có tài khoản?",
+      loginLink: "Đăng nhập"
+    }
   }
 } as const;
-
-export type PlatformLocale = keyof typeof authErrorMessages;
 
 export function getBrowserLocale(): PlatformLocale {
   if (typeof window === "undefined") return DEFAULT_PLATFORM_LOCALE;
   const storedLocale = window.localStorage.getItem(PLATFORM_LOCALE_STORAGE_KEY);
-  if (storedLocale === "ko" || storedLocale === "en") return storedLocale;
-  return window.navigator.language.toLowerCase().startsWith("ko") ? "ko" : "en";
+  if (storedLocale && (PLATFORM_LOCALES as readonly string[]).includes(storedLocale)) return storedLocale as PlatformLocale;
+  const lang = window.navigator.language.toLowerCase();
+  if (lang.startsWith("ko")) return "ko";
+  if (lang.startsWith("zh")) return "zh-CN";
+  if (lang.startsWith("vi")) return "vi";
+  return "en";
 }
 
 export function resolveAuthErrorMessage(code?: string, fallback?: string, locale = getBrowserLocale()) {
@@ -119,7 +221,11 @@ export function resolveAuthErrorMessage(code?: string, fallback?: string, locale
     return authErrorMessages[locale][code as keyof (typeof authErrorMessages)[typeof locale]];
   }
 
-  return fallback ?? (locale === "ko" ? "요청을 처리하지 못했습니다." : "Unable to process your request.");
+  if (fallback) return fallback;
+  if (locale === "ko") return "요청을 처리하지 못했습니다.";
+  if (locale === "zh-CN") return "无法处理该请求。";
+  if (locale === "vi") return "Không thể xử lý yêu cầu.";
+  return "Unable to process your request.";
 }
 
 export function getAuthPageMessages(locale = getBrowserLocale()) {
@@ -181,6 +287,66 @@ const headerMessages = {
     languageOptions: {
       ko: "한국어",
       en: "English"
+    }
+  },
+  "zh-CN": {
+    brand: "Aply",
+    nav: {
+      positions: "职位探索",
+      matching: "匹配可能性",
+      community: "社区",
+      resources: "资料库",
+      pricing: "定制支持",
+      how: "运行方式",
+      cases: "案例"
+    },
+    auth: {
+      login: "登录",
+      signup: "注册",
+      myAccount: "我的信息",
+      account: "账号",
+      logout: "退出登录",
+      rolePartner: "合作企业",
+      roleOperator: "运营",
+      greetingSuffix: ""
+    },
+    menuOpenLabel: "打开菜单",
+    languageLabel: "选择语言",
+    languageOptions: {
+      ko: "한국어",
+      en: "English",
+      "zh-CN": "简体中文",
+      vi: "Tiếng Việt"
+    }
+  },
+  vi: {
+    brand: "Aply",
+    nav: {
+      positions: "Khám phá vị trí",
+      matching: "Khả năng phù hợp",
+      community: "Cộng đồng",
+      resources: "Tài liệu",
+      pricing: "Hỗ trợ tùy chỉnh",
+      how: "Cách vận hành",
+      cases: "Case study"
+    },
+    auth: {
+      login: "Đăng nhập",
+      signup: "Đăng ký",
+      myAccount: "Tài khoản của tôi",
+      account: "Tài khoản",
+      logout: "Đăng xuất",
+      rolePartner: "Đối tác",
+      roleOperator: "Vận hành",
+      greetingSuffix: ""
+    },
+    menuOpenLabel: "Mở menu",
+    languageLabel: "Chọn ngôn ngữ",
+    languageOptions: {
+      ko: "한국어",
+      en: "English",
+      "zh-CN": "简体中文",
+      vi: "Tiếng Việt"
     }
   }
 } as const;

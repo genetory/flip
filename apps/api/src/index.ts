@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { spawn } from "child_process";
-import { randomBytes, randomInt } from "crypto";
+import { createHmac, randomBytes, randomInt } from "crypto";
 import cors from "cors";
 import express from "express";
 import nodemailer from "nodemailer";
@@ -8,6 +8,7 @@ import OpenAI from "openai";
 import swaggerUi from "swagger-ui-express";
 import {
   Prisma,
+  AuthProvider,
   MemberRole,
   CandidateVisaType,
   CandidateEducationType,
@@ -99,6 +100,17 @@ const allowedOriginHostSuffixes = (process.env.CORS_ALLOWED_ORIGIN_SUFFIXES ?? "
   .filter((item) => item.length > 0)
   .map((item) => (item.startsWith(".") ? item : `.${item}`));
 const refreshCookieName = "flip_refresh_token";
+const oauthStateCookieName = "flip_oauth_state";
+const oauthStateSecret = process.env.OAUTH_STATE_SECRET?.trim() || "dev-oauth-state-secret-change-me";
+const naverOAuthClientId = process.env.NAVER_OAUTH_CLIENT_ID?.trim() ?? "";
+const naverOAuthClientSecret = process.env.NAVER_OAUTH_CLIENT_SECRET?.trim() ?? "";
+const naverOAuthRedirectUri = process.env.NAVER_OAUTH_REDIRECT_URI?.trim() || `http://localhost:${port}/auth/naver/callback`;
+const googleOAuthClientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim() ?? "";
+const googleOAuthClientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim() ?? "";
+const googleOAuthRedirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI?.trim() || `http://localhost:${port}/auth/google/callback`;
+const kakaoOAuthClientId = process.env.KAKAO_OAUTH_CLIENT_ID?.trim() ?? "";
+const kakaoOAuthClientSecret = process.env.KAKAO_OAUTH_CLIENT_SECRET?.trim() ?? "";
+const kakaoOAuthRedirectUri = process.env.KAKAO_OAUTH_REDIRECT_URI?.trim() || `http://localhost:${port}/auth/kakao/callback`;
 const azureStorageConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING?.trim() ?? "";
 const azureStorageContainerName = process.env.AZURE_STORAGE_CONTAINER_NAME?.trim() || "uploads";
 const crawlSchedulerEnabled = String(process.env.CRAWL_SCHEDULER_ENABLED ?? "false").toLowerCase() === "true";
@@ -163,7 +175,9 @@ type AuthErrorCode =
   | "INVALID_REFRESH_TOKEN"
   | "REFRESH_TOKEN_REVOKED"
   | "USER_NOT_FOUND"
-  | "PARTNER_AFFILIATION_REQUIRED";
+  | "PARTNER_AFFILIATION_REQUIRED"
+  | "INVALID_SIGNUP_CONTEXT"
+  | "EXPIRED_SIGNUP_CONTEXT";
 
 const partnerApplicantStatusEnum = z.enum([
   "APPLIED",
@@ -953,6 +967,59 @@ function clearRefreshTokenCookie(res: express.Response) {
     parts.push("Secure");
   }
   res.append("Set-Cookie", parts.join("; "));
+}
+
+function setOAuthStateCookie(res: express.Response, value: string) {
+  const parts = [
+    `${oauthStateCookieName}=${encodeURIComponent(value)}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    "Max-Age=600"
+  ];
+  if (isProduction) parts.push("Secure");
+  res.append("Set-Cookie", parts.join("; "));
+}
+
+function clearOAuthStateCookie(res: express.Response) {
+  const parts = [
+    `${oauthStateCookieName}=`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    "Max-Age=0"
+  ];
+  if (isProduction) parts.push("Secure");
+  res.append("Set-Cookie", parts.join("; "));
+}
+
+function signOAuthState(payload: Record<string, unknown>) {
+  const body = Buffer.from(JSON.stringify(payload), "utf-8").toString("base64url");
+  const sig = createHmac("sha256", oauthStateSecret).update(body).digest("base64url");
+  return `${body}.${sig}`;
+}
+
+function verifyOAuthState(value: string): Record<string, unknown> | null {
+  const [body, sig] = value.split(".");
+  if (!body || !sig) return null;
+  const expected = createHmac("sha256", oauthStateSecret).update(body).digest("base64url");
+  if (sig !== expected) return null;
+  try {
+    return JSON.parse(Buffer.from(body, "base64url").toString("utf-8")) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function buildOAuthReturnUrl(provider: "naver" | "google" | "kakao", params: Record<string, string>) {
+  const fragment = new URLSearchParams(params).toString();
+  return `${platformWebUrl}/auth/${provider}/return#${fragment}`;
+}
+
+function buildOAuthErrorUrl(code: string, message?: string) {
+  const params: Record<string, string> = { error: code };
+  if (message) params.message = message;
+  return `${platformWebUrl}/login?${new URLSearchParams(params).toString()}`;
 }
 
 function isAllowedCorsOrigin(origin: string) {
@@ -1908,6 +1975,7 @@ function toSafeUser(user: {
   jobTitle: string | null;
   adminMemo: string | null;
   role: MemberRole;
+  authProvider?: AuthProvider;
   partnerType: PartnerType | null;
   partnerOrgRole: PartnerOrgUserRole | null;
   createdAt: Date;
@@ -1927,6 +1995,7 @@ function toSafeUser(user: {
     jobTitle: user.jobTitle,
     adminMemo: user.adminMemo ?? null,
     role: user.role,
+    authProvider: user.authProvider ?? AuthProvider.EMAIL,
     partnerType: user.partnerType,
     partnerOrgRole: user.partnerOrgRole,
     createdAt: user.createdAt,
@@ -6218,7 +6287,7 @@ app.post("/auth/business-email/send-verification", async (req, res) => {
   }
 
   const existingUser = await prisma.user.findUnique({
-    where: { email: parsed.data.email },
+    where: { email_authProvider: { email: parsed.data.email, authProvider: AuthProvider.EMAIL } },
     select: { id: true }
   });
   if (existingUser) {
@@ -6315,7 +6384,7 @@ app.post("/auth/register", async (req, res) => {
   const normalizedEmail = parsed.data.email.trim().toLowerCase();
 
   const existingUser = await prisma.user.findUnique({
-    where: { email: normalizedEmail },
+    where: { email_authProvider: { email: normalizedEmail, authProvider: AuthProvider.EMAIL } },
     select: { id: true }
   });
   if (existingUser) {
@@ -6404,8 +6473,10 @@ app.post("/auth/login", async (req, res) => {
     return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
   }
 
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
-  if (!user) {
+  const user = await prisma.user.findUnique({
+    where: { email_authProvider: { email: parsed.data.email, authProvider: AuthProvider.EMAIL } }
+  });
+  if (!user || !user.passwordHash) {
     return sendAuthError(res, 401, "INVALID_CREDENTIALS", "invalid credentials");
   }
 
@@ -6426,6 +6497,597 @@ app.post("/auth/login", async (req, res) => {
     token: accessToken,
     accessToken,
     user: toSafeUser(user)
+  });
+});
+
+// ---------- Naver OAuth ----------
+
+app.get("/auth/naver/start", (req, res) => {
+  if (!naverOAuthClientId || !naverOAuthClientSecret) {
+    return res.redirect(buildOAuthErrorUrl("NAVER_NOT_CONFIGURED", "Naver OAuth client is not configured"));
+  }
+  const nonce = randomBytes(16).toString("hex");
+  const next = typeof req.query.next === "string" ? req.query.next : "/";
+  const state = signOAuthState({ nonce, next, ts: Date.now() });
+  setOAuthStateCookie(res, state);
+
+  const authorizeUrl = new URL("https://nid.naver.com/oauth2.0/authorize");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", naverOAuthClientId);
+  authorizeUrl.searchParams.set("redirect_uri", naverOAuthRedirectUri);
+  authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("auth_type", "reauthenticate");
+  return res.redirect(authorizeUrl.toString());
+});
+
+app.get("/auth/naver/callback", async (req, res) => {
+  const cookieState = parseCookies(req.headers.cookie)[oauthStateCookieName];
+  clearOAuthStateCookie(res);
+
+  const queryState = typeof req.query.state === "string" ? req.query.state : "";
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+
+  if (typeof req.query.error === "string") {
+    return res.redirect(buildOAuthErrorUrl("NAVER_AUTH_DENIED", req.query.error));
+  }
+  if (!cookieState || !queryState || cookieState !== queryState) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_STATE_MISMATCH"));
+  }
+  const stateData = verifyOAuthState(queryState);
+  if (!stateData) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_STATE_INVALID"));
+  }
+  if (!code) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_CODE_MISSING"));
+  }
+
+  try {
+    // Exchange code for access token
+    const tokenUrl = new URL("https://nid.naver.com/oauth2.0/token");
+    tokenUrl.searchParams.set("grant_type", "authorization_code");
+    tokenUrl.searchParams.set("client_id", naverOAuthClientId);
+    tokenUrl.searchParams.set("client_secret", naverOAuthClientSecret);
+    tokenUrl.searchParams.set("code", code);
+    tokenUrl.searchParams.set("state", queryState);
+
+    const tokenResponse = await fetch(tokenUrl.toString());
+    const tokenJson = (await tokenResponse.json()) as { access_token?: string; error?: string; error_description?: string };
+    if (!tokenResponse.ok || !tokenJson.access_token) {
+      console.error("[naver-oauth] token exchange failed", tokenJson);
+      return res.redirect(buildOAuthErrorUrl("NAVER_TOKEN_EXCHANGE_FAILED", tokenJson.error_description ?? tokenJson.error));
+    }
+
+    // Fetch profile
+    const profileResponse = await fetch("https://openapi.naver.com/v1/nid/me", {
+      headers: { Authorization: `Bearer ${tokenJson.access_token}` }
+    });
+    const profileJson = (await profileResponse.json()) as {
+      resultcode?: string;
+      message?: string;
+      response?: { id?: string; email?: string; name?: string; mobile?: string; profile_image?: string; birthday?: string; gender?: string };
+    };
+    if (!profileResponse.ok || profileJson.resultcode !== "00" || !profileJson.response?.id) {
+      console.error("[naver-oauth] profile fetch failed", profileJson);
+      return res.redirect(buildOAuthErrorUrl("NAVER_PROFILE_FAILED", profileJson.message));
+    }
+
+    const naverProfile = profileJson.response;
+    const providerId = naverProfile.id!;
+    const naverEmail = (naverProfile.email ?? "").trim().toLowerCase();
+    const naverName = naverProfile.name?.trim() || null;
+    const naverMobile = naverProfile.mobile?.trim() || null;
+
+    // Find existing NAVER user by providerId
+    const existingUser = await prisma.user.findUnique({
+      where: { authProvider_providerId: { authProvider: AuthProvider.NAVER, providerId } }
+    });
+
+    if (existingUser) {
+      const { accessToken, refreshToken } = await issueAuthTokens(existingUser);
+      setRefreshTokenCookie(res, refreshToken);
+
+      const nextRaw = typeof stateData.next === "string" ? stateData.next : "/";
+      const next = nextRaw.startsWith("/") ? nextRaw : "/";
+      const returnUrl = buildOAuthReturnUrl("naver", { accessToken, next });
+      return res.redirect(returnUrl);
+    }
+
+    // First-time sign in via Naver: defer user creation until account-type is chosen
+    const signupContext = signOAuthState({
+      type: "naver-signup",
+      providerId,
+      email: naverEmail,
+      name: naverName,
+      mobile: naverMobile,
+      ts: Date.now()
+    });
+    const ctxFragment = new URLSearchParams({ ctx: signupContext, provider: "naver" }).toString();
+    return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
+  } catch (error) {
+    console.error("[naver-oauth] callback failed", error);
+    return res.redirect(buildOAuthErrorUrl("NAVER_CALLBACK_ERROR"));
+  }
+});
+
+const naverFinalizeSchema = z.object({
+  ctx: z.string().min(10).max(4000),
+  accountType: z.enum(["GENERAL", "BUSINESS"])
+});
+
+app.post("/auth/naver/finalize", async (req, res) => {
+  const parsed = naverFinalizeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
+  }
+
+  const ctx = verifyOAuthState(parsed.data.ctx);
+  if (!ctx || ctx.type !== "naver-signup") {
+    return sendAuthError(res, 400, "INVALID_SIGNUP_CONTEXT", "invalid signup context");
+  }
+  const ts = typeof ctx.ts === "number" ? ctx.ts : 0;
+  if (Date.now() - ts > 10 * 60 * 1000) {
+    return sendAuthError(res, 400, "EXPIRED_SIGNUP_CONTEXT", "signup context expired");
+  }
+
+  const providerId = typeof ctx.providerId === "string" ? ctx.providerId : "";
+  const ctxEmail = typeof ctx.email === "string" ? ctx.email.trim().toLowerCase() : "";
+  const ctxName = typeof ctx.name === "string" ? ctx.name : null;
+  const ctxMobile = typeof ctx.mobile === "string" ? ctx.mobile : null;
+  if (!providerId) {
+    return sendAuthError(res, 400, "INVALID_SIGNUP_CONTEXT", "missing providerId");
+  }
+
+  // Double-check: no existing NAVER user with this providerId (race protection)
+  const alreadyExists = await prisma.user.findUnique({
+    where: { authProvider_providerId: { authProvider: AuthProvider.NAVER, providerId } }
+  });
+  if (alreadyExists) {
+    const { accessToken, refreshToken } = await issueAuthTokens(alreadyExists);
+    setRefreshTokenCookie(res, refreshToken);
+    return res.json({
+      ok: true,
+      token: accessToken,
+      accessToken,
+      user: toSafeUser(alreadyExists)
+    });
+  }
+
+  const role = parsed.data.accountType === "BUSINESS" ? MemberRole.PARTNER : MemberRole.STUDENT;
+  const partnerType = role === MemberRole.PARTNER ? PartnerType.COMPANY : null;
+  const partnerOrgRole = role === MemberRole.PARTNER ? PartnerOrgUserRole.MEMBER : null;
+
+  const created = await prisma.user.create({
+    data: {
+      email: ctxEmail || `naver-${providerId}@noemail.local`,
+      emailVerified: true,
+      name: ctxName,
+      phoneNumber: ctxMobile,
+      authProvider: AuthProvider.NAVER,
+      providerId,
+      passwordHash: null,
+      role,
+      partnerType,
+      partnerOrgRole
+    }
+  });
+
+  await sendSignupDiscordNotification({
+    id: created.id,
+    email: created.email,
+    name: created.name,
+    realName: created.realName,
+    role: created.role,
+    partnerType: created.partnerType,
+    createdAt: created.createdAt
+  }).catch((err) => console.error("[naver-oauth] discord signup notify failed", err));
+
+  const { accessToken, refreshToken } = await issueAuthTokens(created);
+  setRefreshTokenCookie(res, refreshToken);
+
+  return res.json({
+    ok: true,
+    token: accessToken,
+    accessToken,
+    user: toSafeUser(created)
+  });
+});
+
+// ---------- Google OAuth ----------
+
+app.get("/auth/google/start", (req, res) => {
+  if (!googleOAuthClientId || !googleOAuthClientSecret) {
+    return res.redirect(buildOAuthErrorUrl("GOOGLE_NOT_CONFIGURED", "Google OAuth client is not configured"));
+  }
+  const nonce = randomBytes(16).toString("hex");
+  const next = typeof req.query.next === "string" ? req.query.next : "/";
+  const state = signOAuthState({ nonce, next, ts: Date.now() });
+  setOAuthStateCookie(res, state);
+
+  const authorizeUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", googleOAuthClientId);
+  authorizeUrl.searchParams.set("redirect_uri", googleOAuthRedirectUri);
+  authorizeUrl.searchParams.set("scope", "openid email profile");
+  authorizeUrl.searchParams.set("access_type", "online");
+  authorizeUrl.searchParams.set("prompt", "select_account");
+  authorizeUrl.searchParams.set("state", state);
+  return res.redirect(authorizeUrl.toString());
+});
+
+app.get("/auth/google/callback", async (req, res) => {
+  const cookieState = parseCookies(req.headers.cookie)[oauthStateCookieName];
+  clearOAuthStateCookie(res);
+
+  const queryState = typeof req.query.state === "string" ? req.query.state : "";
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+
+  if (typeof req.query.error === "string") {
+    return res.redirect(buildOAuthErrorUrl("GOOGLE_AUTH_DENIED", req.query.error));
+  }
+  if (!cookieState || !queryState || cookieState !== queryState) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_STATE_MISMATCH"));
+  }
+  const stateData = verifyOAuthState(queryState);
+  if (!stateData) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_STATE_INVALID"));
+  }
+  if (!code) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_CODE_MISSING"));
+  }
+
+  try {
+    const tokenBody = new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: googleOAuthClientId,
+      client_secret: googleOAuthClientSecret,
+      code,
+      redirect_uri: googleOAuthRedirectUri
+    });
+    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: tokenBody.toString()
+    });
+    const tokenJson = (await tokenResponse.json()) as { access_token?: string; error?: string; error_description?: string };
+    if (!tokenResponse.ok || !tokenJson.access_token) {
+      console.error("[google-oauth] token exchange failed", tokenJson);
+      return res.redirect(buildOAuthErrorUrl("GOOGLE_TOKEN_EXCHANGE_FAILED", tokenJson.error_description ?? tokenJson.error));
+    }
+
+    const profileResponse = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: `Bearer ${tokenJson.access_token}` }
+    });
+    const profileJson = (await profileResponse.json()) as {
+      sub?: string;
+      email?: string;
+      email_verified?: boolean;
+      name?: string;
+      given_name?: string;
+      family_name?: string;
+      picture?: string;
+      error?: string;
+      error_description?: string;
+    };
+    if (!profileResponse.ok || !profileJson.sub) {
+      console.error("[google-oauth] profile fetch failed", profileJson);
+      return res.redirect(buildOAuthErrorUrl("GOOGLE_PROFILE_FAILED", profileJson.error_description ?? profileJson.error));
+    }
+
+    const providerId = profileJson.sub;
+    const googleEmail = (profileJson.email ?? "").trim().toLowerCase();
+    const googleEmailVerified = Boolean(profileJson.email_verified);
+    const googleName = profileJson.name?.trim() || profileJson.given_name?.trim() || null;
+
+    // Find existing GOOGLE user by providerId
+    const existingUser = await prisma.user.findUnique({
+      where: { authProvider_providerId: { authProvider: AuthProvider.GOOGLE, providerId } }
+    });
+
+    if (existingUser) {
+      const { accessToken, refreshToken } = await issueAuthTokens(existingUser);
+      setRefreshTokenCookie(res, refreshToken);
+
+      const nextRaw = typeof stateData.next === "string" ? stateData.next : "/";
+      const next = nextRaw.startsWith("/") ? nextRaw : "/";
+      const returnUrl = buildOAuthReturnUrl("google", { accessToken, next });
+      return res.redirect(returnUrl);
+    }
+
+    // First-time sign in via Google: defer user creation until account-type is chosen
+    const signupContext = signOAuthState({
+      type: "google-signup",
+      providerId,
+      email: googleEmail,
+      emailVerified: googleEmailVerified,
+      name: googleName,
+      ts: Date.now()
+    });
+    const ctxFragment = new URLSearchParams({ ctx: signupContext, provider: "google" }).toString();
+    return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
+  } catch (error) {
+    console.error("[google-oauth] callback failed", error);
+    return res.redirect(buildOAuthErrorUrl("GOOGLE_CALLBACK_ERROR"));
+  }
+});
+
+const googleFinalizeSchema = z.object({
+  ctx: z.string().min(10).max(4000),
+  accountType: z.enum(["GENERAL", "BUSINESS"])
+});
+
+app.post("/auth/google/finalize", async (req, res) => {
+  const parsed = googleFinalizeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
+  }
+
+  const ctx = verifyOAuthState(parsed.data.ctx);
+  if (!ctx || ctx.type !== "google-signup") {
+    return sendAuthError(res, 400, "INVALID_SIGNUP_CONTEXT", "invalid signup context");
+  }
+  const ts = typeof ctx.ts === "number" ? ctx.ts : 0;
+  if (Date.now() - ts > 10 * 60 * 1000) {
+    return sendAuthError(res, 400, "EXPIRED_SIGNUP_CONTEXT", "signup context expired");
+  }
+
+  const providerId = typeof ctx.providerId === "string" ? ctx.providerId : "";
+  const ctxEmail = typeof ctx.email === "string" ? ctx.email.trim().toLowerCase() : "";
+  const ctxEmailVerified = Boolean(ctx.emailVerified);
+  const ctxName = typeof ctx.name === "string" ? ctx.name : null;
+  if (!providerId) {
+    return sendAuthError(res, 400, "INVALID_SIGNUP_CONTEXT", "missing providerId");
+  }
+
+  const alreadyExists = await prisma.user.findUnique({
+    where: { authProvider_providerId: { authProvider: AuthProvider.GOOGLE, providerId } }
+  });
+  if (alreadyExists) {
+    const { accessToken, refreshToken } = await issueAuthTokens(alreadyExists);
+    setRefreshTokenCookie(res, refreshToken);
+    return res.json({
+      ok: true,
+      token: accessToken,
+      accessToken,
+      user: toSafeUser(alreadyExists)
+    });
+  }
+
+  const role = parsed.data.accountType === "BUSINESS" ? MemberRole.PARTNER : MemberRole.STUDENT;
+  const partnerType = role === MemberRole.PARTNER ? PartnerType.COMPANY : null;
+  const partnerOrgRole = role === MemberRole.PARTNER ? PartnerOrgUserRole.MEMBER : null;
+
+  const created = await prisma.user.create({
+    data: {
+      email: ctxEmail || `google-${providerId}@noemail.local`,
+      emailVerified: true,
+      name: ctxName,
+      authProvider: AuthProvider.GOOGLE,
+      providerId,
+      passwordHash: null,
+      role,
+      partnerType,
+      partnerOrgRole
+    }
+  });
+
+  await sendSignupDiscordNotification({
+    id: created.id,
+    email: created.email,
+    name: created.name,
+    realName: created.realName,
+    role: created.role,
+    partnerType: created.partnerType,
+    createdAt: created.createdAt
+  }).catch((err) => console.error("[google-oauth] discord signup notify failed", err));
+
+  const { accessToken, refreshToken } = await issueAuthTokens(created);
+  setRefreshTokenCookie(res, refreshToken);
+
+  return res.json({
+    ok: true,
+    token: accessToken,
+    accessToken,
+    user: toSafeUser(created)
+  });
+});
+
+// ---------- Kakao OAuth ----------
+
+app.get("/auth/kakao/start", (req, res) => {
+  if (!kakaoOAuthClientId) {
+    return res.redirect(buildOAuthErrorUrl("KAKAO_NOT_CONFIGURED", "Kakao OAuth client is not configured"));
+  }
+  const nonce = randomBytes(16).toString("hex");
+  const next = typeof req.query.next === "string" ? req.query.next : "/";
+  const state = signOAuthState({ nonce, next, ts: Date.now() });
+  setOAuthStateCookie(res, state);
+
+  const authorizeUrl = new URL("https://kauth.kakao.com/oauth/authorize");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", kakaoOAuthClientId);
+  authorizeUrl.searchParams.set("redirect_uri", kakaoOAuthRedirectUri);
+  authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("prompt", "login");
+  return res.redirect(authorizeUrl.toString());
+});
+
+app.get("/auth/kakao/callback", async (req, res) => {
+  const cookieState = parseCookies(req.headers.cookie)[oauthStateCookieName];
+  clearOAuthStateCookie(res);
+
+  const queryState = typeof req.query.state === "string" ? req.query.state : "";
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+
+  if (typeof req.query.error === "string") {
+    return res.redirect(buildOAuthErrorUrl("KAKAO_AUTH_DENIED", req.query.error));
+  }
+  if (!cookieState || !queryState || cookieState !== queryState) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_STATE_MISMATCH"));
+  }
+  const stateData = verifyOAuthState(queryState);
+  if (!stateData) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_STATE_INVALID"));
+  }
+  if (!code) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_CODE_MISSING"));
+  }
+
+  try {
+    const tokenBody = new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: kakaoOAuthClientId,
+      redirect_uri: kakaoOAuthRedirectUri,
+      code
+    });
+    if (kakaoOAuthClientSecret) {
+      tokenBody.set("client_secret", kakaoOAuthClientSecret);
+    }
+    const tokenResponse = await fetch("https://kauth.kakao.com/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" },
+      body: tokenBody.toString()
+    });
+    const tokenJson = (await tokenResponse.json()) as { access_token?: string; error?: string; error_description?: string };
+    if (!tokenResponse.ok || !tokenJson.access_token) {
+      console.error("[kakao-oauth] token exchange failed", tokenJson);
+      return res.redirect(buildOAuthErrorUrl("KAKAO_TOKEN_EXCHANGE_FAILED", tokenJson.error_description ?? tokenJson.error));
+    }
+
+    const profileResponse = await fetch("https://kapi.kakao.com/v2/user/me", {
+      headers: { Authorization: `Bearer ${tokenJson.access_token}` }
+    });
+    const profileJson = (await profileResponse.json()) as {
+      id?: number | string;
+      kakao_account?: {
+        email?: string;
+        is_email_verified?: boolean;
+        email_needs_agreement?: boolean;
+        profile?: { nickname?: string; profile_image_url?: string };
+      };
+      properties?: { nickname?: string; profile_image?: string };
+      msg?: string;
+      code?: number;
+    };
+    if (!profileResponse.ok || !profileJson.id) {
+      console.error("[kakao-oauth] profile fetch failed", profileJson);
+      return res.redirect(buildOAuthErrorUrl("KAKAO_PROFILE_FAILED", profileJson.msg));
+    }
+
+    const providerId = String(profileJson.id);
+    const account = profileJson.kakao_account ?? {};
+    const kakaoEmail = (account.email ?? "").trim().toLowerCase();
+    const kakaoEmailVerified = Boolean(account.is_email_verified);
+    const kakaoName = account.profile?.nickname?.trim() || profileJson.properties?.nickname?.trim() || null;
+
+    const existingUser = await prisma.user.findUnique({
+      where: { authProvider_providerId: { authProvider: AuthProvider.KAKAO, providerId } }
+    });
+
+    if (existingUser) {
+      const { accessToken, refreshToken } = await issueAuthTokens(existingUser);
+      setRefreshTokenCookie(res, refreshToken);
+
+      const nextRaw = typeof stateData.next === "string" ? stateData.next : "/";
+      const next = nextRaw.startsWith("/") ? nextRaw : "/";
+      const returnUrl = buildOAuthReturnUrl("kakao", { accessToken, next });
+      return res.redirect(returnUrl);
+    }
+
+    // First-time sign in via Kakao: defer user creation until account-type is chosen
+    const signupContext = signOAuthState({
+      type: "kakao-signup",
+      providerId,
+      email: kakaoEmail,
+      emailVerified: kakaoEmailVerified,
+      name: kakaoName,
+      ts: Date.now()
+    });
+    const ctxFragment = new URLSearchParams({ ctx: signupContext, provider: "kakao" }).toString();
+    return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
+  } catch (error) {
+    console.error("[kakao-oauth] callback failed", error);
+    return res.redirect(buildOAuthErrorUrl("KAKAO_CALLBACK_ERROR"));
+  }
+});
+
+const kakaoFinalizeSchema = z.object({
+  ctx: z.string().min(10).max(4000),
+  accountType: z.enum(["GENERAL", "BUSINESS"])
+});
+
+app.post("/auth/kakao/finalize", async (req, res) => {
+  const parsed = kakaoFinalizeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
+  }
+
+  const ctx = verifyOAuthState(parsed.data.ctx);
+  if (!ctx || ctx.type !== "kakao-signup") {
+    return sendAuthError(res, 400, "INVALID_SIGNUP_CONTEXT", "invalid signup context");
+  }
+  const ts = typeof ctx.ts === "number" ? ctx.ts : 0;
+  if (Date.now() - ts > 10 * 60 * 1000) {
+    return sendAuthError(res, 400, "EXPIRED_SIGNUP_CONTEXT", "signup context expired");
+  }
+
+  const providerId = typeof ctx.providerId === "string" ? ctx.providerId : "";
+  const ctxEmail = typeof ctx.email === "string" ? ctx.email.trim().toLowerCase() : "";
+  const ctxEmailVerified = Boolean(ctx.emailVerified);
+  const ctxName = typeof ctx.name === "string" ? ctx.name : null;
+  if (!providerId) {
+    return sendAuthError(res, 400, "INVALID_SIGNUP_CONTEXT", "missing providerId");
+  }
+
+  const alreadyExists = await prisma.user.findUnique({
+    where: { authProvider_providerId: { authProvider: AuthProvider.KAKAO, providerId } }
+  });
+  if (alreadyExists) {
+    const { accessToken, refreshToken } = await issueAuthTokens(alreadyExists);
+    setRefreshTokenCookie(res, refreshToken);
+    return res.json({
+      ok: true,
+      token: accessToken,
+      accessToken,
+      user: toSafeUser(alreadyExists)
+    });
+  }
+
+  const role = parsed.data.accountType === "BUSINESS" ? MemberRole.PARTNER : MemberRole.STUDENT;
+  const partnerType = role === MemberRole.PARTNER ? PartnerType.COMPANY : null;
+  const partnerOrgRole = role === MemberRole.PARTNER ? PartnerOrgUserRole.MEMBER : null;
+
+  const created = await prisma.user.create({
+    data: {
+      email: ctxEmail || `kakao-${providerId}@noemail.local`,
+      emailVerified: true,
+      name: ctxName,
+      authProvider: AuthProvider.KAKAO,
+      providerId,
+      passwordHash: null,
+      role,
+      partnerType,
+      partnerOrgRole
+    }
+  });
+
+  await sendSignupDiscordNotification({
+    id: created.id,
+    email: created.email,
+    name: created.name,
+    realName: created.realName,
+    role: created.role,
+    partnerType: created.partnerType,
+    createdAt: created.createdAt
+  }).catch((err) => console.error("[kakao-oauth] discord signup notify failed", err));
+
+  const { accessToken, refreshToken } = await issueAuthTokens(created);
+  setRefreshTokenCookie(res, refreshToken);
+
+  return res.json({
+    ok: true,
+    token: accessToken,
+    accessToken,
+    user: toSafeUser(created)
   });
 });
 
@@ -6483,7 +7145,7 @@ app.post("/auth/resend-verification", async (req, res) => {
   }
 
   const user = await prisma.user.findUnique({
-    where: { email: parsed.data.email }
+    where: { email_authProvider: { email: parsed.data.email, authProvider: AuthProvider.EMAIL } }
   });
 
   if (!user) {
@@ -6545,7 +7207,7 @@ app.post("/auth/refresh", async (req, res) => {
   if (!user) {
     return sendAuthError(res, 404, "USER_NOT_FOUND", "user not found");
   }
-  if (!user.emailVerified) {
+  if (user.authProvider === AuthProvider.EMAIL && !user.emailVerified) {
     return sendAuthError(res, 403, "EMAIL_VERIFICATION_REQUIRED", "email verification is required", {
       email: user.email
     });

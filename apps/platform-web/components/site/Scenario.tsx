@@ -43,7 +43,7 @@ export const Scenario = () => {
           <p className="mb-16 text-xs font-semibold uppercase tracking-[0.16em] text-blue-100/90">{copy.sectionLabel}</p>
 
           <div className="mb-8 flex justify-center">
-            <div className="relative inline-flex min-w-[340px] rounded-2xl bg-white/14 p-1 md:min-w-[420px]">
+            <div className="relative inline-flex w-full max-w-[420px] rounded-2xl bg-white/14 p-1">
               <span
                 className={cn(
                   "pointer-events-none absolute -top-7 z-30 rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-slate-900 shadow-[0_10px_20px_-12px_rgba(2,6,23,0.5)] transition-all duration-300",
@@ -75,13 +75,46 @@ export const Scenario = () => {
           </div>
 
           <h2 className={`${paperlogy.className} text-3xl font-black leading-[1.15] tracking-[-0.03em] text-white md:text-5xl`}>{title}</h2>
-          <p className="mx-auto mt-4 max-w-2xl text-sm text-blue-100/95 md:text-base">{description}</p>
+          <p className="mx-auto mt-2.5 max-w-2xl text-sm text-blue-100/95 md:mt-4 md:text-base">{description}</p>
         </Reveal>
 
         <Reveal y="sm" className="mx-auto max-w-6xl">
+          <div className="space-y-4 md:hidden">
+            <ol className="flex flex-col gap-1.5 pt-0">
+              {steps.map((step, index) => (
+                <li
+                  key={`${tab}-mobile-${step}-${index}`}
+                  className={cn(
+                    "transition-all duration-700 ease-smooth",
+                    active ? "translate-x-0 translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+                  )}
+                  style={{ transitionDelay: `${index * 80}ms` }}
+                >
+                  <div className="inline-flex w-full flex-col items-center py-1 text-center transition-transform duration-300 hover:z-10">
+                    <span className="font-display text-[10px] font-semibold uppercase tracking-[0.08em] text-white/80">
+                      Step {index + 1}
+                    </span>
+                    <p className="font-display text-base font-black leading-tight tracking-[-0.01em] text-white">
+                      {step}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+
+            <div
+              className={cn(
+                "relative h-[250px] overflow-visible transition-all duration-700 ease-smooth",
+                active ? "opacity-100" : "opacity-0"
+              )}
+            >
+              <img src={imageSrc} alt={imageAlt} className="absolute bottom-0 left-1/2 h-full w-auto -translate-x-1/2 object-contain" />
+            </div>
+          </div>
+
           <div
             className={cn(
-              "grid items-end gap-8 lg:gap-10",
+              "hidden items-end gap-8 md:grid lg:gap-10",
               isStudent ? "lg:grid-cols-[0.86fr_1.14fr]" : "lg:grid-cols-[1.14fr_0.86fr]"
             )}
           >

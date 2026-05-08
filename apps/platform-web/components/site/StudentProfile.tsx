@@ -23,12 +23,24 @@ export const StudentProfile = () => {
   const { isAuthenticated } = useAuthSession();
   const copy = getSiteMessages(locale).studentProfile;
   const ctaHref = isAuthenticated ? "/profile" : "/login";
+  const profileCompletionLabel =
+    locale === "ko" ? "프로필 완성도" : locale === "zh-CN" ? "档案完成度" : locale === "vi" ? "Mức hoàn thiện hồ sơ" : "Profile completion";
+  const matchChanceLabel =
+    locale === "ko" ? "매칭 가능성" : locale === "zh-CN" ? "匹配可能性" : locale === "vi" ? "Khả năng phù hợp" : "Match chance";
   const ctaLabel = isAuthenticated
     ? locale === "ko"
       ? "내 프로필 완성하기"
+      : locale === "zh-CN"
+        ? "完善我的档案"
+        : locale === "vi"
+          ? "Hoàn thiện hồ sơ của tôi"
       : "Complete my profile"
     : locale === "ko"
       ? "내 프로필 시작하기"
+      : locale === "zh-CN"
+        ? "开始我的档案"
+        : locale === "vi"
+          ? "Bắt đầu hồ sơ của tôi"
       : "Start my profile";
   const [activeSlot, setActiveSlot] = useState(0);
   const slotCards = useMemo(
@@ -82,7 +94,7 @@ export const StudentProfile = () => {
         </defs>
       </svg>
       <div className="container grid max-w-[1200px] gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
-        <Reveal className="order-2 lg:order-1" y="lg">
+        <Reveal className="order-2 hidden lg:order-1 md:block" y="lg">
           <div className="relative mx-auto w-full max-w-[560px] animate-float-y [animation-duration:4.2s]">
             <div className="relative h-[600px] overflow-hidden">
               <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-20 bg-gradient-to-b from-white via-white/80 to-transparent" />
@@ -94,7 +106,7 @@ export const StudentProfile = () => {
                   const card = slotCards[wrappedIndex];
                   const wrapped = centeredIndex - activeSlot;
                   const distance = Math.abs(wrapped);
-                  const yOffset = wrapped * 122;
+                  const yOffset = wrapped * 136;
                   const scale = Math.max(0.62, 1 - distance * 0.12);
                   const opacity = Math.max(0.3, 1 - distance * 0.24);
                   const zIndex = Math.round(20 - distance * 3);
@@ -118,7 +130,7 @@ export const StudentProfile = () => {
                             <p className="truncate text-base font-extrabold">{card.name}</p>
                             <div className="mt-1 flex items-center justify-between text-[11px] font-semibold opacity-90">
                               <p>
-                              {locale === "ko" ? "프로필 완성도" : "Profile completion"}
+                              {profileCompletionLabel}
                               </p>
                               <p>{card.progress}%</p>
                             </div>
@@ -128,7 +140,7 @@ export const StudentProfile = () => {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-[11px] font-semibold opacity-80">{locale === "ko" ? "매칭 가능성" : "Match chance"}</p>
+                          <p className="text-[11px] font-semibold opacity-80">{matchChanceLabel}</p>
                           <p className="font-display text-[38px] font-black leading-none">{card.chance}%</p>
                         </div>
                       </div>
@@ -165,6 +177,58 @@ export const StudentProfile = () => {
           >
             <Link href={ctaHref}>{ctaLabel}</Link>
           </Button>
+
+          <div className="relative mt-8 h-[280px] overflow-hidden md:hidden">
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-14 bg-gradient-to-b from-white via-white/80 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-14 bg-gradient-to-t from-white via-white/80 to-transparent" />
+            <div className="relative h-full">
+              {Array.from({ length: 7 }, (_, virtualIdx) => {
+                const centeredIndex = Math.floor(activeSlot) - 3 + virtualIdx;
+                const wrappedIndex = ((centeredIndex % slotCards.length) + slotCards.length) % slotCards.length;
+                const card = slotCards[wrappedIndex];
+                const wrapped = centeredIndex - activeSlot;
+                const distance = Math.abs(wrapped);
+                const yOffset = wrapped * 90;
+                const scale = Math.max(0.78, 1 - distance * 0.11);
+                const opacity = Math.max(0.38, 1 - distance * 0.22);
+                const zIndex = Math.round(18 - distance * 3);
+
+                return (
+                  <div
+                    key={`mobile-${card.id}-${centeredIndex}`}
+                    className="absolute left-1/2 top-1/2 w-[95%] -translate-x-1/2"
+                    style={{
+                      transform: `translate(-50%, calc(-50% + ${yOffset}px)) scale(${scale})`,
+                      opacity,
+                      zIndex,
+                    }}
+                  >
+                    <div className={`flex items-center justify-between rounded-[24px] bg-gradient-to-r px-4 py-4 shadow-[0_14px_30px_-22px_rgba(2,6,23,0.5)] ${slotCardThemes[card.id]}`}>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="relative h-12 w-12 overflow-hidden ring-2 ring-white/80" style={AVATAR_SQUIRCLE_STYLE}>
+                          <Image src={card.profileSrc} alt="Profile photo" fill className="object-cover" sizes="48px" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-extrabold">{card.name}</p>
+                          <div className="mt-1 flex items-center justify-between text-[10px] font-semibold opacity-90">
+                            <p>{profileCompletionLabel}</p>
+                            <p>{card.progress}%</p>
+                          </div>
+                          <div className="mt-1.5 h-2 w-[110px] overflow-hidden rounded-full bg-white/55">
+                            <div className="h-full rounded-full bg-white" style={{ width: `${card.progress}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-semibold opacity-80">{matchChanceLabel}</p>
+                        <p className="font-display text-[24px] font-black leading-none">{card.chance}%</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </Reveal>
       </div>
     </section>

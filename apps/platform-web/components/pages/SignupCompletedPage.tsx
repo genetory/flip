@@ -12,17 +12,41 @@ export function SignupCompletedPage() {
   const { locale } = useLanguage();
   const startHref = "/";
 
-  const copy = {
-    title: locale === "ko" ? "회원가입이 완료되었습니다" : "Signup complete",
-    description:
-      locale === "ko"
-        ? "환영합니다. 준비가 끝났어요. 바로 시작해볼까요?"
-        : "Welcome aboard. You're all set, let's get started.",
-    checkingSession: locale === "ko" ? "세션을 확인하고 있습니다..." : "Checking your session...",
-    start: locale === "ko" ? "시작하기" : "Get started",
-    goLogin: locale === "ko" ? "로그인하러 가기" : "Go to login",
-    goHome: locale === "ko" ? "홈으로 가기" : "Go home"
+  const copyByLocale = {
+    ko: {
+      title: "회원가입이 완료되었습니다",
+      description: "환영합니다. 준비가 끝났어요. 바로 시작해볼까요?",
+      checkingSession: "세션을 확인하고 있습니다...",
+      start: "시작하기",
+      goLogin: "로그인하러 가기",
+      goHome: "홈으로 가기"
+    },
+    en: {
+      title: "Signup complete",
+      description: "Welcome aboard. You're all set, let's get started.",
+      checkingSession: "Checking your session...",
+      start: "Get started",
+      goLogin: "Go to login",
+      goHome: "Go home"
+    },
+    "zh-CN": {
+      title: "注册已完成",
+      description: "欢迎加入。准备就绪，现在开始吧。",
+      checkingSession: "正在检查会话状态...",
+      start: "开始使用",
+      goLogin: "前往登录",
+      goHome: "返回首页"
+    },
+    vi: {
+      title: "Đăng ký hoàn tất",
+      description: "Chào mừng bạn. Mọi thứ đã sẵn sàng, hãy bắt đầu nhé.",
+      checkingSession: "Đang kiểm tra phiên đăng nhập...",
+      start: "Bắt đầu",
+      goLogin: "Đi tới đăng nhập",
+      goHome: "Về trang chủ"
+    }
   } as const;
+  const copy = copyByLocale[locale] ?? copyByLocale.en;
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">

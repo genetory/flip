@@ -7,14 +7,24 @@ export type VisaStructuredLine = {
 export type VisaDetail = {
   titleKo: string | null;
   titleEn: string | null;
+  titleZh?: string | null;
+  titleVi?: string | null;
   updatedAtKo: string | null;
   updatedAtEn: string | null;
+  updatedAtZh?: string | null;
+  updatedAtVi?: string | null;
   descriptionKo: VisaStructuredLine[];
   descriptionEn: VisaStructuredLine[];
+  descriptionZh?: VisaStructuredLine[];
+  descriptionVi?: VisaStructuredLine[];
   candidatesKo: VisaStructuredLine[];
   candidatesEn: VisaStructuredLine[];
+  candidatesZh?: VisaStructuredLine[];
+  candidatesVi?: VisaStructuredLine[];
   requirementsKo: VisaStructuredLine[];
   requirementsEn: VisaStructuredLine[];
+  requirementsZh?: VisaStructuredLine[];
+  requirementsVi?: VisaStructuredLine[];
   description: VisaStructuredLine[];
   candidates: VisaStructuredLine[];
   requirements: VisaStructuredLine[];
@@ -314,6 +324,58 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "해당 체류자격별 체류자격외 활동 필요서류 (자격요건 등 구비)"
       }
+    ],
+    "titleZh": "A-1 外交签证 - 外交使节团",
+    "titleVi": "Visa A-1 Ngoại giao - Đoàn ngoại giao",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "由韩国政府接收的外国政府外交使节团或领事机构成员，依据条约或国际惯例享有与外交使节同等特权及豁免的人员及其家属" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：任职期间" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Thành viên đoàn ngoại giao hoặc cơ quan lãnh sự của chính phủ nước ngoài được Chính phủ Đại Hàn Dân Quốc tiếp nhận, người được hưởng đặc quyền và miễn trừ tương đương đoàn ngoại giao theo điều ước hoặc thông lệ quốc tế, và gia đình họ" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: Thời gian nhiệm kỳ" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "由韩国政府接收的外国政府外交使节团或领事机构成员" },
+      { "kind": "bullet", "depth": 0, "text": "包括驻韩国的大使、公使、参赞、书记官等外交人员" },
+      { "kind": "bullet", "depth": 0, "text": "包括驻韩国政府的总领事、领事等领事官员" },
+      { "kind": "bullet", "depth": 0, "text": "依据条约或国际惯例享有与外交使节同等特权及豁免的人员" },
+      { "kind": "bullet", "depth": 0, "text": "包括联合国秘书长及副秘书长、联合国专门机构事务局长等" },
+      { "kind": "bullet", "depth": 0, "text": "包括国家元首、内阁成员、两院议长、出席政府主办会议的外国政府代表团成员等" },
+      { "kind": "bullet", "depth": 0, "text": "上述人员的家属" },
+      { "kind": "bullet", "depth": 0, "text": "家属包括与驻韩外交官共同生活的配偶、子女、父母等" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Thành viên đoàn ngoại giao hoặc cơ quan lãnh sự của chính phủ nước ngoài được Chính phủ Đại Hàn Dân Quốc tiếp nhận" },
+      { "kind": "bullet", "depth": 0, "text": "Bao gồm các nhân viên ngoại giao như đại sứ, công sứ, tham tán, thư ký được tiếp nhận tại Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "Bao gồm các viên chức lãnh sự như tổng lãnh sự, lãnh sự được tiếp nhận tại Chính phủ Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "Người được hưởng đặc quyền và miễn trừ tương đương đoàn ngoại giao theo điều ước hoặc thông lệ quốc tế" },
+      { "kind": "bullet", "depth": 0, "text": "Bao gồm Tổng Thư ký và Phó Tổng Thư ký Liên Hợp Quốc, Tổng Giám đốc các tổ chức chuyên môn của Liên Hợp Quốc, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Bao gồm nguyên thủ quốc gia, bộ trưởng, chủ tịch lưỡng viện, thành viên đoàn đại biểu chính phủ nước ngoài tham dự hội nghị do chính phủ tổ chức, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Gia đình của những người nói trên" },
+      { "kind": "bullet", "depth": 0, "text": "Gia đình bao gồm vợ/chồng, con cái, cha mẹ, v.v. cùng hộ với nhà ngoại giao thường trú tại Hàn Quốc" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 0, "text": "证明派遣、在职的文件，或当事国外交部长官的协助公函" },
+      { "kind": "bullet", "depth": 0, "text": "外国政府外交使节团或领事机构成员的随行家属须提交本国出具的家庭关系证明、出生证明等家庭关系证明文件" },
+      { "kind": "bullet", "depth": 0, "text": "在居留资格外活动时" },
+      { "kind": "bullet", "depth": 1, "text": "护照、综合申请书" },
+      { "kind": "bullet", "depth": 1, "text": "手续费（资格外活动 12 万韩元）：驻韩美国公馆员的随行家属依据互惠原则免除手续费" },
+      { "kind": "bullet", "depth": 1, "text": "外交部（外交使节负责官）出具的雇佣推荐书（必备）" },
+      { "kind": "bullet", "depth": 1, "text": "各居留资格对应的资格外活动所需材料（资格条件等齐备）" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy tờ chứng minh việc phái cử, đang công tác hoặc công hàm hợp tác của Bộ trưởng Ngoại giao nước liên quan" },
+      { "kind": "bullet", "depth": 0, "text": "Đối với gia đình đi kèm của thành viên đoàn ngoại giao hoặc cơ quan lãnh sự của chính phủ nước ngoài, cần giấy tờ chứng minh quan hệ gia đình do nước nhà cấp (giấy chứng nhận quan hệ gia đình, giấy khai sinh, v.v.)" },
+      { "kind": "bullet", "depth": 0, "text": "Khi hoạt động ngoài tư cách lưu trú" },
+      { "kind": "bullet", "depth": 1, "text": "Hộ chiếu, đơn đăng ký tổng hợp" },
+      { "kind": "bullet", "depth": 1, "text": "Lệ phí (hoạt động ngoài tư cách: 120.000 KRW): Gia đình đi kèm của nhân viên cơ quan đại diện Mỹ tại Hàn Quốc được miễn lệ phí theo nguyên tắc đối ứng" },
+      { "kind": "bullet", "depth": 1, "text": "Thư giới thiệu tuyển dụng do Bộ Ngoại giao (cán bộ phụ trách đoàn ngoại giao) cấp (bắt buộc)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ cần thiết cho hoạt động ngoài tư cách lưu trú theo từng tư cách lưu trú (đủ điều kiện, v.v.)" }
     ]
   },
   "A-2": {
@@ -568,6 +630,50 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "체류자격외 활동 시- 여권, 통합신청서 - 수수료(자격외 활동 12만원): 주한 미국 공관원의 동반가족은 상호주의에 따라 수수료 면제 - 외교부(외교사절담당관)에서 받은 고용추천서(필수)- 해당 체류자격별 체류자격외 활동 필요서류(자격요건 등 구비)"
       }
+    ],
+    "titleZh": "A-2 公务签证 - 外国政府公务执行者",
+    "titleVi": "Visa A-2 Công vụ - Người thực hiện công vụ cho chính phủ nước ngoài",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "执行经韩国政府批准的外国政府或国际机构公务的人员及其家属" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：公务执行期间" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người thực hiện công vụ cho chính phủ nước ngoài hoặc tổ chức quốc tế đã được Chính phủ Hàn Quốc phê duyệt và gia đình họ" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: Thời gian thực hiện công vụ" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "执行外国政府或国际机构公务的人员" },
+      { "kind": "bullet", "depth": 0, "text": "经韩国政府批准的外国政府外交使节团的事务、技术及劳务人员" },
+      { "kind": "bullet", "depth": 0, "text": "经韩国政府批准的领事机构的事务、技术及劳务人员" },
+      { "kind": "bullet", "depth": 0, "text": "在韩国设立总部的国际机构的职员" },
+      { "kind": "bullet", "depth": 0, "text": "在外国政府或国际机构驻韩分支机构因与韩国政府之公务而常驻的该外国政府或国际机构职员" },
+      { "kind": "bullet", "depth": 0, "text": "为与韩国政府开展公务而由外国政府或国际机构派遣的人员" },
+      { "kind": "bullet", "depth": 0, "text": "参加韩国政府或国际机构主办的会议等的人员" },
+      { "kind": "bullet", "depth": 0, "text": "上述人员的家属" },
+      { "kind": "bullet", "depth": 0, "text": "与上述人员属于同一户的家庭成员" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người thực hiện công vụ cho chính phủ nước ngoài hoặc tổ chức quốc tế" },
+      { "kind": "bullet", "depth": 0, "text": "Nhân viên hành chính, kỹ thuật và lao động của đoàn ngoại giao chính phủ nước ngoài đã được Chính phủ Hàn Quốc phê chuẩn" },
+      { "kind": "bullet", "depth": 0, "text": "Nhân viên hành chính, kỹ thuật và lao động của cơ quan lãnh sự được Chính phủ Hàn Quốc phê chuẩn" },
+      { "kind": "bullet", "depth": 0, "text": "Nhân viên của các tổ chức quốc tế đặt trụ sở chính tại Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "Nhân viên của chính phủ nước ngoài hoặc tổ chức quốc tế thường trú tại chi nhánh ở Hàn Quốc để thực hiện công vụ với Chính phủ Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "Người được chính phủ nước ngoài hoặc tổ chức quốc tế cử đến để thực hiện công vụ với Chính phủ Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "Người tham dự các cuộc họp do Chính phủ Hàn Quốc hoặc tổ chức quốc tế chủ trì" },
+      { "kind": "bullet", "depth": 0, "text": "Gia đình của những người trên" },
+      { "kind": "bullet", "depth": 0, "text": "Thành viên gia đình thuộc cùng hộ với người nói trên" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 0, "text": "证明派遣或在职的文件，或当事国外交部长官或所属部门长官的公函" },
+      { "kind": "bullet", "depth": 0, "text": "在居留资格外活动时 - 护照、综合申请书 - 手续费（资格外活动 12 万韩元）：驻韩美国公馆员的随行家属依据互惠原则免除手续费 - 外交部（外交使节负责官）出具的雇佣推荐书（必备）- 各居留资格对应的资格外活动所需材料（资格条件等齐备）" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy tờ chứng minh việc phái cử hoặc đang công tác, hoặc công hàm của Bộ trưởng Ngoại giao hoặc Bộ trưởng cơ quan liên quan của nước đó" },
+      { "kind": "bullet", "depth": 0, "text": "Khi hoạt động ngoài tư cách lưu trú - Hộ chiếu, đơn đăng ký tổng hợp - Lệ phí (hoạt động ngoài tư cách: 120.000 KRW): Gia đình đi kèm của nhân viên cơ quan đại diện Mỹ tại Hàn Quốc được miễn lệ phí theo nguyên tắc đối ứng - Thư giới thiệu tuyển dụng do Bộ Ngoại giao (cán bộ phụ trách đoàn ngoại giao) cấp (bắt buộc) - Hồ sơ cần thiết cho hoạt động ngoài tư cách lưu trú theo từng tư cách lưu trú (đủ điều kiện, v.v.)" }
     ]
   },
   "A-3": {
@@ -772,6 +878,46 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "해당 자격 관련 서류: SPONSOR인 경우 소속 기관장(고용주)의 동의서"
       }
+    ],
+    "titleZh": "A-3 协定签证 - 依据协定的免除",
+    "titleVi": "Visa A-3 Hiệp định - Miễn theo hiệp định",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "依据与韩国政府的协定，外国人登录被免除或被认定有必要免除的人员及其家属" },
+      { "kind": "bullet", "depth": 1, "text": "SOFA：依据《大韩民国与美利坚合众国相互防卫条约》第 4 条关于在大韩民国境内设施和区域以及美军地位的协定" },
+      { "kind": "bullet", "depth": 1, "text": "富布赖特协定：大韩民国政府与美利坚合众国政府间关于教育的谅解备忘录" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：身份存续期间或协定规定的停留期间" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người được miễn đăng ký người nước ngoài theo hiệp định với Chính phủ Hàn Quốc, hoặc được nhìn nhận là cần được miễn, và gia đình họ" },
+      { "kind": "bullet", "depth": 1, "text": "SOFA: Hiệp định về Quy chế Cơ sở, Khu vực và Quy chế Quân đội Hợp chúng quốc Hoa Kỳ tại Đại Hàn Dân Quốc theo Điều 4 của Hiệp ước Phòng thủ Tương hỗ giữa Hàn Quốc và Hợp chúng quốc Hoa Kỳ" },
+      { "kind": "bullet", "depth": 1, "text": "Hiệp định Fulbright: Bản ghi nhớ về giáo dục giữa Chính phủ Đại Hàn Dân Quốc và Chính phủ Hợp chúng quốc Hoa Kỳ" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: Thời gian tồn tại tư cách hoặc thời hạn lưu trú quy định trong hiệp định" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "依据与韩国政府的协定，外国人登录被免除或被认定有必要免除的人员及其家属" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người được miễn đăng ký người nước ngoài theo hiệp định với Chính phủ Hàn Quốc, hoặc được nhìn nhận là cần được miễn, và gia đình họ" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证发放时所需材料" },
+      { "kind": "bullet", "depth": 0, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 0, "text": "证明派遣或在职的文件，或当事国外交部长官或所属部门长官的公函" },
+      { "kind": "bullet", "depth": 0, "text": "在居留资格外活动时所需材料" },
+      { "kind": "bullet", "depth": 1, "text": "申请书（附件 34 号）、护照、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "服役证明书、S.O.F.A ID 卡" },
+      { "kind": "bullet", "depth": 1, "text": "相关资格证明文件：若为 SPONSOR，需提交所属机构负责人（雇主）的同意书" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ cần thiết khi cấp thị thực" },
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy tờ chứng minh việc phái cử hoặc đang công tác, hoặc công hàm của Bộ trưởng Ngoại giao hoặc Bộ trưởng cơ quan liên quan của nước đó" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ cần thiết khi hoạt động ngoài tư cách lưu trú" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn đăng ký (Phụ lục số 34), hộ chiếu, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy xác nhận phục vụ, thẻ S.O.F.A ID" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ liên quan đến tư cách: Nếu là SPONSOR, cần thư đồng ý của lãnh đạo tổ chức trực thuộc (người sử dụng lao động)" }
     ]
   },
   "B-1": {
@@ -901,6 +1047,36 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "신청서(34호 서식), 여권 원본, 수수료"
       }
+    ],
+    "titleZh": "B-1 免签证 - 旅游及短期业务",
+    "titleVi": "Visa B-1 Miễn thị thực - Du lịch và công vụ ngắn hạn",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "与韩国签订免签协定国家的国民，欲依据该协定开展活动者" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：协定规定的停留期间" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Công dân của nước đã ký hiệp định miễn thị thực với Hàn Quốc và muốn thực hiện hoạt động theo hiệp định đó" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: Thời hạn lưu trú theo hiệp định" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "已取得再入境许可或被免除再入境许可，并在该许可或免除期限届满前入境的人员" },
+      { "kind": "bullet", "depth": 0, "text": "与韩国签订免签协定国家的国民，依据该协定属于免除对象的人员" },
+      { "kind": "bullet", "depth": 0, "text": "为国际友好、旅游或韩国利益等目的入境，依据总统令规定取得入境许可的人员" },
+      { "kind": "bullet", "depth": 0, "text": "取得难民旅行证明书并出境后，在有效期届满前再次入境的人员" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người đã được cấp giấy phép tái nhập cảnh hoặc được miễn giấy phép tái nhập cảnh và nhập cảnh trước khi thời hạn cấp phép hoặc miễn trừ kết thúc" },
+      { "kind": "bullet", "depth": 0, "text": "Công dân của nước đã ký hiệp định miễn thị thực với Hàn Quốc và thuộc đối tượng được miễn theo hiệp định đó" },
+      { "kind": "bullet", "depth": 0, "text": "Người nhập cảnh vì mục đích hữu nghị quốc tế, du lịch hoặc lợi ích của Hàn Quốc và đã được cấp phép nhập cảnh theo Nghị định của Tổng thống" },
+      { "kind": "bullet", "depth": 0, "text": "Người đã được cấp giấy thông hành tị nạn, xuất cảnh và nhập cảnh trở lại trước khi thời hạn hiệu lực kết thúc" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "申请书（第 34 号格式）、护照原件、手续费" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn đăng ký (Mẫu số 34), bản gốc hộ chiếu, lệ phí" }
     ]
   },
   "B-2": {
@@ -1045,6 +1221,38 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "신청서(34호 서식), 여권 원본, 수수료"
       }
+    ],
+    "titleZh": "B-2 旅游过境签证 - 旅游及游览",
+    "titleVi": "Visa B-2 Du lịch Quá cảnh - Du lịch",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "旅游、过境签证" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：由法务部长官另行规定的期间" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Thị thực du lịch, quá cảnh" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: Thời hạn do Bộ trưởng Tư pháp quy định riêng" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "为旅游、过境等目的欲免签入境韩国的人员" },
+      { "kind": "bullet", "depth": 0, "text": "已取得再入境许可或被免除再入境许可，并在该许可或免除期限届满前入境的人员" },
+      { "kind": "bullet", "depth": 0, "text": "与韩国签订免签协定国家的国民，依据该协定属于免除对象的人员" },
+      { "kind": "bullet", "depth": 0, "text": "为国际友好、旅游或韩国利益等目的入境，依据总统令规定另行取得入境许可的人员" },
+      { "kind": "bullet", "depth": 0, "text": "取得难民旅行证明书并出境后，在有效期届满前再次入境的人员" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người muốn nhập cảnh Hàn Quốc không cần thị thực với mục đích du lịch, quá cảnh, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Người đã được cấp giấy phép tái nhập cảnh hoặc được miễn giấy phép tái nhập cảnh và nhập cảnh trước khi thời hạn cấp phép hoặc miễn trừ kết thúc" },
+      { "kind": "bullet", "depth": 0, "text": "Công dân của nước đã ký hiệp định miễn thị thực với Hàn Quốc và thuộc đối tượng được miễn theo hiệp định đó" },
+      { "kind": "bullet", "depth": 0, "text": "Người nhập cảnh vì mục đích hữu nghị quốc tế, du lịch hoặc lợi ích của Hàn Quốc và đã được cấp phép nhập cảnh riêng theo Nghị định của Tổng thống" },
+      { "kind": "bullet", "depth": 0, "text": "Người đã được cấp giấy thông hành tị nạn, xuất cảnh và nhập cảnh trở lại trước khi thời hạn hiệu lực kết thúc" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "申请书（第 34 号格式）、护照原件、手续费" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn đăng ký (Mẫu số 34), bản gốc hộ chiếu, lệ phí" }
     ]
   },
   "C-1": {
@@ -1189,6 +1397,38 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "소속회사의 파견증명서, 재직증명서 또는 외신보도증"
       }
+    ],
+    "titleZh": "C-1 临时采访签证 - 采访及报道",
+    "titleVi": "Visa C-1 Đưa tin tạm thời - Đưa tin và báo chí",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "临时采访、报道" },
+      { "kind": "bullet", "depth": 0, "text": "外国媒体分社设立筹备" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：90 天" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đưa tin, báo chí tạm thời" },
+      { "kind": "bullet", "depth": 0, "text": "Chuẩn bị thiết lập chi nhánh cơ quan báo chí nước ngoài" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 90 ngày" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "由外国报社、广播、杂志或其他报道机构派遣，欲在短期内进行采访、报道活动的人员" },
+      { "kind": "bullet", "depth": 0, "text": "依据与外国报道机构的合同，欲在短期内进行采访、报道活动的人员" },
+      { "kind": "bullet", "depth": 0, "text": "为筹备外国媒体分社设立而欲在短期内进行采访、报道活动的人员" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người được báo, đài phát thanh, tạp chí hoặc cơ quan báo chí nước ngoài phái cử, muốn đưa tin và tác nghiệp trong thời gian ngắn" },
+      { "kind": "bullet", "depth": 0, "text": "Người muốn đưa tin và tác nghiệp ngắn hạn theo hợp đồng với cơ quan báo chí nước ngoài" },
+      { "kind": "bullet", "depth": 0, "text": "Người muốn tác nghiệp ngắn hạn để chuẩn bị thiết lập chi nhánh cơ quan báo chí nước ngoài" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证发放认定申请书、护照复印件、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 0, "text": "所属公司的派遣证明、在职证明或外媒报道证" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp giấy phép cấp thị thực, bản sao hộ chiếu, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy chứng nhận phái cử, giấy chứng nhận đang công tác của công ty trực thuộc, hoặc thẻ báo chí nước ngoài" }
     ]
   },
   "C-3": {
@@ -2348,6 +2588,170 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "외국국적 동포임을 입증하는 국적국의 공적서류 (거민증 호구부 등)"
       }
+    ],
+    "titleZh": "C-3 短期访问签证 - 旅游及商务活动",
+    "titleVi": "Visa C-3 Thăm ngắn hạn - Du lịch và công vụ thương mại",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "市场调查、业务联络、洽谈、签订合同等商务活动" },
+      { "kind": "bullet", "depth": 0, "text": "旅游、过境、疗养、探亲、友谊比赛、参加或参观各类活动或会议、文化艺术、一般研修、培训、参加宗教仪式、收集学术资料以及其他类似目的，停留期限不超过 90 天" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：90 天" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Hoạt động thương mại như khảo sát thị trường, liên lạc công việc, tham vấn, ký kết hợp đồng, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Người muốn lưu trú không quá 90 ngày với mục đích du lịch, quá cảnh, điều dưỡng, thăm thân, thi đấu giao hữu, tham dự hoặc quan sát các sự kiện và hội nghị, văn hoá nghệ thuật, đào tạo chung, học tập ngắn hạn, dự lễ tôn giáo, thu thập tài liệu học thuật và các mục đích tương tự khác" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 90 ngày" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "C-3-1（短期一般）" },
+      { "kind": "bullet", "depth": 1, "text": "短期访问（C-3）活动范围内的所有人员，下列纯旅游（C-3-2）至同胞访问（C-3-9）除外" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-2（团体旅游）" },
+      { "kind": "bullet", "depth": 1, "text": "由代理机构（旅行社）对停留期满承担担保责任的个人或团体旅游、机场小额贸易活动等目的入境的人员" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-3（医疗旅游）" },
+      { "kind": "bullet", "depth": 1, "text": "符合医疗旅游签证及签证发放认定书发放指南对象中的短期访问者" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-4（一般商务）" },
+      { "kind": "bullet", "depth": 1, "text": "从事市场调查、业务联络、洽谈、签订合同、小规模贸易活动等商务活动者，以及免签入境的 APEC 卡持有者" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-5（协定上的短期商务）" },
+      { "kind": "bullet", "depth": 1, "text": "依据协定为短期商务目的入境的人员" },
+      { "kind": "bullet", "depth": 1, "text": "仅限 CEFA、FTA 等（印度、智利）" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-6（优待企业邀请的短期商务）" },
+      { "kind": "bullet", "depth": 1, "text": "受被选为优待企业的企业或团体邀请的人员" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-7（落地签）" },
+      { "kind": "bullet", "depth": 1, "text": "在机场入境时领取落地签入境的人员" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-8（同胞访问）" },
+      { "kind": "bullet", "depth": 1, "text": "同胞访问签证发放对象者" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-9（一般旅游）" },
+      { "kind": "bullet", "depth": 1, "text": "未包含在 C-3-2（团体旅游等）的一般游客" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-10（纯过境）" },
+      { "kind": "bullet", "depth": 1, "text": "经由韩国前往第三国旅行者，不可用于入境审查目的" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-11（换班船员）" },
+      { "kind": "bullet", "depth": 1, "text": "为登上在韩国停泊或预定停泊的船舶而以飞机或船舶乘客身份入境的船员" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "C-3-1 (Ngắn hạn thông thường)" },
+      { "kind": "bullet", "depth": 1, "text": "Tất cả người trong phạm vi hoạt động thăm ngắn hạn (C-3), trừ các diện từ Du lịch thuần tuý (C-3-2) đến Thăm đồng bào (C-3-9) dưới đây" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-2 (Du lịch theo đoàn)" },
+      { "kind": "bullet", "depth": 1, "text": "Người nhập cảnh với mục đích du lịch cá nhân/theo đoàn được công ty đại lý (lữ hành) chịu trách nhiệm bảo đảm khi quá hạn lưu trú, hoặc hoạt động thương mại nhỏ tại sân bay/cảng" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-3 (Du lịch y tế)" },
+      { "kind": "bullet", "depth": 1, "text": "Người thăm ngắn hạn thuộc đối tượng theo Hướng dẫn cấp thị thực và giấy phép cấp thị thực cho du lịch y tế" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-4 (Thương mại thông thường)" },
+      { "kind": "bullet", "depth": 1, "text": "Người tham gia các hoạt động thương mại như khảo sát thị trường, liên lạc công việc, tham vấn, ký hợp đồng, hoạt động thương mại quy mô nhỏ và người sở hữu thẻ APEC nhập cảnh không cần thị thực" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-5 (Thương mại ngắn hạn theo hiệp định)" },
+      { "kind": "bullet", "depth": 1, "text": "Người nhập cảnh vì mục đích thương mại ngắn hạn theo hiệp định" },
+      { "kind": "bullet", "depth": 1, "text": "Chỉ áp dụng với CEFA, FTA, v.v. (Ấn Độ, Chile)" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-6 (Thương mại ngắn hạn do doanh nghiệp ưu đãi mời)" },
+      { "kind": "bullet", "depth": 1, "text": "Người được mời bởi các doanh nghiệp, tổ chức được chọn là doanh nghiệp ưu đãi" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-7 (Du lịch nhận visa khi đến)" },
+      { "kind": "bullet", "depth": 1, "text": "Người nhận visa tại sân bay khi nhập cảnh" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-8 (Thăm đồng bào)" },
+      { "kind": "bullet", "depth": 1, "text": "Đối tượng được cấp thị thực thăm đồng bào" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-9 (Du lịch thông thường)" },
+      { "kind": "bullet", "depth": 1, "text": "Du khách thông thường không thuộc C-3-2 (Du lịch theo đoàn, v.v.)" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-10 (Quá cảnh thuần tuý)" },
+      { "kind": "bullet", "depth": 1, "text": "Người đi qua Hàn Quốc để đến nước thứ ba; không sử dụng cho mục đích kiểm tra nhập cảnh" },
+      { "kind": "bullet", "depth": 0, "text": "C-3-11 (Thuyền viên thay phiên)" },
+      { "kind": "bullet", "depth": 1, "text": "Thuyền viên nhập cảnh với tư cách hành khách của máy bay hoặc tàu để lên tàu đang neo đậu hoặc dự kiến neo đậu trong nước" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "短期一般（C-3-1）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、照片、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "邀请函等证明入境目的（活动、一般研修等）的文件" },
+      { "kind": "bullet", "depth": 0, "text": "团体旅游等（C-3-2）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、照片、手续费、担保相关文件" },
+      { "kind": "bullet", "depth": 0, "text": "一般商务（C-3-4）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、照片、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "邀请函（包含邀请公司的营业执照或登记簿副本）等证明商务目的的文件" },
+      { "kind": "bullet", "depth": 0, "text": "协定上的一般商务（C-3-5）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、照片、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "在印度当地法人设立相关文件" },
+      { "kind": "bullet", "depth": 1, "text": "注明在职期间的在职证明或出差命令书" },
+      { "kind": "bullet", "depth": 1, "text": "邀请函等证明商品或服务销售谈判目的，或证明设立投资公司筹备目的的文件" },
+      { "kind": "bullet", "depth": 1, "text": "邀请函（包含邀请公司的营业执照或登记簿副本）等证明商务目的的文件" },
+      { "kind": "bullet", "depth": 0, "text": "一般旅游（C-3-9）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、照片、手续费、用以支付国内停留费用的财力证明或身份证明" },
+      { "kind": "bullet", "depth": 1, "text": "东南亚学生需提交在学证明（在学证明或学生证）及父母财力证明以发放签证" },
+      { "kind": "bullet", "depth": 1, "text": "奖励旅游情况下，提交主办公司担保函时基本免除财力证明" },
+      { "kind": "bullet", "depth": 0, "text": "纯过境（C-3-10）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、照片、手续费、旅行计划书" },
+      { "kind": "bullet", "depth": 1, "text": "选择韩国机场作为转机机场的理由等" },
+      { "kind": "bullet", "depth": 0, "text": "换班船员（C-3-11）" },
+      { "kind": "bullet", "depth": 1, "text": "健康状态确认书、新冠相关健康检查书、隔离同意书、船员身份证明（船员手册等）、船舶国籍证书、雇佣合同、国内出入港预定通知书" },
+      { "kind": "bullet", "depth": 1, "text": "可用 PCR 阴性证明替代" },
+      { "kind": "bullet", "depth": 0, "text": "2 次有效复数签证（双次签证）发放" },
+      { "kind": "bullet", "depth": 1, "text": "入境目的证明材料（与单次签证相同）" },
+      { "kind": "bullet", "depth": 1, "text": "手续费为相当于 70 美元的金额" },
+      { "kind": "bullet", "depth": 1, "text": "但加纳 90 美元、俄罗斯 90 美元、塞内加尔 120 美元、阿塞拜疆 120 美元、英国 220 美元、奥地利 70 美元、伊朗 90 美元、塔吉克斯坦 70 美元、吉尔吉斯斯坦 80 美元、澳大利亚 130 美元、乌兹别克斯坦 80 美元相当金额征收" },
+      { "kind": "bullet", "depth": 0, "text": "复数签证发放指南" },
+      { "kind": "bullet", "depth": 1, "text": "中国国民（C-3-1 ~ C-3-9，C-3-2 除外）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、照片、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "如可通过年龄、出入境记录等护照或自有电脑系统审核，避免要求额外材料" },
+      { "kind": "bullet", "depth": 1, "text": "申请涉及身份、学历、城市地区户口等签证时，除以下相关确认材料外避免要求财力证明" },
+      { "kind": "bullet", "depth": 1, "text": "财力人士、企业家等需要财力证明时，限于以下示例材料中不超过 2 种" },
+      { "kind": "bullet", "depth": 0, "text": "韩蒙签证发放简化协定对象者（C-3-1 ~ C-3-9）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、照片手续费" },
+      { "kind": "bullet", "depth": 1, "text": "根据使馆实际情况指定提交材料运行" },
+      { "kind": "bullet", "depth": 0, "text": "对东南亚国家国民发放复数签证（C-3-1 ~ C-3-9，C-3-2 除外）" },
+      { "kind": "bullet", "depth": 1, "text": "各使馆根据实际情况指定提交材料运行" },
+      { "kind": "bullet", "depth": 0, "text": "对资源外交国家国民发放复数签证（C-3-1 或 C-3-4）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、照片、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "各使馆根据实际情况指定提交材料运行" },
+      { "kind": "bullet", "depth": 0, "text": "结婚移民者及取得韩国国籍者家属的特例（C-3-1）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照复印件" },
+      { "kind": "bullet", "depth": 1, "text": "可证明家庭关系的文件" },
+      { "kind": "bullet", "depth": 0, "text": "对中国同胞的复数签证发放（C-3-8）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照复印件" },
+      { "kind": "bullet", "depth": 1, "text": "证明外籍同胞身份的国籍国公文（居民证、户口簿等）" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Ngắn hạn thông thường (C-3-1)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, ảnh, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Thư mời hoặc giấy tờ chứng minh mục đích nhập cảnh (sự kiện, đào tạo chung, v.v.)" },
+      { "kind": "bullet", "depth": 0, "text": "Du lịch theo đoàn, v.v. (C-3-2)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, ảnh, lệ phí, giấy tờ liên quan đến bảo lãnh" },
+      { "kind": "bullet", "depth": 0, "text": "Thương mại thông thường (C-3-4)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, ảnh, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Thư mời (kèm bản sao giấy phép kinh doanh hoặc giấy đăng ký doanh nghiệp của công ty mời) và giấy tờ chứng minh mục đích thương mại" },
+      { "kind": "bullet", "depth": 0, "text": "Thương mại thông thường theo hiệp định (C-3-5)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, ảnh, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ liên quan đến việc thành lập pháp nhân địa phương tại Ấn Độ" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận đang công tác có ghi rõ thời gian làm việc hoặc giấy phái cử công tác" },
+      { "kind": "bullet", "depth": 1, "text": "Thư mời và các giấy tờ chứng minh mục đích đàm phán bán hàng/dịch vụ hoặc chuẩn bị thành lập công ty đầu tư" },
+      { "kind": "bullet", "depth": 1, "text": "Thư mời (kèm bản sao giấy phép kinh doanh hoặc giấy đăng ký doanh nghiệp của công ty mời) và giấy tờ chứng minh mục đích thương mại" },
+      { "kind": "bullet", "depth": 0, "text": "Du lịch thông thường (C-3-9)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, ảnh, lệ phí, giấy chứng minh năng lực tài chính hoặc thân phận để chi trả chi phí lưu trú trong nước" },
+      { "kind": "bullet", "depth": 1, "text": "Đối với học sinh đến từ Đông Nam Á, cần giấy chứng minh đang theo học (giấy xác nhận học tập hoặc thẻ học sinh) và giấy tờ chứng minh năng lực tài chính của cha mẹ để cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Đối với du lịch khen thưởng, có thể miễn giấy tờ chứng minh năng lực tài chính khi nộp thư bảo đảm của công ty tổ chức" },
+      { "kind": "bullet", "depth": 0, "text": "Quá cảnh thuần tuý (C-3-10)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, ảnh, lệ phí, lịch trình du lịch" },
+      { "kind": "bullet", "depth": 1, "text": "Lý do chọn sân bay Hàn Quốc làm sân bay quá cảnh, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Thuyền viên thay phiên (C-3-11)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy xác nhận tình trạng sức khỏe, giấy khám sức khỏe COVID-19, đơn đồng ý cách ly, giấy chứng minh thân phận thuyền viên (sổ thuyền viên, v.v.), giấy chứng nhận quốc tịch tàu, hợp đồng lao động, thông báo dự kiến xuất nhập cảng trong nước" },
+      { "kind": "bullet", "depth": 1, "text": "Có thể thay thế bằng giấy chứng nhận PCR âm tính" },
+      { "kind": "bullet", "depth": 0, "text": "Cấp thị thực có hiệu lực 2 lần (double visa)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh mục đích nhập cảnh (giống như visa đơn)" },
+      { "kind": "bullet", "depth": 1, "text": "Lệ phí tương đương 70 USD" },
+      { "kind": "bullet", "depth": 1, "text": "Tuy nhiên, Ghana 90 USD, Nga 90 USD, Senegal 120 USD, Azerbaijan 120 USD, Anh 220 USD, Áo 70 USD, Iran 90 USD, Tajikistan 70 USD, Kyrgyzstan 80 USD, Úc 130 USD, Uzbekistan 80 USD - mức tương đương sẽ được thu" },
+      { "kind": "bullet", "depth": 0, "text": "Hướng dẫn cấp thị thực nhiều lần" },
+      { "kind": "bullet", "depth": 1, "text": "Công dân Trung Quốc (C-3-1 ~ C-3-9, ngoại trừ C-3-2)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, ảnh, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Hạn chế yêu cầu thêm giấy tờ nếu có thể xét duyệt qua hộ chiếu hoặc tra cứu hệ thống nội bộ về tuổi, lịch sử xuất nhập cảnh" },
+      { "kind": "bullet", "depth": 1, "text": "Khi xin thị thực dựa trên thân phận, học vấn, hộ khẩu khu vực thành thị, v.v., hạn chế yêu cầu giấy tờ chứng minh năng lực tài chính ngoài các giấy xác nhận liên quan dưới đây" },
+      { "kind": "bullet", "depth": 1, "text": "Đối với người giàu có, doanh nhân cần chứng minh năng lực tài chính, giới hạn không quá 2 loại trong các giấy tờ ví dụ dưới đây" },
+      { "kind": "bullet", "depth": 0, "text": "Đối tượng theo Hiệp định đơn giản hoá cấp thị thực Hàn-Mông Cổ (C-3-1 ~ C-3-9)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, ảnh, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Vận hành theo cách chỉ định hồ sơ phù hợp với tình hình thực tế của cơ quan đại diện" },
+      { "kind": "bullet", "depth": 0, "text": "Cấp thị thực nhiều lần cho công dân các nước Đông Nam Á (C-3-1 ~ C-3-9, ngoại trừ C-3-2)" },
+      { "kind": "bullet", "depth": 1, "text": "Mỗi cơ quan đại diện vận hành theo cách chỉ định hồ sơ phù hợp với tình hình thực tế" },
+      { "kind": "bullet", "depth": 0, "text": "Cấp thị thực nhiều lần cho công dân các nước ngoại giao tài nguyên (C-3-1 hoặc C-3-4)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, ảnh, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Mỗi cơ quan đại diện vận hành theo cách chỉ định hồ sơ phù hợp với tình hình thực tế" },
+      { "kind": "bullet", "depth": 0, "text": "Đặc lệ cho người kết hôn nhập cư và gia đình của người đã nhập quốc tịch Hàn Quốc (C-3-1)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, bản sao hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ chứng minh quan hệ gia đình" },
+      { "kind": "bullet", "depth": 0, "text": "Cấp thị thực nhiều lần cho đồng bào Trung Quốc (C-3-8)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, bản sao hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ công của nước có quốc tịch chứng minh là đồng bào quốc tịch nước ngoài (chứng minh thư cư dân, hộ khẩu, v.v.)" }
     ]
   },
   "C-4": {
@@ -2582,6 +2986,50 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "공사기관 설립관련 서류 (사업자등록증, 법인등기부등본 등)"
       }
+    ],
+    "titleZh": "C-4 短期就业签证 - 研究、广告等短期工作",
+    "titleVi": "Visa C-4 Việc làm ngắn hạn - Làm việc ngắn hạn như nghiên cứu, quảng cáo, v.v.",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "经法务部长官与相关中央行政机关首长协商确定，欲在农作物种植与收获、水产品初加工领域从事就业活动且经法务部长官认定的人员（C-4-1~4）" },
+      { "kind": "bullet", "depth": 0, "text": "以临时演艺、广告、时装模特、讲座、演讲、研究、技术指导等盈利为目的的短期就业活动者（C-4-5）" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：90 天" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người được Bộ trưởng Tư pháp công nhận, thực hiện hoạt động làm việc trong lĩnh vực canh tác/thu hoạch nông sản và sơ chế thuỷ sản theo thoả thuận giữa Bộ trưởng Tư pháp và lãnh đạo cơ quan hành chính trung ương liên quan (C-4-1~4)" },
+      { "kind": "bullet", "depth": 0, "text": "Người làm việc ngắn hạn vì mục đích thu nhập như biểu diễn tạm thời, quảng cáo, người mẫu thời trang, giảng dạy, thuyết giảng, nghiên cứu, hướng dẫn kỹ thuật, v.v. (C-4-5)" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 90 ngày" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "季节工短期就业（C-4-1、C-4-2、C-4-3、C-4-4）" },
+      { "kind": "bullet", "depth": 1, "text": "对象者请参考季节工（E-8）资格" },
+      { "kind": "bullet", "depth": 0, "text": "季节工外的短期就业（C-4-5）" },
+      { "kind": "bullet", "depth": 1, "text": "临时演艺活动" },
+      { "kind": "bullet", "depth": 1, "text": "广告、时装活动" },
+      { "kind": "bullet", "depth": 1, "text": "讲座、演讲" },
+      { "kind": "bullet", "depth": 1, "text": "研究、技术指导" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Việc làm ngắn hạn theo mùa (C-4-1, C-4-2, C-4-3, C-4-4)" },
+      { "kind": "bullet", "depth": 1, "text": "Đối tượng tham khảo tư cách Lao động thời vụ (E-8)" },
+      { "kind": "bullet", "depth": 0, "text": "Việc làm ngắn hạn ngoài lao động thời vụ (C-4-5)" },
+      { "kind": "bullet", "depth": 1, "text": "Hoạt động biểu diễn tạm thời" },
+      { "kind": "bullet", "depth": 1, "text": "Hoạt động quảng cáo, thời trang" },
+      { "kind": "bullet", "depth": 1, "text": "Giảng dạy, thuyết giảng" },
+      { "kind": "bullet", "depth": 1, "text": "Nghiên cứu, hướng dẫn kỹ thuật" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 0, "text": "雇佣合同" },
+      { "kind": "bullet", "depth": 0, "text": "主管部门（下属机构）的雇佣推荐书" },
+      { "kind": "bullet", "depth": 0, "text": "公私机构设立相关材料（营业执照、法人登记簿副本等）" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 0, "text": "Hợp đồng lao động" },
+      { "kind": "bullet", "depth": 0, "text": "Thư giới thiệu tuyển dụng của bộ chủ quản (hoặc tổ chức trực thuộc)" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ liên quan đến việc thành lập cơ quan (giấy phép kinh doanh, giấy đăng ký pháp nhân, v.v.)" }
     ]
   },
   "D-1": {
@@ -2771,6 +3219,44 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "체류 중 일체의 경비지불능력을 증명하는 서류"
       }
+    ],
+    "titleZh": "D-1 文化艺术签证 - 非营利艺术活动",
+    "titleVi": "Visa D-1 Văn hoá nghệ thuật - Hoạt động nghệ thuật phi lợi nhuận",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "文化艺术签证" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：2 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Thị thực văn hoá nghệ thuật" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 2 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "欲从事非营利学术或艺术活动者（包括欲对韩国独有文化或艺术进行专业研究或接受专家指导者）" },
+      { "kind": "bullet", "depth": 0, "text": "从事论文撰写、创作活动者" },
+      { "kind": "bullet", "depth": 0, "text": "受非营利学术活动或艺术团体邀请，从事学术或纯艺术活动者" },
+      { "kind": "bullet", "depth": 0, "text": "欲对韩国独有文化或艺术进行专业研究或接受专家指导者" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người muốn thực hiện hoạt động học thuật hoặc nghệ thuật không nhằm mục đích lợi nhuận (bao gồm người muốn nghiên cứu chuyên sâu hoặc nhận sự hướng dẫn của chuyên gia về văn hoá, nghệ thuật đặc trưng của Hàn Quốc)" },
+      { "kind": "bullet", "depth": 0, "text": "Người thực hiện hoạt động viết luận văn, sáng tác" },
+      { "kind": "bullet", "depth": 0, "text": "Người tham gia hoạt động học thuật hoặc nghệ thuật thuần tuý theo lời mời của tổ chức học thuật, nghệ thuật phi lợi nhuận" },
+      { "kind": "bullet", "depth": 0, "text": "Người muốn nghiên cứu chuyên sâu hoặc nhận sự hướng dẫn của chuyên gia về văn hoá, nghệ thuật đặc trưng của Hàn Quốc" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证发放认定申请书、护照、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 0, "text": "邀请函" },
+      { "kind": "bullet", "depth": 0, "text": "证明为文化艺术团体的文件" },
+      { "kind": "bullet", "depth": 0, "text": "履历书或经历证明书" },
+      { "kind": "bullet", "depth": 0, "text": "证明在停留期间所有费用支付能力的文件" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp giấy phép cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 0, "text": "Thư mời" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy tờ chứng minh là tổ chức văn hoá nghệ thuật" },
+      { "kind": "bullet", "depth": 0, "text": "Sơ yếu lý lịch hoặc giấy chứng nhận kinh nghiệm" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy tờ chứng minh khả năng chi trả toàn bộ chi phí trong thời gian lưu trú" }
     ]
   },
   "D-2": {
@@ -3095,6 +3581,62 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "베트남의 경우 은행에서 발행한 지급유보방식의 별도 유학경비 잔고 증명서"
       }
+    ],
+    "titleZh": "D-2 留学签证 - 留学及语言研修",
+    "titleVi": "Visa D-2 Du học - Du học và đào tạo ngoại ngữ",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "外国留学生：在教育机构接受正规课程教育或进行特定研究的外国人，包括留学（D-2）及语言研修（D-4-1、D-4-7）" },
+      { "kind": "bullet", "depth": 1, "text": "教育机构：依据《高等教育法》及特别法设立的专科大学以上教育机构或学术研究机构，符合法务部长官规定要件的大学或附属语学院" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：2 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Du học sinh nước ngoài: Người nước ngoài muốn theo học chính quy hoặc nghiên cứu chuyên biệt tại cơ sở giáo dục, bao gồm du học (D-2) và đào tạo ngoại ngữ (D-4-1, D-4-7)" },
+      { "kind": "bullet", "depth": 1, "text": "Cơ sở giáo dục: Trường cao đẳng trở lên hoặc cơ quan nghiên cứu học thuật được thành lập theo Luật Giáo dục Đại học và luật đặc biệt, là trường đại học hoặc trung tâm ngoại ngữ trực thuộc đáp ứng các điều kiện do Bộ trưởng Tư pháp quy định" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 2 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "D-2-1：专科课程" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-2：本科课程" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-3：硕士课程" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-4：博士课程" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-5：研究课程" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-6：交换学生" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-7：工读结合留学" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-8：访问学生" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "D-2-1: Chương trình cao đẳng chuyên ngành" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-2: Chương trình cử nhân" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-3: Chương trình thạc sĩ" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-4: Chương trình tiến sĩ" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-5: Chương trình nghiên cứu" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-6: Sinh viên trao đổi" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-7: Du học vừa làm vừa học" },
+      { "kind": "bullet", "depth": 0, "text": "D-2-8: Sinh viên thăm" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证发放所需材料" },
+      { "kind": "bullet", "depth": 1, "text": "签证发放（认定）申请书、护照复印件、照片 1 张（半身照，6 个月内拍摄）" },
+      { "kind": "bullet", "depth": 1, "text": "教育机构营业执照（或固有编号证副本）" },
+      { "kind": "bullet", "depth": 1, "text": "标准入学许可书（大学校长/学长发行）" },
+      { "kind": "bullet", "depth": 1, "text": "结核诊断书（仅限相关人员）" },
+      { "kind": "bullet", "depth": 1, "text": "家庭关系证明材料（仅限提交父母余额证明等情况）" },
+      { "kind": "bullet", "depth": 1, "text": "最终学历证明材料：原则上以原件审核" },
+      { "kind": "bullet", "depth": 1, "text": "财力证明材料：相当于 1 年学费及生活费的金额" },
+      { "kind": "bullet", "depth": 1, "text": "越南情况下：由银行发行的留学经费余额支付保留证明" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ cần thiết để cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực (giấy phép), bản sao hộ chiếu, 1 ảnh (chụp trong 6 tháng, kích cỡ bán thân)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy phép kinh doanh của cơ sở giáo dục (hoặc bản sao mã số định danh)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy phép nhập học chuẩn (do hiệu trưởng/chủ nhiệm khoa cấp)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chẩn đoán lao (chỉ áp dụng đối tượng liên quan)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ chứng minh quan hệ gia đình (chỉ áp dụng khi nộp giấy chứng nhận số dư của cha mẹ, v.v.)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng minh học vấn cao nhất: Nguyên tắc xét duyệt bản gốc" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng minh năng lực tài chính: Số tiền tương đương học phí và sinh hoạt phí 1 năm" },
+      { "kind": "bullet", "depth": 1, "text": "Đối với Việt Nam: Giấy chứng nhận số dư phong toả riêng dành cho chi phí du học do ngân hàng cấp" }
     ]
   },
   "D-3": {
@@ -3304,6 +3846,44 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "고용계약서 (해당 시)"
       }
+    ],
+    "titleZh": "D-3 技术研修签证 - 产业体研修",
+    "titleVi": "Visa D-3 Đào tạo kỹ thuật - Đào tạo tại doanh nghiệp",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "技术研修签证" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：2 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Thị thực đào tạo kỹ thuật" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 2 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "符合法务部长官规定研修条件，欲在韩国产业体接受研修者" },
+      { "kind": "bullet", "depth": 0, "text": "依据《外汇交易法》在国外直接投资的产业体接受研修者" },
+      { "kind": "bullet", "depth": 0, "text": "在向国外出口技术的产业体接受研修者" },
+      { "kind": "bullet", "depth": 0, "text": "依据《对外贸易法》向国外出口工业设备的产业体接受研修者" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người đáp ứng điều kiện đào tạo do Bộ trưởng Tư pháp quy định và muốn đào tạo tại doanh nghiệp Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "Người muốn đào tạo tại doanh nghiệp đầu tư trực tiếp ở nước ngoài theo Luật Giao dịch Ngoại hối" },
+      { "kind": "bullet", "depth": 0, "text": "Người muốn đào tạo tại doanh nghiệp xuất khẩu công nghệ ra nước ngoài" },
+      { "kind": "bullet", "depth": 0, "text": "Người muốn đào tạo tại doanh nghiệp xuất khẩu thiết bị công nghiệp ra nước ngoài theo Luật Ngoại thương" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证申请书、护照、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 0, "text": "研修机构营业执照（或固有编号证副本）" },
+      { "kind": "bullet", "depth": 0, "text": "研修计划书" },
+      { "kind": "bullet", "depth": 0, "text": "主管部门的研修推荐书" },
+      { "kind": "bullet", "depth": 0, "text": "雇佣合同（如适用）" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy phép kinh doanh của cơ sở đào tạo (hoặc bản sao mã số định danh)" },
+      { "kind": "bullet", "depth": 0, "text": "Kế hoạch đào tạo" },
+      { "kind": "bullet", "depth": 0, "text": "Thư giới thiệu đào tạo của bộ chủ quản" },
+      { "kind": "bullet", "depth": 0, "text": "Hợp đồng lao động (nếu có)" }
     ]
   },
   "D-4": {
@@ -3598,6 +4178,60 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "강의시간표, 강사구성표, 연수시설 등 연수 관련 세부 내용 포함"
       }
+    ],
+    "titleZh": "D-4 一般研修签证 - 语言研修及实习",
+    "titleVi": "Visa D-4 Đào tạo chung - Đào tạo ngoại ngữ và thực tập",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "在符合留学（D-2）资格的教育机构或学术研究机构以外的教育机构、企业、团体等接受教育、研修或开展研究活动" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：2 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Hoạt động nhận giáo dục, đào tạo hoặc nghiên cứu tại các cơ sở giáo dục, doanh nghiệp, tổ chức ngoài cơ sở giáo dục hoặc cơ quan nghiên cứu học thuật thuộc tư cách Du học (D-2)" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 2 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "在大学附属语学院学习韩语者" },
+      { "kind": "bullet", "depth": 0, "text": "在符合留学（D-2）资格的机构或学术研究机构以外的教育机构接受教育者" },
+      { "kind": "bullet", "depth": 0, "text": "在国、公立研究机构或培训院等研修技术、技能等的人员" },
+      { "kind": "bullet", "depth": 0, "text": "以实习员工身份在外商投资企业或对外投资企业接受教育、研修或从事研究活动者" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người học tiếng Hàn tại trung tâm ngoại ngữ trực thuộc đại học" },
+      { "kind": "bullet", "depth": 0, "text": "Người được giáo dục tại các cơ sở giáo dục ngoài cơ quan thuộc tư cách Du học (D-2) hoặc cơ quan nghiên cứu học thuật" },
+      { "kind": "bullet", "depth": 0, "text": "Người đào tạo kỹ thuật, kỹ năng tại các viện nghiên cứu hoặc trung tâm đào tạo công lập" },
+      { "kind": "bullet", "depth": 0, "text": "Người tham gia đào tạo, nghiên cứu với tư cách thực tập sinh tại doanh nghiệp đầu tư nước ngoài hoặc doanh nghiệp đầu tư ra nước ngoài" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 0, "text": "教育机构营业执照副本或固有编号证副本" },
+      { "kind": "bullet", "depth": 0, "text": "标准入学许可书（大学校长/学长发行）" },
+      { "kind": "bullet", "depth": 0, "text": "在学证明或最终学历证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "原则上以原件审核，必要时副本由经办人确认与原件一致后附上" },
+      { "kind": "bullet", "depth": 0, "text": "财力证明材料（相当于 10,000 美元）" },
+      { "kind": "bullet", "depth": 1, "text": "财力证明材料示例：余额证明书、存折、奖学金证明、出入金明细等" },
+      { "kind": "bullet", "depth": 1, "text": "原则上以原件审核，必要时副本由经办人确认与原件一致后附上" },
+      { "kind": "bullet", "depth": 1, "text": "余额证明仅以 30 天内开具的为有效" },
+      { "kind": "bullet", "depth": 1, "text": "提交父母余额证明时需附上家庭关系证明" },
+      { "kind": "bullet", "depth": 1, "text": "原则上证明 1 年（语言研修 6 个月）的财力（学费 + 生活费）" },
+      { "kind": "bullet", "depth": 0, "text": "研修计划书" },
+      { "kind": "bullet", "depth": 1, "text": "包含课程表、讲师配置表、研修设施等研修相关详细内容" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 0, "text": "Bản sao giấy phép kinh doanh hoặc bản sao mã số định danh của cơ sở giáo dục" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy phép nhập học chuẩn (do hiệu trưởng/chủ nhiệm khoa cấp)" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy xác nhận đang học hoặc giấy chứng minh học vấn cao nhất" },
+      { "kind": "bullet", "depth": 1, "text": "Nguyên tắc xét duyệt bản gốc, trường hợp cần thiết bản sao phải có xác nhận đối chiếu với bản gốc của người phụ trách" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chứng minh tài chính (tương đương 10.000 USD)" },
+      { "kind": "bullet", "depth": 1, "text": "Ví dụ giấy tờ chứng minh năng lực tài chính: giấy chứng nhận số dư, sổ tiết kiệm, chứng nhận học bổng, sao kê thu chi, v.v." },
+      { "kind": "bullet", "depth": 1, "text": "Nguyên tắc xét duyệt bản gốc, trường hợp cần thiết bản sao phải có xác nhận đối chiếu với bản gốc của người phụ trách" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận số dư chỉ có hiệu lực khi được cấp trong vòng 30 ngày" },
+      { "kind": "bullet", "depth": 1, "text": "Khi nộp giấy chứng nhận số dư của cha mẹ, cần nộp thêm giấy chứng nhận quan hệ gia đình" },
+      { "kind": "bullet", "depth": 1, "text": "Nguyên tắc chứng minh năng lực tài chính (học phí + sinh hoạt phí) cho 1 năm (đào tạo ngoại ngữ: 6 tháng)" },
+      { "kind": "bullet", "depth": 0, "text": "Kế hoạch đào tạo" },
+      { "kind": "bullet", "depth": 1, "text": "Bao gồm thời khoá biểu, danh sách giảng viên, cơ sở đào tạo và các nội dung chi tiết liên quan đến đào tạo" }
     ]
   },
   "D-5": {
@@ -3742,6 +4376,38 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "국내지국.지사 설치허가증이나 국내 지국.지사 운영자금 도입실적 증빙 서류"
       }
+    ],
+    "titleZh": "D-5 采访签证 - 常驻特派员",
+    "titleVi": "Visa D-5 Đưa tin - Phóng viên thường trú",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "采访签证" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：2 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Thị thực đưa tin" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 2 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "由外国报社、广播、杂志或其他报道机构派遣，常驻韩国进行采访、报道活动的人员" },
+      { "kind": "bullet", "depth": 0, "text": "依据与外国报道机构的合同，常驻韩国进行采访、报道活动的人员" },
+      { "kind": "bullet", "depth": 0, "text": "由已在韩国设立分支机构或分社的外国报社、广播、杂志或其他报道机构派遣，在韩国进行采访、报道活动的人员" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người được báo, đài phát thanh, tạp chí hoặc cơ quan báo chí nước ngoài phái cử, thường trú tại Hàn Quốc để đưa tin, tác nghiệp" },
+      { "kind": "bullet", "depth": 0, "text": "Người thường trú tại Hàn Quốc để đưa tin, tác nghiệp theo hợp đồng với cơ quan báo chí nước ngoài" },
+      { "kind": "bullet", "depth": 0, "text": "Người được phái cử bởi báo, đài phát thanh, tạp chí hoặc cơ quan báo chí nước ngoài đã có chi nhánh tại Hàn Quốc, để đưa tin, tác nghiệp tại Hàn Quốc" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "申请书（附件 34 号格式）、护照原件、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 0, "text": "派遣命令书或在职证明" },
+      { "kind": "bullet", "depth": 0, "text": "国内分支机构、分社设立许可证，或国内分支、分社运营资金引入业绩证明材料" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn đăng ký (Mẫu phụ lục số 34), bản gốc hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 0, "text": "Lệnh phái cử hoặc giấy chứng nhận đang công tác" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy phép thiết lập chi nhánh trong nước, hoặc giấy tờ chứng minh thành tích đưa vốn vận hành chi nhánh trong nước" }
     ]
   },
   "D-6": {
@@ -3996,6 +4662,54 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "고유번호증 사본"
       }
+    ],
+    "titleZh": "D-6 宗教签证 - 宗教活动",
+    "titleVi": "Visa D-6 Tôn giáo - Hoạt động tôn giáo",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "宗教签证" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：2 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Thị thực tôn giáo" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 2 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "由外国宗教团体或社会福利团体派遣，在国内已登记分支机构工作的人员" },
+      { "kind": "bullet", "depth": 0, "text": "由外国宗教团体或社会福利团体派遣，在国内相关宗教团体从事宗教活动的人员" },
+      { "kind": "bullet", "depth": 0, "text": "受所属宗教团体运营的医疗、教育、救济等机构邀请，从事传教或社会福利活动者" },
+      { "kind": "bullet", "depth": 0, "text": "经国内宗教团体推荐，在该宗教团体从事修道、修行、研究活动者" },
+      { "kind": "bullet", "depth": 0, "text": "受国内宗教团体或社会福利团体邀请，仅从事社会福利活动者" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người được tổ chức tôn giáo hoặc tổ chức phúc lợi xã hội nước ngoài cử đến làm việc tại chi nhánh đã đăng ký trong nước" },
+      { "kind": "bullet", "depth": 0, "text": "Người được tổ chức tôn giáo hoặc tổ chức phúc lợi xã hội nước ngoài cử đến để hoạt động tôn giáo tại tổ chức tôn giáo liên quan trong nước" },
+      { "kind": "bullet", "depth": 0, "text": "Người được mời bởi các tổ chức y tế, giáo dục, cứu trợ do tổ chức tôn giáo trực thuộc vận hành để tham gia hoạt động truyền giáo hoặc phúc lợi xã hội" },
+      { "kind": "bullet", "depth": 0, "text": "Người được tổ chức tôn giáo trong nước giới thiệu, tham gia tu hành, tu luyện, nghiên cứu tại tổ chức tôn giáo đó" },
+      { "kind": "bullet", "depth": 0, "text": "Người được tổ chức tôn giáo hoặc tổ chức phúc lợi xã hội trong nước mời, chỉ tham gia hoạt động phúc lợi xã hội" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "申请书（附件 34 号格式）" },
+      { "kind": "bullet", "depth": 0, "text": "护照原件" },
+      { "kind": "bullet", "depth": 0, "text": "标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 0, "text": "手续费" },
+      { "kind": "bullet", "depth": 0, "text": "宗教团体设立许可证或社会福利团体设立许可证副本" },
+      { "kind": "bullet", "depth": 0, "text": "所属团体的停留费用支持相关材料" },
+      { "kind": "bullet", "depth": 0, "text": "邀请理由书" },
+      { "kind": "bullet", "depth": 0, "text": "派遣命令书" },
+      { "kind": "bullet", "depth": 0, "text": "固有编号证副本" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn đăng ký (Mẫu phụ lục số 34)" },
+      { "kind": "bullet", "depth": 0, "text": "Bản gốc hộ chiếu" },
+      { "kind": "bullet", "depth": 0, "text": "1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 0, "text": "Lệ phí" },
+      { "kind": "bullet", "depth": 0, "text": "Bản sao giấy phép thành lập tổ chức tôn giáo hoặc tổ chức phúc lợi xã hội" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ liên quan đến việc tổ chức trực thuộc hỗ trợ chi phí lưu trú" },
+      { "kind": "bullet", "depth": 0, "text": "Lý do mời" },
+      { "kind": "bullet", "depth": 0, "text": "Lệnh phái cử" },
+      { "kind": "bullet", "depth": 0, "text": "Bản sao mã số định danh" }
     ]
   },
   "D-7": {
@@ -4400,6 +5114,76 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "인사명령서 (파견기간 명시)"
       }
+    ],
+    "titleZh": "D-7 驻在签证 - 驻韩员工（外派工作）",
+    "titleVi": "Visa D-7 Phái cử nội bộ - Nhân viên thường trú (Phái cử công tác)",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "在外国企业的韩国分支机构等开展驻在活动" },
+      { "kind": "bullet", "depth": 0, "text": "在海外拓展企业工作的外籍人员在韩国总部开展驻在活动" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：3 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Hoạt động phái cử tại chi nhánh trong nước của doanh nghiệp nước ngoài" },
+      { "kind": "bullet", "depth": 0, "text": "Nhân lực nước ngoài đang làm việc tại doanh nghiệp mở rộng ra nước ngoài thực hiện hoạt động phái cử tại trụ sở chính trong nước" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 3 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "在外国公共机构、团体或公司的总公司、分公司或其他营业所等工作满 1 年以上，欲被派遣到位于韩国的关联公司、子公司、分支机构或办事处作为必要专业人员工作的人员" },
+      { "kind": "bullet", "depth": 0, "text": "在上市法人（含 KOSDAQ 上市法人，下同）或公共机构设立的海外当地法人或海外分支机构工作满 1 年以上，欲被派遣到位于韩国的总公司或总部，提供或接受专业知识、技术或技能的人员" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người đã làm việc tại trụ sở chính, chi nhánh hoặc các văn phòng kinh doanh khác của cơ quan công, tổ chức hoặc công ty nước ngoài từ 1 năm trở lên, được phái cử đến công ty liên kết, công ty con, chi nhánh hoặc văn phòng tại Hàn Quốc với tư cách nhân lực chuyên môn cốt lõi" },
+      { "kind": "bullet", "depth": 0, "text": "Người đã làm việc từ 1 năm trở lên tại pháp nhân nước ngoài hoặc chi nhánh nước ngoài do pháp nhân niêm yết (bao gồm pháp nhân niêm yết KOSDAQ) hoặc cơ quan công lập thành lập, được phái cử đến trụ sở chính tại Hàn Quốc để cung cấp hoặc tiếp nhận kiến thức, kỹ thuật hoặc kỹ năng chuyên môn" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "在外国企业的韩国分支机构等开展驻在活动" },
+      { "kind": "bullet", "depth": 1, "text": "签证发放申请书" },
+      { "kind": "bullet", "depth": 1, "text": "护照" },
+      { "kind": "bullet", "depth": 1, "text": "标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "手续费" },
+      { "kind": "bullet", "depth": 1, "text": "外国公司等的在职证明" },
+      { "kind": "bullet", "depth": 1, "text": "派遣命令书" },
+      { "kind": "bullet", "depth": 1, "text": "国内分支机构等设立证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "证明本公司或联络办事处正常运营的文件" },
+      { "kind": "bullet", "depth": 1, "text": "证明为必要专业人员的文件（履历书、经历证明书等）" },
+      { "kind": "bullet", "depth": 0, "text": "在海外拓展企业工作的外籍人员在韩国总部开展驻在活动" },
+      { "kind": "bullet", "depth": 1, "text": "签证发放申请书" },
+      { "kind": "bullet", "depth": 1, "text": "护照" },
+      { "kind": "bullet", "depth": 1, "text": "标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "手续费" },
+      { "kind": "bullet", "depth": 1, "text": "证明为必要专业人员的文件（履历书、经历证明书等）" },
+      { "kind": "bullet", "depth": 1, "text": "总公司的法人登记事项全部证明" },
+      { "kind": "bullet", "depth": 1, "text": "海外直接投资申报受理书或海外分支机构设立申报受理书" },
+      { "kind": "bullet", "depth": 1, "text": "海外汇款确认证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "海外分支机构的法人登记事项全部证明或营业执照" },
+      { "kind": "bullet", "depth": 1, "text": "海外分支机构的在职证明及纳税事实证明" },
+      { "kind": "bullet", "depth": 1, "text": "人事命令书（注明派遣期间）" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Hoạt động phái cử tại chi nhánh trong nước của doanh nghiệp nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận đang công tác tại công ty ở nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Lệnh phái cử" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ chứng minh việc thiết lập chi nhánh trong nước" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ chứng minh công ty hoặc văn phòng liên lạc đang hoạt động bình thường" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ chứng minh là nhân lực chuyên môn cốt lõi (sơ yếu lý lịch, giấy chứng nhận kinh nghiệm, v.v.)" },
+      { "kind": "bullet", "depth": 0, "text": "Nhân lực nước ngoài đang làm việc tại doanh nghiệp mở rộng ra nước ngoài thực hiện hoạt động phái cử tại trụ sở chính trong nước" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ chứng minh là nhân lực chuyên môn cốt lõi (sơ yếu lý lịch, giấy chứng nhận kinh nghiệm, v.v.)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận tất cả các mục đăng ký pháp nhân của trụ sở chính" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tiếp nhận khai báo đầu tư trực tiếp ra nước ngoài hoặc giấy tiếp nhận khai báo thành lập chi nhánh ở nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ chứng minh đã chuyển tiền ra nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận tất cả các mục đăng ký pháp nhân hoặc giấy phép kinh doanh của chi nhánh ở nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận đang công tác tại chi nhánh ở nước ngoài và giấy chứng nhận đã nộp thuế" },
+      { "kind": "bullet", "depth": 1, "text": "Lệnh nhân sự (ghi rõ thời gian phái cử)" }
     ]
   },
   "D-8": {
@@ -5644,6 +6428,202 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "기본 제출서류 + 중기부장관 추천서"
       }
+    ],
+    "titleZh": "D-8 企业投资签证 - 投资及创业",
+    "titleVi": "Visa D-8 Đầu tư doanh nghiệp - Đầu tư và khởi nghiệp",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证类型：D-8（投资及创业签证）" },
+      { "kind": "bullet", "depth": 1, "text": "D-8-1：法人投资" },
+      { "kind": "bullet", "depth": 1, "text": "D-8-2：风险投资" },
+      { "kind": "bullet", "depth": 1, "text": "D-8-3：个人企业投资" },
+      { "kind": "bullet", "depth": 1, "text": "D-8-4：技术创业" },
+      { "kind": "bullet", "depth": 0, "text": "停留期限上限：" },
+      { "kind": "bullet", "depth": 1, "text": "D-8-1、D-8-3：5 年" },
+      { "kind": "bullet", "depth": 1, "text": "D-8-2、D-8-4：2 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Loại thị thực: D-8 (Thị thực đầu tư và khởi nghiệp)" },
+      { "kind": "bullet", "depth": 1, "text": "D-8-1: Đầu tư vào pháp nhân" },
+      { "kind": "bullet", "depth": 1, "text": "D-8-2: Đầu tư mạo hiểm" },
+      { "kind": "bullet", "depth": 1, "text": "D-8-3: Đầu tư vào doanh nghiệp cá nhân" },
+      { "kind": "bullet", "depth": 1, "text": "D-8-4: Khởi nghiệp công nghệ" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa:" },
+      { "kind": "bullet", "depth": 1, "text": "D-8-1, D-8-3: 5 năm" },
+      { "kind": "bullet", "depth": 1, "text": "D-8-2, D-8-4: 2 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "D-8-1：依据《外国人投资促进法》在外商投资企业的韩国法人从事经营、管理或生产、技术领域工作的必要专业人员" },
+      { "kind": "bullet", "depth": 1, "text": "基本要件：" },
+      { "kind": "bullet", "depth": 2, "text": "投资对象须为韩国法人" },
+      { "kind": "bullet", "depth": 2, "text": "投资金额 1 亿韩元以上，持有有表决权股份总数的 10% 以上" },
+      { "kind": "bullet", "depth": 2, "text": "投资资金原则上以本人名义为准，例外情况下可接受配偶及未成年子女名义引入和代理汇款" },
+      { "kind": "bullet", "depth": 0, "text": "D-8-2：依据《风险企业培育法》设立的风险企业代表人，或技术力优秀企业的代表人" },
+      { "kind": "bullet", "depth": 1, "text": "要件：拥有知识产权的风险企业创立者，或技术性优秀的企业代表人" },
+      { "kind": "bullet", "depth": 0, "text": "D-8-3：在依据《外国人投资促进法》成立的外商投资企业中，由韩国国民经营的企业从事经营、管理或生产技术领域的必要专业人员" },
+      { "kind": "bullet", "depth": 1, "text": "基本要件：" },
+      { "kind": "bullet", "depth": 2, "text": "投资对象须为韩国国民经营的企业" },
+      { "kind": "bullet", "depth": 2, "text": "投资金额 1 亿韩元以上，持有出资总额的 10% 以上" },
+      { "kind": "bullet", "depth": 2, "text": "须登记为共同代表" },
+      { "kind": "bullet", "depth": 2, "text": "在营业执照上与韩国人共同登记为共同代表" },
+      { "kind": "bullet", "depth": 0, "text": "D-8-4：在国内或国外取得本科以上学位者中，拥有知识产权或具备相应技术力的法人创业者" },
+      { "kind": "bullet", "depth": 1, "text": "要件：取得专科以上学位者，或拥有知识产权或技术力的创业者" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "D-8-1: Nhân lực chuyên môn cốt lõi muốn tham gia vào lĩnh vực kinh doanh, quản lý hoặc sản xuất, kỹ thuật của pháp nhân Hàn Quốc thuộc doanh nghiệp đầu tư nước ngoài theo Luật Khuyến khích Đầu tư Nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Điều kiện cơ bản:" },
+      { "kind": "bullet", "depth": 2, "text": "Đối tượng đầu tư phải là pháp nhân Hàn Quốc" },
+      { "kind": "bullet", "depth": 2, "text": "Số tiền đầu tư từ 100 triệu KRW trở lên, sở hữu từ 10% tổng số cổ phần có quyền biểu quyết trở lên" },
+      { "kind": "bullet", "depth": 2, "text": "Vốn đầu tư về nguyên tắc đứng tên người đầu tư; trường hợp ngoại lệ chấp nhận đứng tên vợ/chồng và con chưa thành niên cũng như chuyển khoản thay" },
+      { "kind": "bullet", "depth": 0, "text": "D-8-2: Người đại diện doanh nghiệp khởi nghiệp được thành lập theo Luật Khuyến khích Doanh nghiệp Khởi nghiệp, hoặc người đại diện doanh nghiệp có năng lực kỹ thuật xuất sắc" },
+      { "kind": "bullet", "depth": 1, "text": "Điều kiện: Người sáng lập doanh nghiệp khởi nghiệp sở hữu quyền sở hữu trí tuệ, hoặc người đại diện doanh nghiệp có tính kỹ thuật xuất sắc" },
+      { "kind": "bullet", "depth": 0, "text": "D-8-3: Nhân lực chuyên môn cốt lõi muốn tham gia vào lĩnh vực kinh doanh, quản lý hoặc kỹ thuật sản xuất của doanh nghiệp do công dân Hàn Quốc điều hành, là doanh nghiệp đầu tư nước ngoài theo Luật Khuyến khích Đầu tư Nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Điều kiện cơ bản:" },
+      { "kind": "bullet", "depth": 2, "text": "Đối tượng đầu tư phải là doanh nghiệp do công dân Hàn Quốc điều hành" },
+      { "kind": "bullet", "depth": 2, "text": "Số tiền đầu tư từ 100 triệu KRW trở lên, sở hữu từ 10% tổng vốn góp trở lên" },
+      { "kind": "bullet", "depth": 2, "text": "Phải đăng ký với tư cách đồng đại diện" },
+      { "kind": "bullet", "depth": 2, "text": "Đăng ký đồng đại diện cùng người Hàn trong giấy phép kinh doanh" },
+      { "kind": "bullet", "depth": 0, "text": "D-8-4: Người đã lấy bằng cử nhân trở lên trong nước hoặc nước ngoài, có sở hữu quyền sở hữu trí tuệ hoặc năng lực kỹ thuật tương đương, là người sáng lập pháp nhân" },
+      { "kind": "bullet", "depth": 1, "text": "Điều kiện: Người đã lấy bằng cao đẳng trở lên, hoặc người sáng lập có quyền sở hữu trí tuệ hoặc năng lực kỹ thuật" }
+    ],
+    "requirementsZh": [
+      { "kind": "heading", "depth": 0, "text": "1. D-8-1：外商投资企业经营、管理、生产、技术领域必要专业人员" },
+      { "kind": "bullet", "depth": 0, "text": "基本材料：" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书" },
+      { "kind": "bullet", "depth": 1, "text": "护照" },
+      { "kind": "bullet", "depth": 1, "text": "标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "手续费" },
+      { "kind": "bullet", "depth": 0, "text": "补充材料：" },
+      { "kind": "bullet", "depth": 1, "text": "派遣命令书（注明派遣期间）" },
+      { "kind": "bullet", "depth": 1, "text": "在职证明" },
+      { "kind": "bullet", "depth": 1, "text": "外商投资企业登记证副本" },
+      { "kind": "bullet", "depth": 1, "text": "营业执照副本" },
+      { "kind": "bullet", "depth": 1, "text": "法人登记事项全部证明" },
+      { "kind": "bullet", "depth": 1, "text": "股东变动情况明细书原件" },
+      { "kind": "bullet", "depth": 1, "text": "投资资金引入相关证明材料" },
+      { "kind": "bullet", "depth": 0, "text": "投资金额低于 3 亿韩元的个人投资者补充材料：" },
+      { "kind": "bullet", "depth": 1, "text": "资本金使用明细证明（购物票据、办公室装修费、国内银行账户出入金明细等）" },
+      { "kind": "bullet", "depth": 1, "text": "营业场所存在证明（办公室租赁合同、营业场所全景、办公空间、招牌照片等）" },
+      { "kind": "bullet", "depth": 1, "text": "本国与该业种或领域相关的事业经验材料（必要时提交）" },
+      { "kind": "heading", "depth": 0, "text": "2. D-8-2：风险企业代表人或技术性优秀企业代表人" },
+      { "kind": "bullet", "depth": 0, "text": "基本材料：" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书" },
+      { "kind": "bullet", "depth": 1, "text": "护照" },
+      { "kind": "bullet", "depth": 1, "text": "标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "手续费" },
+      { "kind": "bullet", "depth": 0, "text": "补充材料：" },
+      { "kind": "bullet", "depth": 1, "text": "营业执照副本" },
+      { "kind": "bullet", "depth": 1, "text": "法人登记事项全部证明" },
+      { "kind": "bullet", "depth": 1, "text": "风险企业确认书或预备风险企业确认书" },
+      { "kind": "bullet", "depth": 1, "text": "证明拥有知识产权等技术力的材料：" },
+      { "kind": "bullet", "depth": 2, "text": "专利证、实用新型登记证、外观设计登记证、商标登记证、著作权登记证等副本" },
+      { "kind": "bullet", "depth": 2, "text": "技术信用保证基金或中小企业振兴公团的技术性优秀评价书" },
+      { "kind": "heading", "depth": 0, "text": "3. D-8-3：外商投资企业经营、管理或生产技术领域必要专业人员" },
+      { "kind": "bullet", "depth": 0, "text": "基本材料：" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书" },
+      { "kind": "bullet", "depth": 1, "text": "护照" },
+      { "kind": "bullet", "depth": 1, "text": "标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "手续费" },
+      { "kind": "bullet", "depth": 0, "text": "补充材料：" },
+      { "kind": "bullet", "depth": 1, "text": "外商投资企业登记证副本" },
+      { "kind": "bullet", "depth": 1, "text": "共同事业者（韩国国民）的事业资金（使用明细）证明" },
+      { "kind": "bullet", "depth": 1, "text": "标注共同事业者的营业执照副本" },
+      { "kind": "bullet", "depth": 1, "text": "共同事业者约定书原件" },
+      { "kind": "bullet", "depth": 1, "text": "投资资金引入相关证明材料" },
+      { "kind": "bullet", "depth": 0, "text": "投资金额低于 3 亿韩元的个人投资者补充材料：" },
+      { "kind": "bullet", "depth": 1, "text": "资本金使用明细证明（购物票据、办公室装修费、国内银行账户出入金明细等）" },
+      { "kind": "bullet", "depth": 1, "text": "营业场所存在证明（办公室租赁合同、营业场所全景、办公空间、招牌照片等）" },
+      { "kind": "bullet", "depth": 1, "text": "本国与该业种或领域相关的事业经验材料（必要时提交）" },
+      { "kind": "heading", "depth": 0, "text": "4. D-8-4：法人创业者（拥有知识产权或技术力的创业者）" },
+      { "kind": "bullet", "depth": 0, "text": "基本材料：" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书" },
+      { "kind": "bullet", "depth": 1, "text": "护照" },
+      { "kind": "bullet", "depth": 1, "text": "标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "手续费" },
+      { "kind": "bullet", "depth": 1, "text": "法人登记事项全部证明及营业执照副本" },
+      { "kind": "bullet", "depth": 1, "text": "学位证书副本或相关中央行政机关首长的推荐书" },
+      { "kind": "bullet", "depth": 0, "text": "适用计分制的对象提交材料：" },
+      { "kind": "bullet", "depth": 1, "text": "知识产权持有者：专利证、实用新型登记证、外观设计登记证副本" },
+      { "kind": "bullet", "depth": 1, "text": "OECD 国家知识产权持有（登记）者：能证明该事实的材料副本" },
+      { "kind": "bullet", "depth": 1, "text": "专利等申请人：专利厅长发行的申请事实证明" },
+      { "kind": "bullet", "depth": 1, "text": "由法务部长官指定的「全球创业移民中心」首长发行的创业移民综合支援系统（OASIS）相应项目修读（结业、毕业）证书、获奖确认书、选定公文等证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "其他计分制相关项目证明材料" },
+      { "kind": "bullet", "depth": 0, "text": "免除计分制对象（技术创业特例对象）提交材料：" },
+      { "kind": "bullet", "depth": 1, "text": "K-Startup Grand Challenge 参与者：基本提交材料 + 中小企业部发行的 Grand Challenge 参与确认书、中小企业部长官推荐公文" },
+      { "kind": "bullet", "depth": 0, "text": "政府创业支援事业受益者：" },
+      { "kind": "bullet", "depth": 1, "text": "基本提交材料 + 中小企业部长官推荐书" },
+      { "kind": "bullet", "depth": 0, "text": "Startup Korea 特别签证：" },
+      { "kind": "bullet", "depth": 1, "text": "基本提交材料 + 中小企业部长官推荐书" }
+    ],
+    "requirementsVi": [
+      { "kind": "heading", "depth": 0, "text": "1. D-8-1: Nhân lực chuyên môn cốt lõi trong lĩnh vực kinh doanh, quản lý, sản xuất, kỹ thuật của doanh nghiệp đầu tư nước ngoài" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ cơ bản:" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Lệ phí" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ bổ sung:" },
+      { "kind": "bullet", "depth": 1, "text": "Lệnh phái cử (ghi rõ thời gian phái cử)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận đang công tác" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao Giấy chứng nhận đăng ký doanh nghiệp đầu tư nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao giấy phép kinh doanh" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận tất cả các mục đăng ký pháp nhân" },
+      { "kind": "bullet", "depth": 1, "text": "Bản gốc bảng kê biến động cổ đông" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh việc đưa vốn đầu tư" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ bổ sung cho nhà đầu tư cá nhân với số tiền đầu tư dưới 300 triệu KRW:" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh chi tiết sử dụng vốn (hoá đơn mua hàng, chi phí trang trí văn phòng, sao kê thu chi tài khoản ngân hàng trong nước, v.v.)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh sự tồn tại của địa điểm kinh doanh (hợp đồng thuê văn phòng, ảnh toàn cảnh, không gian văn phòng, biển hiệu, v.v.)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ của nước có quốc tịch về kinh nghiệm kinh doanh trong ngành nghề hoặc lĩnh vực liên quan (nộp khi cần)" },
+      { "kind": "heading", "depth": 0, "text": "2. D-8-2: Người đại diện doanh nghiệp khởi nghiệp hoặc người đại diện doanh nghiệp có tính kỹ thuật xuất sắc" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ cơ bản:" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Lệ phí" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ bổ sung:" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao giấy phép kinh doanh" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận tất cả các mục đăng ký pháp nhân" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy xác nhận doanh nghiệp khởi nghiệp hoặc giấy xác nhận doanh nghiệp khởi nghiệp dự bị" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh năng lực kỹ thuật như sở hữu quyền sở hữu trí tuệ:" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao bằng sáng chế, giấy chứng nhận đăng ký giải pháp hữu ích, giấy chứng nhận đăng ký kiểu dáng công nghiệp, giấy chứng nhận đăng ký nhãn hiệu, giấy chứng nhận đăng ký quyền tác giả, v.v." },
+      { "kind": "bullet", "depth": 2, "text": "Giấy đánh giá tính kỹ thuật xuất sắc của Quỹ Bảo lãnh Tín dụng Kỹ thuật hoặc Tổng công ty Phát triển Doanh nghiệp Vừa và Nhỏ" },
+      { "kind": "heading", "depth": 0, "text": "3. D-8-3: Nhân lực chuyên môn cốt lõi trong lĩnh vực kinh doanh, quản lý hoặc kỹ thuật sản xuất của doanh nghiệp đầu tư nước ngoài" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ cơ bản:" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Lệ phí" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ bổ sung:" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao Giấy chứng nhận đăng ký doanh nghiệp đầu tư nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh nguồn vốn kinh doanh (chi tiết sử dụng) của đồng kinh doanh viên là công dân Hàn Quốc" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao giấy phép kinh doanh có ghi đồng kinh doanh viên" },
+      { "kind": "bullet", "depth": 1, "text": "Bản gốc thoả thuận đồng kinh doanh viên" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh việc đưa vốn đầu tư" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ bổ sung cho nhà đầu tư cá nhân với số tiền đầu tư dưới 300 triệu KRW:" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh chi tiết sử dụng vốn (hoá đơn mua hàng, chi phí trang trí văn phòng, sao kê thu chi tài khoản ngân hàng trong nước, v.v.)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh sự tồn tại của địa điểm kinh doanh (hợp đồng thuê văn phòng, ảnh toàn cảnh, không gian văn phòng, biển hiệu, v.v.)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ của nước có quốc tịch về kinh nghiệm kinh doanh trong ngành nghề hoặc lĩnh vực liên quan (nộp khi cần)" },
+      { "kind": "heading", "depth": 0, "text": "4. D-8-4: Người sáng lập pháp nhân (có quyền sở hữu trí tuệ hoặc năng lực kỹ thuật)" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ cơ bản:" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận tất cả các mục đăng ký pháp nhân và bản sao giấy phép kinh doanh" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao bằng cấp hoặc thư giới thiệu của lãnh đạo cơ quan hành chính trung ương liên quan" },
+      { "kind": "bullet", "depth": 0, "text": "Đối tượng áp dụng hệ thống tính điểm - hồ sơ nộp:" },
+      { "kind": "bullet", "depth": 1, "text": "Người sở hữu quyền sở hữu trí tuệ: bản sao bằng sáng chế, giấy chứng nhận đăng ký giải pháp hữu ích, giấy chứng nhận đăng ký kiểu dáng công nghiệp" },
+      { "kind": "bullet", "depth": 1, "text": "Người sở hữu (đăng ký) quyền sở hữu trí tuệ ở nước OECD: bản sao giấy tờ chứng minh sự việc đó" },
+      { "kind": "bullet", "depth": 1, "text": "Người nộp đơn xin cấp bằng sáng chế, v.v.: giấy xác nhận đã nộp đơn do Cục trưởng Cục Sở hữu Trí tuệ cấp" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh đã hoàn thành (kết thúc, tốt nghiệp) hạng mục tương ứng trong Hệ thống Hỗ trợ Tổng hợp Khởi nghiệp Nhập cư (OASIS), giấy xác nhận đoạt giải, công văn lựa chọn, v.v., do Trưởng \"Trung tâm Khởi nghiệp Nhập cư Toàn cầu\" do Bộ trưởng Tư pháp chỉ định cấp" },
+      { "kind": "bullet", "depth": 1, "text": "Các hồ sơ chứng minh khác liên quan đến hệ thống tính điểm" },
+      { "kind": "bullet", "depth": 0, "text": "Đối tượng được miễn áp dụng hệ thống tính điểm (đối tượng đặc lệ khởi nghiệp công nghệ) - hồ sơ nộp:" },
+      { "kind": "bullet", "depth": 1, "text": "Người tham gia K-Startup Grand Challenge: hồ sơ cơ bản + giấy xác nhận tham gia Grand Challenge do Bộ Doanh nghiệp Vừa và Nhỏ cấp, công văn giới thiệu của Bộ trưởng Doanh nghiệp Vừa và Nhỏ" },
+      { "kind": "bullet", "depth": 0, "text": "Người được hưởng chương trình hỗ trợ khởi nghiệp của Chính phủ:" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ cơ bản + thư giới thiệu của Bộ trưởng Doanh nghiệp Vừa và Nhỏ" },
+      { "kind": "bullet", "depth": 0, "text": "Visa đặc biệt Startup Korea:" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ cơ bản + thư giới thiệu của Bộ trưởng Doanh nghiệp Vừa và Nhỏ" }
     ]
   },
   "D-9": {
@@ -6128,6 +7108,72 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "제출 서류:사증발급인정신청서, 여권 사본, 표준규격사진 1매초청사유서수주계약서 사본파견명령서초청회사의 사업자등록증 사본 또는 법인등기사항전부증명서연간 납세사실증명서"
       }
+    ],
+    "titleZh": "D-9 贸易经营签证 - 贸易及出口",
+    "titleVi": "Visa D-9 Quản lý thương mại - Thương mại và xuất khẩu",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "D-9 签证活动范围" },
+      { "kind": "bullet", "depth": 1, "text": "公司经营、贸易、营利事业" },
+      { "kind": "bullet", "depth": 1, "text": "出口设备（机械）的安装 / 运营 / 维护" },
+      { "kind": "bullet", "depth": 1, "text": "船舶建造、设备制造监督" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：2 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Phạm vi hoạt động của visa D-9" },
+      { "kind": "bullet", "depth": 1, "text": "Điều hành công ty, thương mại, kinh doanh sinh lợi" },
+      { "kind": "bullet", "depth": 1, "text": "Lắp đặt / vận hành / bảo trì thiết bị xuất khẩu (máy móc)" },
+      { "kind": "bullet", "depth": 1, "text": "Giám sát đóng tàu, chế tạo thiết bị" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 2 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "公司经营、贸易、营利事业" },
+      { "kind": "bullet", "depth": 1, "text": "依据《对外贸易法令》及《对外贸易管理规定》获得韩国贸易协会会长授予贸易商专属贸易业固有编号的贸易商" },
+      { "kind": "bullet", "depth": 0, "text": "出口设备（机械）的安装、运营、维护" },
+      { "kind": "bullet", "depth": 1, "text": "被派遣或受邀至工业设备（机械）引进公司，提供该设备的安装、运营、维护（保养）所需技术者" },
+      { "kind": "bullet", "depth": 0, "text": "船舶建造、设备制造监督" },
+      { "kind": "bullet", "depth": 1, "text": "为监督船舶建造及工业设备制造而被派遣的人员（由发包方或发包公司指定的专门服务提供公司派遣）" },
+      { "kind": "bullet", "depth": 0, "text": "公司经营、营利事业" },
+      { "kind": "bullet", "depth": 1, "text": "在韩国设立公司经营事业或开展营利活动者" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Điều hành công ty, thương mại, kinh doanh sinh lợi" },
+      { "kind": "bullet", "depth": 1, "text": "Người làm thương mại được Chủ tịch Hiệp hội Thương mại Hàn Quốc cấp mã số định danh thương mại theo Luật Ngoại thương và Quy định Quản lý Ngoại thương" },
+      { "kind": "bullet", "depth": 0, "text": "Lắp đặt, vận hành, bảo trì thiết bị xuất khẩu (máy móc)" },
+      { "kind": "bullet", "depth": 1, "text": "Người được phái cử hoặc được mời đến công ty đưa vào thiết bị công nghiệp (máy móc) để cung cấp kỹ thuật cần thiết cho việc lắp đặt, vận hành, bảo trì thiết bị" },
+      { "kind": "bullet", "depth": 0, "text": "Giám sát đóng tàu, chế tạo thiết bị" },
+      { "kind": "bullet", "depth": 1, "text": "Người được phái cử để giám sát đóng tàu và chế tạo thiết bị công nghiệp (do bên đặt hàng hoặc công ty đặt hàng chỉ định công ty cung cấp dịch vụ chuyên nghiệp phái cử)" },
+      { "kind": "bullet", "depth": 0, "text": "Điều hành công ty, kinh doanh sinh lợi" },
+      { "kind": "bullet", "depth": 1, "text": "Người thành lập công ty tại Hàn Quốc để điều hành kinh doanh hoặc thực hiện hoạt động sinh lợi" }
+    ],
+    "requirementsZh": [
+      { "kind": "heading", "depth": 0, "text": "1. 适用贸易签证计分制对象" },
+      { "kind": "bullet", "depth": 0, "text": "要件：" },
+      { "kind": "bullet", "depth": 1, "text": "总 160 分中得分 60 分以上" },
+      { "kind": "bullet", "depth": 1, "text": "必填项目得分 10 分以上" },
+      { "kind": "bullet", "depth": 0, "text": "许可要件：" },
+      { "kind": "bullet", "depth": 1, "text": "申请人本人名义完成营业登记" },
+      { "kind": "bullet", "depth": 1, "text": "申请日前 3 年内无违反《出入境管理法》记录" },
+      { "kind": "bullet", "depth": 0, "text": "提交材料：签证发放认定申请书、护照副本、营业执照副本、贸易业固有编号授予证（韩国贸易协会发行）副本、共同事业约定书原件及副本（共同事业者情况）、租赁合同、计分制相应得分证明材料、贸易业绩：「进出口业绩证明书」（韩国贸易协会发行）、贸易领域专业性：经历证明书、学位证、教育修读证等、其他资本金证明材料、TOPIK 成绩表、社会融合项目修读证等" },
+      { "kind": "heading", "depth": 0, "text": "2. 被派遣或受邀至工业设备（机械）引进公司，提供该设备安装/运营/维护所需技术者" },
+      { "kind": "bullet", "depth": 0, "text": "提交材料：签证发放认定申请书、护照副本、标准规格照片 1 张、邀请理由书、设备引进合同或工业设备引进证明材料、派遣命令书、邀请公司的营业执照副本或法人登记事项全部证明、年度纳税事实证明" },
+      { "kind": "heading", "depth": 0, "text": "3. 为监督船舶建造及工业设备制造而被派遣的人员" },
+      { "kind": "bullet", "depth": 0, "text": "提交材料：签证发放认定申请书、护照副本、标准规格照片 1 张、邀请理由书、订单合同副本、派遣命令书、邀请公司的营业执照副本或法人登记事项全部证明、年度纳税事实证明" }
+    ],
+    "requirementsVi": [
+      { "kind": "heading", "depth": 0, "text": "1. Đối tượng áp dụng hệ thống tính điểm visa thương mại" },
+      { "kind": "bullet", "depth": 0, "text": "Điều kiện:" },
+      { "kind": "bullet", "depth": 1, "text": "Đạt từ 60 điểm trở lên trên tổng số 160 điểm" },
+      { "kind": "bullet", "depth": 1, "text": "Đạt từ 10 điểm trở lên ở các hạng mục bắt buộc" },
+      { "kind": "bullet", "depth": 0, "text": "Điều kiện cấp phép:" },
+      { "kind": "bullet", "depth": 1, "text": "Hoàn tất đăng ký kinh doanh dưới tên của người nộp hồ sơ" },
+      { "kind": "bullet", "depth": 1, "text": "Không có vi phạm Luật Quản lý Xuất nhập cảnh trong vòng 3 năm tính đến ngày nộp hồ sơ" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ nộp: Đơn xin cấp giấy phép cấp thị thực, bản sao hộ chiếu, bản sao giấy phép kinh doanh, bản sao giấy chứng nhận cấp mã số định danh thương mại (do Hiệp hội Thương mại Hàn Quốc phát hành), bản gốc và bản sao thoả thuận đồng kinh doanh (trường hợp đồng kinh doanh), hợp đồng thuê, hồ sơ chứng minh điểm số tương ứng theo hệ thống tính điểm, thành tích thương mại: \"Giấy chứng nhận thành tích xuất nhập khẩu\" (do Hiệp hội Thương mại Hàn Quốc phát hành), tính chuyên môn trong lĩnh vực thương mại: giấy chứng nhận kinh nghiệm, bằng cấp, giấy chứng nhận hoàn thành khoá học, v.v., các giấy tờ chứng minh vốn khác, bảng điểm TOPIK, giấy chứng nhận hoàn thành chương trình hoà nhập xã hội, v.v." },
+      { "kind": "heading", "depth": 0, "text": "2. Người được phái cử hoặc được mời đến công ty đưa vào thiết bị công nghiệp (máy móc) để cung cấp kỹ thuật cho việc lắp đặt/vận hành/bảo trì" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ nộp: Đơn xin cấp giấy phép cấp thị thực, bản sao hộ chiếu, 1 ảnh tiêu chuẩn, lý do mời, hợp đồng đưa vào thiết bị hoặc giấy tờ chứng minh việc đưa vào thiết bị công nghiệp, lệnh phái cử, bản sao giấy phép kinh doanh hoặc giấy chứng nhận tất cả các mục đăng ký pháp nhân của công ty mời, giấy chứng nhận đã nộp thuế hằng năm" },
+      { "kind": "heading", "depth": 0, "text": "3. Người được phái cử để giám sát đóng tàu và chế tạo thiết bị công nghiệp" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ nộp: Đơn xin cấp giấy phép cấp thị thực, bản sao hộ chiếu, 1 ảnh tiêu chuẩn, lý do mời, bản sao hợp đồng đặt hàng, lệnh phái cử, bản sao giấy phép kinh doanh hoặc giấy chứng nhận tất cả các mục đăng ký pháp nhân của công ty mời, giấy chứng nhận đã nộp thuế hằng năm" }
     ]
   },
   "D-10": {
@@ -7205,6 +8251,170 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "체재비 입증서류 (유학 사증 준용)"
       }
+    ],
+    "titleZh": "D-10 求职活动签证 - 外国人及留学生实习",
+    "titleVi": "Visa D-10 Tìm việc - Thực tập cho người nước ngoài và du học sinh",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "一般求职（D-10-1）" },
+      { "kind": "bullet", "depth": 1, "text": "包括在国内企业、团体等开展的求职活动，以及正式就业前以接受研修津贴方式进行的短期实习课程" },
+      { "kind": "bullet", "depth": 0, "text": "技术创业准备（D-10-2）" },
+      { "kind": "bullet", "depth": 1, "text": "参加创业移民教育项目、知识产权（如专利）申请准备及申请、创业法人设立准备等创业相关的各项准备活动（实习活动受限）" },
+      { "kind": "bullet", "depth": 0, "text": "尖端技术实习（D-10-3）" },
+      { "kind": "bullet", "depth": 1, "text": "依据法务部长官规定要件，与符合条件的企业签订实习劳动合同，从事尖端技术领域的实习活动" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：1 年（最多可延长 3 次）" },
+      { "kind": "heading", "depth": 0, "text": "* 2025 年 10 月 29 日修订" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Tìm việc thông thường (D-10-1)" },
+      { "kind": "bullet", "depth": 1, "text": "Bao gồm hoạt động tìm việc tại doanh nghiệp, tổ chức trong nước và các khoá thực tập ngắn hạn nhận trợ cấp đào tạo trước khi chính thức làm việc" },
+      { "kind": "bullet", "depth": 0, "text": "Chuẩn bị khởi nghiệp công nghệ (D-10-2)" },
+      { "kind": "bullet", "depth": 1, "text": "Các hoạt động chuẩn bị liên quan đến khởi nghiệp như tham gia chương trình giáo dục khởi nghiệp nhập cư, chuẩn bị và nộp đơn quyền sở hữu trí tuệ (sáng chế), chuẩn bị thành lập pháp nhân khởi nghiệp (hoạt động thực tập bị giới hạn)" },
+      { "kind": "bullet", "depth": 0, "text": "Thực tập công nghệ cao (D-10-3)" },
+      { "kind": "bullet", "depth": 1, "text": "Hoạt động thực tập trong lĩnh vực công nghệ cao theo hợp đồng thực tập với doanh nghiệp đáp ứng các điều kiện do Bộ trưởng Tư pháp quy định" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 1 năm (có thể gia hạn tối đa 3 lần)" },
+      { "kind": "heading", "depth": 0, "text": "* Bản sửa đổi ngày 29/10/2025" }
+    ],
+    "candidatesZh": [],
+    "candidatesVi": [],
+    "requirementsZh": [
+      { "kind": "heading", "depth": 0, "text": "1. 一般求职（D-10-1）：适用计分制对象" },
+      { "kind": "bullet", "depth": 0, "text": "通用材料：" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书" },
+      { "kind": "bullet", "depth": 1, "text": "照片" },
+      { "kind": "bullet", "depth": 1, "text": "护照副本" },
+      { "kind": "bullet", "depth": 1, "text": "手续费" },
+      { "kind": "bullet", "depth": 1, "text": "身份证副本" },
+      { "kind": "bullet", "depth": 0, "text": "其他必备材料：" },
+      { "kind": "bullet", "depth": 1, "text": "求职活动计划书" },
+      { "kind": "bullet", "depth": 1, "text": "学位证" },
+      { "kind": "bullet", "depth": 1, "text": "国内专科以上毕业生：学历证明" },
+      { "kind": "bullet", "depth": 1, "text": "世界优秀大学毕业生：学历证明" },
+      { "kind": "bullet", "depth": 1, "text": "工作经历证明材料（适用者）：" },
+      { "kind": "bullet", "depth": 2, "text": "经历证明书（含工作期间、地点、职种）" },
+      { "kind": "bullet", "depth": 1, "text": "国内研修活动证明材料（适用者）" },
+      { "kind": "bullet", "depth": 1, "text": "韩语能力证明材料（适用者）：" },
+      { "kind": "bullet", "depth": 2, "text": "TOPIK（有效期内）或 KIIP 修读证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "雇佣推荐书（适用者）" },
+      { "kind": "bullet", "depth": 1, "text": "高收入专家证明材料（适用者）：" },
+      { "kind": "bullet", "depth": 2, "text": "上一年度劳动收入证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "生活费证明材料（参照留学签证）" },
+      { "kind": "bullet", "depth": 1, "text": "其他计分制评估认为必要的材料" },
+      { "kind": "heading", "depth": 0, "text": "2. 一般求职（D-10-1）：计分制免除特例对象" },
+      { "kind": "bullet", "depth": 0, "text": "通用材料：" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书" },
+      { "kind": "bullet", "depth": 1, "text": "照片" },
+      { "kind": "bullet", "depth": 1, "text": "护照副本" },
+      { "kind": "bullet", "depth": 1, "text": "手续费" },
+      { "kind": "bullet", "depth": 1, "text": "身份证副本" },
+      { "kind": "bullet", "depth": 0, "text": "其他必备材料：" },
+      { "kind": "bullet", "depth": 1, "text": "求职活动计划书" },
+      { "kind": "bullet", "depth": 1, "text": "国内正规大学专科以上学位证（或毕业证）" },
+      { "kind": "bullet", "depth": 1, "text": "TOPIK 4 级有效成绩单" },
+      { "kind": "bullet", "depth": 1, "text": "社会融合项目中期评价合格证或预先评价分数表（81 分以上）" },
+      { "kind": "bullet", "depth": 1, "text": "生活费证明材料（参照留学签证）" },
+      { "kind": "heading", "depth": 0, "text": "3. 技术创业准备（D-10-2）" },
+      { "kind": "bullet", "depth": 0, "text": "通用材料：" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书" },
+      { "kind": "bullet", "depth": 1, "text": "照片" },
+      { "kind": "bullet", "depth": 1, "text": "护照副本" },
+      { "kind": "bullet", "depth": 1, "text": "手续费" },
+      { "kind": "bullet", "depth": 1, "text": "身份证副本" },
+      { "kind": "bullet", "depth": 0, "text": "其他必备材料：" },
+      { "kind": "bullet", "depth": 1, "text": "学士（国内专科以上）学位证明" },
+      { "kind": "bullet", "depth": 1, "text": "技术创业计划书" },
+      { "kind": "bullet", "depth": 1, "text": "专利证、实用新型登记证、外观设计登记证副本，或专利等申请事实证明（适用者）" },
+      { "kind": "bullet", "depth": 1, "text": "创业移民综合支援系统教育课程修读证或参与确认书（适用者）" },
+      { "kind": "bullet", "depth": 1, "text": "可确认拥有 OECD 国家知识产权事实的官方文件（适用者）" },
+      { "kind": "bullet", "depth": 1, "text": "生活费证明材料（参照留学签证）" },
+      { "kind": "heading", "depth": 0, "text": "4. 尖端技术实习（D-10-3）" },
+      { "kind": "bullet", "depth": 0, "text": "通用材料：" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书" },
+      { "kind": "bullet", "depth": 1, "text": "照片" },
+      { "kind": "bullet", "depth": 1, "text": "护照副本" },
+      { "kind": "bullet", "depth": 1, "text": "手续费" },
+      { "kind": "bullet", "depth": 1, "text": "身份证副本" },
+      { "kind": "bullet", "depth": 0, "text": "其他必备材料：" },
+      { "kind": "bullet", "depth": 1, "text": "实习活动计划书" },
+      { "kind": "bullet", "depth": 1, "text": "海外优秀大学（世界大学排名 200 位以内）尖端技术领域学士课程以上的在学证明或毕业证明（学位证）" },
+      { "kind": "bullet", "depth": 1, "text": "实习劳动合同" },
+      { "kind": "bullet", "depth": 1, "text": "邀请企业（机构）的营业执照（或固有编号证）、法人登记副本、雇佣保险加入者名册、研究设施现状资料" },
+      { "kind": "bullet", "depth": 0, "text": "可邀请尖端技术实习的企业（机构）证明材料：" },
+      { "kind": "bullet", "depth": 1, "text": "证明为上市企业且具备尖端技术领域研究设施的材料" },
+      { "kind": "bullet", "depth": 1, "text": "依据《基础研究法》第 14 条之 2 被认定为企业附属研究所或研发专责部门的事实证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "依据《研究开发特区培育特别法》第 9 条被指定为尖端技术企业的事实证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "依据《风险企业培育特别措施法》第 25 条的风险企业确认书" },
+      { "kind": "bullet", "depth": 0, "text": "生活费证明材料（参照留学签证）" }
+    ],
+    "requirementsVi": [
+      { "kind": "heading", "depth": 0, "text": "1. Tìm việc thông thường (D-10-1): Đối tượng áp dụng hệ thống tính điểm" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chung:" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Ảnh" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "Lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao giấy tờ tuỳ thân" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ bắt buộc khác:" },
+      { "kind": "bullet", "depth": 1, "text": "Kế hoạch hoạt động tìm việc" },
+      { "kind": "bullet", "depth": 1, "text": "Bằng cấp" },
+      { "kind": "bullet", "depth": 1, "text": "Người tốt nghiệp cao đẳng trở lên trong nước: Giấy chứng nhận học lực" },
+      { "kind": "bullet", "depth": 1, "text": "Người tốt nghiệp các trường đại học hàng đầu thế giới: Giấy chứng nhận học lực" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh kinh nghiệm làm việc (đối tượng áp dụng):" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy chứng nhận kinh nghiệm (gồm thời gian, địa điểm, ngành nghề làm việc)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh hoạt động đào tạo trong nước (đối tượng áp dụng)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh năng lực tiếng Hàn (đối tượng áp dụng):" },
+      { "kind": "bullet", "depth": 2, "text": "Bằng TOPIK (trong thời hạn hiệu lực) hoặc giấy chứng nhận hoàn thành KIIP" },
+      { "kind": "bullet", "depth": 1, "text": "Thư giới thiệu tuyển dụng (đối tượng áp dụng)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh chuyên gia thu nhập cao (đối tượng áp dụng):" },
+      { "kind": "bullet", "depth": 2, "text": "Hồ sơ chứng minh thu nhập từ lao động năm trước" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh chi phí sinh hoạt (áp dụng tương tự visa du học)" },
+      { "kind": "bullet", "depth": 1, "text": "Các hồ sơ khác được cho là cần thiết để đánh giá theo hệ thống tính điểm" },
+      { "kind": "heading", "depth": 0, "text": "2. Tìm việc thông thường (D-10-1): Đối tượng đặc lệ được miễn hệ thống tính điểm" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chung:" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Ảnh" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "Lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao giấy tờ tuỳ thân" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ bắt buộc khác:" },
+      { "kind": "bullet", "depth": 1, "text": "Kế hoạch hoạt động tìm việc" },
+      { "kind": "bullet", "depth": 1, "text": "Bằng cao đẳng trở lên của trường đại học chính quy trong nước (hoặc giấy chứng nhận tốt nghiệp)" },
+      { "kind": "bullet", "depth": 1, "text": "Bảng điểm TOPIK cấp 4 còn hiệu lực" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận đậu kỳ đánh giá giữa kỳ chương trình hoà nhập xã hội hoặc bảng điểm đánh giá trước (từ 81 điểm trở lên)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh chi phí sinh hoạt (áp dụng tương tự visa du học)" },
+      { "kind": "heading", "depth": 0, "text": "3. Chuẩn bị khởi nghiệp công nghệ (D-10-2)" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chung:" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Ảnh" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "Lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao giấy tờ tuỳ thân" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ bắt buộc khác:" },
+      { "kind": "bullet", "depth": 1, "text": "Bằng cử nhân (cao đẳng trở lên trong nước)" },
+      { "kind": "bullet", "depth": 1, "text": "Kế hoạch khởi nghiệp công nghệ" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao bằng sáng chế, giấy chứng nhận đăng ký giải pháp hữu ích, giấy chứng nhận đăng ký kiểu dáng công nghiệp, hoặc giấy xác nhận đã nộp đơn (đối tượng áp dụng)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận hoàn thành khoá học hoặc giấy xác nhận tham gia của Hệ thống Hỗ trợ Tổng hợp Khởi nghiệp Nhập cư (đối tượng áp dụng)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ công có thể xác nhận việc sở hữu quyền sở hữu trí tuệ ở nước OECD (đối tượng áp dụng)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh chi phí sinh hoạt (áp dụng tương tự visa du học)" },
+      { "kind": "heading", "depth": 0, "text": "4. Thực tập công nghệ cao (D-10-3)" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chung:" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Ảnh" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "Lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao giấy tờ tuỳ thân" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ bắt buộc khác:" },
+      { "kind": "bullet", "depth": 1, "text": "Kế hoạch hoạt động thực tập" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận đang theo học hoặc giấy chứng nhận tốt nghiệp (bằng cấp) chương trình cử nhân trở lên trong lĩnh vực công nghệ cao tại đại học top 200 thế giới" },
+      { "kind": "bullet", "depth": 1, "text": "Hợp đồng lao động thực tập" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy phép kinh doanh (hoặc mã số định danh) của doanh nghiệp/tổ chức mời, bản sao đăng ký pháp nhân, danh sách người tham gia bảo hiểm tuyển dụng, dữ liệu hiện trạng cơ sở nghiên cứu" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chứng minh doanh nghiệp/tổ chức có thể mời thực tập sinh công nghệ cao:" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh là doanh nghiệp niêm yết và có cơ sở nghiên cứu trong lĩnh vực công nghệ cao" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ xác nhận được công nhận là viện nghiên cứu trực thuộc doanh nghiệp hoặc bộ phận chuyên trách R&D theo Điều 14 khoản 2 Luật Nghiên cứu Cơ bản" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ xác nhận được chỉ định là doanh nghiệp công nghệ cao theo Điều 9 Luật đặc biệt về Phát triển Khu R&D đặc biệt" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy xác nhận doanh nghiệp khởi nghiệp theo Điều 25 Luật đặc biệt về Khuyến khích Doanh nghiệp Khởi nghiệp" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chứng minh chi phí sinh hoạt (áp dụng tương tự visa du học)" }
     ]
   },
   "E-1": {
@@ -7414,6 +8624,46 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "원 근무처장의 동의서 (원 근무처가 있는 경우)"
       }
+    ],
+    "titleZh": "E-1 教授签证 - 教育及研究指导",
+    "titleVi": "Visa E-1 Giảng viên - Giảng dạy và hướng dẫn nghiên cứu",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "符合《高等教育法》资格要求的外国人，在专科大学以上教育机构或同等机构从事教育或研究指导工作者" },
+      { "kind": "bullet", "depth": 1, "text": "学术机构教授：韩国科学技术院等学术机构的教授" },
+      { "kind": "bullet", "depth": 1, "text": "在专科大学以上教育机构受聘的专任讲师以上职称教授" },
+      { "kind": "bullet", "depth": 1, "text": "特殊领域研究教授：大学或大学附属研究所的特殊领域研究教授、高级科学技术人才" },
+      { "kind": "bullet", "depth": 0, "text": "高级科学技术人才：经教育部长官雇佣推荐，在专科大学以上教育机构从事教育、研究指导活动的人员" },
+      { "kind": "bullet", "depth": 0, "text": "停留期限：最长 5 年（单次授予）" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người nước ngoài đáp ứng yêu cầu theo Luật Giáo dục Đại học, thực hiện hoạt động giảng dạy hoặc hướng dẫn nghiên cứu tại cơ sở giáo dục cao đẳng trở lên hoặc cơ quan tương đương" },
+      { "kind": "bullet", "depth": 1, "text": "Giáo sư cơ quan học thuật: Giáo sư của các cơ quan học thuật như Viện Khoa học và Công nghệ Hàn Quốc" },
+      { "kind": "bullet", "depth": 1, "text": "Giảng viên chuyên trách trở lên được bổ nhiệm tại cơ sở giáo dục cao đẳng trở lên" },
+      { "kind": "bullet", "depth": 1, "text": "Giáo sư nghiên cứu lĩnh vực đặc thù: Giáo sư nghiên cứu lĩnh vực đặc thù của trường đại học hoặc viện nghiên cứu trực thuộc đại học, nhân lực khoa học công nghệ cao cấp" },
+      { "kind": "bullet", "depth": 0, "text": "Nhân lực khoa học công nghệ cao cấp: Người được Bộ trưởng Giáo dục giới thiệu tuyển dụng, thực hiện hoạt động giảng dạy/hướng dẫn nghiên cứu tại cơ sở giáo dục cao đẳng trở lên" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú: Tối đa 5 năm (mỗi lần cấp)" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "韩国科学技术院等学术机构的教授；在专科大学以上教育机构受聘的副教授以上教授；大学或大学附属研究所的特殊领域研究教授" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Giáo sư các cơ quan học thuật như Viện Khoa học và Công nghệ Hàn Quốc; phó giáo sư trở lên được bổ nhiệm tại cơ sở giáo dục cao đẳng trở lên; giáo sư nghiên cứu lĩnh vực đặc thù tại trường đại học hoặc viện nghiên cứu trực thuộc đại học" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证发放认定申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 0, "text": "雇佣合同原件及副本，或（拟任用确认书）" },
+      { "kind": "bullet", "depth": 0, "text": "经历证明（附学位证副本）" },
+      { "kind": "bullet", "depth": 0, "text": "公司设立相关材料（营业执照、研究机构证明材料）" },
+      { "kind": "bullet", "depth": 0, "text": "原工作单位负责人的同意书（如有原工作单位）" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp giấy phép cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 0, "text": "Bản gốc và bản sao hợp đồng lao động, hoặc giấy xác nhận dự kiến bổ nhiệm" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy chứng nhận kinh nghiệm (kèm bản sao bằng cấp)" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ liên quan đến việc thành lập công ty (giấy phép kinh doanh, hồ sơ chứng minh cơ quan nghiên cứu)" },
+      { "kind": "bullet", "depth": 0, "text": "Thư đồng ý của lãnh đạo nơi làm việc cũ (nếu có nơi làm việc cũ)" }
     ]
   },
   "E-2": {
@@ -7898,6 +9148,92 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "강사 활용 계획서, 수강생 및 직원 현황"
       }
+    ],
+    "titleZh": "E-2 会话指导签证 - 外语教师",
+    "titleVi": "Visa E-2 Giảng dạy đàm thoại - Giáo viên ngoại ngữ",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "符合资格要件的外国人在外语专业学院、小学以上的教育机构、附属语言研究所、广播电台及企业附属语言研修院等机构从事外语会话指导的签证" },
+      { "kind": "bullet", "depth": 1, "text": "会话指导的概念" },
+      { "kind": "bullet", "depth": 2, "text": "用外语指导相互沟通方法的活动" },
+      { "kind": "bullet", "depth": 2, "text": "语言学、文学、口笔译技法的指导不属于会话指导" },
+      { "kind": "bullet", "depth": 0, "text": "活动场所" },
+      { "kind": "bullet", "depth": 1, "text": "外语专业学院" },
+      { "kind": "bullet", "depth": 1, "text": "小学以上的教育机构及附属语言研究所" },
+      { "kind": "bullet", "depth": 1, "text": "广播电台及企业附属语言研修院" },
+      { "kind": "bullet", "depth": 1, "text": "其他同等性质的机构或团体" },
+      { "kind": "bullet", "depth": 0, "text": "停留期限上限：单次授予 2 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Thị thực cho người nước ngoài đáp ứng yêu cầu, được giảng dạy đàm thoại ngoại ngữ tại trung tâm ngoại ngữ chuyên môn, cơ sở giáo dục từ tiểu học trở lên, viện nghiên cứu ngôn ngữ trực thuộc, đài phát thanh và trung tâm đào tạo ngôn ngữ thuộc doanh nghiệp" },
+      { "kind": "bullet", "depth": 1, "text": "Khái niệm giảng dạy đàm thoại" },
+      { "kind": "bullet", "depth": 2, "text": "Hoạt động giảng dạy phương pháp giao tiếp tương hỗ bằng ngoại ngữ" },
+      { "kind": "bullet", "depth": 2, "text": "Việc giảng dạy ngôn ngữ học, văn học, kỹ thuật biên-phiên dịch không thuộc giảng dạy đàm thoại" },
+      { "kind": "bullet", "depth": 0, "text": "Địa điểm hoạt động" },
+      { "kind": "bullet", "depth": 1, "text": "Trung tâm ngoại ngữ chuyên môn" },
+      { "kind": "bullet", "depth": 1, "text": "Cơ sở giáo dục từ tiểu học trở lên và viện nghiên cứu ngôn ngữ trực thuộc" },
+      { "kind": "bullet", "depth": 1, "text": "Trung tâm đào tạo ngôn ngữ thuộc đài phát thanh và doanh nghiệp" },
+      { "kind": "bullet", "depth": 1, "text": "Các cơ quan, tổ chức tương đương khác" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa: 2 năm cho mỗi lần cấp" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "外语学院等讲师" },
+      { "kind": "bullet", "depth": 1, "text": "以该外语为母语国家的国民，且在该母语国家完成大学以上学业并取得学士以上学位者" },
+      { "kind": "bullet", "depth": 1, "text": "拥有同等以上学历者" },
+      { "kind": "bullet", "depth": 1, "text": "在母语国家高中或专科毕业后于韩国大学取得学士以上学位者也认定其资格" },
+      { "kind": "bullet", "depth": 0, "text": "由教育部或市/道教育监主管招聘选拔者" },
+      { "kind": "bullet", "depth": 1, "text": "拟在中小学（含小学）工作的人员" },
+      { "kind": "bullet", "depth": 1, "text": "英语母语国家国民，在原属国大学毕业后取得学士以上学位者" },
+      { "kind": "bullet", "depth": 1, "text": "英语母语国家（7 国）：美国、英国、加拿大、南非、新西兰、澳大利亚、爱尔兰" },
+      { "kind": "bullet", "depth": 0, "text": "允许专业人才及留学生的非英语母语配偶担任英语会话指导讲师" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Giảng viên tại trung tâm ngoại ngữ, v.v." },
+      { "kind": "bullet", "depth": 1, "text": "Công dân của nước có ngoại ngữ đó là tiếng mẹ đẻ, đã tốt nghiệp đại học trở lên và có bằng cử nhân trở lên tại nước có ngoại ngữ đó là tiếng mẹ đẻ" },
+      { "kind": "bullet", "depth": 1, "text": "Người có học vấn tương đương trở lên" },
+      { "kind": "bullet", "depth": 1, "text": "Người tốt nghiệp THPT hoặc cao đẳng tại nước có tiếng mẹ đẻ và lấy bằng cử nhân trở lên tại đại học Hàn Quốc cũng được công nhận" },
+      { "kind": "bullet", "depth": 0, "text": "Người được Bộ Giáo dục hoặc Sở Giáo dục thành phố/tỉnh tuyển chọn" },
+      { "kind": "bullet", "depth": 1, "text": "Người dự định làm việc tại trường tiểu học, trung học, trung học phổ thông" },
+      { "kind": "bullet", "depth": 1, "text": "Công dân các nước nói tiếng Anh, đã tốt nghiệp đại học và có bằng cử nhân trở lên tại nước xuất thân" },
+      { "kind": "bullet", "depth": 1, "text": "Các nước nói tiếng Anh là tiếng mẹ đẻ (7 nước): Mỹ, Anh, Canada, Nam Phi, New Zealand, Úc, Ireland" },
+      { "kind": "bullet", "depth": 0, "text": "Cho phép vợ/chồng không nói tiếng Anh của chuyên gia và du học sinh được làm giáo viên giảng dạy đàm thoại tiếng Anh" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证发放认定申请书" },
+      { "kind": "bullet", "depth": 0, "text": "护照" },
+      { "kind": "bullet", "depth": 0, "text": "标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 0, "text": "经公证的学历证明" },
+      { "kind": "bullet", "depth": 1, "text": "学位证副本、学位取得证明、注明学位取得事实的毕业证明中任选一种提交" },
+      { "kind": "bullet", "depth": 0, "text": "经公证的本国政府发行的无犯罪记录证明" },
+      { "kind": "bullet", "depth": 1, "text": "须包含本国全境的犯罪记录" },
+      { "kind": "bullet", "depth": 0, "text": "经公证的第三国无犯罪记录证明" },
+      { "kind": "bullet", "depth": 1, "text": "在本国以外国家取得学位时提交" },
+      { "kind": "bullet", "depth": 0, "text": "适用本国无犯罪记录证明的相关规定" },
+      { "kind": "bullet", "depth": 0, "text": "自我健康确认书" },
+      { "kind": "bullet", "depth": 0, "text": "雇佣合同" },
+      { "kind": "bullet", "depth": 1, "text": "最低工资要件：当年最低工资以上" },
+      { "kind": "bullet", "depth": 0, "text": "学院或团体设立相关材料" },
+      { "kind": "bullet", "depth": 0, "text": "其他审核所需参考资料" },
+      { "kind": "bullet", "depth": 1, "text": "讲师使用计划书、学员及职员现状" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp giấy phép cấp thị thực" },
+      { "kind": "bullet", "depth": 0, "text": "Hộ chiếu" },
+      { "kind": "bullet", "depth": 0, "text": "1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy chứng nhận học lực đã được công chứng" },
+      { "kind": "bullet", "depth": 1, "text": "Nộp 1 trong các loại sau: bản sao bằng cấp, giấy chứng nhận đã đạt bằng, hoặc giấy chứng nhận tốt nghiệp có ghi việc đã đạt bằng" },
+      { "kind": "bullet", "depth": 0, "text": "Lý lịch tư pháp do Chính phủ nước nhà cấp đã được công chứng" },
+      { "kind": "bullet", "depth": 1, "text": "Phải bao gồm lý lịch tư pháp trên toàn quốc gia của bạn" },
+      { "kind": "bullet", "depth": 0, "text": "Lý lịch tư pháp nước thứ ba đã được công chứng" },
+      { "kind": "bullet", "depth": 1, "text": "Nộp khi đã lấy bằng tại nước khác ngoài nước nhà" },
+      { "kind": "bullet", "depth": 0, "text": "Áp dụng tương tự quy định lý lịch tư pháp của nước nhà" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy tự xác nhận sức khoẻ" },
+      { "kind": "bullet", "depth": 0, "text": "Hợp đồng lao động" },
+      { "kind": "bullet", "depth": 1, "text": "Yêu cầu mức lương tối thiểu: từ mức lương tối thiểu của năm đó trở lên" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ liên quan đến việc thành lập trung tâm hoặc tổ chức" },
+      { "kind": "bullet", "depth": 0, "text": "Tài liệu tham khảo khác cần thiết cho việc xét duyệt" },
+      { "kind": "bullet", "depth": 1, "text": "Kế hoạch sử dụng giảng viên, hiện trạng học viên và nhân viên" }
     ]
   },
   "E-3": {
@@ -8227,6 +9563,66 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "학위수여 날짜를 확인할 수 있는 증명서"
       }
+    ],
+    "titleZh": "E-3 研究签证 - 科技/人文/艺术体育领域研究",
+    "titleVi": "Visa E-3 Nghiên cứu - Nghiên cứu khoa học công nghệ / nhân văn / nghệ thuật thể thao",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "从事自然科学领域的研究或产业领域高端技术的研发" },
+      { "kind": "bullet", "depth": 0, "text": "高级科技人才" },
+      { "kind": "bullet", "depth": 0, "text": "社会科学、人文学、艺术体育领域的研究人员" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：5 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Nghiên cứu trong lĩnh vực khoa học tự nhiên hoặc nghiên cứu phát triển công nghệ cao công nghiệp" },
+      { "kind": "bullet", "depth": 0, "text": "Nhân lực khoa học công nghệ cao cấp" },
+      { "kind": "bullet", "depth": 0, "text": "Nhân lực nghiên cứu trong lĩnh vực khoa học xã hội, nhân văn, nghệ thuật thể thao" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 5 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "依据《特定研究机构培育法》《政府出资研究机构等的设立、运营及培育法》《科学技术领域政府出资研究机构等的设立、运营及培育法》在研究机构从事自然科学、社会科学、人文学、艺术体育领域研究或产业高端技术研发的人员" },
+      { "kind": "bullet", "depth": 0, "text": "依据《国防事业法》在研究机构从事研究活动的科技人员" },
+      { "kind": "bullet", "depth": 0, "text": "依据《产业技术革新促进法》等相关法令，为开发自然科学领域或产业高端技术，与下列机构或团体签订合同并在该机构或团体从事研究的科技人员" },
+      { "kind": "bullet", "depth": 1, "text": "在政府出资研究所、国/公立研究所、企业附属研究所等理工系研究机构从事自然科学领域研究或产业高端技术研发的人员，且经科学技术信息通信部长官雇佣推荐者" },
+      { "kind": "bullet", "depth": 0, "text": "在专科大学以上的教育机构或其他学术研究机构从事社会科学、人文学、艺术体育领域研究的人员" },
+      { "kind": "bullet", "depth": 0, "text": "资格要件" },
+      { "kind": "bullet", "depth": 1, "text": "博士学位持有者（即将取得者）" },
+      { "kind": "bullet", "depth": 1, "text": "硕士学位持有者且具有 3 年以上经历者（但国内硕士学位持有者免除经历要件）" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người tham gia nghiên cứu trong lĩnh vực khoa học tự nhiên, khoa học xã hội, nhân văn, nghệ thuật thể thao hoặc nghiên cứu phát triển công nghệ cao công nghiệp tại cơ quan nghiên cứu theo Luật Khuyến khích Cơ quan Nghiên cứu Đặc biệt, Luật về Thành lập, Vận hành và Khuyến khích Cơ quan Nghiên cứu Do Chính phủ Tài trợ, Luật về Thành lập, Vận hành và Khuyến khích Cơ quan Nghiên cứu Do Chính phủ Tài trợ trong Lĩnh vực Khoa học và Công nghệ" },
+      { "kind": "bullet", "depth": 0, "text": "Nhà khoa học công nghệ tham gia hoạt động nghiên cứu tại cơ quan nghiên cứu theo quy định của Luật Mua sắm Quốc phòng" },
+      { "kind": "bullet", "depth": 0, "text": "Nhà khoa học công nghệ ký hợp đồng với các cơ quan/tổ chức sau và nghiên cứu tại đó để phát triển công nghệ cao trong lĩnh vực khoa học tự nhiên hoặc công nghiệp theo Luật Khuyến khích Đổi mới Công nghệ Công nghiệp và các luật liên quan" },
+      { "kind": "bullet", "depth": 1, "text": "Người được Bộ trưởng Khoa học và Công nghệ Thông tin Truyền thông giới thiệu tuyển dụng, để làm việc tại viện nghiên cứu do chính phủ tài trợ, viện nghiên cứu công lập, viện nghiên cứu trực thuộc doanh nghiệp, v.v., trong nghiên cứu khoa học tự nhiên hoặc nghiên cứu phát triển công nghệ cao công nghiệp" },
+      { "kind": "bullet", "depth": 0, "text": "Người muốn nghiên cứu trong các lĩnh vực khoa học xã hội, nhân văn, nghệ thuật thể thao tại cơ sở giáo dục cao đẳng trở lên hoặc cơ quan nghiên cứu học thuật khác" },
+      { "kind": "bullet", "depth": 0, "text": "Yêu cầu tư cách" },
+      { "kind": "bullet", "depth": 1, "text": "Người có bằng tiến sĩ (hoặc sắp lấy)" },
+      { "kind": "bullet", "depth": 1, "text": "Người có bằng thạc sĩ và 3 năm kinh nghiệm trở lên (riêng người có bằng thạc sĩ trong nước được miễn yêu cầu kinh nghiệm)" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证发放认定申请书、护照、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 0, "text": "雇佣机构设立相关材料" },
+      { "kind": "bullet", "depth": 1, "text": "营业执照或法人登记事项全部证明" },
+      { "kind": "bullet", "depth": 1, "text": "研究机构证明材料等" },
+      { "kind": "bullet", "depth": 0, "text": "硕士学位以上学位证、经历证明（适用者）" },
+      { "kind": "bullet", "depth": 0, "text": "雇佣合同或拟任用确认书" },
+      { "kind": "bullet", "depth": 0, "text": "以大学代表名义发行的证明书（适用者）" },
+      { "kind": "bullet", "depth": 1, "text": "毕业预定证明" },
+      { "kind": "bullet", "depth": 1, "text": "确认书等" },
+      { "kind": "bullet", "depth": 1, "text": "可确认学位授予日期的证明" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp giấy phép cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ liên quan đến việc thành lập cơ quan tuyển dụng" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy phép kinh doanh hoặc giấy chứng nhận tất cả các mục đăng ký pháp nhân" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh cơ quan nghiên cứu, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Bằng thạc sĩ trở lên, giấy chứng nhận kinh nghiệm (đối tượng áp dụng)" },
+      { "kind": "bullet", "depth": 0, "text": "Hợp đồng lao động hoặc giấy xác nhận dự kiến bổ nhiệm" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy chứng nhận do người đại diện trường đại học cấp (đối tượng áp dụng)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận dự kiến tốt nghiệp" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy xác nhận, v.v." },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận có thể xác nhận ngày cấp bằng" }
     ]
   },
   "E-4": {
@@ -8386,6 +9782,40 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "파견명령서 (또는 재직증명서)"
       }
+    ],
+    "titleZh": "E-4 技术指导签证 - 特殊产业技术人员",
+    "titleVi": "Visa E-4 Chuyển giao công nghệ - Kỹ thuật viên ngành công nghiệp đặc thù",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "向公私机构提供自然科学领域专业知识或产业特殊领域的技术" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：5 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Cung cấp tri thức chuyên môn lĩnh vực khoa học tự nhiên hoặc kỹ thuật thuộc lĩnh vực công nghiệp đặc thù tại các cơ quan công và tư" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 5 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "向韩国公私机构提供国内无法获得的产业高端技术者" },
+      { "kind": "bullet", "depth": 0, "text": "由国外服务发包公司派遣，提供产业特殊领域技术者" },
+      { "kind": "bullet", "depth": 0, "text": "提供韩国产业体引进的特殊技术者" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người cung cấp công nghệ cao công nghiệp không thể tìm được trong nước cho các cơ quan công và tư của Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "Người được công ty đặt hàng dịch vụ ở nước ngoài phái cử để cung cấp kỹ thuật thuộc lĩnh vực công nghiệp đặc thù" },
+      { "kind": "bullet", "depth": 0, "text": "Người cung cấp các kỹ thuật đặc biệt được doanh nghiệp Hàn Quốc đưa vào" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证发放认定申请书、护照、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 0, "text": "公私机构设立相关材料：营业执照、外商投资企业登记证、分支机构设立许可证等" },
+      { "kind": "bullet", "depth": 0, "text": "技术引进合同申报受理书、技术引进合同（或服务交易合同）或防卫产业体指定书副本" },
+      { "kind": "bullet", "depth": 0, "text": "派遣命令书（或在职证明）" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp giấy phép cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ liên quan đến việc thành lập cơ quan công/tư: giấy phép kinh doanh, giấy đăng ký doanh nghiệp đầu tư nước ngoài, giấy phép thiết lập chi nhánh, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Giấy tiếp nhận khai báo hợp đồng đưa vào công nghệ, hợp đồng đưa vào công nghệ (hoặc hợp đồng giao dịch dịch vụ), hoặc bản sao giấy chỉ định doanh nghiệp công nghiệp quốc phòng" },
+      { "kind": "bullet", "depth": 0, "text": "Lệnh phái cử (hoặc giấy chứng nhận đang công tác)" }
     ]
   },
   "E-5": {
@@ -8665,6 +10095,60 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "고용계약서"
       }
+    ],
+    "titleZh": "E-5 专门职业签证 - 持有国家公认资格证的外国人",
+    "titleVi": "Visa E-5 Nghề chuyên môn - Người nước ngoài có chứng chỉ quốc gia công nhận",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "持有依据韩国法律认可的外国国家公认资格证，从事韩国法律允许执业的专业业务" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：5 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người sở hữu chứng chỉ quốc gia của nước ngoài được pháp luật Đại Hàn Dân Quốc công nhận, thực hiện công việc chuyên môn được phép theo pháp luật Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 5 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "持有依据韩国法律认可的外国国家公认资格证，且依据韩国法律允许活动者" },
+      { "kind": "bullet", "depth": 1, "text": "经国土海洋部长官推荐的飞行员" },
+      { "kind": "bullet", "depth": 1, "text": "拥有最新医学及尖端医术，经保健福祉部长官雇佣推荐，欲在以下医疗机构工作的医生" },
+      { "kind": "bullet", "depth": 2, "text": "国家或地方自治团体医疗机构" },
+      { "kind": "bullet", "depth": 2, "text": "医疗法人" },
+      { "kind": "bullet", "depth": 2, "text": "非营利法人" },
+      { "kind": "bullet", "depth": 2, "text": "由政府投资机构开设的医疗机构" },
+      { "kind": "bullet", "depth": 0, "text": "在韩国医（齿）科大学毕业后，于大学附属医院或保健福祉部长官指定的医院进行实习/住院医师培训者" },
+      { "kind": "bullet", "depth": 0, "text": "依据《关于南北交流合作的法律》获得南北合作事业批准者" },
+      { "kind": "bullet", "depth": 1, "text": "为金刚山观光开发事业等目的，被邀请进行观光船运营所需船舶等必要专业人员" },
+      { "kind": "bullet", "depth": 0, "text": "受雇于韩国运输公司等，欲担任船长等船舶运营必要专业人员者" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người sở hữu chứng chỉ quốc gia của nước ngoài được pháp luật Hàn Quốc công nhận và được phép hoạt động theo pháp luật Hàn Quốc" },
+      { "kind": "bullet", "depth": 1, "text": "Phi công được Bộ trưởng Đất đai, Hạ tầng và Hàng hải giới thiệu" },
+      { "kind": "bullet", "depth": 1, "text": "Bác sĩ có y học hiện đại và kỹ thuật y tế tiên tiến, được Bộ trưởng Y tế và Phúc lợi giới thiệu tuyển dụng để làm việc tại các cơ sở y tế sau" },
+      { "kind": "bullet", "depth": 2, "text": "Cơ sở y tế của Nhà nước hoặc chính quyền địa phương" },
+      { "kind": "bullet", "depth": 2, "text": "Pháp nhân y tế" },
+      { "kind": "bullet", "depth": 2, "text": "Pháp nhân phi lợi nhuận" },
+      { "kind": "bullet", "depth": 2, "text": "Cơ sở y tế do tổ chức được Chính phủ đầu tư mở" },
+      { "kind": "bullet", "depth": 0, "text": "Người tốt nghiệp đại học y (nha) khoa tại Hàn Quốc và đào tạo nội trú/bác sĩ thực tập tại bệnh viện trực thuộc đại học hoặc bệnh viện do Bộ trưởng Y tế và Phúc lợi chỉ định" },
+      { "kind": "bullet", "depth": 0, "text": "Người được phê duyệt dự án hợp tác liên Triều theo Luật về Trao đổi và Hợp tác Liên Triều" },
+      { "kind": "bullet", "depth": 1, "text": "Nhân lực chuyên môn cốt lõi cho tàu vận hành du lịch được mời cho dự án phát triển du lịch Núi Kumgang, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Người được tuyển dụng bởi công ty vận tải trong nước để làm thuyền trưởng hoặc nhân lực cốt lõi cho vận hành tàu" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 0, "text": "邀请理由书" },
+      { "kind": "bullet", "depth": 0, "text": "学位证及资格证（执业证）副本" },
+      { "kind": "bullet", "depth": 0, "text": "主管中央行政机关首长的雇佣推荐书" },
+      { "kind": "bullet", "depth": 1, "text": "在经济自由区域内就业时：管辖特别市长、广域市长、道知事的雇佣推荐书或可证明雇佣必要性的材料" },
+      { "kind": "bullet", "depth": 0, "text": "雇佣合同" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 0, "text": "Lý do mời" },
+      { "kind": "bullet", "depth": 0, "text": "Bản sao bằng cấp và chứng chỉ (giấy phép hành nghề)" },
+      { "kind": "bullet", "depth": 0, "text": "Thư giới thiệu tuyển dụng của lãnh đạo cơ quan hành chính trung ương phụ trách" },
+      { "kind": "bullet", "depth": 1, "text": "Khi hoạt động làm việc trong khu kinh tế tự do: thư giới thiệu tuyển dụng của Thị trưởng đặc biệt, Thị trưởng thành phố trực thuộc, hoặc Tỉnh trưởng quản hạt, hoặc giấy tờ chứng minh sự cần thiết của việc tuyển dụng" },
+      { "kind": "bullet", "depth": 0, "text": "Hợp đồng lao động" }
     ]
   },
   "E-6": {
@@ -9489,6 +10973,140 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 2,
         "text": "모델 전문성 입증 서류 (예: 광고촬영, 패션쇼 관련 계약서, 모델 사용 개요, 포트폴리오 등)"
       }
+    ],
+    "titleZh": "E-6 艺术演艺签证 - 营利性艺术及演艺活动",
+    "titleVi": "Visa E-6 Nghệ thuật biểu diễn - Hoạt động nghệ thuật và biểu diễn vì lợi nhuận",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "E-6-1（艺术、演艺）" },
+      { "kind": "bullet", "depth": 1, "text": "带有收益的音乐、美术、文学等艺术活动" },
+      { "kind": "bullet", "depth": 1, "text": "符合专业广播表演者" },
+      { "kind": "bullet", "depth": 1, "text": "依据《公演法》规定的专业演艺活动从事者" },
+      { "kind": "bullet", "depth": 2, "text": "作曲家、画家、摄影师" },
+      { "kind": "bullet", "depth": 2, "text": "管弦乐演奏家、指挥家" },
+      { "kind": "bullet", "depth": 2, "text": "广告、时装模特、围棋棋手" },
+      { "kind": "bullet", "depth": 2, "text": "广播人、演艺人、戏剧人、化妆师等" },
+      { "kind": "bullet", "depth": 0, "text": "E-6-2（酒店、娱乐）" },
+      { "kind": "bullet", "depth": 1, "text": "不属于 E-6-1 的情况" },
+      { "kind": "bullet", "depth": 1, "text": "在依据《观光振兴法》设立的酒店业设施、娱乐场所等从事公演或演艺活动者" },
+      { "kind": "bullet", "depth": 2, "text": "歌手、演奏者、杂技演员、魔术师等" },
+      { "kind": "bullet", "depth": 0, "text": "E-6-3（运动）" },
+      { "kind": "bullet", "depth": 1, "text": "足球、棒球、篮球等职业运动员" },
+      { "kind": "bullet", "depth": 1, "text": "随行经理等从事运动领域者" },
+      { "kind": "bullet", "depth": 2, "text": "职业球队监督、经理等" },
+      { "kind": "bullet", "depth": 0, "text": "停留期限上限：单次授予 2 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "E-6-1 (Nghệ thuật, biểu diễn)" },
+      { "kind": "bullet", "depth": 1, "text": "Hoạt động nghệ thuật âm nhạc, mỹ thuật, văn học có thu nhập" },
+      { "kind": "bullet", "depth": 1, "text": "Người diễn xuất phát thanh truyền hình chuyên nghiệp" },
+      { "kind": "bullet", "depth": 1, "text": "Người tham gia hoạt động biểu diễn chuyên nghiệp theo quy định của Luật Biểu diễn" },
+      { "kind": "bullet", "depth": 2, "text": "Nhà soạn nhạc, hoạ sĩ, nhiếp ảnh gia" },
+      { "kind": "bullet", "depth": 2, "text": "Nghệ sĩ dàn nhạc, nhạc trưởng" },
+      { "kind": "bullet", "depth": 2, "text": "Người mẫu quảng cáo, người mẫu thời trang, kỳ thủ cờ vây" },
+      { "kind": "bullet", "depth": 2, "text": "Nhân viên truyền thông, nghệ sĩ giải trí, diễn viên kịch, chuyên viên hoá trang, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "E-6-2 (Khách sạn, giải trí)" },
+      { "kind": "bullet", "depth": 1, "text": "Trường hợp không thuộc E-6-1" },
+      { "kind": "bullet", "depth": 1, "text": "Người tham gia hoạt động biểu diễn hoặc giải trí tại cơ sở khách sạn, địa điểm giải trí theo Luật Khuyến khích Du lịch" },
+      { "kind": "bullet", "depth": 2, "text": "Ca sĩ, nhạc công, nghệ sĩ tạp kỹ, ảo thuật gia, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "E-6-3 (Thể thao)" },
+      { "kind": "bullet", "depth": 1, "text": "Vận động viên chuyên nghiệp như bóng đá, bóng chày, bóng rổ, v.v." },
+      { "kind": "bullet", "depth": 1, "text": "Người làm việc trong lĩnh vực thể thao với tư cách người quản lý đi cùng, v.v." },
+      { "kind": "bullet", "depth": 2, "text": "Huấn luyện viên đội chuyên nghiệp, người quản lý, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa: 2 năm cho mỗi lần cấp" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "带有收益的艺术活动" },
+      { "kind": "bullet", "depth": 1, "text": "音乐、美术、文学等艺术活动" },
+      { "kind": "bullet", "depth": 1, "text": "从事创作活动的艺术家：作曲家、画家、雕塑家、工艺家、著述家、摄影家" },
+      { "kind": "bullet", "depth": 1, "text": "对音乐、美术、文学、摄影、演奏、舞蹈、电影、体育等艺术活动进行指导者" },
+      { "kind": "bullet", "depth": 2, "text": "示例：职业及业余体育教练、管弦乐指挥" },
+      { "kind": "bullet", "depth": 0, "text": "以盈利为目的的演艺活动" },
+      { "kind": "bullet", "depth": 1, "text": "演艺、演奏、戏剧、运动比赛、广告、时装模特等出演活动" },
+      { "kind": "bullet", "depth": 1, "text": "无论出演形式或名义，以个人或团体方式从事演艺、演奏、戏剧、运动等者" },
+      { "kind": "bullet", "depth": 2, "text": "示例：职业及业余体育选手" },
+      { "kind": "bullet", "depth": 1, "text": "包括随行人员（例：化妆师、经理等）" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Hoạt động nghệ thuật có thu nhập" },
+      { "kind": "bullet", "depth": 1, "text": "Hoạt động nghệ thuật âm nhạc, mỹ thuật, văn học, v.v." },
+      { "kind": "bullet", "depth": 1, "text": "Nghệ sĩ sáng tạo: nhà soạn nhạc, hoạ sĩ, nhà điêu khắc, nghệ nhân thủ công, nhà văn, nhiếp ảnh gia" },
+      { "kind": "bullet", "depth": 1, "text": "Người hướng dẫn các hoạt động nghệ thuật như âm nhạc, mỹ thuật, văn học, nhiếp ảnh, biểu diễn, múa, điện ảnh, thể thao" },
+      { "kind": "bullet", "depth": 2, "text": "Ví dụ: Huấn luyện viên thể thao chuyên nghiệp và nghiệp dư, nhạc trưởng dàn nhạc" },
+      { "kind": "bullet", "depth": 0, "text": "Hoạt động biểu diễn vì mục đích lợi nhuận" },
+      { "kind": "bullet", "depth": 1, "text": "Hoạt động biểu diễn nghệ thuật giải trí, biểu diễn, kịch, thi đấu thể thao, quảng cáo, người mẫu thời trang, v.v." },
+      { "kind": "bullet", "depth": 1, "text": "Người biểu diễn cá nhân hoặc theo đoàn không phân biệt hình thức hoặc danh nghĩa, gồm giải trí, biểu diễn, kịch, thể thao, v.v." },
+      { "kind": "bullet", "depth": 2, "text": "Ví dụ: Vận động viên thể thao chuyên nghiệp và nghiệp dư" },
+      { "kind": "bullet", "depth": 1, "text": "Bao gồm người đi cùng (Ví dụ: chuyên viên hoá trang, người quản lý, v.v.)" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "依据《公演法》规定的公演" },
+      { "kind": "bullet", "depth": 1, "text": "所需材料：" },
+      { "kind": "bullet", "depth": 2, "text": "签证发放认定申请书、护照、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 2, "text": "营业执照副本" },
+      { "kind": "bullet", "depth": 2, "text": "雇佣合同副本" },
+      { "kind": "bullet", "depth": 2, "text": "影像物等级委员会（或济州特别自治道知事）的公演推荐书（推荐除外的公演免除）" },
+      { "kind": "bullet", "depth": 2, "text": "公演计划书" },
+      { "kind": "bullet", "depth": 2, "text": "未成年人邀请时法定代理人的同意书" },
+      { "kind": "bullet", "depth": 0, "text": "依据《观光振兴法》在酒店业设施及娱乐场所开展公演或演艺活动" },
+      { "kind": "bullet", "depth": 1, "text": "所需材料：" },
+      { "kind": "bullet", "depth": 2, "text": "签证发放认定申请书、护照、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 2, "text": "营业执照副本" },
+      { "kind": "bullet", "depth": 2, "text": "雇佣合同副本" },
+      { "kind": "bullet", "depth": 2, "text": "影像物等级委员会的公演推荐书" },
+      { "kind": "bullet", "depth": 2, "text": "演艺活动计划书" },
+      { "kind": "bullet", "depth": 2, "text": "资格证明或经历证明（3 年以上，须经海牙认证或所在国韩国使领馆确认）" },
+      { "kind": "bullet", "depth": 2, "text": "公演设施现状确认书" },
+      { "kind": "bullet", "depth": 2, "text": "身份担保书" },
+      { "kind": "bullet", "depth": 2, "text": "未成年人邀请时法定代理人的同意书" },
+      { "kind": "bullet", "depth": 2, "text": "劳动者派遣事业许可证（适用者）" },
+      { "kind": "bullet", "depth": 0, "text": "广告模特" },
+      { "kind": "bullet", "depth": 1, "text": "所需材料：" },
+      { "kind": "bullet", "depth": 2, "text": "签证发放认定申请书、护照、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 2, "text": "营业执照副本" },
+      { "kind": "bullet", "depth": 2, "text": "雇佣合同副本" },
+      { "kind": "bullet", "depth": 2, "text": "大众文化艺术企划业登记证" },
+      { "kind": "bullet", "depth": 2, "text": "增值税课税标准证明（销售课税标准）" },
+      { "kind": "bullet", "depth": 2, "text": "纳税证明" },
+      { "kind": "bullet", "depth": 2, "text": "证明企业健全性的材料" },
+      { "kind": "bullet", "depth": 2, "text": "身份担保书、履历书、监护人同意书（未成年情况）" },
+      { "kind": "bullet", "depth": 2, "text": "国内活动计划书" },
+      { "kind": "bullet", "depth": 2, "text": "模特专业性证明材料（例：广告拍摄、时装秀相关合同、模特使用概要、作品集等）" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Biểu diễn theo quy định của Luật Biểu diễn" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ cần thiết:" },
+      { "kind": "bullet", "depth": 2, "text": "Đơn xin cấp giấy phép cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao giấy phép kinh doanh" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao hợp đồng lao động" },
+      { "kind": "bullet", "depth": 2, "text": "Thư giới thiệu biểu diễn của Hội đồng Phân loại Phim ảnh (hoặc Tỉnh trưởng Tỉnh tự trị đặc biệt Jeju) (miễn đối với biểu diễn không thuộc diện đề xuất)" },
+      { "kind": "bullet", "depth": 2, "text": "Kế hoạch biểu diễn" },
+      { "kind": "bullet", "depth": 2, "text": "Đơn đồng ý của người đại diện pháp luật khi mời người chưa thành niên" },
+      { "kind": "bullet", "depth": 0, "text": "Biểu diễn hoặc hoạt động nghệ thuật tại cơ sở khách sạn và địa điểm giải trí theo Luật Khuyến khích Du lịch" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ cần thiết:" },
+      { "kind": "bullet", "depth": 2, "text": "Đơn xin cấp giấy phép cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao giấy phép kinh doanh" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao hợp đồng lao động" },
+      { "kind": "bullet", "depth": 2, "text": "Thư giới thiệu biểu diễn của Hội đồng Phân loại Phim ảnh" },
+      { "kind": "bullet", "depth": 2, "text": "Kế hoạch hoạt động biểu diễn" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy chứng nhận tư cách hoặc giấy chứng nhận kinh nghiệm (3 năm trở lên, có Apostille hoặc xác nhận của cơ quan đại diện Hàn Quốc tại nước nhà)" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy xác nhận hiện trạng cơ sở biểu diễn" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy bảo lãnh nhân thân" },
+      { "kind": "bullet", "depth": 2, "text": "Đơn đồng ý của người đại diện pháp luật khi mời người chưa thành niên" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy phép kinh doanh phái cử lao động (đối tượng áp dụng)" },
+      { "kind": "bullet", "depth": 0, "text": "Người mẫu quảng cáo" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ cần thiết:" },
+      { "kind": "bullet", "depth": 2, "text": "Đơn xin cấp giấy phép cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao giấy phép kinh doanh" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao hợp đồng lao động" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy đăng ký kinh doanh tổ chức nghệ thuật văn hoá đại chúng" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy chứng nhận cơ sở thuế giá trị gia tăng (cơ sở thuế doanh thu)" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy chứng nhận đã nộp thuế" },
+      { "kind": "bullet", "depth": 2, "text": "Hồ sơ chứng minh tính lành mạnh của doanh nghiệp" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy bảo lãnh nhân thân, sơ yếu lý lịch, đơn đồng ý của người giám hộ (trường hợp chưa thành niên)" },
+      { "kind": "bullet", "depth": 2, "text": "Kế hoạch hoạt động trong nước" },
+      { "kind": "bullet", "depth": 2, "text": "Hồ sơ chứng minh tính chuyên nghiệp của người mẫu (Ví dụ: hợp đồng quảng cáo, biểu diễn thời trang, tổng quan sử dụng người mẫu, portfolio, v.v.)" }
     ]
   },
   "E-7": {
@@ -10268,6 +11886,130 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "사대보험 가입자 명부, 고용보험 가입자 명부"
       }
+    ],
+    "titleZh": "E-7 特定活动签证 - 专业人才（正式职）",
+    "titleVi": "Visa E-7 Hoạt động đặc thù - Nhân lực chuyên môn (chính thức)",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "E-7-1（专业人才）" },
+      { "kind": "bullet", "depth": 1, "text": "职种：管理者及专家（67 个职种）" },
+      { "kind": "bullet", "depth": 1, "text": "说明：在法务部长官指定的领域，由具备专业知识和技术的外国人从事的活动" },
+      { "kind": "bullet", "depth": 0, "text": "E-7-2（准专业人才）" },
+      { "kind": "bullet", "depth": 1, "text": "职种：办公及服务从业者（10 个职种）" },
+      { "kind": "bullet", "depth": 1, "text": "说明：从事准专业职务的外国人才" },
+      { "kind": "bullet", "depth": 0, "text": "E-7-3（一般技能人才）" },
+      { "kind": "bullet", "depth": 1, "text": "职种：技能员及相关技能从业者（10 个职种）" },
+      { "kind": "bullet", "depth": 1, "text": "说明：从事需要特定技能的一般技术职务的外国人才" },
+      { "kind": "bullet", "depth": 0, "text": "E-7-4（熟练技能人才）" },
+      { "kind": "bullet", "depth": 1, "text": "特征：以计分制方式仅在 3 个职种中可活动" },
+      { "kind": "bullet", "depth": 1, "text": "说明：基于熟练的技能与经验，为加强国家竞争力而引进的外国人才" },
+      { "kind": "bullet", "depth": 0, "text": "停留期限上限：单次授予最长 3 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "E-7-1 (Nhân lực chuyên môn)" },
+      { "kind": "bullet", "depth": 1, "text": "Ngành nghề: Quản lý và chuyên gia (67 ngành nghề)" },
+      { "kind": "bullet", "depth": 1, "text": "Mô tả: Hoạt động của nhân lực nước ngoài có kiến thức và kỹ thuật chuyên môn trong lĩnh vực do Bộ trưởng Tư pháp chỉ định" },
+      { "kind": "bullet", "depth": 0, "text": "E-7-2 (Nhân lực bán chuyên môn)" },
+      { "kind": "bullet", "depth": 1, "text": "Ngành nghề: Người làm việc văn phòng và dịch vụ (10 ngành nghề)" },
+      { "kind": "bullet", "depth": 1, "text": "Mô tả: Nhân lực nước ngoài thực hiện các công việc bán chuyên môn" },
+      { "kind": "bullet", "depth": 0, "text": "E-7-3 (Nhân lực kỹ năng thông thường)" },
+      { "kind": "bullet", "depth": 1, "text": "Ngành nghề: Kỹ thuật viên và người làm liên quan (10 ngành nghề)" },
+      { "kind": "bullet", "depth": 1, "text": "Mô tả: Nhân lực nước ngoài làm các công việc kỹ thuật thông thường yêu cầu kỹ năng cụ thể" },
+      { "kind": "bullet", "depth": 0, "text": "E-7-4 (Nhân lực kỹ năng lành nghề)" },
+      { "kind": "bullet", "depth": 1, "text": "Đặc điểm: Theo hệ thống tính điểm, chỉ hoạt động được trong 3 ngành nghề" },
+      { "kind": "bullet", "depth": 1, "text": "Mô tả: Nhân lực nước ngoài được đưa vào nhằm nâng cao năng lực cạnh tranh quốc gia, dựa trên kỹ năng và kinh nghiệm thành thạo" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa: tối đa 3 năm cho mỗi lần cấp" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "一般要件" },
+      { "kind": "bullet", "depth": 1, "text": "持有与引进职种相关领域的硕士学位以上者" },
+      { "kind": "bullet", "depth": 1, "text": "持有与引进职种相关领域的学士学位 + 该领域 1 年以上经验" },
+      { "kind": "bullet", "depth": 2, "text": "尖端技术（IT）、生物、纳米等领域从业者，毕业前的实习经验也认可为工作经验" },
+      { "kind": "bullet", "depth": 1, "text": "依据《产业发展法》第 5 条，由产业通商资源部长官公告的尖端技术领域从业者" },
+      { "kind": "bullet", "depth": 1, "text": "在与引进职种相关领域具有 5 年以上工作经验" },
+      { "kind": "bullet", "depth": 0, "text": "优待特别要件" },
+      { "kind": "bullet", "depth": 1, "text": "在世界 500 强企业从事专业职务 1 年以上的经历者" },
+      { "kind": "bullet", "depth": 1, "text": "持有世界优秀大学学士学位者" },
+      { "kind": "bullet", "depth": 2, "text": "即使无 1 年以上专业经验，若被认定为有雇佣必要性也可允许" },
+      { "kind": "bullet", "depth": 2, "text": "时代周刊 200 大学及 QS 世界大学排名 500 位以内的毕业生" },
+      { "kind": "bullet", "depth": 1, "text": "韩国专科大学毕业生" },
+      { "kind": "bullet", "depth": 2, "text": "在相关专业允许引进的职种就业时，免除 1 年以上经验要件，若被认定为有雇佣必要性也可允许" },
+      { "kind": "bullet", "depth": 1, "text": "韩国大学学士以上学位毕业生" },
+      { "kind": "bullet", "depth": 2, "text": "在允许引进的职种就业时不限专业，若被认定为有雇佣必要性可允许" },
+      { "kind": "bullet", "depth": 2, "text": "学士以上学位者免除 1 年以上经验要件" },
+      { "kind": "bullet", "depth": 2, "text": "工读结合留学（D-2-7）资格毕业生免除国民雇佣比例要件" },
+      { "kind": "bullet", "depth": 1, "text": "高收入专业优秀人才" },
+      { "kind": "bullet", "depth": 2, "text": "年度总报酬达到上一年度人均国民总收入（GNI）3 倍以上时，无论职种均免除学历及经验要件" },
+      { "kind": "bullet", "depth": 2, "text": "无需主管部委长官的雇佣推荐" },
+      { "kind": "bullet", "depth": 1, "text": "优秀私立机构研修结业者" },
+      { "kind": "bullet", "depth": 2, "text": "持有海外专科以上学历的外国人，正常完成相关专业领域的国内研修课程（D-4-6，20 个月以上），并取得国内公认资格证及社会融合项目 4 阶段以上修读后，允许变更为相应专业领域资格（E-7-4 领域除外）" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Yêu cầu chung" },
+      { "kind": "bullet", "depth": 1, "text": "Người có bằng thạc sĩ trở lên trong lĩnh vực liên quan đến ngành nghề được đưa vào" },
+      { "kind": "bullet", "depth": 1, "text": "Người có bằng cử nhân trong lĩnh vực liên quan + 1 năm kinh nghiệm trở lên trong lĩnh vực đó" },
+      { "kind": "bullet", "depth": 2, "text": "Người làm việc trong lĩnh vực công nghệ cao (IT), sinh học, nano, v.v., được công nhận kinh nghiệm thực tập trước khi tốt nghiệp như kinh nghiệm làm việc" },
+      { "kind": "bullet", "depth": 1, "text": "Người làm việc trong lĩnh vực công nghệ cao do Bộ trưởng Thương mại, Công nghiệp và Năng lượng công bố theo Điều 5 Luật Phát triển Công nghiệp" },
+      { "kind": "bullet", "depth": 1, "text": "Có 5 năm kinh nghiệm làm việc trở lên trong lĩnh vực liên quan đến ngành nghề được đưa vào" },
+      { "kind": "bullet", "depth": 0, "text": "Yêu cầu đặc biệt cho ưu đãi" },
+      { "kind": "bullet", "depth": 1, "text": "Người có 1 năm kinh nghiệm trở lên trong vị trí chuyên môn tại doanh nghiệp Global 500" },
+      { "kind": "bullet", "depth": 1, "text": "Người có bằng cử nhân của trường đại học hàng đầu thế giới" },
+      { "kind": "bullet", "depth": 2, "text": "Ngay cả khi không đáp ứng yêu cầu kinh nghiệm 1 năm trong lĩnh vực chuyên môn, vẫn có thể được chấp nhận nếu được công nhận có nhu cầu tuyển dụng" },
+      { "kind": "bullet", "depth": 2, "text": "Người tốt nghiệp các trường đại học top 200 theo Time và top 500 theo QS World University Ranking" },
+      { "kind": "bullet", "depth": 1, "text": "Người tốt nghiệp cao đẳng tại Hàn Quốc" },
+      { "kind": "bullet", "depth": 2, "text": "Khi làm việc ở ngành nghề được phép trong chuyên ngành liên quan, được miễn yêu cầu kinh nghiệm 1 năm; nếu được công nhận có nhu cầu tuyển dụng có thể được chấp nhận" },
+      { "kind": "bullet", "depth": 1, "text": "Người có bằng cử nhân trở lên tốt nghiệp đại học tại Hàn Quốc" },
+      { "kind": "bullet", "depth": 2, "text": "Khi làm việc ở ngành nghề được phép, không phân biệt chuyên ngành, có thể được chấp nhận nếu được công nhận có nhu cầu tuyển dụng" },
+      { "kind": "bullet", "depth": 2, "text": "Người có bằng cử nhân trở lên được miễn yêu cầu kinh nghiệm 1 năm" },
+      { "kind": "bullet", "depth": 2, "text": "Người tốt nghiệp diện du học vừa làm vừa học (D-2-7) được miễn tỷ lệ tuyển dụng công dân" },
+      { "kind": "bullet", "depth": 1, "text": "Nhân tài chuyên môn có thu nhập cao" },
+      { "kind": "bullet", "depth": 2, "text": "Khi tổng thu nhập hằng năm đạt từ 3 lần thu nhập bình quân đầu người (GNI) năm trước trở lên, được miễn cả yêu cầu học vấn và kinh nghiệm bất kể ngành nghề" },
+      { "kind": "bullet", "depth": 2, "text": "Không cần thư giới thiệu tuyển dụng của Bộ trưởng cơ quan chủ quản" },
+      { "kind": "bullet", "depth": 1, "text": "Người hoàn thành đào tạo tại cơ sở tư thục xuất sắc" },
+      { "kind": "bullet", "depth": 2, "text": "Người nước ngoài có bằng cao đẳng trở lên ở nước ngoài, đã hoàn thành chương trình đào tạo trong nước trong lĩnh vực chuyên ngành tương ứng (D-4-6, từ 20 tháng trở lên), đạt chứng chỉ công nhận trong nước và hoàn thành Chương trình hoà nhập xã hội cấp 4 trở lên, được phép chuyển đổi tư cách sang lĩnh vực chuyên ngành tương ứng (trừ lĩnh vực E-7-4)" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "外国人准备材料" },
+      { "kind": "bullet", "depth": 1, "text": "综合申请书" },
+      { "kind": "bullet", "depth": 1, "text": "护照、身份证原件" },
+      { "kind": "bullet", "depth": 1, "text": "外国人职业申报书" },
+      { "kind": "bullet", "depth": 1, "text": "住房合同副本" },
+      { "kind": "bullet", "depth": 1, "text": "彩色证件照 1 张（半身）" },
+      { "kind": "bullet", "depth": 1, "text": "雇佣合同" },
+      { "kind": "bullet", "depth": 1, "text": "资格要件证明材料：学位证、经历证明书、资格证等" },
+      { "kind": "bullet", "depth": 2, "text": "境外发行的材料须附中文或英文翻译件" },
+      { "kind": "bullet", "depth": 2, "text": "主要核心材料须提交领事公证或海牙认证书" },
+      { "kind": "bullet", "depth": 0, "text": "公司准备材料" },
+      { "kind": "bullet", "depth": 1, "text": "营业执照、登记簿副本等设立相关材料" },
+      { "kind": "bullet", "depth": 1, "text": "证明外国人雇佣必要性的材料" },
+      { "kind": "bullet", "depth": 2, "text": "邀请理由书、外国人活用计划书等" },
+      { "kind": "bullet", "depth": 2, "text": "主管中央行政机关首长的雇佣推荐书或相关团体推荐书" },
+      { "kind": "bullet", "depth": 1, "text": "身份担保书" },
+      { "kind": "bullet", "depth": 1, "text": "纳税明细证明、纳税证明、地方税纳税证明" },
+      { "kind": "bullet", "depth": 1, "text": "增值税课税标准证明" },
+      { "kind": "bullet", "depth": 1, "text": "四大保险加入者名册、雇佣保险加入者名册" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ người nước ngoài chuẩn bị" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn đăng ký tổng hợp" },
+      { "kind": "bullet", "depth": 1, "text": "Hộ chiếu, bản gốc giấy tờ tuỳ thân" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn khai báo nghề nghiệp người nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao hợp đồng nhà ở" },
+      { "kind": "bullet", "depth": 1, "text": "1 ảnh thẻ màu (kích cỡ bán thân)" },
+      { "kind": "bullet", "depth": 1, "text": "Hợp đồng lao động" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh điều kiện: bằng cấp, giấy chứng nhận kinh nghiệm, chứng chỉ, v.v." },
+      { "kind": "bullet", "depth": 2, "text": "Giấy tờ cấp ở nước ngoài cần kèm bản dịch tiếng Hàn hoặc tiếng Anh" },
+      { "kind": "bullet", "depth": 2, "text": "Các giấy tờ cốt lõi quan trọng cần nộp công chứng lãnh sự hoặc Apostille" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ công ty chuẩn bị" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy phép kinh doanh, bản sao giấy đăng ký doanh nghiệp và các hồ sơ thành lập khác" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh sự cần thiết của việc tuyển dụng người nước ngoài" },
+      { "kind": "bullet", "depth": 2, "text": "Lý do mời, kế hoạch sử dụng người nước ngoài, v.v." },
+      { "kind": "bullet", "depth": 2, "text": "Thư giới thiệu tuyển dụng của lãnh đạo cơ quan hành chính trung ương phụ trách hoặc thư giới thiệu của tổ chức liên quan" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy bảo lãnh nhân thân" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận chi tiết nộp thuế, giấy chứng nhận đã nộp thuế, giấy chứng nhận đã nộp thuế địa phương" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận cơ sở thuế giá trị gia tăng" },
+      { "kind": "bullet", "depth": 1, "text": "Danh sách tham gia 4 loại bảo hiểm chính, danh sách tham gia bảo hiểm tuyển dụng" }
     ]
   },
   "E-8": {
@@ -10637,6 +12379,70 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "지자체별 신청 연도에 1회만 제출"
       }
+    ],
+    "titleZh": "E-8 季节工签证 - 农水产业短期工作",
+    "titleVi": "Visa E-8 Lao động thời vụ - Làm việc ngắn hạn trong nông nghiệp và thuỷ sản",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "经法务部长官与相关中央行政机关首长协商确定，欲在农作物种植与收获（含与种植、收获相联系的初加工领域）及水产品初加工领域从事就业活动且经法务部长官认定的人员" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：5 个月（总停留期间不得超过 8 个月）" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người được Bộ trưởng Tư pháp công nhận, muốn làm việc trong lĩnh vực canh tác/thu hoạch nông sản (bao gồm sơ chế liên quan) và sơ chế thuỷ sản theo thoả thuận giữa Bộ trưởng Tư pháp và lãnh đạo cơ quan hành chính trung ương liên quan" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 5 tháng (tổng thời gian lưu trú không được quá 8 tháng)" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "E-8-1：通过韩国地方政府与外国地方政府间的 MOU 方式选拔（农业）" },
+      { "kind": "bullet", "depth": 0, "text": "E-8-2：结婚移民者推荐居住海外四代以内亲属（农业）" },
+      { "kind": "bullet", "depth": 0, "text": "E-8-3：通过韩国地方政府与外国地方政府间的 MOU 方式选拔（渔业）" },
+      { "kind": "bullet", "depth": 0, "text": "E-8-4：结婚移民者推荐居住海外四代以内亲属（渔业）" },
+      { "kind": "bullet", "depth": 0, "text": "E-8-5：以其他（G-1）资格从事季节工活动后推荐再入境（农业）" },
+      { "kind": "bullet", "depth": 0, "text": "E-8-6：以其他（G-1）资格从事季节工活动后推荐再入境（渔业）" },
+      { "kind": "bullet", "depth": 0, "text": "E-8-99：语言沟通辅助员等其他辅助人力（其他）" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "E-8-1: Tuyển chọn theo MOU giữa chính quyền địa phương Hàn Quốc và chính quyền địa phương nước ngoài (Nông nghiệp)" },
+      { "kind": "bullet", "depth": 0, "text": "E-8-2: Người kết hôn nhập cư giới thiệu người thân trong vòng 4 đời sống ở nước ngoài (Nông nghiệp)" },
+      { "kind": "bullet", "depth": 0, "text": "E-8-3: Tuyển chọn theo MOU giữa chính quyền địa phương Hàn Quốc và chính quyền địa phương nước ngoài (Thuỷ sản)" },
+      { "kind": "bullet", "depth": 0, "text": "E-8-4: Người kết hôn nhập cư giới thiệu người thân trong vòng 4 đời sống ở nước ngoài (Thuỷ sản)" },
+      { "kind": "bullet", "depth": 0, "text": "E-8-5: Giới thiệu tái nhập cảnh sau khi làm việc thời vụ với tư cách Khác (G-1) (Nông nghiệp)" },
+      { "kind": "bullet", "depth": 0, "text": "E-8-6: Giới thiệu tái nhập cảnh sau khi làm việc thời vụ với tư cách Khác (G-1) (Thuỷ sản)" },
+      { "kind": "bullet", "depth": 0, "text": "E-8-99: Người trợ giúp giao tiếp ngôn ngữ và các nhân lực hỗ trợ khác (Khác)" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "标准劳动合同" },
+      { "kind": "bullet", "depth": 0, "text": "旅行者保险证书" },
+      { "kind": "bullet", "depth": 1, "text": "如无法提交保险证书，先获取签证发放认定书后通过地方政府补充提交" },
+      { "kind": "bullet", "depth": 0, "text": "招聘本国人努力的证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "招聘广告内容副本" },
+      { "kind": "bullet", "depth": 1, "text": "最终招聘实绩等" },
+      { "kind": "bullet", "depth": 0, "text": "外国人季节工相关材料" },
+      { "kind": "bullet", "depth": 1, "text": "外国人季节工护照副本" },
+      { "kind": "bullet", "depth": 1, "text": "MOU 外国人情况下，本国农渔业从业经历" },
+      { "kind": "bullet", "depth": 1, "text": "结婚移民者四代以内亲属（含配偶）情况下，居住国（停留国）出具的家庭关系证明" },
+      { "kind": "bullet", "depth": 0, "text": "住宿点检相关材料" },
+      { "kind": "bullet", "depth": 1, "text": "外国人季节工住宿点检确认书" },
+      { "kind": "bullet", "depth": 1, "text": "包含照片（A. 建筑全景 B. 房间 C. 含卫生间·淋浴室至少 2 张以上）" },
+      { "kind": "bullet", "depth": 0, "text": "MOU 副本" },
+      { "kind": "bullet", "depth": 1, "text": "各地方政府每个申请年度仅提交 1 次" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Hợp đồng lao động chuẩn" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy chứng nhận bảo hiểm du lịch" },
+      { "kind": "bullet", "depth": 1, "text": "Trường hợp không nộp được giấy bảo hiểm, có thể nhận giấy phép cấp thị thực trước rồi sau đó bổ sung qua chính quyền địa phương" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chứng minh nỗ lực tuyển dụng người trong nước" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao nội dung quảng cáo tuyển dụng" },
+      { "kind": "bullet", "depth": 1, "text": "Kết quả tuyển dụng cuối cùng, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ liên quan đến lao động thời vụ nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao hộ chiếu của lao động thời vụ nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Đối với người nước ngoài theo MOU: Lịch sử làm việc trong ngành nông/ngư nghiệp tại nước nhà" },
+      { "kind": "bullet", "depth": 1, "text": "Đối với người thân trong vòng 4 đời (bao gồm vợ/chồng) của người kết hôn nhập cư: Giấy chứng nhận quan hệ gia đình do nước cư trú (nước lưu trú) cấp" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ liên quan đến kiểm tra chỗ ở" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy xác nhận kiểm tra chỗ ở của lao động thời vụ nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Bao gồm ảnh (A. Toàn cảnh toà nhà B. Phòng C. Toilet/phòng tắm — tối thiểu 2 ảnh trở lên)" },
+      { "kind": "bullet", "depth": 0, "text": "Bản sao MOU" },
+      { "kind": "bullet", "depth": 1, "text": "Mỗi chính quyền địa phương chỉ nộp 1 lần trong năm đăng ký" }
     ]
   },
   "E-9": {
@@ -10916,6 +12722,60 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "사업장실태조사서"
       }
+    ],
+    "titleZh": "E-9 非专门就业签证 - 雇佣许可制工作",
+    "titleVi": "Visa E-9 Việc làm không chuyên môn - Lao động theo Chế độ Cấp phép Tuyển dụng",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "依据雇佣许可制，向雇主授予雇佣外国劳动者的许可，并向外国劳动者允许在该雇主处就业，最长可达 4 年 10 个月的人力制度" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：3 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Chế độ nhân lực cho phép người sử dụng lao động tuyển dụng người lao động nước ngoài theo Chế độ Cấp phép Tuyển dụng, và cho phép người lao động nước ngoài làm việc tại nơi đó tối đa 4 năm 10 tháng" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 3 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "依据《外国劳动者雇佣等相关法律》具备韩国就业要件者" },
+      { "kind": "bullet", "depth": 1, "text": "（泰国、菲律宾、斯里兰卡、越南、印度尼西亚、蒙古、巴基斯坦、乌兹别克斯坦、柬埔寨、中国、孟加拉国、尼泊尔、缅甸、吉尔吉斯斯坦、东帝汶、老挝）" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người đáp ứng điều kiện làm việc tại Hàn Quốc theo Luật về Tuyển dụng Lao động Nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "(Thái Lan, Philippines, Sri Lanka, Việt Nam, Indonesia, Mông Cổ, Pakistan, Uzbekistan, Campuchia, Trung Quốc, Bangladesh, Nepal, Myanmar, Kyrgyzstan, Đông Timor, Lào)" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "无犯罪记录证明" },
+      { "kind": "bullet", "depth": 1, "text": "由国籍国权限机关发行" },
+      { "kind": "bullet", "depth": 1, "text": "包含本国全部犯罪记录" },
+      { "kind": "bullet", "depth": 1, "text": "若国籍国犯罪记录确认系统不完善，可由居住地管辖内政机关证明替代" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请日起 3 个月内发行的证明" },
+      { "kind": "bullet", "depth": 0, "text": "健康状况确认书" },
+      { "kind": "bullet", "depth": 1, "text": "由签证申请人亲笔填写" },
+      { "kind": "bullet", "depth": 1, "text": "记录结核、乙肝、梅毒等感染情况、毒品服用经验、精神疾病治疗经验等" },
+      { "kind": "bullet", "depth": 0, "text": "其他必备材料" },
+      { "kind": "bullet", "depth": 1, "text": "签证发放认定申请书" },
+      { "kind": "bullet", "depth": 1, "text": "护照" },
+      { "kind": "bullet", "depth": 1, "text": "标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "营业执照副本" },
+      { "kind": "bullet", "depth": 1, "text": "雇佣许可书及标准劳动合同副本" },
+      { "kind": "bullet", "depth": 1, "text": "营业场所实态调查书" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Lý lịch tư pháp" },
+      { "kind": "bullet", "depth": 1, "text": "Do cơ quan có thẩm quyền của nước quốc tịch cấp" },
+      { "kind": "bullet", "depth": 1, "text": "Bao gồm toàn bộ tiền án trong nước nhà" },
+      { "kind": "bullet", "depth": 1, "text": "Trường hợp hệ thống xác nhận lý lịch tư pháp tại nước nhà chưa đầy đủ, có thể thay thế bằng giấy chứng nhận của cơ quan nội vụ tại nơi cư trú" },
+      { "kind": "bullet", "depth": 1, "text": "Phải được cấp trong vòng 3 tháng kể từ ngày nộp hồ sơ xin thị thực" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy xác nhận tình trạng sức khoẻ" },
+      { "kind": "bullet", "depth": 1, "text": "Người nộp hồ sơ tự viết tay" },
+      { "kind": "bullet", "depth": 1, "text": "Ghi rõ tình trạng nhiễm bệnh lao, viêm gan B, giang mai và kinh nghiệm sử dụng ma tuý, điều trị bệnh tâm thần, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ bắt buộc khác" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp giấy phép cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao giấy phép kinh doanh" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao giấy phép tuyển dụng và hợp đồng lao động chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Báo cáo khảo sát thực tế nơi làm việc" }
     ]
   },
   "E-10": {
@@ -11820,6 +13680,162 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 2,
         "text": "외국인선원고용신고수리서 (지방해양항만청장 발급)"
       }
+    ],
+    "titleZh": "E-10 船员就业签证 - 船员工作",
+    "titleVi": "Visa E-10 Việc làm thuyền viên - Lao động thuyền viên",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "在韩国就业的内航船员" },
+      { "kind": "bullet", "depth": 0, "text": "在 20 吨以上渔船就业的渔船员" },
+      { "kind": "bullet", "depth": 0, "text": "在 2 千吨以上巡航客船就业的人员" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：3 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người làm việc trong nước với tư cách thuyền viên nội địa" },
+      { "kind": "bullet", "depth": 0, "text": "Người làm việc trong nước với tư cách thuyền viên tàu cá từ 20 tấn trở lên" },
+      { "kind": "bullet", "depth": 0, "text": "Người làm việc trong nước với tư cách thuyền viên tàu khách du lịch từ 2.000 tấn trở lên" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 3 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "内航船员（E-10-1）" },
+      { "kind": "bullet", "depth": 1, "text": "依据《海运法》的要件：" },
+      { "kind": "bullet", "depth": 2, "text": "内航定期客运业" },
+      { "kind": "bullet", "depth": 2, "text": "内航不定期客运业" },
+      { "kind": "bullet", "depth": 2, "text": "内航货物运输业" },
+      { "kind": "bullet", "depth": 1, "text": "合同条件：" },
+      { "kind": "bullet", "depth": 2, "text": "与企业签订 6 个月以上的船员劳动合同" },
+      { "kind": "bullet", "depth": 1, "text": "适用范围：" },
+      { "kind": "bullet", "depth": 2, "text": "《船员法》第 3 条第 5 号的船员" },
+      { "kind": "bullet", "depth": 2, "text": "除渔船外，登上总吨位 5 吨以上内航商船的船员" },
+      { "kind": "bullet", "depth": 0, "text": "渔船员（E-10-2）" },
+      { "kind": "bullet", "depth": 1, "text": "依据《水产业法》的要件：" },
+      { "kind": "bullet", "depth": 2, "text": "定置网渔业" },
+      { "kind": "bullet", "depth": 2, "text": "使用动力渔船的近海渔业" },
+      { "kind": "bullet", "depth": 2, "text": "渔获物运输业" },
+      { "kind": "bullet", "depth": 1, "text": "合同条件：" },
+      { "kind": "bullet", "depth": 2, "text": "以在企业（20 吨以上渔船）提供 6 个月以上劳务为条件签订船员劳动合同" },
+      { "kind": "bullet", "depth": 1, "text": "适用范围：" },
+      { "kind": "bullet", "depth": 2, "text": "《船员法》第 3 条第 5 号的船员" },
+      { "kind": "bullet", "depth": 0, "text": "巡航客船船员（E-10-3）" },
+      { "kind": "bullet", "depth": 1, "text": "邮轮产业相关要件：" },
+      { "kind": "bullet", "depth": 2, "text": "依据《邮轮产业培育及支援法》的国籍邮轮经营者" },
+      { "kind": "bullet", "depth": 2, "text": "使用国际巡航邮轮经营业务" },
+      { "kind": "bullet", "depth": 1, "text": "合同条件：" },
+      { "kind": "bullet", "depth": 2, "text": "以在企业提供 6 个月以上劳务为条件签订船员劳动合同" },
+      { "kind": "bullet", "depth": 1, "text": "适用范围：" },
+      { "kind": "bullet", "depth": 2, "text": "总吨位 2 千吨以上邮轮" },
+      { "kind": "bullet", "depth": 2, "text": "《船员法》第 3 条第 5 号的船员" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Thuyền viên nội địa (E-10-1)" },
+      { "kind": "bullet", "depth": 1, "text": "Yêu cầu theo Luật Vận tải Biển:" },
+      { "kind": "bullet", "depth": 2, "text": "Kinh doanh vận tải hành khách định kỳ nội địa" },
+      { "kind": "bullet", "depth": 2, "text": "Kinh doanh vận tải hành khách không định kỳ nội địa" },
+      { "kind": "bullet", "depth": 2, "text": "Kinh doanh vận tải hàng hoá nội địa" },
+      { "kind": "bullet", "depth": 1, "text": "Điều kiện hợp đồng:" },
+      { "kind": "bullet", "depth": 2, "text": "Ký hợp đồng lao động thuyền viên từ 6 tháng trở lên với doanh nghiệp" },
+      { "kind": "bullet", "depth": 1, "text": "Phạm vi áp dụng:" },
+      { "kind": "bullet", "depth": 2, "text": "Thuyền viên thuộc Điều 3 Khoản 5 Luật Thuyền viên" },
+      { "kind": "bullet", "depth": 2, "text": "Thuyền viên trên tàu thương mại nội địa từ 5 tấn tổng dung tích trở lên (trừ tàu cá)" },
+      { "kind": "bullet", "depth": 0, "text": "Thuyền viên tàu cá (E-10-2)" },
+      { "kind": "bullet", "depth": 1, "text": "Yêu cầu theo Luật Thuỷ sản:" },
+      { "kind": "bullet", "depth": 2, "text": "Đánh bắt bằng lưới định ngư" },
+      { "kind": "bullet", "depth": 2, "text": "Đánh bắt gần bờ bằng tàu cá có động cơ" },
+      { "kind": "bullet", "depth": 2, "text": "Vận chuyển sản phẩm đánh bắt" },
+      { "kind": "bullet", "depth": 1, "text": "Điều kiện hợp đồng:" },
+      { "kind": "bullet", "depth": 2, "text": "Ký hợp đồng lao động thuyền viên với điều kiện cung cấp lao động từ 6 tháng trở lên cho doanh nghiệp (tàu cá từ 20 tấn trở lên)" },
+      { "kind": "bullet", "depth": 1, "text": "Phạm vi áp dụng:" },
+      { "kind": "bullet", "depth": 2, "text": "Thuyền viên thuộc Điều 3 Khoản 5 Luật Thuyền viên" },
+      { "kind": "bullet", "depth": 0, "text": "Thuyền viên tàu khách du lịch (E-10-3)" },
+      { "kind": "bullet", "depth": 1, "text": "Yêu cầu liên quan đến ngành du thuyền:" },
+      { "kind": "bullet", "depth": 2, "text": "Doanh nghiệp du thuyền có quốc tịch theo Luật Khuyến khích và Hỗ trợ Ngành Du thuyền" },
+      { "kind": "bullet", "depth": 2, "text": "Kinh doanh sử dụng tàu du thuyền hành trình quốc tế" },
+      { "kind": "bullet", "depth": 1, "text": "Điều kiện hợp đồng:" },
+      { "kind": "bullet", "depth": 2, "text": "Ký hợp đồng lao động thuyền viên với điều kiện cung cấp lao động từ 6 tháng trở lên cho doanh nghiệp" },
+      { "kind": "bullet", "depth": 1, "text": "Phạm vi áp dụng:" },
+      { "kind": "bullet", "depth": 2, "text": "Tàu du thuyền có tổng dung tích từ 2.000 tấn trở lên" },
+      { "kind": "bullet", "depth": 2, "text": "Thuyền viên thuộc Điều 3 Khoản 5 Luật Thuyền viên" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "E-10-1（内航船员）" },
+      { "kind": "bullet", "depth": 1, "text": "基本材料：" },
+      { "kind": "bullet", "depth": 2, "text": "签证发放认定申请书（附件第 21 号格式）" },
+      { "kind": "bullet", "depth": 2, "text": "护照" },
+      { "kind": "bullet", "depth": 2, "text": "营业执照" },
+      { "kind": "bullet", "depth": 2, "text": "标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "补充材料：" },
+      { "kind": "bullet", "depth": 2, "text": "标准劳动合同副本" },
+      { "kind": "bullet", "depth": 2, "text": "身份担保书" },
+      { "kind": "bullet", "depth": 2, "text": "外国人船员雇佣申报受理书（地方海洋港湾厅长发行）" },
+      { "kind": "bullet", "depth": 2, "text": "内航客运经营许可证、内航货运经营登记证副本（首次申请或登记事项变更时）" },
+      { "kind": "bullet", "depth": 2, "text": "外国人船员雇佣推荐书（地方海洋水产厅长发行）" },
+      { "kind": "bullet", "depth": 2, "text": "「乘船定员证书」或「500 吨以下船舶检验证书」等所需材料" },
+      { "kind": "bullet", "depth": 2, "text": "劳资协议各船公司 T/O 运营批准书（适用时）" },
+      { "kind": "bullet", "depth": 0, "text": "E-10-2（渔船员）" },
+      { "kind": "bullet", "depth": 1, "text": "基本材料：" },
+      { "kind": "bullet", "depth": 2, "text": "签证发放认定申请书（附件第 21 号格式）" },
+      { "kind": "bullet", "depth": 2, "text": "护照" },
+      { "kind": "bullet", "depth": 2, "text": "营业执照" },
+      { "kind": "bullet", "depth": 2, "text": "标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "补充材料：" },
+      { "kind": "bullet", "depth": 2, "text": "标准劳动合同副本" },
+      { "kind": "bullet", "depth": 2, "text": "身份担保书" },
+      { "kind": "bullet", "depth": 2, "text": "外国人船员雇佣申报受理书（地方海洋港湾厅长发行）" },
+      { "kind": "bullet", "depth": 2, "text": "定置网渔业许可证及管理船使用指定（渔船使用批准）证、近海渔业许可证副本（首次申请或登记事项变更时）" },
+      { "kind": "bullet", "depth": 2, "text": "船舶检验证书" },
+      { "kind": "bullet", "depth": 2, "text": "外国人船员雇佣推荐书（地方海洋水产厅长发行）" },
+      { "kind": "bullet", "depth": 2, "text": "渔获物运输业登记证（仅渔获物运输业适用）" },
+      { "kind": "bullet", "depth": 0, "text": "E-10-3（巡航客船船员）" },
+      { "kind": "bullet", "depth": 1, "text": "基本材料：" },
+      { "kind": "bullet", "depth": 2, "text": "签证发放认定申请书（附件第 21 号格式）" },
+      { "kind": "bullet", "depth": 2, "text": "护照" },
+      { "kind": "bullet", "depth": 2, "text": "营业执照" },
+      { "kind": "bullet", "depth": 2, "text": "标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "补充材料：" },
+      { "kind": "bullet", "depth": 2, "text": "标准劳动合同副本" },
+      { "kind": "bullet", "depth": 2, "text": "身份担保书" },
+      { "kind": "bullet", "depth": 2, "text": "外国人船员雇佣申报受理书（地方海洋港湾厅长发行）" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "E-10-1 (Thuyền viên nội địa)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ cơ bản:" },
+      { "kind": "bullet", "depth": 2, "text": "Đơn xin cấp giấy phép cấp thị thực (Mẫu phụ lục số 21)" },
+      { "kind": "bullet", "depth": 2, "text": "Hộ chiếu" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy phép kinh doanh" },
+      { "kind": "bullet", "depth": 2, "text": "1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ bổ sung:" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao hợp đồng lao động chuẩn" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy bảo lãnh nhân thân" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy tiếp nhận khai báo tuyển dụng thuyền viên nước ngoài (do Trưởng Cục Hàng hải và Cảng biển địa phương cấp)" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao giấy phép kinh doanh vận tải hành khách nội địa, giấy đăng ký kinh doanh vận tải hàng hoá nội địa (khi nộp lần đầu hoặc thay đổi đăng ký)" },
+      { "kind": "bullet", "depth": 2, "text": "Thư giới thiệu tuyển dụng thuyền viên nước ngoài (do Trưởng Cục Hàng hải và Thuỷ sản địa phương cấp)" },
+      { "kind": "bullet", "depth": 2, "text": "\"Giấy chứng nhận sức chứa thuyền viên\" hoặc \"Giấy chứng nhận kiểm tra tàu dưới 500 tấn\" và các giấy tờ cần thiết khác" },
+      { "kind": "bullet", "depth": 2, "text": "Văn bản phê duyệt vận hành T/O theo thoả thuận lao động - quản lý của từng hãng tàu (nếu có)" },
+      { "kind": "bullet", "depth": 0, "text": "E-10-2 (Thuyền viên tàu cá)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ cơ bản:" },
+      { "kind": "bullet", "depth": 2, "text": "Đơn xin cấp giấy phép cấp thị thực (Mẫu phụ lục số 21)" },
+      { "kind": "bullet", "depth": 2, "text": "Hộ chiếu" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy phép kinh doanh" },
+      { "kind": "bullet", "depth": 2, "text": "1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ bổ sung:" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao hợp đồng lao động chuẩn" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy bảo lãnh nhân thân" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy tiếp nhận khai báo tuyển dụng thuyền viên nước ngoài (do Trưởng Cục Hàng hải và Cảng biển địa phương cấp)" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy phép đánh bắt bằng lưới định ngư và giấy chỉ định sử dụng tàu quản lý (giấy phép sử dụng tàu cá), bản sao giấy phép đánh bắt gần bờ (khi nộp lần đầu hoặc thay đổi đăng ký)" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy chứng nhận kiểm tra tàu" },
+      { "kind": "bullet", "depth": 2, "text": "Thư giới thiệu tuyển dụng thuyền viên nước ngoài (do Trưởng Cục Hàng hải và Thuỷ sản địa phương cấp)" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy đăng ký kinh doanh vận chuyển sản phẩm đánh bắt (chỉ áp dụng cho ngành vận chuyển sản phẩm đánh bắt)" },
+      { "kind": "bullet", "depth": 0, "text": "E-10-3 (Thuyền viên tàu khách du lịch)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ cơ bản:" },
+      { "kind": "bullet", "depth": 2, "text": "Đơn xin cấp giấy phép cấp thị thực (Mẫu phụ lục số 21)" },
+      { "kind": "bullet", "depth": 2, "text": "Hộ chiếu" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy phép kinh doanh" },
+      { "kind": "bullet", "depth": 2, "text": "1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ bổ sung:" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao hợp đồng lao động chuẩn" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy bảo lãnh nhân thân" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy tiếp nhận khai báo tuyển dụng thuyền viên nước ngoài (do Trưởng Cục Hàng hải và Cảng biển địa phương cấp)" }
     ]
   },
   "F-1": {
@@ -13004,6 +15020,168 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "체류지 입증 서류"
       }
+    ],
+    "titleZh": "F-1 访问同居签证 - 家属及家政辅助员",
+    "titleVi": "Visa F-1 Thăm thân và đồng cư trú - Gia đình và người giúp việc gia đình",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "探亲、家庭同住、被赡养、家务整理及其他类似目的的停留" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：2 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Lưu trú với mục đích thăm thân, sống chung với gia đình, được cấp dưỡng, chăm sóc gia đình và các mục đích tương tự" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 2 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "驻韩外国公馆员的家政辅助员" },
+      { "kind": "bullet", "depth": 0, "text": "外交（A-1）至协定（A-3）资格者的同居人，但非属同一户" },
+      { "kind": "bullet", "depth": 0, "text": "取得海外同胞（F-4）资格者的家属（配偶及未成年子女）" },
+      { "kind": "bullet", "depth": 0, "text": "取得访问就业（H-2）资格者的家属（配偶及未成年子女）" },
+      { "kind": "bullet", "depth": 0, "text": "高中以下教育机构入学预定者或在读未成年外国留学生的随行父母" },
+      { "kind": "bullet", "depth": 0, "text": "SOFA 21 对象者的成年随行子女或其他家属" },
+      { "kind": "bullet", "depth": 0, "text": "其他因不得已事由不从事职业活动且需要在韩长期停留的人员（停留资格变更许可对象）" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người giúp việc gia đình của nhân viên cơ quan đại diện nước ngoài tại Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "Người sống chung với người mang tư cách Ngoại giao (A-1) đến Hiệp định (A-3) nhưng không thuộc cùng hộ" },
+      { "kind": "bullet", "depth": 0, "text": "Gia đình (vợ/chồng và con chưa thành niên) của người đã nhận tư cách Đồng bào Hải ngoại (F-4)" },
+      { "kind": "bullet", "depth": 0, "text": "Gia đình (vợ/chồng và con chưa thành niên) của người đã nhận tư cách Việc làm thăm thân (H-2)" },
+      { "kind": "bullet", "depth": 0, "text": "Cha mẹ đi cùng du học sinh nước ngoài chưa thành niên đang học hoặc dự kiến nhập học các cơ sở giáo dục từ THPT trở xuống" },
+      { "kind": "bullet", "depth": 0, "text": "Con cái thành niên hoặc thành viên gia đình khác đi cùng người thuộc diện SOFA 21" },
+      { "kind": "bullet", "depth": 0, "text": "Người khác không tham gia hoạt động nghề nghiệp do lý do bất khả kháng và được công nhận có nhu cầu lưu trú dài hạn tại Hàn Quốc (đối tượng chuyển đổi tư cách lưu trú)" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "外国留学生随行父母（F-1-13）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "入学许可书或在学证明" },
+      { "kind": "bullet", "depth": 1, "text": "家庭关系证明材料（原件及译本，户口簿、出生证明等）" },
+      { "kind": "bullet", "depth": 1, "text": "国内停留费用承担能力证明（连续存放 3 个月以上、达到标准金额以上的余额证明等）" },
+      { "kind": "bullet", "depth": 1, "text": "财力证明（仅限非法居留多发国家国民）" },
+      { "kind": "bullet", "depth": 0, "text": "驻韩外国公馆员的家政辅助员（F-1-21）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "外国公馆的协助公文" },
+      { "kind": "bullet", "depth": 1, "text": "雇佣合同" },
+      { "kind": "bullet", "depth": 1, "text": "雇主的身份证明副本" },
+      { "kind": "bullet", "depth": 0, "text": "投资家及专业人才的外籍家政辅助员（F-1-22、F-1-23、F-1-24）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "外商投资申报书或投资企业登记证副本" },
+      { "kind": "bullet", "depth": 1, "text": "雇主的在职证明（身份证明）" },
+      { "kind": "bullet", "depth": 1, "text": "雇主收入要件证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "家政辅助员雇佣合同" },
+      { "kind": "bullet", "depth": 1, "text": "身份担保书" },
+      { "kind": "bullet", "depth": 1, "text": "家政辅助员毕业证等学历证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "证明在雇主处担任家政辅助员 1 年以上的材料" },
+      { "kind": "bullet", "depth": 0, "text": "外交（A-1）至协定（A-3）资格者的同居人（F-1-3）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "亲属关系证明" },
+      { "kind": "bullet", "depth": 1, "text": "证明同居或长期停留必要性的材料" },
+      { "kind": "bullet", "depth": 0, "text": "海外同胞（F-4）、访问就业（H-2）资格者家属（F-1-9、F-1-11）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "海外同胞（F-4）或访问就业（H-2）资格取得者的居留申报证、外国人登录证或签证发放事项副本" },
+      { "kind": "bullet", "depth": 1, "text": "家庭关系证明" },
+      { "kind": "bullet", "depth": 0, "text": "SOFA 对象者家属" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "亲属关系证明" },
+      { "kind": "bullet", "depth": 1, "text": "证明同居或长期停留必要性的材料" },
+      { "kind": "bullet", "depth": 0, "text": "结婚移民者的父母等家属（F-1-5）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "邀请人的身份证副本、邀请函、身份担保书" },
+      { "kind": "bullet", "depth": 1, "text": "邀请人的基本证明、家庭关系证明、婚姻关系证明、居民登记表副本" },
+      { "kind": "bullet", "depth": 1, "text": "子女相关证明（怀孕情况下，妊娠诊断书或产妇手册）" },
+      { "kind": "bullet", "depth": 1, "text": "本国家庭关系证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "子女达就学年龄时的在学证明" },
+      { "kind": "bullet", "depth": 0, "text": "优秀人才、投资者及留学生父母（F-1-15）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "邀请理由书" },
+      { "kind": "bullet", "depth": 1, "text": "身份担保书" },
+      { "kind": "bullet", "depth": 1, "text": "家庭关系证明" },
+      { "kind": "bullet", "depth": 1, "text": "收入、投资金、停留费用证明" },
+      { "kind": "bullet", "depth": 0, "text": "高额投资家及海外优秀人才家政辅助员" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "外商投资申报书、投资企业登记证副本" },
+      { "kind": "bullet", "depth": 1, "text": "雇佣合同" },
+      { "kind": "bullet", "depth": 1, "text": "雇主的在职证明、收入水平证明" },
+      { "kind": "bullet", "depth": 1, "text": "身份担保书" },
+      { "kind": "bullet", "depth": 1, "text": "家政辅助员毕业证等学历证明材料" },
+      { "kind": "bullet", "depth": 0, "text": "驻韩外国公馆员的家政辅助员（F-1-21）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "外国公馆的请求公文" },
+      { "kind": "bullet", "depth": 1, "text": "雇佣合同" },
+      { "kind": "bullet", "depth": 1, "text": "雇主的外交官身份证副本" },
+      { "kind": "bullet", "depth": 0, "text": "计分制优秀人才的配偶及未成年子女（F-1-12）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、外国人登录证、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "结核诊断书" },
+      { "kind": "bullet", "depth": 1, "text": "主要停留者的雇佣合同、在职证明等相关材料" },
+      { "kind": "bullet", "depth": 1, "text": "家庭关系证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "积分表与说明材料" },
+      { "kind": "bullet", "depth": 1, "text": "停留地证明材料" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Cha mẹ đi cùng du học sinh nước ngoài (F-1-13)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy phép nhập học hoặc giấy chứng nhận đang học" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh quan hệ gia đình (bản gốc và bản dịch, sổ hộ khẩu, giấy khai sinh, v.v.)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh khả năng chi trả chi phí lưu trú trong nước (giấy chứng nhận số dư duy trì trên 3 tháng từ mức tiêu chuẩn trở lên, v.v.)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh năng lực tài chính (chỉ áp dụng với công dân các nước có tỷ lệ cư trú bất hợp pháp cao)" },
+      { "kind": "bullet", "depth": 0, "text": "Người giúp việc gia đình của nhân viên cơ quan đại diện nước ngoài tại Hàn Quốc (F-1-21)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Công hàm hợp tác của cơ quan đại diện nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Hợp đồng lao động" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao giấy tờ tuỳ thân của người sử dụng lao động" },
+      { "kind": "bullet", "depth": 0, "text": "Người giúp việc gia đình nước ngoài của nhà đầu tư và chuyên gia (F-1-22, F-1-23, F-1-24)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn khai báo đầu tư nước ngoài hoặc bản sao giấy đăng ký doanh nghiệp đầu tư" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận đang công tác (giấy tờ tuỳ thân) của người sử dụng lao động" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh điều kiện thu nhập của người sử dụng lao động" },
+      { "kind": "bullet", "depth": 1, "text": "Hợp đồng lao động của người giúp việc gia đình" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy bảo lãnh nhân thân" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh học vấn của người giúp việc (bằng tốt nghiệp, v.v.)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh đã làm người giúp việc cho người sử dụng lao động trên 1 năm" },
+      { "kind": "bullet", "depth": 0, "text": "Người sống chung với người mang tư cách Ngoại giao (A-1) đến Hiệp định (A-3) (F-1-3)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh quan hệ thân tộc" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh sự cần thiết của việc sống chung hoặc lưu trú dài hạn" },
+      { "kind": "bullet", "depth": 0, "text": "Gia đình người mang tư cách Đồng bào Hải ngoại (F-4) hoặc Việc làm thăm thân (H-2) (F-1-9, F-1-11)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Thẻ khai báo cư trú, thẻ đăng ký người nước ngoài hoặc bản sao thông tin cấp thị thực của người mang tư cách F-4 hoặc H-2" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh quan hệ gia đình" },
+      { "kind": "bullet", "depth": 0, "text": "Gia đình người diện SOFA" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh quan hệ thân tộc" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh sự cần thiết của việc sống chung hoặc lưu trú dài hạn" },
+      { "kind": "bullet", "depth": 0, "text": "Cha mẹ và người thân của người kết hôn nhập cư (F-1-5)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao giấy tờ tuỳ thân, thư mời, giấy bảo lãnh nhân thân của người mời" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận cơ bản, giấy chứng nhận quan hệ gia đình, giấy chứng nhận quan hệ hôn nhân, bản sao bảng đăng ký dân của người mời" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ liên quan đến con cái (giấy chẩn đoán mang thai hoặc sổ thai sản nếu đang mang thai)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh quan hệ gia đình tại nước nhà" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận đang đi học khi con cái đến tuổi đi học" },
+      { "kind": "bullet", "depth": 0, "text": "Cha mẹ của nhân tài, nhà đầu tư và du học sinh (F-1-15)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Lý do mời" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy bảo lãnh nhân thân" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh quan hệ gia đình" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh thu nhập, vốn đầu tư, chi phí lưu trú" },
+      { "kind": "bullet", "depth": 0, "text": "Người giúp việc của nhà đầu tư lớn và nhân tài hải ngoại" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn khai báo đầu tư nước ngoài, bản sao giấy đăng ký doanh nghiệp đầu tư" },
+      { "kind": "bullet", "depth": 1, "text": "Hợp đồng lao động" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận đang công tác và hồ sơ chứng minh mức thu nhập của người sử dụng lao động" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy bảo lãnh nhân thân" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh học vấn của người giúp việc (bằng tốt nghiệp, v.v.)" },
+      { "kind": "bullet", "depth": 0, "text": "Người giúp việc gia đình của nhân viên cơ quan đại diện nước ngoài tại Hàn Quốc (F-1-21)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Công hàm yêu cầu của cơ quan đại diện nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Hợp đồng lao động" },
+      { "kind": "bullet", "depth": 1, "text": "Bản sao thẻ ngoại giao của người sử dụng lao động" },
+      { "kind": "bullet", "depth": 0, "text": "Vợ/chồng và con chưa thành niên của nhân tài theo hệ thống tính điểm (F-1-12)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, thẻ đăng ký người nước ngoài, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chẩn đoán lao" },
+      { "kind": "bullet", "depth": 1, "text": "Hợp đồng lao động, giấy chứng nhận đang công tác và các giấy tờ liên quan của người lưu trú chính" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh quan hệ gia đình" },
+      { "kind": "bullet", "depth": 1, "text": "Bảng tính điểm và hồ sơ giải trình" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh nơi lưu trú" }
     ]
   },
   "F-2": {
@@ -13858,6 +16036,124 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "체류지 입증 서류"
       }
+    ],
+    "titleZh": "F-2 居住签证 - 长期停留",
+    "titleVi": "Visa F-2 Cư trú - Lưu trú dài hạn",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "为获得永久居留资格而欲在韩国长期停留的人员" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：5 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người muốn lưu trú dài hạn tại Hàn Quốc để được cấp tư cách thường trú" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 5 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "国民的未成年外籍子女，及永久居留资格者（F-5）的配偶及未成年子女" },
+      { "kind": "bullet", "depth": 0, "text": "与韩国国民婚姻关系（含事实婚）中出生且经法务部长官认定者" },
+      { "kind": "bullet", "depth": 0, "text": "被认定为难民者" },
+      { "kind": "bullet", "depth": 0, "text": "依据《外国人投资促进法》的外国投资者及相关人员" },
+      { "kind": "bullet", "depth": 1, "text": "以 50 万美元以上投资后，以 D-8 资格在韩停留 3 年以上" },
+      { "kind": "bullet", "depth": 1, "text": "以外国法人员工身份投资 50 万美元以上后，停留 3 年以上" },
+      { "kind": "bullet", "depth": 1, "text": "投资 30 万美元以上并雇佣 2 名以上韩国国民" },
+      { "kind": "bullet", "depth": 0, "text": "失去永久居留资格者中，经法务部长官认定有继续停留必要的人员" },
+      { "kind": "bullet", "depth": 0, "text": "在韩停留 5 年以上、有韩国生活基础并经法务部长官认定的人员" },
+      { "kind": "bullet", "depth": 0, "text": "特定就业资格者中，过去 10 年内有 4 年以上就业活动经历者" },
+      { "kind": "bullet", "depth": 1, "text": "持有技术·技能资格证及一定工资以上" },
+      { "kind": "bullet", "depth": 1, "text": "持有法务部长官规定金额以上的资产" },
+      { "kind": "bullet", "depth": 1, "text": "具备在韩居住的基本素养且为成年人" },
+      { "kind": "bullet", "depth": 0, "text": "依据《国家·地方公务员法》被任用为公务员者" },
+      { "kind": "bullet", "depth": 0, "text": "符合法务部长官规定的年龄、学历、收入标准者" },
+      { "kind": "bullet", "depth": 0, "text": "依据法务部长官公告标准投资不动产或资产者" },
+      { "kind": "bullet", "depth": 0, "text": "对韩国有特别贡献或被认定为对促进公益有所贡献者" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Con chưa thành niên là người nước ngoài của công dân Hàn Quốc, vợ/chồng và con chưa thành niên của người mang tư cách Thường trú (F-5)" },
+      { "kind": "bullet", "depth": 0, "text": "Người sinh ra trong quan hệ hôn nhân với công dân Hàn Quốc (bao gồm sống chung như vợ chồng) và được Bộ trưởng Tư pháp công nhận" },
+      { "kind": "bullet", "depth": 0, "text": "Người được công nhận là người tị nạn" },
+      { "kind": "bullet", "depth": 0, "text": "Nhà đầu tư nước ngoài và người liên quan theo Luật Khuyến khích Đầu tư Nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Đầu tư từ 500.000 USD trở lên và lưu trú từ 3 năm trở lên với tư cách D-8" },
+      { "kind": "bullet", "depth": 1, "text": "Người là cán bộ pháp nhân nước ngoài đầu tư từ 500.000 USD trở lên và lưu trú từ 3 năm trở lên" },
+      { "kind": "bullet", "depth": 1, "text": "Đầu tư từ 300.000 USD trở lên và tuyển dụng 2 công dân Hàn Quốc trở lên" },
+      { "kind": "bullet", "depth": 0, "text": "Người mất tư cách thường trú nhưng được Bộ trưởng Tư pháp công nhận có nhu cầu lưu trú tiếp" },
+      { "kind": "bullet", "depth": 0, "text": "Người lưu trú tại Hàn Quốc từ 5 năm trở lên có cơ sở sinh hoạt trong nước và được Bộ trưởng Tư pháp công nhận" },
+      { "kind": "bullet", "depth": 0, "text": "Người có 4 năm kinh nghiệm hoạt động làm việc trở lên trong vòng 10 năm với tư cách lưu trú đặc thù về việc làm" },
+      { "kind": "bullet", "depth": 1, "text": "Sở hữu chứng chỉ kỹ thuật/kỹ năng và nhận mức lương từ một mức nhất định trở lên" },
+      { "kind": "bullet", "depth": 1, "text": "Sở hữu tài sản từ mức do Bộ trưởng Tư pháp quy định trở lên" },
+      { "kind": "bullet", "depth": 1, "text": "Có tố chất cơ bản để sinh sống tại Hàn Quốc và đã thành niên" },
+      { "kind": "bullet", "depth": 0, "text": "Người được tuyển dụng làm công chức theo Luật Công chức Quốc gia/Địa phương" },
+      { "kind": "bullet", "depth": 0, "text": "Người đáp ứng tiêu chuẩn về tuổi, học vấn, thu nhập do Bộ trưởng Tư pháp quy định" },
+      { "kind": "bullet", "depth": 0, "text": "Người đầu tư bất động sản hoặc tài sản theo tiêu chuẩn do Bộ trưởng Tư pháp công bố" },
+      { "kind": "bullet", "depth": 0, "text": "Người được công nhận có đóng góp đặc biệt cho Hàn Quốc hoặc đóng góp cho lợi ích công" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "永居（F-5）配偶的居住单次签证（F-2-3，停留期 1 年以下）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "身份担保书、邀请函、婚姻背景陈述书" },
+      { "kind": "bullet", "depth": 1, "text": "婚姻关系证明材料（结婚证等）" },
+      { "kind": "bullet", "depth": 1, "text": "财力（收入）证明（收入金额证明等）" },
+      { "kind": "bullet", "depth": 1, "text": "信用信息查询书" },
+      { "kind": "bullet", "depth": 1, "text": "无犯罪记录证明（国籍国及居住国）" },
+      { "kind": "bullet", "depth": 1, "text": "健康诊断书" },
+      { "kind": "bullet", "depth": 1, "text": "婚姻解除证明材料（适用时）" },
+      { "kind": "bullet", "depth": 0, "text": "国民的未成年外籍子女居住单次签证（F-2-2，停留期 90 日以下）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "证明为国民未成年子女的官方文件" },
+      { "kind": "bullet", "depth": 1, "text": "抚养权证明及身份担保书" },
+      { "kind": "bullet", "depth": 1, "text": "抚养权人同意书（适用时）" },
+      { "kind": "bullet", "depth": 0, "text": "与国民婚姻关系中出生子女的居住复数签证（F-2-2，停留期 1 年以下）" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "邀请函" },
+      { "kind": "bullet", "depth": 1, "text": "亲子关系证明（基因检测、出生证明等）" },
+      { "kind": "bullet", "depth": 1, "text": "身份担保书" },
+      { "kind": "bullet", "depth": 0, "text": "上市法人有前途产业领域从业者" },
+      { "kind": "bullet", "depth": 1, "text": "签证发放认定申请书、护照、外国人登录证、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "结核诊断书" },
+      { "kind": "bullet", "depth": 1, "text": "雇佣合同、在职证明、营业执照、法人登记副本、收入金额证明、学位证明" },
+      { "kind": "bullet", "depth": 1, "text": "积分表及证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "停留地证明材料" },
+      { "kind": "bullet", "depth": 0, "text": "计分制优秀人才的配偶及未成年子女" },
+      { "kind": "bullet", "depth": 1, "text": "签证发放认定申请书、护照、外国人登录证、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "结核诊断书" },
+      { "kind": "bullet", "depth": 1, "text": "主停留者的雇佣及收入相关材料" },
+      { "kind": "bullet", "depth": 1, "text": "家庭关系证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "积分表及证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "停留地证明材料" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Visa cư trú đơn của vợ/chồng người thường trú (F-5) (F-2-3, thời hạn lưu trú dưới 1 năm)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy bảo lãnh nhân thân, thư mời, bản tường trình bối cảnh hôn nhân" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh quan hệ hôn nhân (giấy đăng ký kết hôn, v.v.)" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh tài chính (thu nhập) (giấy chứng nhận số tiền thu nhập, v.v.)" },
+      { "kind": "bullet", "depth": 1, "text": "Báo cáo tra cứu thông tin tín dụng" },
+      { "kind": "bullet", "depth": 1, "text": "Lý lịch tư pháp (nước quốc tịch và nước cư trú)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chẩn đoán sức khoẻ" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh việc giải tán hôn nhân (nếu có)" },
+      { "kind": "bullet", "depth": 0, "text": "Visa cư trú đơn của con chưa thành niên là người nước ngoài của công dân (F-2-2, thời hạn lưu trú dưới 90 ngày)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ công chứng minh là con chưa thành niên của công dân" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh quyền nuôi dưỡng và giấy bảo lãnh nhân thân" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn đồng ý của người có quyền nuôi dưỡng (nếu có)" },
+      { "kind": "bullet", "depth": 0, "text": "Visa cư trú nhiều lần của con sinh ra trong quan hệ hôn nhân với công dân (F-2-2, thời hạn lưu trú dưới 1 năm)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Thư mời" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh quan hệ cha-con/mẹ-con (xét nghiệm gen, giấy khai sinh, v.v.)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy bảo lãnh nhân thân" },
+      { "kind": "bullet", "depth": 0, "text": "Người làm việc trong lĩnh vực ngành công nghiệp tiềm năng tại pháp nhân niêm yết" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp giấy phép cấp thị thực, hộ chiếu, thẻ đăng ký người nước ngoài, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chẩn đoán lao" },
+      { "kind": "bullet", "depth": 1, "text": "Hợp đồng lao động, giấy chứng nhận đang công tác, giấy phép kinh doanh, bản sao đăng ký pháp nhân, giấy chứng nhận số tiền thu nhập, bằng cấp" },
+      { "kind": "bullet", "depth": 1, "text": "Bảng tính điểm và hồ sơ chứng minh" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh nơi lưu trú" },
+      { "kind": "bullet", "depth": 0, "text": "Vợ/chồng và con chưa thành niên của nhân tài theo hệ thống tính điểm" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp giấy phép cấp thị thực, hộ chiếu, thẻ đăng ký người nước ngoài, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chẩn đoán lao" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ liên quan đến việc làm và thu nhập của người lưu trú chính" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh quan hệ gia đình" },
+      { "kind": "bullet", "depth": 1, "text": "Bảng tính điểm và hồ sơ chứng minh" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh nơi lưu trú" }
     ]
   },
   "F-2-7": {
@@ -14257,6 +16553,72 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "추가서류: 가족관계 소명서류, 결핵검진 확인서, 학위증, 이공계 특성화 대학 총창 추천서, 재직증명서, 사업자등록증, 소득금액증명 등 기타 (해당자만)"
       }
+    ],
+    "titleZh": "F-2-7 计分制优秀人才签证 - 优秀人才及专业职从业者",
+    "titleVi": "Visa F-2-7 Nhân tài theo hệ thống tính điểm - Nhân tài xuất sắc và người làm nghề chuyên môn",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "上市法人从业者" },
+      { "kind": "bullet", "depth": 1, "text": "在韩国证券市场（KOSPI）或 KOSDAQ 上市的法人从业者，或已签订雇佣合同确定就业的外国人" },
+      { "kind": "bullet", "depth": 1, "text": "依据统计厅公告《韩国标准职业分类》中管理者、专业人员及相关从业者职种从业，或已签订雇佣合同确定就业的外国人" },
+      { "kind": "bullet", "depth": 0, "text": "有前途产业领域从业者" },
+      { "kind": "bullet", "depth": 1, "text": "属于尖端技术及产品范围内的 IT、技术经营、纳米、数字电子、生物、运输及机械、新材料、环境及能源等产业领域从业者，或已签订雇佣合同确定就业的外国人" },
+      { "kind": "bullet", "depth": 1, "text": "收入金额证明上的上一年度收入须为人均 GNI 1.5 倍以上（即将就业者按雇佣合同上的年薪计算）" },
+      { "kind": "bullet", "depth": 0, "text": "专业职从业者" },
+      { "kind": "bullet", "depth": 1, "text": "作为专业职从业者，持有教授（E-1）至专业人才（E-7-1）或采访（D-5）至贸易经营（D-9）任一停留资格的登录外国人" },
+      { "kind": "bullet", "depth": 1, "text": "申请日时以上述专业职停留资格连续合法停留 3 年以上，且申请时具备所持停留资格延长等停留要件" },
+      { "kind": "bullet", "depth": 1, "text": "但符合下列任一情况时，免除停留期限要件（3 年）" },
+      { "kind": "bullet", "depth": 2, "text": "收入金额证明上的年收入达 4 千万韩元以上" },
+      { "kind": "bullet", "depth": 2, "text": "作为法务部长官认可的理工科海外人才招揽支援事业被邀请人，且获得中央行政机关首长推荐者" },
+      { "kind": "bullet", "depth": 0, "text": "留学人才" },
+      { "kind": "bullet", "depth": 1, "text": "在韩取得正规课程硕士以上学位的合法停留外国人，自学位取得日起 5 年内已确定或正在从事教授（E-1）至专业人才（E-7-1）或采访（D-5）至贸易经营（D-9）停留资格相应职种者" },
+      { "kind": "bullet", "depth": 0, "text": "潜在优秀人才（F-2-7S）" },
+      { "kind": "bullet", "depth": 1, "text": "已取得或预计取得理工科特色化大学及研究机构硕士/博士学位者" },
+      { "kind": "bullet", "depth": 1, "text": "即使尚未确定在韩国企业就业，取得理工科特色化大学及研究机构硕/博士的外国人若获得大学校长推荐，即使不满足分数要件也可获得资格变更许可（最长 5 年）" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người làm việc tại pháp nhân niêm yết" },
+      { "kind": "bullet", "depth": 1, "text": "Người làm việc tại pháp nhân niêm yết trên thị trường chứng khoán Hàn Quốc (KOSPI) hoặc KOSDAQ, hoặc người nước ngoài đã ký hợp đồng lao động và xác nhận việc làm" },
+      { "kind": "bullet", "depth": 1, "text": "Người nước ngoài đang làm việc hoặc đã ký hợp đồng lao động tại các ngành nghề thuộc nhóm \"Quản lý, chuyên gia và người liên quan\" theo \"Phân loại Nghề Chuẩn của Hàn Quốc\" do Cục Thống kê công bố" },
+      { "kind": "bullet", "depth": 0, "text": "Người làm trong lĩnh vực ngành công nghiệp tiềm năng" },
+      { "kind": "bullet", "depth": 1, "text": "Người làm việc hoặc đã ký hợp đồng lao động trong các lĩnh vực công nghệ và sản phẩm cao cấp như IT, quản lý công nghệ, nano, điện tử số, sinh học, vận tải và cơ khí, vật liệu mới, môi trường và năng lượng" },
+      { "kind": "bullet", "depth": 1, "text": "Thu nhập năm trước trên giấy chứng nhận thu nhập phải đạt từ 1,5 lần GNI bình quân đầu người trở lên (đối với người sắp đi làm: dùng mức lương ghi trong hợp đồng lao động)" },
+      { "kind": "bullet", "depth": 0, "text": "Người làm nghề chuyên môn" },
+      { "kind": "bullet", "depth": 1, "text": "Người nước ngoài đã đăng ký mang một trong các tư cách lưu trú từ Giáo sư (E-1) đến Nhân lực chuyên môn (E-7-1) hoặc Đưa tin (D-5) đến Quản lý thương mại (D-9)" },
+      { "kind": "bullet", "depth": 1, "text": "Tại ngày nộp hồ sơ, đã lưu trú hợp pháp liên tục 3 năm trở lên với các tư cách lưu trú chuyên môn liệt kê ở trên và đáp ứng điều kiện lưu trú như gia hạn tư cách lưu trú đang sở hữu" },
+      { "kind": "bullet", "depth": 1, "text": "Tuy nhiên, miễn yêu cầu thời gian lưu trú (3 năm) trong các trường hợp sau:" },
+      { "kind": "bullet", "depth": 2, "text": "Thu nhập hằng năm trên giấy chứng nhận thu nhập đạt từ 40 triệu KRW trở lên" },
+      { "kind": "bullet", "depth": 2, "text": "Là người được mời trong dự án thu hút nhân tài hải ngoại lĩnh vực khoa học - kỹ thuật do Bộ trưởng Tư pháp công nhận và được lãnh đạo cơ quan hành chính trung ương giới thiệu" },
+      { "kind": "bullet", "depth": 0, "text": "Nhân tài du học" },
+      { "kind": "bullet", "depth": 1, "text": "Người nước ngoài lưu trú hợp pháp đã lấy bằng thạc sĩ trở lên của chương trình chính quy trong nước, đã xác nhận hoặc đang làm việc trong ngành nghề thuộc tư cách Giáo sư (E-1) đến Nhân lực chuyên môn (E-7-1) hoặc Đưa tin (D-5) đến Quản lý thương mại (D-9) trong vòng 5 năm kể từ ngày lấy bằng" },
+      { "kind": "bullet", "depth": 0, "text": "Nhân tài tiềm năng (F-2-7S)" },
+      { "kind": "bullet", "depth": 1, "text": "Người đã hoặc dự kiến lấy bằng thạc sĩ/tiến sĩ tại đại học và viện nghiên cứu chuyên ngành khoa học - kỹ thuật" },
+      { "kind": "bullet", "depth": 1, "text": "Ngay cả khi chưa xác định việc làm tại doanh nghiệp Hàn Quốc, nếu người nước ngoài đã lấy bằng thạc sĩ/tiến sĩ tại đại học và viện nghiên cứu chuyên ngành khoa học - kỹ thuật được hiệu trưởng giới thiệu, có thể được cấp phép chuyển đổi tư cách (tối đa 5 năm) ngay cả khi chưa đáp ứng yêu cầu điểm số" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "计分制各评估项目得分合计须达到 80 分以上（请参考 F-2-7 计分制签证测试）" },
+      { "kind": "bullet", "depth": 0, "text": "无结核等传染病" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Tổng điểm theo các hạng mục đánh giá của hệ thống tính điểm phải đạt từ 80 điểm trở lên (tham khảo F-2-7 Scoring System Visa Test)" },
+      { "kind": "bullet", "depth": 0, "text": "Không mắc các bệnh truyền nhiễm như lao, v.v." }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "基本材料" },
+      { "kind": "bullet", "depth": 1, "text": "申请书、护照、外国人登录证、照片、手续费、停留地证明材料、海外无犯罪记录证明、雇佣合同" },
+      { "kind": "bullet", "depth": 0, "text": "计分制评估材料" },
+      { "kind": "bullet", "depth": 1, "text": "由申请人填写相应分数的积分表" },
+      { "kind": "bullet", "depth": 1, "text": "证明申请人填写的各评估项目分数的材料" },
+      { "kind": "bullet", "depth": 1, "text": "补充材料：家庭关系证明材料、结核检查确认书、学位证、理工科特色化大学校长推荐书、在职证明、营业执照、收入金额证明等其他（仅适用者）" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ cơ bản" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn đăng ký, hộ chiếu, thẻ đăng ký người nước ngoài, ảnh, lệ phí, hồ sơ chứng minh nơi lưu trú, lý lịch tư pháp ở nước ngoài, hợp đồng lao động" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ phục vụ đánh giá theo hệ thống tính điểm" },
+      { "kind": "bullet", "depth": 1, "text": "Bảng tính điểm do người nộp hồ sơ ghi điểm tương ứng" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh điểm số ở từng hạng mục đánh giá mà người nộp hồ sơ đã ghi" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ bổ sung: Hồ sơ chứng minh quan hệ gia đình, giấy xác nhận khám lao, bằng cấp, thư giới thiệu của hiệu trưởng đại học chuyên ngành khoa học - kỹ thuật, giấy chứng nhận đang công tác, giấy phép kinh doanh, giấy chứng nhận thu nhập, v.v. (chỉ với đối tượng áp dụng)" }
     ]
   },
   "F-2-R": {
@@ -14606,6 +16968,62 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "학교장 추천서"
       }
+    ],
+    "titleZh": "F-2-R 地区特化型签证 - 在人口减少地区定居",
+    "titleVi": "Visa F-2-R Đặc thù khu vực - Định cư tại khu vực giảm dân số",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "为积极应对地方消亡问题，推进韩国境内停留外国人在人口减少地区定居" },
+      { "kind": "bullet", "depth": 0, "text": "推进允许外国人与居民共同参与地区社会可持续发展的签证政策" },
+      { "kind": "bullet", "depth": 0, "text": "引导适合人口减少地区各地特色产业、大学、就业现状的外国人定居，扩大地方政府生活人口、促进经济活动、引入人口等良性循环结构" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Nhằm chủ động ứng phó với vấn đề suy giảm địa phương, thúc đẩy người nước ngoài đang lưu trú trong nước định cư tại khu vực giảm dân số" },
+      { "kind": "bullet", "depth": 0, "text": "Thúc đẩy chính sách thị thực để người nước ngoài và cư dân cùng tham gia vào sự phát triển bền vững của cộng đồng địa phương" },
+      { "kind": "bullet", "depth": 0, "text": "Khuyến khích người nước ngoài định cư phù hợp với ngành công nghiệp đặc thù, đại học, hiện trạng việc làm tại các vùng giảm dân số, tạo nên cấu trúc tuần hoàn tích cực: mở rộng dân số sinh hoạt của chính quyền địa phương, thúc đẩy hoạt động kinh tế, thu hút dân số" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "需同时满足法务部规定的学历/收入、居住地、韩语能力、法令遵守等要件，及地方政府个别要件 甲. 学历/收入（两个要件中具备其一即可）1) 学历 2) 收入 乙. 居住地 丙. 就业/创业（两个要件中具备其一即可）丁. 基本素养（具备其一即可）" },
+      { "kind": "bullet", "depth": 1, "text": "国内取得专科以上学位者，2 年制专科大学以上的毕业生或预定毕业生" },
+      { "kind": "bullet", "depth": 1, "text": "申请日基准 6 个月内毕业预定证明（提交大学校长、学科长名义文件），首次停留期延长时提交学位证等证明材料" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Phải đồng thời đáp ứng các yêu cầu của Bộ Tư pháp về học vấn/thu nhập, nơi cư trú, năng lực tiếng Hàn, tuân thủ pháp luật và các yêu cầu riêng của chính quyền địa phương. A. Học vấn/Thu nhập (chỉ cần đáp ứng 1 trong 2) 1) Học vấn 2) Thu nhập B. Nơi cư trú C. Việc làm/Khởi nghiệp (chỉ cần đáp ứng 1 trong 2) D. Tố chất cơ bản (chỉ cần đáp ứng 1 yêu cầu)" },
+      { "kind": "bullet", "depth": 1, "text": "Người đã lấy bằng cao đẳng trở lên trong nước, là người tốt nghiệp hoặc dự kiến tốt nghiệp từ trường cao đẳng 2 năm trở lên" },
+      { "kind": "bullet", "depth": 1, "text": "Cần giấy chứng nhận dự kiến tốt nghiệp trong vòng 6 tháng kể từ ngày nộp hồ sơ (nộp văn bản dưới danh nghĩa hiệu trưởng, chủ nhiệm khoa); khi gia hạn lưu trú lần đầu cần nộp bằng cấp và các giấy tờ chứng minh khác" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "综合申请书、护照、照片" },
+      { "kind": "bullet", "depth": 0, "text": "外国人登录证" },
+      { "kind": "bullet", "depth": 0, "text": "学历证明材料（学历证明、学位证、毕业证明、毕业预定证明等）" },
+      { "kind": "bullet", "depth": 0, "text": "收入证明材料：税务局发行的收入金额证明等公文证明材料" },
+      { "kind": "bullet", "depth": 0, "text": "居住地证明材料（不动产租赁合同、不动产登记副本等）" },
+      { "kind": "bullet", "depth": 0, "text": "经济活动证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "（就业者）雇佣合同、在职证明、营业执照、法人登记副本等" },
+      { "kind": "bullet", "depth": 1, "text": "（创业者）投资金证明材料、营业执照、法人登记事项全部证明等" },
+      { "kind": "bullet", "depth": 0, "text": "海外无犯罪记录证明（参照永居指南的犯罪记录证明规定）" },
+      { "kind": "bullet", "depth": 0, "text": "基本素养要件证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "社会融合项目 3 阶段以上修读证或预先评价 4 阶段以上分配确认书" },
+      { "kind": "bullet", "depth": 1, "text": "韩国语能力考试（TOPIK）3 级以上成绩单" },
+      { "kind": "bullet", "depth": 0, "text": "地方政府首长推荐书（发行日起 3 个月内）" },
+      { "kind": "bullet", "depth": 0, "text": "学校校长推荐书" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn đăng ký tổng hợp, hộ chiếu, ảnh" },
+      { "kind": "bullet", "depth": 0, "text": "Thẻ đăng ký người nước ngoài" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chứng minh học vấn (giấy chứng nhận học lực, bằng cấp, giấy tốt nghiệp, giấy dự kiến tốt nghiệp, v.v.)" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chứng minh thu nhập: Giấy chứng nhận thu nhập do Cục Thuế cấp và các giấy tờ chứng minh chính thức khác" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chứng minh nơi cư trú (hợp đồng cho thuê bất động sản, bản sao đăng ký bất động sản, v.v.)" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chứng minh hoạt động kinh tế" },
+      { "kind": "bullet", "depth": 1, "text": "(Người làm việc) Hợp đồng lao động, giấy chứng nhận đang công tác, giấy phép kinh doanh, bản sao đăng ký pháp nhân, v.v." },
+      { "kind": "bullet", "depth": 1, "text": "(Người khởi nghiệp) Hồ sơ chứng minh vốn đầu tư, giấy phép kinh doanh, giấy chứng nhận tất cả các mục đăng ký pháp nhân, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Lý lịch tư pháp ở nước ngoài (áp dụng theo quy định lý lịch tư pháp trong hướng dẫn thường trú)" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chứng minh điều kiện tố chất cơ bản" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận hoàn thành Chương trình Hoà nhập Xã hội cấp 3 trở lên hoặc giấy xác nhận xếp lớp đánh giá trước cấp 4 trở lên" },
+      { "kind": "bullet", "depth": 1, "text": "Bảng điểm Kỳ thi Năng lực tiếng Hàn (TOPIK) cấp 3 trở lên" },
+      { "kind": "bullet", "depth": 0, "text": "Thư giới thiệu của lãnh đạo chính quyền địa phương (trong vòng 3 tháng kể từ ngày cấp)" },
+      { "kind": "bullet", "depth": 0, "text": "Thư giới thiệu của hiệu trưởng" }
     ]
   },
   "F-3": {
@@ -14795,6 +17213,44 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "생계유지능력 입증서류: 초청자의 재직증명서, 납세사실증명서 등"
       }
+    ],
+    "titleZh": "F-3 同行签证 - 配偶及子女",
+    "titleVi": "Visa F-3 Người phụ thuộc - Vợ/chồng và con cái",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "随行家属：" },
+      { "kind": "bullet", "depth": 1, "text": "持有文化艺术（D-1）至特定活动（E-7）任一停留资格者的配偶及未成年子女（但技术研修 D-3 持有者除外）" },
+      { "kind": "bullet", "depth": 0, "text": "专业人才的随行人员：" },
+      { "kind": "bullet", "depth": 1, "text": "教授（E-1）、研究（E-3）、技术指导（E-4）、专门职业（E-5）及获颁尖端科技领域雇佣推荐书（GOLD CARD）的特定活动（E-7）资格外国人的配偶及未成年子女" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Gia đình đi cùng:" },
+      { "kind": "bullet", "depth": 1, "text": "Vợ/chồng và con chưa thành niên của người mang tư cách lưu trú từ Văn hoá nghệ thuật (D-1) đến Hoạt động đặc thù (E-7) (riêng tư cách Đào tạo kỹ thuật (D-3) bị loại trừ)" },
+      { "kind": "bullet", "depth": 0, "text": "Người đi cùng nhân lực chuyên môn:" },
+      { "kind": "bullet", "depth": 1, "text": "Vợ/chồng và con chưa thành niên của người nước ngoài mang tư cách Giáo sư (E-1), Nghiên cứu (E-3), Chuyển giao công nghệ (E-4), Nghề chuyên môn (E-5) và Hoạt động đặc thù (E-7) đã được cấp Thư giới thiệu tuyển dụng lĩnh vực khoa học công nghệ tiên tiến (GOLD CARD)" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "欲从事非营利学术或艺术活动者（包括欲对韩国独有文化或艺术进行专业研究或接受专家指导者）" },
+      { "kind": "bullet", "depth": 0, "text": "从事论文撰写、创作活动者" },
+      { "kind": "bullet", "depth": 0, "text": "受非营利学术活动或艺术团体邀请，从事学术或纯艺术活动者" },
+      { "kind": "bullet", "depth": 0, "text": "欲对韩国独有文化或艺术进行专业研究或接受专家指导者" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người muốn thực hiện hoạt động học thuật hoặc nghệ thuật không nhằm mục đích lợi nhuận (bao gồm người muốn nghiên cứu chuyên sâu hoặc nhận sự hướng dẫn của chuyên gia về văn hoá, nghệ thuật đặc trưng của Hàn Quốc)" },
+      { "kind": "bullet", "depth": 0, "text": "Người thực hiện hoạt động viết luận văn, sáng tác" },
+      { "kind": "bullet", "depth": 0, "text": "Người tham gia hoạt động học thuật hoặc nghệ thuật thuần tuý theo lời mời của tổ chức học thuật, nghệ thuật phi lợi nhuận" },
+      { "kind": "bullet", "depth": 0, "text": "Người muốn nghiên cứu chuyên sâu hoặc nhận sự hướng dẫn của chuyên gia về văn hoá, nghệ thuật đặc trưng của Hàn Quốc" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证发放认定申请书、护照副本、标准规格照片 1 张" },
+      { "kind": "bullet", "depth": 0, "text": "家庭关系证明材料：结婚证明、家庭关系记录证明、出生证明等（中国人需附居民身份证、结婚证、户口簿）" },
+      { "kind": "bullet", "depth": 0, "text": "维持生计能力证明材料：邀请人的在职证明、纳税事实证明等" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp giấy phép cấp thị thực, bản sao hộ chiếu, 1 ảnh tiêu chuẩn" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chứng minh quan hệ gia đình: Giấy đăng ký kết hôn, giấy chứng nhận quan hệ gia đình, giấy khai sinh, v.v. (đối với người Trung Quốc, kèm chứng minh thư cư dân, giấy đăng ký kết hôn, sổ hộ khẩu)" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chứng minh khả năng duy trì sinh kế: Giấy chứng nhận đang công tác, giấy chứng nhận đã nộp thuế của người mời, v.v." }
     ]
   },
   "F-4": {
@@ -14934,6 +17390,38 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "가족관계기록사항에 관한 증명서, 제적등본, 호구부, 거민증 및 출생증명서 등으로 외국국적동포임을 증명하는 서류"
       }
+    ],
+    "titleZh": "F-4 海外同胞签证 - 韩国出生",
+    "titleVi": "Visa F-4 Đồng bào hải ngoại - Sinh tại Hàn Quốc",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "海外同胞签证" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：原则上不超过 3 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Thị thực đồng bào hải ngoại" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: về nguyên tắc không quá 3 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "因出生而曾持有韩国国籍的人（包括韩国政府成立前移居海外的同胞），且取得外国国籍者" },
+      { "kind": "bullet", "depth": 1, "text": "上述人员的直系卑亲属，且取得外国国籍者" },
+      { "kind": "bullet", "depth": 2, "text": "2018 年 5 月 1 日以后首次脱离或丧失韩国国籍的男性，若未履行兵役或获得免除处分，至年满 40 岁当年 12 月 31 日前限制授予 F-4 停留资格" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người từng mang quốc tịch Đại Hàn Dân Quốc do sinh ra (bao gồm đồng bào di cư ra nước ngoài trước khi Chính phủ Hàn Quốc thành lập) và đã nhập quốc tịch nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Hậu duệ trực hệ của người trên đã nhập quốc tịch nước ngoài" },
+      { "kind": "bullet", "depth": 2, "text": "Đối với nam giới lần đầu rời bỏ hoặc mất quốc tịch Đại Hàn Dân Quốc kể từ 1/5/2018, nếu chưa thực hiện nghĩa vụ quân sự hoặc chưa được miễn trừ, sẽ bị hạn chế cấp tư cách F-4 cho đến ngày 31/12 của năm đủ 40 tuổi" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "韩语能力证明材料" },
+      { "kind": "bullet", "depth": 0, "text": "海外无犯罪记录证明" },
+      { "kind": "bullet", "depth": 0, "text": "家庭关系记录证明、除籍证明、户口簿、居民证及出生证明等证明外籍同胞身份的材料" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chứng minh năng lực tiếng Hàn" },
+      { "kind": "bullet", "depth": 0, "text": "Lý lịch tư pháp ở nước ngoài" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy tờ chứng minh là đồng bào quốc tịch nước ngoài: giấy chứng nhận quan hệ gia đình, giấy chứng nhận xoá tịch, sổ hộ khẩu, chứng minh thư cư dân, giấy khai sinh, v.v." }
     ]
   },
   "F-5": {
@@ -15763,6 +18251,138 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 2,
         "text": "연금증서 및 연금입금 통장 사본"
       }
+    ],
+    "titleZh": "F-5 永居签证 - 永久居留权",
+    "titleVi": "Visa F-5 Thường trú - Quyền thường trú",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "不受停留资格区分的活动限制" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：无上限" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Không bị hạn chế hoạt động theo phân loại tư cách lưu trú" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: không giới hạn" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "F-5-1：在韩国停留 5 年以上者" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-4：永居资格持有者的配偶或未成年子女" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-5：投资 50 万美元以上并雇佣 5 名以上韩国国民者" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-8：在韩国出生的在韩华侨" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-9：尖端产业领域博士学位持有者，且受雇于韩国企业" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-10：尖端产业领域学士、一般领域硕士以上学位或技术资格证持有者，且受雇于韩国企业" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-11：在特定领域（科学、经营、教育、文化艺术、体育等）具有卓越能力者" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-12：对韩国有特别贡献者" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-13：60 岁以上且在国外领取养老金者" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-15：在韩国研究生院取得博士学位后受雇于韩国企业者" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-16：以计分制居住资格停留 3 年以上者" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-17：以观光、休养设施投资居住资格连续投资 5 年以上者" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-18：计分制永居者（F-5-16）的配偶或未成年子女" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-19：观光、休养设施投资者（F-5-17）的配偶或未婚子女" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-20：永居权者在韩国出生的子女" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-21：以公益事业投资居住资格连续投资 5 年以上者" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-22：公益事业一般投资者（F-5-21）或公益事业退休移民投资者（F-5-23）的配偶或未婚子女" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-23：作为退休移民投资者，对公益事业连续投资 5 年以上且国内持有资产达 3 亿韩元以上者" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-24：以技术创业（D-8-4）资格吸引 3 亿韩元以上投资金，且雇佣 2 名以上韩国国民者" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-25：承诺投资 15 亿韩元以上 5 年以上者" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "F-5-1: Người đã lưu trú tại Hàn Quốc từ 5 năm trở lên" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-4: Vợ/chồng hoặc con chưa thành niên của người mang tư cách thường trú" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-5: Người đầu tư từ 500.000 USD trở lên và tuyển dụng 5 công dân trở lên" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-8: Hoa kiều cư trú tại Hàn Quốc và được sinh ra tại Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-9: Người có bằng tiến sĩ trong lĩnh vực công nghiệp tiên tiến và được tuyển dụng tại doanh nghiệp Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-10: Người có bằng cử nhân trong lĩnh vực công nghiệp tiên tiến, hoặc thạc sĩ trở lên ở lĩnh vực thông thường, hoặc chứng chỉ kỹ thuật, và được tuyển dụng tại doanh nghiệp Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-11: Người có năng lực xuất chúng trong lĩnh vực đặc thù (khoa học, quản trị, giáo dục, văn hoá nghệ thuật, thể thao, v.v.)" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-12: Người có công lao đặc biệt với Đại Hàn Dân Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-13: Người từ 60 tuổi trở lên và nhận lương hưu ở nước ngoài" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-15: Người lấy bằng tiến sĩ tại trường sau đại học trong nước và được tuyển dụng tại doanh nghiệp Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-16: Người đã lưu trú từ 3 năm trở lên với tư cách cư trú theo hệ thống tính điểm" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-17: Người liên tục đầu tư từ 5 năm trở lên với tư cách cư trú đầu tư cơ sở du lịch/nghỉ dưỡng" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-18: Vợ/chồng hoặc con chưa thành niên của người thường trú theo hệ thống tính điểm (F-5-16)" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-19: Vợ/chồng hoặc con chưa kết hôn của nhà đầu tư cơ sở du lịch/nghỉ dưỡng (F-5-17)" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-20: Con sinh ra trong nước của người mang tư cách thường trú" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-21: Người liên tục đầu tư từ 5 năm trở lên với tư cách cư trú đầu tư công ích" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-22: Vợ/chồng hoặc con chưa kết hôn của nhà đầu tư công ích thông thường (F-5-21) hoặc nhà đầu tư công ích diện hưu trí (F-5-23)" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-23: Nhà đầu tư diện hưu trí, đầu tư liên tục từ 5 năm trở lên cho dự án công ích và sở hữu tài sản tại Hàn Quốc từ 300 triệu KRW trở lên" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-24: Người đã thu hút từ 300 triệu KRW vốn đầu tư trở lên với tư cách Khởi nghiệp công nghệ (D-8-4) và tuyển dụng 2 công dân trở lên" },
+      { "kind": "bullet", "depth": 0, "text": "F-5-25: Người cam kết đầu tư từ 1,5 tỷ KRW trở lên trong 5 năm trở lên" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "通用提交材料" },
+      { "kind": "bullet", "depth": 1, "text": "综合申请书" },
+      { "kind": "bullet", "depth": 1, "text": "护照" },
+      { "kind": "bullet", "depth": 1, "text": "外国人登录证" },
+      { "kind": "bullet", "depth": 1, "text": "停留地证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "海外无犯罪记录证明" },
+      { "kind": "bullet", "depth": 1, "text": "身份担保书" },
+      { "kind": "bullet", "depth": 1, "text": "收入金额证明" },
+      { "kind": "bullet", "depth": 1, "text": "综合所得税相关材料" },
+      { "kind": "bullet", "depth": 1, "text": "韩国移民永居适格考试结果" },
+      { "kind": "bullet", "depth": 1, "text": "韩国移民归化适格考试结果" },
+      { "kind": "bullet", "depth": 1, "text": "社会融合项目修读证" },
+      { "kind": "bullet", "depth": 0, "text": "按永居资格的提交材料" },
+      { "kind": "bullet", "depth": 1, "text": "F-5-1：" },
+      { "kind": "bullet", "depth": 2, "text": "D-8 或 D-9 情况：销售额或出口额证明材料" },
+      { "kind": "bullet", "depth": 2, "text": "D-10 情况：E-1~E-7 相应资格证明、学位证、雇佣合同" },
+      { "kind": "bullet", "depth": 2, "text": "E-7 情况：学位证" },
+      { "kind": "bullet", "depth": 1, "text": "F-5-4、F-5-8、F-5-18、F-5-19、F-5-20、F-5-22：" },
+      { "kind": "bullet", "depth": 2, "text": "家庭关系证明材料" },
+      { "kind": "bullet", "depth": 2, "text": "出生证明" },
+      { "kind": "bullet", "depth": 2, "text": "未婚子女证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "F-5-5、F-5-24：" },
+      { "kind": "bullet", "depth": 2, "text": "外商投资企业登记证明（仅 F-5-5 适用）" },
+      { "kind": "bullet", "depth": 2, "text": "投资金引入相关材料（仅 F-5-24 适用）" },
+      { "kind": "bullet", "depth": 2, "text": "法人登记事项全部证明" },
+      { "kind": "bullet", "depth": 2, "text": "营业执照副本" },
+      { "kind": "bullet", "depth": 2, "text": "雇佣本国人收入金额证明" },
+      { "kind": "bullet", "depth": 2, "text": "与雇佣本国人签订的雇佣合同" },
+      { "kind": "bullet", "depth": 2, "text": "雇佣本国人相关四大保险事业场加入名册等" },
+      { "kind": "bullet", "depth": 1, "text": "F-5-9、F-5-10、F-5-15：" },
+      { "kind": "bullet", "depth": 2, "text": "学位证或技术资格证副本" },
+      { "kind": "bullet", "depth": 2, "text": "营业执照副本" },
+      { "kind": "bullet", "depth": 2, "text": "雇佣合同副本" },
+      { "kind": "bullet", "depth": 2, "text": "在职证明" },
+      { "kind": "bullet", "depth": 1, "text": "F-5-13：" },
+      { "kind": "bullet", "depth": 2, "text": "养老金证书及养老金存折副本" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chung phải nộp" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn đăng ký tổng hợp" },
+      { "kind": "bullet", "depth": 1, "text": "Hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "Thẻ đăng ký người nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh nơi lưu trú" },
+      { "kind": "bullet", "depth": 1, "text": "Lý lịch tư pháp ở nước ngoài" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy bảo lãnh nhân thân" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận thu nhập" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ liên quan đến thuế thu nhập tổng hợp" },
+      { "kind": "bullet", "depth": 1, "text": "Kết quả kỳ thi tư cách Thường trú Nhập cư Hàn Quốc" },
+      { "kind": "bullet", "depth": 1, "text": "Kết quả kỳ thi tư cách Nhập tịch Hàn Quốc" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận hoàn thành Chương trình Hoà nhập Xã hội" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ phải nộp theo từng loại tư cách thường trú" },
+      { "kind": "bullet", "depth": 1, "text": "F-5-1:" },
+      { "kind": "bullet", "depth": 2, "text": "Trường hợp D-8 hoặc D-9: Hồ sơ chứng minh doanh thu hoặc kim ngạch xuất khẩu" },
+      { "kind": "bullet", "depth": 2, "text": "Trường hợp D-10: Hồ sơ chứng minh tư cách E-1~E-7, bằng cấp, hợp đồng lao động" },
+      { "kind": "bullet", "depth": 2, "text": "Trường hợp E-7: Bằng cấp" },
+      { "kind": "bullet", "depth": 1, "text": "F-5-4, F-5-8, F-5-18, F-5-19, F-5-20, F-5-22:" },
+      { "kind": "bullet", "depth": 2, "text": "Hồ sơ chứng minh quan hệ gia đình" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy khai sinh" },
+      { "kind": "bullet", "depth": 2, "text": "Hồ sơ chứng minh con chưa kết hôn" },
+      { "kind": "bullet", "depth": 1, "text": "F-5-5, F-5-24:" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy chứng nhận đăng ký doanh nghiệp đầu tư nước ngoài (chỉ áp dụng F-5-5)" },
+      { "kind": "bullet", "depth": 2, "text": "Hồ sơ liên quan đến việc thu hút vốn đầu tư (chỉ áp dụng F-5-24)" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy chứng nhận tất cả các mục đăng ký pháp nhân" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao giấy phép kinh doanh" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy chứng nhận thu nhập của công dân được tuyển dụng" },
+      { "kind": "bullet", "depth": 2, "text": "Hợp đồng lao động ký với công dân được tuyển dụng" },
+      { "kind": "bullet", "depth": 2, "text": "Danh sách tham gia 4 loại bảo hiểm liên quan đến công dân được tuyển dụng, v.v." },
+      { "kind": "bullet", "depth": 1, "text": "F-5-9, F-5-10, F-5-15:" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao bằng cấp hoặc chứng chỉ kỹ thuật" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao giấy phép kinh doanh" },
+      { "kind": "bullet", "depth": 2, "text": "Bản sao hợp đồng lao động" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy chứng nhận đang công tác" },
+      { "kind": "bullet", "depth": 1, "text": "F-5-13:" },
+      { "kind": "bullet", "depth": 2, "text": "Giấy tờ lương hưu và bản sao sổ tài khoản nhận lương hưu" }
     ]
   },
   "F-6": {
@@ -16247,6 +18867,64 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "건강진단서 원본"
       }
+    ],
+    "titleZh": "F-6 结婚移民签证 - 结婚及离婚家庭",
+    "titleVi": "Visa F-6 Kết hôn nhập cư - Gia đình kết hôn và ly hôn",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "结婚家庭及离婚家庭" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：3 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Gia đình kết hôn và gia đình ly hôn" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 3 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "F-6-1：在韩国有效成立婚姻并希望与韩国国民继续婚姻生活而欲在韩停留者" },
+      { "kind": "bullet", "depth": 0, "text": "F-6-2：与韩国国民婚姻关系（含事实婚）中出生的未成年子女，在婚姻关系终止后在韩抚养或欲抚养的父或母" },
+      { "kind": "bullet", "depth": 0, "text": "F-6-3：与韩国国民配偶婚姻状态下在韩停留期间，因配偶死亡或失踪等非己方责任事由无法维持正常婚姻关系，且经法务部长官认定的人员" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "F-6-1: Người đã thành lập hôn nhân hợp lệ tại Hàn Quốc và muốn lưu trú trong nước để tiếp tục đời sống hôn nhân với công dân Hàn Quốc" },
+      { "kind": "bullet", "depth": 0, "text": "F-6-2: Cha hoặc mẹ đang nuôi dưỡng hoặc dự định nuôi dưỡng tại Hàn Quốc con chưa thành niên sinh ra trong quan hệ hôn nhân (bao gồm sống chung như vợ chồng) với công dân, sau khi quan hệ hôn nhân chấm dứt" },
+      { "kind": "bullet", "depth": 0, "text": "F-6-3: Người đang lưu trú trong nước trong tình trạng kết hôn với công dân, không thể duy trì quan hệ hôn nhân bình thường do người phối ngẫu qua đời, mất tích hoặc các lý do khác không thuộc trách nhiệm của bản thân, và được Bộ trưởng Tư pháp công nhận" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "基本材料" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请书（签证发放申请书）" },
+      { "kind": "bullet", "depth": 1, "text": "护照规格照片 1 张" },
+      { "kind": "bullet", "depth": 1, "text": "申请人（外国人配偶）护照原件及副本 1 份" },
+      { "kind": "bullet", "depth": 1, "text": "签证申请手续费" },
+      { "kind": "bullet", "depth": 1, "text": "外国人配偶邀请函（由韩国人配偶以韩文撰写）" },
+      { "kind": "bullet", "depth": 1, "text": "身份担保书（由韩国人配偶以韩文撰写）" },
+      { "kind": "bullet", "depth": 1, "text": "外国人配偶的结婚背景陈述书（由外国人配偶以英文撰写）" },
+      { "kind": "bullet", "depth": 0, "text": "韩国人配偶需准备的材料" },
+      { "kind": "bullet", "depth": 1, "text": "韩国人配偶护照副本 1 份" },
+      { "kind": "bullet", "depth": 1, "text": "基本证明（详细）" },
+      { "kind": "bullet", "depth": 1, "text": "婚姻关系证明（详细）" },
+      { "kind": "bullet", "depth": 1, "text": "家庭关系证明（详细）" },
+      { "kind": "bullet", "depth": 1, "text": "居民登记表副本原件" },
+      { "kind": "bullet", "depth": 1, "text": "国际结婚指南项目修读证" },
+      { "kind": "bullet", "depth": 1, "text": "健康诊断书原件" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ cơ bản" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn xin cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "1 ảnh kích cỡ hộ chiếu" },
+      { "kind": "bullet", "depth": 1, "text": "Bản gốc và 1 bản sao hộ chiếu của người nộp hồ sơ (vợ/chồng người nước ngoài)" },
+      { "kind": "bullet", "depth": 1, "text": "Lệ phí xét cấp thị thực" },
+      { "kind": "bullet", "depth": 1, "text": "Thư mời vợ/chồng người nước ngoài (do vợ/chồng người Hàn viết bằng tiếng Hàn)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy bảo lãnh nhân thân (do vợ/chồng người Hàn viết bằng tiếng Hàn)" },
+      { "kind": "bullet", "depth": 1, "text": "Bản tường trình bối cảnh hôn nhân của vợ/chồng người nước ngoài (do vợ/chồng người nước ngoài viết bằng tiếng Anh)" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ vợ/chồng người Hàn cần chuẩn bị" },
+      { "kind": "bullet", "depth": 1, "text": "1 bản sao hộ chiếu của vợ/chồng người Hàn" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận cơ bản (chi tiết)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận quan hệ hôn nhân (chi tiết)" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận quan hệ gia đình (chi tiết)" },
+      { "kind": "bullet", "depth": 1, "text": "Bản gốc bảng đăng ký dân" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy chứng nhận hoàn thành Chương trình Hướng dẫn Hôn nhân Quốc tế" },
+      { "kind": "bullet", "depth": 1, "text": "Bản gốc giấy chẩn đoán sức khoẻ" }
     ]
   },
   "H-1": {
@@ -16511,19 +19189,77 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 0,
         "text": "기타 서류"
       }
+    ],
+    "titleZh": "H-1 旅游就业签证 - 打工度假",
+    "titleVi": "Visa H-1 Du lịch kết hợp việc làm - Working Holiday",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "与韩国签订打工度假协定或谅解备忘录国家的国民，以观光为主要目的并为筹措伴随的观光经费而进行短期就业活动者" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：协定规定的停留期间" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Công dân các nước đã ký hiệp định hoặc bản ghi nhớ về du lịch kết hợp việc làm với Hàn Quốc, làm việc ngắn hạn nhằm trang trải chi phí du lịch với mục đích chính là du lịch" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: thời hạn lưu trú theo hiệp định" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "澳大利亚、加拿大、新西兰、日本、美国、法国、德国、爱尔兰、瑞典、丹麦、香港、台湾、捷克、意大利、英国、奥地利、匈牙利、以色列、荷兰、葡萄牙、比利时、智利、波兰、西班牙、阿根廷国家的国民" },
+      { "kind": "bullet", "depth": 0, "text": "签证申请时年龄在 18 至 30 岁之间" },
+      { "kind": "bullet", "depth": 0, "text": "无重大犯罪记录" },
+      { "kind": "bullet", "depth": 0, "text": "具备生活费等财力能力" },
+      { "kind": "bullet", "depth": 0, "text": "观光须为主要目的，限制 E-1 ~ E-7 资格相应领域的就业" },
+      { "kind": "bullet", "depth": 0, "text": "每周最多就业时间不超过 25 小时" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Công dân các nước: Úc, Canada, New Zealand, Nhật Bản, Mỹ, Pháp, Đức, Ireland, Thụy Điển, Đan Mạch, Hong Kong, Đài Loan, Cộng hoà Séc, Ý, Anh, Áo, Hungary, Israel, Hà Lan, Bồ Đào Nha, Bỉ, Chile, Ba Lan, Tây Ban Nha, Argentina" },
+      { "kind": "bullet", "depth": 0, "text": "Tuổi từ 18 đến 30 tại thời điểm nộp hồ sơ xin thị thực" },
+      { "kind": "bullet", "depth": 0, "text": "Không có tiền án nghiêm trọng" },
+      { "kind": "bullet", "depth": 0, "text": "Có năng lực tài chính chi trả chi phí sinh hoạt, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Mục đích chính phải là du lịch; bị hạn chế làm việc trong các lĩnh vực thuộc tư cách E-1 ~ E-7" },
+      { "kind": "bullet", "depth": 0, "text": "Số giờ làm việc tối đa mỗi tuần không quá 25 giờ" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "签证申请书、照片、护照、往返机票" },
+      { "kind": "bullet", "depth": 1, "text": "无往返机票时，认可相当金额的存款凭证" },
+      { "kind": "bullet", "depth": 0, "text": "存款余额证明等可在一定期间（3 个月）停留的费用证明材料" },
+      { "kind": "bullet", "depth": 0, "text": "无犯罪记录证明、健康诊断书" },
+      { "kind": "bullet", "depth": 0, "text": "保险证书" },
+      { "kind": "bullet", "depth": 0, "text": "在学证明或最终学历证明" },
+      { "kind": "bullet", "depth": 0, "text": "打工度假活动计划书" },
+      { "kind": "bullet", "depth": 0, "text": "其他材料" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Đơn xin cấp thị thực, ảnh, hộ chiếu, vé máy bay khứ hồi" },
+      { "kind": "bullet", "depth": 1, "text": "Trường hợp không có vé khứ hồi, có thể chấp nhận hồ sơ ký quỹ với số tiền tương đương" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ chứng minh chi phí lưu trú trong một thời gian nhất định (3 tháng) như giấy chứng nhận số dư tiết kiệm, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Lý lịch tư pháp, giấy chẩn đoán sức khoẻ" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy chứng nhận bảo hiểm" },
+      { "kind": "bullet", "depth": 0, "text": "Giấy chứng nhận đang học hoặc giấy chứng nhận học vấn cuối cùng" },
+      { "kind": "bullet", "depth": 0, "text": "Kế hoạch hoạt động du lịch kết hợp việc làm" },
+      { "kind": "bullet", "depth": 0, "text": "Hồ sơ khác" }
     ]
   },
   "H-2": {
     "titleKo": "비자 안내",
     "titleEn": "비자 안내",
+    "titleZh": "签证指南",
+    "titleVi": "Hướng dẫn visa",
     "updatedAtKo": null,
     "updatedAtEn": null,
+    "updatedAtZh": null,
+    "updatedAtVi": null,
     "descriptionKo": [],
     "descriptionEn": [],
+    "descriptionZh": [],
+    "descriptionVi": [],
     "candidatesKo": [],
     "candidatesEn": [],
+    "candidatesZh": [],
+    "candidatesVi": [],
     "requirementsKo": [],
     "requirementsEn": [],
+    "requirementsZh": [],
+    "requirementsVi": [],
     "description": [],
     "candidates": [],
     "requirements": []
@@ -17690,6 +20426,68 @@ export const VISA_DETAILS: Record<string, VisaDetail> = {
         "depth": 1,
         "text": "체류지 입증 서류 ( 임대차계약서, 숙소제공 확인서, 체류기간 만료예고 통지 우편물, 공공요금 납부영수증, 기숙사비 영수증, 교회, 난민지원시설, 인권 단체 ,UNHCR 등의 주거확인서 등)"
       }
+    ],
+    "titleZh": "G-1 其他签证",
+    "titleVi": "Visa G-1 Khác",
+    "updatedAtZh": null,
+    "updatedAtVi": null,
+    "descriptionZh": [
+      { "kind": "bullet", "depth": 0, "text": "不属于外交（A-1）至结婚移民（F-6）、打工度假（H-1）或访问就业（H-2）停留资格，但经法务部长官认定的人员" },
+      { "kind": "bullet", "depth": 0, "text": "单次可授予的最长停留期限：1 年" }
+    ],
+    "descriptionVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người không thuộc tư cách lưu trú từ Ngoại giao (A-1) đến Kết hôn nhập cư (F-6), Du lịch kết hợp việc làm (H-1) hoặc Việc làm thăm thân (H-2), nhưng được Bộ trưởng Tư pháp công nhận" },
+      { "kind": "bullet", "depth": 0, "text": "Thời hạn lưu trú tối đa cho mỗi lần cấp: 1 năm" }
+    ],
+    "candidatesZh": [
+      { "kind": "bullet", "depth": 0, "text": "正在申请工伤补偿及治疗的人员及其家属" },
+      { "kind": "bullet", "depth": 0, "text": "因疾病或事故正在治疗的人员及其家属" },
+      { "kind": "bullet", "depth": 0, "text": "各类诉讼进行中的人员" },
+      { "kind": "bullet", "depth": 0, "text": "因拖欠工资在劳动机关进行调解的人员" },
+      { "kind": "bullet", "depth": 0, "text": "难民申请者" },
+      { "kind": "bullet", "depth": 0, "text": "未被认定为难民者中获人道居留许可者" },
+      { "kind": "bullet", "depth": 0, "text": "因事故等死亡人员的家属" },
+      { "kind": "bullet", "depth": 0, "text": "因怀孕、生育等获人道居留许可者" },
+      { "kind": "bullet", "depth": 0, "text": "因疾病治疗等入境后需长期治疗的患者及其家属" },
+      { "kind": "bullet", "depth": 0, "text": "性暴力受害者等需要人道考虑的人员" },
+      { "kind": "bullet", "depth": 0, "text": "人道居留者（G-1-6）的家属" },
+      { "kind": "bullet", "depth": 0, "text": "属于其他事由的人员" }
+    ],
+    "candidatesVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người đang yêu cầu bồi thường tai nạn lao động và đang điều trị, cùng gia đình" },
+      { "kind": "bullet", "depth": 0, "text": "Người đang điều trị do bệnh tật hoặc tai nạn, cùng gia đình" },
+      { "kind": "bullet", "depth": 0, "text": "Người đang trong các vụ kiện tụng" },
+      { "kind": "bullet", "depth": 0, "text": "Người đang được hoà giải tại cơ quan lao động vì nợ lương" },
+      { "kind": "bullet", "depth": 0, "text": "Người xin tị nạn" },
+      { "kind": "bullet", "depth": 0, "text": "Người không được công nhận là người tị nạn nhưng được cấp phép lưu trú nhân đạo" },
+      { "kind": "bullet", "depth": 0, "text": "Gia đình của người tử vong do tai nạn, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Người được cấp phép lưu trú nhân đạo do mang thai, sinh con, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Bệnh nhân và gia đình cần điều trị dài hạn sau khi nhập cảnh để điều trị bệnh, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Người cần xem xét nhân đạo như nạn nhân bạo lực tình dục, v.v." },
+      { "kind": "bullet", "depth": 0, "text": "Gia đình của người cư trú nhân đạo (G-1-6)" },
+      { "kind": "bullet", "depth": 0, "text": "Người thuộc các lý do khác" }
+    ],
+    "requirementsZh": [
+      { "kind": "bullet", "depth": 0, "text": "其他事由对应人员（G-1-99）" },
+      { "kind": "bullet", "depth": 1, "text": "申请书、护照、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "出生证明等可证明与父母关系的材料及未成年子女年龄确认材料" },
+      { "kind": "bullet", "depth": 0, "text": "人道居留许可者的家属（G-1-12）" },
+      { "kind": "bullet", "depth": 1, "text": "申请书、护照及外国人登录证、标准规格照片 1 张、手续费" },
+      { "kind": "bullet", "depth": 1, "text": "家庭关系证明材料" },
+      { "kind": "bullet", "depth": 1, "text": "（配偶）家庭关系证明、结婚证明等可证明婚姻关系的材料" },
+      { "kind": "bullet", "depth": 1, "text": "（未成年子女）出生证明等可证明与父母关系的材料及未成年子女年龄确认材料" },
+      { "kind": "bullet", "depth": 1, "text": "停留地证明材料（租赁合同、住所提供确认书、停留期限届满预告通知邮件、公共费用缴费收据、宿舍费收据、教会、难民支援设施、人权团体、UNHCR 等的居住确认书等）" }
+    ],
+    "requirementsVi": [
+      { "kind": "bullet", "depth": 0, "text": "Người thuộc lý do khác (G-1-99)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn đăng ký, hộ chiếu, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Giấy tờ chứng minh quan hệ với cha mẹ (giấy khai sinh, v.v.) và giấy tờ xác nhận tuổi của con chưa thành niên" },
+      { "kind": "bullet", "depth": 0, "text": "Gia đình của người được cấp phép lưu trú nhân đạo (G-1-12)" },
+      { "kind": "bullet", "depth": 1, "text": "Đơn đăng ký, hộ chiếu và thẻ đăng ký người nước ngoài, 1 ảnh tiêu chuẩn, lệ phí" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh quan hệ gia đình" },
+      { "kind": "bullet", "depth": 1, "text": "(Vợ/chồng) Giấy chứng nhận quan hệ gia đình, giấy đăng ký kết hôn và các giấy tờ chứng minh quan hệ hôn nhân" },
+      { "kind": "bullet", "depth": 1, "text": "(Con chưa thành niên) Giấy tờ chứng minh quan hệ với cha mẹ (giấy khai sinh, v.v.) và giấy tờ xác nhận tuổi của con chưa thành niên" },
+      { "kind": "bullet", "depth": 1, "text": "Hồ sơ chứng minh nơi lưu trú (hợp đồng cho thuê, giấy xác nhận cung cấp chỗ ở, thư thông báo dự báo hết hạn lưu trú, biên lai nộp tiền tiện ích, biên lai phí ký túc xá, giấy xác nhận chỗ ở từ nhà thờ, cơ sở hỗ trợ tị nạn, tổ chức nhân quyền, UNHCR, v.v.)" }
     ]
   }
 } as const;

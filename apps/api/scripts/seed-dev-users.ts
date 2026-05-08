@@ -1,6 +1,7 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import {
+  AuthProvider,
   CommunityPostCategory,
   MemberRole,
   PartnerCompanySize,
@@ -50,7 +51,7 @@ async function main() {
 
   for (const user of users) {
     await prisma.user.upsert({
-      where: { email: user.email },
+      where: { email_authProvider: { email: user.email, authProvider: AuthProvider.EMAIL } },
       update: {
         realName: user.realName,
         name: user.name,

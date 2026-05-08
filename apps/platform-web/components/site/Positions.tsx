@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "../ui/button";
-import { ArrowRight, MapPin, Briefcase, Bookmark } from "lucide-react";
+import { MapPin, Briefcase, Bookmark } from "lucide-react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { getPublicPositionsPage, type PublicPositionListItem } from "../../lib/member-profile-client";
@@ -133,6 +133,7 @@ export const Positions = () => {
   );
 
   const sectionItems = fallbackItems;
+  const mobileItems = sectionItems.slice(0, 5);
   const rollingItems = sectionItems.slice(0, 6);
   const deckItems = rollingItems.slice(0, 5);
   const deckRotations = useMemo(
@@ -156,58 +157,69 @@ export const Positions = () => {
             asChild
           >
             <Link href="/positions">
-              {copy.viewAll} <ArrowRight />
+              {copy.viewAll}
             </Link>
           </Button>
         </Reveal>
 
-        <div className="mx-auto max-w-[1200px] space-y-3 md:hidden">
-          {sectionItems.map((position, index) => (
+        <div className="mx-auto mt-8 max-w-[1200px] space-y-3 md:hidden">
+          {mobileItems.map((position, index) => (
             <Reveal key={`${position.id}-list-wrap`} delayMs={index * 70} y="sm">
               <article
                 key={`${position.id}-list`}
-                className="relative rounded-2xl bg-white p-3 shadow-[0_0_28px_-14px_rgba(37,99,235,0.42)] transition-all duration-300"
+                className="relative rounded-2xl border border-slate-200 bg-[#f8fafc] p-3 shadow-[0_12px_26px_-20px_rgba(15,23,42,0.4)] transition-all duration-300"
               >
-              <Link href="/positions" aria-label={copy.viewAll} className="absolute inset-0 z-10 rounded-xl" />
-              <div className="flex items-start gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="mb-2 overflow-hidden rounded-lg border border-[#DBEAFE] bg-slate-50">
+                <Link href="/positions" aria-label={copy.viewAll} className="absolute inset-0 z-10 rounded-xl" />
+                <div className="flex items-start gap-2.5">
+                  <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white">
                     {position.thumbnailUrl ? (
-                      <img src={position.thumbnailUrl} alt={position.title} className="aspect-video w-full object-cover" />
+                      <img src={position.thumbnailUrl} alt={position.title} className="h-full w-full object-contain" />
                     ) : (
-                      <div className="aspect-video w-full bg-gradient-to-br from-[#DBEAFE] via-[#EFF6FF] to-[#E2E8F0]" />
+                      <span className="text-[11px] font-black uppercase tracking-[0.02em] text-[#0B1227]">
+                        {position.companyInitial}
+                      </span>
                     )}
                   </div>
-                  <div className="text-[11px] text-slate-500">
-                    <p className="truncate font-extrabold text-[#1D4ED8]">{position.company}</p>
-                    <p className="mt-0.5 truncate">{position.category}</p>
-                  </div>
-                  <h3 className="mt-1 line-clamp-2 font-display text-sm font-extrabold leading-snug text-[#0B1227]">{position.title}</h3>
-                  <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-[11px] text-slate-500">
-                    <span className="inline-flex min-w-0 max-w-[52%] items-center gap-1 truncate">
-                      <MapPin className="h-3 w-3 shrink-0" />
-                      {position.location}
-                    </span>
-                    <span className="inline-flex min-w-0 items-center gap-1 truncate">
-                      <Briefcase className="h-3 w-3 shrink-0" />
-                      {position.workType}
-                    </span>
-                  </div>
-                  <div className="relative z-20 mt-2 flex items-center gap-2">
-                    <Button variant="outline" size="icon" aria-label={copy.saveAriaLabel} className="h-8 w-8 border-0 bg-white opacity-60" disabled>
-                      <Bookmark className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="dark"
-                      size="sm"
-                      className="h-8 rounded-xl bg-[#b7ff5a] px-3 text-xs font-semibold text-[#111111] shadow-[0_12px_24px_-16px_rgba(124,174,38,0.55)] pointer-events-none"
-                      aria-disabled="true"
-                    >
-                      {copy.applyCta}
-                    </Button>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 text-[11px] text-slate-500">
+                        <p className="truncate font-extrabold text-[#1D4ED8]">{position.company}</p>
+                        <p className="mt-0.5 truncate">{position.category}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-[10px] text-slate-400">{
+                          locale === "ko" ? "15시간 전" : locale === "zh-CN" ? "15 小时前" : locale === "vi" ? "15 giờ trước" : "15h ago"
+                        }</p>
+                        <p className="mt-0.5 text-[10px] font-semibold text-rose-500">{
+                          locale === "ko" ? "채용시 마감" : locale === "zh-CN" ? "招满即止" : locale === "vi" ? "Đóng khi đủ" : "Closes when filled"
+                        }</p>
+                      </div>
+                    </div>
+                    <h3 className="mt-1 line-clamp-2 font-display text-[13px] font-extrabold leading-snug text-[#0B1227]">{position.title}</h3>
+                    <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-[11px] text-slate-500">
+                      <span className="inline-flex min-w-0 max-w-[58%] items-center gap-1">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{position.location}</span>
+                      </span>
+                      <span className="inline-flex min-w-0 items-center gap-1 truncate">
+                        <Briefcase className="h-3 w-3 shrink-0" />
+                        {position.workType}
+                      </span>
+                    </div>
+                    <div className="relative z-20 mt-2 flex items-center justify-end gap-2">
+                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl border border-slate-200 bg-white opacity-80" aria-label={copy.saveAriaLabel} disabled>
+                        <Bookmark className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="dark"
+                        className="h-8 rounded-xl bg-[#111827] px-3 text-xs font-semibold text-white pointer-events-none"
+                        aria-disabled="true"
+                      >
+                        {locale === "ko" ? "Buddies로 보러가기" : locale === "zh-CN" ? "在 Buddies 查看" : locale === "vi" ? "Xem trên Buddies" : "View on Buddies"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
               </article>
             </Reveal>
           ))}

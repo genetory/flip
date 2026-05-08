@@ -34,31 +34,113 @@ export function ProfileEditPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const copy = {
-    imageOnly: locale === "ko" ? "이미지 파일만 업로드할 수 있습니다." : "Only image files can be uploaded.",
-    maxSize: locale === "ko" ? "이미지 크기는 5MB 이하여야 합니다." : "Image size must be 5MB or less.",
-    nicknameRequired: locale === "ko" ? "닉네임을 입력해주세요." : "Please enter a nickname.",
-    saveFailed: locale === "ko" ? "프로필 저장에 실패했습니다." : "Failed to save profile.",
-    title: locale === "ko" ? "프로필 편집" : "Edit profile",
-    loading: locale === "ko" ? "정보를 불러오는 중..." : "Loading information...",
-    loginRequired: locale === "ko" ? "로그인이 필요합니다." : "Sign in is required.",
-    goLogin: locale === "ko" ? "로그인하러 가기" : "Go to login",
-    profilePhoto: locale === "ko" ? "프로필 사진" : "Profile photo",
-    changePhoto: locale === "ko" ? "사진 변경" : "Change photo",
-    realName: locale === "ko" ? "실명" : "Legal name",
-    nickname: locale === "ko" ? "닉네임" : "Nickname",
-    phone: locale === "ko" ? "연락처" : "Phone",
-    phonePlaceholder: locale === "ko" ? "예: 010-0000-0000" : "e.g., +82-10-0000-0000",
-    gender: locale === "ko" ? "성별" : "Gender",
-    noSelection: locale === "ko" ? "선택 안 함" : "Prefer not to say",
-    male: locale === "ko" ? "남성" : "Male",
-    female: locale === "ko" ? "여성" : "Female",
-    other: locale === "ko" ? "기타" : "Other",
-    birthDate: locale === "ko" ? "생년월일" : "Date of birth",
-    cancel: locale === "ko" ? "취소" : "Cancel",
-    saving: locale === "ko" ? "저장 중..." : "Saving...",
-    save: locale === "ko" ? "저장" : "Save"
+  const copyByLocale = {
+    ko: {
+      imageOnly: "이미지 파일만 업로드할 수 있습니다.",
+      maxSize: "이미지 크기는 5MB 이하여야 합니다.",
+      nicknameRequired: "닉네임을 입력해주세요.",
+      saveFailed: "프로필 저장에 실패했습니다.",
+      title: "프로필 편집",
+      loading: "정보를 불러오는 중...",
+      loginRequired: "로그인이 필요합니다.",
+      goLogin: "로그인하러 가기",
+      profilePhoto: "프로필 사진",
+      changePhoto: "사진 변경",
+      realName: "실명",
+      nickname: "닉네임",
+      phone: "연락처",
+      phonePlaceholder: "예: 010-0000-0000",
+      gender: "성별",
+      noSelection: "선택 안 함",
+      male: "남성",
+      female: "여성",
+      other: "기타",
+      birthDate: "생년월일",
+      cancel: "취소",
+      saving: "저장 중...",
+      save: "저장",
+      subtitle: "기본 프로필 정보를 보기 쉽게 관리할 수 있어요."
+    },
+    en: {
+      imageOnly: "Only image files can be uploaded.",
+      maxSize: "Image size must be 5MB or less.",
+      nicknameRequired: "Please enter a nickname.",
+      saveFailed: "Failed to save profile.",
+      title: "Edit profile",
+      loading: "Loading information...",
+      loginRequired: "Sign in is required.",
+      goLogin: "Go to login",
+      profilePhoto: "Profile photo",
+      changePhoto: "Change photo",
+      realName: "Legal name",
+      nickname: "Nickname",
+      phone: "Phone",
+      phonePlaceholder: "e.g., +82-10-0000-0000",
+      gender: "Gender",
+      noSelection: "Prefer not to say",
+      male: "Male",
+      female: "Female",
+      other: "Other",
+      birthDate: "Date of birth",
+      cancel: "Cancel",
+      saving: "Saving...",
+      save: "Save",
+      subtitle: "Manage your basic profile information with a clearer layout."
+    },
+    "zh-CN": {
+      imageOnly: "仅可上传图片文件。",
+      maxSize: "图片大小必须小于 5MB。",
+      nicknameRequired: "请输入昵称。",
+      saveFailed: "保存资料失败。",
+      title: "编辑资料",
+      loading: "正在加载信息...",
+      loginRequired: "需要先登录。",
+      goLogin: "前往登录",
+      profilePhoto: "头像",
+      changePhoto: "更换头像",
+      realName: "真实姓名",
+      nickname: "昵称",
+      phone: "联系方式",
+      phonePlaceholder: "例如：010-0000-0000",
+      gender: "性别",
+      noSelection: "不选择",
+      male: "男性",
+      female: "女性",
+      other: "其他",
+      birthDate: "出生日期",
+      cancel: "取消",
+      saving: "保存中...",
+      save: "保存",
+      subtitle: "可更清晰地管理你的基础资料信息。"
+    },
+    vi: {
+      imageOnly: "Chỉ có thể tải lên tệp hình ảnh.",
+      maxSize: "Kích thước ảnh phải nhỏ hơn 5MB.",
+      nicknameRequired: "Vui lòng nhập biệt danh.",
+      saveFailed: "Lưu hồ sơ thất bại.",
+      title: "Chỉnh sửa hồ sơ",
+      loading: "Đang tải thông tin...",
+      loginRequired: "Cần đăng nhập.",
+      goLogin: "Đi tới đăng nhập",
+      profilePhoto: "Ảnh hồ sơ",
+      changePhoto: "Đổi ảnh",
+      realName: "Tên thật",
+      nickname: "Biệt danh",
+      phone: "Số điện thoại",
+      phonePlaceholder: "Ví dụ: 010-0000-0000",
+      gender: "Giới tính",
+      noSelection: "Không chọn",
+      male: "Nam",
+      female: "Nữ",
+      other: "Khác",
+      birthDate: "Ngày sinh",
+      cancel: "Hủy",
+      saving: "Đang lưu...",
+      save: "Lưu",
+      subtitle: "Bạn có thể quản lý thông tin hồ sơ cơ bản rõ ràng hơn."
+    }
   } as const;
+  const copy = copyByLocale[locale] ?? copyByLocale.en;
 
   useEffect(() => {
     if (!user) return;
@@ -160,7 +242,7 @@ export function ProfileEditPage() {
         <div className="space-y-6">
           <div>
             <h1 className="font-display text-2xl font-black tracking-[-0.02em] text-foreground md:text-3xl">{copy.title}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">{locale === "ko" ? "기본 프로필 정보를 보기 쉽게 관리할 수 있어요." : "Manage your basic profile information with a clearer layout."}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{copy.subtitle}</p>
           </div>
 
           {!isReady ? (

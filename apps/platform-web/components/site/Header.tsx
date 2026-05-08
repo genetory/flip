@@ -4,12 +4,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
-import { GlobeHemisphereWest } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown } from "@phosphor-icons/react/dist/ssr";
 import { useEffect, useState } from "react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { Button } from "../ui/button";
 import { useAuthSession } from "../auth/AuthSessionProvider";
-import { getHeaderMessages, type PlatformLocale } from "../../lib/auth-messages";
+import { getHeaderMessages, PLATFORM_LOCALES, type PlatformLocale } from "../../lib/auth-messages";
 
 export const Header = () => {
   const router = useRouter();
@@ -19,11 +19,12 @@ export const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const { locale, setLocale } = useLanguage();
-  const { user, isReady, isAuthenticated, logout, getAccountUrl } = useAuthSession();
+  const { user, isReady, isAuthenticated, getAccountUrl } = useAuthSession();
   const copy = getHeaderMessages(locale);
   const roleBadgeLabel =
     user?.role === "PARTNER" ? copy.auth.rolePartner : user?.role === "OPERATOR" ? copy.auth.roleOperator : null;
-  const homeLabel = locale === "ko" ? "홈" : "Home";
+  const loginButtonLabel = locale === "ko" ? "로그인하기" : locale === "zh-CN" ? "去登录" : locale === "vi" ? "Đăng nhập" : "Sign in";
+  const homeLabel = locale === "ko" ? "홈" : locale === "zh-CN" ? "首页" : locale === "vi" ? "Trang chủ" : "Home";
   const navItems = [
     { label: homeLabel, href: "/" },
     { label: copy.nav.positions, href: "/positions" },
@@ -68,11 +69,6 @@ export const Header = () => {
     return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
   }
 
-  async function handleLogout() {
-    setOpen(false);
-    await logout();
-  }
-
   function handleAccountClick() {
     setOpen(false);
     const targetUrl = getAccountUrl();
@@ -87,15 +83,39 @@ export const Header = () => {
     setLocale(nextLocale);
   }
 
-  function toggleLocale() {
-    handleLocaleChange(locale === "ko" ? "en" : "ko");
-  }
+  const localeEmoji: Record<PlatformLocale, string> = {
+    ko: "🇰🇷",
+    en: "🇺🇸",
+    "zh-CN": "🇨🇳",
+    vi: "🇻🇳"
+  };
+  const localeLabel: Record<PlatformLocale, string> = {
+    ko: "한국어",
+    en: "English",
+    "zh-CN": "简体中文",
+    vi: "Tiếng Việt"
+  };
+  const localeDisplayLabel: Record<PlatformLocale, string> = {
+    ko: `${localeEmoji.ko} ${localeLabel.ko}`,
+    en: `${localeEmoji.en} ${localeLabel.en}`,
+    "zh-CN": `${localeEmoji["zh-CN"]} ${localeLabel["zh-CN"]}`,
+    vi: `${localeEmoji.vi} ${localeLabel.vi}`
+  };
+  const maxLocaleTextUnits = Object.values(localeLabel).reduce((max, text) => {
+    const units = Array.from(text).reduce((sum, ch) => {
+      const code = ch.charCodeAt(0);
+      const isWide = code >= 0x2e80;
+      return sum + (isWide ? 1.75 : 1);
+    }, 0);
+    return Math.max(max, units);
+  }, 0);
+  const localeButtonWidthPx = Math.max(112, Math.ceil(maxLocaleTextUnits * 9) + 40);
 
   return (
     <header
         className={`sticky top-0 z-50 ${isHydrated ? "transition-all duration-500 ease-smooth" : ""} ${
         isScrolled
-          ? "top-5 mx-auto w-[min(70%,1200px)] md:min-w-[980px] translate-y-0 rounded-2xl border border-border/70 bg-white shadow-elevated backdrop-blur-xl"
+          ? "top-3 mx-auto w-[calc(100%-1rem)] md:top-5 md:w-[min(70%,1200px)] md:min-w-[980px] translate-y-0 rounded-2xl border border-border/70 bg-white shadow-elevated backdrop-blur-xl"
           : "top-0 border-b border-border/60 bg-background/80 backdrop-blur-xl"
       }`}
     >
@@ -119,17 +139,17 @@ export const Header = () => {
             <Link
               key={item.label}
               href={item.href}
-              className={`text-sm transition-colors ${
-                isNavActive(item.href) ? "font-extrabold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
+              className={`text-xs transition-colors ${
+                isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
               }`}
             >
               {item.label}
             </Link>
           ))}
         </nav>
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center md:flex">
           {isReady && isAuthenticated ? (
-            <>
+            <div className="inline-flex items-center">
               <Button variant="ghost" size="sm" onClick={handleAccountClick}>
                 {user?.name ? (
                   <>
@@ -144,30 +164,28 @@ export const Header = () => {
                   copy.auth.myAccount
                 )}
               </Button>
-              <Button variant="dark" size="sm" onClick={() => void handleLogout()}>
-                {copy.auth.logout}
-              </Button>
-            </>
+            </div>
           ) : (
-            <>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/login">{copy.auth.login}</Link>
-              </Button>
-              <Button variant="dark" size="sm" asChild>
-                <Link href="/signup">{copy.auth.signup}</Link>
-              </Button>
-            </>
+            <Button variant="dark" size="sm" className="text-xs font-semibold" asChild>
+              <Link href="/login">{loginButtonLabel}</Link>
+            </Button>
           )}
-          <button
-            type="button"
-            onClick={toggleLocale}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-base transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={copy.languageLabel}
-            title={copy.languageLabel}
-          >
-            <GlobeHemisphereWest className="h-4 w-4 text-muted-foreground" weight="duotone" aria-hidden />
-            <span aria-hidden>{locale === "ko" ? "🇰🇷" : "🇺🇸"}</span>
-          </button>
+          <div className="relative ml-4">
+            <CaretDown className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <select
+              value={locale}
+              onChange={(e) => handleLocaleChange(e.target.value as PlatformLocale)}
+              aria-label={copy.languageLabel}
+              className="h-9 appearance-none bg-transparent pl-2 pr-7 text-right text-xs font-medium text-foreground focus-visible:outline-none"
+              style={{ width: `${localeButtonWidthPx}px` }}
+            >
+              {PLATFORM_LOCALES.map((value) => (
+                <option key={value} value={value}>
+                  {localeDisplayLabel[value]}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         <button
           className="md:hidden"
@@ -182,44 +200,44 @@ export const Header = () => {
           <div className="container flex flex-col gap-3 py-4">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-medium text-foreground">{copy.languageLabel}</span>
-              <button
-                type="button"
-                onClick={toggleLocale}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-base transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={copy.languageLabel}
-                title={copy.languageLabel}
-              >
-                <GlobeHemisphereWest className="h-4 w-4 text-muted-foreground" weight="duotone" aria-hidden />
-                <span aria-hidden>{locale === "ko" ? "🇰🇷" : "🇺🇸"}</span>
-              </button>
+              <div className="relative">
+                <CaretDown className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                <select
+                  value={locale}
+                  onChange={(e) => handleLocaleChange(e.target.value as PlatformLocale)}
+                  aria-label={copy.languageLabel}
+                  className="h-9 appearance-none bg-transparent pl-2 pr-7 text-right text-xs font-medium text-foreground focus-visible:outline-none"
+                  style={{ width: `${localeButtonWidthPx}px` }}
+                >
+                  {PLATFORM_LOCALES.map((value) => (
+                    <option key={value} value={value}>
+                      {localeDisplayLabel[value]}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             {navItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
                 className={`text-base ${
-                  isNavActive(item.href) ? "font-extrabold text-foreground" : "font-medium text-muted-foreground"
+                  isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
                 }`}
               >
                 {item.label}
               </Link>
             ))}
             {isReady && isAuthenticated ? (
-              <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="mt-2">
                 <Button variant="outline" size="sm" className="border-0" onClick={handleAccountClick}>
                   {user?.name ? copy.auth.myAccount : copy.auth.account}
                 </Button>
-                <Button variant="dark" size="sm" onClick={() => void handleLogout()}>
-                  {copy.auth.logout}
-                </Button>
               </div>
             ) : (
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" className="border-0" asChild>
-                  <Link href="/login">{copy.auth.login}</Link>
-                </Button>
-                <Button variant="dark" size="sm" asChild>
-                  <Link href="/signup">{copy.auth.signup}</Link>
+              <div className="mt-2">
+                <Button variant="dark" size="sm" className="w-full text-xs font-semibold" asChild>
+                  <Link href="/login">{loginButtonLabel}</Link>
                 </Button>
               </div>
             )}

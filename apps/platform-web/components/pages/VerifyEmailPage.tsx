@@ -19,15 +19,45 @@ export function VerifyEmailPage() {
   const [state, setState] = useState<"verifying" | "success" | "error">("verifying");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const copy = {
-    title: locale === "ko" ? "이메일 인증" : "Email verification",
-    missingToken: locale === "ko" ? "인증 토큰이 없습니다." : "Missing verification token.",
-    verifying: locale === "ko" ? "인증을 진행하고 있습니다..." : "Verifying your email...",
-    success: locale === "ko" ? "인증이 완료되었습니다. 잠시 후 이동합니다." : "Email verified. Redirecting shortly.",
-    failed: locale === "ko" ? "이메일 인증에 실패했습니다." : "Email verification failed.",
-    login: locale === "ko" ? "로그인" : "Sign in",
-    helpPage: locale === "ko" ? "인증 안내 페이지" : "Verification help page"
+  const copyByLocale = {
+    ko: {
+      title: "이메일 인증",
+      missingToken: "인증 토큰이 없습니다.",
+      verifying: "인증을 진행하고 있습니다...",
+      success: "인증이 완료되었습니다. 잠시 후 이동합니다.",
+      failed: "이메일 인증에 실패했습니다.",
+      login: "로그인",
+      helpPage: "인증 안내 페이지"
+    },
+    en: {
+      title: "Email verification",
+      missingToken: "Missing verification token.",
+      verifying: "Verifying your email...",
+      success: "Email verified. Redirecting shortly.",
+      failed: "Email verification failed.",
+      login: "Sign in",
+      helpPage: "Verification help page"
+    },
+    "zh-CN": {
+      title: "邮箱验证",
+      missingToken: "缺少验证令牌。",
+      verifying: "正在验证邮箱...",
+      success: "邮箱验证完成，即将跳转。",
+      failed: "邮箱验证失败。",
+      login: "登录",
+      helpPage: "验证说明页面"
+    },
+    vi: {
+      title: "Xác minh email",
+      missingToken: "Thiếu mã xác minh.",
+      verifying: "Đang xác minh email...",
+      success: "Xác minh email thành công. Đang chuyển trang.",
+      failed: "Xác minh email thất bại.",
+      login: "Đăng nhập",
+      helpPage: "Trang hướng dẫn xác minh"
+    }
   } as const;
+  const copy = copyByLocale[locale] ?? copyByLocale.en;
 
   useEffect(() => {
     if (!token) {

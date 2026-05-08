@@ -19,26 +19,65 @@ export function SignupVerifyEmailPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const copy = {
-    title: locale === "ko" ? "이메일 인증이 필요합니다" : "Email verification required",
-    description:
-      locale === "ko"
-        ? "가입이 완료되었습니다. 인증 메일의 링크를 클릭하면 로그인할 수 있습니다."
-        : "Signup is complete. Click the link in your verification email to sign in.",
-    targetEmailLabel: locale === "ko" ? "인증 대상 이메일" : "Verification email",
-    targetEmailFallback: locale === "ko" ? "가입한 이메일 주소를 확인해주세요." : "Please check your signup email address.",
-    alreadyVerified: locale === "ko" ? "이미 인증 완료된 계정입니다. 바로 로그인해주세요." : "This account is already verified. Please sign in.",
-    resendSent: locale === "ko" ? "인증 메일을 다시 보냈습니다. 받은 편지함을 확인해주세요." : "Verification email resent. Please check your inbox.",
-    resendUnavailable:
-      locale === "ko"
-        ? "인증 메일을 보낼 수 없는 상태입니다. 잠시 후 다시 시도해주세요."
-        : "Unable to send verification email right now. Please try again later.",
-    resendFailed: locale === "ko" ? "인증 메일 재발송에 실패했습니다." : "Failed to resend verification email.",
-    resendLoading: locale === "ko" ? "재발송 중..." : "Resending...",
-    resendButton: locale === "ko" ? "인증 메일 다시 보내기" : "Resend verification email",
-    goLogin: locale === "ko" ? "로그인으로 이동" : "Go to login",
-    devLinkLabel: locale === "ko" ? "개발 환경 링크" : "Dev environment link"
+  const copyByLocale = {
+    ko: {
+      title: "이메일 인증이 필요합니다",
+      description: "가입이 완료되었습니다. 인증 메일의 링크를 클릭하면 로그인할 수 있습니다.",
+      targetEmailLabel: "인증 대상 이메일",
+      targetEmailFallback: "가입한 이메일 주소를 확인해주세요.",
+      alreadyVerified: "이미 인증 완료된 계정입니다. 바로 로그인해주세요.",
+      resendSent: "인증 메일을 다시 보냈습니다. 받은 편지함을 확인해주세요.",
+      resendUnavailable: "인증 메일을 보낼 수 없는 상태입니다. 잠시 후 다시 시도해주세요.",
+      resendFailed: "인증 메일 재발송에 실패했습니다.",
+      resendLoading: "재발송 중...",
+      resendButton: "인증 메일 다시 보내기",
+      goLogin: "로그인으로 이동",
+      devLinkLabel: "개발 환경 링크"
+    },
+    en: {
+      title: "Email verification required",
+      description: "Signup is complete. Click the link in your verification email to sign in.",
+      targetEmailLabel: "Verification email",
+      targetEmailFallback: "Please check your signup email address.",
+      alreadyVerified: "This account is already verified. Please sign in.",
+      resendSent: "Verification email resent. Please check your inbox.",
+      resendUnavailable: "Unable to send verification email right now. Please try again later.",
+      resendFailed: "Failed to resend verification email.",
+      resendLoading: "Resending...",
+      resendButton: "Resend verification email",
+      goLogin: "Go to login",
+      devLinkLabel: "Dev environment link"
+    },
+    "zh-CN": {
+      title: "需要邮箱验证",
+      description: "注册已完成。点击验证邮件中的链接即可登录。",
+      targetEmailLabel: "验证邮箱",
+      targetEmailFallback: "请确认你注册时使用的邮箱地址。",
+      alreadyVerified: "该账号已完成验证，请直接登录。",
+      resendSent: "验证邮件已重新发送，请检查收件箱。",
+      resendUnavailable: "当前无法发送验证邮件，请稍后重试。",
+      resendFailed: "重新发送验证邮件失败。",
+      resendLoading: "重新发送中...",
+      resendButton: "重新发送验证邮件",
+      goLogin: "前往登录",
+      devLinkLabel: "开发环境链接"
+    },
+    vi: {
+      title: "Cần xác minh email",
+      description: "Đăng ký đã hoàn tất. Hãy nhấp liên kết trong email xác minh để đăng nhập.",
+      targetEmailLabel: "Email xác minh",
+      targetEmailFallback: "Vui lòng kiểm tra địa chỉ email bạn đã đăng ký.",
+      alreadyVerified: "Tài khoản này đã được xác minh. Vui lòng đăng nhập ngay.",
+      resendSent: "Đã gửi lại email xác minh. Vui lòng kiểm tra hộp thư.",
+      resendUnavailable: "Hiện không thể gửi email xác minh. Vui lòng thử lại sau.",
+      resendFailed: "Gửi lại email xác minh thất bại.",
+      resendLoading: "Đang gửi lại...",
+      resendButton: "Gửi lại email xác minh",
+      goLogin: "Đi tới đăng nhập",
+      devLinkLabel: "Liên kết môi trường dev"
+    }
   } as const;
+  const copy = copyByLocale[locale] ?? copyByLocale.en;
 
   async function handleResend() {
     if (!email) return;
@@ -47,7 +86,8 @@ export function SignupVerifyEmailPage() {
     setNotice(null);
 
     try {
-      const result = await resendVerificationEmail(email, locale);
+      const emailLocale = locale === "ko" ? "ko" : "en";
+      const result = await resendVerificationEmail(email, emailLocale);
       if (result.verifyUrl) setDevVerifyUrl(result.verifyUrl);
 
       if (result.alreadyVerified) {

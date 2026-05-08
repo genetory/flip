@@ -9,7 +9,7 @@ datasource db {
 
 model User {
   id          String      @id @default(uuid())
-  email       String      @unique
+  email       String
   emailVerified Boolean   @default(false)
   realName    String?
   name        String?
@@ -20,7 +20,9 @@ model User {
   gender      String?
   jobTitle    String?
   adminMemo   String?
-  passwordHash String
+  passwordHash String?
+  authProvider AuthProvider @default(EMAIL)
+  providerId   String?
   role        MemberRole  @default(STUDENT)
   partnerType PartnerType?
   partnerOrgRole PartnerOrgUserRole?
@@ -43,6 +45,8 @@ model User {
   requestedPositionRevisions PositionRevision[] @relation("PositionRevisionRequester")
   reviewedPositionRevisions PositionRevision[] @relation("PositionRevisionReviewer")
 
+  @@unique([email, authProvider])
+  @@unique([authProvider, providerId])
   @@index([role])
   @@index([partnerType])
   @@index([partnerOrgRole])
@@ -50,6 +54,14 @@ model User {
   @@index([emailVerified])
   @@index([phoneNumber])
   @@index([affiliation])
+  @@index([authProvider])
+}
+
+enum AuthProvider {
+  EMAIL
+  NAVER
+  KAKAO
+  GOOGLE
 }
 
 enum CommunityPostCategory {

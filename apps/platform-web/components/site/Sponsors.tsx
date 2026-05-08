@@ -16,8 +16,16 @@ const sponsors = [
 
 export const Sponsors = () => {
   const { locale } = useLanguage();
-  const eyebrow = locale === "ko" ? "함께하는 파트너 기업" : "Partner Companies";
-  const title = locale === "ko" ? "Aply와 함께하는 검증된 한국 기업들" : "Verified Korean companies partnering with Aply";
+  const eyebrow =
+    locale === "ko" ? "함께하는 파트너 기업" : locale === "zh-CN" ? "合作伙伴企业" : locale === "vi" ? "Doanh nghiệp đối tác" : "Partner Companies";
+  const title =
+    locale === "ko"
+      ? "Aply와 함께하는 검증된 한국 기업들"
+      : locale === "zh-CN"
+        ? "与 Aply 合作的韩国优质企业"
+        : locale === "vi"
+          ? "Các doanh nghiệp Hàn Quốc uy tín đồng hành cùng Aply"
+          : "Verified Korean companies partnering with Aply";
 
   return (
     <section className="bg-white py-12 md:py-14">

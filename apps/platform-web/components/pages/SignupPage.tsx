@@ -28,6 +28,30 @@ export function SignupPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const copy = getAuthPageMessages(locale).signup;
+  const phoneLabelByLocale = {
+    ko: "휴대폰 번호",
+    en: "Phone number",
+    "zh-CN": "手机号",
+    vi: "Số điện thoại"
+  } as const;
+  const phonePlaceholderByLocale = {
+    ko: "010-1234-5678",
+    en: "+82-10-1234-5678",
+    "zh-CN": "010-1234-5678",
+    vi: "010-1234-5678"
+  } as const;
+  const phoneRequiredMessageByLocale = {
+    ko: "휴대폰 번호를 입력해주세요.",
+    en: "Please enter phone number.",
+    "zh-CN": "请输入手机号。",
+    vi: "Vui lòng nhập số điện thoại."
+  } as const;
+  const emailExistsMessageByLocale = {
+    ko: "이미 가입된 이메일입니다. 로그인해주세요.",
+    en: "This email is already registered. Please sign in.",
+    "zh-CN": "该邮箱已注册，请登录。",
+    vi: "Email này đã được đăng ký. Vui lòng đăng nhập."
+  } as const;
   const isBusiness = accountType === "BUSINESS";
   const emailLabel = copy.emailLabel;
   const accountTypeOptions = [
@@ -76,20 +100,21 @@ export function SignupPage() {
     setErrorMessage(null);
 
     if (isBusiness && !phoneNumber.trim()) {
-      setErrorMessage(locale === "ko" ? "휴대폰 번호를 입력해주세요." : "Please enter phone number.");
+      setErrorMessage(phoneRequiredMessageByLocale[locale] ?? phoneRequiredMessageByLocale.en);
       return;
     }
 
     setIsSubmitting(true);
 
     try {
+      const emailLocale = locale === "ko" ? "ko" : "en";
       const result = await signupWithEmail({
         name: name.trim(),
         email: email.trim(),
         password,
         accountType,
         phoneNumber: phoneNumber.trim() || undefined,
-        locale
+        locale: emailLocale
       });
       if (!result.requiresEmailVerification) {
         if (result.user) {
@@ -109,7 +134,7 @@ export function SignupPage() {
       router.refresh();
     } catch (error) {
       if (error instanceof AuthApiError && error.code === "EMAIL_ALREADY_EXISTS") {
-        setErrorMessage(locale === "ko" ? "이미 가입된 이메일입니다. 로그인해주세요." : "This email is already registered. Please sign in.");
+        setErrorMessage(emailExistsMessageByLocale[locale] ?? emailExistsMessageByLocale.en);
         return;
       }
       if (error instanceof AuthApiError && error.code === "REGISTRATION_FAILED") {
@@ -176,10 +201,10 @@ export function SignupPage() {
               </label>
               {isBusiness ? (
                 <label className="block text-sm font-medium">
-                  {locale === "ko" ? "휴대폰 번호" : "Phone number"}
+                  {phoneLabelByLocale[locale] ?? phoneLabelByLocale.en}
                   <input
                     type="tel"
-                    placeholder={locale === "ko" ? "010-1234-5678" : "+82-10-1234-5678"}
+                    placeholder={phonePlaceholderByLocale[locale] ?? phonePlaceholderByLocale.en}
                     value={phoneNumber}
                     onChange={(event) => setPhoneNumber(event.target.value)}
                     className="mt-2 h-10 w-full rounded-md border border-input/60 bg-background px-3 text-sm outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"

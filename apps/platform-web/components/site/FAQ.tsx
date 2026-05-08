@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { Reveal } from "./Reveal";
 import { paperlogy } from "../../lib/fonts";
 
-const getRandomProfileImage = () => `/img_profile_${Math.floor(Math.random() * 5)}.webp`;
 const AVATAR_SQUIRCLE_CLIP_ID = "faq-avatar-squircle-clip";
 const AVATAR_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
 const AVATAR_SQUIRCLE_STYLE = {
@@ -20,18 +19,13 @@ export const FAQ = () => {
   const [audienceTab, setAudienceTab] = useState<"company" | "student">("company");
   const [activeIndex, setActiveIndex] = useState(0);
   const [isAnswerLoading, setIsAnswerLoading] = useState(false);
-  const [questionProfileSrc, setQuestionProfileSrc] = useState("/img_profile_0.webp");
-
-  useEffect(() => {
-    setQuestionProfileSrc(getRandomProfileImage());
-  }, []);
+  const questionProfileSrc = `/img_profile_${(activeIndex + (audienceTab === "company" ? 0 : 2)) % 5}.webp`;
   const items = audienceTab === "company" ? copy.companyItems : copy.studentItems;
   const activeItem = items[activeIndex] ?? items[0];
 
   const handleSelectQuestion = (index: number) => {
     if (index === activeIndex) return;
     setIsAnswerLoading(true);
-    setQuestionProfileSrc(getRandomProfileImage());
     setActiveIndex(index);
     window.setTimeout(() => {
       setIsAnswerLoading(false);
@@ -54,16 +48,15 @@ export const FAQ = () => {
           <p className="mb-2 inline-flex rounded-full border border-[#bfdbfe] bg-white/80 px-3 py-1 text-xs font-bold tracking-[0.08em] text-[#1D4ED8]">{copy.sectionLabel}</p>
           <h2 className={`${paperlogy.className} text-3xl font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>{copy.title}</h2>
           <p className="mt-3 text-slate-600">{copy.description}</p>
-          <div className="mt-5 inline-flex gap-2">
+          <div className="mt-5 inline-flex w-full flex-wrap gap-2 sm:w-auto sm:flex-nowrap">
             <button
               type="button"
               onClick={() => {
                 setAudienceTab("company");
                 setActiveIndex(0);
                 setIsAnswerLoading(false);
-                setQuestionProfileSrc(getRandomProfileImage());
               }}
-              className={`rounded-xl border px-4 py-2 text-sm font-extrabold shadow-[0_10px_20px_-14px_rgba(15,23,42,0.45)] transition-all ${
+              className={`rounded-xl border px-4 py-2 text-sm font-extrabold shadow-[0_10px_20px_-14px_rgba(15,23,42,0.45)] transition-all sm:min-w-[120px] ${
                 audienceTab === "company"
                   ? "-rotate-2 border-[#0B46E8] bg-[#0B46E8] text-white"
                   : "-rotate-1 border-[#BFDBFE] bg-white text-[#1D4ED8] hover:-translate-y-0.5"
@@ -77,9 +70,8 @@ export const FAQ = () => {
                 setAudienceTab("student");
                 setActiveIndex(0);
                 setIsAnswerLoading(false);
-                setQuestionProfileSrc(getRandomProfileImage());
               }}
-              className={`rounded-xl border px-4 py-2 text-sm font-extrabold shadow-[0_10px_20px_-14px_rgba(15,23,42,0.45)] transition-all ${
+              className={`rounded-xl border px-4 py-2 text-sm font-extrabold shadow-[0_10px_20px_-14px_rgba(15,23,42,0.45)] transition-all sm:min-w-[120px] ${
                 audienceTab === "student"
                   ? "rotate-2 border-[#0B46E8] bg-[#0B46E8] text-white"
                   : "rotate-1 border-[#BFDBFE] bg-white text-[#1D4ED8] hover:-translate-y-0.5"
@@ -92,14 +84,14 @@ export const FAQ = () => {
 
         <Reveal delayMs={100} y="sm" className="mt-10 mb-10">
           <div className="mx-auto grid max-w-[980px] gap-4 rounded-[28px] border border-[#dbeafe] bg-white/65 p-4 shadow-[0_28px_60px_-36px_rgba(37,99,235,0.5)] backdrop-blur md:grid-cols-[0.85fr_1.15fr]">
-            <aside className="max-h-[620px] space-y-1.5 overflow-y-auto pr-1">
+            <aside className="max-h-[620px] space-y-0.5 overflow-y-auto pr-1 md:space-y-1.5">
               {items.map((item, index) => {
                 const isActive = index === activeIndex;
                 return (
                   <button
                     key={item.question}
                     onClick={() => handleSelectQuestion(index)}
-                    className={`w-full px-1 py-4 text-left transition-colors duration-200 ${
+                    className={`w-full px-1 py-2.5 text-left transition-colors duration-200 md:py-4 ${
                       isActive ? "text-[#0B46E8]" : "text-slate-600 hover:text-[#0B46E8]"
                     }`}
                   >
