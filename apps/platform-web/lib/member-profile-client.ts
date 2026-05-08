@@ -851,6 +851,7 @@ export async function updateMyBasicInfo(input: {
   phoneNumber?: string | null;
   birthDate?: string | null;
   gender?: string | null;
+  profileImageData?: string | null;
 }) {
   const result = await authedJsonFetch<{
     id: string;
@@ -861,6 +862,7 @@ export async function updateMyBasicInfo(input: {
     birthDate?: string | null;
     gender?: string | null;
     role: "STUDENT" | "PARTNER" | "OPERATOR";
+    profileImageUrl?: string | null;
     partnerType?: "UNIVERSITY" | "COMPANY" | "AGENCY" | null;
   }>("/members/me", {
     method: "PATCH",

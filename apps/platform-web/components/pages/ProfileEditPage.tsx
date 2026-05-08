@@ -149,7 +149,7 @@ export function ProfileEditPage() {
     setPhoneNumber(user.phoneNumber ?? "");
     setGender(user.gender ?? "");
     setBirthDate(user.birthDate ? user.birthDate.slice(0, 10) : "");
-    setPreviewImage(getStoredProfilePhoto(user.id));
+    setPreviewImage(user.profileImageUrl ?? getStoredProfilePhoto(user.id));
   }, [user]);
 
   const avatarFallback = useMemo(() => {
@@ -190,12 +190,14 @@ export function ProfileEditPage() {
     setIsSaving(true);
     setErrorMessage(null);
     try {
+      const isNewImage = previewImage && previewImage.startsWith("data:");
       const updated = await updateMyBasicInfo({
         realName: realName.trim() ? realName.trim() : null,
         name: trimmedName,
         phoneNumber: phoneNumber.trim() ? phoneNumber.trim() : null,
         gender: gender.trim() ? gender.trim() : null,
-        birthDate: birthDate ? new Date(`${birthDate}T00:00:00.000Z`).toISOString() : null
+        birthDate: birthDate ? new Date(`${birthDate}T00:00:00.000Z`).toISOString() : null,
+        ...(isNewImage ? { profileImageData: previewImage } : {})
       });
       setAuthenticatedUser({
         id: updated.id,
@@ -206,11 +208,12 @@ export function ProfileEditPage() {
         birthDate: updated.birthDate ?? null,
         gender: updated.gender ?? null,
         role: updated.role,
+        profileImageUrl: updated.profileImageUrl ?? null,
         partnerType: updated.partnerType ?? null
       });
 
-      if (previewImage) {
-        setStoredProfilePhoto(updated.id, previewImage);
+      if (updated.profileImageUrl && /^https?:\/\//i.test(updated.profileImageUrl)) {
+        setStoredProfilePhoto(updated.id, updated.profileImageUrl);
       }
 
       router.push("/profile");

@@ -11,6 +11,7 @@ import {
 import {
   clearAccessToken,
   logoutPlatformSession,
+  readAccessToken,
   refreshPlatformSession
 } from "../../lib/auth-client";
 
@@ -24,6 +25,7 @@ type SessionUser = {
   gender?: string | null;
   role: "STUDENT" | "PARTNER" | "OPERATOR";
   authProvider?: "EMAIL" | "NAVER" | "KAKAO" | "GOOGLE";
+  profileImageUrl?: string | null;
   partnerType?: "UNIVERSITY" | "COMPANY" | "AGENCY" | null;
   partnerOrgRole?: "OWNER" | "ADMIN" | "MEMBER" | null;
 };
@@ -74,6 +76,11 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   }, [user]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!readAccessToken()) {
+      setIsReady(true);
+      return;
+    }
     void refreshSession();
   }, [refreshSession]);
 

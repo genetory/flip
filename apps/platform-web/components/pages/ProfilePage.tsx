@@ -309,7 +309,7 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (!user) return;
-    setProfileImage(getStoredProfilePhoto(user.id));
+    setProfileImage(user.profileImageUrl ?? getStoredProfilePhoto(user.id));
   }, [user]);
 
   useEffect(() => {

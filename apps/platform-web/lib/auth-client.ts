@@ -12,6 +12,7 @@ type AuthUser = {
   gender?: string | null;
   role: "STUDENT" | "PARTNER" | "OPERATOR";
   authProvider?: "EMAIL" | "NAVER" | "KAKAO" | "GOOGLE";
+  profileImageUrl?: string | null;
   partnerType?: "UNIVERSITY" | "COMPANY" | "AGENCY" | null;
   partnerOrgRole?: "OWNER" | "ADMIN" | "MEMBER" | null;
 };

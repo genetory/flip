@@ -19,6 +19,7 @@ model User {
   birthDate   DateTime?
   gender      String?
   jobTitle    String?
+  profileImageUrl String?
   adminMemo   String?
   passwordHash String?
   authProvider AuthProvider @default(EMAIL)

@@ -46,11 +46,11 @@ export function SocialAccountTypePage() {
     try {
       const { user } = await finalizeSocialSignup({ provider, ctx, accountType });
       setAuthenticatedUser(user);
-      if (typeof window !== "undefined" && window.history.replaceState) {
-        window.history.replaceState(null, "", window.location.pathname);
+      if (typeof window !== "undefined") {
+        window.location.replace("/profile");
+        return;
       }
       router.replace("/profile");
-      router.refresh();
     } catch (error) {
       if (error instanceof AuthApiError && error.code === "EXPIRED_SIGNUP_CONTEXT") {
         setErrorMessage(t("가입 세션이 만료되었습니다. 다시 시도해주세요.", "Signup session expired. Please try again.", "注册会话已过期，请重新尝试。", "Phiên đăng ký đã hết hạn. Vui lòng thử lại."));

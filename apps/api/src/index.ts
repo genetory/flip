@@ -940,6 +940,14 @@ function generatePartnerJoinCode() {
   return `PJT-${chars.slice(0, 5)}-${chars.slice(5)}`;
 }
 
+function generateNicknameFromEmail(email?: string | null) {
+  const localPart = (email ?? "").split("@")[0]?.toLowerCase() ?? "";
+  const cleaned = localPart.replace(/[^a-z0-9]/g, "").slice(0, 12);
+  const base = cleaned || "user";
+  const suffix = randomInt(1000, 10000).toString();
+  return `${base}${suffix}`;
+}
+
 function setRefreshTokenCookie(res: express.Response, refreshToken: string) {
   const maxAge = refreshTokenTtlDays * 24 * 60 * 60;
   const parts = [
@@ -1666,7 +1674,8 @@ const updateMyBasicInfoSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   phoneNumber: z.string().trim().max(30).nullable().optional(),
   birthDate: z.string().datetime().nullable().optional(),
-  gender: z.string().trim().max(40).nullable().optional()
+  gender: z.string().trim().max(40).nullable().optional(),
+  profileImageData: z.string().max(8 * 1024 * 1024).nullable().optional()
 });
 
 const updateMyPartnerOrganizationBasicSchema = z.object({
@@ -1973,6 +1982,7 @@ function toSafeUser(user: {
   birthDate: Date | null;
   gender: string | null;
   jobTitle: string | null;
+  profileImageUrl?: string | null;
   adminMemo: string | null;
   role: MemberRole;
   authProvider?: AuthProvider;
@@ -1993,6 +2003,7 @@ function toSafeUser(user: {
     birthDate: user.birthDate,
     gender: user.gender,
     jobTitle: user.jobTitle,
+    profileImageUrl: user.profileImageUrl ?? null,
     adminMemo: user.adminMemo ?? null,
     role: user.role,
     authProvider: user.authProvider ?? AuthProvider.EMAIL,
@@ -6398,7 +6409,7 @@ app.post("/auth/register", async (req, res) => {
           email: normalizedEmail,
           emailVerified: false,
           realName: parsed.data.realName?.trim() || null,
-          name: parsed.data.name,
+          name: parsed.data.name?.trim() || generateNicknameFromEmail(normalizedEmail),
           phoneNumber: parsed.data.phoneNumber,
           jobTitle: parsed.data.jobTitle,
           passwordHash,
@@ -6660,7 +6671,7 @@ app.post("/auth/naver/finalize", async (req, res) => {
     data: {
       email: ctxEmail || `naver-${providerId}@noemail.local`,
       emailVerified: true,
-      name: ctxName,
+      name: ctxName?.trim() || generateNicknameFromEmail(ctxEmail),
       phoneNumber: ctxMobile,
       authProvider: AuthProvider.NAVER,
       providerId,
@@ -6860,7 +6871,7 @@ app.post("/auth/google/finalize", async (req, res) => {
     data: {
       email: ctxEmail || `google-${providerId}@noemail.local`,
       emailVerified: true,
-      name: ctxName,
+      name: ctxName?.trim() || generateNicknameFromEmail(ctxEmail),
       authProvider: AuthProvider.GOOGLE,
       providerId,
       passwordHash: null,
@@ -7060,7 +7071,7 @@ app.post("/auth/kakao/finalize", async (req, res) => {
     data: {
       email: ctxEmail || `kakao-${providerId}@noemail.local`,
       emailVerified: true,
-      name: ctxName,
+      name: ctxName?.trim() || generateNicknameFromEmail(ctxEmail),
       authProvider: AuthProvider.KAKAO,
       providerId,
       passwordHash: null,
@@ -7272,6 +7283,25 @@ app.patch("/members/me", authenticate, requireRoles([MemberRole.STUDENT, MemberR
     return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
   }
 
+  let profileImageUrlUpdate: { profileImageUrl: string | null } | undefined;
+  if (parsed.data.profileImageData !== undefined) {
+    if (parsed.data.profileImageData === null || parsed.data.profileImageData.trim() === "") {
+      profileImageUrlUpdate = { profileImageUrl: null };
+    } else {
+      try {
+        const uploadedUrl = await uploadDataUrlImageIfNeeded(parsed.data.profileImageData.trim(), `members/${id}/profile`);
+        if (/^https?:\/\//i.test(uploadedUrl)) {
+          profileImageUrlUpdate = { profileImageUrl: uploadedUrl };
+        } else {
+          return res.status(503).json({ ok: false, message: "image storage is not configured" });
+        }
+      } catch (error) {
+        console.error("[members/me] profile image upload failed", error);
+        return res.status(500).json({ ok: false, message: "failed to upload profile image" });
+      }
+    }
+  }
+
   try {
     const updated = await prisma.user.update({
       where: { id },
@@ -7280,7 +7310,8 @@ app.patch("/members/me", authenticate, requireRoles([MemberRole.STUDENT, MemberR
         ...(parsed.data.name !== undefined ? { name: parsed.data.name?.trim() || null } : {}),
         ...(parsed.data.phoneNumber !== undefined ? { phoneNumber: parsed.data.phoneNumber?.trim() || null } : {}),
         ...(parsed.data.birthDate !== undefined ? { birthDate: parsed.data.birthDate ? new Date(parsed.data.birthDate) : null } : {}),
-        ...(parsed.data.gender !== undefined ? { gender: parsed.data.gender?.trim() || null } : {})
+        ...(parsed.data.gender !== undefined ? { gender: parsed.data.gender?.trim() || null } : {}),
+        ...(profileImageUrlUpdate ?? {})
       }
     });
 
