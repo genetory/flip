@@ -1,15 +1,6 @@
 name: Seed Staging DB
 
 on:
-  push:
-    branches: [develop]
-    paths:
-      - ".github/workflows/seed-staging.yml"
-      - "apps/api/scripts/**"
-      - "apps/api/prisma/**"
-      - "apps/api/package.json"
-      - "package.json"
-      - "package-lock.json"
   workflow_dispatch:
     inputs:
       target:
@@ -51,16 +42,23 @@ jobs:
         run: npm run db:migrate:deploy -w apps/api
 
       - name: Import job postings
+        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          JOB_POSTINGS_TOKEN: ${{ secrets.JOB_POSTINGS_TOKEN }}
+          COMPANY_USERS_TOKEN: ${{ secrets.COMPANY_USERS_TOKEN }}
         run: npx tsx apps/api/scripts/import-job-postings.ts
 
       - name: Import buddies postings
+        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          JOB_POSTINGS_TOKEN: ${{ secrets.JOB_POSTINGS_TOKEN }}
+          COMPANY_USERS_TOKEN: ${{ secrets.COMPANY_USERS_TOKEN }}
         run: npx tsx apps/api/scripts/import-buddies-job-postings.ts
 
       - name: Import kowork postings
+        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
         run: npx tsx apps/api/scripts/import-kowork-job-postings.ts
