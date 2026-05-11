@@ -30,10 +30,9 @@ import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import { getApplicationStatusLabel } from "../../lib/status-labels";
 import { ReportIssueModal } from "../issues/ReportIssueModal";
 import { SelectInterviewSlotModal } from "../interviews/SelectInterviewSlotModal";
-import { ProfileCompletionMeter } from "../profile/ProfileCompletionMeter";
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import type { PlatformLocale } from "../../lib/auth-messages";
-import { BadgeCheck, Bookmark, Briefcase, LayoutGrid, List, Mail, MapPin } from "lucide-react";
+import { BadgeCheck, Bookmark, Briefcase, Globe, LayoutGrid, List, Mail, MapPin, Phone } from "lucide-react";
 
 const PROFILE_SQUIRCLE_CLIP_ID = "profile-page-squircle-clip";
 const PROFILE_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
@@ -55,7 +54,6 @@ type StudentResumeSection = {
   href: string;
 };
 
-type CompanyFieldKind = "text" | "logo" | "additional";
 type PartnerPositionNotification = {
   id: string;
   positionId: string;
@@ -472,28 +470,6 @@ export function ProfilePage() {
     }
   }, [partnerOrg?.officePhotoImageData]);
 
-  const basicCompanyFields = useMemo(
-    () => [
-      {
-        label: tr("로고 이미지", "Logo image", "Logo 图片", "Hình ảnh logo", "ロゴ画像", "Gambar logo"),
-        value: partnerOrg?.companyLogoImageData ? tr("업로드 완료", "Uploaded", "已上传", "Đã tải lên", "アップロード完了", "Telah diunggah") : tr("미업로드", "Not uploaded", "未上传", "Chưa tải lên", "未アップロード", "Belum diunggah"),
-        kind: "logo" as CompanyFieldKind
-      },
-      {
-        label: tr("추가 이미지", "Additional images", "附加图片", "Hình ảnh bổ sung", "追加画像", "Gambar tambahan"),
-        value: additionalCompanyImages.length > 0 ? tr("업로드 완료", "Uploaded", "已上传", "Đã tải lên", "アップロード完了", "Telah diunggah") : tr("미업로드", "Not uploaded", "未上传", "Chưa tải lên", "未アップロード", "Belum diunggah"),
-        kind: "additional" as CompanyFieldKind
-      },
-      { label: tr("파트너명", "Partner name", "合作伙伴名称", "Tên đối tác", "パートナー名", "Nama mitra"), value: partnerOrg?.name ?? "-", kind: "text" as CompanyFieldKind },
-      { label: tr("회사 코드", "Company code", "公司代码", "Mã công ty", "会社コード", "Kode perusahaan"), value: partnerOrg?.slug ?? "-", kind: "text" as CompanyFieldKind },
-      { label: tr("산업군", "Industry", "行业", "Ngành nghề", "業種", "Industri"), value: partnerIndustryLabel(partnerOrg?.industry), kind: "text" as CompanyFieldKind },
-      { label: tr("웹사이트", "Website", "网站", "Trang web", "ウェブサイト", "Situs web"), value: partnerOrg?.website ?? "-", kind: "text" as CompanyFieldKind },
-      { label: tr("주소", "Address", "地址", "Địa chỉ", "住所", "Alamat"), value: partnerOrg?.officeAddress ?? "-", kind: "text" as CompanyFieldKind },
-      { label: tr("소개", "Description", "简介", "Giới thiệu", "紹介", "Deskripsi"), value: partnerOrg?.description ?? "-", kind: "text" as CompanyFieldKind }
-    ],
-    [additionalCompanyImages.length, locale, partnerOrg]
-  );
-
   const verificationFields = useMemo(
     () => [
       {
@@ -868,85 +844,155 @@ export function ProfilePage() {
 
                     {activeTab === "info" ? (
                       <div className="space-y-6">
-                        {businessSections.map((section, sectionIndex) => (
+                        {businessSections.map((section, sectionIndex) => {
+                          const isBasic = section.title === tr("기본 정보", "Basic information", "基本信息", "Thông tin cơ bản", "基本情報", "Informasi dasar");
+                          return (
                           <div key={section.title} className={`space-y-3 ${sectionIndex > 0 ? "border-t border-border/60 pt-6" : ""}`}>
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
-                                <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
+                            {!isBasic ? (
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
+                                  <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
+                                </div>
+                                {user.role === "PARTNER" ? (
+                                  <Button variant="outline" size="sm" asChild>
+                                    <Link href={section.title === tr("인증 정보", "Verification", "认证信息", "Thông tin xác minh", "認証情報", "Verifikasi") ? "/partner-profile/verification/edit" : "/partner-profile/edit"}>
+                                      {tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}
+                                    </Link>
+                                  </Button>
+                                ) : null}
                               </div>
-                              {user.role === "PARTNER" ? (
-                                <Button variant="outline" size="sm" asChild>
-                                  <Link href={section.title === tr("인증 정보", "Verification", "认证信息", "Thông tin xác minh", "認証情報", "Verifikasi") ? "/partner-profile/verification/edit" : "/partner-profile/edit"}>
-                                    {tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}
-                                  </Link>
-                                </Button>
-                              ) : null}
-                            </div>
+                            ) : null}
 
-                            {section.title === tr("기본 정보", "Basic information", "基本信息", "Thông tin cơ bản", "基本情報", "Informasi dasar") ? (
-                              <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                                {basicCompanyFields.map((field) => (
-                                  <div
-                                    key={field.label}
-                                    className={`text-sm ${
-                                      field.label === tr("소개", "Description", "简介", "Giới thiệu", "紹介", "Deskripsi") ? "sm:col-span-2" : ""
-                                    }`}
-                                  >
-                                    <p className="text-xs font-medium text-muted-foreground">{field.label}</p>
-                                    {field.kind === "logo" ? (
-                                      partnerOrg?.companyLogoImageData ? (
-                                        <div className="mt-2 inline-flex h-32 w-32 items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-white p-3">
-                                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                                          <img
-                                            src={partnerOrg.companyLogoImageData}
-                                            alt={tr("로고 이미지", "Logo image", "Logo 图片", "Hình ảnh logo", "ロゴ画像", "Gambar logo")}
-                                            className="h-full w-full object-contain"
-                                          />
-                                        </div>
-                                      ) : (
-                                        <div className="mt-2 inline-flex h-32 w-32 items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/30 text-xs font-medium text-muted-foreground">
-                                          {tr("미등록", "Not set", "未上传", "Chưa có", "未登録", "Belum ada")}
-                                        </div>
-                                      )
-                                    ) : field.kind === "additional" ? (
-                                      additionalCompanyImages.length > 0 ? (
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                          {additionalCompanyImages.slice(0, 4).map((image, index) => {
-                                            const isLastVisible = index === 3 && additionalCompanyImages.length > 4;
-                                            return (
-                                              <div key={`${field.label}-${index}`} className="relative h-16 w-16 overflow-hidden rounded-lg border border-border/60 bg-muted/20">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img
-                                                  src={image}
-                                                  alt={`${tr("추가 이미지", "Additional image", "附加图片", "Hình ảnh bổ sung", "追加画像", "Gambar tambahan")} ${index + 1}`}
-                                                  className="h-full w-full object-cover"
-                                                />
-                                                {isLastVisible ? (
-                                                  <div className="absolute inset-0 flex items-center justify-center bg-black/55 text-xs font-semibold text-white">
-                                                    +{additionalCompanyImages.length - 4}
-                                                  </div>
-                                                ) : null}
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      ) : (
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                          {[0, 1, 2, 3].map((slotIndex) => (
-                                            <div key={slotIndex} className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-border/60 bg-muted/20 text-[10px] font-medium text-muted-foreground">
-                                              {slotIndex === 0 ? tr("미등록", "Not set", "未上传", "Chưa có", "未登録", "Belum ada") : ""}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )
-                                    ) : (
-                                      <p className={`mt-1 break-words text-foreground ${
-                                        field.label === tr("소개", "Description", "简介", "Giới thiệu", "紹介", "Deskripsi") ? "whitespace-pre-wrap leading-relaxed" : ""
-                                      }`}>{field.value}</p>
-                                    )}
+                            {isBasic ? (
+                              <div className="space-y-6">
+                                {/* Hero: 큰 로고 + identity */}
+                                <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start">
+                                  {user.role === "PARTNER" ? (
+                                    <div className="absolute right-0 top-0">
+                                      <Button variant="outline" size="sm" asChild>
+                                        <Link href="/partner-profile/edit">
+                                          {tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}
+                                        </Link>
+                                      </Button>
+                                    </div>
+                                  ) : null}
+
+                                  {partnerOrg?.companyLogoImageData ? (
+                                    <div className="flex h-28 w-28 flex-none items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-white p-3">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img
+                                        src={partnerOrg.companyLogoImageData}
+                                        alt={tr("로고 이미지", "Logo image", "Logo 图片", "Hình ảnh logo", "ロゴ画像", "Gambar logo")}
+                                        className="h-full w-full object-contain"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="flex h-28 w-28 flex-none items-center justify-center rounded-2xl border border-border/60 bg-muted text-3xl font-bold text-muted-foreground">
+                                      {(partnerOrg?.name?.[0] ?? "?").toUpperCase()}
+                                    </div>
+                                  )}
+
+                                  <div className="flex-1 min-w-0 pr-0 sm:pr-20">
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                      <h4 className="font-display text-2xl font-bold tracking-tight text-foreground">
+                                        {partnerOrg?.name ?? "-"}
+                                      </h4>
+                                      {partnerOrg?.industry ? (
+                                        <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                                          {partnerIndustryLabel(partnerOrg.industry)}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    {partnerOrg?.slug ? (
+                                      <p className="mt-1 text-sm text-muted-foreground">@{partnerOrg.slug}</p>
+                                    ) : null}
+
+                                    {(partnerOrg?.website || partnerOrg?.officeAddress) ? (
+                                      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                                        {partnerOrg?.website ? (
+                                          <span className="inline-flex items-center gap-1.5 min-w-0">
+                                            <Globe className="h-4 w-4 flex-none text-muted-foreground" aria-hidden />
+                                            <a
+                                              href={partnerOrg.website}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="truncate text-foreground hover:underline"
+                                            >
+                                              {partnerOrg.website.replace(/^https?:\/\//, "")}
+                                            </a>
+                                          </span>
+                                        ) : null}
+                                        {partnerOrg?.officeAddress ? (
+                                          <span className="inline-flex items-center gap-1.5 min-w-0">
+                                            <MapPin className="h-4 w-4 flex-none text-muted-foreground" aria-hidden />
+                                            <span className="truncate text-foreground">{partnerOrg.officeAddress}</span>
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
                                   </div>
-                                ))}
+                                </div>
+
+                                {/* About */}
+                                <div className="border-t border-border/60 pt-5">
+                                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                    {tr("회사 소개", "About", "公司简介", "Giới thiệu", "会社紹介", "Tentang")}
+                                  </p>
+                                  {partnerOrg?.description?.trim() ? (
+                                    <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
+                                      {partnerOrg.description}
+                                    </p>
+                                  ) : (
+                                    <p className="mt-2 text-sm text-muted-foreground">
+                                      {tr(
+                                        "아직 회사 소개가 등록되지 않았어요. 편집을 눌러 회사를 소개해보세요.",
+                                        "No company description yet. Use Edit to introduce your company.",
+                                        "尚未填写公司简介，点击编辑添加介绍。",
+                                        "Chưa có giới thiệu. Nhấn Chỉnh sửa để thêm.",
+                                        "まだ会社紹介が登録されていません。編集から紹介を追加してください。",
+                                        "Belum ada deskripsi perusahaan. Tekan Edit untuk menambahkan."
+                                      )}
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Photos */}
+                                <div className="border-t border-border/60 pt-5">
+                                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                    {tr("사진", "Photos", "照片", "Hình ảnh", "写真", "Foto")}
+                                  </p>
+                                  {additionalCompanyImages.length > 0 ? (
+                                    <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                                      {additionalCompanyImages.slice(0, 8).map((image, index) => {
+                                        const isLastVisible = index === 7 && additionalCompanyImages.length > 8;
+                                        return (
+                                          <div key={`photo-${index}`} className="relative aspect-square overflow-hidden rounded-lg border border-border/60 bg-muted/20">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                              src={image}
+                                              alt={`${tr("사진", "Photo", "照片", "Hình ảnh", "写真", "Foto")} ${index + 1}`}
+                                              className="h-full w-full object-cover"
+                                            />
+                                            {isLastVisible ? (
+                                              <div className="absolute inset-0 flex items-center justify-center bg-black/55 text-sm font-semibold text-white">
+                                                +{additionalCompanyImages.length - 8}
+                                              </div>
+                                            ) : null}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                                      {[0, 1, 2, 3].map((slotIndex) => (
+                                        <div key={slotIndex} className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-border/60 bg-muted/20 text-[10px] font-medium text-muted-foreground">
+                                          {slotIndex === 0 ? tr("사진 없음", "No photos", "无照片", "Không có ảnh", "写真なし", "Tanpa foto") : ""}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             ) : section.title === tr("인증 정보", "Verification", "认证信息", "Thông tin xác minh", "認証情報", "Verifikasi") ? (
                               <div className="space-y-3">
@@ -968,7 +1014,8 @@ export function ProfilePage() {
                               </ul>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : activeTab === "positions" ? (
                       <div className="space-y-3">
@@ -1090,36 +1137,109 @@ export function ProfilePage() {
 
                     {studentTab === "info" ? (
                       <div className="space-y-6">
-                        <ProfileCompletionMeter />
-                        <div className="space-y-4 border-t border-border/60 pt-6">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-foreground">{tr("기본 정보", "Basic information", "基本信息", "Thông tin cơ bản", "基本情報", "Informasi dasar")}</p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                {tr("프로필의 핵심 연락/신상 정보를 관리합니다.", "Manage your core contact and personal profile information.", "管理资料中的核心联系方式与个人信息。", "Quản lý thông tin liên hệ và thông tin cá nhân cốt lõi của hồ sơ.", "プロフィールの主要な連絡先・個人情報を管理します。", "Kelola informasi kontak dan profil pribadi inti Anda.")}
-                              </p>
-                            </div>
+                        {/* Hero: 큰 프로필 사진 + identity */}
+                        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start">
+                          <div className="absolute right-0 top-0">
                             <Button variant="outline" size="sm" asChild>
-                              <Link href="/profile/edit">{tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}</Link>
+                              <Link href="/profile/edit">
+                                {tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}
+                              </Link>
                             </Button>
                           </div>
-                          <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                            <div className="text-sm">
-                              <p className="text-xs font-medium text-muted-foreground">{tr("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")}</p>
-                              <p className="mt-1 break-words text-foreground">{profileImage ? tr("등록됨", "Uploaded", "已注册", "Đã đăng ký", "登録済み", "Telah diunggah") : tr("미등록", "Not uploaded", "未注册", "Chưa đăng ký", "未登録", "Belum diunggah")}</p>
+
+                          {profileImage ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={profileImage}
+                              alt={tr("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")}
+                              className="h-28 w-28 flex-none object-cover"
+                              style={PROFILE_SQUIRCLE_STYLE}
+                            />
+                          ) : (
+                            <div
+                              className="flex h-28 w-28 flex-none items-center justify-center border border-border/60 bg-muted text-3xl font-bold text-muted-foreground"
+                              style={PROFILE_SQUIRCLE_STYLE}
+                            >
+                              {avatarFallback}
                             </div>
-                            <div className="text-sm">
-                              <p className="text-xs font-medium text-muted-foreground">{tr("실명", "Legal name", "真实姓名", "Tên thật", "本名", "Nama asli")}</p>
-                              <p className="mt-1 break-words text-foreground">{user.realName ?? "-"}</p>
+                          )}
+
+                          <div className="flex-1 min-w-0 pr-0 sm:pr-20">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <h4 className="font-display text-2xl font-bold tracking-tight text-foreground">
+                                {user.name ?? tr("이름 없음", "No name", "无名称", "Không có tên", "名前なし", "Tanpa nama")}
+                              </h4>
+                              {roleLabel ? (
+                                <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                                  {roleLabel}
+                                </span>
+                              ) : null}
                             </div>
-                            <div className="text-sm">
-                              <p className="text-xs font-medium text-muted-foreground">{tr("닉네임", "Nickname", "昵称", "Biệt danh", "ニックネーム", "Nama panggilan")}</p>
-                              <p className="mt-1 break-words text-foreground">{user.name ?? "-"}</p>
+                            {user.realName ? (
+                              <p className="mt-1 text-sm text-muted-foreground">{user.realName}</p>
+                            ) : null}
+
+                            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                              <span className="inline-flex items-center gap-1.5 min-w-0">
+                                {user.authProvider === "KAKAO" ? (
+                                  <span className="grid h-4 w-4 flex-none place-items-center rounded-sm bg-[#FEE500]">
+                                    <svg aria-hidden className="h-2.5 w-2.5 text-[#191919]" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.86 5.36 4.66 6.78L5.5 21.5c-.1.34.27.62.57.43L10.5 19c.5.05 1 .08 1.5.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
+                                    </svg>
+                                  </span>
+                                ) : user.authProvider === "GOOGLE" ? (
+                                  <svg aria-hidden className="h-4 w-4 flex-none" viewBox="0 0 48 48">
+                                    <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+                                    <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+                                    <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
+                                    <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+                                  </svg>
+                                ) : user.authProvider === "NAVER" ? (
+                                  <span className="grid h-4 w-4 flex-none place-items-center rounded-sm bg-[#03C75A] text-[10px] font-black leading-none text-white">N</span>
+                                ) : (
+                                  <Mail className="h-4 w-4 flex-none text-muted-foreground" aria-hidden />
+                                )}
+                                <span className="truncate text-foreground">{user.email}</span>
+                              </span>
+                              {user.phoneNumber ? (
+                                <span className="inline-flex items-center gap-1.5 min-w-0">
+                                  <Phone className="h-4 w-4 flex-none text-muted-foreground" aria-hidden />
+                                  <span className="truncate text-foreground">{user.phoneNumber}</span>
+                                </span>
+                              ) : null}
                             </div>
-                            <div className="text-sm">
-                              <p className="text-xs font-medium text-muted-foreground">{tr("연락처", "Phone", "联系方式", "Liên hệ", "連絡先", "Telepon")}</p>
-                              <p className="mt-1 break-words text-foreground">{user.phoneNumber ?? "-"}</p>
-                            </div>
+                          </div>
+                        </div>
+
+                        {/* About — 자기소개 */}
+                        <div className="border-t border-border/60 pt-5">
+                          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                            {tr("자기 소개", "About me", "自我介绍", "Giới thiệu bản thân", "自己紹介", "Tentang saya")}
+                          </p>
+                          {studentProfile?.selfIntroduction?.trim() ? (
+                            <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
+                              {studentProfile.selfIntroduction}
+                            </p>
+                          ) : (
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              {tr(
+                                "아직 자기 소개가 등록되지 않았어요. 편집을 눌러 자신을 소개해보세요.",
+                                "No self introduction yet. Use Edit to introduce yourself.",
+                                "尚未填写自我介绍，点击编辑添加介绍。",
+                                "Chưa có giới thiệu bản thân. Nhấn Chỉnh sửa để thêm.",
+                                "まだ自己紹介が登録されていません。編集から紹介を追加してください。",
+                                "Belum ada pengenalan diri. Tekan Edit untuk menambahkan."
+                              )}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* 상세 정보 */}
+                        <div className="border-t border-border/60 pt-5">
+                          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                            {tr("상세 정보", "Details", "详细信息", "Thông tin chi tiết", "詳細情報", "Detail")}
+                          </p>
+                          <div className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
                             <div className="text-sm">
                               <p className="text-xs font-medium text-muted-foreground">{tr("성별", "Gender", "性别", "Giới tính", "性別", "Jenis kelamin")}</p>
                               <p className="mt-1 break-words text-foreground">
