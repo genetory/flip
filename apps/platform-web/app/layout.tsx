@@ -3,7 +3,12 @@ import type { Metadata } from "next";
 import { AuthSessionProvider } from "../components/auth/AuthSessionProvider";
 import { LanguageProvider } from "../components/i18n/LanguageProvider";
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.NEXT_PUBLIC_API_URL?.includes("staging") ? "https://staging.aply.global" : "https://aply.global");
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "Aply — The career platform connecting global talent with Korean partners",
   description: "Apply your next move. Connect with Korean companies hiring international talent.",
   manifest: "/site.webmanifest",
@@ -11,6 +16,7 @@ export const metadata: Metadata = {
     google: "notranslate"
   },
   alternates: {
+    canonical: "/",
     languages: {
       ko: "/",
       en: "/",

@@ -13,6 +13,22 @@ const nextConfig = {
   },
   turbopack: {
     root: __dirname
+  },
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.aply.global" }],
+        destination: "https://aply.global/:path*",
+        permanent: true
+      },
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.staging.aply.global" }],
+        destination: "https://staging.aply.global/:path*",
+        permanent: true
+      }
+    ];
   }
 };
 

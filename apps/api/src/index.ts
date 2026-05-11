@@ -150,10 +150,17 @@ const signupEmailVerificationCodeTtlMinutes = Math.max(1, Number(process.env.SIG
 const partnerJoinCodeTtlMinutesDefault = Math.max(5, Number(process.env.PARTNER_JOIN_CODE_TTL_MINUTES ?? 120));
 const partnerJoinCodeTtlMinutesMax = Math.max(partnerJoinCodeTtlMinutesDefault, Number(process.env.PARTNER_JOIN_CODE_TTL_MAX_MINUTES ?? 10080));
 const isProduction = process.env.NODE_ENV === "production";
-const allowedOrigins = [platformWebUrl, partnerAdminUrl, opsAdminUrl]
+const allowedOrigins = [
+  platformWebUrl,
+  partnerAdminUrl,
+  opsAdminUrl,
+  "https://aply.global",
+  "https://www.aply.global",
+  "https://staging.aply.global"
+]
   .map((origin) => origin.trim())
   .filter((origin) => origin.length > 0);
-const allowedOriginHostSuffixes = (process.env.CORS_ALLOWED_ORIGIN_SUFFIXES ?? ".azurewebsites.net")
+const allowedOriginHostSuffixes = (process.env.CORS_ALLOWED_ORIGIN_SUFFIXES ?? ".azurewebsites.net,.aply.global")
   .split(",")
   .map((item) => item.trim().toLowerCase())
   .filter((item) => item.length > 0)
