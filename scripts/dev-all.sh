@@ -22,5 +22,5 @@ npm run db:generate
 echo "Running Prisma migrations..."
 npm run db:migrate
 
-echo "Starting platform-web + partner-admin + ops-admin + api development servers..."
+echo "Starting platform-web + api development servers..."
 npm run dev
