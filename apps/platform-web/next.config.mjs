@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Deploy marker: rebuild staging with new aply.global domain envs
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
