@@ -1,0 +1,46 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
+import { OpsDashboardSidebar } from "./_components/DashboardSidebar";
+
+export default function OpsDashboardLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const { user, isReady, isAuthenticated } = useAuthSession();
+  const allowed = user?.role === "OPERATOR";
+
+  useEffect(() => {
+    if (!isReady) return;
+    if (!isAuthenticated || !allowed) {
+      router.replace("/login");
+    }
+  }, [isReady, isAuthenticated, allowed, router]);
+
+  if (!isReady) {
+    return (
+      <main className="container py-10 md:py-14">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 w-56 rounded bg-muted" />
+          <div className="h-24 rounded-xl bg-muted" />
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="h-28 rounded-xl bg-muted" />
+            <div className="h-28 rounded-xl bg-muted" />
+            <div className="h-28 rounded-xl bg-muted" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAuthenticated || !allowed) {
+    return null;
+  }
+
+  return (
+    <main className="ops-console-shell">
+      <OpsDashboardSidebar />
+      <div className="ops-console-main">{children}</div>
+    </main>
+  );
+}

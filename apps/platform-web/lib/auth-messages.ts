@@ -1,6 +1,6 @@
 export const PLATFORM_LOCALE_STORAGE_KEY = "platform_locale";
 export const DEFAULT_PLATFORM_LOCALE = "ko";
-export const PLATFORM_LOCALES = ["ko", "en", "zh-CN", "vi"] as const;
+export const PLATFORM_LOCALES = ["ko", "en", "zh-CN", "vi", "ja", "id"] as const;
 export type PlatformLocale = (typeof PLATFORM_LOCALES)[number];
 
 const authErrorMessages = {
@@ -71,6 +71,40 @@ const authErrorMessages = {
     REFRESH_TOKEN_REVOKED: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
     USER_NOT_FOUND: "Không tìm thấy tài khoản.",
     REGISTRATION_FAILED: "Đăng ký thất bại."
+  },
+  ja: {
+    BUSINESS_EMAIL_REQUIRED: "このメールアドレスでは登録できません。",
+    EMAIL_ALREADY_EXISTS: "このメールアドレスは既に登録されています。",
+    EMAIL_PREVERIFICATION_REQUIRED: "先にビジネスメールの認証を完了してください。",
+    EMAIL_VERIFICATION_REQUIRED: "メール認証が必要です。受信トレイの認証リンクをご確認ください。",
+    INVALID_EMAIL_VERIFICATION_TOKEN: "認証リンクが無効です。",
+    EXPIRED_EMAIL_VERIFICATION_TOKEN: "認証リンクの有効期限が切れました。認証メールを再度ご請求ください。",
+    INVALID_EMAIL_PREVERIFICATION_CODE: "メール認証コードが正しくありません。",
+    EXPIRED_EMAIL_PREVERIFICATION_CODE: "メール認証コードの有効期限が切れました。再度認証してください。",
+    INVALID_CREDENTIALS: "メールアドレスまたはパスワードが正しくありません。",
+    INVALID_REQUEST: "入力内容をもう一度ご確認ください。",
+    MISSING_REFRESH_TOKEN: "セッションの有効期限が切れました。再度ログインしてください。",
+    INVALID_REFRESH_TOKEN: "セッションが無効です。再度ログインしてください。",
+    REFRESH_TOKEN_REVOKED: "セッションの有効期限が切れました。再度ログインしてください。",
+    USER_NOT_FOUND: "アカウントが見つかりません。",
+    REGISTRATION_FAILED: "会員登録に失敗しました。"
+  },
+  id: {
+    BUSINESS_EMAIL_REQUIRED: "Email ini tidak dapat digunakan untuk pendaftaran.",
+    EMAIL_ALREADY_EXISTS: "Email ini sudah terdaftar.",
+    EMAIL_PREVERIFICATION_REQUIRED: "Harap verifikasi email kerja Anda terlebih dahulu.",
+    EMAIL_VERIFICATION_REQUIRED: "Verifikasi email diperlukan. Silakan periksa kotak masuk Anda.",
+    INVALID_EMAIL_VERIFICATION_TOKEN: "Tautan verifikasi tidak valid.",
+    EXPIRED_EMAIL_VERIFICATION_TOKEN: "Tautan verifikasi telah kedaluwarsa. Silakan minta tautan baru.",
+    INVALID_EMAIL_PREVERIFICATION_CODE: "Kode verifikasi email tidak valid.",
+    EXPIRED_EMAIL_PREVERIFICATION_CODE: "Kode verifikasi email telah kedaluwarsa. Silakan verifikasi ulang.",
+    INVALID_CREDENTIALS: "Email atau kata sandi salah.",
+    INVALID_REQUEST: "Silakan periksa kembali input Anda.",
+    MISSING_REFRESH_TOKEN: "Sesi Anda telah berakhir. Silakan masuk lagi.",
+    INVALID_REFRESH_TOKEN: "Sesi Anda tidak valid. Silakan masuk lagi.",
+    REFRESH_TOKEN_REVOKED: "Sesi Anda telah berakhir. Silakan masuk lagi.",
+    USER_NOT_FOUND: "Akun tidak ditemukan.",
+    REGISTRATION_FAILED: "Pendaftaran gagal."
   }
 } as const;
 
@@ -202,6 +236,70 @@ const authPageMessages = {
       loginPrompt: "Đã có tài khoản?",
       loginLink: "Đăng nhập"
     }
+  },
+  ja: {
+    login: {
+      emailLabel: "メールアドレス",
+      passwordLabel: "パスワード",
+      emailPlaceholder: "you@example.com",
+      passwordPlaceholder: "パスワードを入力してください",
+      helperText: "メールアドレスとパスワードでログインします。",
+      submitIdle: "ログイン",
+      submitPending: "ログイン中...",
+      submitFallbackError: "ログインに失敗しました。",
+      signupPrompt: "アカウントをお持ちでない方は",
+      signupLink: "会員登録"
+    },
+    signup: {
+      accountTypeLabel: "会員タイプ",
+      accountTypeGeneral: "一般会員",
+      accountTypeBusiness: "パートナー会員",
+      nameLabel: "お名前",
+      emailLabel: "メールアドレス",
+      passwordLabel: "パスワード",
+      namePlaceholder: "山田 太郎",
+      emailPlaceholder: "you@example.com",
+      passwordPlaceholder: "8文字以上で入力してください",
+      businessHelperText: "登録に使用するメールアドレスを入力してください。",
+      generalHelperText: "登録後、メール認証を完了するとログインできます。",
+      submitIdle: "会員登録",
+      submitPending: "登録中...",
+      submitFallbackError: "会員登録に失敗しました。",
+      loginPrompt: "既にアカウントをお持ちの方は",
+      loginLink: "ログイン"
+    }
+  },
+  id: {
+    login: {
+      emailLabel: "Email",
+      passwordLabel: "Kata sandi",
+      emailPlaceholder: "you@example.com",
+      passwordPlaceholder: "Masukkan kata sandi Anda",
+      helperText: "Masuk dengan email dan kata sandi Anda.",
+      submitIdle: "Masuk",
+      submitPending: "Sedang masuk...",
+      submitFallbackError: "Gagal masuk.",
+      signupPrompt: "Belum punya akun?",
+      signupLink: "Daftar"
+    },
+    signup: {
+      accountTypeLabel: "Tipe akun",
+      accountTypeGeneral: "Umum",
+      accountTypeBusiness: "Mitra",
+      nameLabel: "Nama",
+      emailLabel: "Email",
+      passwordLabel: "Kata sandi",
+      namePlaceholder: "Budi Santoso",
+      emailPlaceholder: "you@example.com",
+      passwordPlaceholder: "Masukkan minimal 8 karakter",
+      businessHelperText: "Masukkan email yang akan digunakan untuk pendaftaran.",
+      generalHelperText: "Anda dapat masuk setelah menyelesaikan verifikasi email.",
+      submitIdle: "Daftar",
+      submitPending: "Sedang mendaftar...",
+      submitFallbackError: "Pendaftaran gagal.",
+      loginPrompt: "Sudah punya akun?",
+      loginLink: "Masuk"
+    }
   }
 } as const;
 
@@ -213,6 +311,8 @@ export function getBrowserLocale(): PlatformLocale {
   if (lang.startsWith("ko")) return "ko";
   if (lang.startsWith("zh")) return "zh-CN";
   if (lang.startsWith("vi")) return "vi";
+  if (lang.startsWith("ja")) return "ja";
+  if (lang.startsWith("id")) return "id";
   return "en";
 }
 
@@ -225,6 +325,8 @@ export function resolveAuthErrorMessage(code?: string, fallback?: string, locale
   if (locale === "ko") return "요청을 처리하지 못했습니다.";
   if (locale === "zh-CN") return "无法处理该请求。";
   if (locale === "vi") return "Không thể xử lý yêu cầu.";
+  if (locale === "ja") return "リクエストを処理できませんでした。";
+  if (locale === "id") return "Tidak dapat memproses permintaan Anda.";
   return "Unable to process your request.";
 }
 
@@ -237,7 +339,7 @@ const headerMessages = {
     brand: "Aply",
     nav: {
       positions: "포지션 탐색",
-      matching: "매칭 가능성",
+      matching: "취업 모험",
       community: "커뮤니티",
       resources: "자료실",
       pricing: "맞춤 지원",
@@ -258,14 +360,18 @@ const headerMessages = {
     languageLabel: "언어 선택",
     languageOptions: {
       ko: "한국어",
-      en: "English"
+      en: "English",
+      "zh-CN": "简体中文",
+      vi: "Tiếng Việt",
+      ja: "日本語",
+      id: "Bahasa Indonesia"
     }
   },
   en: {
     brand: "Aply",
     nav: {
       positions: "Positions",
-      matching: "Match Score",
+      matching: "Readiness Score",
       community: "Community",
       resources: "Resources",
       pricing: "Customized Support",
@@ -286,14 +392,18 @@ const headerMessages = {
     languageLabel: "Choose language",
     languageOptions: {
       ko: "한국어",
-      en: "English"
+      en: "English",
+      "zh-CN": "简体中文",
+      vi: "Tiếng Việt",
+      ja: "日本語",
+      id: "Bahasa Indonesia"
     }
   },
   "zh-CN": {
     brand: "Aply",
     nav: {
       positions: "职位探索",
-      matching: "匹配可能性",
+      matching: "就业可能性",
       community: "社区",
       resources: "资料库",
       pricing: "定制支持",
@@ -316,14 +426,16 @@ const headerMessages = {
       ko: "한국어",
       en: "English",
       "zh-CN": "简体中文",
-      vi: "Tiếng Việt"
+      vi: "Tiếng Việt",
+      ja: "日本語",
+      id: "Bahasa Indonesia"
     }
   },
   vi: {
     brand: "Aply",
     nav: {
       positions: "Khám phá vị trí",
-      matching: "Khả năng phù hợp",
+      matching: "Khả năng việc làm",
       community: "Cộng đồng",
       resources: "Tài liệu",
       pricing: "Hỗ trợ tùy chỉnh",
@@ -347,6 +459,70 @@ const headerMessages = {
       en: "English",
       "zh-CN": "简体中文",
       vi: "Tiếng Việt"
+    }
+  },
+  ja: {
+    brand: "Aply",
+    nav: {
+      positions: "ポジション検索",
+      matching: "就職可能性",
+      community: "コミュニティ",
+      resources: "資料室",
+      pricing: "カスタムサポート",
+      how: "運営方法",
+      cases: "成功事例"
+    },
+    auth: {
+      login: "ログイン",
+      signup: "会員登録",
+      myAccount: "マイページ",
+      account: "アカウント",
+      logout: "ログアウト",
+      rolePartner: "パートナー会員",
+      roleOperator: "運営者",
+      greetingSuffix: "様"
+    },
+    menuOpenLabel: "メニューを開く",
+    languageLabel: "言語を選択",
+    languageOptions: {
+      ko: "한국어",
+      en: "English",
+      "zh-CN": "简体中文",
+      vi: "Tiếng Việt",
+      ja: "日本語",
+      id: "Bahasa Indonesia"
+    }
+  },
+  id: {
+    brand: "Aply",
+    nav: {
+      positions: "Cari Posisi",
+      matching: "Peluang Karier",
+      community: "Komunitas",
+      resources: "Sumber Daya",
+      pricing: "Dukungan Khusus",
+      how: "Cara Kerja",
+      cases: "Studi Kasus"
+    },
+    auth: {
+      login: "Masuk",
+      signup: "Daftar",
+      myAccount: "Akun Saya",
+      account: "Akun",
+      logout: "Keluar",
+      rolePartner: "Mitra",
+      roleOperator: "Operator",
+      greetingSuffix: ""
+    },
+    menuOpenLabel: "Buka menu",
+    languageLabel: "Pilih bahasa",
+    languageOptions: {
+      ko: "한국어",
+      en: "English",
+      "zh-CN": "简体中文",
+      vi: "Tiếng Việt",
+      ja: "日本語",
+      id: "Bahasa Indonesia"
     }
   }
 } as const;

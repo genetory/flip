@@ -357,3 +357,71 @@ export function getPostLoginUrl(role: AuthUser["role"]) {
   if (role === "PARTNER") return "/profile";
   return "/positions";
 }
+
+export async function reauthWithPassword(password: string) {
+  const token = readAccessToken();
+  if (!token) throw new AuthApiError("로그인이 필요합니다.");
+  const response = await authFetch(`${getApiBaseUrl()}/auth/reauth/password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    credentials: "include",
+    body: JSON.stringify({ password, purpose: "delete_account" })
+  });
+  const payload = (await response.json()) as
+    | { ok: true; reauthToken: string; expiresInMs: number }
+    | AuthErrorPayload;
+  if (!response.ok || payload.ok !== true) {
+    const fallback = "message" in payload && typeof payload.message === "string" ? payload.message : undefined;
+    const code = "code" in payload && typeof payload.code === "string" ? payload.code : undefined;
+    throw new AuthApiError(resolveAuthErrorMessage(code, fallback), code);
+  }
+  return payload;
+}
+
+export async function startOAuthReauth(provider: SocialProvider) {
+  const token = readAccessToken();
+  if (!token) throw new AuthApiError("로그인이 필요합니다.");
+  const response = await authFetch(`${getApiBaseUrl()}/auth/${provider}/reauth/start`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include"
+  });
+  const payload = (await response.json()) as
+    | { ok: true; authorizeUrl: string }
+    | AuthErrorPayload;
+  if (!response.ok || payload.ok !== true) {
+    const fallback = "message" in payload && typeof payload.message === "string" ? payload.message : undefined;
+    const code = "code" in payload && typeof payload.code === "string" ? payload.code : undefined;
+    throw new AuthApiError(resolveAuthErrorMessage(code, fallback), code);
+  }
+  return payload.authorizeUrl;
+}
+
+export async function deleteMyAccount(reauthToken: string) {
+  const token = readAccessToken();
+  if (!token) throw new AuthApiError("로그인이 필요합니다.");
+  const response = await authFetch(`${getApiBaseUrl()}/members/me/account`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-Reauth-Token": reauthToken
+    },
+    credentials: "include"
+  });
+  if (!response.ok) {
+    let code: string | undefined;
+    let message: string | undefined;
+    try {
+      const body = (await response.json()) as AuthErrorPayload;
+      code = typeof body.code === "string" ? body.code : undefined;
+      message = typeof body.message === "string" ? body.message : undefined;
+    } catch {
+      // ignore
+    }
+    throw new AuthApiError(resolveAuthErrorMessage(code, message), code);
+  }
+  clearAccessToken();
+}

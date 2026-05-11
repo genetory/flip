@@ -29,11 +29,11 @@ function inferWorkType(value?: string | null): "On-site" | "Hybrid" | "Remote" {
 
 function workTypeLabel(value: string, locale: PlatformLocale) {
   const normalized = value.toLowerCase().replace(/[\s_-]/g, "");
-  const pick = (ko: string, en: string, zh: string, vi: string) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : en;
-  if (normalized === "remote") return pick("원격근무", "Remote", "远程办公", "Làm việc từ xa");
-  if (normalized === "hybrid") return pick("혼합근무", "Hybrid", "混合办公", "Làm việc kết hợp");
-  if (normalized === "onsite") return pick("대면근무", "On-site", "现场办公", "Làm việc tại văn phòng");
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  if (normalized === "remote") return pick("원격근무", "Remote", "远程办公", "Làm việc từ xa", "在宅勤務", "Kerja jarak jauh");
+  if (normalized === "hybrid") return pick("혼합근무", "Hybrid", "混合办公", "Làm việc kết hợp", "ハイブリッド勤務", "Kerja hibrida");
+  if (normalized === "onsite") return pick("대면근무", "On-site", "现场办公", "Làm việc tại văn phòng", "出社勤務", "Kerja di kantor");
   return value;
 }
 
@@ -48,17 +48,17 @@ function mapPublicPositionToCard(item: PublicPositionListItem, locale: PlatformL
   const postedDays = Number.isNaN(createdAt.getTime())
     ? 0
     : Math.max(0, Math.floor((now - createdAt.getTime()) / (24 * 60 * 60 * 1000)));
-  const pick = (ko: string, en: string, zh: string, vi: string) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : en;
-  const company = item.partnerOrganization?.name?.trim() || pick("파트너 기업", "Partner company", "合作企业", "Doanh nghiệp đối tác");
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  const company = item.partnerOrganization?.name?.trim() || pick("파트너 기업", "Partner company", "合作企业", "Doanh nghiệp đối tác", "パートナー企業", "Perusahaan mitra");
   const role = item.title;
-  const category = item.preferredJobRole?.trim() || pick("직무 미정", "Role TBD", "岗位待定", "Vị trí chưa xác định");
+  const category = item.preferredJobRole?.trim() || pick("직무 미정", "Role TBD", "岗位待定", "Vị trí chưa xác định", "職務未定", "Posisi belum ditentukan");
   const workType = item.workType ?? inferWorkType(item.workingHours);
   const startDate = item.startDate ? new Date(item.startDate) : null;
   const startLabel =
     startDate && !Number.isNaN(startDate.getTime())
       ? `${startDate.getFullYear()}.${String(startDate.getMonth() + 1).padStart(2, "0")}.${String(startDate.getDate()).padStart(2, "0")}`
-      : pick("즉시", "Immediate", "立即", "Ngay");
+      : pick("즉시", "Immediate", "立即", "Ngay", "即時", "Segera");
   const statusMatchBase = item.status === "OPEN" ? 86 : 78;
   const match = Math.min(99, Math.max(60, statusMatchBase + Math.min(8, item.matchingParticipantsCount)));
   const tags = [
@@ -77,9 +77,9 @@ function mapPublicPositionToCard(item: PublicPositionListItem, locale: PlatformL
     role,
     category,
     industry: item.partnerOrganization?.industry ?? "OTHER",
-    companySize: item.partnerOrganization?.companySize ?? pick("미정", "TBD", "未定", "Chưa xác định"),
+    companySize: item.partnerOrganization?.companySize ?? pick("미정", "TBD", "未定", "Chưa xác định", "未定", "Belum ditentukan"),
     eligibleVisas: item.eligibleVisas,
-    location: item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || pick("협의", "To be discussed", "可协商", "Thỏa thuận"),
+    location: item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || pick("협의", "To be discussed", "可协商", "Thỏa thuận", "応相談", "Dapat dirundingkan"),
     type: workType,
     start: startLabel,
     postedDays,
@@ -96,8 +96,8 @@ function getPositionStatusBadge(status: PublicPositionListItem["status"], locale
 }
 
 function formatPostedDate(position: Position, locale: PlatformLocale) {
-  const pick = (ko: string, en: string, zh: string, vi: string) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : en;
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
   if (position.createdAt) {
     const created = new Date(position.createdAt);
     if (!Number.isNaN(created.getTime())) {
@@ -106,20 +106,20 @@ function formatPostedDate(position: Position, locale: PlatformLocale) {
       const minutes = Math.floor(diffMs / (60 * 1000));
       if (minutes < 60) {
         const n = Math.max(1, minutes);
-        return pick(`${n}분 전`, `${n}m ago`, `${n} 分钟前`, `${n} phút trước`);
+        return pick(`${n}분 전`, `${n}m ago`, `${n} 分钟前`, `${n} phút trước`, `${n}分前`, `${n} menit lalu`);
       }
       const hours = Math.floor(minutes / 60);
-      if (hours < 24) return pick(`${hours}시간 전`, `${hours}h ago`, `${hours} 小时前`, `${hours} giờ trước`);
+      if (hours < 24) return pick(`${hours}시간 전`, `${hours}h ago`, `${hours} 小时前`, `${hours} giờ trước`, `${hours}時間前`, `${hours} jam lalu`);
       const days = Math.floor(hours / 24);
-      if (days < 7) return pick(`${days}일 전`, `${days}d ago`, `${days} 天前`, `${days} ngày trước`);
+      if (days < 7) return pick(`${days}일 전`, `${days}d ago`, `${days} 天前`, `${days} ngày trước`, `${days}日前`, `${days} hari lalu`);
       const y = created.getFullYear();
       const m = String(created.getMonth() + 1).padStart(2, "0");
       const d = String(created.getDate()).padStart(2, "0");
       return `${y}. ${m}. ${d}`;
     }
   }
-  if (position.postedDays <= 0) return pick("오늘", "Today", "今天", "Hôm nay");
-  return pick(`${position.postedDays}일 전`, `${position.postedDays}d ago`, `${position.postedDays} 天前`, `${position.postedDays} ngày trước`);
+  if (position.postedDays <= 0) return pick("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini");
+  return pick(`${position.postedDays}일 전`, `${position.postedDays}d ago`, `${position.postedDays} 天前`, `${position.postedDays} ngày trước`, `${position.postedDays}日前`, `${position.postedDays} hari lalu`);
 }
 
 export function CompanyPositionsSection({ items }: { items: PublicPositionListItem[] }) {
@@ -128,18 +128,20 @@ export function CompanyPositionsSection({ items }: { items: PublicPositionListIt
   const isKo = locale === "ko";
   const isZh = locale === "zh-CN";
   const isVi = locale === "vi";
-  const pick = (ko: string, en: string, zh: string, vi: string) =>
-    isKo ? ko : isZh ? zh : isVi ? vi : en;
+  const isJa = locale === "ja";
+  const isId = locale === "id";
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    isKo ? ko : isZh ? zh : isVi ? vi : isJa ? ja : isId ? id : en;
   const copy = {
-    positions: pick("포지션", "positions", "职位", "vị trí"),
-    listView: pick("리스트 보기", "List view", "列表视图", "Xem dạng danh sách"),
-    gridView: pick("그리드 보기", "Grid view", "网格视图", "Xem dạng lưới"),
-    save: pick("저장", "Save", "收藏", "Lưu"),
-    edit: pick("수정하기", "Edit", "编辑", "Chỉnh sửa"),
-    apply: pick("지원하기", "Apply", "申请", "Ứng tuyển"),
-    applied: pick("지원완료", "Applied", "已申请", "Đã ứng tuyển"),
-    viewDetailSuffix: pick("상세보기", "View details", "查看详情", "Xem chi tiết"),
-    thumbnailSuffix: pick("썸네일", "thumbnail", "缩略图", "ảnh thu nhỏ")
+    positions: pick("포지션", "positions", "职位", "vị trí", "ポジション", "posisi"),
+    listView: pick("리스트 보기", "List view", "列表视图", "Xem dạng danh sách", "リスト表示", "Tampilan daftar"),
+    gridView: pick("그리드 보기", "Grid view", "网格视图", "Xem dạng lưới", "グリッド表示", "Tampilan kisi"),
+    save: pick("저장", "Save", "收藏", "Lưu", "保存", "Simpan"),
+    edit: pick("수정하기", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit"),
+    apply: pick("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar"),
+    applied: pick("지원완료", "Applied", "已申请", "Đã ứng tuyển", "応募済み", "Sudah dilamar"),
+    viewDetailSuffix: pick("상세보기", "View details", "查看详情", "Xem chi tiết", "詳細を見る", "Lihat detail"),
+    thumbnailSuffix: pick("썸네일", "thumbnail", "缩略图", "ảnh thu nhỏ", "サムネイル", "thumbnail")
   };
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
@@ -226,7 +228,7 @@ export function CompanyPositionsSection({ items }: { items: PublicPositionListIt
     <section className="mt-8">
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground">{positions.length}</span>{isKo ? "개 " : isZh ? " " : isVi ? " " : " "}{copy.positions}
+          <span className="font-semibold text-foreground">{positions.length}</span>{isKo ? "개 " : isZh ? " " : isVi ? " " : isJa ? "件 " : isId ? " " : " "}{copy.positions}
         </p>
         <div className="flex items-center gap-1">
           <Button

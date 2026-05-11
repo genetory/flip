@@ -28,11 +28,11 @@ function inferWorkType(value?: string | null): "On-site" | "Hybrid" | "Remote" {
 
 function workTypeLabel(value: string, locale: PlatformLocale) {
   const normalized = value.toLowerCase().replace(/[\s_-]/g, "");
-  const pick = (ko: string, en: string, zh: string, vi: string) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : en;
-  if (normalized === "remote") return pick("원격근무", "Remote", "远程办公", "Làm việc từ xa");
-  if (normalized === "hybrid") return pick("혼합근무", "Hybrid", "混合办公", "Làm việc kết hợp");
-  if (normalized === "onsite") return pick("대면근무", "On-site", "现场办公", "Làm việc tại văn phòng");
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  if (normalized === "remote") return pick("원격근무", "Remote", "远程办公", "Làm việc từ xa", "在宅勤務", "Kerja jarak jauh");
+  if (normalized === "hybrid") return pick("혼합근무", "Hybrid", "混合办公", "Làm việc kết hợp", "ハイブリッド勤務", "Kerja hibrida");
+  if (normalized === "onsite") return pick("대면근무", "On-site", "现场办公", "Làm việc tại văn phòng", "出社勤務", "Kerja di kantor");
   return value;
 }
 
@@ -47,16 +47,16 @@ function formatPostedDate(value: string, locale: PlatformLocale) {
   const now = Date.now();
   const diffMs = Math.max(0, now - created.getTime());
   const minutes = Math.floor(diffMs / (60 * 1000));
-  const pick = (ko: string, en: string, zh: string, vi: string) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : en;
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
   if (minutes < 60) {
     const n = Math.max(1, minutes);
-    return pick(`${n}분 전`, `${n}m ago`, `${n} 分钟前`, `${n} phút trước`);
+    return pick(`${n}분 전`, `${n}m ago`, `${n} 分钟前`, `${n} phút trước`, `${n}分前`, `${n} menit lalu`);
   }
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return pick(`${hours}시간 전`, `${hours}h ago`, `${hours} 小时前`, `${hours} giờ trước`);
+  if (hours < 24) return pick(`${hours}시간 전`, `${hours}h ago`, `${hours} 小时前`, `${hours} giờ trước`, `${hours}時間前`, `${hours} jam lalu`);
   const days = Math.floor(hours / 24);
-  if (days < 7) return pick(`${days}일 전`, `${days}d ago`, `${days} 天前`, `${days} ngày trước`);
+  if (days < 7) return pick(`${days}일 전`, `${days}d ago`, `${days} 天前`, `${days} ngày trước`, `${days}日前`, `${days} hari lalu`);
   const y = created.getFullYear();
   const m = String(created.getMonth() + 1).padStart(2, "0");
   const d = String(created.getDate()).padStart(2, "0");
@@ -99,46 +99,49 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
   const isKo = locale === "ko";
   const isZh = locale === "zh-CN";
   const isVi = locale === "vi";
-  const t = (ko: string, en: string, zh: string, vi: string) => (isKo ? ko : isZh ? zh : isVi ? vi : en);
+  const isJa = locale === "ja";
+  const isId = locale === "id";
+  const t = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    isKo ? ko : isZh ? zh : isVi ? vi : isJa ? ja : isId ? id : en;
   const copy = {
-    partnerCompany: t("파트너 기업", "Partner company", "合作企业", "Doanh nghiệp đối tác"),
-    roleTbd: t("직무 미정", "Role TBD", "岗位待定", "Vị trí chưa xác định"),
-    tbdLocation: t("협의", "To be discussed", "可协商", "Thỏa thuận"),
-    immediate: t("즉시", "Immediate", "立即", "Ngay"),
-    noRestriction: t("무관", "No restriction", "不限", "Không giới hạn"),
-    noNationalityRestriction: t("국적 무관", "No nationality restriction", "国籍不限", "Không giới hạn quốc tịch"),
-    noLanguageRequirement: t("언어 조건 없음", "No language requirement", "无语言要求", "Không yêu cầu ngôn ngữ"),
-    noDetails: t("상세 조건 확인", "See details", "查看详情", "Xem chi tiết"),
-    infoUnavailable: t("정보 없음", "No information", "无信息", "Không có thông tin"),
-    loginRequired: t("로그인한 회원만 지원할 수 있습니다.", "Only signed-in users can apply.", "仅登录用户可申请。", "Chỉ người dùng đã đăng nhập mới có thể ứng tuyển."),
-    studentRequired: t("파트너 회원, 어드민은 지원하기에 지원할 수 없습니다.", "Partner and admin accounts cannot apply.", "合作伙伴和管理员账号不可申请。", "Tài khoản đối tác và quản trị không thể ứng tuyển."),
-    appliedAdded: t("지원한 포지션에 추가되었습니다.", "Added to applied positions.", "已添加到已申请职位。", "Đã thêm vào danh sách đã ứng tuyển."),
-    applyFailed: t("지원 처리에 실패했습니다.", "Failed to apply.", "申请失败。", "Ứng tuyển thất bại."),
-    back: t("뒤로", "Back", "返回", "Quay lại"),
-    previewAll: t("썸네일 전체보기", "Open full image", "查看大图", "Xem ảnh đầy đủ"),
-    close: t("닫기", "Close", "关闭", "Đóng"),
-    prevThumbnail: t("이전 썸네일", "Previous image", "上一张", "Ảnh trước"),
-    nextThumbnail: t("다음 썸네일", "Next image", "下一张", "Ảnh tiếp theo"),
-    coreInfo: t("핵심 정보", "Core information", "核心信息", "Thông tin chính"),
-    workType: t("근무 형태", "Work type", "工作方式", "Hình thức làm việc"),
-    startDate: t("공고 시작일", "Start date", "开始日期", "Ngày bắt đầu"),
-    workLocation: t("근무 지역", "Work location", "工作地点", "Địa điểm làm việc"),
-    postedAt: t("등록일", "Posted", "发布时间", "Ngày đăng"),
-    requirements: t("지원 조건", "Requirements", "申请条件", "Yêu cầu"),
-    visas: t("지원 가능 비자", "Eligible visas", "可申请签证", "Visa đủ điều kiện"),
-    languages: t("소통 언어", "Languages", "沟通语言", "Ngôn ngữ"),
-    nationalities: t("선호 국적", "Preferred nationalities", "偏好国籍", "Quốc tịch ưu tiên"),
-    keywords: t("주요 키워드", "Keywords", "关键词", "Từ khóa"),
-    details: t("상세 안내", "Details", "详细说明", "Chi tiết"),
-    responsibilities: t("주요 업무", "Main responsibilities", "主要职责", "Nhiệm vụ chính"),
-    requiredQualifications: t("필수 자격", "Required qualifications", "必备资格", "Yêu cầu bắt buộc"),
-    preferredQualifications: t("우대 사항", "Preferred qualifications", "优先条件", "Ưu tiên"),
-    hiringProcess: t("채용 프로세스", "Hiring process", "招聘流程", "Quy trình tuyển dụng"),
-    notes: t("추가 메모", "Additional notes", "附加备注", "Ghi chú thêm"),
-    edit: t("수정하기", "Edit", "编辑", "Chỉnh sửa"),
-    apply: t("지원하기", "Apply", "申请", "Ứng tuyển"),
-    applied: t("지원완료", "Applied", "已申请", "Đã ứng tuyển"),
-    recommendationTitle: t("혹시 이런 포지션은 어떠세요?", "You might also like", "你可能也喜欢这些职位", "Bạn cũng có thể thích các vị trí này")
+    partnerCompany: t("파트너 기업", "Partner company", "合作企业", "Doanh nghiệp đối tác", "パートナー企業", "Perusahaan mitra"),
+    roleTbd: t("직무 미정", "Role TBD", "岗位待定", "Vị trí chưa xác định", "職務未定", "Posisi belum ditentukan"),
+    tbdLocation: t("협의", "To be discussed", "可协商", "Thỏa thuận", "応相談", "Dapat dirundingkan"),
+    immediate: t("즉시", "Immediate", "立即", "Ngay", "即時", "Segera"),
+    noRestriction: t("무관", "No restriction", "不限", "Không giới hạn", "制限なし", "Tidak ada batasan"),
+    noNationalityRestriction: t("국적 무관", "No nationality restriction", "国籍不限", "Không giới hạn quốc tịch", "国籍不問", "Tidak ada batasan kewarganegaraan"),
+    noLanguageRequirement: t("언어 조건 없음", "No language requirement", "无语言要求", "Không yêu cầu ngôn ngữ", "言語要件なし", "Tidak ada syarat bahasa"),
+    noDetails: t("상세 조건 확인", "See details", "查看详情", "Xem chi tiết", "詳細を確認", "Lihat detail"),
+    infoUnavailable: t("정보 없음", "No information", "无信息", "Không có thông tin", "情報なし", "Tidak ada informasi"),
+    loginRequired: t("로그인한 회원만 지원할 수 있습니다.", "Only signed-in users can apply.", "仅登录用户可申请。", "Chỉ người dùng đã đăng nhập mới có thể ứng tuyển.", "ログインしている会員のみ応募できます。", "Hanya pengguna yang masuk yang dapat melamar."),
+    studentRequired: t("파트너 회원, 어드민은 지원하기에 지원할 수 없습니다.", "Partner and admin accounts cannot apply.", "合作伙伴和管理员账号不可申请。", "Tài khoản đối tác và quản trị không thể ứng tuyển.", "パートナー会員および管理者アカウントは応募できません。", "Akun mitra dan admin tidak dapat melamar."),
+    appliedAdded: t("지원한 포지션에 추가되었습니다.", "Added to applied positions.", "已添加到已申请职位。", "Đã thêm vào danh sách đã ứng tuyển.", "応募済みポジションに追加されました。", "Ditambahkan ke daftar lamaran."),
+    applyFailed: t("지원 처리에 실패했습니다.", "Failed to apply.", "申请失败。", "Ứng tuyển thất bại.", "応募処理に失敗しました。", "Gagal melamar."),
+    back: t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali"),
+    previewAll: t("썸네일 전체보기", "Open full image", "查看大图", "Xem ảnh đầy đủ", "サムネイル全体表示", "Lihat gambar penuh"),
+    close: t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup"),
+    prevThumbnail: t("이전 썸네일", "Previous image", "上一张", "Ảnh trước", "前のサムネイル", "Gambar sebelumnya"),
+    nextThumbnail: t("다음 썸네일", "Next image", "下一张", "Ảnh tiếp theo", "次のサムネイル", "Gambar berikutnya"),
+    coreInfo: t("핵심 정보", "Core information", "核心信息", "Thông tin chính", "主要情報", "Informasi utama"),
+    workType: t("근무 형태", "Work type", "工作方式", "Hình thức làm việc", "勤務形態", "Tipe pekerjaan"),
+    startDate: t("공고 시작일", "Start date", "开始日期", "Ngày bắt đầu", "開始日", "Tanggal mulai"),
+    workLocation: t("근무 지역", "Work location", "工作地点", "Địa điểm làm việc", "勤務地", "Lokasi kerja"),
+    postedAt: t("등록일", "Posted", "发布时间", "Ngày đăng", "登録日", "Tanggal diunggah"),
+    requirements: t("지원 조건", "Requirements", "申请条件", "Yêu cầu", "応募条件", "Persyaratan"),
+    visas: t("지원 가능 비자", "Eligible visas", "可申请签证", "Visa đủ điều kiện", "応募可能ビザ", "Visa yang memenuhi syarat"),
+    languages: t("소통 언어", "Languages", "沟通语言", "Ngôn ngữ", "コミュニケーション言語", "Bahasa"),
+    nationalities: t("선호 국적", "Preferred nationalities", "偏好国籍", "Quốc tịch ưu tiên", "希望国籍", "Kewarganegaraan yang diutamakan"),
+    keywords: t("주요 키워드", "Keywords", "关键词", "Từ khóa", "主要キーワード", "Kata kunci"),
+    details: t("상세 안내", "Details", "详细说明", "Chi tiết", "詳細", "Detail"),
+    responsibilities: t("주요 업무", "Main responsibilities", "主要职责", "Nhiệm vụ chính", "主な業務", "Tanggung jawab utama"),
+    requiredQualifications: t("필수 자격", "Required qualifications", "必备资格", "Yêu cầu bắt buộc", "必須資格", "Kualifikasi wajib"),
+    preferredQualifications: t("우대 사항", "Preferred qualifications", "优先条件", "Ưu tiên", "優遇事項", "Kualifikasi yang diutamakan"),
+    hiringProcess: t("채용 프로세스", "Hiring process", "招聘流程", "Quy trình tuyển dụng", "採用プロセス", "Proses perekrutan"),
+    notes: t("추가 메모", "Additional notes", "附加备注", "Ghi chú thêm", "追加メモ", "Catatan tambahan"),
+    edit: t("수정하기", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit"),
+    apply: t("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar"),
+    applied: t("지원완료", "Applied", "已申请", "Đã ứng tuyển", "応募済み", "Sudah dilamar"),
+    recommendationTitle: t("혹시 이런 포지션은 어떠세요?", "You might also like", "你可能也喜欢这些职位", "Bạn cũng có thể thích các vị trí này", "こんなポジションはいかがですか？", "Anda mungkin juga menyukai posisi ini")
   };
 
   const { user, isAuthenticated } = useAuthSession();
@@ -605,7 +608,7 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
                       {itemThumbnailImages[0] ? (
                         <img
                           src={itemThumbnailImages[0]}
-                          alt={`${itemCompany} ${t("썸네일", "thumbnail", "缩略图", "ảnh thu nhỏ")}`}
+                          alt={`${itemCompany} ${t("썸네일", "thumbnail", "缩略图", "ảnh thu nhỏ", "サムネイル", "thumbnail")}`}
                           className="block aspect-[16/9] w-full rounded-xl object-cover"
                         />
                       ) : (

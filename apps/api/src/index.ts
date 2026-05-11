@@ -17,6 +17,7 @@ import {
   CandidateLanguageLevel,
   CandidateActivityType,
   CommunityPostCategory,
+  ApplicationCommentVisibility,
   PositionEmploymentType,
   PositionSourceKind,
   PositionSourceProvider,
@@ -47,6 +48,64 @@ import {
 
 const app = express();
 const prisma = new PrismaClient();
+
+async function createNotification(input: {
+  userId: string;
+  type: string;
+  title: string;
+  message?: string | null;
+  linkPath?: string | null;
+}) {
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: input.userId,
+        type: input.type,
+        title: input.title,
+        message: input.message ?? null,
+        linkPath: input.linkPath ?? null
+      }
+    });
+  } catch (error) {
+    console.error("[notification][create] failed", error);
+  }
+}
+
+async function notifyOperators(input: { type: string; title: string; message?: string | null; linkPath?: string | null }) {
+  const ops = await prisma.user.findMany({ where: { role: MemberRole.OPERATOR }, select: { id: true } });
+  await Promise.all(ops.map((u) => createNotification({ ...input, userId: u.id })));
+}
+
+async function writeAuditLog(
+  req: express.Request | undefined,
+  input: {
+    action: string;
+    resource: string;
+    resourceId?: string | null;
+    metadata?: Record<string, unknown>;
+  }
+) {
+  try {
+    const ip = req
+      ? (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+        req.socket.remoteAddress ||
+        null
+      : null;
+    await prisma.auditLog.create({
+      data: {
+        actorUserId: req?.auth?.userId ?? null,
+        actorRole: req?.auth?.role ?? null,
+        action: input.action,
+        resource: input.resource,
+        resourceId: input.resourceId ?? null,
+        metadata: input.metadata ? (input.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
+        ipAddress: ip
+      }
+    });
+  } catch (err) {
+    console.error("[audit][write] failed", err);
+  }
+}
 const port = Number(process.env.API_PORT ?? 4000);
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 const openaiMatchingModel = process.env.OPENAI_MATCHING_MODEL ?? "gpt-5.4";
@@ -177,7 +236,8 @@ type AuthErrorCode =
   | "USER_NOT_FOUND"
   | "PARTNER_AFFILIATION_REQUIRED"
   | "INVALID_SIGNUP_CONTEXT"
-  | "EXPIRED_SIGNUP_CONTEXT";
+  | "EXPIRED_SIGNUP_CONTEXT"
+  | "ACCOUNT_SUSPENDED";
 
 const partnerApplicantStatusEnum = z.enum([
   "APPLIED",
@@ -1024,6 +1084,23 @@ function buildOAuthReturnUrl(provider: "naver" | "google" | "kakao", params: Rec
   return `${platformWebUrl}/auth/${provider}/return#${fragment}`;
 }
 
+const REAUTH_TOKEN_TTL_MS = 5 * 60 * 1000;
+
+function signReauthToken(userId: string, purpose: "delete_account") {
+  return signOAuthState({ kind: "reauth", userId, purpose, ts: Date.now() });
+}
+
+function verifyReauthToken(token: string, userId: string, purpose: "delete_account") {
+  const data = verifyOAuthState(token);
+  if (!data) return false;
+  if (data.kind !== "reauth") return false;
+  if (data.userId !== userId) return false;
+  if (data.purpose !== purpose) return false;
+  const ts = typeof data.ts === "number" ? data.ts : 0;
+  if (!ts || Date.now() - ts > REAUTH_TOKEN_TTL_MS) return false;
+  return true;
+}
+
 function buildOAuthErrorUrl(code: string, message?: string) {
   const params: Record<string, string> = { error: code };
   if (message) params.message = message;
@@ -1052,6 +1129,48 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: "12mb" }));
+
+type RateLimitBucket = { count: number; resetAt: number };
+const rateLimitStore = new Map<string, RateLimitBucket>();
+
+function rateLimit(options: { windowMs: number; max: number; keyPrefix: string; message?: string }) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const ip =
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+      req.socket.remoteAddress ||
+      "unknown";
+    const key = `${options.keyPrefix}:${ip}`;
+    const now = Date.now();
+    const bucket = rateLimitStore.get(key);
+    if (!bucket || bucket.resetAt < now) {
+      rateLimitStore.set(key, { count: 1, resetAt: now + options.windowMs });
+      return next();
+    }
+    bucket.count += 1;
+    if (bucket.count > options.max) {
+      const retryAfter = Math.ceil((bucket.resetAt - now) / 1000);
+      res.setHeader("Retry-After", String(retryAfter));
+      return res.status(429).json({
+        ok: false,
+        message: options.message ?? "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+        retryAfterSeconds: retryAfter
+      });
+    }
+    return next();
+  };
+}
+
+// Cleanup expired buckets every 5 minutes to avoid memory growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, bucket] of rateLimitStore.entries()) {
+    if (bucket.resetAt < now) rateLimitStore.delete(key);
+  }
+}, 5 * 60 * 1000).unref?.();
+
+const authRateLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "auth", message: "로그인 시도가 너무 많습니다. 15분 후 다시 시도해 주세요." });
+const searchRateLimit = rateLimit({ windowMs: 60 * 1000, max: 60, keyPrefix: "search" });
+const writeRateLimit = rateLimit({ windowMs: 60 * 1000, max: 120, keyPrefix: "write" });
 
 type ApiDocEndpoint = {
   method: "get" | "post" | "patch" | "delete";
@@ -3681,6 +3800,181 @@ async function rerankPositionMatchesWithOpenAI(params: {
   } catch {
     return { source: "rule" as const, matches: baseMatches.slice(0, limit) };
   }
+}
+
+type CareerReadinessProfile = {
+  user: {
+    realName: string | null;
+    name: string | null;
+    nationality: string | null;
+    affiliation: string | null;
+    birthDate: Date | null;
+    gender: string | null;
+    jobTitle: string | null;
+  };
+  profile: {
+    visaType: CandidateVisaType | null;
+    visaExpiryDate: Date | null;
+    workPermit: boolean | null;
+    livesInKorea: boolean | null;
+    residenceProvince: string | null;
+    programStartOption: string | null;
+    programStartDate: Date | null;
+    skills: string[];
+    selfIntroduction: string | null;
+    programMotivation: string | null;
+    preferenceConditionNote: string | null;
+    additionalInfoNote: string | null;
+    educations: Array<{ school: string | null; major: string | null; status: string | null }>;
+    languageSkills: Array<{ language: string | null; level: string | null }>;
+    careers: Array<{ companyName: string | null; jobTitle: string | null; description: string | null }>;
+    activityExperiences: Array<{ title: string | null; description: string | null }>;
+  } | null;
+};
+
+const WORKABLE_VISAS = new Set(["F2_RESIDENCE", "F4_OVERSEAS_KOREAN", "F5_PERMANENT_RESIDENCE", "F6_MARRIAGE_IMMIGRATION", "E7_SPECIFIC_ACTIVITY", "H1_WORKING_HOLIDAY", "D10_JOB_SEEKING"]);
+const LIMITED_VISAS = new Set(["D2_STUDENT", "D4_GENERAL_TRAINING"]);
+
+function computeCareerReadinessScore(input: CareerReadinessProfile) {
+  const { user, profile } = input;
+  let score = 0;
+
+  // Profile completeness (30 pts)
+  let completeness = 0;
+  if (user.name?.trim()) completeness += 4;
+  if (user.birthDate) completeness += 3;
+  if (user.gender?.trim()) completeness += 3;
+  if (profile?.residenceProvince?.trim()) completeness += 2;
+  if ((profile?.educations.length ?? 0) > 0) completeness += 4;
+  if ((profile?.careers.length ?? 0) > 0) completeness += 4;
+  if ((profile?.activityExperiences.length ?? 0) > 0) completeness += 3;
+  if ((profile?.skills.length ?? 0) >= 3) completeness += 3;
+  if ((profile?.selfIntroduction?.trim().length ?? 0) >= 120) completeness += 2;
+  if ((profile?.programMotivation?.trim().length ?? 0) >= 120) completeness += 2;
+  score += Math.min(completeness, 30);
+
+  // Visa eligibility (25 pts)
+  if (profile?.visaType) {
+    if (WORKABLE_VISAS.has(profile.visaType)) score += 25;
+    else if (LIMITED_VISAS.has(profile.visaType)) score += 12;
+    else score += 6;
+  }
+
+  // Language (25 pts) — Korean weighted higher
+  const languageSkills = profile?.languageSkills ?? [];
+  let languageScore = 0;
+  for (const skill of languageSkills) {
+    const lang = (skill.language ?? "").toLowerCase();
+    const level = (skill.level ?? "").toUpperCase();
+    const isKorean = lang.includes("korean") || lang.includes("한국") || lang.includes("ko");
+    const isEnglish = lang.includes("english") || lang.includes("영어") || lang.includes("en");
+    let levelPoints = 0;
+    if (level.includes("NATIVE") || level === "C2" || level.includes("ADVANCED")) levelPoints = 15;
+    else if (level === "C1" || level.includes("UPPER") || level.includes("FLUENT")) levelPoints = 12;
+    else if (level === "B2" || level.includes("INTERMEDIATE")) levelPoints = 8;
+    else if (level === "B1" || level.includes("BASIC")) levelPoints = 4;
+    else levelPoints = 2;
+    if (isKorean) languageScore += levelPoints;
+    else if (isEnglish) languageScore += Math.round(levelPoints * 0.7);
+    else languageScore += Math.round(levelPoints * 0.4);
+  }
+  score += Math.min(languageScore, 25);
+
+  // Experience & narrative (20 pts)
+  let exp = 0;
+  if ((profile?.careers.length ?? 0) >= 1) exp += 8;
+  if ((profile?.careers.length ?? 0) >= 2) exp += 2;
+  if ((profile?.activityExperiences.length ?? 0) >= 1) exp += 4;
+  if ((profile?.skills.length ?? 0) >= 5) exp += 3;
+  if ((profile?.selfIntroduction?.trim().length ?? 0) >= 200) exp += 2;
+  if ((profile?.programMotivation?.trim().length ?? 0) >= 200) exp += 1;
+  score += Math.min(exp, 20);
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+const careerReadinessNarrativeSchema = z.object({
+  strengths: z.array(z.string().min(1).max(160)).min(2).max(5),
+  improvements: z.array(z.string().min(1).max(160)).min(2).max(5),
+  recommendedRoles: z.array(z.string().min(1).max(80)).min(2).max(5)
+});
+
+async function generateCareerReadinessNarrative(input: CareerReadinessProfile, score: number, locale: "ko" | "en" | "zh-CN" | "vi" | "ja" | "id") {
+  if (!openai) throw new Error("openai_unavailable");
+
+  const localeName =
+    locale === "ko" ? "Korean"
+      : locale === "zh-CN" ? "Simplified Chinese"
+        : locale === "vi" ? "Vietnamese"
+          : locale === "ja" ? "Japanese"
+            : locale === "id" ? "Indonesian"
+              : "English";
+  const summary = {
+    score,
+    user: {
+      nationality: input.user.nationality,
+      birthDate: input.user.birthDate?.toISOString() ?? null,
+      jobTitle: input.user.jobTitle
+    },
+    profile: input.profile
+      ? {
+          visaType: input.profile.visaType,
+          workPermit: input.profile.workPermit,
+          livesInKorea: input.profile.livesInKorea,
+          residenceProvince: input.profile.residenceProvince,
+          programStartOption: input.profile.programStartOption,
+          skills: input.profile.skills,
+          selfIntroduction: input.profile.selfIntroduction?.slice(0, 600) ?? null,
+          programMotivation: input.profile.programMotivation?.slice(0, 600) ?? null,
+          educations: input.profile.educations,
+          languageSkills: input.profile.languageSkills,
+          careers: input.profile.careers.map((c) => ({ ...c, description: c.description?.slice(0, 240) ?? null })),
+          activityExperiences: input.profile.activityExperiences.map((a) => ({ ...a, description: a.description?.slice(0, 240) ?? null }))
+        }
+      : null
+  };
+
+  const response = await openai.responses.create({
+    model: openaiMatchingModel,
+    input: [
+      {
+        role: "system",
+        content: [
+          "You are a Korea-employment career coach helping international students plan their job search in Korea.",
+          "Given a candidate snapshot and an overall readiness score (0-100), produce constructive feedback.",
+          "Strengths: 3-5 short bullets highlighting what the candidate already has going for them in the Korean job market.",
+          "Improvements: 3-5 short bullets pointing out concrete, actionable gaps.",
+          "RecommendedRoles: 3-5 specific role titles realistic for this candidate (e.g., 'Global Marketing Assistant', 'Market Research Intern', 'Translation Support').",
+          `All bullets must be written in ${localeName}.`,
+          "Keep each bullet under 120 characters and avoid generic platitudes."
+        ].join(" ")
+      },
+      {
+        role: "user",
+        content: JSON.stringify({ task: "career_readiness_report", ...summary })
+      }
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "career_readiness_report",
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["strengths", "improvements", "recommendedRoles"],
+          properties: {
+            strengths: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 5 },
+            improvements: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 5 },
+            recommendedRoles: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 5 }
+          }
+        }
+      }
+    }
+  });
+
+  const raw = response.output_text;
+  const parsed = careerReadinessNarrativeSchema.parse(JSON.parse(raw));
+  return parsed;
 }
 
 async function generateCandidateMatchesWithOpenAI(params: {
@@ -6381,7 +6675,7 @@ app.post("/partner-signup-requests", async (req, res) => {
   }
 });
 
-app.post("/auth/register", async (req, res) => {
+app.post("/auth/register", authRateLimit, async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
     return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
@@ -6478,7 +6772,7 @@ app.post("/auth/register", async (req, res) => {
   }
 });
 
-app.post("/auth/login", async (req, res) => {
+app.post("/auth/login", authRateLimit, async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
@@ -6498,6 +6792,11 @@ app.post("/auth/login", async (req, res) => {
   if (!user.emailVerified) {
     return sendAuthError(res, 403, "EMAIL_VERIFICATION_REQUIRED", "email verification is required", {
       email: user.email
+    });
+  }
+  if (!user.isActive) {
+    return sendAuthError(res, 403, "ACCOUNT_SUSPENDED", "account is suspended", {
+      reason: user.suspendedReason ?? null
     });
   }
 
@@ -6529,6 +6828,28 @@ app.get("/auth/naver/start", (req, res) => {
   authorizeUrl.searchParams.set("state", state);
   authorizeUrl.searchParams.set("auth_type", "reauthenticate");
   return res.redirect(authorizeUrl.toString());
+});
+
+app.post("/auth/naver/reauth/start", authenticate, async (req, res) => {
+  if (!naverOAuthClientId || !naverOAuthClientSecret) {
+    return res.status(503).json({ ok: false, code: "NAVER_NOT_CONFIGURED", message: "Naver OAuth client is not configured" });
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
+  if (!user) return res.status(404).json({ ok: false, code: "USER_NOT_FOUND", message: "user not found" });
+  if (user.authProvider !== AuthProvider.NAVER) {
+    return res.status(400).json({ ok: false, code: "WRONG_AUTH_PROVIDER", message: "this account is not registered with Naver" });
+  }
+  const nonce = randomBytes(16).toString("hex");
+  const state = signOAuthState({ nonce, purpose: "reauth", reauthUserId: user.id, ts: Date.now() });
+  setOAuthStateCookie(res, state);
+
+  const authorizeUrl = new URL("https://nid.naver.com/oauth2.0/authorize");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", naverOAuthClientId);
+  authorizeUrl.searchParams.set("redirect_uri", naverOAuthRedirectUri);
+  authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("auth_type", "reauthenticate");
+  return res.json({ ok: true, authorizeUrl: authorizeUrl.toString() });
 });
 
 app.get("/auth/naver/callback", async (req, res) => {
@@ -6592,6 +6913,16 @@ app.get("/auth/naver/callback", async (req, res) => {
     const existingUser = await prisma.user.findUnique({
       where: { authProvider_providerId: { authProvider: AuthProvider.NAVER, providerId } }
     });
+
+    if (stateData.purpose === "reauth") {
+      const reauthUserId = typeof stateData.reauthUserId === "string" ? stateData.reauthUserId : "";
+      if (!existingUser || existingUser.id !== reauthUserId) {
+        return res.redirect(`${platformWebUrl}/account/delete?reauth_error=mismatch`);
+      }
+      const reauthToken = signReauthToken(existingUser.id, "delete_account");
+      const fragment = new URLSearchParams({ reauth_token: reauthToken }).toString();
+      return res.redirect(`${platformWebUrl}/account/delete#${fragment}`);
+    }
 
     if (existingUser) {
       const { accessToken, refreshToken } = await issueAuthTokens(existingUser);
@@ -6725,6 +7056,30 @@ app.get("/auth/google/start", (req, res) => {
   return res.redirect(authorizeUrl.toString());
 });
 
+app.post("/auth/google/reauth/start", authenticate, async (req, res) => {
+  if (!googleOAuthClientId || !googleOAuthClientSecret) {
+    return res.status(503).json({ ok: false, code: "GOOGLE_NOT_CONFIGURED", message: "Google OAuth client is not configured" });
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
+  if (!user) return res.status(404).json({ ok: false, code: "USER_NOT_FOUND", message: "user not found" });
+  if (user.authProvider !== AuthProvider.GOOGLE) {
+    return res.status(400).json({ ok: false, code: "WRONG_AUTH_PROVIDER", message: "this account is not registered with Google" });
+  }
+  const nonce = randomBytes(16).toString("hex");
+  const state = signOAuthState({ nonce, purpose: "reauth", reauthUserId: user.id, ts: Date.now() });
+  setOAuthStateCookie(res, state);
+
+  const authorizeUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", googleOAuthClientId);
+  authorizeUrl.searchParams.set("redirect_uri", googleOAuthRedirectUri);
+  authorizeUrl.searchParams.set("scope", "openid email profile");
+  authorizeUrl.searchParams.set("access_type", "online");
+  authorizeUrl.searchParams.set("prompt", "login");
+  authorizeUrl.searchParams.set("state", state);
+  return res.json({ ok: true, authorizeUrl: authorizeUrl.toString() });
+});
+
 app.get("/auth/google/callback", async (req, res) => {
   const cookieState = parseCookies(req.headers.cookie)[oauthStateCookieName];
   clearOAuthStateCookie(res);
@@ -6793,6 +7148,16 @@ app.get("/auth/google/callback", async (req, res) => {
     const existingUser = await prisma.user.findUnique({
       where: { authProvider_providerId: { authProvider: AuthProvider.GOOGLE, providerId } }
     });
+
+    if (stateData.purpose === "reauth") {
+      const reauthUserId = typeof stateData.reauthUserId === "string" ? stateData.reauthUserId : "";
+      if (!existingUser || existingUser.id !== reauthUserId) {
+        return res.redirect(`${platformWebUrl}/account/delete?reauth_error=mismatch`);
+      }
+      const reauthToken = signReauthToken(existingUser.id, "delete_account");
+      const fragment = new URLSearchParams({ reauth_token: reauthToken }).toString();
+      return res.redirect(`${platformWebUrl}/account/delete#${fragment}`);
+    }
 
     if (existingUser) {
       const { accessToken, refreshToken } = await issueAuthTokens(existingUser);
@@ -6922,6 +7287,28 @@ app.get("/auth/kakao/start", (req, res) => {
   return res.redirect(authorizeUrl.toString());
 });
 
+app.post("/auth/kakao/reauth/start", authenticate, async (req, res) => {
+  if (!kakaoOAuthClientId) {
+    return res.status(503).json({ ok: false, code: "KAKAO_NOT_CONFIGURED", message: "Kakao OAuth client is not configured" });
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
+  if (!user) return res.status(404).json({ ok: false, code: "USER_NOT_FOUND", message: "user not found" });
+  if (user.authProvider !== AuthProvider.KAKAO) {
+    return res.status(400).json({ ok: false, code: "WRONG_AUTH_PROVIDER", message: "this account is not registered with Kakao" });
+  }
+  const nonce = randomBytes(16).toString("hex");
+  const state = signOAuthState({ nonce, purpose: "reauth", reauthUserId: user.id, ts: Date.now() });
+  setOAuthStateCookie(res, state);
+
+  const authorizeUrl = new URL("https://kauth.kakao.com/oauth/authorize");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", kakaoOAuthClientId);
+  authorizeUrl.searchParams.set("redirect_uri", kakaoOAuthRedirectUri);
+  authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("prompt", "login");
+  return res.json({ ok: true, authorizeUrl: authorizeUrl.toString() });
+});
+
 app.get("/auth/kakao/callback", async (req, res) => {
   const cookieState = parseCookies(req.headers.cookie)[oauthStateCookieName];
   clearOAuthStateCookie(res);
@@ -6993,6 +7380,16 @@ app.get("/auth/kakao/callback", async (req, res) => {
     const existingUser = await prisma.user.findUnique({
       where: { authProvider_providerId: { authProvider: AuthProvider.KAKAO, providerId } }
     });
+
+    if (stateData.purpose === "reauth") {
+      const reauthUserId = typeof stateData.reauthUserId === "string" ? stateData.reauthUserId : "";
+      if (!existingUser || existingUser.id !== reauthUserId) {
+        return res.redirect(`${platformWebUrl}/account/delete?reauth_error=mismatch`);
+      }
+      const reauthToken = signReauthToken(existingUser.id, "delete_account");
+      const fragment = new URLSearchParams({ reauth_token: reauthToken }).toString();
+      return res.redirect(`${platformWebUrl}/account/delete#${fragment}`);
+    }
 
     if (existingUser) {
       const { accessToken, refreshToken } = await issueAuthTokens(existingUser);
@@ -7274,6 +7671,31 @@ app.get("/auth/me", authenticate, async (req, res) => {
   }
 
   return res.json({ ok: true, user: toSafeUser(user) });
+});
+
+const reauthPasswordSchema = z.object({
+  password: z.string().min(1).max(72),
+  purpose: z.enum(["delete_account"])
+});
+
+app.post("/auth/reauth/password", authenticate, async (req, res) => {
+  const parsed = reauthPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, code: "INVALID_REQUEST", message: "invalid request" });
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
+  if (!user) {
+    return res.status(404).json({ ok: false, code: "USER_NOT_FOUND", message: "user not found" });
+  }
+  if (user.authProvider !== AuthProvider.EMAIL || !user.passwordHash) {
+    return res.status(400).json({ ok: false, code: "WRONG_AUTH_PROVIDER", message: "password reauth not available for this account" });
+  }
+  const matched = await verifyPassword(parsed.data.password, user.passwordHash);
+  if (!matched) {
+    return res.status(401).json({ ok: false, code: "INVALID_CREDENTIALS", message: "invalid credentials" });
+  }
+  const reauthToken = signReauthToken(user.id, parsed.data.purpose);
+  return res.json({ ok: true, reauthToken, expiresInMs: REAUTH_TOKEN_TTL_MS });
 });
 
 app.patch("/members/me", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
@@ -7687,6 +8109,83 @@ app.patch("/members/me/profile", authenticate, requireRoles([MemberRole.STUDENT]
   }
 });
 
+const careerReadinessLocaleSchema = z.object({
+  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+});
+
+app.post("/members/me/career-readiness", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  if (!openai) {
+    return res.status(503).json({ ok: false, message: "AI service is not configured" });
+  }
+  const userId = req.auth!.userId;
+  const parsed = careerReadinessLocaleSchema.safeParse(req.body ?? {});
+  const locale = parsed.success && parsed.data.locale ? parsed.data.locale : "ko";
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ ok: false, message: "user not found" });
+
+    const profile = await prisma.candidateProfile.findUnique({
+      where: { userId },
+      include: {
+        educations: { select: { schoolName: true, major: true, status: true }, orderBy: { createdAt: "asc" } },
+        languageSkills: { select: { language: true, level: true }, orderBy: { createdAt: "asc" } },
+        careers: { select: { companyName: true, position: true, description: true }, orderBy: { createdAt: "desc" } },
+        activityExperiences: { select: { title: true, description: true }, orderBy: { createdAt: "desc" } }
+      }
+    });
+
+    const input: CareerReadinessProfile = {
+      user: {
+        realName: user.realName ?? null,
+        name: user.name,
+        nationality: user.nationality,
+        affiliation: user.affiliation,
+        birthDate: user.birthDate,
+        gender: user.gender,
+        jobTitle: user.jobTitle
+      },
+      profile: profile
+        ? {
+            visaType: profile.visaType,
+            visaExpiryDate: profile.visaExpiryDate,
+            workPermit: profile.workPermit,
+            livesInKorea: profile.livesInKorea,
+            residenceProvince: profile.residenceProvince,
+            programStartOption: profile.programStartOption,
+            programStartDate: profile.programStartDate,
+            skills: profile.skills ?? [],
+            selfIntroduction: profile.selfIntroduction,
+            programMotivation: profile.programMotivation,
+            preferenceConditionNote: profile.preferenceConditionNote,
+            additionalInfoNote: profile.additionalInfoNote,
+            educations: profile.educations.map((e) => ({ school: e.schoolName ?? null, major: e.major ?? null, status: e.status ?? null })),
+            languageSkills: profile.languageSkills.map((l) => ({ language: l.language ?? null, level: l.level ?? null })),
+            careers: profile.careers.map((c) => ({ companyName: c.companyName ?? null, jobTitle: c.position ?? null, description: c.description ?? null })),
+            activityExperiences: profile.activityExperiences.map((a) => ({ title: a.title ?? null, description: a.description ?? null }))
+          }
+        : null
+    };
+
+    const score = computeCareerReadinessScore(input);
+    const narrative = await generateCareerReadinessNarrative(input, score, locale);
+
+    return res.json({
+      ok: true,
+      item: {
+        score,
+        strengths: narrative.strengths,
+        improvements: narrative.improvements,
+        recommendedRoles: narrative.recommendedRoles,
+        generatedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error("[career-readiness] failed", error);
+    return res.status(500).json({ ok: false, message: "failed to generate career readiness report" });
+  }
+});
+
 app.get("/members/me/positions/favorites", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const userId = req.auth!.userId;
   try {
@@ -7821,8 +8320,8 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
     }
   });
   if (!position) return res.status(404).json({ ok: false, message: "position not found" });
-  if (position.status === PositionStatus.DRAFT) {
-    return res.status(400).json({ ok: false, message: "cannot apply to draft position" });
+  if (position.status !== PositionStatus.OPEN) {
+    return res.status(400).json({ ok: false, message: "현재 지원 가능한 포지션이 아닙니다." });
   }
 
   try {
@@ -7834,6 +8333,40 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
       where: { id: profile.id },
       data: { appliedPositionIds: next }
     });
+
+    // Create Application row, or reopen if previously WITHDRAWN
+    const existing = await prisma.application.findUnique({
+      where: { positionId_candidateUserId: { positionId: parsed.data.positionId, candidateUserId: userId } }
+    });
+    if (!existing) {
+      const created = await prisma.application.create({
+        data: {
+          positionId: parsed.data.positionId,
+          candidateUserId: userId,
+          status: "SUBMITTED"
+        }
+      });
+      await prisma.applicationStatusHistory.create({
+        data: {
+          applicationId: created.id,
+          status: "SUBMITTED",
+          changedByUserId: userId
+        }
+      });
+    } else if (existing.status === "WITHDRAWN") {
+      await prisma.application.update({
+        where: { id: existing.id },
+        data: { status: "SUBMITTED", withdrawnAt: null, submittedAt: new Date() }
+      });
+      await prisma.applicationStatusHistory.create({
+        data: {
+          applicationId: existing.id,
+          status: "SUBMITTED",
+          changedByUserId: userId,
+          memo: "재지원"
+        }
+      });
+    }
     const applicant = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, name: true, email: true }
@@ -9112,6 +9645,307 @@ async function listPartnerApplicantsForUser(userId: string) {
   return { affiliation, items };
 }
 
+app.get("/ops/activity", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [signups, newPositions, statusChanges, newIssues, newPrograms, schoolCreditRequests] = await Promise.all([
+      prisma.user.findMany({
+        where: { createdAt: { gte: sevenDaysAgo } },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { id: true, name: true, email: true, role: true, createdAt: true }
+      }),
+      prisma.position.findMany({
+        where: { createdAt: { gte: sevenDaysAgo } },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        include: { partnerOrganization: { select: { id: true, name: true } } }
+      }),
+      prisma.applicationStatusHistory.findMany({
+        orderBy: { changedAt: "desc" },
+        take: 10,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true } },
+              position: { select: { id: true, title: true, partnerOrganization: { select: { name: true } } } }
+            }
+          }
+        }
+      }),
+      prisma.issueReport.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        include: { reporter: { select: { id: true, name: true } } }
+      }),
+      prisma.program.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true } },
+              position: { select: { id: true, title: true } }
+            }
+          }
+        }
+      }),
+      prisma.schoolCreditRequest.findMany({
+        where: { status: "REQUESTED" },
+        orderBy: { requestedAt: "desc" },
+        take: 5
+      })
+    ]);
+
+    type ActivityItem = {
+      id: string;
+      type: string;
+      title: string;
+      subtitle: string;
+      linkPath: string;
+      occurredAt: string;
+    };
+    const items: ActivityItem[] = [];
+
+    const roleKo: Record<string, string> = { STUDENT: "학생", PARTNER: "파트너", OPERATOR: "운영자" };
+    for (const u of signups) {
+      items.push({
+        id: `signup-${u.id}`,
+        type: "USER_SIGNUP",
+        title: `${u.name ?? u.email}님이 가입했어요`,
+        subtitle: roleKo[u.role] ?? u.role,
+        linkPath: `/dashboard/ops/system/admin-users/${u.id}`,
+        occurredAt: u.createdAt.toISOString()
+      });
+    }
+    for (const p of newPositions) {
+      items.push({
+        id: `position-${p.id}`,
+        type: "POSITION_NEW",
+        title: `새 포지션: ${p.title}`,
+        subtitle: p.partnerOrganization?.name ?? "-",
+        linkPath: `/dashboard/ops/operations/positions`,
+        occurredAt: p.createdAt.toISOString()
+      });
+    }
+    const statusKo: Record<string, string> = {
+      SUBMITTED: "검토 중",
+      INTERVIEW: "면접 예정",
+      ACCEPTED: "합격",
+      REJECTED: "불합격",
+      WITHDRAWN: "철회"
+    };
+    for (const h of statusChanges) {
+      items.push({
+        id: `status-${h.id}`,
+        type: "APPLICATION_STATUS",
+        title: `${h.application.candidateUser.name ?? "-"} → '${statusKo[h.status] ?? h.status}'`,
+        subtitle: `${h.application.position.partnerOrganization?.name ?? "-"} · ${h.application.position.title}`,
+        linkPath: `/dashboard/ops/operations/applications/${h.applicationId}`,
+        occurredAt: h.changedAt.toISOString()
+      });
+    }
+    for (const i of newIssues) {
+      items.push({
+        id: `issue-${i.id}`,
+        type: "ISSUE_NEW",
+        title: `새 이슈: ${i.title}`,
+        subtitle: `신고: ${i.reporter?.name ?? "-"}`,
+        linkPath: `/dashboard/ops/operations/issues`,
+        occurredAt: i.createdAt.toISOString()
+      });
+    }
+    for (const p of newPrograms) {
+      items.push({
+        id: `program-${p.id}`,
+        type: "PROGRAM_STARTED",
+        title: `프로그램 시작: ${p.application.candidateUser.name ?? "-"}`,
+        subtitle: p.application.position.title,
+        linkPath: `/dashboard/ops/operations/programs/${p.id}`,
+        occurredAt: p.createdAt.toISOString()
+      });
+    }
+    for (const c of schoolCreditRequests) {
+      items.push({
+        id: `credit-${c.id}`,
+        type: "SCHOOL_CREDIT",
+        title: `학점 인정 요청: ${c.schoolName}`,
+        subtitle: `${c.credits}학점`,
+        linkPath: "/dashboard/ops/operations/school-credit",
+        occurredAt: c.requestedAt.toISOString()
+      });
+    }
+
+    items.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+    return res.json({ ok: true, items: items.slice(0, 30) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/partner/activity", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) {
+      return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    }
+    const orgId = affiliation.organization.id;
+    const [newApplications, statusChanges, recentSlots, newAssignments, newComments] = await Promise.all([
+      prisma.application.findMany({
+        where: { position: { partnerOrganizationId: orgId } },
+        orderBy: { submittedAt: "desc" },
+        take: 10,
+        include: {
+          candidateUser: { select: { id: true, name: true, email: true } },
+          position: { select: { id: true, title: true } }
+        }
+      }),
+      prisma.applicationStatusHistory.findMany({
+        where: { application: { position: { partnerOrganizationId: orgId } } },
+        orderBy: { changedAt: "desc" },
+        take: 10,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true } }
+            }
+          },
+          changedBy: { select: { id: true, name: true, role: true } }
+        }
+      }),
+      prisma.interviewSlot.findMany({
+        where: {
+          application: { position: { partnerOrganizationId: orgId } },
+          OR: [{ status: "SELECTED" }, { status: "CANCELLED" }]
+        },
+        orderBy: { selectedAt: "desc" },
+        take: 5,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true } },
+              position: { select: { id: true, title: true } }
+            }
+          }
+        }
+      }),
+      prisma.assignment.findMany({
+        where: {
+          application: { position: { partnerOrganizationId: orgId } },
+          OR: [{ status: "SUBMITTED" }, { status: "REVIEWED" }]
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true } },
+              position: { select: { id: true, title: true } }
+            }
+          }
+        }
+      }),
+      prisma.applicationComment.findMany({
+        where: {
+          application: { position: { partnerOrganizationId: orgId } },
+          authorRole: { in: [MemberRole.STUDENT] }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true } },
+              position: { select: { id: true, title: true } }
+            }
+          },
+          author: { select: { id: true, name: true } }
+        }
+      })
+    ]);
+
+    type ActivityItem = {
+      id: string;
+      type: string;
+      title: string;
+      subtitle: string;
+      linkPath: string;
+      occurredAt: string;
+    };
+
+    const items: ActivityItem[] = [];
+    for (const a of newApplications) {
+      items.push({
+        id: `app-new-${a.id}`,
+        type: "APPLICATION_NEW",
+        title: `${a.candidateUser.name ?? a.candidateUser.email}님이 지원했어요`,
+        subtitle: a.position.title,
+        linkPath: `/dashboard/partner/applicants/${a.id}`,
+        occurredAt: a.submittedAt.toISOString()
+      });
+    }
+    for (const h of statusChanges) {
+      if (h.changedBy?.role === "PARTNER") continue;
+      const statusKo: Record<string, string> = {
+        SUBMITTED: "검토 중",
+        INTERVIEW: "면접 예정",
+        ACCEPTED: "합격",
+        REJECTED: "불합격",
+        WITHDRAWN: "철회"
+      };
+      items.push({
+        id: `app-status-${h.id}`,
+        type: "APPLICATION_STATUS",
+        title: `${h.application.candidateUser.name ?? "-"} → '${statusKo[h.status] ?? h.status}'`,
+        subtitle: h.application.position.title,
+        linkPath: `/dashboard/partner/applicants/${h.applicationId}`,
+        occurredAt: h.changedAt.toISOString()
+      });
+    }
+    for (const s of recentSlots) {
+      const when = s.selectedAt ?? s.cancelledAt ?? s.proposedAt;
+      items.push({
+        id: `slot-${s.id}`,
+        type: s.status === "SELECTED" ? "INTERVIEW_SELECTED" : "INTERVIEW_CANCELLED",
+        title: s.status === "SELECTED"
+          ? `${s.application.candidateUser.name ?? "-"}님이 면접 일정 선택`
+          : `${s.application.candidateUser.name ?? "-"}님 면접 취소`,
+        subtitle: `${s.application.position.title} · ${new Date(s.startsAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}`,
+        linkPath: `/dashboard/partner/applicants/${s.applicationId}`,
+        occurredAt: when.toISOString()
+      });
+    }
+    for (const as of newAssignments) {
+      items.push({
+        id: `asg-${as.id}-${as.status}`,
+        type: as.status === "SUBMITTED" ? "ASSIGNMENT_SUBMITTED" : "ASSIGNMENT_REVIEWED",
+        title: as.status === "SUBMITTED"
+          ? `${as.application.candidateUser.name ?? "-"}님이 과제 제출`
+          : `${as.application.candidateUser.name ?? "-"}님 과제 검토 완료`,
+        subtitle: `${as.title} · ${as.application.position.title}`,
+        linkPath: `/dashboard/partner/applicants/${as.applicationId}`,
+        occurredAt: as.updatedAt.toISOString()
+      });
+    }
+    for (const c of newComments) {
+      items.push({
+        id: `cmt-${c.id}`,
+        type: "COMMENT_NEW",
+        title: `${c.author.name ?? "지원자"}님이 댓글을 남겼어요`,
+        subtitle: `${c.application.position.title}: ${c.content.slice(0, 60)}`,
+        linkPath: `/dashboard/partner/applicants/${c.applicationId}`,
+        occurredAt: c.createdAt.toISOString()
+      });
+    }
+
+    items.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+    return res.json({ ok: true, items: items.slice(0, 20) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.get("/partner/dashboard", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   if (req.auth!.role === MemberRole.OPERATOR) {
     return res.json({
@@ -9131,12 +9965,33 @@ app.get("/partner/dashboard", authenticate, requireRoles([MemberRole.PARTNER, Me
     );
   }
 
-  return res.json({
-    ok: true,
-    message: "partner dashboard accessible",
-    auth: req.auth,
-    partnerOrganization: toPartnerOrganization(affiliation.organization)
-  });
+  const orgId = affiliation.organization.id;
+  try {
+    const [totalPositions, openPositions, closedPositions, recentPositions] = await Promise.all([
+      prisma.position.count({ where: { partnerOrganizationId: orgId } }),
+      prisma.position.count({ where: { partnerOrganizationId: orgId, status: "OPEN" } }),
+      prisma.position.count({ where: { partnerOrganizationId: orgId, status: "CLOSED" } }),
+      prisma.position.findMany({
+        where: { partnerOrganizationId: orgId },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: { id: true, title: true, status: true, createdAt: true }
+      })
+    ]);
+
+    return res.json({
+      ok: true,
+      auth: req.auth,
+      partnerOrganization: toPartnerOrganization(affiliation.organization),
+      stats: {
+        positions: { total: totalPositions, open: openPositions, closed: closedPositions }
+      },
+      recentPositions
+    });
+  } catch (error) {
+    console.error("[partner/dashboard] failed", error);
+    return res.status(500).json({ ok: false, message: "failed to load partner dashboard" });
+  }
 });
 
 app.get("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
@@ -9193,6 +10048,52 @@ app.get("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]), 
       ok: true,
       items: items.map((item) => toPosition(item))
     });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.post("/partner/positions/:id/clone", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const sourceId = typeof req.params.id === "string" ? req.params.id : "";
+  if (!sourceId) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) {
+      return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    }
+    const source = await prisma.position.findUnique({ where: { id: sourceId } });
+    if (!source) return res.status(404).json({ ok: false, message: "position not found" });
+    if (source.partnerOrganizationId !== affiliation.organization.id) {
+      return res.status(403).json({ ok: false, message: "forbidden" });
+    }
+    const created = await prisma.position.create({
+      data: {
+        partnerOrganizationId: source.partnerOrganizationId,
+        sourceKind: "INTERNAL",
+        sourceProvider: "INTERNAL",
+        title: `${source.title} (복제)`,
+        status: "DRAFT",
+        workType: source.workType,
+        employmentType: source.employmentType,
+        thumbnailImages: source.thumbnailImages,
+        eligibleVisas: source.eligibleVisas,
+        preferredNationalities: source.preferredNationalities,
+        communicationLanguages: source.communicationLanguages,
+        hiringProcess: source.hiringProcess,
+        preferredJobRole: source.preferredJobRole,
+        hiringCount: source.hiringCount,
+        workingHours: source.workingHours,
+        workLocation: source.workLocation,
+        startDate: source.startDate,
+        mainResponsibilities: source.mainResponsibilities,
+        requiredQualifications: source.requiredQualifications,
+        preferredQualifications: source.preferredQualifications,
+        dressCode: source.dressCode,
+        wantsPreTraining: source.wantsPreTraining,
+        additionalNotes: source.additionalNotes
+      }
+    });
+    return res.status(201).json({ ok: true, item: { id: created.id, title: created.title, status: created.status } });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -9773,6 +10674,3145 @@ app.get("/partner/applicants", authenticate, requireRoles([MemberRole.PARTNER]),
   }
 });
 
+const applicationStatusUpdateSchema = z.object({
+  status: z.enum(["SUBMITTED", "INTERVIEW", "ACCEPTED", "REJECTED", "WITHDRAWN"]),
+  memo: z.string().max(2000).optional()
+});
+
+app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const items = await prisma.application.findMany({
+      where: { candidateUserId: req.auth!.userId },
+      orderBy: { submittedAt: "desc" },
+      include: {
+        position: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            partnerOrganization: { select: { id: true, name: true } }
+          }
+        }
+      }
+    });
+    return res.json({
+      ok: true,
+      items: items.map((a) => ({
+        id: a.id,
+        positionId: a.positionId,
+        positionTitle: a.position.title,
+        positionStatus: a.position.status,
+        partnerOrganizationId: a.position.partnerOrganization?.id ?? null,
+        partnerOrganizationName: a.position.partnerOrganization?.name ?? null,
+        status: a.status,
+        submittedAt: a.submittedAt,
+        updatedAt: a.updatedAt
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/partner/applications", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) {
+      return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    }
+    const items = await prisma.application.findMany({
+      where: { position: { partnerOrganizationId: affiliation.organization.id } },
+      orderBy: { submittedAt: "desc" },
+      include: {
+        position: { select: { id: true, title: true, status: true } },
+        candidateUser: { select: { id: true, name: true, email: true, nationality: true } }
+      }
+    });
+    return res.json({
+      ok: true,
+      items: items.map((a) => ({
+        id: a.id,
+        positionId: a.positionId,
+        positionTitle: a.position.title,
+        candidateUserId: a.candidateUserId,
+        candidateName: a.candidateUser.name,
+        candidateEmail: a.candidateUser.email,
+        candidateNationality: a.candidateUser.nationality,
+        status: a.status,
+        memo: a.memo,
+        submittedAt: a.submittedAt,
+        updatedAt: a.updatedAt
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/ops/applications", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const items = await prisma.application.findMany({
+      orderBy: { submittedAt: "desc" },
+      take: 200,
+      include: {
+        position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } },
+        candidateUser: { select: { id: true, name: true, email: true } }
+      }
+    });
+    return res.json({
+      ok: true,
+      items: items.map((a) => ({
+        id: a.id,
+        positionId: a.positionId,
+        positionTitle: a.position.title,
+        partnerOrganizationName: a.position.partnerOrganization?.name ?? null,
+        candidateUserId: a.candidateUserId,
+        candidateName: a.candidateUser.name,
+        candidateEmail: a.candidateUser.email,
+        status: a.status,
+        memo: a.memo,
+        submittedAt: a.submittedAt,
+        updatedAt: a.updatedAt
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/ops/applications/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+  if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+      include: {
+        candidateUser: {
+          select: { id: true, name: true, email: true, phoneNumber: true, nationality: true, affiliation: true, jobTitle: true, role: true, createdAt: true }
+        },
+        position: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            partnerOrganization: { select: { id: true, name: true } }
+          }
+        },
+        statusHistories: {
+          orderBy: { changedAt: "desc" },
+          include: { changedBy: { select: { id: true, name: true, email: true, role: true } } }
+        },
+        interviewSlots: { orderBy: { startsAt: "asc" } },
+        assignments: {
+          orderBy: { assignedAt: "desc" },
+          include: {
+            assignedBy: { select: { id: true, name: true } },
+            reviewedBy: { select: { id: true, name: true } }
+          }
+        },
+        program: {
+          include: {
+            meetings: { orderBy: { scheduledAt: "asc" } },
+            certificate: true,
+            recommendation: true,
+            schoolCreditRequest: true
+          }
+        }
+      }
+    });
+    if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+    const issues = await prisma.issueReport.findMany({
+      where: { applicationId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        reporter: { select: { id: true, name: true, email: true, role: true } },
+        assignedTo: { select: { id: true, name: true, email: true } }
+      }
+    });
+    return res.json({ ok: true, item: { ...application, issues } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/partner/applications/:id", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+  if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) {
+      return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    }
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+      include: {
+        candidateUser: {
+          select: { id: true, name: true, email: true, phoneNumber: true, nationality: true, affiliation: true, jobTitle: true, role: true, createdAt: true }
+        },
+        position: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            partnerOrganizationId: true,
+            partnerOrganization: { select: { id: true, name: true } }
+          }
+        },
+        statusHistories: {
+          orderBy: { changedAt: "desc" },
+          include: { changedBy: { select: { id: true, name: true, email: true, role: true } } }
+        },
+        interviewSlots: { orderBy: { startsAt: "asc" } },
+        assignments: {
+          orderBy: { assignedAt: "desc" },
+          include: {
+            assignedBy: { select: { id: true, name: true } },
+            reviewedBy: { select: { id: true, name: true } }
+          }
+        },
+        program: {
+          include: {
+            meetings: { orderBy: { scheduledAt: "asc" } },
+            certificate: true,
+            recommendation: true,
+            schoolCreditRequest: true
+          }
+        }
+      }
+    });
+    if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+    if (application.position.partnerOrganizationId !== affiliation.organization.id) {
+      return res.status(403).json({ ok: false, message: "forbidden" });
+    }
+    const issues = await prisma.issueReport.findMany({
+      where: { applicationId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        reporter: { select: { id: true, name: true, email: true, role: true } }
+      }
+    });
+    return res.json({ ok: true, item: { ...application, issues } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/ops/users/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const userId = typeof req.params.id === "string" ? req.params.id : "";
+  if (!userId) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        partnerOrganization: { select: { id: true, name: true, partnerType: true, industry: true } },
+        candidateProfile: true
+      }
+    });
+    if (!user) return res.status(404).json({ ok: false, message: "user not found" });
+
+    const [applications, programs, reportedIssues, subjectIssues] = await Promise.all([
+      prisma.application.findMany({
+        where: { candidateUserId: userId },
+        orderBy: { submittedAt: "desc" },
+        include: {
+          position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+        }
+      }),
+      prisma.program.findMany({
+        where: { application: { candidateUserId: userId } },
+        orderBy: { createdAt: "desc" },
+        include: { application: { include: { position: { select: { id: true, title: true } } } } }
+      }),
+      prisma.issueReport.findMany({
+        where: { reporterUserId: userId },
+        orderBy: { createdAt: "desc" },
+        take: 50
+      }),
+      prisma.issueReport.findMany({
+        where: { subjectUserId: userId },
+        orderBy: { createdAt: "desc" },
+        take: 50
+      })
+    ]);
+
+    const { passwordHash: _ph, ...safeUser } = user as { passwordHash: string | null } & Record<string, unknown>;
+    return res.json({
+      ok: true,
+      user: safeUser,
+      applications: applications.map((a) => ({
+        id: a.id,
+        positionId: a.positionId,
+        positionTitle: a.position.title,
+        partnerOrganizationName: a.position.partnerOrganization?.name ?? null,
+        status: a.status,
+        memo: a.memo,
+        submittedAt: a.submittedAt,
+        updatedAt: a.updatedAt
+      })),
+      programs: programs.map((p) => ({
+        id: p.id,
+        applicationId: p.applicationId,
+        status: p.status,
+        startsAt: p.startsAt,
+        endsAt: p.endsAt,
+        positionTitle: p.application.position.title
+      })),
+      reportedIssues,
+      subjectIssues
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const updateInterviewSlotSchema = z.object({
+  status: z.enum(["PROPOSED", "SELECTED", "CANCELLED"])
+});
+
+app.patch(
+  "/interview-slots/:id/status",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const slotId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!slotId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = updateInterviewSlotSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const slot = await prisma.interviewSlot.findUnique({
+        where: { id: slotId },
+        include: { application: { include: { position: { select: { partnerOrganizationId: true } } } } }
+      });
+      if (!slot) return res.status(404).json({ ok: false, message: "slot not found" });
+      if (req.auth!.role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+        if (
+          !affiliation?.organization ||
+          affiliation.organization.id !== slot.application.position.partnerOrganizationId
+        ) {
+          return res.status(403).json({ ok: false, message: "forbidden" });
+        }
+      }
+      const data: Record<string, unknown> = { status: parsed.data.status };
+      if (parsed.data.status === "CANCELLED") data.cancelledAt = new Date();
+      if (parsed.data.status === "SELECTED" && !slot.selectedAt) data.selectedAt = new Date();
+      const updated = await prisma.interviewSlot.update({ where: { id: slotId }, data });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const issueReportTypeEnum = z.enum(["NO_SHOW", "BEHAVIOR", "DROPOUT", "ATTITUDE", "PAYMENT", "OTHER"]);
+const issueReportStatusEnum = z.enum(["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"]);
+
+const createIssueReportSchema = z.object({
+  type: issueReportTypeEnum,
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().min(1).max(4000),
+  subjectUserId: z.string().uuid().optional(),
+  positionId: z.string().uuid().optional(),
+  applicationId: z.string().uuid().optional()
+});
+
+const updateIssueReportSchema = z.object({
+  status: issueReportStatusEnum.optional(),
+  assignedToUserId: z.string().uuid().nullable().optional(),
+  resolutionNote: z.string().trim().max(4000).nullable().optional()
+});
+
+app.post("/issues", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = createIssueReportSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  try {
+    const created = await prisma.issueReport.create({
+      data: {
+        type: parsed.data.type,
+        title: parsed.data.title,
+        description: parsed.data.description,
+        reporterUserId: req.auth!.userId,
+        subjectUserId: parsed.data.subjectUserId ?? null,
+        positionId: parsed.data.positionId ?? null,
+        applicationId: parsed.data.applicationId ?? null
+      }
+    });
+    void notifyOperators({
+      type: "ISSUE_REPORTED",
+      title: "새 이슈가 신고되었습니다",
+      message: `${parsed.data.title}`,
+      linkPath: "/dashboard/ops/operations/issues"
+    });
+    return res.status(201).json({ ok: true, item: created });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/members/me/issues", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const items = await prisma.issueReport.findMany({
+      where: { reporterUserId: req.auth!.userId },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
+    return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/ops/issues", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const items = await prisma.issueReport.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      include: {
+        reporter: { select: { id: true, name: true, email: true, role: true } },
+        subject: { select: { id: true, name: true, email: true, role: true } },
+        assignedTo: { select: { id: true, name: true, email: true } }
+      }
+    });
+    return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.patch("/ops/issues/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const issueId = typeof req.params.id === "string" ? req.params.id : "";
+  if (!issueId) return res.status(400).json({ ok: false, message: "invalid id" });
+  const parsed = updateIssueReportSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  try {
+    const data: Record<string, unknown> = {};
+    if (parsed.data.status !== undefined) {
+      data.status = parsed.data.status;
+      if (parsed.data.status === "RESOLVED" || parsed.data.status === "CLOSED") {
+        data.resolvedAt = new Date();
+      }
+    }
+    if (parsed.data.assignedToUserId !== undefined) data.assignedToUserId = parsed.data.assignedToUserId;
+    if (parsed.data.resolutionNote !== undefined) data.resolutionNote = parsed.data.resolutionNote;
+    const existing = await prisma.issueReport.findUnique({ where: { id: issueId } });
+    if (!existing) return res.status(404).json({ ok: false, message: "issue not found" });
+    const updated = await prisma.issueReport.update({ where: { id: issueId }, data });
+    if (parsed.data.status !== undefined && parsed.data.status !== existing.status) {
+      const statusKo: Record<string, string> = {
+        OPEN: "신규",
+        IN_PROGRESS: "처리 중",
+        RESOLVED: "해결",
+        CLOSED: "종료"
+      };
+      void createNotification({
+        userId: existing.reporterUserId,
+        type: "ISSUE_STATUS_CHANGED",
+        title: `신고한 이슈가 '${statusKo[parsed.data.status] ?? parsed.data.status}' 상태로 변경되었습니다`,
+        message: parsed.data.resolutionNote ?? existing.title,
+        linkPath: existing.reporterUserId ? null : null
+      });
+    }
+    return res.json({ ok: true, item: updated });
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+      return res.status(404).json({ ok: false, message: "issue not found" });
+    }
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// Partner-allowed transitions (operator can move anywhere as override)
+const PARTNER_STATUS_TRANSITIONS: Record<string, string[]> = {
+  SUBMITTED: ["INTERVIEW", "REJECTED"],
+  INTERVIEW: ["ACCEPTED", "REJECTED", "SUBMITTED"],
+  ACCEPTED: [],
+  REJECTED: ["SUBMITTED"],
+  WITHDRAWN: []
+};
+
+app.patch("/applications/:id/status", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = applicationStatusUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+  if (!applicationId) {
+    return res.status(400).json({ ok: false, message: "invalid id" });
+  }
+  try {
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+      include: { position: { select: { partnerOrganizationId: true } } }
+    });
+    if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+
+    if (req.auth!.role === MemberRole.PARTNER) {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization || affiliation.organization.id !== application.position.partnerOrganizationId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      // Partners cannot set WITHDRAWN (student-only) and must follow transitions
+      if (parsed.data.status === "WITHDRAWN") {
+        return res.status(403).json({ ok: false, message: "WITHDRAWN 상태는 지원자만 설정할 수 있습니다." });
+      }
+      if (parsed.data.status !== application.status) {
+        const allowed = PARTNER_STATUS_TRANSITIONS[application.status] ?? [];
+        if (!allowed.includes(parsed.data.status)) {
+          return res.status(400).json({
+            ok: false,
+            message: `'${application.status}' 상태에서 '${parsed.data.status}'로 변경할 수 없습니다.`
+          });
+        }
+      }
+    }
+
+    const updated = await prisma.application.update({
+      where: { id: application.id },
+      data: { status: parsed.data.status, memo: parsed.data.memo ?? application.memo }
+    });
+    await prisma.applicationStatusHistory.create({
+      data: {
+        applicationId: application.id,
+        status: parsed.data.status,
+        changedByUserId: req.auth!.userId,
+        memo: parsed.data.memo ?? null
+      }
+    });
+
+    if (parsed.data.status === "ACCEPTED") {
+      await prisma.program.upsert({
+        where: { applicationId: application.id },
+        update: {},
+        create: { applicationId: application.id }
+      });
+    }
+
+    if (parsed.data.status !== application.status) {
+      const statusKo: Record<string, string> = {
+        SUBMITTED: "검토 중",
+        INTERVIEW: "면접 예정",
+        ACCEPTED: "합격",
+        REJECTED: "불합격",
+        WITHDRAWN: "철회"
+      };
+      void createNotification({
+        userId: application.candidateUserId,
+        type: "APPLICATION_STATUS_CHANGED",
+        title: `지원 상태가 '${statusKo[parsed.data.status] ?? parsed.data.status}'(으)로 변경되었습니다`,
+        message: parsed.data.memo ?? null,
+        linkPath: "/profile?tab=applied"
+      });
+    }
+
+    return res.json({ ok: true, item: { id: updated.id, status: updated.status, updatedAt: updated.updatedAt } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const interviewSlotItemSchema = z.object({
+  startsAt: z.string().datetime(),
+  endsAt: z.string().datetime(),
+  location: z.string().trim().max(500).optional(),
+  notes: z.string().trim().max(2000).optional()
+});
+
+const proposeInterviewSlotsSchema = z.object({
+  slots: z.array(interviewSlotItemSchema).min(1).max(5)
+});
+
+const createApplicationCommentSchema = z.object({
+  content: z.string().trim().min(1).max(4000),
+  visibility: z.enum(["INTERNAL", "CANDIDATE"]).optional()
+});
+
+async function authorizeApplicationAccess(
+  applicationId: string,
+  auth: { userId: string; role: MemberRole }
+): Promise<{ ok: true; candidateUserId: string; partnerOrganizationId: string | null } | { ok: false; status: number; message: string }> {
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    include: { position: { select: { partnerOrganizationId: true } } }
+  });
+  if (!application) return { ok: false, status: 404, message: "application not found" };
+  if (auth.role === MemberRole.STUDENT && application.candidateUserId !== auth.userId) {
+    return { ok: false, status: 403, message: "forbidden" };
+  }
+  if (auth.role === MemberRole.PARTNER) {
+    const affiliation = await resolvePartnerAffiliation(auth.userId);
+    if (!affiliation?.organization || affiliation.organization.id !== application.position.partnerOrganizationId) {
+      return { ok: false, status: 403, message: "forbidden" };
+    }
+  }
+  return {
+    ok: true,
+    candidateUserId: application.candidateUserId,
+    partnerOrganizationId: application.position.partnerOrganizationId
+  };
+}
+
+app.get(
+  "/applications/:id/comments",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const auth = await authorizeApplicationAccess(applicationId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const where = req.auth!.role === MemberRole.STUDENT
+        ? { applicationId, visibility: ApplicationCommentVisibility.CANDIDATE }
+        : { applicationId };
+      const comments = await prisma.applicationComment.findMany({
+        where,
+        orderBy: { createdAt: "asc" },
+        include: { author: { select: { id: true, name: true, email: true, role: true } } }
+      });
+      return res.json({ ok: true, items: comments });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/applications/:id/comments",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = createApplicationCommentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeApplicationAccess(applicationId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const isStudent = req.auth!.role === MemberRole.STUDENT;
+      const visibility = isStudent
+        ? "CANDIDATE"
+        : parsed.data.visibility ?? "INTERNAL";
+      const created = await prisma.applicationComment.create({
+        data: {
+          applicationId,
+          authorUserId: req.auth!.userId,
+          authorRole: req.auth!.role,
+          content: parsed.data.content,
+          visibility
+        },
+        include: { author: { select: { id: true, name: true, email: true, role: true } } }
+      });
+      if (visibility === "CANDIDATE") {
+        if (isStudent) {
+          const fullApp = await prisma.application.findUnique({
+            where: { id: applicationId },
+            include: { position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } } } } } }
+          });
+          const partnerUserIds = fullApp?.position.partnerOrganization?.users.map((u) => u.id) ?? [];
+          await Promise.all(partnerUserIds.map((uid) => createNotification({
+            userId: uid,
+            type: "APPLICATION_COMMENT_FROM_CANDIDATE",
+            title: "지원자가 댓글을 남겼습니다",
+            message: parsed.data.content.slice(0, 80),
+            linkPath: `/dashboard/partner/applicants/${applicationId}`
+          })));
+        } else {
+          void createNotification({
+            userId: auth.candidateUserId,
+            type: "APPLICATION_COMMENT_FROM_COMPANY",
+            title: "회사가 댓글을 남겼습니다",
+            message: parsed.data.content.slice(0, 80),
+            linkPath: "/profile?tab=applied"
+          });
+        }
+      }
+      return res.status(201).json({ ok: true, item: created });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.delete(
+  "/application-comments/:id",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const commentId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!commentId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const comment = await prisma.applicationComment.findUnique({ where: { id: commentId } });
+      if (!comment) return res.status(404).json({ ok: false, message: "comment not found" });
+      const isAuthor = comment.authorUserId === req.auth!.userId;
+      const isOperator = req.auth!.role === MemberRole.OPERATOR;
+      if (!isAuthor && !isOperator) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      await prisma.applicationComment.delete({ where: { id: commentId } });
+      return res.json({ ok: true });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/members/me/applications/:id/withdraw",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+        include: { position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } } } } } }
+      });
+      if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+      if (application.candidateUserId !== req.auth!.userId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      if (application.status === "WITHDRAWN") {
+        return res.status(400).json({ ok: false, message: "already withdrawn" });
+      }
+      if (application.status === "ACCEPTED") {
+        return res.status(400).json({ ok: false, message: "cannot withdraw an accepted application" });
+      }
+      const updated = await prisma.application.update({
+        where: { id: applicationId },
+        data: { status: "WITHDRAWN", withdrawnAt: new Date() }
+      });
+      await prisma.applicationStatusHistory.create({
+        data: {
+          applicationId,
+          status: "WITHDRAWN",
+          changedByUserId: req.auth!.userId,
+          memo: "지원자 본인 철회"
+        }
+      });
+      const partnerUserIds = application.position.partnerOrganization?.users.map((u) => u.id) ?? [];
+      await Promise.all(partnerUserIds.map((uid) => createNotification({
+        userId: uid,
+        type: "APPLICATION_WITHDRAWN",
+        title: "지원자가 지원을 철회했습니다",
+        message: application.position.title,
+        linkPath: `/dashboard/partner/applicants/${applicationId}`
+      })));
+      return res.json({ ok: true, item: { id: updated.id, status: updated.status, withdrawnAt: updated.withdrawnAt } });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/applications/:id/interview-slots",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = proposeInterviewSlotsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+        include: { position: { select: { partnerOrganizationId: true } } }
+      });
+      if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+
+      if (req.auth!.role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+        if (!affiliation?.organization || affiliation.organization.id !== application.position.partnerOrganizationId) {
+          return res.status(403).json({ ok: false, message: "forbidden" });
+        }
+      }
+
+      if (application.status === "REJECTED" || application.status === "WITHDRAWN") {
+        return res.status(400).json({ ok: false, message: "종료된 지원에는 면접 일정을 제안할 수 없습니다." });
+      }
+
+      for (const slot of parsed.data.slots) {
+        if (new Date(slot.endsAt) <= new Date(slot.startsAt)) {
+          return res.status(400).json({ ok: false, message: "endsAt must be after startsAt" });
+        }
+      }
+
+      const created = await prisma.$transaction(async (tx) => {
+        await tx.interviewSlot.updateMany({
+          where: { applicationId, status: "PROPOSED" },
+          data: { status: "CANCELLED", cancelledAt: new Date() }
+        });
+        const records = await Promise.all(
+          parsed.data.slots.map((slot) =>
+            tx.interviewSlot.create({
+              data: {
+                applicationId,
+                startsAt: new Date(slot.startsAt),
+                endsAt: new Date(slot.endsAt),
+                location: slot.location ?? null,
+                notes: slot.notes ?? null
+              }
+            })
+          )
+        );
+        if (application.status === "SUBMITTED") {
+          await tx.application.update({ where: { id: applicationId }, data: { status: "INTERVIEW" } });
+          await tx.applicationStatusHistory.create({
+            data: {
+              applicationId,
+              status: "INTERVIEW",
+              changedByUserId: req.auth!.userId,
+              memo: "면접 일정 제안"
+            }
+          });
+        }
+        return records;
+      });
+
+      void createNotification({
+        userId: application.candidateUserId,
+        type: "INTERVIEW_SLOTS_PROPOSED",
+        title: "면접 일정이 제안되었습니다",
+        message: `${created.length}개의 일정 중 선택해 주세요.`,
+        linkPath: "/profile?tab=applied"
+      });
+
+      return res.status(201).json({ ok: true, items: created });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/applications/:id/interview-slots",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+        include: { position: { select: { partnerOrganizationId: true } } }
+      });
+      if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+
+      if (req.auth!.role === MemberRole.STUDENT && application.candidateUserId !== req.auth!.userId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      if (req.auth!.role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+        if (!affiliation?.organization || affiliation.organization.id !== application.position.partnerOrganizationId) {
+          return res.status(403).json({ ok: false, message: "forbidden" });
+        }
+      }
+
+      const slots = await prisma.interviewSlot.findMany({
+        where: { applicationId },
+        orderBy: { startsAt: "asc" }
+      });
+      return res.json({ ok: true, items: slots });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/interview-slots",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const slots = await prisma.interviewSlot.findMany({
+        orderBy: [{ status: "asc" }, { startsAt: "asc" }],
+        take: 300,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+            }
+          }
+        }
+      });
+      return res.json({
+        ok: true,
+        items: slots.map((s) => ({
+          id: s.id,
+          applicationId: s.applicationId,
+          startsAt: s.startsAt,
+          endsAt: s.endsAt,
+          location: s.location,
+          notes: s.notes,
+          status: s.status,
+          proposedAt: s.proposedAt,
+          selectedAt: s.selectedAt,
+          cancelledAt: s.cancelledAt,
+          candidateName: s.application.candidateUser.name,
+          candidateEmail: s.application.candidateUser.email,
+          positionTitle: s.application.position.title,
+          partnerOrganizationName: s.application.position.partnerOrganization?.name ?? null
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/interview-slots/:id/select",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    const slotId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!slotId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const slot = await prisma.interviewSlot.findUnique({
+        where: { id: slotId },
+        include: { application: { select: { id: true, candidateUserId: true } } }
+      });
+      if (!slot) return res.status(404).json({ ok: false, message: "slot not found" });
+      if (slot.application.candidateUserId !== req.auth!.userId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      if (slot.status !== "PROPOSED") {
+        return res.status(400).json({ ok: false, message: "slot is not selectable" });
+      }
+      const updated = await prisma.$transaction(async (tx) => {
+        await tx.interviewSlot.updateMany({
+          where: { applicationId: slot.application.id, id: { not: slot.id }, status: "PROPOSED" },
+          data: { status: "CANCELLED", cancelledAt: new Date() }
+        });
+        return tx.interviewSlot.update({
+          where: { id: slot.id },
+          data: { status: "SELECTED", selectedAt: new Date() }
+        });
+      });
+
+      const fullApp = await prisma.application.findUnique({
+        where: { id: slot.application.id },
+        include: { position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } } } } } }
+      });
+      const partnerUserIds = fullApp?.position.partnerOrganization?.users.map((u) => u.id) ?? [];
+      const slotTime = new Date(updated.startsAt).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
+      await Promise.all(partnerUserIds.map((uid) => createNotification({
+        userId: uid,
+        type: "INTERVIEW_SLOT_SELECTED",
+        title: "지원자가 면접 일정을 선택했습니다",
+        message: slotTime,
+        linkPath: "/dashboard/partner/applicants"
+      })));
+
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const createAssignmentSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().min(1).max(8000),
+  dueAt: z.string().datetime().optional()
+});
+
+const submitAssignmentSchema = z.object({
+  submissionContent: z.string().trim().min(1).max(20000),
+  submissionLinks: z.array(z.string().url().max(2000)).max(10).optional()
+});
+
+const reviewAssignmentSchema = z.object({
+  feedbackContent: z.string().trim().min(1).max(8000),
+  feedbackRating: z.number().int().min(1).max(5).optional()
+});
+
+app.post(
+  "/applications/:id/assignments",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = createAssignmentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+        include: { position: { select: { partnerOrganizationId: true } } }
+      });
+      if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+
+      if (req.auth!.role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+        if (!affiliation?.organization || affiliation.organization.id !== application.position.partnerOrganizationId) {
+          return res.status(403).json({ ok: false, message: "forbidden" });
+        }
+      }
+
+      const created = await prisma.assignment.create({
+        data: {
+          applicationId,
+          title: parsed.data.title,
+          description: parsed.data.description,
+          dueAt: parsed.data.dueAt ? new Date(parsed.data.dueAt) : null,
+          assignedByUserId: req.auth!.userId
+        }
+      });
+      void createNotification({
+        userId: application.candidateUserId,
+        type: "ASSIGNMENT_CREATED",
+        title: "새 과제가 부여되었습니다",
+        message: parsed.data.title,
+        linkPath: "/profile/assignments"
+      });
+      return res.status(201).json({ ok: true, item: created });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/applications/:id/assignments",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+        include: { position: { select: { partnerOrganizationId: true } } }
+      });
+      if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+
+      if (req.auth!.role === MemberRole.STUDENT && application.candidateUserId !== req.auth!.userId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      if (req.auth!.role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+        if (!affiliation?.organization || affiliation.organization.id !== application.position.partnerOrganizationId) {
+          return res.status(403).json({ ok: false, message: "forbidden" });
+        }
+      }
+
+      const assignments = await prisma.assignment.findMany({
+        where: { applicationId },
+        orderBy: { assignedAt: "desc" },
+        include: {
+          assignedBy: { select: { id: true, name: true } },
+          reviewedBy: { select: { id: true, name: true } }
+        }
+      });
+      return res.json({ ok: true, items: assignments });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/members/me/assignments",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    try {
+      const assignments = await prisma.assignment.findMany({
+        where: { application: { candidateUserId: req.auth!.userId } },
+        orderBy: { assignedAt: "desc" },
+        include: {
+          application: {
+            include: {
+              position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+            }
+          },
+          assignedBy: { select: { id: true, name: true } }
+        }
+      });
+      return res.json({
+        ok: true,
+        items: assignments.map((a) => ({
+          id: a.id,
+          applicationId: a.applicationId,
+          title: a.title,
+          description: a.description,
+          dueAt: a.dueAt,
+          status: a.status,
+          assignedAt: a.assignedAt,
+          submittedAt: a.submittedAt,
+          submissionContent: a.submissionContent,
+          submissionLinks: a.submissionLinks,
+          feedbackContent: a.feedbackContent,
+          feedbackRating: a.feedbackRating,
+          reviewedAt: a.reviewedAt,
+          positionId: a.application.position.id,
+          positionTitle: a.application.position.title,
+          partnerOrganizationName: a.application.position.partnerOrganization?.name ?? null,
+          assignedByName: a.assignedBy?.name ?? null
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/assignments/:id/submit",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    const assignmentId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!assignmentId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = submitAssignmentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const assignment = await prisma.assignment.findUnique({
+        where: { id: assignmentId },
+        include: {
+          application: {
+            include: {
+              position: {
+                include: {
+                  partnerOrganization: {
+                    include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+      if (!assignment) return res.status(404).json({ ok: false, message: "assignment not found" });
+      if (assignment.application.candidateUserId !== req.auth!.userId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      if (assignment.status === "CANCELLED") {
+        return res.status(400).json({ ok: false, message: "assignment is cancelled" });
+      }
+      const updated = await prisma.assignment.update({
+        where: { id: assignmentId },
+        data: {
+          submissionContent: parsed.data.submissionContent,
+          submissionLinks: parsed.data.submissionLinks ?? [],
+          submittedAt: new Date(),
+          status: "SUBMITTED"
+        }
+      });
+      const partnerUserIds = assignment.application.position.partnerOrganization?.users.map((u) => u.id) ?? [];
+      await Promise.all(partnerUserIds.map((uid) => createNotification({
+        userId: uid,
+        type: "ASSIGNMENT_SUBMITTED",
+        title: "지원자가 과제를 제출했습니다",
+        message: assignment.title,
+        linkPath: `/dashboard/partner/applicants/${assignment.applicationId}`
+      })));
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/assignments/:id/review",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const assignmentId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!assignmentId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = reviewAssignmentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const assignment = await prisma.assignment.findUnique({
+        where: { id: assignmentId },
+        include: { application: { include: { position: { select: { partnerOrganizationId: true } } } } }
+      });
+      if (!assignment) return res.status(404).json({ ok: false, message: "assignment not found" });
+      if (req.auth!.role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+        if (
+          !affiliation?.organization ||
+          affiliation.organization.id !== assignment.application.position.partnerOrganizationId
+        ) {
+          return res.status(403).json({ ok: false, message: "forbidden" });
+        }
+      }
+      if (assignment.status === "ASSIGNED") {
+        return res.status(400).json({ ok: false, message: "assignment has not been submitted yet" });
+      }
+      const updated = await prisma.assignment.update({
+        where: { id: assignmentId },
+        data: {
+          feedbackContent: parsed.data.feedbackContent,
+          feedbackRating: parsed.data.feedbackRating ?? null,
+          reviewedAt: new Date(),
+          reviewedByUserId: req.auth!.userId,
+          status: "REVIEWED"
+        }
+      });
+      const application = await prisma.application.findUnique({
+        where: { id: assignment.applicationId },
+        select: { candidateUserId: true }
+      });
+      if (application) {
+        void createNotification({
+          userId: application.candidateUserId,
+          type: "ASSIGNMENT_REVIEWED",
+          title: "과제에 피드백이 등록되었습니다",
+          message: assignment.title,
+          linkPath: "/profile/assignments"
+        });
+      }
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/assignments",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const items = await prisma.assignment.findMany({
+        orderBy: { assignedAt: "desc" },
+        take: 300,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+            }
+          }
+        }
+      });
+      return res.json({
+        ok: true,
+        items: items.map((a) => ({
+          id: a.id,
+          applicationId: a.applicationId,
+          title: a.title,
+          status: a.status,
+          dueAt: a.dueAt,
+          assignedAt: a.assignedAt,
+          submittedAt: a.submittedAt,
+          reviewedAt: a.reviewedAt,
+          feedbackRating: a.feedbackRating,
+          candidateName: a.application.candidateUser.name,
+          candidateEmail: a.application.candidateUser.email,
+          positionTitle: a.application.position.title,
+          partnerOrganizationName: a.application.position.partnerOrganization?.name ?? null
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const programStatusEnum = z.enum(["ACTIVE", "COMPLETED", "CANCELLED"]);
+const updateProgramSchema = z.object({
+  status: programStatusEnum.optional(),
+  startsAt: z.string().datetime().optional(),
+  endsAt: z.string().datetime().nullable().optional(),
+  notes: z.string().max(8000).nullable().optional()
+});
+const createProgramMeetingSchema = z.object({
+  scheduledAt: z.string().datetime(),
+  durationMinutes: z.number().int().min(5).max(600).optional(),
+  agenda: z.string().trim().max(2000).optional(),
+  location: z.string().trim().max(500).optional()
+});
+const updateProgramMeetingSchema = z.object({
+  scheduledAt: z.string().datetime().optional(),
+  durationMinutes: z.number().int().min(5).max(600).optional(),
+  agenda: z.string().trim().max(2000).nullable().optional(),
+  location: z.string().trim().max(500).nullable().optional(),
+  notes: z.string().trim().max(8000).nullable().optional(),
+  status: z.enum(["SCHEDULED", "COMPLETED", "CANCELLED"]).optional()
+});
+const createProgramFeedbackSchema = z.object({
+  content: z.string().trim().min(1).max(8000),
+  rating: z.number().int().min(1).max(5).optional()
+});
+const issueCertificateSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  content: z.string().trim().min(1).max(8000)
+});
+const issueRecommendationSchema = z.object({
+  content: z.string().trim().min(1).max(8000),
+  signerName: z.string().trim().min(1).max(200),
+  signerTitle: z.string().trim().max(200).optional()
+});
+const createSchoolCreditSchema = z.object({
+  schoolName: z.string().trim().min(1).max(200),
+  courseCode: z.string().trim().max(100).optional(),
+  credits: z.number().int().min(0).max(20).optional()
+});
+const reviewSchoolCreditSchema = z.object({
+  status: z.enum(["APPROVED", "REJECTED"]),
+  reviewNote: z.string().trim().max(4000).optional()
+});
+
+async function authorizeProgramAccess(
+  programId: string,
+  auth: { userId: string; role: MemberRole }
+): Promise<{ ok: true; program: { id: string; applicationId: string; candidateUserId: string; partnerOrganizationId: string | null } } | { ok: false; status: number; message: string }> {
+  const program = await prisma.program.findUnique({
+    where: { id: programId },
+    include: {
+      application: {
+        include: { position: { select: { partnerOrganizationId: true } } }
+      }
+    }
+  });
+  if (!program) return { ok: false, status: 404, message: "program not found" };
+  if (auth.role === MemberRole.STUDENT && program.application.candidateUserId !== auth.userId) {
+    return { ok: false, status: 403, message: "forbidden" };
+  }
+  if (auth.role === MemberRole.PARTNER) {
+    const affiliation = await resolvePartnerAffiliation(auth.userId);
+    if (!affiliation?.organization || affiliation.organization.id !== program.application.position.partnerOrganizationId) {
+      return { ok: false, status: 403, message: "forbidden" };
+    }
+  }
+  return {
+    ok: true,
+    program: {
+      id: program.id,
+      applicationId: program.applicationId,
+      candidateUserId: program.application.candidateUserId,
+      partnerOrganizationId: program.application.position.partnerOrganizationId
+    }
+  };
+}
+
+app.get(
+  "/members/me/programs",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    try {
+      const programs = await prisma.program.findMany({
+        where: { application: { candidateUserId: req.auth!.userId } },
+        orderBy: { createdAt: "desc" },
+        include: {
+          application: {
+            include: {
+              position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+            }
+          },
+          meetings: { orderBy: { scheduledAt: "asc" } },
+          feedbacks: { orderBy: { createdAt: "desc" }, include: { author: { select: { id: true, name: true, role: true } } } },
+          certificate: true,
+          recommendation: true,
+          schoolCreditRequest: true
+        }
+      });
+      return res.json({ ok: true, items: programs });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/programs",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const programs = await prisma.program.findMany({
+        where: { application: { position: { partnerOrganizationId: affiliation.organization.id } } },
+        orderBy: { createdAt: "desc" },
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true } }
+            }
+          },
+          meetings: { orderBy: { scheduledAt: "asc" } },
+          feedbacks: { orderBy: { createdAt: "desc" }, include: { author: { select: { id: true, name: true, role: true } } } },
+          certificate: true,
+          recommendation: true,
+          schoolCreditRequest: true
+        }
+      });
+      return res.json({ ok: true, items: programs });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/interviews",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const slots = await prisma.interviewSlot.findMany({
+        where: { application: { position: { partnerOrganizationId: affiliation.organization.id } } },
+        orderBy: [{ status: "asc" }, { startsAt: "asc" }],
+        take: 300,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true } }
+            }
+          }
+        }
+      });
+      return res.json({
+        ok: true,
+        items: slots.map((s) => ({
+          id: s.id,
+          applicationId: s.applicationId,
+          startsAt: s.startsAt,
+          endsAt: s.endsAt,
+          location: s.location,
+          notes: s.notes,
+          status: s.status,
+          proposedAt: s.proposedAt,
+          selectedAt: s.selectedAt,
+          cancelledAt: s.cancelledAt,
+          candidateName: s.application.candidateUser.name,
+          candidateEmail: s.application.candidateUser.email,
+          positionTitle: s.application.position.title
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/assignments",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const items = await prisma.assignment.findMany({
+        where: { application: { position: { partnerOrganizationId: affiliation.organization.id } } },
+        orderBy: { assignedAt: "desc" },
+        take: 300,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true } }
+            }
+          }
+        }
+      });
+      return res.json({
+        ok: true,
+        items: items.map((a) => ({
+          id: a.id,
+          applicationId: a.applicationId,
+          title: a.title,
+          status: a.status,
+          dueAt: a.dueAt,
+          assignedAt: a.assignedAt,
+          submittedAt: a.submittedAt,
+          reviewedAt: a.reviewedAt,
+          feedbackRating: a.feedbackRating,
+          candidateName: a.application.candidateUser.name,
+          candidateEmail: a.application.candidateUser.email,
+          positionTitle: a.application.position.title
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/issues",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const partnerUserIds = await prisma.user.findMany({
+        where: { partnerOrganizationId: affiliation.organization.id },
+        select: { id: true }
+      });
+      const userIds = partnerUserIds.map((u) => u.id);
+      const partnerApplications = await prisma.application.findMany({
+        where: { position: { partnerOrganizationId: affiliation.organization.id } },
+        select: { id: true }
+      });
+      const applicationIds = partnerApplications.map((a) => a.id);
+      const items = await prisma.issueReport.findMany({
+        where: {
+          OR: [
+            { reporterUserId: { in: userIds } },
+            { applicationId: { in: applicationIds } }
+          ]
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+        include: {
+          reporter: { select: { id: true, name: true, email: true, role: true } },
+          subject: { select: { id: true, name: true, email: true, role: true } },
+          assignedTo: { select: { id: true, name: true, email: true } }
+        }
+      });
+      return res.json({ ok: true, items });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/team",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const members = await prisma.user.findMany({
+        where: { partnerOrganizationId: affiliation.organization.id },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phoneNumber: true,
+          jobTitle: true,
+          partnerOrgRole: true,
+          emailVerified: true,
+          createdAt: true
+        }
+      });
+      return res.json({
+        ok: true,
+        items: members,
+        organizationId: affiliation.organization.id,
+        myUserId: req.auth!.userId,
+        myOrgRole: affiliation.user.partnerOrgRole
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const updateTeamMemberRoleSchema = z.object({
+  partnerOrgRole: z.enum(["OWNER", "ADMIN", "MEMBER"])
+});
+
+app.patch(
+  "/partner/team/:id/role",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    const memberUserId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!memberUserId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = updateTeamMemberRoleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      if (affiliation.user.partnerOrgRole !== "OWNER" && affiliation.user.partnerOrgRole !== "ADMIN") {
+        return res.status(403).json({ ok: false, message: "only OWNER or ADMIN can change roles" });
+      }
+      const target = await prisma.user.findUnique({
+        where: { id: memberUserId },
+        select: { id: true, partnerOrganizationId: true, partnerOrgRole: true }
+      });
+      if (!target || target.partnerOrganizationId !== affiliation.organization.id) {
+        return res.status(404).json({ ok: false, message: "member not found in this organization" });
+      }
+      if (target.id === req.auth!.userId && parsed.data.partnerOrgRole !== "OWNER") {
+        return res.status(400).json({ ok: false, message: "you cannot demote yourself" });
+      }
+      const updated = await prisma.user.update({
+        where: { id: memberUserId },
+        data: { partnerOrgRole: parsed.data.partnerOrgRole },
+        select: { id: true, name: true, email: true, partnerOrgRole: true }
+      });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.delete(
+  "/partner/team/:id",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    const memberUserId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!memberUserId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      if (affiliation.user.partnerOrgRole !== "OWNER" && affiliation.user.partnerOrgRole !== "ADMIN") {
+        return res.status(403).json({ ok: false, message: "only OWNER or ADMIN can remove members" });
+      }
+      if (memberUserId === req.auth!.userId) {
+        return res.status(400).json({ ok: false, message: "you cannot remove yourself" });
+      }
+      const target = await prisma.user.findUnique({
+        where: { id: memberUserId },
+        select: { id: true, partnerOrganizationId: true, partnerOrgRole: true }
+      });
+      if (!target || target.partnerOrganizationId !== affiliation.organization.id) {
+        return res.status(404).json({ ok: false, message: "member not found in this organization" });
+      }
+      const updated = await prisma.user.update({
+        where: { id: memberUserId },
+        data: { partnerOrganizationId: null, partnerOrgRole: null }
+      });
+      return res.json({ ok: true, item: { id: updated.id } });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/reports",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const orgId = affiliation.organization.id;
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const [
+        positionRows,
+        positionsLast7,
+        applicationRows,
+        applicationsLast7,
+        programRows,
+        certificatesCount,
+        recommendationsCount
+      ] = await Promise.all([
+        prisma.position.groupBy({
+          by: ["status"],
+          where: { partnerOrganizationId: orgId },
+          _count: { _all: true }
+        }),
+        prisma.position.count({ where: { partnerOrganizationId: orgId, createdAt: { gte: sevenDaysAgo } } }),
+        prisma.application.groupBy({
+          by: ["status"],
+          where: { position: { partnerOrganizationId: orgId } },
+          _count: { _all: true }
+        }),
+        prisma.application.count({
+          where: { position: { partnerOrganizationId: orgId }, submittedAt: { gte: sevenDaysAgo } }
+        }),
+        prisma.program.groupBy({
+          by: ["status"],
+          where: { application: { position: { partnerOrganizationId: orgId } } },
+          _count: { _all: true }
+        }),
+        prisma.certificate.count({
+          where: { program: { application: { position: { partnerOrganizationId: orgId } } } }
+        }),
+        prisma.recommendation.count({
+          where: { program: { application: { position: { partnerOrganizationId: orgId } } } }
+        })
+      ]);
+
+      function tally(rows: Array<Record<string, unknown>>, key: string, keys: string[]) {
+        const acc: Record<string, number> = Object.fromEntries(keys.map((k) => [k, 0]));
+        for (const row of rows) {
+          const k = String(row[key]);
+          const c = (row as { _count?: { _all?: number } })._count?._all ?? 0;
+          if (k in acc) acc[k] = c;
+        }
+        return acc;
+      }
+
+      return res.json({
+        ok: true,
+        stats: {
+          positions: {
+            byStatus: tally(
+              positionRows as unknown as Array<Record<string, unknown>>,
+              "status",
+              ["DRAFT", "PENDING_REVIEW", "OPEN", "PAUSED", "CLOSED", "REJECTED"]
+            ),
+            last7Days: positionsLast7
+          },
+          applications: {
+            byStatus: tally(
+              applicationRows as unknown as Array<Record<string, unknown>>,
+              "status",
+              ["SUBMITTED", "INTERVIEW", "ACCEPTED", "REJECTED"]
+            ),
+            last7Days: applicationsLast7
+          },
+          programs: {
+            byStatus: tally(
+              programRows as unknown as Array<Record<string, unknown>>,
+              "status",
+              ["ACTIVE", "COMPLETED", "CANCELLED"]
+            )
+          },
+          artifacts: {
+            certificates: certificatesCount,
+            recommendations: recommendationsCount
+          }
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/reports/positions",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const orgId = affiliation.organization.id;
+      const positions = await prisma.position.findMany({
+        where: { partnerOrganizationId: orgId },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          createdAt: true,
+          _count: { select: { applications: true } }
+        }
+      });
+      const positionIds = positions.map((p) => p.id);
+      const appCounts = await prisma.application.groupBy({
+        by: ["positionId", "status"],
+        where: { positionId: { in: positionIds } },
+        _count: { _all: true }
+      });
+      const byPosition: Record<string, { SUBMITTED: number; INTERVIEW: number; ACCEPTED: number; REJECTED: number; WITHDRAWN: number }> = {};
+      for (const row of appCounts) {
+        if (!byPosition[row.positionId]) {
+          byPosition[row.positionId] = { SUBMITTED: 0, INTERVIEW: 0, ACCEPTED: 0, REJECTED: 0, WITHDRAWN: 0 };
+        }
+        byPosition[row.positionId][row.status] = row._count._all;
+      }
+      return res.json({
+        ok: true,
+        items: positions.map((p) => {
+          const counts = byPosition[p.id] ?? { SUBMITTED: 0, INTERVIEW: 0, ACCEPTED: 0, REJECTED: 0, WITHDRAWN: 0 };
+          const total = counts.SUBMITTED + counts.INTERVIEW + counts.ACCEPTED + counts.REJECTED;
+          const conversionRate = total > 0 ? Math.round((counts.ACCEPTED / total) * 1000) / 10 : 0;
+          return {
+            id: p.id,
+            title: p.title,
+            status: p.status,
+            createdAt: p.createdAt,
+            applicationsTotal: total,
+            byStatus: counts,
+            acceptanceRate: conversionRate
+          };
+        })
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/programs",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const programs = await prisma.program.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 300,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+            }
+          },
+          certificate: true,
+          recommendation: true,
+          schoolCreditRequest: true
+        }
+      });
+      return res.json({
+        ok: true,
+        items: programs.map((p) => ({
+          id: p.id,
+          applicationId: p.applicationId,
+          status: p.status,
+          startsAt: p.startsAt,
+          endsAt: p.endsAt,
+          candidateName: p.application.candidateUser.name,
+          candidateEmail: p.application.candidateUser.email,
+          positionTitle: p.application.position.title,
+          partnerOrganizationName: p.application.position.partnerOrganization?.name ?? null,
+          hasCertificate: Boolean(p.certificate),
+          hasRecommendation: Boolean(p.recommendation),
+          schoolCreditStatus: p.schoolCreditRequest?.status ?? null
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/programs/:id",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const program = await prisma.program.findUnique({
+        where: { id: programId },
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+            }
+          },
+          meetings: { orderBy: { scheduledAt: "asc" } },
+          feedbacks: { orderBy: { createdAt: "desc" }, include: { author: { select: { id: true, name: true, role: true } } } },
+          certificate: true,
+          recommendation: true,
+          schoolCreditRequest: true
+        }
+      });
+      return res.json({ ok: true, item: program });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/programs/:id",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = updateProgramSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const data: Record<string, unknown> = {};
+      if (parsed.data.status !== undefined) data.status = parsed.data.status;
+      if (parsed.data.startsAt !== undefined) data.startsAt = new Date(parsed.data.startsAt);
+      if (parsed.data.endsAt !== undefined) data.endsAt = parsed.data.endsAt ? new Date(parsed.data.endsAt) : null;
+      if (parsed.data.notes !== undefined) data.notes = parsed.data.notes;
+      const updated = await prisma.program.update({ where: { id: programId }, data });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/programs/:id/meetings",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = createProgramMeetingSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const created = await prisma.programMeeting.create({
+        data: {
+          programId,
+          scheduledAt: new Date(parsed.data.scheduledAt),
+          durationMinutes: parsed.data.durationMinutes ?? 30,
+          agenda: parsed.data.agenda ?? null,
+          location: parsed.data.location ?? null
+        }
+      });
+      return res.status(201).json({ ok: true, item: created });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/program-meetings/:id",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const meetingId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!meetingId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = updateProgramMeetingSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const meeting = await prisma.programMeeting.findUnique({ where: { id: meetingId } });
+      if (!meeting) return res.status(404).json({ ok: false, message: "meeting not found" });
+      const auth = await authorizeProgramAccess(meeting.programId, req.auth!);
+      if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+      const data: Record<string, unknown> = {};
+      if (parsed.data.scheduledAt !== undefined) data.scheduledAt = new Date(parsed.data.scheduledAt);
+      if (parsed.data.durationMinutes !== undefined) data.durationMinutes = parsed.data.durationMinutes;
+      if (parsed.data.agenda !== undefined) data.agenda = parsed.data.agenda;
+      if (parsed.data.location !== undefined) data.location = parsed.data.location;
+      if (parsed.data.notes !== undefined) data.notes = parsed.data.notes;
+      if (parsed.data.status !== undefined) data.status = parsed.data.status;
+      const updated = await prisma.programMeeting.update({ where: { id: meetingId }, data });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/programs/:id/feedbacks",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = createProgramFeedbackSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const created = await prisma.programFeedback.create({
+        data: {
+          programId,
+          authorUserId: req.auth!.userId,
+          authorRole: req.auth!.role,
+          content: parsed.data.content,
+          rating: parsed.data.rating ?? null
+        }
+      });
+      return res.status(201).json({ ok: true, item: created });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.put(
+  "/programs/:id/certificate",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = issueCertificateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const cert = await prisma.certificate.upsert({
+        where: { programId },
+        update: { title: parsed.data.title, content: parsed.data.content, issuedByUserId: req.auth!.userId, issuedAt: new Date() },
+        create: { programId, title: parsed.data.title, content: parsed.data.content, issuedByUserId: req.auth!.userId }
+      });
+      const programInfo = await prisma.program.findUnique({
+        where: { id: programId },
+        select: { application: { select: { candidateUserId: true } } }
+      });
+      if (programInfo) {
+        void createNotification({
+          userId: programInfo.application.candidateUserId,
+          type: "CERTIFICATE_ISSUED",
+          title: "수료증이 발급되었습니다",
+          message: parsed.data.title,
+          linkPath: `/profile/programs/${programId}`
+        });
+      }
+      return res.json({ ok: true, item: cert });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.put(
+  "/programs/:id/recommendation",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = issueRecommendationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const rec = await prisma.recommendation.upsert({
+        where: { programId },
+        update: {
+          content: parsed.data.content,
+          signerName: parsed.data.signerName,
+          signerTitle: parsed.data.signerTitle ?? null,
+          issuedByUserId: req.auth!.userId,
+          issuedAt: new Date()
+        },
+        create: {
+          programId,
+          content: parsed.data.content,
+          signerName: parsed.data.signerName,
+          signerTitle: parsed.data.signerTitle ?? null,
+          issuedByUserId: req.auth!.userId
+        }
+      });
+      const programInfo = await prisma.program.findUnique({
+        where: { id: programId },
+        select: { application: { select: { candidateUserId: true } } }
+      });
+      if (programInfo) {
+        void createNotification({
+          userId: programInfo.application.candidateUserId,
+          type: "RECOMMENDATION_ISSUED",
+          title: "추천서가 발급되었습니다",
+          message: `${parsed.data.signerName}님이 추천서를 작성했어요.`,
+          linkPath: `/profile/programs/${programId}`
+        });
+      }
+      return res.json({ ok: true, item: rec });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/programs/:id/school-credit",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = createSchoolCreditSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const result = await prisma.schoolCreditRequest.upsert({
+        where: { programId },
+        update: {
+          schoolName: parsed.data.schoolName,
+          courseCode: parsed.data.courseCode ?? null,
+          credits: parsed.data.credits ?? 0,
+          status: "REQUESTED",
+          requestedAt: new Date(),
+          reviewedAt: null,
+          reviewedByUserId: null,
+          reviewNote: null
+        },
+        create: {
+          programId,
+          schoolName: parsed.data.schoolName,
+          courseCode: parsed.data.courseCode ?? null,
+          credits: parsed.data.credits ?? 0
+        }
+      });
+      void notifyOperators({
+        type: "SCHOOL_CREDIT_REQUESTED",
+        title: "학점 인정 요청이 접수되었습니다",
+        message: `${parsed.data.schoolName} · ${parsed.data.credits ?? 0}학점`,
+        linkPath: "/dashboard/ops/operations/school-credit"
+      });
+      return res.json({ ok: true, item: result });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/school-credit-requests",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const items = await prisma.schoolCreditRequest.findMany({
+        orderBy: { requestedAt: "desc" },
+        take: 300,
+        include: {
+          program: {
+            include: {
+              application: {
+                include: {
+                  candidateUser: { select: { id: true, name: true, email: true, affiliation: true } },
+                  position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+                }
+              }
+            }
+          },
+          reviewedBy: { select: { id: true, name: true } }
+        }
+      });
+      return res.json({
+        ok: true,
+        items: items.map((r) => ({
+          id: r.id,
+          programId: r.programId,
+          schoolName: r.schoolName,
+          courseCode: r.courseCode,
+          credits: r.credits,
+          status: r.status,
+          requestedAt: r.requestedAt,
+          reviewedAt: r.reviewedAt,
+          reviewNote: r.reviewNote,
+          reviewedByName: r.reviewedBy?.name ?? null,
+          candidateName: r.program.application.candidateUser.name,
+          candidateEmail: r.program.application.candidateUser.email,
+          candidateAffiliation: r.program.application.candidateUser.affiliation,
+          positionTitle: r.program.application.position.title,
+          partnerOrganizationName: r.program.application.position.partnerOrganization?.name ?? null
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/ops/school-credit-requests/:id",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const requestId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!requestId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = reviewSchoolCreditSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const updated = await prisma.schoolCreditRequest.update({
+        where: { id: requestId },
+        data: {
+          status: parsed.data.status,
+          reviewNote: parsed.data.reviewNote ?? null,
+          reviewedAt: new Date(),
+          reviewedByUserId: req.auth!.userId
+        }
+      });
+      const programInfo = await prisma.program.findUnique({
+        where: { id: updated.programId },
+        select: { id: true, application: { select: { candidateUserId: true } } }
+      });
+      if (programInfo) {
+        void createNotification({
+          userId: programInfo.application.candidateUserId,
+          type: "SCHOOL_CREDIT_REVIEWED",
+          title: `학점 인정 요청이 ${parsed.data.status === "APPROVED" ? "승인" : "반려"}되었습니다`,
+          message: parsed.data.reviewNote ?? null,
+          linkPath: `/profile/programs/${programInfo.id}`
+        });
+      }
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+        return res.status(404).json({ ok: false, message: "request not found" });
+      }
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/matching-stats",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const [applicationCounts, programCount, completedProgramCount, openSchoolCreditCount, recentApplications] = await Promise.all([
+        prisma.application.groupBy({ by: ["status"], _count: { _all: true } }),
+        prisma.program.count({ where: { status: "ACTIVE" } }),
+        prisma.program.count({ where: { status: "COMPLETED" } }),
+        prisma.schoolCreditRequest.count({ where: { status: "REQUESTED" } }),
+        prisma.application.count({ where: { submittedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } })
+      ]);
+      const byStatus: Record<string, number> = { SUBMITTED: 0, INTERVIEW: 0, ACCEPTED: 0, REJECTED: 0 };
+      for (const row of applicationCounts) {
+        byStatus[row.status] = row._count._all;
+      }
+      return res.json({
+        ok: true,
+        stats: {
+          applications: byStatus,
+          activePrograms: programCount,
+          completedPrograms: completedProgramCount,
+          openSchoolCreditRequests: openSchoolCreditCount,
+          applicationsLast7Days: recentApplications
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const updateUserRoleSchema = z.object({
+  role: z.enum(["STUDENT", "PARTNER", "OPERATOR"])
+});
+
+app.patch(
+  "/ops/users/:id/role",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const userId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!userId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = updateUserRoleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    if (userId === req.auth!.userId && parsed.data.role !== MemberRole.OPERATOR) {
+      return res.status(400).json({ ok: false, message: "operator cannot demote themselves" });
+    }
+    try {
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: { role: parsed.data.role },
+        select: { id: true, email: true, name: true, role: true }
+      });
+      void writeAuditLog(req, {
+        action: "USER_ROLE_CHANGED",
+        resource: "user",
+        resourceId: userId,
+        metadata: { newRole: parsed.data.role }
+      });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+        return res.status(404).json({ ok: false, message: "user not found" });
+      }
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.delete(
+  "/members/me/account",
+  authenticate,
+  async (req, res) => {
+    const userId = req.auth!.userId;
+    const reauthToken = typeof req.headers["x-reauth-token"] === "string"
+      ? req.headers["x-reauth-token"]
+      : Array.isArray(req.headers["x-reauth-token"])
+        ? req.headers["x-reauth-token"][0]
+        : "";
+    if (!reauthToken || !verifyReauthToken(reauthToken, userId, "delete_account")) {
+      return res.status(401).json({ ok: false, code: "REAUTH_REQUIRED", message: "reauthentication required" });
+    }
+    try {
+      // Self-delete cascades to all related data via onDelete: Cascade in schema
+      await prisma.user.delete({ where: { id: userId } });
+      clearRefreshTokenCookie(res);
+      void writeAuditLog(req, {
+        action: "USER_SELF_DELETED",
+        resource: "user",
+        resourceId: userId
+      });
+      return res.json({ ok: true });
+    } catch (error) {
+      console.error("[account-delete] failed", error);
+      return res.status(500).json({ ok: false, message: "탈퇴 처리 중 오류가 발생했습니다." });
+    }
+  }
+);
+
+app.post(
+  "/ops/notifications/cleanup",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    try {
+      const daysParsed = Number.parseInt(typeof req.body?.olderThanDays === "number" ? String(req.body.olderThanDays) : "90", 10);
+      const days = Number.isFinite(daysParsed) && daysParsed >= 7 ? daysParsed : 90;
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const result = await prisma.notification.deleteMany({
+        where: { readAt: { not: null, lt: cutoff } }
+      });
+      void writeAuditLog(req, {
+        action: "NOTIFICATIONS_CLEANED",
+        resource: "notification",
+        metadata: { days, deleted: result.count }
+      });
+      return res.json({ ok: true, deleted: result.count, days });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/audit-logs",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    try {
+      const action = typeof req.query.action === "string" ? req.query.action : undefined;
+      const resource = typeof req.query.resource === "string" ? req.query.resource : undefined;
+      const limit = Math.min(
+        500,
+        Math.max(10, Number.parseInt(typeof req.query.limit === "string" ? req.query.limit : "100", 10) || 100)
+      );
+      const items = await prisma.auditLog.findMany({
+        where: {
+          ...(action ? { action } : {}),
+          ...(resource ? { resource } : {})
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit
+      });
+      const actorIds = Array.from(new Set(items.map((it) => it.actorUserId).filter((id): id is string => Boolean(id))));
+      const actors = actorIds.length
+        ? await prisma.user.findMany({
+            where: { id: { in: actorIds } },
+            select: { id: true, name: true, email: true, role: true }
+          })
+        : [];
+      const actorById = new Map(actors.map((u) => [u.id, u]));
+      return res.json({
+        ok: true,
+        items: items.map((it) => ({
+          id: it.id,
+          action: it.action,
+          resource: it.resource,
+          resourceId: it.resourceId,
+          metadata: it.metadata,
+          ipAddress: it.ipAddress,
+          createdAt: it.createdAt,
+          actor: it.actorUserId ? actorById.get(it.actorUserId) ?? null : null,
+          actorRole: it.actorRole
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const suspendUserSchema = z.object({
+  isActive: z.boolean(),
+  reason: z.string().trim().max(500).optional()
+});
+
+app.patch(
+  "/ops/users/:id/suspend",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const userId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!userId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = suspendUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    if (userId === req.auth!.userId) {
+      return res.status(400).json({ ok: false, message: "you cannot suspend yourself" });
+    }
+    try {
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: parsed.data.isActive
+          ? { isActive: true, suspendedAt: null, suspendedReason: null }
+          : { isActive: false, suspendedAt: new Date(), suspendedReason: parsed.data.reason ?? null },
+        select: { id: true, email: true, name: true, isActive: true, suspendedAt: true, suspendedReason: true }
+      });
+      if (!parsed.data.isActive) {
+        // Invalidate refresh tokens so user is forced out
+        await prisma.refreshToken.deleteMany({ where: { userId } });
+      }
+      void writeAuditLog(req, {
+        action: parsed.data.isActive ? "USER_REACTIVATED" : "USER_SUSPENDED",
+        resource: "user",
+        resourceId: userId,
+        metadata: { reason: parsed.data.reason ?? null }
+      });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+        return res.status(404).json({ ok: false, message: "user not found" });
+      }
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/reports/overview",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const [
+        userCounts,
+        usersLast7,
+        usersLast30,
+        positionCounts,
+        positionsLast7,
+        applicationCounts,
+        applicationsLast7,
+        programCounts,
+        certificatesCount,
+        recommendationsCount,
+        issueCounts
+      ] = await Promise.all([
+        prisma.user.groupBy({ by: ["role"], _count: { _all: true } }),
+        prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+        prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+        prisma.position.groupBy({ by: ["status"], _count: { _all: true } }),
+        prisma.position.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+        prisma.application.groupBy({ by: ["status"], _count: { _all: true } }),
+        prisma.application.count({ where: { submittedAt: { gte: sevenDaysAgo } } }),
+        prisma.program.groupBy({ by: ["status"], _count: { _all: true } }),
+        prisma.certificate.count(),
+        prisma.recommendation.count(),
+        prisma.issueReport.groupBy({ by: ["status"], _count: { _all: true } })
+      ]);
+
+      function tally(rows: Array<Record<string, unknown>>, key: string, keys: string[]) {
+        const acc: Record<string, number> = Object.fromEntries(keys.map((k) => [k, 0]));
+        for (const row of rows) {
+          const k = String(row[key]);
+          const c = (row as { _count?: { _all?: number } })._count?._all ?? 0;
+          if (k in acc) acc[k] = c;
+        }
+        return acc;
+      }
+
+      return res.json({
+        ok: true,
+        stats: {
+          users: {
+            byRole: tally(userCounts as unknown as Array<Record<string, unknown>>, "role", ["STUDENT", "PARTNER", "OPERATOR"]),
+            last7Days: usersLast7,
+            last30Days: usersLast30
+          },
+          positions: {
+            byStatus: tally(positionCounts as unknown as Array<Record<string, unknown>>, "status", ["DRAFT", "PENDING_REVIEW", "OPEN", "PAUSED", "CLOSED", "REJECTED"]),
+            last7Days: positionsLast7
+          },
+          applications: {
+            byStatus: tally(applicationCounts as unknown as Array<Record<string, unknown>>, "status", ["SUBMITTED", "INTERVIEW", "ACCEPTED", "REJECTED"]),
+            last7Days: applicationsLast7
+          },
+          programs: {
+            byStatus: tally(programCounts as unknown as Array<Record<string, unknown>>, "status", ["ACTIVE", "COMPLETED", "CANCELLED"])
+          },
+          artifacts: {
+            certificates: certificatesCount,
+            recommendations: recommendationsCount
+          },
+          issues: {
+            byStatus: tally(issueCounts as unknown as Array<Record<string, unknown>>, "status", ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"])
+          }
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/reports/inflow",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const [providerRows, topAffiliations, weeklyRowsRaw] = await Promise.all([
+        prisma.user.groupBy({
+          by: ["authProvider", "role"],
+          _count: { _all: true }
+        }),
+        prisma.user.groupBy({
+          by: ["affiliation"],
+          where: { role: "STUDENT", affiliation: { not: null } },
+          _count: { _all: true },
+          orderBy: { _count: { affiliation: "desc" } },
+          take: 20
+        }),
+        prisma.$queryRawUnsafe<Array<{ week: Date; role: string; count: bigint }>>(
+          `SELECT date_trunc('week', "createdAt")::date AS "week", "role", COUNT(*)::bigint AS "count"
+           FROM "User"
+           WHERE "createdAt" >= NOW() - INTERVAL '12 weeks'
+           GROUP BY 1, 2
+           ORDER BY 1 ASC`
+        )
+      ]);
+
+      const byProvider: Record<string, Record<string, number>> = {};
+      for (const r of providerRows) {
+        const p = r.authProvider;
+        if (!byProvider[p]) byProvider[p] = { STUDENT: 0, PARTNER: 0, OPERATOR: 0 };
+        byProvider[p][r.role] = r._count._all;
+      }
+
+      const weeklyMap = new Map<string, { week: string; STUDENT: number; PARTNER: number; OPERATOR: number }>();
+      for (const row of weeklyRowsRaw) {
+        const wk = row.week instanceof Date ? row.week.toISOString().slice(0, 10) : String(row.week).slice(0, 10);
+        if (!weeklyMap.has(wk)) weeklyMap.set(wk, { week: wk, STUDENT: 0, PARTNER: 0, OPERATOR: 0 });
+        const entry = weeklyMap.get(wk)!;
+        entry[row.role as "STUDENT" | "PARTNER" | "OPERATOR"] = Number(row.count);
+      }
+
+      return res.json({
+        ok: true,
+        byProvider,
+        topAffiliations: topAffiliations.map((a) => ({ affiliation: a.affiliation, count: a._count._all })),
+        weekly: Array.from(weeklyMap.values())
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/matching-logs",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const mode = typeof req.query.mode === "string" ? req.query.mode : undefined;
+    const limitNum = Number.parseInt(typeof req.query.limit === "string" ? req.query.limit : "", 10);
+    const take = Number.isFinite(limitNum) && limitNum > 0 && limitNum <= 500 ? limitNum : 100;
+    try {
+      const items = await prisma.matchingRunHistory.findMany({
+        where: mode ? { mode } : undefined,
+        orderBy: { ranAt: "desc" },
+        take,
+        select: {
+          id: true,
+          mode: true,
+          source: true,
+          positionId: true,
+          candidateId: true,
+          positionTitle: true,
+          candidateLabel: true,
+          resultCount: true,
+          ranAt: true,
+          createdAt: true
+        }
+      });
+      const modes = await prisma.matchingRunHistory.groupBy({
+        by: ["mode"],
+        _count: { _all: true }
+      });
+      return res.json({
+        ok: true,
+        items,
+        modeStats: modes.map((m) => ({ mode: m.mode, count: m._count._all }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/matching-logs/:id",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const id = typeof req.params.id === "string" ? req.params.id : "";
+    if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const item = await prisma.matchingRunHistory.findUnique({ where: { id } });
+      if (!item) return res.status(404).json({ ok: false, message: "not found" });
+      return res.json({ ok: true, item });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/email-stats",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const [
+        totalUsers,
+        verifiedUsers,
+        verifyTokensLast7,
+        verifyTokensLast30,
+        preverifyTokensLast7,
+        recentTokens
+      ] = await Promise.all([
+        prisma.user.count(),
+        prisma.user.count({ where: { emailVerified: true } }),
+        prisma.emailVerificationToken.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+        prisma.emailVerificationToken.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+        prisma.emailPreverificationToken.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+        prisma.emailVerificationToken.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 30,
+          include: { user: { select: { id: true, email: true, name: true, role: true } } }
+        })
+      ]);
+      return res.json({
+        ok: true,
+        stats: {
+          totalUsers,
+          verifiedUsers,
+          verificationRate: totalUsers > 0 ? Math.round((verifiedUsers / totalUsers) * 1000) / 10 : 0,
+          verifyTokensLast7,
+          verifyTokensLast30,
+          preverifyTokensLast7
+        },
+        recentTokens: recentTokens.map((t) => ({
+          id: t.id,
+          createdAt: t.createdAt,
+          expiresAt: t.expiresAt,
+          usedAt: t.usedAt,
+          email: t.user?.email ?? null,
+          name: t.user?.name ?? null,
+          role: t.user?.role ?? null
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const appSettingUpsertSchema = z.object({
+  key: z.string().trim().min(1).max(120),
+  value: z.string().max(8000),
+  description: z.string().trim().max(500).optional()
+});
+
+const announcementSeverityEnum = z.enum(["INFO", "SUCCESS", "WARNING", "CRITICAL"]);
+const announcementAudienceEnum = z.enum(["ALL", "STUDENT", "PARTNER", "OPERATOR"]);
+const createAnnouncementSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  body: z.string().trim().min(1).max(4000),
+  severity: announcementSeverityEnum.optional(),
+  audience: announcementAudienceEnum.optional(),
+  linkPath: z.string().trim().max(500).optional(),
+  active: z.boolean().optional(),
+  startsAt: z.string().datetime().optional(),
+  endsAt: z.string().datetime().nullable().optional()
+});
+const updateAnnouncementSchema = createAnnouncementSchema.partial();
+
+app.get(
+  "/members/me/announcements",
+  authenticate,
+  async (req, res) => {
+    try {
+      const now = new Date();
+      const role = req.auth!.role;
+      const audiences: ("ALL" | "STUDENT" | "PARTNER" | "OPERATOR")[] = ["ALL"];
+      if (role === "STUDENT") audiences.push("STUDENT");
+      if (role === "PARTNER") audiences.push("PARTNER");
+      if (role === "OPERATOR") audiences.push("OPERATOR");
+      const items = await prisma.announcement.findMany({
+        where: {
+          active: true,
+          audience: { in: audiences },
+          startsAt: { lte: now },
+          OR: [{ endsAt: null }, { endsAt: { gt: now } }]
+        },
+        orderBy: [{ severity: "desc" }, { startsAt: "desc" }],
+        take: 5
+      });
+      return res.json({ ok: true, items });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/announcements",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const items = await prisma.announcement.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 100
+      });
+      return res.json({ ok: true, items });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/ops/announcements",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const parsed = createAnnouncementSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const created = await prisma.announcement.create({
+        data: {
+          title: parsed.data.title,
+          body: parsed.data.body,
+          severity: parsed.data.severity ?? "INFO",
+          audience: parsed.data.audience ?? "ALL",
+          linkPath: parsed.data.linkPath ?? null,
+          active: parsed.data.active ?? true,
+          startsAt: parsed.data.startsAt ? new Date(parsed.data.startsAt) : new Date(),
+          endsAt: parsed.data.endsAt ? new Date(parsed.data.endsAt) : null,
+          createdByUserId: req.auth!.userId
+        }
+      });
+      return res.status(201).json({ ok: true, item: created });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/ops/announcements/:id",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const id = typeof req.params.id === "string" ? req.params.id : "";
+    if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = updateAnnouncementSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const data: Record<string, unknown> = {};
+      if (parsed.data.title !== undefined) data.title = parsed.data.title;
+      if (parsed.data.body !== undefined) data.body = parsed.data.body;
+      if (parsed.data.severity !== undefined) data.severity = parsed.data.severity;
+      if (parsed.data.audience !== undefined) data.audience = parsed.data.audience;
+      if (parsed.data.linkPath !== undefined) data.linkPath = parsed.data.linkPath ?? null;
+      if (parsed.data.active !== undefined) data.active = parsed.data.active;
+      if (parsed.data.startsAt !== undefined) data.startsAt = parsed.data.startsAt ? new Date(parsed.data.startsAt) : new Date();
+      if (parsed.data.endsAt !== undefined) data.endsAt = parsed.data.endsAt ? new Date(parsed.data.endsAt) : null;
+      const updated = await prisma.announcement.update({ where: { id }, data });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+        return res.status(404).json({ ok: false, message: "announcement not found" });
+      }
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.delete(
+  "/ops/announcements/:id",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const id = typeof req.params.id === "string" ? req.params.id : "";
+    if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      await prisma.announcement.delete({ where: { id } });
+      return res.json({ ok: true });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+        return res.status(404).json({ ok: false, message: "announcement not found" });
+      }
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const profileCompletionEndpoint = async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      candidateProfile: {
+        include: {
+          careers: { select: { id: true } },
+          educations: { select: { id: true } },
+          languageSkills: { select: { id: true } }
+        }
+      }
+    }
+  });
+  if (!user) return null;
+  const candidate = user.candidateProfile;
+  const items = [
+    { key: "name", label: "이름", filled: Boolean(user.name?.trim()) },
+    { key: "phoneNumber", label: "전화번호", filled: Boolean(user.phoneNumber?.trim()) },
+    { key: "nationality", label: "국적", filled: Boolean(user.nationality?.trim()) },
+    { key: "affiliation", label: "소속", filled: Boolean(user.affiliation?.trim()) },
+    { key: "birthDate", label: "생년월일", filled: Boolean(user.birthDate) },
+    { key: "gender", label: "성별", filled: Boolean(user.gender?.trim()) },
+    { key: "jobTitle", label: "희망 직무", filled: Boolean(user.jobTitle?.trim()) },
+    { key: "profileImage", label: "프로필 사진", filled: Boolean(user.profileImageUrl?.trim()) },
+    { key: "emailVerified", label: "이메일 인증", filled: user.emailVerified },
+    { key: "selfIntroduction", label: "자기소개", filled: Boolean(candidate?.selfIntroduction?.trim()) },
+    { key: "career", label: "경력", filled: (candidate?.careers.length ?? 0) > 0 },
+    { key: "education", label: "학력", filled: (candidate?.educations.length ?? 0) > 0 },
+    { key: "languageSkill", label: "어학 능력", filled: (candidate?.languageSkills.length ?? 0) > 0 }
+  ];
+  const filledCount = items.filter((i) => i.filled).length;
+  const total = items.length;
+  return {
+    total,
+    filledCount,
+    percent: Math.round((filledCount / total) * 100),
+    items
+  };
+};
+
+app.get(
+  "/members/me/profile-completion",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    try {
+      const data = await profileCompletionEndpoint(req.auth!.userId);
+      if (!data) return res.status(404).json({ ok: false, message: "user not found" });
+      return res.json({ ok: true, ...data });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/app-settings",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const items = await prisma.appSetting.findMany({ orderBy: { key: "asc" } });
+      return res.json({ ok: true, items });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.put(
+  "/ops/app-settings",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const parsed = appSettingUpsertSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const item = await prisma.appSetting.upsert({
+        where: { key: parsed.data.key },
+        update: { value: parsed.data.value, description: parsed.data.description ?? null },
+        create: { key: parsed.data.key, value: parsed.data.value, description: parsed.data.description ?? null }
+      });
+      return res.json({ ok: true, item });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.delete(
+  "/ops/app-settings/:id",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const id = typeof req.params.id === "string" ? req.params.id : "";
+    if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      await prisma.appSetting.delete({ where: { id } });
+      return res.json({ ok: true });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+        return res.status(404).json({ ok: false, message: "setting not found" });
+      }
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/search",
+  authenticate,
+  searchRateLimit,
+  async (req, res) => {
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    if (q.length < 2) {
+      return res.json({ ok: true, items: { positions: [], applicants: [], partners: [], issues: [] } });
+    }
+    try {
+      const role = req.auth!.role;
+      const userId = req.auth!.userId;
+
+      // Positions: students see OPEN positions; partners see their own; operators see all
+      let positionWhere: Prisma.PositionWhereInput = {
+        OR: [
+          { title: { contains: q, mode: Prisma.QueryMode.insensitive } },
+          { preferredJobRole: { contains: q, mode: Prisma.QueryMode.insensitive } }
+        ]
+      };
+      if (role === MemberRole.STUDENT) {
+        positionWhere = { AND: [positionWhere, { status: "OPEN" }] };
+      } else if (role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(userId);
+        if (affiliation?.organization) {
+          positionWhere = { AND: [positionWhere, { partnerOrganizationId: affiliation.organization.id }] };
+        } else {
+          positionWhere = { AND: [positionWhere, { id: "__none__" }] };
+        }
+      }
+
+      const positions = await prisma.position.findMany({
+        where: positionWhere,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          partnerOrganization: { select: { id: true, name: true } }
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 6
+      });
+
+      let applicants: Array<{ id: string; applicationId: string; name: string | null; email: string; positionTitle: string }> = [];
+      let issues: Array<{ id: string; title: string; status: string }> = [];
+      let partners: Array<{ id: string; name: string }> = [];
+
+      if (role === MemberRole.OPERATOR || role === MemberRole.PARTNER) {
+        let appWhere: Prisma.ApplicationWhereInput = {
+          OR: [
+            { candidateUser: { name: { contains: q, mode: Prisma.QueryMode.insensitive } } },
+            { candidateUser: { email: { contains: q, mode: Prisma.QueryMode.insensitive } } }
+          ]
+        };
+        if (role === MemberRole.PARTNER) {
+          const affiliation = await resolvePartnerAffiliation(userId);
+          if (affiliation?.organization) {
+            appWhere = { AND: [appWhere, { position: { partnerOrganizationId: affiliation.organization.id } }] };
+          } else {
+            appWhere = { AND: [appWhere, { id: "__none__" }] };
+          }
+        }
+        const apps = await prisma.application.findMany({
+          where: appWhere,
+          orderBy: { submittedAt: "desc" },
+          take: 6,
+          include: {
+            candidateUser: { select: { id: true, name: true, email: true } },
+            position: { select: { title: true } }
+          }
+        });
+        applicants = apps.map((a) => ({
+          id: a.candidateUser.id,
+          applicationId: a.id,
+          name: a.candidateUser.name,
+          email: a.candidateUser.email,
+          positionTitle: a.position.title
+        }));
+      }
+
+      if (role === MemberRole.OPERATOR) {
+        const issueRows = await prisma.issueReport.findMany({
+          where: {
+            OR: [
+              { title: { contains: q, mode: Prisma.QueryMode.insensitive } },
+              { description: { contains: q, mode: Prisma.QueryMode.insensitive } }
+            ]
+          },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: { id: true, title: true, status: true }
+        });
+        issues = issueRows;
+
+        const partnerRows = await prisma.partnerOrganization.findMany({
+          where: { name: { contains: q, mode: Prisma.QueryMode.insensitive } },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: { id: true, name: true }
+        });
+        partners = partnerRows;
+      }
+
+      return res.json({
+        ok: true,
+        items: {
+          positions: positions.map((p) => ({
+            id: p.id,
+            title: p.title,
+            status: p.status,
+            partnerOrganizationName: p.partnerOrganization?.name ?? null
+          })),
+          applicants,
+          partners,
+          issues
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/members/me/notifications",
+  authenticate,
+  async (req, res) => {
+    try {
+      const limitNum = Number.parseInt(typeof req.query.limit === "string" ? req.query.limit : "", 10);
+      const take = Number.isFinite(limitNum) && limitNum > 0 && limitNum <= 100 ? limitNum : 30;
+      const unreadOnly = req.query.unread === "true";
+      const items = await prisma.notification.findMany({
+        where: {
+          userId: req.auth!.userId,
+          ...(unreadOnly ? { readAt: null } : {})
+        },
+        orderBy: { createdAt: "desc" },
+        take
+      });
+      const unreadCount = await prisma.notification.count({
+        where: { userId: req.auth!.userId, readAt: null }
+      });
+      return res.json({ ok: true, items, unreadCount });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/members/me/notifications/:id/read",
+  authenticate,
+  async (req, res) => {
+    const notificationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!notificationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const notification = await prisma.notification.findUnique({ where: { id: notificationId } });
+      if (!notification) return res.status(404).json({ ok: false, message: "not found" });
+      if (notification.userId !== req.auth!.userId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      const updated = await prisma.notification.update({
+        where: { id: notificationId },
+        data: { readAt: new Date() }
+      });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/members/me/notifications/read-all",
+  authenticate,
+  async (req, res) => {
+    try {
+      const result = await prisma.notification.updateMany({
+        where: { userId: req.auth!.userId, readAt: null },
+        data: { readAt: new Date() }
+      });
+      return res.json({ ok: true, count: result.count });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
 app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   if (!id) return res.status(400).json({ ok: false, message: "invalid applicant id" });
@@ -9900,12 +13940,37 @@ app.patch("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PART
   }
 });
 
-app.get("/ops/dashboard", authenticate, requireRoles([MemberRole.OPERATOR]), (req, res) => {
-  res.json({
-    ok: true,
-    message: "ops dashboard accessible",
-    auth: req.auth
-  });
+app.get("/ops/dashboard", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const [totalUsers, students, partners, operators, totalPartnerOrgs, verifiedPartnerOrgs, totalPositions, openPositions, recentSignups] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { role: MemberRole.STUDENT } }),
+      prisma.user.count({ where: { role: MemberRole.PARTNER } }),
+      prisma.user.count({ where: { role: MemberRole.OPERATOR } }),
+      prisma.partnerOrganization.count(),
+      prisma.partnerOrganization.count({ where: { verificationApproved: true } }),
+      prisma.position.count(),
+      prisma.position.count({ where: { status: "OPEN" } }),
+      prisma.user.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: { id: true, email: true, name: true, role: true, createdAt: true, authProvider: true }
+      })
+    ]);
+
+    return res.json({
+      ok: true,
+      stats: {
+        users: { total: totalUsers, students, partners, operators },
+        partnerOrgs: { total: totalPartnerOrgs, verified: verifiedPartnerOrgs },
+        positions: { total: totalPositions, open: openPositions }
+      },
+      recentSignups
+    });
+  } catch (error) {
+    console.error("[ops/dashboard] failed", error);
+    return res.status(500).json({ ok: false, message: "failed to load ops dashboard" });
+  }
 });
 
 app.get("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {

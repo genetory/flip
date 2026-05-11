@@ -138,6 +138,58 @@ export function ProfileEditPage() {
       saving: "Đang lưu...",
       save: "Lưu",
       subtitle: "Bạn có thể quản lý thông tin hồ sơ cơ bản rõ ràng hơn."
+    },
+    ja: {
+      imageOnly: "画像ファイルのみアップロードできます。",
+      maxSize: "画像サイズは5MB以下にしてください。",
+      nicknameRequired: "ニックネームを入力してください。",
+      saveFailed: "プロフィールの保存に失敗しました。",
+      title: "プロフィール編集",
+      loading: "情報を読み込み中...",
+      loginRequired: "ログインが必要です。",
+      goLogin: "ログインへ移動",
+      profilePhoto: "プロフィール写真",
+      changePhoto: "写真を変更",
+      realName: "本名",
+      nickname: "ニックネーム",
+      phone: "連絡先",
+      phonePlaceholder: "例: 010-0000-0000",
+      gender: "性別",
+      noSelection: "選択しない",
+      male: "男性",
+      female: "女性",
+      other: "その他",
+      birthDate: "生年月日",
+      cancel: "キャンセル",
+      saving: "保存中...",
+      save: "保存",
+      subtitle: "基本プロフィール情報を見やすく管理できます。"
+    },
+    id: {
+      imageOnly: "Hanya file gambar yang dapat diunggah.",
+      maxSize: "Ukuran gambar harus 5MB atau kurang.",
+      nicknameRequired: "Silakan masukkan nama panggilan.",
+      saveFailed: "Gagal menyimpan profil.",
+      title: "Edit profil",
+      loading: "Memuat informasi...",
+      loginRequired: "Diperlukan masuk.",
+      goLogin: "Pergi ke halaman masuk",
+      profilePhoto: "Foto profil",
+      changePhoto: "Ganti foto",
+      realName: "Nama asli",
+      nickname: "Nama panggilan",
+      phone: "Nomor telepon",
+      phonePlaceholder: "Contoh: 010-0000-0000",
+      gender: "Jenis kelamin",
+      noSelection: "Tidak memilih",
+      male: "Laki-laki",
+      female: "Perempuan",
+      other: "Lainnya",
+      birthDate: "Tanggal lahir",
+      cancel: "Batal",
+      saving: "Menyimpan...",
+      save: "Simpan",
+      subtitle: "Kelola informasi profil dasar Anda dengan tata letak yang lebih jelas."
     }
   } as const;
   const copy = copyByLocale[locale] ?? copyByLocale.en;
@@ -243,6 +295,14 @@ export function ProfileEditPage() {
       <main className="container py-10 md:py-14">
         <PartnerAdminTwoColumn className="p-0 md:p-0">
         <div className="space-y-6">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
+          >
+            <span aria-hidden>←</span>
+            {locale === "ko" ? "뒤로" : locale === "zh-CN" ? "返回" : locale === "vi" ? "Quay lại" : locale === "ja" ? "戻る" : locale === "id" ? "Kembali" : "Back"}
+          </button>
           <div>
             <h1 className="font-display text-2xl font-black tracking-[-0.02em] text-foreground md:text-3xl">{copy.title}</h1>
             <p className="mt-2 text-sm text-muted-foreground">{copy.subtitle}</p>

@@ -95,13 +95,24 @@ function SquircleStroke() {
   );
 }
 
-export function PartnerCompanyProfileEditPage() {
+export function PartnerCompanyProfileEditPage({
+  embedded: embeddedProp,
+  onClose
+}: { embedded?: boolean; onClose?: () => void } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { locale } = useLanguage();
-  const t = (ko: string, en: string, zh: string = en, vi: string = en) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : en;
+  const t = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
   const requiredMode = searchParams.get("required") === "1";
+  const embedded = embeddedProp ?? searchParams.get("embedded") === "1";
+  const finishEdit = () => {
+    if (embedded && onClose) {
+      onClose();
+      return;
+    }
+    router.push("/profile");
+  };
   const { user, isReady, isAuthenticated } = useAuthSession();
 
   const [name, setName] = useState("");
@@ -173,8 +184,12 @@ export function PartnerCompanyProfileEditPage() {
           }
 
           if (requiredMode && isPartnerOrganizationProfileComplete(org)) {
-            router.replace("/profile");
-            router.refresh();
+            if (embedded && onClose) {
+              onClose();
+            } else {
+              router.replace("/profile");
+              router.refresh();
+            }
             return;
           }
         }
@@ -183,7 +198,7 @@ export function PartnerCompanyProfileEditPage() {
         }
       } catch (error) {
         if (!isMounted) return;
-        setErrorMessage(error instanceof Error ? error.message : t("파트너 정보를 불러오지 못했습니다.", "Failed to load partner information.", "无法加载合作伙伴信息。", "Không thể tải thông tin đối tác."));
+        setErrorMessage(error instanceof Error ? error.message : t("파트너 정보를 불러오지 못했습니다.", "Failed to load partner information.", "无法加载合作伙伴信息。", "Không thể tải thông tin đối tác.", "パートナー情報を読み込めませんでした。", "Gagal memuat informasi mitra."));
       } finally {
         if (isMounted) setIsLoadingForm(false);
       }
@@ -205,7 +220,7 @@ export function PartnerCompanyProfileEditPage() {
     if (!files || files.length === 0) return;
     const selected = Array.from(files);
     if (selected.some((file) => file.size > maxRawFileSize)) {
-      setErrorMessage(t("원본 파일은 20MB 이하만 선택할 수 있습니다.", "Original files up to 20MB are allowed.", "原始文件大小不可超过20MB。", "Tệp gốc chỉ được chọn dưới 20MB."));
+      setErrorMessage(t("원본 파일은 20MB 이하만 선택할 수 있습니다.", "Original files up to 20MB are allowed.", "原始文件大小不可超过20MB。", "Tệp gốc chỉ được chọn dưới 20MB.", "元のファイルは20MB以下のみ選択できます。", "File asli hanya dapat dipilih hingga 20MB."));
       return;
     }
 
@@ -220,10 +235,10 @@ export function PartnerCompanyProfileEditPage() {
         }
         const data = await convertImageFileToWebpDataUrl(
           selected[0],
-          t("파일을 읽지 못했습니다.", "Failed to read file.", "无法读取文件。", "Không thể đọc tệp.")
+          t("파일을 읽지 못했습니다.", "Failed to read file.", "无法读取文件。", "Không thể đọc tệp.", "ファイルを読み込めませんでした。", "Gagal membaca file.")
         );
         if (estimateDataUrlBytes(data) > maxFileSize) {
-          setErrorMessage(t("변환 후에도 5MB를 초과합니다. 더 작은 이미지를 선택해주세요.", "Still exceeds 5MB after conversion. Please choose a smaller image.", "转换后仍超过5MB。请选择更小的图片。", "Sau khi chuyển đổi vẫn vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn."));
+          setErrorMessage(t("변환 후에도 5MB를 초과합니다. 더 작은 이미지를 선택해주세요.", "Still exceeds 5MB after conversion. Please choose a smaller image.", "转换后仍超过5MB。请选择更小的图片。", "Sau khi chuyển đổi vẫn vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.", "変換後も5MBを超えています。より小さい画像を選択してください。", "Setelah konversi masih melebihi 5MB. Silakan pilih gambar yang lebih kecil."));
           return;
         }
         setCompanyLogoImageData(data);
@@ -240,11 +255,11 @@ export function PartnerCompanyProfileEditPage() {
         }
         const images = await Promise.all(
           selected.map((file) =>
-            convertImageFileToWebpDataUrl(file, t("파일을 읽지 못했습니다.", "Failed to read file.", "无法读取文件。", "Không thể đọc tệp."))
+            convertImageFileToWebpDataUrl(file, t("파일을 읽지 못했습니다.", "Failed to read file.", "无法读取文件。", "Không thể đọc tệp.", "ファイルを読み込めませんでした。", "Gagal membaca file."))
           )
         );
         if (images.some((item) => estimateDataUrlBytes(item) > maxFileSize)) {
-          setErrorMessage(t("일부 이미지가 변환 후에도 5MB를 초과합니다. 더 작은 이미지를 선택해주세요.", "Some images still exceed 5MB after conversion. Please choose smaller images.", "部分图片转换后仍超过5MB。请选择更小的图片。", "Một số ảnh sau khi chuyển đổi vẫn vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn."));
+          setErrorMessage(t("일부 이미지가 변환 후에도 5MB를 초과합니다. 더 작은 이미지를 선택해주세요.", "Some images still exceed 5MB after conversion. Please choose smaller images.", "部分图片转换后仍超过5MB。请选择更小的图片。", "Một số ảnh sau khi chuyển đổi vẫn vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.", "一部の画像が変換後も5MBを超えています。より小さい画像を選択してください。", "Beberapa gambar masih melebihi 5MB setelah konversi. Silakan pilih gambar yang lebih kecil."));
           previews.forEach((item) => URL.revokeObjectURL(item));
           setOfficePhotoPreviewUrls((prev) => prev.filter((item) => !previews.includes(item)));
           return;
@@ -254,7 +269,7 @@ export function PartnerCompanyProfileEditPage() {
         setOfficePhotoPreviewUrls((prev) => prev.filter((item) => !previews.includes(item)));
       }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("파일 업로드에 실패했습니다.", "Failed to upload file.", "文件上传失败。", "Tải tệp thất bại."));
+      setErrorMessage(error instanceof Error ? error.message : t("파일 업로드에 실패했습니다.", "Failed to upload file.", "文件上传失败。", "Tải tệp thất bại.", "ファイルのアップロードに失敗しました。", "Gagal mengunggah file."));
     } finally {
       setUploadingField(null);
       inputEl.value = "";
@@ -263,11 +278,11 @@ export function PartnerCompanyProfileEditPage() {
 
   async function handleSave() {
     if (!name.trim()) {
-      setErrorMessage(t("파트너명을 입력해주세요.", "Please enter partner name.", "请输入合作伙伴名称。", "Vui lòng nhập tên đối tác."));
+      setErrorMessage(t("파트너명을 입력해주세요.", "Please enter partner name.", "请输入合作伙伴名称。", "Vui lòng nhập tên đối tác.", "パートナー名を入力してください。", "Silakan masukkan nama mitra."));
       return;
     }
     if (!industry) {
-      setErrorMessage(t("산업군을 선택해주세요.", "Please select an industry.", "请选择行业。", "Vui lòng chọn ngành."));
+      setErrorMessage(t("산업군을 선택해주세요.", "Please select an industry.", "请选择行业。", "Vui lòng chọn ngành.", "業種を選択してください。", "Silakan pilih industri."));
       return;
     }
 
@@ -285,12 +300,16 @@ export function PartnerCompanyProfileEditPage() {
         officePhotoImageData: officePhotoImages.length > 0 ? JSON.stringify(officePhotoImages) : null
       });
       setHasOrganization(true);
-      if (requiredMode) {
+      if (embedded && onClose) {
+        onClose();
+      } else if (requiredMode) {
         router.push("/profile");
+        router.refresh();
+      } else {
+        router.refresh();
       }
-      router.refresh();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("파트너 정보 저장에 실패했습니다.", "Failed to save partner information.", "保存合作伙伴信息失败。", "Lưu thông tin đối tác thất bại."));
+      setErrorMessage(error instanceof Error ? error.message : t("파트너 정보 저장에 실패했습니다.", "Failed to save partner information.", "保存合作伙伴信息失败。", "Lưu thông tin đối tác thất bại.", "パートナー情報の保存に失敗しました。", "Gagal menyimpan informasi mitra."));
     } finally {
       setIsSaving(false);
     }
@@ -298,7 +317,7 @@ export function PartnerCompanyProfileEditPage() {
 
   async function handleJoinOrganization() {
     if (!joinCode.trim()) {
-      setErrorMessage(t("초대코드를 입력해주세요.", "Please enter invite code.", "请输入邀请码。", "Vui lòng nhập mã mời."));
+      setErrorMessage(t("초대코드를 입력해주세요.", "Please enter invite code.", "请输入邀请码。", "Vui lòng nhập mã mời.", "招待コードを入力してください。", "Silakan masukkan kode undangan."));
       return;
     }
     setIsJoining(true);
@@ -306,7 +325,7 @@ export function PartnerCompanyProfileEditPage() {
     try {
       const joined = await joinMyPartnerOrganizationByCode(joinCode.trim());
       if (!joined) {
-        setErrorMessage(t("회사 정보를 불러오지 못했습니다.", "Failed to load company.", "无法加载公司信息。", "Không thể tải thông tin công ty."));
+        setErrorMessage(t("회사 정보를 불러오지 못했습니다.", "Failed to load company.", "无法加载公司信息。", "Không thể tải thông tin công ty.", "会社情報を読み込めませんでした。", "Gagal memuat informasi perusahaan."));
         return;
       }
       setHasOrganization(true);
@@ -318,10 +337,10 @@ export function PartnerCompanyProfileEditPage() {
       setCompanyLogoImageData(joined.companyLogoImageData ?? null);
       setOfficePhotoImages([]);
       setJoinCode("");
-      router.push("/profile");
+      finishEdit();
       router.refresh();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("회사 합류에 실패했습니다.", "Failed to join company.", "加入公司失败。", "Tham gia công ty thất bại."));
+      setErrorMessage(error instanceof Error ? error.message : t("회사 합류에 실패했습니다.", "Failed to join company.", "加入公司失败。", "Tham gia công ty thất bại.", "会社への参加に失敗しました。", "Gagal bergabung dengan perusahaan."));
     } finally {
       setIsJoining(false);
     }
@@ -335,16 +354,16 @@ export function PartnerCompanyProfileEditPage() {
       setInviteCode(generated.code);
       setInviteExpiresAt(generated.expiresAt);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("초대코드 생성에 실패했습니다.", "Failed to generate invite code.", "生成邀请码失败。", "Tạo mã mời thất bại."));
+      setErrorMessage(error instanceof Error ? error.message : t("초대코드 생성에 실패했습니다.", "Failed to generate invite code.", "生成邀请码失败。", "Tạo mã mời thất bại.", "招待コードの生成に失敗しました。", "Gagal membuat kode undangan."));
     } finally {
       setIsGeneratingCode(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-muted/30 font-sans text-foreground antialiased">
-      <Header />
-      <main className="container py-12 md:py-16">
+    <div className={embedded ? "flex flex-col bg-muted/30 font-sans text-foreground antialiased" : "min-h-screen flex flex-col bg-muted/30 font-sans text-foreground antialiased"}>
+      {embedded ? null : <Header />}
+      <main className={embedded ? "container py-6" : "container py-12 md:py-16"}>
         <svg aria-hidden="true" width="0" height="0" className="absolute">
           <defs>
             <clipPath id={SQUIRCLE_CLIP_ID} clipPathUnits="objectBoundingBox">
@@ -356,31 +375,31 @@ export function PartnerCompanyProfileEditPage() {
           <div className="space-y-6">
             <div>
               <h1 className="mb-2 font-display text-3xl font-bold tracking-tight text-foreground">
-                {t("파트너 프로필", "Partner profile", "合作伙伴资料", "Hồ sơ đối tác")}
+                {t("파트너 프로필", "Partner profile", "合作伙伴资料", "Hồ sơ đối tác", "パートナープロフィール", "Profil Mitra")}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {t("파트너 조직의 기본 정보를 관리합니다.", "Manage basic information for your partner organization.", "管理合作伙伴组织的基本信息。", "Quản lý thông tin cơ bản của tổ chức đối tác.")}
+                {t("파트너 조직의 기본 정보를 관리합니다.", "Manage basic information for your partner organization.", "管理合作伙伴组织的基本信息。", "Quản lý thông tin cơ bản của tổ chức đối tác.", "パートナー組織の基本情報を管理します。", "Kelola informasi dasar organisasi mitra Anda.")}
               </p>
             </div>
             <div>
               {!isReady ? (
-                <p className="text-sm text-muted-foreground">{t("정보를 불러오는 중...", "Loading information...", "正在加载信息...", "Đang tải thông tin...")}</p>
+                <p className="text-sm text-muted-foreground">{t("정보를 불러오는 중...", "Loading information...", "正在加载信息...", "Đang tải thông tin...", "情報を読み込み中...", "Memuat informasi...")}</p>
               ) : !isAuthenticated || !user ? (
                 <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">{t("로그인이 필요합니다.", "Sign in is required.", "需要先登录。", "Cần đăng nhập.")}</p>
+                  <p className="text-sm text-muted-foreground">{t("로그인이 필요합니다.", "Sign in is required.", "需要先登录。", "Cần đăng nhập.", "ログインが必要です。", "Diperlukan masuk.")}</p>
                   <Button variant="dark" asChild>
-                    <Link href="/login">{t("로그인하러 가기", "Go to login", "前往登录", "Đi tới đăng nhập")}</Link>
+                    <Link href="/login">{t("로그인하러 가기", "Go to login", "前往登录", "Đi tới đăng nhập", "ログインへ", "Pergi ke masuk")}</Link>
                   </Button>
                 </div>
               ) : user.role !== "PARTNER" ? (
                 <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">{t("파트너회원만 수정할 수 있습니다.", "Only partner accounts can edit this page.", "仅合作伙伴账号可以编辑此页面。", "Chỉ tài khoản đối tác mới có thể chỉnh sửa trang này.")}</p>
+                  <p className="text-sm text-muted-foreground">{t("파트너회원만 수정할 수 있습니다.", "Only partner accounts can edit this page.", "仅合作伙伴账号可以编辑此页面。", "Chỉ tài khoản đối tác mới có thể chỉnh sửa trang này.", "パートナー会員のみこのページを編集できます。", "Hanya akun mitra yang dapat mengedit halaman ini.")}</p>
                   <Button variant="outline" asChild>
-                    <Link href="/profile">{t("돌아가기", "Back", "返回", "Quay lại")}</Link>
+                    <Link href="/profile">{t("돌아가기", "Back", "返回", "Quay lại", "戻る", "Kembali")}</Link>
                   </Button>
                 </div>
               ) : isLoadingForm ? (
-                <p className="text-sm text-muted-foreground">{t("폼을 준비하는 중...", "Preparing form...", "正在准备表单...", "Đang chuẩn bị biểu mẫu...")}</p>
+                <p className="text-sm text-muted-foreground">{t("폼을 준비하는 중...", "Preparing form...", "正在准备表单...", "Đang chuẩn bị biểu mẫu...", "フォームを準備中...", "Menyiapkan formulir...")}</p>
               ) : (
                 <section className="space-y-4">
                 {requiredMode ? (
@@ -396,42 +415,42 @@ export function PartnerCompanyProfileEditPage() {
 
                 {!hasOrganization ? (
                   <div className="rounded-2xl border border-border/70 bg-card p-4 md:p-5">
-                    <p className="text-sm font-semibold text-foreground">{t("기존 회사에 합류", "Join existing company", "加入现有公司", "Tham gia công ty hiện có")}</p>
+                    <p className="text-sm font-semibold text-foreground">{t("기존 회사에 합류", "Join existing company", "加入现有公司", "Tham gia công ty hiện có", "既存の会社に参加", "Bergabung dengan perusahaan yang ada")}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {t("파트너 관리자가 전달한 초대코드를 입력하면 바로 합류할 수 있습니다.", "Enter an invite code from your partner admin to join instantly.", "输入合作伙伴管理员提供的邀请码即可立即加入。", "Nhập mã mời từ quản trị viên đối tác để tham gia ngay.")}
+                      {t("파트너 관리자가 전달한 초대코드를 입력하면 바로 합류할 수 있습니다.", "Enter an invite code from your partner admin to join instantly.", "输入合作伙伴管理员提供的邀请码即可立即加入。", "Nhập mã mời từ quản trị viên đối tác để tham gia ngay.", "パートナー管理者が共有した招待コードを入力するとすぐに参加できます。", "Masukkan kode undangan dari admin mitra untuk bergabung secara instan.")}
                     </p>
                     <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                       <input
                         className="h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm"
                         value={joinCode}
                         onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-                        placeholder={t("예: PJT-4K8Q2-M9W7D", "e.g. PJT-4K8Q2-M9W7D", "例如:PJT-4K8Q2-M9W7D", "Ví dụ: PJT-4K8Q2-M9W7D")}
+                        placeholder={t("예: PJT-4K8Q2-M9W7D", "e.g. PJT-4K8Q2-M9W7D", "例如:PJT-4K8Q2-M9W7D", "Ví dụ: PJT-4K8Q2-M9W7D", "例: PJT-4K8Q2-M9W7D", "Contoh: PJT-4K8Q2-M9W7D")}
                         maxLength={120}
                       />
                       <Button variant="outline" onClick={() => void handleJoinOrganization()} disabled={isJoining || isSaving}>
-                        {isJoining ? t("합류 중...", "Joining...", "加入中...", "Đang tham gia...") : t("합류하기", "Join", "加入", "Tham gia")}
+                        {isJoining ? t("합류 중...", "Joining...", "加入中...", "Đang tham gia...", "参加中...", "Sedang bergabung...") : t("합류하기", "Join", "加入", "Tham gia", "参加する", "Bergabung")}
                       </Button>
                     </div>
                     <p className="mt-3 text-xs text-muted-foreground">
-                      {t("코드가 없다면 아래에서 회사 정보를 입력하고 새 회사를 생성하세요.", "If you don't have a code, fill out company info below to create a new one.", "如果没有邀请码,请在下方填写公司信息以创建新公司。", "Nếu bạn không có mã, hãy điền thông tin công ty bên dưới để tạo công ty mới.")}
+                      {t("코드가 없다면 아래에서 회사 정보를 입력하고 새 회사를 생성하세요.", "If you don't have a code, fill out company info below to create a new one.", "如果没有邀请码,请在下方填写公司信息以创建新公司。", "Nếu bạn không có mã, hãy điền thông tin công ty bên dưới để tạo công ty mới.", "コードがない場合は、下記の会社情報を入力して新しい会社を作成してください。", "Jika Anda tidak memiliki kode, isi informasi perusahaan di bawah untuk membuat yang baru.")}
                     </p>
                   </div>
                 ) : null}
 
                 {hasOrganization && (user?.partnerOrgRole === "OWNER" || user?.partnerOrgRole === "ADMIN") ? (
                   <div className="rounded-2xl border border-border/70 bg-card p-4 md:p-5">
-                    <p className="text-sm font-semibold text-foreground">{t("팀 합류 초대코드 발급", "Generate team invite code", "生成团队邀请码", "Tạo mã mời nhóm")}</p>
+                    <p className="text-sm font-semibold text-foreground">{t("팀 합류 초대코드 발급", "Generate team invite code", "生成团队邀请码", "Tạo mã mời nhóm", "チーム参加用招待コードを発行", "Buat kode undangan tim")}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {t("코드는 1회 사용되며 일정 시간 후 자동 만료됩니다.", "The code is single-use and expires automatically after a limited time.", "邀请码仅可使用一次,并将在限定时间后自动过期。", "Mã chỉ sử dụng một lần và sẽ tự động hết hạn sau một thời gian.")}
+                      {t("코드는 1회 사용되며 일정 시간 후 자동 만료됩니다.", "The code is single-use and expires automatically after a limited time.", "邀请码仅可使用一次,并将在限定时间后自动过期。", "Mã chỉ sử dụng một lần và sẽ tự động hết hạn sau một thời gian.", "コードは1回のみ使用でき、一定時間後に自動的に期限切れとなります。", "Kode hanya sekali pakai dan akan otomatis kedaluwarsa setelah waktu terbatas.")}
                     </p>
                     <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
                       <Button variant="outline" onClick={() => void handleGenerateInviteCode()} disabled={isGeneratingCode || isSaving}>
-                        {isGeneratingCode ? t("생성 중...", "Generating...", "生成中...", "Đang tạo...") : t("새 초대코드 생성", "Generate new code", "生成新邀请码", "Tạo mã mời mới")}
+                        {isGeneratingCode ? t("생성 중...", "Generating...", "生成中...", "Đang tạo...", "生成中...", "Membuat...") : t("새 초대코드 생성", "Generate new code", "生成新邀请码", "Tạo mã mời mới", "新しい招待コードを生成", "Buat kode undangan baru")}
                       </Button>
                       {inviteCode ? (
                         <p className="text-sm font-medium text-foreground">
                           {inviteCode}
-                          {inviteExpiresAt ? ` · ${t("만료", "Expires", "过期", "Hết hạn")}: ${new Date(inviteExpiresAt).toLocaleString(locale === "en" ? "en-US" : "ko-KR")}` : ""}
+                          {inviteExpiresAt ? ` · ${t("만료", "Expires", "过期", "Hết hạn", "期限", "Kedaluwarsa")}: ${new Date(inviteExpiresAt).toLocaleString(locale === "en" ? "en-US" : "ko-KR")}` : ""}
                         </p>
                       ) : null}
                     </div>
@@ -443,7 +462,7 @@ export function PartnerCompanyProfileEditPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <label className="text-sm font-medium" htmlFor="company-logo-upload">
-                        {t("기업 이미지(로고)", "Company image (logo)", "企业图片(标志)", "Hình ảnh công ty (logo)")}
+                        {t("기업 이미지(로고)", "Company image (logo)", "企业图片(标志)", "Hình ảnh công ty (logo)", "企業画像(ロゴ)", "Gambar perusahaan (logo)")}
                       </label>
                     </div>
                     <input
@@ -455,7 +474,7 @@ export function PartnerCompanyProfileEditPage() {
                       onChange={(event) => void handleUpload(event, "companyLogoImageData")}
                       disabled={uploadingField === "companyLogoImageData"}
                     />
-                    <p className="text-xs text-muted-foreground">{t("최대 5MB", "Up to 5MB", "最大5MB", "Tối đa 5MB")}</p>
+                    <p className="text-xs text-muted-foreground">{t("최대 5MB", "Up to 5MB", "最大5MB", "Tối đa 5MB", "最大5MB", "Hingga 5MB")}</p>
                     <div className="py-5">
                     {companyLogoPreviewUrl ? (
                       <div className="space-y-2">
@@ -484,13 +503,13 @@ export function PartnerCompanyProfileEditPage() {
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={companyLogoPreviewUrl}
-                              alt={t("기업 로고 미리보기", "Company logo preview", "企业标志预览", "Xem trước logo công ty")}
+                              alt={t("기업 로고 미리보기", "Company logo preview", "企业标志预览", "Xem trước logo công ty", "企業ロゴのプレビュー", "Pratinjau logo perusahaan")}
                               className="absolute inset-0 z-10 block h-full w-full scale-[1.08] object-cover bg-muted/30"
                             />
                           </div>
                           <button
                             type="button"
-                            aria-label={t("로고 삭제", "Remove logo", "删除标志", "Xóa logo")}
+                            aria-label={t("로고 삭제", "Remove logo", "删除标志", "Xóa logo", "ロゴを削除", "Hapus logo")}
                             className="absolute -right-1 top-1 z-20 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black text-white shadow-[0_8px_18px_-8px_rgba(0,0,0,0.9)] transition hover:bg-black/85"
                             onClick={(event) => {
                               event.stopPropagation();
@@ -502,7 +521,7 @@ export function PartnerCompanyProfileEditPage() {
                             <X size={12} weight="bold" />
                           </button>
                         </div>
-                        <p className="text-xs text-muted-foreground">{t("변환 중...", "Converting...", "转换中...", "Đang chuyển đổi...")}</p>
+                        <p className="text-xs text-muted-foreground">{t("변환 중...", "Converting...", "转换中...", "Đang chuyển đổi...", "変換中...", "Sedang mengonversi...")}</p>
                       </div>
                     ) : companyLogoImageData ? (
                       <div className="space-y-2">
@@ -532,13 +551,13 @@ export function PartnerCompanyProfileEditPage() {
                             <img
                               key={companyLogoImageData.slice(0, 80)}
                               src={companyLogoImageData}
-                              alt={t("기업 로고 미리보기", "Company logo preview", "企业标志预览", "Xem trước logo công ty")}
+                              alt={t("기업 로고 미리보기", "Company logo preview", "企业标志预览", "Xem trước logo công ty", "企業ロゴのプレビュー", "Pratinjau logo perusahaan")}
                               className="absolute inset-0 z-10 block h-full w-full scale-[1.08] object-cover bg-muted/30"
                             />
                           </div>
                           <button
                             type="button"
-                            aria-label={t("로고 삭제", "Remove logo", "删除标志", "Xóa logo")}
+                            aria-label={t("로고 삭제", "Remove logo", "删除标志", "Xóa logo", "ロゴを削除", "Hapus logo")}
                             className="absolute -right-1 top-1 z-20 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black text-white shadow-[0_8px_18px_-8px_rgba(0,0,0,0.9)] transition hover:bg-black/85"
                             onClick={(event) => {
                               event.stopPropagation();
@@ -559,7 +578,7 @@ export function PartnerCompanyProfileEditPage() {
                           style={squircleStyle}
                           onClick={() => logoInputRef.current?.click()}
                           disabled={isSaving || uploadingField === "companyLogoImageData"}
-                          aria-label={t("로고 이미지 업로드", "Upload logo image", "上传标志图片", "Tải lên hình logo")}
+                          aria-label={t("로고 이미지 업로드", "Upload logo image", "上传标志图片", "Tải lên hình logo", "ロゴ画像をアップロード", "Unggah gambar logo")}
                         >
                           <SquircleStroke />
                           <ImageSquare size={24} className="text-muted-foreground" />
@@ -572,7 +591,7 @@ export function PartnerCompanyProfileEditPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <label className="text-sm font-medium" htmlFor="office-photo-upload">
-                        {t("추가 이미지(오피스/현장)", "Additional image (office/site)", "其他图片(办公室/现场)", "Hình ảnh bổ sung (văn phòng/hiện trường)")}
+                        {t("추가 이미지(오피스/현장)", "Additional image (office/site)", "其他图片(办公室/现场)", "Hình ảnh bổ sung (văn phòng/hiện trường)", "追加画像(オフィス/現場)", "Gambar tambahan (kantor/lokasi)")}
                       </label>
                     </div>
                     <input
@@ -585,7 +604,7 @@ export function PartnerCompanyProfileEditPage() {
                       onChange={(event) => void handleUpload(event, "officePhotoImageData")}
                       disabled={uploadingField === "officePhotoImageData"}
                     />
-                    <p className="text-xs text-muted-foreground">{t("최대 5MB", "Up to 5MB", "最大5MB", "Tối đa 5MB")}</p>
+                    <p className="text-xs text-muted-foreground">{t("최대 5MB", "Up to 5MB", "最大5MB", "Tối đa 5MB", "最大5MB", "Hingga 5MB")}</p>
                     <div className="overflow-x-auto py-5">
                       <div className="flex w-max gap-4">
                       <div className="h-24 w-24 shrink-0">
@@ -595,7 +614,7 @@ export function PartnerCompanyProfileEditPage() {
                           style={squircleStyle}
                           onClick={() => officeInputRef.current?.click()}
                           disabled={isSaving || uploadingField === "officePhotoImageData"}
-                          aria-label={t("추가 이미지 업로드", "Upload additional image", "上传其他图片", "Tải lên hình ảnh bổ sung")}
+                          aria-label={t("추가 이미지 업로드", "Upload additional image", "上传其他图片", "Tải lên hình ảnh bổ sung", "追加画像をアップロード", "Unggah gambar tambahan")}
                         >
                           <SquircleStroke />
                           <ImageSquare size={24} className="text-muted-foreground" />
@@ -607,7 +626,7 @@ export function PartnerCompanyProfileEditPage() {
                           {officePhotoImages.length > 0 ? (
                             <button
                               type="button"
-                              aria-label={t("이미지 삭제", "Remove image", "删除图片", "Xóa hình ảnh")}
+                              aria-label={t("이미지 삭제", "Remove image", "删除图片", "Xóa hình ảnh", "画像を削除", "Hapus gambar")}
                               className="absolute -right-1 top-1 z-20 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black text-white shadow-[0_8px_18px_-8px_rgba(0,0,0,0.9)] transition hover:bg-black/85"
                               onClick={() => {
                                 setOfficePhotoImages((prev) => prev.filter((_, i) => i !== index));
@@ -623,12 +642,12 @@ export function PartnerCompanyProfileEditPage() {
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={image}
-                              alt={t("추가 이미지 미리보기", "Additional image preview", "其他图片预览", "Xem trước hình ảnh bổ sung")}
+                              alt={t("추가 이미지 미리보기", "Additional image preview", "其他图片预览", "Xem trước hình ảnh bổ sung", "追加画像のプレビュー", "Pratinjau gambar tambahan")}
                               className="absolute inset-0 z-10 block h-full w-full scale-[1.08] object-cover"
                             />
                           </div>
                           {officePhotoImages.length === 0 ? (
-                            <p className="absolute inset-x-0 bottom-1 text-center text-[10px] text-white/90">{t("변환 중...", "Converting...", "转换中...", "Đang chuyển đổi...")}</p>
+                            <p className="absolute inset-x-0 bottom-1 text-center text-[10px] text-white/90">{t("변환 중...", "Converting...", "转换中...", "Đang chuyển đổi...", "変換中...", "Sedang mengonversi...")}</p>
                           ) : null}
                         </div>
                       ))}
@@ -639,22 +658,22 @@ export function PartnerCompanyProfileEditPage() {
                 </div>
 
                 <div className="rounded-2xl bg-white p-4 md:p-5">
-                  <p className="text-sm font-bold text-[#0B1227]">{t("기본 정보", "Basic information", "基本信息", "Thông tin cơ bản")}</p>
+                  <p className="text-sm font-bold text-[#0B1227]">{t("기본 정보", "Basic information", "基本信息", "Thông tin cơ bản", "基本情報", "Informasi dasar")}</p>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor="company-name">{t("파트너명", "Partner name", "合作伙伴名称", "Tên đối tác")}</label>
+                    <label className="text-sm font-medium" htmlFor="company-name">{t("파트너명", "Partner name", "合作伙伴名称", "Tên đối tác", "パートナー名", "Nama mitra")}</label>
                     <input
                       id="company-name"
                       className="h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm"
                       value={name}
                       onChange={(event) => setName(event.target.value)}
-                      placeholder={t("예: Aply Studio", "e.g. Aply Studio", "例如:Aply Studio", "Ví dụ: Aply Studio")}
+                      placeholder={t("예: Aply Studio", "e.g. Aply Studio", "例如:Aply Studio", "Ví dụ: Aply Studio", "例: Aply Studio", "Contoh: Aply Studio")}
                       maxLength={200}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor="company-industry">{t("산업군", "Industry", "行业", "Ngành")}</label>
+                    <label className="text-sm font-medium" htmlFor="company-industry">{t("산업군", "Industry", "行业", "Ngành", "業種", "Industri")}</label>
                     <div className="relative">
                       <select
                         id="company-industry"
@@ -662,7 +681,7 @@ export function PartnerCompanyProfileEditPage() {
                         value={industry}
                         onChange={(event) => setIndustry(event.target.value)}
                       >
-                        <option value="">{t("선택", "Select", "选择", "Chọn")}</option>
+                        <option value="">{t("선택", "Select", "选择", "Chọn", "選択", "Pilih")}</option>
                         {industryOptions.map((option) => (
                           <option key={option} value={option}>{partnerIndustryLabel(option)}</option>
                         ))}
@@ -674,7 +693,7 @@ export function PartnerCompanyProfileEditPage() {
 
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor="company-website">{t("웹사이트", "Website", "网站", "Trang web")}</label>
+                    <label className="text-sm font-medium" htmlFor="company-website">{t("웹사이트", "Website", "网站", "Trang web", "ウェブサイト", "Situs web")}</label>
                     <input
                       id="company-website"
                       className="h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm"
@@ -686,13 +705,13 @@ export function PartnerCompanyProfileEditPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor="company-address">{t("주소", "Address", "地址", "Địa chỉ")}</label>
+                    <label className="text-sm font-medium" htmlFor="company-address">{t("주소", "Address", "地址", "Địa chỉ", "住所", "Alamat")}</label>
                     <input
                       id="company-address"
                       className="h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm"
                       value={officeAddress}
                       onChange={(event) => setOfficeAddress(event.target.value)}
-                      placeholder={t("예: 서울특별시 강남구 ...", "e.g. Gangnam-gu, Seoul ...", "例如:首尔特别市江南区 ...", "Ví dụ: Gangnam-gu, Seoul ...")}
+                      placeholder={t("예: 서울특별시 강남구 ...", "e.g. Gangnam-gu, Seoul ...", "例如:首尔特别市江南区 ...", "Ví dụ: Gangnam-gu, Seoul ...", "例: ソウル特別市江南区 ...", "Contoh: Gangnam-gu, Seoul ...")}
                       maxLength={300}
                     />
                   </div>
@@ -701,13 +720,13 @@ export function PartnerCompanyProfileEditPage() {
 
                 <div className="rounded-2xl bg-white p-4 md:p-5">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="company-description">{t("소개", "Description", "简介", "Giới thiệu")}</label>
+                  <label className="text-sm font-medium" htmlFor="company-description">{t("소개", "Description", "简介", "Giới thiệu", "紹介", "Deskripsi")}</label>
                   <textarea
                     id="company-description"
                     className="min-h-36 w-full rounded-xl border-0 bg-muted/40 px-3 py-3 text-sm"
                     value={description}
                     onChange={(event) => setDescription(event.target.value)}
-                    placeholder={t("회사/서비스 소개, 채용 포지션 특성, 협업 방식 등을 간단히 작성해 주세요.", "Briefly describe your company, hiring focus, and collaboration style.", "请简要介绍公司/服务、招聘职位特点及协作方式等。", "Vui lòng mô tả ngắn gọn công ty/dịch vụ, đặc điểm vị trí tuyển dụng và phong cách hợp tác.")}
+                    placeholder={t("회사/서비스 소개, 채용 포지션 특성, 협업 방식 등을 간단히 작성해 주세요.", "Briefly describe your company, hiring focus, and collaboration style.", "请简要介绍公司/服务、招聘职位特点及协作方式等。", "Vui lòng mô tả ngắn gọn công ty/dịch vụ, đặc điểm vị trí tuyển dụng và phong cách hợp tác.", "会社/サービスの紹介、募集ポジションの特徴、協業スタイルなどを簡潔にご記入ください。", "Jelaskan secara singkat perusahaan/layanan, fokus perekrutan, dan gaya kolaborasi Anda.")}
                     maxLength={2000}
                   />
                   <p className="text-xs text-slate-500">{description.length}/2000</p>
@@ -718,12 +737,12 @@ export function PartnerCompanyProfileEditPage() {
 
                 <div className="flex items-center justify-end gap-2 pt-2">
                   {!requiredMode ? (
-                    <Button variant="outline" onClick={() => router.push("/profile")} disabled={isSaving}>
-                      {t("취소", "Cancel", "取消", "Hủy")}
+                    <Button variant="outline" onClick={() => finishEdit()} disabled={isSaving}>
+                      {t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
                     </Button>
                   ) : null}
                   <Button variant="dark" onClick={() => void handleSave()} disabled={isSaving}>
-                    {isSaving ? t("저장 중...", "Saving...", "保存中...", "Đang lưu...") : requiredMode ? t("입력 완료", "Complete", "完成", "Hoàn tất") : t("저장", "Save", "保存", "Lưu")}
+                    {isSaving ? t("저장 중...", "Saving...", "保存中...", "Đang lưu...", "保存中...", "Sedang menyimpan...") : requiredMode ? t("입력 완료", "Complete", "完成", "Hoàn tất", "入力完了", "Selesai") : t("저장", "Save", "保存", "Lưu", "保存", "Simpan")}
                   </Button>
                 </div>
                 </section>
@@ -732,7 +751,7 @@ export function PartnerCompanyProfileEditPage() {
           </div>
         </PartnerAdminTwoColumn>
       </main>
-      <Footer />
+      {embedded ? null : <Footer />}
     </div>
   );
 }

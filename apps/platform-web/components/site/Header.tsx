@@ -11,6 +11,8 @@ import { Button } from "../ui/button";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { getHeaderMessages, PLATFORM_LOCALES, type PlatformLocale } from "../../lib/auth-messages";
 import { getStoredProfilePhoto } from "../../lib/profile-media";
+import { NotificationBell } from "../notifications/NotificationBell";
+import { AnnouncementBanner } from "../announcements/AnnouncementBanner";
 
 const HEADER_SQUIRCLE_CLIP_ID = "header-avatar-squircle-clip";
 const HEADER_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
@@ -41,15 +43,22 @@ export const Header = () => {
   const copy = getHeaderMessages(locale);
   const roleBadgeLabel =
     user?.role === "PARTNER" ? copy.auth.rolePartner : user?.role === "OPERATOR" ? copy.auth.roleOperator : null;
-  const loginButtonLabel = locale === "ko" ? "로그인하기" : locale === "zh-CN" ? "去登录" : locale === "vi" ? "Đăng nhập" : "Sign in";
-  const homeLabel = locale === "ko" ? "홈" : locale === "zh-CN" ? "首页" : locale === "vi" ? "Trang chủ" : "Home";
+  const loginButtonLabel = locale === "ko" ? "로그인하기" : locale === "zh-CN" ? "去登录" : locale === "vi" ? "Đăng nhập" : locale === "ja" ? "ログイン" : locale === "id" ? "Masuk" : "Sign in";
+  const homeLabel = locale === "ko" ? "홈" : locale === "zh-CN" ? "首页" : locale === "vi" ? "Trang chủ" : locale === "ja" ? "ホーム" : locale === "id" ? "Beranda" : "Home";
+  const partnerDashLabel = locale === "ko" ? "파트너 대시보드" : locale === "zh-CN" ? "合作伙伴控制台" : locale === "vi" ? "Bảng điều khiển đối tác" : locale === "ja" ? "パートナーダッシュボード" : locale === "id" ? "Dasbor Mitra" : "Partner dashboard";
+  const opsDashLabel = locale === "ko" ? "운영 콘솔" : locale === "zh-CN" ? "运营控制台" : locale === "vi" ? "Bảng điều khiển vận hành" : locale === "ja" ? "運営コンソール" : locale === "id" ? "Konsol Operasional" : "Ops console";
   const navItems = [
     { label: homeLabel, href: "/" },
     { label: copy.nav.positions, href: "/positions" },
+    ...(user?.role === "STUDENT" || !isAuthenticated ? [{ label: copy.nav.matching, href: "/matching-probability" }] : []),
     { label: copy.nav.community, href: "/community" },
     { label: copy.nav.pricing, href: "/pricing" },
-    { label: copy.nav.resources, href: "/resources" }
+    { label: copy.nav.resources, href: "/resources" },
+    // Partner dashboard 메뉴는 완성도가 올라갈 때까지 임시로 숨김
+    // ...(user?.role === "PARTNER" ? [{ label: partnerDashLabel, href: "/dashboard/partner" }] : []),
+    ...(user?.role === "OPERATOR" ? [{ label: opsDashLabel, href: "/dashboard/ops" }] : [])
   ];
+  void partnerDashLabel;
 
   useEffect(() => {
     const syncHash = () => {
@@ -105,19 +114,25 @@ export const Header = () => {
     ko: "🇰🇷",
     en: "🇺🇸",
     "zh-CN": "🇨🇳",
-    vi: "🇻🇳"
+    vi: "🇻🇳",
+    ja: "🇯🇵",
+    id: "🇮🇩"
   };
   const localeLabel: Record<PlatformLocale, string> = {
     ko: "한국어",
     en: "English",
     "zh-CN": "简体中文",
-    vi: "Tiếng Việt"
+    vi: "Tiếng Việt",
+    ja: "日本語",
+    id: "Bahasa Indonesia"
   };
   const localeDisplayLabel: Record<PlatformLocale, string> = {
     ko: `${localeEmoji.ko} ${localeLabel.ko}`,
     en: `${localeEmoji.en} ${localeLabel.en}`,
     "zh-CN": `${localeEmoji["zh-CN"]} ${localeLabel["zh-CN"]}`,
-    vi: `${localeEmoji.vi} ${localeLabel.vi}`
+    vi: `${localeEmoji.vi} ${localeLabel.vi}`,
+    ja: `${localeEmoji.ja} ${localeLabel.ja}`,
+    id: `${localeEmoji.id} ${localeLabel.id}`
   };
   const maxLocaleTextUnits = Object.values(localeLabel).reduce((max, text) => {
     const units = Array.from(text).reduce((sum, ch) => {
@@ -141,8 +156,8 @@ export const Header = () => {
     <header
         className={`sticky top-0 z-50 ${isHydrated ? "transition-all duration-500 ease-smooth" : ""} ${
         isScrolled
-          ? "top-3 mx-auto w-[calc(100%-1rem)] md:top-5 md:w-[min(70%,1200px)] md:min-w-[980px] translate-y-0 rounded-2xl border border-border/70 bg-white shadow-elevated backdrop-blur-xl"
-          : "top-0 border-b border-border/60 bg-background/80 backdrop-blur-xl"
+          ? "top-3 mx-auto w-[calc(100%-1rem)] md:top-5 md:w-[min(70%,1200px)] md:min-w-[980px] translate-y-0 rounded-2xl border border-border/70 bg-white shadow-elevated"
+          : "top-0 border-b border-border/60 bg-background"
       }`}
     >
         <div
@@ -177,7 +192,8 @@ export const Header = () => {
           {!isReady ? (
             <div className="h-8 w-24" aria-hidden />
           ) : isAuthenticated ? (
-            <div className="inline-flex items-center">
+            <div className="inline-flex items-center gap-1">
+              <NotificationBell />
               <Button variant="ghost" size="sm" onClick={handleAccountClick}>
                 {profileImage ? (
                   <img src={profileImage} alt="" className="h-6 w-6 object-cover" style={HEADER_SQUIRCLE_STYLE} />
@@ -282,6 +298,7 @@ export const Header = () => {
         </div>
       )}
     </header>
+    <AnnouncementBanner />
     </>
   );
 };

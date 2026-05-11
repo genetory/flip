@@ -88,7 +88,43 @@ export const BusinessValue = () => {
                 close: "Đóng",
                 submitError: "Gửi yêu cầu thất bại. Vui lòng thử lại sau."
               }
-            : {
+            : locale === "ja"
+              ? {
+                  title: "企業向けお問い合わせ",
+                  subtitle: "担当者が迅速にご対応できるよう、基本情報をご記入ください。",
+                  company: "会社名",
+                  name: "ご担当者名",
+                  email: "メールアドレス",
+                  phone: "電話番号",
+                  message: "お問い合わせ内容",
+                  placeholderMessage: "ご希望の採用人材、実施時期、ご質問などをご自由にご記入ください。",
+                  cancel: "キャンセル",
+                  submit: "お問い合わせを送信",
+                  submitting: "送信中...",
+                  doneTitle: "お問い合わせを受け付けました",
+                  doneBody: "ご記入いただいた連絡先へ速やかにご案内いたします。",
+                  close: "閉じる",
+                  submitError: "送信に失敗しました。しばらくしてから再度お試しください。"
+                }
+              : locale === "id"
+                ? {
+                    title: "Konsultasi Perusahaan",
+                    subtitle: "Silakan tinggalkan informasi dasar agar tim kami dapat segera menindaklanjuti.",
+                    company: "Nama Perusahaan",
+                    name: "Nama Penanggung Jawab",
+                    email: "Email",
+                    phone: "Nomor Telepon",
+                    message: "Isi Konsultasi",
+                    placeholderMessage: "Silakan tuliskan kebutuhan rekrutmen, jadwal pelaksanaan, dan pertanyaan Anda.",
+                    cancel: "Batal",
+                    submit: "Kirim Konsultasi",
+                    submitting: "Mengirim...",
+                    doneTitle: "Permintaan telah diterima",
+                    doneBody: "Kami akan segera menghubungi Anda melalui kontak yang telah diberikan.",
+                    close: "Tutup",
+                    submitError: "Gagal mengirim permintaan. Silakan coba lagi nanti."
+                  }
+                : {
             title: "Company Consultation",
             subtitle: "Leave your basic information so our team can follow up quickly.",
             company: "Company",

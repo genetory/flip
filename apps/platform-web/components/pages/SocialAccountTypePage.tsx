@@ -16,8 +16,10 @@ export function SocialAccountTypePage() {
   const isKo = locale === "ko";
   const isZh = locale === "zh-CN";
   const isVi = locale === "vi";
-  const t = (ko: string, en: string, zh: string = en, vi: string = en) =>
-    isKo ? ko : isZh ? zh : isVi ? vi : en;
+  const isJa = locale === "ja";
+  const isId = locale === "id";
+  const t = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
+    isKo ? ko : isZh ? zh : isVi ? vi : isJa ? ja : isId ? id : en;
 
   const [ctx, setCtx] = useState<string | null>(null);
   const [provider, setProvider] = useState<SocialProvider | null>(null);
@@ -31,12 +33,12 @@ export function SocialAccountTypePage() {
     const ctxValue = params.get("ctx");
     const providerValue = params.get("provider");
     if (!ctxValue || (providerValue !== "naver" && providerValue !== "google" && providerValue !== "kakao")) {
-      setErrorMessage(t("가입 정보가 만료되었습니다. 다시 시도해주세요.", "Signup session expired. Please try again.", "注册信息已过期，请重新尝试。", "Phiên đăng ký đã hết hạn. Vui lòng thử lại."));
+      setErrorMessage(t("가입 정보가 만료되었습니다. 다시 시도해주세요.", "Signup session expired. Please try again.", "注册信息已过期，请重新尝试。", "Phiên đăng ký đã hết hạn. Vui lòng thử lại.", "登録情報の有効期限が切れました。もう一度お試しください。", "Informasi pendaftaran telah kedaluwarsa. Silakan coba lagi."));
       return;
     }
     setCtx(ctxValue);
     setProvider(providerValue);
-  }, [isKo, isZh, isVi]);
+  }, [isKo, isZh, isVi, isJa, isId]);
 
   async function handleSubmit() {
     if (!ctx || !provider || isSubmitting) return;
@@ -53,11 +55,11 @@ export function SocialAccountTypePage() {
       router.replace("/profile");
     } catch (error) {
       if (error instanceof AuthApiError && error.code === "EXPIRED_SIGNUP_CONTEXT") {
-        setErrorMessage(t("가입 세션이 만료되었습니다. 다시 시도해주세요.", "Signup session expired. Please try again.", "注册会话已过期，请重新尝试。", "Phiên đăng ký đã hết hạn. Vui lòng thử lại."));
+        setErrorMessage(t("가입 세션이 만료되었습니다. 다시 시도해주세요.", "Signup session expired. Please try again.", "注册会话已过期，请重新尝试。", "Phiên đăng ký đã hết hạn. Vui lòng thử lại.", "登録セッションの有効期限が切れました。もう一度お試しください。", "Sesi pendaftaran telah kedaluwarsa. Silakan coba lagi."));
       } else if (error instanceof AuthApiError && error.code === "INVALID_SIGNUP_CONTEXT") {
-        setErrorMessage(t("유효하지 않은 가입 세션입니다.", "Invalid signup session.", "注册会话无效。", "Phiên đăng ký không hợp lệ."));
+        setErrorMessage(t("유효하지 않은 가입 세션입니다.", "Invalid signup session.", "注册会话无效。", "Phiên đăng ký không hợp lệ.", "無効な登録セッションです。", "Sesi pendaftaran tidak valid."));
       } else {
-        setErrorMessage(error instanceof Error ? error.message : t("가입에 실패했습니다.", "Signup failed.", "注册失败。", "Đăng ký thất bại."));
+        setErrorMessage(error instanceof Error ? error.message : t("가입에 실패했습니다.", "Signup failed.", "注册失败。", "Đăng ký thất bại.", "登録に失敗しました。", "Pendaftaran gagal."));
       }
     } finally {
       setIsSubmitting(false);
@@ -71,13 +73,13 @@ export function SocialAccountTypePage() {
   }> = [
     {
       value: "GENERAL",
-      label: t("일반회원", "General", "普通会员", "Thành viên cá nhân"),
-      description: t("포지션 탐색, 지원, 커뮤니티 참여", "Browse positions, apply, and join the community", "浏览职位、申请、参与社区", "Tìm vị trí, ứng tuyển, tham gia cộng đồng")
+      label: t("일반회원", "General", "普通会员", "Thành viên cá nhân", "一般会員", "Anggota umum"),
+      description: t("포지션 탐색, 지원, 커뮤니티 참여", "Browse positions, apply, and join the community", "浏览职位、申请、参与社区", "Tìm vị trí, ứng tuyển, tham gia cộng đồng", "ポジション検索、応募、コミュニティ参加", "Telusuri posisi, lamar, dan bergabung dengan komunitas")
     },
     {
       value: "BUSINESS",
-      label: t("파트너회원", "Partner", "合作企业会员", "Thành viên đối tác"),
-      description: t("포지션 등록, 후보자 매칭", "Post positions and match with candidates", "发布职位、匹配候选人", "Đăng vị trí, kết nối ứng viên")
+      label: t("파트너회원", "Partner", "合作企业会员", "Thành viên đối tác", "パートナー会員", "Anggota mitra"),
+      description: t("포지션 등록, 후보자 매칭", "Post positions and match with candidates", "发布职位、匹配候选人", "Đăng vị trí, kết nối ứng viên", "ポジション登録、候補者マッチング", "Pasang posisi dan cocokkan dengan kandidat")
     }
   ];
 
@@ -88,14 +90,16 @@ export function SocialAccountTypePage() {
         <section>
           <div className="mx-auto max-w-md rounded-2xl border border-border/60 bg-card p-6 md:p-8">
             <h1 className="font-display text-2xl font-bold tracking-tight">
-              {t("회원 유형을 선택해주세요", "Choose your account type", "请选择会员类型", "Vui lòng chọn loại tài khoản")}
+              {t("회원 유형을 선택해주세요", "Choose your account type", "请选择会员类型", "Vui lòng chọn loại tài khoản", "会員タイプを選択してください", "Silakan pilih tipe akun")}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
               {t(
                 "가입 마지막 단계입니다. 사용하실 유형을 선택해주세요.",
                 "This is the final step. Pick the type that fits you best.",
                 "这是注册的最后一步，请选择适合您的会员类型。",
-                "Đây là bước cuối cùng. Hãy chọn loại tài khoản phù hợp với bạn."
+                "Đây là bước cuối cùng. Hãy chọn loại tài khoản phù hợp với bạn.",
+                "登録の最終ステップです。ご利用になるタイプを選択してください。",
+                "Ini langkah terakhir. Pilih tipe yang paling sesuai untuk Anda."
               )}
             </p>
 
@@ -134,14 +138,14 @@ export function SocialAccountTypePage() {
                 disabled={!ctx || !provider || isSubmitting}
               >
                 {isSubmitting
-                  ? t("가입 중...", "Signing up...", "注册中...", "Đang đăng ký...")
-                  : t("계속하기", "Continue", "继续", "Tiếp tục")}
+                  ? t("가입 중...", "Signing up...", "注册中...", "Đang đăng ký...", "登録中...", "Sedang mendaftar...")
+                  : t("계속하기", "Continue", "继续", "Tiếp tục", "続行", "Lanjut")}
               </Button>
             </div>
 
             {!ctx && !errorMessage ? (
               <p className="mt-4 text-xs text-muted-foreground">
-                {t("가입 정보를 확인하는 중입니다...", "Checking signup info...", "正在确认注册信息...", "Đang kiểm tra thông tin đăng ký...")}
+                {t("가입 정보를 확인하는 중입니다...", "Checking signup info...", "正在确认注册信息...", "Đang kiểm tra thông tin đăng ký...", "登録情報を確認中です...", "Memeriksa info pendaftaran...")}
               </p>
             ) : null}
           </div>

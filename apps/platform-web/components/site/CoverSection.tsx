@@ -7,8 +7,8 @@ import { useLanguage } from "../i18n/LanguageProvider";
 
 export const CoverSection = () => {
   const { locale } = useLanguage();
-  const t = (ko: string, en: string, zh?: string, vi?: string) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? (zh ?? en) : locale === "vi" ? (vi ?? en) : en;
+  const t = (ko: string, en: string, zh?: string, vi?: string, ja?: string, id?: string) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? (zh ?? en) : locale === "vi" ? (vi ?? en) : locale === "ja" ? (ja ?? en) : locale === "id" ? (id ?? en) : en;
 
   return (
     <section className="relative w-full overflow-hidden">
@@ -45,14 +45,24 @@ export const CoverSection = () => {
             <input
               type="text"
               className="h-10 flex-1 rounded-xl bg-transparent px-3 text-sm text-slate-800 outline-none placeholder:text-slate-400 md:h-11"
-              placeholder={t("직무, 기업, 스킬로 검색", "Search roles, companies, or skills", "搜索岗位、企业或技能", "Tìm vị trí, công ty hoặc kỹ năng")}
-              aria-label={t("직무, 기업, 스킬 검색", "Search roles, companies, or skills", "搜索岗位、企业或技能", "Tìm vị trí, công ty hoặc kỹ năng")}
+              placeholder={t("직무, 기업, 스킬로 검색", "Search roles, companies, or skills", "搜索岗位、企业或技能", "Tìm vị trí, công ty hoặc kỹ năng", "職種・企業・スキルで検索", "Cari posisi, perusahaan, atau keahlian")}
+              aria-label={t("직무, 기업, 스킬 검색", "Search roles, companies, or skills", "搜索岗位、企业或技能", "Tìm vị trí, công ty hoặc kỹ năng", "職種・企業・スキルで検索", "Cari posisi, perusahaan, atau keahlian")}
             />
             <Link
               href="/positions"
               className="inline-flex h-10 shrink-0 items-center rounded-xl border-0 bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 md:h-11"
             >
-              {t("검색", "Search", "搜索", "Tìm kiếm")}
+              {t("검색", "Search", "搜索", "Tìm kiếm", "検索", "Cari")}
+            </Link>
+          </div>
+          <div className="mt-[3.2%] flex justify-center">
+            <Link
+              href="/matching-probability"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/96 px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-[#0B46E8]/60 hover:text-[#0B46E8] md:text-sm"
+            >
+              <span aria-hidden>🎯</span>
+              {t("내 한국 취업 모험 시작하기", "Start my Korea job quest", "开始我的韩国求职冒险", "Bắt đầu hành trình tìm việc Hàn Quốc", "韓国就職の冒険を始める", "Mulai petualangan karier di Korea")}
+              <span aria-hidden>→</span>
             </Link>
           </div>
         </div>

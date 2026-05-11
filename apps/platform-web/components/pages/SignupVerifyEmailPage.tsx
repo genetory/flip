@@ -75,6 +75,34 @@ export function SignupVerifyEmailPage() {
       resendButton: "Gửi lại email xác minh",
       goLogin: "Đi tới đăng nhập",
       devLinkLabel: "Liên kết môi trường dev"
+    },
+    ja: {
+      title: "メール認証が必要です",
+      description: "会員登録が完了しました。認証メールのリンクをクリックするとログインできます。",
+      targetEmailLabel: "認証対象メールアドレス",
+      targetEmailFallback: "登録したメールアドレスをご確認ください。",
+      alreadyVerified: "このアカウントは既に認証済みです。ログインしてください。",
+      resendSent: "認証メールを再送信しました。受信トレイをご確認ください。",
+      resendUnavailable: "現在、認証メールを送信できません。しばらくしてから再度お試しください。",
+      resendFailed: "認証メールの再送信に失敗しました。",
+      resendLoading: "再送信中...",
+      resendButton: "認証メールを再送信",
+      goLogin: "ログインへ移動",
+      devLinkLabel: "開発環境リンク"
+    },
+    id: {
+      title: "Verifikasi email diperlukan",
+      description: "Pendaftaran selesai. Klik tautan di email verifikasi untuk masuk.",
+      targetEmailLabel: "Email verifikasi",
+      targetEmailFallback: "Silakan periksa alamat email pendaftaran Anda.",
+      alreadyVerified: "Akun ini sudah diverifikasi. Silakan masuk.",
+      resendSent: "Email verifikasi telah dikirim ulang. Silakan periksa kotak masuk Anda.",
+      resendUnavailable: "Saat ini tidak dapat mengirim email verifikasi. Silakan coba lagi nanti.",
+      resendFailed: "Gagal mengirim ulang email verifikasi.",
+      resendLoading: "Mengirim ulang...",
+      resendButton: "Kirim ulang email verifikasi",
+      goLogin: "Ke halaman masuk",
+      devLinkLabel: "Tautan lingkungan dev"
     }
   } as const;
   const copy = copyByLocale[locale] ?? copyByLocale.en;
@@ -86,7 +114,7 @@ export function SignupVerifyEmailPage() {
     setNotice(null);
 
     try {
-      const emailLocale = locale === "ko" ? "ko" : "en";
+      const emailLocale = locale === "ko" ? "ko" : locale === "ja" ? "en" : locale === "id" ? "en" : "en";
       const result = await resendVerificationEmail(email, emailLocale);
       if (result.verifyUrl) setDevVerifyUrl(result.verifyUrl);
 

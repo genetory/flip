@@ -150,7 +150,7 @@ function getApiBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 }
 
-function formatRelativeTime(input: string, locale: "ko" | "en" | "zh-CN" | "vi") {
+function formatRelativeTime(input: string, locale: "ko" | "en" | "zh-CN" | "vi" | "ja" | "id") {
   const date = new Date(input);
   if (Number.isNaN(date.getTime())) return "";
   const diffMs = Date.now() - date.getTime();
@@ -174,6 +174,18 @@ function formatRelativeTime(input: string, locale: "ko" | "en" | "zh-CN" | "vi")
     if (diffMinutes < 60) return `${diffMinutes} phút trước`;
     if (diffHours < 24) return `${diffHours} giờ trước`;
     return `${diffDays} ngày trước`;
+  }
+  if (locale === "ja") {
+    if (diffMinutes < 1) return "たった今";
+    if (diffMinutes < 60) return `${diffMinutes}分前`;
+    if (diffHours < 24) return `${diffHours}時間前`;
+    return `${diffDays}日前`;
+  }
+  if (locale === "id") {
+    if (diffMinutes < 1) return "Baru saja";
+    if (diffMinutes < 60) return `${diffMinutes} menit lalu`;
+    if (diffHours < 24) return `${diffHours} jam lalu`;
+    return `${diffDays} hari lalu`;
   }
   if (diffMinutes < 1) return "Just now";
   if (diffMinutes < 60) return `${diffMinutes}m ago`;
@@ -343,9 +355,9 @@ export const CommunityPage = () => {
   const isZh = locale === "zh-CN";
   const isVi = locale === "vi";
   const t = useCallback(
-    (ko: string, en: string, zh: string = en, vi: string = en) =>
-      isKo ? ko : isZh ? zh : isVi ? vi : en,
-    [isKo, isZh, isVi]
+    (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
+      locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en,
+    [locale]
   );
   const categories: { key: CategoryKey; label: string; desc: string }[] = [
     { key: "all", label: t(categoryCopy.all.label.ko, categoryCopy.all.label.en, categoryCopy.all.label.zh, categoryCopy.all.label.vi), desc: t(categoryCopy.all.desc.ko, categoryCopy.all.desc.en, categoryCopy.all.desc.zh, categoryCopy.all.desc.vi) },
@@ -506,7 +518,7 @@ export const CommunityPage = () => {
         nextCursor?: string | null;
       };
       if (!response.ok || payload.ok !== true || !Array.isArray(payload.items)) {
-        throw new Error(payload.message ?? t("피드를 불러오지 못했습니다.", "Failed to load feeds.", "加载动态失败。", "Tải bảng tin thất bại."));
+        throw new Error(payload.message ?? t("피드를 불러오지 못했습니다.", "Failed to load feeds.", "加载动态失败。", "Tải bảng tin thất bại.", "フィードを読み込めませんでした。", "Gagal memuat umpan."));
       }
       return {
         items: payload.items,
@@ -528,7 +540,7 @@ export const CommunityPage = () => {
         setNextCursor(page.nextCursor);
       } catch (error) {
         if (cancelled) return;
-        setLoadError(error instanceof Error ? error.message : t("피드를 불러오지 못했습니다.", "Failed to load feeds.", "加载动态失败。", "Tải bảng tin thất bại."));
+        setLoadError(error instanceof Error ? error.message : t("피드를 불러오지 못했습니다.", "Failed to load feeds.", "加载动态失败。", "Tải bảng tin thất bại.", "フィードを読み込めませんでした。", "Gagal memuat umpan."));
         setPosts([]);
         setNextCursor(null);
       } finally {
@@ -550,7 +562,7 @@ export const CommunityPage = () => {
       setPosts((prev) => [...prev, ...page.items]);
       setNextCursor(page.nextCursor);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : t("더보기 로딩에 실패했습니다.", "Failed to load more feeds.", "加载更多动态失败。", "Tải thêm bảng tin thất bại."));
+      setLoadError(error instanceof Error ? error.message : t("더보기 로딩에 실패했습니다.", "Failed to load more feeds.", "加载更多动态失败。", "Tải thêm bảng tin thất bại.", "さらに読み込めませんでした。", "Gagal memuat lebih banyak umpan."));
     } finally {
       setIsLoadingMore(false);
     }
@@ -567,7 +579,7 @@ export const CommunityPage = () => {
           new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-            reader.onerror = () => reject(new Error(t("이미지 로드 실패", "Failed to load image", "图片加载失败", "Tải hình ảnh thất bại")));
+            reader.onerror = () => reject(new Error(t("이미지 로드 실패", "Failed to load image", "图片加载失败", "Tải hình ảnh thất bại", "画像の読み込みに失敗しました", "Gagal memuat gambar")));
             reader.readAsDataURL(file);
           })
       )
@@ -577,7 +589,7 @@ export const CommunityPage = () => {
 
   const handleToggleLike = useCallback(async (post: Post) => {
     if (!user) {
-      setLoadError(t("로그인 후 좋아요를 사용할 수 있습니다.", "You can use likes after logging in.", "登录后才能点赞。", "Bạn có thể thích sau khi đăng nhập."));
+      setLoadError(t("로그인 후 좋아요를 사용할 수 있습니다.", "You can use likes after logging in.", "登录后才能点赞。", "Bạn có thể thích sau khi đăng nhập.", "ログイン後にいいねを利用できます。", "Anda dapat menggunakan suka setelah masuk."));
       return;
     }
     if (likeLoadingByPost[post.id]) return;
@@ -595,7 +607,7 @@ export const CommunityPage = () => {
       });
       const payload = (await response.json()) as { ok?: boolean; message?: string; likes?: number; likedByMe?: boolean };
       if (!response.ok || payload.ok !== true) {
-        throw new Error(payload.message ?? t("좋아요 처리에 실패했습니다.", "Failed to process like.", "点赞处理失败。", "Xử lý lượt thích thất bại."));
+        throw new Error(payload.message ?? t("좋아요 처리에 실패했습니다.", "Failed to process like.", "点赞处理失败。", "Xử lý lượt thích thất bại.", "いいねの処理に失敗しました。", "Gagal memproses suka."));
       }
       setPosts((prev) =>
         prev.map((item) =>
@@ -609,7 +621,7 @@ export const CommunityPage = () => {
         )
       );
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : t("좋아요 처리에 실패했습니다.", "Failed to process like.", "点赞处理失败。", "Xử lý lượt thích thất bại."));
+      setLoadError(error instanceof Error ? error.message : t("좋아요 처리에 실패했습니다.", "Failed to process like.", "点赞处理失败。", "Xử lý lượt thích thất bại.", "いいねの処理に失敗しました。", "Gagal memproses suka."));
     } finally {
       setLikeLoadingByPost((prev) => ({ ...prev, [post.id]: false }));
     }
@@ -624,11 +636,11 @@ export const CommunityPage = () => {
       });
       const payload = (await response.json()) as { ok?: boolean; message?: string; items?: PostComment[] };
       if (!response.ok || payload.ok !== true || !Array.isArray(payload.items)) {
-        throw new Error(payload.message ?? t("댓글을 불러오지 못했습니다.", "Failed to load comments.", "加载评论失败。", "Tải bình luận thất bại."));
+        throw new Error(payload.message ?? t("댓글을 불러오지 못했습니다.", "Failed to load comments.", "加载评论失败。", "Tải bình luận thất bại.", "コメントを読み込めませんでした。", "Gagal memuat komentar."));
       }
       setCommentsByPost((prev) => ({ ...prev, [postId]: payload.items ?? [] }));
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : t("댓글을 불러오지 못했습니다.", "Failed to load comments.", "加载评论失败。", "Tải bình luận thất bại."));
+      setLoadError(error instanceof Error ? error.message : t("댓글을 불러오지 못했습니다.", "Failed to load comments.", "加载评论失败。", "Tải bình luận thất bại.", "コメントを読み込めませんでした。", "Gagal memuat komentar."));
     } finally {
       setCommentLoadingByPost((prev) => ({ ...prev, [postId]: false }));
     }
@@ -644,7 +656,7 @@ export const CommunityPage = () => {
 
   const handleSubmitComment = useCallback(async (postId: string) => {
     if (!user) {
-      setLoadError(t("로그인 후 댓글을 작성할 수 있습니다.", "You can write comments after logging in.", "登录后才能发表评论。", "Bạn có thể bình luận sau khi đăng nhập."));
+      setLoadError(t("로그인 후 댓글을 작성할 수 있습니다.", "You can write comments after logging in.", "登录后才能发表评论。", "Bạn có thể bình luận sau khi đăng nhập.", "ログイン後にコメントを書けます。", "Anda dapat menulis komentar setelah masuk."));
       return;
     }
     const body = (commentDraftByPost[postId] ?? "").trim();
@@ -663,7 +675,7 @@ export const CommunityPage = () => {
       });
       const payload = (await response.json()) as { ok?: boolean; message?: string; item?: PostComment; commentCount?: number };
       if (!response.ok || payload.ok !== true || !payload.item) {
-        throw new Error(payload.message ?? t("댓글 작성에 실패했습니다.", "Failed to post comment.", "发表评论失败。", "Đăng bình luận thất bại."));
+        throw new Error(payload.message ?? t("댓글 작성에 실패했습니다.", "Failed to post comment.", "发表评论失败。", "Đăng bình luận thất bại.", "コメントの投稿に失敗しました。", "Gagal mengirim komentar."));
       }
       setCommentsByPost((prev) => ({ ...prev, [postId]: [...(prev[postId] ?? []), payload.item as PostComment] }));
       setCommentDraftByPost((prev) => ({ ...prev, [postId]: "" }));
@@ -671,7 +683,7 @@ export const CommunityPage = () => {
         setPosts((prev) => prev.map((item) => (item.id === postId ? { ...item, comments: payload.commentCount as number } : item)));
       }
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : t("댓글 작성에 실패했습니다.", "Failed to post comment.", "发表评论失败。", "Đăng bình luận thất bại."));
+      setLoadError(error instanceof Error ? error.message : t("댓글 작성에 실패했습니다.", "Failed to post comment.", "发表评论失败。", "Đăng bình luận thất bại.", "コメントの投稿に失敗しました。", "Gagal mengirim komentar."));
     } finally {
       setCommentLoadingByPost((prev) => ({ ...prev, [postId]: false }));
     }
@@ -713,7 +725,7 @@ export const CommunityPage = () => {
       });
       const payload = (await response.json()) as { ok?: boolean; message?: string; translatedText?: string };
       if (!response.ok || payload.ok !== true || !payload.translatedText) {
-        throw new Error(payload.message ?? t("번역에 실패했습니다.", "Translation failed.", "翻译失败。", "Dịch thất bại."));
+        throw new Error(payload.message ?? t("번역에 실패했습니다.", "Translation failed.", "翻译失败。", "Dịch thất bại.", "翻訳に失敗しました。", "Terjemahan gagal."));
       }
       setCommentTranslations((prev) => ({
         ...prev,
@@ -731,7 +743,7 @@ export const CommunityPage = () => {
         [comment.id]: {
           ...prev[comment.id],
           loadingTarget: undefined,
-          error: error instanceof Error ? error.message : t("번역에 실패했습니다.", "Translation failed.", "翻译失败。", "Dịch thất bại.")
+          error: error instanceof Error ? error.message : t("번역에 실패했습니다.", "Translation failed.", "翻译失败。", "Dịch thất bại.", "翻訳に失敗しました。", "Terjemahan gagal.")
         }
       }));
     }
@@ -745,7 +757,7 @@ export const CommunityPage = () => {
     try {
       const token = readAccessToken();
       if (!token) {
-        throw new Error(t("로그인 후 피드를 올릴 수 있습니다.", "You can post feeds after logging in.", "登录后才能发布动态。", "Bạn có thể đăng bài sau khi đăng nhập."));
+        throw new Error(t("로그인 후 피드를 올릴 수 있습니다.", "You can post feeds after logging in.", "登录后才能发布动态。", "Bạn có thể đăng bài sau khi đăng nhập.", "ログイン後に投稿できます。", "Anda dapat memposting setelah masuk."));
       }
       const response = await fetch(`${getApiBaseUrl()}/community/posts`, {
         method: "POST",
@@ -762,25 +774,25 @@ export const CommunityPage = () => {
       });
       const payload = (await response.json()) as { ok?: boolean; message?: string; item?: Post };
       if (!response.ok || payload.ok !== true || !payload.item) {
-        throw new Error(payload.message ?? t("피드 등록에 실패했습니다.", "Failed to create feed.", "发布动态失败。", "Đăng bài thất bại."));
+        throw new Error(payload.message ?? t("피드 등록에 실패했습니다.", "Failed to create feed.", "发布动态失败。", "Đăng bài thất bại.", "投稿の登録に失敗しました。", "Gagal membuat postingan."));
       }
       setPosts((prev) => [payload.item as Post, ...prev]);
       setDraftText("");
       setDraftImages([]);
       setIsComposeOpen(false);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : t("피드 등록에 실패했습니다.", "Failed to create feed.", "发布动态失败。", "Đăng bài thất bại."));
+      setLoadError(error instanceof Error ? error.message : t("피드 등록에 실패했습니다.", "Failed to create feed.", "发布动态失败。", "Đăng bài thất bại.", "投稿の登録に失敗しました。", "Gagal membuat postingan."));
     } finally {
       setIsPosting(false);
     }
   }, [draftCategory, draftImages, draftText, isPosting]);
 
   const handleDeletePost = useCallback(async (post: Post) => {
-    const ok = window.confirm(t("이 글을 삭제할까요?", "Do you want to delete this post?", "确定要删除这篇帖子吗?", "Bạn có muốn xóa bài viết này không?"));
+    const ok = window.confirm(t("이 글을 삭제할까요?", "Do you want to delete this post?", "确定要删除这篇帖子吗?", "Bạn có muốn xóa bài viết này không?", "この投稿を削除しますか？", "Apakah Anda ingin menghapus postingan ini?"));
     if (!ok) return;
     try {
       const token = readAccessToken();
-      if (!token) throw new Error(t("로그인이 필요합니다.", "Login is required.", "需要登录。", "Cần đăng nhập."));
+      if (!token) throw new Error(t("로그인이 필요합니다.", "Login is required.", "需要登录。", "Cần đăng nhập.", "ログインが必要です。", "Diperlukan masuk."));
       const response = await fetch(`${getApiBaseUrl()}/community/posts/${encodeURIComponent(post.id)}`, {
         method: "DELETE",
         credentials: "include",
@@ -790,11 +802,11 @@ export const CommunityPage = () => {
       });
       const payload = (await response.json()) as { ok?: boolean; message?: string };
       if (!response.ok || payload.ok !== true) {
-        throw new Error(payload.message ?? t("삭제에 실패했습니다.", "Failed to delete.", "删除失败。", "Xóa thất bại."));
+        throw new Error(payload.message ?? t("삭제에 실패했습니다.", "Failed to delete.", "删除失败。", "Xóa thất bại.", "削除に失敗しました。", "Gagal menghapus."));
       }
       setPosts((prev) => prev.filter((item) => item.id !== post.id));
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : t("삭제에 실패했습니다.", "Failed to delete.", "删除失败。", "Xóa thất bại."));
+      setLoadError(error instanceof Error ? error.message : t("삭제에 실패했습니다.", "Failed to delete.", "删除失败。", "Xóa thất bại.", "削除に失敗しました。", "Gagal menghapus."));
     } finally {
       setActivePostMenuId(null);
     }
@@ -807,7 +819,7 @@ export const CommunityPage = () => {
     setIsUpdatingPost(true);
     try {
       const token = readAccessToken();
-      if (!token) throw new Error(t("로그인이 필요합니다.", "Login is required.", "需要登录。", "Cần đăng nhập."));
+      if (!token) throw new Error(t("로그인이 필요합니다.", "Login is required.", "需要登录。", "Cần đăng nhập.", "ログインが必要です。", "Diperlukan masuk."));
       const target = posts.find((item) => item.id === editingPost.id);
       const response = await fetch(`${getApiBaseUrl()}/community/posts/${encodeURIComponent(editingPost.id)}`, {
         method: "PATCH",
@@ -824,12 +836,12 @@ export const CommunityPage = () => {
       });
       const payload = (await response.json()) as { ok?: boolean; message?: string; item?: Post };
       if (!response.ok || payload.ok !== true || !payload.item) {
-        throw new Error(payload.message ?? t("수정에 실패했습니다.", "Failed to update.", "修改失败。", "Cập nhật thất bại."));
+        throw new Error(payload.message ?? t("수정에 실패했습니다.", "Failed to update.", "修改失败。", "Cập nhật thất bại.", "更新に失敗しました。", "Pembaruan gagal."));
       }
       setPosts((prev) => prev.map((item) => (item.id === payload.item!.id ? payload.item! : item)));
       setEditingPost(null);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : t("수정에 실패했습니다.", "Failed to update.", "修改失败。", "Cập nhật thất bại."));
+      setLoadError(error instanceof Error ? error.message : t("수정에 실패했습니다.", "Failed to update.", "修改失败。", "Cập nhật thất bại.", "更新に失敗しました。", "Pembaruan gagal."));
     } finally {
       setIsUpdatingPost(false);
     }
@@ -846,7 +858,7 @@ export const CommunityPage = () => {
           new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-            reader.onerror = () => reject(new Error(t("이미지 로드 실패", "Failed to load image", "图片加载失败", "Tải hình ảnh thất bại")));
+            reader.onerror = () => reject(new Error(t("이미지 로드 실패", "Failed to load image", "图片加载失败", "Tải hình ảnh thất bại", "画像の読み込みに失敗しました", "Gagal memuat gambar")));
             reader.readAsDataURL(file);
           })
       )
@@ -911,7 +923,7 @@ export const CommunityPage = () => {
         !titlePayload.translatedText ||
         !bodyPayload.translatedText
       ) {
-        throw new Error(titlePayload.message ?? bodyPayload.message ?? t("번역에 실패했습니다.", "Translation failed.", "翻译失败。", "Dịch thất bại."));
+        throw new Error(titlePayload.message ?? bodyPayload.message ?? t("번역에 실패했습니다.", "Translation failed.", "翻译失败。", "Dịch thất bại.", "翻訳に失敗しました。", "Terjemahan gagal."));
       }
       setTranslations((prev) => ({
         ...prev,
@@ -931,7 +943,7 @@ export const CommunityPage = () => {
         [post.id]: {
           ...prev[post.id],
           loadingTarget: undefined,
-          error: error instanceof Error ? error.message : t("번역에 실패했습니다.", "Translation failed.", "翻译失败。", "Dịch thất bại.")
+          error: error instanceof Error ? error.message : t("번역에 실패했습니다.", "Translation failed.", "翻译失败。", "Dịch thất bại.", "翻訳に失敗しました。", "Terjemahan gagal.")
         }
       }));
     }
@@ -953,21 +965,21 @@ export const CommunityPage = () => {
             <div className="mx-auto max-w-4xl">
               <section>
                 <div className="flex items-center justify-between gap-3">
-                  <h1 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>{t("커뮤니티", "Community", "社区", "Cộng đồng")}</h1>
+                  <h1 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>{t("커뮤니티", "Community", "社区", "Cộng đồng", "コミュニティ", "Komunitas")}</h1>
                   <Button
                     ref={topComposeButtonRef}
                     type="button"
                     onClick={() => setIsComposeOpen(true)}
                     className="h-10 rounded-xl bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] hover:bg-[#a8ee4d]"
                   >
-                    {t("피드 올리기", "Create Post", "发布动态", "Đăng bài")}
+                    {t("피드 올리기", "Create Post", "发布动态", "Đăng bài", "投稿する", "Buat postingan")}
                   </Button>
                 </div>
-                <p className="mt-2 text-sm font-normal text-slate-500 md:text-base">{t("지금 떠오른 이야기, 편하게 나눠보세요", "Share what’s on your mind right now.", "随时分享你此刻的想法。", "Chia sẻ điều bạn đang nghĩ ngay bây giờ.")}</p>
+                <p className="mt-2 text-sm font-normal text-slate-500 md:text-base">{t("지금 떠오른 이야기, 편하게 나눠보세요", "Share what’s on your mind right now.", "随时分享你此刻的想法。", "Chia sẻ điều bạn đang nghĩ ngay bây giờ.", "今思い浮かんだ話題を気軽にシェアしましょう", "Bagikan apa yang ada di pikiran Anda saat ini.")}</p>
                 <div className="relative mt-4 h-[180px] overflow-hidden rounded-2xl bg-white md:h-[220px]">
                   <Image
                     src="/img_community_hero_20260502_v2.webp"
-                    alt={t("커뮤니티 피드 배너", "Community feed banner", "社区动态横幅", "Băng-rôn bảng tin cộng đồng")}
+                    alt={t("커뮤니티 피드 배너", "Community feed banner", "社区动态横幅", "Băng-rôn bảng tin cộng đồng", "コミュニティフィードのバナー", "Banner umpan komunitas")}
                     width={1680}
                     height={945}
                     preload
@@ -989,7 +1001,7 @@ export const CommunityPage = () => {
                             handleApplySearch();
                           }
                         }}
-                        placeholder={t("어떤 글을 찾고 있나요?", "What are you looking for?", "你在找什么内容?", "Bạn đang tìm bài viết nào?")}
+                        placeholder={t("어떤 글을 찾고 있나요?", "What are you looking for?", "你在找什么内容?", "Bạn đang tìm bài viết nào?", "どの投稿をお探しですか？", "Postingan apa yang Anda cari?")}
                         className="h-11 w-full rounded-xl bg-transparent px-3 text-sm text-slate-800 outline-none placeholder:text-slate-400"
                       />
                     </div>
@@ -1000,7 +1012,7 @@ export const CommunityPage = () => {
                       type="button"
                       onClick={handleApplySearch}
                     >
-                      {t("검색", "Search", "搜索", "Tìm kiếm")}
+                      {t("검색", "Search", "搜索", "Tìm kiếm", "検索", "Cari")}
                     </Button>
                   </div>
                 </div>
@@ -1042,7 +1054,7 @@ export const CommunityPage = () => {
                       onClick={() => setSortBy("latest")}
                       className={sortBy === "latest" ? "font-bold text-[#0B46E8]" : "font-medium text-slate-500"}
                     >
-                      {t("최신순", "Latest", "最新", "Mới nhất")}
+                      {t("최신순", "Latest", "最新", "Mới nhất", "最新順", "Terbaru")}
                     </button>
                     <span className="px-2 text-slate-400">|</span>
                     <button
@@ -1050,7 +1062,7 @@ export const CommunityPage = () => {
                       onClick={() => setSortBy("popular")}
                       className={sortBy === "popular" ? "font-bold text-[#0B46E8]" : "font-medium text-slate-500"}
                     >
-                      {t("인기순", "Popular", "热门", "Phổ biến")}
+                      {t("인기순", "Popular", "热门", "Phổ biến", "人気順", "Populer")}
                     </button>
                   </div>
                 </div>
@@ -1087,7 +1099,7 @@ export const CommunityPage = () => {
                           <CommunitySquircleStroke />
                           <img
                             src={profilePhoto}
-                            alt={t("기업 로고 미리보기", "Company logo preview", "公司Logo预览", "Xem trước logo công ty")}
+                            alt={t("기업 로고 미리보기", "Company logo preview", "公司Logo预览", "Xem trước logo công ty", "企業ロゴのプレビュー", "Pratinjau logo perusahaan")}
                             className="absolute inset-0 z-10 block h-full w-full scale-[1.08] object-cover bg-muted/30"
                           />
                         </div>
@@ -1099,14 +1111,14 @@ export const CommunityPage = () => {
                       )}
                       <div className="min-w-0 flex-1 pt-0.5">
                         <p className="truncate text-base font-extrabold leading-tight text-[#0B1227]">{displayAuthor}</p>
-                        <p className="mt-0.5 text-[11px] leading-tight text-slate-500">{formatRelativeTime(post.createdAt, isKo ? "ko" : isZh ? "zh-CN" : isVi ? "vi" : "en")}</p>
+                        <p className="mt-0.5 text-[11px] leading-tight text-slate-500">{formatRelativeTime(post.createdAt, locale)}</p>
                       </div>
                       <div className="relative ml-auto">
                         <button
                           type="button"
                           onClick={() => setActivePostMenuId((prev) => (prev === post.id ? null : post.id))}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500"
-                          aria-label={t("더보기", "More options", "更多", "Thêm tùy chọn")}
+                          aria-label={t("더보기", "More options", "更多", "Thêm tùy chọn", "その他のオプション", "Opsi lainnya")}
                         >
                           <DotsThree className="h-4 w-4" weight="bold" />
                         </button>
@@ -1127,14 +1139,14 @@ export const CommunityPage = () => {
                                   }}
                                   className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                                 >
-                                  {t("수정하기", "Edit", "修改", "Chỉnh sửa")}
+                                  {t("수정하기", "Edit", "修改", "Chỉnh sửa", "編集する", "Edit")}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => void handleDeletePost(post)}
                                   className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
                                 >
-                                  {t("삭제하기", "Delete", "删除", "Xóa")}
+                                  {t("삭제하기", "Delete", "删除", "Xóa", "削除する", "Hapus")}
                                 </button>
                               </>
                             ) : (
@@ -1143,7 +1155,7 @@ export const CommunityPage = () => {
                                 onClick={() => setActivePostMenuId(null)}
                                 className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
                               >
-                                {t("신고하기", "Report", "举报", "Báo cáo")}
+                                {t("신고하기", "Report", "举报", "Báo cáo", "報告する", "Laporkan")}
                               </button>
                             )}
                           </div>
@@ -1164,7 +1176,7 @@ export const CommunityPage = () => {
                           <img
                             key={`${post.id}-image-${index}`}
                             src={src}
-                            alt={`${t("피드 이미지", "Feed image", "动态图片", "Hình ảnh bài đăng")} ${index + 1}`}
+                            alt={`${t("피드 이미지", "Feed image", "动态图片", "Hình ảnh bài đăng", "投稿画像", "Gambar postingan")} ${index + 1}`}
                             className={`w-full rounded-md object-cover ${
                               post.imageUrls!.length === 1
                                 ? "h-64 md:h-72"
@@ -1193,7 +1205,7 @@ export const CommunityPage = () => {
                               }
                               className="mt-1 text-xs font-semibold text-slate-500 hover:text-[#0B46E8]"
                             >
-                              {isExpanded ? t("숨기기", "Show less", "收起", "Thu gọn") : t("더보기", "Show more", "展开", "Xem thêm")}
+                              {isExpanded ? t("숨기기", "Show less", "收起", "Thu gọn", "閉じる", "Sembunyikan") : t("더보기", "Show more", "展开", "Xem thêm", "もっと見る", "Lihat selengkapnya")}
                             </button>
                           ) : null}
                         </>
@@ -1210,7 +1222,7 @@ export const CommunityPage = () => {
                         }
                         className={`text-xs font-semibold ${activeLanguage === "original" ? "text-[#0B46E8]" : "text-slate-500"}`}
                       >
-                        {t("원문 보기", "Original", "查看原文", "Xem bản gốc")}
+                        {t("원문 보기", "Original", "查看原文", "Xem bản gốc", "原文を見る", "Lihat asli")}
                       </button>
                       <button
                         type="button"
@@ -1218,7 +1230,7 @@ export const CommunityPage = () => {
                         disabled={translation?.loadingTarget === "en"}
                         className={`text-xs font-semibold ${activeLanguage === "en" ? "text-[#0B46E8]" : "text-slate-500"} disabled:opacity-60`}
                       >
-                        {translation?.loadingTarget === "en" ? t("영어 번역 중...", "Translating to English...", "正在翻译为英文...", "Đang dịch sang tiếng Anh...") : t("영어로 번역하기", "Translate to English", "翻译为英文", "Dịch sang tiếng Anh")}
+                        {translation?.loadingTarget === "en" ? t("영어 번역 중...", "Translating to English...", "正在翻译为英文...", "Đang dịch sang tiếng Anh...", "英語に翻訳中...", "Menerjemahkan ke bahasa Inggris...") : t("영어로 번역하기", "Translate to English", "翻译为英文", "Dịch sang tiếng Anh", "英語に翻訳する", "Terjemahkan ke bahasa Inggris")}
                       </button>
                       <button
                         type="button"
@@ -1226,7 +1238,7 @@ export const CommunityPage = () => {
                         disabled={translation?.loadingTarget === "ko"}
                         className={`text-xs font-semibold ${activeLanguage === "ko" ? "text-[#0B46E8]" : "text-slate-500"} disabled:opacity-60`}
                       >
-                        {translation?.loadingTarget === "ko" ? t("한국어 번역 중...", "Translating to Korean...", "正在翻译为韩文...", "Đang dịch sang tiếng Hàn...") : t("한국어로 번역하기", "Translate to Korean", "翻译为韩文", "Dịch sang tiếng Hàn")}
+                        {translation?.loadingTarget === "ko" ? t("한국어 번역 중...", "Translating to Korean...", "正在翻译为韩文...", "Đang dịch sang tiếng Hàn...", "韓国語に翻訳中...", "Menerjemahkan ke bahasa Korea...") : t("한국어로 번역하기", "Translate to Korean", "翻译为韩文", "Dịch sang tiếng Hàn", "韓国語に翻訳する", "Terjemahkan ke bahasa Korea")}
                       </button>
                       {translation?.error ? <p className="mt-1 text-xs text-red-500">{translation.error}</p> : null}
                     </div>
@@ -1267,7 +1279,7 @@ export const CommunityPage = () => {
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center justify-between gap-2">
                                     <p className="truncate text-sm font-semibold text-slate-700">{comment.authorName}</p>
-                                    <p className="shrink-0 text-[11px] text-slate-500">{formatRelativeTime(comment.createdAt, isKo ? "ko" : isZh ? "zh-CN" : isVi ? "vi" : "en")}</p>
+                                    <p className="shrink-0 text-[11px] text-slate-500">{formatRelativeTime(comment.createdAt, locale)}</p>
                                   </div>
                                   {(() => {
                                     const translation = commentTranslations[comment.id];
@@ -1292,7 +1304,7 @@ export const CommunityPage = () => {
                                             }
                                             className={`text-xs font-semibold ${activeLanguage === "original" ? "text-[#0B46E8]" : "text-slate-500"}`}
                                           >
-                                            {t("원문 보기", "Original", "查看原文", "Xem bản gốc")}
+                                            {t("원문 보기", "Original", "查看原文", "Xem bản gốc", "原文を見る", "Lihat asli")}
                                           </button>
                                           <button
                                             type="button"
@@ -1300,7 +1312,7 @@ export const CommunityPage = () => {
                                             disabled={translation?.loadingTarget === "en"}
                                             className={`text-xs font-semibold ${activeLanguage === "en" ? "text-[#0B46E8]" : "text-slate-500"} disabled:opacity-60`}
                                           >
-                                            {translation?.loadingTarget === "en" ? t("영어 번역 중...", "Translating to English...", "正在翻译为英文...", "Đang dịch sang tiếng Anh...") : t("영어로 번역하기", "Translate to English", "翻译为英文", "Dịch sang tiếng Anh")}
+                                            {translation?.loadingTarget === "en" ? t("영어 번역 중...", "Translating to English...", "正在翻译为英文...", "Đang dịch sang tiếng Anh...", "英語に翻訳中...", "Menerjemahkan ke bahasa Inggris...") : t("영어로 번역하기", "Translate to English", "翻译为英文", "Dịch sang tiếng Anh", "英語に翻訳する", "Terjemahkan ke bahasa Inggris")}
                                           </button>
                                           <button
                                             type="button"
@@ -1308,7 +1320,7 @@ export const CommunityPage = () => {
                                             disabled={translation?.loadingTarget === "ko"}
                                             className={`text-xs font-semibold ${activeLanguage === "ko" ? "text-[#0B46E8]" : "text-slate-500"} disabled:opacity-60`}
                                           >
-                                            {translation?.loadingTarget === "ko" ? t("한국어 번역 중...", "Translating to Korean...", "正在翻译为韩文...", "Đang dịch sang tiếng Hàn...") : t("한국어로 번역하기", "Translate to Korean", "翻译为韩文", "Dịch sang tiếng Hàn")}
+                                            {translation?.loadingTarget === "ko" ? t("한국어 번역 중...", "Translating to Korean...", "正在翻译为韩文...", "Đang dịch sang tiếng Hàn...", "韓国語に翻訳中...", "Menerjemahkan ke bahasa Korea...") : t("한국어로 번역하기", "Translate to Korean", "翻译为韩文", "Dịch sang tiếng Hàn", "韓国語に翻訳する", "Terjemahkan ke bahasa Korea")}
                                           </button>
                                         </div>
                                         {translation?.error ? <p className="mt-1 text-xs text-red-500">{translation.error}</p> : null}
@@ -1320,14 +1332,14 @@ export const CommunityPage = () => {
                             </div>
                           ))}
                           {(commentsByPost[post.id] ?? []).length === 0 && !commentLoadingByPost[post.id] ? (
-                            <p className="text-xs text-slate-500">{t("아직 댓글이 없습니다.", "No comments yet.", "暂无评论。", "Chưa có bình luận nào.")}</p>
+                            <p className="text-xs text-slate-500">{t("아직 댓글이 없습니다.", "No comments yet.", "暂无评论。", "Chưa có bình luận nào.", "まだコメントはありません。", "Belum ada komentar.")}</p>
                           ) : null}
                         </div>
                         <div className="mt-3 flex items-end gap-2">
                           <textarea
                             value={commentDraftByPost[post.id] ?? ""}
                             onChange={(e) => setCommentDraftByPost((prev) => ({ ...prev, [post.id]: e.target.value }))}
-                            placeholder={t("댓글을 입력하세요", "Write a comment", "请输入评论", "Viết bình luận")}
+                            placeholder={t("댓글을 입력하세요", "Write a comment", "请输入评论", "Viết bình luận", "コメントを入力してください", "Tulis komentar")}
                             rows={3}
                             className="min-h-[92px] flex-1 resize-y rounded-2xl bg-[#F8FAFC] px-4 py-3 text-sm text-slate-700 outline-none placeholder:text-slate-500"
                           />
@@ -1337,7 +1349,7 @@ export const CommunityPage = () => {
                             disabled={commentLoadingByPost[post.id] || !(commentDraftByPost[post.id] ?? "").trim()}
                             className="h-10 rounded-md bg-[#b7ff5a] px-3 text-xs font-semibold text-[#111111] hover:bg-[#a8ee4d] disabled:pointer-events-none disabled:opacity-50"
                           >
-                            {t("댓글 달기", "Comment", "发表评论", "Bình luận")}
+                            {t("댓글 달기", "Comment", "发表评论", "Bình luận", "コメントする", "Komentar")}
                           </Button>
                         </div>
                       </div>
@@ -1349,12 +1361,12 @@ export const CommunityPage = () => {
                 ))}
                 {!isLoading && posts.length === 0 && !loadError ? (
                   <div className="rounded-2xl border border-dashed border-border bg-white p-8 text-center text-sm text-slate-500">
-                    {t("표시할 피드가 없습니다.", "No feeds to display.", "暂无可显示的动态。", "Không có bài viết nào để hiển thị.")}
+                    {t("표시할 피드가 없습니다.", "No feeds to display.", "暂无可显示的动态。", "Không có bài viết nào để hiển thị.", "表示できるフィードがありません。", "Tidak ada postingan untuk ditampilkan.")}
                   </div>
                 ) : null}
                 {isLoading ? (
                   <div className="rounded-2xl border border-border bg-white p-8 text-center text-sm text-slate-500">
-                    {t("피드를 불러오는 중...", "Loading feeds...", "正在加载动态...", "Đang tải bảng tin...")}
+                    {t("피드를 불러오는 중...", "Loading feeds...", "正在加载动态...", "Đang tải bảng tin...", "フィードを読み込み中...", "Memuat umpan...")}
                   </div>
                 ) : null}
                 {loadError ? (
@@ -1368,7 +1380,7 @@ export const CommunityPage = () => {
                       disabled={isLoadingMore}
                       className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md bg-[#0B46E8] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0A3FCF] disabled:pointer-events-none disabled:opacity-50"
                     >
-                      {isLoadingMore ? t("로딩 중...", "Loading...", "加载中...", "Đang tải...") : t("더보기", "Load more", "加载更多", "Xem thêm")}
+                      {isLoadingMore ? t("로딩 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...") : t("더보기", "Load more", "加载更多", "Xem thêm", "もっと見る", "Muat lebih banyak")}
                     </Button>
                   </div>
                 ) : null}
@@ -1387,7 +1399,7 @@ export const CommunityPage = () => {
                 onClick={() => setIsComposeOpen(true)}
                 className="pointer-events-auto h-11 rounded-xl bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] shadow-[0_8px_20px_-12px_rgba(15,23,42,0.35)] hover:bg-[#a8ee4d]"
               >
-                {t("피드 올리기", "Create Post", "发布动态", "Đăng bài")}
+                {t("피드 올리기", "Create Post", "发布动态", "Đăng bài", "投稿する", "Buat postingan")}
               </Button>
             </div>
           </div>
@@ -1395,14 +1407,14 @@ export const CommunityPage = () => {
       ) : null}
       <FeedModal
         open={isComposeOpen}
-        title={t("피드 올리기", "Create Post", "发布动态", "Đăng bài")}
+        title={t("피드 올리기", "Create Post", "发布动态", "Đăng bài", "投稿する", "Buat postingan")}
         profilePhoto={profilePhoto}
         showProfile={false}
         category={draftCategory}
         onCategoryChange={setDraftCategory}
         body={draftText}
         onBodyChange={setDraftText}
-        bodyPlaceholder={t("어떤 이야기를 나누고 싶으신가요?", "What would you like to talk about?", "你想分享什么话题?", "Bạn muốn chia sẻ điều gì?")}
+        bodyPlaceholder={t("어떤 이야기를 나누고 싶으신가요?", "What would you like to talk about?", "你想分享什么话题?", "Bạn muốn chia sẻ điều gì?", "どのような話題を共有したいですか？", "Apa yang ingin Anda bagikan?")}
         guideText={draftCategoryGuideText[draftCategory]}
         images={draftImages}
         onAddImages={(files) => void handleDraftImages(files)}
@@ -1410,25 +1422,25 @@ export const CommunityPage = () => {
         onClose={() => setIsComposeOpen(false)}
         onSubmit={() => void handlePostSubmit()}
         isSubmitting={isPosting}
-        submitLabel={t("피드 올리기", "Create Post", "发布动态", "Đăng bài")}
-        submittingLabel={t("올리는 중...", "Posting...", "发布中...", "Đang đăng...")}
+        submitLabel={t("피드 올리기", "Create Post", "发布动态", "Đăng bài", "投稿する", "Buat postingan")}
+        submittingLabel={t("올리는 중...", "Posting...", "发布中...", "Đang đăng...", "投稿中...", "Memposting...")}
         squircleStyle={profileSquircleStyle}
         draftCategoryOptions={draftCategories.map((item) => ({ key: item.key, label: item.label }))}
-        selectedTopicLabel={t("선택 주제", "Selected topic", "所选主题", "Chủ đề đã chọn")}
-        addImagesLabel={t("이미지 추가", "Add images", "添加图片", "Thêm hình ảnh")}
-        cancelLabel={t("취소", "Cancel", "取消", "Hủy")}
-        attachedImageAlt={t("첨부 이미지", "Attached image", "附件图片", "Hình ảnh đính kèm")}
-        removeImageAriaLabel={t("이미지 삭제", "Remove image", "删除图片", "Xóa hình ảnh")}
+        selectedTopicLabel={t("선택 주제", "Selected topic", "所选主题", "Chủ đề đã chọn", "選択したトピック", "Topik yang dipilih")}
+        addImagesLabel={t("이미지 추가", "Add images", "添加图片", "Thêm hình ảnh", "画像を追加", "Tambah gambar")}
+        cancelLabel={t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
+        attachedImageAlt={t("첨부 이미지", "Attached image", "附件图片", "Hình ảnh đính kèm", "添付画像", "Gambar terlampir")}
+        removeImageAriaLabel={t("이미지 삭제", "Remove image", "删除图片", "Xóa hình ảnh", "画像を削除", "Hapus gambar")}
       />
       <FeedModal
         open={Boolean(editingPost)}
-        title={t("피드 수정", "Edit Post", "编辑动态", "Chỉnh sửa bài")}
+        title={t("피드 수정", "Edit Post", "编辑动态", "Chỉnh sửa bài", "投稿を編集", "Edit postingan")}
         profilePhoto={profilePhoto}
         category={editingPost?.category ?? "free"}
         onCategoryChange={(next) => setEditingPost((prev) => (prev ? { ...prev, category: next } : prev))}
         body={editingPost?.body ?? ""}
         onBodyChange={(next) => setEditingPost((prev) => (prev ? { ...prev, body: next } : prev))}
-        bodyPlaceholder={t("어떤 이야기를 나누고 싶으신가요?", "What would you like to talk about?", "你想分享什么话题?", "Bạn muốn chia sẻ điều gì?")}
+        bodyPlaceholder={t("어떤 이야기를 나누고 싶으신가요?", "What would you like to talk about?", "你想分享什么话题?", "Bạn muốn chia sẻ điều gì?", "どのような話題を共有したいですか？", "Apa yang ingin Anda bagikan?")}
         guideText={editingPost ? draftCategoryGuideText[editingPost.category] : undefined}
         images={editingPost?.imageUrls ?? []}
         onAddImages={(files) => void handleEditImages(files)}
@@ -1438,15 +1450,15 @@ export const CommunityPage = () => {
         onClose={() => setEditingPost(null)}
         onSubmit={() => void handleUpdatePost()}
         isSubmitting={isUpdatingPost}
-        submitLabel={t("피드 수정하기", "Update Post", "更新动态", "Cập nhật bài")}
-        submittingLabel={t("피드 수정 중...", "Updating...", "更新中...", "Đang cập nhật...")}
+        submitLabel={t("피드 수정하기", "Update Post", "更新动态", "Cập nhật bài", "投稿を更新", "Perbarui postingan")}
+        submittingLabel={t("피드 수정 중...", "Updating...", "更新中...", "Đang cập nhật...", "投稿を更新中...", "Memperbarui...")}
         squircleStyle={profileSquircleStyle}
         draftCategoryOptions={draftCategories.map((item) => ({ key: item.key, label: item.label }))}
-        selectedTopicLabel={t("선택 주제", "Selected topic", "所选主题", "Chủ đề đã chọn")}
-        addImagesLabel={t("이미지 추가", "Add images", "添加图片", "Thêm hình ảnh")}
-        cancelLabel={t("취소", "Cancel", "取消", "Hủy")}
-        attachedImageAlt={t("첨부 이미지", "Attached image", "附件图片", "Hình ảnh đính kèm")}
-        removeImageAriaLabel={t("이미지 삭제", "Remove image", "删除图片", "Xóa hình ảnh")}
+        selectedTopicLabel={t("선택 주제", "Selected topic", "所选主题", "Chủ đề đã chọn", "選択したトピック", "Topik yang dipilih")}
+        addImagesLabel={t("이미지 추가", "Add images", "添加图片", "Thêm hình ảnh", "画像を追加", "Tambah gambar")}
+        cancelLabel={t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
+        attachedImageAlt={t("첨부 이미지", "Attached image", "附件图片", "Hình ảnh đính kèm", "添付画像", "Gambar terlampir")}
+        removeImageAriaLabel={t("이미지 삭제", "Remove image", "删除图片", "Xóa hình ảnh", "画像を削除", "Hapus gambar")}
       />
       <Footer />
     </div>

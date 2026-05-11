@@ -108,7 +108,7 @@ export function LoginPage() {
             <div className="mt-6 flex items-center gap-3">
               <span className="h-px flex-1 bg-border" />
               <span className="text-xs text-muted-foreground">
-                {locale === "ko" ? "또는" : locale === "zh-CN" ? "或" : locale === "vi" ? "hoặc" : "or"}
+                {locale === "ko" ? "또는" : locale === "zh-CN" ? "或" : locale === "vi" ? "hoặc" : locale === "ja" ? "または" : locale === "id" ? "atau" : "or"}
               </span>
               <span className="h-px flex-1 bg-border" />
             </div>
@@ -125,7 +125,11 @@ export function LoginPage() {
                     ? "使用 Naver 登录"
                     : locale === "vi"
                       ? "Đăng nhập với Naver"
-                      : "Continue with Naver"}
+                      : locale === "ja"
+                        ? "Naverでログイン"
+                        : locale === "id"
+                          ? "Masuk dengan Naver"
+                          : "Continue with Naver"}
               </a>
               <a
                 href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/auth/kakao/start`}
@@ -140,7 +144,11 @@ export function LoginPage() {
                     ? "使用 Kakao 登录"
                     : locale === "vi"
                       ? "Đăng nhập với Kakao"
-                      : "Continue with Kakao"}
+                      : locale === "ja"
+                        ? "Kakaoでログイン"
+                        : locale === "id"
+                          ? "Masuk dengan Kakao"
+                          : "Continue with Kakao"}
               </a>
               <a
                 href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/auth/google/start`}
@@ -158,7 +166,11 @@ export function LoginPage() {
                     ? "使用 Google 登录"
                     : locale === "vi"
                       ? "Đăng nhập với Google"
-                      : "Continue with Google"}
+                      : locale === "ja"
+                        ? "Googleでログイン"
+                        : locale === "id"
+                          ? "Masuk dengan Google"
+                          : "Continue with Google"}
               </a>
             </div>
 

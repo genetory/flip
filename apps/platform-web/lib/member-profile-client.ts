@@ -645,6 +645,91 @@ export async function getMyAppliedPositions() {
   return result.items ?? [];
 }
 
+export type MyApplication = {
+  id: string;
+  positionId: string;
+  positionTitle: string;
+  positionStatus: string;
+  partnerOrganizationId: string | null;
+  partnerOrganizationName: string | null;
+  status: "SUBMITTED" | "INTERVIEW" | "ACCEPTED" | "REJECTED" | "WITHDRAWN";
+  submittedAt: string;
+  updatedAt: string;
+};
+
+export async function getMyApplications() {
+  const result = await authedJsonFetch<MyApplication>("/members/me/applications", {
+    method: "GET"
+  });
+  return (result.items ?? []) as MyApplication[];
+}
+
+export async function withdrawMyApplication(applicationId: string) {
+  return authedJsonFetch<{ id: string; status: string }>(`/members/me/applications/${encodeURIComponent(applicationId)}/withdraw`, {
+    method: "POST"
+  });
+}
+
+export type InterviewSlot = {
+  id: string;
+  applicationId: string;
+  startsAt: string;
+  endsAt: string;
+  location: string | null;
+  notes: string | null;
+  status: "PROPOSED" | "SELECTED" | "CANCELLED";
+  proposedAt: string;
+  selectedAt: string | null;
+  cancelledAt: string | null;
+};
+
+export async function getInterviewSlotsForApplication(applicationId: string) {
+  const result = await authedJsonFetch<InterviewSlot>(`/applications/${encodeURIComponent(applicationId)}/interview-slots`, {
+    method: "GET"
+  });
+  return (result.items ?? []) as InterviewSlot[];
+}
+
+export async function selectInterviewSlot(slotId: string) {
+  return authedJsonFetch<InterviewSlot>(`/interview-slots/${encodeURIComponent(slotId)}/select`, {
+    method: "PATCH"
+  });
+}
+
+export type MyAssignment = {
+  id: string;
+  applicationId: string;
+  title: string;
+  description: string;
+  dueAt: string | null;
+  status: "ASSIGNED" | "SUBMITTED" | "REVIEWED" | "CANCELLED";
+  assignedAt: string;
+  submittedAt: string | null;
+  submissionContent: string | null;
+  submissionLinks: string[];
+  feedbackContent: string | null;
+  feedbackRating: number | null;
+  reviewedAt: string | null;
+  positionId: string;
+  positionTitle: string;
+  partnerOrganizationName: string | null;
+  assignedByName: string | null;
+};
+
+export async function getMyAssignments() {
+  const result = await authedJsonFetch<MyAssignment>("/members/me/assignments", {
+    method: "GET"
+  });
+  return (result.items ?? []) as MyAssignment[];
+}
+
+export async function submitAssignment(assignmentId: string, payload: { submissionContent: string; submissionLinks?: string[] }) {
+  return authedJsonFetch<MyAssignment>(`/assignments/${encodeURIComponent(assignmentId)}/submit`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function addMyFavoritePosition(positionId: string) {
   const result = await authedJsonFetch<unknown>(`/members/me/positions/${encodeURIComponent(positionId)}/favorite`, {
     method: "POST"
@@ -893,6 +978,25 @@ export async function updateMyCandidateProfile(input: {
 
   if (!result.item) {
     throw new Error("응답에 후보자 프로필이 없습니다.");
+  }
+  return result.item;
+}
+
+export type CareerReadinessReport = {
+  score: number;
+  strengths: string[];
+  improvements: string[];
+  recommendedRoles: string[];
+  generatedAt: string;
+};
+
+export async function fetchCareerReadinessReport(locale?: "ko" | "en" | "zh-CN" | "vi" | "ja" | "id") {
+  const result = await authedJsonFetch<CareerReadinessReport>("/members/me/career-readiness", {
+    method: "POST",
+    body: JSON.stringify(locale ? { locale } : {})
+  });
+  if (!result.item) {
+    throw new Error("응답에 리포트가 없습니다.");
   }
   return result.item;
 }

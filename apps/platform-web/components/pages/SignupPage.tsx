@@ -32,25 +32,33 @@ export function SignupPage() {
     ko: "휴대폰 번호",
     en: "Phone number",
     "zh-CN": "手机号",
-    vi: "Số điện thoại"
+    vi: "Số điện thoại",
+    ja: "携帯電話番号",
+    id: "Nomor ponsel"
   } as const;
   const phonePlaceholderByLocale = {
     ko: "010-1234-5678",
     en: "+82-10-1234-5678",
     "zh-CN": "010-1234-5678",
-    vi: "010-1234-5678"
+    vi: "010-1234-5678",
+    ja: "010-1234-5678",
+    id: "010-1234-5678"
   } as const;
   const phoneRequiredMessageByLocale = {
     ko: "휴대폰 번호를 입력해주세요.",
     en: "Please enter phone number.",
     "zh-CN": "请输入手机号。",
-    vi: "Vui lòng nhập số điện thoại."
+    vi: "Vui lòng nhập số điện thoại.",
+    ja: "携帯電話番号を入力してください。",
+    id: "Silakan masukkan nomor ponsel."
   } as const;
   const emailExistsMessageByLocale = {
     ko: "이미 가입된 이메일입니다. 로그인해주세요.",
     en: "This email is already registered. Please sign in.",
     "zh-CN": "该邮箱已注册，请登录。",
-    vi: "Email này đã được đăng ký. Vui lòng đăng nhập."
+    vi: "Email này đã được đăng ký. Vui lòng đăng nhập.",
+    ja: "このメールアドレスは既に登録されています。ログインしてください。",
+    id: "Email ini sudah terdaftar. Silakan masuk."
   } as const;
   const isBusiness = accountType === "BUSINESS";
   const emailLabel = copy.emailLabel;
@@ -107,7 +115,7 @@ export function SignupPage() {
     setIsSubmitting(true);
 
     try {
-      const emailLocale = locale === "ko" ? "ko" : "en";
+      const emailLocale = locale === "ko" ? "ko" : locale === "ja" ? "en" : locale === "id" ? "en" : "en";
       const result = await signupWithEmail({
         name: name.trim(),
         email: email.trim(),

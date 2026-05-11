@@ -31,26 +31,26 @@ type EmploymentClassification =
 const VISA_OPTIONS = ["D-2", "D-4", "D-10", "E-7", "F-2", "F-4", "F-5", "F-6", "H-1"] as const;
 const NO_VISA_OPTION = "NO_VISA_REQUIRED";
 
-function workTypeDisplayTitle(workType: "On-site" | "Hybrid" | "Remote", t: (ko: string, en: string, zh?: string, vi?: string) => string) {
-  if (workType === "On-site") return t("오피스 출근", "On-site", "现场办公", "Làm việc tại văn phòng");
-  if (workType === "Hybrid") return t("하이브리드", "Hybrid", "混合办公", "Làm việc kết hợp");
-  return t("원격", "Remote", "远程办公", "Làm việc từ xa");
+function workTypeDisplayTitle(workType: "On-site" | "Hybrid" | "Remote", t: (ko: string, en: string, zh?: string, vi?: string, ja?: string, id?: string) => string) {
+  if (workType === "On-site") return t("오피스 출근", "On-site", "现场办公", "Làm việc tại văn phòng", "オフィス出社", "Kantor");
+  if (workType === "Hybrid") return t("하이브리드", "Hybrid", "混合办公", "Làm việc kết hợp", "ハイブリッド", "Hibrida");
+  return t("원격", "Remote", "远程办公", "Làm việc từ xa", "在宅", "Jarak jauh");
 }
 
-function employmentTypeDisplayTitle(employmentType: EmploymentType, t: (ko: string, en: string, zh?: string, vi?: string) => string) {
-  if (employmentType === "FULL_TIME") return t("정직원", "Full-time", "正式员工", "Toàn thời gian");
-  if (employmentType === "PART_TIME") return t("알바", "Part-time", "兼职", "Bán thời gian");
-  if (employmentType === "UNPAID_INTERN") return t("무급 인턴", "Unpaid intern", "无薪实习", "Thực tập không lương");
-  return t("인턴", "Intern", "实习", "Thực tập");
+function employmentTypeDisplayTitle(employmentType: EmploymentType, t: (ko: string, en: string, zh?: string, vi?: string, ja?: string, id?: string) => string) {
+  if (employmentType === "FULL_TIME") return t("정직원", "Full-time", "正式员工", "Toàn thời gian", "正社員", "Karyawan tetap");
+  if (employmentType === "PART_TIME") return t("알바", "Part-time", "兼职", "Bán thời gian", "アルバイト", "Paruh waktu");
+  if (employmentType === "UNPAID_INTERN") return t("무급 인턴", "Unpaid intern", "无薪实习", "Thực tập không lương", "無給インターン", "Magang tanpa bayaran");
+  return t("인턴", "Intern", "实习", "Thực tập", "インターン", "Magang");
 }
 
-function employmentClassificationDisplayTitle(value: EmploymentClassification, t: (ko: string, en: string, zh?: string, vi?: string) => string) {
-  if (value === "UNPAID_INTERN_EXPERIENCE") return t("무급 체험형 인턴", "Unpaid experience intern", "无薪体验型实习", "Thực tập trải nghiệm không lương");
-  if (value === "UNPAID_INTERN_CONVERSION") return t("무급 전환형 인턴", "Unpaid conversion intern", "无薪转正型实习", "Thực tập chuyển đổi không lương");
-  if (value === "PAID_INTERN_EXPERIENCE") return t("유급 체험형 인턴", "Paid experience intern", "有薪体验型实习", "Thực tập trải nghiệm có lương");
-  if (value === "PAID_INTERN_CONVERSION") return t("유급 전환형 인턴", "Paid conversion intern", "有薪转正型实习", "Thực tập chuyển đổi có lương");
-  if (value === "PART_TIME") return t("알바", "Part-time", "兼职", "Bán thời gian");
-  return t("정직원", "Full-time", "正式员工", "Toàn thời gian");
+function employmentClassificationDisplayTitle(value: EmploymentClassification, t: (ko: string, en: string, zh?: string, vi?: string, ja?: string, id?: string) => string) {
+  if (value === "UNPAID_INTERN_EXPERIENCE") return t("무급 체험형 인턴", "Unpaid experience intern", "无薪体验型实习", "Thực tập trải nghiệm không lương", "無給体験型インターン", "Magang pengalaman tanpa bayaran");
+  if (value === "UNPAID_INTERN_CONVERSION") return t("무급 전환형 인턴", "Unpaid conversion intern", "无薪转正型实习", "Thực tập chuyển đổi không lương", "無給転換型インターン", "Magang konversi tanpa bayaran");
+  if (value === "PAID_INTERN_EXPERIENCE") return t("유급 체험형 인턴", "Paid experience intern", "有薪体验型实习", "Thực tập trải nghiệm có lương", "有給体験型インターン", "Magang pengalaman berbayar");
+  if (value === "PAID_INTERN_CONVERSION") return t("유급 전환형 인턴", "Paid conversion intern", "有薪转正型实习", "Thực tập chuyển đổi có lương", "有給転換型インターン", "Magang konversi berbayar");
+  if (value === "PART_TIME") return t("알바", "Part-time", "兼职", "Bán thời gian", "アルバイト", "Paruh waktu");
+  return t("정직원", "Full-time", "正式员工", "Toàn thời gian", "正社員", "Karyawan tetap");
 }
 
 function toEmploymentTypeFromClassification(value: EmploymentClassification): EmploymentType {
@@ -64,17 +64,17 @@ function isUnpaidInternClassification(value: EmploymentClassification) {
   return value === "UNPAID_INTERN_EXPERIENCE" || value === "UNPAID_INTERN_CONVERSION";
 }
 
-function visaDisplayTitle(visa: string, t: (ko: string, en: string, zh?: string, vi?: string) => string) {
-  if (visa === NO_VISA_OPTION) return t("비자 무관", "No visa required", "不限签证", "Không yêu cầu visa");
-  if (visa === "D-2") return t("D-2 (유학)", "D-2 (Student)", "D-2 (留学)", "D-2 (Du học)");
-  if (visa === "D-4") return t("D-4 (일반연수)", "D-4 (General training)", "D-4 (一般研修)", "D-4 (Đào tạo chung)");
-  if (visa === "D-10") return t("D-10 (구직)", "D-10 (Job seeker)", "D-10 (求职)", "D-10 (Tìm việc)");
-  if (visa === "E-7") return t("E-7 (특정활동)", "E-7 (Specific activities)", "E-7 (特定活动)", "E-7 (Hoạt động cụ thể)");
-  if (visa === "F-2") return t("F-2 (거주)", "F-2 (Resident)", "F-2 (居住)", "F-2 (Cư trú)");
-  if (visa === "F-4") return t("F-4 (재외동포)", "F-4 (Overseas Korean)", "F-4 (在外同胞)", "F-4 (Người Hàn ở nước ngoài)");
-  if (visa === "F-5") return t("F-5 (영주)", "F-5 (Permanent resident)", "F-5 (永住)", "F-5 (Thường trú)");
-  if (visa === "F-6") return t("F-6 (결혼이민)", "F-6 (Marriage migrant)", "F-6 (结婚移民)", "F-6 (Kết hôn nhập cư)");
-  if (visa === "H-1") return t("H-1 (관광취업)", "H-1 (Working holiday)", "H-1 (打工度假)", "H-1 (Working Holiday)");
+function visaDisplayTitle(visa: string, t: (ko: string, en: string, zh?: string, vi?: string, ja?: string, id?: string) => string) {
+  if (visa === NO_VISA_OPTION) return t("비자 무관", "No visa required", "不限签证", "Không yêu cầu visa", "ビザ不問", "Tidak memerlukan visa");
+  if (visa === "D-2") return t("D-2 (유학)", "D-2 (Student)", "D-2 (留学)", "D-2 (Du học)", "D-2 (留学)", "D-2 (Pelajar)");
+  if (visa === "D-4") return t("D-4 (일반연수)", "D-4 (General training)", "D-4 (一般研修)", "D-4 (Đào tạo chung)", "D-4 (一般研修)", "D-4 (Pelatihan umum)");
+  if (visa === "D-10") return t("D-10 (구직)", "D-10 (Job seeker)", "D-10 (求职)", "D-10 (Tìm việc)", "D-10 (求職)", "D-10 (Pencari kerja)");
+  if (visa === "E-7") return t("E-7 (특정활동)", "E-7 (Specific activities)", "E-7 (特定活动)", "E-7 (Hoạt động cụ thể)", "E-7 (特定活動)", "E-7 (Aktivitas khusus)");
+  if (visa === "F-2") return t("F-2 (거주)", "F-2 (Resident)", "F-2 (居住)", "F-2 (Cư trú)", "F-2 (居住)", "F-2 (Penduduk)");
+  if (visa === "F-4") return t("F-4 (재외동포)", "F-4 (Overseas Korean)", "F-4 (在外同胞)", "F-4 (Người Hàn ở nước ngoài)", "F-4 (在外同胞)", "F-4 (Diaspora Korea)");
+  if (visa === "F-5") return t("F-5 (영주)", "F-5 (Permanent resident)", "F-5 (永住)", "F-5 (Thường trú)", "F-5 (永住)", "F-5 (Penduduk tetap)");
+  if (visa === "F-6") return t("F-6 (결혼이민)", "F-6 (Marriage migrant)", "F-6 (结婚移民)", "F-6 (Kết hôn nhập cư)", "F-6 (結婚移民)", "F-6 (Migran pernikahan)");
+  if (visa === "H-1") return t("H-1 (관광취업)", "H-1 (Working holiday)", "H-1 (打工度假)", "H-1 (Working Holiday)", "H-1 (ワーキングホリデー)", "H-1 (Working Holiday)");
   return visa;
 }
 
@@ -161,8 +161,8 @@ export function PartnerPositionCreatePage({
   const isEditMode = mode === "edit";
   const router = useRouter();
   const { locale } = useLanguage();
-  const t = (ko: string, en: string, zh: string = en, vi: string = en) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : en;
+  const t = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
   const { user, isReady, isAuthenticated } = useAuthSession();
 
   const [isCheckingOrg, setIsCheckingOrg] = useState(false);
@@ -226,8 +226,8 @@ export function PartnerPositionCreatePage({
         const isProfileComplete = isPartnerOrganizationProfileComplete(org);
         const canPostPositions = Boolean(org?.permissions?.canPostPositions);
         const verificationStatus = org?.verification?.isApproved
-          ? t("운영중", "Active", "运营中", "Đang hoạt động")
-          : t("검토중 (승인 대기)", "Under review (approval pending)", "审核中（等待批准）", "Đang xem xét (chờ phê duyệt)");
+          ? t("운영중", "Active", "运营中", "Đang hoạt động", "稼働中", "Aktif")
+          : t("검토중 (승인 대기)", "Under review (approval pending)", "审核中（等待批准）", "Đang xem xét (chờ phê duyệt)", "審査中(承認待ち)", "Sedang ditinjau (menunggu persetujuan)");
         const allowed = isProfileComplete && canPostPositions;
         setCurrentVerificationStatus(verificationStatus);
         setCanCreate(allowed);
@@ -243,7 +243,7 @@ export function PartnerPositionCreatePage({
         setCanCreate(false);
         setCreateBlockedReason("profile");
         setCurrentVerificationStatus(null);
-        setErrorMessage(error instanceof Error ? error.message : t("기업 정보를 불러오지 못했습니다.", "Failed to load company information.", "无法加载企业信息。", "Không thể tải thông tin công ty."));
+        setErrorMessage(error instanceof Error ? error.message : t("기업 정보를 불러오지 못했습니다.", "Failed to load company information.", "无法加载企业信息。", "Không thể tải thông tin công ty.", "企業情報を読み込めませんでした。", "Gagal memuat informasi perusahaan."));
       } finally {
         if (!ignore) setIsCheckingOrg(false);
       }
@@ -291,7 +291,7 @@ export function PartnerPositionCreatePage({
         setAdditionalNotes(item.additionalNotes ?? "");
       } catch (error) {
         if (!ignore) {
-          setErrorMessage(error instanceof Error ? error.message : t("포지션 정보를 불러오지 못했습니다.", "Failed to load position information.", "无法加载职位信息。", "Không thể tải thông tin vị trí."));
+          setErrorMessage(error instanceof Error ? error.message : t("포지션 정보를 불러오지 못했습니다.", "Failed to load position information.", "无法加载职位信息。", "Không thể tải thông tin vị trí.", "ポジション情報を読み込めませんでした。", "Gagal memuat informasi posisi."));
         }
       } finally {
         if (!ignore) setIsLoadingPosition(false);
@@ -304,28 +304,28 @@ export function PartnerPositionCreatePage({
 
   function validateCurrentStep() {
     if (!title.trim()) {
-      setErrorMessage(t("포지션 제목을 입력해주세요.", "Please enter a position title.", "请输入职位标题。", "Vui lòng nhập tiêu đề vị trí."));
+      setErrorMessage(t("포지션 제목을 입력해주세요.", "Please enter a position title.", "请输入职位标题。", "Vui lòng nhập tiêu đề vị trí.", "ポジションのタイトルを入力してください。", "Silakan masukkan judul posisi."));
       return false;
     }
     if (!preferredJobRole.trim()) {
-      setErrorMessage(t("모집 분야를 입력해주세요.", "Please enter the role/category.", "请输入招聘领域。", "Vui lòng nhập lĩnh vực tuyển dụng."));
+      setErrorMessage(t("모집 분야를 입력해주세요.", "Please enter the role/category.", "请输入招聘领域。", "Vui lòng nhập lĩnh vực tuyển dụng.", "募集分野を入力してください。", "Silakan masukkan bidang perekrutan."));
       return false;
     }
     if (!mainResponsibilities.trim()) {
-      setErrorMessage(t("주요 활동/업무를 입력해주세요.", "Please enter main responsibilities.", "请输入主要活动/工作。", "Vui lòng nhập các hoạt động/công việc chính."));
+      setErrorMessage(t("주요 활동/업무를 입력해주세요.", "Please enter main responsibilities.", "请输入主要活动/工作。", "Vui lòng nhập các hoạt động/công việc chính.", "主な活動・業務を入力してください。", "Silakan masukkan aktivitas/tugas utama."));
       return false;
     }
     if (hiringCount.trim()) {
       const parsedHiringCount = Number(hiringCount);
       if (!Number.isFinite(parsedHiringCount)) {
-        setErrorMessage(t("모집 인원 형식을 확인해주세요.", "Please check hiring count format.", "请检查招聘人数格式。", "Vui lòng kiểm tra định dạng số lượng tuyển dụng."));
+        setErrorMessage(t("모집 인원 형식을 확인해주세요.", "Please check hiring count format.", "请检查招聘人数格式。", "Vui lòng kiểm tra định dạng số lượng tuyển dụng.", "募集人数の形式を確認してください。", "Silakan periksa format jumlah perekrutan."));
         return false;
       }
     }
     if (isUnpaidInternClassification(employmentClassification)) {
       const ok = isEducationalPurpose && notReplacingWorker && hasMentorAndPlan && visaNoticeConfirmed;
       if (!ok) {
-        setErrorMessage(t("체크리스트를 모두 확인해주세요.", "Please complete all compliance checks.", "请完成所有合规检查。", "Vui lòng hoàn thành tất cả các mục kiểm tra."));
+        setErrorMessage(t("체크리스트를 모두 확인해주세요.", "Please complete all compliance checks.", "请完成所有合规检查。", "Vui lòng hoàn thành tất cả các mục kiểm tra.", "チェックリストをすべて確認してください。", "Silakan lengkapi semua pemeriksaan kepatuhan."));
         return false;
       }
     }
@@ -366,7 +366,7 @@ export function PartnerPositionCreatePage({
         if (embedded) {
           onEmbeddedClose?.();
         } else {
-          window.alert(t("수정사항이 저장되었고 어드민 관리자 승인 요청이 접수되었습니다.", "Changes were saved and sent for ops admin approval.", "修改已保存，并已提交管理员审批请求。", "Các thay đổi đã được lưu và gửi yêu cầu phê duyệt cho quản trị viên."));
+          window.alert(t("수정사항이 저장되었고 어드민 관리자 승인 요청이 접수되었습니다.", "Changes were saved and sent for ops admin approval.", "修改已保存，并已提交管理员审批请求。", "Các thay đổi đã được lưu và gửi yêu cầu phê duyệt cho quản trị viên.", "変更が保存され、運営管理者への承認依頼が受け付けられました。", "Perubahan telah disimpan dan dikirim untuk persetujuan admin operasi."));
           router.push("/profile");
         }
       } else {
@@ -374,7 +374,7 @@ export function PartnerPositionCreatePage({
         if (embedded) {
           onEmbeddedClose?.();
         } else {
-          window.alert(t("포지션이 등록되었고 어드민 관리자 승인 요청이 접수되었습니다.", "Position was created and sent for ops admin approval.", "职位已创建，并已提交管理员审批请求。", "Vị trí đã được tạo và gửi yêu cầu phê duyệt cho quản trị viên."));
+          window.alert(t("포지션이 등록되었고 어드민 관리자 승인 요청이 접수되었습니다.", "Position was created and sent for ops admin approval.", "职位已创建，并已提交管理员审批请求。", "Vị trí đã được tạo và gửi yêu cầu phê duyệt cho quản trị viên.", "ポジションが登録され、運営管理者への承認依頼が受け付けられました。", "Posisi telah dibuat dan dikirim untuk persetujuan admin operasi."));
           router.push(`/positions/${encodeURIComponent(created.id)}`);
         }
       }
@@ -384,8 +384,8 @@ export function PartnerPositionCreatePage({
         error instanceof Error
           ? error.message
           : mode === "edit"
-            ? t("포지션 수정에 실패했습니다.", "Failed to update position.", "更新职位失败。", "Cập nhật vị trí thất bại.")
-            : t("포지션 생성에 실패했습니다.", "Failed to create position.", "创建职位失败。", "Tạo vị trí thất bại.")
+            ? t("포지션 수정에 실패했습니다.", "Failed to update position.", "更新职位失败。", "Cập nhật vị trí thất bại.", "ポジションの修正に失敗しました。", "Gagal memperbarui posisi.")
+            : t("포지션 생성에 실패했습니다.", "Failed to create position.", "创建职位失败。", "Tạo vị trí thất bại.", "ポジションの作成に失敗しました。", "Gagal membuat posisi.")
       );
     } finally {
       setIsSubmitting(false);
@@ -396,7 +396,7 @@ export function PartnerPositionCreatePage({
     if (!selected || selected.length === 0) return;
     const maxRawFileSize = 20 * 1024 * 1024;
     if (selected.some((file) => file.size > maxRawFileSize)) {
-      setErrorMessage(t("원본 파일은 20MB 이하만 선택할 수 있습니다.", "Original files up to 20MB are allowed.", "原始文件大小不得超过20MB。", "Chỉ cho phép tệp gốc dưới 20MB."));
+      setErrorMessage(t("원본 파일은 20MB 이하만 선택할 수 있습니다.", "Original files up to 20MB are allowed.", "原始文件大小不得超过20MB。", "Chỉ cho phép tệp gốc dưới 20MB.", "元のファイルは20MB以下のみ選択できます。", "File asli hanya dapat dipilih hingga 20MB."));
       return;
     }
 
@@ -419,7 +419,7 @@ export function PartnerPositionCreatePage({
           if (estimateDataUrlBytes(data) > 5 * 1024 * 1024) {
             data = await convertImageFileToWebpDataUrl(
               file,
-              t("파일을 읽지 못했습니다.", "Failed to read file.", "无法读取文件。", "Không thể đọc tệp.")
+              t("파일을 읽지 못했습니다.", "Failed to read file.", "无法读取文件。", "Không thể đọc tệp.", "ファイルを読み込めませんでした。", "Gagal membaca file.")
             );
             if (estimateDataUrlBytes(data) > 5 * 1024 * 1024) {
               failedCount += 1;
@@ -464,7 +464,7 @@ export function PartnerPositionCreatePage({
         );
       }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("썸네일 업로드에 실패했습니다.", "Failed to upload thumbnails.", "缩略图上传失败。", "Tải lên hình thu nhỏ thất bại."));
+      setErrorMessage(error instanceof Error ? error.message : t("썸네일 업로드에 실패했습니다.", "Failed to upload thumbnails.", "缩略图上传失败。", "Tải lên hình thu nhỏ thất bại.", "サムネイルのアップロードに失敗しました。", "Gagal mengunggah thumbnail."));
     } finally {
       previews.forEach((item) => URL.revokeObjectURL(item));
       if (previews.length > 0) {
@@ -477,46 +477,46 @@ export function PartnerPositionCreatePage({
   const content = (
     <div className={embedded ? "mx-auto flex h-full max-w-4xl flex-col" : "mx-auto max-w-4xl"}>
       <h1 className={embedded ? "shrink-0 pb-2 font-display text-3xl font-bold tracking-tight" : "mb-6 font-display text-3xl font-bold tracking-tight"}>
-        {mode === "edit" ? t("포지션 수정", "Edit position", "编辑职位", "Chỉnh sửa vị trí") : t("포지션 등록", "Create position", "创建职位", "Tạo vị trí")}
+        {mode === "edit" ? t("포지션 수정", "Edit position", "编辑职位", "Chỉnh sửa vị trí", "ポジションの修正", "Edit posisi") : t("포지션 등록", "Create position", "创建职位", "Tạo vị trí", "ポジションの登録", "Buat posisi")}
       </h1>
 
           {!isReady ? (
-            <p className="text-sm text-muted-foreground">{t("정보를 불러오는 중...", "Loading information...", "正在加载信息...", "Đang tải thông tin...")}</p>
+            <p className="text-sm text-muted-foreground">{t("정보를 불러오는 중...", "Loading information...", "正在加载信息...", "Đang tải thông tin...", "情報を読み込み中...", "Memuat informasi...")}</p>
           ) : !isAuthenticated || !user ? (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">{t("로그인이 필요합니다.", "Sign in is required.", "需要登录。", "Cần đăng nhập.")}</p>
+              <p className="text-sm text-muted-foreground">{t("로그인이 필요합니다.", "Sign in is required.", "需要登录。", "Cần đăng nhập.", "ログインが必要です。", "Diperlukan masuk.")}</p>
               <Button variant="dark" asChild>
-                <Link href="/login">{t("로그인하러 가기", "Go to login", "前往登录", "Đi đến đăng nhập")}</Link>
+                <Link href="/login">{t("로그인하러 가기", "Go to login", "前往登录", "Đi đến đăng nhập", "ログインへ", "Pergi ke masuk")}</Link>
               </Button>
             </div>
           ) : user.role !== "PARTNER" ? (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">{t("파트너회원만 포지션을 생성할 수 있습니다.", "Only partner accounts can create positions.", "只有合作伙伴账户可以创建职位。", "Chỉ tài khoản đối tác mới có thể tạo vị trí.")}</p>
+              <p className="text-sm text-muted-foreground">{t("파트너회원만 포지션을 생성할 수 있습니다.", "Only partner accounts can create positions.", "只有合作伙伴账户可以创建职位。", "Chỉ tài khoản đối tác mới có thể tạo vị trí.", "パートナー会員のみポジションを作成できます。", "Hanya akun mitra yang dapat membuat posisi.")}</p>
               <Button variant="outline" asChild>
-                <Link href="/positions">{t("포지션 목록으로", "Go to positions", "前往职位列表", "Đi đến danh sách vị trí")}</Link>
+                <Link href="/positions">{t("포지션 목록으로", "Go to positions", "前往职位列表", "Đi đến danh sách vị trí", "ポジション一覧へ", "Ke daftar posisi")}</Link>
               </Button>
             </div>
           ) : mode === "edit" && isLoadingPosition ? (
-            <p className="text-sm text-muted-foreground">{t("포지션 정보를 불러오는 중...", "Loading position information...", "正在加载职位信息...", "Đang tải thông tin vị trí...")}</p>
+            <p className="text-sm text-muted-foreground">{t("포지션 정보를 불러오는 중...", "Loading position information...", "正在加载职位信息...", "Đang tải thông tin vị trí...", "ポジション情報を読み込み中...", "Memuat informasi posisi...")}</p>
           ) : isCheckingOrg ? (
-            <p className="text-sm text-muted-foreground">{t("기업 정보 상태를 확인하는 중...", "Checking company profile status...", "正在确认企业信息状态...", "Đang kiểm tra trạng thái thông tin công ty...")}</p>
+            <p className="text-sm text-muted-foreground">{t("기업 정보 상태를 확인하는 중...", "Checking company profile status...", "正在确认企业信息状态...", "Đang kiểm tra trạng thái thông tin công ty...", "企業情報のステータスを確認中...", "Memeriksa status profil perusahaan...")}</p>
           ) : mode === "create" && !canCreate ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 {createBlockedReason === "verification"
-                  ? t("파트너 운영중이 승인되지 않으면 포지션을 등록할 수 없습니다", "Positions cannot be created until partner operation is approved.", "合作伙伴运营未获批准前无法创建职位。", "Không thể tạo vị trí cho đến khi hoạt động đối tác được phê duyệt.")
-                  : t("포지션 생성 전 기업 기본 정보 입력이 필요합니다.", "Basic company information is required before creating positions.", "创建职位前需要填写企业基本信息。", "Cần nhập thông tin cơ bản của công ty trước khi tạo vị trí.")}
+                  ? t("파트너 운영중이 승인되지 않으면 포지션을 등록할 수 없습니다", "Positions cannot be created until partner operation is approved.", "合作伙伴运营未获批准前无法创建职位。", "Không thể tạo vị trí cho đến khi hoạt động đối tác được phê duyệt.", "パートナーの稼働中が承認されないとポジションを登録できません", "Posisi tidak dapat dibuat hingga operasi mitra disetujui.")
+                  : t("포지션 생성 전 기업 기본 정보 입력이 필요합니다.", "Basic company information is required before creating positions.", "创建职位前需要填写企业基本信息。", "Cần nhập thông tin cơ bản của công ty trước khi tạo vị trí.", "ポジション作成前に企業の基本情報の入力が必要です。", "Informasi dasar perusahaan diperlukan sebelum membuat posisi.")}
               </p>
               {createBlockedReason === "verification" && currentVerificationStatus ? (
                 <p className="text-sm text-muted-foreground">
-                  {t("현재 인증상태", "Current verification status", "当前认证状态", "Trạng thái xác minh hiện tại")}: {currentVerificationStatus}
+                  {t("현재 인증상태", "Current verification status", "当前认证状态", "Trạng thái xác minh hiện tại", "現在の認証ステータス", "Status verifikasi saat ini")}: {currentVerificationStatus}
                 </p>
               ) : null}
               <Button variant="dark" asChild>
                 <Link href={createBlockedReason === "verification" ? "/partner-profile/verification/edit" : "/partner-profile/edit?required=1"}>
                   {createBlockedReason === "verification"
-                    ? t("인증 정보 확인하러 가기", "Go to verification", "前往确认认证信息", "Đi đến xác minh")
-                    : t("기업 정보 입력하러 가기", "Go to company profile", "前往填写企业信息", "Đi đến hồ sơ công ty")}
+                    ? t("인증 정보 확인하러 가기", "Go to verification", "前往确认认证信息", "Đi đến xác minh", "認証情報の確認へ", "Pergi ke verifikasi")
+                    : t("기업 정보 입력하러 가기", "Go to company profile", "前往填写企业信息", "Đi đến hồ sơ công ty", "企業情報の入力へ", "Pergi ke profil perusahaan")}
                 </Link>
               </Button>
             </div>
@@ -526,7 +526,7 @@ export function PartnerPositionCreatePage({
               <div className="space-y-6">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{t("썸네일 (최대 5장)", "Thumbnails (max 5)", "缩略图（最多5张）", "Hình thu nhỏ (tối đa 5)")}</label>
+                    <label className="text-sm font-medium">{t("썸네일 (최대 5장)", "Thumbnails (max 5)", "缩略图（最多5张）", "Hình thu nhỏ (tối đa 5)", "サムネイル(最大5枚)", "Thumbnail (maks 5)")}</label>
                     <input
                       id="position-thumbnail-upload"
                       type="file"
@@ -541,14 +541,14 @@ export function PartnerPositionCreatePage({
                       }}
                       disabled={isUploadingThumbnails || isSubmitting}
                     />
-                    <p className="text-xs text-muted-foreground">{t("최대 5MB", "Up to 5MB", "最大5MB", "Tối đa 5MB")} · {thumbnailImages.length}/5</p>
+                    <p className="text-xs text-muted-foreground">{t("최대 5MB", "Up to 5MB", "最大5MB", "Tối đa 5MB", "最大5MB", "Hingga 5MB")} · {thumbnailImages.length}/5</p>
                     <div className="overflow-x-auto py-2">
                       <div className="flex w-max gap-3">
                         <div className="h-20 w-20 shrink-0">
                           <label
                             htmlFor="position-thumbnail-upload"
                             className={`flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-muted text-muted-foreground ${isUploadingThumbnails || isSubmitting || thumbnailImages.length >= 5 ? "pointer-events-none opacity-50" : "cursor-pointer"}`}
-                            aria-label={t("썸네일 업로드", "Upload thumbnail", "上传缩略图", "Tải lên hình thu nhỏ")}
+                            aria-label={t("썸네일 업로드", "Upload thumbnail", "上传缩略图", "Tải lên hình thu nhỏ", "サムネイルをアップロード", "Unggah thumbnail")}
                             aria-disabled={isUploadingThumbnails || isSubmitting || thumbnailImages.length >= 5}
                           >
                             <ImageSquare size={22} />
@@ -559,7 +559,7 @@ export function PartnerPositionCreatePage({
                             {thumbnailImages.length > 0 ? (
                               <button
                                 type="button"
-                                aria-label={t("이미지 삭제", "Remove image", "删除图片", "Xóa hình ảnh")}
+                                aria-label={t("이미지 삭제", "Remove image", "删除图片", "Xóa hình ảnh", "画像を削除", "Hapus gambar")}
                                 className="absolute -right-1 -top-1 z-20 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black text-white shadow-[0_8px_18px_-8px_rgba(0,0,0,0.9)] transition hover:bg-black/85"
                                 onClick={() => setThumbnailImages((prev) => prev.filter((_, i) => i !== index))}
                                 disabled={isUploadingThumbnails || isSubmitting}
@@ -570,11 +570,11 @@ export function PartnerPositionCreatePage({
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={image}
-                              alt={t("썸네일 미리보기", "Thumbnail preview", "缩略图预览", "Xem trước hình thu nhỏ")}
+                              alt={t("썸네일 미리보기", "Thumbnail preview", "缩略图预览", "Xem trước hình thu nhỏ", "サムネイルのプレビュー", "Pratinjau thumbnail")}
                               className="h-20 w-20 rounded-2xl object-cover"
                             />
                             {thumbnailImages.length === 0 ? (
-                              <p className="absolute inset-x-0 bottom-1 text-center text-[10px] text-white/90">{t("변환 중...", "Converting...", "转换中...", "Đang chuyển đổi...")}</p>
+                              <p className="absolute inset-x-0 bottom-1 text-center text-[10px] text-white/90">{t("변환 중...", "Converting...", "转换中...", "Đang chuyển đổi...", "変換中...", "Sedang mengonversi...")}</p>
                             ) : null}
                           </div>
                         ))}
@@ -582,20 +582,20 @@ export function PartnerPositionCreatePage({
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{t("포지션명", "Position title", "职位名称", "Tên vị trí")}<RequiredMark /></label>
+                    <label className="text-sm font-medium">{t("포지션명", "Position title", "职位名称", "Tên vị trí", "ポジション名", "Judul posisi")}<RequiredMark /></label>
                     <input
                       className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm"
-                      placeholder={t("예) 프론트엔드 개발 인턴", "e.g. Frontend Developer Intern", "例）前端开发实习生", "Ví dụ) Thực tập sinh phát triển Frontend")}
+                      placeholder={t("예) 프론트엔드 개발 인턴", "e.g. Frontend Developer Intern", "例）前端开发实习生", "Ví dụ) Thực tập sinh phát triển Frontend", "例) フロントエンド開発インターン", "Contoh) Magang Pengembang Frontend")}
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                     />
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("모집 분야", "Category/Role", "招聘领域", "Lĩnh vực tuyển dụng")}<RequiredMark /></label>
+                      <label className="text-sm font-medium">{t("모집 분야", "Category/Role", "招聘领域", "Lĩnh vực tuyển dụng", "募集分野", "Bidang perekrutan")}<RequiredMark /></label>
                       <input
                         className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm"
-                        placeholder={t("예) 프론트개발자, 디자이너", "e.g. Frontend Developer, Designer", "例）前端开发、设计师", "Ví dụ) Lập trình Frontend, Designer")}
+                        placeholder={t("예) 프론트개발자, 디자이너", "e.g. Frontend Developer, Designer", "例）前端开发、设计师", "Ví dụ) Lập trình Frontend, Designer", "例) フロントエンド開発者、デザイナー", "Contoh) Pengembang Frontend, Desainer")}
                         value={preferredJobRole}
                         onChange={(e) => setPreferredJobRole(e.target.value)}
                       />
@@ -603,45 +603,45 @@ export function PartnerPositionCreatePage({
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("모집 인원", "Hiring count", "招聘人数", "Số lượng tuyển dụng")}</label>
+                      <label className="text-sm font-medium">{t("모집 인원", "Hiring count", "招聘人数", "Số lượng tuyển dụng", "募集人数", "Jumlah perekrutan")}</label>
                       <input
                         type="number"
                         className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm"
-                        placeholder={t("예) 3", "e.g. 3", "例）3", "Ví dụ) 3")}
+                        placeholder={t("예) 3", "e.g. 3", "例）3", "Ví dụ) 3", "例) 3", "Contoh) 3")}
                         value={hiringCount}
                         onChange={(e) => setHiringCount(e.target.value)}
                       />
-                      <p className="text-xs text-muted-foreground">{t("0 또는 비워두면 종료까지로 처리됩니다.", "If 0 or empty, it is treated as until closed.", "如填0或留空，则按截止日期处理。", "Nếu là 0 hoặc để trống, sẽ được xử lý đến khi kết thúc.")}</p>
+                      <p className="text-xs text-muted-foreground">{t("0 또는 비워두면 종료까지로 처리됩니다.", "If 0 or empty, it is treated as until closed.", "如填0或留空，则按截止日期处理。", "Nếu là 0 hoặc để trống, sẽ được xử lý đến khi kết thúc.", "0または空欄の場合は終了までとして扱われます。", "Jika 0 atau kosong, akan diperlakukan hingga ditutup.")}</p>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("근무 방식", "Work type", "工作方式", "Hình thức làm việc")}</label>
+                      <label className="text-sm font-medium">{t("근무 방식", "Work type", "工作方式", "Hình thức làm việc", "勤務形態", "Tipe pekerjaan")}</label>
                       <div className="relative">
                         <select
                           className="h-10 w-full appearance-none rounded-md border-0 bg-muted/50 px-3 pr-10 text-sm"
                           value={workType}
                           onChange={(e) => setWorkType(e.target.value as "On-site" | "Hybrid" | "Remote")}
                         >
-                          <option value="On-site">{t("오피스 출근", "On-site", "现场办公", "Làm việc tại văn phòng")}</option>
-                          <option value="Hybrid">{t("하이브리드", "Hybrid", "混合办公", "Làm việc kết hợp")}</option>
-                          <option value="Remote">{t("원격", "Remote", "远程办公", "Làm việc từ xa")}</option>
+                          <option value="On-site">{t("오피스 출근", "On-site", "现场办公", "Làm việc tại văn phòng", "オフィス出社", "Kantor")}</option>
+                          <option value="Hybrid">{t("하이브리드", "Hybrid", "混合办公", "Làm việc kết hợp", "ハイブリッド", "Hibrida")}</option>
+                          <option value="Remote">{t("원격", "Remote", "远程办公", "Làm việc từ xa", "在宅", "Jarak jauh")}</option>
                         </select>
                         <CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("고용 형태", "Employment type", "雇佣形式", "Hình thức tuyển dụng")}<RequiredMark /></label>
+                      <label className="text-sm font-medium">{t("고용 형태", "Employment type", "雇佣形式", "Hình thức tuyển dụng", "雇用形態", "Tipe pekerjaan")}<RequiredMark /></label>
                       <div className="relative">
                         <select
                           className="h-10 w-full appearance-none rounded-md border-0 bg-muted/50 px-3 pr-10 text-sm"
                           value={employmentClassification}
                           onChange={(e) => setEmploymentClassification(e.target.value as EmploymentClassification)}
                         >
-                          <option value="UNPAID_INTERN_EXPERIENCE">{t("무급 체험형 인턴", "Unpaid experience intern", "无薪体验型实习", "Thực tập trải nghiệm không lương")}</option>
-                          <option value="UNPAID_INTERN_CONVERSION">{t("무급 전환형 인턴", "Unpaid conversion intern", "无薪转正型实习", "Thực tập chuyển đổi không lương")}</option>
-                          <option value="PAID_INTERN_EXPERIENCE">{t("유급 체험형 인턴", "Paid experience intern", "有薪体验型实习", "Thực tập trải nghiệm có lương")}</option>
-                          <option value="PAID_INTERN_CONVERSION">{t("유급 전환형 인턴", "Paid conversion intern", "有薪转正型实习", "Thực tập chuyển đổi có lương")}</option>
-                          <option value="PART_TIME">{t("알바", "Part-time", "兼职", "Bán thời gian")}</option>
-                          <option value="FULL_TIME">{t("정직원", "Full-time", "正式员工", "Toàn thời gian")}</option>
+                          <option value="UNPAID_INTERN_EXPERIENCE">{t("무급 체험형 인턴", "Unpaid experience intern", "无薪体验型实习", "Thực tập trải nghiệm không lương", "無給体験型インターン", "Magang pengalaman tanpa bayaran")}</option>
+                          <option value="UNPAID_INTERN_CONVERSION">{t("무급 전환형 인턴", "Unpaid conversion intern", "无薪转正型实习", "Thực tập chuyển đổi không lương", "無給転換型インターン", "Magang konversi tanpa bayaran")}</option>
+                          <option value="PAID_INTERN_EXPERIENCE">{t("유급 체험형 인턴", "Paid experience intern", "有薪体验型实习", "Thực tập trải nghiệm có lương", "有給体験型インターン", "Magang pengalaman berbayar")}</option>
+                          <option value="PAID_INTERN_CONVERSION">{t("유급 전환형 인턴", "Paid conversion intern", "有薪转正型实习", "Thực tập chuyển đổi có lương", "有給転換型インターン", "Magang konversi berbayar")}</option>
+                          <option value="PART_TIME">{t("알바", "Part-time", "兼职", "Bán thời gian", "アルバイト", "Paruh waktu")}</option>
+                          <option value="FULL_TIME">{t("정직원", "Full-time", "正式员工", "Toàn thời gian", "正社員", "Karyawan tetap")}</option>
                         </select>
                         <CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       </div>
@@ -649,16 +649,16 @@ export function PartnerPositionCreatePage({
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("근무 지역", "Location", "工作地点", "Địa điểm làm việc")}</label>
+                      <label className="text-sm font-medium">{t("근무 지역", "Location", "工作地点", "Địa điểm làm việc", "勤務地", "Lokasi kerja")}</label>
                       <input
                         className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm"
-                        placeholder={t("예) 서울 강남구", "e.g. Gangnam-gu, Seoul", "例）首尔江南区", "Ví dụ) Gangnam-gu, Seoul")}
+                        placeholder={t("예) 서울 강남구", "e.g. Gangnam-gu, Seoul", "例）首尔江南区", "Ví dụ) Gangnam-gu, Seoul", "例) ソウル江南区", "Contoh) Gangnam-gu, Seoul")}
                         value={workLocation}
                         onChange={(e) => setWorkLocation(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("시작 예정일", "Start date", "预计开始日期", "Ngày bắt đầu dự kiến")}</label>
+                      <label className="text-sm font-medium">{t("시작 예정일", "Start date", "预计开始日期", "Ngày bắt đầu dự kiến", "開始予定日", "Tanggal mulai")}</label>
                       <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
                     </div>
                   </div>
@@ -666,28 +666,28 @@ export function PartnerPositionCreatePage({
 
               <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{t("프로그램 목적", "Program goal", "项目目标", "Mục tiêu chương trình")}</label>
+                    <label className="text-sm font-medium">{t("프로그램 목적", "Program goal", "项目目标", "Mục tiêu chương trình", "プログラムの目的", "Tujuan program")}</label>
                     <textarea
                       className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
-                      placeholder={t("인턴십 목적과 기대 효과를 간단히 작성해주세요.", "Briefly describe the internship goal and expected outcomes.", "请简要说明实习目的和预期效果。", "Vui lòng mô tả ngắn gọn mục tiêu thực tập và kết quả mong đợi.")}
+                      placeholder={t("인턴십 목적과 기대 효과를 간단히 작성해주세요.", "Briefly describe the internship goal and expected outcomes.", "请简要说明实习目的和预期效果。", "Vui lòng mô tả ngắn gọn mục tiêu thực tập và kết quả mong đợi.", "インターンシップの目的と期待される効果を簡潔にご記入ください。", "Jelaskan secara singkat tujuan magang dan hasil yang diharapkan.")}
                       value={additionalNotes}
                       onChange={(e) => setAdditionalNotes(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{t("주요 업무", "Main responsibilities", "主要工作", "Công việc chính")}<RequiredMark /></label>
+                    <label className="text-sm font-medium">{t("주요 업무", "Main responsibilities", "主要工作", "Công việc chính", "主な業務", "Tugas utama")}<RequiredMark /></label>
                     <textarea
                       className="min-h-28 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
-                      placeholder={t("담당 업무를 항목별로 작성해주세요.", "List key responsibilities by bullet points.", "请按项目列出主要职责。", "Vui lòng liệt kê các trách nhiệm chính theo từng mục.")}
+                      placeholder={t("담당 업무를 항목별로 작성해주세요.", "List key responsibilities by bullet points.", "请按项目列出主要职责。", "Vui lòng liệt kê các trách nhiệm chính theo từng mục.", "担当業務を項目別にご記入ください。", "Tuliskan tanggung jawab utama dalam poin-poin.")}
                       value={mainResponsibilities}
                       onChange={(e) => setMainResponsibilities(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{t("채용/진행 프로세스", "Hiring process", "招聘流程", "Quy trình tuyển dụng")}</label>
+                    <label className="text-sm font-medium">{t("채용/진행 프로세스", "Hiring process", "招聘流程", "Quy trình tuyển dụng", "採用・進行プロセス", "Proses perekrutan")}</label>
                     <textarea
                       className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
-                      placeholder={t("예) 서류 검토 → 1차 인터뷰 → 최종 합격", "e.g. Resume review -> Interview -> Final decision", "例）简历审核 → 一面 → 最终录用", "Ví dụ) Xét duyệt hồ sơ → Phỏng vấn → Quyết định cuối cùng")}
+                      placeholder={t("예) 서류 검토 → 1차 인터뷰 → 최종 합격", "e.g. Resume review -> Interview -> Final decision", "例）简历审核 → 一面 → 最终录用", "Ví dụ) Xét duyệt hồ sơ → Phỏng vấn → Quyết định cuối cùng", "例) 書類審査 → 一次面接 → 最終合格", "Contoh) Tinjauan resume → Wawancara → Keputusan akhir")}
                       value={hiringProcess}
                       onChange={(e) => setHiringProcess(e.target.value)}
                     />
@@ -696,7 +696,7 @@ export function PartnerPositionCreatePage({
 
               <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{t("지원 가능 비자", "Eligible visas", "可申请签证", "Visa đủ điều kiện")}</label>
+                    <label className="text-sm font-medium">{t("지원 가능 비자", "Eligible visas", "可申请签证", "Visa đủ điều kiện", "応募可能なビザ", "Visa yang memenuhi syarat")}</label>
                     <div className="grid grid-cols-3 gap-2 text-sm">
                       {[NO_VISA_OPTION, ...VISA_OPTIONS].map((visa) => {
                         const checked = eligibleVisas.includes(visa);
@@ -725,38 +725,38 @@ export function PartnerPositionCreatePage({
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("소통 언어(줄바꿈)", "Languages (one per line)", "沟通语言（每行一种）", "Ngôn ngữ giao tiếp (mỗi dòng một ngôn ngữ)")}</label>
+                      <label className="text-sm font-medium">{t("소통 언어(줄바꿈)", "Languages (one per line)", "沟通语言（每行一种）", "Ngôn ngữ giao tiếp (mỗi dòng một ngôn ngữ)", "コミュニケーション言語(改行で区切る)", "Bahasa komunikasi (satu per baris)")}</label>
                       <textarea
                         className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
-                        placeholder={t("예) 한국어\n영어", "e.g. Korean\nEnglish", "例）韩语\n英语", "Ví dụ) Tiếng Hàn\nTiếng Anh")}
+                        placeholder={t("예) 한국어\n영어", "e.g. Korean\nEnglish", "例）韩语\n英语", "Ví dụ) Tiếng Hàn\nTiếng Anh", "例) 韓国語\n英語", "Contoh) Bahasa Korea\nBahasa Inggris")}
                         value={communicationLanguages}
                         onChange={(e) => setCommunicationLanguages(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">{t("선호 국적(줄바꿈)", "Preferred nationalities (one per line)", "偏好国籍（每行一种）", "Quốc tịch ưu tiên (mỗi dòng một quốc tịch)")}</label>
+                      <label className="text-sm font-medium">{t("선호 국적(줄바꿈)", "Preferred nationalities (one per line)", "偏好国籍（每行一种）", "Quốc tịch ưu tiên (mỗi dòng một quốc tịch)", "希望する国籍(改行で区切る)", "Kewarganegaraan yang disukai (satu per baris)")}</label>
                       <textarea
                         className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
-                        placeholder={t("예) 무관 또는 선호 국적 기재", "e.g. Any nationality or list preferred ones", "例）不限或填写偏好国籍", "Ví dụ) Không giới hạn hoặc liệt kê quốc tịch ưu tiên")}
+                        placeholder={t("예) 무관 또는 선호 국적 기재", "e.g. Any nationality or list preferred ones", "例）不限或填写偏好国籍", "Ví dụ) Không giới hạn hoặc liệt kê quốc tịch ưu tiên", "例) 不問または希望国籍を記載", "Contoh) Tidak dibatasi atau cantumkan kewarganegaraan yang disukai")}
                         value={preferredNationalities}
                         onChange={(e) => setPreferredNationalities(e.target.value)}
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{t("필수 역량/조건", "Required qualifications", "必备能力/条件", "Năng lực/Điều kiện bắt buộc")}</label>
+                    <label className="text-sm font-medium">{t("필수 역량/조건", "Required qualifications", "必备能力/条件", "Năng lực/Điều kiện bắt buộc", "必須スキル・条件", "Kualifikasi yang diperlukan")}</label>
                     <textarea
                       className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
-                      placeholder={t("필수 기술/경험/자격 요건을 작성해주세요.", "Describe required skills, experience, and qualifications.", "请描述必备的技能、经验和资格要求。", "Vui lòng mô tả các kỹ năng, kinh nghiệm và yêu cầu bắt buộc.")}
+                      placeholder={t("필수 기술/경험/자격 요건을 작성해주세요.", "Describe required skills, experience, and qualifications.", "请描述必备的技能、经验和资格要求。", "Vui lòng mô tả các kỹ năng, kinh nghiệm và yêu cầu bắt buộc.", "必須のスキル・経験・資格要件をご記入ください。", "Jelaskan keterampilan, pengalaman, dan kualifikasi yang diperlukan.")}
                       value={requiredQualifications}
                       onChange={(e) => setRequiredQualifications(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{t("우대 사항", "Preferred qualifications", "优先条件", "Ưu tiên")}</label>
+                    <label className="text-sm font-medium">{t("우대 사항", "Preferred qualifications", "优先条件", "Ưu tiên", "優遇条件", "Kualifikasi yang disukai")}</label>
                     <textarea
                       className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm"
-                      placeholder={t("우대 기술/경험/포트폴리오 조건을 작성해주세요.", "Describe preferred skills, experiences, or portfolio criteria.", "请描述优先的技能、经验或作品集要求。", "Vui lòng mô tả các kỹ năng, kinh nghiệm hoặc tiêu chí portfolio được ưu tiên.")}
+                      placeholder={t("우대 기술/경험/포트폴리오 조건을 작성해주세요.", "Describe preferred skills, experiences, or portfolio criteria.", "请描述优先的技能、经验或作品集要求。", "Vui lòng mô tả các kỹ năng, kinh nghiệm hoặc tiêu chí portfolio được ưu tiên.", "優遇されるスキル・経験・ポートフォリオ条件をご記入ください。", "Jelaskan keterampilan, pengalaman, atau kriteria portofolio yang disukai.")}
                       value={preferredQualifications}
                       onChange={(e) => setPreferredQualifications(e.target.value)}
                     />
@@ -766,7 +766,7 @@ export function PartnerPositionCreatePage({
               <div className="space-y-4">
                   {isUnpaidInternClassification(employmentClassification) ? (
                     <>
-                      <p className="text-sm text-muted-foreground">{t("무급 인턴 운영 체크리스트를 모두 확인해야 제출할 수 있습니다.", "Please complete all compliance checks before submission.", "提交前请完成所有无薪实习运营合规检查项。", "Vui lòng hoàn thành tất cả các mục kiểm tra tuân thủ trước khi gửi.")}</p>
+                      <p className="text-sm text-muted-foreground">{t("무급 인턴 운영 체크리스트를 모두 확인해야 제출할 수 있습니다.", "Please complete all compliance checks before submission.", "提交前请完成所有无薪实习运营合规检查项。", "Vui lòng hoàn thành tất cả các mục kiểm tra tuân thủ trước khi gửi.", "無給インターン運営チェックリストをすべて確認しないと提出できません。", "Harap selesaikan semua pemeriksaan kepatuhan sebelum pengiriman.")}</p>
                       <label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium">
                         <input
                           type="checkbox"
@@ -779,13 +779,13 @@ export function PartnerPositionCreatePage({
                             setVisaNoticeConfirmed(checked);
                           }}
                         />
-                        {t("전체 선택", "Select all", "全选", "Chọn tất cả")}
+                        {t("전체 선택", "Select all", "全选", "Chọn tất cả", "すべて選択", "Pilih semua")}
                       </label>
                       {[
-                        [isEducationalPurpose, setIsEducationalPurpose, t("교육/경험 제공 목적입니다.", "This is for educational/experience purpose.", "此为提供教育/经验的目的。", "Đây là mục đích cung cấp giáo dục/kinh nghiệm.")],
-                        [notReplacingWorker, setNotReplacingWorker, t("정규 인력을 대체하지 않습니다.", "It does not replace regular workforce.", "不替代正式员工。", "Không thay thế nhân lực chính thức.")],
-                        [hasMentorAndPlan, setHasMentorAndPlan, t("담당 멘토와 학습/온보딩 계획이 있습니다.", "A mentor and onboarding plan are prepared.", "已配备导师并制定学习/入职计划。", "Đã chuẩn bị người hướng dẫn và kế hoạch đào tạo/onboarding.")],
-                        [visaNoticeConfirmed, setVisaNoticeConfirmed, t("비자/체류자격 안내를 확인했습니다.", "Visa/residency notice is acknowledged.", "已确认签证/居留资格说明。", "Đã xác nhận thông báo về visa/tư cách lưu trú.")]
+                        [isEducationalPurpose, setIsEducationalPurpose, t("교육/경험 제공 목적입니다.", "This is for educational/experience purpose.", "此为提供教育/经验的目的。", "Đây là mục đích cung cấp giáo dục/kinh nghiệm.", "教育・経験提供の目的です。", "Untuk tujuan edukasi/pengalaman.")],
+                        [notReplacingWorker, setNotReplacingWorker, t("정규 인력을 대체하지 않습니다.", "It does not replace regular workforce.", "不替代正式员工。", "Không thay thế nhân lực chính thức.", "正規人員を代替しません。", "Tidak menggantikan tenaga kerja reguler.")],
+                        [hasMentorAndPlan, setHasMentorAndPlan, t("담당 멘토와 학습/온보딩 계획이 있습니다.", "A mentor and onboarding plan are prepared.", "已配备导师并制定学习/入职计划。", "Đã chuẩn bị người hướng dẫn và kế hoạch đào tạo/onboarding.", "担当メンターと学習・オンボーディング計画があります。", "Mentor dan rencana onboarding telah disiapkan.")],
+                        [visaNoticeConfirmed, setVisaNoticeConfirmed, t("비자/체류자격 안내를 확인했습니다.", "Visa/residency notice is acknowledged.", "已确认签证/居留资格说明。", "Đã xác nhận thông báo về visa/tư cách lưu trú.", "ビザ・在留資格の案内を確認しました。", "Pemberitahuan visa/izin tinggal telah dikonfirmasi.")]
                       ].map(([checked, setter, label]) => (
                         <label key={String(label)} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
                           <input type="checkbox" checked={Boolean(checked)} onChange={(e) => (setter as (v: boolean) => void)(e.target.checked)} />
@@ -794,7 +794,7 @@ export function PartnerPositionCreatePage({
                       ))}
                     </>
                   ) : (
-                    <p className="text-sm text-muted-foreground">{t("유급/정직원/알바 포지션은 체크리스트 없이 다음 단계로 진행됩니다.", "For paid/full-time/part-time positions, you can proceed without this checklist.", "有薪/正式员工/兼职职位无需检查清单即可进入下一步。", "Đối với các vị trí có lương/chính thức/bán thời gian, bạn có thể tiếp tục mà không cần danh sách kiểm tra này.")}</p>
+                    <p className="text-sm text-muted-foreground">{t("유급/정직원/알바 포지션은 체크리스트 없이 다음 단계로 진행됩니다.", "For paid/full-time/part-time positions, you can proceed without this checklist.", "有薪/正式员工/兼职职位无需检查清单即可进入下一步。", "Đối với các vị trí có lương/chính thức/bán thời gian, bạn có thể tiếp tục mà không cần danh sách kiểm tra này.", "有給・正社員・アルバイトのポジションはチェックリストなしで次のステップに進めます。", "Untuk posisi berbayar/karyawan tetap/paruh waktu, Anda dapat melanjutkan tanpa daftar pemeriksaan ini.")}</p>
                   )}
                 </div>
               </div>
@@ -808,18 +808,18 @@ export function PartnerPositionCreatePage({
                   onClick={() => (embedded ? (onEmbeddedClose ? onEmbeddedClose() : router.back()) : router.push("/profile"))}
                   disabled={isSubmitting}
                 >
-                  {t("취소", "Cancel", "取消", "Hủy")}
+                  {t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
                 </Button>
 
                 <div className="flex items-center gap-2">
                   <Button variant="dark" onClick={() => void handleSubmit()} disabled={isSubmitting}>
                     {isSubmitting
                       ? isEditMode
-                        ? t("저장 중...", "Saving...", "保存中...", "Đang lưu...")
-                        : t("생성 중...", "Creating...", "创建中...", "Đang tạo...")
+                        ? t("저장 중...", "Saving...", "保存中...", "Đang lưu...", "保存中...", "Sedang menyimpan...")
+                        : t("생성 중...", "Creating...", "创建中...", "Đang tạo...", "作成中...", "Membuat...")
                       : isEditMode
-                        ? t("수정사항 저장", "Save changes", "保存修改", "Lưu thay đổi")
-                        : t("승인 요청 제출", "Submit for review", "提交审核请求", "Gửi yêu cầu phê duyệt")}
+                        ? t("수정사항 저장", "Save changes", "保存修改", "Lưu thay đổi", "変更を保存", "Simpan perubahan")
+                        : t("승인 요청 제출", "Submit for review", "提交审核请求", "Gửi yêu cầu phê duyệt", "承認依頼を提出", "Kirim untuk tinjauan")}
                   </Button>
                 </div>
               </div>

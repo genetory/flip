@@ -44,9 +44,25 @@ export function SignupCompletedPage() {
       start: "Bắt đầu",
       goLogin: "Đi tới đăng nhập",
       goHome: "Về trang chủ"
+    },
+    ja: {
+      title: "会員登録が完了しました",
+      description: "ようこそ。準備が整いました。さっそく始めましょう。",
+      checkingSession: "セッションを確認しています...",
+      start: "はじめる",
+      goLogin: "ログインへ移動",
+      goHome: "ホームへ"
+    },
+    id: {
+      title: "Pendaftaran selesai",
+      description: "Selamat datang. Semua sudah siap, mari mulai.",
+      checkingSession: "Memeriksa sesi Anda...",
+      start: "Mulai",
+      goLogin: "Ke halaman masuk",
+      goHome: "Ke beranda"
     }
   } as const;
-  const copy = copyByLocale[locale] ?? copyByLocale.en;
+  const copy = locale === "ja" ? copyByLocale.ja : locale === "id" ? copyByLocale.id : copyByLocale[locale] ?? copyByLocale.en;
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">

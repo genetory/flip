@@ -15,7 +15,9 @@ export const metadata: Metadata = {
       ko: "/",
       en: "/",
       "zh-CN": "/",
-      vi: "/"
+      vi: "/",
+      ja: "/",
+      id: "/"
     }
   },
   icons: {

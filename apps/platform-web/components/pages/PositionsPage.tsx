@@ -60,23 +60,23 @@ type PositionSourceProvider = PublicPositionListItem["sourceProvider"];
 type PositionSourceFilter = "INTERNAL" | "KOWORK" | "BUDDIES";
 
 function visaTypeLabel(code: string, locale: PlatformLocale) {
-  const pick = (ko: string, en: string, zh: string, vi: string) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : en;
-  if (code === "D-2") return pick("유학", "Student", "留学", "Du học");
-  if (code === "D-4") return pick("일반연수", "General training", "一般研修", "Đào tạo chung");
-  if (code === "D-10") return pick("구직", "Job seeking", "求职", "Tìm việc");
-  if (code === "E-7") return pick("특정활동", "Specific activity", "特定活动", "Hoạt động cụ thể");
-  if (code === "F-2") return pick("거주", "Residence", "居住", "Cư trú");
-  if (code === "F-4") return pick("재외동포", "Overseas Korean", "在外同胞", "Người Hàn ở nước ngoài");
-  if (code === "F-5") return pick("영주", "Permanent resident", "永住", "Thường trú");
-  if (code === "F-6") return pick("결혼이민", "Marriage migration", "结婚移民", "Kết hôn nhập cư");
-  if (code === "H-1") return pick("워킹홀리데이", "Working holiday", "打工度假", "Working Holiday");
-  return pick("기타", "Other", "其他", "Khác");
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  if (code === "D-2") return pick("유학", "Student", "留学", "Du học", "留学", "Pelajar");
+  if (code === "D-4") return pick("일반연수", "General training", "一般研修", "Đào tạo chung", "一般研修", "Pelatihan umum");
+  if (code === "D-10") return pick("구직", "Job seeking", "求职", "Tìm việc", "求職", "Mencari kerja");
+  if (code === "E-7") return pick("특정활동", "Specific activity", "特定活动", "Hoạt động cụ thể", "特定活動", "Aktivitas khusus");
+  if (code === "F-2") return pick("거주", "Residence", "居住", "Cư trú", "居住", "Tempat tinggal");
+  if (code === "F-4") return pick("재외동포", "Overseas Korean", "在外同胞", "Người Hàn ở nước ngoài", "在外同胞", "Diaspora Korea");
+  if (code === "F-5") return pick("영주", "Permanent resident", "永住", "Thường trú", "永住", "Penduduk tetap");
+  if (code === "F-6") return pick("결혼이민", "Marriage migration", "结婚移民", "Kết hôn nhập cư", "結婚移民", "Migrasi pernikahan");
+  if (code === "H-1") return pick("워킹홀리데이", "Working holiday", "打工度假", "Working Holiday", "ワーキングホリデー", "Working Holiday");
+  return pick("기타", "Other", "其他", "Khác", "その他", "Lainnya");
 }
 
 function formatEligibleVisasForList(codes: string[], locale: PlatformLocale) {
   const noRestriction =
-    locale === "ko" ? "무관" : locale === "zh-CN" ? "不限" : locale === "vi" ? "Không giới hạn" : "No restriction";
+    locale === "ko" ? "무관" : locale === "zh-CN" ? "不限" : locale === "vi" ? "Không giới hạn" : locale === "ja" ? "制限なし" : locale === "id" ? "Tidak ada batasan" : "No restriction";
   if (codes.length === 0) return noRestriction;
   const set = new Set(codes);
   const isAllSelected = ALL_VISA_CODES.every((code) => set.has(code));
@@ -100,22 +100,22 @@ function mapVisaTypeToCode(visaType: string | null | undefined) {
 }
 
 function companySizeLabel(value: string, locale: PlatformLocale) {
-  const pick = (ko: string, en: string, zh: string, vi: string) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : en;
-  if (value === "SIZE_1_10") return pick("10인 이하", "Up to 10", "10人以下", "Tối đa 10");
-  if (value === "SIZE_UNDER_30") return pick("30인 이하", "Up to 30", "30人以下", "Tối đa 30");
-  if (value === "SIZE_UNDER_50") return pick("50인 이하", "Up to 50", "50人以下", "Tối đa 50");
-  if (value === "SIZE_OVER_100") return pick("100인 이상", "100+", "100人以上", "Trên 100");
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  if (value === "SIZE_1_10") return pick("10인 이하", "Up to 10", "10人以下", "Tối đa 10", "10名以下", "Maksimal 10");
+  if (value === "SIZE_UNDER_30") return pick("30인 이하", "Up to 30", "30人以下", "Tối đa 30", "30名以下", "Maksimal 30");
+  if (value === "SIZE_UNDER_50") return pick("50인 이하", "Up to 50", "50人以下", "Tối đa 50", "50名以下", "Maksimal 50");
+  if (value === "SIZE_OVER_100") return pick("100인 이상", "100+", "100人以上", "Trên 100", "100名以上", "100+");
   return value;
 }
 
 function workTypeLabel(value: string, locale: PlatformLocale) {
   const normalized = value.toLowerCase().replace(/[\s_-]/g, "");
-  const pick = (ko: string, en: string, zh: string, vi: string) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : en;
-  if (normalized === "remote") return pick("원격근무", "Remote", "远程办公", "Làm việc từ xa");
-  if (normalized === "hybrid") return pick("혼합근무", "Hybrid", "混合办公", "Làm việc kết hợp");
-  if (normalized === "onsite") return pick("대면근무", "On-site", "现场办公", "Làm việc tại văn phòng");
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  if (normalized === "remote") return pick("원격근무", "Remote", "远程办公", "Làm việc từ xa", "在宅勤務", "Kerja jarak jauh");
+  if (normalized === "hybrid") return pick("혼합근무", "Hybrid", "混合办公", "Làm việc kết hợp", "ハイブリッド勤務", "Kerja hibrida");
+  if (normalized === "onsite") return pick("대면근무", "On-site", "现场办公", "Làm việc tại văn phòng", "出社勤務", "Kerja di kantor");
   return value;
 }
 
@@ -140,7 +140,7 @@ function mapPublicPositionToCard(item: PublicPositionListItem, locale: PlatformL
   const company =
     item.partnerOrganization?.name?.trim() ||
     item.sourceCompanyName?.trim() ||
-    (locale === "ko" ? "파트너 기업" : locale === "zh-CN" ? "合作企业" : locale === "vi" ? "Doanh nghiệp đối tác" : "Partner company");
+    (locale === "ko" ? "파트너 기업" : locale === "zh-CN" ? "合作企业" : locale === "vi" ? "Doanh nghiệp đối tác" : locale === "ja" ? "パートナー企業" : locale === "id" ? "Perusahaan mitra" : "Partner company");
   const role = item.title;
   const category = item.preferredJobRole?.trim() || "";
   const workType = item.workType ?? inferWorkType(item.workingHours);
@@ -148,7 +148,7 @@ function mapPublicPositionToCard(item: PublicPositionListItem, locale: PlatformL
   const startLabel =
     startDate && !Number.isNaN(startDate.getTime())
       ? `${startDate.getFullYear()}.${String(startDate.getMonth() + 1).padStart(2, "0")}.${String(startDate.getDate()).padStart(2, "0")}`
-      : locale === "ko" ? "즉시" : locale === "zh-CN" ? "立即" : locale === "vi" ? "Ngay" : "Immediate";
+      : locale === "ko" ? "즉시" : locale === "zh-CN" ? "立即" : locale === "vi" ? "Ngay" : locale === "ja" ? "即時" : locale === "id" ? "Segera" : "Immediate";
   const statusMatchBase = item.status === "OPEN" ? 86 : 78;
   const match = Math.min(99, Math.max(60, statusMatchBase + Math.min(8, item.matchingParticipantsCount)));
   const tags = [
@@ -167,9 +167,9 @@ function mapPublicPositionToCard(item: PublicPositionListItem, locale: PlatformL
     role,
     category,
     industry: item.partnerOrganization?.industry ?? "OTHER",
-    companySize: companySizeLabel(item.partnerOrganization?.companySize ?? (locale === "ko" ? "미정" : locale === "zh-CN" ? "未定" : locale === "vi" ? "Chưa xác định" : "TBD"), locale),
+    companySize: companySizeLabel(item.partnerOrganization?.companySize ?? (locale === "ko" ? "미정" : locale === "zh-CN" ? "未定" : locale === "vi" ? "Chưa xác định" : locale === "ja" ? "未定" : locale === "id" ? "Belum ditentukan" : "TBD"), locale),
     eligibleVisas: item.eligibleVisas,
-    location: item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || (locale === "ko" ? "협의" : locale === "zh-CN" ? "可协商" : locale === "vi" ? "Thỏa thuận" : "To be discussed"),
+    location: item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || (locale === "ko" ? "협의" : locale === "zh-CN" ? "可协商" : locale === "vi" ? "Thỏa thuận" : locale === "ja" ? "応相談" : locale === "id" ? "Dapat dirundingkan" : "To be discussed"),
     type: workType,
     start: startLabel,
     postedDays,
@@ -201,15 +201,15 @@ function formatPostedDate(position: Position, locale: PlatformLocale) {
       const minutes = Math.floor(diffMs / (60 * 1000));
       if (minutes < 60) {
         const n = Math.max(1, minutes);
-        return locale === "ko" ? `${n}분 전` : locale === "zh-CN" ? `${n} 分钟前` : locale === "vi" ? `${n} phút trước` : `${n}m ago`;
+        return locale === "ko" ? `${n}분 전` : locale === "zh-CN" ? `${n} 分钟前` : locale === "vi" ? `${n} phút trước` : locale === "ja" ? `${n}分前` : locale === "id" ? `${n} menit lalu` : `${n}m ago`;
       }
       const hours = Math.floor(minutes / 60);
       if (hours < 24) {
-        return locale === "ko" ? `${hours}시간 전` : locale === "zh-CN" ? `${hours} 小时前` : locale === "vi" ? `${hours} giờ trước` : `${hours}h ago`;
+        return locale === "ko" ? `${hours}시간 전` : locale === "zh-CN" ? `${hours} 小时前` : locale === "vi" ? `${hours} giờ trước` : locale === "ja" ? `${hours}時間前` : locale === "id" ? `${hours} jam lalu` : `${hours}h ago`;
       }
       const days = Math.floor(hours / 24);
       if (days < 7) {
-        return locale === "ko" ? `${days}일 전` : locale === "zh-CN" ? `${days} 天前` : locale === "vi" ? `${days} ngày trước` : `${days}d ago`;
+        return locale === "ko" ? `${days}일 전` : locale === "zh-CN" ? `${days} 天前` : locale === "vi" ? `${days} ngày trước` : locale === "ja" ? `${days}日前` : locale === "id" ? `${days} hari lalu` : `${days}d ago`;
       }
       const y = created.getFullYear();
       const m = String(created.getMonth() + 1).padStart(2, "0");
@@ -217,8 +217,8 @@ function formatPostedDate(position: Position, locale: PlatformLocale) {
       return `${y}. ${m}. ${d}`;
     }
   }
-  if (position.postedDays <= 0) return locale === "ko" ? "오늘" : locale === "zh-CN" ? "今天" : locale === "vi" ? "Hôm nay" : "Today";
-  return locale === "ko" ? `${position.postedDays}일 전` : locale === "zh-CN" ? `${position.postedDays} 天前` : locale === "vi" ? `${position.postedDays} ngày trước` : `${position.postedDays}d ago`;
+  if (position.postedDays <= 0) return locale === "ko" ? "오늘" : locale === "zh-CN" ? "今天" : locale === "vi" ? "Hôm nay" : locale === "ja" ? "今日" : locale === "id" ? "Hari ini" : "Today";
+  return locale === "ko" ? `${position.postedDays}일 전` : locale === "zh-CN" ? `${position.postedDays} 天前` : locale === "vi" ? `${position.postedDays} ngày trước` : locale === "ja" ? `${position.postedDays}日前` : locale === "id" ? `${position.postedDays} hari lalu` : `${position.postedDays}d ago`;
 }
 
 function formatDeadlineDday(ymd: string, locale: PlatformLocale) {
@@ -274,63 +274,66 @@ export function PositionsPage() {
   const isKo = locale === "ko";
   const isZh = locale === "zh-CN";
   const isVi = locale === "vi";
-  const t = (ko: string, en: string, zh: string, vi: string) => (isKo ? ko : isZh ? zh : isVi ? vi : en);
+  const isJa = locale === "ja";
+  const isId = locale === "id";
+  const t = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    isKo ? ko : isZh ? zh : isVi ? vi : isJa ? ja : isId ? id : en;
 
   const copy = {
-    filter: t("필터", "Filters", "筛选", "Bộ lọc"),
-    allFilters: t("전체 필터", "All filters", "全部筛选", "Tất cả bộ lọc"),
-    sectionFilter: t("선택 섹션 필터", "Section filters", "分区筛选", "Bộ lọc theo mục"),
-    applyHint: t("선택 즉시 전체 목록에 적용", "Selections are applied immediately", "选择后立即应用到列表", "Áp dụng ngay sau khi chọn"),
-    reset: t("초기화", "Reset", "重置", "Đặt lại"),
-    closeFilter: t("필터 닫기", "Close filters", "关闭筛选", "Đóng bộ lọc"),
-    removeFilterSuffix: t("필터 제거", "Remove filter", "移除筛选", "Xóa bộ lọc"),
-    industry: t("산업군", "Industry", "行业", "Ngành"),
-    jobRole: t("직무", "Role", "岗位", "Vị trí"),
-    companySize: t("규모", "Size", "规模", "Quy mô"),
-    visa: t("비자", "Visa", "签证", "Visa"),
-    workType: t("근무 형태", "Work type", "工作方式", "Hình thức làm việc"),
-    source: t("소스", "Source", "来源", "Nguồn"),
-    listView: t("리스트 보기", "List view", "列表视图", "Dạng danh sách"),
-    gridView: t("그리드 보기", "Grid view", "网格视图", "Dạng lưới"),
-    title: t("글로벌 인재를 위한 오픈 포지션", "Global Open Positions", "面向全球人才的开放职位", "Vị trí mở cho nhân tài toàn cầu"),
-    subtitle: t("지금 열려 있는 포지션을 빠르게 둘러보고, 내 조건에 맞는 공고를 찾아보세요.", "Find roles that fit you.", "快速浏览正在招聘的职位，找到适合你的机会。", "Khám phá nhanh các vị trí đang mở và tìm cơ hội phù hợp với bạn."),
-    createPosition: t("포지션 생성하기", "Create position", "创建职位", "Tạo vị trí"),
-    bannerAlt: t("글로벌 인재 포지션 탐색 배너", "Global talent position banner", "全球人才职位探索横幅", "Banner khám phá vị trí cho nhân tài toàn cầu"),
-    searchPlaceholder: t("직무, 기업, 스킬로 검색 (예: Designer, AI, Seoul)", "Search by role, company, or skill (e.g., Designer, AI, Seoul)", "按岗位、公司或技能搜索（例：Designer, AI, Seoul）", "Tìm theo vị trí, công ty hoặc kỹ năng (vd: Designer, AI, Seoul)"),
-    search: t("검색", "Search", "搜索", "Tìm kiếm"),
-    popularSearch: t("인기 검색", "Popular searches", "热门搜索", "Tìm kiếm phổ biến"),
-    premiumTitle: t("이런 포지션은 어떠세요?", "Featured Positions", "你可能感兴趣的职位", "Bạn có thể quan tâm"),
-    premiumSubtitle: t("지금 주목받는 포지션을 먼저 확인해보세요.", "See highlighted positions first.", "先看看当前热门职位。", "Xem trước các vị trí nổi bật."),
-    noPremium: t("현재 노출 가능한 프리미엄 배너가 없습니다.", "No premium banners are available right now.", "当前没有可展示的精选横幅。", "Hiện chưa có banner nổi bật."),
-    premiumError: t("프리미엄 배너를 불러오지 못했습니다. API 연결 상태와 배너 조건을 확인해주세요.", "Failed to load premium banners. Check API connectivity and banner conditions.", "无法加载精选横幅，请检查 API 连接与配置。", "Không tải được banner nổi bật. Vui lòng kiểm tra kết nối API và cấu hình."),
-    myVisaOnly: t("내 비자로 지원 가능만", "Only eligible for my visa", "仅显示可用我签证申请", "Chỉ hiển thị vị trí phù hợp visa của tôi"),
-    myVisaMissing: t("비자정보 필요", "Visa info required", "需要签证信息", "Cần thông tin visa"),
-    noResultTitle: t("조건에 맞는 포지션이 없습니다", "No positions match your filters", "没有符合条件的职位", "Không có vị trí phù hợp bộ lọc"),
-    noResultDesc: t("필터를 조정하거나 다른 키워드로 검색해보세요.", "Adjust filters or try different keywords.", "请调整筛选或尝试其他关键词。", "Hãy điều chỉnh bộ lọc hoặc thử từ khóa khác."),
-    resetFilters: t("필터 초기화", "Reset filters", "重置筛选", "Đặt lại bộ lọc"),
-    loadingMore: t("불러오는 중...", "Loading...", "加载中...", "Đang tải..."),
-    loadMore: t("더 많은 포지션 보기", "Load more positions", "查看更多职位", "Xem thêm vị trí"),
-    loginRequiredFavorite: t("로그인한 회원만 즐겨찾기를 사용할 수 있습니다.", "Only signed-in users can use favorites.", "仅登录用户可使用收藏。", "Chỉ người dùng đã đăng nhập mới dùng được yêu thích."),
-    studentRequiredFavorite: t("학생 계정만 즐겨찾기를 사용할 수 있습니다.", "Only student accounts can use favorites.", "仅学生账号可使用收藏。", "Chỉ tài khoản sinh viên mới dùng được yêu thích."),
-    favoriteFailed: t("즐겨찾기 처리에 실패했습니다.", "Failed to update favorite.", "收藏操作失败。", "Cập nhật yêu thích thất bại."),
-    loginRequiredApply: t("로그인한 회원만 지원할 수 있습니다.", "Only signed-in users can apply.", "仅登录用户可申请。", "Chỉ người dùng đã đăng nhập mới có thể ứng tuyển."),
-    studentRequiredApply: t("파트너 회원, 어드민은 지원하기에 지원할 수 없습니다.", "Partner and admin accounts cannot apply.", "合作伙伴和管理员账号不可申请。", "Tài khoản đối tác và quản trị không thể ứng tuyển."),
-    applyFailed: t("지원 처리에 실패했습니다.", "Failed to apply.", "申请失败。", "Ứng tuyển thất bại."),
-    detailSuffix: t("상세보기", "View details", "查看详情", "Xem chi tiết"),
-    thumbnailSuffix: t("썸네일", "thumbnail", "缩略图", "ảnh thu nhỏ"),
-    save: t("저장", "Save", "收藏", "Lưu"),
-    edit: t("수정하기", "Edit", "编辑", "Chỉnh sửa"),
-    applyDone: t("지원완료", "Applied", "已申请", "Đã ứng tuyển"),
-    apply: t("지원하기", "Apply", "申请", "Ứng tuyển"),
-    viewDetails: t("상세보기", "View details", "查看详情", "Xem chi tiết"),
-    loginPromptTitle: t("로그인이 필요한 기능입니다.", "Sign in is required for this action.", "此操作需要登录。", "Bạn cần đăng nhập để dùng tính năng này."),
-    loginPromptLogin: t("로그인하기", "Go to login", "去登录", "Đi tới đăng nhập"),
-    cancel: t("취소", "Cancel", "取消", "Hủy"),
-    countSuffix: isKo ? "개" : isZh ? "" : isVi ? "" : "",
-    loginToSeeMore: t("로그인해야 더 많은 포지션을 볼 수 있어요.", "Sign in to see more positions.", "登录后可查看更多职位。", "Đăng nhập để xem thêm vị trí."),
-    loginNow: t("로그인하기", "Log in", "登录", "Đăng nhập"),
+    filter: t("필터", "Filters", "筛选", "Bộ lọc", "フィルター", "Filter"),
+    allFilters: t("전체 필터", "All filters", "全部筛选", "Tất cả bộ lọc", "全てのフィルター", "Semua filter"),
+    sectionFilter: t("선택 섹션 필터", "Section filters", "分区筛选", "Bộ lọc theo mục", "セクション別フィルター", "Filter per bagian"),
+    applyHint: t("선택 즉시 전체 목록에 적용", "Selections are applied immediately", "选择后立即应用到列表", "Áp dụng ngay sau khi chọn", "選択すると即時に反映されます", "Pilihan langsung diterapkan"),
+    reset: t("초기화", "Reset", "重置", "Đặt lại", "リセット", "Atur ulang"),
+    closeFilter: t("필터 닫기", "Close filters", "关闭筛选", "Đóng bộ lọc", "フィルターを閉じる", "Tutup filter"),
+    removeFilterSuffix: t("필터 제거", "Remove filter", "移除筛选", "Xóa bộ lọc", "フィルターを削除", "Hapus filter"),
+    industry: t("산업군", "Industry", "行业", "Ngành", "業種", "Industri"),
+    jobRole: t("직무", "Role", "岗位", "Vị trí", "職務", "Posisi"),
+    companySize: t("규모", "Size", "规模", "Quy mô", "規模", "Ukuran"),
+    visa: t("비자", "Visa", "签证", "Visa", "ビザ", "Visa"),
+    workType: t("근무 형태", "Work type", "工作方式", "Hình thức làm việc", "勤務形態", "Tipe pekerjaan"),
+    source: t("소스", "Source", "来源", "Nguồn", "ソース", "Sumber"),
+    listView: t("리스트 보기", "List view", "列表视图", "Dạng danh sách", "リスト表示", "Tampilan daftar"),
+    gridView: t("그리드 보기", "Grid view", "网格视图", "Dạng lưới", "グリッド表示", "Tampilan kisi"),
+    title: t("글로벌 인재를 위한 오픈 포지션", "Global Open Positions", "面向全球人才的开放职位", "Vị trí mở cho nhân tài toàn cầu", "グローバル人材のためのオープンポジション", "Posisi Terbuka untuk Talenta Global"),
+    subtitle: t("지금 열려 있는 포지션을 빠르게 둘러보고, 내 조건에 맞는 공고를 찾아보세요.", "Find roles that fit you.", "快速浏览正在招聘的职位，找到适合你的机会。", "Khám phá nhanh các vị trí đang mở và tìm cơ hội phù hợp với bạn.", "現在募集中のポジションをすばやく確認し、自分に合う求人を見つけましょう。", "Telusuri posisi yang sedang dibuka dan temukan lowongan yang sesuai dengan Anda."),
+    createPosition: t("포지션 생성하기", "Create position", "创建职位", "Tạo vị trí", "ポジションを作成", "Buat posisi"),
+    bannerAlt: t("글로벌 인재 포지션 탐색 배너", "Global talent position banner", "全球人才职位探索横幅", "Banner khám phá vị trí cho nhân tài toàn cầu", "グローバル人材向けポジション探索バナー", "Banner pencarian posisi untuk talenta global"),
+    searchPlaceholder: t("직무, 기업, 스킬로 검색 (예: Designer, AI, Seoul)", "Search by role, company, or skill (e.g., Designer, AI, Seoul)", "按岗位、公司或技能搜索（例：Designer, AI, Seoul）", "Tìm theo vị trí, công ty hoặc kỹ năng (vd: Designer, AI, Seoul)", "職務・企業・スキルで検索（例：Designer, AI, Seoul）", "Cari berdasarkan posisi, perusahaan, atau keterampilan (mis. Designer, AI, Seoul)"),
+    search: t("검색", "Search", "搜索", "Tìm kiếm", "検索", "Cari"),
+    popularSearch: t("인기 검색", "Popular searches", "热门搜索", "Tìm kiếm phổ biến", "人気の検索", "Pencarian populer"),
+    premiumTitle: t("이런 포지션은 어떠세요?", "Featured Positions", "你可能感兴趣的职位", "Bạn có thể quan tâm", "こんなポジションはいかがですか？", "Posisi Pilihan"),
+    premiumSubtitle: t("지금 주목받는 포지션을 먼저 확인해보세요.", "See highlighted positions first.", "先看看当前热门职位。", "Xem trước các vị trí nổi bật.", "今注目のポジションをいち早くチェック。", "Lihat posisi unggulan terlebih dahulu."),
+    noPremium: t("현재 노출 가능한 프리미엄 배너가 없습니다.", "No premium banners are available right now.", "当前没有可展示的精选横幅。", "Hiện chưa có banner nổi bật.", "現在表示可能なプレミアムバナーはありません。", "Saat ini tidak ada banner premium yang tersedia."),
+    premiumError: t("프리미엄 배너를 불러오지 못했습니다. API 연결 상태와 배너 조건을 확인해주세요.", "Failed to load premium banners. Check API connectivity and banner conditions.", "无法加载精选横幅，请检查 API 连接与配置。", "Không tải được banner nổi bật. Vui lòng kiểm tra kết nối API và cấu hình.", "プレミアムバナーを読み込めませんでした。API接続状況とバナー条件をご確認ください。", "Gagal memuat banner premium. Periksa koneksi API dan kondisi banner."),
+    myVisaOnly: t("내 비자로 지원 가능만", "Only eligible for my visa", "仅显示可用我签证申请", "Chỉ hiển thị vị trí phù hợp visa của tôi", "自分のビザで応募可能なものだけ", "Hanya yang sesuai visa saya"),
+    myVisaMissing: t("비자정보 필요", "Visa info required", "需要签证信息", "Cần thông tin visa", "ビザ情報が必要です", "Informasi visa diperlukan"),
+    noResultTitle: t("조건에 맞는 포지션이 없습니다", "No positions match your filters", "没有符合条件的职位", "Không có vị trí phù hợp bộ lọc", "条件に合うポジションはありません", "Tidak ada posisi yang cocok dengan filter Anda"),
+    noResultDesc: t("필터를 조정하거나 다른 키워드로 검색해보세요.", "Adjust filters or try different keywords.", "请调整筛选或尝试其他关键词。", "Hãy điều chỉnh bộ lọc hoặc thử từ khóa khác.", "フィルターを調整するか、別のキーワードでお試しください。", "Sesuaikan filter atau coba kata kunci lain."),
+    resetFilters: t("필터 초기화", "Reset filters", "重置筛选", "Đặt lại bộ lọc", "フィルターをリセット", "Atur ulang filter"),
+    loadingMore: t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat..."),
+    loadMore: t("더 많은 포지션 보기", "Load more positions", "查看更多职位", "Xem thêm vị trí", "もっとポジションを見る", "Muat posisi lainnya"),
+    loginRequiredFavorite: t("로그인한 회원만 즐겨찾기를 사용할 수 있습니다.", "Only signed-in users can use favorites.", "仅登录用户可使用收藏。", "Chỉ người dùng đã đăng nhập mới dùng được yêu thích.", "ログインした会員のみお気に入りを利用できます。", "Hanya pengguna yang masuk yang dapat menggunakan favorit."),
+    studentRequiredFavorite: t("학생 계정만 즐겨찾기를 사용할 수 있습니다.", "Only student accounts can use favorites.", "仅学生账号可使用收藏。", "Chỉ tài khoản sinh viên mới dùng được yêu thích.", "学生アカウントのみお気に入りを利用できます。", "Hanya akun pelajar yang dapat menggunakan favorit."),
+    favoriteFailed: t("즐겨찾기 처리에 실패했습니다.", "Failed to update favorite.", "收藏操作失败。", "Cập nhật yêu thích thất bại.", "お気に入りの更新に失敗しました。", "Gagal memperbarui favorit."),
+    loginRequiredApply: t("로그인한 회원만 지원할 수 있습니다.", "Only signed-in users can apply.", "仅登录用户可申请。", "Chỉ người dùng đã đăng nhập mới có thể ứng tuyển.", "ログインした会員のみ応募できます。", "Hanya pengguna yang masuk yang dapat melamar."),
+    studentRequiredApply: t("파트너 회원, 어드민은 지원하기에 지원할 수 없습니다.", "Partner and admin accounts cannot apply.", "合作伙伴和管理员账号不可申请。", "Tài khoản đối tác và quản trị không thể ứng tuyển.", "パートナー会員および管理者アカウントは応募できません。", "Akun mitra dan admin tidak dapat melamar."),
+    applyFailed: t("지원 처리에 실패했습니다.", "Failed to apply.", "申请失败。", "Ứng tuyển thất bại.", "応募処理に失敗しました。", "Gagal melamar."),
+    detailSuffix: t("상세보기", "View details", "查看详情", "Xem chi tiết", "詳細を見る", "Lihat detail"),
+    thumbnailSuffix: t("썸네일", "thumbnail", "缩略图", "ảnh thu nhỏ", "サムネイル", "thumbnail"),
+    save: t("저장", "Save", "收藏", "Lưu", "保存", "Simpan"),
+    edit: t("수정하기", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit"),
+    applyDone: t("지원완료", "Applied", "已申请", "Đã ứng tuyển", "応募済み", "Sudah dilamar"),
+    apply: t("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar"),
+    viewDetails: t("상세보기", "View details", "查看详情", "Xem chi tiết", "詳細を見る", "Lihat detail"),
+    loginPromptTitle: t("로그인이 필요한 기능입니다.", "Sign in is required for this action.", "此操作需要登录。", "Bạn cần đăng nhập để dùng tính năng này.", "この操作にはログインが必要です。", "Tindakan ini memerlukan login."),
+    loginPromptLogin: t("로그인하기", "Go to login", "去登录", "Đi tới đăng nhập", "ログインへ", "Buka login"),
+    cancel: t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal"),
+    countSuffix: isKo ? "개" : isZh ? "" : isVi ? "" : isJa ? "件" : isId ? "" : "",
+    loginToSeeMore: t("로그인해야 더 많은 포지션을 볼 수 있어요.", "Sign in to see more positions.", "登录后可查看更多职位。", "Đăng nhập để xem thêm vị trí.", "ログインするとさらに多くのポジションを表示できます。", "Masuk untuk melihat lebih banyak posisi."),
+    loginNow: t("로그인하기", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk"),
     activeVisaLabel: (visa: string | null) =>
-      `${isKo ? "내 비자로 지원 가능만" : isZh ? "仅符合我签证条件" : isVi ? "Chỉ phù hợp với visa của tôi" : "Only eligible for my visa"} ${visa ? `(${visa})` : `(${isKo ? "비자정보 필요" : isZh ? "需要签证信息" : isVi ? "Cần thông tin visa" : "Visa info required"})`}`
+      `${isKo ? "내 비자로 지원 가능만" : isZh ? "仅符合我签证条件" : isVi ? "Chỉ phù hợp với visa của tôi" : isJa ? "自分のビザで応募可能なものだけ" : isId ? "Hanya yang sesuai visa saya" : "Only eligible for my visa"} ${visa ? `(${visa})` : `(${isKo ? "비자정보 필요" : isZh ? "需要签证信息" : isVi ? "Cần thông tin visa" : isJa ? "ビザ情報が必要です" : isId ? "Informasi visa diperlukan" : "Visa info required"})`}`
   } as const;
 
   const toggle = <T extends string>(list: T[], setList: (v: T[]) => void, value: T) => {
@@ -367,7 +370,7 @@ export function PositionsPage() {
     })),
     ...positionSources.map((value) => ({
       key: `source:${value}`,
-      label: value === "INTERNAL" ? (isKo ? "생성" : isZh ? "已生成" : isVi ? "Đã tạo" : "Created") : value === "KOWORK" ? "KOWORK" : "BUDDIES",
+      label: value === "INTERNAL" ? (isKo ? "생성" : isZh ? "已生成" : isVi ? "Đã tạo" : isJa ? "作成済み" : isId ? "Dibuat" : "Created") : value === "KOWORK" ? "KOWORK" : "BUDDIES",
       onRemove: () => toggle(positionSources, setPositionSources, value)
     }))
   ];
@@ -893,7 +896,7 @@ export function PositionsPage() {
                         <div className="mb-4 last:mb-0">
                           <div className="flex flex-wrap gap-2">
                             {([
-                              { key: "INTERNAL", label: isKo ? "생성" : isZh ? "已生成" : isVi ? "Đã tạo" : "Created" },
+                              { key: "INTERNAL", label: isKo ? "생성" : isZh ? "已生成" : isVi ? "Đã tạo" : isJa ? "作成済み" : isId ? "Dibuat" : "Created" },
                               { key: "KOWORK", label: "KOWORK" },
                               { key: "BUDDIES", label: "BUDDIES" }
                             ] as const).map((item) => (
@@ -1132,22 +1135,24 @@ const PositionRow = ({
   const isKo = locale === "ko";
   const isZh = locale === "zh-CN";
   const isVi = locale === "vi";
+  const isJa = locale === "ja";
+  const isId = locale === "id";
   const href = companyHref(p.partnerDomain);
   const copy = {
-    detailSuffix: isKo ? "상세보기" : isZh ? "查看详情" : isVi ? "Xem chi tiết" : "View details",
-    thumbnailSuffix: isKo ? "썸네일" : isZh ? "缩略图" : isVi ? "ảnh thu nhỏ" : "thumbnail",
-    save: isKo ? "저장" : isZh ? "收藏" : isVi ? "Lưu" : "Save",
-    edit: isKo ? "수정하기" : isZh ? "编辑" : isVi ? "Chỉnh sửa" : "Edit",
-    applyDone: isKo ? "지원완료" : isZh ? "已申请" : isVi ? "Đã ứng tuyển" : "Applied",
-    apply: isKo ? "지원하기" : isZh ? "申请" : isVi ? "Ứng tuyển" : "Apply",
-    viewDetails: isKo ? "상세보기" : isZh ? "查看详情" : isVi ? "Xem chi tiết" : "View details",
-    externalLink: isKo ? "보러가기" : isZh ? "查看" : isVi ? "Xem" : "View"
+    detailSuffix: isKo ? "상세보기" : isZh ? "查看详情" : isVi ? "Xem chi tiết" : isJa ? "詳細を見る" : isId ? "Lihat detail" : "View details",
+    thumbnailSuffix: isKo ? "썸네일" : isZh ? "缩略图" : isVi ? "ảnh thu nhỏ" : isJa ? "サムネイル" : isId ? "thumbnail" : "thumbnail",
+    save: isKo ? "저장" : isZh ? "收藏" : isVi ? "Lưu" : isJa ? "保存" : isId ? "Simpan" : "Save",
+    edit: isKo ? "수정하기" : isZh ? "编辑" : isVi ? "Chỉnh sửa" : isJa ? "編集する" : isId ? "Edit" : "Edit",
+    applyDone: isKo ? "지원완료" : isZh ? "已申请" : isVi ? "Đã ứng tuyển" : isJa ? "応募完了" : isId ? "Sudah melamar" : "Applied",
+    apply: isKo ? "지원하기" : isZh ? "申请" : isVi ? "Ứng tuyển" : isJa ? "応募する" : isId ? "Lamar" : "Apply",
+    viewDetails: isKo ? "상세보기" : isZh ? "查看详情" : isVi ? "Xem chi tiết" : isJa ? "詳細を見る" : isId ? "Lihat detail" : "View details",
+    externalLink: isKo ? "보러가기" : isZh ? "查看" : isVi ? "Xem" : isJa ? "見に行く" : isId ? "Lihat" : "View"
   } as const;
   const externalLinkLabel =
     p.sourceProvider === "KOWORK"
-      ? (isKo ? "Kowork로 보러가기" : isZh ? "在 Kowork 查看" : isVi ? "Xem trên Kowork" : "View on Kowork")
+      ? (isKo ? "Kowork로 보러가기" : isZh ? "在 Kowork 查看" : isVi ? "Xem trên Kowork" : isJa ? "Koworkで見る" : isId ? "Lihat di Kowork" : "View on Kowork")
       : p.sourceProvider === "BUDDIES"
-        ? (isKo ? "Buddies로 보러가기" : isZh ? "在 Buddies 查看" : isVi ? "Xem trên Buddies" : "View on Buddies")
+        ? (isKo ? "Buddies로 보러가기" : isZh ? "在 Buddies 查看" : isVi ? "Xem trên Buddies" : isJa ? "Buddiesで見る" : isId ? "Lihat di Buddies" : "View on Buddies")
         : copy.externalLink;
   const detailHref = isExternalSource(p.sourceKind) && p.sourceUrl ? p.sourceUrl : `/positions/${p.id}`;
   return (
@@ -1175,7 +1180,7 @@ const PositionRow = ({
           </p>
         ) : p.sourceDeadlineRolling ? (
           <p className="mt-0.5 text-[11px] font-medium text-rose-600">
-            {isKo ? "채용시 마감" : isZh ? "招满即止" : isVi ? "Đóng khi tuyển đủ" : "Rolling deadline"}
+            {isKo ? "채용시 마감" : isZh ? "招满即止" : isVi ? "Đóng khi tuyển đủ" : isJa ? "採用次第終了" : isId ? "Tutup setelah terisi" : "Rolling deadline"}
           </p>
         ) : null}
       </div>
@@ -1274,21 +1279,23 @@ const PositionGridCard = ({
   const isKo = locale === "ko";
   const isZh = locale === "zh-CN";
   const isVi = locale === "vi";
+  const isJa = locale === "ja";
+  const isId = locale === "id";
   const href = companyHref(p.partnerDomain);
   const copy = {
-    detailSuffix: isKo ? "상세보기" : isZh ? "查看详情" : isVi ? "Xem chi tiết" : "View details",
-    thumbnailSuffix: isKo ? "썸네일" : isZh ? "缩略图" : isVi ? "ảnh thu nhỏ" : "thumbnail",
-    save: isKo ? "저장" : isZh ? "收藏" : isVi ? "Lưu" : "Save",
-    edit: isKo ? "수정하기" : isZh ? "编辑" : isVi ? "Chỉnh sửa" : "Edit",
-    applyDone: isKo ? "지원완료" : isZh ? "已申请" : isVi ? "Đã ứng tuyển" : "Applied",
-    apply: isKo ? "지원하기" : isZh ? "申请" : isVi ? "Ứng tuyển" : "Apply",
-    externalLink: isKo ? "보러가기" : isZh ? "查看" : isVi ? "Xem" : "View"
+    detailSuffix: isKo ? "상세보기" : isZh ? "查看详情" : isVi ? "Xem chi tiết" : isJa ? "詳細を見る" : isId ? "Lihat detail" : "View details",
+    thumbnailSuffix: isKo ? "썸네일" : isZh ? "缩略图" : isVi ? "ảnh thu nhỏ" : isJa ? "サムネイル" : isId ? "thumbnail" : "thumbnail",
+    save: isKo ? "저장" : isZh ? "收藏" : isVi ? "Lưu" : isJa ? "保存" : isId ? "Simpan" : "Save",
+    edit: isKo ? "수정하기" : isZh ? "编辑" : isVi ? "Chỉnh sửa" : isJa ? "編集する" : isId ? "Edit" : "Edit",
+    applyDone: isKo ? "지원완료" : isZh ? "已申请" : isVi ? "Đã ứng tuyển" : isJa ? "応募完了" : isId ? "Sudah melamar" : "Applied",
+    apply: isKo ? "지원하기" : isZh ? "申请" : isVi ? "Ứng tuyển" : isJa ? "応募する" : isId ? "Lamar" : "Apply",
+    externalLink: isKo ? "보러가기" : isZh ? "查看" : isVi ? "Xem" : isJa ? "見に行く" : isId ? "Lihat" : "View"
   } as const;
   const externalLinkLabel =
     p.sourceProvider === "KOWORK"
-      ? (isKo ? "Kowork로 보러가기" : isZh ? "在 Kowork 查看" : isVi ? "Xem trên Kowork" : "View on Kowork")
+      ? (isKo ? "Kowork로 보러가기" : isZh ? "在 Kowork 查看" : isVi ? "Xem trên Kowork" : isJa ? "Koworkで見る" : isId ? "Lihat di Kowork" : "View on Kowork")
       : p.sourceProvider === "BUDDIES"
-        ? (isKo ? "Buddies로 보러가기" : isZh ? "在 Buddies 查看" : isVi ? "Xem trên Buddies" : "View on Buddies")
+        ? (isKo ? "Buddies로 보러가기" : isZh ? "在 Buddies 查看" : isVi ? "Xem trên Buddies" : isJa ? "Buddiesで見る" : isId ? "Lihat di Buddies" : "View on Buddies")
         : copy.externalLink;
   const detailHref = isExternalSource(p.sourceKind) && p.sourceUrl ? p.sourceUrl : `/positions/${p.id}`;
   return (
@@ -1316,7 +1323,7 @@ const PositionGridCard = ({
           </p>
         ) : p.sourceDeadlineRolling ? (
           <p className="mt-0.5 text-[11px] font-medium text-rose-600">
-            {isKo ? "채용시 마감" : isZh ? "招满即止" : isVi ? "Đóng khi tuyển đủ" : "Rolling deadline"}
+            {isKo ? "채용시 마감" : isZh ? "招满即止" : isVi ? "Đóng khi tuyển đủ" : isJa ? "採用次第終了" : isId ? "Tutup setelah terisi" : "Rolling deadline"}
           </p>
         ) : null}
       </div>

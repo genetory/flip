@@ -42,7 +42,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
           ? "zh-CN"
           : browserLang.startsWith("vi")
             ? "vi"
-            : "en";
+            : browserLang.startsWith("ja")
+              ? "ja"
+              : browserLang.startsWith("id")
+                ? "id"
+                : "en";
     setLocaleState(browserLocale);
     document.documentElement.lang = browserLocale;
   }, []);

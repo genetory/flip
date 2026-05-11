@@ -13,16 +13,22 @@ type Props = {
   titleEn: string;
   titleZh?: string;
   titleVi?: string;
+  titleJa?: string;
+  titleId?: string;
   descKo: string;
   descEn: string;
   descZh?: string;
   descVi?: string;
+  descJa?: string;
+  descId?: string;
   hideHero?: boolean;
   backHref?: string;
   backKo?: string;
   backEn?: string;
   backZh?: string;
   backVi?: string;
+  backJa?: string;
+  backId?: string;
   children: ReactNode;
 };
 
@@ -31,21 +37,27 @@ export function ResourceSubPageLayout({
   titleEn,
   titleZh,
   titleVi,
+  titleJa,
+  titleId,
   descKo,
   descEn,
   descZh,
   descVi,
+  descJa,
+  descId,
   hideHero = false,
   backHref = "/resources",
   backKo = "자료실로 돌아가기",
   backEn = "Back to Resources",
   backZh,
   backVi,
+  backJa,
+  backId,
   children
 }: Props) {
   const { locale } = useLanguage();
-  const t = (ko: string, en: string, zh: string = en, vi: string = en) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : en;
+  const t = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] font-sans text-foreground antialiased">
@@ -58,16 +70,16 @@ export function ResourceSubPageLayout({
               className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-[#111111]"
             >
               <ChevronLeft className="h-4 w-4" />
-              {t(backKo, backEn, backZh ?? "返回资料页", backVi ?? "Quay lại trang tài liệu")}
+              {t(backKo, backEn, backZh ?? "返回资料页", backVi ?? "Quay lại trang tài liệu", backJa ?? "資料ページに戻る", backId ?? "Kembali ke Sumber Daya")}
             </Link>
 
             {hideHero ? null : (
               <section className="mt-4 rounded-3xl bg-[#0B1227] px-6 py-8 text-white md:px-8 md:py-10">
                 <h1 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] md:text-5xl`}>
-                  {t(titleKo, titleEn, titleZh ?? titleEn, titleVi ?? titleEn)}
+                  {t(titleKo, titleEn, titleZh ?? titleEn, titleVi ?? titleEn, titleJa ?? titleEn, titleId ?? titleEn)}
                 </h1>
                 <p className="mt-4 text-sm leading-relaxed text-white/85 md:text-base">
-                  {t(descKo, descEn, descZh ?? descEn, descVi ?? descEn)}
+                  {t(descKo, descEn, descZh ?? descEn, descVi ?? descEn, descJa ?? descEn, descId ?? descEn)}
                 </p>
               </section>
             )}

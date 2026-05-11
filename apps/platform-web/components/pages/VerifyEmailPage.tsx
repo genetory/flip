@@ -55,9 +55,27 @@ export function VerifyEmailPage() {
       failed: "Xác minh email thất bại.",
       login: "Đăng nhập",
       helpPage: "Trang hướng dẫn xác minh"
+    },
+    ja: {
+      title: "メール認証",
+      missingToken: "認証トークンがありません。",
+      verifying: "メール認証を進めています...",
+      success: "認証が完了しました。まもなく移動します。",
+      failed: "メール認証に失敗しました。",
+      login: "ログイン",
+      helpPage: "認証ヘルプページ"
+    },
+    id: {
+      title: "Verifikasi email",
+      missingToken: "Token verifikasi tidak ditemukan.",
+      verifying: "Memverifikasi email Anda...",
+      success: "Email berhasil diverifikasi. Mengalihkan sebentar lagi.",
+      failed: "Verifikasi email gagal.",
+      login: "Masuk",
+      helpPage: "Halaman bantuan verifikasi"
     }
   } as const;
-  const copy = copyByLocale[locale] ?? copyByLocale.en;
+  const copy = locale === "ja" ? copyByLocale.ja : locale === "id" ? copyByLocale.id : copyByLocale[locale] ?? copyByLocale.en;
 
   useEffect(() => {
     if (!token) {

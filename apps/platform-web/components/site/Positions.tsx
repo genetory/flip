@@ -188,10 +188,10 @@ export const Positions = () => {
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-[10px] text-slate-400">{
-                          locale === "ko" ? "15시간 전" : locale === "zh-CN" ? "15 小时前" : locale === "vi" ? "15 giờ trước" : "15h ago"
+                          locale === "ko" ? "15시간 전" : locale === "zh-CN" ? "15 小时前" : locale === "vi" ? "15 giờ trước" : locale === "ja" ? "15時間前" : locale === "id" ? "15 jam lalu" : "15h ago"
                         }</p>
                         <p className="mt-0.5 text-[10px] font-semibold text-rose-500">{
-                          locale === "ko" ? "채용시 마감" : locale === "zh-CN" ? "招满即止" : locale === "vi" ? "Đóng khi đủ" : "Closes when filled"
+                          locale === "ko" ? "채용시 마감" : locale === "zh-CN" ? "招满即止" : locale === "vi" ? "Đóng khi đủ" : locale === "ja" ? "採用時締切" : locale === "id" ? "Tutup setelah terisi" : "Closes when filled"
                         }</p>
                       </div>
                     </div>
@@ -215,7 +215,7 @@ export const Positions = () => {
                         className="h-8 rounded-xl bg-[#111827] px-3 text-xs font-semibold text-white pointer-events-none"
                         aria-disabled="true"
                       >
-                        {locale === "ko" ? "Buddies로 보러가기" : locale === "zh-CN" ? "在 Buddies 查看" : locale === "vi" ? "Xem trên Buddies" : "View on Buddies"}
+                        {locale === "ko" ? "Buddies로 보러가기" : locale === "zh-CN" ? "在 Buddies 查看" : locale === "vi" ? "Xem trên Buddies" : locale === "ja" ? "Buddiesで見る" : locale === "id" ? "Lihat di Buddies" : "View on Buddies"}
                       </Button>
                     </div>
                   </div>

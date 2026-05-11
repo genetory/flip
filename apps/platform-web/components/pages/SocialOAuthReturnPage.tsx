@@ -8,10 +8,10 @@ import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { storeAccessToken, type SocialProvider } from "../../lib/auth-client";
 
-const PROVIDER_LABELS: Record<SocialProvider, { ko: string; en: string; zh: string; vi: string }> = {
-  naver: { ko: "네이버", en: "Naver", zh: "Naver", vi: "Naver" },
-  google: { ko: "구글", en: "Google", zh: "Google", vi: "Google" },
-  kakao: { ko: "카카오", en: "Kakao", zh: "Kakao", vi: "Kakao" }
+const PROVIDER_LABELS: Record<SocialProvider, { ko: string; en: string; zh: string; vi: string; ja: string; id: string }> = {
+  naver: { ko: "네이버", en: "Naver", zh: "Naver", vi: "Naver", ja: "Naver", id: "Naver" },
+  google: { ko: "구글", en: "Google", zh: "Google", vi: "Google", ja: "Google", id: "Google" },
+  kakao: { ko: "카카오", en: "Kakao", zh: "Kakao", vi: "Kakao", ja: "Kakao", id: "Kakao" }
 };
 
 export function SocialOAuthReturnPage({ provider }: { provider: SocialProvider }) {
@@ -22,7 +22,7 @@ export function SocialOAuthReturnPage({ provider }: { provider: SocialProvider }
 
   const providerLabel = PROVIDER_LABELS[provider];
   const providerName =
-    locale === "ko" ? providerLabel.ko : locale === "zh-CN" ? providerLabel.zh : locale === "vi" ? providerLabel.vi : providerLabel.en;
+    locale === "ko" ? providerLabel.ko : locale === "zh-CN" ? providerLabel.zh : locale === "vi" ? providerLabel.vi : locale === "ja" ? providerLabel.ja : locale === "id" ? providerLabel.id : providerLabel.en;
 
   useEffect(() => {
     const fragment = typeof window !== "undefined" ? window.location.hash.slice(1) : "";
@@ -38,7 +38,11 @@ export function SocialOAuthReturnPage({ provider }: { provider: SocialProvider }
             ? "未能获取登录令牌。"
             : locale === "vi"
               ? "Không nhận được mã đăng nhập."
-              : "Could not retrieve login token."
+              : locale === "ja"
+                ? "ログイントークンを受け取れませんでした。"
+                : locale === "id"
+                  ? "Tidak dapat memperoleh token login."
+                  : "Could not retrieve login token."
       );
       return;
     }
@@ -62,7 +66,11 @@ export function SocialOAuthReturnPage({ provider }: { provider: SocialProvider }
               ? "会话同步失败。"
               : locale === "vi"
                 ? "Đồng bộ phiên thất bại."
-                : "Failed to synchronize session."
+                : locale === "ja"
+                  ? "セッションの同期に失敗しました。"
+                  : locale === "id"
+                    ? "Gagal menyinkronkan sesi."
+                    : "Failed to synchronize session."
         );
       }
     })();
@@ -76,7 +84,11 @@ export function SocialOAuthReturnPage({ provider }: { provider: SocialProvider }
         ? `正在处理 ${providerName} 登录...`
         : locale === "vi"
           ? `Đang xử lý đăng nhập ${providerName}...`
-          : `Processing ${providerName} login...`;
+          : locale === "ja"
+            ? `${providerName}ログインを処理中です...`
+            : locale === "id"
+              ? `Memproses login ${providerName}...`
+              : `Processing ${providerName} login...`;
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
@@ -93,7 +105,11 @@ export function SocialOAuthReturnPage({ provider }: { provider: SocialProvider }
                     ? "返回登录页"
                     : locale === "vi"
                       ? "Quay về trang đăng nhập"
-                      : "Back to login"}
+                      : locale === "ja"
+                        ? "ログインページへ"
+                        : locale === "id"
+                          ? "Kembali ke halaman masuk"
+                          : "Back to login"}
               </a>
             </div>
           ) : null}

@@ -1391,9 +1391,685 @@ const siteMessagesVi = {
   }
 } as unknown as typeof siteMessages.en;
 
+const siteMessagesJa = {
+  ...siteMessages.en,
+  footer: {
+    ...siteMessages.en.footer,
+    brandDescription: "グローバル人材と企業をつなぐキャリアプラットフォーム。",
+    columns: [
+      { title: "プラットフォーム", items: ["ポジションを探す", "マッチング適合度", "仕組み", "導入事例"] },
+      { title: "リソース", items: ["導入事例", "よくある質問", "ブログ", "サポート"] },
+      { title: "企業情報", items: ["会社概要", "採用情報", "お問い合わせ", "利用規約"] }
+    ]
+  },
+  hero: {
+    ...siteMessages.en.hero,
+    badge: "2026年度募集中",
+    titleTop: "キャリアプラットフォーム",
+    titleAccent: "グローバル人材と企業をつなぐ",
+    description: "企業は適切な人材に出会い、学生は適切な機会に備える。\n採用から実務体験、マッチング準備まで、すべてを一つのプラットフォームで。",
+    primaryCta: "ポジションを探す",
+    secondaryCta: "マッチング適合度を見る",
+    positionsLink: "募集中のポジションを見る",
+    companyDashboard: "企業向けダッシュボード",
+    stats: [
+      { label: "オープンポジション", value: "4" },
+      { label: "応募者", value: "37" },
+      { label: "面接", value: "12" }
+    ],
+    recommendedPositions: "おすすめポジション",
+    positionsPanelTitle: "ポジションを探す",
+    positionsPanelSortLabel: "最も適合",
+    positionThumbnailAltSuffix: "ポジションのサムネイル",
+    companyPanelEyebrow: "企業",
+    companyPanelPartnerLabel: "パートナー企業",
+    companyPanelIndustryLabel: "業界",
+    companyPanelSizeLabel: "企業規模",
+    companyPanelSizeValue: "30名未満",
+    companyPanelOpenPositionsLabel: "募集中のポジション",
+    companyPanelOpenPositionsValue: "3",
+    companyPanelWorkTypeLabel: "勤務形態",
+    studentProfile: "学生プロフィール",
+    profileProgress: "プロフィール完成度",
+    readinessLabel: "マッチング準備度が高い",
+    recommendationLabel: "おすすめ 7件"
+  },
+  positions: {
+    ...siteMessages.en.positions,
+    title: "募集中のポジション",
+    description: "Aplyで応募可能なポジションをご覧ください。",
+    viewAll: "すべてのポジションを見る",
+    foreignerEligible: "外国人応募可",
+    details: "詳細を見る",
+    detailAriaSuffix: "詳細を見る",
+    thumbnailAltSuffix: "サムネイル",
+    saveAriaLabel: "保存",
+    applyCta: "応募する",
+    loadingLabel: "ポジションを読み込み中...",
+    partnerRecruitAlt: "企業向けポジション掲載のご案内",
+    defaultCompanyName: "パートナー企業",
+    defaultCategory: "ポジション未定",
+    defaultLocation: "応相談",
+    partnerTitle: "貴社のポジションを掲載",
+    partnerDescription: "パートナーとして参加し、準備の整った候補者をご紹介。",
+    partnerCta: "パートナーとして始める",
+    items: [
+      {
+        company: "H ******** Inc.",
+        initial: "H",
+        role: "ソーシャルメディアマネージャー、マーケティングチームアシスタント募集",
+        category: "Marketing",
+        location: "応相談",
+        workType: "On-site",
+        start: "即時採用",
+        badge: "New"
+      },
+      {
+        company: "H******** Labs",
+        initial: "H",
+        role: "事業開発、教育市場リサーチ募集",
+        category: "Research, Business",
+        location: "応相談",
+        workType: "On-site",
+        start: "即時採用",
+        badge: "New"
+      },
+      {
+        company: "g*****b",
+        initial: "G",
+        role: "中国語翻訳ポジション募集",
+        category: "Translation",
+        location: "応相談",
+        workType: "On-site",
+        start: "即時採用",
+        badge: "New"
+      },
+      {
+        company: "(Ltd.) K**************",
+        initial: "K",
+        role: "テクニカルサポート、QA、R&D募集",
+        category: "IT/Software engineering",
+        location: "応相談",
+        workType: "On-site",
+        start: "即時採用",
+        badge: "New"
+      },
+      {
+        company: "C****** Co., Ltd.",
+        initial: "C",
+        role: "機械エンジニアリング / R&D募集",
+        category: "Engineering (Mechanical, Electrical, etc.)",
+        location: "応相談",
+        workType: "On-site",
+        start: "即時採用",
+        badge: "New"
+      }
+    ]
+  },
+  studentProfile: {
+    ...siteMessages.en.studentProfile,
+    titleTop: "プロフィールが充実するほど、",
+    titleBottom: "チャンスは広がる",
+    description: "基本情報からすぐに始められます。\nプロフィールを充実させるほど、より多くの企業とポジションに出会えます。",
+    statusBadge: "マッチング準備度が高い",
+    completionLabel: "プロフィール完成度",
+    recommendationsLabel: "おすすめポジション数",
+    unlockedLabel: "プロフィールを充実させてマッチング率を高めましょう",
+    profileMeta: "ソウル大学校 · マーケティング",
+    cta: "プロフィール作成を始める",
+    highlights: [
+      "自分に合うポジションをすぐに確認",
+      "情報を追加するとおすすめが即時に拡大",
+      "プロフィールが自動整理され、企業が評価しやすく"
+    ],
+    checklist: [
+      { label: "基本情報", done: true },
+      { label: "学歴 / 専攻", done: true },
+      { label: "語学力", done: true },
+      { label: "ポートフォリオのアップロード", done: false },
+      { label: "希望ポジション", done: true },
+      { label: "勤務可能スケジュール", done: false },
+      { label: "ビザ / 在留資格", done: false }
+    ]
+  },
+  businessValue: {
+    ...siteMessages.en.businessValue,
+    titleTop: "グローバル人材との",
+    titleBottom: "適合をより速く",
+    description: "履歴書だけでなく、実際の準備度や韓国の職場環境への適応力を評価することで、採用リスクを低減します。",
+    primaryCta: "企業向け相談を予約",
+    secondaryCta: "仕組みを見る",
+    cards: [
+      {
+        title: "実務準備度の検証",
+        description:
+          "専攻、語学、ポジション能力だけでなく、実際のタスク遂行履歴と準備の度合いを確認します。書類比較に留まらず、現ポジションに即戦力として貢献できる候補者を素早く見極められます。"
+      },
+      {
+        title: "韓国の職場環境との適合性確認",
+        description:
+          "業務コミュニケーションのスタイル、協働姿勢、報告・フィードバックへの適応力を評価します。本格面接の前に韓国の企業文化との適合性を確認することで、入社後のオンボーディングリスクを低減できます。"
+      },
+      {
+        title: "客観的なレポート",
+        description:
+          "各候補者の強み、改善点、実績を集約したレポートを提供します。採用担当者と現場マネージャーが同じ基準で評価でき、面接後の意思決定とフィードバックがスムーズになります。"
+      },
+      {
+        title: "採用転換までシームレスに",
+        description:
+          "ポジション掲載、マッチング、面接調整から初期オンボーディングまで、すべてが一つのフローに。グローバル採用経験の少ないチームでも運用負担を軽減し、実採用への移行を安定して進められます。"
+      }
+    ]
+  },
+  howItWorks: {
+    ...siteMessages.en.howItWorks,
+    title: "Aplyの仕組み",
+    steps: [
+      {
+        num: "01",
+        title: "企業がポジションを掲載",
+        description: "ポジション、必要なスキル、勤務形態、スケジュールなどの採用要件を構造化して入力します。"
+      },
+      {
+        num: "02",
+        title: "学生がプロフィールを充実",
+        description: "学歴、語学、関心ポジション、ビザ / 在留状況を入力すると、マッチング準備度とおすすめポジションが即時に更新されます。"
+      },
+      {
+        num: "03",
+        title: "Aplyが最適なマッチングをサポート",
+        description: "Aplyが候補者の準備度と企業の条件を同時に分析し、高い精度で優先的につなぎます。"
+      },
+      {
+        num: "04",
+        title: "運用と進捗を管理",
+        description: "面接スケジュール、入社プロセス、実務体験フェーズ、フィードバックメモを同じ画面で追跡・管理できます。"
+      }
+    ]
+  },
+  scenario: {
+    ...siteMessages.en.scenario,
+    studentTitle: "学生はこうしてチャンスを広げる",
+    companyTitle: "企業はこうして候補者と出会う",
+    studentDescription: "登録から応募まで、準備度が高いほどチャンスは広がります。",
+    companyDescription: "ポジション掲載から面接調整まで、採用を一つのフローで管理。",
+    tabs: { student: "学生視点", company: "企業視点" },
+    studentSteps: ["かんたん登録", "基本プロフィールを入力", "おすすめポジションを確認", "情報を追加して機会を拡大", "応募して面接 / 結果を確認"],
+    studentStepSubtitles: [
+      "数分で登録を完了し、すぐにスタート。",
+      "コアとなるプロフィール情報を入力し、初期マッチングの準備を整えます。",
+      "あなたのプロフィールに合うポジションをすぐに確認。",
+      "情報を追加して、より多様な機会をアンロック。",
+      "応募を開始し、実際のマッチングプロセスを進めます。"
+    ],
+    companySteps: ["ポジションを掲載", "条件に合う学生プールを確認", "準備度の高い学生を優先審査", "面接を実施し結果を記録", "進捗ステータスを管理"],
+    companyStepSubtitles: [
+      "ポジションと条件を掲載し、明確な採用基準を設定。",
+      "条件に合う学生候補プールを素早く確認。",
+      "準備度の高い候補者を優先します。",
+      "進捗を明確に追跡し、ステップごとに管理。",
+      "面接と運用のステップを自然な一つのフローにつなげます。"
+    ]
+  },
+  cases: {
+    ...siteMessages.en.cases,
+    title: "導入事例 / 企業成果",
+    resultsTitle: "約束だけではありません。",
+    resultsSubtitle: "数字で証明されています。",
+    stats: [
+      { value: "200+", label: "累計マッチング成功数" },
+      { value: "100+", label: "パートナー企業数" },
+      { value: "4.5/5.0", label: "学生満足度" },
+      { value: "4.8/5.0", label: "企業満足度" }
+    ],
+    cards: [
+      {
+        tag: "Startup · Marketing",
+        title: "Northwave — グローバルマーケティングポジションの運用",
+        quote: "準備度の高い学生を素早く審査でき、採用サイクルが半分に短縮されました。",
+        by: "People Lead, Northwave"
+      },
+      {
+        tag: "Enterprise · Operations",
+        title: "Acme Global — 海外インターンシップマッチング",
+        quote: "ビザ、語学、業務適合性を一か所で確認できるのが何より素晴らしい。",
+        by: "Talent Manager, Acme"
+      },
+      {
+        tag: "Student · Career",
+        title: "Mei L. — 実務体験から採用へ",
+        quote: "プロフィールを充実させるとおすすめが増え、初めてのグローバルキャリアをスタートできました。",
+        by: "MA in Marketing, Seoul"
+      }
+    ]
+  },
+  testimonials: {
+    ...siteMessages.en.testimonials,
+    title: "先輩たちのリアルな声",
+    items: [
+      {
+        quote: "最初はどこから始めればよいか分かりませんでしたが、プロフィールのステップ別ガイドのおかげで準備の方向性が明確になりました。",
+        by: "K** · 経営学",
+        avatar: "/avatar_testimonial_kim.svg"
+      },
+      {
+        quote: "応募前に強みと改善点を整理できたので、面接でずっと自信を持てました。",
+        by: "Tran N. · マーケティングトラック",
+        avatar: "/avatar_testimonial_tran.svg"
+      },
+      {
+        quote: "おすすめポジションが私の関心と本当によく合っていて、応募プロセスもシンプルで速かったです。",
+        by: "L. Lee · コンピュータサイエンス",
+        avatar: "/avatar_testimonial_lee.svg"
+      }
+    ]
+  },
+  faq: {
+    ...siteMessages.en.faq,
+    title: "よくある質問",
+    description: "さらに情報が必要な場合は、企業向け相談から運用チームへお問い合わせください。",
+    tabs: { company: "企業向けQ&A", student: "学生向けQ&A" },
+    companyItems: [
+      {
+        question: "Q. プログラムの期間はどのくらいですか？",
+        answer:
+          "プログラムは基本4週間で、企業および参加者の状況に応じて最大5週間まで調整可能です。具体的なスケジュールはマッチング確定後にご相談いたします。"
+      },
+      {
+        question: "Q. 参加者が真面目に取り組まない場合はどうなりますか？",
+        answer:
+          "参加者の無断欠席や不真面目な参加が見られた場合は、すぐにFlipers担当者までご連絡ください。状況によっては、プログラムの早期終了を検討することもあります。"
+      },
+      {
+        question: "Q. 法的な問題はありませんか？",
+        answer:
+          "- 当プログラムは教育目的の「実務体験プログラム」として運営されており、参加者は労働者には該当せず、賃金や労働契約は適用されません。\n- したがって、現金での報酬支払いはできず、企業様には昼食支援を現金以外の形（食券または昼食費用）でのみ提供するようご案内しています。\n- 本内容は労務専門家および弁護士による相談・検討を経ています。これまでに200名以上のマッチング実績があり、ソウルグローバルセンターおよびソウル特別市傘下の大学とともに安定的にプログラムを運営しています。"
+      },
+      {
+        question: "Q. プログラム終了後、参加者を採用することはできますか？",
+        answer:
+          "可能です。プログラム終了後、企業様から参加者へ直接採用オファーを行うことができます。その際は、Flipersまでご連絡をお願いいたします。"
+      },
+      {
+        question: "Q. 追加で人材をマッチングしてもらえますか？",
+        answer:
+          "はい。celine@flip-ers.com までご連絡いただければ、追加の人材をマッチングいたします。"
+      }
+    ],
+    studentItems: [
+      {
+        question: "Q. 無給インターンは違法だと聞きました。法的に問題はありませんか？",
+        answer:
+          "本プログラムを通じた活動は「労働」ではなく、教育目的の「業務体験プログラム」です。正式業務を代替するものではなく体験活動であるため、法的に問題ないことを確認しています。"
+      },
+      {
+        question: "Q. 推薦状の発行は誰が決定しますか？",
+        answer:
+          "業務体験を行った企業の判断に完全に委ねられます。Flipersはこの決定に介入しません。"
+      },
+      {
+        question: "Q. 昼食代の支援はどのように支払われますか？",
+        answer:
+          "昼食代は担当者が直接支払うか、企業の法人カードで決済されます。\n必要に応じて個人カードで先に決済し、領収書を提出して会社から払い戻しを受けることもできます。"
+      }
+    ]
+  },
+  finalCta: {
+    ...siteMessages.en.finalCta,
+    companyTitleTop: "グローバル人材の採用を",
+    companyTitleBottom: "今日から始める",
+    companyDescription: "ポジション掲載やパートナー相談を通じて、準備の整った候補者と出会いましょう。",
+    companyCta: "パートナーとして始める",
+    studentTitleTop: "プロフィールを充実させて",
+    studentTitleBottom: "チャンスを探す",
+    studentDescription: "プロフィールを充実させて、おすすめポジションを今すぐアンロック。",
+    studentCta: "マッチング適合度を見る"
+  }
+} as unknown as typeof siteMessages.en;
+
+const siteMessagesId = {
+  ...siteMessages.en,
+  footer: {
+    ...siteMessages.en.footer,
+    brandDescription: "Platform karier yang menghubungkan talenta global dengan perusahaan.",
+    columns: [
+      { title: "Platform", items: ["Jelajahi Posisi", "Kecocokan Matching", "Cara Kerja", "Studi Kasus"] },
+      { title: "Sumber Daya", items: ["Studi Kasus", "FAQ", "Blog", "Dukungan"] },
+      { title: "Perusahaan", items: ["Tentang Kami", "Karier", "Kontak", "Ketentuan"] }
+    ]
+  },
+  hero: {
+    ...siteMessages.en.hero,
+    badge: "Rekrutmen untuk periode 2026",
+    titleTop: "Platform karier",
+    titleAccent: "yang menghubungkan talenta global dengan perusahaan",
+    description: "Perusahaan menemukan talenta yang tepat, mahasiswa mempersiapkan peluang yang tepat.\nMulai dari rekrutmen, pengalaman kerja nyata, hingga kesiapan matching - semuanya dalam satu platform.",
+    primaryCta: "Jelajahi Posisi",
+    secondaryCta: "Lihat Kecocokan Matching",
+    positionsLink: "Lihat posisi yang sedang dibuka",
+    companyDashboard: "Dasbor Perusahaan",
+    stats: [
+      { label: "Posisi Terbuka", value: "4" },
+      { label: "Pelamar", value: "37" },
+      { label: "Wawancara", value: "12" }
+    ],
+    recommendedPositions: "Posisi Rekomendasi",
+    positionsPanelTitle: "Jelajahi Posisi",
+    positionsPanelSortLabel: "Paling Sesuai",
+    positionThumbnailAltSuffix: "thumbnail posisi",
+    companyPanelEyebrow: "Perusahaan",
+    companyPanelPartnerLabel: "Perusahaan Mitra",
+    companyPanelIndustryLabel: "Industri",
+    companyPanelSizeLabel: "Ukuran Perusahaan",
+    companyPanelSizeValue: "Di bawah 30 karyawan",
+    companyPanelOpenPositionsLabel: "Posisi yang Dibuka",
+    companyPanelOpenPositionsValue: "3",
+    companyPanelWorkTypeLabel: "Tipe Pekerjaan",
+    studentProfile: "Profil Mahasiswa",
+    profileProgress: "Tingkat Kelengkapan Profil",
+    readinessLabel: "Kesiapan matching tinggi",
+    recommendationLabel: "Rekomendasi 7"
+  },
+  positions: {
+    ...siteMessages.en.positions,
+    title: "Posisi yang Sedang Dibuka",
+    description: "Posisi yang dapat dilamar di Aply.",
+    viewAll: "Lihat semua posisi",
+    foreignerEligible: "Menerima kandidat internasional",
+    details: "Lihat detail",
+    detailAriaSuffix: "Lihat detail",
+    thumbnailAltSuffix: "thumbnail",
+    saveAriaLabel: "Simpan",
+    applyCta: "Lamar",
+    loadingLabel: "Memuat posisi...",
+    partnerRecruitAlt: "Panduan pemasangan posisi untuk perusahaan",
+    defaultCompanyName: "Perusahaan Mitra",
+    defaultCategory: "Posisi belum ditentukan",
+    defaultLocation: "Dapat dirundingkan",
+    partnerTitle: "Pasang posisi untuk perusahaan Anda",
+    partnerDescription: "Bergabunglah sebagai mitra dan dapatkan rekomendasi kandidat yang siap.",
+    partnerCta: "Mulai sebagai Mitra",
+    items: [
+      {
+        company: "H ******** Inc.",
+        initial: "H",
+        role: "Mencari Social Media Manager, Marketing Team Assistant",
+        category: "Marketing",
+        location: "Dapat dirundingkan",
+        workType: "On-site",
+        start: "Rekrutmen segera",
+        badge: "New"
+      },
+      {
+        company: "H******** Labs",
+        initial: "H",
+        role: "Mencari Business Development, Education Market Research",
+        category: "Research, Business",
+        location: "Dapat dirundingkan",
+        workType: "On-site",
+        start: "Rekrutmen segera",
+        badge: "New"
+      },
+      {
+        company: "g*****b",
+        initial: "G",
+        role: "Mencari posisi penerjemah bahasa Tionghoa",
+        category: "Translation",
+        location: "Dapat dirundingkan",
+        workType: "On-site",
+        start: "Rekrutmen segera",
+        badge: "New"
+      },
+      {
+        company: "(Ltd.) K**************",
+        initial: "K",
+        role: "Mencari Tech Support, QA, R&D",
+        category: "IT/Software engineering",
+        location: "Dapat dirundingkan",
+        workType: "On-site",
+        start: "Rekrutmen segera",
+        badge: "New"
+      },
+      {
+        company: "C****** Co., Ltd.",
+        initial: "C",
+        role: "Mencari Mechanical Engineering / R&D",
+        category: "Engineering (Mechanical, Electrical, etc.)",
+        location: "Dapat dirundingkan",
+        workType: "On-site",
+        start: "Rekrutmen segera",
+        badge: "New"
+      }
+    ]
+  },
+  studentProfile: {
+    ...siteMessages.en.studentProfile,
+    titleTop: "Semakin lengkap profil,",
+    titleBottom: "semakin banyak peluang",
+    description: "Anda dapat segera memulai dengan informasi dasar.\nSemakin lengkap profil Anda, semakin banyak perusahaan dan posisi yang terbuka.",
+    statusBadge: "Kesiapan matching tinggi",
+    completionLabel: "Tingkat kelengkapan profil",
+    recommendationsLabel: "Jumlah posisi yang direkomendasikan",
+    unlockedLabel: "Tingkatkan kelengkapan profil untuk memperbesar peluang matching",
+    profileMeta: "Universitas Nasional Seoul · Marketing",
+    cta: "Mulai Buat Profil Saya",
+    highlights: [
+      "Lihat segera posisi yang sesuai dengan saya",
+      "Tambahkan informasi untuk memperluas rekomendasi seketika",
+      "Profil tertata otomatis sehingga mudah dievaluasi perusahaan"
+    ],
+    checklist: [
+      { label: "Informasi Dasar", done: true },
+      { label: "Pendidikan / Jurusan", done: true },
+      { label: "Kemampuan Bahasa Asing", done: true },
+      { label: "Unggah Portofolio", done: false },
+      { label: "Posisi yang Diinginkan", done: true },
+      { label: "Jadwal Tersedia untuk Bekerja", done: false },
+      { label: "Status Visa / Tinggal", done: false }
+    ]
+  },
+  businessValue: {
+    ...siteMessages.en.businessValue,
+    titleTop: "Temukan talenta global",
+    titleBottom: "yang cocok lebih cepat",
+    description: "Kurangi risiko rekrutmen dengan menilai kesiapan nyata dan kemampuan beradaptasi dengan lingkungan kerja Korea, bukan hanya melalui CV.",
+    primaryCta: "Pesan Konsultasi Perusahaan",
+    secondaryCta: "Lihat Cara Kerja",
+    cards: [
+      {
+        title: "Verifikasi Kesiapan Kerja Nyata",
+        description:
+          "Tidak hanya menilai jurusan, bahasa asing, atau kemampuan posisi, tetapi juga riwayat penyelesaian tugas dan tingkat kesiapan aktual. Alih-alih sekadar membandingkan dokumen, Anda dapat dengan cepat menemukan kandidat yang siap berkontribusi langsung pada posisi saat ini."
+      },
+      {
+        title: "Konfirmasi Kecocokan dengan Lingkungan Korea",
+        description:
+          "Evaluasi gaya komunikasi kerja, sikap kolaboratif, serta kemampuan beradaptasi dengan pelaporan dan umpan balik. Memverifikasi kecocokan dengan budaya perusahaan Korea sebelum wawancara mendalam mengurangi risiko onboarding setelah perekrutan."
+      },
+      {
+        title: "Laporan Objektif",
+        description:
+          "Menyediakan laporan terpadu berisi kekuatan, area perbaikan, dan hasil performa setiap kandidat. Perekrut dan manajer operasional dapat menilai dengan standar yang sama, sehingga pengambilan keputusan dan umpan balik pasca wawancara menjadi lebih mudah."
+      },
+      {
+        title: "Mulus Menuju Konversi Rekrutmen",
+        description:
+          "Mulai dari posting posisi, matching, penjadwalan wawancara, hingga onboarding awal — semuanya dalam satu alur. Bahkan tim dengan pengalaman rekrutmen global terbatas pun dapat meringankan beban operasional dan menstabilkan transisi ke rekrutmen aktual."
+      }
+    ]
+  },
+  howItWorks: {
+    ...siteMessages.en.howItWorks,
+    title: "Cara Kerja Aply",
+    steps: [
+      {
+        num: "01",
+        title: "Perusahaan memasang posisi",
+        description: "Masukkan kriteria rekrutmen secara terstruktur: posisi, kompetensi yang dibutuhkan, tipe pekerjaan, dan jadwal."
+      },
+      {
+        num: "02",
+        title: "Mahasiswa melengkapi profil",
+        description: "Ketika mahasiswa mengisi pendidikan, bahasa asing, posisi yang diminati, dan status visa / tinggal, kesiapan matching dan posisi rekomendasi akan diperbarui seketika."
+      },
+      {
+        num: "03",
+        title: "Aply mendukung pencocokan yang tepat",
+        description: "Aply menganalisis kesiapan kandidat dan kondisi perusahaan secara bersamaan untuk menghubungkan dengan prioritas dan akurasi tinggi."
+      },
+      {
+        num: "04",
+        title: "Kelola operasional dan kemajuan",
+        description: "Pantau dan kelola jadwal wawancara, proses bergabung, fase pengalaman kerja, dan catatan umpan balik dalam satu layar."
+      }
+    ]
+  },
+  scenario: {
+    ...siteMessages.en.scenario,
+    studentTitle: "Bagaimana mahasiswa memperluas peluang",
+    companyTitle: "Bagaimana perusahaan bertemu kandidat",
+    studentDescription: "Dari pendaftaran hingga lamaran, semakin tinggi kesiapan, semakin luas peluang yang terbuka.",
+    companyDescription: "Dari pemasangan posisi hingga koneksi wawancara, kelola rekrutmen dalam satu alur.",
+    tabs: { student: "Perspektif Mahasiswa", company: "Perspektif Perusahaan" },
+    studentSteps: ["Daftar dengan cepat", "Isi profil dasar", "Lihat posisi rekomendasi", "Tambah info untuk perluas peluang", "Lamar dan ikuti wawancara / lihat hasil"],
+    studentStepSubtitles: [
+      "Selesaikan pendaftaran dalam hitungan menit dan langsung mulai.",
+      "Isi informasi profil inti untuk mempersiapkan matching awal.",
+      "Lihat segera posisi yang sesuai dengan profil Anda.",
+      "Tambahkan informasi untuk membuka lebih banyak peluang yang beragam.",
+      "Mulai melamar dan jalani langkah-langkah matching yang nyata."
+    ],
+    companySteps: ["Pasang posisi", "Lihat pool mahasiswa yang memenuhi syarat", "Prioritaskan mahasiswa dengan kesiapan tinggi", "Lakukan wawancara dan catat hasil", "Kelola status kemajuan"],
+    companyStepSubtitles: [
+      "Pasang posisi dan persyaratan untuk menetapkan kriteria rekrutmen yang jelas.",
+      "Periksa dengan cepat pool kandidat mahasiswa yang memenuhi syarat.",
+      "Prioritaskan kandidat dengan kesiapan yang lebih tinggi.",
+      "Pantau status dengan jelas dan kelola setiap langkah secara berkelanjutan.",
+      "Hubungkan langkah wawancara dan operasional menjadi satu alur yang alami."
+    ]
+  },
+  cases: {
+    ...siteMessages.en.cases,
+    title: "Studi Kasus / Hasil Perusahaan",
+    resultsTitle: "Bukan sekadar janji.",
+    resultsSubtitle: "Terbukti dengan angka.",
+    stats: [
+      { value: "200+", label: "Total matching berhasil" },
+      { value: "100+", label: "Jumlah perusahaan mitra" },
+      { value: "4.5/5.0", label: "Kepuasan mahasiswa" },
+      { value: "4.8/5.0", label: "Kepuasan perusahaan" }
+    ],
+    cards: [
+      {
+        tag: "Startup · Marketing",
+        title: "Northwave — Mengoperasikan posisi marketing global",
+        quote: "Dapat dengan cepat menilai mahasiswa dengan kesiapan tinggi, siklus rekrutmen berkurang setengah.",
+        by: "People Lead, Northwave"
+      },
+      {
+        tag: "Enterprise · Operations",
+        title: "Acme Global — Matching pemagangan internasional",
+        quote: "Yang terbaik adalah dapat mengonfirmasi visa, bahasa asing, dan kecocokan kerja dalam satu tempat.",
+        by: "Talent Manager, Acme"
+      },
+      {
+        tag: "Student · Career",
+        title: "Mei L. — Dari pengalaman kerja nyata hingga koneksi rekrutmen",
+        quote: "Ketika saya melengkapi profil, rekomendasi bertambah dan saya memulai karier global pertama saya.",
+        by: "MA in Marketing, Seoul"
+      }
+    ]
+  },
+  testimonials: {
+    ...siteMessages.en.testimonials,
+    title: "Ulasan nyata dari para senior",
+    items: [
+      {
+        quote: "Awalnya saya tidak tahu harus mulai dari mana, berkat panduan langkah demi langkah di profil, arah persiapan menjadi jelas.",
+        by: "K** · Manajemen Bisnis",
+        avatar: "/avatar_testimonial_kim.svg"
+      },
+      {
+        quote: "Bisa merangkum kekuatan dan area yang perlu diperbaiki sebelum melamar membuat saya jauh lebih percaya diri saat wawancara.",
+        by: "Tran N. · Marketing Track",
+        avatar: "/avatar_testimonial_tran.svg"
+      },
+      {
+        quote: "Posisi yang direkomendasikan sangat cocok dengan minat saya yang sebenarnya dan proses lamarannya juga sederhana dan cepat.",
+        by: "L. Lee · Ilmu Komputer",
+        avatar: "/avatar_testimonial_lee.svg"
+      }
+    ]
+  },
+  faq: {
+    ...siteMessages.en.faq,
+    title: "Pertanyaan yang Sering Diajukan",
+    description: "Jika membutuhkan informasi lebih lanjut, Anda dapat menghubungi tim operasional melalui konsultasi perusahaan.",
+    tabs: { company: "Q&A Perusahaan", student: "Q&A Mahasiswa" },
+    companyItems: [
+      {
+        question: "Q. Berapa lama durasi program?",
+        answer:
+          "Durasi dasar program adalah 4 minggu dan dapat disesuaikan hingga 5 minggu sesuai kondisi perusahaan dan peserta. Jadwal spesifik akan dibahas setelah matching dikonfirmasi."
+      },
+      {
+        question: "Q. Bagaimana jika peserta tidak berpartisipasi dengan serius?",
+        answer:
+          "Jika peserta tidak hadir tanpa keterangan atau tidak berpartisipasi dengan serius, mohon segera beri tahu penanggung jawab Flipers. Tergantung situasi, kami dapat mempertimbangkan untuk mengakhiri program lebih awal."
+      },
+      {
+        question: "Q. Apakah ada masalah dari sisi hukum?",
+        answer:
+          "- Program kami dijalankan sebagai \"program pengalaman kerja nyata\" dengan tujuan edukasi, sehingga peserta tidak termasuk pekerja dan tidak berlaku upah maupun kontrak kerja.\n- Oleh karena itu, pembayaran imbalan dalam bentuk tunai tidak diperbolehkan; kami mengarahkan perusahaan untuk hanya memberikan dukungan makan siang dalam bentuk non-tunai (voucher makan atau biaya makan siang).\n- Konten ini telah dikonsultasikan dan ditinjau oleh ahli hukum ketenagakerjaan dan pengacara. Kami telah berhasil mencocokkan lebih dari 200 peserta dan menjalankan program secara stabil bersama Seoul Global Center serta universitas-universitas di bawah Pemerintah Kota Seoul."
+      },
+      {
+        question: "Q. Setelah program, apakah peserta dapat direkrut?",
+        answer:
+          "Bisa. Setelah program berakhir, perusahaan dapat langsung memberikan tawaran rekrutmen kepada peserta. Dalam hal ini, mohon beri tahu Flipers."
+      },
+      {
+        question: "Q. Apakah talenta tambahan dapat dicocokkan?",
+        answer:
+          "Bisa. Silakan hubungi celine@flip-ers.com, kami akan mencocokkan talenta tambahan untuk Anda."
+      }
+    ],
+    studentItems: [
+      {
+        question: "Q. Saya mendengar bahwa magang tanpa bayaran itu ilegal. Apakah ada masalah hukum?",
+        answer:
+          "Aktivitas melalui program ini bukan \"pekerjaan\" melainkan \"program pengalaman kerja\" dengan tujuan edukasi. Karena ini adalah aktivitas pengalaman, bukan pengganti pekerjaan formal, kami telah memastikan tidak ada masalah hukum."
+      },
+      {
+        question: "Q. Siapa yang menentukan pemberian surat rekomendasi?",
+        answer:
+          "Sepenuhnya tergantung keputusan perusahaan tempat Anda menjalani pengalaman kerja. Flipers tidak ikut campur dalam keputusan ini."
+      },
+      {
+        question: "Q. Bagaimana dukungan biaya makan siang dibayarkan?",
+        answer:
+          "Biaya makan siang dibayar langsung oleh penanggung jawab atau dibayar menggunakan kartu korporat perusahaan.\nJika diperlukan, Anda dapat membayar terlebih dahulu dengan kartu pribadi lalu mengajukan kuitansi untuk penggantian dari perusahaan."
+      }
+    ]
+  },
+  finalCta: {
+    ...siteMessages.en.finalCta,
+    companyTitleTop: "Mulai rekrut talenta global",
+    companyTitleBottom: "mulai hari ini",
+    companyDescription: "Bertemu kandidat yang siap melalui pemasangan posisi atau konsultasi mitra.",
+    companyCta: "Mulai sebagai Mitra",
+    studentTitleTop: "Lengkapi profil Anda",
+    studentTitleBottom: "dan temukan peluang",
+    studentDescription: "Lengkapi profil untuk membuka posisi rekomendasi seketika.",
+    studentCta: "Lihat Kecocokan Matching Saya"
+  }
+} as unknown as typeof siteMessages.en;
+
 export function getSiteMessages(locale: PlatformLocale = getBrowserLocale()) {
   if (locale === "ko" || locale === "en") return siteMessages[locale];
   if (locale === "zh-CN") return siteMessagesZhCn;
   if (locale === "vi") return siteMessagesVi;
+  if (locale === "ja") return siteMessagesJa;
+  if (locale === "id") return siteMessagesId;
   return siteMessages.en;
 }

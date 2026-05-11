@@ -24,9 +24,9 @@ export const StudentProfile = () => {
   const copy = getSiteMessages(locale).studentProfile;
   const ctaHref = isAuthenticated ? "/profile" : "/login";
   const profileCompletionLabel =
-    locale === "ko" ? "프로필 완성도" : locale === "zh-CN" ? "档案完成度" : locale === "vi" ? "Mức hoàn thiện hồ sơ" : "Profile completion";
+    locale === "ko" ? "프로필 완성도" : locale === "zh-CN" ? "档案完成度" : locale === "vi" ? "Mức hoàn thiện hồ sơ" : locale === "ja" ? "プロフィール完成度" : locale === "id" ? "Kelengkapan profil" : "Profile completion";
   const matchChanceLabel =
-    locale === "ko" ? "매칭 가능성" : locale === "zh-CN" ? "匹配可能性" : locale === "vi" ? "Khả năng phù hợp" : "Match chance";
+    locale === "ko" ? "매칭 가능성" : locale === "zh-CN" ? "匹配可能性" : locale === "vi" ? "Khả năng phù hợp" : locale === "ja" ? "マッチング可能性" : locale === "id" ? "Peluang kecocokan" : "Match chance";
   const ctaLabel = isAuthenticated
     ? locale === "ko"
       ? "내 프로필 완성하기"
@@ -34,6 +34,10 @@ export const StudentProfile = () => {
         ? "完善我的档案"
         : locale === "vi"
           ? "Hoàn thiện hồ sơ của tôi"
+          : locale === "ja"
+            ? "プロフィールを完成させる"
+            : locale === "id"
+              ? "Lengkapi profil saya"
       : "Complete my profile"
     : locale === "ko"
       ? "내 프로필 시작하기"
@@ -41,6 +45,10 @@ export const StudentProfile = () => {
         ? "开始我的档案"
         : locale === "vi"
           ? "Bắt đầu hồ sơ của tôi"
+          : locale === "ja"
+            ? "プロフィールを作成する"
+            : locale === "id"
+              ? "Mulai profil saya"
       : "Start my profile";
   const [activeSlot, setActiveSlot] = useState(0);
   const slotCards = useMemo(
