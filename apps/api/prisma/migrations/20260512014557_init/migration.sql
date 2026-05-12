@@ -1,2 +1,2 @@
 -- DropIndex
-DROP INDEX "User_isActive_idx";
+DROP INDEX IF EXISTS "User_isActive_idx";

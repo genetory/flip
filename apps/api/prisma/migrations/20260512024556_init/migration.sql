@@ -1,2 +1,2 @@
 -- DropIndex
-DROP INDEX "Position_sourceDeadlineDate_idx";
+DROP INDEX IF EXISTS "Position_sourceDeadlineDate_idx";
