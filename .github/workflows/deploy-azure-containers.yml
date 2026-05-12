@@ -1,4 +1,4 @@
-name: Deploy Azure Containers (Web + API) # consolidated platform
+name: Deploy Azure Containers (Web + API) # manual trigger 4
 
 on:
   push:
