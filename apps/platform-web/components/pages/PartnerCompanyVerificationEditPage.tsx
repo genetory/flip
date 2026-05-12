@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
@@ -23,48 +23,49 @@ function readFileAsDataUrl(file: File, readFailed: string) {
   });
 }
 
-export function PartnerCompanyVerificationEditPage() {
+export function PartnerCompanyVerificationEditPage({
+  embedded: embeddedProp,
+  onClose
+}: { embedded?: boolean; onClose?: () => void } = {}) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const embedded = embeddedProp ?? searchParams.get("embedded") === "1";
+  const finishEdit = () => {
+    if (embedded && onClose) {
+      onClose();
+      return;
+    }
+    router.push("/profile");
+  };
   const { locale } = useLanguage();
-  const t = (ko: string, en: string) => (locale === "ko" ? ko : en);
+  const t = (ko: string, en: string, zh?: string, vi?: string, ja?: string, id?: string) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? (zh ?? en) : locale === "vi" ? (vi ?? en) : locale === "ja" ? (ja ?? en) : locale === "id" ? (id ?? en) : en;
   const { user, isReady, isAuthenticated } = useAuthSession();
   const [businessRegistrationDocumentData, setBusinessRegistrationDocumentData] = useState<string | null>(null);
   const [fourInsuranceSubscriberListData, setFourInsuranceSubscriberListData] = useState<string | null>(null);
-  const [companyLogoImageData, setCompanyLogoImageData] = useState<string | null>(null);
-  const [officePhotoImageData, setOfficePhotoImageData] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   type VerificationFieldKey =
     | "businessRegistrationDocumentData"
-    | "fourInsuranceSubscriberListData"
-    | "companyLogoImageData"
-    | "officePhotoImageData";
+    | "fourInsuranceSubscriberListData";
 
   const labels = {
-    businessRegistration: t("사업자등록증", "Business registration"),
-    insuranceList: t("4대보험 가입자명부", "4-insurance subscriber list"),
-    companyLogo: t("회사 로고", "Company logo"),
-    officePhoto: t("사무실 사진", "Office photo")
+    businessRegistration: t("사업자등록증", "Business registration", "营业执照", "Giấy đăng ký kinh doanh", "事業者登録証", "Surat izin usaha"),
+    insuranceList: t("4대보험 가입자명부", "4-insurance subscriber list", "四大保险参保名册", "Danh sách tham gia 4 loại bảo hiểm", "4大保険加入者名簿", "Daftar peserta 4 asuransi")
   };
 
   const verificationMissing = useMemo(
     () =>
       [
         !businessRegistrationDocumentData ? labels.businessRegistration : null,
-        !fourInsuranceSubscriberListData ? labels.insuranceList : null,
-        !companyLogoImageData ? labels.companyLogo : null,
-        !officePhotoImageData ? labels.officePhoto : null
+        !fourInsuranceSubscriberListData ? labels.insuranceList : null
       ].filter((item): item is string => Boolean(item)),
     [
       businessRegistrationDocumentData,
-      companyLogoImageData,
       fourInsuranceSubscriberListData,
-      officePhotoImageData,
       labels.businessRegistration,
-      labels.companyLogo,
-      labels.insuranceList,
-      labels.officePhoto
+      labels.insuranceList
     ]
   );
   const verificationReady = verificationMissing.length === 0;
@@ -80,11 +81,9 @@ export function PartnerCompanyVerificationEditPage() {
         if (!org) return;
         setBusinessRegistrationDocumentData(org.businessRegistrationDocumentData ?? null);
         setFourInsuranceSubscriberListData(org.fourInsuranceSubscriberListData ?? null);
-        setCompanyLogoImageData(org.companyLogoImageData ?? null);
-        setOfficePhotoImageData(org.officePhotoImageData ?? null);
       } catch (error) {
         if (!isMounted) return;
-        setErrorMessage(error instanceof Error ? error.message : t("인증 정보를 불러오지 못했습니다.", "Failed to load verification data."));
+        setErrorMessage(error instanceof Error ? error.message : t("인증 정보를 불러오지 못했습니다.", "Failed to load verification data.", "无法加载认证信息。", "Không thể tải thông tin xác minh.", "認証情報を読み込めませんでした。", "Gagal memuat informasi verifikasi."));
       }
     })();
 
@@ -101,20 +100,18 @@ export function PartnerCompanyVerificationEditPage() {
     event.target.value = "";
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      setErrorMessage(t("파일 크기는 2MB 이하로 업로드해주세요.", "Please upload files up to 2MB."));
+      setErrorMessage(t("파일 크기는 2MB 이하로 업로드해주세요.", "Please upload files up to 2MB.", "请上传不超过 2MB 的文件。", "Vui lòng tải tệp tối đa 2MB.", "ファイルサイズは2MB以下でアップロードしてください。", "Silakan unggah file dengan ukuran maksimal 2MB."));
       return;
     }
 
     setErrorMessage(null);
     setUploadingField(field);
     try {
-      const data = await readFileAsDataUrl(file, t("파일을 읽지 못했습니다.", "Failed to read file."));
+      const data = await readFileAsDataUrl(file, t("파일을 읽지 못했습니다.", "Failed to read file.", "无法读取文件。", "Không thể đọc tệp.", "ファイルを読み込めませんでした。", "Gagal membaca file."));
       if (field === "businessRegistrationDocumentData") setBusinessRegistrationDocumentData(data);
       if (field === "fourInsuranceSubscriberListData") setFourInsuranceSubscriberListData(data);
-      if (field === "companyLogoImageData") setCompanyLogoImageData(data);
-      if (field === "officePhotoImageData") setOfficePhotoImageData(data);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("파일 업로드에 실패했습니다.", "Failed to upload file."));
+      setErrorMessage(error instanceof Error ? error.message : t("파일 업로드에 실패했습니다.", "Failed to upload file.", "文件上传失败。", "Tải tệp thất bại.", "ファイルのアップロードに失敗しました。", "Gagal mengunggah file."));
     } finally {
       setUploadingField(null);
     }
@@ -126,14 +123,16 @@ export function PartnerCompanyVerificationEditPage() {
     try {
       await updateMyPartnerOrganizationBasic({
         businessRegistrationDocumentData,
-        fourInsuranceSubscriberListData,
-        companyLogoImageData,
-        officePhotoImageData
+        fourInsuranceSubscriberListData
       });
-      router.push("/profile");
-      router.refresh();
+      if (embedded && onClose) {
+        onClose();
+      } else {
+        router.push("/profile");
+        router.refresh();
+      }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("인증 정보 저장에 실패했습니다.", "Failed to save verification data."));
+      setErrorMessage(error instanceof Error ? error.message : t("인증 정보 저장에 실패했습니다.", "Failed to save verification data.", "保存认证信息失败。", "Lưu thông tin xác minh thất bại.", "認証情報の保存に失敗しました。", "Gagal menyimpan informasi verifikasi."));
     } finally {
       setIsSaving(false);
     }
@@ -148,7 +147,7 @@ export function PartnerCompanyVerificationEditPage() {
     const inputId = `verification-upload-${input.key}`;
     const isUploading = uploadingField === input.key;
     return (
-      <div key={input.key} className="rounded-md border border-border bg-background p-4">
+      <div key={input.key} className="rounded-md border border-border bg-white p-4">
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-medium">{input.title}</p>
@@ -159,17 +158,17 @@ export function PartnerCompanyVerificationEditPage() {
                   : "inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
               }
             >
-              {input.uploaded ? t("업로드 완료", "Uploaded") : t("미업로드", "Not uploaded")}
+              {input.uploaded ? t("업로드 완료", "Uploaded", "已上传", "Đã tải lên", "アップロード完了", "Terunggah") : t("미업로드", "Not uploaded", "未上传", "Chưa tải lên", "未アップロード", "Belum diunggah")}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <input id={inputId} type="file" accept={input.accept} className="sr-only" onChange={(event) => void handleUpload(event, input.key)} />
             <Button variant="outline" size="sm" asChild disabled={isUploading}>
               <label htmlFor={inputId} className="cursor-pointer">
-                {isUploading ? t("업로드 중...", "Uploading...") : t("파일 선택", "Select file")}
+                {isUploading ? t("업로드 중...", "Uploading...", "上传中...", "Đang tải lên...", "アップロード中...", "Sedang mengunggah...") : t("파일 선택", "Select file", "选择文件", "Chọn tệp", "ファイルを選択", "Pilih file")}
               </label>
             </Button>
-            <p className="text-xs text-muted-foreground">{t("최대 2MB", "Up to 2MB")}</p>
+            <p className="text-xs text-muted-foreground">{t("최대 2MB", "Up to 2MB", "最大 2MB", "Tối đa 2MB", "最大2MB", "Hingga 2MB")}</p>
           </div>
         </div>
       </div>
@@ -177,34 +176,38 @@ export function PartnerCompanyVerificationEditPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
-      <Header />
-      <main className="container py-12 md:py-16">
+    <div className={embedded ? "flex flex-col bg-muted/30 font-sans text-foreground antialiased" : "min-h-screen flex flex-col bg-muted/30 font-sans text-foreground antialiased"}>
+      {embedded ? null : <Header />}
+      <main className={embedded ? "container py-6" : "container py-12 md:py-16"}>
         <div className="mx-auto max-w-4xl">
-          <h1 className="mb-6 font-display text-3xl font-bold tracking-tight">{t("인증 정보 편집", "Edit verification")}</h1>
+          <h1 className="mb-6 font-display text-3xl font-bold tracking-tight">{t("인증 정보 편집", "Edit verification", "编辑认证信息", "Chỉnh sửa thông tin xác minh", "認証情報の編集", "Edit verifikasi")}</h1>
 
           {!isReady ? (
-            <p className="text-sm text-muted-foreground">{t("정보를 불러오는 중...", "Loading information...")}</p>
+            <p className="text-sm text-muted-foreground">{t("정보를 불러오는 중...", "Loading information...", "正在加载信息...", "Đang tải thông tin...", "情報を読み込み中...", "Memuat informasi...")}</p>
           ) : !isAuthenticated || !user ? (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">{t("로그인이 필요합니다.", "Sign in is required.")}</p>
+              <p className="text-sm text-muted-foreground">{t("로그인이 필요합니다.", "Sign in is required.", "需要先登录。", "Cần đăng nhập.", "ログインが必要です。", "Diperlukan masuk.")}</p>
               <Button variant="dark" asChild>
-                <Link href="/login">{t("로그인하러 가기", "Go to login")}</Link>
+                <Link href="/login">{t("로그인하러 가기", "Go to login", "前往登录", "Đi tới đăng nhập", "ログインへ", "Pergi ke masuk")}</Link>
               </Button>
             </div>
           ) : user.role !== "PARTNER" ? (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">{t("파트너회원만 수정할 수 있습니다.", "Only partner accounts can edit this page.")}</p>
+              <p className="text-sm text-muted-foreground">{t("파트너회원만 수정할 수 있습니다.", "Only partner accounts can edit this page.", "仅合作伙伴账户可编辑此页面。", "Chỉ tài khoản đối tác mới có thể chỉnh sửa trang này.", "パートナー会員のみこのページを編集できます。", "Hanya akun mitra yang dapat mengedit halaman ini.")}</p>
               <Button variant="outline" asChild>
-                <Link href="/profile">{t("돌아가기", "Back")}</Link>
+                <Link href="/profile">{t("돌아가기", "Back", "返回", "Quay lại", "戻る", "Kembali")}</Link>
               </Button>
             </div>
           ) : (
             <section className="space-y-4">
               <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
                 {t(
-                  "사업자등록증, 4대보험 가입자명부, 회사 로고, 사무실 사진을 업로드하면 최종 인증됩니다.",
-                  "Upload business registration, 4-insurance list, company logo, and office photo to complete verification."
+                  "사업자등록증, 4대보험 가입자명부를 업로드하면 운영자 인증 검토를 요청할 수 있습니다.",
+                  "Upload business registration and 4-insurance list to request operator verification review.",
+                  "上传营业执照和四大保险参保名册后，可申请运营方进行认证审核。",
+                  "Tải lên giấy đăng ký kinh doanh và danh sách tham gia 4 loại bảo hiểm để yêu cầu vận hành viên xét duyệt xác minh.",
+                  "事業者登録証と4大保険加入者名簿をアップロードすると、運営者による認証審査を依頼できます。",
+                  "Unggah surat izin usaha dan daftar peserta 4 asuransi untuk meminta tinjauan verifikasi operator."
                 )}
               </div>
 
@@ -221,42 +224,37 @@ export function PartnerCompanyVerificationEditPage() {
                   accept: ".pdf,image/*",
                   uploaded: Boolean(fourInsuranceSubscriberListData)
                 })}
-                {renderUploadCard({
-                  key: "companyLogoImageData",
-                  title: labels.companyLogo,
-                  accept: "image/*",
-                  uploaded: Boolean(companyLogoImageData)
-                })}
-                {renderUploadCard({
-                  key: "officePhotoImageData",
-                  title: labels.officePhoto,
-                  accept: "image/*",
-                  uploaded: Boolean(officePhotoImageData)
-                })}
               </div>
 
               <div className={verificationReady ? "text-xs text-emerald-600" : "text-xs text-amber-600"}>
                 {verificationReady
-                  ? t("최종 인증 완료: 공고 등록 및 후보자 연락 권한이 활성화됩니다.", "Verification complete: posting and candidate contact permissions are enabled.")
-                  : t("최종 인증 대기", "Verification pending") + `: ${verificationMissing.join(", ")} ${t("업로드가 필요합니다.", "must be uploaded.")}`}
+                  ? t(
+                    "검토 중: 필수 서류 업로드가 완료되어 운영자 검토 리스트로 전달됩니다.",
+                    "Under review: required documents are uploaded and sent to the operator review list.",
+                    "审核中：必要文件已上传，已提交至运营方审核列表。",
+                    "Đang xét duyệt: hồ sơ bắt buộc đã tải lên và được chuyển tới danh sách xét duyệt của vận hành viên.",
+                    "審査中: 必要書類のアップロードが完了し、運営者の審査リストに送信されます。",
+                    "Sedang ditinjau: dokumen yang diperlukan telah diunggah dan dikirim ke daftar tinjauan operator."
+                  )
+                  : t("검토 요청 전 준비 필요", "Before review request", "提交审核前需准备", "Cần chuẩn bị trước khi gửi xét duyệt", "審査依頼前に準備が必要", "Persiapan sebelum permintaan tinjauan") + `: ${verificationMissing.join(", ")} ${t("업로드가 필요합니다.", "must be uploaded.", "需要上传。", "cần được tải lên.", "アップロードが必要です。", "harus diunggah.")}`}
               </div>
-              {uploadingField ? <div className="text-xs text-muted-foreground">{t("파일 처리 중...", "Processing file...")}</div> : null}
+              {uploadingField ? <div className="text-xs text-muted-foreground">{t("파일 처리 중...", "Processing file...", "处理文件中...", "Đang xử lý tệp...", "ファイル処理中...", "Memproses file...")}</div> : null}
 
               {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
 
               <div className="flex items-center justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => router.push("/profile")} disabled={isSaving}>
-                  {t("취소", "Cancel")}
+                <Button variant="outline" onClick={() => finishEdit()} disabled={isSaving}>
+                  {t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
                 </Button>
                 <Button variant="dark" onClick={() => void handleSave()} disabled={isSaving}>
-                  {isSaving ? t("저장 중...", "Saving...") : t("저장", "Save")}
+                  {isSaving ? t("저장 중...", "Saving...", "保存中...", "Đang lưu...", "保存中...", "Sedang menyimpan...") : t("저장", "Save", "保存", "Lưu", "保存", "Simpan")}
                 </Button>
               </div>
             </section>
           )}
         </div>
       </main>
-      <Footer />
+      {embedded ? null : <Footer />}
     </div>
   );
 }

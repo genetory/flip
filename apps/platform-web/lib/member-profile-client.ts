@@ -1,4 +1,10 @@
 import { readAccessToken, refreshPlatformSession } from "./auth-client";
+import {
+  trackAiAnalysisCompleted,
+  trackAiAnalysisStart,
+  trackPositionApply,
+  trackPositionFavorite
+} from "./analytics";
 
 function getApiBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -255,8 +261,8 @@ export type MyCandidateProfile = {
 
 export type MyPartnerOrganization = {
   id: string;
+  slug?: string | null;
   partnerType: "UNIVERSITY" | "COMPANY" | "AGENCY";
-  domain: string;
   name: string;
   companySize?: "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100" | null;
   officeAddress?: string | null;
@@ -319,6 +325,8 @@ export type MyPartnerOrganization = {
   officePhotoImageData?: string | null;
   verification?: {
     isVerified: boolean;
+    isApproved?: boolean;
+    hasRequiredDocuments?: boolean;
     uploadedCount: number;
     requiredCount: number;
     missingItems: string[];
@@ -347,9 +355,26 @@ export type PositionsMeta = {
 
 export type PublicPositionListItem = {
   id: string;
+  sourceKind: "INTERNAL" | "EXTERNAL";
+  sourceProvider: "INTERNAL" | "BUDDIES" | "KOWORK" | "WANTED" | "OTHER";
+  sourceExternalId: string | null;
+  sourceUrl: string | null;
+  sourceFetchedAt: string | null;
+  sourceCompanyName?: string | null;
+  sourceDeadlineDate?: string | null;
+  sourceDeadlineRolling?: boolean;
   title: string;
-  status: "DRAFT" | "OPEN" | "MATCHING" | "CLOSED";
+  status: "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED";
   workType: "On-site" | "Hybrid" | "Remote" | null;
+  employmentType: "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
+  employmentClassification?:
+    | "UNPAID_INTERN_EXPERIENCE"
+    | "UNPAID_INTERN_CONVERSION"
+    | "PAID_INTERN_EXPERIENCE"
+    | "PAID_INTERN_CONVERSION"
+    | "PART_TIME"
+    | "FULL_TIME"
+    | null;
   thumbnailImages: string[];
   eligibleVisas: string[];
   preferredNationalities: string[];
@@ -372,7 +397,6 @@ export type PublicPositionListItem = {
   partnerOrganization: {
     id: string;
     name: string;
-    domain: string;
     industry: string;
     companySize: "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100" | null;
     officeAddress: string | null;
@@ -398,8 +422,17 @@ export type PartnerPosition = {
   id: string;
   partnerOrganizationId: string | null;
   title: string;
-  status: "DRAFT" | "OPEN" | "MATCHING" | "CLOSED";
+  status: "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED";
   workType: "On-site" | "Hybrid" | "Remote" | null;
+  employmentType: "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
+  employmentClassification?:
+    | "UNPAID_INTERN_EXPERIENCE"
+    | "UNPAID_INTERN_CONVERSION"
+    | "PAID_INTERN_EXPERIENCE"
+    | "PAID_INTERN_CONVERSION"
+    | "PART_TIME"
+    | "FULL_TIME"
+    | null;
   thumbnailImages: string[];
   eligibleVisas: string[];
   preferredNationalities: string[];
@@ -417,6 +450,20 @@ export type PartnerPosition = {
   wantsPreTraining: boolean | null;
   additionalNotes: string | null;
   adminMemo: string | null;
+  postingProgressLogs?: Array<{
+    id: string;
+    message: string;
+    createdAt: string;
+    createdBy: { id: string; name: string | null; email: string } | null;
+  }>;
+  statusHistories?: Array<{
+    id: string;
+    fromStatus: "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED" | null;
+    toStatus: "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED";
+    note: string | null;
+    createdAt: string;
+    createdBy: { id: string; name: string | null; email: string } | null;
+  }>;
   createdAt: string;
   updatedAt: string;
 };
@@ -438,11 +485,8 @@ export function isPartnerOrganizationProfileComplete(org: MyPartnerOrganization 
 
 export function isPartnerOrganizationVerificationComplete(org: MyPartnerOrganization | null) {
   if (!org) return false;
-  if (org.verification) return org.verification.isVerified;
   return Boolean(org.businessRegistrationDocumentData)
-    && Boolean(org.fourInsuranceSubscriberListData)
-    && Boolean(org.companyLogoImageData)
-    && Boolean(org.officePhotoImageData);
+    && Boolean(org.fourInsuranceSubscriberListData);
 }
 
 export async function updateMyPartnerOrganizationBasic(input: {
@@ -503,10 +547,31 @@ export async function getPositionsMeta() {
   } satisfies PositionsMeta;
 }
 
-export async function getPublicPositionsPage(input?: { cursor?: string | null; limit?: number }) {
+export async function getPublicPositionsPage(input?: {
+  cursor?: string | null;
+  limit?: number;
+  search?: string;
+  jobRoles?: string[];
+  sortOrder?: "asc" | "desc";
+  sort?: "latest" | "deadline";
+  sourceProviders?: Array<PublicPositionListItem["sourceProvider"]>;
+}) {
   const params = new URLSearchParams();
   if (input?.cursor) params.set("cursor", input.cursor);
   if (input?.limit && Number.isFinite(input.limit)) params.set("limit", String(Math.max(1, Math.floor(input.limit))));
+  if (input?.search && input.search.trim()) params.set("search", input.search.trim());
+  if (input?.jobRoles?.length) {
+    for (const role of Array.from(new Set(input.jobRoles.map((r) => r.trim()).filter((r) => r.length > 0)))) {
+      params.append("jobRole", role);
+    }
+  }
+  if (input?.sortOrder) params.set("sortOrder", input.sortOrder);
+  if (input?.sort) params.set("sort", input.sort);
+  if (input?.sourceProviders?.length) {
+    for (const provider of Array.from(new Set(input.sourceProviders))) {
+      params.append("sourceProvider", provider);
+    }
+  }
   const query = params.toString();
 
   const response = await fetch(`${getApiBaseUrl()}/positions${query ? `?${query}` : ""}`, {
@@ -588,10 +653,96 @@ export async function getMyAppliedPositions() {
   return result.items ?? [];
 }
 
+export type MyApplication = {
+  id: string;
+  positionId: string;
+  positionTitle: string;
+  positionStatus: string;
+  partnerOrganizationId: string | null;
+  partnerOrganizationName: string | null;
+  status: "SUBMITTED" | "INTERVIEW" | "ACCEPTED" | "REJECTED" | "WITHDRAWN";
+  submittedAt: string;
+  updatedAt: string;
+};
+
+export async function getMyApplications() {
+  const result = await authedJsonFetch<MyApplication>("/members/me/applications", {
+    method: "GET"
+  });
+  return (result.items ?? []) as MyApplication[];
+}
+
+export async function withdrawMyApplication(applicationId: string) {
+  return authedJsonFetch<{ id: string; status: string }>(`/members/me/applications/${encodeURIComponent(applicationId)}/withdraw`, {
+    method: "POST"
+  });
+}
+
+export type InterviewSlot = {
+  id: string;
+  applicationId: string;
+  startsAt: string;
+  endsAt: string;
+  location: string | null;
+  notes: string | null;
+  status: "PROPOSED" | "SELECTED" | "CANCELLED";
+  proposedAt: string;
+  selectedAt: string | null;
+  cancelledAt: string | null;
+};
+
+export async function getInterviewSlotsForApplication(applicationId: string) {
+  const result = await authedJsonFetch<InterviewSlot>(`/applications/${encodeURIComponent(applicationId)}/interview-slots`, {
+    method: "GET"
+  });
+  return (result.items ?? []) as InterviewSlot[];
+}
+
+export async function selectInterviewSlot(slotId: string) {
+  return authedJsonFetch<InterviewSlot>(`/interview-slots/${encodeURIComponent(slotId)}/select`, {
+    method: "PATCH"
+  });
+}
+
+export type MyAssignment = {
+  id: string;
+  applicationId: string;
+  title: string;
+  description: string;
+  dueAt: string | null;
+  status: "ASSIGNED" | "SUBMITTED" | "REVIEWED" | "CANCELLED";
+  assignedAt: string;
+  submittedAt: string | null;
+  submissionContent: string | null;
+  submissionLinks: string[];
+  feedbackContent: string | null;
+  feedbackRating: number | null;
+  reviewedAt: string | null;
+  positionId: string;
+  positionTitle: string;
+  partnerOrganizationName: string | null;
+  assignedByName: string | null;
+};
+
+export async function getMyAssignments() {
+  const result = await authedJsonFetch<MyAssignment>("/members/me/assignments", {
+    method: "GET"
+  });
+  return (result.items ?? []) as MyAssignment[];
+}
+
+export async function submitAssignment(assignmentId: string, payload: { submissionContent: string; submissionLinks?: string[] }) {
+  return authedJsonFetch<MyAssignment>(`/assignments/${encodeURIComponent(assignmentId)}/submit`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function addMyFavoritePosition(positionId: string) {
   const result = await authedJsonFetch<unknown>(`/members/me/positions/${encodeURIComponent(positionId)}/favorite`, {
     method: "POST"
   });
+  trackPositionFavorite(positionId, "unknown", true);
   return result;
 }
 
@@ -599,6 +750,7 @@ export async function removeMyFavoritePosition(positionId: string) {
   const result = await authedJsonFetch<unknown>(`/members/me/positions/${encodeURIComponent(positionId)}/favorite`, {
     method: "DELETE"
   });
+  trackPositionFavorite(positionId, "unknown", false);
   return result;
 }
 
@@ -606,13 +758,29 @@ export async function applyMyPosition(positionId: string) {
   const result = await authedJsonFetch<unknown>(`/members/me/positions/${encodeURIComponent(positionId)}/apply`, {
     method: "POST"
   });
+  trackPositionApply(positionId, "unknown");
   return result;
+}
+
+export async function getMyPartnerPositions() {
+  const result = await authedJsonFetch<PartnerPosition>("/partner/positions", {
+    method: "GET"
+  });
+  return result.items ?? [];
 }
 
 export async function createMyPartnerPosition(input: {
   title: string;
-  status?: "DRAFT" | "OPEN";
+  status?: "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED";
   workType?: "On-site" | "Hybrid" | "Remote";
+  employmentType?: "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
+  employmentClassification?:
+    | "UNPAID_INTERN_EXPERIENCE"
+    | "UNPAID_INTERN_CONVERSION"
+    | "PAID_INTERN_EXPERIENCE"
+    | "PAID_INTERN_CONVERSION"
+    | "PART_TIME"
+    | "FULL_TIME";
   thumbnailImages?: string[];
   eligibleVisas?: string[];
   preferredNationalities?: string[];
@@ -641,6 +809,23 @@ export async function createMyPartnerPosition(input: {
   return result.item;
 }
 
+export async function createMyPartnerOrganizationJoinCode(expiresInMinutes?: number) {
+  const result = await authedJsonFetch<{ code: string; expiresAt: string }>("/members/me/partner-organization/join-codes", {
+    method: "POST",
+    body: JSON.stringify(expiresInMinutes ? { expiresInMinutes } : {})
+  });
+  if (!result.item) throw new Error("응답에 초대코드 정보가 없습니다.");
+  return result.item;
+}
+
+export async function joinMyPartnerOrganizationByCode(code: string) {
+  const result = await authedJsonFetch<MyPartnerOrganization | null>("/members/me/partner-organization/join", {
+    method: "POST",
+    body: JSON.stringify({ code })
+  });
+  return result.item ?? null;
+}
+
 export async function getMyPartnerPositionById(id: string) {
   const result = await authedJsonFetch<PartnerPosition>(`/partner/positions/${encodeURIComponent(id)}`, {
     method: "GET"
@@ -656,8 +841,16 @@ export async function updateMyPartnerPosition(
   id: string,
   input: {
     title?: string;
-    status?: "DRAFT" | "OPEN";
+    status?: "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED";
     workType?: "On-site" | "Hybrid" | "Remote";
+    employmentType?: "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
+    employmentClassification?:
+      | "UNPAID_INTERN_EXPERIENCE"
+      | "UNPAID_INTERN_CONVERSION"
+      | "PAID_INTERN_EXPERIENCE"
+      | "PAID_INTERN_CONVERSION"
+      | "PART_TIME"
+      | "FULL_TIME";
     thumbnailImages?: string[];
     eligibleVisas?: string[];
     preferredNationalities?: string[];
@@ -687,12 +880,74 @@ export async function updateMyPartnerPosition(
   return result.item;
 }
 
+export type PartnerApplicantStatus =
+  | "APPLIED"
+  | "REVIEWING"
+  | "INTERVIEW"
+  | "OFFERED"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "WITHDRAWN"
+  | "COMPLETED";
+
+export type PartnerApplicantListItem = {
+  id: string;
+  name: string;
+  nationality: string | null;
+  email: string;
+  positionId: string;
+  positionTitle: string;
+  languages: string[];
+  school: string | null;
+  major: string | null;
+  residence: string | null;
+  appliedAt: string | null;
+  recommendation: "HIGH" | "NORMAL" | "CHECK";
+  status: PartnerApplicantStatus;
+};
+
+export type PartnerApplicantDetail = PartnerApplicantListItem & {
+  summary: string | null;
+  motivation: string | null;
+  portfolioUrl: string | null;
+  availableStartDate: string | null;
+  memo: string | null;
+};
+
+export async function getMyPartnerApplicants() {
+  const result = await authedJsonFetch<PartnerApplicantListItem>("/partner/applicants", {
+    method: "GET"
+  });
+  return result.items ?? [];
+}
+
+export async function getMyPartnerApplicantById(id: string) {
+  const result = await authedJsonFetch<PartnerApplicantDetail>(`/partner/applicants/${encodeURIComponent(id)}`, {
+    method: "GET"
+  });
+  if (!result.item) throw new Error("응답에 지원자 정보가 없습니다.");
+  return result.item;
+}
+
+export async function updateMyPartnerApplicantState(
+  id: string,
+  input: { status?: PartnerApplicantStatus; memo?: string | null }
+) {
+  const result = await authedJsonFetch<PartnerApplicantDetail>(`/partner/applicants/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input)
+  });
+  if (!result.item) throw new Error("응답에 수정된 지원자 정보가 없습니다.");
+  return result.item;
+}
+
 export async function updateMyBasicInfo(input: {
   realName?: string | null;
   name?: string;
   phoneNumber?: string | null;
   birthDate?: string | null;
   gender?: string | null;
+  profileImageData?: string | null;
 }) {
   const result = await authedJsonFetch<{
     id: string;
@@ -703,6 +958,7 @@ export async function updateMyBasicInfo(input: {
     birthDate?: string | null;
     gender?: string | null;
     role: "STUDENT" | "PARTNER" | "OPERATOR";
+    profileImageUrl?: string | null;
     partnerType?: "UNIVERSITY" | "COMPANY" | "AGENCY" | null;
   }>("/members/me", {
     method: "PATCH",
@@ -734,6 +990,27 @@ export async function updateMyCandidateProfile(input: {
   if (!result.item) {
     throw new Error("응답에 후보자 프로필이 없습니다.");
   }
+  return result.item;
+}
+
+export type CareerReadinessReport = {
+  score: number;
+  strengths: string[];
+  improvements: string[];
+  recommendedRoles: string[];
+  generatedAt: string;
+};
+
+export async function fetchCareerReadinessReport(locale?: "ko" | "en" | "zh-CN" | "vi" | "ja" | "id") {
+  trackAiAnalysisStart();
+  const result = await authedJsonFetch<CareerReadinessReport>("/members/me/career-readiness", {
+    method: "POST",
+    body: JSON.stringify(locale ? { locale } : {})
+  });
+  if (!result.item) {
+    throw new Error("응답에 리포트가 없습니다.");
+  }
+  trackAiAnalysisCompleted(result.item.score);
   return result.item;
 }
 

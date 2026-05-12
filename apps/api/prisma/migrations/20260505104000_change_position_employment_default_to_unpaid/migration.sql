@@ -1,0 +1,2 @@
+ALTER TABLE "Position"
+ALTER COLUMN "employmentType" SET DEFAULT 'UNPAID_INTERN';

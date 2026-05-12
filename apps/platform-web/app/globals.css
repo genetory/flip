@@ -8,6 +8,20 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* Reusable Brand Tokens (HSL only) */
+    --brand-blue: 224 90% 47%; /* #0B46E8 */
+    --brand-blue-hover: 224 91% 43%; /* #0A3FCF */
+    --brand-blue-deep: 222 57% 10%; /* #0B1227 */
+    --brand-blue-sub: 220 73% 49%; /* #1D4ED8 */
+    --brand-blue-tint: 214 95% 92%; /* #DBEAFE */
+    --brand-lime: 86 100% 68%; /* #b7ff5a */
+    --brand-lime-hover: 86 82% 62%; /* #a8ee4d */
+
+    --search-bg: 0 0% 100% / 0.96; /* #FFFFFFF5 */
+    --search-border: 214 32% 91%; /* #E2E8F0 */
+    --search-placeholder: 215 20% 65%; /* #94A3B8 */
+    --search-text: 215 28% 17%; /* #1E293B */
+
     /* Brand: Primary Blue + Deep Navy + Success Green */
     --background: 210 40% 98%;
     --foreground: 222 47% 11%;
@@ -115,6 +129,10 @@ All colors MUST be HSL.
 }
 
 @layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
+
   * {
     @apply border-border;
   }
@@ -123,6 +141,7 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
     font-feature-settings: "ss01", "cv11";
+    overflow-y: scroll;
   }
   h1, h2, h3, h4 {
     font-family: 'Space Grotesk', system-ui, sans-serif;

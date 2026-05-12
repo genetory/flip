@@ -2,120 +2,174 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
-import { Check, CheckCircle2 } from "lucide-react";
+import { Check } from "lucide-react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { Reveal } from "./Reveal";
+import { paperlogy } from "../../lib/fonts";
+
+const AVATAR_SQUIRCLE_CLIP_ID = "student-profile-avatar-squircle-clip";
+const AVATAR_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
+const AVATAR_SQUIRCLE_STYLE = {
+  clipPath: `url(#${AVATAR_SQUIRCLE_CLIP_ID})`,
+  WebkitClipPath: `url(#${AVATAR_SQUIRCLE_CLIP_ID})`
+} as const;
 
 export const StudentProfile = () => {
   const { locale } = useLanguage();
   const { isAuthenticated } = useAuthSession();
   const copy = getSiteMessages(locale).studentProfile;
-  const heroCopy = getSiteMessages(locale).hero;
-  const doneChecklist = copy.checklist.filter((item) => item.done).slice(0, 2);
-  const pendingChecklist = copy.checklist.filter((item) => !item.done).slice(0, 2);
-  const previewChecklist = [...doneChecklist, ...pendingChecklist];
   const ctaHref = isAuthenticated ? "/profile" : "/login";
-  const targetProgress = 68;
-  const [animatedProgress, setAnimatedProgress] = useState(0);
+  const profileCompletionLabel =
+    locale === "ko" ? "프로필 완성도" : locale === "zh-CN" ? "档案完成度" : locale === "vi" ? "Mức hoàn thiện hồ sơ" : locale === "ja" ? "プロフィール完成度" : locale === "id" ? "Kelengkapan profil" : "Profile completion";
+  const matchChanceLabel =
+    locale === "ko" ? "매칭 가능성" : locale === "zh-CN" ? "匹配可能性" : locale === "vi" ? "Khả năng phù hợp" : locale === "ja" ? "マッチング可能性" : locale === "id" ? "Peluang kecocokan" : "Match chance";
+  const ctaLabel = isAuthenticated
+    ? locale === "ko"
+      ? "내 프로필 완성하기"
+      : locale === "zh-CN"
+        ? "完善我的档案"
+        : locale === "vi"
+          ? "Hoàn thiện hồ sơ của tôi"
+          : locale === "ja"
+            ? "プロフィールを完成させる"
+            : locale === "id"
+              ? "Lengkapi profil saya"
+      : "Complete my profile"
+    : locale === "ko"
+      ? "내 프로필 시작하기"
+      : locale === "zh-CN"
+        ? "开始我的档案"
+        : locale === "vi"
+          ? "Bắt đầu hồ sơ của tôi"
+          : locale === "ja"
+            ? "プロフィールを作成する"
+            : locale === "id"
+              ? "Mulai profil saya"
+      : "Start my profile";
+  const [activeSlot, setActiveSlot] = useState(0);
+  const slotCards = useMemo(
+    () =>
+      [
+        { name: "Minji K.", progress: 81, chance: 87 },
+        { name: "Daniel P.", progress: 74, chance: 79 },
+        { name: "Hana S.", progress: 92, chance: 95 },
+        { name: "Alex T.", progress: 68, chance: 72 },
+        { name: "Jisoo L.", progress: 86, chance: 91 },
+      ].map((item, index) => ({
+        id: index,
+        name: item.name,
+        profileSrc: `/img_profile_${index}.webp`,
+        progress: item.progress,
+        chance: item.chance,
+      })),
+    []
+  );
+  const slotCardThemes = [
+    "from-[#2563EB] to-[#0EA5E9] text-white",
+    "from-[#7C3AED] to-[#EC4899] text-white",
+    "from-[#10B981] to-[#22C55E] text-white",
+    "from-[#F97316] to-[#F59E0B] text-white",
+    "from-[#E11D48] to-[#F43F5E] text-white",
+  ] as const;
 
   useEffect(() => {
-    const duration = 900;
-    const start = performance.now();
     let frame = 0;
+    let last = performance.now();
+    const speedCardsPerSec = 0.42;
 
     const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setAnimatedProgress(targetProgress * eased);
-      if (t < 1) frame = requestAnimationFrame(tick);
+      const delta = (now - last) / 1000;
+      last = now;
+      setActiveSlot((prev) => prev + delta * speedCardsPerSec);
+      frame = requestAnimationFrame(tick);
     };
 
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [slotCards.length]);
 
   return (
     <section id="for-students" className="bg-white py-20">
+      <svg width="0" height="0" aria-hidden className="absolute">
+        <defs>
+          <clipPath id={AVATAR_SQUIRCLE_CLIP_ID} clipPathUnits="objectBoundingBox">
+            <path d={AVATAR_SQUIRCLE_PATH} transform="scale(0.01)" />
+          </clipPath>
+        </defs>
+      </svg>
       <div className="container grid max-w-[1200px] gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
-        <Reveal className="order-2 lg:order-1" y="lg">
-          <div className="slide-in-right relative mx-auto w-full max-w-[500px] rotate-[-3deg] animate-float-y [animation-duration:4s] transition-transform duration-300 hover:-translate-y-1" style={{ animationDelay: "120ms" }}>
-            <div className="absolute -right-2 -top-2 h-full w-full rounded-3xl bg-[#7DD3FC]/35" />
-            <div className="relative rounded-3xl border-2 border-[#93C5FD] bg-white p-5 shadow-[0_26px_50px_-24px_rgba(37,99,235,0.65)]">
-            <div className="mb-3 flex items-center gap-2">
-              <div className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-[#93C5FD]">
-                <Image
-                  src="/img_profile_0.webp"
-                  alt="Profile photo"
-                  fill
-                  className="object-cover"
-                  sizes="36px"
-                />
-              </div>
-              <div>
-                <p className="text-[11px] font-bold text-[#1D4ED8]">{heroCopy.studentProfile}</p>
-                <p className="text-sm font-extrabold text-[#0B1227]">Mei L.</p>
-                <p className="text-[11px] text-slate-500">{copy.profileMeta}</p>
-              </div>
-              <span className="ml-auto rounded-full bg-[#0B46E8] px-2.5 py-1 text-[10px] font-extrabold tracking-[0.04em] text-white">
-                READY
-              </span>
-            </div>
-            <div className="mb-2 flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-500">{heroCopy.profileProgress}</span>
-              <span className="font-extrabold text-[#0B1227]">{Math.round(animatedProgress)}%</span>
-            </div>
-            <div className="mb-3 h-2 overflow-hidden rounded-full bg-[#DBEAFE]">
-              <div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${animatedProgress}%` }} />
-            </div>
-            <div className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold text-[#0B46E8]">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              {heroCopy.readinessLabel} · {heroCopy.recommendationLabel}
-            </div>
+        <Reveal className="order-2 hidden lg:order-1 md:block" y="lg">
+          <div className="relative mx-auto w-full max-w-[560px] animate-float-y [animation-duration:4.2s]">
+            <div className="relative h-[600px] overflow-hidden">
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-20 bg-gradient-to-b from-white via-white/80 to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-20 bg-gradient-to-t from-white via-white/80 to-transparent" />
+              <div className="relative h-full">
+                {Array.from({ length: 9 }, (_, virtualIdx) => {
+                  const centeredIndex = Math.floor(activeSlot) - 4 + virtualIdx;
+                  const wrappedIndex = ((centeredIndex % slotCards.length) + slotCards.length) % slotCards.length;
+                  const card = slotCards[wrappedIndex];
+                  const wrapped = centeredIndex - activeSlot;
+                  const distance = Math.abs(wrapped);
+                  const yOffset = wrapped * 136;
+                  const scale = Math.max(0.62, 1 - distance * 0.12);
+                  const opacity = Math.max(0.3, 1 - distance * 0.24);
+                  const zIndex = Math.round(20 - distance * 3);
 
-            <div className="mb-3 grid grid-cols-2 gap-2">
-              <div className="rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] px-3 py-2">
-                <p className="text-[10px] font-semibold text-slate-500">{copy.recommendationsLabel}</p>
-                <p className="text-sm font-extrabold text-[#1D4ED8]">7</p>
+                  return (
+                    <div
+                      key={`${card.id}-${centeredIndex}`}
+                      className="absolute left-1/2 top-1/2 w-[72%] -translate-x-1/2"
+                      style={{
+                        transform: `translate(-50%, calc(-50% + ${yOffset}px)) scale(${scale})`,
+                        opacity,
+                        zIndex,
+                      }}
+                    >
+                      <div className={`flex items-center justify-between rounded-full bg-gradient-to-r px-6 py-6 shadow-[0_14px_30px_-22px_rgba(2,6,23,0.5)] ${slotCardThemes[card.id]}`}>
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="relative h-16 w-16 overflow-hidden ring-2 ring-white/80" style={AVATAR_SQUIRCLE_STYLE}>
+                            <Image src={card.profileSrc} alt="Profile photo" fill className="object-cover" sizes="64px" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-base font-extrabold">{card.name}</p>
+                            <div className="mt-1 flex items-center justify-between text-[11px] font-semibold opacity-90">
+                              <p>
+                              {profileCompletionLabel}
+                              </p>
+                              <p>{card.progress}%</p>
+                            </div>
+                            <div className="mt-1.5 h-2 w-[128px] overflow-hidden rounded-full bg-white/55">
+                              <div className="h-full rounded-full bg-white" style={{ width: `${card.progress}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[11px] font-semibold opacity-80">{matchChanceLabel}</p>
+                          <p className="font-display text-[38px] font-black leading-none">{card.chance}%</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="rounded-xl border border-[#C4B5FD] bg-[#F5F3FF] px-3 py-2">
-                <p className="text-[10px] font-semibold text-slate-500">{copy.unlockedLabel}</p>
-                <p className="text-sm font-extrabold text-[#6D28D9]">+12</p>
-              </div>
-            </div>
-
-            <ul className="space-y-1.5">
-              {previewChecklist.map((item) => (
-                <li key={item.label} className="flex items-center gap-2 rounded-lg bg-white/90 px-2 py-1.5 text-xs text-foreground shadow-[0_8px_20px_-18px_rgba(37,99,235,0.45)]">
-                  {item.done ? (
-                    <Check className="h-3.5 w-3.5 text-[#0B46E8]" />
-                  ) : (
-                    <span className="h-3.5 w-3.5 rounded-full border border-muted-foreground/50" />
-                  )}
-                  <span>{item.label}</span>
-                </li>
-              ))}
-            </ul>
             </div>
           </div>
         </Reveal>
 
         <Reveal className="order-1 lg:order-2" delayMs={90}>
-          <p className="slide-in-left mb-3 inline-flex rounded-full border border-[#93C5FD] bg-white px-3 py-1 text-xs font-extrabold tracking-[0.04em] text-[#1D4ED8] shadow-sm" style={{ animationDelay: "40ms" }}>
-            {copy.sectionLabel}
-          </p>
-          <h2 className="slide-in-left font-display text-3xl font-black leading-[1.04] tracking-[-0.03em] text-[#0B1227] md:text-5xl" style={{ animationDelay: "90ms" }}>
+          <h2 className={`${paperlogy.className} text-3xl font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>
             {copy.titleTop}
             <br />
             <span className="mt-2 inline-block -rotate-[0.8deg] rounded-2xl bg-[#ffd36a] px-5 py-2.5 text-[#0B1227] shadow-[0_16px_34px_-18px_rgba(180,120,0,0.35)] md:px-7 md:py-3">
               {copy.titleBottom}
             </span>
           </h2>
-          <p className="slide-in-left mt-5 max-w-lg whitespace-pre-line text-slate-600" style={{ animationDelay: "150ms" }}>{copy.description}</p>
-          <ul className="slide-in-left mt-5 space-y-1.5" style={{ animationDelay: "210ms" }}>
+          <p className="mt-5 max-w-lg whitespace-pre-line text-slate-600">{copy.description}</p>
+          <ul className="mt-5 space-y-1.5">
             {copy.highlights.map((highlight) => (
               <li key={highlight} className="flex items-start gap-2 text-sm leading-snug text-slate-700">
                 <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#0B46E8]" />
@@ -124,14 +178,65 @@ export const StudentProfile = () => {
             ))}
           </ul>
           <Button
-            variant="hero"
-            size="xl"
-            className="slide-in-left mt-7 h-12 rounded-2xl bg-[#0B46E8] px-6 text-sm font-extrabold shadow-[0_20px_35px_-18px_rgba(30,64,175,0.9)] hover:bg-[#0A3FCF]"
-            style={{ animationDelay: "280ms" }}
+            variant="dark"
+            size="lg"
+            className="mt-7 h-11 rounded-xl border-0 bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
             asChild
           >
-            <Link href={ctaHref}>{copy.cta}</Link>
+            <Link href={ctaHref}>{ctaLabel}</Link>
           </Button>
+
+          <div className="relative mt-8 h-[280px] overflow-hidden md:hidden">
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-14 bg-gradient-to-b from-white via-white/80 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-14 bg-gradient-to-t from-white via-white/80 to-transparent" />
+            <div className="relative h-full">
+              {Array.from({ length: 7 }, (_, virtualIdx) => {
+                const centeredIndex = Math.floor(activeSlot) - 3 + virtualIdx;
+                const wrappedIndex = ((centeredIndex % slotCards.length) + slotCards.length) % slotCards.length;
+                const card = slotCards[wrappedIndex];
+                const wrapped = centeredIndex - activeSlot;
+                const distance = Math.abs(wrapped);
+                const yOffset = wrapped * 90;
+                const scale = Math.max(0.78, 1 - distance * 0.11);
+                const opacity = Math.max(0.38, 1 - distance * 0.22);
+                const zIndex = Math.round(18 - distance * 3);
+
+                return (
+                  <div
+                    key={`mobile-${card.id}-${centeredIndex}`}
+                    className="absolute left-1/2 top-1/2 w-[95%] -translate-x-1/2"
+                    style={{
+                      transform: `translate(-50%, calc(-50% + ${yOffset}px)) scale(${scale})`,
+                      opacity,
+                      zIndex,
+                    }}
+                  >
+                    <div className={`flex items-center justify-between rounded-[24px] bg-gradient-to-r px-4 py-4 shadow-[0_14px_30px_-22px_rgba(2,6,23,0.5)] ${slotCardThemes[card.id]}`}>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="relative h-12 w-12 overflow-hidden ring-2 ring-white/80" style={AVATAR_SQUIRCLE_STYLE}>
+                          <Image src={card.profileSrc} alt="Profile photo" fill className="object-cover" sizes="48px" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-extrabold">{card.name}</p>
+                          <div className="mt-1 flex items-center justify-between text-[10px] font-semibold opacity-90">
+                            <p>{profileCompletionLabel}</p>
+                            <p>{card.progress}%</p>
+                          </div>
+                          <div className="mt-1.5 h-2 w-[110px] overflow-hidden rounded-full bg-white/55">
+                            <div className="h-full rounded-full bg-white" style={{ width: `${card.progress}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-semibold opacity-80">{matchChanceLabel}</p>
+                        <p className="font-display text-[24px] font-black leading-none">{card.chance}%</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </Reveal>
       </div>
     </section>

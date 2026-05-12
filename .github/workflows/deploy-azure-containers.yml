@@ -1,0 +1,139 @@
+name: Deploy Azure Containers (Web + API) # manual trigger 4
+
+on:
+  push:
+    branches: ["develop", "main"]
+    paths:
+      - "apps/platform-web/**"
+      - "apps/api/**"
+      - "package.json"
+      - "package-lock.json"
+      - "docker-compose.yml"
+      - ".github/workflows/deploy-azure-containers.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    concurrency:
+      group: containers-${{ github.ref_name }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve deploy targets
+        id: targets
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "deploy_web=true" >> "$GITHUB_OUTPUT"
+            echo "deploy_api=true" >> "$GITHUB_OUTPUT"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+            if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              BASE_SHA="$(git rev-parse "${HEAD_SHA}^" 2>/dev/null || true)"
+            fi
+            CHANGED_FILES="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || true)"
+
+            if [ -z "$CHANGED_FILES" ]; then
+              echo "No diff detected (base/head unavailable). Fallback to deploy both."
+              echo "deploy_web=true" >> "$GITHUB_OUTPUT"
+              echo "deploy_api=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "Changed files:"
+            echo "$CHANGED_FILES"
+
+            echo "$CHANGED_FILES" | grep -Eq '^apps/platform-web/|^package\.json$|^package-lock\.json$|^docker-compose\.yml$|^\.github/workflows/deploy-azure-containers\.yml$' \
+              && echo "deploy_web=true" >> "$GITHUB_OUTPUT" || echo "deploy_web=false" >> "$GITHUB_OUTPUT"
+            echo "$CHANGED_FILES" | grep -Eq '^apps/api/|^package\.json$|^package-lock\.json$|^docker-compose\.yml$|^\.github/workflows/deploy-azure-containers\.yml$' \
+              && echo "deploy_api=true" >> "$GITHUB_OUTPUT" || echo "deploy_api=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set image tags
+        id: vars
+        run: |
+          echo "sha_short=$(echo $GITHUB_SHA | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_NAME" = "main" ]; then
+            echo "env_tag=prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "env_tag=stg" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to container registry
+        run: |
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login "${{ secrets.REGISTRY_SERVER }}" -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+
+      - name: Validate required secrets
+        env:
+          REGISTRY_SERVER: ${{ secrets.REGISTRY_SERVER }}
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          WEB_IMAGE_NAME: ${{ secrets.WEB_IMAGE_NAME }}
+          API_IMAGE_NAME: ${{ secrets.API_IMAGE_NAME }}
+          AZURE_WEBAPP_PLATFORM_NAME: ${{ secrets.AZURE_WEBAPP_PLATFORM_NAME }}
+          AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE }}
+          AZURE_WEBAPP_API_NAME: ${{ secrets.AZURE_WEBAPP_API_NAME }}
+          AZURE_WEBAPP_API_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_API_PUBLISH_PROFILE }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+        run: |
+          test -n "${REGISTRY_SERVER:-}" || (echo "Missing secret: REGISTRY_SERVER" && exit 1)
+          test -n "${REGISTRY_USERNAME:-}" || (echo "Missing secret: REGISTRY_USERNAME" && exit 1)
+          test -n "${REGISTRY_PASSWORD:-}" || (echo "Missing secret: REGISTRY_PASSWORD" && exit 1)
+          test -n "${NEXT_PUBLIC_API_URL:-}" || (echo "Missing secret: NEXT_PUBLIC_API_URL" && exit 1)
+          if [ "${{ steps.targets.outputs.deploy_web }}" = "true" ]; then
+            test -n "${WEB_IMAGE_NAME:-}" || (echo "Missing secret: WEB_IMAGE_NAME" && exit 1)
+            test -n "${AZURE_WEBAPP_PLATFORM_NAME:-}" || (echo "Missing secret: AZURE_WEBAPP_PLATFORM_NAME" && exit 1)
+            test -n "${AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE:-}" || (echo "Missing secret: AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE" && exit 1)
+          fi
+          if [ "${{ steps.targets.outputs.deploy_api }}" = "true" ]; then
+            test -n "${API_IMAGE_NAME:-}" || (echo "Missing secret: API_IMAGE_NAME" && exit 1)
+            test -n "${AZURE_WEBAPP_API_NAME:-}" || (echo "Missing secret: AZURE_WEBAPP_API_NAME" && exit 1)
+            test -n "${AZURE_WEBAPP_API_PUBLISH_PROFILE:-}" || (echo "Missing secret: AZURE_WEBAPP_API_PUBLISH_PROFILE" && exit 1)
+          fi
+
+      - name: Build and push Web image
+        if: steps.targets.outputs.deploy_web == 'true'
+        run: |
+          WEB_IMAGE=${{ secrets.REGISTRY_SERVER }}/${{ secrets.WEB_IMAGE_NAME }}:${{ steps.vars.outputs.env_tag }}-${{ steps.vars.outputs.sha_short }}
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL="${{ secrets.NEXT_PUBLIC_API_URL }}" \
+            --build-arg NEXT_PUBLIC_GA_MEASUREMENT_ID="${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}" \
+            -f apps/platform-web/Dockerfile \
+            -t "$WEB_IMAGE" .
+          docker push "$WEB_IMAGE"
+          echo "WEB_IMAGE=$WEB_IMAGE" >> "$GITHUB_ENV"
+
+      - name: Build and push API image
+        if: steps.targets.outputs.deploy_api == 'true'
+        run: |
+          API_IMAGE=${{ secrets.REGISTRY_SERVER }}/${{ secrets.API_IMAGE_NAME }}:${{ steps.vars.outputs.env_tag }}-${{ steps.vars.outputs.sha_short }}
+          docker build -f apps/api/Dockerfile -t "$API_IMAGE" .
+          docker push "$API_IMAGE"
+          echo "API_IMAGE=$API_IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy Web container to Azure
+        if: steps.targets.outputs.deploy_web == 'true'
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_PLATFORM_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE }}
+          images: ${{ env.WEB_IMAGE }}
+
+      - name: Deploy API container to Azure
+        if: steps.targets.outputs.deploy_api == 'true'
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_API_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_API_PUBLISH_PROFILE }}
+          images: ${{ env.API_IMAGE }}

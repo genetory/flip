@@ -1,5 +1,6 @@
 import "dotenv/config";
-import { randomBytes, randomInt } from "crypto";
+import { spawn } from "child_process";
+import { createHmac, randomBytes, randomInt } from "crypto";
 import cors from "cors";
 import express from "express";
 import nodemailer from "nodemailer";
@@ -7,6 +8,7 @@ import OpenAI from "openai";
 import swaggerUi from "swagger-ui-express";
 import {
   Prisma,
+  AuthProvider,
   MemberRole,
   CandidateVisaType,
   CandidateEducationType,
@@ -14,7 +16,13 @@ import {
   CandidateLanguageType,
   CandidateLanguageLevel,
   CandidateActivityType,
+  CommunityPostCategory,
+  ApplicationCommentVisibility,
+  PositionEmploymentType,
+  PositionSourceKind,
+  PositionSourceProvider,
   PositionStatus,
+  PositionRevisionStatus,
   PartnerIndustry,
   PartnerOrgUserRole,
   PartnerType,
@@ -40,9 +48,68 @@ import {
 
 const app = express();
 const prisma = new PrismaClient();
+
+async function createNotification(input: {
+  userId: string;
+  type: string;
+  title: string;
+  message?: string | null;
+  linkPath?: string | null;
+}) {
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: input.userId,
+        type: input.type,
+        title: input.title,
+        message: input.message ?? null,
+        linkPath: input.linkPath ?? null
+      }
+    });
+  } catch (error) {
+    console.error("[notification][create] failed", error);
+  }
+}
+
+async function notifyOperators(input: { type: string; title: string; message?: string | null; linkPath?: string | null }) {
+  const ops = await prisma.user.findMany({ where: { role: MemberRole.OPERATOR }, select: { id: true } });
+  await Promise.all(ops.map((u) => createNotification({ ...input, userId: u.id })));
+}
+
+async function writeAuditLog(
+  req: express.Request | undefined,
+  input: {
+    action: string;
+    resource: string;
+    resourceId?: string | null;
+    metadata?: Record<string, unknown>;
+  }
+) {
+  try {
+    const ip = req
+      ? (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+        req.socket.remoteAddress ||
+        null
+      : null;
+    await prisma.auditLog.create({
+      data: {
+        actorUserId: req?.auth?.userId ?? null,
+        actorRole: req?.auth?.role ?? null,
+        action: input.action,
+        resource: input.resource,
+        resourceId: input.resourceId ?? null,
+        metadata: input.metadata ? (input.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
+        ipAddress: ip
+      }
+    });
+  } catch (err) {
+    console.error("[audit][write] failed", err);
+  }
+}
 const port = Number(process.env.API_PORT ?? 4000);
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 const openaiMatchingModel = process.env.OPENAI_MATCHING_MODEL ?? "gpt-5.4";
+const openaiTranslationModel = process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-5.4-mini";
 const openaiMatchingMaxPool = Number(process.env.OPENAI_MATCHING_MAX_POOL ?? 120);
 const openaiMatchingPrefilterMultiplier = Math.max(1, Number(process.env.OPENAI_MATCHING_PREFILTER_MULTIPLIER ?? 4));
 const openaiMatchingMinCompletionPercent = Math.max(0, Math.min(100, Number(process.env.OPENAI_MATCHING_MIN_COMPLETION_PERCENT ?? 45)));
@@ -55,6 +122,24 @@ const partnerAdminUrl = process.env.PARTNER_ADMIN_URL ?? "http://localhost:3001"
 const opsAdminUrl = process.env.OPS_ADMIN_URL ?? "http://localhost:3002";
 const emailVerificationTtlHours = Math.max(1, Number(process.env.EMAIL_VERIFICATION_TTL_HOURS ?? 24));
 const emailVerificationBaseUrl = process.env.EMAIL_VERIFICATION_BASE_URL ?? `${platformWebUrl}/verify-email`;
+const getTrimmedEnvOrFallback = (value: string | undefined, fallback: string) => {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : fallback;
+};
+const discordCompanyConsultationWebhookUrl = process.env.DISCORD_COMPANY_CONSULTATION_WEBHOOK_URL?.trim() ?? "";
+const discordSignupWebhookUrl = process.env.SIGNUP_DISCORD_WEBHOOK_URL?.trim() ?? "";
+const discordCommunityPostWebhookUrl = process.env.DISCORD_COMMUNITY_POST_WEBHOOK_URL?.trim() ?? "";
+const discordPositionApplyWebhookUrl =
+  getTrimmedEnvOrFallback(
+    process.env.DISCORD_POSITION_APPLY_WEBHOOK_URL,
+    "https://discord.com/api/webhooks/1501413270341554287/p2IEy5KPZqOy6nnMNHWO-wxAhpe5OixHBeJCDMzLfokse-kSwxIAONxTBVh6hQKO-XeY"
+  );
+const discordPositionCreateWebhookUrl =
+  getTrimmedEnvOrFallback(
+    process.env.DISCORD_POSITION_CREATE_WEBHOOK_URL,
+    "https://discord.com/api/webhooks/1501417599416799337/Viilar1RgIH0ID5Ok1HdxzGX8wR06mQMWuMn-extrtvgRC22rnAKQJVHZ9mrGss7bWJg"
+  );
+const companyConsultationDiscordTestToken = process.env.COMPANY_CONSULTATION_DISCORD_TEST_TOKEN?.trim() ?? "";
 const emailFromAddress = process.env.EMAIL_FROM?.trim() ?? "";
 const smtpHost = process.env.SMTP_HOST?.trim() ?? "";
 const smtpPort = Number(process.env.SMTP_PORT ?? 587);
@@ -62,29 +147,78 @@ const smtpUser = process.env.SMTP_USER?.trim() ?? "";
 const smtpPass = process.env.SMTP_PASS ?? "";
 const smtpSecure = String(process.env.SMTP_SECURE ?? "false").toLowerCase() === "true";
 const signupEmailVerificationCodeTtlMinutes = Math.max(1, Number(process.env.SIGNUP_EMAIL_VERIFICATION_CODE_TTL_MINUTES ?? 10));
-const allowedOrigins = [platformWebUrl, partnerAdminUrl, opsAdminUrl];
-const refreshCookieName = "flip_refresh_token";
+const partnerJoinCodeTtlMinutesDefault = Math.max(5, Number(process.env.PARTNER_JOIN_CODE_TTL_MINUTES ?? 120));
+const partnerJoinCodeTtlMinutesMax = Math.max(partnerJoinCodeTtlMinutesDefault, Number(process.env.PARTNER_JOIN_CODE_TTL_MAX_MINUTES ?? 10080));
 const isProduction = process.env.NODE_ENV === "production";
-const publicEmailDomains = new Set([
-  "gmail.com",
-  "googlemail.com",
-  "naver.com",
-  "hanmail.net",
-  "daum.net",
-  "kakao.com",
-  "hotmail.com",
-  "outlook.com",
-  "icloud.com",
-  "me.com",
-  "mac.com",
-  "yahoo.com",
-  "yahoo.co.kr",
-  "proton.me",
-  "protonmail.com",
-  "aol.com",
-  "msn.com"
-]);
+const allowedOrigins = [
+  platformWebUrl,
+  partnerAdminUrl,
+  opsAdminUrl,
+  "https://aply.global",
+  "https://www.aply.global",
+  "https://staging.aply.global"
+]
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
+const allowedOriginHostSuffixes = (process.env.CORS_ALLOWED_ORIGIN_SUFFIXES ?? ".azurewebsites.net,.aply.global")
+  .split(",")
+  .map((item) => item.trim().toLowerCase())
+  .filter((item) => item.length > 0)
+  .map((item) => (item.startsWith(".") ? item : `.${item}`));
+const refreshCookieName = "flip_refresh_token";
+const oauthStateCookieName = "flip_oauth_state";
+const oauthStateSecret = process.env.OAUTH_STATE_SECRET?.trim() || "dev-oauth-state-secret-change-me";
+const naverOAuthClientId = process.env.NAVER_OAUTH_CLIENT_ID?.trim() ?? "";
+const naverOAuthClientSecret = process.env.NAVER_OAUTH_CLIENT_SECRET?.trim() ?? "";
+const naverOAuthRedirectUri = process.env.NAVER_OAUTH_REDIRECT_URI?.trim() || `http://localhost:${port}/auth/naver/callback`;
+const googleOAuthClientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim() ?? "";
+const googleOAuthClientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim() ?? "";
+const googleOAuthRedirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI?.trim() || `http://localhost:${port}/auth/google/callback`;
+const kakaoOAuthClientId = process.env.KAKAO_OAUTH_CLIENT_ID?.trim() ?? "";
+const kakaoOAuthClientSecret = process.env.KAKAO_OAUTH_CLIENT_SECRET?.trim() ?? "";
+const kakaoOAuthRedirectUri = process.env.KAKAO_OAUTH_REDIRECT_URI?.trim() || `http://localhost:${port}/auth/kakao/callback`;
+const azureStorageConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING?.trim() ?? "";
+const azureStorageContainerName = process.env.AZURE_STORAGE_CONTAINER_NAME?.trim() || "uploads";
+const crawlSchedulerEnabled = String(process.env.CRAWL_SCHEDULER_ENABLED ?? "false").toLowerCase() === "true";
+const crawlSchedulerHourKst = Math.max(0, Math.min(23, Number(process.env.CRAWL_SCHEDULER_HOUR_KST ?? 4)));
+const crawlSchedulerMinuteKst = Math.max(0, Math.min(59, Number(process.env.CRAWL_SCHEDULER_MINUTE_KST ?? 10)));
+const crawlSchedulerRunOnBoot = String(process.env.CRAWL_SCHEDULER_RUN_ON_BOOT ?? "false").toLowerCase() === "true";
+const crawlerSummaryDiscordWebhookUrl =
+  process.env.CRAWLER_SUMMARY_DISCORD_WEBHOOK_URL?.trim()
+  || "https://discord.com/api/webhooks/1501899705385488455/27NCPq0khx4Cj8irz5s1VB0AWC7SKe5TzaI-C3oz78bWbic4zBplOx-vcul0UV_wyioR";
 
+function resolveRuntimeEnvironment(): "Local" | "Staging" | "Production" {
+  const appEnv = (process.env.APP_ENV ?? process.env.ENV ?? "").trim().toLowerCase();
+  const nodeEnv = (process.env.NODE_ENV ?? "").trim().toLowerCase();
+  if (appEnv === "production" || appEnv === "prod") return "Production";
+  if (appEnv === "staging" || appEnv === "stage" || appEnv === "stg") return "Staging";
+  if (nodeEnv === "production") {
+    return appEnv ? "Staging" : "Production";
+  }
+  return "Local";
+}
+
+function getDatabaseTargetMeta() {
+  const raw = process.env.DATABASE_URL ?? "";
+  try {
+    const parsed = new URL(raw);
+    return {
+      host: parsed.host,
+      database: parsed.pathname.replace(/^\//, "") || null
+    };
+  } catch {
+    return { host: null as string | null, database: null as string | null };
+  }
+}
+type PartnerApplicantWorkflowStatus =
+  | "APPLIED"
+  | "REVIEWING"
+  | "INTERVIEW"
+  | "OFFERED"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "WITHDRAWN"
+  | "COMPLETED";
 type AuthTokenUser = {
   id: string;
   role: MemberRole;
@@ -107,7 +241,21 @@ type AuthErrorCode =
   | "INVALID_REFRESH_TOKEN"
   | "REFRESH_TOKEN_REVOKED"
   | "USER_NOT_FOUND"
-  | "PARTNER_AFFILIATION_REQUIRED";
+  | "PARTNER_AFFILIATION_REQUIRED"
+  | "INVALID_SIGNUP_CONTEXT"
+  | "EXPIRED_SIGNUP_CONTEXT"
+  | "ACCOUNT_SUSPENDED";
+
+const partnerApplicantStatusEnum = z.enum([
+  "APPLIED",
+  "REVIEWING",
+  "INTERVIEW",
+  "OFFERED",
+  "ACCEPTED",
+  "REJECTED",
+  "WITHDRAWN",
+  "COMPLETED"
+]);
 
 async function issueAuthTokens(user: AuthTokenUser) {
   const accessToken = signAccessToken({
@@ -165,6 +313,429 @@ function getSmtpTransporter() {
     auth: smtpUser && smtpPass ? { user: smtpUser, pass: smtpPass } : undefined
   });
   return smtpTransporter;
+}
+
+async function sendCompanyConsultationDiscordNotification(input: {
+  id: string;
+  companyName: string;
+  contactName: string;
+  email: string;
+  phone: string | null;
+  message: string;
+  locale: string;
+  source: string;
+  createdAt: Date;
+}) {
+  if (!discordCompanyConsultationWebhookUrl) return;
+
+  const truncateForDiscord = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+
+  const safeCompanyName = truncateForDiscord(input.companyName || "-", 256);
+  const safeContactName = truncateForDiscord(input.contactName || "-", 256);
+  const safePhone = truncateForDiscord(input.phone ?? "-", 256);
+  const safeEmail = truncateForDiscord(input.email || "-", 1024);
+  const safeSource = truncateForDiscord(input.source || "-", 256);
+  const safeLocale = truncateForDiscord(input.locale || "-", 256);
+  const safeInquiryId = truncateForDiscord(input.id || "-", 256);
+  const safeMessage = truncateForDiscord(input.message || "-", 1024);
+
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 3447003,
+        title: "📩 기업 상담 문의 접수",
+        description: "담당자가 빠르게 확인이 필요한 신규 문의입니다.",
+        fields: [
+          { name: "기업명", value: safeCompanyName, inline: true },
+          { name: "담당자", value: safeContactName, inline: true },
+          { name: "연락처", value: safePhone, inline: true },
+          { name: "이메일", value: safeEmail, inline: false },
+          { name: "문의 ID", value: safeInquiryId, inline: true },
+          { name: "언어", value: safeLocale, inline: true },
+          { name: "유입경로", value: safeSource, inline: true },
+          { name: "문의 내용", value: safeMessage, inline: false }
+        ],
+        footer: { text: "CareerBridge • Company Consultation" },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch(discordCompanyConsultationWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("company_consultation_discord_webhook_failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("company_consultation_discord_webhook_error", {
+      error: getErrorMessage(error)
+    });
+  }
+}
+
+function getSignupRoleColor(role: MemberRole) {
+  if (role === MemberRole.STUDENT) return 0x2563eb;
+  if (role === MemberRole.PARTNER) return 0x10b981;
+  if (role === MemberRole.OPERATOR) return 0xf59e0b;
+  return 0x6b7280;
+}
+
+async function sendSignupDiscordNotification(input: {
+  id: string;
+  email: string;
+  name: string | null;
+  realName: string | null;
+  role: MemberRole;
+  partnerType: PartnerType | null;
+  createdAt: Date;
+}) {
+  if (!discordSignupWebhookUrl) return;
+
+  const truncateForDiscord = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+
+  const safeName = truncateForDiscord((input.name ?? "").trim() || "-", 256);
+  const safeRealName = truncateForDiscord((input.realName ?? "").trim() || "-", 256);
+  const safeEmail = truncateForDiscord(input.email || "-", 1024);
+  const safeRole = truncateForDiscord(input.role || "-", 256);
+  const safePartnerType = truncateForDiscord(input.partnerType ?? "-", 256);
+  const safeUserId = truncateForDiscord(input.id || "-", 256);
+
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: getSignupRoleColor(input.role),
+        title: "✅ 신규 회원가입",
+        description: "새 사용자가 가입했습니다.",
+        fields: [
+          { name: "Role", value: safeRole, inline: true },
+          { name: "Partner Type", value: safePartnerType, inline: true },
+          { name: "User ID", value: safeUserId, inline: true },
+          { name: "이름", value: safeName, inline: true },
+          { name: "실명", value: safeRealName, inline: true },
+          { name: "이메일", value: safeEmail, inline: false }
+        ],
+        footer: { text: "CareerBridge • Signup" },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch(discordSignupWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("signup_discord_webhook_failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("signup_discord_webhook_error", {
+      error: getErrorMessage(error)
+    });
+  }
+}
+
+async function sendCommunityPostDiscordNotification(input: {
+  id: string;
+  authorId: string | null;
+  authorName: string | null;
+  authorRole: MemberRole;
+  category: string;
+  title: string;
+  body: string;
+  imageUrls: string[];
+  createdAt: Date;
+}) {
+  if (!discordCommunityPostWebhookUrl) return;
+
+  const truncateForDiscord = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+
+  const safeCategory = truncateForDiscord(input.category || "-", 256);
+  const safeAuthor = truncateForDiscord(input.authorName || "-", 256);
+  const safeAuthorRole = truncateForDiscord(input.authorRole || "-", 256);
+  const safeAuthorId = truncateForDiscord(input.authorId || "-", 256);
+  const safeBody = truncateForDiscord(input.body || "-", 1024);
+  const safePostId = truncateForDiscord(input.id || "-", 256);
+  const safeImageCount = String(input.imageUrls.length);
+  const postUrl = `${platformWebUrl}/community?postId=${encodeURIComponent(input.id)}`;
+  const safePostUrlField = truncateForDiscord(`[게시글 바로가기](${postUrl})`, 1024);
+
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0x8b5cf6,
+        title: "📝 커뮤니티 새 글 등록",
+        description: "새 커뮤니티 게시글이 작성되었습니다.",
+        fields: [
+          { name: "카테고리", value: safeCategory, inline: true },
+          { name: "작성자", value: safeAuthor, inline: true },
+          { name: "Role", value: safeAuthorRole, inline: true },
+          { name: "작성자 ID", value: safeAuthorId, inline: true },
+          { name: "게시글 ID", value: safePostId, inline: true },
+          { name: "이미지 수", value: safeImageCount, inline: true },
+          { name: "바로가기", value: safePostUrlField, inline: false },
+          { name: "본문", value: safeBody, inline: false }
+        ],
+        footer: { text: "CareerBridge • Community" },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch(discordCommunityPostWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("community_post_discord_webhook_failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("community_post_discord_webhook_error", {
+      error: getErrorMessage(error)
+    });
+  }
+}
+
+async function sendPositionApplyDiscordNotification(input: {
+  positionId: string;
+  positionTitle: string;
+  applicantId: string;
+  applicantName: string | null;
+  applicantEmail: string;
+  partnerName: string | null;
+  appliedAt: Date;
+}) {
+  if (!discordPositionApplyWebhookUrl) return;
+
+  const truncateForDiscord = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+
+  const safePositionId = truncateForDiscord(input.positionId || "-", 256);
+  const safePositionTitle = truncateForDiscord(input.positionTitle || "-", 256);
+  const safeApplicantId = truncateForDiscord(input.applicantId || "-", 256);
+  const safeApplicantName = truncateForDiscord((input.applicantName ?? "").trim() || "-", 256);
+  const safeApplicantEmail = truncateForDiscord(input.applicantEmail || "-", 1024);
+  const safePartnerName = truncateForDiscord(input.partnerName || "-", 256);
+  const postUrl = `${platformWebUrl}/positions/${encodeURIComponent(input.positionId)}`;
+  const safePostUrlField = truncateForDiscord(`[포지션 바로가기](${postUrl})`, 1024);
+
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0x0ea5e9,
+        title: "📨 포지션 지원 접수",
+        description: "새로운 포지션 지원이 접수되었습니다.",
+        fields: [
+          { name: "포지션", value: safePositionTitle, inline: true },
+          { name: "파트너", value: safePartnerName, inline: true },
+          { name: "지원자", value: safeApplicantName, inline: true },
+          { name: "지원자 이메일", value: safeApplicantEmail, inline: false },
+          { name: "지원자 ID", value: safeApplicantId, inline: true },
+          { name: "포지션 ID", value: safePositionId, inline: true },
+          { name: "바로가기", value: safePostUrlField, inline: false }
+        ],
+        footer: { text: "CareerBridge • Position Apply" },
+        timestamp: input.appliedAt.toISOString()
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch(discordPositionApplyWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("position_apply_discord_webhook_failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("position_apply_discord_webhook_error", {
+      error: getErrorMessage(error)
+    });
+  }
+}
+
+async function sendPositionCreateDiscordNotification(input: {
+  positionId: string;
+  positionTitle: string;
+  partnerName: string | null;
+  employmentType: string;
+  employmentClassification?:
+    | "UNPAID_INTERN_EXPERIENCE"
+    | "UNPAID_INTERN_CONVERSION"
+    | "PAID_INTERN_EXPERIENCE"
+    | "PAID_INTERN_CONVERSION"
+    | "PART_TIME"
+    | "FULL_TIME"
+    | null;
+  workType: string | null;
+  workLocation: string | null;
+  createdByUserId: string;
+  createdByUserName: string | null;
+  createdByUserEmail: string | null;
+  createdAt: Date;
+}) {
+  if (!discordPositionCreateWebhookUrl) return;
+  const webhookTarget = (() => {
+    try {
+      const parsed = new URL(discordPositionCreateWebhookUrl);
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      const webhookId = parts.length >= 2 ? parts[parts.length - 2] : "unknown";
+      return `${parsed.host}/.../${webhookId}`;
+    } catch {
+      return "invalid_webhook_url";
+    }
+  })();
+
+  const truncateForDiscord = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+  const employmentTypeDisplayTitle = (() => {
+    switch (input.employmentClassification) {
+      case "UNPAID_INTERN_EXPERIENCE":
+        return "무급 체험형 인턴";
+      case "UNPAID_INTERN_CONVERSION":
+        return "무급 전환형 인턴";
+      case "PAID_INTERN_EXPERIENCE":
+        return "유급 체험형 인턴";
+      case "PAID_INTERN_CONVERSION":
+        return "유급 전환형 인턴";
+      case "PART_TIME":
+        return "알바";
+      case "FULL_TIME":
+        return "정직원";
+      default:
+        break;
+    }
+    switch (input.employmentType) {
+      case PositionEmploymentType.FULL_TIME:
+        return "정직원";
+      case PositionEmploymentType.INTERN:
+        return "인턴";
+      case PositionEmploymentType.PART_TIME:
+        return "파트타임";
+      case PositionEmploymentType.UNPAID_INTERN:
+        return "무급 인턴";
+      default:
+        return input.employmentType || "-";
+    }
+  })();
+  const workTypeDisplayTitle = (() => {
+    switch ((input.workType ?? "").trim().toLowerCase()) {
+      case "on-site":
+      case "onsite":
+        return "오피스 출근";
+      case "hybrid":
+        return "하이브리드";
+      case "remote":
+        return "원격";
+      default:
+        return input.workType || "-";
+    }
+  })();
+
+  const safePositionId = truncateForDiscord(input.positionId || "-", 256);
+  const safePositionTitle = truncateForDiscord(input.positionTitle || "-", 256);
+  const safePartnerName = truncateForDiscord(input.partnerName || "-", 256);
+  const safeEmploymentType = truncateForDiscord(employmentTypeDisplayTitle, 256);
+  const safeWorkType = truncateForDiscord(workTypeDisplayTitle, 256);
+  const safeWorkLocation = truncateForDiscord(input.workLocation || "-", 256);
+  const safeCreatorId = truncateForDiscord(input.createdByUserId || "-", 256);
+  const safeCreatorName = truncateForDiscord((input.createdByUserName ?? "").trim() || "-", 256);
+  const safeCreatorEmail = truncateForDiscord(input.createdByUserEmail || "-", 1024);
+  const postUrl = `${platformWebUrl}/positions/${encodeURIComponent(input.positionId)}`;
+  const safePostUrlField = truncateForDiscord(`[포지션 바로가기](${postUrl})`, 1024);
+
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0x22c55e,
+        title: "🆕 새로운 포지션 등록",
+        description: "파트너가 새로운 포지션을 등록했습니다.",
+        fields: [
+          { name: "포지션", value: safePositionTitle, inline: true },
+          { name: "파트너", value: safePartnerName, inline: true },
+          { name: "고용 형태", value: safeEmploymentType, inline: true },
+          { name: "근무 방식", value: safeWorkType, inline: true },
+          { name: "근무 지역", value: safeWorkLocation, inline: true },
+          { name: "포지션 ID", value: safePositionId, inline: true },
+          { name: "등록자", value: safeCreatorName, inline: true },
+          { name: "등록자 이메일", value: safeCreatorEmail, inline: true },
+          { name: "등록자 ID", value: safeCreatorId, inline: true },
+          { name: "바로가기", value: safePostUrlField, inline: false }
+        ],
+        footer: { text: "CareerBridge • Position Created" },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+
+  try {
+    console.info("position_create_discord_webhook_attempt", {
+      webhookTarget,
+      positionId: input.positionId
+    });
+    const response = await fetch(discordPositionCreateWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("position_create_discord_webhook_failed", {
+        webhookTarget,
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("position_create_discord_webhook_error", {
+      webhookTarget,
+      error: getErrorMessage(error)
+    });
+  }
+}
+
+function hasValidCompanyConsultationDiscordTestToken(req: express.Request) {
+  if (!companyConsultationDiscordTestToken) return false;
+  const token = req.header("x-internal-token")?.trim() ?? "";
+  return token.length > 0 && token === companyConsultationDiscordTestToken;
 }
 
 function buildEmailVerificationUrl(token: string) {
@@ -392,17 +963,6 @@ function parseCookies(cookieHeader: string | undefined) {
   }, {});
 }
 
-function getEmailDomain(email: string) {
-  const normalized = email.trim().toLowerCase();
-  const atIndex = normalized.lastIndexOf("@");
-  return atIndex >= 0 ? normalized.slice(atIndex + 1) : "";
-}
-
-function isBusinessEmail(email: string) {
-  const domain = getEmailDomain(email);
-  return Boolean(domain) && !publicEmailDomains.has(domain);
-}
-
 function getRefreshTokenFromRequest(req: express.Request) {
   const fromCookie = parseCookies(req.headers.cookie)[refreshCookieName];
   if (fromCookie) return fromCookie;
@@ -410,6 +970,49 @@ function getRefreshTokenFromRequest(req: express.Request) {
     return req.body.refreshToken;
   }
   return null;
+}
+
+function slugifyPartnerOrganizationName(name: string) {
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return normalized || "partner";
+}
+
+async function generateUniquePartnerOrganizationSlug(
+  name: string,
+  db: Pick<Prisma.TransactionClient, "partnerOrganization"> | Pick<PrismaClient, "partnerOrganization">
+) {
+  const base = slugifyPartnerOrganizationName(name);
+  let candidate = base;
+  let sequence = 2;
+
+  while (true) {
+    const exists = await db.partnerOrganization.findUnique({
+      where: { slug: candidate },
+      select: { id: true }
+    });
+    if (!exists) return candidate;
+    candidate = `${base}-${sequence}`;
+    sequence += 1;
+  }
+}
+
+function generatePartnerJoinCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const chars = Array.from({ length: 10 }, () => alphabet[randomInt(0, alphabet.length)]).join("");
+  return `PJT-${chars.slice(0, 5)}-${chars.slice(5)}`;
+}
+
+function generateNicknameFromEmail(email?: string | null) {
+  const localPart = (email ?? "").split("@")[0]?.toLowerCase() ?? "";
+  const cleaned = localPart.replace(/[^a-z0-9]/g, "").slice(0, 12);
+  const base = cleaned || "user";
+  const suffix = randomInt(1000, 10000).toString();
+  return `${base}${suffix}`;
 }
 
 function setRefreshTokenCookie(res: express.Response, refreshToken: string) {
@@ -441,9 +1044,90 @@ function clearRefreshTokenCookie(res: express.Response) {
   res.append("Set-Cookie", parts.join("; "));
 }
 
+function setOAuthStateCookie(res: express.Response, value: string) {
+  const parts = [
+    `${oauthStateCookieName}=${encodeURIComponent(value)}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    "Max-Age=600"
+  ];
+  if (isProduction) parts.push("Secure");
+  res.append("Set-Cookie", parts.join("; "));
+}
+
+function clearOAuthStateCookie(res: express.Response) {
+  const parts = [
+    `${oauthStateCookieName}=`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    "Max-Age=0"
+  ];
+  if (isProduction) parts.push("Secure");
+  res.append("Set-Cookie", parts.join("; "));
+}
+
+function signOAuthState(payload: Record<string, unknown>) {
+  const body = Buffer.from(JSON.stringify(payload), "utf-8").toString("base64url");
+  const sig = createHmac("sha256", oauthStateSecret).update(body).digest("base64url");
+  return `${body}.${sig}`;
+}
+
+function verifyOAuthState(value: string): Record<string, unknown> | null {
+  const [body, sig] = value.split(".");
+  if (!body || !sig) return null;
+  const expected = createHmac("sha256", oauthStateSecret).update(body).digest("base64url");
+  if (sig !== expected) return null;
+  try {
+    return JSON.parse(Buffer.from(body, "base64url").toString("utf-8")) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function buildOAuthReturnUrl(provider: "naver" | "google" | "kakao", params: Record<string, string>) {
+  const fragment = new URLSearchParams(params).toString();
+  return `${platformWebUrl}/auth/${provider}/return#${fragment}`;
+}
+
+const REAUTH_TOKEN_TTL_MS = 5 * 60 * 1000;
+
+function signReauthToken(userId: string, purpose: "delete_account") {
+  return signOAuthState({ kind: "reauth", userId, purpose, ts: Date.now() });
+}
+
+function verifyReauthToken(token: string, userId: string, purpose: "delete_account") {
+  const data = verifyOAuthState(token);
+  if (!data) return false;
+  if (data.kind !== "reauth") return false;
+  if (data.userId !== userId) return false;
+  if (data.purpose !== purpose) return false;
+  const ts = typeof data.ts === "number" ? data.ts : 0;
+  if (!ts || Date.now() - ts > REAUTH_TOKEN_TTL_MS) return false;
+  return true;
+}
+
+function buildOAuthErrorUrl(code: string, message?: string) {
+  const params: Record<string, string> = { error: code };
+  if (message) params.message = message;
+  return `${platformWebUrl}/login?${new URLSearchParams(params).toString()}`;
+}
+
+function isAllowedCorsOrigin(origin: string) {
+  if (allowedOrigins.includes(origin)) return true;
+  if (allowedOriginHostSuffixes.length === 0) return false;
+  try {
+    const hostname = new URL(origin).hostname.toLowerCase();
+    return allowedOriginHostSuffixes.some((suffix) => hostname.endsWith(suffix));
+  } catch {
+    return false;
+  }
+}
+
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || isAllowedCorsOrigin(origin)) {
       callback(null, true);
       return;
     }
@@ -452,6 +1136,48 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: "12mb" }));
+
+type RateLimitBucket = { count: number; resetAt: number };
+const rateLimitStore = new Map<string, RateLimitBucket>();
+
+function rateLimit(options: { windowMs: number; max: number; keyPrefix: string; message?: string }) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const ip =
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+      req.socket.remoteAddress ||
+      "unknown";
+    const key = `${options.keyPrefix}:${ip}`;
+    const now = Date.now();
+    const bucket = rateLimitStore.get(key);
+    if (!bucket || bucket.resetAt < now) {
+      rateLimitStore.set(key, { count: 1, resetAt: now + options.windowMs });
+      return next();
+    }
+    bucket.count += 1;
+    if (bucket.count > options.max) {
+      const retryAfter = Math.ceil((bucket.resetAt - now) / 1000);
+      res.setHeader("Retry-After", String(retryAfter));
+      return res.status(429).json({
+        ok: false,
+        message: options.message ?? "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+        retryAfterSeconds: retryAfter
+      });
+    }
+    return next();
+  };
+}
+
+// Cleanup expired buckets every 5 minutes to avoid memory growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, bucket] of rateLimitStore.entries()) {
+    if (bucket.resetAt < now) rateLimitStore.delete(key);
+  }
+}, 5 * 60 * 1000).unref?.();
+
+const authRateLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "auth", message: "로그인 시도가 너무 많습니다. 15분 후 다시 시도해 주세요." });
+const searchRateLimit = rateLimit({ windowMs: 60 * 1000, max: 60, keyPrefix: "search" });
+const writeRateLimit = rateLimit({ windowMs: 60 * 1000, max: 120, keyPrefix: "write" });
 
 type ApiDocEndpoint = {
   method: "get" | "post" | "patch" | "delete";
@@ -469,8 +1195,19 @@ const apiDocEndpoints: ApiDocEndpoint[] = [
   { method: "get", path: "/openapi.json", summary: "OpenAPI JSON", tag: "System" },
   { method: "get", path: "/health", summary: "Health check", tag: "System" },
   { method: "get", path: "/", summary: "Root endpoint", tag: "System" },
+  { method: "post", path: "/internal/company-consultations/discord-test", summary: "Trigger company consultation Discord webhook test", tag: "System", requestBody: false },
   { method: "get", path: "/members/meta", summary: "Members metadata", tag: "Members" },
   { method: "get", path: "/positions", summary: "Public positions list", tag: "Positions" },
+  { method: "post", path: "/company-consultations", summary: "Create company consultation inquiry", tag: "Company Consultation", requestBody: true, successStatus: "201" },
+  { method: "get", path: "/community/posts", summary: "Public community posts list", tag: "Community" },
+  { method: "post", path: "/community/posts", summary: "Create community post", tag: "Community", secure: true, requestBody: true, successStatus: "201" },
+  { method: "patch", path: "/community/posts/:postId", summary: "Update my community post", tag: "Community", secure: true, requestBody: true },
+  { method: "delete", path: "/community/posts/:postId", summary: "Delete my community post", tag: "Community", secure: true },
+  { method: "post", path: "/community/posts/:postId/like", summary: "Like community post", tag: "Community", secure: true },
+  { method: "delete", path: "/community/posts/:postId/like", summary: "Unlike community post", tag: "Community", secure: true },
+  { method: "get", path: "/community/posts/:postId/comments", summary: "List community post comments", tag: "Community" },
+  { method: "post", path: "/community/posts/:postId/comments", summary: "Create community post comment", tag: "Community", secure: true, requestBody: true, successStatus: "201" },
+  { method: "post", path: "/community/translate", summary: "Translate text to Korean or English", tag: "Community", requestBody: true },
   { method: "get", path: "/positions/premium-banners", summary: "Public premium position banners", tag: "Positions" },
   { method: "get", path: "/positions/:id", summary: "Public position detail", tag: "Positions" },
   { method: "get", path: "/positions/meta", summary: "Public positions metadata", tag: "Positions" },
@@ -513,6 +1250,9 @@ const apiDocEndpoints: ApiDocEndpoint[] = [
   { method: "post", path: "/partner/positions", summary: "Create partner position", tag: "Partner", secure: true, requestBody: true, successStatus: "201" },
   { method: "get", path: "/partner/positions/:id", summary: "Get my partner position detail", tag: "Partner", secure: true },
   { method: "patch", path: "/partner/positions/:id", summary: "Update my partner position", tag: "Partner", secure: true, requestBody: true },
+  { method: "get", path: "/partner/applicants", summary: "List my partner applicants", tag: "Partner", secure: true },
+  { method: "get", path: "/partner/applicants/:id", summary: "Get my partner applicant detail", tag: "Partner", secure: true },
+  { method: "patch", path: "/partner/applicants/:id", summary: "Update my partner applicant state", tag: "Partner", secure: true, requestBody: true },
 
   { method: "get", path: "/ops/dashboard", summary: "Ops dashboard summary", tag: "Ops Dashboard", secure: true },
   { method: "get", path: "/ops/partners/meta", summary: "Partner metadata", tag: "Ops Partners", secure: true },
@@ -522,9 +1262,12 @@ const apiDocEndpoints: ApiDocEndpoint[] = [
   { method: "post", path: "/ops/partners", summary: "Create partner", tag: "Ops Partners", secure: true, requestBody: true, successStatus: "201" },
   { method: "patch", path: "/ops/partners/:id", summary: "Update partner", tag: "Ops Partners", secure: true, requestBody: true },
   { method: "post", path: "/ops/partners/:id/members", summary: "Create partner member", tag: "Ops Partners", secure: true, requestBody: true, successStatus: "201" },
+  { method: "post", path: "/ops/partners/:id/join-codes", summary: "Create partner join code", tag: "Ops Partners", secure: true, requestBody: true, successStatus: "201" },
   { method: "delete", path: "/ops/partners/:id/members/:memberId", summary: "Delete partner member", tag: "Ops Partners", secure: true },
   { method: "get", path: "/ops/partner-users", summary: "List partner users", tag: "Ops Partners", secure: true },
   { method: "patch", path: "/ops/partner-users/:id/admin-memo", summary: "Update partner user admin memo", tag: "Ops Partners", secure: true, requestBody: true },
+  { method: "get", path: "/ops/users", summary: "List all users", tag: "Ops Users", secure: true },
+  { method: "patch", path: "/ops/users/:id/admin-memo", summary: "Update user admin memo", tag: "Ops Users", secure: true, requestBody: true },
 
   { method: "post", path: "/ops/matching/run", summary: "Run matching", tag: "Ops Matching", secure: true, requestBody: true },
   { method: "get", path: "/ops/matching/history", summary: "List matching history", tag: "Ops Matching", secure: true },
@@ -792,10 +1535,34 @@ const openApiDocument = {
   paths: generatedPaths
 } as const;
 
-app.get("/openapi.json", (_req, res) => {
-  return res.json(openApiDocument);
+function getRequestOrigin(req: express.Request) {
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  const proto = Array.isArray(forwardedProto)
+    ? forwardedProto[0]
+    : (forwardedProto?.split(",")[0]?.trim() || req.protocol);
+  const host = req.get("host");
+  return host ? `${proto}://${host}` : `http://localhost:${port}`;
+}
+
+app.get("/openapi.json", (req, res) => {
+  const origin = getRequestOrigin(req);
+  return res.json({
+    ...openApiDocument,
+    servers: [
+      { url: origin, description: "Current environment" },
+      { url: `http://localhost:${port}`, description: "Local development" }
+    ]
+  });
 });
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
+const swaggerUiHandler = swaggerUi.setup(undefined, {
+  explorer: true,
+  swaggerOptions: {
+    url: "/openapi.json"
+  }
+});
+app.use("/api-docs", swaggerUi.serve, swaggerUiHandler);
+app.use("/swagger", swaggerUi.serve, swaggerUiHandler);
+app.use("/docs", swaggerUi.serve, swaggerUiHandler);
 
 const memberRoleEnum = z.nativeEnum(MemberRole);
 const partnerTypeEnum = z.nativeEnum(PartnerType);
@@ -804,6 +1571,9 @@ const partnerCompanySizeEnum = z.enum(["SIZE_1_10", "SIZE_UNDER_30", "SIZE_UNDER
 const partnerOrgUserRoleEnum = z.nativeEnum(PartnerOrgUserRole);
 const positionStatusEnum = z.nativeEnum(PositionStatus);
 const positionWorkTypeEnum = z.enum(["On-site", "Hybrid", "Remote"]);
+const positionEmploymentTypeEnum = z.nativeEnum(PositionEmploymentType);
+const positionSourceKindEnum = z.nativeEnum(PositionSourceKind);
+const positionSourceProviderEnum = z.nativeEnum(PositionSourceProvider);
 const candidateVisaTypeEnum = z.nativeEnum(CandidateVisaType);
 const candidateEducationTypeEnum = z.nativeEnum(CandidateEducationType);
 const candidateEducationStatusEnum = z.nativeEnum(CandidateEducationStatus);
@@ -864,14 +1634,6 @@ function withPartnerValidation<T extends z.ZodTypeAny>(schema: T) {
     };
     const resolvedRole = data.role ?? (data.accountType === "BUSINESS" ? MemberRole.PARTNER : MemberRole.STUDENT);
 
-    if (data.accountType === "BUSINESS" && data.email && !isBusinessEmail(data.email)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["email"],
-        message: "business account requires a company email"
-      });
-    }
-
     if (resolvedRole !== MemberRole.PARTNER && data.partnerType) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -888,29 +1650,7 @@ function withPartnerValidation<T extends z.ZodTypeAny>(schema: T) {
       });
     }
 
-    if (resolvedRole === MemberRole.PARTNER) {
-      if (!data.partnerOrganizationName?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["partnerOrganizationName"],
-          message: "partner organization name is required for business account"
-        });
-      }
-      if (!data.partnerOrganizationIndustry) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["partnerOrganizationIndustry"],
-          message: "partner organization industry is required for business account"
-        });
-      }
-      if (!data.partnerOrganizationCompanySize) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["partnerOrganizationCompanySize"],
-          message: "partner organization company size is required for business account"
-        });
-      }
-    }
+    // Partner accounts may sign up first and create/join an organization later.
   });
 }
 
@@ -957,13 +1697,6 @@ const createMemberSchema = withPartnerValidation(
 );
 const createPartnerOrganizationSchema = z.object({
   partnerType: partnerTypeEnum,
-  domain: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .min(1)
-    .max(120)
-    .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, "invalid domain format"),
   name: z.string().trim().min(1).max(200),
   companySize: partnerCompanySizeEnum.optional(),
   officeAddress: z.string().trim().max(300).optional(),
@@ -981,20 +1714,14 @@ const createPartnerOrganizationSchema = z.object({
 
 const listPartnerOrganizationsQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
-  sortBy: z.enum(["name", "domain", "createdAt"]).optional(),
+  sortBy: z.enum(["name", "createdAt"]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
   pageSize: z.coerce.number().int().refine((v) => [20, 40, 100].includes(v), "pageSize must be one of 20,40,100").optional()
 });
 const listPartnerUsersQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
-  domain: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .max(120)
-    .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, "invalid domain format")
-    .optional(),
+  partnerOrganizationId: z.string().uuid().optional(),
   sortBy: z.enum(["email", "name", "createdAt"]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
@@ -1003,13 +1730,6 @@ const listPartnerUsersQuerySchema = z.object({
 
 const updatePartnerOrganizationSchema = z.object({
   partnerType: partnerTypeEnum,
-  domain: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .min(1)
-    .max(120)
-    .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, "invalid domain format"),
   name: z.string().trim().min(1).max(200),
   companySize: partnerCompanySizeEnum.optional(),
   officeAddress: z.string().trim().max(300).optional(),
@@ -1038,6 +1758,17 @@ const createPartnerMemberSchema = z.object({
 
 const updatePartnerUserAdminMemoSchema = z.object({
   adminMemo: z.string().trim().max(4000).optional()
+});
+const updatePartnerVerificationApprovalSchema = z.object({
+  approved: z.boolean()
+});
+const createPartnerSignupRequestSchema = z.object({
+  companyName: z.string().trim().min(1).max(200),
+  companyIndustry: z.string().trim().min(1).max(80),
+  companySize: z.string().trim().min(1).max(80),
+  requesterName: z.string().trim().min(1).max(120),
+  requesterEmail: z.string().trim().toLowerCase().email().max(320),
+  requesterPhone: z.string().trim().max(30).optional()
 });
 
 const createCandidateSchema = z.object({
@@ -1069,7 +1800,8 @@ const updateMyBasicInfoSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   phoneNumber: z.string().trim().max(30).nullable().optional(),
   birthDate: z.string().datetime().nullable().optional(),
-  gender: z.string().trim().max(40).nullable().optional()
+  gender: z.string().trim().max(40).nullable().optional(),
+  profileImageData: z.string().max(8 * 1024 * 1024).nullable().optional()
 });
 
 const updateMyPartnerOrganizationBasicSchema = z.object({
@@ -1082,6 +1814,12 @@ const updateMyPartnerOrganizationBasicSchema = z.object({
   fourInsuranceSubscriberListData: z.string().trim().max(4_000_000).nullable().optional(),
   companyLogoImageData: z.string().trim().max(4_000_000).nullable().optional(),
   officePhotoImageData: z.string().trim().max(4_000_000).nullable().optional()
+});
+const joinMyPartnerOrganizationSchema = z.object({
+  code: z.string().trim().min(6).max(64)
+});
+const createPartnerJoinCodeSchema = z.object({
+  expiresInMinutes: z.number().int().min(5).max(partnerJoinCodeTtlMinutesMax).optional()
 });
 
 const updateCandidateProfileSchema = z.object({
@@ -1156,12 +1894,26 @@ const updateCandidateEmailVerifiedSchema = z.object({
 });
 
 const lineArraySchema = z.array(z.string().trim().min(1).max(200)).max(200).optional();
+const employmentClassificationSchema = z.enum([
+  "UNPAID_INTERN_EXPERIENCE",
+  "UNPAID_INTERN_CONVERSION",
+  "PAID_INTERN_EXPERIENCE",
+  "PAID_INTERN_CONVERSION",
+  "PART_TIME",
+  "FULL_TIME"
+]);
 
 const createPositionSchema = z.object({
   partnerOrganizationId: z.string().uuid().optional(),
+  sourceKind: positionSourceKindEnum.optional(),
+  sourceProvider: positionSourceProviderEnum.optional(),
+  sourceExternalId: z.string().trim().max(200).optional(),
+  sourceUrl: z.string().trim().url().max(5000).optional(),
+  sourceFetchedAt: z.string().datetime().optional(),
   title: z.string().trim().min(1).max(200),
   status: positionStatusEnum.optional(),
   workType: positionWorkTypeEnum.optional(),
+  employmentType: positionEmploymentTypeEnum.optional(),
   thumbnailImages: z.array(z.string().trim().min(1).max(5_000_000)).max(5).optional(),
   eligibleVisas: z.array(z.string().trim().min(1).max(20)).max(20).optional(),
   matchingParticipants: lineArraySchema,
@@ -1191,9 +1943,12 @@ const createPartnerPositionSchema = createPositionSchema
     adminMemo: true
   })
   .extend({
-    status: z.enum(["DRAFT", "OPEN"]).optional()
+    status: z.enum(["DRAFT", "PENDING_REVIEW"]).optional(),
+    employmentClassification: employmentClassificationSchema.optional()
   });
-const updatePartnerPositionSchema = createPartnerPositionSchema.partial();
+const updatePartnerPositionSchema = createPartnerPositionSchema.partial().extend({
+  status: z.enum(["OPEN", "PAUSED", "CLOSED"]).optional()
+});
 
 const updatePositionSchema = createPositionSchema.partial();
 const updatePositionPremiumBannerSchema = z.object({
@@ -1218,12 +1973,24 @@ const addPositionProgressLogSchema = z.object({
   message: z.string().trim().min(1).max(1000)
 });
 
+const listPositionRevisionsQuerySchema = z.object({
+  status: z.nativeEnum(PositionRevisionStatus).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(100).optional()
+});
+
+const reviewPositionRevisionSchema = z.object({
+  note: z.string().trim().max(500).optional()
+});
+
 const listPositionsQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
   status: positionStatusEnum.optional(),
   partnerOrganizationId: z.string().uuid().optional(),
   partnerIndustry: z.nativeEnum(PartnerIndustry).optional(),
   partnerCompanySize: partnerCompanySizeEnum.optional(),
+  sourceKind: positionSourceKindEnum.optional(),
+  sourceProvider: positionSourceProviderEnum.optional(),
   sortBy: z.enum(["title", "status", "hiringCount", "createdAt"]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
@@ -1231,7 +1998,40 @@ const listPositionsQuerySchema = z.object({
 });
 const listPublicPositionsCursorQuerySchema = z.object({
   cursor: z.string().trim().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  search: z.string().trim().max(120).optional(),
+  sourceProvider: z.union([positionSourceProviderEnum, z.array(positionSourceProviderEnum)]).optional(),
+  jobRole: z.union([z.string().trim().min(1).max(120), z.array(z.string().trim().min(1).max(120))]).optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional(),
+  sort: z.enum(["latest", "deadline"]).optional()
+});
+const listCommunityPostsCursorQuerySchema = z.object({
+  category: z.enum(["free", "career", "help"]).optional(),
+  sortBy: z.enum(["latest", "popular"]).optional(),
+  search: z.string().trim().max(120).optional(),
+  cursor: z.string().trim().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional()
+});
+const createCommunityPostSchema = z.object({
+  category: z.enum(["free", "career", "help"]),
+  body: z.string().trim().min(1).max(5_000),
+  imageUrls: z.array(z.string().trim().min(1).max(5_000_000)).max(5).optional()
+});
+const updateCommunityPostSchema = z.object({
+  category: z.enum(["free", "career", "help"]).optional(),
+  body: z.string().trim().min(1).max(5_000).optional(),
+  imageUrls: z.array(z.string().trim().min(1).max(5_000_000)).max(5).optional()
+});
+const communityPostParamSchema = z.object({
+  postId: z.string().uuid()
+});
+const createCommunityCommentSchema = z.object({
+  body: z.string().trim().min(1).max(2_000)
+});
+const translateCommunityPostSchema = z.object({
+  text: z.string().trim().min(1).max(10_000),
+  targetLanguage: z.enum(["ko", "en"]),
+  sourceLanguageHint: z.string().trim().max(40).optional()
 });
 const memberPositionActionParamSchema = z.object({
   positionId: z.string().uuid()
@@ -1283,6 +2083,20 @@ const syncCandidateUsersSchema = z.object({
     .max(5000)
 });
 
+type CommunityCategory = "free" | "career" | "help";
+
+function toCommunityPostCategory(category: CommunityCategory): CommunityPostCategory {
+  if (category === "career") return CommunityPostCategory.CAREER;
+  if (category === "help") return CommunityPostCategory.HELP;
+  return CommunityPostCategory.FREE;
+}
+
+function fromCommunityPostCategory(category: CommunityPostCategory): CommunityCategory {
+  if (category === CommunityPostCategory.CAREER) return "career";
+  if (category === CommunityPostCategory.HELP) return "help";
+  return "free";
+}
+
 function toSafeUser(user: {
   id: string;
   email: string;
@@ -1295,8 +2109,10 @@ function toSafeUser(user: {
   birthDate: Date | null;
   gender: string | null;
   jobTitle: string | null;
+  profileImageUrl?: string | null;
   adminMemo: string | null;
   role: MemberRole;
+  authProvider?: AuthProvider;
   partnerType: PartnerType | null;
   partnerOrgRole: PartnerOrgUserRole | null;
   createdAt: Date;
@@ -1314,8 +2130,10 @@ function toSafeUser(user: {
     birthDate: user.birthDate,
     gender: user.gender,
     jobTitle: user.jobTitle,
+    profileImageUrl: user.profileImageUrl ?? null,
     adminMemo: user.adminMemo ?? null,
     role: user.role,
+    authProvider: user.authProvider ?? AuthProvider.EMAIL,
     partnerType: user.partnerType,
     partnerOrgRole: user.partnerOrgRole,
     createdAt: user.createdAt,
@@ -1553,8 +2371,8 @@ async function getOrCreateCandidateProfile(userId: string) {
 function toPartnerOrganization(item: {
   id: string;
   partnerType: PartnerType;
-  domain: string;
   name: string;
+  slug?: string | null;
   companySize?: string | null;
   officeAddress: string | null;
   website: string | null;
@@ -1567,6 +2385,8 @@ function toPartnerOrganization(item: {
   fourInsuranceSubscriberListData?: string | null;
   companyLogoImageData?: string | null;
   officePhotoImageData?: string | null;
+  verificationApproved?: boolean;
+  verificationApprovedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   memberCount?: number;
@@ -1579,18 +2399,19 @@ function toPartnerOrganization(item: {
   };
   const missingItems = [
     !verificationAssets.businessRegistrationDocumentData ? "BUSINESS_REGISTRATION_DOCUMENT" : null,
-    !verificationAssets.fourInsuranceSubscriberListData ? "FOUR_INSURANCE_SUBSCRIBER_LIST" : null,
-    !verificationAssets.companyLogoImageData ? "COMPANY_LOGO_IMAGE" : null,
-    !verificationAssets.officePhotoImageData ? "OFFICE_PHOTO_IMAGE" : null
+    !verificationAssets.fourInsuranceSubscriberListData ? "FOUR_INSURANCE_SUBSCRIBER_LIST" : null
   ].filter((itemName): itemName is string => Boolean(itemName));
-  const uploadedCount = 4 - missingItems.length;
-  const isVerified = missingItems.length === 0;
+  const uploadedCount = 2 - missingItems.length;
+  const hasRequiredDocuments = missingItems.length === 0;
+  const isApproved = Boolean(item.verificationApproved);
+  // 운영 상태는 운영자 승인 여부를 단일 기준으로 사용한다.
+  const isVerified = isApproved;
 
   return {
     id: item.id,
     partnerType: item.partnerType,
-    domain: item.domain,
     name: item.name,
+    slug: item.slug ?? null,
     companySize: item.companySize ?? null,
     officeAddress: item.officeAddress,
     website: item.website,
@@ -1601,14 +2422,17 @@ function toPartnerOrganization(item: {
     adminMemo: item.adminMemo ?? null,
     memberCount: item.memberCount ?? 0,
     verification: {
+      hasRequiredDocuments,
+      isApproved,
+      approvedAt: item.verificationApprovedAt ?? null,
       isVerified,
       uploadedCount,
-      requiredCount: 4,
+      requiredCount: 2,
       missingItems
     },
     permissions: {
-      canPostPositions: isVerified,
-      canContactCandidates: isVerified
+      canPostPositions: isApproved,
+      canContactCandidates: isApproved
     },
     ...(options?.includeVerificationAssets ? verificationAssets : {}),
     createdAt: item.createdAt,
@@ -1621,6 +2445,381 @@ function normalizeStringArray(value?: string[]) {
   return value.map((entry) => entry.trim()).filter((entry) => entry.length > 0);
 }
 
+let azureContainerClientCache: any | null | undefined;
+
+function getAzureContainerClient(): any | null {
+  if (azureContainerClientCache !== undefined) return azureContainerClientCache;
+  if (!azureStorageConnectionString) {
+    azureContainerClientCache = null;
+    return azureContainerClientCache;
+  }
+  // Lazy-load SDK to avoid hard failure when storage is not configured.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { BlobServiceClient } = require("@azure/storage-blob") as { BlobServiceClient: { fromConnectionString: (cs: string) => any } };
+  const service = BlobServiceClient.fromConnectionString(azureStorageConnectionString);
+  azureContainerClientCache = service.getContainerClient(azureStorageContainerName);
+  return azureContainerClientCache;
+}
+
+function inferImageExtFromMime(mime: string): string {
+  const normalized = mime.toLowerCase();
+  if (normalized === "image/jpeg") return "jpg";
+  if (normalized === "image/png") return "png";
+  if (normalized === "image/webp") return "webp";
+  if (normalized === "image/gif") return "gif";
+  if (normalized === "image/svg+xml") return "svg";
+  if (normalized === "image/heic") return "heic";
+  return "bin";
+}
+
+async function uploadDataUrlImageIfNeeded(value: string, prefix: string): Promise<string> {
+  const raw = value.trim();
+  // Policy:
+  // - Keep bundled/static/remote URLs as-is.
+  // - Upload only real user-upload payloads (data URLs) to Blob.
+  if (
+    raw.startsWith("/")
+    || raw.startsWith("./")
+    || raw.startsWith("../")
+    || /^https?:\/\//i.test(raw)
+  ) {
+    return raw;
+  }
+  if (!/^data:image\//i.test(raw)) return raw;
+
+  const match = raw.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/i);
+  if (!match) return raw;
+
+  const container = getAzureContainerClient();
+  if (!container) return raw;
+
+  await container.createIfNotExists({ access: "blob" });
+  const mime = match[1]!;
+  const base64Data = match[2]!;
+  const content = Buffer.from(base64Data, "base64");
+  const ext = inferImageExtFromMime(mime);
+  const blobName = `${prefix}/${Date.now()}-${randomBytes(8).toString("hex")}.${ext}`;
+  const client = container.getBlockBlobClient(blobName);
+  await client.uploadData(content, {
+    blobHTTPHeaders: {
+      blobContentType: mime,
+      blobCacheControl: "public, max-age=31536000, immutable"
+    }
+  });
+  return client.url;
+}
+
+async function uploadImageArrayIfNeeded(values: string[] | undefined, prefix: string): Promise<string[]> {
+  const items = normalizeStringArray(values);
+  const out: string[] = [];
+  for (const item of items) {
+    out.push(await uploadDataUrlImageIfNeeded(item, prefix));
+  }
+  return out;
+}
+
+type CrawlerRunSummary = {
+  sourceProvider?: string;
+  sourcePlatform?: string;
+  created?: number;
+  updated?: number;
+  skipped?: number;
+  total?: number;
+  [key: string]: unknown;
+};
+
+function extractLastJsonObject(text: string): CrawlerRunSummary | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const firstBrace = trimmed.lastIndexOf("\n{");
+  const candidate = (firstBrace >= 0 ? trimmed.slice(firstBrace + 1) : trimmed).trim();
+  try {
+    return JSON.parse(candidate) as CrawlerRunSummary;
+  } catch {
+    return null;
+  }
+}
+
+function nextRunAtKst(hour: number, minute: number): Date {
+  const now = new Date();
+  const nowKst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const y = nowKst.getUTCFullYear();
+  const m = nowKst.getUTCMonth();
+  const d = nowKst.getUTCDate();
+  const runKst = new Date(Date.UTC(y, m, d, hour, minute, 0, 0));
+  const nextKst = runKst.getTime() > nowKst.getTime()
+    ? runKst
+    : new Date(Date.UTC(y, m, d + 1, hour, minute, 0, 0));
+  return new Date(nextKst.getTime() - 9 * 60 * 60 * 1000);
+}
+
+async function runCrawlerScript(scriptPath: string): Promise<CrawlerRunSummary | null> {
+  return await new Promise<CrawlerRunSummary | null>((resolve, reject) => {
+    const child = spawn(process.execPath, ["--import", "tsx", scriptPath], {
+      cwd: process.cwd(),
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    let stdoutText = "";
+    let stderrText = "";
+    child.stdout.on("data", (chunk: Buffer | string) => {
+      const text = chunk.toString();
+      stdoutText += text;
+      process.stdout.write(text);
+    });
+    child.stderr.on("data", (chunk: Buffer | string) => {
+      const text = chunk.toString();
+      stderrText += text;
+      process.stderr.write(text);
+    });
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolve(extractLastJsonObject(stdoutText));
+        return;
+      }
+      reject(
+        new Error(
+          `${scriptPath} exited with code ${code ?? "unknown"}`
+          + (stderrText.trim() ? ` / stderr: ${stderrText.trim().slice(0, 300)}` : "")
+        )
+      );
+    });
+  });
+}
+
+async function sendCrawlerSummaryDiscordNotification(input: {
+  startedAt: Date;
+  elapsedMs: number;
+  kowork: CrawlerRunSummary | null;
+  buddies: CrawlerRunSummary | null;
+  wanted: CrawlerRunSummary | null;
+  ok: boolean;
+  errorMessage?: string;
+}) {
+  if (!crawlerSummaryDiscordWebhookUrl) return;
+  const asNum = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+  const [storedKoworkCount, storedBuddiesCount, storedWantedCount] = await Promise.all([
+    prisma.position.count({ where: { sourceProvider: PositionSourceProvider.KOWORK } }),
+    prisma.position.count({ where: { sourceProvider: PositionSourceProvider.BUDDIES } }),
+    prisma.position.count({ where: { sourceProvider: PositionSourceProvider.WANTED } })
+  ]);
+  const runtimeEnv = resolveRuntimeEnvironment();
+  const envColor =
+    runtimeEnv === "Production"
+      ? 0xdc2626
+      : runtimeEnv === "Staging"
+        ? 0xf59e0b
+        : 0x2563eb;
+  const sourceMeta = (summary: CrawlerRunSummary | null, fallbackProvider: string, fallbackPlatform: string) => {
+    const provider = typeof summary?.sourceProvider === "string" && summary.sourceProvider.trim()
+      ? summary.sourceProvider.trim()
+      : fallbackProvider;
+    const platform = typeof summary?.sourcePlatform === "string" && summary.sourcePlatform.trim()
+      ? summary.sourcePlatform.trim()
+      : fallbackPlatform;
+    return `${provider}/${platform}`;
+  };
+  const sourceDetail = (summary: CrawlerRunSummary | null, fallbackProvider: string, fallbackPlatform: string) => {
+    if (!summary) return "이번 실행 제외";
+    const created = asNum(summary.created);
+    const updated = asNum(summary.updated);
+    const total = asNum(summary.total);
+    const imported = created + updated;
+    return `${sourceMeta(summary, fallbackProvider, fallbackPlatform)}\n신규 ${created}건 / 업데이트 ${updated}건 / 반영 ${imported}건 / DB 총 ${total}건`;
+  };
+
+  const kCreated = asNum(input.kowork?.created);
+  const kUpdated = asNum(input.kowork?.updated);
+  const bCreated = asNum(input.buddies?.created);
+  const bUpdated = asNum(input.buddies?.updated);
+  const wCreated = asNum(input.wanted?.created);
+  const wUpdated = asNum(input.wanted?.updated);
+  const totalAdded = kCreated + bCreated + wCreated;
+  const totalUpdated = kUpdated + bUpdated + wUpdated;
+  const description = input.ok
+    ? [
+        `실제 반영: 신규 ${totalAdded}건 / 업데이트 ${totalUpdated}건`,
+        `소스별 현재 저장: Kowork ${storedKoworkCount}건, Buddies ${storedBuddiesCount}건, Wanted ${storedWantedCount}건`
+      ].join("\n")
+    : `오류: ${input.errorMessage ?? "unknown error"}`;
+
+  const embeds = [
+    {
+      title: input.ok ? "크롤러 실행 완료" : "크롤러 실행 실패",
+      description,
+      color: envColor,
+      fields: [
+        {
+          name: "실행 환경",
+          value: runtimeEnv,
+          inline: true
+        },
+        {
+          name: "Kowork",
+          value: `${sourceDetail(input.kowork, "kowork", "KOWORK")}\n현재 저장: ${storedKoworkCount}건`,
+          inline: false
+        },
+        {
+          name: "Buddies",
+          value: `${sourceDetail(input.buddies, "buddies", "BUDDIES")}\n현재 저장: ${storedBuddiesCount}건`,
+          inline: false
+        },
+        {
+          name: "Wanted",
+          value: `${sourceDetail(input.wanted, "wanted", "WANTED")}\n현재 저장: ${storedWantedCount}건`,
+          inline: false
+        },
+        {
+          name: "실행 정보",
+          value: `시작: ${input.startedAt.toISOString()}\n소요: ${Math.round(input.elapsedMs / 1000)}s`,
+          inline: false
+        }
+      ],
+      timestamp: new Date().toISOString()
+    }
+  ];
+
+  try {
+    await fetch(crawlerSummaryDiscordWebhookUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ embeds })
+    });
+  } catch (error) {
+    console.error("[crawler-scheduler] discord webhook failed", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
+type CrawlerSource = "all" | "kowork" | "buddies" | "wanted";
+
+type DailyCrawlerRunResult = {
+  ok: boolean;
+  startedAt: string;
+  elapsedMs: number;
+  kowork: CrawlerRunSummary | null;
+  buddies: CrawlerRunSummary | null;
+  wanted: CrawlerRunSummary | null;
+  source: CrawlerSource;
+  errorMessage?: string;
+};
+
+let crawlerRunInProgress = false;
+
+async function runExternalCrawlers(source: CrawlerSource): Promise<DailyCrawlerRunResult> {
+  if (crawlerRunInProgress) {
+    return {
+      ok: false,
+      startedAt: new Date().toISOString(),
+      elapsedMs: 0,
+      kowork: null,
+      buddies: null,
+      wanted: null,
+      source,
+      errorMessage: "crawler run already in progress"
+    };
+  }
+  crawlerRunInProgress = true;
+  const startedAt = new Date();
+  console.info("[crawler-scheduler] started", { source });
+  try {
+    const kowork = source === "all" || source === "kowork"
+      ? await runCrawlerScript("scripts/import-kowork-job-postings.ts")
+      : null;
+    const buddies = source === "all" || source === "buddies"
+      ? await runCrawlerScript("scripts/import-buddies-job-postings.ts")
+      : null;
+    const wanted = source === "all" || source === "wanted"
+      ? await runCrawlerScript("scripts/import-wanted-job-postings.ts")
+      : null;
+    const elapsedMs = Date.now() - startedAt.getTime();
+    console.info("[crawler-scheduler] completed", { elapsedMs, source });
+    await sendCrawlerSummaryDiscordNotification({
+      startedAt,
+      elapsedMs,
+      kowork,
+      buddies,
+      wanted,
+      ok: true
+    });
+    return {
+      ok: true,
+      startedAt: startedAt.toISOString(),
+      elapsedMs,
+      kowork,
+      buddies,
+      wanted,
+      source
+    };
+  } catch (error) {
+    const elapsedMs = Date.now() - startedAt.getTime();
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[crawler-scheduler] failed", {
+      elapsedMs,
+      source,
+      error: errorMessage
+    });
+    await sendCrawlerSummaryDiscordNotification({
+      startedAt,
+      elapsedMs,
+      kowork: null,
+      buddies: null,
+      wanted: null,
+      ok: false,
+      errorMessage
+    });
+    return {
+      ok: false,
+      startedAt: startedAt.toISOString(),
+      elapsedMs,
+      kowork: null,
+      buddies: null,
+      wanted: null,
+      source,
+      errorMessage
+    };
+  } finally {
+    crawlerRunInProgress = false;
+  }
+}
+
+async function runDailyExternalCrawlers(): Promise<DailyCrawlerRunResult> {
+  return runExternalCrawlers("all");
+}
+
+function startCrawlerScheduler() {
+  if (!crawlSchedulerEnabled) return;
+  let timer: NodeJS.Timeout | null = null;
+
+  const scheduleNext = () => {
+    const next = nextRunAtKst(crawlSchedulerHourKst, crawlSchedulerMinuteKst);
+    const delay = Math.max(1_000, next.getTime() - Date.now());
+    console.info("[crawler-scheduler] next run scheduled", {
+      kstHour: crawlSchedulerHourKst,
+      kstMinute: crawlSchedulerMinuteKst,
+      nextRunAt: next.toISOString(),
+      delayMs: delay
+    });
+    timer = setTimeout(async () => {
+      await runDailyExternalCrawlers();
+      scheduleNext();
+    }, delay);
+  };
+
+  if (crawlSchedulerRunOnBoot) {
+    void runDailyExternalCrawlers();
+  }
+  scheduleNext();
+
+  const shutdown = () => {
+    if (timer) clearTimeout(timer);
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
+}
+
 type PositionPremiumBannerMeta = {
   enabled: boolean;
   bannerImageUrl: string | null;
@@ -1630,6 +2829,7 @@ type PositionPremiumBannerMeta = {
 };
 
 const PREMIUM_BANNER_MEMO_PREFIX = "[[PREMIUM_BANNER]]";
+const EMPLOYMENT_CLASSIFICATION_MEMO_PREFIX = "[[EMPLOYMENT_CLASSIFICATION]]";
 
 function normalizePremiumBannerMeta(value: unknown): PositionPremiumBannerMeta | null {
   if (!value || typeof value !== "object") return null;
@@ -1691,12 +2891,52 @@ function mergePremiumBannerMeta(adminMemo: string | null | undefined, meta: Posi
   return `${plain}\n${premiumLine}`.trim();
 }
 
+function extractEmploymentClassificationMeta(adminMemo: string | null | undefined) {
+  if (!adminMemo?.trim()) return null;
+  const line = adminMemo
+    .split("\n")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(EMPLOYMENT_CLASSIFICATION_MEMO_PREFIX));
+  if (!line) return null;
+  const value = line.slice(EMPLOYMENT_CLASSIFICATION_MEMO_PREFIX.length).trim();
+  if (!value) return null;
+  const parsed = employmentClassificationSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+function stripEmploymentClassificationMeta(adminMemo: string | null | undefined) {
+  if (!adminMemo?.trim()) return null;
+  const plain = adminMemo
+    .split("\n")
+    .filter((entry) => !entry.trim().startsWith(EMPLOYMENT_CLASSIFICATION_MEMO_PREFIX))
+    .join("\n")
+    .trim();
+  return plain.length > 0 ? plain : null;
+}
+
+function mergeEmploymentClassificationMeta(
+  adminMemo: string | null | undefined,
+  employmentClassification?: z.infer<typeof employmentClassificationSchema> | null
+) {
+  const plain = stripEmploymentClassificationMeta(adminMemo);
+  if (!employmentClassification) return plain;
+  const line = `${EMPLOYMENT_CLASSIFICATION_MEMO_PREFIX} ${employmentClassification}`;
+  if (!plain) return line;
+  return `${plain}\n${line}`.trim();
+}
+
 function toPosition(item: {
   id: string;
   partnerOrganizationId: string | null;
+  sourceKind: PositionSourceKind;
+  sourceProvider: PositionSourceProvider;
+  sourceExternalId: string | null;
+  sourceUrl: string | null;
+  sourceFetchedAt: Date | null;
   title: string;
   status: PositionStatus;
   workType: string | null;
+  employmentType: PositionEmploymentType;
   thumbnailImages: string[];
   eligibleVisas: string[];
   preferredNationalities: string[];
@@ -1740,15 +2980,20 @@ function toPosition(item: {
   partnerOrganization?: {
     id: string;
     name: string;
-    domain: string;
   } | null;
 }) {
   return {
     id: item.id,
     partnerOrganizationId: item.partnerOrganizationId,
+    sourceKind: item.sourceKind,
+    sourceProvider: item.sourceProvider,
+    sourceExternalId: item.sourceExternalId,
+    sourceUrl: item.sourceUrl,
+    sourceFetchedAt: item.sourceFetchedAt,
     title: item.title,
     status: item.status,
     workType: item.workType,
+    employmentType: item.employmentType,
     thumbnailImages: item.thumbnailImages,
     eligibleVisas: item.eligibleVisas,
     preferredNationalities: item.preferredNationalities,
@@ -1765,7 +3010,8 @@ function toPosition(item: {
     dressCode: item.dressCode,
     wantsPreTraining: item.wantsPreTraining,
     additionalNotes: item.additionalNotes,
-    adminMemo: stripPremiumBannerMeta(item.adminMemo),
+    employmentClassification: extractEmploymentClassificationMeta(item.adminMemo),
+    adminMemo: stripEmploymentClassificationMeta(stripPremiumBannerMeta(item.adminMemo)),
     premiumBanner: extractPremiumBannerMeta(item.adminMemo),
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -1818,6 +3064,14 @@ async function resolvePublicViewer(req: express.Request): Promise<{ role: Member
   return { role: payload.role, partnerDomain };
 }
 
+function resolvePublicViewerUserId(req: express.Request): string | null {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) return null;
+  const payload = verifyAccessToken(header.slice("Bearer ".length));
+  if (!payload?.sub) return null;
+  return payload.sub;
+}
+
 function maskAdditionalNotesForPublic(
   additionalNotes: string | null,
   orgDomain: string | null | undefined,
@@ -1832,12 +3086,48 @@ function maskAdditionalNotesForPublic(
   return null;
 }
 
+function extractSourceCompanyName(additionalNotes: string | null): string | null {
+  if (!additionalNotes) return null;
+  const line = additionalNotes
+    .split("\n")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith("sourceCompanyName:"));
+  if (!line) return null;
+  const value = line.slice("sourceCompanyName:".length).trim();
+  return value.length > 0 ? value : null;
+}
+
+function extractSourceDeadlineDate(additionalNotes: string | null): string | null {
+  if (!additionalNotes) return null;
+  const line = additionalNotes
+    .split("\n")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith("sourceDeadlineDate:"));
+  if (!line) return null;
+  const value = line.slice("sourceDeadlineDate:".length).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}
+
+function extractSourceDeadlineRolling(additionalNotes: string | null): boolean {
+  if (!additionalNotes) return false;
+  return additionalNotes
+    .split("\n")
+    .map((entry) => entry.trim().toLowerCase())
+    .some((entry) => entry === "sourcedeadlinerolling: true");
+}
+
 function toPublicPositionItem(
   item: {
     id: string;
+    sourceKind: PositionSourceKind;
+    sourceProvider: PositionSourceProvider;
+    sourceExternalId: string | null;
+    sourceUrl: string | null;
+    sourceFetchedAt: Date | null;
     title: string;
     status: PositionStatus;
     workType: string | null;
+    employmentType: PositionEmploymentType;
     thumbnailImages: string[];
     eligibleVisas: string[];
     preferredNationalities: string[];
@@ -1854,12 +3144,13 @@ function toPublicPositionItem(
     dressCode: string | null;
     wantsPreTraining: boolean | null;
     additionalNotes: string | null;
+    adminMemo: string | null;
+    sourceDeadlineDate?: Date | null;
     createdAt: Date;
     updatedAt: Date;
     partnerOrganization?: {
       id: string;
       name: string;
-      domain: string;
       industry: PartnerIndustry;
       companySize: string | null;
       officeAddress: string | null;
@@ -1870,9 +3161,21 @@ function toPublicPositionItem(
 ) {
   return {
     id: item.id,
+    sourceKind: item.sourceKind,
+    sourceProvider: item.sourceProvider,
+    sourceExternalId: item.sourceExternalId,
+    sourceUrl: item.sourceUrl,
+    sourceFetchedAt: item.sourceFetchedAt,
+    sourceCompanyName: extractSourceCompanyName(item.additionalNotes),
+    sourceDeadlineDate: item.sourceDeadlineDate
+      ? item.sourceDeadlineDate.toISOString().slice(0, 10)
+      : extractSourceDeadlineDate(item.additionalNotes),
+    sourceDeadlineRolling: extractSourceDeadlineRolling(item.additionalNotes),
     title: item.title,
     status: item.status,
     workType: item.workType,
+    employmentType: item.employmentType,
+    employmentClassification: extractEmploymentClassificationMeta(item.adminMemo),
     thumbnailImages: item.thumbnailImages,
     eligibleVisas: item.eligibleVisas,
     preferredNationalities: item.preferredNationalities,
@@ -1888,7 +3191,7 @@ function toPublicPositionItem(
     preferredQualifications: item.preferredQualifications,
     dressCode: item.dressCode,
     wantsPreTraining: item.wantsPreTraining,
-    additionalNotes: maskAdditionalNotesForPublic(item.additionalNotes, item.partnerOrganization?.domain, viewer),
+    additionalNotes: maskAdditionalNotesForPublic(item.additionalNotes, null, viewer),
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     matchingParticipantsCount: item.matchingParticipants.length,
@@ -1904,22 +3207,18 @@ async function resolvePartnerAffiliation(userId: string) {
       email: true,
       role: true,
       partnerType: true,
-      partnerOrgRole: true
+      partnerOrgRole: true,
+      partnerOrganizationId: true
     }
   });
 
   if (!user) return null;
 
-  const domain = extractDomainFromEmail(user.email);
-  if (!domain) {
-    return { user, domain: null, organization: null as null };
+  if (!user.partnerOrganizationId) {
+    return { user, organization: null as null };
   }
-
-  const organization = await prisma.partnerOrganization.findUnique({
-    where: { domain }
-  });
-
-  return { user, domain, organization };
+  const organization = await prisma.partnerOrganization.findUnique({ where: { id: user.partnerOrganizationId } });
+  return { user, organization };
 }
 
 function createTemporaryPassword() {
@@ -1940,7 +3239,7 @@ type MatchingPosition = {
   mainResponsibilities: string | null;
   additionalNotes: string | null;
   matchingParticipants: Array<{ id: string }>;
-  partnerOrganization: { id: string; name: string; domain: string; industry: PartnerIndustry } | null;
+  partnerOrganization: { id: string; name: string; industry: PartnerIndustry } | null;
 };
 
 type MatchingCandidate = {
@@ -2144,7 +3443,7 @@ function computeTimeFit(position: MatchingPosition, candidate: MatchingCandidate
   const positionWeeks = parseWeekCount(workingHoursText);
 
   let score = 0.5;
-  if (option === "ASAP" && (position.status === PositionStatus.OPEN || position.status === PositionStatus.MATCHING)) score += 0.2;
+  if (option === "ASAP" && position.status === PositionStatus.OPEN) score += 0.2;
   if (option === "SPECIFIC_DATE" && candidate.profile.programStartDate) score += 0.1;
   if (duration !== null && positionWeeks !== null) {
     const gap = Math.abs(duration - positionWeeks);
@@ -2275,7 +3574,7 @@ function scoreCandidateForPosition(position: MatchingPosition, candidate: Matchi
 
   let score = weightedScoreFromBreakdown(breakdown);
   if (candidate.emailVerified) score += 3;
-  if (position.status === PositionStatus.OPEN || position.status === PositionStatus.MATCHING) score += 2;
+  if (position.status === PositionStatus.OPEN) score += 2;
   if (completion.percent >= 80) score += openaiMatchingHighCompletionBonus;
   else if (completion.percent >= 60) score += Math.round(openaiMatchingHighCompletionBonus * 0.5);
   const hiringTarget = Math.max(1, position.hiringCount ?? 1);
@@ -2529,6 +3828,181 @@ async function rerankPositionMatchesWithOpenAI(params: {
   } catch {
     return { source: "rule" as const, matches: baseMatches.slice(0, limit) };
   }
+}
+
+type CareerReadinessProfile = {
+  user: {
+    realName: string | null;
+    name: string | null;
+    nationality: string | null;
+    affiliation: string | null;
+    birthDate: Date | null;
+    gender: string | null;
+    jobTitle: string | null;
+  };
+  profile: {
+    visaType: CandidateVisaType | null;
+    visaExpiryDate: Date | null;
+    workPermit: boolean | null;
+    livesInKorea: boolean | null;
+    residenceProvince: string | null;
+    programStartOption: string | null;
+    programStartDate: Date | null;
+    skills: string[];
+    selfIntroduction: string | null;
+    programMotivation: string | null;
+    preferenceConditionNote: string | null;
+    additionalInfoNote: string | null;
+    educations: Array<{ school: string | null; major: string | null; status: string | null }>;
+    languageSkills: Array<{ language: string | null; level: string | null }>;
+    careers: Array<{ companyName: string | null; jobTitle: string | null; description: string | null }>;
+    activityExperiences: Array<{ title: string | null; description: string | null }>;
+  } | null;
+};
+
+const WORKABLE_VISAS = new Set(["F2_RESIDENCE", "F4_OVERSEAS_KOREAN", "F5_PERMANENT_RESIDENCE", "F6_MARRIAGE_IMMIGRATION", "E7_SPECIFIC_ACTIVITY", "H1_WORKING_HOLIDAY", "D10_JOB_SEEKING"]);
+const LIMITED_VISAS = new Set(["D2_STUDENT", "D4_GENERAL_TRAINING"]);
+
+function computeCareerReadinessScore(input: CareerReadinessProfile) {
+  const { user, profile } = input;
+  let score = 0;
+
+  // Profile completeness (30 pts)
+  let completeness = 0;
+  if (user.name?.trim()) completeness += 4;
+  if (user.birthDate) completeness += 3;
+  if (user.gender?.trim()) completeness += 3;
+  if (profile?.residenceProvince?.trim()) completeness += 2;
+  if ((profile?.educations.length ?? 0) > 0) completeness += 4;
+  if ((profile?.careers.length ?? 0) > 0) completeness += 4;
+  if ((profile?.activityExperiences.length ?? 0) > 0) completeness += 3;
+  if ((profile?.skills.length ?? 0) >= 3) completeness += 3;
+  if ((profile?.selfIntroduction?.trim().length ?? 0) >= 120) completeness += 2;
+  if ((profile?.programMotivation?.trim().length ?? 0) >= 120) completeness += 2;
+  score += Math.min(completeness, 30);
+
+  // Visa eligibility (25 pts)
+  if (profile?.visaType) {
+    if (WORKABLE_VISAS.has(profile.visaType)) score += 25;
+    else if (LIMITED_VISAS.has(profile.visaType)) score += 12;
+    else score += 6;
+  }
+
+  // Language (25 pts) — Korean weighted higher
+  const languageSkills = profile?.languageSkills ?? [];
+  let languageScore = 0;
+  for (const skill of languageSkills) {
+    const lang = (skill.language ?? "").toLowerCase();
+    const level = (skill.level ?? "").toUpperCase();
+    const isKorean = lang.includes("korean") || lang.includes("한국") || lang.includes("ko");
+    const isEnglish = lang.includes("english") || lang.includes("영어") || lang.includes("en");
+    let levelPoints = 0;
+    if (level.includes("NATIVE") || level === "C2" || level.includes("ADVANCED")) levelPoints = 15;
+    else if (level === "C1" || level.includes("UPPER") || level.includes("FLUENT")) levelPoints = 12;
+    else if (level === "B2" || level.includes("INTERMEDIATE")) levelPoints = 8;
+    else if (level === "B1" || level.includes("BASIC")) levelPoints = 4;
+    else levelPoints = 2;
+    if (isKorean) languageScore += levelPoints;
+    else if (isEnglish) languageScore += Math.round(levelPoints * 0.7);
+    else languageScore += Math.round(levelPoints * 0.4);
+  }
+  score += Math.min(languageScore, 25);
+
+  // Experience & narrative (20 pts)
+  let exp = 0;
+  if ((profile?.careers.length ?? 0) >= 1) exp += 8;
+  if ((profile?.careers.length ?? 0) >= 2) exp += 2;
+  if ((profile?.activityExperiences.length ?? 0) >= 1) exp += 4;
+  if ((profile?.skills.length ?? 0) >= 5) exp += 3;
+  if ((profile?.selfIntroduction?.trim().length ?? 0) >= 200) exp += 2;
+  if ((profile?.programMotivation?.trim().length ?? 0) >= 200) exp += 1;
+  score += Math.min(exp, 20);
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+const careerReadinessNarrativeSchema = z.object({
+  strengths: z.array(z.string().min(1).max(160)).min(2).max(5),
+  improvements: z.array(z.string().min(1).max(160)).min(2).max(5),
+  recommendedRoles: z.array(z.string().min(1).max(80)).min(2).max(5)
+});
+
+async function generateCareerReadinessNarrative(input: CareerReadinessProfile, score: number, locale: "ko" | "en" | "zh-CN" | "vi" | "ja" | "id") {
+  if (!openai) throw new Error("openai_unavailable");
+
+  const localeName =
+    locale === "ko" ? "Korean"
+      : locale === "zh-CN" ? "Simplified Chinese"
+        : locale === "vi" ? "Vietnamese"
+          : locale === "ja" ? "Japanese"
+            : locale === "id" ? "Indonesian"
+              : "English";
+  const summary = {
+    score,
+    user: {
+      nationality: input.user.nationality,
+      birthDate: input.user.birthDate?.toISOString() ?? null,
+      jobTitle: input.user.jobTitle
+    },
+    profile: input.profile
+      ? {
+          visaType: input.profile.visaType,
+          workPermit: input.profile.workPermit,
+          livesInKorea: input.profile.livesInKorea,
+          residenceProvince: input.profile.residenceProvince,
+          programStartOption: input.profile.programStartOption,
+          skills: input.profile.skills,
+          selfIntroduction: input.profile.selfIntroduction?.slice(0, 600) ?? null,
+          programMotivation: input.profile.programMotivation?.slice(0, 600) ?? null,
+          educations: input.profile.educations,
+          languageSkills: input.profile.languageSkills,
+          careers: input.profile.careers.map((c) => ({ ...c, description: c.description?.slice(0, 240) ?? null })),
+          activityExperiences: input.profile.activityExperiences.map((a) => ({ ...a, description: a.description?.slice(0, 240) ?? null }))
+        }
+      : null
+  };
+
+  const response = await openai.responses.create({
+    model: openaiMatchingModel,
+    input: [
+      {
+        role: "system",
+        content: [
+          "You are a Korea-employment career coach helping international students plan their job search in Korea.",
+          "Given a candidate snapshot and an overall readiness score (0-100), produce constructive feedback.",
+          "Strengths: 3-5 short bullets highlighting what the candidate already has going for them in the Korean job market.",
+          "Improvements: 3-5 short bullets pointing out concrete, actionable gaps.",
+          "RecommendedRoles: 3-5 specific role titles realistic for this candidate (e.g., 'Global Marketing Assistant', 'Market Research Intern', 'Translation Support').",
+          `All bullets must be written in ${localeName}.`,
+          "Keep each bullet under 120 characters and avoid generic platitudes."
+        ].join(" ")
+      },
+      {
+        role: "user",
+        content: JSON.stringify({ task: "career_readiness_report", ...summary })
+      }
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "career_readiness_report",
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["strengths", "improvements", "recommendedRoles"],
+          properties: {
+            strengths: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 5 },
+            improvements: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 5 },
+            recommendedRoles: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 5 }
+          }
+        }
+      }
+    }
+  });
+
+  const raw = response.output_text;
+  const parsed = careerReadinessNarrativeSchema.parse(JSON.parse(raw));
+  return parsed;
 }
 
 async function generateCandidateMatchesWithOpenAI(params: {
@@ -3017,16 +4491,167 @@ async function generatePositionMatchesWithOpenAI(params: {
 }
 
 app.get("/health", async (_req, res) => {
+  const emailDeliveryMode = smtpHost && emailFromAddress ? "smtp" : "log";
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.json({ ok: true, service: "api", db: "connected" });
+    res.json({
+      ok: true,
+      service: "api",
+      db: "connected",
+      emailDeliveryMode,
+      dbTarget: getDatabaseTargetMeta(),
+      crawlerScheduler: {
+        enabled: crawlSchedulerEnabled,
+        hourKst: crawlSchedulerHourKst,
+        minuteKst: crawlSchedulerMinuteKst,
+        runOnBoot: crawlSchedulerRunOnBoot
+      }
+    });
   } catch {
-    res.status(500).json({ ok: false, service: "api", db: "disconnected" });
+    res.status(500).json({
+      ok: false,
+      service: "api",
+      db: "disconnected",
+      emailDeliveryMode,
+      dbTarget: getDatabaseTargetMeta(),
+      crawlerScheduler: {
+        enabled: crawlSchedulerEnabled,
+        hourKst: crawlSchedulerHourKst,
+        minuteKst: crawlSchedulerMinuteKst,
+        runOnBoot: crawlSchedulerRunOnBoot
+      }
+    });
   }
 });
 
 app.get("/", (_req, res) => {
   res.json({ ok: true, message: "Flip API is running" });
+});
+
+app.post("/ops/crawlers/run", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  const result = await runDailyExternalCrawlers();
+  return res.status(result.ok ? 200 : 409).json({
+    ok: result.ok,
+    result
+  });
+});
+
+app.post("/ops/crawlers/run/kowork", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  const result = await runExternalCrawlers("kowork");
+  return res.status(result.ok ? 200 : 409).json({
+    ok: result.ok,
+    result
+  });
+});
+
+app.post("/ops/crawlers/run/buddies", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  const result = await runExternalCrawlers("buddies");
+  return res.status(result.ok ? 200 : 409).json({
+    ok: result.ok,
+    result
+  });
+});
+
+app.post("/ops/crawlers/run/wanted", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  const result = await runExternalCrawlers("wanted");
+  return res.status(result.ok ? 200 : 409).json({
+    ok: result.ok,
+    result
+  });
+});
+
+const companyConsultationCreateSchema = z.object({
+  companyName: z.string().trim().min(1).max(120),
+  contactName: z.string().trim().min(1).max(80),
+  email: z.string().trim().email().max(320),
+  phone: z.string().trim().max(40).optional(),
+  message: z.string().trim().min(1).max(4000),
+  locale: z.enum(["ko", "en"]).optional(),
+  source: z.string().trim().max(80).optional()
+});
+
+app.post("/company-consultations", async (req, res) => {
+  const parsed = companyConsultationCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      ok: false,
+      message: "Invalid request body",
+      issues: parsed.error.flatten()
+    });
+  }
+
+  const payload = parsed.data;
+  const created = await prisma.companyConsultationInquiry.create({
+    data: {
+      companyName: payload.companyName,
+      contactName: payload.contactName,
+      email: payload.email,
+      phone: payload.phone || null,
+      message: payload.message,
+      locale: payload.locale ?? "ko",
+      source: payload.source ?? "platform-web"
+    }
+  });
+
+  await sendCompanyConsultationDiscordNotification({
+    id: created.id,
+    companyName: created.companyName,
+    contactName: created.contactName,
+    email: created.email,
+    phone: created.phone,
+    message: created.message,
+    locale: created.locale,
+    source: created.source,
+    createdAt: created.createdAt
+  });
+
+  return res.status(201).json({
+    ok: true,
+    message: "Consultation inquiry created",
+    item: {
+      id: created.id,
+      createdAt: created.createdAt
+    }
+  });
+});
+
+app.post("/internal/company-consultations/discord-test", async (req, res) => {
+  if (!companyConsultationDiscordTestToken) {
+    return res.status(503).json({
+      ok: false,
+      message: "Test token is not configured (set COMPANY_CONSULTATION_DISCORD_TEST_TOKEN)"
+    });
+  }
+  if (!hasValidCompanyConsultationDiscordTestToken(req)) {
+    return res.status(401).json({
+      ok: false,
+      message: "Unauthorized"
+    });
+  }
+  if (!discordCompanyConsultationWebhookUrl) {
+    return res.status(503).json({
+      ok: false,
+      message: "Discord webhook is not configured (set DISCORD_COMPANY_CONSULTATION_WEBHOOK_URL)"
+    });
+  }
+
+  const now = new Date();
+  await sendCompanyConsultationDiscordNotification({
+    id: `test-${now.getTime()}`,
+    companyName: "Webhook Healthcheck",
+    contactName: "System",
+    email: "noreply@flip-ers.com",
+    phone: null,
+    message: "This is a test notification from /internal/company-consultations/discord-test",
+    locale: "ko",
+    source: "internal-test",
+    createdAt: now
+  });
+
+  return res.status(200).json({
+    ok: true,
+    message: "Discord test notification attempted. Check API logs for delivery errors."
+  });
 });
 
 app.get("/members/meta", (_req, res) => {
@@ -3107,13 +4732,18 @@ app.get("/positions/meta", async (_req, res) => {
   });
 });
 
-app.get("/positions", async (req, res) => {
-  const parsedQuery = listPublicPositionsCursorQuerySchema.safeParse(req.query);
+app.get("/community/posts", async (req, res) => {
+  const parsedQuery = listCommunityPostsCursorQuerySchema.safeParse(req.query);
   if (!parsedQuery.success) {
     return res.status(400).json({ ok: false, message: "invalid query", errors: parsedQuery.error.flatten() });
   }
 
   const limit = parsedQuery.data.limit ?? 20;
+  const category = parsedQuery.data.category;
+  const sortBy = parsedQuery.data.sortBy ?? "latest";
+  const search = parsedQuery.data.search?.toLowerCase();
+  const viewerUserId = resolvePublicViewerUserId(req);
+
   let cursorValue: { createdAt: Date; id: string } | null = null;
   if (parsedQuery.data.cursor) {
     try {
@@ -3130,10 +4760,18 @@ app.get("/positions", async (req, res) => {
     }
   }
 
-  const viewer = await resolvePublicViewer(req);
-  const items = await prisma.position.findMany({
+  const items = await prisma.communityPost.findMany({
     where: {
-      status: { in: [PositionStatus.OPEN, PositionStatus.MATCHING] },
+      ...(category ? { category: toCommunityPostCategory(category) } : {}),
+      ...(search
+        ? {
+            OR: [
+              { authorName: { contains: search, mode: "insensitive" } },
+              { title: { contains: search, mode: "insensitive" } },
+              { body: { contains: search, mode: "insensitive" } }
+            ]
+          }
+        : {}),
       ...(cursorValue
         ? {
             OR: [
@@ -3148,14 +4786,546 @@ app.get("/positions", async (req, res) => {
           }
         : {})
     },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    orderBy:
+      sortBy === "popular"
+        ? [{ likes: "desc" }, { comments: "desc" }, { createdAt: "desc" }, { id: "desc" }]
+        : [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    include: viewerUserId
+      ? {
+          likedBy: {
+            where: { userId: viewerUserId },
+            select: { id: true },
+            take: 1
+          }
+        }
+      : undefined
+  });
+
+  const hasNext = items.length > limit;
+  const pageItems = hasNext ? items.slice(0, limit) : items;
+  const tail = pageItems[pageItems.length - 1];
+  const nextCursor = hasNext && tail
+    ? Buffer.from(`${tail.createdAt.toISOString()}|${tail.id}`, "utf8").toString("base64")
+    : null;
+
+  return res.json({
+    ok: true,
+    items: pageItems.map((item) => ({
+      id: item.id,
+      authorId: item.authorId,
+      category: fromCommunityPostCategory(item.category),
+      author: item.authorName,
+      title: item.title,
+      body: item.body,
+      imageUrls: item.imageUrls,
+      createdAt: item.createdAt.toISOString(),
+      likes: item.likes,
+      comments: item.comments,
+      likedByMe: viewerUserId ? (item as { likedBy?: Array<{ id: string }> }).likedBy?.length === 1 : false
+    })),
+    nextCursor
+  });
+});
+
+app.post("/community/posts", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsedBody = createCommunityPostSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsedBody.error.flatten() });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: req.auth!.userId },
+    select: { id: true, name: true, realName: true, email: true }
+  });
+  if (!user) {
+    return res.status(404).json({ ok: false, message: "user not found" });
+  }
+
+  const body = parsedBody.data.body.trim();
+  const firstLine = body.split("\n").find((line) => line.trim().length > 0)?.trim() ?? body.slice(0, 60);
+  const title = firstLine.length > 90 ? `${firstLine.slice(0, 90)}…` : firstLine;
+
+  try {
+    const imageUrls = await uploadImageArrayIfNeeded(parsedBody.data.imageUrls, "community/posts");
+    const created = await prisma.communityPost.create({
+      data: {
+        authorId: user.id,
+        authorName: user.name?.trim() || user.realName?.trim() || user.email.split("@")[0] || "User",
+        category: toCommunityPostCategory(parsedBody.data.category),
+        title,
+        body,
+        imageUrls,
+        likes: 0,
+        comments: 0
+      }
+    });
+
+    await sendCommunityPostDiscordNotification({
+      id: created.id,
+      authorId: created.authorId,
+      authorName: created.authorName,
+      authorRole: req.auth!.role,
+      category: fromCommunityPostCategory(created.category),
+      title: created.title,
+      body: created.body,
+      imageUrls: created.imageUrls ?? [],
+      createdAt: created.createdAt
+    });
+
+    return res.status(201).json({
+      ok: true,
+      item: {
+        id: created.id,
+        authorId: created.authorId,
+        category: fromCommunityPostCategory(created.category),
+        author: created.authorName,
+        title: created.title,
+        body: created.body,
+        imageUrls: created.imageUrls,
+        createdAt: created.createdAt.toISOString(),
+        likes: created.likes,
+        comments: created.comments
+      }
+    });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to create community post" });
+  }
+});
+
+app.patch("/community/posts/:postId", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsedParam = communityPostParamSchema.safeParse(req.params);
+  if (!parsedParam.success) {
+    return res.status(400).json({ ok: false, message: "invalid params", errors: parsedParam.error.flatten() });
+  }
+  const parsedBody = updateCommunityPostSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsedBody.error.flatten() });
+  }
+
+  const existing = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { id: true, authorId: true, body: true, category: true, imageUrls: true }
+  });
+  if (!existing) return res.status(404).json({ ok: false, message: "post not found" });
+  if (existing.authorId !== req.auth!.userId) {
+    return res.status(403).json({ ok: false, message: "forbidden" });
+  }
+
+  const nextBody = parsedBody.data.body?.trim() ?? existing.body;
+  const firstLine = nextBody.split("\n").find((line) => line.trim().length > 0)?.trim() ?? nextBody.slice(0, 60);
+  const title = firstLine.length > 90 ? `${firstLine.slice(0, 90)}…` : firstLine;
+
+  const nextImageUrls = parsedBody.data.imageUrls
+    ? await uploadImageArrayIfNeeded(parsedBody.data.imageUrls, "community/posts")
+    : existing.imageUrls;
+
+  const updated = await prisma.communityPost.update({
+    where: { id: parsedParam.data.postId },
+    data: {
+      category: parsedBody.data.category ? toCommunityPostCategory(parsedBody.data.category) : existing.category,
+      body: nextBody,
+      title,
+      imageUrls: nextImageUrls
+    }
+  });
+
+  return res.json({
+    ok: true,
+    item: {
+      id: updated.id,
+      authorId: updated.authorId,
+      category: fromCommunityPostCategory(updated.category),
+      author: updated.authorName,
+      title: updated.title,
+      body: updated.body,
+      imageUrls: updated.imageUrls,
+      createdAt: updated.createdAt.toISOString(),
+      likes: updated.likes,
+      comments: updated.comments
+    }
+  });
+});
+
+app.delete("/community/posts/:postId", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsedParam = communityPostParamSchema.safeParse(req.params);
+  if (!parsedParam.success) {
+    return res.status(400).json({ ok: false, message: "invalid params", errors: parsedParam.error.flatten() });
+  }
+
+  const existing = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { id: true, authorId: true }
+  });
+  if (!existing) return res.status(404).json({ ok: false, message: "post not found" });
+  if (existing.authorId !== req.auth!.userId) {
+    return res.status(403).json({ ok: false, message: "forbidden" });
+  }
+
+  await prisma.communityPost.delete({ where: { id: parsedParam.data.postId } });
+  return res.json({ ok: true });
+});
+
+app.post("/community/posts/:postId/like", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsedParam = communityPostParamSchema.safeParse(req.params);
+  if (!parsedParam.success) {
+    return res.status(400).json({ ok: false, message: "invalid params", errors: parsedParam.error.flatten() });
+  }
+  const post = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { id: true }
+  });
+  if (!post) return res.status(404).json({ ok: false, message: "post not found" });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.communityPostLike.upsert({
+      where: {
+        postId_userId: {
+          postId: parsedParam.data.postId,
+          userId: req.auth!.userId
+        }
+      },
+      update: {},
+      create: {
+        postId: parsedParam.data.postId,
+        userId: req.auth!.userId
+      }
+    });
+
+    const likeCount = await tx.communityPostLike.count({
+      where: { postId: parsedParam.data.postId }
+    });
+    await tx.communityPost.update({
+      where: { id: parsedParam.data.postId },
+      data: { likes: likeCount }
+    });
+  });
+
+  const updated = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { likes: true }
+  });
+
+  return res.json({ ok: true, likes: updated?.likes ?? 0, likedByMe: true });
+});
+
+app.delete("/community/posts/:postId/like", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsedParam = communityPostParamSchema.safeParse(req.params);
+  if (!parsedParam.success) {
+    return res.status(400).json({ ok: false, message: "invalid params", errors: parsedParam.error.flatten() });
+  }
+  const post = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { id: true }
+  });
+  if (!post) return res.status(404).json({ ok: false, message: "post not found" });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.communityPostLike.deleteMany({
+      where: {
+        postId: parsedParam.data.postId,
+        userId: req.auth!.userId
+      }
+    });
+    const likeCount = await tx.communityPostLike.count({
+      where: { postId: parsedParam.data.postId }
+    });
+    await tx.communityPost.update({
+      where: { id: parsedParam.data.postId },
+      data: { likes: likeCount }
+    });
+  });
+
+  const updated = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { likes: true }
+  });
+
+  return res.json({ ok: true, likes: updated?.likes ?? 0, likedByMe: false });
+});
+
+app.get("/community/posts/:postId/comments", async (req, res) => {
+  const parsedParam = communityPostParamSchema.safeParse(req.params);
+  if (!parsedParam.success) {
+    return res.status(400).json({ ok: false, message: "invalid params", errors: parsedParam.error.flatten() });
+  }
+
+  const post = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { id: true }
+  });
+  if (!post) return res.status(404).json({ ok: false, message: "post not found" });
+
+  const comments = await prisma.communityPostComment.findMany({
+    where: { postId: parsedParam.data.postId },
+    orderBy: [{ createdAt: "asc" }],
+    take: 100
+  });
+
+  return res.json({
+    ok: true,
+    items: comments.map((item) => ({
+      id: item.id,
+      postId: item.postId,
+      authorName: item.authorName,
+      body: item.body,
+      createdAt: item.createdAt.toISOString()
+    }))
+  });
+});
+
+app.post("/community/posts/:postId/comments", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsedParam = communityPostParamSchema.safeParse(req.params);
+  if (!parsedParam.success) {
+    return res.status(400).json({ ok: false, message: "invalid params", errors: parsedParam.error.flatten() });
+  }
+  const parsedBody = createCommunityCommentSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsedBody.error.flatten() });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: req.auth!.userId },
+    select: { id: true, name: true, realName: true, email: true }
+  });
+  if (!user) {
+    return res.status(404).json({ ok: false, message: "user not found" });
+  }
+
+  const post = await prisma.communityPost.findUnique({
+    where: { id: parsedParam.data.postId },
+    select: { id: true }
+  });
+  if (!post) return res.status(404).json({ ok: false, message: "post not found" });
+
+  const created = await prisma.$transaction(async (tx) => {
+    const comment = await tx.communityPostComment.create({
+      data: {
+        postId: parsedParam.data.postId,
+        authorId: user.id,
+        authorName: user.name?.trim() || user.realName?.trim() || user.email.split("@")[0] || "User",
+        body: parsedBody.data.body.trim()
+      }
+    });
+    const commentCount = await tx.communityPostComment.count({
+      where: { postId: parsedParam.data.postId }
+    });
+    await tx.communityPost.update({
+      where: { id: parsedParam.data.postId },
+      data: { comments: commentCount }
+    });
+    return { comment, commentCount };
+  });
+
+  return res.status(201).json({
+    ok: true,
+    item: {
+      id: created.comment.id,
+      postId: created.comment.postId,
+      authorName: created.comment.authorName,
+      body: created.comment.body,
+      createdAt: created.comment.createdAt.toISOString()
+    },
+    commentCount: created.commentCount
+  });
+});
+
+app.post("/community/translate", async (req, res) => {
+  const parsedBody = translateCommunityPostSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ ok: false, message: "invalid body", errors: parsedBody.error.flatten() });
+  }
+  if (!openai) {
+    return res.status(503).json({ ok: false, message: "translation service unavailable" });
+  }
+
+  try {
+    const response = await openai.responses.create({
+      model: openaiTranslationModel,
+      input: [
+        {
+          role: "system",
+          content:
+            "You are a translation assistant. Translate user text into the requested target language naturally. Preserve meaning, tone, and line breaks. Return strict JSON."
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            targetLanguage: parsedBody.data.targetLanguage,
+            sourceLanguageHint: parsedBody.data.sourceLanguageHint ?? null,
+            text: parsedBody.data.text
+          })
+        }
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "community_translate_result",
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              translatedText: { type: "string", minLength: 1, maxLength: 12000 },
+              detectedLanguage: { type: "string", minLength: 2, maxLength: 40 }
+            },
+            required: ["translatedText", "detectedLanguage"]
+          },
+          strict: true
+        }
+      }
+    });
+
+    const outputText = (response as { output_text?: string }).output_text;
+    if (!outputText) {
+      return res.status(500).json({ ok: false, message: "empty translation output" });
+    }
+    const parsed = z
+      .object({
+        translatedText: z.string().min(1).max(12_000),
+        detectedLanguage: z.string().min(2).max(40)
+      })
+      .safeParse(JSON.parse(outputText));
+    if (!parsed.success) {
+      return res.status(500).json({ ok: false, message: "invalid translation output" });
+    }
+
+    return res.json({
+      ok: true,
+      translatedText: parsed.data.translatedText,
+      detectedLanguage: parsed.data.detectedLanguage
+    });
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      message: "failed to translate",
+      error: getErrorMessage(error)
+    });
+  }
+});
+
+app.get("/positions", async (req, res) => {
+  const parsedQuery = listPublicPositionsCursorQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsedQuery.error.flatten() });
+  }
+
+  const limit = parsedQuery.data.limit ?? 20;
+  const search = parsedQuery.data.search?.trim();
+  const sourceProviders = parsedQuery.data.sourceProvider
+    ? Array.from(new Set(Array.isArray(parsedQuery.data.sourceProvider) ? parsedQuery.data.sourceProvider : [parsedQuery.data.sourceProvider]))
+    : [];
+  const jobRoles = parsedQuery.data.jobRole
+    ? Array.from(new Set(Array.isArray(parsedQuery.data.jobRole) ? parsedQuery.data.jobRole : [parsedQuery.data.jobRole]))
+    : [];
+  const sortMode = parsedQuery.data.sort ?? "latest";
+  const sortOrder = parsedQuery.data.sortOrder ?? "desc";
+
+  // Cursor encodes the keyset for the active sort mode.
+  // - latest: `${createdAtISO}|${id}` (desc; older or same-createdAt-with-smaller-id)
+  // - deadline: `${deadlineISOorNULL}|${id}` (deadline asc, NULLs last)
+  let latestCursor: { createdAt: Date; id: string } | null = null;
+  let deadlineCursor: { deadline: Date | null; id: string } | null = null;
+  if (parsedQuery.data.cursor) {
+    try {
+      const decoded = Buffer.from(parsedQuery.data.cursor, "base64").toString("utf8");
+      const [headRaw, idRaw] = decoded.split("|");
+      const id = idRaw?.trim();
+      if (!id) {
+        return res.status(400).json({ ok: false, message: "invalid cursor" });
+      }
+      if (sortMode === "deadline") {
+        const head = headRaw?.trim() ?? "";
+        if (head === "NULL") {
+          deadlineCursor = { deadline: null, id };
+        } else {
+          const parsed = head ? new Date(head) : null;
+          if (!parsed || Number.isNaN(parsed.getTime())) {
+            return res.status(400).json({ ok: false, message: "invalid cursor" });
+          }
+          deadlineCursor = { deadline: parsed, id };
+        }
+      } else {
+        const createdAt = headRaw ? new Date(headRaw) : null;
+        if (!createdAt || Number.isNaN(createdAt.getTime())) {
+          return res.status(400).json({ ok: false, message: "invalid cursor" });
+        }
+        latestCursor = { createdAt, id };
+      }
+    } catch {
+      return res.status(400).json({ ok: false, message: "invalid cursor" });
+    }
+  }
+
+  const viewer = await resolvePublicViewer(req);
+
+  const baseWhere = {
+    status: { in: [PositionStatus.OPEN] },
+    ...(search
+      ? {
+          OR: [
+            { title: { contains: search, mode: "insensitive" as const } },
+            { preferredJobRole: { contains: search, mode: "insensitive" as const } },
+            { workLocation: { contains: search, mode: "insensitive" as const } },
+            { partnerOrganization: { is: { name: { contains: search, mode: "insensitive" as const } } } }
+          ]
+        }
+      : {}),
+    ...(jobRoles.length ? { preferredJobRole: { in: jobRoles } } : {}),
+    ...(sourceProviders.length
+      ? { sourceProvider: { in: sourceProviders } }
+      : { sourceProvider: { notIn: [PositionSourceProvider.BUDDIES, PositionSourceProvider.KOWORK] } })
+  };
+
+  const cursorWhere = sortMode === "deadline"
+    ? deadlineCursor
+      ? deadlineCursor.deadline === null
+        ? {
+            // already in the NULL bucket: paginate by id within nulls
+            sourceDeadlineDate: null,
+            id: { gt: deadlineCursor.id }
+          }
+        : {
+            // either a later deadline, the same deadline with greater id, or a NULL (NULLs last)
+            OR: [
+              { sourceDeadlineDate: { gt: deadlineCursor.deadline } },
+              {
+                AND: [
+                  { sourceDeadlineDate: deadlineCursor.deadline },
+                  { id: { gt: deadlineCursor.id } }
+                ]
+              },
+              { sourceDeadlineDate: null }
+            ]
+          }
+      : {}
+    : latestCursor
+      ? {
+          OR: [
+            { createdAt: { lt: latestCursor.createdAt } },
+            {
+              AND: [
+                { createdAt: latestCursor.createdAt },
+                { id: { lt: latestCursor.id } }
+              ]
+            }
+          ]
+        }
+      : {};
+
+  const items = await prisma.position.findMany({
+    where: {
+      ...baseWhere,
+      ...cursorWhere
+    },
+    orderBy: sortMode === "deadline"
+      ? [{ sourceDeadlineDate: { sort: "asc", nulls: "last" } }, { id: "asc" }]
+      : [{ createdAt: sortOrder }, { id: sortOrder }],
     take: limit + 1,
     include: {
       partnerOrganization: {
         select: {
           id: true,
           name: true,
-          domain: true,
           industry: true,
           companySize: true,
           officeAddress: true
@@ -3171,7 +5341,12 @@ app.get("/positions", async (req, res) => {
   const pageItems = hasNext ? items.slice(0, limit) : items;
   const tail = pageItems[pageItems.length - 1];
   const nextCursor = hasNext && tail
-    ? Buffer.from(`${tail.createdAt.toISOString()}|${tail.id}`, "utf8").toString("base64")
+    ? sortMode === "deadline"
+      ? Buffer.from(
+          `${tail.sourceDeadlineDate ? tail.sourceDeadlineDate.toISOString() : "NULL"}|${tail.id}`,
+          "utf8"
+        ).toString("base64")
+      : Buffer.from(`${tail.createdAt.toISOString()}|${tail.id}`, "utf8").toString("base64")
     : null;
 
   return res.json({
@@ -3185,7 +5360,7 @@ app.get("/positions/premium-banners", async (req, res) => {
   const viewer = await resolvePublicViewer(req);
   const items = await prisma.position.findMany({
     where: {
-      status: { in: [PositionStatus.OPEN, PositionStatus.MATCHING] }
+      status: { in: [PositionStatus.OPEN] }
     },
     orderBy: [{ createdAt: "desc" }],
     include: {
@@ -3193,7 +5368,6 @@ app.get("/positions/premium-banners", async (req, res) => {
         select: {
           id: true,
           name: true,
-          domain: true,
           industry: true,
           companySize: true,
           officeAddress: true
@@ -3245,30 +5419,49 @@ app.get("/positions/:id", async (req, res) => {
     return res.status(400).json({ ok: false, message: "invalid position id" });
   }
 
-  const [viewer, item] = await Promise.all([
-    resolvePublicViewer(req),
-    prisma.position.findFirst({
-      where: {
-        id,
-        status: { in: [PositionStatus.OPEN, PositionStatus.MATCHING] }
-      },
-      include: {
-        partnerOrganization: {
-          select: {
-            id: true,
-            name: true,
-            domain: true,
-            industry: true,
-            companySize: true,
-            officeAddress: true
+  const viewer = await resolvePublicViewer(req);
+  const viewerUserId = resolvePublicViewerUserId(req);
+  const viewerUser = viewerUserId
+    ? await prisma.user.findUnique({
+        where: { id: viewerUserId },
+        select: { partnerOrganizationId: true }
+      })
+    : null;
+  const viewerPartnerOrganizationId = viewerUser?.partnerOrganizationId ?? null;
+
+  const where: Prisma.PositionWhereInput =
+    viewer?.role === MemberRole.OPERATOR
+      ? { id }
+      : viewer?.role === MemberRole.PARTNER && viewerPartnerOrganizationId
+        ? {
+            id,
+            OR: [
+              { status: { in: [PositionStatus.OPEN] } },
+              { partnerOrganizationId: viewerPartnerOrganizationId }
+            ]
           }
-        },
-        matchingParticipants: {
-          select: { id: true }
+        : {
+            id,
+            status: { in: [PositionStatus.OPEN] }
+          };
+
+  const item = await prisma.position.findFirst({
+    where,
+    include: {
+      partnerOrganization: {
+        select: {
+          id: true,
+          name: true,
+          industry: true,
+          companySize: true,
+          officeAddress: true
         }
+      },
+      matchingParticipants: {
+        select: { id: true }
       }
-    })
-  ]);
+    }
+  });
 
   if (!item) {
     return res.status(404).json({ ok: false, message: "position not found" });
@@ -3286,14 +5479,14 @@ app.get("/ops/partners/meta", authenticate, requireRoles([MemberRole.OPERATOR]),
     partnerTypes: Object.values(PartnerType),
     partnerCompanySizes: partnerCompanySizeEnum.options,
     partnerIndustries: Object.values(PartnerIndustry),
-    sortableFields: ["name", "domain", "createdAt"]
+    sortableFields: ["name", "createdAt"]
   });
 });
 
 app.get("/ops/positions/meta", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
   const partners = await prisma.partnerOrganization.findMany({
     orderBy: { name: "asc" },
-    select: { id: true, name: true, domain: true, industry: true, companySize: true }
+    select: { id: true, name: true, industry: true, companySize: true }
   });
 
   const usedPartnerIndustries = Array.from(
@@ -3312,8 +5505,7 @@ app.get("/ops/positions/meta", authenticate, requireRoles([MemberRole.OPERATOR])
     statuses: Object.values(PositionStatus),
     partners: partners.map((partner) => ({
       id: partner.id,
-      name: partner.name,
-      domain: partner.domain
+      name: partner.name
     })),
     partnerIndustries: Object.values(PartnerIndustry),
     partnerCompanySizes: partnerCompanySizeEnum.options,
@@ -3435,7 +5627,7 @@ app.post("/ops/matching/run", authenticate, requireRoles([MemberRole.OPERATOR]),
         prisma.position.findUnique({
           where: { id: parsed.data.positionId! },
           include: {
-            partnerOrganization: { select: { id: true, name: true, domain: true, industry: true } },
+            partnerOrganization: { select: { id: true, name: true, industry: true } },
             matchingParticipants: { select: { id: true } }
           }
         }),
@@ -3616,10 +5808,10 @@ app.post("/ops/matching/run", authenticate, requireRoles([MemberRole.OPERATOR]),
         select: candidateSelect
       }),
       prisma.position.findMany({
-        where: { status: { in: [PositionStatus.OPEN, PositionStatus.MATCHING] } },
+        where: { status: { in: [PositionStatus.OPEN] } },
         orderBy: { updatedAt: "desc" },
         include: {
-          partnerOrganization: { select: { id: true, name: true, domain: true, industry: true } },
+          partnerOrganization: { select: { id: true, name: true, industry: true } },
           matchingParticipants: { select: { id: true } }
         }
       })
@@ -3635,7 +5827,7 @@ app.post("/ops/matching/run", authenticate, requireRoles([MemberRole.OPERATOR]),
         : await prisma.position.findMany({
             orderBy: { updatedAt: "desc" },
             include: {
-              partnerOrganization: { select: { id: true, name: true, domain: true, industry: true } },
+              partnerOrganization: { select: { id: true, name: true, industry: true } },
               matchingParticipants: { select: { id: true } }
             }
           });
@@ -3752,7 +5944,7 @@ app.post("/ops/matching/run", authenticate, requireRoles([MemberRole.OPERATOR]),
             title: string;
             status: PositionStatus;
             preferredJobRole: string | null;
-            partnerOrganization: { id: string; name: string; domain: string; industry: PartnerIndustry } | null;
+            partnerOrganization: { id: string; name: string; industry: PartnerIndustry } | null;
           };
           score: number;
           reasons: string[];
@@ -3874,6 +6066,8 @@ app.get("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), asy
     partnerOrganizationId,
     partnerIndustry,
     partnerCompanySize,
+    sourceKind,
+    sourceProvider,
     sortBy = "createdAt",
     sortOrder = "desc",
     page = 1,
@@ -3899,6 +6093,8 @@ app.get("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), asy
           }
         }
       : {}),
+    ...(sourceKind ? { sourceKind } : {}),
+    ...(sourceProvider ? { sourceProvider } : {}),
     ...(search
       ? {
           OR: [
@@ -3925,8 +6121,7 @@ app.get("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), asy
         partnerOrganization: {
           select: {
             id: true,
-            name: true,
-            domain: true
+            name: true
           }
         },
         matchingParticipants: {
@@ -3974,13 +6169,20 @@ app.post("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), as
   }
 
   try {
+    const uploadedThumbnailImages = await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails");
     const created = await prisma.position.create({
       data: {
         partnerOrganizationId: parsed.data.partnerOrganizationId,
+        sourceKind: parsed.data.sourceKind ?? PositionSourceKind.INTERNAL,
+        sourceProvider: parsed.data.sourceProvider ?? PositionSourceProvider.INTERNAL,
+        sourceExternalId: parsed.data.sourceExternalId,
+        sourceUrl: parsed.data.sourceUrl,
+        sourceFetchedAt: parsed.data.sourceFetchedAt ? new Date(parsed.data.sourceFetchedAt) : undefined,
         title: parsed.data.title,
         status: parsed.data.status ?? PositionStatus.DRAFT,
         workType: parsed.data.workType ?? "On-site",
-        thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5),
+        employmentType: parsed.data.employmentType ?? PositionEmploymentType.UNPAID_INTERN,
+        thumbnailImages: uploadedThumbnailImages.slice(0, 5),
         eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas),
         preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities),
         communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages),
@@ -4022,8 +6224,7 @@ app.post("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), as
         partnerOrganization: {
           select: {
             id: true,
-            name: true,
-            domain: true
+            name: true
           }
         },
         matchingParticipants: {
@@ -4053,6 +6254,23 @@ app.post("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), as
       }
     });
 
+    const creator = await prisma.user.findUnique({
+      where: { id: req.auth!.userId },
+      select: { id: true, name: true, email: true }
+    });
+    void sendPositionCreateDiscordNotification({
+      positionId: created.id,
+      positionTitle: created.title,
+      partnerName: created.partnerOrganization?.name ?? null,
+      employmentType: created.employmentType,
+      workType: created.workType ?? null,
+      workLocation: created.workLocation ?? null,
+      createdByUserId: req.auth!.userId,
+      createdByUserName: creator?.name ?? null,
+      createdByUserEmail: creator?.email ?? null,
+      createdAt: created.createdAt
+    });
+
     return res.status(201).json({ ok: true, item: toPosition(created) });
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2003") {
@@ -4074,6 +6292,10 @@ app.patch("/ops/positions/:id", authenticate, requireRoles([MemberRole.OPERATOR]
   }
 
   try {
+    const uploadedThumbnailImages =
+      parsed.data.thumbnailImages !== undefined
+        ? await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails")
+        : undefined;
     const current = await prisma.position.findUnique({
       where: { id },
       select: { status: true, adminMemo: true }
@@ -4089,11 +6311,19 @@ app.patch("/ops/positions/:id", authenticate, requireRoles([MemberRole.OPERATOR]
       where: { id },
       data: {
         ...(parsed.data.partnerOrganizationId !== undefined ? { partnerOrganizationId: parsed.data.partnerOrganizationId } : {}),
+        ...(parsed.data.sourceKind !== undefined ? { sourceKind: parsed.data.sourceKind } : {}),
+        ...(parsed.data.sourceProvider !== undefined ? { sourceProvider: parsed.data.sourceProvider } : {}),
+        ...(parsed.data.sourceExternalId !== undefined ? { sourceExternalId: parsed.data.sourceExternalId } : {}),
+        ...(parsed.data.sourceUrl !== undefined ? { sourceUrl: parsed.data.sourceUrl } : {}),
+        ...(parsed.data.sourceFetchedAt !== undefined
+          ? { sourceFetchedAt: parsed.data.sourceFetchedAt ? new Date(parsed.data.sourceFetchedAt) : null }
+          : {}),
         ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
         ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
         ...(parsed.data.workType !== undefined ? { workType: parsed.data.workType } : {}),
-        ...(parsed.data.thumbnailImages !== undefined
-          ? { thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5) }
+        ...(parsed.data.employmentType !== undefined ? { employmentType: parsed.data.employmentType } : {}),
+        ...(uploadedThumbnailImages !== undefined
+          ? { thumbnailImages: uploadedThumbnailImages.slice(0, 5) }
           : {}),
         ...(parsed.data.eligibleVisas !== undefined
           ? { eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas) }
@@ -4143,8 +6373,7 @@ app.patch("/ops/positions/:id", authenticate, requireRoles([MemberRole.OPERATOR]
         partnerOrganization: {
           select: {
             id: true,
-            name: true,
-            domain: true
+            name: true
           }
         },
         matchingParticipants: {
@@ -4188,15 +6417,14 @@ app.patch("/ops/positions/:id", authenticate, requireRoles([MemberRole.OPERATOR]
 app.get("/ops/positions/premium-banners", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
   const items = await prisma.position.findMany({
     where: {
-      status: { in: [PositionStatus.OPEN, PositionStatus.MATCHING] }
+      status: { in: [PositionStatus.OPEN] }
     },
     orderBy: [{ createdAt: "desc" }],
     include: {
       partnerOrganization: {
         select: {
           id: true,
-          name: true,
-          domain: true
+          name: true
         }
       }
     }
@@ -4267,8 +6495,7 @@ app.patch("/ops/positions/:id/premium-banner", authenticate, requireRoles([Membe
         partnerOrganization: {
           select: {
             id: true,
-            name: true,
-            domain: true
+            name: true
           }
         },
         matchingParticipants: {
@@ -4341,8 +6568,7 @@ app.patch("/ops/positions/:id/status", authenticate, requireRoles([MemberRole.OP
         partnerOrganization: {
           select: {
             id: true,
-            name: true,
-            domain: true
+            name: true
           }
         },
         matchingParticipants: {
@@ -4461,12 +6687,8 @@ app.post("/auth/business-email/send-verification", async (req, res) => {
     return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
   }
 
-  if (!isBusinessEmail(parsed.data.email)) {
-    return sendAuthError(res, 400, "BUSINESS_EMAIL_REQUIRED", "business account requires a company email");
-  }
-
   const existingUser = await prisma.user.findUnique({
-    where: { email: parsed.data.email },
+    where: { email_authProvider: { email: parsed.data.email, authProvider: AuthProvider.EMAIL } },
     select: { id: true }
   });
   if (existingUser) {
@@ -4518,17 +6740,41 @@ app.post("/auth/business-email/verify", async (req, res) => {
   return res.json({ ok: true, verified: true });
 });
 
-app.post("/auth/register", async (req, res) => {
+app.post("/partner-signup-requests", async (req, res) => {
+  const parsed = createPartnerSignupRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  try {
+    const created = await prisma.partnerSignupRequest.create({
+      data: {
+        companyName: parsed.data.companyName,
+        companyIndustry: parsed.data.companyIndustry,
+        companySize: parsed.data.companySize,
+        requesterName: parsed.data.requesterName,
+        requesterEmail: parsed.data.requesterEmail,
+        requesterPhone: parsed.data.requesterPhone?.trim() || null
+      }
+    });
+
+    return res.status(201).json({
+      ok: true,
+      item: {
+        id: created.id,
+        status: created.status,
+        createdAt: created.createdAt
+      }
+    });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to create partner signup request" });
+  }
+});
+
+app.post("/auth/register", authRateLimit, async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
-    const hasBusinessEmailIssue = parsed.error.issues.some((issue) => issue.message === "business account requires a company email");
-    return sendAuthError(
-      res,
-      400,
-      hasBusinessEmailIssue ? "BUSINESS_EMAIL_REQUIRED" : "INVALID_REQUEST",
-      hasBusinessEmailIssue ? "business account requires a company email" : "invalid request",
-      { errors: parsed.error.flatten() }
-    );
+    return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
   }
 
   const resolvedRole = parsed.data.role ?? (parsed.data.accountType === "BUSINESS" ? MemberRole.PARTNER : MemberRole.STUDENT);
@@ -4539,33 +6785,11 @@ app.post("/auth/register", async (req, res) => {
   const normalizedEmail = parsed.data.email.trim().toLowerCase();
 
   const existingUser = await prisma.user.findUnique({
-    where: { email: normalizedEmail },
+    where: { email_authProvider: { email: normalizedEmail, authProvider: AuthProvider.EMAIL } },
     select: { id: true }
   });
   if (existingUser) {
     return sendAuthError(res, 409, "EMAIL_ALREADY_EXISTS", "email already exists");
-  }
-
-  let preverifiedTokenId: string | null = null;
-  if (resolvedRole === MemberRole.PARTNER) {
-    const preverified = await prisma.emailPreverificationToken.findFirst({
-      where: {
-        email: normalizedEmail,
-        verifiedAt: { not: null },
-        usedAt: null,
-        expiresAt: { gt: new Date() }
-      },
-      orderBy: { verifiedAt: "desc" }
-    });
-    if (!preverified) {
-      return sendAuthError(
-        res,
-        403,
-        "EMAIL_PREVERIFICATION_REQUIRED",
-        "business email verification is required before registration"
-      );
-    }
-    preverifiedTokenId = preverified.id;
   }
 
   try {
@@ -4573,43 +6797,30 @@ app.post("/auth/register", async (req, res) => {
       const user = await tx.user.create({
         data: {
           email: normalizedEmail,
-          emailVerified: resolvedRole === MemberRole.PARTNER,
+          emailVerified: false,
           realName: parsed.data.realName?.trim() || null,
-          name: parsed.data.name,
+          name: parsed.data.name?.trim() || generateNicknameFromEmail(normalizedEmail),
           phoneNumber: parsed.data.phoneNumber,
           jobTitle: parsed.data.jobTitle,
           passwordHash,
           role: resolvedRole,
           partnerType: resolvedPartnerType,
-          partnerOrgRole: resolvedPartnerOrgRole
+          partnerOrgRole: resolvedPartnerOrgRole,
+          partnerOrganizationId: null
         }
       });
 
-      if (resolvedRole === MemberRole.PARTNER) {
-        const domain = extractDomainFromEmail(normalizedEmail);
-        if (domain) {
-          await tx.partnerOrganization.upsert({
-            where: { domain },
-            update: {},
-            create: {
-              partnerType: PartnerType.COMPANY,
-              domain,
-              name: parsed.data.partnerOrganizationName?.trim() || "",
-              industry: parsed.data.partnerOrganizationIndustry ?? PartnerIndustry.IT,
-              companySize: parsed.data.partnerOrganizationCompanySize,
-              adminMemo: "Auto-created from partner registration."
-            }
-          });
-        }
-        if (preverifiedTokenId) {
-          await tx.emailPreverificationToken.update({
-            where: { id: preverifiedTokenId },
-            data: { usedAt: new Date() }
-          });
-        }
-      }
-
       return user;
+    });
+
+    await sendSignupDiscordNotification({
+      id: created.id,
+      email: created.email,
+      name: created.name,
+      realName: created.realName,
+      role: created.role,
+      partnerType: created.partnerType,
+      createdAt: created.createdAt
     });
 
     if (created.emailVerified) {
@@ -4642,12 +6853,7 @@ app.post("/auth/register", async (req, res) => {
         return sendAuthError(res, 409, "EMAIL_ALREADY_EXISTS", "email already exists");
       }
       if (error.code === "P2025") {
-        return sendAuthError(
-          res,
-          403,
-          "EMAIL_PREVERIFICATION_REQUIRED",
-          "business email verification is required before registration"
-        );
+        return sendAuthError(res, 404, "USER_NOT_FOUND", "user not found");
       }
     }
     const detail = getErrorMessage(error);
@@ -4662,14 +6868,16 @@ app.post("/auth/register", async (req, res) => {
   }
 });
 
-app.post("/auth/login", async (req, res) => {
+app.post("/auth/login", authRateLimit, async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
   }
 
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
-  if (!user) {
+  const user = await prisma.user.findUnique({
+    where: { email_authProvider: { email: parsed.data.email, authProvider: AuthProvider.EMAIL } }
+  });
+  if (!user || !user.passwordHash) {
     return sendAuthError(res, 401, "INVALID_CREDENTIALS", "invalid credentials");
   }
 
@@ -4682,6 +6890,11 @@ app.post("/auth/login", async (req, res) => {
       email: user.email
     });
   }
+  if (!user.isActive) {
+    return sendAuthError(res, 403, "ACCOUNT_SUSPENDED", "account is suspended", {
+      reason: user.suspendedReason ?? null
+    });
+  }
 
   const { accessToken, refreshToken } = await issueAuthTokens(user);
   setRefreshTokenCookie(res, refreshToken);
@@ -4690,6 +6903,695 @@ app.post("/auth/login", async (req, res) => {
     token: accessToken,
     accessToken,
     user: toSafeUser(user)
+  });
+});
+
+// ---------- Naver OAuth ----------
+
+app.get("/auth/naver/start", (req, res) => {
+  if (!naverOAuthClientId || !naverOAuthClientSecret) {
+    return res.redirect(buildOAuthErrorUrl("NAVER_NOT_CONFIGURED", "Naver OAuth client is not configured"));
+  }
+  const nonce = randomBytes(16).toString("hex");
+  const next = typeof req.query.next === "string" ? req.query.next : "/";
+  const state = signOAuthState({ nonce, next, ts: Date.now() });
+  setOAuthStateCookie(res, state);
+
+  const authorizeUrl = new URL("https://nid.naver.com/oauth2.0/authorize");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", naverOAuthClientId);
+  authorizeUrl.searchParams.set("redirect_uri", naverOAuthRedirectUri);
+  authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("auth_type", "reauthenticate");
+  return res.redirect(authorizeUrl.toString());
+});
+
+app.post("/auth/naver/reauth/start", authenticate, async (req, res) => {
+  if (!naverOAuthClientId || !naverOAuthClientSecret) {
+    return res.status(503).json({ ok: false, code: "NAVER_NOT_CONFIGURED", message: "Naver OAuth client is not configured" });
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
+  if (!user) return res.status(404).json({ ok: false, code: "USER_NOT_FOUND", message: "user not found" });
+  if (user.authProvider !== AuthProvider.NAVER) {
+    return res.status(400).json({ ok: false, code: "WRONG_AUTH_PROVIDER", message: "this account is not registered with Naver" });
+  }
+  const nonce = randomBytes(16).toString("hex");
+  const state = signOAuthState({ nonce, purpose: "reauth", reauthUserId: user.id, ts: Date.now() });
+  setOAuthStateCookie(res, state);
+
+  const authorizeUrl = new URL("https://nid.naver.com/oauth2.0/authorize");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", naverOAuthClientId);
+  authorizeUrl.searchParams.set("redirect_uri", naverOAuthRedirectUri);
+  authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("auth_type", "reauthenticate");
+  return res.json({ ok: true, authorizeUrl: authorizeUrl.toString() });
+});
+
+app.get("/auth/naver/callback", async (req, res) => {
+  const cookieState = parseCookies(req.headers.cookie)[oauthStateCookieName];
+  clearOAuthStateCookie(res);
+
+  const queryState = typeof req.query.state === "string" ? req.query.state : "";
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+
+  if (typeof req.query.error === "string") {
+    return res.redirect(buildOAuthErrorUrl("NAVER_AUTH_DENIED", req.query.error));
+  }
+  if (!cookieState || !queryState || cookieState !== queryState) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_STATE_MISMATCH"));
+  }
+  const stateData = verifyOAuthState(queryState);
+  if (!stateData) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_STATE_INVALID"));
+  }
+  if (!code) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_CODE_MISSING"));
+  }
+
+  try {
+    // Exchange code for access token
+    const tokenUrl = new URL("https://nid.naver.com/oauth2.0/token");
+    tokenUrl.searchParams.set("grant_type", "authorization_code");
+    tokenUrl.searchParams.set("client_id", naverOAuthClientId);
+    tokenUrl.searchParams.set("client_secret", naverOAuthClientSecret);
+    tokenUrl.searchParams.set("code", code);
+    tokenUrl.searchParams.set("state", queryState);
+
+    const tokenResponse = await fetch(tokenUrl.toString());
+    const tokenJson = (await tokenResponse.json()) as { access_token?: string; error?: string; error_description?: string };
+    if (!tokenResponse.ok || !tokenJson.access_token) {
+      console.error("[naver-oauth] token exchange failed", tokenJson);
+      return res.redirect(buildOAuthErrorUrl("NAVER_TOKEN_EXCHANGE_FAILED", tokenJson.error_description ?? tokenJson.error));
+    }
+
+    // Fetch profile
+    const profileResponse = await fetch("https://openapi.naver.com/v1/nid/me", {
+      headers: { Authorization: `Bearer ${tokenJson.access_token}` }
+    });
+    const profileJson = (await profileResponse.json()) as {
+      resultcode?: string;
+      message?: string;
+      response?: { id?: string; email?: string; name?: string; mobile?: string; profile_image?: string; birthday?: string; gender?: string };
+    };
+    if (!profileResponse.ok || profileJson.resultcode !== "00" || !profileJson.response?.id) {
+      console.error("[naver-oauth] profile fetch failed", profileJson);
+      return res.redirect(buildOAuthErrorUrl("NAVER_PROFILE_FAILED", profileJson.message));
+    }
+
+    const naverProfile = profileJson.response;
+    const providerId = naverProfile.id!;
+    const naverEmail = (naverProfile.email ?? "").trim().toLowerCase();
+    const naverName = naverProfile.name?.trim() || null;
+    const naverMobile = naverProfile.mobile?.trim() || null;
+
+    // Find existing NAVER user by providerId
+    const existingUser = await prisma.user.findUnique({
+      where: { authProvider_providerId: { authProvider: AuthProvider.NAVER, providerId } }
+    });
+
+    if (stateData.purpose === "reauth") {
+      const reauthUserId = typeof stateData.reauthUserId === "string" ? stateData.reauthUserId : "";
+      if (!existingUser || existingUser.id !== reauthUserId) {
+        return res.redirect(`${platformWebUrl}/account/delete?reauth_error=mismatch`);
+      }
+      const reauthToken = signReauthToken(existingUser.id, "delete_account");
+      const fragment = new URLSearchParams({ reauth_token: reauthToken }).toString();
+      return res.redirect(`${platformWebUrl}/account/delete#${fragment}`);
+    }
+
+    if (existingUser) {
+      const { accessToken, refreshToken } = await issueAuthTokens(existingUser);
+      setRefreshTokenCookie(res, refreshToken);
+
+      const nextRaw = typeof stateData.next === "string" ? stateData.next : "/";
+      const next = nextRaw.startsWith("/") ? nextRaw : "/";
+      const returnUrl = buildOAuthReturnUrl("naver", { accessToken, next });
+      return res.redirect(returnUrl);
+    }
+
+    // First-time sign in via Naver: defer user creation until account-type is chosen
+    const signupContext = signOAuthState({
+      type: "naver-signup",
+      providerId,
+      email: naverEmail,
+      name: naverName,
+      mobile: naverMobile,
+      ts: Date.now()
+    });
+    const ctxFragment = new URLSearchParams({ ctx: signupContext, provider: "naver" }).toString();
+    return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
+  } catch (error) {
+    console.error("[naver-oauth] callback failed", error);
+    return res.redirect(buildOAuthErrorUrl("NAVER_CALLBACK_ERROR"));
+  }
+});
+
+const naverFinalizeSchema = z.object({
+  ctx: z.string().min(10).max(4000),
+  accountType: z.enum(["GENERAL", "BUSINESS"])
+});
+
+app.post("/auth/naver/finalize", async (req, res) => {
+  const parsed = naverFinalizeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
+  }
+
+  const ctx = verifyOAuthState(parsed.data.ctx);
+  if (!ctx || ctx.type !== "naver-signup") {
+    return sendAuthError(res, 400, "INVALID_SIGNUP_CONTEXT", "invalid signup context");
+  }
+  const ts = typeof ctx.ts === "number" ? ctx.ts : 0;
+  if (Date.now() - ts > 10 * 60 * 1000) {
+    return sendAuthError(res, 400, "EXPIRED_SIGNUP_CONTEXT", "signup context expired");
+  }
+
+  const providerId = typeof ctx.providerId === "string" ? ctx.providerId : "";
+  const ctxEmail = typeof ctx.email === "string" ? ctx.email.trim().toLowerCase() : "";
+  const ctxName = typeof ctx.name === "string" ? ctx.name : null;
+  const ctxMobile = typeof ctx.mobile === "string" ? ctx.mobile : null;
+  if (!providerId) {
+    return sendAuthError(res, 400, "INVALID_SIGNUP_CONTEXT", "missing providerId");
+  }
+
+  // Double-check: no existing NAVER user with this providerId (race protection)
+  const alreadyExists = await prisma.user.findUnique({
+    where: { authProvider_providerId: { authProvider: AuthProvider.NAVER, providerId } }
+  });
+  if (alreadyExists) {
+    const { accessToken, refreshToken } = await issueAuthTokens(alreadyExists);
+    setRefreshTokenCookie(res, refreshToken);
+    return res.json({
+      ok: true,
+      token: accessToken,
+      accessToken,
+      user: toSafeUser(alreadyExists)
+    });
+  }
+
+  const role = parsed.data.accountType === "BUSINESS" ? MemberRole.PARTNER : MemberRole.STUDENT;
+  const partnerType = role === MemberRole.PARTNER ? PartnerType.COMPANY : null;
+  const partnerOrgRole = role === MemberRole.PARTNER ? PartnerOrgUserRole.MEMBER : null;
+
+  const created = await prisma.user.create({
+    data: {
+      email: ctxEmail || `naver-${providerId}@noemail.local`,
+      emailVerified: true,
+      name: ctxName?.trim() || generateNicknameFromEmail(ctxEmail),
+      phoneNumber: ctxMobile,
+      authProvider: AuthProvider.NAVER,
+      providerId,
+      passwordHash: null,
+      role,
+      partnerType,
+      partnerOrgRole
+    }
+  });
+
+  await sendSignupDiscordNotification({
+    id: created.id,
+    email: created.email,
+    name: created.name,
+    realName: created.realName,
+    role: created.role,
+    partnerType: created.partnerType,
+    createdAt: created.createdAt
+  }).catch((err) => console.error("[naver-oauth] discord signup notify failed", err));
+
+  const { accessToken, refreshToken } = await issueAuthTokens(created);
+  setRefreshTokenCookie(res, refreshToken);
+
+  return res.json({
+    ok: true,
+    token: accessToken,
+    accessToken,
+    user: toSafeUser(created)
+  });
+});
+
+// ---------- Google OAuth ----------
+
+app.get("/auth/google/start", (req, res) => {
+  if (!googleOAuthClientId || !googleOAuthClientSecret) {
+    return res.redirect(buildOAuthErrorUrl("GOOGLE_NOT_CONFIGURED", "Google OAuth client is not configured"));
+  }
+  const nonce = randomBytes(16).toString("hex");
+  const next = typeof req.query.next === "string" ? req.query.next : "/";
+  const state = signOAuthState({ nonce, next, ts: Date.now() });
+  setOAuthStateCookie(res, state);
+
+  const authorizeUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", googleOAuthClientId);
+  authorizeUrl.searchParams.set("redirect_uri", googleOAuthRedirectUri);
+  authorizeUrl.searchParams.set("scope", "openid email profile");
+  authorizeUrl.searchParams.set("access_type", "online");
+  authorizeUrl.searchParams.set("prompt", "select_account");
+  authorizeUrl.searchParams.set("state", state);
+  return res.redirect(authorizeUrl.toString());
+});
+
+app.post("/auth/google/reauth/start", authenticate, async (req, res) => {
+  if (!googleOAuthClientId || !googleOAuthClientSecret) {
+    return res.status(503).json({ ok: false, code: "GOOGLE_NOT_CONFIGURED", message: "Google OAuth client is not configured" });
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
+  if (!user) return res.status(404).json({ ok: false, code: "USER_NOT_FOUND", message: "user not found" });
+  if (user.authProvider !== AuthProvider.GOOGLE) {
+    return res.status(400).json({ ok: false, code: "WRONG_AUTH_PROVIDER", message: "this account is not registered with Google" });
+  }
+  const nonce = randomBytes(16).toString("hex");
+  const state = signOAuthState({ nonce, purpose: "reauth", reauthUserId: user.id, ts: Date.now() });
+  setOAuthStateCookie(res, state);
+
+  const authorizeUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", googleOAuthClientId);
+  authorizeUrl.searchParams.set("redirect_uri", googleOAuthRedirectUri);
+  authorizeUrl.searchParams.set("scope", "openid email profile");
+  authorizeUrl.searchParams.set("access_type", "online");
+  authorizeUrl.searchParams.set("prompt", "login");
+  authorizeUrl.searchParams.set("state", state);
+  return res.json({ ok: true, authorizeUrl: authorizeUrl.toString() });
+});
+
+app.get("/auth/google/callback", async (req, res) => {
+  const cookieState = parseCookies(req.headers.cookie)[oauthStateCookieName];
+  clearOAuthStateCookie(res);
+
+  const queryState = typeof req.query.state === "string" ? req.query.state : "";
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+
+  if (typeof req.query.error === "string") {
+    return res.redirect(buildOAuthErrorUrl("GOOGLE_AUTH_DENIED", req.query.error));
+  }
+  if (!cookieState || !queryState || cookieState !== queryState) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_STATE_MISMATCH"));
+  }
+  const stateData = verifyOAuthState(queryState);
+  if (!stateData) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_STATE_INVALID"));
+  }
+  if (!code) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_CODE_MISSING"));
+  }
+
+  try {
+    const tokenBody = new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: googleOAuthClientId,
+      client_secret: googleOAuthClientSecret,
+      code,
+      redirect_uri: googleOAuthRedirectUri
+    });
+    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: tokenBody.toString()
+    });
+    const tokenJson = (await tokenResponse.json()) as { access_token?: string; error?: string; error_description?: string };
+    if (!tokenResponse.ok || !tokenJson.access_token) {
+      console.error("[google-oauth] token exchange failed", tokenJson);
+      return res.redirect(buildOAuthErrorUrl("GOOGLE_TOKEN_EXCHANGE_FAILED", tokenJson.error_description ?? tokenJson.error));
+    }
+
+    const profileResponse = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: `Bearer ${tokenJson.access_token}` }
+    });
+    const profileJson = (await profileResponse.json()) as {
+      sub?: string;
+      email?: string;
+      email_verified?: boolean;
+      name?: string;
+      given_name?: string;
+      family_name?: string;
+      picture?: string;
+      error?: string;
+      error_description?: string;
+    };
+    if (!profileResponse.ok || !profileJson.sub) {
+      console.error("[google-oauth] profile fetch failed", profileJson);
+      return res.redirect(buildOAuthErrorUrl("GOOGLE_PROFILE_FAILED", profileJson.error_description ?? profileJson.error));
+    }
+
+    const providerId = profileJson.sub;
+    const googleEmail = (profileJson.email ?? "").trim().toLowerCase();
+    const googleEmailVerified = Boolean(profileJson.email_verified);
+    const googleName = profileJson.name?.trim() || profileJson.given_name?.trim() || null;
+
+    // Find existing GOOGLE user by providerId
+    const existingUser = await prisma.user.findUnique({
+      where: { authProvider_providerId: { authProvider: AuthProvider.GOOGLE, providerId } }
+    });
+
+    if (stateData.purpose === "reauth") {
+      const reauthUserId = typeof stateData.reauthUserId === "string" ? stateData.reauthUserId : "";
+      if (!existingUser || existingUser.id !== reauthUserId) {
+        return res.redirect(`${platformWebUrl}/account/delete?reauth_error=mismatch`);
+      }
+      const reauthToken = signReauthToken(existingUser.id, "delete_account");
+      const fragment = new URLSearchParams({ reauth_token: reauthToken }).toString();
+      return res.redirect(`${platformWebUrl}/account/delete#${fragment}`);
+    }
+
+    if (existingUser) {
+      const { accessToken, refreshToken } = await issueAuthTokens(existingUser);
+      setRefreshTokenCookie(res, refreshToken);
+
+      const nextRaw = typeof stateData.next === "string" ? stateData.next : "/";
+      const next = nextRaw.startsWith("/") ? nextRaw : "/";
+      const returnUrl = buildOAuthReturnUrl("google", { accessToken, next });
+      return res.redirect(returnUrl);
+    }
+
+    // First-time sign in via Google: defer user creation until account-type is chosen
+    const signupContext = signOAuthState({
+      type: "google-signup",
+      providerId,
+      email: googleEmail,
+      emailVerified: googleEmailVerified,
+      name: googleName,
+      ts: Date.now()
+    });
+    const ctxFragment = new URLSearchParams({ ctx: signupContext, provider: "google" }).toString();
+    return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
+  } catch (error) {
+    console.error("[google-oauth] callback failed", error);
+    return res.redirect(buildOAuthErrorUrl("GOOGLE_CALLBACK_ERROR"));
+  }
+});
+
+const googleFinalizeSchema = z.object({
+  ctx: z.string().min(10).max(4000),
+  accountType: z.enum(["GENERAL", "BUSINESS"])
+});
+
+app.post("/auth/google/finalize", async (req, res) => {
+  const parsed = googleFinalizeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
+  }
+
+  const ctx = verifyOAuthState(parsed.data.ctx);
+  if (!ctx || ctx.type !== "google-signup") {
+    return sendAuthError(res, 400, "INVALID_SIGNUP_CONTEXT", "invalid signup context");
+  }
+  const ts = typeof ctx.ts === "number" ? ctx.ts : 0;
+  if (Date.now() - ts > 10 * 60 * 1000) {
+    return sendAuthError(res, 400, "EXPIRED_SIGNUP_CONTEXT", "signup context expired");
+  }
+
+  const providerId = typeof ctx.providerId === "string" ? ctx.providerId : "";
+  const ctxEmail = typeof ctx.email === "string" ? ctx.email.trim().toLowerCase() : "";
+  const ctxEmailVerified = Boolean(ctx.emailVerified);
+  const ctxName = typeof ctx.name === "string" ? ctx.name : null;
+  if (!providerId) {
+    return sendAuthError(res, 400, "INVALID_SIGNUP_CONTEXT", "missing providerId");
+  }
+
+  const alreadyExists = await prisma.user.findUnique({
+    where: { authProvider_providerId: { authProvider: AuthProvider.GOOGLE, providerId } }
+  });
+  if (alreadyExists) {
+    const { accessToken, refreshToken } = await issueAuthTokens(alreadyExists);
+    setRefreshTokenCookie(res, refreshToken);
+    return res.json({
+      ok: true,
+      token: accessToken,
+      accessToken,
+      user: toSafeUser(alreadyExists)
+    });
+  }
+
+  const role = parsed.data.accountType === "BUSINESS" ? MemberRole.PARTNER : MemberRole.STUDENT;
+  const partnerType = role === MemberRole.PARTNER ? PartnerType.COMPANY : null;
+  const partnerOrgRole = role === MemberRole.PARTNER ? PartnerOrgUserRole.MEMBER : null;
+
+  const created = await prisma.user.create({
+    data: {
+      email: ctxEmail || `google-${providerId}@noemail.local`,
+      emailVerified: true,
+      name: ctxName?.trim() || generateNicknameFromEmail(ctxEmail),
+      authProvider: AuthProvider.GOOGLE,
+      providerId,
+      passwordHash: null,
+      role,
+      partnerType,
+      partnerOrgRole
+    }
+  });
+
+  await sendSignupDiscordNotification({
+    id: created.id,
+    email: created.email,
+    name: created.name,
+    realName: created.realName,
+    role: created.role,
+    partnerType: created.partnerType,
+    createdAt: created.createdAt
+  }).catch((err) => console.error("[google-oauth] discord signup notify failed", err));
+
+  const { accessToken, refreshToken } = await issueAuthTokens(created);
+  setRefreshTokenCookie(res, refreshToken);
+
+  return res.json({
+    ok: true,
+    token: accessToken,
+    accessToken,
+    user: toSafeUser(created)
+  });
+});
+
+// ---------- Kakao OAuth ----------
+
+app.get("/auth/kakao/start", (req, res) => {
+  if (!kakaoOAuthClientId) {
+    return res.redirect(buildOAuthErrorUrl("KAKAO_NOT_CONFIGURED", "Kakao OAuth client is not configured"));
+  }
+  const nonce = randomBytes(16).toString("hex");
+  const next = typeof req.query.next === "string" ? req.query.next : "/";
+  const state = signOAuthState({ nonce, next, ts: Date.now() });
+  setOAuthStateCookie(res, state);
+
+  const authorizeUrl = new URL("https://kauth.kakao.com/oauth/authorize");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", kakaoOAuthClientId);
+  authorizeUrl.searchParams.set("redirect_uri", kakaoOAuthRedirectUri);
+  authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("prompt", "login");
+  return res.redirect(authorizeUrl.toString());
+});
+
+app.post("/auth/kakao/reauth/start", authenticate, async (req, res) => {
+  if (!kakaoOAuthClientId) {
+    return res.status(503).json({ ok: false, code: "KAKAO_NOT_CONFIGURED", message: "Kakao OAuth client is not configured" });
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
+  if (!user) return res.status(404).json({ ok: false, code: "USER_NOT_FOUND", message: "user not found" });
+  if (user.authProvider !== AuthProvider.KAKAO) {
+    return res.status(400).json({ ok: false, code: "WRONG_AUTH_PROVIDER", message: "this account is not registered with Kakao" });
+  }
+  const nonce = randomBytes(16).toString("hex");
+  const state = signOAuthState({ nonce, purpose: "reauth", reauthUserId: user.id, ts: Date.now() });
+  setOAuthStateCookie(res, state);
+
+  const authorizeUrl = new URL("https://kauth.kakao.com/oauth/authorize");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", kakaoOAuthClientId);
+  authorizeUrl.searchParams.set("redirect_uri", kakaoOAuthRedirectUri);
+  authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("prompt", "login");
+  return res.json({ ok: true, authorizeUrl: authorizeUrl.toString() });
+});
+
+app.get("/auth/kakao/callback", async (req, res) => {
+  const cookieState = parseCookies(req.headers.cookie)[oauthStateCookieName];
+  clearOAuthStateCookie(res);
+
+  const queryState = typeof req.query.state === "string" ? req.query.state : "";
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+
+  if (typeof req.query.error === "string") {
+    return res.redirect(buildOAuthErrorUrl("KAKAO_AUTH_DENIED", req.query.error));
+  }
+  if (!cookieState || !queryState || cookieState !== queryState) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_STATE_MISMATCH"));
+  }
+  const stateData = verifyOAuthState(queryState);
+  if (!stateData) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_STATE_INVALID"));
+  }
+  if (!code) {
+    return res.redirect(buildOAuthErrorUrl("OAUTH_CODE_MISSING"));
+  }
+
+  try {
+    const tokenBody = new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: kakaoOAuthClientId,
+      redirect_uri: kakaoOAuthRedirectUri,
+      code
+    });
+    if (kakaoOAuthClientSecret) {
+      tokenBody.set("client_secret", kakaoOAuthClientSecret);
+    }
+    const tokenResponse = await fetch("https://kauth.kakao.com/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" },
+      body: tokenBody.toString()
+    });
+    const tokenJson = (await tokenResponse.json()) as { access_token?: string; error?: string; error_description?: string };
+    if (!tokenResponse.ok || !tokenJson.access_token) {
+      console.error("[kakao-oauth] token exchange failed", tokenJson);
+      return res.redirect(buildOAuthErrorUrl("KAKAO_TOKEN_EXCHANGE_FAILED", tokenJson.error_description ?? tokenJson.error));
+    }
+
+    const profileResponse = await fetch("https://kapi.kakao.com/v2/user/me", {
+      headers: { Authorization: `Bearer ${tokenJson.access_token}` }
+    });
+    const profileJson = (await profileResponse.json()) as {
+      id?: number | string;
+      kakao_account?: {
+        email?: string;
+        is_email_verified?: boolean;
+        email_needs_agreement?: boolean;
+        profile?: { nickname?: string; profile_image_url?: string };
+      };
+      properties?: { nickname?: string; profile_image?: string };
+      msg?: string;
+      code?: number;
+    };
+    if (!profileResponse.ok || !profileJson.id) {
+      console.error("[kakao-oauth] profile fetch failed", profileJson);
+      return res.redirect(buildOAuthErrorUrl("KAKAO_PROFILE_FAILED", profileJson.msg));
+    }
+
+    const providerId = String(profileJson.id);
+    const account = profileJson.kakao_account ?? {};
+    const kakaoEmail = (account.email ?? "").trim().toLowerCase();
+    const kakaoEmailVerified = Boolean(account.is_email_verified);
+    const kakaoName = account.profile?.nickname?.trim() || profileJson.properties?.nickname?.trim() || null;
+
+    const existingUser = await prisma.user.findUnique({
+      where: { authProvider_providerId: { authProvider: AuthProvider.KAKAO, providerId } }
+    });
+
+    if (stateData.purpose === "reauth") {
+      const reauthUserId = typeof stateData.reauthUserId === "string" ? stateData.reauthUserId : "";
+      if (!existingUser || existingUser.id !== reauthUserId) {
+        return res.redirect(`${platformWebUrl}/account/delete?reauth_error=mismatch`);
+      }
+      const reauthToken = signReauthToken(existingUser.id, "delete_account");
+      const fragment = new URLSearchParams({ reauth_token: reauthToken }).toString();
+      return res.redirect(`${platformWebUrl}/account/delete#${fragment}`);
+    }
+
+    if (existingUser) {
+      const { accessToken, refreshToken } = await issueAuthTokens(existingUser);
+      setRefreshTokenCookie(res, refreshToken);
+
+      const nextRaw = typeof stateData.next === "string" ? stateData.next : "/";
+      const next = nextRaw.startsWith("/") ? nextRaw : "/";
+      const returnUrl = buildOAuthReturnUrl("kakao", { accessToken, next });
+      return res.redirect(returnUrl);
+    }
+
+    // First-time sign in via Kakao: defer user creation until account-type is chosen
+    const signupContext = signOAuthState({
+      type: "kakao-signup",
+      providerId,
+      email: kakaoEmail,
+      emailVerified: kakaoEmailVerified,
+      name: kakaoName,
+      ts: Date.now()
+    });
+    const ctxFragment = new URLSearchParams({ ctx: signupContext, provider: "kakao" }).toString();
+    return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
+  } catch (error) {
+    console.error("[kakao-oauth] callback failed", error);
+    return res.redirect(buildOAuthErrorUrl("KAKAO_CALLBACK_ERROR"));
+  }
+});
+
+const kakaoFinalizeSchema = z.object({
+  ctx: z.string().min(10).max(4000),
+  accountType: z.enum(["GENERAL", "BUSINESS"])
+});
+
+app.post("/auth/kakao/finalize", async (req, res) => {
+  const parsed = kakaoFinalizeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return sendAuthError(res, 400, "INVALID_REQUEST", "invalid request", { errors: parsed.error.flatten() });
+  }
+
+  const ctx = verifyOAuthState(parsed.data.ctx);
+  if (!ctx || ctx.type !== "kakao-signup") {
+    return sendAuthError(res, 400, "INVALID_SIGNUP_CONTEXT", "invalid signup context");
+  }
+  const ts = typeof ctx.ts === "number" ? ctx.ts : 0;
+  if (Date.now() - ts > 10 * 60 * 1000) {
+    return sendAuthError(res, 400, "EXPIRED_SIGNUP_CONTEXT", "signup context expired");
+  }
+
+  const providerId = typeof ctx.providerId === "string" ? ctx.providerId : "";
+  const ctxEmail = typeof ctx.email === "string" ? ctx.email.trim().toLowerCase() : "";
+  const ctxEmailVerified = Boolean(ctx.emailVerified);
+  const ctxName = typeof ctx.name === "string" ? ctx.name : null;
+  if (!providerId) {
+    return sendAuthError(res, 400, "INVALID_SIGNUP_CONTEXT", "missing providerId");
+  }
+
+  const alreadyExists = await prisma.user.findUnique({
+    where: { authProvider_providerId: { authProvider: AuthProvider.KAKAO, providerId } }
+  });
+  if (alreadyExists) {
+    const { accessToken, refreshToken } = await issueAuthTokens(alreadyExists);
+    setRefreshTokenCookie(res, refreshToken);
+    return res.json({
+      ok: true,
+      token: accessToken,
+      accessToken,
+      user: toSafeUser(alreadyExists)
+    });
+  }
+
+  const role = parsed.data.accountType === "BUSINESS" ? MemberRole.PARTNER : MemberRole.STUDENT;
+  const partnerType = role === MemberRole.PARTNER ? PartnerType.COMPANY : null;
+  const partnerOrgRole = role === MemberRole.PARTNER ? PartnerOrgUserRole.MEMBER : null;
+
+  const created = await prisma.user.create({
+    data: {
+      email: ctxEmail || `kakao-${providerId}@noemail.local`,
+      emailVerified: true,
+      name: ctxName?.trim() || generateNicknameFromEmail(ctxEmail),
+      authProvider: AuthProvider.KAKAO,
+      providerId,
+      passwordHash: null,
+      role,
+      partnerType,
+      partnerOrgRole
+    }
+  });
+
+  await sendSignupDiscordNotification({
+    id: created.id,
+    email: created.email,
+    name: created.name,
+    realName: created.realName,
+    role: created.role,
+    partnerType: created.partnerType,
+    createdAt: created.createdAt
+  }).catch((err) => console.error("[kakao-oauth] discord signup notify failed", err));
+
+  const { accessToken, refreshToken } = await issueAuthTokens(created);
+  setRefreshTokenCookie(res, refreshToken);
+
+  return res.json({
+    ok: true,
+    token: accessToken,
+    accessToken,
+    user: toSafeUser(created)
   });
 });
 
@@ -4747,7 +7649,7 @@ app.post("/auth/resend-verification", async (req, res) => {
   }
 
   const user = await prisma.user.findUnique({
-    where: { email: parsed.data.email }
+    where: { email_authProvider: { email: parsed.data.email, authProvider: AuthProvider.EMAIL } }
   });
 
   if (!user) {
@@ -4757,16 +7659,28 @@ app.post("/auth/resend-verification", async (req, res) => {
     return res.json({ ok: true, sent: false, alreadyVerified: true });
   }
 
-  const { token } = await createEmailVerificationToken(user.id);
-  const locale = resolveEmailLocale(req, parsed.data.locale);
-  const delivery = await sendVerificationEmail(user.email, token, locale);
+  try {
+    const { token } = await createEmailVerificationToken(user.id);
+    const locale = resolveEmailLocale(req, parsed.data.locale);
+    const delivery = await sendVerificationEmail(user.email, token, locale);
 
-  return res.json({
-    ok: true,
-    sent: true,
-    verificationDelivery: delivery.delivery,
-    ...(isProduction ? {} : { verifyUrl: delivery.verifyUrl })
-  });
+    return res.json({
+      ok: true,
+      sent: true,
+      verificationDelivery: delivery.delivery,
+      ...(isProduction ? {} : { verifyUrl: delivery.verifyUrl })
+    });
+  } catch (error) {
+    console.error("[auth/resend-verification] failed", {
+      email: parsed.data.email,
+      error: getErrorMessage(error)
+    });
+    return res.status(500).json({
+      ok: false,
+      message: "failed to resend verification email",
+      ...(isProduction ? {} : { detail: getErrorMessage(error) })
+    });
+  }
 });
 
 app.post("/auth/refresh", async (req, res) => {
@@ -4797,7 +7711,7 @@ app.post("/auth/refresh", async (req, res) => {
   if (!user) {
     return sendAuthError(res, 404, "USER_NOT_FOUND", "user not found");
   }
-  if (!user.emailVerified) {
+  if (user.authProvider === AuthProvider.EMAIL && !user.emailVerified) {
     return sendAuthError(res, 403, "EMAIL_VERIFICATION_REQUIRED", "email verification is required", {
       email: user.email
     });
@@ -4855,11 +7769,55 @@ app.get("/auth/me", authenticate, async (req, res) => {
   return res.json({ ok: true, user: toSafeUser(user) });
 });
 
+const reauthPasswordSchema = z.object({
+  password: z.string().min(1).max(72),
+  purpose: z.enum(["delete_account"])
+});
+
+app.post("/auth/reauth/password", authenticate, async (req, res) => {
+  const parsed = reauthPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, code: "INVALID_REQUEST", message: "invalid request" });
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
+  if (!user) {
+    return res.status(404).json({ ok: false, code: "USER_NOT_FOUND", message: "user not found" });
+  }
+  if (user.authProvider !== AuthProvider.EMAIL || !user.passwordHash) {
+    return res.status(400).json({ ok: false, code: "WRONG_AUTH_PROVIDER", message: "password reauth not available for this account" });
+  }
+  const matched = await verifyPassword(parsed.data.password, user.passwordHash);
+  if (!matched) {
+    return res.status(401).json({ ok: false, code: "INVALID_CREDENTIALS", message: "invalid credentials" });
+  }
+  const reauthToken = signReauthToken(user.id, parsed.data.purpose);
+  return res.json({ ok: true, reauthToken, expiresInMs: REAUTH_TOKEN_TTL_MS });
+});
+
 app.patch("/members/me", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   const id = req.auth!.userId;
   const parsed = updateMyBasicInfoSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  let profileImageUrlUpdate: { profileImageUrl: string | null } | undefined;
+  if (parsed.data.profileImageData !== undefined) {
+    if (parsed.data.profileImageData === null || parsed.data.profileImageData.trim() === "") {
+      profileImageUrlUpdate = { profileImageUrl: null };
+    } else {
+      try {
+        const uploadedUrl = await uploadDataUrlImageIfNeeded(parsed.data.profileImageData.trim(), `members/${id}/profile`);
+        if (/^https?:\/\//i.test(uploadedUrl)) {
+          profileImageUrlUpdate = { profileImageUrl: uploadedUrl };
+        } else {
+          return res.status(503).json({ ok: false, message: "image storage is not configured" });
+        }
+      } catch (error) {
+        console.error("[members/me] profile image upload failed", error);
+        return res.status(500).json({ ok: false, message: "failed to upload profile image" });
+      }
+    }
   }
 
   try {
@@ -4870,7 +7828,8 @@ app.patch("/members/me", authenticate, requireRoles([MemberRole.STUDENT, MemberR
         ...(parsed.data.name !== undefined ? { name: parsed.data.name?.trim() || null } : {}),
         ...(parsed.data.phoneNumber !== undefined ? { phoneNumber: parsed.data.phoneNumber?.trim() || null } : {}),
         ...(parsed.data.birthDate !== undefined ? { birthDate: parsed.data.birthDate ? new Date(parsed.data.birthDate) : null } : {}),
-        ...(parsed.data.gender !== undefined ? { gender: parsed.data.gender?.trim() || null } : {})
+        ...(parsed.data.gender !== undefined ? { gender: parsed.data.gender?.trim() || null } : {}),
+        ...(profileImageUrlUpdate ?? {})
       }
     });
 
@@ -4886,20 +7845,19 @@ app.patch("/members/me", authenticate, requireRoles([MemberRole.STUDENT, MemberR
 app.get("/members/me/partner-organization", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.auth!.userId },
-    select: { email: true }
+    select: { partnerOrganizationId: true }
   });
 
   if (!user) {
     return res.status(404).json({ ok: false, message: "user not found" });
   }
 
-  const domain = extractDomainFromEmail(user.email);
-  if (!domain) {
+  if (!user.partnerOrganizationId) {
     return res.json({ ok: true, item: null });
   }
 
   const item = await prisma.partnerOrganization.findUnique({
-    where: { domain }
+    where: { id: user.partnerOrganizationId }
   });
 
   if (!item) {
@@ -4909,7 +7867,7 @@ app.get("/members/me/partner-organization", authenticate, requireRoles([MemberRo
   const memberCount = await prisma.user.count({
     where: {
       role: MemberRole.PARTNER,
-      email: { endsWith: `@${item.domain}` }
+      partnerOrganizationId: item.id
     }
   });
 
@@ -4924,66 +7882,114 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
 
   const user = await prisma.user.findUnique({
     where: { id: req.auth!.userId },
-    select: { email: true }
+    select: { email: true, partnerOrganizationId: true }
   });
 
   if (!user) {
     return res.status(404).json({ ok: false, message: "user not found" });
   }
 
-  const domain = extractDomainFromEmail(user.email);
-  if (!domain) {
-    return res.status(404).json({ ok: false, message: "partner organization not found" });
+  const currentOrganization = user.partnerOrganizationId
+    ? await prisma.partnerOrganization.findUnique({
+        where: { id: user.partnerOrganizationId },
+        select: {
+          id: true,
+          businessRegistrationDocumentData: true,
+          fourInsuranceSubscriberListData: true
+        }
+      })
+    : null;
+
+  const normalizeDocField = (value?: string | null) => (value?.trim() || null);
+  const nextBusinessRegistrationDocumentData =
+    parsed.data.businessRegistrationDocumentData !== undefined
+      ? normalizeDocField(parsed.data.businessRegistrationDocumentData)
+      : normalizeDocField(currentOrganization?.businessRegistrationDocumentData);
+  const nextFourInsuranceSubscriberListData =
+    parsed.data.fourInsuranceSubscriberListData !== undefined
+      ? normalizeDocField(parsed.data.fourInsuranceSubscriberListData)
+      : normalizeDocField(currentOrganization?.fourInsuranceSubscriberListData);
+
+  const shouldResetVerificationApproval =
+    currentOrganization
+      ? (nextBusinessRegistrationDocumentData !== normalizeDocField(currentOrganization.businessRegistrationDocumentData)
+        || nextFourInsuranceSubscriberListData !== normalizeDocField(currentOrganization.fourInsuranceSubscriberListData))
+      : false;
+
+  if (!currentOrganization && (!parsed.data.name?.trim() || !parsed.data.industry)) {
+    return res.status(400).json({ ok: false, message: "name and industry are required to create partner organization" });
   }
 
   try {
-    const orgByDomain = await prisma.partnerOrganization.findUnique({
-      where: { domain },
-      select: { id: true }
-    });
+    const companyLogoImageData =
+      parsed.data.companyLogoImageData !== undefined
+        ? (parsed.data.companyLogoImageData?.trim()
+          ? await uploadDataUrlImageIfNeeded(parsed.data.companyLogoImageData.trim(), "partner/company-logo")
+          : null)
+        : undefined;
+    const officePhotoImageData =
+      parsed.data.officePhotoImageData !== undefined
+        ? (parsed.data.officePhotoImageData?.trim()
+          ? await uploadDataUrlImageIfNeeded(parsed.data.officePhotoImageData.trim(), "partner/office-photo")
+          : null)
+        : undefined;
 
-    // If organization does not exist yet, bootstrap it from partner account domain.
-    const updated = await prisma.partnerOrganization.upsert({
-      where: { domain },
-      update: {
-        ...(parsed.data.name !== undefined ? { name: parsed.data.name.trim() } : {}),
-        ...(parsed.data.industry !== undefined ? { industry: parsed.data.industry } : {}),
-        ...(parsed.data.website !== undefined ? { website: parsed.data.website?.trim() || null } : {}),
-        ...(parsed.data.officeAddress !== undefined ? { officeAddress: parsed.data.officeAddress?.trim() || null } : {}),
-        ...(parsed.data.description !== undefined ? { description: parsed.data.description?.trim() || null } : {}),
-        ...(parsed.data.businessRegistrationDocumentData !== undefined
-          ? { businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null }
-          : {}),
-        ...(parsed.data.fourInsuranceSubscriberListData !== undefined
-          ? { fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null }
-          : {}),
-        ...(parsed.data.companyLogoImageData !== undefined
-          ? { companyLogoImageData: parsed.data.companyLogoImageData?.trim() || null }
-          : {}),
-        ...(parsed.data.officePhotoImageData !== undefined
-          ? { officePhotoImageData: parsed.data.officePhotoImageData?.trim() || null }
-          : {})
-      },
-      create: {
-        partnerType: PartnerType.COMPANY,
-        domain,
-        name: parsed.data.name?.trim() || "",
-        industry: parsed.data.industry ?? PartnerIndustry.IT,
-        website: parsed.data.website?.trim() || null,
-        officeAddress: parsed.data.officeAddress?.trim() || null,
-        description: parsed.data.description?.trim() || null,
-        businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null,
-        fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null,
-        companyLogoImageData: parsed.data.companyLogoImageData?.trim() || null,
-        officePhotoImageData: parsed.data.officePhotoImageData?.trim() || null,
-        adminMemo: orgByDomain ? undefined : "Auto-created from partner profile edit."
-      }
-    });
+    const updated = currentOrganization
+      ? await prisma.partnerOrganization.update({
+          where: { id: user.partnerOrganizationId! },
+          data: {
+            ...(parsed.data.name !== undefined ? { name: parsed.data.name.trim() } : {}),
+            ...(parsed.data.industry !== undefined ? { industry: parsed.data.industry } : {}),
+            ...(parsed.data.website !== undefined ? { website: parsed.data.website?.trim() || null } : {}),
+            ...(parsed.data.officeAddress !== undefined ? { officeAddress: parsed.data.officeAddress?.trim() || null } : {}),
+            ...(parsed.data.description !== undefined ? { description: parsed.data.description?.trim() || null } : {}),
+            ...(parsed.data.businessRegistrationDocumentData !== undefined
+              ? { businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null }
+              : {}),
+            ...(parsed.data.fourInsuranceSubscriberListData !== undefined
+              ? { fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null }
+              : {}),
+            ...(companyLogoImageData !== undefined
+              ? { companyLogoImageData }
+              : {}),
+            ...(officePhotoImageData !== undefined
+              ? { officePhotoImageData }
+              : {}),
+            ...(shouldResetVerificationApproval ? { verificationApproved: false, verificationApprovedAt: null } : {})
+          }
+        })
+      : await prisma.$transaction(async (tx) => {
+          const orgName = parsed.data.name!.trim();
+          const created = await tx.partnerOrganization.create({
+            data: {
+              partnerType: PartnerType.COMPANY,
+              name: orgName,
+              slug: await generateUniquePartnerOrganizationSlug(orgName, tx),
+              industry: parsed.data.industry!,
+              website: parsed.data.website?.trim() || null,
+              officeAddress: parsed.data.officeAddress?.trim() || null,
+              description: parsed.data.description?.trim() || null,
+              businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null,
+              fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null,
+              companyLogoImageData: companyLogoImageData ?? null,
+              officePhotoImageData: officePhotoImageData ?? null,
+              adminMemo: "Created by partner profile setup."
+            }
+          });
+          await tx.user.update({
+            where: { id: req.auth!.userId },
+            data: {
+              partnerOrganizationId: created.id,
+              partnerOrgRole: PartnerOrgUserRole.OWNER
+            }
+          });
+          return created;
+        });
 
     const memberCount = await prisma.user.count({
       where: {
         role: MemberRole.PARTNER,
-        email: { endsWith: `@${updated.domain}` }
+        partnerOrganizationId: updated.id
       }
     });
 
@@ -4994,6 +8000,91 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
     }
     return res.status(500).json({ ok: false, message: "failed to update partner organization" });
   }
+});
+
+app.post("/members/me/partner-organization/join-codes", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = createPartnerJoinCodeSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  const me = await prisma.user.findUnique({
+    where: { id: req.auth!.userId },
+    select: { partnerOrganizationId: true, partnerOrgRole: true }
+  });
+  if (!me?.partnerOrganizationId) {
+    return res.status(400).json({ ok: false, message: "partner organization required" });
+  }
+  if (me.partnerOrgRole !== PartnerOrgUserRole.OWNER && me.partnerOrgRole !== PartnerOrgUserRole.ADMIN) {
+    return res.status(403).json({ ok: false, message: "only owner/admin can create join code" });
+  }
+
+  const expiresInMinutes = parsed.data.expiresInMinutes ?? partnerJoinCodeTtlMinutesDefault;
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + expiresInMinutes * 60 * 1000);
+  const code = generatePartnerJoinCode();
+
+  await prisma.partnerOrganizationJoinCode.create({
+    data: {
+      partnerOrganizationId: me.partnerOrganizationId,
+      createdByUserId: req.auth!.userId,
+      codeHash: hashToken(code),
+      expiresAt
+    }
+  });
+
+  return res.status(201).json({
+    ok: true,
+    item: {
+      code,
+      expiresAt
+    }
+  });
+});
+
+app.post("/members/me/partner-organization/join", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = joinMyPartnerOrganizationSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  const hashed = hashToken(parsed.data.code.trim().toUpperCase());
+  const invite = await prisma.partnerOrganizationJoinCode.findFirst({
+    where: {
+      codeHash: hashed,
+      usedAt: null,
+      expiresAt: { gt: new Date() }
+    },
+    include: {
+      partnerOrganization: true
+    }
+  });
+  if (!invite) {
+    return res.status(404).json({ ok: false, message: "invalid or expired join code" });
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: req.auth!.userId },
+      data: {
+        partnerOrganizationId: invite.partnerOrganizationId,
+        partnerOrgRole: PartnerOrgUserRole.ADMIN
+      }
+    }),
+    prisma.partnerOrganizationJoinCode.update({
+      where: { id: invite.id },
+      data: { usedAt: new Date() }
+    })
+  ]);
+
+  const memberCount = await prisma.user.count({
+    where: { role: MemberRole.PARTNER, partnerOrganizationId: invite.partnerOrganizationId }
+  });
+
+  return res.json({
+    ok: true,
+    item: toPartnerOrganization({ ...invite.partnerOrganization, memberCount }, { includeVerificationAssets: true })
+  });
 });
 
 app.get("/members/me/profile", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
@@ -5114,6 +8205,83 @@ app.patch("/members/me/profile", authenticate, requireRoles([MemberRole.STUDENT]
   }
 });
 
+const careerReadinessLocaleSchema = z.object({
+  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+});
+
+app.post("/members/me/career-readiness", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  if (!openai) {
+    return res.status(503).json({ ok: false, message: "AI service is not configured" });
+  }
+  const userId = req.auth!.userId;
+  const parsed = careerReadinessLocaleSchema.safeParse(req.body ?? {});
+  const locale = parsed.success && parsed.data.locale ? parsed.data.locale : "ko";
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ ok: false, message: "user not found" });
+
+    const profile = await prisma.candidateProfile.findUnique({
+      where: { userId },
+      include: {
+        educations: { select: { schoolName: true, major: true, status: true }, orderBy: { createdAt: "asc" } },
+        languageSkills: { select: { language: true, level: true }, orderBy: { createdAt: "asc" } },
+        careers: { select: { companyName: true, position: true, description: true }, orderBy: { createdAt: "desc" } },
+        activityExperiences: { select: { title: true, description: true }, orderBy: { createdAt: "desc" } }
+      }
+    });
+
+    const input: CareerReadinessProfile = {
+      user: {
+        realName: user.realName ?? null,
+        name: user.name,
+        nationality: user.nationality,
+        affiliation: user.affiliation,
+        birthDate: user.birthDate,
+        gender: user.gender,
+        jobTitle: user.jobTitle
+      },
+      profile: profile
+        ? {
+            visaType: profile.visaType,
+            visaExpiryDate: profile.visaExpiryDate,
+            workPermit: profile.workPermit,
+            livesInKorea: profile.livesInKorea,
+            residenceProvince: profile.residenceProvince,
+            programStartOption: profile.programStartOption,
+            programStartDate: profile.programStartDate,
+            skills: profile.skills ?? [],
+            selfIntroduction: profile.selfIntroduction,
+            programMotivation: profile.programMotivation,
+            preferenceConditionNote: profile.preferenceConditionNote,
+            additionalInfoNote: profile.additionalInfoNote,
+            educations: profile.educations.map((e) => ({ school: e.schoolName ?? null, major: e.major ?? null, status: e.status ?? null })),
+            languageSkills: profile.languageSkills.map((l) => ({ language: l.language ?? null, level: l.level ?? null })),
+            careers: profile.careers.map((c) => ({ companyName: c.companyName ?? null, jobTitle: c.position ?? null, description: c.description ?? null })),
+            activityExperiences: profile.activityExperiences.map((a) => ({ title: a.title ?? null, description: a.description ?? null }))
+          }
+        : null
+    };
+
+    const score = computeCareerReadinessScore(input);
+    const narrative = await generateCareerReadinessNarrative(input, score, locale);
+
+    return res.json({
+      ok: true,
+      item: {
+        score,
+        strengths: narrative.strengths,
+        improvements: narrative.improvements,
+        recommendedRoles: narrative.recommendedRoles,
+        generatedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error("[career-readiness] failed", error);
+    return res.status(500).json({ ok: false, message: "failed to generate career readiness report" });
+  }
+});
+
 app.get("/members/me/positions/favorites", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const userId = req.auth!.userId;
   try {
@@ -5129,7 +8297,6 @@ app.get("/members/me/positions/favorites", authenticate, requireRoles([MemberRol
           select: {
             id: true,
             name: true,
-            domain: true,
             industry: true,
             companySize: true,
             officeAddress: true
@@ -5164,7 +8331,6 @@ app.get("/members/me/positions/applied", authenticate, requireRoles([MemberRole.
           select: {
             id: true,
             name: true,
-            domain: true,
             industry: true,
             companySize: true,
             officeAddress: true
@@ -5238,11 +8404,20 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
   }
   const position = await prisma.position.findUnique({
     where: { id: parsed.data.positionId },
-    select: { id: true, status: true }
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      partnerOrganization: {
+        select: {
+          name: true
+        }
+      }
+    }
   });
   if (!position) return res.status(404).json({ ok: false, message: "position not found" });
-  if (position.status === PositionStatus.DRAFT) {
-    return res.status(400).json({ ok: false, message: "cannot apply to draft position" });
+  if (position.status !== PositionStatus.OPEN) {
+    return res.status(400).json({ ok: false, message: "현재 지원 가능한 포지션이 아닙니다." });
   }
 
   try {
@@ -5254,6 +8429,55 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
       where: { id: profile.id },
       data: { appliedPositionIds: next }
     });
+
+    // Create Application row, or reopen if previously WITHDRAWN
+    const existing = await prisma.application.findUnique({
+      where: { positionId_candidateUserId: { positionId: parsed.data.positionId, candidateUserId: userId } }
+    });
+    if (!existing) {
+      const created = await prisma.application.create({
+        data: {
+          positionId: parsed.data.positionId,
+          candidateUserId: userId,
+          status: "SUBMITTED"
+        }
+      });
+      await prisma.applicationStatusHistory.create({
+        data: {
+          applicationId: created.id,
+          status: "SUBMITTED",
+          changedByUserId: userId
+        }
+      });
+    } else if (existing.status === "WITHDRAWN") {
+      await prisma.application.update({
+        where: { id: existing.id },
+        data: { status: "SUBMITTED", withdrawnAt: null, submittedAt: new Date() }
+      });
+      await prisma.applicationStatusHistory.create({
+        data: {
+          applicationId: existing.id,
+          status: "SUBMITTED",
+          changedByUserId: userId,
+          memo: "재지원"
+        }
+      });
+    }
+    const applicant = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true }
+    });
+    if (applicant) {
+      void sendPositionApplyDiscordNotification({
+        positionId: position.id,
+        positionTitle: position.title,
+        applicantId: applicant.id,
+        applicantName: applicant.name,
+        applicantEmail: applicant.email,
+        partnerName: position.partnerOrganization?.name ?? null,
+        appliedAt: new Date()
+      });
+    }
     return res.json({ ok: true, ids: next });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to apply position" });
@@ -6405,6 +9629,419 @@ app.post("/members", authenticate, requireRoles([MemberRole.OPERATOR]), async (r
   }
 });
 
+function parsePartnerApplicantCompositeId(value: string) {
+  const idx = value.lastIndexOf(":");
+  if (idx <= 0 || idx >= value.length - 1) return null;
+  const candidateUserId = value.slice(0, idx);
+  const positionId = value.slice(idx + 1);
+  if (!candidateUserId || !positionId) return null;
+  return { candidateUserId, positionId };
+}
+
+function buildPartnerApplicantCompositeId(candidateUserId: string, positionId: string) {
+  return `${candidateUserId}:${positionId}`;
+}
+
+function languageLabel(language: CandidateLanguageType, level: CandidateLanguageLevel) {
+  return `${language} (${level})`;
+}
+
+async function listPartnerApplicantsForUser(userId: string) {
+  const affiliation = await resolvePartnerAffiliation(userId);
+  if (!affiliation?.organization) return { affiliation: null, items: [] as any[] };
+
+  const positions = await prisma.position.findMany({
+    where: { partnerOrganizationId: affiliation.organization.id },
+    select: { id: true, title: true }
+  });
+  const positionMap = new Map(positions.map((item) => [item.id, item.title]));
+  const positionIds = positions.map((item) => item.id);
+  if (positionIds.length === 0) return { affiliation, items: [] as any[] };
+
+  const profiles = await prisma.candidateProfile.findMany({
+    where: { appliedPositionIds: { hasSome: positionIds } },
+    include: {
+      user: {
+        select: { id: true, name: true, realName: true, email: true, nationality: true }
+      },
+      languageSkills: {
+        select: { language: true, level: true },
+        orderBy: { createdAt: "desc" }
+      },
+      educations: {
+        select: { schoolName: true, major: true },
+        orderBy: { createdAt: "desc" }
+      }
+    }
+  });
+
+  const items: Array<{
+    id: string;
+    candidateUserId: string;
+    positionId: string;
+    positionTitle: string;
+    name: string;
+    nationality: string | null;
+    email: string;
+    languages: string[];
+    school: string | null;
+    major: string | null;
+    residence: string | null;
+    appliedAt: string | null;
+    recommendation: "HIGH" | "NORMAL" | "CHECK";
+    status: PartnerApplicantWorkflowStatus;
+    summary: string | null;
+    motivation: string | null;
+    portfolioUrl: string | null;
+    availableStartDate: string | null;
+    memo: string | null;
+  }> = [];
+
+  const workflows = await prisma.partnerApplicantWorkflow.findMany({
+    where: { partnerUserId: userId, positionId: { in: positionIds } },
+    select: { candidateUserId: true, positionId: true, status: true, memo: true }
+  });
+  const workflowMap = new Map(
+    workflows.map((item) => [`${item.candidateUserId}:${item.positionId}`, item])
+  );
+
+  for (const profile of profiles) {
+    const appliedPositionId = profile.appliedPositionIds.find((id) => positionMap.has(id));
+    if (!appliedPositionId) continue;
+
+    const stateKey = buildPartnerApplicantCompositeId(profile.userId, appliedPositionId);
+    const state = workflowMap.get(stateKey);
+    const latestEducation = profile.educations[0];
+    const displayName = profile.user.realName?.trim() || profile.user.name?.trim() || "Unknown";
+    const languages = profile.languageSkills.map((item) => languageLabel(item.language, item.level));
+
+    items.push({
+      id: stateKey,
+      candidateUserId: profile.userId,
+      positionId: appliedPositionId,
+      positionTitle: positionMap.get(appliedPositionId) ?? "-",
+      name: displayName,
+      nationality: profile.user.nationality ?? null,
+      email: profile.user.email,
+      languages,
+      school: latestEducation?.schoolName ?? null,
+      major: latestEducation?.major ?? null,
+      residence: profile.residenceProvince ?? null,
+      appliedAt: profile.updatedAt?.toISOString?.() ?? null,
+      recommendation: languages.length >= 2 ? "HIGH" : "NORMAL",
+      status: (state?.status as PartnerApplicantWorkflowStatus | undefined) ?? "APPLIED",
+      summary: profile.selfIntroduction ?? null,
+      motivation: profile.programMotivation ?? null,
+      portfolioUrl: null,
+      availableStartDate: profile.programStartDate ? profile.programStartDate.toISOString().slice(0, 10) : null,
+      memo: state?.memo ?? null
+    });
+  }
+
+  return { affiliation, items };
+}
+
+app.get("/ops/activity", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [signups, newPositions, statusChanges, newIssues, newPrograms, schoolCreditRequests] = await Promise.all([
+      prisma.user.findMany({
+        where: { createdAt: { gte: sevenDaysAgo } },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { id: true, name: true, email: true, role: true, createdAt: true }
+      }),
+      prisma.position.findMany({
+        where: { createdAt: { gte: sevenDaysAgo } },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        include: { partnerOrganization: { select: { id: true, name: true } } }
+      }),
+      prisma.applicationStatusHistory.findMany({
+        orderBy: { changedAt: "desc" },
+        take: 10,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true } },
+              position: { select: { id: true, title: true, partnerOrganization: { select: { name: true } } } }
+            }
+          }
+        }
+      }),
+      prisma.issueReport.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        include: { reporter: { select: { id: true, name: true } } }
+      }),
+      prisma.program.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true } },
+              position: { select: { id: true, title: true } }
+            }
+          }
+        }
+      }),
+      prisma.schoolCreditRequest.findMany({
+        where: { status: "REQUESTED" },
+        orderBy: { requestedAt: "desc" },
+        take: 5
+      })
+    ]);
+
+    type ActivityItem = {
+      id: string;
+      type: string;
+      title: string;
+      subtitle: string;
+      linkPath: string;
+      occurredAt: string;
+    };
+    const items: ActivityItem[] = [];
+
+    const roleKo: Record<string, string> = { STUDENT: "학생", PARTNER: "파트너", OPERATOR: "운영자" };
+    for (const u of signups) {
+      items.push({
+        id: `signup-${u.id}`,
+        type: "USER_SIGNUP",
+        title: `${u.name ?? u.email}님이 가입했어요`,
+        subtitle: roleKo[u.role] ?? u.role,
+        linkPath: `/dashboard/ops/system/admin-users/${u.id}`,
+        occurredAt: u.createdAt.toISOString()
+      });
+    }
+    for (const p of newPositions) {
+      items.push({
+        id: `position-${p.id}`,
+        type: "POSITION_NEW",
+        title: `새 포지션: ${p.title}`,
+        subtitle: p.partnerOrganization?.name ?? "-",
+        linkPath: `/dashboard/ops/operations/positions`,
+        occurredAt: p.createdAt.toISOString()
+      });
+    }
+    const statusKo: Record<string, string> = {
+      SUBMITTED: "검토 중",
+      INTERVIEW: "면접 예정",
+      ACCEPTED: "합격",
+      REJECTED: "불합격",
+      WITHDRAWN: "철회"
+    };
+    for (const h of statusChanges) {
+      items.push({
+        id: `status-${h.id}`,
+        type: "APPLICATION_STATUS",
+        title: `${h.application.candidateUser.name ?? "-"} → '${statusKo[h.status] ?? h.status}'`,
+        subtitle: `${h.application.position.partnerOrganization?.name ?? "-"} · ${h.application.position.title}`,
+        linkPath: `/dashboard/ops/operations/applications/${h.applicationId}`,
+        occurredAt: h.changedAt.toISOString()
+      });
+    }
+    for (const i of newIssues) {
+      items.push({
+        id: `issue-${i.id}`,
+        type: "ISSUE_NEW",
+        title: `새 이슈: ${i.title}`,
+        subtitle: `신고: ${i.reporter?.name ?? "-"}`,
+        linkPath: `/dashboard/ops/operations/issues`,
+        occurredAt: i.createdAt.toISOString()
+      });
+    }
+    for (const p of newPrograms) {
+      items.push({
+        id: `program-${p.id}`,
+        type: "PROGRAM_STARTED",
+        title: `프로그램 시작: ${p.application.candidateUser.name ?? "-"}`,
+        subtitle: p.application.position.title,
+        linkPath: `/dashboard/ops/operations/programs/${p.id}`,
+        occurredAt: p.createdAt.toISOString()
+      });
+    }
+    for (const c of schoolCreditRequests) {
+      items.push({
+        id: `credit-${c.id}`,
+        type: "SCHOOL_CREDIT",
+        title: `학점 인정 요청: ${c.schoolName}`,
+        subtitle: `${c.credits}학점`,
+        linkPath: "/dashboard/ops/operations/school-credit",
+        occurredAt: c.requestedAt.toISOString()
+      });
+    }
+
+    items.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+    return res.json({ ok: true, items: items.slice(0, 30) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/partner/activity", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) {
+      return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    }
+    const orgId = affiliation.organization.id;
+    const [newApplications, statusChanges, recentSlots, newAssignments, newComments] = await Promise.all([
+      prisma.application.findMany({
+        where: { position: { partnerOrganizationId: orgId } },
+        orderBy: { submittedAt: "desc" },
+        take: 10,
+        include: {
+          candidateUser: { select: { id: true, name: true, email: true } },
+          position: { select: { id: true, title: true } }
+        }
+      }),
+      prisma.applicationStatusHistory.findMany({
+        where: { application: { position: { partnerOrganizationId: orgId } } },
+        orderBy: { changedAt: "desc" },
+        take: 10,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true } }
+            }
+          },
+          changedBy: { select: { id: true, name: true, role: true } }
+        }
+      }),
+      prisma.interviewSlot.findMany({
+        where: {
+          application: { position: { partnerOrganizationId: orgId } },
+          OR: [{ status: "SELECTED" }, { status: "CANCELLED" }]
+        },
+        orderBy: { selectedAt: "desc" },
+        take: 5,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true } },
+              position: { select: { id: true, title: true } }
+            }
+          }
+        }
+      }),
+      prisma.assignment.findMany({
+        where: {
+          application: { position: { partnerOrganizationId: orgId } },
+          OR: [{ status: "SUBMITTED" }, { status: "REVIEWED" }]
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true } },
+              position: { select: { id: true, title: true } }
+            }
+          }
+        }
+      }),
+      prisma.applicationComment.findMany({
+        where: {
+          application: { position: { partnerOrganizationId: orgId } },
+          authorRole: { in: [MemberRole.STUDENT] }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true } },
+              position: { select: { id: true, title: true } }
+            }
+          },
+          author: { select: { id: true, name: true } }
+        }
+      })
+    ]);
+
+    type ActivityItem = {
+      id: string;
+      type: string;
+      title: string;
+      subtitle: string;
+      linkPath: string;
+      occurredAt: string;
+    };
+
+    const items: ActivityItem[] = [];
+    for (const a of newApplications) {
+      items.push({
+        id: `app-new-${a.id}`,
+        type: "APPLICATION_NEW",
+        title: `${a.candidateUser.name ?? a.candidateUser.email}님이 지원했어요`,
+        subtitle: a.position.title,
+        linkPath: `/dashboard/partner/applicants/${a.id}`,
+        occurredAt: a.submittedAt.toISOString()
+      });
+    }
+    for (const h of statusChanges) {
+      if (h.changedBy?.role === "PARTNER") continue;
+      const statusKo: Record<string, string> = {
+        SUBMITTED: "검토 중",
+        INTERVIEW: "면접 예정",
+        ACCEPTED: "합격",
+        REJECTED: "불합격",
+        WITHDRAWN: "철회"
+      };
+      items.push({
+        id: `app-status-${h.id}`,
+        type: "APPLICATION_STATUS",
+        title: `${h.application.candidateUser.name ?? "-"} → '${statusKo[h.status] ?? h.status}'`,
+        subtitle: h.application.position.title,
+        linkPath: `/dashboard/partner/applicants/${h.applicationId}`,
+        occurredAt: h.changedAt.toISOString()
+      });
+    }
+    for (const s of recentSlots) {
+      const when = s.selectedAt ?? s.cancelledAt ?? s.proposedAt;
+      items.push({
+        id: `slot-${s.id}`,
+        type: s.status === "SELECTED" ? "INTERVIEW_SELECTED" : "INTERVIEW_CANCELLED",
+        title: s.status === "SELECTED"
+          ? `${s.application.candidateUser.name ?? "-"}님이 면접 일정 선택`
+          : `${s.application.candidateUser.name ?? "-"}님 면접 취소`,
+        subtitle: `${s.application.position.title} · ${new Date(s.startsAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}`,
+        linkPath: `/dashboard/partner/applicants/${s.applicationId}`,
+        occurredAt: when.toISOString()
+      });
+    }
+    for (const as of newAssignments) {
+      items.push({
+        id: `asg-${as.id}-${as.status}`,
+        type: as.status === "SUBMITTED" ? "ASSIGNMENT_SUBMITTED" : "ASSIGNMENT_REVIEWED",
+        title: as.status === "SUBMITTED"
+          ? `${as.application.candidateUser.name ?? "-"}님이 과제 제출`
+          : `${as.application.candidateUser.name ?? "-"}님 과제 검토 완료`,
+        subtitle: `${as.title} · ${as.application.position.title}`,
+        linkPath: `/dashboard/partner/applicants/${as.applicationId}`,
+        occurredAt: as.updatedAt.toISOString()
+      });
+    }
+    for (const c of newComments) {
+      items.push({
+        id: `cmt-${c.id}`,
+        type: "COMMENT_NEW",
+        title: `${c.author.name ?? "지원자"}님이 댓글을 남겼어요`,
+        subtitle: `${c.application.position.title}: ${c.content.slice(0, 60)}`,
+        linkPath: `/dashboard/partner/applicants/${c.applicationId}`,
+        occurredAt: c.createdAt.toISOString()
+      });
+    }
+
+    items.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+    return res.json({ ok: true, items: items.slice(0, 20) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.get("/partner/dashboard", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   if (req.auth!.role === MemberRole.OPERATOR) {
     return res.json({
@@ -6415,90 +10052,65 @@ app.get("/partner/dashboard", authenticate, requireRoles([MemberRole.PARTNER, Me
   }
 
   const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
-  if (!affiliation || !affiliation.domain || !affiliation.organization) {
+  if (!affiliation || !affiliation.organization) {
     return sendAuthError(
       res,
       403,
       "PARTNER_AFFILIATION_REQUIRED",
-      "partner affiliation is required. use a company email domain."
+      "partner affiliation is required. request organization assignment."
     );
   }
 
-  return res.json({
-    ok: true,
-    message: "partner dashboard accessible",
-    auth: req.auth,
-    partnerOrganization: toPartnerOrganization(affiliation.organization)
-  });
+  const orgId = affiliation.organization.id;
+  try {
+    const [totalPositions, openPositions, closedPositions, recentPositions] = await Promise.all([
+      prisma.position.count({ where: { partnerOrganizationId: orgId } }),
+      prisma.position.count({ where: { partnerOrganizationId: orgId, status: "OPEN" } }),
+      prisma.position.count({ where: { partnerOrganizationId: orgId, status: "CLOSED" } }),
+      prisma.position.findMany({
+        where: { partnerOrganizationId: orgId },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: { id: true, title: true, status: true, createdAt: true }
+      })
+    ]);
+
+    return res.json({
+      ok: true,
+      auth: req.auth,
+      partnerOrganization: toPartnerOrganization(affiliation.organization),
+      stats: {
+        positions: { total: totalPositions, open: openPositions, closed: closedPositions }
+      },
+      recentPositions
+    });
+  } catch (error) {
+    console.error("[partner/dashboard] failed", error);
+    return res.status(500).json({ ok: false, message: "failed to load partner dashboard" });
+  }
 });
 
-app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
-  console.info("[partner/positions][create][request]", {
-    userId: req.auth?.userId,
-    body: summarizePartnerPositionBody(req.body)
-  });
-  const parsed = createPartnerPositionSchema.safeParse(req.body);
-  if (!parsed.success) {
-    console.error("[partner/positions][create][validation-failed]", {
-      userId: req.auth?.userId,
-      errors: parsed.error.flatten(),
-      issues: parsed.error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        code: issue.code,
-        message: issue.message
-      }))
-    });
-    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-  }
-
+app.get("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
-  if (!affiliation?.domain || !affiliation.organization) {
+  if (!affiliation?.organization) {
     return sendAuthError(
       res,
       403,
       "PARTNER_AFFILIATION_REQUIRED",
-      "partner affiliation is required. use a company email domain."
+      "partner affiliation is required. request organization assignment."
     );
   }
+  const organizationId = affiliation.organization.id;
 
   try {
-    const created = await prisma.position.create({
-      data: {
-        partnerOrganizationId: affiliation.organization.id,
-        title: parsed.data.title,
-        status: parsed.data.status ?? PositionStatus.DRAFT,
-        workType: parsed.data.workType ?? "On-site",
-        thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5),
-        eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas),
-        preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities),
-        communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages),
-        hiringProcess: parsed.data.hiringProcess,
-        preferredJobRole: parsed.data.preferredJobRole,
-        hiringCount: parsed.data.hiringCount,
-        workingHours: parsed.data.workingHours,
-        workLocation: parsed.data.workLocation,
-        startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
-        mainResponsibilities: parsed.data.mainResponsibilities,
-        requiredQualifications: parsed.data.requiredQualifications,
-        preferredQualifications: parsed.data.preferredQualifications,
-        dressCode: parsed.data.dressCode,
-        wantsPreTraining: parsed.data.wantsPreTraining,
-        additionalNotes: parsed.data.additionalNotes,
-        statusHistories: {
-          create: {
-            fromStatus: null,
-            toStatus: parsed.data.status ?? PositionStatus.DRAFT,
-            note: "파트너 공고 생성",
-            createdByUserId: req.auth!.userId
-          }
-        }
-      },
+    const items = await prisma.position.findMany({
+      where: { partnerOrganizationId: affiliation.organization.id },
+      orderBy: { createdAt: "desc" },
       include: {
         partnerOrganization: {
           select: {
             id: true,
-            name: true,
-            domain: true
+            name: true
           }
         },
         matchingParticipants: {
@@ -6528,6 +10140,185 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]),
       }
     });
 
+    return res.json({
+      ok: true,
+      items: items.map((item) => toPosition(item))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.post("/partner/positions/:id/clone", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const sourceId = typeof req.params.id === "string" ? req.params.id : "";
+  if (!sourceId) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) {
+      return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    }
+    const source = await prisma.position.findUnique({ where: { id: sourceId } });
+    if (!source) return res.status(404).json({ ok: false, message: "position not found" });
+    if (source.partnerOrganizationId !== affiliation.organization.id) {
+      return res.status(403).json({ ok: false, message: "forbidden" });
+    }
+    const created = await prisma.position.create({
+      data: {
+        partnerOrganizationId: source.partnerOrganizationId,
+        sourceKind: "INTERNAL",
+        sourceProvider: "INTERNAL",
+        title: `${source.title} (복제)`,
+        status: "DRAFT",
+        workType: source.workType,
+        employmentType: source.employmentType,
+        thumbnailImages: source.thumbnailImages,
+        eligibleVisas: source.eligibleVisas,
+        preferredNationalities: source.preferredNationalities,
+        communicationLanguages: source.communicationLanguages,
+        hiringProcess: source.hiringProcess,
+        preferredJobRole: source.preferredJobRole,
+        hiringCount: source.hiringCount,
+        workingHours: source.workingHours,
+        workLocation: source.workLocation,
+        startDate: source.startDate,
+        mainResponsibilities: source.mainResponsibilities,
+        requiredQualifications: source.requiredQualifications,
+        preferredQualifications: source.preferredQualifications,
+        dressCode: source.dressCode,
+        wantsPreTraining: source.wantsPreTraining,
+        additionalNotes: source.additionalNotes
+      }
+    });
+    return res.status(201).json({ ok: true, item: { id: created.id, title: created.title, status: created.status } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  console.info("[partner/positions][create][request]", {
+    userId: req.auth?.userId,
+    body: summarizePartnerPositionBody(req.body)
+  });
+  const parsed = createPartnerPositionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    console.error("[partner/positions][create][validation-failed]", {
+      userId: req.auth?.userId,
+      errors: parsed.error.flatten(),
+      issues: parsed.error.issues.map((issue) => ({
+        path: issue.path.join("."),
+        code: issue.code,
+        message: issue.message
+      }))
+    });
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+  if (!affiliation?.organization) {
+    return sendAuthError(
+      res,
+      403,
+      "PARTNER_AFFILIATION_REQUIRED",
+      "partner affiliation is required. request organization assignment."
+    );
+  }
+  const partnerAccess = toPartnerOrganization(affiliation.organization);
+  if (!partnerAccess.permissions.canPostPositions) {
+    return res.status(403).json({
+      ok: false,
+      message: "파트너 운영중이 승인되지 않으면 포지션을 등록할 수 없습니다"
+    });
+  }
+
+  try {
+    const nextStatus = PositionStatus.PENDING_REVIEW;
+    const uploadedThumbnailImages = await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails");
+    const created = await prisma.position.create({
+      data: {
+        partnerOrganizationId: affiliation.organization.id,
+        title: parsed.data.title,
+        status: nextStatus,
+        workType: parsed.data.workType ?? "On-site",
+        employmentType: parsed.data.employmentType ?? PositionEmploymentType.UNPAID_INTERN,
+        thumbnailImages: uploadedThumbnailImages.slice(0, 5),
+        eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas),
+        preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities),
+        communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages),
+        hiringProcess: parsed.data.hiringProcess,
+        preferredJobRole: parsed.data.preferredJobRole,
+        hiringCount: parsed.data.hiringCount,
+        workingHours: parsed.data.workingHours,
+        workLocation: parsed.data.workLocation,
+        startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
+        mainResponsibilities: parsed.data.mainResponsibilities,
+        requiredQualifications: parsed.data.requiredQualifications,
+        preferredQualifications: parsed.data.preferredQualifications,
+        dressCode: parsed.data.dressCode,
+        wantsPreTraining: parsed.data.wantsPreTraining,
+        additionalNotes: parsed.data.additionalNotes,
+        adminMemo: mergeEmploymentClassificationMeta(null, parsed.data.employmentClassification ?? null),
+        statusHistories: {
+          create: {
+            fromStatus: null,
+            toStatus: nextStatus,
+            note: "파트너 공고 생성 (어드민 관리자 승인 대기)",
+            createdByUserId: req.auth!.userId
+          }
+        }
+      },
+      include: {
+        partnerOrganization: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        matchingParticipants: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            createdBy: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        },
+        progressLogs: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            createdBy: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        },
+        statusHistories: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            createdBy: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        }
+      }
+    });
+
+    const creator = await prisma.user.findUnique({
+      where: { id: req.auth!.userId },
+      select: { id: true, name: true, email: true }
+    });
+    void sendPositionCreateDiscordNotification({
+      positionId: created.id,
+      positionTitle: created.title,
+      partnerName: created.partnerOrganization?.name ?? null,
+      employmentType: created.employmentType,
+      employmentClassification: parsed.data.employmentClassification ?? null,
+      workType: created.workType ?? null,
+      workLocation: created.workLocation ?? null,
+      createdByUserId: req.auth!.userId,
+      createdByUserName: creator?.name ?? null,
+      createdByUserEmail: creator?.email ?? null,
+      createdAt: created.createdAt
+    });
+
     return res.status(201).json({ ok: true, item: toPosition(created) });
   } catch (error) {
     console.error("[partner/positions][create][failed]", {
@@ -6550,7 +10341,7 @@ app.get("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTNER
       res,
       403,
       "PARTNER_AFFILIATION_REQUIRED",
-      "partner affiliation is required. use a company email domain."
+      "partner affiliation is required. request organization assignment."
     );
   }
 
@@ -6563,8 +10354,7 @@ app.get("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTNER
       partnerOrganization: {
         select: {
           id: true,
-          name: true,
-          domain: true
+          name: true
         }
       },
       matchingParticipants: {
@@ -6634,9 +10424,10 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
       res,
       403,
       "PARTNER_AFFILIATION_REQUIRED",
-      "partner affiliation is required. use a company email domain."
+      "partner affiliation is required. request organization assignment."
     );
   }
+  const organizationId = affiliation.organization.id;
 
   const current = await prisma.position.findFirst({
     where: {
@@ -6645,98 +10436,149 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
     },
     select: {
       id: true,
-      status: true
+      status: true,
+      adminMemo: true
     }
   });
   if (!current) {
     return res.status(404).json({ ok: false, message: "position not found" });
   }
 
-  const nextStatus = parsed.data.status;
-  const shouldWriteStatusHistory = nextStatus !== undefined && nextStatus !== current.status;
-
   try {
-    const updated = await prisma.position.update({
-      where: { id: current.id },
-      data: {
-        ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
-        ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
-        ...(parsed.data.workType !== undefined ? { workType: parsed.data.workType } : {}),
-        ...(parsed.data.thumbnailImages !== undefined
-          ? { thumbnailImages: normalizeStringArray(parsed.data.thumbnailImages).slice(0, 5) }
-          : {}),
-        ...(parsed.data.eligibleVisas !== undefined
-          ? { eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas) }
-          : {}),
-        ...(parsed.data.preferredNationalities !== undefined
-          ? { preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities) }
-          : {}),
-        ...(parsed.data.communicationLanguages !== undefined
-          ? { communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages) }
-          : {}),
-        ...(parsed.data.hiringProcess !== undefined ? { hiringProcess: parsed.data.hiringProcess } : {}),
-        ...(parsed.data.preferredJobRole !== undefined ? { preferredJobRole: parsed.data.preferredJobRole } : {}),
-        ...(parsed.data.hiringCount !== undefined ? { hiringCount: parsed.data.hiringCount } : {}),
-        ...(parsed.data.workingHours !== undefined ? { workingHours: parsed.data.workingHours } : {}),
-        ...(parsed.data.workLocation !== undefined ? { workLocation: parsed.data.workLocation } : {}),
-        ...(parsed.data.startDate !== undefined
-          ? { startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null }
-          : {}),
-        ...(parsed.data.mainResponsibilities !== undefined ? { mainResponsibilities: parsed.data.mainResponsibilities } : {}),
-        ...(parsed.data.requiredQualifications !== undefined ? { requiredQualifications: parsed.data.requiredQualifications } : {}),
-        ...(parsed.data.preferredQualifications !== undefined ? { preferredQualifications: parsed.data.preferredQualifications } : {}),
-        ...(parsed.data.dressCode !== undefined ? { dressCode: parsed.data.dressCode } : {}),
-        ...(parsed.data.wantsPreTraining !== undefined ? { wantsPreTraining: parsed.data.wantsPreTraining } : {}),
-        ...(parsed.data.additionalNotes !== undefined ? { additionalNotes: parsed.data.additionalNotes } : {}),
-        ...(shouldWriteStatusHistory
-          ? {
-              statusHistories: {
-                create: {
-                  fromStatus: current.status,
-                  toStatus: nextStatus!,
-                  note: "파트너 공고 수정",
-                  createdByUserId: req.auth!.userId
-                }
-              }
-            }
-          : {})
-      },
-      include: {
-        partnerOrganization: {
-          select: {
-            id: true,
-            name: true,
-            domain: true
-          }
-        },
-        matchingParticipants: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            createdBy: {
-              select: { id: true, name: true, email: true }
-            }
-          }
-        },
-        progressLogs: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            createdBy: {
-              select: { id: true, name: true, email: true }
-            }
-          }
-        },
-        statusHistories: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            createdBy: {
-              select: { id: true, name: true, email: true }
-            }
-          }
-        }
+    const hasStatusUpdate = parsed.data.status !== undefined;
+    const hasContentUpdate = Object.entries(parsed.data).some(([key, value]) => key !== "status" && value !== undefined);
+
+    if (hasStatusUpdate) {
+      if (hasContentUpdate) {
+        return res.status(400).json({
+          ok: false,
+          message: "상태 변경과 내용 수정은 동시에 요청할 수 없습니다. 각각 따로 요청해주세요."
+        });
       }
+
+      if (current.status === PositionStatus.PENDING_REVIEW) {
+        return res.status(403).json({
+          ok: false,
+          message: "승인 대기 상태에서는 파트너가 상태를 변경할 수 없습니다. 어드민 승인 후 변경 가능합니다."
+        });
+      }
+
+      const nextStatus = parsed.data.status!;
+      const partnerAllowedStatuses: PositionStatus[] = [PositionStatus.OPEN, PositionStatus.PAUSED, PositionStatus.CLOSED];
+      if (!partnerAllowedStatuses.includes(nextStatus)) {
+        return res.status(403).json({
+          ok: false,
+          message: "파트너는 공개/정지/마감 상태만 변경할 수 있습니다."
+        });
+      }
+
+      if (nextStatus === current.status) {
+        const same = await prisma.position.findUnique({
+          where: { id: current.id },
+          include: {
+            partnerOrganization: { select: { id: true, name: true } },
+            matchingParticipants: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+            progressLogs: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+            statusHistories: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } }
+          }
+        });
+        if (!same) return res.status(404).json({ ok: false, message: "position not found" });
+        return res.json({ ok: true, item: toPosition(same) });
+      }
+
+      const updated = await prisma.position.update({
+        where: { id: current.id },
+        data: {
+          status: nextStatus,
+          statusHistories: {
+            create: {
+              fromStatus: current.status,
+              toStatus: nextStatus,
+              note: "파트너 상태 변경",
+              createdByUserId: req.auth!.userId
+            }
+          }
+        },
+        include: {
+          partnerOrganization: { select: { id: true, name: true } },
+          matchingParticipants: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+          progressLogs: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+          statusHistories: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } }
+        }
+      });
+      return res.json({ ok: true, item: toPosition(updated), message: "상태가 변경되었습니다." });
+    }
+
+    if (!hasContentUpdate) {
+      return res.status(400).json({ ok: false, message: "변경할 내용이 없습니다." });
+    }
+
+    const uploadedThumbnailImages =
+      parsed.data.thumbnailImages !== undefined
+        ? await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails")
+        : undefined;
+
+    const normalizedPayload = {
+      ...parsed.data,
+      ...(uploadedThumbnailImages !== undefined
+        ? { thumbnailImages: uploadedThumbnailImages.slice(0, 5) }
+        : {}),
+      ...(parsed.data.eligibleVisas !== undefined ? { eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas) } : {}),
+      ...(parsed.data.preferredNationalities !== undefined
+        ? { preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities) }
+        : {}),
+      ...(parsed.data.communicationLanguages !== undefined
+        ? { communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages) }
+        : {})
+    };
+
+    await prisma.$transaction(async (tx) => {
+      await tx.positionRevision.updateMany({
+        where: {
+          positionId: current.id,
+          partnerOrganizationId: organizationId,
+          status: PositionRevisionStatus.PENDING
+        },
+        data: {
+          status: PositionRevisionStatus.REJECTED,
+          reviewNote: "새 수정요청으로 대체됨",
+          reviewedByUserId: req.auth!.userId,
+          reviewedAt: new Date()
+        }
+      });
+
+      await tx.positionRevision.create({
+        data: {
+          positionId: current.id,
+          partnerOrganizationId: organizationId,
+          requestedByUserId: req.auth!.userId,
+          status: PositionRevisionStatus.PENDING,
+          payload: normalizedPayload
+        }
+      });
+
+      await tx.positionStatusHistory.create({
+        data: {
+          positionId: current.id,
+          fromStatus: current.status,
+          toStatus: PositionStatus.PENDING_REVIEW,
+          note: "파트너 공고 수정 요청 (어드민 관리자 승인 대기)",
+          createdByUserId: req.auth!.userId
+        }
+      });
     });
 
-    return res.json({ ok: true, item: toPosition(updated) });
+    const latest = await prisma.position.findUnique({
+      where: { id: current.id },
+      include: {
+        partnerOrganization: { select: { id: true, name: true } },
+        matchingParticipants: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+        progressLogs: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+        statusHistories: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } }
+      }
+    });
+    if (!latest) return res.status(404).json({ ok: false, message: "position not found" });
+    return res.json({ ok: true, item: toPosition(latest), message: "수정 요청이 접수되었습니다. 어드민 관리자 승인 후 반영됩니다." });
   } catch (error) {
     console.error("[partner/positions][update][failed]", {
       positionId: id,
@@ -6747,12 +10589,3484 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
   }
 });
 
-app.get("/ops/dashboard", authenticate, requireRoles([MemberRole.OPERATOR]), (req, res) => {
-  res.json({
-    ok: true,
-    message: "ops dashboard accessible",
-    auth: req.auth
+app.get("/ops/position-revisions", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = listPositionRevisionsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+
+  const page = parsed.data.page ?? 1;
+  const pageSize = parsed.data.pageSize ?? 50;
+  const where = parsed.data.status ? { status: parsed.data.status } : {};
+
+  try {
+    const [total, items] = await Promise.all([
+      prisma.positionRevision.count({ where }),
+      prisma.positionRevision.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          position: { select: { id: true, title: true, status: true } },
+          partnerOrganization: { select: { id: true, name: true } },
+          requestedByUser: { select: { id: true, name: true, email: true } },
+          reviewedByUser: { select: { id: true, name: true, email: true } }
+        }
+      })
+    ]);
+    return res.json({ ok: true, total, page, pageSize, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.post("/ops/position-revisions/:id/approve", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid revision id" });
+  const parsed = reviewPositionRevisionSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  try {
+    const reviewed = await prisma.$transaction(async (tx) => {
+      const revision = await tx.positionRevision.findUnique({ where: { id } });
+      if (!revision || revision.status !== PositionRevisionStatus.PENDING) return null;
+
+      const current = await tx.position.findUnique({ where: { id: revision.positionId }, select: { status: true, adminMemo: true } });
+      if (!current) return null;
+      const payload = revision.payload as Record<string, unknown>;
+
+      const updateData: Prisma.PositionUpdateInput = {
+        ...(typeof payload.title === "string" ? { title: payload.title } : {}),
+        ...(typeof payload.workType === "string" ? { workType: payload.workType } : {}),
+        ...(typeof payload.employmentType === "string" ? { employmentType: payload.employmentType as PositionEmploymentType } : {}),
+        ...(Array.isArray(payload.thumbnailImages) ? { thumbnailImages: normalizeStringArray(payload.thumbnailImages as string[]).slice(0, 5) } : {}),
+        ...(Array.isArray(payload.eligibleVisas) ? { eligibleVisas: normalizeStringArray(payload.eligibleVisas as string[]) } : {}),
+        ...(Array.isArray(payload.preferredNationalities) ? { preferredNationalities: normalizeStringArray(payload.preferredNationalities as string[]) } : {}),
+        ...(Array.isArray(payload.communicationLanguages) ? { communicationLanguages: normalizeStringArray(payload.communicationLanguages as string[]) } : {}),
+        ...(typeof payload.hiringProcess === "string" || payload.hiringProcess === null ? { hiringProcess: payload.hiringProcess as string | null } : {}),
+        ...(typeof payload.preferredJobRole === "string" || payload.preferredJobRole === null ? { preferredJobRole: payload.preferredJobRole as string | null } : {}),
+        ...(typeof payload.hiringCount === "number" || payload.hiringCount === null ? { hiringCount: payload.hiringCount as number | null } : {}),
+        ...(typeof payload.workingHours === "string" || payload.workingHours === null ? { workingHours: payload.workingHours as string | null } : {}),
+        ...(typeof payload.workLocation === "string" || payload.workLocation === null ? { workLocation: payload.workLocation as string | null } : {}),
+        ...(typeof payload.startDate === "string" || payload.startDate === null
+          ? { startDate: payload.startDate ? new Date(payload.startDate as string) : null }
+          : {}),
+        ...(typeof payload.mainResponsibilities === "string" || payload.mainResponsibilities === null ? { mainResponsibilities: payload.mainResponsibilities as string | null } : {}),
+        ...(typeof payload.requiredQualifications === "string" || payload.requiredQualifications === null ? { requiredQualifications: payload.requiredQualifications as string | null } : {}),
+        ...(typeof payload.preferredQualifications === "string" || payload.preferredQualifications === null ? { preferredQualifications: payload.preferredQualifications as string | null } : {}),
+        ...(typeof payload.dressCode === "string" || payload.dressCode === null ? { dressCode: payload.dressCode as string | null } : {}),
+        ...(typeof payload.wantsPreTraining === "boolean" || payload.wantsPreTraining === null ? { wantsPreTraining: payload.wantsPreTraining as boolean | null } : {}),
+        ...(typeof payload.additionalNotes === "string" || payload.additionalNotes === null ? { additionalNotes: payload.additionalNotes as string | null } : {}),
+        ...(payload.employmentClassification !== undefined
+          ? {
+              adminMemo: mergeEmploymentClassificationMeta(
+                current.adminMemo,
+                (payload.employmentClassification as
+                  | "UNPAID_INTERN_EXPERIENCE"
+                  | "UNPAID_INTERN_CONVERSION"
+                  | "PAID_INTERN_EXPERIENCE"
+                  | "PAID_INTERN_CONVERSION"
+                  | "PART_TIME"
+                  | "FULL_TIME"
+                  | null
+                ) ?? null
+              )
+            }
+          : {}),
+        statusHistories: {
+          create: {
+            fromStatus: current.status,
+            toStatus: current.status,
+            note: "포지션 수정요청 승인 반영",
+            createdByUserId: req.auth!.userId
+          }
+        }
+      };
+
+      const updatedPosition = await tx.position.update({
+        where: { id: revision.positionId },
+        data: updateData
+      });
+
+      const updatedRevision = await tx.positionRevision.update({
+        where: { id: revision.id },
+        data: {
+          status: PositionRevisionStatus.APPROVED,
+          reviewNote: parsed.data.note ?? "수정요청 승인",
+          reviewedByUserId: req.auth!.userId,
+          reviewedAt: new Date()
+        }
+      });
+
+      return { updatedRevision, updatedPosition };
+    });
+
+    if (!reviewed) return res.status(404).json({ ok: false, message: "pending revision not found" });
+    return res.json({ ok: true, item: reviewed.updatedRevision, position: reviewed.updatedPosition });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.post("/ops/position-revisions/:id/reject", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid revision id" });
+  const parsed = reviewPositionRevisionSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  try {
+    const updated = await prisma.positionRevision.updateMany({
+      where: { id, status: PositionRevisionStatus.PENDING },
+      data: {
+        status: PositionRevisionStatus.REJECTED,
+        reviewNote: parsed.data.note ?? "수정요청 반려",
+        reviewedByUserId: req.auth!.userId,
+        reviewedAt: new Date()
+      }
+    });
+    if (updated.count === 0) return res.status(404).json({ ok: false, message: "pending revision not found" });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/partner/applicants", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  try {
+    const result = await listPartnerApplicantsForUser(req.auth!.userId);
+    if (!result.affiliation?.organization) {
+      return sendAuthError(
+        res,
+        403,
+        "PARTNER_AFFILIATION_REQUIRED",
+        "partner affiliation is required. request organization assignment."
+      );
+    }
+    return res.json({
+      ok: true,
+      items: result.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        nationality: item.nationality,
+        email: item.email,
+        positionId: item.positionId,
+        positionTitle: item.positionTitle,
+        languages: item.languages,
+        school: item.school,
+        major: item.major,
+        residence: item.residence,
+        appliedAt: item.appliedAt,
+        recommendation: item.recommendation,
+        status: item.status
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const applicationStatusUpdateSchema = z.object({
+  status: z.enum(["SUBMITTED", "INTERVIEW", "ACCEPTED", "REJECTED", "WITHDRAWN"]),
+  memo: z.string().max(2000).optional()
+});
+
+app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const items = await prisma.application.findMany({
+      where: { candidateUserId: req.auth!.userId },
+      orderBy: { submittedAt: "desc" },
+      include: {
+        position: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            partnerOrganization: { select: { id: true, name: true } }
+          }
+        }
+      }
+    });
+    return res.json({
+      ok: true,
+      items: items.map((a) => ({
+        id: a.id,
+        positionId: a.positionId,
+        positionTitle: a.position.title,
+        positionStatus: a.position.status,
+        partnerOrganizationId: a.position.partnerOrganization?.id ?? null,
+        partnerOrganizationName: a.position.partnerOrganization?.name ?? null,
+        status: a.status,
+        submittedAt: a.submittedAt,
+        updatedAt: a.updatedAt
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/partner/applications", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) {
+      return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    }
+    const items = await prisma.application.findMany({
+      where: { position: { partnerOrganizationId: affiliation.organization.id } },
+      orderBy: { submittedAt: "desc" },
+      include: {
+        position: { select: { id: true, title: true, status: true } },
+        candidateUser: { select: { id: true, name: true, email: true, nationality: true } }
+      }
+    });
+    return res.json({
+      ok: true,
+      items: items.map((a) => ({
+        id: a.id,
+        positionId: a.positionId,
+        positionTitle: a.position.title,
+        candidateUserId: a.candidateUserId,
+        candidateName: a.candidateUser.name,
+        candidateEmail: a.candidateUser.email,
+        candidateNationality: a.candidateUser.nationality,
+        status: a.status,
+        memo: a.memo,
+        submittedAt: a.submittedAt,
+        updatedAt: a.updatedAt
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/ops/applications", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const items = await prisma.application.findMany({
+      orderBy: { submittedAt: "desc" },
+      take: 200,
+      include: {
+        position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } },
+        candidateUser: { select: { id: true, name: true, email: true } }
+      }
+    });
+    return res.json({
+      ok: true,
+      items: items.map((a) => ({
+        id: a.id,
+        positionId: a.positionId,
+        positionTitle: a.position.title,
+        partnerOrganizationName: a.position.partnerOrganization?.name ?? null,
+        candidateUserId: a.candidateUserId,
+        candidateName: a.candidateUser.name,
+        candidateEmail: a.candidateUser.email,
+        status: a.status,
+        memo: a.memo,
+        submittedAt: a.submittedAt,
+        updatedAt: a.updatedAt
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/ops/applications/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+  if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+      include: {
+        candidateUser: {
+          select: { id: true, name: true, email: true, phoneNumber: true, nationality: true, affiliation: true, jobTitle: true, role: true, createdAt: true }
+        },
+        position: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            partnerOrganization: { select: { id: true, name: true } }
+          }
+        },
+        statusHistories: {
+          orderBy: { changedAt: "desc" },
+          include: { changedBy: { select: { id: true, name: true, email: true, role: true } } }
+        },
+        interviewSlots: { orderBy: { startsAt: "asc" } },
+        assignments: {
+          orderBy: { assignedAt: "desc" },
+          include: {
+            assignedBy: { select: { id: true, name: true } },
+            reviewedBy: { select: { id: true, name: true } }
+          }
+        },
+        program: {
+          include: {
+            meetings: { orderBy: { scheduledAt: "asc" } },
+            certificate: true,
+            recommendation: true,
+            schoolCreditRequest: true
+          }
+        }
+      }
+    });
+    if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+    const issues = await prisma.issueReport.findMany({
+      where: { applicationId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        reporter: { select: { id: true, name: true, email: true, role: true } },
+        assignedTo: { select: { id: true, name: true, email: true } }
+      }
+    });
+    return res.json({ ok: true, item: { ...application, issues } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/partner/applications/:id", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+  if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) {
+      return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    }
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+      include: {
+        candidateUser: {
+          select: { id: true, name: true, email: true, phoneNumber: true, nationality: true, affiliation: true, jobTitle: true, role: true, createdAt: true }
+        },
+        position: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            partnerOrganizationId: true,
+            partnerOrganization: { select: { id: true, name: true } }
+          }
+        },
+        statusHistories: {
+          orderBy: { changedAt: "desc" },
+          include: { changedBy: { select: { id: true, name: true, email: true, role: true } } }
+        },
+        interviewSlots: { orderBy: { startsAt: "asc" } },
+        assignments: {
+          orderBy: { assignedAt: "desc" },
+          include: {
+            assignedBy: { select: { id: true, name: true } },
+            reviewedBy: { select: { id: true, name: true } }
+          }
+        },
+        program: {
+          include: {
+            meetings: { orderBy: { scheduledAt: "asc" } },
+            certificate: true,
+            recommendation: true,
+            schoolCreditRequest: true
+          }
+        }
+      }
+    });
+    if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+    if (application.position.partnerOrganizationId !== affiliation.organization.id) {
+      return res.status(403).json({ ok: false, message: "forbidden" });
+    }
+    const issues = await prisma.issueReport.findMany({
+      where: { applicationId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        reporter: { select: { id: true, name: true, email: true, role: true } }
+      }
+    });
+    return res.json({ ok: true, item: { ...application, issues } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/ops/users/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const userId = typeof req.params.id === "string" ? req.params.id : "";
+  if (!userId) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        partnerOrganization: { select: { id: true, name: true, partnerType: true, industry: true } },
+        candidateProfile: true
+      }
+    });
+    if (!user) return res.status(404).json({ ok: false, message: "user not found" });
+
+    const [applications, programs, reportedIssues, subjectIssues] = await Promise.all([
+      prisma.application.findMany({
+        where: { candidateUserId: userId },
+        orderBy: { submittedAt: "desc" },
+        include: {
+          position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+        }
+      }),
+      prisma.program.findMany({
+        where: { application: { candidateUserId: userId } },
+        orderBy: { createdAt: "desc" },
+        include: { application: { include: { position: { select: { id: true, title: true } } } } }
+      }),
+      prisma.issueReport.findMany({
+        where: { reporterUserId: userId },
+        orderBy: { createdAt: "desc" },
+        take: 50
+      }),
+      prisma.issueReport.findMany({
+        where: { subjectUserId: userId },
+        orderBy: { createdAt: "desc" },
+        take: 50
+      })
+    ]);
+
+    const { passwordHash: _ph, ...safeUser } = user as { passwordHash: string | null } & Record<string, unknown>;
+    return res.json({
+      ok: true,
+      user: safeUser,
+      applications: applications.map((a) => ({
+        id: a.id,
+        positionId: a.positionId,
+        positionTitle: a.position.title,
+        partnerOrganizationName: a.position.partnerOrganization?.name ?? null,
+        status: a.status,
+        memo: a.memo,
+        submittedAt: a.submittedAt,
+        updatedAt: a.updatedAt
+      })),
+      programs: programs.map((p) => ({
+        id: p.id,
+        applicationId: p.applicationId,
+        status: p.status,
+        startsAt: p.startsAt,
+        endsAt: p.endsAt,
+        positionTitle: p.application.position.title
+      })),
+      reportedIssues,
+      subjectIssues
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const updateInterviewSlotSchema = z.object({
+  status: z.enum(["PROPOSED", "SELECTED", "CANCELLED"])
+});
+
+app.patch(
+  "/interview-slots/:id/status",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const slotId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!slotId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = updateInterviewSlotSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const slot = await prisma.interviewSlot.findUnique({
+        where: { id: slotId },
+        include: { application: { include: { position: { select: { partnerOrganizationId: true } } } } }
+      });
+      if (!slot) return res.status(404).json({ ok: false, message: "slot not found" });
+      if (req.auth!.role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+        if (
+          !affiliation?.organization ||
+          affiliation.organization.id !== slot.application.position.partnerOrganizationId
+        ) {
+          return res.status(403).json({ ok: false, message: "forbidden" });
+        }
+      }
+      const data: Record<string, unknown> = { status: parsed.data.status };
+      if (parsed.data.status === "CANCELLED") data.cancelledAt = new Date();
+      if (parsed.data.status === "SELECTED" && !slot.selectedAt) data.selectedAt = new Date();
+      const updated = await prisma.interviewSlot.update({ where: { id: slotId }, data });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const issueReportTypeEnum = z.enum(["NO_SHOW", "BEHAVIOR", "DROPOUT", "ATTITUDE", "PAYMENT", "OTHER"]);
+const issueReportStatusEnum = z.enum(["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"]);
+
+const createIssueReportSchema = z.object({
+  type: issueReportTypeEnum,
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().min(1).max(4000),
+  subjectUserId: z.string().uuid().optional(),
+  positionId: z.string().uuid().optional(),
+  applicationId: z.string().uuid().optional()
+});
+
+const updateIssueReportSchema = z.object({
+  status: issueReportStatusEnum.optional(),
+  assignedToUserId: z.string().uuid().nullable().optional(),
+  resolutionNote: z.string().trim().max(4000).nullable().optional()
+});
+
+app.post("/issues", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = createIssueReportSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  try {
+    const created = await prisma.issueReport.create({
+      data: {
+        type: parsed.data.type,
+        title: parsed.data.title,
+        description: parsed.data.description,
+        reporterUserId: req.auth!.userId,
+        subjectUserId: parsed.data.subjectUserId ?? null,
+        positionId: parsed.data.positionId ?? null,
+        applicationId: parsed.data.applicationId ?? null
+      }
+    });
+    void notifyOperators({
+      type: "ISSUE_REPORTED",
+      title: "새 이슈가 신고되었습니다",
+      message: `${parsed.data.title}`,
+      linkPath: "/dashboard/ops/operations/issues"
+    });
+    return res.status(201).json({ ok: true, item: created });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/members/me/issues", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const items = await prisma.issueReport.findMany({
+      where: { reporterUserId: req.auth!.userId },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
+    return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/ops/issues", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const items = await prisma.issueReport.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      include: {
+        reporter: { select: { id: true, name: true, email: true, role: true } },
+        subject: { select: { id: true, name: true, email: true, role: true } },
+        assignedTo: { select: { id: true, name: true, email: true } }
+      }
+    });
+    return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.patch("/ops/issues/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const issueId = typeof req.params.id === "string" ? req.params.id : "";
+  if (!issueId) return res.status(400).json({ ok: false, message: "invalid id" });
+  const parsed = updateIssueReportSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  try {
+    const data: Record<string, unknown> = {};
+    if (parsed.data.status !== undefined) {
+      data.status = parsed.data.status;
+      if (parsed.data.status === "RESOLVED" || parsed.data.status === "CLOSED") {
+        data.resolvedAt = new Date();
+      }
+    }
+    if (parsed.data.assignedToUserId !== undefined) data.assignedToUserId = parsed.data.assignedToUserId;
+    if (parsed.data.resolutionNote !== undefined) data.resolutionNote = parsed.data.resolutionNote;
+    const existing = await prisma.issueReport.findUnique({ where: { id: issueId } });
+    if (!existing) return res.status(404).json({ ok: false, message: "issue not found" });
+    const updated = await prisma.issueReport.update({ where: { id: issueId }, data });
+    if (parsed.data.status !== undefined && parsed.data.status !== existing.status) {
+      const statusKo: Record<string, string> = {
+        OPEN: "신규",
+        IN_PROGRESS: "처리 중",
+        RESOLVED: "해결",
+        CLOSED: "종료"
+      };
+      void createNotification({
+        userId: existing.reporterUserId,
+        type: "ISSUE_STATUS_CHANGED",
+        title: `신고한 이슈가 '${statusKo[parsed.data.status] ?? parsed.data.status}' 상태로 변경되었습니다`,
+        message: parsed.data.resolutionNote ?? existing.title,
+        linkPath: existing.reporterUserId ? null : null
+      });
+    }
+    return res.json({ ok: true, item: updated });
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+      return res.status(404).json({ ok: false, message: "issue not found" });
+    }
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// Partner-allowed transitions (operator can move anywhere as override)
+const PARTNER_STATUS_TRANSITIONS: Record<string, string[]> = {
+  SUBMITTED: ["INTERVIEW", "REJECTED"],
+  INTERVIEW: ["ACCEPTED", "REJECTED", "SUBMITTED"],
+  ACCEPTED: [],
+  REJECTED: ["SUBMITTED"],
+  WITHDRAWN: []
+};
+
+app.patch("/applications/:id/status", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = applicationStatusUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+  if (!applicationId) {
+    return res.status(400).json({ ok: false, message: "invalid id" });
+  }
+  try {
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+      include: { position: { select: { partnerOrganizationId: true } } }
+    });
+    if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+
+    if (req.auth!.role === MemberRole.PARTNER) {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization || affiliation.organization.id !== application.position.partnerOrganizationId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      // Partners cannot set WITHDRAWN (student-only) and must follow transitions
+      if (parsed.data.status === "WITHDRAWN") {
+        return res.status(403).json({ ok: false, message: "WITHDRAWN 상태는 지원자만 설정할 수 있습니다." });
+      }
+      if (parsed.data.status !== application.status) {
+        const allowed = PARTNER_STATUS_TRANSITIONS[application.status] ?? [];
+        if (!allowed.includes(parsed.data.status)) {
+          return res.status(400).json({
+            ok: false,
+            message: `'${application.status}' 상태에서 '${parsed.data.status}'로 변경할 수 없습니다.`
+          });
+        }
+      }
+    }
+
+    const updated = await prisma.application.update({
+      where: { id: application.id },
+      data: { status: parsed.data.status, memo: parsed.data.memo ?? application.memo }
+    });
+    await prisma.applicationStatusHistory.create({
+      data: {
+        applicationId: application.id,
+        status: parsed.data.status,
+        changedByUserId: req.auth!.userId,
+        memo: parsed.data.memo ?? null
+      }
+    });
+
+    if (parsed.data.status === "ACCEPTED") {
+      await prisma.program.upsert({
+        where: { applicationId: application.id },
+        update: {},
+        create: { applicationId: application.id }
+      });
+    }
+
+    if (parsed.data.status !== application.status) {
+      const statusKo: Record<string, string> = {
+        SUBMITTED: "검토 중",
+        INTERVIEW: "면접 예정",
+        ACCEPTED: "합격",
+        REJECTED: "불합격",
+        WITHDRAWN: "철회"
+      };
+      void createNotification({
+        userId: application.candidateUserId,
+        type: "APPLICATION_STATUS_CHANGED",
+        title: `지원 상태가 '${statusKo[parsed.data.status] ?? parsed.data.status}'(으)로 변경되었습니다`,
+        message: parsed.data.memo ?? null,
+        linkPath: "/profile?tab=applied"
+      });
+    }
+
+    return res.json({ ok: true, item: { id: updated.id, status: updated.status, updatedAt: updated.updatedAt } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const interviewSlotItemSchema = z.object({
+  startsAt: z.string().datetime(),
+  endsAt: z.string().datetime(),
+  location: z.string().trim().max(500).optional(),
+  notes: z.string().trim().max(2000).optional()
+});
+
+const proposeInterviewSlotsSchema = z.object({
+  slots: z.array(interviewSlotItemSchema).min(1).max(5)
+});
+
+const createApplicationCommentSchema = z.object({
+  content: z.string().trim().min(1).max(4000),
+  visibility: z.enum(["INTERNAL", "CANDIDATE"]).optional()
+});
+
+async function authorizeApplicationAccess(
+  applicationId: string,
+  auth: { userId: string; role: MemberRole }
+): Promise<{ ok: true; candidateUserId: string; partnerOrganizationId: string | null } | { ok: false; status: number; message: string }> {
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    include: { position: { select: { partnerOrganizationId: true } } }
   });
+  if (!application) return { ok: false, status: 404, message: "application not found" };
+  if (auth.role === MemberRole.STUDENT && application.candidateUserId !== auth.userId) {
+    return { ok: false, status: 403, message: "forbidden" };
+  }
+  if (auth.role === MemberRole.PARTNER) {
+    const affiliation = await resolvePartnerAffiliation(auth.userId);
+    if (!affiliation?.organization || affiliation.organization.id !== application.position.partnerOrganizationId) {
+      return { ok: false, status: 403, message: "forbidden" };
+    }
+  }
+  return {
+    ok: true,
+    candidateUserId: application.candidateUserId,
+    partnerOrganizationId: application.position.partnerOrganizationId
+  };
+}
+
+app.get(
+  "/applications/:id/comments",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const auth = await authorizeApplicationAccess(applicationId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const where = req.auth!.role === MemberRole.STUDENT
+        ? { applicationId, visibility: ApplicationCommentVisibility.CANDIDATE }
+        : { applicationId };
+      const comments = await prisma.applicationComment.findMany({
+        where,
+        orderBy: { createdAt: "asc" },
+        include: { author: { select: { id: true, name: true, email: true, role: true } } }
+      });
+      return res.json({ ok: true, items: comments });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/applications/:id/comments",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = createApplicationCommentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeApplicationAccess(applicationId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const isStudent = req.auth!.role === MemberRole.STUDENT;
+      const visibility = isStudent
+        ? "CANDIDATE"
+        : parsed.data.visibility ?? "INTERNAL";
+      const created = await prisma.applicationComment.create({
+        data: {
+          applicationId,
+          authorUserId: req.auth!.userId,
+          authorRole: req.auth!.role,
+          content: parsed.data.content,
+          visibility
+        },
+        include: { author: { select: { id: true, name: true, email: true, role: true } } }
+      });
+      if (visibility === "CANDIDATE") {
+        if (isStudent) {
+          const fullApp = await prisma.application.findUnique({
+            where: { id: applicationId },
+            include: { position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } } } } } }
+          });
+          const partnerUserIds = fullApp?.position.partnerOrganization?.users.map((u) => u.id) ?? [];
+          await Promise.all(partnerUserIds.map((uid) => createNotification({
+            userId: uid,
+            type: "APPLICATION_COMMENT_FROM_CANDIDATE",
+            title: "지원자가 댓글을 남겼습니다",
+            message: parsed.data.content.slice(0, 80),
+            linkPath: `/dashboard/partner/applicants/${applicationId}`
+          })));
+        } else {
+          void createNotification({
+            userId: auth.candidateUserId,
+            type: "APPLICATION_COMMENT_FROM_COMPANY",
+            title: "회사가 댓글을 남겼습니다",
+            message: parsed.data.content.slice(0, 80),
+            linkPath: "/profile?tab=applied"
+          });
+        }
+      }
+      return res.status(201).json({ ok: true, item: created });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.delete(
+  "/application-comments/:id",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const commentId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!commentId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const comment = await prisma.applicationComment.findUnique({ where: { id: commentId } });
+      if (!comment) return res.status(404).json({ ok: false, message: "comment not found" });
+      const isAuthor = comment.authorUserId === req.auth!.userId;
+      const isOperator = req.auth!.role === MemberRole.OPERATOR;
+      if (!isAuthor && !isOperator) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      await prisma.applicationComment.delete({ where: { id: commentId } });
+      return res.json({ ok: true });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/members/me/applications/:id/withdraw",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+        include: { position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } } } } } }
+      });
+      if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+      if (application.candidateUserId !== req.auth!.userId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      if (application.status === "WITHDRAWN") {
+        return res.status(400).json({ ok: false, message: "already withdrawn" });
+      }
+      if (application.status === "ACCEPTED") {
+        return res.status(400).json({ ok: false, message: "cannot withdraw an accepted application" });
+      }
+      const updated = await prisma.application.update({
+        where: { id: applicationId },
+        data: { status: "WITHDRAWN", withdrawnAt: new Date() }
+      });
+      await prisma.applicationStatusHistory.create({
+        data: {
+          applicationId,
+          status: "WITHDRAWN",
+          changedByUserId: req.auth!.userId,
+          memo: "지원자 본인 철회"
+        }
+      });
+      const partnerUserIds = application.position.partnerOrganization?.users.map((u) => u.id) ?? [];
+      await Promise.all(partnerUserIds.map((uid) => createNotification({
+        userId: uid,
+        type: "APPLICATION_WITHDRAWN",
+        title: "지원자가 지원을 철회했습니다",
+        message: application.position.title,
+        linkPath: `/dashboard/partner/applicants/${applicationId}`
+      })));
+      return res.json({ ok: true, item: { id: updated.id, status: updated.status, withdrawnAt: updated.withdrawnAt } });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/applications/:id/interview-slots",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = proposeInterviewSlotsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+        include: { position: { select: { partnerOrganizationId: true } } }
+      });
+      if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+
+      if (req.auth!.role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+        if (!affiliation?.organization || affiliation.organization.id !== application.position.partnerOrganizationId) {
+          return res.status(403).json({ ok: false, message: "forbidden" });
+        }
+      }
+
+      if (application.status === "REJECTED" || application.status === "WITHDRAWN") {
+        return res.status(400).json({ ok: false, message: "종료된 지원에는 면접 일정을 제안할 수 없습니다." });
+      }
+
+      for (const slot of parsed.data.slots) {
+        if (new Date(slot.endsAt) <= new Date(slot.startsAt)) {
+          return res.status(400).json({ ok: false, message: "endsAt must be after startsAt" });
+        }
+      }
+
+      const created = await prisma.$transaction(async (tx) => {
+        await tx.interviewSlot.updateMany({
+          where: { applicationId, status: "PROPOSED" },
+          data: { status: "CANCELLED", cancelledAt: new Date() }
+        });
+        const records = await Promise.all(
+          parsed.data.slots.map((slot) =>
+            tx.interviewSlot.create({
+              data: {
+                applicationId,
+                startsAt: new Date(slot.startsAt),
+                endsAt: new Date(slot.endsAt),
+                location: slot.location ?? null,
+                notes: slot.notes ?? null
+              }
+            })
+          )
+        );
+        if (application.status === "SUBMITTED") {
+          await tx.application.update({ where: { id: applicationId }, data: { status: "INTERVIEW" } });
+          await tx.applicationStatusHistory.create({
+            data: {
+              applicationId,
+              status: "INTERVIEW",
+              changedByUserId: req.auth!.userId,
+              memo: "면접 일정 제안"
+            }
+          });
+        }
+        return records;
+      });
+
+      void createNotification({
+        userId: application.candidateUserId,
+        type: "INTERVIEW_SLOTS_PROPOSED",
+        title: "면접 일정이 제안되었습니다",
+        message: `${created.length}개의 일정 중 선택해 주세요.`,
+        linkPath: "/profile?tab=applied"
+      });
+
+      return res.status(201).json({ ok: true, items: created });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/applications/:id/interview-slots",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+        include: { position: { select: { partnerOrganizationId: true } } }
+      });
+      if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+
+      if (req.auth!.role === MemberRole.STUDENT && application.candidateUserId !== req.auth!.userId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      if (req.auth!.role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+        if (!affiliation?.organization || affiliation.organization.id !== application.position.partnerOrganizationId) {
+          return res.status(403).json({ ok: false, message: "forbidden" });
+        }
+      }
+
+      const slots = await prisma.interviewSlot.findMany({
+        where: { applicationId },
+        orderBy: { startsAt: "asc" }
+      });
+      return res.json({ ok: true, items: slots });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/interview-slots",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const slots = await prisma.interviewSlot.findMany({
+        orderBy: [{ status: "asc" }, { startsAt: "asc" }],
+        take: 300,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+            }
+          }
+        }
+      });
+      return res.json({
+        ok: true,
+        items: slots.map((s) => ({
+          id: s.id,
+          applicationId: s.applicationId,
+          startsAt: s.startsAt,
+          endsAt: s.endsAt,
+          location: s.location,
+          notes: s.notes,
+          status: s.status,
+          proposedAt: s.proposedAt,
+          selectedAt: s.selectedAt,
+          cancelledAt: s.cancelledAt,
+          candidateName: s.application.candidateUser.name,
+          candidateEmail: s.application.candidateUser.email,
+          positionTitle: s.application.position.title,
+          partnerOrganizationName: s.application.position.partnerOrganization?.name ?? null
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/interview-slots/:id/select",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    const slotId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!slotId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const slot = await prisma.interviewSlot.findUnique({
+        where: { id: slotId },
+        include: { application: { select: { id: true, candidateUserId: true } } }
+      });
+      if (!slot) return res.status(404).json({ ok: false, message: "slot not found" });
+      if (slot.application.candidateUserId !== req.auth!.userId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      if (slot.status !== "PROPOSED") {
+        return res.status(400).json({ ok: false, message: "slot is not selectable" });
+      }
+      const updated = await prisma.$transaction(async (tx) => {
+        await tx.interviewSlot.updateMany({
+          where: { applicationId: slot.application.id, id: { not: slot.id }, status: "PROPOSED" },
+          data: { status: "CANCELLED", cancelledAt: new Date() }
+        });
+        return tx.interviewSlot.update({
+          where: { id: slot.id },
+          data: { status: "SELECTED", selectedAt: new Date() }
+        });
+      });
+
+      const fullApp = await prisma.application.findUnique({
+        where: { id: slot.application.id },
+        include: { position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } } } } } }
+      });
+      const partnerUserIds = fullApp?.position.partnerOrganization?.users.map((u) => u.id) ?? [];
+      const slotTime = new Date(updated.startsAt).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
+      await Promise.all(partnerUserIds.map((uid) => createNotification({
+        userId: uid,
+        type: "INTERVIEW_SLOT_SELECTED",
+        title: "지원자가 면접 일정을 선택했습니다",
+        message: slotTime,
+        linkPath: "/dashboard/partner/applicants"
+      })));
+
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const createAssignmentSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().min(1).max(8000),
+  dueAt: z.string().datetime().optional()
+});
+
+const submitAssignmentSchema = z.object({
+  submissionContent: z.string().trim().min(1).max(20000),
+  submissionLinks: z.array(z.string().url().max(2000)).max(10).optional()
+});
+
+const reviewAssignmentSchema = z.object({
+  feedbackContent: z.string().trim().min(1).max(8000),
+  feedbackRating: z.number().int().min(1).max(5).optional()
+});
+
+app.post(
+  "/applications/:id/assignments",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = createAssignmentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+        include: { position: { select: { partnerOrganizationId: true } } }
+      });
+      if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+
+      if (req.auth!.role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+        if (!affiliation?.organization || affiliation.organization.id !== application.position.partnerOrganizationId) {
+          return res.status(403).json({ ok: false, message: "forbidden" });
+        }
+      }
+
+      const created = await prisma.assignment.create({
+        data: {
+          applicationId,
+          title: parsed.data.title,
+          description: parsed.data.description,
+          dueAt: parsed.data.dueAt ? new Date(parsed.data.dueAt) : null,
+          assignedByUserId: req.auth!.userId
+        }
+      });
+      void createNotification({
+        userId: application.candidateUserId,
+        type: "ASSIGNMENT_CREATED",
+        title: "새 과제가 부여되었습니다",
+        message: parsed.data.title,
+        linkPath: "/profile/assignments"
+      });
+      return res.status(201).json({ ok: true, item: created });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/applications/:id/assignments",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+        include: { position: { select: { partnerOrganizationId: true } } }
+      });
+      if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+
+      if (req.auth!.role === MemberRole.STUDENT && application.candidateUserId !== req.auth!.userId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      if (req.auth!.role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+        if (!affiliation?.organization || affiliation.organization.id !== application.position.partnerOrganizationId) {
+          return res.status(403).json({ ok: false, message: "forbidden" });
+        }
+      }
+
+      const assignments = await prisma.assignment.findMany({
+        where: { applicationId },
+        orderBy: { assignedAt: "desc" },
+        include: {
+          assignedBy: { select: { id: true, name: true } },
+          reviewedBy: { select: { id: true, name: true } }
+        }
+      });
+      return res.json({ ok: true, items: assignments });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/members/me/assignments",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    try {
+      const assignments = await prisma.assignment.findMany({
+        where: { application: { candidateUserId: req.auth!.userId } },
+        orderBy: { assignedAt: "desc" },
+        include: {
+          application: {
+            include: {
+              position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+            }
+          },
+          assignedBy: { select: { id: true, name: true } }
+        }
+      });
+      return res.json({
+        ok: true,
+        items: assignments.map((a) => ({
+          id: a.id,
+          applicationId: a.applicationId,
+          title: a.title,
+          description: a.description,
+          dueAt: a.dueAt,
+          status: a.status,
+          assignedAt: a.assignedAt,
+          submittedAt: a.submittedAt,
+          submissionContent: a.submissionContent,
+          submissionLinks: a.submissionLinks,
+          feedbackContent: a.feedbackContent,
+          feedbackRating: a.feedbackRating,
+          reviewedAt: a.reviewedAt,
+          positionId: a.application.position.id,
+          positionTitle: a.application.position.title,
+          partnerOrganizationName: a.application.position.partnerOrganization?.name ?? null,
+          assignedByName: a.assignedBy?.name ?? null
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/assignments/:id/submit",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    const assignmentId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!assignmentId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = submitAssignmentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const assignment = await prisma.assignment.findUnique({
+        where: { id: assignmentId },
+        include: {
+          application: {
+            include: {
+              position: {
+                include: {
+                  partnerOrganization: {
+                    include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+      if (!assignment) return res.status(404).json({ ok: false, message: "assignment not found" });
+      if (assignment.application.candidateUserId !== req.auth!.userId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      if (assignment.status === "CANCELLED") {
+        return res.status(400).json({ ok: false, message: "assignment is cancelled" });
+      }
+      const updated = await prisma.assignment.update({
+        where: { id: assignmentId },
+        data: {
+          submissionContent: parsed.data.submissionContent,
+          submissionLinks: parsed.data.submissionLinks ?? [],
+          submittedAt: new Date(),
+          status: "SUBMITTED"
+        }
+      });
+      const partnerUserIds = assignment.application.position.partnerOrganization?.users.map((u) => u.id) ?? [];
+      await Promise.all(partnerUserIds.map((uid) => createNotification({
+        userId: uid,
+        type: "ASSIGNMENT_SUBMITTED",
+        title: "지원자가 과제를 제출했습니다",
+        message: assignment.title,
+        linkPath: `/dashboard/partner/applicants/${assignment.applicationId}`
+      })));
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/assignments/:id/review",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const assignmentId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!assignmentId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = reviewAssignmentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const assignment = await prisma.assignment.findUnique({
+        where: { id: assignmentId },
+        include: { application: { include: { position: { select: { partnerOrganizationId: true } } } } }
+      });
+      if (!assignment) return res.status(404).json({ ok: false, message: "assignment not found" });
+      if (req.auth!.role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+        if (
+          !affiliation?.organization ||
+          affiliation.organization.id !== assignment.application.position.partnerOrganizationId
+        ) {
+          return res.status(403).json({ ok: false, message: "forbidden" });
+        }
+      }
+      if (assignment.status === "ASSIGNED") {
+        return res.status(400).json({ ok: false, message: "assignment has not been submitted yet" });
+      }
+      const updated = await prisma.assignment.update({
+        where: { id: assignmentId },
+        data: {
+          feedbackContent: parsed.data.feedbackContent,
+          feedbackRating: parsed.data.feedbackRating ?? null,
+          reviewedAt: new Date(),
+          reviewedByUserId: req.auth!.userId,
+          status: "REVIEWED"
+        }
+      });
+      const application = await prisma.application.findUnique({
+        where: { id: assignment.applicationId },
+        select: { candidateUserId: true }
+      });
+      if (application) {
+        void createNotification({
+          userId: application.candidateUserId,
+          type: "ASSIGNMENT_REVIEWED",
+          title: "과제에 피드백이 등록되었습니다",
+          message: assignment.title,
+          linkPath: "/profile/assignments"
+        });
+      }
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/assignments",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const items = await prisma.assignment.findMany({
+        orderBy: { assignedAt: "desc" },
+        take: 300,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+            }
+          }
+        }
+      });
+      return res.json({
+        ok: true,
+        items: items.map((a) => ({
+          id: a.id,
+          applicationId: a.applicationId,
+          title: a.title,
+          status: a.status,
+          dueAt: a.dueAt,
+          assignedAt: a.assignedAt,
+          submittedAt: a.submittedAt,
+          reviewedAt: a.reviewedAt,
+          feedbackRating: a.feedbackRating,
+          candidateName: a.application.candidateUser.name,
+          candidateEmail: a.application.candidateUser.email,
+          positionTitle: a.application.position.title,
+          partnerOrganizationName: a.application.position.partnerOrganization?.name ?? null
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const programStatusEnum = z.enum(["ACTIVE", "COMPLETED", "CANCELLED"]);
+const updateProgramSchema = z.object({
+  status: programStatusEnum.optional(),
+  startsAt: z.string().datetime().optional(),
+  endsAt: z.string().datetime().nullable().optional(),
+  notes: z.string().max(8000).nullable().optional()
+});
+const createProgramMeetingSchema = z.object({
+  scheduledAt: z.string().datetime(),
+  durationMinutes: z.number().int().min(5).max(600).optional(),
+  agenda: z.string().trim().max(2000).optional(),
+  location: z.string().trim().max(500).optional()
+});
+const updateProgramMeetingSchema = z.object({
+  scheduledAt: z.string().datetime().optional(),
+  durationMinutes: z.number().int().min(5).max(600).optional(),
+  agenda: z.string().trim().max(2000).nullable().optional(),
+  location: z.string().trim().max(500).nullable().optional(),
+  notes: z.string().trim().max(8000).nullable().optional(),
+  status: z.enum(["SCHEDULED", "COMPLETED", "CANCELLED"]).optional()
+});
+const createProgramFeedbackSchema = z.object({
+  content: z.string().trim().min(1).max(8000),
+  rating: z.number().int().min(1).max(5).optional()
+});
+const issueCertificateSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  content: z.string().trim().min(1).max(8000)
+});
+const issueRecommendationSchema = z.object({
+  content: z.string().trim().min(1).max(8000),
+  signerName: z.string().trim().min(1).max(200),
+  signerTitle: z.string().trim().max(200).optional()
+});
+const createSchoolCreditSchema = z.object({
+  schoolName: z.string().trim().min(1).max(200),
+  courseCode: z.string().trim().max(100).optional(),
+  credits: z.number().int().min(0).max(20).optional()
+});
+const reviewSchoolCreditSchema = z.object({
+  status: z.enum(["APPROVED", "REJECTED"]),
+  reviewNote: z.string().trim().max(4000).optional()
+});
+
+async function authorizeProgramAccess(
+  programId: string,
+  auth: { userId: string; role: MemberRole }
+): Promise<{ ok: true; program: { id: string; applicationId: string; candidateUserId: string; partnerOrganizationId: string | null } } | { ok: false; status: number; message: string }> {
+  const program = await prisma.program.findUnique({
+    where: { id: programId },
+    include: {
+      application: {
+        include: { position: { select: { partnerOrganizationId: true } } }
+      }
+    }
+  });
+  if (!program) return { ok: false, status: 404, message: "program not found" };
+  if (auth.role === MemberRole.STUDENT && program.application.candidateUserId !== auth.userId) {
+    return { ok: false, status: 403, message: "forbidden" };
+  }
+  if (auth.role === MemberRole.PARTNER) {
+    const affiliation = await resolvePartnerAffiliation(auth.userId);
+    if (!affiliation?.organization || affiliation.organization.id !== program.application.position.partnerOrganizationId) {
+      return { ok: false, status: 403, message: "forbidden" };
+    }
+  }
+  return {
+    ok: true,
+    program: {
+      id: program.id,
+      applicationId: program.applicationId,
+      candidateUserId: program.application.candidateUserId,
+      partnerOrganizationId: program.application.position.partnerOrganizationId
+    }
+  };
+}
+
+app.get(
+  "/members/me/programs",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    try {
+      const programs = await prisma.program.findMany({
+        where: { application: { candidateUserId: req.auth!.userId } },
+        orderBy: { createdAt: "desc" },
+        include: {
+          application: {
+            include: {
+              position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+            }
+          },
+          meetings: { orderBy: { scheduledAt: "asc" } },
+          feedbacks: { orderBy: { createdAt: "desc" }, include: { author: { select: { id: true, name: true, role: true } } } },
+          certificate: true,
+          recommendation: true,
+          schoolCreditRequest: true
+        }
+      });
+      return res.json({ ok: true, items: programs });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/programs",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const programs = await prisma.program.findMany({
+        where: { application: { position: { partnerOrganizationId: affiliation.organization.id } } },
+        orderBy: { createdAt: "desc" },
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true } }
+            }
+          },
+          meetings: { orderBy: { scheduledAt: "asc" } },
+          feedbacks: { orderBy: { createdAt: "desc" }, include: { author: { select: { id: true, name: true, role: true } } } },
+          certificate: true,
+          recommendation: true,
+          schoolCreditRequest: true
+        }
+      });
+      return res.json({ ok: true, items: programs });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/interviews",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const slots = await prisma.interviewSlot.findMany({
+        where: { application: { position: { partnerOrganizationId: affiliation.organization.id } } },
+        orderBy: [{ status: "asc" }, { startsAt: "asc" }],
+        take: 300,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true } }
+            }
+          }
+        }
+      });
+      return res.json({
+        ok: true,
+        items: slots.map((s) => ({
+          id: s.id,
+          applicationId: s.applicationId,
+          startsAt: s.startsAt,
+          endsAt: s.endsAt,
+          location: s.location,
+          notes: s.notes,
+          status: s.status,
+          proposedAt: s.proposedAt,
+          selectedAt: s.selectedAt,
+          cancelledAt: s.cancelledAt,
+          candidateName: s.application.candidateUser.name,
+          candidateEmail: s.application.candidateUser.email,
+          positionTitle: s.application.position.title
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/assignments",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const items = await prisma.assignment.findMany({
+        where: { application: { position: { partnerOrganizationId: affiliation.organization.id } } },
+        orderBy: { assignedAt: "desc" },
+        take: 300,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true } }
+            }
+          }
+        }
+      });
+      return res.json({
+        ok: true,
+        items: items.map((a) => ({
+          id: a.id,
+          applicationId: a.applicationId,
+          title: a.title,
+          status: a.status,
+          dueAt: a.dueAt,
+          assignedAt: a.assignedAt,
+          submittedAt: a.submittedAt,
+          reviewedAt: a.reviewedAt,
+          feedbackRating: a.feedbackRating,
+          candidateName: a.application.candidateUser.name,
+          candidateEmail: a.application.candidateUser.email,
+          positionTitle: a.application.position.title
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/issues",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const partnerUserIds = await prisma.user.findMany({
+        where: { partnerOrganizationId: affiliation.organization.id },
+        select: { id: true }
+      });
+      const userIds = partnerUserIds.map((u) => u.id);
+      const partnerApplications = await prisma.application.findMany({
+        where: { position: { partnerOrganizationId: affiliation.organization.id } },
+        select: { id: true }
+      });
+      const applicationIds = partnerApplications.map((a) => a.id);
+      const items = await prisma.issueReport.findMany({
+        where: {
+          OR: [
+            { reporterUserId: { in: userIds } },
+            { applicationId: { in: applicationIds } }
+          ]
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+        include: {
+          reporter: { select: { id: true, name: true, email: true, role: true } },
+          subject: { select: { id: true, name: true, email: true, role: true } },
+          assignedTo: { select: { id: true, name: true, email: true } }
+        }
+      });
+      return res.json({ ok: true, items });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/team",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const members = await prisma.user.findMany({
+        where: { partnerOrganizationId: affiliation.organization.id },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phoneNumber: true,
+          jobTitle: true,
+          partnerOrgRole: true,
+          emailVerified: true,
+          createdAt: true
+        }
+      });
+      return res.json({
+        ok: true,
+        items: members,
+        organizationId: affiliation.organization.id,
+        myUserId: req.auth!.userId,
+        myOrgRole: affiliation.user.partnerOrgRole
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const updateTeamMemberRoleSchema = z.object({
+  partnerOrgRole: z.enum(["OWNER", "ADMIN", "MEMBER"])
+});
+
+app.patch(
+  "/partner/team/:id/role",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    const memberUserId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!memberUserId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = updateTeamMemberRoleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      if (affiliation.user.partnerOrgRole !== "OWNER" && affiliation.user.partnerOrgRole !== "ADMIN") {
+        return res.status(403).json({ ok: false, message: "only OWNER or ADMIN can change roles" });
+      }
+      const target = await prisma.user.findUnique({
+        where: { id: memberUserId },
+        select: { id: true, partnerOrganizationId: true, partnerOrgRole: true }
+      });
+      if (!target || target.partnerOrganizationId !== affiliation.organization.id) {
+        return res.status(404).json({ ok: false, message: "member not found in this organization" });
+      }
+      if (target.id === req.auth!.userId && parsed.data.partnerOrgRole !== "OWNER") {
+        return res.status(400).json({ ok: false, message: "you cannot demote yourself" });
+      }
+      const updated = await prisma.user.update({
+        where: { id: memberUserId },
+        data: { partnerOrgRole: parsed.data.partnerOrgRole },
+        select: { id: true, name: true, email: true, partnerOrgRole: true }
+      });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.delete(
+  "/partner/team/:id",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    const memberUserId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!memberUserId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      if (affiliation.user.partnerOrgRole !== "OWNER" && affiliation.user.partnerOrgRole !== "ADMIN") {
+        return res.status(403).json({ ok: false, message: "only OWNER or ADMIN can remove members" });
+      }
+      if (memberUserId === req.auth!.userId) {
+        return res.status(400).json({ ok: false, message: "you cannot remove yourself" });
+      }
+      const target = await prisma.user.findUnique({
+        where: { id: memberUserId },
+        select: { id: true, partnerOrganizationId: true, partnerOrgRole: true }
+      });
+      if (!target || target.partnerOrganizationId !== affiliation.organization.id) {
+        return res.status(404).json({ ok: false, message: "member not found in this organization" });
+      }
+      const updated = await prisma.user.update({
+        where: { id: memberUserId },
+        data: { partnerOrganizationId: null, partnerOrgRole: null }
+      });
+      return res.json({ ok: true, item: { id: updated.id } });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/reports",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const orgId = affiliation.organization.id;
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const [
+        positionRows,
+        positionsLast7,
+        applicationRows,
+        applicationsLast7,
+        programRows,
+        certificatesCount,
+        recommendationsCount
+      ] = await Promise.all([
+        prisma.position.groupBy({
+          by: ["status"],
+          where: { partnerOrganizationId: orgId },
+          _count: { _all: true }
+        }),
+        prisma.position.count({ where: { partnerOrganizationId: orgId, createdAt: { gte: sevenDaysAgo } } }),
+        prisma.application.groupBy({
+          by: ["status"],
+          where: { position: { partnerOrganizationId: orgId } },
+          _count: { _all: true }
+        }),
+        prisma.application.count({
+          where: { position: { partnerOrganizationId: orgId }, submittedAt: { gte: sevenDaysAgo } }
+        }),
+        prisma.program.groupBy({
+          by: ["status"],
+          where: { application: { position: { partnerOrganizationId: orgId } } },
+          _count: { _all: true }
+        }),
+        prisma.certificate.count({
+          where: { program: { application: { position: { partnerOrganizationId: orgId } } } }
+        }),
+        prisma.recommendation.count({
+          where: { program: { application: { position: { partnerOrganizationId: orgId } } } }
+        })
+      ]);
+
+      function tally(rows: Array<Record<string, unknown>>, key: string, keys: string[]) {
+        const acc: Record<string, number> = Object.fromEntries(keys.map((k) => [k, 0]));
+        for (const row of rows) {
+          const k = String(row[key]);
+          const c = (row as { _count?: { _all?: number } })._count?._all ?? 0;
+          if (k in acc) acc[k] = c;
+        }
+        return acc;
+      }
+
+      return res.json({
+        ok: true,
+        stats: {
+          positions: {
+            byStatus: tally(
+              positionRows as unknown as Array<Record<string, unknown>>,
+              "status",
+              ["DRAFT", "PENDING_REVIEW", "OPEN", "PAUSED", "CLOSED", "REJECTED"]
+            ),
+            last7Days: positionsLast7
+          },
+          applications: {
+            byStatus: tally(
+              applicationRows as unknown as Array<Record<string, unknown>>,
+              "status",
+              ["SUBMITTED", "INTERVIEW", "ACCEPTED", "REJECTED"]
+            ),
+            last7Days: applicationsLast7
+          },
+          programs: {
+            byStatus: tally(
+              programRows as unknown as Array<Record<string, unknown>>,
+              "status",
+              ["ACTIVE", "COMPLETED", "CANCELLED"]
+            )
+          },
+          artifacts: {
+            certificates: certificatesCount,
+            recommendations: recommendationsCount
+          }
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/partner/reports/positions",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      const orgId = affiliation.organization.id;
+      const positions = await prisma.position.findMany({
+        where: { partnerOrganizationId: orgId },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          createdAt: true,
+          _count: { select: { applications: true } }
+        }
+      });
+      const positionIds = positions.map((p) => p.id);
+      const appCounts = await prisma.application.groupBy({
+        by: ["positionId", "status"],
+        where: { positionId: { in: positionIds } },
+        _count: { _all: true }
+      });
+      const byPosition: Record<string, { SUBMITTED: number; INTERVIEW: number; ACCEPTED: number; REJECTED: number; WITHDRAWN: number }> = {};
+      for (const row of appCounts) {
+        if (!byPosition[row.positionId]) {
+          byPosition[row.positionId] = { SUBMITTED: 0, INTERVIEW: 0, ACCEPTED: 0, REJECTED: 0, WITHDRAWN: 0 };
+        }
+        byPosition[row.positionId][row.status] = row._count._all;
+      }
+      return res.json({
+        ok: true,
+        items: positions.map((p) => {
+          const counts = byPosition[p.id] ?? { SUBMITTED: 0, INTERVIEW: 0, ACCEPTED: 0, REJECTED: 0, WITHDRAWN: 0 };
+          const total = counts.SUBMITTED + counts.INTERVIEW + counts.ACCEPTED + counts.REJECTED;
+          const conversionRate = total > 0 ? Math.round((counts.ACCEPTED / total) * 1000) / 10 : 0;
+          return {
+            id: p.id,
+            title: p.title,
+            status: p.status,
+            createdAt: p.createdAt,
+            applicationsTotal: total,
+            byStatus: counts,
+            acceptanceRate: conversionRate
+          };
+        })
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/programs",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const programs = await prisma.program.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 300,
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+            }
+          },
+          certificate: true,
+          recommendation: true,
+          schoolCreditRequest: true
+        }
+      });
+      return res.json({
+        ok: true,
+        items: programs.map((p) => ({
+          id: p.id,
+          applicationId: p.applicationId,
+          status: p.status,
+          startsAt: p.startsAt,
+          endsAt: p.endsAt,
+          candidateName: p.application.candidateUser.name,
+          candidateEmail: p.application.candidateUser.email,
+          positionTitle: p.application.position.title,
+          partnerOrganizationName: p.application.position.partnerOrganization?.name ?? null,
+          hasCertificate: Boolean(p.certificate),
+          hasRecommendation: Boolean(p.recommendation),
+          schoolCreditStatus: p.schoolCreditRequest?.status ?? null
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/programs/:id",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const program = await prisma.program.findUnique({
+        where: { id: programId },
+        include: {
+          application: {
+            include: {
+              candidateUser: { select: { id: true, name: true, email: true } },
+              position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+            }
+          },
+          meetings: { orderBy: { scheduledAt: "asc" } },
+          feedbacks: { orderBy: { createdAt: "desc" }, include: { author: { select: { id: true, name: true, role: true } } } },
+          certificate: true,
+          recommendation: true,
+          schoolCreditRequest: true
+        }
+      });
+      return res.json({ ok: true, item: program });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/programs/:id",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = updateProgramSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const data: Record<string, unknown> = {};
+      if (parsed.data.status !== undefined) data.status = parsed.data.status;
+      if (parsed.data.startsAt !== undefined) data.startsAt = new Date(parsed.data.startsAt);
+      if (parsed.data.endsAt !== undefined) data.endsAt = parsed.data.endsAt ? new Date(parsed.data.endsAt) : null;
+      if (parsed.data.notes !== undefined) data.notes = parsed.data.notes;
+      const updated = await prisma.program.update({ where: { id: programId }, data });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/programs/:id/meetings",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = createProgramMeetingSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const created = await prisma.programMeeting.create({
+        data: {
+          programId,
+          scheduledAt: new Date(parsed.data.scheduledAt),
+          durationMinutes: parsed.data.durationMinutes ?? 30,
+          agenda: parsed.data.agenda ?? null,
+          location: parsed.data.location ?? null
+        }
+      });
+      return res.status(201).json({ ok: true, item: created });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/program-meetings/:id",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const meetingId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!meetingId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = updateProgramMeetingSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const meeting = await prisma.programMeeting.findUnique({ where: { id: meetingId } });
+      if (!meeting) return res.status(404).json({ ok: false, message: "meeting not found" });
+      const auth = await authorizeProgramAccess(meeting.programId, req.auth!);
+      if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+      const data: Record<string, unknown> = {};
+      if (parsed.data.scheduledAt !== undefined) data.scheduledAt = new Date(parsed.data.scheduledAt);
+      if (parsed.data.durationMinutes !== undefined) data.durationMinutes = parsed.data.durationMinutes;
+      if (parsed.data.agenda !== undefined) data.agenda = parsed.data.agenda;
+      if (parsed.data.location !== undefined) data.location = parsed.data.location;
+      if (parsed.data.notes !== undefined) data.notes = parsed.data.notes;
+      if (parsed.data.status !== undefined) data.status = parsed.data.status;
+      const updated = await prisma.programMeeting.update({ where: { id: meetingId }, data });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/programs/:id/feedbacks",
+  authenticate,
+  requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = createProgramFeedbackSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const created = await prisma.programFeedback.create({
+        data: {
+          programId,
+          authorUserId: req.auth!.userId,
+          authorRole: req.auth!.role,
+          content: parsed.data.content,
+          rating: parsed.data.rating ?? null
+        }
+      });
+      return res.status(201).json({ ok: true, item: created });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.put(
+  "/programs/:id/certificate",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = issueCertificateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const cert = await prisma.certificate.upsert({
+        where: { programId },
+        update: { title: parsed.data.title, content: parsed.data.content, issuedByUserId: req.auth!.userId, issuedAt: new Date() },
+        create: { programId, title: parsed.data.title, content: parsed.data.content, issuedByUserId: req.auth!.userId }
+      });
+      const programInfo = await prisma.program.findUnique({
+        where: { id: programId },
+        select: { application: { select: { candidateUserId: true } } }
+      });
+      if (programInfo) {
+        void createNotification({
+          userId: programInfo.application.candidateUserId,
+          type: "CERTIFICATE_ISSUED",
+          title: "수료증이 발급되었습니다",
+          message: parsed.data.title,
+          linkPath: `/profile/programs/${programId}`
+        });
+      }
+      return res.json({ ok: true, item: cert });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.put(
+  "/programs/:id/recommendation",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = issueRecommendationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const rec = await prisma.recommendation.upsert({
+        where: { programId },
+        update: {
+          content: parsed.data.content,
+          signerName: parsed.data.signerName,
+          signerTitle: parsed.data.signerTitle ?? null,
+          issuedByUserId: req.auth!.userId,
+          issuedAt: new Date()
+        },
+        create: {
+          programId,
+          content: parsed.data.content,
+          signerName: parsed.data.signerName,
+          signerTitle: parsed.data.signerTitle ?? null,
+          issuedByUserId: req.auth!.userId
+        }
+      });
+      const programInfo = await prisma.program.findUnique({
+        where: { id: programId },
+        select: { application: { select: { candidateUserId: true } } }
+      });
+      if (programInfo) {
+        void createNotification({
+          userId: programInfo.application.candidateUserId,
+          type: "RECOMMENDATION_ISSUED",
+          title: "추천서가 발급되었습니다",
+          message: `${parsed.data.signerName}님이 추천서를 작성했어요.`,
+          linkPath: `/profile/programs/${programId}`
+        });
+      }
+      return res.json({ ok: true, item: rec });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/programs/:id/school-credit",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    const programId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!programId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = createSchoolCreditSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const auth = await authorizeProgramAccess(programId, req.auth!);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, message: auth.message });
+    try {
+      const result = await prisma.schoolCreditRequest.upsert({
+        where: { programId },
+        update: {
+          schoolName: parsed.data.schoolName,
+          courseCode: parsed.data.courseCode ?? null,
+          credits: parsed.data.credits ?? 0,
+          status: "REQUESTED",
+          requestedAt: new Date(),
+          reviewedAt: null,
+          reviewedByUserId: null,
+          reviewNote: null
+        },
+        create: {
+          programId,
+          schoolName: parsed.data.schoolName,
+          courseCode: parsed.data.courseCode ?? null,
+          credits: parsed.data.credits ?? 0
+        }
+      });
+      void notifyOperators({
+        type: "SCHOOL_CREDIT_REQUESTED",
+        title: "학점 인정 요청이 접수되었습니다",
+        message: `${parsed.data.schoolName} · ${parsed.data.credits ?? 0}학점`,
+        linkPath: "/dashboard/ops/operations/school-credit"
+      });
+      return res.json({ ok: true, item: result });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/school-credit-requests",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const items = await prisma.schoolCreditRequest.findMany({
+        orderBy: { requestedAt: "desc" },
+        take: 300,
+        include: {
+          program: {
+            include: {
+              application: {
+                include: {
+                  candidateUser: { select: { id: true, name: true, email: true, affiliation: true } },
+                  position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } }
+                }
+              }
+            }
+          },
+          reviewedBy: { select: { id: true, name: true } }
+        }
+      });
+      return res.json({
+        ok: true,
+        items: items.map((r) => ({
+          id: r.id,
+          programId: r.programId,
+          schoolName: r.schoolName,
+          courseCode: r.courseCode,
+          credits: r.credits,
+          status: r.status,
+          requestedAt: r.requestedAt,
+          reviewedAt: r.reviewedAt,
+          reviewNote: r.reviewNote,
+          reviewedByName: r.reviewedBy?.name ?? null,
+          candidateName: r.program.application.candidateUser.name,
+          candidateEmail: r.program.application.candidateUser.email,
+          candidateAffiliation: r.program.application.candidateUser.affiliation,
+          positionTitle: r.program.application.position.title,
+          partnerOrganizationName: r.program.application.position.partnerOrganization?.name ?? null
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/ops/school-credit-requests/:id",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const requestId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!requestId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = reviewSchoolCreditSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const updated = await prisma.schoolCreditRequest.update({
+        where: { id: requestId },
+        data: {
+          status: parsed.data.status,
+          reviewNote: parsed.data.reviewNote ?? null,
+          reviewedAt: new Date(),
+          reviewedByUserId: req.auth!.userId
+        }
+      });
+      const programInfo = await prisma.program.findUnique({
+        where: { id: updated.programId },
+        select: { id: true, application: { select: { candidateUserId: true } } }
+      });
+      if (programInfo) {
+        void createNotification({
+          userId: programInfo.application.candidateUserId,
+          type: "SCHOOL_CREDIT_REVIEWED",
+          title: `학점 인정 요청이 ${parsed.data.status === "APPROVED" ? "승인" : "반려"}되었습니다`,
+          message: parsed.data.reviewNote ?? null,
+          linkPath: `/profile/programs/${programInfo.id}`
+        });
+      }
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+        return res.status(404).json({ ok: false, message: "request not found" });
+      }
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/matching-stats",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const [applicationCounts, programCount, completedProgramCount, openSchoolCreditCount, recentApplications] = await Promise.all([
+        prisma.application.groupBy({ by: ["status"], _count: { _all: true } }),
+        prisma.program.count({ where: { status: "ACTIVE" } }),
+        prisma.program.count({ where: { status: "COMPLETED" } }),
+        prisma.schoolCreditRequest.count({ where: { status: "REQUESTED" } }),
+        prisma.application.count({ where: { submittedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } })
+      ]);
+      const byStatus: Record<string, number> = { SUBMITTED: 0, INTERVIEW: 0, ACCEPTED: 0, REJECTED: 0 };
+      for (const row of applicationCounts) {
+        byStatus[row.status] = row._count._all;
+      }
+      return res.json({
+        ok: true,
+        stats: {
+          applications: byStatus,
+          activePrograms: programCount,
+          completedPrograms: completedProgramCount,
+          openSchoolCreditRequests: openSchoolCreditCount,
+          applicationsLast7Days: recentApplications
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const updateUserRoleSchema = z.object({
+  role: z.enum(["STUDENT", "PARTNER", "OPERATOR"])
+});
+
+app.patch(
+  "/ops/users/:id/role",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const userId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!userId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = updateUserRoleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    if (userId === req.auth!.userId && parsed.data.role !== MemberRole.OPERATOR) {
+      return res.status(400).json({ ok: false, message: "operator cannot demote themselves" });
+    }
+    try {
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: { role: parsed.data.role },
+        select: { id: true, email: true, name: true, role: true }
+      });
+      void writeAuditLog(req, {
+        action: "USER_ROLE_CHANGED",
+        resource: "user",
+        resourceId: userId,
+        metadata: { newRole: parsed.data.role }
+      });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+        return res.status(404).json({ ok: false, message: "user not found" });
+      }
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.delete(
+  "/members/me/account",
+  authenticate,
+  async (req, res) => {
+    const userId = req.auth!.userId;
+    const reauthToken = typeof req.headers["x-reauth-token"] === "string"
+      ? req.headers["x-reauth-token"]
+      : Array.isArray(req.headers["x-reauth-token"])
+        ? req.headers["x-reauth-token"][0]
+        : "";
+    if (!reauthToken || !verifyReauthToken(reauthToken, userId, "delete_account")) {
+      return res.status(401).json({ ok: false, code: "REAUTH_REQUIRED", message: "reauthentication required" });
+    }
+    try {
+      // Self-delete cascades to all related data via onDelete: Cascade in schema
+      await prisma.user.delete({ where: { id: userId } });
+      clearRefreshTokenCookie(res);
+      void writeAuditLog(req, {
+        action: "USER_SELF_DELETED",
+        resource: "user",
+        resourceId: userId
+      });
+      return res.json({ ok: true });
+    } catch (error) {
+      console.error("[account-delete] failed", error);
+      return res.status(500).json({ ok: false, message: "탈퇴 처리 중 오류가 발생했습니다." });
+    }
+  }
+);
+
+app.post(
+  "/ops/notifications/cleanup",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    try {
+      const daysParsed = Number.parseInt(typeof req.body?.olderThanDays === "number" ? String(req.body.olderThanDays) : "90", 10);
+      const days = Number.isFinite(daysParsed) && daysParsed >= 7 ? daysParsed : 90;
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const result = await prisma.notification.deleteMany({
+        where: { readAt: { not: null, lt: cutoff } }
+      });
+      void writeAuditLog(req, {
+        action: "NOTIFICATIONS_CLEANED",
+        resource: "notification",
+        metadata: { days, deleted: result.count }
+      });
+      return res.json({ ok: true, deleted: result.count, days });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/audit-logs",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    try {
+      const action = typeof req.query.action === "string" ? req.query.action : undefined;
+      const resource = typeof req.query.resource === "string" ? req.query.resource : undefined;
+      const limit = Math.min(
+        500,
+        Math.max(10, Number.parseInt(typeof req.query.limit === "string" ? req.query.limit : "100", 10) || 100)
+      );
+      const items = await prisma.auditLog.findMany({
+        where: {
+          ...(action ? { action } : {}),
+          ...(resource ? { resource } : {})
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit
+      });
+      const actorIds = Array.from(new Set(items.map((it) => it.actorUserId).filter((id): id is string => Boolean(id))));
+      const actors = actorIds.length
+        ? await prisma.user.findMany({
+            where: { id: { in: actorIds } },
+            select: { id: true, name: true, email: true, role: true }
+          })
+        : [];
+      const actorById = new Map(actors.map((u) => [u.id, u]));
+      return res.json({
+        ok: true,
+        items: items.map((it) => ({
+          id: it.id,
+          action: it.action,
+          resource: it.resource,
+          resourceId: it.resourceId,
+          metadata: it.metadata,
+          ipAddress: it.ipAddress,
+          createdAt: it.createdAt,
+          actor: it.actorUserId ? actorById.get(it.actorUserId) ?? null : null,
+          actorRole: it.actorRole
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const suspendUserSchema = z.object({
+  isActive: z.boolean(),
+  reason: z.string().trim().max(500).optional()
+});
+
+app.patch(
+  "/ops/users/:id/suspend",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const userId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!userId) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = suspendUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    if (userId === req.auth!.userId) {
+      return res.status(400).json({ ok: false, message: "you cannot suspend yourself" });
+    }
+    try {
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: parsed.data.isActive
+          ? { isActive: true, suspendedAt: null, suspendedReason: null }
+          : { isActive: false, suspendedAt: new Date(), suspendedReason: parsed.data.reason ?? null },
+        select: { id: true, email: true, name: true, isActive: true, suspendedAt: true, suspendedReason: true }
+      });
+      if (!parsed.data.isActive) {
+        // Invalidate refresh tokens so user is forced out
+        await prisma.refreshToken.deleteMany({ where: { userId } });
+      }
+      void writeAuditLog(req, {
+        action: parsed.data.isActive ? "USER_REACTIVATED" : "USER_SUSPENDED",
+        resource: "user",
+        resourceId: userId,
+        metadata: { reason: parsed.data.reason ?? null }
+      });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+        return res.status(404).json({ ok: false, message: "user not found" });
+      }
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/reports/overview",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const [
+        userCounts,
+        usersLast7,
+        usersLast30,
+        positionCounts,
+        positionsLast7,
+        applicationCounts,
+        applicationsLast7,
+        programCounts,
+        certificatesCount,
+        recommendationsCount,
+        issueCounts
+      ] = await Promise.all([
+        prisma.user.groupBy({ by: ["role"], _count: { _all: true } }),
+        prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+        prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+        prisma.position.groupBy({ by: ["status"], _count: { _all: true } }),
+        prisma.position.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+        prisma.application.groupBy({ by: ["status"], _count: { _all: true } }),
+        prisma.application.count({ where: { submittedAt: { gte: sevenDaysAgo } } }),
+        prisma.program.groupBy({ by: ["status"], _count: { _all: true } }),
+        prisma.certificate.count(),
+        prisma.recommendation.count(),
+        prisma.issueReport.groupBy({ by: ["status"], _count: { _all: true } })
+      ]);
+
+      function tally(rows: Array<Record<string, unknown>>, key: string, keys: string[]) {
+        const acc: Record<string, number> = Object.fromEntries(keys.map((k) => [k, 0]));
+        for (const row of rows) {
+          const k = String(row[key]);
+          const c = (row as { _count?: { _all?: number } })._count?._all ?? 0;
+          if (k in acc) acc[k] = c;
+        }
+        return acc;
+      }
+
+      return res.json({
+        ok: true,
+        stats: {
+          users: {
+            byRole: tally(userCounts as unknown as Array<Record<string, unknown>>, "role", ["STUDENT", "PARTNER", "OPERATOR"]),
+            last7Days: usersLast7,
+            last30Days: usersLast30
+          },
+          positions: {
+            byStatus: tally(positionCounts as unknown as Array<Record<string, unknown>>, "status", ["DRAFT", "PENDING_REVIEW", "OPEN", "PAUSED", "CLOSED", "REJECTED"]),
+            last7Days: positionsLast7
+          },
+          applications: {
+            byStatus: tally(applicationCounts as unknown as Array<Record<string, unknown>>, "status", ["SUBMITTED", "INTERVIEW", "ACCEPTED", "REJECTED"]),
+            last7Days: applicationsLast7
+          },
+          programs: {
+            byStatus: tally(programCounts as unknown as Array<Record<string, unknown>>, "status", ["ACTIVE", "COMPLETED", "CANCELLED"])
+          },
+          artifacts: {
+            certificates: certificatesCount,
+            recommendations: recommendationsCount
+          },
+          issues: {
+            byStatus: tally(issueCounts as unknown as Array<Record<string, unknown>>, "status", ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"])
+          }
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/reports/inflow",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const [providerRows, topAffiliations, weeklyRowsRaw] = await Promise.all([
+        prisma.user.groupBy({
+          by: ["authProvider", "role"],
+          _count: { _all: true }
+        }),
+        prisma.user.groupBy({
+          by: ["affiliation"],
+          where: { role: "STUDENT", affiliation: { not: null } },
+          _count: { _all: true },
+          orderBy: { _count: { affiliation: "desc" } },
+          take: 20
+        }),
+        prisma.$queryRawUnsafe<Array<{ week: Date; role: string; count: bigint }>>(
+          `SELECT date_trunc('week', "createdAt")::date AS "week", "role", COUNT(*)::bigint AS "count"
+           FROM "User"
+           WHERE "createdAt" >= NOW() - INTERVAL '12 weeks'
+           GROUP BY 1, 2
+           ORDER BY 1 ASC`
+        )
+      ]);
+
+      const byProvider: Record<string, Record<string, number>> = {};
+      for (const r of providerRows) {
+        const p = r.authProvider;
+        if (!byProvider[p]) byProvider[p] = { STUDENT: 0, PARTNER: 0, OPERATOR: 0 };
+        byProvider[p][r.role] = r._count._all;
+      }
+
+      const weeklyMap = new Map<string, { week: string; STUDENT: number; PARTNER: number; OPERATOR: number }>();
+      for (const row of weeklyRowsRaw) {
+        const wk = row.week instanceof Date ? row.week.toISOString().slice(0, 10) : String(row.week).slice(0, 10);
+        if (!weeklyMap.has(wk)) weeklyMap.set(wk, { week: wk, STUDENT: 0, PARTNER: 0, OPERATOR: 0 });
+        const entry = weeklyMap.get(wk)!;
+        entry[row.role as "STUDENT" | "PARTNER" | "OPERATOR"] = Number(row.count);
+      }
+
+      return res.json({
+        ok: true,
+        byProvider,
+        topAffiliations: topAffiliations.map((a) => ({ affiliation: a.affiliation, count: a._count._all })),
+        weekly: Array.from(weeklyMap.values())
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/matching-logs",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const mode = typeof req.query.mode === "string" ? req.query.mode : undefined;
+    const limitNum = Number.parseInt(typeof req.query.limit === "string" ? req.query.limit : "", 10);
+    const take = Number.isFinite(limitNum) && limitNum > 0 && limitNum <= 500 ? limitNum : 100;
+    try {
+      const items = await prisma.matchingRunHistory.findMany({
+        where: mode ? { mode } : undefined,
+        orderBy: { ranAt: "desc" },
+        take,
+        select: {
+          id: true,
+          mode: true,
+          source: true,
+          positionId: true,
+          candidateId: true,
+          positionTitle: true,
+          candidateLabel: true,
+          resultCount: true,
+          ranAt: true,
+          createdAt: true
+        }
+      });
+      const modes = await prisma.matchingRunHistory.groupBy({
+        by: ["mode"],
+        _count: { _all: true }
+      });
+      return res.json({
+        ok: true,
+        items,
+        modeStats: modes.map((m) => ({ mode: m.mode, count: m._count._all }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/matching-logs/:id",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const id = typeof req.params.id === "string" ? req.params.id : "";
+    if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const item = await prisma.matchingRunHistory.findUnique({ where: { id } });
+      if (!item) return res.status(404).json({ ok: false, message: "not found" });
+      return res.json({ ok: true, item });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/email-stats",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const [
+        totalUsers,
+        verifiedUsers,
+        verifyTokensLast7,
+        verifyTokensLast30,
+        preverifyTokensLast7,
+        recentTokens
+      ] = await Promise.all([
+        prisma.user.count(),
+        prisma.user.count({ where: { emailVerified: true } }),
+        prisma.emailVerificationToken.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+        prisma.emailVerificationToken.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+        prisma.emailPreverificationToken.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+        prisma.emailVerificationToken.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 30,
+          include: { user: { select: { id: true, email: true, name: true, role: true } } }
+        })
+      ]);
+      return res.json({
+        ok: true,
+        stats: {
+          totalUsers,
+          verifiedUsers,
+          verificationRate: totalUsers > 0 ? Math.round((verifiedUsers / totalUsers) * 1000) / 10 : 0,
+          verifyTokensLast7,
+          verifyTokensLast30,
+          preverifyTokensLast7
+        },
+        recentTokens: recentTokens.map((t) => ({
+          id: t.id,
+          createdAt: t.createdAt,
+          expiresAt: t.expiresAt,
+          usedAt: t.usedAt,
+          email: t.user?.email ?? null,
+          name: t.user?.name ?? null,
+          role: t.user?.role ?? null
+        }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const appSettingUpsertSchema = z.object({
+  key: z.string().trim().min(1).max(120),
+  value: z.string().max(8000),
+  description: z.string().trim().max(500).optional()
+});
+
+const announcementSeverityEnum = z.enum(["INFO", "SUCCESS", "WARNING", "CRITICAL"]);
+const announcementAudienceEnum = z.enum(["ALL", "STUDENT", "PARTNER", "OPERATOR"]);
+const createAnnouncementSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  body: z.string().trim().min(1).max(4000),
+  severity: announcementSeverityEnum.optional(),
+  audience: announcementAudienceEnum.optional(),
+  linkPath: z.string().trim().max(500).optional(),
+  active: z.boolean().optional(),
+  startsAt: z.string().datetime().optional(),
+  endsAt: z.string().datetime().nullable().optional()
+});
+const updateAnnouncementSchema = createAnnouncementSchema.partial();
+
+app.get(
+  "/members/me/announcements",
+  authenticate,
+  async (req, res) => {
+    try {
+      const now = new Date();
+      const role = req.auth!.role;
+      const audiences: ("ALL" | "STUDENT" | "PARTNER" | "OPERATOR")[] = ["ALL"];
+      if (role === "STUDENT") audiences.push("STUDENT");
+      if (role === "PARTNER") audiences.push("PARTNER");
+      if (role === "OPERATOR") audiences.push("OPERATOR");
+      const items = await prisma.announcement.findMany({
+        where: {
+          active: true,
+          audience: { in: audiences },
+          startsAt: { lte: now },
+          OR: [{ endsAt: null }, { endsAt: { gt: now } }]
+        },
+        orderBy: [{ severity: "desc" }, { startsAt: "desc" }],
+        take: 5
+      });
+      return res.json({ ok: true, items });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/announcements",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const items = await prisma.announcement.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 100
+      });
+      return res.json({ ok: true, items });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.post(
+  "/ops/announcements",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const parsed = createAnnouncementSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const created = await prisma.announcement.create({
+        data: {
+          title: parsed.data.title,
+          body: parsed.data.body,
+          severity: parsed.data.severity ?? "INFO",
+          audience: parsed.data.audience ?? "ALL",
+          linkPath: parsed.data.linkPath ?? null,
+          active: parsed.data.active ?? true,
+          startsAt: parsed.data.startsAt ? new Date(parsed.data.startsAt) : new Date(),
+          endsAt: parsed.data.endsAt ? new Date(parsed.data.endsAt) : null,
+          createdByUserId: req.auth!.userId
+        }
+      });
+      return res.status(201).json({ ok: true, item: created });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/ops/announcements/:id",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const id = typeof req.params.id === "string" ? req.params.id : "";
+    if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
+    const parsed = updateAnnouncementSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const data: Record<string, unknown> = {};
+      if (parsed.data.title !== undefined) data.title = parsed.data.title;
+      if (parsed.data.body !== undefined) data.body = parsed.data.body;
+      if (parsed.data.severity !== undefined) data.severity = parsed.data.severity;
+      if (parsed.data.audience !== undefined) data.audience = parsed.data.audience;
+      if (parsed.data.linkPath !== undefined) data.linkPath = parsed.data.linkPath ?? null;
+      if (parsed.data.active !== undefined) data.active = parsed.data.active;
+      if (parsed.data.startsAt !== undefined) data.startsAt = parsed.data.startsAt ? new Date(parsed.data.startsAt) : new Date();
+      if (parsed.data.endsAt !== undefined) data.endsAt = parsed.data.endsAt ? new Date(parsed.data.endsAt) : null;
+      const updated = await prisma.announcement.update({ where: { id }, data });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+        return res.status(404).json({ ok: false, message: "announcement not found" });
+      }
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.delete(
+  "/ops/announcements/:id",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const id = typeof req.params.id === "string" ? req.params.id : "";
+    if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      await prisma.announcement.delete({ where: { id } });
+      return res.json({ ok: true });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+        return res.status(404).json({ ok: false, message: "announcement not found" });
+      }
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const profileCompletionEndpoint = async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      candidateProfile: {
+        include: {
+          careers: { select: { id: true } },
+          educations: { select: { id: true } },
+          languageSkills: { select: { id: true } }
+        }
+      }
+    }
+  });
+  if (!user) return null;
+  const candidate = user.candidateProfile;
+  const items = [
+    { key: "name", label: "이름", filled: Boolean(user.name?.trim()) },
+    { key: "phoneNumber", label: "전화번호", filled: Boolean(user.phoneNumber?.trim()) },
+    { key: "nationality", label: "국적", filled: Boolean(user.nationality?.trim()) },
+    { key: "affiliation", label: "소속", filled: Boolean(user.affiliation?.trim()) },
+    { key: "birthDate", label: "생년월일", filled: Boolean(user.birthDate) },
+    { key: "gender", label: "성별", filled: Boolean(user.gender?.trim()) },
+    { key: "jobTitle", label: "희망 직무", filled: Boolean(user.jobTitle?.trim()) },
+    { key: "profileImage", label: "프로필 사진", filled: Boolean(user.profileImageUrl?.trim()) },
+    { key: "emailVerified", label: "이메일 인증", filled: user.emailVerified },
+    { key: "selfIntroduction", label: "자기소개", filled: Boolean(candidate?.selfIntroduction?.trim()) },
+    { key: "career", label: "경력", filled: (candidate?.careers.length ?? 0) > 0 },
+    { key: "education", label: "학력", filled: (candidate?.educations.length ?? 0) > 0 },
+    { key: "languageSkill", label: "어학 능력", filled: (candidate?.languageSkills.length ?? 0) > 0 }
+  ];
+  const filledCount = items.filter((i) => i.filled).length;
+  const total = items.length;
+  return {
+    total,
+    filledCount,
+    percent: Math.round((filledCount / total) * 100),
+    items
+  };
+};
+
+app.get(
+  "/members/me/profile-completion",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    try {
+      const data = await profileCompletionEndpoint(req.auth!.userId);
+      if (!data) return res.status(404).json({ ok: false, message: "user not found" });
+      return res.json({ ok: true, ...data });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/ops/app-settings",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    try {
+      const items = await prisma.appSetting.findMany({ orderBy: { key: "asc" } });
+      return res.json({ ok: true, items });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.put(
+  "/ops/app-settings",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const parsed = appSettingUpsertSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const item = await prisma.appSetting.upsert({
+        where: { key: parsed.data.key },
+        update: { value: parsed.data.value, description: parsed.data.description ?? null },
+        create: { key: parsed.data.key, value: parsed.data.value, description: parsed.data.description ?? null }
+      });
+      return res.json({ ok: true, item });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.delete(
+  "/ops/app-settings/:id",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const id = typeof req.params.id === "string" ? req.params.id : "";
+    if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      await prisma.appSetting.delete({ where: { id } });
+      return res.json({ ok: true });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+        return res.status(404).json({ ok: false, message: "setting not found" });
+      }
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/search",
+  authenticate,
+  searchRateLimit,
+  async (req, res) => {
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    if (q.length < 2) {
+      return res.json({ ok: true, items: { positions: [], applicants: [], partners: [], issues: [] } });
+    }
+    try {
+      const role = req.auth!.role;
+      const userId = req.auth!.userId;
+
+      // Positions: students see OPEN positions; partners see their own; operators see all
+      let positionWhere: Prisma.PositionWhereInput = {
+        OR: [
+          { title: { contains: q, mode: Prisma.QueryMode.insensitive } },
+          { preferredJobRole: { contains: q, mode: Prisma.QueryMode.insensitive } }
+        ]
+      };
+      if (role === MemberRole.STUDENT) {
+        positionWhere = { AND: [positionWhere, { status: "OPEN" }] };
+      } else if (role === MemberRole.PARTNER) {
+        const affiliation = await resolvePartnerAffiliation(userId);
+        if (affiliation?.organization) {
+          positionWhere = { AND: [positionWhere, { partnerOrganizationId: affiliation.organization.id }] };
+        } else {
+          positionWhere = { AND: [positionWhere, { id: "__none__" }] };
+        }
+      }
+
+      const positions = await prisma.position.findMany({
+        where: positionWhere,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          partnerOrganization: { select: { id: true, name: true } }
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 6
+      });
+
+      let applicants: Array<{ id: string; applicationId: string; name: string | null; email: string; positionTitle: string }> = [];
+      let issues: Array<{ id: string; title: string; status: string }> = [];
+      let partners: Array<{ id: string; name: string }> = [];
+
+      if (role === MemberRole.OPERATOR || role === MemberRole.PARTNER) {
+        let appWhere: Prisma.ApplicationWhereInput = {
+          OR: [
+            { candidateUser: { name: { contains: q, mode: Prisma.QueryMode.insensitive } } },
+            { candidateUser: { email: { contains: q, mode: Prisma.QueryMode.insensitive } } }
+          ]
+        };
+        if (role === MemberRole.PARTNER) {
+          const affiliation = await resolvePartnerAffiliation(userId);
+          if (affiliation?.organization) {
+            appWhere = { AND: [appWhere, { position: { partnerOrganizationId: affiliation.organization.id } }] };
+          } else {
+            appWhere = { AND: [appWhere, { id: "__none__" }] };
+          }
+        }
+        const apps = await prisma.application.findMany({
+          where: appWhere,
+          orderBy: { submittedAt: "desc" },
+          take: 6,
+          include: {
+            candidateUser: { select: { id: true, name: true, email: true } },
+            position: { select: { title: true } }
+          }
+        });
+        applicants = apps.map((a) => ({
+          id: a.candidateUser.id,
+          applicationId: a.id,
+          name: a.candidateUser.name,
+          email: a.candidateUser.email,
+          positionTitle: a.position.title
+        }));
+      }
+
+      if (role === MemberRole.OPERATOR) {
+        const issueRows = await prisma.issueReport.findMany({
+          where: {
+            OR: [
+              { title: { contains: q, mode: Prisma.QueryMode.insensitive } },
+              { description: { contains: q, mode: Prisma.QueryMode.insensitive } }
+            ]
+          },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: { id: true, title: true, status: true }
+        });
+        issues = issueRows;
+
+        const partnerRows = await prisma.partnerOrganization.findMany({
+          where: { name: { contains: q, mode: Prisma.QueryMode.insensitive } },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: { id: true, name: true }
+        });
+        partners = partnerRows;
+      }
+
+      return res.json({
+        ok: true,
+        items: {
+          positions: positions.map((p) => ({
+            id: p.id,
+            title: p.title,
+            status: p.status,
+            partnerOrganizationName: p.partnerOrganization?.name ?? null
+          })),
+          applicants,
+          partners,
+          issues
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get(
+  "/members/me/notifications",
+  authenticate,
+  async (req, res) => {
+    try {
+      const limitNum = Number.parseInt(typeof req.query.limit === "string" ? req.query.limit : "", 10);
+      const take = Number.isFinite(limitNum) && limitNum > 0 && limitNum <= 100 ? limitNum : 30;
+      const unreadOnly = req.query.unread === "true";
+      const items = await prisma.notification.findMany({
+        where: {
+          userId: req.auth!.userId,
+          ...(unreadOnly ? { readAt: null } : {})
+        },
+        orderBy: { createdAt: "desc" },
+        take
+      });
+      const unreadCount = await prisma.notification.count({
+        where: { userId: req.auth!.userId, readAt: null }
+      });
+      return res.json({ ok: true, items, unreadCount });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/members/me/notifications/:id/read",
+  authenticate,
+  async (req, res) => {
+    const notificationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!notificationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const notification = await prisma.notification.findUnique({ where: { id: notificationId } });
+      if (!notification) return res.status(404).json({ ok: false, message: "not found" });
+      if (notification.userId !== req.auth!.userId) {
+        return res.status(403).json({ ok: false, message: "forbidden" });
+      }
+      const updated = await prisma.notification.update({
+        where: { id: notificationId },
+        data: { readAt: new Date() }
+      });
+      return res.json({ ok: true, item: updated });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.patch(
+  "/members/me/notifications/read-all",
+  authenticate,
+  async (req, res) => {
+    try {
+      const result = await prisma.notification.updateMany({
+        where: { userId: req.auth!.userId, readAt: null },
+        data: { readAt: new Date() }
+      });
+      return res.json({ ok: true, count: result.count });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid applicant id" });
+
+  try {
+    const result = await listPartnerApplicantsForUser(req.auth!.userId);
+    if (!result.affiliation?.organization) {
+      return sendAuthError(
+        res,
+        403,
+        "PARTNER_AFFILIATION_REQUIRED",
+        "partner affiliation is required. request organization assignment."
+      );
+    }
+
+    const found = result.items.find((item) => item.id === id);
+    if (!found) return res.status(404).json({ ok: false, message: "applicant not found" });
+
+    return res.json({
+      ok: true,
+      item: {
+        id: found.id,
+        name: found.name,
+        nationality: found.nationality,
+        email: found.email,
+        positionId: found.positionId,
+        positionTitle: found.positionTitle,
+        languages: found.languages,
+        school: found.school,
+        major: found.major,
+        residence: found.residence,
+        appliedAt: found.appliedAt,
+        recommendation: found.recommendation,
+        status: found.status,
+        summary: found.summary,
+        motivation: found.motivation,
+        portfolioUrl: found.portfolioUrl,
+        availableStartDate: found.availableStartDate,
+        memo: found.memo
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.patch("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid applicant id" });
+
+  const parsedBody = z
+    .object({
+      status: partnerApplicantStatusEnum.optional(),
+      memo: z.string().trim().max(2000).nullable().optional()
+    })
+    .safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsedBody.error.flatten() });
+  }
+
+  if (!parsePartnerApplicantCompositeId(id)) return res.status(400).json({ ok: false, message: "invalid applicant id" });
+
+  try {
+    const result = await listPartnerApplicantsForUser(req.auth!.userId);
+    if (!result.affiliation?.organization) {
+      return sendAuthError(
+        res,
+        403,
+        "PARTNER_AFFILIATION_REQUIRED",
+        "partner affiliation is required. request organization assignment."
+      );
+    }
+
+    const found = result.items.find((item) => item.id === id);
+    if (!found) return res.status(404).json({ ok: false, message: "applicant not found" });
+
+    const parsedId = parsePartnerApplicantCompositeId(id);
+    if (!parsedId) return res.status(400).json({ ok: false, message: "invalid applicant id" });
+
+    const existing = await prisma.partnerApplicantWorkflow.findUnique({
+      where: {
+        partnerUserId_candidateUserId_positionId: {
+          partnerUserId: req.auth!.userId,
+          candidateUserId: parsedId.candidateUserId,
+          positionId: parsedId.positionId
+        }
+      },
+      select: { status: true, memo: true }
+    });
+
+    const nextStatus = parsedBody.data.status ?? (existing?.status as PartnerApplicantWorkflowStatus | undefined) ?? found.status;
+    const nextMemo = parsedBody.data.memo !== undefined ? parsedBody.data.memo : existing?.memo ?? found.memo ?? null;
+
+    await prisma.partnerApplicantWorkflow.upsert({
+      where: {
+        partnerUserId_candidateUserId_positionId: {
+          partnerUserId: req.auth!.userId,
+          candidateUserId: parsedId.candidateUserId,
+          positionId: parsedId.positionId
+        }
+      },
+      create: {
+        partnerUserId: req.auth!.userId,
+        candidateUserId: parsedId.candidateUserId,
+        positionId: parsedId.positionId,
+        status: nextStatus,
+        memo: nextMemo
+      },
+      update: {
+        status: nextStatus,
+        memo: nextMemo
+      }
+    });
+
+    return res.json({
+      ok: true,
+      item: {
+        ...found,
+        status: nextStatus,
+        memo: nextMemo
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/ops/dashboard", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const [totalUsers, students, partners, operators, totalPartnerOrgs, verifiedPartnerOrgs, totalPositions, openPositions, recentSignups] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { role: MemberRole.STUDENT } }),
+      prisma.user.count({ where: { role: MemberRole.PARTNER } }),
+      prisma.user.count({ where: { role: MemberRole.OPERATOR } }),
+      prisma.partnerOrganization.count(),
+      prisma.partnerOrganization.count({ where: { verificationApproved: true } }),
+      prisma.position.count(),
+      prisma.position.count({ where: { status: "OPEN" } }),
+      prisma.user.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: { id: true, email: true, name: true, role: true, createdAt: true, authProvider: true }
+      })
+    ]);
+
+    return res.json({
+      ok: true,
+      stats: {
+        users: { total: totalUsers, students, partners, operators },
+        partnerOrgs: { total: totalPartnerOrgs, verified: verifiedPartnerOrgs },
+        positions: { total: totalPositions, open: openPositions }
+      },
+      recentSignups
+    });
+  } catch (error) {
+    console.error("[ops/dashboard] failed", error);
+    return res.status(500).json({ ok: false, message: "failed to load ops dashboard" });
+  }
 });
 
 app.get("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
@@ -6764,7 +14078,6 @@ app.get("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asyn
   const { search, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
   const orderByMap = {
     name: { name: sortOrder },
-    domain: { domain: sortOrder },
     createdAt: { createdAt: sortOrder }
   } as const;
   const orderBy = orderByMap[sortBy];
@@ -6772,10 +14085,7 @@ app.get("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asyn
   const where = {
     ...(search
       ? {
-          OR: [
-            { name: { contains: search, mode: Prisma.QueryMode.insensitive } },
-            { domain: { contains: search, mode: Prisma.QueryMode.insensitive } }
-          ]
+          OR: [{ name: { contains: search, mode: Prisma.QueryMode.insensitive } }]
         }
       : {})
   };
@@ -6795,9 +14105,7 @@ app.get("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asyn
       prisma.user.count({
         where: {
           role: MemberRole.PARTNER,
-          email: {
-            endsWith: `@${item.domain}`
-          }
+          partnerOrganizationId: item.id
         }
       })
     )
@@ -6829,13 +14137,13 @@ app.get("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR]), 
   const memberCount = await prisma.user.count({
     where: {
       role: MemberRole.PARTNER,
-      email: { endsWith: `@${item.domain}` }
+      partnerOrganizationId: item.id
     }
   });
 
   return res.json({
     ok: true,
-    item: toPartnerOrganization({ ...item, memberCount })
+    item: toPartnerOrganization({ ...item, memberCount }, { includeVerificationAssets: true })
   });
 });
 
@@ -6845,7 +14153,7 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
     return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
   }
 
-  const { search, domain, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
+  const { search, partnerOrganizationId, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
   const orderByMap = {
     email: { email: sortOrder },
     name: { name: sortOrder },
@@ -6853,32 +14161,15 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
   } as const;
   const orderBy = orderByMap[sortBy];
 
-  let matchingPartnerDomains: string[] = [];
-  if (search) {
-    const partnerMatches = await prisma.partnerOrganization.findMany({
-      where: {
-        OR: [
-          { name: { contains: search, mode: Prisma.QueryMode.insensitive } },
-          { domain: { contains: search, mode: Prisma.QueryMode.insensitive } }
-        ]
-      },
-      select: { domain: true }
-    });
-    matchingPartnerDomains = partnerMatches.map((item) => item.domain.toLowerCase());
-  }
-
   const where: Prisma.UserWhereInput = {
     role: MemberRole.PARTNER,
-    ...(domain ? {} : { partnerType: PartnerType.COMPANY }),
-    ...(domain ? { email: { endsWith: `@${domain}` } } : {}),
+    ...( { partnerType: PartnerType.COMPANY }),
+    ...(partnerOrganizationId ? { partnerOrganizationId } : {}),
     ...(search
       ? {
           OR: [
             { email: { contains: search, mode: Prisma.QueryMode.insensitive } },
-            { name: { contains: search, mode: Prisma.QueryMode.insensitive } },
-            ...matchingPartnerDomains.map((matchedDomain) => ({
-              email: { endsWith: `@${matchedDomain}` }
-            }))
+            { name: { contains: search, mode: Prisma.QueryMode.insensitive } }
           ]
         }
       : {})
@@ -6902,26 +14193,26 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
         role: true,
         partnerType: true,
         partnerOrgRole: true,
+        partnerOrganizationId: true,
         createdAt: true
       }
     })
   ]);
 
-  const domains = Array.from(
-    new Set(users.map((user) => extractDomainFromEmail(user.email)).filter((domain): domain is string => Boolean(domain)))
+  const partnerIds = Array.from(
+    new Set(users.map((user) => user.partnerOrganizationId).filter((id): id is string => Boolean(id)))
   );
-  const partners = domains.length
+  const partners = partnerIds.length
     ? await prisma.partnerOrganization.findMany({
-        where: { domain: { in: domains } }
+        where: { id: { in: partnerIds } }
       })
     : [];
-  const partnerByDomain = new Map(partners.map((item) => [item.domain.toLowerCase(), item]));
+  const partnerById = new Map(partners.map((item) => [item.id, item]));
 
   return res.json({
     ok: true,
     items: users.map((user) => {
-      const domain = extractDomainFromEmail(user.email);
-      const partner = domain ? partnerByDomain.get(domain) : null;
+      const partner = user.partnerOrganizationId ? partnerById.get(user.partnerOrganizationId) : null;
       return {
         id: user.id,
         email: user.email,
@@ -6934,13 +14225,11 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
         partnerType: user.partnerType,
         partnerOrgRole: user.partnerOrgRole,
         createdAt: user.createdAt,
-        domain,
         partnerName: partner?.name ?? "-"
         ,
         partner: partner
           ? {
               id: partner.id,
-              domain: partner.domain,
               name: partner.name,
               companySize: partner.companySize ?? null,
               partnerType: partner.partnerType,
@@ -6994,6 +14283,168 @@ app.patch("/ops/partner-users/:id/admin-memo", authenticate, requireRoles([Membe
   }
 });
 
+app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = listPartnerUsersQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+
+  const { search, partnerOrganizationId, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
+  const orderByMap = {
+    email: { email: sortOrder },
+    name: { name: sortOrder },
+    createdAt: { createdAt: sortOrder }
+  } as const;
+  const orderBy = orderByMap[sortBy];
+
+  const where: Prisma.UserWhereInput = {
+    ...(partnerOrganizationId ? { partnerOrganizationId } : {}),
+    ...(search
+      ? {
+          OR: [
+            { email: { contains: search, mode: Prisma.QueryMode.insensitive } },
+            { name: { contains: search, mode: Prisma.QueryMode.insensitive } }
+          ]
+        }
+      : {})
+  };
+
+  const [total, users] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        email: true,
+        emailVerified: true,
+        name: true,
+        phoneNumber: true,
+        jobTitle: true,
+        adminMemo: true,
+        role: true,
+        partnerType: true,
+        partnerOrgRole: true,
+        partnerOrganizationId: true,
+        createdAt: true
+      }
+    })
+  ]);
+
+  const partnerIds = Array.from(
+    new Set(users.map((user) => user.partnerOrganizationId).filter((id): id is string => Boolean(id)))
+  );
+  const partners = partnerIds.length
+    ? await prisma.partnerOrganization.findMany({
+        where: { id: { in: partnerIds } }
+      })
+    : [];
+  const partnerById = new Map(partners.map((item) => [item.id, item]));
+
+  return res.json({
+    ok: true,
+    items: users.map((user) => {
+      const partner = user.partnerOrganizationId ? partnerById.get(user.partnerOrganizationId) : null;
+      return {
+        id: user.id,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        name: user.name,
+        phoneNumber: user.phoneNumber,
+        jobTitle: user.jobTitle,
+        adminMemo: user.adminMemo,
+        role: user.role,
+        partnerType: user.partnerType,
+        partnerOrgRole: user.partnerOrgRole,
+        createdAt: user.createdAt,
+        partnerName: partner?.name ?? "-",
+        partner: partner
+          ? {
+              id: partner.id,
+              name: partner.name,
+              companySize: partner.companySize ?? null,
+              partnerType: partner.partnerType,
+              industry: partner.industry,
+              officeAddress: partner.officeAddress,
+              website: partner.website,
+              socialMedia: partner.socialMedia,
+              description: partner.description,
+              strengths: partner.strengths,
+              adminMemo: partner.adminMemo ?? null,
+              createdAt: partner.createdAt
+            }
+          : null
+      };
+    }),
+    page,
+    pageSize,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / pageSize))
+  });
+});
+
+app.patch("/ops/users/:id/admin-memo", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) {
+    return res.status(400).json({ ok: false, message: "invalid user id" });
+  }
+
+  const parsed = updatePartnerUserAdminMemoSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  try {
+    const updated = await prisma.user.update({
+      where: { id },
+      data: {
+        adminMemo: parsed.data.adminMemo?.trim() || null
+      },
+      select: {
+        id: true,
+        adminMemo: true
+      }
+    });
+    return res.json({ ok: true, item: updated });
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+      return res.status(404).json({ ok: false, message: "user not found" });
+    }
+    return res.status(500).json({ ok: false, message: "failed to update user admin memo" });
+  }
+});
+
+app.patch("/ops/partners/:id/verification-approval", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) {
+    return res.status(400).json({ ok: false, message: "invalid partner id" });
+  }
+
+  const parsed = updatePartnerVerificationApprovalSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  try {
+    const updated = await prisma.partnerOrganization.update({
+      where: { id },
+      data: {
+        verificationApproved: parsed.data.approved,
+        verificationApprovedAt: parsed.data.approved ? new Date() : null
+      }
+    });
+
+    return res.json({ ok: true, item: toPartnerOrganization(updated) });
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+      return res.status(404).json({ ok: false, message: "partner not found" });
+    }
+    return res.status(500).json({ ok: false, message: "failed to update partner verification approval" });
+  }
+});
+
 app.post("/ops/partners/:id/members", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   if (!id) {
@@ -7007,18 +14458,10 @@ app.post("/ops/partners/:id/members", authenticate, requireRoles([MemberRole.OPE
 
   const partner = await prisma.partnerOrganization.findUnique({
     where: { id },
-    select: { id: true, domain: true, partnerType: true, name: true }
+    select: { id: true, partnerType: true, name: true }
   });
   if (!partner) {
     return res.status(404).json({ ok: false, message: "partner not found" });
-  }
-
-  const domain = extractDomainFromEmail(parsed.data.email);
-  if (!domain || domain !== partner.domain.toLowerCase()) {
-    return res.status(400).json({
-      ok: false,
-      message: `email domain must match partner domain (${partner.domain})`
-    });
   }
 
   const plainPassword = parsed.data.password ?? createTemporaryPassword();
@@ -7036,6 +14479,7 @@ app.post("/ops/partners/:id/members", authenticate, requireRoles([MemberRole.OPE
         role: MemberRole.PARTNER,
         partnerType: partner.partnerType,
         partnerOrgRole: parsed.data.partnerOrgRole,
+        partnerOrganizationId: partner.id,
         emailVerified: false
       },
       select: {
@@ -7059,7 +14503,6 @@ app.post("/ops/partners/:id/members", authenticate, requireRoles([MemberRole.OPE
       ok: true,
       item: {
         ...created,
-        domain,
         partnerName: partner.name
       },
       verificationDelivery: delivery.delivery,
@@ -7074,6 +14517,48 @@ app.post("/ops/partners/:id/members", authenticate, requireRoles([MemberRole.OPE
   }
 });
 
+app.post("/ops/partners/:id/join-codes", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) {
+    return res.status(400).json({ ok: false, message: "invalid partner id" });
+  }
+
+  const parsed = createPartnerJoinCodeSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  const partner = await prisma.partnerOrganization.findUnique({
+    where: { id },
+    select: { id: true }
+  });
+  if (!partner) {
+    return res.status(404).json({ ok: false, message: "partner not found" });
+  }
+
+  const expiresInMinutes = parsed.data.expiresInMinutes ?? partnerJoinCodeTtlMinutesDefault;
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + expiresInMinutes * 60 * 1000);
+  const code = generatePartnerJoinCode();
+
+  await prisma.partnerOrganizationJoinCode.create({
+    data: {
+      partnerOrganizationId: partner.id,
+      createdByUserId: req.auth!.userId,
+      codeHash: hashToken(code),
+      expiresAt
+    }
+  });
+
+  return res.status(201).json({
+    ok: true,
+    item: {
+      code,
+      expiresAt
+    }
+  });
+});
+
 app.delete("/ops/partners/:id/members/:memberId", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const memberId = Array.isArray(req.params.memberId) ? req.params.memberId[0] : req.params.memberId;
@@ -7081,22 +14566,19 @@ app.delete("/ops/partners/:id/members/:memberId", authenticate, requireRoles([Me
     return res.status(400).json({ ok: false, message: "invalid request" });
   }
 
-  const partner = await prisma.partnerOrganization.findUnique({
-    where: { id },
-    select: { domain: true }
-  });
+  const partner = await prisma.partnerOrganization.findUnique({ where: { id }, select: { id: true } });
   if (!partner) {
     return res.status(404).json({ ok: false, message: "partner not found" });
   }
 
   const member = await prisma.user.findFirst({
-    where: {
-      id: memberId,
-      role: MemberRole.PARTNER,
-      email: { endsWith: `@${partner.domain}` }
-    },
-    select: { id: true }
-  });
+        where: {
+          id: memberId,
+          role: MemberRole.PARTNER,
+          partnerOrganizationId: id
+        },
+        select: { id: true }
+      });
   if (!member) {
     return res.status(404).json({ ok: false, message: "member not found in this partner" });
   }
@@ -7112,11 +14594,18 @@ app.post("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asy
   }
 
   try {
+    const companyLogoImageData = parsed.data.companyLogoImageData?.trim()
+      ? await uploadDataUrlImageIfNeeded(parsed.data.companyLogoImageData.trim(), "partner/company-logo")
+      : parsed.data.companyLogoImageData;
+    const officePhotoImageData = parsed.data.officePhotoImageData?.trim()
+      ? await uploadDataUrlImageIfNeeded(parsed.data.officePhotoImageData.trim(), "partner/office-photo")
+      : parsed.data.officePhotoImageData;
+
     const created = await prisma.partnerOrganization.create({
       data: {
         partnerType: parsed.data.partnerType,
-        domain: parsed.data.domain,
         name: parsed.data.name,
+        slug: await generateUniquePartnerOrganizationSlug(parsed.data.name, prisma),
         companySize: parsed.data.companySize,
         officeAddress: parsed.data.officeAddress,
         website: parsed.data.website,
@@ -7127,17 +14616,15 @@ app.post("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asy
         adminMemo: parsed.data.adminMemo,
         businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData,
         fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData,
-        companyLogoImageData: parsed.data.companyLogoImageData,
-        officePhotoImageData: parsed.data.officePhotoImageData
+        companyLogoImageData,
+        officePhotoImageData,
+        verificationApproved: false,
+        verificationApprovedAt: null
       }
     });
 
     return res.status(201).json({ ok: true, item: toPartnerOrganization(created) });
   } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002") {
-      return res.status(409).json({ ok: false, message: "domain already exists" });
-    }
-
     return res.status(500).json({ ok: false, message: "failed to create partner organization" });
   }
 });
@@ -7153,11 +14640,26 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
   }
 
   try {
+    const companyLogoImageData =
+      parsed.data.companyLogoImageData === undefined
+        ? undefined
+        : (parsed.data.companyLogoImageData?.trim()
+          ? await uploadDataUrlImageIfNeeded(parsed.data.companyLogoImageData.trim(), "partner/company-logo")
+          : null);
+    const officePhotoImageData =
+      parsed.data.officePhotoImageData === undefined
+        ? undefined
+        : (parsed.data.officePhotoImageData?.trim()
+          ? await uploadDataUrlImageIfNeeded(parsed.data.officePhotoImageData.trim(), "partner/office-photo")
+          : null);
+    const shouldResetVerificationApproval =
+      parsed.data.businessRegistrationDocumentData !== undefined
+      || parsed.data.fourInsuranceSubscriberListData !== undefined;
+
     const updated = await prisma.partnerOrganization.update({
       where: { id },
       data: {
         partnerType: parsed.data.partnerType,
-        domain: parsed.data.domain,
         name: parsed.data.name,
         companySize: parsed.data.companySize,
         officeAddress: parsed.data.officeAddress,
@@ -7169,16 +14671,14 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
         adminMemo: parsed.data.adminMemo,
         businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null,
         fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null,
-        companyLogoImageData: parsed.data.companyLogoImageData?.trim() || null,
-        officePhotoImageData: parsed.data.officePhotoImageData?.trim() || null
+        ...(companyLogoImageData !== undefined ? { companyLogoImageData } : {}),
+        ...(officePhotoImageData !== undefined ? { officePhotoImageData } : {}),
+        ...(shouldResetVerificationApproval ? { verificationApproved: false, verificationApprovedAt: null } : {})
       }
     });
 
     return res.json({ ok: true, item: toPartnerOrganization(updated) });
   } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002") {
-      return res.status(409).json({ ok: false, message: "domain already exists" });
-    }
     if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
       return res.status(404).json({ ok: false, message: "partner not found" });
     }
@@ -7190,6 +14690,16 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
 if (process.env.VERCEL !== "1") {
   app.listen(port, () => {
     console.log(`API server listening on http://localhost:${port}`);
+    console.info("[runtime-config]", {
+      dbTarget: getDatabaseTargetMeta(),
+      crawlerScheduler: {
+        enabled: crawlSchedulerEnabled,
+        hourKst: crawlSchedulerHourKst,
+        minuteKst: crawlSchedulerMinuteKst,
+        runOnBoot: crawlSchedulerRunOnBoot
+      }
+    });
+    startCrawlerScheduler();
   });
 }
 

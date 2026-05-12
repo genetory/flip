@@ -6,10 +6,18 @@ import { useEffect, useRef, useState } from "react";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
-import { applyMyPosition, getMyAppliedPositions, getPublicPositions, type PublicPositionListItem } from "../../lib/member-profile-client";
+import {
+  applyMyPosition,
+  getMyAppliedPositions,
+  getMyPartnerOrganization,
+  getPublicPositions,
+  type PublicPositionListItem
+} from "../../lib/member-profile-client";
+import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { ArrowLeft, Briefcase, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
+import type { PlatformLocale } from "../../lib/auth-messages";
 
 function inferWorkType(value?: string | null): "On-site" | "Hybrid" | "Remote" {
   const text = (value ?? "").toLowerCase();
@@ -18,41 +26,45 @@ function inferWorkType(value?: string | null): "On-site" | "Hybrid" | "Remote" {
   return "On-site";
 }
 
-function workTypeLabel(value: string, locale: "ko" | "en") {
+function workTypeLabel(value: string, locale: PlatformLocale) {
   const normalized = value.toLowerCase().replace(/[\s_-]/g, "");
-  if (normalized === "remote") return locale === "ko" ? "원격근무" : "Remote";
-  if (normalized === "hybrid") return locale === "ko" ? "혼합근무" : "Hybrid";
-  if (normalized === "onsite") return locale === "ko" ? "대면근무" : "On-site";
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  if (normalized === "remote") return pick("원격근무", "Remote", "远程办公", "Làm việc từ xa", "在宅勤務", "Kerja jarak jauh");
+  if (normalized === "hybrid") return pick("혼합근무", "Hybrid", "混合办公", "Làm việc kết hợp", "ハイブリッド勤務", "Kerja hibrida");
+  if (normalized === "onsite") return pick("대면근무", "On-site", "现场办公", "Làm việc tại văn phòng", "出社勤務", "Kerja di kantor");
   return value;
 }
 
-function companyHref(domain?: string | null) {
-  if (!domain?.trim()) return null;
-  return `/companies/${encodeURIComponent(domain.trim())}`;
+function companyHref(partnerOrganizationId?: string | null) {
+  if (!partnerOrganizationId?.trim()) return null;
+  return `/companies/${encodeURIComponent(partnerOrganizationId.trim())}`;
 }
 
-function extractDomainFromEmail(email?: string | null) {
-  if (!email) return null;
-  const at = email.lastIndexOf("@");
-  if (at < 0 || at === email.length - 1) return null;
-  return email.slice(at + 1).toLowerCase();
-}
-
-function formatPostedDate(value: string, locale: "ko" | "en") {
+function formatPostedDate(value: string, locale: PlatformLocale) {
   const created = new Date(value);
   if (Number.isNaN(created.getTime())) return "-";
   const now = Date.now();
   const diffMs = Math.max(0, now - created.getTime());
   const minutes = Math.floor(diffMs / (60 * 1000));
-  if (minutes < 60) return locale === "ko" ? `${Math.max(1, minutes)}분 전` : `${Math.max(1, minutes)}m ago`;
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  if (minutes < 60) {
+    const n = Math.max(1, minutes);
+    return pick(`${n}분 전`, `${n}m ago`, `${n} 分钟前`, `${n} phút trước`, `${n}分前`, `${n} menit lalu`);
+  }
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return locale === "ko" ? `${hours}시간 전` : `${hours}h ago`;
+  if (hours < 24) return pick(`${hours}시간 전`, `${hours}h ago`, `${hours} 小时前`, `${hours} giờ trước`, `${hours}時間前`, `${hours} jam lalu`);
   const days = Math.floor(hours / 24);
-  if (days < 7) return locale === "ko" ? `${days}일 전` : `${days}d ago`;
+  if (days < 7) return pick(`${days}일 전`, `${days}d ago`, `${days} 天前`, `${days} ngày trước`, `${days}日前`, `${days} hari lalu`);
   const y = created.getFullYear();
   const m = String(created.getMonth() + 1).padStart(2, "0");
   const d = String(created.getDate()).padStart(2, "0");
   return `${y}. ${m}. ${d}`;
+}
+
+function getPositionStatusBadge(status: PublicPositionListItem["status"], locale: PlatformLocale) {
+  return getPublicPositionStatusBadge(status, locale);
 }
 
 function textOrFallback(value: string | null | undefined, fallback: string) {
@@ -85,45 +97,51 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
   const router = useRouter();
   const { locale } = useLanguage();
   const isKo = locale === "ko";
+  const isZh = locale === "zh-CN";
+  const isVi = locale === "vi";
+  const isJa = locale === "ja";
+  const isId = locale === "id";
+  const t = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    isKo ? ko : isZh ? zh : isVi ? vi : isJa ? ja : isId ? id : en;
   const copy = {
-    partnerCompany: isKo ? "파트너 기업" : "Partner company",
-    roleTbd: isKo ? "직무 미정" : "Role TBD",
-    tbdLocation: isKo ? "협의" : "To be discussed",
-    immediate: isKo ? "즉시" : "Immediate",
-    noRestriction: isKo ? "무관" : "No restriction",
-    noNationalityRestriction: isKo ? "국적 무관" : "No nationality restriction",
-    noLanguageRequirement: isKo ? "언어 조건 없음" : "No language requirement",
-    noDetails: isKo ? "상세 조건 확인" : "See details",
-    infoUnavailable: isKo ? "정보 없음" : "No information",
-    loginRequired: isKo ? "로그인한 회원만 지원할 수 있습니다." : "Only signed-in users can apply.",
-    studentRequired: isKo ? "학생 계정만 지원할 수 있습니다." : "Only student accounts can apply.",
-    appliedAdded: isKo ? "지원한 포지션에 추가되었습니다." : "Added to applied positions.",
-    applyFailed: isKo ? "지원 처리에 실패했습니다." : "Failed to apply.",
-    back: isKo ? "뒤로" : "Back",
-    previewAll: isKo ? "썸네일 전체보기" : "Open full image",
-    close: isKo ? "닫기" : "Close",
-    prevThumbnail: isKo ? "이전 썸네일" : "Previous image",
-    nextThumbnail: isKo ? "다음 썸네일" : "Next image",
-    coreInfo: isKo ? "핵심 정보" : "Core information",
-    workType: isKo ? "근무 형태" : "Work type",
-    startDate: isKo ? "공고 시작일" : "Start date",
-    workLocation: isKo ? "근무 지역" : "Work location",
-    postedAt: isKo ? "등록일" : "Posted",
-    requirements: isKo ? "지원 조건" : "Requirements",
-    visas: isKo ? "지원 가능 비자" : "Eligible visas",
-    languages: isKo ? "소통 언어" : "Languages",
-    nationalities: isKo ? "선호 국적" : "Preferred nationalities",
-    keywords: isKo ? "주요 키워드" : "Keywords",
-    details: isKo ? "상세 안내" : "Details",
-    responsibilities: isKo ? "주요 업무" : "Main responsibilities",
-    requiredQualifications: isKo ? "필수 자격" : "Required qualifications",
-    preferredQualifications: isKo ? "우대 사항" : "Preferred qualifications",
-    hiringProcess: isKo ? "채용 프로세스" : "Hiring process",
-    notes: isKo ? "추가 메모" : "Additional notes",
-    edit: isKo ? "수정하기" : "Edit",
-    apply: isKo ? "지원하기" : "Apply",
-    applied: isKo ? "지원완료" : "Applied",
-    recommendationTitle: isKo ? "혹시 이런 포지션은 어떠세요?" : "You might also like"
+    partnerCompany: t("파트너 기업", "Partner company", "合作企业", "Doanh nghiệp đối tác", "パートナー企業", "Perusahaan mitra"),
+    roleTbd: t("직무 미정", "Role TBD", "岗位待定", "Vị trí chưa xác định", "職務未定", "Posisi belum ditentukan"),
+    tbdLocation: t("협의", "To be discussed", "可协商", "Thỏa thuận", "応相談", "Dapat dirundingkan"),
+    immediate: t("즉시", "Immediate", "立即", "Ngay", "即時", "Segera"),
+    noRestriction: t("무관", "No restriction", "不限", "Không giới hạn", "制限なし", "Tidak ada batasan"),
+    noNationalityRestriction: t("국적 무관", "No nationality restriction", "国籍不限", "Không giới hạn quốc tịch", "国籍不問", "Tidak ada batasan kewarganegaraan"),
+    noLanguageRequirement: t("언어 조건 없음", "No language requirement", "无语言要求", "Không yêu cầu ngôn ngữ", "言語要件なし", "Tidak ada syarat bahasa"),
+    noDetails: t("상세 조건 확인", "See details", "查看详情", "Xem chi tiết", "詳細を確認", "Lihat detail"),
+    infoUnavailable: t("정보 없음", "No information", "无信息", "Không có thông tin", "情報なし", "Tidak ada informasi"),
+    loginRequired: t("로그인한 회원만 지원할 수 있습니다.", "Only signed-in users can apply.", "仅登录用户可申请。", "Chỉ người dùng đã đăng nhập mới có thể ứng tuyển.", "ログインしている会員のみ応募できます。", "Hanya pengguna yang masuk yang dapat melamar."),
+    studentRequired: t("파트너 회원, 어드민은 지원하기에 지원할 수 없습니다.", "Partner and admin accounts cannot apply.", "合作伙伴和管理员账号不可申请。", "Tài khoản đối tác và quản trị không thể ứng tuyển.", "パートナー会員および管理者アカウントは応募できません。", "Akun mitra dan admin tidak dapat melamar."),
+    appliedAdded: t("지원한 포지션에 추가되었습니다.", "Added to applied positions.", "已添加到已申请职位。", "Đã thêm vào danh sách đã ứng tuyển.", "応募済みポジションに追加されました。", "Ditambahkan ke daftar lamaran."),
+    applyFailed: t("지원 처리에 실패했습니다.", "Failed to apply.", "申请失败。", "Ứng tuyển thất bại.", "応募処理に失敗しました。", "Gagal melamar."),
+    back: t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali"),
+    previewAll: t("썸네일 전체보기", "Open full image", "查看大图", "Xem ảnh đầy đủ", "サムネイル全体表示", "Lihat gambar penuh"),
+    close: t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup"),
+    prevThumbnail: t("이전 썸네일", "Previous image", "上一张", "Ảnh trước", "前のサムネイル", "Gambar sebelumnya"),
+    nextThumbnail: t("다음 썸네일", "Next image", "下一张", "Ảnh tiếp theo", "次のサムネイル", "Gambar berikutnya"),
+    coreInfo: t("핵심 정보", "Core information", "核心信息", "Thông tin chính", "主要情報", "Informasi utama"),
+    workType: t("근무 형태", "Work type", "工作方式", "Hình thức làm việc", "勤務形態", "Tipe pekerjaan"),
+    startDate: t("공고 시작일", "Start date", "开始日期", "Ngày bắt đầu", "開始日", "Tanggal mulai"),
+    workLocation: t("근무 지역", "Work location", "工作地点", "Địa điểm làm việc", "勤務地", "Lokasi kerja"),
+    postedAt: t("등록일", "Posted", "发布时间", "Ngày đăng", "登録日", "Tanggal diunggah"),
+    requirements: t("지원 조건", "Requirements", "申请条件", "Yêu cầu", "応募条件", "Persyaratan"),
+    visas: t("지원 가능 비자", "Eligible visas", "可申请签证", "Visa đủ điều kiện", "応募可能ビザ", "Visa yang memenuhi syarat"),
+    languages: t("소통 언어", "Languages", "沟通语言", "Ngôn ngữ", "コミュニケーション言語", "Bahasa"),
+    nationalities: t("선호 국적", "Preferred nationalities", "偏好国籍", "Quốc tịch ưu tiên", "希望国籍", "Kewarganegaraan yang diutamakan"),
+    keywords: t("주요 키워드", "Keywords", "关键词", "Từ khóa", "主要キーワード", "Kata kunci"),
+    details: t("상세 안내", "Details", "详细说明", "Chi tiết", "詳細", "Detail"),
+    responsibilities: t("주요 업무", "Main responsibilities", "主要职责", "Nhiệm vụ chính", "主な業務", "Tanggung jawab utama"),
+    requiredQualifications: t("필수 자격", "Required qualifications", "必备资格", "Yêu cầu bắt buộc", "必須資格", "Kualifikasi wajib"),
+    preferredQualifications: t("우대 사항", "Preferred qualifications", "优先条件", "Ưu tiên", "優遇事項", "Kualifikasi yang diutamakan"),
+    hiringProcess: t("채용 프로세스", "Hiring process", "招聘流程", "Quy trình tuyển dụng", "採用プロセス", "Proses perekrutan"),
+    notes: t("추가 메모", "Additional notes", "附加备注", "Ghi chú thêm", "追加メモ", "Catatan tambahan"),
+    edit: t("수정하기", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit"),
+    apply: t("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar"),
+    applied: t("지원완료", "Applied", "已申请", "Đã ứng tuyển", "応募済み", "Sudah dilamar"),
+    recommendationTitle: t("혹시 이런 포지션은 어떠세요?", "You might also like", "你可能也喜欢这些职位", "Bạn cũng có thể thích các vị trí này", "こんなポジションはいかがですか？", "Anda mungkin juga menyukai posisi ini")
   };
 
   const { user, isAuthenticated } = useAuthSession();
@@ -132,24 +150,23 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
   const [selectedThumbnailIndex, setSelectedThumbnailIndex] = useState(0);
   const [isThumbnailPreviewOpen, setIsThumbnailPreviewOpen] = useState(false);
   const [appliedPositionIds, setAppliedPositionIds] = useState<string[]>([]);
+  const [myPartnerOrganizationId, setMyPartnerOrganizationId] = useState<string | null>(null);
   const inlineGalleryRef = useRef<HTMLDivElement | null>(null);
-  const company = position.partnerOrganization?.name?.trim() || position.partnerOrganization?.domain || copy.partnerCompany;
+  const company = position.partnerOrganization?.name?.trim() || copy.partnerCompany;
   const initial = company[0]?.toUpperCase() ?? "P";
   const category = position.preferredJobRole?.trim() || copy.roleTbd;
   const location = position.workLocation?.trim() || position.partnerOrganization?.officeAddress?.trim() || copy.tbdLocation;
   const workType = position.workType ?? inferWorkType(position.workingHours);
-  const companyPageHref = companyHref(position.partnerOrganization?.domain);
+  const companyPageHref = companyHref(position.partnerOrganization?.id);
   const startRaw = position.startDate ? new Date(position.startDate) : null;
-  const startLabel = startRaw && !Number.isNaN(startRaw.getTime()) ? startRaw.toLocaleDateString(locale === "ko" ? "ko-KR" : "en-US") : copy.immediate;
+  const startLabel = startRaw && !Number.isNaN(startRaw.getTime()) ? startRaw.toLocaleDateString(locale === "en" ? "en-US" : "ko-KR") : copy.immediate;
   const postedLabel = formatPostedDate(position.createdAt, locale);
   const thumbnailImages = safeStringArray(position.thumbnailImages);
   const eligibleVisas = safeStringArray(position.eligibleVisas);
   const preferredNationalitiesRaw = safeStringArray(position.preferredNationalities);
   const communicationLanguagesRaw = safeStringArray(position.communicationLanguages);
-  const isOwnPartnerPosting =
-    user?.role === "PARTNER"
-    && Boolean(position.partnerOrganization?.domain)
-    && extractDomainFromEmail(user.email) === position.partnerOrganization?.domain?.toLowerCase();
+  const isOwnPartnerPosting = !!myPartnerOrganizationId && position.partnerOrganization?.id === myPartnerOrganizationId;
+  const statusBadge = getPositionStatusBadge(position.status, locale);
   const tagItems = [
     ...(position.preferredJobRole ? [position.preferredJobRole] : []),
     ...communicationLanguagesRaw.slice(0, 3),
@@ -183,6 +200,26 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
       ignore = true;
     };
   }, [isAuthenticated, user?.id, user?.role]);
+
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== "PARTNER") {
+      setMyPartnerOrganizationId(null);
+      return;
+    }
+    let ignore = false;
+    void (async () => {
+      try {
+        const org = await getMyPartnerOrganization();
+        if (ignore) return;
+        setMyPartnerOrganizationId(org?.id ?? null);
+      } catch {
+        if (!ignore) setMyPartnerOrganizationId(null);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [isAuthenticated, user?.role]);
 
   useEffect(() => {
     let ignore = false;
@@ -274,6 +311,9 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
             {thumbnailImages.length > 0 ? (
               <div className="mb-5">
                 <div className="relative">
+                  <span className={`absolute left-2 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge.className}`}>
+                    {statusBadge.label}
+                  </span>
                   {thumbnailImages.length === 1 ? (
                     <button
                       type="button"
@@ -378,8 +418,13 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
                 </div>
               </div>
             ) : (
-              <div className="mb-5 grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-5xl font-bold text-muted-foreground">
-                {initial}
+              <div className="relative mb-5">
+                <span className={`absolute left-2 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge.className}`}>
+                  {statusBadge.label}
+                </span>
+                <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-5xl font-bold text-muted-foreground">
+                  {initial}
+                </div>
               </div>
             )}
 
@@ -524,7 +569,7 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
           {isRecommendationsLoading ? (
             <section className="mt-10" aria-hidden>
               <div className="mb-4 h-7 w-56 animate-pulse rounded bg-muted" />
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 3 }, (_, index) => (
                   <article key={`recommended-skeleton-${index}`} className="rounded-xl border border-border bg-card p-4 shadow-card">
                     <div className="aspect-[16/9] w-full animate-pulse rounded-xl bg-muted" />
@@ -543,18 +588,15 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
               <div className="mb-4">
                 <h2 className="text-lg font-semibold">{copy.recommendationTitle}</h2>
               </div>
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {recommendedPositions.map((item) => {
-                  const itemCompany = item.partnerOrganization?.name?.trim() || item.partnerOrganization?.domain || copy.partnerCompany;
-                  const itemCompanyHref = companyHref(item.partnerOrganization?.domain);
+                  const itemCompany = item.partnerOrganization?.name?.trim() || copy.partnerCompany;
+                  const itemCompanyHref = companyHref(item.partnerOrganization?.id);
                   const itemWorkType = item.workType ?? inferWorkType(item.workingHours);
                   const itemLocation = item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || copy.tbdLocation;
                   const itemJobRole = item.preferredJobRole?.trim() || copy.roleTbd;
                   const itemThumbnailImages = safeStringArray(item.thumbnailImages);
-                  const itemIsOwnPartnerPosting =
-                    user?.role === "PARTNER"
-                    && Boolean(item.partnerOrganization?.domain)
-                    && extractDomainFromEmail(user.email) === item.partnerOrganization?.domain?.toLowerCase();
+                  const itemIsOwnPartnerPosting = !!myPartnerOrganizationId && item.partnerOrganization?.id === myPartnerOrganizationId;
                   const itemIsApplied = user?.role === "STUDENT" && appliedPositionIds.includes(item.id);
                   return (
                     <article key={item.id} className="group relative flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-elevated">
@@ -566,7 +608,7 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
                       {itemThumbnailImages[0] ? (
                         <img
                           src={itemThumbnailImages[0]}
-                          alt={`${itemCompany} ${isKo ? "썸네일" : "thumbnail"}`}
+                          alt={`${itemCompany} ${t("썸네일", "thumbnail", "缩略图", "ảnh thu nhỏ", "サムネイル", "thumbnail")}`}
                           className="block aspect-[16/9] w-full rounded-xl object-cover"
                         />
                       ) : (
@@ -588,7 +630,10 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
                       </div>
                       <h3 className="mt-1 truncate font-display text-base font-bold leading-tight">{item.title}</h3>
                       <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-xs text-muted-foreground">
-                        <span className="inline-flex min-w-0 max-w-[58%] items-center gap-1 truncate"><MapPin className="h-3 w-3 shrink-0" />{itemLocation}</span>
+                        <span className="inline-flex min-w-0 max-w-[58%] items-center gap-1">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{itemLocation}</span>
+                        </span>
                         <span className="inline-flex min-w-0 items-center gap-1 truncate"><Briefcase className="h-3 w-3 shrink-0" />{workTypeLabel(itemWorkType, locale)}</span>
                       </div>
                       <div className="relative z-20 mt-auto flex items-center gap-2 pt-3">

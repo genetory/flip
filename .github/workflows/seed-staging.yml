@@ -38,6 +38,33 @@ jobs:
       - name: Install deps
         run: npm ci --no-audit --no-fund
 
+      - name: Run migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npm run db:migrate:deploy -w apps/api
+
+      - name: Import job postings
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          JOB_POSTINGS_TOKEN: ${{ secrets.JOB_POSTINGS_TOKEN }}
+          COMPANY_USERS_TOKEN: ${{ secrets.COMPANY_USERS_TOKEN }}
+        run: npx tsx apps/api/scripts/import-job-postings.ts
+
+      - name: Import buddies postings
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          JOB_POSTINGS_TOKEN: ${{ secrets.JOB_POSTINGS_TOKEN }}
+          COMPANY_USERS_TOKEN: ${{ secrets.COMPANY_USERS_TOKEN }}
+        run: npx tsx apps/api/scripts/import-buddies-job-postings.ts
+
+      - name: Import kowork postings
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npx tsx apps/api/scripts/import-kowork-job-postings.ts
+
       - name: Run user seed
         if: ${{ github.event.inputs.target == 'user' || github.event.inputs.target == 'both' }}
         env:

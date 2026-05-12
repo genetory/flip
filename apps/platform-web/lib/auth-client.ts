@@ -1,4 +1,11 @@
 import { resolveAuthErrorMessage } from "./auth-messages";
+import {
+  trackAccountDeleted,
+  trackEmailVerified,
+  trackLogin,
+  trackSignUp,
+  type SignupMethod
+} from "./analytics";
 
 export const PLATFORM_ACCESS_TOKEN_KEY = "platform_access_token";
 
@@ -11,7 +18,10 @@ type AuthUser = {
   birthDate?: string | null;
   gender?: string | null;
   role: "STUDENT" | "PARTNER" | "OPERATOR";
+  authProvider?: "EMAIL" | "NAVER" | "KAKAO" | "GOOGLE";
+  profileImageUrl?: string | null;
   partnerType?: "UNIVERSITY" | "COMPANY" | "AGENCY" | null;
+  partnerOrgRole?: "OWNER" | "ADMIN" | "MEMBER" | null;
 };
 
 type AuthSuccessPayload = {
@@ -118,7 +128,26 @@ export async function loginWithEmail(input: { email: string; password: string })
     body: JSON.stringify(input)
   });
 
-  return parseAuthResponse(response);
+  const result = await parseAuthResponse(response);
+  trackLogin("email");
+  return result;
+}
+
+export type SocialProvider = "naver" | "google" | "kakao";
+
+export async function finalizeSocialSignup(input: { provider: SocialProvider; ctx: string; accountType: AccountType }) {
+  const response = await authFetch(`${getApiBaseUrl()}/auth/${input.provider}/finalize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ ctx: input.ctx, accountType: input.accountType })
+  });
+
+  const result = await parseAuthResponse(response);
+  // Provider signup completion = both an account creation event and the first login.
+  trackSignUp(input.provider as SignupMethod);
+  trackLogin(input.provider as SignupMethod);
+  return result;
 }
 
 export async function signupWithEmail(input: {
@@ -157,6 +186,7 @@ export async function signupWithEmail(input: {
       storeAccessToken(accessToken);
     }
   }
+  trackSignUp("email");
   return payload;
 }
 
@@ -206,6 +236,35 @@ export async function verifyBusinessEmailCode(input: { email: string; code: stri
   }
 
   return payload;
+}
+
+export async function createPartnerSignupRequest(input: {
+  companyName: string;
+  companyIndustry: string;
+  companySize: string;
+  requesterName: string;
+  requesterEmail: string;
+  requesterPhone?: string;
+}) {
+  const response = await authFetch(`${getApiBaseUrl()}/partner-signup-requests`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input)
+  });
+
+  const payload = (await response.json()) as
+    | { ok: true; item: { id: string; status: string; createdAt: string } }
+    | AuthErrorPayload;
+
+  if (!response.ok || payload.ok !== true) {
+    const fallback = "message" in payload && typeof payload.message === "string" ? payload.message : undefined;
+    const code = "code" in payload && typeof payload.code === "string" ? payload.code : undefined;
+    const message = resolveAuthErrorMessage(code, fallback);
+    throw new AuthApiError(message, code);
+  }
+
+  return payload.item;
 }
 
 export async function refreshPlatformSession() {
@@ -270,7 +329,9 @@ export async function verifyEmailToken(token: string) {
     body: JSON.stringify({ token })
   });
 
-  return parseAuthResponse(response);
+  const result = await parseAuthResponse(response);
+  trackEmailVerified();
+  return result;
 }
 
 export async function resendVerificationEmail(email: string, locale: EmailLocale = "ko") {
@@ -308,6 +369,76 @@ export async function logoutPlatformSession() {
   }
 }
 
-export function getPostLoginUrl(_role: AuthUser["role"]) {
+export function getPostLoginUrl(role: AuthUser["role"]) {
+  if (role === "PARTNER") return "/profile";
   return "/positions";
+}
+
+export async function reauthWithPassword(password: string) {
+  const token = readAccessToken();
+  if (!token) throw new AuthApiError("로그인이 필요합니다.");
+  const response = await authFetch(`${getApiBaseUrl()}/auth/reauth/password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    credentials: "include",
+    body: JSON.stringify({ password, purpose: "delete_account" })
+  });
+  const payload = (await response.json()) as
+    | { ok: true; reauthToken: string; expiresInMs: number }
+    | AuthErrorPayload;
+  if (!response.ok || payload.ok !== true) {
+    const fallback = "message" in payload && typeof payload.message === "string" ? payload.message : undefined;
+    const code = "code" in payload && typeof payload.code === "string" ? payload.code : undefined;
+    throw new AuthApiError(resolveAuthErrorMessage(code, fallback), code);
+  }
+  return payload;
+}
+
+export async function startOAuthReauth(provider: SocialProvider) {
+  const token = readAccessToken();
+  if (!token) throw new AuthApiError("로그인이 필요합니다.");
+  const response = await authFetch(`${getApiBaseUrl()}/auth/${provider}/reauth/start`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include"
+  });
+  const payload = (await response.json()) as
+    | { ok: true; authorizeUrl: string }
+    | AuthErrorPayload;
+  if (!response.ok || payload.ok !== true) {
+    const fallback = "message" in payload && typeof payload.message === "string" ? payload.message : undefined;
+    const code = "code" in payload && typeof payload.code === "string" ? payload.code : undefined;
+    throw new AuthApiError(resolveAuthErrorMessage(code, fallback), code);
+  }
+  return payload.authorizeUrl;
+}
+
+export async function deleteMyAccount(reauthToken: string) {
+  const token = readAccessToken();
+  if (!token) throw new AuthApiError("로그인이 필요합니다.");
+  const response = await authFetch(`${getApiBaseUrl()}/members/me/account`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-Reauth-Token": reauthToken
+    },
+    credentials: "include"
+  });
+  if (!response.ok) {
+    let code: string | undefined;
+    let message: string | undefined;
+    try {
+      const body = (await response.json()) as AuthErrorPayload;
+      code = typeof body.code === "string" ? body.code : undefined;
+      message = typeof body.message === "string" ? body.message : undefined;
+    } catch {
+      // ignore
+    }
+    throw new AuthApiError(resolveAuthErrorMessage(code, message), code);
+  }
+  trackAccountDeleted();
+  clearAccessToken();
 }

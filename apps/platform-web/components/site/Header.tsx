@@ -4,12 +4,22 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
-import { GlobeHemisphereWest } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown } from "@phosphor-icons/react/dist/ssr";
 import { useEffect, useState } from "react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { Button } from "../ui/button";
 import { useAuthSession } from "../auth/AuthSessionProvider";
-import { getHeaderMessages, type PlatformLocale } from "../../lib/auth-messages";
+import { getHeaderMessages, PLATFORM_LOCALES, type PlatformLocale } from "../../lib/auth-messages";
+import { getStoredProfilePhoto } from "../../lib/profile-media";
+import { NotificationBell } from "../notifications/NotificationBell";
+import { AnnouncementBanner } from "../announcements/AnnouncementBanner";
+
+const HEADER_SQUIRCLE_CLIP_ID = "header-avatar-squircle-clip";
+const HEADER_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
+const HEADER_SQUIRCLE_STYLE = {
+  clipPath: `url(#${HEADER_SQUIRCLE_CLIP_ID})`,
+  WebkitClipPath: `url(#${HEADER_SQUIRCLE_CLIP_ID})`
+} as const;
 
 export const Header = () => {
   const router = useRouter();
@@ -17,18 +27,38 @@ export const Header = () => {
   const [open, setOpen] = useState(false);
   const [activeHash, setActiveHash] = useState("");
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const { locale, setLocale } = useLanguage();
-  const { user, isReady, isAuthenticated, logout, getAccountUrl } = useAuthSession();
+  const { user, isReady, isAuthenticated, getAccountUrl } = useAuthSession();
+  const avatarFallback = user?.name?.trim()?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "U";
+
+  useEffect(() => {
+    if (!user) {
+      setProfileImage(null);
+      return;
+    }
+    setProfileImage(user.profileImageUrl ?? getStoredProfilePhoto(user.id));
+  }, [user]);
   const copy = getHeaderMessages(locale);
   const roleBadgeLabel =
     user?.role === "PARTNER" ? copy.auth.rolePartner : user?.role === "OPERATOR" ? copy.auth.roleOperator : null;
-  const homeLabel = locale === "ko" ? "홈" : "Home";
+  const loginButtonLabel = locale === "ko" ? "로그인하기" : locale === "zh-CN" ? "去登录" : locale === "vi" ? "Đăng nhập" : locale === "ja" ? "ログイン" : locale === "id" ? "Masuk" : "Sign in";
+  const homeLabel = locale === "ko" ? "홈" : locale === "zh-CN" ? "首页" : locale === "vi" ? "Trang chủ" : locale === "ja" ? "ホーム" : locale === "id" ? "Beranda" : "Home";
+  const partnerDashLabel = locale === "ko" ? "파트너 대시보드" : locale === "zh-CN" ? "合作伙伴控制台" : locale === "vi" ? "Bảng điều khiển đối tác" : locale === "ja" ? "パートナーダッシュボード" : locale === "id" ? "Dasbor Mitra" : "Partner dashboard";
+  const opsDashLabel = locale === "ko" ? "운영 콘솔" : locale === "zh-CN" ? "运营控制台" : locale === "vi" ? "Bảng điều khiển vận hành" : locale === "ja" ? "運営コンソール" : locale === "id" ? "Konsol Operasional" : "Ops console";
   const navItems = [
     { label: homeLabel, href: "/" },
     { label: copy.nav.positions, href: "/positions" },
-    { label: copy.nav.matching, href: "/matching-probability" },
-    { label: copy.nav.pricing, href: "/pricing" }
+    ...(user?.role === "STUDENT" || !isAuthenticated ? [{ label: copy.nav.matching, href: "/matching-probability" }] : []),
+    { label: copy.nav.community, href: "/community" },
+    { label: copy.nav.pricing, href: "/pricing" },
+    { label: copy.nav.resources, href: "/resources" },
+    // Partner dashboard 메뉴는 완성도가 올라갈 때까지 임시로 숨김
+    // ...(user?.role === "PARTNER" ? [{ label: partnerDashLabel, href: "/dashboard/partner" }] : []),
+    ...(user?.role === "OPERATOR" ? [{ label: opsDashLabel, href: "/dashboard/ops" }] : [])
   ];
+  void partnerDashLabel;
 
   useEffect(() => {
     const syncHash = () => {
@@ -42,6 +72,7 @@ export const Header = () => {
   }, [pathname]);
 
   useEffect(() => {
+    setIsHydrated(true);
     const onScroll = () => {
       setIsScrolled(window.scrollY > 18);
     };
@@ -65,11 +96,6 @@ export const Header = () => {
     return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
   }
 
-  async function handleLogout() {
-    setOpen(false);
-    await logout();
-  }
-
   function handleAccountClick() {
     setOpen(false);
     const targetUrl = getAccountUrl();
@@ -84,30 +110,68 @@ export const Header = () => {
     setLocale(nextLocale);
   }
 
-  function toggleLocale() {
-    handleLocaleChange(locale === "ko" ? "en" : "ko");
-  }
+  const localeEmoji: Record<PlatformLocale, string> = {
+    ko: "🇰🇷",
+    en: "🇺🇸",
+    "zh-CN": "🇨🇳",
+    vi: "🇻🇳",
+    ja: "🇯🇵",
+    id: "🇮🇩"
+  };
+  const localeLabel: Record<PlatformLocale, string> = {
+    ko: "한국어",
+    en: "English",
+    "zh-CN": "简体中文",
+    vi: "Tiếng Việt",
+    ja: "日本語",
+    id: "Bahasa Indonesia"
+  };
+  const localeDisplayLabel: Record<PlatformLocale, string> = {
+    ko: `${localeEmoji.ko} ${localeLabel.ko}`,
+    en: `${localeEmoji.en} ${localeLabel.en}`,
+    "zh-CN": `${localeEmoji["zh-CN"]} ${localeLabel["zh-CN"]}`,
+    vi: `${localeEmoji.vi} ${localeLabel.vi}`,
+    ja: `${localeEmoji.ja} ${localeLabel.ja}`,
+    id: `${localeEmoji.id} ${localeLabel.id}`
+  };
+  const maxLocaleTextUnits = Object.values(localeLabel).reduce((max, text) => {
+    const units = Array.from(text).reduce((sum, ch) => {
+      const code = ch.charCodeAt(0);
+      const isWide = code >= 0x2e80;
+      return sum + (isWide ? 1.75 : 1);
+    }, 0);
+    return Math.max(max, units);
+  }, 0);
+  const localeButtonWidthPx = Math.max(112, Math.ceil(maxLocaleTextUnits * 9) + 40);
 
   return (
+    <>
+      <svg width="0" height="0" aria-hidden className="absolute">
+        <defs>
+          <clipPath id={HEADER_SQUIRCLE_CLIP_ID} clipPathUnits="objectBoundingBox">
+            <path d={HEADER_SQUIRCLE_PATH} transform="scale(0.01)" />
+          </clipPath>
+        </defs>
+      </svg>
     <header
-      className={`sticky top-0 z-50 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        className={`sticky top-0 z-50 ${isHydrated ? "transition-all duration-500 ease-smooth" : ""} ${
         isScrolled
-          ? "top-3 mx-auto w-[min(96%,1200px)] translate-y-0 rounded-2xl border border-border/70 bg-white shadow-elevated backdrop-blur-xl"
-          : "top-0 border-b border-border/60 bg-background/80 backdrop-blur-xl"
+          ? "top-3 mx-auto w-[calc(100%-1rem)] md:top-5 md:w-[min(70%,1200px)] md:min-w-[980px] translate-y-0 rounded-2xl border border-border/70 bg-white shadow-elevated"
+          : "top-0 border-b border-border/60 bg-background"
       }`}
     >
-      <div
-        className={`container flex items-center justify-between transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isScrolled ? "h-14 scale-[0.985]" : "h-16 scale-100"
+        <div
+        className={`container flex items-center justify-between ${isHydrated ? "transition-all duration-500 ease-smooth" : ""} ${
+          isScrolled ? "h-[52px] scale-[0.985]" : "h-[52px] scale-100"
         }`}
       >
         <Link href="/" className="flex items-center">
           <Image
-            src="/aply-logo-20260428.webp"
+            src="/img_logo.webp"
             alt={`${copy.brand} logo`}
             width={180}
             height={48}
-            className="h-8 w-auto md:h-9"
+            className="h-6 w-auto md:h-7"
             priority
           />
         </Link>
@@ -116,18 +180,28 @@ export const Header = () => {
             <Link
               key={item.label}
               href={item.href}
-              className={`text-sm font-medium transition-colors ${
-                isNavActive(item.href) ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              className={`text-xs transition-colors ${
+                isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
               }`}
             >
               {item.label}
             </Link>
           ))}
         </nav>
-        <div className="hidden items-center gap-2 md:flex">
-          {isReady && isAuthenticated ? (
-            <>
+        <div className="hidden items-center md:flex">
+          {!isReady ? (
+            <div className="h-8 w-24" aria-hidden />
+          ) : isAuthenticated ? (
+            <div className="inline-flex items-center gap-1">
+              <NotificationBell />
               <Button variant="ghost" size="sm" onClick={handleAccountClick}>
+                {profileImage ? (
+                  <img src={profileImage} alt="" className="h-6 w-6 object-cover" style={HEADER_SQUIRCLE_STYLE} />
+                ) : (
+                  <span className="grid h-6 w-6 place-items-center bg-muted text-[11px] font-semibold text-muted-foreground" style={HEADER_SQUIRCLE_STYLE}>
+                    {avatarFallback}
+                  </span>
+                )}
                 {user?.name ? (
                   <>
                     {roleBadgeLabel ? (
@@ -141,30 +215,28 @@ export const Header = () => {
                   copy.auth.myAccount
                 )}
               </Button>
-              <Button variant="dark" size="sm" onClick={() => void handleLogout()}>
-                {copy.auth.logout}
-              </Button>
-            </>
+            </div>
           ) : (
-            <>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/login">{copy.auth.login}</Link>
-              </Button>
-              <Button variant="dark" size="sm" asChild>
-                <Link href="/signup">{copy.auth.signup}</Link>
-              </Button>
-            </>
+            <Button variant="dark" size="sm" className="text-xs font-semibold" asChild>
+              <Link href="/login">{loginButtonLabel}</Link>
+            </Button>
           )}
-          <button
-            type="button"
-            onClick={toggleLocale}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-base transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={copy.languageLabel}
-            title={copy.languageLabel}
-          >
-            <GlobeHemisphereWest className="h-4 w-4 text-muted-foreground" weight="duotone" aria-hidden />
-            <span aria-hidden>{locale === "ko" ? "🇰🇷" : "🇺🇸"}</span>
-          </button>
+          <div className="relative ml-1">
+            <CaretDown className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <select
+              value={locale}
+              onChange={(e) => handleLocaleChange(e.target.value as PlatformLocale)}
+              aria-label={copy.languageLabel}
+              className="h-9 appearance-none bg-transparent pl-2 pr-7 text-right text-xs font-medium text-foreground focus-visible:outline-none"
+              style={{ width: `${localeButtonWidthPx}px` }}
+            >
+              {PLATFORM_LOCALES.map((value) => (
+                <option key={value} value={value}>
+                  {localeDisplayLabel[value]}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         <button
           className="md:hidden"
@@ -179,44 +251,46 @@ export const Header = () => {
           <div className="container flex flex-col gap-3 py-4">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-medium text-foreground">{copy.languageLabel}</span>
-              <button
-                type="button"
-                onClick={toggleLocale}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-base transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={copy.languageLabel}
-                title={copy.languageLabel}
-              >
-                <GlobeHemisphereWest className="h-4 w-4 text-muted-foreground" weight="duotone" aria-hidden />
-                <span aria-hidden>{locale === "ko" ? "🇰🇷" : "🇺🇸"}</span>
-              </button>
+              <div className="relative">
+                <CaretDown className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                <select
+                  value={locale}
+                  onChange={(e) => handleLocaleChange(e.target.value as PlatformLocale)}
+                  aria-label={copy.languageLabel}
+                  className="h-9 appearance-none bg-transparent pl-2 pr-7 text-right text-xs font-medium text-foreground focus-visible:outline-none"
+                  style={{ width: `${localeButtonWidthPx}px` }}
+                >
+                  {PLATFORM_LOCALES.map((value) => (
+                    <option key={value} value={value}>
+                      {localeDisplayLabel[value]}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             {navItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className={`text-sm font-medium ${
-                  isNavActive(item.href) ? "text-foreground" : "text-muted-foreground"
+                className={`text-base ${
+                  isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
                 }`}
               >
                 {item.label}
               </Link>
             ))}
-            {isReady && isAuthenticated ? (
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" onClick={handleAccountClick}>
+            {!isReady ? (
+              <div className="mt-2 h-9" aria-hidden />
+            ) : isAuthenticated ? (
+              <div className="mt-2">
+                <Button variant="outline" size="sm" className="border-0" onClick={handleAccountClick}>
                   {user?.name ? copy.auth.myAccount : copy.auth.account}
-                </Button>
-                <Button variant="dark" size="sm" onClick={() => void handleLogout()}>
-                  {copy.auth.logout}
                 </Button>
               </div>
             ) : (
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/login">{copy.auth.login}</Link>
-                </Button>
-                <Button variant="dark" size="sm" asChild>
-                  <Link href="/signup">{copy.auth.signup}</Link>
+              <div className="mt-2">
+                <Button variant="dark" size="sm" className="w-full text-xs font-semibold" asChild>
+                  <Link href="/login">{loginButtonLabel}</Link>
                 </Button>
               </div>
             )}
@@ -224,5 +298,7 @@ export const Header = () => {
         </div>
       )}
     </header>
+    <AnnouncementBanner />
+    </>
   );
 };

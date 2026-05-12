@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { getSiteMessages } from "../../lib/site-messages";
+import { useLanguage } from "../i18n/LanguageProvider";
 import { Reveal } from "./Reveal";
-
-const stats = [
-  { value: "200+", label: "누적 매칭 성공" },
-  { value: "100+", label: "파트너 기업 수" },
-  { value: "4.5/5.0", label: "학생 만족도" },
-  { value: "4.8/5.0", label: "기업 만족도" }
-];
+import { paperlogy } from "../../lib/fonts";
 
 export const ProvenResults = () => {
+  const { locale } = useLanguage();
+  const copy = getSiteMessages(locale).cases;
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -42,17 +40,17 @@ export const ProvenResults = () => {
     <section className="bg-white py-16 md:py-20">
       <div className="container max-w-[1200px]">
         <Reveal className="mx-auto mb-14 max-w-2xl text-center">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">PROVEN RESULTS</p>
-          <h2 className="font-display text-3xl font-black tracking-[-0.03em] text-[#0B1227] md:text-5xl">
-            말뿐인 약속은 하지 않습니다.
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{copy.resultsEyebrow}</p>
+            <h2 className={`${paperlogy.className} text-3xl font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>
+            {copy.resultsTitle}
             <br />
-            숫자로 증명합니다.
+            <span className="mt-2 inline-block">{copy.resultsSubtitle}</span>
           </h2>
         </Reveal>
 
         <Reveal delayMs={90} y="sm">
           <div className="grid grid-cols-2 gap-6 md:gap-8">
-            {stats.map((item, index) => (
+            {copy.stats.map((item, index) => (
               <div
                 key={item.label}
                 className="px-2 py-2 text-center transition-transform duration-300 hover:-translate-y-1"

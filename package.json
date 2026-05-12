@@ -7,27 +7,33 @@
   ],
   "scripts": {
     "dev:all": "bash ./scripts/dev-all.sh",
-    "dev": "concurrently -n platform,partner,ops,api -c cyan,magenta,yellow,green \"npm run dev -w apps/platform-web\" \"npm run dev -w apps/partner-admin\" \"npm run dev -w apps/ops-admin\" \"set -a; . ./.env; set +a; npm run dev -w apps/api\"",
+    "dev": "concurrently -n platform,api -c cyan,green \"npm run dev -w apps/platform-web\" \"npm run dev:api\"",
     "dev:platform": "npm run dev -w apps/platform-web",
-    "dev:partner": "npm run dev -w apps/partner-admin",
-    "dev:ops": "npm run dev -w apps/ops-admin",
-    "dev:api": "set -a; . ./.env; set +a; npm run dev -w apps/api",
-    "build": "npm run build -w apps/platform-web && npm run build -w apps/partner-admin && npm run build -w apps/ops-admin && npm run build -w apps/api",
+    "dev:api": "bash ./scripts/free-port-4000.sh && set -a; . ./.env; set +a; npm run dev -w apps/api",
+    "build": "npm run build -w apps/platform-web && npm run build -w apps/api",
     "start:platform": "npm run start -w apps/platform-web",
-    "start:partner": "npm run start -w apps/partner-admin",
-    "start:ops": "npm run start -w apps/ops-admin",
-    "start:api": "set -a; . ./.env; set +a; npm run start -w apps/api",
+    "start:api": "bash ./scripts/free-port-4000.sh && set -a; . ./.env; set +a; npm run start -w apps/api",
     "db:generate": "set -a; . ./.env; set +a; npm run db:generate -w apps/api",
     "db:migrate": "set -a; . ./.env; set +a; npm run db:migrate -w apps/api",
+    "db:migrate:deploy": "set -a; . ./.env; set +a; npm run db:migrate:deploy -w apps/api",
     "db:studio": "set -a; . ./.env; set +a; npm run db:studio -w apps/api",
     "db:seed": "set -a; . ./.env; set +a; npm run db:seed -w apps/api",
+    "db:seed:community": "set -a; . ./.env; set +a; npm run db:seed:community -w apps/api",
     "db:import:company-users": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-company-users.ts",
-    "db:import:job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-job-postings.ts"
+    "db:import:job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-job-postings.ts",
+    "db:import:buddies-job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-buddies-job-postings.ts",
+    "db:import:kowork-job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-kowork-job-postings.ts",
+    "db:import:wanted-job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-wanted-job-postings.ts",
+    "db:cleanup:wanted-positions": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/cleanup-wanted-positions.ts",
+    "db:cleanup:internal-positions": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/cleanup-internal-positions.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0"
   }
 }

@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   DEFAULT_PLATFORM_LOCALE,
+  PLATFORM_LOCALES,
   PLATFORM_LOCALE_STORAGE_KEY,
   type PlatformLocale
 } from "../../lib/auth-messages";
@@ -27,13 +28,25 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
 
     const storedLocale = window.localStorage.getItem(PLATFORM_LOCALE_STORAGE_KEY);
-    if (storedLocale === "ko" || storedLocale === "en") {
-      setLocaleState(storedLocale);
+    if (storedLocale && (PLATFORM_LOCALES as readonly string[]).includes(storedLocale)) {
+      setLocaleState(storedLocale as PlatformLocale);
       document.documentElement.lang = storedLocale;
       return;
     }
 
-    const browserLocale = window.navigator.language.toLowerCase().startsWith("ko") ? "ko" : "en";
+    const browserLang = window.navigator.language.toLowerCase();
+    const browserLocale: PlatformLocale =
+      browserLang.startsWith("ko")
+        ? "ko"
+        : browserLang.startsWith("zh")
+          ? "zh-CN"
+          : browserLang.startsWith("vi")
+            ? "vi"
+            : browserLang.startsWith("ja")
+              ? "ja"
+              : browserLang.startsWith("id")
+                ? "id"
+                : "en";
     setLocaleState(browserLocale);
     document.documentElement.lang = browserLocale;
   }, []);

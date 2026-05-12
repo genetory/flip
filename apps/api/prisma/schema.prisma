@@ -9,8 +9,11 @@ datasource db {
 
 model User {
   id          String      @id @default(uuid())
-  email       String      @unique
+  email       String
   emailVerified Boolean   @default(false)
+  isActive    Boolean     @default(true)
+  suspendedAt DateTime?
+  suspendedReason String?
   realName    String?
   name        String?
   phoneNumber String?
@@ -19,11 +22,15 @@ model User {
   birthDate   DateTime?
   gender      String?
   jobTitle    String?
+  profileImageUrl String?
   adminMemo   String?
-  passwordHash String
+  passwordHash String?
+  authProvider AuthProvider @default(EMAIL)
+  providerId   String?
   role        MemberRole  @default(STUDENT)
   partnerType PartnerType?
   partnerOrgRole PartnerOrgUserRole?
+  partnerOrganizationId String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   positionParticipants   PositionMatchingParticipant[] @relation("PositionParticipantAuthor")
@@ -32,13 +39,52 @@ model User {
   candidateProfile CandidateProfile?
   refreshTokens RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
+  communityPosts CommunityPost[]
+  communityPostLikes CommunityPostLike[]
+  communityPostComments CommunityPostComment[]
+  partnerApplicantWorkflowsAsPartner PartnerApplicantWorkflow[] @relation("PartnerApplicantWorkflowPartnerUser")
+  partnerApplicantWorkflowsAsCandidate PartnerApplicantWorkflow[] @relation("PartnerApplicantWorkflowCandidateUser")
+  applications        Application[] @relation("ApplicationCandidate")
+  applicationStatusChanges ApplicationStatusHistory[] @relation("ApplicationStatusChangedBy")
+  reportedIssues      IssueReport[] @relation("IssueReportReporter")
+  subjectIssues       IssueReport[] @relation("IssueReportSubject")
+  assignedIssues      IssueReport[] @relation("IssueReportAssignee")
+  assignmentsAssigned Assignment[]  @relation("AssignmentAssignedBy")
+  assignmentsReviewed Assignment[]  @relation("AssignmentReviewedBy")
+  programFeedbacks    ProgramFeedback[] @relation("ProgramFeedbackAuthor")
+  certificatesIssued  Certificate[]    @relation("CertificateIssuer")
+  recommendationsIssued Recommendation[] @relation("RecommendationIssuer")
+  schoolCreditReviews SchoolCreditRequest[] @relation("SchoolCreditReviewer")
+  notifications       Notification[]
+  applicationComments ApplicationComment[] @relation("ApplicationCommentAuthor")
+  partnerOrganization PartnerOrganization? @relation(fields: [partnerOrganizationId], references: [id], onDelete: SetNull)
+  createdPartnerJoinCodes PartnerOrganizationJoinCode[]
+  requestedPositionRevisions PositionRevision[] @relation("PositionRevisionRequester")
+  reviewedPositionRevisions PositionRevision[] @relation("PositionRevisionReviewer")
 
+  @@unique([email, authProvider])
+  @@unique([authProvider, providerId])
   @@index([role])
   @@index([partnerType])
   @@index([partnerOrgRole])
+  @@index([partnerOrganizationId])
   @@index([emailVerified])
   @@index([phoneNumber])
   @@index([affiliation])
+  @@index([authProvider])
+}
+
+enum AuthProvider {
+  EMAIL
+  NAVER
+  KAKAO
+  GOOGLE
+}
+
+enum CommunityPostCategory {
+  FREE
+  CAREER
+  HELP
 }
 
 model EmailPreverificationToken {
@@ -54,6 +100,26 @@ model EmailPreverificationToken {
   @@index([expiresAt])
   @@index([verifiedAt])
   @@index([usedAt])
+}
+
+model PartnerSignupRequest {
+  id               String   @id @default(uuid())
+  companyName      String
+  companyIndustry  String
+  companySize      String
+  requesterName    String
+  requesterEmail   String
+  requesterPhone   String?
+  status           String   @default("PENDING")
+  reviewedByUserId String?
+  reviewedAt       DateTime?
+  reviewNote       String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([status])
+  @@index([requesterEmail])
+  @@index([createdAt])
 }
 
 model EmailVerificationToken {
@@ -162,9 +228,111 @@ enum PartnerCompanySize {
 
 enum PositionStatus {
   DRAFT
+  PENDING_REVIEW
   OPEN
-  MATCHING
+  PAUSED
   CLOSED
+  REJECTED
+}
+
+enum PositionRevisionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApplicationCommentVisibility {
+  INTERNAL
+  CANDIDATE
+}
+
+enum AnnouncementSeverity {
+  INFO
+  SUCCESS
+  WARNING
+  CRITICAL
+}
+
+enum AnnouncementAudience {
+  ALL
+  STUDENT
+  PARTNER
+  OPERATOR
+}
+
+enum ApplicationStatus {
+  WITHDRAWN
+  SUBMITTED
+  INTERVIEW
+  ACCEPTED
+  REJECTED
+}
+
+enum IssueReportType {
+  NO_SHOW
+  BEHAVIOR
+  DROPOUT
+  ATTITUDE
+  PAYMENT
+  OTHER
+}
+
+enum IssueReportStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum InterviewSlotStatus {
+  PROPOSED
+  SELECTED
+  CANCELLED
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  SUBMITTED
+  REVIEWED
+  CANCELLED
+}
+
+enum ProgramStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ProgramMeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum SchoolCreditStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+}
+
+enum PositionEmploymentType {
+  FULL_TIME
+  INTERN
+  PART_TIME
+  UNPAID_INTERN
+}
+
+enum PositionSourceKind {
+  INTERNAL
+  EXTERNAL
+}
+
+enum PositionSourceProvider {
+  INTERNAL
+  BUDDIES
+  KOWORK
+  WANTED
+  OTHER
 }
 
 enum CandidateVisaType {
@@ -266,8 +434,8 @@ enum CandidatePreferredJobRole {
 model PartnerOrganization {
   id                               String          @id @default(uuid())
   partnerType                      PartnerType
-  domain                           String          @unique
   name                             String
+  slug                             String          @unique
   companySize                      PartnerCompanySize?
   officeAddress                    String?
   website                          String?
@@ -280,22 +448,53 @@ model PartnerOrganization {
   fourInsuranceSubscriberListData  String?
   companyLogoImageData             String?
   officePhotoImageData             String?
+  verificationApproved             Boolean         @default(false)
+  verificationApprovedAt           DateTime?
   createdAt                        DateTime        @default(now())
   updatedAt                        DateTime        @updatedAt
   positions                        Position[]
+  positionRevisions                PositionRevision[]
+  users                            User[]
+  joinCodes                        PartnerOrganizationJoinCode[]
 
   @@index([partnerType])
   @@index([companySize])
   @@index([industry])
   @@index([name])
+  @@index([slug])
+}
+
+model PartnerOrganizationJoinCode {
+  id                    String   @id @default(uuid())
+  partnerOrganizationId String
+  createdByUserId       String
+  codeHash              String   @unique
+  expiresAt             DateTime
+  usedAt                DateTime?
+  createdAt             DateTime @default(now())
+
+  partnerOrganization PartnerOrganization @relation(fields: [partnerOrganizationId], references: [id], onDelete: Cascade)
+  createdByUser       User                @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([partnerOrganizationId])
+  @@index([createdByUserId])
+  @@index([expiresAt])
+  @@index([usedAt])
 }
 
 model Position {
   id                      String         @id @default(uuid())
   partnerOrganizationId   String?
+  sourceKind              PositionSourceKind @default(INTERNAL)
+  sourceProvider          PositionSourceProvider @default(INTERNAL)
+  sourceExternalId        String?
+  sourceUrl               String?
+  sourceFetchedAt         DateTime?
+  sourceDeadlineDate      DateTime?
   title                   String
   status                  PositionStatus @default(DRAFT)
   workType                String?
+  employmentType          PositionEmploymentType @default(UNPAID_INTERN)
   thumbnailImages         String[]       @default([])
   eligibleVisas           String[]       @default([])
   preferredNationalities  String[]       @default([])
@@ -320,10 +519,41 @@ model Position {
   matchingParticipants PositionMatchingParticipant[]
   progressLogs PositionProgressLog[]
   statusHistories PositionStatusHistory[]
+  applicantWorkflows PartnerApplicantWorkflow[]
+  applications Application[]
+  revisions PositionRevision[]
 
   @@index([partnerOrganizationId])
+  @@index([sourceKind, sourceProvider])
+  @@unique([sourceProvider, sourceExternalId])
   @@index([status])
   @@index([title])
+  @@index([createdAt])
+}
+
+model PositionRevision {
+  id                    String                 @id @default(uuid())
+  positionId            String
+  partnerOrganizationId String
+  requestedByUserId     String
+  status                PositionRevisionStatus @default(PENDING)
+  payload               Json
+  reviewNote            String?
+  reviewedByUserId      String?
+  reviewedAt            DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  position            Position            @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  partnerOrganization PartnerOrganization @relation(fields: [partnerOrganizationId], references: [id], onDelete: Cascade)
+  requestedByUser     User                @relation("PositionRevisionRequester", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  reviewedByUser      User?               @relation("PositionRevisionReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([positionId])
+  @@index([partnerOrganizationId])
+  @@index([requestedByUserId])
+  @@index([reviewedByUserId])
+  @@index([status])
   @@index([createdAt])
 }
 
@@ -370,6 +600,321 @@ model PositionStatusHistory {
 
   @@index([positionId])
   @@index([createdAt])
+}
+
+model PartnerApplicantWorkflow {
+  id              String   @id @default(uuid())
+  partnerUserId   String
+  candidateUserId String
+  positionId      String
+  status          String
+  memo            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  partnerUser User     @relation("PartnerApplicantWorkflowPartnerUser", fields: [partnerUserId], references: [id], onDelete: Cascade)
+  candidateUser User   @relation("PartnerApplicantWorkflowCandidateUser", fields: [candidateUserId], references: [id], onDelete: Cascade)
+  position      Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerUserId, candidateUserId, positionId])
+  @@index([partnerUserId])
+  @@index([candidateUserId])
+  @@index([positionId])
+}
+
+model Application {
+  id              String            @id @default(uuid())
+  positionId      String
+  candidateUserId String
+  status          ApplicationStatus @default(SUBMITTED)
+  memo            String?
+  submittedAt     DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  position        Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  candidateUser   User     @relation("ApplicationCandidate", fields: [candidateUserId], references: [id], onDelete: Cascade)
+  statusHistories ApplicationStatusHistory[]
+  interviewSlots  InterviewSlot[]
+  assignments     Assignment[]
+  program         Program?
+  comments        ApplicationComment[]
+  withdrawnAt     DateTime?
+
+  @@unique([positionId, candidateUserId])
+  @@index([positionId])
+  @@index([candidateUserId])
+  @@index([status])
+  @@index([submittedAt])
+}
+
+model InterviewSlot {
+  id            String              @id @default(uuid())
+  applicationId String
+  startsAt      DateTime
+  endsAt        DateTime
+  location      String?
+  notes         String?
+  status        InterviewSlotStatus @default(PROPOSED)
+  proposedAt    DateTime            @default(now())
+  selectedAt    DateTime?
+  cancelledAt   DateTime?
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([startsAt])
+  @@index([status])
+}
+
+model Assignment {
+  id                String           @id @default(uuid())
+  applicationId     String
+  title             String
+  description       String
+  dueAt             DateTime?
+  status            AssignmentStatus @default(ASSIGNED)
+  assignedAt        DateTime         @default(now())
+  assignedByUserId  String
+  submissionContent String?
+  submissionLinks   String[]         @default([])
+  submittedAt       DateTime?
+  feedbackContent   String?
+  feedbackRating    Int?
+  reviewedAt        DateTime?
+  reviewedByUserId  String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  assignedBy  User        @relation("AssignmentAssignedBy", fields: [assignedByUserId], references: [id])
+  reviewedBy  User?       @relation("AssignmentReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId])
+  @@index([status])
+  @@index([dueAt])
+}
+
+model Program {
+  id            String        @id @default(uuid())
+  applicationId String        @unique
+  startsAt      DateTime      @default(now())
+  endsAt        DateTime?
+  status        ProgramStatus @default(ACTIVE)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  application         Application          @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  meetings            ProgramMeeting[]
+  feedbacks           ProgramFeedback[]
+  certificate         Certificate?
+  recommendation      Recommendation?
+  schoolCreditRequest SchoolCreditRequest?
+
+  @@index([status])
+}
+
+model ProgramMeeting {
+  id              String               @id @default(uuid())
+  programId       String
+  scheduledAt     DateTime
+  durationMinutes Int                  @default(30)
+  agenda          String?
+  notes           String?
+  location        String?
+  status          ProgramMeetingStatus @default(SCHEDULED)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([programId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+model ProgramFeedback {
+  id           String     @id @default(uuid())
+  programId    String
+  authorUserId String
+  authorRole   MemberRole
+  content      String
+  rating       Int?
+  createdAt    DateTime   @default(now())
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  author  User    @relation("ProgramFeedbackAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@index([programId])
+  @@index([authorUserId])
+}
+
+model Certificate {
+  id             String   @id @default(uuid())
+  programId      String   @unique
+  title          String
+  content        String
+  issuedByUserId String
+  issuedAt       DateTime @default(now())
+
+  program  Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  issuedBy User    @relation("CertificateIssuer", fields: [issuedByUserId], references: [id])
+
+  @@index([programId])
+}
+
+model Recommendation {
+  id             String   @id @default(uuid())
+  programId      String   @unique
+  content        String
+  signerName     String
+  signerTitle    String?
+  issuedByUserId String
+  issuedAt       DateTime @default(now())
+
+  program  Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  issuedBy User    @relation("RecommendationIssuer", fields: [issuedByUserId], references: [id])
+
+  @@index([programId])
+}
+
+model SchoolCreditRequest {
+  id               String             @id @default(uuid())
+  programId        String             @unique
+  schoolName       String
+  courseCode       String?
+  credits          Int                @default(0)
+  status           SchoolCreditStatus @default(REQUESTED)
+  requestedAt      DateTime           @default(now())
+  reviewedAt       DateTime?
+  reviewedByUserId String?
+  reviewNote       String?
+
+  program    Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  reviewedBy User?   @relation("SchoolCreditReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([programId])
+  @@index([status])
+}
+
+model ApplicationStatusHistory {
+  id              String            @id @default(uuid())
+  applicationId   String
+  status          ApplicationStatus
+  changedByUserId String?
+  memo            String?
+  changedAt       DateTime          @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  changedBy   User?       @relation("ApplicationStatusChangedBy", fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId])
+  @@index([changedByUserId])
+}
+
+model IssueReport {
+  id              String            @id @default(uuid())
+  type            IssueReportType
+  status          IssueReportStatus @default(OPEN)
+  title           String
+  description     String
+  reporterUserId  String
+  subjectUserId   String?
+  positionId      String?
+  applicationId   String?
+  assignedToUserId String?
+  resolutionNote  String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  resolvedAt      DateTime?
+
+  reporter   User @relation("IssueReportReporter", fields: [reporterUserId], references: [id], onDelete: Cascade)
+  subject    User? @relation("IssueReportSubject", fields: [subjectUserId], references: [id], onDelete: SetNull)
+  assignedTo User? @relation("IssueReportAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([type])
+  @@index([reporterUserId])
+  @@index([assignedToUserId])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  message   String?
+  linkPath  String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+model ApplicationComment {
+  id             String                       @id @default(uuid())
+  applicationId  String
+  authorUserId   String
+  authorRole     MemberRole
+  content        String
+  visibility     ApplicationCommentVisibility @default(INTERNAL)
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  author      User        @relation("ApplicationCommentAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([authorUserId])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  actorRole   MemberRole?
+  action      String
+  resource    String
+  resourceId  String?
+  metadata    Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([actorUserId, createdAt])
+  @@index([resource, resourceId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model Announcement {
+  id          String               @id @default(uuid())
+  title       String
+  body        String
+  severity    AnnouncementSeverity @default(INFO)
+  audience    AnnouncementAudience @default(ALL)
+  linkPath    String?
+  active      Boolean              @default(true)
+  startsAt    DateTime             @default(now())
+  endsAt      DateTime?
+  createdByUserId String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([active, audience])
+  @@index([startsAt])
+}
+
+model AppSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
 }
 
 model MatchingRunHistory {
@@ -509,4 +1054,72 @@ model CandidateActivityExperience {
 
   @@index([candidateProfileId])
   @@index([activityType])
+}
+
+model CommunityPost {
+  id        String                @id @default(uuid())
+  authorId  String?
+  authorName String
+  category  CommunityPostCategory
+  title     String
+  body      String
+  imageUrls String[]              @default([])
+  likes     Int                   @default(0)
+  comments  Int                   @default(0)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  likedBy CommunityPostLike[]
+  commentItems CommunityPostComment[]
+
+  @@index([category])
+  @@index([createdAt])
+}
+
+model CommunityPostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model CommunityPostComment {
+  id         String   @id @default(uuid())
+  postId     String
+  authorId   String?
+  authorName String
+  body       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model CompanyConsultationInquiry {
+  id          String   @id @default(uuid())
+  companyName String
+  contactName String
+  email       String
+  phone       String?
+  message     String
+  locale      String   @default("ko")
+  source      String   @default("platform-web")
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([email])
 }

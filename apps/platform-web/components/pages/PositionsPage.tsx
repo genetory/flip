@@ -13,6 +13,7 @@ import {
   getMyAppliedPositions,
   getMyCandidateProfile,
   getMyFavoritePositions,
+  getMyPartnerOrganization,
   getPublicPremiumPositionBanners,
   getPositionsMeta,
   getPublicPositionsPage,
@@ -20,12 +21,14 @@ import {
   type PublicPositionListItem,
   type PublicPremiumPositionBannerItem
 } from "../../lib/member-profile-client";
+import { trackExternalPositionClick, trackPositionSearch } from "../../lib/analytics";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import { ALL_POSITIONS, type Position } from "../../lib/positions-data";
+import { paperlogy } from "../../lib/fonts";
+import type { PlatformLocale } from "../../lib/auth-messages";
 import {
-  Search,
   MapPin,
   Briefcase,
   Bookmark,
@@ -44,37 +47,41 @@ const FALLBACK_COMPANY_SIZES = Array.from(new Set(ALL_POSITIONS.map((position) =
 const FALLBACK_VISA_TYPES = Array.from(new Set(ALL_POSITIONS.flatMap((position) => position.eligibleVisas)));
 const ALL_VISA_CODES = ["D-2", "D-4", "D-10", "E-7", "F-2", "F-4", "F-5", "F-6", "H-1"] as const;
 const PUBLIC_POSITIONS_PAGE_SIZE = 20;
+type PositionCard = Position & {
+  status: PublicPositionListItem["status"];
+  sourceKind: PublicPositionListItem["sourceKind"];
+  sourceProvider: PublicPositionListItem["sourceProvider"];
+  sourceExternalId: PublicPositionListItem["sourceExternalId"];
+  sourceUrl: PublicPositionListItem["sourceUrl"];
+  sourceDeadlineDate?: PublicPositionListItem["sourceDeadlineDate"];
+  sourceDeadlineRolling?: PublicPositionListItem["sourceDeadlineRolling"];
+};
+type PositionSourceKind = PublicPositionListItem["sourceKind"];
+type PositionSourceProvider = PublicPositionListItem["sourceProvider"];
+type PositionSourceFilter = "INTERNAL" | "KOWORK" | "BUDDIES" | "WANTED";
 
-function visaTypeLabel(code: string, locale: "ko" | "en") {
-  if (locale === "ko") {
-    if (code === "D-2") return "유학";
-    if (code === "D-4") return "일반연수";
-    if (code === "D-10") return "구직";
-    if (code === "E-7") return "특정활동";
-    if (code === "F-2") return "거주";
-    if (code === "F-4") return "재외동포";
-    if (code === "F-5") return "영주";
-    if (code === "F-6") return "결혼이민";
-    if (code === "H-1") return "워킹홀리데이";
-    return "기타";
-  }
-  if (code === "D-2") return "Student";
-  if (code === "D-4") return "General training";
-  if (code === "D-10") return "Job seeking";
-  if (code === "E-7") return "Specific activity";
-  if (code === "F-2") return "Residence";
-  if (code === "F-4") return "Overseas Korean";
-  if (code === "F-5") return "Permanent resident";
-  if (code === "F-6") return "Marriage migration";
-  if (code === "H-1") return "Working holiday";
-  return "Other";
+function visaTypeLabel(code: string, locale: PlatformLocale) {
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  if (code === "D-2") return pick("유학", "Student", "留学", "Du học", "留学", "Pelajar");
+  if (code === "D-4") return pick("일반연수", "General training", "一般研修", "Đào tạo chung", "一般研修", "Pelatihan umum");
+  if (code === "D-10") return pick("구직", "Job seeking", "求职", "Tìm việc", "求職", "Mencari kerja");
+  if (code === "E-7") return pick("특정활동", "Specific activity", "特定活动", "Hoạt động cụ thể", "特定活動", "Aktivitas khusus");
+  if (code === "F-2") return pick("거주", "Residence", "居住", "Cư trú", "居住", "Tempat tinggal");
+  if (code === "F-4") return pick("재외동포", "Overseas Korean", "在外同胞", "Người Hàn ở nước ngoài", "在外同胞", "Diaspora Korea");
+  if (code === "F-5") return pick("영주", "Permanent resident", "永住", "Thường trú", "永住", "Penduduk tetap");
+  if (code === "F-6") return pick("결혼이민", "Marriage migration", "结婚移民", "Kết hôn nhập cư", "結婚移民", "Migrasi pernikahan");
+  if (code === "H-1") return pick("워킹홀리데이", "Working holiday", "打工度假", "Working Holiday", "ワーキングホリデー", "Working Holiday");
+  return pick("기타", "Other", "其他", "Khác", "その他", "Lainnya");
 }
 
-function formatEligibleVisasForList(codes: string[], locale: "ko" | "en") {
-  if (codes.length === 0) return locale === "ko" ? "무관" : "No restriction";
+function formatEligibleVisasForList(codes: string[], locale: PlatformLocale) {
+  const noRestriction =
+    locale === "ko" ? "무관" : locale === "zh-CN" ? "不限" : locale === "vi" ? "Không giới hạn" : locale === "ja" ? "制限なし" : locale === "id" ? "Tidak ada batasan" : "No restriction";
+  if (codes.length === 0) return noRestriction;
   const set = new Set(codes);
   const isAllSelected = ALL_VISA_CODES.every((code) => set.has(code));
-  if (isAllSelected) return locale === "ko" ? "무관" : "No restriction";
+  if (isAllSelected) return noRestriction;
   return codes.join(", ");
 }
 
@@ -93,25 +100,29 @@ function mapVisaTypeToCode(visaType: string | null | undefined) {
   return null;
 }
 
-function companySizeLabel(value: string, locale: "ko" | "en") {
-  if (value === "SIZE_1_10") return locale === "ko" ? "10인 이하" : "Up to 10";
-  if (value === "SIZE_UNDER_30") return locale === "ko" ? "30인 이하" : "Up to 30";
-  if (value === "SIZE_UNDER_50") return locale === "ko" ? "50인 이하" : "Up to 50";
-  if (value === "SIZE_OVER_100") return locale === "ko" ? "100인 이상" : "100+";
+function companySizeLabel(value: string, locale: PlatformLocale) {
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  if (value === "SIZE_1_10") return pick("10인 이하", "Up to 10", "10人以下", "Tối đa 10", "10名以下", "Maksimal 10");
+  if (value === "SIZE_UNDER_30") return pick("30인 이하", "Up to 30", "30人以下", "Tối đa 30", "30名以下", "Maksimal 30");
+  if (value === "SIZE_UNDER_50") return pick("50인 이하", "Up to 50", "50人以下", "Tối đa 50", "50名以下", "Maksimal 50");
+  if (value === "SIZE_OVER_100") return pick("100인 이상", "100+", "100人以上", "Trên 100", "100名以上", "100+");
   return value;
 }
 
-function workTypeLabel(value: string, locale: "ko" | "en") {
+function workTypeLabel(value: string, locale: PlatformLocale) {
   const normalized = value.toLowerCase().replace(/[\s_-]/g, "");
-  if (normalized === "remote") return locale === "ko" ? "원격근무" : "Remote";
-  if (normalized === "hybrid") return locale === "ko" ? "혼합근무" : "Hybrid";
-  if (normalized === "onsite") return locale === "ko" ? "대면근무" : "On-site";
+  const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  if (normalized === "remote") return pick("원격근무", "Remote", "远程办公", "Làm việc từ xa", "在宅勤務", "Kerja jarak jauh");
+  if (normalized === "hybrid") return pick("혼합근무", "Hybrid", "混合办公", "Làm việc kết hợp", "ハイブリッド勤務", "Kerja hibrida");
+  if (normalized === "onsite") return pick("대면근무", "On-site", "现场办公", "Làm việc tại văn phòng", "出社勤務", "Kerja di kantor");
   return value;
 }
 
-function companyHref(domain?: string | null) {
-  if (!domain?.trim()) return null;
-  return `/companies/${encodeURIComponent(domain.trim())}`;
+function companyHref(partnerOrganizationId?: string | null) {
+  if (!partnerOrganizationId?.trim()) return null;
+  return `/companies/${encodeURIComponent(partnerOrganizationId.trim())}`;
 }
 
 function inferWorkType(value?: string | null): "On-site" | "Hybrid" | "Remote" {
@@ -121,29 +132,25 @@ function inferWorkType(value?: string | null): "On-site" | "Hybrid" | "Remote" {
   return "On-site";
 }
 
-function extractDomainFromEmail(email?: string | null) {
-  if (!email) return null;
-  const at = email.lastIndexOf("@");
-  if (at < 0 || at === email.length - 1) return null;
-  return email.slice(at + 1).toLowerCase();
-}
-
-function mapPublicPositionToCard(item: PublicPositionListItem, locale: "ko" | "en"): Position {
+function mapPublicPositionToCard(item: PublicPositionListItem, locale: PlatformLocale): PositionCard {
   const now = Date.now();
   const createdAt = new Date(item.createdAt);
   const postedDays = Number.isNaN(createdAt.getTime())
     ? 0
     : Math.max(0, Math.floor((now - createdAt.getTime()) / (24 * 60 * 60 * 1000)));
-  const company = item.partnerOrganization?.name?.trim() || item.partnerOrganization?.domain || (locale === "ko" ? "파트너 기업" : "Partner company");
+  const company =
+    item.partnerOrganization?.name?.trim() ||
+    item.sourceCompanyName?.trim() ||
+    (locale === "ko" ? "파트너 기업" : locale === "zh-CN" ? "合作企业" : locale === "vi" ? "Doanh nghiệp đối tác" : locale === "ja" ? "パートナー企業" : locale === "id" ? "Perusahaan mitra" : "Partner company");
   const role = item.title;
-  const category = item.preferredJobRole?.trim() || "General";
+  const category = item.preferredJobRole?.trim() || "";
   const workType = item.workType ?? inferWorkType(item.workingHours);
   const startDate = item.startDate ? new Date(item.startDate) : null;
   const startLabel =
     startDate && !Number.isNaN(startDate.getTime())
       ? `${startDate.getFullYear()}.${String(startDate.getMonth() + 1).padStart(2, "0")}.${String(startDate.getDate()).padStart(2, "0")}`
-      : locale === "ko" ? "즉시" : "Immediate";
-  const statusMatchBase = item.status === "MATCHING" ? 86 : 78;
+      : locale === "ko" ? "즉시" : locale === "zh-CN" ? "立即" : locale === "vi" ? "Ngay" : locale === "ja" ? "即時" : locale === "id" ? "Segera" : "Immediate";
+  const statusMatchBase = item.status === "OPEN" ? 86 : 78;
   const match = Math.min(99, Math.max(60, statusMatchBase + Math.min(8, item.matchingParticipantsCount)));
   const tags = [
     ...(item.preferredJobRole ? [item.preferredJobRole] : []),
@@ -154,60 +161,97 @@ function mapPublicPositionToCard(item: PublicPositionListItem, locale: "ko" | "e
   return {
     id: item.id,
     createdAt: item.createdAt,
-    partnerDomain: item.partnerOrganization?.domain ?? undefined,
+    partnerDomain: item.partnerOrganization?.id ?? undefined,
     thumbnailUrl: item.thumbnailImages[0] ?? undefined,
     company,
     initial: company[0]?.toUpperCase() ?? "P",
     role,
     category,
     industry: item.partnerOrganization?.industry ?? "OTHER",
-    companySize: companySizeLabel(item.partnerOrganization?.companySize ?? (locale === "ko" ? "미정" : "TBD"), locale),
+    companySize: companySizeLabel(item.partnerOrganization?.companySize ?? (locale === "ko" ? "미정" : locale === "zh-CN" ? "未定" : locale === "vi" ? "Chưa xác định" : locale === "ja" ? "未定" : locale === "id" ? "Belum ditentukan" : "TBD"), locale),
     eligibleVisas: item.eligibleVisas,
-    location: item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || (locale === "ko" ? "협의" : "To be discussed"),
+    location: item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || (locale === "ko" ? "협의" : locale === "zh-CN" ? "可协商" : locale === "vi" ? "Thỏa thuận" : locale === "ja" ? "応相談" : locale === "id" ? "Dapat dirundingkan" : "To be discussed"),
     type: workType,
     start: startLabel,
     postedDays,
     applicants: item.matchingParticipantsCount,
     match,
     tags,
-    highlight: postedDays <= 3 ? "New" : item.status === "MATCHING" ? "Hot" : undefined
+    highlight: postedDays <= 3 ? "New" : item.status === "OPEN" ? "Hot" : undefined,
+    status: item.status,
+    sourceKind: item.sourceKind,
+    sourceProvider: item.sourceProvider,
+    sourceExternalId: item.sourceExternalId,
+    sourceUrl: item.sourceUrl
+    ,
+    sourceDeadlineDate: item.sourceDeadlineDate,
+    sourceDeadlineRolling: item.sourceDeadlineRolling
   };
 }
 
-function formatPostedDate(position: Position, locale: "ko" | "en") {
+function isExternalSource(sourceKind: PositionSourceKind) {
+  return sourceKind === "EXTERNAL";
+}
+
+function formatPostedDate(position: Position, locale: PlatformLocale) {
   if (position.createdAt) {
     const created = new Date(position.createdAt);
     if (!Number.isNaN(created.getTime())) {
       const now = Date.now();
       const diffMs = Math.max(0, now - created.getTime());
       const minutes = Math.floor(diffMs / (60 * 1000));
-      if (minutes < 60) return locale === "ko" ? `${Math.max(1, minutes)}분 전` : `${Math.max(1, minutes)}m ago`;
+      if (minutes < 60) {
+        const n = Math.max(1, minutes);
+        return locale === "ko" ? `${n}분 전` : locale === "zh-CN" ? `${n} 分钟前` : locale === "vi" ? `${n} phút trước` : locale === "ja" ? `${n}分前` : locale === "id" ? `${n} menit lalu` : `${n}m ago`;
+      }
       const hours = Math.floor(minutes / 60);
-      if (hours < 24) return locale === "ko" ? `${hours}시간 전` : `${hours}h ago`;
+      if (hours < 24) {
+        return locale === "ko" ? `${hours}시간 전` : locale === "zh-CN" ? `${hours} 小时前` : locale === "vi" ? `${hours} giờ trước` : locale === "ja" ? `${hours}時間前` : locale === "id" ? `${hours} jam lalu` : `${hours}h ago`;
+      }
       const days = Math.floor(hours / 24);
-      if (days < 7) return locale === "ko" ? `${days}일 전` : `${days}d ago`;
+      if (days < 7) {
+        return locale === "ko" ? `${days}일 전` : locale === "zh-CN" ? `${days} 天前` : locale === "vi" ? `${days} ngày trước` : locale === "ja" ? `${days}日前` : locale === "id" ? `${days} hari lalu` : `${days}d ago`;
+      }
       const y = created.getFullYear();
       const m = String(created.getMonth() + 1).padStart(2, "0");
       const d = String(created.getDate()).padStart(2, "0");
       return `${y}. ${m}. ${d}`;
     }
   }
-  if (position.postedDays <= 0) return locale === "ko" ? "오늘" : "Today";
-  return locale === "ko" ? `${position.postedDays}일 전` : `${position.postedDays}d ago`;
+  if (position.postedDays <= 0) return locale === "ko" ? "오늘" : locale === "zh-CN" ? "今天" : locale === "vi" ? "Hôm nay" : locale === "ja" ? "今日" : locale === "id" ? "Hari ini" : "Today";
+  return locale === "ko" ? `${position.postedDays}일 전` : locale === "zh-CN" ? `${position.postedDays} 天前` : locale === "vi" ? `${position.postedDays} ngày trước` : locale === "ja" ? `${position.postedDays}日前` : locale === "id" ? `${position.postedDays} hari lalu` : `${position.postedDays}d ago`;
+}
+
+function formatDeadlineDday(ymd: string, locale: PlatformLocale) {
+  const parsed = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!parsed) return ymd;
+  const year = Number(parsed[1]);
+  const month = Number(parsed[2]);
+  const day = Number(parsed[3]);
+  const now = new Date();
+  const todayKstMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const deadlineKstMs = Date.UTC(year, month - 1, day);
+  const diffDays = Math.floor((deadlineKstMs - todayKstMs) / (24 * 60 * 60 * 1000));
+  if (diffDays === 0) return locale === "en" ? "D-day" : "D-day";
+  if (diffDays > 0) return `D-${diffDays}`;
+  return `D+${Math.abs(diffDays)}`;
 }
 
 export function PositionsPage() {
   const router = useRouter();
   const { locale } = useLanguage();
   const { user, isReady, isAuthenticated } = useAuthSession();
-  const [positions, setPositions] = useState<Position[]>([]);
+  const [positions, setPositions] = useState<PositionCard[]>([]);
   const [isPositionsLoading, setIsPositionsLoading] = useState(true);
+  const [sortMode, setSortMode] = useState<"latest" | "deadline">("latest");
+  const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
   const [jobRoles, setJobRoles] = useState<string[]>([]);
   const [workTypes, setWorkTypes] = useState<string[]>([]);
   const [industries, setIndustries] = useState<string[]>([]);
   const [companySizes, setCompanySizes] = useState<string[]>([]);
   const [visaTypes, setVisaTypes] = useState<string[]>([]);
+  const [positionSources, setPositionSources] = useState<PositionSourceFilter[]>([]);
   const [industryOptions, setIndustryOptions] = useState<string[]>(FALLBACK_INDUSTRIES);
   const [jobRoleOptions, setJobRoleOptions] = useState<string[]>(FALLBACK_JOB_ROLES);
   const [companySizeOptions, setCompanySizeOptions] = useState<string[]>(FALLBACK_COMPANY_SIZES);
@@ -215,11 +259,8 @@ export function PositionsPage() {
   const [workTypeOptions, setWorkTypeOptions] = useState<string[]>([...FALLBACK_WORK_TYPES]);
   const [myVisaCode, setMyVisaCode] = useState<string | null>(null);
   const [onlyMyVisaEligible, setOnlyMyVisaEligible] = useState(false);
-  const [sort, setSort] = useState<"match" | "recent" | "popular">("match");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
-  const [filterPopupMode, setFilterPopupMode] = useState<"all" | "section">("all");
-  const [activeFilterSection, setActiveFilterSection] = useState<"industry" | "jobRole" | "companySize" | "visa" | "workType">("industry");
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [appliedIds, setAppliedIds] = useState<string[]>([]);
   const [premiumBanners, setPremiumBanners] = useState<PublicPremiumPositionBannerItem[]>([]);
@@ -229,190 +270,123 @@ export function PositionsPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
   const [loginPromptMessage, setLoginPromptMessage] = useState("");
+  const [myPartnerOrganizationId, setMyPartnerOrganizationId] = useState<string | null>(null);
   const isKo = locale === "ko";
+  const isZh = locale === "zh-CN";
+  const isVi = locale === "vi";
+  const isJa = locale === "ja";
+  const isId = locale === "id";
+  const t = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
+    isKo ? ko : isZh ? zh : isVi ? vi : isJa ? ja : isId ? id : en;
 
   const copy = {
-    filter: isKo ? "필터" : "Filters",
-    allFilters: isKo ? "전체 필터" : "All filters",
-    sectionFilter: isKo ? "선택 섹션 필터" : "Section filters",
-    applyHint: isKo ? "선택 즉시 전체 목록에 적용" : "Selections are applied immediately",
-    reset: isKo ? "초기화" : "Reset",
-    closeFilter: isKo ? "필터 닫기" : "Close filters",
-    removeFilterSuffix: isKo ? "필터 제거" : "Remove filter",
-    industry: isKo ? "산업군" : "Industry",
-    jobRole: isKo ? "직무" : "Role",
-    companySize: isKo ? "규모" : "Size",
-    visa: isKo ? "비자" : "Visa",
-    workType: isKo ? "근무 형태" : "Work type",
-    listView: isKo ? "리스트 보기" : "List view",
-    gridView: isKo ? "그리드 보기" : "Grid view",
-    title: isKo ? "글로벌 인재를 위한 오픈 포지션" : "Open positions for global talent",
-    createPosition: isKo ? "포지션 생성하기" : "Create position",
-    bannerAlt: isKo ? "글로벌 인재 포지션 탐색 배너" : "Global talent position banner",
-    searchPlaceholder: isKo ? "직무, 기업, 스킬로 검색 (예: Designer, AI, Seoul)" : "Search by role, company, or skill (e.g., Designer, AI, Seoul)",
-    sortMatch: isKo ? "추천 매칭순" : "Best match",
-    sortRecent: isKo ? "최신순" : "Most recent",
-    sortPopular: isKo ? "지원자 많은 순" : "Most applicants",
-    search: isKo ? "검색" : "Search",
-    popularSearch: isKo ? "인기 검색" : "Popular searches",
-    premiumTitle: isKo ? "이런 포지션은 어떠세요?" : "Aply’s curated featured positions",
-    noPremium: isKo ? "현재 노출 가능한 프리미엄 배너가 없습니다." : "No premium banners are available right now.",
-    premiumError: isKo
-      ? "프리미엄 배너를 불러오지 못했습니다. API 연결 상태와 배너 조건을 확인해주세요."
-      : "Failed to load premium banners. Check API connectivity and banner conditions.",
-    myVisaOnly: isKo ? "내 비자로 지원 가능만" : "Only eligible for my visa",
-    myVisaMissing: isKo ? "비자정보 필요" : "Visa info required",
-    noResultTitle: isKo ? "조건에 맞는 포지션이 없습니다" : "No positions match your filters",
-    noResultDesc: isKo ? "필터를 조정하거나 다른 키워드로 검색해보세요." : "Adjust filters or try different keywords.",
-    resetFilters: isKo ? "필터 초기화" : "Reset filters",
-    loadingMore: isKo ? "불러오는 중..." : "Loading...",
-    loadMore: isKo ? "더 많은 포지션 보기" : "Load more positions",
-    loginRequiredFavorite: isKo ? "로그인한 회원만 즐겨찾기를 사용할 수 있습니다." : "Only signed-in users can use favorites.",
-    studentRequiredFavorite: isKo ? "학생 계정만 즐겨찾기를 사용할 수 있습니다." : "Only student accounts can use favorites.",
-    favoriteFailed: isKo ? "즐겨찾기 처리에 실패했습니다." : "Failed to update favorite.",
-    loginRequiredApply: isKo ? "로그인한 회원만 지원할 수 있습니다." : "Only signed-in users can apply.",
-    studentRequiredApply: isKo ? "학생 계정만 지원할 수 있습니다." : "Only student accounts can apply.",
-    applyFailed: isKo ? "지원 처리에 실패했습니다." : "Failed to apply.",
-    detailSuffix: isKo ? "상세보기" : "View details",
-    thumbnailSuffix: isKo ? "썸네일" : "thumbnail",
-    save: isKo ? "저장" : "Save",
-    edit: isKo ? "수정하기" : "Edit",
-    applyDone: isKo ? "지원완료" : "Applied",
-    apply: isKo ? "지원하기" : "Apply",
-    viewDetails: isKo ? "상세보기" : "View details",
-    loginPromptTitle: isKo ? "로그인이 필요한 기능입니다." : "Sign in is required for this action.",
-    loginPromptLogin: isKo ? "로그인하기" : "Go to login",
-    cancel: isKo ? "취소" : "Cancel",
-    countSuffix: isKo ? "개" : "",
+    filter: t("필터", "Filters", "筛选", "Bộ lọc", "フィルター", "Filter"),
+    allFilters: t("전체 필터", "All filters", "全部筛选", "Tất cả bộ lọc", "全てのフィルター", "Semua filter"),
+    sectionFilter: t("선택 섹션 필터", "Section filters", "分区筛选", "Bộ lọc theo mục", "セクション別フィルター", "Filter per bagian"),
+    applyHint: t("선택 즉시 전체 목록에 적용", "Selections are applied immediately", "选择后立即应用到列表", "Áp dụng ngay sau khi chọn", "選択すると即時に反映されます", "Pilihan langsung diterapkan"),
+    reset: t("초기화", "Reset", "重置", "Đặt lại", "リセット", "Atur ulang"),
+    resetAll: t("전체 초기화", "Clear all", "全部重置", "Xóa tất cả", "全てリセット", "Reset semua"),
+    applyFilters: t("적용", "Apply", "应用", "Áp dụng", "適用", "Terapkan"),
+    selectedCount: t("개 선택됨", " selected", "已选", " đã chọn", "件選択中", " dipilih"),
+    closeFilter: t("필터 닫기", "Close filters", "关闭筛选", "Đóng bộ lọc", "フィルターを閉じる", "Tutup filter"),
+    removeFilterSuffix: t("필터 제거", "Remove filter", "移除筛选", "Xóa bộ lọc", "フィルターを削除", "Hapus filter"),
+    sortLatest: t("최신순", "Latest", "最新", "Mới nhất", "新着順", "Terbaru"),
+    sortDeadline: t("마감임박순", "Deadline", "截止时间", "Hạn nộp", "締切順", "Tenggat"),
+    industry: t("산업군", "Industry", "行业", "Ngành", "業種", "Industri"),
+    jobRole: t("직무", "Role", "岗位", "Vị trí", "職務", "Posisi"),
+    companySize: t("규모", "Size", "规模", "Quy mô", "規模", "Ukuran"),
+    visa: t("비자", "Visa", "签证", "Visa", "ビザ", "Visa"),
+    workType: t("근무 형태", "Work type", "工作方式", "Hình thức làm việc", "勤務形態", "Tipe pekerjaan"),
+    source: t("소스", "Source", "来源", "Nguồn", "ソース", "Sumber"),
+    listView: t("리스트 보기", "List view", "列表视图", "Dạng danh sách", "リスト表示", "Tampilan daftar"),
+    gridView: t("그리드 보기", "Grid view", "网格视图", "Dạng lưới", "グリッド表示", "Tampilan kisi"),
+    title: t("글로벌 인재를 위한 오픈 포지션", "Global Open Positions", "面向全球人才的开放职位", "Vị trí mở cho nhân tài toàn cầu", "グローバル人材のためのオープンポジション", "Posisi Terbuka untuk Talenta Global"),
+    subtitle: t("지금 열려 있는 포지션을 빠르게 둘러보고, 내 조건에 맞는 공고를 찾아보세요.", "Find roles that fit you.", "快速浏览正在招聘的职位，找到适合你的机会。", "Khám phá nhanh các vị trí đang mở và tìm cơ hội phù hợp với bạn.", "現在募集中のポジションをすばやく確認し、自分に合う求人を見つけましょう。", "Telusuri posisi yang sedang dibuka dan temukan lowongan yang sesuai dengan Anda."),
+    createPosition: t("포지션 생성하기", "Create position", "创建职位", "Tạo vị trí", "ポジションを作成", "Buat posisi"),
+    bannerAlt: t("글로벌 인재 포지션 탐색 배너", "Global talent position banner", "全球人才职位探索横幅", "Banner khám phá vị trí cho nhân tài toàn cầu", "グローバル人材向けポジション探索バナー", "Banner pencarian posisi untuk talenta global"),
+    searchPlaceholder: t("직무, 기업, 스킬로 검색 (예: Designer, AI, Seoul)", "Search by role, company, or skill (e.g., Designer, AI, Seoul)", "按岗位、公司或技能搜索（例：Designer, AI, Seoul）", "Tìm theo vị trí, công ty hoặc kỹ năng (vd: Designer, AI, Seoul)", "職務・企業・スキルで検索（例：Designer, AI, Seoul）", "Cari berdasarkan posisi, perusahaan, atau keterampilan (mis. Designer, AI, Seoul)"),
+    search: t("검색", "Search", "搜索", "Tìm kiếm", "検索", "Cari"),
+    popularSearch: t("인기 검색", "Popular searches", "热门搜索", "Tìm kiếm phổ biến", "人気の検索", "Pencarian populer"),
+    premiumTitle: t("이런 포지션은 어떠세요?", "Featured Positions", "你可能感兴趣的职位", "Bạn có thể quan tâm", "こんなポジションはいかがですか？", "Posisi Pilihan"),
+    premiumSubtitle: t("지금 주목받는 포지션을 먼저 확인해보세요.", "See highlighted positions first.", "先看看当前热门职位。", "Xem trước các vị trí nổi bật.", "今注目のポジションをいち早くチェック。", "Lihat posisi unggulan terlebih dahulu."),
+    noPremium: t("현재 노출 가능한 프리미엄 배너가 없습니다.", "No premium banners are available right now.", "当前没有可展示的精选横幅。", "Hiện chưa có banner nổi bật.", "現在表示可能なプレミアムバナーはありません。", "Saat ini tidak ada banner premium yang tersedia."),
+    premiumError: t("프리미엄 배너를 불러오지 못했습니다. API 연결 상태와 배너 조건을 확인해주세요.", "Failed to load premium banners. Check API connectivity and banner conditions.", "无法加载精选横幅，请检查 API 连接与配置。", "Không tải được banner nổi bật. Vui lòng kiểm tra kết nối API và cấu hình.", "プレミアムバナーを読み込めませんでした。API接続状況とバナー条件をご確認ください。", "Gagal memuat banner premium. Periksa koneksi API dan kondisi banner."),
+    myVisaOnly: t("내 비자로 지원 가능만", "Only eligible for my visa", "仅显示可用我签证申请", "Chỉ hiển thị vị trí phù hợp visa của tôi", "自分のビザで応募可能なものだけ", "Hanya yang sesuai visa saya"),
+    myVisaMissing: t("비자정보 필요", "Visa info required", "需要签证信息", "Cần thông tin visa", "ビザ情報が必要です", "Informasi visa diperlukan"),
+    noResultTitle: t("조건에 맞는 포지션이 없습니다", "No positions match your filters", "没有符合条件的职位", "Không có vị trí phù hợp bộ lọc", "条件に合うポジションはありません", "Tidak ada posisi yang cocok dengan filter Anda"),
+    noResultDesc: t("필터를 조정하거나 다른 키워드로 검색해보세요.", "Adjust filters or try different keywords.", "请调整筛选或尝试其他关键词。", "Hãy điều chỉnh bộ lọc hoặc thử từ khóa khác.", "フィルターを調整するか、別のキーワードでお試しください。", "Sesuaikan filter atau coba kata kunci lain."),
+    resetFilters: t("필터 초기화", "Reset filters", "重置筛选", "Đặt lại bộ lọc", "フィルターをリセット", "Atur ulang filter"),
+    loadingMore: t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat..."),
+    loadMore: t("더 많은 포지션 보기", "Load more positions", "查看更多职位", "Xem thêm vị trí", "もっとポジションを見る", "Muat posisi lainnya"),
+    loginRequiredFavorite: t("로그인한 회원만 즐겨찾기를 사용할 수 있습니다.", "Only signed-in users can use favorites.", "仅登录用户可使用收藏。", "Chỉ người dùng đã đăng nhập mới dùng được yêu thích.", "ログインした会員のみお気に入りを利用できます。", "Hanya pengguna yang masuk yang dapat menggunakan favorit."),
+    studentRequiredFavorite: t("학생 계정만 즐겨찾기를 사용할 수 있습니다.", "Only student accounts can use favorites.", "仅学生账号可使用收藏。", "Chỉ tài khoản sinh viên mới dùng được yêu thích.", "学生アカウントのみお気に入りを利用できます。", "Hanya akun pelajar yang dapat menggunakan favorit."),
+    favoriteFailed: t("즐겨찾기 처리에 실패했습니다.", "Failed to update favorite.", "收藏操作失败。", "Cập nhật yêu thích thất bại.", "お気に入りの更新に失敗しました。", "Gagal memperbarui favorit."),
+    loginRequiredApply: t("로그인한 회원만 지원할 수 있습니다.", "Only signed-in users can apply.", "仅登录用户可申请。", "Chỉ người dùng đã đăng nhập mới có thể ứng tuyển.", "ログインした会員のみ応募できます。", "Hanya pengguna yang masuk yang dapat melamar."),
+    studentRequiredApply: t("파트너 회원, 어드민은 지원하기에 지원할 수 없습니다.", "Partner and admin accounts cannot apply.", "合作伙伴和管理员账号不可申请。", "Tài khoản đối tác và quản trị không thể ứng tuyển.", "パートナー会員および管理者アカウントは応募できません。", "Akun mitra dan admin tidak dapat melamar."),
+    applyFailed: t("지원 처리에 실패했습니다.", "Failed to apply.", "申请失败。", "Ứng tuyển thất bại.", "応募処理に失敗しました。", "Gagal melamar."),
+    detailSuffix: t("상세보기", "View details", "查看详情", "Xem chi tiết", "詳細を見る", "Lihat detail"),
+    thumbnailSuffix: t("썸네일", "thumbnail", "缩略图", "ảnh thu nhỏ", "サムネイル", "thumbnail"),
+    save: t("저장", "Save", "收藏", "Lưu", "保存", "Simpan"),
+    edit: t("수정하기", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit"),
+    applyDone: t("지원완료", "Applied", "已申请", "Đã ứng tuyển", "応募済み", "Sudah dilamar"),
+    apply: t("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar"),
+    viewDetails: t("상세보기", "View details", "查看详情", "Xem chi tiết", "詳細を見る", "Lihat detail"),
+    loginPromptTitle: t("로그인이 필요한 기능입니다.", "Sign in is required for this action.", "此操作需要登录。", "Bạn cần đăng nhập để dùng tính năng này.", "この操作にはログインが必要です。", "Tindakan ini memerlukan login."),
+    loginPromptLogin: t("로그인하기", "Go to login", "去登录", "Đi tới đăng nhập", "ログインへ", "Buka login"),
+    cancel: t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal"),
+    countSuffix: isKo ? "개" : isZh ? "" : isVi ? "" : isJa ? "件" : isId ? "" : "",
+    loginToSeeMore: t("로그인해야 더 많은 포지션을 볼 수 있어요.", "Sign in to see more positions.", "登录后可查看更多职位。", "Đăng nhập để xem thêm vị trí.", "ログインするとさらに多くのポジションを表示できます。", "Masuk untuk melihat lebih banyak posisi."),
+    loginNow: t("로그인하기", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk"),
     activeVisaLabel: (visa: string | null) =>
-      `${isKo ? "내 비자로 지원 가능만" : "Only eligible for my visa"} ${visa ? `(${visa})` : `(${isKo ? "비자정보 필요" : "Visa info required"})`}`
+      `${isKo ? "내 비자로 지원 가능만" : isZh ? "仅符合我签证条件" : isVi ? "Chỉ phù hợp với visa của tôi" : isJa ? "自分のビザで応募可能なものだけ" : isId ? "Hanya yang sesuai visa saya" : "Only eligible for my visa"} ${visa ? `(${visa})` : `(${isKo ? "비자정보 필요" : isZh ? "需要签证信息" : isVi ? "Cần thông tin visa" : isJa ? "ビザ情報が必要です" : isId ? "Informasi visa diperlukan" : "Visa info required"})`}`
   } as const;
 
-  const toggle = (list: string[], setList: (v: string[]) => void, value: string) => {
+  const toggle = <T extends string>(list: T[], setList: (v: T[]) => void, value: T) => {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+  };
+
+  const applySearch = () => {
+    const next = searchInput.trim();
+    setQuery(next);
+    if (next) trackPositionSearch(next);
   };
 
   const premiumPositionCards = useMemo(
     () => premiumBanners.map((banner) => mapPublicPositionToCard(banner.position, locale)),
     [premiumBanners, locale]
   );
-
-  const combinedPositions = useMemo(() => {
-    const byId = new Map<string, Position>();
-    for (const item of premiumPositionCards) byId.set(item.id, item);
-    for (const item of positions) {
-      if (!byId.has(item.id)) byId.set(item.id, item);
-    }
-    return Array.from(byId.values());
-  }, [premiumPositionCards, positions]);
-
-  const premiumPositionIdSet = useMemo(
-    () => new Set(premiumBanners.map((item) => item.positionId)),
-    [premiumBanners]
-  );
-
-  const filtered = useMemo(() => {
-    let result = combinedPositions.filter((p) => {
-      const q = query.trim().toLowerCase();
-      if (q && !`${p.role} ${p.company} ${p.tags.join(" ")}`.toLowerCase().includes(q)) return false;
-      if (jobRoles.length && !jobRoles.some((role) => role === p.category || role === p.role)) return false;
-      if (workTypes.length && !workTypes.includes(p.type)) return false;
-      if (industries.length && !industries.includes(p.industry)) return false;
-      if (companySizes.length && !companySizes.includes(p.companySize)) return false;
-      if (visaTypes.length && !visaTypes.some((visa) => p.eligibleVisas.includes(visa))) {
-        return false;
-      }
-      if (onlyMyVisaEligible && myVisaCode && !p.eligibleVisas.includes(myVisaCode)) return false;
-      return true;
-    });
-    if (sort === "match") result = [...result].sort((a, b) => b.match - a.match);
-    if (sort === "recent") result = [...result].sort((a, b) => a.postedDays - b.postedDays);
-    if (sort === "popular") result = [...result].sort((a, b) => b.applicants - a.applicants);
-    if (premiumPositionIdSet.size > 0) {
-      result = [...result].sort((a, b) => {
-        const aPremium = premiumPositionIdSet.has(a.id);
-        const bPremium = premiumPositionIdSet.has(b.id);
-        if (aPremium === bPremium) return 0;
-        return aPremium ? -1 : 1;
-      });
-    }
-    return result;
-  }, [
-    combinedPositions,
-    query,
-    jobRoles,
-    workTypes,
-    industries,
-    companySizes,
-    visaTypes,
-    onlyMyVisaEligible,
-    myVisaCode,
-    sort,
-    premiumPositionIdSet
-  ]);
+  const filtered = positions;
+  const isGuestLocked = !isAuthenticated;
+  const visiblePositions = isGuestLocked ? filtered.slice(0, 3) : filtered;
+  const showGuestOverlay = isGuestLocked && filtered.length > 3;
+  const effectiveViewMode: "grid" | "list" = isGuestLocked ? "list" : viewMode;
 
   const hasMorePositions = Boolean(nextCursor);
-  const filterSections = [
-    { id: "industry" as const, label: copy.industry },
-    { id: "jobRole" as const, label: copy.jobRole },
-    { id: "companySize" as const, label: copy.companySize },
-    { id: "visa" as const, label: copy.visa },
-    { id: "workType" as const, label: copy.workType }
-  ];
-  const activeFilterSectionLabel = filterSections.find((section) => section.id === activeFilterSection)?.label ?? copy.filter;
-  const filterPopupTitle = filterPopupMode === "all" ? copy.allFilters : activeFilterSectionLabel;
-  const activeSectionFilterCount =
-    activeFilterSection === "industry"
-      ? industries.length
-      : activeFilterSection === "jobRole"
-        ? jobRoles.length
-        : activeFilterSection === "companySize"
-          ? companySizes.length
-          : activeFilterSection === "visa"
-            ? visaTypes.length + (onlyMyVisaEligible && myVisaCode ? 1 : 0)
-            : workTypes.length;
   const selectedFilterChips = [
-    ...industries.map((value) => ({
-      key: `industry:${value}`,
-      label: partnerIndustryLabel(value),
-      onRemove: () => toggle(industries, setIndustries, value)
-    })),
     ...jobRoles.map((value) => ({
       key: `jobRole:${value}`,
       label: value,
       onRemove: () => toggle(jobRoles, setJobRoles, value)
     })),
-    ...companySizes.map((value) => ({
-      key: `companySize:${value}`,
-      label: value,
-      onRemove: () => toggle(companySizes, setCompanySizes, value)
-    })),
-    ...visaTypes.map((value) => ({
-      key: `visa:${value}`,
-      label: value,
-      onRemove: () => toggle(visaTypes, setVisaTypes, value)
-    })),
-    ...workTypes.map((value) => ({
-      key: `workType:${value}`,
-      label: workTypeLabel(value, locale),
-      onRemove: () => toggle(workTypes, setWorkTypes, value)
-    })),
-    ...(onlyMyVisaEligible && myVisaCode
-      ? [
-          {
-            key: `myVisa:${myVisaCode}`,
-            label: `${isKo ? "내 비자" : "My visa"}(${myVisaCode})`,
-            onRemove: () => setOnlyMyVisaEligible(false)
-          }
-        ]
-      : [])
+    ...positionSources.map((value) => ({
+      key: `source:${value}`,
+      label: value === "INTERNAL" ? "Aply" : value === "WANTED" ? "Wanted" : value === "KOWORK" ? "KOWORK" : "BUDDIES",
+      onRemove: () => toggle(positionSources, setPositionSources, value)
+    }))
   ];
 
   useEffect(() => {
     let ignore = false;
     (async () => {
       try {
-        const page = await getPublicPositionsPage({ limit: PUBLIC_POSITIONS_PAGE_SIZE });
+        const page = await getPublicPositionsPage({
+          limit: PUBLIC_POSITIONS_PAGE_SIZE,
+          search: query,
+          jobRoles: jobRoles.length ? [...jobRoles] : undefined,
+          sortOrder: "desc",
+          sort: sortMode,
+          sourceProviders: positionSources.length ? [...positionSources] : undefined
+        });
         if (ignore) return;
         setPositions(page.items.map((item) => mapPublicPositionToCard(item, locale)));
         setNextCursor(page.nextCursor);
@@ -427,7 +401,7 @@ export function PositionsPage() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [positionSources, locale, query, jobRoles, sortMode]);
 
   useEffect(() => {
     let ignore = false;
@@ -452,6 +426,11 @@ export function PositionsPage() {
   }, []);
 
   useEffect(() => {
+    if (!isReady || !isAuthenticated || user?.role !== "STUDENT") {
+      setMyVisaCode(null);
+      return;
+    }
+
     let ignore = false;
     (async () => {
       try {
@@ -466,7 +445,27 @@ export function PositionsPage() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [isReady, isAuthenticated, user?.role]);
+
+  useEffect(() => {
+    if (!isReady || !isAuthenticated || user?.role !== "PARTNER") {
+      setMyPartnerOrganizationId(null);
+      return;
+    }
+    let ignore = false;
+    void (async () => {
+      try {
+        const org = await getMyPartnerOrganization();
+        if (ignore) return;
+        setMyPartnerOrganizationId(org?.id ?? null);
+      } catch {
+        if (!ignore) setMyPartnerOrganizationId(null);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [isReady, isAuthenticated, user?.role]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -571,39 +570,22 @@ export function PositionsPage() {
 
   const clearAll = () => {
     setJobRoles([]);
-    setWorkTypes([]);
-    setIndustries([]);
-    setCompanySizes([]);
-    setVisaTypes([]);
-    setOnlyMyVisaEligible(false);
-  };
-
-  const clearActiveSection = () => {
-    if (activeFilterSection === "industry") {
-      setIndustries([]);
-      return;
-    }
-    if (activeFilterSection === "jobRole") {
-      setJobRoles([]);
-      return;
-    }
-    if (activeFilterSection === "companySize") {
-      setCompanySizes([]);
-      return;
-    }
-    if (activeFilterSection === "visa") {
-      setVisaTypes([]);
-      setOnlyMyVisaEligible(false);
-      return;
-    }
-    setWorkTypes([]);
+    setPositionSources([]);
   };
 
   async function handleLoadMorePositions() {
     if (!nextCursor || isLoadingMore) return;
     setIsLoadingMore(true);
     try {
-      const page = await getPublicPositionsPage({ cursor: nextCursor, limit: PUBLIC_POSITIONS_PAGE_SIZE });
+      const page = await getPublicPositionsPage({
+        cursor: nextCursor,
+        limit: PUBLIC_POSITIONS_PAGE_SIZE,
+        search: query,
+        jobRoles: jobRoles.length ? [...jobRoles] : undefined,
+        sortOrder: "desc",
+        sort: sortMode,
+        sourceProviders: positionSources.length ? [...positionSources] : undefined
+      });
       const mapped = page.items.map((item) => mapPublicPositionToCard(item, locale));
       setPositions((prev) => {
         const existing = new Set(prev.map((item) => item.id));
@@ -628,55 +610,70 @@ export function PositionsPage() {
         <section className="bg-gradient-to-b from-muted/40 to-background">
           <div className="container py-12 md:py-16">
             <div className="mx-auto max-w-4xl">
-              <div className="flex flex-col gap-6">
+              <div className="flex flex-col">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <h1 className="font-display text-3xl font-bold tracking-tight text-black">
-                    {copy.title}
-                  </h1>
+                  <div>
+                    <h1 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] text-black md:text-5xl`}>
+                      {copy.title}
+                    </h1>
+                    <p className="mt-2 text-sm font-normal text-slate-600 md:text-base">
+                      {copy.subtitle}
+                    </p>
+                  </div>
+                  {/* 포지션 생성하기 버튼은 추후 오픈 시까지 임시 숨김
                   {user?.role === "PARTNER" ? (
-                    <Button variant="dark" size="lg" asChild className="w-full md:w-auto">
+                    <Button
+                      variant="dark"
+                      size="lg"
+                      asChild
+                      className="w-full rounded-xl bg-[#b7ff5a] font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d] md:w-auto"
+                    >
                       <Link href="/positions/create">{copy.createPosition}</Link>
                     </Button>
                   ) : null}
+                  */}
                 </div>
 
-                <div className="relative overflow-hidden rounded-2xl bg-muted">
+                <div className="relative mt-4 h-[180px] overflow-hidden rounded-2xl bg-white md:h-[220px]">
                   <Image
-                    src="/img_position_explore.webp"
+                    src="/img_position_hero.webp"
                     alt={copy.bannerAlt}
                     width={1680}
                     height={945}
-                    priority
-                    className="h-[180px] w-full object-cover md:h-[220px]"
+                    preload
+                    fetchPriority="high"
+                    quality={70}
+                    sizes="(max-width: 768px) 100vw, 896px"
+                    className="h-full w-full object-contain"
                   />
                 </div>
               </div>
 
-              <div className="mt-8 rounded-2xl border border-border bg-card p-3 md:p-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder={copy.searchPlaceholder}
-                      className="h-11 w-full rounded-md border-0 bg-transparent pl-11 text-base outline-none"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <select
-                        value={sort}
-                        onChange={(e) => setSort(e.target.value as "match" | "recent" | "popular")}
-                        className="h-11 w-[160px] appearance-none rounded-md border border-input bg-background pl-3 pr-10 text-sm"
-                      >
-                        <option value="match">{copy.sortMatch}</option>
-                        <option value="recent">{copy.sortRecent}</option>
-                        <option value="popular">{copy.sortPopular}</option>
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              {isAuthenticated ? (
+              <div className="mt-8">
+                <div className="flex flex-col gap-3">
+                  <div className="mx-auto flex w-full items-center gap-2 rounded-2xl bg-white p-2">
+                    <div className="flex-1">
+                      <input
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            applySearch();
+                          }
+                        }}
+                        placeholder={copy.searchPlaceholder}
+                        className="h-11 w-full rounded-xl bg-transparent px-3 text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                      />
                     </div>
-                    <Button variant="dark" size="lg" className="h-11">
+                    <Button
+                      variant="dark"
+                      size="lg"
+                      className="h-11 shrink-0 rounded-xl bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d]"
+                      type="button"
+                      onClick={applySearch}
+                    >
                       {copy.search}
                     </Button>
                   </div>
@@ -687,7 +684,10 @@ export function PositionsPage() {
                   {["Design", "Remote", "IT", "D-10", "AI"].map((chip) => (
                     <button
                       key={chip}
-                      onClick={() => setQuery(chip)}
+                      onClick={() => {
+                        setSearchInput(chip);
+                        setQuery(chip);
+                      }}
                       className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
                     >
                       {chip}
@@ -695,25 +695,14 @@ export function PositionsPage() {
                   ))}
                 </div>
               </div>
+              ) : null}
 
-              {isPremiumBannersLoading ? (
-                <section className="mt-12" aria-hidden>
-                  <div className="mb-4 h-8 w-64 animate-pulse rounded bg-muted" />
-                  <div className="grid gap-3 md:grid-cols-3">
-                    {Array.from({ length: 3 }, (_, index) => (
-                      <div key={`premium-banner-skeleton-${index}`} className="rounded-xl border border-border/60 bg-card p-4">
-                        <div className="h-[160px] animate-pulse rounded-lg bg-muted" />
-                        <div className="mt-3 space-y-2">
-                          <div className="h-5 w-3/4 animate-pulse rounded bg-muted" />
-                          <div className="h-4 w-5/6 animate-pulse rounded bg-muted" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ) : premiumBanners.length > 0 ? (
+              {!isPremiumBannersLoading && premiumBanners.length > 0 ? (
                 <section className="mt-12">
-                  <h2 className="mb-4 font-display text-2xl font-bold tracking-tight md:text-3xl">{copy.premiumTitle}</h2>
+                  <h2 className={`${paperlogy.className} mb-4 text-3xl font-black tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>
+                    {copy.premiumTitle}
+                  </h2>
+                  <p className="mb-4 text-sm text-slate-600 md:text-base">{copy.premiumSubtitle}</p>
                   <div className="flex gap-3 overflow-x-auto pb-1">
                     {premiumBanners.map((banner) => (
                       <Link
@@ -738,11 +727,7 @@ export function PositionsPage() {
                 <section className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {premiumBannerError}
                 </section>
-              ) : (
-                <section className="mt-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                  {copy.noPremium}
-                </section>
-              )}
+              ) : null}
             </div>
           </div>
         </section>
@@ -750,41 +735,35 @@ export function PositionsPage() {
         <section className="container">
           <div className="mx-auto max-w-4xl">
             <div>
+              {isAuthenticated ? (
               <div className="mb-4 flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     className="h-9 gap-2 px-3"
-                    onClick={() => {
-                      if (isFilterPopupOpen && filterPopupMode === "all") {
-                        setIsFilterPopupOpen(false);
-                        return;
-                      }
-                      setFilterPopupMode("all");
-                      setIsFilterPopupOpen(true);
-                    }}
+                    onClick={() => setIsFilterPopupOpen((prev) => !prev)}
                   >
                     <SlidersHorizontal className="h-4 w-4" />
                     {copy.filter}
+                    {selectedFilterChips.length > 0 ? (
+                      <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-foreground px-1.5 text-[11px] font-semibold text-background">
+                        {selectedFilterChips.length}
+                      </span>
+                    ) : null}
                     <ChevronDown className={`h-4 w-4 transition-transform ${isFilterPopupOpen ? "rotate-180" : ""}`} />
                   </Button>
-                  <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
-                    {filterSections.map((section) => (
-                      <Button
-                        key={section.id}
-                        type="button"
-                        variant="outline"
-                        className="h-9 shrink-0 px-3"
-                        onClick={() => {
-                          setActiveFilterSection(section.id);
-                          setFilterPopupMode("section");
-                          setIsFilterPopupOpen(true);
-                        }}
-                      >
-                        {section.label}
-                      </Button>
-                    ))}
+                  <div className="relative">
+                    <select
+                      value={sortMode}
+                      onChange={(e) => setSortMode(e.target.value as "latest" | "deadline")}
+                      className="h-9 appearance-none rounded-md border border-border bg-background pl-3 pr-8 text-sm font-medium text-foreground"
+                      aria-label={t("정렬", "Sort", "排序", "Sắp xếp", "並び替え", "Urutkan")}
+                    >
+                      <option value="latest">{copy.sortLatest}</option>
+                      <option value="deadline">{copy.sortDeadline}</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
@@ -808,8 +787,9 @@ export function PositionsPage() {
                   </Button>
                 </div>
               </div>
+              ) : null}
 
-              {selectedFilterChips.length > 0 ? (
+              {isAuthenticated && selectedFilterChips.length > 0 ? (
                 <div className="mb-4 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
@@ -835,169 +815,169 @@ export function PositionsPage() {
                 </div>
               ) : null}
 
-              {isFilterPopupOpen ? (
-                <>
+              {isAuthenticated && isFilterPopupOpen ? (
+                <div
+                  className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+                  onClick={() => setIsFilterPopupOpen(false)}
+                >
                   <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-                    onClick={() => setIsFilterPopupOpen(false)}
-                  >
-                  <div
-                    className="w-full max-w-3xl rounded-2xl border border-border bg-card p-5"
+                    className="flex w-full max-w-2xl flex-col rounded-t-2xl border-t border-border bg-card sm:rounded-2xl sm:border"
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <div className="mb-4 flex items-center justify-between gap-2">
+                    {/* Header */}
+                    <div className="flex items-center justify-between gap-2 border-b border-border/60 px-5 py-4">
                       <div className="flex items-center gap-2">
-                        <SlidersHorizontal className="h-4 w-4" />
-                        <h2 className="font-display text-base font-bold">{filterPopupTitle}</h2>
-                        <span className="text-xs text-muted-foreground">
-                          {filterPopupMode === "all" ? copy.allFilters : copy.sectionFilter} · {copy.applyHint}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {activeSectionFilterCount > 0 ? (
-                          <button onClick={clearActiveSection} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-                            <RotateCcw className="h-3 w-3" /> {copy.reset}
-                          </button>
+                        <SlidersHorizontal className="h-5 w-5" />
+                        <h2 className="font-display text-base font-bold">{copy.filter}</h2>
+                        {selectedFilterChips.length > 0 ? (
+                          <span className="ml-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-foreground px-1.5 text-[11px] font-semibold text-background">
+                            {selectedFilterChips.length}
+                          </span>
                         ) : null}
-                        <button
-                          type="button"
-                          aria-label={copy.closeFilter}
-                          onClick={() => setIsFilterPopupOpen(false)}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
                       </div>
+                      <button
+                        type="button"
+                        aria-label={copy.closeFilter}
+                        onClick={() => setIsFilterPopupOpen(false)}
+                        className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
 
-                    <div className="max-h-[56vh] overflow-y-auto p-1">
-                      {filterPopupMode === "all" || activeFilterSection === "industry" ? (
-                        <div className="mb-4 last:mb-0">
-                          <div className="flex flex-wrap gap-2">
-                            {industryOptions.map((industry) => (
-                              <FilterBadge
-                                key={industry}
-                                label={partnerIndustryLabel(industry)}
-                                active={industries.includes(industry)}
-                                onClick={() => toggle(industries, setIndustries, industry)}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {filterPopupMode === "all" || activeFilterSection === "jobRole" ? (
-                        <div className="mb-4 last:mb-0">
-                          <div className="flex flex-wrap gap-2">
-                            {jobRoleOptions.map((role) => (
-                              <FilterBadge
-                                key={role}
-                                label={role}
-                                active={jobRoles.includes(role)}
-                                onClick={() => toggle(jobRoles, setJobRoles, role)}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {filterPopupMode === "all" || activeFilterSection === "companySize" ? (
-                        <div className="mb-4 last:mb-0">
-                          <div className="flex flex-wrap gap-2">
-                            {companySizeOptions.map((size) => (
-                              <FilterBadge
-                                key={size}
-                                label={size}
-                                active={companySizes.includes(size)}
-                                onClick={() => toggle(companySizes, setCompanySizes, size)}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {filterPopupMode === "all" || activeFilterSection === "visa" ? (
-                        <div className="mb-4 last:mb-0">
-                          <div className="flex flex-wrap gap-2">
-                            {isAuthenticated ? (
-                              <FilterBadge
-                                label={copy.activeVisaLabel(myVisaCode)}
-                                active={onlyMyVisaEligible}
-                                disabled={!myVisaCode}
-                                onClick={() => setOnlyMyVisaEligible((prev) => !prev)}
-                              />
+                    {/* Body */}
+                    <div className="max-h-[60vh] space-y-6 overflow-y-auto px-5 py-5">
+                      <section>
+                        <div className="mb-3 flex items-center justify-between">
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {copy.jobRole}
+                            {jobRoles.length > 0 ? (
+                              <span className="ml-1.5 text-xs font-medium text-muted-foreground">({jobRoles.length})</span>
                             ) : null}
-                            {visaTypeOptions.map((item) => (
-                              <FilterBadge
-                                key={item}
-                                label={`${item} (${visaTypeLabel(item, locale)})`}
-                                active={visaTypes.includes(item)}
-                                onClick={() => toggle(visaTypes, setVisaTypes, item)}
-                              />
-                            ))}
-                          </div>
+                          </h3>
+                          {jobRoles.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setJobRoles([])}
+                              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              <RotateCcw className="h-3 w-3" /> {copy.reset}
+                            </button>
+                          ) : null}
                         </div>
-                      ) : null}
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-3">
+                          {jobRoleOptions.map((role) => {
+                            const checked = jobRoles.includes(role);
+                            return (
+                              <label
+                                key={role}
+                                className={`flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted/50 ${
+                                  checked ? "text-foreground" : "text-muted-foreground"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 flex-none cursor-pointer accent-foreground"
+                                  checked={checked}
+                                  onChange={() => toggle(jobRoles, setJobRoles, role)}
+                                />
+                                <span className="truncate">{role}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </section>
 
-                      {filterPopupMode === "all" || activeFilterSection === "workType" ? (
-                        <div className="mb-4 last:mb-0">
-                          <div className="flex flex-wrap gap-2">
-                            {workTypeOptions.map((type) => (
-                              <FilterBadge
-                                key={type}
-                                label={workTypeLabel(type, locale)}
-                                active={workTypes.includes(type)}
-                                onClick={() => toggle(workTypes, setWorkTypes, type)}
-                              />
-                            ))}
-                          </div>
+                      <section className="border-t border-border/60 pt-5">
+                        <div className="mb-3 flex items-center justify-between">
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {copy.source}
+                            {positionSources.length > 0 ? (
+                              <span className="ml-1.5 text-xs font-medium text-muted-foreground">({positionSources.length})</span>
+                            ) : null}
+                          </h3>
+                          {positionSources.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setPositionSources([])}
+                              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              <RotateCcw className="h-3 w-3" /> {copy.reset}
+                            </button>
+                          ) : null}
                         </div>
-                      ) : null}
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-3">
+                          {([
+                            { key: "INTERNAL", label: "Aply" },
+                            { key: "WANTED", label: "Wanted" }
+                          ] as const).map((item) => {
+                            const checked = positionSources.includes(item.key);
+                            return (
+                              <label
+                                key={item.key}
+                                className={`flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted/50 ${
+                                  checked ? "text-foreground" : "text-muted-foreground"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 flex-none cursor-pointer accent-foreground"
+                                  checked={checked}
+                                  onChange={() => toggle(positionSources, setPositionSources, item.key)}
+                                />
+                                <span className="truncate">{item.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between gap-3 border-t border-border/60 bg-muted/20 px-5 py-3">
+                      <button
+                        type="button"
+                        onClick={clearAll}
+                        disabled={selectedFilterChips.length === 0}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <RotateCcw className="h-4 w-4" /> {copy.resetAll}
+                      </button>
+                      <Button
+                        type="button"
+                        variant="dark"
+                        size="sm"
+                        className="min-w-[120px]"
+                        onClick={() => setIsFilterPopupOpen(false)}
+                      >
+                        {copy.applyFilters}
+                        {selectedFilterChips.length > 0 ? ` (${selectedFilterChips.length})` : ""}
+                      </Button>
                     </div>
                   </div>
-                  </div>
-                </>
+                </div>
               ) : null}
 
               {shouldShowLoadingPlaceholder ? (
-                viewMode === "grid" ? (
-                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                    {placeholderItems.map((item) => (
-                      <article
-                        key={`grid-skeleton-${item}`}
-                        className="overflow-hidden rounded-xl border border-border/60 bg-card p-4"
-                        aria-hidden
-                      >
-                        <div className="aspect-[16/9] w-full animate-pulse rounded-xl bg-muted" />
-                        <div className="mt-4 space-y-2">
+                <div className="space-y-3">
+                  {placeholderItems.map((item) => (
+                    <article
+                      key={`list-skeleton-${item}`}
+                      className="rounded-xl border border-border/60 bg-card p-4"
+                      aria-hidden
+                    >
+                      <div className="flex flex-col gap-2 md:grid md:grid-cols-[180px_1fr_auto] md:items-stretch md:gap-3">
+                        <div className="aspect-[16/9] w-full animate-pulse rounded-xl bg-muted md:w-[180px]" />
+                        <div className="space-y-2 md:flex md:flex-col md:justify-center">
                           <div className="h-3 w-20 animate-pulse rounded bg-muted" />
                           <div className="h-5 w-3/4 animate-pulse rounded bg-muted" />
                           <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
                         </div>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {placeholderItems.map((item) => (
-                      <article
-                        key={`list-skeleton-${item}`}
-                        className="rounded-xl border border-border/60 bg-card p-4"
-                        aria-hidden
-                      >
-                        <div className="flex flex-col gap-2 md:grid md:grid-cols-[180px_1fr_auto] md:items-stretch md:gap-3">
-                          <div className="aspect-[16/9] w-full animate-pulse rounded-xl bg-muted md:w-[180px]" />
-                          <div className="space-y-2 md:flex md:flex-col md:justify-center">
-                            <div className="h-3 w-20 animate-pulse rounded bg-muted" />
-                            <div className="h-5 w-3/4 animate-pulse rounded bg-muted" />
-                            <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
-                          </div>
-                          <div className="h-10 w-[120px] animate-pulse self-end rounded bg-muted" />
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                )
+                        <div className="h-10 w-[120px] animate-pulse self-end rounded bg-muted" />
+                      </div>
+                    </article>
+                  ))}
+                </div>
               ) : filtered.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-16 text-center">
                   <p className="font-display text-lg font-semibold">{copy.noResultTitle}</p>
@@ -1005,60 +985,96 @@ export function PositionsPage() {
                   <Button variant="outline" className="mt-4" onClick={clearAll}>{copy.resetFilters}</Button>
                 </div>
               ) : (
-                viewMode === "grid" ? (
-                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                    {filtered.map((p) => {
-                      const isOwnPartnerPosting =
-                        user?.role === "PARTNER"
-                        && Boolean(p.partnerDomain)
-                        && extractDomainFromEmail(user.email) === p.partnerDomain?.toLowerCase();
+                effectiveViewMode === "grid" ? (
+                  <div className="relative">
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-5 lg:grid-cols-3">
+                      {visiblePositions.map((p) => {
+                        const isOwnPartnerPosting = !!myPartnerOrganizationId && p.partnerDomain === myPartnerOrganizationId;
 
-                      return (
-                        <PositionGridCard
-                          key={p.id}
-                          p={p}
-                          isOwnPartnerPosting={isOwnPartnerPosting}
-                          isStudentUser={user?.role === "STUDENT"}
-                          isApplied={appliedIds.includes(p.id)}
-                          isFavorite={favoriteIds.includes(p.id)}
-                          onToggleFavorite={() => toggleFavorite(p.id)}
-                          onApply={() => {
-                            void applyFromList(p.id);
-                          }}
-                          locale={locale}
-                        />
-                      );
-                    })}
+                        return (
+                          <div key={p.id} className={isGuestLocked ? "opacity-80" : undefined}>
+                            <PositionGridCard
+                              p={p}
+                              isOwnPartnerPosting={isOwnPartnerPosting}
+                              isStudentUser={user?.role === "STUDENT"}
+                              isApplied={appliedIds.includes(p.id)}
+                              isFavorite={favoriteIds.includes(p.id)}
+                              onToggleFavorite={() => toggleFavorite(p.id)}
+                              onApply={() => {
+                                void applyFromList(p.id);
+                              }}
+                              locale={locale}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {showGuestOverlay ? (
+                      <>
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 h-full bg-gradient-to-t from-background via-background/90 to-background/45 to-65% to-transparent" />
+                        <div className="absolute inset-x-0 bottom-7 z-50 flex justify-center text-center">
+                          <div>
+                            <p className="text-sm font-medium">{copy.loginToSeeMore}</p>
+                            <Button
+                              variant="dark"
+                              size="sm"
+                              className="mt-2 pointer-events-auto"
+                              onClick={() => router.push("/login")}
+                            >
+                              {copy.loginNow}
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {filtered.map((p) => {
-                      const isOwnPartnerPosting =
-                        user?.role === "PARTNER"
-                        && Boolean(p.partnerDomain)
-                        && extractDomainFromEmail(user.email) === p.partnerDomain?.toLowerCase();
+                  <div className="relative">
+                    <div className="space-y-3">
+                      {visiblePositions.map((p) => {
+                        const isOwnPartnerPosting = !!myPartnerOrganizationId && p.partnerDomain === myPartnerOrganizationId;
 
-                      return (
-                        <PositionRow
-                          key={p.id}
-                          p={p}
-                          isOwnPartnerPosting={isOwnPartnerPosting}
-                          isStudentUser={user?.role === "STUDENT"}
-                          isApplied={appliedIds.includes(p.id)}
-                          isFavorite={favoriteIds.includes(p.id)}
-                          onToggleFavorite={() => toggleFavorite(p.id)}
-                          onApply={() => {
-                            void applyFromList(p.id);
-                          }}
-                          locale={locale}
-                        />
-                      );
-                    })}
+                        return (
+                          <div key={p.id} className={isGuestLocked ? "opacity-80" : undefined}>
+                            <PositionRow
+                              p={p}
+                              isOwnPartnerPosting={isOwnPartnerPosting}
+                              isStudentUser={user?.role === "STUDENT"}
+                              isApplied={appliedIds.includes(p.id)}
+                              isFavorite={favoriteIds.includes(p.id)}
+                              onToggleFavorite={() => toggleFavorite(p.id)}
+                              onApply={() => {
+                                void applyFromList(p.id);
+                              }}
+                              locale={locale}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {showGuestOverlay ? (
+                      <>
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 h-full bg-gradient-to-t from-background via-background/90 to-background/45 to-65% to-transparent" />
+                        <div className="absolute inset-x-0 bottom-8 z-50 flex justify-center text-center">
+                          <div>
+                            <p className="text-sm font-medium">{copy.loginToSeeMore}</p>
+                            <Button
+                              variant="dark"
+                              size="sm"
+                              className="mt-2 pointer-events-auto"
+                              onClick={() => router.push("/login")}
+                            >
+                              {copy.loginNow}
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                 )
               )}
 
-              {hasMorePositions ? (
+              {isAuthenticated && hasMorePositions ? (
                 <div className="mt-10 flex items-center justify-center">
                   <Button
                     variant="outline"
@@ -1139,7 +1155,9 @@ const FilterBadge = ({
   </button>
 );
 
-const PositionRow = ({
+export type { PositionCard };
+export { mapPublicPositionToCard };
+export const PositionRow = ({
   p,
   isOwnPartnerPosting,
   isStudentUser,
@@ -1149,36 +1167,85 @@ const PositionRow = ({
   onApply,
   locale
 }: {
-  p: Position;
+  p: PositionCard;
   isOwnPartnerPosting: boolean;
   isStudentUser: boolean;
   isApplied: boolean;
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onApply: () => void;
-  locale: "ko" | "en";
+  locale: PlatformLocale;
 }) => {
   const isKo = locale === "ko";
+  const isZh = locale === "zh-CN";
+  const isVi = locale === "vi";
+  const isJa = locale === "ja";
+  const isId = locale === "id";
   const href = companyHref(p.partnerDomain);
   const copy = {
-    detailSuffix: isKo ? "상세보기" : "View details",
-    thumbnailSuffix: isKo ? "썸네일" : "thumbnail",
-    save: isKo ? "저장" : "Save",
-    edit: isKo ? "수정하기" : "Edit",
-    applyDone: isKo ? "지원완료" : "Applied",
-    apply: isKo ? "지원하기" : "Apply",
-    viewDetails: isKo ? "상세보기" : "View details"
+    detailSuffix: isKo ? "상세보기" : isZh ? "查看详情" : isVi ? "Xem chi tiết" : isJa ? "詳細を見る" : isId ? "Lihat detail" : "View details",
+    thumbnailSuffix: isKo ? "썸네일" : isZh ? "缩略图" : isVi ? "ảnh thu nhỏ" : isJa ? "サムネイル" : isId ? "thumbnail" : "thumbnail",
+    save: isKo ? "저장" : isZh ? "收藏" : isVi ? "Lưu" : isJa ? "保存" : isId ? "Simpan" : "Save",
+    edit: isKo ? "수정하기" : isZh ? "编辑" : isVi ? "Chỉnh sửa" : isJa ? "編集する" : isId ? "Edit" : "Edit",
+    applyDone: isKo ? "지원완료" : isZh ? "已申请" : isVi ? "Đã ứng tuyển" : isJa ? "応募完了" : isId ? "Sudah melamar" : "Applied",
+    apply: isKo ? "지원하기" : isZh ? "申请" : isVi ? "Ứng tuyển" : isJa ? "応募する" : isId ? "Lamar" : "Apply",
+    viewDetails: isKo ? "상세보기" : isZh ? "查看详情" : isVi ? "Xem chi tiết" : isJa ? "詳細を見る" : isId ? "Lihat detail" : "View details",
+    externalLink: isKo ? "보러가기" : isZh ? "查看" : isVi ? "Xem" : isJa ? "見に行く" : isId ? "Lihat" : "View"
   } as const;
+  const wantedAltLabel = isKo ? "Wanted에서 보기" : isZh ? "在 Wanted 查看" : isVi ? "Xem trên Wanted" : isJa ? "Wantedで見る" : isId ? "Lihat di Wanted" : "View on Wanted";
+  const externalLinkLabel: React.ReactNode =
+    p.sourceProvider === "KOWORK"
+      ? (isKo ? "Kowork로 보러가기" : isZh ? "在 Kowork 查看" : isVi ? "Xem trên Kowork" : isJa ? "Koworkで見る" : isId ? "Lihat di Kowork" : "View on Kowork")
+      : p.sourceProvider === "BUDDIES"
+        ? (isKo ? "Buddies로 보러가기" : isZh ? "在 Buddies 查看" : isVi ? "Xem trên Buddies" : isJa ? "Buddiesで見る" : isId ? "Lihat di Buddies" : "View on Buddies")
+        : p.sourceProvider === "WANTED"
+          ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src="/img_logo_wanted.webp"
+              alt={wantedAltLabel}
+              className="h-6 w-auto"
+              onError={(event) => {
+                const target = event.currentTarget;
+                target.style.display = "none";
+                const fallback = target.nextElementSibling as HTMLElement | null;
+                if (fallback) fallback.style.display = "inline";
+              }}
+            />
+          )
+          : copy.externalLink;
+  const detailHref = isExternalSource(p.sourceKind) && p.sourceUrl ? p.sourceUrl : `/positions/${p.id}`;
   return (
-    <article className="group relative rounded-xl border border-border/60 bg-card p-4">
-      <Link
-        href={`/positions/${p.id}`}
-        aria-label={`${p.role} ${copy.detailSuffix}`}
-        className="absolute inset-0 z-10 rounded-xl"
-      />
-      <p className="absolute right-4 top-3 text-[11px] text-muted-foreground">{formatPostedDate(p, locale)}</p>
-      <div className="flex flex-col gap-2 md:grid md:grid-cols-[180px_1fr_auto] md:items-stretch md:gap-3">
-        <div className="aspect-[16/9] w-full shrink-0 self-start overflow-hidden rounded-xl md:w-[180px] md:self-auto">
+    <article className="group relative rounded-xl border border-border/60 bg-card p-3 md:p-4">
+      {isExternalSource(p.sourceKind) && p.sourceUrl ? (
+        <a
+          href={detailHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`${p.role} ${copy.detailSuffix}`}
+          className="absolute inset-0 z-10 rounded-xl"
+        />
+      ) : (
+        <Link
+          href={detailHref}
+          aria-label={`${p.role} ${copy.detailSuffix}`}
+          className="absolute inset-0 z-10 rounded-xl"
+        />
+      )}
+      <div className="absolute right-3 top-2.5 z-20 text-right md:right-4 md:top-3">
+        <p className="text-[11px] text-muted-foreground">{formatPostedDate(p, locale)}</p>
+        {p.sourceDeadlineDate ? (
+          <p className="mt-0.5 text-[11px] font-medium text-rose-600">
+            {formatDeadlineDday(p.sourceDeadlineDate, locale)}
+          </p>
+        ) : p.sourceDeadlineRolling ? (
+          <p className="mt-0.5 text-[11px] font-medium text-rose-600">
+            {isKo ? "채용시 마감" : isZh ? "招满即止" : isVi ? "Đóng khi tuyển đủ" : isJa ? "採用次第終了" : isId ? "Tutup setelah terisi" : "Rolling deadline"}
+          </p>
+        ) : null}
+      </div>
+      <div className="grid grid-cols-[84px_1fr] items-start gap-2 md:grid-cols-[180px_1fr_auto] md:items-stretch md:gap-3">
+        <div className="relative aspect-[4/3] w-[84px] shrink-0 self-start overflow-hidden rounded-xl md:aspect-[16/9] md:w-[180px] md:self-auto">
           {p.thumbnailUrl ? (
             <img
               src={p.thumbnailUrl}
@@ -1192,31 +1259,52 @@ const PositionRow = ({
           )}
         </div>
 
-        <div className="flex-1 md:flex md:flex-col md:justify-center">
-          <div className="mb-0.5 min-w-0 text-xs text-muted-foreground">
+        <div className="min-w-0 md:flex md:flex-col md:justify-center">
+          <div className="mb-0.5 min-w-0 text-[11px] text-muted-foreground md:text-xs">
             {href ? (
-              <Link href={href} className="relative z-20 block max-w-[45%] truncate font-semibold hover:text-foreground">
+              <Link href={href} className="relative z-20 block max-w-[56%] truncate font-semibold hover:text-foreground md:max-w-[45%]">
                 {p.company}
               </Link>
             ) : (
-              <p className="max-w-[45%] truncate font-semibold">{p.company}</p>
+              <p className="max-w-[56%] truncate font-semibold md:max-w-[45%]">{p.company}</p>
             )}
-            <p className="mt-1 truncate leading-tight">{p.category}</p>
+            {p.category ? <p className="mt-1 truncate leading-tight">{p.category}</p> : null}
           </div>
-          <h3 className="line-clamp-1 font-display text-lg font-bold leading-snug">{p.role}</h3>
-
-          <div className="mt-0.5 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-xs text-muted-foreground">
-            <span className="inline-flex min-w-0 max-w-[50%] items-center gap-1 truncate"><MapPin className="h-3 w-3 shrink-0" />{p.location}</span>
+          <h3 className="mt-1 mb-1 line-clamp-1 font-display text-[14px] font-bold leading-snug md:mt-1.5 md:mb-1.5 md:line-clamp-2 md:text-lg">{p.role}</h3>
+          <div className="mt-0.5 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-[11px] text-muted-foreground md:mt-1 md:text-xs">
+            <span className="inline-flex min-w-0 max-w-[50%] items-center gap-1">
+              <MapPin className="h-3 w-3 shrink-0" />
+              <span className="truncate">{p.location}</span>
+            </span>
             <span className="inline-flex min-w-0 items-center gap-1 truncate"><Briefcase className="h-3 w-3 shrink-0" />{workTypeLabel(p.type, locale)}</span>
           </div>
         </div>
 
-        <div className="relative z-20 flex shrink-0 flex-row items-center justify-between gap-2 border-t border-border/60 pt-1.5 md:mt-auto md:self-end md:border-0 md:pt-0">
+        <div className="relative z-20 col-span-2 flex shrink-0 flex-row items-center justify-end gap-2 pt-1 md:col-span-1 md:mt-auto md:self-end md:pt-0">
           <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="icon" aria-label={copy.save} onClick={onToggleFavorite}>
+            <Button variant="outline" size="icon" className="h-9 w-9" aria-label={copy.save} onClick={onToggleFavorite}>
               <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
             </Button>
-            {isOwnPartnerPosting ? (
+            {isExternalSource(p.sourceKind) && p.sourceUrl ? (
+              <Button
+                variant={p.sourceProvider === "WANTED" ? "outline" : "dark"}
+                size="sm"
+                className={p.sourceProvider === "WANTED" ? "bg-white" : undefined}
+                asChild
+              >
+                <a
+                  href={p.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    trackExternalPositionClick(p.id, p.sourceProvider);
+                  }}
+                >
+                  {externalLinkLabel}
+                </a>
+              </Button>
+            ) : isOwnPartnerPosting ? (
               <Button variant="dark" size="sm" asChild>
                 <Link href={`/positions/${p.id}/edit`}>{copy.edit}</Link>
               </Button>
@@ -1252,39 +1340,91 @@ const PositionGridCard = ({
   onApply,
   locale
 }: {
-  p: Position;
+  p: PositionCard;
   isOwnPartnerPosting: boolean;
   isStudentUser: boolean;
   isApplied: boolean;
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onApply: () => void;
-  locale: "ko" | "en";
+  locale: PlatformLocale;
 }) => {
   const isKo = locale === "ko";
+  const isZh = locale === "zh-CN";
+  const isVi = locale === "vi";
+  const isJa = locale === "ja";
+  const isId = locale === "id";
   const href = companyHref(p.partnerDomain);
   const copy = {
-    detailSuffix: isKo ? "상세보기" : "View details",
-    thumbnailSuffix: isKo ? "썸네일" : "thumbnail",
-    save: isKo ? "저장" : "Save",
-    edit: isKo ? "수정하기" : "Edit",
-    applyDone: isKo ? "지원완료" : "Applied",
-    apply: isKo ? "지원하기" : "Apply"
+    detailSuffix: isKo ? "상세보기" : isZh ? "查看详情" : isVi ? "Xem chi tiết" : isJa ? "詳細を見る" : isId ? "Lihat detail" : "View details",
+    thumbnailSuffix: isKo ? "썸네일" : isZh ? "缩略图" : isVi ? "ảnh thu nhỏ" : isJa ? "サムネイル" : isId ? "thumbnail" : "thumbnail",
+    save: isKo ? "저장" : isZh ? "收藏" : isVi ? "Lưu" : isJa ? "保存" : isId ? "Simpan" : "Save",
+    edit: isKo ? "수정하기" : isZh ? "编辑" : isVi ? "Chỉnh sửa" : isJa ? "編集する" : isId ? "Edit" : "Edit",
+    applyDone: isKo ? "지원완료" : isZh ? "已申请" : isVi ? "Đã ứng tuyển" : isJa ? "応募完了" : isId ? "Sudah melamar" : "Applied",
+    apply: isKo ? "지원하기" : isZh ? "申请" : isVi ? "Ứng tuyển" : isJa ? "応募する" : isId ? "Lamar" : "Apply",
+    externalLink: isKo ? "보러가기" : isZh ? "查看" : isVi ? "Xem" : isJa ? "見に行く" : isId ? "Lihat" : "View"
   } as const;
+  const wantedAltLabel = isKo ? "Wanted에서 보기" : isZh ? "在 Wanted 查看" : isVi ? "Xem trên Wanted" : isJa ? "Wantedで見る" : isId ? "Lihat di Wanted" : "View on Wanted";
+  const externalLinkLabel: React.ReactNode =
+    p.sourceProvider === "KOWORK"
+      ? (isKo ? "Kowork로 보러가기" : isZh ? "在 Kowork 查看" : isVi ? "Xem trên Kowork" : isJa ? "Koworkで見る" : isId ? "Lihat di Kowork" : "View on Kowork")
+      : p.sourceProvider === "BUDDIES"
+        ? (isKo ? "Buddies로 보러가기" : isZh ? "在 Buddies 查看" : isVi ? "Xem trên Buddies" : isJa ? "Buddiesで見る" : isId ? "Lihat di Buddies" : "View on Buddies")
+        : p.sourceProvider === "WANTED"
+          ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src="/img_logo_wanted.webp"
+              alt={wantedAltLabel}
+              className="h-6 w-auto"
+              onError={(event) => {
+                const target = event.currentTarget;
+                target.style.display = "none";
+                const fallback = target.nextElementSibling as HTMLElement | null;
+                if (fallback) fallback.style.display = "inline";
+              }}
+            />
+          )
+          : copy.externalLink;
+  const detailHref = isExternalSource(p.sourceKind) && p.sourceUrl ? p.sourceUrl : `/positions/${p.id}`;
   return (
     <article className="group relative flex h-full flex-col rounded-xl border border-border/60 bg-card p-4">
-      <Link
-        href={`/positions/${p.id}`}
-        aria-label={`${p.role} ${copy.detailSuffix}`}
-        className="absolute inset-0 z-10 rounded-xl"
-      />
-      {p.thumbnailUrl ? (
-        <img src={p.thumbnailUrl} alt={`${p.company} ${copy.thumbnailSuffix}`} className="block aspect-[16/9] w-full rounded-xl object-cover" />
+      {isExternalSource(p.sourceKind) && p.sourceUrl ? (
+        <a
+          href={detailHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`${p.role} ${copy.detailSuffix}`}
+          className="absolute inset-0 z-10 rounded-xl"
+        />
       ) : (
-        <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-4xl font-bold text-muted-foreground">
-          {p.initial}
-        </div>
+        <Link
+          href={detailHref}
+          aria-label={`${p.role} ${copy.detailSuffix}`}
+          className="absolute inset-0 z-10 rounded-xl"
+        />
       )}
+      <div className="mb-2 flex items-center gap-2 text-[11px]">
+        <p className="text-muted-foreground">{formatPostedDate(p, locale)}</p>
+        {p.sourceDeadlineDate ? (
+          <p className="font-medium text-rose-600">
+            {formatDeadlineDday(p.sourceDeadlineDate, locale)}
+          </p>
+        ) : p.sourceDeadlineRolling ? (
+          <p className="font-medium text-rose-600">
+            {isKo ? "채용시 마감" : isZh ? "招满即止" : isVi ? "Đóng khi tuyển đủ" : isJa ? "採用次第終了" : isId ? "Tutup setelah terisi" : "Rolling deadline"}
+          </p>
+        ) : null}
+      </div>
+      <div className="relative">
+        {p.thumbnailUrl ? (
+          <img src={p.thumbnailUrl} alt={`${p.company} ${copy.thumbnailSuffix}`} className="block aspect-[16/9] w-full rounded-xl object-cover" />
+        ) : (
+          <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-4xl font-bold text-muted-foreground">
+            {p.initial}
+          </div>
+        )}
+      </div>
       <div className="mt-4 text-xs text-muted-foreground">
         <div className="min-w-0 md:flex md:flex-col md:justify-center">
           {href ? (
@@ -1294,19 +1434,40 @@ const PositionGridCard = ({
           ) : (
             <p className="truncate font-semibold">{p.company}</p>
           )}
-          <p className="mt-1 truncate">{p.category}</p>
+          {p.category ? <p className="mt-1 truncate">{p.category}</p> : null}
         </div>
       </div>
-      <h3 className="mt-1 truncate font-display text-base font-bold leading-tight">{p.role}</h3>
-      <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-xs text-muted-foreground">
-        <span className="inline-flex min-w-0 max-w-[58%] items-center gap-1 truncate"><MapPin className="h-3 w-3 shrink-0" />{p.location}</span>
+      <h3 className="mt-2 mb-2 line-clamp-2 font-display text-base font-bold leading-tight">{p.role}</h3>
+      <div className="mt-1.5 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-xs text-muted-foreground">
+        <span className="inline-flex min-w-0 max-w-[58%] items-center gap-1">
+          <MapPin className="h-3 w-3 shrink-0" />
+          <span className="truncate">{p.location}</span>
+        </span>
         <span className="inline-flex min-w-0 items-center gap-1 truncate"><Briefcase className="h-3 w-3 shrink-0" />{workTypeLabel(p.type, locale)}</span>
       </div>
       <div className="relative z-20 mt-auto flex items-center gap-2 pt-3">
-        <Button variant="outline" size="icon" aria-label={copy.save} onClick={onToggleFavorite}>
+        <Button variant="outline" size="icon" className="h-9 w-9" aria-label={copy.save} onClick={onToggleFavorite}>
           <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
         </Button>
-        {isOwnPartnerPosting ? (
+        {isExternalSource(p.sourceKind) && p.sourceUrl ? (
+          <Button
+            variant={p.sourceProvider === "WANTED" ? "outline" : "dark"}
+            className={`h-10 flex-1 text-sm ${p.sourceProvider === "WANTED" ? "bg-white" : ""}`}
+            asChild
+          >
+                <a
+                  href={p.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    trackExternalPositionClick(p.id, p.sourceProvider);
+                  }}
+                >
+                  {externalLinkLabel}
+                </a>
+              </Button>
+        ) : isOwnPartnerPosting ? (
           <Button variant="dark" className="h-10 flex-1 text-sm" asChild>
             <Link href={`/positions/${p.id}/edit`}>{copy.edit}</Link>
           </Button>

@@ -5,6 +5,7 @@ import { cn } from "../../lib/utils";
 import { getSiteMessages } from "../../lib/site-messages";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { Reveal } from "./Reveal";
+import { paperlogy } from "../../lib/fonts";
 
 type ScenarioTab = "student" | "company";
 
@@ -19,7 +20,7 @@ export const Scenario = () => {
   const title = isStudent ? copy.studentTitle : copy.companyTitle;
   const description = isStudent ? copy.studentDescription : copy.companyDescription;
   const steps = isStudent ? copy.studentSteps : copy.companySteps;
-  const imageSrc = isStudent ? "/img_scenario_student.webp" : "/img_scenario_company.webp";
+  const imageSrc = isStudent ? "/img_scenario_student.webp" : "/img_scenario_company.webp?v=20260430";
   const imageAlt = isStudent ? copy.studentImageAlt : copy.companyImageAlt;
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export const Scenario = () => {
           <p className="mb-16 text-xs font-semibold uppercase tracking-[0.16em] text-blue-100/90">{copy.sectionLabel}</p>
 
           <div className="mb-8 flex justify-center">
-            <div className="relative inline-flex min-w-[340px] rounded-2xl bg-white/14 p-1 md:min-w-[420px]">
+            <div className="relative inline-flex w-full max-w-[420px] rounded-2xl bg-white/14 p-1">
               <span
                 className={cn(
                   "pointer-events-none absolute -top-7 z-30 rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-slate-900 shadow-[0_10px_20px_-12px_rgba(2,6,23,0.5)] transition-all duration-300",
@@ -73,14 +74,47 @@ export const Scenario = () => {
             </div>
           </div>
 
-          <h2 className="font-display text-3xl font-black tracking-[-0.03em] text-white md:text-5xl">{title}</h2>
-          <p className="mx-auto mt-4 max-w-2xl text-sm text-blue-100/95 md:text-base">{description}</p>
+          <h2 className={`${paperlogy.className} text-3xl font-black leading-[1.15] tracking-[-0.03em] text-white md:text-5xl`}>{title}</h2>
+          <p className="mx-auto mt-2.5 max-w-2xl text-sm text-blue-100/95 md:mt-4 md:text-base">{description}</p>
         </Reveal>
 
         <Reveal y="sm" className="mx-auto max-w-6xl">
+          <div className="space-y-4 md:hidden">
+            <ol className="flex flex-col gap-1.5 pt-0">
+              {steps.map((step, index) => (
+                <li
+                  key={`${tab}-mobile-${step}-${index}`}
+                  className={cn(
+                    "transition-all duration-700 ease-smooth",
+                    active ? "translate-x-0 translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+                  )}
+                  style={{ transitionDelay: `${index * 80}ms` }}
+                >
+                  <div className="inline-flex w-full flex-col items-center py-1 text-center transition-transform duration-300 hover:z-10">
+                    <span className="font-display text-[10px] font-semibold uppercase tracking-[0.08em] text-white/80">
+                      Step {index + 1}
+                    </span>
+                    <p className="font-display text-base font-black leading-tight tracking-[-0.01em] text-white">
+                      {step}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+
+            <div
+              className={cn(
+                "relative h-[250px] overflow-visible transition-all duration-700 ease-smooth",
+                active ? "opacity-100" : "opacity-0"
+              )}
+            >
+              <img src={imageSrc} alt={imageAlt} className="absolute bottom-0 left-1/2 h-full w-auto -translate-x-1/2 object-contain" />
+            </div>
+          </div>
+
           <div
             className={cn(
-              "grid items-end gap-8 lg:gap-10",
+              "hidden items-end gap-8 md:grid lg:gap-10",
               isStudent ? "lg:grid-cols-[0.86fr_1.14fr]" : "lg:grid-cols-[1.14fr_0.86fr]"
             )}
           >
@@ -88,8 +122,8 @@ export const Scenario = () => {
               {leftImage ? (
                 <div
                   className={cn(
-                    "relative h-[320px] overflow-visible transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:h-[430px]",
-                    active ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
+                    "relative h-[320px] overflow-visible transition-all duration-700 ease-smooth md:h-[430px]",
+                    active ? "opacity-100" : "opacity-0"
                   )}
                 >
                   <img src={leftImage} alt={leftImageAlt} className="absolute -bottom-2 left-0 h-full w-auto object-contain" />
@@ -100,7 +134,7 @@ export const Scenario = () => {
                     <li
                       key={`${tab}-left-${step}-${index}`}
                       className={cn(
-                        "transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                        "transition-all duration-700 ease-smooth",
                         active ? "translate-x-0 translate-y-0 opacity-100" : "-translate-x-10 translate-y-3 opacity-0"
                       )}
                       style={{ transitionDelay: `${index * 90}ms` }}
@@ -123,8 +157,8 @@ export const Scenario = () => {
               {rightImage ? (
                 <div
                   className={cn(
-                    "relative h-[320px] overflow-visible transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:h-[430px]",
-                    active ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
+                    "relative h-[320px] overflow-visible transition-all duration-700 ease-smooth md:h-[430px]",
+                    active ? "opacity-100" : "opacity-0"
                   )}
                 >
                   <img src={rightImage} alt={rightImageAlt} className="absolute -bottom-2 right-0 h-full w-auto object-contain" />
@@ -135,7 +169,7 @@ export const Scenario = () => {
                     <li
                       key={`${tab}-right-${step}-${index}`}
                       className={cn(
-                        "transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                        "transition-all duration-700 ease-smooth",
                         active ? "translate-x-0 translate-y-0 opacity-100" : "translate-x-10 translate-y-3 opacity-0"
                       )}
                       style={{ transitionDelay: `${index * 90}ms` }}
