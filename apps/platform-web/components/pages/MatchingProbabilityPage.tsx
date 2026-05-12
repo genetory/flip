@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps } from "react";
 import {
   Briefcase,
@@ -22,11 +21,17 @@ import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { paperlogy } from "../../lib/fonts";
 import {
+  addMyFavoritePosition,
+  applyMyPosition,
   fetchCareerReadinessReport,
   getMyCandidateProfile,
+  getPublicPositionsPage,
+  removeMyFavoritePosition,
   type CareerReadinessReport,
-  type MyCandidateProfile
+  type MyCandidateProfile,
+  type PublicPositionListItem
 } from "../../lib/member-profile-client";
+import { PositionRow, mapPublicPositionToCard, type PositionCard } from "./PositionsPage";
 
 type QuestIcon = ComponentType<SVGProps<SVGSVGElement> & { weight?: "thin" | "light" | "regular" | "bold" | "fill" | "duotone" }>;
 
@@ -178,6 +183,9 @@ export function MatchingProbabilityPage() {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [gainBadge, setGainBadge] = useState<number | null>(null);
+  const [recommendedPositions, setRecommendedPositions] = useState<PublicPositionListItem[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const prevScoreRef = useRef<number | null>(null);
 
   const reportStorageKey = useMemo(
@@ -387,15 +395,10 @@ export function MatchingProbabilityPage() {
   const orderedQuests = QUEST_ORDER
     .map((id) => quests.find((q) => q.id === id))
     .filter((q): q is Quest => Boolean(q));
-  let foundActive = false;
-  const orderedQuestStates = orderedQuests.map((q) => {
-    if (q.done) return { quest: q, state: "done" as const };
-    if (!foundActive) {
-      foundActive = true;
-      return { quest: q, state: "active" as const };
-    }
-    return { quest: q, state: "locked" as const };
-  });
+  const orderedQuestStates = orderedQuests.map((q) => ({
+    quest: q,
+    state: q.done ? ("done" as const) : ("active" as const)
+  }));
   const activeQuestStates = orderedQuestStates.filter((s) => s.state !== "done");
 
   async function handleAnalyze() {
@@ -415,6 +418,77 @@ export function MatchingProbabilityPage() {
       );
     } finally {
       setReportLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!report?.recommendedRoles?.length) {
+      setRecommendedPositions([]);
+      return;
+    }
+    let ignore = false;
+    void (async () => {
+      try {
+        const page = await getPublicPositionsPage({ jobRoles: report.recommendedRoles, limit: 3 });
+        if (!ignore) setRecommendedPositions(page.items.slice(0, 3));
+      } catch {
+        if (!ignore) setRecommendedPositions([]);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [report]);
+
+  useEffect(() => {
+    setFavoriteIds(new Set(profile?.favoritePositionIds ?? []));
+    setAppliedIds(new Set(profile?.appliedPositionIds ?? []));
+  }, [profile?.favoritePositionIds, profile?.appliedPositionIds]);
+
+  const recommendedPositionCards = useMemo<PositionCard[]>(
+    () => recommendedPositions.map((item) => mapPublicPositionToCard(item, locale)),
+    [recommendedPositions, locale]
+  );
+
+  async function handleToggleFavorite(positionId: string) {
+    const wasFavorite = favoriteIds.has(positionId);
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (wasFavorite) next.delete(positionId);
+      else next.add(positionId);
+      return next;
+    });
+    try {
+      if (wasFavorite) {
+        await removeMyFavoritePosition(positionId);
+      } else {
+        await addMyFavoritePosition(positionId);
+      }
+    } catch {
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        if (wasFavorite) next.add(positionId);
+        else next.delete(positionId);
+        return next;
+      });
+    }
+  }
+
+  async function handleApply(positionId: string) {
+    if (appliedIds.has(positionId)) return;
+    setAppliedIds((prev) => {
+      const next = new Set(prev);
+      next.add(positionId);
+      return next;
+    });
+    try {
+      await applyMyPosition(positionId);
+    } catch {
+      setAppliedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(positionId);
+        return next;
+      });
     }
   }
 
@@ -584,25 +658,47 @@ export function MatchingProbabilityPage() {
                 <section className="rounded-2xl border border-border bg-card p-4 shadow-card md:p-6">
                   {orderedQuestStates.length > 0 ? (
                     <div>
-                      <div className="mb-4 flex items-center justify-between gap-3">
+                      <div className="mb-2 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           {aiUnlocked ? (
                             <Sparkle className="h-4 w-4 text-primary" weight="fill" aria-hidden />
                           ) : (
                             <Lock className="h-4 w-4 text-muted-foreground" weight="duotone" aria-hidden />
                           )}
-                          <p className="text-[10px] font-black uppercase tracking-widest text-foreground md:text-xs">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">
                             {aiUnlocked
                               ? t("AI 분석 잠금 해제됨 · 보너스 퀘스트", "AI unlocked · Bonus quests", "AI 已解锁 · 奖励任务", "AI đã mở khóa · Nhiệm vụ thưởng", "AI分析がアンロック · ボーナスクエスト", "AI terbuka · Misi bonus")
                               : t("AI 분석 잠금 해제 미션", "Unlock the AI Coach", "解锁 AI 分析任务", "Mở khóa AI Coach", "AIコーチをアンロック", "Buka AI Coach")}
                           </p>
                         </div>
-                        <p className="text-[11px] font-bold text-muted-foreground">
-                          {aiUnlocked
-                            ? t(`${activeQuestStates.length}개 남음`, `${activeQuestStates.length} left`, `剩 ${activeQuestStates.length}`, `Còn ${activeQuestStates.length}`, `残り${activeQuestStates.length}個`, `Sisa ${activeQuestStates.length}`)
-                            : `${essentialDoneCount} / ${aiUnlockThreshold}`}
-                        </p>
+                        {!aiUnlocked ? (
+                          (() => {
+                            const remaining = Math.max(0, aiUnlockThreshold - essentialDoneCount);
+                            return (
+                              <p className="text-[11px] font-semibold text-muted-foreground">
+                                {t(
+                                  `보상까지 ${remaining}개 남음`,
+                                  `${remaining} to reward`,
+                                  `距奖励还差 ${remaining} 个`,
+                                  `Còn ${remaining} để nhận thưởng`,
+                                  `報酬まで残り${remaining}個`,
+                                  `${remaining} lagi untuk hadiah`
+                                )}
+                              </p>
+                            );
+                          })()
+                        ) : null}
                       </div>
+                      <p className="mb-4 text-xs text-muted-foreground">
+                        {t(
+                          "프로필 카드는 순서에 관계없이 완료할 수 있습니다.",
+                          "Profile cards can be completed in any order.",
+                          "资料卡片可以按任意顺序完成。",
+                          "Các thẻ hồ sơ có thể hoàn thành theo thứ tự bất kỳ.",
+                          "プロフィールカードは順序に関係なく完了できます。",
+                          "Kartu profil dapat diselesaikan dalam urutan apa pun."
+                        )}
+                      </p>
                       <div className="grid gap-3 md:grid-cols-2">
                         {orderedQuestStates.map(({ quest: q, state }) => {
                           if (state === "done") {
@@ -610,14 +706,16 @@ export function MatchingProbabilityPage() {
                               <Link
                                 key={q.id}
                                 href={q.href}
-                                className="group relative flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-card"
+                                className="group flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-card"
                               >
-                                <span className="absolute -top-2 left-4 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">
-                                  <Check className="h-2.5 w-2.5" weight="bold" aria-hidden />
-                                  {t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")}
-                                </span>
-                                <div className="grid h-12 w-12 flex-none place-items-center rounded-xl bg-emerald-500 text-white">
-                                  <q.Icon className="h-6 w-6" weight="duotone" />
+                                <div className="flex flex-none flex-col items-center gap-1.5">
+                                  <div className="grid h-12 w-12 place-items-center rounded-xl bg-emerald-500 text-white">
+                                    <q.Icon className="h-6 w-6" weight="duotone" />
+                                  </div>
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">
+                                    <Check className="h-2.5 w-2.5" weight="bold" aria-hidden />
+                                    {t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")}
+                                  </span>
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <p className="text-sm font-bold text-emerald-900">{q.title}</p>
@@ -634,13 +732,15 @@ export function MatchingProbabilityPage() {
                               <Link
                                 key={q.id}
                                 href={q.href}
-                                className="group relative flex items-start gap-3 rounded-2xl border-2 border-primary bg-card p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated"
+                                className="group flex items-start gap-3 rounded-2xl border-2 border-primary bg-card p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated"
                               >
-                                <span className="absolute -top-2 left-4 rounded-full bg-primary px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-primary-foreground">
-                                  {t("진행 중", "Active", "进行中", "Đang mở", "進行中", "Berlangsung")}
-                                </span>
-                                <div className="grid h-12 w-12 flex-none place-items-center rounded-xl bg-primary/10 text-primary">
-                                  <q.Icon className="h-6 w-6" weight="duotone" />
+                                <div className="flex flex-none flex-col items-center gap-1.5">
+                                  <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary">
+                                    <q.Icon className="h-6 w-6" weight="duotone" />
+                                  </div>
+                                  <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-primary-foreground">
+                                    {t("진행 중", "Active", "进行中", "Đang mở", "進行中", "Berlangsung")}
+                                  </span>
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center justify-between gap-2">
@@ -684,19 +784,16 @@ export function MatchingProbabilityPage() {
 
                         {!aiUnlocked ? (
                           <div
-                            className="relative flex cursor-not-allowed items-center gap-3 rounded-2xl border-2 border-primary/30 bg-primary/5 px-4 py-1.5 shadow-[0_0_28px_-6px_hsl(var(--primary)/0.45)] ring-4 ring-primary/10 md:col-span-2 md:py-2"
+                            className="flex cursor-not-allowed items-center gap-4 rounded-2xl border border-border bg-gradient-to-br from-[#FAF5FF] to-[#F0F9FF] p-5 shadow-card md:col-span-2 md:gap-6 md:p-6"
                             aria-disabled="true"
                           >
-                            <span className="absolute -top-2 left-4 rounded-full bg-foreground px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-background">
-                              {t("최종 보상", "Final reward", "最终奖励", "Phần thưởng cuối", "最終報酬", "Hadiah akhir")}
-                            </span>
                             <div className="relative flex-none">
-                              <Image
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
                                 src="/img_ai_analyze.webp"
                                 alt=""
-                                width={400}
-                                height={400}
-                                className="h-32 w-32 object-contain grayscale md:h-40 md:w-40"
+                                aria-hidden
+                                className="h-20 w-20 rounded-xl object-cover grayscale md:h-28 md:w-28"
                               />
                               <div className="pointer-events-none absolute inset-0 grid place-items-center">
                                 <div className="grid h-9 w-9 place-items-center rounded-full bg-foreground/85 text-background shadow-lg">
@@ -704,9 +801,12 @@ export function MatchingProbabilityPage() {
                                 </div>
                               </div>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-sm font-bold text-foreground">
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground md:text-xs">
+                                {t("최종 보상", "Final reward", "最终奖励", "Phần thưởng cuối", "最終報酬", "Hadiah akhir")}
+                              </p>
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="font-display text-base font-bold tracking-tight text-foreground md:text-lg">
                                   {t("AI 코치 분석", "AI Coach analysis", "AI 教练分析", "Phân tích AI Coach", "AIコーチ分析", "Analisis AI Coach")}
                                 </p>
                                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold text-primary">
@@ -714,7 +814,7 @@ export function MatchingProbabilityPage() {
                                   {essentialDoneCount} / {aiUnlockThreshold}
                                 </span>
                               </div>
-                              <p className="mt-1 text-xs text-muted-foreground">
+                              <p className="text-xs text-muted-foreground md:text-sm">
                                 {t(
                                   "핵심 퀘스트 3개를 클리어하면 잠금이 풀려요. 강점·보완점·추천 직무를 한 번에 받아볼 수 있어요.",
                                   "Clear 3 key quests to unlock. Get personalized strengths, gaps, and role suggestions.",
@@ -731,35 +831,35 @@ export function MatchingProbabilityPage() {
                             type="button"
                             onClick={() => void handleAnalyze()}
                             disabled={reportLoading}
-                            className="group relative flex w-full items-center gap-3 rounded-2xl border-2 border-primary bg-primary/5 px-4 py-1.5 text-left shadow-[0_0_28px_-6px_hsl(var(--primary)/0.45)] transition hover:-translate-y-0.5 hover:shadow-elevated disabled:cursor-not-allowed disabled:opacity-70 md:col-span-2 md:py-2"
+                            className="group flex w-full items-center gap-4 rounded-2xl border border-border bg-gradient-to-br from-[#FAF5FF] to-[#F0F9FF] p-5 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated disabled:cursor-not-allowed disabled:opacity-70 md:col-span-2 md:gap-6 md:p-6"
                           >
-                            <span className="absolute -top-2 left-4 rounded-full bg-foreground px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-background">
-                              {report
-                                ? t("분석 완료", "Analyzed", "已分析", "Đã phân tích", "分析完了", "Sudah dianalisis")
-                                : t("최종 보상 · 잠금 해제", "Final reward · Unlocked", "最终奖励 · 已解锁", "Phần thưởng · Mở khóa", "最終報酬 · アンロック", "Hadiah akhir · Terbuka")}
-                            </span>
-                            <Image
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
                               src="/img_ai_analyze.webp"
                               alt=""
-                              width={400}
-                              height={400}
-                              className="h-32 w-32 flex-none object-contain md:h-40 md:w-40"
+                              aria-hidden
+                              className="h-20 w-20 flex-none rounded-xl object-cover md:h-28 md:w-28"
                             />
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-sm font-bold text-foreground">
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                              <p className="text-[11px] font-bold uppercase tracking-wider text-primary md:text-xs">
+                                {report
+                                  ? t("분석 완료", "Analyzed", "已分析", "Đã phân tích", "分析完了", "Sudah dianalisis")
+                                  : t("최종 보상 · 잠금 해제", "Final reward · Unlocked", "最终奖励 · 已解锁", "Phần thưởng · Mở khóa", "最終報酬 · アンロック", "Hadiah akhir · Terbuka")}
+                              </p>
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="font-display text-base font-bold tracking-tight text-foreground md:text-lg">
                                   {t("AI 코치 분석", "AI Coach analysis", "AI 教练分析", "Phân tích AI Coach", "AIコーチ分析", "Analisis AI Coach")}
                                 </p>
-                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${report ? "bg-emerald-100 text-emerald-700" : "bg-emerald-100 text-emerald-700"}`}>
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
                                   {report
                                     ? t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")
                                     : t("준비 완료", "Ready", "已就绪", "Sẵn sàng", "準備完了", "Siap")}
                                 </span>
                               </div>
-                              <p className="mt-1 text-xs text-muted-foreground">
+                              <p className="text-xs text-muted-foreground md:text-sm">
                                 {t("강점·보완점·추천 직무를 한 번에 코칭받아보세요.", "Get personalized strengths, gaps, and role suggestions.", "获得专属优点、待补充与推荐职位。", "Nhận điểm mạnh, điểm cần bổ sung, vị trí gợi ý.", "強み・改善点・おすすめの職務を一度にコーチングしてもらいましょう。", "Dapatkan saran kekuatan, kekurangan, dan peran sekaligus.")}
                               </p>
-                              <p className="mt-2 text-xs font-semibold text-primary">
+                              <p className="text-xs font-semibold text-primary">
                                 {reportLoading
                                   ? t("분석 중...", "Analyzing...", "分析中...", "Đang phân tích...", "分析中...", "Menganalisis...")
                                   : report
@@ -785,24 +885,9 @@ export function MatchingProbabilityPage() {
                     </h2>
                     <div className="grid gap-4 md:grid-cols-2">
                       <article className="rounded-2xl border border-border bg-card p-4 shadow-card md:p-5">
-                        <div className="flex items-start gap-3">
-                          <div className="grid h-12 w-12 flex-none place-items-center rounded-xl bg-muted text-2xl">
-                            🏆
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-sm font-bold text-foreground">
-                                {t("획득 스킬", "Strengths unlocked", "已获优势", "Điểm mạnh đã có", "獲得スキル", "Kekuatan terbuka")}
-                              </p>
-                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
-                                {t("강점", "Strengths", "优势", "Điểm mạnh", "強み", "Kekuatan")}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {t("프로필에서 빛나는 부분이에요.", "What's already shining in your profile.", "您资料中的闪光点。", "Điểm đã nổi bật trong hồ sơ.", "プロフィールで輝いている部分です。", "Hal yang sudah menonjol di profil Anda.")}
-                            </p>
-                          </div>
-                        </div>
+                        <h3 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] text-emerald-600 md:text-4xl`}>
+                          {t("강점 Point.", "Strengths Point.", "优势 Point.", "Điểm mạnh Point.", "強み Point.", "Kekuatan Point.")}
+                        </h3>
                         <ul className="mt-3 space-y-2 text-sm text-foreground/90">
                           {report.strengths.map((item, idx) => (
                             <li key={`s-${idx}`} className="flex gap-2">
@@ -814,24 +899,9 @@ export function MatchingProbabilityPage() {
                       </article>
 
                       <article className="rounded-2xl border border-border bg-card p-4 shadow-card md:p-5">
-                        <div className="flex items-start gap-3">
-                          <div className="grid h-12 w-12 flex-none place-items-center rounded-xl bg-muted text-2xl">
-                            🚀
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-sm font-bold text-foreground">
-                                {t("다음 도전", "Next challenges", "下一个挑战", "Thử thách tiếp theo", "次のチャレンジ", "Tantangan berikutnya")}
-                              </p>
-                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
-                                {t("보완", "Improve", "待补充", "Bổ sung", "改善", "Perbaiki")}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {t("점수를 더 올리려면 여기를 채워보세요.", "Fill these to push your score further.", "填好这些可继续提分。", "Bổ sung để tăng thêm điểm.", "スコアをさらに上げるためにここを埋めましょう。", "Lengkapi ini untuk meningkatkan skor lebih jauh.")}
-                            </p>
-                          </div>
-                        </div>
+                        <h3 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] text-amber-600 md:text-4xl`}>
+                          {t("보완 Point.", "Improve Point.", "待补充 Point.", "Bổ sung Point.", "改善 Point.", "Perbaiki Point.")}
+                        </h3>
                         <ul className="mt-3 space-y-2 text-sm text-foreground/90">
                           {report.improvements.map((item, idx) => (
                             <li key={`i-${idx}`} className="flex gap-2">
@@ -844,24 +914,9 @@ export function MatchingProbabilityPage() {
                     </div>
 
                     <article className="rounded-2xl border border-border bg-card p-4 shadow-card md:p-5">
-                      <div className="flex items-start gap-3">
-                        <div className="grid h-12 w-12 flex-none place-items-center rounded-xl bg-muted text-2xl">
-                          🎁
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-bold text-foreground">
-                              {t("추천 직업 카드", "Recommended role cards", "推荐职位卡", "Thẻ vị trí gợi ý", "おすすめ職務カード", "Kartu peran rekomendasi")}
-                            </p>
-                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary">
-                              {t("매칭", "Matched", "匹配", "Phù hợp", "マッチング", "Cocok")}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {t("프로필 기반으로 잘 맞을 직무 유형이에요.", "Roles most likely to match your profile.", "根据您资料最匹配的职位类型。", "Loại công việc có khả năng phù hợp nhất.", "プロフィールに基づき相性の良い職務タイプです。", "Tipe peran yang paling cocok dengan profil Anda.")}
-                          </p>
-                        </div>
-                      </div>
+                      <h3 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] text-primary md:text-4xl`}>
+                        {t("추천 매칭 결과", "Recommended matches", "推荐匹配结果", "Kết quả phù hợp đề xuất", "おすすめマッチング結果", "Hasil pencocokan rekomendasi")}
+                      </h3>
                       <ul className="mt-3 flex flex-wrap gap-2">
                         {report.recommendedRoles.map((role, idx) => (
                           <li
@@ -872,6 +927,53 @@ export function MatchingProbabilityPage() {
                           </li>
                         ))}
                       </ul>
+
+                      <div className="mt-5 space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          {t("관련된 포지션", "Related positions", "相关职位", "Vị trí liên quan", "関連ポジション", "Posisi terkait")}
+                        </p>
+                        {recommendedPositionCards.length > 0 ? (
+                          <div className="space-y-3">
+                            {recommendedPositionCards.map((p) => (
+                              <PositionRow
+                                key={p.id}
+                                p={p}
+                                isOwnPartnerPosting={false}
+                                isStudentUser={user?.role === "STUDENT"}
+                                isApplied={appliedIds.has(p.id)}
+                                isFavorite={favoriteIds.has(p.id)}
+                                onToggleFavorite={() => void handleToggleFavorite(p.id)}
+                                onApply={() => void handleApply(p.id)}
+                                locale={locale}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-6 text-center">
+                            <p className="text-sm font-medium text-foreground">
+                              {t(
+                                "관련된 포지션이 없어요",
+                                "No related positions found",
+                                "暂无相关职位",
+                                "Chưa có vị trí liên quan",
+                                "関連するポジションがありません",
+                                "Tidak ada posisi terkait"
+                              )}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {t(
+                                "추천 직무에 매칭되는 포지션이 등록되면 여기에 나타나요.",
+                                "Positions matching your recommended roles will appear here.",
+                                "符合推荐职位的岗位将显示在这里。",
+                                "Các vị trí phù hợp sẽ xuất hiện tại đây.",
+                                "おすすめ職務に合うポジションが登録されるとここに表示されます。",
+                                "Posisi yang cocok dengan peran rekomendasi akan muncul di sini."
+                              )}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
                       <div className="mt-4">
                         <Button variant="outline" size="sm" asChild>
                           <Link href="/positions">{t("열린 포지션 둘러보기", "Browse open positions", "浏览开放职位", "Xem các vị trí đang mở", "募集中のポジションを見る", "Lihat posisi yang tersedia")}</Link>

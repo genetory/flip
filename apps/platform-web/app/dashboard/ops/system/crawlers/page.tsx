@@ -13,13 +13,16 @@ type CrawlerRunSummary = {
   sourcePlatform?: string;
 };
 
+type CrawlerSource = "all" | "kowork" | "buddies" | "wanted";
+
 type CrawlerRunResult = {
   ok: boolean;
   startedAt: string;
   elapsedMs: number;
-  source: "all" | "kowork" | "buddies";
+  source: CrawlerSource;
   kowork: CrawlerRunSummary | null;
   buddies: CrawlerRunSummary | null;
+  wanted: CrawlerRunSummary | null;
   errorMessage?: string;
 };
 
@@ -31,11 +34,11 @@ function readCookie(key: string) {
 
 export default function CrawlersPage() {
   const apiBaseUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000", []);
-  const [running, setRunning] = useState<"all" | "kowork" | "buddies" | null>(null);
+  const [running, setRunning] = useState<CrawlerSource | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<CrawlerRunResult | null>(null);
 
-  const runCrawler = async (source: "all" | "kowork" | "buddies") => {
+  const runCrawler = async (source: CrawlerSource) => {
     const token = readCookie(TOKEN_COOKIE_KEY);
     if (!token) {
       setError("로그인이 필요합니다.");
@@ -69,7 +72,7 @@ export default function CrawlersPage() {
     <section className="ops-content-section">
       <header>
         <h1>크롤링</h1>
-        <p>Kowork, Buddies 채용 공고 크롤러를 개별 또는 전체로 실행합니다.</p>
+        <p>Kowork, Buddies, Wanted 채용 공고 크롤러를 개별 또는 전체로 실행합니다.</p>
       </header>
 
       <article className="ops-partner-list-card">
@@ -82,6 +85,9 @@ export default function CrawlersPage() {
           </button>
           <button type="button" className="ops-partner-add-button" onClick={() => void runCrawler("buddies")} disabled={running !== null}>
             {running === "buddies" ? "Buddies 실행 중..." : "Buddies 실행"}
+          </button>
+          <button type="button" className="ops-partner-add-button" onClick={() => void runCrawler("wanted")} disabled={running !== null}>
+            {running === "wanted" ? "Wanted 실행 중..." : "Wanted 실행"}
           </button>
           <button type="button" className="ops-detail-button" onClick={() => void runCrawler("all")} disabled={running !== null}>
             {running === "all" ? "전체 실행 중..." : "전체 실행"}

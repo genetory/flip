@@ -21,6 +21,7 @@ import {
   type PublicPositionListItem,
   type PublicPremiumPositionBannerItem
 } from "../../lib/member-profile-client";
+import { trackExternalPositionClick, trackPositionSearch } from "../../lib/analytics";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
@@ -57,7 +58,7 @@ type PositionCard = Position & {
 };
 type PositionSourceKind = PublicPositionListItem["sourceKind"];
 type PositionSourceProvider = PublicPositionListItem["sourceProvider"];
-type PositionSourceFilter = "INTERNAL" | "KOWORK" | "BUDDIES";
+type PositionSourceFilter = "INTERNAL" | "KOWORK" | "BUDDIES" | "WANTED";
 
 function visaTypeLabel(code: string, locale: PlatformLocale) {
   const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
@@ -242,6 +243,7 @@ export function PositionsPage() {
   const { user, isReady, isAuthenticated } = useAuthSession();
   const [positions, setPositions] = useState<PositionCard[]>([]);
   const [isPositionsLoading, setIsPositionsLoading] = useState(true);
+  const [sortMode, setSortMode] = useState<"latest" | "deadline">("latest");
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
   const [jobRoles, setJobRoles] = useState<string[]>([]);
@@ -259,8 +261,6 @@ export function PositionsPage() {
   const [onlyMyVisaEligible, setOnlyMyVisaEligible] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
-  const [filterPopupMode, setFilterPopupMode] = useState<"all" | "section">("all");
-  const [activeFilterSection, setActiveFilterSection] = useState<"jobRole" | "source">("jobRole");
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [appliedIds, setAppliedIds] = useState<string[]>([]);
   const [premiumBanners, setPremiumBanners] = useState<PublicPremiumPositionBannerItem[]>([]);
@@ -285,8 +285,13 @@ export function PositionsPage() {
     sectionFilter: t("선택 섹션 필터", "Section filters", "分区筛选", "Bộ lọc theo mục", "セクション別フィルター", "Filter per bagian"),
     applyHint: t("선택 즉시 전체 목록에 적용", "Selections are applied immediately", "选择后立即应用到列表", "Áp dụng ngay sau khi chọn", "選択すると即時に反映されます", "Pilihan langsung diterapkan"),
     reset: t("초기화", "Reset", "重置", "Đặt lại", "リセット", "Atur ulang"),
+    resetAll: t("전체 초기화", "Clear all", "全部重置", "Xóa tất cả", "全てリセット", "Reset semua"),
+    applyFilters: t("적용", "Apply", "应用", "Áp dụng", "適用", "Terapkan"),
+    selectedCount: t("개 선택됨", " selected", "已选", " đã chọn", "件選択中", " dipilih"),
     closeFilter: t("필터 닫기", "Close filters", "关闭筛选", "Đóng bộ lọc", "フィルターを閉じる", "Tutup filter"),
     removeFilterSuffix: t("필터 제거", "Remove filter", "移除筛选", "Xóa bộ lọc", "フィルターを削除", "Hapus filter"),
+    sortLatest: t("최신순", "Latest", "最新", "Mới nhất", "新着順", "Terbaru"),
+    sortDeadline: t("마감임박순", "Deadline", "截止时间", "Hạn nộp", "締切順", "Tenggat"),
     industry: t("산업군", "Industry", "行业", "Ngành", "業種", "Industri"),
     jobRole: t("직무", "Role", "岗位", "Vị trí", "職務", "Posisi"),
     companySize: t("규모", "Size", "规模", "Quy mô", "規模", "Ukuran"),
@@ -341,7 +346,9 @@ export function PositionsPage() {
   };
 
   const applySearch = () => {
-    setQuery(searchInput.trim());
+    const next = searchInput.trim();
+    setQuery(next);
+    if (next) trackPositionSearch(next);
   };
 
   const premiumPositionCards = useMemo(
@@ -355,13 +362,6 @@ export function PositionsPage() {
   const effectiveViewMode: "grid" | "list" = isGuestLocked ? "list" : viewMode;
 
   const hasMorePositions = Boolean(nextCursor);
-  const filterSections = [
-    { id: "jobRole" as const, label: copy.jobRole },
-    { id: "source" as const, label: copy.source }
-  ];
-  const activeFilterSectionLabel = filterSections.find((section) => section.id === activeFilterSection)?.label ?? copy.filter;
-  const filterPopupTitle = filterPopupMode === "all" ? copy.allFilters : activeFilterSectionLabel;
-  const activeSectionFilterCount = activeFilterSection === "jobRole" ? jobRoles.length : positionSources.length;
   const selectedFilterChips = [
     ...jobRoles.map((value) => ({
       key: `jobRole:${value}`,
@@ -370,7 +370,7 @@ export function PositionsPage() {
     })),
     ...positionSources.map((value) => ({
       key: `source:${value}`,
-      label: value === "INTERNAL" ? (isKo ? "생성" : isZh ? "已生成" : isVi ? "Đã tạo" : isJa ? "作成済み" : isId ? "Dibuat" : "Created") : value === "KOWORK" ? "KOWORK" : "BUDDIES",
+      label: value === "INTERNAL" ? "Aply" : value === "WANTED" ? "Wanted" : value === "KOWORK" ? "KOWORK" : "BUDDIES",
       onRemove: () => toggle(positionSources, setPositionSources, value)
     }))
   ];
@@ -384,6 +384,7 @@ export function PositionsPage() {
           search: query,
           jobRoles: jobRoles.length ? [...jobRoles] : undefined,
           sortOrder: "desc",
+          sort: sortMode,
           sourceProviders: positionSources.length ? [...positionSources] : undefined
         });
         if (ignore) return;
@@ -400,7 +401,7 @@ export function PositionsPage() {
     return () => {
       ignore = true;
     };
-  }, [positionSources, locale, query, jobRoles]);
+  }, [positionSources, locale, query, jobRoles, sortMode]);
 
   useEffect(() => {
     let ignore = false;
@@ -572,14 +573,6 @@ export function PositionsPage() {
     setPositionSources([]);
   };
 
-  const clearActiveSection = () => {
-    if (activeFilterSection === "jobRole") {
-      setJobRoles([]);
-      return;
-    }
-    setPositionSources([]);
-  };
-
   async function handleLoadMorePositions() {
     if (!nextCursor || isLoadingMore) return;
     setIsLoadingMore(true);
@@ -590,6 +583,7 @@ export function PositionsPage() {
         search: query,
         jobRoles: jobRoles.length ? [...jobRoles] : undefined,
         sortOrder: "desc",
+        sort: sortMode,
         sourceProviders: positionSources.length ? [...positionSources] : undefined
       });
       const mapped = page.items.map((item) => mapPublicPositionToCard(item, locale));
@@ -626,6 +620,7 @@ export function PositionsPage() {
                       {copy.subtitle}
                     </p>
                   </div>
+                  {/* 포지션 생성하기 버튼은 추후 오픈 시까지 임시 숨김
                   {user?.role === "PARTNER" ? (
                     <Button
                       variant="dark"
@@ -636,6 +631,7 @@ export function PositionsPage() {
                       <Link href="/positions/create">{copy.createPosition}</Link>
                     </Button>
                   ) : null}
+                  */}
                 </div>
 
                 <div className="relative mt-4 h-[180px] overflow-hidden rounded-2xl bg-white md:h-[220px]">
@@ -701,22 +697,7 @@ export function PositionsPage() {
               </div>
               ) : null}
 
-              {isPremiumBannersLoading ? (
-                <section className="mt-12" aria-hidden>
-                  <div className="mb-4 h-8 w-64 animate-pulse rounded bg-muted" />
-                  <div className="grid gap-3 md:grid-cols-3">
-                    {Array.from({ length: 3 }, (_, index) => (
-                      <div key={`premium-banner-skeleton-${index}`} className="rounded-xl border border-border/60 bg-card p-4">
-                        <div className="h-[160px] animate-pulse rounded-lg bg-muted" />
-                        <div className="mt-3 space-y-2">
-                          <div className="h-5 w-3/4 animate-pulse rounded bg-muted" />
-                          <div className="h-4 w-5/6 animate-pulse rounded bg-muted" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ) : premiumBanners.length > 0 ? (
+              {!isPremiumBannersLoading && premiumBanners.length > 0 ? (
                 <section className="mt-12">
                   <h2 className={`${paperlogy.className} mb-4 text-3xl font-black tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>
                     {copy.premiumTitle}
@@ -761,35 +742,28 @@ export function PositionsPage() {
                     type="button"
                     variant="outline"
                     className="h-9 gap-2 px-3"
-                    onClick={() => {
-                      if (isFilterPopupOpen && filterPopupMode === "all") {
-                        setIsFilterPopupOpen(false);
-                        return;
-                      }
-                      setFilterPopupMode("all");
-                      setIsFilterPopupOpen(true);
-                    }}
+                    onClick={() => setIsFilterPopupOpen((prev) => !prev)}
                   >
                     <SlidersHorizontal className="h-4 w-4" />
                     {copy.filter}
+                    {selectedFilterChips.length > 0 ? (
+                      <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-foreground px-1.5 text-[11px] font-semibold text-background">
+                        {selectedFilterChips.length}
+                      </span>
+                    ) : null}
                     <ChevronDown className={`h-4 w-4 transition-transform ${isFilterPopupOpen ? "rotate-180" : ""}`} />
                   </Button>
-                  <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
-                    {filterSections.map((section) => (
-                      <Button
-                        key={section.id}
-                        type="button"
-                        variant="outline"
-                        className="h-9 shrink-0 px-3"
-                        onClick={() => {
-                          setActiveFilterSection(section.id);
-                          setFilterPopupMode("section");
-                          setIsFilterPopupOpen(true);
-                        }}
-                      >
-                        {section.label}
-                      </Button>
-                    ))}
+                  <div className="relative">
+                    <select
+                      value={sortMode}
+                      onChange={(e) => setSortMode(e.target.value as "latest" | "deadline")}
+                      className="h-9 appearance-none rounded-md border border-border bg-background pl-3 pr-8 text-sm font-medium text-foreground"
+                      aria-label={t("정렬", "Sort", "排序", "Sắp xếp", "並び替え", "Urutkan")}
+                    >
+                      <option value="latest">{copy.sortLatest}</option>
+                      <option value="deadline">{copy.sortDeadline}</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
@@ -842,78 +816,146 @@ export function PositionsPage() {
               ) : null}
 
               {isAuthenticated && isFilterPopupOpen ? (
-                <>
+                <div
+                  className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+                  onClick={() => setIsFilterPopupOpen(false)}
+                >
                   <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-                    onClick={() => setIsFilterPopupOpen(false)}
-                  >
-                  <div
-                    className="w-full max-w-3xl rounded-2xl border border-border bg-card p-5"
+                    className="flex w-full max-w-2xl flex-col rounded-t-2xl border-t border-border bg-card sm:rounded-2xl sm:border"
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <div className="mb-4 flex items-center justify-between gap-2">
+                    {/* Header */}
+                    <div className="flex items-center justify-between gap-2 border-b border-border/60 px-5 py-4">
                       <div className="flex items-center gap-2">
-                        <SlidersHorizontal className="h-4 w-4" />
-                        <h2 className="font-display text-base font-bold">{filterPopupTitle}</h2>
-                        <span className="text-xs text-muted-foreground">
-                          {filterPopupMode === "all" ? copy.allFilters : copy.sectionFilter} · {copy.applyHint}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {activeSectionFilterCount > 0 ? (
-                          <button onClick={clearActiveSection} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-                            <RotateCcw className="h-3 w-3" /> {copy.reset}
-                          </button>
+                        <SlidersHorizontal className="h-5 w-5" />
+                        <h2 className="font-display text-base font-bold">{copy.filter}</h2>
+                        {selectedFilterChips.length > 0 ? (
+                          <span className="ml-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-foreground px-1.5 text-[11px] font-semibold text-background">
+                            {selectedFilterChips.length}
+                          </span>
                         ) : null}
-                        <button
-                          type="button"
-                          aria-label={copy.closeFilter}
-                          onClick={() => setIsFilterPopupOpen(false)}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
                       </div>
+                      <button
+                        type="button"
+                        aria-label={copy.closeFilter}
+                        onClick={() => setIsFilterPopupOpen(false)}
+                        className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
 
-                    <div className="max-h-[56vh] overflow-y-auto p-1">
-                      {filterPopupMode === "all" || activeFilterSection === "jobRole" ? (
-                        <div className="mb-4 last:mb-0">
-                          <div className="flex flex-wrap gap-2">
-                            {jobRoleOptions.map((role) => (
-                              <FilterBadge
+                    {/* Body */}
+                    <div className="max-h-[60vh] space-y-6 overflow-y-auto px-5 py-5">
+                      <section>
+                        <div className="mb-3 flex items-center justify-between">
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {copy.jobRole}
+                            {jobRoles.length > 0 ? (
+                              <span className="ml-1.5 text-xs font-medium text-muted-foreground">({jobRoles.length})</span>
+                            ) : null}
+                          </h3>
+                          {jobRoles.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setJobRoles([])}
+                              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              <RotateCcw className="h-3 w-3" /> {copy.reset}
+                            </button>
+                          ) : null}
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-3">
+                          {jobRoleOptions.map((role) => {
+                            const checked = jobRoles.includes(role);
+                            return (
+                              <label
                                 key={role}
-                                label={role}
-                                active={jobRoles.includes(role)}
-                                onClick={() => toggle(jobRoles, setJobRoles, role)}
-                              />
-                            ))}
-                          </div>
+                                className={`flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted/50 ${
+                                  checked ? "text-foreground" : "text-muted-foreground"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 flex-none cursor-pointer accent-foreground"
+                                  checked={checked}
+                                  onChange={() => toggle(jobRoles, setJobRoles, role)}
+                                />
+                                <span className="truncate">{role}</span>
+                              </label>
+                            );
+                          })}
                         </div>
-                      ) : null}
+                      </section>
 
-                      {filterPopupMode === "all" || activeFilterSection === "source" ? (
-                        <div className="mb-4 last:mb-0">
-                          <div className="flex flex-wrap gap-2">
-                            {([
-                              { key: "INTERNAL", label: isKo ? "생성" : isZh ? "已生成" : isVi ? "Đã tạo" : isJa ? "作成済み" : isId ? "Dibuat" : "Created" },
-                              { key: "KOWORK", label: "KOWORK" },
-                              { key: "BUDDIES", label: "BUDDIES" }
-                            ] as const).map((item) => (
-                              <FilterBadge
-                                key={item.key}
-                                label={item.label}
-                                active={positionSources.includes(item.key)}
-                                onClick={() => toggle(positionSources, setPositionSources, item.key)}
-                              />
-                            ))}
-                          </div>
+                      <section className="border-t border-border/60 pt-5">
+                        <div className="mb-3 flex items-center justify-between">
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {copy.source}
+                            {positionSources.length > 0 ? (
+                              <span className="ml-1.5 text-xs font-medium text-muted-foreground">({positionSources.length})</span>
+                            ) : null}
+                          </h3>
+                          {positionSources.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setPositionSources([])}
+                              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              <RotateCcw className="h-3 w-3" /> {copy.reset}
+                            </button>
+                          ) : null}
                         </div>
-                      ) : null}
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-3">
+                          {([
+                            { key: "INTERNAL", label: "Aply" },
+                            { key: "WANTED", label: "Wanted" }
+                          ] as const).map((item) => {
+                            const checked = positionSources.includes(item.key);
+                            return (
+                              <label
+                                key={item.key}
+                                className={`flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted/50 ${
+                                  checked ? "text-foreground" : "text-muted-foreground"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 flex-none cursor-pointer accent-foreground"
+                                  checked={checked}
+                                  onChange={() => toggle(positionSources, setPositionSources, item.key)}
+                                />
+                                <span className="truncate">{item.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between gap-3 border-t border-border/60 bg-muted/20 px-5 py-3">
+                      <button
+                        type="button"
+                        onClick={clearAll}
+                        disabled={selectedFilterChips.length === 0}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <RotateCcw className="h-4 w-4" /> {copy.resetAll}
+                      </button>
+                      <Button
+                        type="button"
+                        variant="dark"
+                        size="sm"
+                        className="min-w-[120px]"
+                        onClick={() => setIsFilterPopupOpen(false)}
+                      >
+                        {copy.applyFilters}
+                        {selectedFilterChips.length > 0 ? ` (${selectedFilterChips.length})` : ""}
+                      </Button>
                     </div>
                   </div>
-                  </div>
-                </>
+                </div>
               ) : null}
 
               {shouldShowLoadingPlaceholder ? (
@@ -1113,7 +1155,9 @@ const FilterBadge = ({
   </button>
 );
 
-const PositionRow = ({
+export type { PositionCard };
+export { mapPublicPositionToCard };
+export const PositionRow = ({
   p,
   isOwnPartnerPosting,
   isStudentUser,
@@ -1148,12 +1192,28 @@ const PositionRow = ({
     viewDetails: isKo ? "상세보기" : isZh ? "查看详情" : isVi ? "Xem chi tiết" : isJa ? "詳細を見る" : isId ? "Lihat detail" : "View details",
     externalLink: isKo ? "보러가기" : isZh ? "查看" : isVi ? "Xem" : isJa ? "見に行く" : isId ? "Lihat" : "View"
   } as const;
-  const externalLinkLabel =
+  const wantedAltLabel = isKo ? "Wanted에서 보기" : isZh ? "在 Wanted 查看" : isVi ? "Xem trên Wanted" : isJa ? "Wantedで見る" : isId ? "Lihat di Wanted" : "View on Wanted";
+  const externalLinkLabel: React.ReactNode =
     p.sourceProvider === "KOWORK"
       ? (isKo ? "Kowork로 보러가기" : isZh ? "在 Kowork 查看" : isVi ? "Xem trên Kowork" : isJa ? "Koworkで見る" : isId ? "Lihat di Kowork" : "View on Kowork")
       : p.sourceProvider === "BUDDIES"
         ? (isKo ? "Buddies로 보러가기" : isZh ? "在 Buddies 查看" : isVi ? "Xem trên Buddies" : isJa ? "Buddiesで見る" : isId ? "Lihat di Buddies" : "View on Buddies")
-        : copy.externalLink;
+        : p.sourceProvider === "WANTED"
+          ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src="/img_logo_wanted.webp"
+              alt={wantedAltLabel}
+              className="h-6 w-auto"
+              onError={(event) => {
+                const target = event.currentTarget;
+                target.style.display = "none";
+                const fallback = target.nextElementSibling as HTMLElement | null;
+                if (fallback) fallback.style.display = "inline";
+              }}
+            />
+          )
+          : copy.externalLink;
   const detailHref = isExternalSource(p.sourceKind) && p.sourceUrl ? p.sourceUrl : `/positions/${p.id}`;
   return (
     <article className="group relative rounded-xl border border-border/60 bg-card p-3 md:p-4">
@@ -1226,8 +1286,21 @@ const PositionRow = ({
               <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
             </Button>
             {isExternalSource(p.sourceKind) && p.sourceUrl ? (
-              <Button variant="dark" size="sm" asChild>
-                <a href={p.sourceUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+              <Button
+                variant={p.sourceProvider === "WANTED" ? "outline" : "dark"}
+                size="sm"
+                className={p.sourceProvider === "WANTED" ? "bg-white" : undefined}
+                asChild
+              >
+                <a
+                  href={p.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    trackExternalPositionClick(p.id, p.sourceProvider);
+                  }}
+                >
                   {externalLinkLabel}
                 </a>
               </Button>
@@ -1291,12 +1364,28 @@ const PositionGridCard = ({
     apply: isKo ? "지원하기" : isZh ? "申请" : isVi ? "Ứng tuyển" : isJa ? "応募する" : isId ? "Lamar" : "Apply",
     externalLink: isKo ? "보러가기" : isZh ? "查看" : isVi ? "Xem" : isJa ? "見に行く" : isId ? "Lihat" : "View"
   } as const;
-  const externalLinkLabel =
+  const wantedAltLabel = isKo ? "Wanted에서 보기" : isZh ? "在 Wanted 查看" : isVi ? "Xem trên Wanted" : isJa ? "Wantedで見る" : isId ? "Lihat di Wanted" : "View on Wanted";
+  const externalLinkLabel: React.ReactNode =
     p.sourceProvider === "KOWORK"
       ? (isKo ? "Kowork로 보러가기" : isZh ? "在 Kowork 查看" : isVi ? "Xem trên Kowork" : isJa ? "Koworkで見る" : isId ? "Lihat di Kowork" : "View on Kowork")
       : p.sourceProvider === "BUDDIES"
         ? (isKo ? "Buddies로 보러가기" : isZh ? "在 Buddies 查看" : isVi ? "Xem trên Buddies" : isJa ? "Buddiesで見る" : isId ? "Lihat di Buddies" : "View on Buddies")
-        : copy.externalLink;
+        : p.sourceProvider === "WANTED"
+          ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src="/img_logo_wanted.webp"
+              alt={wantedAltLabel}
+              className="h-6 w-auto"
+              onError={(event) => {
+                const target = event.currentTarget;
+                target.style.display = "none";
+                const fallback = target.nextElementSibling as HTMLElement | null;
+                if (fallback) fallback.style.display = "inline";
+              }}
+            />
+          )
+          : copy.externalLink;
   const detailHref = isExternalSource(p.sourceKind) && p.sourceUrl ? p.sourceUrl : `/positions/${p.id}`;
   return (
     <article className="group relative flex h-full flex-col rounded-xl border border-border/60 bg-card p-4">
@@ -1315,14 +1404,14 @@ const PositionGridCard = ({
           className="absolute inset-0 z-10 rounded-xl"
         />
       )}
-      <div className="mb-2 text-right">
-        <p className="text-[11px] text-muted-foreground">{formatPostedDate(p, locale)}</p>
+      <div className="mb-2 flex items-center gap-2 text-[11px]">
+        <p className="text-muted-foreground">{formatPostedDate(p, locale)}</p>
         {p.sourceDeadlineDate ? (
-          <p className="mt-0.5 text-[11px] font-medium text-rose-600">
+          <p className="font-medium text-rose-600">
             {formatDeadlineDday(p.sourceDeadlineDate, locale)}
           </p>
         ) : p.sourceDeadlineRolling ? (
-          <p className="mt-0.5 text-[11px] font-medium text-rose-600">
+          <p className="font-medium text-rose-600">
             {isKo ? "채용시 마감" : isZh ? "招满即止" : isVi ? "Đóng khi tuyển đủ" : isJa ? "採用次第終了" : isId ? "Tutup setelah terisi" : "Rolling deadline"}
           </p>
         ) : null}
@@ -1361,8 +1450,20 @@ const PositionGridCard = ({
           <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
         </Button>
         {isExternalSource(p.sourceKind) && p.sourceUrl ? (
-          <Button variant="dark" className="h-10 flex-1 text-sm" asChild>
-                <a href={p.sourceUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant={p.sourceProvider === "WANTED" ? "outline" : "dark"}
+            className={`h-10 flex-1 text-sm ${p.sourceProvider === "WANTED" ? "bg-white" : ""}`}
+            asChild
+          >
+                <a
+                  href={p.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    trackExternalPositionClick(p.id, p.sourceProvider);
+                  }}
+                >
                   {externalLinkLabel}
                 </a>
               </Button>

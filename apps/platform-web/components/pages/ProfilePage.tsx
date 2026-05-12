@@ -696,6 +696,39 @@ export function ProfilePage() {
             </section>
           ) : (
             <section className="space-y-6">
+              {user.role === "STUDENT" ? (
+                <Link
+                  href="/matching-probability"
+                  className="group flex items-center justify-between gap-4 rounded-2xl border border-border bg-gradient-to-br from-[#FAF5FF] to-[#F0F9FF] p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-elevated md:p-6"
+                >
+                  <div className="flex items-center gap-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/img_ai_analyze.webp"
+                      alt=""
+                      aria-hidden
+                      className="h-16 w-16 flex-none rounded-xl object-cover md:h-20 md:w-20"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-display text-base font-bold tracking-tight text-foreground md:text-lg">
+                        {tr("내 한국 취업 모험 시작하기", "Start my Korea job quest", "开始我的韩国求职冒险", "Bắt đầu hành trình tìm việc Hàn Quốc", "韓国就職アドベンチャーを始める", "Mulai petualangan kerja di Korea")}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground md:text-sm">
+                        {tr(
+                          "프로필 기반 점수 + AI 코치의 강점/보완 분석.",
+                          "Score-based readiness + AI coaching on strengths and gaps.",
+                          "基于资料的分数 + AI 教练分析。",
+                          "Điểm dựa trên hồ sơ + huấn luyện AI.",
+                          "プロフィール基準のスコア + AIコーチによる強み・改善分析。",
+                          "Skor berbasis profil + analisis kekuatan/area perbaikan oleh AI coach."
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-primary transition group-hover:translate-x-0.5" aria-hidden>→</span>
+                </Link>
+              ) : null}
+
               <div className="rounded-2xl border border-border/70 bg-card p-5 md:p-6">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -758,31 +791,6 @@ export function ProfilePage() {
 
               {profileError ? <p className="text-sm text-destructive">{profileError}</p> : null}
               </div>
-
-              {user.role === "STUDENT" ? (
-                <Link
-                  href="/matching-probability"
-                  className="group flex items-center justify-between gap-4 rounded-2xl border border-border bg-gradient-to-br from-[#FAF5FF] to-[#F0F9FF] p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-elevated md:p-6"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-12 w-12 flex-none place-items-center rounded-xl bg-white text-2xl shadow-sm">🎯</span>
-                    <div className="min-w-0">
-                      <p className="font-display text-base font-bold tracking-tight text-foreground">
-                        {tr("내 한국 취업 모험 시작하기", "Start my Korea job quest", "开始我的韩国求职冒险", "Bắt đầu hành trình tìm việc Hàn Quốc", "韓国就職アドベンチャーを始める", "Mulai petualangan kerja di Korea")}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground md:text-sm">
-                        {tr(
-                          "프로필 기반 점수 + AI 코치의 강점/보완 분석.",
-                          "Score-based readiness + AI coaching on strengths and gaps.",
-                          "基于资料的分数 + AI 教练分析。",
-                          "Điểm dựa trên hồ sơ + huấn luyện AI."
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-primary transition group-hover:translate-x-0.5" aria-hidden>→</span>
-                </Link>
-              ) : null}
 
               <div className="space-y-6">
                 {user.role === "PARTNER" ? (

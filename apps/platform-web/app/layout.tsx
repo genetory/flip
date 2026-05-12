@@ -1,7 +1,10 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { AuthSessionProvider } from "../components/auth/AuthSessionProvider";
 import { LanguageProvider } from "../components/i18n/LanguageProvider";
+
+const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -44,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthSessionProvider>{children}</AuthSessionProvider>
         </LanguageProvider>
       </body>
+      {gaMeasurementId ? <GoogleAnalytics gaId={gaMeasurementId} /> : null}
     </html>
   );
 }

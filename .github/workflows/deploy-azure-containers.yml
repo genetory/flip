@@ -108,6 +108,7 @@ jobs:
           WEB_IMAGE=${{ secrets.REGISTRY_SERVER }}/${{ secrets.WEB_IMAGE_NAME }}:${{ steps.vars.outputs.env_tag }}-${{ steps.vars.outputs.sha_short }}
           docker build \
             --build-arg NEXT_PUBLIC_API_URL="${{ secrets.NEXT_PUBLIC_API_URL }}" \
+            --build-arg NEXT_PUBLIC_GA_MEASUREMENT_ID="${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}" \
             -f apps/platform-web/Dockerfile \
             -t "$WEB_IMAGE" .
           docker push "$WEB_IMAGE"

@@ -2002,7 +2002,8 @@ const listPublicPositionsCursorQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
   sourceProvider: z.union([positionSourceProviderEnum, z.array(positionSourceProviderEnum)]).optional(),
   jobRole: z.union([z.string().trim().min(1).max(120), z.array(z.string().trim().min(1).max(120))]).optional(),
-  sortOrder: z.enum(["asc", "desc"]).optional()
+  sortOrder: z.enum(["asc", "desc"]).optional(),
+  sort: z.enum(["latest", "deadline"]).optional()
 });
 const listCommunityPostsCursorQuerySchema = z.object({
   category: z.enum(["free", "career", "help"]).optional(),
@@ -2592,14 +2593,16 @@ async function sendCrawlerSummaryDiscordNotification(input: {
   elapsedMs: number;
   kowork: CrawlerRunSummary | null;
   buddies: CrawlerRunSummary | null;
+  wanted: CrawlerRunSummary | null;
   ok: boolean;
   errorMessage?: string;
 }) {
   if (!crawlerSummaryDiscordWebhookUrl) return;
   const asNum = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
-  const [storedKoworkCount, storedBuddiesCount] = await Promise.all([
+  const [storedKoworkCount, storedBuddiesCount, storedWantedCount] = await Promise.all([
     prisma.position.count({ where: { sourceProvider: PositionSourceProvider.KOWORK } }),
-    prisma.position.count({ where: { sourceProvider: PositionSourceProvider.BUDDIES } })
+    prisma.position.count({ where: { sourceProvider: PositionSourceProvider.BUDDIES } }),
+    prisma.position.count({ where: { sourceProvider: PositionSourceProvider.WANTED } })
   ]);
   const runtimeEnv = resolveRuntimeEnvironment();
   const envColor =
@@ -2628,17 +2631,16 @@ async function sendCrawlerSummaryDiscordNotification(input: {
 
   const kCreated = asNum(input.kowork?.created);
   const kUpdated = asNum(input.kowork?.updated);
-  const kTotal = asNum(input.kowork?.total);
   const bCreated = asNum(input.buddies?.created);
   const bUpdated = asNum(input.buddies?.updated);
-  const bTotal = asNum(input.buddies?.total);
-  const totalAdded = kCreated + bCreated;
-  const totalUpdated = kUpdated + bUpdated;
-  const totalRows = kTotal + bTotal;
+  const wCreated = asNum(input.wanted?.created);
+  const wUpdated = asNum(input.wanted?.updated);
+  const totalAdded = kCreated + bCreated + wCreated;
+  const totalUpdated = kUpdated + bUpdated + wUpdated;
   const description = input.ok
     ? [
         `실제 반영: 신규 ${totalAdded}건 / 업데이트 ${totalUpdated}건`,
-        `소스별 현재 저장: Kowork ${storedKoworkCount}건, Buddies ${storedBuddiesCount}건`
+        `소스별 현재 저장: Kowork ${storedKoworkCount}건, Buddies ${storedBuddiesCount}건, Wanted ${storedWantedCount}건`
       ].join("\n")
     : `오류: ${input.errorMessage ?? "unknown error"}`;
 
@@ -2664,6 +2666,11 @@ async function sendCrawlerSummaryDiscordNotification(input: {
           inline: false
         },
         {
+          name: "Wanted",
+          value: `${sourceDetail(input.wanted, "wanted", "WANTED")}\n현재 저장: ${storedWantedCount}건`,
+          inline: false
+        },
+        {
           name: "실행 정보",
           value: `시작: ${input.startedAt.toISOString()}\n소요: ${Math.round(input.elapsedMs / 1000)}s`,
           inline: false
@@ -2686,19 +2693,22 @@ async function sendCrawlerSummaryDiscordNotification(input: {
   }
 }
 
+type CrawlerSource = "all" | "kowork" | "buddies" | "wanted";
+
 type DailyCrawlerRunResult = {
   ok: boolean;
   startedAt: string;
   elapsedMs: number;
   kowork: CrawlerRunSummary | null;
   buddies: CrawlerRunSummary | null;
-  source: "all" | "kowork" | "buddies";
+  wanted: CrawlerRunSummary | null;
+  source: CrawlerSource;
   errorMessage?: string;
 };
 
 let crawlerRunInProgress = false;
 
-async function runExternalCrawlers(source: "all" | "kowork" | "buddies"): Promise<DailyCrawlerRunResult> {
+async function runExternalCrawlers(source: CrawlerSource): Promise<DailyCrawlerRunResult> {
   if (crawlerRunInProgress) {
     return {
       ok: false,
@@ -2706,6 +2716,7 @@ async function runExternalCrawlers(source: "all" | "kowork" | "buddies"): Promis
       elapsedMs: 0,
       kowork: null,
       buddies: null,
+      wanted: null,
       source,
       errorMessage: "crawler run already in progress"
     };
@@ -2720,6 +2731,9 @@ async function runExternalCrawlers(source: "all" | "kowork" | "buddies"): Promis
     const buddies = source === "all" || source === "buddies"
       ? await runCrawlerScript("scripts/import-buddies-job-postings.ts")
       : null;
+    const wanted = source === "all" || source === "wanted"
+      ? await runCrawlerScript("scripts/import-wanted-job-postings.ts")
+      : null;
     const elapsedMs = Date.now() - startedAt.getTime();
     console.info("[crawler-scheduler] completed", { elapsedMs, source });
     await sendCrawlerSummaryDiscordNotification({
@@ -2727,6 +2741,7 @@ async function runExternalCrawlers(source: "all" | "kowork" | "buddies"): Promis
       elapsedMs,
       kowork,
       buddies,
+      wanted,
       ok: true
     });
     return {
@@ -2735,6 +2750,7 @@ async function runExternalCrawlers(source: "all" | "kowork" | "buddies"): Promis
       elapsedMs,
       kowork,
       buddies,
+      wanted,
       source
     };
   } catch (error) {
@@ -2750,6 +2766,7 @@ async function runExternalCrawlers(source: "all" | "kowork" | "buddies"): Promis
       elapsedMs,
       kowork: null,
       buddies: null,
+      wanted: null,
       ok: false,
       errorMessage
     });
@@ -2759,6 +2776,7 @@ async function runExternalCrawlers(source: "all" | "kowork" | "buddies"): Promis
       elapsedMs,
       kowork: null,
       buddies: null,
+      wanted: null,
       source,
       errorMessage
     };
@@ -3127,6 +3145,7 @@ function toPublicPositionItem(
     wantsPreTraining: boolean | null;
     additionalNotes: string | null;
     adminMemo: string | null;
+    sourceDeadlineDate?: Date | null;
     createdAt: Date;
     updatedAt: Date;
     partnerOrganization?: {
@@ -3148,7 +3167,9 @@ function toPublicPositionItem(
     sourceUrl: item.sourceUrl,
     sourceFetchedAt: item.sourceFetchedAt,
     sourceCompanyName: extractSourceCompanyName(item.additionalNotes),
-    sourceDeadlineDate: extractSourceDeadlineDate(item.additionalNotes),
+    sourceDeadlineDate: item.sourceDeadlineDate
+      ? item.sourceDeadlineDate.toISOString().slice(0, 10)
+      : extractSourceDeadlineDate(item.additionalNotes),
     sourceDeadlineRolling: extractSourceDeadlineRolling(item.additionalNotes),
     title: item.title,
     status: item.status,
@@ -4531,6 +4552,14 @@ app.post("/ops/crawlers/run/buddies", authenticate, requireRoles([MemberRole.OPE
   });
 });
 
+app.post("/ops/crawlers/run/wanted", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  const result = await runExternalCrawlers("wanted");
+  return res.status(result.ok ? 200 : 409).json({
+    ok: result.ok,
+    result
+  });
+});
+
 const companyConsultationCreateSchema = z.object({
   companyName: z.string().trim().min(1).max(120),
   contactName: z.string().trim().min(1).max(80),
@@ -5188,54 +5217,109 @@ app.get("/positions", async (req, res) => {
   const jobRoles = parsedQuery.data.jobRole
     ? Array.from(new Set(Array.isArray(parsedQuery.data.jobRole) ? parsedQuery.data.jobRole : [parsedQuery.data.jobRole]))
     : [];
+  const sortMode = parsedQuery.data.sort ?? "latest";
   const sortOrder = parsedQuery.data.sortOrder ?? "desc";
-  let cursorValue: { createdAt: Date; id: string } | null = null;
+
+  // Cursor encodes the keyset for the active sort mode.
+  // - latest: `${createdAtISO}|${id}` (desc; older or same-createdAt-with-smaller-id)
+  // - deadline: `${deadlineISOorNULL}|${id}` (deadline asc, NULLs last)
+  let latestCursor: { createdAt: Date; id: string } | null = null;
+  let deadlineCursor: { deadline: Date | null; id: string } | null = null;
   if (parsedQuery.data.cursor) {
     try {
       const decoded = Buffer.from(parsedQuery.data.cursor, "base64").toString("utf8");
-      const [createdAtRaw, idRaw] = decoded.split("|");
-      const createdAt = createdAtRaw ? new Date(createdAtRaw) : null;
+      const [headRaw, idRaw] = decoded.split("|");
       const id = idRaw?.trim();
-      if (!createdAt || Number.isNaN(createdAt.getTime()) || !id) {
+      if (!id) {
         return res.status(400).json({ ok: false, message: "invalid cursor" });
       }
-      cursorValue = { createdAt, id };
+      if (sortMode === "deadline") {
+        const head = headRaw?.trim() ?? "";
+        if (head === "NULL") {
+          deadlineCursor = { deadline: null, id };
+        } else {
+          const parsed = head ? new Date(head) : null;
+          if (!parsed || Number.isNaN(parsed.getTime())) {
+            return res.status(400).json({ ok: false, message: "invalid cursor" });
+          }
+          deadlineCursor = { deadline: parsed, id };
+        }
+      } else {
+        const createdAt = headRaw ? new Date(headRaw) : null;
+        if (!createdAt || Number.isNaN(createdAt.getTime())) {
+          return res.status(400).json({ ok: false, message: "invalid cursor" });
+        }
+        latestCursor = { createdAt, id };
+      }
     } catch {
       return res.status(400).json({ ok: false, message: "invalid cursor" });
     }
   }
 
   const viewer = await resolvePublicViewer(req);
-  const items = await prisma.position.findMany({
-    where: {
-      status: { in: [PositionStatus.OPEN] },
-      ...(search
+
+  const baseWhere = {
+    status: { in: [PositionStatus.OPEN] },
+    ...(search
+      ? {
+          OR: [
+            { title: { contains: search, mode: "insensitive" as const } },
+            { preferredJobRole: { contains: search, mode: "insensitive" as const } },
+            { workLocation: { contains: search, mode: "insensitive" as const } },
+            { partnerOrganization: { is: { name: { contains: search, mode: "insensitive" as const } } } }
+          ]
+        }
+      : {}),
+    ...(jobRoles.length ? { preferredJobRole: { in: jobRoles } } : {}),
+    ...(sourceProviders.length
+      ? { sourceProvider: { in: sourceProviders } }
+      : { sourceProvider: { notIn: [PositionSourceProvider.BUDDIES, PositionSourceProvider.KOWORK] } })
+  };
+
+  const cursorWhere = sortMode === "deadline"
+    ? deadlineCursor
+      ? deadlineCursor.deadline === null
         ? {
-            OR: [
-              { title: { contains: search, mode: "insensitive" } },
-              { preferredJobRole: { contains: search, mode: "insensitive" } },
-              { workLocation: { contains: search, mode: "insensitive" } },
-              { partnerOrganization: { is: { name: { contains: search, mode: "insensitive" } } } }
-            ]
+            // already in the NULL bucket: paginate by id within nulls
+            sourceDeadlineDate: null,
+            id: { gt: deadlineCursor.id }
           }
-        : {}),
-      ...(jobRoles.length ? { preferredJobRole: { in: jobRoles } } : {}),
-      ...(sourceProviders.length ? { sourceProvider: { in: sourceProviders } } : {}),
-      ...(cursorValue
-        ? {
+        : {
+            // either a later deadline, the same deadline with greater id, or a NULL (NULLs last)
             OR: [
-              { createdAt: { lt: cursorValue.createdAt } },
+              { sourceDeadlineDate: { gt: deadlineCursor.deadline } },
               {
                 AND: [
-                  { createdAt: cursorValue.createdAt },
-                  { id: { lt: cursorValue.id } }
+                  { sourceDeadlineDate: deadlineCursor.deadline },
+                  { id: { gt: deadlineCursor.id } }
                 ]
-              }
+              },
+              { sourceDeadlineDate: null }
             ]
           }
-        : {})
+      : {}
+    : latestCursor
+      ? {
+          OR: [
+            { createdAt: { lt: latestCursor.createdAt } },
+            {
+              AND: [
+                { createdAt: latestCursor.createdAt },
+                { id: { lt: latestCursor.id } }
+              ]
+            }
+          ]
+        }
+      : {};
+
+  const items = await prisma.position.findMany({
+    where: {
+      ...baseWhere,
+      ...cursorWhere
     },
-    orderBy: [{ createdAt: sortOrder }, { id: sortOrder }],
+    orderBy: sortMode === "deadline"
+      ? [{ sourceDeadlineDate: { sort: "asc", nulls: "last" } }, { id: "asc" }]
+      : [{ createdAt: sortOrder }, { id: sortOrder }],
     take: limit + 1,
     include: {
       partnerOrganization: {
@@ -5257,7 +5341,12 @@ app.get("/positions", async (req, res) => {
   const pageItems = hasNext ? items.slice(0, limit) : items;
   const tail = pageItems[pageItems.length - 1];
   const nextCursor = hasNext && tail
-    ? Buffer.from(`${tail.createdAt.toISOString()}|${tail.id}`, "utf8").toString("base64")
+    ? sortMode === "deadline"
+      ? Buffer.from(
+          `${tail.sourceDeadlineDate ? tail.sourceDeadlineDate.toISOString() : "NULL"}|${tail.id}`,
+          "utf8"
+        ).toString("base64")
+      : Buffer.from(`${tail.createdAt.toISOString()}|${tail.id}`, "utf8").toString("base64")
     : null;
 
   return res.json({

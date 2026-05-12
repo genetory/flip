@@ -16,6 +16,7 @@ export type NormalizedExternalPosition = {
   communicationLanguages?: string[];
   eligibleVisas?: string[];
   additionalNotes?: string | null;
+  sourceDeadlineDate?: Date | null;
 };
 
 const HASH_MARKER = "[[sourceSyncHash:";
@@ -60,7 +61,8 @@ export async function upsertExternalPositions(prisma: PrismaClient, providerName
       thumbnailImages,
       communicationLanguages,
       eligibleVisas,
-      additionalNotes: row.additionalNotes ?? null
+      additionalNotes: row.additionalNotes ?? null,
+      sourceDeadlineDate: row.sourceDeadlineDate ? row.sourceDeadlineDate.toISOString() : null
     });
 
     const additionalNotes = [
@@ -97,6 +99,7 @@ export async function upsertExternalPositions(prisma: PrismaClient, providerName
           sourceExternalId: row.externalId,
           sourceUrl: row.sourceUrl,
           sourceFetchedAt: new Date(),
+          sourceDeadlineDate: row.sourceDeadlineDate ?? null,
           ...(row.postedAt ? { createdAt: row.postedAt } : {}),
           title: row.title,
           status,
@@ -118,6 +121,7 @@ export async function upsertExternalPositions(prisma: PrismaClient, providerName
           sourceExternalId: row.externalId,
           sourceUrl: row.sourceUrl,
           sourceFetchedAt: new Date(),
+          sourceDeadlineDate: row.sourceDeadlineDate ?? null,
           ...(row.postedAt ? { createdAt: row.postedAt } : {}),
           title: row.title,
           status,

@@ -1,0 +1,361 @@
+import "dotenv/config";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { PositionSourceProvider, PositionStatus, PrismaClient } from "@prisma/client";
+import { type NormalizedExternalPosition, upsertExternalPositions } from "./crawlers/core";
+
+const prisma = new PrismaClient();
+
+const LOCK_DIR = join(tmpdir(), "aply-wanted-import");
+const LOCK_FILE = join(LOCK_DIR, "import.lock");
+const LOCK_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+function acquireLock(): boolean {
+  if (!existsSync(LOCK_DIR)) mkdirSync(LOCK_DIR, { recursive: true });
+  if (existsSync(LOCK_FILE)) {
+    try {
+      const raw = readFileSync(LOCK_FILE, "utf8");
+      const startedAt = Number(raw.trim());
+      if (Number.isFinite(startedAt) && Date.now() - startedAt < LOCK_TTL_MS) {
+        return false;
+      }
+    } catch {
+      // ignore unreadable lock; treat as stale
+    }
+  }
+  writeFileSync(LOCK_FILE, String(Date.now()));
+  return true;
+}
+
+function releaseLock() {
+  try {
+    if (existsSync(LOCK_FILE)) unlinkSync(LOCK_FILE);
+  } catch {
+    // best-effort
+  }
+}
+
+const BASE_URL = (process.env.WANTED_API_BASE_URL?.trim() || "https://openapi.wanted.jobs").replace(/\/$/, "");
+const JOBS_PATH = "/v2/jobs";
+const CLIENT_ID = process.env.WANTED_CLIENT_ID?.trim() ?? "";
+const CLIENT_SECRET = process.env.WANTED_CLIENT_SECRET?.trim() ?? "";
+const PAGE_SIZE_RAW = Number(process.env.WANTED_PAGE_SIZE ?? "20");
+const MAX_PAGES_RAW = Number(process.env.WANTED_MAX_PAGES ?? "5");
+const REQUEST_DELAY_MS_RAW = Number(process.env.WANTED_REQUEST_DELAY_MS ?? "1100");
+
+const PAGE_SIZE = Number.isFinite(PAGE_SIZE_RAW) ? Math.min(Math.max(Math.trunc(PAGE_SIZE_RAW), 1), 50) : 20;
+const MAX_PAGES = Number.isFinite(MAX_PAGES_RAW) ? Math.min(Math.max(Math.trunc(MAX_PAGES_RAW), 1), 500) : 5;
+// Wanted policy: <=10 calls / 10s. Enforce a hard 1100ms floor between calls
+// regardless of env override to stay well below the threshold.
+const MIN_REQUEST_DELAY_MS = 1100;
+const REQUEST_DELAY_MS = Math.max(
+  Number.isFinite(REQUEST_DELAY_MS_RAW) ? Math.trunc(REQUEST_DELAY_MS_RAW) : MIN_REQUEST_DELAY_MS,
+  MIN_REQUEST_DELAY_MS
+);
+
+// Wanted v2 jobs response (verified against actual API sample).
+type WantedCompany = {
+  id?: number;
+  name?: string | null;
+};
+
+type WantedAddress = {
+  country?: string | null;
+  location?: string | null;
+  full_location?: string | null;
+};
+
+type WantedImage = {
+  origin?: string | null;
+  thumb?: string | null;
+};
+
+type WantedCategoryTag = {
+  id?: number;
+  title?: string | null;
+};
+
+type WantedJob = {
+  id?: number | string;
+  status?: string | null;
+  due_time?: string | null;
+  name?: string | null;
+  company?: WantedCompany | null;
+  employment_type?: string | null;
+  additional_apply_type?: string[] | null;
+  address?: WantedAddress | null;
+  title_img?: WantedImage | null;
+  logo_img?: WantedImage | null;
+  category_tags?: {
+    parent_tag?: WantedCategoryTag | null;
+    child_tags?: WantedCategoryTag[] | null;
+  } | null;
+  url?: string | null;
+};
+
+type WantedJobsResponse = {
+  data?: WantedJob[];
+  links?: { prev?: string | null; next?: string | null } | null;
+};
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function buildHeaders(): Record<string, string> {
+  return {
+    "wanted-client-id": CLIENT_ID,
+    "wanted-client-secret": CLIENT_SECRET,
+    Accept: "application/json"
+  };
+}
+
+// Two independent foreigner-eligibility signals on Wanted. They are NOT
+// supersets of each other — partners can opt in via either, so we fetch both
+// and dedupe by job id.
+type ForeignerFilter =
+  | { kind: "additional_apply_type"; label: "foreigner_friendly_company" }
+  | { kind: "tag"; tagId: 10526; label: "foreigner_open_to_apply" };
+
+const FOREIGNER_FILTERS: ForeignerFilter[] = [
+  { kind: "additional_apply_type", label: "foreigner_friendly_company" },
+  { kind: "tag", tagId: 10526, label: "foreigner_open_to_apply" }
+];
+
+async function fetchJobs(offset: number, limit: number, filter: ForeignerFilter): Promise<WantedJobsResponse> {
+  const params = new URLSearchParams();
+  params.set("offset", String(offset));
+  params.set("limit", String(limit));
+  if (filter.kind === "additional_apply_type") {
+    params.append("additional_apply_types", "job.additional_apply_type.foreigner");
+  } else {
+    params.append("tags", String(filter.tagId));
+  }
+
+  const url = `${BASE_URL}${JOBS_PATH}?${params.toString()}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Wanted API request failed: ${response.status} ${response.statusText} :: ${body.slice(0, 500)}`);
+  }
+
+  return (await response.json()) as WantedJobsResponse;
+}
+
+function pickTitle(job: WantedJob): string {
+  return (job.name ?? "").trim();
+}
+
+function pickWorkLocation(job: WantedJob): string | null {
+  const full = job.address?.full_location?.trim();
+  if (full && full.length > 0) return full;
+  const loc = job.address?.location?.trim();
+  return loc && loc.length > 0 ? loc : null;
+}
+
+function isHttpUrl(value: string | null | undefined): value is string {
+  return typeof value === "string" && (value.startsWith("http://") || value.startsWith("https://"));
+}
+
+function pickThumbnails(job: WantedJob): string[] {
+  const candidates = [job.title_img?.origin, job.title_img?.thumb, job.logo_img?.origin, job.logo_img?.thumb];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of candidates) {
+    const value = typeof raw === "string" ? raw.trim() : "";
+    if (!isHttpUrl(value)) continue;
+    if (seen.has(value)) continue;
+    seen.add(value);
+    result.push(value);
+  }
+  return result;
+}
+
+function pickPreferredJobRole(job: WantedJob): string | null {
+  // Use category_tags.parent_tag.title as the broad job-role bucket the
+  // platform-web filter exposes. child_tags are more granular and would
+  // explode the filter chips.
+  const parent = job.category_tags?.parent_tag?.title?.trim();
+  return parent && parent.length > 0 ? parent : null;
+}
+
+function isActiveJob(job: WantedJob): boolean {
+  return (job.status ?? "").trim().toLowerCase() === "active";
+}
+
+function pickEmploymentType(job: WantedJob): string | null {
+  const raw = (job.employment_type ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw === "regular" || raw === "fulltime" || raw === "full-time" || raw === "full_time") return "FULL_TIME";
+  if (raw === "intern" || raw === "internship") return "INTERN";
+  if (raw === "contract" || raw === "contractor") return "FULL_TIME";
+  if (raw === "part-time" || raw === "part_time" || raw === "parttime") return "PART_TIME";
+  return null;
+}
+
+function pickAdditionalNotes(job: WantedJob): string | null {
+  const lines: string[] = [];
+  if (job.company?.name?.trim()) lines.push(`Company: ${job.company.name.trim()}`);
+  const due = job.due_time?.trim() ?? "";
+  if (due) lines.push(`Deadline: ${due}`);
+  const employment = job.employment_type?.trim();
+  if (employment) lines.push(`Wanted employment_type: ${employment}`);
+  return lines.length > 0 ? lines.join("\n") : null;
+}
+
+function pickSourceDeadlineDate(job: WantedJob): Date | null {
+  const raw = job.due_time?.trim() ?? "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const parsed = new Date(`${raw}T23:59:59+09:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function normalize(job: WantedJob): NormalizedExternalPosition | null {
+  if (!isActiveJob(job)) return null;
+
+  const externalIdRaw = job.id;
+  const externalId =
+    typeof externalIdRaw === "number"
+      ? String(externalIdRaw)
+      : typeof externalIdRaw === "string"
+        ? externalIdRaw.trim()
+        : "";
+  if (!externalId) return null;
+
+  const title = pickTitle(job);
+  if (!title) return null;
+
+  const sourceUrl = isHttpUrl(job.url?.trim())
+    ? job.url!.trim()
+    : `https://www.wanted.co.kr/wd/${externalId}`;
+
+  const eligibleVisas: string[] = [];
+  if (job.additional_apply_type?.includes("foreigner")) {
+    eligibleVisas.push("FOREIGNER_FRIENDLY");
+  }
+
+  return {
+    externalId,
+    title,
+    sourceUrl,
+    sourceProvider: PositionSourceProvider.WANTED,
+    postedAt: null,
+    status: PositionStatus.OPEN,
+    workLocation: pickWorkLocation(job),
+    workType: null,
+    employmentType: pickEmploymentType(job) ?? "FULL_TIME",
+    preferredJobRole: pickPreferredJobRole(job),
+    thumbnailImages: pickThumbnails(job),
+    communicationLanguages: [],
+    eligibleVisas,
+    additionalNotes: pickAdditionalNotes(job),
+    sourceDeadlineDate: pickSourceDeadlineDate(job)
+  };
+}
+
+async function main() {
+  if (!CLIENT_ID || !CLIENT_SECRET) {
+    console.error("[wanted-import] WANTED_CLIENT_ID/WANTED_CLIENT_SECRET env vars are required.");
+    process.exit(1);
+  }
+
+  if (!acquireLock()) {
+    console.warn("[wanted-import] Another import is already in progress; aborting to honor rate limits.");
+    process.exit(0);
+  }
+
+  console.info(
+    `[wanted-import] Starting · base=${BASE_URL} pageSize=${PAGE_SIZE} maxPages=${MAX_PAGES} delayMs=${REQUEST_DELAY_MS}`
+  );
+
+  let totalCreated = 0;
+  let totalUpdated = 0;
+  let totalSkipped = 0;
+  let totalSeen = 0;
+  let lastCallAt = 0;
+  // Encode receive order into postedAt so that Wanted's latest_order survives
+  // through `ORDER BY createdAt DESC`. The first job we see (filter 0, page 0,
+  // index 0) gets the most recent timestamp; subsequent jobs are 1 second older.
+  const importStartedAt = Date.now();
+  let globalOrder = 0;
+  // Dedup across both filters — partners can opt in via either, and the two
+  // result sets can overlap. We only upsert each job id once per run.
+  const seenJobIds = new Set<string>();
+
+  for (const filter of FOREIGNER_FILTERS) {
+    console.info(`[wanted-import] Filter phase: ${filter.label}`);
+    for (let page = 0; page < MAX_PAGES; page += 1) {
+      const offset = page * PAGE_SIZE;
+      // Guarantee the minimum gap *before* each network call (not after), so
+      // the limiter is robust to fast responses and unrelated work between pages.
+      const elapsed = Date.now() - lastCallAt;
+      if (lastCallAt > 0 && elapsed < REQUEST_DELAY_MS) {
+        await sleep(REQUEST_DELAY_MS - elapsed);
+      }
+      let payload: WantedJobsResponse;
+      lastCallAt = Date.now();
+      try {
+        payload = await fetchJobs(offset, PAGE_SIZE, filter);
+      } catch (error) {
+        console.error(`[wanted-import] Failed to fetch [${filter.label}] page ${page} (offset=${offset}):`, error);
+        break;
+      }
+      const items = Array.isArray(payload.data) ? payload.data : [];
+      if (items.length === 0) {
+        console.info(`[wanted-import] [${filter.label}] empty page at offset=${offset}; advancing to next filter.`);
+        break;
+      }
+      totalSeen += items.length;
+
+      // Dedup before normalize so we don't waste DB write budget on already-imported ids.
+      const fresh = items.filter((job) => {
+        const id = job.id;
+        const key = typeof id === "number" ? String(id) : typeof id === "string" ? id.trim() : "";
+        if (!key) return false;
+        if (seenJobIds.has(key)) return false;
+        seenJobIds.add(key);
+        return true;
+      });
+
+      const normalized = fresh
+        .map(normalize)
+        .filter((row): row is NormalizedExternalPosition => Boolean(row))
+        .map((row) => {
+          const stamped: NormalizedExternalPosition = {
+            ...row,
+            postedAt: new Date(importStartedAt - globalOrder * 1000)
+          };
+          globalOrder += 1;
+          return stamped;
+        });
+
+      const result = await upsertExternalPositions(prisma, "import-wanted-job-postings", normalized);
+      totalCreated += result.created;
+      totalUpdated += result.updated;
+      totalSkipped += result.skipped;
+      console.info(
+        `[wanted-import] [${filter.label}] page=${page} offset=${offset} seen=${items.length} fresh=${fresh.length} ` +
+        `normalized=${normalized.length} created=${result.created} updated=${result.updated} skipped=${result.skipped}`
+      );
+    }
+  }
+
+  console.info(
+    `[wanted-import] Done · seen=${totalSeen} created=${totalCreated} updated=${totalUpdated} skipped=${totalSkipped}`
+  );
+}
+
+main()
+  .catch((error) => {
+    console.error("[wanted-import] Fatal error:", error);
+    process.exit(1);
+  })
+  .finally(async () => {
+    releaseLock();
+    await prisma.$disconnect();
+  });

@@ -331,6 +331,7 @@ enum PositionSourceProvider {
   INTERNAL
   BUDDIES
   KOWORK
+  WANTED
   OTHER
 }
 
@@ -489,6 +490,7 @@ model Position {
   sourceExternalId        String?
   sourceUrl               String?
   sourceFetchedAt         DateTime?
+  sourceDeadlineDate      DateTime?
   title                   String
   status                  PositionStatus @default(DRAFT)
   workType                String?

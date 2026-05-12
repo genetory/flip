@@ -1,4 +1,11 @@
 import { resolveAuthErrorMessage } from "./auth-messages";
+import {
+  trackAccountDeleted,
+  trackEmailVerified,
+  trackLogin,
+  trackSignUp,
+  type SignupMethod
+} from "./analytics";
 
 export const PLATFORM_ACCESS_TOKEN_KEY = "platform_access_token";
 
@@ -121,7 +128,9 @@ export async function loginWithEmail(input: { email: string; password: string })
     body: JSON.stringify(input)
   });
 
-  return parseAuthResponse(response);
+  const result = await parseAuthResponse(response);
+  trackLogin("email");
+  return result;
 }
 
 export type SocialProvider = "naver" | "google" | "kakao";
@@ -134,7 +143,11 @@ export async function finalizeSocialSignup(input: { provider: SocialProvider; ct
     body: JSON.stringify({ ctx: input.ctx, accountType: input.accountType })
   });
 
-  return parseAuthResponse(response);
+  const result = await parseAuthResponse(response);
+  // Provider signup completion = both an account creation event and the first login.
+  trackSignUp(input.provider as SignupMethod);
+  trackLogin(input.provider as SignupMethod);
+  return result;
 }
 
 export async function signupWithEmail(input: {
@@ -173,6 +186,7 @@ export async function signupWithEmail(input: {
       storeAccessToken(accessToken);
     }
   }
+  trackSignUp("email");
   return payload;
 }
 
@@ -315,7 +329,9 @@ export async function verifyEmailToken(token: string) {
     body: JSON.stringify({ token })
   });
 
-  return parseAuthResponse(response);
+  const result = await parseAuthResponse(response);
+  trackEmailVerified();
+  return result;
 }
 
 export async function resendVerificationEmail(email: string, locale: EmailLocale = "ko") {
@@ -423,5 +439,6 @@ export async function deleteMyAccount(reauthToken: string) {
     }
     throw new AuthApiError(resolveAuthErrorMessage(code, message), code);
   }
+  trackAccountDeleted();
   clearAccessToken();
 }

@@ -17,6 +17,7 @@ import {
   isPartnerOrganizationProfileComplete,
   updateMyPartnerPosition
 } from "../../lib/member-profile-client";
+import { JOB_CATEGORIES, jobCategoryLabel } from "../../lib/job-categories";
 
 type PartnerPositionStatus = "DRAFT" | "PENDING_REVIEW" | "OPEN" | "PAUSED" | "CLOSED" | "REJECTED";
 type EmploymentType = "FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN";
@@ -593,12 +594,21 @@ export function PartnerPositionCreatePage({
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">{t("모집 분야", "Category/Role", "招聘领域", "Lĩnh vực tuyển dụng", "募集分野", "Bidang perekrutan")}<RequiredMark /></label>
-                      <input
-                        className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm"
-                        placeholder={t("예) 프론트개발자, 디자이너", "e.g. Frontend Developer, Designer", "例）前端开发、设计师", "Ví dụ) Lập trình Frontend, Designer", "例) フロントエンド開発者、デザイナー", "Contoh) Pengembang Frontend, Desainer")}
-                        value={preferredJobRole}
-                        onChange={(e) => setPreferredJobRole(e.target.value)}
-                      />
+                      <div className="relative">
+                        <select
+                          className="h-10 w-full appearance-none rounded-md border-0 bg-muted/50 px-3 pr-10 text-sm"
+                          value={preferredJobRole}
+                          onChange={(e) => setPreferredJobRole(e.target.value)}
+                        >
+                          <option value="">{t("선택해주세요", "Please select", "请选择", "Vui lòng chọn", "選択してください", "Silakan pilih")}</option>
+                          {JOB_CATEGORIES.map((category) => (
+                            <option key={category} value={category}>
+                              {jobCategoryLabel(category, locale)}
+                            </option>
+                          ))}
+                        </select>
+                        <CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      </div>
                     </div>
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">

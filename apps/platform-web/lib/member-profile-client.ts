@@ -1,4 +1,10 @@
 import { readAccessToken, refreshPlatformSession } from "./auth-client";
+import {
+  trackAiAnalysisCompleted,
+  trackAiAnalysisStart,
+  trackPositionApply,
+  trackPositionFavorite
+} from "./analytics";
 
 function getApiBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -350,7 +356,7 @@ export type PositionsMeta = {
 export type PublicPositionListItem = {
   id: string;
   sourceKind: "INTERNAL" | "EXTERNAL";
-  sourceProvider: "INTERNAL" | "BUDDIES" | "KOWORK" | "OTHER";
+  sourceProvider: "INTERNAL" | "BUDDIES" | "KOWORK" | "WANTED" | "OTHER";
   sourceExternalId: string | null;
   sourceUrl: string | null;
   sourceFetchedAt: string | null;
@@ -547,6 +553,7 @@ export async function getPublicPositionsPage(input?: {
   search?: string;
   jobRoles?: string[];
   sortOrder?: "asc" | "desc";
+  sort?: "latest" | "deadline";
   sourceProviders?: Array<PublicPositionListItem["sourceProvider"]>;
 }) {
   const params = new URLSearchParams();
@@ -559,6 +566,7 @@ export async function getPublicPositionsPage(input?: {
     }
   }
   if (input?.sortOrder) params.set("sortOrder", input.sortOrder);
+  if (input?.sort) params.set("sort", input.sort);
   if (input?.sourceProviders?.length) {
     for (const provider of Array.from(new Set(input.sourceProviders))) {
       params.append("sourceProvider", provider);
@@ -734,6 +742,7 @@ export async function addMyFavoritePosition(positionId: string) {
   const result = await authedJsonFetch<unknown>(`/members/me/positions/${encodeURIComponent(positionId)}/favorite`, {
     method: "POST"
   });
+  trackPositionFavorite(positionId, "unknown", true);
   return result;
 }
 
@@ -741,6 +750,7 @@ export async function removeMyFavoritePosition(positionId: string) {
   const result = await authedJsonFetch<unknown>(`/members/me/positions/${encodeURIComponent(positionId)}/favorite`, {
     method: "DELETE"
   });
+  trackPositionFavorite(positionId, "unknown", false);
   return result;
 }
 
@@ -748,6 +758,7 @@ export async function applyMyPosition(positionId: string) {
   const result = await authedJsonFetch<unknown>(`/members/me/positions/${encodeURIComponent(positionId)}/apply`, {
     method: "POST"
   });
+  trackPositionApply(positionId, "unknown");
   return result;
 }
 
@@ -991,6 +1002,7 @@ export type CareerReadinessReport = {
 };
 
 export async function fetchCareerReadinessReport(locale?: "ko" | "en" | "zh-CN" | "vi" | "ja" | "id") {
+  trackAiAnalysisStart();
   const result = await authedJsonFetch<CareerReadinessReport>("/members/me/career-readiness", {
     method: "POST",
     body: JSON.stringify(locale ? { locale } : {})
@@ -998,6 +1010,7 @@ export async function fetchCareerReadinessReport(locale?: "ko" | "en" | "zh-CN" 
   if (!result.item) {
     throw new Error("응답에 리포트가 없습니다.");
   }
+  trackAiAnalysisCompleted(result.item.score);
   return result.item;
 }
 
