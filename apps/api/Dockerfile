@@ -19,4 +19,4 @@ ENV API_PORT=8080
 COPY --from=builder /app /app
 
 EXPOSE 8080
-CMD ["sh", "-c", "cd apps/api && (npx prisma migrate resolve --rolled-back 20260512014557_init 2>/dev/null || true) && (npx prisma migrate resolve --rolled-back 20260512024556_init 2>/dev/null || true) && npx prisma migrate deploy && node dist/index.js"]
+CMD ["sh", "-c", "cd apps/api && npx prisma migrate deploy && node dist/index.js"]
