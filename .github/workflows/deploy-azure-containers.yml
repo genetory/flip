@@ -198,7 +198,20 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Wait for staging warmup
-        run: sleep 30
+        # Poll until staging API health returns 200 (handles Azure cold-start
+        # which can exceed 30s). Bail after 5 minutes so we never block forever.
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://staging-api.aply.global/health || true)
+            if [ "$code" = "200" ]; then
+              echo "Staging API warm after ${i} attempts."
+              exit 0
+            fi
+            echo "Attempt $i: code=$code, sleeping 5s..."
+            sleep 5
+          done
+          echo "Staging API never returned 200 within 5 minutes." >&2
+          exit 1
 
       - name: Run smoke tests
         run: npx playwright test --config=playwright.config.ts --project=desktop-chromium

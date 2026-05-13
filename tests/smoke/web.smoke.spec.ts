@@ -14,17 +14,13 @@ test.describe("auth surface", () => {
   test("login page renders with OAuth options", async ({ page }) => {
     await page.goto("/login");
     await expect(page.locator("body")).toContainText(/aply/i);
-    // 4 OAuth providers should be present somewhere on login UI
-    const providerHits = await Promise.all(
-      ["naver", "google", "kakao"].map((p) =>
-        page
-          .locator(`[data-provider="${p}"], img[alt*="${p}" i], button:has-text("${p}")`)
-          .first()
-          .isVisible()
-          .catch(() => false)
-      )
-    );
-    expect(providerHits.filter(Boolean).length, "at least one OAuth button visible").toBeGreaterThan(0);
+    // OAuth providers render as <a href=".../auth/{provider}/start"> on the real UI
+    for (const provider of ["naver", "kakao", "google"]) {
+      await expect(
+        page.locator(`a[href*="/auth/${provider}/start"]`).first(),
+        `${provider} OAuth link should be visible`
+      ).toBeVisible();
+    }
   });
 
   test("signup page renders", async ({ page }) => {
@@ -42,8 +38,10 @@ test.describe("positions", () => {
 });
 
 test.describe("api health", () => {
+  test.describe.configure({ timeout: 60_000 });
+
   test("api /health returns ok=true with db connected", async ({ request }) => {
-    const response = await request.get(`${apiURL}/health`);
+    const response = await request.get(`${apiURL}/health`, { timeout: 45_000 });
     expect(response.status()).toBe(200);
     const body = await response.json();
     expect(body.ok).toBe(true);
@@ -51,7 +49,7 @@ test.describe("api health", () => {
   });
 
   test("api /positions returns valid json shape", async ({ request }) => {
-    const response = await request.get(`${apiURL}/positions?limit=5&sort=latest`);
+    const response = await request.get(`${apiURL}/positions?limit=5&sort=latest`, { timeout: 45_000 });
     expect(response.status()).toBe(200);
     const body = await response.json();
     expect(body.ok).toBe(true);
@@ -59,7 +57,7 @@ test.describe("api health", () => {
   });
 
   test("api /positions/meta returns valid shape", async ({ request }) => {
-    const response = await request.get(`${apiURL}/positions/meta`);
+    const response = await request.get(`${apiURL}/positions/meta`, { timeout: 45_000 });
     expect(response.status()).toBe(200);
     const body = await response.json();
     expect(body.ok).toBe(true);
