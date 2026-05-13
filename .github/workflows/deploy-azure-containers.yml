@@ -170,8 +170,72 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$(jq -n --arg c "$CONTENT" '{content:$c}')"
 
-      - name: Auto-create PR develop → main
-        if: success() && github.ref == 'refs/heads/develop' && github.event_name == 'push'
+  smoke:
+    name: Staging smoke tests
+    needs: build-and-deploy
+    if: needs.build-and-deploy.result == 'success' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      SMOKE_BASE_URL: https://staging.aply.global
+      SMOKE_API_URL: https://staging-api.aply.global
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install deps
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Wait for staging warmup
+        run: sleep 30
+
+      - name: Run smoke tests
+        run: npx playwright test --config=playwright.config.ts
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
+
+      - name: Notify Discord on failure
+        if: failure()
+        env:
+          WEBHOOK: ${{ secrets.DEPLOY_DISCORD_WEBHOOK_URL }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then exit 0; fi
+          curl -s -X POST "$WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg c "❌ staging smoke FAILED — https://github.com/$REPO/actions/runs/$RUN_ID" '{content:$c}')"
+
+  promote:
+    name: Auto-create PR develop → main
+    needs: [build-and-deploy, smoke]
+    if: needs.build-and-deploy.result == 'success' && needs.smoke.result == 'success' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Create or update promotion PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -182,7 +246,7 @@ jobs:
             exit 0
           fi
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          BODY="Automated promotion PR. Staging deploy passed.
+          BODY="Automated promotion PR. Staging deploy + smoke tests passed.
 
           - Latest commit: \`$SHORT_SHA\`
           - Deploy run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}

@@ -1,20 +1,15 @@
-name: Staging smoke tests
+name: Staging smoke tests (manual)
 
+# Ad-hoc smoke runs against staging. The same checks run automatically as a
+# job inside deploy-azure-containers.yml after every staging deploy.
 on:
-  workflow_run:
-    workflows: ["Deploy Azure Containers (Web + API)"]
-    types: [completed]
-    branches: [develop]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   smoke:
-    # Run only when the upstream deploy succeeded (or when triggered manually)
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
