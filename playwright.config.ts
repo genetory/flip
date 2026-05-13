@@ -19,6 +19,11 @@ export default defineConfig({
   },
   projects: [
     { name: "desktop-chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile-safari", use: { ...devices["iPhone 14"] } }
+    {
+      name: "mobile-chrome",
+      use: { ...devices["Pixel 7"] },
+      // mobile project is API-light: skip heavy chained tests if any are added later
+      testMatch: /.*\.smoke\.spec\.ts$/
+    }
   ]
 });

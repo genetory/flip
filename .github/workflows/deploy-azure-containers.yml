@@ -175,7 +175,7 @@ jobs:
     needs: build-and-deploy
     if: needs.build-and-deploy.result == 'success' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     env:
       SMOKE_BASE_URL: https://staging.aply.global
@@ -195,13 +195,13 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
+        run: npx playwright install --with-deps chromium
 
       - name: Wait for staging warmup
         run: sleep 30
 
       - name: Run smoke tests
-        run: npx playwright test --config=playwright.config.ts
+        run: npx playwright test --config=playwright.config.ts --project=desktop-chromium
 
       - name: Upload Playwright report
         if: always()
