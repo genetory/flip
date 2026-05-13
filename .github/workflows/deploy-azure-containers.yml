@@ -198,19 +198,27 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Wait for staging warmup
-        # Poll until staging API health returns 200 (handles Azure cold-start
-        # which can exceed 30s). Bail after 5 minutes so we never block forever.
+        # Poll until BOTH staging web and api return 200 (handles Azure
+        # cold-start which can exceed 30s on either app). Bail after 5 min.
         run: |
+          web_ok=0; api_ok=0
           for i in $(seq 1 60); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://staging-api.aply.global/health || true)
-            if [ "$code" = "200" ]; then
-              echo "Staging API warm after ${i} attempts."
+            if [ "$web_ok" = "0" ]; then
+              w=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://staging.aply.global/ || true)
+              [ "$w" = "200" ] && web_ok=1 && echo "Web warm after ${i} attempts."
+            fi
+            if [ "$api_ok" = "0" ]; then
+              a=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://staging-api.aply.global/health || true)
+              [ "$a" = "200" ] && api_ok=1 && echo "API warm after ${i} attempts."
+            fi
+            if [ "$web_ok" = "1" ] && [ "$api_ok" = "1" ]; then
+              echo "Both warm."
               exit 0
             fi
-            echo "Attempt $i: code=$code, sleeping 5s..."
+            echo "Attempt $i: web=${w:-N/A} api=${a:-N/A}, sleeping 5s..."
             sleep 5
           done
-          echo "Staging API never returned 200 within 5 minutes." >&2
+          echo "Staging never warmed up within 5 minutes (web_ok=$web_ok api_ok=$api_ok)." >&2
           exit 1
 
       - name: Run smoke tests
