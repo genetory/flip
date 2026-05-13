@@ -1,4 +1,4 @@
-name: Deploy Azure Containers (Web + API) # manual trigger 4
+name: Deploy Azure Containers (Web + API)
 
 on:
   push:
@@ -15,6 +15,7 @@ on:
 permissions:
   contents: read
   packages: write
+  pull-requests: write
 
 jobs:
   build-and-deploy:
@@ -82,24 +83,22 @@ jobs:
           WEB_IMAGE_NAME: ${{ secrets.WEB_IMAGE_NAME }}
           API_IMAGE_NAME: ${{ secrets.API_IMAGE_NAME }}
           AZURE_WEBAPP_PLATFORM_NAME: ${{ secrets.AZURE_WEBAPP_PLATFORM_NAME }}
-          AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE }}
           AZURE_WEBAPP_API_NAME: ${{ secrets.AZURE_WEBAPP_API_NAME }}
-          AZURE_WEBAPP_API_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_API_PUBLISH_PROFILE }}
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
         run: |
           test -n "${REGISTRY_SERVER:-}" || (echo "Missing secret: REGISTRY_SERVER" && exit 1)
           test -n "${REGISTRY_USERNAME:-}" || (echo "Missing secret: REGISTRY_USERNAME" && exit 1)
           test -n "${REGISTRY_PASSWORD:-}" || (echo "Missing secret: REGISTRY_PASSWORD" && exit 1)
           test -n "${NEXT_PUBLIC_API_URL:-}" || (echo "Missing secret: NEXT_PUBLIC_API_URL" && exit 1)
+          test -n "${AZURE_CREDENTIALS:-}" || (echo "Missing secret: AZURE_CREDENTIALS (service principal JSON)" && exit 1)
           if [ "${{ steps.targets.outputs.deploy_web }}" = "true" ]; then
             test -n "${WEB_IMAGE_NAME:-}" || (echo "Missing secret: WEB_IMAGE_NAME" && exit 1)
             test -n "${AZURE_WEBAPP_PLATFORM_NAME:-}" || (echo "Missing secret: AZURE_WEBAPP_PLATFORM_NAME" && exit 1)
-            test -n "${AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE:-}" || (echo "Missing secret: AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE" && exit 1)
           fi
           if [ "${{ steps.targets.outputs.deploy_api }}" = "true" ]; then
             test -n "${API_IMAGE_NAME:-}" || (echo "Missing secret: API_IMAGE_NAME" && exit 1)
             test -n "${AZURE_WEBAPP_API_NAME:-}" || (echo "Missing secret: AZURE_WEBAPP_API_NAME" && exit 1)
-            test -n "${AZURE_WEBAPP_API_PUBLISH_PROFILE:-}" || (echo "Missing secret: AZURE_WEBAPP_API_PUBLISH_PROFILE" && exit 1)
           fi
 
       - name: Build and push Web image
@@ -122,18 +121,80 @@ jobs:
           docker push "$API_IMAGE"
           echo "API_IMAGE=$API_IMAGE" >> "$GITHUB_ENV"
 
+      - name: Azure Login
+        if: steps.targets.outputs.deploy_web == 'true' || steps.targets.outputs.deploy_api == 'true'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Deploy Web container to Azure
         if: steps.targets.outputs.deploy_web == 'true'
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ secrets.AZURE_WEBAPP_PLATFORM_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PLATFORM_PUBLISH_PROFILE }}
-          images: ${{ env.WEB_IMAGE }}
+        run: |
+          az webapp config container set \
+            --name "${{ secrets.AZURE_WEBAPP_PLATFORM_NAME }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP || 'rg-aply' }}" \
+            --container-image-name "${{ env.WEB_IMAGE }}"
 
       - name: Deploy API container to Azure
         if: steps.targets.outputs.deploy_api == 'true'
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ secrets.AZURE_WEBAPP_API_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_API_PUBLISH_PROFILE }}
-          images: ${{ env.API_IMAGE }}
+        run: |
+          az webapp config container set \
+            --name "${{ secrets.AZURE_WEBAPP_API_NAME }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP || 'rg-aply' }}" \
+            --container-image-name "${{ env.API_IMAGE }}"
+
+      - name: Notify Discord
+        if: always()
+        env:
+          WEBHOOK: ${{ secrets.DEPLOY_DISCORD_WEBHOOK_URL }}
+          STATUS: ${{ job.status }}
+          REF: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "DEPLOY_DISCORD_WEBHOOK_URL not set; skipping notification"
+            exit 0
+          fi
+          SHORT_SHA=$(echo "$SHA" | cut -c1-7)
+          case "$STATUS" in
+            success) EMOJI="✅"; ENV_LABEL=$([ "$REF" = "main" ] && echo "production" || echo "staging") ;;
+            failure) EMOJI="❌"; ENV_LABEL=$([ "$REF" = "main" ] && echo "production" || echo "staging") ;;
+            cancelled) EMOJI="⚠️"; ENV_LABEL=$([ "$REF" = "main" ] && echo "production" || echo "staging") ;;
+            *) EMOJI="ℹ️"; ENV_LABEL="unknown" ;;
+          esac
+          CONTENT="$EMOJI **$ENV_LABEL** deploy $STATUS — $REF@$SHORT_SHA by $ACTOR\nhttps://github.com/$REPO/actions/runs/$RUN_ID"
+          curl -s -X POST "$WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg c "$CONTENT" '{content:$c}')"
+
+      - name: Auto-create PR develop → main
+        if: success() && github.ref == 'refs/heads/develop' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          EXISTING=$(gh pr list --base main --head develop --state open --json number --jq 'length')
+          if [ "$EXISTING" != "0" ]; then
+            echo "PR develop → main already exists, skipping."
+            exit 0
+          fi
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          BODY="Automated promotion PR. Staging deploy passed.
+
+          - Latest commit: \`$SHORT_SHA\`
+          - Deploy run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - Staging URL: https://staging.aply.global
+
+          ## QA checklist
+          - [ ] Login / signup
+          - [ ] Position list + detail
+          - [ ] AI matching
+          - [ ] Partner / ops dashboard
+          - [ ] Mobile responsive
+          - [ ] i18n (ko/en/zh-CN/vi/ja/id)"
+          gh pr create --base main --head develop \
+            --title "Promote develop → main ($SHORT_SHA)" \
+            --body "$BODY"

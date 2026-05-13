@@ -25,9 +25,12 @@
     "db:import:kowork-job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-kowork-job-postings.ts",
     "db:import:wanted-job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-wanted-job-postings.ts",
     "db:cleanup:wanted-positions": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/cleanup-wanted-positions.ts",
-    "db:cleanup:internal-positions": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/cleanup-internal-positions.ts"
+    "db:cleanup:internal-positions": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/cleanup-internal-positions.ts",
+    "smoke": "playwright test --config=playwright.config.ts",
+    "smoke:headed": "playwright test --config=playwright.config.ts --headed"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "concurrently": "^9.1.2"
   },
   "engines": {

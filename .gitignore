@@ -9,3 +9,6 @@ coverage
 apps/api/generated
 .vercel
 .claude/
+test-results
+playwright-report
+playwright/.cache
