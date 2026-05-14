@@ -42,15 +42,19 @@ function AdUnit({ slot, side }: { slot: string; side: "left" | "right" }) {
   return (
     <aside
       aria-label="Advertisement"
-      className={`fixed top-24 z-10 hidden min-[1500px]:block ${side === "left" ? "left-4" : "right-4"}`}
+      // Responsive ad: container width is fixed (so we leave room next to the
+      // centered content), but height is auto so AdSense can serve whatever
+      // creative best fits. data-full-width-responsive lets AdSense scale the
+      // ad to fill the 200px width.
+      className={`fixed top-24 z-10 hidden w-[200px] min-[1500px]:block ${side === "left" ? "left-4" : "right-4"}`}
     >
       <ins
         className="adsbygoogle"
-        style={{ display: "block", width: 160, height: 600 }}
+        style={{ display: "block" }}
         data-ad-client={ADSENSE_CLIENT}
         data-ad-slot={slot}
-        data-ad-format="vertical"
-        data-full-width-responsive="false"
+        data-ad-format="auto"
+        data-full-width-responsive="true"
         // In non-production builds, ask AdSense to serve test ads so we don't
         // accidentally rack up invalid impressions during local dev.
         {...(IS_PROD ? {} : { "data-adtest": "on" })}
@@ -66,11 +70,11 @@ function DevPlaceholder({ side }: { side: "left" | "right" }) {
   return (
     <aside
       aria-label="Advertisement placeholder (dev)"
-      className={`fixed top-24 z-10 hidden min-[1500px]:flex h-[600px] w-40 items-center justify-center rounded-md border border-dashed border-zinc-400 bg-zinc-100 text-xs text-zinc-500 ${
+      className={`fixed top-24 z-10 hidden w-[200px] min-[1500px]:flex h-[600px] items-center justify-center rounded-md border border-dashed border-zinc-400 bg-zinc-100 text-xs text-zinc-500 ${
         side === "left" ? "left-4" : "right-4"
       }`}
     >
-      ad slot ({side})
+      ad slot ({side}, responsive)
     </aside>
   );
 }
