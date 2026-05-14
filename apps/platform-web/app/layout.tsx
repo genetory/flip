@@ -15,24 +15,48 @@ const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
   (process.env.NEXT_PUBLIC_API_URL?.includes("staging") ? "https://staging.aply.global" : "https://aply.global");
 
+const siteTitle = "Aply — The career platform connecting global talent with Korean partners";
+const siteDescription = "Apply your next move. Connect with Korean companies hiring international talent.";
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Aply — The career platform connecting global talent with Korean partners",
-  description: "Apply your next move. Connect with Korean companies hiring international talent.",
+  title: {
+    default: siteTitle,
+    template: "%s | Aply"
+  },
+  description: siteDescription,
+  applicationName: "Aply",
   manifest: "/site.webmanifest",
   other: {
     google: "notranslate"
   },
+  // Single canonical URL. The previous per-locale alternates all pointed to
+  // "/" which is what triggered Google Search Console's "hreflang return tag"
+  // warnings — until we ship real per-locale URLs we keep one canonical.
   alternates: {
-    canonical: "/",
-    languages: {
-      ko: "/",
-      en: "/",
-      "zh-CN": "/",
-      vi: "/",
-      ja: "/",
-      id: "/"
-    }
+    canonical: "/"
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Aply",
+    title: siteTitle,
+    description: siteDescription,
+    url: "/",
+    locale: "en_US",
+    images: [
+      {
+        url: "/img_home_hero.webp",
+        width: 1200,
+        height: 630,
+        alt: "Aply"
+      }
+    ]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteTitle,
+    description: siteDescription,
+    images: ["/img_home_hero.webp"]
   },
   icons: {
     icon: [

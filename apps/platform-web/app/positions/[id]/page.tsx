@@ -1,55 +1,140 @@
- "use client";
-
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { PositionDetailPage } from "../../../components/pages/PositionDetailPage";
-import { getPublicPositionById } from "../../../lib/member-profile-client";
+import type { PublicPositionListItem } from "../../../lib/member-profile-client";
 
-export default function Page() {
-  const params = useParams<{ id: string }>();
-  const id = params?.id ?? "";
-  const [position, setPosition] = useState<Awaited<ReturnType<typeof getPublicPositionById>> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+  (process.env.NEXT_PUBLIC_API_URL?.includes("staging") ? "https://staging.aply.global" : "https://aply.global");
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4000";
 
-  useEffect(() => {
-    if (!id) return;
-    let ignore = false;
-    setLoading(true);
-    setError(null);
-    void (async () => {
-      try {
-        const item = await getPublicPositionById(id);
-        if (ignore) return;
-        setPosition(item);
-      } catch (err) {
-        if (ignore) return;
-        setPosition(null);
-        setError(err instanceof Error ? err.message : "포지션 상세 정보를 불러오지 못했습니다.");
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    })();
-    return () => {
-      ignore = true;
-    };
-  }, [id]);
-
-  if (loading) {
-    return (
-      <main className="mx-auto max-w-5xl px-4 py-12">
-        <p className="text-sm text-muted-foreground">포지션 정보를 불러오는 중...</p>
-      </main>
-    );
+async function fetchPublicPosition(id: string): Promise<PublicPositionListItem | null> {
+  if (!id) return null;
+  try {
+    const response = await fetch(`${apiBaseUrl}/positions/${encodeURIComponent(id)}`, {
+      next: { revalidate: 300 }
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json()) as { ok?: boolean; item?: PublicPositionListItem };
+    if (!payload?.ok || !payload.item) return null;
+    return payload.item;
+  } catch {
+    return null;
   }
+}
 
+function shortenText(input: string | null | undefined, max = 160): string {
+  if (!input) return "";
+  const cleaned = input.replace(/\s+/g, " ").trim();
+  if (cleaned.length <= max) return cleaned;
+  return `${cleaned.slice(0, max - 1).trimEnd()}…`;
+}
+
+function jobPostingEmploymentType(type: PublicPositionListItem["employmentType"]): string {
+  switch (type) {
+    case "FULL_TIME":
+      return "FULL_TIME";
+    case "PART_TIME":
+      return "PART_TIME";
+    case "INTERN":
+    case "UNPAID_INTERN":
+      return "INTERN";
+    default:
+      return "FULL_TIME";
+  }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const position = await fetchPublicPosition(id);
   if (!position) {
-    return (
-      <main className="mx-auto max-w-5xl px-4 py-12">
-        <p className="text-sm text-muted-foreground">{error ?? "포지션을 찾을 수 없습니다."}</p>
-      </main>
-    );
+    return {
+      title: "포지션을 찾을 수 없음 | Aply",
+      robots: { index: false }
+    };
   }
+  const companyName = position.partnerOrganization?.name ?? position.sourceCompanyName ?? "Aply";
+  const titleBase = `${position.title} @ ${companyName}`;
+  const description =
+    shortenText(position.mainResponsibilities) ||
+    shortenText(position.preferredQualifications) ||
+    `${position.title} at ${companyName} — apply via Aply, the career platform connecting global talent with Korean partners.`;
+  const ogImage = position.thumbnailImages?.[0];
+  const canonical = `${siteUrl}/positions/${position.id}`;
+  return {
+    title: `${titleBase} | Aply`,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: "article",
+      title: titleBase,
+      description,
+      url: canonical,
+      siteName: "Aply",
+      images: ogImage ? [{ url: ogImage }] : undefined
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: titleBase,
+      description,
+      images: ogImage ? [ogImage] : undefined
+    }
+  };
+}
 
-  return <PositionDetailPage position={position} />;
+function buildJobPostingJsonLd(position: PublicPositionListItem) {
+  const companyName = position.partnerOrganization?.name ?? position.sourceCompanyName ?? "Aply Partner";
+  const description =
+    [position.mainResponsibilities, position.requiredQualifications, position.preferredQualifications]
+      .filter((entry): entry is string => !!entry && entry.trim().length > 0)
+      .join("\n\n") || position.title;
+  const jobLocation = position.workLocation
+    ? {
+        "@type": "Place",
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: position.workLocation,
+          addressCountry: "KR"
+        }
+      }
+    : undefined;
+  return {
+    "@context": "https://schema.org/",
+    "@type": "JobPosting",
+    title: position.title,
+    description,
+    identifier: {
+      "@type": "PropertyValue",
+      name: companyName,
+      value: position.id
+    },
+    datePosted: position.createdAt,
+    validThrough: position.sourceDeadlineDate ?? undefined,
+    employmentType: jobPostingEmploymentType(position.employmentType),
+    hiringOrganization: {
+      "@type": "Organization",
+      name: companyName,
+      sameAs: position.sourceUrl ?? `${siteUrl}/positions/${position.id}`
+    },
+    jobLocation,
+    directApply: position.sourceKind === "INTERNAL"
+  };
+}
+
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const position = await fetchPublicPosition(id);
+  if (!position) {
+    notFound();
+  }
+  const jsonLd = buildJobPostingJsonLd(position);
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <PositionDetailPage position={position} />
+    </>
+  );
 }
