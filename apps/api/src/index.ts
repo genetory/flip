@@ -50,6 +50,7 @@ import {
   renderVerificationEmailTemplate
 } from "./email/verification-template";
 import { renderEmailLayout } from "./email/email-layout";
+import { checkEmailDeliverable } from "./email/deliverability";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -322,6 +323,7 @@ type AuthErrorCode =
   | "BUSINESS_EMAIL_REQUIRED"
   | "EMAIL_ALREADY_EXISTS"
   | "EMAIL_REGISTERED_DIFFERENT_ROLE"
+  | "EMAIL_DOMAIN_UNDELIVERABLE"
   | "EMAIL_PREVERIFICATION_REQUIRED"
   | "EMAIL_VERIFICATION_REQUIRED"
   | "INVALID_EMAIL_VERIFICATION_TOKEN"
@@ -1447,6 +1449,7 @@ const apiDocEndpoints: ApiDocEndpoint[] = [
   { method: "patch", path: "/ops/partner-users/:id/admin-memo", summary: "Update partner user admin memo", tag: "Ops Partners", secure: true, requestBody: true },
   { method: "get", path: "/ops/users", summary: "List all users", tag: "Ops Users", secure: true },
   { method: "patch", path: "/ops/users/:id/admin-memo", summary: "Update user admin memo", tag: "Ops Users", secure: true, requestBody: true },
+  { method: "delete", path: "/ops/users/:id", summary: "Hard-delete user (super-admin only)", tag: "Ops Users", secure: true },
 
   { method: "post", path: "/ops/matching/run", summary: "Run matching", tag: "Ops Matching", secure: true, requestBody: true },
   { method: "get", path: "/ops/matching/history", summary: "List matching history", tag: "Ops Matching", secure: true },
@@ -7051,6 +7054,17 @@ app.post("/auth/business-email/send-verification", async (req, res) => {
     return sendAuthError(res, 409, "EMAIL_ALREADY_EXISTS", "email already exists");
   }
 
+  const deliverability = await checkEmailDeliverable(parsed.data.email);
+  if (!deliverability.ok) {
+    return sendAuthError(
+      res,
+      400,
+      "EMAIL_DOMAIN_UNDELIVERABLE",
+      "email domain cannot receive mail",
+      { reason: deliverability.reason }
+    );
+  }
+
   const locale = resolveEmailLocale(req, parsed.data.locale);
   const { email, code } = await createSignupEmailPreverificationCode(parsed.data.email);
   const delivery = await sendSignupEmailPreverificationCode(email, code, locale);
@@ -7160,6 +7174,17 @@ app.post("/auth/register", authRateLimit, async (req, res) => {
       );
     }
     return sendAuthError(res, 409, "EMAIL_ALREADY_EXISTS", "email already exists");
+  }
+
+  const deliverability = await checkEmailDeliverable(normalizedEmail);
+  if (!deliverability.ok) {
+    return sendAuthError(
+      res,
+      400,
+      "EMAIL_DOMAIN_UNDELIVERABLE",
+      "email domain cannot receive mail",
+      { reason: deliverability.reason }
+    );
   }
 
   try {
@@ -14860,6 +14885,57 @@ app.patch("/ops/users/:id/admin-memo", authenticate, requireRoles([MemberRole.OP
       return res.status(404).json({ ok: false, message: "user not found" });
     }
     return res.status(500).json({ ok: false, message: "failed to update user admin memo" });
+  }
+});
+
+// Hard-delete a user from the database. Restricted to a single super-admin
+// email so a normal operator can't wipe production users by accident. The
+// allow-listed admin can be overridden with OPS_HARD_DELETE_ALLOWED_EMAILS
+// (comma-separated). User cascades remove related rows via Prisma schema.
+const opsHardDeleteAllowedEmails = (process.env.OPS_HARD_DELETE_ALLOWED_EMAILS ?? "test@test.com")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
+app.delete("/ops/users/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) {
+    return res.status(400).json({ ok: false, message: "invalid user id" });
+  }
+
+  const callerId = req.auth!.userId;
+  const caller = await prisma.user.findUnique({ where: { id: callerId }, select: { email: true } });
+  const callerEmail = caller?.email?.trim().toLowerCase() ?? "";
+  if (!callerEmail || !opsHardDeleteAllowedEmails.includes(callerEmail)) {
+    return res.status(403).json({ ok: false, message: "forbidden" });
+  }
+
+  if (id === callerId) {
+    return res.status(400).json({ ok: false, message: "cannot delete self" });
+  }
+
+  try {
+    const target = await prisma.user.findUnique({ where: { id }, select: { id: true, email: true } });
+    if (!target) {
+      return res.status(404).json({ ok: false, message: "user not found" });
+    }
+
+    await prisma.user.delete({ where: { id } });
+
+    void writeAuditLog(req, {
+      action: "OPS_USER_HARD_DELETED",
+      resource: "user",
+      resourceId: id,
+      metadata: { targetEmail: target.email, callerEmail }
+    });
+
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error("[ops/users/delete] failed", error);
+    if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+      return res.status(404).json({ ok: false, message: "user not found" });
+    }
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
 });
 
