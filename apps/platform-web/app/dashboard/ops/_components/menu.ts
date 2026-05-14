@@ -55,7 +55,8 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
       { label: "감사 로그", href: "/dashboard/ops/system/audit-log" },
       { label: "결제 관리", href: "/dashboard/ops/system/payments" },
       { label: "설정값 관리", href: "/dashboard/ops/system/settings" },
-      { label: "크롤링", href: "/dashboard/ops/system/crawlers" }
+      { label: "크롤링", href: "/dashboard/ops/system/crawlers" },
+      { label: "데이터 관리", href: "/dashboard/ops/system/data-management" }
     ]
   }
 ];

@@ -4560,6 +4560,66 @@ app.post("/ops/crawlers/run/wanted", authenticate, requireRoles([MemberRole.OPER
   });
 });
 
+// ---- ops data management (destructive) ------------------------------------
+// Wipes that operators run from the ops dashboard's "데이터 관리" page. Test
+// seed accounts (test@test.com, partner@test.com, student@test.com, and any
+// other @test.com address) are preserved so seed-dev-users can re-import.
+const dataManagementConfirmPhrase = "DELETE";
+const dataManagementBodySchema = z
+  .object({ confirm: z.string() })
+  .refine((data) => data.confirm === dataManagementConfirmPhrase, {
+    message: `confirm must equal "${dataManagementConfirmPhrase}"`
+  });
+
+app.post(
+  "/ops/data/delete-all-positions",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const parsed = dataManagementBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: parsed.error.issues[0]?.message ?? "Invalid body" });
+    }
+    const before = await prisma.position.count();
+    const result = await prisma.position.deleteMany({});
+    await writeAuditLog(req, {
+      action: "DELETE_ALL_POSITIONS",
+      resource: "Position",
+      metadata: { before, deleted: result.count }
+    });
+    return res.status(200).json({ ok: true, before, deleted: result.count });
+  }
+);
+
+app.post(
+  "/ops/data/delete-non-seed-users",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const parsed = dataManagementBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: parsed.error.issues[0]?.message ?? "Invalid body" });
+    }
+    const callerUserId = req.auth?.userId ?? null;
+    const before = await prisma.user.count();
+    const result = await prisma.user.deleteMany({
+      where: {
+        AND: [
+          { NOT: { email: { endsWith: "@test.com" } } },
+          callerUserId ? { NOT: { id: callerUserId } } : {}
+        ]
+      }
+    });
+    const preserved = await prisma.user.count();
+    await writeAuditLog(req, {
+      action: "DELETE_NON_SEED_USERS",
+      resource: "User",
+      metadata: { before, deleted: result.count, preserved, callerPreserved: !!callerUserId }
+    });
+    return res.status(200).json({ ok: true, before, deleted: result.count, preserved });
+  }
+);
+
 const companyConsultationCreateSchema = z.object({
   companyName: z.string().trim().min(1).max(120),
   contactName: z.string().trim().min(1).max(80),
