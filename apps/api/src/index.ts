@@ -50,6 +50,7 @@ import {
   renderVerificationEmailTemplate
 } from "./email/verification-template";
 import { renderEmailLayout } from "./email/email-layout";
+import { checkEmailDeliverable } from "./email/deliverability";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -322,6 +323,7 @@ type AuthErrorCode =
   | "BUSINESS_EMAIL_REQUIRED"
   | "EMAIL_ALREADY_EXISTS"
   | "EMAIL_REGISTERED_DIFFERENT_ROLE"
+  | "EMAIL_DOMAIN_UNDELIVERABLE"
   | "EMAIL_PREVERIFICATION_REQUIRED"
   | "EMAIL_VERIFICATION_REQUIRED"
   | "INVALID_EMAIL_VERIFICATION_TOKEN"
@@ -7051,6 +7053,17 @@ app.post("/auth/business-email/send-verification", async (req, res) => {
     return sendAuthError(res, 409, "EMAIL_ALREADY_EXISTS", "email already exists");
   }
 
+  const deliverability = await checkEmailDeliverable(parsed.data.email);
+  if (!deliverability.ok) {
+    return sendAuthError(
+      res,
+      400,
+      "EMAIL_DOMAIN_UNDELIVERABLE",
+      "email domain cannot receive mail",
+      { reason: deliverability.reason }
+    );
+  }
+
   const locale = resolveEmailLocale(req, parsed.data.locale);
   const { email, code } = await createSignupEmailPreverificationCode(parsed.data.email);
   const delivery = await sendSignupEmailPreverificationCode(email, code, locale);
@@ -7160,6 +7173,17 @@ app.post("/auth/register", authRateLimit, async (req, res) => {
       );
     }
     return sendAuthError(res, 409, "EMAIL_ALREADY_EXISTS", "email already exists");
+  }
+
+  const deliverability = await checkEmailDeliverable(normalizedEmail);
+  if (!deliverability.ok) {
+    return sendAuthError(
+      res,
+      400,
+      "EMAIL_DOMAIN_UNDELIVERABLE",
+      "email domain cannot receive mail",
+      { reason: deliverability.reason }
+    );
   }
 
   try {

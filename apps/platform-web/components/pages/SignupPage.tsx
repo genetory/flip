@@ -64,6 +64,14 @@ export function SignupPage() {
     ja: "このメールアドレスは既に登録されています。ログインしてください。",
     id: "Email ini sudah terdaftar. Silakan masuk."
   } as const;
+  const emailUndeliverableMessageByLocale = {
+    ko: "이 이메일 도메인은 메일을 받을 수 없습니다. 도메인 주소를 확인하거나 Gmail, 네이버 같은 다른 이메일로 가입해 주세요.",
+    en: "This email domain cannot receive mail. Please check the domain or try a different provider (Gmail, Naver, etc.).",
+    "zh-CN": "该邮箱所属域名无法接收邮件，请检查地址或改用 Gmail、Naver 等其他邮箱。",
+    vi: "Tên miền email này không thể nhận thư. Vui lòng kiểm tra lại hoặc dùng email khác (Gmail, Naver, ...).",
+    ja: "このメールドメインはメールを受信できません。アドレスをご確認の上、Gmail や Naver など他のメールでお試しください。",
+    id: "Domain email ini tidak dapat menerima email. Periksa kembali atau gunakan layanan lain seperti Gmail atau Naver."
+  } as const;
   const isBusiness = accountType === "BUSINESS";
   const emailLabel = copy.emailLabel;
   const accountTypeOptions = [
@@ -166,6 +174,10 @@ export function SignupPage() {
       }
       if (error instanceof AuthApiError && error.code === "EMAIL_ALREADY_EXISTS") {
         setErrorMessage(emailExistsMessageByLocale[locale] ?? emailExistsMessageByLocale.en);
+        return;
+      }
+      if (error instanceof AuthApiError && error.code === "EMAIL_DOMAIN_UNDELIVERABLE") {
+        setErrorMessage(emailUndeliverableMessageByLocale[locale] ?? emailUndeliverableMessageByLocale.en);
         return;
       }
       if (error instanceof AuthApiError && error.code === "REGISTRATION_FAILED") {
