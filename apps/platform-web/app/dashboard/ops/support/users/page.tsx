@@ -97,6 +97,9 @@ export default function PartnerUsersPage() {
   const [userMemoDraft, setUserMemoDraft] = useState("");
   const [userMemoSaving, setUserMemoSaving] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [currentAdminEmail, setCurrentAdminEmail] = useState<string | null>(null);
+  const [userDeleting, setUserDeleting] = useState(false);
+  const canHardDeleteUsers = currentAdminEmail?.toLowerCase() === "test@test.com";
 
   const pageButtons = useMemo(() => {
     const maxVisible = 7;
@@ -203,6 +206,58 @@ export default function PartnerUsersPage() {
   useEffect(() => {
     void fetchPartnerUsers();
   }, [debouncedSearch, sortField, sortOrder, page, pageSize]);
+
+  useEffect(() => {
+    const token = readCookie(TOKEN_COOKIE_KEY);
+    if (!token) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch(`${apiBaseUrl}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!response.ok) return;
+        const data = (await response.json()) as { user?: { email?: string } };
+        if (cancelled) return;
+        setCurrentAdminEmail(data.user?.email ?? null);
+      } catch {
+        // ignore — button just won't show
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBaseUrl]);
+
+  async function handleHardDeleteUser() {
+    if (!selectedUser) return;
+    const ok = window.confirm(
+      `정말로 사용자 ${selectedUser.email}를 DB에서 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`
+    );
+    if (!ok) return;
+
+    setUserDeleting(true);
+    try {
+      const token = readCookie(TOKEN_COOKIE_KEY);
+      const response = await fetch(`${apiBaseUrl}/ops/users/${selectedUser.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({}));
+        alert(`삭제에 실패했습니다: ${errBody.message ?? response.statusText}`);
+        return;
+      }
+      setItems((prev) => prev.filter((item) => item.id !== selectedUser.id));
+      setTotal((prev) => Math.max(0, prev - 1));
+      requestCloseDetailModal();
+      alert("사용자가 DB에서 삭제되었습니다.");
+    } catch (error) {
+      alert(`삭제에 실패했습니다: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setUserDeleting(false);
+    }
+  }
 
   function requestCloseDetailModal() {
     setIsDetailModalOpen(false);
@@ -584,6 +639,27 @@ export default function PartnerUsersPage() {
               </div>
             </div>
             <div className="ops-modal-fixed-bottom ops-detail-actions">
+              {canHardDeleteUsers ? (
+                <button
+                  type="button"
+                  onClick={() => void handleHardDeleteUser()}
+                  disabled={userDeleting}
+                  style={{
+                    marginRight: "auto",
+                    background: "#dc2626",
+                    color: "#fff",
+                    border: "1px solid #b91c1c",
+                    borderRadius: "8px",
+                    padding: "8px 14px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: userDeleting ? "wait" : "pointer",
+                    opacity: userDeleting ? 0.7 : 1
+                  }}
+                >
+                  {userDeleting ? "삭제 중..." : "DB에서 영구 삭제"}
+                </button>
+              ) : null}
               {userDetailTab === "memo" ? (
                 isUserMemoEditMode ? (
                   <>
