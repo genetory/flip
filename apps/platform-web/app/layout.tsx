@@ -1,10 +1,12 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import Script from "next/script";
+import { headers } from "next/headers";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { AuthSessionProvider } from "../components/auth/AuthSessionProvider";
 import { LanguageProvider } from "../components/i18n/LanguageProvider";
 import { SidebarAds } from "../components/ads/SidebarAds";
+import { resolveLocaleFromAcceptLanguage } from "../lib/auth-messages";
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
 const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim() || "";
@@ -42,9 +44,11 @@ export const metadata: Metadata = {
   }
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const requestHeaders = await headers();
+  const initialLocale = resolveLocaleFromAcceptLanguage(requestHeaders.get("accept-language"));
   return (
-    <html lang="ko" suppressHydrationWarning>
+    <html lang={initialLocale} suppressHydrationWarning>
       <head>
         {adsenseClientId ? (
           <Script
@@ -57,7 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         ) : null}
       </head>
       <body suppressHydrationWarning>
-        <LanguageProvider>
+        <LanguageProvider initialLocale={initialLocale}>
           <AuthSessionProvider>{children}</AuthSessionProvider>
         </LanguageProvider>
         <SidebarAds />

@@ -11,6 +11,7 @@ import {
   DEFAULT_PLATFORM_LOCALE,
   PLATFORM_LOCALES,
   PLATFORM_LOCALE_STORAGE_KEY,
+  resolveLocaleFromAcceptLanguage,
   type PlatformLocale
 } from "../../lib/auth-messages";
 
@@ -21,12 +22,24 @@ type LanguageContextValue = {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<PlatformLocale>(DEFAULT_PLATFORM_LOCALE);
+export function LanguageProvider({
+  children,
+  initialLocale
+}: {
+  children: React.ReactNode;
+  /**
+   * Locale resolved from the server (typically Accept-Language). Used as the
+   * starting value so SSR and the first client render agree, avoiding a flash
+   * of the default English when the visitor actually wants another language.
+   */
+  initialLocale?: PlatformLocale;
+}) {
+  const [locale, setLocaleState] = useState<PlatformLocale>(initialLocale ?? DEFAULT_PLATFORM_LOCALE);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Stored preference (explicit user choice) wins over server-detected locale.
     const storedLocale = window.localStorage.getItem(PLATFORM_LOCALE_STORAGE_KEY);
     if (storedLocale && (PLATFORM_LOCALES as readonly string[]).includes(storedLocale)) {
       setLocaleState(storedLocale as PlatformLocale);
@@ -34,22 +47,16 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const browserLang = window.navigator.language.toLowerCase();
-    const browserLocale: PlatformLocale =
-      browserLang.startsWith("ko")
-        ? "ko"
-        : browserLang.startsWith("zh")
-          ? "zh-CN"
-          : browserLang.startsWith("vi")
-            ? "vi"
-            : browserLang.startsWith("ja")
-              ? "ja"
-              : browserLang.startsWith("id")
-                ? "id"
-                : "en";
+    // Otherwise stick with the server-resolved initialLocale (no flash). If
+    // SSR didn't pass one (e.g. legacy callers), fall back to navigator.
+    if (initialLocale) {
+      document.documentElement.lang = initialLocale;
+      return;
+    }
+    const browserLocale = resolveLocaleFromAcceptLanguage(window.navigator.language);
     setLocaleState(browserLocale);
     document.documentElement.lang = browserLocale;
-  }, []);
+  }, [initialLocale]);
 
   function setLocale(nextLocale: PlatformLocale) {
     setLocaleState(nextLocale);
