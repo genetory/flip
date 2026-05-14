@@ -1,10 +1,13 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import Script from "next/script";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { AuthSessionProvider } from "../components/auth/AuthSessionProvider";
 import { LanguageProvider } from "../components/i18n/LanguageProvider";
+import { SidebarAds } from "../components/ads/SidebarAds";
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
+const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim() || "";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -42,10 +45,22 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" suppressHydrationWarning>
+      <head>
+        {adsenseClientId ? (
+          <Script
+            id="adsense-loader"
+            async
+            strategy="beforeInteractive"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClientId}`}
+            crossOrigin="anonymous"
+          />
+        ) : null}
+      </head>
       <body suppressHydrationWarning>
         <LanguageProvider>
           <AuthSessionProvider>{children}</AuthSessionProvider>
         </LanguageProvider>
+        <SidebarAds />
       </body>
       {gaMeasurementId ? <GoogleAnalytics gaId={gaMeasurementId} /> : null}
     </html>

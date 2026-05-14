@@ -6,92 +6,132 @@ export const metadata = {
   description: "Aply 서비스 이용약관"
 };
 
+const refundTiers = [
+  {
+    no: "1",
+    title: "면접 전 환불",
+    amount: "참여비의 50% 환불",
+    description: "기업 면접이 진행되기 전 단계에서 환불 요청 시"
+  },
+  {
+    no: "2",
+    title: "면접 후 환불",
+    amount: "참여비의 20% 환불",
+    description: "기업 면접이 진행된 후 최종 매칭 전 환불 요청 시"
+  },
+  {
+    no: "3",
+    title: "최종 매칭 후",
+    amount: "환불 불가",
+    description: "기업과의 최종 매칭이 완료된 이후에는 환불이 불가합니다"
+  }
+];
+
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto max-w-3xl px-4 py-12">
         <h1 className="text-2xl font-bold text-foreground">이용약관</h1>
-        <p className="mt-2 text-sm text-muted-foreground">시행일: 2026년 5월 11일</p>
+        <p className="mt-2 text-sm text-muted-foreground">시행일: 2026년 1월 1일</p>
 
-        <section className="mt-8 space-y-6 text-sm leading-relaxed text-foreground">
+        <section className="mt-8 space-y-8 text-sm leading-relaxed text-foreground">
           <div>
             <h2 className="text-lg font-semibold">제1조 (목적)</h2>
             <p className="mt-2 text-muted-foreground">
-              본 약관은 Aply(이하 "회사")가 제공하는 국제 인재-국내 기업 채용 매칭 플랫폼 서비스(이하 "서비스")의 이용과 관련하여 회사와 회원 사이의 권리와 의무를 규정합니다.
+              본 약관은 주식회사 플리퍼스(이하 &quot;회사&quot;)가 제공하는 Career Bridge 실무 체험 매칭 서비스(이하 &quot;서비스&quot;)의
+              이용조건 및 절차, 회사와 이용자의 권리, 의무, 책임사항과 기타 필요한 사항을 규정함을 목적으로 합니다.
             </p>
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold">제2조 (용어 정의)</h2>
+            <h2 className="text-lg font-semibold">제2조 (용어의 정의)</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-              <li>"회원": 본 약관에 동의하고 서비스 이용 계정을 등록한 자</li>
-              <li>"학생 회원": 채용을 희망하는 국제 인재</li>
-              <li>"파트너 회원": 인재를 채용하고자 하는 한국 기업 또는 기관</li>
-              <li>"운영자": 서비스를 관리·운영하는 자</li>
-              <li>"매칭": 학생과 파트너 간 채용 연결을 위한 서비스 기능</li>
+              <li>&quot;서비스&quot;란 회사가 제공하는 실무 체험 매칭, 교육, 멘토링 등 일체의 서비스를 의미합니다.</li>
+              <li>&quot;이용자&quot;란 본 약관에 따라 회사가 제공하는 서비스를 받는 회원을 의미합니다.</li>
+              <li>&quot;참여비&quot;란 서비스 이용을 위해 이용자가 회사에 지불하는 금액을 의미합니다.</li>
             </ul>
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold">제3조 (회원가입 및 자격)</h2>
-            <p className="mt-2 text-muted-foreground">
-              회원가입은 이메일 또는 소셜 로그인(네이버, 카카오, 구글)을 통해 가능합니다. 만 14세 미만은 가입할 수 없습니다. 파트너 회원은 사업자등록증 등 회사 확인 서류를 제출해야 하며, 운영자의 승인을 받아야 채용 활동을 시작할 수 있습니다.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="text-lg font-semibold">제4조 (서비스 제공)</h2>
+            <h2 className="text-lg font-semibold">제3조 (서비스 내용)</h2>
+            <p className="mt-2 text-muted-foreground">회사는 다음과 같은 서비스를 제공합니다:</p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-              <li>학생: 프로필 작성, 포지션 검색·지원, 면접 일정 선택, 과제 제출, 프로그램 참여, 추천서·수료증 수령</li>
-              <li>파트너: 포지션 등록, 지원자 검토, 면접 일정 제안, 과제 부여, 프로그램 운영, 추천서·수료증 발급</li>
-              <li>운영자: 서비스 검수, 분쟁 조정, 학점 인정 검토 등</li>
+              <li>6주~16주 기업 실무 체험 매칭</li>
+              <li>1:1 전담 멘토 배정 및 멘토링</li>
+              <li>이력서 및 면접 코칭</li>
+              <li>비즈니스 한국어 교육</li>
+              <li>실무 체험 수료증 발급</li>
+              <li>커리어 네트워킹 지원</li>
             </ul>
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold">제5조 (회원의 의무)</h2>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-              <li>가입 시 정확한 정보를 제공하고, 변경 시 즉시 갱신해야 합니다.</li>
-              <li>타인의 정보를 도용하거나, 허위 정보로 매칭을 시도해서는 안 됩니다.</li>
-              <li>스팸, 명예훼손, 차별, 괴롭힘 등의 행위를 금지합니다.</li>
-              <li>이용 중 알게 된 타 회원의 개인정보를 무단으로 외부에 공유할 수 없습니다.</li>
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-lg font-semibold">제6조 (계정 정지 및 해지)</h2>
+            <h2 className="text-lg font-semibold">제4조 (환불 정책)</h2>
             <p className="mt-2 text-muted-foreground">
-              회사는 회원이 본 약관을 위반한 경우 경고, 일시 정지, 영구 정지 등의 조치를 할 수 있습니다. 회원은 언제든지 회원 탈퇴를 통해 이용 계약을 해지할 수 있습니다.
+              이용자가 서비스 이용을 중단하고자 할 경우, 다음 기준에 따라 참여비를 환불합니다:
+            </p>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {refundTiers.map((tier) => (
+                <div key={tier.no} className="rounded-xl border border-border/60 bg-card p-4">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">
+                      {tier.no}
+                    </span>
+                    <h3 className="text-sm font-semibold">{tier.title}</h3>
+                  </div>
+                  <p className="mt-3 text-base font-semibold text-foreground">{tier.amount}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{tier.description}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+              ※ 환불 요청은 이메일(
+              <a href="mailto:info@flip-ers.com" className="text-primary underline">
+                info@flip-ers.com
+              </a>
+              )로 접수해 주시기 바랍니다. 환불 처리는 요청일로부터 영업일 기준 7일 이내에 진행됩니다.
             </p>
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold">제7조 (책임 제한)</h2>
-            <p className="mt-2 text-muted-foreground">
-              회사는 매칭 결과를 보장하지 않으며, 학생과 파트너 간의 면접·고용·프로그램 운영 등에서 발생하는 분쟁에 대해 직접적인 법적 책임을 지지 않습니다. 단, 명백한 회사의 귀책사유가 있는 경우 별도 검토합니다.
-            </p>
+            <h2 className="text-lg font-semibold">제5조 (이용자의 의무)</h2>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
+              <li>이용자는 서비스 신청 시 정확한 정보를 제공해야 합니다.</li>
+              <li>이용자는 실무 체험 기간 중 회사가 정한 규정을 준수해야 합니다.</li>
+              <li>이용자는 실무 체험 기업의 기밀정보를 외부에 유출해서는 안 됩니다.</li>
+            </ol>
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold">제8조 (약관 변경)</h2>
-            <p className="mt-2 text-muted-foreground">
-              본 약관이 변경될 경우 시행 7일 전 서비스 공지사항을 통해 안내합니다. 회원이 명시적으로 거부 의사를 표시하지 않으면 변경에 동의한 것으로 봅니다.
-            </p>
+            <h2 className="text-lg font-semibold">제6조 (회사의 의무)</h2>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
+              <li>회사는 이용자에게 안정적인 서비스를 제공하기 위해 최선을 다합니다.</li>
+              <li>회사는 이용자의 개인정보를 관련 법령에 따라 안전하게 관리합니다.</li>
+              <li>회사는 이용자의 문의사항에 성실히 응대합니다.</li>
+            </ol>
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold">제9조 (준거법 및 관할)</h2>
-            <p className="mt-2 text-muted-foreground">
-              본 약관은 대한민국 법을 준거법으로 하며, 회사와 회원 간 분쟁은 대한민국 법원을 관할 법원으로 합니다.
-            </p>
+            <h2 className="text-lg font-semibold">제7조 (면책조항)</h2>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
+              <li>회사는 천재지변, 전쟁, 기타 불가항력으로 인해 서비스를 제공할 수 없는 경우 책임을 지지 않습니다.</li>
+              <li>회사는 이용자의 귀책사유로 인한 서비스 이용 장애에 대해 책임을 지지 않습니다.</li>
+              <li>회사는 실무 체험 기업의 경영상황 변화로 인한 실무 체험 조기 종료에 대해 책임을 지지 않습니다.</li>
+            </ol>
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold">문의</h2>
+            <h2 className="text-lg font-semibold">제8조 (분쟁해결)</h2>
             <p className="mt-2 text-muted-foreground">
-              이용 관련 문의: <a href="mailto:info@flip-ers.com" className="text-primary underline">info@flip-ers.com</a>
+              본 약관과 관련하여 분쟁이 발생한 경우, 회사와 이용자는 상호 협의하여 해결하도록 노력합니다. 협의가 이루어지지
+              않을 경우, 관할 법원은 서울중앙지방법원으로 합니다.
             </p>
+          </div>
+
+          <div className="border-t border-border/60 pt-6">
+            <h2 className="text-lg font-semibold">부칙</h2>
+            <p className="mt-2 text-muted-foreground">본 약관은 2026년 1월 1일부터 시행합니다.</p>
           </div>
         </section>
       </main>
