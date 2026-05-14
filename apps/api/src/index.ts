@@ -1,4 +1,7 @@
-import "dotenv/config";
+import { config as loadDotenv } from "dotenv";
+import path from "path";
+loadDotenv({ path: path.resolve(process.cwd(), ".env") });
+loadDotenv({ path: path.resolve(process.cwd(), "../../.env") });
 import { spawn } from "child_process";
 import { createHmac, randomBytes, randomInt } from "crypto";
 import cors from "cors";
@@ -315,6 +318,7 @@ type AuthErrorCode =
   | "INVALID_REQUEST"
   | "BUSINESS_EMAIL_REQUIRED"
   | "EMAIL_ALREADY_EXISTS"
+  | "EMAIL_REGISTERED_DIFFERENT_ROLE"
   | "EMAIL_PREVERIFICATION_REQUIRED"
   | "EMAIL_VERIFICATION_REQUIRED"
   | "INVALID_EMAIL_VERIFICATION_TOKEN"
@@ -7049,9 +7053,23 @@ app.post("/auth/register", authRateLimit, async (req, res) => {
 
   const existingUser = await prisma.user.findUnique({
     where: { email_authProvider: { email: normalizedEmail, authProvider: AuthProvider.EMAIL } },
-    select: { id: true }
+    select: { id: true, role: true }
   });
   if (existingUser) {
+    // If the existing account is registered under a different role than what
+    // the visitor is trying to create now (e.g., already a STUDENT but
+    // signing up as PARTNER), surface a specific code so the UI can show a
+    // tailored "switch roles via support" message instead of the generic
+    // duplicate-email error.
+    if (existingUser.role !== resolvedRole) {
+      return sendAuthError(
+        res,
+        409,
+        "EMAIL_REGISTERED_DIFFERENT_ROLE",
+        "email is already registered under a different role",
+        { existingRole: existingUser.role }
+      );
+    }
     return sendAuthError(res, 409, "EMAIL_ALREADY_EXISTS", "email already exists");
   }
 
@@ -7069,7 +7087,10 @@ app.post("/auth/register", authRateLimit, async (req, res) => {
           role: resolvedRole,
           partnerType: resolvedPartnerType,
           partnerOrgRole: resolvedPartnerOrgRole,
-          partnerOrganizationId: null
+          partnerOrganizationName:
+            resolvedRole === MemberRole.PARTNER
+              ? parsed.data.partnerOrganizationName?.trim() || null
+              : null
         }
       });
 

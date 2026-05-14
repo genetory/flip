@@ -12,6 +12,7 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { logoutPlatformSession } from "../../lib/auth-client";
 import { isMemberNotFoundError, updateMyBasicInfo } from "../../lib/member-profile-client";
 import { CandidateDocumentsSection } from "../profile/CandidateDocumentsSection";
+import { useToast } from "../toast/ToastProvider";
 import { getStoredProfilePhoto, setStoredProfilePhoto } from "../../lib/profile-media";
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -26,6 +27,7 @@ export function ProfileEditPage() {
   const router = useRouter();
   const { user, isReady, isAuthenticated, setAuthenticatedUser } = useAuthSession();
   const { locale } = useLanguage();
+  const toast = useToast();
   const [realName, setRealName] = useState("");
   const [name, setName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -41,6 +43,7 @@ export function ProfileEditPage() {
       maxSize: "이미지 크기는 5MB 이하여야 합니다.",
       nicknameRequired: "닉네임을 입력해주세요.",
       saveFailed: "프로필 저장에 실패했습니다.",
+      saveSuccess: "프로필이 저장되었습니다.",
       title: "프로필 편집",
       loading: "정보를 불러오는 중...",
       loginRequired: "로그인이 필요합니다.",
@@ -67,6 +70,7 @@ export function ProfileEditPage() {
       maxSize: "Image size must be 5MB or less.",
       nicknameRequired: "Please enter a nickname.",
       saveFailed: "Failed to save profile.",
+      saveSuccess: "Profile saved.",
       title: "Edit profile",
       loading: "Loading information...",
       loginRequired: "Sign in is required.",
@@ -93,6 +97,7 @@ export function ProfileEditPage() {
       maxSize: "图片大小必须小于 5MB。",
       nicknameRequired: "请输入昵称。",
       saveFailed: "保存资料失败。",
+      saveSuccess: "资料已保存。",
       title: "编辑资料",
       loading: "正在加载信息...",
       loginRequired: "需要先登录。",
@@ -119,6 +124,7 @@ export function ProfileEditPage() {
       maxSize: "Kích thước ảnh phải nhỏ hơn 5MB.",
       nicknameRequired: "Vui lòng nhập biệt danh.",
       saveFailed: "Lưu hồ sơ thất bại.",
+      saveSuccess: "Đã lưu hồ sơ.",
       title: "Chỉnh sửa hồ sơ",
       loading: "Đang tải thông tin...",
       loginRequired: "Cần đăng nhập.",
@@ -145,6 +151,7 @@ export function ProfileEditPage() {
       maxSize: "画像サイズは5MB以下にしてください。",
       nicknameRequired: "ニックネームを入力してください。",
       saveFailed: "プロフィールの保存に失敗しました。",
+      saveSuccess: "プロフィールを保存しました。",
       title: "プロフィール編集",
       loading: "情報を読み込み中...",
       loginRequired: "ログインが必要です。",
@@ -171,6 +178,7 @@ export function ProfileEditPage() {
       maxSize: "Ukuran gambar harus 5MB atau kurang.",
       nicknameRequired: "Silakan masukkan nama panggilan.",
       saveFailed: "Gagal menyimpan profil.",
+      saveSuccess: "Profil disimpan.",
       title: "Edit profil",
       loading: "Memuat informasi...",
       loginRequired: "Diperlukan masuk.",
@@ -237,6 +245,7 @@ export function ProfileEditPage() {
     const trimmedName = name.trim();
     if (!trimmedName) {
       setErrorMessage(copy.nicknameRequired);
+      toast.error(copy.nicknameRequired);
       return;
     }
 
@@ -269,6 +278,7 @@ export function ProfileEditPage() {
         setStoredProfilePhoto(updated.id, updated.profileImageUrl);
       }
 
+      toast.success(copy.saveSuccess);
       router.push("/profile");
       router.refresh();
     } catch (error) {
@@ -277,7 +287,9 @@ export function ProfileEditPage() {
         window.location.href = "/login";
         return;
       }
-      setErrorMessage(error instanceof Error ? error.message : copy.saveFailed);
+      const message = error instanceof Error ? error.message : copy.saveFailed;
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }

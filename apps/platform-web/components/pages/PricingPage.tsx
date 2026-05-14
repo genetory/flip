@@ -54,10 +54,10 @@ export function PricingPage() {
       titleTop: t("집 구하기 걱정 없이,", "Focus on your career,", "无需为找房烦恼,", "Đừng lo chuyện tìm nhà,", "住まい探しの心配なく、", "Tanpa khawatir mencari tempat tinggal,"),
       titleBottom: t("커리어에만 집중하세요.", "not on finding housing.", "只需专注于职业发展。", "hãy tập trung vào sự nghiệp.", "キャリアだけに集中してください。", "fokuslah pada karier Anda."),
       description: t(
-        "Career Bridge 참가자에게만 제공되는 프리미엄 주거 옵션",
-        "Premium housing options available exclusively for Career Bridge participants",
-        "仅 Career Bridge 参与者可享的高端住宿选择",
-        "Lựa chọn nhà ở cao cấp dành riêng cho thành viên Career Bridge"
+        "Aply 참가자에게만 제공되는 프리미엄 주거 옵션",
+        "Premium housing options available exclusively for Aply participants",
+        "仅 Aply 参与者可享的高端住宿选择",
+        "Lựa chọn nhà ở cao cấp dành riêng cho thành viên Aply"
       ),
       note: t(
         "💡 주거 옵션은 프로그램 참가의 필수 조건이 아닙니다. 숙소가 필요하신 분만 별도로 신청하실 수 있습니다.",

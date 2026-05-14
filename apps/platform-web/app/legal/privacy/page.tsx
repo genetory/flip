@@ -79,7 +79,7 @@ export default function PrivacyPolicyPage() {
                 방지
               </li>
               <li>
-                <strong className="font-semibold text-foreground">프로그램 운영</strong>: &apos;Career Bridge&apos; 등 신청
+                <strong className="font-semibold text-foreground">프로그램 운영</strong>: &apos;Aply&apos; 등 신청
                 프로그램의 선발 절차 진행, 1:1 면접 진행
               </li>
               <li>
@@ -130,7 +130,7 @@ export default function PrivacyPolicyPage() {
               넘어 이용자의 개인정보를 이용하거나 제3자에게 제공하지 않습니다.
             </p>
             <p className="mt-2 text-muted-foreground">
-              단, 원활한 &apos;Career Bridge&apos; 프로그램 매칭을 위해 아래의 경우에 한하여 이용자의 동의를 받고 개인정보를
+              단, 원활한 &apos;Aply&apos; 프로그램 매칭을 위해 아래의 경우에 한하여 이용자의 동의를 받고 개인정보를
               제공합니다.
             </p>
             <div className="mt-4 overflow-hidden rounded-xl border border-border/60">
@@ -138,7 +138,7 @@ export default function PrivacyPolicyPage() {
                 <tbody>
                   <tr className="border-b border-border/60">
                     <th className="w-1/3 bg-muted/50 px-3 py-2 text-left font-medium text-foreground">제공받는 자</th>
-                    <td className="px-3 py-2 text-muted-foreground">Career Bridge 호스트 기업 (파트너사)</td>
+                    <td className="px-3 py-2 text-muted-foreground">Aply 호스트 기업 (파트너사)</td>
                   </tr>
                   <tr className="border-b border-border/60">
                     <th className="bg-muted/50 px-3 py-2 text-left font-medium text-foreground">제공 목적</th>

@@ -699,7 +699,7 @@ export function MatchingProbabilityPage() {
                           "Kartu profil dapat diselesaikan dalam urutan apa pun."
                         )}
                       </p>
-                      <div className="grid gap-3 md:grid-cols-2">
+                      <div className="grid gap-5 md:gap-6 md:grid-cols-2">
                         {orderedQuestStates.map(({ quest: q, state }) => {
                           if (state === "done") {
                             return (
@@ -732,15 +732,12 @@ export function MatchingProbabilityPage() {
                               <Link
                                 key={q.id}
                                 href={q.href}
-                                className="group flex items-start gap-3 rounded-2xl border-2 border-primary bg-card p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated"
+                                className="group flex items-start gap-3 rounded-2xl bg-card p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated"
                               >
                                 <div className="flex flex-none flex-col items-center gap-1.5">
-                                  <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary">
+                                  <div className="grid h-12 w-12 place-items-center rounded-xl bg-zinc-100 text-zinc-700">
                                     <q.Icon className="h-6 w-6" weight="duotone" />
                                   </div>
-                                  <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-primary-foreground">
-                                    {t("진행 중", "Active", "进行中", "Đang mở", "進行中", "Berlangsung")}
-                                  </span>
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center justify-between gap-2">
@@ -885,7 +882,7 @@ export function MatchingProbabilityPage() {
                     </h2>
                     <div className="grid gap-4 md:grid-cols-2">
                       <article className="rounded-2xl border border-border bg-card p-4 shadow-card md:p-5">
-                        <h3 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] text-emerald-600 md:text-4xl`}>
+                        <h3 className="font-['Pretendard'] text-lg font-bold tracking-[-0.02em] text-emerald-600 md:text-xl">
                           {t("강점 Point.", "Strengths Point.", "优势 Point.", "Điểm mạnh Point.", "強み Point.", "Kekuatan Point.")}
                         </h3>
                         <ul className="mt-3 space-y-2 text-sm text-foreground/90">
@@ -899,7 +896,7 @@ export function MatchingProbabilityPage() {
                       </article>
 
                       <article className="rounded-2xl border border-border bg-card p-4 shadow-card md:p-5">
-                        <h3 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] text-amber-600 md:text-4xl`}>
+                        <h3 className="font-['Pretendard'] text-lg font-bold tracking-[-0.02em] text-amber-600 md:text-xl">
                           {t("보완 Point.", "Improve Point.", "待补充 Point.", "Bổ sung Point.", "改善 Point.", "Perbaiki Point.")}
                         </h3>
                         <ul className="mt-3 space-y-2 text-sm text-foreground/90">
@@ -914,7 +911,7 @@ export function MatchingProbabilityPage() {
                     </div>
 
                     <article className="rounded-2xl border border-border bg-card p-4 shadow-card md:p-5">
-                      <h3 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] text-primary md:text-4xl`}>
+                      <h3 className="font-['Pretendard'] text-lg font-bold tracking-[-0.02em] text-primary md:text-xl">
                         {t("추천 매칭 결과", "Recommended matches", "推荐匹配结果", "Kết quả phù hợp đề xuất", "おすすめマッチング結果", "Hasil pencocokan rekomendasi")}
                       </h3>
                       <ul className="mt-3 flex flex-wrap gap-2">
