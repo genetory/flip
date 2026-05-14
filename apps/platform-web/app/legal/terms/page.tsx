@@ -39,7 +39,7 @@ export default function TermsPage() {
           <div>
             <h2 className="text-lg font-semibold">제1조 (목적)</h2>
             <p className="mt-2 text-muted-foreground">
-              본 약관은 주식회사 플리퍼스(이하 &quot;회사&quot;)가 제공하는 Career Bridge 실무 체험 매칭 서비스(이하 &quot;서비스&quot;)의
+              본 약관은 주식회사 플리퍼스(이하 &quot;회사&quot;)가 제공하는 Aply 실무 체험 매칭 서비스(이하 &quot;서비스&quot;)의
               이용조건 및 절차, 회사와 이용자의 권리, 의무, 책임사항과 기타 필요한 사항을 규정함을 목적으로 합니다.
             </p>
           </div>

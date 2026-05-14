@@ -8,6 +8,7 @@ import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { useToast } from "../toast/ToastProvider";
 import {
   createMyActivityExperience,
   createMyCareer,
@@ -144,8 +145,14 @@ export function ProfileResumeSectionEditPage() {
   const params = useParams<{ section: string }>();
   const { isAuthenticated, isReady, user } = useAuthSession();
   const { locale } = useLanguage();
+  const toast = useToast();
   const tr = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
     locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+
+  const saveSuccessText = tr("저장되었습니다.", "Saved successfully.", "已保存。", "Đã lưu.", "保存しました。", "Berhasil disimpan.");
+  const saveFailedText = tr("저장에 실패했습니다.", "Failed to save.", "保存失败。", "Lưu thất bại.", "保存に失敗しました。", "Gagal menyimpan.");
+  const deleteSuccessText = tr("삭제되었습니다.", "Deleted successfully.", "已删除。", "Đã xóa.", "削除しました。", "Berhasil dihapus.");
+  const deleteFailedText = tr("삭제에 실패했습니다.", "Failed to delete.", "删除失败。", "Xóa thất bại.", "削除に失敗しました。", "Gagal menghapus.");
 
   const rawSection = Array.isArray(params.section) ? params.section[0] : params.section;
   const section = (rawSection ?? "") as SectionKey;
@@ -303,8 +310,11 @@ export function ProfileResumeSectionEditPage() {
         programStartDate: programStartOption === "SPECIFIC_DATE" ? toIsoDate(programStartDate) : null
       });
       await refreshProfile();
+      toast.success(saveSuccessText);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : tr("저장에 실패했습니다.", "Failed to save.", "保存失败。", "Lưu thất bại.", "保存に失敗しました。", "Gagal menyimpan."));
+      const message = error instanceof Error ? error.message : saveFailedText;
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -326,8 +336,11 @@ export function ProfileResumeSectionEditPage() {
         additionalInfoNote: additionalInfoNote.trim() || null
       });
       await refreshProfile();
+      toast.success(saveSuccessText);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : tr("저장에 실패했습니다.", "Failed to save.", "保存失败。", "Lưu thất bại.", "保存に失敗しました。", "Gagal menyimpan."));
+      const message = error instanceof Error ? error.message : saveFailedText;
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -335,7 +348,9 @@ export function ProfileResumeSectionEditPage() {
 
   async function saveEducation() {
     if (!educationSchoolName.trim()) {
-      setErrorMessage(tr("학교명을 입력해 주세요.", "Please enter school name.", "请输入学校名称。", "Vui lòng nhập tên trường.", "学校名を入力してください。", "Silakan masukkan nama sekolah."));
+      const message = tr("학교명을 입력해 주세요.", "Please enter school name.", "请输入学校名称。", "Vui lòng nhập tên trường.", "学校名を入力してください。", "Silakan masukkan nama sekolah.");
+      setErrorMessage(message);
+      toast.error(message);
       return;
     }
 
@@ -360,8 +375,11 @@ export function ProfileResumeSectionEditPage() {
       }
       resetEducationForm();
       await refreshProfile();
+      toast.success(saveSuccessText);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : tr("저장에 실패했습니다.", "Failed to save.", "保存失败。", "Lưu thất bại.", "保存に失敗しました。", "Gagal menyimpan."));
+      const message = error instanceof Error ? error.message : saveFailedText;
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -398,8 +416,11 @@ export function ProfileResumeSectionEditPage() {
       }
       resetLanguageForm();
       await refreshProfile();
+      toast.success(saveSuccessText);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : tr("저장에 실패했습니다.", "Failed to save.", "保存失败。", "Lưu thất bại.", "保存に失敗しました。", "Gagal menyimpan."));
+      const message = error instanceof Error ? error.message : saveFailedText;
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -407,7 +428,9 @@ export function ProfileResumeSectionEditPage() {
 
   async function saveCareer() {
     if (!careerCompanyName.trim() || !careerPosition.trim()) {
-      setErrorMessage(tr("회사명과 직무를 입력해 주세요.", "Please enter company and role.", "请输入公司名称和岗位。", "Vui lòng nhập tên công ty và vị trí.", "会社名と職務を入力してください。", "Silakan masukkan nama perusahaan dan peran."));
+      const message = tr("회사명과 직무를 입력해 주세요.", "Please enter company and role.", "请输入公司名称和岗位。", "Vui lòng nhập tên công ty và vị trí.", "会社名と職務を入力してください。", "Silakan masukkan nama perusahaan dan peran.");
+      setErrorMessage(message);
+      toast.error(message);
       return;
     }
 
@@ -430,8 +453,11 @@ export function ProfileResumeSectionEditPage() {
       }
       resetCareerForm();
       await refreshProfile();
+      toast.success(saveSuccessText);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : tr("저장에 실패했습니다.", "Failed to save.", "保存失败。", "Lưu thất bại.", "保存に失敗しました。", "Gagal menyimpan."));
+      const message = error instanceof Error ? error.message : saveFailedText;
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -439,7 +465,9 @@ export function ProfileResumeSectionEditPage() {
 
   async function saveActivity() {
     if (!activityTitle.trim()) {
-      setErrorMessage(tr("활동명을 입력해 주세요.", "Please enter activity title.", "请输入活动名称。", "Vui lòng nhập tên hoạt động.", "活動名を入力してください。", "Silakan masukkan judul kegiatan."));
+      const message = tr("활동명을 입력해 주세요.", "Please enter activity title.", "请输入活动名称。", "Vui lòng nhập tên hoạt động.", "活動名を入力してください。", "Silakan masukkan judul kegiatan.");
+      setErrorMessage(message);
+      toast.error(message);
       return;
     }
 
@@ -467,10 +495,61 @@ export function ProfileResumeSectionEditPage() {
       }
       resetActivityForm();
       await refreshProfile();
+      toast.success(saveSuccessText);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : tr("저장에 실패했습니다.", "Failed to save.", "保存失败。", "Lưu thất bại.", "保存に失敗しました。", "Gagal menyimpan."));
+      const message = error instanceof Error ? error.message : saveFailedText;
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDeleteEducation(id: string) {
+    try {
+      await deleteMyEducation(id);
+      await refreshProfile();
+      toast.success(deleteSuccessText);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : deleteFailedText;
+      setErrorMessage(message);
+      toast.error(message);
+    }
+  }
+
+  async function handleDeleteLanguage(id: string) {
+    try {
+      await deleteMyLanguageSkill(id);
+      await refreshProfile();
+      toast.success(deleteSuccessText);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : deleteFailedText;
+      setErrorMessage(message);
+      toast.error(message);
+    }
+  }
+
+  async function handleDeleteCareer(id: string) {
+    try {
+      await deleteMyCareer(id);
+      await refreshProfile();
+      toast.success(deleteSuccessText);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : deleteFailedText;
+      setErrorMessage(message);
+      toast.error(message);
+    }
+  }
+
+  async function handleDeleteActivity(id: string) {
+    try {
+      await deleteMyActivityExperience(id);
+      await refreshProfile();
+      toast.success(deleteSuccessText);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : deleteFailedText;
+      setErrorMessage(message);
+      toast.error(message);
     }
   }
 
@@ -662,7 +741,7 @@ export function ProfileResumeSectionEditPage() {
                           >
                             {tr("수정", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => void deleteMyEducation(item.id).then(refreshProfile)}>
+                          <Button variant="outline" size="sm" onClick={() => void handleDeleteEducation(item.id)}>
                             {tr("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}
                           </Button>
                         </div>
@@ -727,7 +806,7 @@ export function ProfileResumeSectionEditPage() {
                             setLanguageTestName(item.testName ?? "");
                             setLanguageScore(item.score ?? "");
                           }}>{tr("수정", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}</Button>
-                          <Button variant="outline" size="sm" onClick={() => void deleteMyLanguageSkill(item.id).then(refreshProfile)}>{tr("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}</Button>
+                          <Button variant="outline" size="sm" onClick={() => void handleDeleteLanguage(item.id)}>{tr("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}</Button>
                         </div>
                       </div>
                     ))}
@@ -776,7 +855,7 @@ export function ProfileResumeSectionEditPage() {
                             setCareerEndDate(toDateInput(item.endDate));
                             setCareerDescription(item.description ?? "");
                           }}>{tr("수정", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}</Button>
-                          <Button variant="outline" size="sm" onClick={() => void deleteMyCareer(item.id).then(refreshProfile)}>{tr("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}</Button>
+                          <Button variant="outline" size="sm" onClick={() => void handleDeleteCareer(item.id)}>{tr("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}</Button>
                         </div>
                       </div>
                     ))}
@@ -823,7 +902,7 @@ export function ProfileResumeSectionEditPage() {
                             setActivityDescription(item.description ?? "");
                             setActivitySkills((item.skills ?? []).join(", "));
                           }}>{tr("수정", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}</Button>
-                          <Button variant="outline" size="sm" onClick={() => void deleteMyActivityExperience(item.id).then(refreshProfile)}>{tr("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}</Button>
+                          <Button variant="outline" size="sm" onClick={() => void handleDeleteActivity(item.id)}>{tr("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}</Button>
                         </div>
                       </div>
                     ))}

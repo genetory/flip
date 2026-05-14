@@ -20,6 +20,7 @@ import {
 } from "../../lib/member-profile-client";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { useToast } from "../toast/ToastProvider";
 
 const SQUIRCLE_CLIP_ID = "partner-thumb-squircle-clip";
 const SQUIRCLE_STROKE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
@@ -102,6 +103,7 @@ export function PartnerCompanyProfileEditPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { locale } = useLanguage();
+  const toast = useToast();
   const t = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
     locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
   const requiredMode = searchParams.get("required") === "1";
@@ -278,11 +280,15 @@ export function PartnerCompanyProfileEditPage({
 
   async function handleSave() {
     if (!name.trim()) {
-      setErrorMessage(t("파트너명을 입력해주세요.", "Please enter partner name.", "请输入合作伙伴名称。", "Vui lòng nhập tên đối tác.", "パートナー名を入力してください。", "Silakan masukkan nama mitra."));
+      const message = t("파트너명을 입력해주세요.", "Please enter partner name.", "请输入合作伙伴名称。", "Vui lòng nhập tên đối tác.", "パートナー名を入力してください。", "Silakan masukkan nama mitra.");
+      setErrorMessage(message);
+      toast.error(message);
       return;
     }
     if (!industry) {
-      setErrorMessage(t("산업군을 선택해주세요.", "Please select an industry.", "请选择行业。", "Vui lòng chọn ngành.", "業種を選択してください。", "Silakan pilih industri."));
+      const message = t("산업군을 선택해주세요.", "Please select an industry.", "请选择行业。", "Vui lòng chọn ngành.", "業種を選択してください。", "Silakan pilih industri.");
+      setErrorMessage(message);
+      toast.error(message);
       return;
     }
 
@@ -300,6 +306,7 @@ export function PartnerCompanyProfileEditPage({
         officePhotoImageData: officePhotoImages.length > 0 ? JSON.stringify(officePhotoImages) : null
       });
       setHasOrganization(true);
+      toast.success(t("저장되었습니다.", "Saved successfully.", "已保存。", "Đã lưu.", "保存しました。", "Berhasil disimpan."));
       if (embedded && onClose) {
         onClose();
       } else if (requiredMode) {
@@ -309,7 +316,9 @@ export function PartnerCompanyProfileEditPage({
         router.refresh();
       }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("파트너 정보 저장에 실패했습니다.", "Failed to save partner information.", "保存合作伙伴信息失败。", "Lưu thông tin đối tác thất bại.", "パートナー情報の保存に失敗しました。", "Gagal menyimpan informasi mitra."));
+      const message = error instanceof Error ? error.message : t("파트너 정보 저장에 실패했습니다.", "Failed to save partner information.", "保存合作伙伴信息失败。", "Lưu thông tin đối tác thất bại.", "パートナー情報の保存に失敗しました。", "Gagal menyimpan informasi mitra.");
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }
@@ -317,7 +326,9 @@ export function PartnerCompanyProfileEditPage({
 
   async function handleJoinOrganization() {
     if (!joinCode.trim()) {
-      setErrorMessage(t("초대코드를 입력해주세요.", "Please enter invite code.", "请输入邀请码。", "Vui lòng nhập mã mời.", "招待コードを入力してください。", "Silakan masukkan kode undangan."));
+      const message = t("초대코드를 입력해주세요.", "Please enter invite code.", "请输入邀请码。", "Vui lòng nhập mã mời.", "招待コードを入力してください。", "Silakan masukkan kode undangan.");
+      setErrorMessage(message);
+      toast.error(message);
       return;
     }
     setIsJoining(true);
@@ -325,7 +336,9 @@ export function PartnerCompanyProfileEditPage({
     try {
       const joined = await joinMyPartnerOrganizationByCode(joinCode.trim());
       if (!joined) {
-        setErrorMessage(t("회사 정보를 불러오지 못했습니다.", "Failed to load company.", "无法加载公司信息。", "Không thể tải thông tin công ty.", "会社情報を読み込めませんでした。", "Gagal memuat informasi perusahaan."));
+        const message = t("회사 정보를 불러오지 못했습니다.", "Failed to load company.", "无法加载公司信息。", "Không thể tải thông tin công ty.", "会社情報を読み込めませんでした。", "Gagal memuat informasi perusahaan.");
+        setErrorMessage(message);
+        toast.error(message);
         return;
       }
       setHasOrganization(true);
@@ -337,10 +350,13 @@ export function PartnerCompanyProfileEditPage({
       setCompanyLogoImageData(joined.companyLogoImageData ?? null);
       setOfficePhotoImages([]);
       setJoinCode("");
+      toast.success(t("회사에 합류했습니다.", "Joined the company.", "已加入公司。", "Đã tham gia công ty.", "会社に参加しました。", "Berhasil bergabung dengan perusahaan."));
       finishEdit();
       router.refresh();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("회사 합류에 실패했습니다.", "Failed to join company.", "加入公司失败。", "Tham gia công ty thất bại.", "会社への参加に失敗しました。", "Gagal bergabung dengan perusahaan."));
+      const message = error instanceof Error ? error.message : t("회사 합류에 실패했습니다.", "Failed to join company.", "加入公司失败。", "Tham gia công ty thất bại.", "会社への参加に失敗しました。", "Gagal bergabung dengan perusahaan.");
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setIsJoining(false);
     }
@@ -353,8 +369,11 @@ export function PartnerCompanyProfileEditPage({
       const generated = await createMyPartnerOrganizationJoinCode();
       setInviteCode(generated.code);
       setInviteExpiresAt(generated.expiresAt);
+      toast.success(t("초대코드를 생성했습니다.", "Invite code generated.", "已生成邀请码。", "Đã tạo mã mời.", "招待コードを生成しました。", "Kode undangan dibuat."));
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("초대코드 생성에 실패했습니다.", "Failed to generate invite code.", "生成邀请码失败。", "Tạo mã mời thất bại.", "招待コードの生成に失敗しました。", "Gagal membuat kode undangan."));
+      const message = error instanceof Error ? error.message : t("초대코드 생성에 실패했습니다.", "Failed to generate invite code.", "生成邀请码失败。", "Tạo mã mời thất bại.", "招待コードの生成に失敗しました。", "Gagal membuat kode undangan.");
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setIsGeneratingCode(false);
     }

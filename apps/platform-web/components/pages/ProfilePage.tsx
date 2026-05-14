@@ -1077,7 +1077,7 @@ export function ProfilePage() {
                             {tr("아직 알림이 없습니다.", "No notifications yet.", "暂无通知。", "Chưa có thông báo nào.", "まだ通知はありません。", "Belum ada notifikasi.")}
                           </p>
                         ) : (
-                          <div className="max-h-[560px] space-y-2 overflow-auto pr-1">
+                          <div className="space-y-2">
                             {positionNotifications.map((notification) => (
                               <article key={notification.id} className="rounded-md border border-border/50 bg-background p-3">
                                 <div className="mb-1 flex items-center gap-2">
@@ -1103,7 +1103,7 @@ export function ProfilePage() {
                   )
                 ) : user.role === "STUDENT" ? (
                   <article className="overflow-hidden rounded-2xl border border-border/70 bg-card">
-                    <div className="flex items-center gap-1 overflow-x-auto border-b border-border/70 px-2 pt-2">
+                    <div className="flex items-center gap-1 overflow-x-auto border-b border-border/70 px-2 pt-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <button
                         type="button"
                         onClick={() => setStudentTab("info")}

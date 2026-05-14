@@ -4,7 +4,7 @@ import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { useLanguage } from "../i18n/LanguageProvider";
@@ -24,6 +24,10 @@ export function SignupPage() {
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  const [companyName, setCompanyName] = useState("");
   const [accountType, setAccountType] = useState<"GENERAL" | "BUSINESS">("GENERAL");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,6 +76,10 @@ export function SignupPage() {
     setEmail("");
     setPhoneNumber("");
     setPassword("");
+    setPasswordConfirm("");
+    setShowPassword(false);
+    setShowPasswordConfirm(false);
+    setCompanyName("");
     setAccountType("GENERAL");
     setErrorMessage(null);
   }
@@ -112,6 +120,16 @@ export function SignupPage() {
       return;
     }
 
+    if (isBusiness && !companyName.trim()) {
+      setErrorMessage(copy.companyNameRequired);
+      return;
+    }
+
+    if (password !== passwordConfirm) {
+      setErrorMessage(copy.passwordMismatch);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -122,6 +140,7 @@ export function SignupPage() {
         password,
         accountType,
         phoneNumber: phoneNumber.trim() || undefined,
+        partnerOrganizationName: isBusiness ? companyName.trim() : undefined,
         locale: emailLocale
       });
       if (!result.requiresEmailVerification) {
@@ -141,6 +160,10 @@ export function SignupPage() {
       router.push(`/signup/verify-email?${params.toString()}`);
       router.refresh();
     } catch (error) {
+      if (error instanceof AuthApiError && error.code === "EMAIL_REGISTERED_DIFFERENT_ROLE") {
+        setErrorMessage(copy.emailRegisteredAsGeneral);
+        return;
+      }
       if (error instanceof AuthApiError && error.code === "EMAIL_ALREADY_EXISTS") {
         setErrorMessage(emailExistsMessageByLocale[locale] ?? emailExistsMessageByLocale.en);
         return;
@@ -208,28 +231,81 @@ export function SignupPage() {
                 />
               </label>
               {isBusiness ? (
-                <label className="block text-sm font-medium">
-                  {phoneLabelByLocale[locale] ?? phoneLabelByLocale.en}
-                  <input
-                    type="tel"
-                    placeholder={phonePlaceholderByLocale[locale] ?? phonePlaceholderByLocale.en}
-                    value={phoneNumber}
-                    onChange={(event) => setPhoneNumber(event.target.value)}
-                    className="mt-2 h-10 w-full rounded-md border border-input/60 bg-background px-3 text-sm outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"
-                    required
-                  />
-                </label>
+                <>
+                  <label className="block text-sm font-medium">
+                    {copy.companyNameLabel}
+                    <input
+                      type="text"
+                      placeholder={copy.companyNamePlaceholder}
+                      value={companyName}
+                      onChange={(event) => setCompanyName(event.target.value)}
+                      className="mt-2 h-10 w-full rounded-md border border-input/60 bg-background px-3 text-sm outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"
+                      required
+                      maxLength={200}
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    {phoneLabelByLocale[locale] ?? phoneLabelByLocale.en}
+                    <input
+                      type="tel"
+                      placeholder={phonePlaceholderByLocale[locale] ?? phonePlaceholderByLocale.en}
+                      value={phoneNumber}
+                      onChange={(event) => setPhoneNumber(event.target.value)}
+                      className="mt-2 h-10 w-full rounded-md border border-input/60 bg-background px-3 text-sm outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"
+                      required
+                    />
+                  </label>
+                </>
               ) : null}
               <label className="block text-sm font-medium">
                 {copy.passwordLabel}
-                <input
-                  type="password"
-                  placeholder={copy.passwordPlaceholder}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="mt-2 h-10 w-full rounded-md border border-input/60 bg-background px-3 text-sm outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"
-                  required
-                />
+                <div className="relative mt-2">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder={copy.passwordPlaceholder}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="h-10 w-full rounded-md border border-input/60 bg-background pl-3 pr-10 text-sm outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground"
+                    aria-label={showPassword ? copy.hidePassword : copy.showPassword}
+                    aria-pressed={showPassword}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </label>
+              <label className="block text-sm font-medium">
+                {copy.passwordConfirmLabel}
+                <div className="relative mt-2">
+                  <input
+                    type={showPasswordConfirm ? "text" : "password"}
+                    placeholder={copy.passwordConfirmPlaceholder}
+                    value={passwordConfirm}
+                    onChange={(event) => setPasswordConfirm(event.target.value)}
+                    className="h-10 w-full rounded-md border border-input/60 bg-background pl-3 pr-10 text-sm outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordConfirm((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground"
+                    aria-label={showPasswordConfirm ? copy.hidePassword : copy.showPassword}
+                    aria-pressed={showPasswordConfirm}
+                    tabIndex={-1}
+                  >
+                    {showPasswordConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </label>
               <p className="text-sm text-muted-foreground">
                 {accountType === "BUSINESS"
@@ -239,7 +315,7 @@ export function SignupPage() {
               {errorMessage ? <p className="text-sm font-medium text-destructive">{errorMessage}</p> : null}
               <div className="flex items-center gap-2">
                 <Button variant="dark" size="lg" className="h-11 w-full" type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? copy.submitPending : <>{submitLabel} <ArrowRight /></>}
+                  {isSubmitting ? copy.submitPending : submitLabel}
                 </Button>
               </div>
             </form>

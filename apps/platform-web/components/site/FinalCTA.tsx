@@ -1,15 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "../ui/button";
 import { Building2, GraduationCap } from "lucide-react";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { useAuthSession } from "../auth/AuthSessionProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { Reveal } from "./Reveal";
 import { paperlogy } from "../../lib/fonts";
 
 export const FinalCTA = () => {
   const { locale } = useLanguage();
+  const { isAuthenticated } = useAuthSession();
   const copy = getSiteMessages(locale).finalCta;
+  const partnerHref = isAuthenticated ? "/profile" : "/login";
 
   return (
     <section className="bg-[#F3F7FF] py-20">
@@ -22,8 +26,8 @@ export const FinalCTA = () => {
             <span className="mt-2 block">{copy.companyTitleBottom}</span>
           </h3>
           <p className="mt-3 max-w-md text-background/70">{copy.companyDescription}</p>
-          <Button variant="hero" size="xl" className="mt-7">
-            {copy.companyCta}
+          <Button variant="hero" size="xl" className="mt-7" asChild>
+            <Link href={partnerHref}>{copy.companyCta}</Link>
           </Button>
         </Reveal>
         <Reveal className="relative overflow-hidden rounded-3xl border border-border bg-card p-10 shadow-card" delayMs={120} y="sm">
@@ -34,8 +38,8 @@ export const FinalCTA = () => {
             <span className="mt-2 block">{copy.studentTitleBottom}</span>
           </h3>
           <p className="mt-3 max-w-md text-muted-foreground">{copy.studentDescription}</p>
-          <Button variant="dark" size="xl" className="mt-7">
-            {copy.studentCta}
+          <Button variant="dark" size="xl" className="mt-7" asChild>
+            <Link href="/matching-probability">{copy.studentCta}</Link>
           </Button>
         </Reveal>
       </div>

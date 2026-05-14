@@ -4,7 +4,6 @@ import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { useAuthSession } from "../auth/AuthSessionProvider";
@@ -101,7 +100,7 @@ export function LoginPage() {
               <p className="text-sm text-muted-foreground">{copy.helperText}</p>
               {errorMessage ? <p className="text-sm font-medium text-destructive">{errorMessage}</p> : null}
               <Button variant="dark" size="lg" className="mt-2 w-full" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? copy.submitPending : <>{copy.submitIdle} <ArrowRight /></>}
+                {isSubmitting ? copy.submitPending : copy.submitIdle}
               </Button>
             </form>
 
