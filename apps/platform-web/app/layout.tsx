@@ -6,6 +6,8 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import { AuthSessionProvider } from "../components/auth/AuthSessionProvider";
 import { LanguageProvider } from "../components/i18n/LanguageProvider";
 import { SidebarAds } from "../components/ads/SidebarAds";
+import { ConsentInit } from "../components/consent/ConsentInit";
+import { CookieConsentBanner } from "../components/consent/CookieConsentBanner";
 import { resolveLocaleFromAcceptLanguage } from "../lib/auth-messages";
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
@@ -74,6 +76,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={initialLocale} suppressHydrationWarning>
       <head>
+        {/* Must run BEFORE any GA / AdSense script so consent defaults
+            (denied for ads + analytics) are set on the very first beacon. */}
+        <ConsentInit />
         {adsenseClientId ? (
           <Script
             id="adsense-loader"
@@ -87,6 +92,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body suppressHydrationWarning>
         <LanguageProvider initialLocale={initialLocale}>
           <AuthSessionProvider>{children}</AuthSessionProvider>
+          <CookieConsentBanner />
         </LanguageProvider>
         <SidebarAds />
       </body>

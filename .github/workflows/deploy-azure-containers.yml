@@ -113,6 +113,11 @@ jobs:
             --build-arg NEXT_PUBLIC_ADSENSE_SLOT_SIDEBAR_RIGHT="${{ secrets.NEXT_PUBLIC_ADSENSE_SLOT_SIDEBAR_RIGHT }}" \
             --build-arg NEXT_PUBLIC_ADSENSE_SLOT_INFEED="${{ secrets.NEXT_PUBLIC_ADSENSE_SLOT_INFEED }}" \
             --build-arg NEXT_PUBLIC_ADSENSE_LAYOUT_KEY_INFEED="${{ secrets.NEXT_PUBLIC_ADSENSE_LAYOUT_KEY_INFEED }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_ENV="${{ github.ref_name == 'main' && 'production' || 'staging' }}" \
+            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            --build-arg SENTRY_ORG="${{ secrets.SENTRY_ORG }}" \
+            --build-arg SENTRY_PROJECT="${{ secrets.SENTRY_PROJECT }}" \
             -f apps/platform-web/Dockerfile \
             -t "$WEB_IMAGE" .
           docker push "$WEB_IMAGE"
