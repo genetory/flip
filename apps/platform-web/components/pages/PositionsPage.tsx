@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -22,6 +22,7 @@ import {
   type PublicPremiumPositionBannerItem
 } from "../../lib/member-profile-client";
 import { trackExternalPositionClick, trackPositionSearch } from "../../lib/analytics";
+import { InFeedAd } from "../ads/InFeedAd";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
@@ -988,24 +989,28 @@ export function PositionsPage() {
                 effectiveViewMode === "grid" ? (
                   <div className="relative">
                     <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-5 lg:grid-cols-3">
-                      {visiblePositions.map((p) => {
+                      {visiblePositions.map((p, idx) => {
                         const isOwnPartnerPosting = !!myPartnerOrganizationId && p.partnerDomain === myPartnerOrganizationId;
+                        const showAdAfter = (idx + 1) % 4 === 0 && idx + 1 < visiblePositions.length;
 
                         return (
-                          <div key={p.id} className={isGuestLocked ? "opacity-80" : undefined}>
-                            <PositionGridCard
-                              p={p}
-                              isOwnPartnerPosting={isOwnPartnerPosting}
-                              isStudentUser={user?.role === "STUDENT"}
-                              isApplied={appliedIds.includes(p.id)}
-                              isFavorite={favoriteIds.includes(p.id)}
-                              onToggleFavorite={() => toggleFavorite(p.id)}
-                              onApply={() => {
-                                void applyFromList(p.id);
-                              }}
-                              locale={locale}
-                            />
-                          </div>
+                          <Fragment key={p.id}>
+                            <div className={isGuestLocked ? "opacity-80" : undefined}>
+                              <PositionGridCard
+                                p={p}
+                                isOwnPartnerPosting={isOwnPartnerPosting}
+                                isStudentUser={user?.role === "STUDENT"}
+                                isApplied={appliedIds.includes(p.id)}
+                                isFavorite={favoriteIds.includes(p.id)}
+                                onToggleFavorite={() => toggleFavorite(p.id)}
+                                onApply={() => {
+                                  void applyFromList(p.id);
+                                }}
+                                locale={locale}
+                              />
+                            </div>
+                            {showAdAfter ? <InFeedAd className="col-span-full" /> : null}
+                          </Fragment>
                         );
                       })}
                     </div>
@@ -1031,24 +1036,28 @@ export function PositionsPage() {
                 ) : (
                   <div className="relative">
                     <div className="space-y-3">
-                      {visiblePositions.map((p) => {
+                      {visiblePositions.map((p, idx) => {
                         const isOwnPartnerPosting = !!myPartnerOrganizationId && p.partnerDomain === myPartnerOrganizationId;
+                        const showAdAfter = (idx + 1) % 4 === 0 && idx + 1 < visiblePositions.length;
 
                         return (
-                          <div key={p.id} className={isGuestLocked ? "opacity-80" : undefined}>
-                            <PositionRow
-                              p={p}
-                              isOwnPartnerPosting={isOwnPartnerPosting}
-                              isStudentUser={user?.role === "STUDENT"}
-                              isApplied={appliedIds.includes(p.id)}
-                              isFavorite={favoriteIds.includes(p.id)}
-                              onToggleFavorite={() => toggleFavorite(p.id)}
-                              onApply={() => {
-                                void applyFromList(p.id);
-                              }}
-                              locale={locale}
-                            />
-                          </div>
+                          <Fragment key={p.id}>
+                            <div className={isGuestLocked ? "opacity-80" : undefined}>
+                              <PositionRow
+                                p={p}
+                                isOwnPartnerPosting={isOwnPartnerPosting}
+                                isStudentUser={user?.role === "STUDENT"}
+                                isApplied={appliedIds.includes(p.id)}
+                                isFavorite={favoriteIds.includes(p.id)}
+                                onToggleFavorite={() => toggleFavorite(p.id)}
+                                onApply={() => {
+                                  void applyFromList(p.id);
+                                }}
+                                locale={locale}
+                              />
+                            </div>
+                            {showAdAfter ? <InFeedAd /> : null}
+                          </Fragment>
                         );
                       })}
                     </div>
