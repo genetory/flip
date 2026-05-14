@@ -49,6 +49,7 @@ import {
   type EmailLocale,
   renderVerificationEmailTemplate
 } from "./email/verification-template";
+import { renderEmailLayout } from "./email/email-layout";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -230,6 +231,8 @@ const discordPositionCreateWebhookUrl =
   );
 const companyConsultationDiscordTestToken = process.env.COMPANY_CONSULTATION_DISCORD_TEST_TOKEN?.trim() ?? "";
 const emailFromAddress = process.env.EMAIL_FROM?.trim() ?? "";
+const emailReplyToAddress = process.env.EMAIL_REPLY_TO?.trim() || process.env.EMAIL_SUPPORT_ADDRESS?.trim() || "info@flip-ers.com";
+const emailEnvelopeFrom = process.env.EMAIL_ENVELOPE_FROM?.trim() || process.env.SMTP_USER?.trim() || "";
 const smtpHost = process.env.SMTP_HOST?.trim() ?? "";
 const smtpPort = Number(process.env.SMTP_PORT ?? 587);
 const smtpUser = process.env.SMTP_USER?.trim() ?? "";
@@ -889,23 +892,102 @@ async function createSignupEmailPreverificationCode(email: string) {
 
 async function sendSignupEmailPreverificationCode(email: string, code: string, locale: EmailLocale) {
   const transporter = getSmtpTransporter();
-  const subject = locale === "ko" ? "[Flip] 회원가입 이메일 인증 코드" : "[Flip] Signup email verification code";
-  const text =
-    locale === "ko"
-      ? `아래 인증 코드를 입력해 주세요.\n\n인증코드: ${code}\n\n코드는 ${signupEmailVerificationCodeTtlMinutes}분 후 만료됩니다.`
-      : `Please enter the verification code below.\n\nCode: ${code}\n\nThis code expires in ${signupEmailVerificationCodeTtlMinutes} minutes.`;
-  const html =
-    locale === "ko"
-      ? `<div style="font-family:'Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;line-height:1.6;color:#111827"><h2 style="margin:0 0 16px">이메일 인증 코드</h2><p style="margin:0 0 12px">아래 코드를 입력해 이메일 인증을 완료해 주세요.</p><p style="margin:16px 0;font-size:28px;font-weight:700;letter-spacing:4px">${code}</p><p style="margin:0;color:#6b7280;font-size:13px">코드는 ${signupEmailVerificationCodeTtlMinutes}분 후 만료됩니다.</p></div>`
-      : `<div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827"><h2 style="margin:0 0 16px">Email verification code</h2><p style="margin:0 0 12px">Enter the code below to verify your email.</p><p style="margin:16px 0;font-size:28px;font-weight:700;letter-spacing:4px">${code}</p><p style="margin:0;color:#6b7280;font-size:13px">This code expires in ${signupEmailVerificationCodeTtlMinutes} minutes.</p></div>`;
+  const ttl = signupEmailVerificationCodeTtlMinutes;
+  const isKo = locale === "ko";
+
+  const subject = isKo
+    ? `Aply 회원가입 인증 코드 (${code})`
+    : `Aply signup verification code (${code})`;
+
+  const text = isKo
+    ? [
+        "안녕하세요. Aply입니다.",
+        "",
+        "Aply 회원가입을 위한 이메일 인증 코드입니다.",
+        "",
+        `인증 코드: ${code}`,
+        "",
+        `이 코드는 ${ttl}분 후 만료됩니다.`,
+        "회원가입을 신청하지 않으셨다면 이 메일을 무시하시면 됩니다.",
+        "",
+        "문의: info@flip-ers.com",
+        "웹사이트: https://aply.global",
+        "",
+        "주식회사 플리퍼스 (Flippers Inc.)"
+      ].join("\n")
+    : [
+        "Hi, this is Aply.",
+        "",
+        "Use the code below to verify your email address for Aply signup.",
+        "",
+        `Verification code: ${code}`,
+        "",
+        `This code expires in ${ttl} minutes.`,
+        "If you did not sign up for Aply, you can ignore this email.",
+        "",
+        "Support: info@flip-ers.com",
+        "Website: https://aply.global",
+        "",
+        "Flippers Inc."
+      ].join("\n");
+
+  const bodyHtml = isKo
+    ? `
+      <p style="margin:0 0 16px;font-size:15px;color:#111827;">안녕하세요. <strong>Aply</strong>입니다.</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#374151;">
+        아래 인증 코드를 회원가입 화면에 입력하여 이메일 인증을 완료해 주세요.
+      </p>
+      <div style="margin:24px 0;padding:20px 16px;text-align:center;background:#F3F7FF;border-radius:12px;">
+        <p style="margin:0 0 8px;font-size:12px;color:#6b7280;letter-spacing:0.04em;">인증 코드</p>
+        <p style="margin:0;font-size:32px;font-weight:800;letter-spacing:8px;color:#0B46E8;font-family:'SFMono-Regular','Consolas','Liberation Mono',monospace;">${code}</p>
+      </div>
+      <div style="margin:24px 0;padding:14px 16px;background:#F9FAFB;border-left:3px solid #0B46E8;border-radius:6px;font-size:13px;color:#4b5563;line-height:1.6;">
+        <strong style="color:#111827;">안내</strong><br />
+        • 이 코드는 발송 시점부터 <strong>${ttl}분</strong> 동안만 유효합니다.<br />
+        • 회원가입을 신청하지 않으셨다면 이 메일을 무시하셔도 됩니다.<br />
+        • 코드를 다른 사람과 공유하지 마세요.
+      </div>
+    `
+    : `
+      <p style="margin:0 0 16px;font-size:15px;color:#111827;">Hi, this is <strong>Aply</strong>.</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#374151;">
+        Please enter the code below on the signup screen to verify your email address.
+      </p>
+      <div style="margin:24px 0;padding:20px 16px;text-align:center;background:#F3F7FF;border-radius:12px;">
+        <p style="margin:0 0 8px;font-size:12px;color:#6b7280;letter-spacing:0.04em;">Verification code</p>
+        <p style="margin:0;font-size:32px;font-weight:800;letter-spacing:8px;color:#0B46E8;font-family:'SFMono-Regular','Consolas','Liberation Mono',monospace;">${code}</p>
+      </div>
+      <div style="margin:24px 0;padding:14px 16px;background:#F9FAFB;border-left:3px solid #0B46E8;border-radius:6px;font-size:13px;color:#4b5563;line-height:1.6;">
+        <strong style="color:#111827;">Note</strong><br />
+        • This code is valid for <strong>${ttl} minutes</strong> from the time it was sent.<br />
+        • If you did not sign up for Aply, you can ignore this email.<br />
+        • Never share this code with anyone.
+      </div>
+    `;
+
+  const html = renderEmailLayout({
+    locale,
+    previewText: isKo
+      ? `Aply 회원가입 인증 코드: ${code} (${ttl}분 후 만료)`
+      : `Your Aply verification code: ${code} (expires in ${ttl} minutes)`,
+    title: isKo ? "회원가입 인증 코드" : "Signup verification code",
+    bodyHtml
+  });
 
   if (transporter) {
     await transporter.sendMail({
       from: emailFromAddress,
       to: email,
+      replyTo: emailReplyToAddress,
       subject,
       text,
-      html
+      html,
+      envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: email } : undefined,
+      headers: {
+        "X-Mailer": "Aply Mailer",
+        "X-Auto-Response-Suppress": "OOF, AutoReply",
+        "Auto-Submitted": "auto-generated"
+      }
     });
     return { delivery: "smtp" as const, code };
   }
@@ -955,9 +1037,16 @@ async function sendVerificationEmail(email: string, token: string, locale: Email
     await transporter.sendMail({
       from: emailFromAddress,
       to: email,
+      replyTo: emailReplyToAddress,
       subject: content.subject,
       text: content.text,
-      html: content.html
+      html: content.html,
+      envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: email } : undefined,
+      headers: {
+        "X-Mailer": "Aply Mailer",
+        "X-Auto-Response-Suppress": "OOF, AutoReply",
+        "Auto-Submitted": "auto-generated"
+      }
     });
     return { delivery: "smtp" as const, verifyUrl, locale };
   }
