@@ -1,7 +1,36 @@
 export const PLATFORM_LOCALE_STORAGE_KEY = "platform_locale";
-export const DEFAULT_PLATFORM_LOCALE = "ko";
+export const DEFAULT_PLATFORM_LOCALE = "en";
 export const PLATFORM_LOCALES = ["ko", "en", "zh-CN", "vi", "ja", "id"] as const;
 export type PlatformLocale = (typeof PLATFORM_LOCALES)[number];
+
+/**
+ * Pick the best matching supported locale from a raw Accept-Language header
+ * (or navigator.language string). Returns the default English locale when no
+ * meaningful match is found.
+ */
+export function resolveLocaleFromAcceptLanguage(value: string | null | undefined): PlatformLocale {
+  if (!value) return DEFAULT_PLATFORM_LOCALE;
+  const entries = value
+    .split(",")
+    .map((entry) => {
+      const [rawTag, ...params] = entry.trim().split(";");
+      const qParam = params.find((p) => p.trim().startsWith("q="));
+      const q = qParam ? Number(qParam.split("=")[1]) : 1;
+      return { tag: (rawTag ?? "").trim().toLowerCase(), q: Number.isFinite(q) ? q : 1 };
+    })
+    .filter((entry) => entry.tag.length > 0)
+    .sort((a, b) => b.q - a.q);
+
+  for (const { tag } of entries) {
+    if (tag.startsWith("ko")) return "ko";
+    if (tag.startsWith("zh")) return "zh-CN";
+    if (tag.startsWith("vi")) return "vi";
+    if (tag.startsWith("ja")) return "ja";
+    if (tag.startsWith("id")) return "id";
+    if (tag.startsWith("en")) return "en";
+  }
+  return DEFAULT_PLATFORM_LOCALE;
+}
 
 const authErrorMessages = {
   ko: {

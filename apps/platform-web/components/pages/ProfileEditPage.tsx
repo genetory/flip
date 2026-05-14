@@ -11,6 +11,7 @@ import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { logoutPlatformSession } from "../../lib/auth-client";
 import { isMemberNotFoundError, updateMyBasicInfo } from "../../lib/member-profile-client";
+import { CandidateDocumentsSection } from "../profile/CandidateDocumentsSection";
 import { getStoredProfilePhoto, setStoredProfilePhoto } from "../../lib/profile-media";
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -420,6 +421,8 @@ export function ProfileEditPage() {
               </div>
               </div>
               </div>
+
+              {user.role === "STUDENT" ? <CandidateDocumentsSection /> : null}
 
               {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
 

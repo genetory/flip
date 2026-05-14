@@ -966,6 +966,14 @@ model CandidateProfile {
   emergencyContactEmail String?
   emergencyContactAddress String?
   matchingResultNote String?
+  resumeUrl         String?
+  resumeFileName    String?
+  coverLetterUrl    String?
+  coverLetterFileName String?
+  portfolioUrl      String?
+  portfolioFileName String?
+  passportImageUrl  String?
+  passportImageFileName String?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 

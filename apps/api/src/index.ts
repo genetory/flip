@@ -3,6 +3,7 @@ import { spawn } from "child_process";
 import { createHmac, randomBytes, randomInt } from "crypto";
 import cors from "cors";
 import express from "express";
+import multer from "multer";
 import nodemailer from "nodemailer";
 import OpenAI from "openai";
 import swaggerUi from "swagger-ui-express";
@@ -2186,6 +2187,14 @@ function toCandidateProfile(
         emergencyContactEmail?: string | null;
         emergencyContactAddress?: string | null;
         matchingResultNote?: string | null;
+        resumeUrl?: string | null;
+        resumeFileName?: string | null;
+        coverLetterUrl?: string | null;
+        coverLetterFileName?: string | null;
+        portfolioUrl?: string | null;
+        portfolioFileName?: string | null;
+        passportImageUrl?: string | null;
+        passportImageFileName?: string | null;
         educations?: Array<{
           id: string;
           schoolName: string;
@@ -2269,6 +2278,14 @@ function toCandidateProfile(
       emergencyContactEmail: null,
       emergencyContactAddress: null,
       matchingResultNote: null,
+      resumeUrl: null,
+      resumeFileName: null,
+      coverLetterUrl: null,
+      coverLetterFileName: null,
+      portfolioUrl: null,
+      portfolioFileName: null,
+      passportImageUrl: null,
+      passportImageFileName: null,
       educations: [],
       languageSkills: [],
       careers: [],
@@ -2308,6 +2325,14 @@ function toCandidateProfile(
     emergencyContactEmail: profile.emergencyContactEmail ?? null,
     emergencyContactAddress: profile.emergencyContactAddress ?? null,
     matchingResultNote: profile.matchingResultNote ?? null,
+    resumeUrl: profile.resumeUrl ?? null,
+    resumeFileName: profile.resumeFileName ?? null,
+    coverLetterUrl: profile.coverLetterUrl ?? null,
+    coverLetterFileName: profile.coverLetterFileName ?? null,
+    portfolioUrl: profile.portfolioUrl ?? null,
+    portfolioFileName: profile.portfolioFileName ?? null,
+    passportImageUrl: profile.passportImageUrl ?? null,
+    passportImageFileName: profile.passportImageFileName ?? null,
     educations: (profile.educations ?? []).map((item) => ({
       id: item.id,
       schoolName: item.schoolName,
@@ -2517,6 +2542,72 @@ async function uploadImageArrayIfNeeded(values: string[] | undefined, prefix: st
   }
   return out;
 }
+
+// ---- candidate document upload (multipart/form-data) ----------------------
+// Used for resume, cover letter, portfolio, passport image — files too large
+// or non-image to ride the data-URL pipeline.
+
+const CANDIDATE_DOCUMENT_ALLOWED_MIME = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "image/png",
+  "image/webp"
+]);
+
+const candidateDocumentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (CANDIDATE_DOCUMENT_ALLOWED_MIME.has(file.mimetype.toLowerCase())) return cb(null, true);
+    return cb(new Error("Unsupported file type"));
+  }
+});
+
+function inferDocumentExt(mime: string): string {
+  const m = mime.toLowerCase();
+  if (m === "application/pdf") return "pdf";
+  if (m === "application/msword") return "doc";
+  if (m === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return "docx";
+  if (m === "image/jpeg") return "jpg";
+  if (m === "image/png") return "png";
+  if (m === "image/webp") return "webp";
+  return "bin";
+}
+
+async function uploadCandidateDocumentToBlob(
+  file: Express.Multer.File,
+  prefix: string
+): Promise<string> {
+  const container = getAzureContainerClient();
+  if (!container) {
+    throw new Error("Azure Blob storage is not configured (AZURE_STORAGE_CONNECTION_STRING missing).");
+  }
+  await container.createIfNotExists({ access: "blob" });
+  const ext = inferDocumentExt(file.mimetype);
+  const blobName = `${prefix}/${Date.now()}-${randomBytes(8).toString("hex")}.${ext}`;
+  const client = container.getBlockBlobClient(blobName);
+  await client.uploadData(file.buffer, {
+    blobHTTPHeaders: {
+      blobContentType: file.mimetype,
+      blobContentDisposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.originalname)}`
+    }
+  });
+  return client.url;
+}
+
+type CandidateDocumentKind = "resume" | "coverLetter" | "portfolio" | "passportImage";
+
+const CANDIDATE_DOCUMENT_FIELDS: Record<
+  CandidateDocumentKind,
+  { urlField: string; nameField: string }
+> = {
+  resume: { urlField: "resumeUrl", nameField: "resumeFileName" },
+  coverLetter: { urlField: "coverLetterUrl", nameField: "coverLetterFileName" },
+  portfolio: { urlField: "portfolioUrl", nameField: "portfolioFileName" },
+  passportImage: { urlField: "passportImageUrl", nameField: "passportImageFileName" }
+};
 
 type CrawlerRunSummary = {
   sourceProvider?: string;
@@ -8174,6 +8265,80 @@ app.get("/members/me/profile", authenticate, requireRoles([MemberRole.STUDENT]),
     return res.status(500).json({ ok: false, message: "failed to load my candidate profile" });
   }
 });
+
+// Upload a candidate document (resume / cover letter / portfolio / passport
+// image). Accepts multipart/form-data with a single `file` field. Validates
+// mime + size in candidateDocumentUpload middleware. Replaces any existing
+// document of the same kind (old blob is left in storage — cleanup is async).
+app.post(
+  "/members/me/candidate-documents/:kind",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  candidateDocumentUpload.single("file"),
+  async (req, res) => {
+    const kindParam = req.params.kind as CandidateDocumentKind;
+    const fieldDef = CANDIDATE_DOCUMENT_FIELDS[kindParam];
+    if (!fieldDef) {
+      return res.status(400).json({ ok: false, message: "Invalid document kind" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ ok: false, message: "file field is required" });
+    }
+    const userId = req.auth!.userId;
+    try {
+      await prisma.candidateProfile.upsert({
+        where: { userId },
+        create: { userId },
+        update: {}
+      });
+      const url = await uploadCandidateDocumentToBlob(req.file, `members/${userId}/${kindParam}`);
+      await prisma.candidateProfile.update({
+        where: { userId },
+        data: {
+          [fieldDef.urlField]: url,
+          [fieldDef.nameField]: req.file.originalname
+        }
+      });
+      return res.status(200).json({
+        ok: true,
+        kind: kindParam,
+        url,
+        fileName: req.file.originalname
+      });
+    } catch (err) {
+      console.error("[candidate-doc upload]", err);
+      const message = err instanceof Error ? err.message : "failed to upload document";
+      return res.status(500).json({ ok: false, message });
+    }
+  }
+);
+
+app.delete(
+  "/members/me/candidate-documents/:kind",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    const kindParam = req.params.kind as CandidateDocumentKind;
+    const fieldDef = CANDIDATE_DOCUMENT_FIELDS[kindParam];
+    if (!fieldDef) {
+      return res.status(400).json({ ok: false, message: "Invalid document kind" });
+    }
+    const userId = req.auth!.userId;
+    try {
+      await prisma.candidateProfile.update({
+        where: { userId },
+        data: {
+          [fieldDef.urlField]: null,
+          [fieldDef.nameField]: null
+        }
+      });
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error("[candidate-doc delete]", err);
+      return res.status(500).json({ ok: false, message: "failed to delete document" });
+    }
+  }
+);
 
 app.patch("/members/me/profile", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const id = req.auth!.userId;

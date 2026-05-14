@@ -125,6 +125,41 @@ async function authedJsonFetch<T>(path: string, init: RequestInit = {}) {
   return payload;
 }
 
+/**
+ * Multipart upload variant of authedJsonFetch. Skips Content-Type header so
+ * the browser sets the multipart boundary, retries once on 401 via session
+ * refresh, and surfaces the same MemberProfileApiError shape on failure.
+ */
+async function authedMultipartFetch<T>(path: string, body: FormData) {
+  const request = async () => {
+    const token = await getAccessTokenOrThrow();
+    return fetch(`${getApiBaseUrl()}${path}`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body
+    });
+  };
+
+  let response = await request();
+  if (response.status === 401) {
+    await refreshPlatformSession();
+    response = await request();
+  }
+
+  const payload = await readApiPayload<T>(response);
+  if (!response.ok || payload.ok !== true) {
+    throw new MemberProfileApiError(
+      resolveApiErrorMessage(payload, "파일 업로드에 실패했습니다."),
+      response.status,
+      typeof payload.code === "string" ? payload.code : undefined
+    );
+  }
+  return payload;
+}
+
 class MemberProfileApiError extends Error {
   status: number;
   code?: string;
@@ -257,6 +292,23 @@ export type MyCandidateProfile = {
   additionalInfoNote?: string | null;
   favoritePositionIds?: string[];
   appliedPositionIds?: string[];
+  resumeUrl?: string | null;
+  resumeFileName?: string | null;
+  coverLetterUrl?: string | null;
+  coverLetterFileName?: string | null;
+  portfolioUrl?: string | null;
+  portfolioFileName?: string | null;
+  passportImageUrl?: string | null;
+  passportImageFileName?: string | null;
+};
+
+export type CandidateDocumentKind = "resume" | "coverLetter" | "portfolio" | "passportImage";
+
+export type CandidateDocumentUploadResult = {
+  ok: boolean;
+  kind: CandidateDocumentKind;
+  url: string;
+  fileName: string;
 };
 
 export type MyPartnerOrganization = {
@@ -471,6 +523,17 @@ export type PartnerPosition = {
 export async function getMyCandidateProfile() {
   const result = await authedJsonFetch<MyCandidateProfile | null>("/members/me/profile", { method: "GET" });
   return result.item ?? null;
+}
+
+export async function uploadMyCandidateDocument(kind: CandidateDocumentKind, file: File) {
+  const body = new FormData();
+  body.append("file", file, file.name);
+  const result = await authedMultipartFetch<unknown>(`/members/me/candidate-documents/${kind}`, body);
+  return result as unknown as CandidateDocumentUploadResult;
+}
+
+export async function deleteMyCandidateDocument(kind: CandidateDocumentKind) {
+  await authedJsonFetch<unknown>(`/members/me/candidate-documents/${kind}`, { method: "DELETE" });
 }
 
 export async function getMyPartnerOrganization() {

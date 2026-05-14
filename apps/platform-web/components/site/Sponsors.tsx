@@ -5,13 +5,13 @@ import { Reveal } from "./Reveal";
 import { paperlogy } from "../../lib/fonts";
 
 const sponsors = [
-  { src: "/img_sponcer_0.png", alt: "Sponsor 0" },
-  { src: "/img_sponcer_1.png", alt: "Sponsor 1" },
-  { src: "/img_sponcer_2.png", alt: "Sponsor 2" },
-  { src: "/img_sponcer_3.png", alt: "Sponsor 3" },
-  { src: "/img_sponcer_4.png", alt: "Sponsor 4" },
-  { src: "/img_sponcer_5.png", alt: "Sponsor 5" },
-  { src: "/img_sponcer_6.png", alt: "Sponsor 6" }
+  { src: "/img_sponcer_0.webp", alt: "Sponsor 0" },
+  { src: "/img_sponcer_1.webp", alt: "Sponsor 1" },
+  { src: "/img_sponcer_2.webp", alt: "Sponsor 2" },
+  { src: "/img_sponcer_3.webp", alt: "Sponsor 3" },
+  { src: "/img_sponcer_4.webp", alt: "Sponsor 4" },
+  { src: "/img_sponcer_5.webp", alt: "Sponsor 5" },
+  { src: "/img_sponcer_6.webp", alt: "Sponsor 6" }
 ];
 
 export const Sponsors = () => {
