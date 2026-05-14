@@ -1,16 +1,4 @@
 import "dotenv/config";
-// Initialise Sentry BEFORE any other import so its global handlers can wrap
-// uncaught errors / unhandled rejections that happen during module evaluation.
-import * as Sentry from "@sentry/node";
-const SENTRY_DSN = process.env.SENTRY_DSN?.trim() || "";
-if (SENTRY_DSN) {
-  Sentry.init({
-    dsn: SENTRY_DSN,
-    environment: process.env.SENTRY_ENV?.trim()
-      || (process.env.NODE_ENV === "production" ? "production" : "staging"),
-    tracesSampleRate: 0.1
-  });
-}
 import { spawn } from "child_process";
 import { createHmac, randomBytes, randomInt } from "crypto";
 import cors from "cors";
@@ -142,7 +130,91 @@ const getTrimmedEnvOrFallback = (value: string | undefined, fallback: string) =>
 const discordCompanyConsultationWebhookUrl = process.env.DISCORD_COMPANY_CONSULTATION_WEBHOOK_URL?.trim() ?? "";
 const discordSignupWebhookUrl = process.env.SIGNUP_DISCORD_WEBHOOK_URL?.trim() ?? "";
 const discordCommunityPostWebhookUrl = process.env.DISCORD_COMMUNITY_POST_WEBHOOK_URL?.trim() ?? "";
-const sentryDiscordWebhookUrl = process.env.SENTRY_DISCORD_WEBHOOK_URL?.trim() ?? "";
+const errorDiscordWebhookUrl = process.env.ERROR_DISCORD_WEBHOOK_URL?.trim() ?? "";
+
+// In-memory dedup for error notifications. Last-N seconds per fingerprint so
+// a burst of the same error doesn't flood Discord.
+const ERROR_DEDUP_WINDOW_MS = 60_000;
+const recentErrorFingerprints = new Map<string, number>();
+
+type ErrorSource = "api" | "web";
+
+async function postErrorToDiscord(input: {
+  title: string;
+  source: ErrorSource;
+  path?: string;
+  method?: string;
+  userAgent?: string;
+  stack?: string;
+}) {
+  if (!errorDiscordWebhookUrl) return;
+  const fingerprint = `${input.source}|${input.title}|${input.path ?? ""}`;
+  const now = Date.now();
+  const last = recentErrorFingerprints.get(fingerprint);
+  if (last && now - last < ERROR_DEDUP_WINDOW_MS) return;
+  recentErrorFingerprints.set(fingerprint, now);
+  if (recentErrorFingerprints.size > 256) {
+    const cutoff = now - ERROR_DEDUP_WINDOW_MS;
+    for (const [key, ts] of recentErrorFingerprints) {
+      if (ts < cutoff) recentErrorFingerprints.delete(key);
+    }
+  }
+  const env = process.env.NODE_ENV === "production" ? "production" : "staging";
+  const truncate = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+
+  const fields: Array<{ name: string; value: string; inline: boolean }> = [
+    { name: "Source", value: input.source.toUpperCase(), inline: true },
+    { name: "Env", value: env, inline: true }
+  ];
+  if (input.path) {
+    fields.push({
+      name: "Path",
+      value: truncate(`${input.method ?? "GET"} ${input.path}`, 256),
+      inline: false
+    });
+  }
+  if (input.userAgent) {
+    fields.push({ name: "User Agent", value: truncate(input.userAgent, 256), inline: false });
+  }
+  if (input.stack) {
+    fields.push({ name: "Stack", value: "```\n" + truncate(input.stack, 900) + "\n```", inline: false });
+  }
+
+  const isWeb = input.source === "web";
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: isWeb ? 0x3b82f6 : 0xe11d48,
+        title: `${isWeb ? "🟦" : "🟥"} ${isWeb ? "Web" : "API"} 에러`,
+        description: truncate(input.title, 1500),
+        fields,
+        footer: { text: "Aply • Error" },
+        timestamp: new Date().toISOString()
+      }
+    ]
+  };
+  try {
+    const response = await fetch(errorDiscordWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("error_discord_webhook_failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("error_discord_webhook_error", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
 const discordPositionApplyWebhookUrl =
   getTrimmedEnvOrFallback(
     process.env.DISCORD_POSITION_APPLY_WEBHOOK_URL,
@@ -4594,64 +4666,31 @@ async function generatePositionMatchesWithOpenAI(params: {
   }
 }
 
-// Sentry → Discord webhook proxy. Sentry doesn't ship a Discord integration
-// on the free plan, so we accept Sentry's outgoing webhook payload here and
-// reformat it as a Discord embed before forwarding to SENTRY_DISCORD_WEBHOOK_URL.
-// Configure in Sentry: Alerts → Create Alert Rule → "Send a notification via
-// integration" / webhook → URL = https://api.aply.global/webhooks/sentry-to-discord
-app.post("/webhooks/sentry-to-discord", async (req, res) => {
-  if (!sentryDiscordWebhookUrl) {
-    return res.status(204).end();
-  }
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const body = (req.body ?? {}) as Record<string, any>;
-    const issue = body.data?.issue ?? body.data?.event ?? body;
-    const title: string = issue?.title ?? body?.message ?? "Sentry alert";
-    const level: string = issue?.level ?? body?.level ?? "error";
-    const project: string = issue?.project?.slug ?? issue?.project?.name ?? issue?.project ?? body?.project ?? "-";
-    const environment: string = issue?.environment ?? body?.environment ?? "-";
-    const culprit: string = issue?.culprit ?? body?.culprit ?? "-";
-    const permalink: string = issue?.permalink ?? issue?.url ?? body?.url ?? "";
-    const action: string = body?.action ?? "triggered";
-    const emoji = level === "warning" ? "⚠️" : level === "info" ? "ℹ️" : "🚨";
-    const color = level === "warning" ? 0xfacc15 : level === "info" ? 0x3b82f6 : 0xe11d48;
+// Receive client-side errors from the web app and forward to Discord.
+// Web app's ErrorReporter posts here via fetch / sendBeacon. The endpoint
+// is intentionally permissive (no auth) — only the message shape is
+// validated and rate limiting comes from the dedup window inside
+// postErrorToDiscord.
+const clientErrorReportSchema = z.object({
+  message: z.string().min(1).max(500),
+  url: z.string().max(500).optional(),
+  userAgent: z.string().max(300).optional(),
+  stack: z.string().max(4000).optional()
+});
 
-    const discordPayload = {
-      content: null,
-      username: "Sentry",
-      embeds: [
-        {
-          title: `${emoji} ${title}`.slice(0, 250),
-          url: permalink || undefined,
-          color,
-          fields: [
-            { name: "Project", value: String(project).slice(0, 80), inline: true },
-            { name: "Env", value: String(environment).slice(0, 40), inline: true },
-            { name: "Level", value: String(level).slice(0, 40), inline: true },
-            ...(culprit && culprit !== "-"
-              ? [{ name: "Culprit", value: String(culprit).slice(0, 240), inline: false }]
-              : []),
-            { name: "Action", value: String(action).slice(0, 40), inline: true }
-          ],
-          timestamp: new Date().toISOString()
-        }
-      ]
-    };
-
-    const response = await fetch(sentryDiscordWebhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(discordPayload)
-    });
-    if (!response.ok) {
-      console.warn("[sentry→discord] upstream non-ok", response.status);
-    }
-    return res.status(204).end();
-  } catch (err) {
-    console.error("[sentry→discord] proxy failed", err);
-    return res.status(500).json({ ok: false, message: "proxy failed" });
+app.post("/errors/client", async (req, res) => {
+  const parsed = clientErrorReportSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid payload" });
   }
+  void postErrorToDiscord({
+    title: parsed.data.message,
+    source: "web",
+    path: parsed.data.url,
+    userAgent: parsed.data.userAgent,
+    stack: parsed.data.stack
+  });
+  return res.status(204).end();
 });
 
 app.get("/health", async (_req, res) => {
@@ -14985,11 +15024,40 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
   }
 });
 
-// Sentry's express error handler must run AFTER all routes so it captures
-// errors thrown deep inside route handlers. No-op when Sentry isn't init'd.
-if (SENTRY_DSN) {
-  Sentry.setupExpressErrorHandler(app);
-}
+// Express global error handler — catches errors thrown inside any route and
+// forwards them to Discord via ERROR_DISCORD_WEBHOOK_URL.
+app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const error = err instanceof Error ? err : new Error(typeof err === "string" ? err : "unknown error");
+  console.error("[express-error]", error);
+  void postErrorToDiscord({
+    title: error.message || "Unknown error",
+    source: "api",
+    path: req.path,
+    method: req.method,
+    stack: error.stack
+  });
+  if (res.headersSent) return next(err);
+  res.status(500).json({ ok: false, message: "Internal server error" });
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err);
+  void postErrorToDiscord({
+    title: `uncaughtException: ${err.message}`,
+    source: "api",
+    stack: err.stack
+  });
+});
+
+process.on("unhandledRejection", (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  console.error("[unhandledRejection]", err);
+  void postErrorToDiscord({
+    title: `unhandledRejection: ${err.message}`,
+    source: "api",
+    stack: err.stack
+  });
+});
 
 if (process.env.VERCEL !== "1") {
   app.listen(port, () => {

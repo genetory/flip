@@ -8,6 +8,7 @@ import { LanguageProvider } from "../components/i18n/LanguageProvider";
 import { SidebarAds } from "../components/ads/SidebarAds";
 import { ConsentInit } from "../components/consent/ConsentInit";
 import { CookieConsentBanner } from "../components/consent/CookieConsentBanner";
+import { ErrorReporter } from "../components/errors/ErrorReporter";
 import { resolveLocaleFromAcceptLanguage } from "../lib/auth-messages";
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
@@ -95,6 +96,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <CookieConsentBanner />
         </LanguageProvider>
         <SidebarAds />
+        <ErrorReporter />
       </body>
       {gaMeasurementId ? <GoogleAnalytics gaId={gaMeasurementId} /> : null}
     </html>
