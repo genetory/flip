@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
@@ -8,6 +9,39 @@ import { CompanyPositionsSection } from "../../../components/pages/CompanyPositi
 import { Button } from "../../../components/ui/button";
 import { getPublicPositions } from "../../../lib/member-profile-client";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    const items = await getPublicPositions();
+    const positions = items.filter((item) => item.partnerOrganization?.id === id);
+    const company = positions[0]?.partnerOrganization;
+    if (!company) {
+      return {
+        title: "회사 정보를 찾을 수 없음",
+        robots: { index: false }
+      };
+    }
+    const openCount = positions.filter((p) => p.status === "OPEN").length;
+    const title = `${company.name} 채용 정보`;
+    const description = openCount > 0
+      ? `${company.name}에서 진행 중인 ${openCount}개의 채용 포지션을 확인하세요. 외국인 인재를 위한 한국 기업 채용은 Aply에서.`
+      : `${company.name}의 회사 소개와 채용 정보를 확인하세요.`;
+    return {
+      title,
+      description,
+      alternates: { canonical: `/companies/${id}` },
+      openGraph: {
+        type: "profile",
+        title,
+        description,
+        url: `/companies/${id}`
+      }
+    };
+  } catch {
+    return { title: "회사 정보" };
+  }
+}
 
 type Locale = "ko" | "en" | "zh-CN" | "vi" | "ja" | "id";
 
