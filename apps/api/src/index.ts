@@ -1,4 +1,16 @@
 import "dotenv/config";
+// Initialise Sentry BEFORE any other import so its global handlers can wrap
+// uncaught errors / unhandled rejections that happen during module evaluation.
+import * as Sentry from "@sentry/node";
+const SENTRY_DSN = process.env.SENTRY_DSN?.trim() || "";
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: process.env.SENTRY_ENV?.trim()
+      || (process.env.NODE_ENV === "production" ? "production" : "staging"),
+    tracesSampleRate: 0.1
+  });
+}
 import { spawn } from "child_process";
 import { createHmac, randomBytes, randomInt } from "crypto";
 import cors from "cors";
@@ -14911,6 +14923,12 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
     return res.status(500).json({ ok: false, message: "failed to update partner organization" });
   }
 });
+
+// Sentry's express error handler must run AFTER all routes so it captures
+// errors thrown deep inside route handlers. No-op when Sentry isn't init'd.
+if (SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 if (process.env.VERCEL !== "1") {
   app.listen(port, () => {
