@@ -41,8 +41,20 @@ export function ErrorReporter() {
       }
     }
 
+    const noisePatterns = [
+      /ResizeObserver loop/i,
+      /^Script error\.?$/i,
+      /^Load failed$/i,
+      /AbortError/i,
+      /The operation was aborted/i,
+      /ChunkLoadError/i,
+      /Non-Error promise rejection captured/i
+    ];
+
     function onError(event: ErrorEvent) {
-      const message = event.message?.trim() || "Unknown error";
+      const message = (event.message || "").trim();
+      if (!message || message === "Unknown error") return;
+      if (noisePatterns.some((re) => re.test(message))) return;
       send({
         message: message.slice(0, 500),
         stack: event.error instanceof Error ? event.error.stack ?? undefined : undefined,
@@ -52,6 +64,18 @@ export function ErrorReporter() {
 
     function onRejection(event: PromiseRejectionEvent) {
       const reason = event.reason;
+      // Skip empty/null/undefined reasons — these are almost always third-party
+      // script noise (AdSense iframes, analytics beacons, browser extensions)
+      // that we cannot act on and that just spam our Discord channel.
+      if (reason == null) return;
+      if (typeof reason === "object" && !(reason instanceof Error)) {
+        try {
+          if (Object.keys(reason as Record<string, unknown>).length === 0) return;
+        } catch {
+          // ignore introspection failures
+        }
+      }
+
       const message =
         reason instanceof Error
           ? reason.message
@@ -61,11 +85,16 @@ export function ErrorReporter() {
                 try {
                   return JSON.stringify(reason).slice(0, 300);
                 } catch {
-                  return "Unhandled promise rejection";
+                  return "";
                 }
               })();
+
+      const normalized = (message || "").trim();
+      if (!normalized) return; // no actionable info, drop
+      if (noisePatterns.some((re) => re.test(normalized))) return;
+
       send({
-        message: `unhandledRejection: ${message}`.slice(0, 500),
+        message: `unhandledRejection: ${normalized}`.slice(0, 500),
         stack: reason instanceof Error ? reason.stack ?? undefined : undefined
       });
     }
