@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { readAccessToken } from "../../../../../lib/auth-client";
 
-const TOKEN_COOKIE_KEY = "ops_admin_token";
 const CONFIRM_PHRASE = "DELETE";
 
 type WipeResult = {
@@ -12,17 +12,6 @@ type WipeResult = {
   preserved?: number;
   message?: string;
 };
-
-function readCookie(key: string) {
-  if (typeof document === "undefined") return "";
-  const entry = document.cookie.split("; ").find((item) => item.startsWith(`${key}=`));
-  if (entry) return decodeURIComponent(entry.split("=")[1] ?? "");
-  try {
-    return window.localStorage.getItem("platform_access_token") || "";
-  } catch {
-    return "";
-  }
-}
 
 type WipeKind = "positions" | "users";
 
@@ -43,9 +32,9 @@ export default function DataManagementPage() {
     if (!window.confirm(`${label}을(를) 정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) {
       return;
     }
-    const token = readCookie(TOKEN_COOKIE_KEY);
+    const token = readAccessToken();
     if (!token) {
-      setError("로그인이 필요합니다.");
+      setError("로그인이 필요합니다. 운영자 계정으로 다시 로그인 후 시도해주세요.");
       return;
     }
     const path = kind === "positions" ? "/ops/data/delete-all-positions" : "/ops/data/delete-non-seed-users";

@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-
-const TOKEN_COOKIE_KEY = "ops_admin_token";
+import { readAccessToken } from "../../../../../lib/auth-client";
 
 type CrawlerRunSummary = {
   created?: number;
@@ -26,12 +25,6 @@ type CrawlerRunResult = {
   errorMessage?: string;
 };
 
-function readCookie(key: string) {
-  if (typeof document === "undefined") return "";
-  const entry = document.cookie.split("; ").find((item) => item.startsWith(`${key}=`));
-  if (entry) return decodeURIComponent(entry.split("=")[1] ?? ""); try { return window.localStorage.getItem("platform_access_token") || ""; } catch { return ""; }
-}
-
 export default function CrawlersPage() {
   const apiBaseUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000", []);
   const [running, setRunning] = useState<CrawlerSource | null>(null);
@@ -39,9 +32,9 @@ export default function CrawlersPage() {
   const [lastResult, setLastResult] = useState<CrawlerRunResult | null>(null);
 
   const runCrawler = async (source: CrawlerSource) => {
-    const token = readCookie(TOKEN_COOKIE_KEY);
+    const token = readAccessToken();
     if (!token) {
-      setError("로그인이 필요합니다.");
+      setError("로그인이 필요합니다. 운영자 계정으로 다시 로그인 후 시도해주세요.");
       return;
     }
 
