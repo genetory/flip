@@ -1306,13 +1306,36 @@ function isAllowedCorsOrigin(origin: string) {
   }
 }
 
+// Throttle "rejected origin" log so a single scraper can't flood stdout.
+const recentRejectedOrigins = new Map<string, number>();
+const REJECTED_ORIGIN_LOG_WINDOW_MS = 5 * 60 * 1000;
+
+function logRejectedCorsOrigin(origin: string) {
+  const now = Date.now();
+  const last = recentRejectedOrigins.get(origin);
+  if (last && now - last < REJECTED_ORIGIN_LOG_WINDOW_MS) return;
+  recentRejectedOrigins.set(origin, now);
+  if (recentRejectedOrigins.size > 256) {
+    const cutoff = now - REJECTED_ORIGIN_LOG_WINDOW_MS;
+    for (const [key, ts] of recentRejectedOrigins) {
+      if (ts < cutoff) recentRejectedOrigins.delete(key);
+    }
+  }
+  console.warn(`[cors] rejected origin: ${origin}`);
+}
+
 app.use(cors({
   origin(origin, callback) {
     if (!origin || isAllowedCorsOrigin(origin)) {
       callback(null, true);
       return;
     }
-    callback(new Error("Not allowed by CORS"));
+    // Don't throw — that would 500 the request and spam Discord. Just deny
+    // the CORS headers, which makes the browser block the response on its
+    // side (correct behavior). Log the origin so we can spot recurring
+    // patterns (real users vs. scrapers) in Azure container logs.
+    logRejectedCorsOrigin(origin);
+    callback(null, false);
   },
   credentials: true
 }));
@@ -15215,13 +15238,19 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
 app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
   const error = err instanceof Error ? err : new Error(typeof err === "string" ? err : "unknown error");
   console.error("[express-error]", error);
-  void postErrorToDiscord({
-    title: error.message || "Unknown error",
-    source: "api",
-    path: req.path,
-    method: req.method,
-    stack: error.stack
-  });
+  // Skip noise patterns from Discord. CORS rejections are already logged
+  // server-side with the offending origin in [cors] warn lines.
+  const noisePatterns = [/Not allowed by CORS/i];
+  const shouldForward = !noisePatterns.some((re) => re.test(error.message ?? ""));
+  if (shouldForward) {
+    void postErrorToDiscord({
+      title: error.message || "Unknown error",
+      source: "api",
+      path: req.path,
+      method: req.method,
+      stack: error.stack
+    });
+  }
   if (res.headersSent) return next(err);
   res.status(500).json({ ok: false, message: "Internal server error" });
 });
