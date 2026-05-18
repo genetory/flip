@@ -10,6 +10,7 @@ import {
   applyMyPosition,
   getMyAppliedPositions,
   getMyPartnerOrganization,
+  getPublicPositionById,
   getPublicPositions,
   type PublicPositionListItem
 } from "../../lib/member-profile-client";
@@ -102,14 +103,106 @@ function similarityScore(base: PublicPositionListItem, candidate: PublicPosition
   return score;
 }
 
-export function PositionDetailPage({ position }: { position: PublicPositionListItem }) {
-  const router = useRouter();
+export function PositionDetailPage({
+  position: initialPosition,
+  positionId
+}: {
+  position: PublicPositionListItem | null;
+  positionId: string;
+}) {
+  const [position, setPosition] = useState<PublicPositionListItem | null>(initialPosition);
+  const [isResolving, setIsResolving] = useState(initialPosition === null);
+  const [notFoundForViewer, setNotFoundForViewer] = useState(false);
   const { locale } = useLanguage();
   const isKo = locale === "ko";
   const isZh = locale === "zh-CN";
   const isVi = locale === "vi";
   const isJa = locale === "ja";
   const isId = locale === "id";
+  const { isAuthenticated: isAuthForFetch } = useAuthSession();
+
+  // When the server-side fetch returned null (position is not in the public
+  // OPEN set), retry on the client with the viewer's access token so the
+  // posting partner or an operator can see their own pending-review postings.
+  useEffect(() => {
+    if (initialPosition !== null) return;
+    let cancelled = false;
+    setIsResolving(true);
+    setNotFoundForViewer(false);
+    void (async () => {
+      try {
+        const fetched = await getPublicPositionById(positionId);
+        if (cancelled) return;
+        setPosition(fetched);
+      } catch {
+        if (cancelled) return;
+        setNotFoundForViewer(true);
+      } finally {
+        if (!cancelled) setIsResolving(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialPosition, positionId, isAuthForFetch]);
+
+  if (!position) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
+        <Header />
+        <main className="container py-16">
+          <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-card">
+            {isResolving ? (
+              <>
+                <div className="mx-auto mb-3 h-6 w-1/2 animate-pulse rounded bg-muted" />
+                <div className="mx-auto h-3 w-3/4 animate-pulse rounded bg-muted" />
+              </>
+            ) : (
+              <>
+                <h1 className="font-display text-xl font-bold">
+                  {isKo ? "포지션을 찾을 수 없어요" : isZh ? "找不到该职位" : isVi ? "Không tìm thấy vị trí" : isJa ? "ポジションが見つかりません" : isId ? "Posisi tidak ditemukan" : "Position not found"}
+                </h1>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {notFoundForViewer
+                    ? (isKo
+                      ? "삭제되었거나 권한이 없는 포지션이에요."
+                      : isZh
+                        ? "该职位已删除或您无权限查看。"
+                        : isVi
+                          ? "Vị trí đã bị xóa hoặc bạn không có quyền truy cập."
+                          : isJa
+                            ? "削除されたか、閲覧権限がありません。"
+                            : isId
+                              ? "Posisi telah dihapus atau Anda tidak memiliki izin."
+                              : "This position was removed or you don't have access.")
+                    : (isKo
+                      ? "잠시 후 다시 시도해 주세요."
+                      : isZh
+                        ? "请稍后再试。"
+                        : isVi
+                          ? "Vui lòng thử lại sau."
+                          : isJa
+                            ? "しばらくしてから再度お試しください。"
+                            : isId
+                              ? "Silakan coba lagi nanti."
+                              : "Please try again in a moment.")}
+                </p>
+                <div className="mt-6">
+                  <Button variant="dark" asChild>
+                    <Link href="/positions">
+                      {isKo ? "포지션 목록으로" : isZh ? "返回职位列表" : isVi ? "Về danh sách vị trí" : isJa ? "ポジション一覧へ" : isId ? "Ke daftar posisi" : "Back to positions"}
+                    </Link>
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+  const router = useRouter();
   const t = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
     isKo ? ko : isZh ? zh : isVi ? vi : isJa ? ja : isId ? id : en;
   const copy = {
@@ -261,6 +354,7 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
   }, [position]);
 
   async function markAsApplied() {
+    if (!position) return;
     if (!isAuthenticated || !user?.id) {
       window.alert(copy.loginRequired);
       return;

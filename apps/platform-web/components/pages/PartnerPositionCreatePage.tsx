@@ -383,7 +383,7 @@ export function PartnerPositionCreatePage({
           onEmbeddedClose?.();
         } else {
           window.alert(t("수정사항이 저장되었고 어드민 관리자 승인 요청이 접수되었습니다.", "Changes were saved and sent for ops admin approval.", "修改已保存，并已提交管理员审批请求。", "Các thay đổi đã được lưu và gửi yêu cầu phê duyệt cho quản trị viên.", "変更が保存され、運営管理者への承認依頼が受け付けられました。", "Perubahan telah disimpan dan dikirim untuk persetujuan admin operasi."));
-          router.push("/profile");
+          router.push(`/positions/${encodeURIComponent(positionId)}`);
         }
       } else {
         const created = await createMyPartnerPosition(payload);
