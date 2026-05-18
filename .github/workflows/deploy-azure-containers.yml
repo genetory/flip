@@ -271,6 +271,14 @@ jobs:
             echo "PR develop → main already exists, skipping."
             exit 0
           fi
+          # Skip when develop has no commits ahead of main (e.g. right after
+          # a manual merge). `gh pr create` would otherwise fail with
+          # GraphQL: No commits between main and develop.
+          AHEAD=$(git rev-list --count origin/main..origin/develop)
+          if [ "$AHEAD" = "0" ]; then
+            echo "develop has no commits ahead of main, nothing to promote."
+            exit 0
+          fi
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           BODY="Automated promotion PR. Staging deploy + smoke tests passed.
 
