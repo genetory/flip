@@ -93,7 +93,7 @@ export function VerifyEmailPage() {
         setState("success");
 
         setTimeout(() => {
-          router.push("/signup/completed");
+          router.push("/profile");
           router.refresh();
         }, 800);
       } catch (e) {

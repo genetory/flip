@@ -211,7 +211,7 @@ export function ProfileResumeSectionEditPage() {
 
   const sectionItems = useMemo(
     () => [
-      { id: "work-availability", title: tr("근무 가능 조건", "Work availability", "工作条件", "Điều kiện làm việc", "勤務可能条件", "Ketersediaan kerja") },
+      { id: "work-availability", title: tr("근무 가능 조건", "Availability", "工作条件", "Điều kiện làm việc", "勤務可能条件", "Ketersediaan kerja") },
       { id: "education", title: tr("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan") },
       { id: "language", title: tr("언어 능력", "Language skills", "语言能力", "Khả năng ngôn ngữ", "言語スキル", "Kemampuan bahasa") },
       { id: "career", title: tr("경력", "Experience", "经历", "Kinh nghiệm", "経歴", "Pengalaman kerja") },
@@ -748,36 +748,60 @@ export function ProfileResumeSectionEditPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="space-y-3 pt-4">
+                  <div className="space-y-4 pt-4">
                     <p className="text-sm font-semibold">{editingEducationId ? tr("학력 수정", "Edit education", "编辑学历", "Chỉnh sửa học vấn", "学歴の編集", "Edit pendidikan") : tr("학력 추가", "Add education", "添加学历", "Thêm học vấn", "学歴を追加", "Tambah pendidikan")}</p>
-                    <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("학교명", "School", "学校名称", "Tên trường", "学校名", "Nama sekolah")} value={educationSchoolName} onChange={(e) => setEducationSchoolName(e.target.value)} />
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <select className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={educationType} onChange={(e) => setEducationType(e.target.value)}>
-                        <option value="HIGH_SCHOOL">{educationTypeLabel("HIGH_SCHOOL", tr)}</option>
-                        <option value="ASSOCIATE">{educationTypeLabel("ASSOCIATE", tr)}</option>
-                        <option value="BACHELOR">{educationTypeLabel("BACHELOR", tr)}</option>
-                        <option value="MASTER">{educationTypeLabel("MASTER", tr)}</option>
-                        <option value="DOCTOR">{educationTypeLabel("DOCTOR", tr)}</option>
-                        <option value="BOOTCAMP">{educationTypeLabel("BOOTCAMP", tr)}</option>
-                        <option value="CERTIFICATE">{educationTypeLabel("CERTIFICATE", tr)}</option>
-                        <option value="OTHER">{educationTypeLabel("OTHER", tr)}</option>
-                      </select>
-                      <select className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={educationStatus} onChange={(e) => setEducationStatus(e.target.value)}>
-                        <option value="ENROLLED">{educationStatusLabel("ENROLLED", tr)}</option>
-                        <option value="GRADUATED">{educationStatusLabel("GRADUATED", tr)}</option>
-                        <option value="LEAVE_OF_ABSENCE">{educationStatusLabel("LEAVE_OF_ABSENCE", tr)}</option>
-                        <option value="DROPPED_OUT">{educationStatusLabel("DROPPED_OUT", tr)}</option>
-                        <option value="OTHER">{educationStatusLabel("OTHER", tr)}</option>
-                      </select>
-                    </div>
-                    <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("전공", "Major", "专业", "Chuyên ngành", "専攻", "Jurusan")} value={educationMajor} onChange={(e) => setEducationMajor(e.target.value)} />
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("국가", "Country", "国家", "Quốc gia", "国", "Negara")} value={educationCountry} onChange={(e) => setEducationCountry(e.target.value)} />
-                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("도시", "City", "城市", "Thành phố", "都市", "Kota")} value={educationCity} onChange={(e) => setEducationCity(e.target.value)} />
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{tr("학교명", "School", "学校名称", "Tên trường", "学校名", "Nama sekolah")}</label>
+                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("예: 서울대학교", "e.g., Seoul National University", "例：首尔国立大学", "Ví dụ: Đại học Quốc gia Seoul", "例: ソウル大学校", "Contoh: Universitas Nasional Seoul")} value={educationSchoolName} onChange={(e) => setEducationSchoolName(e.target.value)} />
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
-                      <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={educationStartDate} onChange={(e) => setEducationStartDate(e.target.value)} />
-                      <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={educationEndDate} onChange={(e) => setEducationEndDate(e.target.value)} />
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("교육 구분", "Education type", "教育类型", "Loại học vấn", "教育区分", "Jenis pendidikan")}</label>
+                        <select className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={educationType} onChange={(e) => setEducationType(e.target.value)}>
+                          <option value="HIGH_SCHOOL">{educationTypeLabel("HIGH_SCHOOL", tr)}</option>
+                          <option value="ASSOCIATE">{educationTypeLabel("ASSOCIATE", tr)}</option>
+                          <option value="BACHELOR">{educationTypeLabel("BACHELOR", tr)}</option>
+                          <option value="MASTER">{educationTypeLabel("MASTER", tr)}</option>
+                          <option value="DOCTOR">{educationTypeLabel("DOCTOR", tr)}</option>
+                          <option value="BOOTCAMP">{educationTypeLabel("BOOTCAMP", tr)}</option>
+                          <option value="CERTIFICATE">{educationTypeLabel("CERTIFICATE", tr)}</option>
+                          <option value="OTHER">{educationTypeLabel("OTHER", tr)}</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("재학 상태", "Status", "在校状态", "Tình trạng", "在学状況", "Status")}</label>
+                        <select className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={educationStatus} onChange={(e) => setEducationStatus(e.target.value)}>
+                          <option value="ENROLLED">{educationStatusLabel("ENROLLED", tr)}</option>
+                          <option value="GRADUATED">{educationStatusLabel("GRADUATED", tr)}</option>
+                          <option value="LEAVE_OF_ABSENCE">{educationStatusLabel("LEAVE_OF_ABSENCE", tr)}</option>
+                          <option value="DROPPED_OUT">{educationStatusLabel("DROPPED_OUT", tr)}</option>
+                          <option value="OTHER">{educationStatusLabel("OTHER", tr)}</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{tr("전공", "Major", "专业", "Chuyên ngành", "専攻", "Jurusan")}</label>
+                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("예: 컴퓨터공학", "e.g., Computer Science", "例：计算机科学", "Ví dụ: Khoa học máy tính", "例: コンピュータサイエンス", "Contoh: Ilmu Komputer")} value={educationMajor} onChange={(e) => setEducationMajor(e.target.value)} />
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("국가", "Country", "国家", "Quốc gia", "国", "Negara")}</label>
+                        <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("예: 대한민국", "e.g., South Korea", "例：韩国", "Ví dụ: Hàn Quốc", "例: 韓国", "Contoh: Korea Selatan")} value={educationCountry} onChange={(e) => setEducationCountry(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("도시", "City", "城市", "Thành phố", "都市", "Kota")}</label>
+                        <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("예: 서울", "e.g., Seoul", "例：首尔", "Ví dụ: Seoul", "例: ソウル", "Contoh: Seoul")} value={educationCity} onChange={(e) => setEducationCity(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("입학일", "Start date", "入学日期", "Ngày bắt đầu", "入学日", "Tanggal mulai")}</label>
+                        <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={educationStartDate} onChange={(e) => setEducationStartDate(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("졸업(예정)일", "End date", "毕业(预定)日期", "Ngày kết thúc", "卒業(予定)日", "Tanggal selesai")}</label>
+                        <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={educationEndDate} onChange={(e) => setEducationEndDate(e.target.value)} />
+                      </div>
                     </div>
                     <label className="inline-flex items-center gap-2 text-sm">
                       <input type="checkbox" checked={educationIsKoreanSchool} onChange={(e) => setEducationIsKoreanSchool(e.target.checked)} />
@@ -811,23 +835,35 @@ export function ProfileResumeSectionEditPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="space-y-3 pt-4">
+                  <div className="space-y-4 pt-4">
                     <p className="text-sm font-semibold">{editingLanguageId ? tr("언어 능력 수정", "Edit language skill", "编辑语言能力", "Chỉnh sửa khả năng ngôn ngữ", "言語スキルの編集", "Edit kemampuan bahasa") : tr("언어 능력 추가", "Add language skill", "添加语言能力", "Thêm khả năng ngôn ngữ", "言語スキルを追加", "Tambah kemampuan bahasa")}</p>
                     <div className="grid gap-3 md:grid-cols-2">
-                      <select className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={language} onChange={(e) => setLanguage(e.target.value)}>
-                        {["KOREAN", "ENGLISH", "CHINESE", "JAPANESE", "VIETNAMESE", "INDONESIAN", "THAI", "MALAY", "FILIPINO", "HINDI", "SPANISH", "FRENCH", "GERMAN", "OTHER"].map((item) => (
-                          <option key={item} value={item}>{languageLabel(item, tr)}</option>
-                        ))}
-                      </select>
-                      <select className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={languageLevel} onChange={(e) => setLanguageLevel(e.target.value)}>
-                        {["BEGINNER", "INTERMEDIATE", "ADVANCED", "NATIVE"].map((item) => (
-                          <option key={item} value={item}>{languageLevelLabel(item, tr)}</option>
-                        ))}
-                      </select>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa")}</label>
+                        <select className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={language} onChange={(e) => setLanguage(e.target.value)}>
+                          {["KOREAN", "ENGLISH", "CHINESE", "JAPANESE", "VIETNAMESE", "INDONESIAN", "THAI", "MALAY", "FILIPINO", "HINDI", "SPANISH", "FRENCH", "GERMAN", "OTHER"].map((item) => (
+                            <option key={item} value={item}>{languageLabel(item, tr)}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("수준", "Level", "水平", "Trình độ", "レベル", "Tingkat")}</label>
+                        <select className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={languageLevel} onChange={(e) => setLanguageLevel(e.target.value)}>
+                          {["BEGINNER", "INTERMEDIATE", "ADVANCED", "NATIVE"].map((item) => (
+                            <option key={item} value={item}>{languageLevelLabel(item, tr)}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
-                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("시험명", "Test name", "考试名称", "Tên kỳ thi", "試験名", "Nama tes")} value={languageTestName} onChange={(e) => setLanguageTestName(e.target.value)} />
-                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("점수/등급", "Score/grade", "分数/等级", "Điểm/Cấp độ", "スコア・等級", "Skor/Tingkat")} value={languageScore} onChange={(e) => setLanguageScore(e.target.value)} />
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("시험명", "Test name", "考试名称", "Tên kỳ thi", "試験名", "Nama tes")}</label>
+                        <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("예: TOPIK, TOEIC", "e.g., TOPIK, TOEIC", "例：TOPIK, TOEIC", "Ví dụ: TOPIK, TOEIC", "例: TOPIK, TOEIC", "Contoh: TOPIK, TOEIC")} value={languageTestName} onChange={(e) => setLanguageTestName(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("점수/등급", "Score/grade", "分数/等级", "Điểm/Cấp độ", "スコア・等級", "Skor/Tingkat")}</label>
+                        <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("예: 6급, 900점", "e.g., Level 6, 900", "例：6级、900分", "Ví dụ: Cấp 6, 900", "例: 6級、900点", "Contoh: Tingkat 6, 900")} value={languageScore} onChange={(e) => setLanguageScore(e.target.value)} />
+                      </div>
                     </div>
                     <div className="flex justify-end gap-2">
                       {editingLanguageId ? <Button variant="outline" onClick={resetLanguageForm}>{tr("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</Button> : null}
@@ -860,22 +896,40 @@ export function ProfileResumeSectionEditPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="space-y-3 pt-4">
+                  <div className="space-y-4 pt-4">
                     <p className="text-sm font-semibold">{editingCareerId ? tr("경력 수정", "Edit career", "编辑经历", "Chỉnh sửa kinh nghiệm", "経歴の編集", "Edit pengalaman") : tr("경력 추가", "Add career", "添加经历", "Thêm kinh nghiệm", "経歴を追加", "Tambah pengalaman")}</p>
                     <div className="grid gap-3 md:grid-cols-2">
-                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("회사명", "Company", "公司", "Công ty", "会社名", "Perusahaan")} value={careerCompanyName} onChange={(e) => setCareerCompanyName(e.target.value)} />
-                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("직무", "Role", "岗位", "Vị trí", "職務", "Peran")} value={careerPosition} onChange={(e) => setCareerPosition(e.target.value)} />
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("회사명", "Company", "公司", "Công ty", "会社名", "Perusahaan")}</label>
+                        <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("예: 플리퍼스", "e.g., Flippers", "例：Flippers", "Ví dụ: Flippers", "例: Flippers", "Contoh: Flippers")} value={careerCompanyName} onChange={(e) => setCareerCompanyName(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("직무", "Role", "岗位", "Vị trí", "職務", "Peran")}</label>
+                        <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("예: 백엔드 개발자", "e.g., Backend Engineer", "例：后端工程师", "Ví dụ: Lập trình viên backend", "例: バックエンドエンジニア", "Contoh: Backend Engineer")} value={careerPosition} onChange={(e) => setCareerPosition(e.target.value)} />
+                      </div>
                     </div>
-                    <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("부서", "Department", "部门", "Phòng ban", "部署", "Departemen")} value={careerDepartment} onChange={(e) => setCareerDepartment(e.target.value)} />
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{tr("부서", "Department", "部门", "Phòng ban", "部署", "Departemen")}</label>
+                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("예: 개발팀", "e.g., Engineering", "例：开发部", "Ví dụ: Phòng Kỹ thuật", "例: 開発チーム", "Contoh: Tim Engineering")} value={careerDepartment} onChange={(e) => setCareerDepartment(e.target.value)} />
+                    </div>
                     <label className="inline-flex items-center gap-2 text-sm">
                       <input type="checkbox" checked={careerIsCurrent} onChange={(e) => setCareerIsCurrent(e.target.checked)} />
                       {tr("현재 재직 중", "Currently employed", "目前在职", "Hiện đang làm việc", "現在在職中", "Sedang bekerja")}
                     </label>
                     <div className="grid gap-3 md:grid-cols-2">
-                      <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={careerStartDate} onChange={(e) => setCareerStartDate(e.target.value)} />
-                      <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={careerEndDate} onChange={(e) => setCareerEndDate(e.target.value)} disabled={careerIsCurrent} />
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("입사일", "Start date", "入职日期", "Ngày bắt đầu", "入社日", "Tanggal mulai")}</label>
+                        <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={careerStartDate} onChange={(e) => setCareerStartDate(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("퇴사일", "End date", "离职日期", "Ngày kết thúc", "退社日", "Tanggal selesai")}</label>
+                        <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={careerEndDate} onChange={(e) => setCareerEndDate(e.target.value)} disabled={careerIsCurrent} />
+                      </div>
                     </div>
-                    <textarea className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("업무 설명", "Description", "工作描述", "Mô tả công việc", "業務説明", "Deskripsi pekerjaan")} value={careerDescription} onChange={(e) => setCareerDescription(e.target.value)} />
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{tr("업무 설명", "Description", "工作描述", "Mô tả công việc", "業務説明", "Deskripsi pekerjaan")}</label>
+                      <textarea className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("주요 업무, 성과, 사용한 기술 등을 적어주세요.", "Key responsibilities, outcomes, tools used...", "请描述主要工作内容、成果与使用的技术等。", "Trách nhiệm chính, thành quả, công nghệ đã dùng...", "主な業務、成果、使用した技術などをご記入ください。", "Tanggung jawab utama, hasil, alat yang dipakai...")} value={careerDescription} onChange={(e) => setCareerDescription(e.target.value)} />
+                    </div>
                     <div className="flex justify-end gap-2">
                       {editingCareerId ? <Button variant="outline" onClick={resetCareerForm}>{tr("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</Button> : null}
                       <Button variant="dark" onClick={() => void saveCareer()} disabled={saving}>{saving ? tr("저장 중...", "Saving...", "保存中...", "Đang lưu...", "保存中...", "Menyimpan...") : tr("저장", "Save", "保存", "Lưu", "保存", "Simpan")}</Button>
@@ -907,23 +961,44 @@ export function ProfileResumeSectionEditPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="space-y-3 pt-4">
+                  <div className="space-y-4 pt-4">
                     <p className="text-sm font-semibold">{editingActivityId ? tr("활동 경험 수정", "Edit activity", "编辑活动经验", "Chỉnh sửa hoạt động", "活動経歴の編集", "Edit kegiatan") : tr("활동 경험 추가", "Add activity", "添加活动经验", "Thêm hoạt động", "活動経歴を追加", "Tambah kegiatan")}</p>
-                    <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("활동명", "Title", "活动名称", "Tên hoạt động", "活動名", "Judul")} value={activityTitle} onChange={(e) => setActivityTitle(e.target.value)} />
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <select className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={activityType} onChange={(e) => setActivityType(e.target.value)}>
-                        {["PROJECT", "VOLUNTEER", "INTERNSHIP", "CERTIFICATE", "AWARD", "EXTRACURRICULAR", "OTHER"].map((item) => (
-                          <option key={item} value={item}>{activityTypeLabel(item, tr)}</option>
-                        ))}
-                      </select>
-                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("기관/조직", "Organization", "机构/组织", "Tổ chức", "機関・組織", "Organisasi")} value={activityOrganization} onChange={(e) => setActivityOrganization(e.target.value)} />
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{tr("활동명", "Title", "活动名称", "Tên hoạt động", "活動名", "Judul")}</label>
+                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("예: 해커톤 우승", "e.g., Hackathon winner", "例：黑客松冠军", "Ví dụ: Quán quân hackathon", "例: ハッカソン優勝", "Contoh: Pemenang hackathon")} value={activityTitle} onChange={(e) => setActivityTitle(e.target.value)} />
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
-                      <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={activityStartDate} onChange={(e) => setActivityStartDate(e.target.value)} />
-                      <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={activityEndDate} onChange={(e) => setActivityEndDate(e.target.value)} />
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("활동 유형", "Activity type", "活动类型", "Loại hoạt động", "活動の種類", "Jenis kegiatan")}</label>
+                        <select className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={activityType} onChange={(e) => setActivityType(e.target.value)}>
+                          {["PROJECT", "VOLUNTEER", "INTERNSHIP", "CERTIFICATE", "AWARD", "EXTRACURRICULAR", "OTHER"].map((item) => (
+                            <option key={item} value={item}>{activityTypeLabel(item, tr)}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("기관/조직", "Organization", "机构/组织", "Tổ chức", "機関・組織", "Organisasi")}</label>
+                        <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("예: 학교 동아리", "e.g., University club", "例：学校社团", "Ví dụ: Câu lạc bộ trường", "例: 大学のサークル", "Contoh: Klub kampus")} value={activityOrganization} onChange={(e) => setActivityOrganization(e.target.value)} />
+                      </div>
                     </div>
-                    <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("활동 스킬 (쉼표 구분)", "Skills (comma-separated)", "活动技能 (逗号分隔)", "Kỹ năng (phân cách bằng dấu phẩy)", "活動スキル(カンマ区切り)", "Keahlian kegiatan (dipisahkan koma)")} value={activitySkills} onChange={(e) => setActivitySkills(e.target.value)} />
-                    <textarea className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("활동 설명", "Description", "活动描述", "Mô tả hoạt động", "活動の説明", "Deskripsi kegiatan")} value={activityDescription} onChange={(e) => setActivityDescription(e.target.value)} />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("시작일", "Start date", "开始日期", "Ngày bắt đầu", "開始日", "Tanggal mulai")}</label>
+                        <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={activityStartDate} onChange={(e) => setActivityStartDate(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{tr("종료일", "End date", "结束日期", "Ngày kết thúc", "終了日", "Tanggal selesai")}</label>
+                        <input type="date" className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" value={activityEndDate} onChange={(e) => setActivityEndDate(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{tr("활동 스킬", "Skills", "活动技能", "Kỹ năng", "活動スキル", "Keahlian")}</label>
+                      <input className="h-10 w-full rounded-md border-0 bg-muted/50 px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("쉼표로 구분 (예: React, Figma)", "Comma-separated (e.g., React, Figma)", "用逗号分隔（例：React, Figma）", "Phân cách bằng dấu phẩy (ví dụ: React, Figma)", "カンマ区切り (例: React, Figma)", "Dipisahkan koma (contoh: React, Figma)")} value={activitySkills} onChange={(e) => setActivitySkills(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{tr("활동 설명", "Description", "活动描述", "Mô tả hoạt động", "活動の説明", "Deskripsi kegiatan")}</label>
+                      <textarea className="min-h-24 w-full rounded-md border-0 bg-muted/50 px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" placeholder={tr("어떤 활동이었는지, 무엇을 배우거나 만들어냈는지 적어주세요.", "Describe what the activity was and what you learned or built.", "请描述活动内容及您学到或创造的成果。", "Mô tả hoạt động và những gì bạn đã học hoặc đạt được.", "活動内容と、学んだこと・成果をご記入ください。", "Jelaskan kegiatan dan apa yang Anda pelajari atau hasilkan.")} value={activityDescription} onChange={(e) => setActivityDescription(e.target.value)} />
+                    </div>
                     <div className="flex justify-end gap-2">
                       {editingActivityId ? <Button variant="outline" onClick={resetActivityForm}>{tr("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</Button> : null}
                       <Button variant="dark" onClick={() => void saveActivity()} disabled={saving}>{saving ? tr("저장 중...", "Saving...", "保存中...", "Đang lưu...", "保存中...", "Menyimpan...") : tr("저장", "Save", "保存", "Lưu", "保存", "Simpan")}</Button>

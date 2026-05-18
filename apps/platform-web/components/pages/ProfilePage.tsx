@@ -525,7 +525,7 @@ export function ProfilePage() {
   const studentResumeSections = useMemo<StudentResumeSection[]>(
     () => [
       {
-        title: tr("근무 가능 조건", "Work availability", "工作可行条件", "Điều kiện làm việc", "勤務可能条件", "Ketersediaan kerja"),
+        title: tr("근무 가능 조건", "Availability", "工作可行条件", "Điều kiện làm việc", "勤務可能条件", "Ketersediaan kerja"),
         description: tr("매칭 정확도를 높이는 기본 조건입니다.", "Core conditions that improve matching accuracy.", "提高匹配准确度的基本条件。", "Điều kiện cơ bản giúp nâng cao độ chính xác khi ghép cặp.", "マッチング精度を高める基本条件です。", "Kondisi inti yang meningkatkan akurasi pencocokan."),
         fields: [
           { label: tr("비자 유형", "Visa type", "签证类型", "Loại visa", "ビザの種類", "Jenis visa"), value: enumDisplay(studentProfile?.visaType) },
