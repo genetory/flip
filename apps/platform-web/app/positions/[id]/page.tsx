@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { PositionDetailPage } from "../../../components/pages/PositionDetailPage";
 import type { PublicPositionListItem } from "../../../lib/member-profile-client";
 
@@ -123,18 +122,20 @@ function buildJobPostingJsonLd(position: PublicPositionListItem) {
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // SSR fetch only sees OPEN/public positions. We do NOT 404 here — the
+  // PositionDetailPage falls back to an authenticated client fetch so the
+  // posting partner (and operators) can view their own pending-review
+  // positions before approval.
   const position = await fetchPublicPosition(id);
-  if (!position) {
-    notFound();
-  }
-  const jsonLd = buildJobPostingJsonLd(position);
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <PositionDetailPage position={position} />
+      {position ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(buildJobPostingJsonLd(position)) }}
+        />
+      ) : null}
+      <PositionDetailPage position={position} positionId={id} />
     </>
   );
 }
