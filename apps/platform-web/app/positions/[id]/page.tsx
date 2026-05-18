@@ -47,9 +47,15 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const position = await fetchPublicPosition(id);
   if (!position) {
+    // Position is missing from the public listing (deleted, paused, closed,
+    // or pending review). The page still renders a client-side authed
+    // fetch so the owning partner can see it, but we must tell crawlers to
+    // skip indexing so they don't treat the empty shell as a soft 404 and
+    // demote the rest of the position URLs.
     return {
       title: "포지션을 찾을 수 없음 | Aply",
-      robots: { index: false }
+      robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
+      alternates: { canonical: `${siteUrl}/positions` }
     };
   }
   const companyName = position.partnerOrganization?.name ?? position.sourceCompanyName ?? "Aply";
