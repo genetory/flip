@@ -1072,6 +1072,7 @@ export const CommunityPage = () => {
                   (() => {
                     const translation = translations[post.id];
                     const isMyPost = Boolean(user?.id && post.authorId === user.id);
+                    const canModerate = isMyPost || user?.role === "OPERATOR";
                     const displayAuthor = isMyPost
                       ? (user?.name?.trim() || user?.email?.split("@")[0] || post.author)
                       : post.author;
@@ -1124,7 +1125,7 @@ export const CommunityPage = () => {
                         </button>
                         {activePostMenuId === post.id ? (
                           <div className="absolute right-0 top-9 z-20 min-w-[108px] rounded-md border border-slate-200 bg-white py-1">
-                            {isMyPost ? (
+                            {canModerate ? (
                               <>
                                 <button
                                   type="button"

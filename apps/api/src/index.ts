@@ -5356,7 +5356,7 @@ app.patch("/community/posts/:postId", authenticate, requireRoles([MemberRole.STU
     select: { id: true, authorId: true, body: true, category: true, imageUrls: true }
   });
   if (!existing) return res.status(404).json({ ok: false, message: "post not found" });
-  if (existing.authorId !== req.auth!.userId) {
+  if (existing.authorId !== req.auth!.userId && req.auth!.role !== MemberRole.OPERATOR) {
     return res.status(403).json({ ok: false, message: "forbidden" });
   }
 
@@ -5406,7 +5406,7 @@ app.delete("/community/posts/:postId", authenticate, requireRoles([MemberRole.ST
     select: { id: true, authorId: true }
   });
   if (!existing) return res.status(404).json({ ok: false, message: "post not found" });
-  if (existing.authorId !== req.auth!.userId) {
+  if (existing.authorId !== req.auth!.userId && req.auth!.role !== MemberRole.OPERATOR) {
     return res.status(403).json({ ok: false, message: "forbidden" });
   }
 
