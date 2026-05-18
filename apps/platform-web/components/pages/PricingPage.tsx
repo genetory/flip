@@ -5,14 +5,18 @@ import { useEffect, useRef, useState } from "react";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { useAuthSession } from "../auth/AuthSessionProvider";
 import { paperlogy } from "../../lib/fonts";
 
 export function PricingPage() {
   const { locale } = useLanguage();
+  const { user } = useAuthSession();
+  const isPartner = user?.role === "PARTNER";
   const t = (ko: string, en: string, zh?: string, vi?: string, ja?: string, id?: string) =>
     locale === "ko" ? ko : locale === "zh-CN" ? (zh ?? en) : locale === "vi" ? (vi ?? en) : locale === "ja" ? (ja ?? en) : locale === "id" ? (id ?? en) : en;
   const refundCardRef = useRef<HTMLElement | null>(null);
   const [isRefundCardVisible, setIsRefundCardVisible] = useState(false);
+  const [audienceTab, setAudienceTab] = useState<"student" | "business">("student");
   const priceSuffixClassName = "text-sm font-semibold md:text-base";
 
   const copy = {
@@ -197,98 +201,201 @@ export function PricingPage() {
                   sizes="(max-width: 1024px) 100vw, 1024px"
                 />
               </div>
-              <div className="grid w-full gap-3 md:grid-cols-2 md:items-stretch">
+              <div className="space-y-4">
+                <div className="inline-flex rounded-full bg-muted p-1">
+                  <button
+                    type="button"
+                    onClick={() => setAudienceTab("student")}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                      audienceTab === "student" ? "bg-[#0B46E8] text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t("학생용", "For students", "学生用", "Dành cho sinh viên", "学生向け", "Untuk pelajar")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isPartner) {
+                        alert(t(
+                          "기업 회원으로 로그인하시면 기업용 안내를 확인하실 수 있습니다.",
+                          "Please sign in as a partner (business) member to view business pricing.",
+                          "请使用企业会员账号登录以查看企业版方案。",
+                          "Vui lòng đăng nhập bằng tài khoản doanh nghiệp để xem gói dành cho doanh nghiệp.",
+                          "企業会員でログインすると、企業向けのご案内をご確認いただけます。",
+                          "Silakan masuk sebagai mitra (perusahaan) untuk melihat informasi untuk perusahaan."
+                        ));
+                        return;
+                      }
+                      setAudienceTab("business");
+                    }}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                      audienceTab === "business"
+                        ? "bg-[#0B46E8] text-white shadow-sm"
+                        : isPartner
+                          ? "text-muted-foreground hover:text-foreground"
+                          : "text-muted-foreground/60"
+                    }`}
+                    aria-disabled={!isPartner}
+                  >
+                    {t("기업용", "For businesses", "企业用", "Dành cho doanh nghiệp", "企業向け", "Untuk perusahaan")}
+                    {!isPartner ? (
+                      <span className="ml-1.5 text-[10px]" aria-hidden>🔒</span>
+                    ) : null}
+                  </button>
+                </div>
+
+                {audienceTab === "student" ? (
+                <div className="grid w-full gap-3 md:grid-cols-2 md:items-stretch">
                   <article className="flex h-full w-full flex-col rounded-2xl bg-white p-5 text-[#111111] shadow-card md:p-6">
                     <span className="mb-3 inline-flex w-fit items-center rounded-full bg-[#B7FF5A] px-2.5 py-1 text-[11px] font-semibold text-black">
                       {t("진행중", "In Progress", "进行中", "Đang triển khai", "進行中", "Berlangsung")}
                     </span>
-                    <h4 className={`${paperlogy.className} text-xl font-black tracking-[-0.02em] md:text-2xl`}>{t("해외 대학 출신 일경험", "Work Experience for Overseas Graduates", "海外大学毕业生工作经验", "Trải nghiệm việc làm cho cử nhân từ nước ngoài", "海外大学出身者向けの就労体験", "Pengalaman Kerja untuk Lulusan Universitas Luar Negeri")}</h4>
-                    <p className="mt-1 text-sm font-medium text-foreground/90">{t("해외 대학 출신을 위한 한국 기업 일경험", "Korean-company work experience for overseas graduates", "面向海外大学毕业生的韩国企业工作体验", "Trải nghiệm làm việc tại doanh nghiệp Hàn Quốc dành cho cử nhân nước ngoài", "海外大学出身者向けの韓国企業就労体験", "Pengalaman kerja di perusahaan Korea untuk lulusan luar negeri")}</p>
-                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground md:text-sm">
-                      {t(
-                        "한국 기업의 업무 방식과 직무 문화를 짧은 기간 경험할 수 있는 교육 목적 프로그램입니다. 한국 취업을 바로 보장하는 과정이 아니라, 한국 기업과 산업을 먼저 이해하고 향후 취업 가능성을 탐색하는 데 적합합니다.",
-                        "An education-focused program to experience Korean work style and job culture over a short period. It does not guarantee employment and helps participants explore future career possibilities.",
-                        "这是一个以教育为目的的项目,可在短期内体验韩国企业的工作方式和职务文化。本项目并不直接保证韩国就业,适合先了解韩国企业和行业,再探索未来就业可能性的人士。",
-                        "Đây là chương trình mang tính giáo dục, giúp bạn trải nghiệm phong cách làm việc và văn hóa công sở Hàn Quốc trong thời gian ngắn. Chương trình không đảm bảo việc làm mà giúp bạn tìm hiểu doanh nghiệp Hàn Quốc và khám phá cơ hội việc làm trong tương lai."
-                      )}
-                    </p>
+                    <h4 className={`${paperlogy.className} text-xl font-black tracking-[-0.02em] md:text-2xl`}>Starter Track</h4>
+                    <p className="mt-1 text-sm font-medium text-foreground/90">{t("단기 체험 중심의 일경험 트랙", "Short-term work experience track", "以短期体验为主的工作经验轨道", "Tuyến trải nghiệm làm việc ngắn hạn", "短期体験中心の就労体験トラック", "Trek pengalaman kerja jangka pendek")}</p>
                     <div className="mt-4 overflow-x-auto rounded-xl bg-white/92">
                       <table className="w-full min-w-[320px] border-collapse text-left text-sm">
                         <tbody>
-                          <tr className="border-b border-border/60"><th className="w-24 bg-muted/30 px-3 py-2 font-semibold">{t("대상", "Target", "对象", "Đối tượng", "対象", "Sasaran")}</th><td className="px-3 py-2">{t("해외 대학 출신", "Overseas university graduates", "海外大学毕业生", "Cử nhân từ đại học nước ngoài", "海外大学出身者", "Lulusan universitas luar negeri")}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("목적", "Purpose", "目的", "Mục đích", "目的", "Tujuan")}</th><td className="px-3 py-2">{t("한국 기업 일경험 및 직무 이해", "Korean-company work experience and role understanding", "韩国企业工作经验及岗位理解", "Trải nghiệm làm việc và hiểu biết về vị trí tại doanh nghiệp Hàn Quốc", "韓国企業の就労体験および職務理解", "Pengalaman kerja dan pemahaman peran di perusahaan Korea")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="w-32 bg-muted/30 px-3 py-2 font-semibold">{t("대상", "Target", "对象", "Đối tượng", "対象", "Sasaran")}</th><td className="px-3 py-2">{t("관광비자(C-3), 교환학생(D-2-6) 비자 소지자", "Tourist (C-3), Exchange student (D-2-6) visa holders", "持有旅游签证(C-3)、交换学生(D-2-6)签证者", "Người có visa du lịch (C-3), trao đổi sinh viên (D-2-6)", "観光ビザ(C-3)、交換留学(D-2-6)ビザ保持者", "Pemegang visa wisata (C-3), pertukaran pelajar (D-2-6)")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("국적", "Nationality", "国籍", "Quốc tịch", "国籍", "Kewarganegaraan")}</th><td className="px-3 py-2">{t("무관", "Any", "不限", "Không giới hạn", "問わず", "Bebas")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa")}</th><td className="px-3 py-2">{t("모국어 및 영어", "Native + English", "母语及英语", "Tiếng mẹ đẻ và tiếng Anh", "母国語＋英語", "Bahasa ibu + Inggris")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")}</th><td className="px-3 py-2">{t("국내/해외 4년제 대학 재학생 및 졸업생", "Korean/overseas 4-year university students or graduates", "国内/海外四年制大学在读生及毕业生", "Sinh viên/cựu sinh viên đại học 4 năm trong và ngoài nước", "国内・海外の4年制大学の在学生および卒業生", "Mahasiswa/lulusan universitas 4 tahun di Korea/luar negeri")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("기간", "Duration", "期间", "Thời gian", "期間", "Durasi")}</th><td className="px-3 py-2">{t("3주 ~ 16주", "3–16 weeks", "3周~16周", "3–16 tuần", "3週間〜16週間", "3–16 minggu")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("목적", "Purpose", "目的", "Mục đích", "目的", "Tujuan")}</th><td className="px-3 py-2">{t("교육 목적", "Education", "教育目的", "Mục đích giáo dục", "教育目的", "Pendidikan")}</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("급여", "Salary", "薪资", "Lương", "給与", "Gaji")}</th><td className="px-3 py-2">{t("없음", "None", "无", "Không", "なし", "Tidak ada")}</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("참여비", "Applicant fee", "参与费", "Phí tham gia", "参加費", "Biaya partisipasi")}</th><td className="px-3 py-2">2,000,000원</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("기업 수수료", "Company fee", "企业费用", "Phí doanh nghiệp", "企業手数料", "Biaya perusahaan")}</th><td className="px-3 py-2">{t("없음", "None", "无", "Không", "なし", "Tidak ada")}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("수료증", "Certificate", "结业证书", "Chứng chỉ", "修了証", "Sertifikat")}</th><td className="px-3 py-2">{t("발급", "Provided", "提供", "Cấp", "発行", "Diberikan")}</td></tr>
-                          <tr><th className="bg-muted/30 px-3 py-2 font-semibold">{t("전환 가능성", "Conversion", "转正可能性", "Khả năng chuyển đổi", "正社員転換の可能性", "Kemungkinan konversi")}</th><td className="px-3 py-2">{t("전환 가능, 보장하지 않음", "Possible, not guaranteed", "可转正，不保证", "Có thể chuyển đổi, không đảm bảo", "転換は可能、保証なし", "Mungkin, tidak dijamin")}</td></tr>
+                          <tr><th className="bg-muted/30 px-3 py-2 font-semibold">{t("채용 전환", "Conversion", "转正可能性", "Chuyển đổi tuyển dụng", "採用転換", "Konversi rekrut")}</th><td className="px-3 py-2">{t("가능 (보장 X)", "Possible (not guaranteed)", "可转正（不保证）", "Có thể (không đảm bảo)", "可能（保証なし）", "Mungkin (tidak dijamin)")}</td></tr>
                         </tbody>
                       </table>
                     </div>
                     <div className="mt-4">
-                      <p className="text-sm font-semibold">{t("제공 내용", "What is provided", "提供内容", "Nội dung được cung cấp", "提供内容", "Yang disediakan")}</p>
+                      <p className="text-sm font-semibold">{t("기업 제공 항목", "Provided by the company", "企业提供项目", "Doanh nghiệp cung cấp", "企業提供項目", "Disediakan oleh perusahaan")}</p>
                       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                        <li>{t("직무 교육 제공 (플리퍼스)", "Job orientation/training (Flipers)", "职务培训提供 (Flipers)", "Đào tạo nghiệp vụ (Flipers)", "職務教育の提供（Flipers）", "Pelatihan jabatan (Flipers)")}</li>
-                        <li>{t("수료증 발급 (플리퍼스)", "Completion certificate (Flipers)", "结业证书发放 (Flipers)", "Cấp chứng chỉ hoàn thành (Flipers)", "修了証の発行（Flipers）", "Penerbitan sertifikat (Flipers)")}</li>
-                        <li>{t("정기 면담, 과제, 피드백 (기업 협조 기반)", "Periodic check-ins, tasks, and feedback (company-supported)", "定期面谈、任务、反馈（基于企业配合）", "Gặp mặt định kỳ, nhiệm vụ, phản hồi (dựa trên hỗ trợ doanh nghiệp)", "定期面談、課題、フィードバック（企業協力に基づく）", "Pertemuan rutin, tugas, dan umpan balik (didukung perusahaan)")}</li>
-                        <li>{t("추천서 제공은 기업 희망 시 자율 진행", "Recommendation letter only if the company chooses to provide it", "推荐信由企业自主决定是否提供", "Thư giới thiệu được cung cấp tùy doanh nghiệp", "推薦状の提供は企業の希望により任意で実施", "Surat rekomendasi diberikan hanya jika perusahaan memilih untuk memberikannya")}</li>
+                        <li>{t("담당자 정기 면담", "Mentor check-ins", "负责人定期面谈", "Họp định kỳ với phụ trách", "担当者の定期面談", "Pertemuan rutin dengan PIC")}</li>
+                        <li>{t("업무일지 — 미제공", "Work journal — not provided", "工作日志 — 不提供", "Nhật ký công việc — không cung cấp", "業務日誌 — 提供なし", "Jurnal kerja — tidak disediakan")}</li>
+                        <li>{t("추천서 — 미제공", "Recommendation letter — not provided", "推荐信 — 不提供", "Thư giới thiệu — không cung cấp", "推薦状 — 提供なし", "Surat rekomendasi — tidak disediakan")}</li>
+                      </ul>
+                      <p className="mt-3 text-sm font-semibold">{t("플리퍼스 제공 항목", "Provided by Flipers", "Flipers提供项目", "Flipers cung cấp", "Flipers提供項目", "Disediakan oleh Flipers")}</p>
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                        <li>{t("직무 교육", "Job training", "职务培训", "Đào tạo nghiệp vụ", "職務教育", "Pelatihan jabatan")}</li>
+                        <li>{t("수료증 — 미발급", "Certificate — not issued", "结业证书 — 不发放", "Chứng chỉ — không cấp", "修了証 — 発行なし", "Sertifikat — tidak diberikan")}</li>
                       </ul>
                     </div>
-                    <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
-                      {t(
-                        "채용이나 전환이 보장되는 과정은 아니며, 한국 기업과 직무를 경험하기 위한 교육형 프로그램입니다.",
-                        "This is an educational experience track and does not guarantee hiring or conversion.",
-                        "本项目不保证录用或转正,而是体验韩国企业及职务的教育型项目。",
-                        "Đây là chương trình giáo dục trải nghiệm, không đảm bảo tuyển dụng hay chuyển đổi thành nhân viên chính thức."
-                      )}
-                    </p>
                   </article>
                   <article className="h-full w-full rounded-2xl bg-white p-5 text-[#111111] shadow-card md:p-6">
                     <span className="mb-3 inline-flex w-fit items-center rounded-full bg-[#B7FF5A] px-2.5 py-1 text-[11px] font-semibold text-black">
                       {t("진행중", "In Progress", "进行中", "Đang triển khai", "進行中", "Berlangsung")}
                     </span>
-                    <h4 className={`${paperlogy.className} text-xl font-black tracking-[-0.02em] md:text-2xl`}>{t("국내 대학 재학생 및 졸업생 일경험", "Work Experience for Korean-University Students/Graduates", "韩国大学在读生及毕业生的工作体验", "Trải nghiệm việc làm cho sinh viên và cựu sinh viên đại học Hàn Quốc", "韓国国内大学の在学生・卒業生向け就労体験", "Pengalaman Kerja untuk Mahasiswa/Lulusan Universitas Korea")}</h4>
-                    <p className="mt-1 text-sm font-medium text-foreground/90">{t("국내 대학 유학생을 위한 실무 일경험", "Practical work experience for international students in Korean universities", "面向韩国大学留学生的实务工作体验", "Trải nghiệm làm việc thực tế dành cho du học sinh tại các trường đại học Hàn Quốc", "韓国の大学に在籍する留学生のための実務就労体験", "Pengalaman kerja praktis untuk mahasiswa internasional di universitas Korea")}</p>
-                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground md:text-sm">
-                      {t(
-                        "국내 대학 재학생 및 졸업생이 한국 기업의 직무 환경을 경험해볼 수 있는 교육형 프로그램입니다. 학교 연계나 학점 인정이 필요한 경우, 필요한 서류 작업을 함께 조율할 수 있습니다.",
-                        "An education-focused track for students and graduates in Korean universities to experience Korean-company job environments, with school-linked documentation support when needed.",
-                        "面向韩国大学在读及毕业生的教育型项目,可体验韩国企业的工作环境;如需校方对接或学分认定,可协调相关文件。",
-                        "Chương trình giáo dục dành cho sinh viên và cựu sinh viên các trường đại học Hàn Quốc trải nghiệm môi trường làm việc tại doanh nghiệp Hàn Quốc; có thể phối hợp giấy tờ liên kết với nhà trường khi cần."
-                      )}
-                    </p>
+                    <h4 className={`${paperlogy.className} text-xl font-black tracking-[-0.02em] md:text-2xl`}>Pro Track</h4>
+                    <p className="mt-1 text-sm font-medium text-foreground/90">{t("채용 전환을 염두에 둔 심화 일경험 트랙", "Advanced track aimed at conversion to hiring", "面向正职转换的深度工作体验轨道", "Tuyến nâng cao hướng đến chuyển đổi tuyển dụng", "正社員転換を見据えた深化型就労体験トラック", "Trek lanjutan dengan target konversi rekrut")}</p>
                     <div className="mt-4 overflow-x-auto rounded-xl bg-white/96 text-[#1f2342]">
                       <table className="w-full min-w-[320px] border-collapse text-left text-sm">
                         <tbody>
-                          <tr className="border-b border-border/60"><th className="w-24 bg-muted/30 px-3 py-2 font-semibold">{t("대상", "Target", "对象", "Đối tượng", "対象", "Sasaran")}</th><td className="px-3 py-2">{t("국내 대학 재학생 및 졸업생", "Students/graduates of Korean universities", "韩国大学在读生及毕业生", "Sinh viên và cựu sinh viên đại học Hàn Quốc", "韓国国内大学の在学生・卒業生", "Mahasiswa/lulusan universitas Korea")}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("목적", "Purpose", "目的", "Mục đích", "目的", "Tujuan")}</th><td className="px-3 py-2">{t("한국 기업 일경험 및 직무 이해", "Korean-company work experience and role understanding", "韩国企业工作经验及岗位理解", "Trải nghiệm làm việc và hiểu biết về vị trí tại doanh nghiệp Hàn Quốc", "韓国企業の就労体験および職務理解", "Pengalaman kerja dan pemahaman peran di perusahaan Korea")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="w-32 bg-muted/30 px-3 py-2 font-semibold">{t("대상", "Target", "对象", "Đối tượng", "対象", "Sasaran")}</th><td className="px-3 py-2">{t("D-2, D-10, F-4, F-6 비자 소지자", "D-2, D-10, F-4, F-6 visa holders", "持有D-2、D-10、F-4、F-6签证者", "Người có visa D-2, D-10, F-4, F-6", "D-2、D-10、F-4、F-6ビザ保持者", "Pemegang visa D-2, D-10, F-4, F-6")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("국적", "Nationality", "国籍", "Quốc tịch", "国籍", "Kewarganegaraan")}</th><td className="px-3 py-2">{t("무관", "Any", "不限", "Không giới hạn", "問わず", "Bebas")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa")}</th><td className="px-3 py-2">{t("한국어 가능자 많음", "Many Korean speakers", "韩语能力者较多", "Nhiều người biết tiếng Hàn", "韓国語可能者が多い", "Banyak yang bisa Bahasa Korea")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")}</th><td className="px-3 py-2">{t("국내/해외 4년제 대학 재학생 및 졸업생", "Korean/overseas 4-year university students or graduates", "国内/海外四年制大学在读生及毕业生", "Sinh viên/cựu sinh viên đại học 4 năm trong và ngoài nước", "国内・海外の4年制大学の在学生および卒業生", "Mahasiswa/lulusan universitas 4 tahun di Korea/luar negeri")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("기간", "Duration", "期间", "Thời gian", "期間", "Durasi")}</th><td className="px-3 py-2">{t("4주 ~ 8주 (최소 6주 권장)", "4–8 weeks (6+ weeks recommended)", "4周~8周（建议至少6周）", "4–8 tuần (khuyến nghị tối thiểu 6 tuần)", "4週間〜8週間（最低6週間推奨）", "4–8 minggu (disarankan minimal 6 minggu)")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("목적", "Purpose", "目的", "Mục đích", "目的", "Tujuan")}</th><td className="px-3 py-2">{t("교육 목적", "Education", "教育目的", "Mục đích giáo dục", "教育目的", "Pendidikan")}</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("급여", "Salary", "薪资", "Lương", "給与", "Gaji")}</th><td className="px-3 py-2">{t("없음", "None", "无", "Không", "なし", "Tidak ada")}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("참여비", "Applicant fee", "参与费", "Phí tham gia", "参加費", "Biaya partisipasi")}</th><td className="px-3 py-2">700,000원</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("참여비", "Applicant fee", "参与费", "Phí tham gia", "参加費", "Biaya partisipasi")}</th><td className="px-3 py-2">{t("300,000원 (70% 할인 프로모션)", "₩300,000 (70% off promotion)", "300,000韩元（7折促销）", "300.000 KRW (giảm 70%)", "300,000ウォン（70％割引プロモ）", "₩300.000 (promo diskon 70%)")}</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("기업 수수료", "Company fee", "企业费用", "Phí doanh nghiệp", "企業手数料", "Biaya perusahaan")}</th><td className="px-3 py-2">{t("없음", "None", "无", "Không", "なし", "Tidak ada")}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("수료증", "Certificate", "结业证书", "Chứng chỉ", "修了証", "Sertifikat")}</th><td className="px-3 py-2">{t("발급", "Provided", "提供", "Cấp", "発行", "Diberikan")}</td></tr>
-                          <tr><th className="bg-muted/30 px-3 py-2 font-semibold">{t("학교 연계", "School linkage", "校方对接", "Liên kết với nhà trường", "学校連携", "Tautan ke sekolah")}</th><td className="px-3 py-2">{t("평가서/서류 작성 조율 가능", "Evaluation/report documents can be coordinated", "可协调评估书/文件", "Có thể phối hợp giấy đánh giá/hồ sơ", "評価書／書類作成の調整可能", "Dokumen evaluasi/laporan dapat dikoordinasikan")}</td></tr>
+                          <tr><th className="bg-muted/30 px-3 py-2 font-semibold">{t("채용 전환", "Conversion", "转正可能性", "Chuyển đổi tuyển dụng", "採用転換", "Konversi rekrut")}</th><td className="px-3 py-2">{t("가능 (보장 X) · 전환 여부 확인 필수", "Possible (not guaranteed) · confirm before signing", "可转正（不保证）· 须确认转正意向", "Có thể (không đảm bảo) · cần xác nhận trước", "可能（保証なし）・転換可否の事前確認必須", "Mungkin (tidak dijamin) · konfirmasi terlebih dahulu")}</td></tr>
                         </tbody>
                       </table>
                     </div>
                     <div className="mt-4">
-                      <p className="text-sm font-semibold">{t("제공 내용", "What is provided", "提供内容", "Nội dung được cung cấp", "提供内容", "Yang disediakan")}</p>
+                      <p className="text-sm font-semibold">{t("기업 제공 항목", "Provided by the company", "企业提供项目", "Doanh nghiệp cung cấp", "企業提供項目", "Disediakan oleh perusahaan")}</p>
                       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                        <li>{t("직무 교육 제공 (플리퍼스)", "Job orientation/training (Flipers)", "职务培训提供 (Flipers)", "Đào tạo nghiệp vụ (Flipers)", "職務教育の提供（Flipers）", "Pelatihan jabatan (Flipers)")}</li>
-                        <li>{t("수료증 발급 (플리퍼스)", "Completion certificate (Flipers)", "结业证书发放 (Flipers)", "Cấp chứng chỉ hoàn thành (Flipers)", "修了証の発行（Flipers）", "Penerbitan sertifikat (Flipers)")}</li>
-                        <li>{t("학교 연계 시 평가서/학점 서류 요청 조율", "School-linked evaluation/credit documents can be coordinated", "校方对接时可协调评估书/学分文件", "Có thể phối hợp giấy đánh giá/học phần khi liên kết với trường", "学校連携時の評価書／単位書類のリクエスト調整", "Permintaan dokumen evaluasi/kredit dapat dikoordinasikan saat ditautkan ke sekolah")}</li>
-                        <li>{t("기업 수수료 없음, 기업은 운영 협조 항목만 선택 참여", "No company fee; companies participate through selected cooperation items only", "无企业费用，企业仅选择性参与运营配合", "Không thu phí doanh nghiệp, doanh nghiệp chỉ tham gia các hạng mục hợp tác đã chọn", "企業手数料なし、企業は運営協力項目のみ選択参加", "Tanpa biaya perusahaan; perusahaan hanya berpartisipasi pada item kerja sama tertentu")}</li>
+                        <li>{t("담당자 정기 면담", "Mentor check-ins", "负责人定期面谈", "Họp định kỳ với phụ trách", "担当者の定期面談", "Pertemuan rutin dengan PIC")}</li>
+                        <li>{t("업무일지 제공", "Work journal provided", "提供工作日志", "Cung cấp nhật ký công việc", "業務日誌の提供", "Jurnal kerja disediakan")}</li>
+                        <li>{t("추천서는 평가에 따라 자율 제공 (보장 X)", "Recommendation letter at company's discretion (not guaranteed)", "推荐信由企业根据评估自主提供（不保证）", "Thư giới thiệu tùy theo đánh giá (không đảm bảo)", "推薦状は評価に応じて任意提供（保証なし）", "Surat rekomendasi sesuai penilaian (tidak dijamin)")}</li>
+                      </ul>
+                      <p className="mt-3 text-sm font-semibold">{t("플리퍼스 제공 항목", "Provided by Flipers", "Flipers提供项目", "Flipers cung cấp", "Flipers提供項目", "Disediakan oleh Flipers")}</p>
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                        <li>{t("직무 교육", "Job training", "职务培训", "Đào tạo nghiệp vụ", "職務教育", "Pelatihan jabatan")}</li>
+                        <li>{t("수료증 발급", "Certificate issued", "结业证书发放", "Cấp chứng chỉ", "修了証の発行", "Penerbitan sertifikat")}</li>
                       </ul>
                     </div>
-                    <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
-                      {t(
-                        "전환 가능성은 있으나 정식 채용이나 추천서 제공은 보장되지 않습니다. 기업 협조 항목(정기 면담, 과제, 피드백 등)은 기업 상황에 맞춰 조정 가능합니다.",
-                        "Conversion and recommendation letters are possible but not guaranteed. Company cooperation items (check-ins, tasks, feedback) are adjustable by company circumstances.",
-                        "存在转正可能,但不保证正式录用或提供推荐信。企业协助项目(定期面谈、任务、反馈等)可根据企业情况调整。",
-                        "Có khả năng chuyển đổi nhưng không đảm bảo tuyển dụng chính thức hoặc cấp thư giới thiệu. Các hạng mục hợp tác của doanh nghiệp (gặp mặt định kỳ, nhiệm vụ, phản hồi) có thể điều chỉnh theo tình hình doanh nghiệp."
-                      )}
-                    </p>
                   </article>
                 </div>
+                ) : (
+                <div className="grid w-full gap-3 md:grid-cols-2 md:items-stretch">
+                  <article className="flex h-full w-full flex-col rounded-2xl bg-white p-5 text-[#111111] shadow-card md:p-6">
+                    <span className="mb-3 inline-flex w-fit items-center rounded-full bg-[#B7FF5A] px-2.5 py-1 text-[11px] font-semibold text-black">
+                      {t("진행중", "In Progress", "进行中", "Đang triển khai", "進行中", "Berlangsung")}
+                    </span>
+                    <h4 className={`${paperlogy.className} text-xl font-black tracking-[-0.02em] md:text-2xl`}>Starter Track</h4>
+                    <p className="mt-1 text-sm font-medium text-foreground/90">{t("기업이 부담 없이 해외 인재를 만나보는 단기 트랙", "Short-term track for companies to meet overseas talent risk-free", "企业可零负担接触海外人才的短期轨道", "Tuyến ngắn hạn để doanh nghiệp gặp gỡ nhân tài quốc tế", "企業が負担なく海外人材と出会える短期トラック", "Trek singkat untuk bertemu talenta global tanpa beban")}</p>
+                    <div className="mt-4 overflow-x-auto rounded-xl bg-white/92">
+                      <table className="w-full min-w-[320px] border-collapse text-left text-sm">
+                        <tbody>
+                          <tr className="border-b border-border/60"><th className="w-32 bg-muted/30 px-3 py-2 font-semibold">{t("대상", "Target", "对象", "Đối tượng", "対象", "Sasaran")}</th><td className="px-3 py-2">{t("관광비자(C-3), 교환학생(D-2-6) 비자 소지자", "Tourist (C-3), Exchange student (D-2-6) visa holders", "持有旅游签证(C-3)、交换学生(D-2-6)签证者", "Người có visa du lịch (C-3), trao đổi sinh viên (D-2-6)", "観光ビザ(C-3)、交換留学(D-2-6)ビザ保持者", "Pemegang visa wisata (C-3), pertukaran pelajar (D-2-6)")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("국적", "Nationality", "国籍", "Quốc tịch", "国籍", "Kewarganegaraan")}</th><td className="px-3 py-2">{t("무관", "Any", "不限", "Không giới hạn", "問わず", "Bebas")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa")}</th><td className="px-3 py-2">{t("모국어 및 영어", "Native + English", "母语及英语", "Tiếng mẹ đẻ và tiếng Anh", "母国語＋英語", "Bahasa ibu + Inggris")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")}</th><td className="px-3 py-2">{t("국내/해외 4년제 대학 재학생 및 졸업생", "Korean/overseas 4-year university students or graduates", "国内/海外四年制大学在读生及毕业生", "Sinh viên/cựu sinh viên đại học 4 năm trong và ngoài nước", "国内・海外の4年制大学の在学生および卒業生", "Mahasiswa/lulusan universitas 4 tahun di Korea/luar negeri")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("기간", "Duration", "期间", "Thời gian", "期間", "Durasi")}</th><td className="px-3 py-2">{t("3주 ~ 16주", "3–16 weeks", "3周~16周", "3–16 tuần", "3週間〜16週間", "3–16 minggu")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("목적", "Purpose", "目的", "Mục đích", "目的", "Tujuan")}</th><td className="px-3 py-2">{t("교육 목적", "Education", "教育目的", "Mục đích giáo dục", "教育目的", "Pendidikan")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("급여", "Salary", "薪资", "Lương", "給与", "Gaji")}</th><td className="px-3 py-2">{t("없음", "None", "无", "Không", "なし", "Tidak ada")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("지원자 참여비", "Applicant fee", "参与费", "Phí tham gia", "参加費", "Biaya partisipasi")}</th><td className="px-3 py-2">2,000,000원</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("기업 수수료", "Company fee", "企业费用", "Phí doanh nghiệp", "企業手数料", "Biaya perusahaan")}</th><td className="px-3 py-2">{t("없음", "None", "无", "Không", "なし", "Tidak ada")}</td></tr>
+                          <tr><th className="bg-muted/30 px-3 py-2 font-semibold">{t("채용 전환", "Conversion", "转正可能性", "Chuyển đổi tuyển dụng", "採用転換", "Konversi rekrut")}</th><td className="px-3 py-2">{t("가능 (보장 X)", "Possible (not guaranteed)", "可转正（不保证）", "Có thể (không đảm bảo)", "可能（保証なし）", "Mungkin (tidak dijamin)")}</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-sm font-semibold">{t("기업 제공 항목", "Provided by the company", "企业提供项目", "Doanh nghiệp cung cấp", "企業提供項目", "Disediakan oleh perusahaan")}</p>
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                        <li>{t("담당자 정기 면담", "Mentor check-ins", "负责人定期面谈", "Họp định kỳ với phụ trách", "担当者の定期面談", "Pertemuan rutin dengan PIC")}</li>
+                        <li>{t("업무일지 — 미제공", "Work journal — not provided", "工作日志 — 不提供", "Nhật ký công việc — không cung cấp", "業務日誌 — 提供なし", "Jurnal kerja — tidak disediakan")}</li>
+                        <li>{t("추천서 — 미제공", "Recommendation letter — not provided", "推荐信 — 不提供", "Thư giới thiệu — không cung cấp", "推薦状 — 提供なし", "Surat rekomendasi — tidak disediakan")}</li>
+                      </ul>
+                      <p className="mt-3 text-sm font-semibold">{t("플리퍼스 제공 항목", "Provided by Flipers", "Flipers提供项目", "Flipers cung cấp", "Flipers提供項目", "Disediakan oleh Flipers")}</p>
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                        <li>{t("직무 교육", "Job training", "职务培训", "Đào tạo nghiệp vụ", "職務教育", "Pelatihan jabatan")}</li>
+                        <li>{t("수료증 — 미발급", "Certificate — not issued", "结业证书 — 不发放", "Chứng chỉ — không cấp", "修了証 — 発行なし", "Sertifikat — tidak diberikan")}</li>
+                      </ul>
+                    </div>
+                  </article>
+                  <article className="h-full w-full rounded-2xl bg-white p-5 text-[#111111] shadow-card md:p-6">
+                    <span className="mb-3 inline-flex w-fit items-center rounded-full bg-[#B7FF5A] px-2.5 py-1 text-[11px] font-semibold text-black">
+                      {t("진행중", "In Progress", "进行中", "Đang triển khai", "進行中", "Berlangsung")}
+                    </span>
+                    <h4 className={`${paperlogy.className} text-xl font-black tracking-[-0.02em] md:text-2xl`}>Pro Track</h4>
+                    <p className="mt-1 text-sm font-medium text-foreground/90">{t("채용 전환을 염두에 둔 심화 일경험 트랙", "Advanced track aimed at conversion to hiring", "面向正职转换的深度工作体验轨道", "Tuyến nâng cao hướng đến chuyển đổi tuyển dụng", "正社員転換を見据えた深化型就労体験トラック", "Trek lanjutan dengan target konversi rekrut")}</p>
+                    <div className="mt-4 overflow-x-auto rounded-xl bg-white/96 text-[#1f2342]">
+                      <table className="w-full min-w-[320px] border-collapse text-left text-sm">
+                        <tbody>
+                          <tr className="border-b border-border/60"><th className="w-32 bg-muted/30 px-3 py-2 font-semibold">{t("대상", "Target", "对象", "Đối tượng", "対象", "Sasaran")}</th><td className="px-3 py-2">{t("D-2, D-10, F-4, F-6 비자 소지자", "D-2, D-10, F-4, F-6 visa holders", "持有D-2、D-10、F-4、F-6签证者", "Người có visa D-2, D-10, F-4, F-6", "D-2、D-10、F-4、F-6ビザ保持者", "Pemegang visa D-2, D-10, F-4, F-6")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("국적", "Nationality", "国籍", "Quốc tịch", "国籍", "Kewarganegaraan")}</th><td className="px-3 py-2">{t("무관", "Any", "不限", "Không giới hạn", "問わず", "Bebas")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa")}</th><td className="px-3 py-2">{t("한국어 가능자 많음", "Many Korean speakers", "韩语能力者较多", "Nhiều người biết tiếng Hàn", "韓国語可能者が多い", "Banyak yang bisa Bahasa Korea")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")}</th><td className="px-3 py-2">{t("국내/해외 4년제 대학 재학생 및 졸업생", "Korean/overseas 4-year university students or graduates", "国内/海外四年制大学在读生及毕业生", "Sinh viên/cựu sinh viên đại học 4 năm trong và ngoài nước", "国内・海外の4年制大学の在学生および卒業生", "Mahasiswa/lulusan universitas 4 tahun di Korea/luar negeri")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("기간", "Duration", "期间", "Thời gian", "期間", "Durasi")}</th><td className="px-3 py-2">{t("4주 ~ 8주 (비자 문제로 단기 진행)", "4–8 weeks (visa-constrained)", "4周~8周（受签证限制）", "4–8 tuần (giới hạn visa)", "4週間〜8週間（ビザの都合で短期）", "4–8 minggu (terkendala visa)")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("목적", "Purpose", "目的", "Mục đích", "目的", "Tujuan")}</th><td className="px-3 py-2">{t("교육 목적", "Education", "教育目的", "Mục đích giáo dục", "教育目的", "Pendidikan")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("급여", "Salary", "薪资", "Lương", "給与", "Gaji")}</th><td className="px-3 py-2">{t("없음", "None", "无", "Không", "なし", "Tidak ada")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("지원자 참여비", "Applicant fee", "参与费", "Phí tham gia", "参加費", "Biaya partisipasi")}</th><td className="px-3 py-2">{t("300,000원 (70% 할인 프로모션)", "₩300,000 (70% off promotion)", "300,000韩元（7折促销）", "300.000 KRW (giảm 70%)", "300,000ウォン（70％割引プロモ）", "₩300.000 (promo diskon 70%)")}</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("기업 수수료", "Company fee", "企业费用", "Phí doanh nghiệp", "企業手数料", "Biaya perusahaan")}</th><td className="px-3 py-2">{t("없음", "None", "无", "Không", "なし", "Tidak ada")}</td></tr>
+                          <tr><th className="bg-muted/30 px-3 py-2 font-semibold">{t("채용 전환", "Conversion", "转正可能性", "Chuyển đổi tuyển dụng", "採用転換", "Konversi rekrut")}</th><td className="px-3 py-2">{t("가능 (보장 X) · 전환 여부 확인 필수", "Possible (not guaranteed) · confirm before signing", "可转正（不保证）· 须确认转正意向", "Có thể (không đảm bảo) · cần xác nhận trước", "可能（保証なし）・転換可否の事前確認必須", "Mungkin (tidak dijamin) · konfirmasi terlebih dahulu")}</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-sm font-semibold">{t("기업 제공 항목", "Provided by the company", "企业提供项目", "Doanh nghiệp cung cấp", "企業提供項目", "Disediakan oleh perusahaan")}</p>
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                        <li>{t("담당자 정기 면담", "Mentor check-ins", "负责人定期面谈", "Họp định kỳ với phụ trách", "担当者の定期面談", "Pertemuan rutin dengan PIC")}</li>
+                        <li>{t("업무일지 제공", "Work journal provided", "提供工作日志", "Cung cấp nhật ký công việc", "業務日誌の提供", "Jurnal kerja disediakan")}</li>
+                        <li>{t("추천서는 평가에 따라 자율 제공 (보장 X)", "Recommendation letter at company's discretion (not guaranteed)", "推荐信由企业根据评估自主提供（不保证）", "Thư giới thiệu tùy theo đánh giá (không đảm bảo)", "推薦状は評価に応じて任意提供（保証なし）", "Surat rekomendasi sesuai penilaian (tidak dijamin)")}</li>
+                      </ul>
+                      <p className="mt-3 text-sm font-semibold">{t("플리퍼스 제공 항목", "Provided by Flipers", "Flipers提供项目", "Flipers cung cấp", "Flipers提供項目", "Disediakan oleh Flipers")}</p>
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                        <li>{t("직무 교육", "Job training", "职务培训", "Đào tạo nghiệp vụ", "職務教育", "Pelatihan jabatan")}</li>
+                        <li>{t("수료증 발급", "Certificate issued", "结业证书发放", "Cấp chứng chỉ", "修了証の発行", "Penerbitan sertifikat")}</li>
+                      </ul>
+                    </div>
+                  </article>
+                </div>
+                )}
+              </div>
 
               <article className="w-full rounded-2xl bg-white p-6 text-[#111111] shadow-card">
                 <div className="flex items-center justify-between gap-3">

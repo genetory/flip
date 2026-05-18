@@ -119,9 +119,12 @@ export function PartnerCompanyProfileEditPage({
 
   const [name, setName] = useState("");
   const [industry, setIndustry] = useState("");
+  const [companySize, setCompanySize] = useState<"" | "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100">("");
   const [website, setWebsite] = useState("");
+  const [socialMedia, setSocialMedia] = useState("");
   const [officeAddress, setOfficeAddress] = useState("");
   const [description, setDescription] = useState("");
+  const [strengths, setStrengths] = useState("");
   const [companyLogoImageData, setCompanyLogoImageData] = useState<string | null>(null);
   const [companyLogoPreviewUrl, setCompanyLogoPreviewUrl] = useState<string | null>(null);
   const [officePhotoImages, setOfficePhotoImages] = useState<string[]>([]);
@@ -166,9 +169,12 @@ export function PartnerCompanyProfileEditPage({
           setHasOrganization(true);
           setName(org.name ?? "");
           setIndustry(org.industry ?? "");
+          setCompanySize((org.companySize ?? "") as "" | "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100");
           setWebsite(org.website ?? "");
+          setSocialMedia(org.socialMedia ?? "");
           setOfficeAddress(org.officeAddress ?? "");
           setDescription(org.description ?? "");
+          setStrengths(org.strengths ?? "");
           setCompanyLogoImageData(org.companyLogoImageData ?? null);
           if (org.officePhotoImageData) {
             try {
@@ -299,9 +305,12 @@ export function PartnerCompanyProfileEditPage({
       await updateMyPartnerOrganizationBasic({
         name: name.trim(),
         industry,
+        companySize: companySize || null,
         website: website.trim() ? website.trim() : null,
+        socialMedia: socialMedia.trim() ? socialMedia.trim() : null,
         officeAddress: officeAddress.trim() ? officeAddress.trim() : null,
         description: description.trim() ? description.trim() : null,
+        strengths: strengths.trim() ? strengths.trim() : null,
         companyLogoImageData,
         officePhotoImageData: officePhotoImages.length > 0 ? JSON.stringify(officePhotoImages) : null
       });
@@ -718,6 +727,27 @@ export function PartnerCompanyProfileEditPage({
 
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
+                    <label className="text-sm font-medium" htmlFor="company-size">{t("기업 규모", "Company size", "企业规模", "Quy mô công ty", "企業規模", "Ukuran perusahaan")}</label>
+                    <div className="relative">
+                      <select
+                        id="company-size"
+                        className="h-11 w-full appearance-none rounded-xl border-0 bg-muted/40 px-3 pr-9 text-sm"
+                        value={companySize}
+                        onChange={(event) => setCompanySize(event.target.value as "" | "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100")}
+                      >
+                        <option value="">{t("선택 안 함", "Not selected", "未选择", "Chưa chọn", "選択しない", "Belum dipilih")}</option>
+                        <option value="SIZE_1_10">{t("1~10인", "1–10 people", "1~10人", "1–10 người", "1~10名", "1–10 orang")}</option>
+                        <option value="SIZE_UNDER_30">{t("30인 이하", "≤30 people", "30人以下", "≤30 người", "30名以下", "≤30 orang")}</option>
+                        <option value="SIZE_UNDER_50">{t("50인 이하", "≤50 people", "50人以下", "≤50 người", "50名以下", "≤50 orang")}</option>
+                        <option value="SIZE_OVER_100">{t("100인 이상", "100+ people", "100人以上", "100+ người", "100名以上", "100+ orang")}</option>
+                      </select>
+                      <CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
                     <label className="text-sm font-medium" htmlFor="company-website">{t("웹사이트", "Website", "网站", "Trang web", "ウェブサイト", "Situs web")}</label>
                     <input
                       id="company-website"
@@ -741,6 +771,18 @@ export function PartnerCompanyProfileEditPage({
                     />
                   </div>
                 </div>
+
+                <div className="mt-4 space-y-2">
+                  <label className="text-sm font-medium" htmlFor="company-social-media">{t("소셜 미디어", "Social media", "社交媒体", "Mạng xã hội", "ソーシャルメディア", "Media sosial")}</label>
+                  <textarea
+                    id="company-social-media"
+                    className="min-h-20 w-full rounded-xl border-0 bg-muted/40 px-3 py-3 text-sm"
+                    value={socialMedia}
+                    onChange={(event) => setSocialMedia(event.target.value)}
+                    placeholder={t("예: 인스타그램 @company / 페이스북 fb.com/company / 링크드인 linkedin.com/company/...", "e.g. Instagram @company / Facebook fb.com/company / LinkedIn linkedin.com/company/...", "例：Instagram @company / Facebook fb.com/company / LinkedIn linkedin.com/company/...", "Ví dụ: Instagram @company / Facebook fb.com/company / LinkedIn linkedin.com/company/...", "例: Instagram @company / Facebook fb.com/company / LinkedIn linkedin.com/company/...", "Contoh: Instagram @company / Facebook fb.com/company / LinkedIn linkedin.com/company/...")}
+                    maxLength={2000}
+                  />
+                </div>
                 </div>
 
                 <div className="rounded-2xl bg-white p-4 md:p-5">
@@ -755,6 +797,18 @@ export function PartnerCompanyProfileEditPage({
                     maxLength={2000}
                   />
                   <p className="text-xs text-slate-500">{description.length}/2000</p>
+                </div>
+                <div className="mt-4 space-y-2">
+                  <label className="text-sm font-medium" htmlFor="company-strengths">{t("회사 자랑거리", "Strengths", "公司亮点", "Điểm mạnh", "会社の強み", "Keunggulan")}</label>
+                  <textarea
+                    id="company-strengths"
+                    className="min-h-28 w-full rounded-xl border-0 bg-muted/40 px-3 py-3 text-sm"
+                    value={strengths}
+                    onChange={(event) => setStrengths(event.target.value)}
+                    placeholder={t("복지, 문화, 성장 기회 등 지원자에게 어필할 수 있는 회사의 강점을 적어주세요.", "Share benefits, culture, growth opportunities and anything that makes your company stand out to candidates.", "请描述福利、文化、成长机会等可以吸引候选人的公司亮点。", "Hãy chia sẻ phúc lợi, văn hóa, cơ hội phát triển và bất cứ điều gì giúp công ty bạn nổi bật.", "福利・文化・成長機会など、候補者にアピールできる会社の強みをご記入ください。", "Bagikan tunjangan, budaya, kesempatan berkembang, dan apa pun yang membuat perusahaan Anda menonjol.")}
+                    maxLength={2000}
+                  />
+                  <p className="text-xs text-slate-500">{strengths.length}/2000</p>
                 </div>
                 </div>
 

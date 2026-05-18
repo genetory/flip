@@ -2055,9 +2055,12 @@ const updateMyBasicInfoSchema = z.object({
 const updateMyPartnerOrganizationBasicSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   industry: partnerIndustryEnum.optional(),
+  companySize: partnerCompanySizeEnum.nullable().optional(),
   website: flexibleUrlString.nullable().optional(),
+  socialMedia: z.string().trim().max(2000).nullable().optional(),
   officeAddress: z.string().trim().max(300).nullable().optional(),
   description: z.string().trim().max(2000).nullable().optional(),
+  strengths: z.string().trim().max(2000).nullable().optional(),
   businessRegistrationDocumentData: z.string().trim().max(DOCUMENT_DATA_URL_MAX).nullable().optional(),
   fourInsuranceSubscriberListData: z.string().trim().max(DOCUMENT_DATA_URL_MAX).nullable().optional(),
   companyLogoImageData: z.string().trim().max(IMAGE_DATA_URL_MAX).nullable().optional(),
@@ -3492,6 +3495,12 @@ function toPublicPositionItem(
       industry: PartnerIndustry;
       companySize: string | null;
       officeAddress: string | null;
+      description?: string | null;
+      strengths?: string | null;
+      website?: string | null;
+      socialMedia?: string | null;
+      companyLogoImageData?: string | null;
+      officePhotoImageData?: string | null;
     } | null;
     matchingParticipants: Array<{ id: string }>;
   },
@@ -3533,7 +3542,21 @@ function toPublicPositionItem(
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     matchingParticipantsCount: item.matchingParticipants.length,
-    partnerOrganization: item.partnerOrganization ?? null
+    partnerOrganization: item.partnerOrganization
+      ? {
+          id: item.partnerOrganization.id,
+          name: item.partnerOrganization.name,
+          industry: item.partnerOrganization.industry,
+          companySize: item.partnerOrganization.companySize ?? null,
+          officeAddress: item.partnerOrganization.officeAddress ?? null,
+          description: item.partnerOrganization.description ?? null,
+          strengths: item.partnerOrganization.strengths ?? null,
+          website: item.partnerOrganization.website ?? null,
+          socialMedia: item.partnerOrganization.socialMedia ?? null,
+          companyLogoImageData: item.partnerOrganization.companyLogoImageData ?? null,
+          officePhotoImageData: item.partnerOrganization.officePhotoImageData ?? null
+        }
+      : null
   };
 }
 
@@ -5753,7 +5776,13 @@ app.get("/positions", async (req, res) => {
           name: true,
           industry: true,
           companySize: true,
-          officeAddress: true
+          officeAddress: true,
+          description: true,
+          strengths: true,
+          website: true,
+          socialMedia: true,
+          companyLogoImageData: true,
+          officePhotoImageData: true
         }
       },
       matchingParticipants: {
@@ -5879,7 +5908,13 @@ app.get("/positions/:id", async (req, res) => {
           name: true,
           industry: true,
           companySize: true,
-          officeAddress: true
+          officeAddress: true,
+          description: true,
+          strengths: true,
+          website: true,
+          socialMedia: true,
+          companyLogoImageData: true,
+          officePhotoImageData: true
         }
       },
       matchingParticipants: {
@@ -8409,9 +8444,12 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
           data: {
             ...(parsed.data.name !== undefined ? { name: parsed.data.name.trim() } : {}),
             ...(parsed.data.industry !== undefined ? { industry: parsed.data.industry } : {}),
+            ...(parsed.data.companySize !== undefined ? { companySize: parsed.data.companySize ?? null } : {}),
             ...(parsed.data.website !== undefined ? { website: normalizeWebsite(parsed.data.website) } : {}),
+            ...(parsed.data.socialMedia !== undefined ? { socialMedia: parsed.data.socialMedia?.trim() || null } : {}),
             ...(parsed.data.officeAddress !== undefined ? { officeAddress: parsed.data.officeAddress?.trim() || null } : {}),
             ...(parsed.data.description !== undefined ? { description: parsed.data.description?.trim() || null } : {}),
+            ...(parsed.data.strengths !== undefined ? { strengths: parsed.data.strengths?.trim() || null } : {}),
             ...(parsed.data.businessRegistrationDocumentData !== undefined
               ? { businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null }
               : {}),
@@ -8435,9 +8473,12 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
               name: orgName,
               slug: await generateUniquePartnerOrganizationSlug(orgName, tx),
               industry: parsed.data.industry!,
+              companySize: parsed.data.companySize ?? null,
               website: normalizeWebsite(parsed.data.website),
+              socialMedia: parsed.data.socialMedia?.trim() || null,
               officeAddress: parsed.data.officeAddress?.trim() || null,
               description: parsed.data.description?.trim() || null,
+              strengths: parsed.data.strengths?.trim() || null,
               businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null,
               fourInsuranceSubscriberListData: parsed.data.fourInsuranceSubscriberListData?.trim() || null,
               companyLogoImageData: companyLogoImageData ?? null,
