@@ -155,7 +155,7 @@ export function SignupPage() {
         if (result.user) {
           setAuthenticatedUser(result.user);
         }
-        router.push("/signup/completed");
+        router.push("/profile");
         router.refresh();
         return;
       }

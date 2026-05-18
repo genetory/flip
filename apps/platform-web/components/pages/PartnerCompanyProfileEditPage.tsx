@@ -438,17 +438,23 @@ export function PartnerCompanyProfileEditPage({
                     <p className="mt-1 text-xs text-muted-foreground">
                       {t("파트너 관리자가 전달한 초대코드를 입력하면 바로 합류할 수 있습니다.", "Enter an invite code from your partner admin to join instantly.", "输入合作伙伴管理员提供的邀请码即可立即加入。", "Nhập mã mời từ quản trị viên đối tác để tham gia ngay.", "パートナー管理者が共有した招待コードを入力するとすぐに参加できます。", "Masukkan kode undangan dari admin mitra untuk bergabung secara instan.")}
                     </p>
-                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                      <input
-                        className="h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm"
-                        value={joinCode}
-                        onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-                        placeholder={t("예: PJT-4K8Q2-M9W7D", "e.g. PJT-4K8Q2-M9W7D", "例如:PJT-4K8Q2-M9W7D", "Ví dụ: PJT-4K8Q2-M9W7D", "例: PJT-4K8Q2-M9W7D", "Contoh: PJT-4K8Q2-M9W7D")}
-                        maxLength={120}
-                      />
-                      <Button variant="outline" onClick={() => void handleJoinOrganization()} disabled={isJoining || isSaving}>
-                        {isJoining ? t("합류 중...", "Joining...", "加入中...", "Đang tham gia...", "参加中...", "Sedang bergabung...") : t("합류하기", "Join", "加入", "Tham gia", "参加する", "Bergabung")}
-                      </Button>
+                    <div className="mt-3 space-y-2">
+                      <label className="text-sm font-medium" htmlFor="partner-join-code">
+                        {t("초대코드", "Invite code", "邀请码", "Mã mời", "招待コード", "Kode undangan")}
+                      </label>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <input
+                          id="partner-join-code"
+                          className="h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm"
+                          value={joinCode}
+                          onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+                          placeholder={t("예: PJT-4K8Q2-M9W7D", "e.g. PJT-4K8Q2-M9W7D", "例如:PJT-4K8Q2-M9W7D", "Ví dụ: PJT-4K8Q2-M9W7D", "例: PJT-4K8Q2-M9W7D", "Contoh: PJT-4K8Q2-M9W7D")}
+                          maxLength={120}
+                        />
+                        <Button variant="outline" onClick={() => void handleJoinOrganization()} disabled={isJoining || isSaving}>
+                          {isJoining ? t("합류 중...", "Joining...", "加入中...", "Đang tham gia...", "参加中...", "Sedang bergabung...") : t("합류하기", "Join", "加入", "Tham gia", "参加する", "Bergabung")}
+                        </Button>
+                      </div>
                     </div>
                     <p className="mt-3 text-xs text-muted-foreground">
                       {t("코드가 없다면 아래에서 회사 정보를 입력하고 새 회사를 생성하세요.", "If you don't have a code, fill out company info below to create a new one.", "如果没有邀请码,请在下方填写公司信息以创建新公司。", "Nếu bạn không có mã, hãy điền thông tin công ty bên dưới để tạo công ty mới.", "コードがない場合は、下記の会社情報を入力して新しい会社を作成してください。", "Jika Anda tidak memiliki kode, isi informasi perusahaan di bawah untuk membuat yang baru.")}
