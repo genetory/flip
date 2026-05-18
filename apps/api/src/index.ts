@@ -2000,25 +2000,68 @@ const updateCandidateSchema = z.object({
   jobTitle: z.string().trim().max(120).optional()
 });
 
+// More permissive validators for user-facing forms. The strict z.string().datetime()
+// and z.string().url() reject inputs that users reasonably expect to work
+// (date-only strings, URLs without scheme), which surfaces as "invalid request"
+// in the UI with no actionable hint. These helpers accept the common cases and
+// normalize them server-side.
+const flexibleDateString = z
+  .string()
+  .trim()
+  .refine(
+    (value) => {
+      if (!value) return true;
+      // Accept ISO datetime (2026-01-15T00:00:00.000Z), date-only
+      // (2026-01-15), and any string Date can parse.
+      return !Number.isNaN(new Date(value).getTime());
+    },
+    { message: "invalid date" }
+  );
+
+const flexibleUrlString = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine(
+    (value) => {
+      if (!value) return true;
+      // Allow URLs with or without scheme. We prepend https:// before storing.
+      const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+      try {
+        const u = new URL(candidate);
+        return !!u.hostname && u.hostname.includes(".");
+      } catch {
+        return false;
+      }
+    },
+    { message: "invalid url" }
+  );
+
+// Image data URLs are base64-encoded, so ~33% larger than the binary. 8MB of
+// base64 string ≈ 6MB of original photo, which is roughly the size of an
+// iPhone photo after the client-side WebP conversion already does.
+const IMAGE_DATA_URL_MAX = 8 * 1024 * 1024;
+const DOCUMENT_DATA_URL_MAX = 12 * 1024 * 1024;
+
 const updateMyBasicInfoSchema = z.object({
   realName: z.string().trim().min(1).max(120).nullable().optional(),
   name: z.string().trim().min(1).max(120).optional(),
   phoneNumber: z.string().trim().max(30).nullable().optional(),
-  birthDate: z.string().datetime().nullable().optional(),
+  birthDate: flexibleDateString.nullable().optional(),
   gender: z.string().trim().max(40).nullable().optional(),
-  profileImageData: z.string().max(8 * 1024 * 1024).nullable().optional()
+  profileImageData: z.string().max(IMAGE_DATA_URL_MAX).nullable().optional()
 });
 
 const updateMyPartnerOrganizationBasicSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   industry: partnerIndustryEnum.optional(),
-  website: z.string().trim().url().max(240).nullable().optional(),
+  website: flexibleUrlString.nullable().optional(),
   officeAddress: z.string().trim().max(300).nullable().optional(),
   description: z.string().trim().max(2000).nullable().optional(),
-  businessRegistrationDocumentData: z.string().trim().max(4_000_000).nullable().optional(),
-  fourInsuranceSubscriberListData: z.string().trim().max(4_000_000).nullable().optional(),
-  companyLogoImageData: z.string().trim().max(4_000_000).nullable().optional(),
-  officePhotoImageData: z.string().trim().max(4_000_000).nullable().optional()
+  businessRegistrationDocumentData: z.string().trim().max(DOCUMENT_DATA_URL_MAX).nullable().optional(),
+  fourInsuranceSubscriberListData: z.string().trim().max(DOCUMENT_DATA_URL_MAX).nullable().optional(),
+  companyLogoImageData: z.string().trim().max(IMAGE_DATA_URL_MAX).nullable().optional(),
+  officePhotoImageData: z.string().trim().max(IMAGE_DATA_URL_MAX).nullable().optional()
 });
 const joinMyPartnerOrganizationSchema = z.object({
   code: z.string().trim().min(6).max(64)
@@ -2030,7 +2073,7 @@ const createPartnerJoinCodeSchema = z.object({
 const updateCandidateProfileSchema = z.object({
   workPermit: z.boolean().nullable().optional(),
   visaType: candidateVisaTypeEnum.nullable().optional(),
-  visaExpiryDate: z.string().datetime().nullable().optional(),
+  visaExpiryDate: flexibleDateString.nullable().optional(),
   livesInKorea: z.boolean().nullable().optional(),
   hasAccommodation: z.boolean().nullable().optional(),
   residenceProvince: z.string().trim().max(120).nullable().optional(),
@@ -2038,7 +2081,7 @@ const updateCandidateProfileSchema = z.object({
   residenceAddress: z.string().trim().max(240).nullable().optional(),
   preferredProgramDuration: candidateProgramDurationEnum.nullable().optional(),
   programStartOption: candidateProgramStartOptionEnum.nullable().optional(),
-  programStartDate: z.string().datetime().nullable().optional(),
+  programStartDate: flexibleDateString.nullable().optional(),
   preferredIndustries: z.array(partnerIndustryEnum).max(50).optional(),
   preferredJobRoles: z.array(candidatePreferredJobRoleEnum).max(50).optional(),
   skills: z.array(z.string().trim().min(1).max(120)).max(100).optional(),
@@ -2062,8 +2105,8 @@ const createCandidateEducationSchema = z.object({
   status: candidateEducationStatusEnum,
   country: z.string().trim().max(120).nullable().optional(),
   city: z.string().trim().max(120).nullable().optional(),
-  startDate: z.string().datetime().nullable().optional(),
-  endDate: z.string().datetime().nullable().optional(),
+  startDate: flexibleDateString.nullable().optional(),
+  endDate: flexibleDateString.nullable().optional(),
   isKoreanSchool: z.boolean().nullable().optional()
 });
 
@@ -2079,8 +2122,8 @@ const createCandidateCareerSchema = z.object({
   position: z.string().trim().min(1).max(200),
   department: z.string().trim().max(200).nullable().optional(),
   isCurrent: z.boolean().optional(),
-  startDate: z.string().datetime().nullable().optional(),
-  endDate: z.string().datetime().nullable().optional(),
+  startDate: flexibleDateString.nullable().optional(),
+  endDate: flexibleDateString.nullable().optional(),
   description: z.string().trim().max(4000).nullable().optional()
 });
 
@@ -2088,8 +2131,8 @@ const createCandidateActivityExperienceSchema = z.object({
   title: z.string().trim().min(1).max(200),
   activityType: candidateActivityTypeEnum,
   organization: z.string().trim().max(200).nullable().optional(),
-  startDate: z.string().datetime().nullable().optional(),
-  endDate: z.string().datetime().nullable().optional(),
+  startDate: flexibleDateString.nullable().optional(),
+  endDate: flexibleDateString.nullable().optional(),
   description: z.string().trim().max(4000).nullable().optional(),
   skills: z.array(z.string().trim().min(1).max(120)).max(50).optional()
 });
@@ -8322,6 +8365,11 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
     : null;
 
   const normalizeDocField = (value?: string | null) => (value?.trim() || null);
+  const normalizeWebsite = (value?: string | null) => {
+    const trimmed = value?.trim();
+    if (!trimmed) return null;
+    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  };
   const nextBusinessRegistrationDocumentData =
     parsed.data.businessRegistrationDocumentData !== undefined
       ? normalizeDocField(parsed.data.businessRegistrationDocumentData)
@@ -8361,7 +8409,7 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
           data: {
             ...(parsed.data.name !== undefined ? { name: parsed.data.name.trim() } : {}),
             ...(parsed.data.industry !== undefined ? { industry: parsed.data.industry } : {}),
-            ...(parsed.data.website !== undefined ? { website: parsed.data.website?.trim() || null } : {}),
+            ...(parsed.data.website !== undefined ? { website: normalizeWebsite(parsed.data.website) } : {}),
             ...(parsed.data.officeAddress !== undefined ? { officeAddress: parsed.data.officeAddress?.trim() || null } : {}),
             ...(parsed.data.description !== undefined ? { description: parsed.data.description?.trim() || null } : {}),
             ...(parsed.data.businessRegistrationDocumentData !== undefined
@@ -8387,7 +8435,7 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
               name: orgName,
               slug: await generateUniquePartnerOrganizationSlug(orgName, tx),
               industry: parsed.data.industry!,
-              website: parsed.data.website?.trim() || null,
+              website: normalizeWebsite(parsed.data.website),
               officeAddress: parsed.data.officeAddress?.trim() || null,
               description: parsed.data.description?.trim() || null,
               businessRegistrationDocumentData: parsed.data.businessRegistrationDocumentData?.trim() || null,
