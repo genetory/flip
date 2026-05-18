@@ -47,12 +47,18 @@ async function getAccessTokenOrThrow() {
   return token;
 }
 
+type ZodFlatErrors = {
+  fieldErrors?: Record<string, string[] | undefined>;
+  formErrors?: string[];
+};
+
 type ApiPayload<T = unknown> = {
   ok?: boolean;
   code?: string;
   message?: string;
   item?: T;
   items?: T[];
+  errors?: ZodFlatErrors;
 };
 
 async function readApiPayload<T = unknown>(response: Response) {
@@ -65,8 +71,62 @@ async function readApiPayload<T = unknown>(response: Response) {
   }
 }
 
-function resolveApiErrorMessage(payload: { message?: unknown }, fallback: string) {
-  if (typeof payload.message === "string" && payload.message.trim()) return payload.message;
+// Translate the most common Zod field errors into something a user can act on.
+// Keep this list small — anything not mapped falls through to "field: message".
+const FIELD_LABELS_KO: Record<string, string> = {
+  website: "웹사이트",
+  email: "이메일",
+  emergencyContactEmail: "비상연락처 이메일",
+  birthDate: "생년월일",
+  visaExpiryDate: "비자 만료일",
+  programStartDate: "시작 가능 날짜",
+  startDate: "시작일",
+  endDate: "종료일",
+  phoneNumber: "휴대폰 번호",
+  name: "이름",
+  realName: "실명",
+  companyLogoImageData: "기업 로고",
+  officePhotoImageData: "사무실 사진",
+  businessRegistrationDocumentData: "사업자등록증",
+  fourInsuranceSubscriberListData: "4대보험 가입자 명부",
+  profileImageData: "프로필 사진"
+};
+
+function humanizeZodErrors(errors: ZodFlatErrors): string | null {
+  if (!errors) return null;
+  const fieldEntries = Object.entries(errors.fieldErrors ?? {}).filter(([, msgs]) => Array.isArray(msgs) && msgs.length > 0);
+  const parts: string[] = [];
+
+  for (const [field, msgs] of fieldEntries) {
+    const label = FIELD_LABELS_KO[field] ?? field;
+    const first = (msgs?.[0] ?? "").toLowerCase();
+    let humanReason = msgs?.[0] ?? "잘못된 값";
+    if (first.includes("invalid url")) humanReason = "URL 형식이 올바르지 않습니다";
+    else if (first.includes("invalid email")) humanReason = "이메일 형식이 올바르지 않습니다";
+    else if (first.includes("invalid date")) humanReason = "날짜 형식이 올바르지 않습니다";
+    else if (first.includes("string must contain at most")) humanReason = "용량이 너무 큽니다 (이미지/파일 크기를 줄여주세요)";
+    else if (first.includes("required")) humanReason = "필수 입력 항목입니다";
+    parts.push(`${label}: ${humanReason}`);
+  }
+
+  if (errors.formErrors?.length) {
+    parts.push(...errors.formErrors);
+  }
+
+  return parts.length > 0 ? parts.join(" / ") : null;
+}
+
+function resolveApiErrorMessage(payload: { message?: unknown; errors?: ZodFlatErrors }, fallback: string) {
+  // If the server returned Zod field errors, surface them — much more useful
+  // than the generic "invalid request" message.
+  if (payload.errors) {
+    const humanized = humanizeZodErrors(payload.errors);
+    if (humanized) return humanized;
+  }
+  if (typeof payload.message === "string" && payload.message.trim()) {
+    if (payload.message === "invalid request") return "입력값을 확인해 주세요.";
+    return payload.message;
+  }
   return fallback;
 }
 
