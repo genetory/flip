@@ -59,8 +59,12 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const logout = useCallback(async () => {
-    await logoutPlatformSession();
+    // Clear local state immediately so the UI flips to logged-out before the
+    // server roundtrip — feels instant. Server-side session invalidation runs
+    // in the background; even if it fails, the access token is already cleared
+    // on the next request via the fire-and-forget call inside logoutPlatformSession.
     setUser(null);
+    void logoutPlatformSession();
     window.location.href = "/";
   }, []);
 

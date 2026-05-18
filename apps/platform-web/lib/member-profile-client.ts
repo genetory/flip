@@ -512,6 +512,12 @@ export type PublicPositionListItem = {
     industry: string;
     companySize: "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100" | null;
     officeAddress: string | null;
+    description?: string | null;
+    strengths?: string | null;
+    website?: string | null;
+    socialMedia?: string | null;
+    companyLogoImageData?: string | null;
+    officePhotoImageData?: string | null;
   } | null;
 };
 
@@ -615,9 +621,12 @@ export function isPartnerOrganizationVerificationComplete(org: MyPartnerOrganiza
 export async function updateMyPartnerOrganizationBasic(input: {
   name?: string;
   industry?: string;
+  companySize?: "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100" | null;
   website?: string | null;
+  socialMedia?: string | null;
   officeAddress?: string | null;
   description?: string | null;
+  strengths?: string | null;
   businessRegistrationDocumentData?: string | null;
   fourInsuranceSubscriberListData?: string | null;
   companyLogoImageData?: string | null;

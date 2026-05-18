@@ -621,8 +621,7 @@ export function PositionsPage() {
                       {copy.subtitle}
                     </p>
                   </div>
-                  {/* 포지션 생성하기 버튼은 추후 오픈 시까지 임시 숨김
-                  {user?.role === "PARTNER" ? (
+                  {user?.role === "PARTNER" || user?.role === "OPERATOR" ? (
                     <Button
                       variant="dark"
                       size="lg"
@@ -632,7 +631,6 @@ export function PositionsPage() {
                       <Link href="/positions/create">{copy.createPosition}</Link>
                     </Button>
                   ) : null}
-                  */}
                 </div>
 
                 <div className="relative mt-4 h-[180px] overflow-hidden rounded-2xl bg-white md:h-[220px]">

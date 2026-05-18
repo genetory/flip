@@ -18,6 +18,15 @@ import { ArrowLeft, Briefcase, ChevronLeft, ChevronRight, MapPin } from "lucide-
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
+import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
+
+function companySizeLabel(value: string | null | undefined, copy: { infoUnavailable: string }) {
+  if (value === "SIZE_1_10") return "1~10";
+  if (value === "SIZE_UNDER_30") return "≤30";
+  if (value === "SIZE_UNDER_50") return "≤50";
+  if (value === "SIZE_OVER_100") return "100+";
+  return copy.infoUnavailable;
+}
 
 function inferWorkType(value?: string | null): "On-site" | "Hybrid" | "Remote" {
   const text = (value ?? "").toLowerCase();
@@ -108,10 +117,6 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
     roleTbd: t("직무 미정", "Role TBD", "岗位待定", "Vị trí chưa xác định", "職務未定", "Posisi belum ditentukan"),
     tbdLocation: t("협의", "To be discussed", "可协商", "Thỏa thuận", "応相談", "Dapat dirundingkan"),
     immediate: t("즉시", "Immediate", "立即", "Ngay", "即時", "Segera"),
-    noRestriction: t("무관", "No restriction", "不限", "Không giới hạn", "制限なし", "Tidak ada batasan"),
-    noNationalityRestriction: t("국적 무관", "No nationality restriction", "国籍不限", "Không giới hạn quốc tịch", "国籍不問", "Tidak ada batasan kewarganegaraan"),
-    noLanguageRequirement: t("언어 조건 없음", "No language requirement", "无语言要求", "Không yêu cầu ngôn ngữ", "言語要件なし", "Tidak ada syarat bahasa"),
-    noDetails: t("상세 조건 확인", "See details", "查看详情", "Xem chi tiết", "詳細を確認", "Lihat detail"),
     infoUnavailable: t("정보 없음", "No information", "无信息", "Không có thông tin", "情報なし", "Tidak ada informasi"),
     loginRequired: t("로그인한 회원만 지원할 수 있습니다.", "Only signed-in users can apply.", "仅登录用户可申请。", "Chỉ người dùng đã đăng nhập mới có thể ứng tuyển.", "ログインしている会員のみ応募できます。", "Hanya pengguna yang masuk yang dapat melamar."),
     studentRequired: t("파트너 회원, 어드민은 지원하기에 지원할 수 없습니다.", "Partner and admin accounts cannot apply.", "合作伙伴和管理员账号不可申请。", "Tài khoản đối tác và quản trị không thể ứng tuyển.", "パートナー会員および管理者アカウントは応募できません。", "Akun mitra dan admin tidak dapat melamar."),
@@ -123,21 +128,26 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
     prevThumbnail: t("이전 썸네일", "Previous image", "上一张", "Ảnh trước", "前のサムネイル", "Gambar sebelumnya"),
     nextThumbnail: t("다음 썸네일", "Next image", "下一张", "Ảnh tiếp theo", "次のサムネイル", "Gambar berikutnya"),
     coreInfo: t("핵심 정보", "Core information", "核心信息", "Thông tin chính", "主要情報", "Informasi utama"),
-    workType: t("근무 형태", "Work type", "工作方式", "Hình thức làm việc", "勤務形態", "Tipe pekerjaan"),
-    startDate: t("공고 시작일", "Start date", "开始日期", "Ngày bắt đầu", "開始日", "Tanggal mulai"),
-    workLocation: t("근무 지역", "Work location", "工作地点", "Địa điểm làm việc", "勤務地", "Lokasi kerja"),
+    workingHours: t("근무 시간", "Working hours", "工作时间", "Giờ làm việc", "勤務時間", "Jam kerja"),
+    headcount: t("희망 인원", "Headcount", "招聘人数", "Số lượng tuyển", "募集人数", "Jumlah perekrutan"),
+    desiredRole: t("희망 직무", "Desired role", "意向职位", "Vị trí mong muốn", "希望職務", "Posisi yang diinginkan"),
+    dressCode: t("근무 복장", "Dress code", "工作着装", "Trang phục làm việc", "勤務時の服装", "Kode busana"),
     postedAt: t("등록일", "Posted", "发布时间", "Ngày đăng", "登録日", "Tanggal diunggah"),
-    requirements: t("지원 조건", "Requirements", "申请条件", "Yêu cầu", "応募条件", "Persyaratan"),
-    visas: t("지원 가능 비자", "Eligible visas", "可申请签证", "Visa đủ điều kiện", "応募可能ビザ", "Visa yang memenuhi syarat"),
-    languages: t("소통 언어", "Languages", "沟通语言", "Ngôn ngữ", "コミュニケーション言語", "Bahasa"),
-    nationalities: t("선호 국적", "Preferred nationalities", "偏好国籍", "Quốc tịch ưu tiên", "希望国籍", "Kewarganegaraan yang diutamakan"),
-    keywords: t("주요 키워드", "Keywords", "关键词", "Từ khóa", "主要キーワード", "Kata kunci"),
     details: t("상세 안내", "Details", "详细说明", "Chi tiết", "詳細", "Detail"),
     responsibilities: t("주요 업무", "Main responsibilities", "主要职责", "Nhiệm vụ chính", "主な業務", "Tanggung jawab utama"),
-    requiredQualifications: t("필수 자격", "Required qualifications", "必备资格", "Yêu cầu bắt buộc", "必須資格", "Kualifikasi wajib"),
-    preferredQualifications: t("우대 사항", "Preferred qualifications", "优先条件", "Ưu tiên", "優遇事項", "Kualifikasi yang diutamakan"),
+    requiredQualifications: t("필수 자격 요건", "Required qualifications", "必备资格条件", "Yêu cầu bắt buộc", "必須資格・要件", "Kualifikasi wajib"),
     hiringProcess: t("채용 프로세스", "Hiring process", "招聘流程", "Quy trình tuyển dụng", "採用プロセス", "Proses perekrutan"),
-    notes: t("추가 메모", "Additional notes", "附加备注", "Ghi chú thêm", "追加メモ", "Catatan tambahan"),
+    companyInfo: t("기업 정보", "Company information", "企业信息", "Thông tin công ty", "企業情報", "Informasi perusahaan"),
+    companyName: t("기업 이름", "Company name", "企业名称", "Tên công ty", "企業名", "Nama perusahaan"),
+    companySize: t("기업 규모", "Company size", "企业规模", "Quy mô công ty", "企業規模", "Ukuran perusahaan"),
+    industry: t("산업", "Industry", "行业", "Ngành nghề", "業種", "Industri"),
+    officeAddress: t("사무실 주소", "Office address", "办公地址", "Địa chỉ văn phòng", "事務所住所", "Alamat kantor"),
+    website: t("웹사이트", "Website", "网站", "Trang web", "ウェブサイト", "Situs web"),
+    socialMedia: t("소셜 미디어", "Social media", "社交媒体", "Mạng xã hội", "ソーシャルメディア", "Media sosial"),
+    companyDescription: t("기업 소개", "About the company", "企业介绍", "Giới thiệu công ty", "企業紹介", "Tentang perusahaan"),
+    companyStrengths: t("회사 자랑거리", "Strengths", "公司亮点", "Điểm mạnh", "会社の強み", "Keunggulan"),
+    companyLogo: t("회사 로고", "Company logo", "公司标志", "Logo công ty", "会社ロゴ", "Logo perusahaan"),
+    officePhoto: t("사무실 사진", "Office photo", "办公室照片", "Ảnh văn phòng", "オフィス写真", "Foto kantor"),
     edit: t("수정하기", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit"),
     apply: t("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar"),
     applied: t("지원완료", "Applied", "已申请", "Đã ứng tuyển", "応募済み", "Sudah dilamar"),
@@ -155,26 +165,27 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
   const company = position.partnerOrganization?.name?.trim() || copy.partnerCompany;
   const initial = company[0]?.toUpperCase() ?? "P";
   const category = position.preferredJobRole?.trim() || copy.roleTbd;
-  const location = position.workLocation?.trim() || position.partnerOrganization?.officeAddress?.trim() || copy.tbdLocation;
-  const workType = position.workType ?? inferWorkType(position.workingHours);
   const companyPageHref = companyHref(position.partnerOrganization?.id);
-  const startRaw = position.startDate ? new Date(position.startDate) : null;
-  const startLabel = startRaw && !Number.isNaN(startRaw.getTime()) ? startRaw.toLocaleDateString(locale === "en" ? "en-US" : "ko-KR") : copy.immediate;
   const postedLabel = formatPostedDate(position.createdAt, locale);
   const thumbnailImages = safeStringArray(position.thumbnailImages);
-  const eligibleVisas = safeStringArray(position.eligibleVisas);
-  const preferredNationalitiesRaw = safeStringArray(position.preferredNationalities);
-  const communicationLanguagesRaw = safeStringArray(position.communicationLanguages);
   const isOwnPartnerPosting = !!myPartnerOrganizationId && position.partnerOrganization?.id === myPartnerOrganizationId;
   const statusBadge = getPositionStatusBadge(position.status, locale);
-  const tagItems = [
-    ...(position.preferredJobRole ? [position.preferredJobRole] : []),
-    ...communicationLanguagesRaw.slice(0, 3),
-    ...(position.workingHours ? [position.workingHours] : [])
-  ].filter((value, index, array) => array.indexOf(value) === index);
-  const visas = eligibleVisas.length ? eligibleVisas : [copy.noRestriction];
-  const preferredNationalities = preferredNationalitiesRaw.length ? preferredNationalitiesRaw : [copy.noNationalityRestriction];
-  const communicationLanguages = communicationLanguagesRaw.length ? communicationLanguagesRaw : [copy.noLanguageRequirement];
+
+  // Parse partner organization images (logo + office photos array)
+  const partnerOrgOfficePhotos: string[] = (() => {
+    const raw = position.partnerOrganization?.officePhotoImageData;
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+      }
+    } catch {
+      // not JSON — treat as single image
+    }
+    return [raw];
+  })();
+  const companyLogo = position.partnerOrganization?.companyLogoImageData ?? null;
 
   useEffect(() => {
     setSelectedThumbnailIndex(0);
@@ -447,72 +458,26 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
               <div className="mt-4 grid gap-6 text-sm md:grid-cols-2">
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-4 pb-1">
-                    <p className="text-sm font-medium text-muted-foreground">{copy.workType}</p>
-                    <p className="font-medium">{workTypeLabel(workType, locale)}</p>
+                    <p className="text-sm font-medium text-muted-foreground">{copy.desiredRole}</p>
+                    <p className="font-medium">{category}</p>
                   </div>
                   <div className="flex items-start justify-between gap-4 pb-1">
-                    <p className="text-sm font-medium text-muted-foreground">{copy.startDate}</p>
-                    <p className="font-medium">{startLabel}</p>
+                    <p className="text-sm font-medium text-muted-foreground">{copy.headcount}</p>
+                    <p className="font-medium">{position.hiringCount ? `${position.hiringCount}` : copy.infoUnavailable}</p>
+                  </div>
+                  <div className="flex items-start justify-between gap-4 pb-1">
+                    <p className="text-sm font-medium text-muted-foreground">{copy.workingHours}</p>
+                    <p className="font-medium">{textOrFallback(position.workingHours, copy.infoUnavailable)}</p>
                   </div>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-4 pb-1">
-                    <p className="text-sm font-medium text-muted-foreground">{copy.workLocation}</p>
-                    <p className="font-medium">{location}</p>
+                    <p className="text-sm font-medium text-muted-foreground">{copy.dressCode}</p>
+                    <p className="font-medium">{textOrFallback(position.dressCode, copy.infoUnavailable)}</p>
                   </div>
                   <div className="flex items-start justify-between gap-4 pb-1">
                     <p className="text-sm font-medium text-muted-foreground">{copy.postedAt}</p>
                     <p className="font-medium">{postedLabel}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8">
-                <h2 className="text-base font-semibold">{copy.requirements}</h2>
-                <div className="mt-4 grid gap-6 md:grid-cols-2">
-                  <div className="space-y-5">
-                    <article>
-                      <h3 className="text-sm font-medium text-muted-foreground">{copy.visas}</h3>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {visas.map((item) => (
-                          <span key={item} className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </article>
-                    <article>
-                      <h3 className="text-sm font-medium text-muted-foreground">{copy.languages}</h3>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {communicationLanguages.map((item) => (
-                          <span key={item} className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </article>
-                  </div>
-                  <div className="space-y-5">
-                    <article>
-                      <h3 className="text-sm font-medium text-muted-foreground">{copy.nationalities}</h3>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {preferredNationalities.map((item) => (
-                          <span key={item} className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </article>
-                    <article>
-                      <h3 className="text-sm font-medium text-muted-foreground">{copy.keywords}</h3>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {(tagItems.length ? tagItems : [copy.noDetails]).map((tag) => (
-                          <span key={tag} className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </article>
                   </div>
                 </div>
               </div>
@@ -529,21 +494,63 @@ export function PositionDetailPage({ position }: { position: PublicPositionListI
                     <p className="mt-1 whitespace-pre-line text-sm leading-7">{textOrFallback(position.requiredQualifications, copy.infoUnavailable)}</p>
                   </section>
                   <section>
-                    <h3 className="text-sm font-medium text-muted-foreground">{copy.preferredQualifications}</h3>
-                    <p className="mt-1 whitespace-pre-line text-sm leading-7">{textOrFallback(position.preferredQualifications, copy.infoUnavailable)}</p>
-                  </section>
-                  <section>
                     <h3 className="text-sm font-medium text-muted-foreground">{copy.hiringProcess}</h3>
                     <p className="mt-1 whitespace-pre-line text-sm leading-7">{textOrFallback(position.hiringProcess, copy.infoUnavailable)}</p>
                   </section>
-                  {position.additionalNotes?.trim() ? (
-                    <section>
-                      <h3 className="text-sm font-medium text-muted-foreground">{copy.notes}</h3>
-                      <p className="mt-1 whitespace-pre-line text-sm leading-7">{position.additionalNotes}</p>
+                </div>
+              </div>
+
+              {position.partnerOrganization ? (
+                <div className="mt-8">
+                  <h2 className="text-base font-semibold">{copy.companyInfo}</h2>
+                  {(companyLogo || partnerOrgOfficePhotos.length > 0) ? (
+                    <div className="mt-4 flex flex-wrap items-start gap-3">
+                      {companyLogo ? (
+                        <div className="flex flex-col items-center gap-1">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={companyLogo}
+                            alt={copy.companyLogo}
+                            className="h-24 w-24 rounded-2xl border border-border/60 bg-white object-cover"
+                          />
+                          <span className="text-[10px] text-muted-foreground">{copy.companyLogo}</span>
+                        </div>
+                      ) : null}
+                      {partnerOrgOfficePhotos.map((photo, index) => (
+                        <div key={`org-photo-${index}`} className="flex flex-col items-center gap-1">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={photo}
+                            alt={copy.officePhoto}
+                            className="h-24 w-24 rounded-2xl border border-border/60 object-cover"
+                          />
+                          <span className="text-[10px] text-muted-foreground">{copy.officePhoto}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                    <div><span className="text-muted-foreground">{copy.companyName}</span><p className="font-medium">{position.partnerOrganization.name || "-"}</p></div>
+                    <div><span className="text-muted-foreground">{copy.industry}</span><p className="font-medium">{position.partnerOrganization.industry ? partnerIndustryLabel(position.partnerOrganization.industry) : "-"}</p></div>
+                    <div><span className="text-muted-foreground">{copy.companySize}</span><p className="font-medium">{companySizeLabel(position.partnerOrganization.companySize, copy)}</p></div>
+                    <div><span className="text-muted-foreground">{copy.officeAddress}</span><p className="font-medium">{position.partnerOrganization.officeAddress || "-"}</p></div>
+                    <div><span className="text-muted-foreground">{copy.website}</span><p className="font-medium break-all">{position.partnerOrganization.website || "-"}</p></div>
+                    <div><span className="text-muted-foreground">{copy.socialMedia}</span><p className="font-medium break-all">{position.partnerOrganization.socialMedia || "-"}</p></div>
+                  </div>
+                  {position.partnerOrganization.description ? (
+                    <section className="mt-5">
+                      <h3 className="text-sm font-medium text-muted-foreground">{copy.companyDescription}</h3>
+                      <p className="mt-1 whitespace-pre-line text-sm leading-7">{position.partnerOrganization.description}</p>
+                    </section>
+                  ) : null}
+                  {position.partnerOrganization.strengths ? (
+                    <section className="mt-5">
+                      <h3 className="text-sm font-medium text-muted-foreground">{copy.companyStrengths}</h3>
+                      <p className="mt-1 whitespace-pre-line text-sm leading-7">{position.partnerOrganization.strengths}</p>
                     </section>
                   ) : null}
                 </div>
-              </div>
+              ) : null}
             </div>
 
             <div className="mt-8 flex items-center justify-end">

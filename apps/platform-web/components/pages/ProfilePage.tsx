@@ -658,9 +658,8 @@ export function ProfilePage() {
     }
   }
 
-  async function handleProfileLogout() {
-    await logout();
-    window.location.href = "/";
+  function handleProfileLogout() {
+    void logout();
   }
 
   function handleDeleteAccount() {
