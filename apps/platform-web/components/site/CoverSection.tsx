@@ -2,13 +2,22 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { paperlogy } from "../../lib/fonts";
 import { useLanguage } from "../i18n/LanguageProvider";
 
 export const CoverSection = () => {
   const { locale } = useLanguage();
+  const router = useRouter();
+  const [searchInput, setSearchInput] = useState("");
   const t = (ko: string, en: string, zh?: string, vi?: string, ja?: string, id?: string) =>
     locale === "ko" ? ko : locale === "zh-CN" ? (zh ?? en) : locale === "vi" ? (vi ?? en) : locale === "ja" ? (ja ?? en) : locale === "id" ? (id ?? en) : en;
+
+  function submitSearch() {
+    const q = searchInput.trim();
+    router.push(q.length > 0 ? `/positions?q=${encodeURIComponent(q)}` : "/positions");
+  }
 
   return (
     <section className="relative w-full overflow-hidden">
@@ -41,20 +50,29 @@ export const CoverSection = () => {
           <p className={`${paperlogy.className} mt-[1.1%] text-[clamp(0.65rem,1.1vw,1.3rem)] font-semibold uppercase leading-[1.15] tracking-[0.08em] text-[#0B46E8] drop-shadow-sm`}>
             APPLY YOUR NEXT MOVE.
           </p>
-          <div className="mx-auto mt-[2.2%] flex w-full max-w-[640px] items-center gap-2 rounded-2xl border border-slate-200 bg-white/96 p-2 shadow-[0_14px_30px_-20px_rgba(15,23,42,0.4)] backdrop-blur">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitSearch();
+            }}
+            role="search"
+            className="mx-auto mt-[2.2%] flex w-full max-w-[640px] items-center gap-2 rounded-2xl border border-slate-200 bg-white/96 p-2 shadow-[0_14px_30px_-20px_rgba(15,23,42,0.4)] backdrop-blur"
+          >
             <input
-              type="text"
+              type="search"
               className="h-10 flex-1 rounded-xl bg-transparent px-3 text-sm text-slate-800 outline-none placeholder:text-slate-400 md:h-11"
               placeholder={t("직무, 기업, 스킬로 검색", "Search roles, companies, or skills", "搜索岗位、企业或技能", "Tìm vị trí, công ty hoặc kỹ năng", "職種・企業・スキルで検索", "Cari posisi, perusahaan, atau keahlian")}
               aria-label={t("직무, 기업, 스킬 검색", "Search roles, companies, or skills", "搜索岗位、企业或技能", "Tìm vị trí, công ty hoặc kỹ năng", "職種・企業・スキルで検索", "Cari posisi, perusahaan, atau keahlian")}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
             />
-            <Link
-              href="/positions"
+            <button
+              type="submit"
               className="inline-flex h-10 shrink-0 items-center rounded-xl border-0 bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 md:h-11"
             >
               {t("검색", "Search", "搜索", "Tìm kiếm", "検索", "Cari")}
-            </Link>
-          </div>
+            </button>
+          </form>
           <div className="mt-[3.2%] flex justify-center">
             <Link
               href="/matching-probability"
