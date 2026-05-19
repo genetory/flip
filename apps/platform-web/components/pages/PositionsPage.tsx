@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
@@ -240,13 +240,15 @@ function formatDeadlineDday(ymd: string, locale: PlatformLocale) {
 
 export function PositionsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialSearchQuery = searchParams.get("q")?.trim() ?? "";
   const { locale } = useLanguage();
   const { user, isReady, isAuthenticated } = useAuthSession();
   const [positions, setPositions] = useState<PositionCard[]>([]);
   const [isPositionsLoading, setIsPositionsLoading] = useState(true);
   const [sortMode, setSortMode] = useState<"latest" | "deadline">("latest");
-  const [searchInput, setSearchInput] = useState("");
-  const [query, setQuery] = useState("");
+  const [searchInput, setSearchInput] = useState(initialSearchQuery);
+  const [query, setQuery] = useState(initialSearchQuery);
   const [jobRoles, setJobRoles] = useState<string[]>([]);
   const [workTypes, setWorkTypes] = useState<string[]>([]);
   const [industries, setIndustries] = useState<string[]>([]);
@@ -375,6 +377,15 @@ export function PositionsPage() {
       onRemove: () => toggle(positionSources, setPositionSources, value)
     }))
   ];
+
+  // Sync the URL ?q= back into the search state. This handles navigating
+  // here from the hero search bar while already mounted (e.g. logo → home
+  // → another search → /positions?q=...).
+  useEffect(() => {
+    const q = searchParams.get("q")?.trim() ?? "";
+    setSearchInput(q);
+    setQuery(q);
+  }, [searchParams]);
 
   useEffect(() => {
     let ignore = false;
