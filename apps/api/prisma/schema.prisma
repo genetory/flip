@@ -513,6 +513,8 @@ model Position {
   wantsPreTraining        Boolean?
   additionalNotes         String?
   adminMemo               String?
+  viewCount               Int            @default(0)
+  externalClickCount      Int            @default(0)
   createdAt               DateTime       @default(now())
   updatedAt               DateTime       @updatedAt
 

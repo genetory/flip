@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Position" ADD COLUMN "viewCount" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Position" ADD COLUMN "externalClickCount" INTEGER NOT NULL DEFAULT 0;
