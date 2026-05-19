@@ -285,6 +285,25 @@ export function PositionDetailPage({
     setIsThumbnailPreviewOpen(false);
   }, [position.id]);
 
+  // Bump the position viewCount once per browser per day, so the ops
+  // dashboard sees realistic engagement instead of one number per refresh.
+  useEffect(() => {
+    if (!position?.id) return;
+    if (typeof window === "undefined") return;
+    const today = new Date().toISOString().slice(0, 10);
+    const storageKey = `position-view:${position.id}:${today}`;
+    try {
+      if (window.localStorage.getItem(storageKey)) return;
+      window.localStorage.setItem(storageKey, "1");
+    } catch {
+      // localStorage unavailable (private mode etc.) — still send once
+    }
+    const apiBase = process.env.NEXT_PUBLIC_API_URL?.trim() || "";
+    if (!apiBase) return;
+    const url = `${apiBase.replace(/\/$/, "")}/positions/${encodeURIComponent(position.id)}/view`;
+    void fetch(url, { method: "POST", keepalive: true }).catch(() => {});
+  }, [position.id]);
+
   useEffect(() => {
     if (!isAuthenticated || !user?.id || user.role !== "STUDENT") {
       setAppliedPositionIds([]);

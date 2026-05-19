@@ -129,6 +129,9 @@ type PositionItem = {
   additionalNotes: string | null;
   adminMemo: string | null;
   premiumBanner: PositionPremiumBanner | null;
+  viewCount?: number;
+  externalClickCount?: number;
+  applicationCount?: number;
   createdAt: string;
   partnerOrganization: {
     id: string;
@@ -824,13 +827,16 @@ export default function PositionManagementPage() {
         <div className="ops-partner-table-wrap ops-position-list-table-wrap">
           <table className="ops-partner-table ops-position-list-table">
             <colgroup>
-              <col style={{ width: "19%" }} />
-              <col style={{ width: "9%" }} />
-              <col style={{ width: "14%" }} />
-              <col style={{ width: "23%" }} />
-              <col style={{ width: "11%" }} />
+              <col style={{ width: "17%" }} />
+              <col style={{ width: "8%" }} />
               <col style={{ width: "12%" }} />
-              <col style={{ width: "12%" }} />
+              <col style={{ width: "18%" }} />
+              <col style={{ width: "8%" }} />
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "8%" }} />
+              <col style={{ width: "8%" }} />
             </colgroup>
             <thead>
               <tr>
@@ -851,6 +857,9 @@ export default function PositionManagementPage() {
                     <span>희망 인원</span><SortIcon field="hiringCount" />
                   </button>
                 </th>
+                <th title="포지션 상세 페이지 조회수 (브라우저당 1일 1회)">조회수</th>
+                <th title="외부 소스 사이트로 나간 클릭 수">외부 클릭</th>
+                <th title="지원 완료 건수">지원수</th>
                 <th>
                   <button type="button" className={`ops-th-sort ${sortField === "createdAt" ? "is-active" : ""}`} onClick={() => toggleSort("createdAt")}>
                     <span>등록일</span><SortIcon field="createdAt" />
@@ -861,9 +870,9 @@ export default function PositionManagementPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="ops-table-empty">목록을 불러오는 중입니다...</td></tr>
+                <tr><td colSpan={10} className="ops-table-empty">목록을 불러오는 중입니다...</td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={7} className="ops-table-empty">등록된 공고가 없습니다.</td></tr>
+                <tr><td colSpan={10} className="ops-table-empty">등록된 공고가 없습니다.</td></tr>
               ) : (
                 items.map((item) => (
                   <tr key={item.id} className="ops-clickable-row" onClick={() => openDetailModal(item)}>
@@ -900,6 +909,9 @@ export default function PositionManagementPage() {
                     </td>
                     <td><span className="ops-cell-clamp-3">{item.preferredJobRole ?? "-"}</span></td>
                     <td><span className="ops-cell-clamp-3">{item.hiringCount ? `${item.hiringCount}명` : "-"}</span></td>
+                    <td><span className="ops-cell-clamp-3">{(item.viewCount ?? 0).toLocaleString()}</span></td>
+                    <td><span className="ops-cell-clamp-3">{(item.externalClickCount ?? 0).toLocaleString()}</span></td>
+                    <td><span className="ops-cell-clamp-3">{(item.applicationCount ?? 0).toLocaleString()}</span></td>
                     <td><span className="ops-cell-clamp-3">{formatDate(item.createdAt)}</span></td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <button type="button" className="ops-detail-button" onClick={() => openDetailModal(item)}>상세정보</button>

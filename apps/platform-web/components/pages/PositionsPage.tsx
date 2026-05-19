@@ -194,6 +194,16 @@ function isExternalSource(sourceKind: PositionSourceKind) {
   return sourceKind === "EXTERNAL";
 }
 
+// External positions route through /positions/:id/go on the API so the
+// ops dashboard can count outbound clicks. Returns null when the position
+// is internal or has no source URL.
+function externalGoHref(positionId: string, sourceKind: PositionSourceKind, sourceUrl: string | null) {
+  if (!isExternalSource(sourceKind) || !sourceUrl) return null;
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL?.trim() || "").replace(/\/$/, "");
+  if (!apiBase) return sourceUrl;
+  return `${apiBase}/positions/${encodeURIComponent(positionId)}/go`;
+}
+
 function formatPostedDate(position: Position, locale: PlatformLocale) {
   if (position.createdAt) {
     const created = new Date(position.createdAt);
@@ -1232,7 +1242,7 @@ export const PositionRow = ({
             />
           )
           : copy.externalLink;
-  const detailHref = isExternalSource(p.sourceKind) && p.sourceUrl ? p.sourceUrl : `/positions/${p.id}`;
+  const detailHref = externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? `/positions/${p.id}`;
   return (
     <article className="group relative rounded-xl border border-border/60 bg-card p-3 md:p-4">
       {isExternalSource(p.sourceKind) && p.sourceUrl ? (
@@ -1311,7 +1321,7 @@ export const PositionRow = ({
                 asChild
               >
                 <a
-                  href={p.sourceUrl}
+                  href={externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? p.sourceUrl ?? "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => {
@@ -1404,7 +1414,7 @@ const PositionGridCard = ({
             />
           )
           : copy.externalLink;
-  const detailHref = isExternalSource(p.sourceKind) && p.sourceUrl ? p.sourceUrl : `/positions/${p.id}`;
+  const detailHref = externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? `/positions/${p.id}`;
   return (
     <article className="group relative flex h-full flex-col rounded-xl border border-border/60 bg-card p-4">
       {isExternalSource(p.sourceKind) && p.sourceUrl ? (
@@ -1474,7 +1484,7 @@ const PositionGridCard = ({
             asChild
           >
                 <a
-                  href={p.sourceUrl}
+                  href={externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? p.sourceUrl ?? "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => {

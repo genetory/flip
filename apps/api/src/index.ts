@@ -3295,8 +3295,13 @@ function toPosition(item: {
   wantsPreTraining: boolean | null;
   additionalNotes: string | null;
   adminMemo: string | null;
+  viewCount?: number;
+  externalClickCount?: number;
   createdAt: Date;
   updatedAt: Date;
+  _count?: {
+    applications?: number;
+  };
   matchingParticipants?: Array<{
     id: string;
     name: string;
@@ -3354,6 +3359,9 @@ function toPosition(item: {
     employmentClassification: extractEmploymentClassificationMeta(item.adminMemo),
     adminMemo: stripEmploymentClassificationMeta(stripPremiumBannerMeta(item.adminMemo)),
     premiumBanner: extractPremiumBannerMeta(item.adminMemo),
+    viewCount: item.viewCount ?? 0,
+    externalClickCount: item.externalClickCount ?? 0,
+    applicationCount: item._count?.applications ?? 0,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     matchingParticipants: (item.matchingParticipants ?? []).map((participant) => ({
@@ -5933,6 +5941,68 @@ app.get("/positions/:id", async (req, res) => {
   });
 });
 
+// Anonymous engagement tracking — no auth needed. Both endpoints just
+// atomically bump a counter on the position. Dedup is done client-side
+// via localStorage (24h) so refreshing or revisiting the same day
+// doesn't double-count. Worst case (bot spam, broken client) we get
+// inflated numbers, which is fine for an internal ops dashboard.
+app.post("/positions/:id/view", async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    await prisma.position.update({
+      where: { id },
+      data: { viewCount: { increment: 1 } }
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      return res.status(404).json({ ok: false, message: "position not found" });
+    }
+    return res.status(500).json({ ok: false, message: "failed to record view" });
+  }
+});
+
+// Outbound click tracker — for external positions (WANTED / KOWORK /
+// BUDDIES). Increments externalClickCount and 302 redirects to the
+// source URL. Using a redirect (rather than sendBeacon on the client)
+// guarantees counts even when ad blockers or page-unload races would
+// drop client-side beacons.
+app.get("/positions/:id/go", async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
+
+  const position = await prisma.position.findUnique({
+    where: { id },
+    select: { sourceUrl: true, sourceKind: true, status: true }
+  });
+  if (!position) return res.status(404).json({ ok: false, message: "position not found" });
+  if (!position.sourceUrl) {
+    return res.redirect(302, `${platformWebUrl}/positions/${encodeURIComponent(id)}`);
+  }
+
+  // Only allow http(s) targets so the redirect can't be used as an open
+  // gateway to weird schemes.
+  try {
+    const parsed = new URL(position.sourceUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return res.status(400).json({ ok: false, message: "invalid source url" });
+    }
+  } catch {
+    return res.status(400).json({ ok: false, message: "invalid source url" });
+  }
+
+  // Fire-and-forget the counter bump so a slow write never blocks the
+  // user from reaching the external site.
+  void prisma.position
+    .update({ where: { id }, data: { externalClickCount: { increment: 1 } } })
+    .catch((error) => {
+      console.error("[positions/go] failed to increment", error);
+    });
+
+  return res.redirect(302, position.sourceUrl);
+});
+
 app.get("/ops/partners/meta", authenticate, requireRoles([MemberRole.OPERATOR]), (_req, res) => {
   res.json({
     ok: true,
@@ -6583,6 +6653,9 @@ app.get("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), asy
             id: true,
             name: true
           }
+        },
+        _count: {
+          select: { applications: true }
         },
         matchingParticipants: {
           orderBy: { createdAt: "desc" },
