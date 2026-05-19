@@ -1,5 +1,5 @@
 FROM node:22-alpine AS builder
-# ci trigger: rebuild web image
+# ci trigger: rebuild web image (adsense client ID update)
 WORKDIR /app
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
