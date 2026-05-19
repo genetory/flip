@@ -110,16 +110,30 @@ export function PositionDetailPage({
   position: PublicPositionListItem | null;
   positionId: string;
 }) {
+  // === All hooks must run on every render in the same order. If we early-
+  // return before any hook is called, React error #310 (more hooks than
+  // last render) fires when the state later becomes non-null. So every
+  // hook used by the full page is declared here, BEFORE the early return.
+  const router = useRouter();
+  const { locale } = useLanguage();
+  const { user, isAuthenticated } = useAuthSession();
+
   const [position, setPosition] = useState<PublicPositionListItem | null>(initialPosition);
   const [isResolving, setIsResolving] = useState(initialPosition === null);
   const [notFoundForViewer, setNotFoundForViewer] = useState(false);
-  const { locale } = useLanguage();
+  const [recommendedPositions, setRecommendedPositions] = useState<PublicPositionListItem[]>([]);
+  const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(true);
+  const [selectedThumbnailIndex, setSelectedThumbnailIndex] = useState(0);
+  const [isThumbnailPreviewOpen, setIsThumbnailPreviewOpen] = useState(false);
+  const [appliedPositionIds, setAppliedPositionIds] = useState<string[]>([]);
+  const [myPartnerOrganizationId, setMyPartnerOrganizationId] = useState<string | null>(null);
+  const inlineGalleryRef = useRef<HTMLDivElement | null>(null);
+
   const isKo = locale === "ko";
   const isZh = locale === "zh-CN";
   const isVi = locale === "vi";
   const isJa = locale === "ja";
   const isId = locale === "id";
-  const { isAuthenticated: isAuthForFetch } = useAuthSession();
 
   // When the server-side fetch returned null (position is not in the public
   // OPEN set), retry on the client with the viewer's access token so the
@@ -144,7 +158,109 @@ export function PositionDetailPage({
     return () => {
       cancelled = true;
     };
-  }, [initialPosition, positionId, isAuthForFetch]);
+  }, [initialPosition, positionId, isAuthenticated]);
+
+  // Reset thumbnail gallery state when navigating between positions.
+  useEffect(() => {
+    setSelectedThumbnailIndex(0);
+    setIsThumbnailPreviewOpen(false);
+  }, [position?.id]);
+
+  // Bump position viewCount once per browser per day so ops dashboard sees
+  // realistic engagement instead of one number per refresh.
+  useEffect(() => {
+    const id = position?.id;
+    if (!id) return;
+    if (typeof window === "undefined") return;
+    const today = new Date().toISOString().slice(0, 10);
+    const storageKey = `position-view:${id}:${today}`;
+    try {
+      if (window.localStorage.getItem(storageKey)) return;
+      window.localStorage.setItem(storageKey, "1");
+    } catch {
+      // localStorage unavailable (private mode etc.) — still send once
+    }
+    const apiBase = process.env.NEXT_PUBLIC_API_URL?.trim() || "";
+    if (!apiBase) return;
+    const url = `${apiBase.replace(/\/$/, "")}/positions/${encodeURIComponent(id)}/view`;
+    void fetch(url, { method: "POST", keepalive: true }).catch(() => {});
+  }, [position?.id]);
+
+  // Applied positions for the student viewer.
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || user.role !== "STUDENT") {
+      setAppliedPositionIds([]);
+      return;
+    }
+    let ignore = false;
+    void (async () => {
+      try {
+        const applied = await getMyAppliedPositions();
+        if (ignore) return;
+        setAppliedPositionIds(applied.map((item) => item.id));
+      } catch {
+        if (!ignore) setAppliedPositionIds([]);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [isAuthenticated, user?.id, user?.role]);
+
+  // Partner viewer's own organization id (for the "edit" button).
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== "PARTNER") {
+      setMyPartnerOrganizationId(null);
+      return;
+    }
+    let ignore = false;
+    void (async () => {
+      try {
+        const org = await getMyPartnerOrganization();
+        if (ignore) return;
+        setMyPartnerOrganizationId(org?.id ?? null);
+      } catch {
+        if (!ignore) setMyPartnerOrganizationId(null);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [isAuthenticated, user?.role]);
+
+  // Recommended-positions effect — runs only when position is loaded.
+  useEffect(() => {
+    if (!position) {
+      setRecommendedPositions([]);
+      setIsRecommendationsLoading(false);
+      return;
+    }
+    let ignore = false;
+    setIsRecommendationsLoading(true);
+    void (async () => {
+      try {
+        const all = await getPublicPositions();
+        if (ignore) return;
+        const recommended = all
+          .filter((item) => item.id !== position.id)
+          .map((item) => ({ item, score: similarityScore(position, item) }))
+          .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return new Date(b.item.createdAt).getTime() - new Date(a.item.createdAt).getTime();
+          })
+          .slice(0, 6)
+          .map((entry) => entry.item);
+        setRecommendedPositions(recommended);
+      } catch {
+        if (!ignore) setRecommendedPositions([]);
+      } finally {
+        if (!ignore) setIsRecommendationsLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [position]);
 
   if (!position) {
     return (
@@ -202,7 +318,6 @@ export function PositionDetailPage({
       </div>
     );
   }
-  const router = useRouter();
   const t = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
     isKo ? ko : isZh ? zh : isVi ? vi : isJa ? ja : isId ? id : en;
   const copy = {
@@ -247,14 +362,6 @@ export function PositionDetailPage({
     recommendationTitle: t("혹시 이런 포지션은 어떠세요?", "You might also like", "你可能也喜欢这些职位", "Bạn cũng có thể thích các vị trí này", "こんなポジションはいかがですか？", "Anda mungkin juga menyukai posisi ini")
   };
 
-  const { user, isAuthenticated } = useAuthSession();
-  const [recommendedPositions, setRecommendedPositions] = useState<PublicPositionListItem[]>([]);
-  const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(true);
-  const [selectedThumbnailIndex, setSelectedThumbnailIndex] = useState(0);
-  const [isThumbnailPreviewOpen, setIsThumbnailPreviewOpen] = useState(false);
-  const [appliedPositionIds, setAppliedPositionIds] = useState<string[]>([]);
-  const [myPartnerOrganizationId, setMyPartnerOrganizationId] = useState<string | null>(null);
-  const inlineGalleryRef = useRef<HTMLDivElement | null>(null);
   const company = position.partnerOrganization?.name?.trim() || copy.partnerCompany;
   const initial = company[0]?.toUpperCase() ?? "P";
   const category = position.preferredJobRole?.trim() || copy.roleTbd;
@@ -279,98 +386,6 @@ export function PositionDetailPage({
     return [raw];
   })();
   const companyLogo = position.partnerOrganization?.companyLogoImageData ?? null;
-
-  useEffect(() => {
-    setSelectedThumbnailIndex(0);
-    setIsThumbnailPreviewOpen(false);
-  }, [position.id]);
-
-  // Bump the position viewCount once per browser per day, so the ops
-  // dashboard sees realistic engagement instead of one number per refresh.
-  useEffect(() => {
-    if (!position?.id) return;
-    if (typeof window === "undefined") return;
-    const today = new Date().toISOString().slice(0, 10);
-    const storageKey = `position-view:${position.id}:${today}`;
-    try {
-      if (window.localStorage.getItem(storageKey)) return;
-      window.localStorage.setItem(storageKey, "1");
-    } catch {
-      // localStorage unavailable (private mode etc.) — still send once
-    }
-    const apiBase = process.env.NEXT_PUBLIC_API_URL?.trim() || "";
-    if (!apiBase) return;
-    const url = `${apiBase.replace(/\/$/, "")}/positions/${encodeURIComponent(position.id)}/view`;
-    void fetch(url, { method: "POST", keepalive: true }).catch(() => {});
-  }, [position.id]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !user?.id || user.role !== "STUDENT") {
-      setAppliedPositionIds([]);
-      return;
-    }
-    let ignore = false;
-    void (async () => {
-      try {
-        const applied = await getMyAppliedPositions();
-        if (ignore) return;
-        setAppliedPositionIds(applied.map((item) => item.id));
-      } catch {
-        if (!ignore) setAppliedPositionIds([]);
-      }
-    })();
-    return () => {
-      ignore = true;
-    };
-  }, [isAuthenticated, user?.id, user?.role]);
-
-  useEffect(() => {
-    if (!isAuthenticated || user?.role !== "PARTNER") {
-      setMyPartnerOrganizationId(null);
-      return;
-    }
-    let ignore = false;
-    void (async () => {
-      try {
-        const org = await getMyPartnerOrganization();
-        if (ignore) return;
-        setMyPartnerOrganizationId(org?.id ?? null);
-      } catch {
-        if (!ignore) setMyPartnerOrganizationId(null);
-      }
-    })();
-    return () => {
-      ignore = true;
-    };
-  }, [isAuthenticated, user?.role]);
-
-  useEffect(() => {
-    let ignore = false;
-    setIsRecommendationsLoading(true);
-    void (async () => {
-      try {
-        const all = await getPublicPositions();
-        if (ignore) return;
-        const recommended = all
-          .filter((item) => item.id !== position.id)
-          .map((item) => ({ item, score: similarityScore(position, item) }))
-          .sort((a, b) => {
-            if (b.score !== a.score) return b.score - a.score;
-            return new Date(b.item.createdAt).getTime() - new Date(a.item.createdAt).getTime();
-          })
-          .slice(0, 6)
-          .map((entry) => entry.item);
-        setRecommendedPositions(recommended);
-      } catch {
-        if (!ignore) setRecommendedPositions([]);
-      } finally {
-        if (!ignore) setIsRecommendationsLoading(false);
-      }
-    })();
-    return () => {
-      ignore = true;
-    };
-  }, [position]);
 
   async function markAsApplied() {
     if (!position) return;
