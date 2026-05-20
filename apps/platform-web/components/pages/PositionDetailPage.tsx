@@ -8,6 +8,7 @@ import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
 import {
   applyMyPosition,
+  deleteMyPartnerPosition,
   getMyAppliedPositions,
   getMyPartnerOrganization,
   getPublicPositionById,
@@ -357,6 +358,10 @@ export function PositionDetailPage({
     companyLogo: t("회사 로고", "Company logo", "公司标志", "Logo công ty", "会社ロゴ", "Logo perusahaan"),
     officePhoto: t("사무실 사진", "Office photo", "办公室照片", "Ảnh văn phòng", "オフィス写真", "Foto kantor"),
     edit: t("수정하기", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit"),
+    deleteAction: t("삭제하기", "Delete", "删除", "Xóa", "削除する", "Hapus"),
+    deleteConfirm: t("이 포지션을 정말 삭제하시겠습니까? 되돌릴 수 없습니다.", "Delete this position? This cannot be undone.", "确定要删除该职位吗？此操作无法撤销。", "Bạn có chắc muốn xóa vị trí này? Không thể hoàn tác.", "このポジションを削除しますか？元に戻せません。", "Hapus posisi ini? Tindakan tidak dapat dibatalkan."),
+    deleteSuccess: t("포지션이 삭제되었습니다.", "Position deleted.", "职位已删除。", "Đã xóa vị trí.", "ポジションを削除しました。", "Posisi telah dihapus."),
+    deleteFailed: t("삭제에 실패했습니다.", "Failed to delete.", "删除失败。", "Xóa thất bại.", "削除に失敗しました。", "Gagal menghapus."),
     apply: t("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar"),
     applied: t("지원완료", "Applied", "已申请", "Đã ứng tuyển", "応募済み", "Sudah dilamar"),
     recommendationTitle: t("혹시 이런 포지션은 어떠세요?", "You might also like", "你可能也喜欢这些职位", "Bạn cũng có thể thích các vị trí này", "こんなポジションはいかがですか？", "Anda mungkin juga menyukai posisi ini")
@@ -369,6 +374,21 @@ export function PositionDetailPage({
   const postedLabel = formatPostedDate(position.createdAt, locale);
   const thumbnailImages = safeStringArray(position.thumbnailImages);
   const isOwnPartnerPosting = !!myPartnerOrganizationId && position.partnerOrganization?.id === myPartnerOrganizationId;
+  const canModerate = user?.role === "OPERATOR" || isOwnPartnerPosting;
+
+  async function handleDeletePosition() {
+    if (!position) return;
+    if (!canModerate) return;
+    if (!window.confirm(copy.deleteConfirm)) return;
+    try {
+      await deleteMyPartnerPosition(position.id);
+      window.alert(copy.deleteSuccess);
+      router.push("/positions");
+      router.refresh();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : copy.deleteFailed);
+    }
+  }
   const statusBadge = getPositionStatusBadge(position.status, locale);
 
   // Parse partner organization images (logo + office photos array)
@@ -681,11 +701,21 @@ export function PositionDetailPage({
               ) : null}
             </div>
 
-            <div className="mt-8 flex items-center justify-end">
-              {isOwnPartnerPosting ? (
-                <Button variant="dark" size="lg" asChild>
-                  <Link href={`/positions/${position.id}/edit`}>{copy.edit}</Link>
-                </Button>
+            <div className="mt-8 flex flex-wrap items-center justify-end gap-2">
+              {canModerate ? (
+                <>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => void handleDeletePosition()}
+                    className="border-red-300 bg-red-50 text-red-600 hover:border-red-400 hover:bg-red-100 hover:text-red-700"
+                  >
+                    {copy.deleteAction}
+                  </Button>
+                  <Button variant="dark" size="lg" asChild>
+                    <Link href={`/positions/${position.id}/edit`}>{copy.edit}</Link>
+                  </Button>
+                </>
               ) : (
                 <Button
                   variant="dark"

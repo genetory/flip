@@ -1012,6 +1012,12 @@ export async function updateMyPartnerPosition(
   return result.item;
 }
 
+export async function deleteMyPartnerPosition(id: string) {
+  await authedJsonFetch<unknown>(`/partner/positions/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+}
+
 export type PartnerApplicantStatus =
   | "APPLIED"
   | "REVIEWING"

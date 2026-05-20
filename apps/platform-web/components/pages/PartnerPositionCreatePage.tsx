@@ -230,7 +230,19 @@ export function PartnerPositionCreatePage({
 
   useEffect(() => {
     if (mode !== "create") return;
-    if (!isReady || !isAuthenticated || !user || user.role !== "PARTNER") return;
+    if (!isReady || !isAuthenticated || !user) return;
+    if (user.role !== "PARTNER" && user.role !== "OPERATOR") return;
+
+    // Operators bypass the org-affiliation check — they post directly and
+    // skip approval entirely (handled server-side too).
+    if (user.role === "OPERATOR") {
+      setCanCreate(true);
+      setCreateBlockedReason(null);
+      setCurrentVerificationStatus(null);
+      setOrg(null);
+      return;
+    }
+
     let ignore = false;
     setIsCheckingOrg(true);
     void (async () => {
@@ -271,7 +283,8 @@ export function PartnerPositionCreatePage({
   useEffect(() => {
     if (mode !== "edit") return;
     if (!positionId) return;
-    if (!isReady || !isAuthenticated || !user || user.role !== "PARTNER") return;
+    if (!isReady || !isAuthenticated || !user) return;
+    if (user.role !== "PARTNER" && user.role !== "OPERATOR") return;
     let ignore = false;
     setIsLoadingPosition(true);
     void (async () => {
@@ -377,12 +390,17 @@ export function PartnerPositionCreatePage({
         dressCode: dressCode.trim() || undefined,
         additionalNotes: additionalNotes.trim() || undefined
       };
+      const isOperator = user?.role === "OPERATOR";
       if (mode === "edit" && positionId) {
         await updateMyPartnerPosition(positionId, payload);
         if (embedded) {
           onEmbeddedClose?.();
         } else {
-          window.alert(t("수정사항이 저장되었고 어드민 관리자 승인 요청이 접수되었습니다.", "Changes were saved and sent for ops admin approval.", "修改已保存，并已提交管理员审批请求。", "Các thay đổi đã được lưu và gửi yêu cầu phê duyệt cho quản trị viên.", "変更が保存され、運営管理者への承認依頼が受け付けられました。", "Perubahan telah disimpan dan dikirim untuk persetujuan admin operasi."));
+          window.alert(
+            isOperator
+              ? t("수정사항이 저장되었습니다.", "Changes saved.", "修改已保存。", "Đã lưu thay đổi.", "変更が保存されました。", "Perubahan disimpan.")
+              : t("수정사항이 저장되었고 어드민 관리자 승인 요청이 접수되었습니다.", "Changes were saved and sent for ops admin approval.", "修改已保存，并已提交管理员审批请求。", "Các thay đổi đã được lưu và gửi yêu cầu phê duyệt cho quản trị viên.", "変更が保存され、運営管理者への承認依頼が受け付けられました。", "Perubahan telah disimpan dan dikirim untuk persetujuan admin operasi.")
+          );
           router.push(`/positions/${encodeURIComponent(positionId)}`);
         }
       } else {
@@ -390,7 +408,11 @@ export function PartnerPositionCreatePage({
         if (embedded) {
           onEmbeddedClose?.();
         } else {
-          window.alert(t("포지션이 등록되었고 어드민 관리자 승인 요청이 접수되었습니다.", "Position was created and sent for ops admin approval.", "职位已创建，并已提交管理员审批请求。", "Vị trí đã được tạo và gửi yêu cầu phê duyệt cho quản trị viên.", "ポジションが登録され、運営管理者への承認依頼が受け付けられました。", "Posisi telah dibuat dan dikirim untuk persetujuan admin operasi."));
+          window.alert(
+            isOperator
+              ? t("포지션이 즉시 게시되었습니다.", "Position published.", "职位已立即发布。", "Vị trí đã được đăng ngay.", "ポジションが即時公開されました。", "Posisi langsung diterbitkan.")
+              : t("포지션이 등록되었고 어드민 관리자 승인 요청이 접수되었습니다.", "Position was created and sent for ops admin approval.", "职位已创建，并已提交管理员审批请求。", "Vị trí đã được tạo và gửi yêu cầu phê duyệt cho quản trị viên.", "ポジションが登録され、運営管理者への承認依頼が受け付けられました。", "Posisi telah dibuat dan dikirim untuk persetujuan admin operasi.")
+          );
           router.push(`/positions/${encodeURIComponent(created.id)}`);
         }
       }
@@ -505,9 +527,9 @@ export function PartnerPositionCreatePage({
                 <Link href="/login">{t("로그인하러 가기", "Go to login", "前往登录", "Đi đến đăng nhập", "ログインへ", "Pergi ke masuk")}</Link>
               </Button>
             </div>
-          ) : user.role !== "PARTNER" ? (
+          ) : user.role !== "PARTNER" && user.role !== "OPERATOR" ? (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">{t("파트너회원만 포지션을 생성할 수 있습니다.", "Only partner accounts can create positions.", "只有合作伙伴账户可以创建职位。", "Chỉ tài khoản đối tác mới có thể tạo vị trí.", "パートナー会員のみポジションを作成できます。", "Hanya akun mitra yang dapat membuat posisi.")}</p>
+              <p className="text-sm text-muted-foreground">{t("파트너회원·운영자만 포지션을 생성할 수 있습니다.", "Only partner or operator accounts can create positions.", "只有合作伙伴或运营账户可以创建职位。", "Chỉ tài khoản đối tác hoặc vận hành mới có thể tạo vị trí.", "パートナー会員・運営者のみポジションを作成できます。", "Hanya akun mitra atau operator yang dapat membuat posisi.")}</p>
               <Button variant="outline" asChild>
                 <Link href="/positions">{t("포지션 목록으로", "Go to positions", "前往职位列表", "Đi đến danh sách vị trí", "ポジション一覧へ", "Ke daftar posisi")}</Link>
               </Button>
@@ -782,7 +804,9 @@ export function PartnerPositionCreatePage({
                         : t("생성 중...", "Creating...", "创建中...", "Đang tạo...", "作成中...", "Membuat...")
                       : isEditMode
                         ? t("수정사항 저장", "Save changes", "保存修改", "Lưu thay đổi", "変更を保存", "Simpan perubahan")
-                        : t("승인 요청 제출", "Submit for review", "提交审核请求", "Gửi yêu cầu phê duyệt", "承認依頼を提出", "Kirim untuk tinjauan")}
+                        : user?.role === "OPERATOR"
+                          ? t("바로 게시", "Publish now", "立即发布", "Đăng ngay", "今すぐ公開", "Terbitkan sekarang")
+                          : t("승인 요청 제출", "Submit for review", "提交审核请求", "Gửi yêu cầu phê duyệt", "承認依頼を提出", "Kirim untuk tinjauan")}
                   </Button>
                 </div>
               </div>
