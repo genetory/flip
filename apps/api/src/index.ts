@@ -51,6 +51,13 @@ import {
 } from "./email/verification-template";
 import { renderEmailLayout } from "./email/email-layout";
 import { checkEmailDeliverable } from "./email/deliverability";
+import {
+  embedAndSavePosition,
+  embedQueryCached,
+  expandQueryCandidates,
+  keywordScore,
+  toPgVector
+} from "./embedding/position-embedding";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -5660,6 +5667,35 @@ app.post("/community/translate", async (req, res) => {
   }
 });
 
+// Response cache for /positions, anonymous viewers only. Authenticated
+// users skip the cache so per-viewer flags (saved/applied/etc.) stay
+// accurate. TTL-only with no manual invalidation: 60s is short enough
+// that new positions appear within a minute and stale data is bounded.
+type PositionsCacheEntry = { body: unknown; expiresAt: number };
+const POSITIONS_CACHE_MAX = 100;
+const POSITIONS_CACHE_TTL_MS = 60 * 1000;
+const positionsResponseCache = new Map<string, PositionsCacheEntry>();
+
+function positionsCacheKey(params: {
+  search: string;
+  limit: number;
+  cursor: string | undefined;
+  sortMode: string;
+  sortOrder: string;
+  jobRoles: string[];
+  sourceProviders: string[];
+}): string {
+  return JSON.stringify({
+    s: params.search,
+    l: params.limit,
+    c: params.cursor ?? "",
+    sm: params.sortMode,
+    so: params.sortOrder,
+    j: [...params.jobRoles].sort(),
+    p: [...params.sourceProviders].sort()
+  });
+}
+
 app.get("/positions", async (req, res) => {
   const parsedQuery = listPublicPositionsCursorQuerySchema.safeParse(req.query);
   if (!parsedQuery.success) {
@@ -5676,6 +5712,19 @@ app.get("/positions", async (req, res) => {
     : [];
   const sortMode = parsedQuery.data.sort ?? "latest";
   const sortOrder = parsedQuery.data.sortOrder ?? "desc";
+
+  // Check the anonymous-viewer response cache before doing any work.
+  // We resolve the viewer first to gate the cache lookup; that's still
+  // cheap (~1ms) compared to the ANN query.
+  const cacheKey = positionsCacheKey({
+    search: search ?? "",
+    limit,
+    cursor: parsedQuery.data.cursor,
+    sortMode,
+    sortOrder,
+    jobRoles,
+    sourceProviders: sourceProviders.map((p) => String(p))
+  });
 
   // Cursor encodes the keyset for the active sort mode.
   // - latest: `${createdAtISO}|${id}` (desc; older or same-createdAt-with-smaller-id)
@@ -5714,6 +5763,173 @@ app.get("/positions", async (req, res) => {
   }
 
   const viewer = await resolvePublicViewer(req);
+
+  // Anonymous-only cache lookup. Skip for authenticated viewers because
+  // toPublicPositionItem masks fields based on viewer.role.
+  const now = Date.now();
+  if (!viewer) {
+    const hit = positionsResponseCache.get(cacheKey);
+    if (hit && hit.expiresAt > now) {
+      positionsResponseCache.delete(cacheKey);
+      positionsResponseCache.set(cacheKey, hit);
+      res.setHeader("X-Cache", "HIT");
+      return res.json(hit.body);
+    }
+    if (hit) positionsResponseCache.delete(cacheKey);
+  }
+
+  const sendAndMaybeCache = (body: Record<string, unknown>) => {
+    if (!viewer) {
+      if (positionsResponseCache.size >= POSITIONS_CACHE_MAX) {
+        const oldestKey = positionsResponseCache.keys().next().value;
+        if (oldestKey !== undefined) positionsResponseCache.delete(oldestKey);
+      }
+      positionsResponseCache.set(cacheKey, { body, expiresAt: now + POSITIONS_CACHE_TTL_MS });
+      res.setHeader("X-Cache", "MISS");
+    }
+    return res.json(body);
+  };
+
+  // Hybrid search branch: pgvector HNSW ANN narrows the candidate pool
+  // to the semantically nearest ~100, then we re-rank those by a blend
+  // of semantic similarity and multi-field keyword score. User filters
+  // (jobRole / sourceProvider) are applied inside the ANN query so the
+  // HNSW scan only walks indices the user can actually see.
+  // Cursor pagination is skipped — hybrid results are one-shot.
+  const SEMANTIC_WEIGHT = 0.65;
+  const KEYWORD_WEIGHT = 0.35;
+  const ANN_POOL_SIZE = 100;
+  const trimmedSearch = (search ?? "").trim();
+  if (trimmedSearch && openai) {
+    const queryVector = await embedQueryCached(trimmedSearch);
+    if (queryVector) {
+      const vectorLiteral = toPgVector(queryVector);
+      const jobRoleFilter = jobRoles.length
+        ? Prisma.sql`AND "preferredJobRole" = ANY(${jobRoles}::text[])`
+        : Prisma.empty;
+      const providerFilter = sourceProviders.length
+        ? Prisma.sql`AND "sourceProvider"::text = ANY(${sourceProviders.map((p) => String(p))}::text[])`
+        : Prisma.sql`AND "sourceProvider"::text NOT IN ('BUDDIES', 'KOWORK')`;
+
+      const annResults = await prisma.$queryRaw<Array<{ id: string; distance: number }>>`
+        SELECT "id", "embedding" <=> ${vectorLiteral}::vector AS distance
+        FROM "Position"
+        WHERE "status" = 'OPEN'
+          AND "embedding" IS NOT NULL
+          ${jobRoleFilter}
+          ${providerFilter}
+        ORDER BY "embedding" <=> ${vectorLiteral}::vector
+        LIMIT ${ANN_POOL_SIZE}
+      `;
+
+      // Union pool: also pull lexical matches that the ANN may have
+      // missed (e.g. a few Busan positions whose embeddings drift far
+      // because their description happens to be very niche). Fetch
+      // their actual semantic distance too so they compete on the
+      // hybrid score, not just keyword.
+      const queryCandidates = expandQueryCandidates(trimmedSearch);
+      const distanceById = new Map<string, number>(
+        annResults.map((r) => [r.id, Number(r.distance)])
+      );
+      if (queryCandidates.length > 0) {
+        const annIds = annResults.map((r) => r.id);
+        const annExclude = annIds.length
+          ? Prisma.sql`AND p."id" <> ALL(${annIds}::text[])`
+          : Prisma.empty;
+        const qualifiedJobRoleFilter = jobRoles.length
+          ? Prisma.sql`AND p."preferredJobRole" = ANY(${jobRoles}::text[])`
+          : Prisma.empty;
+        const qualifiedProviderFilter = sourceProviders.length
+          ? Prisma.sql`AND p."sourceProvider"::text = ANY(${sourceProviders.map((p) => String(p))}::text[])`
+          : Prisma.sql`AND p."sourceProvider"::text NOT IN ('BUDDIES', 'KOWORK')`;
+        // ILIKE on title/workLocation/preferredJobRole + partner org name via join.
+        // %candidate% built server-side to keep parameter list small.
+        const likePatterns = queryCandidates.map((c) => `%${c}%`);
+        const keywordRows = await prisma.$queryRaw<Array<{ id: string; distance: number }>>`
+          SELECT p."id", p."embedding" <=> ${vectorLiteral}::vector AS distance
+          FROM "Position" p
+          LEFT JOIN "PartnerOrganization" po ON po."id" = p."partnerOrganizationId"
+          WHERE p."status" = 'OPEN'
+            AND p."embedding" IS NOT NULL
+            ${qualifiedJobRoleFilter}
+            ${qualifiedProviderFilter}
+            ${annExclude}
+            AND (
+              p."title" ILIKE ANY(${likePatterns}::text[])
+              OR p."workLocation" ILIKE ANY(${likePatterns}::text[])
+              OR p."preferredJobRole" ILIKE ANY(${likePatterns}::text[])
+              OR po."name" ILIKE ANY(${likePatterns}::text[])
+            )
+          ORDER BY p."embedding" <=> ${vectorLiteral}::vector
+          LIMIT 50
+        `;
+        for (const row of keywordRows) {
+          if (!distanceById.has(row.id)) distanceById.set(row.id, Number(row.distance));
+        }
+      }
+
+      // Graceful degradation: if no positions have embeddings yet
+      // (fresh deploy before backfill runs, or transient state), skip
+      // the hybrid path and let the keyword-search path below handle
+      // it. Otherwise the user would see an empty page right after a
+      // schema migration.
+      if (distanceById.size > 0) {
+
+      // Fetch full data only for the narrowed pool, then re-rank with
+      // keyword scoring. This keeps the row payload to ~100-150
+      // records regardless of corpus size.
+      const candidateIds = Array.from(distanceById.keys());
+      const candidates = await prisma.position.findMany({
+        where: { id: { in: candidateIds } },
+        include: {
+          partnerOrganization: {
+            select: {
+              id: true,
+              name: true,
+              industry: true,
+              companySize: true,
+              officeAddress: true,
+              description: true,
+              strengths: true,
+              website: true,
+              socialMedia: true,
+              companyLogoImageData: true,
+              officePhotoImageData: true
+            }
+          },
+          matchingParticipants: { select: { id: true } }
+        }
+      });
+
+      const scored = candidates.map((item) => {
+        const distance = distanceById.get(item.id) ?? 1;
+        const semantic = Math.max(0, 1 - distance);
+        const lexical = keywordScore(
+          {
+            title: item.title,
+            preferredJobRole: item.preferredJobRole,
+            workLocation: item.workLocation,
+            mainResponsibilities: item.mainResponsibilities,
+            requiredQualifications: item.requiredQualifications,
+            preferredQualifications: item.preferredQualifications,
+            partnerOrganizationName: item.partnerOrganization?.name ?? null
+          },
+          trimmedSearch
+        );
+        return { item, score: SEMANTIC_WEIGHT * semantic + KEYWORD_WEIGHT * lexical };
+      });
+      scored.sort((a, b) => b.score - a.score);
+      const top = scored.slice(0, limit).map((entry) => entry.item);
+
+      return sendAndMaybeCache({
+        ok: true,
+        items: top.map((item) => toPublicPositionItem(item, viewer)),
+        nextCursor: null,
+        searchMode: "hybrid" as const
+      });
+      } // end of `if (distanceById.size > 0)`
+    }
+  }
 
   const baseWhere = {
     status: { in: [PositionStatus.OPEN] },
@@ -5812,7 +6028,7 @@ app.get("/positions", async (req, res) => {
       : Buffer.from(`${tail.createdAt.toISOString()}|${tail.id}`, "utf8").toString("base64")
     : null;
 
-  return res.json({
+  return sendAndMaybeCache({
     ok: true,
     items: pageItems.map((item) => toPublicPositionItem(item, viewer)),
     nextCursor
@@ -6804,6 +7020,7 @@ app.post("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), as
       createdByUserEmail: creator?.email ?? null,
       createdAt: created.createdAt
     });
+    void embedAndSavePosition(prisma, created.id);
 
     return res.status(201).json({ ok: true, item: toPosition(created) });
   } catch (error) {
@@ -6936,6 +7153,7 @@ app.patch("/ops/positions/:id", authenticate, requireRoles([MemberRole.OPERATOR]
         }
       }
     });
+    void embedAndSavePosition(prisma, updated.id);
     return res.json({ ok: true, item: toPosition(updated) });
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
@@ -10847,6 +11065,7 @@ app.post("/partner/positions/:id/clone", authenticate, requireRoles([MemberRole.
         additionalNotes: source.additionalNotes
       }
     });
+    void embedAndSavePosition(prisma, created.id);
     return res.status(201).json({ ok: true, item: { id: created.id, title: created.title, status: created.status } });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -10986,6 +11205,7 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER, M
       createdByUserEmail: creator?.email ?? null,
       createdAt: created.createdAt
     });
+    void embedAndSavePosition(prisma, created.id);
 
     return res.status(201).json({ ok: true, item: toPosition(created) });
   } catch (error) {
@@ -11139,6 +11359,7 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
           statusHistories: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } }
         }
       });
+      void embedAndSavePosition(prisma, updated.id);
       return res.json({ ok: true, item: toPosition(updated), message: "수정되었습니다." });
     } catch (error) {
       console.error("[partner/positions][update][failed][operator]", { positionId: id, message: getErrorMessage(error) });
@@ -11478,6 +11699,7 @@ app.post("/ops/position-revisions/:id/approve", authenticate, requireRoles([Memb
     });
 
     if (!reviewed) return res.status(404).json({ ok: false, message: "pending revision not found" });
+    void embedAndSavePosition(prisma, reviewed.updatedPosition.id);
     return res.json({ ok: true, item: reviewed.updatedRevision, position: reviewed.updatedPosition });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
