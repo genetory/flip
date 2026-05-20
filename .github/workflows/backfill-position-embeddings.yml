@@ -1,0 +1,57 @@
+name: Backfill Position Embeddings
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Environment"
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      mode:
+        description: "Backfill mode"
+        required: true
+        default: missing-only
+        type: choice
+        options:
+          - missing-only
+          - all
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate secrets
+        env:
+          DATABASE_URL: ${{ github.event.inputs.target == 'production' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          test -n "${DATABASE_URL:-}" || (echo "Missing DATABASE_URL secret" && exit 1)
+          test -n "${OPENAI_API_KEY:-}" || (echo "Missing OPENAI_API_KEY secret" && exit 1)
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install deps
+        run: npm ci --no-audit --no-fund
+
+      - name: Run backfill
+        env:
+          DATABASE_URL: ${{ github.event.inputs.target == 'production' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ "${{ github.event.inputs.mode }}" = "missing-only" ]; then
+            npx tsx apps/api/scripts/backfill-position-embeddings.ts --missing-only
+          else
+            npx tsx apps/api/scripts/backfill-position-embeddings.ts
+          fi
