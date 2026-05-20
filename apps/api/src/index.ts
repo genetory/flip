@@ -1454,6 +1454,7 @@ const apiDocEndpoints: ApiDocEndpoint[] = [
   { method: "post", path: "/partner/positions", summary: "Create partner position", tag: "Partner", secure: true, requestBody: true, successStatus: "201" },
   { method: "get", path: "/partner/positions/:id", summary: "Get my partner position detail", tag: "Partner", secure: true },
   { method: "patch", path: "/partner/positions/:id", summary: "Update my partner position", tag: "Partner", secure: true, requestBody: true },
+  { method: "delete", path: "/partner/positions/:id", summary: "Delete position (partner own / operator any)", tag: "Partner", secure: true },
   { method: "get", path: "/partner/applicants", summary: "List my partner applicants", tag: "Partner", secure: true },
   { method: "get", path: "/partner/applicants/:id", summary: "Get my partner applicant detail", tag: "Partner", secure: true },
   { method: "patch", path: "/partner/applicants/:id", summary: "Update my partner applicant state", tag: "Partner", secure: true, requestBody: true },
@@ -10852,9 +10853,10 @@ app.post("/partner/positions/:id/clone", authenticate, requireRoles([MemberRole.
   }
 });
 
-app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   console.info("[partner/positions][create][request]", {
     userId: req.auth?.userId,
+    role: req.auth?.role,
     body: summarizePartnerPositionBody(req.body)
   });
   const parsed = createPartnerPositionSchema.safeParse(req.body);
@@ -10871,29 +10873,38 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]),
     return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
   }
 
-  const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
-  if (!affiliation?.organization) {
-    return sendAuthError(
-      res,
-      403,
-      "PARTNER_AFFILIATION_REQUIRED",
-      "partner affiliation is required. request organization assignment."
-    );
-  }
-  const partnerAccess = toPartnerOrganization(affiliation.organization);
-  if (!partnerAccess.permissions.canPostPositions) {
-    return res.status(403).json({
-      ok: false,
-      message: "파트너 운영중이 승인되지 않으면 포지션을 등록할 수 없습니다"
-    });
+  // Operators bypass partner-org affiliation + approval. The position is
+  // created with no org (admin can later attach one in the ops dashboard)
+  // and lands directly in OPEN so it shows up publicly without a review
+  // round-trip.
+  const isOperator = req.auth!.role === MemberRole.OPERATOR;
+  let partnerOrganizationId: string | null = null;
+  if (!isOperator) {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) {
+      return sendAuthError(
+        res,
+        403,
+        "PARTNER_AFFILIATION_REQUIRED",
+        "partner affiliation is required. request organization assignment."
+      );
+    }
+    const partnerAccess = toPartnerOrganization(affiliation.organization);
+    if (!partnerAccess.permissions.canPostPositions) {
+      return res.status(403).json({
+        ok: false,
+        message: "파트너 운영중이 승인되지 않으면 포지션을 등록할 수 없습니다"
+      });
+    }
+    partnerOrganizationId = affiliation.organization.id;
   }
 
   try {
-    const nextStatus = PositionStatus.PENDING_REVIEW;
+    const nextStatus = isOperator ? PositionStatus.OPEN : PositionStatus.PENDING_REVIEW;
     const uploadedThumbnailImages = await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails");
     const created = await prisma.position.create({
       data: {
-        partnerOrganizationId: affiliation.organization.id,
+        partnerOrganizationId,
         title: parsed.data.title,
         status: nextStatus,
         workType: parsed.data.workType ?? "On-site",
@@ -10919,7 +10930,7 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]),
           create: {
             fromStatus: null,
             toStatus: nextStatus,
-            note: "파트너 공고 생성 (어드민 관리자 승인 대기)",
+            note: isOperator ? "운영자 공고 생성 (자동 승인)" : "파트너 공고 생성 (어드민 관리자 승인 대기)",
             createdByUserId: req.auth!.userId
           }
         }
@@ -11048,7 +11059,7 @@ app.get("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTNER
   return res.json({ ok: true, item: toPosition(item) });
 });
 
-app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   if (!id) {
     return res.status(400).json({ ok: false, message: "invalid position id" });
@@ -11057,6 +11068,7 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
   console.info("[partner/positions][update][request]", {
     positionId: id,
     userId: req.auth?.userId,
+    role: req.auth?.role,
     body: summarizePartnerPositionBody(req.body)
   });
 
@@ -11073,6 +11085,65 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
       }))
     });
     return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  const isOperator = req.auth!.role === MemberRole.OPERATOR;
+
+  // Operators can edit any position directly (no revision, no review).
+  if (isOperator) {
+    const target = await prisma.position.findUnique({ where: { id }, select: { id: true, status: true } });
+    if (!target) {
+      return res.status(404).json({ ok: false, message: "position not found" });
+    }
+    try {
+      const uploadedThumbnailImages =
+        parsed.data.thumbnailImages !== undefined
+          ? await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails")
+          : undefined;
+      const updated = await prisma.position.update({
+        where: { id },
+        data: {
+          ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
+          ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
+          ...(parsed.data.workType !== undefined ? { workType: parsed.data.workType } : {}),
+          ...(parsed.data.employmentType !== undefined ? { employmentType: parsed.data.employmentType } : {}),
+          ...(uploadedThumbnailImages !== undefined ? { thumbnailImages: uploadedThumbnailImages.slice(0, 5) } : {}),
+          ...(parsed.data.eligibleVisas !== undefined ? { eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas) } : {}),
+          ...(parsed.data.preferredNationalities !== undefined ? { preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities) } : {}),
+          ...(parsed.data.communicationLanguages !== undefined ? { communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages) } : {}),
+          ...(parsed.data.hiringProcess !== undefined ? { hiringProcess: parsed.data.hiringProcess } : {}),
+          ...(parsed.data.preferredJobRole !== undefined ? { preferredJobRole: parsed.data.preferredJobRole } : {}),
+          ...(parsed.data.hiringCount !== undefined ? { hiringCount: parsed.data.hiringCount } : {}),
+          ...(parsed.data.workingHours !== undefined ? { workingHours: parsed.data.workingHours } : {}),
+          ...(parsed.data.workLocation !== undefined ? { workLocation: parsed.data.workLocation } : {}),
+          ...(parsed.data.startDate !== undefined ? { startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null } : {}),
+          ...(parsed.data.mainResponsibilities !== undefined ? { mainResponsibilities: parsed.data.mainResponsibilities } : {}),
+          ...(parsed.data.requiredQualifications !== undefined ? { requiredQualifications: parsed.data.requiredQualifications } : {}),
+          ...(parsed.data.preferredQualifications !== undefined ? { preferredQualifications: parsed.data.preferredQualifications } : {}),
+          ...(parsed.data.dressCode !== undefined ? { dressCode: parsed.data.dressCode } : {}),
+          ...(parsed.data.wantsPreTraining !== undefined ? { wantsPreTraining: parsed.data.wantsPreTraining } : {}),
+          ...(parsed.data.additionalNotes !== undefined ? { additionalNotes: parsed.data.additionalNotes } : {}),
+          statusHistories: {
+            create: {
+              fromStatus: target.status,
+              toStatus: parsed.data.status ?? target.status,
+              note: "운영자 직접 수정",
+              createdByUserId: req.auth!.userId
+            }
+          }
+        },
+        include: {
+          partnerOrganization: { select: { id: true, name: true } },
+          matchingParticipants: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+          progressLogs: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+          statusHistories: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } }
+        }
+      });
+      return res.json({ ok: true, item: toPosition(updated), message: "수정되었습니다." });
+    } catch (error) {
+      console.error("[partner/positions][update][failed][operator]", { positionId: id, message: getErrorMessage(error) });
+      return res.status(500).json({ ok: false, message: "failed to update position" });
+    }
   }
 
   const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
@@ -11243,6 +11314,51 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
       message: getErrorMessage(error)
     });
     return res.status(500).json({ ok: false, message: "failed to update partner position" });
+  }
+});
+
+// Delete a partner position. Operators can delete any; partners can only
+// delete positions owned by their own organization. Cascade handled by
+// Prisma onDelete rules in schema.
+app.delete("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) {
+    return res.status(400).json({ ok: false, message: "invalid position id" });
+  }
+
+  const isOperator = req.auth!.role === MemberRole.OPERATOR;
+  const target = await prisma.position.findUnique({
+    where: { id },
+    select: { id: true, partnerOrganizationId: true }
+  });
+  if (!target) {
+    return res.status(404).json({ ok: false, message: "position not found" });
+  }
+
+  if (!isOperator) {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) {
+      return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required");
+    }
+    if (target.partnerOrganizationId !== affiliation.organization.id) {
+      return res.status(403).json({ ok: false, message: "포지션 소유자만 삭제할 수 있습니다." });
+    }
+  }
+
+  try {
+    await prisma.position.delete({ where: { id } });
+    void writeAuditLog(req, {
+      action: isOperator ? "OPS_POSITION_DELETED" : "PARTNER_POSITION_DELETED",
+      resource: "position",
+      resourceId: id
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error("[partner/positions][delete][failed]", { positionId: id, message: getErrorMessage(error) });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      return res.status(404).json({ ok: false, message: "position not found" });
+    }
+    return res.status(500).json({ ok: false, message: "failed to delete position" });
   }
 });
 

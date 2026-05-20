@@ -45,7 +45,7 @@ export const Header = () => {
     user?.role === "PARTNER" ? copy.auth.rolePartner : user?.role === "OPERATOR" ? copy.auth.roleOperator : null;
   const loginButtonLabel = locale === "ko" ? "로그인하기" : locale === "zh-CN" ? "去登录" : locale === "vi" ? "Đăng nhập" : locale === "ja" ? "ログイン" : locale === "id" ? "Masuk" : "Sign in";
   const homeLabel = locale === "ko" ? "홈" : locale === "zh-CN" ? "首页" : locale === "vi" ? "Trang chủ" : locale === "ja" ? "ホーム" : locale === "id" ? "Beranda" : "Home";
-  const partnerDashLabel = locale === "ko" ? "파트너 대시보드" : locale === "zh-CN" ? "合作伙伴控制台" : locale === "vi" ? "Bảng điều khiển đối tác" : locale === "ja" ? "パートナーダッシュボード" : locale === "id" ? "Dasbor Mitra" : "Partner dashboard";
+  const partnerDashLabel = locale === "ko" ? "관리 콘솔" : locale === "zh-CN" ? "管理控制台" : locale === "vi" ? "Bảng quản trị" : locale === "ja" ? "管理コンソール" : locale === "id" ? "Konsol Manajemen" : "Admin console";
   const opsDashLabel = locale === "ko" ? "운영 콘솔" : locale === "zh-CN" ? "运营控制台" : locale === "vi" ? "Bảng điều khiển vận hành" : locale === "ja" ? "運営コンソール" : locale === "id" ? "Konsol Operasional" : "Ops console";
   const navItems = [
     { label: homeLabel, href: "/" },
@@ -54,11 +54,9 @@ export const Header = () => {
     { label: copy.nav.community, href: "/community" },
     { label: copy.nav.pricing, href: "/pricing" },
     { label: copy.nav.resources, href: "/resources" },
-    // Partner dashboard 메뉴는 완성도가 올라갈 때까지 임시로 숨김
-    // ...(user?.role === "PARTNER" ? [{ label: partnerDashLabel, href: "/dashboard/partner" }] : []),
+    ...(user?.role === "PARTNER" ? [{ label: partnerDashLabel, href: "/dashboard/partner" }] : []),
     ...(user?.role === "OPERATOR" ? [{ label: opsDashLabel, href: "/dashboard/ops" }] : [])
   ];
-  void partnerDashLabel;
 
   useEffect(() => {
     const syncHash = () => {

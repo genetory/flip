@@ -73,8 +73,11 @@ async function main() {
     });
   }
 
+  // PartnerOrganization no longer has `domain` (now keyed by `slug`).
+  // Upsert by slug; if it already exists from an older seed run, reuse it.
+  const partnerOrgSlug = "test-company";
   const partnerOrg = await prisma.partnerOrganization.upsert({
-    where: { domain: "test.com" },
+    where: { slug: partnerOrgSlug },
     update: {
       partnerType: PartnerType.COMPANY,
       name: "Test Company",
@@ -85,13 +88,20 @@ async function main() {
     },
     create: {
       partnerType: PartnerType.COMPANY,
-      domain: "test.com",
+      slug: partnerOrgSlug,
       name: "Test Company",
       industry: PartnerIndustry.IT,
       companySize: PartnerCompanySize.SIZE_UNDER_30,
       officeAddress: "Seoul, Gangnam-gu",
       website: "https://test.com"
     }
+  });
+
+  // Attach the partner user to the partner org so the org-affiliation
+  // checks pass when partner@test.com logs in.
+  await prisma.user.updateMany({
+    where: { email: "partner@test.com", authProvider: AuthProvider.EMAIL },
+    data: { partnerOrganizationId: partnerOrg.id, partnerOrgRole: PartnerOrgUserRole.OWNER }
   });
 
   const samplePositions = [
@@ -466,7 +476,7 @@ async function main() {
   users.forEach((user) => {
     console.log(`- ${user.email} (${user.role}) / ${defaultPassword}`);
   });
-  console.log(`Seeded partner organization: ${partnerOrg.name} (${partnerOrg.domain})`);
+  console.log(`Seeded partner organization: ${partnerOrg.name} (slug: ${partnerOrg.slug})`);
   console.log(`Seeded sample positions: ${samplePositions.length} items`);
   console.log(`Seeded sample community posts: ${sampleCommunityPosts.length} items`);
 }
