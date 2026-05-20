@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { PositionSourceKind, PositionSourceProvider, PositionStatus, PrismaClient } from "@prisma/client";
+import { embedAndSavePosition } from "../../src/embedding/position-embedding";
 
 export type NormalizedExternalPosition = {
   externalId: string;
@@ -90,6 +91,7 @@ export async function upsertExternalPositions(prisma: PrismaClient, providerName
       continue;
     }
 
+    let positionId: string;
     if (existing) {
       await prisma.position.update({
         where: { id: existing.id },
@@ -112,9 +114,10 @@ export async function upsertExternalPositions(prisma: PrismaClient, providerName
           additionalNotes
         }
       });
+      positionId = existing.id;
       updated += 1;
     } else {
-      await prisma.position.create({
+      const createdRow = await prisma.position.create({
         data: {
           sourceKind: PositionSourceKind.EXTERNAL,
           sourceProvider: row.sourceProvider,
@@ -132,10 +135,17 @@ export async function upsertExternalPositions(prisma: PrismaClient, providerName
           communicationLanguages,
           eligibleVisas,
           additionalNotes
-        }
+        },
+        select: { id: true }
       });
+      positionId = createdRow.id;
       created += 1;
     }
+
+    // Importers run as batch scripts where API rate-limit headroom matters
+    // less than search quality, so we await the embedding write here
+    // instead of fire-and-forget.
+    await embedAndSavePosition(prisma, positionId);
   }
 
   return { created, updated, skipped, total: rows.length };

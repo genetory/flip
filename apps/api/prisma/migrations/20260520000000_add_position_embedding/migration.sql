@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Position" ADD COLUMN "embedding" DOUBLE PRECISION[] DEFAULT ARRAY[]::DOUBLE PRECISION[];
+ALTER TABLE "Position" ADD COLUMN "embeddingUpdatedAt" TIMESTAMP(3);
