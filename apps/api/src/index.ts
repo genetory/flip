@@ -5868,14 +5868,12 @@ app.get("/positions", async (req, res) => {
         }
       }
 
-      if (distanceById.size === 0) {
-        return sendAndMaybeCache({
-          ok: true,
-          items: [],
-          nextCursor: null,
-          searchMode: "hybrid" as const
-        });
-      }
+      // Graceful degradation: if no positions have embeddings yet
+      // (fresh deploy before backfill runs, or transient state), skip
+      // the hybrid path and let the keyword-search path below handle
+      // it. Otherwise the user would see an empty page right after a
+      // schema migration.
+      if (distanceById.size > 0) {
 
       // Fetch full data only for the narrowed pool, then re-rank with
       // keyword scoring. This keeps the row payload to ~100-150
@@ -5929,6 +5927,7 @@ app.get("/positions", async (req, res) => {
         nextCursor: null,
         searchMode: "hybrid" as const
       });
+      } // end of `if (distanceById.size > 0)`
     }
   }
 
