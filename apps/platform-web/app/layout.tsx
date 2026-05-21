@@ -15,6 +15,8 @@ import { resolveLocaleFromAcceptLanguage } from "../lib/auth-messages";
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
 const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim() || "";
 const kakaoJsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY?.trim() || "";
+const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() || "";
+const naverSiteVerification = process.env.NEXT_PUBLIC_NAVER_SITE_VERIFICATION?.trim() || "";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -34,6 +36,12 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest",
   other: {
     google: "notranslate"
+  },
+  verification: {
+    ...(googleSiteVerification ? { google: googleSiteVerification } : {}),
+    ...(naverSiteVerification
+      ? { other: { "naver-site-verification": naverSiteVerification } }
+      : {})
   },
   // Single canonical URL. The previous per-locale alternates all pointed to
   // "/" which is what triggered Google Search Console's "hreflang return tag"
@@ -73,6 +81,29 @@ export const metadata: Metadata = {
   }
 };
 
+const siteJsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Aply",
+    alternateName: ["Aply Global", "어플라이"],
+    url: siteUrl,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${siteUrl}/positions?q={search_term_string}`,
+      "query-input": "required name=search_term_string"
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Aply",
+    url: siteUrl,
+    logo: `${siteUrl}/img_logo.webp`,
+    description: siteDescription
+  }
+];
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const requestHeaders = await headers();
   const initialLocale = resolveLocaleFromAcceptLanguage(requestHeaders.get("accept-language"));
@@ -82,6 +113,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* Must run BEFORE any GA / AdSense script so consent defaults
             (denied for ads + analytics) are set on the very first beacon. */}
         <ConsentInit />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }}
+        />
         {adsenseClientId ? (
           <Script
             id="adsense-loader"
