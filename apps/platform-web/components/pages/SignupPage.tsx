@@ -3,7 +3,7 @@
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
@@ -16,8 +16,20 @@ import {
 } from "../../lib/auth-client";
 import { getAuthPageMessages } from "../../lib/auth-messages";
 
+// Only allow same-origin relative redirects so we never bounce users to
+// an arbitrary external URL after signup.
+function sanitizeNextParam(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) return null;
+  if (trimmed.length > 500) return null;
+  return trimmed;
+}
+
 export function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextParam = sanitizeNextParam(searchParams.get("next"));
   const { locale } = useLanguage();
   const { setAuthenticatedUser } = useAuthSession();
   const [name, setName] = useState("");
@@ -32,6 +44,10 @@ export function SignupPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const copy = getAuthPageMessages(locale).signup;
+  // Event landings (e.g. /events/saju) just want a quick general-account
+  // signup — skip the account-type picker entirely so the viral funnel
+  // stays one tap. Business signups still need to choose explicitly.
+  const isEventFlow = Boolean(nextParam?.startsWith("/events/"));
   const phoneLabelByLocale = {
     ko: "휴대폰 번호",
     en: "Phone number",
@@ -155,7 +171,7 @@ export function SignupPage() {
         if (result.user) {
           setAuthenticatedUser(result.user);
         }
-        router.push("/profile");
+        router.push(nextParam ?? "/profile");
         router.refresh();
         return;
       }
@@ -164,6 +180,9 @@ export function SignupPage() {
       });
       if (result.verifyUrl) {
         params.set("verifyUrl", result.verifyUrl);
+      }
+      if (nextParam) {
+        params.set("next", nextParam);
       }
       router.push(`/signup/verify-email?${params.toString()}`);
       router.refresh();
@@ -197,28 +216,30 @@ export function SignupPage() {
         <section>
           <div className="mx-auto max-w-md rounded-2xl border border-border/60 bg-card p-6 md:p-8">
             <form className="space-y-4" onSubmit={handleSubmit} autoComplete="off">
-              <div className="space-y-2">
-                <span className="block text-sm font-medium">{copy.accountTypeLabel}</span>
-                <div className="grid grid-cols-2 gap-2">
-                  {accountTypeOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        setAccountType(option.value);
-                        setErrorMessage(null);
-                      }}
-                      className={
-                        accountType === option.value
-                          ? "h-10 rounded-md border border-foreground bg-foreground px-3 text-sm font-medium text-background"
-                          : "h-10 rounded-md border border-input/60 bg-background px-3 text-sm font-medium text-muted-foreground"
-                      }
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+              {!isEventFlow ? (
+                <div className="space-y-2">
+                  <span className="block text-sm font-medium">{copy.accountTypeLabel}</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {accountTypeOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setAccountType(option.value);
+                          setErrorMessage(null);
+                        }}
+                        className={
+                          accountType === option.value
+                            ? "h-10 rounded-md border border-foreground bg-foreground px-3 text-sm font-medium text-background"
+                            : "h-10 rounded-md border border-input/60 bg-background px-3 text-sm font-medium text-muted-foreground"
+                        }
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               <label className="block text-sm font-medium">
                 {copy.nameLabel}

@@ -1138,3 +1138,32 @@ model CompanyConsultationInquiry {
   @@index([createdAt])
   @@index([email])
 }
+
+// Viral landing — oh-haeng (five-element) saju prediction. We persist
+// the LLM result keyed by a short id so the user can share / revisit
+// the result and so the post-signup redirect can look it back up.
+// userId is filled in once the visitor signs up (if ever); the row is
+// otherwise anonymous.
+model SajuPrediction {
+  id                     String    @id @default(uuid())
+  name                   String
+  gender                 String
+  birthDate              DateTime
+  birthTime              String?
+  calendarType           String    @default("solar")
+  interpretation         String
+  details                Json?
+  translations           Json?
+  recommendedRoleNames   String[]
+  recommendedPositionIds String[]
+  shareSlug              String    @unique @default(cuid())
+  inputHash              String?   @unique
+  userId                 String?
+  ipHash                 String?
+  locale                 String    @default("ko")
+  createdAt              DateTime  @default(now())
+  claimedAt              DateTime?
+
+  @@index([userId])
+  @@index([createdAt])
+}

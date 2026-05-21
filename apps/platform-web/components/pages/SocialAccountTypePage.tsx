@@ -24,6 +24,7 @@ export function SocialAccountTypePage() {
   const [ctx, setCtx] = useState<string | null>(null);
   const [provider, setProvider] = useState<SocialProvider | null>(null);
   const [accountType, setAccountType] = useState<"GENERAL" | "BUSINESS">("GENERAL");
+  const [nextPath, setNextPath] = useState<string>("/profile");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -32,13 +33,30 @@ export function SocialAccountTypePage() {
     const params = new URLSearchParams(fragment);
     const ctxValue = params.get("ctx");
     const providerValue = params.get("provider");
+    const nextValue = params.get("next");
     if (!ctxValue || (providerValue !== "naver" && providerValue !== "google" && providerValue !== "kakao")) {
       setErrorMessage(t("가입 정보가 만료되었습니다. 다시 시도해주세요.", "Signup session expired. Please try again.", "注册信息已过期，请重新尝试。", "Phiên đăng ký đã hết hạn. Vui lòng thử lại.", "登録情報の有効期限が切れました。もう一度お試しください。", "Informasi pendaftaran telah kedaluwarsa. Silakan coba lagi."));
       return;
     }
     setCtx(ctxValue);
     setProvider(providerValue);
+    if (nextValue && nextValue.startsWith("/") && !nextValue.startsWith("//")) {
+      setNextPath(nextValue);
+    }
   }, [isKo, isZh, isVi, isJa, isId]);
+
+  // Event-landing flows (e.g. /events/saju) skip the account-type picker
+  // — just register as GENERAL automatically so the viral funnel is one
+  // continuous flow. Business intent always requires the manual picker.
+  const isEventFlow = nextPath.startsWith("/events/");
+
+  // For event-landing flows, finalize as GENERAL the moment ctx/provider
+  // are ready — the visitor never sees this page.
+  useEffect(() => {
+    if (!isEventFlow || !ctx || !provider || isSubmitting) return;
+    void handleSubmit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEventFlow, ctx, provider]);
 
   async function handleSubmit() {
     if (!ctx || !provider || isSubmitting) return;
@@ -49,10 +67,10 @@ export function SocialAccountTypePage() {
       const { user } = await finalizeSocialSignup({ provider, ctx, accountType });
       setAuthenticatedUser(user);
       if (typeof window !== "undefined") {
-        window.location.replace("/profile");
+        window.location.replace(nextPath);
         return;
       }
-      router.replace("/profile");
+      router.replace(nextPath);
     } catch (error) {
       if (error instanceof AuthApiError && error.code === "EXPIRED_SIGNUP_CONTEXT") {
         setErrorMessage(t("가입 세션이 만료되었습니다. 다시 시도해주세요.", "Signup session expired. Please try again.", "注册会话已过期，请重新尝试。", "Phiên đăng ký đã hết hạn. Vui lòng thử lại.", "登録セッションの有効期限が切れました。もう一度お試しください。", "Sesi pendaftaran telah kedaluwarsa. Silakan coba lagi."));

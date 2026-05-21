@@ -14,6 +14,7 @@ import { resolveLocaleFromAcceptLanguage } from "../lib/auth-messages";
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
 const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim() || "";
+const kakaoJsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY?.trim() || "";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -89,6 +90,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClientId}`}
             crossOrigin="anonymous"
           />
+        ) : null}
+        {kakaoJsKey ? (
+          <>
+            <Script
+              id="kakao-sdk"
+              src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"
+              integrity="sha384-DKYJZ8NLiK8MN4/C5P2dtSmLQ4KwPaoqAfyA/DfmEc1VDxu4yyC7wy6K1Hs90nka"
+              crossOrigin="anonymous"
+              strategy="afterInteractive"
+            />
+            <Script id="kakao-sdk-init" strategy="afterInteractive">
+              {`if (window.Kakao && !window.Kakao.isInitialized()) { window.Kakao.init('${kakaoJsKey}'); }`}
+            </Script>
+          </>
         ) : null}
       </head>
       <body suppressHydrationWarning>

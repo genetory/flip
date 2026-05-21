@@ -58,6 +58,8 @@ import {
   keywordScore,
   toPgVector
 } from "./embedding/position-embedding";
+import { generateSajuPrediction, translateSajuContent, type SajuDetails, type SajuTranslatableContent } from "./saju/saju-llm";
+import { createHash } from "crypto";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -2291,6 +2293,20 @@ const translateCommunityPostSchema = z.object({
   text: z.string().trim().min(1).max(10_000),
   targetLanguage: z.enum(["ko", "en"]),
   sourceLanguageHint: z.string().trim().max(40).optional()
+});
+const sajuPredictSchema = z.object({
+  name: z.string().trim().min(1).max(40),
+  gender: z.enum(["male", "female"]),
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD"),
+  birthTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  calendarType: z.enum(["solar", "lunar"]).optional(),
+  locale: z.string().trim().min(2).max(8).optional()
+});
+const sajuResultParamSchema = z.object({
+  slug: z.string().trim().min(1).max(80)
+});
+const sajuResultQuerySchema = z.object({
+  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
 });
 const memberPositionActionParamSchema = z.object({
   positionId: z.string().uuid()
@@ -5667,6 +5683,255 @@ app.post("/community/translate", async (req, res) => {
   }
 });
 
+// Saju (오행 사주) viral landing — anonymous create, claim-on-signup.
+// Rate-limited per IP because each request hits OpenAI.
+app.post(
+  "/saju/predict",
+  rateLimit({ windowMs: 60_000, max: 8, keyPrefix: "saju-predict", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = sajuPredictSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid input", errors: parsed.error.flatten() });
+    }
+
+    // Deterministic dedupe: same name + gender + birth + locale always
+    // resolves to the same shareSlug. Saves OpenAI cost and keeps shared
+    // links stable. Locale is part of the key because the interpretation
+    // text differs per language.
+    const locale = parsed.data.locale ?? "ko";
+    const calendarType = parsed.data.calendarType ?? "solar";
+    const inputHash = createHash("sha256")
+      .update(
+        [
+          parsed.data.name.trim().toLowerCase(),
+          parsed.data.gender,
+          parsed.data.birthDate,
+          parsed.data.birthTime ?? "",
+          calendarType,
+          locale
+        ].join("|")
+      )
+      .digest("hex");
+
+    const existing = await prisma.sajuPrediction.findUnique({
+      where: { inputHash },
+      select: { id: true, shareSlug: true }
+    });
+    if (existing) {
+      return res.json({ ok: true, id: existing.id, shareSlug: existing.shareSlug, cached: true });
+    }
+
+    const llm = await generateSajuPrediction({
+      name: parsed.data.name,
+      gender: parsed.data.gender,
+      birthDate: parsed.data.birthDate,
+      birthTime: parsed.data.birthTime,
+      calendarType: parsed.data.calendarType,
+      locale
+    });
+    if (!llm) {
+      return res.status(503).json({ ok: false, message: "사주 풀이 서비스를 잠시 사용할 수 없습니다." });
+    }
+    // Match positions to the LLM's specific role titles via pgvector
+    // semantic search — "프로덕트 디자이너 / 콘텐츠 마케터" finds postings
+    // that actually use those titles, not just anything tagged "디자인".
+    // Fall back to the broad category filter when embeddings are
+    // unavailable (no OpenAI key / transient failure).
+    const searchTerms = [...llm.details.specificRoles, ...llm.recommendedRoleNames]
+      .filter((t) => t && t.trim().length > 0);
+    let recommendedPositionIds: string[] = [];
+    if (searchTerms.length > 0) {
+      const semanticQuery = searchTerms.join(" ");
+      const queryVector = await embedQueryCached(semanticQuery);
+      if (queryVector) {
+        const vectorLiteral = toPgVector(queryVector);
+        const annRows = await prisma.$queryRaw<Array<{ id: string }>>`
+          SELECT "id"
+          FROM "Position"
+          WHERE "status" = 'OPEN'
+            AND "embedding" IS NOT NULL
+            AND "sourceProvider"::text NOT IN ('KOWORK')
+          ORDER BY "embedding" <=> ${vectorLiteral}::vector
+          LIMIT 6
+        `;
+        recommendedPositionIds = annRows.map((r) => r.id);
+      }
+    }
+    if (recommendedPositionIds.length === 0) {
+      const fallback = await prisma.position.findMany({
+        where: {
+          status: PositionStatus.OPEN,
+          preferredJobRole: { in: llm.recommendedRoleNames },
+          sourceProvider: { notIn: [PositionSourceProvider.KOWORK] }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        select: { id: true }
+      });
+      recommendedPositionIds = fallback.map((p) => p.id);
+    }
+
+    const ipRaw =
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+      req.socket.remoteAddress ||
+      "";
+    const ipHash = ipRaw
+      ? createHash("sha256").update(`${ipRaw}|saju-pred`).digest("hex").slice(0, 32)
+      : null;
+
+    // Race-safe upsert: if another request lost the dedupe check by a
+    // few ms (e.g. the visitor double-tapped submit), the unique index
+    // on inputHash funnels both into the same row.
+    const prediction = await prisma.sajuPrediction.upsert({
+      where: { inputHash },
+      create: {
+        name: parsed.data.name,
+        gender: parsed.data.gender,
+        birthDate: new Date(`${parsed.data.birthDate}T00:00:00.000Z`),
+        birthTime: parsed.data.birthTime ?? null,
+        calendarType,
+        interpretation: llm.interpretation,
+        details: llm.details as unknown as Prisma.InputJsonValue,
+        recommendedRoleNames: llm.recommendedRoleNames,
+        recommendedPositionIds,
+        locale,
+        ipHash,
+        inputHash
+      },
+      update: {},
+      select: { id: true, shareSlug: true }
+    });
+
+    return res.json({ ok: true, id: prediction.id, shareSlug: prediction.shareSlug });
+  }
+);
+
+app.get("/saju/result/:slug", async (req, res) => {
+  const parsed = sajuResultParamSchema.safeParse(req.params);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid slug" });
+  }
+  const queryParsed = sajuResultQuerySchema.safeParse(req.query);
+  const requestedLocale = queryParsed.success ? queryParsed.data.locale ?? null : null;
+  const prediction = await prisma.sajuPrediction.findUnique({
+    where: { shareSlug: parsed.data.slug }
+  });
+  if (!prediction) return res.status(404).json({ ok: false, message: "not found" });
+
+  // Claim on first authenticated visit so the user "owns" this prediction
+  // afterwards (lets us key follow-up emails / dashboard widgets to it).
+  const viewer = await resolvePublicViewer(req);
+  if (viewer && !prediction.userId && req.auth?.userId) {
+    try {
+      await prisma.sajuPrediction.update({
+        where: { id: prediction.id },
+        data: { userId: req.auth.userId, claimedAt: new Date() }
+      });
+      prediction.userId = req.auth.userId;
+      prediction.claimedAt = new Date();
+    } catch {
+      // claim is best-effort
+    }
+  }
+
+  // Fetch the linked positions in their preserved recommendation order,
+  // plus a corpus-wide prediction count for the social-proof line on
+  // the result page ("이미 N명이 봤어요").
+  const [positions, totalPredictions] = await Promise.all([
+    prediction.recommendedPositionIds.length
+      ? prisma.position.findMany({
+          where: { id: { in: prediction.recommendedPositionIds }, status: PositionStatus.OPEN },
+          include: {
+            partnerOrganization: {
+              select: {
+                id: true,
+                name: true,
+                industry: true,
+                companySize: true,
+                officeAddress: true,
+                companyLogoImageData: true
+              }
+            },
+            matchingParticipants: { select: { id: true } }
+          }
+        })
+      : Promise.resolve([]),
+    prisma.sajuPrediction.count()
+  ]);
+  const orderedPositions = prediction.recommendedPositionIds
+    .map((id) => positions.find((p) => p.id === id))
+    .filter((p): p is (typeof positions)[number] => Boolean(p));
+
+  // If the viewer's locale differs from the locale the prediction was
+  // generated in, serve a cached translation (or generate + cache one
+  // on demand). Same-locale viewers skip this branch entirely — UNLESS
+  // we detect Korean characters lingering in the content for a non-ko
+  // viewer (LLM occasionally ignores the language directive at
+  // creation time), in which case we force a translation pass.
+  let interpretationOut = prediction.interpretation;
+  let detailsOut = prediction.details as SajuDetails | null;
+  const koreanCharRegex = /[가-힯ᄀ-ᇿ㄰-㆏]/;
+  const hasKoreanLeak = (() => {
+    if (!requestedLocale || requestedLocale === "ko") return false;
+    const probe: string[] = [interpretationOut];
+    if (detailsOut) {
+      probe.push(detailsOut.cautionAdvice ?? "");
+      probe.push(...(detailsOut.strengths ?? []));
+      probe.push(...(detailsOut.workEnvironment ?? []));
+      probe.push(...(detailsOut.specificRoles ?? []));
+      probe.push(...((detailsOut.roleReasonings ?? []).map((r) => r.reason ?? "")));
+    }
+    return probe.some((t) => koreanCharRegex.test(t));
+  })();
+  const needsTranslation = requestedLocale && (requestedLocale !== prediction.locale || hasKoreanLeak);
+  if (needsTranslation && requestedLocale) {
+    const cache = (prediction.translations ?? {}) as Record<string, SajuTranslatableContent>;
+    const cached = cache[requestedLocale];
+    if (cached && !koreanCharRegex.test(JSON.stringify(cached))) {
+      interpretationOut = cached.interpretation;
+      detailsOut = cached.details;
+    } else if (detailsOut) {
+      const translated = await translateSajuContent(
+        { interpretation: prediction.interpretation, details: detailsOut },
+        requestedLocale
+      );
+      if (translated) {
+        interpretationOut = translated.interpretation;
+        detailsOut = translated.details;
+        const nextCache = { ...cache, [requestedLocale]: translated };
+        // Fire and forget — translation render shouldn't block on persistence.
+        prisma.sajuPrediction
+          .update({
+            where: { id: prediction.id },
+            data: { translations: nextCache as unknown as Prisma.InputJsonValue }
+          })
+          .catch((err) => console.error("[saju] translation cache write failed", err));
+      }
+    }
+  }
+
+  return res.json({
+    ok: true,
+    prediction: {
+      id: prediction.id,
+      shareSlug: prediction.shareSlug,
+      name: prediction.name,
+      gender: prediction.gender,
+      birthDate: prediction.birthDate.toISOString().slice(0, 10),
+      birthTime: prediction.birthTime,
+      calendarType: prediction.calendarType,
+      interpretation: interpretationOut,
+      details: detailsOut,
+      recommendedRoleNames: prediction.recommendedRoleNames,
+      isAuthenticated: Boolean(viewer),
+      isClaimed: Boolean(prediction.userId),
+      createdAt: prediction.createdAt.toISOString()
+    },
+    positions: orderedPositions.map((item) => toPublicPositionItem(item, viewer)),
+    totalPredictions
+  });
+});
+
 // Response cache for /positions, anonymous viewers only. Authenticated
 // users skip the cache so per-viewer flags (saved/applied/etc.) stay
 // accurate. TTL-only with no manual invalidation: 60s is short enough
@@ -7830,7 +8095,10 @@ app.get("/auth/naver/callback", async (req, res) => {
       mobile: naverMobile,
       ts: Date.now()
     });
-    const ctxFragment = new URLSearchParams({ ctx: signupContext, provider: "naver" }).toString();
+    const nextForSignup = typeof stateData.next === "string" && stateData.next.startsWith("/") ? stateData.next : "";
+    const fragmentParams: Record<string, string> = { ctx: signupContext, provider: "naver" };
+    if (nextForSignup) fragmentParams.next = nextForSignup;
+    const ctxFragment = new URLSearchParams(fragmentParams).toString();
     return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
   } catch (error) {
     console.error("[naver-oauth] callback failed", error);
@@ -8065,7 +8333,10 @@ app.get("/auth/google/callback", async (req, res) => {
       name: googleName,
       ts: Date.now()
     });
-    const ctxFragment = new URLSearchParams({ ctx: signupContext, provider: "google" }).toString();
+    const nextForSignup = typeof stateData.next === "string" && stateData.next.startsWith("/") ? stateData.next : "";
+    const fragmentParams: Record<string, string> = { ctx: signupContext, provider: "google" };
+    if (nextForSignup) fragmentParams.next = nextForSignup;
+    const ctxFragment = new URLSearchParams(fragmentParams).toString();
     return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
   } catch (error) {
     console.error("[google-oauth] callback failed", error);
@@ -8297,7 +8568,10 @@ app.get("/auth/kakao/callback", async (req, res) => {
       name: kakaoName,
       ts: Date.now()
     });
-    const ctxFragment = new URLSearchParams({ ctx: signupContext, provider: "kakao" }).toString();
+    const nextForSignup = typeof stateData.next === "string" && stateData.next.startsWith("/") ? stateData.next : "";
+    const fragmentParams: Record<string, string> = { ctx: signupContext, provider: "kakao" };
+    if (nextForSignup) fragmentParams.next = nextForSignup;
+    const ctxFragment = new URLSearchParams(fragmentParams).toString();
     return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
   } catch (error) {
     console.error("[kakao-oauth] callback failed", error);
