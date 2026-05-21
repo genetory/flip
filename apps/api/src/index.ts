@@ -5694,11 +5694,13 @@ app.post(
       return res.status(400).json({ ok: false, message: "invalid input", errors: parsed.error.flatten() });
     }
 
-    // Deterministic dedupe: same name + gender + birth + locale always
-    // resolves to the same shareSlug. Saves OpenAI cost and keeps shared
-    // links stable. Locale is part of the key because the interpretation
-    // text differs per language.
-    const locale = parsed.data.locale ?? "ko";
+    // Deterministic dedupe: same person (same identity fields) ALWAYS
+    // resolves to the same prediction regardless of which language they
+    // submit in. The reading is always generated in Korean (the
+    // canonical saju language); other locales are served via the
+    // lazy-translation cache in /saju/result. This ensures one person =
+    // one saju across all languages.
+    const requestedLocale = parsed.data.locale ?? "ko";
     const calendarType = parsed.data.calendarType ?? "solar";
     const inputHash = createHash("sha256")
       .update(
@@ -5707,8 +5709,7 @@ app.post(
           parsed.data.gender,
           parsed.data.birthDate,
           parsed.data.birthTime ?? "",
-          calendarType,
-          locale
+          calendarType
         ].join("|")
       )
       .digest("hex");
@@ -5721,6 +5722,7 @@ app.post(
       return res.json({ ok: true, id: existing.id, shareSlug: existing.shareSlug, cached: true });
     }
 
+    const locale = "ko";
     const llm = await generateSajuPrediction({
       name: parsed.data.name,
       gender: parsed.data.gender,
