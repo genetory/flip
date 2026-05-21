@@ -5809,7 +5809,7 @@ app.get("/positions", async (req, res) => {
         : Prisma.empty;
       const providerFilter = sourceProviders.length
         ? Prisma.sql`AND "sourceProvider"::text = ANY(${sourceProviders.map((p) => String(p))}::text[])`
-        : Prisma.sql`AND "sourceProvider"::text NOT IN ('BUDDIES', 'KOWORK')`;
+        : Prisma.sql`AND "sourceProvider"::text NOT IN ('KOWORK')`;
 
       const annResults = await prisma.$queryRaw<Array<{ id: string; distance: number }>>`
         SELECT "id", "embedding" <=> ${vectorLiteral}::vector AS distance
@@ -5841,7 +5841,7 @@ app.get("/positions", async (req, res) => {
           : Prisma.empty;
         const qualifiedProviderFilter = sourceProviders.length
           ? Prisma.sql`AND p."sourceProvider"::text = ANY(${sourceProviders.map((p) => String(p))}::text[])`
-          : Prisma.sql`AND p."sourceProvider"::text NOT IN ('BUDDIES', 'KOWORK')`;
+          : Prisma.sql`AND p."sourceProvider"::text NOT IN ('KOWORK')`;
         // ILIKE on title/workLocation/preferredJobRole + partner org name via join.
         // %candidate% built server-side to keep parameter list small.
         const likePatterns = queryCandidates.map((c) => `%${c}%`);
@@ -5946,7 +5946,7 @@ app.get("/positions", async (req, res) => {
     ...(jobRoles.length ? { preferredJobRole: { in: jobRoles } } : {}),
     ...(sourceProviders.length
       ? { sourceProvider: { in: sourceProviders } }
-      : { sourceProvider: { notIn: [PositionSourceProvider.BUDDIES, PositionSourceProvider.KOWORK] } })
+      : { sourceProvider: { notIn: [PositionSourceProvider.KOWORK] } })
   };
 
   const cursorWhere = sortMode === "deadline"
