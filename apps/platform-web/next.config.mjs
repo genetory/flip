@@ -10,7 +10,11 @@ const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
   images: {
-    qualities: [70, 75, 80]
+    qualities: [70, 75, 80],
+    // Allow query strings on local /public images so we can use `?v=N`
+    // to bust the image optimizer cache after replacing a static asset
+    // in place (omitting `search` accepts any query string).
+    localPatterns: [{ pathname: "/**" }]
   },
   turbopack: {
     root: __dirname

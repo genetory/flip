@@ -14,6 +14,10 @@ export function VerifyEmailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token")?.trim() ?? "", [searchParams]);
+  const nextParam = useMemo(() => {
+    const v = searchParams.get("next")?.trim() ?? "";
+    return v.startsWith("/") && !v.startsWith("//") && v.length <= 500 ? v : "";
+  }, [searchParams]);
   const { setAuthenticatedUser } = useAuthSession();
   const { locale } = useLanguage();
   const [state, setState] = useState<"verifying" | "success" | "error">("verifying");
@@ -93,7 +97,7 @@ export function VerifyEmailPage() {
         setState("success");
 
         setTimeout(() => {
-          router.push("/profile");
+          router.push(nextParam || "/profile");
           router.refresh();
         }, 800);
       } catch (e) {
@@ -106,7 +110,7 @@ export function VerifyEmailPage() {
     return () => {
       mounted = false;
     };
-  }, [token, router, setAuthenticatedUser, copy.missingToken, copy.failed]);
+  }, [token, router, setAuthenticatedUser, copy.missingToken, copy.failed, nextParam]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
