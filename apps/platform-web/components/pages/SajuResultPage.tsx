@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   Export as ShareIcon,
   Lock,
@@ -479,6 +480,13 @@ export function SajuResultPage({ slug }: { slug: string }) {
     <div className="min-h-screen bg-[#0b0b2a] text-white">
       <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-gradient-to-b from-[#0b0b2a] via-[#1a1340] to-[#0b0b2a]">
         <main className="relative flex flex-1 flex-col overflow-hidden">
+          <Link
+            href="/events/saju"
+            aria-label="Back"
+            className="absolute left-4 top-4 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/80 backdrop-blur-sm transition active:bg-white/10 active:text-white"
+          >
+            <ArrowLeft weight="bold" className="h-4 w-4" />
+          </Link>
           <section className="relative px-5 pt-10 pb-5 text-center">
             <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-yellow-300/40 bg-yellow-300/10 px-3 py-1 text-[11px] font-medium text-yellow-100">
               <MoonStars weight="fill" className="h-3 w-3" />
@@ -506,10 +514,39 @@ export function SajuResultPage({ slug }: { slug: string }) {
               </div>
             </section>
           ) : !payload ? (
-            <section className="px-5 pb-16 text-center text-white/60">
-              <Sparkle className="mx-auto mb-2 h-5 w-5 animate-pulse" />
-              <span className="text-[13px]">{copy.loading}</span>
-            </section>
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0b2a]/80 backdrop-blur-md"
+              aria-live="polite"
+              role="status"
+            >
+              <div className="relative flex flex-col items-center gap-5 px-8 text-center">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-12 -z-10 rounded-full bg-purple-500/20 blur-3xl"
+                />
+                <div className="relative h-20 w-20">
+                  <div className="absolute inset-0 animate-spin-slow">
+                    <Sparkle weight="fill" className="absolute -top-1 left-1/2 h-3 w-3 -translate-x-1/2 text-yellow-200" />
+                    <Sparkle weight="fill" className="absolute top-1/2 -right-1 h-2.5 w-2.5 -translate-y-1/2 text-yellow-100/80" />
+                    <Sparkle weight="fill" className="absolute -bottom-1 left-1/2 h-3 w-3 -translate-x-1/2 text-yellow-200/70" />
+                    <Sparkle weight="fill" className="absolute top-1/2 -left-1 h-2.5 w-2.5 -translate-y-1/2 text-yellow-100/60" />
+                  </div>
+                  <div className="absolute inset-3 flex items-center justify-center">
+                    <MoonStars weight="fill" className="h-12 w-12 text-yellow-200 animate-pulse" />
+                  </div>
+                </div>
+                <p className="text-[15px] font-medium text-white">{copy.loading}</p>
+              </div>
+              <style jsx global>{`
+                @keyframes spin-slow {
+                  from { transform: rotate(0deg); }
+                  to { transform: rotate(360deg); }
+                }
+                .animate-spin-slow {
+                  animation: spin-slow 4s linear infinite;
+                }
+              `}</style>
+            </div>
           ) : (
             <>
               <section className="relative px-5">
@@ -651,24 +688,6 @@ export function SajuResultPage({ slug }: { slug: string }) {
                         </li>
                       ))}
                     </ul>
-                  </div>
-                </section>
-              ) : null}
-
-              {isAuthenticated && details?.specificRoles && details.specificRoles.length > 0 ? (
-                <section className="px-5 pt-8">
-                  <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.specificRolesHeading}</h2>
-                  <div className="rounded-2xl bg-white/[0.04] p-5">
-                    <div className="flex flex-wrap gap-2">
-                      {details.specificRoles.map((role) => (
-                        <span
-                          key={role}
-                          className="rounded-full bg-yellow-300/10 px-3 py-1.5 text-[12px] font-medium text-yellow-100"
-                        >
-                          {role}
-                        </span>
-                      ))}
-                    </div>
                   </div>
                 </section>
               ) : null}

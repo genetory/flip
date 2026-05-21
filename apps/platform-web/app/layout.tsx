@@ -50,10 +50,10 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/img_home_hero.webp",
+        url: "/img_meta_home.webp",
         width: 1200,
         height: 630,
-        alt: "Aply"
+        alt: "Aply — The career platform connecting global talent with Korean partners"
       }
     ]
   },
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: siteTitle,
     description: siteDescription,
-    images: ["/img_home_hero.webp"]
+    images: ["/img_meta_home.webp"]
   },
   icons: {
     icon: [

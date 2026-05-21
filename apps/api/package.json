@@ -24,6 +24,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.3",
+    "lunar-javascript": "^1.7.7",
     "multer": "^2.1.1",
     "nodemailer": "^8.0.5",
     "openai": "^6.34.0",

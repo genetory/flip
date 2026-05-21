@@ -35,6 +35,7 @@ type Copy = {
   lunar: string;
   birthTimeLabel: string;
   optional: string;
+  birthTimeUnknown: string;
   errName: string;
   errGender: string;
   errBirthDate: string;
@@ -78,6 +79,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     lunar: "음력",
     birthTimeLabel: "태어난 시간",
     optional: "(선택)",
+    birthTimeUnknown: "모름",
     errName: "이름을 입력해 주세요.",
     errGender: "성별을 선택해 주세요.",
     errBirthDate: "생년월일을 입력해 주세요.",
@@ -119,6 +121,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     lunar: "Lunar",
     birthTimeLabel: "Birth time",
     optional: "(optional)",
+    birthTimeUnknown: "Unknown",
     errName: "Please enter your name.",
     errGender: "Please select your gender.",
     errBirthDate: "Please enter your birth date.",
@@ -160,6 +163,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     lunar: "农历",
     birthTimeLabel: "出生时间",
     optional: "(可选)",
+    birthTimeUnknown: "未知",
     errName: "请输入姓名。",
     errGender: "请选择性别。",
     errBirthDate: "请输入出生日期。",
@@ -201,6 +205,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     lunar: "Âm",
     birthTimeLabel: "Giờ sinh",
     optional: "(tùy chọn)",
+    birthTimeUnknown: "Không rõ",
     errName: "Vui lòng nhập họ tên.",
     errGender: "Vui lòng chọn giới tính.",
     errBirthDate: "Vui lòng nhập ngày sinh.",
@@ -242,6 +247,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     lunar: "旧暦",
     birthTimeLabel: "生まれた時刻",
     optional: "(任意)",
+    birthTimeUnknown: "不明",
     errName: "名前を入力してください。",
     errGender: "性別を選択してください。",
     errBirthDate: "生年月日を入力してください。",
@@ -283,6 +289,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     lunar: "Imlek",
     birthTimeLabel: "Waktu lahir",
     optional: "(opsional)",
+    birthTimeUnknown: "Tidak tahu",
     errName: "Silakan masukkan nama Anda.",
     errGender: "Silakan pilih gender.",
     errBirthDate: "Silakan masukkan tanggal lahir.",
@@ -329,6 +336,7 @@ export function SajuLandingPage() {
   const [gender, setGender] = useState<"male" | "female" | "">("male");
   const [birthDate, setBirthDate] = useState("1987-08-12");
   const [birthTime, setBirthTime] = useState("10:00");
+  const [birthTimeUnknown, setBirthTimeUnknown] = useState(false);
   const [calendarType, setCalendarType] = useState<"solar" | "lunar">("solar");
   const [dateSheetOpen, setDateSheetOpen] = useState(false);
   const [timeSheetOpen, setTimeSheetOpen] = useState(false);
@@ -372,7 +380,7 @@ export function SajuLandingPage() {
         name: name.trim(),
         gender,
         birthDate,
-        birthTime: birthTime || undefined,
+        birthTime: birthTimeUnknown ? undefined : birthTime || undefined,
         calendarType,
         locale
       });
@@ -394,7 +402,7 @@ export function SajuLandingPage() {
               onClick={() => setLangOpen((v) => !v)}
               aria-haspopup="listbox"
               aria-expanded={langOpen}
-              className="inline-flex h-9 items-center gap-1 rounded-full border border-white/15 bg-white/5 pl-3 pr-2 text-[12px] text-white/80 backdrop-blur-sm transition active:bg-white/10 active:text-white"
+              className="inline-flex h-9 items-center gap-1 rounded-full bg-white/5 pl-3 pr-2 text-[12px] text-white/80 backdrop-blur-sm transition active:bg-white/10 active:text-white"
             >
               <Globe weight="bold" className="h-3.5 w-3.5" />
               <span>{copy.langLabel}</span>
@@ -432,7 +440,7 @@ export function SajuLandingPage() {
             type="button"
             onClick={handleShare}
             aria-label={copy.share}
-            className="absolute right-4 top-4 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80 backdrop-blur-sm transition active:bg-white/10 active:text-white"
+            className="absolute right-4 top-4 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/80 backdrop-blur-sm transition active:bg-white/10 active:text-white"
           >
             <ShareIcon weight="bold" className="h-4 w-4" />
           </button>
@@ -556,15 +564,35 @@ export function SajuLandingPage() {
                     {copy.birthTimeLabel}
                     <span className="ml-1 text-[11px] text-white/40">{copy.optional}</span>
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setTimeSheetOpen(true)}
-                    className="flex h-11 w-full items-center justify-between rounded-xl bg-white/10 px-3 text-sm text-white outline-none ring-offset-[#1a1340] transition active:bg-white/15"
-                  >
-                    <span className={birthTime ? "text-white" : "text-white/40"}>
-                      {birthTime || copy.birthTimeLabel}
-                    </span>
-                  </button>
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTimeSheetOpen(true)}
+                      disabled={birthTimeUnknown}
+                      className={`flex h-11 w-full items-center justify-between rounded-xl px-3 text-sm outline-none ring-offset-[#1a1340] transition ${
+                        birthTimeUnknown ? "bg-white/5 text-white/30" : "bg-white/10 text-white active:bg-white/15"
+                      }`}
+                    >
+                      <span className={birthTime && !birthTimeUnknown ? "text-white" : "text-white/40"}>
+                        {birthTimeUnknown ? copy.birthTimeUnknown : birthTime || copy.birthTimeLabel}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !birthTimeUnknown;
+                        setBirthTimeUnknown(next);
+                        if (next) setBirthTime("");
+                      }}
+                      className={`h-11 rounded-xl px-4 text-[12px] font-medium transition ${
+                        birthTimeUnknown
+                          ? "bg-yellow-300/20 text-yellow-100"
+                          : "bg-white/10 text-white/60 active:bg-white/15"
+                      }`}
+                    >
+                      {copy.birthTimeUnknown}
+                    </button>
+                  </div>
                 </div>
 
                 {errorMessage ? (
@@ -645,6 +673,42 @@ export function SajuLandingPage() {
           </div>
         </footer>
       </div>
+
+      {isSubmitting ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0b2a]/80 backdrop-blur-md"
+          aria-live="polite"
+          role="status"
+        >
+          <div className="relative flex flex-col items-center gap-5 px-8 text-center">
+            <div aria-hidden className="pointer-events-none absolute -inset-12 -z-10 rounded-full bg-purple-500/20 blur-3xl" />
+            <div className="relative h-20 w-20">
+              <div className="absolute inset-0 animate-spin-slow">
+                <Sparkle weight="fill" className="absolute -top-1 left-1/2 h-3 w-3 -translate-x-1/2 text-yellow-200" />
+                <Sparkle weight="fill" className="absolute top-1/2 -right-1 h-2.5 w-2.5 -translate-y-1/2 text-yellow-100/80" />
+                <Sparkle weight="fill" className="absolute -bottom-1 left-1/2 h-3 w-3 -translate-x-1/2 text-yellow-200/70" />
+                <Sparkle weight="fill" className="absolute top-1/2 -left-1 h-2.5 w-2.5 -translate-y-1/2 text-yellow-100/60" />
+              </div>
+              <div className="absolute inset-3 flex items-center justify-center">
+                <MoonStars weight="fill" className="h-12 w-12 text-yellow-200 animate-pulse" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[15px] font-medium text-white">{copy.submitting}</p>
+              <p className="text-[11px] text-white/50">{copy.pill}</p>
+            </div>
+          </div>
+          <style jsx global>{`
+            @keyframes spin-slow {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+            .animate-spin-slow {
+              animation: spin-slow 4s linear infinite;
+            }
+          `}</style>
+        </div>
+      ) : null}
 
       <SajuWheelPicker
         open={dateSheetOpen}
