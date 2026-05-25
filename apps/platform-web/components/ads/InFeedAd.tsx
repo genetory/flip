@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { ADS_ENABLED } from "../../lib/ads-config";
 
 const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim() || "";
 const SLOT_INFEED = process.env.NEXT_PUBLIC_ADSENSE_SLOT_INFEED?.trim() || "";
@@ -28,7 +29,7 @@ type InFeedAdProps = {
 export function InFeedAd({ className }: InFeedAdProps) {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!ADSENSE_CLIENT || !SLOT_INFEED) return;
+    if (!ADS_ENABLED || !ADSENSE_CLIENT || !SLOT_INFEED) return;
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).adsbygoogle = (window as any).adsbygoogle || [];
@@ -38,6 +39,8 @@ export function InFeedAd({ className }: InFeedAdProps) {
       // ad failures must never break user flow
     }
   }, []);
+
+  if (!ADS_ENABLED) return null;
 
   if (!ADSENSE_CLIENT || !SLOT_INFEED) {
     if (IS_PROD) return null;

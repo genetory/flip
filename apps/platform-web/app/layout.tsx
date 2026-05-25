@@ -11,9 +11,12 @@ import { CookieConsentBanner } from "../components/consent/CookieConsentBanner";
 import { ErrorReporter } from "../components/errors/ErrorReporter";
 import { ToastProvider } from "../components/toast/ToastProvider";
 import { resolveLocaleFromAcceptLanguage } from "../lib/auth-messages";
+import { ADS_ENABLED } from "../lib/ads-config";
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
-const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim() || "";
+// Gated by ADS_ENABLED so no AdSense loader is emitted while the domain is
+// under content review (see lib/ads-config.ts).
+const adsenseClientId = ADS_ENABLED ? process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim() || "" : "";
 const kakaoJsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY?.trim() || "";
 const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() || "";
 const naverSiteVerification = process.env.NEXT_PUBLIC_NAVER_SITE_VERIFICATION?.trim() || "";
