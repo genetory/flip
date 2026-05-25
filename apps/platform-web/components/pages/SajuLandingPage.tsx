@@ -18,7 +18,7 @@ import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { PLATFORM_LOCALES, type PlatformLocale } from "../../lib/auth-messages";
-import { predictSaju } from "../../lib/saju-client";
+import { predictSaju, markSajuOwned } from "../../lib/saju-client";
 import { SajuWheelPicker } from "./SajuWheelPicker";
 
 type Copy = {
@@ -428,6 +428,9 @@ export function SajuLandingPage() {
         calendarType,
         locale
       });
+      // Remember this is my own result so the result page shows "share with
+      // friends" for me and "try it yourself" for anyone I share it with.
+      markSajuOwned(result.shareSlug);
       router.push(`/events/saju/result/${encodeURIComponent(result.shareSlug)}`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : copy.errRetry);

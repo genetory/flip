@@ -28,6 +28,14 @@ export type SajuRoleReasoning = {
   reason: string;
 };
 
+// "성공을 위해 보완하면 좋을 것" — actionable areas the person should
+// develop, anchored on the elements their chart is short on. title is a
+// short label, detail is a concrete suggestion.
+export type SajuSuccessFactor = {
+  title: string;
+  detail: string;
+};
+
 export type SajuElementBalance = {
   wood: number;
   fire: number;
@@ -47,6 +55,7 @@ export type SajuDetails = {
   recommendedIndustries: string[];
   rolesToAvoid: string[];
   growthPattern: string;
+  successFactors: SajuSuccessFactor[];
   motto: string;
 };
 
@@ -78,7 +87,7 @@ export async function translateSajuContent(
     `Preserve meaning, tone (warm / non-fatalistic), and structure exactly. Do not invent or drop entries.`,
     ``,
     `Translation rules:`,
-    `- TRANSLATE these into ${languageName}: interpretation, dayMaster, strengths[], workEnvironment[], cautionAdvice, roleReasonings[].reason, specificRoles[], recommendedIndustries[], rolesToAvoid[], growthPattern, motto.`,
+    `- TRANSLATE these into ${languageName}: interpretation, dayMaster, strengths[], workEnvironment[], cautionAdvice, roleReasonings[].reason, specificRoles[], recommendedIndustries[], rolesToAvoid[], growthPattern, successFactors[].title, successFactors[].detail, motto.`,
     `- specificRoles[] are concrete job titles (e.g. "프로덕트 디자이너", "퍼포먼스 마케터") and MUST be translated into ${languageName} natural job titles. Do NOT keep them in Korean.`,
     `- DO NOT translate the "role" field inside roleReasonings — those are Korean taxonomy keys (e.g. "개발", "디자인") and must stay in Korean exactly.`,
     `- DO NOT change elementBalance numbers — copy them exactly.`,
@@ -97,6 +106,7 @@ export async function translateSajuContent(
     `    "recommendedIndustries": ["<translated>", ...],`,
     `    "rolesToAvoid": ["<translated>", ...],`,
     `    "growthPattern": "<translated>",`,
+    `    "successFactors": [{ "title": "<translated>", "detail": "<translated>" }, ...],`,
     `    "motto": "<translated>"`,
     `  }`,
     `}`,
@@ -157,6 +167,15 @@ export async function translateSajuContent(
           ? d.rolesToAvoid.map((s) => String(s).trim()).filter(Boolean).slice(0, 3)
           : [],
         growthPattern: typeof d.growthPattern === "string" ? d.growthPattern.trim() : "",
+        successFactors: Array.isArray(d.successFactors)
+          ? d.successFactors
+              .map((f) => ({
+                title: typeof f?.title === "string" ? f.title.trim() : "",
+                detail: typeof f?.detail === "string" ? f.detail.trim() : ""
+              }))
+              .filter((f) => f.title && f.detail)
+              .slice(0, 4)
+          : [],
         motto: typeof d.motto === "string" ? d.motto.trim() : ""
       }
     };
@@ -190,6 +209,8 @@ type SajuPillars = {
   hourKo: string | null;
   hourEn: string | null;
   dominantElements: string[];
+  lackingElements: string[];
+  elementTally: Record<string, number>;
 };
 
 // Map traditional Chinese character → modern Korean Hangul for the 10
@@ -352,6 +373,10 @@ export function computeSajuPillars(
   }
   const sorted = Object.entries(tally).sort((a, b) => b[1] - a[1]);
   const dominantElements = sorted.filter(([, n]) => n > 0 && n === sorted[0][1]).map(([k]) => k);
+  // Elements that are absent or weakest (count 0, or tied for the minimum) —
+  // these are what the success-factor advice should be anchored on.
+  const minCount = sorted[sorted.length - 1][1];
+  const lackingElements = sorted.filter(([, n]) => n === minCount).map(([k]) => k);
 
   return {
     yearKo: yearLabel.ko,
@@ -362,7 +387,9 @@ export function computeSajuPillars(
     dayEn: dayLabel.en,
     hourKo: hourLabel?.ko ?? null,
     hourEn: hourLabel?.en ?? null,
-    dominantElements
+    dominantElements,
+    lackingElements,
+    elementTally: tally
   };
 }
 
@@ -425,20 +452,23 @@ function buildPrompt(input: SajuPredictionInput): string {
     `- Month pillar (月柱): ${pillars.monthKo}`,
     `- Day pillar (日柱 / day-master): ${pillars.dayKo}`,
     pillars.hourKo ? `- Hour pillar (時柱): ${pillars.hourKo}` : `- Hour pillar (時柱): unknown — base the reading on the other three pillars only`,
-    `- Dominant elements: ${pillars.dominantElements.join(", ")}`,
+    `- Element tally (목/화/토/금/수): ${["목", "화", "토", "금", "수"].map((e) => `${e}=${pillars.elementTally[e] ?? 0}`).join(", ")}`,
+    `- Dominant (strongest) elements: ${pillars.dominantElements.join(", ")}`,
+    `- Lacking (weakest / absent) elements: ${pillars.lackingElements.join(", ")}`,
     `- English notation: year=${pillars.yearEn}, month=${pillars.monthEn}, day=${pillars.dayEn}${pillars.hourEn ? `, hour=${pillars.hourEn}` : ""}`,
     `Hard rules:`,
-    `- "elementBalance" percentages MUST be highest on the dominant elements above and visibly skewed (e.g. 35/25/15/15/10), not a flat 20/20/20/20/20.`,
+    `- "elementBalance" percentages MUST mirror the element tally above — highest on the dominant elements, lowest on the lacking ones, visibly skewed (e.g. 35/25/15/15/10), never a flat 20/20/20/20/20.`,
     `- "dayMaster" string MUST be derived from the DAY pillar's stem element (the precomputed day-master above), e.g. KO "정화(丁火) — 촛불 같은 따뜻한 빛" for 정 stem; EN "Yin Fire (정) — gentle candle flame".`,
-    `- "interpretation" MUST cite at least the year pillar (${pillars.yearKo}) AND the day pillar (${pillars.dayKo}), explaining how their elements flavor the person.`,
+    `- "interpretation" MUST (a) cite the year pillar (${pillars.yearKo}) AND the day pillar (${pillars.dayKo}) by name, (b) name the dominant element(s) and the lacking element(s) explicitly, and (c) explain the 오행 상생상극 (generating/controlling) dynamic between them — e.g. how an abundant element feeds or drains the day-master, and what the missing element means for balance. Write it like a knowledgeable but warm 명리 mentor, not a generic horoscope.`,
+    `- "successFactors" MUST be anchored on the LACKING elements above: each entry names a capability tied to a missing/weak element and gives a concrete, doable way to cultivate it (a habit, skill, or environment). These are the things this person should "fill in" to round out their chart and grow further.`,
     `- "recommendedRoleNames", "specificRoles", "recommendedIndustries" MUST visibly bias toward the dominant elements above — NOT a safe generic mix.`,
     ``,
-    `Element → career affinities (use as a guideline, combine with the dominant elements above):`,
-    `- 목 / Wood: growth, planning, creation, content, design, education — strategy/UX/branding/contents/teaching`,
-    `- 화 / Fire: communication, energy, expression, brand presence — marketing/sales/PR/people-facing`,
-    `- 토 / Earth: stability, trust, support, operations — HR/finance/operations/customer success`,
-    `- 금 / Metal: precision, judgement, analysis, structure — engineering/legal/finance/research`,
-    `- 수 / Water: flow, learning, depth, networks — research/strategy/data/journalism/global business`,
+    `Element → career affinities + what cultivating it builds (use for BOTH role fit AND successFactors):`,
+    `- 목 / Wood: growth, planning, creation, content, design, education — strategy/UX/branding/contents/teaching. Cultivating it builds vision, initiative, long-term planning.`,
+    `- 화 / Fire: communication, energy, expression, brand presence — marketing/sales/PR/people-facing. Cultivating it builds visibility, persuasion, networking.`,
+    `- 토 / Earth: stability, trust, support, operations — HR/finance/operations/customer success. Cultivating it builds reliability, follow-through, steady routines.`,
+    `- 금 / Metal: precision, judgement, analysis, structure — engineering/legal/finance/research. Cultivating it builds discipline, structured thinking, data/process rigor.`,
+    `- 수 / Water: flow, learning, depth, networks — research/strategy/data/journalism/global business. Cultivating it builds adaptability, continuous learning, deep expertise.`,
     ``,
     `User info`,
     `- Name: ${input.name}`,
@@ -448,7 +478,7 @@ function buildPrompt(input: SajuPredictionInput): string {
     ``,
     `Respond ONLY as a strict JSON object — no markdown, no code fences, no extra prose:`,
     `{`,
-    `  "interpretation": "5 to 7 warm sentences in ${languageName} (${bcp47}). MUST explicitly mention which elements dominate, which one is lacking, and the day-master element from STEP 1, then describe how those translate to the person's personal strengths and the mood/style of work that suits them. Avoid fatalistic or absolute language.",`,
+    `  "interpretation": "6 to 8 warm, substantive sentences in ${languageName} (${bcp47}). MUST: name the day-master and its element, name the dominant element(s) and the lacking element(s), explain the 오행 상생상극 relationship between them (which element feeds or controls the day-master), and translate that into the person's temperament, decision-making style, and the work mood/pace that suits them. Be specific to THESE pillars — avoid generic, fatalistic, or absolute language.",`,
     `  "recommendedRoleNames": ["pick EXACTLY 1 to 2 (NEVER more than 2) from this Korean taxonomy and return them exactly as Korean strings: ${taxonomyText}. Focus tightly on the dominant element — do not hedge by listing many categories."],`,
     `  "details": {`,
     `    "elementBalance": { "wood": <0-100>, "fire": <0-100>, "earth": <0-100>, "metal": <0-100>, "water": <0-100> },  // integers, total ≈ 100, reflecting this person's specific five-element distribution from STEP 1. MUST differ across different birth dates.`,
@@ -462,7 +492,11 @@ function buildPrompt(input: SajuPredictionInput): string {
     `    "specificRoles": ["EXACTLY 2 to 4 HIGHLY SPECIFIC job titles in ${languageName}, ALL drawn from the SAME 1-2 categories in recommendedRoleNames. Do NOT introduce a third category. EACH entry must have AT LEAST ONE of: (a) a specialization keyword (e.g. UX/UI/Service for 'designer'; backend/frontend/platform for 'engineer'; growth/brand/performance for 'marketer'), (b) an industry parenthetical (e.g. (Fintech), (B2B SaaS), (D2C 커머스), (헬스케어), (게임), (콘텐츠/미디어), (HR Tech), (EdTech)), (c) a seniority prefix (Junior/Mid/Senior/Lead, 주니어/시니어/리드). NEVER output bare titles like '개발자', 'Designer'. BAD: 'UX 디자이너', 'Product Manager'. GOOD: '시니어 UX 디자이너 (B2B SaaS)', '그로스 마케팅 매니저 (D2C 커머스)', 'Senior Product Manager (Fintech)', '백엔드 엔지니어 (게임)'."],`,
     `    "recommendedIndustries": ["3 to 5 industries that fit this person in ${languageName} — concrete sectors (e.g. KO '콘텐츠/미디어', 'AI/SaaS', '핀테크', '교육테크', '커머스', '헬스케어'), NOT job functions. Pick the ones that match the dominant element."],`,
     `    "rolesToAvoid": ["2 to 3 short labels in ${languageName} for job styles this person should be wary of — e.g. KO '반복적인 단순 입력 업무', '비전 없이 굴러가는 안정형 조직'. Phrase as work-style descriptions, not specific titles."],`,
-    `    "growthPattern": "2 to 3 sentences in ${languageName} on the person's likely career arc — early years strengths, mid-career inflection, what mastery looks like for their element profile.",`,
+    `    "growthPattern": "3 to 4 sentences in ${languageName} on the person's likely career arc — early-years strengths, mid-career inflection, and what mastery looks like for their element profile.",`,
+    `    "successFactors": [`,
+    `      { "title": "<short label in ${languageName} naming a capability tied to a LACKING element, e.g. KO '금(金) 기운 보완 — 구조와 분석력', '수(水) 기운 보완 — 깊이 있는 전문성'>", "detail": "1 to 2 sentences in ${languageName} with a CONCRETE, doable way to cultivate it — a specific habit, skill, certification, or kind of project/environment to seek out. Tie it back to why it rounds out this person's chart and accelerates their growth." }`,
+    `      // EXACTLY 3 to 4 entries, each anchored on a different lacking/weak element from above. Do NOT just restate strengths — these are growth gaps to fill.`,
+    `    ],`,
     `    "motto": "ONE short (under 14 words) motivational line in ${languageName} that captures this person's career identity. Should feel personal, not generic."`,
     `  }`,
     `}`,
@@ -511,6 +545,7 @@ export async function generateSajuPrediction(
         recommendedIndustries: string[];
         rolesToAvoid: string[];
         growthPattern: string;
+        successFactors: Array<{ title?: string; detail?: string }>;
         motto: string;
       }>;
     }>;
@@ -574,6 +609,15 @@ export async function generateSajuPrediction(
           .slice(0, 3)
       : [];
     const growthPattern = typeof parsed.details?.growthPattern === "string" ? parsed.details.growthPattern.trim() : "";
+    const successFactors: SajuSuccessFactor[] = Array.isArray(parsed.details?.successFactors)
+      ? parsed.details.successFactors
+          .map((f) => ({
+            title: typeof f?.title === "string" ? f.title.trim() : "",
+            detail: typeof f?.detail === "string" ? f.detail.trim() : ""
+          }))
+          .filter((f) => f.title && f.detail)
+          .slice(0, 4)
+      : [];
     const motto = typeof parsed.details?.motto === "string" ? parsed.details.motto.trim() : "";
 
     return {
@@ -590,6 +634,7 @@ export async function generateSajuPrediction(
         recommendedIndustries,
         rolesToAvoid,
         growthPattern,
+        successFactors,
         motto
       }
     };

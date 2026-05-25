@@ -4,6 +4,36 @@ function getApiBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 }
 
+// Slugs this browser created are remembered locally so the result page can
+// tell the owner ("share with friends") apart from a visitor who opened a
+// shared link ("try it yourself"). Purely a UX hint — no security meaning.
+const OWN_SLUGS_KEY = "aply_saju_mine";
+
+export function markSajuOwned(slug: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(OWN_SLUGS_KEY);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    if (!list.includes(slug)) {
+      list.push(slug);
+      window.localStorage.setItem(OWN_SLUGS_KEY, JSON.stringify(list));
+    }
+  } catch {
+    // ignore storage failures (private mode, quota, etc.)
+  }
+}
+
+export function isSajuOwned(slug: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.localStorage.getItem(OWN_SLUGS_KEY);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) && list.includes(slug);
+  } catch {
+    return false;
+  }
+}
+
 export type SajuPredictionRequest = {
   name: string;
   gender: "male" | "female";
@@ -39,6 +69,11 @@ export type SajuRoleReasoning = {
   reason: string;
 };
 
+export type SajuSuccessFactor = {
+  title: string;
+  detail: string;
+};
+
 export type SajuElementBalance = {
   wood: number;
   fire: number;
@@ -58,6 +93,7 @@ export type SajuDetails = {
   recommendedIndustries: string[];
   rolesToAvoid: string[];
   growthPattern: string;
+  successFactors?: SajuSuccessFactor[];
   motto: string;
 };
 
