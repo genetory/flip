@@ -9,8 +9,10 @@ import {
   Export as ShareIcon,
   Globe,
   MoonStars,
+  QuestionMarkIcon,
   Sparkle,
-  Star
+  Star,
+  XIcon
 } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
@@ -53,6 +55,11 @@ type Copy = {
   shareText: string;
   linkCopied: string;
   linkCopyFailed: string;
+  whatIsSaju: string;
+  sajuModalTitle: string;
+  sajuModalBody: string;
+  sajuModalDisclaimer: string;
+  close: string;
   terms: string;
   privacy: string;
   ceo: string;
@@ -97,6 +104,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     shareText: "Aply의 오행 사주로 나에게 맞는 직업을 추천받아보세요.",
     linkCopied: "링크가 복사되었어요",
     linkCopyFailed: "링크 복사에 실패했어요",
+    whatIsSaju: "사주란 무엇인가요?",
+    sajuModalTitle: "사주(四柱)란?",
+    sajuModalBody:
+      "사주는 태어난 연·월·일·시 네 기둥(四柱)을 천간과 지지로 풀어, 그 사람의 타고난 기운과 오행(목·화·토·금·수)의 균형을 살피는 동양의 명리학이에요.\n\nAply는 이 오행 균형을 분석해 당신에게 잘 맞는 직무 성향과 강점을 읽어내고, 실제 채용 공고까지 연결해 드려요.",
+    sajuModalDisclaimer: "* 재미로 즐기는 콘텐츠이며, 과학적 예측이나 채용 보장이 아니에요.",
+    close: "닫기",
     terms: "이용약관",
     privacy: "개인정보처리방침",
     ceo: "주식회사 플리퍼스 · 대표: 김남구",
@@ -139,6 +152,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     shareText: "Get an Aply Five-Element Saju career reading.",
     linkCopied: "Link copied",
     linkCopyFailed: "Couldn't copy the link",
+    whatIsSaju: "What is Saju?",
+    sajuModalTitle: "What is Saju (四柱)?",
+    sajuModalBody:
+      "Saju is a form of East Asian astrology that reads the \"Four Pillars\" of your birth — year, month, day, and hour — through heavenly stems and earthly branches to reveal your innate energy and the balance of the Five Elements (Wood, Fire, Earth, Metal, Water).\n\nAply analyzes this Five-Element balance to read the work styles and strengths that suit you, and connects you to real job openings.",
+    sajuModalDisclaimer: "* This is for fun — not a scientific prediction or a job guarantee.",
+    close: "Close",
     terms: "Terms",
     privacy: "Privacy Policy",
     ceo: "FLIPERS Co., Ltd. · CEO: Namgu Kim",
@@ -181,6 +200,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     shareText: "Aply 五行八字职业匹配，立即查看。",
     linkCopied: "链接已复制",
     linkCopyFailed: "链接复制失败",
+    whatIsSaju: "什么是八字?",
+    sajuModalTitle: "什么是八字(四柱)?",
+    sajuModalBody:
+      "八字是一种东方命理学，通过天干地支解读出生的年·月·日·时这「四柱」，从而了解一个人与生俱来的气场以及五行(木·火·土·金·水)的平衡。\n\nAply 分析这种五行平衡，解读出适合你的职业倾向与优势，并为你对接真实的招聘岗位。",
+    sajuModalDisclaimer: "* 本内容仅供娱乐，并非科学预测或录用保证。",
+    close: "关闭",
     terms: "用户协议",
     privacy: "隐私政策",
     ceo: "FLIPERS 株式会社 · 代表: 金南求",
@@ -223,6 +248,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     shareText: "Khám phá công việc qua Aply Ngũ Hành Tử Vi.",
     linkCopied: "Đã sao chép liên kết",
     linkCopyFailed: "Không thể sao chép liên kết",
+    whatIsSaju: "Tử Vi là gì?",
+    sajuModalTitle: "Tử Vi (Tứ Trụ) là gì?",
+    sajuModalBody:
+      "Tử Vi là một môn mệnh lý học phương Đông, giải mã \"Tứ Trụ\" của ngày sinh — năm, tháng, ngày, giờ — qua thiên can và địa chi để thấy được khí chất bẩm sinh và sự cân bằng của Ngũ Hành (Mộc, Hỏa, Thổ, Kim, Thủy).\n\nAply phân tích sự cân bằng Ngũ Hành này để đọc ra phong cách làm việc và thế mạnh phù hợp với bạn, đồng thời kết nối bạn với các công việc đang tuyển thật.",
+    sajuModalDisclaimer: "* Đây chỉ là nội dung giải trí, không phải dự đoán khoa học hay đảm bảo việc làm.",
+    close: "Đóng",
     terms: "Điều khoản",
     privacy: "Chính sách bảo mật",
     ceo: "Công ty FLIPERS · CEO: Namgu Kim",
@@ -265,6 +296,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     shareText: "Aply の五行四柱推命であなたに合う仕事を診断。",
     linkCopied: "リンクをコピーしました",
     linkCopyFailed: "リンクをコピーできませんでした",
+    whatIsSaju: "四柱推命とは?",
+    sajuModalTitle: "四柱推命(四柱)とは?",
+    sajuModalBody:
+      "四柱推命は、生まれた年・月・日・時の「四つの柱(四柱)」を天干と地支で読み解き、その人が生まれ持った気質と五行(木・火・土・金・水)のバランスを見る東洋の命理学です。\n\nAply はこの五行バランスを分析して、あなたに合った仕事の傾向や強みを読み解き、実際の求人へとつなげます。",
+    sajuModalDisclaimer: "* 娯楽としてお楽しみいただくコンテンツであり、科学的予測や採用の保証ではありません。",
+    close: "閉じる",
     terms: "利用規約",
     privacy: "プライバシーポリシー",
     ceo: "FLIPERS株式会社 · 代表: キム・ナムグ",
@@ -307,6 +344,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     shareText: "Dapatkan pembacaan karier Saju Lima Unsur dari Aply.",
     linkCopied: "Tautan disalin",
     linkCopyFailed: "Tidak dapat menyalin tautan",
+    whatIsSaju: "Apa itu Saju?",
+    sajuModalTitle: "Apa itu Saju (Empat Pilar)?",
+    sajuModalBody:
+      "Saju adalah ilmu astrologi Asia Timur yang membaca \"Empat Pilar\" kelahiran Anda — tahun, bulan, hari, dan jam — melalui batang langit dan cabang bumi untuk mengungkap energi bawaan serta keseimbangan Lima Unsur (Kayu, Api, Tanah, Logam, Air).\n\nAply menganalisis keseimbangan Lima Unsur ini untuk membaca gaya kerja dan kekuatan yang cocok untuk Anda, lalu menghubungkan Anda dengan lowongan kerja nyata.",
+    sajuModalDisclaimer: "* Konten ini hanya untuk hiburan, bukan prediksi ilmiah atau jaminan pekerjaan.",
+    close: "Tutup",
     terms: "Syarat & Ketentuan",
     privacy: "Kebijakan Privasi",
     ceo: "FLIPERS Co., Ltd. · CEO: Namgu Kim",
@@ -332,6 +375,7 @@ export function SajuLandingPage() {
   const { locale, setLocale } = useLanguage();
   const copy = COPY[locale];
   const [langOpen, setLangOpen] = useState(false);
+  const [sajuInfoOpen, setSajuInfoOpen] = useState(false);
   const [name, setName] = useState("문지윤");
   const [gender, setGender] = useState<"male" | "female" | "">("male");
   const [birthDate, setBirthDate] = useState("1987-08-12");
@@ -469,6 +513,16 @@ export function SajuLandingPage() {
             <p className="mt-3 whitespace-pre-line px-2 text-[13px] leading-relaxed text-white/70">
               {copy.intro}
             </p>
+            <button
+              type="button"
+              onClick={() => setSajuInfoOpen(true)}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/5 py-1.5 pl-2 pr-3 text-[12px] text-white/70 backdrop-blur-sm transition active:bg-white/10 active:text-white"
+            >
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-yellow-300/20 text-yellow-100">
+                <QuestionMarkIcon weight="bold" className="h-3 w-3" />
+              </span>
+              {copy.whatIsSaju}
+            </button>
           </section>
 
           <div className="relative z-0 mx-auto mt-2 aspect-[3/2] w-[78%] max-w-[360px]">
@@ -707,6 +761,49 @@ export function SajuLandingPage() {
               animation: spin-slow 4s linear infinite;
             }
           `}</style>
+        </div>
+      ) : null}
+
+      {sajuInfoOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="saju-info-title"
+          onClick={() => setSajuInfoOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-[480px] rounded-t-3xl border border-white/10 bg-gradient-to-b from-[#1a1340] to-[#0b0b2a] p-6 pb-8 shadow-2xl sm:rounded-3xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setSajuInfoOpen(false)}
+              aria-label={copy.close}
+              className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition active:bg-white/10 active:text-white"
+            >
+              <XIcon weight="bold" className="h-4 w-4" />
+            </button>
+            <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-300/15">
+              <MoonStars weight="fill" className="h-6 w-6 text-yellow-200" />
+            </div>
+            <h2 id="saju-info-title" className="text-[18px] font-bold text-white">
+              {copy.sajuModalTitle}
+            </h2>
+            <p className="mt-3 whitespace-pre-line text-[13.5px] leading-relaxed text-white/75">
+              {copy.sajuModalBody}
+            </p>
+            <p className="mt-4 text-[11px] leading-relaxed text-white/40">
+              {copy.sajuModalDisclaimer}
+            </p>
+            <Button
+              type="button"
+              onClick={() => setSajuInfoOpen(false)}
+              className="mt-6 h-12 w-full rounded-xl bg-white/10 text-[14px] font-medium text-white transition active:bg-white/15"
+            >
+              {copy.close}
+            </Button>
+          </div>
         </div>
       ) : null}
 
