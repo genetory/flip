@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { ADS_ENABLED } from "../../lib/ads-config";
 
 const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim() || "";
 const SLOT_LEFT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_SIDEBAR_LEFT?.trim() || "";
@@ -81,6 +82,7 @@ function DevPlaceholder({ side }: { side: "left" | "right" }) {
 
 export function SidebarAds() {
   const pathname = usePathname() ?? "/";
+  if (!ADS_ENABLED) return null;
   if (!shouldShowAds(pathname)) return null;
   if (!ADSENSE_CLIENT) {
     if (IS_PROD) return null;
