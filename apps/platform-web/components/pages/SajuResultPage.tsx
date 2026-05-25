@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
@@ -16,7 +17,7 @@ import { Button } from "../ui/button";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { type PlatformLocale } from "../../lib/auth-messages";
-import { fetchSajuResult, type SajuResultPayload } from "../../lib/saju-client";
+import { fetchSajuResult, isSajuOwned, type SajuResultPayload } from "../../lib/saju-client";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -154,6 +155,7 @@ type Copy = {
   industriesHeading: string;
   rolesToAvoidHeading: string;
   growthPatternHeading: string;
+  successFactorsHeading: string;
   mottoHeading: string;
   positionsHeading: string;
   woodLabel: string;
@@ -164,6 +166,7 @@ type Copy = {
   morePositionsBtn: string;
   linkCopied: string;
   shareBtn: string;
+  tryItBtn: string;
   countSuffix: string;
   countUnit: string;
   numberLocale: string;
@@ -197,6 +200,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     industriesHeading: "어울리는 산업 분야",
     rolesToAvoidHeading: "피하면 좋은 업무 스타일",
     growthPatternHeading: "커리어 성장 패턴",
+    successFactorsHeading: "더 채우면 좋을 것",
     mottoHeading: "나만의 한 마디",
     positionsHeading: "지금 지원할 수 있는 어울리는 공고",
     woodLabel: "목(木)",
@@ -207,6 +211,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     morePositionsBtn: "내 사주에 맞는 공고 더 보기",
     linkCopied: "링크가 복사되었어요",
     shareBtn: "친구에게 공유하기",
+    tryItBtn: "나도 해보기",
     countSuffix: "명이 이벤트에 참여했어요",
     countUnit: "지금까지",
     numberLocale: "ko-KR"
@@ -238,6 +243,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     industriesHeading: "Industries that suit you",
     rolesToAvoidHeading: "Work styles to avoid",
     growthPatternHeading: "Your career growth pattern",
+    successFactorsHeading: "What to build next",
     mottoHeading: "Your motto",
     positionsHeading: "Open jobs that match your reading",
     woodLabel: "Wood",
@@ -248,6 +254,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     morePositionsBtn: "See more matching jobs",
     linkCopied: "Link copied",
     shareBtn: "Share with friends",
+    tryItBtn: "Try it myself",
     countSuffix: "people have joined the event",
     countUnit: "So far",
     numberLocale: "en-US"
@@ -279,6 +286,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     industriesHeading: "适合你的行业",
     rolesToAvoidHeading: "建议避免的工作风格",
     growthPatternHeading: "你的职业成长轨迹",
+    successFactorsHeading: "值得补足的能力",
     mottoHeading: "你的座右铭",
     positionsHeading: "可以申请的匹配岗位",
     woodLabel: "木",
@@ -289,6 +297,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     morePositionsBtn: "查看更多匹配岗位",
     linkCopied: "链接已复制",
     shareBtn: "分享给朋友",
+    tryItBtn: "我也来试试",
     countSuffix: "人已参与活动",
     countUnit: "目前已有",
     numberLocale: "zh-CN"
@@ -320,6 +329,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     industriesHeading: "Ngành nghề phù hợp",
     rolesToAvoidHeading: "Phong cách công việc nên tránh",
     growthPatternHeading: "Mô hình phát triển sự nghiệp",
+    successFactorsHeading: "Điều nên bồi đắp thêm",
     mottoHeading: "Phương châm của bạn",
     positionsHeading: "Việc làm đang tuyển phù hợp",
     woodLabel: "Mộc",
@@ -330,6 +340,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     morePositionsBtn: "Xem thêm việc làm phù hợp",
     linkCopied: "Đã sao chép liên kết",
     shareBtn: "Chia sẻ với bạn bè",
+    tryItBtn: "Tôi cũng thử",
     countSuffix: "người đã tham gia sự kiện",
     countUnit: "Đến nay",
     numberLocale: "vi-VN"
@@ -361,6 +372,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     industriesHeading: "合いそうな業界",
     rolesToAvoidHeading: "避けたい仕事スタイル",
     growthPatternHeading: "キャリアの成長パターン",
+    successFactorsHeading: "さらに補うと良いこと",
     mottoHeading: "あなたのモットー",
     positionsHeading: "今応募できる相性のいい求人",
     woodLabel: "木",
@@ -371,6 +383,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     morePositionsBtn: "私の四柱推命に合う求人をもっと見る",
     linkCopied: "リンクをコピーしました",
     shareBtn: "友達にシェア",
+    tryItBtn: "私もやってみる",
     countSuffix: "人がイベントに参加しました",
     countUnit: "これまでに",
     numberLocale: "ja-JP"
@@ -402,6 +415,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     industriesHeading: "Industri yang cocok",
     rolesToAvoidHeading: "Gaya kerja yang sebaiknya dihindari",
     growthPatternHeading: "Pola pertumbuhan karier",
+    successFactorsHeading: "Hal yang sebaiknya dikembangkan",
     mottoHeading: "Mottomu",
     positionsHeading: "Lowongan terbuka yang cocok",
     woodLabel: "Kayu",
@@ -412,6 +426,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     morePositionsBtn: "Lihat lebih banyak lowongan yang cocok",
     linkCopied: "Tautan disalin",
     shareBtn: "Bagikan ke teman",
+    tryItBtn: "Saya juga mau coba",
     countSuffix: "orang telah ikut acara ini",
     countUnit: "Sejauh ini",
     numberLocale: "id-ID"
@@ -419,13 +434,23 @@ const COPY: Record<PlatformLocale, Copy> = {
 };
 
 export function SajuResultPage({ slug }: { slug: string }) {
+  const router = useRouter();
   const { user } = useAuthSession();
   const { locale } = useLanguage();
   const copy = COPY[locale];
   const [payload, setPayload] = useState<SajuResultPayload | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
+  // Owner = this browser created the prediction. Anyone opening a shared
+  // link gets isOwner=false → the CTA flips to "try it yourself". Defaults
+  // to false on the server render to avoid a hydration mismatch, then
+  // resolves from localStorage on mount.
+  const [isOwner, setIsOwner] = useState(false);
   const isAuthenticated = Boolean(user);
+
+  useEffect(() => {
+    setIsOwner(isSajuOwned(slug));
+  }, [slug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -453,27 +478,15 @@ export function SajuResultPage({ slug }: { slug: string }) {
   async function handleShare() {
     if (typeof window === "undefined") return;
     const url = window.location.href;
-    const shareTitle = name ? `${name}${copy.shareTitleSuffix}` : copy.shareTitleFallback;
-    const shareText = interpretation
-      ? interpretation.slice(0, 110) + (interpretation.length > 110 ? "..." : "")
-      : copy.shareTextFallback;
-    // Web Share API first — opens the native sheet on mobile (KakaoTalk,
-    // SMS, etc. all show up). Fall back to clipboard copy elsewhere.
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-      try {
-        await navigator.share({ title: shareTitle, text: shareText, url });
-        return;
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-      }
-    }
+    // Just copy the result link to the clipboard and confirm it. No native
+    // share sheet — the user only wants the link to share however they like.
     try {
       await navigator.clipboard.writeText(url);
-      setCopyState("copied");
-      setTimeout(() => setCopyState("idle"), 1500);
     } catch {
-      // ignore
+      return;
     }
+    setCopyState("copied");
+    setTimeout(() => setCopyState("idle"), 1500);
   }
 
   return (
@@ -734,24 +747,6 @@ export function SajuResultPage({ slug }: { slug: string }) {
                 </section>
               ) : null}
 
-              {isAuthenticated && details?.recommendedIndustries && details.recommendedIndustries.length > 0 ? (
-                <section className="px-5 pt-8">
-                  <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.industriesHeading}</h2>
-                  <div className="rounded-2xl bg-white/[0.04] p-5">
-                    <div className="flex flex-wrap gap-2">
-                      {details.recommendedIndustries.map((industry) => (
-                        <span
-                          key={industry}
-                          className="rounded-full bg-yellow-300/10 px-3 py-1.5 text-[12px] font-medium text-yellow-100"
-                        >
-                          {industry}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </section>
-              ) : null}
-
               {isAuthenticated && details?.rolesToAvoid && details.rolesToAvoid.length > 0 ? (
                 <section className="px-5 pt-8">
                   <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.rolesToAvoidHeading}</h2>
@@ -773,6 +768,27 @@ export function SajuResultPage({ slug }: { slug: string }) {
                   <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.growthPatternHeading}</h2>
                   <div className="rounded-2xl bg-white/[0.04] p-5">
                     <p className="text-[13px] leading-[1.7] text-white/85">{details.growthPattern}</p>
+                  </div>
+                </section>
+              ) : null}
+
+              {isAuthenticated && details?.successFactors && details.successFactors.length > 0 ? (
+                <section className="px-5 pt-8">
+                  <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.successFactorsHeading}</h2>
+                  <div className="space-y-2.5">
+                    {details.successFactors.map((factor, i) => (
+                      <div key={i} className="rounded-2xl bg-white/[0.04] p-4">
+                        <div className="flex items-start gap-3">
+                          <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-yellow-300/20 text-[12px] font-semibold text-yellow-100">
+                            {i + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="text-[13.5px] font-semibold text-yellow-100">{factor.title}</div>
+                            <p className="mt-1 text-[12.5px] leading-[1.65] text-white/75">{factor.detail}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </section>
               ) : null}
@@ -842,13 +858,23 @@ export function SajuResultPage({ slug }: { slug: string }) {
                       className="object-contain"
                     />
                   </div>
-                  <Button
-                    onClick={handleShare}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white/[0.04] text-[13px] font-medium text-white transition active:bg-white/[0.07]"
-                  >
-                    <ShareIcon weight="bold" className="h-4 w-4" />
-                    {copyState === "copied" ? copy.linkCopied : copy.shareBtn}
-                  </Button>
+                  {isOwner ? (
+                    <Button
+                      onClick={handleShare}
+                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white/[0.04] text-[13px] font-medium text-white transition active:bg-white/[0.07]"
+                    >
+                      <ShareIcon weight="bold" className="h-4 w-4" />
+                      {copyState === "copied" ? copy.linkCopied : copy.shareBtn}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => router.push("/events/saju")}
+                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 to-amber-400 text-[14px] font-semibold text-[#1a1340] shadow-[0_8px_24px_-12px_rgba(250,204,21,0.6)] transition active:from-yellow-200 active:to-amber-300"
+                    >
+                      <Sparkle weight="fill" className="h-4 w-4" />
+                      {copy.tryItBtn}
+                    </Button>
+                  )}
                   {payload.totalPredictions > 0 ? (
                     <p className="mt-4 text-center text-[14px] text-white/70">
                       {copy.countUnit}{" "}
