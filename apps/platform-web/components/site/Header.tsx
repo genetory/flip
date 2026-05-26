@@ -10,6 +10,7 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { Button } from "../ui/button";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { getHeaderMessages, PLATFORM_LOCALES, type PlatformLocale } from "../../lib/auth-messages";
+import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { AnnouncementBanner } from "../announcements/AnnouncementBanner";
@@ -50,7 +51,9 @@ export const Header = () => {
   const navItems = [
     { label: homeLabel, href: "/" },
     { label: copy.nav.positions, href: "/positions" },
-    ...(user?.role === "STUDENT" || !isAuthenticated ? [{ label: copy.nav.matching, href: "/matching-probability" }] : []),
+    ...(MATCHING_QUEST_ENABLED && (user?.role === "STUDENT" || !isAuthenticated)
+      ? [{ label: copy.nav.matching, href: "/matching-probability" }]
+      : []),
     { label: copy.nav.community, href: "/community" },
     { label: copy.nav.pricing, href: "/pricing" },
     { label: copy.nav.resources, href: "/resources" },

@@ -1447,6 +1447,12 @@ const apiDocEndpoints: ApiDocEndpoint[] = [
   { method: "post", path: "/members/me/activity-experiences", summary: "Create my activity experience", tag: "Members", secure: true, requestBody: true, successStatus: "201" },
   { method: "patch", path: "/members/me/activity-experiences/:activityExperienceId", summary: "Update my activity experience", tag: "Members", secure: true, requestBody: true },
   { method: "delete", path: "/members/me/activity-experiences/:activityExperienceId", summary: "Delete my activity experience", tag: "Members", secure: true },
+  { method: "get", path: "/members/me/resumes", summary: "List my resumes", tag: "Members", secure: true },
+  { method: "post", path: "/members/me/resumes", summary: "Create a resume", tag: "Members", secure: true, requestBody: true, successStatus: "201" },
+  { method: "get", path: "/members/me/resumes/:resumeId", summary: "Get my resume", tag: "Members", secure: true },
+  { method: "patch", path: "/members/me/resumes/:resumeId", summary: "Update my resume", tag: "Members", secure: true, requestBody: true },
+  { method: "delete", path: "/members/me/resumes/:resumeId", summary: "Delete my resume", tag: "Members", secure: true },
+  { method: "post", path: "/members/me/resumes/:resumeId/primary", summary: "Set my representative resume", tag: "Members", secure: true },
   { method: "post", path: "/auth/register", summary: "Register user", tag: "Auth", requestBody: true, requestSchemaRef: "#/components/schemas/RegisterRequest", successStatus: "201", successSchemaRef: "#/components/schemas/GenericObjectResponse" },
   { method: "post", path: "/auth/business-email/send-verification", summary: "Send business signup email verification code", tag: "Auth", requestBody: true, requestSchemaRef: "#/components/schemas/BusinessEmailSendVerificationRequest", successSchemaRef: "#/components/schemas/GenericObjectResponse" },
   { method: "post", path: "/auth/business-email/verify", summary: "Verify business signup email code", tag: "Auth", requestBody: true, requestSchemaRef: "#/components/schemas/BusinessEmailVerifyRequest", successSchemaRef: "#/components/schemas/GenericObjectResponse" },
@@ -2121,6 +2127,18 @@ const createCandidateEducationSchema = z.object({
   startDate: flexibleDateString.nullable().optional(),
   endDate: flexibleDateString.nullable().optional(),
   isKoreanSchool: z.boolean().nullable().optional()
+});
+
+// Resume content is a free-form structured document the builder owns; we
+// validate the envelope (title + content object) and let the content shape
+// evolve on the client without a schema migration.
+const createResumeSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  content: z.record(z.string(), z.unknown()).optional()
+});
+const updateResumeSchema = z.object({
+  title: z.string().trim().min(1).max(120).optional(),
+  content: z.record(z.string(), z.unknown()).optional()
 });
 
 const createCandidateLanguageSkillSchema = z.object({
@@ -9974,6 +9992,108 @@ app.delete(
     }
   }
 );
+
+// ---- Resumes (multiple Korean-style resume versions per member) ---------
+app.get("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  try {
+    const items = await prisma.resume.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" }
+    });
+    return res.json({ ok: true, items });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to list resumes" });
+  }
+});
+
+app.post("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const parsed = createResumeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  try {
+    const created = await prisma.resume.create({
+      data: {
+        userId,
+        title: parsed.data.title,
+        content: (parsed.data.content ?? {}) as Prisma.InputJsonValue
+      }
+    });
+    return res.status(201).json({ ok: true, item: created });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to create resume" });
+  }
+});
+
+app.get("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
+  if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const item = await prisma.resume.findFirst({ where: { id: resumeId, userId } });
+    if (!item) return res.status(404).json({ ok: false, message: "resume not found" });
+    return res.json({ ok: true, item });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to get resume" });
+  }
+});
+
+app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
+  if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
+  const parsed = updateResumeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  try {
+    const existing = await prisma.resume.findFirst({ where: { id: resumeId, userId }, select: { id: true } });
+    if (!existing) return res.status(404).json({ ok: false, message: "resume not found" });
+    const item = await prisma.resume.update({
+      where: { id: resumeId },
+      data: {
+        ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
+        ...(parsed.data.content !== undefined ? { content: parsed.data.content as Prisma.InputJsonValue } : {})
+      }
+    });
+    return res.json({ ok: true, item });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to update resume" });
+  }
+});
+
+app.delete("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
+  if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    await prisma.resume.deleteMany({ where: { id: resumeId, userId } });
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to delete resume" });
+  }
+});
+
+// Mark one resume as the member's representative (대표) resume. At most one
+// primary per user, so we clear the others in the same transaction.
+app.post("/members/me/resumes/:resumeId/primary", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
+  if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const existing = await prisma.resume.findFirst({ where: { id: resumeId, userId }, select: { id: true } });
+    if (!existing) return res.status(404).json({ ok: false, message: "resume not found" });
+    const [, item] = await prisma.$transaction([
+      prisma.resume.updateMany({ where: { userId, isPrimary: true }, data: { isPrimary: false } }),
+      prisma.resume.update({ where: { id: resumeId }, data: { isPrimary: true } })
+    ]);
+    return res.json({ ok: true, item });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to set primary resume" });
+  }
+});
 
 app.get("/members", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
   const users = await prisma.user.findMany({

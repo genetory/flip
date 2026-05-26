@@ -14,6 +14,9 @@ export const FinalCTA = () => {
   const { isAuthenticated } = useAuthSession();
   const copy = getSiteMessages(locale).finalCta;
   const partnerHref = isAuthenticated ? "/profile" : "/login";
+  // "취업 모험"(/matching-probability) is temporarily hidden — point the
+  // student CTA at the profile/signup instead so this card stays functional.
+  const studentHref = isAuthenticated ? "/profile" : "/signup";
 
   return (
     <section className="bg-[#F3F7FF] py-20">
@@ -39,7 +42,7 @@ export const FinalCTA = () => {
           </h3>
           <p className="mt-3 max-w-md text-muted-foreground">{copy.studentDescription}</p>
           <Button variant="dark" size="xl" className="mt-7" asChild>
-            <Link href="/matching-probability">{copy.studentCta}</Link>
+            <Link href={studentHref}>{copy.studentCta}</Link>
           </Button>
         </Reveal>
       </div>

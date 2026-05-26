@@ -144,6 +144,23 @@ All colors MUST be HSL.
     font-family: 'Inter', system-ui, sans-serif;
     font-feature-settings: "ss01", "cv11";
     overflow-y: scroll;
+    /* Disable text drag-selection / copy across the whole site. */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    /* Stop the long-press selection callout on iOS Safari. */
+    -webkit-touch-callout: none;
+  }
+  /* Keep form fields selectable so users can edit / copy their own input. */
+  input,
+  textarea,
+  select,
+  [contenteditable="true"] {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
   }
   h1, h2, h3, h4 {
     font-family: 'Space Grotesk', system-ui, sans-serif;

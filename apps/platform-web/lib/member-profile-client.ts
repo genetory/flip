@@ -1319,3 +1319,94 @@ export async function updateMyActivityExperience(
 export async function deleteMyActivityExperience(activityExperienceId: string) {
   return authedJsonFetch<unknown>(`/members/me/activity-experiences/${encodeURIComponent(activityExperienceId)}`, { method: "DELETE" });
 }
+
+// ---- Resumes (multiple Korean-style resume versions) -------------------
+export type ResumeEducationEntry = {
+  schoolName?: string;
+  educationType?: CandidateEducationType;
+  major?: string;
+  status?: CandidateEducationStatus;
+};
+export type ResumeCareerEntry = { companyName?: string; position?: string; description?: string };
+export type ResumeActivityEntry = { title?: string; organization?: string; description?: string };
+export type ResumeLanguageEntry = { language?: string; level?: string };
+export type ResumeCertificationEntry = { name?: string; issuer?: string };
+export type ResumeLinkEntry = { label?: string; url?: string };
+
+export type ResumeContent = {
+  // 희망직무
+  desiredJobRole?: string | null;
+  workType?: string | null;
+  desiredLocation?: string | null;
+  availableFrom?: string | null;
+  // 학력 / 경력 / 활동
+  educations?: ResumeEducationEntry[];
+  careers?: ResumeCareerEntry[];
+  activities?: ResumeActivityEntry[];
+  // 스킬
+  skills?: string[];
+  // 자격 / 어학 / 수상
+  languages?: ResumeLanguageEntry[];
+  certifications?: ResumeCertificationEntry[];
+  // 포트폴리오 / 링크
+  links?: ResumeLinkEntry[];
+  // 자기소개 / 요약
+  summary?: string | null;
+  selfIntroduction?: string | null;
+  // Legacy fields (read-only back-compat for resumes made before the
+  // structured expansion).
+  visaType?: CandidateVisaType | null;
+  koreanLevel?: CandidateLanguageLevel | null;
+  topik?: string | null;
+  education?: ResumeEducationEntry | null;
+  career?: ResumeCareerEntry | null;
+};
+
+export type Resume = {
+  id: string;
+  title: string;
+  content: ResumeContent;
+  isPrimary: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function getMyResumes() {
+  const result = await authedJsonFetch<Resume>("/members/me/resumes", { method: "GET" });
+  return result.items ?? [];
+}
+
+export async function getMyResume(resumeId: string) {
+  const result = await authedJsonFetch<Resume>(`/members/me/resumes/${encodeURIComponent(resumeId)}`, { method: "GET" });
+  if (!result.item) throw new Error("응답에 이력서가 없습니다.");
+  return result.item;
+}
+
+export async function createMyResume(input: { title: string; content?: ResumeContent }) {
+  const result = await authedJsonFetch<Resume>("/members/me/resumes", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+  if (!result.item) throw new Error("응답에 이력서가 없습니다.");
+  return result.item;
+}
+
+export async function updateMyResume(resumeId: string, input: { title?: string; content?: ResumeContent }) {
+  const result = await authedJsonFetch<Resume>(`/members/me/resumes/${encodeURIComponent(resumeId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input)
+  });
+  if (!result.item) throw new Error("응답에 수정된 이력서가 없습니다.");
+  return result.item;
+}
+
+export async function deleteMyResume(resumeId: string) {
+  return authedJsonFetch<unknown>(`/members/me/resumes/${encodeURIComponent(resumeId)}`, { method: "DELETE" });
+}
+
+export async function setMyPrimaryResume(resumeId: string) {
+  const result = await authedJsonFetch<Resume>(`/members/me/resumes/${encodeURIComponent(resumeId)}/primary`, {
+    method: "POST"
+  });
+  return result.item ?? null;
+}

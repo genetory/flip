@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
@@ -20,10 +20,15 @@ import {
   getMyPartnerOrganization,
   getMyPartnerPositions,
   removeMyFavoritePosition,
+  getMyResumes,
+  createMyResume,
+  setMyPrimaryResume,
+  deleteMyResume,
   type MyCandidateProfile,
   type MyPartnerOrganization,
   type PartnerPosition,
-  type PublicPositionListItem
+  type PublicPositionListItem,
+  type Resume
 } from "../../lib/member-profile-client";
 import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
@@ -32,7 +37,8 @@ import { ReportIssueModal } from "../issues/ReportIssueModal";
 import { SelectInterviewSlotModal } from "../interviews/SelectInterviewSlotModal";
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import type { PlatformLocale } from "../../lib/auth-messages";
-import { BadgeCheck, Bookmark, Briefcase, Globe, LayoutGrid, List, Mail, MapPin, Phone } from "lucide-react";
+import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
+import { BadgeCheck, Bookmark, Briefcase, FileText, Globe, LayoutGrid, List, Mail, MapPin, Pencil, Phone, Star, Trash2 } from "lucide-react";
 
 const PROFILE_SQUIRCLE_CLIP_ID = "profile-page-squircle-clip";
 const PROFILE_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
@@ -153,6 +159,11 @@ export function ProfilePage() {
   const [studentViewMode, setStudentViewMode] = useState<"grid" | "list">("list");
   const [favoritePositions, setFavoritePositions] = useState<PublicPositionListItem[]>([]);
   const [appliedPositions, setAppliedPositions] = useState<PublicPositionListItem[]>([]);
+  const [myResumes, setMyResumes] = useState<Resume[]>([]);
+  const [resumePrimaryBusyId, setResumePrimaryBusyId] = useState<string | null>(null);
+  const [resumeDeletingId, setResumeDeletingId] = useState<string | null>(null);
+  const [creatingResume, setCreatingResume] = useState(false);
+  const resumeRouter = useRouter();
   const [applications, setApplications] = useState<MyApplication[]>([]);
   const [reportTarget, setReportTarget] = useState<MyApplication | null>(null);
   const [interviewTarget, setInterviewTarget] = useState<MyApplication | null>(null);
@@ -414,17 +425,19 @@ export function ProfilePage() {
 
     void (async () => {
       try {
-        const [favorites, applied, profile, apps] = await Promise.all([
+        const [favorites, applied, profile, apps, resumes] = await Promise.all([
           getMyFavoritePositions(),
           getMyAppliedPositions(),
           getMyCandidateProfile(),
-          getMyApplications().catch(() => [] as MyApplication[])
+          getMyApplications().catch(() => [] as MyApplication[]),
+          getMyResumes().catch(() => [] as Resume[])
         ]);
         if (!isMounted) return;
         setFavoritePositions(favorites);
         setAppliedPositions(applied);
         setApplications(apps);
         setStudentProfile(profile ?? null);
+        setMyResumes(resumes);
         setStudentPositionsError(null);
       } catch (error) {
         if (!isMounted) return;
@@ -436,6 +449,55 @@ export function ProfilePage() {
       isMounted = false;
     };
   }, [locale, user]);
+
+  async function handleResumeSetPrimary(resumeId: string) {
+    if (resumePrimaryBusyId) return;
+    setResumePrimaryBusyId(resumeId);
+    try {
+      await setMyPrimaryResume(resumeId);
+      setMyResumes((prev) => prev.map((r) => ({ ...r, isPrimary: r.id === resumeId })));
+    } catch {
+      // ignore
+    } finally {
+      setResumePrimaryBusyId(null);
+    }
+  }
+
+  async function handleCreateResume() {
+    if (creatingResume) return;
+    setCreatingResume(true);
+    try {
+      const title = `${tr("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume")} ${myResumes.length + 1}`;
+      const created = await createMyResume({ title });
+      resumeRouter.push(`/resume/${created.id}/edit`);
+    } catch {
+      setCreatingResume(false);
+    }
+  }
+
+  async function handleResumeDelete(resumeId: string, resumeTitle: string) {
+    if (resumeDeletingId) return;
+    const ok = window.confirm(
+      tr(
+        `'${resumeTitle}' 이력서를 삭제할까요? 되돌릴 수 없어요.`,
+        `Delete the resume "${resumeTitle}"? This can't be undone.`,
+        `确定删除简历“${resumeTitle}”吗？无法撤销。`,
+        `Xóa hồ sơ "${resumeTitle}"? Không thể hoàn tác.`,
+        `履歴書「${resumeTitle}」を削除しますか？元に戻せません。`,
+        `Hapus resume "${resumeTitle}"? Tidak bisa dibatalkan.`
+      )
+    );
+    if (!ok) return;
+    setResumeDeletingId(resumeId);
+    try {
+      await deleteMyResume(resumeId);
+      setMyResumes((prev) => prev.filter((r) => r.id !== resumeId));
+    } catch {
+      // ignore
+    } finally {
+      setResumeDeletingId(null);
+    }
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -695,7 +757,7 @@ export function ProfilePage() {
             </section>
           ) : (
             <section className="space-y-6">
-              {user.role === "STUDENT" ? (
+              {MATCHING_QUEST_ENABLED && user.role === "STUDENT" ? (
                 <Link
                   href="/matching-probability"
                   className="group flex items-center justify-between gap-4 rounded-2xl border border-border bg-gradient-to-br from-[#FAF5FF] to-[#F0F9FF] p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-elevated md:p-6"
@@ -1119,7 +1181,7 @@ export function ProfilePage() {
                           studentTab === "resume" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        {tr("이력관리", "Resume", "简历管理", "Quản lý sơ yếu lý lịch", "履歴管理", "Resume")}
+                        {tr("이력서 관리", "Resumes", "简历管理", "Quản lý hồ sơ", "履歴書管理", "Resumes")}
                       </button>
                       <button
                         type="button"
@@ -1267,28 +1329,89 @@ export function ProfilePage() {
                         </div>
                       </div>
                     ) : studentTab === "resume" ? (
-                      <div className="space-y-6">
-                        {studentResumeSections.map((section, sectionIndex) => (
-                          <section key={section.title} className={`space-y-3 ${sectionIndex > 0 ? "border-t border-border/60 pt-6" : ""}`}>
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="text-sm font-semibold text-foreground">{section.title}</p>
-                                <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
-                              </div>
-                              <Button variant="outline" size="sm" asChild>
-                                <Link href={section.href}>{tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}</Link>
-                              </Button>
-                            </div>
-                            <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                              {section.fields.map((field) => (
-                                <div key={`${section.title}-${field.label}`} className="text-sm">
-                                  <p className="text-xs font-medium text-muted-foreground">{field.label}</p>
-                                  <p className="mt-1 break-words text-foreground">{field.value}</p>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm text-muted-foreground">
+                            {tr(
+                              "만든 이력서를 관리하고 대표 이력서를 지정하세요.",
+                              "Manage your resumes and pick a primary one.",
+                              "管理你的简历并设置代表简历。",
+                              "Quản lý hồ sơ và chọn hồ sơ đại diện.",
+                              "作成した履歴書を管理し、代表を選びましょう。",
+                              "Kelola resume Anda dan pilih yang utama."
+                            )}
+                          </p>
+                          <Button size="sm" onClick={handleCreateResume} disabled={creatingResume}>
+                            {tr("이력서 만들기", "Create", "创建", "Tạo", "作成", "Buat")}
+                          </Button>
+                        </div>
+
+                        {myResumes.length === 0 ? (
+                          <div className="rounded-2xl border border-dashed border-border bg-white px-5 py-12 text-center">
+                            <FileText className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" strokeWidth={1.5} />
+                            <p className="text-sm text-muted-foreground">
+                              {tr(
+                                "아직 만든 이력서가 없어요.",
+                                "No resumes yet.",
+                                "还没有简历。",
+                                "Chưa có hồ sơ nào.",
+                                "まだ履歴書がありません。",
+                                "Belum ada resume."
+                              )}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-white">
+                            {[...myResumes].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary)).map((r) => (
+                              <div key={r.id} className="flex items-center gap-3 px-4 py-5 transition hover:bg-muted/40">
+                                <Link href={`/resume/${r.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                                  <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                    <FileText className="h-5 w-5" />
+                                  </span>
+                                  <span className="min-w-0">
+                                    <span className="flex items-center gap-2">
+                                      <span className="truncate text-[17px] font-semibold text-foreground">{r.title}</span>
+                                      {r.isPrimary ? (
+                                        <span className="inline-flex flex-none items-center gap-1 rounded-full bg-[#b7ff5a] px-2 py-0.5 text-[11px] font-semibold text-[#111111]">
+                                          <Star className="h-3 w-3 fill-current" />
+                                          {tr("대표", "Primary", "代表", "Đại diện", "代表", "Utama")}
+                                        </span>
+                                      ) : null}
+                                    </span>
+                                  </span>
+                                </Link>
+                                <div className="flex flex-none items-center gap-1">
+                                  {!r.isPrimary ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleResumeSetPrimary(r.id)}
+                                      disabled={resumePrimaryBusyId === r.id}
+                                      className="mr-1 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-muted-foreground ring-1 ring-border transition hover:text-amber-700 hover:ring-amber-300 disabled:opacity-50"
+                                    >
+                                      {tr("대표로 설정", "Set primary", "设为代表", "Đặt đại diện", "代表に設定", "Jadikan utama")}
+                                    </button>
+                                  ) : null}
+                                  <Link
+                                    href={`/resume/${r.id}/edit`}
+                                    aria-label={tr("수정", "Edit", "编辑", "Sửa", "編集", "Edit")}
+                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResumeDelete(r.id, r.title)}
+                                    disabled={resumeDeletingId === r.id}
+                                    aria-label={tr("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}
+                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
                                 </div>
-                              ))}
-                            </div>
-                          </section>
-                        ))}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-3">
