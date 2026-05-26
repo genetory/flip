@@ -423,6 +423,7 @@ const headerMessages = {
     nav: {
       positions: "포지션 탐색",
       matching: "취업 모험",
+      resume: "이력서",
       community: "커뮤니티",
       resources: "자료실",
       pricing: "맞춤 지원",
@@ -455,6 +456,7 @@ const headerMessages = {
     nav: {
       positions: "Positions",
       matching: "Readiness Score",
+      resume: "Resume",
       community: "Community",
       resources: "Resources",
       pricing: "Customized Support",
@@ -487,6 +489,7 @@ const headerMessages = {
     nav: {
       positions: "职位探索",
       matching: "就业可能性",
+      resume: "简历",
       community: "社区",
       resources: "资料库",
       pricing: "定制支持",
@@ -519,6 +522,7 @@ const headerMessages = {
     nav: {
       positions: "Khám phá vị trí",
       matching: "Khả năng việc làm",
+      resume: "Hồ sơ",
       community: "Cộng đồng",
       resources: "Tài liệu",
       pricing: "Hỗ trợ tùy chỉnh",
@@ -549,6 +553,7 @@ const headerMessages = {
     nav: {
       positions: "ポジション検索",
       matching: "就職可能性",
+      resume: "履歴書",
       community: "コミュニティ",
       resources: "資料室",
       pricing: "カスタムサポート",
@@ -581,6 +586,7 @@ const headerMessages = {
     nav: {
       positions: "Cari Posisi",
       matching: "Peluang Karier",
+      resume: "Resume",
       community: "Komunitas",
       resources: "Sumber Daya",
       pricing: "Dukungan Khusus",

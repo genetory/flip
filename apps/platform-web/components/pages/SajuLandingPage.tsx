@@ -374,10 +374,10 @@ export function SajuLandingPage() {
   const copy = COPY[locale];
   const [langOpen, setLangOpen] = useState(false);
   const [sajuInfoOpen, setSajuInfoOpen] = useState(false);
-  const [name, setName] = useState("문지윤");
-  const [gender, setGender] = useState<"male" | "female" | "">("male");
-  const [birthDate, setBirthDate] = useState("1987-08-12");
-  const [birthTime, setBirthTime] = useState("10:00");
+  const [name, setName] = useState("");
+  const [gender, setGender] = useState<"male" | "female" | "">("");
+  const [birthDate, setBirthDate] = useState("");
+  const [birthTime, setBirthTime] = useState("");
   const [birthTimeUnknown, setBirthTimeUnknown] = useState(false);
   const [calendarType, setCalendarType] = useState<"solar" | "lunar">("solar");
   const [dateSheetOpen, setDateSheetOpen] = useState(false);

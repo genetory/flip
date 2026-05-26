@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { paperlogy } from "../../lib/fonts";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
 
 export const CoverSection = () => {
   const { locale } = useLanguage();
@@ -73,16 +74,18 @@ export const CoverSection = () => {
               {t("검색", "Search", "搜索", "Tìm kiếm", "検索", "Cari")}
             </button>
           </form>
-          <div className="mt-[3.2%] flex justify-center">
-            <Link
-              href="/matching-probability"
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/96 px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-[#0B46E8]/60 hover:text-[#0B46E8] md:text-sm"
-            >
-              <span aria-hidden>🎯</span>
-              {t("내 한국 취업 모험 시작하기", "Start my Korea job quest", "开始我的韩国求职冒险", "Bắt đầu hành trình tìm việc Hàn Quốc", "韓国就職の冒険を始める", "Mulai petualangan karier di Korea")}
-              <span aria-hidden>→</span>
-            </Link>
-          </div>
+          {MATCHING_QUEST_ENABLED ? (
+            <div className="mt-[3.2%] flex justify-center">
+              <Link
+                href="/matching-probability"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/96 px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-[#0B46E8]/60 hover:text-[#0B46E8] md:text-sm"
+              >
+                <span aria-hidden>🎯</span>
+                {t("내 한국 취업 모험 시작하기", "Start my Korea job quest", "开始我的韩国求职冒险", "Bắt đầu hành trình tìm việc Hàn Quốc", "韓国就職の冒険を始める", "Mulai petualangan karier di Korea")}
+                <span aria-hidden>→</span>
+              </Link>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
