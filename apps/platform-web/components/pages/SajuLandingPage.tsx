@@ -15,7 +15,6 @@ import {
   XIcon
 } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "../ui/button";
-import { useToast } from "../toast/ToastProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { PLATFORM_LOCALES, type PlatformLocale } from "../../lib/auth-messages";
 import { predictSaju, markSajuOwned } from "../../lib/saju-client";
@@ -102,8 +101,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     share: "공유하기",
     shareTitle: "나의 사주가 말하는 미래 직업은?",
     shareText: "Aply의 오행 사주로 나에게 맞는 직업을 추천받아보세요.",
-    linkCopied: "링크가 복사되었어요",
-    linkCopyFailed: "링크 복사에 실패했어요",
+    linkCopied: "링크가 복사되었어요!",
+    linkCopyFailed: "링크 복사에 실패했어요!",
     whatIsSaju: "사주란 무엇인가요?",
     sajuModalTitle: "사주(四柱)란?",
     sajuModalBody:
@@ -371,7 +370,6 @@ const LOCALE_LABELS: Record<PlatformLocale, string> = {
 
 export function SajuLandingPage() {
   const router = useRouter();
-  const toast = useToast();
   const { locale, setLocale } = useLanguage();
   const copy = COPY[locale];
   const [langOpen, setLangOpen] = useState(false);
@@ -386,28 +384,57 @@ export function SajuLandingPage() {
   const [timeSheetOpen, setTimeSheetOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Local "link copied" confirmation rendered inside this component so it
+  // works regardless of the global toast provider / device.
+  const [copiedNotice, setCopiedNotice] = useState<string | null>(null);
+
+  async function copyShareLink(url: string) {
+    // Prefer the async Clipboard API (needs a secure context: https or
+    // localhost). Fall back to a hidden-textarea execCommand copy so the
+    // toast still fires on plain-http / LAN-IP dev hosts.
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      // In-component confirmation: the share button briefly morphs into a
+      // "link copied" pill (reliable on desktop, no toast dependency).
+      setCopiedNotice(copy.linkCopied);
+      setTimeout(() => setCopiedNotice(null), 2000);
+    } catch {
+      setCopiedNotice(copy.linkCopyFailed);
+      setTimeout(() => setCopiedNotice(null), 2000);
+    }
+  }
 
   async function handleShare() {
     if (typeof window === "undefined") return;
-    const url = window.location.href;
-    const shareData = { title: copy.shareTitle, text: copy.shareText, url };
-    // Use the native share sheet on mobile when available — handles
-    // KakaoTalk / SMS / etc. without us having to wire each one up.
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+    const url = `${window.location.origin}/events/saju`;
+    // Only open the native share sheet on actual mobile devices (phones /
+    // tablets). On desktop — including touchscreen monitors that report a
+    // coarse pointer — we always copy the link and show a toast.
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent || ""
+    );
+    if (isMobile && typeof navigator.share === "function") {
       try {
-        await navigator.share(shareData);
+        await navigator.share({ title: copy.shareTitle, text: copy.shareText, url });
         return;
       } catch (err) {
-        // User canceled or share blocked — fall through to clipboard fallback.
+        // User canceled the sheet — don't fall through to a copy toast.
         if (err instanceof DOMException && err.name === "AbortError") return;
+        // Any other share failure → fall through to clipboard copy.
       }
     }
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success(copy.linkCopied);
-    } catch {
-      toast.error(copy.linkCopyFailed);
-    }
+    await copyShareLink(url);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -482,14 +509,23 @@ export function SajuLandingPage() {
             ) : null}
           </div>
 
-          {/* Share button — top right */}
+          {/* Share button — top right. Briefly morphs into a "link copied"
+              pill so desktop users get clear feedback without a toast. */}
           <button
             type="button"
             onClick={handleShare}
             aria-label={copy.share}
-            className="absolute right-4 top-4 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/80 backdrop-blur-sm transition active:bg-white/10 active:text-white"
+            className={`absolute right-4 top-4 z-20 inline-flex h-9 items-center justify-center gap-1.5 rounded-full transition ${
+              copiedNotice
+                ? "px-3 text-[12px] font-medium text-white"
+                : "w-9 bg-white/5 text-white/80 backdrop-blur-sm active:bg-white/10 active:text-white"
+            }`}
           >
-            <ShareIcon weight="bold" className="h-4 w-4" />
+            {copiedNotice ? (
+              <span className="whitespace-nowrap">{copiedNotice}</span>
+            ) : (
+              <ShareIcon weight="bold" className="h-4 w-4" />
+            )}
           </button>
 
           <div aria-hidden className="pointer-events-none absolute inset-0">
