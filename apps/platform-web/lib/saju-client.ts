@@ -169,16 +169,30 @@ export type SajuLeadRecommendation = {
 export async function submitSajuLead(
   input: SajuLeadRequest
 ): Promise<{ leadId: string; recommendation: SajuLeadRecommendation }> {
-  const response = await fetch(`${getApiBaseUrl()}/saju/lead`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input)
-  });
-  const data = await response.json();
-  if (!response.ok || data?.ok !== true) {
-    throw new Error(data?.message || "정보 저장에 실패했습니다.");
+  // Hard timeout so a slow / cold-starting API can never leave the UI stuck
+  // on the "analyzing..." spinner — the caller surfaces the thrown error.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25000);
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/saju/lead`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+      signal: controller.signal
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || data?.ok !== true) {
+      throw new Error(data?.message || "정보 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+    return { leadId: data.leadId, recommendation: data.recommendation };
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("요청 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
   }
-  return { leadId: data.leadId, recommendation: data.recommendation };
 }
 
 export async function fetchSajuResult(slug: string, locale?: string): Promise<SajuResultPayload> {

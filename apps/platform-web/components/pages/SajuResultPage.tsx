@@ -513,6 +513,7 @@ export function SajuResultPage({ slug }: { slug: string }) {
   const [funnel, setFunnel] = useState<"result" | "form" | "done">("result");
   const [recommendation, setRecommendation] = useState<SajuLeadRecommendation | null>(null);
   const [leadSubmitting, setLeadSubmitting] = useState(false);
+  const [leadError, setLeadError] = useState<string | null>(null);
   const isAuthenticated = Boolean(user);
 
   useEffect(() => {
@@ -542,13 +543,15 @@ export function SajuResultPage({ slug }: { slug: string }) {
 
   async function handleLeadSubmit(data: SajuLeadRequest) {
     setLeadSubmitting(true);
+    setLeadError(null);
     try {
       const { recommendation: rec } = await submitSajuLead(data);
       setRecommendation(rec);
       setFunnel("done");
       if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch {
-      // keep the form open; the form shows nothing, so surface via funnel stay
+    } catch (err) {
+      // Keep the form open and show why it failed (timeout / server error).
+      setLeadError(err instanceof Error ? err.message : copy.errFetch);
       setFunnel("form");
     } finally {
       setLeadSubmitting(false);
@@ -788,6 +791,7 @@ export function SajuResultPage({ slug }: { slug: string }) {
                     locale={locale}
                     shareSlug={slug}
                     submitting={leadSubmitting}
+                    submitError={leadError}
                     onSubmit={handleLeadSubmit}
                     onBack={() => setFunnel("result")}
                   />
