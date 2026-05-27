@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import Script from "next/script";
 import { headers } from "next/headers";
-import { GoogleAnalytics } from "@next/third-parties/google";
+import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import { AuthSessionProvider } from "../components/auth/AuthSessionProvider";
 import { LanguageProvider } from "../components/i18n/LanguageProvider";
 import { SidebarAds } from "../components/ads/SidebarAds";
@@ -14,6 +14,7 @@ import { resolveLocaleFromAcceptLanguage } from "../lib/auth-messages";
 import { ADS_ENABLED } from "../lib/ads-config";
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
+const gtmId = process.env.NEXT_PUBLIC_GTM_ID?.trim() || "GTM-K5B974S4";
 // Gated by ADS_ENABLED so no AdSense loader is emitted while the domain is
 // under content review (see lib/ads-config.ts).
 const adsenseClientId = ADS_ENABLED ? process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim() || "" : "";
@@ -145,6 +146,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         ) : null}
       </head>
       <body suppressHydrationWarning>
+        {/* Google Tag Manager (noscript fallback) */}
+        {gtmId ? (
+          <noscript>
+            <iframe
+              src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`}
+              height="0"
+              width="0"
+              style={{ display: "none", visibility: "hidden" }}
+            />
+          </noscript>
+        ) : null}
         <LanguageProvider initialLocale={initialLocale}>
           <ToastProvider>
             <AuthSessionProvider>{children}</AuthSessionProvider>
@@ -154,6 +166,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SidebarAds />
         <ErrorReporter />
       </body>
+      {gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
       {gaMeasurementId ? <GoogleAnalytics gaId={gaMeasurementId} /> : null}
     </html>
   );
