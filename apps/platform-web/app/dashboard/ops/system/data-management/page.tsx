@@ -23,6 +23,61 @@ export default function DataManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Partial<Record<WipeKind, WipeResult>>>({});
 
+  // 커뮤니티 콘텐츠 생성 도구
+  const [genPosts, setGenPosts] = useState(5);
+  const [genCommentsMin, setGenCommentsMin] = useState(1);
+  const [genCommentsMax, setGenCommentsMax] = useState(5);
+  const [genDaysBack, setGenDaysBack] = useState(14);
+  const [genRunning, setGenRunning] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+  const [genResult, setGenResult] = useState<{ postsCreated: number; commentsCreated: number } | null>(null);
+
+  const runGenerate = async () => {
+    const token = readAccessToken();
+    if (!token) {
+      setGenError("로그인이 필요합니다. 운영자 계정으로 다시 로그인 후 시도해주세요.");
+      return;
+    }
+    try {
+      setGenRunning(true);
+      setGenError(null);
+      const response = await fetch(`${apiBaseUrl}/ops/community/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          posts: genPosts,
+          commentsMin: genCommentsMin,
+          commentsMax: Math.max(genCommentsMin, genCommentsMax),
+          daysBack: genDaysBack
+        })
+      });
+      const payload = (await response.json()) as { ok?: boolean; postsCreated?: number; commentsCreated?: number; message?: string };
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.message ?? "생성에 실패했습니다.");
+      }
+      setGenResult({ postsCreated: payload.postsCreated ?? 0, commentsCreated: payload.commentsCreated ?? 0 });
+    } catch (err) {
+      setGenError(err instanceof Error ? err.message : "생성에 실패했습니다.");
+    } finally {
+      setGenRunning(false);
+    }
+  };
+
+  const numField = (label: string, value: number, setValue: (n: number) => void, min: number, max: number) => (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "#374151" }}>
+      {label}
+      <input
+        type="number"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => setValue(Math.max(min, Math.min(max, Number(e.target.value) || 0)))}
+        disabled={genRunning}
+        style={{ width: 110, height: 36, padding: "0 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14 }}
+      />
+    </label>
+  );
+
   const runWipe = async (kind: WipeKind, confirm: string) => {
     if (confirm !== CONFIRM_PHRASE) {
       setError(`확인 문구가 일치하지 않습니다. "${CONFIRM_PHRASE}"를 정확히 입력해주세요.`);
@@ -72,6 +127,36 @@ export default function DataManagementPage() {
         <h1>데이터 관리</h1>
         <p>운영 데이터를 일괄 삭제합니다. 작업은 즉시 적용되며 되돌릴 수 없으니 신중히 사용하세요.</p>
       </header>
+
+      <article className="ops-partner-list-card">
+        <div className="ops-partner-list-top">
+          <h2>커뮤니티 콘텐츠 생성</h2>
+        </div>
+        <p style={{ marginTop: 8 }}>
+          시드된 외국인 후보자 계정으로 커뮤니티 글과 댓글을 각자의 모국어·대학생 말투로 생성합니다. 작성 시간은 설정한 기간 내에서 과거 랜덤으로 분포됩니다.
+        </p>
+        <div className="ops-inline-actions" style={{ marginTop: 14, gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+          {numField("글 개수", genPosts, setGenPosts, 1, 100)}
+          {numField("댓글 최소", genCommentsMin, setGenCommentsMin, 0, 20)}
+          {numField("댓글 최대", genCommentsMax, setGenCommentsMax, 0, 20)}
+          {numField("과거 기간(일)", genDaysBack, setGenDaysBack, 0, 365)}
+          <button
+            type="button"
+            className="ops-partner-add-button"
+            style={{ background: "#0B46E8", color: "#fff" }}
+            onClick={() => void runGenerate()}
+            disabled={genRunning}
+          >
+            {genRunning ? "생성 중..." : "생성하기"}
+          </button>
+        </div>
+        {genError ? <p style={{ marginTop: 12, color: "#b42318" }}>{genError}</p> : null}
+        {genResult ? (
+          <p style={{ marginTop: 12, color: "#047857" }}>
+            ✓ 생성 완료 — 글 {genResult.postsCreated.toLocaleString()}개, 댓글 {genResult.commentsCreated.toLocaleString()}개
+          </p>
+        ) : null}
+      </article>
 
       <article className="ops-partner-list-card">
         <div className="ops-partner-list-top">

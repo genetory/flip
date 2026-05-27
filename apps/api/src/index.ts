@@ -59,6 +59,7 @@ import {
   toPgVector
 } from "./embedding/position-embedding";
 import { generateSajuPrediction, translateSajuContent, type SajuDetails, type SajuTranslatableContent } from "./saju/saju-llm";
+import { generateCommunityContent } from "./community/autogen";
 import { createHash } from "crypto";
 
 const app = express();
@@ -5058,6 +5059,31 @@ app.post(
     return res.status(200).json({ ok: true, before, deleted: result.count, preserved });
   }
 );
+
+const communityGenerateSchema = z.object({
+  posts: z.number().int().min(1).max(100),
+  commentsMin: z.number().int().min(0).max(20),
+  commentsMax: z.number().int().min(0).max(20),
+  daysBack: z.number().int().min(0).max(365)
+});
+
+app.post("/ops/community/generate", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = communityGenerateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid body", errors: parsed.error.flatten() });
+  }
+  try {
+    const result = await generateCommunityContent(prisma, parsed.data);
+    await writeAuditLog(req, {
+      action: "GENERATE_COMMUNITY_CONTENT",
+      resource: "CommunityPost",
+      metadata: { ...parsed.data, ...result }
+    });
+    return res.status(200).json({ ok: true, ...result });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to generate community content" });
+  }
+});
 
 const companyConsultationCreateSchema = z.object({
   companyName: z.string().trim().min(1).max(120),
