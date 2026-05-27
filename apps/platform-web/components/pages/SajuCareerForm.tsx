@@ -36,6 +36,8 @@ type Copy = {
   optional: string;
   consentCareer: string;
   consentRecommend: string;
+  collectNotice: string;
+  privacyPolicy: string;
   required: string;
   errRequired: string;
   errConsent: string;
@@ -84,6 +86,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     optional: "(선택)",
     consentCareer: "커리어 추천을 위해 입력 정보 수집에 동의합니다. (필수)",
     consentRecommend: "한국 기업 추천 시 내 정보 제공에 동의합니다. (선택)",
+    collectNotice:
+      "수집 항목: 국적·학교·전공·비자·언어·희망 직무·연락처 / 이용 목적: 커리어 추천 및 한국 기업 매칭 / 보유 기간: 회원 미가입 시 수집일로부터 1년 후 파기. 자세한 내용은",
+    privacyPolicy: "개인정보처리방침",
     required: "(필수)",
     errRequired: "필수 항목을 모두 입력해 주세요.",
     errConsent: "커리어 추천 정보 수집에 동의해 주세요.",
@@ -118,6 +123,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     optional: "(optional)",
     consentCareer: "I agree to share this info for career recommendations. (required)",
     consentRecommend: "I agree to share my info when recommended to Korean companies. (optional)",
+    collectNotice:
+      "Collected: nationality, school, major, visa, language, preferred role, contact. Purpose: career recommendations & matching with Korean companies. Retention: deleted 1 year after collection if you don't sign up. See our",
+    privacyPolicy: "Privacy Policy",
     required: "(required)",
     errRequired: "Please fill in all required fields.",
     errConsent: "Please agree to the career-info collection.",
@@ -152,6 +160,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     optional: "(可选)",
     consentCareer: "我同意为职业推荐收集此信息。(必填)",
     consentRecommend: "我同意在推荐给韩国企业时提供我的信息。(可选)",
+    collectNotice:
+      "收集项目：国籍·学校·专业·签证·语言·期望职位·联系方式 / 使用目的：职业推荐及韩国企业匹配 / 保存期限：未注册则自收集之日起 1 年后销毁。详情请见",
+    privacyPolicy: "隐私政策",
     required: "(必填)",
     errRequired: "请填写所有必填项。",
     errConsent: "请同意收集职业推荐信息。",
@@ -186,6 +197,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     optional: "(tùy chọn)",
     consentCareer: "Tôi đồng ý chia sẻ thông tin này để được gợi ý nghề nghiệp. (bắt buộc)",
     consentRecommend: "Tôi đồng ý cung cấp thông tin khi được giới thiệu cho doanh nghiệp Hàn. (tùy chọn)",
+    collectNotice:
+      "Thu thập: quốc tịch, trường, chuyên ngành, visa, ngôn ngữ, vị trí mong muốn, liên hệ. Mục đích: gợi ý nghề nghiệp & kết nối với doanh nghiệp Hàn. Lưu trữ: xóa sau 1 năm kể từ ngày thu thập nếu không đăng ký. Xem thêm tại",
+    privacyPolicy: "Chính sách bảo mật",
     required: "(bắt buộc)",
     errRequired: "Vui lòng điền tất cả các mục bắt buộc.",
     errConsent: "Vui lòng đồng ý thu thập thông tin nghề nghiệp.",
@@ -220,6 +234,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     optional: "(任意)",
     consentCareer: "キャリア推薦のため入力情報の収集に同意します。(必須)",
     consentRecommend: "韓国企業への推薦時に情報提供することに同意します。(任意)",
+    collectNotice:
+      "収集項目：国籍・学校・専攻・ビザ・言語・希望職種・連絡先 / 利用目的：キャリア推薦および韓国企業とのマッチング / 保有期間：未登録の場合は収集日から1年後に破棄。詳しくは",
+    privacyPolicy: "プライバシーポリシー",
     required: "(必須)",
     errRequired: "必須項目をすべて入力してください。",
     errConsent: "キャリア推薦情報の収集に同意してください。",
@@ -254,6 +271,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     optional: "(opsional)",
     consentCareer: "Saya setuju berbagi info ini untuk rekomendasi karier. (wajib)",
     consentRecommend: "Saya setuju memberikan info saat direkomendasikan ke perusahaan Korea. (opsional)",
+    collectNotice:
+      "Dikumpulkan: kewarganegaraan, sekolah, jurusan, visa, bahasa, peran yang diinginkan, kontak. Tujuan: rekomendasi karier & pencocokan dengan perusahaan Korea. Penyimpanan: dihapus 1 tahun setelah pengumpulan jika tidak mendaftar. Lihat",
+    privacyPolicy: "Kebijakan Privasi",
     required: "(wajib)",
     errRequired: "Mohon isi semua kolom wajib.",
     errConsent: "Mohon setujui pengumpulan info karier.",
@@ -570,6 +590,17 @@ export function SajuCareerForm({
               />
               <span>{copy.consentRecommend}</span>
             </label>
+            <p className="text-[11px] leading-relaxed text-white/40">
+              {copy.collectNotice}{" "}
+              <a
+                href="/legal/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white/60 underline underline-offset-2 active:text-white/80"
+              >
+                {copy.privacyPolicy}
+              </a>
+            </p>
           </div>
 
           {error || submitError ? (
