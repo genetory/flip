@@ -1182,6 +1182,58 @@ model SajuPrediction {
   createdAt              DateTime  @default(now())
   claimedAt              DateTime?
 
+  leads                  SajuLead[]
+
   @@index([userId])
+  @@index([createdAt])
+}
+
+// "Profile Pool" — career info collected AFTER the (free) saju result,
+// before signup. One lead per prediction (a person can refine theirs). The
+// prediction itself is the "Raw Pool"; this row promotes them to the
+// Profile Pool. userId is filled once they sign up (claim flow), at which
+// point poolStage moves toward VERIFIED / RECOMMENDABLE.
+model SajuLead {
+  id               String          @id @default(uuid())
+  predictionId     String?
+  shareSlug        String?
+  name             String?
+  // Career info captured pre-signup (kept as strings for funnel flexibility;
+  // enum values mirror the Candidate* enums where applicable).
+  nationality      String?
+  school           String?
+  major            String?
+  visaType         String?
+  koreanLevel      String?
+  englishLevel     String?
+  preferredJobRole String?
+  workType         String?
+  contact          String?
+  contactType      String?
+  hasResume        Boolean?
+  // Rule-based recommendation snapshot (no LLM cost) shown back to the user
+  // and surfaced to ops so the funnel result is auditable.
+  recommendedRoles String[]        @default([])
+  improvements     String[]        @default([])
+  recommendStatus  String?
+  // Pool classification + auto-generated filter tags (nationality / role /
+  // visa / language / work type).
+  poolStage        String          @default("PROFILE")
+  tags             String[]        @default([])
+  // Consent is split by purpose (career-info collection vs. employer
+  // referral) per the privacy design.
+  consentCareer    Boolean         @default(false)
+  consentRecommend Boolean         @default(false)
+  userId           String?
+  locale           String          @default("ko")
+  ipHash           String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  prediction       SajuPrediction? @relation(fields: [predictionId], references: [id], onDelete: SetNull)
+
+  @@index([predictionId])
+  @@index([userId])
+  @@index([poolStage])
   @@index([createdAt])
 }

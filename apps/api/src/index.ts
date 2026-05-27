@@ -19,6 +19,7 @@ import {
   CandidateEducationStatus,
   CandidateLanguageType,
   CandidateLanguageLevel,
+  CandidatePreferredJobRole,
   CandidateActivityType,
   CommunityPostCategory,
   ApplicationCommentVisibility,
@@ -2327,6 +2328,27 @@ const sajuResultParamSchema = z.object({
 });
 const sajuResultQuerySchema = z.object({
   locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+});
+// Career info collected AFTER the free saju result, before signup. All
+// optional except a couple of anchors so the funnel can save a partial
+// lead; the recommendation engine downgrades the pool stage when fields
+// are missing.
+const sajuLeadSchema = z.object({
+  shareSlug: z.string().trim().min(1).max(80),
+  nationality: z.string().trim().max(80).optional(),
+  school: z.string().trim().max(120).optional(),
+  major: z.string().trim().max(120).optional(),
+  visaType: z.string().trim().max(40).optional(),
+  koreanLevel: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED", "NATIVE"]).optional(),
+  englishLevel: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED", "NATIVE"]).optional(),
+  preferredJobRole: z.string().trim().max(40).optional(),
+  workType: z.enum(["INTERN", "PART_TIME", "PROJECT", "FULL_TIME"]).optional(),
+  contact: z.string().trim().max(120).optional(),
+  contactType: z.enum(["EMAIL", "PHONE", "KAKAO", "WHATSAPP"]).optional(),
+  hasResume: z.boolean().optional(),
+  consentCareer: z.boolean().optional(),
+  consentRecommend: z.boolean().optional(),
+  locale: z.string().trim().min(2).max(8).optional()
 });
 const memberPositionActionParamSchema = z.object({
   positionId: z.string().uuid()
@@ -5105,6 +5127,96 @@ app.post("/ops/community/delete-non-operator", authenticate, requireRoles([Membe
   }
 });
 
+// Saju event "후보 Pool" admin list. Filterable by pool stage, nationality,
+// preferred role, visa, and recommendation status (the auto-generated tags).
+const opsSajuLeadsQuerySchema = z.object({
+  poolStage: z.enum(["PROFILE", "VERIFIED", "RECOMMENDABLE"]).optional(),
+  recommendStatus: z.enum(["UNVERIFIED", "NEEDS_WORK", "RECOMMENDABLE"]).optional(),
+  nationality: z.string().trim().max(80).optional(),
+  preferredJobRole: z.string().trim().max(40).optional(),
+  visaType: z.string().trim().max(40).optional(),
+  q: z.string().trim().max(120).optional(),
+  take: z.coerce.number().int().min(1).max(200).optional(),
+  skip: z.coerce.number().int().min(0).optional()
+});
+
+app.get("/ops/saju/leads", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsSajuLeadsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+  const f = parsed.data;
+  const where: Prisma.SajuLeadWhereInput = {
+    ...(f.poolStage ? { poolStage: f.poolStage } : {}),
+    ...(f.recommendStatus ? { recommendStatus: f.recommendStatus } : {}),
+    ...(f.nationality ? { nationality: { contains: f.nationality, mode: "insensitive" } } : {}),
+    ...(f.preferredJobRole ? { preferredJobRole: f.preferredJobRole } : {}),
+    ...(f.visaType ? { visaType: f.visaType } : {}),
+    ...(f.q
+      ? {
+          OR: [
+            { name: { contains: f.q, mode: "insensitive" } },
+            { school: { contains: f.q, mode: "insensitive" } },
+            { major: { contains: f.q, mode: "insensitive" } },
+            { contact: { contains: f.q, mode: "insensitive" } }
+          ]
+        }
+      : {})
+  };
+  const take = f.take ?? 50;
+  const skip = f.skip ?? 0;
+  const [leads, total, stageCounts] = await Promise.all([
+    prisma.sajuLead.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take,
+      skip,
+      include: {
+        prediction: {
+          select: { shareSlug: true, birthDate: true, gender: true, recommendedRoleNames: true }
+        }
+      }
+    }),
+    prisma.sajuLead.count({ where }),
+    prisma.sajuLead.groupBy({ by: ["poolStage"], _count: { _all: true } })
+  ]);
+  return res.json({
+    ok: true,
+    total,
+    take,
+    skip,
+    stageCounts: Object.fromEntries(stageCounts.map((s) => [s.poolStage, s._count._all])),
+    leads: leads.map((lead) => ({
+      id: lead.id,
+      name: lead.name,
+      shareSlug: lead.shareSlug,
+      nationality: lead.nationality,
+      school: lead.school,
+      major: lead.major,
+      visaType: lead.visaType,
+      koreanLevel: lead.koreanLevel,
+      englishLevel: lead.englishLevel,
+      preferredJobRole: lead.preferredJobRole,
+      workType: lead.workType,
+      contact: lead.contact,
+      contactType: lead.contactType,
+      hasResume: lead.hasResume,
+      recommendedRoles: lead.recommendedRoles,
+      improvements: lead.improvements,
+      recommendStatus: lead.recommendStatus,
+      poolStage: lead.poolStage,
+      tags: lead.tags,
+      consentCareer: lead.consentCareer,
+      consentRecommend: lead.consentRecommend,
+      userId: lead.userId,
+      locale: lead.locale,
+      createdAt: lead.createdAt.toISOString(),
+      birthDate: lead.prediction?.birthDate ? lead.prediction.birthDate.toISOString().slice(0, 10) : null,
+      gender: lead.prediction?.gender ?? null
+    }))
+  });
+});
+
 const companyConsultationCreateSchema = z.object({
   companyName: z.string().trim().min(1).max(120),
   contactName: z.string().trim().min(1).max(80),
@@ -5948,6 +6060,16 @@ app.get("/saju/result/:slug", async (req, res) => {
       // claim is best-effort
     }
   }
+  // Link any pre-signup career lead to this freshly-authenticated user and
+  // prefill their profile. Runs on first auth visit (after the claim above);
+  // best-effort so a prefill failure never blocks rendering the result.
+  if (req.auth?.userId) {
+    try {
+      await linkSajuLeadToUser(prediction.id, req.auth.userId);
+    } catch (err) {
+      console.error("[saju] lead linkage failed", err);
+    }
+  }
 
   // Fetch the linked positions in their preserved recommendation order,
   // plus a corpus-wide prediction count for the social-proof line on
@@ -6046,6 +6168,229 @@ app.get("/saju/result/:slug", async (req, res) => {
     totalPredictions
   });
 });
+
+// Visa types that allow working in Korea (vs. study-only / unset). Used by
+// the saju lead recommendation engine to decide whether to flag "비자 확인".
+const SAJU_WORK_CAPABLE_VISA = new Set([
+  "D10_JOB_SEEKING",
+  "F2_RESIDENCE",
+  "F4_OVERSEAS_KOREAN",
+  "F5_PERMANENT_RESIDENCE",
+  "F6_MARRIAGE_IMMIGRATION",
+  "E7_SPECIFIC_ACTIVITY",
+  "H1_WORKING_HOLIDAY"
+]);
+
+type SajuLeadInput = z.infer<typeof sajuLeadSchema>;
+type SajuLeadRecommendation = {
+  recommendedRoles: string[];
+  improvements: string[];
+  status: "UNVERIFIED" | "NEEDS_WORK" | "RECOMMENDABLE";
+};
+
+// Rule-based (no LLM cost) "추천 가능성" engine. Combines the person's
+// declared preferred role with the saju-derived roles, flags the gaps that
+// keep them out of the recommendable pool, and grades their readiness.
+function computeSajuLeadRecommendation(
+  input: SajuLeadInput,
+  predictionRoles: string[]
+): SajuLeadRecommendation {
+  const roles: string[] = [];
+  if (input.preferredJobRole) roles.push(input.preferredJobRole);
+  for (const r of predictionRoles) if (r && !roles.includes(r)) roles.push(r);
+  const recommendedRoles = roles.slice(0, 3);
+
+  const workCapableVisa = Boolean(input.visaType && SAJU_WORK_CAPABLE_VISA.has(input.visaType));
+  const koreanOk = Boolean(input.koreanLevel && input.koreanLevel !== "BEGINNER");
+  const contactOk = Boolean(input.contact && input.contact.trim());
+  const hasResume = input.hasResume === true;
+
+  const improvements: string[] = [];
+  if (!hasResume) improvements.push("RESUME");
+  if (!koreanOk) improvements.push("KOREAN");
+  if (!workCapableVisa) improvements.push("VISA");
+  if (!contactOk) improvements.push("CONTACT");
+  if (recommendedRoles.some((r) => r === "디자인" || r === "개발")) improvements.push("PORTFOLIO");
+
+  let status: SajuLeadRecommendation["status"];
+  if (hasResume && koreanOk && workCapableVisa && contactOk) status = "RECOMMENDABLE";
+  else if (contactOk && (koreanOk || workCapableVisa)) status = "NEEDS_WORK";
+  else status = "UNVERIFIED";
+
+  return { recommendedRoles, improvements, status };
+}
+
+// Auto-generated, namespaced filter tags for the ops candidate console.
+function buildSajuLeadTags(input: SajuLeadInput): string[] {
+  const tags: string[] = [];
+  if (input.nationality?.trim()) tags.push(`nat:${input.nationality.trim()}`);
+  if (input.preferredJobRole) tags.push(`role:${input.preferredJobRole}`);
+  if (input.visaType) tags.push(`visa:${input.visaType}`);
+  if (input.koreanLevel) tags.push(`ko:${input.koreanLevel}`);
+  if (input.workType) tags.push(`work:${input.workType}`);
+  return tags;
+}
+
+// Korean saju taxonomy → CandidatePreferredJobRole enum, for best-effort
+// profile prefill when an event lead signs up. Unmapped categories fall to
+// OTHER so we never drop the intent entirely.
+const SAJU_ROLE_TO_PROFILE_ENUM: Record<string, CandidatePreferredJobRole> = {
+  "개발": CandidatePreferredJobRole.SOFTWARE_DEVELOPMENT,
+  "디자인": CandidatePreferredJobRole.UI_UX_DESIGN,
+  "기획·전략": CandidatePreferredJobRole.OPERATIONS_PLANNING,
+  "마케팅·광고": CandidatePreferredJobRole.MARKETING,
+  "영업": CandidatePreferredJobRole.SALES,
+  "HR·인사": CandidatePreferredJobRole.HR,
+  "금융": CandidatePreferredJobRole.FINANCE_ACCOUNTING,
+  "연구·R&D": CandidatePreferredJobRole.DATA_ANALYSIS_SCIENCE
+};
+
+// When an event lead signs up, link their captured career info to the new
+// account and prefill the candidate profile — but only fields that are
+// still empty, so we never clobber anything the user later edits. Entirely
+// best-effort: any failure here must not block the result page.
+async function linkSajuLeadToUser(predictionId: string, userId: string): Promise<void> {
+  const lead = await prisma.sajuLead.findFirst({
+    where: { predictionId, userId: null },
+    orderBy: { createdAt: "desc" }
+  });
+  if (!lead) return;
+
+  await prisma.sajuLead.update({
+    where: { id: lead.id },
+    data: { userId, poolStage: lead.hasResume ? "VERIFIED" : "PROFILE" }
+  });
+
+  let profile = await prisma.candidateProfile.findUnique({
+    where: { userId },
+    include: { educations: { select: { id: true } }, languageSkills: { select: { id: true } } }
+  });
+  if (!profile) {
+    profile = await prisma.candidateProfile.create({
+      data: { userId },
+      include: { educations: { select: { id: true } }, languageSkills: { select: { id: true } } }
+    });
+  }
+
+  const profileUpdates: Prisma.CandidateProfileUpdateInput = {};
+  if (!profile.visaType && lead.visaType && lead.visaType in CandidateVisaType) {
+    profileUpdates.visaType = lead.visaType as CandidateVisaType;
+  }
+  if (profile.preferredJobRoles.length === 0 && lead.preferredJobRole) {
+    const mapped = SAJU_ROLE_TO_PROFILE_ENUM[lead.preferredJobRole] ?? CandidatePreferredJobRole.OTHER;
+    profileUpdates.preferredJobRoles = [mapped];
+  }
+  if (Object.keys(profileUpdates).length > 0) {
+    await prisma.candidateProfile.update({ where: { userId }, data: profileUpdates });
+  }
+
+  if (lead.nationality) {
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { nationality: true } });
+    if (u && !u.nationality) {
+      await prisma.user.update({ where: { id: userId }, data: { nationality: lead.nationality } });
+    }
+  }
+
+  if (profile.educations.length === 0 && (lead.school || lead.major)) {
+    await prisma.candidateEducation.create({
+      data: {
+        candidateProfileId: profile.id,
+        schoolName: lead.school ?? "—",
+        educationType: CandidateEducationType.BACHELOR,
+        major: lead.major ?? null,
+        status: CandidateEducationStatus.ENROLLED
+      }
+    });
+  }
+
+  if (profile.languageSkills.length === 0) {
+    const skills: Array<{ language: CandidateLanguageType; level: CandidateLanguageLevel }> = [];
+    if (lead.koreanLevel && lead.koreanLevel in CandidateLanguageLevel) {
+      skills.push({ language: CandidateLanguageType.KOREAN, level: lead.koreanLevel as CandidateLanguageLevel });
+    }
+    if (lead.englishLevel && lead.englishLevel in CandidateLanguageLevel) {
+      skills.push({ language: CandidateLanguageType.ENGLISH, level: lead.englishLevel as CandidateLanguageLevel });
+    }
+    for (const s of skills) {
+      await prisma.candidateLanguageSkill.create({
+        data: { candidateProfileId: profile.id, language: s.language, level: s.level }
+      });
+    }
+  }
+}
+
+// POST /saju/lead — anonymous "Profile Pool" capture. Called after the user
+// has seen the free saju result and chosen to check their real-CV fit.
+app.post(
+  "/saju/lead",
+  rateLimit({ windowMs: 60_000, max: 12, keyPrefix: "saju-lead", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = sajuLeadSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid input", errors: parsed.error.flatten() });
+    }
+    const input = parsed.data;
+    const prediction = await prisma.sajuPrediction.findUnique({
+      where: { shareSlug: input.shareSlug },
+      select: { id: true, name: true, recommendedRoleNames: true }
+    });
+    if (!prediction) return res.status(404).json({ ok: false, message: "prediction not found" });
+
+    const recommendation = computeSajuLeadRecommendation(input, prediction.recommendedRoleNames);
+    const tags = buildSajuLeadTags(input);
+
+    const ipRaw =
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+      req.socket.remoteAddress ||
+      "";
+    const ipHash = ipRaw
+      ? createHash("sha256").update(`${ipRaw}|saju-lead`).digest("hex").slice(0, 32)
+      : null;
+
+    const data = {
+      predictionId: prediction.id,
+      shareSlug: input.shareSlug,
+      name: prediction.name,
+      nationality: input.nationality ?? null,
+      school: input.school ?? null,
+      major: input.major ?? null,
+      visaType: input.visaType ?? null,
+      koreanLevel: input.koreanLevel ?? null,
+      englishLevel: input.englishLevel ?? null,
+      preferredJobRole: input.preferredJobRole ?? null,
+      workType: input.workType ?? null,
+      contact: input.contact ?? null,
+      contactType: input.contactType ?? null,
+      hasResume: input.hasResume ?? null,
+      recommendedRoles: recommendation.recommendedRoles,
+      improvements: recommendation.improvements,
+      recommendStatus: recommendation.status,
+      poolStage: "PROFILE",
+      tags,
+      consentCareer: input.consentCareer ?? false,
+      consentRecommend: input.consentRecommend ?? false,
+      locale: input.locale ?? "ko",
+      ipHash
+    };
+
+    // One lead per prediction — a person can refine their answers, so
+    // update the existing row instead of piling up duplicates.
+    const existing = await prisma.sajuLead.findFirst({
+      where: { predictionId: prediction.id },
+      select: { id: true, userId: true }
+    });
+    let leadId: string;
+    if (existing) {
+      await prisma.sajuLead.update({ where: { id: existing.id }, data });
+      leadId = existing.id;
+    } else {
+      const created = await prisma.sajuLead.create({ data, select: { id: true } });
+      leadId = created.id;
+    }
+
+    return res.json({ ok: true, leadId, recommendation });
+  }
+);
 
 // Response cache for /positions, anonymous viewers only. Authenticated
 // users skip the cache so per-viewer flags (saved/applied/etc.) stay

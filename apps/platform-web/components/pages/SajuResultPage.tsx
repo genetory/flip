@@ -7,126 +7,32 @@ import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  CheckCircle,
   Export as ShareIcon,
-  Lock,
   MoonStars,
   Sparkle,
-  Star
+  Star,
+  WarningCircle
 } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "../ui/button";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { type PlatformLocale } from "../../lib/auth-messages";
-import { fetchSajuResult, isSajuOwned, type SajuResultPayload } from "../../lib/saju-client";
+import { translateRole } from "../../lib/saju-taxonomy";
+import {
+  fetchSajuResult,
+  isSajuOwned,
+  submitSajuLead,
+  type SajuLeadRecommendation,
+  type SajuLeadRequest,
+  type SajuResultPayload
+} from "../../lib/saju-client";
+import { SajuCareerForm } from "./SajuCareerForm";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-// Display-only translation for the Korean job-role taxonomy. The
-// underlying values stay Korean (saved in Position.preferredJobRole and
-// used as the canonical key for matching), but we localize the chip
-// labels so non-Korean readers see something they can parse.
-const JOB_ROLE_TRANSLATIONS: Partial<Record<PlatformLocale, Record<string, string>>> = {
-  en: {
-    "개발": "Engineering",
-    "디자인": "Design",
-    "기획·전략": "Planning & Strategy",
-    "마케팅·광고": "Marketing & Advertising",
-    "영업": "Sales",
-    "고객서비스·리테일": "Customer Service & Retail",
-    "경영·비즈니스": "Business & Operations",
-    "미디어": "Media",
-    "교육": "Education",
-    "법률·법집행기관": "Legal",
-    "금융": "Finance",
-    "의료·제약": "Healthcare & Pharma",
-    "건설·생산": "Construction & Manufacturing",
-    "연구·R&D": "Research & R&D",
-    "HR·인사": "HR",
-    "통·번역": "Interpretation & Translation",
-    "IT 운영·관리": "IT Operations"
-  },
-  "zh-CN": {
-    "개발": "开发",
-    "디자인": "设计",
-    "기획·전략": "策划与战略",
-    "마케팅·광고": "市场营销与广告",
-    "영업": "销售",
-    "고객서비스·리테일": "客户服务与零售",
-    "경영·비즈니스": "经营与商务",
-    "미디어": "媒体",
-    "교육": "教育",
-    "법률·법집행기관": "法律",
-    "금융": "金融",
-    "의료·제약": "医疗与制药",
-    "건설·생산": "建设与生产",
-    "연구·R&D": "研究与研发",
-    "HR·인사": "人力资源",
-    "통·번역": "口译与翻译",
-    "IT 운영·관리": "IT 运营"
-  },
-  vi: {
-    "개발": "Phát triển",
-    "디자인": "Thiết kế",
-    "기획·전략": "Lập kế hoạch & Chiến lược",
-    "마케팅·광고": "Marketing & Quảng cáo",
-    "영업": "Kinh doanh",
-    "고객서비스·리테일": "Dịch vụ khách hàng & Bán lẻ",
-    "경영·비즈니스": "Quản trị & Kinh doanh",
-    "미디어": "Truyền thông",
-    "교육": "Giáo dục",
-    "법률·법집행기관": "Pháp lý",
-    "금융": "Tài chính",
-    "의료·제약": "Y tế & Dược phẩm",
-    "건설·생산": "Xây dựng & Sản xuất",
-    "연구·R&D": "Nghiên cứu & R&D",
-    "HR·인사": "Nhân sự",
-    "통·번역": "Phiên dịch",
-    "IT 운영·관리": "Vận hành IT"
-  },
-  ja: {
-    "개발": "開発",
-    "디자인": "デザイン",
-    "기획·전략": "企画・戦略",
-    "마케팅·광고": "マーケティング・広告",
-    "영업": "営業",
-    "고객서비스·리테일": "カスタマーサービス・小売",
-    "경영·비즈니스": "経営・ビジネス",
-    "미디어": "メディア",
-    "교육": "教育",
-    "법률·법집행기관": "法務",
-    "금융": "金融",
-    "의료·제약": "医療・製薬",
-    "건설·생산": "建設・生産",
-    "연구·R&D": "研究・R&D",
-    "HR·인사": "人事",
-    "통·번역": "通訳・翻訳",
-    "IT 운영·관리": "IT運用"
-  },
-  id: {
-    "개발": "Engineering",
-    "디자인": "Desain",
-    "기획·전략": "Perencanaan & Strategi",
-    "마케팅·광고": "Pemasaran & Iklan",
-    "영업": "Sales",
-    "고객서비스·리테일": "Layanan Pelanggan & Ritel",
-    "경영·비즈니스": "Manajemen & Bisnis",
-    "미디어": "Media",
-    "교육": "Pendidikan",
-    "법률·법집행기관": "Hukum",
-    "금융": "Keuangan",
-    "의료·제약": "Kesehatan & Farmasi",
-    "건설·생산": "Konstruksi & Produksi",
-    "연구·R&D": "Riset & R&D",
-    "HR·인사": "HR",
-    "통·번역": "Penerjemahan",
-    "IT 운영·관리": "Operasi IT"
-  }
-};
-
-function translateRole(role: string, locale: PlatformLocale): string {
-  if (locale === "ko") return role;
-  return JOB_ROLE_TRANSLATIONS[locale]?.[role] ?? role;
-}
+type ImprovementCode = "RESUME" | "KOREAN" | "VISA" | "CONTACT" | "PORTFOLIO" | "ENGLISH";
+type RecStatus = "UNVERIFIED" | "NEEDS_WORK" | "RECOMMENDABLE";
 
 type Copy = {
   pillSuffix: string;
@@ -137,22 +43,16 @@ type Copy = {
   retry: string;
   loading: string;
   errFetch: string;
-  shareTitleSuffix: string;
-  shareTitleFallback: string;
-  shareTextFallback: string;
-  gateText: string;
-  naverBtn: string;
-  kakaoBtn: string;
-  googleBtn: string;
-  emailBtn: string;
+  careerTypeHeading: string;
+  interpretationHeading: string;
   elementBalanceHeading: string;
   dayMasterHeading: string;
   strengthsHeading: string;
+  roleCategoriesHeading: string;
   specificRolesHeading: string;
   roleReasoningsHeading: string;
   workEnvHeading: string;
   cautionHeading: string;
-  industriesHeading: string;
   rolesToAvoidHeading: string;
   growthPatternHeading: string;
   successFactorsHeading: string;
@@ -164,6 +64,25 @@ type Copy = {
   metalLabel: string;
   waterLabel: string;
   morePositionsBtn: string;
+  // funnel
+  ctaCheckFit: string;
+  ctaCheckFitSub: string;
+  recHeading: string;
+  recRolesHeading: string;
+  recImprovementsHeading: string;
+  recStatusHeading: string;
+  statusLabels: Record<RecStatus, string>;
+  statusDescs: Record<RecStatus, string>;
+  improvementLabels: Record<ImprovementCode, string>;
+  saveHeading: string;
+  saveSub: string;
+  naverBtn: string;
+  kakaoBtn: string;
+  googleBtn: string;
+  emailBtn: string;
+  resumeBoostHeading: string;
+  resumeBoostSub: string;
+  resumeBoostBtn: string;
   linkCopied: string;
   shareBtn: string;
   tryItBtn: string;
@@ -174,34 +93,28 @@ type Copy = {
 
 const COPY: Record<PlatformLocale, Copy> = {
   ko: {
-    pillSuffix: "님의 오행 사주 풀이",
-    pillFallback: "오행 사주 풀이",
+    pillSuffix: "님의 커리어 타입 풀이",
+    pillFallback: "커리어 타입 풀이",
     titleA: "",
     titleHighlight: "이런 일",
     titleB: "이\n당신과 잘 통할 것 같아요",
     retry: "다시 풀어보기",
     loading: "결과를 불러오는 중...",
     errFetch: "결과를 불러오지 못했습니다.",
-    shareTitleSuffix: "님의 사주가 말하는 미래 직업은?",
-    shareTitleFallback: "나의 사주가 말하는 미래 직업은?",
-    shareTextFallback: "Aply의 오행 사주로 나에게 맞는 직업을 추천받아보세요.",
-    gateText: "결과 전체와 어울리는 채용 공고를 보려면\n간단한 회원가입이 필요합니다.",
-    naverBtn: "네이버로 결과보기",
-    kakaoBtn: "카카오로 결과보기",
-    googleBtn: "구글로 결과보기",
-    emailBtn: "이메일로 결과보기",
+    careerTypeHeading: "나의 커리어 타입",
+    interpretationHeading: "사주가 말하는 나의 성향",
     elementBalanceHeading: "나의 오행 분포",
     dayMasterHeading: "나의 일주",
     strengthsHeading: "당신의 강점",
+    roleCategoriesHeading: "추천 직무 카테고리",
     specificRolesHeading: "구체적으로 어울리는 직무",
     roleReasoningsHeading: "이 직무가 잘 맞는 이유",
     workEnvHeading: "잘 맞는 업무 환경",
-    cautionHeading: "한 가지 조언",
-    industriesHeading: "어울리는 산업 분야",
+    cautionHeading: "주의하면 좋은 점",
     rolesToAvoidHeading: "피하면 좋은 업무 스타일",
     growthPatternHeading: "커리어 성장 패턴",
     successFactorsHeading: "더 채우면 좋을 것",
-    mottoHeading: "나만의 한 마디",
+    mottoHeading: "오늘의 커리어 한 줄",
     positionsHeading: "지금 지원할 수 있는 어울리는 공고",
     woodLabel: "목(木)",
     fireLabel: "화(火)",
@@ -209,6 +122,35 @@ const COPY: Record<PlatformLocale, Copy> = {
     metalLabel: "금(金)",
     waterLabel: "수(水)",
     morePositionsBtn: "내 사주에 맞는 공고 더 보기",
+    ctaCheckFit: "실제 내 조건으로 추천 가능성 확인하기",
+    ctaCheckFitSub: "사주로 본 커리어 타입은 여기까지!\n이제 국적·전공·비자·언어 조건으로 한국 취업 추천 가능성을 확인해보세요.",
+    recHeading: "내 이력 기반 추천 가능성",
+    recRolesHeading: "추천 가능 직무",
+    recImprovementsHeading: "보완하면 좋은 점",
+    recStatusHeading: "Aply 추천 가능 상태",
+    statusLabels: { UNVERIFIED: "미검증", NEEDS_WORK: "보완 필요", RECOMMENDABLE: "추천 가능" },
+    statusDescs: {
+      UNVERIFIED: "조금 더 정보를 채우면 추천 가능성을 확인할 수 있어요.",
+      NEEDS_WORK: "몇 가지만 보완하면 기업 추천에 가까워져요.",
+      RECOMMENDABLE: "기업에 추천 가능한 조건을 갖췄어요!"
+    },
+    improvementLabels: {
+      RESUME: "이력서 작성·업로드",
+      KOREAN: "한국어 역량 보완",
+      VISA: "취업 가능 비자 확인",
+      CONTACT: "연락처 확보",
+      PORTFOLIO: "포트폴리오 준비",
+      ENGLISH: "영어 역량 보완"
+    },
+    saveHeading: "결과 저장하고 포지션 추천받기",
+    saveSub: "Aply 프로필을 만들면 결과가 저장되고\n나에게 맞는 포지션 추천을 받을 수 있어요.",
+    naverBtn: "네이버로 시작하기",
+    kakaoBtn: "카카오로 시작하기",
+    googleBtn: "구글로 시작하기",
+    emailBtn: "이메일로 시작하기",
+    resumeBoostHeading: "이력서 추가하고 추천 가능성 높이기",
+    resumeBoostSub: "이력서와 가능 근무 시간을 추가하면 기업 추천 가능성이 더 높아져요.",
+    resumeBoostBtn: "이력서 만들기",
     linkCopied: "링크가 복사되었어요",
     shareBtn: "친구에게 공유하기",
     tryItBtn: "나도 해보기",
@@ -217,34 +159,28 @@ const COPY: Record<PlatformLocale, Copy> = {
     numberLocale: "ko-KR"
   },
   en: {
-    pillSuffix: "'s Five-Element reading",
-    pillFallback: "Five-Element reading",
+    pillSuffix: "'s career-type reading",
+    pillFallback: "Career-type reading",
     titleA: "",
     titleHighlight: "This kind of work",
     titleB: "\nmight just click with you",
     retry: "Try again",
     loading: "Loading your result...",
     errFetch: "Couldn't load the result.",
-    shareTitleSuffix: "'s future job — see what Saju says",
-    shareTitleFallback: "What does my Saju say my future job is?",
-    shareTextFallback: "Get an Aply Five-Element Saju career reading.",
-    gateText: "Sign up to see the full reading and\nmatching job openings.",
-    naverBtn: "Continue with Naver",
-    kakaoBtn: "Continue with Kakao",
-    googleBtn: "Continue with Google",
-    emailBtn: "Continue with email",
+    careerTypeHeading: "Your career type",
+    interpretationHeading: "What your Saju says about you",
     elementBalanceHeading: "Your Five-Element balance",
     dayMasterHeading: "Your day-master",
     strengthsHeading: "Your strengths",
+    roleCategoriesHeading: "Recommended role categories",
     specificRolesHeading: "Roles that fit you",
     roleReasoningsHeading: "Why these roles work",
     workEnvHeading: "Work environments that suit you",
     cautionHeading: "A gentle note",
-    industriesHeading: "Industries that suit you",
     rolesToAvoidHeading: "Work styles to avoid",
     growthPatternHeading: "Your career growth pattern",
     successFactorsHeading: "What to build next",
-    mottoHeading: "Your motto",
+    mottoHeading: "Your career line of the day",
     positionsHeading: "Open jobs that match your reading",
     woodLabel: "Wood",
     fireLabel: "Fire",
@@ -252,6 +188,35 @@ const COPY: Record<PlatformLocale, Copy> = {
     metalLabel: "Metal",
     waterLabel: "Water",
     morePositionsBtn: "See more matching jobs",
+    ctaCheckFit: "Check your fit with your real background",
+    ctaCheckFitSub: "That's your Saju career type!\nNow check your fit for Korean jobs with your nationality, major, visa & language.",
+    recHeading: "Your fit based on your background",
+    recRolesHeading: "Recommendable roles",
+    recImprovementsHeading: "What to improve",
+    recStatusHeading: "Aply recommendation status",
+    statusLabels: { UNVERIFIED: "Unverified", NEEDS_WORK: "Needs work", RECOMMENDABLE: "Recommendable" },
+    statusDescs: {
+      UNVERIFIED: "Add a bit more info to check your recommendation potential.",
+      NEEDS_WORK: "Just a few things to improve before employer referrals.",
+      RECOMMENDABLE: "You meet the bar to be recommended to companies!"
+    },
+    improvementLabels: {
+      RESUME: "Write / upload a resume",
+      KOREAN: "Improve Korean",
+      VISA: "Confirm a work-eligible visa",
+      CONTACT: "Add a contact",
+      PORTFOLIO: "Prepare a portfolio",
+      ENGLISH: "Improve English"
+    },
+    saveHeading: "Save your result & get job recommendations",
+    saveSub: "Create an Aply profile to save your result\nand get positions matched to you.",
+    naverBtn: "Continue with Naver",
+    kakaoBtn: "Continue with Kakao",
+    googleBtn: "Continue with Google",
+    emailBtn: "Continue with email",
+    resumeBoostHeading: "Add a resume to boost your chances",
+    resumeBoostSub: "Adding a resume and your availability raises your chance of being recommended.",
+    resumeBoostBtn: "Create a resume",
     linkCopied: "Link copied",
     shareBtn: "Share with friends",
     tryItBtn: "Try it myself",
@@ -260,34 +225,28 @@ const COPY: Record<PlatformLocale, Copy> = {
     numberLocale: "en-US"
   },
   "zh-CN": {
-    pillSuffix: "的五行八字解读",
-    pillFallback: "五行八字解读",
+    pillSuffix: "的职业类型解读",
+    pillFallback: "职业类型解读",
     titleA: "",
     titleHighlight: "这样的工作",
     titleB: "\n似乎会和你很合拍",
     retry: "重新解读",
     loading: "正在载入结果...",
     errFetch: "无法载入结果。",
-    shareTitleSuffix: "的未来职业 — 看八字怎么说",
-    shareTitleFallback: "我的八字诉说未来职业是?",
-    shareTextFallback: "Aply 五行八字职业匹配，立即查看。",
-    gateText: "查看完整解读和匹配的招聘岗位\n请先简单注册。",
-    naverBtn: "使用 Naver 继续",
-    kakaoBtn: "使用 Kakao 继续",
-    googleBtn: "使用 Google 继续",
-    emailBtn: "使用邮箱继续",
+    careerTypeHeading: "我的职业类型",
+    interpretationHeading: "八字描述的我的特质",
     elementBalanceHeading: "你的五行分布",
     dayMasterHeading: "你的日主",
     strengthsHeading: "你的优势",
+    roleCategoriesHeading: "推荐职业类别",
     specificRolesHeading: "适合你的具体职业",
     roleReasoningsHeading: "为什么这些职业合适",
     workEnvHeading: "适合你的工作环境",
-    cautionHeading: "一个建议",
-    industriesHeading: "适合你的行业",
+    cautionHeading: "需要注意的点",
     rolesToAvoidHeading: "建议避免的工作风格",
     growthPatternHeading: "你的职业成长轨迹",
     successFactorsHeading: "值得补足的能力",
-    mottoHeading: "你的座右铭",
+    mottoHeading: "今日职业一句话",
     positionsHeading: "可以申请的匹配岗位",
     woodLabel: "木",
     fireLabel: "火",
@@ -295,6 +254,35 @@ const COPY: Record<PlatformLocale, Copy> = {
     metalLabel: "金",
     waterLabel: "水",
     morePositionsBtn: "查看更多匹配岗位",
+    ctaCheckFit: "用真实背景查看推荐可能性",
+    ctaCheckFitSub: "八字职业类型到这里！\n现在用国籍·专业·签证·语言条件查看韩国就业推荐可能性。",
+    recHeading: "基于背景的推荐可能性",
+    recRolesHeading: "可推荐职位",
+    recImprovementsHeading: "值得改善的点",
+    recStatusHeading: "Aply 推荐状态",
+    statusLabels: { UNVERIFIED: "未验证", NEEDS_WORK: "需补充", RECOMMENDABLE: "可推荐" },
+    statusDescs: {
+      UNVERIFIED: "再补充一些信息即可查看推荐可能性。",
+      NEEDS_WORK: "再完善几项就更接近企业推荐了。",
+      RECOMMENDABLE: "你已满足被推荐给企业的条件！"
+    },
+    improvementLabels: {
+      RESUME: "撰写/上传简历",
+      KOREAN: "提升韩语能力",
+      VISA: "确认可工作签证",
+      CONTACT: "补充联系方式",
+      PORTFOLIO: "准备作品集",
+      ENGLISH: "提升英语能力"
+    },
+    saveHeading: "保存结果并获取岗位推荐",
+    saveSub: "创建 Aply 档案即可保存结果，\n并获得为你匹配的岗位推荐。",
+    naverBtn: "使用 Naver 继续",
+    kakaoBtn: "使用 Kakao 继续",
+    googleBtn: "使用 Google 继续",
+    emailBtn: "使用邮箱继续",
+    resumeBoostHeading: "添加简历提高推荐可能性",
+    resumeBoostSub: "添加简历和可工作时间会提高被推荐的可能性。",
+    resumeBoostBtn: "创建简历",
     linkCopied: "链接已复制",
     shareBtn: "分享给朋友",
     tryItBtn: "我也来试试",
@@ -303,34 +291,28 @@ const COPY: Record<PlatformLocale, Copy> = {
     numberLocale: "zh-CN"
   },
   vi: {
-    pillSuffix: " — Tử vi Ngũ Hành",
-    pillFallback: "Tử vi Ngũ Hành",
+    pillSuffix: " — Kiểu sự nghiệp",
+    pillFallback: "Kiểu sự nghiệp",
     titleA: "",
     titleHighlight: "Công việc kiểu này",
     titleB: "\ncó vẻ rất hợp với bạn",
     retry: "Xem lại",
     loading: "Đang tải kết quả...",
     errFetch: "Không thể tải kết quả.",
-    shareTitleSuffix: " — công việc tương lai theo tử vi",
-    shareTitleFallback: "Tử vi nói công việc tương lai của tôi là?",
-    shareTextFallback: "Khám phá công việc qua Aply Ngũ Hành Tử Vi.",
-    gateText: "Để xem toàn bộ kết quả và việc làm phù hợp\nvui lòng đăng ký nhanh.",
-    naverBtn: "Tiếp tục với Naver",
-    kakaoBtn: "Tiếp tục với Kakao",
-    googleBtn: "Tiếp tục với Google",
-    emailBtn: "Tiếp tục với email",
+    careerTypeHeading: "Kiểu sự nghiệp của tôi",
+    interpretationHeading: "Tử vi nói gì về bạn",
     elementBalanceHeading: "Cân bằng Ngũ Hành của bạn",
     dayMasterHeading: "Chủ nhật (Day-master)",
     strengthsHeading: "Điểm mạnh của bạn",
+    roleCategoriesHeading: "Nhóm nghề gợi ý",
     specificRolesHeading: "Vị trí cụ thể phù hợp",
     roleReasoningsHeading: "Vì sao những vị trí này hợp",
     workEnvHeading: "Môi trường làm việc phù hợp",
-    cautionHeading: "Lời khuyên nhỏ",
-    industriesHeading: "Ngành nghề phù hợp",
+    cautionHeading: "Điều nên lưu ý",
     rolesToAvoidHeading: "Phong cách công việc nên tránh",
     growthPatternHeading: "Mô hình phát triển sự nghiệp",
     successFactorsHeading: "Điều nên bồi đắp thêm",
-    mottoHeading: "Phương châm của bạn",
+    mottoHeading: "Câu nói sự nghiệp hôm nay",
     positionsHeading: "Việc làm đang tuyển phù hợp",
     woodLabel: "Mộc",
     fireLabel: "Hỏa",
@@ -338,6 +320,35 @@ const COPY: Record<PlatformLocale, Copy> = {
     metalLabel: "Kim",
     waterLabel: "Thủy",
     morePositionsBtn: "Xem thêm việc làm phù hợp",
+    ctaCheckFit: "Kiểm tra mức độ phù hợp với hồ sơ thật",
+    ctaCheckFitSub: "Kiểu sự nghiệp theo tử vi đến đây!\nGiờ hãy kiểm tra khả năng việc làm tại Hàn theo quốc tịch, chuyên ngành, visa & ngôn ngữ.",
+    recHeading: "Khả năng giới thiệu dựa trên hồ sơ",
+    recRolesHeading: "Vị trí có thể giới thiệu",
+    recImprovementsHeading: "Điều nên cải thiện",
+    recStatusHeading: "Trạng thái giới thiệu Aply",
+    statusLabels: { UNVERIFIED: "Chưa xác minh", NEEDS_WORK: "Cần bổ sung", RECOMMENDABLE: "Có thể giới thiệu" },
+    statusDescs: {
+      UNVERIFIED: "Bổ sung thêm thông tin để xem khả năng giới thiệu.",
+      NEEDS_WORK: "Chỉ cần cải thiện vài điểm là gần hơn với giới thiệu cho doanh nghiệp.",
+      RECOMMENDABLE: "Bạn đã đủ điều kiện để được giới thiệu cho doanh nghiệp!"
+    },
+    improvementLabels: {
+      RESUME: "Viết / tải lên CV",
+      KOREAN: "Cải thiện tiếng Hàn",
+      VISA: "Xác nhận visa được làm việc",
+      CONTACT: "Bổ sung liên hệ",
+      PORTFOLIO: "Chuẩn bị portfolio",
+      ENGLISH: "Cải thiện tiếng Anh"
+    },
+    saveHeading: "Lưu kết quả & nhận gợi ý việc làm",
+    saveSub: "Tạo hồ sơ Aply để lưu kết quả\nvà nhận các vị trí phù hợp với bạn.",
+    naverBtn: "Tiếp tục với Naver",
+    kakaoBtn: "Tiếp tục với Kakao",
+    googleBtn: "Tiếp tục với Google",
+    emailBtn: "Tiếp tục với email",
+    resumeBoostHeading: "Thêm CV để tăng cơ hội",
+    resumeBoostSub: "Thêm CV và thời gian làm việc sẽ tăng khả năng được giới thiệu.",
+    resumeBoostBtn: "Tạo CV",
     linkCopied: "Đã sao chép liên kết",
     shareBtn: "Chia sẻ với bạn bè",
     tryItBtn: "Tôi cũng thử",
@@ -346,41 +357,64 @@ const COPY: Record<PlatformLocale, Copy> = {
     numberLocale: "vi-VN"
   },
   ja: {
-    pillSuffix: "さんの五行四柱推命",
-    pillFallback: "五行四柱推命",
+    pillSuffix: "さんのキャリアタイプ",
+    pillFallback: "キャリアタイプ",
     titleA: "",
     titleHighlight: "こんな仕事",
     titleB: "が\nあなたとぴったり合いそう",
     retry: "もう一度見る",
     loading: "結果を読み込み中...",
     errFetch: "結果を読み込めませんでした。",
-    shareTitleSuffix: "さんの未来の仕事 — 四柱推命の答え",
-    shareTitleFallback: "私の四柱推命が告げる未来の仕事は?",
-    shareTextFallback: "Aply の五行四柱推命であなたに合う仕事を診断。",
-    gateText: "結果全文とマッチする求人を見るには\n簡単な会員登録が必要です。",
-    naverBtn: "Naver で続ける",
-    kakaoBtn: "Kakao で続ける",
-    googleBtn: "Google で続ける",
-    emailBtn: "メールで続ける",
+    careerTypeHeading: "私のキャリアタイプ",
+    interpretationHeading: "四柱推命が語るあなたの傾向",
     elementBalanceHeading: "あなたの五行バランス",
     dayMasterHeading: "あなたの日主",
     strengthsHeading: "あなたの強み",
+    roleCategoriesHeading: "おすすめ職種カテゴリー",
     specificRolesHeading: "具体的に合いそうな職種",
     roleReasoningsHeading: "なぜこの職種が合うのか",
     workEnvHeading: "合う仕事環境",
-    cautionHeading: "ひとつのアドバイス",
-    industriesHeading: "合いそうな業界",
+    cautionHeading: "気をつけたい点",
     rolesToAvoidHeading: "避けたい仕事スタイル",
     growthPatternHeading: "キャリアの成長パターン",
     successFactorsHeading: "さらに補うと良いこと",
-    mottoHeading: "あなたのモットー",
+    mottoHeading: "今日のキャリア一言",
     positionsHeading: "今応募できる相性のいい求人",
     woodLabel: "木",
     fireLabel: "火",
     earthLabel: "土",
     metalLabel: "金",
     waterLabel: "水",
-    morePositionsBtn: "私の四柱推命に合う求人をもっと見る",
+    morePositionsBtn: "私に合う求人をもっと見る",
+    ctaCheckFit: "実際の経歴で推薦可能性をチェック",
+    ctaCheckFitSub: "四柱推命のキャリアタイプはここまで！\n国籍・専攻・ビザ・語学条件で韓国就職の推薦可能性を確認しましょう。",
+    recHeading: "経歴に基づく推薦可能性",
+    recRolesHeading: "推薦可能な職種",
+    recImprovementsHeading: "補うと良い点",
+    recStatusHeading: "Aply 推薦ステータス",
+    statusLabels: { UNVERIFIED: "未検証", NEEDS_WORK: "要補完", RECOMMENDABLE: "推薦可能" },
+    statusDescs: {
+      UNVERIFIED: "もう少し情報を入れると推薦可能性を確認できます。",
+      NEEDS_WORK: "いくつか補うと企業推薦に近づきます。",
+      RECOMMENDABLE: "企業に推薦できる条件を満たしています！"
+    },
+    improvementLabels: {
+      RESUME: "履歴書の作成・アップロード",
+      KOREAN: "韓国語力の強化",
+      VISA: "就労可能ビザの確認",
+      CONTACT: "連絡先の登録",
+      PORTFOLIO: "ポートフォリオの準備",
+      ENGLISH: "英語力の強化"
+    },
+    saveHeading: "結果を保存して求人推薦を受ける",
+    saveSub: "Aplyプロフィールを作ると結果が保存され、\nあなたに合う求人の推薦を受けられます。",
+    naverBtn: "Naver で始める",
+    kakaoBtn: "Kakao で始める",
+    googleBtn: "Google で始める",
+    emailBtn: "メールで始める",
+    resumeBoostHeading: "履歴書を追加して推薦可能性を高める",
+    resumeBoostSub: "履歴書と勤務可能時間を追加すると企業推薦の可能性が高まります。",
+    resumeBoostBtn: "履歴書を作る",
     linkCopied: "リンクをコピーしました",
     shareBtn: "友達にシェア",
     tryItBtn: "私もやってみる",
@@ -389,34 +423,28 @@ const COPY: Record<PlatformLocale, Copy> = {
     numberLocale: "ja-JP"
   },
   id: {
-    pillSuffix: " — Pembacaan Saju Lima Unsur",
-    pillFallback: "Pembacaan Saju Lima Unsur",
+    pillSuffix: " — Tipe karier",
+    pillFallback: "Tipe karier",
     titleA: "",
     titleHighlight: "Pekerjaan seperti ini",
     titleB: "\nsepertinya cocok untukmu",
     retry: "Coba lagi",
     loading: "Memuat hasil...",
     errFetch: "Tidak dapat memuat hasil.",
-    shareTitleSuffix: " — pekerjaan masa depan menurut Saju",
-    shareTitleFallback: "Saju saya berkata pekerjaan masa depan saya?",
-    shareTextFallback: "Dapatkan pembacaan karier Saju Lima Unsur dari Aply.",
-    gateText: "Untuk melihat hasil penuh dan lowongan yang cocok\ndaftar singkat dulu.",
-    naverBtn: "Lanjutkan dengan Naver",
-    kakaoBtn: "Lanjutkan dengan Kakao",
-    googleBtn: "Lanjutkan dengan Google",
-    emailBtn: "Lanjutkan dengan email",
+    careerTypeHeading: "Tipe karier saya",
+    interpretationHeading: "Apa kata Saju tentang kamu",
     elementBalanceHeading: "Keseimbangan Lima Unsurmu",
     dayMasterHeading: "Day-master",
     strengthsHeading: "Kekuatanmu",
+    roleCategoriesHeading: "Kategori peran yang disarankan",
     specificRolesHeading: "Peran spesifik yang cocok",
     roleReasoningsHeading: "Mengapa peran ini cocok",
     workEnvHeading: "Lingkungan kerja yang cocok",
-    cautionHeading: "Satu saran",
-    industriesHeading: "Industri yang cocok",
+    cautionHeading: "Hal yang perlu diperhatikan",
     rolesToAvoidHeading: "Gaya kerja yang sebaiknya dihindari",
     growthPatternHeading: "Pola pertumbuhan karier",
     successFactorsHeading: "Hal yang sebaiknya dikembangkan",
-    mottoHeading: "Mottomu",
+    mottoHeading: "Kalimat karier hari ini",
     positionsHeading: "Lowongan terbuka yang cocok",
     woodLabel: "Kayu",
     fireLabel: "Api",
@@ -424,6 +452,35 @@ const COPY: Record<PlatformLocale, Copy> = {
     metalLabel: "Logam",
     waterLabel: "Air",
     morePositionsBtn: "Lihat lebih banyak lowongan yang cocok",
+    ctaCheckFit: "Cek kecocokan dengan latar belakang aslimu",
+    ctaCheckFitSub: "Itu tipe karier Saju-mu!\nSekarang cek peluang kerja di Korea dengan kewarganegaraan, jurusan, visa & bahasa.",
+    recHeading: "Peluang rekomendasi berdasarkan latar belakang",
+    recRolesHeading: "Peran yang bisa direkomendasikan",
+    recImprovementsHeading: "Yang perlu ditingkatkan",
+    recStatusHeading: "Status rekomendasi Aply",
+    statusLabels: { UNVERIFIED: "Belum terverifikasi", NEEDS_WORK: "Perlu dilengkapi", RECOMMENDABLE: "Bisa direkomendasikan" },
+    statusDescs: {
+      UNVERIFIED: "Tambahkan sedikit info untuk melihat peluang rekomendasi.",
+      NEEDS_WORK: "Tinggal beberapa hal sebelum bisa direkomendasikan ke perusahaan.",
+      RECOMMENDABLE: "Kamu memenuhi syarat untuk direkomendasikan ke perusahaan!"
+    },
+    improvementLabels: {
+      RESUME: "Buat / unggah CV",
+      KOREAN: "Tingkatkan bahasa Korea",
+      VISA: "Pastikan visa yang boleh bekerja",
+      CONTACT: "Tambahkan kontak",
+      PORTFOLIO: "Siapkan portofolio",
+      ENGLISH: "Tingkatkan bahasa Inggris"
+    },
+    saveHeading: "Simpan hasil & dapatkan rekomendasi lowongan",
+    saveSub: "Buat profil Aply untuk menyimpan hasil\ndan mendapatkan lowongan yang cocok.",
+    naverBtn: "Lanjutkan dengan Naver",
+    kakaoBtn: "Lanjutkan dengan Kakao",
+    googleBtn: "Lanjutkan dengan Google",
+    emailBtn: "Lanjutkan dengan email",
+    resumeBoostHeading: "Tambah CV untuk meningkatkan peluang",
+    resumeBoostSub: "Menambahkan CV dan ketersediaan kerja meningkatkan peluang direkomendasikan.",
+    resumeBoostBtn: "Buat CV",
     linkCopied: "Tautan disalin",
     shareBtn: "Bagikan ke teman",
     tryItBtn: "Saya juga mau coba",
@@ -433,6 +490,16 @@ const COPY: Record<PlatformLocale, Copy> = {
   }
 };
 
+const STATUS_STYLES: Record<RecStatus, { bg: string; text: string; icon: "warn" | "check" | "info" }> = {
+  UNVERIFIED: { bg: "bg-white/[0.06]", text: "text-white/70", icon: "info" },
+  NEEDS_WORK: { bg: "bg-amber-300/[0.08] border border-amber-300/25", text: "text-amber-100", icon: "warn" },
+  RECOMMENDABLE: { bg: "bg-lime-300/[0.1] border border-lime-300/30", text: "text-lime-100", icon: "check" }
+};
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return <h2 className="mb-3 text-[15px] font-semibold text-white">{children}</h2>;
+}
+
 export function SajuResultPage({ slug }: { slug: string }) {
   const router = useRouter();
   const { user } = useAuthSession();
@@ -441,11 +508,11 @@ export function SajuResultPage({ slug }: { slug: string }) {
   const [payload, setPayload] = useState<SajuResultPayload | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
-  // Owner = this browser created the prediction. Anyone opening a shared
-  // link gets isOwner=false → the CTA flips to "try it yourself". Defaults
-  // to false on the server render to avoid a hydration mismatch, then
-  // resolves from localStorage on mount.
   const [isOwner, setIsOwner] = useState(false);
+  // Funnel: result (1차) → form (커리어 입력) → done (추천 Preview).
+  const [funnel, setFunnel] = useState<"result" | "form" | "done">("result");
+  const [recommendation, setRecommendation] = useState<SajuLeadRecommendation | null>(null);
+  const [leadSubmitting, setLeadSubmitting] = useState(false);
   const isAuthenticated = Boolean(user);
 
   useEffect(() => {
@@ -465,8 +532,6 @@ export function SajuResultPage({ slug }: { slug: string }) {
     return () => {
       cancelled = true;
     };
-    // re-fetch when user logs in mid-session so we claim the prediction,
-    // or when they switch the page language (triggers server-side translate)
   }, [slug, user?.id, locale, copy.errFetch]);
 
   const interpretation = payload?.prediction.interpretation ?? "";
@@ -475,11 +540,24 @@ export function SajuResultPage({ slug }: { slug: string }) {
   const positions = payload?.positions ?? [];
   const name = payload?.prediction.name ?? "";
 
+  async function handleLeadSubmit(data: SajuLeadRequest) {
+    setLeadSubmitting(true);
+    try {
+      const { recommendation: rec } = await submitSajuLead(data);
+      setRecommendation(rec);
+      setFunnel("done");
+      if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      // keep the form open; the form shows nothing, so surface via funnel stay
+      setFunnel("form");
+    } finally {
+      setLeadSubmitting(false);
+    }
+  }
+
   async function handleShare() {
     if (typeof window === "undefined") return;
     const url = window.location.href;
-    // Just copy the result link to the clipboard and confirm it. No native
-    // share sheet — the user only wants the link to share however they like.
     try {
       await navigator.clipboard.writeText(url);
     } catch {
@@ -488,6 +566,8 @@ export function SajuResultPage({ slug }: { slug: string }) {
     setCopyState("copied");
     setTimeout(() => setCopyState("idle"), 1500);
   }
+
+  const nextParam = encodeURIComponent(`/events/saju/result/${slug}`);
 
   return (
     <div className="min-h-screen bg-[#0b0b2a] text-white">
@@ -533,10 +613,7 @@ export function SajuResultPage({ slug }: { slug: string }) {
               role="status"
             >
               <div className="relative flex flex-col items-center gap-5 px-8 text-center">
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute -inset-12 -z-10 rounded-full bg-purple-500/20 blur-3xl"
-                />
+                <div aria-hidden className="pointer-events-none absolute -inset-12 -z-10 rounded-full bg-purple-500/20 blur-3xl" />
                 <div className="relative h-20 w-20">
                   <div className="absolute inset-0 animate-spin-slow">
                     <Sparkle weight="fill" className="absolute -top-1 left-1/2 h-3 w-3 -translate-x-1/2 text-yellow-200" />
@@ -555,93 +632,40 @@ export function SajuResultPage({ slug }: { slug: string }) {
                   from { transform: rotate(0deg); }
                   to { transform: rotate(360deg); }
                 }
-                .animate-spin-slow {
-                  animation: spin-slow 4s linear infinite;
-                }
+                .animate-spin-slow { animation: spin-slow 4s linear infinite; }
               `}</style>
             </div>
           ) : (
             <>
-              <section className="relative px-5">
-                <div className="relative overflow-hidden rounded-3xl bg-white/[0.04] p-5">
-                  {!isAuthenticated ? (
-                    <div className="pointer-events-none relative max-h-[120px] overflow-hidden">
-                      <div className="select-none blur-sm" aria-hidden>
-                        <p className="text-[14px] leading-[1.75] whitespace-pre-wrap text-white/90">
-                          {interpretation}
-                        </p>
-                      </div>
-                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-[#1a1340]" />
+              {/* ===== 1차 결과: 가입 없이 공개 ===== */}
+              {details?.careerType && (details.careerType.label || details.careerType.tagline) ? (
+                <section className="px-5">
+                  <div className="rounded-3xl bg-gradient-to-br from-yellow-300/20 to-amber-300/[0.06] p-5 text-center">
+                    <div className="text-[11px] font-medium uppercase tracking-wide text-yellow-200/70">
+                      {copy.careerTypeHeading}
                     </div>
-                  ) : (
-                    <>
-                      <div className="text-white/90">
-                        <p className="text-[14px] leading-[1.75] whitespace-pre-wrap">
-                          {interpretation}
-                        </p>
-                      </div>
-                      <div className="mt-5 flex flex-wrap gap-1.5">
-                        {recommendedRoleNames.map((role) => (
-                          <span
-                            key={role}
-                            className="rounded-full border border-yellow-300/30 bg-yellow-300/10 px-2.5 py-1 text-[11px] font-medium text-yellow-100"
-                          >
-                            <Star weight="fill" className="mr-1 inline h-2.5 w-2.5" />
-                            {translateRole(role, locale)}
-                          </span>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                    {details.careerType.label ? (
+                      <div className="mt-1.5 text-[24px] font-bold text-yellow-100">{details.careerType.label}</div>
+                    ) : null}
+                    {details.careerType.tagline ? (
+                      <p className="mt-2 text-[13px] leading-relaxed text-white/80">{details.careerType.tagline}</p>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
 
-                  {!isAuthenticated ? (
-                    <div className="mt-4 flex flex-col items-center gap-4 text-center">
-                      <Lock className="h-7 w-7 text-yellow-200" />
-                      <p className="whitespace-pre-line text-[13px] text-white/85">{copy.gateText}</p>
-                      <div className="flex w-full flex-col gap-2">
-                        <a
-                          href={`${API_BASE}/auth/naver/start?next=${encodeURIComponent(`/events/saju/result/${slug}`)}`}
-                          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#03C75A] text-[14px] font-semibold text-white transition active:bg-[#02b551]"
-                        >
-                          <span aria-hidden className="text-base font-black">N</span>
-                          {copy.naverBtn}
-                        </a>
-                        <a
-                          href={`${API_BASE}/auth/kakao/start?next=${encodeURIComponent(`/events/saju/result/${slug}`)}`}
-                          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] text-[14px] font-semibold text-[#191919] transition active:bg-[#f5dd00]"
-                        >
-                          <svg aria-hidden className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.86 5.36 4.66 6.78L5.5 21.5c-.1.34.27.62.57.43L10.5 19c.5.05 1 .08 1.5.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z" />
-                          </svg>
-                          {copy.kakaoBtn}
-                        </a>
-                        <a
-                          href={`${API_BASE}/auth/google/start?next=${encodeURIComponent(`/events/saju/result/${slug}`)}`}
-                          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white text-[14px] font-semibold text-[#191919] transition active:bg-white/90"
-                        >
-                          <svg aria-hidden className="h-4 w-4" viewBox="0 0 48 48">
-                            <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
-                            <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
-                            <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
-                            <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
-                          </svg>
-                          {copy.googleBtn}
-                        </a>
-                        <Link
-                          href={`/signup?next=${encodeURIComponent(`/events/saju/result/${slug}`)}`}
-                          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white/10 text-[14px] font-semibold text-white transition active:bg-white/15"
-                        >
-                          {copy.emailBtn}
-                        </Link>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </section>
-
-              {isAuthenticated && details?.elementBalance ? (
+              {interpretation ? (
                 <section className="px-5 pt-8">
-                  <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.elementBalanceHeading}</h2>
+                  <SectionHeading>{copy.interpretationHeading}</SectionHeading>
+                  <div className="rounded-2xl bg-white/[0.04] p-5">
+                    <p className="whitespace-pre-wrap text-[14px] leading-[1.75] text-white/90">{interpretation}</p>
+                  </div>
+                </section>
+              ) : null}
+
+              {details?.elementBalance ? (
+                <section className="px-5 pt-8">
+                  <SectionHeading>{copy.elementBalanceHeading}</SectionHeading>
                   <div className="rounded-2xl bg-white/[0.04] p-5">
                     <div className="space-y-3">
                       {([
@@ -654,18 +678,11 @@ export function SajuResultPage({ slug }: { slug: string }) {
                         const value = details.elementBalance![el.key];
                         return (
                           <div key={el.key} className="flex items-center gap-3">
-                            <span className="w-12 flex-shrink-0 text-[12px] font-medium text-white/80">
-                              {el.label}
-                            </span>
+                            <span className="w-12 flex-shrink-0 text-[12px] font-medium text-white/80">{el.label}</span>
                             <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-white/10">
-                              <div
-                                className="h-full rounded-full"
-                                style={{ width: `${value}%`, backgroundColor: el.color }}
-                              />
+                              <div className="h-full rounded-full" style={{ width: `${value}%`, backgroundColor: el.color }} />
                             </div>
-                            <span className="w-9 flex-shrink-0 text-right text-[12px] tabular-nums text-white/60">
-                              {value}%
-                            </span>
+                            <span className="w-9 flex-shrink-0 text-right text-[12px] tabular-nums text-white/60">{value}%</span>
                           </div>
                         );
                       })}
@@ -680,18 +697,9 @@ export function SajuResultPage({ slug }: { slug: string }) {
                 </section>
               ) : null}
 
-              {isAuthenticated && details?.motto ? (
+              {details?.strengths && details.strengths.length > 0 ? (
                 <section className="px-5 pt-8">
-                  <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.mottoHeading}</h2>
-                  <div className="rounded-2xl bg-gradient-to-br from-yellow-300/15 to-amber-300/[0.06] p-5 text-center">
-                    <p className="text-[15px] font-medium leading-[1.5] text-yellow-100">&ldquo;{details.motto}&rdquo;</p>
-                  </div>
-                </section>
-              ) : null}
-
-              {isAuthenticated && details?.strengths && details.strengths.length > 0 ? (
-                <section className="px-5 pt-8">
-                  <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.strengthsHeading}</h2>
+                  <SectionHeading>{copy.strengthsHeading}</SectionHeading>
                   <div className="rounded-2xl bg-white/[0.04] p-5">
                     <ul className="space-y-2.5">
                       {details.strengths.map((s, i) => (
@@ -705,9 +713,199 @@ export function SajuResultPage({ slug }: { slug: string }) {
                 </section>
               ) : null}
 
+              {recommendedRoleNames.length > 0 ? (
+                <section className="px-5 pt-8">
+                  <SectionHeading>{copy.roleCategoriesHeading}</SectionHeading>
+                  <div className="rounded-2xl bg-white/[0.04] p-5">
+                    <div className="flex flex-wrap gap-1.5">
+                      {recommendedRoleNames.map((role) => (
+                        <span
+                          key={role}
+                          className="rounded-full border border-yellow-300/30 bg-yellow-300/10 px-2.5 py-1 text-[11px] font-medium text-yellow-100"
+                        >
+                          <Star weight="fill" className="mr-1 inline h-2.5 w-2.5" />
+                          {translateRole(role, locale)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+
+              {details?.workEnvironment && details.workEnvironment.length > 0 ? (
+                <section className="px-5 pt-8">
+                  <SectionHeading>{copy.workEnvHeading}</SectionHeading>
+                  <div className="rounded-2xl bg-white/[0.04] p-5">
+                    <ul className="space-y-2.5">
+                      {details.workEnvironment.map((s, i) => (
+                        <li key={i} className="flex gap-2 text-[13px] leading-[1.6] text-white/85">
+                          <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-yellow-200/80" />
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </section>
+              ) : null}
+
+              {details?.cautionAdvice ? (
+                <section className="px-5 pt-8">
+                  <SectionHeading>{copy.cautionHeading}</SectionHeading>
+                  <div className="rounded-2xl border border-yellow-300/20 bg-yellow-300/[0.06] p-5">
+                    <p className="text-[13px] leading-[1.7] text-yellow-100/90">{details.cautionAdvice}</p>
+                  </div>
+                </section>
+              ) : null}
+
+              {details?.motto ? (
+                <section className="px-5 pt-8">
+                  <SectionHeading>{copy.mottoHeading}</SectionHeading>
+                  <div className="rounded-2xl bg-gradient-to-br from-yellow-300/15 to-amber-300/[0.06] p-5 text-center">
+                    <p className="text-[15px] font-medium leading-[1.5] text-yellow-100">&ldquo;{details.motto}&rdquo;</p>
+                  </div>
+                </section>
+              ) : null}
+
+              {/* ===== 커리어 추천 퍼널 (비회원) ===== */}
+              {!isAuthenticated && funnel === "result" && !recommendation ? (
+                <section className="px-5 pt-10">
+                  <div className="rounded-3xl border border-yellow-300/25 bg-white/[0.04] p-6 text-center">
+                    <p className="whitespace-pre-line text-[13px] leading-relaxed text-white/75">{copy.ctaCheckFitSub}</p>
+                    <Button
+                      onClick={() => setFunnel("form")}
+                      className="mt-5 flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 to-amber-400 py-3.5 text-[15px] font-semibold text-[#1a1340] shadow-[0_8px_24px_-12px_rgba(250,204,21,0.6)] transition active:from-yellow-200 active:to-amber-300"
+                    >
+                      {copy.ctaCheckFit}
+                      <ArrowRight weight="bold" className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </section>
+              ) : null}
+
+              {!isAuthenticated && funnel === "form" ? (
+                <div className="pt-8">
+                  <SajuCareerForm
+                    locale={locale}
+                    shareSlug={slug}
+                    submitting={leadSubmitting}
+                    onSubmit={handleLeadSubmit}
+                    onBack={() => setFunnel("result")}
+                  />
+                </div>
+              ) : null}
+
+              {/* ===== 2차 결과: 추천 가능성 Preview ===== */}
+              {recommendation ? (
+                <section className="px-5 pt-10">
+                  <SectionHeading>{copy.recHeading}</SectionHeading>
+                  <div className="space-y-3">
+                    {recommendation.recommendedRoles.length > 0 ? (
+                      <div className="rounded-2xl bg-white/[0.04] p-5">
+                        <div className="mb-2.5 text-[12px] font-medium text-white/55">{copy.recRolesHeading}</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {recommendation.recommendedRoles.map((role) => (
+                            <span
+                              key={role}
+                              className="rounded-full border border-lime-300/30 bg-lime-300/10 px-2.5 py-1 text-[12px] font-medium text-lime-100"
+                            >
+                              {translateRole(role, locale)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {recommendation.improvements.length > 0 ? (
+                      <div className="rounded-2xl bg-white/[0.04] p-5">
+                        <div className="mb-2.5 text-[12px] font-medium text-white/55">{copy.recImprovementsHeading}</div>
+                        <ul className="space-y-2">
+                          {recommendation.improvements.map((code) => (
+                            <li key={code} className="flex items-center gap-2 text-[13px] text-white/85">
+                              <WarningCircle weight="fill" className="h-4 w-4 flex-shrink-0 text-amber-300/80" />
+                              <span>{copy.improvementLabels[code as ImprovementCode] ?? code}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+
+                    {(() => {
+                      const st = (recommendation.status as RecStatus) ?? "UNVERIFIED";
+                      const style = STATUS_STYLES[st];
+                      return (
+                        <div className={`rounded-2xl p-5 ${style.bg}`}>
+                          <div className="text-[12px] font-medium text-white/55">{copy.recStatusHeading}</div>
+                          <div className="mt-2 flex items-center gap-2">
+                            {style.icon === "check" ? (
+                              <CheckCircle weight="fill" className="h-5 w-5 text-lime-300" />
+                            ) : style.icon === "warn" ? (
+                              <WarningCircle weight="fill" className="h-5 w-5 text-amber-300" />
+                            ) : (
+                              <Sparkle weight="fill" className="h-5 w-5 text-white/50" />
+                            )}
+                            <span className={`text-[16px] font-bold ${style.text}`}>{copy.statusLabels[st]}</span>
+                          </div>
+                          <p className="mt-2 text-[12.5px] leading-relaxed text-white/65">{copy.statusDescs[st]}</p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </section>
+              ) : null}
+
+              {/* ===== 가입 유도 (비회원) ===== */}
+              {!isAuthenticated && (recommendation || funnel === "result") ? (
+                <section className="px-5 pt-10">
+                  <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-center">
+                    <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-300/15">
+                      <Sparkle weight="fill" className="h-6 w-6 text-yellow-200" />
+                    </div>
+                    <h2 className="text-[16px] font-bold text-white">{copy.saveHeading}</h2>
+                    <p className="mt-2 whitespace-pre-line text-[12.5px] leading-relaxed text-white/65">{copy.saveSub}</p>
+                    <div className="mt-5 flex w-full flex-col gap-2">
+                      <a
+                        href={`${API_BASE}/auth/naver/start?next=${nextParam}`}
+                        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#03C75A] text-[14px] font-semibold text-white transition active:bg-[#02b551]"
+                      >
+                        <span aria-hidden className="text-base font-black">N</span>
+                        {copy.naverBtn}
+                      </a>
+                      <a
+                        href={`${API_BASE}/auth/kakao/start?next=${nextParam}`}
+                        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] text-[14px] font-semibold text-[#191919] transition active:bg-[#f5dd00]"
+                      >
+                        <svg aria-hidden className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.86 5.36 4.66 6.78L5.5 21.5c-.1.34.27.62.57.43L10.5 19c.5.05 1 .08 1.5.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z" />
+                        </svg>
+                        {copy.kakaoBtn}
+                      </a>
+                      <a
+                        href={`${API_BASE}/auth/google/start?next=${nextParam}`}
+                        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white text-[14px] font-semibold text-[#191919] transition active:bg-white/90"
+                      >
+                        <svg aria-hidden className="h-4 w-4" viewBox="0 0 48 48">
+                          <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
+                          <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
+                          <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
+                          <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
+                        </svg>
+                        {copy.googleBtn}
+                      </a>
+                      <Link
+                        href={`/signup?next=${nextParam}`}
+                        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white/10 text-[14px] font-semibold text-white transition active:bg-white/15"
+                      >
+                        {copy.emailBtn}
+                      </Link>
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+
+              {/* ===== 회원 전용 심화 + 포지션 ===== */}
               {isAuthenticated && details?.roleReasonings && details.roleReasonings.length > 0 ? (
                 <section className="px-5 pt-8">
-                  <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.roleReasoningsHeading}</h2>
+                  <SectionHeading>{copy.roleReasoningsHeading}</SectionHeading>
                   <div className="space-y-3">
                     {details.roleReasonings.map((r) => (
                       <div key={r.role} className="rounded-2xl bg-white/[0.04] p-5">
@@ -722,34 +920,9 @@ export function SajuResultPage({ slug }: { slug: string }) {
                 </section>
               ) : null}
 
-              {isAuthenticated && details?.workEnvironment && details.workEnvironment.length > 0 ? (
-                <section className="px-5 pt-8">
-                  <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.workEnvHeading}</h2>
-                  <div className="rounded-2xl bg-white/[0.04] p-5">
-                    <ul className="space-y-2.5">
-                      {details.workEnvironment.map((s, i) => (
-                        <li key={i} className="flex gap-2 text-[13px] leading-[1.6] text-white/85">
-                          <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-yellow-200/80" />
-                          <span>{s}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </section>
-              ) : null}
-
-              {isAuthenticated && details?.cautionAdvice ? (
-                <section className="px-5 pt-8">
-                  <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.cautionHeading}</h2>
-                  <div className="rounded-2xl border border-yellow-300/20 bg-yellow-300/[0.06] p-5">
-                    <p className="text-[13px] leading-[1.7] text-yellow-100/90">{details.cautionAdvice}</p>
-                  </div>
-                </section>
-              ) : null}
-
               {isAuthenticated && details?.rolesToAvoid && details.rolesToAvoid.length > 0 ? (
                 <section className="px-5 pt-8">
-                  <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.rolesToAvoidHeading}</h2>
+                  <SectionHeading>{copy.rolesToAvoidHeading}</SectionHeading>
                   <div className="rounded-2xl bg-white/[0.04] p-5">
                     <ul className="space-y-2.5">
                       {details.rolesToAvoid.map((s, i) => (
@@ -765,7 +938,7 @@ export function SajuResultPage({ slug }: { slug: string }) {
 
               {isAuthenticated && details?.growthPattern ? (
                 <section className="px-5 pt-8">
-                  <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.growthPatternHeading}</h2>
+                  <SectionHeading>{copy.growthPatternHeading}</SectionHeading>
                   <div className="rounded-2xl bg-white/[0.04] p-5">
                     <p className="text-[13px] leading-[1.7] text-white/85">{details.growthPattern}</p>
                   </div>
@@ -774,7 +947,7 @@ export function SajuResultPage({ slug }: { slug: string }) {
 
               {isAuthenticated && details?.successFactors && details.successFactors.length > 0 ? (
                 <section className="px-5 pt-8">
-                  <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.successFactorsHeading}</h2>
+                  <SectionHeading>{copy.successFactorsHeading}</SectionHeading>
                   <div className="space-y-2.5">
                     {details.successFactors.map((factor, i) => (
                       <div key={i} className="rounded-2xl bg-white/[0.04] p-4">
@@ -795,18 +968,13 @@ export function SajuResultPage({ slug }: { slug: string }) {
 
               {isAuthenticated && positions.length > 0 ? (
                 <section className="px-5 pt-8">
-                  <h2 className="mb-3 text-[15px] font-semibold text-white">{copy.positionsHeading}</h2>
+                  <SectionHeading>{copy.positionsHeading}</SectionHeading>
                   <div className="space-y-2.5">
                     {positions.map((position) => {
                       const thumb =
-                        position.thumbnailImages?.[0] ??
-                        position.partnerOrganization?.companyLogoImageData ??
-                        null;
+                        position.thumbnailImages?.[0] ?? position.partnerOrganization?.companyLogoImageData ?? null;
                       return (
-                        <div
-                          key={position.id}
-                          className="flex items-center gap-3 rounded-2xl bg-white/[0.04] px-3 py-3"
-                        >
+                        <div key={position.id} className="flex items-center gap-3 rounded-2xl bg-white/[0.04] px-3 py-3">
                           <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/[0.06]">
                             {thumb ? (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -816,15 +984,9 @@ export function SajuResultPage({ slug }: { slug: string }) {
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="truncate text-[13px] font-medium text-white">
-                              {position.title}
-                            </div>
+                            <div className="truncate text-[13px] font-medium text-white">{position.title}</div>
                             <div className="mt-0.5 truncate text-[11px] text-white/55">
-                              {[
-                                position.partnerOrganization?.name,
-                                position.preferredJobRole,
-                                position.workLocation
-                              ]
+                              {[position.partnerOrganization?.name, position.preferredJobRole, position.workLocation]
                                 .filter(Boolean)
                                 .join(" · ")}
                             </div>
@@ -847,46 +1009,62 @@ export function SajuResultPage({ slug }: { slug: string }) {
                 </section>
               ) : null}
 
+              {/* 이력서 보강 유도 (회원) */}
               {isAuthenticated ? (
-                <section className="mt-8 px-5 pb-12">
-                  <div className="relative mx-auto mb-4 aspect-[3/2] w-[78%] max-w-[360px]">
-                    <Image
-                      src="/img_saju_event_result.webp"
-                      alt=""
-                      fill
-                      sizes="(max-width: 480px) 78vw, 360px"
-                      className="object-contain"
-                    />
+                <section className="px-5 pt-8">
+                  <div className="rounded-2xl border border-lime-300/25 bg-lime-300/[0.06] p-5">
+                    <h3 className="text-[14px] font-semibold text-lime-100">{copy.resumeBoostHeading}</h3>
+                    <p className="mt-1.5 text-[12.5px] leading-relaxed text-white/70">{copy.resumeBoostSub}</p>
+                    <Button
+                      onClick={() => router.push("/resume")}
+                      className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-white/10 text-[13px] font-medium text-white transition active:bg-white/15"
+                    >
+                      {copy.resumeBoostBtn}
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
                   </div>
-                  {isOwner ? (
-                    <Button
-                      onClick={handleShare}
-                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white/[0.04] text-[13px] font-medium text-white transition active:bg-white/[0.07]"
-                    >
-                      <ShareIcon weight="bold" className="h-4 w-4" />
-                      {copyState === "copied" ? copy.linkCopied : copy.shareBtn}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={() => router.push("/events/saju")}
-                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 to-amber-400 text-[14px] font-semibold text-[#1a1340] shadow-[0_8px_24px_-12px_rgba(250,204,21,0.6)] transition active:from-yellow-200 active:to-amber-300"
-                    >
-                      <Sparkle weight="fill" className="h-4 w-4" />
-                      {copy.tryItBtn}
-                    </Button>
-                  )}
-                  {payload.totalPredictions > 0 ? (
-                    <p className="mt-4 text-center text-[14px] text-white/70">
-                      {copy.countUnit}{" "}
-                      <span className="font-bold text-yellow-200">
-                        {payload.totalPredictions.toLocaleString(copy.numberLocale)}
-                      </span>
-                      {copy.countSuffix.startsWith(" ") ? "" : " "}
-                      {copy.countSuffix}
-                    </p>
-                  ) : null}
                 </section>
               ) : null}
+
+              {/* 공유 / 나도 해보기 + 카운트 */}
+              <section className="mt-8 px-5 pb-12">
+                <div className="relative mx-auto mb-4 aspect-[3/2] w-[78%] max-w-[360px]">
+                  <Image
+                    src="/img_saju_event_result.webp"
+                    alt=""
+                    fill
+                    sizes="(max-width: 480px) 78vw, 360px"
+                    className="object-contain"
+                  />
+                </div>
+                {isOwner ? (
+                  <Button
+                    onClick={handleShare}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white/[0.04] text-[13px] font-medium text-white transition active:bg-white/[0.07]"
+                  >
+                    <ShareIcon weight="bold" className="h-4 w-4" />
+                    {copyState === "copied" ? copy.linkCopied : copy.shareBtn}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => router.push("/events/saju")}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 to-amber-400 text-[14px] font-semibold text-[#1a1340] shadow-[0_8px_24px_-12px_rgba(250,204,21,0.6)] transition active:from-yellow-200 active:to-amber-300"
+                  >
+                    <Sparkle weight="fill" className="h-4 w-4" />
+                    {copy.tryItBtn}
+                  </Button>
+                )}
+                {payload.totalPredictions > 0 ? (
+                  <p className="mt-4 text-center text-[14px] text-white/70">
+                    {copy.countUnit}{" "}
+                    <span className="font-bold text-yellow-200">
+                      {payload.totalPredictions.toLocaleString(copy.numberLocale)}
+                    </span>
+                    {copy.countSuffix.startsWith(" ") ? "" : " "}
+                    {copy.countSuffix}
+                  </p>
+                ) : null}
+              </section>
             </>
           )}
         </main>
