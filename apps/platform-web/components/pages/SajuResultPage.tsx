@@ -760,15 +760,6 @@ export function SajuResultPage({ slug }: { slug: string }) {
                 </section>
               ) : null}
 
-              {details?.motto ? (
-                <section className="px-5 pt-8">
-                  <SectionHeading>{copy.mottoHeading}</SectionHeading>
-                  <div className="rounded-2xl bg-gradient-to-br from-yellow-300/15 to-amber-300/[0.06] p-5 text-center">
-                    <p className="text-[15px] font-medium leading-[1.5] text-yellow-100">&ldquo;{details.motto}&rdquo;</p>
-                  </div>
-                </section>
-              ) : null}
-
               {/* ===== 커리어 추천 퍼널 (비회원) ===== */}
               {!isAuthenticated && funnel === "result" && !recommendation ? (
                 <section className="px-5 pt-10">
