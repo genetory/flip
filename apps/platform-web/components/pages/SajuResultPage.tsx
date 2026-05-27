@@ -861,9 +861,6 @@ export function SajuResultPage({ slug }: { slug: string }) {
               {!isAuthenticated && (recommendation || funnel === "result") ? (
                 <section className="px-5 pt-10">
                   <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-center">
-                    <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-300/15">
-                      <Sparkle weight="fill" className="h-6 w-6 text-yellow-200" />
-                    </div>
                     <h2 className="text-[16px] font-bold text-white">{copy.saveHeading}</h2>
                     <p className="mt-2 whitespace-pre-line text-[12.5px] leading-relaxed text-white/65">{copy.saveSub}</p>
                     <div className="mt-5 flex w-full flex-col gap-2">
