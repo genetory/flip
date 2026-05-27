@@ -2348,6 +2348,7 @@ const sajuLeadSchema = z.object({
   hasResume: z.boolean().optional(),
   consentCareer: z.boolean().optional(),
   consentRecommend: z.boolean().optional(),
+  consentContact: z.boolean().optional(),
   locale: z.string().trim().min(2).max(8).optional()
 });
 const memberPositionActionParamSchema = z.object({
@@ -5208,6 +5209,7 @@ app.get("/ops/saju/leads", authenticate, requireRoles([MemberRole.OPERATOR]), as
       tags: lead.tags,
       consentCareer: lead.consentCareer,
       consentRecommend: lead.consentRecommend,
+      consentContact: lead.consentContact,
       userId: lead.userId,
       locale: lead.locale,
       createdAt: lead.createdAt.toISOString(),
@@ -6369,6 +6371,7 @@ app.post(
       tags,
       consentCareer: input.consentCareer ?? false,
       consentRecommend: input.consentRecommend ?? false,
+      consentContact: input.consentContact ?? false,
       locale: input.locale ?? "ko",
       ipHash
     };

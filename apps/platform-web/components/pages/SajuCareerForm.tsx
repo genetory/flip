@@ -36,6 +36,7 @@ type Copy = {
   optional: string;
   consentCareer: string;
   consentRecommend: string;
+  consentContact: string;
   collectNotice: string;
   privacyPolicy: string;
   required: string;
@@ -86,6 +87,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     optional: "(선택)",
     consentCareer: "커리어 추천을 위해 입력 정보 수집에 동의합니다. (필수)",
     consentRecommend: "한국 기업 추천 시 내 정보 제공에 동의합니다. (선택)",
+    consentContact: "결과 안내 및 채용 기회 관련 이메일·메시지 수신에 동의합니다. (선택)",
     collectNotice:
       "수집 항목: 국적·학교·전공·비자·언어·희망 직무·연락처 / 이용 목적: 커리어 추천 및 한국 기업 매칭 / 보유 기간: 회원 미가입 시 수집일로부터 1년 후 파기. 자세한 내용은",
     privacyPolicy: "개인정보처리방침",
@@ -123,6 +125,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     optional: "(optional)",
     consentCareer: "I agree to share this info for career recommendations. (required)",
     consentRecommend: "I agree to share my info when recommended to Korean companies. (optional)",
+    consentContact: "I agree to receive emails/messages about my result and job opportunities. (optional)",
     collectNotice:
       "Collected: nationality, school, major, visa, language, preferred role, contact. Purpose: career recommendations & matching with Korean companies. Retention: deleted 1 year after collection if you don't sign up. See our",
     privacyPolicy: "Privacy Policy",
@@ -160,6 +163,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     optional: "(可选)",
     consentCareer: "我同意为职业推荐收集此信息。(必填)",
     consentRecommend: "我同意在推荐给韩国企业时提供我的信息。(可选)",
+    consentContact: "我同意接收有关结果及招聘机会的邮件·消息。(可选)",
     collectNotice:
       "收集项目：国籍·学校·专业·签证·语言·期望职位·联系方式 / 使用目的：职业推荐及韩国企业匹配 / 保存期限：未注册则自收集之日起 1 年后销毁。详情请见",
     privacyPolicy: "隐私政策",
@@ -197,6 +201,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     optional: "(tùy chọn)",
     consentCareer: "Tôi đồng ý chia sẻ thông tin này để được gợi ý nghề nghiệp. (bắt buộc)",
     consentRecommend: "Tôi đồng ý cung cấp thông tin khi được giới thiệu cho doanh nghiệp Hàn. (tùy chọn)",
+    consentContact: "Tôi đồng ý nhận email/tin nhắn về kết quả và cơ hội việc làm. (tùy chọn)",
     collectNotice:
       "Thu thập: quốc tịch, trường, chuyên ngành, visa, ngôn ngữ, vị trí mong muốn, liên hệ. Mục đích: gợi ý nghề nghiệp & kết nối với doanh nghiệp Hàn. Lưu trữ: xóa sau 1 năm kể từ ngày thu thập nếu không đăng ký. Xem thêm tại",
     privacyPolicy: "Chính sách bảo mật",
@@ -234,6 +239,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     optional: "(任意)",
     consentCareer: "キャリア推薦のため入力情報の収集に同意します。(必須)",
     consentRecommend: "韓国企業への推薦時に情報提供することに同意します。(任意)",
+    consentContact: "結果のご案内や採用機会に関するメール・メッセージの受信に同意します。(任意)",
     collectNotice:
       "収集項目：国籍・学校・専攻・ビザ・言語・希望職種・連絡先 / 利用目的：キャリア推薦および韓国企業とのマッチング / 保有期間：未登録の場合は収集日から1年後に破棄。詳しくは",
     privacyPolicy: "プライバシーポリシー",
@@ -271,6 +277,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     optional: "(opsional)",
     consentCareer: "Saya setuju berbagi info ini untuk rekomendasi karier. (wajib)",
     consentRecommend: "Saya setuju memberikan info saat direkomendasikan ke perusahaan Korea. (opsional)",
+    consentContact: "Saya setuju menerima email/pesan tentang hasil dan peluang kerja. (opsional)",
     collectNotice:
       "Dikumpulkan: kewarganegaraan, sekolah, jurusan, visa, bahasa, peran yang diinginkan, kontak. Tujuan: rekomendasi karier & pencocokan dengan perusahaan Korea. Penyimpanan: dihapus 1 tahun setelah pengumpulan jika tidak mendaftar. Lihat",
     privacyPolicy: "Kebijakan Privasi",
@@ -295,11 +302,11 @@ const fieldClass =
   "h-11 w-full rounded-xl border-0 bg-white/10 px-3 text-sm text-white placeholder-white/40 outline-none transition focus-visible:ring-2 focus-visible:ring-yellow-300/60";
 const selectClass = `${fieldClass} appearance-none pr-9`;
 
-function Label({ children, hint }: { children: React.ReactNode; hint?: string }) {
+function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
     <label className="block text-sm font-medium text-white/90">
       {children}
-      {hint ? <span className="ml-1 text-[11px] text-white/40">{hint}</span> : null}
+      {required ? <span className="ml-0.5 text-red-400">*</span> : null}
     </label>
   );
 }
@@ -345,39 +352,34 @@ export function SajuCareerForm({
   const [hasResume, setHasResume] = useState<boolean | null>(null);
   const [consentCareer, setConsentCareer] = useState(false);
   const [consentRecommend, setConsentRecommend] = useState(false);
+  const [consentContact, setConsentContact] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    if (
-      !nationality.trim() ||
-      !school.trim() ||
-      !major.trim() ||
-      !visaType ||
-      !koreanLevel ||
-      !preferredJobRole ||
-      !workType ||
-      !contact.trim()
-    ) {
+    // Only nationality, preferred role and contact are required now — the
+    // rest enriches the lead but shouldn't block the funnel.
+    if (!nationality.trim() || !preferredJobRole || !contact.trim()) {
       return setError(copy.errRequired);
     }
     if (!consentCareer) return setError(copy.errConsent);
     onSubmit({
       shareSlug,
       nationality: nationality.trim(),
-      school: school.trim(),
-      major: major.trim(),
-      visaType,
-      koreanLevel,
+      school: school.trim() || undefined,
+      major: major.trim() || undefined,
+      visaType: visaType || undefined,
+      koreanLevel: koreanLevel || undefined,
       englishLevel: englishLevel || undefined,
       preferredJobRole,
-      workType,
+      workType: workType || undefined,
       contact: contact.trim(),
       contactType,
       hasResume: hasResume ?? undefined,
       consentCareer,
       consentRecommend,
+      consentContact,
       locale
     });
   }
@@ -390,8 +392,9 @@ export function SajuCareerForm({
       </div>
       <form onSubmit={handleSubmit} className="rounded-3xl bg-white/[0.04] p-5">
         <div className="space-y-4">
+          {/* 필수 항목 */}
           <div className="space-y-2">
-            <Label hint={copy.required}>{copy.nationality}</Label>
+            <Label required>{copy.nationality}</Label>
             <input
               value={nationality}
               onChange={(e) => setNationality(e.target.value)}
@@ -401,91 +404,8 @@ export function SajuCareerForm({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-2">
-              <Label hint={copy.required}>{copy.school}</Label>
-              <input
-                value={school}
-                onChange={(e) => setSchool(e.target.value)}
-                placeholder={copy.schoolPh}
-                maxLength={120}
-                className={fieldClass}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label hint={copy.required}>{copy.major}</Label>
-              <input
-                value={major}
-                onChange={(e) => setMajor(e.target.value)}
-                placeholder={copy.majorPh}
-                maxLength={120}
-                className={fieldClass}
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
-            <Label hint={copy.required}>{copy.visa}</Label>
-            <SelectWrap>
-              <select value={visaType} onChange={(e) => setVisaType(e.target.value)} className={selectClass}>
-                <option value="" disabled>
-                  {copy.select}
-                </option>
-                {VISA_VALUES.map((v) => (
-                  <option key={v.value} value={v.value} className="bg-[#1a1340]">
-                    {v.code} · {v.desc}
-                  </option>
-                ))}
-                <option value="OTHER" className="bg-[#1a1340]">
-                  {copy.visaOther}
-                </option>
-              </select>
-            </SelectWrap>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-2">
-              <Label hint={copy.required}>{copy.korean}</Label>
-              <SelectWrap>
-                <select
-                  value={koreanLevel}
-                  onChange={(e) => setKoreanLevel(e.target.value as SajuLeadKoreanLevel)}
-                  className={selectClass}
-                >
-                  <option value="" disabled>
-                    {copy.select}
-                  </option>
-                  {LEVELS.map((l) => (
-                    <option key={l} value={l} className="bg-[#1a1340]">
-                      {copy.levels[l]}
-                    </option>
-                  ))}
-                </select>
-              </SelectWrap>
-            </div>
-            <div className="space-y-2">
-              <Label hint={copy.optional}>{copy.english}</Label>
-              <SelectWrap>
-                <select
-                  value={englishLevel}
-                  onChange={(e) => setEnglishLevel(e.target.value as SajuLeadKoreanLevel)}
-                  className={selectClass}
-                >
-                  <option value="" className="bg-[#1a1340]">
-                    {copy.select}
-                  </option>
-                  {LEVELS.map((l) => (
-                    <option key={l} value={l} className="bg-[#1a1340]">
-                      {copy.levels[l]}
-                    </option>
-                  ))}
-                </select>
-              </SelectWrap>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label hint={copy.required}>{copy.jobRole}</Label>
+            <Label required>{copy.jobRole}</Label>
             <SelectWrap>
               <select
                 value={preferredJobRole}
@@ -505,25 +425,7 @@ export function SajuCareerForm({
           </div>
 
           <div className="space-y-2">
-            <Label hint={copy.required}>{copy.workType}</Label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {WORKS.map((w) => (
-                <button
-                  key={w}
-                  type="button"
-                  onClick={() => setWorkType(w)}
-                  className={`h-10 rounded-xl text-[12px] font-medium transition ${
-                    workType === w ? "bg-yellow-300/20 text-yellow-100" : "bg-white/10 text-white/70 active:bg-white/15"
-                  }`}
-                >
-                  {copy.works[w]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label hint={copy.required}>{copy.contact}</Label>
+            <Label required>{copy.contact}</Label>
             <div className="grid grid-cols-[110px_1fr] gap-2">
               <SelectWrap>
                 <select
@@ -548,8 +450,106 @@ export function SajuCareerForm({
             </div>
           </div>
 
+          {/* 선택 항목 (입력하면 추천 정확도가 올라가요) */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2">
+              <Label>{copy.school}</Label>
+              <input
+                value={school}
+                onChange={(e) => setSchool(e.target.value)}
+                placeholder={copy.schoolPh}
+                maxLength={120}
+                className={fieldClass}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{copy.major}</Label>
+              <input
+                value={major}
+                onChange={(e) => setMajor(e.target.value)}
+                placeholder={copy.majorPh}
+                maxLength={120}
+                className={fieldClass}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label hint={copy.optional}>{copy.hasResume}</Label>
+            <Label>{copy.visa}</Label>
+            <SelectWrap>
+              <select value={visaType} onChange={(e) => setVisaType(e.target.value)} className={selectClass}>
+                <option value="">{copy.select}</option>
+                {VISA_VALUES.map((v) => (
+                  <option key={v.value} value={v.value} className="bg-[#1a1340]">
+                    {v.code} · {v.desc}
+                  </option>
+                ))}
+                <option value="OTHER" className="bg-[#1a1340]">
+                  {copy.visaOther}
+                </option>
+              </select>
+            </SelectWrap>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2">
+              <Label>{copy.korean}</Label>
+              <SelectWrap>
+                <select
+                  value={koreanLevel}
+                  onChange={(e) => setKoreanLevel(e.target.value as SajuLeadKoreanLevel)}
+                  className={selectClass}
+                >
+                  <option value="">{copy.select}</option>
+                  {LEVELS.map((l) => (
+                    <option key={l} value={l} className="bg-[#1a1340]">
+                      {copy.levels[l]}
+                    </option>
+                  ))}
+                </select>
+              </SelectWrap>
+            </div>
+            <div className="space-y-2">
+              <Label>{copy.english}</Label>
+              <SelectWrap>
+                <select
+                  value={englishLevel}
+                  onChange={(e) => setEnglishLevel(e.target.value as SajuLeadKoreanLevel)}
+                  className={selectClass}
+                >
+                  <option value="" className="bg-[#1a1340]">
+                    {copy.select}
+                  </option>
+                  {LEVELS.map((l) => (
+                    <option key={l} value={l} className="bg-[#1a1340]">
+                      {copy.levels[l]}
+                    </option>
+                  ))}
+                </select>
+              </SelectWrap>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>{copy.workType}</Label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {WORKS.map((w) => (
+                <button
+                  key={w}
+                  type="button"
+                  onClick={() => setWorkType(w)}
+                  className={`h-10 rounded-xl text-[12px] font-medium transition ${
+                    workType === w ? "bg-yellow-300/20 text-yellow-100" : "bg-white/10 text-white/70 active:bg-white/15"
+                  }`}
+                >
+                  {copy.works[w]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>{copy.hasResume}</Label>
             <div className="grid grid-cols-2 gap-2">
               {[
                 { v: true, label: copy.yes },
@@ -589,6 +589,15 @@ export function SajuCareerForm({
                 className="mt-0.5 h-4 w-4 flex-shrink-0 accent-yellow-300"
               />
               <span>{copy.consentRecommend}</span>
+            </label>
+            <label className="flex items-start gap-2.5 text-[12px] leading-relaxed text-white/70">
+              <input
+                type="checkbox"
+                checked={consentContact}
+                onChange={(e) => setConsentContact(e.target.checked)}
+                className="mt-0.5 h-4 w-4 flex-shrink-0 accent-yellow-300"
+              />
+              <span>{copy.consentContact}</span>
             </label>
             <p className="text-[11px] leading-relaxed text-white/40">
               {copy.collectNotice}{" "}
