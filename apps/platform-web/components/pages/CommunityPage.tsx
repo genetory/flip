@@ -150,6 +150,47 @@ function getApiBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 }
 
+type CommunityAuthor = {
+  id: string;
+  name: string;
+  nationality: string | null;
+  role: string;
+  profileImageUrl: string | null;
+  jobRoles: string[];
+  industries: string[];
+  visaType: string | null;
+  residence: string | null;
+  intro: string | null;
+};
+
+const COMMUNITY_JOB_ROLE_LABEL: Record<string, string> = {
+  SOFTWARE_DEVELOPMENT: "개발",
+  FRONTEND_DEVELOPMENT: "프론트엔드",
+  BACKEND_DEVELOPMENT: "백엔드",
+  DATA_ANALYSIS_SCIENCE: "데이터",
+  UI_UX_DESIGN: "UI/UX 디자인",
+  PRODUCT_MANAGER: "PM",
+  MARKETING: "마케팅",
+  SALES: "영업",
+  HR: "HR",
+  FINANCE_ACCOUNTING: "재무·회계",
+  OPERATIONS_PLANNING: "운영·기획",
+  OTHER: "기타"
+};
+
+const COMMUNITY_VISA_LABEL: Record<string, string> = {
+  D2_STUDENT: "D-2 유학",
+  D4_GENERAL_TRAINING: "D-4 연수",
+  D10_JOB_SEEKING: "D-10 구직",
+  E7_SPECIFIC_ACTIVITY: "E-7 전문직",
+  F2_RESIDENCE: "F-2 거주",
+  F4_OVERSEAS_KOREAN: "F-4 재외동포",
+  F5_PERMANENT_RESIDENCE: "F-5 영주",
+  F6_MARRIAGE_IMMIGRATION: "F-6 결혼이민",
+  H1_WORKING_HOLIDAY: "H-1 워홀",
+  OTHER: "기타"
+};
+
 function formatRelativeTime(input: string, locale: "ko" | "en" | "zh-CN" | "vi" | "ja" | "id") {
   const date = new Date(input);
   if (Number.isNaN(date.getTime())) return "";
@@ -404,7 +445,26 @@ export const CommunityPage = () => {
   const [editingPost, setEditingPost] = useState<EditingPostState | null>(null);
   const [isUpdatingPost, setIsUpdatingPost] = useState(false);
   const [profileSquircleStyle, setProfileSquircleStyle] = useState<Record<string, string>>(PROFILE_SQUIRCLE_FALLBACK_STYLE);
+  const [authorOpen, setAuthorOpen] = useState(false);
+  const [authorLoading, setAuthorLoading] = useState(false);
+  const [authorProfile, setAuthorProfile] = useState<CommunityAuthor | null>(null);
   const activeCategoryMeta = categories.find((category) => category.key === activeCategory) ?? categories[0];
+
+  const openAuthor = useCallback(async (userId: string | null | undefined) => {
+    if (!userId) return;
+    setAuthorOpen(true);
+    setAuthorProfile(null);
+    setAuthorLoading(true);
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/community/authors/${encodeURIComponent(userId)}`);
+      const data = (await res.json()) as { ok?: boolean; author?: CommunityAuthor };
+      setAuthorProfile(res.ok && data.author ? data.author : null);
+    } catch {
+      setAuthorProfile(null);
+    } finally {
+      setAuthorLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1095,23 +1155,38 @@ export const CommunityPage = () => {
                     className="bg-white px-3 py-5 md:px-4"
                   >
                     <div className="mb-3 flex items-start gap-3">
-                      {isMyPost && profilePhoto ? (
-                        <div className="relative h-10 w-10 shrink-0 overflow-hidden bg-slate-50" style={profileSquircleStyle}>
-                          <CommunitySquircleStroke />
-                          <img
-                            src={profilePhoto}
-                            alt={t("기업 로고 미리보기", "Company logo preview", "公司Logo预览", "Xem trước logo công ty", "企業ロゴのプレビュー", "Pratinjau logo perusahaan")}
-                            className="absolute inset-0 z-10 block h-full w-full scale-[1.08] object-cover bg-muted/30"
-                          />
-                        </div>
-                      ) : (
-                        <div className="relative grid h-10 w-10 shrink-0 place-items-center bg-slate-100 text-slate-400" style={profileSquircleStyle}>
-                          <CommunitySquircleStroke />
-                          <User className="h-5 w-5" weight="regular" />
-                        </div>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => void openAuthor(post.authorId)}
+                        disabled={!post.authorId}
+                        className="shrink-0 disabled:cursor-default"
+                        aria-label={displayAuthor}
+                      >
+                        {isMyPost && profilePhoto ? (
+                          <div className="relative h-10 w-10 overflow-hidden bg-slate-50" style={profileSquircleStyle}>
+                            <CommunitySquircleStroke />
+                            <img
+                              src={profilePhoto}
+                              alt={t("기업 로고 미리보기", "Company logo preview", "公司Logo预览", "Xem trước logo công ty", "企業ロゴのプレビュー", "Pratinjau logo perusahaan")}
+                              className="absolute inset-0 z-10 block h-full w-full scale-[1.08] object-cover bg-muted/30"
+                            />
+                          </div>
+                        ) : (
+                          <div className="relative grid h-10 w-10 place-items-center bg-slate-100 text-slate-400 transition hover:bg-slate-200" style={profileSquircleStyle}>
+                            <CommunitySquircleStroke />
+                            <User className="h-5 w-5" weight="regular" />
+                          </div>
+                        )}
+                      </button>
                       <div className="min-w-0 flex-1 pt-0.5">
-                        <p className="truncate text-base font-extrabold leading-tight text-[#0B1227]">{displayAuthor}</p>
+                        <button
+                          type="button"
+                          onClick={() => void openAuthor(post.authorId)}
+                          disabled={!post.authorId}
+                          className="block max-w-full truncate text-base font-extrabold leading-tight text-[#0B1227] hover:underline disabled:cursor-default disabled:no-underline"
+                        >
+                          {displayAuthor}
+                        </button>
                         <p className="mt-0.5 text-[11px] leading-tight text-slate-500">{formatRelativeTime(post.createdAt, locale)}</p>
                       </div>
                       <div className="relative ml-auto">
@@ -1461,6 +1536,80 @@ export const CommunityPage = () => {
         attachedImageAlt={t("첨부 이미지", "Attached image", "附件图片", "Hình ảnh đính kèm", "添付画像", "Gambar terlampir")}
         removeImageAriaLabel={t("이미지 삭제", "Remove image", "删除图片", "Xóa hình ảnh", "画像を削除", "Hapus gambar")}
       />
+
+      {authorOpen ? (
+        <div
+          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setAuthorOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {authorLoading ? (
+              <div className="flex justify-center py-10">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
+              </div>
+            ) : !authorProfile ? (
+              <p className="py-10 text-center text-sm text-slate-500">
+                {t("프로필을 불러올 수 없어요.", "Couldn't load profile.", "无法加载资料。", "Không tải được hồ sơ.", "プロフィールを読み込めません。", "Tidak dapat memuat profil.")}
+              </p>
+            ) : (
+              <div>
+                <div className="flex items-center gap-3">
+                  {authorProfile.profileImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={authorProfile.profileImageUrl} alt={authorProfile.name} className="h-14 w-14 rounded-full object-cover" />
+                  ) : (
+                    <div className="grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-slate-400">
+                      <User className="h-7 w-7" weight="regular" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-extrabold text-[#0B1227]">{authorProfile.name}</p>
+                    {authorProfile.nationality ? (
+                      <p className="text-[13px] text-slate-500">{authorProfile.nationality}</p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {authorProfile.visaType ? (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[12px] font-medium text-slate-700">
+                      {COMMUNITY_VISA_LABEL[authorProfile.visaType] ?? authorProfile.visaType}
+                    </span>
+                  ) : null}
+                  {authorProfile.jobRoles.slice(0, 3).map((r) => (
+                    <span key={r} className="rounded-full bg-primary/10 px-2.5 py-1 text-[12px] font-medium text-primary">
+                      {COMMUNITY_JOB_ROLE_LABEL[r] ?? r}
+                    </span>
+                  ))}
+                  {authorProfile.residence ? (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[12px] font-medium text-slate-700">
+                      {authorProfile.residence}
+                    </span>
+                  ) : null}
+                </div>
+
+                {authorProfile.intro ? (
+                  <p className="mt-4 whitespace-pre-wrap text-[14px] leading-relaxed text-slate-700">{authorProfile.intro}</p>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => setAuthorOpen(false)}
+                  className="mt-6 h-11 w-full rounded-xl bg-slate-100 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                >
+                  {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       <Footer />
     </div>
   );

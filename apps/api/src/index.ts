@@ -123,8 +123,8 @@ async function writeAuditLog(
 }
 const port = Number(process.env.API_PORT ?? 4000);
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
-const openaiMatchingModel = process.env.OPENAI_MATCHING_MODEL ?? "gpt-5.4";
-const openaiTranslationModel = process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-5.4-mini";
+const openaiMatchingModel = process.env.OPENAI_MATCHING_MODEL ?? "gpt-4o";
+const openaiTranslationModel = process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-4o-mini";
 const openaiMatchingMaxPool = Number(process.env.OPENAI_MATCHING_MAX_POOL ?? 120);
 const openaiMatchingPrefilterMultiplier = Math.max(1, Number(process.env.OPENAI_MATCHING_PREFILTER_MULTIPLIER ?? 4));
 const openaiMatchingMinCompletionPercent = Math.max(0, Math.min(100, Number(process.env.OPENAI_MATCHING_MIN_COMPLETION_PERCENT ?? 45)));
@@ -1413,6 +1413,7 @@ const apiDocEndpoints: ApiDocEndpoint[] = [
   { method: "get", path: "/positions", summary: "Public positions list", tag: "Positions" },
   { method: "post", path: "/company-consultations", summary: "Create company consultation inquiry", tag: "Company Consultation", requestBody: true, successStatus: "201" },
   { method: "get", path: "/community/posts", summary: "Public community posts list", tag: "Community" },
+  { method: "get", path: "/community/authors/:userId", summary: "Public community author profile", tag: "Community" },
   { method: "post", path: "/community/posts", summary: "Create community post", tag: "Community", secure: true, requestBody: true, successStatus: "201" },
   { method: "patch", path: "/community/posts/:postId", summary: "Update my community post", tag: "Community", secure: true, requestBody: true },
   { method: "delete", path: "/community/posts/:postId", summary: "Delete my community post", tag: "Community", secure: true },
@@ -5228,6 +5229,54 @@ app.get("/positions/meta", async (_req, res) => {
       )
     )
   });
+});
+
+// Minimal public profile of a community author for the click-to-view popup.
+// Exposes only safe, non-contact fields.
+app.get("/community/authors/:userId", async (req, res) => {
+  const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  if (!userId) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        realName: true,
+        nationality: true,
+        role: true,
+        profileImageUrl: true,
+        candidateProfile: {
+          select: {
+            preferredJobRoles: true,
+            preferredIndustries: true,
+            selfIntroduction: true,
+            visaType: true,
+            residenceProvince: true
+          }
+        }
+      }
+    });
+    if (!user) return res.status(404).json({ ok: false, message: "not found" });
+    const cp = user.candidateProfile;
+    return res.json({
+      ok: true,
+      author: {
+        id: user.id,
+        name: user.name ?? user.realName ?? "",
+        nationality: user.nationality ?? null,
+        role: user.role,
+        profileImageUrl: user.profileImageUrl ?? null,
+        jobRoles: cp?.preferredJobRoles ?? [],
+        industries: cp?.preferredIndustries ?? [],
+        visaType: cp?.visaType ?? null,
+        residence: cp?.residenceProvince ?? null,
+        intro: cp?.selfIntroduction ? cp.selfIntroduction.slice(0, 200) : null
+      }
+    });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load author" });
+  }
 });
 
 app.get("/community/posts", async (req, res) => {
