@@ -92,6 +92,25 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// Build a one-tap follow-up link for the operator based on the channel the
+// candidate gave. KakaoTalk has no reliable web deep-link, so it falls back
+// to copy-only.
+function contactHref(contactType: string | null, contact: string): string | null {
+  const raw = contact.trim();
+  switch (contactType) {
+    case "EMAIL":
+      return `mailto:${raw}`;
+    case "PHONE":
+      return `tel:${raw.replace(/[^+\d]/g, "")}`;
+    case "WHATSAPP":
+      return `https://wa.me/${raw.replace(/\D/g, "")}`;
+    case "KAKAO":
+      return null;
+    default:
+      return raw.includes("@") ? `mailto:${raw}` : null;
+  }
+}
+
 export default function SajuLeadsPage() {
   const [data, setData] = useState<LeadsPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,6 +119,14 @@ export default function SajuLeadsPage() {
   const [recommendStatus, setRecommendStatus] = useState("");
   const [q, setQ] = useState("");
   const [appliedQ, setAppliedQ] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  function copyContact(id: string, value: string) {
+    void navigator.clipboard?.writeText(value).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1500);
+    });
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -222,7 +249,42 @@ export default function SajuLeadsPage() {
                   <td>{lead.preferredJobRole ? translateRole(lead.preferredJobRole, "ko") : "-"}</td>
                   <td>{lead.workType ? WORK_LABEL[lead.workType] ?? lead.workType : "-"}</td>
                   <td className="ops-row-sub">
-                    {lead.contact ? `${lead.contactType ? `[${lead.contactType}] ` : ""}${lead.contact}` : "-"}
+                    {lead.contact ? (
+                      (() => {
+                        const href = contactHref(lead.contactType, lead.contact);
+                        const prefix = lead.contactType ? `[${lead.contactType}] ` : "";
+                        return (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            {href ? (
+                              <a
+                                href={href}
+                                target={lead.contactType === "WHATSAPP" ? "_blank" : undefined}
+                                rel="noopener noreferrer"
+                                style={{ color: "#1d4ed8" }}
+                              >
+                                {prefix}
+                                {lead.contact}
+                              </a>
+                            ) : (
+                              <span>
+                                {prefix}
+                                {lead.contact}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              className="ops-btn"
+                              style={{ padding: "1px 6px", fontSize: 11 }}
+                              onClick={() => copyContact(lead.id, lead.contact!)}
+                            >
+                              {copiedId === lead.id ? "복사됨" : "복사"}
+                            </button>
+                          </span>
+                        );
+                      })()
+                    ) : (
+                      "-"
+                    )}
                   </td>
                   <td>{lead.hasResume === true ? "O" : lead.hasResume === false ? "X" : "-"}</td>
                   <td className="ops-row-sub" style={{ fontSize: 11 }}>
