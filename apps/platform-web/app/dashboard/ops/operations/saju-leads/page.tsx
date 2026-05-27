@@ -26,6 +26,7 @@ type Lead = {
   tags: string[];
   consentCareer: boolean;
   consentRecommend: boolean;
+  consentContact: boolean;
   userId: string | null;
   locale: string;
   createdAt: string;
@@ -232,6 +233,7 @@ export default function SajuLeadsPage() {
                 <th>이력서</th>
                 <th>보완</th>
                 <th>추천 상태</th>
+                <th>연락동의</th>
                 <th>가입</th>
                 <th>등록일</th>
               </tr>
@@ -299,6 +301,13 @@ export default function SajuLeadsPage() {
                       </span>
                     ) : (
                       "-"
+                    )}
+                  </td>
+                  <td>
+                    {lead.consentContact ? (
+                      <span className="ops-pill ops-pill-blue">동의</span>
+                    ) : (
+                      <span className="ops-row-sub">-</span>
                     )}
                   </td>
                   <td>{lead.userId ? "✓" : "-"}</td>

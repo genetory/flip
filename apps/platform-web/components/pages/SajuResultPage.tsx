@@ -9,6 +9,7 @@ import {
   ArrowRight,
   CheckCircle,
   Export as ShareIcon,
+  LockSimple,
   MoonStars,
   Sparkle,
   Star,
@@ -67,6 +68,7 @@ type Copy = {
   // funnel
   ctaCheckFit: string;
   ctaCheckFitSub: string;
+  unlockTitle: string;
   recHeading: string;
   recRolesHeading: string;
   recImprovementsHeading: string;
@@ -123,7 +125,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     waterLabel: "수(水)",
     morePositionsBtn: "내 사주에 맞는 공고 더 보기",
     ctaCheckFit: "정보 입력하고 전체 결과 보기",
-    ctaCheckFitSub: "여기까지는 맛보기예요!\n국적·전공·비자·언어만 입력하면 강점·추천 직무·업무 환경 등 전체 결과와 한국 취업 추천 가능성까지 확인할 수 있어요.",
+    ctaCheckFitSub: "국적·전공·비자·언어만 입력하면 1분 만에, 가입 없이 바로 확인할 수 있어요.",
+    unlockTitle: "입력하면 이 결과들이 열려요",
     recHeading: "내 이력 기반 추천 가능성",
     recRolesHeading: "추천 가능 직무",
     recImprovementsHeading: "보완하면 좋은 점",
@@ -189,7 +192,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     waterLabel: "Water",
     morePositionsBtn: "See more matching jobs",
     ctaCheckFit: "Enter your info to see the full result",
-    ctaCheckFitSub: "That's just the teaser!\nEnter your nationality, major, visa & language to unlock your strengths, recommended roles, work style and your fit for Korean jobs.",
+    ctaCheckFitSub: "Just your nationality, major, visa & language — takes a minute, no signup needed.",
+    unlockTitle: "Enter your info to unlock:",
     recHeading: "Your fit based on your background",
     recRolesHeading: "Recommendable roles",
     recImprovementsHeading: "What to improve",
@@ -255,7 +259,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     waterLabel: "水",
     morePositionsBtn: "查看更多匹配岗位",
     ctaCheckFit: "输入信息查看完整结果",
-    ctaCheckFitSub: "这只是试看！\n输入国籍·专业·签证·语言，即可解锁优势·推荐职位·工作风格等完整结果及韩国就业推荐可能性。",
+    ctaCheckFitSub: "只需国籍·专业·签证·语言，1分钟即可完成，无需注册。",
+    unlockTitle: "输入信息即可解锁：",
     recHeading: "基于背景的推荐可能性",
     recRolesHeading: "可推荐职位",
     recImprovementsHeading: "值得改善的点",
@@ -321,7 +326,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     waterLabel: "Thủy",
     morePositionsBtn: "Xem thêm việc làm phù hợp",
     ctaCheckFit: "Nhập thông tin để xem kết quả đầy đủ",
-    ctaCheckFitSub: "Đây chỉ là bản xem thử!\nNhập quốc tịch, chuyên ngành, visa & ngôn ngữ để mở khóa điểm mạnh, vị trí gợi ý, phong cách làm việc và khả năng việc làm tại Hàn.",
+    ctaCheckFitSub: "Chỉ cần quốc tịch, chuyên ngành, visa & ngôn ngữ — mất 1 phút, không cần đăng ký.",
+    unlockTitle: "Nhập thông tin để mở khóa:",
     recHeading: "Khả năng giới thiệu dựa trên hồ sơ",
     recRolesHeading: "Vị trí có thể giới thiệu",
     recImprovementsHeading: "Điều nên cải thiện",
@@ -387,7 +393,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     waterLabel: "水",
     morePositionsBtn: "私に合う求人をもっと見る",
     ctaCheckFit: "情報を入力して全結果を見る",
-    ctaCheckFitSub: "ここまではお試しです！\n国籍・専攻・ビザ・言語を入力すると、強み・おすすめ職種・仕事環境など全結果と韓国就職の推薦可能性まで確認できます。",
+    ctaCheckFitSub: "国籍・専攻・ビザ・言語だけ。1分で完了、登録不要です。",
+    unlockTitle: "入力するとこの結果が開きます",
     recHeading: "経歴に基づく推薦可能性",
     recRolesHeading: "推薦可能な職種",
     recImprovementsHeading: "補うと良い点",
@@ -453,7 +460,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     waterLabel: "Air",
     morePositionsBtn: "Lihat lebih banyak lowongan yang cocok",
     ctaCheckFit: "Isi info untuk lihat hasil lengkap",
-    ctaCheckFitSub: "Ini baru cuplikan!\nMasukkan kewarganegaraan, jurusan, visa & bahasa untuk membuka kekuatan, peran rekomendasi, gaya kerja, dan peluang kerja di Korea.",
+    ctaCheckFitSub: "Cukup kewarganegaraan, jurusan, visa & bahasa — 1 menit, tanpa daftar.",
+    unlockTitle: "Isi info untuk membuka:",
     recHeading: "Peluang rekomendasi berdasarkan latar belakang",
     recRolesHeading: "Peran yang bisa direkomendasikan",
     recImprovementsHeading: "Yang perlu ditingkatkan",
@@ -767,11 +775,25 @@ export function SajuResultPage({ slug }: { slug: string }) {
               {/* ===== 커리어 추천 퍼널 (비회원) ===== */}
               {!isAuthenticated && funnel === "result" && !recommendation ? (
                 <section className="px-5 pt-10">
-                  <div className="rounded-3xl border border-yellow-300/25 bg-white/[0.04] p-6 text-center">
-                    <p className="whitespace-pre-line text-[13px] leading-relaxed text-white/75">{copy.ctaCheckFitSub}</p>
+                  <div className="rounded-3xl border border-yellow-300/25 bg-white/[0.04] p-6">
+                    <div className="mb-3 text-center text-[15px] font-bold text-yellow-100">{copy.unlockTitle}</div>
+                    <ul className="space-y-2">
+                      {[copy.strengthsHeading, copy.roleCategoriesHeading, copy.workEnvHeading, copy.recHeading].map(
+                        (item) => (
+                          <li
+                            key={item}
+                            className="flex items-center gap-2.5 rounded-xl bg-white/[0.04] px-3.5 py-2.5 text-[13px] text-white/55"
+                          >
+                            <LockSimple weight="fill" className="h-4 w-4 flex-shrink-0 text-yellow-200/70" />
+                            <span>{item}</span>
+                          </li>
+                        )
+                      )}
+                    </ul>
+                    <p className="mt-4 text-center text-[12px] leading-relaxed text-white/55">{copy.ctaCheckFitSub}</p>
                     <Button
                       onClick={() => setFunnel("form")}
-                      className="mt-5 flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 to-amber-400 py-3.5 text-[15px] font-semibold text-[#1a1340] shadow-[0_8px_24px_-12px_rgba(250,204,21,0.6)] transition active:from-yellow-200 active:to-amber-300"
+                      className="mt-4 flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 to-amber-400 py-3.5 text-[15px] font-semibold text-[#1a1340] shadow-[0_8px_24px_-12px_rgba(250,204,21,0.6)] transition active:from-yellow-200 active:to-amber-300"
                     >
                       {copy.ctaCheckFit}
                       <ArrowRight weight="bold" className="h-4 w-4" />

@@ -1224,6 +1224,9 @@ model SajuLead {
   // referral) per the privacy design.
   consentCareer    Boolean         @default(false)
   consentRecommend Boolean         @default(false)
+  // Opt-in to be contacted later (email / messenger) and to have the info
+  // used for follow-up. Required before any outreach from the ops Pool.
+  consentContact   Boolean         @default(false)
   userId           String?
   locale           String          @default("ko")
   ipHash           String?

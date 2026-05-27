@@ -157,6 +157,7 @@ export type SajuLeadRequest = {
   hasResume?: boolean;
   consentCareer?: boolean;
   consentRecommend?: boolean;
+  consentContact?: boolean;
   locale?: string;
 };
 
