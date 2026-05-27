@@ -14,90 +14,74 @@ import bcrypt from "bcryptjs";
 // language. Used by the ops "generate community content" tool to populate the
 // board with believable foreign-student posts/comments.
 
-type PostTemplate = { category: "FREE" | "CAREER" | "HELP"; title: string; body: string };
+type PostTemplate = { category: "FREE" | "CAREER" | "HELP"; title: string; body: string; comments: string[] };
 
 const POSTS_BY_NATIONALITY: Record<string, PostTemplate[]> = {
   Vietnam: [
-    { category: "FREE", title: "Cơm trưa ở căng tin trường", body: "Hôm nay ăn kimbap với tteokbokki, ngon mà cay xé lưỡi 😂 Mọi người hay ăn gì ở trường?" },
-    { category: "FREE", title: "Mùa đông Hàn lạnh thật", body: "Lần đầu thấy tuyết nhiều thế này, vừa vui vừa run 🥶 Mách mình chỗ mua áo ấm giá sinh viên với!" },
-    { category: "HELP", title: "Mở tài khoản ngân hàng ở đâu dễ?", body: "Sinh viên mới qua nên hơi rối, ngân hàng nào làm thẻ cho người nước ngoài dễ nhất ạ? 🙏" }
+    { category: "FREE", title: "Cơm trưa ở căng tin trường", body: "Hôm nay ăn kimbap với tteokbokki, ngon mà cay xé lưỡi 😂 Mọi người hay ăn gì ở trường?", comments: ["Căng tin trường nào vậy bạn? 😋", "Mình toàn ăn quán cơm gần cổng sau, rẻ mà ngon", "Cay vậy mà vẫn ăn được, phục bạn 😂"] },
+    { category: "FREE", title: "Mùa đông Hàn lạnh thật", body: "Lần đầu thấy tuyết nhiều thế này, vừa vui vừa run 🥶 Mách mình chỗ mua áo ấm giá sinh viên với!", comments: ["Ra Dongdaemun mua áo phao rẻ lắm nha", "Uniqlo lúc sale cũng ok đó bạn", "Lạnh thật, nhớ giữ ấm nhé 🧣"] },
+    { category: "HELP", title: "Mở tài khoản ngân hàng ở đâu dễ?", body: "Sinh viên mới qua nên hơi rối, ngân hàng nào làm thẻ cho người nước ngoài dễ nhất ạ? 🙏", comments: ["Mình mở ở Woori, có hỗ trợ tiếng Anh", "Mang thẻ ngoại kiều với hộ chiếu là được nha", "KB cũng dễ làm cho sinh viên đó"] }
   ],
   China: [
-    { category: "FREE", title: "周末去汉江骑车太爽了", body: "天气一好就想去汉江骑车野餐，超chill～有没有一起的同学约一下？" },
-    { category: "FREE", title: "靠追剧学韩语真有用", body: "边看剧边记台词，口语进步不少哈哈。有什么下饭剧推荐吗？" },
-    { category: "HELP", title: "外国人手机卡推荐", body: "刚来想办便宜点的手机卡，有适合学生的推荐吗？" }
+    { category: "FREE", title: "周末去汉江骑车太爽了", body: "天气一好就想去汉江骑车野餐，超chill～有没有一起的同学约一下？", comments: ["几点去呀？我也想加入 🚴", "周末天气好的话约起！", "野餐记得带个垫子哈哈"] },
+    { category: "FREE", title: "靠追剧学韩语真有用", body: "边看剧边记台词，口语进步不少哈哈。有什么下饭剧推荐吗？", comments: ["跟读台词真的有用！", "求剧单 👀", "我最近也在这么学，赞同"] },
+    { category: "HELP", title: "外国人手机卡推荐", body: "刚来想办便宜点的手机卡，有适合学生的推荐吗？", comments: ["我用的알뜰폰，便宜", "KT학생요금제还行", "刚来先办预付卡也可以"] }
   ],
   Japan: [
-    { category: "FREE", title: "ソウルのカフェ巡りにハマってる", body: "勉強しながらカフェ巡りが最近の楽しみ☕ おすすめあったら教えて！" },
-    { category: "FREE", title: "自炊はじめました", body: "キムチチゲ作ったら意外と簡単だった！簡単レシピ共有しませんか？" },
-    { category: "FREE", title: "韓国の紅葉きれい", body: "キャンパスの紅葉が最高でした🍁 みんなどこかおすすめの紅葉スポットある？" }
+    { category: "FREE", title: "ソウルのカフェ巡りにハマってる", body: "勉強しながらカフェ巡りが最近の楽しみ☕ おすすめあったら教えて！", comments: ["どのエリアですか？☕", "聖水のカフェおすすめです！", "私も今度行きたい〜"] },
+    { category: "FREE", title: "自炊はじめました", body: "キムチチゲ作ったら意外と簡単だった！簡単レシピ共有しませんか？", comments: ["レシピ知りたいです🙏", "豚肉入れると美味しいよ", "意外と簡単ですよね、私も作った！"] },
+    { category: "FREE", title: "韓国の紅葉きれい", body: "キャンパスの紅葉が最高でした🍁 みんなどこかおすすめの紅葉スポットある？", comments: ["どのキャンパスですか？🍁", "南山の紅葉も最高でした", "写真見たい〜！"] }
   ],
   Indonesia: [
-    { category: "HELP", title: "Rekomendasi provider HP buat mahasiswa?", body: "Baru sampai, bingung pilih SIM murah. Ada saran buat anak kampus? 🙏" },
-    { category: "FREE", title: "Nemu makanan halal deket kampus", body: "Akhirnya ketemu resto halal deket kampus 😭 Ada yang tau tempat enak lain?" },
-    { category: "FREE", title: "Kangen rumah pas ujian", body: "Lagi musim ujian, kangen masakan rumah 😂 Semangat ya semuanya!" }
+    { category: "HELP", title: "Rekomendasi provider HP buat mahasiswa?", body: "Baru sampai, bingung pilih SIM murah. Ada saran buat anak kampus? 🙏", comments: ["Aku pakai 알뜰폰, murah banget", "KT ada paket pelajar lho", "Cek Hi-Mart, suka ada promo"] },
+    { category: "FREE", title: "Nemu makanan halal deket kampus", body: "Akhirnya ketemu resto halal deket kampus 😭 Ada yang tau tempat enak lain?", comments: ["Di mana kak? Pengen coba 😋", "Itaewon banyak yang halal", "Deket Hongdae juga ada kalau gak salah"] },
+    { category: "FREE", title: "Kangen rumah pas ujian", body: "Lagi musim ujian, kangen masakan rumah 😂 Semangat ya semuanya!", comments: ["Sama bgt 😭 semangat ya!", "Masak makanan rumah biar gak homesick", "Ujian sampai kapan? Semangat!"] }
   ],
   India: [
-    { category: "FREE", title: "कैंपस फेस्टिवल मज़ेदार था", body: "आज कॉलेज फेस्ट की परफॉर्मेंस देखी, माहौल ज़बरदस्त था! 🎉 आप गए थे क्या?" },
-    { category: "CAREER", title: "स्टूडेंट क्लब join करूँ?", body: "नेटवर्किंग के लिए कोई अच्छा क्लब या स्टार्टअप कम्युनिटी है? रिकमेंड करें plz" },
-    { category: "FREE", title: "कोरियन खाना spicy है", body: "यहाँ का खाना मसालेदार है पर मज़ा आता है 😋 कोई veg friendly जगह पता है?" }
+    { category: "FREE", title: "कैंपस फेस्टिवल मज़ेदार था", body: "आज कॉलेज फेस्ट की परफॉर्मेंस देखी, माहौल ज़बरदस्त था! 🎉 आप गए थे क्या?", comments: ["कौन से कॉलेज में? 🎉", "हाँ गया था, मज़ा आया!", "अगली बार साथ चलते हैं"] },
+    { category: "CAREER", title: "स्टूडेंट क्लब join करूँ?", body: "नेटवर्किंग के लिए कोई अच्छा क्लब या स्टार्टअप कम्युनिटी है? रिकमेंड करें plz", comments: ["GDSC अच्छा है, join करो", "स्टार्टअप मीटअप्स Meetup app पे मिलते हैं", "कौन सा फील्ड? उसी हिसाब से बताऊँ"] },
+    { category: "FREE", title: "कोरियन खाना spicy है", body: "यहाँ का खाना मसालेदार है पर मज़ा आता है 😋 कोई veg friendly जगह पता है?", comments: ["김밥 try करो, कम मसालेदार 😋", "비빔밥 भी ठीक रहता है", "धीरे धीरे आदत हो जाती है haha"] }
   ],
   Philippines: [
-    { category: "FREE", title: "Ang lamig pero ang saya", body: "Miss ko na pamilya ko pero masaya naman dito 😊 Sino gustong mag-meetup ng Pinoy students?" },
-    { category: "HELP", title: "May part-time tips ba kayo?", body: "Naghahanap ng part-time na bagay sa schedule ng klase. May suggestions? " },
-    { category: "FREE", title: "First snow experience!", body: "First time kong makakita ng snow, ang ganda! ❄️ Excited na ako sa winter break." }
+    { category: "FREE", title: "Ang lamig pero ang saya", body: "Miss ko na pamilya ko pero masaya naman dito 😊 Sino gustong mag-meetup ng Pinoy students?", comments: ["Same! Taga-saang school ka? 😊", "Meetup tayo minsan!", "Welcome sa Korea, kabayan! 🇵🇭"] },
+    { category: "HELP", title: "May part-time tips ba kayo?", body: "Naghahanap ng part-time na bagay sa schedule ng klase. May suggestions? ", comments: ["Cafe jobs okay sa students", "Check mo yung campus job board", "Kailangan ba ng Korean? Curious lang"] },
+    { category: "FREE", title: "First snow experience!", body: "First time kong makakita ng snow, ang ganda! ❄️ Excited na ako sa winter break.", comments: ["Ang sarap ng feeling no? ❄️", "Ingat sa lamig haha", "Photo dump please! 📸"] }
   ],
   Thailand: [
-    { category: "FREE", title: "ไปเที่ยวเกาะนามิมา", body: "วันหยุดไปเกาะนามิ ใบไม้เปลี่ยนสีสวยมากกก 🍁 ใครอยากไปด้วยทักมาน้า" },
-    { category: "FREE", title: "นั่งคาเฟ่อ่านหนังสือทั้งวัน", body: "ช่วงสอบนั่งคาเฟ่ยาวเลย ใครมีคาเฟ่เงียบ ๆ แนะนำหน่อยน้า" },
-    { category: "FREE", title: "คิดถึงอาหารไทย", body: "อยากกินส้มตำมากกก 😭 แถวมหาลัยมีร้านอาหารไทยอร่อย ๆ มั้ยคะ" }
+    { category: "FREE", title: "ไปเที่ยวเกาะนามิมา", body: "วันหยุดไปเกาะนามิ ใบไม้เปลี่ยนสีสวยมากกก 🍁 ใครอยากไปด้วยทักมาน้า", comments: ["ไปวันไหนคะ อยากไปบ้าง 🍁", "สวยมากกก รูปเพิ่มได้ปะ", "นั่งรถไฟไปง่ายไหมคะ?"] },
+    { category: "FREE", title: "นั่งคาเฟ่อ่านหนังสือทั้งวัน", body: "ช่วงสอบนั่งคาเฟ่ยาวเลย ใครมีคาเฟ่เงียบ ๆ แนะนำหน่อยน้า", comments: ["แถวไหนคะ แนะนำหน่อย", "ฮงแดมีคาเฟ่นั่งยาวได้", "สอบใกล้แล้ว สู้ๆ นะ!"] },
+    { category: "FREE", title: "คิดถึงอาหารไทย", body: "อยากกินส้มตำมากกก 😭 แถวมหาลัยมีร้านอาหารไทยอร่อย ๆ มั้ยคะ", comments: ["ร้านแถวกอนเดมีค่ะ 😋", "ส้มตำที่ฮงแดอร่อยนะ", "เข้าใจเลย คิดถึงเหมือนกัน 😭"] }
   ],
   Uzbekistan: [
-    { category: "FREE", title: "Koreyada osh pishirdim", body: "Bugun osh pishirdim, koreys do'stlarga ham yoqdi 😄 Sizlar milliy taom pishirasizmi?" },
-    { category: "FREE", title: "Qish juda sovuq ekan", body: "Koreyada qish ancha sovuq ekan 🥶 Issiq kiyim qayerdan arzon olsa bo'ladi?" },
-    { category: "HELP", title: "Talabalar uchun maslahat", body: "Yangi kelganman, chegirmali transport karta qanday olinadi? Rahmat!" }
+    { category: "FREE", title: "Koreyada osh pishirdim", body: "Bugun osh pishirdim, koreys do'stlarga ham yoqdi 😄 Sizlar milliy taom pishirasizmi?", comments: ["Zo'r! Retsept bering 😄", "Men ham oshni sog'indim", "Keyingi safar birga pishiramizmi?"] },
+    { category: "FREE", title: "Qish juda sovuq ekan", body: "Koreyada qish ancha sovuq ekan 🥶 Issiq kiyim qayerdan arzon olsa bo'ladi?", comments: ["Dongdaemundan arzon olsa bo'ladi", "Issiq ichki kiyim ham oling", "Ha, juda sovuq, ehtiyot bo'ling 🧣"] },
+    { category: "HELP", title: "Talabalar uchun maslahat", body: "Yangi kelganman, chegirmali transport karta qanday olinadi? Rahmat!", comments: ["T-money kartani metroda olasiz", "Student karta ham bor", "Konbinidan ham olsa bo'ladi"] }
   ],
   Mongolia: [
-    { category: "FREE", title: "Солонгосын намар гоё", body: "Навчис унаж байгааг хараад гэрээ саналаа 🍂 Хамт зугаалах хүн байна уу?" },
-    { category: "FREE", title: "Шалгалтын улирал хэцүү", body: "Шалгалт ойртоход номын санд хоног хоносон 😂 Бүгд амжилт хүсье!" },
-    { category: "FREE", title: "Солонгос хоол амттай", body: "Самгёпсаль үнэхээр амттай юм аа 😋 Хямд газар мэдэх хүн байна уу?" }
+    { category: "FREE", title: "Солонгосын намар гоё", body: "Навчис унаж байгааг хараад гэрээ саналаа 🍂 Хамт зугаалах хүн байна уу?", comments: ["Аль кампус бэ? 🍂", "Намайг ч дагуул!", "Зураг оруулаач 📸"] },
+    { category: "FREE", title: "Шалгалтын улирал хэцүү", body: "Шалгалт ойртоход номын санд хоног хоносон 😂 Бүгд амжилт хүсье!", comments: ["Амжилт хүсье! 💪", "Номын санд суудаг уу?", "Би ч мөн адил, хамт хичээллэх үү?"] },
+    { category: "FREE", title: "Солонгос хоол амттай", body: "Самгёпсаль үнэхээр амттай юм аа 😋 Хямд газар мэдэх хүн байна уу?", comments: ["Хямд газар хаана байдаг вэ?", "Самгёпсаль үнэхээр амттай 😋", "Хамт идэх үү?"] }
   ],
   Nepal: [
-    { category: "FREE", title: "नयाँ साथीहरू बनाउँदै", body: "कोरियामा नयाँ साथी बनाउन रमाइलो छ। भाषा सिक्दै छु, गाह्रो भए पनि मज्जा 😅" },
-    { category: "FREE", title: "जाडो धेरै छ", body: "यहाँको जाडो साह्रै चिसो रहेछ 🥶 न्यानो ज्याकेट कहाँ सस्तो पाइन्छ?" },
-    { category: "HELP", title: "विद्यार्थीलाई सुझाव", body: "नयाँ आएको, मोबाइल सिम कसरी सस्तोमा लिने? सुझाव दिनुहोस् न।" }
+    { category: "FREE", title: "नयाँ साथीहरू बनाउँदै", body: "कोरियामा नयाँ साथी बनाउन रमाइलो छ। भाषा सिक्दै छु, गाह्रो भए पनि मज्जा 😅", comments: ["कुन स्कूलमा? 😊", "मिलेर भेटौं न कुनै दिन", "स्वागत छ कोरियामा!"] },
+    { category: "FREE", title: "जाडो धेरै छ", body: "यहाँको जाडो साह्रै चिसो रहेछ 🥶 न्यानो ज्याकेट कहाँ सस्तो पाइन्छ?", comments: ["Dongdaemun मा सस्तो पाइन्छ", "न्यानो भित्री कपडा पनि लगाउनु", "साँच्चै चिसो छ, ख्याल गर्नु 🧣"] },
+    { category: "HELP", title: "विद्यार्थीलाई सुझाव", body: "नयाँ आएको, मोबाइल सिम कसरी सस्तोमा लिने? सुझाव दिनुहोस् न।", comments: ["알뜰폰 सस्तो हुन्छ", "T-money कार्ड मेट्रोमा पाइन्छ", "कुनै सोध्न मन भए message गर्नु"] }
   ],
   France: [
-    { category: "FREE", title: "La vie étudiante à Séoul", body: "Les cafés ouverts tard pour réviser, génial ! Des coins sympas à conseiller ?" },
-    { category: "FREE", title: "Première neige à Séoul", body: "Première grosse neige, c'était magnifique ❄️ Vous faites quoi cet hiver ?" },
-    { category: "FREE", title: "La cuisine coréenne 😍", body: "Accro au tteokbokki et au BBQ coréen 😂 Un resto à recommander près du campus ?" }
+    { category: "FREE", title: "La vie étudiante à Séoul", body: "Les cafés ouverts tard pour réviser, génial ! Des coins sympas à conseiller ?", comments: ["Quels quartiers tu conseilles ?", "Les cafés de Yeonnam sont top !", "Hongdae aussi pour réviser tard"] },
+    { category: "FREE", title: "Première neige à Séoul", body: "Première grosse neige, c'était magnifique ❄️ Vous faites quoi cet hiver ?", comments: ["Trop beau hein ❄️", "Couvre-toi bien haha", "Des photos ? 📸"] },
+    { category: "FREE", title: "La cuisine coréenne 😍", body: "Accro au tteokbokki et au BBQ coréen 😂 Un resto à recommander près du campus ?", comments: ["Près de quel campus ?", "Le BBQ à Konkuk est super", "Team tteokbokki aussi 😂"] }
   ],
   Germany: [
-    { category: "HELP", title: "Tipps für die Ausländerregistrierung?", body: "Hat jemand Tipps für den Termin beim Immigration Office? Welche Dokumente genau? Danke!" },
-    { category: "FREE", title: "Cafés zum Lernen in Seoul", body: "Suche ruhige Cafés zum Lernen. Habt ihr Empfehlungen? ☕" },
-    { category: "FREE", title: "Koreanisches Essen ist top", body: "Bin süchtig nach koreanischem BBQ 😂 Jemand Lust am Wochenende?" }
+    { category: "HELP", title: "Tipps für die Ausländerregistrierung?", body: "Hat jemand Tipps für den Termin beim Immigration Office? Welche Dokumente genau? Danke!", comments: ["Reisepass + Foto + Antrag mitnehmen", "Termin vorab online buchen (HiKorea)", "Bei mir hat's ~2 Wochen gedauert"] },
+    { category: "FREE", title: "Cafés zum Lernen in Seoul", body: "Suche ruhige Cafés zum Lernen. Habt ihr Empfehlungen? ☕", comments: ["Welche Gegend? ☕", "Seongsu hat ruhige Cafés", "Ich komm mit lernen haha"] },
+    { category: "FREE", title: "Koreanisches Essen ist top", body: "Bin süchtig nach koreanischem BBQ 😂 Jemand Lust am Wochenende?", comments: ["Am Wochenende? Bin dabei!", "BBQ in Hongdae ist top", "Tteokbokki-Team hier 😂"] }
   ],
   Brazil: [
-    { category: "FREE", title: "Apaixonado pela comida coreana", body: "Viciado em churrasco coreano e noraebang 🎤😂 Alguém pra um rolê no fim de semana?" },
-    { category: "FREE", title: "Primeira neve!", body: "Primeira vez que vejo neve de verdade, que lindo ❄️ Animado pro inverno!" },
-    { category: "FREE", title: "Vida de estudante em Seul", body: "Cafés abertos até tarde pra estudar é o melhor! Alguma dica de lugar legal?" }
+    { category: "FREE", title: "Apaixonado pela comida coreana", body: "Viciado em churrasco coreano e noraebang 🎤😂 Alguém pra um rolê no fim de semana?", comments: ["Bora marcar! Que dia? 🎤", "Churrasco coreano é vida 😂", "Conhece um bom lugar perto do campus?"] },
+    { category: "FREE", title: "Primeira neve!", body: "Primeira vez que vejo neve de verdade, que lindo ❄️ Animado pro inverno!", comments: ["Que demais né ❄️", "Se agasalha haha", "Posta foto! 📸"] },
+    { category: "FREE", title: "Vida de estudante em Seul", body: "Cafés abertos até tarde pra estudar é o melhor! Alguma dica de lugar legal?", comments: ["Quais lugares você curte?", "Cafés de Yeonnam são ótimos", "Hongdae pra estudar tarde tbm"] }
   ]
-};
-
-const COMMENTS_BY_NATIONALITY: Record<string, string[]> = {
-  Vietnam: ["Hay quá! 😄", "Mình cũng muốn thử", "Cảm ơn đã chia sẻ!", "Đồng cảm ghê 😂", "Cho mình tham gia với!"],
-  China: ["哈哈太真实了", "我也想去！", "谢谢分享～", "同感同感 😂", "求带 lol"],
-  Japan: ["わかる〜！", "私も行きたい", "シェアありがとう！", "めっちゃ共感 😂", "今度一緒に行こう！"],
-  Indonesia: ["Setuju banget! 😄", "Aku juga mau coba", "Makasih infonya!", "Relate banget 😂", "Ajak aku dong!"],
-  India: ["बिल्कुल सही! 😄", "मुझे भी जाना है", "शुक्रिया शेयर करने के लिए", "एकदम relatable 😂", "मुझे भी ले चलो!"],
-  Philippines: ["Grabe, relate! 😄", "Gusto ko rin yan", "Salamat sa share!", "Same tayo haha", "Sama ako next time!"],
-  Thailand: ["จริงงง 😆", "อยากไปบ้างง", "ขอบคุณที่แชร์น้า", "อินมากกก", "ชวนเราด้วยน้า!"],
-  Uzbekistan: ["Zo'r ekan! 😄", "Men ham xohlayman", "Rahmat bo'lishganingiz uchun", "Juda mos keldi 😂", "Meni ham olib boring!"],
-  Mongolia: ["Үнэхээр зөв! 😄", "Би ч явмаар байна", "Хуваалцсанд баярлалаа", "Яг л миний бодол 😂", "Намайг ч дагуулаарай!"],
-  Nepal: ["साँच्चै रमाइलो! 😄", "मलाई पनि जान मन छ", "सेयर गरेकोमा धन्यवाद", "एकदम मिल्यो 😂", "मलाई पनि लैजानु!"],
-  France: ["Trop bien ! 😄", "Moi aussi je veux essayer", "Merci du partage !", "Tellement vrai 😂", "Emmène-moi !"],
-  Germany: ["Cool! 😄", "Will ich auch mal", "Danke fürs Teilen!", "So wahr 😂", "Nimm mich mit!"],
-  Brazil: ["Que massa! 😄", "Também quero", "Valeu por compartilhar!", "Muito eu isso 😂", "Me chama da próxima!"]
 };
 
 function rand(min: number, max: number) {
@@ -171,14 +155,17 @@ export async function generateCommunityContent(
     });
     postsCreated++;
 
+    // Contextual reply thread: pull on-topic comments from this post's
+    // template (same language as the post) so it reads like a real
+    // college-board conversation. Each reply gets a different commenter.
     const others = shuffle(candidates.filter((c) => c.id !== author.id));
-    const n = Math.min(rand(cMin, cMax), others.length);
+    const replies = shuffle(tpl.comments);
+    const n = Math.min(rand(cMin, cMax), others.length, replies.length);
     for (let k = 0; k < n; k++) {
       const c = others[k];
-      const cpool = COMMENTS_BY_NATIONALITY[c.nationality ?? ""] ?? ["👍", "Nice!"];
       const cCreatedAt = new Date(Math.min(now, createdAt.getTime() + (k + 1) * rand(10, 240) * 60 * 1000));
       await prisma.communityPostComment.create({
-        data: { postId: created.id, authorId: c.id, authorName: c.name ?? "익명", body: pick(cpool), createdAt: cCreatedAt, updatedAt: cCreatedAt }
+        data: { postId: created.id, authorId: c.id, authorName: c.name ?? "익명", body: replies[k], createdAt: cCreatedAt, updatedAt: cCreatedAt }
       });
       commentsCreated++;
     }

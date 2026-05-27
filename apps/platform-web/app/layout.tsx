@@ -117,10 +117,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* Must run BEFORE any GA / AdSense script so consent defaults
             (denied for ads + analytics) are set on the very first beacon. */}
         <ConsentInit />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }}
-        />
+        {/* One <script> per JSON-LD object (not a single array) so consumers
+            that read parsed["@context"] don't choke on an array root. */}
+        {siteJsonLd.map((entry, i) => (
+          <script
+            key={i}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(entry) }}
+          />
+        ))}
         {adsenseClientId ? (
           <Script
             id="adsense-loader"
