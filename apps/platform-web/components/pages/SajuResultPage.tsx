@@ -122,8 +122,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     metalLabel: "금(金)",
     waterLabel: "수(水)",
     morePositionsBtn: "내 사주에 맞는 공고 더 보기",
-    ctaCheckFit: "실제 내 조건으로 추천 가능성 확인하기",
-    ctaCheckFitSub: "사주로 본 커리어 타입은 여기까지!\n이제 국적·전공·비자·언어 조건으로 한국 취업 추천 가능성을 확인해보세요.",
+    ctaCheckFit: "정보 입력하고 전체 결과 보기",
+    ctaCheckFitSub: "여기까지는 맛보기예요!\n국적·전공·비자·언어만 입력하면 강점·추천 직무·업무 환경 등 전체 결과와 한국 취업 추천 가능성까지 확인할 수 있어요.",
     recHeading: "내 이력 기반 추천 가능성",
     recRolesHeading: "추천 가능 직무",
     recImprovementsHeading: "보완하면 좋은 점",
@@ -188,8 +188,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     metalLabel: "Metal",
     waterLabel: "Water",
     morePositionsBtn: "See more matching jobs",
-    ctaCheckFit: "Check your fit with your real background",
-    ctaCheckFitSub: "That's your Saju career type!\nNow check your fit for Korean jobs with your nationality, major, visa & language.",
+    ctaCheckFit: "Enter your info to see the full result",
+    ctaCheckFitSub: "That's just the teaser!\nEnter your nationality, major, visa & language to unlock your strengths, recommended roles, work style and your fit for Korean jobs.",
     recHeading: "Your fit based on your background",
     recRolesHeading: "Recommendable roles",
     recImprovementsHeading: "What to improve",
@@ -254,8 +254,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     metalLabel: "金",
     waterLabel: "水",
     morePositionsBtn: "查看更多匹配岗位",
-    ctaCheckFit: "用真实背景查看推荐可能性",
-    ctaCheckFitSub: "八字职业类型到这里！\n现在用国籍·专业·签证·语言条件查看韩国就业推荐可能性。",
+    ctaCheckFit: "输入信息查看完整结果",
+    ctaCheckFitSub: "这只是试看！\n输入国籍·专业·签证·语言，即可解锁优势·推荐职位·工作风格等完整结果及韩国就业推荐可能性。",
     recHeading: "基于背景的推荐可能性",
     recRolesHeading: "可推荐职位",
     recImprovementsHeading: "值得改善的点",
@@ -320,8 +320,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     metalLabel: "Kim",
     waterLabel: "Thủy",
     morePositionsBtn: "Xem thêm việc làm phù hợp",
-    ctaCheckFit: "Kiểm tra mức độ phù hợp với hồ sơ thật",
-    ctaCheckFitSub: "Kiểu sự nghiệp theo tử vi đến đây!\nGiờ hãy kiểm tra khả năng việc làm tại Hàn theo quốc tịch, chuyên ngành, visa & ngôn ngữ.",
+    ctaCheckFit: "Nhập thông tin để xem kết quả đầy đủ",
+    ctaCheckFitSub: "Đây chỉ là bản xem thử!\nNhập quốc tịch, chuyên ngành, visa & ngôn ngữ để mở khóa điểm mạnh, vị trí gợi ý, phong cách làm việc và khả năng việc làm tại Hàn.",
     recHeading: "Khả năng giới thiệu dựa trên hồ sơ",
     recRolesHeading: "Vị trí có thể giới thiệu",
     recImprovementsHeading: "Điều nên cải thiện",
@@ -386,8 +386,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     metalLabel: "金",
     waterLabel: "水",
     morePositionsBtn: "私に合う求人をもっと見る",
-    ctaCheckFit: "実際の経歴で推薦可能性をチェック",
-    ctaCheckFitSub: "四柱推命のキャリアタイプはここまで！\n国籍・専攻・ビザ・語学条件で韓国就職の推薦可能性を確認しましょう。",
+    ctaCheckFit: "情報を入力して全結果を見る",
+    ctaCheckFitSub: "ここまではお試しです！\n国籍・専攻・ビザ・言語を入力すると、強み・おすすめ職種・仕事環境など全結果と韓国就職の推薦可能性まで確認できます。",
     recHeading: "経歴に基づく推薦可能性",
     recRolesHeading: "推薦可能な職種",
     recImprovementsHeading: "補うと良い点",
@@ -452,8 +452,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     metalLabel: "Logam",
     waterLabel: "Air",
     morePositionsBtn: "Lihat lebih banyak lowongan yang cocok",
-    ctaCheckFit: "Cek kecocokan dengan latar belakang aslimu",
-    ctaCheckFitSub: "Itu tipe karier Saju-mu!\nSekarang cek peluang kerja di Korea dengan kewarganegaraan, jurusan, visa & bahasa.",
+    ctaCheckFit: "Isi info untuk lihat hasil lengkap",
+    ctaCheckFitSub: "Ini baru cuplikan!\nMasukkan kewarganegaraan, jurusan, visa & bahasa untuk membuka kekuatan, peran rekomendasi, gaya kerja, dan peluang kerja di Korea.",
     recHeading: "Peluang rekomendasi berdasarkan latar belakang",
     recRolesHeading: "Peran yang bisa direkomendasikan",
     recImprovementsHeading: "Yang perlu ditingkatkan",
@@ -540,6 +540,10 @@ export function SajuResultPage({ slug }: { slug: string }) {
   const details = payload?.prediction.details ?? null;
   const positions = payload?.positions ?? [];
   const name = payload?.prediction.name ?? "";
+  // Free teaser stops at the element balance. The rest of the reading
+  // (strengths, role categories, work environment, caution) unlocks only
+  // after the visitor provides their career info — or once they're signed in.
+  const revealMore = Boolean(recommendation) || isAuthenticated;
 
   async function handleLeadSubmit(data: SajuLeadRequest) {
     setLeadSubmitting(true);
@@ -700,7 +704,7 @@ export function SajuResultPage({ slug }: { slug: string }) {
                 </section>
               ) : null}
 
-              {details?.strengths && details.strengths.length > 0 ? (
+              {revealMore && details?.strengths && details.strengths.length > 0 ? (
                 <section className="px-5 pt-8">
                   <SectionHeading>{copy.strengthsHeading}</SectionHeading>
                   <div className="rounded-2xl bg-white/[0.04] p-5">
@@ -716,7 +720,7 @@ export function SajuResultPage({ slug }: { slug: string }) {
                 </section>
               ) : null}
 
-              {recommendedRoleNames.length > 0 ? (
+              {revealMore && recommendedRoleNames.length > 0 ? (
                 <section className="px-5 pt-8">
                   <SectionHeading>{copy.roleCategoriesHeading}</SectionHeading>
                   <div className="rounded-2xl bg-white/[0.04] p-5">
@@ -735,7 +739,7 @@ export function SajuResultPage({ slug }: { slug: string }) {
                 </section>
               ) : null}
 
-              {details?.workEnvironment && details.workEnvironment.length > 0 ? (
+              {revealMore && details?.workEnvironment && details.workEnvironment.length > 0 ? (
                 <section className="px-5 pt-8">
                   <SectionHeading>{copy.workEnvHeading}</SectionHeading>
                   <div className="rounded-2xl bg-white/[0.04] p-5">
@@ -751,7 +755,7 @@ export function SajuResultPage({ slug }: { slug: string }) {
                 </section>
               ) : null}
 
-              {details?.cautionAdvice ? (
+              {revealMore && details?.cautionAdvice ? (
                 <section className="px-5 pt-8">
                   <SectionHeading>{copy.cautionHeading}</SectionHeading>
                   <div className="rounded-2xl border border-yellow-300/20 bg-yellow-300/[0.06] p-5">
@@ -848,8 +852,8 @@ export function SajuResultPage({ slug }: { slug: string }) {
                 </section>
               ) : null}
 
-              {/* ===== 가입 유도 (비회원) ===== */}
-              {!isAuthenticated && (recommendation || funnel === "result") ? (
+              {/* ===== 가입 유도 (비회원, 커리어 정보 입력 후) ===== */}
+              {!isAuthenticated && recommendation ? (
                 <section className="px-5 pt-10">
                   <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-center">
                     <h2 className="text-[16px] font-bold text-white">{copy.saveHeading}</h2>
