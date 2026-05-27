@@ -405,6 +405,9 @@ export function PositionsPage() {
 
   useEffect(() => {
     let ignore = false;
+    // Show the skeleton on every (re)fetch — including tab / filter / sort
+    // changes — not just the first load.
+    setIsPositionsLoading(true);
     (async () => {
       try {
         const page = await getPublicPositionsPage({
@@ -628,7 +631,7 @@ export function PositionsPage() {
     }
   }
 
-  const shouldShowLoadingPlaceholder = isPositionsLoading && positions.length === 0 && premiumPositionCards.length === 0;
+  const shouldShowLoadingPlaceholder = isPositionsLoading;
   const placeholderItems = Array.from({ length: 6 }, (_, index) => index);
 
   return (
