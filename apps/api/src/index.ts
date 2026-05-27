@@ -59,7 +59,7 @@ import {
   toPgVector
 } from "./embedding/position-embedding";
 import { generateSajuPrediction, translateSajuContent, type SajuDetails, type SajuTranslatableContent } from "./saju/saju-llm";
-import { generateCommunityContent } from "./community/autogen";
+import { generateCommunityContent, seedForeignCandidates, deleteNonOperatorCommunityPosts } from "./community/autogen";
 import { createHash } from "crypto";
 
 const app = express();
@@ -5082,6 +5082,26 @@ app.post("/ops/community/generate", authenticate, requireRoles([MemberRole.OPERA
     return res.status(200).json({ ok: true, ...result });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to generate community content" });
+  }
+});
+
+app.post("/ops/community/seed-candidates", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const result = await seedForeignCandidates(prisma);
+    await writeAuditLog(req, { action: "SEED_FOREIGN_CANDIDATES", resource: "User", metadata: result });
+    return res.status(200).json({ ok: true, ...result });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to seed candidates" });
+  }
+});
+
+app.post("/ops/community/delete-non-operator", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const result = await deleteNonOperatorCommunityPosts(prisma);
+    await writeAuditLog(req, { action: "DELETE_NON_OPERATOR_POSTS", resource: "CommunityPost", metadata: result });
+    return res.status(200).json({ ok: true, ...result });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to delete posts" });
   }
 });
 

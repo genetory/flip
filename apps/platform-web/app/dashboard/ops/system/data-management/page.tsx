@@ -63,6 +63,51 @@ export default function DataManagementPage() {
     }
   };
 
+  const [candRunning, setCandRunning] = useState(false);
+  const [candResult, setCandResult] = useState<{ created: number; total: number } | null>(null);
+  const [candError, setCandError] = useState<string | null>(null);
+  const [delPostsRunning, setDelPostsRunning] = useState(false);
+  const [delPostsResult, setDelPostsResult] = useState<number | null>(null);
+
+  const postOps = async (path: string) => {
+    const token = readAccessToken();
+    if (!token) throw new Error("로그인이 필요합니다. 운영자 계정으로 다시 로그인 후 시도해주세요.");
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: "{}"
+    });
+    const payload = (await response.json()) as Record<string, unknown> & { ok?: boolean; message?: string };
+    if (!response.ok || !payload.ok) throw new Error(payload.message ?? "요청에 실패했습니다.");
+    return payload;
+  };
+
+  const runSeedCandidates = async () => {
+    try {
+      setCandRunning(true);
+      setCandError(null);
+      const payload = await postOps("/ops/community/seed-candidates");
+      setCandResult({ created: Number(payload.created ?? 0), total: Number(payload.total ?? 0) });
+    } catch (err) {
+      setCandError(err instanceof Error ? err.message : "후보자 생성에 실패했습니다.");
+    } finally {
+      setCandRunning(false);
+    }
+  };
+
+  const runDeleteNonOperatorPosts = async () => {
+    if (!window.confirm("운영자가 작성한 글을 제외한 모든 커뮤니티 글(과 댓글)을 삭제합니다. 계속할까요?")) return;
+    try {
+      setDelPostsRunning(true);
+      const payload = await postOps("/ops/community/delete-non-operator");
+      setDelPostsResult(Number(payload.deleted ?? 0));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "삭제에 실패했습니다.");
+    } finally {
+      setDelPostsRunning(false);
+    }
+  };
+
   const numField = (label: string, value: number, setValue: (n: number) => void, min: number, max: number) => (
     <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "#374151" }}>
       {label}
@@ -156,6 +201,40 @@ export default function DataManagementPage() {
             ✓ 생성 완료 — 글 {genResult.postsCreated.toLocaleString()}개, 댓글 {genResult.commentsCreated.toLocaleString()}개
           </p>
         ) : null}
+
+        <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid #e5e7eb" }}>
+          <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 10 }}>
+            글 생성 전에 외국인 후보자 계정이 필요합니다. 아래로 후보자 20명을 시드하고, 자유게시판을 운영자 글만 남기고 정리할 수 있어요.
+          </p>
+          <div className="ops-inline-actions" style={{ gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="ops-partner-add-button"
+              onClick={() => void runSeedCandidates()}
+              disabled={candRunning}
+            >
+              {candRunning ? "생성 중..." : "후보자 20명 생성"}
+            </button>
+            <button
+              type="button"
+              className="ops-partner-add-button"
+              style={{ background: "#b42318", color: "#fff" }}
+              onClick={() => void runDeleteNonOperatorPosts()}
+              disabled={delPostsRunning}
+            >
+              {delPostsRunning ? "삭제 중..." : "자유게시판 정리 (운영자 글만 남김)"}
+            </button>
+          </div>
+          {candError ? <p style={{ marginTop: 10, color: "#b42318" }}>{candError}</p> : null}
+          {candResult ? (
+            <p style={{ marginTop: 10, color: "#047857" }}>
+              ✓ 후보자 시드 완료 — 신규 {candResult.created}명 (총 {candResult.total}명)
+            </p>
+          ) : null}
+          {delPostsResult !== null ? (
+            <p style={{ marginTop: 10, color: "#047857" }}>✓ 정리 완료 — {delPostsResult.toLocaleString()}개 글 삭제</p>
+          ) : null}
+        </div>
       </article>
 
       <article className="ops-partner-list-card">
