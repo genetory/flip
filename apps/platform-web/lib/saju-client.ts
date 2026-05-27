@@ -82,7 +82,13 @@ export type SajuElementBalance = {
   water: number;
 };
 
+export type SajuCareerType = {
+  label: string;
+  tagline: string;
+};
+
 export type SajuDetails = {
+  careerType?: SajuCareerType | null;
   strengths: string[];
   workEnvironment: string[];
   cautionAdvice: string;
@@ -128,6 +134,65 @@ export async function predictSaju(input: SajuPredictionRequest): Promise<SajuPre
     throw new Error(data?.message || "사주 풀이에 실패했습니다.");
   }
   return { id: data.id, shareSlug: data.shareSlug };
+}
+
+// --- Career lead (Profile Pool) ---------------------------------------
+
+export type SajuLeadKoreanLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "NATIVE";
+export type SajuLeadWorkType = "INTERN" | "PART_TIME" | "PROJECT" | "FULL_TIME";
+export type SajuLeadContactType = "EMAIL" | "PHONE" | "KAKAO" | "WHATSAPP";
+
+export type SajuLeadRequest = {
+  shareSlug: string;
+  nationality?: string;
+  school?: string;
+  major?: string;
+  visaType?: string;
+  koreanLevel?: SajuLeadKoreanLevel;
+  englishLevel?: SajuLeadKoreanLevel;
+  preferredJobRole?: string;
+  workType?: SajuLeadWorkType;
+  contact?: string;
+  contactType?: SajuLeadContactType;
+  hasResume?: boolean;
+  consentCareer?: boolean;
+  consentRecommend?: boolean;
+  locale?: string;
+};
+
+export type SajuLeadRecommendation = {
+  recommendedRoles: string[];
+  improvements: string[];
+  status: "UNVERIFIED" | "NEEDS_WORK" | "RECOMMENDABLE";
+};
+
+export async function submitSajuLead(
+  input: SajuLeadRequest
+): Promise<{ leadId: string; recommendation: SajuLeadRecommendation }> {
+  // Hard timeout so a slow / cold-starting API can never leave the UI stuck
+  // on the "analyzing..." spinner — the caller surfaces the thrown error.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25000);
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/saju/lead`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+      signal: controller.signal
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || data?.ok !== true) {
+      throw new Error(data?.message || "정보 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+    return { leadId: data.leadId, recommendation: data.recommendation };
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("요청 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function fetchSajuResult(slug: string, locale?: string): Promise<SajuResultPayload> {

@@ -27,6 +27,7 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
       { label: "이슈 리포트", href: "/dashboard/ops/operations/issues" },
       { label: "전체 지원 현황", href: "/dashboard/ops/operations/applications" },
       { label: "후보자 관리", href: "/dashboard/ops/operations/candidates" },
+      { label: "사주 이벤트 후보 Pool", href: "/dashboard/ops/operations/saju-leads" },
       { label: "프리미엄 포지션 관리", href: "/dashboard/ops/operations/premium-positions" },
       { label: "포지션 관리", href: "/dashboard/ops/operations/positions" },
       { label: "포지션 수정 관리", href: "/dashboard/ops/operations/position-revisions" },

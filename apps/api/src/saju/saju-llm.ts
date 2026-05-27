@@ -44,7 +44,17 @@ export type SajuElementBalance = {
   water: number;
 };
 
+// One-line "career type" archetype shown as the headline of the (free,
+// pre-signup) result — e.g. 기획형 / 실행형 / 분석형 / 커뮤니케이터형. Anchored
+// on the dominant element so it stays consistent with the rest of the
+// reading. label is the short type name, tagline a one-line description.
+export type SajuCareerType = {
+  label: string;
+  tagline: string;
+};
+
 export type SajuDetails = {
+  careerType: SajuCareerType | null;
   strengths: string[];
   workEnvironment: string[];
   cautionAdvice: string;
@@ -87,7 +97,7 @@ export async function translateSajuContent(
     `Preserve meaning, tone (warm / non-fatalistic), and structure exactly. Do not invent or drop entries.`,
     ``,
     `Translation rules:`,
-    `- TRANSLATE these into ${languageName}: interpretation, dayMaster, strengths[], workEnvironment[], cautionAdvice, roleReasonings[].reason, specificRoles[], recommendedIndustries[], rolesToAvoid[], growthPattern, successFactors[].title, successFactors[].detail, motto.`,
+    `- TRANSLATE these into ${languageName}: interpretation, careerType.label, careerType.tagline, dayMaster, strengths[], workEnvironment[], cautionAdvice, roleReasonings[].reason, specificRoles[], recommendedIndustries[], rolesToAvoid[], growthPattern, successFactors[].title, successFactors[].detail, motto.`,
     `- specificRoles[] are concrete job titles (e.g. "프로덕트 디자이너", "퍼포먼스 마케터") and MUST be translated into ${languageName} natural job titles. Do NOT keep them in Korean.`,
     `- DO NOT translate the "role" field inside roleReasonings — those are Korean taxonomy keys (e.g. "개발", "디자인") and must stay in Korean exactly.`,
     `- DO NOT change elementBalance numbers — copy them exactly.`,
@@ -97,6 +107,7 @@ export async function translateSajuContent(
     `  "interpretation": "<translated to ${languageName}>",`,
     `  "details": {`,
     `    "elementBalance": <unchanged numbers>,`,
+    `    "careerType": { "label": "<translated>", "tagline": "<translated>" },`,
     `    "dayMaster": "<translated>",`,
     `    "strengths": ["<translated>", ...],`,
     `    "workEnvironment": ["<translated>", ...],`,
@@ -133,9 +144,14 @@ export async function translateSajuContent(
     if (typeof parsed.interpretation !== "string" || !parsed.details) return null;
     const d = parsed.details;
     const eb = d.elementBalance as Partial<SajuElementBalance> | undefined;
+    const ct = d.careerType as Partial<SajuCareerType> | undefined;
     return {
       interpretation: parsed.interpretation.trim(),
       details: {
+        careerType:
+          ct && (ct.label || ct.tagline)
+            ? { label: String(ct.label ?? "").trim(), tagline: String(ct.tagline ?? "").trim() }
+            : null,
         strengths: Array.isArray(d.strengths) ? d.strengths.map((s) => String(s).trim()).filter(Boolean) : [],
         workEnvironment: Array.isArray(d.workEnvironment) ? d.workEnvironment.map((s) => String(s).trim()).filter(Boolean) : [],
         cautionAdvice: typeof d.cautionAdvice === "string" ? d.cautionAdvice.trim() : "",
@@ -462,6 +478,14 @@ function buildPrompt(input: SajuPredictionInput): string {
     `- "interpretation" MUST (a) cite the year pillar (${pillars.yearKo}) AND the day pillar (${pillars.dayKo}) by name, (b) name the dominant element(s) and the lacking element(s) explicitly, and (c) explain the 오행 상생상극 (generating/controlling) dynamic between them — e.g. how an abundant element feeds or drains the day-master, and what the missing element means for balance. Write it like a knowledgeable but warm 명리 mentor, not a generic horoscope.`,
     `- "successFactors" MUST be anchored on the LACKING elements above: each entry names a capability tied to a missing/weak element and gives a concrete, doable way to cultivate it (a habit, skill, or environment). These are the things this person should "fill in" to round out their chart and grow further.`,
     `- "recommendedRoleNames", "specificRoles", "recommendedIndustries" MUST visibly bias toward the dominant elements above — NOT a safe generic mix.`,
+    `- "careerType" is the headline shown FIRST (before any login). Pick ONE archetype whose driving element matches this chart's dominant element, then write a warm one-line tagline. Use the element→archetype map below. label must be a short noun-style type name in ${languageName}.`,
+    ``,
+    `Element → career-type archetype (pick the one matching the dominant element for "careerType.label"):`,
+    `- 목 / Wood → KO "기획형" / EN "The Planner" — vision, planning, creating something new.`,
+    `- 화 / Fire → KO "커뮤니케이터형" / EN "The Communicator" — expression, energy, connecting people.`,
+    `- 토 / Earth → KO "실행형" / EN "The Executor" — steady follow-through, reliability, operations.`,
+    `- 금 / Metal → KO "분석형" / EN "The Analyst" — precision, structure, judgement, data.`,
+    `- 수 / Water → KO "탐구형" / EN "The Explorer" — learning, depth, adaptability, research.`,
     ``,
     `Element → career affinities + what cultivating it builds (use for BOTH role fit AND successFactors):`,
     `- 목 / Wood: growth, planning, creation, content, design, education — strategy/UX/branding/contents/teaching. Cultivating it builds vision, initiative, long-term planning.`,
@@ -481,6 +505,7 @@ function buildPrompt(input: SajuPredictionInput): string {
     `  "interpretation": "6 to 8 warm, substantive sentences in ${languageName} (${bcp47}). MUST: name the day-master and its element, name the dominant element(s) and the lacking element(s), explain the 오행 상생상극 relationship between them (which element feeds or controls the day-master), and translate that into the person's temperament, decision-making style, and the work mood/pace that suits them. Be specific to THESE pillars — avoid generic, fatalistic, or absolute language.",`,
     `  "recommendedRoleNames": ["pick EXACTLY 1 to 2 (NEVER more than 2) from this Korean taxonomy and return them exactly as Korean strings: ${taxonomyText}. Focus tightly on the dominant element — do not hedge by listing many categories."],`,
     `  "details": {`,
+    `    "careerType": { "label": "<short archetype type name in ${languageName} matching the dominant element, e.g. KO '기획형', EN 'The Planner'>", "tagline": "<ONE warm sentence in ${languageName} (under 16 words) describing this work persona>" },`,
     `    "elementBalance": { "wood": <0-100>, "fire": <0-100>, "earth": <0-100>, "metal": <0-100>, "water": <0-100> },  // integers, total ≈ 100, reflecting this person's specific five-element distribution from STEP 1. MUST differ across different birth dates.`,
     `    "dayMaster": "<1-line label in ${languageName} naming the day-master element, e.g. KO '갑목(甲木) — 큰 나무', EN 'Yang Wood (甲) — the tall tree'>",`,
     `    "strengths": ["3 to 5 short single-sentence personality / work strengths in ${languageName}"],`,
@@ -535,6 +560,7 @@ export async function generateSajuPrediction(
       interpretation: string;
       recommendedRoleNames: string[];
       details: Partial<{
+        careerType: Partial<SajuCareerType>;
         strengths: string[];
         workEnvironment: string[];
         cautionAdvice: string;
@@ -619,11 +645,17 @@ export async function generateSajuPrediction(
           .slice(0, 4)
       : [];
     const motto = typeof parsed.details?.motto === "string" ? parsed.details.motto.trim() : "";
+    const rawCt = parsed.details?.careerType;
+    const careerType: SajuCareerType | null =
+      rawCt && (rawCt.label || rawCt.tagline)
+        ? { label: String(rawCt.label ?? "").trim(), tagline: String(rawCt.tagline ?? "").trim() }
+        : null;
 
     return {
       interpretation,
       recommendedRoleNames,
       details: {
+        careerType,
         strengths,
         workEnvironment,
         cautionAdvice,
