@@ -38,6 +38,7 @@ import {
   LayoutGrid,
   List,
   RotateCcw,
+  Star,
   X
 } from "lucide-react";
 
@@ -369,7 +370,12 @@ export function PositionsPage() {
     [premiumBanners, locale]
   );
   const filtered = positions;
-  const isGuestLocked = !isAuthenticated;
+  // Guests can browse position search freely; only favorite/apply require login.
+  const isGuestLocked = false;
+  // "Aply 채용" tab = INTERNAL-only source filter (server-side, paginates
+  // correctly). "전체" = no source filter.
+  const sourceTab: "all" | "aply" =
+    positionSources.length === 1 && positionSources[0] === "INTERNAL" ? "aply" : "all";
   const visiblePositions = isGuestLocked ? filtered.slice(0, 3) : filtered;
   const showGuestOverlay = isGuestLocked && filtered.length > 3;
   const effectiveViewMode: "grid" | "list" = isGuestLocked ? "list" : viewMode;
@@ -754,8 +760,36 @@ export function PositionsPage() {
 
         <section className="container">
           <div className="mx-auto max-w-4xl">
+            {/* Source tabs: 전체 / Aply 채용 (drives the INTERNAL source filter) */}
+            <div className="mb-5 flex items-center gap-1 border-b border-border">
+              {([
+                { key: "all" as const, label: locale === "ko" ? "전체" : locale === "ja" ? "すべて" : locale === "zh-CN" ? "全部" : locale === "vi" ? "Tất cả" : locale === "id" ? "Semua" : "All" },
+                { key: "aply" as const, label: locale === "ko" ? "오직 Aply에서만!" : locale === "ja" ? "Aplyだけ!" : locale === "zh-CN" ? "仅在Aply!" : locale === "vi" ? "Chỉ có trên Aply!" : locale === "id" ? "Hanya di Aply!" : "Only on Aply!" }
+              ]).map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setPositionSources(tab.key === "aply" ? ["INTERNAL"] : [])}
+                  className={`relative inline-flex items-center gap-1.5 px-4 py-3 text-sm font-semibold transition-colors ${
+                    sourceTab === tab.key
+                      ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {tab.key === "aply" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src="/img_logo.webp"
+                      alt="Aply"
+                      className={`h-4 w-auto ${sourceTab === "aply" ? "" : "opacity-50"}`}
+                    />
+                  ) : null}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
             <div>
-              {isAuthenticated ? (
+              {(
               <div className="mb-4 flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <Button
@@ -807,9 +841,9 @@ export function PositionsPage() {
                   </Button>
                 </div>
               </div>
-              ) : null}
+              )}
 
-              {isAuthenticated && selectedFilterChips.length > 0 ? (
+              {selectedFilterChips.length > 0 ? (
                 <div className="mb-4 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
@@ -835,7 +869,7 @@ export function PositionsPage() {
                 </div>
               ) : null}
 
-              {isAuthenticated && isFilterPopupOpen ? (
+              {isFilterPopupOpen ? (
                 <div
                   className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
                   onClick={() => setIsFilterPopupOpen(false)}
@@ -1102,7 +1136,7 @@ export function PositionsPage() {
                 )
               )}
 
-              {isAuthenticated && hasMorePositions ? (
+              {hasMorePositions ? (
                 <div className="mt-10 flex items-center justify-center">
                   <Button
                     variant="outline"
@@ -1288,6 +1322,12 @@ export const PositionRow = ({
         </div>
 
         <div className="min-w-0 md:flex md:flex-col md:justify-center">
+          {p.sourceProvider === "INTERNAL" ? (
+            <span className="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-[#b7ff5a] px-2 py-0.5 text-[10px] font-bold text-[#111111]">
+              <Star className="h-2.5 w-2.5 fill-current" />
+              Aply
+            </span>
+          ) : null}
           <div className="mb-0.5 min-w-0 text-[11px] text-muted-foreground md:text-xs">
             {href ? (
               <Link href={href} className="relative z-20 block max-w-[56%] truncate font-semibold hover:text-foreground md:max-w-[45%]">
@@ -1455,6 +1495,12 @@ const PositionGridCard = ({
       </div>
       <div className="mt-4 text-xs text-muted-foreground">
         <div className="min-w-0 md:flex md:flex-col md:justify-center">
+          {p.sourceProvider === "INTERNAL" ? (
+            <span className="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-[#b7ff5a] px-2 py-0.5 text-[10px] font-bold text-[#111111]">
+              <Star className="h-2.5 w-2.5 fill-current" />
+              Aply
+            </span>
+          ) : null}
           {href ? (
             <Link href={href} className="relative z-20 block truncate font-semibold hover:text-foreground">
               {p.company}
