@@ -29,6 +29,9 @@ on:
 jobs:
   bind:
     runs-on: ubuntu-latest
+    # Custom domains are bound on the production Web App; secrets live in the
+    # `production` environment, same as the regular deploy workflow.
+    environment: production
     env:
       AZURE_WEBAPP_PLATFORM_NAME: ${{ secrets.AZURE_WEBAPP_PLATFORM_NAME }}
       AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
