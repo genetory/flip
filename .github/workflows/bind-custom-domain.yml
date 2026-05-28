@@ -1,0 +1,197 @@
+name: Bind custom domain to Web App
+
+# Idempotent two-purpose workflow:
+#   1. INFO: print the exact DNS values the operator needs to set at the
+#      registrar (A/CNAME/TXT) for a given domain.
+#   2. BIND: once DNS is in place, register the hostname on the App Service
+#      and provision a managed TLS certificate.
+# Safe to re-run any number of times — steps that already succeeded simply
+# print "already configured" and exit 0.
+
+on:
+  workflow_dispatch:
+    inputs:
+      apex_domain:
+        description: "Apex domain (e.g., flip-ers.com)"
+        required: true
+        default: "flip-ers.com"
+      include_www:
+        description: "Also bind www.<apex_domain>"
+        required: true
+        type: boolean
+        default: true
+      bind:
+        description: "Attempt to bind hostnames + cert (set false to only print DNS instructions)"
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  bind:
+    runs-on: ubuntu-latest
+    env:
+      AZURE_WEBAPP_PLATFORM_NAME: ${{ secrets.AZURE_WEBAPP_PLATFORM_NAME }}
+      AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+      APEX: ${{ inputs.apex_domain }}
+      INCLUDE_WWW: ${{ inputs.include_www }}
+      BIND: ${{ inputs.bind }}
+    steps:
+      - name: Validate secrets
+        run: |
+          test -n "${AZURE_WEBAPP_PLATFORM_NAME:-}" || (echo "Missing secret AZURE_WEBAPP_PLATFORM_NAME" && exit 1)
+          : "${AZURE_RESOURCE_GROUP:=rg-aply}"
+          echo "AZURE_RESOURCE_GROUP=$AZURE_RESOURCE_GROUP" >> "$GITHUB_ENV"
+          echo "Targeting webapp '$AZURE_WEBAPP_PLATFORM_NAME' in RG '$AZURE_RESOURCE_GROUP'"
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Fetch webapp identity (FQDN, inbound IP, verification ID)
+        id: webapp
+        run: |
+          set -e
+          FQDN=$(az webapp show -n "$AZURE_WEBAPP_PLATFORM_NAME" -g "$AZURE_RESOURCE_GROUP" --query "defaultHostName" -o tsv)
+          IP=$(az webapp show -n "$AZURE_WEBAPP_PLATFORM_NAME" -g "$AZURE_RESOURCE_GROUP" --query "inboundIpAddress" -o tsv)
+          VID=$(az webapp show -n "$AZURE_WEBAPP_PLATFORM_NAME" -g "$AZURE_RESOURCE_GROUP" --query "customDomainVerificationId" -o tsv)
+          echo "fqdn=$FQDN" >> "$GITHUB_OUTPUT"
+          echo "ip=$IP" >> "$GITHUB_OUTPUT"
+          echo "vid=$VID" >> "$GITHUB_OUTPUT"
+
+      - name: Print DNS instructions (for hosting.kr or any registrar)
+        run: |
+          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          ## DNS records to set at the registrar
+
+          Target apex: **${APEX}** (include www: ${INCLUDE_WWW})
+
+          | Host | Type | Value | Notes |
+          |---|---|---|---|
+          | \`@\` | **A** | \`${{ steps.webapp.outputs.ip }}\` | Apex → App Service inbound IP |
+          | \`asuid\` | **TXT** | \`${{ steps.webapp.outputs.vid }}\` | Azure domain verification (apex) |
+          EOF
+          if [ "$INCLUDE_WWW" = "true" ]; then
+            cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          | \`www\` | **CNAME** | \`${{ steps.webapp.outputs.fqdn }}\` | www → \`<webapp>.azurewebsites.net\` |
+          | \`asuid.www\` | **TXT** | \`${{ steps.webapp.outputs.vid }}\` | Azure domain verification (www) |
+          EOF
+          fi
+          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+
+          Remove any conflicting URL-forwarding A/CNAME records and turn the
+          registrar's URL forwarding toggle off before adding these.
+
+          Webapp FQDN: \`${{ steps.webapp.outputs.fqdn }}\`
+          EOF
+          echo "===== DNS values ====="
+          echo "@ A      ${{ steps.webapp.outputs.ip }}"
+          echo "asuid TXT  ${{ steps.webapp.outputs.vid }}"
+          if [ "$INCLUDE_WWW" = "true" ]; then
+            echo "www CNAME  ${{ steps.webapp.outputs.fqdn }}"
+            echo "asuid.www TXT  ${{ steps.webapp.outputs.vid }}"
+          fi
+
+      - name: Skip bind?
+        if: ${{ inputs.bind == false }}
+        run: |
+          echo "bind=false — printed DNS values only. Re-run with bind=true after DNS is live."
+          exit 0
+
+      - name: Add hostname (apex)
+        if: ${{ inputs.bind == true }}
+        run: |
+          set +e
+          existing=$(az webapp config hostname list -n "$AZURE_WEBAPP_PLATFORM_NAME" -g "$AZURE_RESOURCE_GROUP" --query "[?name=='${APEX}'] | length(@)" -o tsv 2>/dev/null || echo 0)
+          if [ "$existing" -gt 0 ]; then
+            echo "hostname ${APEX} already bound — skipping add"
+          else
+            az webapp config hostname add \
+              -n "$AZURE_WEBAPP_PLATFORM_NAME" \
+              -g "$AZURE_RESOURCE_GROUP" \
+              --hostname "${APEX}"
+            rc=$?
+            if [ $rc -ne 0 ]; then
+              echo "::warning::add ${APEX} failed (likely DNS not yet propagated). Re-run this workflow after DNS is live."
+              exit $rc
+            fi
+          fi
+
+      - name: Add hostname (www)
+        if: ${{ inputs.bind == true && inputs.include_www == true }}
+        run: |
+          set +e
+          existing=$(az webapp config hostname list -n "$AZURE_WEBAPP_PLATFORM_NAME" -g "$AZURE_RESOURCE_GROUP" --query "[?name=='www.${APEX}'] | length(@)" -o tsv 2>/dev/null || echo 0)
+          if [ "$existing" -gt 0 ]; then
+            echo "hostname www.${APEX} already bound — skipping add"
+          else
+            az webapp config hostname add \
+              -n "$AZURE_WEBAPP_PLATFORM_NAME" \
+              -g "$AZURE_RESOURCE_GROUP" \
+              --hostname "www.${APEX}"
+            rc=$?
+            if [ $rc -ne 0 ]; then
+              echo "::warning::add www.${APEX} failed (likely DNS not yet propagated)."
+              exit $rc
+            fi
+          fi
+
+      - name: Create + bind managed certificate (apex)
+        if: ${{ inputs.bind == true }}
+        run: |
+          set +e
+          THUMB=$(az webapp config ssl create \
+            -n "$AZURE_WEBAPP_PLATFORM_NAME" \
+            -g "$AZURE_RESOURCE_GROUP" \
+            --hostname "${APEX}" \
+            --query "thumbprint" -o tsv 2>/dev/null)
+          if [ -z "$THUMB" ]; then
+            # Already exists? Try to find it.
+            THUMB=$(az webapp config ssl list -g "$AZURE_RESOURCE_GROUP" --query "[?subjectName=='${APEX}'].thumbprint | [0]" -o tsv)
+          fi
+          if [ -z "$THUMB" ]; then
+            echo "::warning::cert creation/lookup failed for ${APEX}"
+            exit 1
+          fi
+          az webapp config ssl bind \
+            -n "$AZURE_WEBAPP_PLATFORM_NAME" \
+            -g "$AZURE_RESOURCE_GROUP" \
+            --certificate-thumbprint "$THUMB" \
+            --ssl-type SNI \
+            --hostname "${APEX}"
+
+      - name: Create + bind managed certificate (www)
+        if: ${{ inputs.bind == true && inputs.include_www == true }}
+        run: |
+          set +e
+          THUMB=$(az webapp config ssl create \
+            -n "$AZURE_WEBAPP_PLATFORM_NAME" \
+            -g "$AZURE_RESOURCE_GROUP" \
+            --hostname "www.${APEX}" \
+            --query "thumbprint" -o tsv 2>/dev/null)
+          if [ -z "$THUMB" ]; then
+            THUMB=$(az webapp config ssl list -g "$AZURE_RESOURCE_GROUP" --query "[?subjectName=='www.${APEX}'].thumbprint | [0]" -o tsv)
+          fi
+          if [ -z "$THUMB" ]; then
+            echo "::warning::cert creation/lookup failed for www.${APEX}"
+            exit 1
+          fi
+          az webapp config ssl bind \
+            -n "$AZURE_WEBAPP_PLATFORM_NAME" \
+            -g "$AZURE_RESOURCE_GROUP" \
+            --certificate-thumbprint "$THUMB" \
+            --ssl-type SNI \
+            --hostname "www.${APEX}"
+
+      - name: Verify (HTTPS reachability)
+        if: ${{ inputs.bind == true }}
+        run: |
+          set +e
+          echo "Verifying https://${APEX} returns a response..."
+          code=$(curl -sI -o /dev/null -w "%{http_code}" --max-time 15 "https://${APEX}/" || echo "TIMEOUT")
+          echo "https://${APEX}/ → ${code}"
+          if [ "${INCLUDE_WWW}" = "true" ]; then
+            code2=$(curl -sI -o /dev/null -w "%{http_code}" --max-time 15 "https://www.${APEX}/" || echo "TIMEOUT")
+            echo "https://www.${APEX}/ → ${code2}"
+          fi
+          echo "If status is 301/308, the middleware redirect to aply.global is live."
