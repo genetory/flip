@@ -111,13 +111,13 @@ jobs:
         if: ${{ inputs.bind == true }}
         run: |
           set +e
-          existing=$(az webapp config hostname list -n "$AZURE_WEBAPP_PLATFORM_NAME" -g "$AZURE_RESOURCE_GROUP" --query "[?name=='${APEX}'] | length(@)" -o tsv 2>/dev/null || echo 0)
+          existing=$(az webapp config hostname list --webapp-name "$AZURE_WEBAPP_PLATFORM_NAME" -g "$AZURE_RESOURCE_GROUP" --query "[?name=='${APEX}'] | length(@)" -o tsv 2>/dev/null || echo 0)
           if [ "$existing" -gt 0 ]; then
             echo "hostname ${APEX} already bound — skipping add"
           else
             az webapp config hostname add \
-              -n "$AZURE_WEBAPP_PLATFORM_NAME" \
-              -g "$AZURE_RESOURCE_GROUP" \
+              --webapp-name "$AZURE_WEBAPP_PLATFORM_NAME" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
               --hostname "${APEX}"
             rc=$?
             if [ $rc -ne 0 ]; then
@@ -130,13 +130,13 @@ jobs:
         if: ${{ inputs.bind == true && inputs.include_www == true }}
         run: |
           set +e
-          existing=$(az webapp config hostname list -n "$AZURE_WEBAPP_PLATFORM_NAME" -g "$AZURE_RESOURCE_GROUP" --query "[?name=='www.${APEX}'] | length(@)" -o tsv 2>/dev/null || echo 0)
+          existing=$(az webapp config hostname list --webapp-name "$AZURE_WEBAPP_PLATFORM_NAME" -g "$AZURE_RESOURCE_GROUP" --query "[?name=='www.${APEX}'] | length(@)" -o tsv 2>/dev/null || echo 0)
           if [ "$existing" -gt 0 ]; then
             echo "hostname www.${APEX} already bound — skipping add"
           else
             az webapp config hostname add \
-              -n "$AZURE_WEBAPP_PLATFORM_NAME" \
-              -g "$AZURE_RESOURCE_GROUP" \
+              --webapp-name "$AZURE_WEBAPP_PLATFORM_NAME" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
               --hostname "www.${APEX}"
             rc=$?
             if [ $rc -ne 0 ]; then
