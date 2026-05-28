@@ -56,7 +56,13 @@ jobs:
         run: |
           set -e
           FQDN=$(az webapp show -n "$AZURE_WEBAPP_PLATFORM_NAME" -g "$AZURE_RESOURCE_GROUP" --query "defaultHostName" -o tsv)
-          IP=$(az webapp show -n "$AZURE_WEBAPP_PLATFORM_NAME" -g "$AZURE_RESOURCE_GROUP" --query "inboundIpAddress" -o tsv)
+          IP=$(az webapp show -n "$AZURE_WEBAPP_PLATFORM_NAME" -g "$AZURE_RESOURCE_GROUP" --query "inboundIpAddress" -o tsv 2>/dev/null || echo "")
+          # Fallback: derive the inbound IP from the live aply.global binding,
+          # since the Site API sometimes omits inboundIpAddress.
+          if [ -z "$IP" ]; then
+            IP=$(dig +short aply.global A | head -1)
+            echo "inboundIpAddress query was empty; using $IP from dig aply.global"
+          fi
           VID=$(az webapp show -n "$AZURE_WEBAPP_PLATFORM_NAME" -g "$AZURE_RESOURCE_GROUP" --query "customDomainVerificationId" -o tsv)
           echo "fqdn=$FQDN" >> "$GITHUB_OUTPUT"
           echo "ip=$IP" >> "$GITHUB_OUTPUT"
