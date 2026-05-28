@@ -1027,23 +1027,6 @@ export function SajuResultPage({ slug }: { slug: string }) {
                 </section>
               ) : null}
 
-              {/* 이력서 보강 유도 (회원) */}
-              {isAuthenticated ? (
-                <section className="px-5 pt-8">
-                  <div className="rounded-2xl border border-lime-300/25 bg-lime-300/[0.06] p-5">
-                    <h3 className="text-[14px] font-semibold text-lime-100">{copy.resumeBoostHeading}</h3>
-                    <p className="mt-1.5 text-[12.5px] leading-relaxed text-white/70">{copy.resumeBoostSub}</p>
-                    <Button
-                      onClick={() => router.push("/resume")}
-                      className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-white/10 text-[13px] font-medium text-white transition active:bg-white/15"
-                    >
-                      {copy.resumeBoostBtn}
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </section>
-              ) : null}
-
               {/* 공유 / 나도 해보기 + 카운트 */}
               <section className="mt-8 px-5 pb-12">
                 <div className="relative mx-auto mb-4 aspect-[3/2] w-[78%] max-w-[360px]">
