@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Legacy domain alias — anything that lands on flip-ers.com (or its www
+// subdomain) is permanently redirected to the same path on aply.global so
+// the brand resolves to a single canonical host. Runs BEFORE the basic
+// auth gate so the redirect isn't intercepted on the staging host.
+const LEGACY_DOMAIN_HOSTS = new Set(["flip-ers.com", "www.flip-ers.com"]);
+const CANONICAL_ORIGIN = "https://aply.global";
+
 /**
  * Optional HTTP Basic Auth gate. Activates only when both BASIC_AUTH_USER and
  * BASIC_AUTH_PASSWORD env vars are set — so staging can enable it without
@@ -10,6 +17,15 @@ import { NextRequest, NextResponse } from "next/server";
  * which is a useful side-effect for staging (no accidental indexing).
  */
 export function middleware(req: NextRequest) {
+  // Strip the optional port — Azure Container Apps forwards the original
+  // Host header which usually carries no port, but be defensive.
+  const host = (req.headers.get("host") ?? "").toLowerCase().split(":")[0];
+  if (LEGACY_DOMAIN_HOSTS.has(host)) {
+    const url = new URL(req.url);
+    const dest = new URL(`${url.pathname}${url.search}`, CANONICAL_ORIGIN);
+    return NextResponse.redirect(dest, 308);
+  }
+
   const user = process.env.BASIC_AUTH_USER?.trim();
   const pass = process.env.BASIC_AUTH_PASSWORD;
   if (!user || !pass) return NextResponse.next();
