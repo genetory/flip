@@ -145,26 +145,32 @@ jobs:
             fi
           fi
 
+      - name: Wait for hostname to settle before cert request
+        if: ${{ inputs.bind == true }}
+        run: sleep 30
+
       - name: Create + bind managed certificate (apex)
         if: ${{ inputs.bind == true }}
         run: |
-          set +e
+          set -x
+          # Stderr left visible on purpose so the underlying Azure error is
+          # surfaced when cert issuance fails (tier/DNS/etc.).
           THUMB=$(az webapp config ssl create \
-            -n "$AZURE_WEBAPP_PLATFORM_NAME" \
-            -g "$AZURE_RESOURCE_GROUP" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_PLATFORM_NAME" \
             --hostname "${APEX}" \
-            --query "thumbprint" -o tsv 2>/dev/null)
+            --query "thumbprint" -o tsv) || true
           if [ -z "$THUMB" ]; then
-            # Already exists? Try to find it.
-            THUMB=$(az webapp config ssl list -g "$AZURE_RESOURCE_GROUP" --query "[?subjectName=='${APEX}'].thumbprint | [0]" -o tsv)
+            echo "ssl create returned no thumbprint, trying ssl list lookup..."
+            THUMB=$(az webapp config ssl list -g "$AZURE_RESOURCE_GROUP" --query "[?subjectName=='${APEX}'].thumbprint | [0]" -o tsv) || true
           fi
           if [ -z "$THUMB" ]; then
-            echo "::warning::cert creation/lookup failed for ${APEX}"
+            echo "::error::cert creation/lookup failed for ${APEX}"
             exit 1
           fi
           az webapp config ssl bind \
-            -n "$AZURE_WEBAPP_PLATFORM_NAME" \
-            -g "$AZURE_RESOURCE_GROUP" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_PLATFORM_NAME" \
             --certificate-thumbprint "$THUMB" \
             --ssl-type SNI \
             --hostname "${APEX}"
@@ -172,22 +178,22 @@ jobs:
       - name: Create + bind managed certificate (www)
         if: ${{ inputs.bind == true && inputs.include_www == true }}
         run: |
-          set +e
+          set -x
           THUMB=$(az webapp config ssl create \
-            -n "$AZURE_WEBAPP_PLATFORM_NAME" \
-            -g "$AZURE_RESOURCE_GROUP" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_PLATFORM_NAME" \
             --hostname "www.${APEX}" \
-            --query "thumbprint" -o tsv 2>/dev/null)
+            --query "thumbprint" -o tsv) || true
           if [ -z "$THUMB" ]; then
-            THUMB=$(az webapp config ssl list -g "$AZURE_RESOURCE_GROUP" --query "[?subjectName=='www.${APEX}'].thumbprint | [0]" -o tsv)
+            THUMB=$(az webapp config ssl list -g "$AZURE_RESOURCE_GROUP" --query "[?subjectName=='www.${APEX}'].thumbprint | [0]" -o tsv) || true
           fi
           if [ -z "$THUMB" ]; then
-            echo "::warning::cert creation/lookup failed for www.${APEX}"
+            echo "::error::cert creation/lookup failed for www.${APEX}"
             exit 1
           fi
           az webapp config ssl bind \
-            -n "$AZURE_WEBAPP_PLATFORM_NAME" \
-            -g "$AZURE_RESOURCE_GROUP" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_PLATFORM_NAME" \
             --certificate-thumbprint "$THUMB" \
             --ssl-type SNI \
             --hostname "www.${APEX}"
