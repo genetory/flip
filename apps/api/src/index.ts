@@ -60,6 +60,12 @@ import {
   toPgVector
 } from "./embedding/position-embedding";
 import { generateSajuPrediction, translateSajuContent, type SajuDetails, type SajuTranslatableContent } from "./saju/saju-llm";
+import {
+  getPositionTranslation,
+  getPositionTranslationsBatch,
+  shouldTranslateForLocale,
+  type PositionTranslatableFields
+} from "./positions/position-translate";
 import { generateCommunityContent, seedForeignCandidates, deleteNonOperatorCommunityPosts } from "./community/autogen";
 import { createHash } from "crypto";
 
@@ -2285,7 +2291,13 @@ const listPublicPositionsCursorQuerySchema = z.object({
   sourceProvider: z.union([positionSourceProviderEnum, z.array(positionSourceProviderEnum)]).optional(),
   jobRole: z.union([z.string().trim().min(1).max(120), z.array(z.string().trim().min(1).max(120))]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
-  sort: z.enum(["latest", "deadline"]).optional()
+  sort: z.enum(["latest", "deadline"]).optional(),
+  // Viewer locale — when non-Korean, INTERNAL postings are served in English
+  // (cached per-position in Position.translations.en).
+  locale: z.string().trim().min(2).max(8).optional()
+});
+const positionDetailQuerySchema = z.object({
+  locale: z.string().trim().min(2).max(8).optional()
 });
 const listCommunityPostsCursorQuerySchema = z.object({
   category: z.enum(["free", "career", "help"]).optional(),
@@ -3579,8 +3591,21 @@ function toPublicPositionItem(
     } | null;
     matchingParticipants: Array<{ id: string }>;
   },
-  viewer: { role: MemberRole; partnerDomain: string | null } | null
+  viewer: { role: MemberRole; partnerDomain: string | null } | null,
+  // Optional per-locale translation override. When provided (only for INTERNAL
+  // postings served to non-Korean viewers), the user-visible free-text fields
+  // are swapped with the translated copy. Source-metadata extraction still
+  // runs against the original additionalNotes so deadline/company info is
+  // unaffected.
+  translation?: PositionTranslatableFields | null
 ) {
+  const t = translation ?? null;
+  // Mask first on the ORIGINAL additionalNotes so embedded source-metadata
+  // (sourceCompanyName / sourceDeadlineDate) is stripped consistently; if a
+  // translation exists, replace the masked body with the translated version
+  // (which carries no metadata patterns because INTERNAL posts never had them).
+  const maskedOriginalNotes = maskAdditionalNotesForPublic(item.additionalNotes, null, viewer);
+  const additionalNotesOut = t && t.additionalNotes != null ? t.additionalNotes : maskedOriginalNotes;
   return {
     id: item.id,
     sourceKind: item.sourceKind,
@@ -3593,27 +3618,27 @@ function toPublicPositionItem(
       ? item.sourceDeadlineDate.toISOString().slice(0, 10)
       : extractSourceDeadlineDate(item.additionalNotes),
     sourceDeadlineRolling: extractSourceDeadlineRolling(item.additionalNotes),
-    title: item.title,
+    title: t?.title ?? item.title,
     status: item.status,
-    workType: item.workType,
+    workType: t?.workType ?? item.workType,
     employmentType: item.employmentType,
     employmentClassification: extractEmploymentClassificationMeta(item.adminMemo),
     thumbnailImages: item.thumbnailImages,
     eligibleVisas: item.eligibleVisas,
     preferredNationalities: item.preferredNationalities,
     communicationLanguages: item.communicationLanguages,
-    hiringProcess: item.hiringProcess,
+    hiringProcess: t?.hiringProcess ?? item.hiringProcess,
     preferredJobRole: item.preferredJobRole,
     hiringCount: item.hiringCount,
-    workingHours: item.workingHours,
-    workLocation: item.workLocation,
+    workingHours: t?.workingHours ?? item.workingHours,
+    workLocation: t?.workLocation ?? item.workLocation,
     startDate: item.startDate,
-    mainResponsibilities: item.mainResponsibilities,
-    requiredQualifications: item.requiredQualifications,
-    preferredQualifications: item.preferredQualifications,
-    dressCode: item.dressCode,
+    mainResponsibilities: t?.mainResponsibilities ?? item.mainResponsibilities,
+    requiredQualifications: t?.requiredQualifications ?? item.requiredQualifications,
+    preferredQualifications: t?.preferredQualifications ?? item.preferredQualifications,
+    dressCode: t?.dressCode ?? item.dressCode,
     wantsPreTraining: item.wantsPreTraining,
-    additionalNotes: maskAdditionalNotesForPublic(item.additionalNotes, null, viewer),
+    additionalNotes: additionalNotesOut,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     matchingParticipantsCount: item.matchingParticipants.length,
@@ -6412,6 +6437,8 @@ function positionsCacheKey(params: {
   sortOrder: string;
   jobRoles: string[];
   sourceProviders: string[];
+  // Korean vs. translated-English response must not share a cache slot.
+  locale: string;
 }): string {
   return JSON.stringify({
     s: params.search,
@@ -6420,7 +6447,8 @@ function positionsCacheKey(params: {
     sm: params.sortMode,
     so: params.sortOrder,
     j: [...params.jobRoles].sort(),
-    p: [...params.sourceProviders].sort()
+    p: [...params.sourceProviders].sort(),
+    loc: params.locale
   });
 }
 
@@ -6440,6 +6468,11 @@ app.get("/positions", async (req, res) => {
     : [];
   const sortMode = parsedQuery.data.sort ?? "latest";
   const sortOrder = parsedQuery.data.sortOrder ?? "desc";
+  // Non-Korean viewers get INTERNAL postings translated to English. Normalize
+  // the locale dimension to "en" or "ko" so the response cache only forks two
+  // ways regardless of how many BCP47 codes the caller sends.
+  const wantTranslation = shouldTranslateForLocale(parsedQuery.data.locale);
+  const localeKey = wantTranslation ? "en" : "ko";
 
   // Check the anonymous-viewer response cache before doing any work.
   // We resolve the viewer first to gate the cache lookup; that's still
@@ -6451,7 +6484,8 @@ app.get("/positions", async (req, res) => {
     sortMode,
     sortOrder,
     jobRoles,
-    sourceProviders: sourceProviders.map((p) => String(p))
+    sourceProviders: sourceProviders.map((p) => String(p)),
+    locale: localeKey
   });
 
   // Cursor encodes the keyset for the active sort mode.
@@ -6649,9 +6683,15 @@ app.get("/positions", async (req, res) => {
       scored.sort((a, b) => b.score - a.score);
       const top = scored.slice(0, limit).map((entry) => entry.item);
 
+      const hybridTranslations = wantTranslation
+        ? await getPositionTranslationsBatch(
+            prisma,
+            top.filter((i) => i.sourceKind === PositionSourceKind.INTERNAL)
+          )
+        : new Map<string, PositionTranslatableFields>();
       return sendAndMaybeCache({
         ok: true,
-        items: top.map((item) => toPublicPositionItem(item, viewer)),
+        items: top.map((item) => toPublicPositionItem(item, viewer, hybridTranslations.get(item.id) ?? null)),
         nextCursor: null,
         searchMode: "hybrid" as const
       });
@@ -6756,9 +6796,16 @@ app.get("/positions", async (req, res) => {
       : Buffer.from(`${tail.createdAt.toISOString()}|${tail.id}`, "utf8").toString("base64")
     : null;
 
+  const pageTranslations = wantTranslation
+    ? await getPositionTranslationsBatch(
+        prisma,
+        pageItems.filter((i) => i.sourceKind === PositionSourceKind.INTERNAL)
+      )
+    : new Map<string, PositionTranslatableFields>();
+
   return sendAndMaybeCache({
     ok: true,
-    items: pageItems.map((item) => toPublicPositionItem(item, viewer)),
+    items: pageItems.map((item) => toPublicPositionItem(item, viewer, pageTranslations.get(item.id) ?? null)),
     nextCursor
   });
 });
@@ -6825,6 +6872,10 @@ app.get("/positions/:id", async (req, res) => {
   if (!id) {
     return res.status(400).json({ ok: false, message: "invalid position id" });
   }
+  const parsedDetailQuery = positionDetailQuerySchema.safeParse(req.query);
+  const wantTranslation = shouldTranslateForLocale(
+    parsedDetailQuery.success ? parsedDetailQuery.data.locale : null
+  );
 
   const viewer = await resolvePublicViewer(req);
   const viewerUserId = resolvePublicViewerUserId(req);
@@ -6880,9 +6931,14 @@ app.get("/positions/:id", async (req, res) => {
     return res.status(404).json({ ok: false, message: "position not found" });
   }
 
+  const detailTranslation =
+    wantTranslation && item.sourceKind === PositionSourceKind.INTERNAL
+      ? await getPositionTranslation(prisma, item)
+      : null;
+
   return res.json({
     ok: true,
-    item: toPublicPositionItem(item, viewer)
+    item: toPublicPositionItem(item, viewer, detailTranslation)
   });
 });
 

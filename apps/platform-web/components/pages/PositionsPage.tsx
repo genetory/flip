@@ -416,7 +416,8 @@ export function PositionsPage() {
           jobRoles: jobRoles.length ? [...jobRoles] : undefined,
           sortOrder: "desc",
           sort: sortMode,
-          sourceProviders: positionSources.length ? [...positionSources] : undefined
+          sourceProviders: positionSources.length ? [...positionSources] : undefined,
+          locale
         });
         if (ignore) return;
         setPositions(page.items.map((item) => mapPublicPositionToCard(item, locale)));
@@ -615,7 +616,8 @@ export function PositionsPage() {
         jobRoles: jobRoles.length ? [...jobRoles] : undefined,
         sortOrder: "desc",
         sort: sortMode,
-        sourceProviders: positionSources.length ? [...positionSources] : undefined
+        sourceProviders: positionSources.length ? [...positionSources] : undefined,
+        locale
       });
       const mapped = page.items.map((item) => mapPublicPositionToCard(item, locale));
       setPositions((prev) => {
