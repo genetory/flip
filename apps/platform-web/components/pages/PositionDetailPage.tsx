@@ -133,6 +133,10 @@ export function PositionDetailPage({
   const [appliedPositionIds, setAppliedPositionIds] = useState<string[]>([]);
   const [myPartnerOrganizationId, setMyPartnerOrganizationId] = useState<string | null>(null);
   const inlineGalleryRef = useRef<HTMLDivElement | null>(null);
+  // Locale of the currently displayed `position`. Server-rendered copy is
+  // always Korean; flip this whenever we refetch with a different locale so
+  // the locale-change effect knows when a refetch is actually needed.
+  const displayedLocaleRef = useRef<string | null>(initialPosition !== null ? "ko" : null);
 
   const isKo = locale === "ko";
   const isZh = locale === "zh-CN";
@@ -140,58 +144,49 @@ export function PositionDetailPage({
   const isJa = locale === "ja";
   const isId = locale === "id";
 
-  // When the server-side fetch returned null (position is not in the public
-  // OPEN set), retry on the client with the viewer's access token so the
-  // posting partner or an operator can see their own pending-review postings.
-  useEffect(() => {
-    if (initialPosition !== null) return;
-    let cancelled = false;
-    setIsResolving(true);
-    setNotFoundForViewer(false);
-    void (async () => {
-      try {
-        const fetched = await getPublicPositionById(positionId, { locale });
-        if (cancelled) return;
-        setPosition(fetched);
-      } catch {
-        if (cancelled) return;
-        setNotFoundForViewer(true);
-      } finally {
-        if (!cancelled) setIsResolving(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [initialPosition, positionId, isAuthenticated, locale]);
-
-  // SSR fetches the Korean copy (no per-viewer locale). For non-Korean viewers,
-  // refetch with locale so INTERNAL postings come back in English. Skips when
-  // locale is Korean (SSR copy is already correct). Also drives the translating
-  // overlay so the reader sees feedback during the LLM round-trip on the very
-  // first non-Korean visit (subsequent visits are DB-cached and near-instant).
+  // Single source of truth for fetching the position. Fires when:
+  //   (a) SSR returned no copy (server-render couldn't see the posting — e.g.
+  //       pending-review postings only the owning partner can see). We show
+  //       the full skeleton while resolving.
+  //   (b) The viewer switches locale — including switching BACK to Korean
+  //       from English. We show the translating pill + dim the content
+  //       instead of clobbering it with a skeleton.
+  //   (c) Authentication state changes so a previously-403'd partner can
+  //       now see their own posting.
+  // Skips entirely when the displayed copy is already in the right locale.
   useEffect(() => {
     if (!positionId) return;
-    if (locale === "ko") {
-      setIsTranslating(false);
-      return;
-    }
+    if (displayedLocaleRef.current === locale && position) return;
     let cancelled = false;
-    setIsTranslating(true);
+    const hasContent = Boolean(position);
+    if (hasContent) {
+      setIsTranslating(true);
+    } else {
+      setIsResolving(true);
+      setNotFoundForViewer(false);
+    }
     void (async () => {
       try {
         const fetched = await getPublicPositionById(positionId, { locale });
-        if (!cancelled && fetched) setPosition(fetched);
+        if (cancelled) return;
+        if (fetched) {
+          setPosition(fetched);
+          displayedLocaleRef.current = locale;
+        }
       } catch {
-        // keep the SSR (or previous) copy on transient error
+        if (cancelled) return;
+        if (!hasContent) setNotFoundForViewer(true);
+        // For locale switches with an existing copy, keep what we have.
       } finally {
-        if (!cancelled) setIsTranslating(false);
+        if (cancelled) return;
+        setIsResolving(false);
+        setIsTranslating(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [positionId, locale]);
+  }, [positionId, locale, isAuthenticated, position]);
 
   // Reset thumbnail gallery state when navigating between positions.
   useEffect(() => {
@@ -497,7 +492,9 @@ export function PositionDetailPage({
         </div>
       ) : null}
       <main className="container py-10 md:py-14">
-        <div className="mx-auto max-w-4xl">
+        <div
+          className={`mx-auto max-w-4xl transition-opacity duration-200 ${isTranslating ? "opacity-50" : "opacity-100"}`}
+        >
           {/* Non-Korean viewers see content auto-translated to English. Surface
               that explicitly so they don't expect zh/vi/ja/id output. */}
           {!isKo ? (
