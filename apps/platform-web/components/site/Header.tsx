@@ -27,8 +27,6 @@ export const Header = () => {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [activeHash, setActiveHash] = useState("");
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const { locale, setLocale } = useLanguage();
   const { user, isReady, isAuthenticated, getAccountUrl } = useAuthSession();
@@ -71,18 +69,6 @@ export const Header = () => {
       window.removeEventListener("hashchange", syncHash);
     };
   }, [pathname]);
-
-  useEffect(() => {
-    setIsHydrated(true);
-    const onScroll = () => {
-      setIsScrolled(window.scrollY > 18);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-    };
-  }, []);
 
   function isNavActive(href: string) {
     const [basePath, hash] = href.split("#");
@@ -154,18 +140,8 @@ export const Header = () => {
           </clipPath>
         </defs>
       </svg>
-    <header
-        className={`sticky top-0 z-50 ${isHydrated ? "transition-all duration-500 ease-smooth" : ""} ${
-        isScrolled
-          ? "top-3 mx-auto w-[calc(100%-1rem)] md:top-5 md:w-[min(70%,1200px)] md:min-w-[980px] translate-y-0 rounded-2xl border border-border/70 bg-white shadow-elevated"
-          : "top-0 border-b border-border/60 bg-background"
-      }`}
-    >
-        <div
-        className={`container flex items-center justify-between ${isHydrated ? "transition-all duration-500 ease-smooth" : ""} ${
-          isScrolled ? "h-[52px] scale-[0.985]" : "h-[52px] scale-100"
-        }`}
-      >
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-background">
+        <div className="container flex h-[52px] items-center justify-between">
         <Link href="/" className="flex items-center">
           <Image
             src="/img_logo.webp"
