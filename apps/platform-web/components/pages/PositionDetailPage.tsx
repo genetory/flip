@@ -16,7 +16,7 @@ import {
   type PublicPositionListItem
 } from "../../lib/member-profile-client";
 import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
-import { ArrowLeft, Briefcase, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { ArrowLeft, Briefcase, ChevronLeft, ChevronRight, Loader2, MapPin } from "lucide-react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
@@ -122,6 +122,10 @@ export function PositionDetailPage({
   const [position, setPosition] = useState<PublicPositionListItem | null>(initialPosition);
   const [isResolving, setIsResolving] = useState(initialPosition === null);
   const [notFoundForViewer, setNotFoundForViewer] = useState(false);
+  // True while we're swapping the SSR-loaded Korean copy for the translated
+  // English copy on a locale change. Powers the "번역 중입니다 / Translating…"
+  // overlay so the reader sees something is happening.
+  const [isTranslating, setIsTranslating] = useState(false);
   const [recommendedPositions, setRecommendedPositions] = useState<PublicPositionListItem[]>([]);
   const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(true);
   const [selectedThumbnailIndex, setSelectedThumbnailIndex] = useState(0);
@@ -163,17 +167,25 @@ export function PositionDetailPage({
 
   // SSR fetches the Korean copy (no per-viewer locale). For non-Korean viewers,
   // refetch with locale so INTERNAL postings come back in English. Skips when
-  // locale is Korean (SSR copy is already correct).
+  // locale is Korean (SSR copy is already correct). Also drives the translating
+  // overlay so the reader sees feedback during the LLM round-trip on the very
+  // first non-Korean visit (subsequent visits are DB-cached and near-instant).
   useEffect(() => {
     if (!positionId) return;
-    if (locale === "ko") return;
+    if (locale === "ko") {
+      setIsTranslating(false);
+      return;
+    }
     let cancelled = false;
+    setIsTranslating(true);
     void (async () => {
       try {
         const fetched = await getPublicPositionById(positionId, { locale });
         if (!cancelled && fetched) setPosition(fetched);
       } catch {
         // keep the SSR (or previous) copy on transient error
+      } finally {
+        if (!cancelled) setIsTranslating(false);
       }
     })();
     return () => {
@@ -471,8 +483,28 @@ export function PositionDetailPage({
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
       <Header />
+      {/* Floating "translating" pill — appears only while the locale-change
+          effect is fetching the translated copy. Doesn't block interaction. */}
+      {isTranslating ? (
+        <div
+          aria-live="polite"
+          className="fixed left-1/2 top-[64px] z-40 -translate-x-1/2 pointer-events-none"
+        >
+          <div className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-elevated">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            <span>{isKo ? "번역 중입니다" : "Translating…"}</span>
+          </div>
+        </div>
+      ) : null}
       <main className="container py-10 md:py-14">
         <div className="mx-auto max-w-4xl">
+          {/* Non-Korean viewers see content auto-translated to English. Surface
+              that explicitly so they don't expect zh/vi/ja/id output. */}
+          {!isKo ? (
+            <div className="mb-4 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+              Currently only Korean and English are supported.
+            </div>
+          ) : null}
           <div className="mb-6">
             <Button
               variant="ghost"
