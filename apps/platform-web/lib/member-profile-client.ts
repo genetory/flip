@@ -687,6 +687,9 @@ export async function getPublicPositionsPage(input?: {
   sortOrder?: "asc" | "desc";
   sort?: "latest" | "deadline";
   sourceProviders?: Array<PublicPositionListItem["sourceProvider"]>;
+  // Forwards to the API so INTERNAL postings come back translated to English
+  // for any non-Korean locale (Korean keeps the original copy).
+  locale?: string;
 }) {
   const params = new URLSearchParams();
   if (input?.cursor) params.set("cursor", input.cursor);
@@ -704,6 +707,7 @@ export async function getPublicPositionsPage(input?: {
       params.append("sourceProvider", provider);
     }
   }
+  if (input?.locale) params.set("locale", input.locale);
   const query = params.toString();
 
   const response = await fetch(`${getApiBaseUrl()}/positions${query ? `?${query}` : ""}`, {
@@ -739,8 +743,10 @@ export async function getPublicPositions() {
   return merged;
 }
 
-export async function getPublicPositionById(id: string) {
-  const response = await fetch(`${getApiBaseUrl()}/positions/${encodeURIComponent(id)}`, {
+export async function getPublicPositionById(id: string, opts?: { locale?: string }) {
+  const url = new URL(`${getApiBaseUrl()}/positions/${encodeURIComponent(id)}`);
+  if (opts?.locale) url.searchParams.set("locale", opts.locale);
+  const response = await fetch(url.toString(), {
     method: "GET",
     headers: withOptionalBearerHeader()
   });

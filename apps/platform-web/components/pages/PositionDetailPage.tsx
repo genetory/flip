@@ -146,7 +146,7 @@ export function PositionDetailPage({
     setNotFoundForViewer(false);
     void (async () => {
       try {
-        const fetched = await getPublicPositionById(positionId);
+        const fetched = await getPublicPositionById(positionId, { locale });
         if (cancelled) return;
         setPosition(fetched);
       } catch {
@@ -159,7 +159,27 @@ export function PositionDetailPage({
     return () => {
       cancelled = true;
     };
-  }, [initialPosition, positionId, isAuthenticated]);
+  }, [initialPosition, positionId, isAuthenticated, locale]);
+
+  // SSR fetches the Korean copy (no per-viewer locale). For non-Korean viewers,
+  // refetch with locale so INTERNAL postings come back in English. Skips when
+  // locale is Korean (SSR copy is already correct).
+  useEffect(() => {
+    if (!positionId) return;
+    if (locale === "ko") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const fetched = await getPublicPositionById(positionId, { locale });
+        if (!cancelled && fetched) setPosition(fetched);
+      } catch {
+        // keep the SSR (or previous) copy on transient error
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [positionId, locale]);
 
   // Reset thumbnail gallery state when navigating between positions.
   useEffect(() => {
