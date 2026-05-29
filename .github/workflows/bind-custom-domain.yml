@@ -179,26 +179,32 @@ jobs:
         if: ${{ inputs.bind == true && inputs.include_www == true }}
         run: |
           set -x
-          # Kick off issuance (async — may return without a thumbprint while
-          # Azure provisions the cert in the background).
-          az webapp config ssl create \
+          # Re-issue (idempotent if it succeeds). Sometimes returns thumbprint
+          # synchronously when the cert is already provisioned from a previous run.
+          THUMB=$(az webapp config ssl create \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_WEBAPP_PLATFORM_NAME" \
             --hostname "www.${APEX}" \
-            --output none || true
-          # Poll for the cert to appear (up to 5 min); managed cert issuance
-          # is asynchronous for some hostnames.
-          THUMB=""
-          for i in $(seq 1 30); do
-            THUMB=$(az webapp config ssl list -g "$AZURE_RESOURCE_GROUP" --query "[?subjectName=='www.${APEX}'].thumbprint | [0]" -o tsv 2>/dev/null) || true
-            if [ -n "$THUMB" ] && [ "$THUMB" != "null" ]; then
-              echo "found cert thumbprint after $((i*10))s: $THUMB"
-              break
-            fi
-            sleep 10
-          done
+            --query "thumbprint" -o tsv) || true
+          # Dump current cert inventory to identify any matching cert.
+          echo "===== All certs in RG ====="
+          az resource list -g "$AZURE_RESOURCE_GROUP" --resource-type Microsoft.Web/certificates --query "[].{name:name,thumbprint:properties.thumbprint,subject:properties.subjectName,issueDate:properties.issueDate}" -o table || true
+          echo "===== ssl list ====="
+          az webapp config ssl list -g "$AZURE_RESOURCE_GROUP" --query "[].{name:name,thumbprint:thumbprint,subject:subjectName}" -o table || true
+          # If create didn't return one, try the resource list (works even when
+          # the cert hasn't been linked to a webapp yet).
           if [ -z "$THUMB" ] || [ "$THUMB" = "null" ]; then
-            echo "::error::cert not available after 5 min for www.${APEX} — re-run this workflow shortly"
+            for i in $(seq 1 30); do
+              THUMB=$(az resource list -g "$AZURE_RESOURCE_GROUP" --resource-type Microsoft.Web/certificates --query "[?name=='www.${APEX}'].properties.thumbprint | [0]" -o tsv 2>/dev/null) || true
+              if [ -n "$THUMB" ] && [ "$THUMB" != "null" ]; then
+                echo "found cert thumbprint after $((i*10))s: $THUMB"
+                break
+              fi
+              sleep 10
+            done
+          fi
+          if [ -z "$THUMB" ] || [ "$THUMB" = "null" ]; then
+            echo "::error::cert not available for www.${APEX} — re-run this workflow shortly"
             exit 1
           fi
           az webapp config ssl bind \
