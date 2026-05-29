@@ -1,9 +1,11 @@
 import OpenAI from "openai";
 import type { PrismaClient } from "@prisma/client";
 
-// gpt-4o-mini is enough for job-posting copy and keeps per-position cost
-// negligible (~$0.0005 per translation). Override via env if needed.
-const MODEL = process.env.OPENAI_TRANSLATION_MODEL?.trim() || "gpt-4o-mini";
+// Hardcoded to a model that actually exists. The earlier env-driven default
+// ("OPENAI_TRANSLATION_MODEL") had landed on an invalid model name in prod
+// and silently failed every request, so we pin gpt-4o-mini here to match the
+// rest of the LLM call sites (saju).
+const MODEL = "gpt-4o-mini";
 
 let cachedClient: OpenAI | null = null;
 function getClient(): OpenAI | null {
@@ -121,7 +123,10 @@ async function runLLMTranslation(
       return t.length > 0 ? t : null;
     };
     const title = typeof parsed.title === "string" ? parsed.title.trim() : "";
-    if (!title) return null;
+    if (!title) {
+      console.warn("[position-translate] LLM returned empty title; raw=", raw.slice(0, 200));
+      return null;
+    }
     return {
       title,
       workType: trimOrNull(parsed.workType),
