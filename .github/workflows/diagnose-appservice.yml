@@ -1,0 +1,90 @@
+name: Diagnose App Service performance
+
+# Read-only health check by default. Run with `enable_always_on=true` to
+# flip the Always On switch on both web apps in one shot (no tier change,
+# no extra cost — but Always On requires the App Service Plan to be Basic
+# or higher).
+
+on:
+  workflow_dispatch:
+    inputs:
+      enable_always_on:
+        description: "Also enable Always On on both apps (requires Basic+ SKU)"
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      AZURE_WEBAPP_PLATFORM_NAME: ${{ secrets.AZURE_WEBAPP_PLATFORM_NAME }}
+      AZURE_WEBAPP_API_NAME: ${{ secrets.AZURE_WEBAPP_API_NAME }}
+      AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+    steps:
+      - name: Validate secrets
+        run: |
+          test -n "${AZURE_WEBAPP_PLATFORM_NAME:-}" || (echo "Missing AZURE_WEBAPP_PLATFORM_NAME" && exit 1)
+          test -n "${AZURE_WEBAPP_API_NAME:-}" || (echo "Missing AZURE_WEBAPP_API_NAME" && exit 1)
+          : "${AZURE_RESOURCE_GROUP:=rg-aply}"
+          echo "AZURE_RESOURCE_GROUP=$AZURE_RESOURCE_GROUP" >> "$GITHUB_ENV"
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Inspect both webapps
+        id: inspect
+        run: |
+          set +e
+          summary=""
+          for ROLE_APP in "web:$AZURE_WEBAPP_PLATFORM_NAME" "api:$AZURE_WEBAPP_API_NAME"; do
+            ROLE="${ROLE_APP%%:*}"
+            APP="${ROLE_APP##*:}"
+            echo "===== $ROLE ($APP) ====="
+            ALWAYS_ON=$(az webapp config show --name "$APP" --resource-group "$AZURE_RESOURCE_GROUP" --query "alwaysOn" -o tsv)
+            HTTPS_ONLY=$(az webapp show --name "$APP" --resource-group "$AZURE_RESOURCE_GROUP" --query "httpsOnly" -o tsv)
+            HTTP20=$(az webapp config show --name "$APP" --resource-group "$AZURE_RESOURCE_GROUP" --query "http20Enabled" -o tsv)
+            MIN_TLS=$(az webapp config show --name "$APP" --resource-group "$AZURE_RESOURCE_GROUP" --query "minTlsVersion" -o tsv)
+            PLAN_ID=$(az webapp show --name "$APP" --resource-group "$AZURE_RESOURCE_GROUP" --query "appServicePlanId" -o tsv)
+            PLAN_NAME=$(basename "$PLAN_ID")
+            SKU_INFO=$(az appservice plan show --name "$PLAN_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --query "{tier:sku.tier,size:sku.size,capacity:sku.capacity,workers:numberOfWorkers}" -o json)
+            echo "$ROLE alwaysOn=$ALWAYS_ON httpsOnly=$HTTPS_ONLY http20=$HTTP20 minTls=$MIN_TLS plan=$PLAN_NAME sku=$SKU_INFO"
+            {
+              echo "### $ROLE (\`$APP\`)"
+              echo ""
+              echo "| Setting | Value |"
+              echo "|---|---|"
+              echo "| App Service Plan | \`$PLAN_NAME\` |"
+              echo "| SKU | \`$(echo "$SKU_INFO" | jq -r '.tier + " / " + .size + " (cap " + (.capacity|tostring) + ")"')\` |"
+              echo "| Always On | **$ALWAYS_ON** |"
+              echo "| HTTPS only | $HTTPS_ONLY |"
+              echo "| HTTP/2 | $HTTP20 |"
+              echo "| Min TLS | $MIN_TLS |"
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Recommendation
+        run: |
+          cat <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          ### Recommendation
+          - If **Always On = false** on either app → enable it. Requires SKU ≥ Basic (B1+).
+            - The Free / F1 and Shared / D1 tiers do not support Always On — those need a tier upgrade first.
+          - If SKU is **B1 / B2** and you still see cold-start spikes, consider P1v2/P1v3 for better warm performance.
+          - HTTP/2 should be **true** for parallel asset loading.
+          EOF
+
+      - name: Enable Always On (both apps)
+        if: ${{ inputs.enable_always_on == true }}
+        run: |
+          set -e
+          for APP in "$AZURE_WEBAPP_PLATFORM_NAME" "$AZURE_WEBAPP_API_NAME"; do
+            echo "Enabling Always On on $APP..."
+            az webapp config set --name "$APP" --resource-group "$AZURE_RESOURCE_GROUP" --always-on true --output none
+            NOW=$(az webapp config show --name "$APP" --resource-group "$AZURE_RESOURCE_GROUP" --query "alwaysOn" -o tsv)
+            echo "  alwaysOn after change = $NOW"
+            echo "- Enabled Always On on \`$APP\` → \`$NOW\`" >> "$GITHUB_STEP_SUMMARY"
+          done
