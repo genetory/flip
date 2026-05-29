@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import OpenAI from "openai";
 import type { PrismaClient } from "@prisma/client";
 
@@ -50,19 +51,21 @@ function pickFields(p: Record<string, unknown>): PositionTranslatableFields {
 }
 
 type CachedTranslation = PositionTranslatableFields & {
-  // Updated whenever any source field changes; used to detect stale cache.
-  updatedAt: string;
+  // Content fingerprint of the source fields at translation time. Used to
+  // detect "is this cache still valid?" without depending on Position.updatedAt
+  // — which would bump every time we WRITE the cache itself (Prisma @updatedAt)
+  // and cause an endless re-translation loop.
+  sourceHash: string;
 };
 
 type TranslationsBlob = Partial<Record<string, CachedTranslation>>;
 
-// Stable fingerprint of the input fields. If the position is edited, the
-// updatedAt timestamp shifts and the cached translation is invalidated.
-function isStale(cached: CachedTranslation, sourceUpdatedAt: Date): boolean {
-  if (!cached.updatedAt) return true;
-  const cachedMs = Date.parse(cached.updatedAt);
-  if (Number.isNaN(cachedMs)) return true;
-  return cachedMs < sourceUpdatedAt.getTime();
+function hashSource(content: PositionTranslatableFields): string {
+  // Order-stable canonical string of the source fields. Empty/null is folded
+  // to "" so a transition between null and "" doesn't flap the hash.
+  const keys = Object.keys(content).sort() as Array<keyof PositionTranslatableFields>;
+  const canon = keys.map((k) => `${k}=${content[k] ?? ""}`).join("");
+  return createHash("sha256").update(canon).digest("hex").slice(0, 16);
 }
 
 async function runLLMTranslation(
@@ -153,23 +156,23 @@ export async function getPositionTranslation(
   prisma: PrismaClient,
   position: {
     id: string;
-    updatedAt: Date;
     translations: unknown;
   } & Record<string, unknown>
 ): Promise<PositionTranslatableFields | null> {
+  const source = pickFields(position);
+  const sourceHash = hashSource(source);
   const blob = (position.translations ?? {}) as TranslationsBlob;
   const cached = blob.en;
-  if (cached && !isStale(cached, position.updatedAt)) {
-    // Strip the "updatedAt" before returning so the caller gets clean fields.
-    const { updatedAt: _u, ...fields } = cached;
+  if (cached && cached.sourceHash === sourceHash) {
+    // Strip the bookkeeping field before returning so the caller gets clean fields.
+    const { sourceHash: _h, ...fields } = cached;
     return fields;
   }
-  const source = pickFields(position);
   const translated = await runLLMTranslation(source);
   if (!translated) return null;
   const nextBlob: TranslationsBlob = {
     ...blob,
-    en: { ...translated, updatedAt: position.updatedAt.toISOString() }
+    en: { ...translated, sourceHash }
   };
   // Fire-and-forget persist; serving must not wait on the write.
   prisma.position
