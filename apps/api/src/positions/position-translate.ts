@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import OpenAI from "openai";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 
 // Hardcoded to a model that actually exists. The earlier env-driven default
 // ("OPENAI_TRANSLATION_MODEL") had landed on an invalid model name in prod
@@ -174,13 +174,17 @@ export async function getPositionTranslation(
     ...blob,
     en: { ...translated, sourceHash }
   };
-  // Fire-and-forget persist; serving must not wait on the write.
-  prisma.position
-    .update({
+  // Await the write so a single repeat call cannot retrigger LLM. Cost is
+  // a few ms compared to an LLM round-trip we just spent ~2s on.
+  try {
+    await prisma.position.update({
       where: { id: position.id },
-      data: { translations: nextBlob as object }
-    })
-    .catch((err) => console.error("[position-translate] cache write failed", err));
+      data: { translations: nextBlob as unknown as Prisma.InputJsonValue }
+    });
+    console.log("[position-translate] cached", position.id, "hash=", sourceHash);
+  } catch (err) {
+    console.error("[position-translate] cache write failed", position.id, err);
+  }
   return translated;
 }
 
