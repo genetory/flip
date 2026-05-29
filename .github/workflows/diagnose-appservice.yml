@@ -13,6 +13,11 @@ on:
         required: true
         type: boolean
         default: false
+      enable_https_only:
+        description: "Also enable HTTPS-only (auto-redirect http → https)"
+        required: true
+        type: boolean
+        default: false
 
 jobs:
   diagnose:
@@ -87,4 +92,16 @@ jobs:
             NOW=$(az webapp config show --name "$APP" --resource-group "$AZURE_RESOURCE_GROUP" --query "alwaysOn" -o tsv)
             echo "  alwaysOn after change = $NOW"
             echo "- Enabled Always On on \`$APP\` → \`$NOW\`" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Enable HTTPS-only (both apps)
+        if: ${{ inputs.enable_https_only == true }}
+        run: |
+          set -e
+          for APP in "$AZURE_WEBAPP_PLATFORM_NAME" "$AZURE_WEBAPP_API_NAME"; do
+            echo "Enabling httpsOnly on $APP..."
+            az webapp update --name "$APP" --resource-group "$AZURE_RESOURCE_GROUP" --https-only true --output none
+            NOW=$(az webapp show --name "$APP" --resource-group "$AZURE_RESOURCE_GROUP" --query "httpsOnly" -o tsv)
+            echo "  httpsOnly after change = $NOW"
+            echo "- Enabled HTTPS-only on \`$APP\` → \`$NOW\`" >> "$GITHUB_STEP_SUMMARY"
           done
