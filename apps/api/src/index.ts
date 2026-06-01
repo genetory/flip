@@ -1499,6 +1499,8 @@ const apiDocEndpoints: ApiDocEndpoint[] = [
   { method: "get", path: "/ops/users", summary: "List all users", tag: "Ops Users", secure: true },
   { method: "patch", path: "/ops/users/:id/admin-memo", summary: "Update user admin memo", tag: "Ops Users", secure: true, requestBody: true },
   { method: "delete", path: "/ops/users/:id", summary: "Hard-delete user (super-admin only)", tag: "Ops Users", secure: true },
+  { method: "get", path: "/ops/stale-unverified", summary: "Count + sample of email-unverified users older than 7 days", tag: "Ops Users", secure: true },
+  { method: "post", path: "/ops/stale-unverified/wipe", summary: "Bulk-delete stale unverified users (require confirm=DELETE)", tag: "Ops Users", secure: true, requestBody: true },
 
   { method: "post", path: "/ops/matching/run", summary: "Run matching", tag: "Ops Matching", secure: true, requestBody: true },
   { method: "get", path: "/ops/matching/history", summary: "List matching history", tag: "Ops Matching", secure: true },
@@ -14983,6 +14985,84 @@ app.get(
         }
       });
     } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+// Stale-unverified housekeeping — list + wipe for accounts that signed up
+// >7 days ago and never verified their email. These are the spam/bot signups
+// the team's been seeing in the Discord webhook; they can never log in (the
+// /auth/login path enforces emailVerified) so deleting them is safe.
+
+const STALE_UNVERIFIED_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+app.get(
+  "/ops/stale-unverified",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (_req, res) => {
+    const threshold = new Date(Date.now() - STALE_UNVERIFIED_AGE_MS);
+    const where: Prisma.UserWhereInput = {
+      emailVerified: false,
+      createdAt: { lt: threshold }
+    };
+    try {
+      const [count, sample] = await Promise.all([
+        prisma.user.count({ where }),
+        prisma.user.findMany({
+          where,
+          take: 10,
+          orderBy: { createdAt: "desc" },
+          select: { id: true, email: true, name: true, authProvider: true, createdAt: true }
+        })
+      ]);
+      return res.json({
+        ok: true,
+        count,
+        thresholdDays: 7,
+        sample
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+const wipeStaleUnverifiedSchema = z.object({
+  confirm: z.literal("DELETE")
+});
+
+app.post(
+  "/ops/stale-unverified/wipe",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const parsed = wipeStaleUnverifiedSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: 'confirm: "DELETE" required' });
+    }
+    const threshold = new Date(Date.now() - STALE_UNVERIFIED_AGE_MS);
+    try {
+      const result = await prisma.user.deleteMany({
+        where: {
+          emailVerified: false,
+          createdAt: { lt: threshold }
+        }
+      });
+      void writeAuditLog(req, {
+        action: "OPS_STALE_UNVERIFIED_WIPE",
+        resource: "user",
+        resourceId: null,
+        metadata: {
+          deletedCount: result.count,
+          thresholdDays: 7,
+          callerId: req.auth!.userId
+        }
+      });
+      return res.json({ ok: true, deletedCount: result.count });
+    } catch (error) {
+      console.error("[ops/stale-unverified/wipe] failed", error);
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
     }
   }
