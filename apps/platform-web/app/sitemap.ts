@@ -1,6 +1,12 @@
 import type { MetadataRoute } from "next";
 import { VISA_DETAILS } from "../lib/visa-details";
 
+// Generate sitemap at request time, cached for 1h. Build-time generation
+// timed out (60s ceiling) once the position pagination grew past ~5k rows;
+// pushing this to ISR lets the first post-deploy request pay the cost and
+// every subsequent visitor (incl. search crawlers) sees the cached XML.
+export const revalidate = 3600;
+
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
   (process.env.NEXT_PUBLIC_API_URL?.includes("staging") ? "https://staging.aply.global" : "https://aply.global");
