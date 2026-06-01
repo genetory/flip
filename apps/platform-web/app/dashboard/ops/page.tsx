@@ -164,12 +164,20 @@ function FunnelRows({ stages }: { stages: { label: string; value: number }[] }) 
   );
 }
 
+type StaleUnverified = {
+  count: number;
+  thresholdDays: number;
+  sample: { id: string; email: string; name: string | null; authProvider: string; createdAt: string }[];
+};
+
 export default function OpsDashboardHome() {
   const { user } = useAuthSession();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [matching, setMatching] = useState<MatchingStats | null>(null);
   const [recent, setRecent] = useState<RecentSignup[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [staleUnverified, setStaleUnverified] = useState<StaleUnverified | null>(null);
+  const [wiping, setWiping] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -179,7 +187,7 @@ export default function OpsDashboardHome() {
       try {
         const token = readAccessToken();
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-        const [dashResp, matchResp, activityResp] = await Promise.all([
+        const [dashResp, matchResp, activityResp, staleResp] = await Promise.all([
           fetch(`${apiBaseUrl}/ops/dashboard`, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             cache: "no-store"
@@ -189,6 +197,10 @@ export default function OpsDashboardHome() {
             cache: "no-store"
           }),
           fetch(`${apiBaseUrl}/ops/activity`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            cache: "no-store"
+          }),
+          fetch(`${apiBaseUrl}/ops/stale-unverified`, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             cache: "no-store"
           })
@@ -207,6 +219,16 @@ export default function OpsDashboardHome() {
           const actPayload = (await activityResp.json()) as { items?: ActivityItem[] };
           if (!ignore) setActivity(actPayload.items ?? []);
         }
+        if (staleResp.ok) {
+          const stalePayload = (await staleResp.json()) as { ok?: boolean } & StaleUnverified;
+          if (!ignore && stalePayload.ok) {
+            setStaleUnverified({
+              count: stalePayload.count,
+              thresholdDays: stalePayload.thresholdDays,
+              sample: stalePayload.sample
+            });
+          }
+        }
       } catch (err) {
         if (!ignore) setError(err instanceof Error ? err.message : "대시보드를 불러오지 못했습니다.");
       } finally {
@@ -217,6 +239,38 @@ export default function OpsDashboardHome() {
       ignore = true;
     };
   }, []);
+
+  async function handleWipeStale() {
+    if (!staleUnverified || staleUnverified.count === 0) return;
+    const typed = window.prompt(
+      `${staleUnverified.count}명의 미인증 계정을 영구 삭제합니다.\n계속하려면 DELETE 를 정확히 입력하세요.`
+    );
+    if (typed !== "DELETE") return;
+    setWiping(true);
+    try {
+      const token = readAccessToken();
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+      const response = await fetch(`${apiBaseUrl}/ops/stale-unverified/wipe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ confirm: "DELETE" })
+      });
+      const payload = (await response.json()) as { ok?: boolean; deletedCount?: number; message?: string };
+      if (!response.ok || !payload.ok) {
+        window.alert(payload.message ?? "삭제 실패");
+        return;
+      }
+      window.alert(`${payload.deletedCount ?? 0}명 삭제 완료`);
+      setStaleUnverified((prev) => (prev ? { ...prev, count: 0, sample: [] } : prev));
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "삭제 중 오류");
+    } finally {
+      setWiping(false);
+    }
+  }
 
   const applicationFunnel = useMemo(() => {
     if (!matching) return [];
@@ -314,6 +368,69 @@ export default function OpsDashboardHome() {
                 </div>
                 <FunnelRows stages={applicationFunnel} />
               </div>
+            </article>
+          ) : null}
+
+          {/* 청소 — 이메일 미인증 7일+ */}
+          {staleUnverified ? (
+            <article className="ops-partner-list-card">
+              <div className="ops-partner-list-top">
+                <h2>미인증 가입 정리</h2>
+                {staleUnverified.count > 0 ? (
+                  <button
+                    type="button"
+                    className="ops-action-danger"
+                    onClick={() => void handleWipeStale()}
+                    disabled={wiping}
+                  >
+                    {wiping ? "삭제 중..." : `${staleUnverified.count.toLocaleString()}명 일괄 삭제`}
+                  </button>
+                ) : null}
+              </div>
+              <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    fontSize: 32,
+                    fontWeight: 700,
+                    color: staleUnverified.count > 0 ? "#b42318" : "#16a34a",
+                    fontVariantNumeric: "tabular-nums",
+                    lineHeight: 1.1
+                  }}
+                >
+                  {staleUnverified.count.toLocaleString()}명
+                </div>
+                <p className="ops-card-subtle" style={{ margin: 0 }}>
+                  이메일 인증을 마치지 않고 {staleUnverified.thresholdDays}일 이상 방치된 계정입니다.
+                  봇/스팸 가입 의심 — 로그인 불가 상태라 삭제해도 사용자 영향 없습니다.
+                </p>
+              </div>
+              {staleUnverified.sample.length > 0 ? (
+                <div style={{ marginTop: 14 }}>
+                  <p className="ops-row-sub" style={{ marginBottom: 6 }}>최근 10건 미리보기</p>
+                  <div className="ops-partner-table-wrap">
+                    <table className="ops-partner-table">
+                      <thead>
+                        <tr>
+                          <th>이름</th>
+                          <th>이메일</th>
+                          <th>가입 방식</th>
+                          <th>가입 시점</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {staleUnverified.sample.map((u) => (
+                          <tr key={u.id}>
+                            <td className="ops-row-sub">{u.name ?? "-"}</td>
+                            <td>{u.email}</td>
+                            <td>{PROVIDER_LABEL[u.authProvider] ?? u.authProvider}</td>
+                            <td className="ops-row-sub">{formatRelativeTime(u.createdAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
             </article>
           ) : null}
 
