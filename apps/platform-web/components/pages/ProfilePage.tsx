@@ -32,8 +32,7 @@ import {
 } from "../../lib/member-profile-client";
 import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
-import { getApplicationStatusLabel } from "../../lib/status-labels";
-import { ReportIssueModal } from "../issues/ReportIssueModal";
+import type { ApplicationStatus } from "../../lib/status-labels";
 import { SelectInterviewSlotModal } from "../interviews/SelectInterviewSlotModal";
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import type { PlatformLocale } from "../../lib/auth-messages";
@@ -156,7 +155,6 @@ export function ProfilePage() {
   const [partnerPositions, setPartnerPositions] = useState<PartnerPosition[]>([]);
   const [positionsError, setPositionsError] = useState<string | null>(null);
   const [postedViewMode, setPostedViewMode] = useState<"grid" | "list">("list");
-  const [studentViewMode, setStudentViewMode] = useState<"grid" | "list">("list");
   const [favoritePositions, setFavoritePositions] = useState<PublicPositionListItem[]>([]);
   const [appliedPositions, setAppliedPositions] = useState<PublicPositionListItem[]>([]);
   const [myResumes, setMyResumes] = useState<Resume[]>([]);
@@ -165,7 +163,6 @@ export function ProfilePage() {
   const [creatingResume, setCreatingResume] = useState(false);
   const resumeRouter = useRouter();
   const [applications, setApplications] = useState<MyApplication[]>([]);
-  const [reportTarget, setReportTarget] = useState<MyApplication | null>(null);
   const [interviewTarget, setInterviewTarget] = useState<MyApplication | null>(null);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
 
@@ -1420,26 +1417,6 @@ export function ProfilePage() {
                             {studentTab === "applied" ? appliedPositions.length : favoritePositions.length}
                             {tr("개", "", "个", "", "件", "")}
                           </span>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              type="button"
-                              variant={studentViewMode === "list" ? "dark" : "outline"}
-                              size="icon"
-                              aria-label={tr("리스트 보기", "List view", "列表视图", "Xem dạng danh sách", "リスト表示", "Tampilan daftar")}
-                              onClick={() => setStudentViewMode("list")}
-                            >
-                              <List className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant={studentViewMode === "grid" ? "dark" : "outline"}
-                              size="icon"
-                              aria-label={tr("그리드 보기", "Grid view", "网格视图", "Xem dạng lưới", "グリッド表示", "Tampilan grid")}
-                              onClick={() => setStudentViewMode("grid")}
-                            >
-                              <LayoutGrid className="h-4 w-4" />
-                            </Button>
-                          </div>
                         </div>
 
                         {studentPositionsError ? <p className="text-sm text-destructive">{studentPositionsError}</p> : null}
@@ -1460,117 +1437,21 @@ export function ProfilePage() {
                             );
                           }
 
-                          if (studentViewMode === "grid") {
-                            return (
-                              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                                {source.map((item) => {
-                                  const app = studentTab === "applied" ? applicationByPositionId.get(item.id) : null;
-                                  const statusBadge = app ? getApplicationStatusLabel(app.status, "student") : null;
-                                  return (
-                                    <div key={item.id} className="space-y-2">
-                                      {statusBadge || app ? (
-                                        <div className="flex items-center justify-between gap-2">
-                                          {statusBadge ? (
-                                            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusBadge.className}`}>
-                                              {statusBadge.label}
-                                            </span>
-                                          ) : <span />}
-                                          {app ? (
-                                            <div className="flex items-center gap-2">
-                                              {app.status === "INTERVIEW" ? (
-                                                <button
-                                                  type="button"
-                                                  onClick={() => setInterviewTarget(app)}
-                                                  className="text-[11px] font-semibold text-primary hover:underline"
-                                                >
-                                                  {tr("면접 일정 선택", "Select interview slot", "选择面试时间", "Chọn lịch phỏng vấn", "面接日程を選択", "Pilih jadwal wawancara")}
-                                                </button>
-                                              ) : null}
-                                              {app.status !== "ACCEPTED" && app.status !== "WITHDRAWN" ? (
-                                                <button
-                                                  type="button"
-                                                  disabled={withdrawingId === app.id}
-                                                  onClick={() => void handleWithdraw(app)}
-                                                  className="text-[11px] font-semibold text-muted-foreground hover:text-foreground"
-                                                >
-                                                  {tr("지원 철회", "Withdraw", "撤回申请", "Rút đơn", "応募取り下げ", "Tarik lamaran")}
-                                                </button>
-                                              ) : null}
-                                              <button
-                                                type="button"
-                                                onClick={() => setReportTarget(app)}
-                                                className="text-[11px] font-semibold text-destructive hover:underline"
-                                              >
-                                                {tr("이슈 신고", "Report issue", "举报问题", "Báo cáo vấn đề", "問題を報告", "Laporkan masalah")}
-                                              </button>
-                                            </div>
-                                          ) : null}
-                                        </div>
-                                      ) : null}
-                                      <PostedPositionGridCard
-                                        item={item}
-                                        canEdit={false}
-                                        showStudentActions
-                                        isFavorite={favoriteIdSet.has(item.id)}
-                                        isApplied={appliedIdSet.has(item.id)}
-                                        onToggleFavorite={() => {
-                                          void toggleStudentFavorite(item.id);
-                                        }}
-                                        onApply={() => {
-                                          void applyFromStudentFavorite(item.id);
-                                        }}
-                                      />
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            );
-                          }
-
                           return (
                             <div className="space-y-3">
                               {source.map((item) => {
                                 const app = studentTab === "applied" ? applicationByPositionId.get(item.id) : null;
-                                const statusBadge = app ? getApplicationStatusLabel(app.status, "student") : null;
                                 return (
                                   <div key={item.id} className="space-y-2">
-                                    {statusBadge || app ? (
-                                      <div className="flex items-center justify-between gap-2">
-                                        {statusBadge ? (
-                                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusBadge.className}`}>
-                                            {statusBadge.label}
-                                          </span>
-                                        ) : <span />}
-                                        {app ? (
-                                          <div className="flex items-center gap-2">
-                                            {app.status === "INTERVIEW" ? (
-                                              <button
-                                                type="button"
-                                                onClick={() => setInterviewTarget(app)}
-                                                className="text-[11px] font-semibold text-primary hover:underline"
-                                              >
-                                                {tr("면접 일정 선택", "Select interview slot", "选择面试时间", "Chọn lịch phỏng vấn", "面接日程を選択", "Pilih jadwal wawancara")}
-                                              </button>
-                                            ) : null}
-                                            {app.status !== "ACCEPTED" && app.status !== "WITHDRAWN" ? (
-                                              <button
-                                                type="button"
-                                                disabled={withdrawingId === app.id}
-                                                onClick={() => void handleWithdraw(app)}
-                                                className="text-[11px] font-semibold text-muted-foreground hover:text-foreground"
-                                              >
-                                                {tr("지원 철회", "Withdraw", "撤回申请", "Rút đơn", "応募取り下げ", "Tarik lamaran")}
-                                              </button>
-                                            ) : null}
-                                            <button
-                                              type="button"
-                                              onClick={() => setReportTarget(app)}
-                                              className="text-[11px] font-semibold text-destructive hover:underline"
-                                            >
-                                              {tr("이슈 신고", "Report issue", "举报问题", "Báo cáo vấn đề", "問題を報告", "Laporkan masalah")}
-                                            </button>
-                                          </div>
-                                        ) : null}
+                                    {app?.status === "INTERVIEW" ? (
+                                      <div className="flex items-center justify-end gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => setInterviewTarget(app)}
+                                          className="text-[11px] font-semibold text-primary hover:underline"
+                                        >
+                                          {tr("면접 일정 선택", "Select interview slot", "选择面试时间", "Chọn lịch phỏng vấn", "面接日程を選択", "Pilih jadwal wawancara")}
+                                        </button>
                                       </div>
                                     ) : null}
                                     <PostedPositionRow
@@ -1579,12 +1460,15 @@ export function ProfilePage() {
                                       showStudentActions
                                       isFavorite={favoriteIdSet.has(item.id)}
                                       isApplied={appliedIdSet.has(item.id)}
+                                      applicationStatus={app?.status ?? null}
+                                      isWithdrawing={app ? withdrawingId === app.id : false}
                                       onToggleFavorite={() => {
                                         void toggleStudentFavorite(item.id);
                                       }}
                                       onApply={() => {
                                         void applyFromStudentFavorite(item.id);
                                       }}
+                                      onWithdraw={app ? () => void handleWithdraw(app) : undefined}
                                     />
                                   </div>
                                 );
@@ -1635,12 +1519,6 @@ export function ProfilePage() {
         </div>
       </main>
       <Footer />
-      <ReportIssueModal
-        open={reportTarget !== null}
-        onClose={() => setReportTarget(null)}
-        defaultApplicationId={reportTarget?.id}
-        defaultPositionId={reportTarget?.positionId}
-      />
       <SelectInterviewSlotModal
         open={interviewTarget !== null}
         applicationId={interviewTarget?.id}
@@ -1657,16 +1535,22 @@ const PostedPositionRow = ({
   showStudentActions = false,
   isFavorite = false,
   isApplied = false,
+  applicationStatus = null,
+  isWithdrawing = false,
   onToggleFavorite,
-  onApply
+  onApply,
+  onWithdraw
 }: {
   item: PublicPositionListItem;
   canEdit: boolean;
   showStudentActions?: boolean;
   isFavorite?: boolean;
   isApplied?: boolean;
+  applicationStatus?: ApplicationStatus | null;
+  isWithdrawing?: boolean;
   onToggleFavorite?: () => void;
   onApply?: () => void;
+  onWithdraw?: () => void;
 }) => {
   const { locale } = useLanguage();
   const tr = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
@@ -1722,15 +1606,74 @@ const PostedPositionRow = ({
                 <Button variant="outline" size="icon" aria-label={tr("저장", "Save", "保存", "Lưu", "保存", "Simpan")} onClick={onToggleFavorite}>
                   <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
                 </Button>
-                <Button
-                  variant="dark"
-                  size="sm"
-                  onClick={onApply}
-                  disabled={isApplied}
-                  className={isApplied ? "border border-zinc-300 bg-zinc-200 text-zinc-500 disabled:opacity-100" : undefined}
-                >
-                  {isApplied ? tr("지원완료", "Applied", "已申请", "Đã ứng tuyển", "応募完了", "Telah melamar") : tr("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar")}
-                </Button>
+                {(() => {
+                  // Button label/style mirror the application status when the
+                  // student already applied. Without a status we fall back to
+                  // the generic "지원완료" so unauthenticated/legacy rows still
+                  // render meaningfully.
+                  if (!isApplied) {
+                    return (
+                      <Button variant="dark" size="sm" onClick={onApply}>
+                        {tr("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar")}
+                      </Button>
+                    );
+                  }
+                  const label = (() => {
+                    switch (applicationStatus) {
+                      case "INTERVIEW":
+                        return tr("면접 예정", "Interview", "面试预定", "Phỏng vấn", "面接予定", "Wawancara");
+                      case "ACCEPTED":
+                        return tr("합격", "Accepted", "录用", "Đã đậu", "合格", "Diterima");
+                      case "REJECTED":
+                        return tr("불합격", "Not accepted", "未录用", "Không đậu", "不合格", "Tidak diterima");
+                      case "WITHDRAWN":
+                        return tr("철회됨", "Withdrawn", "已撤回", "Đã rút", "取り下げ", "Ditarik");
+                      case "SUBMITTED":
+                      default:
+                        return tr("검토 중", "Under review", "审核中", "Đang xem xét", "審査中", "Sedang ditinjau");
+                    }
+                  })();
+                  const cls = (() => {
+                    switch (applicationStatus) {
+                      case "ACCEPTED":
+                        return "border border-emerald-300 bg-emerald-100 text-emerald-700 disabled:opacity-100";
+                      case "INTERVIEW":
+                        return "border border-emerald-300 bg-emerald-50 text-emerald-700 disabled:opacity-100";
+                      case "REJECTED":
+                        return "border border-rose-300 bg-rose-50 text-rose-700 disabled:opacity-100";
+                      case "WITHDRAWN":
+                        return "border border-zinc-300 bg-zinc-100 text-zinc-500 disabled:opacity-100";
+                      case "SUBMITTED":
+                      default:
+                        return "border border-zinc-300 bg-zinc-200 text-zinc-500 disabled:opacity-100";
+                    }
+                  })();
+                  // Withdraw allowed while the application is still in flight —
+                  // mirrors the original visibility (any status except ACCEPTED
+                  // / WITHDRAWN).
+                  const canWithdraw =
+                    onWithdraw &&
+                    applicationStatus !== "ACCEPTED" &&
+                    applicationStatus !== "WITHDRAWN";
+                  return (
+                    <>
+                      <Button variant="dark" size="sm" disabled className={cls}>
+                        {label}
+                      </Button>
+                      {canWithdraw ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={onWithdraw}
+                          disabled={isWithdrawing}
+                          className="border-zinc-300 text-zinc-600 hover:bg-zinc-50"
+                        >
+                          {tr("지원 철회", "Withdraw", "撤回申请", "Rút đơn", "応募取り下げ", "Tarik lamaran")}
+                        </Button>
+                      ) : null}
+                    </>
+                  );
+                })()}
               </>
             ) : (
               <Button variant="outline" size="sm" asChild>
