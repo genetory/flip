@@ -1947,15 +1947,20 @@ const listPartnerOrganizationsQuerySchema = z.object({
   sortBy: z.enum(["name", "createdAt"]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
-  pageSize: z.coerce.number().int().refine((v) => [20, 40, 100].includes(v), "pageSize must be one of 20,40,100").optional()
+  pageSize: z.coerce.number().int().refine((v) => [20, 30, 40, 100].includes(v), "pageSize must be one of 20,30,40,100").optional()
 });
 const listPartnerUsersQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
   partnerOrganizationId: z.string().uuid().optional(),
+  // Ops filter: surface only verified or only unverified accounts. Accepts a
+  // boolean coerced from query strings (e.g. "true" / "false" / "1" / "0").
+  emailVerified: z
+    .union([z.boolean(), z.enum(["true", "false", "1", "0"]).transform((v) => v === "true" || v === "1")])
+    .optional(),
   sortBy: z.enum(["email", "name", "createdAt"]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
-  pageSize: z.coerce.number().int().refine((v) => [20, 40, 100].includes(v), "pageSize must be one of 20,40,100").optional()
+  pageSize: z.coerce.number().int().refine((v) => [20, 30, 40, 100].includes(v), "pageSize must be one of 20,30,40,100").optional()
 });
 
 const updatePartnerOrganizationSchema = z.object({
@@ -2282,7 +2287,7 @@ const listPositionsQuerySchema = z.object({
   sortBy: z.enum(["title", "status", "hiringCount", "createdAt"]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
-  pageSize: z.coerce.number().int().refine((v) => [20, 40, 100].includes(v), "pageSize must be one of 20,40,100").optional()
+  pageSize: z.coerce.number().int().refine((v) => [20, 30, 40, 100].includes(v), "pageSize must be one of 20,30,40,100").optional()
 });
 const listPublicPositionsCursorQuerySchema = z.object({
   cursor: z.string().trim().min(1).optional(),
@@ -16179,7 +16184,7 @@ app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (
     return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
   }
 
-  const { search, partnerOrganizationId, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
+  const { search, partnerOrganizationId, emailVerified, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
   const orderByMap = {
     email: { email: sortOrder },
     name: { name: sortOrder },
@@ -16189,6 +16194,7 @@ app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (
 
   const where: Prisma.UserWhereInput = {
     ...(partnerOrganizationId ? { partnerOrganizationId } : {}),
+    ...(typeof emailVerified === "boolean" ? { emailVerified } : {}),
     ...(search
       ? {
           OR: [
