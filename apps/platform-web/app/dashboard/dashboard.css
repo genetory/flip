@@ -278,8 +278,8 @@
 }
 
 .ops-console-nav-group {
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .ops-console-nav-group:first-child {
@@ -287,6 +287,49 @@
   border-top: 0;
 }
 
+/* Single-link groups (e.g. 홈/대시보드) render as a single row without a
+   toggle — make them feel like a top-level pinned shortcut. */
+.ops-console-nav-group--single ul {
+  margin: 0;
+}
+
+/* The clickable header that toggles a multi-item group. Styled to match
+   the visual weight of the old h2 but with a chevron on the right. */
+.ops-console-nav-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  background: transparent;
+  border: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.ops-console-nav-group-toggle:hover {
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ops-console-nav-chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 160ms ease;
+}
+
+.ops-console-nav-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+/* Legacy h2 (kept for any old usage) — invisible by default now. */
 .ops-console-nav-group h2 {
   margin: 0;
   padding: 0 8px;
@@ -297,49 +340,52 @@
 }
 
 .ops-console-nav-group ul {
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .ops-console-nav-group a {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   position: relative;
   border-radius: 10px;
-  padding: 10px 8px 10px 24px;
+  padding: 9px 10px;
   color: rgba(255, 255, 255, 0.78);
   text-decoration: none;
   font-size: 13px;
   font-weight: 400;
+  transition: background 100ms ease, color 100ms ease;
 }
 
-.ops-console-nav-group a::before {
-  content: "";
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.38);
+.ops-console-nav-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.5);
+  transition: color 100ms ease;
 }
 
 .ops-console-nav-group a:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.ops-console-nav-group a:hover .ops-console-nav-icon {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .ops-console-nav-group a.is-active {
-  background: linear-gradient(90deg, rgba(249, 115, 22, 0.28), rgba(234, 88, 12, 0.22));
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.28), rgba(234, 88, 12, 0.18));
   color: #fff;
   font-weight: 500;
 }
 
-.ops-console-nav-group a.is-active::before {
-  background: #fff;
+.ops-console-nav-group a.is-active .ops-console-nav-icon {
+  color: #fff;
 }
 
 .ops-console-logout-wrap {
@@ -363,11 +409,19 @@
   background: #fff;
   padding: 24px;
   height: 100dvh;
-  overflow-y: auto;
+  /* Both axes scroll: vertical for tall pages, horizontal for narrow
+     viewports (the inner .ops-content-section has a min-width below). */
+  overflow: auto;
 }
 
 .ops-content-section {
-  max-width: 1120px;
+  /* Fluid main column — only the sidebar has a fixed width; everything to
+     its right stretches to fill the viewport. Below the min-width the parent
+     `.ops-console-main` shows a horizontal scrollbar instead of squishing
+     the content. */
+  max-width: none;
+  width: 100%;
+  min-width: 960px;
 }
 
 .ops-content-section header h1 {
@@ -418,10 +472,10 @@
 
 .ops-partner-form-card,
 .ops-partner-list-card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 20px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
 .ops-content-section > .ops-partner-list-card {
@@ -2855,10 +2909,9 @@
     padding: 20px 20px 24px;
   }
 
-  .ops-console-shell {
-    grid-template-columns: 1fr;
-  }
-
+  /* Sidebar stays at the fixed 280px column from the desktop grid even on
+     narrow viewports — operator preference. Only the inner padding shrinks
+     a bit so the menu text doesn't feel cramped. */
   .ops-console-sidebar {
     padding: 14px 12px;
   }
@@ -2957,9 +3010,20 @@
     font-size: 11px;
   }
 
+  .ops-console-nav-group-toggle {
+    font-size: 10px;
+    padding: 5px 8px;
+  }
+
   .ops-console-nav-group a {
     font-size: 12px;
-    padding: 9px 8px 9px 22px;
+    padding: 8px 8px;
+    gap: 9px;
+  }
+
+  .ops-console-nav-icon {
+    width: 15px;
+    height: 15px;
   }
 
   .ops-console-main {
@@ -3035,19 +3099,21 @@
 /* ===== Shared admin card utilities (new pages) ===== */
 
 .ops-card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 20px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
-/* Vertical rhythm: anything after the page header gets 20px gap, subsequent siblings 14px */
+/* Vertical rhythm (Toss-style flat layout): no card chrome, so siblings
+   rely on margin alone for separation. 28px between header and first
+   section, 24px between subsequent siblings. */
 .ops-content-section > header + * {
-  margin-top: 20px;
+  margin-top: 28px;
 }
 
 .ops-content-section > header ~ * + * {
-  margin-top: 14px;
+  margin-top: 24px;
 }
 
 .ops-card-header {
@@ -3112,10 +3178,10 @@
 }
 
 .ops-empty-card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 32px 20px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  background: transparent;
+  border-radius: 0;
+  padding: 40px 0;
+  box-shadow: none;
   text-align: center;
   color: #6b7280;
   font-size: 14px;
@@ -3251,10 +3317,12 @@ a.ops-list-card:hover {
 .ops-kpi-tile.ops-kpi-amber { background: #fffbeb; }
 
 .ops-table-card {
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-  overflow: hidden;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  border-top: 1px solid #eef0f3;
+  border-bottom: 1px solid #eef0f3;
+  overflow: visible;
 }
 
 .ops-table-card table {

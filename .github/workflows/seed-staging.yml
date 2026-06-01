@@ -59,12 +59,6 @@ jobs:
           COMPANY_USERS_TOKEN: ${{ secrets.COMPANY_USERS_TOKEN }}
         run: npx tsx apps/api/scripts/import-buddies-job-postings.ts
 
-      - name: Import kowork postings
-        continue-on-error: true
-        env:
-          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
-        run: npx tsx apps/api/scripts/import-kowork-job-postings.ts
-
       - name: Run user seed
         if: ${{ github.event.inputs.target == 'user' || github.event.inputs.target == 'both' }}
         env:

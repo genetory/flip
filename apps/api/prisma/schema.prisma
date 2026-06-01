@@ -334,7 +334,6 @@ enum PositionSourceKind {
 enum PositionSourceProvider {
   INTERNAL
   BUDDIES
-  KOWORK
   WANTED
   OTHER
 }

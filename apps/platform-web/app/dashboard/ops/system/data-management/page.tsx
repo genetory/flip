@@ -242,7 +242,7 @@ export default function DataManagementPage() {
           <h2>모든 포지션 삭제</h2>
         </div>
         <p style={{ marginTop: 8 }}>
-          INTERNAL / BUDDIES / KOWORK / WANTED / OTHER 모든 소스의 포지션 + 자식 데이터(지원 내역, 매칭 기록, 상태 이력 등)를 삭제합니다.
+          INTERNAL / BUDDIES / WANTED / OTHER 모든 소스의 포지션 + 자식 데이터(지원 내역, 매칭 기록, 상태 이력 등)를 삭제합니다.
         </p>
         <div className="ops-inline-actions" style={{ marginTop: 14, gap: 10, alignItems: "center" }}>
           <input

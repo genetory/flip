@@ -1,6 +1,36 @@
+import {
+  AlertTriangle,
+  BarChart3,
+  Bot,
+  Briefcase,
+  Building2,
+  ClipboardCheck,
+  Database,
+  FileText,
+  GraduationCap,
+  Home,
+  Inbox,
+  Link as LinkIcon,
+  Mail,
+  Megaphone,
+  ScrollText,
+  Settings,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  Stamp,
+  Star,
+  Target,
+  Users,
+  Wallet,
+  Workflow,
+  type LucideIcon
+} from "lucide-react";
+
 export type MenuLink = {
   label: string;
   href: string;
+  icon: LucideIcon;
 };
 
 export type MenuGroup = {
@@ -8,56 +38,85 @@ export type MenuGroup = {
   links: MenuLink[];
 };
 
+// Ops console menu — deduped + grouped by semantic concern.
+//
+// Hierarchy:
+//   홈                — landing page
+//   오늘 할 일          — inbox-style pages an operator checks every day
+//   이벤트              — campaign/event pages (separated so new events stand out)
+//   사용자 & 후보       — every "who" page (all users / candidates / partner users)
+//   파트너 & 포지션      — partner orgs + the positions they post
+//   채용 진행            — post-match workflow (applications, interviews, …)
+//   분석 & 소통          — analytics + outbound communications
+//   시스템              — infra + admin tools (auto-collapsed by default)
+//
+// Removed from menu:
+//   "관리자 사용자" — same /ops/users endpoint as "전체 사용자"; the simpler
+//     page is reachable by direct URL when needed but no longer listed.
 export const opsDashboardMenuGroups: MenuGroup[] = [
   {
-    title: "대시보드",
-    links: [{ label: "대시보드 홈", href: "/dashboard/ops" }]
+    title: "홈",
+    links: [{ label: "대시보드", href: "/dashboard/ops", icon: Home }]
   },
   {
-    title: "파트너",
+    title: "오늘 할 일",
     links: [
-      { label: "파트너 관리", href: "/dashboard/ops/partners/management" },
-      { label: "파트너 사용자 관리", href: "/dashboard/ops/partners/users" }
+      { label: "검수 큐", href: "/dashboard/ops/operations/review-queue", icon: ClipboardCheck },
+      { label: "포지션 수정 요청", href: "/dashboard/ops/operations/position-revisions", icon: Stamp },
+      { label: "이슈 리포트", href: "/dashboard/ops/operations/issues", icon: AlertTriangle },
+      { label: "매칭", href: "/dashboard/ops/operations/matching", icon: Target }
     ]
   },
   {
-    title: "운영",
+    title: "이벤트",
     links: [
-      { label: "검수 큐", href: "/dashboard/ops/operations/review-queue" },
-      { label: "이슈 리포트", href: "/dashboard/ops/operations/issues" },
-      { label: "전체 지원 현황", href: "/dashboard/ops/operations/applications" },
-      { label: "후보자 관리", href: "/dashboard/ops/operations/candidates" },
-      { label: "사주 이벤트 후보 Pool", href: "/dashboard/ops/operations/saju-leads" },
-      { label: "프리미엄 포지션 관리", href: "/dashboard/ops/operations/premium-positions" },
-      { label: "포지션 관리", href: "/dashboard/ops/operations/positions" },
-      { label: "포지션 수정 관리", href: "/dashboard/ops/operations/position-revisions" },
-      { label: "매칭 관리", href: "/dashboard/ops/operations/matching" },
-      { label: "인터뷰/진행 현황", href: "/dashboard/ops/operations/interviews" },
-      { label: "과제 진행 현황", href: "/dashboard/ops/operations/assignments" },
-      { label: "프로그램 진행", href: "/dashboard/ops/operations/programs" },
-      { label: "학점 인정 검토", href: "/dashboard/ops/operations/school-credit" },
-      { label: "공지사항 관리", href: "/dashboard/ops/operations/announcements" }
+      { label: "사주 이벤트 후보 Pool", href: "/dashboard/ops/operations/saju-leads", icon: Sparkles }
     ]
   },
   {
-    title: "운영 지원",
+    title: "사용자 & 후보",
     links: [
-      { label: "전체 사용자 관리", href: "/dashboard/ops/support/users" },
-      { label: "유입 경로 관리", href: "/dashboard/ops/support/inflow" },
-      { label: "이메일 관리", href: "/dashboard/ops/support/emails" },
-      { label: "리포트", href: "/dashboard/ops/support/reports" },
-      { label: "매칭 로그", href: "/dashboard/ops/support/matching-logs" }
+      { label: "전체 사용자", href: "/dashboard/ops/support/users", icon: Users },
+      { label: "후보자", href: "/dashboard/ops/operations/candidates", icon: ShieldCheck },
+      { label: "파트너 사용자", href: "/dashboard/ops/partners/users", icon: Building2 }
+    ]
+  },
+  {
+    title: "파트너 & 포지션",
+    links: [
+      { label: "파트너", href: "/dashboard/ops/partners/management", icon: Building2 },
+      { label: "포지션", href: "/dashboard/ops/operations/positions", icon: Briefcase },
+      { label: "프리미엄 포지션", href: "/dashboard/ops/operations/premium-positions", icon: Star }
+    ]
+  },
+  {
+    title: "채용 진행",
+    links: [
+      { label: "전체 지원 현황", href: "/dashboard/ops/operations/applications", icon: Inbox },
+      { label: "인터뷰·진행", href: "/dashboard/ops/operations/interviews", icon: Workflow },
+      { label: "과제 진행", href: "/dashboard/ops/operations/assignments", icon: FileText },
+      { label: "프로그램", href: "/dashboard/ops/operations/programs", icon: ScrollText },
+      { label: "학점 인정", href: "/dashboard/ops/operations/school-credit", icon: GraduationCap }
+    ]
+  },
+  {
+    title: "분석 & 소통",
+    links: [
+      { label: "유입 경로", href: "/dashboard/ops/support/inflow", icon: BarChart3 },
+      { label: "매칭 로그", href: "/dashboard/ops/support/matching-logs", icon: LinkIcon },
+      { label: "리포트", href: "/dashboard/ops/support/reports", icon: BarChart3 },
+      { label: "공지사항", href: "/dashboard/ops/operations/announcements", icon: Megaphone },
+      { label: "이메일", href: "/dashboard/ops/support/emails", icon: Mail }
     ]
   },
   {
     title: "시스템",
     links: [
-      { label: "관리자 사용자 관리", href: "/dashboard/ops/system/admin-users" },
-      { label: "감사 로그", href: "/dashboard/ops/system/audit-log" },
-      { label: "결제 관리", href: "/dashboard/ops/system/payments" },
-      { label: "설정값 관리", href: "/dashboard/ops/system/settings" },
-      { label: "크롤링", href: "/dashboard/ops/system/crawlers" },
-      { label: "데이터 관리", href: "/dashboard/ops/system/data-management" }
+      { label: "감사 로그", href: "/dashboard/ops/system/audit-log", icon: Shield },
+      { label: "결제", href: "/dashboard/ops/system/payments", icon: Wallet },
+      { label: "설정값", href: "/dashboard/ops/system/settings", icon: Settings },
+      { label: "크롤링", href: "/dashboard/ops/system/crawlers", icon: Bot },
+      { label: "데이터", href: "/dashboard/ops/system/data-management", icon: Database }
     ]
   }
 ];

@@ -1,0 +1,247 @@
+name: Anonymized prod DB dump
+
+# Two-stage dump used for local development:
+#   1. pg_dump the live production DB
+#   2. restore into a throw-away postgres service in this runner
+#   3. run anonymization UPDATEs that strip PII (email, name, phone,
+#      emergency contacts, addresses, resume content, etc.)
+#   4. pg_dump the sanitized DB into a single artifact the operator
+#      downloads and restores locally
+#
+# Safe defaults: artifact retention is short (3 days), production never
+# sees a write — the anonymization runs against the runner-local postgres.
+
+on:
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: "Artifact retention (days, 1–7)"
+        required: true
+        type: number
+        default: 3
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    environment: production
+    services:
+      sanitizer:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sanitize
+          POSTGRES_DB: sanitize
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      SANITIZER_URL: postgres://postgres:sanitize@localhost:5432/sanitize
+
+    steps:
+      - name: Validate inputs + install postgres-client 16
+        run: |
+          rd=${{ inputs.retention_days }}
+          if [ "$rd" -lt 1 ] || [ "$rd" -gt 7 ]; then
+            echo "retention_days must be 1–7 (got $rd)" && exit 1
+          fi
+          # Ubuntu's default postgres-client may be older than the prod server;
+          # install PG16 to avoid pg_dump version-mismatch errors.
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-16
+          pg_dump --version
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Pull prod DATABASE_URL from App Service
+        run: |
+          APP=${{ secrets.AZURE_WEBAPP_API_NAME }}
+          RG=${{ secrets.AZURE_RESOURCE_GROUP || 'rg-aply' }}
+          DB_URL=$(az webapp config appsettings list \
+            --name "$APP" --resource-group "$RG" \
+            --query "[?name=='DATABASE_URL'].value" -o tsv)
+          if [ -z "$DB_URL" ]; then echo "DATABASE_URL not found on App Service $APP" && exit 1; fi
+          echo "::add-mask::$DB_URL"
+          echo "PROD_DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
+
+      - name: Dump prod (custom format)
+        run: |
+          mkdir -p /tmp/dump
+          pg_dump "$PROD_DATABASE_URL" \
+            --no-owner --no-acl --no-publications --no-subscriptions \
+            -Fc -f /tmp/dump/prod-raw.dump
+          ls -lh /tmp/dump/prod-raw.dump
+
+      - name: Wait for sanitizer DB
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres >/dev/null 2>&1; do
+            echo "waiting for sanitizer postgres..."
+            sleep 2
+          done
+
+      - name: Restore prod dump into sanitizer DB
+        run: |
+          pg_restore --no-owner --no-acl --clean --if-exists \
+            -d "$SANITIZER_URL" /tmp/dump/prod-raw.dump || true
+          # pg_restore returns non-zero on benign warnings (extensions etc.);
+          # ignore and verify the table count.
+          tbl=$(psql "$SANITIZER_URL" -tAc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'")
+          echo "restored $tbl public tables"
+          if [ "$tbl" -lt 5 ]; then
+            echo "::error::restore looks incomplete (<5 tables)" && exit 1
+          fi
+
+      - name: Anonymize PII
+        run: |
+          psql "$SANITIZER_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          -- User: identifiers + free-text personal fields
+          UPDATE "User" SET
+            email        = 'user-' || left(md5(id::text), 12) || '@example.test',
+            name         = '사용자 ' || left(md5(id::text), 4),
+            "realName"   = '사용자 ' || left(md5(id::text), 4),
+            "phoneNumber"= '010-0000-' || lpad((abs(hashtext(id::text)) % 9999)::text, 4, '0'),
+            "adminMemo"  = NULL,
+            "providerId" = NULL,
+            "passwordHash" = NULL,
+            "profileImageUrl" = NULL,
+            "affiliation" = NULL,
+            "jobTitle"    = NULL,
+            "suspendedReason" = NULL;
+
+          -- Candidate emergency contacts, address, uploaded files
+          UPDATE "CandidateProfile" SET
+            "emergencyContactName"    = NULL,
+            "emergencyContactPhone"   = NULL,
+            "emergencyContactEmail"   = NULL,
+            "emergencyContactAddress" = NULL,
+            "emergencyContactRelation"= NULL,
+            "residenceAddress" = NULL,
+            "residenceDistrict" = NULL,
+            "passportImageUrl" = NULL,
+            "passportImageFileName" = NULL,
+            "resumeUrl" = NULL,
+            "resumeFileName" = NULL,
+            "coverLetterUrl" = NULL,
+            "coverLetterFileName" = NULL,
+            "portfolioUrl" = NULL,
+            "portfolioFileName" = NULL,
+            "matchingResultNote" = NULL,
+            "selfIntroduction" = NULL,
+            "programMotivation" = NULL,
+            "preferenceConditionNote" = NULL,
+            "capabilityNote" = NULL,
+            "additionalInfoNote" = NULL;
+
+          -- Candidate education / language / career: school/company names + free text
+          UPDATE "CandidateEducation" SET
+            "schoolName" = '학교 ' || left(md5(id::text), 4),
+            "major"      = '전공',
+            "city"       = NULL;
+          UPDATE "CandidateCareer" SET
+            "companyName" = '회사 ' || left(md5(id::text), 4),
+            "position"    = '담당자',
+            "department"  = NULL,
+            "description" = NULL;
+          UPDATE "CandidateActivityExperience" SET
+            "title"       = '활동 ' || left(md5(id::text), 4),
+            "organization"= NULL,
+            "description" = NULL;
+          UPDATE "CandidateLanguageSkill" SET
+            "testName" = NULL, "score" = NULL;
+
+          -- Resumes: drop the full content blob (may carry PII inside JSON)
+          UPDATE "Resume" SET content = NULL;
+
+          -- Saju event entries
+          UPDATE "SajuPrediction" SET
+            name = '익명 ' || left(md5(id::text), 4),
+            "ipHash" = NULL;
+          UPDATE "SajuLead" SET
+            name = '익명 ' || left(md5(id::text), 4),
+            contact = 'contact@example.test',
+            school = '학교',
+            major = '전공',
+            nationality = '익명',
+            "ipHash" = NULL;
+
+          -- Issue reports: reporter-written text may be sensitive
+          UPDATE "IssueReport" SET
+            title = '[REDACTED]',
+            body  = '[REDACTED]'
+          WHERE true;
+
+          -- Notifications: messages can contain personal info
+          UPDATE "Notification" SET message = '[REDACTED]' WHERE message IS NOT NULL;
+
+          -- Application correspondence
+          UPDATE "ApplicationComment" SET body = '[REDACTED]';
+
+          -- Partner orgs: internal admin memos
+          UPDATE "PartnerOrganization" SET
+            "adminMemo" = NULL,
+            "officeAddress" = NULL,
+            "businessRegistrationDocumentData" = NULL,
+            "fourInsuranceSubscriberListData" = NULL;
+
+          -- Position admin memos can carry candidate-specific notes
+          UPDATE "Position" SET "adminMemo" = NULL;
+
+          -- Auth tokens — never copy to dev
+          DELETE FROM "RefreshToken";
+          DELETE FROM "EmailVerificationToken";
+          SQL
+
+      - name: Re-dump sanitized DB
+        run: |
+          pg_dump "$SANITIZER_URL" \
+            --no-owner --no-acl --no-publications --no-subscriptions \
+            -Fc -f /tmp/dump/prod-sanitized.dump
+          ls -lh /tmp/dump/prod-sanitized.dump
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-sanitized-dump
+          path: /tmp/dump/prod-sanitized.dump
+          retention-days: ${{ inputs.retention_days }}
+
+      - name: Restore instructions
+        run: |
+          cat <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          ## Local restore
+          1. Workflow run page → **Artifacts → prod-sanitized-dump** → download.
+          2. Unzip — you get `prod-sanitized.dump` (custom-format pg_dump).
+          3. Make a local empty DB:
+             ```bash
+             createdb -h localhost -U postgres aply_local
+             ```
+          4. Restore (ignore benign extension warnings):
+             ```bash
+             pg_restore --no-owner --no-acl --clean --if-exists \
+               -d postgres://postgres@localhost:5432/aply_local \
+               prod-sanitized.dump
+             ```
+          5. Point `apps/api/.env`'s `DATABASE_URL` at the local DB and restart `npm run dev`.
+
+          ## What was anonymized
+          email, real name, name, phone, admin memos, emergency contacts,
+          residence address, file URLs, resume content, saju entry name/contact,
+          issue report title/body, notification messages, application comment
+          bodies, partner office address / admin memo, position admin memo.
+
+          Tokens (`RefreshToken`, `EmailVerificationToken`) were deleted.
+
+          **Delete the dump and the local DB when done.** Anonymization is
+          best-effort — community posts and other user-generated text are kept
+          as-is because they're public, but they may still surface real names.
+          EOF
