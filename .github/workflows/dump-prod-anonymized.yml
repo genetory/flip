@@ -177,15 +177,15 @@ jobs:
 
           -- Issue reports: reporter-written text may be sensitive
           UPDATE "IssueReport" SET
-            title = '[REDACTED]',
-            body  = '[REDACTED]'
-          WHERE true;
+            title       = '[REDACTED]',
+            description = '[REDACTED]',
+            "resolutionNote" = NULL;
 
           -- Notifications: messages can contain personal info
           UPDATE "Notification" SET message = '[REDACTED]' WHERE message IS NOT NULL;
 
           -- Application correspondence
-          UPDATE "ApplicationComment" SET body = '[REDACTED]';
+          UPDATE "ApplicationComment" SET content = '[REDACTED]';
 
           -- Partner orgs: internal admin memos
           UPDATE "PartnerOrganization" SET
