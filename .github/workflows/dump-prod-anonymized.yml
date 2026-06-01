@@ -26,7 +26,9 @@ jobs:
     environment: production
     services:
       sanitizer:
-        image: postgres:16
+        # pgvector-enabled image — the prod schema's Position.embedding
+        # column needs the `vector` extension or pg_restore drops the table.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: sanitize
