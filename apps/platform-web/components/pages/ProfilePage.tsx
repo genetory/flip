@@ -1607,6 +1607,29 @@ const PostedPositionRow = ({
                   <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
                 </Button>
                 {(() => {
+                  // Crawled (EXTERNAL) postings — 원티드 / 버디즈 / 기타 외부 —
+                  // can't be applied to via Aply itself. Show a link out to
+                  // the source instead and skip the apply/withdraw flow.
+                  if (item.sourceKind === "EXTERNAL" && item.sourceUrl) {
+                    const sourceName = (() => {
+                      switch (item.sourceProvider) {
+                        case "WANTED":
+                          return tr("원티드", "Wanted", "Wanted", "Wanted", "Wanted", "Wanted");
+                        case "BUDDIES":
+                          return tr("버디즈", "Buddies", "Buddies", "Buddies", "Buddies", "Buddies");
+                        default:
+                          return tr("외부", "External", "外部", "Bên ngoài", "外部", "Eksternal");
+                      }
+                    })();
+                    return (
+                      <Button variant="dark" size="sm" asChild>
+                        <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">
+                          {tr(`${sourceName}에서 보기`, `View on ${sourceName}`, `在 ${sourceName} 查看`, `Xem trên ${sourceName}`, `${sourceName}で見る`, `Lihat di ${sourceName}`)}
+                        </a>
+                      </Button>
+                    );
+                  }
+
                   // Button label/style mirror the application status when the
                   // student already applied. Without a status we fall back to
                   // the generic "지원완료" so unauthenticated/legacy rows still
