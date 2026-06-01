@@ -22,7 +22,6 @@
     "db:import:company-users": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-company-users.ts",
     "db:import:job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-job-postings.ts",
     "db:import:buddies-job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-buddies-job-postings.ts",
-    "db:import:kowork-job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-kowork-job-postings.ts",
     "db:import:wanted-job-postings": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/import-wanted-job-postings.ts",
     "db:cleanup:wanted-positions": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/cleanup-wanted-positions.ts",
     "db:cleanup:internal-positions": "set -a; . ./.env; set +a; npx tsx apps/api/scripts/cleanup-internal-positions.ts",

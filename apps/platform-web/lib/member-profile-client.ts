@@ -468,7 +468,7 @@ export type PositionsMeta = {
 export type PublicPositionListItem = {
   id: string;
   sourceKind: "INTERNAL" | "EXTERNAL";
-  sourceProvider: "INTERNAL" | "BUDDIES" | "KOWORK" | "WANTED" | "OTHER";
+  sourceProvider: "INTERNAL" | "BUDDIES" | "WANTED" | "OTHER";
   sourceExternalId: string | null;
   sourceUrl: string | null;
   sourceFetchedAt: string | null;

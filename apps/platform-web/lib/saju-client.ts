@@ -54,7 +54,7 @@ export type SajuPositionItem = {
   preferredJobRole: string | null;
   workLocation: string | null;
   thumbnailImages: string[];
-  sourceProvider: "INTERNAL" | "BUDDIES" | "KOWORK" | "WANTED" | "OTHER";
+  sourceProvider: "INTERNAL" | "BUDDIES" | "WANTED" | "OTHER";
   sourceKind: "INTERNAL" | "EXTERNAL";
   sourceUrl: string | null;
   partnerOrganization: {

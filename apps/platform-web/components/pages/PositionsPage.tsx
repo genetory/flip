@@ -60,7 +60,7 @@ type PositionCard = Position & {
 };
 type PositionSourceKind = PublicPositionListItem["sourceKind"];
 type PositionSourceProvider = PublicPositionListItem["sourceProvider"];
-type PositionSourceFilter = "INTERNAL" | "KOWORK" | "BUDDIES" | "WANTED";
+type PositionSourceFilter = "INTERNAL" | "BUDDIES" | "WANTED";
 
 function visaTypeLabel(code: string, locale: PlatformLocale) {
   const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
@@ -389,7 +389,7 @@ export function PositionsPage() {
     })),
     ...positionSources.map((value) => ({
       key: `source:${value}`,
-      label: value === "INTERNAL" ? "Aply" : value === "WANTED" ? "Wanted" : value === "KOWORK" ? "KOWORK" : "BUDDIES",
+      label: value === "INTERNAL" ? "Aply" : value === "WANTED" ? "Wanted" : "BUDDIES",
       onRemove: () => toggle(positionSources, setPositionSources, value)
     }))
   ];
@@ -1261,9 +1261,7 @@ export const PositionRow = ({
   } as const;
   const wantedAltLabel = isKo ? "Wanted에서 보기" : isZh ? "在 Wanted 查看" : isVi ? "Xem trên Wanted" : isJa ? "Wantedで見る" : isId ? "Lihat di Wanted" : "View on Wanted";
   const externalLinkLabel: React.ReactNode =
-    p.sourceProvider === "KOWORK"
-      ? (isKo ? "Kowork로 보러가기" : isZh ? "在 Kowork 查看" : isVi ? "Xem trên Kowork" : isJa ? "Koworkで見る" : isId ? "Lihat di Kowork" : "View on Kowork")
-      : p.sourceProvider === "BUDDIES"
+    p.sourceProvider === "BUDDIES"
         ? (isKo ? "Buddies로 보러가기" : isZh ? "在 Buddies 查看" : isVi ? "Xem trên Buddies" : isJa ? "Buddiesで見る" : isId ? "Lihat di Buddies" : "View on Buddies")
         : p.sourceProvider === "WANTED"
           ? (
@@ -1439,9 +1437,7 @@ const PositionGridCard = ({
   } as const;
   const wantedAltLabel = isKo ? "Wanted에서 보기" : isZh ? "在 Wanted 查看" : isVi ? "Xem trên Wanted" : isJa ? "Wantedで見る" : isId ? "Lihat di Wanted" : "View on Wanted";
   const externalLinkLabel: React.ReactNode =
-    p.sourceProvider === "KOWORK"
-      ? (isKo ? "Kowork로 보러가기" : isZh ? "在 Kowork 查看" : isVi ? "Xem trên Kowork" : isJa ? "Koworkで見る" : isId ? "Lihat di Kowork" : "View on Kowork")
-      : p.sourceProvider === "BUDDIES"
+    p.sourceProvider === "BUDDIES"
         ? (isKo ? "Buddies로 보러가기" : isZh ? "在 Buddies 查看" : isVi ? "Xem trên Buddies" : isJa ? "Buddiesで見る" : isId ? "Lihat di Buddies" : "View on Buddies")
         : p.sourceProvider === "WANTED"
           ? (

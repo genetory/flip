@@ -3016,7 +3016,6 @@ async function runCrawlerScript(scriptPath: string): Promise<CrawlerRunSummary |
 async function sendCrawlerSummaryDiscordNotification(input: {
   startedAt: Date;
   elapsedMs: number;
-  kowork: CrawlerRunSummary | null;
   buddies: CrawlerRunSummary | null;
   wanted: CrawlerRunSummary | null;
   ok: boolean;
@@ -3024,8 +3023,7 @@ async function sendCrawlerSummaryDiscordNotification(input: {
 }) {
   if (!crawlerSummaryDiscordWebhookUrl) return;
   const asNum = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
-  const [storedKoworkCount, storedBuddiesCount, storedWantedCount] = await Promise.all([
-    prisma.position.count({ where: { sourceProvider: PositionSourceProvider.KOWORK } }),
+  const [storedBuddiesCount, storedWantedCount] = await Promise.all([
     prisma.position.count({ where: { sourceProvider: PositionSourceProvider.BUDDIES } }),
     prisma.position.count({ where: { sourceProvider: PositionSourceProvider.WANTED } })
   ]);
@@ -3054,18 +3052,16 @@ async function sendCrawlerSummaryDiscordNotification(input: {
     return `${sourceMeta(summary, fallbackProvider, fallbackPlatform)}\n신규 ${created}건 / 업데이트 ${updated}건 / 반영 ${imported}건 / DB 총 ${total}건`;
   };
 
-  const kCreated = asNum(input.kowork?.created);
-  const kUpdated = asNum(input.kowork?.updated);
   const bCreated = asNum(input.buddies?.created);
   const bUpdated = asNum(input.buddies?.updated);
   const wCreated = asNum(input.wanted?.created);
   const wUpdated = asNum(input.wanted?.updated);
-  const totalAdded = kCreated + bCreated + wCreated;
-  const totalUpdated = kUpdated + bUpdated + wUpdated;
+  const totalAdded = bCreated + wCreated;
+  const totalUpdated = bUpdated + wUpdated;
   const description = input.ok
     ? [
         `실제 반영: 신규 ${totalAdded}건 / 업데이트 ${totalUpdated}건`,
-        `소스별 현재 저장: Kowork ${storedKoworkCount}건, Buddies ${storedBuddiesCount}건, Wanted ${storedWantedCount}건`
+        `소스별 현재 저장: Buddies ${storedBuddiesCount}건, Wanted ${storedWantedCount}건`
       ].join("\n")
     : `오류: ${input.errorMessage ?? "unknown error"}`;
 
@@ -3079,11 +3075,6 @@ async function sendCrawlerSummaryDiscordNotification(input: {
           name: "실행 환경",
           value: runtimeEnv,
           inline: true
-        },
-        {
-          name: "Kowork",
-          value: `${sourceDetail(input.kowork, "kowork", "KOWORK")}\n현재 저장: ${storedKoworkCount}건`,
-          inline: false
         },
         {
           name: "Buddies",
@@ -3118,13 +3109,12 @@ async function sendCrawlerSummaryDiscordNotification(input: {
   }
 }
 
-type CrawlerSource = "all" | "kowork" | "buddies" | "wanted";
+type CrawlerSource = "all" | "buddies" | "wanted";
 
 type DailyCrawlerRunResult = {
   ok: boolean;
   startedAt: string;
   elapsedMs: number;
-  kowork: CrawlerRunSummary | null;
   buddies: CrawlerRunSummary | null;
   wanted: CrawlerRunSummary | null;
   source: CrawlerSource;
@@ -3139,7 +3129,6 @@ async function runExternalCrawlers(source: CrawlerSource): Promise<DailyCrawlerR
       ok: false,
       startedAt: new Date().toISOString(),
       elapsedMs: 0,
-      kowork: null,
       buddies: null,
       wanted: null,
       source,
@@ -3150,9 +3139,6 @@ async function runExternalCrawlers(source: CrawlerSource): Promise<DailyCrawlerR
   const startedAt = new Date();
   console.info("[crawler-scheduler] started", { source });
   try {
-    const kowork = source === "all" || source === "kowork"
-      ? await runCrawlerScript("scripts/import-kowork-job-postings.ts")
-      : null;
     const buddies = source === "all" || source === "buddies"
       ? await runCrawlerScript("scripts/import-buddies-job-postings.ts")
       : null;
@@ -3164,7 +3150,6 @@ async function runExternalCrawlers(source: CrawlerSource): Promise<DailyCrawlerR
     await sendCrawlerSummaryDiscordNotification({
       startedAt,
       elapsedMs,
-      kowork,
       buddies,
       wanted,
       ok: true
@@ -3173,7 +3158,6 @@ async function runExternalCrawlers(source: CrawlerSource): Promise<DailyCrawlerR
       ok: true,
       startedAt: startedAt.toISOString(),
       elapsedMs,
-      kowork,
       buddies,
       wanted,
       source
@@ -3189,7 +3173,6 @@ async function runExternalCrawlers(source: CrawlerSource): Promise<DailyCrawlerR
     await sendCrawlerSummaryDiscordNotification({
       startedAt,
       elapsedMs,
-      kowork: null,
       buddies: null,
       wanted: null,
       ok: false,
@@ -3199,7 +3182,6 @@ async function runExternalCrawlers(source: CrawlerSource): Promise<DailyCrawlerR
       ok: false,
       startedAt: startedAt.toISOString(),
       elapsedMs,
-      kowork: null,
       buddies: null,
       wanted: null,
       source,
@@ -5029,14 +5011,6 @@ app.post("/ops/crawlers/run", authenticate, requireRoles([MemberRole.OPERATOR]),
   });
 });
 
-app.post("/ops/crawlers/run/kowork", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
-  const result = await runExternalCrawlers("kowork");
-  return res.status(result.ok ? 200 : 409).json({
-    ok: result.ok,
-    result
-  });
-});
-
 app.post("/ops/crawlers/run/buddies", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
   const result = await runExternalCrawlers("buddies");
   return res.status(result.ok ? 200 : 409).json({
@@ -6009,7 +5983,6 @@ app.post(
           FROM "Position"
           WHERE "status" = 'OPEN'
             AND "embedding" IS NOT NULL
-            AND "sourceProvider"::text NOT IN ('KOWORK')
           ORDER BY "embedding" <=> ${vectorLiteral}::vector
           LIMIT 6
         `;
@@ -6020,8 +5993,7 @@ app.post(
       const fallback = await prisma.position.findMany({
         where: {
           status: PositionStatus.OPEN,
-          preferredJobRole: { in: llm.recommendedRoleNames },
-          sourceProvider: { notIn: [PositionSourceProvider.KOWORK] }
+          preferredJobRole: { in: llm.recommendedRoleNames }
         },
         orderBy: { createdAt: "desc" },
         take: 6,
@@ -6576,7 +6548,7 @@ app.get("/positions", async (req, res) => {
         : Prisma.empty;
       const providerFilter = sourceProviders.length
         ? Prisma.sql`AND "sourceProvider"::text = ANY(${sourceProviders.map((p) => String(p))}::text[])`
-        : Prisma.sql`AND "sourceProvider"::text NOT IN ('KOWORK')`;
+        : Prisma.empty;
 
       const annResults = await prisma.$queryRaw<Array<{ id: string; distance: number }>>`
         SELECT "id", "embedding" <=> ${vectorLiteral}::vector AS distance
@@ -6608,7 +6580,7 @@ app.get("/positions", async (req, res) => {
           : Prisma.empty;
         const qualifiedProviderFilter = sourceProviders.length
           ? Prisma.sql`AND p."sourceProvider"::text = ANY(${sourceProviders.map((p) => String(p))}::text[])`
-          : Prisma.sql`AND p."sourceProvider"::text NOT IN ('KOWORK')`;
+          : Prisma.empty;
         // ILIKE on title/workLocation/preferredJobRole + partner org name via join.
         // %candidate% built server-side to keep parameter list small.
         const likePatterns = queryCandidates.map((c) => `%${c}%`);
@@ -6717,9 +6689,7 @@ app.get("/positions", async (req, res) => {
         }
       : {}),
     ...(jobRoles.length ? { preferredJobRole: { in: jobRoles } } : {}),
-    ...(sourceProviders.length
-      ? { sourceProvider: { in: sourceProviders } }
-      : { sourceProvider: { notIn: [PositionSourceProvider.KOWORK] } })
+    ...(sourceProviders.length ? { sourceProvider: { in: sourceProviders } } : {})
   };
 
   const cursorWhere = sortMode === "deadline"
@@ -6969,8 +6939,8 @@ app.post("/positions/:id/view", async (req, res) => {
   }
 });
 
-// Outbound click tracker — for external positions (WANTED / KOWORK /
-// BUDDIES). Increments externalClickCount and 302 redirects to the
+// Outbound click tracker — for external positions (WANTED / BUDDIES).
+// Increments externalClickCount and 302 redirects to the
 // source URL. Using a redirect (rather than sendBeacon on the client)
 // guarantees counts even when ad blockers or page-unload races would
 // drop client-side beacons.

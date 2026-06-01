@@ -12,14 +12,13 @@ type CrawlerRunSummary = {
   sourcePlatform?: string;
 };
 
-type CrawlerSource = "all" | "kowork" | "buddies" | "wanted";
+type CrawlerSource = "all" | "buddies" | "wanted";
 
 type CrawlerRunResult = {
   ok: boolean;
   startedAt: string;
   elapsedMs: number;
   source: CrawlerSource;
-  kowork: CrawlerRunSummary | null;
   buddies: CrawlerRunSummary | null;
   wanted: CrawlerRunSummary | null;
   errorMessage?: string;
@@ -65,7 +64,7 @@ export default function CrawlersPage() {
     <section className="ops-content-section">
       <header>
         <h1>크롤링</h1>
-        <p>Kowork, Buddies, Wanted 채용 공고 크롤러를 개별 또는 전체로 실행합니다.</p>
+        <p>Buddies, Wanted 채용 공고 크롤러를 개별 또는 전체로 실행합니다.</p>
       </header>
 
       <article className="ops-partner-list-card">
@@ -73,9 +72,6 @@ export default function CrawlersPage() {
           <h2>수동 실행</h2>
         </div>
         <div className="ops-inline-actions" style={{ marginTop: 14 }}>
-          <button type="button" className="ops-partner-add-button" onClick={() => void runCrawler("kowork")} disabled={running !== null}>
-            {running === "kowork" ? "Kowork 실행 중..." : "Kowork 실행"}
-          </button>
           <button type="button" className="ops-partner-add-button" onClick={() => void runCrawler("buddies")} disabled={running !== null}>
             {running === "buddies" ? "Buddies 실행 중..." : "Buddies 실행"}
           </button>
