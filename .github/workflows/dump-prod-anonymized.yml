@@ -159,8 +159,9 @@ jobs:
           UPDATE "CandidateLanguageSkill" SET
             "testName" = NULL, "score" = NULL;
 
-          -- Resumes: drop the full content blob (may carry PII inside JSON)
-          UPDATE "Resume" SET content = NULL;
+          -- Resumes: empty out the content blob (NOT NULL column, so a stub
+          -- JSON instead of NULL). The shape stays valid for the app.
+          UPDATE "Resume" SET content = '{}'::jsonb;
 
           -- Saju event entries
           UPDATE "SajuPrediction" SET
