@@ -1,15 +1,24 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ArrowsDownUp, X } from "@phosphor-icons/react";
+import { ArrowDown, ArrowUp, ArrowsDownUp, CheckCircle, X, XCircle } from "@phosphor-icons/react";
 import { MouseEvent, SyntheticEvent, useEffect, useMemo, useRef, useState } from "react";
 import { OpsBadge, toneFromEmailVerified, toneFromPartnerOrgRole } from "../../partners/_components/OpsBadge";
 import { PartnerUnifiedDetailModal } from "../../partners/_components/PartnerUnifiedDetailModal";
 
 const TOKEN_COOKIE_KEY = "ops_admin_token";
 
-type SortField = "email" | "name" | "partnerName" | "partnerOrgRole" | "createdAt";
+type SortField = "email" | "name" | "partnerOrgRole" | "createdAt";
 type SortOrder = "asc" | "desc";
 type PartnerCompanySize = "SIZE_1_10" | "SIZE_UNDER_30" | "SIZE_UNDER_50" | "SIZE_OVER_100";
+type AuthProvider = "EMAIL" | "NAVER" | "KAKAO" | "GOOGLE";
+
+function authProviderLabel(provider: AuthProvider | null | undefined) {
+  if (provider === "NAVER") return "네이버";
+  if (provider === "KAKAO") return "카카오";
+  if (provider === "GOOGLE") return "구글";
+  if (provider === "EMAIL") return "이메일";
+  return "-";
+}
 
 type PartnerUserItem = {
   id: string;
@@ -19,6 +28,7 @@ type PartnerUserItem = {
   jobTitle: string | null;
   adminMemo: string | null;
   role: "STUDENT" | "PARTNER" | "OPERATOR";
+  authProvider: AuthProvider;
   partnerType: "COMPANY" | "UNIVERSITY" | "AGENCY" | null;
   partnerOrgRole: "OWNER" | "ADMIN" | "MEMBER" | null;
   emailVerified: boolean;
@@ -88,6 +98,11 @@ export default function PartnerUsersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+  // Server-side filters: role + emailVerified. "ALL" sentinel keeps the
+  // <select> controllable without optional state.
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "STUDENT" | "PARTNER" | "OPERATOR">("ALL");
+  const [emailVerifiedFilter, setEmailVerifiedFilter] = useState<"ALL" | "VERIFIED" | "UNVERIFIED">("ALL");
+  const [authProviderFilter, setAuthProviderFilter] = useState<"ALL" | AuthProvider>("ALL");
   const [selectedPartner, setSelectedPartner] = useState<PartnerUserItem["partner"]>(null);
   const [isPartnerDetailModalOpen, setIsPartnerDetailModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<PartnerUserItem | null>(null);
@@ -121,9 +136,6 @@ export default function PartnerUsersPage() {
           break;
         case "email":
           cmp = a.email.localeCompare(b.email, "en");
-          break;
-        case "partnerName":
-          cmp = a.partnerName.localeCompare(b.partnerName, "ko");
           break;
         case "partnerOrgRole": {
           const rank: Record<"OWNER" | "ADMIN" | "MEMBER", number> = {
@@ -167,6 +179,11 @@ export default function PartnerUsersPage() {
       const token = readCookie(TOKEN_COOKIE_KEY);
       const params = new URLSearchParams();
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (roleFilter !== "ALL") params.set("role", roleFilter);
+      if (emailVerifiedFilter !== "ALL") {
+        params.set("emailVerified", emailVerifiedFilter === "VERIFIED" ? "true" : "false");
+      }
+      if (authProviderFilter !== "ALL") params.set("authProvider", authProviderFilter);
       params.set("page", String(page));
       params.set("pageSize", String(pageSize));
 
@@ -205,7 +222,7 @@ export default function PartnerUsersPage() {
 
   useEffect(() => {
     void fetchPartnerUsers();
-  }, [debouncedSearch, sortField, sortOrder, page, pageSize]);
+  }, [debouncedSearch, sortField, sortOrder, page, pageSize, roleFilter, emailVerifiedFilter, authProviderFilter]);
 
   useEffect(() => {
     const token = readCookie(TOKEN_COOKIE_KEY);
@@ -353,7 +370,7 @@ export default function PartnerUsersPage() {
           <h2>전체 사용자 목록</h2>
         </div>
 
-        <div className="ops-partner-filters">
+        <div className="ops-partner-filters ops-partner-filters--multi">
           <input
             value={search}
             onChange={(e) => {
@@ -364,16 +381,71 @@ export default function PartnerUsersPage() {
             className="ops-partner-filter-search"
           />
           <select
+            value={roleFilter}
+            onChange={(e) => {
+              setRoleFilter(e.target.value as typeof roleFilter);
+              setPage(1);
+            }}
+            aria-label="역할 필터"
+          >
+            <option value="ALL">전체 역할</option>
+            <option value="STUDENT">일반회원</option>
+            <option value="PARTNER">파트너</option>
+            <option value="OPERATOR">운영자</option>
+          </select>
+          <select
+            value={emailVerifiedFilter}
+            onChange={(e) => {
+              setEmailVerifiedFilter(e.target.value as typeof emailVerifiedFilter);
+              setPage(1);
+            }}
+            aria-label="이메일 인증 필터"
+          >
+            <option value="ALL">전체 인증 상태</option>
+            <option value="VERIFIED">인증 완료</option>
+            <option value="UNVERIFIED">미인증</option>
+          </select>
+          <select
+            value={authProviderFilter}
+            onChange={(e) => {
+              setAuthProviderFilter(e.target.value as typeof authProviderFilter);
+              setPage(1);
+            }}
+            aria-label="가입 방법 필터"
+          >
+            <option value="ALL">전체 가입 방법</option>
+            <option value="EMAIL">이메일</option>
+            <option value="NAVER">네이버</option>
+            <option value="KAKAO">카카오</option>
+            <option value="GOOGLE">구글</option>
+          </select>
+          <select
             value={String(pageSize)}
             onChange={(e) => {
               setPageSize(Number(e.target.value) as 20 | 40 | 100);
               setPage(1);
             }}
+            aria-label="페이지 크기"
           >
             <option value="20">20개</option>
             <option value="40">40개</option>
             <option value="100">100개</option>
           </select>
+          {roleFilter !== "ALL" || emailVerifiedFilter !== "ALL" || authProviderFilter !== "ALL" || search ? (
+            <button
+              type="button"
+              className="ops-partner-filter-reset"
+              onClick={() => {
+                setSearch("");
+                setRoleFilter("ALL");
+                setEmailVerifiedFilter("ALL");
+                setAuthProviderFilter("ALL");
+                setPage(1);
+              }}
+            >
+              필터 초기화
+            </button>
+          ) : null}
         </div>
 
         {listErrorMessage ? <p className="ops-form-error">{listErrorMessage}</p> : null}
@@ -388,7 +460,7 @@ export default function PartnerUsersPage() {
                     className={`ops-th-sort ${sortField === "name" ? "is-active" : ""}`}
                     onClick={() => toggleSort("name")}
                   >
-                    <span>담당자명</span>
+                    <span>이름</span>
                     <SortIcon field="name" />
                   </button>
                 </th>
@@ -403,27 +475,13 @@ export default function PartnerUsersPage() {
                   </button>
                 </th>
                 <th>
-                  <span>권한</span>
+                  <span>가입 방법</span>
                 </th>
                 <th>
-                  <button
-                    type="button"
-                    className={`ops-th-sort ${sortField === "partnerName" ? "is-active" : ""}`}
-                    onClick={() => toggleSort("partnerName")}
-                  >
-                    <span>파트너사</span>
-                    <SortIcon field="partnerName" />
-                  </button>
+                  <span>전화번호</span>
                 </th>
                 <th>
-                  <button
-                    type="button"
-                    className={`ops-th-sort ${sortField === "partnerOrgRole" ? "is-active" : ""}`}
-                    onClick={() => toggleSort("partnerOrgRole")}
-                  >
-                    <span>역할</span>
-                    <SortIcon field="partnerOrgRole" />
-                  </button>
+                  <span>역할</span>
                 </th>
                 <th>
                   <button
@@ -463,32 +521,29 @@ export default function PartnerUsersPage() {
                     }}
                   >
                     <td>{item.name || "-"}</td>
-                    <td>{item.email}</td>
-                    <td>{roleLabel(item.role)}</td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      {item.partner ? (
-                        <button
-                          type="button"
-                          className="ops-link-button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedPartner(item.partner);
-                            setIsPartnerDetailModalOpen(true);
-                          }}
-                        >
-                          {item.partnerName}
-                        </button>
-                      ) : (
-                        item.partnerName
-                      )}
-                    </td>
                     <td>
-                      {item.partnerOrgRole ? (
-                        <OpsBadge tone={toneFromPartnerOrgRole(item.partnerOrgRole)}>{partnerOrgRoleLabel(item.partnerOrgRole)}</OpsBadge>
-                      ) : (
-                        "-"
-                      )}
+                      <span className="ops-email-with-badge">
+                        {item.emailVerified ? (
+                          <CheckCircle
+                            size={16}
+                            weight="fill"
+                            className="ops-email-verify-icon is-verified"
+                            aria-label="이메일 인증 완료"
+                          />
+                        ) : (
+                          <XCircle
+                            size={16}
+                            weight="fill"
+                            className="ops-email-verify-icon is-unverified"
+                            aria-label="이메일 미인증"
+                          />
+                        )}
+                        <span>{item.email}</span>
+                      </span>
                     </td>
+                    <td>{authProviderLabel(item.authProvider)}</td>
+                    <td>{item.phoneNumber || "-"}</td>
+                    <td>{roleLabel(item.role)}</td>
                     <td>{formatDate(item.createdAt)}</td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <button
@@ -642,20 +697,10 @@ export default function PartnerUsersPage() {
               {canHardDeleteUsers ? (
                 <button
                   type="button"
+                  className="ops-action-danger"
+                  style={{ marginRight: "auto" }}
                   onClick={() => void handleHardDeleteUser()}
                   disabled={userDeleting}
-                  style={{
-                    marginRight: "auto",
-                    background: "#dc2626",
-                    color: "#fff",
-                    border: "1px solid #b91c1c",
-                    borderRadius: "8px",
-                    padding: "8px 14px",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    cursor: userDeleting ? "wait" : "pointer",
-                    opacity: userDeleting ? 0.7 : 1
-                  }}
                 >
                   {userDeleting ? "삭제 중..." : "DB에서 영구 삭제"}
                 </button>

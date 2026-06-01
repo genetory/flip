@@ -28,6 +28,7 @@ import {
   PositionSourceProvider,
   PositionStatus,
   PositionRevisionStatus,
+  PartnerCompanySize,
   PartnerIndustry,
   PartnerOrgUserRole,
   PartnerType,
@@ -1944,6 +1945,14 @@ const createPartnerOrganizationSchema = z.object({
 
 const listPartnerOrganizationsQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
+  // Operator slicing — every filter is server-side and combinable.
+  partnerType: z.enum(["UNIVERSITY", "COMPANY", "AGENCY"]).optional(),
+  companySize: z.enum(["SIZE_1_10", "SIZE_UNDER_30", "SIZE_UNDER_50", "SIZE_OVER_100"]).optional(),
+  industry: z.string().trim().max(40).optional(),
+  // Booleans arrive as "true" / "false" / "1" / "0" from query strings.
+  verificationApproved: z
+    .union([z.boolean(), z.enum(["true", "false", "1", "0"]).transform((v) => v === "true" || v === "1")])
+    .optional(),
   sortBy: z.enum(["name", "createdAt"]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
@@ -1957,6 +1966,14 @@ const listPartnerUsersQuerySchema = z.object({
   emailVerified: z
     .union([z.boolean(), z.enum(["true", "false", "1", "0"]).transform((v) => v === "true" || v === "1")])
     .optional(),
+  // Only honored by `/ops/users` (all-users view). `/ops/partner-users`
+  // hard-codes role = PARTNER and ignores this field.
+  role: z.enum(["STUDENT", "PARTNER", "OPERATOR"]).optional(),
+  // Signup channel — honored by both `/ops/users` and `/ops/partner-users`.
+  authProvider: z.enum(["EMAIL", "NAVER", "KAKAO", "GOOGLE"]).optional(),
+  // Partner org-internal role (OWNER / ADMIN / MEMBER). Only meaningful for
+  // PARTNER users — `/ops/users` ignores this. `/ops/partner-users` honors it.
+  partnerOrgRole: z.enum(["OWNER", "ADMIN", "MEMBER"]).optional(),
   sortBy: z.enum(["email", "name", "createdAt"]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
@@ -5170,7 +5187,7 @@ app.get("/ops/saju/leads", authenticate, requireRoles([MemberRole.OPERATOR]), as
   };
   const take = f.take ?? 50;
   const skip = f.skip ?? 0;
-  const [leads, total, stageCounts] = await Promise.all([
+  const [leads, total, stageCounts, predictionsTotal, leadsTotalAll, leadsConverted] = await Promise.all([
     prisma.sajuLead.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -5183,7 +5200,12 @@ app.get("/ops/saju/leads", authenticate, requireRoles([MemberRole.OPERATOR]), as
       }
     }),
     prisma.sajuLead.count({ where }),
-    prisma.sajuLead.groupBy({ by: ["poolStage"], _count: { _all: true } })
+    prisma.sajuLead.groupBy({ by: ["poolStage"], _count: { _all: true } }),
+    // Funnel summary — unfiltered totals so the header card stays meaningful
+    // regardless of the operator's pool-stage / search filters.
+    prisma.sajuPrediction.count(),
+    prisma.sajuLead.count(),
+    prisma.sajuLead.count({ where: { userId: { not: null } } })
   ]);
   return res.json({
     ok: true,
@@ -5191,6 +5213,11 @@ app.get("/ops/saju/leads", authenticate, requireRoles([MemberRole.OPERATOR]), as
     take,
     skip,
     stageCounts: Object.fromEntries(stageCounts.map((s) => [s.poolStage, s._count._all])),
+    funnel: {
+      predictionsTotal,
+      leadsTotal: leadsTotalAll,
+      leadsConverted
+    },
     leads: leads.map((lead) => ({
       id: lead.id,
       name: lead.name,
@@ -9369,6 +9396,11 @@ app.patch("/members/me", authenticate, requireRoles([MemberRole.STUDENT, MemberR
         const uploadedUrl = await uploadDataUrlImageIfNeeded(parsed.data.profileImageData.trim(), `members/${id}/profile`);
         if (/^https?:\/\//i.test(uploadedUrl)) {
           profileImageUrlUpdate = { profileImageUrl: uploadedUrl };
+        } else if (/^data:image\//i.test(uploadedUrl)) {
+          // Local dev fallback — Azure Blob isn't configured, so persist the
+          // data URL directly. Production with AZURE_STORAGE_CONNECTION_STRING
+          // set returns an https URL above and never falls through here.
+          profileImageUrlUpdate = { profileImageUrl: uploadedUrl };
         } else {
           return res.status(503).json({ ok: false, message: "image storage is not configured" });
         }
@@ -12710,26 +12742,84 @@ app.get("/partner/applications", authenticate, requireRoles([MemberRole.PARTNER]
   }
 });
 
+const opsListApplicationsQuerySchema = z.object({
+  search: z.string().trim().max(120).optional(),
+  status: z.enum(["SUBMITTED", "INTERVIEW", "ACCEPTED", "REJECTED", "WITHDRAWN"]).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().refine((v) => [20, 30, 40, 100].includes(v), "pageSize must be one of 20,30,40,100").optional()
+});
+
 app.get("/ops/applications", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsListApplicationsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+  const { search, status, page = 1, pageSize = 20 } = parsed.data;
+
+  const where: Prisma.ApplicationWhereInput = {
+    ...(status ? { status } : {}),
+    ...(search
+      ? {
+          OR: [
+            { candidateUser: { name: { contains: search, mode: Prisma.QueryMode.insensitive } } },
+            { candidateUser: { email: { contains: search, mode: Prisma.QueryMode.insensitive } } },
+            { position: { title: { contains: search, mode: Prisma.QueryMode.insensitive } } },
+            { position: { partnerOrganization: { name: { contains: search, mode: Prisma.QueryMode.insensitive } } } }
+          ]
+        }
+      : {})
+  };
+
   try {
-    const items = await prisma.application.findMany({
-      orderBy: { submittedAt: "desc" },
-      take: 200,
-      include: {
-        position: { select: { id: true, title: true, partnerOrganization: { select: { id: true, name: true } } } },
-        candidateUser: { select: { id: true, name: true, email: true } }
-      }
-    });
+    const [total, items] = await Promise.all([
+      prisma.application.count({ where }),
+      prisma.application.findMany({
+        where,
+        orderBy: { submittedAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          position: {
+            select: {
+              id: true,
+              title: true,
+              preferredJobRole: true,
+              sourceKind: true,
+              sourceProvider: true,
+              partnerOrganization: { select: { id: true, name: true } }
+            }
+          },
+          candidateUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              nationality: true,
+              candidateProfile: { select: { id: true } }
+            }
+          }
+        }
+      })
+    ]);
     return res.json({
       ok: true,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
       items: items.map((a) => ({
         id: a.id,
         positionId: a.positionId,
         positionTitle: a.position.title,
+        positionPreferredJobRole: a.position.preferredJobRole,
+        positionSourceKind: a.position.sourceKind,
+        positionSourceProvider: a.position.sourceProvider,
+        partnerOrganizationId: a.position.partnerOrganization?.id ?? null,
         partnerOrganizationName: a.position.partnerOrganization?.name ?? null,
         candidateUserId: a.candidateUserId,
         candidateName: a.candidateUser.name,
         candidateEmail: a.candidateUser.email,
+        candidateNationality: a.candidateUser.nationality,
         status: a.status,
         memo: a.memo,
         submittedAt: a.submittedAt,
@@ -15171,7 +15261,7 @@ app.get(
   requireRoles([MemberRole.OPERATOR]),
   async (_req, res) => {
     try {
-      const [providerRows, topAffiliations, weeklyRowsRaw] = await Promise.all([
+      const [providerRows, topAffiliations, weeklyRowsRaw, monthlyRowsRaw] = await Promise.all([
         prisma.user.groupBy({
           by: ["authProvider", "role"],
           _count: { _all: true }
@@ -15183,10 +15273,20 @@ app.get(
           orderBy: { _count: { affiliation: "desc" } },
           take: 20
         }),
+        // Signup trend — weekly (last 12 weeks) and monthly (last 12 months).
+        // Returning only raw rows; the frontend pads to 12 buckets so the
+        // chart always renders a consistent bar count.
         prisma.$queryRawUnsafe<Array<{ week: Date; role: string; count: bigint }>>(
           `SELECT date_trunc('week', "createdAt")::date AS "week", "role", COUNT(*)::bigint AS "count"
            FROM "User"
            WHERE "createdAt" >= NOW() - INTERVAL '12 weeks'
+           GROUP BY 1, 2
+           ORDER BY 1 ASC`
+        ),
+        prisma.$queryRawUnsafe<Array<{ month: Date; role: string; count: bigint }>>(
+          `SELECT date_trunc('month', "createdAt")::date AS "month", "role", COUNT(*)::bigint AS "count"
+           FROM "User"
+           WHERE "createdAt" >= NOW() - INTERVAL '12 months'
            GROUP BY 1, 2
            ORDER BY 1 ASC`
         )
@@ -15207,11 +15307,20 @@ app.get(
         entry[row.role as "STUDENT" | "PARTNER" | "OPERATOR"] = Number(row.count);
       }
 
+      const monthlyMap = new Map<string, { month: string; STUDENT: number; PARTNER: number; OPERATOR: number }>();
+      for (const row of monthlyRowsRaw) {
+        const mo = row.month instanceof Date ? row.month.toISOString().slice(0, 7) : String(row.month).slice(0, 7);
+        if (!monthlyMap.has(mo)) monthlyMap.set(mo, { month: mo, STUDENT: 0, PARTNER: 0, OPERATOR: 0 });
+        const entry = monthlyMap.get(mo)!;
+        entry[row.role as "STUDENT" | "PARTNER" | "OPERATOR"] = Number(row.count);
+      }
+
       return res.json({
         ok: true,
         byProvider,
         topAffiliations: topAffiliations.map((a) => ({ affiliation: a.affiliation, count: a._count._all })),
-        weekly: Array.from(weeklyMap.values())
+        weekly: Array.from(weeklyMap.values()),
+        monthly: Array.from(monthlyMap.values())
       });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -15940,14 +16049,18 @@ app.get("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asyn
     return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
   }
 
-  const { search, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
+  const { search, partnerType, companySize, industry, verificationApproved, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
   const orderByMap = {
     name: { name: sortOrder },
     createdAt: { createdAt: sortOrder }
   } as const;
   const orderBy = orderByMap[sortBy];
 
-  const where = {
+  const where: Prisma.PartnerOrganizationWhereInput = {
+    ...(partnerType ? { partnerType: partnerType as PartnerType } : {}),
+    ...(companySize ? { companySize: companySize as PartnerCompanySize } : {}),
+    ...(industry ? { industry: industry as PartnerIndustry } : {}),
+    ...(typeof verificationApproved === "boolean" ? { verificationApproved } : {}),
     ...(search
       ? {
           OR: [{ name: { contains: search, mode: Prisma.QueryMode.insensitive } }]
@@ -16018,7 +16131,7 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
     return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
   }
 
-  const { search, partnerOrganizationId, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
+  const { search, partnerOrganizationId, emailVerified, authProvider, partnerOrgRole, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
   const orderByMap = {
     email: { email: sortOrder },
     name: { name: sortOrder },
@@ -16030,6 +16143,9 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
     role: MemberRole.PARTNER,
     ...( { partnerType: PartnerType.COMPANY }),
     ...(partnerOrganizationId ? { partnerOrganizationId } : {}),
+    ...(typeof emailVerified === "boolean" ? { emailVerified } : {}),
+    ...(authProvider ? { authProvider: authProvider as AuthProvider } : {}),
+    ...(partnerOrgRole ? { partnerOrgRole: partnerOrgRole as PartnerOrgUserRole } : {}),
     ...(search
       ? {
           OR: [
@@ -16056,6 +16172,7 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
         jobTitle: true,
         adminMemo: true,
         role: true,
+        authProvider: true,
         partnerType: true,
         partnerOrgRole: true,
         partnerOrganizationId: true,
@@ -16087,6 +16204,7 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
         jobTitle: user.jobTitle,
         adminMemo: user.adminMemo,
         role: user.role,
+        authProvider: user.authProvider,
         partnerType: user.partnerType,
         partnerOrgRole: user.partnerOrgRole,
         createdAt: user.createdAt,
@@ -16154,7 +16272,7 @@ app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (
     return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
   }
 
-  const { search, partnerOrganizationId, emailVerified, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
+  const { search, partnerOrganizationId, emailVerified, role, authProvider, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
   const orderByMap = {
     email: { email: sortOrder },
     name: { name: sortOrder },
@@ -16165,6 +16283,8 @@ app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (
   const where: Prisma.UserWhereInput = {
     ...(partnerOrganizationId ? { partnerOrganizationId } : {}),
     ...(typeof emailVerified === "boolean" ? { emailVerified } : {}),
+    ...(role ? { role: role as MemberRole } : {}),
+    ...(authProvider ? { authProvider: authProvider as AuthProvider } : {}),
     ...(search
       ? {
           OR: [
@@ -16191,6 +16311,7 @@ app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (
         jobTitle: true,
         adminMemo: true,
         role: true,
+        authProvider: true,
         partnerType: true,
         partnerOrgRole: true,
         partnerOrganizationId: true,
@@ -16222,6 +16343,7 @@ app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (
         jobTitle: user.jobTitle,
         adminMemo: user.adminMemo,
         role: user.role,
+        authProvider: user.authProvider,
         partnerType: user.partnerType,
         partnerOrgRole: user.partnerOrgRole,
         createdAt: user.createdAt,

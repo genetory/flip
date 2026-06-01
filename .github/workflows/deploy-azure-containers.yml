@@ -139,6 +139,12 @@ jobs:
             --name "${{ secrets.AZURE_WEBAPP_PLATFORM_NAME }}" \
             --resource-group "${{ secrets.AZURE_RESOURCE_GROUP || 'rg-aply' }}" \
             --container-image-name "${{ env.WEB_IMAGE }}"
+          # `config container set` schedules a swap but App Service can lazy-
+          # pull for 1–2 min. Force an explicit restart so the new container
+          # starts serving by the time this workflow reports success.
+          az webapp restart \
+            --name "${{ secrets.AZURE_WEBAPP_PLATFORM_NAME }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP || 'rg-aply' }}"
 
       - name: Deploy API container to Azure
         if: steps.targets.outputs.deploy_api == 'true'
@@ -147,6 +153,10 @@ jobs:
             --name "${{ secrets.AZURE_WEBAPP_API_NAME }}" \
             --resource-group "${{ secrets.AZURE_RESOURCE_GROUP || 'rg-aply' }}" \
             --container-image-name "${{ env.API_IMAGE }}"
+          # Same eager restart as the web app — see comment above.
+          az webapp restart \
+            --name "${{ secrets.AZURE_WEBAPP_API_NAME }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP || 'rg-aply' }}"
 
       - name: Notify Discord
         if: always()

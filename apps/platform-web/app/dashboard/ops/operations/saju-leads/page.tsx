@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { readAccessToken } from "../../../../../lib/auth-client";
 import { translateRole } from "../../../../../lib/saju-taxonomy";
 
@@ -40,6 +40,11 @@ type LeadsPayload = {
   take: number;
   skip: number;
   stageCounts: Record<string, number>;
+  funnel: {
+    predictionsTotal: number;
+    leadsTotal: number;
+    leadsConverted: number;
+  };
   leads: Lead[];
 };
 
@@ -47,18 +52,6 @@ const STAGE_LABEL: Record<string, string> = {
   PROFILE: "Profile Pool",
   VERIFIED: "Verified Pool",
   RECOMMENDABLE: "추천 가능 Pool"
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  UNVERIFIED: "미검증",
-  NEEDS_WORK: "보완 필요",
-  RECOMMENDABLE: "추천 가능"
-};
-
-const STATUS_PILL: Record<string, string> = {
-  UNVERIFIED: "ops-pill",
-  NEEDS_WORK: "ops-pill ops-pill-amber",
-  RECOMMENDABLE: "ops-pill ops-pill-blue"
 };
 
 const WORK_LABEL: Record<string, string> = {
@@ -75,14 +68,21 @@ const LEVEL_LABEL: Record<string, string> = {
   NATIVE: "원어민"
 };
 
-const IMPROVEMENT_LABEL: Record<string, string> = {
-  RESUME: "이력서",
-  KOREAN: "한국어",
-  VISA: "비자",
-  CONTACT: "연락처",
-  PORTFOLIO: "포트폴리오",
-  ENGLISH: "영어"
+// Compact pool-stage label for the table cell. The chip counts at the top use
+// the longer `STAGE_LABEL` form ("Profile Pool" etc.) — inside a row we want
+// something narrower so the cell doesn't dominate horizontal space.
+const STAGE_SHORT_LABEL: Record<string, string> = {
+  PROFILE: "Profile",
+  VERIFIED: "Verified",
+  RECOMMENDABLE: "추천 가능"
 };
+
+// Two-letter locale codes the saju funnel emits. Uppercased so the cell reads
+// as a compact tag rather than a sentence fragment.
+function localeLabel(locale: string | null | undefined) {
+  if (!locale) return "-";
+  return locale.toUpperCase();
+}
 
 function apiBase() {
   return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -119,15 +119,15 @@ export default function SajuLeadsPage() {
   const [poolStage, setPoolStage] = useState("");
   const [recommendStatus, setRecommendStatus] = useState("");
   const [q, setQ] = useState("");
-  const [appliedQ, setAppliedQ] = useState("");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  function copyContact(id: string, value: string) {
-    void navigator.clipboard?.writeText(value).then(() => {
-      setCopiedId(id);
-      setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1500);
-    });
-  }
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<20 | 40 | 100>(20);
+  // Mirror the all-users page debounce: type in the search input and the
+  // server query fires 400ms after the last keystroke. No separate button.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q.trim()), 400);
+    return () => clearTimeout(t);
+  }, [q]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -136,8 +136,9 @@ export default function SajuLeadsPage() {
       const url = new URL(`${apiBase()}/ops/saju/leads`);
       if (poolStage) url.searchParams.set("poolStage", poolStage);
       if (recommendStatus) url.searchParams.set("recommendStatus", recommendStatus);
-      if (appliedQ) url.searchParams.set("q", appliedQ);
-      url.searchParams.set("take", "100");
+      if (debouncedQ) url.searchParams.set("q", debouncedQ);
+      url.searchParams.set("take", String(pageSize));
+      url.searchParams.set("skip", String((page - 1) * pageSize));
       const response = await fetch(url.toString(), { headers: authHeaders(), cache: "no-store" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = (await response.json()) as LeadsPayload;
@@ -147,79 +148,169 @@ export default function SajuLeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [poolStage, recommendStatus, appliedQ]);
+  }, [poolStage, recommendStatus, debouncedQ, page, pageSize]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  // Pagination derivations mirror the all-users page so the footer looks /
+  // behaves identically.
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pageButtons = useMemo(() => {
+    const maxVisible = 7;
+    const pages: number[] = [];
+    const start = Math.max(1, page - 3);
+    const end = Math.min(totalPages, start + maxVisible - 1);
+    const normalizedStart = Math.max(1, end - maxVisible + 1);
+    for (let i = normalizedStart; i <= end; i += 1) pages.push(i);
+    return pages;
+  }, [page, totalPages]);
+
+  const anyFilterActive = Boolean(poolStage || recommendStatus || q.trim());
+
   return (
     <section className="ops-content-section">
       <header>
-        <h1>사주 이벤트 후보 Pool</h1>
+        <h1>사주 이벤트</h1>
         <p>
           사주 이벤트에서 커리어 정보를 입력한 후보를 관리합니다. 국적·직무·비자·언어 태그로 필터링하고, 추천 가능
           상태(미검증 / 보완 필요 / 추천 가능)별로 분류해 기업 추천 후보를 발굴하세요.
         </p>
       </header>
 
-      {data ? (
-        <div className="ops-tag-row" style={{ marginBottom: 4 }}>
-          {Object.entries(data.stageCounts).map(([stage, count]) => (
-            <span key={stage} className="ops-pill ops-pill-violet">
-              {STAGE_LABEL[stage] ?? stage}: {count}
-            </span>
-          ))}
-        </div>
+      {data?.funnel ? (
+        <article className="ops-card">
+          <h2 className="ops-section-title">사주 이벤트</h2>
+          <p className="ops-card-subtle" style={{ margin: "4px 0 12px" }}>
+            사주 봤음 → 커리어 정보 입력 → 가입 전환. 비-인증 사용자는 익명 ipHash로 카운트됩니다.
+          </p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+              gap: 12
+            }}
+          >
+            <div style={{ padding: "12px 14px", border: "1px solid #eef0f3", borderRadius: 10, background: "#fcfcfd" }}>
+              <div className="ops-row-sub" style={{ marginBottom: 4 }}>사주 본 사람</div>
+              <div className="ops-row-strong" style={{ fontSize: 20 }}>
+                {data.funnel.predictionsTotal.toLocaleString()}명
+              </div>
+            </div>
+            <div style={{ padding: "12px 14px", border: "1px solid #eef0f3", borderRadius: 10, background: "#fcfcfd" }}>
+              <div className="ops-row-sub" style={{ marginBottom: 4 }}>커리어 정보 입력</div>
+              <div className="ops-row-strong" style={{ fontSize: 20 }}>
+                {data.funnel.leadsTotal.toLocaleString()}명
+              </div>
+              <div className="ops-row-sub" style={{ marginTop: 4, fontSize: 11 }}>
+                사주 본 사람 중{" "}
+                {data.funnel.predictionsTotal > 0
+                  ? Math.round((data.funnel.leadsTotal / data.funnel.predictionsTotal) * 1000) / 10
+                  : 0}
+                %
+              </div>
+            </div>
+            <div style={{ padding: "12px 14px", border: "1px solid #eef0f3", borderRadius: 10, background: "#fcfcfd" }}>
+              <div className="ops-row-sub" style={{ marginBottom: 4 }}>가입 전환</div>
+              <div className="ops-row-strong" style={{ fontSize: 20 }}>
+                {data.funnel.leadsConverted.toLocaleString()}명
+              </div>
+              <div className="ops-row-sub" style={{ marginTop: 4, fontSize: 11 }}>
+                커리어 입력 중{" "}
+                {data.funnel.leadsTotal > 0
+                  ? Math.round((data.funnel.leadsConverted / data.funnel.leadsTotal) * 1000) / 10
+                  : 0}
+                %
+              </div>
+            </div>
+          </div>
+        </article>
       ) : null}
 
-      <article className="ops-card">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
-            <span className="ops-row-sub">Pool 단계</span>
-            <select value={poolStage} onChange={(e) => setPoolStage(e.target.value)} className="ops-select">
-              <option value="">전체</option>
-              <option value="PROFILE">Profile Pool</option>
-              <option value="VERIFIED">Verified Pool</option>
-              <option value="RECOMMENDABLE">추천 가능 Pool</option>
-            </select>
-          </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
-            <span className="ops-row-sub">추천 상태</span>
-            <select value={recommendStatus} onChange={(e) => setRecommendStatus(e.target.value)} className="ops-select">
-              <option value="">전체</option>
-              <option value="UNVERIFIED">미검증</option>
-              <option value="NEEDS_WORK">보완 필요</option>
-              <option value="RECOMMENDABLE">추천 가능</option>
-            </select>
-          </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, flex: 1, minWidth: 180 }}>
-            <span className="ops-row-sub">검색 (이름/학교/전공/연락처)</span>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") setAppliedQ(q.trim());
-              }}
-              placeholder="검색어 입력 후 Enter"
-              className="ops-input"
-            />
-          </label>
-          <button type="button" className="ops-btn ops-btn-primary" onClick={() => setAppliedQ(q.trim())}>
-            검색
-          </button>
+      <article className="ops-partner-list-card">
+        <div className="ops-partner-list-top">
+          <h2>후보 Pool 목록</h2>
+          {data ? (
+            <div className="ops-tag-row">
+              {Object.entries(data.stageCounts).map(([stage, count]) => (
+                <span key={stage} className="ops-pill ops-pill-violet">
+                  {STAGE_LABEL[stage] ?? stage}: {count}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
-      </article>
 
-      {loading ? (
-        <div className="ops-empty-card">불러오는 중...</div>
-      ) : error ? (
-        <div className="ops-error-card">{error}</div>
-      ) : !data || data.leads.length === 0 ? (
-        <div className="ops-empty-card">조건에 맞는 후보가 없습니다.</div>
-      ) : (
-        <article className="ops-table-card">
-          <table>
+        <div className="ops-partner-filters ops-partner-filters--multi">
+          <input
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(1);
+            }}
+            placeholder="이름 / 학교 / 전공 / 연락처 검색"
+            className="ops-partner-filter-search"
+          />
+          <select
+            value={poolStage}
+            onChange={(e) => {
+              setPoolStage(e.target.value);
+              setPage(1);
+            }}
+            aria-label="Pool 단계 필터"
+          >
+            <option value="">전체 Pool 단계</option>
+            <option value="PROFILE">Profile Pool</option>
+            <option value="VERIFIED">Verified Pool</option>
+            <option value="RECOMMENDABLE">추천 가능 Pool</option>
+          </select>
+          <select
+            value={recommendStatus}
+            onChange={(e) => {
+              setRecommendStatus(e.target.value);
+              setPage(1);
+            }}
+            aria-label="추천 상태 필터"
+          >
+            <option value="">전체 추천 상태</option>
+            <option value="UNVERIFIED">미검증</option>
+            <option value="NEEDS_WORK">보완 필요</option>
+            <option value="RECOMMENDABLE">추천 가능</option>
+          </select>
+          <select
+            value={String(pageSize)}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value) as 20 | 40 | 100);
+              setPage(1);
+            }}
+            aria-label="페이지 크기"
+          >
+            <option value="20">20개</option>
+            <option value="40">40개</option>
+            <option value="100">100개</option>
+          </select>
+          {anyFilterActive ? (
+            <button
+              type="button"
+              className="ops-partner-filter-reset"
+              onClick={() => {
+                setQ("");
+                setPoolStage("");
+                setRecommendStatus("");
+                setPage(1);
+              }}
+            >
+              필터 초기화
+            </button>
+          ) : null}
+        </div>
+
+        {error ? <p className="ops-form-error">{error}</p> : null}
+
+        <div className="ops-partner-table-wrap">
+          <table className="ops-partner-table">
             <thead>
               <tr>
                 <th>이름</th>
@@ -230,16 +321,22 @@ export default function SajuLeadsPage() {
                 <th>희망 직무</th>
                 <th>근무</th>
                 <th>연락처</th>
-                <th>이력서</th>
-                <th>보완</th>
-                <th>추천 상태</th>
                 <th>연락동의</th>
-                <th>가입</th>
+                <th>Pool 단계</th>
+                <th>응답 언어</th>
                 <th>등록일</th>
               </tr>
             </thead>
             <tbody>
-              {data.leads.map((lead) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={12} className="ops-table-empty">목록을 불러오는 중입니다...</td>
+                </tr>
+              ) : !data || data.leads.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="ops-table-empty">조건에 맞는 후보가 없습니다.</td>
+                </tr>
+              ) : data.leads.map((lead) => (
                 <tr key={lead.id}>
                   <td className="ops-row-strong">{lead.name ?? "-"}</td>
                   <td>{lead.nationality ?? "-"}</td>
@@ -255,50 +352,23 @@ export default function SajuLeadsPage() {
                       (() => {
                         const href = contactHref(lead.contactType, lead.contact);
                         const prefix = lead.contactType ? `[${lead.contactType}] ` : "";
-                        return (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                            {href ? (
-                              <a
-                                href={href}
-                                target={lead.contactType === "WHATSAPP" ? "_blank" : undefined}
-                                rel="noopener noreferrer"
-                                style={{ color: "#1d4ed8" }}
-                              >
-                                {prefix}
-                                {lead.contact}
-                              </a>
-                            ) : (
-                              <span>
-                                {prefix}
-                                {lead.contact}
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              className="ops-btn"
-                              style={{ padding: "1px 6px", fontSize: 11 }}
-                              onClick={() => copyContact(lead.id, lead.contact!)}
-                            >
-                              {copiedId === lead.id ? "복사됨" : "복사"}
-                            </button>
+                        return href ? (
+                          <a
+                            href={href}
+                            target={lead.contactType === "WHATSAPP" ? "_blank" : undefined}
+                            rel="noopener noreferrer"
+                            style={{ color: "#1d4ed8" }}
+                          >
+                            {prefix}
+                            {lead.contact}
+                          </a>
+                        ) : (
+                          <span>
+                            {prefix}
+                            {lead.contact}
                           </span>
                         );
                       })()
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td>{lead.hasResume === true ? "O" : lead.hasResume === false ? "X" : "-"}</td>
-                  <td className="ops-row-sub" style={{ fontSize: 11 }}>
-                    {lead.improvements.length > 0
-                      ? lead.improvements.map((c) => IMPROVEMENT_LABEL[c] ?? c).join(", ")
-                      : "-"}
-                  </td>
-                  <td>
-                    {lead.recommendStatus ? (
-                      <span className={STATUS_PILL[lead.recommendStatus] ?? "ops-pill"}>
-                        {STATUS_LABEL[lead.recommendStatus] ?? lead.recommendStatus}
-                      </span>
                     ) : (
                       "-"
                     )}
@@ -310,14 +380,38 @@ export default function SajuLeadsPage() {
                       <span className="ops-row-sub">-</span>
                     )}
                   </td>
-                  <td>{lead.userId ? "✓" : "-"}</td>
+                  <td>
+                    <span className="ops-pill ops-pill-violet">
+                      {STAGE_SHORT_LABEL[lead.poolStage] ?? lead.poolStage}
+                    </span>
+                  </td>
+                  <td>{localeLabel(lead.locale)}</td>
                   <td className="ops-row-sub">{new Date(lead.createdAt).toLocaleDateString("ko-KR")}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </article>
-      )}
+        </div>
+
+        <div className="ops-pagination">
+          <span>
+            총 {total}개 · {page}/{totalPages} 페이지
+          </span>
+          <div className="ops-pagination-numbers">
+            {pageButtons.map((num) => (
+              <button
+                key={num}
+                type="button"
+                className={num === page ? "is-active" : ""}
+                onClick={() => setPage(num)}
+              >
+                {num}
+              </button>
+            ))}
+          </div>
+          <span />
+        </div>
+      </article>
     </section>
   );
 }
