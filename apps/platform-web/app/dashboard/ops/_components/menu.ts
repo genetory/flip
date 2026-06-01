@@ -10,13 +10,10 @@ import {
   GraduationCap,
   Home,
   Inbox,
-  Link as LinkIcon,
-  Mail,
   Megaphone,
   ScrollText,
   Settings,
   Shield,
-  ShieldCheck,
   Sparkles,
   Stamp,
   Star,
@@ -44,7 +41,7 @@ export type MenuGroup = {
 //   홈                — landing page
 //   오늘 할 일          — inbox-style pages an operator checks every day
 //   이벤트              — campaign/event pages (separated so new events stand out)
-//   사용자 & 후보       — every "who" page (all users / candidates / partner users)
+//   사용자              — every "who" page (all users / partner users)
 //   파트너 & 포지션      — partner orgs + the positions they post
 //   채용 진행            — post-match workflow (applications, interviews, …)
 //   분석 & 소통          — analytics + outbound communications
@@ -53,6 +50,14 @@ export type MenuGroup = {
 // Removed from menu:
 //   "관리자 사용자" — same /ops/users endpoint as "전체 사용자"; the simpler
 //     page is reachable by direct URL when needed but no longer listed.
+//   "후보자" — separate candidate-detail page kept in the repo (reachable by
+//     direct URL at /dashboard/ops/operations/candidates) but unlisted —
+//     STUDENT users are already filterable from "전체 사용자", so the extra
+//     menu entry was duplication. Drill into a STUDENT row to reach the
+//     candidate-detail editor.
+//   "매칭 로그" / "이메일" — pages kept under /dashboard/ops/support/matching-logs
+//     and /dashboard/ops/support/emails for direct-URL access, but no longer
+//     in the sidebar — current ops workflow doesn't reach for them.
 export const opsDashboardMenuGroups: MenuGroup[] = [
   {
     title: "홈",
@@ -70,21 +75,20 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
   {
     title: "이벤트",
     links: [
-      { label: "사주 이벤트 후보 Pool", href: "/dashboard/ops/operations/saju-leads", icon: Sparkles }
+      { label: "사주 이벤트", href: "/dashboard/ops/operations/saju-leads", icon: Sparkles }
     ]
   },
   {
-    title: "사용자 & 후보",
+    title: "사용자",
     links: [
-      { label: "전체 사용자", href: "/dashboard/ops/support/users", icon: Users },
-      { label: "후보자", href: "/dashboard/ops/operations/candidates", icon: ShieldCheck },
-      { label: "파트너 사용자", href: "/dashboard/ops/partners/users", icon: Building2 }
+      { label: "전체 사용자", href: "/dashboard/ops/support/users", icon: Users }
     ]
   },
   {
     title: "파트너 & 포지션",
     links: [
       { label: "파트너", href: "/dashboard/ops/partners/management", icon: Building2 },
+      { label: "파트너 사용자", href: "/dashboard/ops/partners/users", icon: Users },
       { label: "포지션", href: "/dashboard/ops/operations/positions", icon: Briefcase },
       { label: "프리미엄 포지션", href: "/dashboard/ops/operations/premium-positions", icon: Star }
     ]
@@ -103,10 +107,8 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
     title: "분석 & 소통",
     links: [
       { label: "유입 경로", href: "/dashboard/ops/support/inflow", icon: BarChart3 },
-      { label: "매칭 로그", href: "/dashboard/ops/support/matching-logs", icon: LinkIcon },
       { label: "리포트", href: "/dashboard/ops/support/reports", icon: BarChart3 },
-      { label: "공지사항", href: "/dashboard/ops/operations/announcements", icon: Megaphone },
-      { label: "이메일", href: "/dashboard/ops/support/emails", icon: Mail }
+      { label: "공지사항", href: "/dashboard/ops/operations/announcements", icon: Megaphone }
     ]
   },
   {

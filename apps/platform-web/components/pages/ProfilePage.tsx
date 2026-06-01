@@ -1415,22 +1415,6 @@ export function ProfilePage() {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {studentTab === "applied" ? (
-                          <div className="flex flex-wrap items-center gap-3">
-                            <Link
-                              href="/profile/programs"
-                              className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
-                            >
-                              {tr("내 프로그램 →", "My programs →", "我的项目 →", "Chương trình của tôi →", "私のプログラム →", "Program saya →")}
-                            </Link>
-                            <Link
-                              href="/profile/assignments"
-                              className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
-                            >
-                              {tr("내 과제 보기 →", "View my assignments →", "查看我的作业 →", "Xem bài tập của tôi →", "私の課題を見る →", "Lihat tugas saya →")}
-                            </Link>
-                          </div>
-                        ) : null}
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-sm text-muted-foreground">
                             {studentTab === "applied" ? appliedPositions.length : favoritePositions.length}

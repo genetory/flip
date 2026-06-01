@@ -206,6 +206,12 @@ export default function PartnerManagementPage() {
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
+  // Server-side list filters. "ALL" sentinel keeps each <select> controllable.
+  const [partnerTypeFilter, setPartnerTypeFilter] = useState<"ALL" | PartnerType>("ALL");
+  const [companySizeFilter, setCompanySizeFilter] = useState<"ALL" | PartnerCompanySize>("ALL");
+  const [industryFilter, setIndustryFilter] = useState<"ALL" | PartnerIndustry>("ALL");
+  const [verificationFilter, setVerificationFilter] = useState<"ALL" | "APPROVED" | "PENDING">("ALL");
+
   const [partnerType, setPartnerType] = useState<PartnerType>("COMPANY");  const [name, setName] = useState("");
   const [companySize, setCompanySize] = useState<PartnerCompanySize | "">("");
   const [officeAddress, setOfficeAddress] = useState("");
@@ -380,6 +386,13 @@ export default function PartnerManagementPage() {
       const query = debouncedSearch.trim();
       if (query) params.set("search", query);
 
+      if (partnerTypeFilter !== "ALL") params.set("partnerType", partnerTypeFilter);
+      if (companySizeFilter !== "ALL") params.set("companySize", companySizeFilter);
+      if (industryFilter !== "ALL") params.set("industry", industryFilter);
+      if (verificationFilter !== "ALL") {
+        params.set("verificationApproved", verificationFilter === "APPROVED" ? "true" : "false");
+      }
+
       params.set("page", String(page));
       params.set("pageSize", String(pageSize));
       const response = await fetch(`${apiBaseUrl}/ops/partners?${params.toString()}`, {
@@ -419,7 +432,7 @@ export default function PartnerManagementPage() {
 
   useEffect(() => {
     void fetchPartners();
-  }, [debouncedSearch, page, pageSize]);
+  }, [debouncedSearch, page, pageSize, partnerTypeFilter, companySizeFilter, industryFilter, verificationFilter]);
 
   useEffect(() => {
     const dialog = registerDialogRef.current;
@@ -683,7 +696,7 @@ export default function PartnerManagementPage() {
           </button>
         </div>
 
-        <div className="ops-partner-filters">
+        <div className="ops-partner-filters ops-partner-filters--multi">
           <input
             value={search}
             onChange={(e) => {
@@ -694,16 +707,93 @@ export default function PartnerManagementPage() {
             className="ops-partner-filter-search"
           />
           <select
+            value={partnerTypeFilter}
+            onChange={(e) => {
+              setPartnerTypeFilter(e.target.value as typeof partnerTypeFilter);
+              setPage(1);
+            }}
+            aria-label="유형 필터"
+          >
+            <option value="ALL">전체 유형</option>
+            {partnerTypeOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={verificationFilter}
+            onChange={(e) => {
+              setVerificationFilter(e.target.value as typeof verificationFilter);
+              setPage(1);
+            }}
+            aria-label="승인 상태 필터"
+          >
+            <option value="ALL">전체 승인 상태</option>
+            <option value="APPROVED">승인 완료</option>
+            <option value="PENDING">대기중</option>
+          </select>
+          <select
+            value={companySizeFilter}
+            onChange={(e) => {
+              setCompanySizeFilter(e.target.value as typeof companySizeFilter);
+              setPage(1);
+            }}
+            aria-label="규모 필터"
+          >
+            <option value="ALL">전체 규모</option>
+            <option value="SIZE_1_10">1~10인</option>
+            <option value="SIZE_UNDER_30">30인 이하</option>
+            <option value="SIZE_UNDER_50">50인 이하</option>
+            <option value="SIZE_OVER_100">100인 이상</option>
+          </select>
+          <select
+            value={industryFilter}
+            onChange={(e) => {
+              setIndustryFilter(e.target.value as typeof industryFilter);
+              setPage(1);
+            }}
+            aria-label="산업 필터"
+          >
+            <option value="ALL">전체 산업</option>
+            {industryOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <select
             value={String(pageSize)}
             onChange={(e) => {
               setPageSize(Number(e.target.value) as 20 | 40 | 100);
               setPage(1);
             }}
+            aria-label="페이지 크기"
           >
             <option value="20">20개</option>
             <option value="40">40개</option>
             <option value="100">100개</option>
           </select>
+          {partnerTypeFilter !== "ALL" ||
+          companySizeFilter !== "ALL" ||
+          industryFilter !== "ALL" ||
+          verificationFilter !== "ALL" ||
+          search ? (
+            <button
+              type="button"
+              className="ops-partner-filter-reset"
+              onClick={() => {
+                setSearch("");
+                setPartnerTypeFilter("ALL");
+                setCompanySizeFilter("ALL");
+                setIndustryFilter("ALL");
+                setVerificationFilter("ALL");
+                setPage(1);
+              }}
+            >
+              필터 초기화
+            </button>
+          ) : null}
         </div>
 
         {listErrorMessage ? <p className="ops-form-error">{listErrorMessage}</p> : null}
@@ -722,6 +812,9 @@ export default function PartnerManagementPage() {
                     <SortIcon field="name" />
                   </button>
                 </th>
+                <th>유형</th>
+                <th>산업</th>
+                <th>규모</th>
                 <th>
                   <button
                     type="button"
@@ -749,11 +842,11 @@ export default function PartnerManagementPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="ops-table-empty">목록을 불러오는 중입니다...</td>
+                  <td colSpan={8} className="ops-table-empty">목록을 불러오는 중입니다...</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="ops-table-empty">조건에 맞는 파트너가 없습니다.</td>
+                  <td colSpan={8} className="ops-table-empty">조건에 맞는 파트너가 없습니다.</td>
                 </tr>
               ) : (
                 sortedItems.map((item) => (
@@ -765,7 +858,9 @@ export default function PartnerManagementPage() {
                     <td>
                       {item.name}
                     </td>
-                    
+                    <td>{partnerTypeOptions.find((opt) => opt.value === item.partnerType)?.label ?? item.partnerType}</td>
+                    <td>{industryOptions.find((opt) => opt.value === item.industry)?.label ?? item.industry}</td>
+                    <td>{companySizeOptions.find((opt) => opt.value === item.companySize)?.label ?? "-"}</td>
                     <td>{item.memberCount}명</td>
                     <td>
                       <span className={getOpsBadgeClassName(item.verification?.isVerified ? "status-approved" : "status-pending")}>

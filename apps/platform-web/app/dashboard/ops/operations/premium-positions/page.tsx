@@ -42,10 +42,15 @@ type PremiumBannerMeta = {
   priority: number | null;
 } | null;
 
+type PositionSourceProvider = "INTERNAL" | "BUDDIES" | "WANTED" | "OTHER";
+type PositionSourceKind = "INTERNAL" | "EXTERNAL";
+
 type PositionItem = {
   id: string;
   title: string;
   status: PositionStatus;
+  sourceKind: PositionSourceKind;
+  sourceProvider: PositionSourceProvider;
   preferredJobRole?: string | null;
   hiringCount?: number | null;
   thumbnailImages?: string[];
@@ -123,6 +128,15 @@ function statusTone(status: PositionStatus) {
   return getOpsPositionStatusMeta(status).tone;
 }
 
+// Crawl-source chip label — mirrors the same helper on the positions page.
+// INTERNAL returns null so we fall back to the partner-org name.
+function sourceProviderLabel(provider: PositionSourceProvider): string | null {
+  if (provider === "BUDDIES") return "버디즈";
+  if (provider === "WANTED") return "원티드";
+  if (provider === "OTHER") return "외부";
+  return null;
+}
+
 function premiumIneligibilityReasons(item: PositionItem) {
   const reasons: string[] = [];
   if (item.status !== "OPEN") {
@@ -177,6 +191,9 @@ export default function PremiumPositionsPage() {
   const [premiumSearch, setPremiumSearch] = useState("");
   const [premiumDebouncedSearch, setPremiumDebouncedSearch] = useState("");
   const [premiumPageSize, setPremiumPageSize] = useState<20 | 40 | 100>(20);
+  // Same "ALL" sentinel pattern as the positions page filters.
+  const [statusFilter, setStatusFilter] = useState<"ALL" | PositionStatus>("ALL");
+  const [sourceProviderFilter, setSourceProviderFilter] = useState<"ALL" | PositionSourceProvider>("ALL");
   const [registerSearch, setRegisterSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<PremiumForm>(formFromItem(null));
@@ -207,12 +224,16 @@ export default function PremiumPositionsPage() {
 
   const filteredPremiumItems = useMemo(() => {
     const q = premiumDebouncedSearch.trim().toLowerCase();
-    if (!q) return appliedPremiumItems;
     return appliedPremiumItems.filter((item) => {
-      const partner = item.partnerOrganization?.name ?? "";
-      return `${item.title} ${partner}`.toLowerCase().includes(q);
+      if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
+      if (sourceProviderFilter !== "ALL" && item.sourceProvider !== sourceProviderFilter) return false;
+      if (q) {
+        const partner = item.partnerOrganization?.name ?? "";
+        if (!`${item.title} ${partner}`.toLowerCase().includes(q)) return false;
+      }
+      return true;
     });
-  }, [appliedPremiumItems, premiumDebouncedSearch]);
+  }, [appliedPremiumItems, premiumDebouncedSearch, statusFilter, sourceProviderFilter]);
 
   const visiblePremiumItems = useMemo(
     () => filteredPremiumItems.slice(0, premiumPageSize),
@@ -417,23 +438,59 @@ export default function PremiumPositionsPage() {
 
         {errorMessage ? <p className="ops-form-error">{errorMessage}</p> : null}
 
-        <div className="ops-partner-filters ops-position-filters" style={{ marginTop: 12 }}>
+        <div className="ops-partner-filters ops-partner-filters--multi" style={{ marginTop: 12 }}>
           <input
             value={premiumSearch}
             onChange={(event) => setPremiumSearch(event.target.value)}
-            placeholder="프리미엄 포지션 검색 (포지션명/기업명)"
+            placeholder="포지션명 / 기업명 검색"
             className="ops-partner-filter-search"
           />
-          <div className="ops-position-filter-right">
-            <select
-              value={String(premiumPageSize)}
-              onChange={(event) => setPremiumPageSize(Number(event.target.value) as 20 | 40 | 100)}
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+            aria-label="상태 필터"
+          >
+            <option value="ALL">전체 상태</option>
+            <option value="DRAFT">{statusLabel("DRAFT")}</option>
+            <option value="PENDING_REVIEW">{statusLabel("PENDING_REVIEW")}</option>
+            <option value="OPEN">{statusLabel("OPEN")}</option>
+            <option value="PAUSED">{statusLabel("PAUSED")}</option>
+            <option value="CLOSED">{statusLabel("CLOSED")}</option>
+            <option value="REJECTED">{statusLabel("REJECTED")}</option>
+          </select>
+          <select
+            value={sourceProviderFilter}
+            onChange={(event) => setSourceProviderFilter(event.target.value as typeof sourceProviderFilter)}
+            aria-label="출처 필터"
+          >
+            <option value="ALL">전체 출처</option>
+            <option value="INTERNAL">직접 등록</option>
+            <option value="BUDDIES">버디즈</option>
+            <option value="WANTED">원티드</option>
+            <option value="OTHER">기타 외부</option>
+          </select>
+          <select
+            value={String(premiumPageSize)}
+            onChange={(event) => setPremiumPageSize(Number(event.target.value) as 20 | 40 | 100)}
+            aria-label="페이지 크기"
+          >
+            <option value="20">20개</option>
+            <option value="40">40개</option>
+            <option value="100">100개</option>
+          </select>
+          {statusFilter !== "ALL" || sourceProviderFilter !== "ALL" || premiumSearch ? (
+            <button
+              type="button"
+              className="ops-partner-filter-reset"
+              onClick={() => {
+                setPremiumSearch("");
+                setStatusFilter("ALL");
+                setSourceProviderFilter("ALL");
+              }}
             >
-              <option value="20">20개</option>
-              <option value="40">40개</option>
-              <option value="100">100개</option>
-            </select>
-          </div>
+              필터 초기화
+            </button>
+          ) : null}
         </div>
 
         <div className="ops-partner-table-wrap ops-position-list-table-wrap" style={{ marginTop: 12 }}>
@@ -481,20 +538,29 @@ export default function PremiumPositionsPage() {
                       </span>
                     </td>
                     <td onClick={(event) => event.stopPropagation()}>
-                      {item.partnerOrganization ? (
-                        <button
-                          type="button"
-                          className="ops-link-button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openPartnerDetailModal(item.partnerOrganization);
-                          }}
-                        >
-                          <span className="ops-cell-clamp-3">{item.partnerOrganization.name}</span>
-                        </button>
-                      ) : (
-                        <span className="ops-cell-clamp-3">-</span>
-                      )}
+                      {(() => {
+                        const crawlLabel = item.sourceKind === "EXTERNAL"
+                          ? sourceProviderLabel(item.sourceProvider)
+                          : null;
+                        if (crawlLabel) {
+                          return <span className="ops-pill ops-pill-violet">{crawlLabel}</span>;
+                        }
+                        if (item.partnerOrganization) {
+                          return (
+                            <button
+                              type="button"
+                              className="ops-link-button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openPartnerDetailModal(item.partnerOrganization);
+                              }}
+                            >
+                              <span className="ops-cell-clamp-3">{item.partnerOrganization.name}</span>
+                            </button>
+                          );
+                        }
+                        return <span className="ops-cell-clamp-3">-</span>;
+                      })()}
                     </td>
                     <td><span className="ops-cell-clamp-3">{item.preferredJobRole ?? "-"}</span></td>
                     <td><span className="ops-cell-clamp-3">{item.hiringCount ? `${item.hiringCount}명` : "-"}</span></td>
@@ -619,7 +685,13 @@ export default function PremiumPositionsPage() {
                                   {statusLabel(item.status)}
                                 </span>
                               </td>
-                              <td><span className="ops-cell-clamp-3">{item.partnerOrganization?.name ?? "-"}</span></td>
+                              <td>
+                                {item.sourceKind === "EXTERNAL" && sourceProviderLabel(item.sourceProvider) ? (
+                                  <span className="ops-pill ops-pill-violet">{sourceProviderLabel(item.sourceProvider)}</span>
+                                ) : (
+                                  <span className="ops-cell-clamp-3">{item.partnerOrganization?.name ?? "-"}</span>
+                                )}
+                              </td>
                               <td><span className="ops-cell-clamp-3">{item.preferredJobRole ?? "-"}</span></td>
                               <td><span className="ops-cell-clamp-3">{item.hiringCount ? `${item.hiringCount}명` : "-"}</span></td>
                               <td><span className="ops-cell-clamp-3">{formatDate(item.createdAt)}</span></td>

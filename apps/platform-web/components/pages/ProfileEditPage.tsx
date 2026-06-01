@@ -10,7 +10,12 @@ import { PartnerAdminTwoColumn } from "../partner/PartnerAdminTwoColumn";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { logoutPlatformSession } from "../../lib/auth-client";
-import { isMemberNotFoundError, updateMyBasicInfo } from "../../lib/member-profile-client";
+import {
+  getMyCandidateProfile,
+  isMemberNotFoundError,
+  updateMyBasicInfo,
+  updateMyCandidateProfile
+} from "../../lib/member-profile-client";
 import { CandidateDocumentsSection } from "../profile/CandidateDocumentsSection";
 import { useToast } from "../toast/ToastProvider";
 import { getStoredProfilePhoto, setStoredProfilePhoto } from "../../lib/profile-media";
@@ -33,6 +38,7 @@ export function ProfileEditPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [gender, setGender] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  const [selfIntroduction, setSelfIntroduction] = useState("");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,6 +66,8 @@ export function ProfileEditPage() {
       female: "여성",
       other: "기타",
       birthDate: "생년월일",
+      selfIntroduction: "자기소개",
+      selfIntroductionPlaceholder: "본인을 한두 단락으로 소개해 주세요. (선택)",
       cancel: "취소",
       saving: "저장 중...",
       save: "저장",
@@ -87,6 +95,8 @@ export function ProfileEditPage() {
       female: "Female",
       other: "Other",
       birthDate: "Date of birth",
+      selfIntroduction: "Self introduction",
+      selfIntroductionPlaceholder: "Tell us about yourself in a paragraph or two. (optional)",
       cancel: "Cancel",
       saving: "Saving...",
       save: "Save",
@@ -114,6 +124,8 @@ export function ProfileEditPage() {
       female: "女性",
       other: "其他",
       birthDate: "出生日期",
+      selfIntroduction: "自我介绍",
+      selfIntroductionPlaceholder: "请用一两段话介绍一下自己。(可选)",
       cancel: "取消",
       saving: "保存中...",
       save: "保存",
@@ -141,6 +153,8 @@ export function ProfileEditPage() {
       female: "Nữ",
       other: "Khác",
       birthDate: "Ngày sinh",
+      selfIntroduction: "Giới thiệu bản thân",
+      selfIntroductionPlaceholder: "Hãy giới thiệu về bản thân bạn trong một hoặc hai đoạn. (tùy chọn)",
       cancel: "Hủy",
       saving: "Đang lưu...",
       save: "Lưu",
@@ -168,6 +182,8 @@ export function ProfileEditPage() {
       female: "女性",
       other: "その他",
       birthDate: "生年月日",
+      selfIntroduction: "自己紹介",
+      selfIntroductionPlaceholder: "ご自身を一段落か二段落で紹介してください。(任意)",
       cancel: "キャンセル",
       saving: "保存中...",
       save: "保存",
@@ -195,6 +211,8 @@ export function ProfileEditPage() {
       female: "Perempuan",
       other: "Lainnya",
       birthDate: "Tanggal lahir",
+      selfIntroduction: "Perkenalan diri",
+      selfIntroductionPlaceholder: "Perkenalkan diri Anda dalam satu atau dua paragraf. (opsional)",
       cancel: "Batal",
       saving: "Menyimpan...",
       save: "Simpan",
@@ -212,6 +230,25 @@ export function ProfileEditPage() {
     setBirthDate(user.birthDate ? user.birthDate.slice(0, 10) : "");
     setPreviewImage(user.profileImageUrl ?? getStoredProfilePhoto(user.id));
   }, [user]);
+
+  // Self-introduction lives on CandidateProfile, not on User — fetch it once
+  // the user is known to be a STUDENT so we can prefill the textarea.
+  useEffect(() => {
+    if (!isReady || !isAuthenticated || user?.role !== "STUDENT") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const profile = await getMyCandidateProfile();
+        if (!cancelled) setSelfIntroduction(profile?.selfIntroduction ?? "");
+      } catch {
+        // Silent — non-STUDENT users don't hit this branch, and a failure here
+        // shouldn't block the rest of the profile editor.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isReady, isAuthenticated, user?.role]);
 
   const avatarFallback = useMemo(() => {
     if (name.trim()) return name.trim()[0].toUpperCase();
@@ -261,6 +298,22 @@ export function ProfileEditPage() {
         birthDate: birthDate ? new Date(`${birthDate}T00:00:00.000Z`).toISOString() : null,
         ...(isNewImage ? { profileImageData: previewImage } : {})
       });
+
+      // Self-introduction sits on candidate_profile (not user), so it needs a
+      // second request. We only fire it for STUDENT users — partners/operators
+      // never see the textarea.
+      if (user.role === "STUDENT") {
+        try {
+          await updateMyCandidateProfile({
+            selfIntroduction: selfIntroduction.trim() ? selfIntroduction.trim() : null
+          });
+        } catch (candidateError) {
+          // Don't block the whole save — basic info has been persisted. Surface
+          // the candidate-profile failure as a secondary message.
+          console.error("[profile-edit] selfIntroduction save failed", candidateError);
+        }
+      }
+
       setAuthenticatedUser({
         id: updated.id,
         email: updated.email,
@@ -433,6 +486,24 @@ export function ProfileEditPage() {
               </div>
               </div>
               </div>
+
+              {user.role === "STUDENT" ? (
+                <div className="rounded-2xl bg-white p-4 md:p-5">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium" htmlFor="profile-self-introduction">
+                      {copy.selfIntroduction}
+                    </label>
+                    <textarea
+                      id="profile-self-introduction"
+                      className="min-h-[140px] w-full rounded-xl border-0 bg-muted/40 px-3 py-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                      value={selfIntroduction}
+                      onChange={(event) => setSelfIntroduction(event.target.value)}
+                      maxLength={4000}
+                      placeholder={copy.selfIntroductionPlaceholder}
+                    />
+                  </div>
+                </div>
+              ) : null}
 
               {user.role === "STUDENT" ? <CandidateDocumentsSection /> : null}
 

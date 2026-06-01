@@ -179,7 +179,7 @@
   height: 50px;
   border: 0;
   border-radius: 12px;
-  background: linear-gradient(90deg, var(--ops-accent), var(--ops-accent-dark));
+  background: var(--ops-accent-dark);
   color: #fff;
   font-size: 14px;
   font-weight: 600;
@@ -275,6 +275,14 @@
   overflow-x: hidden;
   padding-right: 2px;
   align-content: flex-start;
+  /* Hide the scroll indicator on the dark sidebar — the scroll itself still
+     works, the visual track/thumb just doesn't show up. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.ops-console-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .ops-console-nav-group {
@@ -508,6 +516,55 @@
   gap: 10px;
 }
 
+/* Multi-filter variant: search expands, every other control sits on the right
+   and wraps to a new row on narrow widths. Used by the all-users page where
+   we need search + role + emailVerified + pageSize + reset in one row. */
+.ops-partner-filters--multi {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.ops-partner-filters--multi .ops-partner-filter-search {
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.ops-partner-filter-reset {
+  height: 38px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 13px;
+  background: #fff;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+.ops-partner-filter-reset:hover {
+  background: #f3f4f6;
+}
+
+/* Inline "verification icon + email" cell used in the all-users list.
+   Icon sits before the address — verified = green check, unverified = muted X. */
+.ops-email-with-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ops-email-verify-icon {
+  flex: 0 0 auto;
+}
+
+.ops-email-verify-icon.is-verified {
+  color: #16a34a;
+}
+
+.ops-email-verify-icon.is-unverified {
+  color: #9ca3af;
+}
+
 .ops-partner-filter-search {
   height: 38px;
   border: 1px solid #e5e7eb;
@@ -561,7 +618,7 @@
   border: 0;
   border-radius: 10px;
   padding: 0 12px;
-  background: linear-gradient(90deg, var(--ops-accent), var(--ops-accent-dark));
+  background: var(--ops-accent-dark);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
@@ -794,7 +851,7 @@
   height: 44px;
   border: 0;
   border-radius: 10px;
-  background: linear-gradient(90deg, var(--ops-accent), var(--ops-accent-dark));
+  background: var(--ops-accent-dark);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -1297,11 +1354,25 @@
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.1), 0 0 0 2px rgba(148, 163, 184, 0.2);
 }
 
+/* ---- Ops console modal shell ----
+   Two patterns share the same visual language so users don't notice the
+   difference between a structured <dialog> (detail/edit views) and a
+   lightweight <div> (status changes, info popups):
+
+     - `.ops-modal-backdrop` : div-overlay. Same blur + tint as <dialog>::backdrop.
+     - `.ops-modal-panel`    : the inner card. Same border-radius + shadow as
+                               `.ops-modal-card`. Pick a size with `--sm` / `--md` / `--lg`.
+     - `.ops-modal-panel-header` / `-body` / `-footer` : optional inner regions
+                               that mirror the structured dialog spacing
+                               (22px top, scroll body, 14/22 bottom). */
+
 .ops-modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 2600;
-  background: rgba(2, 6, 23, 0.48);
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1309,16 +1380,70 @@
 }
 
 .ops-modal-panel {
-  width: min(560px, 100%);
+  width: min(640px, calc(100% - 24px));
+  max-height: calc(100dvh - 120px);
   border-radius: 14px;
-  border: 1px solid #e5e7eb;
   background: #fff;
   padding: 16px;
-  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.24);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
+/* When using the structured header/body/footer helpers, drop the default
+   panel padding — the helpers bring their own (matches the big dialog cards). */
+.ops-modal-panel:has(> .ops-modal-panel-header),
+.ops-modal-panel:has(> .ops-modal-panel-body),
+.ops-modal-panel:has(> .ops-modal-panel-footer) {
+  padding: 0;
+}
+
+/* Size variants (opt-in). Default panel is ~640px which suits compact
+   info popups. `--detail` matches the unified width used by
+   `<dialog>`-based detail popups (ops-detail-modal-card → 880px) so
+   Pattern A and Pattern B detail surfaces look identical. */
+.ops-modal-panel--sm { width: min(480px, calc(100% - 24px)); }
+.ops-modal-panel--md { width: min(720px, calc(100% - 24px)); }
+.ops-modal-panel--lg { width: min(960px, calc(100% - 24px)); }
+.ops-modal-panel--detail { width: min(880px, calc(100% - 24px)); }
+
+/* Optional inner regions matching the structured dialog spacing. Consumers
+   that want a compact card with their own layout can skip these and just put
+   children directly inside `.ops-modal-panel` — but using these gives a
+   header/scroll-body/footer consistent with the big <dialog> modals. */
+.ops-modal-panel-header {
+  padding: 22px 22px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ops-modal-panel-header h2 {
+  margin: 0;
+  font-size: 17px;
+  color: #111827;
+}
+
+.ops-modal-panel-body {
+  padding: 6px 22px 14px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.ops-modal-panel-footer {
+  padding: 14px 22px 20px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid #eef0f3;
+}
+
+/* Status-change popup keeps a slightly wider variant for the 2-col grid. */
 .ops-status-change-modal {
-  max-width: 620px;
+  width: min(620px, 100%);
 }
 
 .ops-status-change-grid {
@@ -1419,11 +1544,33 @@
 .ops-modal-dialog {
   border: 0;
   padding: 0;
-  width: min(100%, 1140px);
+  /* Bulletproof centering — Chrome/Safari/Firefox each handle native
+     <dialog> top-layer positioning slightly differently. The
+     `inset:0; margin:auto` trick sometimes resolves to top-aligned when
+     the dialog's height isn't fully determined yet. Pinning top/left to
+     50% + a translate sidesteps all UA quirks and the popup always lands
+     dead-center horizontally AND vertically. */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  /* Default width for non-detail dialogs (create/edit forms with many
+     inputs). Detail popups override below. */
+  width: min(1080px, calc(100% - 24px));
   max-width: calc(100% - 24px);
   max-height: calc(100dvh - 120px);
   background: transparent;
   overflow: visible;
+}
+
+/* Detail popups (user / partner / position / candidate detail views) share
+   one width so they all feel like the same product surface. The marker is
+   the `ops-detail-modal-card` inner card. */
+.ops-modal-dialog:has(.ops-detail-modal-card) {
+  width: min(880px, calc(100% - 24px));
 }
 
 .ops-modal-dialog::backdrop {
@@ -1648,7 +1795,7 @@
   height: 46px;
   border: 0;
   border-radius: 10px;
-  background: linear-gradient(90deg, var(--ops-accent), var(--ops-accent-dark));
+  background: var(--ops-accent-dark);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -2150,7 +2297,7 @@
 
 .ops-action-save {
   border: 0;
-  background: linear-gradient(90deg, var(--ops-accent), var(--ops-accent-dark));
+  background: var(--ops-accent-dark);
   color: #fff;
   min-width: 92px;
 }
@@ -2200,13 +2347,13 @@
 .ops-partner-add-button,
 .ops-modal-submit {
   border-color: #ea580c;
-  background: linear-gradient(90deg, #f97316, #ea580c);
+  background: var(--ops-accent-dark);
   color: #fff;
 }
 
 .ops-action-save {
-  border-color: #2563eb;
-  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  border-color: var(--ops-accent-dark);
+  background: var(--ops-accent-dark);
   color: #fff;
 }
 
@@ -2220,6 +2367,31 @@
   border-color: #fecaca;
   background: #fef2f2;
   color: #b91c1c;
+}
+
+/* Solid red for destructive / irreversible actions (DB wipes, hard delete,
+   forum purge). Visually heavier than `.ops-action-reject` (which is the
+   soft "decline" variant used in moderation queues). */
+.ops-action-danger {
+  height: 40px;
+  min-width: 92px;
+  border: 1px solid #b42318;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #b42318;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ops-action-danger:hover {
+  filter: brightness(0.96);
+}
+
+.ops-action-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .ops-detail-button,
@@ -2296,7 +2468,7 @@
 
 .ops-matching-action-buttons button.is-active {
   border-color: #ea580c;
-  background: linear-gradient(90deg, #f97316, #ea580c);
+  background: var(--ops-accent-dark);
   color: #fff;
 }
 
@@ -2403,10 +2575,10 @@
 
 .ops-matching-split-start {
   height: 40px;
-  border: 1px solid #2563eb;
+  border: 1px solid var(--ops-accent-dark);
   border-radius: 10px;
   overflow: hidden;
-  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  background: var(--ops-accent-dark);
   display: inline-flex;
   align-items: center;
   box-shadow: none;
@@ -2705,7 +2877,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #fb923c, #f97316);
+  background: var(--ops-accent);
 }
 
 .ops-matching-history-row {
@@ -2848,6 +3020,12 @@
 }
 
 .ops-modal-dialog.is-embedded-detail-dialog {
+  /* Embedded variant — sits inline in a page section, not a real popup.
+     Reset the popup centering applied in the base rule. */
+  position: static;
+  top: auto;
+  left: auto;
+  transform: none;
   width: 100%;
   max-width: 100%;
   max-height: none;
@@ -3315,6 +3493,424 @@ a.ops-list-card:hover {
 .ops-kpi-tile.ops-kpi-blue { background: #eff6ff; }
 .ops-kpi-tile.ops-kpi-green { background: #ecfdf5; }
 .ops-kpi-tile.ops-kpi-amber { background: #fffbeb; }
+
+/* ---- Reports page v2: icon KPI strip + 2-col chart row + tabbed table ----
+   Visual reference: shop-dashboard style. Colors stay with the ops console
+   palette (orange accent + neutrals + semantic for status badges). */
+
+.ops-report-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.ops-report-kpi {
+  background: #fff;
+  border: 1px solid #eef0f3;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ops-report-kpi-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ops-report-kpi-head .icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: var(--ops-accent-dark);
+  flex: 0 0 auto;
+}
+
+.ops-report-kpi .value {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.ops-report-kpi .delta {
+  font-size: 12px;
+  margin: 0;
+  font-weight: 500;
+  color: #16a34a;
+}
+.ops-report-kpi .delta.is-down { color: #dc2626; }
+.ops-report-kpi .delta.is-muted { color: #6b7280; }
+
+/* Two-column chart row: 2/3 + 1/3 */
+.ops-report-chart-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 14px;
+}
+@media (max-width: 960px) {
+  .ops-report-chart-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ops-report-chart-card {
+  background: #fff;
+  border: 1px solid #eef0f3;
+  border-radius: 12px;
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ops-report-chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ops-report-chart-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ops-report-chart-title .name {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.ops-report-chart-title .num {
+  font-size: 26px;
+  font-weight: 700;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.ops-report-chart-title .delta {
+  font-size: 11px;
+  color: #16a34a;
+  font-weight: 500;
+}
+
+/* Bar chart inside a chart card — vertical bars with translucent track */
+.ops-report-vbars {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  height: 220px;
+  padding-top: 6px;
+}
+
+.ops-report-vbars > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ops-report-vbars .col {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  background: #f3f4f6;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+}
+
+.ops-report-vbars .col .fill {
+  background: var(--ops-accent-dark);
+  width: 100%;
+  border-radius: inherit;
+  transition: height 0.2s;
+}
+
+.ops-report-vbars .label {
+  font-size: 11px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+/* Tabbed table block */
+.ops-report-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: #f3f4f6;
+  border-radius: 10px;
+}
+
+.ops-report-tab {
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ops-report-tab:hover {
+  color: #374151;
+}
+
+.ops-report-tab.is-active {
+  background: #fff;
+  color: #111827;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.ops-report-tab .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--ops-accent-dark);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ---- Reports page: refined hero + share bar + funnel viz ----
+   Visual tone matches the all-users (전체 사용자) page — flat (no card
+   chrome at the outer level), hairline-bordered inner tiles, generous
+   padding, and tabular numerics so columns of figures align. */
+
+.ops-report-hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.ops-report-hero-tile {
+  background: #fff;
+  border: 1px solid #eef0f3;
+  border-radius: 14px;
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ops-report-hero-tile .label {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+  font-weight: 500;
+}
+
+.ops-report-hero-tile .value {
+  font-size: 40px;
+  font-weight: 700;
+  margin: 0;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.ops-report-hero-tile .delta {
+  font-size: 12px;
+  color: #16a34a;
+  margin: 0;
+  font-weight: 500;
+}
+
+.ops-report-hero-tile .delta.is-muted {
+  color: #6b7280;
+}
+
+/* Horizontal proportional share bar — shows category split as colored slices.
+   Used for 사용자 분포, 포지션 상태, etc. */
+.ops-report-share {
+  margin-top: 16px;
+}
+
+.ops-report-share-bar {
+  display: flex;
+  width: 100%;
+  height: 16px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+
+.ops-report-share-bar > span {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+}
+
+.ops-report-share-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.ops-report-share-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.ops-report-share-legend-item .dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.ops-report-share-legend-item .name {
+  flex: 1;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.ops-report-share-legend-item .num {
+  font-weight: 700;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+}
+
+.ops-report-share-legend-item .pct {
+  color: #9ca3af;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Per-status row with label + mini bar + count. Stacked rows with airy
+   gaps to feel like list entries on the all-users table. */
+.ops-report-rows {
+  display: grid;
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.ops-report-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 90px 60px;
+  align-items: center;
+  gap: 16px;
+}
+
+.ops-report-row .label {
+  font-size: 14px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.ops-report-row .track {
+  height: 10px;
+  background: #f3f4f6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.ops-report-row .track > span {
+  display: block;
+  height: 100%;
+  background: var(--ops-accent);
+  border-radius: inherit;
+}
+
+.ops-report-row .num {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-report-row .pct {
+  font-size: 12px;
+  color: #9ca3af;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Funnel: horizontal bars decreasing in width with conversion % between. */
+.ops-report-funnel {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.ops-report-funnel-stage {
+  display: grid;
+  grid-template-columns: 130px 1fr 100px;
+  align-items: center;
+  gap: 16px;
+}
+
+.ops-report-funnel-stage .label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.ops-report-funnel-stage .bar {
+  height: 40px;
+  background: var(--ops-accent);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 14px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-report-funnel-stage .bar.is-secondary {
+  background: #d1d5db;
+  color: #4b5563;
+}
+
+.ops-report-funnel-stage .conv {
+  font-size: 13px;
+  color: #6b7280;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
 
 .ops-table-card {
   background: transparent;

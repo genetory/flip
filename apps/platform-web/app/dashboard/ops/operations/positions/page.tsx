@@ -107,9 +107,14 @@ type PositionPremiumBanner = {
   priority: number | null;
 };
 
+type PositionSourceProvider = "INTERNAL" | "BUDDIES" | "WANTED" | "OTHER";
+type PositionSourceKind = "INTERNAL" | "EXTERNAL";
+
 type PositionItem = {
   id: string;
   partnerOrganizationId: string | null;
+  sourceKind: PositionSourceKind;
+  sourceProvider: PositionSourceProvider;
   title: string;
   status: PositionStatus;
   matchingParticipants: PositionParticipant[];
@@ -185,6 +190,16 @@ function readCookie(key: string) {
 
 function statusLabel(status: PositionStatus) {
   return getOpsPositionStatusMeta(status).labelKo;
+}
+
+// Korean labels for external crawl sources. Used in the partner column to
+// render a small chip when the row is a crawled posting (sourceKind = EXTERNAL).
+// INTERNAL returns null — those rows fall back to the partner-org name.
+function sourceProviderLabel(provider: PositionSourceProvider): string | null {
+  if (provider === "BUDDIES") return "버디즈";
+  if (provider === "WANTED") return "원티드";
+  if (provider === "OTHER") return "외부";
+  return null;
 }
 
 function statusTone(status: PositionStatus) {
@@ -289,6 +304,10 @@ export default function PositionManagementPage() {
   const [search, setSearch] = useState("");
   const [industryFilter, setIndustryFilter] = useState<PartnerIndustry | "">("");
   const [companySizeFilter, setCompanySizeFilter] = useState<PartnerCompanySize | "">("");
+  // Server-side filters: status + crawl-source provider. Match the same "ALL"
+  // sentinel pattern the all-users page uses so the <select> stays controlled.
+  const [statusFilter, setStatusFilter] = useState<"ALL" | PositionStatus>("ALL");
+  const [sourceProviderFilter, setSourceProviderFilter] = useState<"ALL" | PositionSourceProvider>("ALL");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<20 | 40 | 100>(20);
@@ -367,6 +386,8 @@ export default function PositionManagementPage() {
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (industryFilter) params.set("partnerIndustry", industryFilter);
       if (companySizeFilter) params.set("partnerCompanySize", companySizeFilter);
+      if (statusFilter !== "ALL") params.set("status", statusFilter);
+      if (sourceProviderFilter !== "ALL") params.set("sourceProvider", sourceProviderFilter);
       params.set("sortBy", sortField);
       params.set("sortOrder", sortOrder);
       params.set("page", String(page));
@@ -418,7 +439,7 @@ export default function PositionManagementPage() {
 
   useEffect(() => {
     void fetchPositions();
-  }, [debouncedSearch, industryFilter, companySizeFilter, sortField, sortOrder, page, pageSize]);
+  }, [debouncedSearch, industryFilter, companySizeFilter, statusFilter, sourceProviderFilter, sortField, sortOrder, page, pageSize]);
 
   useEffect(() => {
     if (!detailIdFromQuery) return;
@@ -775,51 +796,108 @@ export default function PositionManagementPage() {
           </button>
         </div>
 
-        <div className="ops-partner-filters ops-position-filters">
+        <div className="ops-partner-filters ops-partner-filters--multi">
           <input
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="제목, 파트너사, 희망 직무 검색"
+            placeholder="제목 / 파트너사 / 희망 직무 검색"
             className="ops-partner-filter-search"
           />
-          <div className="ops-position-filter-right">
-            <select
-              value={industryFilter}
-              onChange={(e) => {
-                setIndustryFilter(e.target.value as PartnerIndustry | "");
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as typeof statusFilter);
+              setPage(1);
+            }}
+            aria-label="상태 필터"
+          >
+            <option value="ALL">전체 상태</option>
+            <option value="DRAFT">{statusLabel("DRAFT")}</option>
+            <option value="PENDING_REVIEW">{statusLabel("PENDING_REVIEW")}</option>
+            <option value="OPEN">{statusLabel("OPEN")}</option>
+            <option value="PAUSED">{statusLabel("PAUSED")}</option>
+            <option value="CLOSED">{statusLabel("CLOSED")}</option>
+            <option value="REJECTED">{statusLabel("REJECTED")}</option>
+          </select>
+          <select
+            value={sourceProviderFilter}
+            onChange={(e) => {
+              setSourceProviderFilter(e.target.value as typeof sourceProviderFilter);
+              setPage(1);
+            }}
+            aria-label="출처 필터"
+          >
+            <option value="ALL">전체 출처</option>
+            <option value="INTERNAL">직접 등록</option>
+            <option value="BUDDIES">버디즈</option>
+            <option value="WANTED">원티드</option>
+            <option value="OTHER">기타 외부</option>
+          </select>
+          <select
+            value={industryFilter}
+            onChange={(e) => {
+              setIndustryFilter(e.target.value as PartnerIndustry | "");
+              setPage(1);
+            }}
+            aria-label="산업 필터"
+          >
+            <option value="">전체 산업</option>
+            {partnerIndustries.map((industry) => (
+              <option key={industry} value={industry}>
+                {partnerIndustryLabel(industry)}
+              </option>
+            ))}
+          </select>
+          <select
+            value={companySizeFilter}
+            onChange={(e) => {
+              setCompanySizeFilter(e.target.value as PartnerCompanySize | "");
+              setPage(1);
+            }}
+            aria-label="기업 규모 필터"
+          >
+            <option value="">전체 규모</option>
+            {partnerCompanySizes.map((size) => (
+              <option key={size} value={size}>
+                {companySizeLabel(size)}
+              </option>
+            ))}
+          </select>
+          <select
+            value={String(pageSize)}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value) as 20 | 40 | 100);
+              setPage(1);
+            }}
+            aria-label="페이지 크기"
+          >
+            <option value="20">20개</option>
+            <option value="40">40개</option>
+            <option value="100">100개</option>
+          </select>
+          {statusFilter !== "ALL" ||
+          sourceProviderFilter !== "ALL" ||
+          industryFilter ||
+          companySizeFilter ||
+          search ? (
+            <button
+              type="button"
+              className="ops-partner-filter-reset"
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("ALL");
+                setSourceProviderFilter("ALL");
+                setIndustryFilter("");
+                setCompanySizeFilter("");
                 setPage(1);
               }}
             >
-              <option value="">산업 전체</option>
-              {partnerIndustries.map((industry) => (
-                <option key={industry} value={industry}>
-                  {partnerIndustryLabel(industry)}
-                </option>
-              ))}
-            </select>
-            <select
-              value={companySizeFilter}
-              onChange={(e) => {
-                setCompanySizeFilter(e.target.value as PartnerCompanySize | "");
-                setPage(1);
-              }}
-            >
-              <option value="">기업 규모 전체</option>
-              {partnerCompanySizes.map((size) => (
-                <option key={size} value={size}>
-                  {companySizeLabel(size)}
-                </option>
-              ))}
-            </select>
-            <select value={String(pageSize)} onChange={(e) => setPageSize(Number(e.target.value) as 20 | 40 | 100)}>
-              <option value="20">20개</option>
-              <option value="40">40개</option>
-              <option value="100">100개</option>
-            </select>
-          </div>
+              필터 초기화
+            </button>
+          ) : null}
         </div>
 
         {listErrorMessage ? <p className="ops-form-error">{listErrorMessage}</p> : null}
@@ -892,20 +970,35 @@ export default function PositionManagementPage() {
                       </div>
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      {item.partnerOrganization ? (
-                        <button
-                          type="button"
-                          className="ops-link-button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openPartnerDetailModal(item.partnerOrganization);
-                          }}
-                        >
-                          <span className="ops-cell-clamp-3">{item.partnerOrganization.name}</span>
-                        </button>
-                      ) : (
-                        <span className="ops-cell-clamp-3">-</span>
-                      )}
+                      {(() => {
+                        // Crawled (EXTERNAL) postings don't have a useful
+                        // partner-org link, so render a small chip with the
+                        // crawl source instead. INTERNAL falls back to the
+                        // partner name as before.
+                        const crawlLabel = item.sourceKind === "EXTERNAL"
+                          ? sourceProviderLabel(item.sourceProvider)
+                          : null;
+                        if (crawlLabel) {
+                          return (
+                            <span className="ops-pill ops-pill-violet">{crawlLabel}</span>
+                          );
+                        }
+                        if (item.partnerOrganization) {
+                          return (
+                            <button
+                              type="button"
+                              className="ops-link-button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openPartnerDetailModal(item.partnerOrganization);
+                              }}
+                            >
+                              <span className="ops-cell-clamp-3">{item.partnerOrganization.name}</span>
+                            </button>
+                          );
+                        }
+                        return <span className="ops-cell-clamp-3">-</span>;
+                      })()}
                     </td>
                     <td><span className="ops-cell-clamp-3">{item.preferredJobRole ?? "-"}</span></td>
                     <td><span className="ops-cell-clamp-3">{item.hiringCount ? `${item.hiringCount}명` : "-"}</span></td>
@@ -937,22 +1030,29 @@ export default function PositionManagementPage() {
       {statusModalTarget ? (
         <div className="ops-modal-backdrop" onClick={() => setStatusModalTarget(null)}>
           <div className="ops-modal-panel ops-status-change-modal" onClick={(event) => event.stopPropagation()}>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>상태 변경</h3>
-            <p style={{ margin: "8px 0 0", color: "#6b7280", fontSize: 13 }}>변경할 상태를 선택하세요.</p>
-            <div className="ops-status-change-grid" style={{ marginTop: 14 }}>
-              {(["DRAFT", "PENDING_REVIEW", "OPEN", "PAUSED", "CLOSED", "REJECTED"] as PositionStatus[]).map((status) => (
-                <button
-                  key={status}
-                  type="button"
-                  className={`ops-status-change-button ${statusOptionClass(status)} ${statusModalTarget.currentStatus === status ? "is-active" : ""}`}
-                  onClick={() => void updateStatusFromList(statusModalTarget.id, statusModalTarget.currentStatus, status)}
-                >
-                  {statusLabel(status)}
-                </button>
-              ))}
+            <div className="ops-modal-panel-header">
+              <h2>상태 변경</h2>
+              <button type="button" className="ops-modal-close" onClick={() => setStatusModalTarget(null)} aria-label="닫기">
+                <X size={16} weight="bold" aria-hidden />
+              </button>
             </div>
-            <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
-              <button type="button" className="ops-detail-button" onClick={() => setStatusModalTarget(null)}>닫기</button>
+            <div className="ops-modal-panel-body">
+              <p style={{ margin: "0 0 14px", color: "#6b7280", fontSize: 13 }}>변경할 상태를 선택하세요.</p>
+              <div className="ops-status-change-grid">
+                {(["DRAFT", "PENDING_REVIEW", "OPEN", "PAUSED", "CLOSED", "REJECTED"] as PositionStatus[]).map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    className={`ops-status-change-button ${statusOptionClass(status)} ${statusModalTarget.currentStatus === status ? "is-active" : ""}`}
+                    onClick={() => void updateStatusFromList(statusModalTarget.id, statusModalTarget.currentStatus, status)}
+                  >
+                    {statusLabel(status)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="ops-modal-panel-footer">
+              <button type="button" className="ops-action-cancel" onClick={() => setStatusModalTarget(null)}>닫기</button>
             </div>
           </div>
         </div>

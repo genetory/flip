@@ -188,7 +188,6 @@ export default function DataManagementPage() {
           <button
             type="button"
             className="ops-partner-add-button"
-            style={{ background: "#0B46E8", color: "#fff" }}
             onClick={() => void runGenerate()}
             disabled={genRunning}
           >
@@ -217,8 +216,7 @@ export default function DataManagementPage() {
             </button>
             <button
               type="button"
-              className="ops-partner-add-button"
-              style={{ background: "#b42318", color: "#fff" }}
+              className="ops-action-danger"
               onClick={() => void runDeleteNonOperatorPosts()}
               disabled={delPostsRunning}
             >
@@ -263,8 +261,7 @@ export default function DataManagementPage() {
           />
           <button
             type="button"
-            className="ops-partner-add-button"
-            style={{ background: "#b42318", color: "#fff" }}
+            className="ops-action-danger"
             onClick={() => void runWipe("positions", positionConfirm)}
             disabled={running !== null || positionConfirm !== CONFIRM_PHRASE}
           >
@@ -306,8 +303,7 @@ export default function DataManagementPage() {
           />
           <button
             type="button"
-            className="ops-partner-add-button"
-            style={{ background: "#b42318", color: "#fff" }}
+            className="ops-action-danger"
             onClick={() => void runWipe("users", userConfirm)}
             disabled={running !== null || userConfirm !== CONFIRM_PHRASE}
           >

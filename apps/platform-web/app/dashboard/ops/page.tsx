@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Briefcase, GraduationCap, Inbox, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { readAccessToken } from "../../../lib/auth-client";
 
@@ -28,27 +29,6 @@ type ActivityItem = {
   occurredAt: string;
 };
 
-const OPS_ACTIVITY_COLOR: Record<string, string> = {
-  USER_SIGNUP: "#10b981",
-  POSITION_NEW: "#1d4ed8",
-  APPLICATION_STATUS: "#3b82f6",
-  ISSUE_NEW: "#dc2626",
-  PROGRAM_STARTED: "#047857",
-  SCHOOL_CREDIT: "#b45309"
-};
-
-function formatRelativeOps(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return "방금 전";
-  if (min < 60) return `${min}분 전`;
-  const hour = Math.floor(min / 60);
-  if (hour < 24) return `${hour}시간 전`;
-  const day = Math.floor(hour / 24);
-  if (day < 30) return `${day}일 전`;
-  return new Date(iso).toLocaleDateString("ko-KR");
-}
-
 type RecentSignup = {
   id: string;
   email: string;
@@ -58,14 +38,14 @@ type RecentSignup = {
   authProvider: "EMAIL" | "NAVER" | "KAKAO" | "GOOGLE";
 };
 
-const QUICK_LINKS = [
-  { label: "검수 큐", href: "/dashboard/ops/operations/review-queue", desc: "파트너 가입 · 공고 검수 대기 목록" },
-  { label: "전체 지원 현황", href: "/dashboard/ops/operations/applications", desc: "모든 파트너의 지원자 상태 확인" },
-  { label: "파트너 관리", href: "/dashboard/ops/partners/management", desc: "등록된 파트너 회사 목록과 인증 상태" },
-  { label: "후보자 관리", href: "/dashboard/ops/operations/candidates", desc: "학생 프로필 검색·검토" },
-  { label: "포지션 관리", href: "/dashboard/ops/operations/positions", desc: "모든 포지션과 상태 변경" },
-  { label: "크롤링", href: "/dashboard/ops/system/crawlers", desc: "외부 데이터 가져오기 실행" }
-];
+const OPS_ACTIVITY_COLOR: Record<string, string> = {
+  USER_SIGNUP: "#10b981",
+  POSITION_NEW: "#1d4ed8",
+  APPLICATION_STATUS: "#3b82f6",
+  ISSUE_NEW: "#dc2626",
+  PROGRAM_STARTED: "#047857",
+  SCHOOL_CREDIT: "#b45309"
+};
 
 const ROLE_LABEL: Record<string, string> = {
   STUDENT: "학생",
@@ -91,6 +71,97 @@ function formatRelativeTime(iso: string) {
   const day = Math.floor(hour / 24);
   if (day < 30) return `${day}일 전`;
   return d.toLocaleDateString("ko-KR");
+}
+
+// KPI card — icon + label + big value + delta line (mirrors the reports page)
+function KpiCard({
+  Icon,
+  label,
+  value,
+  delta
+}: {
+  Icon: typeof Users;
+  label: string;
+  value: number;
+  delta?: { text: string; direction?: "up" | "down" | "muted" };
+}) {
+  const deltaCls = delta?.direction === "down" ? "is-down" : delta?.direction === "muted" ? "is-muted" : "";
+  return (
+    <div className="ops-report-kpi">
+      <div className="ops-report-kpi-head">
+        <span className="icon" aria-hidden>
+          <Icon size={16} />
+        </span>
+        <span>{label}</span>
+      </div>
+      <p className="value">{value.toLocaleString()}</p>
+      {delta ? <p className={`delta ${deltaCls}`}>{delta.text}</p> : null}
+    </div>
+  );
+}
+
+// Slim horizontal funnel — each stage gets its own row with the count and
+// (optionally) the stage-to-stage conversion %. Slim 6px track keeps the
+// chart airy instead of bulky vertical columns.
+function FunnelRows({ stages }: { stages: { label: string; value: number }[] }) {
+  const max = Math.max(1, ...stages.map((s) => s.value));
+  return (
+    <div style={{ display: "grid", gap: 18, marginTop: 8 }}>
+      {stages.map((s, idx) => {
+        const widthPct = max > 0 ? (s.value / max) * 100 : 0;
+        const prev = idx > 0 ? stages[idx - 1] : null;
+        const conv = prev && prev.value > 0 ? Math.round((s.value / prev.value) * 1000) / 10 : null;
+        return (
+          <div key={s.label}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+                marginBottom: 8
+              }}
+            >
+              <span style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>{s.label}</span>
+              <span
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: "#111827",
+                  fontVariantNumeric: "tabular-nums"
+                }}
+              >
+                {s.value.toLocaleString()}
+                {conv !== null ? (
+                  <span style={{ marginLeft: 10, fontSize: 11, color: "#6b7280", fontWeight: 500 }}>
+                    → {conv}%
+                  </span>
+                ) : null}
+              </span>
+            </div>
+            <div
+              style={{
+                width: "100%",
+                height: 6,
+                background: "#f3f4f6",
+                borderRadius: 999,
+                overflow: "hidden"
+              }}
+            >
+              <span
+                style={{
+                  display: "block",
+                  width: `${widthPct}%`,
+                  height: "100%",
+                  background: "var(--ops-accent-dark)",
+                  borderRadius: "inherit"
+                }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function OpsDashboardHome() {
@@ -147,149 +218,159 @@ export default function OpsDashboardHome() {
     };
   }, []);
 
+  const applicationFunnel = useMemo(() => {
+    if (!matching) return [];
+    return [
+      { label: "검토 중", value: matching.applications.SUBMITTED },
+      { label: "면접 예정", value: matching.applications.INTERVIEW },
+      { label: "합격", value: matching.applications.ACCEPTED },
+      { label: "불합격", value: matching.applications.REJECTED }
+    ];
+  }, [matching]);
+
+  const totalApplications = useMemo(() => {
+    if (!matching) return 0;
+    return (
+      matching.applications.SUBMITTED +
+      matching.applications.INTERVIEW +
+      matching.applications.ACCEPTED +
+      matching.applications.REJECTED
+    );
+  }, [matching]);
+
   return (
     <section className="ops-content-section">
-      <header className="dashboard-header">
-        <div>
-          <h1>운영 대시보드</h1>
-          <p>안녕하세요, {user?.name ?? "운영자"}님. 플랫폼 전반의 운영 상태를 한눈에 확인하세요.</p>
-        </div>
+      <header>
+        <h1>운영 대시보드</h1>
+        <p>안녕하세요, {user?.name ?? "운영자"}님. 플랫폼 전반의 운영 상태를 한눈에 확인하세요.</p>
       </header>
 
       {loading ? (
-        <p style={{ color: "#6b7280", padding: "16px 0" }}>대시보드 데이터를 불러오는 중...</p>
+        <div className="ops-empty-card">대시보드 데이터를 불러오는 중...</div>
       ) : error ? (
-        <p style={{ color: "#dc2626", padding: "16px 0" }}>{error}</p>
+        <div className="ops-error-card">{error}</div>
+      ) : !stats ? (
+        <div className="ops-empty-card">아직 데이터가 없습니다.</div>
       ) : (
         <>
-          {stats ? (
-            <section className="ops-card-grid">
-              <article className="ops-card">
-                <p className="ops-kpi-label" style={{ letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>전체 사용자</p>
-                <p style={{ fontSize: 32, fontWeight: 900, margin: "8px 0 4px", color: "#111827" }}>{stats.users.total.toLocaleString()}</p>
-                <p className="ops-card-subtle" style={{ margin: 0 }}>
-                  학생 {stats.users.students.toLocaleString()} · 파트너 {stats.users.partners.toLocaleString()} · 운영자 {stats.users.operators.toLocaleString()}
-                </p>
-              </article>
-              <article className="ops-card">
-                <p className="ops-kpi-label" style={{ letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>파트너 회사</p>
-                <p style={{ fontSize: 32, fontWeight: 900, margin: "8px 0 4px", color: "#111827" }}>{stats.partnerOrgs.total.toLocaleString()}</p>
-                <p className="ops-card-subtle" style={{ margin: 0 }}>인증 완료 {stats.partnerOrgs.verified.toLocaleString()}</p>
-              </article>
-              <article className="ops-card">
-                <p className="ops-kpi-label" style={{ letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>포지션</p>
-                <p style={{ fontSize: 32, fontWeight: 900, margin: "8px 0 4px", color: "#111827" }}>{stats.positions.total.toLocaleString()}</p>
-                <p className="ops-card-subtle" style={{ margin: 0 }}>모집중 {stats.positions.open.toLocaleString()}</p>
-              </article>
-            </section>
-          ) : null}
-
-          {matching ? (
-            <section>
-              <h2 className="ops-section-heading">매칭 모니터링</h2>
-              <article className="ops-card">
-                <p className="ops-kpi-label" style={{ letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700, marginBottom: 12 }}>지원 → 합격 퍼널</p>
-                <div className="ops-funnel-grid">
-                  <div className="ops-kpi-tile">
-                    <p className="ops-kpi-label">지원 (검토 중)</p>
-                    <p className="ops-kpi-value">{matching.applications.SUBMITTED.toLocaleString()}</p>
-                  </div>
-                  <div className="ops-kpi-tile ops-kpi-blue">
-                    <p className="ops-kpi-label">면접 예정</p>
-                    <p className="ops-kpi-value">{matching.applications.INTERVIEW.toLocaleString()}</p>
-                  </div>
-                  <div className="ops-kpi-tile ops-kpi-green">
-                    <p className="ops-kpi-label">합격</p>
-                    <p className="ops-kpi-value">{matching.applications.ACCEPTED.toLocaleString()}</p>
-                  </div>
-                  <div className="ops-kpi-tile">
-                    <p className="ops-kpi-label">불합격</p>
-                    <p className="ops-kpi-value">{matching.applications.REJECTED.toLocaleString()}</p>
-                  </div>
-                </div>
-                <div className="ops-funnel-grid">
-                  <div className="ops-kpi-tile ops-kpi-blue">
-                    <p className="ops-kpi-label">진행 중 프로그램</p>
-                    <p className="ops-kpi-value">{matching.activePrograms.toLocaleString()}</p>
-                  </div>
-                  <div className="ops-kpi-tile ops-kpi-green">
-                    <p className="ops-kpi-label">완료된 프로그램</p>
-                    <p className="ops-kpi-value">{matching.completedPrograms.toLocaleString()}</p>
-                  </div>
-                  <div className="ops-kpi-tile ops-kpi-amber">
-                    <p className="ops-kpi-label">학점 인정 심사 대기</p>
-                    <p className="ops-kpi-value">{matching.openSchoolCreditRequests.toLocaleString()}</p>
-                  </div>
-                  <div className="ops-kpi-tile">
-                    <p className="ops-kpi-label">최근 7일 신규 지원</p>
-                    <p className="ops-kpi-value">{matching.applicationsLast7Days.toLocaleString()}</p>
-                  </div>
-                </div>
-              </article>
-            </section>
-          ) : null}
-
-          <section>
-            <h2 className="ops-section-heading">최근 활동 (7일)</h2>
-            {activity.length === 0 ? (
-              <div className="ops-empty-card">최근 활동이 없습니다.</div>
-            ) : (
-              <article className="ops-card">
-                <div className="ops-activity-feed">
-                  {activity.map((it) => (
-                    <Link key={it.id} href={it.linkPath} className="ops-activity-item">
-                      <span
-                        className="ops-activity-dot"
-                        style={{ background: OPS_ACTIVITY_COLOR[it.type] ?? "#9ca3af" }}
-                        aria-hidden
-                      />
-                      <div className="ops-activity-text">
-                        <p className="ops-activity-title">{it.title}</p>
-                        <p className="ops-activity-sub">{it.subtitle}</p>
-                      </div>
-                      <span className="ops-activity-time">{formatRelativeOps(it.occurredAt)}</span>
-                    </Link>
-                  ))}
-                </div>
-              </article>
-            )}
-          </section>
-
-          <section>
-            <h2 className="ops-section-heading">빠른 이동</h2>
-            <div className="ops-card-grid">
-              {QUICK_LINKS.map((link) => (
-                <Link key={link.href} href={link.href} className="ops-list-card">
-                  <p className="ops-list-card-title">{link.label} →</p>
-                  <p className="ops-list-card-sub">{link.desc}</p>
-                </Link>
-              ))}
+          {/* KPI strip — 4 핵심 지표 */}
+          <article className="ops-partner-list-card">
+            <div className="ops-partner-list-top">
+              <h2>한눈에 보기</h2>
             </div>
-          </section>
+            <div className="ops-report-kpi-strip">
+              <KpiCard
+                Icon={Users}
+                label="전체 사용자"
+                value={stats.users.total}
+                delta={{
+                  text: `학생 ${stats.users.students.toLocaleString()} · 파트너 ${stats.users.partners.toLocaleString()} · 운영자 ${stats.users.operators.toLocaleString()}`,
+                  direction: "muted"
+                }}
+              />
+              <KpiCard
+                Icon={Briefcase}
+                label="파트너 회사"
+                value={stats.partnerOrgs.total}
+                delta={{
+                  text: `인증 완료 ${stats.partnerOrgs.verified.toLocaleString()}`,
+                  direction: stats.partnerOrgs.verified > 0 ? "up" : "muted"
+                }}
+              />
+              <KpiCard
+                Icon={Briefcase}
+                label="모집 중 포지션"
+                value={stats.positions.open}
+                delta={{
+                  text: `전체 ${stats.positions.total.toLocaleString()}`,
+                  direction: "muted"
+                }}
+              />
+              <KpiCard
+                Icon={Inbox}
+                label="지원함 (검토 중)"
+                value={matching?.applications.SUBMITTED ?? 0}
+                delta={{
+                  text: `최근 7일 +${(matching?.applicationsLast7Days ?? 0).toLocaleString()} · 전체 ${totalApplications.toLocaleString()}`,
+                  direction:
+                    matching && matching.applications.SUBMITTED > 0
+                      ? "up"
+                      : "muted"
+                }}
+              />
+            </div>
+          </article>
 
-          {recent.length > 0 ? (
-            <section>
-              <h2 className="ops-section-heading">최근 가입한 사용자</h2>
-              <article className="ops-table-card">
-                <table>
-                  <colgroup>
-                    <col style={{ width: "18%" }} />
-                    <col style={{ width: "32%" }} />
-                    <col style={{ width: "12%" }} />
-                    <col style={{ width: "18%" }} />
-                    <col style={{ width: "20%" }} />
-                  </colgroup>
-                  <thead>
+          {/* 지원 funnel — 전체 너비 차트 카드 */}
+          {matching ? (
+            <article className="ops-partner-list-card">
+              <div className="ops-report-chart-card">
+                <div className="ops-report-chart-head">
+                  <div className="ops-report-chart-title">
+                    <span className="name">지원 → 합격 funnel</span>
+                    <span className="num">{totalApplications.toLocaleString()}</span>
+                    <span className="delta">전체 지원</span>
+                  </div>
+                </div>
+                <FunnelRows stages={applicationFunnel} />
+              </div>
+            </article>
+          ) : null}
+
+          {/* 최근 활동 */}
+          <article className="ops-partner-list-card">
+            <div className="ops-partner-list-top">
+              <h2>최근 활동</h2>
+              <span className="ops-row-sub" style={{ fontSize: 12 }}>최근 7일</span>
+            </div>
+            {activity.length === 0 ? (
+              <p className="ops-card-subtle" style={{ marginTop: 12 }}>최근 활동이 없습니다.</p>
+            ) : (
+              <div className="ops-activity-feed" style={{ marginTop: 12 }}>
+                {activity.map((it) => (
+                  <Link key={it.id} href={it.linkPath} className="ops-activity-item">
+                    <span
+                      className="ops-activity-dot"
+                      style={{ background: OPS_ACTIVITY_COLOR[it.type] ?? "#9ca3af" }}
+                      aria-hidden
+                    />
+                    <div className="ops-activity-text">
+                      <p className="ops-activity-title">{it.title}</p>
+                      <p className="ops-activity-sub">{it.subtitle}</p>
+                    </div>
+                    <span className="ops-activity-time">{formatRelativeTime(it.occurredAt)}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </article>
+
+          {/* 최근 가입자 */}
+          <article className="ops-partner-list-card">
+            <div className="ops-partner-list-top">
+              <h2>최근 가입자</h2>
+              <Link href="/dashboard/ops/support/users" className="ops-detail-button">
+                전체 보기
+              </Link>
+            </div>
+            <div className="ops-partner-table-wrap" style={{ marginTop: 12 }}>
+              <table className="ops-partner-table">
+                <thead>
+                  <tr>
+                    <th>이름</th>
+                    <th>이메일</th>
+                    <th>역할</th>
+                    <th>가입 방식</th>
+                    <th>가입 시점</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.length === 0 ? (
                     <tr>
-                      <th>이름</th>
-                      <th>이메일</th>
-                      <th>역할</th>
-                      <th>가입 방식</th>
-                      <th>가입 시점</th>
+                      <td colSpan={5} className="ops-table-empty">최근 가입자가 없습니다.</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {recent.map((u) => (
+                  ) : (
+                    recent.map((u) => (
                       <tr key={u.id}>
                         <td className="ops-row-strong">{u.name ?? "-"}</td>
                         <td>{u.email}</td>
@@ -297,12 +378,12 @@ export default function OpsDashboardHome() {
                         <td>{PROVIDER_LABEL[u.authProvider] ?? u.authProvider}</td>
                         <td className="ops-row-sub">{formatRelativeTime(u.createdAt)}</td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </article>
-            </section>
-          ) : null}
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </article>
         </>
       )}
     </section>
