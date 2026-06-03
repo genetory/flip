@@ -3146,7 +3146,10 @@ type DailyCrawlerRunResult = {
 
 let crawlerRunInProgress = false;
 
-async function runExternalCrawlers(source: CrawlerSource): Promise<DailyCrawlerRunResult> {
+async function runExternalCrawlers(
+  source: CrawlerSource,
+  triggeredBy: "manual" | "scheduler" = "manual"
+): Promise<DailyCrawlerRunResult> {
   if (crawlerRunInProgress) {
     return {
       ok: false,
@@ -3160,7 +3163,22 @@ async function runExternalCrawlers(source: CrawlerSource): Promise<DailyCrawlerR
   }
   crawlerRunInProgress = true;
   const startedAt = new Date();
-  console.info("[crawler-scheduler] started", { source });
+  console.info("[crawler-scheduler] started", { source, triggeredBy });
+
+  // Persist a row immediately so the run shows up in /ops/crawlers/history
+  // even if the API process is killed mid-run; we update with results on
+  // completion. Failures to insert are non-fatal (DB hiccup shouldn't block
+  // the actual crawl).
+  let runRowId: string | null = null;
+  try {
+    const row = await prisma.crawlerRun.create({
+      data: { source, triggeredBy, startedAt }
+    });
+    runRowId = row.id;
+  } catch (e) {
+    console.error("[crawler-scheduler] failed to insert CrawlerRun row", e);
+  }
+
   try {
     const buddies = source === "all" || source === "buddies"
       ? await runCrawlerScript("scripts/import-buddies-job-postings.ts")
@@ -3169,7 +3187,25 @@ async function runExternalCrawlers(source: CrawlerSource): Promise<DailyCrawlerR
       ? await runCrawlerScript("scripts/import-wanted-job-postings.ts")
       : null;
     const elapsedMs = Date.now() - startedAt.getTime();
-    console.info("[crawler-scheduler] completed", { elapsedMs, source });
+    console.info("[crawler-scheduler] completed", { elapsedMs, source, triggeredBy });
+
+    if (runRowId) {
+      try {
+        await prisma.crawlerRun.update({
+          where: { id: runRowId },
+          data: {
+            ok: true,
+            finishedAt: new Date(),
+            elapsedMs,
+            buddiesResult: (buddies ?? Prisma.DbNull) as Prisma.InputJsonValue,
+            wantedResult: (wanted ?? Prisma.DbNull) as Prisma.InputJsonValue
+          }
+        });
+      } catch (e) {
+        console.error("[crawler-scheduler] failed to update CrawlerRun row (success)", e);
+      }
+    }
+
     await sendCrawlerSummaryDiscordNotification({
       startedAt,
       elapsedMs,
@@ -3191,8 +3227,26 @@ async function runExternalCrawlers(source: CrawlerSource): Promise<DailyCrawlerR
     console.error("[crawler-scheduler] failed", {
       elapsedMs,
       source,
+      triggeredBy,
       error: errorMessage
     });
+
+    if (runRowId) {
+      try {
+        await prisma.crawlerRun.update({
+          where: { id: runRowId },
+          data: {
+            ok: false,
+            finishedAt: new Date(),
+            elapsedMs,
+            errorMessage
+          }
+        });
+      } catch (e) {
+        console.error("[crawler-scheduler] failed to update CrawlerRun row (failure)", e);
+      }
+    }
+
     await sendCrawlerSummaryDiscordNotification({
       startedAt,
       elapsedMs,
@@ -3216,7 +3270,7 @@ async function runExternalCrawlers(source: CrawlerSource): Promise<DailyCrawlerR
 }
 
 async function runDailyExternalCrawlers(): Promise<DailyCrawlerRunResult> {
-  return runExternalCrawlers("all");
+  return runExternalCrawlers("all", "scheduler");
 }
 
 function startCrawlerScheduler() {
@@ -5048,6 +5102,39 @@ app.post("/ops/crawlers/run/wanted", authenticate, requireRoles([MemberRole.OPER
     ok: result.ok,
     result
   });
+});
+
+// Paginated history — most recent first. 50 default, 100 max.
+app.get("/ops/crawlers/history", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const limitRaw = Number.parseInt(typeof req.query.limit === "string" ? req.query.limit : "", 10);
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 100 ? limitRaw : 50;
+  try {
+    const [items, total] = await Promise.all([
+      prisma.crawlerRun.findMany({
+        orderBy: { startedAt: "desc" },
+        take: limit
+      }),
+      prisma.crawlerRun.count()
+    ]);
+    return res.json({
+      ok: true,
+      total,
+      items: items.map((row) => ({
+        id: row.id,
+        source: row.source,
+        triggeredBy: row.triggeredBy,
+        startedAt: row.startedAt.toISOString(),
+        finishedAt: row.finishedAt ? row.finishedAt.toISOString() : null,
+        elapsedMs: row.elapsedMs,
+        ok: row.ok,
+        errorMessage: row.errorMessage,
+        buddiesResult: row.buddiesResult,
+        wantedResult: row.wantedResult
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
 });
 
 // ---- ops data management (destructive) ------------------------------------

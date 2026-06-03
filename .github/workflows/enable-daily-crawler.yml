@@ -1,0 +1,84 @@
+name: Enable daily crawler (production)
+
+# One-shot operator action: turn the in-process crawler scheduler on for
+# the production API App Service. Sets three env vars and restarts the
+# container so the scheduler picks them up. Idempotent — running again
+# just re-applies the same values.
+
+on:
+  workflow_dispatch:
+    inputs:
+      hour_kst:
+        description: "Daily run hour in KST (0–23)"
+        required: true
+        default: "0"
+      minute_kst:
+        description: "Daily run minute (0–59)"
+        required: true
+        default: "0"
+      enabled:
+        description: "Enable (true) or disable (false)"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Validate inputs
+        run: |
+          h="${{ inputs.hour_kst }}"
+          m="${{ inputs.minute_kst }}"
+          if [ "$h" -lt 0 ] || [ "$h" -gt 23 ]; then echo "hour_kst out of range" && exit 1; fi
+          if [ "$m" -lt 0 ] || [ "$m" -gt 59 ]; then echo "minute_kst out of range" && exit 1; fi
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set crawler scheduler app settings
+        run: |
+          APP="${{ secrets.AZURE_WEBAPP_API_NAME }}"
+          RG="${{ secrets.AZURE_RESOURCE_GROUP || 'rg-aply' }}"
+          test -n "$APP" || (echo "Missing secret: AZURE_WEBAPP_API_NAME" && exit 1)
+          az webapp config appsettings set \
+            --name "$APP" --resource-group "$RG" \
+            --settings \
+              "CRAWL_SCHEDULER_ENABLED=${{ inputs.enabled }}" \
+              "CRAWL_SCHEDULER_HOUR_KST=${{ inputs.hour_kst }}" \
+              "CRAWL_SCHEDULER_MINUTE_KST=${{ inputs.minute_kst }}" \
+              "CRAWL_SCHEDULER_RUN_ON_BOOT=false"
+          echo "## App settings applied" >> "$GITHUB_STEP_SUMMARY"
+          echo "- CRAWL_SCHEDULER_ENABLED=${{ inputs.enabled }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- CRAWL_SCHEDULER_HOUR_KST=${{ inputs.hour_kst }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- CRAWL_SCHEDULER_MINUTE_KST=${{ inputs.minute_kst }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Restart App Service so the new env takes effect
+        run: |
+          APP="${{ secrets.AZURE_WEBAPP_API_NAME }}"
+          RG="${{ secrets.AZURE_RESOURCE_GROUP || 'rg-aply' }}"
+          az webapp restart --name "$APP" --resource-group "$RG"
+          echo "Restarted $APP" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Wait for /health to confirm boot
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://api.aply.global/health || true)
+            if [ "$code" = "200" ]; then
+              echo "API healthy after ${i} attempts."
+              echo "- Healthy at attempt $i (https://api.aply.global/health → $code)" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "API never returned 200 within 5 min — check App Service logs." >&2
+          exit 1

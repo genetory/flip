@@ -1249,3 +1249,25 @@ model SajuLead {
   @@index([poolStage])
   @@index([createdAt])
 }
+
+// CrawlerRun — one row per execution of the external crawl runner. The
+// scheduler logs daily KST 00:00 runs; manual /ops/crawlers/run* triggers
+// are tagged 'manual'. We keep the per-source CrawlerRunSummary as JSON so
+// the schema doesn't need to know the shape (it's a moving target as
+// scrapers change).
+model CrawlerRun {
+  id            String   @id @default(uuid())
+  source        String   // "all" | "buddies" | "wanted"
+  triggeredBy   String   @default("manual") // "scheduler" | "manual"
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+  elapsedMs     Int      @default(0)
+  ok            Boolean  @default(false)
+  errorMessage  String?
+  buddiesResult Json?
+  wantedResult  Json?
+
+  @@index([startedAt])
+  @@index([source])
+  @@index([ok])
+}
