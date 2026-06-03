@@ -167,7 +167,16 @@ function FunnelRows({ stages }: { stages: { label: string; value: number }[] }) 
 type StaleUnverified = {
   count: number;
   thresholdDays: number;
-  sample: { id: string; email: string; name: string | null; authProvider: string; createdAt: string }[];
+  sample: {
+    id: string;
+    email: string;
+    name: string | null;
+    authProvider: string;
+    createdAt: string;
+    signupIp: string | null;
+    signupUserAgent: string | null;
+    signupReferer: string | null;
+  }[];
 };
 
 export default function OpsDashboardHome() {
@@ -406,23 +415,33 @@ export default function OpsDashboardHome() {
               </div>
               {staleUnverified.sample.length > 0 ? (
                 <div style={{ marginTop: 14 }}>
-                  <p className="ops-row-sub" style={{ marginBottom: 6 }}>최근 10건 미리보기</p>
+                  <p className="ops-row-sub" style={{ marginBottom: 6 }}>최근 {staleUnverified.sample.length}건 — IP·UA·Referer로 패턴 추적</p>
                   <div className="ops-partner-table-wrap">
                     <table className="ops-partner-table">
                       <thead>
                         <tr>
-                          <th>이름</th>
                           <th>이메일</th>
-                          <th>가입 방식</th>
+                          <th>이름</th>
+                          <th>IP</th>
+                          <th>Referer</th>
+                          <th>User-Agent</th>
                           <th>가입 시점</th>
                         </tr>
                       </thead>
                       <tbody>
                         {staleUnverified.sample.map((u) => (
                           <tr key={u.id}>
-                            <td className="ops-row-sub">{u.name ?? "-"}</td>
                             <td>{u.email}</td>
-                            <td>{PROVIDER_LABEL[u.authProvider] ?? u.authProvider}</td>
+                            <td className="ops-row-sub">{u.name ?? "-"}</td>
+                            <td style={{ fontFamily: "ui-monospace, SFMono-Regular, monospace", fontSize: 11 }}>
+                              {u.signupIp ?? "-"}
+                            </td>
+                            <td className="ops-row-sub" style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={u.signupReferer ?? ""}>
+                              {u.signupReferer ? new URL(u.signupReferer, "http://x").hostname : "-"}
+                            </td>
+                            <td className="ops-row-sub" style={{ maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11 }} title={u.signupUserAgent ?? ""}>
+                              {u.signupUserAgent ?? "-"}
+                            </td>
                             <td className="ops-row-sub">{formatRelativeTime(u.createdAt)}</td>
                           </tr>
                         ))}
