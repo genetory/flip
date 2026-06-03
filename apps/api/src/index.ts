@@ -71,6 +71,10 @@ import { generateCommunityContent, seedForeignCandidates, deleteNonOperatorCommu
 import { createHash } from "crypto";
 
 const app = express();
+// Behind Azure App Service / Front Door — honor X-Forwarded-For so req.ip
+// resolves to the real client IP instead of the proxy. Without this every
+// signup logs as the platform's edge IP and forensics are useless.
+app.set("trust proxy", true);
 const prisma = new PrismaClient();
 
 async function createNotification(input: {
@@ -8368,6 +8372,14 @@ app.post("/auth/register", authRateLimit, async (req, res) => {
     );
   }
 
+  // Capture client metadata for forensic tracing of bot/spam signup waves.
+  // Truncate to reasonable lengths so a malicious UA / Referer can't blow up
+  // the row size.
+  const rawIp = (req.ip ?? (req.socket.remoteAddress as string | undefined) ?? "").slice(0, 64) || null;
+  const rawUa = (req.headers["user-agent"] as string | undefined)?.slice(0, 512) || null;
+  const refererHeader = (req.headers.referer ?? req.headers.referrer) as string | string[] | undefined;
+  const rawReferer = (Array.isArray(refererHeader) ? refererHeader[0] : refererHeader)?.slice(0, 512) || null;
+
   try {
     const created = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -8385,7 +8397,10 @@ app.post("/auth/register", authRateLimit, async (req, res) => {
           partnerOrganizationName:
             resolvedRole === MemberRole.PARTNER
               ? parsed.data.partnerOrganizationName?.trim() || null
-              : null
+              : null,
+          signupIp: rawIp,
+          signupUserAgent: rawUa,
+          signupReferer: rawReferer
         }
       });
 
@@ -15012,9 +15027,18 @@ app.get(
         prisma.user.count({ where }),
         prisma.user.findMany({
           where,
-          take: 10,
+          take: 20,
           orderBy: { createdAt: "desc" },
-          select: { id: true, email: true, name: true, authProvider: true, createdAt: true }
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            authProvider: true,
+            createdAt: true,
+            signupIp: true,
+            signupUserAgent: true,
+            signupReferer: true
+          }
         })
       ]);
       return res.json({

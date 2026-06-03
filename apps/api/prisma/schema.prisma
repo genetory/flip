@@ -34,6 +34,12 @@ model User {
   partnerOrgRole PartnerOrgUserRole?
   partnerOrganizationId String?
   partnerOrganizationName String?
+  // Signup forensics — captured at /auth/register so ops can trace
+  // bot/spam waves without a separate audit table. Null for legacy rows
+  // and OAuth signups before this field was added.
+  signupIp        String?
+  signupUserAgent String?
+  signupReferer   String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   positionParticipants   PositionMatchingParticipant[] @relation("PositionParticipantAuthor")
