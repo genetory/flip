@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   Database,
   FileText,
+  FileUser,
   GraduationCap,
   Home,
   Inbox,
@@ -81,7 +82,8 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
   {
     title: "사용자",
     links: [
-      { label: "전체 사용자", href: "/dashboard/ops/support/users", icon: Users }
+      { label: "전체 사용자", href: "/dashboard/ops/support/users", icon: Users },
+      { label: "이력서", href: "/dashboard/ops/support/resumes", icon: FileUser }
     ]
   },
   {

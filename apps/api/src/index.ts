@@ -62,6 +62,17 @@ import {
 } from "./embedding/position-embedding";
 import { generateSajuPrediction, translateSajuContent, type SajuDetails, type SajuTranslatableContent } from "./saju/saju-llm";
 import {
+  MBTI_PROFILE,
+  MBTI_QUIZ_QUESTIONS,
+  MBTI_TYPES,
+  computeMbtiFromQuiz,
+  getMatchReason,
+  isMbtiType,
+  type MbtiType,
+  type RoleCode as MbtiRoleCode
+} from "./mbti/mbti-data";
+import { evaluateVisaEligibility } from "./visa/visa-rules";
+import {
   getPositionTranslation,
   getPositionTranslationsBatch,
   shouldTranslateForLocale,
@@ -6517,6 +6528,288 @@ app.post(
   }
 );
 
+// ---------------------------------------------------------------------------
+// MBTI × 한국 직장 매칭 이벤트 ----------------------------------------------
+// ---------------------------------------------------------------------------
+
+// Either `mbtiType` (direct 4-letter pick from sliders) OR `quizAnswers`
+// (12 answers from mini quiz). The result is normalized to a valid type
+// before we query positions.
+const mbtiPredictSchema = z
+  .object({
+    mbtiType: z.string().toUpperCase().optional(),
+    quizAnswers: z
+      .array(z.object({ id: z.string(), code: z.string() }))
+      .max(20)
+      .optional(),
+    name: z.string().trim().max(80).optional(),
+    nationality: z.string().trim().max(80).optional(),
+    locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+  })
+  .refine((v) => Boolean(v.mbtiType || v.quizAnswers?.length), {
+    message: "mbtiType or quizAnswers is required"
+  });
+
+app.post("/mbti/predict", async (req, res) => {
+  const parsed = mbtiPredictSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+
+  // Resolve to a valid MBTI type. Prefer explicit `mbtiType` if present
+  // (slider mode); otherwise tally the quiz answers.
+  let mbtiType: MbtiType | null = null;
+  if (parsed.data.mbtiType && isMbtiType(parsed.data.mbtiType)) {
+    mbtiType = parsed.data.mbtiType as MbtiType;
+  } else if (parsed.data.quizAnswers?.length) {
+    mbtiType = computeMbtiFromQuiz(parsed.data.quizAnswers);
+  }
+  if (!mbtiType) {
+    return res.status(400).json({ ok: false, message: "could not determine mbti type" });
+  }
+  const profile = MBTI_PROFILE[mbtiType];
+
+  // Find OPEN positions in the recommended role categories. Sort by recency;
+  // take top 5. Skip translations for now — the result page only displays
+  // title + partner + role label.
+  const positionRows = await prisma.position.findMany({
+    where: {
+      status: PositionStatus.OPEN,
+      preferredJobRole: { in: profile.roles as CandidatePreferredJobRole[] }
+    },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+    select: { id: true, preferredJobRole: true, createdAt: true }
+  });
+  const byRole = new Map<string, string[]>();
+  for (const row of positionRows) {
+    const code = row.preferredJobRole ?? "OTHER";
+    const list = byRole.get(code) ?? [];
+    list.push(row.id);
+    byRole.set(code, list);
+  }
+  // Round-robin pick by priority role so each top role gets a slot before
+  // any one role takes them all.
+  const recommendedPositionIds: string[] = [];
+  for (let i = 0; recommendedPositionIds.length < 5 && i < 5; i += 1) {
+    for (const role of profile.roles) {
+      const list = byRole.get(role);
+      if (list && list[i]) {
+        recommendedPositionIds.push(list[i]);
+        if (recommendedPositionIds.length >= 5) break;
+      }
+    }
+  }
+
+  const ipRaw =
+    (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+    req.socket.remoteAddress || "";
+  const ipHash = ipRaw
+    ? createHash("sha256").update(`${ipRaw}|mbti-pred`).digest("hex").slice(0, 32)
+    : null;
+
+  const created = await prisma.mbtiPrediction.create({
+    data: {
+      mbtiType,
+      name: parsed.data.name ?? null,
+      nationality: parsed.data.nationality ?? null,
+      recommendedRoleNames: profile.roles,
+      recommendedPositionIds,
+      cultureSummary: profile.culture,
+      interpretation: profile.interpretation,
+      locale: parsed.data.locale ?? "ko",
+      ipHash
+    },
+    select: { id: true, shareSlug: true }
+  });
+
+  return res.json({ ok: true, id: created.id, shareSlug: created.shareSlug });
+});
+
+app.get("/mbti/result/:slug", async (req, res) => {
+  const slug = typeof req.params.slug === "string" ? req.params.slug : "";
+  if (!slug) return res.status(400).json({ ok: false, message: "missing slug" });
+  const prediction = await prisma.mbtiPrediction.findUnique({ where: { shareSlug: slug } });
+  if (!prediction) return res.status(404).json({ ok: false, message: "not found" });
+
+  const positions = prediction.recommendedPositionIds.length
+    ? await prisma.position.findMany({
+        where: { id: { in: prediction.recommendedPositionIds }, status: PositionStatus.OPEN },
+        include: { partnerOrganization: { select: { id: true, name: true } } }
+      })
+    : [];
+  // Preserve the ranked order we stored.
+  const byId = new Map(positions.map((p) => [p.id, p]));
+  // Static reasons live in the data module; resolve at read time so old
+  // predictions get the latest copy without a migration.
+  const isType = isMbtiType(prediction.mbtiType);
+  const mbtiType = isType ? (prediction.mbtiType as MbtiType) : null;
+  const orderedPositions = prediction.recommendedPositionIds
+    .map((id) => byId.get(id))
+    .filter((p): p is NonNullable<typeof p> => Boolean(p))
+    .map((p) => ({
+      id: p.id,
+      title: p.title,
+      preferredJobRole: p.preferredJobRole,
+      partnerOrganization: p.partnerOrganization
+        ? { id: p.partnerOrganization.id, name: p.partnerOrganization.name }
+        : null,
+      matchReason: mbtiType ? getMatchReason(mbtiType, p.preferredJobRole as MbtiRoleCode | null) : null
+    }));
+
+  // Rich profile fields are static per-type, so we read them out of the
+  // catalog at response time rather than persisting them in the row.
+  const richProfile = mbtiType ? MBTI_PROFILE[mbtiType] : null;
+
+  return res.json({
+    ok: true,
+    prediction: {
+      id: prediction.id,
+      mbtiType: prediction.mbtiType,
+      name: prediction.name,
+      nationality: prediction.nationality,
+      recommendedRoleNames: prediction.recommendedRoleNames,
+      cultureSummary: prediction.cultureSummary,
+      interpretation: prediction.interpretation,
+      strengths: richProfile?.strengths ?? [],
+      koreanWorkplaceChallenges: richProfile?.koreanWorkplaceChallenges ?? [],
+      companySizeFit: richProfile?.companySizeFit ?? "",
+      teamVibe: richProfile?.teamVibe ?? "",
+      interviewTips: richProfile?.interviewTips ?? [],
+      famousKoreans: richProfile?.famousKoreans ?? [],
+      goodMatchMbtis: richProfile?.goodMatchMbtis ?? [],
+      greenFlags: richProfile?.greenFlags ?? [],
+      redFlags: richProfile?.redFlags ?? [],
+      shareSlug: prediction.shareSlug,
+      locale: prediction.locale,
+      createdAt: prediction.createdAt.toISOString()
+    },
+    positions: orderedPositions
+  });
+});
+
+// Expose the quiz questions so the client can render them without
+// duplicating the catalog. Keep this in sync with computeMbtiFromQuiz.
+app.get("/mbti/quiz", (_req, res) => {
+  return res.json({ ok: true, questions: MBTI_QUIZ_QUESTIONS });
+});
+
+// ---------------------------------------------------------------------------
+// 비자 가능성 체크 이벤트 ---------------------------------------------------
+// ---------------------------------------------------------------------------
+
+const visaCheckSchema = z.object({
+  name: z.string().trim().max(80).optional(),
+  nationality: z.string().trim().min(1).max(80),
+  currentVisa: z.string().trim().max(20).optional(),
+  educationLevel: z.enum(["HIGH_SCHOOL", "BACHELOR", "MASTER", "PHD"]),
+  majorCategory: z.enum(["IT", "ENGINEERING", "BUSINESS", "DESIGN", "HUMANITIES", "SCIENCE", "OTHER"]).optional(),
+  koreanLevel: z.enum(["NONE", "BEGINNER", "INTERMEDIATE", "ADVANCED", "NATIVE"]),
+  workYears: z.coerce.number().int().min(0).max(50),
+  targetRole: z.string().trim().max(80).optional(),
+  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+});
+
+app.post("/visa/check", async (req, res) => {
+  const parsed = visaCheckSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  const input = parsed.data;
+  const eligibleVisas = evaluateVisaEligibility({
+    nationality: input.nationality,
+    currentVisa: input.currentVisa ?? null,
+    educationLevel: input.educationLevel,
+    majorCategory: input.majorCategory ?? null,
+    koreanLevel: input.koreanLevel,
+    workYears: input.workYears,
+    targetRole: input.targetRole ?? null
+  });
+
+  // Lightweight position picks — most-recent OPEN positions matching the
+  // targetRole (if any) or the user's koreanLevel as a coarse proxy.
+  const positionRows = await prisma.position.findMany({
+    where: { status: PositionStatus.OPEN },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    select: { id: true }
+  });
+  const recommendedPositionIds = positionRows.map((p) => p.id);
+
+  const ipRaw =
+    (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+    req.socket.remoteAddress || "";
+  const ipHash = ipRaw
+    ? createHash("sha256").update(`${ipRaw}|visa-check`).digest("hex").slice(0, 32)
+    : null;
+
+  const created = await prisma.visaCheckResult.create({
+    data: {
+      name: input.name ?? null,
+      nationality: input.nationality,
+      currentVisa: input.currentVisa ?? null,
+      educationLevel: input.educationLevel,
+      majorCategory: input.majorCategory ?? null,
+      koreanLevel: input.koreanLevel,
+      workYears: input.workYears,
+      targetRole: input.targetRole ?? null,
+      eligibleVisas: eligibleVisas as unknown as Prisma.InputJsonValue,
+      recommendedPositionIds,
+      locale: input.locale ?? "ko",
+      ipHash
+    },
+    select: { id: true, shareSlug: true }
+  });
+
+  return res.json({ ok: true, id: created.id, shareSlug: created.shareSlug });
+});
+
+app.get("/visa/result/:slug", async (req, res) => {
+  const slug = typeof req.params.slug === "string" ? req.params.slug : "";
+  if (!slug) return res.status(400).json({ ok: false, message: "missing slug" });
+  const result = await prisma.visaCheckResult.findUnique({ where: { shareSlug: slug } });
+  if (!result) return res.status(404).json({ ok: false, message: "not found" });
+
+  const positions = result.recommendedPositionIds.length
+    ? await prisma.position.findMany({
+        where: { id: { in: result.recommendedPositionIds }, status: PositionStatus.OPEN },
+        include: { partnerOrganization: { select: { id: true, name: true } } }
+      })
+    : [];
+  const byId = new Map(positions.map((p) => [p.id, p]));
+  const orderedPositions = result.recommendedPositionIds
+    .map((id) => byId.get(id))
+    .filter((p): p is NonNullable<typeof p> => Boolean(p))
+    .map((p) => ({
+      id: p.id,
+      title: p.title,
+      preferredJobRole: p.preferredJobRole,
+      partnerOrganization: p.partnerOrganization
+        ? { id: p.partnerOrganization.id, name: p.partnerOrganization.name }
+        : null
+    }));
+
+  return res.json({
+    ok: true,
+    result: {
+      id: result.id,
+      name: result.name,
+      nationality: result.nationality,
+      currentVisa: result.currentVisa,
+      educationLevel: result.educationLevel,
+      majorCategory: result.majorCategory,
+      koreanLevel: result.koreanLevel,
+      workYears: result.workYears,
+      targetRole: result.targetRole,
+      eligibleVisas: result.eligibleVisas,
+      shareSlug: result.shareSlug,
+      locale: result.locale,
+      createdAt: result.createdAt.toISOString()
+    },
+    positions: orderedPositions
+  });
+});
+
 // Response cache for /positions, anonymous viewers only. Authenticated
 // users skip the cache so per-viewer flags (saved/applied/etc.) stay
 // accurate. TTL-only with no manual invalidation: 60s is short enough
@@ -10617,6 +10910,24 @@ app.get("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT]),
   }
 });
 
+// If the incoming content carries a base64 data URL for `basicPhotoUrl`,
+// upload it to Blob and swap in the public URL before persisting. Idempotent:
+// pre-existing http(s) URLs pass straight through.
+async function resolveResumePhoto(content: unknown): Promise<unknown> {
+  if (!content || typeof content !== "object") return content;
+  const obj = content as Record<string, unknown>;
+  const raw = obj.basicPhotoUrl;
+  if (typeof raw !== "string" || !raw.trim()) return content;
+  try {
+    const url = await uploadDataUrlImageIfNeeded(raw, "resumes/photos");
+    return { ...obj, basicPhotoUrl: url };
+  } catch {
+    // Fall back to keeping the original value (the data URL would be
+    // huge on the row but we still save valid JSON).
+    return content;
+  }
+}
+
 app.post("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const userId = req.auth!.userId;
   const parsed = createResumeSchema.safeParse(req.body);
@@ -10624,11 +10935,16 @@ app.post("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT])
     return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
   }
   try {
+    // 사용자의 첫 이력서면 자동으로 대표(primary)로 표시. 두 번째 이후는 기본 false.
+    const existingCount = await prisma.resume.count({ where: { userId } });
+    const isPrimary = existingCount === 0;
+    const resolvedContent = await resolveResumePhoto(parsed.data.content ?? {});
     const created = await prisma.resume.create({
       data: {
         userId,
         title: parsed.data.title,
-        content: (parsed.data.content ?? {}) as Prisma.InputJsonValue
+        content: resolvedContent as Prisma.InputJsonValue,
+        isPrimary
       }
     });
     return res.status(201).json({ ok: true, item: created });
@@ -10661,11 +10977,14 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
   try {
     const existing = await prisma.resume.findFirst({ where: { id: resumeId, userId }, select: { id: true } });
     if (!existing) return res.status(404).json({ ok: false, message: "resume not found" });
+    const resolvedContent = parsed.data.content !== undefined
+      ? await resolveResumePhoto(parsed.data.content)
+      : undefined;
     const item = await prisma.resume.update({
       where: { id: resumeId },
       data: {
         ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
-        ...(parsed.data.content !== undefined ? { content: parsed.data.content as Prisma.InputJsonValue } : {})
+        ...(resolvedContent !== undefined ? { content: resolvedContent as Prisma.InputJsonValue } : {})
       }
     });
     return res.json({ ok: true, item });
@@ -10679,7 +10998,24 @@ app.delete("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRo
   const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
   if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
+    // 삭제 전에 이 이력서가 대표였는지 확인 — 대표를 삭제하면 남은 이력서
+    // 중 가장 최근 수정본을 자동으로 새 대표로 승격시킴.
+    const target = await prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      select: { isPrimary: true }
+    });
     await prisma.resume.deleteMany({ where: { id: resumeId, userId } });
+    if (target?.isPrimary) {
+      const remaining = await prisma.resume.findMany({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
+        take: 1,
+        select: { id: true }
+      });
+      if (remaining[0]) {
+        await prisma.resume.update({ where: { id: remaining[0].id }, data: { isPrimary: true } });
+      }
+    }
     return res.json({ ok: true });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to delete resume" });
@@ -10702,6 +11038,41 @@ app.post("/members/me/resumes/:resumeId/primary", authenticate, requireRoles([Me
     return res.json({ ok: true, item });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to set primary resume" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Public, anonymous read of a shared resume. Anyone with the slug can view
+// the read-only single-page rendering — no auth, no rate-limit beyond the
+// global stack. We surface only the fields needed for the printable sheet
+// (no email-internal flags, no admin memo) and join the owner's display
+// name in case the resume's basicName is empty.
+// ---------------------------------------------------------------------------
+app.get("/resumes/share/:slug", async (req, res) => {
+  const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+  if (!slug || typeof slug !== "string") {
+    return res.status(400).json({ ok: false, message: "invalid slug" });
+  }
+  try {
+    const resume = await prisma.resume.findUnique({
+      where: { shareSlug: slug },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        isPrimary: true,
+        shareSlug: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: { name: true, realName: true, email: true, phoneNumber: true }
+        }
+      }
+    });
+    if (!resume) return res.status(404).json({ ok: false, message: "resume not found" });
+    return res.json({ ok: true, item: resume });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load shared resume" });
   }
 });
 
@@ -13221,18 +13592,55 @@ app.get("/members/me/issues", authenticate, requireRoles([MemberRole.STUDENT, Me
   }
 });
 
+const listIssuesQuerySchema = z.object({
+  search: z.string().trim().max(120).optional(),
+  status: z.enum(["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"]).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().refine((v) => [20, 30, 40, 100].includes(v), "pageSize must be one of 20,30,40,100").optional()
+});
+
 app.get("/ops/issues", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = listIssuesQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+  const { search, status, page = 1, pageSize = 20 } = parsed.data;
+
+  const where: Prisma.IssueReportWhereInput = {
+    ...(status ? { status } : {}),
+    ...(search
+      ? {
+          OR: [
+            { title: { contains: search, mode: Prisma.QueryMode.insensitive } },
+            { description: { contains: search, mode: Prisma.QueryMode.insensitive } }
+          ]
+        }
+      : {})
+  };
+
   try {
-    const items = await prisma.issueReport.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 200,
-      include: {
-        reporter: { select: { id: true, name: true, email: true, role: true } },
-        subject: { select: { id: true, name: true, email: true, role: true } },
-        assignedTo: { select: { id: true, name: true, email: true } }
-      }
+    const [total, items] = await Promise.all([
+      prisma.issueReport.count({ where }),
+      prisma.issueReport.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          reporter: { select: { id: true, name: true, email: true, role: true } },
+          subject: { select: { id: true, name: true, email: true, role: true } },
+          assignedTo: { select: { id: true, name: true, email: true } }
+        }
+      })
+    ]);
+    return res.json({
+      ok: true,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      items
     });
-    return res.json({ ok: true, items });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -16561,6 +16969,205 @@ app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (
     pageSize,
     total,
     totalPages: Math.max(1, Math.ceil(total / pageSize))
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Compute a 0–100 completion rate for a resume `content` JSON. Same scoring
+// rubric for the list and the detail endpoints so the ops view stays
+// consistent. Returns an integer percent.
+function calcResumeCompletion(content: unknown): number {
+  if (!content || typeof content !== "object") return 0;
+  const c = content as Record<string, unknown>;
+  const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+  const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
+
+  // 가중치는 "이 항목이 비어 있으면 이력서가 얼마나 빈약해 보이나" 기준.
+  // Career/About 등 본문 영역에 더 큰 가중치.
+  const checks: Array<{ ok: boolean; weight: number }> = [
+    { ok: Boolean(trimStr(c.basicName)), weight: 1 },
+    { ok: Boolean(trimStr(c.basicEmail)), weight: 1 },
+    { ok: Boolean(trimStr(c.basicPhone)), weight: 1 },
+    { ok: Boolean(trimStr(c.basicResidence)), weight: 1 },
+    { ok: Boolean(trimStr(c.basicPhotoUrl)), weight: 1 },
+    { ok: Boolean(trimStr(c.summary) || trimStr(c.selfIntroduction)), weight: 2 },
+    {
+      ok: isArr(c.educations) && c.educations.some((e) => typeof e === "object" && e !== null && trimStr((e as Record<string, unknown>).schoolName)),
+      weight: 2
+    },
+    {
+      ok: isArr(c.careers) && c.careers.some((cr) => {
+        if (typeof cr !== "object" || cr === null) return false;
+        const obj = cr as Record<string, unknown>;
+        return Boolean(trimStr(obj.companyName) && trimStr(obj.position));
+      }),
+      weight: 2
+    },
+    {
+      ok: isArr(c.activities) && c.activities.some((a) => typeof a === "object" && a !== null && trimStr((a as Record<string, unknown>).title)),
+      weight: 1
+    },
+    { ok: isArr(c.skills) && c.skills.length > 0, weight: 1 },
+    {
+      ok: isArr(c.languages) && c.languages.some((l) => typeof l === "object" && l !== null && trimStr((l as Record<string, unknown>).language)),
+      weight: 1
+    },
+    {
+      ok: isArr(c.certifications) && c.certifications.some((ct) => typeof ct === "object" && ct !== null && trimStr((ct as Record<string, unknown>).name)),
+      weight: 1
+    },
+    {
+      ok: isArr(c.links) && c.links.some((l) => typeof l === "object" && l !== null && trimStr((l as Record<string, unknown>).url)),
+      weight: 1
+    }
+  ];
+
+  const total = checks.reduce((sum, c2) => sum + c2.weight, 0);
+  const done = checks.reduce((sum, c2) => sum + (c2.ok ? c2.weight : 0), 0);
+  return Math.round((done / total) * 100);
+}
+
+// GET /ops/resumes — operator-facing list of every Resume in the system.
+// Matches the /ops/users shape (items + page + pageSize + total + totalPages)
+// so the frontend can reuse the same list+pagination pattern. Search hits
+// resume title, owner name, owner email. Owner is joined and surfaced so
+// the table can show "이름 · 이메일" without an N+1.
+// ---------------------------------------------------------------------------
+const listResumesQuerySchema = z.object({
+  search: z.string().trim().max(120).optional(),
+  isPrimary: z
+    .union([z.boolean(), z.enum(["true", "false", "1", "0"]).transform((v) => v === "true" || v === "1")])
+    .optional(),
+  sortBy: z.enum(["createdAt", "updatedAt", "title"]).optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().refine((v) => [20, 30, 40, 100].includes(v), "pageSize must be one of 20,30,40,100").optional()
+});
+
+app.get("/ops/resumes", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = listResumesQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+
+  const { search, isPrimary, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
+  const orderByMap = {
+    createdAt: { createdAt: sortOrder },
+    updatedAt: { updatedAt: sortOrder },
+    title: { title: sortOrder }
+  } as const;
+  const orderBy = orderByMap[sortBy];
+
+  const where: Prisma.ResumeWhereInput = {
+    ...(typeof isPrimary === "boolean" ? { isPrimary } : {}),
+    ...(search
+      ? {
+          OR: [
+            { title: { contains: search, mode: Prisma.QueryMode.insensitive } },
+            { user: { email: { contains: search, mode: Prisma.QueryMode.insensitive } } },
+            { user: { name: { contains: search, mode: Prisma.QueryMode.insensitive } } }
+          ]
+        }
+      : {})
+  };
+
+  const [total, resumes] = await Promise.all([
+    prisma.resume.count({ where }),
+    prisma.resume.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        userId: true,
+        title: true,
+        isPrimary: true,
+        shareSlug: true,
+        content: true, // completion 계산용 — 응답에는 빼고 내부에서만 사용
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            phoneNumber: true,
+            authProvider: true,
+            createdAt: true
+          }
+        }
+      }
+    })
+  ]);
+
+  return res.json({
+    ok: true,
+    items: resumes.map((r) => ({
+      id: r.id,
+      title: r.title,
+      isPrimary: r.isPrimary,
+      shareSlug: r.shareSlug,
+      completionRate: calcResumeCompletion(r.content),
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      user: r.user
+        ? {
+            id: r.user.id,
+            email: r.user.email,
+            name: r.user.name,
+            role: r.user.role,
+            phoneNumber: r.user.phoneNumber,
+            authProvider: r.user.authProvider,
+            createdAt: r.user.createdAt
+          }
+        : null
+    })),
+    page,
+    pageSize,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / pageSize))
+  });
+});
+
+// Detail view — full `content` JSON included so the ops modal can render
+// the structured resume body.
+app.get("/ops/resumes/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid resume id" });
+
+  const resume = await prisma.resume.findUnique({
+    where: { id },
+    include: {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          phoneNumber: true,
+          authProvider: true,
+          adminMemo: true,
+          createdAt: true
+        }
+      }
+    }
+  });
+  if (!resume) return res.status(404).json({ ok: false, message: "not found" });
+
+  return res.json({
+    ok: true,
+    resume: {
+      id: resume.id,
+      title: resume.title,
+      content: resume.content,
+      isPrimary: resume.isPrimary,
+      completionRate: calcResumeCompletion(resume.content),
+      createdAt: resume.createdAt,
+      updatedAt: resume.updatedAt,
+      user: resume.user
+    }
   });
 });
 

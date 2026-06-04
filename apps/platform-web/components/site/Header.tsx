@@ -44,9 +44,12 @@ export const Header = () => {
     user?.role === "PARTNER" ? copy.auth.rolePartner : user?.role === "OPERATOR" ? copy.auth.roleOperator : null;
   const loginButtonLabel = locale === "ko" ? "로그인하기" : locale === "zh-CN" ? "去登录" : locale === "vi" ? "Đăng nhập" : locale === "ja" ? "ログイン" : locale === "id" ? "Masuk" : "Sign in";
   const homeLabel = locale === "ko" ? "홈" : locale === "zh-CN" ? "首页" : locale === "vi" ? "Trang chủ" : locale === "ja" ? "ホーム" : locale === "id" ? "Beranda" : "Home";
+  const eventLabel = locale === "ko" ? "이벤트" : locale === "zh-CN" ? "活动" : locale === "vi" ? "Sự kiện" : locale === "ja" ? "イベント" : locale === "id" ? "Acara" : "Events";
   const partnerDashLabel = locale === "ko" ? "관리 콘솔" : locale === "zh-CN" ? "管理控制台" : locale === "vi" ? "Bảng quản trị" : locale === "ja" ? "管理コンソール" : locale === "id" ? "Konsol Manajemen" : "Admin console";
   const opsDashLabel = locale === "ko" ? "운영 콘솔" : locale === "zh-CN" ? "运营控制台" : locale === "vi" ? "Bảng điều khiển vận hành" : locale === "ja" ? "運営コンソール" : locale === "id" ? "Konsol Operasional" : "Ops console";
-  const navItems = [
+  const navItems: { label: string; href: string; external?: boolean }[] = [
+    // 이벤트 — 별도 컨텍스트(사주 캠페인 등)이라 새창으로 분리해서 띄움.
+    { label: eventLabel, href: "/events/saju", external: true },
     { label: homeLabel, href: "/" },
     { label: copy.nav.positions, href: "/positions" },
     ...(MATCHING_QUEST_ENABLED && (user?.role === "STUDENT" || !isAuthenticated)
@@ -153,17 +156,24 @@ export const Header = () => {
           />
         </Link>
         <nav className="hidden items-center gap-8 md:flex">
-          {navItems.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={`text-xs transition-colors ${
-                isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const cls = `text-xs transition-colors ${
+              isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
+            }`;
+            if (item.external) {
+              // 새창으로 열기 — Next의 Link 대신 평범한 <a target="_blank">.
+              return (
+                <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer" className={cls}>
+                  {item.label}
+                </a>
+              );
+            }
+            return (
+              <Link key={item.label} href={item.href} className={cls}>
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
         <div className="hidden items-center md:flex">
           {!isReady ? (
@@ -245,17 +255,23 @@ export const Header = () => {
                 </select>
               </div>
             </div>
-            {navItems.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`text-base ${
-                  isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const mobileCls = `text-base ${
+                isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
+              }`;
+              if (item.external) {
+                return (
+                  <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer" className={mobileCls}>
+                    {item.label}
+                  </a>
+                );
+              }
+              return (
+                <Link key={item.label} href={item.href} className={mobileCls}>
+                  {item.label}
+                </Link>
+              );
+            })}
             {!isReady ? (
               <div className="mt-2 h-9" aria-hidden />
             ) : isAuthenticated ? (

@@ -1090,6 +1090,11 @@ model Resume {
   title     String
   content   Json     @default("{}")
   isPrimary Boolean  @default(false)
+  // Public share slug — anyone with the link can view a read-only single-
+  // page rendering of this resume without signing in. We mint a fresh cuid
+  // on row insert; old rows get one backfilled by the migration so the
+  // column can stay NOT NULL + unique.
+  shareSlug String   @unique @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1270,4 +1275,56 @@ model CrawlerRun {
   @@index([startedAt])
   @@index([source])
   @@index([ok])
+}
+
+// MBTI × 한국 직장 매칭 이벤트 — viral lead-gen following the saju pattern.
+// Anonymous prediction is generated client-side and persisted with a share
+// slug so the result page can be opened by anyone and shared on socials.
+// userId is set once a visitor signs up post-result (claim flow).
+model MbtiPrediction {
+  id                     String   @id @default(uuid())
+  mbtiType               String   // e.g. "ENTJ", "ISFP"
+  name                   String?
+  nationality            String?
+  recommendedRoleNames   String[]
+  recommendedPositionIds String[]
+  cultureSummary         String   @default("")
+  interpretation         String   @default("")
+  shareSlug              String   @unique @default(cuid())
+  userId                 String?
+  ipHash                 String?
+  locale                 String   @default("ko")
+  createdAt              DateTime @default(now())
+  claimedAt              DateTime?
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([mbtiType])
+}
+
+// 비자 가능성 체크 이벤트 — rule-based eligibility hint. NOT legal advice;
+// the result page must surface that disclaimer prominently.
+model VisaCheckResult {
+  id                     String   @id @default(uuid())
+  name                   String?
+  nationality            String
+  currentVisa            String?  // current visa code (e.g. "D-2") if any
+  educationLevel         String   // "HIGH_SCHOOL" | "BACHELOR" | "MASTER" | "PHD"
+  majorCategory          String?  // "IT" | "BUSINESS" | "HUMANITIES" | ...
+  koreanLevel            String   // "NONE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "NATIVE"
+  workYears              Int      @default(0)
+  targetRole             String?
+  // Each entry: { code, name, fit (high/medium/low), conditions[], notes? }
+  eligibleVisas          Json
+  recommendedPositionIds String[]
+  shareSlug              String   @unique @default(cuid())
+  userId                 String?
+  ipHash                 String?
+  locale                 String   @default("ko")
+  createdAt              DateTime @default(now())
+  claimedAt              DateTime?
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([nationality])
 }

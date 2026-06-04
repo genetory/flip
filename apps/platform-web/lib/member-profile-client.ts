@@ -1327,19 +1327,48 @@ export async function deleteMyActivityExperience(activityExperienceId: string) {
 }
 
 // ---- Resumes (multiple Korean-style resume versions) -------------------
+// 기간(`startDate`/`endDate`)은 자유 입력 문자열 — `YYYY-MM`(month input)을
+// 기본으로 받지만 "재직중", "Present", "2024-03~" 같은 표현도 그대로 저장.
+// 표시 단계에서 빈 값/특수 값을 적절히 처리합니다.
 export type ResumeEducationEntry = {
   schoolName?: string;
   educationType?: CandidateEducationType;
   major?: string;
   status?: CandidateEducationStatus;
+  startDate?: string;
+  endDate?: string;
 };
-export type ResumeCareerEntry = { companyName?: string; position?: string; description?: string };
-export type ResumeActivityEntry = { title?: string; organization?: string; description?: string };
+export type ResumeCareerEntry = {
+  companyName?: string;
+  position?: string;
+  description?: string;
+  startDate?: string;
+  endDate?: string;
+};
+export type ResumeActivityEntry = {
+  title?: string;
+  organization?: string;
+  description?: string;
+  startDate?: string;
+  endDate?: string;
+};
 export type ResumeLanguageEntry = { language?: string; level?: string };
 export type ResumeCertificationEntry = { name?: string; issuer?: string };
 export type ResumeLinkEntry = { label?: string; url?: string };
 
 export type ResumeContent = {
+  // 기본정보 — entered per-resume so the user can tailor the contact info
+  // for each version (e.g. one in English with the romanized name). When
+  // these are empty the detail view falls back to the User account fields.
+  basicName?: string | null;
+  basicEmail?: string | null;
+  basicPhone?: string | null;
+  basicResidence?: string | null;
+  basicVisa?: CandidateVisaType | null;
+  // Optional profile photo. The editor can upload a file → we POST a
+  // base64 data URL; the server replaces it with a CDN URL on save and
+  // returns it back. Always optional — Korean resumes work fine without.
+  basicPhotoUrl?: string | null;
   // 희망직무
   desiredJobRole?: string | null;
   workType?: string | null;
@@ -1373,8 +1402,22 @@ export type Resume = {
   title: string;
   content: ResumeContent;
   isPrimary: boolean;
+  // Public share slug. Anyone with /resume/share/<shareSlug> can view a
+  // read-only single-page rendering of the resume without signing in.
+  shareSlug?: string;
   createdAt: string;
   updatedAt: string;
+};
+
+// Shared (public) resume payload — same shape as `Resume` plus the owner's
+// display name fields joined in by the server. No auth required to fetch.
+export type SharedResume = Resume & {
+  user?: {
+    name?: string | null;
+    realName?: string | null;
+    email?: string | null;
+    phoneNumber?: string | null;
+  };
 };
 
 export async function getMyResumes() {
@@ -1408,6 +1451,22 @@ export async function updateMyResume(resumeId: string, input: { title?: string; 
 
 export async function deleteMyResume(resumeId: string) {
   return authedJsonFetch<unknown>(`/members/me/resumes/${encodeURIComponent(resumeId)}`, { method: "DELETE" });
+}
+
+// Public read of a shared resume — anonymous, no token. The server returns
+// the resume content plus the owner's display name fields joined in so the
+// reader can see who it belongs to even if `content.basicName` is empty.
+export async function getSharedResume(slug: string): Promise<SharedResume> {
+  const base = getApiBaseUrl();
+  const response = await fetch(`${base}/resumes/share/${encodeURIComponent(slug)}`, {
+    method: "GET",
+    cache: "no-store"
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data?.ok !== true || !data.item) {
+    throw new Error(data?.message ?? "이력서를 찾을 수 없어요.");
+  }
+  return data.item as SharedResume;
 }
 
 export async function setMyPrimaryResume(resumeId: string) {
