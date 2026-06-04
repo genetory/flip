@@ -183,6 +183,11 @@ export default function MatchingManagementPage() {
   const [manualNote, setManualNote] = useState("");
   const [manualActivities, setManualActivities] = useState<ManualActivity[]>([]);
   const [matchingHistories, setMatchingHistories] = useState<MatchingHistoryItem[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState<20 | 40 | 100>(20);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [manualPositionSearch, setManualPositionSearch] = useState("");
   const [manualCandidateSearch, setManualCandidateSearch] = useState("");
   const [selectedHistory, setSelectedHistory] = useState<MatchingHistoryItem | null>(null);
@@ -204,14 +209,11 @@ export default function MatchingManagementPage() {
         sortOrder: "desc"
       });
 
-      const [positionsResponse, membersResponse, historyResponse] = await Promise.all([
+      const [positionsResponse, membersResponse] = await Promise.all([
         fetch(`${apiBaseUrl}/ops/positions?${params.toString()}`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
         fetch(`${apiBaseUrl}/members`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetch(`${apiBaseUrl}/ops/matching/history?page=1&pageSize=20`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
@@ -226,11 +228,6 @@ export default function MatchingManagementPage() {
         items?: CandidateItem[];
         message?: string;
       };
-      const historyPayload = (await readApiPayload<{
-        ok?: boolean;
-        items?: MatchingHistoryItem[];
-        message?: string;
-      }>(historyResponse));
 
       if (!positionsResponse.ok || !positionsPayload.ok) {
         setErrorMessage(positionsPayload.message ?? "공고 데이터를 불러오지 못했습니다.");
@@ -244,14 +241,12 @@ export default function MatchingManagementPage() {
 
       const nextPositions = positionsPayload.items ?? [];
       const nextCandidates = (membersPayload.items ?? []).filter((item) => item.role === "STUDENT");
-      const nextHistories = historyResponse.ok && historyPayload.ok ? historyPayload.items ?? [] : [];
       const nextOpenOrMatchingPositions = nextPositions.filter(
         (position) => position.status === "OPEN"
       );
       const nextPositionPool = nextOpenOrMatchingPositions.length > 0 ? nextOpenOrMatchingPositions : nextPositions;
       setPositions(nextPositions);
       setCandidates(nextCandidates);
-      setMatchingHistories(nextHistories);
 
       if (!selectedPositionForRun && nextPositionPool.length > 0) setSelectedPositionForRun(nextPositionPool[0].id);
       if (!selectedCandidateForRun && nextCandidates.length > 0) setSelectedCandidateForRun(nextCandidates[0].id);
@@ -267,6 +262,41 @@ export default function MatchingManagementPage() {
   useEffect(() => {
     void fetchData();
   }, []);
+
+  // Matching history loads independently so pagination controls don't trigger
+  // a full positions/candidates refetch.
+  async function loadHistory() {
+    setHistoryLoading(true);
+    try {
+      const token = readCookie(TOKEN_COOKIE_KEY);
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+      const params = new URLSearchParams();
+      params.set("page", String(historyPage));
+      params.set("pageSize", String(historyPageSize));
+      const response = await fetch(`${apiBaseUrl}/ops/matching/history?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const payload = (await readApiPayload<{
+        ok?: boolean;
+        items?: MatchingHistoryItem[];
+        pagination?: { total?: number; totalPages?: number };
+      }>(response));
+      if (response.ok && payload.ok) {
+        setMatchingHistories(payload.items ?? []);
+        setHistoryTotal(payload.pagination?.total ?? 0);
+        setHistoryTotalPages(payload.pagination?.totalPages ?? 1);
+      }
+    } catch {
+      // non-fatal — history is a secondary section.
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyPage, historyPageSize]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -466,6 +496,7 @@ export default function MatchingManagementPage() {
       setLastRunAt(payload.ranAt ?? new Date().toISOString());
       setLastRunSource(payload.source ?? null);
       void fetchData();
+      void loadHistory();
     } catch {
       setPopupStep("select");
       setErrorMessage("공고 기준 매칭 실행 중 오류가 발생했습니다.");
@@ -518,6 +549,7 @@ export default function MatchingManagementPage() {
       setLastRunAt(payload.ranAt ?? new Date().toISOString());
       setLastRunSource(payload.source ?? null);
       void fetchData();
+      void loadHistory();
     } catch {
       setPopupStep("select");
       setErrorMessage("후보자 기준 매칭 실행 중 오류가 발생했습니다.");
@@ -695,7 +727,28 @@ export default function MatchingManagementPage() {
       </article>
 
       <article className="ops-partner-list-card">
-        <h2>매칭 히스토리</h2>
+        <div className="ops-partner-list-top">
+          <h2>매칭 히스토리</h2>
+        </div>
+
+        <div className="ops-partner-filters ops-partner-filters--multi">
+          <span className="ops-row-sub" style={{ flex: 1, fontSize: 12 }}>
+            전체 {historyTotal.toLocaleString()}건
+          </span>
+          <select
+            value={String(historyPageSize)}
+            onChange={(e) => {
+              setHistoryPageSize(Number(e.target.value) as 20 | 40 | 100);
+              setHistoryPage(1);
+            }}
+            aria-label="페이지 크기"
+          >
+            <option value="20">20개</option>
+            <option value="40">40개</option>
+            <option value="100">100개</option>
+          </select>
+        </div>
+
         <div className="ops-partner-table-wrap">
           <table className="ops-partner-table">
             <thead>
@@ -709,7 +762,13 @@ export default function MatchingManagementPage() {
               </tr>
             </thead>
             <tbody>
-              {matchingHistories.length === 0 ? (
+              {historyLoading && matchingHistories.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="ops-table-empty">
+                    매칭 히스토리를 불러오는 중입니다...
+                  </td>
+                </tr>
+              ) : matchingHistories.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="ops-table-empty">
                     저장된 매칭 히스토리가 없습니다.
@@ -760,6 +819,33 @@ export default function MatchingManagementPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="ops-pagination">
+          <span>
+            총 {historyTotal.toLocaleString()}개 · {historyPage}/{historyTotalPages} 페이지
+          </span>
+          <div className="ops-pagination-numbers">
+            {(() => {
+              const maxVisible = 7;
+              const buttons: number[] = [];
+              const start = Math.max(1, historyPage - 3);
+              const end = Math.min(historyTotalPages, start + maxVisible - 1);
+              const normalizedStart = Math.max(1, end - maxVisible + 1);
+              for (let i = normalizedStart; i <= end; i += 1) buttons.push(i);
+              return buttons.map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  className={num === historyPage ? "is-active" : ""}
+                  onClick={() => setHistoryPage(num)}
+                >
+                  {num}
+                </button>
+              ));
+            })()}
+          </div>
+          <span />
         </div>
       </article>
 

@@ -565,6 +565,29 @@
   color: #9ca3af;
 }
 
+/* Bulk action bar — sits between filters and the table when ≥1 row is
+   selected. Surfaces the count on the left and primary/destructive actions
+   on the right. Used by review queue (and any future bulk-op screen). */
+.ops-bulk-actionbar {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+  font-size: 13px;
+  color: #374151;
+}
+
+.ops-bulk-actionbar-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .ops-partner-filter-search {
   height: 38px;
   border: 1px solid #e5e7eb;
@@ -3515,6 +3538,30 @@ a.ops-list-card:hover {
   gap: 10px;
 }
 
+/* `--link` variant turns the tile into a clickable Link target on the ops
+   dashboard. Hover lifts the border + adds a soft shadow so the tile feels
+   tappable without being noisy. */
+a.ops-report-kpi--link {
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+a.ops-report-kpi--link:hover {
+  border-color: var(--ops-accent-dark);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+a.ops-report-kpi--link:active {
+  transform: translateY(0);
+}
+
+a.ops-report-kpi--link:focus-visible {
+  outline: 2px solid var(--ops-accent-dark);
+  outline-offset: 2px;
+}
+
 .ops-report-kpi-head {
   display: flex;
   align-items: center;
@@ -3575,6 +3622,30 @@ a.ops-list-card:hover {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+/* `--link` variant — same hover treatment as `.ops-report-kpi--link` so the
+   clickable chart card on the ops dashboard feels consistent with the KPI
+   tiles above it. */
+a.ops-report-chart-card--link {
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+a.ops-report-chart-card--link:hover {
+  border-color: var(--ops-accent-dark);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+a.ops-report-chart-card--link:active {
+  transform: translateY(0);
+}
+
+a.ops-report-chart-card--link:focus-visible {
+  outline: 2px solid var(--ops-accent-dark);
+  outline-offset: 2px;
 }
 
 .ops-report-chart-head {
