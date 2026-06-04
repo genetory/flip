@@ -1410,7 +1410,9 @@ export type Resume = {
 };
 
 // Shared (public) resume payload — same shape as `Resume` plus the owner's
-// display name fields joined in by the server. No auth required to fetch.
+// display name fields joined in by the server. PII fields (email/phone/
+// residence in content; email/phoneNumber on user) are stripped server-side
+// for non-operator callers. `viewerScope` lets the UI know which it got.
 export type SharedResume = Resume & {
   user?: {
     name?: string | null;
@@ -1418,6 +1420,7 @@ export type SharedResume = Resume & {
     email?: string | null;
     phoneNumber?: string | null;
   };
+  viewerScope?: "public" | "operator";
 };
 
 export async function getMyResumes() {
@@ -1453,14 +1456,26 @@ export async function deleteMyResume(resumeId: string) {
   return authedJsonFetch<unknown>(`/members/me/resumes/${encodeURIComponent(resumeId)}`, { method: "DELETE" });
 }
 
-// Public read of a shared resume — anonymous, no token. The server returns
-// the resume content plus the owner's display name fields joined in so the
-// reader can see who it belongs to even if `content.basicName` is empty.
+// Public read of a shared resume. Anonymous by default — but if the caller
+// happens to be logged in (e.g. an OPERATOR viewing the link from the ops
+// console), we forward the access token so the server can promote them to
+// `viewerScope: "operator"` and surface the email/phone/residence fields.
 export async function getSharedResume(slug: string): Promise<SharedResume> {
   const base = getApiBaseUrl();
+  const headers: Record<string, string> = {};
+  // 로컬 토큰이 있으면 함께 보냄 — 운영자 인증에 사용. 인증 실패는 무시.
+  try {
+    if (typeof window !== "undefined") {
+      const t = window.localStorage.getItem("platform_access_token");
+      if (t) headers["Authorization"] = `Bearer ${t}`;
+    }
+  } catch {
+    // localStorage 접근 실패는 그냥 무시 (익명 호출로 진행)
+  }
   const response = await fetch(`${base}/resumes/share/${encodeURIComponent(slug)}`, {
     method: "GET",
-    cache: "no-store"
+    cache: "no-store",
+    headers
   });
   const data = await response.json().catch(() => null);
   if (!response.ok || data?.ok !== true || !data.item) {

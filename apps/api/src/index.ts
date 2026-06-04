@@ -11053,6 +11053,17 @@ app.get("/resumes/share/:slug", async (req, res) => {
   if (!slug || typeof slug !== "string") {
     return res.status(400).json({ ok: false, message: "invalid slug" });
   }
+
+  // Optional auth — if a valid Bearer token is presented and the role is
+  // OPERATOR, surface the full record. Anonymous callers (i.e. recruiters
+  // opening the share link directly) get a PII-stripped copy.
+  let isOperator = false;
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    const payload = verifyAccessToken(authHeader.slice("Bearer ".length));
+    if (payload?.role === MemberRole.OPERATOR) isOperator = true;
+  }
+
   try {
     const resume = await prisma.resume.findUnique({
       where: { shareSlug: slug },
@@ -11070,7 +11081,33 @@ app.get("/resumes/share/:slug", async (req, res) => {
       }
     });
     if (!resume) return res.status(404).json({ ok: false, message: "resume not found" });
-    return res.json({ ok: true, item: resume });
+
+    // 익명·일반 사용자에게는 이메일/전화/주소 같은 PII 를 응답에서 아예
+    // 빼서 보냄. 클라이언트 인스펙터로도 볼 수 없게 서버 측에서 가림.
+    if (!isOperator) {
+      const raw = (resume.content ?? {}) as Record<string, unknown>;
+      const sanitizedContent = { ...raw };
+      delete sanitizedContent.basicEmail;
+      delete sanitizedContent.basicPhone;
+      delete sanitizedContent.basicResidence;
+      const safeUser = resume.user
+        ? { name: resume.user.name, realName: resume.user.realName }
+        : null;
+      return res.json({
+        ok: true,
+        item: {
+          ...resume,
+          content: sanitizedContent,
+          user: safeUser,
+          viewerScope: "public" as const
+        }
+      });
+    }
+
+    return res.json({
+      ok: true,
+      item: { ...resume, viewerScope: "operator" as const }
+    });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to load shared resume" });
   }

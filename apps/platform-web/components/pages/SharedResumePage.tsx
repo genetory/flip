@@ -145,6 +145,21 @@ export function SharedResumePage({ slug }: { slug: string }) {
     <div className="min-h-screen bg-[#F8FAFC]">
       <main className="container pb-16 pt-6 md:pt-10">
         <div className="mx-auto max-w-4xl">
+          {/* 운영자 시점일 때만 보이는 안내 — 연락처가 노출되고 있다는 컨텍스트. */}
+          {resume.viewerScope === "operator" ? (
+            <div className="resume-toolbar mb-3 inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-[12px] font-medium text-amber-800">
+              <span aria-hidden>🔒</span>
+              {tr(
+                "운영자 시점 — 전화·이메일·주소까지 노출됩니다.",
+                "Operator view — phone, email and residence are shown.",
+                "运营者视图 — 包含电话/邮箱/居住地。",
+                "Chế độ vận hành — hiển thị cả điện thoại / email / địa chỉ.",
+                "運営者ビュー — 電話・メール・住所まで表示。",
+                "Tampilan operator — termasuk telepon, email, dan domisili."
+              )}
+            </div>
+          ) : null}
+
           {/* Top bar — Aply 로고+슬로건(왼쪽) + 레이아웃 토글·PDF(오른쪽). 인쇄 시 숨김. */}
           <div className="resume-toolbar mb-5 flex flex-wrap items-center justify-between gap-2">
             <a
