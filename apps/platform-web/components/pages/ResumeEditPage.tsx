@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowSquareOut, Eye, Lock, Plus, Sparkle, X, XIcon } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, ArrowSquareOut, Eye, Lock, Plus, Rows, SidebarSimple, Sparkle, X, XIcon } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
 import { Header } from "../site/Header";
 import { Button } from "../ui/button";
@@ -936,6 +936,9 @@ function ResumePreviewModal(props: {
     certList.length ||
     linkList.length;
 
+  // 공유 페이지와 동일하게 세로/투 컬럼 토글 — 기본 세로(single).
+  const [layout, setLayout] = useState<"single" | "two-column">("single");
+
   // Lock background body scroll while the modal is open so the page behind
   // doesn't move when the user wheels/swipes inside the modal.
   useEffect(() => {
@@ -958,19 +961,45 @@ function ResumePreviewModal(props: {
         className="relative my-auto flex max-h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-border bg-white shadow-2xl md:max-h-[calc(100vh-4rem)]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top bar — fixed inside the modal so the scroll happens below it */}
-        <div className="flex flex-none items-center justify-between gap-2 border-b border-border bg-white px-5 py-3">
+        {/* Top bar — 미리보기 라벨 + 레이아웃 토글(공유 페이지와 동일) + 닫기 */}
+        <div className="flex flex-none flex-wrap items-center justify-between gap-2 border-b border-border bg-white px-5 py-3">
           <p className="text-[14px] font-semibold text-foreground">
             {tr("이력서 미리보기", "Resume preview", "简历预览", "Xem trước hồ sơ", "履歴書プレビュー", "Pratinjau resume")}
           </p>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={tr("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted/30 hover:text-foreground"
-          >
-            <X weight="bold" className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-xl border border-border bg-white p-1 text-[12.5px]">
+              <button
+                type="button"
+                onClick={() => setLayout("single")}
+                className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-medium transition ${
+                  layout === "single" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                }`}
+                aria-pressed={layout === "single"}
+              >
+                <Rows weight="bold" className="h-3.5 w-3.5" />
+                {tr("세로", "Single", "单列", "Một cột", "シングル", "Tunggal")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLayout("two-column")}
+                className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-medium transition ${
+                  layout === "two-column" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                }`}
+                aria-pressed={layout === "two-column"}
+              >
+                <SidebarSimple weight="bold" className="h-3.5 w-3.5" />
+                {tr("투 컬럼", "Two-column", "双列", "Hai cột", "ツーカラム", "Dua kolom")}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={tr("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted/30 hover:text-foreground"
+            >
+              <X weight="bold" className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Resume sheet — scrollable area is THIS div only */}
@@ -984,15 +1013,180 @@ function ResumePreviewModal(props: {
             </span>
           </div>
 
+          {/* 세로 모드에서는 사진 + 이름 + 연락처 hero 가 시트 위에 자리잡음.
+              투 컬럼 모드에서는 좌측 사이드바가 그 역할을 하므로 hero 는 생략. */}
+          {hasAny && layout === "single" ? (
+            <header className="flex items-center gap-5 md:gap-6">
+              {basicPhotoUrl ? (
+                <div className="aspect-[3/4] w-24 flex-none overflow-hidden rounded-2xl border border-border md:w-28">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={basicPhotoUrl} alt="" className="h-full w-full object-cover" />
+                </div>
+              ) : null}
+              <div className="min-w-0 flex-1">
+                <h1 className="text-[28px] font-bold tracking-tight text-foreground md:text-[34px]">
+                  {basicName.trim() || tr("이름 미입력", "Name not set", "未填写姓名", "Chưa nhập tên", "氏名未入力", "Nama belum diisi")}
+                </h1>
+                <div className="mt-3 space-y-1 text-[13.5px] leading-relaxed text-foreground/80">
+                  {basicEmail ? <p>{basicEmail}</p> : null}
+                  {basicPhone ? <p>{basicPhone}</p> : null}
+                  {basicResidence ? <p>{basicResidence}</p> : null}
+                  {visaShort(basicVisa) ? <p>{visaShort(basicVisa)}</p> : null}
+                </div>
+              </div>
+            </header>
+          ) : null}
+
           {!hasAny ? (
             <p className="mt-6 text-[14px] text-muted-foreground">
               {tr("아직 내용이 비어있어요.", "Nothing filled in yet.", "内容还是空的。", "Chưa có nội dung.", "まだ内容が空です。", "Belum ada isi.")}
             </p>
+          ) : layout === "single" ? (
+            // 세로 (single column) — 자기소개 → 경력 → 프로젝트 → 학력 → 스킬 → 어학 → 자격 → 링크
+            <div className="mt-7 space-y-10">
+              {(summary || selfIntro) ? (
+                <section>
+                  <SectionTitle>{tr("자기소개", "About", "自我介绍", "Giới thiệu", "自己紹介", "Tentang")}</SectionTitle>
+                  {summary ? <p className="mb-2 text-[15px] font-medium text-foreground">{summary}</p> : null}
+                  {selfIntro ? (
+                    <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed text-foreground">{selfIntro}</p>
+                  ) : null}
+                </section>
+              ) : null}
+
+              {careerList.length > 0 ? (
+                <section>
+                  <SectionTitle>{tr("경력", "Experience", "经历", "Kinh nghiệm", "経歴", "Pengalaman")}</SectionTitle>
+                  <div className="space-y-6">
+                    {careerList.map((cr, i) => {
+                      const range = formatRange(cr.startDate, cr.endDate);
+                      return (
+                        <div key={i}>
+                          <p className="text-[15px] text-foreground">
+                            <span className="font-bold">{cr.position}</span>
+                            {cr.companyName ? <span className="ml-2 text-muted-foreground">{cr.companyName}</span> : null}
+                          </p>
+                          {range ? <p className="mt-1 text-[13px] italic text-muted-foreground">{range}</p> : null}
+                          {cr.description ? (
+                            <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-muted-foreground">{cr.description}</p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
+
+              {activityList.length > 0 ? (
+                <section>
+                  <SectionTitle>{tr("프로젝트", "Projects", "项目/活动", "Dự án / Hoạt động", "プロジェクト/活動", "Proyek")}</SectionTitle>
+                  <div className="space-y-6">
+                    {activityList.map((a, i) => {
+                      const range = formatRange(a.startDate, a.endDate);
+                      return (
+                        <div key={i}>
+                          <p className="text-[15px] text-foreground">
+                            <span className="font-bold">{a.title}</span>
+                            {a.organization ? <span className="ml-2 text-muted-foreground">{a.organization}</span> : null}
+                          </p>
+                          {range ? <p className="mt-1 text-[13px] italic text-muted-foreground">{range}</p> : null}
+                          {a.description ? (
+                            <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-muted-foreground">{a.description}</p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
+
+              {eduList.length > 0 ? (
+                <section>
+                  <SectionTitle>{tr("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")}</SectionTitle>
+                  <div className="space-y-5">
+                    {eduList.map((e, i) => {
+                      const range = formatRange(e.startDate, e.endDate);
+                      const meta = [eduTypeLabel(e.educationType), eduStatusLabel(e.status)].filter(Boolean).join(" · ");
+                      return (
+                        <div key={i}>
+                          <p className="text-[15px] text-foreground">
+                            <span className="font-bold">{e.major || e.schoolName}</span>
+                            {e.major && e.schoolName ? <span className="ml-2 text-muted-foreground">{e.schoolName}</span> : null}
+                          </p>
+                          {(range || meta) ? (
+                            <p className="mt-1 text-[13px] italic text-muted-foreground">
+                              {[range, meta].filter(Boolean).join(" · ")}
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
+
+              {skills.length > 0 ? (
+                <section>
+                  <SectionTitle>{tr("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Skill")}</SectionTitle>
+                  <div className="flex flex-wrap gap-2">
+                    {skills.map((s, i) => (
+                      <span key={i} className="rounded-full bg-muted px-3 py-1.5 text-[13px] font-medium text-foreground">{s}</span>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {languageList.length > 0 ? (
+                <section>
+                  <SectionTitle>{tr("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")}</SectionTitle>
+                  <ul className="space-y-1.5">
+                    {languageList.map((l, i) => (
+                      <li key={i} className="text-[14.5px] text-foreground">
+                        {l.language}
+                        {l.level ? <span className="text-muted-foreground"> · {l.level}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {certList.length > 0 ? (
+                <section>
+                  <SectionTitle>{tr("자격 / 수상", "Certificates / Awards", "证书/获奖", "Chứng chỉ / Giải thưởng", "資格/受賞", "Sertifikat / Penghargaan")}</SectionTitle>
+                  <ul className="space-y-1.5">
+                    {certList.map((ct, i) => (
+                      <li key={i} className="text-[14.5px] text-foreground">
+                        {ct.name}
+                        {ct.issuer ? <span className="text-muted-foreground"> · {ct.issuer}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {linkList.length > 0 ? (
+                <section>
+                  <SectionTitle>{tr("포트폴리오 / 링크", "Portfolio / Links", "作品集/链接", "Portfolio / Liên kết", "ポートフォリオ/リンク", "Portofolio / Tautan")}</SectionTitle>
+                  <ul className="space-y-1.5">
+                    {linkList.map((l, i) => (
+                      <li key={i}>
+                        <a
+                          href={l.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-[14.5px] text-primary hover:underline"
+                        >
+                          {l.label || l.url}
+                          <ArrowSquareOut className="h-3 w-3" />
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+            </div>
           ) : (
-            // Sidebar layout (matches the detail page's "투 컬럼" mode) —
-            // portrait photo + name + about + contact on the left, main
-            // resume content (Experience / Projects / Education / sub-grid)
-            // on the right. Mirrors the reference recruiter-doc styling.
+            // 투 컬럼 (sidebar) — 좌측: 사진+이름+연락처+요약·자기소개+링크 / 우측: 경력·프로젝트·학력·서브그리드
             <div className="mt-2 grid grid-cols-1 gap-10 md:grid-cols-[230px_1fr] md:gap-12">
               {/* LEFT sidebar — 순서: 사진 → 이름 → 메일/전화/주소 → 요약·자기소개 → 링크 */}
               <aside className="space-y-6">
