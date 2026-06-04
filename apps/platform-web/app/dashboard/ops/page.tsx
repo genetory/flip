@@ -73,21 +73,24 @@ function formatRelativeTime(iso: string) {
   return d.toLocaleDateString("ko-KR");
 }
 
-// KPI card — icon + label + big value + delta line (mirrors the reports page)
+// KPI card — icon + label + big value + delta line (mirrors the reports page).
+// Optional `href` makes the entire tile a Link target to the relevant list page.
 function KpiCard({
   Icon,
   label,
   value,
-  delta
+  delta,
+  href
 }: {
   Icon: typeof Users;
   label: string;
   value: number;
   delta?: { text: string; direction?: "up" | "down" | "muted" };
+  href?: string;
 }) {
   const deltaCls = delta?.direction === "down" ? "is-down" : delta?.direction === "muted" ? "is-muted" : "";
-  return (
-    <div className="ops-report-kpi">
+  const inner = (
+    <>
       <div className="ops-report-kpi-head">
         <span className="icon" aria-hidden>
           <Icon size={16} />
@@ -96,8 +99,16 @@ function KpiCard({
       </div>
       <p className="value">{value.toLocaleString()}</p>
       {delta ? <p className={`delta ${deltaCls}`}>{delta.text}</p> : null}
-    </div>
+    </>
   );
+  if (href) {
+    return (
+      <Link href={href} className="ops-report-kpi ops-report-kpi--link">
+        {inner}
+      </Link>
+    );
+  }
+  return <div className="ops-report-kpi">{inner}</div>;
 }
 
 // Slim horizontal funnel — each stage gets its own row with the count and
@@ -330,6 +341,7 @@ export default function OpsDashboardHome() {
                   text: `학생 ${stats.users.students.toLocaleString()} · 파트너 ${stats.users.partners.toLocaleString()} · 운영자 ${stats.users.operators.toLocaleString()}`,
                   direction: "muted"
                 }}
+                href="/dashboard/ops/support/users"
               />
               <KpiCard
                 Icon={Briefcase}
@@ -339,6 +351,7 @@ export default function OpsDashboardHome() {
                   text: `인증 완료 ${stats.partnerOrgs.verified.toLocaleString()}`,
                   direction: stats.partnerOrgs.verified > 0 ? "up" : "muted"
                 }}
+                href="/dashboard/ops/partners/management"
               />
               <KpiCard
                 Icon={Briefcase}
@@ -348,6 +361,7 @@ export default function OpsDashboardHome() {
                   text: `전체 ${stats.positions.total.toLocaleString()}`,
                   direction: "muted"
                 }}
+                href="/dashboard/ops/operations/positions"
               />
               <KpiCard
                 Icon={Inbox}
@@ -360,6 +374,7 @@ export default function OpsDashboardHome() {
                       ? "up"
                       : "muted"
                 }}
+                href="/dashboard/ops/operations/applications"
               />
             </div>
           </article>
@@ -367,7 +382,7 @@ export default function OpsDashboardHome() {
           {/* 지원 funnel — 전체 너비 차트 카드 */}
           {matching ? (
             <article className="ops-partner-list-card">
-              <div className="ops-report-chart-card">
+              <Link href="/dashboard/ops/operations/applications" className="ops-report-chart-card ops-report-chart-card--link">
                 <div className="ops-report-chart-head">
                   <div className="ops-report-chart-title">
                     <span className="name">지원 → 합격 funnel</span>
@@ -376,7 +391,7 @@ export default function OpsDashboardHome() {
                   </div>
                 </div>
                 <FunnelRows stages={applicationFunnel} />
-              </div>
+              </Link>
             </article>
           ) : null}
 

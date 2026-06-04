@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { readAccessToken } from "../../../../../lib/auth-client";
 
 type ReviewTab = "partners" | "positions";
@@ -27,6 +27,19 @@ type PendingPosition = {
   createdAt: string;
 };
 
+const PARTNER_TYPE_LABEL: Record<string, string> = {
+  UNIVERSITY: "대학",
+  COMPANY: "파트너",
+  AGENCY: "에이전시"
+};
+
+const COMPANY_SIZE_LABEL: Record<string, string> = {
+  SIZE_1_10: "1~10인",
+  SIZE_UNDER_30: "30인 이하",
+  SIZE_UNDER_50: "50인 이하",
+  SIZE_OVER_100: "100인 이상"
+};
+
 function formatRelativeTime(iso: string) {
   const d = new Date(iso);
   const diffMs = Date.now() - d.getTime();
@@ -49,8 +62,25 @@ function authHeaders(): Record<string, string> {
 
 export default function ReviewQueuePage() {
   const [tab, setTab] = useState<ReviewTab>("partners");
+
+  // Partners — debounced search + pagination, mirrors the all-users page.
+  const [partnerSearch, setPartnerSearch] = useState("");
+  const [partnerDebouncedSearch, setPartnerDebouncedSearch] = useState("");
   const [partners, setPartners] = useState<PendingPartner[]>([]);
+  const [partnerTotal, setPartnerTotal] = useState(0);
+  const [partnerTotalPages, setPartnerTotalPages] = useState(1);
+  const [partnerPage, setPartnerPage] = useState(1);
+  const [partnerPageSize, setPartnerPageSize] = useState<20 | 40 | 100>(20);
+
+  // Positions — same shape.
+  const [positionSearch, setPositionSearch] = useState("");
+  const [positionDebouncedSearch, setPositionDebouncedSearch] = useState("");
   const [positions, setPositions] = useState<PendingPosition[]>([]);
+  const [positionTotal, setPositionTotal] = useState(0);
+  const [positionTotalPages, setPositionTotalPages] = useState(1);
+  const [positionPage, setPositionPage] = useState(1);
+  const [positionPageSize, setPositionPageSize] = useState<20 | 40 | 100>(20);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -58,54 +88,117 @@ export default function ReviewQueuePage() {
   const [selectedPositionIds, setSelectedPositionIds] = useState<Set<string>>(new Set());
   const [bulkRunning, setBulkRunning] = useState(false);
 
-  async function load() {
+  // Debounce — 400ms, same as all-users page.
+  useEffect(() => {
+    const t = setTimeout(() => setPartnerDebouncedSearch(partnerSearch), 400);
+    return () => clearTimeout(t);
+  }, [partnerSearch]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setPositionDebouncedSearch(positionSearch), 400);
+    return () => clearTimeout(t);
+  }, [positionSearch]);
+
+  const loadPartners = useCallback(async () => {
+    const params = new URLSearchParams();
+    params.set("verificationApproved", "false");
+    if (partnerDebouncedSearch.trim()) params.set("search", partnerDebouncedSearch.trim());
+    params.set("page", String(partnerPage));
+    params.set("pageSize", String(partnerPageSize));
+    const response = await fetch(`${apiBaseUrl()}/ops/partners?${params.toString()}`, {
+      headers: authHeaders(),
+      cache: "no-store"
+    });
+    if (!response.ok) throw new Error(`partners HTTP ${response.status}`);
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      items?: Array<{
+        id: string;
+        name: string;
+        partnerType: string;
+        industry: string;
+        companySize: string | null;
+        website: string | null;
+        officeAddress: string | null;
+        createdAt: string;
+        businessRegistrationDocumentData?: string | null;
+        fourInsuranceSubscriberListData?: string | null;
+      }>;
+      total?: number;
+      totalPages?: number;
+    };
+    setPartners(
+      (payload.items ?? []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        partnerType: p.partnerType,
+        industry: p.industry,
+        companySize: p.companySize,
+        website: p.website,
+        officeAddress: p.officeAddress,
+        createdAt: p.createdAt,
+        businessRegistrationDocumentData: p.businessRegistrationDocumentData ?? null,
+        fourInsuranceSubscriberListData: p.fourInsuranceSubscriberListData ?? null
+      }))
+    );
+    setPartnerTotal(payload.total ?? 0);
+    setPartnerTotalPages(payload.totalPages ?? 1);
+  }, [partnerDebouncedSearch, partnerPage, partnerPageSize]);
+
+  const loadPositions = useCallback(async () => {
+    const params = new URLSearchParams();
+    params.set("status", "PENDING_REVIEW");
+    if (positionDebouncedSearch.trim()) params.set("search", positionDebouncedSearch.trim());
+    params.set("page", String(positionPage));
+    params.set("pageSize", String(positionPageSize));
+    const response = await fetch(`${apiBaseUrl()}/ops/positions?${params.toString()}`, {
+      headers: authHeaders(),
+      cache: "no-store"
+    });
+    if (!response.ok) throw new Error(`positions HTTP ${response.status}`);
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      items?: Array<{
+        id: string;
+        title: string;
+        status: string;
+        createdAt: string;
+        partnerOrganization?: { id: string; name: string } | null;
+      }>;
+      total?: number;
+      totalPages?: number;
+    };
+    setPositions(
+      (payload.items ?? []).map((p) => ({
+        id: p.id,
+        title: p.title,
+        status: p.status,
+        partnerOrganizationName: p.partnerOrganization?.name ?? null,
+        partnerOrganizationId: p.partnerOrganization?.id ?? null,
+        createdAt: p.createdAt
+      }))
+    );
+    setPositionTotal(payload.total ?? 0);
+    setPositionTotalPages(payload.totalPages ?? 1);
+  }, [positionDebouncedSearch, positionPage, positionPageSize]);
+
+  const refreshAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const headers = authHeaders();
-      const [partnersResp, positionsResp] = await Promise.all([
-        fetch(`${apiBaseUrl()}/ops/partners?pageSize=100`, { headers, cache: "no-store" }),
-        fetch(`${apiBaseUrl()}/ops/positions?status=PENDING_REVIEW&pageSize=100`, { headers, cache: "no-store" })
-      ]);
-      if (!partnersResp.ok) throw new Error(`partners HTTP ${partnersResp.status}`);
-      if (!positionsResp.ok) throw new Error(`positions HTTP ${positionsResp.status}`);
-      const partnersPayload = (await partnersResp.json()) as { ok?: boolean; items?: Array<{ id: string; name: string; partnerType: string; industry: string; companySize: string | null; website: string | null; officeAddress: string | null; createdAt: string; verification?: { approved: boolean }; businessRegistrationDocumentData?: string | null; fourInsuranceSubscriberListData?: string | null }> };
-      const positionsPayload = (await positionsResp.json()) as { ok?: boolean; items?: Array<{ id: string; title: string; status: string; createdAt: string; partnerOrganization?: { id: string; name: string } | null }> };
-      const pendingPartners = (partnersPayload.items ?? []).filter((p) => !p.verification?.approved);
-      setPartners(
-        pendingPartners.map((p) => ({
-          id: p.id,
-          name: p.name,
-          partnerType: p.partnerType,
-          industry: p.industry,
-          companySize: p.companySize,
-          website: p.website,
-          officeAddress: p.officeAddress,
-          createdAt: p.createdAt,
-          businessRegistrationDocumentData: p.businessRegistrationDocumentData ?? null,
-          fourInsuranceSubscriberListData: p.fourInsuranceSubscriberListData ?? null
-        }))
-      );
-      setPositions(
-        (positionsPayload.items ?? []).map((p) => ({
-          id: p.id,
-          title: p.title,
-          status: p.status,
-          partnerOrganizationName: p.partnerOrganization?.name ?? null,
-          partnerOrganizationId: p.partnerOrganization?.id ?? null,
-          createdAt: p.createdAt
-        }))
-      );
+      await Promise.all([loadPartners(), loadPositions()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "검수 큐를 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
-  }
+  }, [loadPartners, loadPositions]);
 
+  // Both tabs refetch on any dep change so the inactive tab's count badge
+  // stays accurate.
   useEffect(() => {
-    void load();
-  }, []);
+    void refreshAll();
+  }, [refreshAll]);
 
   async function approvePartner(id: string) {
     setUpdating(id);
@@ -116,7 +209,7 @@ export default function ReviewQueuePage() {
         body: JSON.stringify({ approved: true })
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      setPartners((prev) => prev.filter((p) => p.id !== id));
+      await refreshAll();
     } catch (err) {
       window.alert(err instanceof Error ? err.message : "승인 실패");
     } finally {
@@ -134,8 +227,7 @@ export default function ReviewQueuePage() {
         body: JSON.stringify({ approved: false })
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      // Rejected partners stay in queue (not approved) — just refresh
-      await load();
+      await refreshAll();
     } catch (err) {
       window.alert(err instanceof Error ? err.message : "반려 실패");
     } finally {
@@ -152,7 +244,7 @@ export default function ReviewQueuePage() {
         body: JSON.stringify({ status: "OPEN" })
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      setPositions((prev) => prev.filter((p) => p.id !== id));
+      await refreshAll();
     } catch (err) {
       window.alert(err instanceof Error ? err.message : "승인 실패");
     } finally {
@@ -170,7 +262,7 @@ export default function ReviewQueuePage() {
         body: JSON.stringify({ status: "REJECTED" })
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      setPositions((prev) => prev.filter((p) => p.id !== id));
+      await refreshAll();
     } catch (err) {
       window.alert(err instanceof Error ? err.message : "반려 실패");
     } finally {
@@ -195,7 +287,7 @@ export default function ReviewQueuePage() {
         )
       );
       setSelectedPartnerIds(new Set());
-      await load();
+      await refreshAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "일괄 처리 실패");
     } finally {
@@ -220,7 +312,7 @@ export default function ReviewQueuePage() {
         )
       );
       setSelectedPositionIds(new Set());
-      await load();
+      await refreshAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "일괄 처리 실패");
     } finally {
@@ -228,8 +320,22 @@ export default function ReviewQueuePage() {
     }
   }
 
-  function toggleSet(setter: (updater: (prev: Set<string>) => Set<string>) => void, id: string) {
-    setter((prev) => {
+  // ---- Partner pagination + select helpers ----
+  const partnerPageButtons = useMemo(() => {
+    const maxVisible = 7;
+    const pages: number[] = [];
+    const start = Math.max(1, partnerPage - 3);
+    const end = Math.min(partnerTotalPages, start + maxVisible - 1);
+    const normalizedStart = Math.max(1, end - maxVisible + 1);
+    for (let i = normalizedStart; i <= end; i += 1) pages.push(i);
+    return pages;
+  }, [partnerPage, partnerTotalPages]);
+
+  const allPartnersSelected = partners.length > 0 && partners.every((p) => selectedPartnerIds.has(p.id));
+  const somePartnersSelected = partners.some((p) => selectedPartnerIds.has(p.id));
+
+  function togglePartner(id: string) {
+    setSelectedPartnerIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -237,7 +343,52 @@ export default function ReviewQueuePage() {
     });
   }
 
-  const counts = useMemo(() => ({ partners: partners.length, positions: positions.length }), [partners.length, positions.length]);
+  function toggleSelectAllPartners() {
+    setSelectedPartnerIds((prev) => {
+      const next = new Set(prev);
+      if (allPartnersSelected) {
+        for (const p of partners) next.delete(p.id);
+      } else {
+        for (const p of partners) next.add(p.id);
+      }
+      return next;
+    });
+  }
+
+  // ---- Position pagination + select helpers ----
+  const positionPageButtons = useMemo(() => {
+    const maxVisible = 7;
+    const pages: number[] = [];
+    const start = Math.max(1, positionPage - 3);
+    const end = Math.min(positionTotalPages, start + maxVisible - 1);
+    const normalizedStart = Math.max(1, end - maxVisible + 1);
+    for (let i = normalizedStart; i <= end; i += 1) pages.push(i);
+    return pages;
+  }, [positionPage, positionTotalPages]);
+
+  const allPositionsSelected = positions.length > 0 && positions.every((p) => selectedPositionIds.has(p.id));
+  const somePositionsSelected = positions.some((p) => selectedPositionIds.has(p.id));
+
+  function togglePosition(id: string) {
+    setSelectedPositionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllPositions() {
+    setSelectedPositionIds((prev) => {
+      const next = new Set(prev);
+      if (allPositionsSelected) {
+        for (const p of positions) next.delete(p.id);
+      } else {
+        for (const p of positions) next.add(p.id);
+      }
+      return next;
+    });
+  }
 
   return (
     <section className="ops-content-section">
@@ -246,184 +397,397 @@ export default function ReviewQueuePage() {
         <p>새로 가입한 파트너 회사와 새 공고를 검수하고 승인하세요.</p>
       </header>
 
-      <article className="ops-card">
-        <div className="ops-filter-chip-row">
-          {([
-            { key: "partners" as const, label: "파트너 가입 검수" },
-            { key: "positions" as const, label: "공고 검수" }
-          ]).map((t) => {
-            const active = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setTab(t.key)}
-                className={`ops-filter-chip ${active ? "is-active" : ""}`}
-              >
-                {t.label} <span className="ops-filter-chip-count">{counts[t.key]}</span>
-              </button>
-            );
-          })}
-        </div>
-      </article>
+      {/* Segmented tabs */}
+      <div className="ops-report-tabs" role="tablist" aria-label="검수 큐 탭">
+        {(
+          [
+            { key: "partners" as const, label: "파트너 가입 검수", count: partnerTotal },
+            { key: "positions" as const, label: "공고 검수", count: positionTotal }
+          ]
+        ).map((t) => {
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setTab(t.key)}
+              className={`ops-report-tab${active ? " is-active" : ""}`}
+            >
+              {t.label}
+              {t.count > 0 ? <span className="badge">{t.count}</span> : null}
+            </button>
+          );
+        })}
+      </div>
 
-      {loading ? (
-        <div className="ops-empty-card">검수 대기 항목을 불러오는 중...</div>
-      ) : error ? (
-        <div className="ops-error-card">{error}</div>
-      ) : tab === "partners" ? (
-        partners.length === 0 ? (
-          <div className="ops-empty-card">검수 대기 중인 파트너가 없습니다.</div>
-        ) : (
-          <>
-            {selectedPartnerIds.size > 0 ? (
-              <article className="ops-card" style={{ background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#111827" }}>
-                  {selectedPartnerIds.size}개 파트너 선택됨
-                </p>
-                <div className="ops-table-actions">
-                  <button type="button" onClick={() => setSelectedPartnerIds(new Set())} className="ops-btn">
-                    선택 해제
-                  </button>
-                  <button type="button" onClick={() => void bulkPartners(false)} disabled={bulkRunning} className="ops-btn ops-btn-danger">
-                    일괄 반려
-                  </button>
-                  <button type="button" onClick={() => void bulkPartners(true)} disabled={bulkRunning} className="ops-btn ops-btn-primary">
-                    일괄 승인
-                  </button>
-                </div>
-              </article>
-            ) : (
-              <article className="ops-card">
-                <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "#6b7280", margin: 0 }}>
-                  <input
-                    type="checkbox"
-                    checked={partners.length > 0 && selectedPartnerIds.size === partners.length}
-                    onChange={(e) =>
-                      setSelectedPartnerIds(e.target.checked ? new Set(partners.map((p) => p.id)) : new Set())
-                    }
-                  />
-                  전체 선택 ({partners.length}개)
-                </label>
-              </article>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {partners.map((p) => {
-                const isUpdating = updating === p.id;
-                const checked = selectedPartnerIds.has(p.id);
-                return (
-                  <article key={p.id} className="ops-card">
-                    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                      <div style={{ display: "flex", gap: 12, minWidth: 0, flex: "1 1 280px" }}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleSet(setSelectedPartnerIds, p.id)}
-                          style={{ marginTop: 4 }}
-                        />
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "#111827" }}>{p.name}</h3>
-                          <p className="ops-card-subtle">
-                            {p.partnerType} · {p.industry} {p.companySize ? `· ${p.companySize}` : ""}
-                          </p>
-                          <p className="ops-card-subtle" style={{ marginTop: 2 }}>가입 {formatRelativeTime(p.createdAt)}</p>
-                          {p.website ? <p style={{ fontSize: 12, color: "#374151", margin: "8px 0 0" }}>웹사이트: {p.website}</p> : null}
-                          {p.officeAddress ? <p style={{ fontSize: 12, color: "#374151", margin: "4px 0 0" }}>주소: {p.officeAddress}</p> : null}
-                          <div className="ops-tag-row" style={{ marginTop: 8 }}>
-                            <span className={`ops-pill ${p.businessRegistrationDocumentData ? "ops-pill-green" : "ops-pill-amber"}`}>
-                              사업자등록증 {p.businessRegistrationDocumentData ? "제출" : "미제출"}
-                            </span>
-                            <span className={`ops-pill ${p.fourInsuranceSubscriberListData ? "ops-pill-green" : "ops-pill-amber"}`}>
-                              4대보험 {p.fourInsuranceSubscriberListData ? "제출" : "미제출"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="ops-table-actions">
-                        <button type="button" disabled={isUpdating} onClick={() => void rejectPartner(p.id)} className="ops-btn ops-btn-danger">
-                          반려
-                        </button>
-                        <button type="button" disabled={isUpdating} onClick={() => void approvePartner(p.id)} className="ops-btn ops-btn-primary">
-                          승인
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </>
-        )
-      ) : positions.length === 0 ? (
-        <div className="ops-empty-card">검수 대기 중인 공고가 없습니다.</div>
-      ) : (
-        <>
-          {selectedPositionIds.size > 0 ? (
-            <article className="ops-card" style={{ background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#111827" }}>
-                {selectedPositionIds.size}개 공고 선택됨
-              </p>
-              <div className="ops-table-actions">
-                <button type="button" onClick={() => setSelectedPositionIds(new Set())} className="ops-btn">
+      {error ? <div className="ops-error-card">{error}</div> : null}
+
+      {/* ----- 파트너 가입 검수 ----- */}
+      {tab === "partners" ? (
+        <article className="ops-partner-list-card">
+          <div className="ops-partner-list-top">
+            <h2>파트너 가입 검수 목록</h2>
+          </div>
+
+          <div className="ops-partner-filters ops-partner-filters--multi">
+            <input
+              value={partnerSearch}
+              onChange={(e) => {
+                setPartnerSearch(e.target.value);
+                setPartnerPage(1);
+              }}
+              placeholder="파트너명 검색"
+              className="ops-partner-filter-search"
+            />
+            <select
+              value={String(partnerPageSize)}
+              onChange={(e) => {
+                setPartnerPageSize(Number(e.target.value) as 20 | 40 | 100);
+                setPartnerPage(1);
+              }}
+              aria-label="페이지 크기"
+            >
+              <option value="20">20개</option>
+              <option value="40">40개</option>
+              <option value="100">100개</option>
+            </select>
+            {partnerSearch ? (
+              <button
+                type="button"
+                className="ops-partner-filter-reset"
+                onClick={() => {
+                  setPartnerSearch("");
+                  setPartnerPage(1);
+                }}
+              >
+                필터 초기화
+              </button>
+            ) : null}
+          </div>
+
+          {selectedPartnerIds.size > 0 ? (
+            <div className="ops-bulk-actionbar">
+              <span>
+                <strong>{selectedPartnerIds.size.toLocaleString()}개</strong> 선택됨
+              </span>
+              <div className="ops-bulk-actionbar-buttons">
+                <button
+                  type="button"
+                  className="ops-action-cancel"
+                  onClick={() => setSelectedPartnerIds(new Set())}
+                  disabled={bulkRunning}
+                >
                   선택 해제
                 </button>
-                <button type="button" onClick={() => void bulkPositions(false)} disabled={bulkRunning} className="ops-btn ops-btn-danger">
-                  일괄 반려
+                <button
+                  type="button"
+                  className="ops-action-danger"
+                  onClick={() => void bulkPartners(false)}
+                  disabled={bulkRunning}
+                >
+                  {bulkRunning ? "처리 중..." : "일괄 반려"}
                 </button>
-                <button type="button" onClick={() => void bulkPositions(true)} disabled={bulkRunning} className="ops-btn ops-btn-primary">
-                  일괄 승인 → 게시
+                <button
+                  type="button"
+                  className="ops-action-save"
+                  onClick={() => void bulkPartners(true)}
+                  disabled={bulkRunning}
+                >
+                  {bulkRunning ? "처리 중..." : "일괄 승인"}
                 </button>
               </div>
-            </article>
-          ) : (
-            <article className="ops-card">
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "#6b7280", margin: 0 }}>
-                <input
-                  type="checkbox"
-                  checked={positions.length > 0 && selectedPositionIds.size === positions.length}
-                  onChange={(e) =>
-                    setSelectedPositionIds(e.target.checked ? new Set(positions.map((p) => p.id)) : new Set())
-                  }
-                />
-                전체 선택 ({positions.length}개)
-              </label>
-            </article>
-          )}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {positions.map((p) => {
-              const isUpdating = updating === p.id;
-              const checked = selectedPositionIds.has(p.id);
-              return (
-                <article key={p.id} className="ops-card">
-                  <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                    <div style={{ display: "flex", gap: 12, minWidth: 0, flex: "1 1 280px" }}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleSet(setSelectedPositionIds, p.id)}
-                        style={{ marginTop: 4 }}
-                      />
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "#111827" }}>{p.title}</h3>
-                        {p.partnerOrganizationName ? <p className="ops-card-subtle">{p.partnerOrganizationName}</p> : null}
-                        <p className="ops-card-subtle" style={{ marginTop: 2 }}>등록 {formatRelativeTime(p.createdAt)}</p>
-                      </div>
-                    </div>
-                    <div className="ops-table-actions">
-                      <button type="button" disabled={isUpdating} onClick={() => void rejectPosition(p.id)} className="ops-btn ops-btn-danger">
-                        반려
-                      </button>
-                      <button type="button" disabled={isUpdating} onClick={() => void approvePosition(p.id)} className="ops-btn ops-btn-primary">
-                        승인 → 게시
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+            </div>
+          ) : null}
+
+          <div className="ops-partner-table-wrap">
+            <table className="ops-partner-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 36 }}>
+                    <input
+                      type="checkbox"
+                      aria-label="현재 페이지 전체 선택"
+                      checked={allPartnersSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = !allPartnersSelected && somePartnersSelected;
+                      }}
+                      onChange={toggleSelectAllPartners}
+                    />
+                  </th>
+                  <th>파트너명</th>
+                  <th>유형</th>
+                  <th>산업</th>
+                  <th>규모</th>
+                  <th>서류</th>
+                  <th>가입</th>
+                  <th>액션</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="ops-table-empty">목록을 불러오는 중입니다...</td>
+                  </tr>
+                ) : partners.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="ops-table-empty">검수 대기 중인 파트너가 없습니다.</td>
+                  </tr>
+                ) : (
+                  partners.map((p) => {
+                    const isUpdating = updating === p.id;
+                    const checked = selectedPartnerIds.has(p.id);
+                    return (
+                      <tr key={p.id}>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            aria-label={`${p.name} 선택`}
+                            checked={checked}
+                            onChange={() => togglePartner(p.id)}
+                          />
+                        </td>
+                        <td>{p.name}</td>
+                        <td>{PARTNER_TYPE_LABEL[p.partnerType] ?? p.partnerType}</td>
+                        <td>{p.industry}</td>
+                        <td>{p.companySize ? COMPANY_SIZE_LABEL[p.companySize] ?? p.companySize : "-"}</td>
+                        <td>
+                          <div style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
+                            <span className={`ops-pill ${p.businessRegistrationDocumentData ? "ops-pill-green" : "ops-pill-amber"}`}>
+                              사업자등록증 {p.businessRegistrationDocumentData ? "O" : "X"}
+                            </span>
+                            <span className={`ops-pill ${p.fourInsuranceSubscriberListData ? "ops-pill-green" : "ops-pill-amber"}`}>
+                              4대보험 {p.fourInsuranceSubscriberListData ? "O" : "X"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="ops-row-sub">{formatRelativeTime(p.createdAt)}</td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <div className="ops-table-actions" style={{ gap: 6 }}>
+                            <button
+                              type="button"
+                              className="ops-action-danger"
+                              onClick={() => void rejectPartner(p.id)}
+                              disabled={isUpdating || bulkRunning}
+                              style={{ minWidth: 64, height: 32, fontSize: 12 }}
+                            >
+                              반려
+                            </button>
+                            <button
+                              type="button"
+                              className="ops-action-save"
+                              onClick={() => void approvePartner(p.id)}
+                              disabled={isUpdating || bulkRunning}
+                              style={{ minWidth: 64, height: 32, fontSize: 12 }}
+                            >
+                              승인
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-        </>
-      )}
+
+          <div className="ops-pagination">
+            <span>
+              총 {partnerTotal.toLocaleString()}개 · {partnerPage}/{partnerTotalPages} 페이지
+            </span>
+            <div className="ops-pagination-numbers">
+              {partnerPageButtons.map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  className={num === partnerPage ? "is-active" : ""}
+                  onClick={() => setPartnerPage(num)}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
+            <span />
+          </div>
+        </article>
+      ) : null}
+
+      {/* ----- 공고 검수 ----- */}
+      {tab === "positions" ? (
+        <article className="ops-partner-list-card">
+          <div className="ops-partner-list-top">
+            <h2>공고 검수 목록</h2>
+          </div>
+
+          <div className="ops-partner-filters ops-partner-filters--multi">
+            <input
+              value={positionSearch}
+              onChange={(e) => {
+                setPositionSearch(e.target.value);
+                setPositionPage(1);
+              }}
+              placeholder="공고 제목 / 파트너사 검색"
+              className="ops-partner-filter-search"
+            />
+            <select
+              value={String(positionPageSize)}
+              onChange={(e) => {
+                setPositionPageSize(Number(e.target.value) as 20 | 40 | 100);
+                setPositionPage(1);
+              }}
+              aria-label="페이지 크기"
+            >
+              <option value="20">20개</option>
+              <option value="40">40개</option>
+              <option value="100">100개</option>
+            </select>
+            {positionSearch ? (
+              <button
+                type="button"
+                className="ops-partner-filter-reset"
+                onClick={() => {
+                  setPositionSearch("");
+                  setPositionPage(1);
+                }}
+              >
+                필터 초기화
+              </button>
+            ) : null}
+          </div>
+
+          {selectedPositionIds.size > 0 ? (
+            <div className="ops-bulk-actionbar">
+              <span>
+                <strong>{selectedPositionIds.size.toLocaleString()}개</strong> 선택됨
+              </span>
+              <div className="ops-bulk-actionbar-buttons">
+                <button
+                  type="button"
+                  className="ops-action-cancel"
+                  onClick={() => setSelectedPositionIds(new Set())}
+                  disabled={bulkRunning}
+                >
+                  선택 해제
+                </button>
+                <button
+                  type="button"
+                  className="ops-action-danger"
+                  onClick={() => void bulkPositions(false)}
+                  disabled={bulkRunning}
+                >
+                  {bulkRunning ? "처리 중..." : "일괄 반려"}
+                </button>
+                <button
+                  type="button"
+                  className="ops-action-save"
+                  onClick={() => void bulkPositions(true)}
+                  disabled={bulkRunning}
+                >
+                  {bulkRunning ? "처리 중..." : "일괄 승인 → 게시"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="ops-partner-table-wrap">
+            <table className="ops-partner-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 36 }}>
+                    <input
+                      type="checkbox"
+                      aria-label="현재 페이지 전체 선택"
+                      checked={allPositionsSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = !allPositionsSelected && somePositionsSelected;
+                      }}
+                      onChange={toggleSelectAllPositions}
+                    />
+                  </th>
+                  <th>공고 제목</th>
+                  <th>파트너사</th>
+                  <th>등록</th>
+                  <th>액션</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="ops-table-empty">목록을 불러오는 중입니다...</td>
+                  </tr>
+                ) : positions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="ops-table-empty">검수 대기 중인 공고가 없습니다.</td>
+                  </tr>
+                ) : (
+                  positions.map((p) => {
+                    const isUpdating = updating === p.id;
+                    const checked = selectedPositionIds.has(p.id);
+                    return (
+                      <tr key={p.id}>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            aria-label={`${p.title} 선택`}
+                            checked={checked}
+                            onChange={() => togglePosition(p.id)}
+                          />
+                        </td>
+                        <td>{p.title}</td>
+                        <td>{p.partnerOrganizationName ?? "-"}</td>
+                        <td className="ops-row-sub">{formatRelativeTime(p.createdAt)}</td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <div className="ops-table-actions" style={{ gap: 6 }}>
+                            <button
+                              type="button"
+                              className="ops-action-danger"
+                              onClick={() => void rejectPosition(p.id)}
+                              disabled={isUpdating || bulkRunning}
+                              style={{ minWidth: 64, height: 32, fontSize: 12 }}
+                            >
+                              반려
+                            </button>
+                            <button
+                              type="button"
+                              className="ops-action-save"
+                              onClick={() => void approvePosition(p.id)}
+                              disabled={isUpdating || bulkRunning}
+                              style={{ minWidth: 96, height: 32, fontSize: 12 }}
+                            >
+                              승인 → 게시
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="ops-pagination">
+            <span>
+              총 {positionTotal.toLocaleString()}개 · {positionPage}/{positionTotalPages} 페이지
+            </span>
+            <div className="ops-pagination-numbers">
+              {positionPageButtons.map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  className={num === positionPage ? "is-active" : ""}
+                  onClick={() => setPositionPage(num)}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
+            <span />
+          </div>
+        </article>
+      ) : null}
     </section>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { readAccessToken } from "../../../../../lib/auth-client";
 import { IssueDetailModal, type IssueDetailIssue } from "../../../../../components/issues/IssueDetailModal";
 import { downloadCsv, formatCsvDate } from "../../../../../lib/csv-export";
@@ -63,35 +63,59 @@ function formatRelativeTime(iso: string) {
 
 export default function OpsIssuesPage() {
   const [items, setItems] = useState<Issue[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<IssueStatus | "ALL">("ALL");
   const [updating, setUpdating] = useState<string | null>(null);
   const [detailTarget, setDetailTarget] = useState<IssueDetailIssue | null>(null);
 
-  async function load() {
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | IssueStatus>("ALL");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<20 | 40 | 100>(20);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const token = readAccessToken();
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-      const response = await fetch(`${apiBaseUrl}/ops/issues`, {
+      const params = new URLSearchParams();
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (statusFilter !== "ALL") params.set("status", statusFilter);
+      params.set("page", String(page));
+      params.set("pageSize", String(pageSize));
+      const response = await fetch(`${apiBaseUrl}/ops/issues?${params.toString()}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         cache: "no-store"
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const payload = (await response.json()) as { ok?: boolean; items?: Issue[] };
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        items?: Issue[];
+        total?: number;
+        totalPages?: number;
+      };
       setItems(payload.items ?? []);
+      setTotal(payload.total ?? 0);
+      setTotalPages(payload.totalPages ?? 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "이슈 목록을 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
-  }
+  }, [debouncedSearch, statusFilter, page, pageSize]);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   async function updateStatus(id: string, status: IssueStatus) {
     setUpdating(id);
@@ -104,7 +128,18 @@ export default function OpsIssuesPage() {
         body: JSON.stringify({ status })
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status, resolvedAt: status === "RESOLVED" || status === "CLOSED" ? new Date().toISOString() : it.resolvedAt } : it)));
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === id
+            ? {
+                ...it,
+                status,
+                resolvedAt:
+                  status === "RESOLVED" || status === "CLOSED" ? new Date().toISOString() : it.resolvedAt
+              }
+            : it
+        )
+      );
     } catch (err) {
       window.alert(err instanceof Error ? err.message : "상태 변경 실패");
     } finally {
@@ -112,16 +147,15 @@ export default function OpsIssuesPage() {
     }
   }
 
-  const counts = useMemo(() => {
-    const result: Record<IssueStatus | "ALL", number> = { ALL: items.length, OPEN: 0, IN_PROGRESS: 0, RESOLVED: 0, CLOSED: 0 };
-    for (const it of items) result[it.status] += 1;
-    return result;
-  }, [items]);
-
-  const filtered = useMemo(() => {
-    if (filterStatus === "ALL") return items;
-    return items.filter((it) => it.status === filterStatus);
-  }, [items, filterStatus]);
+  const pageButtons = useMemo(() => {
+    const maxVisible = 7;
+    const pages: number[] = [];
+    const start = Math.max(1, page - 3);
+    const end = Math.min(totalPages, start + maxVisible - 1);
+    const normalizedStart = Math.max(1, end - maxVisible + 1);
+    for (let i = normalizedStart; i <= end; i += 1) pages.push(i);
+    return pages;
+  }, [page, totalPages]);
 
   return (
     <section className="ops-content-section">
@@ -130,32 +164,17 @@ export default function OpsIssuesPage() {
         <p>파트너·학생이 제출한 이슈를 검토하고 케이스를 트래킹하세요.</p>
       </header>
 
-      <article className="ops-card">
-        <div className="ops-card-header">
-          <div className="ops-filter-chip-row">
-            {(["ALL", "OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as const).map((key) => {
-              const active = filterStatus === key;
-              const label = key === "ALL" ? "전체" : STATUS_LABEL[key];
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setFilterStatus(key)}
-                  className={`ops-filter-chip ${active ? "is-active" : ""}`}
-                >
-                  {label} <span className="ops-filter-chip-count">{counts[key]}</span>
-                </button>
-              );
-            })}
-          </div>
+      <article className="ops-partner-list-card">
+        <div className="ops-partner-list-top">
+          <h2>이슈 목록</h2>
           <button
             type="button"
-            className="ops-btn"
+            className="ops-detail-button"
             onClick={() => {
               downloadCsv(
                 "issues",
                 ["유형", "상태", "제목", "설명", "신고자", "신고자 역할", "대상", "담당자", "처리 메모", "생성", "처리"],
-                filtered.map((it) => [
+                items.map((it) => [
                   TYPE_LABEL[it.type],
                   STATUS_LABEL[it.status],
                   it.title,
@@ -170,65 +189,149 @@ export default function OpsIssuesPage() {
                 ])
               );
             }}
-            disabled={filtered.length === 0}
+            disabled={items.length === 0}
           >
             CSV 내보내기
           </button>
         </div>
-      </article>
 
-      {loading ? (
-        <div className="ops-empty-card">이슈 목록을 불러오는 중...</div>
-      ) : error ? (
-        <div className="ops-error-card">{error}</div>
-      ) : filtered.length === 0 ? (
-        <div className="ops-empty-card">해당 상태의 이슈가 없습니다.</div>
-      ) : (
-        <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
-          {filtered.map((it) => {
-            const isUpdating = updating === it.id;
-            return (
-              <article key={it.id} className="ops-card">
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
-                  <div style={{ flex: "1 1 300px", minWidth: 0 }}>
-                    <div className="ops-tag-row" style={{ marginBottom: 8 }}>
-                      <span className="ops-pill ops-pill-gray">{TYPE_LABEL[it.type]}</span>
-                      <span className={`ops-pill ${STATUS_PILL[it.status]}`}>{STATUS_LABEL[it.status]}</span>
-                      <span className="ops-pill ops-pill-gray" style={{ background: "transparent" }}>{formatRelativeTime(it.createdAt)}</span>
-                    </div>
-                    <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "#111827" }}>{it.title}</h3>
-                    <p style={{ fontSize: 13, color: "#374151", margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{it.description}</p>
-                    <div style={{ marginTop: 12, fontSize: 12, color: "#6b7280", display: "flex", flexWrap: "wrap", gap: 12 }}>
-                      <span>신고자: <strong style={{ color: "#374151" }}>{it.reporter.name ?? it.reporter.email}</strong> ({it.reporter.role})</span>
-                      {it.subject ? (
-                        <span>대상: <strong style={{ color: "#374151" }}>{it.subject.name ?? it.subject.email}</strong></span>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="ops-table-actions">
-                    <select
-                      value={it.status}
-                      disabled={isUpdating}
-                      onChange={(e) => void updateStatus(it.id, e.target.value as IssueStatus)}
-                      className="ops-select ops-select-inline"
-                      style={{ minWidth: 130 }}
-                    >
-                      {(["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as IssueStatus[]).map((s) => (
-                        <option key={s} value={s}>
-                          {STATUS_LABEL[s]}
-                        </option>
-                      ))}
-                    </select>
-                    <button type="button" className="ops-btn" onClick={() => setDetailTarget(it as IssueDetailIssue)}>
-                      상세
-                    </button>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+        <div className="ops-partner-filters ops-partner-filters--multi">
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="제목 / 설명 검색"
+            className="ops-partner-filter-search"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as typeof statusFilter);
+              setPage(1);
+            }}
+            aria-label="상태 필터"
+          >
+            <option value="ALL">전체 상태</option>
+            <option value="OPEN">신규</option>
+            <option value="IN_PROGRESS">처리 중</option>
+            <option value="RESOLVED">해결</option>
+            <option value="CLOSED">종료</option>
+          </select>
+          <select
+            value={String(pageSize)}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value) as 20 | 40 | 100);
+              setPage(1);
+            }}
+            aria-label="페이지 크기"
+          >
+            <option value="20">20개</option>
+            <option value="40">40개</option>
+            <option value="100">100개</option>
+          </select>
+          {statusFilter !== "ALL" || search ? (
+            <button
+              type="button"
+              className="ops-partner-filter-reset"
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("ALL");
+                setPage(1);
+              }}
+            >
+              필터 초기화
+            </button>
+          ) : null}
         </div>
-      )}
+
+        {error ? <p className="ops-form-error">{error}</p> : null}
+
+        <div className="ops-partner-table-wrap">
+          <table className="ops-partner-table">
+            <thead>
+              <tr>
+                <th>유형</th>
+                <th>제목</th>
+                <th>신고자</th>
+                <th>대상</th>
+                <th>상태</th>
+                <th>생성</th>
+                <th>액션</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={7} className="ops-table-empty">목록을 불러오는 중입니다...</td></tr>
+              ) : items.length === 0 ? (
+                <tr><td colSpan={7} className="ops-table-empty">조건에 맞는 이슈가 없습니다.</td></tr>
+              ) : (
+                items.map((it) => {
+                  const isUpdating = updating === it.id;
+                  return (
+                    <tr key={it.id}>
+                      <td>{TYPE_LABEL[it.type]}</td>
+                      <td>{it.title}</td>
+                      <td>
+                        <div className="ops-row-strong">{it.reporter.name ?? it.reporter.email}</div>
+                        <div className="ops-row-sub" style={{ fontSize: 11 }}>{it.reporter.role}</div>
+                      </td>
+                      <td>{it.subject ? (it.subject.name ?? it.subject.email) : "-"}</td>
+                      <td>
+                        <span className={`ops-pill ${STATUS_PILL[it.status]}`}>{STATUS_LABEL[it.status]}</span>
+                      </td>
+                      <td className="ops-row-sub">{formatRelativeTime(it.createdAt)}</td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <div className="ops-table-actions" style={{ gap: 6 }}>
+                          <select
+                            value={it.status}
+                            disabled={isUpdating}
+                            onChange={(e) => void updateStatus(it.id, e.target.value as IssueStatus)}
+                            className="ops-select ops-select-inline"
+                            style={{ height: 32, minWidth: 110, fontSize: 12 }}
+                          >
+                            {(["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as IssueStatus[]).map((s) => (
+                              <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className="ops-detail-button"
+                            onClick={() => setDetailTarget(it as IssueDetailIssue)}
+                            style={{ height: 32, fontSize: 12 }}
+                          >
+                            상세
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="ops-pagination">
+          <span>
+            총 {total.toLocaleString()}개 · {page}/{totalPages} 페이지
+          </span>
+          <div className="ops-pagination-numbers">
+            {pageButtons.map((num) => (
+              <button
+                key={num}
+                type="button"
+                className={num === page ? "is-active" : ""}
+                onClick={() => setPage(num)}
+              >
+                {num}
+              </button>
+            ))}
+          </div>
+          <span />
+        </div>
+      </article>
 
       <IssueDetailModal
         open={detailTarget !== null}
