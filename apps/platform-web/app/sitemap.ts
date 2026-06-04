@@ -3,8 +3,14 @@ import { VISA_DETAILS } from "../lib/visa-details";
 
 // Generate sitemap at request time, cached for 1h. Build-time generation
 // timed out (60s ceiling) once the position pagination grew past ~5k rows;
-// pushing this to ISR lets the first post-deploy request pay the cost and
-// every subsequent visitor (incl. search crawlers) sees the cached XML.
+// pushing this to runtime lets the first post-deploy request pay the cost
+// and every subsequent visitor (incl. search crawlers) sees the cached XML.
+//
+// `revalidate = 3600` alone is not enough — Next.js 16 still attempts a
+// build-time pre-render for app-router metadata routes. We additionally
+// force-dynamic so the build never tries to fetch the API and a staging
+// build can't fail just because the staging API is slow during build.
+export const dynamic = "force-dynamic";
 export const revalidate = 3600;
 
 const siteUrl =
