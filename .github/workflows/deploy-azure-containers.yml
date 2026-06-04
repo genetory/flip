@@ -34,7 +34,18 @@ jobs:
       - name: Resolve deploy targets
         id: targets
         run: |
+          # 정책:
+          # - workflow_dispatch (수동): 항상 둘 다 배포.
+          # - main 푸시: 릴리스 머지가 다양한 영역을 모아오고, 직전 배포가
+          #   실패/취소된 경우 컨테이너 상태가 git 히스토리와 어긋날 수 있어
+          #   path 감지가 누락을 만들 위험이 큼. main 에서는 항상 둘 다 배포.
+          # - develop / 그 외: path 감지로 부분 배포(피처 푸시 빈도가 높음).
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "Manual dispatch — deploy both."
+            echo "deploy_web=true" >> "$GITHUB_OUTPUT"
+            echo "deploy_api=true" >> "$GITHUB_OUTPUT"
+          elif [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "main push — always deploy both (production release safety)."
             echo "deploy_web=true" >> "$GITHUB_OUTPUT"
             echo "deploy_api=true" >> "$GITHUB_OUTPUT"
           else
