@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
+import { AplyCipBadgeButton, CipInfoModal } from "../positions/AplyCipBadge";
 import { Button } from "../ui/button";
 import {
   addMyFavoritePosition,
@@ -283,6 +284,8 @@ export function PositionsPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
+  // "Aply CIP" 배지 옆 ? 버튼 클릭 시 열리는 프로그램 안내 모달.
+  const [isCipModalOpen, setIsCipModalOpen] = useState(false);
   const [loginPromptMessage, setLoginPromptMessage] = useState("");
   const [myPartnerOrganizationId, setMyPartnerOrganizationId] = useState<string | null>(null);
   const isKo = locale === "ko";
@@ -1064,6 +1067,7 @@ export function PositionsPage() {
                                 onApply={() => {
                                   void applyFromList(p.id);
                                 }}
+                                onShowCip={() => setIsCipModalOpen(true)}
                                 locale={locale}
                               />
                             </div>
@@ -1111,6 +1115,7 @@ export function PositionsPage() {
                                 onApply={() => {
                                   void applyFromList(p.id);
                                 }}
+                                onShowCip={() => setIsCipModalOpen(true)}
                                 locale={locale}
                               />
                             </div>
@@ -1190,6 +1195,9 @@ export function PositionsPage() {
           </div>
         </div>
       ) : null}
+      {isCipModalOpen ? (
+        <CipInfoModal locale={locale} onClose={() => setIsCipModalOpen(false)} />
+      ) : null}
       <Footer />
     </div>
   );
@@ -1232,6 +1240,7 @@ export const PositionRow = ({
   isFavorite,
   onToggleFavorite,
   onApply,
+  onShowCip,
   locale
 }: {
   p: PositionCard;
@@ -1241,6 +1250,7 @@ export const PositionRow = ({
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onApply: () => void;
+  onShowCip?: () => void;
   locale: PlatformLocale;
 }) => {
   const isKo = locale === "ko";
@@ -1326,10 +1336,9 @@ export const PositionRow = ({
 
         <div className="min-w-0 md:flex md:flex-col md:justify-center">
           {p.sourceProvider === "INTERNAL" ? (
-            <span className="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-[#b7ff5a] px-2 py-0.5 text-[10px] font-bold text-[#111111]">
-              <Star className="h-2.5 w-2.5 fill-current" />
-              Aply
-            </span>
+            <div className="mb-1">
+              <AplyCipBadgeButton onClick={() => onShowCip?.()} />
+            </div>
           ) : null}
           <div className="mb-0.5 min-w-0 text-[11px] text-muted-foreground md:text-xs">
             {href ? (
@@ -1409,6 +1418,7 @@ const PositionGridCard = ({
   isFavorite,
   onToggleFavorite,
   onApply,
+  onShowCip,
   locale
 }: {
   p: PositionCard;
@@ -1418,6 +1428,7 @@ const PositionGridCard = ({
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onApply: () => void;
+  onShowCip?: () => void;
   locale: PlatformLocale;
 }) => {
   const isKo = locale === "ko";
@@ -1497,10 +1508,9 @@ const PositionGridCard = ({
       <div className="mt-4 text-xs text-muted-foreground">
         <div className="min-w-0 md:flex md:flex-col md:justify-center">
           {p.sourceProvider === "INTERNAL" ? (
-            <span className="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-[#b7ff5a] px-2 py-0.5 text-[10px] font-bold text-[#111111]">
-              <Star className="h-2.5 w-2.5 fill-current" />
-              Aply
-            </span>
+            <div className="mb-1">
+              <AplyCipBadgeButton onClick={() => onShowCip?.()} />
+            </div>
           ) : null}
           {href ? (
             <Link href={href} className="relative z-20 block truncate font-semibold hover:text-foreground">
@@ -1564,3 +1574,5 @@ const PositionGridCard = ({
     </article>
   );
 };
+
+// CipInfoModal + AplyCipBadgeButton 은 components/positions/AplyCipBadge.tsx 로 추출됨.
