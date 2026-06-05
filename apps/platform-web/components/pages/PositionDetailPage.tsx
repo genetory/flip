@@ -17,6 +17,7 @@ import {
 } from "../../lib/member-profile-client";
 import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { ArrowLeft, Briefcase, ChevronLeft, ChevronRight, Loader2, MapPin } from "lucide-react";
+import { AplyCipBadgeButton, CipInfoModal } from "../positions/AplyCipBadge";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
@@ -130,6 +131,8 @@ export function PositionDetailPage({
   const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(true);
   const [selectedThumbnailIndex, setSelectedThumbnailIndex] = useState(0);
   const [isThumbnailPreviewOpen, setIsThumbnailPreviewOpen] = useState(false);
+  // "Aply CIP" 배지 클릭 시 띄우는 프로그램 안내 모달.
+  const [isCipModalOpen, setIsCipModalOpen] = useState(false);
   const [appliedPositionIds, setAppliedPositionIds] = useState<string[]>([]);
   const [myPartnerOrganizationId, setMyPartnerOrganizationId] = useState<string | null>(null);
   const inlineGalleryRef = useRef<HTMLDivElement | null>(null);
@@ -648,6 +651,11 @@ export function PositionDetailPage({
                 <p className="mt-1 truncate">{category}</p>
               </div>
               <h1 className="mt-2 font-display text-2xl font-bold leading-tight md:text-3xl">{position.title}</h1>
+              {position.sourceProvider === "INTERNAL" ? (
+                <div className="mt-3">
+                  <AplyCipBadgeButton size="md" onClick={() => setIsCipModalOpen(true)} />
+                </div>
+              ) : null}
             </div>
 
             <div className="mt-8">
@@ -878,6 +886,9 @@ export function PositionDetailPage({
           ) : null}
         </div>
       </main>
+      {isCipModalOpen ? (
+        <CipInfoModal locale={locale} onClose={() => setIsCipModalOpen(false)} />
+      ) : null}
       <Footer />
     </div>
   );
