@@ -28,6 +28,17 @@ export const Header = () => {
   const [open, setOpen] = useState(false);
   const [activeHash, setActiveHash] = useState("");
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  // 데스크탑 GNB 가 lg(1024) 부터 노출되는데, lg~xl(1024–1279) 구간은
+  // 메뉴 항목 + 우측 컨트롤이 한 줄에 빠듯하다. xl 미만에서는 언어 셀렉터를
+  // 풀네임 → "🇰🇷 KO" 같은 코드 형태로 축약해서 nav 폭을 확보.
+  const [isXlViewport, setIsXlViewport] = useState(true);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1280px)");
+    const sync = () => setIsXlViewport(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
   const { locale, setLocale } = useLanguage();
   const { user, isReady, isAuthenticated, getAccountUrl } = useAuthSession();
   const avatarFallback = user?.name?.trim()?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "U";
@@ -124,6 +135,16 @@ export const Header = () => {
     ja: `${localeEmoji.ja} ${localeLabel.ja}`,
     id: `${localeEmoji.id} ${localeLabel.id}`
   };
+  // 압축 라벨: lg(1024)~xl(1279) 구간 데스크탑 GNB 에서만 사용.
+  // 햄버거 메뉴 안쪽(<lg) 과 xl+ 데스크탑은 풀네임을 유지.
+  const localeCompactLabel: Record<PlatformLocale, string> = {
+    ko: `${localeEmoji.ko} KO`,
+    en: `${localeEmoji.en} EN`,
+    "zh-CN": `${localeEmoji["zh-CN"]} ZH`,
+    vi: `${localeEmoji.vi} VI`,
+    ja: `${localeEmoji.ja} JA`,
+    id: `${localeEmoji.id} ID`
+  };
   const maxLocaleTextUnits = Object.values(localeLabel).reduce((max, text) => {
     const units = Array.from(text).reduce((sum, ch) => {
       const code = ch.charCodeAt(0);
@@ -133,6 +154,8 @@ export const Header = () => {
     return Math.max(max, units);
   }, 0);
   const localeButtonWidthPx = Math.max(112, Math.ceil(maxLocaleTextUnits * 9) + 40);
+  // 데스크탑 셀렉터 폭: xl+ 면 풀네임 기반(≈200px), 그 아래면 축약본 기반(≈92px).
+  const desktopLocaleWidthPx = isXlViewport ? localeButtonWidthPx : 92;
 
   return (
     <>
@@ -155,7 +178,7 @@ export const Header = () => {
             priority
           />
         </Link>
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="hidden items-center gap-4 lg:flex xl:gap-8">
           {navItems.map((item) => {
             const cls = `text-xs transition-colors ${
               isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
@@ -175,7 +198,7 @@ export const Header = () => {
             );
           })}
         </nav>
-        <div className="hidden items-center md:flex">
+        <div className="hidden items-center lg:flex">
           {!isReady ? (
             <div className="h-8 w-24" aria-hidden />
           ) : isAuthenticated ? (
@@ -215,18 +238,18 @@ export const Header = () => {
               onChange={(e) => handleLocaleChange(e.target.value as PlatformLocale)}
               aria-label={copy.languageLabel}
               className="h-9 appearance-none bg-transparent pl-2 pr-7 text-right text-xs font-medium text-foreground focus-visible:outline-none"
-              style={{ width: `${localeButtonWidthPx}px` }}
+              style={{ width: `${desktopLocaleWidthPx}px` }}
             >
               {PLATFORM_LOCALES.map((value) => (
                 <option key={value} value={value}>
-                  {localeDisplayLabel[value]}
+                  {isXlViewport ? localeDisplayLabel[value] : localeCompactLabel[value]}
                 </option>
               ))}
             </select>
           </div>
         </div>
         <button
-          className="md:hidden"
+          className="lg:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-label={copy.menuOpenLabel}
         >
@@ -234,7 +257,7 @@ export const Header = () => {
         </button>
       </div>
       {open && (
-        <div className="border-t border-border bg-background md:hidden">
+        <div className="border-t border-border bg-background lg:hidden">
           <div className="container flex flex-col gap-3 py-4">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-medium text-foreground">{copy.languageLabel}</span>
