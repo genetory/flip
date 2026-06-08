@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Briefcase,
   Eye,
@@ -10,11 +10,9 @@ import {
   Sparkle,
   Trash,
   Lightning,
-  ChatCircleText,
   CaretRight,
   CheckCircle,
-  X,
-  PaperPlaneRight
+  X
 } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "../ui/button";
 import { CipInfoModal } from "../positions/AplyCipBadge";
@@ -26,14 +24,12 @@ import {
   getMyResume,
   getPublicPositionsPage,
   getResumeCoach,
-  postResumeCoachChat,
   postResumeCoachSuggest,
   updateMyResume,
   type Resume,
   type ResumeContent,
   type ResumeCoachAction,
   type ResumeCoachActionCategory,
-  type ResumeCoachChatMessage,
   type ResumeCoachData,
   type ResumeCoachSuggestion,
   type ResumeQualityDimensions,
@@ -141,7 +137,7 @@ export function ResumeCoachPanel({
   // AI 호출 동의 게이트. 사용자가 처음 AI 액션(추천/챗)을 트리거할 때 한 번
   // 모달로 받아두고 localStorage 에 기록 — 그 다음부터는 묻지 않는다. v1 은
   // 동의 문구가 바뀔 때 재동의 받기 위한 버저닝.
-  type PendingAiAction = { kind: "suggest"; action: ResumeCoachAction } | { kind: "chat"; draft: string };
+  type PendingAiAction = { kind: "suggest"; action: ResumeCoachAction };
   const CONSENT_KEY = "aply.ai-coach.consent.v1";
   const [aiConsent, setAiConsent] = useState<boolean>(false);
   const [consentOpen, setConsentOpen] = useState(false);
@@ -156,11 +152,6 @@ export function ResumeCoachPanel({
     }
   }, []);
 
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ResumeCoachChatMessage[]>([]);
-  const [chatDraft, setChatDraft] = useState("");
-  const [chatBusy, setChatBusy] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   // resumeId 가 바뀔 때마다 새 이력서 데이터 + 코치 데이터 fetch. 챗과 모달
   // 상태도 새 이력서 기준으로 리셋해서 이전 흔적이 보이지 않게.
@@ -169,8 +160,6 @@ export function ResumeCoachPanel({
     setResume(null);
     setCoach(null);
     setLoadError(null);
-    setChatMessages([]);
-    setChatOpen(false);
     setSuggestionFor(null);
     setSuggestion(null);
     setDeleteOpen(false);
@@ -281,8 +270,6 @@ export function ResumeCoachPanel({
     if (next?.kind === "suggest") {
       // 다음 tick 에서 호출해야 state 가 적용된 뒤 게이트가 통과됨.
       setTimeout(() => openSuggestion(next.action), 0);
-    } else if (next?.kind === "chat") {
-      setTimeout(() => sendChat(), 0);
     }
   }
 
@@ -300,36 +287,6 @@ export function ResumeCoachPanel({
       setDeleting(false);
     }
   }
-
-  async function sendChat() {
-    const text = chatDraft.trim();
-    if (!text || chatBusy) return;
-    // 챗 첫 메시지 보내기 전에도 동일하게 동의 받음.
-    if (!aiConsent) {
-      setPendingAi({ kind: "chat", draft: text });
-      setConsentOpen(true);
-      return;
-    }
-    const nextMessages: ResumeCoachChatMessage[] = [...chatMessages, { role: "user", content: text }];
-    setChatMessages(nextMessages);
-    setChatDraft("");
-    setChatBusy(true);
-    try {
-      const reply = await postResumeCoachChat(resumeId, nextMessages.slice(-10));
-      setChatMessages([...nextMessages, { role: "assistant", content: reply }]);
-    } catch (err) {
-      setChatMessages([
-        ...nextMessages,
-        { role: "assistant", content: err instanceof Error ? `(오류) ${err.message}` : "(오류) 응답을 받지 못했어요." }
-      ]);
-    } finally {
-      setChatBusy(false);
-    }
-  }
-
-  useEffect(() => {
-    if (chatOpen) chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages, chatBusy, chatOpen]);
 
   // ---- Loading / errors -------------------------------------------------
   if (coach === null && !loadError) {
@@ -596,99 +553,6 @@ export function ResumeCoachPanel({
                 />
               ))}
             </div>
-          </div>
-        ) : null}
-      </section>
-
-      {/* Chat toggle */}
-      <section className="mt-5">
-        {/* 챗 카드 — 다른 섹션 카드들 사이에서 너무 두드러지지 않도록 라운드를
-            줄이고 배경·아이콘 채도를 낮춰 보조 액션으로 위계 조정. */}
-        <button
-          type="button"
-          onClick={() => setChatOpen((v) => !v)}
-          className="flex w-full items-center gap-3 rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-left transition hover:bg-muted/50"
-        >
-          <span className="inline-flex h-8 w-8 flex-none items-center justify-center rounded-full bg-foreground/10 text-foreground/70">
-            <ChatCircleText className="h-4 w-4" weight="bold" />
-          </span>
-          <span className="flex-1">
-            <span className="block text-[12.5px] font-semibold text-foreground/80">
-              {tr("AI 코치에게 물어보세요", "Ask the AI coach", "向AI教练提问", "Hỏi huấn luyện viên AI", "AIコーチに質問", "Tanya pelatih AI")}
-            </span>
-            <span className="block text-[11.5px] text-muted-foreground">
-              {tr(
-                '예: "내 자기소개를 한국 IT 기업 톤으로 바꿔줘"',
-                'e.g. "Rewrite my self-intro in a Korean IT company tone"',
-                '例如："把我的自我介绍改成韩国IT公司语气"',
-                'Vd: "Viết lại tự giới thiệu theo phong cách công ty IT Hàn Quốc"',
-                '例：「私の自己紹介を韓国IT企業のトーンに書き直して」',
-                'Cth: "Tulis ulang perkenalan diri saya dengan nada perusahaan IT Korea"'
-              )}
-            </span>
-          </span>
-          <CaretRight className={`h-3.5 w-3.5 flex-none text-muted-foreground transition ${chatOpen ? "rotate-90" : ""}`} weight="bold" />
-        </button>
-
-        {chatOpen ? (
-          <div className="mt-3 rounded-2xl border border-border bg-card p-4">
-            <div className="max-h-80 space-y-3 overflow-y-auto">
-              {chatMessages.length === 0 ? (
-                <p className="px-2 py-6 text-center text-[12.5px] text-muted-foreground">
-                  {tr("아래에 질문을 입력해보세요.", "Type a question below.", "在下方输入您的问题。", "Nhập câu hỏi của bạn bên dưới.", "下に質問を入力してください。", "Ketik pertanyaan Anda di bawah.")}
-                </p>
-              ) : (
-                chatMessages.map((m, i) => (
-                  <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div
-                      className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed ${
-                        m.role === "user" ? "bg-foreground text-background" : "bg-muted text-foreground"
-                      }`}
-                    >
-                      {m.content}
-                    </div>
-                  </div>
-                ))
-              )}
-              {chatBusy ? (
-                <div className="flex justify-start">
-                  <div className="rounded-2xl bg-muted px-3.5 py-2.5 text-[13px] text-muted-foreground">
-                    {tr("생각하는 중…", "Thinking…", "思考中…", "Đang suy nghĩ…", "考え中…", "Berpikir…")}
-                  </div>
-                </div>
-              ) : null}
-              <div ref={chatEndRef} />
-            </div>
-            <form
-              className="mt-3 flex items-center gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                sendChat();
-              }}
-            >
-              <input
-                type="text"
-                value={chatDraft}
-                onChange={(e) => setChatDraft(e.target.value)}
-                placeholder={tr(
-                  "질문을 입력하세요…",
-                  "Type your question…",
-                  "输入你的问题…",
-                  "Nhập câu hỏi của bạn…",
-                  "質問を入力…",
-                  "Ketik pertanyaan Anda…"
-                )}
-                className="flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
-                disabled={chatBusy}
-              />
-              <button
-                type="submit"
-                disabled={chatBusy || chatDraft.trim().length === 0}
-                className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-foreground text-background transition hover:opacity-90 disabled:opacity-40"
-              >
-                <PaperPlaneRight className="h-4 w-4" weight="fill" />
-              </button>
-            </form>
           </div>
         ) : null}
       </section>
