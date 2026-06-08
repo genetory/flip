@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowSquareOut, Eye, Lock, Plus, Rows, SidebarSimple, Sparkle, X, XIcon } from "@phosphor-icons/react/dist/ssr";
+import { AiTextHelperModal } from "./AiTextHelperModal";
+import type { DraftResumeTextFieldType } from "../../lib/member-profile-client";
 import Image from "next/image";
 import { Header } from "../site/Header";
 import { Button } from "../ui/button";
@@ -116,12 +118,15 @@ function Field({
   label,
   hint,
   required,
+  action,
   children,
   className
 }: {
   label: string;
   hint?: string;
   required?: boolean;
+  // 우측에 두는 인라인 액션 (예: "AI 도우미" 버튼). hint 가 있으면 hint 뒤에 둠.
+  action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -132,7 +137,10 @@ function Field({
           {label}
           {required ? <span className="ml-0.5 text-rose-500" aria-hidden>*</span> : null}
         </span>
-        {hint ? <span className="text-[11px] text-muted-foreground">{hint}</span> : null}
+        <div className="flex items-center gap-2">
+          {hint ? <span className="text-[11px] text-muted-foreground">{hint}</span> : null}
+          {action}
+        </div>
       </div>
       {children}
     </div>
@@ -177,6 +185,17 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
   // 자기소개 / 요약
   const [summary, setSummary] = useState("");
   const [selfIntro, setSelfIntro] = useState("");
+
+  // AI 작성 도우미 — null 이면 모달 닫힘. open 시 textarea 의 현재값과 적용
+  // 콜백을 함께 전달해서 모달이 self-contained 으로 동작.
+  type AiHelperState = {
+    fieldType: DraftResumeTextFieldType;
+    fieldLabel: string;
+    currentText: string;
+    context?: { companyName?: string; position?: string; title?: string };
+    onApply: (text: string) => void;
+  };
+  const [aiHelper, setAiHelper] = useState<AiHelperState | null>(null);
 
   useEffect(() => {
     if (!isReady || !isAuthenticated) return;
@@ -560,7 +579,27 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
                   className={inputClass}
                 />
               </Field>
-              <Field label={tr("자기소개", "About me", "自我介绍", "Giới thiệu bản thân", "自己紹介", "Tentang saya")} required>
+              <Field
+                label={tr("자기소개", "About me", "自我介绍", "Giới thiệu bản thân", "自己紹介", "Tentang saya")}
+                required
+                action={
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAiHelper({
+                        fieldType: "selfIntroduction",
+                        fieldLabel: tr("자기소개", "About me", "自我介绍", "Giới thiệu bản thân", "自己紹介", "Tentang saya"),
+                        currentText: selfIntro,
+                        onApply: (text) => setSelfIntro(text)
+                      })
+                    }
+                    className="inline-flex items-center gap-1 rounded-md bg-foreground px-2 py-0.5 text-[11px] font-semibold text-background hover:opacity-90"
+                  >
+                    <Sparkle className="h-3 w-3" weight="fill" />
+                    {tr("AI 도우미", "AI helper", "AI助手", "Trợ lý AI", "AIアシスタント", "Asisten AI")}
+                  </button>
+                }
+              >
                 <textarea
                   value={selfIntro}
                   onChange={(e) => setSelfIntro(e.target.value)}
@@ -643,7 +682,29 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
                       placeholder={{ year: tr("연도", "Year", "年份", "Năm", "年", "Tahun"), month: tr("월", "Month", "月", "Tháng", "月", "Bulan") }}
                     />
                   </Field>
-                  <Field label={tr("주요 업무", "Highlights", "主要工作", "Công việc chính", "主な業務", "Tugas utama")} hint={tr("선택", "Optional", "可选", "Tùy chọn", "任意", "Opsional")}>
+                  <Field
+                    label={tr("주요 업무", "Highlights", "主要工作", "Công việc chính", "主な業務", "Tugas utama")}
+                    hint={tr("선택", "Optional", "可选", "Tùy chọn", "任意", "Opsional")}
+                    action={
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAiHelper({
+                            fieldType: "career",
+                            fieldLabel: `${c.companyName?.trim() || tr("경력", "Experience", "经历", "Kinh nghiệm", "経歴", "Pengalaman")} · ${tr("주요 업무", "Highlights", "主要工作", "Công việc chính", "主な業務", "Tugas utama")}`,
+                            currentText: c.description ?? "",
+                            context: { companyName: c.companyName, position: c.position },
+                            onApply: (text) =>
+                              setCareers((p) => p.map((x, idx) => (idx === i ? { ...x, description: text } : x)))
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-md bg-foreground px-2 py-0.5 text-[11px] font-semibold text-background hover:opacity-90"
+                      >
+                        <Sparkle className="h-3 w-3" weight="fill" />
+                        {tr("AI 도우미", "AI helper", "AI助手", "Trợ lý AI", "AIアシスタント", "Asisten AI")}
+                      </button>
+                    }
+                  >
                     <textarea value={c.description ?? ""} onChange={(ev) => setCareers((p) => p.map((x, idx) => (idx === i ? { ...x, description: ev.target.value } : x)))} rows={2} placeholder={tr("담당 프로젝트·성과 등을 자유롭게", "Describe projects and impact", "请简述项目与成果", "Mô tả dự án và thành tựu", "プロジェクトや成果を記載", "Tulis proyek & dampak")} className="w-full rounded-xl border border-border bg-white px-4 py-3 text-[15px] outline-none focus:border-primary" />
                   </Field>
                 </div>
@@ -683,7 +744,29 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
                       placeholder={{ year: tr("연도", "Year", "年份", "Năm", "年", "Tahun"), month: tr("월", "Month", "月", "Tháng", "月", "Bulan") }}
                     />
                   </Field>
-                  <Field label={tr("설명", "Description", "说明", "Mô tả", "説明", "Deskripsi")} hint={tr("선택", "Optional", "可选", "Tùy chọn", "任意", "Opsional")}>
+                  <Field
+                    label={tr("설명", "Description", "说明", "Mô tả", "説明", "Deskripsi")}
+                    hint={tr("선택", "Optional", "可选", "Tùy chọn", "任意", "Opsional")}
+                    action={
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAiHelper({
+                            fieldType: "activity",
+                            fieldLabel: `${a.title?.trim() || tr("활동", "Activity", "活动", "Hoạt động", "活動", "Aktivitas")} · ${tr("설명", "Description", "说明", "Mô tả", "説明", "Deskripsi")}`,
+                            currentText: a.description ?? "",
+                            context: { title: a.title },
+                            onApply: (text) =>
+                              setActivities((p) => p.map((x, idx) => (idx === i ? { ...x, description: text } : x)))
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-md bg-foreground px-2 py-0.5 text-[11px] font-semibold text-background hover:opacity-90"
+                      >
+                        <Sparkle className="h-3 w-3" weight="fill" />
+                        {tr("AI 도우미", "AI helper", "AI助手", "Trợ lý AI", "AIアシスタント", "Asisten AI")}
+                      </button>
+                    }
+                  >
                     <textarea value={a.description ?? ""} onChange={(ev) => setActivities((p) => p.map((x, idx) => (idx === i ? { ...x, description: ev.target.value } : x)))} rows={2} placeholder={tr("역할·결과·배운 점 등", "Role, outcome, learnings", "角色·成果·所学", "Vai trò, kết quả, bài học", "役割・成果・学び", "Peran, hasil, pelajaran")} className="w-full rounded-xl border border-border bg-white px-4 py-3 text-[15px] outline-none focus:border-primary" />
                   </Field>
                 </div>
@@ -856,6 +939,17 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
           eduStatusOptions={eduStatusOptions}
         />
       ) : null}
+
+      {/* AI 작성 도우미 모달 — 자기소개/경력/활동의 [AI 도우미] 클릭 시 노출 */}
+      <AiTextHelperModal
+        open={aiHelper !== null}
+        onClose={() => setAiHelper(null)}
+        fieldType={aiHelper?.fieldType ?? "selfIntroduction"}
+        fieldLabel={aiHelper?.fieldLabel ?? ""}
+        currentText={aiHelper?.currentText ?? ""}
+        context={aiHelper?.context}
+        onApply={(text) => aiHelper?.onApply(text)}
+      />
     </div>
   );
 }

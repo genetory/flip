@@ -1617,3 +1617,37 @@ export async function postResumeCoachChat(
   if (typeof result.reply !== "string") throw new Error("chat response missing reply");
   return result.reply;
 }
+
+// 이력서 편집 페이지에서 저장 전 임시 텍스트도 받을 수 있는 generic AI
+// 작성 도우미. resumeId 가 없어도 동작 — 본문 저장 여부와 무관하게 자기소개
+// /경력/활동 description 의 초안을 만들거나 다듬을 때 사용.
+export type DraftResumeTextFieldType = "selfIntroduction" | "summary" | "career" | "activity";
+export type DraftResumeTextMode = "improve" | "expand" | "generate";
+
+export type DraftResumeTextInput = {
+  currentText: string;
+  fieldType: DraftResumeTextFieldType;
+  mode?: DraftResumeTextMode;
+  context?: {
+    companyName?: string;
+    position?: string;
+    title?: string;
+  };
+  hints?: string;
+};
+
+export type DraftResumeTextResult = {
+  text: string;
+  why: string;
+  mode: DraftResumeTextMode;
+  fieldType: DraftResumeTextFieldType;
+};
+
+export async function postDraftResumeText(input: DraftResumeTextInput): Promise<DraftResumeTextResult> {
+  const result = (await authedJsonFetch("/members/me/ai/draft-resume-text", {
+    method: "POST",
+    body: JSON.stringify(input)
+  })) as unknown as { draft?: DraftResumeTextResult };
+  if (!result.draft) throw new Error("draft response missing payload");
+  return result.draft;
+}
