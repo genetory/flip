@@ -6823,15 +6823,120 @@ app.post("/visa/check", async (req, res) => {
     targetRole: input.targetRole ?? null
   });
 
-  // Lightweight position picks — most-recent OPEN positions matching the
-  // targetRole (if any) or the user's koreanLevel as a coarse proxy.
-  const positionRows = await prisma.position.findMany({
+  // 사용자 입력(비자 / 국적 / 전공 / 한국어 / targetRole) 기반 매칭 점수로
+  // 추천 포지션 5개 선정. 룰 기반·즉시 계산이라 임베딩 비용 없음. 후보 풀
+  // 은 최근 OPEN 60개 — 점수 차이 명확히 나오기에 충분.
+  const candidates = await prisma.position.findMany({
     where: { status: PositionStatus.OPEN },
     orderBy: { createdAt: "desc" },
-    take: 5,
-    select: { id: true }
+    take: 60,
+    select: {
+      id: true,
+      title: true,
+      eligibleVisas: true,
+      preferredNationalities: true,
+      communicationLanguages: true,
+      preferredJobRole: true
+    }
   });
-  const recommendedPositionIds = positionRows.map((p) => p.id);
+
+  // 결과로 나온 비자 코드 set — fit=high/medium 만으로 한정해 후원 가능성
+  // 시그널을 정확하게 잡음 (low 는 가산점 대상에서 제외).
+  const userVisaCodes = new Set(
+    eligibleVisas
+      .filter((v) => v.fit === "high" || v.fit === "medium")
+      .map((v) => v.code.toUpperCase())
+  );
+
+  // 전공 → 직무 키워드 매핑(heuristic). preferredJobRole / title 에 키워드
+  // 가 포함되면 매칭으로 본다. 한국어/영어 키워드 함께 둬서 다국어 공고도 잡힘.
+  const majorRoleKeywords: Record<string, string[]> = {
+    IT: ["software", "engineer", "developer", "개발자", "엔지니어", "frontend", "backend"],
+    IT_SOFTWARE: ["software", "engineer", "developer", "개발자", "엔지니어", "frontend", "backend"],
+    AI_DATA: ["data", "ai", "ml", "데이터", "분석", "analyst", "scientist"],
+    ENGINEERING: ["engineer", "엔지니어"],
+    MECHANICAL: ["mechanical", "기계"],
+    ELECTRICAL: ["electrical", "electronics", "전기", "전자"],
+    CIVIL: ["civil", "architect", "건축", "토목"],
+    CHEMICAL: ["chemical", "화학", "소재"],
+    BUSINESS: ["business", "manager", "경영", "운영", "operations"],
+    ECONOMICS: ["finance", "economic", "재무", "금융"],
+    MARKETING: ["marketing", "growth", "마케팅", "광고"],
+    DESIGN: ["design", "ux", "ui", "디자인", "designer"],
+    ART: ["art", "music", "film", "video", "예술", "영상"],
+    HUMANITIES: ["content", "writer", "editor", "콘텐츠"],
+    KOREAN_STUDIES: ["korean", "한국어", "통역", "번역"],
+    EDUCATION: ["teacher", "instructor", "교사", "강사", "education"],
+    LAW: ["legal", "law", "법무", "compliance"],
+    SOCIAL_SCIENCE: ["research", "policy", "리서치"],
+    SCIENCE: ["research", "scientist", "lab", "연구"],
+    MEDICINE: ["medical", "nursing", "health", "의료", "간호", "보건"],
+    AGRICULTURE: ["food", "agri", "농업", "식품"],
+    TOURISM: ["tourism", "hotel", "hospitality", "관광", "호텔"],
+    COMMUNICATIONS: ["media", "journalism", "pr", "미디어", "홍보"],
+    INTERNATIONAL: ["international", "global", "외교"]
+  };
+  const majorKeywords =
+    input.majorCategory && majorRoleKeywords[input.majorCategory]
+      ? majorRoleKeywords[input.majorCategory].map((k) => k.toLowerCase())
+      : [];
+
+  const targetKeywords = input.targetRole
+    ? input.targetRole
+        .toLowerCase()
+        .split(/[\s,/·]+/)
+        .filter((w) => w.length >= 2)
+    : [];
+
+  const koreanScoreMap: Record<string, number> = {
+    NONE: 0, BEGINNER: 1, INTERMEDIATE: 2, ADVANCED: 3, NATIVE: 4
+  };
+  const userKoreanScore = koreanScoreMap[input.koreanLevel] ?? 2;
+  const userNatUpper = input.nationality.toUpperCase();
+
+  type Scored = { id: string; score: number };
+  const scored: Scored[] = candidates.map((p) => {
+    let score = 0;
+
+    // 1) 비자 후원 매칭 — 가장 강력한 시그널.
+    const posVisas = (p.eligibleVisas ?? []).map((v) => v.toUpperCase());
+    if (posVisas.length > 0 && userVisaCodes.size > 0) {
+      const hasMatch = posVisas.some((pv) =>
+        Array.from(userVisaCodes).some((uv) => pv.includes(uv) || uv.includes(pv))
+      );
+      if (hasMatch) score += 40;
+      else score -= 10; // 후원 안 되는 곳은 감점
+    }
+
+    // 2) 국적 매칭 — preferredNationalities 에 명시됐으면 +.
+    const posNat = (p.preferredNationalities ?? []).map((n) => n.toUpperCase());
+    if (posNat.length > 0 && posNat.includes(userNatUpper)) score += 20;
+
+    // 3) 전공 → 직무 키워드 매칭.
+    const haystack = `${p.title} ${p.preferredJobRole ?? ""}`.toLowerCase();
+    if (majorKeywords.length > 0 && majorKeywords.some((kw) => haystack.includes(kw))) {
+      score += 25;
+    }
+
+    // 4) targetRole 직접 매칭 — 사용자가 명시한 게 가장 신호 강함.
+    if (targetKeywords.length > 0) {
+      const matchCount = targetKeywords.filter((kw) => haystack.includes(kw)).length;
+      if (matchCount > 0) score += 15 * matchCount;
+    }
+
+    // 5) 한국어 ↔ 포지션 언어 요구.
+    const posLangs = (p.communicationLanguages ?? []).map((l) => l.toLowerCase());
+    const requiresKorean = posLangs.some((l) => l.includes("kor") || l.includes("한국") || l === "ko");
+    const onlyEnglish = posLangs.length > 0 && posLangs.every((l) => l.includes("en"));
+    if (requiresKorean && userKoreanScore < 2) score -= 15;
+    if (onlyEnglish) score += 5;
+
+    return { id: p.id, score };
+  });
+
+  // 점수 내림차순. 동점은 원래 순서(최근) 유지.
+  scored.sort((a, b) => b.score - a.score);
+  const recommendedPositionIds = scored.slice(0, 5).map((s) => s.id);
 
   const ipRaw =
     (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
