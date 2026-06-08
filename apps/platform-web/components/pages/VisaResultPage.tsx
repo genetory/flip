@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ShareNetwork, Copy as CopyIcon, ArrowClockwise } from "@phosphor-icons/react/dist/ssr";
-import { Header } from "../site/Header";
-import { Footer } from "../site/Footer";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
@@ -514,22 +512,23 @@ export function VisaResultPage({ slug }: { slug: string }) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
-      <Header />
-      <main className="container py-10 md:py-14">
-        <div className="mx-auto max-w-2xl space-y-6">
+    <div className="min-h-screen bg-background font-sans text-foreground antialiased">
+      {/* 모바일 폭(480px)으로 고정 + GNB(Header)/Footer 없음 — VisaLandingPage
+          와 동일한 몰입형 모바일 웹 톤. 데스크탑에서도 폰 가로폭으로 보임. */}
+      <main className="mx-auto min-h-screen w-full max-w-[480px] px-4 py-6 sm:py-8">
+        <div className="space-y-6">
           {loading ? (
             <p className="text-center text-sm text-muted-foreground">{t.loading}</p>
           ) : error ? (
             <p className="text-center text-sm text-destructive">{error}</p>
           ) : result ? (
             <>
-              <section className="rounded-3xl bg-gradient-to-br from-primary/10 via-white to-white p-6 text-center md:p-8">
+              <section className="rounded-3xl bg-gradient-to-br from-primary/10 via-white to-white p-6 text-center">
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary">{t.pill}</p>
                 {result.name ? (
                   <p className="mt-2 text-sm text-muted-foreground">{t.ownerSubtitle(result.name)}</p>
                 ) : null}
-                <p className="mt-3 font-display text-3xl font-black tracking-tight md:text-4xl">
+                <p className="mt-3 font-display text-[28px] leading-tight font-black tracking-tight">
                   {t.visaCountTitle(result.eligibleVisas.length)}
                 </p>
                 <p className="mt-3 text-xs text-muted-foreground">
@@ -547,7 +546,7 @@ export function VisaResultPage({ slug }: { slug: string }) {
 
               <section className="space-y-3">
                 {result.eligibleVisas.map((v) => (
-                  <article key={v.code} className="rounded-2xl bg-white p-5 md:p-6">
+                  <article key={v.code} className="rounded-2xl bg-white p-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="font-display text-xl font-bold tracking-tight">
@@ -575,7 +574,7 @@ export function VisaResultPage({ slug }: { slug: string }) {
                 ))}
               </section>
 
-              <section className="rounded-2xl bg-white p-5 md:p-6">
+              <section className="rounded-2xl bg-white p-5">
                 <h2 className="text-sm font-semibold text-muted-foreground">{t.positionsTitle}</h2>
                 {positions.length === 0 ? (
                   <p className="mt-3 text-sm text-muted-foreground">{t.positionsEmpty}</p>
@@ -663,7 +662,7 @@ export function VisaResultPage({ slug }: { slug: string }) {
               )}
 
               {/* Share actions */}
-              <section className="rounded-2xl bg-white p-5 md:p-6">
+              <section className="rounded-2xl bg-white p-5">
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
@@ -694,7 +693,6 @@ export function VisaResultPage({ slug }: { slug: string }) {
           ) : null}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

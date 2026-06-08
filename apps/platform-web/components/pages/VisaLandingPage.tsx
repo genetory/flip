@@ -3,8 +3,6 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CaretDown, Globe } from "@phosphor-icons/react/dist/ssr";
-import { Header } from "../site/Header";
-import { Footer } from "../site/Footer";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { PLATFORM_LOCALES, type PlatformLocale } from "../../lib/auth-messages";
 
@@ -597,11 +595,13 @@ export function VisaLandingPage() {
   }));
 
   return (
-    <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
-      <Header />
-      <main className="container py-10 md:py-14">
-        <div className="mx-auto max-w-2xl space-y-8">
-          {/* 언어 셀렉터 — saju 와 동일하게 페이지 안 좌측 상단에서 한 번 더 선택
+    <div className="min-h-screen bg-background font-sans text-foreground antialiased">
+      {/* 모바일 폭(480px)으로 고정 — saju 와 동일하게 GNB(Header)/Footer 없이
+          몰입형 viral 랜딩. 데스크탑에서도 폰 가로폭으로 보이게 해 가독성/
+          공유 미리보기 일관성을 유지한다. */}
+      <main className="mx-auto min-h-screen w-full max-w-[480px] px-4 py-6 sm:py-8">
+        <div className="space-y-6">
+          {/* 언어 셀렉터 — saju 와 동일하게 페이지 안 우측 상단에서 한 번 더 선택
               가능하게 (헤더 토글이 가려질 수 있는 모바일에서 특히 유용) */}
           <div className="flex justify-end">
             <div className="relative inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-white px-3 py-1.5 text-xs font-semibold text-foreground/80">
@@ -626,15 +626,15 @@ export function VisaLandingPage() {
             <p className="inline-flex items-center rounded-full border border-border/60 bg-white px-3 py-1 text-xs font-semibold text-primary">
               {t.pill}
             </p>
-            <h1 className="font-display text-3xl font-black tracking-[-0.02em] md:text-4xl">
+            <h1 className="font-display text-[26px] leading-tight font-black tracking-[-0.02em]">
               {t.titleA} <span className="text-primary">{t.titleHighlight}</span>{t.titleB}
             </h1>
-            <p className="whitespace-pre-line text-sm text-muted-foreground md:text-base">
+            <p className="whitespace-pre-line text-sm text-muted-foreground">
               {t.intro}
             </p>
           </header>
 
-          <section className="space-y-5 rounded-2xl bg-white p-5 md:p-6">
+          <section className="space-y-5 rounded-2xl bg-white p-5">
             {/* Nationality */}
             <div>
               <label className="text-xs font-semibold text-muted-foreground">{t.nationalityLabel} *</label>
@@ -708,10 +708,11 @@ export function VisaLandingPage() {
               </div>
             </div>
 
-            {/* Korean level */}
+            {/* Korean level — 모바일 폭 고정이라 5등분이 좁을 수 있어 5컬럼 + 작은
+                폰트로 압축. 라벨이 긴 로케일(en/vi)은 wrap 되도록 leading-tight. */}
             <div>
               <label className="text-xs font-semibold text-muted-foreground">{t.koreanLevelLabel} *</label>
-              <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-5">
+              <div className="mt-1 grid grid-cols-5 gap-1.5">
                 {koreanOptions.map((opt) => {
                   const active = koreanLevel === opt.code;
                   return (
@@ -719,7 +720,7 @@ export function VisaLandingPage() {
                       key={opt.code}
                       type="button"
                       onClick={() => setKoreanLevel(opt.code)}
-                      className={`h-11 rounded-xl border text-xs font-semibold ${
+                      className={`flex h-11 items-center justify-center rounded-xl border px-1 text-[11px] font-semibold leading-tight text-center ${
                         active ? "border-primary bg-primary/5 text-primary" : "border-border/60 bg-muted/30"
                       }`}
                     >
@@ -822,7 +823,6 @@ export function VisaLandingPage() {
           </section>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }
