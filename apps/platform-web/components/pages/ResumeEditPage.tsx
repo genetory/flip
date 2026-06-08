@@ -603,9 +603,9 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
                 <textarea
                   value={selfIntro}
                   onChange={(e) => setSelfIntro(e.target.value)}
-                  rows={5}
+                  rows={8}
                   placeholder={tr("이력서를 읽는 사람에게 전하고 싶은 이야기를 자유롭게", "Tell the reader who you are", "请自由描述你想表达的内容", "Hãy chia sẻ về bản thân bạn", "読み手に伝えたい内容を自由に", "Ceritakan dirimu kepada pembaca")}
-                  className="w-full rounded-xl border border-border bg-white px-4 py-3 text-[15px] text-foreground outline-none transition focus:border-primary"
+                  className="w-full rounded-xl border border-border bg-white px-4 py-3 text-[15px] leading-relaxed text-foreground outline-none transition focus:border-primary"
                 />
               </Field>
             </div>
@@ -705,7 +705,7 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
                       </button>
                     }
                   >
-                    <textarea value={c.description ?? ""} onChange={(ev) => setCareers((p) => p.map((x, idx) => (idx === i ? { ...x, description: ev.target.value } : x)))} rows={2} placeholder={tr("담당 프로젝트·성과 등을 자유롭게", "Describe projects and impact", "请简述项目与成果", "Mô tả dự án và thành tựu", "プロジェクトや成果を記載", "Tulis proyek & dampak")} className="w-full rounded-xl border border-border bg-white px-4 py-3 text-[15px] outline-none focus:border-primary" />
+                    <textarea value={c.description ?? ""} onChange={(ev) => setCareers((p) => p.map((x, idx) => (idx === i ? { ...x, description: ev.target.value } : x)))} rows={8} placeholder={tr("담당 프로젝트·성과 등을 자유롭게", "Describe projects and impact", "请简述项目与成果", "Mô tả dự án và thành tựu", "プロジェクトや成果を記載", "Tulis proyek & dampak")} className="w-full rounded-xl border border-border bg-white px-4 py-3 text-[15px] leading-relaxed outline-none focus:border-primary" />
                   </Field>
                 </div>
               ))}
@@ -767,7 +767,7 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
                       </button>
                     }
                   >
-                    <textarea value={a.description ?? ""} onChange={(ev) => setActivities((p) => p.map((x, idx) => (idx === i ? { ...x, description: ev.target.value } : x)))} rows={2} placeholder={tr("역할·결과·배운 점 등", "Role, outcome, learnings", "角色·成果·所学", "Vai trò, kết quả, bài học", "役割・成果・学び", "Peran, hasil, pelajaran")} className="w-full rounded-xl border border-border bg-white px-4 py-3 text-[15px] outline-none focus:border-primary" />
+                    <textarea value={a.description ?? ""} onChange={(ev) => setActivities((p) => p.map((x, idx) => (idx === i ? { ...x, description: ev.target.value } : x)))} rows={8} placeholder={tr("역할·결과·배운 점 등", "Role, outcome, learnings", "角色·成果·所学", "Vai trò, kết quả, bài học", "役割・成果・学び", "Peran, hasil, pelajaran")} className="w-full rounded-xl border border-border bg-white px-4 py-3 text-[15px] leading-relaxed outline-none focus:border-primary" />
                   </Field>
                 </div>
               ))}
