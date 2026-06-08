@@ -5354,6 +5354,100 @@ app.get("/ops/saju/leads", authenticate, requireRoles([MemberRole.OPERATOR]), as
   });
 });
 
+// GET /ops/visa/leads — visa funnel 의 익명 lead 풀 관리. saju 와 동일한 모양
+// (총계 + 단계 카운트 + 검색/필터) 이지만 컬럼 셋이 visa 맞춤.
+const opsVisaLeadsQuerySchema = z.object({
+  poolStage: z.enum(["PROFILE", "VERIFIED", "RECOMMENDABLE"]).optional(),
+  nationality: z.string().trim().max(80).optional(),
+  preferredJobRole: z.string().trim().max(60).optional(),
+  q: z.string().trim().max(120).optional(),
+  take: z.coerce.number().int().min(1).max(200).optional(),
+  skip: z.coerce.number().int().min(0).optional()
+});
+
+app.get("/ops/visa/leads", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsVisaLeadsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+  const f = parsed.data;
+  const where: Prisma.VisaLeadWhereInput = {
+    ...(f.poolStage ? { poolStage: f.poolStage } : {}),
+    ...(f.nationality ? { nationality: { contains: f.nationality, mode: "insensitive" } } : {}),
+    ...(f.preferredJobRole ? { preferredJobRole: { contains: f.preferredJobRole, mode: "insensitive" } } : {}),
+    ...(f.q
+      ? {
+          OR: [
+            { name: { contains: f.q, mode: "insensitive" } },
+            { university: { contains: f.q, mode: "insensitive" } },
+            { major: { contains: f.q, mode: "insensitive" } },
+            { contact: { contains: f.q, mode: "insensitive" } }
+          ]
+        }
+      : {})
+  };
+  const take = f.take ?? 50;
+  const skip = f.skip ?? 0;
+  const [leads, total, stageCounts, checksTotal, leadsTotalAll, leadsConverted] = await Promise.all([
+    prisma.visaLead.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take,
+      skip,
+      include: {
+        visaResult: {
+          select: { shareSlug: true, educationLevel: true, majorCategory: true, workYears: true, targetRole: true }
+        }
+      }
+    }),
+    prisma.visaLead.count({ where }),
+    prisma.visaLead.groupBy({ by: ["poolStage"], _count: { _all: true } }),
+    prisma.visaCheckResult.count(),
+    prisma.visaLead.count(),
+    prisma.visaLead.count({ where: { userId: { not: null } } })
+  ]);
+  return res.json({
+    ok: true,
+    total,
+    take,
+    skip,
+    stageCounts: Object.fromEntries(stageCounts.map((s) => [s.poolStage, s._count._all])),
+    funnel: {
+      checksTotal,
+      leadsTotal: leadsTotalAll,
+      leadsConverted
+    },
+    leads: leads.map((lead) => ({
+      id: lead.id,
+      name: lead.name,
+      shareSlug: lead.shareSlug,
+      contact: lead.contact,
+      contactType: lead.contactType,
+      nationality: lead.nationality,
+      currentVisa: lead.currentVisa,
+      expectedJoinDate: lead.expectedJoinDate,
+      graduationDate: lead.graduationDate,
+      university: lead.university,
+      major: lead.major,
+      preferredJobRole: lead.preferredJobRole,
+      koreanLevel: lead.koreanLevel,
+      englishLevel: lead.englishLevel,
+      poolStage: lead.poolStage,
+      tags: lead.tags,
+      consentCareer: lead.consentCareer,
+      consentRecommend: lead.consentRecommend,
+      consentContact: lead.consentContact,
+      userId: lead.userId,
+      locale: lead.locale,
+      createdAt: lead.createdAt.toISOString(),
+      educationLevel: lead.visaResult?.educationLevel ?? null,
+      majorCategory: lead.visaResult?.majorCategory ?? null,
+      workYears: lead.visaResult?.workYears ?? null,
+      targetRole: lead.visaResult?.targetRole ?? null
+    }))
+  });
+});
+
 const companyConsultationCreateSchema = z.object({
   companyName: z.string().trim().min(1).max(120),
   contactName: z.string().trim().min(1).max(80),
