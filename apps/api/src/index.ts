@@ -6810,6 +6810,109 @@ app.get("/visa/result/:slug", async (req, res) => {
   });
 });
 
+// POST /visa/lead — VisaResultPage 의 회원가입 퍼널에서 익명으로 모으는
+// 리드. SajuLead 와 동일한 pool 패턴 + visa 맞춤 필드(희망 입사일·졸업일·
+// 대학·전공) 를 추가. 한 result 당 한 lead — 사용자가 단계별로 보완할 수
+// 있게 기존 row 를 update 하는 upsert 흐름.
+const visaLeadSchema = z.object({
+  shareSlug: z.string().min(1),
+  name: z.string().trim().max(80).optional(),
+  contact: z.string().trim().max(200).optional(),
+  contactType: z.enum(["email", "phone", "messenger"]).optional(),
+  nationality: z.string().trim().max(80).optional(),
+  currentVisa: z.string().trim().max(20).optional(),
+  expectedJoinDate: z.string().trim().max(20).optional(),
+  graduationDate: z.string().trim().max(20).optional(),
+  university: z.string().trim().max(120).optional(),
+  major: z.string().trim().max(120).optional(),
+  preferredJobRole: z.string().trim().max(120).optional(),
+  koreanLevel: z.string().trim().max(20).optional(),
+  englishLevel: z.string().trim().max(20).optional(),
+  consentCareer: z.boolean().optional(),
+  consentRecommend: z.boolean().optional(),
+  consentContact: z.boolean().optional(),
+  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+});
+
+// 익명 lead 의 분류 태그 — 운영 콘솔에서 필터링용. 국적/직무/비자/언어 등
+// 4-5 차원의 단순 키를 자동으로 생성.
+function buildVisaLeadTags(input: z.infer<typeof visaLeadSchema>): string[] {
+  const tags: string[] = [];
+  if (input.nationality) tags.push(`nat:${input.nationality}`);
+  if (input.currentVisa) tags.push(`visa:${input.currentVisa.toUpperCase()}`);
+  if (input.preferredJobRole) tags.push(`role:${input.preferredJobRole}`);
+  if (input.koreanLevel) tags.push(`ko:${input.koreanLevel}`);
+  if (input.englishLevel) tags.push(`en:${input.englishLevel}`);
+  return tags.slice(0, 10);
+}
+
+app.post(
+  "/visa/lead",
+  rateLimit({ windowMs: 60_000, max: 12, keyPrefix: "visa-lead", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = visaLeadSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid input", errors: parsed.error.flatten() });
+    }
+    const input = parsed.data;
+    const visaResult = await prisma.visaCheckResult.findUnique({
+      where: { shareSlug: input.shareSlug },
+      select: { id: true, name: true, nationality: true }
+    });
+    if (!visaResult) return res.status(404).json({ ok: false, message: "result not found" });
+
+    const tags = buildVisaLeadTags(input);
+    const ipRaw =
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+      req.socket.remoteAddress ||
+      "";
+    const ipHash = ipRaw
+      ? createHash("sha256").update(`${ipRaw}|visa-lead`).digest("hex").slice(0, 32)
+      : null;
+
+    const data = {
+      visaResultId: visaResult.id,
+      shareSlug: input.shareSlug,
+      // 결과 페이지의 이름이 있으면 그대로 들고 옴. funnel 에서 새 이름을
+      // 입력하면 그게 우선.
+      name: input.name ?? visaResult.name,
+      contact: input.contact ?? null,
+      contactType: input.contactType ?? null,
+      nationality: input.nationality ?? visaResult.nationality,
+      currentVisa: input.currentVisa ?? null,
+      expectedJoinDate: input.expectedJoinDate ?? null,
+      graduationDate: input.graduationDate ?? null,
+      university: input.university ?? null,
+      major: input.major ?? null,
+      preferredJobRole: input.preferredJobRole ?? null,
+      koreanLevel: input.koreanLevel ?? null,
+      englishLevel: input.englishLevel ?? null,
+      poolStage: "PROFILE",
+      tags,
+      consentCareer: input.consentCareer ?? false,
+      consentRecommend: input.consentRecommend ?? false,
+      consentContact: input.consentContact ?? false,
+      locale: input.locale ?? "ko",
+      ipHash
+    };
+
+    const existing = await prisma.visaLead.findFirst({
+      where: { visaResultId: visaResult.id },
+      select: { id: true }
+    });
+    let leadId: string;
+    if (existing) {
+      await prisma.visaLead.update({ where: { id: existing.id }, data });
+      leadId = existing.id;
+    } else {
+      const created = await prisma.visaLead.create({ data, select: { id: true } });
+      leadId = created.id;
+    }
+
+    return res.json({ ok: true, leadId });
+  }
+);
+
 // Response cache for /positions, anonymous viewers only. Authenticated
 // users skip the cache so per-viewer flags (saved/applied/etc.) stay
 // accurate. TTL-only with no manual invalidation: 60s is short enough
