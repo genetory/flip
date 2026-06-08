@@ -1408,7 +1408,7 @@ export type Resume = {
   // Server-computed Coach score. Present on list endpoints so the cards can
   // render a score badge without a follow-up call. May be absent on legacy
   // endpoints that haven't been augmented yet — treat as optional.
-  score?: ResumeScoreResult;
+  score?: ResumeScoresResult;
   createdAt: string;
   updatedAt: string;
 };
@@ -1497,35 +1497,46 @@ export async function setMyPrimaryResume(resumeId: string) {
 
 // ---------------------------------------------------------------------------
 // Resume Coach types — mirror the backend shape exactly. Keep these in sync
-// with apps/api/src/index.ts (`ResumeScoreResult`, `ResumeCoachAction`, etc.)
+// with apps/api/src/index.ts (`ResumeScoresResult`, `ResumeCoachAction`, etc.)
 // when adjusting the rubric.
+//
+// Phase 1: 점수가 quality + readiness 로 분리됨. quality 는 "이력서가 얼마나
+// 잘 쓰였나", readiness 는 "기업에 제출 가능한 수준인가". level 은 readiness
+// 임계점에서 도출되는 배지 — 사용자에게 가장 먼저 보여줄 한 줄 신호.
 // ---------------------------------------------------------------------------
-export type ResumeScoreLevel = "bronze" | "silver" | "gold" | "platinum";
+export type ResumeReadinessLevel = "submittable" | "needs_polish" | "not_submittable";
 
-export type ResumeScoreDimensions = {
-  completeness: number;
+export type ResumeQualityDimensions = {
   contentQuality: number;
   impact: number;
-  foreignAppeal: number;
   uniqueness: number;
   visual: number;
 };
 
-export type ResumeScoreResult = {
-  total: number;
-  level: ResumeScoreLevel;
-  dimensions: ResumeScoreDimensions;
+export type ResumeReadinessDimensions = {
+  contact: number;
+  education: number;
+  visa: number;
+  koreaFit: number;
+  portfolio: number;
 };
+
+export type ResumeScoresResult = {
+  quality: { total: number; dimensions: ResumeQualityDimensions };
+  readiness: { total: number; dimensions: ResumeReadinessDimensions };
+  level: ResumeReadinessLevel;
+};
+
+export type ResumeCoachActionCategory = "required" | "recommended" | "optional";
 
 export type ResumeCoachAction = {
   id: string;
-  priority: 1 | 2 | 3;
+  category: ResumeCoachActionCategory;
   title: string;
   description: string;
   impactPoints: number;
   targetSection: string;
   targetItemIndex?: number;
-  dimension: keyof ResumeScoreDimensions;
   llmEligible?: boolean;
 };
 
@@ -1541,7 +1552,7 @@ export type ResumeCoachPositionMatch = {
 export type ResumeCoachData = {
   resumeId: string;
   title: string;
-  score: ResumeScoreResult;
+  score: ResumeScoresResult;
   actions: ResumeCoachAction[];
   matches: ResumeCoachPositionMatch[];
   updatedAt: string;

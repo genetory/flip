@@ -269,6 +269,14 @@ export function ResumeCoachListPage({ selectedResumeId }: { selectedResumeId?: s
   );
 }
 
+// 리스트 카드는 readiness level 하나만 시각 신호로 — "제출 가능 / 보완 후 /
+// 불가" 를 색상 점으로 표현. 자세한 점수는 패널에서 확인.
+const LEVEL_DOT: Record<"submittable" | "needs_polish" | "not_submittable", { dot: string; label: { ko: string; en: string; zh: string; vi: string; ja: string; id: string } }> = {
+  submittable:     { dot: "bg-emerald-500", label: { ko: "제출 가능",     en: "Ready",          zh: "可提交",       vi: "Sẵn sàng",         ja: "提出可能",     id: "Siap" } },
+  needs_polish:    { dot: "bg-amber-500",   label: { ko: "보완 후",       en: "Needs polish",   zh: "需完善",       vi: "Cần hoàn thiện",   ja: "補強後",       id: "Perlu polish" } },
+  not_submittable: { dot: "bg-slate-400",   label: { ko: "기본 정보 필요", en: "Essentials",     zh: "需基础信息",    vi: "Cần thông tin",    ja: "基本情報必要", id: "Perlu dasar" } }
+};
+
 function ResumeListRow({
   resume,
   selected,
@@ -280,7 +288,9 @@ function ResumeListRow({
   onSelect: () => void;
   tr: (ko: string, en: string, zh: string, vi: string, ja: string, id: string) => string;
 }) {
-  const total = resume.score?.total ?? 0;
+  const level = resume.score?.level ?? "not_submittable";
+  const dotMeta = LEVEL_DOT[level];
+  const levelLabel = tr(dotMeta.label.ko, dotMeta.label.en, dotMeta.label.zh, dotMeta.label.vi, dotMeta.label.ja, dotMeta.label.id);
 
   return (
     <button
@@ -293,7 +303,6 @@ function ResumeListRow({
           : "border-border bg-card hover:border-foreground/40 hover:bg-muted/30"
       }`}
     >
-      {/* 제목 + 메타 — 점수는 우측에 작은 배지로 */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span className="truncate text-[13.5px] font-semibold tracking-tight">{resume.title}</span>
@@ -301,15 +310,14 @@ function ResumeListRow({
             <Star className="h-3 w-3 flex-none text-foreground" weight="fill" aria-label={tr("대표", "Primary", "代表", "Chính", "代表", "Utama")} />
           ) : null}
         </div>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
-          {formatUpdatedAt(resume.updatedAt)}
+        <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className={`h-1.5 w-1.5 rounded-full ${dotMeta.dot}`} />
+          <span>{levelLabel}</span>
+          <span className="text-muted-foreground/60">·</span>
+          <span>{formatUpdatedAt(resume.updatedAt)}</span>
         </p>
       </div>
 
-      {/* 우측 — 점수만 (작고 중립적인 색) */}
-      <span className="flex-none rounded-md bg-foreground/[0.06] px-2 py-1 text-[12px] font-semibold tabular-nums">
-        {total}
-      </span>
     </button>
   );
 }

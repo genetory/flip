@@ -10910,7 +10910,7 @@ app.get("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT]),
     // 무시하면 되니 호환성 유지.
     const items = rows.map((row) => ({
       ...row,
-      score: calcResumeScore(row.content)
+      score: calcResumeScores(row.content)
     }));
     return res.json({ ok: true, items });
   } catch {
@@ -11067,7 +11067,7 @@ app.get("/members/me/resumes/:resumeId/coach", authenticate, requireRoles([Membe
     });
     if (!resume) return res.status(404).json({ ok: false, message: "resume not found" });
 
-    const score = calcResumeScore(resume.content);
+    const score = calcResumeScores(resume.content);
     const actions = generateResumeCoachActions(resume.content);
     const matches = await fetchResumeCoachPositionMatches(userId, resume.content);
 
@@ -11205,15 +11205,17 @@ app.post("/members/me/resumes/:resumeId/coach/chat", authenticate, requireRoles(
     });
     if (!resume) return res.status(404).json({ ok: false, message: "resume not found" });
 
-    const score = calcResumeScore(resume.content);
+    const scores = calcResumeScores(resume.content);
     // Compact JSON of the resume — trim to keep token usage bounded. The
     // chat is informational, not a full rewrite, so a summary is enough.
     const c = (resume.content ?? {}) as Record<string, unknown>;
     const resumeSummary = JSON.stringify({
       title: resume.title,
-      score: score.total,
-      level: score.level,
-      dimensions: score.dimensions,
+      qualityScore: scores.quality.total,
+      readinessScore: scores.readiness.total,
+      submissionLevel: scores.level,
+      qualityDimensions: scores.quality.dimensions,
+      readinessDimensions: scores.readiness.dimensions,
       hasName: Boolean((c.basicName ?? "") as string),
       hasVisa: Boolean((c.basicVisa ?? "") as string),
       summary: ((c.selfIntroduction ?? c.summary ?? "") as string).slice(0, 600),
@@ -17272,45 +17274,52 @@ function calcResumeCompletion(content: unknown): number {
 }
 
 // ---------------------------------------------------------------------------
-// Resume Coach scoring rubric. Six weighted dimensions yield a 0–100 total
-// bucketed into bronze/silver/gold/platinum levels. Pure rule-based — no
-// LLM cost — so recomputing on every edit is free. LLM augmentation (text
-// suggestions, free-form chat) lives in dedicated endpoints below.
+// Resume Coach scoring — split into TWO orthogonal scores:
 //
-// Weights
-//   completeness   25%   required vs optional sections filled
-//   contentQuality 25%   summary/career/activity description depth
-//   impact         15%   numbers in body text (results-oriented writing)
-//   foreignAppeal  15%   visa, Korean proficiency, multilingual signal
-//   uniqueness     10%   projects, certifications, links, skill breadth
-//   visual         10%   photo, body length sane, contact reachable
+//   Quality   (4 dims) — how well-written the resume is
+//   Readiness (5 dims) — whether the resume is submittable to companies
+//
+// 외국인 채용에서는 "잘 쓴 이력서" 와 "지원 가능한 이력서" 가 다르다. 비자
+// 정보가 없으면 점수만 높아도 검토 자체가 불가능한 경우가 많아서, 두 점수를
+// 분리해서 보여주는 게 사용자에게 훨씬 정직하다. 그리고 readiness 가 임계점에
+// 도달했는지를 기준으로 "제출 가능 / 보완 후 제출 가능 / 제출 불가" 배지를
+// 노출. 이 배지가 Career Passport 의 코어 시그널이 된다.
+//
+// 두 점수 모두 pure rule-based — LLM 호출 0회.
 // ---------------------------------------------------------------------------
-type ResumeScoreLevel = "bronze" | "silver" | "gold" | "platinum";
+type ResumeReadinessLevel = "submittable" | "needs_polish" | "not_submittable";
 
-type ResumeScoreDimensions = {
-  completeness: number;
-  contentQuality: number;
-  impact: number;
-  foreignAppeal: number;
-  uniqueness: number;
-  visual: number;
+type ResumeQualityDimensions = {
+  contentQuality: number;  // 자기소개 + 경력·활동 설명 깊이
+  impact: number;          // 본문 수치화 (성과 중심 표현)
+  uniqueness: number;      // 스킬·활동·자격증·링크 다양성
+  visual: number;          // 사진, 길이 적정성, 가독성
 };
 
-type ResumeScoreResult = {
-  total: number;
-  level: ResumeScoreLevel;
-  dimensions: ResumeScoreDimensions;
+type ResumeReadinessDimensions = {
+  contact: number;         // 이름·이메일·전화·거주지
+  education: number;       // 학력 1개 이상
+  visa: number;            // 비자 정보
+  koreaFit: number;        // 한국 취업 적합도 — 한국어 능력 + 다중언어
+  portfolio: number;       // 포트폴리오·활동·자격증 중 최소 1
 };
+
+type ResumeScoresResult = {
+  quality: { total: number; dimensions: ResumeQualityDimensions };
+  readiness: { total: number; dimensions: ResumeReadinessDimensions };
+  level: ResumeReadinessLevel;
+};
+
+type ResumeCoachActionCategory = "required" | "recommended" | "optional";
 
 type ResumeCoachAction = {
   id: string;
-  priority: 1 | 2 | 3;
+  category: ResumeCoachActionCategory;  // 필수 / 추천 / 선택
   title: string;
   description: string;
   impactPoints: number;
   targetSection: string;
   targetItemIndex?: number;
-  dimension: keyof ResumeScoreDimensions;
   // llmEligible actions can be augmented by POST /coach/suggest.
   llmEligible?: boolean;
 };
@@ -17324,37 +17333,43 @@ type ResumeCoachPositionMatch = {
   applicationStatus: string | null;
 };
 
-const RESUME_SCORE_WEIGHTS: Record<keyof ResumeScoreDimensions, number> = {
-  completeness: 0.25,
-  contentQuality: 0.25,
-  impact: 0.15,
-  foreignAppeal: 0.15,
-  uniqueness: 0.10,
-  visual: 0.10
+const RESUME_QUALITY_WEIGHTS: Record<keyof ResumeQualityDimensions, number> = {
+  contentQuality: 0.30,
+  impact: 0.25,
+  uniqueness: 0.25,
+  visual: 0.20
 };
 
-function resumeScoreLevel(score: number): ResumeScoreLevel {
-  if (score >= 90) return "platinum";
-  if (score >= 75) return "gold";
-  if (score >= 55) return "silver";
-  return "bronze";
+const RESUME_READINESS_WEIGHTS: Record<keyof ResumeReadinessDimensions, number> = {
+  contact: 0.25,
+  education: 0.20,
+  visa: 0.25,
+  koreaFit: 0.20,
+  portfolio: 0.10
+};
+
+// Readiness 임계점 — "기업이 진짜로 검토 가능한지" 가 기준. 비자/연락처
+// 같은 필수 항목이 빠지면 readiness 가 80 을 못 넘게 가중치를 설계함.
+function resumeReadinessLevel(quality: number, readiness: number): ResumeReadinessLevel {
+  if (readiness >= 80 && quality >= 60) return "submittable";
+  if (readiness >= 55) return "needs_polish";
+  return "not_submittable";
 }
 
-function calcResumeScore(content: unknown): ResumeScoreResult {
-  const empty: ResumeScoreResult = {
-    total: 0,
-    level: "bronze",
-    dimensions: { completeness: 0, contentQuality: 0, impact: 0, foreignAppeal: 0, uniqueness: 0, visual: 0 }
+function calcResumeScores(content: unknown): ResumeScoresResult {
+  const empty: ResumeScoresResult = {
+    quality: { total: 0, dimensions: { contentQuality: 0, impact: 0, uniqueness: 0, visual: 0 } },
+    readiness: { total: 0, dimensions: { contact: 0, education: 0, visa: 0, koreaFit: 0, portfolio: 0 } },
+    level: "not_submittable"
   };
   if (!content || typeof content !== "object") return empty;
   const c = content as Record<string, unknown>;
   const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
   const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
 
-  // 1) Completeness — reuse the existing weighted percentage.
-  const completeness = calcResumeCompletion(content);
+  // ===== Quality 4 dimensions =============================================
 
-  // 2) Content Quality — summary length + careers/activities richness.
+  // contentQuality — 자기소개 + 경력·활동 설명 깊이
   const introText = trimStr(c.selfIntroduction) || trimStr(c.summary);
   let qChecks = 0;
   let qScore = 0;
@@ -17381,7 +17396,7 @@ function calcResumeScore(content: unknown): ResumeScoreResult {
   }
   const contentQuality = qChecks === 0 ? 0 : Math.round((qScore / qChecks) * 100);
 
-  // 3) Impact — body text mentions numbers/units (results-oriented writing).
+  // impact — 본문에 수치/단위가 들어가 있는지 (성과 중심 표현)
   const bodyTexts: string[] = [introText];
   if (isArr(c.careers)) {
     for (const cr of c.careers) {
@@ -17402,25 +17417,7 @@ function calcResumeScore(content: unknown): ResumeScoreResult {
   const withNumbers = filledTexts.filter((t) => numericPattern.test(t));
   const impact = filledTexts.length === 0 ? 0 : Math.round((withNumbers.length / filledTexts.length) * 100);
 
-  // 4) Foreign Appeal — visa, Korean proficiency, multilingual.
-  let fChecks = 0;
-  let fScore = 0;
-  fChecks += 1;
-  if (trimStr(c.basicVisa)) fScore += 1;
-  fChecks += 1;
-  const hasKoreanLang = isArr(c.languages) && c.languages.some((l) => {
-    if (typeof l !== "object" || l === null) return false;
-    const lang = trimStr((l as Record<string, unknown>).language).toLowerCase();
-    const level = trimStr((l as Record<string, unknown>).level);
-    return (lang.includes("kor") || lang.includes("한국") || lang === "ko") && level.length > 0;
-  });
-  if (hasKoreanLang) fScore += 1;
-  fChecks += 1;
-  if (isArr(c.languages) && c.languages.length >= 2) fScore += 1;
-  else if (isArr(c.languages) && c.languages.length >= 1) fScore += 0.5;
-  const foreignAppeal = Math.round((fScore / fChecks) * 100);
-
-  // 5) Uniqueness — activities, certifications, links, skill breadth.
+  // uniqueness — 활동·자격증·링크·스킬 다양성
   let uChecks = 0;
   let uScore = 0;
   uChecks += 1;
@@ -17439,7 +17436,7 @@ function calcResumeScore(content: unknown): ResumeScoreResult {
   }
   const uniqueness = Math.round((uScore / uChecks) * 100);
 
-  // 6) Visual — photo, intro length sane, contact reachable.
+  // visual — 사진, 본문 길이 적정성, 제목 가독성
   let vChecks = 0;
   let vScore = 0;
   vChecks += 1;
@@ -17450,30 +17447,89 @@ function calcResumeScore(content: unknown): ResumeScoreResult {
   else if (introText.length <= 2500) vScore += 0.5;
   else vScore += 0.2;
   vChecks += 1;
-  if (trimStr(c.basicName) && trimStr(c.basicEmail)) vScore += 1;
-  else if (trimStr(c.basicName) || trimStr(c.basicEmail)) vScore += 0.5;
+  // 짧고 깔끔한 제목인지
+  const title = trimStr((c as Record<string, unknown>).basicName);
+  if (title.length > 0 && title.length <= 30) vScore += 1;
+  else if (title.length > 0) vScore += 0.5;
   const visual = Math.round((vScore / vChecks) * 100);
 
-  const dimensions: ResumeScoreDimensions = {
-    completeness,
-    contentQuality,
-    impact,
-    foreignAppeal,
-    uniqueness,
-    visual
-  };
-  const total = Math.round(
-    (Object.keys(dimensions) as Array<keyof ResumeScoreDimensions>).reduce(
-      (sum, key) => sum + dimensions[key] * RESUME_SCORE_WEIGHTS[key],
+  const qualityDims: ResumeQualityDimensions = { contentQuality, impact, uniqueness, visual };
+  const qualityTotal = Math.round(
+    (Object.keys(qualityDims) as Array<keyof ResumeQualityDimensions>).reduce(
+      (sum, key) => sum + qualityDims[key] * RESUME_QUALITY_WEIGHTS[key],
       0
     )
   );
-  return { total, level: resumeScoreLevel(total), dimensions };
+
+  // ===== Readiness 5 dimensions ===========================================
+
+  // contact — 이름·이메일·전화·거주지 4 필드 평균
+  const contactFields = [c.basicName, c.basicEmail, c.basicPhone, c.basicResidence];
+  const contactFilled = contactFields.filter((v) => trimStr(v).length > 0).length;
+  const contact = Math.round((contactFilled / contactFields.length) * 100);
+
+  // education — 학력 1개 이상이면 100, 없으면 0 (이력서의 기본 신뢰 신호)
+  const hasEducation =
+    isArr(c.educations) &&
+    c.educations.some((e) => typeof e === "object" && e !== null && trimStr((e as Record<string, unknown>).schoolName));
+  const education = hasEducation ? 100 : 0;
+
+  // visa — 비자 정보 채워졌는지. 외국인 채용의 절대 필수
+  const visa = trimStr(c.basicVisa).length > 0 ? 100 : 0;
+
+  // koreaFit — 한국 취업 적합도. 한국어 명시 + 다중 언어 + 한국 경험
+  let kChecks = 0;
+  let kScore = 0;
+  kChecks += 1;
+  const hasKoreanLang = isArr(c.languages) && c.languages.some((l) => {
+    if (typeof l !== "object" || l === null) return false;
+    const lang = trimStr((l as Record<string, unknown>).language).toLowerCase();
+    const level = trimStr((l as Record<string, unknown>).level);
+    return (lang.includes("kor") || lang.includes("한국") || lang === "ko") && level.length > 0;
+  });
+  if (hasKoreanLang) kScore += 1;
+  kChecks += 1;
+  if (isArr(c.languages) && c.languages.length >= 2) kScore += 1;
+  else if (isArr(c.languages) && c.languages.length >= 1) kScore += 0.5;
+  kChecks += 1;
+  // 한국 거주 또는 한국어 자격증 같은 "한국 경험" 시그널 — 간단히 거주지가
+  // 한국 표기인지로 근사.
+  const residence = trimStr(c.basicResidence);
+  if (residence && /한국|Korea|韩国|서울|Seoul|부산|Busan/i.test(residence)) kScore += 1;
+  const koreaFit = Math.round((kScore / kChecks) * 100);
+
+  // portfolio — 활동·자격증·링크 중 최소 1개라도 있으면 의미 있는 신호
+  const hasActivity = isArr(c.activities) && c.activities.length >= 1;
+  const hasCert = isArr(c.certifications) && c.certifications.length >= 1;
+  const hasLink = isArr(c.links) && c.links.length >= 1;
+  let pScore = 0;
+  if (hasActivity) pScore += 0.5;
+  if (hasCert) pScore += 0.25;
+  if (hasLink) pScore += 0.25;
+  const portfolio = Math.round(Math.min(1, pScore) * 100);
+
+  const readinessDims: ResumeReadinessDimensions = { contact, education, visa, koreaFit, portfolio };
+  const readinessTotal = Math.round(
+    (Object.keys(readinessDims) as Array<keyof ResumeReadinessDimensions>).reduce(
+      (sum, key) => sum + readinessDims[key] * RESUME_READINESS_WEIGHTS[key],
+      0
+    )
+  );
+
+  return {
+    quality: { total: qualityTotal, dimensions: qualityDims },
+    readiness: { total: readinessTotal, dimensions: readinessDims },
+    level: resumeReadinessLevel(qualityTotal, readinessTotal)
+  };
 }
 
-// Action generator — surfaces the 5 highest-impact gaps. Priority 1 is
-// "fix this first" (missing essentials), 3 is "nice to have". Each action
-// carries enough metadata for the UI to deep-link to the exact edit target.
+// Action generator — surfaces gaps by category:
+//   required    기업이 검토할 수 없는 결정적 누락 (비자, 학력, 이름/이메일)
+//   recommended 채워두면 매칭률·인상이 크게 좋아지는 항목
+//   optional    있으면 좋고 없어도 무방한 디테일
+//
+// 5 개로 잘라내지 않고 모든 gap 을 반환 — UI 가 카테고리별로 그룹화해서
+// 보여주므로 길어도 시각적으로 정리됨.
 function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
   const actions: ResumeCoachAction[] = [];
   if (!content || typeof content !== "object") return actions;
@@ -17481,48 +17537,66 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
   const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
   const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
 
+  // ===== Required — readiness 결정타 ======================================
   if (!trimStr(c.basicName)) {
-    actions.push({ id: "fill-name", priority: 1, title: "이름을 입력하세요", description: "이력서의 가장 기본 정보입니다.", impactPoints: 5, targetSection: "basics", dimension: "completeness" });
+    actions.push({ id: "fill-name", category: "required", title: "이름을 입력하세요", description: "이력서의 가장 기본 정보입니다.", impactPoints: 5, targetSection: "basics" });
   }
   if (!trimStr(c.basicEmail)) {
-    actions.push({ id: "fill-email", priority: 1, title: "이메일 주소를 입력하세요", description: "연락이 닿을 수 있어야 합니다.", impactPoints: 5, targetSection: "basics", dimension: "completeness" });
+    actions.push({ id: "fill-email", category: "required", title: "이메일 주소를 입력하세요", description: "기업이 연락할 수 있어야 합니다.", impactPoints: 6, targetSection: "basics" });
   }
-  if (!trimStr(c.basicPhone)) {
-    actions.push({ id: "fill-phone", priority: 2, title: "전화번호를 입력하세요", description: "다급한 연락 채널이 필요할 수 있어요.", impactPoints: 3, targetSection: "basics", dimension: "completeness" });
+  if (!trimStr(c.basicVisa)) {
+    actions.push({
+      id: "add-visa",
+      category: "required",
+      title: "비자 정보를 입력하세요",
+      description: "비자가 비어 있으면 외국인 채용 검토 자체가 불가능합니다.",
+      impactPoints: 15,
+      targetSection: "basics"
+    });
   }
-  if (!trimStr(c.basicResidence)) {
-    actions.push({ id: "fill-residence", priority: 2, title: "거주지를 입력하세요", description: "출퇴근 가능 지역 판단에 사용됩니다.", impactPoints: 3, targetSection: "basics", dimension: "completeness" });
+  if (!isArr(c.educations) || c.educations.length === 0 || !c.educations.some((e) => typeof e === "object" && e !== null && trimStr((e as Record<string, unknown>).schoolName))) {
+    actions.push({ id: "add-education", category: "required", title: "학력을 추가하세요", description: "학교명·전공·재학 상태를 입력해주세요.", impactPoints: 12, targetSection: "educations" });
   }
-
   const introText = trimStr(c.selfIntroduction) || trimStr(c.summary);
-  if (introText.length < 100) {
+  if (introText.length === 0) {
     actions.push({
       id: "improve-self-introduction",
-      priority: 1,
-      title: introText.length === 0 ? "자기소개를 작성하세요" : "자기소개를 더 풍부하게 다듬어주세요",
-      description: "100자 이상, 본인의 강점과 동기가 드러나도록 작성해보세요.",
-      impactPoints: introText.length === 0 ? 12 : 7,
-      targetSection: "selfIntroduction",
-      dimension: "contentQuality",
-      llmEligible: introText.length > 0
+      category: "required",
+      title: "자기소개를 작성하세요",
+      description: "본인의 강점과 동기가 드러나도록 작성해보세요.",
+      impactPoints: 10,
+      targetSection: "selfIntroduction"
     });
-  } else if (introText.length < 400) {
+  }
+
+  // ===== Recommended — 채우면 매칭·인상이 크게 좋아지는 항목 ===============
+  if (!trimStr(c.basicPhone)) {
+    actions.push({ id: "fill-phone", category: "recommended", title: "전화번호를 입력하세요", description: "다급한 연락 채널이 필요할 수 있어요.", impactPoints: 4, targetSection: "basics" });
+  }
+  if (!trimStr(c.basicResidence)) {
+    actions.push({ id: "fill-residence", category: "recommended", title: "거주지를 입력하세요", description: "출퇴근 가능 지역 판단에 사용됩니다.", impactPoints: 4, targetSection: "basics" });
+  }
+  if (introText.length > 0 && introText.length < 100) {
+    actions.push({
+      id: "improve-self-introduction-short",
+      category: "recommended",
+      title: "자기소개를 더 풍부하게 다듬어주세요",
+      description: "100자 이상으로 구체적 사례를 더해보세요.",
+      impactPoints: 7,
+      targetSection: "selfIntroduction",
+      llmEligible: true
+    });
+  } else if (introText.length >= 100 && introText.length < 400) {
     actions.push({
       id: "expand-self-introduction",
-      priority: 2,
+      category: "recommended",
       title: "자기소개에 구체적 사례를 더해보세요",
       description: "성과·프로젝트 경험을 1–2개 추가하면 인상이 달라집니다.",
       impactPoints: 5,
       targetSection: "selfIntroduction",
-      dimension: "contentQuality",
       llmEligible: true
     });
   }
-
-  if (!isArr(c.educations) || c.educations.length === 0 || !c.educations.some((e) => typeof e === "object" && e !== null && trimStr((e as Record<string, unknown>).schoolName))) {
-    actions.push({ id: "add-education", priority: 1, title: "학력을 추가하세요", description: "학교명·전공·재학 상태를 입력해주세요.", impactPoints: 10, targetSection: "educations", dimension: "completeness" });
-  }
-
   if (isArr(c.careers)) {
     c.careers.forEach((cr, idx) => {
       if (typeof cr !== "object" || cr === null) return;
@@ -17532,40 +17606,26 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
       if (desc.length > 0 && desc.length < 50) {
         actions.push({
           id: `improve-career-${idx}`,
-          priority: 2,
+          category: "recommended",
           title: `${company} 설명을 보강하세요`,
           description: "구체적 업무·성과·수치를 더해보세요.",
           impactPoints: 6,
           targetSection: "careers",
           targetItemIndex: idx,
-          dimension: "contentQuality",
           llmEligible: true
         });
       } else if (desc.length >= 50 && !/\d/.test(desc)) {
         actions.push({
           id: `add-metrics-career-${idx}`,
-          priority: 2,
+          category: "recommended",
           title: `${company} 성과를 수치로 표현하세요`,
           description: "예: '월 활성 사용자 30% 증가', '5인 팀 리드'.",
           impactPoints: 7,
           targetSection: "careers",
           targetItemIndex: idx,
-          dimension: "impact",
           llmEligible: true
         });
       }
-    });
-  }
-
-  if (!trimStr(c.basicVisa)) {
-    actions.push({
-      id: "add-visa",
-      priority: 1,
-      title: "비자 정보를 입력하세요",
-      description: "비자 상태가 명확하면 채용 담당자가 안심하고 검토합니다.",
-      impactPoints: 7,
-      targetSection: "basics",
-      dimension: "foreignAppeal"
     });
   }
   const hasKorean = isArr(c.languages) && c.languages.some((l) => {
@@ -17576,65 +17636,74 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
   if (!hasKorean) {
     actions.push({
       id: "add-korean-language",
-      priority: 1,
+      category: "recommended",
       title: "한국어 능력을 추가하세요",
       description: "TOPIK 등급이나 회화 수준을 표시해주세요.",
-      impactPoints: 7,
-      targetSection: "languages",
-      dimension: "foreignAppeal"
-    });
-  }
-
-  if (!isArr(c.skills) || c.skills.length < 3) {
-    actions.push({
-      id: "add-skills",
-      priority: 2,
-      title: "기술 스택을 더 추가하세요",
-      description: "3개 이상의 스킬을 적으면 검색·매칭에 유리합니다.",
-      impactPoints: 4,
-      targetSection: "skills",
-      dimension: "uniqueness"
-    });
-  }
-  if (!isArr(c.certifications) || c.certifications.length === 0) {
-    actions.push({
-      id: "add-certification",
-      priority: 3,
-      title: "자격증을 추가하세요",
-      description: "1개라도 있으면 차별화에 도움됩니다.",
-      impactPoints: 3,
-      targetSection: "certifications",
-      dimension: "uniqueness"
+      impactPoints: 8,
+      targetSection: "languages"
     });
   }
   if (!isArr(c.links) || c.links.length === 0) {
     actions.push({
       id: "add-link",
-      priority: 3,
+      category: "recommended",
       title: "포트폴리오·GitHub 링크를 추가하세요",
       description: "온라인 작업물이 있으면 더 설득력이 커집니다.",
+      impactPoints: 5,
+      targetSection: "links"
+    });
+  }
+  if (!isArr(c.activities) || c.activities.length === 0) {
+    actions.push({
+      id: "add-activity",
+      category: "recommended",
+      title: "활동·프로젝트를 추가하세요",
+      description: "동아리, 사이드 프로젝트, 봉사 등 1개라도 의미 있어요.",
+      impactPoints: 5,
+      targetSection: "activities"
+    });
+  }
+
+  // ===== Optional — 디테일 정리 ==========================================
+  if (!isArr(c.skills) || c.skills.length < 3) {
+    actions.push({
+      id: "add-skills",
+      category: "optional",
+      title: "기술 스택을 더 추가하세요",
+      description: "3개 이상의 스킬을 적으면 검색·매칭에 유리합니다.",
       impactPoints: 3,
-      targetSection: "links",
-      dimension: "uniqueness"
+      targetSection: "skills"
+    });
+  }
+  if (!isArr(c.certifications) || c.certifications.length === 0) {
+    actions.push({
+      id: "add-certification",
+      category: "optional",
+      title: "자격증을 추가하세요",
+      description: "1개라도 있으면 차별화에 도움됩니다.",
+      impactPoints: 3,
+      targetSection: "certifications"
     });
   }
   if (!trimStr(c.basicPhotoUrl)) {
     actions.push({
       id: "add-photo",
-      priority: 3,
+      category: "optional",
       title: "프로필 사진을 등록하세요",
       description: "한국 기업은 사진을 본인 확인 신호로 받아들이는 경우가 많습니다.",
-      impactPoints: 3,
-      targetSection: "basics",
-      dimension: "visual"
+      impactPoints: 2,
+      targetSection: "basics"
     });
   }
 
+  // 같은 카테고리 안에서는 impact 점수 큰 순으로 정렬. 카테고리 순서는
+  // required → recommended → optional (UI 에서 그룹별로 사용).
+  const order: Record<ResumeCoachActionCategory, number> = { required: 0, recommended: 1, optional: 2 };
   actions.sort((a, b) => {
-    if (a.priority !== b.priority) return a.priority - b.priority;
+    if (a.category !== b.category) return order[a.category] - order[b.category];
     return b.impactPoints - a.impactPoints;
   });
-  return actions.slice(0, 5);
+  return actions;
 }
 
 // Position matcher — surfaces up to 3 positions. Prefers ones the user has

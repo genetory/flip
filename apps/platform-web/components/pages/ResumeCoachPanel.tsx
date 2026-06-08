@@ -31,10 +31,13 @@ import {
   type Resume,
   type ResumeContent,
   type ResumeCoachAction,
+  type ResumeCoachActionCategory,
   type ResumeCoachChatMessage,
   type ResumeCoachData,
   type ResumeCoachSuggestion,
-  type ResumeScoreDimensions
+  type ResumeQualityDimensions,
+  type ResumeReadinessDimensions,
+  type ResumeReadinessLevel
 } from "../../lib/member-profile-client";
 
 // ---------------------------------------------------------------------------
@@ -56,13 +59,48 @@ function useTr() {
 }
 
 
-const DIMENSION_LABELS: Record<keyof ResumeScoreDimensions, { ko: string; en: string; zh: string; vi: string; ja: string; id: string }> = {
-  completeness:   { ko: "완성도",     en: "Completeness",   zh: "完整度",         vi: "Đầy đủ",          ja: "完成度",         id: "Kelengkapan" },
-  contentQuality: { ko: "콘텐츠 품질", en: "Content quality", zh: "内容质量",      vi: "Chất lượng nội dung", ja: "コンテンツ品質", id: "Kualitas konten" },
-  impact:         { ko: "임팩트",      en: "Impact",          zh: "影响力",         vi: "Tác động",          ja: "インパクト",     id: "Dampak" },
-  foreignAppeal:  { ko: "외국인 어필", en: "Foreign appeal",  zh: "外籍人才吸引力", vi: "Sức hút quốc tế",   ja: "外国人アピール", id: "Daya tarik asing" },
-  uniqueness:     { ko: "차별점",      en: "Uniqueness",      zh: "差异化",         vi: "Khác biệt",         ja: "差別化",         id: "Keunikan" },
-  visual:         { ko: "시각·형식",   en: "Visual",          zh: "视觉·形式",     vi: "Hình thức",         ja: "視覚・形式",     id: "Visual" }
+type LocalizedLabel = { ko: string; en: string; zh: string; vi: string; ja: string; id: string };
+
+const QUALITY_DIMENSION_LABELS: Record<keyof ResumeQualityDimensions, LocalizedLabel> = {
+  contentQuality: { ko: "콘텐츠 품질", en: "Content quality", zh: "内容质量",  vi: "Chất lượng nội dung", ja: "コンテンツ品質", id: "Kualitas konten" },
+  impact:         { ko: "임팩트",      en: "Impact",          zh: "影响力",    vi: "Tác động",            ja: "インパクト",     id: "Dampak" },
+  uniqueness:     { ko: "차별점",      en: "Uniqueness",      zh: "差异化",    vi: "Khác biệt",           ja: "差別化",         id: "Keunikan" },
+  visual:         { ko: "시각·형식",   en: "Visual",          zh: "视觉·形式", vi: "Hình thức",           ja: "視覚・形式",     id: "Visual" }
+};
+
+const READINESS_DIMENSION_LABELS: Record<keyof ResumeReadinessDimensions, LocalizedLabel> = {
+  contact:    { ko: "연락처",          en: "Contact",       zh: "联系方式",  vi: "Liên hệ",         ja: "連絡先",       id: "Kontak" },
+  education:  { ko: "학력",            en: "Education",     zh: "学历",      vi: "Học vấn",         ja: "学歴",         id: "Pendidikan" },
+  visa:       { ko: "비자 정보",        en: "Visa",          zh: "签证",      vi: "Thị thực",        ja: "ビザ",         id: "Visa" },
+  koreaFit:   { ko: "한국 취업 적합도", en: "Korea fit",     zh: "韩国适配度", vi: "Phù hợp Hàn Quốc", ja: "韓国就職適合度", id: "Kecocokan Korea" },
+  portfolio:  { ko: "포트폴리오",       en: "Portfolio",     zh: "作品集",    vi: "Hồ sơ năng lực",  ja: "ポートフォリオ", id: "Portofolio" }
+};
+
+const LEVEL_META: Record<ResumeReadinessLevel, { label: LocalizedLabel; bg: string; text: string; dot: string }> = {
+  submittable: {
+    label: { ko: "제출 가능",       en: "Submittable",       zh: "可提交",       vi: "Sẵn sàng nộp",       ja: "提出可能",       id: "Siap dikirim" },
+    bg: "bg-emerald-100", text: "text-emerald-800", dot: "bg-emerald-500"
+  },
+  needs_polish: {
+    label: { ko: "보완 후 제출 가능", en: "Needs polish",     zh: "需完善后提交",  vi: "Cần hoàn thiện",     ja: "補強後に提出可", id: "Perlu disempurnakan" },
+    bg: "bg-amber-100",   text: "text-amber-800",   dot: "bg-amber-500"
+  },
+  not_submittable: {
+    label: { ko: "아직 제출 불가",   en: "Not submittable",   zh: "暂不可提交",    vi: "Chưa thể nộp",       ja: "提出不可",       id: "Belum bisa dikirim" },
+    bg: "bg-slate-200",   text: "text-slate-700",   dot: "bg-slate-500"
+  }
+};
+
+const CATEGORY_LABELS: Record<ResumeCoachActionCategory, LocalizedLabel> = {
+  required:    { ko: "필수",  en: "Required",    zh: "必填",  vi: "Bắt buộc",  ja: "必須",  id: "Wajib" },
+  recommended: { ko: "추천",  en: "Recommended", zh: "推荐",  vi: "Đề xuất",   ja: "推奨",  id: "Disarankan" },
+  optional:    { ko: "선택",  en: "Optional",    zh: "可选",  vi: "Tùy chọn",  ja: "任意",  id: "Opsional" }
+};
+
+const CATEGORY_STYLE: Record<ResumeCoachActionCategory, { badge: string; dot: string }> = {
+  required:    { badge: "bg-red-100 text-red-700",       dot: "bg-red-500" },
+  recommended: { badge: "bg-amber-100 text-amber-800",   dot: "bg-amber-500" },
+  optional:    { badge: "bg-slate-100 text-slate-700",   dot: "bg-slate-400" }
 };
 
 const APPLICATION_STATUS_LABEL: Record<string, string> = {
@@ -248,15 +286,27 @@ export function ResumeCoachPanel({
   }
 
   const { score, actions, matches } = coach;
+  const levelMeta = LEVEL_META[score.level];
+  const levelLabel = tr(levelMeta.label.ko, levelMeta.label.en, levelMeta.label.zh, levelMeta.label.vi, levelMeta.label.ja, levelMeta.label.id);
+  // 사용자가 다음에 해야 할 일을 한 줄로. required 액션이 있으면 그걸 우선,
+  // 없으면 readiness 점수에 따른 일반 안내.
+  const requiredCount = actions.filter((a) => a.category === "required").length;
   const statusMessage =
-    score.total >= 90
-      ? tr("이미 충분히 잘 만들어졌어요", "Already in great shape", "已经非常完善", "Đã rất tốt", "すでに十分", "Sudah sangat baik")
-      : score.total >= 75
-      ? tr("지원에 적합한 수준이에요", "Ready to apply", "可以申请", "Sẵn sàng ứng tuyển", "応募可能", "Siap melamar")
-      : score.total >= 55
-      ? tr("공유는 가능하지만 다듬어볼 만해요", "Shareable but could be polished", "可分享，但还可优化", "Có thể chia sẻ, vẫn nên hoàn thiện", "共有可能、まだ磨ける", "Bisa dibagikan, masih bisa diperhalus")
-      : tr("기본 정보부터 채워봐요", "Start with the essentials", "先填好基本信息", "Bắt đầu với thông tin cơ bản", "基本情報から", "Mulai dengan informasi dasar");
+    score.level === "submittable"
+      ? tr("기업에 추천 가능한 상태예요", "Ready for partner matching", "可推荐给企业", "Sẵn sàng giới thiệu", "企業に推薦可能", "Siap direkomendasikan")
+      : score.level === "needs_polish"
+      ? requiredCount > 0
+        ? tr(`필수 항목 ${requiredCount}개를 채우면 기업 추천 풀에 진입해요`, `Fill ${requiredCount} required item(s) to enter the partner pool`, `补全 ${requiredCount} 个必填项即可进入企业推荐池`, `Điền ${requiredCount} mục bắt buộc để vào danh sách đề xuất`, `必須項目${requiredCount}件を満たすと推薦プールに入ります`, `Lengkapi ${requiredCount} item wajib untuk masuk pool rekomendasi`)
+        : tr("이력서 품질을 조금 더 다듬으면 추천 가능해요", "Polish quality a bit more to be recommendable", "再优化质量即可被推荐", "Cải thiện chất lượng để được đề xuất", "もう少し品質を磨くと推薦可能", "Tingkatkan kualitas agar bisa direkomendasikan")
+      : tr("기본 정보부터 채워보세요", "Start with the essentials", "先填好基本信息", "Bắt đầu với thông tin cơ bản", "基本情報から", "Mulai dengan informasi dasar");
   const hasResults = matches.length > 0;
+
+  // 액션을 카테고리로 그룹핑 — UI 에서 섹션 헤더 단위로 보여줌
+  const actionsByCategory: Record<ResumeCoachActionCategory, ResumeCoachAction[]> = {
+    required: actions.filter((a) => a.category === "required"),
+    recommended: actions.filter((a) => a.category === "recommended"),
+    optional: actions.filter((a) => a.category === "optional")
+  };
 
   return (
     <>
@@ -296,43 +346,89 @@ export function ResumeCoachPanel({
         </Button>
       </div>
 
-      {/* Score hero — 배경 없이 깨끗하게, 프로그레스 바는 두껍고 진하게 */}
+      {/* Score hero — readiness 배지가 가장 상단. 이력서 품질·제출 준비도
+          두 점수를 나란히 보여주고, 각 점수의 차원 바를 아래에. */}
       <section className="rounded-2xl border border-border bg-card p-5 md:p-6">
-        <div className="flex items-baseline gap-3">
-          <span className="font-display text-3xl font-bold tabular-nums md:text-4xl">{score.total}</span>
-          <span className="text-[13px] text-muted-foreground">/100</span>
-          <span className="text-[13px] font-semibold text-foreground">· {statusMessage}</span>
+        {/* Top: status badge + 한 줄 안내 */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold ${levelMeta.bg} ${levelMeta.text}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${levelMeta.dot}`} />
+            {levelLabel}
+          </span>
+          <span className="text-[12.5px] text-muted-foreground">{statusMessage}</span>
         </div>
-        <div className="mt-5 grid gap-3">
-          {(Object.keys(score.dimensions) as Array<keyof ResumeScoreDimensions>).map((key) => {
-            const value = score.dimensions[key];
-            const labels = DIMENSION_LABELS[key];
-            const label = tr(labels.ko, labels.en, labels.zh, labels.vi, labels.ja, labels.id);
-            return (
-              <div key={key} className="flex items-center gap-3">
-                <span className="w-24 flex-none text-[12px] font-medium text-foreground">{label}</span>
-                <div className="relative h-3 flex-1 overflow-hidden rounded-full bg-foreground/10">
-                  <div className="absolute inset-y-0 left-0 rounded-full bg-foreground transition-all" style={{ width: `${value}%` }} />
-                </div>
-                <span className="w-9 flex-none text-right text-[12px] font-bold tabular-nums">{value}</span>
-              </div>
-            );
-          })}
+
+        {/* Dual scores */}
+        <div className="mt-4 grid gap-5 md:grid-cols-2">
+          {/* Quality */}
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {tr("이력서 품질", "Resume quality", "简历质量", "Chất lượng hồ sơ", "履歴書品質", "Kualitas resume")}
+              </span>
+            </div>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className="font-display text-3xl font-bold tabular-nums">{score.quality.total}</span>
+              <span className="text-[12px] text-muted-foreground">/100</span>
+            </div>
+            <div className="mt-3 grid gap-2">
+              {(Object.keys(score.quality.dimensions) as Array<keyof ResumeQualityDimensions>).map((key) => {
+                const value = score.quality.dimensions[key];
+                const labels = QUALITY_DIMENSION_LABELS[key];
+                const label = tr(labels.ko, labels.en, labels.zh, labels.vi, labels.ja, labels.id);
+                return (
+                  <div key={key} className="flex items-center gap-2.5">
+                    <span className="w-20 flex-none text-[11.5px] text-foreground">{label}</span>
+                    <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-foreground/10">
+                      <div className="absolute inset-y-0 left-0 rounded-full bg-foreground transition-all" style={{ width: `${value}%` }} />
+                    </div>
+                    <span className="w-7 flex-none text-right text-[11px] font-bold tabular-nums">{value}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Readiness */}
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {tr("제출 준비도", "Submission readiness", "提交准备度", "Mức sẵn sàng nộp", "提出準備度", "Kesiapan kirim")}
+              </span>
+            </div>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className="font-display text-3xl font-bold tabular-nums">{score.readiness.total}</span>
+              <span className="text-[12px] text-muted-foreground">/100</span>
+            </div>
+            <div className="mt-3 grid gap-2">
+              {(Object.keys(score.readiness.dimensions) as Array<keyof ResumeReadinessDimensions>).map((key) => {
+                const value = score.readiness.dimensions[key];
+                const labels = READINESS_DIMENSION_LABELS[key];
+                const label = tr(labels.ko, labels.en, labels.zh, labels.vi, labels.ja, labels.id);
+                return (
+                  <div key={key} className="flex items-center gap-2.5">
+                    <span className="w-20 flex-none text-[11.5px] text-foreground">{label}</span>
+                    <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-foreground/10">
+                      <div className="absolute inset-y-0 left-0 rounded-full bg-foreground transition-all" style={{ width: `${value}%` }} />
+                    </div>
+                    <span className="w-7 flex-none text-right text-[11px] font-bold tabular-nums">{value}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Actions + Matches — 우측 컬럼 폭이 제한적이라 항상 세로 흐름 */}
       <section className="mt-5 space-y-5">
-        {/* Actions */}
+        {/* Actions — 카테고리별 그룹 (필수 / 추천 / 선택) */}
         <div className="rounded-2xl border border-border bg-card p-5 md:p-6">
           <header className="mb-4 flex items-center gap-2">
             <Lightning className="h-5 w-5 text-foreground" weight="fill" />
             <h3 className="font-display text-base font-bold">
               {tr("다음 액션", "Next actions", "下一步行动", "Hành động tiếp theo", "次のアクション", "Tindakan berikutnya")}
             </h3>
-            <span className="text-[12px] text-muted-foreground">
-              {tr("우선순위 순", "by priority", "按优先级", "theo ưu tiên", "優先順位順", "berdasarkan prioritas")}
-            </span>
           </header>
           {actions.length === 0 ? (
             <div className="grid place-items-center gap-3 rounded-2xl bg-muted/40 px-4 py-12 text-center">
@@ -342,56 +438,57 @@ export function ResumeCoachPanel({
               </p>
             </div>
           ) : (
-            <ul className="space-y-3">
-              {actions.map((action) => (
-                <li
-                  key={action.id}
-                  className="group rounded-2xl border border-border bg-background p-4 transition hover:border-foreground/40"
-                >
-                  <div className="flex items-start gap-3">
-                    <span
-                      className={`mt-0.5 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full text-[11px] font-bold ${
-                        action.priority === 1
-                          ? "bg-red-100 text-red-700"
-                          : action.priority === 2
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-slate-100 text-slate-700"
-                      }`}
-                    >
-                      {action.priority}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-[13.5px] font-bold">{action.title}</p>
-                        <span className="inline-flex flex-none items-center gap-0.5 rounded-full bg-[#b7ff5a] px-2 py-0.5 text-[10px] font-bold text-[#111]">
-                          +{action.impactPoints}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-[12.5px] text-muted-foreground">{action.description}</p>
-                      <div className="mt-3 flex items-center gap-2">
-                        <Link
-                          href={`/resume/${resumeId}/edit`}
-                          className="inline-flex items-center gap-1 text-[12px] font-semibold text-foreground hover:underline"
-                        >
-                          {tr("편집으로", "Open editor", "打开编辑", "Mở chỉnh sửa", "編集を開く", "Buka editor")}
-                          <CaretRight className="h-3 w-3" weight="bold" />
-                        </Link>
-                        {action.llmEligible ? (
-                          <button
-                            type="button"
-                            onClick={() => openSuggestion(action)}
-                            className="inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1 text-[11px] font-semibold text-background hover:opacity-90"
-                          >
-                            <Sparkle className="h-3 w-3" weight="fill" />
-                            {tr("AI 추천 보기", "Get AI suggestion", "获取AI建议", "Gợi ý AI", "AI提案を見る", "Saran AI")}
-                          </button>
-                        ) : null}
-                      </div>
+            <div className="space-y-5">
+              {(["required", "recommended", "optional"] as ResumeCoachActionCategory[]).map((category) => {
+                const items = actionsByCategory[category];
+                if (items.length === 0) return null;
+                const catLabel = CATEGORY_LABELS[category];
+                const catStyle = CATEGORY_STYLE[category];
+                return (
+                  <div key={category}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${catStyle.badge}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${catStyle.dot}`} />
+                        {tr(catLabel.ko, catLabel.en, catLabel.zh, catLabel.vi, catLabel.ja, catLabel.id)}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">{items.length}</span>
                     </div>
+                    <ul className="space-y-2">
+                      {items.map((action) => (
+                        <li key={action.id} className="rounded-2xl border border-border bg-background p-4 transition hover:border-foreground/40">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-[13.5px] font-bold">{action.title}</p>
+                            <span className="inline-flex flex-none items-center gap-0.5 rounded-full bg-[#b7ff5a] px-2 py-0.5 text-[10px] font-bold text-[#111]">
+                              +{action.impactPoints}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[12.5px] text-muted-foreground">{action.description}</p>
+                          <div className="mt-3 flex items-center gap-2">
+                            <Link
+                              href={`/resume/${resumeId}/edit`}
+                              className="inline-flex items-center gap-1 text-[12px] font-semibold text-foreground hover:underline"
+                            >
+                              {tr("편집으로", "Open editor", "打开编辑", "Mở chỉnh sửa", "編集を開く", "Buka editor")}
+                              <CaretRight className="h-3 w-3" weight="bold" />
+                            </Link>
+                            {action.llmEligible ? (
+                              <button
+                                type="button"
+                                onClick={() => openSuggestion(action)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1 text-[11px] font-semibold text-background hover:opacity-90"
+                              >
+                                <Sparkle className="h-3 w-3" weight="fill" />
+                                {tr("AI 추천 보기", "Get AI suggestion", "获取AI建议", "Gợi ý AI", "AI提案を見る", "Saran AI")}
+                              </button>
+                            ) : null}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                </li>
-              ))}
-            </ul>
+                );
+              })}
+            </div>
           )}
         </div>
 
