@@ -9,7 +9,21 @@
 
 export type EducationLevel = "HIGH_SCHOOL" | "BACHELOR" | "MASTER" | "PHD";
 export type KoreanLevel    = "NONE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "NATIVE";
-export type MajorCategory  = "IT" | "ENGINEERING" | "BUSINESS" | "DESIGN" | "HUMANITIES" | "SCIENCE" | "OTHER";
+// 자유 string 으로 변경 — 프론트 카테고리가 늘어나도 백엔드 enum 을 매번
+// 동기화할 필요가 없게. STEM 여부 같은 분기는 isStemMajor() 헬퍼로.
+export type MajorCategory  = string;
+
+// E-7 같은 전문직 비자 추천 분기에서 STEM 전공 여부를 판단. 기존 IT/
+// ENGINEERING 도 호환되도록 둠 + 세분화된 새 카테고리들 포함.
+const STEM_MAJORS = new Set([
+  "IT", "ENGINEERING", "SCIENCE",
+  "IT_SOFTWARE", "AI_DATA",
+  "MECHANICAL", "ELECTRICAL", "CIVIL", "CHEMICAL",
+  "MEDICINE", "AGRICULTURE"
+]);
+export function isStemMajor(major: string | null | undefined): boolean {
+  return Boolean(major && STEM_MAJORS.has(major));
+}
 
 export type VisaFit = "high" | "medium" | "low";
 
@@ -69,7 +83,7 @@ export function evaluateVisaEligibility(input: VisaInput): EligibleVisa[] {
   // 학사+해당 직무 또는 석사 이상이면 가능성 큼. 한국어와 직무 매칭이 중요.
   const e7Eligible = isHighEducation
     || (input.educationLevel === "BACHELOR" && input.workYears >= 1)
-    || (input.educationLevel === "BACHELOR" && (input.majorCategory === "IT" || input.majorCategory === "ENGINEERING"));
+    || (input.educationLevel === "BACHELOR" && isStemMajor(input.majorCategory));
   if (e7Eligible) {
     const fit: VisaFit =
       isHighEducation && koreanScore >= 2 ? "high" :

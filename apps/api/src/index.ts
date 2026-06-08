@@ -6797,7 +6797,10 @@ const visaCheckSchema = z.object({
   nationality: z.string().trim().min(1).max(80),
   currentVisa: z.string().trim().max(20).optional(),
   educationLevel: z.enum(["HIGH_SCHOOL", "BACHELOR", "MASTER", "PHD"]),
-  majorCategory: z.enum(["IT", "ENGINEERING", "BUSINESS", "DESIGN", "HUMANITIES", "SCIENCE", "OTHER"]).optional(),
+  // 자유 입력으로 변경 — 추천 분기에 쓰이지 않고 단순 저장용. 프론트에서
+  // 카테고리 옵션을 늘려도 백엔드 enum 을 매번 동기화할 필요가 없음.
+  // 기존 값(IT/ENGINEERING/...) 도 그대로 받음.
+  majorCategory: z.string().trim().max(40).optional(),
   koreanLevel: z.enum(["NONE", "BEGINNER", "INTERMEDIATE", "ADVANCED", "NATIVE"]),
   workYears: z.coerce.number().int().min(0).max(50),
   targetRole: z.string().trim().max(80).optional(),

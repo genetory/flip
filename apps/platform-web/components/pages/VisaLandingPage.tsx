@@ -44,15 +44,11 @@ type Copy = {
   langLabel: string;
   education: { high: string; bachelor: string; master: string; phd: string };
   korean: { none: string; beginner: string; intermediate: string; advanced: string; native: string };
-  major: {
-    it: string;
-    engineering: string;
-    business: string;
-    design: string;
-    humanities: string;
-    science: string;
-    other: string;
-  };
+  // 전공·비자 라벨은 동적 키를 지원하기 위해 Record 로.
+  majorNames: Record<string, string>;
+  visaCodeNames: Record<string, string>;
+  currentVisaSelect: string;
+  currentVisaOtherPlaceholder: string;
   nationalityNames: Record<string, string>;
 };
 
@@ -64,6 +60,30 @@ const NATIONALITY_CODES = [
   "LA", "TJ", "TM", "RU", "TR", "EG", "NG", "ZA", "KE",
   "US", "GB", "CA", "AU", "NZ", "DE", "FR", "IT", "ES", "NL", "PL", "UA",
   "BR", "MX", "AR", "CL",
+  "OTHER"
+] as const;
+
+// 전공 카테고리 — 기존 7개에서 22개로 확장. 한국 외국인 학생들이 실제로
+// 가지는 전공 분포 + 한국 채용 시장에서 자주 보이는 분야 위주.
+const MAJOR_CODES = [
+  "IT_SOFTWARE", "AI_DATA",
+  "MECHANICAL", "ELECTRICAL", "CIVIL", "CHEMICAL",
+  "BUSINESS", "ECONOMICS", "MARKETING",
+  "DESIGN", "ART",
+  "HUMANITIES", "KOREAN_STUDIES", "EDUCATION", "LAW", "SOCIAL_SCIENCE",
+  "SCIENCE", "MEDICINE", "AGRICULTURE",
+  "TOURISM", "COMMUNICATIONS", "INTERNATIONAL",
+  "OTHER"
+] as const;
+
+// 현재 비자 — 외국인이 자기 비자 코드를 정확히 알기 어려워서 select 박스로
+// 제공. "없음(한국 밖)" 도 옵션. OTHER 는 직접 입력 fallback.
+const CURRENT_VISA_CODES = [
+  "NONE",
+  "D-2", "D-4", "D-10",
+  "F-2", "F-4", "F-5", "F-6",
+  "E-7", "E-9",
+  "H-1",
   "OTHER"
 ] as const;
 
@@ -87,6 +107,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     namePlaceholder: "결과 카드에 표시됩니다",
     currentVisaLabel: "현재 비자",
     currentVisaPlaceholder: "예: D-2, F-4",
+    currentVisaSelect: "선택해주세요",
+    currentVisaOtherPlaceholder: "비자 코드를 입력해 주세요",
     targetRoleLabel: "희망 직무",
     targetRolePlaceholder: "예: 소프트웨어 엔지니어",
     errNationality: "국적을 선택해 주세요.",
@@ -98,7 +120,31 @@ const COPY: Record<PlatformLocale, Copy> = {
     langLabel: "한국어",
     education: { high: "고졸", bachelor: "학사", master: "석사", phd: "박사" },
     korean: { none: "전혀 못함", beginner: "초급", intermediate: "중급", advanced: "고급", native: "원어민" },
-    major: { it: "IT·컴퓨터", engineering: "공학", business: "경영·경제", design: "디자인·예술", humanities: "인문·어학", science: "자연과학", other: "기타" },
+    majorNames: {
+      IT_SOFTWARE: "IT·소프트웨어", AI_DATA: "AI·데이터",
+      MECHANICAL: "기계공학", ELECTRICAL: "전기·전자", CIVIL: "건축·토목", CHEMICAL: "화학·소재",
+      BUSINESS: "경영·회계", ECONOMICS: "경제·금융", MARKETING: "마케팅·광고",
+      DESIGN: "디자인·UX", ART: "미술·음악·영상",
+      HUMANITIES: "인문·어학", KOREAN_STUDIES: "한국학·한국어교육", EDUCATION: "교육학",
+      LAW: "법학", SOCIAL_SCIENCE: "사회·정치·심리",
+      SCIENCE: "자연과학", MEDICINE: "의·약·간호·보건", AGRICULTURE: "농·수산·식품",
+      TOURISM: "관광·호텔", COMMUNICATIONS: "미디어·신문방송", INTERNATIONAL: "국제·외교",
+      OTHER: "기타"
+    },
+    visaCodeNames: {
+      NONE: "없음 (한국 밖)",
+      "D-2": "D-2 유학",
+      "D-4": "D-4 일반연수",
+      "D-10": "D-10 구직",
+      "F-2": "F-2 거주",
+      "F-4": "F-4 재외동포",
+      "F-5": "F-5 영주",
+      "F-6": "F-6 결혼이민",
+      "E-7": "E-7 특정활동",
+      "E-9": "E-9 비전문취업",
+      "H-1": "H-1 관광취업",
+      OTHER: "기타 (직접 입력)"
+    },
     nationalityNames: {
       VN: "베트남", CN: "중국", ID: "인도네시아", MN: "몽골", MM: "미얀마", TH: "태국",
       JP: "일본", PH: "필리핀", IN: "인도", BD: "방글라데시", PK: "파키스탄", NP: "네팔",
@@ -132,6 +178,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     namePlaceholder: "Shown on your result card",
     currentVisaLabel: "Current visa",
     currentVisaPlaceholder: "e.g. D-2, F-4",
+    currentVisaSelect: "Choose one",
+    currentVisaOtherPlaceholder: "Enter your visa code",
     targetRoleLabel: "Target role",
     targetRolePlaceholder: "e.g. Software engineer",
     errNationality: "Please pick a nationality.",
@@ -143,7 +191,31 @@ const COPY: Record<PlatformLocale, Copy> = {
     langLabel: "English",
     education: { high: "High school", bachelor: "Bachelor", master: "Master", phd: "PhD" },
     korean: { none: "None", beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced", native: "Native" },
-    major: { it: "IT / CS", engineering: "Engineering", business: "Business", design: "Design / Arts", humanities: "Humanities", science: "Science", other: "Other" },
+    majorNames: {
+      IT_SOFTWARE: "IT / Software", AI_DATA: "AI / Data",
+      MECHANICAL: "Mechanical eng.", ELECTRICAL: "Electrical eng.", CIVIL: "Civil / Arch.", CHEMICAL: "Chem / Materials",
+      BUSINESS: "Business / Accounting", ECONOMICS: "Economics / Finance", MARKETING: "Marketing / Ads",
+      DESIGN: "Design / UX", ART: "Fine arts / Music / Film",
+      HUMANITIES: "Humanities / Lang.", KOREAN_STUDIES: "Korean studies", EDUCATION: "Education",
+      LAW: "Law", SOCIAL_SCIENCE: "Social sciences",
+      SCIENCE: "Natural sciences", MEDICINE: "Med / Nursing / Health", AGRICULTURE: "Agriculture / Food",
+      TOURISM: "Tourism / Hospitality", COMMUNICATIONS: "Media / Journalism", INTERNATIONAL: "Int'l / Diplomacy",
+      OTHER: "Other"
+    },
+    visaCodeNames: {
+      NONE: "None (outside Korea)",
+      "D-2": "D-2 Student",
+      "D-4": "D-4 General training",
+      "D-10": "D-10 Job seeking",
+      "F-2": "F-2 Residence",
+      "F-4": "F-4 Overseas Korean",
+      "F-5": "F-5 Permanent",
+      "F-6": "F-6 Marriage",
+      "E-7": "E-7 Specific activity",
+      "E-9": "E-9 Non-professional",
+      "H-1": "H-1 Working holiday",
+      OTHER: "Other (type yourself)"
+    },
     nationalityNames: {
       VN: "Vietnam", CN: "China", ID: "Indonesia", MN: "Mongolia", MM: "Myanmar", TH: "Thailand",
       JP: "Japan", PH: "Philippines", IN: "India", BD: "Bangladesh", PK: "Pakistan", NP: "Nepal",
@@ -177,6 +249,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     namePlaceholder: "将显示在结果卡片上",
     currentVisaLabel: "当前签证",
     currentVisaPlaceholder: "如: D-2, F-4",
+    currentVisaSelect: "请选择",
+    currentVisaOtherPlaceholder: "请输入签证代码",
     targetRoleLabel: "目标职位",
     targetRolePlaceholder: "如: 软件工程师",
     errNationality: "请选择国籍。",
@@ -188,7 +262,31 @@ const COPY: Record<PlatformLocale, Copy> = {
     langLabel: "简体中文",
     education: { high: "高中", bachelor: "本科", master: "硕士", phd: "博士" },
     korean: { none: "完全不会", beginner: "初级", intermediate: "中级", advanced: "高级", native: "母语水平" },
-    major: { it: "IT/计算机", engineering: "工程", business: "经管", design: "设计/艺术", humanities: "人文/语言", science: "自然科学", other: "其他" },
+    majorNames: {
+      IT_SOFTWARE: "IT/软件", AI_DATA: "AI/数据",
+      MECHANICAL: "机械工程", ELECTRICAL: "电气电子", CIVIL: "建筑/土木", CHEMICAL: "化学/材料",
+      BUSINESS: "经营/会计", ECONOMICS: "经济/金融", MARKETING: "营销/广告",
+      DESIGN: "设计/UX", ART: "美术/音乐/影像",
+      HUMANITIES: "人文/语言", KOREAN_STUDIES: "韩国学/韩语教育", EDUCATION: "教育学",
+      LAW: "法学", SOCIAL_SCIENCE: "社会/政治/心理",
+      SCIENCE: "自然科学", MEDICINE: "医学/护理/保健", AGRICULTURE: "农林水产/食品",
+      TOURISM: "旅游/酒店", COMMUNICATIONS: "媒体/新闻", INTERNATIONAL: "国际关系/外交",
+      OTHER: "其他"
+    },
+    visaCodeNames: {
+      NONE: "无（在韩国境外）",
+      "D-2": "D-2 留学",
+      "D-4": "D-4 一般研修",
+      "D-10": "D-10 求职",
+      "F-2": "F-2 居住",
+      "F-4": "F-4 在外同胞",
+      "F-5": "F-5 永驻",
+      "F-6": "F-6 结婚移民",
+      "E-7": "E-7 特定活动",
+      "E-9": "E-9 非专业就业",
+      "H-1": "H-1 观光就业",
+      OTHER: "其他（手动输入）"
+    },
     nationalityNames: {
       VN: "越南", CN: "中国", ID: "印度尼西亚", MN: "蒙古", MM: "缅甸", TH: "泰国",
       JP: "日本", PH: "菲律宾", IN: "印度", BD: "孟加拉", PK: "巴基斯坦", NP: "尼泊尔",
@@ -222,6 +320,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     namePlaceholder: "Sẽ hiển thị trên thẻ kết quả",
     currentVisaLabel: "Visa hiện tại",
     currentVisaPlaceholder: "Vd: D-2, F-4",
+    currentVisaSelect: "Chọn một",
+    currentVisaOtherPlaceholder: "Nhập mã visa của bạn",
     targetRoleLabel: "Vị trí mong muốn",
     targetRolePlaceholder: "Vd: Kỹ sư phần mềm",
     errNationality: "Vui lòng chọn quốc tịch.",
@@ -233,7 +333,31 @@ const COPY: Record<PlatformLocale, Copy> = {
     langLabel: "Tiếng Việt",
     education: { high: "THPT", bachelor: "Cử nhân", master: "Thạc sĩ", phd: "Tiến sĩ" },
     korean: { none: "Không biết", beginner: "Sơ cấp", intermediate: "Trung cấp", advanced: "Cao cấp", native: "Bản ngữ" },
-    major: { it: "IT/CNTT", engineering: "Kỹ thuật", business: "Kinh tế", design: "Thiết kế/Nghệ thuật", humanities: "Nhân văn", science: "Khoa học", other: "Khác" },
+    majorNames: {
+      IT_SOFTWARE: "IT/Phần mềm", AI_DATA: "AI/Dữ liệu",
+      MECHANICAL: "Kỹ thuật cơ khí", ELECTRICAL: "Điện/Điện tử", CIVIL: "Xây dựng/Kiến trúc", CHEMICAL: "Hóa học/Vật liệu",
+      BUSINESS: "Kinh doanh/Kế toán", ECONOMICS: "Kinh tế/Tài chính", MARKETING: "Marketing/Quảng cáo",
+      DESIGN: "Thiết kế/UX", ART: "Mỹ thuật/Âm nhạc/Phim",
+      HUMANITIES: "Nhân văn/Ngôn ngữ", KOREAN_STUDIES: "Hàn Quốc học/Tiếng Hàn", EDUCATION: "Giáo dục",
+      LAW: "Luật", SOCIAL_SCIENCE: "Xã hội/Chính trị/Tâm lý",
+      SCIENCE: "Khoa học tự nhiên", MEDICINE: "Y/Dược/Điều dưỡng", AGRICULTURE: "Nông lâm/Thủy sản",
+      TOURISM: "Du lịch/Khách sạn", COMMUNICATIONS: "Truyền thông/Báo chí", INTERNATIONAL: "Quan hệ quốc tế",
+      OTHER: "Khác"
+    },
+    visaCodeNames: {
+      NONE: "Không có (ngoài Hàn Quốc)",
+      "D-2": "D-2 Du học",
+      "D-4": "D-4 Đào tạo chung",
+      "D-10": "D-10 Tìm việc",
+      "F-2": "F-2 Cư trú",
+      "F-4": "F-4 Người Hàn hải ngoại",
+      "F-5": "F-5 Vĩnh trú",
+      "F-6": "F-6 Kết hôn",
+      "E-7": "E-7 Hoạt động đặc định",
+      "E-9": "E-9 Lao động phổ thông",
+      "H-1": "H-1 Working holiday",
+      OTHER: "Khác (tự nhập)"
+    },
     nationalityNames: {
       VN: "Việt Nam", CN: "Trung Quốc", ID: "Indonesia", MN: "Mông Cổ", MM: "Myanmar", TH: "Thái Lan",
       JP: "Nhật Bản", PH: "Philippines", IN: "Ấn Độ", BD: "Bangladesh", PK: "Pakistan", NP: "Nepal",
@@ -267,6 +391,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     namePlaceholder: "結果カードに表示されます",
     currentVisaLabel: "現在のビザ",
     currentVisaPlaceholder: "例: D-2, F-4",
+    currentVisaSelect: "選択してください",
+    currentVisaOtherPlaceholder: "ビザコードを入力",
     targetRoleLabel: "希望職種",
     targetRolePlaceholder: "例: ソフトウェアエンジニア",
     errNationality: "国籍を選択してください。",
@@ -278,7 +404,31 @@ const COPY: Record<PlatformLocale, Copy> = {
     langLabel: "日本語",
     education: { high: "高卒", bachelor: "学士", master: "修士", phd: "博士" },
     korean: { none: "全くできない", beginner: "初級", intermediate: "中級", advanced: "上級", native: "母語" },
-    major: { it: "IT/CS", engineering: "工学", business: "経営/経済", design: "デザイン/芸術", humanities: "人文/語学", science: "自然科学", other: "その他" },
+    majorNames: {
+      IT_SOFTWARE: "IT・ソフトウェア", AI_DATA: "AI・データ",
+      MECHANICAL: "機械工学", ELECTRICAL: "電気・電子", CIVIL: "建築・土木", CHEMICAL: "化学・素材",
+      BUSINESS: "経営・会計", ECONOMICS: "経済・金融", MARKETING: "マーケティング・広告",
+      DESIGN: "デザイン・UX", ART: "美術・音楽・映像",
+      HUMANITIES: "人文・語学", KOREAN_STUDIES: "韓国学・韓国語教育", EDUCATION: "教育学",
+      LAW: "法学", SOCIAL_SCIENCE: "社会・政治・心理",
+      SCIENCE: "自然科学", MEDICINE: "医・薬・看護・保健", AGRICULTURE: "農林水産・食品",
+      TOURISM: "観光・ホテル", COMMUNICATIONS: "メディア・新聞放送", INTERNATIONAL: "国際関係・外交",
+      OTHER: "その他"
+    },
+    visaCodeNames: {
+      NONE: "なし（韓国国外）",
+      "D-2": "D-2 留学",
+      "D-4": "D-4 一般研修",
+      "D-10": "D-10 求職",
+      "F-2": "F-2 居住",
+      "F-4": "F-4 在外同胞",
+      "F-5": "F-5 永住",
+      "F-6": "F-6 結婚移民",
+      "E-7": "E-7 特定活動",
+      "E-9": "E-9 非専門就業",
+      "H-1": "H-1 ワーキングホリデー",
+      OTHER: "その他（手入力）"
+    },
     nationalityNames: {
       VN: "ベトナム", CN: "中国", ID: "インドネシア", MN: "モンゴル", MM: "ミャンマー", TH: "タイ",
       JP: "日本", PH: "フィリピン", IN: "インド", BD: "バングラデシュ", PK: "パキスタン", NP: "ネパール",
@@ -312,6 +462,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     namePlaceholder: "Tampil di kartu hasil",
     currentVisaLabel: "Visa saat ini",
     currentVisaPlaceholder: "Cth: D-2, F-4",
+    currentVisaSelect: "Pilih satu",
+    currentVisaOtherPlaceholder: "Masukkan kode visa Anda",
     targetRoleLabel: "Posisi yang dituju",
     targetRolePlaceholder: "Cth: Software engineer",
     errNationality: "Silakan pilih kebangsaan.",
@@ -323,7 +475,31 @@ const COPY: Record<PlatformLocale, Copy> = {
     langLabel: "Bahasa Indonesia",
     education: { high: "SMA", bachelor: "Sarjana", master: "Magister", phd: "Doktor" },
     korean: { none: "Tidak bisa", beginner: "Pemula", intermediate: "Menengah", advanced: "Mahir", native: "Bahasa ibu" },
-    major: { it: "IT/CS", engineering: "Teknik", business: "Bisnis", design: "Desain/Seni", humanities: "Humaniora", science: "Sains", other: "Lainnya" },
+    majorNames: {
+      IT_SOFTWARE: "IT/Perangkat lunak", AI_DATA: "AI/Data",
+      MECHANICAL: "Teknik mesin", ELECTRICAL: "Listrik/Elektronik", CIVIL: "Sipil/Arsitektur", CHEMICAL: "Kimia/Material",
+      BUSINESS: "Bisnis/Akuntansi", ECONOMICS: "Ekonomi/Keuangan", MARKETING: "Pemasaran/Iklan",
+      DESIGN: "Desain/UX", ART: "Seni rupa/Musik/Film",
+      HUMANITIES: "Humaniora/Bahasa", KOREAN_STUDIES: "Studi Korea/Bahasa Korea", EDUCATION: "Pendidikan",
+      LAW: "Hukum", SOCIAL_SCIENCE: "Sosial/Politik/Psikologi",
+      SCIENCE: "Sains alam", MEDICINE: "Medis/Perawat/Kesehatan", AGRICULTURE: "Pertanian/Pangan",
+      TOURISM: "Pariwisata/Perhotelan", COMMUNICATIONS: "Media/Jurnalistik", INTERNATIONAL: "Hubungan internasional",
+      OTHER: "Lainnya"
+    },
+    visaCodeNames: {
+      NONE: "Tidak ada (di luar Korea)",
+      "D-2": "D-2 Pelajar",
+      "D-4": "D-4 Pelatihan umum",
+      "D-10": "D-10 Pencari kerja",
+      "F-2": "F-2 Residensi",
+      "F-4": "F-4 Diaspora Korea",
+      "F-5": "F-5 Permanen",
+      "F-6": "F-6 Pernikahan",
+      "E-7": "E-7 Aktivitas khusus",
+      "E-9": "E-9 Non-profesional",
+      "H-1": "H-1 Working holiday",
+      OTHER: "Lainnya (tulis sendiri)"
+    },
     nationalityNames: {
       VN: "Vietnam", CN: "Tiongkok", ID: "Indonesia", MN: "Mongolia", MM: "Myanmar", TH: "Thailand",
       JP: "Jepang", PH: "Filipina", IN: "India", BD: "Bangladesh", PK: "Pakistan", NP: "Nepal",
@@ -349,7 +525,9 @@ export function VisaLandingPage() {
   const [name, setName] = useState("");
   const [nationality, setNationality] = useState("");
   const [nationalityOther, setNationalityOther] = useState("");
+  // 현재 비자 — 12개 select + OTHER 자유 입력. "NONE" 은 백엔드로 undefined.
   const [currentVisa, setCurrentVisa] = useState("");
+  const [currentVisaOther, setCurrentVisaOther] = useState("");
   const [educationLevel, setEducationLevel] = useState<string>("BACHELOR");
   const [majorCategory, setMajorCategory] = useState<string>("");
   const [koreanLevel, setKoreanLevel] = useState<string>("INTERMEDIATE");
@@ -364,6 +542,13 @@ export function VisaLandingPage() {
       setError(t.errNationality);
       return;
     }
+    // 현재 비자: NONE → 미보유 (undefined), OTHER → 자유 입력, 그 외 → 그 자체.
+    const finalVisa =
+      currentVisa === "OTHER"
+        ? currentVisaOther.trim() || undefined
+        : currentVisa && currentVisa !== "NONE"
+        ? currentVisa
+        : undefined;
     setSubmitting(true);
     setError(null);
     try {
@@ -373,7 +558,7 @@ export function VisaLandingPage() {
         body: JSON.stringify({
           name: name.trim() || undefined,
           nationality: finalNat,
-          currentVisa: currentVisa.trim() || undefined,
+          currentVisa: finalVisa,
           educationLevel,
           majorCategory: majorCategory || undefined,
           koreanLevel,
@@ -406,15 +591,10 @@ export function VisaLandingPage() {
     { code: "ADVANCED", label: t.korean.advanced },
     { code: "NATIVE", label: t.korean.native }
   ];
-  const majorOptions: { code: string; label: string }[] = [
-    { code: "IT", label: t.major.it },
-    { code: "ENGINEERING", label: t.major.engineering },
-    { code: "BUSINESS", label: t.major.business },
-    { code: "DESIGN", label: t.major.design },
-    { code: "HUMANITIES", label: t.major.humanities },
-    { code: "SCIENCE", label: t.major.science },
-    { code: "OTHER", label: t.major.other }
-  ];
+  const majorOptions: { code: string; label: string }[] = MAJOR_CODES.map((code) => ({
+    code,
+    label: t.majorNames[code] ?? code
+  }));
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
@@ -582,14 +762,32 @@ export function VisaLandingPage() {
               </div>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground" htmlFor="visa-current">{t.currentVisaLabel}</label>
-                <input
-                  id="visa-current"
-                  className="mt-1 h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  value={currentVisa}
-                  onChange={(e) => setCurrentVisa(e.target.value)}
-                  maxLength={20}
-                  placeholder={t.currentVisaPlaceholder}
-                />
+                <div className="relative mt-1">
+                  <select
+                    id="visa-current"
+                    value={currentVisa}
+                    onChange={(e) => setCurrentVisa(e.target.value)}
+                    className="h-11 w-full appearance-none rounded-xl border-0 bg-muted/40 px-3 pr-9 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="">{t.currentVisaSelect}</option>
+                    {CURRENT_VISA_CODES.map((code) => (
+                      <option key={code} value={code}>{t.visaCodeNames[code] ?? code}</option>
+                    ))}
+                  </select>
+                  <CaretDown
+                    className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+                    weight="bold"
+                  />
+                </div>
+                {currentVisa === "OTHER" ? (
+                  <input
+                    className="mt-2 h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={currentVisaOther}
+                    onChange={(e) => setCurrentVisaOther(e.target.value)}
+                    maxLength={20}
+                    placeholder={t.currentVisaOtherPlaceholder}
+                  />
+                ) : null}
               </div>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground" htmlFor="visa-role">{t.targetRoleLabel}</label>
