@@ -5354,6 +5354,100 @@ app.get("/ops/saju/leads", authenticate, requireRoles([MemberRole.OPERATOR]), as
   });
 });
 
+// GET /ops/visa/leads — visa funnel 의 익명 lead 풀 관리. saju 와 동일한 모양
+// (총계 + 단계 카운트 + 검색/필터) 이지만 컬럼 셋이 visa 맞춤.
+const opsVisaLeadsQuerySchema = z.object({
+  poolStage: z.enum(["PROFILE", "VERIFIED", "RECOMMENDABLE"]).optional(),
+  nationality: z.string().trim().max(80).optional(),
+  preferredJobRole: z.string().trim().max(60).optional(),
+  q: z.string().trim().max(120).optional(),
+  take: z.coerce.number().int().min(1).max(200).optional(),
+  skip: z.coerce.number().int().min(0).optional()
+});
+
+app.get("/ops/visa/leads", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsVisaLeadsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+  const f = parsed.data;
+  const where: Prisma.VisaLeadWhereInput = {
+    ...(f.poolStage ? { poolStage: f.poolStage } : {}),
+    ...(f.nationality ? { nationality: { contains: f.nationality, mode: "insensitive" } } : {}),
+    ...(f.preferredJobRole ? { preferredJobRole: { contains: f.preferredJobRole, mode: "insensitive" } } : {}),
+    ...(f.q
+      ? {
+          OR: [
+            { name: { contains: f.q, mode: "insensitive" } },
+            { university: { contains: f.q, mode: "insensitive" } },
+            { major: { contains: f.q, mode: "insensitive" } },
+            { contact: { contains: f.q, mode: "insensitive" } }
+          ]
+        }
+      : {})
+  };
+  const take = f.take ?? 50;
+  const skip = f.skip ?? 0;
+  const [leads, total, stageCounts, checksTotal, leadsTotalAll, leadsConverted] = await Promise.all([
+    prisma.visaLead.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take,
+      skip,
+      include: {
+        visaResult: {
+          select: { shareSlug: true, educationLevel: true, majorCategory: true, workYears: true, targetRole: true }
+        }
+      }
+    }),
+    prisma.visaLead.count({ where }),
+    prisma.visaLead.groupBy({ by: ["poolStage"], _count: { _all: true } }),
+    prisma.visaCheckResult.count(),
+    prisma.visaLead.count(),
+    prisma.visaLead.count({ where: { userId: { not: null } } })
+  ]);
+  return res.json({
+    ok: true,
+    total,
+    take,
+    skip,
+    stageCounts: Object.fromEntries(stageCounts.map((s) => [s.poolStage, s._count._all])),
+    funnel: {
+      checksTotal,
+      leadsTotal: leadsTotalAll,
+      leadsConverted
+    },
+    leads: leads.map((lead) => ({
+      id: lead.id,
+      name: lead.name,
+      shareSlug: lead.shareSlug,
+      contact: lead.contact,
+      contactType: lead.contactType,
+      nationality: lead.nationality,
+      currentVisa: lead.currentVisa,
+      expectedJoinDate: lead.expectedJoinDate,
+      graduationDate: lead.graduationDate,
+      university: lead.university,
+      major: lead.major,
+      preferredJobRole: lead.preferredJobRole,
+      koreanLevel: lead.koreanLevel,
+      englishLevel: lead.englishLevel,
+      poolStage: lead.poolStage,
+      tags: lead.tags,
+      consentCareer: lead.consentCareer,
+      consentRecommend: lead.consentRecommend,
+      consentContact: lead.consentContact,
+      userId: lead.userId,
+      locale: lead.locale,
+      createdAt: lead.createdAt.toISOString(),
+      educationLevel: lead.visaResult?.educationLevel ?? null,
+      majorCategory: lead.visaResult?.majorCategory ?? null,
+      workYears: lead.visaResult?.workYears ?? null,
+      targetRole: lead.visaResult?.targetRole ?? null
+    }))
+  });
+});
+
 const companyConsultationCreateSchema = z.object({
   companyName: z.string().trim().min(1).max(120),
   contactName: z.string().trim().min(1).max(80),
@@ -6703,7 +6797,10 @@ const visaCheckSchema = z.object({
   nationality: z.string().trim().min(1).max(80),
   currentVisa: z.string().trim().max(20).optional(),
   educationLevel: z.enum(["HIGH_SCHOOL", "BACHELOR", "MASTER", "PHD"]),
-  majorCategory: z.enum(["IT", "ENGINEERING", "BUSINESS", "DESIGN", "HUMANITIES", "SCIENCE", "OTHER"]).optional(),
+  // 자유 입력으로 변경 — 추천 분기에 쓰이지 않고 단순 저장용. 프론트에서
+  // 카테고리 옵션을 늘려도 백엔드 enum 을 매번 동기화할 필요가 없음.
+  // 기존 값(IT/ENGINEERING/...) 도 그대로 받음.
+  majorCategory: z.string().trim().max(40).optional(),
   koreanLevel: z.enum(["NONE", "BEGINNER", "INTERMEDIATE", "ADVANCED", "NATIVE"]),
   workYears: z.coerce.number().int().min(0).max(50),
   targetRole: z.string().trim().max(80).optional(),
@@ -6726,15 +6823,120 @@ app.post("/visa/check", async (req, res) => {
     targetRole: input.targetRole ?? null
   });
 
-  // Lightweight position picks — most-recent OPEN positions matching the
-  // targetRole (if any) or the user's koreanLevel as a coarse proxy.
-  const positionRows = await prisma.position.findMany({
+  // 사용자 입력(비자 / 국적 / 전공 / 한국어 / targetRole) 기반 매칭 점수로
+  // 추천 포지션 5개 선정. 룰 기반·즉시 계산이라 임베딩 비용 없음. 후보 풀
+  // 은 최근 OPEN 60개 — 점수 차이 명확히 나오기에 충분.
+  const candidates = await prisma.position.findMany({
     where: { status: PositionStatus.OPEN },
     orderBy: { createdAt: "desc" },
-    take: 5,
-    select: { id: true }
+    take: 60,
+    select: {
+      id: true,
+      title: true,
+      eligibleVisas: true,
+      preferredNationalities: true,
+      communicationLanguages: true,
+      preferredJobRole: true
+    }
   });
-  const recommendedPositionIds = positionRows.map((p) => p.id);
+
+  // 결과로 나온 비자 코드 set — fit=high/medium 만으로 한정해 후원 가능성
+  // 시그널을 정확하게 잡음 (low 는 가산점 대상에서 제외).
+  const userVisaCodes = new Set(
+    eligibleVisas
+      .filter((v) => v.fit === "high" || v.fit === "medium")
+      .map((v) => v.code.toUpperCase())
+  );
+
+  // 전공 → 직무 키워드 매핑(heuristic). preferredJobRole / title 에 키워드
+  // 가 포함되면 매칭으로 본다. 한국어/영어 키워드 함께 둬서 다국어 공고도 잡힘.
+  const majorRoleKeywords: Record<string, string[]> = {
+    IT: ["software", "engineer", "developer", "개발자", "엔지니어", "frontend", "backend"],
+    IT_SOFTWARE: ["software", "engineer", "developer", "개발자", "엔지니어", "frontend", "backend"],
+    AI_DATA: ["data", "ai", "ml", "데이터", "분석", "analyst", "scientist"],
+    ENGINEERING: ["engineer", "엔지니어"],
+    MECHANICAL: ["mechanical", "기계"],
+    ELECTRICAL: ["electrical", "electronics", "전기", "전자"],
+    CIVIL: ["civil", "architect", "건축", "토목"],
+    CHEMICAL: ["chemical", "화학", "소재"],
+    BUSINESS: ["business", "manager", "경영", "운영", "operations"],
+    ECONOMICS: ["finance", "economic", "재무", "금융"],
+    MARKETING: ["marketing", "growth", "마케팅", "광고"],
+    DESIGN: ["design", "ux", "ui", "디자인", "designer"],
+    ART: ["art", "music", "film", "video", "예술", "영상"],
+    HUMANITIES: ["content", "writer", "editor", "콘텐츠"],
+    KOREAN_STUDIES: ["korean", "한국어", "통역", "번역"],
+    EDUCATION: ["teacher", "instructor", "교사", "강사", "education"],
+    LAW: ["legal", "law", "법무", "compliance"],
+    SOCIAL_SCIENCE: ["research", "policy", "리서치"],
+    SCIENCE: ["research", "scientist", "lab", "연구"],
+    MEDICINE: ["medical", "nursing", "health", "의료", "간호", "보건"],
+    AGRICULTURE: ["food", "agri", "농업", "식품"],
+    TOURISM: ["tourism", "hotel", "hospitality", "관광", "호텔"],
+    COMMUNICATIONS: ["media", "journalism", "pr", "미디어", "홍보"],
+    INTERNATIONAL: ["international", "global", "외교"]
+  };
+  const majorKeywords =
+    input.majorCategory && majorRoleKeywords[input.majorCategory]
+      ? majorRoleKeywords[input.majorCategory].map((k) => k.toLowerCase())
+      : [];
+
+  const targetKeywords = input.targetRole
+    ? input.targetRole
+        .toLowerCase()
+        .split(/[\s,/·]+/)
+        .filter((w) => w.length >= 2)
+    : [];
+
+  const koreanScoreMap: Record<string, number> = {
+    NONE: 0, BEGINNER: 1, INTERMEDIATE: 2, ADVANCED: 3, NATIVE: 4
+  };
+  const userKoreanScore = koreanScoreMap[input.koreanLevel] ?? 2;
+  const userNatUpper = input.nationality.toUpperCase();
+
+  type Scored = { id: string; score: number };
+  const scored: Scored[] = candidates.map((p) => {
+    let score = 0;
+
+    // 1) 비자 후원 매칭 — 가장 강력한 시그널.
+    const posVisas = (p.eligibleVisas ?? []).map((v) => v.toUpperCase());
+    if (posVisas.length > 0 && userVisaCodes.size > 0) {
+      const hasMatch = posVisas.some((pv) =>
+        Array.from(userVisaCodes).some((uv) => pv.includes(uv) || uv.includes(pv))
+      );
+      if (hasMatch) score += 40;
+      else score -= 10; // 후원 안 되는 곳은 감점
+    }
+
+    // 2) 국적 매칭 — preferredNationalities 에 명시됐으면 +.
+    const posNat = (p.preferredNationalities ?? []).map((n) => n.toUpperCase());
+    if (posNat.length > 0 && posNat.includes(userNatUpper)) score += 20;
+
+    // 3) 전공 → 직무 키워드 매칭.
+    const haystack = `${p.title} ${p.preferredJobRole ?? ""}`.toLowerCase();
+    if (majorKeywords.length > 0 && majorKeywords.some((kw) => haystack.includes(kw))) {
+      score += 25;
+    }
+
+    // 4) targetRole 직접 매칭 — 사용자가 명시한 게 가장 신호 강함.
+    if (targetKeywords.length > 0) {
+      const matchCount = targetKeywords.filter((kw) => haystack.includes(kw)).length;
+      if (matchCount > 0) score += 15 * matchCount;
+    }
+
+    // 5) 한국어 ↔ 포지션 언어 요구.
+    const posLangs = (p.communicationLanguages ?? []).map((l) => l.toLowerCase());
+    const requiresKorean = posLangs.some((l) => l.includes("kor") || l.includes("한국") || l === "ko");
+    const onlyEnglish = posLangs.length > 0 && posLangs.every((l) => l.includes("en"));
+    if (requiresKorean && userKoreanScore < 2) score -= 15;
+    if (onlyEnglish) score += 5;
+
+    return { id: p.id, score };
+  });
+
+  // 점수 내림차순. 동점은 원래 순서(최근) 유지.
+  scored.sort((a, b) => b.score - a.score);
+  const recommendedPositionIds = scored.slice(0, 5).map((s) => s.id);
 
   const ipRaw =
     (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
@@ -6809,6 +7011,109 @@ app.get("/visa/result/:slug", async (req, res) => {
     positions: orderedPositions
   });
 });
+
+// POST /visa/lead — VisaResultPage 의 회원가입 퍼널에서 익명으로 모으는
+// 리드. SajuLead 와 동일한 pool 패턴 + visa 맞춤 필드(희망 입사일·졸업일·
+// 대학·전공) 를 추가. 한 result 당 한 lead — 사용자가 단계별로 보완할 수
+// 있게 기존 row 를 update 하는 upsert 흐름.
+const visaLeadSchema = z.object({
+  shareSlug: z.string().min(1),
+  name: z.string().trim().max(80).optional(),
+  contact: z.string().trim().max(200).optional(),
+  contactType: z.enum(["email", "phone", "messenger"]).optional(),
+  nationality: z.string().trim().max(80).optional(),
+  currentVisa: z.string().trim().max(20).optional(),
+  expectedJoinDate: z.string().trim().max(20).optional(),
+  graduationDate: z.string().trim().max(20).optional(),
+  university: z.string().trim().max(120).optional(),
+  major: z.string().trim().max(120).optional(),
+  preferredJobRole: z.string().trim().max(120).optional(),
+  koreanLevel: z.string().trim().max(20).optional(),
+  englishLevel: z.string().trim().max(20).optional(),
+  consentCareer: z.boolean().optional(),
+  consentRecommend: z.boolean().optional(),
+  consentContact: z.boolean().optional(),
+  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+});
+
+// 익명 lead 의 분류 태그 — 운영 콘솔에서 필터링용. 국적/직무/비자/언어 등
+// 4-5 차원의 단순 키를 자동으로 생성.
+function buildVisaLeadTags(input: z.infer<typeof visaLeadSchema>): string[] {
+  const tags: string[] = [];
+  if (input.nationality) tags.push(`nat:${input.nationality}`);
+  if (input.currentVisa) tags.push(`visa:${input.currentVisa.toUpperCase()}`);
+  if (input.preferredJobRole) tags.push(`role:${input.preferredJobRole}`);
+  if (input.koreanLevel) tags.push(`ko:${input.koreanLevel}`);
+  if (input.englishLevel) tags.push(`en:${input.englishLevel}`);
+  return tags.slice(0, 10);
+}
+
+app.post(
+  "/visa/lead",
+  rateLimit({ windowMs: 60_000, max: 12, keyPrefix: "visa-lead", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = visaLeadSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid input", errors: parsed.error.flatten() });
+    }
+    const input = parsed.data;
+    const visaResult = await prisma.visaCheckResult.findUnique({
+      where: { shareSlug: input.shareSlug },
+      select: { id: true, name: true, nationality: true }
+    });
+    if (!visaResult) return res.status(404).json({ ok: false, message: "result not found" });
+
+    const tags = buildVisaLeadTags(input);
+    const ipRaw =
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+      req.socket.remoteAddress ||
+      "";
+    const ipHash = ipRaw
+      ? createHash("sha256").update(`${ipRaw}|visa-lead`).digest("hex").slice(0, 32)
+      : null;
+
+    const data = {
+      visaResultId: visaResult.id,
+      shareSlug: input.shareSlug,
+      // 결과 페이지의 이름이 있으면 그대로 들고 옴. funnel 에서 새 이름을
+      // 입력하면 그게 우선.
+      name: input.name ?? visaResult.name,
+      contact: input.contact ?? null,
+      contactType: input.contactType ?? null,
+      nationality: input.nationality ?? visaResult.nationality,
+      currentVisa: input.currentVisa ?? null,
+      expectedJoinDate: input.expectedJoinDate ?? null,
+      graduationDate: input.graduationDate ?? null,
+      university: input.university ?? null,
+      major: input.major ?? null,
+      preferredJobRole: input.preferredJobRole ?? null,
+      koreanLevel: input.koreanLevel ?? null,
+      englishLevel: input.englishLevel ?? null,
+      poolStage: "PROFILE",
+      tags,
+      consentCareer: input.consentCareer ?? false,
+      consentRecommend: input.consentRecommend ?? false,
+      consentContact: input.consentContact ?? false,
+      locale: input.locale ?? "ko",
+      ipHash
+    };
+
+    const existing = await prisma.visaLead.findFirst({
+      where: { visaResultId: visaResult.id },
+      select: { id: true }
+    });
+    let leadId: string;
+    if (existing) {
+      await prisma.visaLead.update({ where: { id: existing.id }, data });
+      leadId = existing.id;
+    } else {
+      const created = await prisma.visaLead.create({ data, select: { id: true } });
+      leadId = created.id;
+    }
+
+    return res.json({ ok: true, leadId });
+  }
+);
 
 // Response cache for /positions, anonymous viewers only. Authenticated
 // users skip the cache so per-viewer flags (saved/applied/etc.) stay

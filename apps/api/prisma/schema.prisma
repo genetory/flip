@@ -1329,7 +1329,52 @@ model VisaCheckResult {
   createdAt              DateTime @default(now())
   claimedAt              DateTime?
 
+  leads                  VisaLead[]
+
   @@index([userId])
   @@index([createdAt])
   @@index([nationality])
+}
+
+// VisaLead — 결과 페이지의 회원가입 퍼널에서 모은 익명 리드. SajuLead 와
+// 같은 패턴 (pool 화 + ops 검토용) 으로, 외국인 채용 funnel 에 특화된 필드
+// (희망 입사일·졸업일·현재 비자) 를 더한 형태. 익명 단계에 모았다가 사용자
+// 가 가입하면 userId 가 채워지며 회원과 자동 연결.
+model VisaLead {
+  id               String           @id @default(uuid())
+  visaResultId     String?
+  shareSlug        String?
+  name             String?
+  // 연락 채널 — 이메일 또는 전화번호. contactType 으로 구분.
+  contact          String?
+  contactType      String?          // "email" | "phone" | "messenger"
+  // 결과 페이지에서 한 번 더 확인/보완하는 funnel 필드.
+  nationality      String?
+  currentVisa      String?
+  expectedJoinDate String?          // 희망 입사일 ("YYYY-MM" 자유 입력)
+  graduationDate   String?          // 대학 졸업일 ("YYYY-MM")
+  university       String?
+  major            String?
+  preferredJobRole String?
+  koreanLevel      String?
+  englishLevel     String?
+  // pool classification + 자동 태그 (국적 / 직무 / 비자 / 언어 등).
+  poolStage        String           @default("PROFILE")
+  tags             String[]         @default([])
+  // 동의 분기 — saju 와 동일한 3-purpose 모델.
+  consentCareer    Boolean          @default(false)
+  consentRecommend Boolean          @default(false)
+  consentContact   Boolean          @default(false)
+  userId           String?
+  locale           String           @default("ko")
+  ipHash           String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  visaResult       VisaCheckResult? @relation(fields: [visaResultId], references: [id], onDelete: SetNull)
+
+  @@index([visaResultId])
+  @@index([userId])
+  @@index([poolStage])
+  @@index([createdAt])
 }
