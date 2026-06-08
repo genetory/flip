@@ -64,6 +64,10 @@ type Copy = {
   kakaoBtn: string;
   googleBtn: string;
   emailBtn: string;
+  // 회원에게는 이력서 코칭으로 자연스럽게 보내는 CTA.
+  signedInHeading: string;
+  signedInSub: string;
+  signedInCta: string;
   // funnel
   funnelOpenCta: string;
   funnelTitle: string;
@@ -120,6 +124,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     kakaoBtn: "카카오로 시작하기",
     googleBtn: "구글로 시작하기",
     emailBtn: "이메일로 가입하기",
+    signedInHeading: "이력서 코칭으로 취업 확률 높이기",
+    signedInSub: "AI 코치가 이력서 점수·개선 액션·맞춤 포지션까지 한 번에 알려줘요.",
+    signedInCta: "내 이력서 코칭 보러가기 →",
     funnelOpenCta: "Aply 가입하고 비자 후원 가능한 회사 추천받기 →",
     funnelTitle: "추가 정보 입력하고 맞춤 추천 받기",
     funnelIntro: "Aply 운영팀이 회원님에게 맞는 회사를 직접 매칭해 드려요. (1분)",
@@ -172,6 +179,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     kakaoBtn: "Continue with Kakao",
     googleBtn: "Continue with Google",
     emailBtn: "Sign up with email",
+    signedInHeading: "Boost your odds with resume coaching",
+    signedInSub: "Your AI coach surfaces your score, action items, and matching positions in one place.",
+    signedInCta: "Open my resume coach →",
     funnelOpenCta: "Sign up on Aply for visa-sponsoring companies →",
     funnelTitle: "Tell us a bit more for personalized picks",
     funnelIntro: "Aply's team will hand-match companies to your profile. (1 minute)",
@@ -224,6 +234,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     kakaoBtn: "使用 Kakao 继续",
     googleBtn: "使用 Google 继续",
     emailBtn: "用邮箱注册",
+    signedInHeading: "简历辅导提升就业概率",
+    signedInSub: "AI 教练一站式呈现您的简历分数、改进建议和匹配职位。",
+    signedInCta: "打开我的简历辅导 →",
     funnelOpenCta: "注册 Aply 获取支持签证赞助的公司 →",
     funnelTitle: "再填一点点，获得专属推荐",
     funnelIntro: "Aply 运营团队将为您手动匹配公司。（1分钟）",
@@ -276,6 +289,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     kakaoBtn: "Tiếp tục với Kakao",
     googleBtn: "Tiếp tục với Google",
     emailBtn: "Đăng ký bằng email",
+    signedInHeading: "Tăng cơ hội với tư vấn hồ sơ",
+    signedInSub: "Huấn luyện viên AI hiển thị điểm hồ sơ, hành động cải thiện và vị trí phù hợp trong một nơi.",
+    signedInCta: "Mở tư vấn hồ sơ của tôi →",
     funnelOpenCta: "Đăng ký Aply để xem công ty bảo trợ visa →",
     funnelTitle: "Thêm một chút thông tin để nhận đề xuất riêng",
     funnelIntro: "Đội Aply sẽ tự tay ghép bạn với công ty phù hợp. (1 phút)",
@@ -328,6 +344,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     kakaoBtn: "Kakao で始める",
     googleBtn: "Google で始める",
     emailBtn: "メールで登録",
+    signedInHeading: "履歴書コーチングで就職確率を上げる",
+    signedInSub: "AIコーチが履歴書スコア・改善アクション・マッチするポジションを一画面でご案内します。",
+    signedInCta: "私の履歴書コーチを開く →",
     funnelOpenCta: "Aplyに登録してビザ支援可能な会社の推薦を受ける →",
     funnelTitle: "少し追加情報を入れて、カスタム推薦を受け取る",
     funnelIntro: "Aply運営チームがあなたに合う会社を直接マッチングします。（1分）",
@@ -380,6 +399,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     kakaoBtn: "Lanjutkan dengan Kakao",
     googleBtn: "Lanjutkan dengan Google",
     emailBtn: "Daftar dengan email",
+    signedInHeading: "Tingkatkan peluang dengan bimbingan resume",
+    signedInSub: "Pelatih AI menunjukkan skor resume, tindakan perbaikan, dan posisi yang cocok dalam satu tempat.",
+    signedInCta: "Buka bimbingan resume saya →",
     funnelOpenCta: "Daftar di Aply untuk perusahaan pendukung visa →",
     funnelTitle: "Lengkapi sedikit info untuk rekomendasi pribadi",
     funnelIntro: "Tim Aply akan mencocokkan perusahaan dengan profil Anda. (1 menit)",
@@ -573,10 +595,12 @@ export function VisaResultPage({ slug }: { slug: string }) {
                 )}
               </section>
 
-              {/* 가입 유도 — saju 패턴 동일하게 결과 페이지 안에서 직접 소셜
-                  로그인 4종. 가입 완료 후 next 로 현재 결과 페이지 돌아옴.
-                  로그인된 사용자에게는 노출하지 않음. */}
-              {isReady && !isAuthenticated ? (
+              {/* CTA 박스 — 비회원에게는 소셜 로그인 4종, 회원에게는 이력서
+                  코칭으로 자연스럽게 보내는 단일 버튼. 인증 상태 로딩 중에는
+                  공간을 차지하는 빈 박스로 layout shift 방지. */}
+              {!isReady ? (
+                <section className="rounded-3xl border border-border/40 bg-white p-6 h-[280px]" aria-hidden />
+              ) : !isAuthenticated ? (
                 <section className="rounded-3xl border border-border/40 bg-white p-6 text-center">
                   <h2 className="font-display text-lg font-bold tracking-tight">{t.signupHeading}</h2>
                   <p className="mt-2 whitespace-pre-line text-[12.5px] leading-relaxed text-muted-foreground">
@@ -619,7 +643,22 @@ export function VisaResultPage({ slug }: { slug: string }) {
                     </Link>
                   </div>
                 </section>
-              ) : null}
+              ) : (
+                // 회원에게는 이력서 코칭으로 한 번에 보내는 단일 CTA. 비자
+                // 진단 결과를 본 다음의 자연스러운 다음 단계.
+                <section className="rounded-3xl border border-border/40 bg-white p-6 text-center">
+                  <h2 className="font-display text-lg font-bold tracking-tight">{t.signedInHeading}</h2>
+                  <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
+                    {t.signedInSub}
+                  </p>
+                  <Link
+                    href="/resume"
+                    className="mt-5 flex h-12 w-full items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold transition active:bg-primary/90"
+                  >
+                    {t.signedInCta}
+                  </Link>
+                </section>
+              )}
 
               {/* Share actions */}
               <section className="rounded-2xl bg-white p-5 md:p-6">
