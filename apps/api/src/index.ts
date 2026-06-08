@@ -17340,12 +17340,16 @@ const RESUME_QUALITY_WEIGHTS: Record<keyof ResumeQualityDimensions, number> = {
   visual: 0.20
 };
 
+// Aply 는 비자가 필요 없는 인턴 체험 프로그램(CIP)도 함께 운영한다. 비자
+// 정보가 비어 있어도 readiness 가 submittable 까지 도달할 수 있도록 visa
+// 비중을 낮게 잡고, 기본 정보(contact·education) 와 한국 적합도, 포트폴리오에
+// 비중을 더 실어둠. 비자는 정규직 매칭 정확도를 끌어올리는 보조 신호로 작동.
 const RESUME_READINESS_WEIGHTS: Record<keyof ResumeReadinessDimensions, number> = {
-  contact: 0.25,
-  education: 0.20,
-  visa: 0.25,
+  contact: 0.30,
+  education: 0.25,
+  visa: 0.10,
   koreaFit: 0.20,
-  portfolio: 0.10
+  portfolio: 0.15
 };
 
 // Readiness 임계점 — "기업이 진짜로 검토 가능한지" 가 기준. 비자/연락처
@@ -17544,13 +17548,15 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
   if (!trimStr(c.basicEmail)) {
     actions.push({ id: "fill-email", category: "required", title: "이메일 주소를 입력하세요", description: "기업이 연락할 수 있어야 합니다.", impactPoints: 6, targetSection: "basics" });
   }
+  // 비자 정보는 정규직 매칭 정확도를 끌어올리지만, Aply 의 인턴 체험(CIP)
+  // 같은 비자 무관 포지션도 있으므로 "필수" 가 아닌 "추천" 으로 분류한다.
   if (!trimStr(c.basicVisa)) {
     actions.push({
       id: "add-visa",
-      category: "required",
+      category: "recommended",
       title: "비자 정보를 입력하세요",
-      description: "비자가 비어 있으면 외국인 채용 검토 자체가 불가능합니다.",
-      impactPoints: 15,
+      description: "정규직 포지션 매칭 정확도가 올라가요. (인턴 체험은 비자 무관)",
+      impactPoints: 6,
       targetSection: "basics"
     });
   }
