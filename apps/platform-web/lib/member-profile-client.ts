@@ -1397,6 +1397,20 @@ export type ResumeContent = {
   career?: ResumeCareerEntry | null;
 };
 
+// Korean translations of long-form fields, cached on save. Result screens
+// (detail/share/coach) render the original + Korean side by side so a Korean
+// hiring manager can read whatever language the candidate wrote in.
+export type ResumeKoTranslations = {
+  summary?: string;
+  selfIntroduction?: string;
+  careers?: Array<{ description?: string }>;
+  activities?: Array<{ description?: string }>;
+};
+
+export type ResumeTranslations = {
+  ko?: ResumeKoTranslations;
+};
+
 export type Resume = {
   id: string;
   title: string;
@@ -1409,6 +1423,10 @@ export type Resume = {
   // render a score badge without a follow-up call. May be absent on legacy
   // endpoints that haven't been augmented yet — treat as optional.
   score?: ResumeScoresResult;
+  // Per-locale translation cache. Currently only 'ko' is filled — built on
+  // save whenever a long-form field reads as non-Korean. Older rows may have
+  // this undefined; readers must treat as optional.
+  translations?: ResumeTranslations | null;
   createdAt: string;
   updatedAt: string;
 };

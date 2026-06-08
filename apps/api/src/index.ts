@@ -10947,11 +10947,15 @@ app.post("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT])
     const existingCount = await prisma.resume.count({ where: { userId } });
     const isPrimary = existingCount === 0;
     const resolvedContent = await resolveResumePhoto(parsed.data.content ?? {});
+    // 외국어 본문이 섞여 있으면 한국어 번역을 미리 캐시에 채워서 결과 화면
+    // 어디서나 쌍으로 노출. LLM 호출 실패는 무시하고 원문만 저장 (UX 우선).
+    const koTranslations = await buildKoreanTranslations(resolvedContent, null).catch(() => null);
     const created = await prisma.resume.create({
       data: {
         userId,
         title: parsed.data.title,
         content: resolvedContent as Prisma.InputJsonValue,
+        translations: (koTranslations ?? Prisma.JsonNull) as Prisma.InputJsonValue,
         isPrimary
       }
     });
@@ -10983,16 +10987,30 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
     return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
   }
   try {
-    const existing = await prisma.resume.findFirst({ where: { id: resumeId, userId }, select: { id: true } });
+    // 기존 row 의 content/translations 까지 함께 가져옴 — 본문이 바뀐 필드만
+    // 재번역하고 변경 없는 단위는 기존 한국어를 그대로 들고 갈 수 있게.
+    const existing = await prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      select: { id: true, translations: true }
+    });
     if (!existing) return res.status(404).json({ ok: false, message: "resume not found" });
     const resolvedContent = parsed.data.content !== undefined
       ? await resolveResumePhoto(parsed.data.content)
       : undefined;
+    // content 가 변경된 경우에만 번역 재생성. 제목만 바꿨다면 기존 캐시 유지.
+    let nextTranslations: ResumeTranslations | null | undefined = undefined;
+    if (resolvedContent !== undefined) {
+      const prev = (existing.translations ?? null) as ResumeTranslations | null;
+      nextTranslations = await buildKoreanTranslations(resolvedContent, prev).catch(() => prev);
+    }
     const item = await prisma.resume.update({
       where: { id: resumeId },
       data: {
         ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
-        ...(resolvedContent !== undefined ? { content: resolvedContent as Prisma.InputJsonValue } : {})
+        ...(resolvedContent !== undefined ? { content: resolvedContent as Prisma.InputJsonValue } : {}),
+        ...(nextTranslations !== undefined
+          ? { translations: (nextTranslations ?? Prisma.JsonNull) as Prisma.InputJsonValue }
+          : {})
       }
     });
     return res.json({ ok: true, item });
@@ -17331,6 +17349,171 @@ app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (
 // Compute a 0–100 completion rate for a resume `content` JSON. Same scoring
 // rubric for the list and the detail endpoints so the ops view stays
 // consistent. Returns an integer percent.
+// ---------------------------------------------------------------------------
+// Resume translation cache.
+//
+// 외국인 학생이 자기소개·경력·활동 description 같은 긴 텍스트를 모국어/영어로
+// 작성해도, 결과로 보이는 이력서(미리보기·공유 링크·코치)에는 항상 한국어가
+// 쌍으로 따라붙도록 저장 시 한국어 번역을 미리 만들어 캐시한다. 길지 않은
+// 필드(이름·이메일·회사명) 는 번역해도 의미가 없어 대상에서 제외.
+// ---------------------------------------------------------------------------
+
+type ResumeKoTranslations = {
+  // 한국어 비중이 충분치 않은 본문만 채워짐. 모두 옵셔널.
+  summary?: string;
+  selfIntroduction?: string;
+  careers?: Array<{ description?: string }>;
+  activities?: Array<{ description?: string }>;
+};
+
+type ResumeTranslations = {
+  ko?: ResumeKoTranslations;
+};
+
+// 한국어(한글) 문자 비율을 반환. 0~1. 공백·기호는 무시하고 의미있는 글자만
+// 분모로 침. 50% 이상이면 이미 충분히 한국어로 본다.
+function koreanRatio(text: string): number {
+  if (!text || typeof text !== "string") return 0;
+  let total = 0;
+  let korean = 0;
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    // 공백·구두점·숫자는 분모에서 제외 — 짧은 영문 이름 옆 긴 한글 본문 같은
+    // 경우를 정확히 잡아내려면 의미있는 글자만 비교해야 함.
+    if (/\s|[0-9\p{P}]/u.test(ch)) continue;
+    total += 1;
+    if (code >= 0xac00 && code <= 0xd7a3) korean += 1; // Hangul Syllables
+    else if (code >= 0x1100 && code <= 0x11ff) korean += 1; // Jamo
+    else if (code >= 0x3130 && code <= 0x318f) korean += 1; // compat Jamo
+  }
+  return total === 0 ? 0 : korean / total;
+}
+
+// 너무 짧거나 이미 한국어가 충분한 텍스트는 번역 생략. 10자 미만 또는
+// 한국어 비중 50%+ 면 skip.
+function needsKoreanTranslation(text: string | null | undefined): boolean {
+  if (!text || typeof text !== "string") return false;
+  const trimmed = text.trim();
+  if (trimmed.length < 10) return false;
+  return koreanRatio(trimmed) < 0.5;
+}
+
+// content 안의 4가지 긴 필드(summary / selfIntroduction / careers[].description
+// / activities[].description) 를 훑어 번역이 필요한 단위만 골라낸 리스트를
+// 만든다. 각 단위는 path 정보가 있어 응답을 카운터파트에 다시 끼워 넣을 때
+// 위치를 잃지 않음.
+type TranslationUnit =
+  | { path: "summary"; text: string }
+  | { path: "selfIntroduction"; text: string }
+  | { path: "careers"; index: number; text: string }
+  | { path: "activities"; index: number; text: string };
+
+function collectTranslationUnits(content: unknown): TranslationUnit[] {
+  const units: TranslationUnit[] = [];
+  if (!content || typeof content !== "object") return units;
+  const c = content as Record<string, unknown>;
+  const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+
+  const summary = trimStr(c.summary);
+  if (needsKoreanTranslation(summary)) units.push({ path: "summary", text: summary });
+
+  const selfIntro = trimStr(c.selfIntroduction);
+  if (needsKoreanTranslation(selfIntro)) units.push({ path: "selfIntroduction", text: selfIntro });
+
+  if (Array.isArray(c.careers)) {
+    c.careers.forEach((cr, idx) => {
+      if (typeof cr !== "object" || cr === null) return;
+      const desc = trimStr((cr as Record<string, unknown>).description);
+      if (needsKoreanTranslation(desc)) units.push({ path: "careers", index: idx, text: desc });
+    });
+  }
+  if (Array.isArray(c.activities)) {
+    c.activities.forEach((a, idx) => {
+      if (typeof a !== "object" || a === null) return;
+      const desc = trimStr((a as Record<string, unknown>).description);
+      if (needsKoreanTranslation(desc)) units.push({ path: "activities", index: idx, text: desc });
+    });
+  }
+  return units;
+}
+
+// 기존 translations.ko 와 비교해서 텍스트가 바뀐 단위만 재번역. 변경 없는
+// 단위는 기존 한국어를 그대로 들고 옴 — 매 저장마다 LLM 비용이 폭발하지
+// 않게 핵심.
+async function buildKoreanTranslations(
+  content: unknown,
+  previous: ResumeTranslations | null | undefined
+): Promise<ResumeTranslations | null> {
+  const units = collectTranslationUnits(content);
+  if (units.length === 0) return previous?.ko ? { ko: previous.ko } : null;
+  if (!openai) return previous?.ko ? { ko: previous.ko } : null;
+
+  const prevKo = previous?.ko ?? {};
+  const prevContent = content as Record<string, unknown>;
+
+  // 원문 사본 + 기존 번역 사본 — 변경된 단위만 새로 번역.
+  const result: ResumeKoTranslations = {
+    summary: prevKo.summary,
+    selfIntroduction: prevKo.selfIntroduction,
+    careers: Array.isArray(prevContent.careers)
+      ? (prevContent.careers as unknown[]).map((_, idx) => ({
+          description: prevKo.careers?.[idx]?.description
+        }))
+      : undefined,
+    activities: Array.isArray(prevContent.activities)
+      ? (prevContent.activities as unknown[]).map((_, idx) => ({
+          description: prevKo.activities?.[idx]?.description
+        }))
+      : undefined
+  };
+
+  // 변경 감지를 위해 원문과 함께 메타 저장이 필요한데 단순화를 위해 매 저장
+  // 시 한국어 번역이 비어 있거나 원문이 한국어가 아닌 모든 단위를 다시 번역.
+  // 비용 통제는 needsKoreanTranslation 의 길이/비율 컷오프로 제한.
+  const promises = units.map(async (unit) => {
+    try {
+      const completion = await openai!.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.3,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "당신은 이력서 번역가입니다. 외국인 지원자의 이력서 텍스트를 한국 기업이 읽기 좋은 자연스러운 한국어로 번역하세요. " +
+              "원문에 있는 사실만 사용하고, 새 사실/수치/회사명/날짜를 추가하지 마세요. 의미를 부풀리지 마세요. " +
+              "회사명·학교명·자격증명 같은 고유명사는 영문 그대로 두거나 (한국어 표기) 형태로 자연스럽게 표기. " +
+              "JSON 한 개의 객체만 응답: { \"ko\": string }"
+          },
+          { role: "user", content: unit.text }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { ko?: unknown } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* skip */ }
+      const ko = typeof parsedJson.ko === "string" ? parsedJson.ko.trim() : "";
+      return ko ? { unit, ko } : null;
+    } catch {
+      return null;
+    }
+  });
+  const results = await Promise.all(promises);
+  for (const r of results) {
+    if (!r) continue;
+    const { unit, ko } = r;
+    if (unit.path === "summary") result.summary = ko;
+    else if (unit.path === "selfIntroduction") result.selfIntroduction = ko;
+    else if (unit.path === "careers") {
+      if (!result.careers) result.careers = [];
+      result.careers[unit.index] = { description: ko };
+    } else if (unit.path === "activities") {
+      if (!result.activities) result.activities = [];
+      result.activities[unit.index] = { description: ko };
+    }
+  }
+  return { ko: result };
+}
+
 function calcResumeCompletion(content: unknown): number {
   if (!content || typeof content !== "object") return 0;
   const c = content as Record<string, unknown>;
