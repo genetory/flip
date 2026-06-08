@@ -17,11 +17,14 @@ import {
   PaperPlaneRight
 } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "../ui/button";
+import { CipInfoModal } from "../positions/AplyCipBadge";
+import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
 import {
   deleteMyResume,
   getMyResume,
+  getPublicPositionsPage,
   getResumeCoach,
   postResumeCoachChat,
   postResumeCoachSuggest,
@@ -32,12 +35,12 @@ import {
   type ResumeCoachActionCategory,
   type ResumeCoachChatMessage,
   type ResumeCoachData,
-  type ResumeCoachPositionMatch,
   type ResumeCoachSuggestion,
   type ResumeQualityDimensions,
   type ResumeReadinessDimensions,
   type ResumeReadinessLevel
 } from "../../lib/member-profile-client";
+import { mapPublicPositionToCard, PositionRow, type PositionCard } from "./PositionsPage";
 
 // ---------------------------------------------------------------------------
 // 선택된 이력서의 점수 + 액션 + 매칭 + 챗 패널. 자체 라우트 없이 리스트
@@ -127,6 +130,14 @@ export function ResumeCoachPanel({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // 코치 패널 안의 "가능한 포지션" 섹션은 포지션 탐색의 PositionRow 를
+  // 재사용해서 같은 시각·인터랙션(즐겨찾기 칩, CIP 뱃지 등) 을 유지. 데이터는
+  // 일반 공개 포지션 리스트에서 일부만 가져옴.
+  const { locale } = useLanguage();
+  const { user } = useAuthSession();
+  const [positionCards, setPositionCards] = useState<PositionCard[]>([]);
+  const [cipModalOpen, setCipModalOpen] = useState(false);
+
   // AI 호출 동의 게이트. 사용자가 처음 AI 액션(추천/챗)을 트리거할 때 한 번
   // 모달로 받아두고 localStorage 에 기록 — 그 다음부터는 묻지 않는다. v1 은
   // 동의 문구가 바뀔 때 재동의 받기 위한 버저닝.
@@ -175,9 +186,23 @@ export function ResumeCoachPanel({
         if (!cancelled) setLoadError(err instanceof Error ? err.message : "코치 데이터를 불러오지 못했어요.");
       }
     })();
+    // 가능한 포지션 — 일반 공개 포지션 API 를 살짝 호출해서 6개. 코치 데이터
+    // 로딩과 무관하게 병렬 시작, 실패해도 다른 영역 못 그리는 일은 없음.
+    void (async () => {
+      try {
+        const page = await getPublicPositionsPage({ limit: 6 });
+        if (cancelled) return;
+        const cards = (page.items ?? []).map((item) => mapPublicPositionToCard(item, locale));
+        setPositionCards(cards);
+      } catch {
+        if (!cancelled) setPositionCards([]);
+      }
+    })();
     return () => {
       cancelled = true;
     };
+    // locale 이 바뀌어도 list 가 다시 mapping 되는 건 좀 과한 호출이라 dep 에서 뺌.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeId]);
 
   async function openSuggestion(action: ResumeCoachAction) {
@@ -326,7 +351,7 @@ export function ResumeCoachPanel({
     );
   }
 
-  const { score, actions, matches } = coach;
+  const { score, actions } = coach;
   const levelMeta = LEVEL_META[score.level];
   const levelLabel = tr(levelMeta.label.ko, levelMeta.label.en, levelMeta.label.zh, levelMeta.label.vi, levelMeta.label.ja, levelMeta.label.id);
   // 사용자가 다음에 해야 할 일을 한 줄로. required 액션이 있으면 그걸 우선,
@@ -536,10 +561,11 @@ export function ResumeCoachPanel({
           )}
         </div>
 
-        {/* 가능한 포지션 — 매칭 점수는 가리고, 포지션 탐색 카드와 닮은 컴팩트
-            행을 5–6개 보여줌. 사용자에게 다음 행동(둘러보기→지원) 으로 자연
-            스럽게 연결. "모두 보기" → /positions. */}
-        {matches.length > 0 ? (
+        {/* 가능한 포지션 — 포지션 탐색의 PositionRow 를 그대로 재사용해서
+            카드 모양·CIP 뱃지·외부 링크 처리까지 완전히 같게 보임. 즐겨찾기·
+            지원 같은 인터랙션은 코치 화면 컨텍스트에선 의미가 약해 정적 표시.
+            "더 보기" 로 자연스럽게 /positions 로 연결. */}
+        {positionCards.length > 0 ? (
           <div className="rounded-2xl border border-border bg-card p-5 md:p-6">
             <header className="mb-4 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -553,11 +579,22 @@ export function ResumeCoachPanel({
                 <CaretRight className="h-3 w-3" weight="bold" />
               </Link>
             </header>
-            <ul className="space-y-2">
-              {matches.map((m) => (
-                <PositionMiniCard key={m.positionId} m={m} tr={tr} />
+            <div className="space-y-2">
+              {positionCards.map((card) => (
+                <PositionRow
+                  key={card.id}
+                  p={card}
+                  isOwnPartnerPosting={false}
+                  isStudentUser={user?.role === "STUDENT"}
+                  isApplied={false}
+                  isFavorite={false}
+                  onToggleFavorite={() => {}}
+                  onApply={() => {}}
+                  onShowCip={() => setCipModalOpen(true)}
+                  locale={locale}
+                />
               ))}
-            </ul>
+            </div>
           </div>
         ) : null}
       </section>
@@ -876,50 +913,12 @@ export function ResumeCoachPanel({
           </div>
         </div>
       ) : null}
-    </>
-  );
-}
 
-// 포지션 탐색의 카드와 닮은 컴팩트 행. 매칭 점수는 가리고 썸네일 + 제목 +
-// 회사 + 위치 정도로 슬림하게. 클릭 시 포지션 상세로 이동.
-function PositionMiniCard({
-  m,
-  tr
-}: {
-  m: ResumeCoachPositionMatch;
-  tr: (ko: string, en: string, zh: string, vi: string, ja: string, id: string) => string;
-}) {
-  return (
-    <li>
-      <Link
-        href={`/positions/${m.positionId}`}
-        className="flex items-center gap-3 rounded-xl border border-border bg-background p-3 transition hover:border-foreground/40 hover:bg-muted/30"
-      >
-        {m.thumbnailUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={m.thumbnailUrl}
-            alt=""
-            className="h-12 w-12 flex-none rounded-lg object-cover"
-          />
-        ) : (
-          <div className="flex h-12 w-12 flex-none items-center justify-center rounded-lg bg-muted">
-            <Briefcase className="h-5 w-5 text-muted-foreground" weight="fill" />
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13.5px] font-bold">{m.title}</p>
-          <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">
-            {m.organizationName ?? "—"}
-            {m.workLocation ? <span> · {m.workLocation}</span> : null}
-          </p>
-        </div>
-        {m.status === "applied" ? (
-          <span className="flex-none rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-            {tr("지원함", "Applied", "已申请", "Đã ứng tuyển", "応募済み", "Sudah")}
-          </span>
-        ) : null}
-      </Link>
-    </li>
+      {/* PositionRow 안의 [Aply CIP] 뱃지를 눌렀을 때 뜨는 안내 모달.
+          기존 포지션 탐색·상세 페이지에서 쓰는 것과 동일 컴포넌트. */}
+      {cipModalOpen ? (
+        <CipInfoModal locale={locale} onClose={() => setCipModalOpen(false)} />
+      ) : null}
+    </>
   );
 }

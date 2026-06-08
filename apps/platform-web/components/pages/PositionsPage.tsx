@@ -50,7 +50,9 @@ const FALLBACK_COMPANY_SIZES = Array.from(new Set(ALL_POSITIONS.map((position) =
 const FALLBACK_VISA_TYPES = Array.from(new Set(ALL_POSITIONS.flatMap((position) => position.eligibleVisas)));
 const ALL_VISA_CODES = ["D-2", "D-4", "D-10", "E-7", "F-2", "F-4", "F-5", "F-6", "H-1"] as const;
 const PUBLIC_POSITIONS_PAGE_SIZE = 20;
-type PositionCard = Position & {
+// PositionRow / PositionGridCard 가 받는 카드 데이터. 다른 페이지(코치 패널
+// 등) 에서 같은 행 컴포넌트를 재사용하려면 같이 export 해야 함.
+export type PositionCard = Position & {
   status: PublicPositionListItem["status"];
   sourceKind: PublicPositionListItem["sourceKind"];
   sourceProvider: PublicPositionListItem["sourceProvider"];
@@ -135,7 +137,7 @@ function inferWorkType(value?: string | null): "On-site" | "Hybrid" | "Remote" {
   return "On-site";
 }
 
-function mapPublicPositionToCard(item: PublicPositionListItem, locale: PlatformLocale): PositionCard {
+export function mapPublicPositionToCard(item: PublicPositionListItem, locale: PlatformLocale): PositionCard {
   const now = Date.now();
   const createdAt = new Date(item.createdAt);
   const postedDays = Number.isNaN(createdAt.getTime())
@@ -1230,8 +1232,6 @@ const FilterBadge = ({
   </button>
 );
 
-export type { PositionCard };
-export { mapPublicPositionToCard };
 export const PositionRow = ({
   p,
   isOwnPartnerPosting,
