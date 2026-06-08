@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ShareNetwork, Copy as CopyIcon, ArrowClockwise, CheckCircle } from "@phosphor-icons/react/dist/ssr";
+import { ShareNetwork, Copy as CopyIcon, ArrowClockwise } from "@phosphor-icons/react/dist/ssr";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
-import { postVisaLead } from "../../lib/visa-client";
 
 // ---------------------------------------------------------------------------
 // /events/visa/result/[slug] — 진단 결과 + 회원가입 퍼널 + viral share.
@@ -105,7 +104,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " 또는 출입국·외국인청에 확인하세요.",
     positionsTitle: "최근 채용 공고",
     positionsEmpty: "매칭되는 공고가 없어요. 가입하면 새 공고가 올라올 때 자동으로 알려드립니다.",
-    funnelOpenCta: "비자 후원 가능한 회사 추천받기 →",
+    funnelOpenCta: "Aply 가입하고 비자 후원 가능한 회사 추천받기 →",
     funnelTitle: "추가 정보 입력하고 맞춤 추천 받기",
     funnelIntro: "Aply 운영팀이 회원님에게 맞는 회사를 직접 매칭해 드려요. (1분)",
     funnelNameLabel: "이름",
@@ -151,7 +150,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " or your local immigration office.",
     positionsTitle: "Recent jobs",
     positionsEmpty: "No matches right now. Sign up and we'll notify you when new ones open.",
-    funnelOpenCta: "Get visa-sponsoring company picks →",
+    funnelOpenCta: "Sign up on Aply for visa-sponsoring companies →",
     funnelTitle: "Tell us a bit more for personalized picks",
     funnelIntro: "Aply's team will hand-match companies to your profile. (1 minute)",
     funnelNameLabel: "Name",
@@ -197,7 +196,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " 或当地出入境部门。",
     positionsTitle: "最近职位",
     positionsEmpty: "目前无匹配职位。注册后有新职位将自动通知您。",
-    funnelOpenCta: "获取支持签证赞助的公司推荐 →",
+    funnelOpenCta: "注册 Aply 获取支持签证赞助的公司 →",
     funnelTitle: "再填一点点，获得专属推荐",
     funnelIntro: "Aply 运营团队将为您手动匹配公司。（1分钟）",
     funnelNameLabel: "姓名",
@@ -243,7 +242,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " hoặc văn phòng xuất nhập cảnh địa phương.",
     positionsTitle: "Việc làm gần đây",
     positionsEmpty: "Chưa có việc phù hợp. Đăng ký để được thông báo khi có việc mới.",
-    funnelOpenCta: "Nhận đề xuất công ty bảo trợ visa →",
+    funnelOpenCta: "Đăng ký Aply để xem công ty bảo trợ visa →",
     funnelTitle: "Thêm một chút thông tin để nhận đề xuất riêng",
     funnelIntro: "Đội Aply sẽ tự tay ghép bạn với công ty phù hợp. (1 phút)",
     funnelNameLabel: "Tên",
@@ -289,7 +288,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " または出入国・外国人庁にご確認ください。",
     positionsTitle: "最新の求人",
     positionsEmpty: "現在マッチする求人はありません。登録すると新着求人を自動でお知らせします。",
-    funnelOpenCta: "ビザ支援可能な会社の推薦を受ける →",
+    funnelOpenCta: "Aplyに登録してビザ支援可能な会社の推薦を受ける →",
     funnelTitle: "少し追加情報を入れて、カスタム推薦を受け取る",
     funnelIntro: "Aply運営チームがあなたに合う会社を直接マッチングします。（1分）",
     funnelNameLabel: "名前",
@@ -335,7 +334,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " atau kantor imigrasi setempat.",
     positionsTitle: "Lowongan terbaru",
     positionsEmpty: "Belum ada yang cocok. Daftar dan kami akan beri tahu saat ada baru.",
-    funnelOpenCta: "Dapatkan rekomendasi perusahaan pendukung visa →",
+    funnelOpenCta: "Daftar di Aply untuk perusahaan pendukung visa →",
     funnelTitle: "Lengkapi sedikit info untuk rekomendasi pribadi",
     funnelIntro: "Tim Aply akan mencocokkan perusahaan dengan profil Anda. (1 menit)",
     funnelNameLabel: "Nama",
@@ -381,8 +380,6 @@ const FIT_CLS: Record<Fit, string> = {
   low: "border-zinc-300 bg-zinc-50 text-zinc-600"
 };
 
-type FunnelStep = "result" | "form" | "done";
-
 export function VisaResultPage({ slug }: { slug: string }) {
   const { locale } = useLanguage();
   const t = COPY[locale] ?? COPY.ko;
@@ -392,18 +389,6 @@ export function VisaResultPage({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  // Funnel state
-  const [step, setStep] = useState<FunnelStep>("result");
-  const [name, setName] = useState("");
-  const [contact, setContact] = useState("");
-  const [contactType, setContactType] = useState<"email" | "phone">("email");
-  const [expectedJoinDate, setExpectedJoinDate] = useState("");
-  const [graduationDate, setGraduationDate] = useState("");
-  const [preferredJobRole, setPreferredJobRole] = useState("");
-  const [consent, setConsent] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -416,9 +401,6 @@ export function VisaResultPage({ slug }: { slug: string }) {
         if (!payload.ok || !payload.result) throw new Error(t.notFound);
         setResult(payload.result);
         setPositions(payload.positions ?? []);
-        // 결과의 이름이 있으면 funnel 의 이름 필드에 미리 채워둠.
-        if (payload.result.name) setName(payload.result.name);
-        if (payload.result.targetRole) setPreferredJobRole(payload.result.targetRole);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : t.notFound);
       } finally {
@@ -449,42 +431,6 @@ export function VisaResultPage({ slug }: { slug: string }) {
       setTimeout(() => setCopied(false), 1500);
     } catch {
       // ignore
-    }
-  }
-
-  async function submitFunnel() {
-    if (!result) return;
-    if (!contact.trim()) {
-      setFormError(t.funnelErrContact);
-      return;
-    }
-    if (!consent) {
-      setFormError(t.funnelErrConsent);
-      return;
-    }
-    setSubmitting(true);
-    setFormError(null);
-    try {
-      await postVisaLead({
-        shareSlug: slug,
-        name: name.trim() || undefined,
-        contact: contact.trim(),
-        contactType,
-        expectedJoinDate: expectedJoinDate.trim() || undefined,
-        graduationDate: graduationDate.trim() || undefined,
-        preferredJobRole: preferredJobRole.trim() || undefined,
-        nationality: result.nationality,
-        currentVisa: result.currentVisa ?? undefined,
-        koreanLevel: result.koreanLevel,
-        consentCareer: true,
-        consentRecommend: true,
-        consentContact: true,
-        locale
-      });
-      setStep("done");
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : t.funnelErrRetry);
-      setSubmitting(false);
     }
   }
 
@@ -578,148 +524,17 @@ export function VisaResultPage({ slug }: { slug: string }) {
                 )}
               </section>
 
-              {/* ============================================================
-                  Funnel — result → form → done
-                  ============================================================ */}
-              {step === "result" ? (
-                <section className="rounded-2xl bg-white p-5 md:p-6">
-                  <button
-                    type="button"
-                    onClick={() => setStep("form")}
-                    className="block w-full h-12 leading-[3rem] text-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
-                  >
-                    {t.funnelOpenCta}
-                  </button>
-                </section>
-              ) : step === "form" ? (
-                <section className="rounded-2xl bg-white p-5 md:p-6 space-y-5">
-                  <div className="space-y-1">
-                    <p className="font-display text-lg font-bold tracking-tight">{t.funnelTitle}</p>
-                    <p className="text-xs text-muted-foreground">{t.funnelIntro}</p>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground" htmlFor="visa-funnel-name">
-                      {t.funnelNameLabel}
-                    </label>
-                    <input
-                      id="visa-funnel-name"
-                      className="mt-1 h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      maxLength={80}
-                      placeholder={t.funnelNamePlaceholder}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground">
-                      {t.funnelContactLabel} *
-                    </label>
-                    <div className="mt-1 grid grid-cols-2 gap-2">
-                      {(["email", "phone"] as const).map((c) => {
-                        const active = contactType === c;
-                        return (
-                          <button
-                            key={c}
-                            type="button"
-                            onClick={() => setContactType(c)}
-                            className={`h-10 rounded-xl border text-xs font-semibold ${
-                              active ? "border-primary bg-primary/5 text-primary" : "border-border/60 bg-muted/30"
-                            }`}
-                          >
-                            {c === "email" ? t.funnelChannelEmail : t.funnelChannelPhone}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <input
-                      type={contactType === "email" ? "email" : "tel"}
-                      className="mt-2 h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={contact}
-                      onChange={(e) => setContact(e.target.value)}
-                      maxLength={120}
-                      placeholder={contactType === "email" ? t.funnelContactPlaceholderEmail : t.funnelContactPlaceholderPhone}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="text-xs font-semibold text-muted-foreground" htmlFor="visa-funnel-join">
-                        {t.funnelJoinDateLabel}
-                      </label>
-                      <input
-                        id="visa-funnel-join"
-                        className="mt-1 h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        value={expectedJoinDate}
-                        onChange={(e) => setExpectedJoinDate(e.target.value)}
-                        maxLength={20}
-                        placeholder={t.funnelJoinDatePlaceholder}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-muted-foreground" htmlFor="visa-funnel-grad">
-                        {t.funnelGradDateLabel}
-                      </label>
-                      <input
-                        id="visa-funnel-grad"
-                        className="mt-1 h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        value={graduationDate}
-                        onChange={(e) => setGraduationDate(e.target.value)}
-                        maxLength={20}
-                        placeholder={t.funnelGradDatePlaceholder}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground" htmlFor="visa-funnel-role">
-                      {t.funnelRoleLabel}
-                    </label>
-                    <input
-                      id="visa-funnel-role"
-                      className="mt-1 h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={preferredJobRole}
-                      onChange={(e) => setPreferredJobRole(e.target.value)}
-                      maxLength={120}
-                      placeholder={t.funnelRolePlaceholder}
-                    />
-                  </div>
-
-                  <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={consent}
-                      onChange={(e) => setConsent(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 flex-none rounded border-border accent-primary"
-                    />
-                    <span>{t.funnelConsentLabel}</span>
-                  </label>
-
-                  {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
-
-                  <button
-                    type="button"
-                    onClick={() => void submitFunnel()}
-                    disabled={submitting}
-                    className="w-full h-12 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
-                  >
-                    {submitting ? t.funnelSubmitting : t.funnelSubmit}
-                  </button>
-                </section>
-              ) : (
-                <section className="rounded-2xl bg-white p-6 md:p-8 text-center">
-                  <CheckCircle className="mx-auto h-12 w-12 text-emerald-500" weight="fill" />
-                  <p className="mt-3 font-display text-xl font-bold tracking-tight">{t.doneTitle}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{t.doneBody}</p>
-                  <Link
-                    href="/signup"
-                    className="mt-5 block w-full h-12 leading-[3rem] text-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
-                  >
-                    {t.signupCta}
-                  </Link>
-                </section>
-              )}
+              {/* CTA — 회원가입 페이지로 직접 이동. fromVisa=slug query 로 진단
+                  결과 slug 를 전달해서 가입 직후 VisaCheckResult.userId 를 채울
+                  수 있게(백엔드 연결은 별도 작업). */}
+              <section className="rounded-2xl bg-white p-5 md:p-6">
+                <Link
+                  href={`/signup?fromVisa=${encodeURIComponent(slug)}`}
+                  className="block w-full h-12 leading-[3rem] text-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
+                >
+                  {t.funnelOpenCta}
+                </Link>
+              </section>
 
               {/* Share actions */}
               <section className="rounded-2xl bg-white p-5 md:p-6">
