@@ -21,7 +21,6 @@ import {
   getMyPartnerPositions,
   removeMyFavoritePosition,
   getMyResumes,
-  createMyResume,
   setMyPrimaryResume,
   deleteMyResume,
   type MyCandidateProfile,
@@ -160,7 +159,6 @@ export function ProfilePage() {
   const [myResumes, setMyResumes] = useState<Resume[]>([]);
   const [resumePrimaryBusyId, setResumePrimaryBusyId] = useState<string | null>(null);
   const [resumeDeletingId, setResumeDeletingId] = useState<string | null>(null);
-  const [creatingResume, setCreatingResume] = useState(false);
   const resumeRouter = useRouter();
   const [applications, setApplications] = useState<MyApplication[]>([]);
   const [interviewTarget, setInterviewTarget] = useState<MyApplication | null>(null);
@@ -460,16 +458,11 @@ export function ProfilePage() {
     }
   }
 
-  async function handleCreateResume() {
-    if (creatingResume) return;
-    setCreatingResume(true);
-    try {
-      const title = `${tr("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume")} ${myResumes.length + 1}`;
-      const created = await createMyResume({ title });
-      resumeRouter.push(`/resume/${created.id}/edit`);
-    } catch {
-      setCreatingResume(false);
-    }
+  function handleCreateResume() {
+    // 빈 이력서를 DB 에 만들지 않고, 사용자가 편집 화면에서 "저장" 을 누른
+    // 순간에만 createMyResume 가 실행되도록 sentinel 라우트 (/resume/new/edit)
+    // 으로 보낸다. 사용자가 그냥 페이지를 떠나면 row 가 남지 않음.
+    resumeRouter.push("/resume/new/edit");
   }
 
   async function handleResumeDelete(resumeId: string, resumeTitle: string) {
@@ -1338,7 +1331,7 @@ export function ProfilePage() {
                               "Kelola resume Anda dan pilih yang utama."
                             )}
                           </p>
-                          <Button size="sm" onClick={handleCreateResume} disabled={creatingResume}>
+                          <Button size="sm" onClick={handleCreateResume}>
                             {tr("이력서 만들기", "Create", "创建", "Tạo", "作成", "Buat")}
                           </Button>
                         </div>
@@ -1361,7 +1354,7 @@ export function ProfilePage() {
                           <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-white">
                             {[...myResumes].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary)).map((r) => (
                               <div key={r.id} className="flex items-center gap-3 px-4 py-5 transition hover:bg-muted/40">
-                                <Link href={`/resume/${r.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                                <Link href={`/resume/${r.id}/preview`} className="flex min-w-0 flex-1 items-center gap-3">
                                   <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-primary/10 text-primary">
                                     <FileText className="h-5 w-5" />
                                   </span>

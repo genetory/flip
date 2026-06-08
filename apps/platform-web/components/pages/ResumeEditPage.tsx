@@ -11,6 +11,7 @@ import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
 import {
+  createMyResume,
   getMyCandidateProfile,
   getMyResume,
   updateMyResume,
@@ -182,11 +183,18 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
     let cancelled = false;
     void (async () => {
       try {
-        const [r, p] = await Promise.all([getMyResume(resumeId), getMyCandidateProfile().catch(() => null)]);
+        // resumeId === "new" 면 아직 DB 에 row 가 없는 임시 편집 모드. 사용자가
+        // "저장" 을 누른 순간에만 createMyResume 가 실행되고, 그 전에 페이지를
+        // 떠나면 어떤 row 도 남지 않음. profile 만 받아서 기본정보를 seed.
+        const isNew = resumeId === "new";
+        const [r, p] = await Promise.all([
+          isNew ? Promise.resolve(null) : getMyResume(resumeId),
+          getMyCandidateProfile().catch(() => null)
+        ]);
         if (cancelled) return;
         setProfile(p);
-        const c = r.content ?? {};
-        setTitle(r.title);
+        const c = (r?.content ?? {}) as ResumeContent & { education?: ResumeEducationEntry; career?: ResumeCareerEntry; visaType?: string; koreanLevel?: string };
+        setTitle(r?.title ?? tr("새 이력서", "New resume", "新简历", "Hồ sơ mới", "新しい履歴書", "Resume baru"));
         // Basic info — prefer what's saved on the resume; otherwise seed
         // from the user account so the first edit is one click away from
         // "good enough" before the user tweaks per-resume details.
@@ -194,7 +202,7 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
         setBasicEmail(c.basicEmail ?? (user?.email || ""));
         setBasicPhone(c.basicPhone ?? (user?.phoneNumber || ""));
         setBasicResidence(c.basicResidence ?? (p?.residenceProvince || ""));
-        setBasicVisa(c.basicVisa ?? p?.visaType ?? c.visaType ?? "");
+        setBasicVisa((c.basicVisa ?? p?.visaType ?? c.visaType ?? "") as typeof basicVisa);
         setBasicPhotoUrl(c.basicPhotoUrl ?? "");
         setEducations(c.educations ?? (c.education ? [c.education] : []));
         setCareers(c.careers ?? (c.career ? [c.career] : []));
@@ -218,6 +226,7 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady, isAuthenticated, resumeId]);
 
   function addSkill() {
@@ -253,6 +262,18 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
         summary: summary.trim() || null,
         selfIntroduction: selfIntro.trim() || null
       };
+      // 신규 모드: 이때 처음으로 DB row 가 만들어진다. 저장이 끝나면
+      // /resume/[realId] 코치 화면으로 replace 해서 URL 이 새 id 를 반영하게.
+      if (resumeId === "new") {
+        const trimmedTitle = title.trim();
+        const created = await createMyResume({
+          // 백엔드는 title 이 필수라 빈 입력이어도 기본값으로 채워서 보냄.
+          title: trimmedTitle || tr("새 이력서", "New resume", "新简历", "Hồ sơ mới", "新しい履歴書", "Resume baru"),
+          content
+        });
+        router.replace(`/resume/${created.id}`);
+        return;
+      }
       await updateMyResume(resumeId, { title: title.trim() || undefined, content });
       router.push(`/resume/${resumeId}`);
     } catch {

@@ -1,0 +1,677 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import {
+  ArrowRight,
+  Eye,
+  PencilSimple,
+  ShareNetwork,
+  Sparkle,
+  Trash,
+  Trophy,
+  Lightning,
+  ChatCircleText,
+  CaretRight,
+  CheckCircle,
+  WarningCircle,
+  X,
+  PaperPlaneRight
+} from "@phosphor-icons/react/dist/ssr";
+import { Button } from "../ui/button";
+import { useLanguage } from "../i18n/LanguageProvider";
+import type { PlatformLocale } from "../../lib/auth-messages";
+import {
+  deleteMyResume,
+  getMyResume,
+  getResumeCoach,
+  postResumeCoachChat,
+  postResumeCoachSuggest,
+  updateMyResume,
+  type Resume,
+  type ResumeContent,
+  type ResumeCoachAction,
+  type ResumeCoachChatMessage,
+  type ResumeCoachData,
+  type ResumeCoachSuggestion,
+  type ResumeScoreDimensions
+} from "../../lib/member-profile-client";
+
+// ---------------------------------------------------------------------------
+// 선택된 이력서의 점수 + 액션 + 매칭 + 챗 패널. 자체 라우트 없이 리스트
+// 페이지 안에 인라인으로 펼쳐지는 마스터-디테일 우측(/하단) 영역.
+//
+// props:
+//   resumeId         어떤 이력서를 보여줄지. 변경되면 자동으로 다시 fetch.
+//   onResumeUpdated  LLM 추천을 본문에 적용했을 때 호출. 부모 리스트가
+//                    카드의 점수 배지를 갱신할 수 있게 새 점수도 전달.
+// ---------------------------------------------------------------------------
+
+function useTr() {
+  const { locale } = useLanguage();
+  return (ko: string, en: string, zh: string, vi: string, ja: string, id: string) => {
+    const map: Record<PlatformLocale, string> = { ko, en, "zh-CN": zh, vi, ja, id };
+    return map[locale] ?? ko;
+  };
+}
+
+
+const DIMENSION_LABELS: Record<keyof ResumeScoreDimensions, { ko: string; en: string; zh: string; vi: string; ja: string; id: string }> = {
+  completeness:   { ko: "완성도",     en: "Completeness",   zh: "完整度",         vi: "Đầy đủ",          ja: "完成度",         id: "Kelengkapan" },
+  contentQuality: { ko: "콘텐츠 품질", en: "Content quality", zh: "内容质量",      vi: "Chất lượng nội dung", ja: "コンテンツ品質", id: "Kualitas konten" },
+  impact:         { ko: "임팩트",      en: "Impact",          zh: "影响力",         vi: "Tác động",          ja: "インパクト",     id: "Dampak" },
+  foreignAppeal:  { ko: "외국인 어필", en: "Foreign appeal",  zh: "外籍人才吸引力", vi: "Sức hút quốc tế",   ja: "外国人アピール", id: "Daya tarik asing" },
+  uniqueness:     { ko: "차별점",      en: "Uniqueness",      zh: "差异化",         vi: "Khác biệt",         ja: "差別化",         id: "Keunikan" },
+  visual:         { ko: "시각·형식",   en: "Visual",          zh: "视觉·形式",     vi: "Hình thức",         ja: "視覚・形式",     id: "Visual" }
+};
+
+const APPLICATION_STATUS_LABEL: Record<string, string> = {
+  SUBMITTED: "지원 완료",
+  INTERVIEW: "면접 중",
+  ACCEPTED: "합격",
+  REJECTED: "불합격",
+  WITHDRAWN: "지원 철회"
+};
+
+export function ResumeCoachPanel({
+  resumeId,
+  onResumeUpdated,
+  onResumeDeleted
+}: {
+  resumeId: string;
+  onResumeUpdated?: (resume: Resume) => void;
+  onResumeDeleted?: (resumeId: string) => void;
+}) {
+  const tr = useTr();
+
+  const [resume, setResume] = useState<Resume | null>(null);
+  const [coach, setCoach] = useState<ResumeCoachData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [suggestionFor, setSuggestionFor] = useState<ResumeCoachAction | null>(null);
+  const [suggestion, setSuggestion] = useState<ResumeCoachSuggestion | null>(null);
+  const [suggestionBusy, setSuggestionBusy] = useState(false);
+  const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ResumeCoachChatMessage[]>([]);
+  const [chatDraft, setChatDraft] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  // resumeId 가 바뀔 때마다 새 이력서 데이터 + 코치 데이터 fetch. 챗과 모달
+  // 상태도 새 이력서 기준으로 리셋해서 이전 흔적이 보이지 않게.
+  useEffect(() => {
+    let cancelled = false;
+    setResume(null);
+    setCoach(null);
+    setLoadError(null);
+    setChatMessages([]);
+    setChatOpen(false);
+    setSuggestionFor(null);
+    setSuggestion(null);
+    setDeleteOpen(false);
+    setDeleteError(null);
+    void (async () => {
+      try {
+        const [r, c] = await Promise.all([getMyResume(resumeId), getResumeCoach(resumeId)]);
+        if (!cancelled) {
+          setResume(r);
+          setCoach(c);
+        }
+      } catch (err) {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : "코치 데이터를 불러오지 못했어요.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [resumeId]);
+
+  async function openSuggestion(action: ResumeCoachAction) {
+    if (!action.llmEligible) return;
+    setSuggestionFor(action);
+    setSuggestion(null);
+    setSuggestionError(null);
+    setSuggestionBusy(true);
+    try {
+      const s = await postResumeCoachSuggest(resumeId, {
+        targetSection: action.targetSection as "selfIntroduction" | "summary" | "careers" | "activities",
+        targetItemIndex: action.targetItemIndex,
+        tone: "impactful"
+      });
+      setSuggestion(s);
+    } catch (err) {
+      setSuggestionError(err instanceof Error ? err.message : "AI 제안을 받지 못했어요.");
+    } finally {
+      setSuggestionBusy(false);
+    }
+  }
+
+  async function applySuggestion() {
+    if (!resume || !suggestion || applying) return;
+    setApplying(true);
+    try {
+      const nextContent: ResumeContent = { ...(resume.content ?? {}) };
+      if (suggestion.targetSection === "selfIntroduction" || suggestion.targetSection === "summary") {
+        nextContent.selfIntroduction = suggestion.after;
+      } else if (suggestion.targetSection === "careers" && typeof suggestion.targetItemIndex === "number") {
+        const list = [...(nextContent.careers ?? [])];
+        if (list[suggestion.targetItemIndex]) {
+          list[suggestion.targetItemIndex] = { ...list[suggestion.targetItemIndex], description: suggestion.after };
+          nextContent.careers = list;
+        }
+      } else if (suggestion.targetSection === "activities" && typeof suggestion.targetItemIndex === "number") {
+        const list = [...(nextContent.activities ?? [])];
+        if (list[suggestion.targetItemIndex]) {
+          list[suggestion.targetItemIndex] = { ...list[suggestion.targetItemIndex], description: suggestion.after };
+          nextContent.activities = list;
+        }
+      }
+      const updated = await updateMyResume(resumeId, { content: nextContent });
+      setResume(updated);
+      const c = await getResumeCoach(resumeId);
+      setCoach(c);
+      // 리스트 카드의 점수 배지도 같이 갱신될 수 있게 부모에 알림.
+      onResumeUpdated?.(updated);
+      setSuggestionFor(null);
+      setSuggestion(null);
+    } catch (err) {
+      setSuggestionError(err instanceof Error ? err.message : "적용에 실패했어요.");
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteMyResume(resumeId);
+      // 부모 리스트가 카드를 제거하고 다른 이력서로 selection 을 옮길 수
+      // 있도록 알림. 이 컴포넌트는 곧 key 변경으로 언마운트되거나 빈 상태로 전환.
+      onResumeDeleted?.(resumeId);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "삭제에 실패했어요.");
+      setDeleting(false);
+    }
+  }
+
+  async function sendChat() {
+    const text = chatDraft.trim();
+    if (!text || chatBusy) return;
+    const nextMessages: ResumeCoachChatMessage[] = [...chatMessages, { role: "user", content: text }];
+    setChatMessages(nextMessages);
+    setChatDraft("");
+    setChatBusy(true);
+    try {
+      const reply = await postResumeCoachChat(resumeId, nextMessages.slice(-10));
+      setChatMessages([...nextMessages, { role: "assistant", content: reply }]);
+    } catch (err) {
+      setChatMessages([
+        ...nextMessages,
+        { role: "assistant", content: err instanceof Error ? `(오류) ${err.message}` : "(오류) 응답을 받지 못했어요." }
+      ]);
+    } finally {
+      setChatBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (chatOpen) chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, chatBusy, chatOpen]);
+
+  // ---- Loading / errors -------------------------------------------------
+  if (coach === null && !loadError) {
+    return (
+      <div className="space-y-6">
+        <div className="h-40 animate-pulse rounded-3xl bg-muted" />
+        <div className="grid gap-6 lg:grid-cols-[1.4fr,1fr]">
+          <div className="h-80 animate-pulse rounded-3xl bg-muted" />
+          <div className="h-80 animate-pulse rounded-3xl bg-muted" />
+        </div>
+      </div>
+    );
+  }
+  if (loadError || !coach || !resume) {
+    return (
+      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+        {loadError ?? "이력서를 찾을 수 없어요."}
+      </div>
+    );
+  }
+
+  const { score, actions, matches } = coach;
+  const statusMessage =
+    score.total >= 90
+      ? tr("이미 충분히 잘 만들어졌어요", "Already in great shape", "已经非常完善", "Đã rất tốt", "すでに十分", "Sudah sangat baik")
+      : score.total >= 75
+      ? tr("지원에 적합한 수준이에요", "Ready to apply", "可以申请", "Sẵn sàng ứng tuyển", "応募可能", "Siap melamar")
+      : score.total >= 55
+      ? tr("공유는 가능하지만 다듬어볼 만해요", "Shareable but could be polished", "可分享，但还可优化", "Có thể chia sẻ, vẫn nên hoàn thiện", "共有可能、まだ磨ける", "Bisa dibagikan, masih bisa diperhalus")
+      : tr("기본 정보부터 채워봐요", "Start with the essentials", "先填好基本信息", "Bắt đầu với thông tin cơ bản", "基本情報から", "Mulai dengan informasi dasar");
+  const hasResults = matches.length > 0;
+
+  return (
+    <>
+      {/* Action buttons (보기 / 편집 / 공유) */}
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+        <Button variant="outline" size="sm" asChild>
+          <Link href={`/resume/${resumeId}/preview`}>
+            <Eye className="h-3.5 w-3.5" weight="bold" />
+            {tr("이력서 보기", "View", "查看", "Xem", "表示", "Lihat")}
+          </Link>
+        </Button>
+        <Button variant="outline" size="sm" asChild>
+          <Link href={`/resume/${resumeId}/edit`}>
+            <PencilSimple className="h-3.5 w-3.5" weight="bold" />
+            {tr("편집", "Edit", "编辑", "Sửa", "編集", "Sunting")}
+          </Link>
+        </Button>
+        {resume.shareSlug ? (
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/resume/share/${resume.shareSlug}`} target="_blank" rel="noopener noreferrer">
+              <ShareNetwork className="h-3.5 w-3.5" weight="bold" />
+              {tr("공유", "Share", "分享", "Chia sẻ", "共有", "Bagikan")}
+            </Link>
+          </Button>
+        ) : null}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setDeleteError(null);
+            setDeleteOpen(true);
+          }}
+          className="text-destructive hover:bg-destructive/5 hover:text-destructive"
+        >
+          <Trash className="h-3.5 w-3.5" weight="bold" />
+          {tr("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}
+        </Button>
+      </div>
+
+      {/* Score hero — 배경 없이 깨끗하게, 프로그레스 바는 두껍고 진하게 */}
+      <section className="rounded-2xl border border-border bg-card p-5 md:p-6">
+        <div className="flex items-baseline gap-3">
+          <span className="font-display text-3xl font-bold tabular-nums md:text-4xl">{score.total}</span>
+          <span className="text-[13px] text-muted-foreground">/100</span>
+          <span className="text-[13px] font-semibold text-foreground">· {statusMessage}</span>
+        </div>
+        <div className="mt-5 grid gap-3">
+          {(Object.keys(score.dimensions) as Array<keyof ResumeScoreDimensions>).map((key) => {
+            const value = score.dimensions[key];
+            const labels = DIMENSION_LABELS[key];
+            const label = tr(labels.ko, labels.en, labels.zh, labels.vi, labels.ja, labels.id);
+            return (
+              <div key={key} className="flex items-center gap-3">
+                <span className="w-24 flex-none text-[12px] font-medium text-foreground">{label}</span>
+                <div className="relative h-3 flex-1 overflow-hidden rounded-full bg-foreground/10">
+                  <div className="absolute inset-y-0 left-0 rounded-full bg-foreground transition-all" style={{ width: `${value}%` }} />
+                </div>
+                <span className="w-9 flex-none text-right text-[12px] font-bold tabular-nums">{value}</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Actions + Matches — 우측 컬럼 폭이 제한적이라 항상 세로 흐름 */}
+      <section className="mt-5 space-y-5">
+        {/* Actions */}
+        <div className="rounded-2xl border border-border bg-card p-5 md:p-6">
+          <header className="mb-4 flex items-center gap-2">
+            <Lightning className="h-5 w-5 text-foreground" weight="fill" />
+            <h3 className="font-display text-base font-bold">
+              {tr("다음 액션", "Next actions", "下一步行动", "Hành động tiếp theo", "次のアクション", "Tindakan berikutnya")}
+            </h3>
+            <span className="text-[12px] text-muted-foreground">
+              {tr("우선순위 순", "by priority", "按优先级", "theo ưu tiên", "優先順位順", "berdasarkan prioritas")}
+            </span>
+          </header>
+          {actions.length === 0 ? (
+            <div className="grid place-items-center gap-3 rounded-2xl bg-muted/40 px-4 py-12 text-center">
+              <CheckCircle className="h-8 w-8 text-emerald-500" weight="fill" />
+              <p className="text-sm font-semibold">
+                {tr("개선할 점이 없어요. 완벽한 이력서예요!", "Nothing to improve right now. Perfect resume!", "暂无可改进项。完美简历！", "Không có gì để cải thiện. Hồ sơ hoàn hảo!", "改善点はありません。完璧な履歴書です！", "Tidak ada yang perlu ditingkatkan. Resume sempurna!")}
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {actions.map((action) => (
+                <li
+                  key={action.id}
+                  className="group rounded-2xl border border-border bg-background p-4 transition hover:border-foreground/40"
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={`mt-0.5 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full text-[11px] font-bold ${
+                        action.priority === 1
+                          ? "bg-red-100 text-red-700"
+                          : action.priority === 2
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {action.priority}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-[13.5px] font-bold">{action.title}</p>
+                        <span className="inline-flex flex-none items-center gap-0.5 rounded-full bg-[#b7ff5a] px-2 py-0.5 text-[10px] font-bold text-[#111]">
+                          +{action.impactPoints}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[12.5px] text-muted-foreground">{action.description}</p>
+                      <div className="mt-3 flex items-center gap-2">
+                        <Link
+                          href={`/resume/${resumeId}/edit`}
+                          className="inline-flex items-center gap-1 text-[12px] font-semibold text-foreground hover:underline"
+                        >
+                          {tr("편집으로", "Open editor", "打开编辑", "Mở chỉnh sửa", "編集を開く", "Buka editor")}
+                          <CaretRight className="h-3 w-3" weight="bold" />
+                        </Link>
+                        {action.llmEligible ? (
+                          <button
+                            type="button"
+                            onClick={() => openSuggestion(action)}
+                            className="inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1 text-[11px] font-semibold text-background hover:opacity-90"
+                          >
+                            <Sparkle className="h-3 w-3" weight="fill" />
+                            {tr("AI 추천 보기", "Get AI suggestion", "获取AI建议", "Gợi ý AI", "AI提案を見る", "Saran AI")}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Matches */}
+        <div className="rounded-2xl border border-border bg-card p-5 md:p-6">
+          <header className="mb-4 flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-foreground" weight="fill" />
+            <h3 className="font-display text-base font-bold">
+              {tr("포지션 매칭", "Position match", "职位匹配", "Phù hợp vị trí", "ポジションマッチング", "Kecocokan posisi")}
+            </h3>
+          </header>
+          {!hasResults ? (
+            <div className="grid place-items-center gap-3 rounded-2xl bg-muted/40 px-4 py-12 text-center">
+              <WarningCircle className="h-8 w-8 text-amber-500" weight="fill" />
+              <p className="text-sm font-semibold">
+                {tr("아직 매칭할 포지션이 없어요", "No positions to match yet", "尚无可匹配职位", "Chưa có vị trí phù hợp", "マッチするポジションがまだ", "Belum ada posisi yang cocok")}
+              </p>
+              <Link
+                href="/positions"
+                className="inline-flex items-center gap-1 text-[12px] font-semibold text-foreground hover:underline"
+              >
+                {tr("포지션 둘러보기", "Browse positions", "浏览职位", "Xem vị trí", "ポジションを見る", "Lihat posisi")}
+                <ArrowRight className="h-3 w-3" weight="bold" />
+              </Link>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {matches.map((m) => (
+                <li key={m.positionId}>
+                  <Link
+                    href={`/positions/${m.positionId}`}
+                    className="block rounded-2xl border border-border bg-background p-4 transition hover:border-foreground/40"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-[13.5px] font-bold">{m.title}</p>
+                        {m.organizationName ? (
+                          <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{m.organizationName}</p>
+                        ) : null}
+                      </div>
+                      <span className="inline-flex flex-none items-baseline gap-0.5 rounded-full bg-foreground/5 px-2.5 py-1">
+                        <span className="text-[13px] font-bold tabular-nums">{m.matchScore}</span>
+                        <span className="text-[10px] text-muted-foreground">/100</span>
+                      </span>
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-between text-[11px]">
+                      <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 ${
+                        m.status === "applied" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                      }`}>
+                        {m.status === "applied"
+                          ? (m.applicationStatus ? APPLICATION_STATUS_LABEL[m.applicationStatus] ?? "지원 완료" : "지원 완료")
+                          : tr("추천", "Recommended", "推荐", "Khuyến nghị", "おすすめ", "Direkomendasikan")}
+                      </span>
+                      <span className="inline-flex items-center gap-0.5 text-muted-foreground">
+                        {tr("포지션 보기", "View", "查看", "Xem", "見る", "Lihat")}
+                        <CaretRight className="h-3 w-3" weight="bold" />
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      {/* Chat toggle */}
+      <section className="mt-5">
+        <button
+          type="button"
+          onClick={() => setChatOpen((v) => !v)}
+          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 text-left transition hover:border-foreground/40"
+        >
+          <span className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-full bg-foreground text-background">
+            <ChatCircleText className="h-5 w-5" weight="fill" />
+          </span>
+          <span className="flex-1">
+            <span className="block font-display text-sm font-bold">
+              {tr("AI 코치에게 물어보세요", "Ask the AI coach", "向AI教练提问", "Hỏi huấn luyện viên AI", "AIコーチに質問", "Tanya pelatih AI")}
+            </span>
+            <span className="block text-[12px] text-muted-foreground">
+              {tr(
+                '예: "내 자기소개를 한국 IT 기업 톤으로 바꿔줘"',
+                'e.g. "Rewrite my self-intro in a Korean IT company tone"',
+                '例如："把我的自我介绍改成韩国IT公司语气"',
+                'Vd: "Viết lại tự giới thiệu theo phong cách công ty IT Hàn Quốc"',
+                '例：「私の自己紹介を韓国IT企業のトーンに書き直して」',
+                'Cth: "Tulis ulang perkenalan diri saya dengan nada perusahaan IT Korea"'
+              )}
+            </span>
+          </span>
+          <CaretRight className={`h-4 w-4 flex-none transition ${chatOpen ? "rotate-90" : ""}`} weight="bold" />
+        </button>
+
+        {chatOpen ? (
+          <div className="mt-3 rounded-2xl border border-border bg-card p-4">
+            <div className="max-h-80 space-y-3 overflow-y-auto">
+              {chatMessages.length === 0 ? (
+                <p className="px-2 py-6 text-center text-[12.5px] text-muted-foreground">
+                  {tr("아래에 질문을 입력해보세요.", "Type a question below.", "在下方输入您的问题。", "Nhập câu hỏi của bạn bên dưới.", "下に質問を入力してください。", "Ketik pertanyaan Anda di bawah.")}
+                </p>
+              ) : (
+                chatMessages.map((m, i) => (
+                  <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed ${
+                        m.role === "user" ? "bg-foreground text-background" : "bg-muted text-foreground"
+                      }`}
+                    >
+                      {m.content}
+                    </div>
+                  </div>
+                ))
+              )}
+              {chatBusy ? (
+                <div className="flex justify-start">
+                  <div className="rounded-2xl bg-muted px-3.5 py-2.5 text-[13px] text-muted-foreground">
+                    {tr("생각하는 중…", "Thinking…", "思考中…", "Đang suy nghĩ…", "考え中…", "Berpikir…")}
+                  </div>
+                </div>
+              ) : null}
+              <div ref={chatEndRef} />
+            </div>
+            <form
+              className="mt-3 flex items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendChat();
+              }}
+            >
+              <input
+                type="text"
+                value={chatDraft}
+                onChange={(e) => setChatDraft(e.target.value)}
+                placeholder={tr(
+                  "질문을 입력하세요…",
+                  "Type your question…",
+                  "输入你的问题…",
+                  "Nhập câu hỏi của bạn…",
+                  "質問を入力…",
+                  "Ketik pertanyaan Anda…"
+                )}
+                className="flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+                disabled={chatBusy}
+              />
+              <button
+                type="submit"
+                disabled={chatBusy || chatDraft.trim().length === 0}
+                className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-foreground text-background transition hover:opacity-90 disabled:opacity-40"
+              >
+                <PaperPlaneRight className="h-4 w-4" weight="fill" />
+              </button>
+            </form>
+          </div>
+        ) : null}
+      </section>
+
+      {/* Suggestion modal */}
+      {suggestionFor ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="AI suggestion"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          onClick={() => {
+            if (!applying && !suggestionBusy) {
+              setSuggestionFor(null);
+              setSuggestion(null);
+            }
+          }}
+        >
+          <div
+            className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-elevated"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                if (!applying && !suggestionBusy) {
+                  setSuggestionFor(null);
+                  setSuggestion(null);
+                }
+              }}
+              aria-label="Close"
+              className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="flex items-center gap-2">
+              <Sparkle className="h-5 w-5 text-foreground" weight="fill" />
+              <h3 className="font-display text-lg font-bold">{suggestionFor.title}</h3>
+            </div>
+            {suggestionBusy ? (
+              <p className="mt-4 text-sm text-muted-foreground">
+                {tr("AI 가 추천을 작성하는 중…", "Generating suggestion…", "AI 正在生成建议…", "Đang tạo gợi ý…", "AIが提案を作成中…", "Sedang membuat saran…")}
+              </p>
+            ) : suggestionError ? (
+              <p className="mt-4 text-sm text-destructive">{suggestionError}</p>
+            ) : suggestion ? (
+              <div className="mt-4 space-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{tr("이전", "Before", "之前", "Trước", "現在", "Sebelum")}</p>
+                  <p className="mt-1 whitespace-pre-wrap rounded-xl bg-muted/40 p-3 text-[13px] leading-relaxed text-foreground/80">{suggestion.before}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#1b7a1b]">{tr("이후", "After", "之后", "Sau", "改善案", "Sesudah")}</p>
+                  <p className="mt-1 whitespace-pre-wrap rounded-xl bg-[#b7ff5a]/30 p-3 text-[13px] leading-relaxed">{suggestion.after}</p>
+                </div>
+                {suggestion.why ? (
+                  <p className="rounded-xl bg-muted/40 p-3 text-[12.5px] text-muted-foreground">{suggestion.why}</p>
+                ) : null}
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button variant="outline" size="sm" onClick={() => { setSuggestionFor(null); setSuggestion(null); }} disabled={applying}>
+                    {tr("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+                  </Button>
+                  <Button variant="dark" size="sm" onClick={applySuggestion} disabled={applying}>
+                    {applying
+                      ? tr("적용 중…", "Applying…", "应用中…", "Đang áp dụng…", "適用中…", "Menerapkan…")
+                      : tr("이력서에 적용", "Apply to resume", "应用到简历", "Áp dụng vào hồ sơ", "履歴書に適用", "Terapkan ke resume")}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Delete confirmation modal */}
+      {deleteOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={tr("이력서 삭제", "Delete resume", "删除简历", "Xóa hồ sơ", "履歴書を削除", "Hapus resume")}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          onClick={() => {
+            if (!deleting) setDeleteOpen(false);
+          }}
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-elevated"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <Trash className="h-5 w-5 text-destructive" weight="bold" />
+              <h3 className="font-display text-lg font-bold">
+                {tr("이력서를 삭제할까요?", "Delete this resume?", "确认删除此简历？", "Xóa hồ sơ này?", "この履歴書を削除しますか？", "Hapus resume ini?")}
+              </h3>
+            </div>
+            <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+              <span className="font-semibold text-foreground">{coach.title}</span>
+              {tr(
+                " 을(를) 삭제하면 점수·피드백·공유 링크가 모두 함께 사라지고, 되돌릴 수 없어요.",
+                " will be permanently removed along with its score, feedback, and share link. This can't be undone.",
+                " 将被永久删除，包括评分、反馈和共享链接，且无法恢复。",
+                " sẽ bị xóa vĩnh viễn cùng với điểm số, phản hồi và liên kết chia sẻ. Không thể hoàn tác.",
+                " はスコア、フィードバック、共有リンクとともに永久に削除されます。元に戻せません。",
+                " akan dihapus secara permanen bersama dengan skor, masukan, dan tautan berbagi. Tidak dapat dibatalkan."
+              )}
+            </p>
+            {deleteError ? (
+              <p className="mt-3 rounded-lg bg-destructive/5 px-3 py-2 text-[12.5px] text-destructive">{deleteError}</p>
+            ) : null}
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setDeleteOpen(false)} disabled={deleting}>
+                {tr("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting
+                  ? tr("삭제 중…", "Deleting…", "删除中…", "Đang xóa…", "削除中…", "Menghapus…")
+                  : tr("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}

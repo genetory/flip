@@ -10900,10 +10900,18 @@ app.delete(
 app.get("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const userId = req.auth!.userId;
   try {
-    const items = await prisma.resume.findMany({
+    const rows = await prisma.resume.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" }
     });
+    // 코칭 진입 리스트에서 카드별 점수 배지를 보여주기 위해 응답에 score
+    // 를 함께 실어 보냄. rule-based 라 row 당 sub-ms — 별도 호출보다 한 번에
+    // 끝내는 게 UX 와 비용 양쪽에 유리. 기존 클라이언트는 score 필드를
+    // 무시하면 되니 호환성 유지.
+    const items = rows.map((row) => ({
+      ...row,
+      score: calcResumeScore(row.content)
+    }));
     return res.json({ ok: true, items });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to list resumes" });
@@ -11038,6 +11046,205 @@ app.post("/members/me/resumes/:resumeId/primary", authenticate, requireRoles([Me
     return res.json({ ok: true, item });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to set primary resume" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Resume Coach — unified scoring + action items + position matching in a
+// single response. Cheap to call (rule-based, ~10ms) so the frontend can
+// re-fetch after every save without worrying about cost. LLM-backed text
+// suggestions and free-form chat are split into separate endpoints so the
+// expensive paths only run when the user explicitly asks.
+// ---------------------------------------------------------------------------
+app.get("/members/me/resumes/:resumeId/coach", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
+  if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const resume = await prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      select: { id: true, title: true, content: true, updatedAt: true }
+    });
+    if (!resume) return res.status(404).json({ ok: false, message: "resume not found" });
+
+    const score = calcResumeScore(resume.content);
+    const actions = generateResumeCoachActions(resume.content);
+    const matches = await fetchResumeCoachPositionMatches(userId, resume.content);
+
+    return res.json({
+      ok: true,
+      coach: {
+        resumeId: resume.id,
+        title: resume.title,
+        score,
+        actions,
+        matches,
+        updatedAt: resume.updatedAt
+      }
+    });
+  } catch (err) {
+    console.error("[coach] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to compute coach" });
+  }
+});
+
+// POST /members/me/resumes/:resumeId/coach/suggest — LLM rewrite/expansion
+// for a single resume section. Body specifies which section and which item
+// (e.g. careers[2] description). Returns a single suggested rewrite the
+// frontend can show inline with an [Apply] button. Cheap model so each
+// click costs sub-cent. Falls back gracefully when OPENAI_API_KEY missing.
+const coachSuggestSchema = z.object({
+  targetSection: z.enum(["selfIntroduction", "summary", "careers", "activities"]),
+  targetItemIndex: z.number().int().nonnegative().optional(),
+  tone: z.enum(["formal", "concise", "impactful"]).optional()
+});
+
+app.post("/members/me/resumes/:resumeId/coach/suggest", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
+  if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
+  const parsed = coachSuggestSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+  try {
+    const resume = await prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      select: { content: true }
+    });
+    if (!resume) return res.status(404).json({ ok: false, message: "resume not found" });
+
+    const c = (resume.content ?? {}) as Record<string, unknown>;
+    const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+    const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
+    const { targetSection, targetItemIndex, tone = "impactful" } = parsed.data;
+
+    // Pull the source text the model should rewrite.
+    let sourceText = "";
+    let label = "";
+    if (targetSection === "selfIntroduction" || targetSection === "summary") {
+      sourceText = trimStr(c.selfIntroduction) || trimStr(c.summary);
+      label = "자기소개";
+    } else if (targetSection === "careers" && typeof targetItemIndex === "number" && isArr(c.careers)) {
+      const item = c.careers[targetItemIndex];
+      if (typeof item === "object" && item !== null) {
+        const obj = item as Record<string, unknown>;
+        sourceText = trimStr(obj.description);
+        label = `${trimStr(obj.companyName) || "경력"} 설명`;
+      }
+    } else if (targetSection === "activities" && typeof targetItemIndex === "number" && isArr(c.activities)) {
+      const item = c.activities[targetItemIndex];
+      if (typeof item === "object" && item !== null) {
+        const obj = item as Record<string, unknown>;
+        sourceText = trimStr(obj.description);
+        label = `${trimStr(obj.title) || "활동"} 설명`;
+      }
+    }
+    if (!sourceText) {
+      return res.status(400).json({ ok: false, message: "source text empty — write at least one sentence first" });
+    }
+
+    const toneNote = tone === "formal" ? "정중하고 격식 있는 어조" : tone === "concise" ? "간결하고 핵심만" : "임팩트 있고 구체적인 성과 중심";
+    const systemPrompt =
+      "당신은 한국 기업 채용을 돕는 이력서 코치입니다. 외국인 지원자의 이력서 한 단락을 더 임팩트 있게 다듬어 주세요. " +
+      "동일한 사실만 사용하고, 거짓 정보를 만들지 마세요. 가능하면 수치를 보존하거나 추가하지 말고 표현만 다듬으세요. " +
+      "JSON 한 개의 객체만 응답하세요. 형식: { \"rewrite\": string, \"why\": string }. why 는 1-2 문장으로 어떤 점이 개선됐는지 한국어로 설명.";
+    const userPrompt = `다음 ${label}을(를) ${toneNote}로 다듬어 주세요:\n\n${sourceText}`;
+
+    const completion = await openai.chat.completions.create({
+      model: openaiTranslationModel,
+      temperature: 0.5,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ]
+    });
+    const raw = completion.choices?.[0]?.message?.content ?? "";
+    let parsedJson: { rewrite?: unknown; why?: unknown } = {};
+    try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+    const rewrite = typeof parsedJson.rewrite === "string" ? parsedJson.rewrite.trim() : "";
+    const why = typeof parsedJson.why === "string" ? parsedJson.why.trim() : "";
+    if (!rewrite) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+    return res.json({ ok: true, suggestion: { before: sourceText, after: rewrite, why, targetSection, targetItemIndex } });
+  } catch (err) {
+    console.error("[coach/suggest] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to generate suggestion" });
+  }
+});
+
+// POST /members/me/resumes/:resumeId/coach/chat — free-form Q&A with the
+// resume as context. Single-turn; the frontend keeps the conversation
+// history client-side and sends the trailing N messages. Reasonable token
+// caps keep cost predictable.
+const coachChatSchema = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().min(1).max(2000)
+      })
+    )
+    .min(1)
+    .max(12)
+});
+
+app.post("/members/me/resumes/:resumeId/coach/chat", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
+  if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
+  const parsed = coachChatSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+  try {
+    const resume = await prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      select: { content: true, title: true }
+    });
+    if (!resume) return res.status(404).json({ ok: false, message: "resume not found" });
+
+    const score = calcResumeScore(resume.content);
+    // Compact JSON of the resume — trim to keep token usage bounded. The
+    // chat is informational, not a full rewrite, so a summary is enough.
+    const c = (resume.content ?? {}) as Record<string, unknown>;
+    const resumeSummary = JSON.stringify({
+      title: resume.title,
+      score: score.total,
+      level: score.level,
+      dimensions: score.dimensions,
+      hasName: Boolean((c.basicName ?? "") as string),
+      hasVisa: Boolean((c.basicVisa ?? "") as string),
+      summary: ((c.selfIntroduction ?? c.summary ?? "") as string).slice(0, 600),
+      educationCount: Array.isArray(c.educations) ? c.educations.length : 0,
+      careerCount: Array.isArray(c.careers) ? c.careers.length : 0,
+      activityCount: Array.isArray(c.activities) ? c.activities.length : 0,
+      skillCount: Array.isArray(c.skills) ? c.skills.length : 0,
+      languageCount: Array.isArray(c.languages) ? c.languages.length : 0,
+      certificationCount: Array.isArray(c.certifications) ? c.certifications.length : 0,
+      linkCount: Array.isArray(c.links) ? c.links.length : 0
+    });
+    const systemPrompt =
+      "당신은 Aply의 이력서 코치입니다. 외국인 지원자가 한국 기업에 더 매력적으로 보일 수 있도록 친근하고 구체적으로 조언하세요. " +
+      "이력서 정보를 바탕으로 답하되, 모르는 것은 추측하지 말고 모른다고 말하세요. 한국어로 답변하며, 답변은 4-6 문장 이내로 간결하게 작성하세요. " +
+      `사용자의 이력서 요약: ${resumeSummary}`;
+
+    const completion = await openai.chat.completions.create({
+      model: openaiTranslationModel,
+      temperature: 0.6,
+      max_tokens: 500,
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...parsed.data.messages.map((m) => ({ role: m.role, content: m.content }))
+      ]
+    });
+    const reply = completion.choices?.[0]?.message?.content?.trim() ?? "";
+    if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
+    return res.json({ ok: true, reply });
+  } catch (err) {
+    console.error("[coach/chat] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to chat" });
   }
 });
 
@@ -17062,6 +17269,474 @@ function calcResumeCompletion(content: unknown): number {
   const total = checks.reduce((sum, c2) => sum + c2.weight, 0);
   const done = checks.reduce((sum, c2) => sum + (c2.ok ? c2.weight : 0), 0);
   return Math.round((done / total) * 100);
+}
+
+// ---------------------------------------------------------------------------
+// Resume Coach scoring rubric. Six weighted dimensions yield a 0–100 total
+// bucketed into bronze/silver/gold/platinum levels. Pure rule-based — no
+// LLM cost — so recomputing on every edit is free. LLM augmentation (text
+// suggestions, free-form chat) lives in dedicated endpoints below.
+//
+// Weights
+//   completeness   25%   required vs optional sections filled
+//   contentQuality 25%   summary/career/activity description depth
+//   impact         15%   numbers in body text (results-oriented writing)
+//   foreignAppeal  15%   visa, Korean proficiency, multilingual signal
+//   uniqueness     10%   projects, certifications, links, skill breadth
+//   visual         10%   photo, body length sane, contact reachable
+// ---------------------------------------------------------------------------
+type ResumeScoreLevel = "bronze" | "silver" | "gold" | "platinum";
+
+type ResumeScoreDimensions = {
+  completeness: number;
+  contentQuality: number;
+  impact: number;
+  foreignAppeal: number;
+  uniqueness: number;
+  visual: number;
+};
+
+type ResumeScoreResult = {
+  total: number;
+  level: ResumeScoreLevel;
+  dimensions: ResumeScoreDimensions;
+};
+
+type ResumeCoachAction = {
+  id: string;
+  priority: 1 | 2 | 3;
+  title: string;
+  description: string;
+  impactPoints: number;
+  targetSection: string;
+  targetItemIndex?: number;
+  dimension: keyof ResumeScoreDimensions;
+  // llmEligible actions can be augmented by POST /coach/suggest.
+  llmEligible?: boolean;
+};
+
+type ResumeCoachPositionMatch = {
+  positionId: string;
+  title: string;
+  organizationName: string | null;
+  matchScore: number;
+  status: "applied" | "open";
+  applicationStatus: string | null;
+};
+
+const RESUME_SCORE_WEIGHTS: Record<keyof ResumeScoreDimensions, number> = {
+  completeness: 0.25,
+  contentQuality: 0.25,
+  impact: 0.15,
+  foreignAppeal: 0.15,
+  uniqueness: 0.10,
+  visual: 0.10
+};
+
+function resumeScoreLevel(score: number): ResumeScoreLevel {
+  if (score >= 90) return "platinum";
+  if (score >= 75) return "gold";
+  if (score >= 55) return "silver";
+  return "bronze";
+}
+
+function calcResumeScore(content: unknown): ResumeScoreResult {
+  const empty: ResumeScoreResult = {
+    total: 0,
+    level: "bronze",
+    dimensions: { completeness: 0, contentQuality: 0, impact: 0, foreignAppeal: 0, uniqueness: 0, visual: 0 }
+  };
+  if (!content || typeof content !== "object") return empty;
+  const c = content as Record<string, unknown>;
+  const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+  const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
+
+  // 1) Completeness — reuse the existing weighted percentage.
+  const completeness = calcResumeCompletion(content);
+
+  // 2) Content Quality — summary length + careers/activities richness.
+  const introText = trimStr(c.selfIntroduction) || trimStr(c.summary);
+  let qChecks = 0;
+  let qScore = 0;
+  qChecks += 1;
+  if (introText.length >= 400) qScore += 1;
+  else if (introText.length >= 200) qScore += 0.7;
+  else if (introText.length >= 100) qScore += 0.4;
+  else if (introText.length > 0) qScore += 0.15;
+  if (isArr(c.careers) && c.careers.length > 0) {
+    const rich = c.careers.filter((cr) => {
+      if (typeof cr !== "object" || cr === null) return false;
+      return trimStr((cr as Record<string, unknown>).description).length >= 50;
+    });
+    qChecks += 1;
+    qScore += Math.min(1, rich.length / c.careers.length);
+  }
+  if (isArr(c.activities) && c.activities.length > 0) {
+    const rich = c.activities.filter((a) => {
+      if (typeof a !== "object" || a === null) return false;
+      return trimStr((a as Record<string, unknown>).description).length >= 30;
+    });
+    qChecks += 1;
+    qScore += Math.min(1, rich.length / c.activities.length);
+  }
+  const contentQuality = qChecks === 0 ? 0 : Math.round((qScore / qChecks) * 100);
+
+  // 3) Impact — body text mentions numbers/units (results-oriented writing).
+  const bodyTexts: string[] = [introText];
+  if (isArr(c.careers)) {
+    for (const cr of c.careers) {
+      if (typeof cr === "object" && cr !== null) {
+        bodyTexts.push(trimStr((cr as Record<string, unknown>).description));
+      }
+    }
+  }
+  if (isArr(c.activities)) {
+    for (const a of c.activities) {
+      if (typeof a === "object" && a !== null) {
+        bodyTexts.push(trimStr((a as Record<string, unknown>).description));
+      }
+    }
+  }
+  const filledTexts = bodyTexts.filter((t) => t.length > 0);
+  const numericPattern = /\d+(?:[.,]\d+)?\s*(?:%|명|원|회|개|배|건|만|천|일|개월|년|시간|위|점|쪽|페이지)|\b\d+(?:[.,]\d+)?\s*(?:%|years?|months?|people|times|projects?|teams?)\b/i;
+  const withNumbers = filledTexts.filter((t) => numericPattern.test(t));
+  const impact = filledTexts.length === 0 ? 0 : Math.round((withNumbers.length / filledTexts.length) * 100);
+
+  // 4) Foreign Appeal — visa, Korean proficiency, multilingual.
+  let fChecks = 0;
+  let fScore = 0;
+  fChecks += 1;
+  if (trimStr(c.basicVisa)) fScore += 1;
+  fChecks += 1;
+  const hasKoreanLang = isArr(c.languages) && c.languages.some((l) => {
+    if (typeof l !== "object" || l === null) return false;
+    const lang = trimStr((l as Record<string, unknown>).language).toLowerCase();
+    const level = trimStr((l as Record<string, unknown>).level);
+    return (lang.includes("kor") || lang.includes("한국") || lang === "ko") && level.length > 0;
+  });
+  if (hasKoreanLang) fScore += 1;
+  fChecks += 1;
+  if (isArr(c.languages) && c.languages.length >= 2) fScore += 1;
+  else if (isArr(c.languages) && c.languages.length >= 1) fScore += 0.5;
+  const foreignAppeal = Math.round((fScore / fChecks) * 100);
+
+  // 5) Uniqueness — activities, certifications, links, skill breadth.
+  let uChecks = 0;
+  let uScore = 0;
+  uChecks += 1;
+  if (isArr(c.activities) && c.activities.length >= 2) uScore += 1;
+  else if (isArr(c.activities) && c.activities.length >= 1) uScore += 0.5;
+  uChecks += 1;
+  if (isArr(c.certifications) && c.certifications.length >= 2) uScore += 1;
+  else if (isArr(c.certifications) && c.certifications.length >= 1) uScore += 0.5;
+  uChecks += 1;
+  if (isArr(c.links) && c.links.length >= 1) uScore += 1;
+  uChecks += 1;
+  if (isArr(c.skills)) {
+    if (c.skills.length >= 5) uScore += 1;
+    else if (c.skills.length >= 3) uScore += 0.6;
+    else if (c.skills.length >= 1) uScore += 0.3;
+  }
+  const uniqueness = Math.round((uScore / uChecks) * 100);
+
+  // 6) Visual — photo, intro length sane, contact reachable.
+  let vChecks = 0;
+  let vScore = 0;
+  vChecks += 1;
+  if (trimStr(c.basicPhotoUrl)) vScore += 1;
+  vChecks += 1;
+  if (introText.length === 0) vScore += 0;
+  else if (introText.length <= 1500) vScore += 1;
+  else if (introText.length <= 2500) vScore += 0.5;
+  else vScore += 0.2;
+  vChecks += 1;
+  if (trimStr(c.basicName) && trimStr(c.basicEmail)) vScore += 1;
+  else if (trimStr(c.basicName) || trimStr(c.basicEmail)) vScore += 0.5;
+  const visual = Math.round((vScore / vChecks) * 100);
+
+  const dimensions: ResumeScoreDimensions = {
+    completeness,
+    contentQuality,
+    impact,
+    foreignAppeal,
+    uniqueness,
+    visual
+  };
+  const total = Math.round(
+    (Object.keys(dimensions) as Array<keyof ResumeScoreDimensions>).reduce(
+      (sum, key) => sum + dimensions[key] * RESUME_SCORE_WEIGHTS[key],
+      0
+    )
+  );
+  return { total, level: resumeScoreLevel(total), dimensions };
+}
+
+// Action generator — surfaces the 5 highest-impact gaps. Priority 1 is
+// "fix this first" (missing essentials), 3 is "nice to have". Each action
+// carries enough metadata for the UI to deep-link to the exact edit target.
+function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
+  const actions: ResumeCoachAction[] = [];
+  if (!content || typeof content !== "object") return actions;
+  const c = content as Record<string, unknown>;
+  const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+  const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
+
+  if (!trimStr(c.basicName)) {
+    actions.push({ id: "fill-name", priority: 1, title: "이름을 입력하세요", description: "이력서의 가장 기본 정보입니다.", impactPoints: 5, targetSection: "basics", dimension: "completeness" });
+  }
+  if (!trimStr(c.basicEmail)) {
+    actions.push({ id: "fill-email", priority: 1, title: "이메일 주소를 입력하세요", description: "연락이 닿을 수 있어야 합니다.", impactPoints: 5, targetSection: "basics", dimension: "completeness" });
+  }
+  if (!trimStr(c.basicPhone)) {
+    actions.push({ id: "fill-phone", priority: 2, title: "전화번호를 입력하세요", description: "다급한 연락 채널이 필요할 수 있어요.", impactPoints: 3, targetSection: "basics", dimension: "completeness" });
+  }
+  if (!trimStr(c.basicResidence)) {
+    actions.push({ id: "fill-residence", priority: 2, title: "거주지를 입력하세요", description: "출퇴근 가능 지역 판단에 사용됩니다.", impactPoints: 3, targetSection: "basics", dimension: "completeness" });
+  }
+
+  const introText = trimStr(c.selfIntroduction) || trimStr(c.summary);
+  if (introText.length < 100) {
+    actions.push({
+      id: "improve-self-introduction",
+      priority: 1,
+      title: introText.length === 0 ? "자기소개를 작성하세요" : "자기소개를 더 풍부하게 다듬어주세요",
+      description: "100자 이상, 본인의 강점과 동기가 드러나도록 작성해보세요.",
+      impactPoints: introText.length === 0 ? 12 : 7,
+      targetSection: "selfIntroduction",
+      dimension: "contentQuality",
+      llmEligible: introText.length > 0
+    });
+  } else if (introText.length < 400) {
+    actions.push({
+      id: "expand-self-introduction",
+      priority: 2,
+      title: "자기소개에 구체적 사례를 더해보세요",
+      description: "성과·프로젝트 경험을 1–2개 추가하면 인상이 달라집니다.",
+      impactPoints: 5,
+      targetSection: "selfIntroduction",
+      dimension: "contentQuality",
+      llmEligible: true
+    });
+  }
+
+  if (!isArr(c.educations) || c.educations.length === 0 || !c.educations.some((e) => typeof e === "object" && e !== null && trimStr((e as Record<string, unknown>).schoolName))) {
+    actions.push({ id: "add-education", priority: 1, title: "학력을 추가하세요", description: "학교명·전공·재학 상태를 입력해주세요.", impactPoints: 10, targetSection: "educations", dimension: "completeness" });
+  }
+
+  if (isArr(c.careers)) {
+    c.careers.forEach((cr, idx) => {
+      if (typeof cr !== "object" || cr === null) return;
+      const obj = cr as Record<string, unknown>;
+      const desc = trimStr(obj.description);
+      const company = trimStr(obj.companyName) || "경력";
+      if (desc.length > 0 && desc.length < 50) {
+        actions.push({
+          id: `improve-career-${idx}`,
+          priority: 2,
+          title: `${company} 설명을 보강하세요`,
+          description: "구체적 업무·성과·수치를 더해보세요.",
+          impactPoints: 6,
+          targetSection: "careers",
+          targetItemIndex: idx,
+          dimension: "contentQuality",
+          llmEligible: true
+        });
+      } else if (desc.length >= 50 && !/\d/.test(desc)) {
+        actions.push({
+          id: `add-metrics-career-${idx}`,
+          priority: 2,
+          title: `${company} 성과를 수치로 표현하세요`,
+          description: "예: '월 활성 사용자 30% 증가', '5인 팀 리드'.",
+          impactPoints: 7,
+          targetSection: "careers",
+          targetItemIndex: idx,
+          dimension: "impact",
+          llmEligible: true
+        });
+      }
+    });
+  }
+
+  if (!trimStr(c.basicVisa)) {
+    actions.push({
+      id: "add-visa",
+      priority: 1,
+      title: "비자 정보를 입력하세요",
+      description: "비자 상태가 명확하면 채용 담당자가 안심하고 검토합니다.",
+      impactPoints: 7,
+      targetSection: "basics",
+      dimension: "foreignAppeal"
+    });
+  }
+  const hasKorean = isArr(c.languages) && c.languages.some((l) => {
+    if (typeof l !== "object" || l === null) return false;
+    const lang = trimStr((l as Record<string, unknown>).language).toLowerCase();
+    return lang.includes("kor") || lang.includes("한국") || lang === "ko";
+  });
+  if (!hasKorean) {
+    actions.push({
+      id: "add-korean-language",
+      priority: 1,
+      title: "한국어 능력을 추가하세요",
+      description: "TOPIK 등급이나 회화 수준을 표시해주세요.",
+      impactPoints: 7,
+      targetSection: "languages",
+      dimension: "foreignAppeal"
+    });
+  }
+
+  if (!isArr(c.skills) || c.skills.length < 3) {
+    actions.push({
+      id: "add-skills",
+      priority: 2,
+      title: "기술 스택을 더 추가하세요",
+      description: "3개 이상의 스킬을 적으면 검색·매칭에 유리합니다.",
+      impactPoints: 4,
+      targetSection: "skills",
+      dimension: "uniqueness"
+    });
+  }
+  if (!isArr(c.certifications) || c.certifications.length === 0) {
+    actions.push({
+      id: "add-certification",
+      priority: 3,
+      title: "자격증을 추가하세요",
+      description: "1개라도 있으면 차별화에 도움됩니다.",
+      impactPoints: 3,
+      targetSection: "certifications",
+      dimension: "uniqueness"
+    });
+  }
+  if (!isArr(c.links) || c.links.length === 0) {
+    actions.push({
+      id: "add-link",
+      priority: 3,
+      title: "포트폴리오·GitHub 링크를 추가하세요",
+      description: "온라인 작업물이 있으면 더 설득력이 커집니다.",
+      impactPoints: 3,
+      targetSection: "links",
+      dimension: "uniqueness"
+    });
+  }
+  if (!trimStr(c.basicPhotoUrl)) {
+    actions.push({
+      id: "add-photo",
+      priority: 3,
+      title: "프로필 사진을 등록하세요",
+      description: "한국 기업은 사진을 본인 확인 신호로 받아들이는 경우가 많습니다.",
+      impactPoints: 3,
+      targetSection: "basics",
+      dimension: "visual"
+    });
+  }
+
+  actions.sort((a, b) => {
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    return b.impactPoints - a.impactPoints;
+  });
+  return actions.slice(0, 5);
+}
+
+// Position matcher — surfaces up to 3 positions. Prefers ones the user has
+// already applied to (with application status). Pads with OPEN positions
+// the user hasn't applied to yet, scored by simple visa/language/location
+// overlap. Replace with embedding-based matching in a later iteration.
+async function fetchResumeCoachPositionMatches(
+  userId: string,
+  content: unknown
+): Promise<ResumeCoachPositionMatch[]> {
+  if (!content || typeof content !== "object") return [];
+  const c = content as Record<string, unknown>;
+  const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+  const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
+
+  const TARGET = 3;
+  const applied = await prisma.application.findMany({
+    where: { candidateUserId: userId },
+    orderBy: { submittedAt: "desc" },
+    take: TARGET,
+    select: {
+      status: true,
+      position: {
+        select: {
+          id: true,
+          title: true,
+          eligibleVisas: true,
+          communicationLanguages: true,
+          workLocation: true,
+          partnerOrganization: { select: { name: true } }
+        }
+      }
+    }
+  });
+
+  const userVisa = trimStr(c.basicVisa).toLowerCase();
+  const userResidence = trimStr(c.basicResidence);
+  const userSkills = isArr(c.skills) ? c.skills.map((s) => trimStr(s).toLowerCase()).filter(Boolean) : [];
+  const hasKorean = isArr(c.languages) && c.languages.some((l) => {
+    if (typeof l !== "object" || l === null) return false;
+    const lang = trimStr((l as Record<string, unknown>).language).toLowerCase();
+    return lang.includes("kor") || lang.includes("한국") || lang === "ko";
+  });
+
+  const scoreFor = (pos: {
+    eligibleVisas?: string[];
+    communicationLanguages?: string[];
+    workLocation?: string | null;
+  }): number => {
+    let s = 50;
+    const visas = (pos.eligibleVisas ?? []).map((v) => v.toLowerCase());
+    if (userVisa && visas.length > 0 && visas.some((v) => v.includes(userVisa) || userVisa.includes(v))) s += 10;
+    if (userResidence && pos.workLocation && pos.workLocation.includes(userResidence)) s += 10;
+    const langs = (pos.communicationLanguages ?? []).map((l) => l.toLowerCase());
+    if (hasKorean && langs.some((l) => l.includes("kor") || l.includes("한국") || l === "ko")) s += 15;
+    if (userSkills.length > 0) s += 5;
+    return Math.min(100, s);
+  };
+
+  const appliedItems: ResumeCoachPositionMatch[] = applied
+    .filter((a) => a.position)
+    .map((a) => ({
+      positionId: a.position!.id,
+      title: a.position!.title,
+      organizationName: a.position!.partnerOrganization?.name ?? null,
+      matchScore: scoreFor(a.position!),
+      status: "applied",
+      applicationStatus: a.status
+    }));
+
+  if (appliedItems.length >= TARGET) return appliedItems;
+
+  const padCount = TARGET - appliedItems.length;
+  const open = await prisma.position.findMany({
+    where: {
+      status: "OPEN",
+      NOT: { applications: { some: { candidateUserId: userId } } }
+    },
+    orderBy: { updatedAt: "desc" },
+    take: padCount * 4,
+    select: {
+      id: true,
+      title: true,
+      eligibleVisas: true,
+      communicationLanguages: true,
+      workLocation: true,
+      partnerOrganization: { select: { name: true } }
+    }
+  });
+  const openItems: ResumeCoachPositionMatch[] = open
+    .map((pos) => ({
+      positionId: pos.id,
+      title: pos.title,
+      organizationName: pos.partnerOrganization?.name ?? null,
+      matchScore: scoreFor(pos),
+      status: "open" as const,
+      applicationStatus: null
+    }))
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, padCount);
+
+  return [...appliedItems, ...openItems];
 }
 
 // GET /ops/resumes — operator-facing list of every Resume in the system.

@@ -1405,6 +1405,10 @@ export type Resume = {
   // Public share slug. Anyone with /resume/share/<shareSlug> can view a
   // read-only single-page rendering of the resume without signing in.
   shareSlug?: string;
+  // Server-computed Coach score. Present on list endpoints so the cards can
+  // render a score badge without a follow-up call. May be absent on legacy
+  // endpoints that haven't been augmented yet — treat as optional.
+  score?: ResumeScoreResult;
   createdAt: string;
   updatedAt: string;
 };
@@ -1489,4 +1493,116 @@ export async function setMyPrimaryResume(resumeId: string) {
     method: "POST"
   });
   return result.item ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Resume Coach types — mirror the backend shape exactly. Keep these in sync
+// with apps/api/src/index.ts (`ResumeScoreResult`, `ResumeCoachAction`, etc.)
+// when adjusting the rubric.
+// ---------------------------------------------------------------------------
+export type ResumeScoreLevel = "bronze" | "silver" | "gold" | "platinum";
+
+export type ResumeScoreDimensions = {
+  completeness: number;
+  contentQuality: number;
+  impact: number;
+  foreignAppeal: number;
+  uniqueness: number;
+  visual: number;
+};
+
+export type ResumeScoreResult = {
+  total: number;
+  level: ResumeScoreLevel;
+  dimensions: ResumeScoreDimensions;
+};
+
+export type ResumeCoachAction = {
+  id: string;
+  priority: 1 | 2 | 3;
+  title: string;
+  description: string;
+  impactPoints: number;
+  targetSection: string;
+  targetItemIndex?: number;
+  dimension: keyof ResumeScoreDimensions;
+  llmEligible?: boolean;
+};
+
+export type ResumeCoachPositionMatch = {
+  positionId: string;
+  title: string;
+  organizationName: string | null;
+  matchScore: number;
+  status: "applied" | "open";
+  applicationStatus: string | null;
+};
+
+export type ResumeCoachData = {
+  resumeId: string;
+  title: string;
+  score: ResumeScoreResult;
+  actions: ResumeCoachAction[];
+  matches: ResumeCoachPositionMatch[];
+  updatedAt: string;
+};
+
+export async function getResumeCoach(resumeId: string): Promise<ResumeCoachData> {
+  // authedJsonFetch 는 { ok, item, items } 기본 스키마만 타이핑하므로,
+  // 커스텀 필드(coach/suggestion/reply)는 캐스팅으로 꺼낸다.
+  const result = (await authedJsonFetch(
+    `/members/me/resumes/${encodeURIComponent(resumeId)}/coach`,
+    { method: "GET" }
+  )) as unknown as { coach?: ResumeCoachData };
+  if (!result.coach) throw new Error("coach response missing payload");
+  return result.coach;
+}
+
+export type ResumeCoachSuggestInput = {
+  targetSection: "selfIntroduction" | "summary" | "careers" | "activities";
+  targetItemIndex?: number;
+  tone?: "formal" | "concise" | "impactful";
+};
+
+export type ResumeCoachSuggestion = {
+  before: string;
+  after: string;
+  why: string;
+  targetSection: ResumeCoachSuggestInput["targetSection"];
+  targetItemIndex?: number;
+};
+
+export async function postResumeCoachSuggest(
+  resumeId: string,
+  input: ResumeCoachSuggestInput
+): Promise<ResumeCoachSuggestion> {
+  const result = (await authedJsonFetch(
+    `/members/me/resumes/${encodeURIComponent(resumeId)}/coach/suggest`,
+    {
+      method: "POST",
+      body: JSON.stringify(input)
+    }
+  )) as unknown as { suggestion?: ResumeCoachSuggestion };
+  if (!result.suggestion) throw new Error("suggest response missing payload");
+  return result.suggestion;
+}
+
+export type ResumeCoachChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export async function postResumeCoachChat(
+  resumeId: string,
+  messages: ResumeCoachChatMessage[]
+): Promise<string> {
+  const result = (await authedJsonFetch(
+    `/members/me/resumes/${encodeURIComponent(resumeId)}/coach/chat`,
+    {
+      method: "POST",
+      body: JSON.stringify({ messages })
+    }
+  )) as unknown as { reply?: string };
+  if (typeof result.reply !== "string") throw new Error("chat response missing reply");
+  return result.reply;
 }

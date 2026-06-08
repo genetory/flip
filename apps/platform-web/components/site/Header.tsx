@@ -10,7 +10,6 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { Button } from "../ui/button";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { getHeaderMessages, PLATFORM_LOCALES, type PlatformLocale } from "../../lib/auth-messages";
-import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { AnnouncementBanner } from "../announcements/AnnouncementBanner";
@@ -58,13 +57,23 @@ export const Header = () => {
   const eventLabel = locale === "ko" ? "이벤트" : locale === "zh-CN" ? "活动" : locale === "vi" ? "Sự kiện" : locale === "ja" ? "イベント" : locale === "id" ? "Acara" : "Events";
   const partnerDashLabel = locale === "ko" ? "관리 콘솔" : locale === "zh-CN" ? "管理控制台" : locale === "vi" ? "Bảng quản trị" : locale === "ja" ? "管理コンソール" : locale === "id" ? "Konsol Manajemen" : "Admin console";
   const opsDashLabel = locale === "ko" ? "운영 콘솔" : locale === "zh-CN" ? "运营控制台" : locale === "vi" ? "Bảng điều khiển vận hành" : locale === "ja" ? "運営コンソール" : locale === "id" ? "Konsol Operasional" : "Ops console";
+  // 이력서 코칭 — STUDENT 와 비로그인 사용자에게만 노출. 매칭 확률 메뉴를
+  // 흡수했기 때문에 같은 자리(/matching-probability 가 있던 자리) 에 둠.
+  // 비로그인 사용자가 클릭하면 /resume 진입 시 자동으로 로그인 게이트가 작동.
+  const resumeCoachLabel = locale === "ko"
+    ? "이력서 코칭"
+    : locale === "zh-CN" ? "简历辅导"
+    : locale === "vi" ? "Tư vấn hồ sơ"
+    : locale === "ja" ? "履歴書コーチング"
+    : locale === "id" ? "Bimbingan Resume"
+    : "Resume Coaching";
   const navItems: { label: string; href: string; external?: boolean }[] = [
     // 이벤트 — 별도 컨텍스트(사주 캠페인 등)이라 새창으로 분리해서 띄움.
     { label: eventLabel, href: "/events/saju", external: true },
     { label: homeLabel, href: "/" },
     { label: copy.nav.positions, href: "/positions" },
-    ...(MATCHING_QUEST_ENABLED && (user?.role === "STUDENT" || !isAuthenticated)
-      ? [{ label: copy.nav.matching, href: "/matching-probability" }]
+    ...(user?.role === "STUDENT" || !isAuthenticated
+      ? [{ label: resumeCoachLabel, href: "/resume" }]
       : []),
     { label: copy.nav.community, href: "/community" },
     { label: copy.nav.pricing, href: "/pricing" },
