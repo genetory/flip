@@ -1397,6 +1397,20 @@ export type ResumeContent = {
   career?: ResumeCareerEntry | null;
 };
 
+// Korean translations of long-form fields, cached on save. Result screens
+// (detail/share/coach) render the original + Korean side by side so a Korean
+// hiring manager can read whatever language the candidate wrote in.
+export type ResumeKoTranslations = {
+  summary?: string;
+  selfIntroduction?: string;
+  careers?: Array<{ description?: string }>;
+  activities?: Array<{ description?: string }>;
+};
+
+export type ResumeTranslations = {
+  ko?: ResumeKoTranslations;
+};
+
 export type Resume = {
   id: string;
   title: string;
@@ -1405,6 +1419,14 @@ export type Resume = {
   // Public share slug. Anyone with /resume/share/<shareSlug> can view a
   // read-only single-page rendering of the resume without signing in.
   shareSlug?: string;
+  // Server-computed Coach score. Present on list endpoints so the cards can
+  // render a score badge without a follow-up call. May be absent on legacy
+  // endpoints that haven't been augmented yet — treat as optional.
+  score?: ResumeScoresResult;
+  // Per-locale translation cache. Currently only 'ko' is filled — built on
+  // save whenever a long-form field reads as non-Korean. Older rows may have
+  // this undefined; readers must treat as optional.
+  translations?: ResumeTranslations | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -1489,4 +1511,163 @@ export async function setMyPrimaryResume(resumeId: string) {
     method: "POST"
   });
   return result.item ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Resume Coach types — mirror the backend shape exactly. Keep these in sync
+// with apps/api/src/index.ts (`ResumeScoresResult`, `ResumeCoachAction`, etc.)
+// when adjusting the rubric.
+//
+// Phase 1: 점수가 quality + readiness 로 분리됨. quality 는 "이력서가 얼마나
+// 잘 쓰였나", readiness 는 "기업에 제출 가능한 수준인가". level 은 readiness
+// 임계점에서 도출되는 배지 — 사용자에게 가장 먼저 보여줄 한 줄 신호.
+// ---------------------------------------------------------------------------
+export type ResumeReadinessLevel = "submittable" | "needs_polish" | "not_submittable";
+
+export type ResumeQualityDimensions = {
+  contentQuality: number;
+  impact: number;
+  uniqueness: number;
+  visual: number;
+};
+
+export type ResumeReadinessDimensions = {
+  contact: number;
+  education: number;
+  visa: number;
+  koreaFit: number;
+  portfolio: number;
+};
+
+export type ResumeScoresResult = {
+  quality: { total: number; dimensions: ResumeQualityDimensions };
+  readiness: { total: number; dimensions: ResumeReadinessDimensions };
+  level: ResumeReadinessLevel;
+};
+
+export type ResumeCoachActionCategory = "required" | "recommended" | "optional";
+
+export type ResumeCoachAction = {
+  id: string;
+  category: ResumeCoachActionCategory;
+  title: string;
+  description: string;
+  impactPoints: number;
+  targetSection: string;
+  targetItemIndex?: number;
+  llmEligible?: boolean;
+};
+
+export type ResumeCoachPositionMatch = {
+  positionId: string;
+  title: string;
+  organizationName: string | null;
+  matchScore: number;
+  status: "applied" | "open";
+  applicationStatus: string | null;
+  thumbnailUrl: string | null;
+  workLocation: string | null;
+};
+
+export type ResumeCoachData = {
+  resumeId: string;
+  title: string;
+  score: ResumeScoresResult;
+  actions: ResumeCoachAction[];
+  matches: ResumeCoachPositionMatch[];
+  updatedAt: string;
+};
+
+export async function getResumeCoach(resumeId: string): Promise<ResumeCoachData> {
+  // authedJsonFetch 는 { ok, item, items } 기본 스키마만 타이핑하므로,
+  // 커스텀 필드(coach/suggestion/reply)는 캐스팅으로 꺼낸다.
+  const result = (await authedJsonFetch(
+    `/members/me/resumes/${encodeURIComponent(resumeId)}/coach`,
+    { method: "GET" }
+  )) as unknown as { coach?: ResumeCoachData };
+  if (!result.coach) throw new Error("coach response missing payload");
+  return result.coach;
+}
+
+export type ResumeCoachSuggestInput = {
+  targetSection: "selfIntroduction" | "summary" | "careers" | "activities";
+  targetItemIndex?: number;
+  tone?: "formal" | "concise" | "impactful";
+};
+
+export type ResumeCoachSuggestion = {
+  before: string;
+  after: string;
+  why: string;
+  targetSection: ResumeCoachSuggestInput["targetSection"];
+  targetItemIndex?: number;
+};
+
+export async function postResumeCoachSuggest(
+  resumeId: string,
+  input: ResumeCoachSuggestInput
+): Promise<ResumeCoachSuggestion> {
+  const result = (await authedJsonFetch(
+    `/members/me/resumes/${encodeURIComponent(resumeId)}/coach/suggest`,
+    {
+      method: "POST",
+      body: JSON.stringify(input)
+    }
+  )) as unknown as { suggestion?: ResumeCoachSuggestion };
+  if (!result.suggestion) throw new Error("suggest response missing payload");
+  return result.suggestion;
+}
+
+export type ResumeCoachChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export async function postResumeCoachChat(
+  resumeId: string,
+  messages: ResumeCoachChatMessage[]
+): Promise<string> {
+  const result = (await authedJsonFetch(
+    `/members/me/resumes/${encodeURIComponent(resumeId)}/coach/chat`,
+    {
+      method: "POST",
+      body: JSON.stringify({ messages })
+    }
+  )) as unknown as { reply?: string };
+  if (typeof result.reply !== "string") throw new Error("chat response missing reply");
+  return result.reply;
+}
+
+// 이력서 편집 페이지에서 저장 전 임시 텍스트도 받을 수 있는 generic AI
+// 작성 도우미. resumeId 가 없어도 동작 — 본문 저장 여부와 무관하게 자기소개
+// /경력/활동 description 의 초안을 만들거나 다듬을 때 사용.
+export type DraftResumeTextFieldType = "selfIntroduction" | "summary" | "career" | "activity";
+export type DraftResumeTextMode = "improve" | "expand" | "generate";
+
+export type DraftResumeTextInput = {
+  currentText: string;
+  fieldType: DraftResumeTextFieldType;
+  mode?: DraftResumeTextMode;
+  context?: {
+    companyName?: string;
+    position?: string;
+    title?: string;
+  };
+  hints?: string;
+};
+
+export type DraftResumeTextResult = {
+  text: string;
+  why: string;
+  mode: DraftResumeTextMode;
+  fieldType: DraftResumeTextFieldType;
+};
+
+export async function postDraftResumeText(input: DraftResumeTextInput): Promise<DraftResumeTextResult> {
+  const result = (await authedJsonFetch("/members/me/ai/draft-resume-text", {
+    method: "POST",
+    body: JSON.stringify(input)
+  })) as unknown as { draft?: DraftResumeTextResult };
+  if (!result.draft) throw new Error("draft response missing payload");
+  return result.draft;
 }

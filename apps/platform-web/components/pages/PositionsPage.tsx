@@ -50,7 +50,9 @@ const FALLBACK_COMPANY_SIZES = Array.from(new Set(ALL_POSITIONS.map((position) =
 const FALLBACK_VISA_TYPES = Array.from(new Set(ALL_POSITIONS.flatMap((position) => position.eligibleVisas)));
 const ALL_VISA_CODES = ["D-2", "D-4", "D-10", "E-7", "F-2", "F-4", "F-5", "F-6", "H-1"] as const;
 const PUBLIC_POSITIONS_PAGE_SIZE = 20;
-type PositionCard = Position & {
+// PositionRow / PositionGridCard 가 받는 카드 데이터. 다른 페이지(코치 패널
+// 등) 에서 같은 행 컴포넌트를 재사용하려면 같이 export 해야 함.
+export type PositionCard = Position & {
   status: PublicPositionListItem["status"];
   sourceKind: PublicPositionListItem["sourceKind"];
   sourceProvider: PublicPositionListItem["sourceProvider"];
@@ -135,7 +137,7 @@ function inferWorkType(value?: string | null): "On-site" | "Hybrid" | "Remote" {
   return "On-site";
 }
 
-function mapPublicPositionToCard(item: PublicPositionListItem, locale: PlatformLocale): PositionCard {
+export function mapPublicPositionToCard(item: PublicPositionListItem, locale: PlatformLocale): PositionCard {
   const now = Date.now();
   const createdAt = new Date(item.createdAt);
   const postedDays = Number.isNaN(createdAt.getTime())
@@ -1230,8 +1232,6 @@ const FilterBadge = ({
   </button>
 );
 
-export type { PositionCard };
-export { mapPublicPositionToCard };
 export const PositionRow = ({
   p,
   isOwnPartnerPosting,
@@ -1241,7 +1241,8 @@ export const PositionRow = ({
   onToggleFavorite,
   onApply,
   onShowCip,
-  locale
+  locale,
+  compact = false
 }: {
   p: PositionCard;
   isOwnPartnerPosting: boolean;
@@ -1252,6 +1253,10 @@ export const PositionRow = ({
   onApply: () => void;
   onShowCip?: () => void;
   locale: PlatformLocale;
+  // 코치 패널 같은 좁은 영역용. 썸네일 정방형 + 폰트 축소 + 우측 액션 버튼
+  // 숨김(카드 전체가 링크라 클릭 한 번으로 상세 진입). 우측 상단 게시일/
+  // 마감만 작게 유지.
+  compact?: boolean;
 }) => {
   const isKo = locale === "ko";
   const isZh = locale === "zh-CN";
@@ -1291,7 +1296,7 @@ export const PositionRow = ({
           : copy.externalLink;
   const detailHref = externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? `/positions/${p.id}`;
   return (
-    <article className="group relative rounded-xl border border-border/60 bg-card p-3 md:p-4">
+    <article className={`group relative rounded-xl border border-border/60 bg-card ${compact ? "p-2.5" : "p-3 md:p-4"}`}>
       {isExternalSource(p.sourceKind) && p.sourceUrl ? (
         <a
           href={detailHref}
@@ -1307,20 +1312,32 @@ export const PositionRow = ({
           className="absolute inset-0 z-10 rounded-xl"
         />
       )}
-      <div className="absolute right-3 top-2.5 z-20 text-right md:right-4 md:top-3">
-        <p className="text-[11px] text-muted-foreground">{formatPostedDate(p, locale)}</p>
+      <div className={`absolute z-20 text-right ${compact ? "right-2.5 top-2" : "right-3 top-2.5 md:right-4 md:top-3"}`}>
+        <p className={`${compact ? "text-[10px]" : "text-[11px]"} text-muted-foreground`}>{formatPostedDate(p, locale)}</p>
         {p.sourceDeadlineDate ? (
-          <p className="mt-0.5 text-[11px] font-medium text-rose-600">
+          <p className={`mt-0.5 font-medium text-rose-600 ${compact ? "text-[10px]" : "text-[11px]"}`}>
             {formatDeadlineDday(p.sourceDeadlineDate, locale)}
           </p>
         ) : p.sourceDeadlineRolling ? (
-          <p className="mt-0.5 text-[11px] font-medium text-rose-600">
+          <p className={`mt-0.5 font-medium text-rose-600 ${compact ? "text-[10px]" : "text-[11px]"}`}>
             {isKo ? "채용시 마감" : isZh ? "招满即止" : isVi ? "Đóng khi tuyển đủ" : isJa ? "採用次第終了" : isId ? "Tutup setelah terisi" : "Rolling deadline"}
           </p>
         ) : null}
       </div>
-      <div className="grid grid-cols-[84px_1fr] items-start gap-2 md:grid-cols-[180px_1fr_auto] md:items-stretch md:gap-3">
-        <div className="relative aspect-[4/3] w-[84px] shrink-0 self-start overflow-hidden rounded-xl md:aspect-[16/9] md:w-[180px] md:self-auto">
+      <div
+        className={
+          compact
+            ? "grid grid-cols-[72px_1fr] items-start gap-2.5"
+            : "grid grid-cols-[84px_1fr] items-start gap-2 md:grid-cols-[180px_1fr_auto] md:items-stretch md:gap-3"
+        }
+      >
+        <div
+          className={
+            compact
+              ? "relative aspect-square w-[72px] shrink-0 overflow-hidden rounded-lg"
+              : "relative aspect-[4/3] w-[84px] shrink-0 self-start overflow-hidden rounded-xl md:aspect-[16/9] md:w-[180px] md:self-auto"
+          }
+        >
           {p.thumbnailUrl ? (
             <img
               src={p.thumbnailUrl}
@@ -1328,30 +1345,47 @@ export const PositionRow = ({
               className="block h-full w-full object-cover"
             />
           ) : (
-            <div className="grid h-full w-full place-items-center bg-muted font-display text-2xl font-bold leading-none text-muted-foreground">
+            <div className={`grid h-full w-full place-items-center bg-muted font-display font-bold leading-none text-muted-foreground ${compact ? "text-xl" : "text-2xl"}`}>
               {p.initial}
             </div>
           )}
         </div>
 
-        <div className="min-w-0 md:flex md:flex-col md:justify-center">
+        <div className={compact ? "min-w-0" : "min-w-0 md:flex md:flex-col md:justify-center"}>
           {p.sourceProvider === "INTERNAL" ? (
             <div className="mb-1">
               <AplyCipBadgeButton onClick={() => onShowCip?.()} />
             </div>
           ) : null}
-          <div className="mb-0.5 min-w-0 text-[11px] text-muted-foreground md:text-xs">
+          <div className={`mb-0.5 min-w-0 text-muted-foreground ${compact ? "text-[10.5px]" : "text-[11px] md:text-xs"}`}>
             {href ? (
-              <Link href={href} className="relative z-20 block max-w-[56%] truncate font-semibold hover:text-foreground md:max-w-[45%]">
+              <Link
+                href={href}
+                className={`relative z-20 block truncate font-semibold hover:text-foreground ${
+                  compact ? "max-w-[70%]" : "max-w-[56%] md:max-w-[45%]"
+                }`}
+              >
                 {p.company}
               </Link>
             ) : (
-              <p className="max-w-[56%] truncate font-semibold md:max-w-[45%]">{p.company}</p>
+              <p className={`truncate font-semibold ${compact ? "max-w-[70%]" : "max-w-[56%] md:max-w-[45%]"}`}>{p.company}</p>
             )}
-            {p.category ? <p className="mt-1 truncate leading-tight">{p.category}</p> : null}
+            {p.category ? <p className="mt-0.5 truncate leading-tight">{p.category}</p> : null}
           </div>
-          <h3 className="mt-1 mb-1 line-clamp-1 font-display text-[14px] font-bold leading-snug md:mt-1.5 md:mb-1.5 md:line-clamp-2 md:text-lg">{p.role}</h3>
-          <div className="mt-0.5 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-[11px] text-muted-foreground md:mt-1 md:text-xs">
+          <h3
+            className={
+              compact
+                ? "mt-1 mb-1 line-clamp-2 font-display text-[13px] font-bold leading-snug"
+                : "mt-1 mb-1 line-clamp-1 font-display text-[14px] font-bold leading-snug md:mt-1.5 md:mb-1.5 md:line-clamp-2 md:text-lg"
+            }
+          >
+            {p.role}
+          </h3>
+          <div
+            className={`mt-0.5 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-muted-foreground ${
+              compact ? "text-[10.5px]" : "text-[11px] md:mt-1 md:text-xs"
+            }`}
+          >
             <span className="inline-flex min-w-0 max-w-[50%] items-center gap-1">
               <MapPin className="h-3 w-3 shrink-0" />
               <span className="truncate">{p.location}</span>
@@ -1360,6 +1394,7 @@ export const PositionRow = ({
           </div>
         </div>
 
+        {compact ? null : (
         <div className="relative z-20 col-span-2 flex shrink-0 flex-row items-center justify-end gap-2 pt-1 md:col-span-1 md:mt-auto md:self-end md:pt-0">
           <div className="flex items-center gap-1.5">
             <Button variant="outline" size="icon" className="h-9 w-9" aria-label={copy.save} onClick={onToggleFavorite}>
@@ -1405,6 +1440,7 @@ export const PositionRow = ({
             )}
           </div>
         </div>
+        )}
       </div>
     </article>
   );

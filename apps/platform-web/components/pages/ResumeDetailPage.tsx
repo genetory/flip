@@ -205,6 +205,9 @@ export function ResumeDetailPage({ resumeId }: { resumeId: string }) {
   }
 
   const c = resume.content ?? {};
+  // 한국어 번역 캐시 — 저장 시 외국어 본문이 감지된 단위만 채워짐. 없으면
+  // 그대로 원문만 보여줌. 화면 어디에 표시할지는 sub-component 들이 결정.
+  const ko = resume.translations?.ko ?? undefined;
   const eduList = (c.educations ?? (c.education ? [c.education] : [])).filter((e) => e.schoolName);
   const careerList = (c.careers ?? (c.career ? [c.career] : [])).filter((x) => x.companyName && x.position);
   const activityList = (c.activities ?? []).filter((a) => a.title);
@@ -367,6 +370,7 @@ export function ResumeDetailPage({ resumeId }: { resumeId: string }) {
               <SingleColumnBody
                 tr={tr}
                 c={c}
+                ko={ko}
                 eduList={eduList}
                 careerList={careerList}
                 activityList={activityList}
@@ -381,6 +385,7 @@ export function ResumeDetailPage({ resumeId }: { resumeId: string }) {
               <SidebarLayout
                 tr={tr}
                 c={c}
+                ko={ko}
                 nameVal={nameVal}
                 emailVal={emailVal}
                 phoneVal={phoneVal}
@@ -507,9 +512,13 @@ export function ResumeDetailPage({ resumeId }: { resumeId: string }) {
 
 type Trans = (ko: string, en: string, zh: string, vi: string, ja: string, id: string) => string;
 type C = NonNullable<Resume["content"]>;
+type Ko = NonNullable<NonNullable<Resume["translations"]>["ko"]>;
 type SectionProps = {
   tr: Trans;
   c: C;
+  // 한국어 번역 캐시. 외국어로 쓴 본문이 있는 자기소개/요약/경력·활동
+  // description 옆에 쌍으로 표시. 없으면 그냥 무시.
+  ko?: Ko;
   eduList: NonNullable<C["educations"]>;
   careerList: NonNullable<C["careers"]>;
   activityList: NonNullable<C["activities"]>;
@@ -523,14 +532,30 @@ type SectionProps = {
   variant?: "classic" | "sidebar";
 };
 
+// 한국어 번역을 원문 아래에 인용 박스로 표시. 한국 기업이 메인 독자라
+// 한국어를 강조하기보다 "원문 + 보조 한국어" 의 차분한 톤으로 둠.
+function KoLine({ text, size }: { text?: string; size?: "sm" | "md" }) {
+  if (!text) return null;
+  return (
+    <p
+      className={`mt-1.5 border-l-2 border-foreground/15 pl-2.5 ${
+        size === "md" ? "text-[13.5px]" : "text-[12.5px]"
+      } leading-relaxed text-muted-foreground`}
+    >
+      <span className="mr-1 text-[10px] font-semibold text-foreground/40">KO</span>
+      {text}
+    </p>
+  );
+}
+
 function SingleColumnBody(props: SectionProps) {
   // 단일 컬럼은 기존 "클래식" 톤 — 액센트 점 + 대문자 헤더, 모든 섹션이
   // 한 흐름으로 쭉 이어지는 추천서/PDF 친화 레이아웃.
   const variant = "classic" as const;
-  const { tr, c, eduList, careerList, activityList, skills, languageList, certList, linkList } = props;
+  const { tr, c, ko, eduList, careerList, activityList, skills, languageList, certList, linkList } = props;
   return (
     <div className="mt-7 space-y-10">
-      {c.summary || c.selfIntroduction ? <AboutSection tr={tr} c={c} variant={variant} /> : null}
+      {c.summary || c.selfIntroduction ? <AboutSection tr={tr} c={c} ko={ko} variant={variant} /> : null}
       {careerList.length > 0 ? <CareerSection {...props} variant={variant} /> : null}
       {activityList.length > 0 ? <ActivitySection {...props} variant={variant} /> : null}
       {eduList.length > 0 ? <EducationSection {...props} variant={variant} /> : null}
@@ -556,6 +581,7 @@ function SidebarLayout(props: SectionProps & {
   const {
     tr,
     c,
+    ko,
     nameVal,
     emailVal,
     phoneVal,
@@ -605,12 +631,18 @@ function SidebarLayout(props: SectionProps & {
         {(c.summary || c.selfIntroduction) ? (
           <div className="space-y-2 border-t border-border pt-5">
             {c.summary ? (
-              <p className="text-[14px] italic leading-snug text-foreground">{c.summary}</p>
+              <div>
+                <p className="text-[14px] italic leading-snug text-foreground">{c.summary}</p>
+                <KoLine text={ko?.summary} />
+              </div>
             ) : null}
             {c.selfIntroduction ? (
-              <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/80">
-                {c.selfIntroduction}
-              </p>
+              <div>
+                <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/80">
+                  {c.selfIntroduction}
+                </p>
+                <KoLine text={ko?.selfIntroduction} />
+              </div>
             ) : null}
           </div>
         ) : null}
@@ -686,13 +718,21 @@ function ContactSep({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AboutSection({ tr, c, variant }: { tr: Trans; c: C; variant?: "classic" | "sidebar" }) {
+function AboutSection({ tr, c, ko, variant }: { tr: Trans; c: C; ko?: Ko; variant?: "classic" | "sidebar" }) {
   return (
     <section>
       <SectionTitle variant={variant}>{tr("자기소개", "About", "自我介绍", "Giới thiệu", "自己紹介", "Tentang")}</SectionTitle>
-      {c.summary ? <p className="mb-2 text-[15px] font-medium text-foreground">{c.summary}</p> : null}
+      {c.summary ? (
+        <div className="mb-2">
+          <p className="text-[15px] font-medium text-foreground">{c.summary}</p>
+          <KoLine text={ko?.summary} size="md" />
+        </div>
+      ) : null}
       {c.selfIntroduction ? (
-        <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed text-foreground">{c.selfIntroduction}</p>
+        <div>
+          <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed text-foreground">{c.selfIntroduction}</p>
+          <KoLine text={ko?.selfIntroduction} size="md" />
+        </div>
       ) : null}
     </section>
   );
@@ -716,13 +756,14 @@ function formatRange(tr: Trans, start?: string, end?: string): string {
   return "";
 }
 
-function CareerSection({ tr, careerList, variant }: SectionProps) {
+function CareerSection({ tr, careerList, ko, variant }: SectionProps) {
   return (
     <section>
       <SectionTitle variant={variant}>{tr("경력", "Experience", "经历", "Kinh nghiệm", "経歴", "Pengalaman")}</SectionTitle>
       <div className="space-y-6">
         {careerList.map((cr, i) => {
           const range = formatRange(tr, cr.startDate, cr.endDate);
+          const koDesc = ko?.careers?.[i]?.description;
           return (
             <div key={i}>
               <p className="text-[15px] text-foreground">
@@ -731,7 +772,10 @@ function CareerSection({ tr, careerList, variant }: SectionProps) {
               </p>
               {range ? <p className="mt-1 text-[13px] italic text-muted-foreground">{range}</p> : null}
               {cr.description ? (
-                <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-muted-foreground">{cr.description}</p>
+                <>
+                  <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-muted-foreground">{cr.description}</p>
+                  <KoLine text={koDesc} />
+                </>
               ) : null}
             </div>
           );
@@ -741,13 +785,14 @@ function CareerSection({ tr, careerList, variant }: SectionProps) {
   );
 }
 
-function ActivitySection({ tr, activityList, variant }: SectionProps) {
+function ActivitySection({ tr, activityList, ko, variant }: SectionProps) {
   return (
     <section>
       <SectionTitle variant={variant}>{tr("프로젝트", "Projects", "项目/活动", "Dự án / Hoạt động", "プロジェクト/活動", "Proyek")}</SectionTitle>
       <div className="space-y-6">
         {activityList.map((a, i) => {
           const range = formatRange(tr, a.startDate, a.endDate);
+          const koDesc = ko?.activities?.[i]?.description;
           return (
             <div key={i}>
               <p className="text-[15px] text-foreground">
@@ -756,7 +801,10 @@ function ActivitySection({ tr, activityList, variant }: SectionProps) {
               </p>
               {range ? <p className="mt-1 text-[13px] italic text-muted-foreground">{range}</p> : null}
               {a.description ? (
-                <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-muted-foreground">{a.description}</p>
+                <>
+                  <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-muted-foreground">{a.description}</p>
+                  <KoLine text={koDesc} />
+                </>
               ) : null}
             </div>
           );

@@ -15,6 +15,7 @@ import {
   ScrollText,
   Settings,
   Shield,
+  Globe,
   Sparkles,
   Stamp,
   Star,
@@ -76,7 +77,8 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
   {
     title: "이벤트",
     links: [
-      { label: "사주 이벤트", href: "/dashboard/ops/operations/saju-leads", icon: Sparkles }
+      { label: "사주 이벤트", href: "/dashboard/ops/operations/saju-leads", icon: Sparkles },
+      { label: "비자 이벤트", href: "/dashboard/ops/operations/visa-leads", icon: Globe }
     ]
   },
   {

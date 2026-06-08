@@ -5354,6 +5354,100 @@ app.get("/ops/saju/leads", authenticate, requireRoles([MemberRole.OPERATOR]), as
   });
 });
 
+// GET /ops/visa/leads — visa funnel 의 익명 lead 풀 관리. saju 와 동일한 모양
+// (총계 + 단계 카운트 + 검색/필터) 이지만 컬럼 셋이 visa 맞춤.
+const opsVisaLeadsQuerySchema = z.object({
+  poolStage: z.enum(["PROFILE", "VERIFIED", "RECOMMENDABLE"]).optional(),
+  nationality: z.string().trim().max(80).optional(),
+  preferredJobRole: z.string().trim().max(60).optional(),
+  q: z.string().trim().max(120).optional(),
+  take: z.coerce.number().int().min(1).max(200).optional(),
+  skip: z.coerce.number().int().min(0).optional()
+});
+
+app.get("/ops/visa/leads", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsVisaLeadsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+  const f = parsed.data;
+  const where: Prisma.VisaLeadWhereInput = {
+    ...(f.poolStage ? { poolStage: f.poolStage } : {}),
+    ...(f.nationality ? { nationality: { contains: f.nationality, mode: "insensitive" } } : {}),
+    ...(f.preferredJobRole ? { preferredJobRole: { contains: f.preferredJobRole, mode: "insensitive" } } : {}),
+    ...(f.q
+      ? {
+          OR: [
+            { name: { contains: f.q, mode: "insensitive" } },
+            { university: { contains: f.q, mode: "insensitive" } },
+            { major: { contains: f.q, mode: "insensitive" } },
+            { contact: { contains: f.q, mode: "insensitive" } }
+          ]
+        }
+      : {})
+  };
+  const take = f.take ?? 50;
+  const skip = f.skip ?? 0;
+  const [leads, total, stageCounts, checksTotal, leadsTotalAll, leadsConverted] = await Promise.all([
+    prisma.visaLead.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take,
+      skip,
+      include: {
+        visaResult: {
+          select: { shareSlug: true, educationLevel: true, majorCategory: true, workYears: true, targetRole: true }
+        }
+      }
+    }),
+    prisma.visaLead.count({ where }),
+    prisma.visaLead.groupBy({ by: ["poolStage"], _count: { _all: true } }),
+    prisma.visaCheckResult.count(),
+    prisma.visaLead.count(),
+    prisma.visaLead.count({ where: { userId: { not: null } } })
+  ]);
+  return res.json({
+    ok: true,
+    total,
+    take,
+    skip,
+    stageCounts: Object.fromEntries(stageCounts.map((s) => [s.poolStage, s._count._all])),
+    funnel: {
+      checksTotal,
+      leadsTotal: leadsTotalAll,
+      leadsConverted
+    },
+    leads: leads.map((lead) => ({
+      id: lead.id,
+      name: lead.name,
+      shareSlug: lead.shareSlug,
+      contact: lead.contact,
+      contactType: lead.contactType,
+      nationality: lead.nationality,
+      currentVisa: lead.currentVisa,
+      expectedJoinDate: lead.expectedJoinDate,
+      graduationDate: lead.graduationDate,
+      university: lead.university,
+      major: lead.major,
+      preferredJobRole: lead.preferredJobRole,
+      koreanLevel: lead.koreanLevel,
+      englishLevel: lead.englishLevel,
+      poolStage: lead.poolStage,
+      tags: lead.tags,
+      consentCareer: lead.consentCareer,
+      consentRecommend: lead.consentRecommend,
+      consentContact: lead.consentContact,
+      userId: lead.userId,
+      locale: lead.locale,
+      createdAt: lead.createdAt.toISOString(),
+      educationLevel: lead.visaResult?.educationLevel ?? null,
+      majorCategory: lead.visaResult?.majorCategory ?? null,
+      workYears: lead.visaResult?.workYears ?? null,
+      targetRole: lead.visaResult?.targetRole ?? null
+    }))
+  });
+});
+
 const companyConsultationCreateSchema = z.object({
   companyName: z.string().trim().min(1).max(120),
   contactName: z.string().trim().min(1).max(80),
@@ -6703,7 +6797,10 @@ const visaCheckSchema = z.object({
   nationality: z.string().trim().min(1).max(80),
   currentVisa: z.string().trim().max(20).optional(),
   educationLevel: z.enum(["HIGH_SCHOOL", "BACHELOR", "MASTER", "PHD"]),
-  majorCategory: z.enum(["IT", "ENGINEERING", "BUSINESS", "DESIGN", "HUMANITIES", "SCIENCE", "OTHER"]).optional(),
+  // 자유 입력으로 변경 — 추천 분기에 쓰이지 않고 단순 저장용. 프론트에서
+  // 카테고리 옵션을 늘려도 백엔드 enum 을 매번 동기화할 필요가 없음.
+  // 기존 값(IT/ENGINEERING/...) 도 그대로 받음.
+  majorCategory: z.string().trim().max(40).optional(),
   koreanLevel: z.enum(["NONE", "BEGINNER", "INTERMEDIATE", "ADVANCED", "NATIVE"]),
   workYears: z.coerce.number().int().min(0).max(50),
   targetRole: z.string().trim().max(80).optional(),
@@ -6726,15 +6823,120 @@ app.post("/visa/check", async (req, res) => {
     targetRole: input.targetRole ?? null
   });
 
-  // Lightweight position picks — most-recent OPEN positions matching the
-  // targetRole (if any) or the user's koreanLevel as a coarse proxy.
-  const positionRows = await prisma.position.findMany({
+  // 사용자 입력(비자 / 국적 / 전공 / 한국어 / targetRole) 기반 매칭 점수로
+  // 추천 포지션 5개 선정. 룰 기반·즉시 계산이라 임베딩 비용 없음. 후보 풀
+  // 은 최근 OPEN 60개 — 점수 차이 명확히 나오기에 충분.
+  const candidates = await prisma.position.findMany({
     where: { status: PositionStatus.OPEN },
     orderBy: { createdAt: "desc" },
-    take: 5,
-    select: { id: true }
+    take: 60,
+    select: {
+      id: true,
+      title: true,
+      eligibleVisas: true,
+      preferredNationalities: true,
+      communicationLanguages: true,
+      preferredJobRole: true
+    }
   });
-  const recommendedPositionIds = positionRows.map((p) => p.id);
+
+  // 결과로 나온 비자 코드 set — fit=high/medium 만으로 한정해 후원 가능성
+  // 시그널을 정확하게 잡음 (low 는 가산점 대상에서 제외).
+  const userVisaCodes = new Set(
+    eligibleVisas
+      .filter((v) => v.fit === "high" || v.fit === "medium")
+      .map((v) => v.code.toUpperCase())
+  );
+
+  // 전공 → 직무 키워드 매핑(heuristic). preferredJobRole / title 에 키워드
+  // 가 포함되면 매칭으로 본다. 한국어/영어 키워드 함께 둬서 다국어 공고도 잡힘.
+  const majorRoleKeywords: Record<string, string[]> = {
+    IT: ["software", "engineer", "developer", "개발자", "엔지니어", "frontend", "backend"],
+    IT_SOFTWARE: ["software", "engineer", "developer", "개발자", "엔지니어", "frontend", "backend"],
+    AI_DATA: ["data", "ai", "ml", "데이터", "분석", "analyst", "scientist"],
+    ENGINEERING: ["engineer", "엔지니어"],
+    MECHANICAL: ["mechanical", "기계"],
+    ELECTRICAL: ["electrical", "electronics", "전기", "전자"],
+    CIVIL: ["civil", "architect", "건축", "토목"],
+    CHEMICAL: ["chemical", "화학", "소재"],
+    BUSINESS: ["business", "manager", "경영", "운영", "operations"],
+    ECONOMICS: ["finance", "economic", "재무", "금융"],
+    MARKETING: ["marketing", "growth", "마케팅", "광고"],
+    DESIGN: ["design", "ux", "ui", "디자인", "designer"],
+    ART: ["art", "music", "film", "video", "예술", "영상"],
+    HUMANITIES: ["content", "writer", "editor", "콘텐츠"],
+    KOREAN_STUDIES: ["korean", "한국어", "통역", "번역"],
+    EDUCATION: ["teacher", "instructor", "교사", "강사", "education"],
+    LAW: ["legal", "law", "법무", "compliance"],
+    SOCIAL_SCIENCE: ["research", "policy", "리서치"],
+    SCIENCE: ["research", "scientist", "lab", "연구"],
+    MEDICINE: ["medical", "nursing", "health", "의료", "간호", "보건"],
+    AGRICULTURE: ["food", "agri", "농업", "식품"],
+    TOURISM: ["tourism", "hotel", "hospitality", "관광", "호텔"],
+    COMMUNICATIONS: ["media", "journalism", "pr", "미디어", "홍보"],
+    INTERNATIONAL: ["international", "global", "외교"]
+  };
+  const majorKeywords =
+    input.majorCategory && majorRoleKeywords[input.majorCategory]
+      ? majorRoleKeywords[input.majorCategory].map((k) => k.toLowerCase())
+      : [];
+
+  const targetKeywords = input.targetRole
+    ? input.targetRole
+        .toLowerCase()
+        .split(/[\s,/·]+/)
+        .filter((w) => w.length >= 2)
+    : [];
+
+  const koreanScoreMap: Record<string, number> = {
+    NONE: 0, BEGINNER: 1, INTERMEDIATE: 2, ADVANCED: 3, NATIVE: 4
+  };
+  const userKoreanScore = koreanScoreMap[input.koreanLevel] ?? 2;
+  const userNatUpper = input.nationality.toUpperCase();
+
+  type Scored = { id: string; score: number };
+  const scored: Scored[] = candidates.map((p) => {
+    let score = 0;
+
+    // 1) 비자 후원 매칭 — 가장 강력한 시그널.
+    const posVisas = (p.eligibleVisas ?? []).map((v) => v.toUpperCase());
+    if (posVisas.length > 0 && userVisaCodes.size > 0) {
+      const hasMatch = posVisas.some((pv) =>
+        Array.from(userVisaCodes).some((uv) => pv.includes(uv) || uv.includes(pv))
+      );
+      if (hasMatch) score += 40;
+      else score -= 10; // 후원 안 되는 곳은 감점
+    }
+
+    // 2) 국적 매칭 — preferredNationalities 에 명시됐으면 +.
+    const posNat = (p.preferredNationalities ?? []).map((n) => n.toUpperCase());
+    if (posNat.length > 0 && posNat.includes(userNatUpper)) score += 20;
+
+    // 3) 전공 → 직무 키워드 매칭.
+    const haystack = `${p.title} ${p.preferredJobRole ?? ""}`.toLowerCase();
+    if (majorKeywords.length > 0 && majorKeywords.some((kw) => haystack.includes(kw))) {
+      score += 25;
+    }
+
+    // 4) targetRole 직접 매칭 — 사용자가 명시한 게 가장 신호 강함.
+    if (targetKeywords.length > 0) {
+      const matchCount = targetKeywords.filter((kw) => haystack.includes(kw)).length;
+      if (matchCount > 0) score += 15 * matchCount;
+    }
+
+    // 5) 한국어 ↔ 포지션 언어 요구.
+    const posLangs = (p.communicationLanguages ?? []).map((l) => l.toLowerCase());
+    const requiresKorean = posLangs.some((l) => l.includes("kor") || l.includes("한국") || l === "ko");
+    const onlyEnglish = posLangs.length > 0 && posLangs.every((l) => l.includes("en"));
+    if (requiresKorean && userKoreanScore < 2) score -= 15;
+    if (onlyEnglish) score += 5;
+
+    return { id: p.id, score };
+  });
+
+  // 점수 내림차순. 동점은 원래 순서(최근) 유지.
+  scored.sort((a, b) => b.score - a.score);
+  const recommendedPositionIds = scored.slice(0, 5).map((s) => s.id);
 
   const ipRaw =
     (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
@@ -6809,6 +7011,109 @@ app.get("/visa/result/:slug", async (req, res) => {
     positions: orderedPositions
   });
 });
+
+// POST /visa/lead — VisaResultPage 의 회원가입 퍼널에서 익명으로 모으는
+// 리드. SajuLead 와 동일한 pool 패턴 + visa 맞춤 필드(희망 입사일·졸업일·
+// 대학·전공) 를 추가. 한 result 당 한 lead — 사용자가 단계별로 보완할 수
+// 있게 기존 row 를 update 하는 upsert 흐름.
+const visaLeadSchema = z.object({
+  shareSlug: z.string().min(1),
+  name: z.string().trim().max(80).optional(),
+  contact: z.string().trim().max(200).optional(),
+  contactType: z.enum(["email", "phone", "messenger"]).optional(),
+  nationality: z.string().trim().max(80).optional(),
+  currentVisa: z.string().trim().max(20).optional(),
+  expectedJoinDate: z.string().trim().max(20).optional(),
+  graduationDate: z.string().trim().max(20).optional(),
+  university: z.string().trim().max(120).optional(),
+  major: z.string().trim().max(120).optional(),
+  preferredJobRole: z.string().trim().max(120).optional(),
+  koreanLevel: z.string().trim().max(20).optional(),
+  englishLevel: z.string().trim().max(20).optional(),
+  consentCareer: z.boolean().optional(),
+  consentRecommend: z.boolean().optional(),
+  consentContact: z.boolean().optional(),
+  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+});
+
+// 익명 lead 의 분류 태그 — 운영 콘솔에서 필터링용. 국적/직무/비자/언어 등
+// 4-5 차원의 단순 키를 자동으로 생성.
+function buildVisaLeadTags(input: z.infer<typeof visaLeadSchema>): string[] {
+  const tags: string[] = [];
+  if (input.nationality) tags.push(`nat:${input.nationality}`);
+  if (input.currentVisa) tags.push(`visa:${input.currentVisa.toUpperCase()}`);
+  if (input.preferredJobRole) tags.push(`role:${input.preferredJobRole}`);
+  if (input.koreanLevel) tags.push(`ko:${input.koreanLevel}`);
+  if (input.englishLevel) tags.push(`en:${input.englishLevel}`);
+  return tags.slice(0, 10);
+}
+
+app.post(
+  "/visa/lead",
+  rateLimit({ windowMs: 60_000, max: 12, keyPrefix: "visa-lead", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = visaLeadSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid input", errors: parsed.error.flatten() });
+    }
+    const input = parsed.data;
+    const visaResult = await prisma.visaCheckResult.findUnique({
+      where: { shareSlug: input.shareSlug },
+      select: { id: true, name: true, nationality: true }
+    });
+    if (!visaResult) return res.status(404).json({ ok: false, message: "result not found" });
+
+    const tags = buildVisaLeadTags(input);
+    const ipRaw =
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+      req.socket.remoteAddress ||
+      "";
+    const ipHash = ipRaw
+      ? createHash("sha256").update(`${ipRaw}|visa-lead`).digest("hex").slice(0, 32)
+      : null;
+
+    const data = {
+      visaResultId: visaResult.id,
+      shareSlug: input.shareSlug,
+      // 결과 페이지의 이름이 있으면 그대로 들고 옴. funnel 에서 새 이름을
+      // 입력하면 그게 우선.
+      name: input.name ?? visaResult.name,
+      contact: input.contact ?? null,
+      contactType: input.contactType ?? null,
+      nationality: input.nationality ?? visaResult.nationality,
+      currentVisa: input.currentVisa ?? null,
+      expectedJoinDate: input.expectedJoinDate ?? null,
+      graduationDate: input.graduationDate ?? null,
+      university: input.university ?? null,
+      major: input.major ?? null,
+      preferredJobRole: input.preferredJobRole ?? null,
+      koreanLevel: input.koreanLevel ?? null,
+      englishLevel: input.englishLevel ?? null,
+      poolStage: "PROFILE",
+      tags,
+      consentCareer: input.consentCareer ?? false,
+      consentRecommend: input.consentRecommend ?? false,
+      consentContact: input.consentContact ?? false,
+      locale: input.locale ?? "ko",
+      ipHash
+    };
+
+    const existing = await prisma.visaLead.findFirst({
+      where: { visaResultId: visaResult.id },
+      select: { id: true }
+    });
+    let leadId: string;
+    if (existing) {
+      await prisma.visaLead.update({ where: { id: existing.id }, data });
+      leadId = existing.id;
+    } else {
+      const created = await prisma.visaLead.create({ data, select: { id: true } });
+      leadId = created.id;
+    }
+
+    return res.json({ ok: true, leadId });
+  }
+);
 
 // Response cache for /positions, anonymous viewers only. Authenticated
 // users skip the cache so per-viewer flags (saved/applied/etc.) stay
@@ -10900,12 +11205,24 @@ app.delete(
 app.get("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const userId = req.auth!.userId;
   try {
-    const items = await prisma.resume.findMany({
+    const rows = await prisma.resume.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" }
     });
+    // 코칭 진입 리스트에서 카드별 점수 배지를 보여주기 위해 응답에 score
+    // 를 함께 실어 보냄. rule-based 라 row 당 sub-ms — 별도 호출보다 한 번에
+    // 끝내는 게 UX 와 비용 양쪽에 유리. 기존 클라이언트는 score 필드를
+    // 무시하면 되니 호환성 유지.
+    const items = rows.map((row) => ({
+      ...row,
+      score: calcResumeScores(row.content)
+    }));
     return res.json({ ok: true, items });
-  } catch {
+  } catch (err) {
+    // 실제 원인이 묻히지 않도록 stderr 로 흘려 보냄. Prisma 의 컬럼 누락
+    // (translations 추가 후 마이그레이션 미실행 등) 같은 흔한 케이스를
+    // 콘솔에서 즉시 확인할 수 있어야 함.
+    console.error("[GET /members/me/resumes] failed", err);
     return res.status(500).json({ ok: false, message: "failed to list resumes" });
   }
 });
@@ -10939,11 +11256,15 @@ app.post("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT])
     const existingCount = await prisma.resume.count({ where: { userId } });
     const isPrimary = existingCount === 0;
     const resolvedContent = await resolveResumePhoto(parsed.data.content ?? {});
+    // 외국어 본문이 섞여 있으면 한국어 번역을 미리 캐시에 채워서 결과 화면
+    // 어디서나 쌍으로 노출. LLM 호출 실패는 무시하고 원문만 저장 (UX 우선).
+    const koTranslations = await buildKoreanTranslations(resolvedContent, null).catch(() => null);
     const created = await prisma.resume.create({
       data: {
         userId,
         title: parsed.data.title,
         content: resolvedContent as Prisma.InputJsonValue,
+        translations: (koTranslations ?? Prisma.JsonNull) as Prisma.InputJsonValue,
         isPrimary
       }
     });
@@ -10975,16 +11296,30 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
     return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
   }
   try {
-    const existing = await prisma.resume.findFirst({ where: { id: resumeId, userId }, select: { id: true } });
+    // 기존 row 의 content/translations 까지 함께 가져옴 — 본문이 바뀐 필드만
+    // 재번역하고 변경 없는 단위는 기존 한국어를 그대로 들고 갈 수 있게.
+    const existing = await prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      select: { id: true, translations: true }
+    });
     if (!existing) return res.status(404).json({ ok: false, message: "resume not found" });
     const resolvedContent = parsed.data.content !== undefined
       ? await resolveResumePhoto(parsed.data.content)
       : undefined;
+    // content 가 변경된 경우에만 번역 재생성. 제목만 바꿨다면 기존 캐시 유지.
+    let nextTranslations: ResumeTranslations | null | undefined = undefined;
+    if (resolvedContent !== undefined) {
+      const prev = (existing.translations ?? null) as ResumeTranslations | null;
+      nextTranslations = await buildKoreanTranslations(resolvedContent, prev).catch(() => prev);
+    }
     const item = await prisma.resume.update({
       where: { id: resumeId },
       data: {
         ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
-        ...(resolvedContent !== undefined ? { content: resolvedContent as Prisma.InputJsonValue } : {})
+        ...(resolvedContent !== undefined ? { content: resolvedContent as Prisma.InputJsonValue } : {}),
+        ...(nextTranslations !== undefined
+          ? { translations: (nextTranslations ?? Prisma.JsonNull) as Prisma.InputJsonValue }
+          : {})
       }
     });
     return res.json({ ok: true, item });
@@ -11038,6 +11373,316 @@ app.post("/members/me/resumes/:resumeId/primary", authenticate, requireRoles([Me
     return res.json({ ok: true, item });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to set primary resume" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Resume Coach — unified scoring + action items + position matching in a
+// single response. Cheap to call (rule-based, ~10ms) so the frontend can
+// re-fetch after every save without worrying about cost. LLM-backed text
+// suggestions and free-form chat are split into separate endpoints so the
+// expensive paths only run when the user explicitly asks.
+// ---------------------------------------------------------------------------
+app.get("/members/me/resumes/:resumeId/coach", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
+  if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const resume = await prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      select: { id: true, title: true, content: true, updatedAt: true }
+    });
+    if (!resume) return res.status(404).json({ ok: false, message: "resume not found" });
+
+    const score = calcResumeScores(resume.content);
+    const actions = generateResumeCoachActions(resume.content);
+    const matches = await fetchResumeCoachPositionMatches(userId, resume.content);
+
+    return res.json({
+      ok: true,
+      coach: {
+        resumeId: resume.id,
+        title: resume.title,
+        score,
+        actions,
+        matches,
+        updatedAt: resume.updatedAt
+      }
+    });
+  } catch (err) {
+    console.error("[coach] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to compute coach" });
+  }
+});
+
+// POST /members/me/resumes/:resumeId/coach/suggest — LLM rewrite/expansion
+// for a single resume section. Body specifies which section and which item
+// (e.g. careers[2] description). Returns a single suggested rewrite the
+// frontend can show inline with an [Apply] button. Cheap model so each
+// click costs sub-cent. Falls back gracefully when OPENAI_API_KEY missing.
+const coachSuggestSchema = z.object({
+  targetSection: z.enum(["selfIntroduction", "summary", "careers", "activities"]),
+  targetItemIndex: z.number().int().nonnegative().optional(),
+  tone: z.enum(["formal", "concise", "impactful"]).optional()
+});
+
+app.post("/members/me/resumes/:resumeId/coach/suggest", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
+  if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
+  const parsed = coachSuggestSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+  try {
+    const resume = await prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      select: { content: true }
+    });
+    if (!resume) return res.status(404).json({ ok: false, message: "resume not found" });
+
+    const c = (resume.content ?? {}) as Record<string, unknown>;
+    const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+    const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
+    const { targetSection, targetItemIndex, tone = "impactful" } = parsed.data;
+
+    // Pull the source text the model should rewrite.
+    let sourceText = "";
+    let label = "";
+    if (targetSection === "selfIntroduction" || targetSection === "summary") {
+      sourceText = trimStr(c.selfIntroduction) || trimStr(c.summary);
+      label = "자기소개";
+    } else if (targetSection === "careers" && typeof targetItemIndex === "number" && isArr(c.careers)) {
+      const item = c.careers[targetItemIndex];
+      if (typeof item === "object" && item !== null) {
+        const obj = item as Record<string, unknown>;
+        sourceText = trimStr(obj.description);
+        label = `${trimStr(obj.companyName) || "경력"} 설명`;
+      }
+    } else if (targetSection === "activities" && typeof targetItemIndex === "number" && isArr(c.activities)) {
+      const item = c.activities[targetItemIndex];
+      if (typeof item === "object" && item !== null) {
+        const obj = item as Record<string, unknown>;
+        sourceText = trimStr(obj.description);
+        label = `${trimStr(obj.title) || "활동"} 설명`;
+      }
+    }
+    if (!sourceText) {
+      return res.status(400).json({ ok: false, message: "source text empty — write at least one sentence first" });
+    }
+
+    const toneNote = tone === "formal" ? "정중하고 격식 있는 어조" : tone === "concise" ? "간결하고 핵심만" : "임팩트 있고 구체적인 성과 중심";
+    // 엄격한 ground-truth 규칙. 외국인 학생 입장에서는 AI 가 만들어낸 가짜
+    // 경력이 가장 위험. 원문 사실만 활용해서 표현만 다듬도록 못 박는다.
+    const systemPrompt =
+      "당신은 한국 기업 채용을 돕는 이력서 코치입니다. 외국인 지원자의 이력서 한 단락을 더 임팩트 있게 다듬어 주세요.\n\n" +
+      "엄격한 규칙:\n" +
+      "1. 원문에 없는 새로운 사실(회사명·학교명·직책·날짜·기술·자격증·프로젝트 등)을 절대 만들어내지 마세요.\n" +
+      "2. 원문의 숫자/수치는 그대로 유지하세요. 새 수치를 추가하거나 추정하지 마세요.\n" +
+      "3. 표현만 더 명확하고 임팩트 있게 다듬으세요. 의미를 부풀리지 말고, 추측하지 마세요.\n" +
+      "4. 원문 정보가 너무 빈약해서 다듬을 게 없다면, why 에 그렇게 솔직히 적고 rewrite 는 원문과 거의 동일하게 두세요.\n\n" +
+      "JSON 한 개의 객체만 응답하세요. 형식: { \"rewrite\": string, \"why\": string }. why 는 1-2 문장으로 어떤 점이 개선됐는지 한국어로 설명.";
+    const userPrompt = `다음 ${label}을(를) ${toneNote}로 다듬어 주세요:\n\n${sourceText}`;
+
+    const completion = await openai.chat.completions.create({
+      model: openaiTranslationModel,
+      temperature: 0.5,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ]
+    });
+    const raw = completion.choices?.[0]?.message?.content ?? "";
+    let parsedJson: { rewrite?: unknown; why?: unknown } = {};
+    try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+    const rewrite = typeof parsedJson.rewrite === "string" ? parsedJson.rewrite.trim() : "";
+    const why = typeof parsedJson.why === "string" ? parsedJson.why.trim() : "";
+    if (!rewrite) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+    return res.json({ ok: true, suggestion: { before: sourceText, after: rewrite, why, targetSection, targetItemIndex } });
+  } catch (err) {
+    console.error("[coach/suggest] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to generate suggestion" });
+  }
+});
+
+// POST /members/me/resumes/:resumeId/coach/chat — free-form Q&A with the
+// resume as context. Single-turn; the frontend keeps the conversation
+// history client-side and sends the trailing N messages. Reasonable token
+// caps keep cost predictable.
+const coachChatSchema = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().min(1).max(2000)
+      })
+    )
+    .min(1)
+    .max(12)
+});
+
+app.post("/members/me/resumes/:resumeId/coach/chat", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
+  if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
+  const parsed = coachChatSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+  try {
+    const resume = await prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      select: { content: true, title: true }
+    });
+    if (!resume) return res.status(404).json({ ok: false, message: "resume not found" });
+
+    const scores = calcResumeScores(resume.content);
+    // Compact JSON of the resume — trim to keep token usage bounded. The
+    // chat is informational, not a full rewrite, so a summary is enough.
+    const c = (resume.content ?? {}) as Record<string, unknown>;
+    const resumeSummary = JSON.stringify({
+      title: resume.title,
+      qualityScore: scores.quality.total,
+      readinessScore: scores.readiness.total,
+      submissionLevel: scores.level,
+      qualityDimensions: scores.quality.dimensions,
+      readinessDimensions: scores.readiness.dimensions,
+      hasName: Boolean((c.basicName ?? "") as string),
+      hasVisa: Boolean((c.basicVisa ?? "") as string),
+      summary: ((c.selfIntroduction ?? c.summary ?? "") as string).slice(0, 600),
+      educationCount: Array.isArray(c.educations) ? c.educations.length : 0,
+      careerCount: Array.isArray(c.careers) ? c.careers.length : 0,
+      activityCount: Array.isArray(c.activities) ? c.activities.length : 0,
+      skillCount: Array.isArray(c.skills) ? c.skills.length : 0,
+      languageCount: Array.isArray(c.languages) ? c.languages.length : 0,
+      certificationCount: Array.isArray(c.certifications) ? c.certifications.length : 0,
+      linkCount: Array.isArray(c.links) ? c.links.length : 0
+    });
+    const systemPrompt =
+      "당신은 Aply의 이력서 코치입니다. 외국인 지원자가 한국 기업에 더 매력적으로 보일 수 있도록 친근하고 구체적으로 조언하세요.\n" +
+      "엄격한 규칙: 이력서에 없는 사실(회사명·학교명·직책·날짜·기술 등)을 절대 만들어내지 마세요. 모르는 것은 추측하지 말고 모른다고 답하세요. 사용자가 표현 개선을 요청하면 원문에 있는 사실만 활용해 표현만 다듬으세요.\n" +
+      "한국어로 답변하며, 답변은 4-6 문장 이내로 간결하게 작성하세요.\n" +
+      `사용자의 이력서 요약: ${resumeSummary}`;
+
+    const completion = await openai.chat.completions.create({
+      model: openaiTranslationModel,
+      temperature: 0.6,
+      max_tokens: 500,
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...parsed.data.messages.map((m) => ({ role: m.role, content: m.content }))
+      ]
+    });
+    const reply = completion.choices?.[0]?.message?.content?.trim() ?? "";
+    if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
+    return res.json({ ok: true, reply });
+  } catch (err) {
+    console.error("[coach/chat] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to chat" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /members/me/ai/draft-resume-text — 편집 페이지의 textarea 옆에 붙는
+// AI 작성 도우미. resume row 가 저장되기 전 상태의 임시 텍스트를 받아서
+// 다듬거나(mode=improve), 사례를 더하거나(expand), 비어 있으면 키워드만으로
+// 짧은 초안을 만들어(generate) 줌. 결과 적용 여부는 사용자가 매번 결정.
+//
+// 모든 모드에 동일하게: 사용자가 명시적으로 제공하지 않은 사실은 절대로
+// 만들어내지 않음 (회사명·날짜·수치 등). 빈약하면 결과도 빈약해도 OK.
+// ---------------------------------------------------------------------------
+const draftResumeTextSchema = z.object({
+  // 현재 입력된 텍스트. mode=generate 면 빈 문자열도 허용.
+  currentText: z.string().max(5000),
+  fieldType: z.enum(["selfIntroduction", "summary", "career", "activity"]),
+  mode: z.enum(["improve", "expand", "generate"]).default("improve"),
+  // 경력/활동의 경우 회사/직책/타이틀 같은 맥락. 자기소개는 보통 비워둠.
+  context: z
+    .object({
+      companyName: z.string().max(120).optional(),
+      position: z.string().max(120).optional(),
+      title: z.string().max(120).optional()
+    })
+    .optional(),
+  // 사용자가 키워드·뼈대를 줄 수 있는 자유 필드. mode=generate 일 때 특히 중요.
+  hints: z.string().max(500).optional()
+});
+
+app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const parsed = draftResumeTextSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+  const { currentText, fieldType, mode, context, hints } = parsed.data;
+  // generate 모드는 빈 입력 OK, 그 외에는 currentText 또는 hints 중 하나는 있어야 함.
+  if (mode !== "generate" && !currentText.trim()) {
+    return res.status(400).json({ ok: false, message: "currentText empty — write at least one sentence or use mode=generate" });
+  }
+  if (mode === "generate" && !currentText.trim() && !hints?.trim()) {
+    return res.status(400).json({ ok: false, message: "hints required when generating from empty" });
+  }
+
+  const fieldName = {
+    selfIntroduction: "자기소개",
+    summary: "요약",
+    career: "경력 설명",
+    activity: "활동·프로젝트 설명"
+  }[fieldType];
+  const modeNote =
+    mode === "improve"
+      ? "기존 표현을 더 명확하고 임팩트 있게 다듬으세요. 의미를 부풀리지 마세요."
+      : mode === "expand"
+      ? "기존 내용에 구체적 사례·수치(있다면)·맥락을 자연스럽게 더 적어주세요."
+      : "사용자가 제공한 키워드·맥락만으로 적절한 길이의 초안을 작성하세요. 추측이 필요하면 추상적으로 두세요.";
+
+  try {
+    const systemPrompt =
+      `당신은 한국 기업 채용을 돕는 이력서 코치입니다. 외국인 지원자의 ${fieldName}을(를) 작성/개선해 주세요.\n\n` +
+      "엄격한 규칙:\n" +
+      "1. 사용자가 명시적으로 제공하지 않은 새로운 사실(회사명·학교명·직책·날짜·수치·기술·자격증·프로젝트)을 절대 만들어내지 마세요.\n" +
+      "2. 원문 또는 hints 에 적힌 숫자만 사용하고, 새 숫자를 추가/추정하지 마세요.\n" +
+      "3. 의미를 부풀리거나 추측하지 마세요. 빈약한 입력은 빈약한 결과로 두는 게 정직합니다.\n" +
+      "4. 한국어로 자연스럽고 정중하게 작성하세요.\n" +
+      `5. ${fieldName} 으로서 적절한 길이로 작성하세요 (자기소개·요약은 200–500자, 경력·활동 설명은 60–200자 권장).\n\n` +
+      "JSON 한 개의 객체만 응답: { \"text\": string, \"why\": string }. why 는 1-2 문장으로 어떤 점을 다듬었는지/생성했는지 한국어로 설명.";
+
+    const userPromptParts: string[] = [`요청 모드: ${modeNote}`];
+    if (context) {
+      const ctxText = [
+        context.companyName ? `회사명: ${context.companyName}` : null,
+        context.position ? `직책: ${context.position}` : null,
+        context.title ? `활동명: ${context.title}` : null
+      ]
+        .filter(Boolean)
+        .join(", ");
+      if (ctxText) userPromptParts.push(`맥락: ${ctxText}`);
+    }
+    if (hints?.trim()) userPromptParts.push(`사용자 키워드/요청: ${hints.trim()}`);
+    userPromptParts.push(`현재 ${fieldName}:\n${currentText || "(비어있음)"}`);
+    const userPrompt = userPromptParts.join("\n\n");
+
+    const completion = await openai.chat.completions.create({
+      model: openaiTranslationModel,
+      temperature: 0.5,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ]
+    });
+    const raw = completion.choices?.[0]?.message?.content ?? "";
+    let parsedJson: { text?: unknown; why?: unknown } = {};
+    try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+    const text = typeof parsedJson.text === "string" ? parsedJson.text.trim() : "";
+    const why = typeof parsedJson.why === "string" ? parsedJson.why.trim() : "";
+    if (!text) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+    return res.json({ ok: true, draft: { text, why, mode, fieldType } });
+  } catch (err) {
+    console.error("[ai/draft-resume-text] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to draft" });
   }
 });
 
@@ -17013,6 +17658,171 @@ app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (
 // Compute a 0–100 completion rate for a resume `content` JSON. Same scoring
 // rubric for the list and the detail endpoints so the ops view stays
 // consistent. Returns an integer percent.
+// ---------------------------------------------------------------------------
+// Resume translation cache.
+//
+// 외국인 학생이 자기소개·경력·활동 description 같은 긴 텍스트를 모국어/영어로
+// 작성해도, 결과로 보이는 이력서(미리보기·공유 링크·코치)에는 항상 한국어가
+// 쌍으로 따라붙도록 저장 시 한국어 번역을 미리 만들어 캐시한다. 길지 않은
+// 필드(이름·이메일·회사명) 는 번역해도 의미가 없어 대상에서 제외.
+// ---------------------------------------------------------------------------
+
+type ResumeKoTranslations = {
+  // 한국어 비중이 충분치 않은 본문만 채워짐. 모두 옵셔널.
+  summary?: string;
+  selfIntroduction?: string;
+  careers?: Array<{ description?: string }>;
+  activities?: Array<{ description?: string }>;
+};
+
+type ResumeTranslations = {
+  ko?: ResumeKoTranslations;
+};
+
+// 한국어(한글) 문자 비율을 반환. 0~1. 공백·기호는 무시하고 의미있는 글자만
+// 분모로 침. 50% 이상이면 이미 충분히 한국어로 본다.
+function koreanRatio(text: string): number {
+  if (!text || typeof text !== "string") return 0;
+  let total = 0;
+  let korean = 0;
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    // 공백·구두점·숫자는 분모에서 제외 — 짧은 영문 이름 옆 긴 한글 본문 같은
+    // 경우를 정확히 잡아내려면 의미있는 글자만 비교해야 함.
+    if (/\s|[0-9\p{P}]/u.test(ch)) continue;
+    total += 1;
+    if (code >= 0xac00 && code <= 0xd7a3) korean += 1; // Hangul Syllables
+    else if (code >= 0x1100 && code <= 0x11ff) korean += 1; // Jamo
+    else if (code >= 0x3130 && code <= 0x318f) korean += 1; // compat Jamo
+  }
+  return total === 0 ? 0 : korean / total;
+}
+
+// 너무 짧거나 이미 한국어가 충분한 텍스트는 번역 생략. 10자 미만 또는
+// 한국어 비중 50%+ 면 skip.
+function needsKoreanTranslation(text: string | null | undefined): boolean {
+  if (!text || typeof text !== "string") return false;
+  const trimmed = text.trim();
+  if (trimmed.length < 10) return false;
+  return koreanRatio(trimmed) < 0.5;
+}
+
+// content 안의 4가지 긴 필드(summary / selfIntroduction / careers[].description
+// / activities[].description) 를 훑어 번역이 필요한 단위만 골라낸 리스트를
+// 만든다. 각 단위는 path 정보가 있어 응답을 카운터파트에 다시 끼워 넣을 때
+// 위치를 잃지 않음.
+type TranslationUnit =
+  | { path: "summary"; text: string }
+  | { path: "selfIntroduction"; text: string }
+  | { path: "careers"; index: number; text: string }
+  | { path: "activities"; index: number; text: string };
+
+function collectTranslationUnits(content: unknown): TranslationUnit[] {
+  const units: TranslationUnit[] = [];
+  if (!content || typeof content !== "object") return units;
+  const c = content as Record<string, unknown>;
+  const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+
+  const summary = trimStr(c.summary);
+  if (needsKoreanTranslation(summary)) units.push({ path: "summary", text: summary });
+
+  const selfIntro = trimStr(c.selfIntroduction);
+  if (needsKoreanTranslation(selfIntro)) units.push({ path: "selfIntroduction", text: selfIntro });
+
+  if (Array.isArray(c.careers)) {
+    c.careers.forEach((cr, idx) => {
+      if (typeof cr !== "object" || cr === null) return;
+      const desc = trimStr((cr as Record<string, unknown>).description);
+      if (needsKoreanTranslation(desc)) units.push({ path: "careers", index: idx, text: desc });
+    });
+  }
+  if (Array.isArray(c.activities)) {
+    c.activities.forEach((a, idx) => {
+      if (typeof a !== "object" || a === null) return;
+      const desc = trimStr((a as Record<string, unknown>).description);
+      if (needsKoreanTranslation(desc)) units.push({ path: "activities", index: idx, text: desc });
+    });
+  }
+  return units;
+}
+
+// 기존 translations.ko 와 비교해서 텍스트가 바뀐 단위만 재번역. 변경 없는
+// 단위는 기존 한국어를 그대로 들고 옴 — 매 저장마다 LLM 비용이 폭발하지
+// 않게 핵심.
+async function buildKoreanTranslations(
+  content: unknown,
+  previous: ResumeTranslations | null | undefined
+): Promise<ResumeTranslations | null> {
+  const units = collectTranslationUnits(content);
+  if (units.length === 0) return previous?.ko ? { ko: previous.ko } : null;
+  if (!openai) return previous?.ko ? { ko: previous.ko } : null;
+
+  const prevKo = previous?.ko ?? {};
+  const prevContent = content as Record<string, unknown>;
+
+  // 원문 사본 + 기존 번역 사본 — 변경된 단위만 새로 번역.
+  const result: ResumeKoTranslations = {
+    summary: prevKo.summary,
+    selfIntroduction: prevKo.selfIntroduction,
+    careers: Array.isArray(prevContent.careers)
+      ? (prevContent.careers as unknown[]).map((_, idx) => ({
+          description: prevKo.careers?.[idx]?.description
+        }))
+      : undefined,
+    activities: Array.isArray(prevContent.activities)
+      ? (prevContent.activities as unknown[]).map((_, idx) => ({
+          description: prevKo.activities?.[idx]?.description
+        }))
+      : undefined
+  };
+
+  // 변경 감지를 위해 원문과 함께 메타 저장이 필요한데 단순화를 위해 매 저장
+  // 시 한국어 번역이 비어 있거나 원문이 한국어가 아닌 모든 단위를 다시 번역.
+  // 비용 통제는 needsKoreanTranslation 의 길이/비율 컷오프로 제한.
+  const promises = units.map(async (unit) => {
+    try {
+      const completion = await openai!.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.3,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "당신은 이력서 번역가입니다. 외국인 지원자의 이력서 텍스트를 한국 기업이 읽기 좋은 자연스러운 한국어로 번역하세요. " +
+              "원문에 있는 사실만 사용하고, 새 사실/수치/회사명/날짜를 추가하지 마세요. 의미를 부풀리지 마세요. " +
+              "회사명·학교명·자격증명 같은 고유명사는 영문 그대로 두거나 (한국어 표기) 형태로 자연스럽게 표기. " +
+              "JSON 한 개의 객체만 응답: { \"ko\": string }"
+          },
+          { role: "user", content: unit.text }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { ko?: unknown } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* skip */ }
+      const ko = typeof parsedJson.ko === "string" ? parsedJson.ko.trim() : "";
+      return ko ? { unit, ko } : null;
+    } catch {
+      return null;
+    }
+  });
+  const results = await Promise.all(promises);
+  for (const r of results) {
+    if (!r) continue;
+    const { unit, ko } = r;
+    if (unit.path === "summary") result.summary = ko;
+    else if (unit.path === "selfIntroduction") result.selfIntroduction = ko;
+    else if (unit.path === "careers") {
+      if (!result.careers) result.careers = [];
+      result.careers[unit.index] = { description: ko };
+    } else if (unit.path === "activities") {
+      if (!result.activities) result.activities = [];
+      result.activities[unit.index] = { description: ko };
+    }
+  }
+  return { ko: result };
+}
+
 function calcResumeCompletion(content: unknown): number {
   if (!content || typeof content !== "object") return 0;
   const c = content as Record<string, unknown>;
@@ -17062,6 +17872,559 @@ function calcResumeCompletion(content: unknown): number {
   const total = checks.reduce((sum, c2) => sum + c2.weight, 0);
   const done = checks.reduce((sum, c2) => sum + (c2.ok ? c2.weight : 0), 0);
   return Math.round((done / total) * 100);
+}
+
+// ---------------------------------------------------------------------------
+// Resume Coach scoring — split into TWO orthogonal scores:
+//
+//   Quality   (4 dims) — how well-written the resume is
+//   Readiness (5 dims) — whether the resume is submittable to companies
+//
+// 외국인 채용에서는 "잘 쓴 이력서" 와 "지원 가능한 이력서" 가 다르다. 비자
+// 정보가 없으면 점수만 높아도 검토 자체가 불가능한 경우가 많아서, 두 점수를
+// 분리해서 보여주는 게 사용자에게 훨씬 정직하다. 그리고 readiness 가 임계점에
+// 도달했는지를 기준으로 "제출 가능 / 보완 후 제출 가능 / 제출 불가" 배지를
+// 노출. 이 배지가 Career Passport 의 코어 시그널이 된다.
+//
+// 두 점수 모두 pure rule-based — LLM 호출 0회.
+// ---------------------------------------------------------------------------
+type ResumeReadinessLevel = "submittable" | "needs_polish" | "not_submittable";
+
+type ResumeQualityDimensions = {
+  contentQuality: number;  // 자기소개 + 경력·활동 설명 깊이
+  impact: number;          // 본문 수치화 (성과 중심 표현)
+  uniqueness: number;      // 스킬·활동·자격증·링크 다양성
+  visual: number;          // 사진, 길이 적정성, 가독성
+};
+
+type ResumeReadinessDimensions = {
+  contact: number;         // 이름·이메일·전화·거주지
+  education: number;       // 학력 1개 이상
+  visa: number;            // 비자 정보
+  koreaFit: number;        // 한국 취업 적합도 — 한국어 능력 + 다중언어
+  portfolio: number;       // 포트폴리오·활동·자격증 중 최소 1
+};
+
+type ResumeScoresResult = {
+  quality: { total: number; dimensions: ResumeQualityDimensions };
+  readiness: { total: number; dimensions: ResumeReadinessDimensions };
+  level: ResumeReadinessLevel;
+};
+
+type ResumeCoachActionCategory = "required" | "recommended" | "optional";
+
+type ResumeCoachAction = {
+  id: string;
+  category: ResumeCoachActionCategory;  // 필수 / 추천 / 선택
+  title: string;
+  description: string;
+  impactPoints: number;
+  targetSection: string;
+  targetItemIndex?: number;
+  // llmEligible actions can be augmented by POST /coach/suggest.
+  llmEligible?: boolean;
+};
+
+type ResumeCoachPositionMatch = {
+  positionId: string;
+  title: string;
+  organizationName: string | null;
+  matchScore: number;
+  status: "applied" | "open";
+  applicationStatus: string | null;
+  thumbnailUrl: string | null;
+  workLocation: string | null;
+};
+
+const RESUME_QUALITY_WEIGHTS: Record<keyof ResumeQualityDimensions, number> = {
+  contentQuality: 0.30,
+  impact: 0.25,
+  uniqueness: 0.25,
+  visual: 0.20
+};
+
+// Aply 는 비자가 필요 없는 인턴 체험 프로그램(CIP)도 함께 운영한다. 비자
+// 정보가 비어 있어도 readiness 가 submittable 까지 도달할 수 있도록 visa
+// 비중을 낮게 잡고, 기본 정보(contact·education) 와 한국 적합도, 포트폴리오에
+// 비중을 더 실어둠. 비자는 정규직 매칭 정확도를 끌어올리는 보조 신호로 작동.
+const RESUME_READINESS_WEIGHTS: Record<keyof ResumeReadinessDimensions, number> = {
+  contact: 0.30,
+  education: 0.25,
+  visa: 0.10,
+  koreaFit: 0.20,
+  portfolio: 0.15
+};
+
+// Readiness 임계점 — "기업이 진짜로 검토 가능한지" 가 기준. 비자/연락처
+// 같은 필수 항목이 빠지면 readiness 가 80 을 못 넘게 가중치를 설계함.
+function resumeReadinessLevel(quality: number, readiness: number): ResumeReadinessLevel {
+  if (readiness >= 80 && quality >= 60) return "submittable";
+  if (readiness >= 55) return "needs_polish";
+  return "not_submittable";
+}
+
+function calcResumeScores(content: unknown): ResumeScoresResult {
+  const empty: ResumeScoresResult = {
+    quality: { total: 0, dimensions: { contentQuality: 0, impact: 0, uniqueness: 0, visual: 0 } },
+    readiness: { total: 0, dimensions: { contact: 0, education: 0, visa: 0, koreaFit: 0, portfolio: 0 } },
+    level: "not_submittable"
+  };
+  if (!content || typeof content !== "object") return empty;
+  const c = content as Record<string, unknown>;
+  const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+  const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
+
+  // ===== Quality 4 dimensions =============================================
+
+  // contentQuality — 자기소개 + 경력·활동 설명 깊이
+  const introText = trimStr(c.selfIntroduction) || trimStr(c.summary);
+  let qChecks = 0;
+  let qScore = 0;
+  qChecks += 1;
+  if (introText.length >= 400) qScore += 1;
+  else if (introText.length >= 200) qScore += 0.7;
+  else if (introText.length >= 100) qScore += 0.4;
+  else if (introText.length > 0) qScore += 0.15;
+  if (isArr(c.careers) && c.careers.length > 0) {
+    const rich = c.careers.filter((cr) => {
+      if (typeof cr !== "object" || cr === null) return false;
+      return trimStr((cr as Record<string, unknown>).description).length >= 50;
+    });
+    qChecks += 1;
+    qScore += Math.min(1, rich.length / c.careers.length);
+  }
+  if (isArr(c.activities) && c.activities.length > 0) {
+    const rich = c.activities.filter((a) => {
+      if (typeof a !== "object" || a === null) return false;
+      return trimStr((a as Record<string, unknown>).description).length >= 30;
+    });
+    qChecks += 1;
+    qScore += Math.min(1, rich.length / c.activities.length);
+  }
+  const contentQuality = qChecks === 0 ? 0 : Math.round((qScore / qChecks) * 100);
+
+  // impact — 본문에 수치/단위가 들어가 있는지 (성과 중심 표현)
+  const bodyTexts: string[] = [introText];
+  if (isArr(c.careers)) {
+    for (const cr of c.careers) {
+      if (typeof cr === "object" && cr !== null) {
+        bodyTexts.push(trimStr((cr as Record<string, unknown>).description));
+      }
+    }
+  }
+  if (isArr(c.activities)) {
+    for (const a of c.activities) {
+      if (typeof a === "object" && a !== null) {
+        bodyTexts.push(trimStr((a as Record<string, unknown>).description));
+      }
+    }
+  }
+  const filledTexts = bodyTexts.filter((t) => t.length > 0);
+  const numericPattern = /\d+(?:[.,]\d+)?\s*(?:%|명|원|회|개|배|건|만|천|일|개월|년|시간|위|점|쪽|페이지)|\b\d+(?:[.,]\d+)?\s*(?:%|years?|months?|people|times|projects?|teams?)\b/i;
+  const withNumbers = filledTexts.filter((t) => numericPattern.test(t));
+  const impact = filledTexts.length === 0 ? 0 : Math.round((withNumbers.length / filledTexts.length) * 100);
+
+  // uniqueness — 활동·자격증·링크·스킬 다양성
+  let uChecks = 0;
+  let uScore = 0;
+  uChecks += 1;
+  if (isArr(c.activities) && c.activities.length >= 2) uScore += 1;
+  else if (isArr(c.activities) && c.activities.length >= 1) uScore += 0.5;
+  uChecks += 1;
+  if (isArr(c.certifications) && c.certifications.length >= 2) uScore += 1;
+  else if (isArr(c.certifications) && c.certifications.length >= 1) uScore += 0.5;
+  uChecks += 1;
+  if (isArr(c.links) && c.links.length >= 1) uScore += 1;
+  uChecks += 1;
+  if (isArr(c.skills)) {
+    if (c.skills.length >= 5) uScore += 1;
+    else if (c.skills.length >= 3) uScore += 0.6;
+    else if (c.skills.length >= 1) uScore += 0.3;
+  }
+  const uniqueness = Math.round((uScore / uChecks) * 100);
+
+  // visual — 사진, 본문 길이 적정성, 제목 가독성
+  let vChecks = 0;
+  let vScore = 0;
+  vChecks += 1;
+  if (trimStr(c.basicPhotoUrl)) vScore += 1;
+  vChecks += 1;
+  if (introText.length === 0) vScore += 0;
+  else if (introText.length <= 1500) vScore += 1;
+  else if (introText.length <= 2500) vScore += 0.5;
+  else vScore += 0.2;
+  vChecks += 1;
+  // 짧고 깔끔한 제목인지
+  const title = trimStr((c as Record<string, unknown>).basicName);
+  if (title.length > 0 && title.length <= 30) vScore += 1;
+  else if (title.length > 0) vScore += 0.5;
+  const visual = Math.round((vScore / vChecks) * 100);
+
+  const qualityDims: ResumeQualityDimensions = { contentQuality, impact, uniqueness, visual };
+  const qualityTotal = Math.round(
+    (Object.keys(qualityDims) as Array<keyof ResumeQualityDimensions>).reduce(
+      (sum, key) => sum + qualityDims[key] * RESUME_QUALITY_WEIGHTS[key],
+      0
+    )
+  );
+
+  // ===== Readiness 5 dimensions ===========================================
+
+  // contact — 이름·이메일·전화·거주지 4 필드 평균
+  const contactFields = [c.basicName, c.basicEmail, c.basicPhone, c.basicResidence];
+  const contactFilled = contactFields.filter((v) => trimStr(v).length > 0).length;
+  const contact = Math.round((contactFilled / contactFields.length) * 100);
+
+  // education — 학력 1개 이상이면 100, 없으면 0 (이력서의 기본 신뢰 신호)
+  const hasEducation =
+    isArr(c.educations) &&
+    c.educations.some((e) => typeof e === "object" && e !== null && trimStr((e as Record<string, unknown>).schoolName));
+  const education = hasEducation ? 100 : 0;
+
+  // visa — 비자 정보 채워졌는지. 외국인 채용의 절대 필수
+  const visa = trimStr(c.basicVisa).length > 0 ? 100 : 0;
+
+  // koreaFit — 한국 취업 적합도. 한국어 명시 + 다중 언어 + 한국 경험
+  let kChecks = 0;
+  let kScore = 0;
+  kChecks += 1;
+  const hasKoreanLang = isArr(c.languages) && c.languages.some((l) => {
+    if (typeof l !== "object" || l === null) return false;
+    const lang = trimStr((l as Record<string, unknown>).language).toLowerCase();
+    const level = trimStr((l as Record<string, unknown>).level);
+    return (lang.includes("kor") || lang.includes("한국") || lang === "ko") && level.length > 0;
+  });
+  if (hasKoreanLang) kScore += 1;
+  kChecks += 1;
+  if (isArr(c.languages) && c.languages.length >= 2) kScore += 1;
+  else if (isArr(c.languages) && c.languages.length >= 1) kScore += 0.5;
+  kChecks += 1;
+  // 한국 거주 또는 한국어 자격증 같은 "한국 경험" 시그널 — 간단히 거주지가
+  // 한국 표기인지로 근사.
+  const residence = trimStr(c.basicResidence);
+  if (residence && /한국|Korea|韩国|서울|Seoul|부산|Busan/i.test(residence)) kScore += 1;
+  const koreaFit = Math.round((kScore / kChecks) * 100);
+
+  // portfolio — 활동·자격증·링크 중 최소 1개라도 있으면 의미 있는 신호
+  const hasActivity = isArr(c.activities) && c.activities.length >= 1;
+  const hasCert = isArr(c.certifications) && c.certifications.length >= 1;
+  const hasLink = isArr(c.links) && c.links.length >= 1;
+  let pScore = 0;
+  if (hasActivity) pScore += 0.5;
+  if (hasCert) pScore += 0.25;
+  if (hasLink) pScore += 0.25;
+  const portfolio = Math.round(Math.min(1, pScore) * 100);
+
+  const readinessDims: ResumeReadinessDimensions = { contact, education, visa, koreaFit, portfolio };
+  const readinessTotal = Math.round(
+    (Object.keys(readinessDims) as Array<keyof ResumeReadinessDimensions>).reduce(
+      (sum, key) => sum + readinessDims[key] * RESUME_READINESS_WEIGHTS[key],
+      0
+    )
+  );
+
+  return {
+    quality: { total: qualityTotal, dimensions: qualityDims },
+    readiness: { total: readinessTotal, dimensions: readinessDims },
+    level: resumeReadinessLevel(qualityTotal, readinessTotal)
+  };
+}
+
+// Action generator — surfaces gaps by category:
+//   required    기업이 검토할 수 없는 결정적 누락 (비자, 학력, 이름/이메일)
+//   recommended 채워두면 매칭률·인상이 크게 좋아지는 항목
+//   optional    있으면 좋고 없어도 무방한 디테일
+//
+// 5 개로 잘라내지 않고 모든 gap 을 반환 — UI 가 카테고리별로 그룹화해서
+// 보여주므로 길어도 시각적으로 정리됨.
+function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
+  const actions: ResumeCoachAction[] = [];
+  if (!content || typeof content !== "object") return actions;
+  const c = content as Record<string, unknown>;
+  const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+  const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
+
+  // ===== Required — readiness 결정타 ======================================
+  if (!trimStr(c.basicName)) {
+    actions.push({ id: "fill-name", category: "required", title: "이름을 입력하세요", description: "이력서의 가장 기본 정보입니다.", impactPoints: 5, targetSection: "basics" });
+  }
+  if (!trimStr(c.basicEmail)) {
+    actions.push({ id: "fill-email", category: "required", title: "이메일 주소를 입력하세요", description: "기업이 연락할 수 있어야 합니다.", impactPoints: 6, targetSection: "basics" });
+  }
+  // 비자 정보는 정규직 매칭 정확도를 끌어올리지만, Aply 의 인턴 체험(CIP)
+  // 같은 비자 무관 포지션도 있으므로 "필수" 가 아닌 "추천" 으로 분류한다.
+  if (!trimStr(c.basicVisa)) {
+    actions.push({
+      id: "add-visa",
+      category: "recommended",
+      title: "비자 정보를 입력하세요",
+      description: "정규직 포지션 매칭 정확도가 올라가요. (인턴 체험은 비자 무관)",
+      impactPoints: 6,
+      targetSection: "basics"
+    });
+  }
+  if (!isArr(c.educations) || c.educations.length === 0 || !c.educations.some((e) => typeof e === "object" && e !== null && trimStr((e as Record<string, unknown>).schoolName))) {
+    actions.push({ id: "add-education", category: "required", title: "학력을 추가하세요", description: "학교명·전공·재학 상태를 입력해주세요.", impactPoints: 12, targetSection: "educations" });
+  }
+  const introText = trimStr(c.selfIntroduction) || trimStr(c.summary);
+  if (introText.length === 0) {
+    actions.push({
+      id: "improve-self-introduction",
+      category: "required",
+      title: "자기소개를 작성하세요",
+      description: "본인의 강점과 동기가 드러나도록 작성해보세요.",
+      impactPoints: 10,
+      targetSection: "selfIntroduction"
+    });
+  }
+
+  // ===== Recommended — 채우면 매칭·인상이 크게 좋아지는 항목 ===============
+  if (!trimStr(c.basicPhone)) {
+    actions.push({ id: "fill-phone", category: "recommended", title: "전화번호를 입력하세요", description: "다급한 연락 채널이 필요할 수 있어요.", impactPoints: 4, targetSection: "basics" });
+  }
+  if (!trimStr(c.basicResidence)) {
+    actions.push({ id: "fill-residence", category: "recommended", title: "거주지를 입력하세요", description: "출퇴근 가능 지역 판단에 사용됩니다.", impactPoints: 4, targetSection: "basics" });
+  }
+  if (introText.length > 0 && introText.length < 100) {
+    actions.push({
+      id: "improve-self-introduction-short",
+      category: "recommended",
+      title: "자기소개를 더 풍부하게 다듬어주세요",
+      description: "100자 이상으로 구체적 사례를 더해보세요.",
+      impactPoints: 7,
+      targetSection: "selfIntroduction",
+      llmEligible: true
+    });
+  } else if (introText.length >= 100 && introText.length < 400) {
+    actions.push({
+      id: "expand-self-introduction",
+      category: "recommended",
+      title: "자기소개에 구체적 사례를 더해보세요",
+      description: "성과·프로젝트 경험을 1–2개 추가하면 인상이 달라집니다.",
+      impactPoints: 5,
+      targetSection: "selfIntroduction",
+      llmEligible: true
+    });
+  }
+  if (isArr(c.careers)) {
+    c.careers.forEach((cr, idx) => {
+      if (typeof cr !== "object" || cr === null) return;
+      const obj = cr as Record<string, unknown>;
+      const desc = trimStr(obj.description);
+      const company = trimStr(obj.companyName) || "경력";
+      if (desc.length > 0 && desc.length < 50) {
+        actions.push({
+          id: `improve-career-${idx}`,
+          category: "recommended",
+          title: `${company} 설명을 보강하세요`,
+          description: "구체적 업무·성과·수치를 더해보세요.",
+          impactPoints: 6,
+          targetSection: "careers",
+          targetItemIndex: idx,
+          llmEligible: true
+        });
+      } else if (desc.length >= 50 && !/\d/.test(desc)) {
+        actions.push({
+          id: `add-metrics-career-${idx}`,
+          category: "recommended",
+          title: `${company} 성과를 수치로 표현하세요`,
+          description: "예: '월 활성 사용자 30% 증가', '5인 팀 리드'.",
+          impactPoints: 7,
+          targetSection: "careers",
+          targetItemIndex: idx,
+          llmEligible: true
+        });
+      }
+    });
+  }
+  const hasKorean = isArr(c.languages) && c.languages.some((l) => {
+    if (typeof l !== "object" || l === null) return false;
+    const lang = trimStr((l as Record<string, unknown>).language).toLowerCase();
+    return lang.includes("kor") || lang.includes("한국") || lang === "ko";
+  });
+  if (!hasKorean) {
+    actions.push({
+      id: "add-korean-language",
+      category: "recommended",
+      title: "한국어 능력을 추가하세요",
+      description: "TOPIK 등급이나 회화 수준을 표시해주세요.",
+      impactPoints: 8,
+      targetSection: "languages"
+    });
+  }
+  if (!isArr(c.links) || c.links.length === 0) {
+    actions.push({
+      id: "add-link",
+      category: "recommended",
+      title: "포트폴리오·GitHub 링크를 추가하세요",
+      description: "온라인 작업물이 있으면 더 설득력이 커집니다.",
+      impactPoints: 5,
+      targetSection: "links"
+    });
+  }
+  if (!isArr(c.activities) || c.activities.length === 0) {
+    actions.push({
+      id: "add-activity",
+      category: "recommended",
+      title: "활동·프로젝트를 추가하세요",
+      description: "동아리, 사이드 프로젝트, 봉사 등 1개라도 의미 있어요.",
+      impactPoints: 5,
+      targetSection: "activities"
+    });
+  }
+
+  // ===== Optional — 디테일 정리 ==========================================
+  if (!isArr(c.skills) || c.skills.length < 3) {
+    actions.push({
+      id: "add-skills",
+      category: "optional",
+      title: "기술 스택을 더 추가하세요",
+      description: "3개 이상의 스킬을 적으면 검색·매칭에 유리합니다.",
+      impactPoints: 3,
+      targetSection: "skills"
+    });
+  }
+  if (!isArr(c.certifications) || c.certifications.length === 0) {
+    actions.push({
+      id: "add-certification",
+      category: "optional",
+      title: "자격증을 추가하세요",
+      description: "1개라도 있으면 차별화에 도움됩니다.",
+      impactPoints: 3,
+      targetSection: "certifications"
+    });
+  }
+  if (!trimStr(c.basicPhotoUrl)) {
+    actions.push({
+      id: "add-photo",
+      category: "optional",
+      title: "프로필 사진을 등록하세요",
+      description: "한국 기업은 사진을 본인 확인 신호로 받아들이는 경우가 많습니다.",
+      impactPoints: 2,
+      targetSection: "basics"
+    });
+  }
+
+  // 같은 카테고리 안에서는 impact 점수 큰 순으로 정렬. 카테고리 순서는
+  // required → recommended → optional (UI 에서 그룹별로 사용).
+  const order: Record<ResumeCoachActionCategory, number> = { required: 0, recommended: 1, optional: 2 };
+  actions.sort((a, b) => {
+    if (a.category !== b.category) return order[a.category] - order[b.category];
+    return b.impactPoints - a.impactPoints;
+  });
+  return actions;
+}
+
+// Position matcher — surfaces up to 3 positions. Prefers ones the user has
+// already applied to (with application status). Pads with OPEN positions
+// the user hasn't applied to yet, scored by simple visa/language/location
+// overlap. Replace with embedding-based matching in a later iteration.
+async function fetchResumeCoachPositionMatches(
+  userId: string,
+  content: unknown
+): Promise<ResumeCoachPositionMatch[]> {
+  if (!content || typeof content !== "object") return [];
+  const c = content as Record<string, unknown>;
+  const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+  const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
+
+  // 코치 패널에 "가능한 포지션" 미니 리스트를 보여주려고 좀 더 넓게 잡음
+  // (3 → 6). 카드가 컴팩트해서 늘려도 시각적 부담은 없고, 사용자에게 선택지
+  // 가 많아 보일수록 행동을 유도하기 좋음. UI 가 필요에 따라 자체적으로
+  // 슬라이스 가능.
+  const TARGET = 6;
+  const applied = await prisma.application.findMany({
+    where: { candidateUserId: userId },
+    orderBy: { submittedAt: "desc" },
+    take: TARGET,
+    select: {
+      status: true,
+      position: {
+        select: {
+          id: true,
+          title: true,
+          thumbnailImages: true,
+          eligibleVisas: true,
+          communicationLanguages: true,
+          workLocation: true,
+          partnerOrganization: { select: { name: true } }
+        }
+      }
+    }
+  });
+
+  const userVisa = trimStr(c.basicVisa).toLowerCase();
+  const userResidence = trimStr(c.basicResidence);
+  const userSkills = isArr(c.skills) ? c.skills.map((s) => trimStr(s).toLowerCase()).filter(Boolean) : [];
+  const hasKorean = isArr(c.languages) && c.languages.some((l) => {
+    if (typeof l !== "object" || l === null) return false;
+    const lang = trimStr((l as Record<string, unknown>).language).toLowerCase();
+    return lang.includes("kor") || lang.includes("한국") || lang === "ko";
+  });
+
+  const scoreFor = (pos: {
+    eligibleVisas?: string[];
+    communicationLanguages?: string[];
+    workLocation?: string | null;
+  }): number => {
+    let s = 50;
+    const visas = (pos.eligibleVisas ?? []).map((v) => v.toLowerCase());
+    if (userVisa && visas.length > 0 && visas.some((v) => v.includes(userVisa) || userVisa.includes(v))) s += 10;
+    if (userResidence && pos.workLocation && pos.workLocation.includes(userResidence)) s += 10;
+    const langs = (pos.communicationLanguages ?? []).map((l) => l.toLowerCase());
+    if (hasKorean && langs.some((l) => l.includes("kor") || l.includes("한국") || l === "ko")) s += 15;
+    if (userSkills.length > 0) s += 5;
+    return Math.min(100, s);
+  };
+
+  const appliedItems: ResumeCoachPositionMatch[] = applied
+    .filter((a) => a.position)
+    .map((a) => ({
+      positionId: a.position!.id,
+      title: a.position!.title,
+      organizationName: a.position!.partnerOrganization?.name ?? null,
+      matchScore: scoreFor(a.position!),
+      status: "applied",
+      applicationStatus: a.status,
+      thumbnailUrl: (a.position!.thumbnailImages ?? [])[0] ?? null,
+      workLocation: a.position!.workLocation ?? null
+    }));
+
+  if (appliedItems.length >= TARGET) return appliedItems;
+
+  const padCount = TARGET - appliedItems.length;
+  const open = await prisma.position.findMany({
+    where: {
+      status: "OPEN",
+      NOT: { applications: { some: { candidateUserId: userId } } }
+    },
+    orderBy: { updatedAt: "desc" },
+    take: padCount * 4,
+    select: {
+      id: true,
+      title: true,
+      thumbnailImages: true,
+      eligibleVisas: true,
+      communicationLanguages: true,
+      workLocation: true,
+      partnerOrganization: { select: { name: true } }
+    }
+  });
+  const openItems: ResumeCoachPositionMatch[] = open
+    .map((pos) => ({
+      positionId: pos.id,
+      title: pos.title,
+      organizationName: pos.partnerOrganization?.name ?? null,
+      matchScore: scoreFor(pos),
+      status: "open" as const,
+      applicationStatus: null,
+      thumbnailUrl: (pos.thumbnailImages ?? [])[0] ?? null,
+      workLocation: pos.workLocation ?? null
+    }))
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, padCount);
+
+  return [...appliedItems, ...openItems];
 }
 
 // GET /ops/resumes — operator-facing list of every Resume in the system.

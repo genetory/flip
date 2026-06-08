@@ -1,9 +1,7 @@
-import { redirect } from "next/navigation";
+import { ResumeCoachListPage } from "../../components/pages/ResumeCoachListPage";
 
-// The standalone /resume hub has been folded into the profile page — there's
-// already a "이력서" tab at /profile?tab=resume that lists/manages resumes.
-// We keep this server-side redirect so any external links or bookmarks land
-// on the canonical entry point.
+// 이력서 코칭 진입 화면. GNB "이력서 코칭" 메뉴가 여기로 옴.
+// 비로그인 사용자는 클라이언트 컴포넌트 안에서 /login 으로 게이트.
 export default function Page() {
-  redirect("/profile?tab=resume");
+  return <ResumeCoachListPage />;
 }
