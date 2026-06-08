@@ -453,8 +453,10 @@ export function VisaResultPage({ slug }: { slug: string }) {
   const { isAuthenticated, isReady } = useAuthSession();
   const t = COPY[locale] ?? COPY.ko;
   const apiBase = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000", []);
-  // 소셜 OAuth 완료 후 돌아올 곳. visa 결과 페이지로 그대로.
-  const nextParam = encodeURIComponent(`/events/visa/result/${slug}`);
+  // OAuth/이메일 가입 완료 후 자동으로 이력서 코칭 화면으로 보냄. 비회원이
+  // CTA 를 누르는 의도가 "내 이력서 코칭으로 가서 취업 확률 높이기" 이므로,
+  // 가입 흐름이 끝나면 곧바로 /resume 으로 이어지도록.
+  const nextParam = encodeURIComponent("/resume");
   const [result, setResult] = useState<Result | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
