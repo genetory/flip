@@ -592,6 +592,7 @@ export function ResumeCoachPanel({
                   onApply={() => {}}
                   onShowCip={() => setCipModalOpen(true)}
                   locale={locale}
+                  compact
                 />
               ))}
             </div>
