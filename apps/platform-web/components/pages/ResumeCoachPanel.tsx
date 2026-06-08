@@ -3,18 +3,15 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowRight,
   Eye,
   PencilSimple,
   ShareNetwork,
   Sparkle,
   Trash,
-  Trophy,
   Lightning,
   ChatCircleText,
   CaretRight,
   CheckCircle,
-  WarningCircle,
   X,
   PaperPlaneRight
 } from "@phosphor-icons/react/dist/ssr";
@@ -101,14 +98,6 @@ const CATEGORY_STYLE: Record<ResumeCoachActionCategory, { badge: string; dot: st
   required:    { badge: "bg-red-100 text-red-700",       dot: "bg-red-500" },
   recommended: { badge: "bg-amber-100 text-amber-800",   dot: "bg-amber-500" },
   optional:    { badge: "bg-slate-100 text-slate-700",   dot: "bg-slate-400" }
-};
-
-const APPLICATION_STATUS_LABEL: Record<string, string> = {
-  SUBMITTED: "지원 완료",
-  INTERVIEW: "면접 중",
-  ACCEPTED: "합격",
-  REJECTED: "불합격",
-  WITHDRAWN: "지원 철회"
 };
 
 export function ResumeCoachPanel({
@@ -335,7 +324,7 @@ export function ResumeCoachPanel({
     );
   }
 
-  const { score, actions, matches } = coach;
+  const { score, actions } = coach;
   const levelMeta = LEVEL_META[score.level];
   const levelLabel = tr(levelMeta.label.ko, levelMeta.label.en, levelMeta.label.zh, levelMeta.label.vi, levelMeta.label.ja, levelMeta.label.id);
   // 사용자가 다음에 해야 할 일을 한 줄로. required 액션이 있으면 그걸 우선,
@@ -349,7 +338,6 @@ export function ResumeCoachPanel({
         ? tr(`필수 항목 ${requiredCount}개를 채우면 기업 추천 풀에 진입해요`, `Fill ${requiredCount} required item(s) to enter the partner pool`, `补全 ${requiredCount} 个必填项即可进入企业推荐池`, `Điền ${requiredCount} mục bắt buộc để vào danh sách đề xuất`, `必須項目${requiredCount}件を満たすと推薦プールに入ります`, `Lengkapi ${requiredCount} item wajib untuk masuk pool rekomendasi`)
         : tr("이력서 품질을 조금 더 다듬으면 추천 가능해요", "Polish quality a bit more to be recommendable", "再优化质量即可被推荐", "Cải thiện chất lượng để được đề xuất", "もう少し品質を磨くと推薦可能", "Tingkatkan kualitas agar bisa direkomendasikan")
       : tr("기본 정보부터 채워보세요", "Start with the essentials", "先填好基本信息", "Bắt đầu với thông tin cơ bản", "基本情報から", "Mulai dengan informasi dasar");
-  const hasResults = matches.length > 0;
 
   // 액션을 카테고리로 그룹핑 — UI 에서 섹션 헤더 단위로 보여줌
   const actionsByCategory: Record<ResumeCoachActionCategory, ResumeCoachAction[]> = {
@@ -505,33 +493,37 @@ export function ResumeCoachPanel({
                     </div>
                     <ul className="space-y-2">
                       {items.map((action) => (
-                        <li key={action.id} className="rounded-2xl border border-border bg-background p-4 transition hover:border-foreground/40">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-[13.5px] font-bold">{action.title}</p>
-                            <span className="inline-flex flex-none items-center gap-0.5 rounded-full bg-[#b7ff5a] px-2 py-0.5 text-[10px] font-bold text-[#111]">
-                              +{action.impactPoints}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-[12.5px] text-muted-foreground">{action.description}</p>
-                          <div className="mt-3 flex items-center gap-2">
-                            <Link
-                              href={`/resume/${resumeId}/edit`}
-                              className="inline-flex items-center gap-1 text-[12px] font-semibold text-foreground hover:underline"
-                            >
-                              {tr("편집으로", "Open editor", "打开编辑", "Mở chỉnh sửa", "編集を開く", "Buka editor")}
-                              <CaretRight className="h-3 w-3" weight="bold" />
-                            </Link>
+                        <li key={action.id}>
+                          {/* 카드 전체가 편집 화면 링크. 내부 "AI 추천 보기"
+                              버튼은 e.preventDefault() 로 라우팅 가로채기. */}
+                          <Link
+                            href={`/resume/${resumeId}/edit`}
+                            className="block rounded-2xl border border-border bg-background p-4 transition hover:border-foreground/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-[13.5px] font-bold">{action.title}</p>
+                              <span className="inline-flex flex-none items-center gap-0.5 rounded-full bg-[#b7ff5a] px-2 py-0.5 text-[10px] font-bold text-[#111]">
+                                +{action.impactPoints}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[12.5px] text-muted-foreground">{action.description}</p>
                             {action.llmEligible ? (
-                              <button
-                                type="button"
-                                onClick={() => openSuggestion(action)}
-                                className="inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1 text-[11px] font-semibold text-background hover:opacity-90"
-                              >
-                                <Sparkle className="h-3 w-3" weight="fill" />
-                                {tr("AI 추천 보기", "Get AI suggestion", "获取AI建议", "Gợi ý AI", "AI提案を見る", "Saran AI")}
-                              </button>
+                              <div className="mt-3">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    openSuggestion(action);
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1 text-[11px] font-semibold text-background hover:opacity-90"
+                                >
+                                  <Sparkle className="h-3 w-3" weight="fill" />
+                                  {tr("AI 추천 보기", "Get AI suggestion", "获取AI建议", "Gợi ý AI", "AI提案を見る", "Saran AI")}
+                                </button>
+                              </div>
                             ) : null}
-                          </div>
+                          </Link>
                         </li>
                       ))}
                     </ul>
@@ -542,67 +534,9 @@ export function ResumeCoachPanel({
           )}
         </div>
 
-        {/* Matches */}
-        <div className="rounded-2xl border border-border bg-card p-5 md:p-6">
-          <header className="mb-4 flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-foreground" weight="fill" />
-            <h3 className="font-display text-base font-bold">
-              {tr("포지션 매칭", "Position match", "职位匹配", "Phù hợp vị trí", "ポジションマッチング", "Kecocokan posisi")}
-            </h3>
-          </header>
-          {!hasResults ? (
-            <div className="grid place-items-center gap-3 rounded-2xl bg-muted/40 px-4 py-12 text-center">
-              <WarningCircle className="h-8 w-8 text-amber-500" weight="fill" />
-              <p className="text-sm font-semibold">
-                {tr("아직 매칭할 포지션이 없어요", "No positions to match yet", "尚无可匹配职位", "Chưa có vị trí phù hợp", "マッチするポジションがまだ", "Belum ada posisi yang cocok")}
-              </p>
-              <Link
-                href="/positions"
-                className="inline-flex items-center gap-1 text-[12px] font-semibold text-foreground hover:underline"
-              >
-                {tr("포지션 둘러보기", "Browse positions", "浏览职位", "Xem vị trí", "ポジションを見る", "Lihat posisi")}
-                <ArrowRight className="h-3 w-3" weight="bold" />
-              </Link>
-            </div>
-          ) : (
-            <ul className="space-y-3">
-              {matches.map((m) => (
-                <li key={m.positionId}>
-                  <Link
-                    href={`/positions/${m.positionId}`}
-                    className="block rounded-2xl border border-border bg-background p-4 transition hover:border-foreground/40"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-[13.5px] font-bold">{m.title}</p>
-                        {m.organizationName ? (
-                          <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{m.organizationName}</p>
-                        ) : null}
-                      </div>
-                      <span className="inline-flex flex-none items-baseline gap-0.5 rounded-full bg-foreground/5 px-2.5 py-1">
-                        <span className="text-[13px] font-bold tabular-nums">{m.matchScore}</span>
-                        <span className="text-[10px] text-muted-foreground">/100</span>
-                      </span>
-                    </div>
-                    <div className="mt-2.5 flex items-center justify-between text-[11px]">
-                      <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 ${
-                        m.status === "applied" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
-                      }`}>
-                        {m.status === "applied"
-                          ? (m.applicationStatus ? APPLICATION_STATUS_LABEL[m.applicationStatus] ?? "지원 완료" : "지원 완료")
-                          : tr("추천", "Recommended", "推荐", "Khuyến nghị", "おすすめ", "Direkomendasikan")}
-                      </span>
-                      <span className="inline-flex items-center gap-0.5 text-muted-foreground">
-                        {tr("포지션 보기", "View", "查看", "Xem", "見る", "Lihat")}
-                        <CaretRight className="h-3 w-3" weight="bold" />
-                      </span>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {/* 포지션 매칭 섹션은 룰 기반 정확도가 약해 Phase 1 에서는 노출하지
+            않음. 백엔드 응답에는 여전히 matches 가 포함됨 — Phase 3 에서
+            임베딩 기반 매칭으로 강화해 다시 표시할 예정. */}
       </section>
 
       {/* Chat toggle */}
@@ -711,7 +645,7 @@ export function ResumeCoachPanel({
           }}
         >
           <div
-            className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-elevated"
+            className="relative flex w-full max-w-2xl max-h-[85vh] flex-col rounded-2xl border border-border bg-card shadow-elevated"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -727,19 +661,15 @@ export function ResumeCoachPanel({
             >
               <X className="h-4 w-4" />
             </button>
-            <div className="flex items-center gap-2">
-              <Sparkle className="h-5 w-5 text-foreground" weight="fill" />
-              <h3 className="font-display text-lg font-bold">{suggestionFor.title}</h3>
-            </div>
-            {suggestionBusy ? (
-              <p className="mt-4 text-sm text-muted-foreground">
-                {tr("AI 가 추천을 작성하는 중…", "Generating suggestion…", "AI 正在生成建议…", "Đang tạo gợi ý…", "AIが提案を作成中…", "Sedang membuat saran…")}
-              </p>
-            ) : suggestionError ? (
-              <p className="mt-4 text-sm text-destructive">{suggestionError}</p>
-            ) : suggestion ? (
-              <div className="mt-4 space-y-4">
-                <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11.5px] leading-relaxed text-muted-foreground">
+
+            {/* Header — 타이틀 + 보장 박스 (모달 폭이 좁아져도 항상 보임) */}
+            <header className="flex-none border-b border-border px-6 pb-4 pt-6">
+              <div className="flex items-center gap-2 pr-8">
+                <Sparkle className="h-5 w-5 text-foreground" weight="fill" />
+                <h3 className="font-display text-lg font-bold">{suggestionFor.title}</h3>
+              </div>
+              {suggestion ? (
+                <p className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11.5px] leading-relaxed text-muted-foreground">
                   {tr(
                     "AI 는 기존 이력서에 적힌 사실만 사용해 표현만 다듬어요. 없는 경력·회사·수치는 만들어내지 않아요. 마음에 들지 않으면 적용하지 않아도 됩니다.",
                     "AI rewrites using only what's already in your resume. It doesn't fabricate companies, dates, or metrics. You can skip applying it.",
@@ -749,28 +679,47 @@ export function ResumeCoachPanel({
                     "AI hanya menggunakan fakta yang sudah ada di resume Anda untuk memperhalus, tidak mengarang perusahaan, tanggal, atau angka."
                   )}
                 </p>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{tr("이전", "Before", "之前", "Trước", "現在", "Sebelum")}</p>
-                  <p className="mt-1 whitespace-pre-wrap rounded-xl bg-muted/40 p-3 text-[13px] leading-relaxed text-foreground/80">{suggestion.before}</p>
+              ) : null}
+            </header>
+
+            {/* Body — 본문(Before/After/Why)만 스크롤. min-h-0 가 flex 아이템이
+                실제로 줄어들 수 있게 해줘서 overflow-y-auto 가 동작함. */}
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+              {suggestionBusy ? (
+                <p className="text-sm text-muted-foreground">
+                  {tr("AI 가 추천을 작성하는 중…", "Generating suggestion…", "AI 正在生成建议…", "Đang tạo gợi ý…", "AIが提案を作成中…", "Sedang membuat saran…")}
+                </p>
+              ) : suggestionError ? (
+                <p className="text-sm text-destructive">{suggestionError}</p>
+              ) : suggestion ? (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{tr("이전", "Before", "之前", "Trước", "現在", "Sebelum")}</p>
+                    <p className="mt-1 whitespace-pre-wrap rounded-xl bg-muted/40 p-3 text-[13px] leading-relaxed text-foreground/80">{suggestion.before}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[#1b7a1b]">{tr("이후", "After", "之后", "Sau", "改善案", "Sesudah")}</p>
+                    <p className="mt-1 whitespace-pre-wrap rounded-xl bg-[#b7ff5a]/30 p-3 text-[13px] leading-relaxed">{suggestion.after}</p>
+                  </div>
+                  {suggestion.why ? (
+                    <p className="rounded-xl bg-muted/40 p-3 text-[12.5px] text-muted-foreground">{suggestion.why}</p>
+                  ) : null}
                 </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#1b7a1b]">{tr("이후", "After", "之后", "Sau", "改善案", "Sesudah")}</p>
-                  <p className="mt-1 whitespace-pre-wrap rounded-xl bg-[#b7ff5a]/30 p-3 text-[13px] leading-relaxed">{suggestion.after}</p>
-                </div>
-                {suggestion.why ? (
-                  <p className="rounded-xl bg-muted/40 p-3 text-[12.5px] text-muted-foreground">{suggestion.why}</p>
-                ) : null}
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <Button variant="outline" size="sm" onClick={() => { setSuggestionFor(null); setSuggestion(null); }} disabled={applying}>
-                    {tr("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
-                  </Button>
-                  <Button variant="dark" size="sm" onClick={applySuggestion} disabled={applying}>
-                    {applying
-                      ? tr("적용 중…", "Applying…", "应用中…", "Đang áp dụng…", "適用中…", "Menerapkan…")
-                      : tr("이력서에 적용", "Apply to resume", "应用到简历", "Áp dụng vào hồ sơ", "履歴書に適用", "Terapkan ke resume")}
-                  </Button>
-                </div>
-              </div>
+              ) : null}
+            </div>
+
+            {/* Footer — 버튼 영역. suggestion 결과 있을 때만 노출 */}
+            {suggestion ? (
+              <footer className="flex flex-none items-center justify-end gap-2 border-t border-border px-6 py-3">
+                <Button variant="outline" size="sm" onClick={() => { setSuggestionFor(null); setSuggestion(null); }} disabled={applying}>
+                  {tr("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+                </Button>
+                <Button variant="dark" size="sm" onClick={applySuggestion} disabled={applying}>
+                  {applying
+                    ? tr("적용 중…", "Applying…", "应用中…", "Đang áp dụng…", "適用中…", "Menerapkan…")
+                    : tr("이력서에 적용", "Apply to resume", "应用到简历", "Áp dụng vào hồ sơ", "履歴書に適用", "Terapkan ke resume")}
+                </Button>
+              </footer>
             ) : null}
           </div>
         </div>
