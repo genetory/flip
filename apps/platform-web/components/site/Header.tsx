@@ -67,9 +67,11 @@ export const Header = () => {
     : locale === "ja" ? "履歴書コーチング"
     : locale === "id" ? "Bimbingan Resume"
     : "Resume Coaching";
-  const navItems: { label: string; href: string; external?: boolean }[] = [
+  const navItems: { label: string; href: string; external?: boolean; promoted?: boolean }[] = [
     // 이벤트 — 별도 컨텍스트(사주 캠페인 등)이라 새창으로 분리해서 띄움.
-    { label: eventLabel, href: "/events/saju", external: true },
+    // promoted 플래그가 켜진 항목은 일반 nav 텍스트 대신 라임색 배지 형태로
+    // 노출. 다른 메뉴와 시각적 위계가 달라져 클릭률이 잘 올라감.
+    { label: eventLabel, href: "/events/saju", external: true, promoted: true },
     { label: homeLabel, href: "/" },
     { label: copy.nav.positions, href: "/positions" },
     ...(user?.role === "STUDENT" || !isAuthenticated
@@ -189,9 +191,13 @@ export const Header = () => {
         </Link>
         <nav className="hidden items-center gap-4 lg:flex xl:gap-8">
           {navItems.map((item) => {
-            const cls = `text-xs transition-colors ${
-              isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
-            }`;
+            // promoted 항목은 라임 배지. 배지 자체가 glow-pulse 로 잔잔하게
+            // 반짝거려 평범한 텍스트 nav 들 사이에서 자연스럽게 시선이 감.
+            const cls = item.promoted
+              ? "inline-flex items-center rounded-full bg-[#b7ff5a] px-3 py-1 text-[11px] font-bold text-[#111111] transition hover:bg-[#a3eb43] animate-glow-pulse"
+              : `text-xs transition-colors ${
+                  isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
+                }`;
             if (item.external) {
               // 새창으로 열기 — Next의 Link 대신 평범한 <a target="_blank">.
               return (
@@ -288,9 +294,11 @@ export const Header = () => {
               </div>
             </div>
             {navItems.map((item) => {
-              const mobileCls = `text-base ${
-                isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
-              }`;
+              const mobileCls = item.promoted
+                ? "inline-flex w-fit items-center rounded-full bg-[#b7ff5a] px-3.5 py-1.5 text-sm font-bold text-[#111111] animate-glow-pulse"
+                : `text-base ${
+                    isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
+                  }`;
               if (item.external) {
                 return (
                   <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer" className={mobileCls}>

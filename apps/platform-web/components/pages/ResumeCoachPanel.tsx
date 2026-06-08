@@ -136,6 +136,24 @@ export function ResumeCoachPanel({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // AI 호출 동의 게이트. 사용자가 처음 AI 액션(추천/챗)을 트리거할 때 한 번
+  // 모달로 받아두고 localStorage 에 기록 — 그 다음부터는 묻지 않는다. v1 은
+  // 동의 문구가 바뀔 때 재동의 받기 위한 버저닝.
+  type PendingAiAction = { kind: "suggest"; action: ResumeCoachAction } | { kind: "chat"; draft: string };
+  const CONSENT_KEY = "aply.ai-coach.consent.v1";
+  const [aiConsent, setAiConsent] = useState<boolean>(false);
+  const [consentOpen, setConsentOpen] = useState(false);
+  const [pendingAi, setPendingAi] = useState<PendingAiAction | null>(null);
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined" && window.localStorage.getItem(CONSENT_KEY)) {
+        setAiConsent(true);
+      }
+    } catch {
+      // localStorage 접근 실패 시 안전하게 미동의 상태 유지.
+    }
+  }, []);
+
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<ResumeCoachChatMessage[]>([]);
   const [chatDraft, setChatDraft] = useState("");
@@ -173,6 +191,12 @@ export function ResumeCoachPanel({
 
   async function openSuggestion(action: ResumeCoachAction) {
     if (!action.llmEligible) return;
+    // 외부 LLM 으로 이력서 본문을 전송하기 전에 동의를 받음.
+    if (!aiConsent) {
+      setPendingAi({ kind: "suggest", action });
+      setConsentOpen(true);
+      return;
+    }
     setSuggestionFor(action);
     setSuggestion(null);
     setSuggestionError(null);
@@ -226,6 +250,26 @@ export function ResumeCoachPanel({
     }
   }
 
+  function grantAiConsent() {
+    try {
+      window.localStorage.setItem(CONSENT_KEY, new Date().toISOString());
+    } catch {
+      // localStorage 차단 환경에서는 세션 동안만 동의가 유효.
+    }
+    setAiConsent(true);
+    setConsentOpen(false);
+    const next = pendingAi;
+    setPendingAi(null);
+    // 사용자가 원래 누르려던 액션을 자동 재실행 — 별도 클릭 한 번 더 안
+    // 요구해서 UX 흐름 끊기지 않게.
+    if (next?.kind === "suggest") {
+      // 다음 tick 에서 호출해야 state 가 적용된 뒤 게이트가 통과됨.
+      setTimeout(() => openSuggestion(next.action), 0);
+    } else if (next?.kind === "chat") {
+      setTimeout(() => sendChat(), 0);
+    }
+  }
+
   async function handleDelete() {
     if (deleting) return;
     setDeleting(true);
@@ -244,6 +288,12 @@ export function ResumeCoachPanel({
   async function sendChat() {
     const text = chatDraft.trim();
     if (!text || chatBusy) return;
+    // 챗 첫 메시지 보내기 전에도 동일하게 동의 받음.
+    if (!aiConsent) {
+      setPendingAi({ kind: "chat", draft: text });
+      setConsentOpen(true);
+      return;
+    }
     const nextMessages: ResumeCoachChatMessage[] = [...chatMessages, { role: "user", content: text }];
     setChatMessages(nextMessages);
     setChatDraft("");
@@ -689,6 +739,16 @@ export function ResumeCoachPanel({
               <p className="mt-4 text-sm text-destructive">{suggestionError}</p>
             ) : suggestion ? (
               <div className="mt-4 space-y-4">
+                <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11.5px] leading-relaxed text-muted-foreground">
+                  {tr(
+                    "AI 는 기존 이력서에 적힌 사실만 사용해 표현만 다듬어요. 없는 경력·회사·수치는 만들어내지 않아요. 마음에 들지 않으면 적용하지 않아도 됩니다.",
+                    "AI rewrites using only what's already in your resume. It doesn't fabricate companies, dates, or metrics. You can skip applying it.",
+                    "AI 仅基于您简历中已有的事实进行润色，不会编造公司、日期或数据。可不应用。",
+                    "AI chỉ dùng các thông tin có sẵn trong hồ sơ để diễn đạt lại, không bịa thêm công ty, ngày tháng hay số liệu.",
+                    "AIは履歴書に既にある事実だけを使って表現を整えます。会社・日付・数値の捏造はしません。",
+                    "AI hanya menggunakan fakta yang sudah ada di resume Anda untuk memperhalus, tidak mengarang perusahaan, tanggal, atau angka."
+                  )}
+                </p>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{tr("이전", "Before", "之前", "Trước", "現在", "Sebelum")}</p>
                   <p className="mt-1 whitespace-pre-wrap rounded-xl bg-muted/40 p-3 text-[13px] leading-relaxed text-foreground/80">{suggestion.before}</p>
@@ -764,6 +824,79 @@ export function ResumeCoachPanel({
                 {deleting
                   ? tr("삭제 중…", "Deleting…", "删除中…", "Đang xóa…", "削除中…", "Menghapus…")
                   : tr("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* AI 사용 동의 모달 — 첫 AI 액션 시 한 번만 노출, 이후 localStorage 기반 스킵 */}
+      {consentOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={tr("AI 코치 사용 동의", "AI coach consent", "AI教练使用同意", "Đồng ý sử dụng AI coach", "AIコーチ利用同意", "Persetujuan AI coach")}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          onClick={() => {
+            setConsentOpen(false);
+            setPendingAi(null);
+          }}
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-elevated"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <Sparkle className="h-5 w-5 text-foreground" weight="fill" />
+              <h3 className="font-display text-lg font-bold">
+                {tr("AI 코치를 사용해도 될까요?", "Use AI coach?", "可以使用AI教练吗？", "Sử dụng AI coach?", "AIコーチを使ってもいい？", "Gunakan AI coach?")}
+              </h3>
+            </div>
+            <div className="mt-4 space-y-3 text-[13px] leading-relaxed text-foreground/85">
+              <p>
+                {tr(
+                  "선택하신 항목의 이력서 내용이 분석을 위해 OpenAI 의 GPT 모델로 전송됩니다.",
+                  "Your selected resume text will be sent to OpenAI's GPT model for analysis.",
+                  "您所选项目的简历内容将发送至 OpenAI GPT 模型进行分析。",
+                  "Nội dung hồ sơ bạn chọn sẽ được gửi đến mô hình GPT của OpenAI để phân tích.",
+                  "選択した履歴書のテキストは分析のためOpenAIのGPTモデルに送信されます。",
+                  "Konten resume yang Anda pilih akan dikirim ke model GPT OpenAI untuk dianalisis."
+                )}
+              </p>
+              <p>
+                {tr(
+                  "AI 는 원문에 적힌 사실만 활용하고, 없는 경력·수치·회사를 만들어내지 않습니다. 결과를 적용할지는 매번 본인이 선택합니다.",
+                  "The AI uses only what's already in your resume — no fabricated jobs, numbers, or companies. You decide every time whether to apply a suggestion.",
+                  "AI 仅基于您简历中的事实，不会编造经历、数据或公司。是否应用建议每次由您决定。",
+                  "AI chỉ dùng thông tin đã có trong hồ sơ — không bịa kinh nghiệm, số liệu hay công ty. Bạn quyết định mỗi lần có áp dụng gợi ý hay không.",
+                  "AIは履歴書にある事実だけを使い、経歴・数値・会社名を捏造しません。提案を適用するかは毎回ご自身で決めます。",
+                  "AI hanya menggunakan info yang sudah ada di resume — tidak mengarang pengalaman, angka, atau perusahaan. Anda yang memutuskan setiap kali apakah menerapkan saran."
+                )}
+              </p>
+              <p className="text-[12px] text-muted-foreground">
+                {tr(
+                  "동의는 이 디바이스에서 한 번만 기록됩니다.",
+                  "Consent is stored once on this device.",
+                  "同意仅在此设备记录一次。",
+                  "Sự đồng ý chỉ được lưu một lần trên thiết bị này.",
+                  "同意はこの端末で一度だけ記録されます。",
+                  "Persetujuan disimpan sekali di perangkat ini."
+                )}
+              </p>
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setConsentOpen(false);
+                  setPendingAi(null);
+                }}
+              >
+                {tr("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
+              </Button>
+              <Button variant="dark" size="sm" onClick={grantAiConsent}>
+                {tr("동의하고 계속", "Agree and continue", "同意并继续", "Đồng ý và tiếp tục", "同意して続ける", "Setuju dan lanjut")}
               </Button>
             </div>
           </div>
