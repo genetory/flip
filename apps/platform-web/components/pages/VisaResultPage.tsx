@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ShareNetwork, Copy as CopyIcon, ArrowClockwise } from "@phosphor-icons/react/dist/ssr";
+import { ShareNetwork, Copy as CopyIcon, ArrowClockwise, CheckCircle } from "@phosphor-icons/react/dist/ssr";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
+import { postVisaLead } from "../../lib/visa-client";
 
 // ---------------------------------------------------------------------------
-// /events/visa/result/[slug] — VisaLandingPage 에서 진단한 결과를 보여주는
-// 공유 페이지. 6개 로케일 지원, native share API + 클립보드 복사.
-// 회원가입 퍼널(visa 맞춤 필드 + 소셜 로그인) 은 다음 단계에서 추가 예정.
+// /events/visa/result/[slug] — 진단 결과 + 회원가입 퍼널 + viral share.
+// 흐름: result → form → done (saju 패턴) + 결과 카드 우상단 / 하단에 share.
 // ---------------------------------------------------------------------------
 
 type Fit = "high" | "medium" | "low";
@@ -55,7 +55,33 @@ type Copy = {
   hikoreaSuffix: string;
   positionsTitle: string;
   positionsEmpty: string;
+  // funnel
+  funnelOpenCta: string;
+  funnelTitle: string;
+  funnelIntro: string;
+  funnelNameLabel: string;
+  funnelNamePlaceholder: string;
+  funnelContactLabel: string;
+  funnelContactPlaceholderEmail: string;
+  funnelContactPlaceholderPhone: string;
+  funnelChannelEmail: string;
+  funnelChannelPhone: string;
+  funnelJoinDateLabel: string;
+  funnelJoinDatePlaceholder: string;
+  funnelGradDateLabel: string;
+  funnelGradDatePlaceholder: string;
+  funnelRoleLabel: string;
+  funnelRolePlaceholder: string;
+  funnelConsentLabel: string;
+  funnelSubmit: string;
+  funnelSubmitting: string;
+  funnelErrContact: string;
+  funnelErrConsent: string;
+  funnelErrRetry: string;
+  doneTitle: string;
+  doneBody: string;
   signupCta: string;
+  // share
   shareTitle: string;
   shareText: string;
   shareBtn: string;
@@ -79,7 +105,31 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " 또는 출입국·외국인청에 확인하세요.",
     positionsTitle: "최근 채용 공고",
     positionsEmpty: "매칭되는 공고가 없어요. 가입하면 새 공고가 올라올 때 자동으로 알려드립니다.",
-    signupCta: "Aply 가입하고 비자 후원 가능한 회사 추천받기 →",
+    funnelOpenCta: "비자 후원 가능한 회사 추천받기 →",
+    funnelTitle: "추가 정보 입력하고 맞춤 추천 받기",
+    funnelIntro: "Aply 운영팀이 회원님에게 맞는 회사를 직접 매칭해 드려요. (1분)",
+    funnelNameLabel: "이름",
+    funnelNamePlaceholder: "홍길동",
+    funnelContactLabel: "연락 방법",
+    funnelContactPlaceholderEmail: "you@example.com",
+    funnelContactPlaceholderPhone: "010-1234-5678",
+    funnelChannelEmail: "이메일",
+    funnelChannelPhone: "전화",
+    funnelJoinDateLabel: "희망 입사 시기 (선택)",
+    funnelJoinDatePlaceholder: "예: 2025-09",
+    funnelGradDateLabel: "졸업 (예정) 시기 (선택)",
+    funnelGradDatePlaceholder: "예: 2025-02",
+    funnelRoleLabel: "희망 직무 (선택)",
+    funnelRolePlaceholder: "예: 소프트웨어 엔지니어",
+    funnelConsentLabel: "Aply 가 입력 정보를 활용해 비자·채용 추천을 보내는 것에 동의합니다.",
+    funnelSubmit: "추천 신청하기",
+    funnelSubmitting: "전송 중...",
+    funnelErrContact: "연락처를 입력해 주세요.",
+    funnelErrConsent: "추천을 받으려면 동의가 필요합니다.",
+    funnelErrRetry: "잠시 후 다시 시도해 주세요.",
+    doneTitle: "신청이 완료됐어요",
+    doneBody: "곧 운영팀이 맞춤 공고를 정리해 보내드립니다. Aply 회원이 되면 알림과 이력서 코칭도 함께 받을 수 있어요.",
+    signupCta: "Aply 회원가입하기 →",
     shareTitle: "내 한국 비자 진단 결과",
     shareText: "Aply 에서 한국 취업 비자 가능성을 진단해봤어요. 너도 확인해봐!",
     shareBtn: "공유하기",
@@ -101,7 +151,31 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " or your local immigration office.",
     positionsTitle: "Recent jobs",
     positionsEmpty: "No matches right now. Sign up and we'll notify you when new ones open.",
-    signupCta: "Sign up on Aply for visa-sponsoring companies →",
+    funnelOpenCta: "Get visa-sponsoring company picks →",
+    funnelTitle: "Tell us a bit more for personalized picks",
+    funnelIntro: "Aply's team will hand-match companies to your profile. (1 minute)",
+    funnelNameLabel: "Name",
+    funnelNamePlaceholder: "Your name",
+    funnelContactLabel: "Contact",
+    funnelContactPlaceholderEmail: "you@example.com",
+    funnelContactPlaceholderPhone: "+82 10-1234-5678",
+    funnelChannelEmail: "Email",
+    funnelChannelPhone: "Phone",
+    funnelJoinDateLabel: "Target join date (optional)",
+    funnelJoinDatePlaceholder: "e.g. 2025-09",
+    funnelGradDateLabel: "Graduation date (optional)",
+    funnelGradDatePlaceholder: "e.g. 2025-02",
+    funnelRoleLabel: "Target role (optional)",
+    funnelRolePlaceholder: "e.g. Software engineer",
+    funnelConsentLabel: "I agree to receive visa/job recommendations from Aply based on what I shared.",
+    funnelSubmit: "Submit",
+    funnelSubmitting: "Sending...",
+    funnelErrContact: "Please enter your contact.",
+    funnelErrConsent: "Please consent to receive recommendations.",
+    funnelErrRetry: "Something went wrong — please try again.",
+    doneTitle: "All set!",
+    doneBody: "Our team will follow up shortly with a curated list. Sign up to also get alerts and resume coaching.",
+    signupCta: "Sign up on Aply →",
     shareTitle: "My Korean work visa check",
     shareText: "I checked my Korean work visa options on Aply. Try yours too!",
     shareBtn: "Share",
@@ -123,7 +197,31 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " 或当地出入境部门。",
     positionsTitle: "最近职位",
     positionsEmpty: "目前无匹配职位。注册后有新职位将自动通知您。",
-    signupCta: "注册 Aply 获取支持签证赞助的公司推荐 →",
+    funnelOpenCta: "获取支持签证赞助的公司推荐 →",
+    funnelTitle: "再填一点点，获得专属推荐",
+    funnelIntro: "Aply 运营团队将为您手动匹配公司。（1分钟）",
+    funnelNameLabel: "姓名",
+    funnelNamePlaceholder: "您的姓名",
+    funnelContactLabel: "联系方式",
+    funnelContactPlaceholderEmail: "you@example.com",
+    funnelContactPlaceholderPhone: "+82 10-1234-5678",
+    funnelChannelEmail: "邮箱",
+    funnelChannelPhone: "电话",
+    funnelJoinDateLabel: "希望入职时间（可选）",
+    funnelJoinDatePlaceholder: "如: 2025-09",
+    funnelGradDateLabel: "毕业时间（可选）",
+    funnelGradDatePlaceholder: "如: 2025-02",
+    funnelRoleLabel: "目标职位（可选）",
+    funnelRolePlaceholder: "如: 软件工程师",
+    funnelConsentLabel: "我同意 Aply 根据所填信息发送签证/职位推荐。",
+    funnelSubmit: "提交",
+    funnelSubmitting: "发送中...",
+    funnelErrContact: "请填写联系方式。",
+    funnelErrConsent: "请同意接收推荐。",
+    funnelErrRetry: "出错了，请稍后重试。",
+    doneTitle: "已完成！",
+    doneBody: "我们的团队稍后会发送精选职位。注册后还能收到通知和简历辅导。",
+    signupCta: "注册 Aply →",
     shareTitle: "我的韩国工作签证检查结果",
     shareText: "我在 Aply 上检查了我的韩国工作签证可能性，你也来试试！",
     shareBtn: "分享",
@@ -145,7 +243,31 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " hoặc văn phòng xuất nhập cảnh địa phương.",
     positionsTitle: "Việc làm gần đây",
     positionsEmpty: "Chưa có việc phù hợp. Đăng ký để được thông báo khi có việc mới.",
-    signupCta: "Đăng ký Aply để xem công ty bảo trợ visa →",
+    funnelOpenCta: "Nhận đề xuất công ty bảo trợ visa →",
+    funnelTitle: "Thêm một chút thông tin để nhận đề xuất riêng",
+    funnelIntro: "Đội Aply sẽ tự tay ghép bạn với công ty phù hợp. (1 phút)",
+    funnelNameLabel: "Tên",
+    funnelNamePlaceholder: "Tên của bạn",
+    funnelContactLabel: "Liên hệ",
+    funnelContactPlaceholderEmail: "you@example.com",
+    funnelContactPlaceholderPhone: "+84 9xxx",
+    funnelChannelEmail: "Email",
+    funnelChannelPhone: "Điện thoại",
+    funnelJoinDateLabel: "Thời gian mong muốn vào làm (tùy chọn)",
+    funnelJoinDatePlaceholder: "Vd: 2025-09",
+    funnelGradDateLabel: "Thời gian tốt nghiệp (tùy chọn)",
+    funnelGradDatePlaceholder: "Vd: 2025-02",
+    funnelRoleLabel: "Vị trí mong muốn (tùy chọn)",
+    funnelRolePlaceholder: "Vd: Kỹ sư phần mềm",
+    funnelConsentLabel: "Tôi đồng ý cho Aply gửi đề xuất visa/việc làm dựa trên thông tin tôi cung cấp.",
+    funnelSubmit: "Gửi",
+    funnelSubmitting: "Đang gửi...",
+    funnelErrContact: "Vui lòng nhập liên hệ.",
+    funnelErrConsent: "Hãy đồng ý để nhận đề xuất.",
+    funnelErrRetry: "Có lỗi xảy ra, vui lòng thử lại.",
+    doneTitle: "Đã gửi!",
+    doneBody: "Đội ngũ Aply sẽ liên hệ với danh sách phù hợp. Đăng ký để nhận thông báo và tư vấn hồ sơ.",
+    signupCta: "Đăng ký Aply →",
     shareTitle: "Kết quả kiểm tra visa Hàn Quốc của tôi",
     shareText: "Tôi đã kiểm tra khả năng visa làm việc Hàn Quốc trên Aply. Bạn cũng thử nhé!",
     shareBtn: "Chia sẻ",
@@ -167,7 +289,31 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " または出入国・外国人庁にご確認ください。",
     positionsTitle: "最新の求人",
     positionsEmpty: "現在マッチする求人はありません。登録すると新着求人を自動でお知らせします。",
-    signupCta: "Aplyに登録してビザ支援可能な会社の推薦を受ける →",
+    funnelOpenCta: "ビザ支援可能な会社の推薦を受ける →",
+    funnelTitle: "少し追加情報を入れて、カスタム推薦を受け取る",
+    funnelIntro: "Aply運営チームがあなたに合う会社を直接マッチングします。（1分）",
+    funnelNameLabel: "名前",
+    funnelNamePlaceholder: "お名前",
+    funnelContactLabel: "連絡方法",
+    funnelContactPlaceholderEmail: "you@example.com",
+    funnelContactPlaceholderPhone: "+81 90...",
+    funnelChannelEmail: "メール",
+    funnelChannelPhone: "電話",
+    funnelJoinDateLabel: "希望入社時期（任意）",
+    funnelJoinDatePlaceholder: "例: 2025-09",
+    funnelGradDateLabel: "卒業時期（任意）",
+    funnelGradDatePlaceholder: "例: 2025-02",
+    funnelRoleLabel: "希望職種（任意）",
+    funnelRolePlaceholder: "例: ソフトウェアエンジニア",
+    funnelConsentLabel: "入力情報を基にビザ・求人推薦を受け取ることに同意します。",
+    funnelSubmit: "送信",
+    funnelSubmitting: "送信中...",
+    funnelErrContact: "連絡先を入力してください。",
+    funnelErrConsent: "推薦を受け取るには同意が必要です。",
+    funnelErrRetry: "しばらくしてから再度お試しください。",
+    doneTitle: "送信完了！",
+    doneBody: "運営チームが厳選した求人をお送りします。会員登録するとアラートと履歴書コーチングも受け取れます。",
+    signupCta: "Aplyに登録 →",
     shareTitle: "私の韓国就労ビザ診断結果",
     shareText: "Aplyで韓国就労ビザの可能性を診断しました。あなたも試してみて！",
     shareBtn: "シェア",
@@ -189,7 +335,31 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " atau kantor imigrasi setempat.",
     positionsTitle: "Lowongan terbaru",
     positionsEmpty: "Belum ada yang cocok. Daftar dan kami akan beri tahu saat ada baru.",
-    signupCta: "Daftar di Aply untuk perusahaan pendukung visa →",
+    funnelOpenCta: "Dapatkan rekomendasi perusahaan pendukung visa →",
+    funnelTitle: "Lengkapi sedikit info untuk rekomendasi pribadi",
+    funnelIntro: "Tim Aply akan mencocokkan perusahaan dengan profil Anda. (1 menit)",
+    funnelNameLabel: "Nama",
+    funnelNamePlaceholder: "Nama Anda",
+    funnelContactLabel: "Kontak",
+    funnelContactPlaceholderEmail: "you@example.com",
+    funnelContactPlaceholderPhone: "+62 812 xxx",
+    funnelChannelEmail: "Email",
+    funnelChannelPhone: "Telepon",
+    funnelJoinDateLabel: "Target waktu masuk kerja (opsional)",
+    funnelJoinDatePlaceholder: "Cth: 2025-09",
+    funnelGradDateLabel: "Waktu lulus (opsional)",
+    funnelGradDatePlaceholder: "Cth: 2025-02",
+    funnelRoleLabel: "Posisi yang dituju (opsional)",
+    funnelRolePlaceholder: "Cth: Software engineer",
+    funnelConsentLabel: "Saya setuju Aply mengirim rekomendasi visa/pekerjaan berdasarkan info yang saya berikan.",
+    funnelSubmit: "Kirim",
+    funnelSubmitting: "Mengirim...",
+    funnelErrContact: "Mohon isi kontak.",
+    funnelErrConsent: "Mohon setuju untuk menerima rekomendasi.",
+    funnelErrRetry: "Terjadi kesalahan, silakan coba lagi.",
+    doneTitle: "Selesai!",
+    doneBody: "Tim kami akan mengirim daftar terkurasi. Daftar untuk dapatkan notifikasi dan coaching resume.",
+    signupCta: "Daftar di Aply →",
     shareTitle: "Hasil cek visa kerja Korea saya",
     shareText: "Saya cek opsi visa kerja Korea di Aply. Coba kamu juga!",
     shareBtn: "Bagikan",
@@ -211,6 +381,8 @@ const FIT_CLS: Record<Fit, string> = {
   low: "border-zinc-300 bg-zinc-50 text-zinc-600"
 };
 
+type FunnelStep = "result" | "form" | "done";
+
 export function VisaResultPage({ slug }: { slug: string }) {
   const { locale } = useLanguage();
   const t = COPY[locale] ?? COPY.ko;
@@ -220,6 +392,18 @@ export function VisaResultPage({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Funnel state
+  const [step, setStep] = useState<FunnelStep>("result");
+  const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
+  const [contactType, setContactType] = useState<"email" | "phone">("email");
+  const [expectedJoinDate, setExpectedJoinDate] = useState("");
+  const [graduationDate, setGraduationDate] = useState("");
+  const [preferredJobRole, setPreferredJobRole] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,6 +416,9 @@ export function VisaResultPage({ slug }: { slug: string }) {
         if (!payload.ok || !payload.result) throw new Error(t.notFound);
         setResult(payload.result);
         setPositions(payload.positions ?? []);
+        // 결과의 이름이 있으면 funnel 의 이름 필드에 미리 채워둠.
+        if (payload.result.name) setName(payload.result.name);
+        if (payload.result.targetRole) setPreferredJobRole(payload.result.targetRole);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : t.notFound);
       } finally {
@@ -241,12 +428,9 @@ export function VisaResultPage({ slug }: { slug: string }) {
     return () => {
       cancelled = true;
     };
-    // locale 변동 시 다시 fetch 할 필요는 없음 — 결과 자체는 언어 무관.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiBase, slug]);
 
-  // 모바일에서는 native share, 데스크탑에선 클립보드 복사. 둘 다 실패하면
-  // 최소한의 fallback 으로 토스트만 띄움.
   async function share() {
     if (typeof window === "undefined") return;
     const url = `${window.location.origin}/events/visa/result/${slug}`;
@@ -256,7 +440,7 @@ export function VisaResultPage({ slug }: { slug: string }) {
         await navAny.share({ title: t.shareTitle, text: t.shareText, url });
         return;
       } catch {
-        // 사용자가 share 다이얼로그를 닫은 경우. 그냥 fall-through.
+        // fall through
       }
     }
     try {
@@ -264,7 +448,43 @@ export function VisaResultPage({ slug }: { slug: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // 클립보드도 안 되면 그냥 무시.
+      // ignore
+    }
+  }
+
+  async function submitFunnel() {
+    if (!result) return;
+    if (!contact.trim()) {
+      setFormError(t.funnelErrContact);
+      return;
+    }
+    if (!consent) {
+      setFormError(t.funnelErrConsent);
+      return;
+    }
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await postVisaLead({
+        shareSlug: slug,
+        name: name.trim() || undefined,
+        contact: contact.trim(),
+        contactType,
+        expectedJoinDate: expectedJoinDate.trim() || undefined,
+        graduationDate: graduationDate.trim() || undefined,
+        preferredJobRole: preferredJobRole.trim() || undefined,
+        nationality: result.nationality,
+        currentVisa: result.currentVisa ?? undefined,
+        koreanLevel: result.koreanLevel,
+        consentCareer: true,
+        consentRecommend: true,
+        consentContact: true,
+        locale
+      });
+      setStep("done");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : t.funnelErrRetry);
+      setSubmitting(false);
     }
   }
 
@@ -298,7 +518,6 @@ export function VisaResultPage({ slug }: { slug: string }) {
                 </p>
               </section>
 
-              {/* Disclaimer */}
               <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
                 ⚠️ {t.disclaimer}
                 <a href="https://www.hikorea.go.kr" target="_blank" rel="noopener noreferrer" className="underline font-semibold">
@@ -307,7 +526,6 @@ export function VisaResultPage({ slug }: { slug: string }) {
                 {t.hikoreaSuffix}
               </section>
 
-              {/* Eligible visas */}
               <section className="space-y-3">
                 {result.eligibleVisas.map((v) => (
                   <article key={v.code} className="rounded-2xl bg-white p-5 md:p-6">
@@ -338,7 +556,6 @@ export function VisaResultPage({ slug }: { slug: string }) {
                 ))}
               </section>
 
-              {/* Recommended positions */}
               <section className="rounded-2xl bg-white p-5 md:p-6">
                 <h2 className="text-sm font-semibold text-muted-foreground">{t.positionsTitle}</h2>
                 {positions.length === 0 ? (
@@ -361,14 +578,151 @@ export function VisaResultPage({ slug }: { slug: string }) {
                 )}
               </section>
 
-              {/* CTAs */}
-              <section className="rounded-2xl bg-white p-5 md:p-6 space-y-3">
-                <Link
-                  href="/signup"
-                  className="block w-full h-12 leading-[3rem] text-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
-                >
-                  {t.signupCta}
-                </Link>
+              {/* ============================================================
+                  Funnel — result → form → done
+                  ============================================================ */}
+              {step === "result" ? (
+                <section className="rounded-2xl bg-white p-5 md:p-6">
+                  <button
+                    type="button"
+                    onClick={() => setStep("form")}
+                    className="block w-full h-12 leading-[3rem] text-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
+                  >
+                    {t.funnelOpenCta}
+                  </button>
+                </section>
+              ) : step === "form" ? (
+                <section className="rounded-2xl bg-white p-5 md:p-6 space-y-5">
+                  <div className="space-y-1">
+                    <p className="font-display text-lg font-bold tracking-tight">{t.funnelTitle}</p>
+                    <p className="text-xs text-muted-foreground">{t.funnelIntro}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground" htmlFor="visa-funnel-name">
+                      {t.funnelNameLabel}
+                    </label>
+                    <input
+                      id="visa-funnel-name"
+                      className="mt-1 h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      maxLength={80}
+                      placeholder={t.funnelNamePlaceholder}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground">
+                      {t.funnelContactLabel} *
+                    </label>
+                    <div className="mt-1 grid grid-cols-2 gap-2">
+                      {(["email", "phone"] as const).map((c) => {
+                        const active = contactType === c;
+                        return (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setContactType(c)}
+                            className={`h-10 rounded-xl border text-xs font-semibold ${
+                              active ? "border-primary bg-primary/5 text-primary" : "border-border/60 bg-muted/30"
+                            }`}
+                          >
+                            {c === "email" ? t.funnelChannelEmail : t.funnelChannelPhone}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <input
+                      type={contactType === "email" ? "email" : "tel"}
+                      className="mt-2 h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      value={contact}
+                      onChange={(e) => setContact(e.target.value)}
+                      maxLength={120}
+                      placeholder={contactType === "email" ? t.funnelContactPlaceholderEmail : t.funnelContactPlaceholderPhone}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground" htmlFor="visa-funnel-join">
+                        {t.funnelJoinDateLabel}
+                      </label>
+                      <input
+                        id="visa-funnel-join"
+                        className="mt-1 h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={expectedJoinDate}
+                        onChange={(e) => setExpectedJoinDate(e.target.value)}
+                        maxLength={20}
+                        placeholder={t.funnelJoinDatePlaceholder}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground" htmlFor="visa-funnel-grad">
+                        {t.funnelGradDateLabel}
+                      </label>
+                      <input
+                        id="visa-funnel-grad"
+                        className="mt-1 h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={graduationDate}
+                        onChange={(e) => setGraduationDate(e.target.value)}
+                        maxLength={20}
+                        placeholder={t.funnelGradDatePlaceholder}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground" htmlFor="visa-funnel-role">
+                      {t.funnelRoleLabel}
+                    </label>
+                    <input
+                      id="visa-funnel-role"
+                      className="mt-1 h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      value={preferredJobRole}
+                      onChange={(e) => setPreferredJobRole(e.target.value)}
+                      maxLength={120}
+                      placeholder={t.funnelRolePlaceholder}
+                    />
+                  </div>
+
+                  <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={consent}
+                      onChange={(e) => setConsent(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 flex-none rounded border-border accent-primary"
+                    />
+                    <span>{t.funnelConsentLabel}</span>
+                  </label>
+
+                  {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
+
+                  <button
+                    type="button"
+                    onClick={() => void submitFunnel()}
+                    disabled={submitting}
+                    className="w-full h-12 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
+                  >
+                    {submitting ? t.funnelSubmitting : t.funnelSubmit}
+                  </button>
+                </section>
+              ) : (
+                <section className="rounded-2xl bg-white p-6 md:p-8 text-center">
+                  <CheckCircle className="mx-auto h-12 w-12 text-emerald-500" weight="fill" />
+                  <p className="mt-3 font-display text-xl font-bold tracking-tight">{t.doneTitle}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{t.doneBody}</p>
+                  <Link
+                    href="/signup"
+                    className="mt-5 block w-full h-12 leading-[3rem] text-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
+                  >
+                    {t.signupCta}
+                  </Link>
+                </section>
+              )}
+
+              {/* Share actions */}
+              <section className="rounded-2xl bg-white p-5 md:p-6">
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
