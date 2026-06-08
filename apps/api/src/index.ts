@@ -10913,7 +10913,11 @@ app.get("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT]),
       score: calcResumeScores(row.content)
     }));
     return res.json({ ok: true, items });
-  } catch {
+  } catch (err) {
+    // 실제 원인이 묻히지 않도록 stderr 로 흘려 보냄. Prisma 의 컬럼 누락
+    // (translations 추가 후 마이그레이션 미실행 등) 같은 흔한 케이스를
+    // 콘솔에서 즉시 확인할 수 있어야 함.
+    console.error("[GET /members/me/resumes] failed", err);
     return res.status(500).json({ ok: false, message: "failed to list resumes" });
   }
 });
@@ -17623,6 +17627,8 @@ type ResumeCoachPositionMatch = {
   matchScore: number;
   status: "applied" | "open";
   applicationStatus: string | null;
+  thumbnailUrl: string | null;
+  workLocation: string | null;
 };
 
 const RESUME_QUALITY_WEIGHTS: Record<keyof ResumeQualityDimensions, number> = {
@@ -18017,7 +18023,11 @@ async function fetchResumeCoachPositionMatches(
   const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
   const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
 
-  const TARGET = 3;
+  // 코치 패널에 "가능한 포지션" 미니 리스트를 보여주려고 좀 더 넓게 잡음
+  // (3 → 6). 카드가 컴팩트해서 늘려도 시각적 부담은 없고, 사용자에게 선택지
+  // 가 많아 보일수록 행동을 유도하기 좋음. UI 가 필요에 따라 자체적으로
+  // 슬라이스 가능.
+  const TARGET = 6;
   const applied = await prisma.application.findMany({
     where: { candidateUserId: userId },
     orderBy: { submittedAt: "desc" },
@@ -18028,6 +18038,7 @@ async function fetchResumeCoachPositionMatches(
         select: {
           id: true,
           title: true,
+          thumbnailImages: true,
           eligibleVisas: true,
           communicationLanguages: true,
           workLocation: true,
@@ -18069,7 +18080,9 @@ async function fetchResumeCoachPositionMatches(
       organizationName: a.position!.partnerOrganization?.name ?? null,
       matchScore: scoreFor(a.position!),
       status: "applied",
-      applicationStatus: a.status
+      applicationStatus: a.status,
+      thumbnailUrl: (a.position!.thumbnailImages ?? [])[0] ?? null,
+      workLocation: a.position!.workLocation ?? null
     }));
 
   if (appliedItems.length >= TARGET) return appliedItems;
@@ -18085,6 +18098,7 @@ async function fetchResumeCoachPositionMatches(
     select: {
       id: true,
       title: true,
+      thumbnailImages: true,
       eligibleVisas: true,
       communicationLanguages: true,
       workLocation: true,
@@ -18098,7 +18112,9 @@ async function fetchResumeCoachPositionMatches(
       organizationName: pos.partnerOrganization?.name ?? null,
       matchScore: scoreFor(pos),
       status: "open" as const,
-      applicationStatus: null
+      applicationStatus: null,
+      thumbnailUrl: (pos.thumbnailImages ?? [])[0] ?? null,
+      workLocation: pos.workLocation ?? null
     }))
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, padCount);

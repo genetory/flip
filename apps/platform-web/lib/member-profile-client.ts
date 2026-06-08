@@ -1565,6 +1565,8 @@ export type ResumeCoachPositionMatch = {
   matchScore: number;
   status: "applied" | "open";
   applicationStatus: string | null;
+  thumbnailUrl: string | null;
+  workLocation: string | null;
 };
 
 export type ResumeCoachData = {

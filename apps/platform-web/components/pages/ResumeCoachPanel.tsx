@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
+  Briefcase,
   Eye,
   PencilSimple,
   ShareNetwork,
@@ -31,6 +32,7 @@ import {
   type ResumeCoachActionCategory,
   type ResumeCoachChatMessage,
   type ResumeCoachData,
+  type ResumeCoachPositionMatch,
   type ResumeCoachSuggestion,
   type ResumeQualityDimensions,
   type ResumeReadinessDimensions,
@@ -324,7 +326,7 @@ export function ResumeCoachPanel({
     );
   }
 
-  const { score, actions } = coach;
+  const { score, actions, matches } = coach;
   const levelMeta = LEVEL_META[score.level];
   const levelLabel = tr(levelMeta.label.ko, levelMeta.label.en, levelMeta.label.zh, levelMeta.label.vi, levelMeta.label.ja, levelMeta.label.id);
   // 사용자가 다음에 해야 할 일을 한 줄로. required 액션이 있으면 그걸 우선,
@@ -534,26 +536,49 @@ export function ResumeCoachPanel({
           )}
         </div>
 
-        {/* 포지션 매칭 섹션은 룰 기반 정확도가 약해 Phase 1 에서는 노출하지
-            않음. 백엔드 응답에는 여전히 matches 가 포함됨 — Phase 3 에서
-            임베딩 기반 매칭으로 강화해 다시 표시할 예정. */}
+        {/* 가능한 포지션 — 매칭 점수는 가리고, 포지션 탐색 카드와 닮은 컴팩트
+            행을 5–6개 보여줌. 사용자에게 다음 행동(둘러보기→지원) 으로 자연
+            스럽게 연결. "모두 보기" → /positions. */}
+        {matches.length > 0 ? (
+          <div className="rounded-2xl border border-border bg-card p-5 md:p-6">
+            <header className="mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Briefcase className="h-5 w-5 text-foreground" weight="fill" />
+                <h3 className="font-display text-base font-bold">
+                  {tr("가능한 포지션", "Open for you", "可申请职位", "Vị trí phù hợp", "応募可能ポジション", "Posisi yang sesuai")}
+                </h3>
+              </div>
+              <Link href="/positions" className="inline-flex items-center gap-0.5 text-[12px] font-semibold text-muted-foreground hover:text-foreground">
+                {tr("모두 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}
+                <CaretRight className="h-3 w-3" weight="bold" />
+              </Link>
+            </header>
+            <ul className="space-y-2">
+              {matches.map((m) => (
+                <PositionMiniCard key={m.positionId} m={m} tr={tr} />
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
 
       {/* Chat toggle */}
       <section className="mt-5">
+        {/* 챗 카드 — 다른 섹션 카드들 사이에서 너무 두드러지지 않도록 라운드를
+            줄이고 배경·아이콘 채도를 낮춰 보조 액션으로 위계 조정. */}
         <button
           type="button"
           onClick={() => setChatOpen((v) => !v)}
-          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 text-left transition hover:border-foreground/40"
+          className="flex w-full items-center gap-3 rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-left transition hover:bg-muted/50"
         >
-          <span className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-full bg-foreground text-background">
-            <ChatCircleText className="h-5 w-5" weight="fill" />
+          <span className="inline-flex h-8 w-8 flex-none items-center justify-center rounded-full bg-foreground/10 text-foreground/70">
+            <ChatCircleText className="h-4 w-4" weight="bold" />
           </span>
           <span className="flex-1">
-            <span className="block font-display text-sm font-bold">
+            <span className="block text-[12.5px] font-semibold text-foreground/80">
               {tr("AI 코치에게 물어보세요", "Ask the AI coach", "向AI教练提问", "Hỏi huấn luyện viên AI", "AIコーチに質問", "Tanya pelatih AI")}
             </span>
-            <span className="block text-[12px] text-muted-foreground">
+            <span className="block text-[11.5px] text-muted-foreground">
               {tr(
                 '예: "내 자기소개를 한국 IT 기업 톤으로 바꿔줘"',
                 'e.g. "Rewrite my self-intro in a Korean IT company tone"',
@@ -564,7 +589,7 @@ export function ResumeCoachPanel({
               )}
             </span>
           </span>
-          <CaretRight className={`h-4 w-4 flex-none transition ${chatOpen ? "rotate-90" : ""}`} weight="bold" />
+          <CaretRight className={`h-3.5 w-3.5 flex-none text-muted-foreground transition ${chatOpen ? "rotate-90" : ""}`} weight="bold" />
         </button>
 
         {chatOpen ? (
@@ -852,5 +877,49 @@ export function ResumeCoachPanel({
         </div>
       ) : null}
     </>
+  );
+}
+
+// 포지션 탐색의 카드와 닮은 컴팩트 행. 매칭 점수는 가리고 썸네일 + 제목 +
+// 회사 + 위치 정도로 슬림하게. 클릭 시 포지션 상세로 이동.
+function PositionMiniCard({
+  m,
+  tr
+}: {
+  m: ResumeCoachPositionMatch;
+  tr: (ko: string, en: string, zh: string, vi: string, ja: string, id: string) => string;
+}) {
+  return (
+    <li>
+      <Link
+        href={`/positions/${m.positionId}`}
+        className="flex items-center gap-3 rounded-xl border border-border bg-background p-3 transition hover:border-foreground/40 hover:bg-muted/30"
+      >
+        {m.thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={m.thumbnailUrl}
+            alt=""
+            className="h-12 w-12 flex-none rounded-lg object-cover"
+          />
+        ) : (
+          <div className="flex h-12 w-12 flex-none items-center justify-center rounded-lg bg-muted">
+            <Briefcase className="h-5 w-5 text-muted-foreground" weight="fill" />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13.5px] font-bold">{m.title}</p>
+          <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">
+            {m.organizationName ?? "—"}
+            {m.workLocation ? <span> · {m.workLocation}</span> : null}
+          </p>
+        </div>
+        {m.status === "applied" ? (
+          <span className="flex-none rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+            {tr("지원함", "Applied", "已申请", "Đã ứng tuyển", "応募済み", "Sudah")}
+          </span>
+        ) : null}
+      </Link>
+    </li>
   );
 }
