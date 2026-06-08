@@ -112,6 +112,13 @@ export default {
         "float-y": {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-10px)" }
+        },
+        // GNB "이벤트" 같은 prompted 배지에서 사용. 라임 글로우가 바깥으로
+        // 잔잔하게 퍼졌다 사라지면서 시선을 유도. 닷이나 별도 인디케이터 없이
+        // 배지 자체가 살아 있는 느낌.
+        "glow-pulse": {
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(183,255,90,0.55)" },
+          "50%": { boxShadow: "0 0 0 9px rgba(183,255,90,0)" }
         }
       },
       animation: {
@@ -120,7 +127,8 @@ export default {
         "fade-up": "fade-up 0.6s var(--transition-smooth) both",
         marquee: "marquee 40s linear infinite",
         "pulse-soft": "pulse-soft 2.4s ease-in-out infinite",
-        "float-y": "float-y 3.2s ease-in-out infinite"
+        "float-y": "float-y 3.2s ease-in-out infinite",
+        "glow-pulse": "glow-pulse 2.2s ease-in-out infinite"
       }
     }
   },

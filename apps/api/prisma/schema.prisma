@@ -1095,6 +1095,11 @@ model Resume {
   // on row insert; old rows get one backfilled by the migration so the
   // column can stay NOT NULL + unique.
   shareSlug String   @unique @default(cuid())
+  // Per-locale translation cache. Same idea as Position.translations.
+  // Shape: { ko: { summary, selfIntroduction, careers: [{ description }], activities: [{ description }] } }
+  // Filled on save whenever a long-form field is detected as non-Korean.
+  // Existing rows stay null until the next edit; readers must handle absence.
+  translations Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

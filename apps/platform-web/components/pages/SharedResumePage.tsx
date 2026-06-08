@@ -112,6 +112,9 @@ export function SharedResumePage({ slug }: { slug: string }) {
   }
 
   const c = resume.content ?? {};
+  // 한국어 번역 캐시 — 외국어로 쓴 자기소개·요약·경력·활동 description 옆에
+  // KO 라벨 인용 박스로 표시. 보는 사람(채용 담당자) 이 모국어로 읽게.
+  const ko = resume.translations?.ko ?? undefined;
   const eduList = (c.educations ?? (c.education ? [c.education] : [])).filter((e) => e.schoolName);
   const careerList = (c.careers ?? (c.career ? [c.career] : [])).filter((x) => x.companyName && x.position);
   const activityList = (c.activities ?? []).filter((a) => a.title);
@@ -264,9 +267,9 @@ export function SharedResumePage({ slug }: { slug: string }) {
               </p>
             ) : layout === "single" ? (
               <div className="mt-7 space-y-10">
-                {c.summary || c.selfIntroduction ? <AboutBlock tr={tr} c={c} /> : null}
-                {careerList.length > 0 ? <CareerBlock tr={tr} careerList={careerList} /> : null}
-                {activityList.length > 0 ? <ActivityBlock tr={tr} activityList={activityList} /> : null}
+                {c.summary || c.selfIntroduction ? <AboutBlock tr={tr} c={c} ko={ko} /> : null}
+                {careerList.length > 0 ? <CareerBlock tr={tr} careerList={careerList} ko={ko} /> : null}
+                {activityList.length > 0 ? <ActivityBlock tr={tr} activityList={activityList} ko={ko} /> : null}
                 {eduList.length > 0 ? (
                   <EducationBlock tr={tr} eduList={eduList} eduTypeLabel={eduTypeLabel} eduStatusLabel={eduStatusLabel} />
                 ) : null}
@@ -297,9 +300,17 @@ export function SharedResumePage({ slug }: { slug: string }) {
                   ) : null}
                   {(c.summary || c.selfIntroduction) ? (
                     <div className="space-y-2 border-t border-border pt-5">
-                      {c.summary ? <p className="text-[14px] italic leading-snug text-foreground">{c.summary}</p> : null}
+                      {c.summary ? (
+                        <div>
+                          <p className="text-[14px] italic leading-snug text-foreground">{c.summary}</p>
+                          <KoLine text={ko?.summary} />
+                        </div>
+                      ) : null}
                       {c.selfIntroduction ? (
-                        <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/80">{c.selfIntroduction}</p>
+                        <div>
+                          <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/80">{c.selfIntroduction}</p>
+                          <KoLine text={ko?.selfIntroduction} />
+                        </div>
                       ) : null}
                     </div>
                   ) : null}
@@ -318,8 +329,8 @@ export function SharedResumePage({ slug }: { slug: string }) {
                 </aside>
 
                 <div className="space-y-12 md:order-2">
-                  {careerList.length > 0 ? <CareerBlock tr={tr} careerList={careerList} /> : null}
-                  {activityList.length > 0 ? <ActivityBlock tr={tr} activityList={activityList} /> : null}
+                  {careerList.length > 0 ? <CareerBlock tr={tr} careerList={careerList} ko={ko} /> : null}
+                  {activityList.length > 0 ? <ActivityBlock tr={tr} activityList={activityList} ko={ko} /> : null}
                   {eduList.length > 0 ? (
                     <EducationBlock tr={tr} eduList={eduList} eduTypeLabel={eduTypeLabel} eduStatusLabel={eduStatusLabel} />
                   ) : null}
@@ -392,6 +403,23 @@ export function SharedResumePage({ slug }: { slug: string }) {
 
 type Trans = (ko: string, en: string, zh: string, vi: string, ja: string, id: string) => string;
 type C = NonNullable<SharedResume["content"]>;
+type Ko = NonNullable<NonNullable<SharedResume["translations"]>["ko"]>;
+
+// 한국어 번역을 원문 아래에 인용 박스로 표시. 한국 기업이 메인 독자라
+// 한국어를 강조하기보다 "원문 + 보조 한국어" 의 차분한 톤.
+function KoLine({ text, size }: { text?: string; size?: "sm" | "md" }) {
+  if (!text) return null;
+  return (
+    <p
+      className={`mt-1.5 border-l-2 border-foreground/15 pl-2.5 ${
+        size === "md" ? "text-[13.5px]" : "text-[12.5px]"
+      } leading-relaxed text-muted-foreground`}
+    >
+      <span className="mr-1 text-[10px] font-semibold text-foreground/40">KO</span>
+      {text}
+    </p>
+  );
+}
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="mb-4 text-[24px] font-bold tracking-tight text-foreground">{children}</h2>;
@@ -415,25 +443,34 @@ function formatRange(tr: Trans, start?: string, end?: string): string {
   return "";
 }
 
-function AboutBlock({ tr, c }: { tr: Trans; c: C }) {
+function AboutBlock({ tr, c, ko }: { tr: Trans; c: C; ko?: Ko }) {
   return (
     <section>
       <SectionTitle>{tr("자기소개", "About", "自我介绍", "Giới thiệu", "自己紹介", "Tentang")}</SectionTitle>
-      {c.summary ? <p className="mb-2 text-[15px] font-medium text-foreground">{c.summary}</p> : null}
+      {c.summary ? (
+        <div className="mb-2">
+          <p className="text-[15px] font-medium text-foreground">{c.summary}</p>
+          <KoLine text={ko?.summary} size="md" />
+        </div>
+      ) : null}
       {c.selfIntroduction ? (
-        <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed text-foreground">{c.selfIntroduction}</p>
+        <div>
+          <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed text-foreground">{c.selfIntroduction}</p>
+          <KoLine text={ko?.selfIntroduction} size="md" />
+        </div>
       ) : null}
     </section>
   );
 }
 
-function CareerBlock({ tr, careerList }: { tr: Trans; careerList: NonNullable<C["careers"]> }) {
+function CareerBlock({ tr, careerList, ko }: { tr: Trans; careerList: NonNullable<C["careers"]>; ko?: Ko }) {
   return (
     <section>
       <SectionTitle>{tr("경력", "Experience", "经历", "Kinh nghiệm", "経歴", "Pengalaman")}</SectionTitle>
       <div className="space-y-6">
         {careerList.map((cr, i) => {
           const range = formatRange(tr, cr.startDate, cr.endDate);
+          const koDesc = ko?.careers?.[i]?.description;
           return (
             <div key={i}>
               <p className="text-[15px] text-foreground">
@@ -442,7 +479,10 @@ function CareerBlock({ tr, careerList }: { tr: Trans; careerList: NonNullable<C[
               </p>
               {range ? <p className="mt-1 text-[13px] italic text-muted-foreground">{range}</p> : null}
               {cr.description ? (
-                <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-muted-foreground">{cr.description}</p>
+                <>
+                  <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-muted-foreground">{cr.description}</p>
+                  <KoLine text={koDesc} />
+                </>
               ) : null}
             </div>
           );
@@ -452,13 +492,14 @@ function CareerBlock({ tr, careerList }: { tr: Trans; careerList: NonNullable<C[
   );
 }
 
-function ActivityBlock({ tr, activityList }: { tr: Trans; activityList: NonNullable<C["activities"]> }) {
+function ActivityBlock({ tr, activityList, ko }: { tr: Trans; activityList: NonNullable<C["activities"]>; ko?: Ko }) {
   return (
     <section>
       <SectionTitle>{tr("프로젝트", "Projects", "项目/活动", "Dự án / Hoạt động", "プロジェクト/活動", "Proyek")}</SectionTitle>
       <div className="space-y-6">
         {activityList.map((a, i) => {
           const range = formatRange(tr, a.startDate, a.endDate);
+          const koDesc = ko?.activities?.[i]?.description;
           return (
             <div key={i}>
               <p className="text-[15px] text-foreground">
@@ -467,7 +508,10 @@ function ActivityBlock({ tr, activityList }: { tr: Trans; activityList: NonNulla
               </p>
               {range ? <p className="mt-1 text-[13px] italic text-muted-foreground">{range}</p> : null}
               {a.description ? (
-                <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-muted-foreground">{a.description}</p>
+                <>
+                  <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-muted-foreground">{a.description}</p>
+                  <KoLine text={koDesc} />
+                </>
               ) : null}
             </div>
           );
