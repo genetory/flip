@@ -5,8 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 import { ShareNetwork, Copy as CopyIcon, ArrowClockwise } from "@phosphor-icons/react/dist/ssr";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
+import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 // ---------------------------------------------------------------------------
 // /events/visa/result/[slug] — 진단 결과 + 회원가입 퍼널 + viral share.
@@ -54,6 +57,13 @@ type Copy = {
   hikoreaSuffix: string;
   positionsTitle: string;
   positionsEmpty: string;
+  // 가입 유도 (비회원에게만 표시)
+  signupHeading: string;
+  signupSub: string;
+  naverBtn: string;
+  kakaoBtn: string;
+  googleBtn: string;
+  emailBtn: string;
   // funnel
   funnelOpenCta: string;
   funnelTitle: string;
@@ -104,6 +114,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " 또는 출입국·외국인청에 확인하세요.",
     positionsTitle: "최근 채용 공고",
     positionsEmpty: "매칭되는 공고가 없어요. 가입하면 새 공고가 올라올 때 자동으로 알려드립니다.",
+    signupHeading: "Aply 가입하고 비자 후원 회사 추천받기",
+    signupSub: "결과를 저장하고\n나에게 맞는 비자 후원 회사를 받아보세요.",
+    naverBtn: "네이버로 시작하기",
+    kakaoBtn: "카카오로 시작하기",
+    googleBtn: "구글로 시작하기",
+    emailBtn: "이메일로 가입하기",
     funnelOpenCta: "Aply 가입하고 비자 후원 가능한 회사 추천받기 →",
     funnelTitle: "추가 정보 입력하고 맞춤 추천 받기",
     funnelIntro: "Aply 운영팀이 회원님에게 맞는 회사를 직접 매칭해 드려요. (1분)",
@@ -150,6 +166,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " or your local immigration office.",
     positionsTitle: "Recent jobs",
     positionsEmpty: "No matches right now. Sign up and we'll notify you when new ones open.",
+    signupHeading: "Sign up on Aply for visa-sponsor picks",
+    signupSub: "Save your result and\nget hand-matched visa-sponsoring companies.",
+    naverBtn: "Continue with Naver",
+    kakaoBtn: "Continue with Kakao",
+    googleBtn: "Continue with Google",
+    emailBtn: "Sign up with email",
     funnelOpenCta: "Sign up on Aply for visa-sponsoring companies →",
     funnelTitle: "Tell us a bit more for personalized picks",
     funnelIntro: "Aply's team will hand-match companies to your profile. (1 minute)",
@@ -196,6 +218,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " 或当地出入境部门。",
     positionsTitle: "最近职位",
     positionsEmpty: "目前无匹配职位。注册后有新职位将自动通知您。",
+    signupHeading: "注册 Aply 获取签证赞助公司",
+    signupSub: "保存您的结果\n获取量身匹配的签证赞助公司。",
+    naverBtn: "使用 Naver 继续",
+    kakaoBtn: "使用 Kakao 继续",
+    googleBtn: "使用 Google 继续",
+    emailBtn: "用邮箱注册",
     funnelOpenCta: "注册 Aply 获取支持签证赞助的公司 →",
     funnelTitle: "再填一点点，获得专属推荐",
     funnelIntro: "Aply 运营团队将为您手动匹配公司。（1分钟）",
@@ -242,6 +270,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " hoặc văn phòng xuất nhập cảnh địa phương.",
     positionsTitle: "Việc làm gần đây",
     positionsEmpty: "Chưa có việc phù hợp. Đăng ký để được thông báo khi có việc mới.",
+    signupHeading: "Đăng ký Aply để nhận đề xuất công ty bảo trợ visa",
+    signupSub: "Lưu kết quả và\nnhận danh sách công ty được ghép thủ công.",
+    naverBtn: "Tiếp tục với Naver",
+    kakaoBtn: "Tiếp tục với Kakao",
+    googleBtn: "Tiếp tục với Google",
+    emailBtn: "Đăng ký bằng email",
     funnelOpenCta: "Đăng ký Aply để xem công ty bảo trợ visa →",
     funnelTitle: "Thêm một chút thông tin để nhận đề xuất riêng",
     funnelIntro: "Đội Aply sẽ tự tay ghép bạn với công ty phù hợp. (1 phút)",
@@ -288,6 +322,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " または出入国・外国人庁にご確認ください。",
     positionsTitle: "最新の求人",
     positionsEmpty: "現在マッチする求人はありません。登録すると新着求人を自動でお知らせします。",
+    signupHeading: "Aplyに登録してビザ支援会社を受け取る",
+    signupSub: "結果を保存して\nあなたに合うビザ支援会社をご紹介します。",
+    naverBtn: "Naver で始める",
+    kakaoBtn: "Kakao で始める",
+    googleBtn: "Google で始める",
+    emailBtn: "メールで登録",
     funnelOpenCta: "Aplyに登録してビザ支援可能な会社の推薦を受ける →",
     funnelTitle: "少し追加情報を入れて、カスタム推薦を受け取る",
     funnelIntro: "Aply運営チームがあなたに合う会社を直接マッチングします。（1分）",
@@ -334,6 +374,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " atau kantor imigrasi setempat.",
     positionsTitle: "Lowongan terbaru",
     positionsEmpty: "Belum ada yang cocok. Daftar dan kami akan beri tahu saat ada baru.",
+    signupHeading: "Daftar di Aply untuk rekomendasi perusahaan",
+    signupSub: "Simpan hasil Anda dan\ndapatkan perusahaan pendukung visa yang cocok.",
+    naverBtn: "Lanjutkan dengan Naver",
+    kakaoBtn: "Lanjutkan dengan Kakao",
+    googleBtn: "Lanjutkan dengan Google",
+    emailBtn: "Daftar dengan email",
     funnelOpenCta: "Daftar di Aply untuk perusahaan pendukung visa →",
     funnelTitle: "Lengkapi sedikit info untuk rekomendasi pribadi",
     funnelIntro: "Tim Aply akan mencocokkan perusahaan dengan profil Anda. (1 menit)",
@@ -382,8 +428,11 @@ const FIT_CLS: Record<Fit, string> = {
 
 export function VisaResultPage({ slug }: { slug: string }) {
   const { locale } = useLanguage();
+  const { isAuthenticated, isReady } = useAuthSession();
   const t = COPY[locale] ?? COPY.ko;
   const apiBase = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000", []);
+  // 소셜 OAuth 완료 후 돌아올 곳. visa 결과 페이지로 그대로.
+  const nextParam = encodeURIComponent(`/events/visa/result/${slug}`);
   const [result, setResult] = useState<Result | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
@@ -524,17 +573,53 @@ export function VisaResultPage({ slug }: { slug: string }) {
                 )}
               </section>
 
-              {/* CTA — 회원가입 페이지로 직접 이동. fromVisa=slug query 로 진단
-                  결과 slug 를 전달해서 가입 직후 VisaCheckResult.userId 를 채울
-                  수 있게(백엔드 연결은 별도 작업). */}
-              <section className="rounded-2xl bg-white p-5 md:p-6">
-                <Link
-                  href={`/signup?fromVisa=${encodeURIComponent(slug)}`}
-                  className="block w-full h-12 leading-[3rem] text-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
-                >
-                  {t.funnelOpenCta}
-                </Link>
-              </section>
+              {/* 가입 유도 — saju 패턴 동일하게 결과 페이지 안에서 직접 소셜
+                  로그인 4종. 가입 완료 후 next 로 현재 결과 페이지 돌아옴.
+                  로그인된 사용자에게는 노출하지 않음. */}
+              {isReady && !isAuthenticated ? (
+                <section className="rounded-3xl border border-border/40 bg-white p-6 text-center">
+                  <h2 className="font-display text-lg font-bold tracking-tight">{t.signupHeading}</h2>
+                  <p className="mt-2 whitespace-pre-line text-[12.5px] leading-relaxed text-muted-foreground">
+                    {t.signupSub}
+                  </p>
+                  <div className="mt-5 flex w-full flex-col gap-2">
+                    <a
+                      href={`${API_BASE}/auth/naver/start?next=${nextParam}`}
+                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#03C75A] text-[14px] font-semibold text-white transition active:bg-[#02b551]"
+                    >
+                      <span aria-hidden className="text-base font-black">N</span>
+                      {t.naverBtn}
+                    </a>
+                    <a
+                      href={`${API_BASE}/auth/kakao/start?next=${nextParam}`}
+                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] text-[14px] font-semibold text-[#191919] transition active:bg-[#f5dd00]"
+                    >
+                      <svg aria-hidden className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.86 5.36 4.66 6.78L5.5 21.5c-.1.34.27.62.57.43L10.5 19c.5.05 1 .08 1.5.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z" />
+                      </svg>
+                      {t.kakaoBtn}
+                    </a>
+                    <a
+                      href={`${API_BASE}/auth/google/start?next=${nextParam}`}
+                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border/60 bg-white text-[14px] font-semibold text-[#191919] transition active:bg-muted/40"
+                    >
+                      <svg aria-hidden className="h-4 w-4" viewBox="0 0 48 48">
+                        <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
+                        <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
+                        <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
+                        <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
+                      </svg>
+                      {t.googleBtn}
+                    </a>
+                    <Link
+                      href={`/signup?next=${nextParam}&fromVisa=${encodeURIComponent(slug)}`}
+                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-muted/40 text-[14px] font-semibold text-foreground transition active:bg-muted/60"
+                    >
+                      {t.emailBtn}
+                    </Link>
+                  </div>
+                </section>
+              ) : null}
 
               {/* Share actions */}
               <section className="rounded-2xl bg-white p-5 md:p-6">
