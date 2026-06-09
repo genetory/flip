@@ -71,7 +71,7 @@ import {
   type MbtiType,
   type RoleCode as MbtiRoleCode
 } from "./mbti/mbti-data";
-import { evaluateVisaEligibility } from "./visa/visa-rules";
+import { evaluateVisa } from "./visa/visa-rules";
 import {
   getPositionTranslation,
   getPositionTranslationsBatch,
@@ -6799,12 +6799,18 @@ const visaCheckSchema = z.object({
   educationLevel: z.enum(["HIGH_SCHOOL", "BACHELOR", "MASTER", "PHD"]),
   // 자유 입력으로 변경 — 추천 분기에 쓰이지 않고 단순 저장용. 프론트에서
   // 카테고리 옵션을 늘려도 백엔드 enum 을 매번 동기화할 필요가 없음.
-  // 기존 값(IT/ENGINEERING/...) 도 그대로 받음.
   majorCategory: z.string().trim().max(40).optional(),
   koreanLevel: z.enum(["NONE", "BEGINNER", "INTERMEDIATE", "ADVANCED", "NATIVE"]),
   workYears: z.coerce.number().int().min(0).max(50),
   targetRole: z.string().trim().max(80).optional(),
-  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional(),
+  // Phase 1 신규 — 결과의 5단계 상태 분류 / 로드맵 우선순위 hint 에 사용.
+  // 모두 optional 이라 기존 호출자/저장 기록 호환.
+  inKorea: z.boolean().optional(),
+  hasJobOffer: z.boolean().optional(),
+  graduationStatus: z
+    .enum(["not_applicable", "completed", "within_6mo", "within_1y", "later"])
+    .optional()
 });
 
 app.post("/visa/check", async (req, res) => {
@@ -6813,15 +6819,22 @@ app.post("/visa/check", async (req, res) => {
     return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
   }
   const input = parsed.data;
-  const eligibleVisas = evaluateVisaEligibility({
+  // Phase 1: evaluateVisa() = eligibleVisas + roadmap + nextSteps. roadmap/
+  // nextSteps 는 새 필드로 같은 Json 컬럼(`eligibleVisas`) 에 묶어 저장 —
+  // 스키마 변경 없이 결과 페이지가 즉시 활용 가능.
+  const evaluation = evaluateVisa({
     nationality: input.nationality,
     currentVisa: input.currentVisa ?? null,
     educationLevel: input.educationLevel,
     majorCategory: input.majorCategory ?? null,
     koreanLevel: input.koreanLevel,
     workYears: input.workYears,
-    targetRole: input.targetRole ?? null
+    targetRole: input.targetRole ?? null,
+    inKorea: input.inKorea,
+    hasJobOffer: input.hasJobOffer,
+    graduationStatus: input.graduationStatus
   });
+  const eligibleVisas = evaluation.eligibleVisas;
 
   // 사용자 입력(비자 / 국적 / 전공 / 한국어 / targetRole) 기반 매칭 점수로
   // 추천 포지션 5개 선정. 룰 기반·즉시 계산이라 임베딩 비용 없음. 후보 풀
@@ -6945,6 +6958,19 @@ app.post("/visa/check", async (req, res) => {
     ? createHash("sha256").update(`${ipRaw}|visa-check`).digest("hex").slice(0, 32)
     : null;
 
+  // eligibleVisas 컬럼(Json) 안에 visas + roadmap + nextSteps 함께 저장.
+  // 기존 레코드는 array 형태 → 읽을 때 Array.isArray 로 분기 (호환 유지).
+  const visaPayload = {
+    visas: eligibleVisas,
+    roadmap: evaluation.roadmap,
+    nextSteps: evaluation.nextSteps,
+    // 입력 컨텍스트 — 결과 페이지에서 status 분기 표시에 활용.
+    inputContext: {
+      inKorea: input.inKorea ?? null,
+      hasJobOffer: input.hasJobOffer ?? null,
+      graduationStatus: input.graduationStatus ?? null
+    }
+  };
   const created = await prisma.visaCheckResult.create({
     data: {
       name: input.name ?? null,
@@ -6955,7 +6981,7 @@ app.post("/visa/check", async (req, res) => {
       koreanLevel: input.koreanLevel,
       workYears: input.workYears,
       targetRole: input.targetRole ?? null,
-      eligibleVisas: eligibleVisas as unknown as Prisma.InputJsonValue,
+      eligibleVisas: visaPayload as unknown as Prisma.InputJsonValue,
       recommendedPositionIds,
       locale: input.locale ?? "ko",
       ipHash
@@ -6991,6 +7017,19 @@ app.get("/visa/result/:slug", async (req, res) => {
         : null
     }));
 
+  // 저장된 eligibleVisas 는 두 형태 — legacy(array) 또는 Phase 1 wrapper
+  // (`{ visas, roadmap, nextSteps, inputContext }`). 응답은 항상 wrapper 모양
+  // 으로 통일해 프론트가 한 코드 경로로 처리하게 한다.
+  const stored = result.eligibleVisas as unknown;
+  const isLegacy = Array.isArray(stored);
+  type StoredPayload = {
+    visas?: unknown;
+    roadmap?: unknown;
+    nextSteps?: unknown;
+    inputContext?: unknown;
+  };
+  const payload: StoredPayload = isLegacy ? { visas: stored } : ((stored ?? {}) as StoredPayload);
+
   return res.json({
     ok: true,
     result: {
@@ -7003,7 +7042,10 @@ app.get("/visa/result/:slug", async (req, res) => {
       koreanLevel: result.koreanLevel,
       workYears: result.workYears,
       targetRole: result.targetRole,
-      eligibleVisas: result.eligibleVisas,
+      eligibleVisas: payload.visas ?? [],
+      roadmap: payload.roadmap ?? null,
+      nextSteps: payload.nextSteps ?? [],
+      inputContext: payload.inputContext ?? null,
       shareSlug: result.shareSlug,
       locale: result.locale,
       createdAt: result.createdAt.toISOString()
