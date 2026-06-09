@@ -61,7 +61,13 @@ function pickInitialId(resumes: Resume[], requestedId?: string): string | null {
 export function ResumeCoachListPage({ selectedResumeId }: { selectedResumeId?: string }) {
   const router = useRouter();
   const tr = useTr();
-  const { isReady, isAuthenticated } = useAuthSession();
+  const { isReady, isAuthenticated, user } = useAuthSession();
+  // 이력서 코칭은 학생 전용 기능. 파트너/운영자 계정으로 GNB 의 "이력서 코칭"
+  // 메뉴를 누른 경우 API 가 403 으로 떨어뜨려 에러처럼 보였는데, 의도된 미지원
+  // 이므로 부드러운 안내 화면으로 대체.
+  const isUnsupportedRole = Boolean(
+    user && (user.role === "PARTNER" || user.role === "OPERATOR")
+  );
 
   const [resumes, setResumes] = useState<Resume[] | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
@@ -76,9 +82,10 @@ export function ResumeCoachListPage({ selectedResumeId }: { selectedResumeId?: s
     }
   }, [isReady, isAuthenticated, selectedResumeId, router]);
 
-  // 이력서 목록 fetch. 한 번만.
+  // 이력서 목록 fetch. 한 번만. 미지원 역할(파트너/운영자)은 호출 자체를
+  // 스킵해 콘솔 500/403 도 발생시키지 않는다.
   useEffect(() => {
-    if (!isReady || !isAuthenticated) return;
+    if (!isReady || !isAuthenticated || isUnsupportedRole) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -146,7 +153,7 @@ export function ResumeCoachListPage({ selectedResumeId }: { selectedResumeId?: s
   }
 
   // ---- Loading / unauth ------------------------------------------------
-  if (!isReady || (isAuthenticated && resumes === null && !loadError)) {
+  if (!isReady || (isAuthenticated && !isUnsupportedRole && resumes === null && !loadError)) {
     return (
       <>
         <Header />
@@ -162,6 +169,58 @@ export function ResumeCoachListPage({ selectedResumeId }: { selectedResumeId?: s
     );
   }
   if (!isAuthenticated) return null;
+
+  // ---- 미지원 역할(파트너/운영자) ---------------------------------------
+  // 학생 전용 기능이라 forbidden 토스트로 끝내면 의도가 안 보임. "지원하지 않
+  // 음" 안내 + 본인에게 맞는 화면으로 자연스럽게 안내한다.
+  if (isUnsupportedRole) {
+    const target = user?.role === "PARTNER" ? "/profile" : "/dashboard";
+    return (
+      <>
+        <Header />
+        <main className="container py-16">
+          <div className="mx-auto max-w-xl">
+            <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center">
+              <h1 className="font-display text-xl font-bold tracking-tight md:text-2xl">
+                {tr(
+                  "이력서 코칭은 학생 회원 전용이에요",
+                  "Resume Coach is for student members only",
+                  "简历辅导仅面向学生会员",
+                  "Tư vấn hồ sơ chỉ dành cho thành viên sinh viên",
+                  "履歴書コーチングは学生会員専用です",
+                  "Bimbingan Resume hanya untuk anggota pelajar"
+                )}
+              </h1>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+                {user?.role === "PARTNER"
+                  ? tr(
+                      "파트너 계정에서는 이 기능을 사용할 수 없어요. 채용·인재 관리 화면에서 평소처럼 이어서 작업해 주세요.",
+                      "This feature isn't available on partner accounts. Continue your hiring/candidate work as usual.",
+                      "合作伙伴账户无法使用此功能。请继续在招聘/人才管理界面工作。",
+                      "Tài khoản đối tác không sử dụng được tính năng này. Hãy tiếp tục công việc tuyển dụng/quản lý ứng viên.",
+                      "パートナーアカウントではこの機能をご利用いただけません。採用・人材管理の画面で作業を続けてください。",
+                      "Akun mitra tidak dapat menggunakan fitur ini. Lanjutkan pekerjaan rekrutmen/manajemen kandidat seperti biasa."
+                    )
+                  : tr(
+                      "운영자 계정에서는 이 기능을 사용할 수 없어요. 운영 콘솔에서 평소처럼 이어서 작업해 주세요.",
+                      "This feature isn't available on operator accounts. Continue in the ops console as usual.",
+                      "运营账户无法使用此功能。请在运营控制台继续工作。",
+                      "Tài khoản vận hành không sử dụng được tính năng này. Hãy tiếp tục trên bảng điều khiển vận hành.",
+                      "オペレーターアカウントではこの機能をご利用いただけません。運用コンソールで作業を続けてください。",
+                      "Akun operator tidak dapat menggunakan fitur ini. Lanjutkan di konsol operasi seperti biasa."
+                    )}
+              </p>
+              <Button variant="dark" size="lg" className="mt-6" onClick={() => router.push(target)}>
+                {user?.role === "PARTNER"
+                  ? tr("내 프로필로 가기", "Go to my profile", "前往我的资料", "Vào trang cá nhân", "プロフィールへ", "Ke profil saya")
+                  : tr("운영 대시보드로 가기", "Go to ops dashboard", "前往运营仪表盘", "Vào bảng điều khiển", "ダッシュボードへ", "Ke dasbor ops")}
+              </Button>
+            </div>
+          </div>
+        </main>
+      </>
+    );
+  }
 
   const list = resumes ?? [];
   const hasResumes = list.length > 0;
