@@ -5448,6 +5448,188 @@ app.get("/ops/visa/leads", authenticate, requireRoles([MemberRole.OPERATOR]), as
   });
 });
 
+// ---------------------------------------------------------------------------
+// Raw-pool endpoints — funnel form 을 채우지 않고 "결과만 본 사람"의 익명
+// 데이터까지 ops 콘솔에서 직접 조회할 수 있게 한다. /ops/visa/leads 와
+// /ops/saju/leads 가 보여주는 "전환된 lead" 의 상위 단계 pool.
+// ---------------------------------------------------------------------------
+
+const opsVisaChecksQuerySchema = z.object({
+  nationality: z.string().trim().max(80).optional(),
+  currentVisa: z.string().trim().max(20).optional(),
+  educationLevel: z.enum(["HIGH_SCHOOL", "BACHELOR", "MASTER", "PHD"]).optional(),
+  koreanLevel: z.enum(["NONE", "BEGINNER", "INTERMEDIATE", "ADVANCED", "NATIVE"]).optional(),
+  graduationStatus: z.enum(["not_applicable", "completed", "within_6mo", "within_1y", "later"]).optional(),
+  inKorea: z.coerce.boolean().optional(),
+  hasJobOffer: z.coerce.boolean().optional(),
+  claimed: z.enum(["any", "claimed", "unclaimed"]).optional(),
+  q: z.string().trim().max(120).optional(),
+  take: z.coerce.number().int().min(1).max(200).optional(),
+  skip: z.coerce.number().int().min(0).optional()
+});
+
+app.get("/ops/visa/checks", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsVisaChecksQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+  const f = parsed.data;
+  const where: Prisma.VisaCheckResultWhereInput = {
+    ...(f.nationality ? { nationality: { contains: f.nationality, mode: "insensitive" } } : {}),
+    ...(f.currentVisa ? { currentVisa: f.currentVisa } : {}),
+    ...(f.educationLevel ? { educationLevel: f.educationLevel } : {}),
+    ...(f.koreanLevel ? { koreanLevel: f.koreanLevel } : {}),
+    ...(f.graduationStatus ? { graduationStatus: f.graduationStatus } : {}),
+    ...(f.inKorea !== undefined ? { inKorea: f.inKorea } : {}),
+    ...(f.hasJobOffer !== undefined ? { hasJobOffer: f.hasJobOffer } : {}),
+    ...(f.claimed === "claimed" ? { userId: { not: null } } : {}),
+    ...(f.claimed === "unclaimed" ? { userId: null } : {}),
+    ...(f.q
+      ? {
+          OR: [
+            { name: { contains: f.q, mode: "insensitive" } },
+            { targetRole: { contains: f.q, mode: "insensitive" } },
+            { nationality: { contains: f.q, mode: "insensitive" } }
+          ]
+        }
+      : {})
+  };
+  const take = f.take ?? 50;
+  const skip = f.skip ?? 0;
+  const [checks, total, claimedCount] = await Promise.all([
+    prisma.visaCheckResult.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take,
+      skip,
+      select: {
+        id: true,
+        name: true,
+        nationality: true,
+        currentVisa: true,
+        educationLevel: true,
+        majorCategory: true,
+        koreanLevel: true,
+        workYears: true,
+        targetRole: true,
+        inKorea: true,
+        hasJobOffer: true,
+        graduationStatus: true,
+        recommendedPositionIds: true,
+        shareSlug: true,
+        userId: true,
+        locale: true,
+        createdAt: true,
+        claimedAt: true,
+        leads: { select: { id: true } }
+      }
+    }),
+    prisma.visaCheckResult.count({ where }),
+    prisma.visaCheckResult.count({ where: { userId: { not: null } } })
+  ]);
+  return res.json({
+    ok: true,
+    total,
+    take,
+    skip,
+    claimedTotal: claimedCount,
+    checks: checks.map((c) => ({
+      id: c.id,
+      name: c.name,
+      nationality: c.nationality,
+      currentVisa: c.currentVisa,
+      educationLevel: c.educationLevel,
+      majorCategory: c.majorCategory,
+      koreanLevel: c.koreanLevel,
+      workYears: c.workYears,
+      targetRole: c.targetRole,
+      inKorea: c.inKorea,
+      hasJobOffer: c.hasJobOffer,
+      graduationStatus: c.graduationStatus,
+      recommendedPositionCount: c.recommendedPositionIds.length,
+      shareSlug: c.shareSlug,
+      userId: c.userId,
+      locale: c.locale,
+      createdAt: c.createdAt.toISOString(),
+      claimedAt: c.claimedAt?.toISOString() ?? null,
+      hasLead: c.leads.length > 0
+    }))
+  });
+});
+
+const opsSajuPredictionsQuerySchema = z.object({
+  gender: z.enum(["male", "female"]).optional(),
+  claimed: z.enum(["any", "claimed", "unclaimed"]).optional(),
+  q: z.string().trim().max(120).optional(),
+  take: z.coerce.number().int().min(1).max(200).optional(),
+  skip: z.coerce.number().int().min(0).optional()
+});
+
+app.get("/ops/saju/predictions", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsSajuPredictionsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+  const f = parsed.data;
+  const where: Prisma.SajuPredictionWhereInput = {
+    ...(f.gender ? { gender: f.gender } : {}),
+    ...(f.claimed === "claimed" ? { userId: { not: null } } : {}),
+    ...(f.claimed === "unclaimed" ? { userId: null } : {}),
+    ...(f.q ? { name: { contains: f.q, mode: "insensitive" } } : {})
+  };
+  const take = f.take ?? 50;
+  const skip = f.skip ?? 0;
+  const [predictions, total, claimedCount] = await Promise.all([
+    prisma.sajuPrediction.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take,
+      skip,
+      select: {
+        id: true,
+        name: true,
+        gender: true,
+        birthDate: true,
+        birthTime: true,
+        calendarType: true,
+        recommendedRoleNames: true,
+        recommendedPositionIds: true,
+        shareSlug: true,
+        userId: true,
+        locale: true,
+        createdAt: true,
+        claimedAt: true,
+        leads: { select: { id: true } }
+      }
+    }),
+    prisma.sajuPrediction.count({ where }),
+    prisma.sajuPrediction.count({ where: { userId: { not: null } } })
+  ]);
+  return res.json({
+    ok: true,
+    total,
+    take,
+    skip,
+    claimedTotal: claimedCount,
+    predictions: predictions.map((p) => ({
+      id: p.id,
+      name: p.name,
+      gender: p.gender,
+      birthDate: p.birthDate.toISOString().slice(0, 10),
+      birthTime: p.birthTime,
+      calendarType: p.calendarType,
+      recommendedRoleNames: p.recommendedRoleNames,
+      recommendedPositionCount: p.recommendedPositionIds.length,
+      shareSlug: p.shareSlug,
+      userId: p.userId,
+      locale: p.locale,
+      createdAt: p.createdAt.toISOString(),
+      claimedAt: p.claimedAt?.toISOString() ?? null,
+      hasLead: p.leads.length > 0
+    }))
+  });
+});
+
 const companyConsultationCreateSchema = z.object({
   companyName: z.string().trim().min(1).max(120),
   contactName: z.string().trim().min(1).max(80),
@@ -6981,6 +7163,12 @@ app.post("/visa/check", async (req, res) => {
       koreanLevel: input.koreanLevel,
       workYears: input.workYears,
       targetRole: input.targetRole ?? null,
+      // Phase 1 신규 입력 — top-level 컬럼에도 함께 기록해 ops raw-pool
+      // 필터링/정렬을 가능하게 한다. JSON 안 inputContext 도 같이 유지하여
+      // 결과 조회/legacy 호환을 깨지 않는다.
+      inKorea: input.inKorea ?? null,
+      hasJobOffer: input.hasJobOffer ?? null,
+      graduationStatus: input.graduationStatus ?? null,
       eligibleVisas: visaPayload as unknown as Prisma.InputJsonValue,
       recommendedPositionIds,
       locale: input.locale ?? "ko",
