@@ -1319,7 +1319,13 @@ model VisaCheckResult {
   koreanLevel            String   // "NONE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "NATIVE"
   workYears              Int      @default(0)
   targetRole             String?
-  // Each entry: { code, name, fit (high/medium/low), conditions[], notes? }
+  // Phase 1 신규 입력 — 결과 페이지의 5단계 상태 분류 + 로드맵 우선순위에
+  // 사용된다. JSON 안이 아닌 top-level 컬럼으로 둬서 운영 콘솔의 raw-pool
+  // 필터링/정렬을 가능하게 한다.
+  inKorea                Boolean?
+  hasJobOffer            Boolean?
+  graduationStatus       String?  // "not_applicable" | "completed" | "within_6mo" | "within_1y" | "later"
+  // wrapper: { visas, roadmap, nextSteps, inputContext } (legacy: bare array)
   eligibleVisas          Json
   recommendedPositionIds String[]
   shareSlug              String   @unique @default(cuid())
@@ -1334,6 +1340,8 @@ model VisaCheckResult {
   @@index([userId])
   @@index([createdAt])
   @@index([nationality])
+  @@index([currentVisa])
+  @@index([graduationStatus])
 }
 
 // VisaLead — 결과 페이지의 회원가입 퍼널에서 모은 익명 리드. SajuLead 와
