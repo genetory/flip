@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CaretDown, Globe } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown, CheckCircle, Circle, Globe } from "@phosphor-icons/react/dist/ssr";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { PLATFORM_LOCALES, type PlatformLocale } from "../../lib/auth-messages";
 
@@ -665,25 +665,20 @@ export function VisaLandingPage() {
               ) : null}
             </div>
 
-            {/* Education */}
+            {/* Education — 세로 리스트(라디오 체크) 스타일. 학력/한국어처럼
+                옵션 수가 적고 라벨이 다국어로 길어질 수 있는 항목은 그리드 버튼
+                보다 세로 리스트가 시인성/오탭 방지 측면에서 안전하다. */}
             <div>
               <label className="text-xs font-semibold text-muted-foreground">{t.educationLabel} *</label>
-              <div className="mt-1 grid grid-cols-4 gap-2">
-                {educationOptions.map((opt) => {
-                  const active = educationLevel === opt.code;
-                  return (
-                    <button
-                      key={opt.code}
-                      type="button"
-                      onClick={() => setEducationLevel(opt.code)}
-                      className={`h-11 rounded-xl border text-sm font-semibold ${
-                        active ? "border-primary bg-primary/5 text-primary" : "border-border/60 bg-muted/30"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
+              <div className="mt-1 flex flex-col gap-1.5">
+                {educationOptions.map((opt) => (
+                  <CheckRow
+                    key={opt.code}
+                    label={opt.label}
+                    active={educationLevel === opt.code}
+                    onClick={() => setEducationLevel(opt.code)}
+                  />
+                ))}
               </div>
             </div>
 
@@ -708,26 +703,19 @@ export function VisaLandingPage() {
               </div>
             </div>
 
-            {/* Korean level — 모바일 폭 고정이라 5등분이 좁을 수 있어 5컬럼 + 작은
-                폰트로 압축. 라벨이 긴 로케일(en/vi)은 wrap 되도록 leading-tight. */}
+            {/* Korean level — 5개 옵션을 가로 그리드로 두면 다국어 라벨이
+                wrap/잘리는 문제가 잦아 세로 리스트로 통일. */}
             <div>
               <label className="text-xs font-semibold text-muted-foreground">{t.koreanLevelLabel} *</label>
-              <div className="mt-1 grid grid-cols-5 gap-1.5">
-                {koreanOptions.map((opt) => {
-                  const active = koreanLevel === opt.code;
-                  return (
-                    <button
-                      key={opt.code}
-                      type="button"
-                      onClick={() => setKoreanLevel(opt.code)}
-                      className={`flex h-11 items-center justify-center rounded-xl border px-1 text-[11px] font-semibold leading-tight text-center ${
-                        active ? "border-primary bg-primary/5 text-primary" : "border-border/60 bg-muted/30"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
+              <div className="mt-1 flex flex-col gap-1.5">
+                {koreanOptions.map((opt) => (
+                  <CheckRow
+                    key={opt.code}
+                    label={opt.label}
+                    active={koreanLevel === opt.code}
+                    onClick={() => setKoreanLevel(opt.code)}
+                  />
+                ))}
               </div>
             </div>
 
@@ -824,5 +812,30 @@ export function VisaLandingPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+// 학력/한국어 처럼 단일 선택 옵션을 세로로 나열할 때 쓰는 행. 라디오 느낌의
+// 좌측 원 아이콘 + 선택 시 primary 색 채움. 가로 그리드 대비 라벨 truncate
+// 위험이 없고, 다국어(en/vi 등) 긴 문자열에도 안전하다.
+function CheckRow({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 h-12 text-sm font-semibold transition ${
+        active
+          ? "border-primary bg-primary/5 text-primary"
+          : "border-border/60 bg-muted/30 text-foreground/80"
+      }`}
+    >
+      <span className="truncate">{label}</span>
+      {active ? (
+        <CheckCircle className="h-5 w-5 shrink-0 text-primary" weight="fill" />
+      ) : (
+        <Circle className="h-5 w-5 shrink-0 text-muted-foreground/40" weight="bold" />
+      )}
+    </button>
   );
 }

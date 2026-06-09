@@ -6,6 +6,7 @@ import { ShareNetwork, Copy as CopyIcon, ArrowClockwise } from "@phosphor-icons/
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
+import { localizeVisa } from "../../lib/visa-i18n";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -545,33 +546,43 @@ export function VisaResultPage({ slug }: { slug: string }) {
               </section>
 
               <section className="space-y-3">
-                {result.eligibleVisas.map((v) => (
-                  <article key={v.code} className="rounded-2xl bg-white p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="font-display text-xl font-bold tracking-tight">
-                          {v.code} <span className="text-sm font-semibold text-muted-foreground">· {v.name}</span>
-                        </p>
+                {result.eligibleVisas.map((v) => {
+                  // 백엔드는 한국어 원문(name/conditions/notes)을 그대로 저장/반환.
+                  // 프론트가 비자 코드 + 현재 로케일 + 입력 컨텍스트(한국어 수준)로
+                  // 직접 카피를 다시 그려, 페이지에서 언어 토글 시 즉시 반영되게 한다.
+                  // 사전에 없는 코드는 백엔드 원문으로 자연스럽게 fallback.
+                  const localized = localizeVisa(locale, v.code, { koreanLevel: result.koreanLevel });
+                  const name = localized?.name ?? v.name;
+                  const conditions = localized?.conditions ?? v.conditions;
+                  const notes = localized?.notes ?? v.notes;
+                  return (
+                    <article key={v.code} className="rounded-2xl bg-white p-5">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="font-display text-xl font-bold tracking-tight">
+                            {v.code} <span className="text-sm font-semibold text-muted-foreground">· {name}</span>
+                          </p>
+                        </div>
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${FIT_CLS[v.fit]}`}>
+                          {FIT_LABEL[v.fit]}
+                        </span>
                       </div>
-                      <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${FIT_CLS[v.fit]}`}>
-                        {FIT_LABEL[v.fit]}
-                      </span>
-                    </div>
-                    <ul className="mt-3 space-y-1.5 text-sm text-foreground">
-                      {v.conditions.map((c, i) => (
-                        <li key={i} className="flex gap-2">
-                          <span className="text-primary mt-1">•</span>
-                          <span>{c}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    {v.notes ? (
-                      <p className="mt-3 rounded-lg bg-muted/30 px-3 py-2 text-[12px] text-muted-foreground">
-                        💡 {v.notes}
-                      </p>
-                    ) : null}
-                  </article>
-                ))}
+                      <ul className="mt-3 space-y-1.5 text-sm text-foreground">
+                        {conditions.map((c, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span className="text-primary mt-1">•</span>
+                            <span>{c}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {notes ? (
+                        <p className="mt-3 rounded-lg bg-muted/30 px-3 py-2 text-[12px] text-muted-foreground">
+                          💡 {notes}
+                        </p>
+                      ) : null}
+                    </article>
+                  );
+                })}
               </section>
 
               <section className="rounded-2xl bg-white p-5">
