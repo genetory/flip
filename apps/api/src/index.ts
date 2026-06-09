@@ -11946,6 +11946,9 @@ app.get("/resumes/share/:slug", async (req, res) => {
         id: true,
         title: true,
         content: true,
+        // 한국어 번역 캐시 — SharedResumePage 의 KoLine 이 외국어 문단 아래에
+        // 한국어 번역을 그려주는 데 필요. 운영자/익명 양쪽 모두 노출.
+        translations: true,
         isPrimary: true,
         shareSlug: true,
         createdAt: true,
