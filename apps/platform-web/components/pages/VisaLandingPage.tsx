@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CaretDown, CheckCircle, Circle, Globe } from "@phosphor-icons/react/dist/ssr";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { VisaEventFooter } from "../site/VisaEventFooter";
 import { PLATFORM_LOCALES, type PlatformLocale } from "../../lib/auth-messages";
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,22 @@ type Copy = {
   currentVisaSelect: string;
   currentVisaOtherPlaceholder: string;
   nationalityNames: Record<string, string>;
+  // Phase 1 신규 — 결과 페이지 status 분류에 쓰이는 핵심 입력 3개.
+  situationSection: string;
+  inKoreaLabel: string;
+  inKoreaYes: string;
+  inKoreaNo: string;
+  graduationLabel: string;
+  graduation: {
+    not_applicable: string;
+    completed: string;
+    within_6mo: string;
+    within_1y: string;
+    later: string;
+  };
+  jobOfferLabel: string;
+  jobOfferYes: string;
+  jobOfferNo: string;
 };
 
 // 한국 외국인 유학생/취업 비자 신청자 분포 기반. 동남아·동아·남아 중심 +
@@ -155,7 +172,22 @@ const COPY: Record<PlatformLocale, Copy> = {
       PL: "폴란드", UA: "우크라이나",
       BR: "브라질", MX: "멕시코", AR: "아르헨티나", CL: "칠레",
       OTHER: "기타 (직접 입력)"
-    }
+    },
+    situationSection: "현재 상황",
+    inKoreaLabel: "지금 한국에 계신가요?",
+    inKoreaYes: "한국에 거주 중",
+    inKoreaNo: "한국 밖에 거주",
+    graduationLabel: "졸업 상태",
+    graduation: {
+      not_applicable: "해당 없음 (이미 졸업/학생 아님)",
+      completed: "이미 졸업",
+      within_6mo: "6개월 이내 졸업 예정",
+      within_1y: "1년 이내 졸업 예정",
+      later: "그 이후 졸업 예정"
+    },
+    jobOfferLabel: "한국 회사 채용 제안이 있나요?",
+    jobOfferYes: "네, 있어요 / 면접 중",
+    jobOfferNo: "아직 없어요"
   },
   en: {
     pill: "Aply × Visa check",
@@ -226,7 +258,22 @@ const COPY: Record<PlatformLocale, Copy> = {
       PL: "Poland", UA: "Ukraine",
       BR: "Brazil", MX: "Mexico", AR: "Argentina", CL: "Chile",
       OTHER: "Other (type yourself)"
-    }
+    },
+    situationSection: "Your situation",
+    inKoreaLabel: "Are you currently in Korea?",
+    inKoreaYes: "I'm in Korea",
+    inKoreaNo: "I'm outside Korea",
+    graduationLabel: "Graduation status",
+    graduation: {
+      not_applicable: "Not applicable (not a student)",
+      completed: "Already graduated",
+      within_6mo: "Graduating within 6 months",
+      within_1y: "Graduating within 1 year",
+      later: "Graduating later than that"
+    },
+    jobOfferLabel: "Do you have a Korean job offer?",
+    jobOfferYes: "Yes / interviewing",
+    jobOfferNo: "Not yet"
   },
   "zh-CN": {
     pill: "Aply × 签证检查",
@@ -297,7 +344,22 @@ const COPY: Record<PlatformLocale, Copy> = {
       PL: "波兰", UA: "乌克兰",
       BR: "巴西", MX: "墨西哥", AR: "阿根廷", CL: "智利",
       OTHER: "其他（手动输入）"
-    }
+    },
+    situationSection: "你的现况",
+    inKoreaLabel: "现在在韩国吗？",
+    inKoreaYes: "在韩国",
+    inKoreaNo: "在韩国以外",
+    graduationLabel: "毕业状态",
+    graduation: {
+      not_applicable: "不适用（已毕业/非学生）",
+      completed: "已经毕业",
+      within_6mo: "6 个月内毕业",
+      within_1y: "1 年内毕业",
+      later: "更晚毕业"
+    },
+    jobOfferLabel: "有韩国公司 Offer 吗？",
+    jobOfferYes: "有 / 面试中",
+    jobOfferNo: "还没有"
   },
   vi: {
     pill: "Aply × Kiểm tra visa",
@@ -368,7 +430,22 @@ const COPY: Record<PlatformLocale, Copy> = {
       PL: "Ba Lan", UA: "Ukraina",
       BR: "Brazil", MX: "Mexico", AR: "Argentina", CL: "Chile",
       OTHER: "Khác (tự nhập)"
-    }
+    },
+    situationSection: "Tình hình hiện tại",
+    inKoreaLabel: "Bạn đang ở Hàn Quốc?",
+    inKoreaYes: "Đang ở Hàn",
+    inKoreaNo: "Đang ở ngoài Hàn",
+    graduationLabel: "Tình trạng tốt nghiệp",
+    graduation: {
+      not_applicable: "Không áp dụng (đã tốt nghiệp / không phải sinh viên)",
+      completed: "Đã tốt nghiệp",
+      within_6mo: "Tốt nghiệp trong 6 tháng",
+      within_1y: "Tốt nghiệp trong 1 năm",
+      later: "Tốt nghiệp muộn hơn"
+    },
+    jobOfferLabel: "Đã có offer từ công ty Hàn?",
+    jobOfferYes: "Có rồi / đang phỏng vấn",
+    jobOfferNo: "Chưa có"
   },
   ja: {
     pill: "Aply × ビザ診断",
@@ -439,7 +516,22 @@ const COPY: Record<PlatformLocale, Copy> = {
       PL: "ポーランド", UA: "ウクライナ",
       BR: "ブラジル", MX: "メキシコ", AR: "アルゼンチン", CL: "チリ",
       OTHER: "その他（手入力）"
-    }
+    },
+    situationSection: "現在の状況",
+    inKoreaLabel: "今、韓国にいますか？",
+    inKoreaYes: "韓国に在住",
+    inKoreaNo: "韓国の外に在住",
+    graduationLabel: "卒業状況",
+    graduation: {
+      not_applicable: "該当なし（卒業済み/学生でない）",
+      completed: "卒業済み",
+      within_6mo: "6 か月以内に卒業予定",
+      within_1y: "1 年以内に卒業予定",
+      later: "それ以降に卒業予定"
+    },
+    jobOfferLabel: "韓国企業からの内定はありますか？",
+    jobOfferYes: "あり / 面接中",
+    jobOfferNo: "まだない"
   },
   id: {
     pill: "Aply × Cek visa",
@@ -510,7 +602,22 @@ const COPY: Record<PlatformLocale, Copy> = {
       PL: "Polandia", UA: "Ukraina",
       BR: "Brasil", MX: "Meksiko", AR: "Argentina", CL: "Chili",
       OTHER: "Lainnya (tulis sendiri)"
-    }
+    },
+    situationSection: "Situasi Anda",
+    inKoreaLabel: "Saat ini di Korea?",
+    inKoreaYes: "Di Korea",
+    inKoreaNo: "Di luar Korea",
+    graduationLabel: "Status kelulusan",
+    graduation: {
+      not_applicable: "Tidak relevan (sudah lulus/bukan pelajar)",
+      completed: "Sudah lulus",
+      within_6mo: "Lulus dalam 6 bulan",
+      within_1y: "Lulus dalam 1 tahun",
+      later: "Lulus setelah itu"
+    },
+    jobOfferLabel: "Punya offer dari perusahaan Korea?",
+    jobOfferYes: "Ya / wawancara",
+    jobOfferNo: "Belum"
   }
 };
 
@@ -531,6 +638,14 @@ export function VisaLandingPage() {
   const [koreanLevel, setKoreanLevel] = useState<string>("INTERMEDIATE");
   const [workYears, setWorkYears] = useState("0");
   const [targetRole, setTargetRole] = useState("");
+  // Phase 1 신규 — 결과 페이지 status 분류에 쓰이는 핵심 입력 3개. 모두
+  // optional 이라 빈 값이면 백엔드도 그대로 받음. tri-state(string)로 두면
+  // "선택 안 함" 도 자연스럽게 모델링됨.
+  const [inKorea, setInKorea] = useState<"" | "yes" | "no">("");
+  const [hasJobOffer, setHasJobOffer] = useState<"" | "yes" | "no">("");
+  const [graduationStatus, setGraduationStatus] = useState<
+    "" | "not_applicable" | "completed" | "within_6mo" | "within_1y" | "later"
+  >("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -562,7 +677,12 @@ export function VisaLandingPage() {
           koreanLevel,
           workYears: Number(workYears) || 0,
           targetRole: targetRole.trim() || undefined,
-          locale
+          locale,
+          // 선택 안 한 입력은 보내지 않음 — 백엔드가 optional 로 받아서
+          // 기본 분기(상태/로드맵)만 사용.
+          inKorea: inKorea === "yes" ? true : inKorea === "no" ? false : undefined,
+          hasJobOffer: hasJobOffer === "yes" ? true : hasJobOffer === "no" ? false : undefined,
+          graduationStatus: graduationStatus || undefined
         })
       });
       const payload = (await response.json()) as { ok?: boolean; shareSlug?: string; message?: string };
@@ -733,6 +853,54 @@ export function VisaLandingPage() {
               />
             </div>
 
+            {/* Phase 1 신규 입력 — 결과 페이지에서 "지금 / 졸업 후 / 채용 제안
+                후 …" 5단계 상태 분류와 로드맵 우선순위 hint 에 직접 사용된다.
+                모두 optional 이라 빈 값으로 두면 기본 분류 적용. */}
+            <div className="border-t border-border/40 pt-5 space-y-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {t.situationSection}
+              </p>
+
+              {/* In Korea? — 2 컬럼 */}
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground">{t.inKoreaLabel}</label>
+                <div className="mt-1 grid grid-cols-2 gap-1.5">
+                  <CheckRow label={t.inKoreaYes} active={inKorea === "yes"} onClick={() => setInKorea(inKorea === "yes" ? "" : "yes")} />
+                  <CheckRow label={t.inKoreaNo}  active={inKorea === "no"}  onClick={() => setInKorea(inKorea === "no" ? "" : "no")} />
+                </div>
+              </div>
+
+              {/* Graduation status — 세로 리스트 (5개) */}
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground">{t.graduationLabel}</label>
+                <div className="mt-1 flex flex-col gap-1.5">
+                  {([
+                    ["not_applicable", t.graduation.not_applicable],
+                    ["completed", t.graduation.completed],
+                    ["within_6mo", t.graduation.within_6mo],
+                    ["within_1y", t.graduation.within_1y],
+                    ["later", t.graduation.later]
+                  ] as const).map(([code, label]) => (
+                    <CheckRow
+                      key={code}
+                      label={label}
+                      active={graduationStatus === code}
+                      onClick={() => setGraduationStatus(graduationStatus === code ? "" : code)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Korean job offer? — 2 컬럼 */}
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground">{t.jobOfferLabel}</label>
+                <div className="mt-1 grid grid-cols-2 gap-1.5">
+                  <CheckRow label={t.jobOfferYes} active={hasJobOffer === "yes"} onClick={() => setHasJobOffer(hasJobOffer === "yes" ? "" : "yes")} />
+                  <CheckRow label={t.jobOfferNo}  active={hasJobOffer === "no"}  onClick={() => setHasJobOffer(hasJobOffer === "no" ? "" : "no")} />
+                </div>
+              </div>
+            </div>
+
             {/* Optional fields */}
             <div className="border-t border-border/40 pt-5 space-y-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -809,6 +977,8 @@ export function VisaLandingPage() {
               {t.disclaimerSuffix}
             </p>
           </section>
+
+          <VisaEventFooter locale={locale} />
         </div>
       </main>
     </div>

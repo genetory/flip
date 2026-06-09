@@ -2,11 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ShareNetwork, Copy as CopyIcon, ArrowClockwise } from "@phosphor-icons/react/dist/ssr";
+import { ShareNetwork, Copy as CopyIcon, ArrowClockwise, ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
-import { localizeVisa } from "../../lib/visa-i18n";
+import {
+  localizeVisa,
+  localizeStatus,
+  localizePriority,
+  localizeBlocker,
+  localizeText
+} from "../../lib/visa-i18n";
+import { VisaEventFooter } from "../site/VisaEventFooter";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -17,13 +24,31 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 type Fit = "high" | "medium" | "low";
 
+// Phase 1 신규 — visa-rules.ts 의 VisaStatus 와 동일. 백엔드가 emit, 프론트
+// 가 5단계 그룹핑에 사용.
+type VisaStatus =
+  | "available_now"
+  | "after_job_offer"
+  | "after_graduation"
+  | "needs_preparation"
+  | "not_likely";
+
 type EligibleVisa = {
   code: string;
-  name: string;
+  name: string;            // Korean fallback
   fit: Fit;
+  status?: VisaStatus;     // legacy 레코드는 status 없음 → 그룹핑 시 needs_preparation 로 fallback
   conditions: string[];
   notes?: string;
+  blockers?: string[];
 };
+
+type Roadmap = {
+  steps: string[];
+  priorityKey?: string | null;
+};
+
+type NextStepEntry = { qKey: string; aKey: string };
 
 type Result = {
   id: string;
@@ -36,6 +61,10 @@ type Result = {
   workYears: number;
   targetRole: string | null;
   eligibleVisas: EligibleVisa[];
+  // Phase 1 — 백엔드가 wrapper payload 로 함께 emit. legacy 결과 페이지 호환
+  // 위해 모두 optional.
+  roadmap?: Roadmap | null;
+  nextSteps?: NextStepEntry[];
   shareSlug: string;
   locale: string;
   createdAt: string;
@@ -56,6 +85,13 @@ type Copy = {
   hikoreaSuffix: string;
   positionsTitle: string;
   positionsEmpty: string;
+  // Phase 1 — 새 섹션 헤더 / 라벨
+  roadmapTitle: string;
+  roadmapSubtitle: string;
+  priorityLabel: string;
+  nextStepsTitle: string;
+  nextStepsSubtitle: string;
+  blockersHeading: string;
   // 가입 유도 (비회원에게만 표시)
   signupHeading: string;
   signupSub: string;
@@ -117,6 +153,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " 또는 출입국·외국인청에 확인하세요.",
     positionsTitle: "최근 채용 공고",
     positionsEmpty: "매칭되는 공고가 없어요. 가입하면 새 공고가 올라올 때 자동으로 알려드립니다.",
+    roadmapTitle: "내 비자 로드맵",
+    roadmapSubtitle: "현재 상태에서 가야 할 경로를 한눈에",
+    priorityLabel: "우선순위",
+    nextStepsTitle: "이런 게 자주 궁금해요",
+    nextStepsSubtitle: "현재 비자/상황에 맞춰 자주 묻는 질문",
+    blockersHeading: "필요한 것",
     signupHeading: "로그인하고 취업 확률 높이기",
     signupSub: "이력서 AI 코칭 + 맞춤 비자 후원 회사 추천으로\n한국 취업 가능성을 한 단계 끌어올리세요.",
     naverBtn: "네이버로 시작하기",
@@ -172,6 +214,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " or your local immigration office.",
     positionsTitle: "Recent jobs",
     positionsEmpty: "No matches right now. Sign up and we'll notify you when new ones open.",
+    roadmapTitle: "Your visa roadmap",
+    roadmapSubtitle: "The path forward, given your situation",
+    priorityLabel: "Priority",
+    nextStepsTitle: "Common questions for your case",
+    nextStepsSubtitle: "Based on your current visa & situation",
+    blockersHeading: "What you'll need",
     signupHeading: "Sign in to boost your hiring odds",
     signupSub: "Resume AI coaching + matched visa-sponsoring companies\nto push your Korea-job chances higher.",
     naverBtn: "Continue with Naver",
@@ -227,6 +275,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " 或当地出入境部门。",
     positionsTitle: "最近职位",
     positionsEmpty: "目前无匹配职位。注册后有新职位将自动通知您。",
+    roadmapTitle: "我的签证路线图",
+    roadmapSubtitle: "根据您的现状，下一步的方向",
+    priorityLabel: "优先",
+    nextStepsTitle: "这些问题最常见",
+    nextStepsSubtitle: "针对您当前签证/情况",
+    blockersHeading: "需要准备",
     signupHeading: "登录提升就业概率",
     signupSub: "通过简历 AI 辅导 + 匹配的签证赞助公司，\n大幅提升您在韩国求职的成功率。",
     naverBtn: "使用 Naver 继续",
@@ -282,6 +336,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " hoặc văn phòng xuất nhập cảnh địa phương.",
     positionsTitle: "Việc làm gần đây",
     positionsEmpty: "Chưa có việc phù hợp. Đăng ký để được thông báo khi có việc mới.",
+    roadmapTitle: "Lộ trình visa của bạn",
+    roadmapSubtitle: "Hướng đi tiếp theo dựa trên tình hình của bạn",
+    priorityLabel: "Ưu tiên",
+    nextStepsTitle: "Câu hỏi thường gặp cho bạn",
+    nextStepsSubtitle: "Dựa trên visa & tình huống hiện tại",
+    blockersHeading: "Cần chuẩn bị",
     signupHeading: "Đăng nhập để tăng cơ hội việc làm",
     signupSub: "Tư vấn AI hồ sơ + đề xuất công ty bảo trợ visa\nđể tăng cơ hội việc làm tại Hàn Quốc.",
     naverBtn: "Tiếp tục với Naver",
@@ -337,6 +397,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " または出入国・外国人庁にご確認ください。",
     positionsTitle: "最新の求人",
     positionsEmpty: "現在マッチする求人はありません。登録すると新着求人を自動でお知らせします。",
+    roadmapTitle: "あなたのビザ・ロードマップ",
+    roadmapSubtitle: "現在の状況からの進路を一目で",
+    priorityLabel: "優先",
+    nextStepsTitle: "よくある疑問",
+    nextStepsSubtitle: "現在のビザ/状況に合わせて",
+    blockersHeading: "準備するもの",
     signupHeading: "ログインして就職確率を上げる",
     signupSub: "履歴書AIコーチング + ビザ支援会社のマッチングで\n韓国就職の成功率を高めましょう。",
     naverBtn: "Naver で始める",
@@ -392,6 +458,12 @@ const COPY: Record<PlatformLocale, Copy> = {
     hikoreaSuffix: " atau kantor imigrasi setempat.",
     positionsTitle: "Lowongan terbaru",
     positionsEmpty: "Belum ada yang cocok. Daftar dan kami akan beri tahu saat ada baru.",
+    roadmapTitle: "Peta jalan visa Anda",
+    roadmapSubtitle: "Arah selanjutnya berdasarkan situasi Anda",
+    priorityLabel: "Prioritas",
+    nextStepsTitle: "Pertanyaan yang sering muncul",
+    nextStepsSubtitle: "Berdasarkan visa & situasi saat ini",
+    blockersHeading: "Perlu disiapkan",
     signupHeading: "Masuk untuk tingkatkan peluang kerja",
     signupSub: "Bimbingan AI resume + rekomendasi perusahaan pendukung visa\nuntuk meningkatkan peluang kerja di Korea.",
     naverBtn: "Lanjutkan dengan Naver",
@@ -447,15 +519,26 @@ const FIT_CLS: Record<Fit, string> = {
   low: "border-zinc-300 bg-zinc-50 text-zinc-600"
 };
 
+// 상태별 그룹 헤더 pill 색상. 색은 의미 순서에 맞춰 — 가능 → 노란/주황 →
+// 회색(어려움) 으로 자연스럽게 디그레이드.
+const STATUS_PILL_CLS: Record<VisaStatus, string> = {
+  available_now:     "border-emerald-300 bg-emerald-50 text-emerald-700",
+  after_job_offer:   "border-sky-300 bg-sky-50 text-sky-700",
+  after_graduation:  "border-violet-300 bg-violet-50 text-violet-700",
+  needs_preparation: "border-amber-300 bg-amber-50 text-amber-700",
+  not_likely:        "border-zinc-300 bg-zinc-50 text-zinc-600"
+};
+
 export function VisaResultPage({ slug }: { slug: string }) {
   const { locale } = useLanguage();
   const { isAuthenticated, isReady } = useAuthSession();
   const t = COPY[locale] ?? COPY.ko;
   const apiBase = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000", []);
-  // OAuth/이메일 가입 완료 후 자동으로 이력서 코칭 화면으로 보냄. 비회원이
-  // CTA 를 누르는 의도가 "내 이력서 코칭으로 가서 취업 확률 높이기" 이므로,
-  // 가입 흐름이 끝나면 곧바로 /resume 으로 이어지도록.
-  const nextParam = encodeURIComponent("/resume");
+  // OAuth/이메일 가입 완료 후 결과 페이지로 다시 돌아오게 함 — 비회원에게
+  // 가렸던 화이트 딤 그라데이션이 즉시 풀려 전체 결과가 노출되는 보상 UX.
+  // 가입 직후의 가치 체감 → 자연스럽게 페이지 하단의 "이력서 코칭 보러가기"
+  // CTA 로 이어지는 funnel.
+  const nextParam = encodeURIComponent(`/events/visa/result/${slug}`);
   const [result, setResult] = useState<Result | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
@@ -545,132 +628,257 @@ export function VisaResultPage({ slug }: { slug: string }) {
                 {t.hikoreaSuffix}
               </section>
 
-              <section className="space-y-3">
-                {result.eligibleVisas.map((v) => {
-                  // 백엔드는 한국어 원문(name/conditions/notes)을 그대로 저장/반환.
-                  // 프론트가 비자 코드 + 현재 로케일 + 입력 컨텍스트(한국어 수준)로
-                  // 직접 카피를 다시 그려, 페이지에서 언어 토글 시 즉시 반영되게 한다.
-                  // 사전에 없는 코드는 백엔드 원문으로 자연스럽게 fallback.
-                  const localized = localizeVisa(locale, v.code, { koreanLevel: result.koreanLevel });
-                  const name = localized?.name ?? v.name;
-                  const conditions = localized?.conditions ?? v.conditions;
-                  const notes = localized?.notes ?? v.notes;
-                  return (
-                    <article key={v.code} className="rounded-2xl bg-white p-5">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="font-display text-xl font-bold tracking-tight">
-                            {v.code} <span className="text-sm font-semibold text-muted-foreground">· {name}</span>
-                          </p>
-                        </div>
-                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${FIT_CLS[v.fit]}`}>
-                          {FIT_LABEL[v.fit]}
+              {/* Phase 1 — 비자 로드맵. 현재 비자(또는 한국 밖) → 다음 비자 →
+                  장기 체류. text-arrow 체인으로 컴팩트하게. */}
+              {result.roadmap && result.roadmap.steps.length > 0 ? (
+                <section className="rounded-2xl bg-white p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="font-display text-base font-bold tracking-tight">{t.roadmapTitle}</h2>
+                      <p className="mt-0.5 text-[12px] text-muted-foreground">{t.roadmapSubtitle}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-1.5">
+                    {result.roadmap.steps.map((code, i) => (
+                      <span key={`${code}-${i}`} className="inline-flex items-center gap-1.5">
+                        <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-[12px] font-bold text-primary">
+                          {code}
                         </span>
-                      </div>
-                      <ul className="mt-3 space-y-1.5 text-sm text-foreground">
-                        {conditions.map((c, i) => (
-                          <li key={i} className="flex gap-2">
-                            <span className="text-primary mt-1">•</span>
-                            <span>{c}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {notes ? (
-                        <p className="mt-3 rounded-lg bg-muted/30 px-3 py-2 text-[12px] text-muted-foreground">
-                          💡 {notes}
-                        </p>
-                      ) : null}
-                    </article>
-                  );
-                })}
-              </section>
-
-              <section className="rounded-2xl bg-white p-5">
-                <h2 className="text-sm font-semibold text-muted-foreground">{t.positionsTitle}</h2>
-                {positions.length === 0 ? (
-                  <p className="mt-3 text-sm text-muted-foreground">{t.positionsEmpty}</p>
-                ) : (
-                  <div className="mt-3 space-y-2">
-                    {positions.map((p) => (
-                      <Link
-                        key={p.id}
-                        href={`/positions/${p.id}`}
-                        className="block rounded-xl border border-border/60 bg-muted/20 px-4 py-3 transition hover:border-primary/40 hover:bg-primary/5"
-                      >
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          {p.partnerOrganization?.name ?? t.partnerCompanyFallback}
-                        </p>
-                        <p className="mt-0.5 text-sm font-semibold text-foreground">{p.title}</p>
-                      </Link>
+                        {i < (result.roadmap?.steps.length ?? 0) - 1 ? (
+                          <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/60" weight="bold" />
+                        ) : null}
+                      </span>
                     ))}
                   </div>
-                )}
-              </section>
+                  {(() => {
+                    const priority = localizePriority(locale, result.roadmap?.priorityKey ?? null);
+                    return priority ? (
+                      <p className="mt-4 rounded-xl bg-primary/5 px-4 py-3 text-[13px] font-semibold text-primary">
+                        <span className="text-[10px] uppercase tracking-wider opacity-70">{t.priorityLabel}</span>
+                        <br />
+                        {priority}
+                      </p>
+                    ) : null;
+                  })()}
+                </section>
+              ) : null}
 
-              {/* CTA 박스 — 비회원에게는 소셜 로그인 4종, 회원에게는 이력서
-                  코칭으로 자연스럽게 보내는 단일 버튼. 인증 상태 로딩 중에는
-                  공간을 차지하는 빈 박스로 layout shift 방지. */}
-              {!isReady ? (
-                <section className="rounded-3xl border border-border/40 bg-white p-6 h-[280px]" aria-hidden />
-              ) : !isAuthenticated ? (
-                <section className="rounded-3xl border border-border/40 bg-white p-6 text-center">
-                  <h2 className="font-display text-lg font-bold tracking-tight">{t.signupHeading}</h2>
-                  <p className="mt-2 whitespace-pre-line text-[12.5px] leading-relaxed text-muted-foreground">
-                    {t.signupSub}
-                  </p>
-                  <div className="mt-5 flex w-full flex-col gap-2">
-                    <a
-                      href={`${API_BASE}/auth/naver/start?next=${nextParam}`}
-                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#03C75A] text-[14px] font-semibold text-white transition active:bg-[#02b551]"
-                    >
-                      <span aria-hidden className="text-base font-black">N</span>
-                      {t.naverBtn}
-                    </a>
-                    <a
-                      href={`${API_BASE}/auth/kakao/start?next=${nextParam}`}
-                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] text-[14px] font-semibold text-[#191919] transition active:bg-[#f5dd00]"
-                    >
-                      <svg aria-hidden className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.86 5.36 4.66 6.78L5.5 21.5c-.1.34.27.62.57.43L10.5 19c.5.05 1 .08 1.5.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z" />
-                      </svg>
-                      {t.kakaoBtn}
-                    </a>
-                    <a
-                      href={`${API_BASE}/auth/google/start?next=${nextParam}`}
-                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border/60 bg-white text-[14px] font-semibold text-[#191919] transition active:bg-muted/40"
-                    >
-                      <svg aria-hidden className="h-4 w-4" viewBox="0 0 48 48">
-                        <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
-                        <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
-                        <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
-                        <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
-                      </svg>
-                      {t.googleBtn}
-                    </a>
-                    <Link
-                      href={`/signup?next=${nextParam}&fromVisa=${encodeURIComponent(slug)}`}
-                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-muted/40 text-[14px] font-semibold text-foreground transition active:bg-muted/60"
-                    >
-                      {t.emailBtn}
+              {/* Phase 1 + viral gate — 비자 status 그룹 + nextSteps + positions
+                  + CTA 를 한 IIFE 로 묶고 인증 상태에 따라 분기.
+                  • 비회원: 첫 status 그룹만 보여주고 → 회원가입 CTA → 나머지는
+                    화이트 딤 그라데이션 + blur 로 가려 viral 신호 + 가입 동기
+                    제공. (saju 패턴 변형)
+                  • 회원: 전부 그대로 노출 + 마지막에 이력서 코칭 CTA.
+                  • 인증 로딩: 첫 그룹 + 빈 placeholder (layout shift 방지). */}
+              {(() => {
+                const groups: VisaStatus[] = [
+                  "available_now",
+                  "after_job_offer",
+                  "after_graduation",
+                  "needs_preparation",
+                  "not_likely"
+                ];
+                const byStatus = new Map<VisaStatus, EligibleVisa[]>();
+                for (const v of result.eligibleVisas) {
+                  const s = (v.status ?? "needs_preparation") as VisaStatus;
+                  if (!byStatus.has(s)) byStatus.set(s, []);
+                  byStatus.get(s)!.push(v);
+                }
+                const visaGroups = groups
+                  .map((s) => ({ status: s, visas: byStatus.get(s) ?? [] }))
+                  .filter((g) => g.visas.length > 0);
+
+                // 단일 비자 status 그룹의 JSX. (function 이 아니라 helper 변수로
+                // 내려놓아 IIFE 내부에서 깔끔하게 호출.)
+                const renderGroup = (g: { status: VisaStatus; visas: EligibleVisa[] }) => {
+                  const status = localizeStatus(locale, g.status);
+                  return (
+                    <section key={g.status} className="space-y-3">
+                      <header className="px-1">
+                        <p className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold ${STATUS_PILL_CLS[g.status]}`}>
+                          {status.label}
+                        </p>
+                        <p className="mt-1.5 text-[12px] text-muted-foreground">{status.helper}</p>
+                      </header>
+                      {g.visas.map((v) => {
+                        const localized = localizeVisa(locale, v.code, { koreanLevel: result.koreanLevel });
+                        const name = localized?.name ?? v.name;
+                        const conditions = localized?.conditions ?? v.conditions;
+                        const notes = localized?.notes ?? v.notes;
+                        return (
+                          <article key={v.code} className="rounded-2xl bg-white p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <p className="font-display text-xl font-bold tracking-tight">
+                                {v.code} <span className="text-sm font-semibold text-muted-foreground">· {name}</span>
+                              </p>
+                              <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${FIT_CLS[v.fit]}`}>
+                                {FIT_LABEL[v.fit]}
+                              </span>
+                            </div>
+                            {v.blockers && v.blockers.length > 0 ? (
+                              <div className="mt-3 rounded-xl border border-border/40 bg-muted/20 p-3">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                  {t.blockersHeading}
+                                </p>
+                                <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                                  {v.blockers.map((b) => (
+                                    <li key={b} className="inline-flex items-center rounded-full border border-border/60 bg-white px-2.5 py-1 text-[11px] font-semibold text-foreground/80">
+                                      {localizeBlocker(locale, b)}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
+                            <ul className="mt-3 space-y-1.5 text-sm text-foreground">
+                              {conditions.map((c, i) => (
+                                <li key={i} className="flex gap-2">
+                                  <span className="text-primary mt-1">•</span>
+                                  <span>{c}</span>
+                                </li>
+                              ))}
+                            </ul>
+                            {notes ? (
+                              <p className="mt-3 rounded-lg bg-muted/30 px-3 py-2 text-[12px] text-muted-foreground">
+                                💡 {notes}
+                              </p>
+                            ) : null}
+                          </article>
+                        );
+                      })}
+                    </section>
+                  );
+                };
+
+                const nextStepsBlock =
+                  result.nextSteps && result.nextSteps.length > 0 ? (
+                    <section key="next-steps" className="rounded-2xl bg-white p-5">
+                      <div>
+                        <h2 className="font-display text-base font-bold tracking-tight">{t.nextStepsTitle}</h2>
+                        <p className="mt-0.5 text-[12px] text-muted-foreground">{t.nextStepsSubtitle}</p>
+                      </div>
+                      <div className="mt-3 space-y-3">
+                        {result.nextSteps.map((step, i) => (
+                          <div key={i} className="rounded-xl border border-border/40 bg-muted/20 p-4">
+                            <p className="text-[13px] font-bold text-foreground">Q. {localizeText(locale, step.qKey)}</p>
+                            <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">{localizeText(locale, step.aKey)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null;
+
+                const positionsBlock = (
+                  <section key="positions" className="rounded-2xl bg-white p-5">
+                    <h2 className="text-sm font-semibold text-muted-foreground">{t.positionsTitle}</h2>
+                    {positions.length === 0 ? (
+                      <p className="mt-3 text-sm text-muted-foreground">{t.positionsEmpty}</p>
+                    ) : (
+                      <div className="mt-3 space-y-2">
+                        {positions.map((p) => (
+                          <Link key={p.id} href={`/positions/${p.id}`} className="block rounded-xl border border-border/60 bg-muted/20 px-4 py-3 transition hover:border-primary/40 hover:bg-primary/5">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {p.partnerOrganization?.name ?? t.partnerCompanyFallback}
+                            </p>
+                            <p className="mt-0.5 text-sm font-semibold text-foreground">{p.title}</p>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                );
+
+                const signupCTA = (
+                  <section className="rounded-3xl border border-border/40 bg-white p-6 text-center">
+                    <h2 className="font-display text-lg font-bold tracking-tight">{t.signupHeading}</h2>
+                    <p className="mt-2 whitespace-pre-line text-[12.5px] leading-relaxed text-muted-foreground">
+                      {t.signupSub}
+                    </p>
+                    <div className="mt-5 flex w-full flex-col gap-2">
+                      <a href={`${API_BASE}/auth/naver/start?next=${nextParam}`} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#03C75A] text-[14px] font-semibold text-white transition active:bg-[#02b551]">
+                        <span aria-hidden className="text-base font-black">N</span>
+                        {t.naverBtn}
+                      </a>
+                      <a href={`${API_BASE}/auth/kakao/start?next=${nextParam}`} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] text-[14px] font-semibold text-[#191919] transition active:bg-[#f5dd00]">
+                        <svg aria-hidden className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.86 5.36 4.66 6.78L5.5 21.5c-.1.34.27.62.57.43L10.5 19c.5.05 1 .08 1.5.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z" />
+                        </svg>
+                        {t.kakaoBtn}
+                      </a>
+                      <a href={`${API_BASE}/auth/google/start?next=${nextParam}`} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border/60 bg-white text-[14px] font-semibold text-[#191919] transition active:bg-muted/40">
+                        <svg aria-hidden className="h-4 w-4" viewBox="0 0 48 48">
+                          <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
+                          <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
+                          <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
+                          <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
+                        </svg>
+                        {t.googleBtn}
+                      </a>
+                      <Link href={`/signup?next=${nextParam}&fromVisa=${encodeURIComponent(slug)}`} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-muted/40 text-[14px] font-semibold text-foreground transition active:bg-muted/60">
+                        {t.emailBtn}
+                      </Link>
+                    </div>
+                  </section>
+                );
+
+                const signedInCTA = (
+                  <section className="rounded-3xl border border-border/40 bg-white p-6 text-center">
+                    <h2 className="font-display text-lg font-bold tracking-tight">{t.signedInHeading}</h2>
+                    <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">{t.signedInSub}</p>
+                    <Link href="/resume" className="mt-5 flex h-12 w-full items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold transition active:bg-primary/90">
+                      {t.signedInCta}
                     </Link>
-                  </div>
-                </section>
-              ) : (
-                // 회원에게는 이력서 코칭으로 한 번에 보내는 단일 CTA. 비자
-                // 진단 결과를 본 다음의 자연스러운 다음 단계.
-                <section className="rounded-3xl border border-border/40 bg-white p-6 text-center">
-                  <h2 className="font-display text-lg font-bold tracking-tight">{t.signedInHeading}</h2>
-                  <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
-                    {t.signedInSub}
-                  </p>
-                  <Link
-                    href="/resume"
-                    className="mt-5 flex h-12 w-full items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold transition active:bg-primary/90"
-                  >
-                    {t.signedInCta}
-                  </Link>
-                </section>
-              )}
+                  </section>
+                );
+
+                const firstGroup = visaGroups[0];
+                const restGroups = visaGroups.slice(1);
+
+                if (!isReady) {
+                  return (
+                    <>
+                      {firstGroup ? renderGroup(firstGroup) : null}
+                      <section className="rounded-3xl border border-border/40 bg-white p-6 h-[280px]" aria-hidden />
+                    </>
+                  );
+                }
+
+                if (isAuthenticated) {
+                  return (
+                    <>
+                      {visaGroups.map(renderGroup)}
+                      {nextStepsBlock}
+                      {positionsBlock}
+                      {signedInCTA}
+                    </>
+                  );
+                }
+
+                // 비회원 — 첫 그룹 노출 → 가입 CTA → 나머지는 화이트 딤 그라데
+                // 이션 + blur 로 미리보기. CSS mask 로 18% 까지 또렷이 → 55% 에서
+                // 사라지며 자연스럽게 white-out. pointer-events-none 으로 클릭 차단.
+                return (
+                  <>
+                    {firstGroup ? renderGroup(firstGroup) : null}
+                    {signupCTA}
+                    {(restGroups.length > 0 || nextStepsBlock || positions.length > 0) ? (
+                      <div
+                        aria-hidden
+                        className="pointer-events-none select-none space-y-6 [filter:blur(3px)] opacity-70"
+                        style={{
+                          maskImage:
+                            "linear-gradient(to bottom, black 0%, black 18%, transparent 55%)",
+                          WebkitMaskImage:
+                            "linear-gradient(to bottom, black 0%, black 18%, transparent 55%)"
+                        }}
+                      >
+                        {restGroups.map(renderGroup)}
+                        {nextStepsBlock}
+                        {positionsBlock}
+                      </div>
+                    ) : null}
+                  </>
+                );
+              })()}
 
               {/* Share actions */}
               <section className="rounded-2xl bg-white p-5">
@@ -702,6 +910,10 @@ export function VisaResultPage({ slug }: { slug: string }) {
               </section>
             </>
           ) : null}
+
+          {/* 결과 데이터 유무와 관계없이 푸터 노출 — 정책/법인 정보는 항상 접근
+              가능하게. (loading/error/result 모든 분기 바깥) */}
+          <VisaEventFooter locale={locale} />
         </div>
       </main>
     </div>
