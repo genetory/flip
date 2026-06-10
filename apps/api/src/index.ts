@@ -2247,19 +2247,21 @@ const createPositionSchema = z.object({
   postingProgressLogs: lineArraySchema,
   preferredNationalities: lineArraySchema,
   communicationLanguages: lineArraySchema,
-  hiringProcess: z.string().trim().max(2000).optional(),
+  hiringProcess: z.string().trim().max(10_000).optional(),
   preferredJobRole: z.string().trim().max(120).optional(),
   hiringCount: z.coerce.number().int().min(1).max(999).optional(),
   workingHours: z.string().trim().max(240).optional(),
   workLocation: z.string().trim().max(240).optional(),
   startDate: z.string().datetime().nullable().optional(),
-  mainResponsibilities: z.string().trim().max(4000).optional(),
-  requiredQualifications: z.string().trim().max(4000).optional(),
-  preferredQualifications: z.string().trim().max(4000).optional(),
+  // long-form 본문 필드들은 DB 컬럼이 TEXT 라 무제한이지만 zod 에서만 캡.
+  // 실제 채용 공고는 4000자 넘기는 경우가 흔해 20000자로 상향 (악용 방어용).
+  mainResponsibilities: z.string().trim().max(20_000).optional(),
+  requiredQualifications: z.string().trim().max(20_000).optional(),
+  preferredQualifications: z.string().trim().max(20_000).optional(),
   dressCode: z.string().trim().max(240).optional(),
   wantsPreTraining: z.boolean().optional(),
-  additionalNotes: z.string().trim().max(4000).optional(),
-  adminMemo: z.string().trim().max(4000).optional()
+  additionalNotes: z.string().trim().max(20_000).optional(),
+  adminMemo: z.string().trim().max(10_000).optional()
 });
 
 const createPartnerPositionSchema = createPositionSchema
