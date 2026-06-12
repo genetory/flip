@@ -547,6 +547,15 @@ model Position {
   @@index([status])
   @@index([title])
   @@index([createdAt])
+  // /positions "오직 Aply 에서만!" 탭 (sourceProvider=INTERNAL + status=OPEN +
+  // ORDER BY createdAt DESC) 가 createdAt 단일 인덱스만 있을 땐 BUDDIES/WANTED 가
+  // 위에 가득 쌓여서 INTERNAL 20개 찾을 때까지 heap 을 길게 끌고 갔다. 복합
+  // 인덱스로 필터 + 정렬을 한번에 — Postgres 가 ASC 인덱스를 backward 스캔하므로
+  // DESC 키워드는 불필요. id 까지 포함해 keyset 페이지네이션의 tiebreaker 도 커버.
+  //
+  // ⚠️ 이 인덱스는 마이그레이션 파일이 아니라 apps/api/scripts/sync-position-index.sh
+  // 가 CREATE INDEX CONCURRENTLY 로 적용한다(락 회피). migrate deploy 로는 안 만들어짐.
+  @@index([sourceProvider, status, createdAt, id])
 }
 
 model PositionRevision {
