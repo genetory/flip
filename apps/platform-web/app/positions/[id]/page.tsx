@@ -10,8 +10,13 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:
 async function fetchPublicPosition(id: string): Promise<PublicPositionListItem | null> {
   if (!id) return null;
   try {
+    // cache: "no-store" — 이전엔 revalidate: 300 이라 운영자/파트너가 포지션을
+    // 수정해도 최대 5분간 SSR 캐시가 옛날 값을 잡고 있었다. PositionDetailPage
+    // 는 SSR 데이터 + ko 로케일이면 클라이언트 재요청을 스킵하므로, 캐시가
+    // 그대로 화면에 박혀버린다. 포지션 상세는 페이지뷰 적고 동적인 컨텐츠라
+    // 캐싱 이득은 작고 스테일 손해가 크다.
     const response = await fetch(`${apiBaseUrl}/positions/${encodeURIComponent(id)}`, {
-      next: { revalidate: 300 }
+      cache: "no-store"
     });
     if (!response.ok) return null;
     const payload = (await response.json()) as { ok?: boolean; item?: PublicPositionListItem };

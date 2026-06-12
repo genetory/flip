@@ -5917,6 +5917,39 @@ app.patch("/ops/sgc/applications/:id", authenticate, requireRoles([MemberRole.OP
   }
 });
 
+// DELETE /ops/sgc/applications/:id — 운영자가 지원 자체를 삭제. 주된 용도는
+// 테스트(같은 계정으로 다시 신청해보기) 와 명백한 오등록 정리. 사용자가
+// 자발적으로 취소하는 케이스는 status=WITHDRAWN PATCH 가 맞고, 이 엔드포인트는
+// 행 자체를 지운다. @@unique([userId]) 라 이 행이 살아 있으면 동일 유저의
+// 재신청이 P2002 로 막히는데, 삭제하면 다시 깨끗하게 신청 가능.
+app.delete("/ops/sgc/applications/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id : "";
+  if (!id) return res.status(400).json({ ok: false, message: "missing id" });
+  try {
+    // 존재 여부 먼저 확인 — 없으면 404 로 명확히 반환 (delete 가 P2025 던지면
+    // status 만으로 구분하기 애매해서).
+    const found = await prisma.sgcApplication.findUnique({
+      where: { id },
+      select: { id: true, userId: true }
+    });
+    if (!found) return res.status(404).json({ ok: false, message: "not found" });
+
+    await prisma.sgcApplication.delete({ where: { id } });
+
+    // 사용자 알림은 굳이 보내지 않는다 — 운영자가 테스트/정리 목적으로 삭제하는
+    // 경로라 사용자 입장에서 별도 안내가 오히려 혼란. 디스코드 운영 채널엔
+    // 향후 필요하면 별도 hook 으로 알릴 수 있음.
+
+    return res.json({ ok: true, id: found.id });
+  } catch (error) {
+    console.error("[ops/sgc/applications][delete][failed]", {
+      id,
+      message: error instanceof Error ? error.message : String(error)
+    });
+    return res.status(500).json({ ok: false, message: "failed to delete application" });
+  }
+});
+
 const companyConsultationCreateSchema = z.object({
   companyName: z.string().trim().min(1).max(120),
   contactName: z.string().trim().min(1).max(80),
@@ -14128,7 +14161,13 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
 
   // Operators can edit any position directly (no revision, no review).
   if (isOperator) {
-    const target = await prisma.position.findUnique({ where: { id }, select: { id: true, status: true } });
+    const target = await prisma.position.findUnique({
+      where: { id },
+      // adminMemo 가 필요 — employmentClassification 은 Position 컬럼이 아니라
+      // adminMemo 안에 한 줄 prefix 로 인코딩되어 있어서, 새 값을 머지하려면
+      // 기존 메모를 먼저 가져와야 한다.
+      select: { id: true, status: true, adminMemo: true }
+    });
     if (!target) {
       return res.status(404).json({ ok: false, message: "position not found" });
     }
@@ -14160,6 +14199,16 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
           ...(parsed.data.dressCode !== undefined ? { dressCode: parsed.data.dressCode } : {}),
           ...(parsed.data.wantsPreTraining !== undefined ? { wantsPreTraining: parsed.data.wantsPreTraining } : {}),
           ...(parsed.data.additionalNotes !== undefined ? { additionalNotes: parsed.data.additionalNotes } : {}),
+          // employmentClassification 은 adminMemo 안에 prefix 라인으로 저장 — 파트너
+          // 승인-반영 경로(아래)와 동일한 머지 함수로 처리해 한 환경만 누락되는 일이 없게.
+          ...(parsed.data.employmentClassification !== undefined
+            ? {
+                adminMemo: mergeEmploymentClassificationMeta(
+                  target.adminMemo,
+                  parsed.data.employmentClassification ?? null
+                )
+              }
+            : {}),
           statusHistories: {
             create: {
               fromStatus: target.status,

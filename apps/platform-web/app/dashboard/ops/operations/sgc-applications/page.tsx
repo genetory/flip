@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CaretDown, X } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown, Trash, X } from "@phosphor-icons/react/dist/ssr";
 import { readAccessToken } from "../../../../../lib/auth-client";
 
 // ---------------------------------------------------------------------------
@@ -183,6 +183,36 @@ export default function SgcApplicationsPage() {
           : prev
       );
     } catch {
+      await load();
+    }
+  }
+
+  // 지원 삭제 — 주로 테스트(같은 유저로 재신청 시험)와 명백한 오등록 정리.
+  // 삭제 후엔 status 카운트도 1 줄여야 화면 위 카드가 어긋나지 않는다.
+  async function deleteApplication(id: string, currentStatus: SgcStatus) {
+    try {
+      const response = await fetch(`${apiBase()}/ops/sgc/applications/${id}`, {
+        method: "DELETE",
+        headers: authHeaders()
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      setSelectedId(null);
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              total: Math.max(0, prev.total - 1),
+              totalAll: Math.max(0, prev.totalAll - 1),
+              statusCounts: {
+                ...prev.statusCounts,
+                [currentStatus]: Math.max(0, (prev.statusCounts[currentStatus] ?? 0) - 1)
+              },
+              applications: prev.applications.filter((a) => a.id !== id)
+            }
+          : prev
+      );
+    } catch {
+      // 옵티미스틱 갱신이 깨졌을 가능성 — reload 로 한 번에 진실 보정.
       await load();
     }
   }
@@ -495,6 +525,7 @@ export default function SgcApplicationsPage() {
           application={selectedApplication}
           onClose={() => setSelectedId(null)}
           onSaveMemo={(memo) => updateApplication(selectedApplication.id, { adminMemo: memo || null })}
+          onDelete={() => deleteApplication(selectedApplication.id, selectedApplication.status)}
         />
       ) : null}
     </section>
@@ -506,11 +537,13 @@ export default function SgcApplicationsPage() {
 function ApplicationDetailModal({
   application,
   onClose,
-  onSaveMemo
+  onSaveMemo,
+  onDelete
 }: {
   application: Application;
   onClose: () => void;
   onSaveMemo: (memo: string) => void;
+  onDelete: () => void;
 }) {
   // ESC 로 닫기 + body scroll lock — 모달 열려 있는 동안만.
   useEffect(() => {
@@ -692,6 +725,53 @@ function ApplicationDetailModal({
         <DetailBlock title="운영 메모 (운영자만 보임)">
           <AdminMemoEditor value={application.adminMemo ?? ""} onSave={onSaveMemo} />
         </DetailBlock>
+
+        {/* 위험 영역 — 지원 삭제. 테스트(같은 계정 재신청)나 명백한 오등록
+            정리 용도. 사용자 본인이 자발적으로 취소하는 케이스는 단계 변경에서
+            "취소" 로 처리. window.confirm 으로 한 번 더 묻고, 사용자 이름까지
+            문장에 박아 실수 방지. */}
+        <div
+          style={{
+            marginTop: 24,
+            padding: 14,
+            borderRadius: 10,
+            border: "1px solid #fecaca",
+            background: "#fff5f5"
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#991b1b" }}>
+            위험 — 지원 삭제
+          </p>
+          <p style={{ margin: "4px 0 10px", fontSize: 12, color: "#7f1d1d", lineHeight: 1.5 }}>
+            이 지원 행 자체를 삭제합니다. 같은 사용자로 다시 신청 가능해지며 운영 풀에서도 사라집니다.
+            테스트나 명백한 오등록 정리 용도로만 사용하세요. 실제 거절은 단계 변경(불합격)으로 처리.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              const who = application.user?.name || application.user?.email || "이 지원";
+              if (!window.confirm(`${who} 의 지원을 정말 삭제할까요?\n복구할 수 없습니다.`)) return;
+              onDelete();
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 14px",
+              height: 36,
+              borderRadius: 8,
+              border: "1px solid #dc2626",
+              background: "#dc2626",
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer"
+            }}
+          >
+            <Trash size={14} weight="bold" />
+            지원 삭제
+          </button>
+        </div>
       </div>
     </div>
   );
