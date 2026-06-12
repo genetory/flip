@@ -36,7 +36,8 @@ import { SelectInterviewSlotModal } from "../interviews/SelectInterviewSlotModal
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import type { PlatformLocale } from "../../lib/auth-messages";
 import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
-import { BadgeCheck, Bookmark, Briefcase, FileText, Globe, LayoutGrid, List, Mail, MapPin, Pencil, Phone, Star, Trash2 } from "lucide-react";
+import { BadgeCheck, Bookmark, Briefcase, FileText, Globe, Handshake, LayoutGrid, List, Mail, MapPin, Pencil, Phone, Star, Trash2 } from "lucide-react";
+import { getMySgcApplication, type SgcApplication } from "../../lib/sgc-event-client";
 
 const PROFILE_SQUIRCLE_CLIP_ID = "profile-page-squircle-clip";
 const PROFILE_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
@@ -149,7 +150,10 @@ export function ProfilePage() {
   const [partnerOrg, setPartnerOrg] = useState<MyPartnerOrganization | null>(null);
   const [partnerOrgChecked, setPartnerOrgChecked] = useState(false);
   const [activeTab, setActiveTab] = useState<"info" | "positions" | "notifications">("info");
-  const [studentTab, setStudentTab] = useState<"info" | "resume" | "applied" | "favorites">("info");
+  // "sgc" 탭은 학생이 SGC 일경험 프로그램에 지원한 경우에만 노출. 비지원자
+  // 에게는 아예 보이지 않으므로 기본 진입 흐름엔 영향 없음.
+  const [studentTab, setStudentTab] = useState<"info" | "resume" | "applied" | "favorites" | "sgc">("info");
+  const [sgcApplication, setSgcApplication] = useState<SgcApplication | null>(null);
   const [postedPositions, setPostedPositions] = useState<PublicPositionListItem[]>([]);
   const [partnerPositions, setPartnerPositions] = useState<PartnerPosition[]>([]);
   const [positionsError, setPositionsError] = useState<string | null>(null);
@@ -501,12 +505,33 @@ export function ProfilePage() {
       return;
     }
 
-    if (tabParam === "resume" || tabParam === "applied" || tabParam === "favorites" || tabParam === "info") {
+    if (
+      tabParam === "resume" || tabParam === "applied" || tabParam === "favorites" ||
+      tabParam === "info" || tabParam === "sgc"
+    ) {
       setStudentTab(tabParam);
     } else {
       setStudentTab("info");
     }
   }, [tabParam, user]);
+
+  // 학생 사용자의 SGC 일경험 지원 상태를 한 번 조회. 지원했으면 row 가 있고
+  // 탭이 노출됨. 비지원자에게는 null 이라 탭 자체가 안 보임.
+  useEffect(() => {
+    if (!user || user.role !== "STUDENT") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const application = await getMySgcApplication();
+        if (!cancelled) setSgcApplication(application);
+      } catch {
+        if (!cancelled) setSgcApplication(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const additionalCompanyImages = useMemo(() => {
     const raw = partnerOrg?.officePhotoImageData;
@@ -1191,6 +1216,27 @@ export function ProfilePage() {
                       >
                         {tr("즐겨찾기한 포지션", "Favorite positions", "收藏的职位", "Vị trí đã lưu", "お気に入りのポジション", "Posisi favorit")}
                       </button>
+                      {sgcApplication ? (
+                        <button
+                          type="button"
+                          onClick={() => setStudentTab("sgc")}
+                          className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
+                            studentTab === "sgc" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <span className="inline-flex items-center gap-1.5">
+                            <Handshake className="h-4 w-4" />
+                            {tr(
+                              "SGC × Aply 일경험",
+                              "SGC × Aply Work Experience",
+                              "SGC × Aply 实习",
+                              "SGC × Aply Thực tập",
+                              "SGC × Aply 就業体験",
+                              "SGC × Aply Magang"
+                            )}
+                          </span>
+                        </button>
+                      ) : null}
                     </div>
                     <div className="space-y-5 p-5 md:p-6">
 
@@ -1403,6 +1449,11 @@ export function ProfilePage() {
                           </div>
                         )}
                       </div>
+                    ) : studentTab === "sgc" && sgcApplication ? (
+                      <SgcApplicationStatusCard
+                        application={sgcApplication}
+                        tr={tr}
+                      />
                     ) : (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-3">
@@ -1801,3 +1852,154 @@ const PostedPositionGridCard = ({
     </article>
   );
 };
+
+// SGC × Aply 6주 일경험 프로그램 지원 상태 카드. 학생 본인 프로필 안 "SGC"
+// 탭에 노출되어 현재 단계 + 안내 + 빠른 이동 링크 를 제공한다.
+type Trans = (
+  ko: string,
+  en: string,
+  zh: string,
+  vi: string,
+  ja: string,
+  id: string
+) => string;
+
+function SgcApplicationStatusCard({ application, tr }: { application: SgcApplication; tr: Trans }) {
+  const status = application.status;
+  const STATUS_LABEL: Record<typeof status, string> = {
+    SUBMITTED: tr("접수 완료", "Received", "已接收", "Đã nhận", "受付完了", "Diterima"),
+    INTERVIEW: tr("면접 진행", "Interview", "面试中", "Phỏng vấn", "面接進行中", "Wawancara"),
+    ACCEPTED:  tr("합격", "Accepted", "录取", "Đậu", "合格", "Diterima"),
+    REJECTED:  tr("불합격", "Not selected", "未录取", "Không đậu", "不合格", "Tidak terpilih"),
+    WITHDRAWN: tr("지원 취소", "Withdrawn", "已撤销", "Đã rút", "辞退", "Ditarik")
+  };
+  const STATUS_TONE: Record<typeof status, string> = {
+    SUBMITTED: "bg-blue-50 text-blue-700 border-blue-200",
+    INTERVIEW: "bg-violet-50 text-violet-700 border-violet-200",
+    ACCEPTED:  "bg-emerald-50 text-emerald-700 border-emerald-200",
+    REJECTED:  "bg-zinc-100 text-zinc-700 border-zinc-200",
+    WITHDRAWN: "bg-zinc-100 text-zinc-700 border-zinc-200"
+  };
+  // 다음 행동 안내 — status 별 메시지.
+  const STATUS_NEXT: Record<typeof status, string> = {
+    SUBMITTED: tr(
+      "운영팀이 이력서와 함께 검토 중입니다. 면접 일정이 잡히면 따로 안내드릴게요.",
+      "Our team is reviewing your resume + answers. We'll reach out when an interview is scheduled.",
+      "运营团队正在审核您的简历与申请。安排面试后我们会单独联系。",
+      "Đội ngũ vận hành đang xem xét hồ sơ của bạn. Chúng tôi sẽ liên hệ khi sắp xếp phỏng vấn.",
+      "運営チームが履歴書と回答を確認中です。面接が決まり次第ご連絡します。",
+      "Tim kami sedang meninjau resume + jawaban Anda. Kami akan menghubungi saat wawancara dijadwalkan."
+    ),
+    INTERVIEW: tr(
+      "면접 단계로 이동했어요. 운영팀이 곧 일정을 안내드릴 예정입니다.",
+      "Moved to the interview stage. Our team will share the schedule shortly.",
+      "已进入面试阶段。运营团队稍后将告知具体安排。",
+      "Đã chuyển sang giai đoạn phỏng vấn. Đội ngũ sẽ gửi lịch sớm.",
+      "面接段階に進みました。運営チームが間もなくスケジュールをご案内します。",
+      "Beralih ke tahap wawancara. Tim kami akan segera mengirim jadwal."
+    ),
+    ACCEPTED: tr(
+      "축하해요! 합격하셨습니다 🎉 6주 일경험 시작 전 준비 사항을 운영팀이 안내드릴게요.",
+      "Congrats! You're in 🎉 Our team will share what to prepare before the 6-week program begins.",
+      "恭喜！您已被录取 🎉 在 6 周项目开始前，运营团队将告知准备事项。",
+      "Chúc mừng! Bạn đã đậu 🎉 Đội ngũ sẽ thông báo những điều cần chuẩn bị.",
+      "おめでとうございます！合格です 🎉 6 週間プログラム開始前の準備事項をご案内します。",
+      "Selamat! Anda diterima 🎉 Tim kami akan memberi tahu persiapan sebelum program 6 minggu dimulai."
+    ),
+    REJECTED: tr(
+      "이번 모집에서는 함께하지 못하게 됐어요. 관심 가져주셔서 진심으로 감사합니다.",
+      "We won't be moving forward this round. Thank you sincerely for applying.",
+      "本次招募未能合作。非常感谢您的关心与申请。",
+      "Lần tuyển này chưa thể đồng hành cùng bạn. Cảm ơn vì đã quan tâm.",
+      "今回の募集ではご一緒できませんでした。応募いただき本当にありがとうございました。",
+      "Kami tidak melanjutkan kali ini. Terima kasih atas minat dan lamarannya."
+    ),
+    WITHDRAWN: tr(
+      "지원이 취소된 상태입니다. 문의는 운영팀으로 부탁드려요.",
+      "Your application has been withdrawn. Please contact our team for inquiries.",
+      "您的申请已被撤销。如有疑问请联系运营团队。",
+      "Đơn của bạn đã bị rút. Vui lòng liên hệ đội ngũ nếu có thắc mắc.",
+      "応募は取り消されました。お問い合わせは運営チームまで。",
+      "Lamaran Anda telah ditarik. Silakan hubungi tim untuk pertanyaan."
+    )
+  };
+  const VISA_LABEL: Record<string, string> = {
+    "D-2": tr("D-2 (유학)", "D-2 (student)", "D-2 (留学)", "D-2 (du học)", "D-2 (留学)", "D-2 (pelajar)"),
+    "D-10": tr("D-10 (구직)", "D-10 (job-seeking)", "D-10 (求职)", "D-10 (tìm việc)", "D-10 (求職)", "D-10 (pencari kerja)"),
+    OTHER: tr("기타", "Other", "其他", "Khác", "その他", "Lainnya")
+  };
+  const JOB_LABEL: Record<string, string> = {
+    MARKETING:   tr("마케팅", "Marketing", "市场营销", "Marketing", "マーケティング", "Marketing"),
+    SALES:       tr("세일즈", "Sales", "销售", "Sales", "セールス", "Sales"),
+    TRANSLATION: tr("통번역", "Translation", "翻译", "Phiên dịch", "通訳・翻訳", "Penerjemahan"),
+    DEV:         tr("개발", "Engineering", "开发", "Phát triển", "開発", "Pengembangan"),
+    OTHER:       tr("기타", "Other", "其他", "Khác", "その他", "Lainnya")
+  };
+
+  const visaText =
+    application.visaType === "OTHER"
+      ? tr("기타", "Other", "其他", "Khác", "その他", "Lainnya")
+      : VISA_LABEL[application.visaType ?? ""] ?? (application.visaType ?? "-");
+  const jobText =
+    application.desiredJob === "OTHER"
+      ? tr("기타", "Other", "其他", "Khác", "その他", "Lainnya")
+      : JOB_LABEL[application.desiredJob ?? ""] ?? (application.desiredJob ?? "-");
+
+  return (
+    <div className="space-y-4">
+      {/* 큰 status 카드 + 다음 단계 안내 */}
+      <div className={`rounded-2xl border p-5 ${STATUS_TONE[status]}`}>
+        <p className="text-[11px] font-bold uppercase tracking-wider opacity-70">
+          {tr("지원 상태", "Status", "申请状态", "Trạng thái", "応募状況", "Status")}
+        </p>
+        <p className="mt-1 text-xl font-bold">{STATUS_LABEL[status]}</p>
+        <p className="mt-3 text-[13.5px] leading-relaxed">{STATUS_NEXT[status]}</p>
+      </div>
+
+      {/* 지원 내용 요약 */}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <p className="text-sm font-bold text-foreground">
+          {tr("지원 내용", "Submission", "申请内容", "Nội dung", "応募内容", "Pengajuan")}
+        </p>
+        <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              {tr("체류자격", "Visa", "签证", "Visa", "在留資格", "Visa")}
+            </dt>
+            <dd className="mt-0.5">{visaText}</dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              {tr("희망 직무", "Desired role", "希望职位", "Vị trí mong muốn", "希望職務", "Posisi diinginkan")}
+            </dt>
+            <dd className="mt-0.5">{jobText}</dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              {tr("접수일", "Submitted", "提交日", "Ngày nộp", "受付日", "Dikirim")}
+            </dt>
+            <dd className="mt-0.5">{new Date(application.createdAt).toLocaleString("ko-KR")}</dd>
+          </div>
+        </dl>
+      </div>
+
+      {/* 빠른 이동 */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" asChild>
+          <Link href="/events/seoul-global-center">
+            {tr("프로그램 페이지", "Program page", "活动页面", "Trang chương trình", "プログラムページ", "Halaman program")}
+          </Link>
+        </Button>
+        {application.resumeId ? (
+          // 이력서 코치(/resume/{id}) 가 아니라 미리보기(/preview) 로 — 사용자
+          // 입장에서 "내가 제출한 이력서 본문"을 그대로 확인하는 게 의도.
+          <Button variant="outline" asChild>
+            <Link href={`/resume/${application.resumeId}/preview`}>
+              {tr("지원한 이력서 보기", "View submitted resume", "查看简历", "Xem hồ sơ đã nộp", "提出した履歴書", "Lihat resume")}
+            </Link>
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+}

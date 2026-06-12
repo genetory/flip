@@ -3,7 +3,7 @@
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { useAuthSession } from "../auth/AuthSessionProvider";
@@ -12,8 +12,21 @@ import { Button } from "../ui/button";
 import { AuthApiError, getPostLoginUrl, loginWithEmail } from "../../lib/auth-client";
 import { getAuthPageMessages } from "../../lib/auth-messages";
 
+// `?next=` 만 신뢰. open-redirect 방지를 위해 same-origin 내부 경로(`/...`)만
+// 허용 — `//evil.com` 같은 protocol-relative 입력도 거른다.
+function sanitizeNextParam(raw: string | null): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("/")) return null;
+  if (trimmed.startsWith("//")) return null;
+  return trimmed;
+}
+
 export function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // 신청 페이지 등에서 `?next=/events/...` 로 들어오면 로그인 후 그 경로로 복귀.
+  const nextParam = sanitizeNextParam(searchParams.get("next"));
   const { setAuthenticatedUser } = useAuthSession();
   const { locale } = useLanguage();
   const [email, setEmail] = useState("");
@@ -31,10 +44,17 @@ export function LoginPage() {
       const { user } = await loginWithEmail({ email, password });
       setAuthenticatedUser(user);
 
-      const nextUrl = getPostLoginUrl(user.role);
+      // 우선순위: ?next= (signup 과 동일 패턴) → referrer (same-origin) →
+      // role 기반 기본 (getPostLoginUrl). next 는 같은 origin 의 절대 경로만
+      // 허용 — open-redirect 방지.
+      if (nextParam) {
+        router.push(nextParam);
+        router.refresh();
+        return;
+      }
+
       const referrer = typeof window !== "undefined" ? document.referrer : "";
       const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
-
       try {
         if (referrer) {
           const parsed = new URL(referrer);
@@ -47,6 +67,7 @@ export function LoginPage() {
         // Ignore invalid referrer and fallback to default path.
       }
 
+      const nextUrl = getPostLoginUrl(user.role);
       if (nextUrl.startsWith("http")) {
         window.location.href = nextUrl;
         return;
@@ -175,7 +196,11 @@ export function LoginPage() {
 
             <p className="mt-4 text-center text-sm text-muted-foreground">
               {copy.signupPrompt}{" "}
-              <Link href="/signup" className="font-semibold text-foreground">
+              {/* 가입 후에도 같은 next 로 돌아가야 하므로 그대로 전달. */}
+              <Link
+                href={nextParam ? `/signup?next=${encodeURIComponent(nextParam)}` : "/signup"}
+                className="font-semibold text-foreground"
+              >
                 {copy.signupLink}
               </Link>
             </p>
