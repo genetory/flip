@@ -263,6 +263,12 @@ const discordPositionCreateWebhookUrl =
     process.env.DISCORD_POSITION_CREATE_WEBHOOK_URL,
     "https://discord.com/api/webhooks/1501417599416799337/Viilar1RgIH0ID5Ok1HdxzGX8wR06mQMWuMn-extrtvgRC22rnAKQJVHZ9mrGss7bWJg"
   );
+// SGC × Aply 6주 일경험 프로그램 지원 접수 알림. 운영팀 디스코드 채널 한정.
+const discordSgcApplicationWebhookUrl =
+  getTrimmedEnvOrFallback(
+    process.env.DISCORD_SGC_APPLICATION_WEBHOOK_URL,
+    "https://discord.com/api/webhooks/1514818503381745734/8gAKKgdUICn_fmF4WivvUMQdN23w2pW01jZq0hnsUJOypJl6nz5jgC3gUCdfo3m9tCCh"
+  );
 const companyConsultationDiscordTestToken = process.env.COMPANY_CONSULTATION_DISCORD_TEST_TOKEN?.trim() ?? "";
 const emailFromAddress = process.env.EMAIL_FROM?.trim() ?? "";
 const emailReplyToAddress = process.env.EMAIL_REPLY_TO?.trim() || process.env.EMAIL_SUPPORT_ADDRESS?.trim() || "info@flip-ers.com";
@@ -713,6 +719,107 @@ async function sendPositionApplyDiscordNotification(input: {
     }
   } catch (error) {
     console.error("position_apply_discord_webhook_error", {
+      error: getErrorMessage(error)
+    });
+  }
+}
+
+// SGC × Aply 6주 일경험 지원 알림. 운영팀이 지원 들어오는 즉시 인지하도록.
+// 본인 이력서 + SGC-specific 답변을 한 카드로. 운영 ops 페이지로 바로 가는
+// 링크 포함.
+async function sendSgcApplicationDiscordNotification(input: {
+  applicationId: string;
+  applicantId: string;
+  applicantName: string | null;
+  applicantEmail: string;
+  applicantPhone: string | null;
+  visaType: string;
+  visaOther: string | null;
+  desiredJob: string;
+  desiredJobOther: string | null;
+  motivationPreview: string;
+  resumeShareSlug: string | null;
+  createdAt: Date;
+}) {
+  if (!discordSgcApplicationWebhookUrl) return;
+
+  const truncateForDiscord = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+
+  const VISA_LABEL: Record<string, string> = {
+    "D-2": "D-2 (유학)",
+    "D-10": "D-10 (구직)",
+    OTHER: "기타"
+  };
+  const JOB_LABEL: Record<string, string> = {
+    MARKETING: "마케팅",
+    SALES: "세일즈",
+    TRANSLATION: "통번역",
+    DEV: "개발",
+    OTHER: "기타"
+  };
+
+  const visaDisplay =
+    input.visaType === "OTHER" && input.visaOther
+      ? `기타 — ${input.visaOther}`
+      : VISA_LABEL[input.visaType] ?? input.visaType;
+  const jobDisplay =
+    input.desiredJob === "OTHER" && input.desiredJobOther
+      ? `기타 — ${input.desiredJobOther}`
+      : JOB_LABEL[input.desiredJob] ?? input.desiredJob;
+
+  const opsUrl = `${opsAdminUrl || platformWebUrl}/dashboard/ops/operations/sgc-applications`;
+  const resumeUrl = input.resumeShareSlug
+    ? `${platformWebUrl}/resume/share/${input.resumeShareSlug}`
+    : null;
+
+  const safeName = truncateForDiscord((input.applicantName ?? "").trim() || "-", 256);
+  const safeEmail = truncateForDiscord(input.applicantEmail || "-", 1024);
+  const safePhone = truncateForDiscord((input.applicantPhone ?? "").trim() || "-", 256);
+  const safeMotivation = truncateForDiscord(input.motivationPreview || "-", 1024);
+
+  const linkLines = [`[운영 콘솔에서 보기](${opsUrl})`];
+  if (resumeUrl) linkLines.push(`[이력서 보기](${resumeUrl})`);
+
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0x7c3aed,
+        title: "🤝 SGC × Aply 일경험 — 신규 지원",
+        description: "외국인 유학생 6주 일경험 프로그램에 새 지원이 접수됐어요.",
+        fields: [
+          { name: "지원자", value: safeName, inline: true },
+          { name: "체류자격", value: visaDisplay, inline: true },
+          { name: "희망 직무", value: jobDisplay, inline: true },
+          { name: "이메일", value: safeEmail, inline: false },
+          { name: "휴대폰", value: safePhone, inline: true },
+          { name: "지원자 ID", value: truncateForDiscord(input.applicantId, 256), inline: true },
+          { name: "신청 동기 (요약)", value: safeMotivation, inline: false },
+          { name: "바로가기", value: linkLines.join(" · "), inline: false }
+        ],
+        footer: { text: "Aply • SGC Work Experience" },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch(discordSgcApplicationWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("sgc_application_discord_webhook_failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("sgc_application_discord_webhook_error", {
       error: getErrorMessage(error)
     });
   }
@@ -5632,6 +5739,184 @@ app.get("/ops/saju/predictions", authenticate, requireRoles([MemberRole.OPERATOR
   });
 });
 
+// ---------------------------------------------------------------------------
+// SGC × Aply 일경험 프로그램 — 운영자 콘솔용. 지원 풀 조회 + 단계 변경 +
+// 운영 메모. 각 row 는 사용자 + 이력서 메타가 join 되어 ops 화면에서 즉시
+// 면접/검토를 돌릴 수 있게 한다.
+// ---------------------------------------------------------------------------
+
+const opsSgcApplicationsQuerySchema = z.object({
+  status: z.enum(["SUBMITTED", "INTERVIEW", "ACCEPTED", "REJECTED", "WITHDRAWN"]).optional(),
+  visaType: z.enum(["D-2", "D-10", "OTHER"]).optional(),
+  desiredJob: z.enum(["MARKETING", "SALES", "TRANSLATION", "DEV", "OTHER"]).optional(),
+  q: z.string().trim().max(120).optional(),
+  take: z.coerce.number().int().min(1).max(200).optional(),
+  skip: z.coerce.number().int().min(0).optional()
+});
+
+app.get("/ops/sgc/applications", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsSgcApplicationsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+  const f = parsed.data;
+  const where: Prisma.SgcApplicationWhereInput = {
+    ...(f.status ? { status: f.status } : {}),
+    ...(f.visaType ? { visaType: f.visaType } : {}),
+    ...(f.desiredJob ? { desiredJob: f.desiredJob } : {}),
+    ...(f.q
+      ? {
+          OR: [
+            { user: { name: { contains: f.q, mode: "insensitive" } } },
+            { user: { realName: { contains: f.q, mode: "insensitive" } } },
+            { user: { email: { contains: f.q, mode: "insensitive" } } }
+          ]
+        }
+      : {})
+  };
+  const take = f.take ?? 50;
+  const skip = f.skip ?? 0;
+  const [applications, total, statusCounts, totalAll] = await Promise.all([
+    prisma.sgcApplication.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take,
+      skip,
+      include: {
+        user: {
+          select: { id: true, email: true, name: true, realName: true, phoneNumber: true, nationality: true }
+        },
+        resume: {
+          select: { id: true, title: true, shareSlug: true, updatedAt: true }
+        }
+      }
+    }),
+    prisma.sgcApplication.count({ where }),
+    prisma.sgcApplication.groupBy({ by: ["status"], _count: { _all: true } }),
+    prisma.sgcApplication.count()
+  ]);
+  return res.json({
+    ok: true,
+    total,
+    take,
+    skip,
+    totalAll,
+    statusCounts: Object.fromEntries(statusCounts.map((s) => [s.status, s._count._all])),
+    applications: applications.map((a) => ({
+      id: a.id,
+      status: a.status,
+      visaType: a.visaType,
+      visaOther: a.visaOther,
+      healthNote: a.healthNote,
+      desiredJob: a.desiredJob,
+      desiredJobOther: a.desiredJobOther,
+      motivation: a.motivation,
+      marketingOptIn: a.marketingOptIn,
+      locale: a.locale,
+      adminMemo: a.adminMemo,
+      createdAt: a.createdAt.toISOString(),
+      updatedAt: a.updatedAt.toISOString(),
+      user: a.user
+        ? {
+            id: a.user.id,
+            email: a.user.email,
+            name: a.user.name ?? a.user.realName,
+            phoneNumber: a.user.phoneNumber,
+            nationality: a.user.nationality
+          }
+        : null,
+      resume: a.resume
+        ? {
+            id: a.resume.id,
+            title: a.resume.title,
+            shareSlug: a.resume.shareSlug,
+            updatedAt: a.resume.updatedAt.toISOString()
+          }
+        : null
+    }))
+  });
+});
+
+// PATCH /ops/sgc/applications/:id — 단계 변경 + 운영 메모. 운영자가 면접/
+// 합격/거절 처리 시 사용. 사용자가 "WITHDRAWN" 으로 본인 지원을 취소하는
+// flow 는 별도 엔드포인트가 더 깔끔 (현재 범위 밖).
+const opsSgcApplicationUpdateSchema = z.object({
+  status: z.enum(["SUBMITTED", "INTERVIEW", "ACCEPTED", "REJECTED", "WITHDRAWN"]).optional(),
+  adminMemo: z.string().trim().max(4000).nullable().optional()
+});
+
+app.patch("/ops/sgc/applications/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id : "";
+  if (!id) return res.status(400).json({ ok: false, message: "missing id" });
+  const parsed = opsSgcApplicationUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  const data: Prisma.SgcApplicationUpdateInput = {};
+  if (parsed.data.status !== undefined) data.status = parsed.data.status;
+  if (parsed.data.adminMemo !== undefined) data.adminMemo = parsed.data.adminMemo;
+  try {
+    // 이전 status 가 무엇인지 알아야 "변경 됐을 때만 알림" 분기가 가능. 그래서
+    // update 전에 한 번 select.
+    const before = await prisma.sgcApplication.findUnique({
+      where: { id },
+      select: { userId: true, status: true }
+    });
+    if (!before) return res.status(404).json({ ok: false, message: "not found" });
+
+    const updated = await prisma.sgcApplication.update({
+      where: { id },
+      data,
+      select: { id: true, status: true, adminMemo: true, updatedAt: true }
+    });
+
+    // status 가 실제로 바뀌었을 때만 사용자 알림. 변경 없는 메모만 저장한
+    // 경우엔 알림 없음.
+    if (parsed.data.status && parsed.data.status !== before.status) {
+      const NOTIFY: Record<
+        "SUBMITTED" | "INTERVIEW" | "ACCEPTED" | "REJECTED" | "WITHDRAWN",
+        { title: string; message: string } | null
+      > = {
+        SUBMITTED: {
+          title: "SGC × Aply 일경험 — 접수 상태로 복귀",
+          message: "지원이 다시 접수 단계로 표시됐어요. 운영팀이 재검토 중입니다."
+        },
+        INTERVIEW: {
+          title: "SGC × Aply 일경험 — 면접 단계",
+          message: "면접 단계로 이동했어요. 곧 운영팀이 면접 일정을 안내드릴 예정입니다."
+        },
+        ACCEPTED: {
+          title: "🎉 SGC × Aply 일경험 — 합격 안내",
+          message: "축하해요! 합격하셨습니다. 곧 운영팀이 다음 단계를 안내드릴게요."
+        },
+        REJECTED: {
+          title: "SGC × Aply 일경험 — 결과 안내",
+          message: "이번 모집에서는 함께하지 못하게 됐어요. 관심 가져주셔서 진심으로 감사합니다."
+        },
+        // 운영자가 WITHDRAWN 으로 바꿀 일은 드물지만, 일관성을 위해 메시지 정의.
+        WITHDRAWN: {
+          title: "SGC × Aply 일경험 — 지원 취소",
+          message: "지원이 취소 처리됐어요. 문의는 운영팀으로 부탁드립니다."
+        }
+      };
+      const notice = NOTIFY[parsed.data.status];
+      if (notice) {
+        void createNotification({
+          userId: before.userId,
+          type: `SGC_APPLICATION_STATUS_${parsed.data.status}`,
+          title: notice.title,
+          message: notice.message,
+          linkPath: "/profile?tab=sgc"
+        });
+      }
+    }
+
+    return res.json({ ok: true, application: updated });
+  } catch {
+    return res.status(404).json({ ok: false, message: "not found" });
+  }
+});
+
 const companyConsultationCreateSchema = z.object({
   companyName: z.string().trim().min(1).max(120),
   contactName: z.string().trim().min(1).max(80),
@@ -7344,6 +7629,181 @@ app.post(
     }
 
     return res.json({ ok: true, leadId });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// 서울글로벌센터 × Aply 6주 일경험 프로그램 지원. 회원만 지원 가능 — 사용자
+// User + Resume 의 기존 정보를 그대로 활용하고 SGC-specific 6 필드만 받음.
+// 한 사용자당 1회 지원(@@unique([userId])).
+// ---------------------------------------------------------------------------
+
+const sgcApplicationCreateSchema = z.object({
+  resumeId: z.string().uuid(),
+  visaType: z.enum(["D-2", "D-10", "OTHER"]),
+  visaOther: z.string().trim().max(80).optional(),
+  healthNote: z.string().trim().min(1).max(2000),
+  desiredJob: z.enum(["MARKETING", "SALES", "TRANSLATION", "DEV", "OTHER"]),
+  desiredJobOther: z.string().trim().max(80).optional(),
+  motivation: z.string().trim().min(20).max(4000),
+  marketingOptIn: z.boolean(),
+  // privacyConsent 는 필수 동의 — false 로 들어오면 가입 자체를 차단.
+  privacyConsent: z.literal(true),
+  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+});
+
+// GET /events/sgc/applications/me — 로그인 사용자 본인 지원 상태 조회.
+// 폼이 이미 제출됐는지 + status / createdAt 확인용 (페이지가 "이미 지원함"
+// 으로 분기되도록).
+app.get(
+  "/events/sgc/applications/me",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    const userId = req.auth!.userId;
+    const application = await prisma.sgcApplication.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+        status: true,
+        visaType: true,
+        desiredJob: true,
+        createdAt: true,
+        updatedAt: true,
+        resumeId: true
+      }
+    });
+    return res.json({ ok: true, application });
+  }
+);
+
+app.post(
+  "/events/sgc/applications",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 6, keyPrefix: "sgc-apply", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = sgcApplicationCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    const input = parsed.data;
+    const userId = req.auth!.userId;
+
+    // 사용자 본인 이력서인지 확인 — 남의 이력서 지정으로 우회 차단.
+    const resume = await prisma.resume.findFirst({
+      where: { id: input.resumeId, userId },
+      select: { id: true }
+    });
+    if (!resume) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "resume not found or not owned by user" });
+    }
+
+    // OTHER 선택 시 보조 입력 필수 (스키마 레벨이 아닌 비즈니스 규칙).
+    if (input.visaType === "OTHER" && !(input.visaOther && input.visaOther.trim())) {
+      return res.status(400).json({ ok: false, message: "visaOther required when visaType is OTHER" });
+    }
+    if (input.desiredJob === "OTHER" && !(input.desiredJobOther && input.desiredJobOther.trim())) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "desiredJobOther required when desiredJob is OTHER" });
+    }
+
+    const ipRaw =
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+      req.socket.remoteAddress ||
+      "";
+    const ipHash = ipRaw
+      ? createHash("sha256").update(`${ipRaw}|sgc-apply`).digest("hex").slice(0, 32)
+      : null;
+
+    // unique([userId]) — 이미 지원했으면 P2002 떨어짐. 그 상태에서 다시 시도
+    // 하면 "수정" 처럼 동작하도록 update 폴백.
+    try {
+      const created = await prisma.sgcApplication.create({
+        data: {
+          userId,
+          resumeId: input.resumeId,
+          visaType: input.visaType,
+          visaOther: input.visaOther?.trim() || null,
+          healthNote: input.healthNote.trim(),
+          desiredJob: input.desiredJob,
+          desiredJobOther: input.desiredJobOther?.trim() || null,
+          motivation: input.motivation.trim(),
+          marketingOptIn: input.marketingOptIn,
+          privacyConsent: true,
+          locale: input.locale ?? "ko",
+          ipHash
+        },
+        select: { id: true, status: true, createdAt: true }
+      });
+
+      // 사용자에게 in-app 알림. 프로필의 SGC 탭으로 바로 연결되는 deep link.
+      void createNotification({
+        userId,
+        type: "SGC_APPLICATION_RECEIVED",
+        title: "SGC × Aply 일경험 — 지원 접수",
+        message:
+          "지원이 정상 접수됐어요. 운영팀이 이력서와 함께 검토 후 면접 일정을 개별 안내드릴게요.",
+        linkPath: "/profile?tab=sgc"
+      });
+
+      // 디스코드 알림 — 운영팀이 즉시 인지하도록. 사용자/이력서 정보는
+      // 별도 조회 후 합쳐 보냄. webhook 실패가 API 응답을 막지 않도록 fire-
+      // and-forget 으로 결과 미대기.
+      void (async () => {
+        try {
+          const [userInfo, resumeInfo] = await Promise.all([
+            prisma.user.findUnique({
+              where: { id: userId },
+              select: { name: true, realName: true, email: true, phoneNumber: true }
+            }),
+            prisma.resume.findUnique({
+              where: { id: input.resumeId },
+              select: { shareSlug: true, content: true }
+            })
+          ]);
+          const resumeContent = (resumeInfo?.content ?? {}) as Record<string, unknown>;
+          const resumeName = typeof resumeContent.basicName === "string" ? resumeContent.basicName.trim() : "";
+          const resumePhone = typeof resumeContent.basicPhone === "string" ? resumeContent.basicPhone.trim() : "";
+          const motivationPreview = input.motivation.trim().slice(0, 500);
+          await sendSgcApplicationDiscordNotification({
+            applicationId: created.id,
+            applicantId: userId,
+            applicantName: resumeName || userInfo?.realName || userInfo?.name || null,
+            applicantEmail: userInfo?.email ?? "-",
+            applicantPhone: resumePhone || userInfo?.phoneNumber || null,
+            visaType: input.visaType,
+            visaOther: input.visaOther?.trim() || null,
+            desiredJob: input.desiredJob,
+            desiredJobOther: input.desiredJobOther?.trim() || null,
+            motivationPreview,
+            resumeShareSlug: resumeInfo?.shareSlug ?? null,
+            createdAt: created.createdAt
+          });
+        } catch (notifyErr) {
+          console.error("sgc_application_notify_failed", { error: getErrorMessage(notifyErr) });
+        }
+      })();
+
+      return res.json({ ok: true, application: created, alreadyApplied: false });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        // 이미 지원한 사용자에게는 친절히 status 만 반환 (덮어쓰기 X — 운영팀
+        // 측면에서 안전. 수정이 필요하면 별도 PATCH 엔드포인트로 확장).
+        const existing = await prisma.sgcApplication.findUnique({
+          where: { userId },
+          select: { id: true, status: true, createdAt: true }
+        });
+        return res.json({ ok: true, application: existing, alreadyApplied: true });
+      }
+      console.error("[sgc-application][create] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to create application" });
+    }
   }
 );
 
@@ -11477,11 +11937,43 @@ async function resolveResumePhoto(content: unknown): Promise<unknown> {
   }
 }
 
+// 이력서 저장 시 강제하는 최소 필수 필드. 폼이 `*` 로 마킹한 항목들과 1:1
+// 일치. 학력/경력/활동/스킬/어학/자격/포트폴리오 같은 섹션은 모두 선택이며,
+// 섹션 안 빈 row 는 저장 시점에 자동 필터링 (handleSave 의 .filter 로직).
+//
+// 누락된 필드 목록을 그대로 돌려주면 프론트가 사용자 언어로 "X, Y 를 입력해
+// 주세요" 형태로 안내할 수 있다.
+type RequiredResumeField =
+  | "basicName"
+  | "basicEmail"
+  | "basicPhone"
+  | "summary"
+  | "selfIntroduction";
+
+function findMissingResumeFields(content: unknown): RequiredResumeField[] {
+  const c = (content ?? {}) as Record<string, unknown>;
+  const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+  const missing: RequiredResumeField[] = [];
+  if (!trimStr(c.basicName))         missing.push("basicName");
+  if (!trimStr(c.basicEmail))        missing.push("basicEmail");
+  if (!trimStr(c.basicPhone))        missing.push("basicPhone");
+  if (!trimStr(c.summary))           missing.push("summary");
+  if (!trimStr(c.selfIntroduction))  missing.push("selfIntroduction");
+  return missing;
+}
+
 app.post("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const userId = req.auth!.userId;
   const parsed = createResumeSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  // 필수 필드 누락이면 400 + 누락 필드 리스트. 프론트가 사용자 언어로 안내.
+  const missingFields = findMissingResumeFields(parsed.data.content);
+  if (missingFields.length > 0) {
+    return res
+      .status(400)
+      .json({ ok: false, message: "incomplete resume", code: "REQUIRED_FIELDS_MISSING", missingFields });
   }
   try {
     // 사용자의 첫 이력서면 자동으로 대표(primary)로 표시. 두 번째 이후는 기본 false.
@@ -11532,12 +12024,22 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
     // 재번역하고 변경 없는 단위는 기존 한국어를 그대로 들고 갈 수 있게.
     const existing = await prisma.resume.findFirst({
       where: { id: resumeId, userId },
-      select: { id: true, translations: true }
+      select: { id: true, content: true, translations: true }
     });
     if (!existing) return res.status(404).json({ ok: false, message: "resume not found" });
     const resolvedContent = parsed.data.content !== undefined
       ? await resolveResumePhoto(parsed.data.content)
       : undefined;
+    // content 가 바뀌는 저장이면 최종 상태(input)로 검증. content 미포함 update
+    // (예: 제목만 바꾸기)는 기존 content 를 검증해서, 옛 빈 row 가 제목만 갈
+    // 아치워지지 않도록 한다.
+    const contentToCheck = resolvedContent ?? existing.content;
+    const missingFields = findMissingResumeFields(contentToCheck);
+    if (missingFields.length > 0) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "incomplete resume", code: "REQUIRED_FIELDS_MISSING", missingFields });
+    }
     // content 가 변경된 경우에만 번역 재생성. 제목만 바꿨다면 기존 캐시 유지.
     let nextTranslations: ResumeTranslations | null | undefined = undefined;
     if (resolvedContent !== undefined) {

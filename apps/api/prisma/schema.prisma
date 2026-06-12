@@ -47,6 +47,7 @@ model User {
   positionStatusHistories PositionStatusHistory[]      @relation("PositionStatusAuthor")
   candidateProfile CandidateProfile?
   resumes Resume[]
+  sgcApplication SgcApplication? @relation("SgcApplicationUser")
   refreshTokens RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
   communityPosts CommunityPost[]
@@ -1104,6 +1105,7 @@ model Resume {
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sgcApplications SgcApplication[] @relation("SgcApplicationResume")
 
   @@index([userId])
 }
@@ -1385,4 +1387,42 @@ model VisaLead {
   @@index([userId])
   @@index([poolStage])
   @@index([createdAt])
+}
+
+// 서울글로벌센터 × Aply 협력 6주 일경험 프로그램 지원. Aply 회원만 지원
+// 가능(이력서 기반) — anonymous 신청은 받지 않고, 사용자 본인 이력서 1개를
+// 묶어 운영팀에 전달. 한 사용자당 1회 지원으로 중복 방지.
+model SgcApplication {
+  id              String   @id @default(uuid())
+  userId          String
+  // 지원자 본인 이력서 1개 — 운영팀이 ops 콘솔에서 자동 연결해 검토.
+  // 이력서가 삭제돼도 지원 row 는 남도록 Restrict (운영 기록 보존).
+  resumeId        String
+  // SGC 폼 전용 — 나머지 기본 정보(이름/이메일/전화/주소/생년월일/성별/국적
+  // /대학/전공) 는 User + CandidateProfile + Resume 에서 직접 읽어 활용.
+  visaType        String   // "D-2" | "D-10" | "OTHER"
+  visaOther       String?
+  healthNote      String   // 지병 / 알러지 / 식습관 등 자유 입력
+  desiredJob      String   // "MARKETING" | "SALES" | "TRANSLATION" | "DEV" | "OTHER"
+  desiredJobOther String?
+  motivation      String   // 신청 동기 장문
+  // 동의 분기 — 마케팅(선택)은 raw flag, 개인정보(필수)는 항상 true 만 저장.
+  marketingOptIn  Boolean  @default(false)
+  privacyConsent  Boolean  @default(true)
+  // 운영 단계 — SUBMITTED → INTERVIEW → ACCEPTED / REJECTED / WITHDRAWN
+  status          String   @default("SUBMITTED")
+  // 운영 메모 (operator only)
+  adminMemo       String?
+  ipHash          String?
+  locale          String   @default("ko")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation("SgcApplicationUser", fields: [userId], references: [id], onDelete: Cascade)
+  resume          Resume   @relation("SgcApplicationResume", fields: [resumeId], references: [id], onDelete: Restrict)
+
+  @@unique([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([resumeId])
 }

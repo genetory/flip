@@ -68,10 +68,9 @@ export const Header = () => {
     : locale === "id" ? "Bimbingan Resume"
     : "Resume Coaching";
   const navItems: { label: string; href: string; external?: boolean; promoted?: boolean }[] = [
-    // 이벤트 — 별도 컨텍스트(사주 캠페인 등)이라 새창으로 분리해서 띄움.
-    // promoted 플래그가 켜진 항목은 일반 nav 텍스트 대신 라임색 배지 형태로
-    // 노출. 다른 메뉴와 시각적 위계가 달라져 클릭률이 잘 올라감.
-    { label: eventLabel, href: "/events/saju", external: true, promoted: true },
+    // 이벤트 — saju/visa 리스팅 허브. 다른 메뉴(홈/포지션 탐색)와 동일하게
+    // 같은 창 내부 네비게이션 + 평범한 텍스트 스타일.
+    { label: eventLabel, href: "/events" },
     { label: homeLabel, href: "/" },
     { label: copy.nav.positions, href: "/positions" },
     ...(user?.role === "STUDENT" || !isAuthenticated

@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowSquareOut, Eye, Lock, Plus, Rows, SidebarSimple, Sparkle, X, XIcon } from "@phosphor-icons/react/dist/ssr";
 import { AiTextHelperModal } from "./AiTextHelperModal";
 import type { DraftResumeTextFieldType } from "../../lib/member-profile-client";
+import {
+  findMissingResumeFields,
+  type RequiredResumeField
+} from "../../lib/resume-validation";
 import Image from "next/image";
 import { Header } from "../site/Header";
 import { Button } from "../ui/button";
@@ -147,14 +151,29 @@ function Field({
   );
 }
 
+// 외부에서 `?next=/events/...` 로 들어왔으면 저장 후 그 곳으로 돌려보낸다.
+// 이벤트 신청 페이지처럼 "이력서가 필요해 → 만들고 와" 흐름의 마지막 단계.
+// open-redirect 방지를 위해 same-origin 절대 경로(`/...`) 만 허용.
+function sanitizeNextParam(raw: string | null): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) return null;
+  return trimmed;
+}
+
 export function ResumeEditPage({ resumeId }: { resumeId: string }) {
   const tr = useTr();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextParam = sanitizeNextParam(searchParams.get("next"));
   const { user, isReady, isAuthenticated } = useAuthSession();
 
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
+  // 저장 시 발견된 누락 필드 리스트 (이름/이메일/휴대폰/요약/자기소개 중 빈 것).
+  // 빈 배열이면 OK. 사용자에게 어떤 필드가 빠졌는지 그대로 보여줘서 즉시 채울 수 있게.
+  const [missingFields, setMissingFields] = useState<RequiredResumeField[]>([]);
   const [profile, setProfile] = useState<MyCandidateProfile | null>(null);
 
   const [title, setTitle] = useState("");
@@ -260,29 +279,39 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
 
   async function handleSave() {
     if (saving) return;
+    setMissingFields([]);
+    const content: ResumeContent = {
+      basicName: basicName.trim() || null,
+      basicEmail: basicEmail.trim() || null,
+      basicPhone: basicPhone.trim() || null,
+      basicResidence: basicResidence.trim() || null,
+      basicVisa: basicVisa || null,
+      basicPhotoUrl: basicPhotoUrl.trim() || null,
+      // 희망 직무 / 근무 형태 / 근무지 / 입사 가능일 — 입력 폼에서 제거
+      // (기존 데이터 보존을 위해 명시적으로 null 처리하지 않고 빈 값으로 둠)
+      educations: educations.filter((e) => e.schoolName?.trim()),
+      careers: careers.filter((c) => c.companyName?.trim() && c.position?.trim()),
+      activities: activities.filter((a) => a.title?.trim()),
+      skills,
+      languages: languages.filter((l) => l.language?.trim()),
+      certifications: certifications.filter((c) => c.name?.trim()),
+      links: links.filter((l) => l.url?.trim()),
+      summary: summary.trim() || null,
+      selfIntroduction: selfIntro.trim() || null
+    };
+    // 사전 검증 — 같은 룰을 백엔드와 공유(resume-validation.ts). 누락된
+    // 필수 필드가 있으면 네트워크 호출 전에 즉시 표시.
+    const missing = findMissingResumeFields(content);
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      return;
+    }
     setSaving(true);
     try {
-      const content: ResumeContent = {
-        basicName: basicName.trim() || null,
-        basicEmail: basicEmail.trim() || null,
-        basicPhone: basicPhone.trim() || null,
-        basicResidence: basicResidence.trim() || null,
-        basicVisa: basicVisa || null,
-        basicPhotoUrl: basicPhotoUrl.trim() || null,
-        // 희망 직무 / 근무 형태 / 근무지 / 입사 가능일 — 입력 폼에서 제거
-        // (기존 데이터 보존을 위해 명시적으로 null 처리하지 않고 빈 값으로 둠)
-        educations: educations.filter((e) => e.schoolName?.trim()),
-        careers: careers.filter((c) => c.companyName?.trim() && c.position?.trim()),
-        activities: activities.filter((a) => a.title?.trim()),
-        skills,
-        languages: languages.filter((l) => l.language?.trim()),
-        certifications: certifications.filter((c) => c.name?.trim()),
-        links: links.filter((l) => l.url?.trim()),
-        summary: summary.trim() || null,
-        selfIntroduction: selfIntro.trim() || null
-      };
       // 신규 모드: 이때 처음으로 DB row 가 만들어진다. 저장이 끝나면
       // /resume/[realId] 코치 화면으로 replace 해서 URL 이 새 id 를 반영하게.
+      // `?next=` 가 같이 들어왔다면 (이벤트 신청 등 외부 흐름의 마지막 단계),
+      // 코치 화면이 아니라 next 경로로 돌려보냄.
       if (resumeId === "new") {
         const trimmedTitle = title.trim();
         const created = await createMyResume({
@@ -290,12 +319,31 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
           title: trimmedTitle || tr("새 이력서", "New resume", "新简历", "Hồ sơ mới", "新しい履歴書", "Resume baru"),
           content
         });
-        router.replace(`/resume/${created.id}`);
+        router.replace(nextParam ?? `/resume/${created.id}`);
         return;
       }
       await updateMyResume(resumeId, { title: title.trim() || undefined, content });
-      router.push(`/resume/${resumeId}`);
-    } catch {
+      router.push(nextParam ?? `/resume/${resumeId}`);
+    } catch (err) {
+      // 백엔드가 같은 룰로 한 번 더 검증해 동일 code 를 돌려줌. 사전 검증을
+      // 통과했다면 보통 도달하지 않지만, race condition 으로 검증 통과 후 다른
+      // 탭에서 내용을 비웠다든가 하면 이쪽에서 잡힘.
+      // 서버가 같은 룰로 재검증해 동일 응답을 돌려줌. race condition (검증
+      // 통과 후 다른 탭에서 비우기 등) 으로 여기에 도달하면 누락 리스트를
+      // 그대로 표시.
+      const apiErr = err as { code?: unknown; missingFields?: unknown } | undefined;
+      if (
+        apiErr &&
+        apiErr.code === "REQUIRED_FIELDS_MISSING" &&
+        Array.isArray(apiErr.missingFields)
+      ) {
+        const fields = apiErr.missingFields.filter(
+          (f): f is RequiredResumeField =>
+            f === "basicName" || f === "basicEmail" || f === "basicPhone" ||
+            f === "summary" || f === "selfIntroduction"
+        );
+        setMissingFields(fields);
+      }
       setSaving(false);
     }
   }
@@ -896,19 +944,55 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
       {/* Save bar */}
       <div className="max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-20 max-md:border-t max-md:border-border max-md:bg-white/95 max-md:backdrop-blur">
         <div className="container">
-          <div className="mx-auto flex max-w-4xl items-center gap-3 max-md:py-4 md:pb-10">
-            <Button type="button" variant="outline" onClick={() => router.back()} className="h-12 flex-none px-6 max-md:hidden">
-              {tr("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)} className="h-12 flex-none px-5">
-              <span className="inline-flex items-center gap-1.5">
-                <Eye weight="bold" className="h-4 w-4" />
-                {tr("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
-              </span>
-            </Button>
-            <Button onClick={handleSave} disabled={saving} className="h-12 flex-1 rounded-xl text-[15px] font-semibold md:flex-none md:px-10">
-              {tr("저장", "Save", "保存", "Lưu", "保存", "Simpan")}
-            </Button>
+          <div className="mx-auto flex max-w-4xl flex-col gap-2 max-md:py-4 md:pb-10">
+            {/* 검증 실패 안내 — 누락된 필수 필드를 본 폼의 라벨 그대로 나열.
+                * 표시된 5개 (이름/이메일/휴대폰/요약/자기소개) 중 비어 있는 것만. */}
+            {missingFields.length > 0 ? (
+              <div className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+                <p className="font-semibold">
+                  {tr(
+                    "다음 필수 항목을 입력해 주세요:",
+                    "Please fill in these required fields:",
+                    "请填写以下必填项：",
+                    "Vui lòng điền các trường bắt buộc sau:",
+                    "以下の必須項目を入力してください：",
+                    "Silakan isi kolom wajib berikut:"
+                  )}
+                </p>
+                <p className="mt-1">
+                  {missingFields
+                    .map((f) => {
+                      switch (f) {
+                        case "basicName":
+                          return tr("이름", "Name", "姓名", "Tên", "氏名", "Nama");
+                        case "basicEmail":
+                          return tr("이메일", "Email", "邮箱", "Email", "メール", "Email");
+                        case "basicPhone":
+                          return tr("휴대폰", "Phone", "手机", "Điện thoại", "電話", "Telepon");
+                        case "summary":
+                          return tr("한 줄 요약", "One-line summary", "一句话概要", "Tóm tắt một dòng", "一行サマリー", "Ringkasan satu baris");
+                        case "selfIntroduction":
+                          return tr("자기소개", "About me", "自我介绍", "Giới thiệu bản thân", "自己紹介", "Tentang saya");
+                      }
+                    })
+                    .join(" · ")}
+                </p>
+              </div>
+            ) : null}
+            <div className="flex items-center gap-3">
+              <Button type="button" variant="outline" onClick={() => router.back()} className="h-12 flex-none px-6 max-md:hidden">
+                {tr("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)} className="h-12 flex-none px-5">
+                <span className="inline-flex items-center gap-1.5">
+                  <Eye weight="bold" className="h-4 w-4" />
+                  {tr("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
+                </span>
+              </Button>
+              <Button onClick={handleSave} disabled={saving} className="h-12 flex-1 rounded-xl text-[15px] font-semibold md:flex-none md:px-10">
+                {tr("저장", "Save", "保存", "Lưu", "保存", "Simpan")}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

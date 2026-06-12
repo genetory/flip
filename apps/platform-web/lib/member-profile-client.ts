@@ -130,7 +130,7 @@ function resolveApiErrorMessage(payload: { message?: unknown; errors?: ZodFlatEr
   return fallback;
 }
 
-async function authedJsonFetch<T>(path: string, init: RequestInit = {}) {
+export async function authedJsonFetch<T>(path: string, init: RequestInit = {}) {
   const method = (init.method ?? "GET").toUpperCase();
   const bodySummary = summarizeRequestBodyForLog(init.body);
   if (enableApiLogs) {
