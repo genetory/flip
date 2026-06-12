@@ -14013,10 +14013,31 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER, M
   }
 });
 
-app.get("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+app.get("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   if (!id) {
     return res.status(400).json({ ok: false, message: "invalid position id" });
+  }
+
+  const isOperator = req.auth!.role === MemberRole.OPERATOR;
+
+  // 운영자는 어떤 포지션이든 수정 가능 (PATCH 도 같은 정책). 따라서
+  // 조회도 affiliation/소유권 체크를 우회한다. 이 게이트가 없으면 운영자가
+  // 포지션 수정 화면에 들어왔을 때 GET 이 403 으로 막혀 폼이 빈 채로 떠버린다.
+  if (isOperator) {
+    const item = await prisma.position.findUnique({
+      where: { id },
+      include: {
+        partnerOrganization: { select: { id: true, name: true } },
+        matchingParticipants: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+        progressLogs: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
+        statusHistories: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } }
+      }
+    });
+    if (!item) {
+      return res.status(404).json({ ok: false, message: "position not found" });
+    }
+    return res.json({ ok: true, item: toPosition(item) });
   }
 
   const affiliation = await resolvePartnerAffiliation(req.auth!.userId);

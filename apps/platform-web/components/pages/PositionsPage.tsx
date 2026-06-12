@@ -1053,7 +1053,11 @@ export function PositionsPage() {
                   <div className="relative">
                     <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-5 lg:grid-cols-3">
                       {visiblePositions.map((p, idx) => {
-                        const isOwnPartnerPosting = !!myPartnerOrganizationId && p.partnerDomain === myPartnerOrganizationId;
+                        // 운영자는 어떤 포지션이든 직접 수정 가능 (API PATCH 정책과 일치).
+                        // 같은 플래그를 "수정하기" 버튼 노출 조건으로 재사용.
+                        const isOwnPartnerPosting =
+                          (!!myPartnerOrganizationId && p.partnerDomain === myPartnerOrganizationId)
+                          || user?.role === "OPERATOR";
                         const showAdAfter = (idx + 1) % 4 === 0 && idx + 1 < visiblePositions.length;
 
                         return (
@@ -1101,7 +1105,10 @@ export function PositionsPage() {
                   <div className="relative">
                     <div className="space-y-3">
                       {visiblePositions.map((p, idx) => {
-                        const isOwnPartnerPosting = !!myPartnerOrganizationId && p.partnerDomain === myPartnerOrganizationId;
+                        // 그리드뷰와 동일 — 운영자는 어떤 포지션이든 수정 가능.
+                        const isOwnPartnerPosting =
+                          (!!myPartnerOrganizationId && p.partnerDomain === myPartnerOrganizationId)
+                          || user?.role === "OPERATOR";
                         const showAdAfter = (idx + 1) % 4 === 0 && idx + 1 < visiblePositions.length;
 
                         return (
