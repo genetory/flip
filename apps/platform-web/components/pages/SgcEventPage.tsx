@@ -69,9 +69,23 @@ type Copy = {
   recruitPeriodValue: string;
   recruitNote: string;
   applyCta: string;
+  // 모집 카드 안에 같이 들어가는 보조 정보
+  recruitHeadcountLabel: string;
+  recruitHeadcountValue: string;
+  eligibilityLabel: string;
+  eligibilityItems: string[];
   // 진행 일정 타임라인
   scheduleHeading: string;
   schedule: SchedulePhase[];
+  // 참여 시 반드시 알아둬야 할 주의사항 (이미지의 빨간 동그라미 라인들)
+  noticeHeading: string;
+  noticeItems: string[];
+  // 문의처 — 별도 카드. 전화 + 이메일
+  inquiryHeading: string;
+  inquiryPhoneLabel: string;
+  inquiryPhone: string;
+  inquiryEmailLabel: string;
+  inquiryEmail: string;
   // 면책/주최
   hostNote: string;
   // 주최 기관 안내 카드 — 서울글로벌센터 공식 사이트 링크 포함
@@ -139,6 +153,25 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitPeriodValue: SCHEDULE.recruitPeriod,
     recruitNote: "Aply 회원으로 로그인하고 본인 이력서와 함께 지원해 주세요. 운영팀이 상시 확인 후 개별 안내드립니다.",
     applyCta: "지금 지원하기",
+    recruitHeadcountLabel: "모집 인원",
+    recruitHeadcountValue: "총 6명",
+    eligibilityLabel: "신청 자격",
+    eligibilityItems: [
+      "한국에서 취업을 희망하는 외국인 유학생",
+      "TOPIK 5급 이상",
+      "D-10(구직) 비자 소지 또는 소지 예정자"
+    ],
+    noticeHeading: "참여 전 꼭 확인하세요",
+    noticeItems: [
+      "온라인 인터뷰 및 최종 선발자에게는 개별 연락드립니다.",
+      "모든 일정에 반드시 참여 가능한 분만 신청해 주세요.",
+      "추후 일정은 변동될 수 있습니다."
+    ],
+    inquiryHeading: "문의",
+    inquiryPhoneLabel: "전화",
+    inquiryPhone: "070-8896-9456",
+    inquiryEmailLabel: "이메일",
+    inquiryEmail: "sgc.istudent@gmail.com",
     scheduleHeading: "진행 일정",
     schedule: [
       { iconKey: "calendar",  phase: "면접 진행",     period: SCHEDULE.interview,   note: "대상자에게 개별 안내 예정" },
@@ -195,6 +228,25 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitPeriodValue: SCHEDULE.recruitPeriodEn,
     recruitNote: "Sign in to Aply and apply with your own resume. Our team reviews applications on a rolling basis and follows up individually.",
     applyCta: "Apply now",
+    recruitHeadcountLabel: "Spots",
+    recruitHeadcountValue: "6 in total",
+    eligibilityLabel: "Eligibility",
+    eligibilityItems: [
+      "International students seeking employment in Korea",
+      "TOPIK level 5 or above",
+      "D-10 (job-seeking) visa holder or about to hold one"
+    ],
+    noticeHeading: "Before applying",
+    noticeItems: [
+      "Interview invitations and final results are sent individually.",
+      "Apply only if you can commit to every scheduled session.",
+      "Dates are subject to change."
+    ],
+    inquiryHeading: "Contact",
+    inquiryPhoneLabel: "Phone",
+    inquiryPhone: "070-8896-9456",
+    inquiryEmailLabel: "Email",
+    inquiryEmail: "sgc.istudent@gmail.com",
     scheduleHeading: "Timeline",
     schedule: [
       { iconKey: "calendar",  phase: "Interviews",          period: SCHEDULE.interviewEn, note: "Shortlisted candidates will be contacted individually." },
@@ -251,6 +303,25 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitPeriodValue: SCHEDULE.recruitPeriod,
     recruitNote: "请登录 Aply 后用您的简历进行申请。运营团队将持续审核并单独联系您。",
     applyCta: "立即申请",
+    recruitHeadcountLabel: "招募人数",
+    recruitHeadcountValue: "共 6 名",
+    eligibilityLabel: "申请资格",
+    eligibilityItems: [
+      "希望在韩国就业的外国留学生",
+      "TOPIK 5 级以上",
+      "D-10（求职）签证持有者或预定持有者"
+    ],
+    noticeHeading: "申请前请确认",
+    noticeItems: [
+      "面试邀请及最终录取通知将单独发送。",
+      "请确认能全程参与所有日程后再申请。",
+      "日程之后可能会有变动。"
+    ],
+    inquiryHeading: "联系方式",
+    inquiryPhoneLabel: "电话",
+    inquiryPhone: "070-8896-9456",
+    inquiryEmailLabel: "邮箱",
+    inquiryEmail: "sgc.istudent@gmail.com",
     scheduleHeading: "整体日程",
     schedule: [
       { iconKey: "calendar",  phase: "面试",         period: SCHEDULE.interview,   note: "对入选者将单独通知" },
@@ -307,6 +378,25 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitPeriodValue: SCHEDULE.recruitPeriod,
     recruitNote: "Đăng nhập Aply và ứng tuyển bằng CV của bạn. Đội Aply sẽ kiểm tra liên tục và liên hệ riêng với bạn.",
     applyCta: "Đăng ký ngay",
+    recruitHeadcountLabel: "Số lượng tuyển",
+    recruitHeadcountValue: "Tổng 6 người",
+    eligibilityLabel: "Yêu cầu ứng tuyển",
+    eligibilityItems: [
+      "Du học sinh quốc tế mong muốn làm việc tại Hàn Quốc",
+      "TOPIK cấp 5 trở lên",
+      "Đang giữ hoặc sẽ giữ visa D-10 (tìm việc)"
+    ],
+    noticeHeading: "Trước khi đăng ký",
+    noticeItems: [
+      "Thông báo phỏng vấn và kết quả cuối cùng sẽ gửi riêng đến từng người.",
+      "Vui lòng chỉ đăng ký nếu bạn có thể tham gia toàn bộ lịch trình.",
+      "Lịch trình có thể thay đổi sau này."
+    ],
+    inquiryHeading: "Liên hệ",
+    inquiryPhoneLabel: "Điện thoại",
+    inquiryPhone: "070-8896-9456",
+    inquiryEmailLabel: "Email",
+    inquiryEmail: "sgc.istudent@gmail.com",
     scheduleHeading: "Lịch trình",
     schedule: [
       { iconKey: "calendar",  phase: "Phỏng vấn",          period: SCHEDULE.interview,   note: "Sẽ liên hệ riêng với ứng viên được chọn." },
@@ -363,6 +453,25 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitPeriodValue: SCHEDULE.recruitPeriod,
     recruitNote: "Aply にログインし、ご自身の履歴書で申請してください。運営チームが随時確認の上、個別にご案内します。",
     applyCta: "今すぐ申請",
+    recruitHeadcountLabel: "募集人数",
+    recruitHeadcountValue: "合計 6 名",
+    eligibilityLabel: "申請資格",
+    eligibilityItems: [
+      "韓国での就職を希望する外国人留学生",
+      "TOPIK 5 級以上",
+      "D-10（求職）ビザ保有者または取得予定者"
+    ],
+    noticeHeading: "申請前にご確認ください",
+    noticeItems: [
+      "面接案内および最終選抜は個別にご連絡します。",
+      "すべての日程に必ず参加できる方のみご応募ください。",
+      "今後、日程は変動する可能性があります。"
+    ],
+    inquiryHeading: "お問い合わせ",
+    inquiryPhoneLabel: "電話",
+    inquiryPhone: "070-8896-9456",
+    inquiryEmailLabel: "メール",
+    inquiryEmail: "sgc.istudent@gmail.com",
     scheduleHeading: "進行日程",
     schedule: [
       { iconKey: "calendar",  phase: "面接",              period: SCHEDULE.interview,   note: "対象者には個別案内予定" },
@@ -419,6 +528,25 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitPeriodValue: SCHEDULE.recruitPeriod,
     recruitNote: "Masuk ke Aply dan daftar dengan resume Anda. Tim kami meninjau pendaftaran secara berkelanjutan dan menghubungi secara individual.",
     applyCta: "Daftar sekarang",
+    recruitHeadcountLabel: "Jumlah peserta",
+    recruitHeadcountValue: "Total 6 orang",
+    eligibilityLabel: "Syarat pendaftaran",
+    eligibilityItems: [
+      "Mahasiswa asing yang ingin bekerja di Korea",
+      "TOPIK level 5 atau di atasnya",
+      "Pemegang visa D-10 (pencari kerja) atau yang akan memilikinya"
+    ],
+    noticeHeading: "Sebelum mendaftar",
+    noticeItems: [
+      "Undangan wawancara dan hasil akhir dikirim secara individu.",
+      "Daftarlah hanya jika Anda dapat mengikuti seluruh jadwal.",
+      "Jadwal dapat berubah di kemudian hari."
+    ],
+    inquiryHeading: "Kontak",
+    inquiryPhoneLabel: "Telepon",
+    inquiryPhone: "070-8896-9456",
+    inquiryEmailLabel: "Email",
+    inquiryEmail: "sgc.istudent@gmail.com",
     scheduleHeading: "Jadwal",
     schedule: [
       { iconKey: "calendar",  phase: "Wawancara",             period: SCHEDULE.interview,   note: "Kandidat terpilih akan dihubungi secara pribadi." },
@@ -629,20 +757,49 @@ export function SgcEventPage() {
               </ul>
             </article>
 
-            {/* 모집 안내 + CTA — 가장 중요한 액션, 시각적으로 도드라지게 */}
+            {/* 모집 안내 + CTA — 가장 중요한 액션, 시각적으로 도드라지게. 모집
+                기간 / 인원 / 자격 을 한 카드 안에서 빠르게 훑을 수 있게 grid. */}
             <article className="rounded-3xl border border-violet-200 bg-violet-50/40 p-6 md:p-8">
               <h2 className="font-display text-xl font-bold tracking-tight md:text-2xl">
                 {t.recruitHeading}
               </h2>
-              <div className="mt-4 flex flex-col gap-1">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  {t.recruitPeriodLabel}
-                </p>
-                <p className="font-display text-lg font-bold tracking-tight md:text-xl">
-                  {t.recruitPeriodValue}
-                </p>
+
+              {/* 기간 + 인원 — 2열 (모바일은 자동 줄바꿈) */}
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {t.recruitPeriodLabel}
+                  </p>
+                  <p className="mt-1 font-display text-lg font-bold tracking-tight md:text-xl">
+                    {t.recruitPeriodValue}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {t.recruitHeadcountLabel}
+                  </p>
+                  <p className="mt-1 font-display text-lg font-bold tracking-tight md:text-xl">
+                    {t.recruitHeadcountValue}
+                  </p>
+                </div>
               </div>
-              <p className="mt-4 text-[13.5px] leading-relaxed text-muted-foreground">
+
+              {/* 신청 자격 — bullet list */}
+              <div className="mt-5">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {t.eligibilityLabel}
+                </p>
+                <ul className="mt-2 space-y-1.5">
+                  {t.eligibilityItems.map((item, i) => (
+                    <li key={i} className="flex gap-2 text-[14px] leading-relaxed text-foreground/85">
+                      <span aria-hidden className="mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <p className="mt-5 text-[13.5px] leading-relaxed text-muted-foreground">
                 {t.recruitNote}
               </p>
               <Link
@@ -686,6 +843,58 @@ export function SgcEventPage() {
                   );
                 })}
               </ol>
+            </article>
+
+            {/* 참여 전 주의사항 — 모집 안내 직후 + 일정 직후 위치 둘 다 고민했는데
+                일정 다음에 두는 게 자연스럽다. "이 일정 다 참여 가능해야 함" 컨텍스트. */}
+            <article className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 md:p-6">
+              <p className="font-display text-sm font-bold text-amber-900 md:text-base">
+                ⚠️ {t.noticeHeading}
+              </p>
+              <ul className="mt-3 space-y-2">
+                {t.noticeItems.map((item, i) => (
+                  <li key={i} className="flex gap-2 text-[13.5px] leading-relaxed text-amber-950/85">
+                    <span aria-hidden className="mt-[7px] inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </article>
+
+            {/* 문의처 — 전화 + 이메일. tel:/mailto: deep link 로 모바일에서
+                즉시 발신 가능. */}
+            <article className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 md:p-6">
+              <h2 className="font-display text-base font-bold tracking-tight md:text-lg">
+                {t.inquiryHeading}
+              </h2>
+              <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <dt className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {t.inquiryPhoneLabel}
+                  </dt>
+                  <dd className="mt-1">
+                    <a
+                      href={`tel:${t.inquiryPhone.replace(/[^+\d]/g, "")}`}
+                      className="font-display text-base font-bold tracking-tight text-foreground hover:text-primary"
+                    >
+                      {t.inquiryPhone}
+                    </a>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {t.inquiryEmailLabel}
+                  </dt>
+                  <dd className="mt-1">
+                    <a
+                      href={`mailto:${t.inquiryEmail}`}
+                      className="break-all font-display text-base font-bold tracking-tight text-foreground hover:text-primary"
+                    >
+                      {t.inquiryEmail}
+                    </a>
+                  </dd>
+                </div>
+              </dl>
             </article>
 
             {/* 주최 기관 안내 — 서울글로벌센터 소개 + 공식 사이트 바로가기.
