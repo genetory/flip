@@ -216,18 +216,29 @@ export function EventsListPage() {
                     href={event.href}
                     className="group block rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 transition hover:shadow-md active:scale-[0.995]"
                   >
-                    <article className="flex items-center gap-4">
+                    <article
+                      className={`flex gap-4 ${
+                        event.logoSrc
+                          ? // 가로로 긴 협력 로고 카드 — 좁은 폭(모바일·태블릿)에선
+                            // 로고가 가로를 다 먹어 텍스트가 쪼개진다. 카드 너비는
+                            // max-w-4xl(896px) 로 캡되므로 좌우 배치가 확실히 편한
+                            // lg(1024px↑, 카드 풀폭) 에서만 가로, 그 아래는 전부
+                            // 로고-위 세로 스택.
+                            "flex-col gap-3 lg:flex-row lg:items-center lg:gap-4"
+                          : "items-center"
+                      }`}
+                    >
                       {/* 좌측 아이콘 슬롯 — 기본은 11×11 정사각 이모지 박스.
                           협력/콜라보 카드는 가로형 로고 이미지(logoSrc)로
-                          대체되며 슬롯이 자동으로 더 넓어진다. */}
+                          대체. lg 미만에선 카드 상단에 좌측 정렬로 올라간다. */}
                       {event.logoSrc ? (
-                        <div className="relative flex h-16 w-[280px] shrink-0 items-center justify-center sm:h-20 sm:w-[280px]">
+                        <div className="relative h-14 w-[240px] shrink-0 sm:h-16 sm:w-[260px] lg:h-20 lg:w-[280px]">
                           <Image
                             src={event.logoSrc}
                             alt={event.logoAlt ?? ""}
                             fill
-                            sizes="280px"
-                            className="object-contain"
+                            sizes="(min-width: 1024px) 280px, (min-width: 640px) 260px, 240px"
+                            className="object-contain object-left"
                             priority={false}
                           />
                         </div>
@@ -254,7 +265,14 @@ export function EventsListPage() {
                           {c.description}
                         </p>
                       </div>
-                      <CaretRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:text-primary" weight="bold" />
+                      {/* 로고 카드는 lg 미만에서 세로 스택이라 caret 을 숨기고 lg+
+                          가로 배치에서만 노출(카드 전체가 탭 영역이라 무관). */}
+                      <CaretRight
+                        className={`h-4 w-4 shrink-0 self-center text-muted-foreground transition group-hover:text-primary ${
+                          event.logoSrc ? "hidden lg:block" : ""
+                        }`}
+                        weight="bold"
+                      />
                     </article>
                   </Link>
                 );

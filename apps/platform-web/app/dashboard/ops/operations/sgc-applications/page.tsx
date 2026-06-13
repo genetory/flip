@@ -17,6 +17,7 @@ type SgcStatus = "SUBMITTED" | "INTERVIEW" | "ACCEPTED" | "REJECTED" | "WITHDRAW
 type Application = {
   id: string;
   status: SgcStatus;
+  expectedGraduation: string | null;
   visaType: SgcVisaType;
   visaOther: string | null;
   healthNote: string;
@@ -24,6 +25,7 @@ type Application = {
   desiredJobOther: string | null;
   motivation: string;
   marketingOptIn: boolean;
+  preTrainingConsent: boolean | null;
   locale: string;
   adminMemo: string | null;
   createdAt: string;
@@ -665,6 +667,7 @@ function ApplicationDetailModal({
         >
           <DetailMeta label="체류자격" value={visaLabel} />
           <DetailMeta label="희망 직무" value={jobLabel} />
+          <DetailMeta label="졸업/졸업예정" value={application.expectedGraduation || "-"} />
           <DetailMeta label="등록일" value={formatDate(application.createdAt)} />
           <DetailMeta
             label="국적"
@@ -711,6 +714,17 @@ function ApplicationDetailModal({
         <DetailBlock title="건강상 특이사항">
           <p style={{ whiteSpace: "pre-wrap", fontSize: 13.5, lineHeight: 1.6, color: "#1e293b", margin: 0 }}>
             {application.healthNote || "-"}
+          </p>
+        </DetailBlock>
+
+        {/* 사전 교육 참여 동의 — 신규 폼 필드. 도입 전 지원은 null(-). */}
+        <DetailBlock title="사전 교육 필수 참여 동의">
+          <p style={{ fontSize: 13.5, color: "#1e293b", margin: 0 }}>
+            {application.preTrainingConsent == null
+              ? "-"
+              : application.preTrainingConsent
+                ? "참여 가능 · 합격 시 참여 동의"
+                : "미동의"}
           </p>
         </DetailBlock>
 
