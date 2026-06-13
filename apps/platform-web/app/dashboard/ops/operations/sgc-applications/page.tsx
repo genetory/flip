@@ -17,7 +17,21 @@ type SgcStatus = "SUBMITTED" | "INTERVIEW" | "ACCEPTED" | "REJECTED" | "WITHDRAW
 type Application = {
   id: string;
   status: SgcStatus;
+  applicantName: string | null;
+  birthDate: string | null;
+  gender: string | null;
+  nationality: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  koreaStayDuration: string | null;
+  university: string | null;
+  major: string | null;
+  grade: string | null;
   expectedGraduation: string | null;
+  topikLevel: string | null;
+  referralSource: string | null;
+  referralOther: string | null;
   visaType: SgcVisaType;
   visaOther: string | null;
   healthNote: string;
@@ -84,6 +98,30 @@ const JOB_LABEL: Record<SgcDesiredJob, string> = {
   DEV: "개발",
   OTHER: "기타"
 };
+
+// 포스터 폼 enum 라벨 (운영 콘솔 표시용). 도입 전 지원은 null → "-".
+const GENDER_LABEL: Record<string, string> = { FEMALE: "여성", MALE: "남성" };
+const GRADE_LABEL: Record<string, string> = {
+  UNDERGRAD_4: "학부 재학",
+  GRAD: "대학원 재학",
+  GRADUATED: "졸업"
+};
+const KOREA_STAY_LABEL: Record<string, string> = {
+  LT_1Y: "1년 미만",
+  Y1_2: "1~2년",
+  Y2_3: "2~3년",
+  Y3_5: "3~5년",
+  GTE_5Y: "5년 이상"
+};
+const REFERRAL_LABEL: Record<string, string> = {
+  FRIEND: "지인 추천",
+  SNS: "SNS",
+  SCHOOL: "학교/교내 공지",
+  SEARCH: "인터넷 검색",
+  OTHER: "기타"
+};
+const labelOrDash = (map: Record<string, string>, key: string | null) =>
+  key ? map[key] ?? key : "-";
 
 function apiBase() {
   return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -665,14 +703,32 @@ function ApplicationDetailModal({
             marginBottom: 20
           }}
         >
+          <DetailMeta label="이름" value={application.applicantName || application.user?.name || "-"} />
+          <DetailMeta label="생년월일" value={application.birthDate || "-"} />
+          <DetailMeta label="성별" value={labelOrDash(GENDER_LABEL, application.gender)} />
+          <DetailMeta label="국적" value={application.nationality || application.user?.nationality || "-"} />
+          <DetailMeta label="휴대폰" value={application.phone || application.user?.phoneNumber || "-"} />
+          <DetailMeta label="이메일" value={application.email || application.user?.email || "-"} />
+          <DetailMeta label="한국 거주 기간" value={labelOrDash(KOREA_STAY_LABEL, application.koreaStayDuration)} />
+          <DetailMeta label="주소" value={application.address || "-"} />
+          <DetailMeta label="대학교" value={application.university || "-"} />
+          <DetailMeta label="전공" value={application.major || "-"} />
+          <DetailMeta label="학적 구분" value={labelOrDash(GRADE_LABEL, application.grade)} />
+          <DetailMeta label="졸업/졸업예정" value={application.expectedGraduation || "-"} />
+          <DetailMeta label="TOPIK" value={application.topikLevel ? `${application.topikLevel}급` : "-"} />
           <DetailMeta label="체류자격" value={visaLabel} />
           <DetailMeta label="희망 직무" value={jobLabel} />
-          <DetailMeta label="졸업/졸업예정" value={application.expectedGraduation || "-"} />
-          <DetailMeta label="등록일" value={formatDate(application.createdAt)} />
           <DetailMeta
-            label="국적"
-            value={application.user?.nationality ?? "-"}
+            label="알게 된 경로"
+            value={
+              application.referralSource
+                ? `${labelOrDash(REFERRAL_LABEL, application.referralSource)}${
+                    application.referralOther ? ` — ${application.referralOther}` : ""
+                  }`
+                : "-"
+            }
           />
+          <DetailMeta label="등록일" value={formatDate(application.createdAt)} />
         </div>
 
         {/* 이력서 바로가기 */}
