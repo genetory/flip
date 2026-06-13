@@ -98,16 +98,18 @@ type Copy = {
 // 모집 기간 / 일정 — 코드 안 한 곳에서만 관리. 영어/중국어 등 라벨만 로케일
 // 별로 번역하면 됨. 날짜 자체는 모든 언어 공통 ("6/15" 같은 형식).
 const SCHEDULE = {
-  recruitPeriod: "6/15 (월) ~ 6/19 (금)",
-  recruitPeriodEn: "Jun 15 (Mon) ~ Jun 19 (Fri)",
-  interview: "6/22 (월) ~ 6/26 (금)",
-  interviewEn: "Jun 22 (Mon) ~ Jun 26 (Fri)",
-  preTraining: "6/29 (월) ~ 7/3 (금) 중 2회 (각 1시간 30분)",
-  preTrainingEn: "Within Jun 29 ~ Jul 3 · 2 sessions × 1h 30m",
-  internship: "7/6 (월) ~ 8/14 (금)",
-  internshipEn: "Jul 6 (Mon) ~ Aug 14 (Fri)",
-  closing: "8/24 (월) ~ 8/28 (금) 중 1회",
-  closingEn: "Within Aug 24 ~ Aug 28 · 1 session"
+  recruitPeriod: "~ 6/23 (화) 18:00",
+  recruitPeriodEn: "~ Jun 23 (Tue) 18:00",
+  interview: "6/24 (수) ~ 6/26 (금)",
+  interviewEn: "Jun 24 (Wed) ~ Jun 26 (Fri)",
+  preTraining: "6/30 (화) & 7/2 (목)",
+  preTrainingEn: "Jun 30 (Tue) & Jul 2 (Thu)",
+  matching: "7/4 (토) ~ 7/19 (일)",
+  matchingEn: "Jul 4 (Sat) ~ Jul 19 (Sun)",
+  internship: "7/20 (월) ~ 8/28 (금)",
+  internshipEn: "Jul 20 (Mon) ~ Aug 28 (Fri)",
+  closing: "9월 초",
+  closingEn: "Early September"
 };
 
 const COPY: Record<PlatformLocale, Copy> = {
@@ -133,7 +135,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     pitches: [
       { emoji: "😶‍🌫️", text: "취업 준비가 막막한 외국인 취준생들을 위해." },
       { emoji: "🤔",     text: "한국 회사에서 일하고 싶지만 어디서부터 시작해야 할지 모르겠다면?" },
-      { emoji: "💡",     text: "이력서부터 면접, 그룹 코칭, 직무 체험까지 실전 중심 커리큘럼으로 도와드릴게요!" }
+      { emoji: "💡",     text: "이력서부터 면접, 실무 일경험까지 실전 중심 커리큘럼으로 도와드릴게요!" },
+      { emoji: "🗣",     text: "한국 기업에서 직접 6주간 일해보며 직무 경험과 실무 커뮤니케이션 역량을 쌓아보세요!" }
     ],
     highlightsHeading: "참여하면 얻는 것",
     highlights: [
@@ -157,9 +160,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitHeadcountValue: "총 6명",
     eligibilityLabel: "신청 자격",
     eligibilityItems: [
-      "한국에서 취업을 희망하는 외국인 유학생",
-      "TOPIK 5급 이상",
-      "D-10(구직) 비자 소지 또는 소지 예정자"
+      "한국에서 취업을 희망하는 외국인 유학생 (졸업 예정자 우선 선발)",
+      "TOPIK 4급 이상",
+      "D-2(유학) · D-10(구직) 비자 소지 또는 소지 예정자"
     ],
     noticeHeading: "참여 전 꼭 확인하세요",
     noticeItems: [
@@ -169,15 +172,16 @@ const COPY: Record<PlatformLocale, Copy> = {
     ],
     inquiryHeading: "문의",
     inquiryPhoneLabel: "전화",
-    inquiryPhone: "070-8896-9456",
+    inquiryPhone: "02-362-6754",
     inquiryEmailLabel: "이메일",
     inquiryEmail: "sgc.istudent@gmail.com",
     scheduleHeading: "진행 일정",
     schedule: [
-      { iconKey: "calendar",  phase: "면접 진행",     period: SCHEDULE.interview,   note: "대상자에게 개별 안내 예정" },
-      { iconKey: "clipboard", phase: "사전 교육",     period: SCHEDULE.preTraining },
-      { iconKey: "calendar",  phase: "6주 일경험 인턴십", period: SCHEDULE.internship, note: "기업 현장 출퇴근 / 식비 · 교통비 지원" },
-      { iconKey: "clipboard", phase: "성과 공유회",   period: SCHEDULE.closing }
+      { iconKey: "calendar",  phase: "온라인 인터뷰",   period: SCHEDULE.interview,   note: "대상자에게 개별 연락" },
+      { iconKey: "clipboard", phase: "사전 교육",       period: SCHEDULE.preTraining, note: "2일 모두 참여 필수" },
+      { iconKey: "calendar",  phase: "기업 매칭",       period: SCHEDULE.matching,    note: "기업별 사전 과제 여부 상이" },
+      { iconKey: "calendar",  phase: "기업 연계 일경험", period: SCHEDULE.internship,  note: "기업 현장 출퇴근 / 식비 · 교통비 지원" },
+      { iconKey: "clipboard", phase: "성과 공유회",     period: SCHEDULE.closing,     note: "참여자 개별 연락" }
     ],
     hostNote: "주최: 서울글로벌센터 · 운영: 플리퍼스(Aply)",
     hostOrgHeading: "주최 기관",
@@ -208,7 +212,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     pitches: [
       { emoji: "😶‍🌫️", text: "International job-seekers who feel lost about how to start." },
       { emoji: "🤔",     text: "Want to work at a Korean company but don't know where to begin?" },
-      { emoji: "💡",     text: "From résumé and interviews to group coaching and on-site work — we'll guide you with a hands-on curriculum." }
+      { emoji: "💡",     text: "From résumé and interviews to real on-site work experience — we'll guide you with a hands-on curriculum." },
+      { emoji: "🗣",     text: "Work directly at a Korean company for 6 weeks to build real job experience and workplace communication skills." }
     ],
     highlightsHeading: "What you'll get",
     highlights: [
@@ -232,9 +237,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitHeadcountValue: "6 in total",
     eligibilityLabel: "Eligibility",
     eligibilityItems: [
-      "International students seeking employment in Korea",
-      "TOPIK level 5 or above",
-      "D-10 (job-seeking) visa holder or about to hold one"
+      "International students seeking employment in Korea (graduating students prioritized)",
+      "TOPIK level 4 or above",
+      "D-2 (study) / D-10 (job-seeking) visa holder or about to hold one"
     ],
     noticeHeading: "Before applying",
     noticeItems: [
@@ -244,15 +249,16 @@ const COPY: Record<PlatformLocale, Copy> = {
     ],
     inquiryHeading: "Contact",
     inquiryPhoneLabel: "Phone",
-    inquiryPhone: "070-8896-9456",
+    inquiryPhone: "02-362-6754",
     inquiryEmailLabel: "Email",
     inquiryEmail: "sgc.istudent@gmail.com",
     scheduleHeading: "Timeline",
     schedule: [
-      { iconKey: "calendar",  phase: "Interviews",          period: SCHEDULE.interviewEn, note: "Shortlisted candidates will be contacted individually." },
-      { iconKey: "clipboard", phase: "Pre-training",        period: SCHEDULE.preTrainingEn },
-      { iconKey: "calendar",  phase: "6-week internship",   period: SCHEDULE.internshipEn, note: "On-site / meals & transportation covered" },
-      { iconKey: "clipboard", phase: "Wrap-up showcase",    period: SCHEDULE.closingEn }
+      { iconKey: "calendar",  phase: "Online interview",    period: SCHEDULE.interviewEn,   note: "Shortlisted candidates contacted individually." },
+      { iconKey: "clipboard", phase: "Pre-training",        period: SCHEDULE.preTrainingEn, note: "Both days are mandatory." },
+      { iconKey: "calendar",  phase: "Company matching",    period: SCHEDULE.matchingEn,    note: "Some companies may assign a pre-task." },
+      { iconKey: "calendar",  phase: "On-site work experience", period: SCHEDULE.internshipEn, note: "On-site / meals & transportation covered" },
+      { iconKey: "clipboard", phase: "Wrap-up showcase",    period: SCHEDULE.closingEn,     note: "Participants contacted individually." }
     ],
     hostNote: "Host: Seoul Global Center · Operated by: Flippers (Aply)",
     hostOrgHeading: "Hosting organization",
@@ -283,7 +289,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     pitches: [
       { emoji: "😶‍🌫️", text: "正在为求职准备而迷茫的外国求职者。" },
       { emoji: "🤔",     text: "想进入韩国公司工作，但不知道从哪开始？" },
-      { emoji: "💡",     text: "从简历、面试、分组辅导到实战职务体验，实战课程帮你解决。" }
+      { emoji: "💡",     text: "从简历、面试到实战工作经验，实战课程帮你解决。" },
+      { emoji: "🗣",     text: "在韩国企业直接工作 6 周，积累职务经验与实务沟通能力。" }
     ],
     highlightsHeading: "你将获得",
     highlights: [
@@ -307,9 +314,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitHeadcountValue: "共 6 名",
     eligibilityLabel: "申请资格",
     eligibilityItems: [
-      "希望在韩国就业的外国留学生",
-      "TOPIK 5 级以上",
-      "D-10（求职）签证持有者或预定持有者"
+      "希望在韩国就业的外国留学生（应届毕业生优先选拔）",
+      "TOPIK 4 级以上",
+      "D-2（留学）· D-10（求职）签证持有者或预定持有者"
     ],
     noticeHeading: "申请前请确认",
     noticeItems: [
@@ -319,15 +326,16 @@ const COPY: Record<PlatformLocale, Copy> = {
     ],
     inquiryHeading: "联系方式",
     inquiryPhoneLabel: "电话",
-    inquiryPhone: "070-8896-9456",
+    inquiryPhone: "02-362-6754",
     inquiryEmailLabel: "邮箱",
     inquiryEmail: "sgc.istudent@gmail.com",
     scheduleHeading: "整体日程",
     schedule: [
-      { iconKey: "calendar",  phase: "面试",         period: SCHEDULE.interview,   note: "对入选者将单独通知" },
-      { iconKey: "clipboard", phase: "事前培训",     period: SCHEDULE.preTraining },
-      { iconKey: "calendar",  phase: "6 周企业实习", period: SCHEDULE.internship, note: "企业现场通勤 / 餐费 · 交通费支持" },
-      { iconKey: "clipboard", phase: "成果分享会",   period: SCHEDULE.closing }
+      { iconKey: "calendar",  phase: "在线面试",     period: SCHEDULE.interview,   note: "对入选者将单独联系" },
+      { iconKey: "clipboard", phase: "事前培训",     period: SCHEDULE.preTraining, note: "两天均须参加" },
+      { iconKey: "calendar",  phase: "企业匹配",     period: SCHEDULE.matching,    note: "各企业是否布置前置作业不同" },
+      { iconKey: "calendar",  phase: "企业现场就业体验", period: SCHEDULE.internship, note: "企业现场通勤 / 餐费 · 交通费支持" },
+      { iconKey: "clipboard", phase: "成果分享会",   period: SCHEDULE.closing,     note: "参与者单独联系" }
     ],
     hostNote: "主办：首尔全球中心 · 运营：Flippers (Aply)",
     hostOrgHeading: "主办机构",
@@ -358,7 +366,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     pitches: [
       { emoji: "😶‍🌫️", text: "Bạn là du học sinh đang loay hoay chuẩn bị xin việc." },
       { emoji: "🤔",     text: "Muốn làm việc tại công ty Hàn nhưng không biết bắt đầu từ đâu?" },
-      { emoji: "💡",     text: "Từ CV, phỏng vấn, coaching nhóm đến trải nghiệm việc làm thực tế — chúng tôi đồng hành cùng bạn." }
+      { emoji: "💡",     text: "Từ CV, phỏng vấn đến trải nghiệm làm việc thực tế — chúng tôi đồng hành cùng bạn bằng chương trình thực chiến." },
+      { emoji: "🗣",     text: "Làm việc trực tiếp 6 tuần tại doanh nghiệp Hàn để tích lũy kinh nghiệm nghề nghiệp và kỹ năng giao tiếp công sở." }
     ],
     highlightsHeading: "Bạn sẽ nhận được",
     highlights: [
@@ -382,9 +391,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitHeadcountValue: "Tổng 6 người",
     eligibilityLabel: "Yêu cầu ứng tuyển",
     eligibilityItems: [
-      "Du học sinh quốc tế mong muốn làm việc tại Hàn Quốc",
-      "TOPIK cấp 5 trở lên",
-      "Đang giữ hoặc sẽ giữ visa D-10 (tìm việc)"
+      "Du học sinh quốc tế mong muốn làm việc tại Hàn Quốc (ưu tiên sinh viên sắp tốt nghiệp)",
+      "TOPIK cấp 4 trở lên",
+      "Đang giữ hoặc sẽ giữ visa D-2 (du học) / D-10 (tìm việc)"
     ],
     noticeHeading: "Trước khi đăng ký",
     noticeItems: [
@@ -394,15 +403,16 @@ const COPY: Record<PlatformLocale, Copy> = {
     ],
     inquiryHeading: "Liên hệ",
     inquiryPhoneLabel: "Điện thoại",
-    inquiryPhone: "070-8896-9456",
+    inquiryPhone: "02-362-6754",
     inquiryEmailLabel: "Email",
     inquiryEmail: "sgc.istudent@gmail.com",
     scheduleHeading: "Lịch trình",
     schedule: [
-      { iconKey: "calendar",  phase: "Phỏng vấn",          period: SCHEDULE.interview,   note: "Sẽ liên hệ riêng với ứng viên được chọn." },
-      { iconKey: "clipboard", phase: "Đào tạo trước",      period: SCHEDULE.preTraining },
-      { iconKey: "calendar",  phase: "Thực tập 6 tuần",    period: SCHEDULE.internship, note: "Đi lại đến công ty / hỗ trợ ăn uống và đi lại" },
-      { iconKey: "clipboard", phase: "Buổi tổng kết",      period: SCHEDULE.closing }
+      { iconKey: "calendar",  phase: "Phỏng vấn trực tuyến", period: SCHEDULE.interview,   note: "Sẽ liên hệ riêng với ứng viên được chọn." },
+      { iconKey: "clipboard", phase: "Đào tạo trước",      period: SCHEDULE.preTraining, note: "Bắt buộc tham gia cả 2 ngày." },
+      { iconKey: "calendar",  phase: "Ghép nối doanh nghiệp", period: SCHEDULE.matching,  note: "Một số doanh nghiệp có bài tập trước." },
+      { iconKey: "calendar",  phase: "Trải nghiệm việc làm", period: SCHEDULE.internship, note: "Đi lại đến công ty / hỗ trợ ăn uống và đi lại" },
+      { iconKey: "clipboard", phase: "Buổi tổng kết",      period: SCHEDULE.closing,     note: "Liên hệ riêng với người tham gia." }
     ],
     hostNote: "Tổ chức: Seoul Global Center · Vận hành: Flippers (Aply)",
     hostOrgHeading: "Đơn vị tổ chức",
@@ -433,7 +443,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     pitches: [
       { emoji: "😶‍🌫️", text: "就職準備に悩む外国人就活生のために。" },
       { emoji: "🤔",     text: "韓国企業で働きたいけれど、何から始めればよいか分からない方へ。" },
-      { emoji: "💡",     text: "履歴書から面接、グループコーチング、職務体験まで実戦中心のカリキュラムでサポート!" }
+      { emoji: "💡",     text: "履歴書から面接、実務就業体験まで実戦中心のカリキュラムでサポート!" },
+      { emoji: "🗣",     text: "韓国企業で直接 6 週間働き、職務経験と実務コミュニケーション力を高めましょう!" }
     ],
     highlightsHeading: "得られるもの",
     highlights: [
@@ -457,9 +468,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitHeadcountValue: "合計 6 名",
     eligibilityLabel: "申請資格",
     eligibilityItems: [
-      "韓国での就職を希望する外国人留学生",
-      "TOPIK 5 級以上",
-      "D-10（求職）ビザ保有者または取得予定者"
+      "韓国での就職を希望する外国人留学生（卒業予定者を優先選抜）",
+      "TOPIK 4 級以上",
+      "D-2（留学）· D-10（求職）ビザ保有者または取得予定者"
     ],
     noticeHeading: "申請前にご確認ください",
     noticeItems: [
@@ -469,15 +480,16 @@ const COPY: Record<PlatformLocale, Copy> = {
     ],
     inquiryHeading: "お問い合わせ",
     inquiryPhoneLabel: "電話",
-    inquiryPhone: "070-8896-9456",
+    inquiryPhone: "02-362-6754",
     inquiryEmailLabel: "メール",
     inquiryEmail: "sgc.istudent@gmail.com",
     scheduleHeading: "進行日程",
     schedule: [
-      { iconKey: "calendar",  phase: "面接",              period: SCHEDULE.interview,   note: "対象者には個別案内予定" },
-      { iconKey: "clipboard", phase: "事前研修",          period: SCHEDULE.preTraining },
-      { iconKey: "calendar",  phase: "6 週間就業体験",     period: SCHEDULE.internship, note: "企業現場への通勤 / 食費・交通費支援" },
-      { iconKey: "clipboard", phase: "成果共有会",         period: SCHEDULE.closing }
+      { iconKey: "calendar",  phase: "オンライン面接",     period: SCHEDULE.interview,   note: "対象者に個別連絡" },
+      { iconKey: "clipboard", phase: "事前研修",          period: SCHEDULE.preTraining, note: "2日とも参加必須" },
+      { iconKey: "calendar",  phase: "企業マッチング",     period: SCHEDULE.matching,    note: "企業ごとに事前課題の有無が異なる" },
+      { iconKey: "calendar",  phase: "企業連携就業体験",   period: SCHEDULE.internship, note: "企業現場への通勤 / 食費・交通費支援" },
+      { iconKey: "clipboard", phase: "成果共有会",         period: SCHEDULE.closing,     note: "参加者に個別連絡" }
     ],
     hostNote: "主催：ソウルグローバルセンター · 運営：Flippers (Aply)",
     hostOrgHeading: "主催機関",
@@ -508,7 +520,8 @@ const COPY: Record<PlatformLocale, Copy> = {
     pitches: [
       { emoji: "😶‍🌫️", text: "Kamu mahasiswa asing yang bingung memulai persiapan kerja." },
       { emoji: "🤔",     text: "Ingin bekerja di perusahaan Korea tapi tidak tahu mulai dari mana?" },
-      { emoji: "💡",     text: "Dari CV, wawancara, coaching grup, hingga pengalaman kerja nyata — kami bantu kamu." }
+      { emoji: "💡",     text: "Dari CV, wawancara, hingga pengalaman kerja nyata — kami bantu dengan kurikulum berbasis praktik." },
+      { emoji: "🗣",     text: "Bekerja langsung 6 minggu di perusahaan Korea untuk membangun pengalaman kerja dan kemampuan komunikasi profesional." }
     ],
     highlightsHeading: "Yang akan kamu dapat",
     highlights: [
@@ -532,9 +545,9 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitHeadcountValue: "Total 6 orang",
     eligibilityLabel: "Syarat pendaftaran",
     eligibilityItems: [
-      "Mahasiswa asing yang ingin bekerja di Korea",
-      "TOPIK level 5 atau di atasnya",
-      "Pemegang visa D-10 (pencari kerja) atau yang akan memilikinya"
+      "Mahasiswa asing yang ingin bekerja di Korea (diutamakan yang akan lulus)",
+      "TOPIK level 4 atau di atasnya",
+      "Pemegang visa D-2 (studi) / D-10 (pencari kerja) atau yang akan memilikinya"
     ],
     noticeHeading: "Sebelum mendaftar",
     noticeItems: [
@@ -544,15 +557,16 @@ const COPY: Record<PlatformLocale, Copy> = {
     ],
     inquiryHeading: "Kontak",
     inquiryPhoneLabel: "Telepon",
-    inquiryPhone: "070-8896-9456",
+    inquiryPhone: "02-362-6754",
     inquiryEmailLabel: "Email",
     inquiryEmail: "sgc.istudent@gmail.com",
     scheduleHeading: "Jadwal",
     schedule: [
-      { iconKey: "calendar",  phase: "Wawancara",             period: SCHEDULE.interview,   note: "Kandidat terpilih akan dihubungi secara pribadi." },
-      { iconKey: "clipboard", phase: "Pelatihan awal",        period: SCHEDULE.preTraining },
-      { iconKey: "calendar",  phase: "Magang 6 minggu",       period: SCHEDULE.internship, note: "Datang ke perusahaan / tunjangan makan & transport" },
-      { iconKey: "clipboard", phase: "Acara berbagi hasil",   period: SCHEDULE.closing }
+      { iconKey: "calendar",  phase: "Wawancara online",      period: SCHEDULE.interview,   note: "Kandidat terpilih dihubungi secara pribadi." },
+      { iconKey: "clipboard", phase: "Pelatihan awal",        period: SCHEDULE.preTraining, note: "Wajib hadir kedua hari." },
+      { iconKey: "calendar",  phase: "Pencocokan perusahaan", period: SCHEDULE.matching,    note: "Sebagian perusahaan memberi tugas awal." },
+      { iconKey: "calendar",  phase: "Pengalaman kerja",      period: SCHEDULE.internship, note: "Datang ke perusahaan / tunjangan makan & transport" },
+      { iconKey: "clipboard", phase: "Acara berbagi hasil",   period: SCHEDULE.closing,     note: "Peserta dihubungi secara pribadi." }
     ],
     hostNote: "Penyelenggara: Seoul Global Center · Operasional: Flippers (Aply)",
     hostOrgHeading: "Penyelenggara",
