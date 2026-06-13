@@ -614,9 +614,11 @@ export function SgcEventPage() {
   const isClosed = recruitState.kind === "closed";
 
   return (
-    <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
+    // pb-[76px] 는 모바일 고정 CTA 바(높이 ≈ 73px) 가 푸터 하단(저작권·약관
+    // 줄)을 가리지 않도록 페이지 전체에 주는 클리어런스. 바가 없는 md+ 에서는 0.
+    <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased pb-[76px] md:pb-0">
       <Header />
-      <main className="flex-1 pb-24 md:pb-16">
+      <main className="flex-1 pb-12 md:pb-16">
         {/* Hero — 협력 로고 + 큰 타이틀 + D-day 배지 + 지원 CTA 까지 한 카드 안.
             모집 이벤트라는 인상을 즉시 주기 위해 상단에 D-day 와 큰 primary
             버튼을 노출. 정보 페이지 톤이 아닌 viral 모집 톤. */}
