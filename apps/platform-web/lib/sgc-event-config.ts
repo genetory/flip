@@ -1,8 +1,8 @@
 // SGC 6주 일경험 프로그램 모집 기간 — 디테일 페이지와 신청 페이지가 모두
 // 동일한 D-day / 마감 판정에 의존하므로 한 곳에서만 관리.
 
-export const SGC_RECRUIT_START_ISO = "2026-06-15";
-export const SGC_RECRUIT_END_ISO   = "2026-06-19";
+export const SGC_RECRUIT_START_ISO = "2026-06-12";
+export const SGC_RECRUIT_END_ISO   = "2026-06-23";
 
 export type SgcRecruitState =
   | { kind: "before"; daysToStart: number }
