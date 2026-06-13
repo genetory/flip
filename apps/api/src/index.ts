@@ -7675,14 +7675,31 @@ app.post(
 
 const sgcApplicationCreateSchema = z.object({
   resumeId: z.string().uuid(),
+  // 기본 정보 (포스터 폼) — 계정에서 prefill 되지만 제출값은 지원서에 독립 저장.
+  applicantName: z.string().trim().min(1).max(80),
+  birthDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "birthDate must be YYYY-MM-DD"),
+  gender: z.enum(["FEMALE", "MALE"]),
+  nationality: z.string().trim().min(1).max(60),
+  phone: z.string().trim().min(1).max(40),
+  email: z.string().trim().email().max(120),
+  address: z.string().trim().min(1).max(200),
+  koreaStayDuration: z.enum(["LT_1Y", "Y1_2", "Y2_3", "Y3_5", "GTE_5Y"]),
+  // 학력
+  university: z.string().trim().min(1).max(120),
+  major: z.string().trim().min(1).max(120),
+  grade: z.enum(["UNDERGRAD_4", "GRAD", "GRADUATED"]),
   // 졸업 / 졸업 예정일 — 자유 입력 (예: "2026년 3월").
   expectedGraduation: z.string().trim().min(1).max(40),
+  topikLevel: z.enum(["4", "5", "6"]),
+  // 지원 정보
   visaType: z.enum(["D-2", "D-10", "OTHER"]),
   visaOther: z.string().trim().max(80).optional(),
   healthNote: z.string().trim().min(1).max(2000),
   desiredJob: z.enum(["MARKETING", "SALES", "TRANSLATION", "DEV", "OTHER"]),
   desiredJobOther: z.string().trim().max(80).optional(),
   motivation: z.string().trim().min(20).max(4000),
+  referralSource: z.enum(["FRIEND", "SNS", "SCHOOL", "SEARCH", "OTHER"]),
+  referralOther: z.string().trim().max(120).optional(),
   marketingOptIn: z.boolean(),
   // privacyConsent 는 필수 동의 — false 로 들어오면 가입 자체를 차단.
   privacyConsent: z.literal(true),
@@ -7751,6 +7768,11 @@ app.post(
         .status(400)
         .json({ ok: false, message: "desiredJobOther required when desiredJob is OTHER" });
     }
+    if (input.referralSource === "OTHER" && !(input.referralOther && input.referralOther.trim())) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "referralOther required when referralSource is OTHER" });
+    }
 
     const ipRaw =
       (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
@@ -7767,13 +7789,27 @@ app.post(
         data: {
           userId,
           resumeId: input.resumeId,
+          applicantName: input.applicantName.trim(),
+          birthDate: input.birthDate.trim(),
+          gender: input.gender,
+          nationality: input.nationality.trim(),
+          phone: input.phone.trim(),
+          email: input.email.trim(),
+          address: input.address.trim(),
+          koreaStayDuration: input.koreaStayDuration,
+          university: input.university.trim(),
+          major: input.major.trim(),
+          grade: input.grade,
           expectedGraduation: input.expectedGraduation.trim(),
+          topikLevel: input.topikLevel,
           visaType: input.visaType,
           visaOther: input.visaOther?.trim() || null,
           healthNote: input.healthNote.trim(),
           desiredJob: input.desiredJob,
           desiredJobOther: input.desiredJobOther?.trim() || null,
           motivation: input.motivation.trim(),
+          referralSource: input.referralSource,
+          referralOther: input.referralOther?.trim() || null,
           marketingOptIn: input.marketingOptIn,
           privacyConsent: true,
           preTrainingConsent: true,

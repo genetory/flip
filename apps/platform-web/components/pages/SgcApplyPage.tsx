@@ -16,6 +16,11 @@ import {
   submitSgcApplication,
   type SgcApplication,
   type SgcDesiredJob,
+  type SgcGender,
+  type SgcGrade,
+  type SgcKoreaStay,
+  type SgcReferralSource,
+  type SgcTopikLevel,
   type SgcVisaType
 } from "../../lib/sgc-event-client";
 import { isSgcRecruitClosed } from "../../lib/sgc-event-config";
@@ -28,6 +33,15 @@ import { isSgcRecruitClosed } from "../../lib/sgc-event-config";
 
 const VISA_OPTIONS: SgcVisaType[] = ["D-2", "D-10", "OTHER"];
 const DESIRED_JOB_OPTIONS: SgcDesiredJob[] = ["MARKETING", "SALES", "TRANSLATION", "DEV", "OTHER"];
+const GENDER_OPTIONS: SgcGender[] = ["FEMALE", "MALE"];
+const GRADE_OPTIONS: SgcGrade[] = ["UNDERGRAD_4", "GRAD", "GRADUATED"];
+const KOREA_STAY_OPTIONS: SgcKoreaStay[] = ["LT_1Y", "Y1_2", "Y2_3", "Y3_5", "GTE_5Y"];
+const TOPIK_OPTIONS: SgcTopikLevel[] = ["4", "5", "6"];
+const REFERRAL_OPTIONS: SgcReferralSource[] = ["FRIEND", "SNS", "SCHOOL", "SEARCH", "OTHER"];
+
+// 텍스트 입력 공통 스타일 (포스터 폼 단답 항목들).
+const INPUT_CLS =
+  "h-11 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
 type Copy = {
   pageHeading: string;
@@ -52,10 +66,40 @@ type Copy = {
   resumeSectionLabel: string;
   resumeSelectHint: string;
   resumeEditLink: string;
+  // 기본 정보 (계정 prefill)
+  nameLabel: string;
+  namePlaceholder: string;
+  birthDateLabel: string;
+  genderLabel: string;
+  genderOptionLabel: Record<SgcGender, string>;
+  nationalityLabel: string;
+  nationalityPlaceholder: string;
+  phoneLabel: string;
+  phonePlaceholder: string;
+  emailLabel: string;
+  emailPlaceholder: string;
+  addressLabel: string;
+  addressPlaceholder: string;
+  koreaStayLabel: string;
+  koreaStayOptionLabel: Record<SgcKoreaStay, string>;
+  // 학력
+  universityLabel: string;
+  universityPlaceholder: string;
+  majorLabel: string;
+  majorPlaceholder: string;
+  gradeLabel: string;
+  gradeOptionLabel: Record<SgcGrade, string>;
   // 졸업 / 졸업 예정일
   graduationLabel: string;
   graduationNote: string;
   graduationPlaceholder: string;
+  topikLabel: string;
+  topikNote: string;
+  topikOptionLabel: Record<SgcTopikLevel, string>;
+  // 알게 된 경로
+  referralLabel: string;
+  referralOptionLabel: Record<SgcReferralSource, string>;
+  referralOtherPlaceholder: string;
   visaTypeLabel: string;
   visaTypeNote: string;
   visaOptionLabel: Record<SgcVisaType, string>;
@@ -126,9 +170,36 @@ const COPY: Record<PlatformLocale, Copy> = (() => {
     resumeSectionLabel: "지원에 사용할 이력서",
     resumeSelectHint: "운영팀이 검토할 이력서를 선택해 주세요. 보완이 필요하면 옆의 \"수정\"으로 바로 편집할 수 있어요.",
     resumeEditLink: "수정",
+    nameLabel: "이름",
+    namePlaceholder: "본명 또는 한국어 이름",
+    birthDateLabel: "생년월일",
+    genderLabel: "성별",
+    genderOptionLabel: { FEMALE: "여성", MALE: "남성" },
+    nationalityLabel: "국적",
+    nationalityPlaceholder: "예) 베트남",
+    phoneLabel: "휴대폰 번호",
+    phonePlaceholder: "예) 010-1234-5678",
+    emailLabel: "이메일",
+    emailPlaceholder: "예) name@email.com",
+    addressLabel: "현재 거주 주소",
+    addressPlaceholder: "예) 서울시 종로구",
+    koreaStayLabel: "한국 거주 기간",
+    koreaStayOptionLabel: { LT_1Y: "1년 미만", Y1_2: "1~2년", Y2_3: "2~3년", Y3_5: "3~5년", GTE_5Y: "5년 이상" },
+    universityLabel: "대학교",
+    universityPlaceholder: "재학/졸업 대학교 이름",
+    majorLabel: "전공",
+    majorPlaceholder: "예) 경영학과",
+    gradeLabel: "학적 구분",
+    gradeOptionLabel: { UNDERGRAD_4: "학부 재학", GRAD: "대학원 재학", GRADUATED: "졸업" },
     graduationLabel: "졸업 / 졸업 예정일",
     graduationNote: "재학 중이라면 졸업 예정일을, 졸업했다면 졸업한 시기를 적어 주세요.",
     graduationPlaceholder: "예) 2026년 3월",
+    topikLabel: "TOPIK 등급",
+    topikNote: "※ TOPIK 4급 이상만 지원 가능",
+    topikOptionLabel: { "4": "4급", "5": "5급", "6": "6급" },
+    referralLabel: "이 프로그램을 알게 된 경로",
+    referralOptionLabel: { FRIEND: "지인 추천", SNS: "SNS (인스타그램 등)", SCHOOL: "학교 · 교내 공지", SEARCH: "인터넷 검색", OTHER: "기타" },
+    referralOtherPlaceholder: "경로를 입력해 주세요 (검색어 등)",
     visaTypeLabel: "체류자격",
     visaTypeNote: "※ D-2, D-10 비자 소지자 또는 소지 예정자만 지원 가능",
     visaOptionLabel: {
@@ -210,9 +281,36 @@ const COPY: Record<PlatformLocale, Copy> = (() => {
     resumeSectionLabel: "Resume to submit",
     resumeSelectHint: "Choose which resume our team should review. Tap \"Edit\" next to a resume to touch it up first.",
     resumeEditLink: "Edit",
+    nameLabel: "Name",
+    namePlaceholder: "Legal name or Korean name",
+    birthDateLabel: "Date of birth",
+    genderLabel: "Gender",
+    genderOptionLabel: { FEMALE: "Female", MALE: "Male" },
+    nationalityLabel: "Nationality",
+    nationalityPlaceholder: "e.g. Vietnam",
+    phoneLabel: "Mobile number",
+    phonePlaceholder: "e.g. 010-1234-5678",
+    emailLabel: "Email",
+    emailPlaceholder: "e.g. name@email.com",
+    addressLabel: "Current address",
+    addressPlaceholder: "e.g. Jongno-gu, Seoul",
+    koreaStayLabel: "Time lived in Korea",
+    koreaStayOptionLabel: { LT_1Y: "Under 1 year", Y1_2: "1–2 years", Y2_3: "2–3 years", Y3_5: "3–5 years", GTE_5Y: "5+ years" },
+    universityLabel: "University",
+    universityPlaceholder: "Your (former) university",
+    majorLabel: "Major",
+    majorPlaceholder: "e.g. Business Administration",
+    gradeLabel: "Academic status",
+    gradeOptionLabel: { UNDERGRAD_4: "Undergraduate", GRAD: "Graduate school", GRADUATED: "Graduated" },
     graduationLabel: "Graduation (expected) date",
     graduationNote: "If you're still enrolled, enter your expected graduation date; if graduated, when you graduated.",
     graduationPlaceholder: "e.g. March 2026",
+    topikLabel: "TOPIK level",
+    topikNote: "※ Open to TOPIK level 4 or above",
+    topikOptionLabel: { "4": "Level 4", "5": "Level 5", "6": "Level 6" },
+    referralLabel: "How did you hear about this program?",
+    referralOptionLabel: { FRIEND: "Word of mouth", SNS: "Social media (Instagram, etc.)", SCHOOL: "School / campus notice", SEARCH: "Web search", OTHER: "Other" },
+    referralOtherPlaceholder: "Please specify (search term, etc.)",
     visaTypeLabel: "Residency status",
     visaTypeNote: "※ Open to D-2 or D-10 holders (or about to hold one)",
     visaOptionLabel: {
@@ -293,6 +391,33 @@ const COPY: Record<PlatformLocale, Copy> = (() => {
     resumeSectionLabel: "用于申请的简历",
     resumeSelectHint: "请选择运营团队将审核的简历。如需补充，可点击旁边的\"修改\"直接编辑。",
     resumeEditLink: "修改",
+    nameLabel: "姓名",
+    namePlaceholder: "本名或韩语姓名",
+    birthDateLabel: "出生日期",
+    genderLabel: "性别",
+    genderOptionLabel: { FEMALE: "女", MALE: "男" },
+    nationalityLabel: "国籍",
+    nationalityPlaceholder: "例) 越南",
+    phoneLabel: "手机号码",
+    phonePlaceholder: "例) 010-1234-5678",
+    emailLabel: "邮箱",
+    emailPlaceholder: "例) name@email.com",
+    addressLabel: "现居住地址",
+    addressPlaceholder: "例) 首尔市钟路区",
+    koreaStayLabel: "在韩居住时长",
+    koreaStayOptionLabel: { LT_1Y: "不满 1 年", Y1_2: "1~2 年", Y2_3: "2~3 年", Y3_5: "3~5 年", GTE_5Y: "5 年以上" },
+    universityLabel: "大学",
+    universityPlaceholder: "在读/毕业大学名称",
+    majorLabel: "专业",
+    majorPlaceholder: "例) 工商管理",
+    gradeLabel: "学籍类别",
+    gradeOptionLabel: { UNDERGRAD_4: "本科在读", GRAD: "研究生在读", GRADUATED: "已毕业" },
+    topikLabel: "TOPIK 等级",
+    topikNote: "※ 仅限 TOPIK 4 级以上申请",
+    topikOptionLabel: { "4": "4 级", "5": "5 级", "6": "6 级" },
+    referralLabel: "通过什么渠道了解到本项目？",
+    referralOptionLabel: { FRIEND: "熟人推荐", SNS: "社交媒体（Instagram 等）", SCHOOL: "学校 · 校内公告", SEARCH: "网络搜索", OTHER: "其他" },
+    referralOtherPlaceholder: "请填写渠道（搜索词等）",
     graduationLabel: "毕业 / 预计毕业时间",
     graduationNote: "在读请填写预计毕业时间，已毕业请填写毕业时间。",
     graduationPlaceholder: "例) 2026 年 3 月",
@@ -377,6 +502,33 @@ const COPY: Record<PlatformLocale, Copy> = (() => {
     resumeSelectHint:
       "Hãy chọn CV để đội ngũ xem xét. Nếu cần bổ sung, nhấn \"Sửa\" bên cạnh để chỉnh sửa ngay.",
     resumeEditLink: "Sửa",
+    nameLabel: "Họ tên",
+    namePlaceholder: "Tên thật hoặc tên tiếng Hàn",
+    birthDateLabel: "Ngày sinh",
+    genderLabel: "Giới tính",
+    genderOptionLabel: { FEMALE: "Nữ", MALE: "Nam" },
+    nationalityLabel: "Quốc tịch",
+    nationalityPlaceholder: "VD) Việt Nam",
+    phoneLabel: "Số điện thoại",
+    phonePlaceholder: "VD) 010-1234-5678",
+    emailLabel: "Email",
+    emailPlaceholder: "VD) name@email.com",
+    addressLabel: "Địa chỉ hiện tại",
+    addressPlaceholder: "VD) Jongno-gu, Seoul",
+    koreaStayLabel: "Thời gian sống ở Hàn Quốc",
+    koreaStayOptionLabel: { LT_1Y: "Dưới 1 năm", Y1_2: "1–2 năm", Y2_3: "2–3 năm", Y3_5: "3–5 năm", GTE_5Y: "Trên 5 năm" },
+    universityLabel: "Trường đại học",
+    universityPlaceholder: "Trường đang học / đã tốt nghiệp",
+    majorLabel: "Chuyên ngành",
+    majorPlaceholder: "VD) Quản trị kinh doanh",
+    gradeLabel: "Tình trạng học vấn",
+    gradeOptionLabel: { UNDERGRAD_4: "Đại học", GRAD: "Cao học", GRADUATED: "Đã tốt nghiệp" },
+    topikLabel: "Cấp độ TOPIK",
+    topikNote: "※ Chỉ nhận TOPIK cấp 4 trở lên",
+    topikOptionLabel: { "4": "Cấp 4", "5": "Cấp 5", "6": "Cấp 6" },
+    referralLabel: "Bạn biết đến chương trình qua đâu?",
+    referralOptionLabel: { FRIEND: "Người quen giới thiệu", SNS: "Mạng xã hội (Instagram, v.v.)", SCHOOL: "Trường / thông báo trong trường", SEARCH: "Tìm kiếm trên mạng", OTHER: "Khác" },
+    referralOtherPlaceholder: "Vui lòng ghi rõ (từ khóa tìm kiếm, v.v.)",
     graduationLabel: "Ngày tốt nghiệp / dự kiến tốt nghiệp",
     graduationNote:
       "Nếu đang học, hãy ghi ngày dự kiến tốt nghiệp; nếu đã tốt nghiệp, hãy ghi thời điểm tốt nghiệp.",
@@ -462,6 +614,33 @@ const COPY: Record<PlatformLocale, Copy> = (() => {
     resumeSelectHint:
       "運営チームが確認する履歴書を選択してください。補完が必要な場合は横の「修正」からすぐ編集できます。",
     resumeEditLink: "修正",
+    nameLabel: "氏名",
+    namePlaceholder: "本名または韓国語名",
+    birthDateLabel: "生年月日",
+    genderLabel: "性別",
+    genderOptionLabel: { FEMALE: "女性", MALE: "男性" },
+    nationalityLabel: "国籍",
+    nationalityPlaceholder: "例) ベトナム",
+    phoneLabel: "携帯番号",
+    phonePlaceholder: "例) 010-1234-5678",
+    emailLabel: "メール",
+    emailPlaceholder: "例) name@email.com",
+    addressLabel: "現住所",
+    addressPlaceholder: "例) ソウル市鍾路区",
+    koreaStayLabel: "韓国在住期間",
+    koreaStayOptionLabel: { LT_1Y: "1年未満", Y1_2: "1〜2年", Y2_3: "2〜3年", Y3_5: "3〜5年", GTE_5Y: "5年以上" },
+    universityLabel: "大学",
+    universityPlaceholder: "在学/卒業した大学名",
+    majorLabel: "専攻",
+    majorPlaceholder: "例) 経営学科",
+    gradeLabel: "学籍区分",
+    gradeOptionLabel: { UNDERGRAD_4: "学部在学", GRAD: "大学院在学", GRADUATED: "卒業" },
+    topikLabel: "TOPIK 等級",
+    topikNote: "※ TOPIK 4級以上のみ応募可能",
+    topikOptionLabel: { "4": "4級", "5": "5級", "6": "6級" },
+    referralLabel: "このプログラムを知ったきっかけ",
+    referralOptionLabel: { FRIEND: "知人の紹介", SNS: "SNS（Instagram など）", SCHOOL: "学校・学内のお知らせ", SEARCH: "インターネット検索", OTHER: "その他" },
+    referralOtherPlaceholder: "きっかけをご記入ください（検索ワードなど）",
     graduationLabel: "卒業 / 卒業予定日",
     graduationNote: "在学中なら卒業予定日を、卒業済みなら卒業した時期をご記入ください。",
     graduationPlaceholder: "例) 2026年3月",
@@ -547,6 +726,33 @@ const COPY: Record<PlatformLocale, Copy> = (() => {
     resumeSelectHint:
       "Pilih resume yang akan ditinjau tim kami. Jika perlu diperbaiki, klik \"Edit\" di sebelahnya untuk langsung menyunting.",
     resumeEditLink: "Edit",
+    nameLabel: "Nama",
+    namePlaceholder: "Nama asli atau nama Korea",
+    birthDateLabel: "Tanggal lahir",
+    genderLabel: "Jenis kelamin",
+    genderOptionLabel: { FEMALE: "Perempuan", MALE: "Laki-laki" },
+    nationalityLabel: "Kewarganegaraan",
+    nationalityPlaceholder: "Cth) Vietnam",
+    phoneLabel: "Nomor ponsel",
+    phonePlaceholder: "Cth) 010-1234-5678",
+    emailLabel: "Email",
+    emailPlaceholder: "Cth) name@email.com",
+    addressLabel: "Alamat saat ini",
+    addressPlaceholder: "Cth) Jongno-gu, Seoul",
+    koreaStayLabel: "Lama tinggal di Korea",
+    koreaStayOptionLabel: { LT_1Y: "Kurang dari 1 tahun", Y1_2: "1–2 tahun", Y2_3: "2–3 tahun", Y3_5: "3–5 tahun", GTE_5Y: "Lebih dari 5 tahun" },
+    universityLabel: "Universitas",
+    universityPlaceholder: "Universitas Anda (saat ini/dulu)",
+    majorLabel: "Jurusan",
+    majorPlaceholder: "Cth) Manajemen Bisnis",
+    gradeLabel: "Status akademik",
+    gradeOptionLabel: { UNDERGRAD_4: "Sarjana (S1)", GRAD: "Pascasarjana", GRADUATED: "Sudah lulus" },
+    topikLabel: "Level TOPIK",
+    topikNote: "※ Hanya untuk TOPIK level 4 ke atas",
+    topikOptionLabel: { "4": "Level 4", "5": "Level 5", "6": "Level 6" },
+    referralLabel: "Dari mana Anda tahu program ini?",
+    referralOptionLabel: { FRIEND: "Rekomendasi kenalan", SNS: "Media sosial (Instagram, dll.)", SCHOOL: "Sekolah / pengumuman kampus", SEARCH: "Pencarian internet", OTHER: "Lainnya" },
+    referralOtherPlaceholder: "Mohon sebutkan (kata kunci pencarian, dll.)",
     graduationLabel: "Tanggal lulus / perkiraan lulus",
     graduationNote:
       "Jika masih kuliah, isi perkiraan tanggal lulus; jika sudah lulus, isi kapan Anda lulus.",
@@ -627,7 +833,24 @@ export function SgcApplyPage() {
 
   // 폼 상태
   const [resumeId, setResumeId] = useState<string>("");
+  // 기본 정보 (계정 prefill)
+  const [applicantName, setApplicantName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [gender, setGender] = useState<SgcGender | "">("");
+  const [nationality, setNationality] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  const [koreaStayDuration, setKoreaStayDuration] = useState<SgcKoreaStay | "">("");
+  // 학력
+  const [university, setUniversity] = useState("");
+  const [major, setMajor] = useState("");
+  const [grade, setGrade] = useState<SgcGrade | "">("");
   const [graduationDate, setGraduationDate] = useState("");
+  const [topikLevel, setTopikLevel] = useState<SgcTopikLevel | "">("");
+  // 경로
+  const [referralSource, setReferralSource] = useState<SgcReferralSource | "">("");
+  const [referralOther, setReferralOther] = useState("");
   const [visaType, setVisaType] = useState<SgcVisaType | "">("");
   const [visaOther, setVisaOther] = useState("");
   const [healthNote, setHealthNote] = useState("");
@@ -697,11 +920,36 @@ export function SgcApplyPage() {
     };
   }, [isReady, isAuthenticated, user, t.errRetry]);
 
+  // 계정 정보로 기본 항목 prefill — 비어 있을 때만 채워 사용자가 직접 고친 값은
+  // 보존한다. (이름·생년월일·성별·이메일·전화는 세션에서 제공.)
+  useEffect(() => {
+    if (!user) return;
+    setApplicantName((v) => v || user.realName || user.name || "");
+    setBirthDate((v) => v || (user.birthDate ?? "").slice(0, 10));
+    setGender((v) => v || (user.gender === "FEMALE" || user.gender === "MALE" ? user.gender : ""));
+    setEmail((v) => v || (user.email ?? ""));
+    setPhone((v) => v || (user.phoneNumber ?? ""));
+  }, [user]);
+
   // 폼 검증 — 필수 항목 모두 채워졌고 동의가 잡혔는지.
   const canSubmit = useMemo(() => {
     if (state !== "form" && state !== "submitting") return false;
     if (!resumeId) return false;
+    if (!applicantName.trim()) return false;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return false;
+    if (!gender) return false;
+    if (!nationality.trim()) return false;
+    if (!phone.trim()) return false;
+    if (!email.trim()) return false;
+    if (!address.trim()) return false;
+    if (!koreaStayDuration) return false;
+    if (!university.trim()) return false;
+    if (!major.trim()) return false;
+    if (!grade) return false;
     if (!graduationDate.trim()) return false;
+    if (!topikLevel) return false;
+    if (!referralSource) return false;
+    if (referralSource === "OTHER" && !referralOther.trim()) return false;
     if (!visaType) return false;
     if (visaType === "OTHER" && !visaOther.trim()) return false;
     if (!healthNote.trim()) return false;
@@ -715,7 +963,21 @@ export function SgcApplyPage() {
   }, [
     state,
     resumeId,
+    applicantName,
+    birthDate,
+    gender,
+    nationality,
+    phone,
+    email,
+    address,
+    koreaStayDuration,
+    university,
+    major,
+    grade,
     graduationDate,
+    topikLevel,
+    referralSource,
+    referralOther,
     visaType,
     visaOther,
     healthNote,
@@ -737,13 +999,28 @@ export function SgcApplyPage() {
     try {
       const result = await submitSgcApplication({
         resumeId,
+        applicantName: applicantName.trim(),
+        birthDate: birthDate.trim(),
+        gender: gender as SgcGender,
+        nationality: nationality.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        address: address.trim(),
+        koreaStayDuration: koreaStayDuration as SgcKoreaStay,
+        university: university.trim(),
+        major: major.trim(),
+        grade: grade as SgcGrade,
         expectedGraduation: graduationDate.trim(),
+        topikLevel: topikLevel as SgcTopikLevel,
         visaType: visaType as SgcVisaType,
         visaOther: visaType === "OTHER" ? visaOther.trim() : undefined,
         healthNote: healthNote.trim(),
         desiredJob: desiredJob as SgcDesiredJob,
         desiredJobOther: desiredJob === "OTHER" ? desiredJobOther.trim() : undefined,
         motivation: motivation.trim(),
+        referralSource: referralSource as SgcReferralSource,
+        referralOther:
+          referralSource === "OTHER" || referralSource === "SEARCH" ? referralOther.trim() || undefined : undefined,
         marketingOptIn: marketingOptIn === "yes",
         privacyConsent: true,
         preTrainingConsent: true,
@@ -962,15 +1239,91 @@ export function SgcApplyPage() {
                   </div>
                 </section>
 
+                {/* 이름 */}
+                <FormSection title={t.nameLabel} required>
+                  <input className={INPUT_CLS} value={applicantName} onChange={(e) => setApplicantName(e.target.value)} placeholder={t.namePlaceholder} maxLength={80} />
+                </FormSection>
+
+                {/* 생년월일 */}
+                <FormSection title={t.birthDateLabel} required>
+                  <input type="date" className={INPUT_CLS} value={birthDate} onChange={(e) => setBirthDate(e.target.value)} max="2015-12-31" />
+                </FormSection>
+
+                {/* 성별 */}
+                <FormSection title={t.genderLabel} required>
+                  <div className="space-y-2">
+                    {GENDER_OPTIONS.map((opt) => (
+                      <RadioRow key={opt} name="sgc-gender" value={opt} checked={gender === opt} label={t.genderOptionLabel[opt]} onChange={() => setGender(opt)} />
+                    ))}
+                  </div>
+                </FormSection>
+
+                {/* 국적 */}
+                <FormSection title={t.nationalityLabel} required>
+                  <input className={INPUT_CLS} value={nationality} onChange={(e) => setNationality(e.target.value)} placeholder={t.nationalityPlaceholder} maxLength={60} />
+                </FormSection>
+
+                {/* 휴대폰 번호 */}
+                <FormSection title={t.phoneLabel} required>
+                  <input className={INPUT_CLS} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t.phonePlaceholder} maxLength={40} inputMode="tel" />
+                </FormSection>
+
+                {/* 이메일 */}
+                <FormSection title={t.emailLabel} required>
+                  <input type="email" className={INPUT_CLS} value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailPlaceholder} maxLength={120} inputMode="email" />
+                </FormSection>
+
+                {/* 현재 거주 주소 */}
+                <FormSection title={t.addressLabel} required>
+                  <input className={INPUT_CLS} value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t.addressPlaceholder} maxLength={200} />
+                </FormSection>
+
+                {/* 한국 거주 기간 */}
+                <FormSection title={t.koreaStayLabel} required>
+                  <div className="space-y-2">
+                    {KOREA_STAY_OPTIONS.map((opt) => (
+                      <RadioRow key={opt} name="sgc-korea-stay" value={opt} checked={koreaStayDuration === opt} label={t.koreaStayOptionLabel[opt]} onChange={() => setKoreaStayDuration(opt)} />
+                    ))}
+                  </div>
+                </FormSection>
+
+                {/* 대학교 */}
+                <FormSection title={t.universityLabel} required>
+                  <input className={INPUT_CLS} value={university} onChange={(e) => setUniversity(e.target.value)} placeholder={t.universityPlaceholder} maxLength={120} />
+                </FormSection>
+
+                {/* 전공 */}
+                <FormSection title={t.majorLabel} required>
+                  <input className={INPUT_CLS} value={major} onChange={(e) => setMajor(e.target.value)} placeholder={t.majorPlaceholder} maxLength={120} />
+                </FormSection>
+
+                {/* 학적 구분 */}
+                <FormSection title={t.gradeLabel} required>
+                  <div className="space-y-2">
+                    {GRADE_OPTIONS.map((opt) => (
+                      <RadioRow key={opt} name="sgc-grade" value={opt} checked={grade === opt} label={t.gradeOptionLabel[opt]} onChange={() => setGrade(opt)} />
+                    ))}
+                  </div>
+                </FormSection>
+
                 {/* 졸업 / 졸업 예정일 */}
                 <FormSection title={t.graduationLabel} note={t.graduationNote} required>
                   <input
-                    className="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className={INPUT_CLS}
                     value={graduationDate}
                     onChange={(e) => setGraduationDate(e.target.value)}
                     placeholder={t.graduationPlaceholder}
                     maxLength={40}
                   />
+                </FormSection>
+
+                {/* TOPIK 등급 */}
+                <FormSection title={t.topikLabel} note={t.topikNote} required>
+                  <div className="space-y-2">
+                    {TOPIK_OPTIONS.map((opt) => (
+                      <RadioRow key={opt} name="sgc-topik" value={opt} checked={topikLevel === opt} label={t.topikOptionLabel[opt]} onChange={() => setTopikLevel(opt)} />
+                    ))}
+                  </div>
                 </FormSection>
 
                 {/* 체류자격 */}
@@ -1046,6 +1399,24 @@ export function SgcApplyPage() {
                   <p className="mt-1 text-right text-[11px] text-muted-foreground">
                     {motivation.length} / 4000
                   </p>
+                </FormSection>
+
+                {/* 알게 된 경로 */}
+                <FormSection title={t.referralLabel} required>
+                  <div className="space-y-2">
+                    {REFERRAL_OPTIONS.map((opt) => (
+                      <RadioRow key={opt} name="sgc-referral" value={opt} checked={referralSource === opt} label={t.referralOptionLabel[opt]} onChange={() => setReferralSource(opt)} />
+                    ))}
+                  </div>
+                  {referralSource === "OTHER" || referralSource === "SEARCH" ? (
+                    <input
+                      className={`mt-3 ${INPUT_CLS}`}
+                      value={referralOther}
+                      onChange={(e) => setReferralOther(e.target.value)}
+                      placeholder={t.referralOtherPlaceholder}
+                      maxLength={120}
+                    />
+                  ) : null}
                 </FormSection>
 
                 {/* SGC 마케팅 동의 */}
