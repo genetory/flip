@@ -10,6 +10,8 @@ export type SgcStatus = "SUBMITTED" | "INTERVIEW" | "ACCEPTED" | "REJECTED" | "W
 
 export type SgcApplicationInput = {
   resumeId: string;
+  // 졸업 / 졸업 예정일 — 자유 입력 (예: "2026년 3월").
+  expectedGraduation: string;
   visaType: SgcVisaType;
   visaOther?: string;
   healthNote: string;
@@ -18,6 +20,8 @@ export type SgcApplicationInput = {
   motivation: string;
   marketingOptIn: boolean;
   privacyConsent: true;
+  // 사전 교육(최종 합격자 익일) 필수 참여 동의 — 항상 true.
+  preTrainingConsent: true;
   locale?: string;
 };
 

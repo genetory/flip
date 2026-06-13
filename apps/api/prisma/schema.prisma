@@ -1407,17 +1407,40 @@ model SgcApplication {
   // 지원자 본인 이력서 1개 — 운영팀이 ops 콘솔에서 자동 연결해 검토.
   // 이력서가 삭제돼도 지원 row 는 남도록 Restrict (운영 기록 보존).
   resumeId        String
-  // SGC 폼 전용 — 나머지 기본 정보(이름/이메일/전화/주소/생년월일/성별/국적
-  // /대학/전공) 는 User + CandidateProfile + Resume 에서 직접 읽어 활용.
+  // 신청자 직접 입력 (SGC 공식 포스터 폼). 프로필/이력서에서 prefill 하되
+  // 제출값은 지원서에 독립 저장한다. 기존 row 호환 위해 전부 nullable —
+  // 필수 여부는 API zod 레벨에서 강제한다.
+  applicantName      String?  // 이름 (본명 / 한국어명)
+  birthDate          String?  // 생년월일 "YYYY-MM-DD"
+  gender             String?  // "FEMALE" | "MALE"
+  nationality        String?  // 국적 (한국어 작성)
+  university         String?  // 대학교 이름
+  major              String?  // 전공 학과
+  grade              String?  // "UNDERGRAD_4" | "GRAD" | "GRADUATED"
+  expectedGraduation String?  // 졸업 예정일 (예: "2026년 8월")
+  koreaStayDuration  String?  // "LT_1Y" | "Y1_2" | "Y2_3" | "Y3_5" | "GTE_5Y"
+  address            String?  // 주소 (예: "서울시 종로구")
+  email              String?  // 이메일 주소
+  phone              String?  // 휴대폰 번호
+  referralSource     String?  // 알게된 경로 (enum key, 아래 참조)
+  referralOther      String?  // 경로 "기타" 또는 인터넷 검색명
+  topikLevel         String?  // "4" | "5" | "6"
+  topikCertUrl       String?  // TOPIK 성적증명서 업로드 (blob URL / data URL)
+
   visaType        String   // "D-2" | "D-10" | "OTHER"
   visaOther       String?
   healthNote      String   // 지병 / 알러지 / 식습관 등 자유 입력
-  desiredJob      String   // "MARKETING" | "SALES" | "TRANSLATION" | "DEV" | "OTHER"
+  // 취업 희망 직무 — 다중 선택. "DEV" | "MARKETING" | "SALES" | "OTHER".
+  desiredJobs     String[] @default([])
+  desiredJob      String?  // legacy 단일 (구버전 호환, 신규는 desiredJobs 사용)
   desiredJobOther String?
   motivation      String   // 신청 동기 장문
   // 동의 분기 — 마케팅(선택)은 raw flag, 개인정보(필수)는 항상 true 만 저장.
   marketingOptIn  Boolean  @default(false)
   privacyConsent  Boolean  @default(true)
+  // 사전 교육(최종 합격자 익일, 6/30) 필수 참여 동의 — 신규 폼 필드. 기존
+  // row 호환 위해 nullable (null = 동의 항목 도입 전 지원, true = 동의함).
+  preTrainingConsent Boolean?
   // 운영 단계 — SUBMITTED → INTERVIEW → ACCEPTED / REJECTED / WITHDRAWN
   status          String   @default("SUBMITTED")
   // 운영 메모 (operator only)

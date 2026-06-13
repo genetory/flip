@@ -733,6 +733,7 @@ async function sendSgcApplicationDiscordNotification(input: {
   applicantName: string | null;
   applicantEmail: string;
   applicantPhone: string | null;
+  expectedGraduation: string | null;
   visaType: string;
   visaOther: string | null;
   desiredJob: string;
@@ -792,6 +793,7 @@ async function sendSgcApplicationDiscordNotification(input: {
           { name: "지원자", value: safeName, inline: true },
           { name: "체류자격", value: visaDisplay, inline: true },
           { name: "희망 직무", value: jobDisplay, inline: true },
+          { name: "졸업/졸업예정", value: truncateForDiscord((input.expectedGraduation ?? "").trim() || "-", 256), inline: true },
           { name: "이메일", value: safeEmail, inline: false },
           { name: "휴대폰", value: safePhone, inline: true },
           { name: "지원자 ID", value: truncateForDiscord(input.applicantId, 256), inline: true },
@@ -7673,6 +7675,8 @@ app.post(
 
 const sgcApplicationCreateSchema = z.object({
   resumeId: z.string().uuid(),
+  // 졸업 / 졸업 예정일 — 자유 입력 (예: "2026년 3월").
+  expectedGraduation: z.string().trim().min(1).max(40),
   visaType: z.enum(["D-2", "D-10", "OTHER"]),
   visaOther: z.string().trim().max(80).optional(),
   healthNote: z.string().trim().min(1).max(2000),
@@ -7682,6 +7686,8 @@ const sgcApplicationCreateSchema = z.object({
   marketingOptIn: z.boolean(),
   // privacyConsent 는 필수 동의 — false 로 들어오면 가입 자체를 차단.
   privacyConsent: z.literal(true),
+  // 사전 교육 필수 참여 동의 — 마찬가지로 true 만 허용.
+  preTrainingConsent: z.literal(true),
   locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
 });
 
@@ -7761,6 +7767,7 @@ app.post(
         data: {
           userId,
           resumeId: input.resumeId,
+          expectedGraduation: input.expectedGraduation.trim(),
           visaType: input.visaType,
           visaOther: input.visaOther?.trim() || null,
           healthNote: input.healthNote.trim(),
@@ -7769,6 +7776,7 @@ app.post(
           motivation: input.motivation.trim(),
           marketingOptIn: input.marketingOptIn,
           privacyConsent: true,
+          preTrainingConsent: true,
           locale: input.locale ?? "ko",
           ipHash
         },
@@ -7810,6 +7818,7 @@ app.post(
             applicantName: resumeName || userInfo?.realName || userInfo?.name || null,
             applicantEmail: userInfo?.email ?? "-",
             applicantPhone: resumePhone || userInfo?.phoneNumber || null,
+            expectedGraduation: input.expectedGraduation.trim() || null,
             visaType: input.visaType,
             visaOther: input.visaOther?.trim() || null,
             desiredJob: input.desiredJob,
