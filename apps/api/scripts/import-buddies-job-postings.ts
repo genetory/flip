@@ -10,6 +10,44 @@ const LIST_URL = process.env.BUDDIES_LIST_URL ?? `${BASE_URL}/foreign-talent/hom
 const MAX_PAGES = Math.max(1, Number(process.env.BUDDIES_MAX_PAGES ?? 200));
 const FETCH_DETAIL = (process.env.BUDDIES_FETCH_DETAIL ?? "1") !== "0";
 
+// 일시적 엣지/서버 장애(502/503/504, 네트워크 단절)로 크롤이 통째로 실패하던
+// 문제 대응 — 지수 백오프 재시도. 영구 에러(404 등)는 재시도하지 않고, 재시도
+// 소진 시에는 응답/예외를 그대로 호출부에 넘겨 진짜 장애는 그대로 드러난다.
+const FETCH_MAX_RETRIES = Math.max(0, Number(process.env.BUDDIES_FETCH_RETRIES ?? 4));
+const FETCH_RETRY_BASE_MS = Math.max(100, Number(process.env.BUDDIES_FETCH_RETRY_BASE_MS ?? 1000));
+const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+// 일부 호스팅 엣지(Cloudflare 류)는 기본 fetch UA 를 봇으로 보고 502 를 주기도
+// 해서, 브라우저류 UA 를 명시한다.
+const FETCH_UA =
+  process.env.BUDDIES_FETCH_UA ??
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(url: string, init?: RequestInit): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const response = await fetch(url, {
+        ...init,
+        headers: { "user-agent": FETCH_UA, ...(init?.headers ?? {}) }
+      });
+      // 성공 / 재시도 불가 상태 / 마지막 시도 → 응답을 그대로 반환(호출부가
+      // !response.ok 를 처리). 그 외 재시도 대상은 백오프 후 재시도.
+      if (response.ok || !RETRYABLE_STATUS.has(response.status) || attempt >= FETCH_MAX_RETRIES) {
+        return response;
+      }
+      await response.text().catch(() => ""); // 연결 정리 후 재시도
+      console.warn(`[buddies] HTTP ${response.status} — retry ${attempt + 1}/${FETCH_MAX_RETRIES}: ${url}`);
+    } catch (err) {
+      if (attempt >= FETCH_MAX_RETRIES) throw err;
+      console.warn(`[buddies] network error — retry ${attempt + 1}/${FETCH_MAX_RETRIES}: ${url} (${(err as Error)?.message ?? err})`);
+    }
+    await sleep(FETCH_RETRY_BASE_MS * 2 ** attempt);
+  }
+}
+
 async function areAllExistingExternalIds(externalIds: string[]): Promise<boolean> {
   const ids = Array.from(new Set(externalIds.map((id) => id.trim()).filter((id) => id.length > 0)));
   if (ids.length === 0) return false;
@@ -102,7 +140,7 @@ async function collectAllListPages(initialUrl: string) {
     if (visited.has(url)) continue;
     visited.add(url);
 
-    const response = await fetch(url);
+    const response = await fetchWithRetry(url);
     if (!response.ok) {
       const text = await response.text();
       throw new Error(`failed to fetch buddies list (${response.status}): ${url} / ${text.slice(0, 300)}`);
@@ -276,7 +314,7 @@ async function enrichPostedAt(rows: NormalizedExternalPosition[]) {
   const next: NormalizedExternalPosition[] = [];
   for (const row of rows) {
     try {
-      const response = await fetch(row.sourceUrl);
+      const response = await fetchWithRetry(row.sourceUrl);
       if (!response.ok) {
         next.push(row);
         continue;
