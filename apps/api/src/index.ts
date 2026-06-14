@@ -5914,8 +5914,14 @@ app.patch("/ops/sgc/applications/:id", authenticate, requireRoles([MemberRole.OP
     }
 
     return res.json({ ok: true, application: updated });
-  } catch {
-    return res.status(404).json({ ok: false, message: "not found" });
+  } catch (error) {
+    // 존재 여부는 위에서 이미 404 로 걸렀으므로, 여기로 오는 건 실제 DB/제약
+    // 오류다. 404 로 마스킹하지 않고 로깅 + 500 으로 명확히 반환 (DELETE 와 동일).
+    console.error("[ops/sgc/applications][patch][failed]", {
+      id,
+      message: error instanceof Error ? error.message : String(error)
+    });
+    return res.status(500).json({ ok: false, message: "failed to update application" });
   }
 });
 
@@ -7717,19 +7723,29 @@ app.get(
   requireRoles([MemberRole.STUDENT]),
   async (req, res) => {
     const userId = req.auth!.userId;
-    const application = await prisma.sgcApplication.findUnique({
-      where: { userId },
-      select: {
-        id: true,
-        status: true,
-        visaType: true,
-        desiredJob: true,
-        createdAt: true,
-        updatedAt: true,
-        resumeId: true
-      }
-    });
-    return res.json({ ok: true, application });
+    // Express 4 는 async 핸들러의 reject 를 에러 미들웨어로 자동 전달하지 않는다.
+    // DB 장애 시 응답이 안 가고 hang 되지 않도록 직접 try/catch 로 감싼다.
+    try {
+      const application = await prisma.sgcApplication.findUnique({
+        where: { userId },
+        select: {
+          id: true,
+          status: true,
+          visaType: true,
+          desiredJob: true,
+          createdAt: true,
+          updatedAt: true,
+          resumeId: true
+        }
+      });
+      return res.json({ ok: true, application });
+    } catch (error) {
+      console.error("[events/sgc/applications/me][failed]", {
+        userId,
+        message: error instanceof Error ? error.message : String(error)
+      });
+      return res.status(500).json({ ok: false, message: "failed to load application" });
+    }
   }
 );
 
@@ -7877,7 +7893,17 @@ app.post(
           where: { userId },
           select: { id: true, status: true, createdAt: true }
         });
-        return res.json({ ok: true, application: existing, alreadyApplied: true });
+        // 정상 경로: 기존 지원 발견 → alreadyApplied 로 반환.
+        if (existing) {
+          return res.json({ ok: true, application: existing, alreadyApplied: true });
+        }
+        // 희귀 레이스: P2002 직후 그 행이 (운영자 삭제 등으로) 사라진 경우.
+        // application:null + alreadyApplied:true 라는 모순 응답으로 프론트를
+        // 깨뜨리지 않도록, 재시도를 유도하는 409 로 명확히 반환.
+        console.warn("[sgc-application][create] P2002 but row vanished on re-read", { userId });
+        return res
+          .status(409)
+          .json({ ok: false, message: "conflict, please retry" });
       }
       console.error("[sgc-application][create] failed", err);
       return res.status(500).json({ ok: false, message: "failed to create application" });
