@@ -160,7 +160,8 @@ export function NotificationBell() {
             position: "absolute",
             top: "calc(100% + 8px)",
             right: 0,
-            width: 360,
+            // 모바일에서 화면을 넘지 않도록 뷰포트 폭에 맞춰 캡(데스크탑은 360px 유지).
+            width: "min(360px, calc(100vw - 24px))",
             maxHeight: "70vh",
             overflowY: "auto",
             background: "#fff",

@@ -139,6 +139,15 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  /* iOS Safari 가로 드리프트 방지 — 장식용 blur 블롭 등 pointer-events-none
+     요소가 뷰포트 밖으로 삐져나와 페이지가 좌우로 흔들리던 문제. 페이지 래퍼
+     (body 직계 div)에 overflow-x: clip 을 주면 가로 넘침만 잘라낸다. clip 은
+     스크롤 컨테이너를 만들지 않아 sticky 헤더를 깨지 않고, 세로(드롭다운/툴팁)
+     는 visible 로 유지된다. (overflow-x: hidden 은 sticky 를 깨므로 사용 불가.) */
+  body > div {
+    overflow-x: clip;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;

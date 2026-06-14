@@ -332,6 +332,30 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
         )
       );
     }
+    if (languages.some((l) => (hasText(l.language) || hasText(l.level)) && !hasText(l.language))) {
+      incomplete.push(
+        tr(
+          "어학: 언어를 입력해 주세요.",
+          "Languages: enter the language.",
+          "语言：请输入语言。",
+          "Ngoại ngữ: nhập ngôn ngữ.",
+          "語学：言語を入力してください。",
+          "Bahasa: masukkan bahasa."
+        )
+      );
+    }
+    if (certifications.some((c) => (hasText(c.name) || hasText(c.issuer)) && !hasText(c.name))) {
+      incomplete.push(
+        tr(
+          "자격 / 수상: 명칭을 입력해 주세요.",
+          "Certificates / Awards: enter the name.",
+          "证书/获奖：请输入名称。",
+          "Chứng chỉ / Giải thưởng: nhập tên.",
+          "資格/受賞：名称を入力してください。",
+          "Sertifikat / Penghargaan: masukkan nama."
+        )
+      );
+    }
 
     const content: ResumeContent = {
       basicName: basicName.trim() || null,
