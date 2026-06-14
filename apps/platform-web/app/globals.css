@@ -152,6 +152,11 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
     font-feature-settings: "ss01", "cv11";
+    /* 모바일 최소 폭 보장 — 360px(안드로이드 갤럭시 S 류 최소 폭)이하(폴더블·
+       iOS 디스플레이 줌 등)에선 레이아웃을 쥐어짜서 뱃지·타이틀이 2줄로 깨지는
+       대신 360px 레이아웃을 유지하고 가로 스크롤되게 한다. 360px 이상(대부분의
+       폰)에선 영향 없음. */
+    min-width: 360px;
     overflow-y: scroll;
     /* Disable text drag-selection / copy across the whole site. */
     -webkit-user-select: none;
