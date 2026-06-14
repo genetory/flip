@@ -807,17 +807,17 @@ export function ProfilePage() {
 
               <div className="rounded-2xl border border-border/70 bg-card p-5 md:p-6">
               <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
+                <div className="flex min-w-0 flex-1 items-center gap-4">
                   {profileImage ? (
-                    <img src={profileImage} alt={tr("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")} className="h-16 w-16 object-cover" style={PROFILE_SQUIRCLE_STYLE} />
+                    <img src={profileImage} alt={tr("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")} className="h-16 w-16 shrink-0 object-cover" style={PROFILE_SQUIRCLE_STYLE} />
                   ) : (
-                    <div className={`grid h-16 w-16 place-items-center text-lg font-semibold ${
+                    <div className={`grid h-16 w-16 shrink-0 place-items-center text-lg font-semibold ${
                       user.role === "STUDENT" ? "border border-border/60 bg-[#F8FAFC] text-muted-foreground" : "bg-muted"
                     }`} style={PROFILE_SQUIRCLE_STYLE}>{avatarFallback}</div>
                   )}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-lg font-semibold">{user.name ?? tr("이름 없음", "No name", "无名称", "Không có tên", "名前なし", "Tanpa nama")}</p>
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <p className="truncate text-lg font-semibold">{user.name ?? tr("이름 없음", "No name", "无名称", "Không có tên", "名前なし", "Tanpa nama")}</p>
                       {roleLabel ? (
                         <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{roleLabel}</span>
                       ) : null}
@@ -853,14 +853,14 @@ export function ProfilePage() {
                         <span>{tr("네이버로 연결중", "Connected with Naver", "通过 Naver 连接", "Đã kết nối Naver", "Naverで連携中", "Terhubung dengan Naver")}</span>
                       </div>
                     ) : (
-                      <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <Mail className="h-4 w-4" />
-                        <span>{user.email}</span>
+                      <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+                        <Mail className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{user.email}</span>
                       </div>
                     )}
                   </div>
                 </div>
-                <Button variant="outline" size="sm" asChild disabled={!canEditBasic}>
+                <Button variant="outline" size="sm" asChild disabled={!canEditBasic} className="shrink-0">
                   <Link href="/profile/edit">{tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}</Link>
                 </Button>
               </div>
@@ -895,7 +895,7 @@ export function ProfilePage() {
                     </article>
                   ) : (
                   <article className="overflow-hidden rounded-2xl border border-border/70 bg-card">
-                    <div className="flex items-center gap-1 border-b border-border/70 px-2 pt-2">
+                    <div className="flex items-center gap-1 overflow-x-auto border-b border-border/70 px-2 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <button
                         type="button"
                         onClick={() => setActiveTab("info")}

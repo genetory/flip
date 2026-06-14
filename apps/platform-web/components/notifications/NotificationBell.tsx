@@ -42,6 +42,22 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // 드롭다운은 position: fixed 로 띄워(page wrapper 의 overflow-x: clip 에 잘리지
+  // 않도록) 열 때 트리거 위치를 측정해 뷰포트 안에 안전하게 배치한다.
+  const [menuStyle, setMenuStyle] = useState<{ top: number; right: number; width: number }>({
+    top: 64,
+    right: 12,
+    width: 360
+  });
+
+  function openMenu() {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const margin = 12;
+    const right = rect ? Math.max(margin, Math.round(window.innerWidth - rect.right)) : margin;
+    const width = Math.min(360, window.innerWidth - right - margin);
+    setMenuStyle({ top: rect ? Math.round(rect.bottom + 8) : 64, right, width });
+    setOpen(true);
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -113,7 +129,7 @@ export function NotificationBell() {
     <div ref={containerRef} style={{ position: "relative" }}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? setOpen(false) : openMenu())}
         aria-label="알림"
         style={{
           width: 36,
@@ -157,11 +173,12 @@ export function NotificationBell() {
       {open ? (
         <div
           style={{
-            position: "absolute",
-            top: "calc(100% + 8px)",
-            right: 0,
-            // 모바일에서 화면을 넘지 않도록 뷰포트 폭에 맞춰 캡(데스크탑은 360px 유지).
-            width: "min(360px, calc(100vw - 24px))",
+            // fixed — page wrapper 의 overflow-x: clip 에 잘리지 않고 항상
+            // 뷰포트 안에 보이도록. 위치는 openMenu 에서 트리거 기준 측정.
+            position: "fixed",
+            top: menuStyle.top,
+            right: menuStyle.right,
+            width: menuStyle.width,
             maxHeight: "70vh",
             overflowY: "auto",
             background: "#fff",
