@@ -262,13 +262,17 @@ export const Header = () => {
             </select>
           </div>
         </div>
-        <button
-          className="lg:hidden"
-          onClick={() => setOpen((v) => !v)}
-          aria-label={copy.menuOpenLabel}
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        {/* 모바일 우측 액션 — 알림 벨(로그인 시)은 데스크탑(lg)에만 있던 것을
+            모바일 헤더에도 노출. 그 옆에 햄버거 메뉴. */}
+        <div className="flex items-center gap-1 lg:hidden">
+          {isReady && isAuthenticated ? <NotificationBell /> : null}
+          <button
+            onClick={() => setOpen((v) => !v)}
+            aria-label={copy.menuOpenLabel}
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </div>
       {open && (
         <div className="border-t border-border bg-background lg:hidden">

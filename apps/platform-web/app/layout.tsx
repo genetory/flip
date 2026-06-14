@@ -1,5 +1,5 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { headers } from "next/headers";
 import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
@@ -28,6 +28,13 @@ const siteUrl =
 
 const siteTitle = "Aply — The career platform connecting global talent with Korean partners";
 const siteDescription = "Apply your next move. Connect with Korean companies hiring international talent.";
+
+// 모바일(특히 iOS Safari) 에서 올바른 device-width 스케일을 보장. 사용자 줌은
+// 접근성을 위해 막지 않는다.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

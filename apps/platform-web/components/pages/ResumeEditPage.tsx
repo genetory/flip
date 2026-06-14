@@ -174,6 +174,9 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
   // 저장 시 발견된 누락 필드 리스트 (이름/이메일/휴대폰/요약/자기소개 중 빈 것).
   // 빈 배열이면 OK. 사용자에게 어떤 필드가 빠졌는지 그대로 보여줘서 즉시 채울 수 있게.
   const [missingFields, setMissingFields] = useState<RequiredResumeField[]>([]);
+  // 진행 중(일부만 입력된) 반복 항목(경력/학력/활동) — 저장 시 조용히 버려지지
+  // 않도록, 필수 하위 항목이 비면 안내 문구를 띄우고 저장을 막는다.
+  const [incompleteMessages, setIncompleteMessages] = useState<string[]>([]);
   const [profile, setProfile] = useState<MyCandidateProfile | null>(null);
 
   const [title, setTitle] = useState("");
@@ -280,6 +283,80 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
   async function handleSave() {
     if (saving) return;
     setMissingFields([]);
+    setIncompleteMessages([]);
+
+    // 일부만 입력된 반복 항목 검증 — 비면 content 빌드 시 filter 로 조용히
+    // 사라지므로(내용 날아감), 저장 전에 안내하고 막는다. 완전히 빈 항목은
+    // 그냥 버려도 무방하므로 "내용이 있는데 필수가 빈" 경우만 잡는다.
+    const hasText = (v?: string | null) => typeof v === "string" && v.trim().length > 0;
+    const incomplete: string[] = [];
+    if (
+      careers.some(
+        (c) =>
+          (hasText(c.companyName) || hasText(c.position) || hasText(c.description)) &&
+          !(hasText(c.companyName) && hasText(c.position))
+      )
+    ) {
+      incomplete.push(
+        tr(
+          "경력: 회사명과 직무를 입력해 주세요.",
+          "Experience: enter company and role.",
+          "经历：请输入公司名称和职务。",
+          "Kinh nghiệm: nhập tên công ty và vị trí.",
+          "経歴：会社名と職務を入力してください。",
+          "Pengalaman: masukkan nama perusahaan dan posisi."
+        )
+      );
+    }
+    if (educations.some((e) => (hasText(e.schoolName) || hasText(e.major)) && !hasText(e.schoolName))) {
+      incomplete.push(
+        tr(
+          "학력: 학교명을 입력해 주세요.",
+          "Education: enter school name.",
+          "学历：请输入学校名称。",
+          "Học vấn: nhập tên trường.",
+          "学歴：学校名を入力してください。",
+          "Pendidikan: masukkan nama sekolah."
+        )
+      );
+    }
+    if (activities.some((a) => (hasText(a.title) || hasText(a.description)) && !hasText(a.title))) {
+      incomplete.push(
+        tr(
+          "활동: 활동명을 입력해 주세요.",
+          "Activity: enter activity title.",
+          "活动：请输入活动名称。",
+          "Hoạt động: nhập tên hoạt động.",
+          "活動：活動名を入力してください。",
+          "Kegiatan: masukkan judul kegiatan."
+        )
+      );
+    }
+    if (languages.some((l) => (hasText(l.language) || hasText(l.level)) && !hasText(l.language))) {
+      incomplete.push(
+        tr(
+          "어학: 언어를 입력해 주세요.",
+          "Languages: enter the language.",
+          "语言：请输入语言。",
+          "Ngoại ngữ: nhập ngôn ngữ.",
+          "語学：言語を入力してください。",
+          "Bahasa: masukkan bahasa."
+        )
+      );
+    }
+    if (certifications.some((c) => (hasText(c.name) || hasText(c.issuer)) && !hasText(c.name))) {
+      incomplete.push(
+        tr(
+          "자격 / 수상: 명칭을 입력해 주세요.",
+          "Certificates / Awards: enter the name.",
+          "证书/获奖：请输入名称。",
+          "Chứng chỉ / Giải thưởng: nhập tên.",
+          "資格/受賞：名称を入力してください。",
+          "Sertifikat / Penghargaan: masukkan nama."
+        )
+      );
+    }
+
     const content: ResumeContent = {
       basicName: basicName.trim() || null,
       basicEmail: basicEmail.trim() || null,
@@ -300,9 +377,11 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
       selfIntroduction: selfIntro.trim() || null
     };
     // 사전 검증 — 같은 룰을 백엔드와 공유(resume-validation.ts). 누락된
-    // 필수 필드가 있으면 네트워크 호출 전에 즉시 표시.
+    // 필수 필드가 있으면 네트워크 호출 전에 즉시 표시. 불완전 반복 항목도
+    // 함께 막아, 사용자가 입력한 내용이 조용히 사라지지 않게 한다.
     const missing = findMissingResumeFields(content);
-    if (missing.length > 0) {
+    if (incomplete.length > 0 || missing.length > 0) {
+      setIncompleteMessages(incomplete);
       setMissingFields(missing);
       return;
     }
@@ -652,7 +731,7 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
                   value={selfIntro}
                   onChange={(e) => setSelfIntro(e.target.value)}
                   rows={8}
-                  placeholder={tr("이력서를 읽는 사람에게 전하고 싶은 이야기를 자유롭게", "Tell the reader who you are", "请自由描述你想表达的内容", "Hãy chia sẻ về bản thân bạn", "読み手に伝えたい内容を自由に", "Ceritakan dirimu kepada pembaca")}
+                  placeholder={tr("이력서를 읽는 사람에게 전하고 싶은 이야기를 자유롭게 작성해주세요.", "Tell the reader who you are.", "请自由描述你想表达的内容。", "Hãy chia sẻ về bản thân bạn.", "読み手に伝えたい内容を自由に書いてください。", "Ceritakan dirimu kepada pembaca.")}
                   className="w-full rounded-xl border border-border bg-white px-4 py-3 text-[15px] leading-relaxed text-foreground outline-none transition focus:border-primary"
                 />
               </Field>
@@ -947,6 +1026,25 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
           <div className="mx-auto flex max-w-4xl flex-col gap-2 max-md:py-4 md:pb-10">
             {/* 검증 실패 안내 — 누락된 필수 필드를 본 폼의 라벨 그대로 나열.
                 * 표시된 5개 (이름/이메일/휴대폰/요약/자기소개) 중 비어 있는 것만. */}
+            {incompleteMessages.length > 0 ? (
+              <div className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+                <p className="font-semibold">
+                  {tr(
+                    "입력 중인 항목의 필수 정보가 빠졌어요:",
+                    "Some entries are missing required info:",
+                    "正在填写的项目缺少必填信息：",
+                    "Một số mục đang nhập còn thiếu thông tin bắt buộc:",
+                    "入力中の項目に必須情報が不足しています：",
+                    "Beberapa entri belum lengkap:"
+                  )}
+                </p>
+                <ul className="mt-1 list-disc pl-4">
+                  {incompleteMessages.map((m, i) => (
+                    <li key={i}>{m}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {missingFields.length > 0 ? (
               <div className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-[13px] text-red-700">
                 <p className="font-semibold">

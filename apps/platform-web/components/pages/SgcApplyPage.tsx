@@ -43,6 +43,10 @@ const REFERRAL_OPTIONS: SgcReferralSource[] = ["FRIEND", "SNS", "SCHOOL", "SEARC
 const INPUT_CLS =
   "h-11 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
+// 이력서 수정(/resume/.../edit?next=...apply) 으로 이탈했다 돌아와도 입력이
+// 사라지지 않도록 폼 값을 세션 동안 보존. sessionStorage 라 탭을 닫으면 비워짐.
+const DRAFT_KEY = "sgc-apply-draft-v1";
+
 type Copy = {
   pageHeading: string;
   pageSubheading: string;
@@ -860,6 +864,9 @@ export function SgcApplyPage() {
   const [marketingOptIn, setMarketingOptIn] = useState<"" | "yes" | "no">("");
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [preTrainingAgreed, setPreTrainingAgreed] = useState(false);
+  // 세션 드래프트 복원이 끝나기 전에는 저장하지 않도록 하는 가드(초기 빈 값이
+  // 드래프트를 덮어쓰는 것 방지).
+  const [draftHydrated, setDraftHydrated] = useState(false);
 
   // 인증 + 역할 + 모집 마감 + 이력서 + 기존 지원 상태 우선순위 조회.
   // 우선순위:
@@ -930,6 +937,78 @@ export function SgcApplyPage() {
     setEmail((v) => v || (user.email ?? ""));
     setPhone((v) => v || (user.phoneNumber ?? ""));
   }, [user]);
+
+  // 세션 드래프트 복원 — prefill 이후 실행되어, 사용자가 입력하던 값이 계정
+  // prefill 보다 우선한다(이력서 수정 왕복 복귀 시 그대로 복원).
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const d = JSON.parse(raw) as Record<string, unknown>;
+        const s = (v: unknown) => (typeof v === "string" ? v : "");
+        setApplicantName(s(d.applicantName));
+        setBirthDate(s(d.birthDate));
+        setGender((d.gender as SgcGender) || "");
+        setNationality(s(d.nationality));
+        setPhone(s(d.phone));
+        setEmail(s(d.email));
+        setAddress(s(d.address));
+        setKoreaStayDuration((d.koreaStayDuration as SgcKoreaStay) || "");
+        setUniversity(s(d.university));
+        setMajor(s(d.major));
+        setGrade((d.grade as SgcGrade) || "");
+        setGraduationDate(s(d.graduationDate));
+        setTopikLevel((d.topikLevel as SgcTopikLevel) || "");
+        setReferralSource((d.referralSource as SgcReferralSource) || "");
+        setReferralOther(s(d.referralOther));
+        setVisaType((d.visaType as SgcVisaType) || "");
+        setVisaOther(s(d.visaOther));
+        setHealthNote(s(d.healthNote));
+        setDesiredJob((d.desiredJob as SgcDesiredJob) || "");
+        setDesiredJobOther(s(d.desiredJobOther));
+        setMotivation(s(d.motivation));
+        if (d.marketingOptIn === "yes" || d.marketingOptIn === "no") setMarketingOptIn(d.marketingOptIn);
+        setPrivacyAgreed(d.privacyAgreed === true);
+        setPreTrainingAgreed(d.preTrainingAgreed === true);
+      }
+    } catch {
+      /* 드래프트 파싱 실패는 무시하고 빈 폼으로 진행 */
+    }
+    setDraftHydrated(true);
+    // 마운트 시 1회만.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 폼 값 변경 시 세션에 저장(복원 완료 후, 폼 단계에서만).
+  useEffect(() => {
+    if (!draftHydrated) return;
+    if (state !== "form" && state !== "submitting") return;
+    try {
+      window.sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({
+          applicantName, birthDate, gender, nationality, phone, email, address, koreaStayDuration,
+          university, major, grade, graduationDate, topikLevel, referralSource, referralOther,
+          visaType, visaOther, healthNote, desiredJob, desiredJobOther, motivation,
+          marketingOptIn, privacyAgreed, preTrainingAgreed
+        })
+      );
+    } catch {
+      /* quota 등 저장 실패는 무시 */
+    }
+  }, [
+    draftHydrated, state, applicantName, birthDate, gender, nationality, phone, email, address,
+    koreaStayDuration, university, major, grade, graduationDate, topikLevel, referralSource,
+    referralOther, visaType, visaOther, healthNote, desiredJob, desiredJobOther, motivation,
+    marketingOptIn, privacyAgreed, preTrainingAgreed
+  ]);
+
+  // 제출 완료/이미 지원 상태가 되면 드래프트 제거(다음 진입 시 빈 폼).
+  useEffect(() => {
+    if (state === "success" || state === "already-applied") {
+      try { window.sessionStorage.removeItem(DRAFT_KEY); } catch { /* noop */ }
+    }
+  }, [state]);
 
   // 폼 검증 — 필수 항목 모두 채워졌고 동의가 잡혔는지.
   const canSubmit = useMemo(() => {
