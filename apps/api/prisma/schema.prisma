@@ -1187,6 +1187,30 @@ model CompanyConsultationInquiry {
   @@index([email])
 }
 
+// Hanpass × Aply 이벤트 — 문자 링크로 들어온 한패스 이용자의 취업 지원 설문.
+// 익명 공개 제출(비로그인). 선착순 첨삭/컨설팅 안내는 운영팀이 수동 처리.
+model HanpassSurveyResponse {
+  id               String   @id @default(uuid())
+  name             String
+  phone            String
+  email            String
+  jobIntent        String // 구직/이직 의향 코드
+  availableFrom    String // 근무 가능 시점 코드
+  jobFields        String[] @default([]) // 희망 일자리 분야 (복수)
+  jobFieldOther    String?
+  visaType         String // 비자 종류 코드
+  wantsConsulting  String // 이력서 첨삭·컨설팅 신청 여부 코드
+  consultLanguages String[] @default([]) // 상담 가능 언어 (복수)
+  privacyConsent   Boolean  @default(false)
+  locale           String   @default("ko")
+  source           String   @default("hanpass")
+  ipHash           String?
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([email])
+}
+
 // Viral landing — oh-haeng (five-element) saju prediction. We persist
 // the LLM result keyed by a short id so the user can share / revisit
 // the result and so the post-signup redirect can look it back up.
