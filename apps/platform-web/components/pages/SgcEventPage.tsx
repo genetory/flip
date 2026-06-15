@@ -157,7 +157,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitNote: "Aply 회원으로 로그인하고 본인 이력서와 함께 지원해 주세요. 운영팀이 상시 확인 후 개별 안내드립니다.",
     applyCta: "지금 지원하기",
     recruitHeadcountLabel: "모집 인원",
-    recruitHeadcountValue: "총 6명",
+    recruitHeadcountValue: "총 10명",
     eligibilityLabel: "신청 자격",
     eligibilityItems: [
       "한국에서 취업을 희망하는 외국인 유학생 (졸업 예정자 우선 선발)",
@@ -234,7 +234,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitNote: "Sign in to Aply and apply with your own resume. Our team reviews applications on a rolling basis and follows up individually.",
     applyCta: "Apply now",
     recruitHeadcountLabel: "Spots",
-    recruitHeadcountValue: "6 in total",
+    recruitHeadcountValue: "10 in total",
     eligibilityLabel: "Eligibility",
     eligibilityItems: [
       "International students seeking employment in Korea (graduating students prioritized)",
@@ -311,7 +311,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitNote: "请登录 Aply 后用您的简历进行申请。运营团队将持续审核并单独联系您。",
     applyCta: "立即申请",
     recruitHeadcountLabel: "招募人数",
-    recruitHeadcountValue: "共 6 名",
+    recruitHeadcountValue: "共 10 名",
     eligibilityLabel: "申请资格",
     eligibilityItems: [
       "希望在韩国就业的外国留学生（应届毕业生优先选拔）",
@@ -388,7 +388,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitNote: "Đăng nhập Aply và ứng tuyển bằng CV của bạn. Đội Aply sẽ kiểm tra liên tục và liên hệ riêng với bạn.",
     applyCta: "Đăng ký ngay",
     recruitHeadcountLabel: "Số lượng tuyển",
-    recruitHeadcountValue: "Tổng 6 người",
+    recruitHeadcountValue: "Tổng 10 người",
     eligibilityLabel: "Yêu cầu ứng tuyển",
     eligibilityItems: [
       "Du học sinh quốc tế mong muốn làm việc tại Hàn Quốc (ưu tiên sinh viên sắp tốt nghiệp)",
@@ -465,7 +465,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitNote: "Aply にログインし、ご自身の履歴書で申請してください。運営チームが随時確認の上、個別にご案内します。",
     applyCta: "今すぐ申請",
     recruitHeadcountLabel: "募集人数",
-    recruitHeadcountValue: "合計 6 名",
+    recruitHeadcountValue: "合計 10 名",
     eligibilityLabel: "申請資格",
     eligibilityItems: [
       "韓国での就職を希望する外国人留学生（卒業予定者を優先選抜）",
@@ -542,7 +542,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     recruitNote: "Masuk ke Aply dan daftar dengan resume Anda. Tim kami meninjau pendaftaran secara berkelanjutan dan menghubungi secara individual.",
     applyCta: "Daftar sekarang",
     recruitHeadcountLabel: "Jumlah peserta",
-    recruitHeadcountValue: "Total 6 orang",
+    recruitHeadcountValue: "Total 10 orang",
     eligibilityLabel: "Syarat pendaftaran",
     eligibilityItems: [
       "Mahasiswa asing yang ingin bekerja di Korea (diutamakan yang akan lulus)",
