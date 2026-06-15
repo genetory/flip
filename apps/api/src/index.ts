@@ -166,6 +166,10 @@ const getTrimmedEnvOrFallback = (value: string | undefined, fallback: string) =>
   return trimmed.length > 0 ? trimmed : fallback;
 };
 const discordCompanyConsultationWebhookUrl = process.env.DISCORD_COMPANY_CONSULTATION_WEBHOOK_URL?.trim() ?? "";
+const discordHanpassSurveyWebhookUrl =
+  process.env.DISCORD_HANPASS_SURVEY_WEBHOOK_URL?.trim() ??
+  process.env.DISCORD_COMPANY_CONSULTATION_WEBHOOK_URL?.trim() ??
+  "";
 const discordSignupWebhookUrl = process.env.SIGNUP_DISCORD_WEBHOOK_URL?.trim() ?? "";
 const discordCommunityPostWebhookUrl = process.env.DISCORD_COMMUNITY_POST_WEBHOOK_URL?.trim() ?? "";
 const errorDiscordWebhookUrl = process.env.ERROR_DISCORD_WEBHOOK_URL?.trim() ?? "";
@@ -513,6 +517,143 @@ async function sendCompanyConsultationDiscordNotification(input: {
     }
   } catch (error) {
     console.error("company_consultation_discord_webhook_error", {
+      error: getErrorMessage(error)
+    });
+  }
+}
+
+// 한패스 설문 응답 코드 → 사람이 읽을 수 있는 한국어 라벨 (Discord/운영 확인용)
+const HANPASS_JOB_INTENT_LABELS: Record<string, string> = {
+  active_seeking: "네, 적극적으로 구직 중",
+  open_to_offers: "네, 좋은 기회가 있으면 이직·취업 희망",
+  not_seeking: "아니요, 현재는 구직 의향 없음",
+  unsure: "아직 잘 모르겠습니다"
+};
+const HANPASS_AVAILABLE_FROM_LABELS: Record<string, string> = {
+  immediately: "즉시 가능",
+  within_1m: "1개월 이내",
+  within_3m: "3개월 이내",
+  undecided: "아직 미정",
+  not_available: "현재는 근무 가능하지 않음"
+};
+const HANPASS_JOB_FIELD_LABELS: Record<string, string> = {
+  manufacturing: "제조/생산",
+  logistics: "물류/창고",
+  service: "서비스/매장",
+  office: "사무/관리",
+  translation: "통번역",
+  it: "IT/개발",
+  design_marketing: "디자인/마케팅",
+  research: "연구/전문직",
+  other: "기타"
+};
+const HANPASS_VISA_LABELS: Record<string, string> = {
+  "D-2": "D-2 유학",
+  "D-4": "D-4 어학연수",
+  "D-10": "D-10 구직",
+  "E-7": "E-7 특정활동",
+  "F-2": "F-2 거주",
+  "F-4": "F-4 재외동포",
+  "F-5": "F-5 영주",
+  "F-6": "F-6 결혼이민",
+  other: "기타",
+  unsure: "잘 모르겠습니다"
+};
+const HANPASS_WANTS_CONSULTING_LABELS: Record<string, string> = {
+  yes: "네, 신청하고 싶습니다",
+  info_only: "아니요, 채용 정보 안내만 받고 싶습니다",
+  unsure: "아직 잘 모르겠습니다"
+};
+const HANPASS_LANGUAGE_LABELS: Record<string, string> = {
+  ko: "한국어",
+  en: "영어"
+};
+
+function hanpassLabel(map: Record<string, string>, code: string): string {
+  return map[code] ?? code;
+}
+
+async function sendHanpassSurveyDiscordNotification(input: {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  jobIntent: string;
+  availableFrom: string;
+  jobFields: string[];
+  jobFieldOther: string | null;
+  visaType: string;
+  wantsConsulting: string;
+  consultLanguages: string[];
+  privacyConsent: boolean;
+  locale: string;
+  source: string;
+  createdAt: Date;
+}) {
+  if (!discordHanpassSurveyWebhookUrl) return;
+
+  const truncateForDiscord = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+
+  const fieldsValue = (() => {
+    const labels = input.jobFields.map((code) => hanpassLabel(HANPASS_JOB_FIELD_LABELS, code));
+    if (input.jobFieldOther && input.jobFieldOther.trim().length > 0) {
+      labels.push(`기타: ${input.jobFieldOther.trim()}`);
+    }
+    return labels.length > 0 ? labels.join(", ") : "-";
+  })();
+
+  const languagesValue =
+    input.consultLanguages.length > 0
+      ? input.consultLanguages.map((code) => hanpassLabel(HANPASS_LANGUAGE_LABELS, code)).join(", ")
+      : "-";
+
+  const wantsConsulting = hanpassLabel(HANPASS_WANTS_CONSULTING_LABELS, input.wantsConsulting);
+  const isApplicant = input.wantsConsulting === "yes";
+
+  const payload = {
+    content: isApplicant ? "🟢 **이력서 첨삭/컨설팅 신청자**" : "",
+    embeds: [
+      {
+        color: isApplicant ? 5763719 : 3447003,
+        title: "🧭 한패스 취업 지원 설문 응답",
+        description: "한패스 연계 이벤트 페이지에서 접수된 신규 설문입니다.",
+        fields: [
+          { name: "이름", value: truncateForDiscord(input.name || "-", 256), inline: true },
+          { name: "전화번호", value: truncateForDiscord(input.phone || "-", 256), inline: true },
+          { name: "이메일", value: truncateForDiscord(input.email || "-", 1024), inline: false },
+          { name: "구직/이직 희망", value: hanpassLabel(HANPASS_JOB_INTENT_LABELS, input.jobIntent), inline: true },
+          { name: "근무 가능 시점", value: hanpassLabel(HANPASS_AVAILABLE_FROM_LABELS, input.availableFrom), inline: true },
+          { name: "비자 종류", value: hanpassLabel(HANPASS_VISA_LABELS, input.visaType), inline: true },
+          { name: "희망 분야", value: truncateForDiscord(fieldsValue, 1024), inline: false },
+          { name: "첨삭·컨설팅 신청", value: wantsConsulting, inline: true },
+          { name: "상담 가능 언어", value: languagesValue, inline: true },
+          { name: "개인정보 동의", value: input.privacyConsent ? "동의" : "비동의", inline: true },
+          { name: "응답 ID", value: truncateForDiscord(input.id || "-", 256), inline: true },
+          { name: "유입경로", value: truncateForDiscord(input.source || "-", 256), inline: true }
+        ],
+        footer: { text: "Aply • Hanpass Survey" },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch(discordHanpassSurveyWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("hanpass_survey_discord_webhook_failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("hanpass_survey_discord_webhook_error", {
       error: getErrorMessage(error)
     });
   }
@@ -5968,6 +6109,39 @@ const companyConsultationCreateSchema = z.object({
   source: z.string().trim().max(80).optional()
 });
 
+const hanpassSurveyCreateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  phone: z.string().trim().min(1).max(40),
+  email: z.string().trim().email().max(320),
+  jobIntent: z.enum(["active_seeking", "open_to_offers", "not_seeking", "unsure"]),
+  availableFrom: z.enum(["immediately", "within_1m", "within_3m", "undecided", "not_available"]),
+  jobFields: z
+    .array(
+      z.enum([
+        "manufacturing",
+        "logistics",
+        "service",
+        "office",
+        "translation",
+        "it",
+        "design_marketing",
+        "research",
+        "other"
+      ])
+    )
+    .min(1, "희망 분야를 한 가지 이상 선택해 주세요")
+    .max(9),
+  jobFieldOther: z.string().trim().max(120).optional(),
+  visaType: z.enum(["D-2", "D-4", "D-10", "E-7", "F-2", "F-4", "F-5", "F-6", "other", "unsure"]),
+  wantsConsulting: z.enum(["yes", "info_only", "unsure"]),
+  consultLanguages: z.array(z.enum(["ko", "en"])).min(1, "상담 가능한 언어를 선택해 주세요").max(2),
+  privacyConsent: z.literal(true, {
+    errorMap: () => ({ message: "개인정보 활용에 동의해야 설문을 제출할 수 있습니다" })
+  }),
+  locale: z.enum(["ko", "en"]).optional(),
+  source: z.string().trim().max(80).optional()
+});
+
 app.post("/company-consultations", async (req, res) => {
   const parsed = companyConsultationCreateSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -6012,6 +6186,84 @@ app.post("/company-consultations", async (req, res) => {
     }
   });
 });
+
+app.post(
+  "/events/hanpass/survey",
+  rateLimit({ windowMs: 60_000, max: 8, keyPrefix: "hanpass-survey", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = hanpassSurveyCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        ok: false,
+        message: "Invalid request body",
+        issues: parsed.error.flatten()
+      });
+    }
+
+    const payload = parsed.data;
+
+    if (payload.jobFields.includes("other") && !(payload.jobFieldOther && payload.jobFieldOther.trim())) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "기타 분야를 선택한 경우 내용을 입력해 주세요" });
+    }
+
+    const ipRaw =
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+      req.socket.remoteAddress ||
+      "";
+    const ipHash = ipRaw
+      ? createHash("sha256").update(`${ipRaw}|hanpass-survey`).digest("hex").slice(0, 32)
+      : null;
+
+    const created = await prisma.hanpassSurveyResponse.create({
+      data: {
+        name: payload.name,
+        phone: payload.phone,
+        email: payload.email,
+        jobIntent: payload.jobIntent,
+        availableFrom: payload.availableFrom,
+        jobFields: payload.jobFields,
+        jobFieldOther: payload.jobFieldOther?.trim() || null,
+        visaType: payload.visaType,
+        wantsConsulting: payload.wantsConsulting,
+        consultLanguages: payload.consultLanguages,
+        privacyConsent: payload.privacyConsent,
+        locale: payload.locale ?? "ko",
+        source: payload.source ?? "hanpass",
+        ipHash
+      }
+    });
+
+    await sendHanpassSurveyDiscordNotification({
+      id: created.id,
+      name: created.name,
+      phone: created.phone,
+      email: created.email,
+      jobIntent: created.jobIntent,
+      availableFrom: created.availableFrom,
+      jobFields: created.jobFields,
+      jobFieldOther: created.jobFieldOther,
+      visaType: created.visaType,
+      wantsConsulting: created.wantsConsulting,
+      consultLanguages: created.consultLanguages,
+      privacyConsent: created.privacyConsent,
+      locale: created.locale,
+      source: created.source,
+      createdAt: created.createdAt
+    });
+
+    return res.status(201).json({
+      ok: true,
+      message: "Hanpass survey response created",
+      item: {
+        id: created.id,
+        wantsConsulting: created.wantsConsulting,
+        createdAt: created.createdAt
+      }
+    });
+  }
+);
 
 app.post("/internal/company-consultations/discord-test", async (req, res) => {
   if (!companyConsultationDiscordTestToken) {
