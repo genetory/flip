@@ -16,6 +16,7 @@ import { Footer } from "../site/Footer";
 import { Reveal } from "../site/Reveal";
 import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
+import { useAuthSession } from "../auth/AuthSessionProvider";
 import { paperlogy } from "../../lib/fonts";
 import {
   submitHanpassSurvey,
@@ -36,6 +37,10 @@ import {
 // ---------------------------------------------------------------------------
 
 const DEADLINE_LABEL = "2026년 6월 26일(금)";
+// 이력서 첨삭 신청은 회원가입/로그인이 전제. 가입·로그인 후 다시 이 페이지로 복귀.
+// `?next=/events/...` 는 SignupPage 에서 계정 유형 선택을 건너뛰는 원탭 가입 플로우.
+const SIGNUP_HREF = "/signup?next=%2Fevents%2Fhanpass";
+const LOGIN_HREF = "/login?next=%2Fevents%2Fhanpass";
 
 type Option<T extends string> = { value: T; label: string };
 
@@ -128,6 +133,7 @@ function normalizePhone(raw: string) {
 
 export function HanpassEventPage() {
   const toast = useToast();
+  const { isAuthenticated } = useAuthSession();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<null | { wantsConsulting: HanpassWantsConsulting }>(null);
@@ -236,7 +242,7 @@ export function HanpassEventPage() {
       </section>
 
       {submitted ? (
-        <CompletionView wantsConsulting={submitted.wantsConsulting} />
+        <CompletionView wantsConsulting={submitted.wantsConsulting} isAuthenticated={isAuthenticated} />
       ) : (
         <main className="mx-auto w-full max-w-[760px] px-5 py-12 sm:py-16">
           {/* 안내 카드 */}
@@ -326,14 +332,21 @@ export function HanpassEventPage() {
                 value={form.visaType}
                 onChange={(v) => set("visaType", v)}
               />
-              <RadioGroup
-                index={8}
-                label="이력서 첨삭 및 취업 컨설팅을 신청하시겠어요?"
-                hint={`${DEADLINE_LABEL}까지 응답자 중 선착순 10명 우선 제공`}
-                options={WANTS_CONSULTING_OPTIONS}
-                value={form.wantsConsulting}
-                onChange={(v) => set("wantsConsulting", v)}
-              />
+              <div>
+                <RadioGroup
+                  index={8}
+                  label="이력서 첨삭 및 취업 컨설팅을 신청하시겠어요?"
+                  hint={`${DEADLINE_LABEL}까지 응답자 중 선착순 10명 우선 제공`}
+                  options={WANTS_CONSULTING_OPTIONS}
+                  value={form.wantsConsulting}
+                  onChange={(v) => set("wantsConsulting", v)}
+                />
+                {form.wantsConsulting === "yes" && !isAuthenticated && (
+                  <p className="mt-2 rounded-lg bg-[#0B46E8]/5 px-3 py-2 text-xs leading-relaxed text-[#0B46E8]">
+                    이력서 첨삭 신청은 회원가입 또는 로그인 후 완료됩니다. 설문을 제출하면 다음 단계에서 안내해 드려요.
+                  </p>
+                )}
+              </div>
               <CheckboxGroup
                 index={9}
                 label="상담이 가능한 언어를 선택해 주세요."
@@ -395,7 +408,13 @@ export function HanpassEventPage() {
 // ---------------------------------------------------------------------------
 // 완료 화면
 // ---------------------------------------------------------------------------
-function CompletionView({ wantsConsulting }: { wantsConsulting: HanpassWantsConsulting }) {
+function CompletionView({
+  wantsConsulting,
+  isAuthenticated
+}: {
+  wantsConsulting: HanpassWantsConsulting;
+  isAuthenticated: boolean;
+}) {
   const isApplicant = wantsConsulting === "yes";
   return (
     <main className="mx-auto w-full max-w-[640px] px-5 py-16 sm:py-24">
@@ -413,23 +432,41 @@ function CompletionView({ wantsConsulting }: { wantsConsulting: HanpassWantsCons
         </div>
       </Reveal>
 
-      {isApplicant && (
+      {/* 첨삭 신청자 — 회원가입/로그인 후 신청 완료 (이미 로그인 시 접수 안내) */}
+      {isApplicant && isAuthenticated && (
         <Reveal delayMs={120}>
           <div className="mt-10 rounded-2xl border border-[#0B46E8]/20 bg-[#0B46E8]/5 p-6 text-center">
             <Sparkle size={24} weight="fill" className="mx-auto text-[#0B46E8]" />
-            <h3 className="mt-3 text-lg font-bold">이력서 첨삭을 신청하셨네요!</h3>
+            <h3 className="mt-3 text-lg font-bold">이력서 첨삭 신청이 접수되었습니다.</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              더 빠른 안내와 맞춤 채용 정보를 위해 Aply 회원가입을 완료해 주세요. 선착순 10명 안내 대상은 운영팀이 응답을 확인한 뒤 개별적으로 연락드립니다.
+              선착순 10명 안내 대상은 운영팀이 응답을 확인한 뒤 개별적으로 연락드립니다.
+            </p>
+            <div className="mt-5 flex justify-center">
+              <Button asChild variant="outline" size="lg">
+                <Link href="/positions">채용 정보 둘러보기</Link>
+              </Button>
+            </div>
+          </div>
+        </Reveal>
+      )}
+
+      {isApplicant && !isAuthenticated && (
+        <Reveal delayMs={120}>
+          <div className="mt-10 rounded-2xl border border-[#0B46E8]/20 bg-[#0B46E8]/5 p-6 text-center">
+            <Sparkle size={24} weight="fill" className="mx-auto text-[#0B46E8]" />
+            <h3 className="mt-3 text-lg font-bold">이력서 첨삭 신청은 한 단계가 남았어요!</h3>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              이력서 첨삭 신청은 <strong className="font-semibold text-foreground">회원가입 또는 로그인</strong> 후 완료됩니다. 선착순 10명 안내 대상은 운영팀이 응답을 확인한 뒤 개별적으로 연락드립니다.
             </p>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
               <Button asChild variant="hero" size="lg">
-                <Link href="/signup">
-                  회원가입 하고 시작하기
+                <Link href={SIGNUP_HREF}>
+                  회원가입 하고 신청 완료
                   <ArrowRight weight="bold" />
                 </Link>
               </Button>
               <Button asChild variant="outline" size="lg">
-                <Link href="/positions">채용 정보 둘러보기</Link>
+                <Link href={LOGIN_HREF}>이미 계정이 있어요 (로그인)</Link>
               </Button>
             </div>
           </div>
@@ -443,15 +480,26 @@ function CompletionView({ wantsConsulting }: { wantsConsulting: HanpassWantsCons
               Aply에서 더 많은 채용 정보를 확인하고 싶으시면 회원가입 후 맞춤 채용 정보를 받아보실 수 있어요.
             </p>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
-              <Button asChild variant="dark" size="lg">
-                <Link href="/signup">
-                  회원가입 하기
-                  <ArrowRight weight="bold" />
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg">
-                <Link href="/positions">채용 정보 둘러보기</Link>
-              </Button>
+              {isAuthenticated ? (
+                <Button asChild variant="dark" size="lg">
+                  <Link href="/positions">
+                    채용 정보 둘러보기
+                    <ArrowRight weight="bold" />
+                  </Link>
+                </Button>
+              ) : (
+                <>
+                  <Button asChild variant="dark" size="lg">
+                    <Link href={SIGNUP_HREF}>
+                      회원가입 하기
+                      <ArrowRight weight="bold" />
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="lg">
+                    <Link href="/positions">채용 정보 둘러보기</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </Reveal>
