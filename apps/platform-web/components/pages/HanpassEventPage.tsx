@@ -118,7 +118,8 @@ const EMPTY_FORM: FormState = {
   visaType: "",
   wantsConsulting: "",
   consultLanguages: [],
-  privacyConsent: false
+  // 개인정보 활용 동의는 기본적으로 "동의합니다" 가 선택된 상태로 시작.
+  privacyConsent: true
 };
 
 function normalizePhone(raw: string) {
