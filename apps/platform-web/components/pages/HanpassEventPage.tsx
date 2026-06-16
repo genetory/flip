@@ -1301,11 +1301,11 @@ function CheckboxGroup<T extends string>({
               }`}
             >
               <span
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
                   active ? "border-[#0B46E8]" : "border-muted-foreground/40"
                 }`}
               >
-                {active && <span className="h-2.5 w-2.5 rounded-[3px] bg-[#0B46E8]" />}
+                {active && <span className="h-2.5 w-2.5 rounded-full bg-[#0B46E8]" />}
               </span>
               {opt.label}
             </button>
