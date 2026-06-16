@@ -5609,6 +5609,76 @@ app.get("/ops/saju/leads", authenticate, requireRoles([MemberRole.OPERATOR]), as
   });
 });
 
+// GET /ops/hanpass/survey — 한패스 × Aply 설문 이벤트 응답 관리. 선착순 첨삭
+// 10명 선별을 위해 createdAt 오름차순(먼저 응답한 순)으로 정렬해 상단이 1순위.
+const opsHanpassSurveyQuerySchema = z.object({
+  wantsConsulting: z.enum(["yes", "info_only", "unsure"]).optional(),
+  q: z.string().trim().max(120).optional(),
+  take: z.coerce.number().int().min(1).max(200).optional(),
+  skip: z.coerce.number().int().min(0).optional()
+});
+
+app.get("/ops/hanpass/survey", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsHanpassSurveyQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+  const f = parsed.data;
+  const where: Prisma.HanpassSurveyResponseWhereInput = {
+    ...(f.wantsConsulting ? { wantsConsulting: f.wantsConsulting } : {}),
+    ...(f.q
+      ? {
+          OR: [
+            { name: { contains: f.q, mode: "insensitive" } },
+            { phone: { contains: f.q, mode: "insensitive" } },
+            { email: { contains: f.q, mode: "insensitive" } }
+          ]
+        }
+      : {})
+  };
+  const take = f.take ?? 50;
+  const skip = f.skip ?? 0;
+  const [responses, total, wantsCounts, grandTotal] = await Promise.all([
+    prisma.hanpassSurveyResponse.findMany({ where, orderBy: { createdAt: "asc" }, take, skip }),
+    prisma.hanpassSurveyResponse.count({ where }),
+    // 첨삭 신청 여부별 카운트 — 필터와 무관한 전체 기준 (헤더 요약용).
+    prisma.hanpassSurveyResponse.groupBy({ by: ["wantsConsulting"], _count: { _all: true } }),
+    prisma.hanpassSurveyResponse.count()
+  ]);
+  const wantsCountMap = Object.fromEntries(wantsCounts.map((w) => [w.wantsConsulting, w._count._all]));
+  return res.json({
+    ok: true,
+    total,
+    take,
+    skip,
+    summary: {
+      total: grandTotal,
+      applicants: wantsCountMap.yes ?? 0,
+      infoOnly: wantsCountMap.info_only ?? 0,
+      unsure: wantsCountMap.unsure ?? 0
+    },
+    responses: responses.map((r, idx) => ({
+      // skip 기준 선착순 순번 (1부터). 첨삭 필터 적용 시 신청자 내 순번.
+      rank: skip + idx + 1,
+      id: r.id,
+      name: r.name,
+      phone: r.phone,
+      email: r.email,
+      jobIntent: r.jobIntent,
+      availableFrom: r.availableFrom,
+      jobFields: r.jobFields,
+      jobFieldOther: r.jobFieldOther,
+      visaType: r.visaType,
+      wantsConsulting: r.wantsConsulting,
+      consultLanguages: r.consultLanguages,
+      privacyConsent: r.privacyConsent,
+      locale: r.locale,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString()
+    }))
+  });
+});
+
 // GET /ops/visa/leads — visa funnel 의 익명 lead 풀 관리. saju 와 동일한 모양
 // (총계 + 단계 카운트 + 검색/필터) 이지만 컬럼 셋이 visa 맞춤.
 const opsVisaLeadsQuerySchema = z.object({
