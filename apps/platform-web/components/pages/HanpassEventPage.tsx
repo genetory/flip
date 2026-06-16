@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, CheckCircle, Gift, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { Header } from "../site/Header";
@@ -988,8 +989,24 @@ export function HanpassEventPage() {
         />
         <div className="relative mx-auto w-full max-w-[760px] px-5 py-16 sm:py-20">
           <Reveal>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide">
-              {t.pill}
+            <span className="inline-flex items-center gap-3 rounded-full bg-white px-4 py-2.5 shadow-sm">
+              <Image
+                src="/logo_hanpass.webp"
+                alt="Hanpass"
+                width={900}
+                height={300}
+                priority
+                className="h-[22px] w-auto sm:h-6"
+              />
+              <span className="text-sm font-semibold text-slate-300">×</span>
+              <Image
+                src="/img_logo.webp"
+                alt="Aply"
+                width={1800}
+                height={900}
+                priority
+                className="h-[18px] w-auto sm:h-5"
+              />
             </span>
           </Reveal>
           <Reveal delayMs={60}>
