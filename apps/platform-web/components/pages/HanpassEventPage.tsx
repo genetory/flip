@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, CheckCircle, Gift, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { Header } from "../site/Header";
@@ -23,8 +24,8 @@ import {
 } from "../../lib/hanpass-event-client";
 
 // ---------------------------------------------------------------------------
-// /events/hanpass — 한패스 × Aply 취업 지원 확인 이벤트.
-// 한패스 이용자(한국 거주 외국인)에게 문자로 전달되는 링크로 접속 → 인페이지
+// /events/hanpass — Hanpass × Aply 취업 지원 확인 이벤트.
+// Hanpass 이용자(한국 거주 외국인)에게 문자로 전달되는 링크로 접속 → 인페이지
 // 설문 작성 → 이력서 첨삭/취업 컨설팅을 원하면 회원가입/로그인 안내.
 // 이용자가 외국인이므로 6개 로케일(ko/en/zh-CN/vi/ja/id) 전체 번역 제공.
 // 옵션 value(백엔드 전송 코드)는 고정하고 라벨만 로케일별로 번역한다.
@@ -130,10 +131,10 @@ type Copy = {
 
 const COPY: Record<PlatformLocale, Copy> = {
   ko: {
-    pill: "한패스 × Aply",
-    title: "한패스 이용자 취업 지원 확인",
+    pill: "Hanpass × Aply",
+    title: "Hanpass 이용자 취업 지원 확인",
     heroDesc:
-      "Aply는 한패스와 함께 한국에서 취업을 희망하는 외국인 분들께 채용 정보, 이력서 첨삭, 취업 상담 안내를 도와드리고 있습니다.\n\n현재 구직 또는 이직 희망 여부와 취업 지원 필요 여부를 확인하기 위한 설문입니다. 응답은 약 30초~1분 정도 소요됩니다.",
+      "Aply는 Hanpass와 함께 한국에서 취업을 희망하는 외국인 분들께 채용 정보, 이력서 첨삭, 취업 상담 안내를 도와드리고 있습니다.\n\n현재 구직 또는 이직 희망 여부와 취업 지원 필요 여부를 확인하기 위한 설문입니다. 응답은 약 30초~1분 정도 소요됩니다.",
     deadline: "2026년 6월 26일(금)",
     benefit: "{deadline}까지 응답해 주신 분 중 선착순 10명에게 이력서 첨삭 및 취업 컨설팅을 우선 제공해 드립니다.",
     benefitsHeading: "응답 후 받을 수 있는 안내",
@@ -204,7 +205,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     },
     languageLabels: { ko: "한국어", en: "영어" },
     privacyNotice:
-      "입력하신 정보는 플리퍼스(Aply)가 한패스 연계 취업 지원, 채용 정보 안내, 채용 매칭, 이력서 첨삭 및 취업 컨설팅 제공을 위해 수집·이용하며, 향후 적합한 채용 기회와 Aply의 취업 지원 서비스 안내를 위해 보관 및 활용될 수 있습니다.\n\n개인정보 활용에 동의하지 않으시는 경우 설문 제출 및 취업 지원 안내가 제한될 수 있습니다.",
+      "입력하신 정보는 플리퍼스(Aply)가 Hanpass 연계 취업 지원, 채용 정보 안내, 채용 매칭, 이력서 첨삭 및 취업 컨설팅 제공을 위해 수집·이용하며, 향후 적합한 채용 기회와 Aply의 취업 지원 서비스 안내를 위해 보관 및 활용될 수 있습니다.\n\n개인정보 활용에 동의하지 않으시는 경우 설문 제출 및 취업 지원 안내가 제한될 수 있습니다.",
     consentAgree: "동의합니다",
     consentDisagree: "동의하지 않습니다",
     submit: "설문 제출하기",
@@ -238,7 +239,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     ctaLogin: "이미 계정이 있어요 (로그인)",
     ctaSignup: "회원가입 하기",
     alreadyTitle: "이미 응답을 보내주셨어요",
-    alreadyBody: "이 기기에서 이미 한패스 취업 지원 설문에 응답하셨습니다. 답변을 수정하시려면 다시 응답할 수 있어요.",
+    alreadyBody: "이 기기에서 이미 Hanpass 취업 지원 설문에 응답하셨습니다. 답변을 수정하시려면 다시 응답할 수 있어요.",
     ctaRespondAgain: "다시 응답하기"
   },
   en: {
@@ -988,8 +989,24 @@ export function HanpassEventPage() {
         />
         <div className="relative mx-auto w-full max-w-[760px] px-5 py-16 sm:py-20">
           <Reveal>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide">
-              {t.pill}
+            <span className="inline-flex items-center gap-3 rounded-full bg-white px-4 py-2.5 shadow-sm">
+              <Image
+                src="/logo_hanpass.webp"
+                alt="Hanpass"
+                width={900}
+                height={300}
+                priority
+                className="h-[22px] w-auto sm:h-6"
+              />
+              <span className="text-sm font-semibold text-slate-300">×</span>
+              <Image
+                src="/img_logo.webp"
+                alt="Aply"
+                width={1800}
+                height={900}
+                priority
+                className="h-[18px] w-auto sm:h-5"
+              />
             </span>
           </Reveal>
           <Reveal delayMs={60}>
