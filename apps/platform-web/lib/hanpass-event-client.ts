@@ -57,6 +57,8 @@ export type HanpassSurveyResult = {
   id: string;
   wantsConsulting: HanpassWantsConsulting;
   createdAt: string;
+  // 같은 전화번호로 기존 응답을 갱신한 경우 true (신규 제출이면 false/undefined).
+  updated?: boolean;
 };
 
 export async function submitHanpassSurvey(input: HanpassSurveyInput): Promise<HanpassSurveyResult> {
