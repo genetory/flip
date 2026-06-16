@@ -5,6 +5,7 @@ import {
   Briefcase,
   Building2,
   ClipboardCheck,
+  ClipboardList,
   Database,
   FileText,
   FileUser,
@@ -80,7 +81,8 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
     links: [
       { label: "사주 이벤트", href: "/dashboard/ops/operations/saju-leads", icon: Sparkles },
       { label: "비자 이벤트", href: "/dashboard/ops/operations/visa-leads", icon: Globe },
-      { label: "SGC × Aply 일경험 이벤트", href: "/dashboard/ops/operations/sgc-applications", icon: Handshake }
+      { label: "SGC × Aply 일경험 이벤트", href: "/dashboard/ops/operations/sgc-applications", icon: Handshake },
+      { label: "한패스 × Aply 설문 이벤트", href: "/dashboard/ops/operations/hanpass-survey", icon: ClipboardList }
     ]
   },
   {
