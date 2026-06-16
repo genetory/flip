@@ -589,6 +589,7 @@ async function sendHanpassSurveyDiscordNotification(input: {
   locale: string;
   source: string;
   createdAt: Date;
+  isUpdate?: boolean;
 }) {
   if (!discordHanpassSurveyWebhookUrl) return;
 
@@ -616,8 +617,10 @@ async function sendHanpassSurveyDiscordNotification(input: {
     embeds: [
       {
         color: isApplicant ? 5763719 : 3447003,
-        title: "🧭 한패스 취업 지원 설문 응답",
-        description: "한패스 연계 이벤트 페이지에서 접수된 신규 설문입니다.",
+        title: input.isUpdate ? "🔁 한패스 취업 지원 설문 응답 (수정)" : "🧭 한패스 취업 지원 설문 응답",
+        description: input.isUpdate
+          ? "기존 응답자가 같은 전화번호로 답변을 수정했습니다."
+          : "한패스 연계 이벤트 페이지에서 접수된 신규 설문입니다.",
         fields: [
           { name: "이름", value: truncateForDiscord(input.name || "-", 256), inline: true },
           { name: "전화번호", value: truncateForDiscord(input.phone || "-", 256), inline: true },
@@ -6216,24 +6219,37 @@ app.post(
       ? createHash("sha256").update(`${ipRaw}|hanpass-survey`).digest("hex").slice(0, 32)
       : null;
 
-    const created = await prisma.hanpassSurveyResponse.create({
-      data: {
-        name: payload.name,
-        phone: payload.phone,
-        email: payload.email,
-        jobIntent: payload.jobIntent,
-        availableFrom: payload.availableFrom,
-        jobFields: payload.jobFields,
-        jobFieldOther: payload.jobFieldOther?.trim() || null,
-        visaType: payload.visaType,
-        wantsConsulting: payload.wantsConsulting,
-        consultLanguages: payload.consultLanguages,
-        privacyConsent: payload.privacyConsent,
-        locale: payload.locale ?? "ko",
-        source: payload.source ?? "hanpass",
-        ipHash
-      }
+    // 소프트 중복 처리: 같은 전화번호(숫자만 정규화)면 기존 응답을 갱신.
+    // createdAt(최초 제출 시각)은 유지하여 선착순 공정성을 보존하고, 운영팀
+    // 명단에 한 사람당 1행만 남도록 한다. 하드 차단이 아니라 답변 수정 허용.
+    const normalizedPhone = payload.phone.replace(/[^0-9]/g, "") || payload.phone.trim();
+
+    const data = {
+      name: payload.name,
+      phone: normalizedPhone,
+      email: payload.email,
+      jobIntent: payload.jobIntent,
+      availableFrom: payload.availableFrom,
+      jobFields: payload.jobFields,
+      jobFieldOther: payload.jobFieldOther?.trim() || null,
+      visaType: payload.visaType,
+      wantsConsulting: payload.wantsConsulting,
+      consultLanguages: payload.consultLanguages,
+      privacyConsent: payload.privacyConsent,
+      locale: payload.locale ?? "ko",
+      source: payload.source ?? "hanpass",
+      ipHash
+    };
+
+    const existing = await prisma.hanpassSurveyResponse.findFirst({
+      where: { phone: normalizedPhone },
+      orderBy: { createdAt: "asc" }
     });
+
+    const isUpdate = Boolean(existing);
+    const created = existing
+      ? await prisma.hanpassSurveyResponse.update({ where: { id: existing.id }, data })
+      : await prisma.hanpassSurveyResponse.create({ data });
 
     await sendHanpassSurveyDiscordNotification({
       id: created.id,
@@ -6250,16 +6266,18 @@ app.post(
       privacyConsent: created.privacyConsent,
       locale: created.locale,
       source: created.source,
-      createdAt: created.createdAt
+      createdAt: created.createdAt,
+      isUpdate
     });
 
-    return res.status(201).json({
+    return res.status(isUpdate ? 200 : 201).json({
       ok: true,
-      message: "Hanpass survey response created",
+      message: isUpdate ? "Hanpass survey response updated" : "Hanpass survey response created",
       item: {
         id: created.id,
         wantsConsulting: created.wantsConsulting,
-        createdAt: created.createdAt
+        createdAt: created.createdAt,
+        updated: isUpdate
       }
     });
   }

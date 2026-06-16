@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle, Gift, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { Header } from "../site/Header";
@@ -34,6 +34,10 @@ import {
 // `?next=/events/...` 는 SignupPage 에서 계정 유형 선택을 건너뛰는 원탭 가입 플로우.
 const SIGNUP_HREF = "/signup?next=%2Fevents%2Fhanpass";
 const LOGIN_HREF = "/login?next=%2Fevents%2Fhanpass";
+
+// 같은 기기에서 이미 응답했는지 기억(소프트). 하드 차단이 아니라 안내용 —
+// '다시 응답하기'로 수정 가능하고, 서버가 전화번호 기준으로 업서트한다.
+const RESPONDED_STORAGE_KEY = "aply_hanpass_responded";
 
 // 옵션 순서(고정). 라벨은 Copy 의 *Labels 레코드에서 로케일별로 가져온다.
 const JOB_INTENT_VALUES: HanpassJobIntent[] = ["active_seeking", "open_to_offers", "not_seeking", "unsure"];
@@ -118,6 +122,10 @@ type Copy = {
   ctaSignupComplete: string;
   ctaLogin: string;
   ctaSignup: string;
+  // 같은 기기에서 이미 응답한 경우
+  alreadyTitle: string;
+  alreadyBody: string;
+  ctaRespondAgain: string;
 };
 
 const COPY: Record<PlatformLocale, Copy> = {
@@ -228,7 +236,10 @@ const COPY: Record<PlatformLocale, Copy> = {
     ctaBrowse: "채용 정보 둘러보기",
     ctaSignupComplete: "회원가입 하고 신청 완료",
     ctaLogin: "이미 계정이 있어요 (로그인)",
-    ctaSignup: "회원가입 하기"
+    ctaSignup: "회원가입 하기",
+    alreadyTitle: "이미 응답을 보내주셨어요",
+    alreadyBody: "이 기기에서 이미 한패스 취업 지원 설문에 응답하셨습니다. 답변을 수정하시려면 다시 응답할 수 있어요.",
+    ctaRespondAgain: "다시 응답하기"
   },
   en: {
     pill: "Hanpass × Aply",
@@ -348,7 +359,11 @@ const COPY: Record<PlatformLocale, Copy> = {
     ctaBrowse: "Browse job listings",
     ctaSignupComplete: "Sign up to finish applying",
     ctaLogin: "I already have an account (Log in)",
-    ctaSignup: "Sign up"
+    ctaSignup: "Sign up",
+    alreadyTitle: "You've already responded",
+    alreadyBody:
+      "You already completed the Hanpass job support survey on this device. You can respond again to update your answers.",
+    ctaRespondAgain: "Respond again"
   },
   "zh-CN": {
     pill: "Hanpass × Aply",
@@ -455,7 +470,10 @@ const COPY: Record<PlatformLocale, Copy> = {
     ctaBrowse: "浏览招聘信息",
     ctaSignupComplete: "注册并完成申请",
     ctaLogin: "我已有账号（登录）",
-    ctaSignup: "注册"
+    ctaSignup: "注册",
+    alreadyTitle: "您已提交过回复",
+    alreadyBody: "您已在此设备上完成 Hanpass 就业支援问卷。如需修改答案，可以重新作答。",
+    ctaRespondAgain: "重新作答"
   },
   vi: {
     pill: "Hanpass × Aply",
@@ -575,7 +593,11 @@ const COPY: Record<PlatformLocale, Copy> = {
     ctaBrowse: "Xem tin tuyển dụng",
     ctaSignupComplete: "Đăng ký để hoàn tất",
     ctaLogin: "Tôi đã có tài khoản (Đăng nhập)",
-    ctaSignup: "Đăng ký"
+    ctaSignup: "Đăng ký",
+    alreadyTitle: "Bạn đã phản hồi rồi",
+    alreadyBody:
+      "Bạn đã hoàn thành khảo sát hỗ trợ việc làm Hanpass trên thiết bị này. Bạn có thể trả lời lại để cập nhật câu trả lời.",
+    ctaRespondAgain: "Trả lời lại"
   },
   ja: {
     pill: "Hanpass × Aply",
@@ -685,7 +707,11 @@ const COPY: Record<PlatformLocale, Copy> = {
     ctaBrowse: "求人情報を見る",
     ctaSignupComplete: "会員登録して申し込み完了",
     ctaLogin: "アカウントをお持ちの方（ログイン）",
-    ctaSignup: "会員登録する"
+    ctaSignup: "会員登録する",
+    alreadyTitle: "すでにご回答いただいています",
+    alreadyBody:
+      "この端末で Hanpass 就職支援アンケートにすでにご回答いただいています。回答を修正する場合は、もう一度ご回答いただけます。",
+    ctaRespondAgain: "もう一度回答する"
   },
   id: {
     pill: "Hanpass × Aply",
@@ -805,7 +831,11 @@ const COPY: Record<PlatformLocale, Copy> = {
     ctaBrowse: "Lihat lowongan",
     ctaSignupComplete: "Daftar untuk menyelesaikan",
     ctaLogin: "Sudah punya akun (Masuk)",
-    ctaSignup: "Daftar"
+    ctaSignup: "Daftar",
+    alreadyTitle: "Anda sudah merespons",
+    alreadyBody:
+      "Anda sudah mengisi survei dukungan kerja Hanpass di perangkat ini. Anda bisa merespons lagi untuk memperbarui jawaban.",
+    ctaRespondAgain: "Jawab lagi"
   }
 };
 
@@ -856,6 +886,19 @@ export function HanpassEventPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<null | { wantsConsulting: HanpassWantsConsulting }>(null);
+  // 같은 기기에서 이미 응답했는지(localStorage). 마운트 후에만 읽어 SSR 불일치 방지.
+  const [alreadyResponded, setAlreadyResponded] = useState(false);
+  const [showFormAnyway, setShowFormAnyway] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined" && window.localStorage.getItem(RESPONDED_STORAGE_KEY)) {
+        setAlreadyResponded(true);
+      }
+    } catch {
+      // localStorage 접근 불가(시크릿 모드 등) — 무시하고 폼 노출.
+    }
+  }, []);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -913,6 +956,13 @@ export function HanpassEventPage() {
         source: "hanpass"
       });
       setSubmitted({ wantsConsulting: result.wantsConsulting });
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(RESPONDED_STORAGE_KEY, String(Date.now()));
+        }
+      } catch {
+        // 저장 실패는 무시 (완료 화면은 정상 노출됨)
+      }
       if (typeof window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
@@ -961,6 +1011,8 @@ export function HanpassEventPage() {
 
       {submitted ? (
         <CompletionView t={t} wantsConsulting={submitted.wantsConsulting} isAuthenticated={isAuthenticated} />
+      ) : alreadyResponded && !showFormAnyway ? (
+        <AlreadyRespondedView t={t} onRespondAgain={() => setShowFormAnyway(true)} />
       ) : (
         <main className="mx-auto w-full max-w-[760px] px-5 py-12 sm:py-16">
           {/* 응답 후 받을 수 있는 안내 */}
@@ -1074,6 +1126,33 @@ export function HanpassEventPage() {
 
       <Footer />
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 이미 응답함 화면 (같은 기기 재접속) — 하드 차단이 아니라 '다시 응답하기' 허용
+// ---------------------------------------------------------------------------
+function AlreadyRespondedView({ t, onRespondAgain }: { t: Copy; onRespondAgain: () => void }) {
+  return (
+    <main className="mx-auto w-full max-w-[640px] px-5 py-16 sm:py-24">
+      <Reveal>
+        <div className="flex flex-col items-center text-center">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#0B46E8]/10 text-[#0B46E8]">
+            <CheckCircle size={40} weight="fill" />
+          </span>
+          <h2 className={`${paperlogy.className} mt-6 text-2xl font-bold sm:text-3xl`}>{t.alreadyTitle}</h2>
+          <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">{t.alreadyBody}</p>
+          <div className="mt-7 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <Button variant="hero" size="lg" onClick={onRespondAgain}>
+              {t.ctaRespondAgain}
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link href="/positions">{t.ctaBrowse}</Link>
+            </Button>
+          </div>
+        </div>
+      </Reveal>
+    </main>
   );
 }
 
