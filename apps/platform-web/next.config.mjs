@@ -9,6 +9,10 @@ const __dirname = path.dirname(__filename);
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
+  // Emit hidden source maps for the production browser bundle so client error
+  // reports (see ErrorReporter) can be mapped back to real function names.
+  // Maps are uploaded as separate .map files; they don't change the shipped JS.
+  productionBrowserSourceMaps: true,
   images: {
     qualities: [70, 75, 80],
     // Allow query strings on local /public images so we can use `?v=N`
