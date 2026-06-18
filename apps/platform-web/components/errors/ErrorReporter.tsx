@@ -20,6 +20,10 @@ export function ErrorReporter() {
       try {
         const body = JSON.stringify({
           ...payload,
+          // The API rejects the whole report when stack > 4000 chars, which
+          // silently drops deep stacks (e.g. "Maximum call stack size exceeded").
+          // The recursive frames sit at the TOP, so keep the leading slice.
+          stack: payload.stack ? payload.stack.slice(0, 4000) : undefined,
           url: payload.url ?? (typeof window !== "undefined" ? window.location.href : undefined),
           userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined
         });
