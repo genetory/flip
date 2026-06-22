@@ -1353,7 +1353,7 @@ export type ResumeActivityEntry = {
   endDate?: string;
 };
 export type ResumeLanguageEntry = { language?: string; level?: string };
-export type ResumeCertificationEntry = { name?: string; issuer?: string };
+export type ResumeCertificationEntry = { name?: string; issuer?: string; date?: string };
 export type ResumeLinkEntry = { label?: string; url?: string };
 
 export type ResumeContent = {
@@ -1365,6 +1365,8 @@ export type ResumeContent = {
   basicPhone?: string | null;
   basicResidence?: string | null;
   basicVisa?: CandidateVisaType | null;
+  // 국적 — 외국인 인재 매칭의 핵심 식별 정보(APLY Profile 카드에 노출).
+  nationality?: string | null;
   // Optional profile photo. The editor can upload a file → we POST a
   // base64 data URL; the server replaces it with a CDN URL on save and
   // returns it back. Always optional — Korean resumes work fine without.
@@ -1388,6 +1390,9 @@ export type ResumeContent = {
   // 자기소개 / 요약
   summary?: string | null;
   selfIntroduction?: string | null;
+  // 기업 추천 인재풀 등록 동의 — 학생이 결과 화면에서 동의하면 기록된다.
+  // (운영자/풀 연동은 백엔드에서 이 플래그를 읽어 처리)
+  poolOptIn?: { consentedAt: string } | null;
   // Legacy fields (read-only back-compat for resumes made before the
   // structured expansion).
   visaType?: CandidateVisaType | null;

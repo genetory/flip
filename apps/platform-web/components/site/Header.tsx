@@ -4,8 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
-import { CaretDown } from "@phosphor-icons/react/dist/ssr";
-import { useEffect, useState } from "react";
+import { CaretDown, ArrowsLeftRight } from "@phosphor-icons/react/dist/ssr";
+import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { Button } from "../ui/button";
 import { useAuthSession } from "../auth/AuthSessionProvider";
@@ -21,7 +21,35 @@ const HEADER_SQUIRCLE_STYLE = {
   WebkitClipPath: `url(#${HEADER_SQUIRCLE_CLIP_ID})`
 } as const;
 
-export const Header = () => {
+// 비즈니스 GNB — /business 랜딩의 섹션 앵커. 순서는 페이지 섹션 등장 순서와
+// 동일하게 유지(도입 사례 → 서비스 → 검증 → 인재풀 → 요금).
+const BUSINESS_NAV: { key: keyof typeof BUSINESS_NAV_LABELS; href: string }[] = [
+  { key: "cases", href: "/business#trust" },
+  { key: "service", href: "/business#problem" },
+  { key: "verify", href: "/business#verify" },
+  { key: "talent", href: "/business#talent" },
+  { key: "pricing", href: "/business#pricing" }
+];
+const BUSINESS_NAV_LABELS: Record<string, Record<PlatformLocale, string>> = {
+  cases: { ko: "도입 사례", en: "Customers", "zh-CN": "合作案例", vi: "Khách hàng", ja: "導入事例", id: "Studi Kasus" },
+  service: { ko: "서비스", en: "Service", "zh-CN": "服务", vi: "Dịch vụ", ja: "サービス", id: "Layanan" },
+  verify: { ko: "검증", en: "Verification", "zh-CN": "验证", vi: "Xác minh", ja: "検証", id: "Verifikasi" },
+  talent: { ko: "인재풀", en: "Talent", "zh-CN": "人才库", vi: "Nhân tài", ja: "人材プール", id: "Talenta" },
+  pricing: { ko: "요금", en: "Pricing", "zh-CN": "价格", vi: "Phí", ja: "料金", id: "Biaya" }
+};
+// 서비스(aply.global) ↔ 비즈니스(/business) 컨텍스트 전환 링크 라벨.
+const CONTEXT_SWITCH_LABELS: Record<"toBusiness" | "toPersonal", Record<PlatformLocale, string>> = {
+  toBusiness: { ko: "파트너스", en: "Partners", "zh-CN": "合作伙伴", vi: "Đối tác", ja: "パートナー", id: "Mitra" },
+  toPersonal: { ko: "서비스", en: "Service", "zh-CN": "服务", vi: "Dịch vụ", ja: "サービス", id: "Layanan" }
+};
+
+type HeaderProps = {
+  // "business" → /business 랜딩 전용 변형: GNB 를 비즈니스 섹션 앵커로 교체하고
+  // 로고 우측에 작은 "business" 라벨을 노출. 그 외 스타일/우측 컨트롤은 기본과 동일.
+  variant?: "default" | "business";
+};
+
+export const Header = ({ variant = "default" }: HeaderProps = {}) => {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -53,13 +81,10 @@ export const Header = () => {
   const roleBadgeLabel =
     user?.role === "PARTNER" ? copy.auth.rolePartner : user?.role === "OPERATOR" ? copy.auth.roleOperator : null;
   const loginButtonLabel = locale === "ko" ? "로그인하기" : locale === "zh-CN" ? "去登录" : locale === "vi" ? "Đăng nhập" : locale === "ja" ? "ログイン" : locale === "id" ? "Masuk" : "Sign in";
-  const homeLabel = locale === "ko" ? "홈" : locale === "zh-CN" ? "首页" : locale === "vi" ? "Trang chủ" : locale === "ja" ? "ホーム" : locale === "id" ? "Beranda" : "Home";
-  const eventLabel = locale === "ko" ? "이벤트" : locale === "zh-CN" ? "活动" : locale === "vi" ? "Sự kiện" : locale === "ja" ? "イベント" : locale === "id" ? "Acara" : "Events";
   const partnerDashLabel = locale === "ko" ? "관리 콘솔" : locale === "zh-CN" ? "管理控制台" : locale === "vi" ? "Bảng quản trị" : locale === "ja" ? "管理コンソール" : locale === "id" ? "Konsol Manajemen" : "Admin console";
   const opsDashLabel = locale === "ko" ? "운영 콘솔" : locale === "zh-CN" ? "运营控制台" : locale === "vi" ? "Bảng điều khiển vận hành" : locale === "ja" ? "運営コンソール" : locale === "id" ? "Konsol Operasional" : "Ops console";
-  // 이력서 코칭 — STUDENT 와 비로그인 사용자에게만 노출. 매칭 확률 메뉴를
-  // 흡수했기 때문에 같은 자리(/matching-probability 가 있던 자리) 에 둠.
-  // 비로그인 사용자가 클릭하면 /resume 진입 시 자동으로 로그인 게이트가 작동.
+  const eventLabel = locale === "ko" ? "이벤트" : locale === "zh-CN" ? "活动" : locale === "vi" ? "Sự kiện" : locale === "ja" ? "イベント" : locale === "id" ? "Acara" : "Events";
+  // 이력서 코칭 — STUDENT / 비로그인 사용자에게만 노출(/resume 진입 시 로그인 게이트 작동).
   const resumeCoachLabel = locale === "ko"
     ? "이력서 코칭"
     : locale === "zh-CN" ? "简历辅导"
@@ -67,21 +92,50 @@ export const Header = () => {
     : locale === "ja" ? "履歴書コーチング"
     : locale === "id" ? "Bimbingan Resume"
     : "Resume Coaching";
-  const navItems: { label: string; href: string; external?: boolean; promoted?: boolean }[] = [
-    // 이벤트 — saju/visa 리스팅 허브. 다른 메뉴(홈/포지션 탐색)와 동일하게
-    // 같은 창 내부 네비게이션 + 평범한 텍스트 스타일.
-    { label: eventLabel, href: "/events" },
-    { label: homeLabel, href: "/" },
-    { label: copy.nav.positions, href: "/positions" },
+  // 데스크탑 GNB: 이벤트 · 포지션 탐색 · 이력서 코칭 · 커뮤니티 를 "더보기" 왼쪽에 노출(primary).
+  // 맞춤 지원(/pricing) · 자료실(/resources) 은 "더보기" 드롭다운으로. 모바일은 전부 펼침.
+  const defaultNavItems: { label: string; href: string; external?: boolean; promoted?: boolean; primary?: boolean }[] = [
+    { label: eventLabel, href: "/events", primary: true },
+    { label: copy.nav.positions, href: "/positions", primary: true },
     ...(user?.role === "STUDENT" || !isAuthenticated
-      ? [{ label: resumeCoachLabel, href: "/resume" }]
+      ? [{ label: resumeCoachLabel, href: "/resume", primary: true }]
       : []),
-    { label: copy.nav.community, href: "/community" },
-    { label: copy.nav.pricing, href: "/pricing" },
-    { label: copy.nav.resources, href: "/resources" },
-    ...(user?.role === "PARTNER" ? [{ label: partnerDashLabel, href: "/dashboard/partner" }] : []),
-    ...(user?.role === "OPERATOR" ? [{ label: opsDashLabel, href: "/dashboard/ops" }] : [])
+    // secondary — 더보기 드롭다운으로.
+    { label: copy.nav.community, href: "/community" },  // 커뮤니티
+    { label: copy.nav.pricing, href: "/pricing" },     // 맞춤 지원
+    { label: copy.nav.resources, href: "/resources" }, // 자료실
+    ...(user?.role === "PARTNER" ? [{ label: partnerDashLabel, href: "/dashboard/partner", primary: true }] : []),
+    ...(user?.role === "OPERATOR" ? [{ label: opsDashLabel, href: "/dashboard/ops", primary: true }] : [])
   ];
+  // 비즈니스 변형 GNB — 페이지 섹션 순서대로, 로케일별 라벨 적용.
+  const businessNavItems: typeof defaultNavItems = BUSINESS_NAV.map((n) => ({
+    label: BUSINESS_NAV_LABELS[n.key][locale],
+    href: n.href
+  }));
+  const navItems = variant === "business" ? businessNavItems : defaultNavItems;
+  // 서비스 ↔ 비즈니스 컨텍스트 전환 — 비즈니스 페이지에선 서비스(/)로, 그 외엔 비즈니스(/business)로.
+  const contextSwitch =
+    variant === "business"
+      ? { label: CONTEXT_SWITCH_LABELS.toPersonal[locale], href: "/" }
+      : { label: CONTEXT_SWITCH_LABELS.toBusiness[locale], href: "/business" };
+
+  // 데스크탑 GNB 과밀 해소 — 기본 변형만 primary/secondary 로 분할하고 secondary 는
+  // "더보기" 드롭다운으로. business 변형(5개)은 분할 없이 전부 노출. 모바일은 전부 펼침.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) setMoreOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [moreOpen]);
+  const moreLabel =
+    locale === "ko" ? "더보기" : locale === "zh-CN" ? "更多" : locale === "vi" ? "Thêm" : locale === "ja" ? "その他" : locale === "id" ? "Lainnya" : "More";
+  const useMoreMenu = variant !== "business";
+  const primaryItems = useMoreMenu ? navItems.filter((i) => i.primary) : navItems;
+  const moreItems = useMoreMenu ? navItems.filter((i) => !i.primary) : [];
 
   useEffect(() => {
     const syncHash = () => {
@@ -93,6 +147,24 @@ export const Header = () => {
       window.removeEventListener("hashchange", syncHash);
     };
   }, [pathname]);
+
+  // 같은 페이지 내 해시 링크(#section)는 기본 점프 대신 부드럽게 스크롤.
+  // 다른 페이지로의 해시 이동은 기본 Link 동작에 맡긴다(해당 페이지 로드 후 점프).
+  function handleNavClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
+    const [base, hash] = href.split("#");
+    if (!hash) {
+      setOpen(false);
+      return;
+    }
+    if ((base || "/") !== pathname) return;
+    const el = document.getElementById(hash);
+    if (!el) return;
+    e.preventDefault();
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.history.pushState(null, "", `#${hash}`);
+    setActiveHash(`#${hash}`);
+    setOpen(false);
+  }
 
   function isNavActive(href: string) {
     const [basePath, hash] = href.split("#");
@@ -178,7 +250,7 @@ export const Header = () => {
       </svg>
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background">
         <div className="container flex h-[52px] items-center justify-between">
-        <Link href="/" className="flex items-center">
+        <Link href={variant === "business" ? "/business" : "/"} className="flex items-center gap-1.5">
           <Image
             src="/img_logo.webp"
             alt={`${copy.brand} logo`}
@@ -187,9 +259,14 @@ export const Header = () => {
             className="h-6 w-auto md:h-7"
             priority
           />
+          {variant === "business" ? (
+            <span className="text-[12px] font-semibold lowercase tracking-tight text-muted-foreground md:text-[13px]">
+              for partners
+            </span>
+          ) : null}
         </Link>
         <nav className="hidden items-center gap-4 lg:flex xl:gap-8">
-          {navItems.map((item) => {
+          {primaryItems.map((item) => {
             // promoted 항목은 라임 배지. 배지 자체가 glow-pulse 로 잔잔하게
             // 반짝거려 평범한 텍스트 nav 들 사이에서 자연스럽게 시선이 감.
             const cls = item.promoted
@@ -206,13 +283,54 @@ export const Header = () => {
               );
             }
             return (
-              <Link key={item.label} href={item.href} className={cls}>
+              <Link key={item.label} href={item.href} className={cls} onClick={(e) => handleNavClick(e, item.href)}>
                 {item.label}
               </Link>
             );
           })}
+          {moreItems.length > 0 ? (
+            <div className="relative flex items-center" ref={moreMenuRef}>
+              <button
+                type="button"
+                onClick={() => setMoreOpen((v) => !v)}
+                aria-expanded={moreOpen}
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {moreLabel}
+                <CaretDown className={`h-3 w-3 transition-transform ${moreOpen ? "rotate-180" : ""}`} aria-hidden />
+              </button>
+              {moreOpen ? (
+                <div className="absolute right-0 top-full z-50 mt-3 min-w-[168px] rounded-2xl border border-border bg-background p-1.5 shadow-elevated">
+                  {moreItems.map((item) => {
+                    const itemCls = `block rounded-xl px-3 py-2 text-xs transition-colors ${
+                      isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`;
+                    if (item.external) {
+                      return (
+                        <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer" className={itemCls} onClick={() => setMoreOpen(false)}>
+                          {item.label}
+                        </a>
+                      );
+                    }
+                    return (
+                      <Link key={item.label} href={item.href} className={itemCls} onClick={() => setMoreOpen(false)}>
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </nav>
         <div className="hidden items-center lg:flex">
+          <Link
+            href={contextSwitch.href}
+            className="mr-3 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
+          >
+            <ArrowsLeftRight className="h-3.5 w-3.5" weight="bold" aria-hidden />
+            {contextSwitch.label}
+          </Link>
           {!isReady ? (
             <div className="h-8 w-24" aria-hidden />
           ) : isAuthenticated ? (
@@ -310,11 +428,19 @@ export const Header = () => {
                 );
               }
               return (
-                <Link key={item.label} href={item.href} className={mobileCls}>
+                <Link key={item.label} href={item.href} className={mobileCls} onClick={(e) => handleNavClick(e, item.href)}>
                   {item.label}
                 </Link>
               );
             })}
+            <Link
+              href={contextSwitch.href}
+              onClick={() => setOpen(false)}
+              className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm font-medium text-muted-foreground"
+            >
+              <ArrowsLeftRight className="h-4 w-4" weight="bold" aria-hidden />
+              {contextSwitch.label}
+            </Link>
             {!isReady ? (
               <div className="mt-2 h-9" aria-hidden />
             ) : isAuthenticated ? (

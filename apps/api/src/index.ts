@@ -2435,11 +2435,15 @@ const createCandidateEducationSchema = z.object({
 // evolve on the client without a schema migration.
 const createResumeSchema = z.object({
   title: z.string().trim().min(1).max(120),
-  content: z.record(z.string(), z.unknown()).optional()
+  content: z.record(z.string(), z.unknown()).optional(),
+  // 빌더(resume-maker) 초안 저장용. 점진적으로 채워가는 중이라 완성도(필수필드)
+  // 검증을 건너뛴다. 기존 UI 는 이 플래그를 보내지 않으므로 동작 불변.
+  allowIncomplete: z.boolean().optional()
 });
 const updateResumeSchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
-  content: z.record(z.string(), z.unknown()).optional()
+  content: z.record(z.string(), z.unknown()).optional(),
+  allowIncomplete: z.boolean().optional()
 });
 
 const createCandidateLanguageSkillSchema = z.object({
@@ -5519,6 +5523,57 @@ const opsSajuLeadsQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   take: z.coerce.number().int().min(1).max(200).optional(),
   skip: z.coerce.number().int().min(0).optional()
+});
+
+// GET /ops/resume-pool — 이력서 빌더에서 "기업 추천 후보 등록"(content.poolOptIn)에
+// 동의한 학생 이력서 목록. 사주 캠페인(SajuLead)과 별개로, 이력서 퍼널로 유입된
+// 후보를 운영자가 검토할 수 있게 한다. content 를 그대로 내려 프론트에서 APLY
+// Profile 카드로 렌더한다.
+const opsResumePoolQuerySchema = z.object({
+  q: z.string().trim().max(80).optional(),
+  nationality: z.string().trim().max(60).optional()
+});
+app.get("/ops/resume-pool", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsResumePoolQuerySchema.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  try {
+    const rows = await prisma.resume.findMany({
+      where: { content: { path: ["poolOptIn", "consentedAt"], not: Prisma.JsonNull } },
+      orderBy: { updatedAt: "desc" },
+      take: 200,
+      select: { id: true, title: true, updatedAt: true, content: true, user: { select: { name: true, email: true } } }
+    });
+    const q = parsed.data.q?.toLowerCase();
+    const nat = parsed.data.nationality?.toLowerCase();
+    const items = rows
+      .map((r) => {
+        const content = (r.content ?? {}) as Record<string, unknown>;
+        const poolOptIn = content.poolOptIn as { consentedAt?: string } | undefined;
+        return {
+          resumeId: r.id,
+          title: r.title,
+          updatedAt: r.updatedAt.toISOString(),
+          consentedAt: poolOptIn?.consentedAt ?? null,
+          userName: r.user?.name ?? null,
+          userEmail: r.user?.email ?? null,
+          content
+        };
+      })
+      .filter((it) => {
+        if (nat && !String(it.content.nationality ?? "").toLowerCase().includes(nat)) return false;
+        if (q) {
+          const hay = [it.title, it.userName, it.userEmail, it.content.basicName, it.content.desiredJobRole]
+            .map((x) => String(x ?? "").toLowerCase())
+            .join(" ");
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error("[ops/resume-pool] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to list resume pool" });
+  }
 });
 
 app.get("/ops/saju/leads", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
@@ -12413,7 +12468,8 @@ app.post("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT])
     return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
   }
   // 필수 필드 누락이면 400 + 누락 필드 리스트. 프론트가 사용자 언어로 안내.
-  const missingFields = findMissingResumeFields(parsed.data.content);
+  // 빌더 초안(allowIncomplete)은 점진 저장이라 완성도 검증을 건너뛴다.
+  const missingFields = parsed.data.allowIncomplete ? [] : findMissingResumeFields(parsed.data.content);
   if (missingFields.length > 0) {
     return res
       .status(400)
@@ -12455,6 +12511,18 @@ app.get("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRole.
   }
 });
 
+// 이력서 content 의 기업추천 인재풀 등록 동의(poolOptIn)를 인재풀(SajuLead)에 반영한다.
+// 해당 유저의 기존 lead 가 있으면 추천/연락 동의를 켜고, PROFILE 단계면 VERIFIED 로
+// 올린다. lead 가 없으면 아무 일도 하지 않는다(사주 캠페인 데이터를 신규로 만들지 않음).
+// 참고: 인재풀 행이 없는(=캠페인 미경유) 이력서 학생은 별도의 resume 인재풀 뷰가
+// 생기기 전까지 운영자 candidates 화면에 자동 노출되지 않는다.
+async function syncResumePoolOptin(userId: string, content: unknown): Promise<void> {
+  const optedIn = Boolean(content && typeof content === "object" && (content as { poolOptIn?: unknown }).poolOptIn);
+  if (!optedIn) return;
+  await prisma.sajuLead.updateMany({ where: { userId }, data: { consentRecommend: true, consentContact: true } });
+  await prisma.sajuLead.updateMany({ where: { userId, poolStage: "PROFILE" }, data: { poolStage: "VERIFIED" } });
+}
+
 app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const userId = req.auth!.userId;
   const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
@@ -12478,7 +12546,7 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
     // (예: 제목만 바꾸기)는 기존 content 를 검증해서, 옛 빈 row 가 제목만 갈
     // 아치워지지 않도록 한다.
     const contentToCheck = resolvedContent ?? existing.content;
-    const missingFields = findMissingResumeFields(contentToCheck);
+    const missingFields = parsed.data.allowIncomplete ? [] : findMissingResumeFields(contentToCheck);
     if (missingFields.length > 0) {
       return res
         .status(400)
@@ -12500,6 +12568,10 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
           : {})
       }
     });
+    // 기업추천 인재풀 등록 동의가 있으면 인재풀에 반영(실패해도 저장 결과는 그대로 반환).
+    if (resolvedContent !== undefined) {
+      await syncResumePoolOptin(userId, resolvedContent).catch((err) => console.error("[resume poolOptin sync] failed", err));
+    }
     return res.json({ ok: true, item });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to update resume" });
@@ -12863,6 +12935,809 @@ app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberR
     return res.status(500).json({ ok: false, message: "failed to draft" });
   }
 });
+
+// ---------------------------------------------------------------------------
+// resume-maker (AI 이력서 만들기) — 경험 인터뷰 질문 생성 + 구조화 문장 생성.
+// 기존 draft-resume-text 패턴 재사용(openai chat.completions, json_object,
+// gpt-4o-mini). AI 생성 규칙(없는 사실/숫자 금지, 과장 금지, 행동-역할-문제-결과)
+// 을 system prompt 에 강제. 톤 변경(더 담백/전문 등)은 별도 엔드포인트 없이
+// /ai/draft-resume-text(mode=improve, hints=톤)를 재사용한다.
+// ---------------------------------------------------------------------------
+const EXPERIENCE_QUESTION_TYPES = [
+  "short_text",
+  "long_text",
+  "number",
+  "single_select",
+  "multi_select",
+  "select_with_custom"
+] as const;
+type ExperienceQuestionType = (typeof EXPERIENCE_QUESTION_TYPES)[number];
+function normExperienceQuestionType(v: unknown): ExperienceQuestionType {
+  return (EXPERIENCE_QUESTION_TYPES as readonly string[]).includes(v as string)
+    ? (v as ExperienceQuestionType)
+    : "short_text";
+}
+function parseAiQuestions(raw: unknown): {
+  id: string;
+  prompt: string;
+  type: ExperienceQuestionType;
+  options?: string[];
+  helper?: string;
+  optional: boolean;
+}[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  return arr
+    .slice(0, 8)
+    .map((q, i) => {
+      const obj = (q ?? {}) as Record<string, unknown>;
+      const prompt = typeof obj.prompt === "string" ? obj.prompt.trim() : "";
+      if (!prompt) return null;
+      const options = Array.isArray(obj.options)
+        ? obj.options.filter((o): o is string => typeof o === "string").map((o) => o.trim()).filter(Boolean).slice(0, 8)
+        : undefined;
+      const helper = typeof obj.helper === "string" ? obj.helper.trim() : undefined;
+      return {
+        id: `q${i + 1}`,
+        prompt,
+        type: normExperienceQuestionType(obj.type),
+        options: options && options.length ? options : undefined,
+        helper: helper || undefined,
+        optional: obj.optional === true
+      };
+    })
+    .filter((q): q is NonNullable<typeof q> => q !== null);
+}
+
+const experienceCtxSchema = z.object({
+  type: z.string().trim().max(40).optional(),
+  title: z.string().trim().min(1).max(160),
+  org: z.string().trim().max(160).optional(),
+  period: z.string().trim().max(80).optional(),
+  rawInput: z.string().trim().max(2000).optional()
+});
+const experienceQaSchema = z.array(
+  z.object({ question: z.string().trim().max(400), answer: z.string().trim().max(2000) })
+).max(40);
+
+const experienceInterviewSchema = z.object({
+  experience: experienceCtxSchema,
+  jobCategories: z.array(z.string().trim().max(60)).max(5).optional(),
+  priorQa: experienceQaSchema.optional()
+});
+const experienceBulletsSchema = z.object({
+  experience: experienceCtxSchema,
+  jobCategories: z.array(z.string().trim().max(60)).max(5).optional(),
+  qa: experienceQaSchema
+});
+
+function buildExperienceContextText(input: {
+  experience: z.infer<typeof experienceCtxSchema>;
+  jobCategories?: string[];
+}): string {
+  const e = input.experience;
+  const lines = [
+    `경험명: ${e.title}`,
+    e.type ? `유형: ${e.type}` : null,
+    e.org ? `조직/프로젝트: ${e.org}` : null,
+    e.period ? `기간: ${e.period}` : null,
+    input.jobCategories && input.jobCategories.length ? `희망 직무: ${input.jobCategories.join(", ")}` : null,
+    `사용자가 적은 경험 설명:\n${e.rawInput || "(아직 없음)"}`
+  ].filter(Boolean);
+  return lines.join("\n");
+}
+
+// POST /members/me/ai/experience-interview — 경험을 이력서 문장으로 만들기 위한
+// 추가 질문(4-6개)을 생성. 사용자가 정확히 모르면 건너뛸 수 있도록 optional 표시.
+app.post(
+  "/members/me/ai/experience-interview",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ai-exp-interview", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = experienceInterviewSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const systemPrompt =
+        "당신은 외국인 지원자의 이력서를 돕는 친절한 커리어 코치입니다. 사용자의 경험을 이력서 문장으로 정리하기 위해, 빠진 정보를 찾는 추가 질문을 만듭니다.\n\n" +
+        "규칙:\n" +
+        "1. 평가하지 말고 옆에서 돕는 코치 말투(정중한 한국어)로 질문하세요.\n" +
+        "2. 행동·역할·문제·결과·수치·협업·사용 도구를 구체적으로 끌어내는 질문을 만드세요.\n" +
+        "3. 사용자가 제공하지 않은 사실을 단정하거나 유도하지 마세요. 열린 질문으로 물어보세요.\n" +
+        "4. 질문은 4~6개. 각 질문은 한 번에 하나의 정보만 묻습니다.\n" +
+        "5. 정확한 숫자를 모를 수 있는 질문은 optional: true 로 표시하세요.\n" +
+        "6. 선택지가 자연스러운 질문은 options 를 제시하세요(단일/다중 선택).\n\n" +
+        "JSON 한 개 객체로만 응답: { \"coachNote\": string, \"questions\": [{ \"prompt\": string, \"type\": \"short_text\"|\"long_text\"|\"number\"|\"single_select\"|\"multi_select\"|\"select_with_custom\", \"options\"?: string[], \"helper\"?: string, \"optional\": boolean }] }. coachNote 는 시작 안내 한 문장.";
+      const userPrompt = buildExperienceContextText(parsed.data) +
+        (parsed.data.priorQa && parsed.data.priorQa.length
+          ? `\n\n이미 받은 답변:\n${parsed.data.priorQa.map((qa) => `- Q: ${qa.question}\n  A: ${qa.answer}`).join("\n")}`
+          : "");
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.5,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { coachNote?: unknown; questions?: unknown } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+      const questions = parseAiQuestions(parsedJson.questions);
+      if (questions.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+      const coachNote = typeof parsedJson.coachNote === "string" ? parsedJson.coachNote.trim() : "";
+      return res.json({ ok: true, interview: { coachNote, questions } });
+    } catch (err) {
+      console.error("[ai/experience-interview] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to build interview" });
+    }
+  }
+);
+
+// POST /members/me/ai/experience-bullets — 인터뷰 답변을 기반으로 이력서 문장
+// (구조화 JSON)을 생성. 사용자가 승인하기 전 단계라 자동 확정하지 않는다.
+app.post(
+  "/members/me/ai/experience-bullets",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ai-exp-bullets", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = experienceBulletsSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const systemPrompt =
+        "당신은 한국 기업 채용을 돕는 이력서 코치입니다. 사용자의 경험과 인터뷰 답변을 이력서에 바로 쓸 수 있는 문장으로 정리합니다.\n\n" +
+        "엄격한 규칙:\n" +
+        "1. 사용자가 제공하지 않은 경력·수치·사실을 절대 만들지 마세요.\n" +
+        "2. 정확하지 않은 숫자를 임의로 추정하지 마세요. 답변에 있는 숫자만 사용합니다.\n" +
+        "3. 내용이 부족하면 문장을 과장하지 말고 followUpQuestions 로 추가 질문을 제시하세요.\n" +
+        "4. '혁신적', '탁월한', '압도적인'처럼 증명하기 어려운 표현을 쓰지 마세요.\n" +
+        "5. 각 문장은 행동→역할→문제→결과 순서로 구체적으로 표현하세요.\n" +
+        "6. 사용자의 원래 답변 의미를 보존하세요. 정중하고 자연스러운 한국어.\n" +
+        "7. 근거가 분명한 문장은 evidenceLevel 'confirmed', 추론이 섞이면 'inferred' 로 표시하고 needsReview true.\n" +
+        "8. 합격 가능성을 단정하지 마세요.\n\n" +
+        "JSON 한 개 객체로만 응답: { \"summary\": string, \"resumeBullets\": [{ \"text\": string, \"evidenceLevel\": \"confirmed\"|\"inferred\", \"needsReview\": boolean }], \"skills\": string[], \"followUpQuestions\": [{ \"prompt\": string, \"type\": \"short_text\"|\"long_text\"|\"number\"|\"single_select\"|\"multi_select\"|\"select_with_custom\", \"options\"?: string[], \"helper\"?: string, \"optional\": boolean }], \"warnings\": string[] }. resumeBullets 는 2~5개. 정보가 부족하면 bullets 를 적게 만들고 followUpQuestions 를 채우세요.";
+      const userPrompt =
+        buildExperienceContextText(parsed.data) +
+        `\n\n인터뷰 답변:\n${parsed.data.qa.map((qa) => `- Q: ${qa.question}\n  A: ${qa.answer}`).join("\n")}`;
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.4,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: {
+        summary?: unknown;
+        resumeBullets?: unknown;
+        skills?: unknown;
+        followUpQuestions?: unknown;
+        warnings?: unknown;
+      } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+      const summary = typeof parsedJson.summary === "string" ? parsedJson.summary.trim() : "";
+      const resumeBullets = (Array.isArray(parsedJson.resumeBullets) ? parsedJson.resumeBullets : [])
+        .slice(0, 8)
+        .map((b) => {
+          const obj = (b ?? {}) as Record<string, unknown>;
+          const text = typeof obj.text === "string" ? obj.text.trim() : "";
+          if (!text) return null;
+          const evidenceLevel = obj.evidenceLevel === "confirmed" ? "confirmed" : "inferred";
+          return { text, evidenceLevel, needsReview: obj.needsReview === true || evidenceLevel === "inferred" };
+        })
+        .filter((b): b is { text: string; evidenceLevel: "confirmed" | "inferred"; needsReview: boolean } => b !== null);
+      const skills = (Array.isArray(parsedJson.skills) ? parsedJson.skills : [])
+        .filter((s): s is string => typeof s === "string")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 12);
+      const followUpQuestions = parseAiQuestions(parsedJson.followUpQuestions);
+      const warnings = (Array.isArray(parsedJson.warnings) ? parsedJson.warnings : [])
+        .filter((w): w is string => typeof w === "string")
+        .map((w) => w.trim())
+        .filter(Boolean)
+        .slice(0, 6);
+      if (resumeBullets.length === 0 && followUpQuestions.length === 0) {
+        return res.status(502).json({ ok: false, message: "ai response empty" });
+      }
+      return res.json({ ok: true, generation: { summary, resumeBullets, skills, followUpQuestions, warnings } });
+    } catch (err) {
+      console.error("[ai/experience-bullets] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to generate bullets" });
+    }
+  }
+);
+
+// POST /members/me/ai/polish-intro — 사용자가 쓴 자기소개를 더 자연스럽고 설득력
+// 있게 다듬어 준다(없는 사실 금지, 분량 유지). style 별로 여러 형식을 시도 가능.
+const POLISH_STYLE_GUIDE: Record<string, string> = {
+  natural: "전체적으로 매끄럽고 자연스럽게 다듬되 원문의 톤을 유지하세요.",
+  concise: "군더더기를 최대한 덜어내고 핵심만 남겨 간결하게 줄이세요(원문보다 짧게).",
+  professional: "격식 있고 차분한 전문가 톤으로 신뢰감 있게 다듬으세요.",
+  impact: "지원자의 강점과 동기가 잘 드러나도록 자신감 있는 톤으로 다듬으세요(없는 사실 추가 금지)."
+};
+const polishIntroSchema = z.object({
+  text: z.string().trim().min(1).max(4000),
+  style: z.enum(["natural", "concise", "professional", "impact"]).optional(),
+  desiredJobRole: z.string().trim().max(120).optional(),
+  jobCategories: z.array(z.string().trim().max(40)).max(5).optional()
+});
+app.post(
+  "/members/me/ai/polish-intro",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ai-polish-intro", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = polishIntroSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { text, desiredJobRole, jobCategories, style } = parsed.data;
+      const styleGuide = POLISH_STYLE_GUIDE[style ?? "natural"] ?? POLISH_STYLE_GUIDE.natural;
+      const systemPrompt =
+        "당신은 한국 채용 이력서의 자기소개를 다듬는 첨삭 코치입니다.\n" +
+        "사용자가 쓴 자기소개를 더 설득력 있게 다듬어 주세요.\n" +
+        `이번 다듬기 방향: ${styleGuide}\n` +
+        "규칙:\n" +
+        "1. 사용자가 적지 않은 경력·수치·회사명·성과를 지어내지 마세요. 있는 내용만 다듬습니다.\n" +
+        "2. 군더더기·중복을 없애고 문장을 매끄럽게, 맞춤법·띄어쓰기를 교정하세요.\n" +
+        "3. 1인칭 진술체를 유지하고, 한국어로만 작성하세요.\n\n" +
+        'JSON 한 개 객체로만 응답: { "polished": string }';
+      const ctx = [desiredJobRole ? `희망 직무: ${desiredJobRole}` : "", jobCategories?.length ? `관심 직군: ${jobCategories.join(", ")}` : ""]
+        .filter(Boolean)
+        .join("\n");
+      const userPrompt = `${ctx ? `${ctx}\n\n` : ""}자기소개 원문:\n${text}`;
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.5,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { polished?: unknown } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+      const polished = typeof parsedJson.polished === "string" ? parsedJson.polished.trim().slice(0, 4000) : "";
+      if (!polished) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, polished });
+    } catch (err) {
+      console.error("[ai/polish-intro] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to polish intro" });
+    }
+  }
+);
+
+// POST /members/me/ai/summarize-intro — 자기소개 내용을 바탕으로 이력서 상단에
+// 들어갈 '한 줄 요약'을 뽑아준다. 사용자는 받아서 넣을지 말지 선택.
+const summarizeIntroSchema = z.object({
+  text: z.string().trim().min(1).max(4000),
+  desiredJobRole: z.string().trim().max(120).optional()
+});
+app.post(
+  "/members/me/ai/summarize-intro",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ai-summarize-intro", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = summarizeIntroSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { text, desiredJobRole } = parsed.data;
+      const systemPrompt =
+        "사용자의 자기소개를 바탕으로 이력서 맨 위에 들어갈 '한 줄 요약'을 만들어 주세요.\n" +
+        "규칙:\n" +
+        "1. 한 문장, 40자 내외(최대 60자)로 핵심 강점·지향을 압축하세요.\n" +
+        "2. 자기소개에 없는 사실(경력 연차·회사·수치)을 지어내지 마세요.\n" +
+        "3. 한국어. 간결한 명사형 또는 진술형. 따옴표 없이.\n\n" +
+        'JSON 한 개 객체로만 응답: { "summary": string }';
+      const userPrompt = `${desiredJobRole ? `희망 직무: ${desiredJobRole}\n\n` : ""}자기소개:\n${text}`;
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.5,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { summary?: unknown } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+      const summary = typeof parsedJson.summary === "string" ? parsedJson.summary.trim().replace(/^["']|["']$/g, "").slice(0, 80) : "";
+      if (!summary) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, summary });
+    } catch (err) {
+      console.error("[ai/summarize-intro] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to summarize intro" });
+    }
+  }
+);
+
+// POST /members/me/ai/generate-english-intro — 한국어 자기소개를 한국 기업의
+// 외국인 채용 담당자가 읽기 좋은 자연스러운 영문 자기소개로 변환한다(없는 사실 금지).
+const englishIntroSchema = z.object({
+  text: z.string().trim().min(1).max(4000),
+  desiredJobRole: z.string().trim().max(120).optional(),
+  jobCategories: z.array(z.string().trim().max(40)).max(5).optional()
+});
+app.post(
+  "/members/me/ai/generate-english-intro",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "ai-english-intro", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = englishIntroSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { text, desiredJobRole, jobCategories } = parsed.data;
+      const systemPrompt =
+        "You help international students write the English self-introduction for a resume submitted to a Korean company.\n" +
+        "Rewrite the user's Korean self-introduction into natural, professional English.\n" +
+        "Rules:\n" +
+        "1. Do NOT invent facts (companies, numbers, achievements, years) not present in the original. Only rephrase what is given.\n" +
+        "2. Keep it first-person, concise, and confident — suitable for a Korean hiring manager reviewing a foreign candidate.\n" +
+        "3. Preserve the original meaning and length (3-6 sentences). Fix grammar; write in English only.\n\n" +
+        'Respond with a single JSON object only: { "english": string }';
+      const ctx = [desiredJobRole ? `Desired role: ${desiredJobRole}` : "", jobCategories?.length ? `Interested fields: ${jobCategories.join(", ")}` : ""]
+        .filter(Boolean)
+        .join("\n");
+      const userPrompt = `${ctx ? `${ctx}\n\n` : ""}Korean self-introduction:\n${text}`;
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.3,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { english?: unknown } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+      const english = typeof parsedJson.english === "string" ? parsedJson.english.trim().slice(0, 4000) : "";
+      if (!english) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, english });
+    } catch (err) {
+      console.error("[ai/generate-english-intro] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to generate english intro" });
+    }
+  }
+);
+
+// POST /members/me/ai/translate-texts — 여러 한국어 문자열을 자연스러운 영문으로
+// 한 번에 번역한다(순서/개수 보존, 없는 내용 추가 금지). 영문 이력서 조립에 사용.
+const translateTextsSchema = z.object({
+  texts: z.array(z.string().max(4000)).min(1).max(60),
+  target: z.literal("en").optional()
+});
+app.post(
+  "/members/me/ai/translate-texts",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ai-translate-texts", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = translateTextsSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { texts } = parsed.data;
+      // 빈 문자열은 번역하지 않고 그대로 둔다(인덱스 보존).
+      const numbered = texts.map((t, i) => `${i}␟${t}`).join("\n");
+      const systemPrompt =
+        "You translate Korean resume text into natural, professional English for a Korean company.\n" +
+        "Rules:\n" +
+        "1. Translate each numbered line independently. Do NOT add facts that are not in the source.\n" +
+        "2. Keep proper nouns (names, companies, schools) reasonable; transliterate if needed.\n" +
+        "3. Preserve the EXACT same count and order. Empty input stays empty.\n\n" +
+        'Each input line is "<index>␟<korean text>". Respond with a single JSON object only: ' +
+        '{ "texts": string[] } where texts[index] is the English translation, same length and order.';
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: numbered }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { texts?: unknown } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+      const out = Array.isArray(parsedJson.texts) ? parsedJson.texts : [];
+      // 길이/타입이 안 맞으면 원문으로 폴백(인덱스 보존).
+      const result = texts.map((orig, i) => (typeof out[i] === "string" && out[i].trim() ? String(out[i]).slice(0, 4000) : orig));
+      return res.json({ ok: true, texts: result });
+    } catch (err) {
+      console.error("[ai/translate-texts] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to translate" });
+    }
+  }
+);
+
+// POST /members/me/ai/draft-intro — 입력된 경험·희망 직무를 바탕으로 자기소개
+// 초안을 처음부터 작성해 준다(없는 사실 금지). 빈 화면 문제 해결용.
+const draftIntroSchema = z.object({
+  desiredJobRole: z.string().trim().max(120).optional(),
+  jobCategories: z.array(z.string().trim().max(40)).max(5).optional(),
+  experiences: z
+    .array(
+      z.object({
+        type: z.string().trim().max(40).optional(),
+        title: z.string().trim().max(120).optional(),
+        org: z.string().trim().max(120).optional(),
+        period: z.string().trim().max(60).optional(),
+        summary: z.string().trim().max(1000).optional(),
+        bullets: z.array(z.string().trim().max(500)).max(10).optional()
+      })
+    )
+    .max(20)
+    .optional()
+});
+app.post(
+  "/members/me/ai/draft-intro",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "ai-draft-intro", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = draftIntroSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { desiredJobRole, jobCategories, experiences } = parsed.data;
+      const expText = (experiences ?? [])
+        .map((e, i) => {
+          const head = [e.title, e.type, e.org, e.period].filter(Boolean).join(" · ");
+          const body = [e.summary, ...(e.bullets ?? [])].filter(Boolean).join("\n  - ");
+          return `${i + 1}. ${head}${body ? `\n  - ${body}` : ""}`;
+        })
+        .join("\n");
+      const systemPrompt =
+        "당신은 한국 채용 이력서의 자기소개를 대신 작성해 주는 코치입니다.\n" +
+        "사용자가 입력한 경험과 희망 직무를 바탕으로 자기소개 초안을 작성하세요.\n" +
+        "규칙:\n" +
+        "1. 제공된 경험에 없는 사실(회사·수치·성과·기간)을 지어내지 마세요. 주어진 내용 안에서만 작성합니다.\n" +
+        "2. 3~5문장, 1인칭 진술체. 강점과 지향이 자연스럽게 드러나게.\n" +
+        "3. 경험이 거의 없으면 짧게(1~2문장), 태도·성장 의지 중심으로 담백하게.\n" +
+        "4. 한국어로만 작성하세요.\n\n" +
+        'JSON 한 개 객체로만 응답: { "draft": string }';
+      const ctx = [
+        desiredJobRole ? `희망 직무: ${desiredJobRole}` : "",
+        jobCategories?.length ? `관심 직군: ${jobCategories.join(", ")}` : "",
+        expText ? `경험:\n${expText}` : "경험: (입력된 경험 없음)"
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.6,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: ctx }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { draft?: unknown } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+      const draft = typeof parsedJson.draft === "string" ? parsedJson.draft.trim().slice(0, 4000) : "";
+      if (!draft) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, draft });
+    } catch (err) {
+      console.error("[ai/draft-intro] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to draft intro" });
+    }
+  }
+);
+
+// POST /members/me/ai/polish-experience — 사용자가 적은 경험 설명(한 일)을 더
+// 명확하고 이력서에 어울리게 다듬어 준다(없는 사실 금지, 분량 유지).
+const polishExperienceSchema = z.object({
+  text: z.string().trim().min(1).max(2000),
+  style: z.enum(["natural", "concise", "professional", "impact"]).optional(),
+  type: z.string().trim().max(40).optional()
+});
+app.post(
+  "/members/me/ai/polish-experience",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ai-polish-exp", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = polishExperienceSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { text, type, style } = parsed.data;
+      const styleGuide = POLISH_STYLE_GUIDE[style ?? "natural"] ?? POLISH_STYLE_GUIDE.natural;
+      const systemPrompt =
+        "당신은 이력서에 들어갈 '경험 설명'을 다듬는 첨삭 코치입니다.\n" +
+        "사용자가 적은 경험 내용을 더 명확하고 이력서에 어울리게 다듬어 주세요.\n" +
+        `이번 다듬기 방향: ${styleGuide}\n` +
+        "규칙:\n" +
+        "1. 사용자가 적지 않은 회사·수치·성과를 지어내지 마세요. 있는 내용만 다듬습니다.\n" +
+        "2. 한 일과 역할이 잘 드러나도록 구체적인 문장으로 정리하세요.\n" +
+        "3. 군더더기·중복을 없애고 맞춤법·띄어쓰기를 교정하세요.\n" +
+        "4. 한국어, 담백한 진술체로 작성하세요.\n\n" +
+        'JSON 한 개 객체로만 응답: { "polished": string }';
+      const userPrompt = `${type ? `경험 유형: ${type}\n` : ""}경험 설명:\n${text}`;
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.5,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { polished?: unknown } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+      const polished = typeof parsedJson.polished === "string" ? parsedJson.polished.trim().slice(0, 2000) : "";
+      if (!polished) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, polished });
+    } catch (err) {
+      console.error("[ai/polish-experience] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to polish experience" });
+    }
+  }
+);
+
+// POST /members/me/ai/experience-title — 사용자가 적은 경험 설명을 보고 카드에
+// 쓸 짧은 '경험명'을 지어준다(없는 사실 금지). 빠른 추가 폼에서 제목 자동 추천용.
+const experienceTitleSchema = z.object({
+  rawInput: z.string().trim().min(1).max(2000),
+  type: z.string().trim().max(40).optional()
+});
+app.post(
+  "/members/me/ai/experience-title",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "ai-exp-title", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = experienceTitleSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const systemPrompt =
+        "사용자가 적은 경험 설명을 보고, 이력서 경험 카드에 쓸 짧은 '경험명'을 지어주세요.\n" +
+        "규칙:\n1. 6~16자 내외의 간결한 명사형(예: '카페 바리스타', '교내 창업 동아리').\n" +
+        "2. 사용자가 적지 않은 회사명·직무·수치를 지어내지 마세요.\n3. 한국어.\n\n" +
+        'JSON 한 개 객체로만 응답: { "title": string }';
+      const userPrompt = `${parsed.data.type ? `유형: ${parsed.data.type}\n` : ""}경험 설명:\n${parsed.data.rawInput}`;
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.4,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { title?: unknown } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+      const title = typeof parsedJson.title === "string" ? parsedJson.title.trim().slice(0, 40) : "";
+      if (!title) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, title });
+    } catch (err) {
+      console.error("[ai/experience-title] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to suggest title" });
+    }
+  }
+);
+
+// POST /members/me/ai/experience-tasks — 한 줄 입력(역할/조직)만 보고, 그 일에서
+// '흔히 하는 업무·역할 후보'를 체크리스트로 제시한다. 사용자는 해당되는 것만 체크
+// → 타이핑 없이 경험 내용을 채운다. 회사 특정 수치·성과를 지어내지 않고, 사용자가
+// 확인(체크)할 수 있는 활동형 문장으로만 제안한다.
+const experienceTasksSchema = z.object({
+  type: z.string().trim().max(40).optional(),
+  title: z.string().trim().max(120).optional(),
+  org: z.string().trim().max(120).optional(),
+  rawInput: z.string().trim().max(2000).optional()
+});
+app.post(
+  "/members/me/ai/experience-tasks",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ai-exp-tasks", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = experienceTasksSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const { type, title, org, rawInput } = parsed.data;
+    if (!title && !org && !rawInput) return res.status(400).json({ ok: false, message: "need at least one hint" });
+    try {
+      const systemPrompt =
+        "사용자가 적은 경험 정보를 보고, 그 역할에서 '흔히 하는 업무·역할' 후보를 체크리스트로 만들어 주세요.\n" +
+        "사용자는 이 중 해당되는 것만 체크해 타이핑 없이 경험 내용을 채웁니다.\n" +
+        "규칙:\n" +
+        "1. 8~12개. 각 항목은 12~30자 내외의 활동형 문장(예: '고객 응대 및 계산 처리', '매장 재고 정리·발주 보조').\n" +
+        "2. 회사 특정 수치·성과·고유명사를 지어내지 마세요. 사용자가 '맞다/아니다'로 확인 가능한 일반적 업무만.\n" +
+        "3. 해당 역할에서 실제로 흔한 업무를 폭넓게, 구체적이되 검증 가능하게.\n" +
+        "4. 한국어, 담백한 명사형/동사형. 중복 없이.\n\n" +
+        'JSON 한 개 객체로만 응답: { "tasks": string[], "note": string }';
+      const hint = [
+        type ? `경험 유형: ${type}` : "",
+        title ? `경험명/역할: ${title}` : "",
+        org ? `조직/장소: ${org}` : "",
+        rawInput ? `사용자 메모: ${rawInput}` : ""
+      ].filter(Boolean).join("\n");
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.6,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: hint }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { tasks?: unknown; note?: unknown } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+      const tasks = Array.isArray(parsedJson.tasks)
+        ? parsedJson.tasks.map((t) => (typeof t === "string" ? t.trim().slice(0, 80) : "")).filter(Boolean).slice(0, 12)
+        : [];
+      if (tasks.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+      const note = typeof parsedJson.note === "string" ? parsedJson.note.trim().slice(0, 200) : "";
+      return res.json({ ok: true, tasks, note });
+    } catch (err) {
+      console.error("[ai/experience-tasks] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to suggest tasks" });
+    }
+  }
+);
+
+// POST /members/me/ai/import-resume — 사용자가 올린 기존 이력서(PDF 또는 붙여넣은
+// 텍스트)를 읽어 이력서 빌더가 쓰는 구조(기본정보·자기소개·경험·학력·자격·어학·
+// 스킬·링크)로 정리해 준다. PDF 는 base64 로 받아 서버에서 텍스트만 추출하고,
+// 구조화는 LLM 이 담당한다. "없는 사실 금지" — 원문에 없는 회사/수치/날짜는 비워 둔다.
+const EDU_TYPE_VALUES = ["HIGH_SCHOOL", "ASSOCIATE", "BACHELOR", "MASTER", "DOCTOR", "BOOTCAMP", "CERTIFICATE", "OTHER"] as const;
+const EDU_STATUS_VALUES = ["ENROLLED", "GRADUATED", "LEAVE_OF_ABSENCE", "DROPPED_OUT", "OTHER"] as const;
+const EXP_TYPE_VALUES = [
+  "career", "intern", "part_time", "school_project", "personal_project",
+  "club", "external_activity", "competition", "volunteer", "education", "side_project", "etc"
+] as const;
+const importResumeSchema = z
+  .object({
+    text: z.string().trim().max(40000).optional(),
+    pdfBase64: z.string().max(16_000_000).optional()
+  })
+  .refine((d) => Boolean(d.text) || Boolean(d.pdfBase64), { message: "text or pdfBase64 required" });
+
+function pickStr(v: unknown, max = 400): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const t = v.trim().slice(0, max);
+  return t || undefined;
+}
+function pickEnum<T extends readonly string[]>(v: unknown, allowed: T, fallback: T[number]): T[number] {
+  return typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T[number]) : fallback;
+}
+
+app.post(
+  "/members/me/ai/import-resume",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "ai-import-resume", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = importResumeSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+    // 1) 원문 텍스트 확보 — PDF 면 서버에서 텍스트만 추출.
+    let sourceText = parsed.data.text?.trim() ?? "";
+    if (!sourceText && parsed.data.pdfBase64) {
+      try {
+        const base64 = parsed.data.pdfBase64.replace(/^data:[^,]*,/, "");
+        const buffer = Buffer.from(base64, "base64");
+        if (buffer.byteLength > 12 * 1024 * 1024) return res.status(413).json({ ok: false, message: "file too large" });
+        const { extractText, getDocumentProxy } = await import("unpdf");
+        const pdf = await getDocumentProxy(new Uint8Array(buffer));
+        const extracted = await extractText(pdf, { mergePages: true });
+        sourceText = (Array.isArray(extracted.text) ? extracted.text.join("\n") : extracted.text).trim();
+      } catch (err) {
+        console.error("[ai/import-resume] pdf parse failed", err);
+        return res.status(422).json({ ok: false, message: "이 PDF에서 텍스트를 읽지 못했어요. 스캔본이면 내용을 직접 붙여넣어 주세요." });
+      }
+    }
+    sourceText = sourceText.slice(0, 40000);
+    if (sourceText.replace(/\s+/g, "").length < 20) {
+      return res.status(422).json({ ok: false, message: "읽을 내용이 충분하지 않아요. 내용을 직접 붙여넣어 주세요." });
+    }
+
+    // 2) LLM 으로 구조화.
+    try {
+      const systemPrompt =
+        "당신은 기존 이력서 텍스트를 구조화하는 파서입니다. 아래 원문에서 정보를 추출해 JSON 으로만 응답하세요.\n" +
+        "규칙:\n" +
+        "1. 원문에 실제로 적힌 정보만 채우세요. 없는 회사·수치·날짜·전공을 지어내지 마세요. 모르면 해당 필드를 비우거나 생략합니다.\n" +
+        "2. 날짜는 가능한 한 \"YYYY-MM\" 형식. 연도만 있으면 \"YYYY\". 현재 진행 중이면 endDate 를 비웁니다.\n" +
+        "3. 한국어 표기를 유지하되, 분류 코드(아래 enum)는 영문 코드 그대로 사용합니다.\n" +
+        "4. 경력·인턴·아르바이트·프로젝트·동아리·대외활동·공모전·봉사·교육수료 등 '경험'은 experiences 로, 학교 학력은 educations 로 구분합니다.\n\n" +
+        "JSON 스키마(키 누락 가능, 배열은 없으면 빈 배열):\n" +
+        "{\n" +
+        '  "basicName": string, "basicEmail": string, "basicPhone": string, "basicResidence": string,\n' +
+        '  "desiredJobRole": string, "summary": string, "selfIntroduction": string,\n' +
+        '  "educations": [{ "schoolName": string, "major": string, "educationType": ' + EDU_TYPE_VALUES.join("|") + ', "status": ' + EDU_STATUS_VALUES.join("|") + ', "startDate": string, "endDate": string }],\n' +
+        '  "experiences": [{ "type": ' + EXP_TYPE_VALUES.join("|") + ', "title": string, "org": string, "startDate": string, "endDate": string, "description": string }],\n' +
+        '  "certifications": [{ "name": string, "issuer": string, "date": string }],\n' +
+        '  "languages": [{ "language": string, "level": string }],\n' +
+        '  "skills": [string],\n' +
+        '  "links": [{ "label": string, "url": string }]\n' +
+        "}";
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `다음은 기존 이력서 원문입니다:\n\n${sourceText}` }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let j: Record<string, unknown> = {};
+      try { j = JSON.parse(raw); } catch { /* fall through */ }
+
+      const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+      const imported = {
+        basicName: pickStr(j.basicName, 80),
+        basicEmail: pickStr(j.basicEmail, 120),
+        basicPhone: pickStr(j.basicPhone, 40),
+        basicResidence: pickStr(j.basicResidence, 120),
+        desiredJobRole: pickStr(j.desiredJobRole, 120),
+        summary: pickStr(j.summary, 300),
+        selfIntroduction: pickStr(j.selfIntroduction, 4000),
+        educations: arr(j.educations).slice(0, 12).map((e) => {
+          const o = (e ?? {}) as Record<string, unknown>;
+          return {
+            schoolName: pickStr(o.schoolName, 120),
+            major: pickStr(o.major, 120),
+            educationType: pickEnum(o.educationType, EDU_TYPE_VALUES, "OTHER"),
+            status: pickEnum(o.status, EDU_STATUS_VALUES, "GRADUATED"),
+            startDate: pickStr(o.startDate, 10),
+            endDate: pickStr(o.endDate, 10)
+          };
+        }),
+        experiences: arr(j.experiences).slice(0, 20).map((e) => {
+          const o = (e ?? {}) as Record<string, unknown>;
+          return {
+            type: pickEnum(o.type, EXP_TYPE_VALUES, "etc"),
+            title: pickStr(o.title, 120) ?? "",
+            org: pickStr(o.org, 120),
+            startDate: pickStr(o.startDate, 10),
+            endDate: pickStr(o.endDate, 10),
+            description: pickStr(o.description, 4000)
+          };
+        }).filter((e) => e.title || e.org || e.description),
+        certifications: arr(j.certifications).slice(0, 20).map((e) => {
+          const o = (e ?? {}) as Record<string, unknown>;
+          return { name: pickStr(o.name, 120), issuer: pickStr(o.issuer, 120), date: pickStr(o.date, 10) };
+        }).filter((c) => c.name),
+        languages: arr(j.languages).slice(0, 12).map((e) => {
+          const o = (e ?? {}) as Record<string, unknown>;
+          return { language: pickStr(o.language, 60), level: pickStr(o.level, 60) };
+        }).filter((l) => l.language),
+        skills: arr(j.skills).map((s) => pickStr(s, 60)).filter((s): s is string => Boolean(s)).slice(0, 40),
+        links: arr(j.links).slice(0, 12).map((e) => {
+          const o = (e ?? {}) as Record<string, unknown>;
+          return { label: pickStr(o.label, 60), url: pickStr(o.url, 300) };
+        }).filter((l) => l.url)
+      };
+      return res.json({ ok: true, imported });
+    } catch (err) {
+      console.error("[ai/import-resume] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to import resume" });
+    }
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Public, anonymous read of a shared resume. Anyone with the slug can view
