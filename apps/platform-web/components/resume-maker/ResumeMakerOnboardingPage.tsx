@@ -12,19 +12,22 @@ import { paperlogy } from "../../lib/fonts";
 import type { ResumeContent } from "../../lib/member-profile-client";
 import { getBuilderState, getDraftResume } from "../../lib/resume-maker-client";
 import {
-  RESUME_PURPOSES,
-  START_METHODS,
   type ResumeBuilderState,
   type ResumePurpose,
   type ResumeStartMethod
 } from "../../lib/resume-maker-types";
 import { trackResumeJobSelected, trackResumePurposeSelected } from "../../lib/analytics";
+import { useOnboardingCopy } from "../../lib/resume-maker-i18n/onboarding";
+import { usePurposeOptions, useStartMethodOptions } from "../../lib/resume-maker-i18n/options";
 
 const TOTAL_STEPS = 3;
 
 export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
   const router = useRouter();
   const toast = useToast();
+  const t = useOnboardingCopy();
+  const purposeOptions = usePurposeOptions();
+  const startMethodOptions = useStartMethodOptions();
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
   const [baseContent, setBaseContent] = useState<ResumeContent>({});
@@ -50,7 +53,7 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
         else setStep(3);
       } catch (err) {
         if (!alive) return;
-        toast.error(err instanceof Error ? err.message : "이력서를 불러오지 못했어요.");
+        toast.error(err instanceof Error ? err.message : t.loadFailed);
         router.replace("/resume-maker");
       } finally {
         if (alive) setLoading(false);
@@ -118,7 +121,7 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
       <ResumeMakerShell>
         <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
           <span className="inline-flex items-center gap-2 text-sm">
-            <CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> 불러오는 중...
+            <CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t.loading}
           </span>
         </div>
       </ResumeMakerShell>
@@ -130,12 +133,12 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
   const canNext = step === 1 ? Boolean(o.purpose) : step === 2 ? o.jobCategories.length > 0 : Boolean(o.startMethod);
 
   return (
-    <ResumeMakerShell right={<AutoSaveIndicator status={status} onRetry={() => void flush()} />} title={title}>
+    <ResumeMakerShell right={<AutoSaveIndicator status={status} onRetry={() => void flush()} />}>
       <section className="container max-w-2xl px-5 py-10 md:py-14">
         {/* 진행률 */}
         <div className="mb-8">
           <div className="flex items-center justify-between text-[12px] font-semibold text-muted-foreground">
-            <span>온보딩</span>
+            <span>{t.onboarding}</span>
             <span>
               {step} / {TOTAL_STEPS}
             </span>
@@ -149,12 +152,12 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
           <div>
             {/* 외국인 여부 — 외국인이면 기본 정보에 비자 항목을 추가 */}
             <div className="mb-7 rounded-2xl border border-border bg-card p-4">
-              <p className="text-[15px] font-bold text-[#0B1227]">한국 국적이 아닌 외국인이신가요?</p>
-              <p className="mt-1 text-[12.5px] text-muted-foreground">외국인이면 기본 정보에 비자 항목을 추가해 드려요.</p>
+              <p className="text-[15px] font-bold text-[#0B1227]">{t.foreignerQuestion}</p>
+              <p className="mt-1 text-[12.5px] text-muted-foreground">{t.foreignerHelp}</p>
               <div className="mt-3 flex gap-2">
                 {[
-                  { v: true, t: "네, 외국인이에요" },
-                  { v: false, t: "아니요" }
+                  { v: true, t: t.foreignerYes },
+                  { v: false, t: t.foreignerNo }
                 ].map((opt) => {
                   const selected = o.isForeigner === opt.v;
                   return (
@@ -174,11 +177,11 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
             </div>
 
             <h2 className={`${paperlogy.className} text-2xl font-black tracking-[-0.02em] text-[#0B1227] md:text-3xl`}>
-              어떤 상황에서 사용할 이력서인가요?
+              {t.purposeTitle}
             </h2>
-            <p className="mt-2 text-[14px] text-muted-foreground">상황에 맞춰 질문과 문장 톤을 조절해 드려요.</p>
+            <p className="mt-2 text-[14px] text-muted-foreground">{t.purposeDesc}</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {RESUME_PURPOSES.map((p) => {
+              {purposeOptions.map((p) => {
                 const selected = o.purpose === p.value;
                 return (
                   <button
@@ -204,15 +207,15 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
         {step === 2 ? (
           <div>
             <h2 className={`${paperlogy.className} text-2xl font-black tracking-[-0.02em] text-[#0B1227] md:text-3xl`}>
-              어떤 일을 하고 싶나요?
+              {t.jobTitle}
             </h2>
-            <p className="mt-2 text-[14px] text-muted-foreground">고를 필요 없이 편하게 적어주세요. 아직 잘 모르겠다면 그렇게 적어도 괜찮아요.</p>
+            <p className="mt-2 text-[14px] text-muted-foreground">{t.jobDesc}</p>
             <textarea
               value={jobText}
               onChange={(e) => setJobText(e.target.value)}
               rows={3}
               maxLength={300}
-              placeholder="예: 외국인 대상 서비스 기획을 해보고 싶어요. / 마케팅이나 콘텐츠 쪽이요. / 아직 잘 모르겠어요."
+              placeholder={t.jobPlaceholder}
               className="mt-5 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] leading-relaxed focus:border-primary focus:outline-none"
             />
           </div>
@@ -221,11 +224,11 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
         {step === 3 ? (
           <div>
             <h2 className={`${paperlogy.className} text-2xl font-black tracking-[-0.02em] text-[#0B1227] md:text-3xl`}>
-              현재 작성된 자료가 있나요?
+              {t.startTitle}
             </h2>
-            <p className="mt-2 text-[14px] text-muted-foreground">없어도 괜찮아요. 질문에 답하며 처음부터 만들 수 있어요.</p>
+            <p className="mt-2 text-[14px] text-muted-foreground">{t.startDesc}</p>
             <div className="mt-6 grid gap-3">
-              {START_METHODS.map((m) => {
+              {startMethodOptions.map((m) => {
                 const selected = o.startMethod === m.value;
                 return (
                   <button
@@ -247,7 +250,7 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
             </div>
             {o.startMethod && o.startMethod !== "scratch" ? (
               <p className="mt-3 rounded-xl bg-amber-50/70 px-4 py-2.5 text-[12.5px] leading-relaxed text-amber-900">
-                업로드·붙여넣기 연동은 다음 단계에서 이어집니다. 지금은 선택만 저장돼요.
+                {t.startMethodNotice}
               </p>
             ) : null}
           </div>
@@ -262,16 +265,16 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
             disabled={step === 1}
             className={step === 1 ? "invisible" : ""}
           >
-            <ArrowLeft weight="bold" /> 이전
+            <ArrowLeft weight="bold" /> {t.prev}
           </Button>
           {step < TOTAL_STEPS ? (
             <Button variant="default" size="lg" onClick={() => setStep((s) => Math.min(TOTAL_STEPS, s + 1))} disabled={!canNext}>
-              다음 <ArrowRight weight="bold" />
+              {t.next} <ArrowRight weight="bold" />
             </Button>
           ) : (
             <Button variant="hero" size="lg" onClick={() => void finish()} disabled={!canNext || finishing}>
               {finishing ? <CircleNotch className="animate-spin" weight="bold" /> : null}
-              경험 추가하러 가기 <ArrowRight weight="bold" />
+              {t.goAddExperience} <ArrowRight weight="bold" />
             </Button>
           )}
         </div>

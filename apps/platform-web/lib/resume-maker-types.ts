@@ -80,9 +80,7 @@ export const EXPERIENCE_TYPES: { value: ExperienceType; label: string }[] = [
   { value: "personal_project", label: "개인 프로젝트" },
   { value: "club", label: "동아리" },
   { value: "external_activity", label: "대외활동" },
-  { value: "competition", label: "공모전" },
   { value: "volunteer", label: "봉사활동" },
-  { value: "education", label: "교육 수료" },
   { value: "side_project", label: "사이드 프로젝트" },
   { value: "etc", label: "기타" }
 ];
@@ -159,6 +157,8 @@ export type BuilderExperience = {
   startDate?: string; // "YYYY-MM"
   endDate?: string; // "YYYY-MM" (빈 값이면 진행 중)
   rawInput?: string; // 사용자가 처음 입력한 한두 문장
+  role?: string; // 직무(선택) — 예: 백엔드 개발, 마케팅
+  rank?: string; // 직급(선택) — 예: 사원, 대리, 인턴, 팀장
   confirmedTasks?: string[]; // ① 한 줄→추론→체크: 사용자가 체크해 확정한 업무 항목
   roleTags?: string[]; // 관련 직무 태그
   status: ExperienceStatus;
@@ -177,6 +177,37 @@ export const RESUME_TEMPLATES: { id: ResumeTemplateId; label: string; desc: stri
   { id: "newgrad", label: "신입형", desc: "요약·학력·자기소개를 앞세운 신입 친화 구성" },
   { id: "project", label: "프로젝트 강조형", desc: "프로젝트·활동 경험을 먼저 보여주는 구성" }
 ];
+
+// 이력서 본문 섹션 — 사용자가 순서를 드래그로 바꿀 수 있다(design.sectionOrder).
+export const RESUME_SECTION_KEYS = [
+  "summary",
+  "selfIntro",
+  "careers",
+  "activities",
+  "education",
+  "certifications",
+  "skills",
+  "languages",
+  "links"
+] as const;
+export type ResumeSectionKey = (typeof RESUME_SECTION_KEYS)[number];
+export const RESUME_SECTION_LABELS: Record<ResumeSectionKey, string> = {
+  summary: "요약",
+  selfIntro: "자기소개",
+  careers: "경력",
+  activities: "활동 · 프로젝트",
+  education: "학력",
+  certifications: "자격 · 수상",
+  skills: "스킬",
+  languages: "어학",
+  links: "링크"
+};
+// 템플릿(레거시)별 기본 섹션 순서 — sectionOrder 가 없을 때만 폴백으로 사용.
+export const TEMPLATE_SECTION_ORDER: Record<ResumeTemplateId, ResumeSectionKey[]> = {
+  basic: ["summary", "selfIntro", "careers", "activities", "education", "certifications", "skills", "languages", "links"],
+  newgrad: ["education", "summary", "selfIntro", "activities", "careers", "certifications", "skills", "languages", "links"],
+  project: ["summary", "selfIntro", "activities", "careers", "education", "certifications", "skills", "languages", "links"]
+};
 
 // 비주얼 레이아웃 — 템플릿(섹션 순서)과 별개로 시트의 골격을 바꾼다.
 export type ResumeLayoutId = "modern" | "sidebar" | "sidebar-right" | "centered" | "band";
@@ -204,6 +235,7 @@ export const RESUME_TITLE_MARKERS: { id: ResumeTitleMarker; label: string }[] = 
 
 export type ResumeDesignSettings = {
   templateId: ResumeTemplateId;
+  sectionOrder?: ResumeSectionKey[]; // 사용자가 드래그로 정한 섹션 순서(없으면 템플릿 순서)
   layout: ResumeLayoutId;
   accentColor: string;
   titleMarker: ResumeTitleMarker;

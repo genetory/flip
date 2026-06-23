@@ -23,15 +23,11 @@ import { compileResumeContent } from "../../lib/resume-maker-compile";
 import { computeResumeProgress } from "../../lib/resume-maker-progress";
 import { DEFAULT_DESIGN, type ResumeDesignSettings } from "../../lib/resume-maker-types";
 import { trackResumeDiagnosed } from "../../lib/analytics";
+import { useDiagnosisCopy } from "../../lib/resume-maker-i18n/diagnosis";
 
 // AI 진단 상단 메뉴의 진입점. 이력서를 고르면 AI가 곧바로 자동 진단하고, 결과 옆에
 // 이력서 미리보기를 함께 보여준다(편집기와 동일한 2단 레이아웃). 이력서가 하나면
 // 선택 단계를 건너뛴다. 화면 톤은 '이력서 만들기' 랜딩과 맞춘다.
-const DIAGNOSIS_BULLETS = [
-  "지원 가능 수준인지 한눈에 점수로 확인해요",
-  "부족한 항목과 보완 방법을 콕 집어 알려줘요",
-  "고친 뒤 다시 진단해 완성도를 끌어올릴 수 있어요"
-];
 
 function formatDateTime(iso: string): string {
   try {
@@ -49,6 +45,7 @@ function formatDateTime(iso: string): string {
 export function ResumeDiagnosisEntryPage() {
   const router = useRouter();
   const toast = useToast();
+  const t = useDiagnosisCopy();
   const [loading, setLoading] = useState(true);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [selected, setSelected] = useState<Resume | null>(null);
@@ -98,7 +95,7 @@ export function ResumeDiagnosisEntryPage() {
       setCoach(data);
       trackResumeDiagnosed(data.score.level);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "진단을 불러오지 못했어요.");
+      toast.error(err instanceof Error ? err.message : t.diagnosisLoadFailed);
     } finally {
       setCoachLoading(false);
     }
@@ -134,9 +131,9 @@ export function ResumeDiagnosisEntryPage() {
     try {
       await saveResumeContent(selected.id, { ...previewContent, poolOptIn: { consentedAt: new Date().toISOString() } });
       setJustRegistered(true);
-      toast.success("기업 추천 후보로 등록했어요.");
+      toast.success(t.registerSuccess);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "등록에 실패했어요. 잠시 후 다시 시도해 주세요.");
+      toast.error(err instanceof Error ? err.message : t.registerFailed);
     } finally {
       setRegistering(false);
     }
@@ -172,7 +169,7 @@ export function ResumeDiagnosisEntryPage() {
   if (selected) {
     const profileCard = previewContent ? (
       <div className="mb-4">
-        <p className="mb-2 text-[13px] font-bold text-[#0B1227]">이 이력서로 만들어지는 기업용 프로필</p>
+        <p className="mb-2 text-[13px] font-bold text-[#0B1227]">{t.profileForCompanyTitle}</p>
         <AplyProfileCard content={previewContent} coach={coach} recommendedRoles={recommendedRoles} completeness={completeness ?? undefined} />
       </div>
     ) : null;
@@ -181,15 +178,15 @@ export function ResumeDiagnosisEntryPage() {
     ) : (
       <div className="flex min-h-[40vh] items-center justify-center text-muted-foreground">
         <span className="inline-flex items-center gap-2 text-sm">
-          <CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> 미리보기 불러오는 중...
+          <CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t.previewLoading}
         </span>
       </div>
     );
     return (
-      <ResumeMakerShell title={selected.title || "제목 없는 이력서"}>
+      <ResumeMakerShell>
         <div className="mx-auto grid max-w-6xl gap-0 px-0 lg:grid-cols-[minmax(0,44%)_minmax(0,56%)]">
           {/* 왼쪽: 진단 결과 */}
-          <div className="border-r border-border/60 px-5 py-8 lg:max-h-[calc(100vh-56px)] lg:overflow-y-auto">
+          <div className="min-w-0 border-r border-border/60 px-5 py-8 lg:max-h-[calc(100vh-56px)] lg:overflow-y-auto">
             <button
               type="button"
               onClick={() => {
@@ -199,11 +196,11 @@ export function ResumeDiagnosisEntryPage() {
               }}
               className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground transition hover:text-foreground"
             >
-              <ArrowLeft className="h-4 w-4" weight="bold" aria-hidden /> 다른 이력서 진단
+              <ArrowLeft className="h-4 w-4" weight="bold" aria-hidden /> {t.diagnoseAnother}
             </button>
             <div className="mt-4 flex items-center gap-2">
               <Stethoscope className="h-5 w-5 text-[#0B46E8]" weight="fill" aria-hidden />
-              <h1 className={`${paperlogy.className} text-xl font-black tracking-[-0.02em] text-[#0B1227] md:text-2xl`}>AI 진단 결과</h1>
+              <h1 className={`${paperlogy.className} text-xl font-black tracking-[-0.02em] text-[#0B1227] md:text-2xl`}>{t.diagnosisResultTitle}</h1>
             </div>
             <ResumeDiagnosisResult coach={coach} loading={coachLoading} onReload={() => void runDiagnosis(selected)} onGoto={gotoSection} />
 
@@ -212,9 +209,9 @@ export function ResumeDiagnosisEntryPage() {
               <div className="mt-6 flex items-start gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
                 <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" weight="fill" aria-hidden />
                 <div>
-                  <p className="text-[14px] font-bold text-emerald-900">기업 추천 후보로 등록됐어요</p>
+                  <p className="text-[14px] font-bold text-emerald-900">{t.registeredTitle}</p>
                   <p className="mt-1 text-[12.5px] leading-relaxed text-emerald-800">
-                    APLY 운영팀이 검토 후, 잘 맞는 기업이 있으면 안내드려요. 프로필을 더 채울수록 추천 가능성이 올라가요.
+                    {t.registeredDesc}
                   </p>
                 </div>
               </div>
@@ -222,10 +219,10 @@ export function ResumeDiagnosisEntryPage() {
               <div className="mt-6 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-4">
                 <div className="flex items-center gap-2">
                   <Buildings className="h-5 w-5 text-[#0B46E8]" weight="fill" aria-hidden />
-                  <p className="text-[14px] font-bold text-[#0B1227]">기업 추천 후보로 등록하기</p>
+                  <p className="text-[14px] font-bold text-[#0B1227]">{t.registerCardTitle}</p>
                 </div>
                 <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
-                  등록하면 APLY 인재풀에 추가되어, 잘 맞는 기업에 후보로 추천될 수 있어요. 기업에는 이름·국적·비자·언어·전공·희망직무·핵심 경험이 담긴 APLY Profile이 제공돼요.
+                  {t.registerCardDesc}
                 </p>
                 <label className="mt-3 flex items-start gap-2 text-[12.5px] leading-relaxed text-foreground/80">
                   <input
@@ -236,12 +233,12 @@ export function ResumeDiagnosisEntryPage() {
                   />
                   <span className="inline-flex items-center gap-1">
                     <ShieldCheck className="h-4 w-4 shrink-0 text-muted-foreground" weight="bold" aria-hidden />
-                    기업 추천을 위한 개인정보 제공에 동의합니다.
+                    {t.consentLabel}
                   </span>
                 </label>
                 <Button variant="hero" size="lg" className="mt-3 w-full" disabled={!consent || registering || !previewContent} onClick={() => void registerToPool()}>
                   {registering ? <CircleNotch className="animate-spin" weight="bold" /> : <Buildings weight="bold" />}
-                  기업 추천 후보로 등록
+                  {t.registerButton}
                 </Button>
               </div>
             )}
@@ -257,7 +254,7 @@ export function ResumeDiagnosisEntryPage() {
         {/* 모바일: APLY Profile + 미리보기를 결과 아래에 */}
         <div className="border-t border-border bg-muted/30 px-5 py-6 lg:hidden">
           {profileCard}
-          <p className="mb-3 text-[13px] font-bold text-[#0B1227]">이력서 미리보기</p>
+          <p className="mb-3 text-[13px] font-bold text-[#0B1227]">{t.previewHeading}</p>
           {previewBlock}
         </div>
       </ResumeMakerShell>
@@ -270,18 +267,18 @@ export function ResumeDiagnosisEntryPage() {
         <div className="text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-[12px] font-bold text-[#0B46E8]">
             <Stethoscope className="h-3.5 w-3.5" weight="fill" aria-hidden />
-            AI 진단
+            {t.badge}
           </span>
           <h1 className={`${paperlogy.className} mt-5 text-3xl font-black leading-[1.2] tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>
-            내 이력서,
+            {t.heroTitleLine1}
             <br />
-            지원해도 될까요?
+            {t.heroTitleLine2}
           </h1>
           <p className="mx-auto mt-5 max-w-lg text-[15px] leading-relaxed text-muted-foreground md:text-base">
-            이력서를 고르면 AI가 곧바로 완성도를 진단해드립니다.
+            {t.heroDesc}
           </p>
           <ul className="mx-auto mt-8 flex max-w-md flex-col gap-2 text-left">
-            {DIAGNOSIS_BULLETS.map((b) => (
+            {t.bullets.map((b) => (
               <li key={b} className="flex items-start gap-2 text-[13.5px] text-muted-foreground">
                 <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-[#0B46E8]" weight="bold" aria-hidden />
                 {b}
@@ -293,13 +290,13 @@ export function ResumeDiagnosisEntryPage() {
         {/* 진단할 이력서 선택 — '이력서 만들기'의 작성 중 목록과 동일한 카드 톤 */}
         {loading ? (
           <p className="mx-auto mt-12 inline-flex w-full items-center justify-center gap-2 text-[13px] text-muted-foreground">
-            <CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> 불러오는 중...
+            <CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t.loading}
           </p>
         ) : resumes.length > 0 ? (
           <div className="mx-auto mt-12 max-w-xl">
             <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#0B1227]">
               <Stethoscope className="h-4 w-4 text-[#0B46E8]" weight="bold" aria-hidden />
-              진단할 이력서를 선택하세요
+              {t.selectPrompt}
             </div>
             <ul className="mt-3 flex flex-col gap-2">
               {resumes.map((r) => (
@@ -310,11 +307,11 @@ export function ResumeDiagnosisEntryPage() {
                     className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-card transition hover:border-primary/40"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-[14px] font-semibold text-foreground">{r.title || "제목 없는 이력서"}</span>
-                      <span className="text-[12px] text-muted-foreground">마지막 수정 · {formatDateTime(r.updatedAt)}</span>
+                      <span className="block truncate text-[14px] font-semibold text-foreground">{r.title || t.untitledResume}</span>
+                      <span className="text-[12px] text-muted-foreground">{t.lastEdited(formatDateTime(r.updatedAt))}</span>
                     </span>
                     <span className="inline-flex shrink-0 items-center gap-1 text-[12.5px] font-semibold text-[#0B46E8]">
-                      진단하기 <ArrowRight className="h-3.5 w-3.5" weight="bold" aria-hidden />
+                      {t.diagnoseAction} <ArrowRight className="h-3.5 w-3.5" weight="bold" aria-hidden />
                     </span>
                   </button>
                 </li>
@@ -324,11 +321,11 @@ export function ResumeDiagnosisEntryPage() {
         ) : (
           <div className="mx-auto mt-12 max-w-xl rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center">
             <Stethoscope className="mx-auto h-7 w-7 text-[#0B46E8]" weight="fill" aria-hidden />
-            <p className="mt-3 text-[15px] font-bold text-[#0B1227]">아직 진단할 이력서가 없어요</p>
-            <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted-foreground">먼저 이력서를 만들면 AI 진단을 받을 수 있어요.</p>
+            <p className="mt-3 text-[15px] font-bold text-[#0B1227]">{t.emptyTitle}</p>
+            <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted-foreground">{t.emptyDesc}</p>
             <Button variant="hero" size="lg" className="mt-4" onClick={() => router.push("/resume-maker")}>
               <FilePlus weight="bold" />
-              이력서 만들러 가기
+              {t.goCreateResume}
             </Button>
           </div>
         )}

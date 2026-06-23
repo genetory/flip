@@ -12644,8 +12644,9 @@ app.get("/members/me/resumes/:resumeId/coach", authenticate, requireRoles([Membe
     });
     if (!resume) return res.status(404).json({ ok: false, message: "resume not found" });
 
+    const locale = typeof req.query.locale === "string" ? req.query.locale : undefined;
     const score = calcResumeScores(resume.content);
-    const actions = generateResumeCoachActions(resume.content);
+    const actions = generateResumeCoachActions(resume.content, locale);
     const matches = await fetchResumeCoachPositionMatches(userId, resume.content);
 
     return res.json({
@@ -12857,7 +12858,8 @@ const draftResumeTextSchema = z.object({
     })
     .optional(),
   // 사용자가 키워드·뼈대를 줄 수 있는 자유 필드. mode=generate 일 때 특히 중요.
-  hints: z.string().max(500).optional()
+  hints: z.string().max(500).optional(),
+  locale: z.string().max(10).optional()
 });
 
 app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
@@ -12865,7 +12867,7 @@ app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberR
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
   if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
-  const { currentText, fieldType, mode, context, hints } = parsed.data;
+  const { currentText, fieldType, mode, context, hints, locale } = parsed.data;
   // generate 모드는 빈 입력 OK, 그 외에는 currentText 또는 hints 중 하나는 있어야 함.
   if (mode !== "generate" && !currentText.trim()) {
     return res.status(400).json({ ok: false, message: "currentText empty — write at least one sentence or use mode=generate" });
@@ -12896,7 +12898,7 @@ app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberR
       "3. 의미를 부풀리거나 추측하지 마세요. 빈약한 입력은 빈약한 결과로 두는 게 정직합니다.\n" +
       "4. 한국어로 자연스럽고 정중하게 작성하세요.\n" +
       `5. ${fieldName} 으로서 적절한 길이로 작성하세요 (자기소개·요약은 200–500자, 경력·활동 설명은 60–200자 권장).\n\n` +
-      "JSON 한 개의 객체만 응답: { \"text\": string, \"why\": string }. why 는 1-2 문장으로 어떤 점을 다듬었는지/생성했는지 한국어로 설명.";
+      "JSON 한 개의 객체만 응답: { \"text\": string, \"why\": string }. why 는 1-2 문장으로 어떤 점을 다듬었는지/생성했는지 한국어로 설명." + aiLangDirective(locale);
 
     const userPromptParts: string[] = [`요청 모드: ${modeNote}`];
     if (context) {
@@ -13002,12 +13004,14 @@ const experienceQaSchema = z.array(
 const experienceInterviewSchema = z.object({
   experience: experienceCtxSchema,
   jobCategories: z.array(z.string().trim().max(60)).max(5).optional(),
-  priorQa: experienceQaSchema.optional()
+  priorQa: experienceQaSchema.optional(),
+  locale: z.string().max(10).optional()
 });
 const experienceBulletsSchema = z.object({
   experience: experienceCtxSchema,
   jobCategories: z.array(z.string().trim().max(60)).max(5).optional(),
-  qa: experienceQaSchema
+  qa: experienceQaSchema,
+  locale: z.string().max(10).optional()
 });
 
 function buildExperienceContextText(input: {
@@ -13047,7 +13051,7 @@ app.post(
         "4. 질문은 4~6개. 각 질문은 한 번에 하나의 정보만 묻습니다.\n" +
         "5. 정확한 숫자를 모를 수 있는 질문은 optional: true 로 표시하세요.\n" +
         "6. 선택지가 자연스러운 질문은 options 를 제시하세요(단일/다중 선택).\n\n" +
-        "JSON 한 개 객체로만 응답: { \"coachNote\": string, \"questions\": [{ \"prompt\": string, \"type\": \"short_text\"|\"long_text\"|\"number\"|\"single_select\"|\"multi_select\"|\"select_with_custom\", \"options\"?: string[], \"helper\"?: string, \"optional\": boolean }] }. coachNote 는 시작 안내 한 문장.";
+        "JSON 한 개 객체로만 응답: { \"coachNote\": string, \"questions\": [{ \"prompt\": string, \"type\": \"short_text\"|\"long_text\"|\"number\"|\"single_select\"|\"multi_select\"|\"select_with_custom\", \"options\"?: string[], \"helper\"?: string, \"optional\": boolean }] }. coachNote 는 시작 안내 한 문장." + aiLangDirective(parsed.data.locale);
       const userPrompt = buildExperienceContextText(parsed.data) +
         (parsed.data.priorQa && parsed.data.priorQa.length
           ? `\n\n이미 받은 답변:\n${parsed.data.priorQa.map((qa) => `- Q: ${qa.question}\n  A: ${qa.answer}`).join("\n")}`
@@ -13098,7 +13102,7 @@ app.post(
         "6. 사용자의 원래 답변 의미를 보존하세요. 정중하고 자연스러운 한국어.\n" +
         "7. 근거가 분명한 문장은 evidenceLevel 'confirmed', 추론이 섞이면 'inferred' 로 표시하고 needsReview true.\n" +
         "8. 합격 가능성을 단정하지 마세요.\n\n" +
-        "JSON 한 개 객체로만 응답: { \"summary\": string, \"resumeBullets\": [{ \"text\": string, \"evidenceLevel\": \"confirmed\"|\"inferred\", \"needsReview\": boolean }], \"skills\": string[], \"followUpQuestions\": [{ \"prompt\": string, \"type\": \"short_text\"|\"long_text\"|\"number\"|\"single_select\"|\"multi_select\"|\"select_with_custom\", \"options\"?: string[], \"helper\"?: string, \"optional\": boolean }], \"warnings\": string[] }. resumeBullets 는 2~5개. 정보가 부족하면 bullets 를 적게 만들고 followUpQuestions 를 채우세요.";
+        "JSON 한 개 객체로만 응답: { \"summary\": string, \"resumeBullets\": [{ \"text\": string, \"evidenceLevel\": \"confirmed\"|\"inferred\", \"needsReview\": boolean }], \"skills\": string[], \"followUpQuestions\": [{ \"prompt\": string, \"type\": \"short_text\"|\"long_text\"|\"number\"|\"single_select\"|\"multi_select\"|\"select_with_custom\", \"options\"?: string[], \"helper\"?: string, \"optional\": boolean }], \"warnings\": string[] }. resumeBullets 는 2~5개. 정보가 부족하면 bullets 를 적게 만들고 followUpQuestions 를 채우세요." + aiLangDirective(parsed.data.locale);
       const userPrompt =
         buildExperienceContextText(parsed.data) +
         `\n\n인터뷰 답변:\n${parsed.data.qa.map((qa) => `- Q: ${qa.question}\n  A: ${qa.answer}`).join("\n")}`;
@@ -13153,19 +13157,45 @@ app.post(
   }
 );
 
+// resume-maker AI 출력 언어 — 외국인 사용자가 고른 UI 언어로 답하도록 프롬프트에
+// 덧붙이는 지시. 클라이언트가 locale 을 보내면 그 언어로, 없으면 한국어(기본).
+const AI_LANG_NAMES: Record<string, string> = {
+  ko: "Korean (한국어)",
+  en: "English",
+  "zh-CN": "Simplified Chinese (简体中文)",
+  vi: "Vietnamese (Tiếng Việt)",
+  ja: "Japanese (日本語)",
+  id: "Indonesian (Bahasa Indonesia)"
+};
+function aiLangDirective(locale?: string): string {
+  const name = AI_LANG_NAMES[locale ?? "ko"] ?? AI_LANG_NAMES.ko;
+  return (
+    `\n\n[CRITICAL — OUTPUT LANGUAGE] Write your ENTIRE response in ${name}. ` +
+    `Every question, sentence, summary, note, label, helper text, and option must be in ${name}. ` +
+    `The user may not understand Korean. ` +
+    `Keep all JSON field names exactly as specified (in English), and keep proper nouns, company/school names, and technical/skill terms (e.g., Python, Excel) as-is.`
+  );
+}
+
 // POST /members/me/ai/polish-intro — 사용자가 쓴 자기소개를 더 자연스럽고 설득력
 // 있게 다듬어 준다(없는 사실 금지, 분량 유지). style 별로 여러 형식을 시도 가능.
 const POLISH_STYLE_GUIDE: Record<string, string> = {
-  natural: "전체적으로 매끄럽고 자연스럽게 다듬되 원문의 톤을 유지하세요.",
-  concise: "군더더기를 최대한 덜어내고 핵심만 남겨 간결하게 줄이세요(원문보다 짧게).",
+  natural:
+    "내용·길이는 그대로 두고, 어색한 표현과 맞춤법·띄어쓰기만 매끄럽게 고치세요. 문장을 새로 늘리거나 줄이지 마세요(가벼운 교정).",
+  expand:
+    "내용을 더 자세하고 풍부하게 풀어쓰세요. 주어진 사실의 맥락·과정·역할·노력을 구체적으로 보여주어 짧은 입력을 충실한 문장으로 확실히 길게 키우되, 없는 사실(회사·수치·성과·기간)을 새로 지어내지는 마세요.",
+  concise: "군더더기·수식어를 과감히 덜어내고 핵심만 남겨, 원문보다 눈에 띄게 짧게 줄이세요.",
+  achievement:
+    "성과와 결과 중심으로 재구성하세요. 한 일을 '무엇을 해서 어떤 결과를 냈다' 형태로 바꿔 결과·기여·수치를 문장 앞쪽에 배치하되, 원문에 없는 수치·성과를 새로 지어내지는 마세요(있는 내용만 강조).",
   professional: "격식 있고 차분한 전문가 톤으로 신뢰감 있게 다듬으세요.",
   impact: "지원자의 강점과 동기가 잘 드러나도록 자신감 있는 톤으로 다듬으세요(없는 사실 추가 금지)."
 };
 const polishIntroSchema = z.object({
   text: z.string().trim().min(1).max(4000),
-  style: z.enum(["natural", "concise", "professional", "impact"]).optional(),
+  style: z.enum(["natural", "concise", "professional", "impact", "expand", "achievement"]).optional(),
   desiredJobRole: z.string().trim().max(120).optional(),
-  jobCategories: z.array(z.string().trim().max(40)).max(5).optional()
+  jobCategories: z.array(z.string().trim().max(40)).max(5).optional(),
+  locale: z.string().max(10).optional()
 });
 app.post(
   "/members/me/ai/polish-intro",
@@ -13177,7 +13207,7 @@ app.post(
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
-      const { text, desiredJobRole, jobCategories, style } = parsed.data;
+      const { text, desiredJobRole, jobCategories, style, locale } = parsed.data;
       const styleGuide = POLISH_STYLE_GUIDE[style ?? "natural"] ?? POLISH_STYLE_GUIDE.natural;
       const systemPrompt =
         "당신은 한국 채용 이력서의 자기소개를 다듬는 첨삭 코치입니다.\n" +
@@ -13187,7 +13217,7 @@ app.post(
         "1. 사용자가 적지 않은 경력·수치·회사명·성과를 지어내지 마세요. 있는 내용만 다듬습니다.\n" +
         "2. 군더더기·중복을 없애고 문장을 매끄럽게, 맞춤법·띄어쓰기를 교정하세요.\n" +
         "3. 1인칭 진술체를 유지하고, 한국어로만 작성하세요.\n\n" +
-        'JSON 한 개 객체로만 응답: { "polished": string }';
+        'JSON 한 개 객체로만 응답: { "polished": string }' + aiLangDirective(locale);
       const ctx = [desiredJobRole ? `희망 직무: ${desiredJobRole}` : "", jobCategories?.length ? `관심 직군: ${jobCategories.join(", ")}` : ""]
         .filter(Boolean)
         .join("\n");
@@ -13218,7 +13248,8 @@ app.post(
 // 들어갈 '한 줄 요약'을 뽑아준다. 사용자는 받아서 넣을지 말지 선택.
 const summarizeIntroSchema = z.object({
   text: z.string().trim().min(1).max(4000),
-  desiredJobRole: z.string().trim().max(120).optional()
+  desiredJobRole: z.string().trim().max(120).optional(),
+  locale: z.string().max(10).optional()
 });
 app.post(
   "/members/me/ai/summarize-intro",
@@ -13230,14 +13261,14 @@ app.post(
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
-      const { text, desiredJobRole } = parsed.data;
+      const { text, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
         "사용자의 자기소개를 바탕으로 이력서 맨 위에 들어갈 '한 줄 요약'을 만들어 주세요.\n" +
         "규칙:\n" +
         "1. 한 문장, 40자 내외(최대 60자)로 핵심 강점·지향을 압축하세요.\n" +
         "2. 자기소개에 없는 사실(경력 연차·회사·수치)을 지어내지 마세요.\n" +
         "3. 한국어. 간결한 명사형 또는 진술형. 따옴표 없이.\n\n" +
-        'JSON 한 개 객체로만 응답: { "summary": string }';
+        'JSON 한 개 객체로만 응답: { "summary": string }' + aiLangDirective(locale);
       const userPrompt = `${desiredJobRole ? `희망 직무: ${desiredJobRole}\n\n` : ""}자기소개:\n${text}`;
       const completion = await openai.chat.completions.create({
         model: openaiTranslationModel,
@@ -13257,6 +13288,345 @@ app.post(
     } catch (err) {
       console.error("[ai/summarize-intro] failed", err);
       return res.status(500).json({ ok: false, message: "failed to summarize intro" });
+    }
+  }
+);
+
+// POST /members/me/ai/tailor-resume — 채용 공고(JD)와 이력서를 비교해 적합도 점수,
+// 보유/부족 키워드, 그 공고에 맞춘 요약·문장 제안을 돌려준다. 없는 사실은 만들지 않는다.
+const tailorResumeSchema = z.object({
+  resumeText: z.string().trim().min(1).max(8000),
+  jobText: z.string().trim().min(1).max(6000),
+  desiredJobRole: z.string().trim().max(120).optional(),
+  locale: z.string().max(10).optional()
+});
+app.post(
+  "/members/me/ai/tailor-resume",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "ai-tailor-resume", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = tailorResumeSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { resumeText, jobText, desiredJobRole, locale } = parsed.data;
+      const systemPrompt =
+        "당신은 한국 기업 채용을 돕는 이력서 컨설턴트입니다. 주어진 채용 공고(JD)와 지원자의 이력서를 비교해, 그 공고에 맞게 이력서를 다듬도록 돕습니다.\n\n" +
+        "규칙:\n" +
+        "1. score: 이 이력서가 이 공고에 얼마나 적합한지 0~100 정수로 평가(요구 역량·경험·키워드 충족도 기준).\n" +
+        "2. matched: 공고가 요구하는데 이력서에도 드러나는 핵심 역량/키워드(최대 8개, 짧게).\n" +
+        "3. missing: 공고가 요구하지만 이력서에 약하거나 빠진 핵심 항목(최대 8개, 짧게).\n" +
+        "4. summary: 이 공고에 맞춰 강조한 1~2문장 요약. 이력서에 있는 사실만 사용하고 없는 경력·수치를 지어내지 마세요.\n" +
+        "5. suggestions: 이 공고에 맞춰 이력서에 넣거나 고치면 좋은 구체적 제안 2~4개. 각 항목은 { title(무엇을), text(공고에 맞춘 예시 문장) }. 이력서에 근거가 없는 경험을 새로 만들지 말고, 근거가 없으면 '경험이 있다면 이렇게 표현' 식으로 제안하세요.\n" +
+        "6. summary 와 suggestions 의 text 는 '지원자 본인이 직접 이력서에 쓴 글'입니다. 반드시 1인칭(본인) 시점으로 쓰고, 지원자를 이름이나 3인칭(예: '문지윤은…', '그는…')으로 지칭하지 마세요. 이력서 문체 그대로(담백한 진술형, 주어 생략 가능).\n" +
+        "7. 과장·확정 표현(반드시 합격 등) 금지. 담백하고 실용적으로.\n\n" +
+        'JSON 한 개 객체로만 응답: { "score": number, "matched": string[], "missing": string[], "summary": string, "suggestions": [{ "title": string, "text": string }] }' +
+        aiLangDirective(locale);
+      const userPrompt =
+        `${desiredJobRole ? `지원자 희망 직무: ${desiredJobRole}\n\n` : ""}` +
+        `[채용 공고]\n${jobText}\n\n[이력서]\n${resumeText}`;
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.4,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let j: { score?: unknown; matched?: unknown; missing?: unknown; summary?: unknown; suggestions?: unknown } = {};
+      try { j = JSON.parse(raw); } catch { /* fall through */ }
+      const strArr = (v: unknown, n: number): string[] =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim().slice(0, 80)).slice(0, n) : [];
+      const score = typeof j.score === "number" && isFinite(j.score) ? Math.max(0, Math.min(100, Math.round(j.score))) : 0;
+      const suggestions = Array.isArray(j.suggestions)
+        ? j.suggestions
+            .filter((s): s is { title?: unknown; text?: unknown } => typeof s === "object" && s !== null)
+            .map((s) => ({ title: typeof s.title === "string" ? s.title.trim().slice(0, 120) : "", text: typeof s.text === "string" ? s.text.trim().slice(0, 600) : "" }))
+            .filter((s) => s.title || s.text)
+            .slice(0, 4)
+        : [];
+      return res.json({
+        ok: true,
+        result: {
+          score,
+          matched: strArr(j.matched, 8),
+          missing: strArr(j.missing, 8),
+          summary: typeof j.summary === "string" ? j.summary.trim().slice(0, 400) : "",
+          suggestions
+        }
+      });
+    } catch (err) {
+      console.error("[ai/tailor-resume] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to tailor resume" });
+    }
+  }
+);
+
+// POST /members/me/ai/fetch-job-posting — 채용 공고 URL 의 페이지 본문 텍스트를 추출.
+// 공고 맞춤에서 URL 붙여넣기 지원. JS 렌더링 사이트는 본문이 비어 올 수 있음(폴백 안내).
+const fetchJobPostingSchema = z.object({ url: z.string().trim().url().max(2000) });
+// SSRF 방어 — 사설/루프백 호스트 차단(간단 검사).
+function isBlockedHost(host: string): boolean {
+  const h = host.toLowerCase();
+  if (h === "localhost" || h.endsWith(".local") || h.endsWith(".internal")) return true;
+  if (/^(127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(h)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+  if (h === "::1" || h.startsWith("fc") || h.startsWith("fd") || h.startsWith("fe80")) return true;
+  return false;
+}
+function extractReadableText(html: string): string {
+  let s = html;
+  s = s.replace(/<(script|style|noscript|svg|head|nav|footer)[\s\S]*?<\/\1>/gi, " ");
+  s = s.replace(/<br\s*\/?>(?=)/gi, "\n");
+  s = s.replace(/<\/(p|div|li|tr|h[1-6]|section|article)>/gi, "\n");
+  s = s.replace(/<[^>]+>/g, " ");
+  s = s
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'");
+  s = s.replace(/[ \t ]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  return s;
+}
+app.post(
+  "/members/me/ai/fetch-job-posting",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ai-fetch-jd", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = fetchJobPostingSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid url" });
+    let u: URL;
+    try {
+      u = new URL(parsed.data.url);
+    } catch {
+      return res.status(400).json({ ok: false, message: "invalid url" });
+    }
+    if (u.protocol !== "http:" && u.protocol !== "https:") return res.status(400).json({ ok: false, message: "unsupported url" });
+    if (isBlockedHost(u.hostname)) return res.status(400).json({ ok: false, message: "blocked url" });
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      const r = await fetch(u.toString(), {
+        signal: controller.signal,
+        redirect: "follow",
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; AplyBot/1.0; +https://aply.global)", Accept: "text/html,application/xhtml+xml" }
+      }).finally(() => clearTimeout(timer));
+      if (!r.ok) return res.status(502).json({ ok: false, message: "fetch failed" });
+      const ctype = r.headers.get("content-type") ?? "";
+      if (!ctype.includes("html") && !ctype.includes("text")) return res.status(415).json({ ok: false, message: "unsupported content" });
+      const raw = (await r.text()).slice(0, 1_500_000);
+      const text = extractReadableText(raw).slice(0, 6000);
+      return res.json({ ok: true, text: text.trim().length < 30 ? "" : text });
+    } catch (err) {
+      console.error("[ai/fetch-job-posting] failed", err);
+      return res.status(502).json({ ok: false, message: "fetch failed" });
+    }
+  }
+);
+
+// POST /members/me/ai/interview-questions — 이력서(+선택 공고)를 바탕으로 예상 면접
+// 질문을 생성한다. 모의 면접 연습용. intent 는 면접관이 보려는 포인트(사용자 힌트).
+const interviewQuestionsSchema = z.object({
+  resumeText: z.string().trim().min(1).max(8000),
+  jobText: z.string().trim().max(6000).optional(),
+  desiredJobRole: z.string().trim().max(120).optional(),
+  locale: z.string().max(10).optional()
+});
+app.post(
+  "/members/me/ai/interview-questions",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "ai-interview-q", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = interviewQuestionsSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { resumeText, jobText, desiredJobRole, locale } = parsed.data;
+      const systemPrompt =
+        "당신은 한국 기업 채용 면접을 돕는 면접 코치입니다. 지원자의 이력서(와 있다면 채용 공고)를 보고, 실제로 나올 법한 면접 질문을 만듭니다.\n\n" +
+        "규칙:\n" +
+        "1. 질문 6개. 구성: ① 자기소개/지원동기형 1개, ② 이력서의 구체적 경험을 파고드는 질문 2~3개, ③ 직무 역량/문제해결형 1~2개, ④ 상황/약점형 1개.\n" +
+        "2. 이력서에 적힌 실제 경험을 근거로 개인화된 질문을 만드세요(일반론 X). 없는 사실을 단정하지 마세요.\n" +
+        "3. intent: 그 질문으로 면접관이 무엇을 보려는지 한 문장으로(지원자에게 도움이 되도록).\n" +
+        "4. category: 질문 분류. 반드시 다음 영문 키 중 하나만(번역하지 말 것): \"intro\"(자기소개·지원동기), \"experience\"(경험 심층), \"competency\"(직무 역량·문제해결), \"weakness\"(상황·약점).\n" +
+        "5. 정중한 존댓말.\n\n" +
+        'JSON 한 개 객체로만 응답: { "questions": [{ "question": string, "intent": string, "category": string }] }' +
+        aiLangDirective(locale);
+      const userPrompt =
+        `${desiredJobRole ? `희망 직무: ${desiredJobRole}\n` : ""}` +
+        `${jobText ? `\n[채용 공고]\n${jobText}\n` : ""}` +
+        `\n[이력서]\n${resumeText}`;
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.6,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let j: { questions?: unknown } = {};
+      try { j = JSON.parse(raw); } catch { /* fall through */ }
+      const allowedCats = new Set(["intro", "experience", "competency", "weakness"]);
+      const questions = Array.isArray(j.questions)
+        ? j.questions
+            .filter((q): q is { question?: unknown; intent?: unknown; category?: unknown } => typeof q === "object" && q !== null)
+            .map((q) => {
+              const cat = typeof q.category === "string" ? q.category.trim().toLowerCase() : "";
+              return {
+                question: typeof q.question === "string" ? q.question.trim().slice(0, 400) : "",
+                intent: typeof q.intent === "string" ? q.intent.trim().slice(0, 200) : "",
+                category: allowedCats.has(cat) ? cat : "other"
+              };
+            })
+            .filter((q) => q.question)
+            .slice(0, 8)
+        : [];
+      if (questions.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, questions });
+    } catch (err) {
+      console.error("[ai/interview-questions] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to build interview questions" });
+    }
+  }
+);
+
+// POST /members/me/ai/interview-feedback — 한 질문에 대한 사용자의 답변을 평가하고
+// 강점·개선점·모범답안을 돌려준다. 모범답안은 이력서 사실에 근거(없는 사실 금지).
+const interviewFeedbackSchema = z.object({
+  question: z.string().trim().min(1).max(600),
+  answer: z.string().trim().min(1).max(4000),
+  resumeText: z.string().trim().max(8000).optional(),
+  desiredJobRole: z.string().trim().max(120).optional(),
+  locale: z.string().max(10).optional()
+});
+app.post(
+  "/members/me/ai/interview-feedback",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ai-interview-fb", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = interviewFeedbackSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { question, answer, resumeText, desiredJobRole, locale } = parsed.data;
+      const systemPrompt =
+        "당신은 한국 기업 면접 코치입니다. 지원자가 면접 질문에 답한 내용을 평가하고, 더 좋은 답변을 하도록 돕습니다.\n\n" +
+        "규칙:\n" +
+        "1. score: 답변의 완성도(구체성·구조·직무 연관성)를 0~100 정수로.\n" +
+        "2. strengths: 답변에서 좋았던 점 1~3개(짧게).\n" +
+        "3. improvements: 더 좋게 만들 구체적 조언 1~3개(짧게, 실행 가능하게).\n" +
+        "4. sampleAnswer: 지원자의 이력서 사실에 근거한 더 나은 모범답안(STAR 구조 권장, 2~5문장). 없는 경험·수치를 지어내지 마세요.\n" +
+        "5. 격려하는 코치 말투. 정중하게.\n\n" +
+        'JSON 한 개 객체로만 응답: { "score": number, "strengths": string[], "improvements": string[], "sampleAnswer": string }' +
+        aiLangDirective(locale);
+      const userPrompt =
+        `${desiredJobRole ? `희망 직무: ${desiredJobRole}\n` : ""}` +
+        `${resumeText ? `\n[이력서 요약]\n${resumeText}\n` : ""}` +
+        `\n[면접 질문]\n${question}\n\n[지원자 답변]\n${answer}`;
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.5,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let j: { score?: unknown; strengths?: unknown; improvements?: unknown; sampleAnswer?: unknown } = {};
+      try { j = JSON.parse(raw); } catch { /* fall through */ }
+      const strArr = (v: unknown, n: number): string[] =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim().slice(0, 200)).slice(0, n) : [];
+      const score = typeof j.score === "number" && isFinite(j.score) ? Math.max(0, Math.min(100, Math.round(j.score))) : 0;
+      return res.json({
+        ok: true,
+        feedback: {
+          score,
+          strengths: strArr(j.strengths, 3),
+          improvements: strArr(j.improvements, 3),
+          sampleAnswer: typeof j.sampleAnswer === "string" ? j.sampleAnswer.trim().slice(0, 800) : ""
+        }
+      });
+    } catch (err) {
+      console.error("[ai/interview-feedback] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to evaluate answer" });
+    }
+  }
+);
+
+// POST /members/me/ai/suggest-skills — 희망직무·전공·경험을 바탕으로 이력서에 넣을
+// 만한 스킬(기술·툴·역량) 후보를 추천한다. 사용자는 칩을 눌러 추가만 하면 된다.
+const suggestSkillsSchema = z.object({
+  desiredJobRole: z.string().trim().max(120).optional(),
+  jobCategories: z.array(z.string().trim().max(40)).max(5).optional(),
+  major: z.string().trim().max(120).optional(),
+  experiences: z.array(z.string().trim().max(200)).max(20).optional(),
+  have: z.array(z.string().trim().max(60)).max(60).optional(),
+  locale: z.string().max(10).optional()
+});
+app.post(
+  "/members/me/ai/suggest-skills",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ai-suggest-skills", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = suggestSkillsSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { desiredJobRole, jobCategories, major, experiences, have, locale } = parsed.data;
+      const systemPrompt =
+        "당신은 한국 취업 이력서 코치입니다. 지원자의 희망 직무·전공·경험을 보고 이력서에 넣을 만한\n" +
+        "스킬(기술·툴·역량) 후보를 추천하세요.\n" +
+        "규칙:\n" +
+        "1. 8~12개. 해당 직무에서 실제로 통하는 구체적인 스킬 위주(예: 'GA4', 'SQL', '콘텐츠 기획', 'Figma').\n" +
+        "2. 너무 일반적인 것(예: '성실함', '커뮤니케이션')은 피하고, 직무 적합한 하드/소프트 스킬을 섞으세요.\n" +
+        "3. 이미 가진 스킬(아래 목록)은 제외하세요.\n" +
+        "4. 한국어(또는 통용되는 영문 약어)로, 짧은 키워드로.\n\n" +
+        'JSON 한 개 객체로만 응답: { "skills": string[] }' + aiLangDirective(locale);
+      const ctx = [
+        desiredJobRole ? `희망 직무: ${desiredJobRole}` : "",
+        jobCategories?.length ? `관심 직군: ${jobCategories.join(", ")}` : "",
+        major ? `전공: ${major}` : "",
+        experiences?.length ? `경험:\n- ${experiences.join("\n- ")}` : "",
+        have?.length ? `이미 가진 스킬(제외): ${have.join(", ")}` : ""
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.5,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: ctx || "정보가 거의 없습니다. 신입 지원자에게 무난한 범용 스킬을 추천하세요." }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { skills?: unknown } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+      const haveLower = new Set((have ?? []).map((s) => s.toLowerCase()));
+      const skills = Array.isArray(parsedJson.skills)
+        ? parsedJson.skills
+            .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+            .map((s) => s.trim().slice(0, 60))
+            .filter((s) => !haveLower.has(s.toLowerCase()))
+            .slice(0, 12)
+        : [];
+      return res.json({ ok: true, skills });
+    } catch (err) {
+      console.error("[ai/suggest-skills] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to suggest skills" });
     }
   }
 );
@@ -13313,11 +13683,12 @@ app.post(
   }
 );
 
-// POST /members/me/ai/translate-texts — 여러 한국어 문자열을 자연스러운 영문으로
-// 한 번에 번역한다(순서/개수 보존, 없는 내용 추가 금지). 영문 이력서 조립에 사용.
+// POST /members/me/ai/translate-texts — 여러 문자열을 타깃 언어(한국어/영어)로 한 번에
+// 번역한다. 원문 언어는 자동 감지(외국어로 쓴 이력서를 한국어로 번역 가능).
+// 순서/개수 보존, 없는 내용 추가 금지.
 const translateTextsSchema = z.object({
   texts: z.array(z.string().max(4000)).min(1).max(60),
-  target: z.literal("en").optional()
+  target: z.enum(["ko", "en"]).optional()
 });
 app.post(
   "/members/me/ai/translate-texts",
@@ -13330,16 +13701,19 @@ app.post(
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { texts } = parsed.data;
-      // 빈 문자열은 번역하지 않고 그대로 둔다(인덱스 보존).
+      const target = parsed.data.target ?? "en";
+      const targetName = target === "ko" ? "Korean (한국어)" : "English";
       const numbered = texts.map((t, i) => `${i}␟${t}`).join("\n");
       const systemPrompt =
-        "You translate Korean resume text into natural, professional English for a Korean company.\n" +
+        `You translate resume text into natural, professional ${targetName}.\n` +
+        "The source text may be in any language (Korean, English, etc.) — detect it automatically.\n" +
         "Rules:\n" +
-        "1. Translate each numbered line independently. Do NOT add facts that are not in the source.\n" +
+        `1. Translate each numbered line independently into ${targetName}. Do NOT add facts that are not in the source.\n` +
         "2. Keep proper nouns (names, companies, schools) reasonable; transliterate if needed.\n" +
-        "3. Preserve the EXACT same count and order. Empty input stays empty.\n\n" +
-        'Each input line is "<index>␟<korean text>". Respond with a single JSON object only: ' +
-        '{ "texts": string[] } where texts[index] is the English translation, same length and order.';
+        `3. If a line is already in ${targetName}, keep it as is (just fix obvious errors).\n` +
+        "4. Preserve the EXACT same count and order. Empty input stays empty.\n\n" +
+        'Each input line is "<index>␟<text>". Respond with a single JSON object only: ' +
+        `{ "texts": string[] } where texts[index] is the ${targetName} translation, same length and order.`;
       const completion = await openai.chat.completions.create({
         model: openaiTranslationModel,
         temperature: 0.2,
@@ -13380,7 +13754,17 @@ const draftIntroSchema = z.object({
       })
     )
     .max(20)
-    .optional()
+    .optional(),
+  education: z
+    .array(z.object({ school: z.string().trim().max(120).optional(), major: z.string().trim().max(120).optional(), status: z.string().trim().max(40).optional() }))
+    .max(10)
+    .optional(),
+  skills: z.array(z.string().trim().max(60)).max(40).optional(),
+  languages: z
+    .array(z.object({ language: z.string().trim().max(60).optional(), level: z.string().trim().max(40).optional() }))
+    .max(10)
+    .optional(),
+  locale: z.string().max(10).optional()
 });
 app.post(
   "/members/me/ai/draft-intro",
@@ -13392,7 +13776,7 @@ app.post(
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
-      const { desiredJobRole, jobCategories, experiences } = parsed.data;
+      const { desiredJobRole, jobCategories, experiences, education, skills, languages, locale } = parsed.data;
       const expText = (experiences ?? [])
         .map((e, i) => {
           const head = [e.title, e.type, e.org, e.period].filter(Boolean).join(" · ");
@@ -13400,18 +13784,29 @@ app.post(
           return `${i + 1}. ${head}${body ? `\n  - ${body}` : ""}`;
         })
         .join("\n");
+      const eduText = (education ?? [])
+        .map((e) => [e.school, e.major, e.status].filter(Boolean).join(" · "))
+        .filter(Boolean)
+        .join("\n");
+      const langText = (languages ?? [])
+        .map((l) => [l.language, l.level].filter(Boolean).join(" - "))
+        .filter(Boolean)
+        .join(", ");
       const systemPrompt =
         "당신은 한국 채용 이력서의 자기소개를 대신 작성해 주는 코치입니다.\n" +
-        "사용자가 입력한 경험과 희망 직무를 바탕으로 자기소개 초안을 작성하세요.\n" +
+        "사용자가 입력한 경험·학력·스킬·어학·희망 직무를 모두 바탕으로 자기소개 초안을 작성하세요.\n" +
         "규칙:\n" +
-        "1. 제공된 경험에 없는 사실(회사·수치·성과·기간)을 지어내지 마세요. 주어진 내용 안에서만 작성합니다.\n" +
+        "1. 제공된 내용에 없는 사실(회사·수치·성과·기간)을 지어내지 마세요. 주어진 내용 안에서만 작성합니다.\n" +
         "2. 3~5문장, 1인칭 진술체. 강점과 지향이 자연스럽게 드러나게.\n" +
-        "3. 경험이 거의 없으면 짧게(1~2문장), 태도·성장 의지 중심으로 담백하게.\n" +
+        "3. 경험이 거의 없으면 학력·스킬·어학·태도를 중심으로 담백하게.\n" +
         "4. 한국어로만 작성하세요.\n\n" +
-        'JSON 한 개 객체로만 응답: { "draft": string }';
+        'JSON 한 개 객체로만 응답: { "draft": string }' + aiLangDirective(locale);
       const ctx = [
         desiredJobRole ? `희망 직무: ${desiredJobRole}` : "",
         jobCategories?.length ? `관심 직군: ${jobCategories.join(", ")}` : "",
+        eduText ? `학력:\n${eduText}` : "",
+        skills?.length ? `스킬: ${skills.join(", ")}` : "",
+        langText ? `어학: ${langText}` : "",
         expText ? `경험:\n${expText}` : "경험: (입력된 경험 없음)"
       ]
         .filter(Boolean)
@@ -13442,8 +13837,9 @@ app.post(
 // 명확하고 이력서에 어울리게 다듬어 준다(없는 사실 금지, 분량 유지).
 const polishExperienceSchema = z.object({
   text: z.string().trim().min(1).max(2000),
-  style: z.enum(["natural", "concise", "professional", "impact"]).optional(),
-  type: z.string().trim().max(40).optional()
+  style: z.enum(["natural", "concise", "professional", "impact", "expand", "achievement"]).optional(),
+  type: z.string().trim().max(40).optional(),
+  locale: z.string().max(10).optional()
 });
 app.post(
   "/members/me/ai/polish-experience",
@@ -13455,7 +13851,7 @@ app.post(
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
-      const { text, type, style } = parsed.data;
+      const { text, type, style, locale } = parsed.data;
       const styleGuide = POLISH_STYLE_GUIDE[style ?? "natural"] ?? POLISH_STYLE_GUIDE.natural;
       const systemPrompt =
         "당신은 이력서에 들어갈 '경험 설명'을 다듬는 첨삭 코치입니다.\n" +
@@ -13465,8 +13861,9 @@ app.post(
         "1. 사용자가 적지 않은 회사·수치·성과를 지어내지 마세요. 있는 내용만 다듬습니다.\n" +
         "2. 한 일과 역할이 잘 드러나도록 구체적인 문장으로 정리하세요.\n" +
         "3. 군더더기·중복을 없애고 맞춤법·띄어쓰기를 교정하세요.\n" +
-        "4. 한국어, 담백한 진술체로 작성하세요.\n\n" +
-        'JSON 한 개 객체로만 응답: { "polished": string }';
+        "4. 한국어, 담백한 진술체로 작성하세요.\n" +
+        "5. 한 일이 여러 가지여도 줄바꿈으로 끊어 나열하지 말고, 자연스러운 연결어로 이어 하나의 매끄럽게 흐르는 단락으로 묶으세요. 주어·시제·맥락을 일관되게 맞추고 같은 내용을 반복하지 마세요.\n\n" +
+        'JSON 한 개 객체로만 응답: { "polished": string }' + aiLangDirective(locale);
       const userPrompt = `${type ? `경험 유형: ${type}\n` : ""}경험 설명:\n${text}`;
       const completion = await openai.chat.completions.create({
         model: openaiTranslationModel,
@@ -13494,7 +13891,8 @@ app.post(
 // 쓸 짧은 '경험명'을 지어준다(없는 사실 금지). 빠른 추가 폼에서 제목 자동 추천용.
 const experienceTitleSchema = z.object({
   rawInput: z.string().trim().min(1).max(2000),
-  type: z.string().trim().max(40).optional()
+  type: z.string().trim().max(40).optional(),
+  locale: z.string().max(10).optional()
 });
 app.post(
   "/members/me/ai/experience-title",
@@ -13510,7 +13908,7 @@ app.post(
         "사용자가 적은 경험 설명을 보고, 이력서 경험 카드에 쓸 짧은 '경험명'을 지어주세요.\n" +
         "규칙:\n1. 6~16자 내외의 간결한 명사형(예: '카페 바리스타', '교내 창업 동아리').\n" +
         "2. 사용자가 적지 않은 회사명·직무·수치를 지어내지 마세요.\n3. 한국어.\n\n" +
-        'JSON 한 개 객체로만 응답: { "title": string }';
+        'JSON 한 개 객체로만 응답: { "title": string }' + aiLangDirective(parsed.data.locale);
       const userPrompt = `${parsed.data.type ? `유형: ${parsed.data.type}\n` : ""}경험 설명:\n${parsed.data.rawInput}`;
       const completion = await openai.chat.completions.create({
         model: openaiTranslationModel,
@@ -13542,7 +13940,8 @@ const experienceTasksSchema = z.object({
   type: z.string().trim().max(40).optional(),
   title: z.string().trim().max(120).optional(),
   org: z.string().trim().max(120).optional(),
-  rawInput: z.string().trim().max(2000).optional()
+  rawInput: z.string().trim().max(2000).optional(),
+  locale: z.string().max(10).optional()
 });
 app.post(
   "/members/me/ai/experience-tasks",
@@ -13553,7 +13952,7 @@ app.post(
     const parsed = experienceTasksSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-    const { type, title, org, rawInput } = parsed.data;
+    const { type, title, org, rawInput, locale } = parsed.data;
     if (!title && !org && !rawInput) return res.status(400).json({ ok: false, message: "need at least one hint" });
     try {
       const systemPrompt =
@@ -13564,7 +13963,7 @@ app.post(
         "2. 회사 특정 수치·성과·고유명사를 지어내지 마세요. 사용자가 '맞다/아니다'로 확인 가능한 일반적 업무만.\n" +
         "3. 해당 역할에서 실제로 흔한 업무를 폭넓게, 구체적이되 검증 가능하게.\n" +
         "4. 한국어, 담백한 명사형/동사형. 중복 없이.\n\n" +
-        'JSON 한 개 객체로만 응답: { "tasks": string[], "note": string }';
+        'JSON 한 개 객체로만 응답: { "tasks": string[], "note": string }' + aiLangDirective(locale);
       const hint = [
         type ? `경험 유형: ${type}` : "",
         title ? `경험명/역할: ${title}` : "",
@@ -20230,19 +20629,288 @@ function calcResumeScores(content: unknown): ResumeScoresResult {
 //
 // 5 개로 잘라내지 않고 모든 gap 을 반환 — UI 가 카테고리별로 그룹화해서
 // 보여주므로 길어도 시각적으로 정리됨.
-function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
+// Localized copy for resume coach action cards. Keyed by UI locale
+// (ko|en|zh-CN|vi|ja|id) with a "ko" fallback so legacy callers that send no
+// locale keep the original Korean behavior. Interpolated titles (career
+// company name) are functions; everything else is a plain string. Keep the
+// shape identical across locales — only the human-readable text changes.
+type CoachStrings = {
+  careerFallback: string;
+  fillNameTitle: string;
+  fillNameDesc: string;
+  fillEmailTitle: string;
+  fillEmailDesc: string;
+  addVisaTitle: string;
+  addVisaDesc: string;
+  addEducationTitle: string;
+  addEducationDesc: string;
+  improveSelfIntroTitle: string;
+  improveSelfIntroDesc: string;
+  fillPhoneTitle: string;
+  fillPhoneDesc: string;
+  fillResidenceTitle: string;
+  fillResidenceDesc: string;
+  improveSelfIntroShortTitle: string;
+  improveSelfIntroShortDesc: string;
+  expandSelfIntroTitle: string;
+  expandSelfIntroDesc: string;
+  improveCareerTitle: (company: string) => string;
+  improveCareerDesc: string;
+  addMetricsCareerTitle: (company: string) => string;
+  addMetricsCareerDesc: string;
+  addKoreanLanguageTitle: string;
+  addKoreanLanguageDesc: string;
+  addLinkTitle: string;
+  addLinkDesc: string;
+  addActivityTitle: string;
+  addActivityDesc: string;
+  addSkillsTitle: string;
+  addSkillsDesc: string;
+  addCertificationTitle: string;
+  addCertificationDesc: string;
+  addPhotoTitle: string;
+  addPhotoDesc: string;
+};
+
+const COACH_STRINGS: Record<string, CoachStrings> = {
+  ko: {
+    careerFallback: "경력",
+    fillNameTitle: "이름을 입력하세요",
+    fillNameDesc: "이력서의 가장 기본 정보입니다.",
+    fillEmailTitle: "이메일 주소를 입력하세요",
+    fillEmailDesc: "기업이 연락할 수 있어야 합니다.",
+    addVisaTitle: "비자 정보를 입력하세요",
+    addVisaDesc: "정규직 포지션 매칭 정확도가 올라가요. (인턴 체험은 비자 무관)",
+    addEducationTitle: "학력을 추가하세요",
+    addEducationDesc: "학교명·전공·재학 상태를 입력해주세요.",
+    improveSelfIntroTitle: "자기소개를 작성하세요",
+    improveSelfIntroDesc: "본인의 강점과 동기가 드러나도록 작성해보세요.",
+    fillPhoneTitle: "전화번호를 입력하세요",
+    fillPhoneDesc: "다급한 연락 채널이 필요할 수 있어요.",
+    fillResidenceTitle: "거주지를 입력하세요",
+    fillResidenceDesc: "출퇴근 가능 지역 판단에 사용됩니다.",
+    improveSelfIntroShortTitle: "자기소개를 더 풍부하게 다듬어주세요",
+    improveSelfIntroShortDesc: "100자 이상으로 구체적 사례를 더해보세요.",
+    expandSelfIntroTitle: "자기소개에 구체적 사례를 더해보세요",
+    expandSelfIntroDesc: "성과·프로젝트 경험을 1–2개 추가하면 인상이 달라집니다.",
+    improveCareerTitle: (company) => `${company} 설명을 보강하세요`,
+    improveCareerDesc: "구체적 업무·성과·수치를 더해보세요.",
+    addMetricsCareerTitle: (company) => `${company} 성과를 수치로 표현하세요`,
+    addMetricsCareerDesc: "예: '월 활성 사용자 30% 증가', '5인 팀 리드'.",
+    addKoreanLanguageTitle: "한국어 능력을 추가하세요",
+    addKoreanLanguageDesc: "TOPIK 등급이나 회화 수준을 표시해주세요.",
+    addLinkTitle: "포트폴리오·GitHub 링크를 추가하세요",
+    addLinkDesc: "온라인 작업물이 있으면 더 설득력이 커집니다.",
+    addActivityTitle: "활동·프로젝트를 추가하세요",
+    addActivityDesc: "동아리, 사이드 프로젝트, 봉사 등 1개라도 의미 있어요.",
+    addSkillsTitle: "기술 스택을 더 추가하세요",
+    addSkillsDesc: "3개 이상의 스킬을 적으면 검색·매칭에 유리합니다.",
+    addCertificationTitle: "자격증을 추가하세요",
+    addCertificationDesc: "1개라도 있으면 차별화에 도움됩니다.",
+    addPhotoTitle: "프로필 사진을 등록하세요",
+    addPhotoDesc: "한국 기업은 사진을 본인 확인 신호로 받아들이는 경우가 많습니다."
+  },
+  en: {
+    careerFallback: "Career",
+    fillNameTitle: "Enter your name",
+    fillNameDesc: "It's the most basic information on a resume.",
+    fillEmailTitle: "Enter your email address",
+    fillEmailDesc: "Companies need a way to reach you.",
+    addVisaTitle: "Add your visa information",
+    addVisaDesc: "It improves matching accuracy for full-time roles. (Internship experiences are visa-independent.)",
+    addEducationTitle: "Add your education",
+    addEducationDesc: "Enter your school name, major, and enrollment status.",
+    improveSelfIntroTitle: "Write a self-introduction",
+    improveSelfIntroDesc: "Write it so your strengths and motivation come through.",
+    fillPhoneTitle: "Enter your phone number",
+    fillPhoneDesc: "A fast contact channel may be needed.",
+    fillResidenceTitle: "Enter your place of residence",
+    fillResidenceDesc: "It's used to judge which areas you can commute to.",
+    improveSelfIntroShortTitle: "Make your self-introduction richer",
+    improveSelfIntroShortDesc: "Add concrete examples to reach 100+ characters.",
+    expandSelfIntroTitle: "Add concrete examples to your self-introduction",
+    expandSelfIntroDesc: "Adding 1–2 achievements or project experiences changes the impression.",
+    improveCareerTitle: (company) => `Strengthen the description for ${company}`,
+    improveCareerDesc: "Add specific responsibilities, results, and numbers.",
+    addMetricsCareerTitle: (company) => `Quantify your results at ${company}`,
+    addMetricsCareerDesc: "e.g. 'increased monthly active users by 30%', 'led a team of 5'.",
+    addKoreanLanguageTitle: "Add your Korean proficiency",
+    addKoreanLanguageDesc: "Indicate your TOPIK level or conversational level.",
+    addLinkTitle: "Add a portfolio or GitHub link",
+    addLinkDesc: "Online work makes you more convincing.",
+    addActivityTitle: "Add activities or projects",
+    addActivityDesc: "Even one club, side project, or volunteer experience is meaningful.",
+    addSkillsTitle: "Add more skills",
+    addSkillsDesc: "Listing 3 or more skills helps with search and matching.",
+    addCertificationTitle: "Add a certification",
+    addCertificationDesc: "Even one helps you stand out.",
+    addPhotoTitle: "Add a profile photo",
+    addPhotoDesc: "Korean companies often treat a photo as an identity-verification signal."
+  },
+  "zh-CN": {
+    careerFallback: "工作经历",
+    fillNameTitle: "请填写姓名",
+    fillNameDesc: "这是简历上最基本的信息。",
+    fillEmailTitle: "请填写电子邮箱",
+    fillEmailDesc: "企业需要能够联系到你。",
+    addVisaTitle: "请填写签证信息",
+    addVisaDesc: "可提高正式职位的匹配精度。（实习体验不限签证类型。）",
+    addEducationTitle: "请添加学历",
+    addEducationDesc: "请填写学校名称、专业和在读状态。",
+    improveSelfIntroTitle: "请撰写自我介绍",
+    improveSelfIntroDesc: "请写出能体现你的优势和动机的内容。",
+    fillPhoneTitle: "请填写电话号码",
+    fillPhoneDesc: "可能需要一个紧急联系方式。",
+    fillResidenceTitle: "请填写居住地",
+    fillResidenceDesc: "用于判断可通勤的区域。",
+    improveSelfIntroShortTitle: "请把自我介绍写得更充实",
+    improveSelfIntroShortDesc: "补充具体事例，使其达到100字以上。",
+    expandSelfIntroTitle: "请在自我介绍中加入具体事例",
+    expandSelfIntroDesc: "补充1–2个成果或项目经历，会让印象大不相同。",
+    improveCareerTitle: (company) => `请充实${company}的描述`,
+    improveCareerDesc: "请补充具体的工作内容、成果和数据。",
+    addMetricsCareerTitle: (company) => `请用数据呈现${company}的成果`,
+    addMetricsCareerDesc: "例如：'月活跃用户增长30%'、'带领5人团队'。",
+    addKoreanLanguageTitle: "请添加韩语能力",
+    addKoreanLanguageDesc: "请标注TOPIK等级或会话水平。",
+    addLinkTitle: "请添加作品集或GitHub链接",
+    addLinkDesc: "有线上作品会更有说服力。",
+    addActivityTitle: "请添加活动或项目",
+    addActivityDesc: "社团、个人项目、志愿服务等，哪怕一项也有意义。",
+    addSkillsTitle: "请添加更多技能",
+    addSkillsDesc: "列出3项以上技能有利于搜索和匹配。",
+    addCertificationTitle: "请添加资格证书",
+    addCertificationDesc: "哪怕只有一项也有助于脱颖而出。",
+    addPhotoTitle: "请上传个人照片",
+    addPhotoDesc: "韩国企业常把照片视为身份确认的信号。"
+  },
+  vi: {
+    careerFallback: "Kinh nghiệm",
+    fillNameTitle: "Nhập họ tên của bạn",
+    fillNameDesc: "Đây là thông tin cơ bản nhất trên hồ sơ.",
+    fillEmailTitle: "Nhập địa chỉ email",
+    fillEmailDesc: "Doanh nghiệp cần có cách liên hệ với bạn.",
+    addVisaTitle: "Nhập thông tin visa",
+    addVisaDesc: "Giúp tăng độ chính xác khi khớp vị trí toàn thời gian. (Trải nghiệm thực tập không phụ thuộc visa.)",
+    addEducationTitle: "Thêm học vấn",
+    addEducationDesc: "Vui lòng nhập tên trường, chuyên ngành và tình trạng học tập.",
+    improveSelfIntroTitle: "Viết phần giới thiệu bản thân",
+    improveSelfIntroDesc: "Hãy viết sao cho thể hiện được thế mạnh và động lực của bạn.",
+    fillPhoneTitle: "Nhập số điện thoại",
+    fillPhoneDesc: "Có thể cần một kênh liên hệ nhanh.",
+    fillResidenceTitle: "Nhập nơi cư trú",
+    fillResidenceDesc: "Dùng để đánh giá khu vực bạn có thể đi làm.",
+    improveSelfIntroShortTitle: "Hãy làm phần giới thiệu phong phú hơn",
+    improveSelfIntroShortDesc: "Thêm ví dụ cụ thể để đạt trên 100 ký tự.",
+    expandSelfIntroTitle: "Thêm ví dụ cụ thể vào phần giới thiệu",
+    expandSelfIntroDesc: "Thêm 1–2 thành tích hoặc kinh nghiệm dự án sẽ thay đổi ấn tượng.",
+    improveCareerTitle: (company) => `Bổ sung phần mô tả cho ${company}`,
+    improveCareerDesc: "Hãy thêm công việc, kết quả và con số cụ thể.",
+    addMetricsCareerTitle: (company) => `Thể hiện thành tích tại ${company} bằng con số`,
+    addMetricsCareerDesc: "Ví dụ: 'tăng 30% người dùng hoạt động hàng tháng', 'dẫn dắt nhóm 5 người'.",
+    addKoreanLanguageTitle: "Thêm trình độ tiếng Hàn",
+    addKoreanLanguageDesc: "Hãy ghi cấp độ TOPIK hoặc khả năng giao tiếp.",
+    addLinkTitle: "Thêm liên kết portfolio hoặc GitHub",
+    addLinkDesc: "Có sản phẩm trực tuyến sẽ thuyết phục hơn.",
+    addActivityTitle: "Thêm hoạt động hoặc dự án",
+    addActivityDesc: "Câu lạc bộ, dự án cá nhân, hoạt động tình nguyện... dù chỉ một cũng có ý nghĩa.",
+    addSkillsTitle: "Thêm nhiều kỹ năng hơn",
+    addSkillsDesc: "Liệt kê từ 3 kỹ năng trở lên giúp tìm kiếm và khớp tốt hơn.",
+    addCertificationTitle: "Thêm chứng chỉ",
+    addCertificationDesc: "Dù chỉ một chứng chỉ cũng giúp bạn nổi bật.",
+    addPhotoTitle: "Thêm ảnh hồ sơ",
+    addPhotoDesc: "Doanh nghiệp Hàn Quốc thường xem ảnh như tín hiệu xác minh danh tính."
+  },
+  ja: {
+    careerFallback: "職歴",
+    fillNameTitle: "氏名を入力してください",
+    fillNameDesc: "履歴書の最も基本的な情報です。",
+    fillEmailTitle: "メールアドレスを入力してください",
+    fillEmailDesc: "企業が連絡できる必要があります。",
+    addVisaTitle: "ビザ情報を入力してください",
+    addVisaDesc: "正社員ポジションのマッチング精度が上がります。（インターン体験はビザ不問です。）",
+    addEducationTitle: "学歴を追加してください",
+    addEducationDesc: "学校名・専攻・在学状況を入力してください。",
+    improveSelfIntroTitle: "自己紹介を書いてください",
+    improveSelfIntroDesc: "ご自身の強みと志望動機が伝わるように書いてみましょう。",
+    fillPhoneTitle: "電話番号を入力してください",
+    fillPhoneDesc: "急ぎの連絡手段が必要になる場合があります。",
+    fillResidenceTitle: "居住地を入力してください",
+    fillResidenceDesc: "通勤可能なエリアの判断に使われます。",
+    improveSelfIntroShortTitle: "自己紹介をより充実させてください",
+    improveSelfIntroShortDesc: "具体例を加えて100文字以上にしてみましょう。",
+    expandSelfIntroTitle: "自己紹介に具体例を加えてみましょう",
+    expandSelfIntroDesc: "成果やプロジェクト経験を1〜2個追加すると印象が変わります。",
+    improveCareerTitle: (company) => `${company}の説明を充実させてください`,
+    improveCareerDesc: "具体的な業務・成果・数値を加えてみましょう。",
+    addMetricsCareerTitle: (company) => `${company}での成果を数値で表現してください`,
+    addMetricsCareerDesc: "例：「月間アクティブユーザー30%増」「5人チームのリード」。",
+    addKoreanLanguageTitle: "韓国語能力を追加してください",
+    addKoreanLanguageDesc: "TOPIKの級や会話レベルを記載してください。",
+    addLinkTitle: "ポートフォリオ・GitHubのリンクを追加してください",
+    addLinkDesc: "オンラインの作品があると説得力が増します。",
+    addActivityTitle: "活動・プロジェクトを追加してください",
+    addActivityDesc: "サークル、サイドプロジェクト、ボランティアなど、1つでも意味があります。",
+    addSkillsTitle: "技術スタックをもっと追加してください",
+    addSkillsDesc: "3つ以上のスキルを記載すると検索・マッチングに有利です。",
+    addCertificationTitle: "資格を追加してください",
+    addCertificationDesc: "1つでもあると差別化に役立ちます。",
+    addPhotoTitle: "プロフィール写真を登録してください",
+    addPhotoDesc: "韓国企業は写真を本人確認のシグナルとして受け取ることが多いです。"
+  },
+  id: {
+    careerFallback: "Pengalaman kerja",
+    fillNameTitle: "Masukkan nama Anda",
+    fillNameDesc: "Ini adalah informasi paling dasar pada resume.",
+    fillEmailTitle: "Masukkan alamat email",
+    fillEmailDesc: "Perusahaan perlu dapat menghubungi Anda.",
+    addVisaTitle: "Masukkan informasi visa",
+    addVisaDesc: "Meningkatkan akurasi pencocokan untuk posisi tetap. (Pengalaman magang tidak bergantung pada visa.)",
+    addEducationTitle: "Tambahkan riwayat pendidikan",
+    addEducationDesc: "Masukkan nama sekolah, jurusan, dan status studi.",
+    improveSelfIntroTitle: "Tulis perkenalan diri",
+    improveSelfIntroDesc: "Tulislah agar kelebihan dan motivasi Anda terlihat.",
+    fillPhoneTitle: "Masukkan nomor telepon",
+    fillPhoneDesc: "Saluran kontak cepat mungkin diperlukan.",
+    fillResidenceTitle: "Masukkan tempat tinggal",
+    fillResidenceDesc: "Digunakan untuk menilai area yang dapat Anda tempuh untuk bekerja.",
+    improveSelfIntroShortTitle: "Buat perkenalan diri lebih kaya",
+    improveSelfIntroShortDesc: "Tambahkan contoh konkret hingga lebih dari 100 karakter.",
+    expandSelfIntroTitle: "Tambahkan contoh konkret pada perkenalan diri",
+    expandSelfIntroDesc: "Menambahkan 1–2 pencapaian atau pengalaman proyek mengubah kesan.",
+    improveCareerTitle: (company) => `Perkuat deskripsi untuk ${company}`,
+    improveCareerDesc: "Tambahkan tugas, hasil, dan angka yang spesifik.",
+    addMetricsCareerTitle: (company) => `Tampilkan hasil Anda di ${company} dalam angka`,
+    addMetricsCareerDesc: "mis. 'meningkatkan pengguna aktif bulanan 30%', 'memimpin tim 5 orang'.",
+    addKoreanLanguageTitle: "Tambahkan kemampuan bahasa Korea",
+    addKoreanLanguageDesc: "Cantumkan tingkat TOPIK atau tingkat percakapan Anda.",
+    addLinkTitle: "Tambahkan tautan portofolio atau GitHub",
+    addLinkDesc: "Karya online membuat Anda lebih meyakinkan.",
+    addActivityTitle: "Tambahkan aktivitas atau proyek",
+    addActivityDesc: "Klub, proyek sampingan, atau kegiatan sukarela, satu saja pun berarti.",
+    addSkillsTitle: "Tambahkan lebih banyak keahlian",
+    addSkillsDesc: "Mencantumkan 3 keahlian atau lebih membantu pencarian dan pencocokan.",
+    addCertificationTitle: "Tambahkan sertifikasi",
+    addCertificationDesc: "Satu saja pun membantu Anda menonjol.",
+    addPhotoTitle: "Tambahkan foto profil",
+    addPhotoDesc: "Perusahaan Korea sering menganggap foto sebagai sinyal verifikasi identitas."
+  }
+};
+
+function generateResumeCoachActions(content: unknown, locale?: string): ResumeCoachAction[] {
   const actions: ResumeCoachAction[] = [];
   if (!content || typeof content !== "object") return actions;
+  const t = (locale && COACH_STRINGS[locale]) || COACH_STRINGS.ko;
   const c = content as Record<string, unknown>;
   const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
   const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
 
   // ===== Required — readiness 결정타 ======================================
   if (!trimStr(c.basicName)) {
-    actions.push({ id: "fill-name", category: "required", title: "이름을 입력하세요", description: "이력서의 가장 기본 정보입니다.", impactPoints: 5, targetSection: "basics" });
+    actions.push({ id: "fill-name", category: "required", title: t.fillNameTitle, description: t.fillNameDesc, impactPoints: 5, targetSection: "basics" });
   }
   if (!trimStr(c.basicEmail)) {
-    actions.push({ id: "fill-email", category: "required", title: "이메일 주소를 입력하세요", description: "기업이 연락할 수 있어야 합니다.", impactPoints: 6, targetSection: "basics" });
+    actions.push({ id: "fill-email", category: "required", title: t.fillEmailTitle, description: t.fillEmailDesc, impactPoints: 6, targetSection: "basics" });
   }
   // 비자 정보는 정규직 매칭 정확도를 끌어올리지만, Aply 의 인턴 체험(CIP)
   // 같은 비자 무관 포지션도 있으므로 "필수" 가 아닌 "추천" 으로 분류한다.
@@ -20250,22 +20918,22 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
     actions.push({
       id: "add-visa",
       category: "recommended",
-      title: "비자 정보를 입력하세요",
-      description: "정규직 포지션 매칭 정확도가 올라가요. (인턴 체험은 비자 무관)",
+      title: t.addVisaTitle,
+      description: t.addVisaDesc,
       impactPoints: 6,
       targetSection: "basics"
     });
   }
   if (!isArr(c.educations) || c.educations.length === 0 || !c.educations.some((e) => typeof e === "object" && e !== null && trimStr((e as Record<string, unknown>).schoolName))) {
-    actions.push({ id: "add-education", category: "required", title: "학력을 추가하세요", description: "학교명·전공·재학 상태를 입력해주세요.", impactPoints: 12, targetSection: "educations" });
+    actions.push({ id: "add-education", category: "required", title: t.addEducationTitle, description: t.addEducationDesc, impactPoints: 12, targetSection: "educations" });
   }
   const introText = trimStr(c.selfIntroduction) || trimStr(c.summary);
   if (introText.length === 0) {
     actions.push({
       id: "improve-self-introduction",
       category: "required",
-      title: "자기소개를 작성하세요",
-      description: "본인의 강점과 동기가 드러나도록 작성해보세요.",
+      title: t.improveSelfIntroTitle,
+      description: t.improveSelfIntroDesc,
       impactPoints: 10,
       targetSection: "selfIntroduction"
     });
@@ -20273,17 +20941,17 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
 
   // ===== Recommended — 채우면 매칭·인상이 크게 좋아지는 항목 ===============
   if (!trimStr(c.basicPhone)) {
-    actions.push({ id: "fill-phone", category: "recommended", title: "전화번호를 입력하세요", description: "다급한 연락 채널이 필요할 수 있어요.", impactPoints: 4, targetSection: "basics" });
+    actions.push({ id: "fill-phone", category: "recommended", title: t.fillPhoneTitle, description: t.fillPhoneDesc, impactPoints: 4, targetSection: "basics" });
   }
   if (!trimStr(c.basicResidence)) {
-    actions.push({ id: "fill-residence", category: "recommended", title: "거주지를 입력하세요", description: "출퇴근 가능 지역 판단에 사용됩니다.", impactPoints: 4, targetSection: "basics" });
+    actions.push({ id: "fill-residence", category: "recommended", title: t.fillResidenceTitle, description: t.fillResidenceDesc, impactPoints: 4, targetSection: "basics" });
   }
   if (introText.length > 0 && introText.length < 100) {
     actions.push({
       id: "improve-self-introduction-short",
       category: "recommended",
-      title: "자기소개를 더 풍부하게 다듬어주세요",
-      description: "100자 이상으로 구체적 사례를 더해보세요.",
+      title: t.improveSelfIntroShortTitle,
+      description: t.improveSelfIntroShortDesc,
       impactPoints: 7,
       targetSection: "selfIntroduction",
       llmEligible: true
@@ -20292,8 +20960,8 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
     actions.push({
       id: "expand-self-introduction",
       category: "recommended",
-      title: "자기소개에 구체적 사례를 더해보세요",
-      description: "성과·프로젝트 경험을 1–2개 추가하면 인상이 달라집니다.",
+      title: t.expandSelfIntroTitle,
+      description: t.expandSelfIntroDesc,
       impactPoints: 5,
       targetSection: "selfIntroduction",
       llmEligible: true
@@ -20304,13 +20972,13 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
       if (typeof cr !== "object" || cr === null) return;
       const obj = cr as Record<string, unknown>;
       const desc = trimStr(obj.description);
-      const company = trimStr(obj.companyName) || "경력";
+      const company = trimStr(obj.companyName) || t.careerFallback;
       if (desc.length > 0 && desc.length < 50) {
         actions.push({
           id: `improve-career-${idx}`,
           category: "recommended",
-          title: `${company} 설명을 보강하세요`,
-          description: "구체적 업무·성과·수치를 더해보세요.",
+          title: t.improveCareerTitle(company),
+          description: t.improveCareerDesc,
           impactPoints: 6,
           targetSection: "careers",
           targetItemIndex: idx,
@@ -20320,8 +20988,8 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
         actions.push({
           id: `add-metrics-career-${idx}`,
           category: "recommended",
-          title: `${company} 성과를 수치로 표현하세요`,
-          description: "예: '월 활성 사용자 30% 증가', '5인 팀 리드'.",
+          title: t.addMetricsCareerTitle(company),
+          description: t.addMetricsCareerDesc,
           impactPoints: 7,
           targetSection: "careers",
           targetItemIndex: idx,
@@ -20339,8 +21007,8 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
     actions.push({
       id: "add-korean-language",
       category: "recommended",
-      title: "한국어 능력을 추가하세요",
-      description: "TOPIK 등급이나 회화 수준을 표시해주세요.",
+      title: t.addKoreanLanguageTitle,
+      description: t.addKoreanLanguageDesc,
       impactPoints: 8,
       targetSection: "languages"
     });
@@ -20349,8 +21017,8 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
     actions.push({
       id: "add-link",
       category: "recommended",
-      title: "포트폴리오·GitHub 링크를 추가하세요",
-      description: "온라인 작업물이 있으면 더 설득력이 커집니다.",
+      title: t.addLinkTitle,
+      description: t.addLinkDesc,
       impactPoints: 5,
       targetSection: "links"
     });
@@ -20359,8 +21027,8 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
     actions.push({
       id: "add-activity",
       category: "recommended",
-      title: "활동·프로젝트를 추가하세요",
-      description: "동아리, 사이드 프로젝트, 봉사 등 1개라도 의미 있어요.",
+      title: t.addActivityTitle,
+      description: t.addActivityDesc,
       impactPoints: 5,
       targetSection: "activities"
     });
@@ -20371,8 +21039,8 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
     actions.push({
       id: "add-skills",
       category: "optional",
-      title: "기술 스택을 더 추가하세요",
-      description: "3개 이상의 스킬을 적으면 검색·매칭에 유리합니다.",
+      title: t.addSkillsTitle,
+      description: t.addSkillsDesc,
       impactPoints: 3,
       targetSection: "skills"
     });
@@ -20381,8 +21049,8 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
     actions.push({
       id: "add-certification",
       category: "optional",
-      title: "자격증을 추가하세요",
-      description: "1개라도 있으면 차별화에 도움됩니다.",
+      title: t.addCertificationTitle,
+      description: t.addCertificationDesc,
       impactPoints: 3,
       targetSection: "certifications"
     });
@@ -20391,8 +21059,8 @@ function generateResumeCoachActions(content: unknown): ResumeCoachAction[] {
     actions.push({
       id: "add-photo",
       category: "optional",
-      title: "프로필 사진을 등록하세요",
-      description: "한국 기업은 사진을 본인 확인 신호로 받아들이는 경우가 많습니다.",
+      title: t.addPhotoTitle,
+      description: t.addPhotoDesc,
       impactPoints: 2,
       targetSection: "basics"
     });

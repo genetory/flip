@@ -46,10 +46,14 @@ export function compileResumeContent(builder: ResumeBuilderState, base: ResumeCo
   for (const exp of included) {
     const description = experienceDescription(exp);
     (exp.approvedSkills ?? []).forEach((s) => skillSet.add(s));
+    // 직무·직급(선택) — 있으면 조직과 함께 보조 정보로 보여준다.
+    const roleRank = [exp.role, exp.rank].map((s) => s?.trim()).filter(Boolean).join(" · ");
     if (CAREER_TYPES.has(exp.type)) {
+      // 헤드라인은 항상 경험명(없으면 조직·직무·직급으로 폴백), 보조 줄에 조직·직무·직급.
+      const sub = [exp.org, roleRank].map((s) => s?.trim()).filter(Boolean).join(" · ");
       careers.push({
-        companyName: exp.org || exp.title,
-        position: exp.title,
+        companyName: exp.title ? sub || undefined : undefined,
+        position: exp.title || sub,
         description,
         startDate: exp.startDate,
         endDate: exp.endDate
@@ -57,7 +61,7 @@ export function compileResumeContent(builder: ResumeBuilderState, base: ResumeCo
     } else {
       activities.push({
         title: exp.title,
-        organization: exp.org,
+        organization: [exp.org, roleRank].map((s) => s?.trim()).filter(Boolean).join(" · ") || undefined,
         description,
         startDate: exp.startDate,
         endDate: exp.endDate

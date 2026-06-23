@@ -3,33 +3,27 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import type { ResumeContent } from "../../lib/member-profile-client";
-import { RESUME_VISA_OPTIONS, type ResumeDesignSettings, type ResumeTemplateId } from "../../lib/resume-maker-types";
+import { RESUME_SECTION_KEYS, RESUME_VISA_OPTIONS, TEMPLATE_SECTION_ORDER, type ResumeDesignSettings, type ResumeSectionKey } from "../../lib/resume-maker-types";
+import { useLanguage } from "../i18n/LanguageProvider";
+import type { PlatformLocale } from "../../lib/auth-messages";
 
 // A4 = 210×297mm. 96dpi 기준 794×1123px 로 고정 렌더하고, 컨테이너 폭에 맞춰
 // transform scale 로 축소한다. 페이지 수는 실제 콘텐츠 높이 / 1123 으로 추정.
 const A4_W = 794;
 const A4_H = 1123;
 
-type SectionKey =
-  | "summary"
-  | "selfIntro"
-  | "careers"
-  | "activities"
-  | "education"
-  | "certifications"
-  | "skills"
-  | "languages"
-  | "links";
+type SectionKey = ResumeSectionKey;
 
-const TEMPLATE_ORDER: Record<ResumeTemplateId, SectionKey[]> = {
-  basic: ["summary", "selfIntro", "careers", "activities", "education", "certifications", "skills", "languages", "links"],
-  newgrad: ["education", "summary", "selfIntro", "activities", "careers", "certifications", "skills", "languages", "links"],
-  project: ["summary", "activities", "careers", "education", "certifications", "skills", "languages", "links"]
-};
+// 섹션 렌더 순서 — 사용자가 정한 sectionOrder 우선, 없으면 템플릿 순서.
+// 빠진 키가 있으면 끝에 보충해 모든 섹션이 누락 없이 후보가 되도록 한다.
+function resolveOrder(design: ResumeDesignSettings): SectionKey[] {
+  const base = design.sectionOrder?.length ? design.sectionOrder : TEMPLATE_SECTION_ORDER[design.templateId] ?? TEMPLATE_SECTION_ORDER.basic;
+  return [...base, ...RESUME_SECTION_KEYS.filter((k) => !base.includes(k))];
+}
 
-function period(start?: string, end?: string): string {
+function period(start?: string, end?: string, present = "현재"): string {
   if (!start && !end) return "";
-  return `${start ?? ""}${start || end ? " ~ " : ""}${end || (start ? "현재" : "")}`.trim();
+  return `${start ?? ""}${start || end ? " ~ " : ""}${end || (start ? present : "")}`.trim();
 }
 
 function nonEmpty(v?: string | null): v is string {
@@ -39,29 +33,23 @@ function nonEmpty(v?: string | null): v is string {
 // A4 시트 본문 — 화면 미리보기(스케일)와 인쇄(PDF)에서 동일하게 재사용.
 // 섹션 라벨 — 국문/영문. lang="en" 이면 영문 이력서로 라벨을 바꾼다(값/장문은 번역된
 // content 를 받아서 렌더). key 는 SectionKey 와 일치한다.
-const SECTION_LABELS: Record<"ko" | "en", Record<SectionKey, string>> = {
-  ko: {
-    summary: "요약",
-    selfIntro: "자기소개",
-    careers: "경력",
-    activities: "활동 · 프로젝트",
-    education: "학력",
-    certifications: "자격 · 수상",
-    skills: "스킬",
-    languages: "어학",
-    links: "링크"
-  },
-  en: {
-    summary: "Summary",
-    selfIntro: "About Me",
-    careers: "Experience",
-    activities: "Activities & Projects",
-    education: "Education",
-    certifications: "Certifications & Awards",
-    skills: "Skills",
-    languages: "Languages",
-    links: "Links"
-  }
+const SECTION_LABELS: Record<PlatformLocale, Record<SectionKey, string>> = {
+  ko: { summary: "요약", selfIntro: "자기소개", careers: "경력", activities: "활동 · 프로젝트", education: "학력", certifications: "자격 · 수상", skills: "스킬", languages: "어학", links: "링크" },
+  en: { summary: "Summary", selfIntro: "About Me", careers: "Experience", activities: "Activities & Projects", education: "Education", certifications: "Certifications & Awards", skills: "Skills", languages: "Languages", links: "Links" },
+  "zh-CN": { summary: "摘要", selfIntro: "自我介绍", careers: "工作经历", activities: "活动与项目", education: "学历", certifications: "资格与获奖", skills: "技能", languages: "语言", links: "链接" },
+  vi: { summary: "Tóm tắt", selfIntro: "Giới thiệu", careers: "Kinh nghiệm", activities: "Hoạt động & Dự án", education: "Học vấn", certifications: "Chứng chỉ & Giải thưởng", skills: "Kỹ năng", languages: "Ngoại ngữ", links: "Liên kết" },
+  ja: { summary: "要約", selfIntro: "自己紹介", careers: "職務経歴", activities: "活動・プロジェクト", education: "学歴", certifications: "資格・受賞", skills: "スキル", languages: "語学", links: "リンク" },
+  id: { summary: "Ringkasan", selfIntro: "Tentang Saya", careers: "Pengalaman", activities: "Aktivitas & Proyek", education: "Pendidikan", certifications: "Sertifikat & Penghargaan", skills: "Keterampilan", languages: "Bahasa", links: "Tautan" }
+};
+
+// 미리보기 크롬(이름 자리표시·비자 접두어·기간 '현재'·페이지 안내) — 6개 언어.
+const CHROME: Record<PlatformLocale, { name: string; visa: string; present: string; a4: (n: number) => string; pageWarn: (n: number) => string }> = {
+  ko: { name: "이름", visa: "비자", present: "현재", a4: (n) => `A4 · ${n}페이지`, pageWarn: (n) => `현재 내용이 ${n}페이지입니다. 일부 문장을 줄이면 1페이지로 정리할 수 있어요.` },
+  en: { name: "Name", visa: "Visa", present: "Present", a4: (n) => `A4 · ${n} page${n > 1 ? "s" : ""}`, pageWarn: (n) => `Your content is ${n} pages. Trimming some lines can fit it on 1 page.` },
+  "zh-CN": { name: "姓名", visa: "签证", present: "至今", a4: (n) => `A4 · ${n}页`, pageWarn: (n) => `当前内容有 ${n} 页。精简部分语句可整理为 1 页。` },
+  vi: { name: "Tên", visa: "Visa", present: "Hiện tại", a4: (n) => `A4 · ${n} trang`, pageWarn: (n) => `Nội dung hiện dài ${n} trang. Rút gọn một số câu có thể gói gọn trong 1 trang.` },
+  ja: { name: "氏名", visa: "ビザ", present: "現在", a4: (n) => `A4 · ${n}ページ`, pageWarn: (n) => `現在の内容は${n}ページです。一部の文を減らすと1ページにまとめられます。` },
+  id: { name: "Nama", visa: "Visa", present: "Sekarang", a4: (n) => `A4 · ${n} halaman`, pageWarn: (n) => `Konten Anda ${n} halaman. Memangkas beberapa kalimat bisa memuatnya dalam 1 halaman.` }
 };
 
 export function ResumeSheet({
@@ -75,16 +63,17 @@ export function ResumeSheet({
   design: ResumeDesignSettings;
   highlightSection?: SectionKey | null;
   innerRef?: React.Ref<HTMLDivElement>;
-  lang?: "ko" | "en";
+  lang?: PlatformLocale;
 }) {
   const accent = design.accentColor || "#0B46E8";
   const baseFont = 13.5 * design.fontScale;
-  const order = TEMPLATE_ORDER[design.templateId] ?? TEMPLATE_ORDER.basic;
+  const order = resolveOrder(design);
   const layout = design.layout ?? "modern";
-  const labels = SECTION_LABELS[lang];
-  const name = content.basicName || (lang === "en" ? "Name" : "이름");
+  const labels = SECTION_LABELS[lang] ?? SECTION_LABELS.en;
+  const chrome = CHROME[lang] ?? CHROME.en;
+  const name = content.basicName || chrome.name;
   const visaLabel = content.basicVisa
-    ? `${lang === "en" ? "Visa" : "비자"} ${RESUME_VISA_OPTIONS.find((o) => o.value === content.basicVisa)?.label ?? content.basicVisa}`
+    ? `${chrome.visa} ${RESUME_VISA_OPTIONS.find((o) => o.value === content.basicVisa)?.label ?? content.basicVisa}`
     : "";
   const contactItems = [content.basicPhone, content.basicEmail, content.basicResidence, visaLabel].filter(nonEmpty);
   const contactLine = contactItems.join("  ·  ");
@@ -173,7 +162,7 @@ export function ResumeSheet({
                     {c.position}
                     {nonEmpty(c.companyName) ? <span className="font-normal text-slate-500"> · {c.companyName}</span> : null}
                   </p>
-                  <span className="shrink-0 text-[11px] text-slate-400">{period(c.startDate, c.endDate)}</span>
+                  <span className="shrink-0 text-[11px] text-slate-400">{period(c.startDate, c.endDate, chrome.present)}</span>
                 </div>
                 {nonEmpty(c.description) ? <p className="mt-0.5 whitespace-pre-line text-slate-700">{c.description}</p> : null}
               </div>
@@ -196,7 +185,7 @@ export function ResumeSheet({
                     {a.title}
                     {nonEmpty(a.organization) ? <span className="font-normal text-slate-500"> · {a.organization}</span> : null}
                   </p>
-                  <span className="shrink-0 text-[11px] text-slate-400">{period(a.startDate, a.endDate)}</span>
+                  <span className="shrink-0 text-[11px] text-slate-400">{period(a.startDate, a.endDate, chrome.present)}</span>
                 </div>
                 {nonEmpty(a.description) ? <p className="mt-0.5 whitespace-pre-line text-slate-700">{a.description}</p> : null}
               </div>
@@ -224,7 +213,7 @@ export function ResumeSheet({
                   {e.schoolName}
                   {nonEmpty(e.major) ? <span className="text-slate-500"> · {e.major}</span> : null}
                 </p>
-                <span className="shrink-0 text-[11px] text-slate-400">{period(e.startDate ?? undefined, e.endDate ?? undefined)}</span>
+                <span className="shrink-0 text-[11px] text-slate-400">{period(e.startDate ?? undefined, e.endDate ?? undefined, chrome.present)}</span>
               </div>
             ))}
           </div>
@@ -287,10 +276,12 @@ export function ResumeSheet({
           <div className="space-y-1">
             {items.map((l, i) => (
               <div key={i} className="flex items-baseline justify-between gap-2">
-                <p className="text-slate-800">{nonEmpty(l.label) ? l.label : l.url}</p>
-                <span className="shrink-0 truncate text-[11px] text-slate-400" style={{ maxWidth: "55%" }}>
-                  {l.url}
-                </span>
+                <p className="min-w-0 break-all text-slate-800">{nonEmpty(l.label) ? l.label : l.url}</p>
+                {nonEmpty(l.label) ? (
+                  <span className="shrink-0 truncate text-[11px] text-slate-400" style={{ maxWidth: "55%" }}>
+                    {l.url}
+                  </span>
+                ) : null}
               </div>
             ))}
           </div>
@@ -407,6 +398,8 @@ export function ResumePreview({
   design: ResumeDesignSettings;
   highlightSection?: SectionKey | null;
 }) {
+  const { locale } = useLanguage();
+  const chrome = CHROME[locale] ?? CHROME.en;
   const wrapRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -438,18 +431,18 @@ export function ResumePreview({
     <div>
       {/* 페이지 정보 / 경고 */}
       <div className="mb-2 flex items-center justify-between text-[12px] text-muted-foreground">
-        <span>A4 · {pages}페이지</span>
+        <span>{chrome.a4(pages)}</span>
         {pages > 1 ? (
           <span className="inline-flex items-center gap-1 text-amber-700">
             <WarningCircle className="h-3.5 w-3.5" weight="fill" aria-hidden />
-            현재 내용이 {pages}페이지입니다. 일부 문장을 줄이면 1페이지로 정리할 수 있어요.
+            {chrome.pageWarn(pages)}
           </span>
         ) : null}
       </div>
 
       <div ref={wrapRef} className="w-full" style={{ height: A4_H * scale * pages + (pages - 1) * 8 * scale }}>
         <div style={{ position: "relative", width: A4_W, transform: `scale(${scale})`, transformOrigin: "top left" }}>
-          <ResumeSheet innerRef={sheetRef} content={content} design={design} highlightSection={highlightSection} />
+          <ResumeSheet innerRef={sheetRef} content={content} design={design} highlightSection={highlightSection} lang={locale} />
 
           {/* 페이지 경계선 */}
           {Array.from({ length: pages - 1 }).map((_, i) => (

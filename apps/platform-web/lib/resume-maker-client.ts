@@ -3,6 +3,7 @@
 // 빌더 상태는 Resume.content.builder 네임스페이스에 보관 — 마이그레이션 없음.
 
 import { authedJsonFetch } from "./member-profile-client";
+import { getBrowserLocale } from "./auth-messages";
 import type { Resume, ResumeContent } from "./member-profile-client";
 import { EMPTY_BUILDER_STATE, type ExperienceGeneration, type InterviewQuestion, type ResumeBuilderState } from "./resume-maker-types";
 
@@ -83,7 +84,7 @@ export async function generateExperienceInterview(input: {
 }): Promise<{ coachNote: string; questions: InterviewQuestion[] }> {
   const payload = (await authedJsonFetch<unknown>("/members/me/ai/experience-interview", {
     method: "POST",
-    body: JSON.stringify(input)
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { interview?: { coachNote?: string; questions?: InterviewQuestion[] } };
   const questions = payload.interview?.questions ?? [];
   if (questions.length === 0) throw new Error("질문을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
@@ -98,7 +99,7 @@ export async function generateExperienceBullets(input: {
 }): Promise<Omit<ExperienceGeneration, "generatedAt">> {
   const payload = (await authedJsonFetch<unknown>("/members/me/ai/experience-bullets", {
     method: "POST",
-    body: JSON.stringify(input)
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { generation?: Omit<ExperienceGeneration, "generatedAt"> };
   if (!payload.generation) throw new Error("문장을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
   return {
@@ -121,13 +122,14 @@ export async function saveResumeContent(resumeId: string, content: ResumeContent
 }
 
 // 자기소개 다듬기/첨삭 (POST /members/me/ai/polish-intro). style 별로 형식을 달리.
-export type PolishStyle = "natural" | "concise" | "professional" | "impact";
+export type PolishStyle = "natural" | "concise" | "professional" | "impact" | "expand" | "achievement";
 // 자기소개·경험 다듬기 공용 형식 목록.
+// 서로 확실히 다른 결과가 나오는 4가지만 노출(톤만 다른 것들은 뺌).
 export const POLISH_STYLES: { value: PolishStyle; label: string }[] = [
   { value: "natural", label: "자연스럽게" },
+  { value: "expand", label: "자세히 풀어쓰기" },
   { value: "concise", label: "간결하게" },
-  { value: "professional", label: "전문적으로" },
-  { value: "impact", label: "강점 강조" }
+  { value: "achievement", label: "성과 강조" }
 ];
 export const polishStyleLabel = (s: PolishStyle) => POLISH_STYLES.find((x) => x.value === s)?.label ?? "";
 export async function polishSelfIntro(input: {
@@ -138,7 +140,7 @@ export async function polishSelfIntro(input: {
 }): Promise<string> {
   const payload = (await authedJsonFetch<unknown>("/members/me/ai/polish-intro", {
     method: "POST",
-    body: JSON.stringify(input)
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { polished?: string };
   const polished = (payload.polished ?? "").trim();
   if (!polished) throw new Error("자기소개를 다듬지 못했어요. 잠시 후 다시 시도해 주세요.");
@@ -150,39 +152,34 @@ export async function draftSelfIntro(input: {
   desiredJobRole?: string;
   jobCategories?: string[];
   experiences?: { type?: string; title?: string; org?: string; period?: string; summary?: string; bullets?: string[] }[];
+  education?: { school?: string; major?: string; status?: string }[];
+  skills?: string[];
+  languages?: { language?: string; level?: string }[];
 }): Promise<string> {
   const payload = (await authedJsonFetch<unknown>("/members/me/ai/draft-intro", {
     method: "POST",
-    body: JSON.stringify(input)
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { draft?: string };
   const draft = (payload.draft ?? "").trim();
   if (!draft) throw new Error("초안을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
   return draft;
 }
 
-// 한국어 자기소개 → 영문 자기소개 생성 (POST /members/me/ai/generate-english-intro).
-export async function generateEnglishIntro(input: { text: string; desiredJobRole?: string; jobCategories?: string[] }): Promise<string> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/generate-english-intro", {
-    method: "POST",
-    body: JSON.stringify(input)
-  })) as unknown as { english?: string };
-  const english = (payload.english ?? "").trim();
-  if (!english) throw new Error("영문 자기소개를 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
-  return english;
-}
+export type TranslateTarget = "ko" | "en";
 
-// 여러 문자열 일괄 영문 번역 (POST /members/me/ai/translate-texts). 순서·개수 보존.
-export async function translateTexts(texts: string[]): Promise<string[]> {
+// 여러 문자열을 타깃 언어로 일괄 번역 (POST /members/me/ai/translate-texts).
+// 원문 언어 자동 감지 — 외국어로 쓴 이력서를 한국어로도 번역 가능. 순서·개수 보존.
+export async function translateTexts(texts: string[], target: TranslateTarget = "en"): Promise<string[]> {
   const payload = (await authedJsonFetch<unknown>("/members/me/ai/translate-texts", {
     method: "POST",
-    body: JSON.stringify({ texts, target: "en" })
+    body: JSON.stringify({ texts, target })
   })) as unknown as { texts?: string[] };
   return Array.isArray(payload.texts) ? payload.texts : texts;
 }
 
-// 이력서 content 를 영문 이력서용으로 변환 — 장문/직무 등 번역 가능한 텍스트만
-// 모아 한 번에 번역하고 제자리에 채운다(이름·날짜·학교명 등 구조 필드는 유지).
-export async function buildEnglishResumeContent(content: ResumeContent): Promise<ResumeContent> {
+// 이력서 content 를 타깃 언어로 번역 — 장문/직무 등 번역 가능한 텍스트만 모아 한 번에
+// 번역하고 제자리에 채운다(이름·날짜·학교명 등 구조 필드는 유지).
+export async function buildTranslatedResumeContent(content: ResumeContent, target: TranslateTarget): Promise<ResumeContent> {
   const out: ResumeContent = JSON.parse(JSON.stringify(content));
   const texts: string[] = [];
   const slots: ((v: string) => void)[] = [];
@@ -203,27 +200,133 @@ export async function buildEnglishResumeContent(content: ResumeContent): Promise
   (out.skills ?? []).forEach((_, i) => add(out.skills?.[i], (v) => { (out.skills as string[])[i] = v; }));
   if (texts.length === 0) return out;
   // 한 번에 최대 60개만 번역(초과분은 원문 유지).
-  const translated = await translateTexts(texts.slice(0, 60));
+  const translated = await translateTexts(texts.slice(0, 60), target);
   translated.forEach((v, i) => slots[i]?.(v));
   return out;
+}
+
+// 희망직무·전공·경험 기반 스킬 추천 (POST /members/me/ai/suggest-skills).
+export async function suggestSkills(input: {
+  desiredJobRole?: string;
+  jobCategories?: string[];
+  major?: string;
+  experiences?: string[];
+  have?: string[];
+}): Promise<string[]> {
+  const payload = (await authedJsonFetch<unknown>("/members/me/ai/suggest-skills", {
+    method: "POST",
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
+  })) as unknown as { skills?: string[] };
+  return Array.isArray(payload.skills) ? payload.skills : [];
 }
 
 // 자기소개 → 한 줄 요약 추천 (POST /members/me/ai/summarize-intro).
 export async function summarizeSelfIntro(input: { text: string; desiredJobRole?: string }): Promise<string> {
   const payload = (await authedJsonFetch<unknown>("/members/me/ai/summarize-intro", {
     method: "POST",
-    body: JSON.stringify(input)
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { summary?: string };
   const summary = (payload.summary ?? "").trim();
   if (!summary) throw new Error("요약을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
   return summary;
 }
 
+// ── 공고 맞춤 최적화 (POST /members/me/ai/tailor-resume) ──
+export type TailorSuggestion = { title: string; text: string };
+export type TailorResult = {
+  score: number;
+  matched: string[];
+  missing: string[];
+  summary: string;
+  suggestions: TailorSuggestion[];
+};
+
+// 표준 ResumeContent 를 AI 비교용 평문으로 직렬화(요약·자기소개·경력·활동·학력·스킬·어학).
+// 이름은 일부러 제외한다 — 요약/제안/면접 답안이 본인 이름을 3인칭으로 쓰는 걸 막기 위함.
+export function resumeToPlainText(content: ResumeContent): string {
+  const lines: string[] = [];
+  const push = (label: string, v?: string | null) => {
+    if (v && v.trim()) lines.push(`${label}: ${v.trim()}`);
+  };
+  push("희망 직무", content.desiredJobRole);
+  push("한 줄 요약", content.summary);
+  push("자기소개", content.selfIntroduction);
+  for (const e of content.educations ?? []) {
+    const parts = [e.schoolName, e.major, e.status].filter(Boolean).join(" · ");
+    if (parts) lines.push(`학력: ${parts}`);
+  }
+  for (const c of content.careers ?? []) {
+    const head = [c.companyName, c.position].filter(Boolean).join(" · ");
+    lines.push(`경력: ${head}${c.description ? `\n  ${c.description.replace(/\n/g, "\n  ")}` : ""}`);
+  }
+  for (const a of content.activities ?? []) {
+    const head = [a.title, a.organization].filter(Boolean).join(" · ");
+    lines.push(`활동: ${head}${a.description ? `\n  ${a.description.replace(/\n/g, "\n  ")}` : ""}`);
+  }
+  if (content.skills?.length) lines.push(`스킬: ${content.skills.join(", ")}`);
+  for (const l of content.languages ?? []) {
+    if (l.language) lines.push(`어학: ${[l.language, l.level].filter(Boolean).join(" - ")}`);
+  }
+  return lines.join("\n").slice(0, 8000);
+}
+
+// 채용 공고 URL → 페이지 본문 텍스트 추출(공고 맞춤 URL 붙여넣기용).
+export async function fetchJobPosting(url: string): Promise<string> {
+  const payload = (await authedJsonFetch<unknown>("/members/me/ai/fetch-job-posting", {
+    method: "POST",
+    body: JSON.stringify({ url })
+  })) as unknown as { text?: string };
+  return (payload.text ?? "").trim();
+}
+
+export async function tailorResume(input: { resumeText: string; jobText: string; desiredJobRole?: string }): Promise<TailorResult> {
+  const payload = (await authedJsonFetch<unknown>("/members/me/ai/tailor-resume", {
+    method: "POST",
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
+  })) as unknown as { result?: Partial<TailorResult> };
+  const r = payload.result ?? {};
+  return {
+    score: typeof r.score === "number" ? r.score : 0,
+    matched: Array.isArray(r.matched) ? r.matched : [],
+    missing: Array.isArray(r.missing) ? r.missing : [],
+    summary: typeof r.summary === "string" ? r.summary : "",
+    suggestions: Array.isArray(r.suggestions) ? r.suggestions : []
+  };
+}
+
+// ── AI 모의 면접 ──
+export type InterviewQuestionItem = { question: string; intent: string; category: string };
+export type InterviewFeedback = { score: number; strengths: string[]; improvements: string[]; sampleAnswer: string };
+
+export async function generateInterviewQuestions(input: { resumeText: string; jobText?: string; desiredJobRole?: string }): Promise<InterviewQuestionItem[]> {
+  const payload = (await authedJsonFetch<unknown>("/members/me/ai/interview-questions", {
+    method: "POST",
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
+  })) as unknown as { questions?: InterviewQuestionItem[] };
+  const questions = Array.isArray(payload.questions) ? payload.questions : [];
+  if (questions.length === 0) throw new Error("면접 질문을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
+  return questions;
+}
+
+export async function getInterviewFeedback(input: { question: string; answer: string; resumeText?: string; desiredJobRole?: string }): Promise<InterviewFeedback> {
+  const payload = (await authedJsonFetch<unknown>("/members/me/ai/interview-feedback", {
+    method: "POST",
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
+  })) as unknown as { feedback?: Partial<InterviewFeedback> };
+  const f = payload.feedback ?? {};
+  return {
+    score: typeof f.score === "number" ? f.score : 0,
+    strengths: Array.isArray(f.strengths) ? f.strengths : [],
+    improvements: Array.isArray(f.improvements) ? f.improvements : [],
+    sampleAnswer: typeof f.sampleAnswer === "string" ? f.sampleAnswer : ""
+  };
+}
+
 // 경험 설명(한 일) 다듬기 (POST /members/me/ai/polish-experience). style 별로 형식을 달리.
 export async function polishExperienceText(input: { text: string; style?: PolishStyle; type?: string }): Promise<string> {
   const payload = (await authedJsonFetch<unknown>("/members/me/ai/polish-experience", {
     method: "POST",
-    body: JSON.stringify(input)
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { polished?: string };
   const polished = (payload.polished ?? "").trim();
   if (!polished) throw new Error("내용을 다듬지 못했어요. 잠시 후 다시 시도해 주세요.");
@@ -240,7 +343,7 @@ export async function suggestExperienceTasks(input: {
 }): Promise<{ tasks: string[]; note: string }> {
   const payload = (await authedJsonFetch<unknown>("/members/me/ai/experience-tasks", {
     method: "POST",
-    body: JSON.stringify(input)
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { tasks?: string[]; note?: string };
   const tasks = Array.isArray(payload.tasks) ? payload.tasks : [];
   if (tasks.length === 0) throw new Error("추천 항목을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
@@ -251,7 +354,7 @@ export async function suggestExperienceTasks(input: {
 export async function suggestExperienceTitle(input: { rawInput: string; type?: string }): Promise<string> {
   const payload = (await authedJsonFetch<unknown>("/members/me/ai/experience-title", {
     method: "POST",
-    body: JSON.stringify(input)
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { title?: string };
   return (payload.title ?? "").trim();
 }
@@ -334,8 +437,7 @@ export function isResumeMakerDraft(resume: Pick<Resume, "content">): boolean {
 }
 
 // 작성 진행도에 맞는 이어쓰기 경로 — 온보딩 전이면 온보딩, 이후면 경험 목록.
-export function builderContinuePath(resumeId: string, resume: Pick<Resume, "content">): string {
-  const b = getBuilderState(resume);
-  const onward = Boolean(b.onboarding.completedAt) || b.experiences.length > 0;
-  return onward ? `/resume-maker/${resumeId}/experiences` : `/resume-maker/${resumeId}/onboarding`;
+export function builderContinuePath(resumeId: string, _resume: Pick<Resume, "content">): string {
+  // 2컬럼 편집기(폼 + 실시간 미리보기)가 기본 진입점.
+  return `/resume-maker/${resumeId}/edit`;
 }

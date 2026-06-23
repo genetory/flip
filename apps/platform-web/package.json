@@ -6,7 +6,8 @@
     "dev": "next dev --webpack -p 3000",
     "build": "next build --webpack",
     "start": "next start -p 3000",
-    "lint": "next lint"
+    "lint": "next lint",
+    "check:i18n": "node scripts/check-resume-i18n.mjs"
   },
   "dependencies": {
     "@next/third-parties": "^16.2.6",

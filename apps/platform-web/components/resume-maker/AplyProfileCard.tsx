@@ -4,13 +4,12 @@ import type { ReactNode } from "react";
 import { Briefcase, CalendarCheck, GlobeHemisphereEast, IdentificationCard, MapPin, Sparkle, Translate } from "@phosphor-icons/react/dist/ssr";
 import { paperlogy } from "../../lib/fonts";
 import type { ResumeContent, ResumeCoachData, ResumeReadinessLevel } from "../../lib/member-profile-client";
-import { RESUME_VISA_OPTIONS } from "../../lib/resume-maker-types";
+import { useProfileCardCopy } from "../../lib/resume-maker-i18n/profile-card";
+import { useVisaLabel } from "../../lib/resume-maker-i18n/options";
 
 // APLY Profile — 이력서 데이터로 자동 생성되는 "기업에게 보여줄" 카드형 커리어 프로필.
 // 학생은 자기 이력서가 기업 눈에 어떻게 정리되는지 미리 보고, 운영자는 이 카드를
 // 후보자 카드로 그대로 활용한다. content + coach(매치점수·레벨) + 추천직무를 재사용한다.
-
-const visaLabel = (v?: string | null): string => (v ? RESUME_VISA_OPTIONS.find((o) => o.value === v)?.label ?? v : "");
 
 // 어학 배열에서 특정 언어의 수준을 뽑는다(언어명 부분 일치).
 function levelOf(languages: ResumeContent["languages"], match: RegExp): string {
@@ -19,10 +18,10 @@ function levelOf(languages: ResumeContent["languages"], match: RegExp): string {
 }
 
 // coach 레벨 → 기업 추천 관점의 후보 상태 배지.
-const STATUS_BADGE: Record<ResumeReadinessLevel, { label: string; cls: string }> = {
-  submittable: { label: "기업 추천 가능", cls: "bg-emerald-100 text-emerald-800" },
-  needs_polish: { label: "보완 후 추천 가능", cls: "bg-amber-100 text-amber-800" },
-  not_submittable: { label: "작성 보완 필요", cls: "bg-rose-100 text-rose-800" }
+const STATUS_BADGE_CLS: Record<ResumeReadinessLevel, string> = {
+  submittable: "bg-emerald-100 text-emerald-800",
+  needs_polish: "bg-amber-100 text-amber-800",
+  not_submittable: "bg-rose-100 text-rose-800"
 };
 
 function Row({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
@@ -49,11 +48,19 @@ export function AplyProfileCard({
   recommendedRoles?: string[];
   completeness?: number;
 }) {
-  const name = (content.basicName || "").trim() || "익명 후보";
+  const t = useProfileCardCopy();
+  const visaText = useVisaLabel();
+  const STATUS_LABEL: Record<ResumeReadinessLevel, string> = {
+    submittable: t.statusSubmittable,
+    needs_polish: t.statusNeedsPolish,
+    not_submittable: t.statusNotSubmittable
+  };
+  const name = (content.basicName || "").trim() || t.anonymousCandidate;
   const nationality = (content as { nationality?: string | null }).nationality?.trim() || "";
-  const visa = visaLabel(content.basicVisa);
-  const koreanLevel = levelOf(content.languages, /한국|korean/i);
-  const englishLevel = levelOf(content.languages, /영어|english/i);
+  const visa = visaText(content.basicVisa);
+  // 어학 항목을 사용자가 어느 언어로 적었든 한국어/영어를 잡도록 다국어 별칭 매칭.
+  const koreanLevel = levelOf(content.languages, /한국|korean|korea|hàn|han quoc|韓国|韩|韓|korean?a/i);
+  const englishLevel = levelOf(content.languages, /영어|english|anh|tiếng anh|inggris|英語|英语/i);
   const major = (content.educations ?? []).find((e) => e.major)?.major ?? "";
   const desiredJob = (content.desiredJobRole || "").trim();
   const availableFrom = (content.availableFrom || "").trim();
@@ -69,7 +76,7 @@ export function AplyProfileCard({
     .slice(0, 3);
 
   const matchScore = coach ? Math.round(coach.score.readiness.total) : null;
-  const status = coach ? STATUS_BADGE[coach.score.level] : null;
+  const status = coach ? { label: STATUS_LABEL[coach.score.level], cls: STATUS_BADGE_CLS[coach.score.level] } : null;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
@@ -91,7 +98,7 @@ export function AplyProfileCard({
           ) : null}
           {typeof completeness === "number" ? (
             <span className="text-[11px] text-muted-foreground">
-              완성도 <span className="font-bold text-[#0B1227]">{completeness}%</span>
+              {t.completenessLabel} <span className="font-bold text-[#0B1227]">{completeness}%</span>
             </span>
           ) : null}
         </div>
@@ -99,19 +106,19 @@ export function AplyProfileCard({
 
       {/* 핵심 정보 그리드 */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-3.5 px-5 py-4">
-        <Row icon={<GlobeHemisphereEast weight="bold" className="h-4 w-4" />} label="국적" value={nationality} />
-        <Row icon={<IdentificationCard weight="bold" className="h-4 w-4" />} label="비자" value={visa} />
-        <Row icon={<Translate weight="bold" className="h-4 w-4" />} label="한국어" value={koreanLevel} />
-        <Row icon={<Translate weight="bold" className="h-4 w-4" />} label="영어" value={englishLevel} />
-        <Row icon={<Briefcase weight="bold" className="h-4 w-4" />} label="전공" value={major} />
-        <Row icon={<MapPin weight="bold" className="h-4 w-4" />} label="희망 근무지" value={desiredLocation} />
-        <Row icon={<CalendarCheck weight="bold" className="h-4 w-4" />} label="근무 가능 시점" value={availableFrom} />
+        <Row icon={<GlobeHemisphereEast weight="bold" className="h-4 w-4" />} label={t.labelNationality} value={nationality} />
+        <Row icon={<IdentificationCard weight="bold" className="h-4 w-4" />} label={t.labelVisa} value={visa} />
+        <Row icon={<Translate weight="bold" className="h-4 w-4" />} label={t.labelKorean} value={koreanLevel} />
+        <Row icon={<Translate weight="bold" className="h-4 w-4" />} label={t.labelEnglish} value={englishLevel} />
+        <Row icon={<Briefcase weight="bold" className="h-4 w-4" />} label={t.labelMajor} value={major} />
+        <Row icon={<MapPin weight="bold" className="h-4 w-4" />} label={t.labelDesiredLocation} value={desiredLocation} />
+        <Row icon={<CalendarCheck weight="bold" className="h-4 w-4" />} label={t.labelAvailableFrom} value={availableFrom} />
       </div>
 
       {/* 주요 경험 */}
       {experiences.length > 0 ? (
         <div className="border-t border-border/60 px-5 py-4">
-          <p className="text-[11px] font-bold text-muted-foreground">주요 경험</p>
+          <p className="text-[11px] font-bold text-muted-foreground">{t.sectionExperiences}</p>
           <ul className="mt-2 space-y-1">
             {experiences.map((e, i) => (
               <li key={i} className="truncate text-[13px] font-medium text-[#0B1227]">• {e}</li>
@@ -123,7 +130,7 @@ export function AplyProfileCard({
       {/* 핵심 역량 */}
       {skills.length > 0 ? (
         <div className="border-t border-border/60 px-5 py-4">
-          <p className="text-[11px] font-bold text-muted-foreground">핵심 역량</p>
+          <p className="text-[11px] font-bold text-muted-foreground">{t.sectionSkills}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {skills.map((s, i) => (
               <span key={i} className="rounded-full border border-border bg-background px-2.5 py-1 text-[12px] font-medium text-foreground/80">
@@ -137,7 +144,7 @@ export function AplyProfileCard({
       {/* 추천 직무 */}
       {roles.length > 0 ? (
         <div className="border-t border-border/60 px-5 py-4">
-          <p className="text-[11px] font-bold text-muted-foreground">추천 직무</p>
+          <p className="text-[11px] font-bold text-muted-foreground">{t.sectionRecommendedRoles}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {roles.map((r, i) => (
               <span key={i} className="rounded-full bg-primary/10 px-2.5 py-1 text-[12px] font-semibold text-[#0B46E8]">

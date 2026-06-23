@@ -1,4 +1,5 @@
 import { readAccessToken, refreshPlatformSession } from "./auth-client";
+import { getBrowserLocale } from "./auth-messages";
 import {
   trackAiAnalysisCompleted,
   trackAiAnalysisStart,
@@ -1587,7 +1588,7 @@ export async function getResumeCoach(resumeId: string): Promise<ResumeCoachData>
   // authedJsonFetch 는 { ok, item, items } 기본 스키마만 타이핑하므로,
   // 커스텀 필드(coach/suggestion/reply)는 캐스팅으로 꺼낸다.
   const result = (await authedJsonFetch(
-    `/members/me/resumes/${encodeURIComponent(resumeId)}/coach`,
+    `/members/me/resumes/${encodeURIComponent(resumeId)}/coach?locale=${encodeURIComponent(getBrowserLocale())}`,
     { method: "GET" }
   )) as unknown as { coach?: ResumeCoachData };
   if (!result.coach) throw new Error("coach response missing payload");
@@ -1671,7 +1672,7 @@ export type DraftResumeTextResult = {
 export async function postDraftResumeText(input: DraftResumeTextInput): Promise<DraftResumeTextResult> {
   const result = (await authedJsonFetch("/members/me/ai/draft-resume-text", {
     method: "POST",
-    body: JSON.stringify(input)
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { draft?: DraftResumeTextResult };
   if (!result.draft) throw new Error("draft response missing payload");
   return result.draft;
