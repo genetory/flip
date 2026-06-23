@@ -74,7 +74,7 @@ import { ResumeBackBar } from "./ResumeBackBar";
 import { useExperienceTypeLabel, usePolishStyleLabel, useResumeSectionLabel } from "../../lib/resume-maker-i18n/labels";
 import { useLayoutOptions, useTitleMarkerOptions, useVisaOptions } from "../../lib/resume-maker-i18n/options";
 
-type EditorSection = "all" | "basic" | "intro" | "education" | "awards" | "skills" | "languages" | "links" | "diagnosis" | "design";
+type EditorSection = "basic" | "intro" | "education" | "awards" | "skills" | "languages" | "links" | "diagnosis" | "design";
 type Basic = {
   basicName: string;
   basicEmail: string;
@@ -215,7 +215,6 @@ function AccordionRows<T>({
 
 // 각 입력 카테고리 상단에 표시할 큰 타이틀 (경험 목록 화면과 동일한 스타일).
 const sectionHeaders = (t: EditorCopy): Record<EditorSection, { title: string; desc: string }> => ({
-  all: { title: t.hdrAllTitle, desc: t.hdrAllDesc },
   basic: { title: t.hdrBasicTitle, desc: t.hdrBasicDesc },
   intro: { title: t.hdrIntroTitle, desc: t.hdrIntroDesc },
   education: { title: t.hdrEducationTitle, desc: t.hdrEducationDesc },
@@ -278,7 +277,6 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
   const searchParams = useSearchParams();
   const sectionParam = searchParams.get("section");
   const section: EditorSection =
-    sectionParam === "all" ||
     sectionParam === "basic" ||
     sectionParam === "intro" ||
     sectionParam === "education" ||
@@ -289,7 +287,7 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
     sectionParam === "diagnosis" ||
     sectionParam === "design"
       ? sectionParam
-      : "all";
+      : "basic";
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
   const [builder, setBuilder] = useState<ResumeBuilderState | null>(null);
@@ -577,7 +575,7 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
             ) : null}
           </div>
 
-          {section !== "diagnosis" && section !== "design" && section !== "all" ? (
+          {section !== "diagnosis" && section !== "design" ? (
             <Link
               href={`/resume-maker/${resumeId}/chat?section=${section}`}
               className="mb-5 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-[13px] font-semibold text-[#0B46E8] transition hover:bg-primary/10"
@@ -585,85 +583,6 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
               <Sparkle weight="fill" className="h-4 w-4" />{t.fillWithAi}
               <CaretRight weight="bold" className="ml-auto h-4 w-4" />
             </Link>
-          ) : null}
-
-          {section === "all" ? (
-            <div className="space-y-9">
-              <BrainDump busy={brainBusy} onRun={runBrainDump} />
-              <section>
-                <h3 className={`${paperlogy.className} mb-3 text-lg font-black text-[#0B1227]`}>{t.sectionBasic}</h3>
-                <BasicSection
-                  basic={basic}
-                  onBasic={commitBasic}
-                  showPhoto={design.showPhoto}
-                  onShowPhoto={(v) => commitBuilder({ ...builder, design: { ...design, showPhoto: v } })}
-                  isForeigner={Boolean(builder.onboarding.isForeigner)}
-                  onIsForeigner={(v) =>
-                    commit(
-                      { ...builder, onboarding: { ...builder.onboarding, isForeigner: v } },
-                      v ? basic : { ...basic, nationality: "", basicVisa: "" },
-                      extra
-                    )
-                  }
-                  resumeTitle={title}
-                  onResumeTitle={setTitle}
-                  onResumeTitleSave={(v) => void updateResumeTitle(resumeId, v).catch(() => toast.error(t.resumeTitleSaveFailed))}
-                />
-              </section>
-              <section>
-                <h3 className={`${paperlogy.className} mb-3 text-lg font-black text-[#0B1227]`}>{t.sectionIntro}</h3>
-                <IntroSection basic={basic} onBasic={commitBasic} setHighlight={setHighlight} jobCategories={builder.onboarding.jobCategories ?? []} />
-              </section>
-              <section>
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className={`${paperlogy.className} text-lg font-black text-[#0B1227]`}>{t.sectionEducation}</h3>
-                  <Button variant="default" size="sm" onClick={() => commitExtra({ ...extra, educations: [...(extra.educations ?? []), { status: "GRADUATED" }] })}>
-                    <Plus weight="bold" /> {t.add}
-                  </Button>
-                </div>
-                <EducationSection educations={extra.educations ?? []} onChange={(eds) => commitExtra({ ...extra, educations: eds })} />
-              </section>
-              <section>
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className={`${paperlogy.className} text-lg font-black text-[#0B1227]`}>{t.sectionAwards}</h3>
-                  <Button variant="default" size="sm" onClick={() => commitExtra({ ...extra, certifications: [...(extra.certifications ?? []), {}] })}>
-                    <Plus weight="bold" /> {t.add}
-                  </Button>
-                </div>
-                <AwardsSection items={extra.certifications ?? []} onChange={(cs) => commitExtra({ ...extra, certifications: cs })} />
-              </section>
-              <section>
-                <h3 className={`${paperlogy.className} mb-3 text-lg font-black text-[#0B1227]`}>{t.sectionSkills}</h3>
-                <SkillsSection
-                  skills={extra.skills ?? []}
-                  onChange={(skills) => commitExtra({ ...extra, skills })}
-                  context={{
-                    desiredJobRole: basic.desiredJobRole || undefined,
-                    jobCategories: builder.onboarding.jobCategories,
-                    major: (extra.educations ?? []).find((e) => e.major)?.major,
-                    experiences: builder.experiences.map((e) => e.title).filter(Boolean)
-                  }}
-                />
-              </section>
-              <section>
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className={`${paperlogy.className} text-lg font-black text-[#0B1227]`}>{t.sectionLanguages}</h3>
-                  <Button variant="default" size="sm" onClick={() => commitExtra({ ...extra, languages: [...(extra.languages ?? []), {}] })}>
-                    <Plus weight="bold" /> {t.add}
-                  </Button>
-                </div>
-                <LanguagesSection languages={extra.languages ?? []} onChange={(languages) => commitExtra({ ...extra, languages })} />
-              </section>
-              <section>
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className={`${paperlogy.className} text-lg font-black text-[#0B1227]`}>{t.sectionLinks}</h3>
-                  <Button variant="default" size="sm" onClick={() => commitExtra({ ...extra, links: [...(extra.links ?? []), {}] })}>
-                    <Plus weight="bold" /> {t.add}
-                  </Button>
-                </div>
-                <LinksSection links={extra.links ?? []} onChange={(links) => commitExtra({ ...extra, links })} />
-              </section>
-            </div>
           ) : null}
 
           {section === "basic" ? (
