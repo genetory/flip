@@ -5,6 +5,8 @@ import { useLanguage } from "../../components/i18n/LanguageProvider";
 type Copy = {
   title: string;
   desc: string;
+  pickTitle: string;
+  pickDesc: string;
   jobLabel: string;
   jobPlaceholder: string;
   start: string;
@@ -26,6 +28,8 @@ type Copy = {
   copy: string;
   copiedToast: string;
   next: string;
+  prev: string;
+  finish: string;
   finishTitle: string;
   finishDesc: string;
   restart: string;
@@ -47,6 +51,8 @@ const dict: Record<PlatformLocale, Copy> = {
   ko: {
     title: "AI 모의 면접",
     desc: "이력서를 바탕으로 예상 질문을 만들고, 답변을 코칭해 드려요.",
+    pickTitle: "면접 연습할\n이력서를 선택하세요",
+    pickDesc: "고른 이력서로 예상 질문을 만들어 면접을 연습해요.",
     jobLabel: "지원 공고 (선택)",
     jobPlaceholder: "맞춤 질문을 원하면 공고 내용을 붙여넣으세요.",
     start: "면접 시작",
@@ -68,6 +74,8 @@ const dict: Record<PlatformLocale, Copy> = {
     copy: "복사",
     copiedToast: "복사했어요.",
     next: "다음 질문",
+    prev: "이전 질문",
+    finish: "면접 완료",
     finishTitle: "수고했어요! 모든 질문을 마쳤어요.",
     finishDesc: "답변을 다듬어 실제 면접을 준비해 보세요.",
     restart: "다시 연습",
@@ -87,6 +95,8 @@ const dict: Record<PlatformLocale, Copy> = {
   en: {
     title: "AI mock interview",
     desc: "We generate likely questions from your resume and coach your answers.",
+    pickTitle: "Pick a resume\nto practice interviews",
+    pickDesc: "We'll build interview questions from the resume you choose.",
     jobLabel: "Job posting (optional)",
     jobPlaceholder: "Paste a posting for tailored questions.",
     start: "Start interview",
@@ -108,6 +118,8 @@ const dict: Record<PlatformLocale, Copy> = {
     copy: "Copy",
     copiedToast: "Copied.",
     next: "Next question",
+    prev: "Previous",
+    finish: "Finish",
     finishTitle: "Well done! You finished all the questions.",
     finishDesc: "Refine your answers to get ready for the real interview.",
     restart: "Practice again",
@@ -127,6 +139,8 @@ const dict: Record<PlatformLocale, Copy> = {
   "zh-CN": {
     title: "AI 模拟面试",
     desc: "根据简历生成可能的问题，并为你的回答提供辅导。",
+    pickTitle: "选择要练习\n面试的简历",
+    pickDesc: "我们会根据所选简历生成面试问题。",
     jobLabel: "招聘启事（可选）",
     jobPlaceholder: "想要定制化问题可粘贴招聘启事。",
     start: "开始面试",
@@ -148,6 +162,8 @@ const dict: Record<PlatformLocale, Copy> = {
     copy: "复制",
     copiedToast: "已复制。",
     next: "下一题",
+    prev: "上一题",
+    finish: "完成",
     finishTitle: "辛苦了！你完成了所有问题。",
     finishDesc: "打磨你的回答，为真实面试做准备。",
     restart: "再练一次",
@@ -167,6 +183,8 @@ const dict: Record<PlatformLocale, Copy> = {
   vi: {
     title: "Phỏng vấn thử với AI",
     desc: "Tạo câu hỏi có thể gặp từ hồ sơ của bạn và huấn luyện câu trả lời.",
+    pickTitle: "Chọn hồ sơ\nđể luyện phỏng vấn",
+    pickDesc: "Chúng tôi sẽ tạo câu hỏi phỏng vấn từ hồ sơ bạn chọn.",
     jobLabel: "Tin tuyển dụng (tùy chọn)",
     jobPlaceholder: "Dán tin tuyển dụng để có câu hỏi phù hợp.",
     start: "Bắt đầu phỏng vấn",
@@ -188,6 +206,8 @@ const dict: Record<PlatformLocale, Copy> = {
     copy: "Sao chép",
     copiedToast: "Đã sao chép.",
     next: "Câu hỏi tiếp",
+    prev: "Câu trước",
+    finish: "Hoàn thành",
     finishTitle: "Làm tốt lắm! Bạn đã hoàn thành tất cả câu hỏi.",
     finishDesc: "Trau chuốt câu trả lời để sẵn sàng cho phỏng vấn thật.",
     restart: "Luyện lại",
@@ -207,6 +227,8 @@ const dict: Record<PlatformLocale, Copy> = {
   ja: {
     title: "AI模擬面接",
     desc: "履歴書をもとに想定質問を作り、回答をコーチングします。",
+    pickTitle: "面接を練習する\n履歴書を選んでください",
+    pickDesc: "選んだ履歴書から想定質問を作成します。",
     jobLabel: "応募求人（任意）",
     jobPlaceholder: "求人を貼り付けると質問が最適化されます。",
     start: "面接を始める",
@@ -228,6 +250,8 @@ const dict: Record<PlatformLocale, Copy> = {
     copy: "コピー",
     copiedToast: "コピーしました。",
     next: "次の質問",
+    prev: "前の質問",
+    finish: "面接終了",
     finishTitle: "お疲れさまでした！すべての質問が終わりました。",
     finishDesc: "回答を磨いて本番の面接に備えましょう。",
     restart: "もう一度練習",
@@ -247,6 +271,8 @@ const dict: Record<PlatformLocale, Copy> = {
   id: {
     title: "Wawancara simulasi AI",
     desc: "Kami membuat pertanyaan yang mungkin muncul dari resume Anda dan melatih jawaban Anda.",
+    pickTitle: "Pilih resume\nuntuk berlatih wawancara",
+    pickDesc: "Kami akan membuat pertanyaan wawancara dari resume yang Anda pilih.",
     jobLabel: "Lowongan (opsional)",
     jobPlaceholder: "Tempel lowongan untuk pertanyaan yang disesuaikan.",
     start: "Mulai wawancara",
@@ -268,6 +294,8 @@ const dict: Record<PlatformLocale, Copy> = {
     copy: "Salin",
     copiedToast: "Tersalin.",
     next: "Pertanyaan berikutnya",
+    prev: "Sebelumnya",
+    finish: "Selesai",
     finishTitle: "Kerja bagus! Anda menyelesaikan semua pertanyaan.",
     finishDesc: "Sempurnakan jawaban Anda untuk wawancara sungguhan.",
     restart: "Latihan lagi",

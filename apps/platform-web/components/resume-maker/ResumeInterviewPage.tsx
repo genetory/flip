@@ -1,16 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, ChatCircleDots, CircleNotch, Copy as CopyIcon, Lightbulb, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { ArrowCounterClockwise, ArrowLeft, ArrowRight, ChatCircleDots, CheckCircle, CircleNotch, Copy as CopyIcon, Lightbulb, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { ResumeMakerShell } from "./ResumeMakerShell";
+import { ResumeToolPickerPage } from "./ResumeToolPickerPage";
 import { ResumeBackBar } from "./ResumeBackBar";
 import { ResumeToolPreview } from "./ResumeToolPreview";
+import { PositionPagination } from "./PositionPagination";
+import { AiQuotaModal } from "./AiQuotaModal";
+import { AiTicketCost } from "./AiTicketCost";
 import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
+import { useLanguage } from "../i18n/LanguageProvider";
+import { PositionRow, mapPublicPositionToCard } from "../pages/PositionsPage";
 import { paperlogy } from "../../lib/fonts";
-import type { ResumeContent } from "../../lib/member-profile-client";
+import { type PublicPositionListItem, type ResumeContent } from "../../lib/member-profile-client";
 import {
+  AiQuotaError,
   generateInterviewQuestions,
   getBuilderState,
   getDraftResume,
@@ -21,7 +27,11 @@ import {
 } from "../../lib/resume-maker-client";
 import { compileResumeContent } from "../../lib/resume-maker-compile";
 import { DEFAULT_DESIGN, type ResumeDesignSettings } from "../../lib/resume-maker-types";
+import { positionToJobText } from "../../lib/resume-maker-position-jd";
+import { usePositionPager } from "../../lib/resume-maker-positions-pager";
+import { useAiUsage } from "../../lib/resume-maker-ai-usage";
 import { useInterviewPrepCopy } from "../../lib/resume-maker-i18n/interview-prep";
+import { useTailorCopy } from "../../lib/resume-maker-i18n/tailor";
 import { useToolPickerCopy } from "../../lib/resume-maker-i18n/tool-picker";
 
 function scoreColor(s: number): string {
@@ -32,11 +42,15 @@ function scoreColor(s: number): string {
 }
 
 export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
-  const router = useRouter();
   const toast = useToast();
   const t = useInterviewPrepCopy();
+  const tt = useTailorCopy(); // 입력 모드(직접 입력/포지션) 라벨은 공고 맞춤과 공유
   const picker = useToolPickerCopy();
+  const { locale } = useLanguage();
+  const { resetAt, refresh: refreshUsage } = useAiUsage(); // 공용 AI 티켓(GNB 공유)
   const [loading, setLoading] = useState(true);
+  const [missing, setMissing] = useState(false); // 이력서를 찾지 못하면 '나의 이력서'로 폴백
+  const [quotaOpen, setQuotaOpen] = useState(false); // 한도 초과 모달
   const [resumeTitle, setResumeTitle] = useState("");
   const [content, setContent] = useState<ResumeContent | null>(null);
   const [design, setDesign] = useState<ResumeDesignSettings>(DEFAULT_DESIGN);
@@ -44,13 +58,17 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
   const [jobRole, setJobRole] = useState("");
   const [jobText, setJobText] = useState("");
   const [generating, setGenerating] = useState(false);
-  // 2단계 — 예상 질문 리스트
+  // 입력 모드 — 직접 입력(텍스트) vs Aply 포지션에서 선택
+  const [inputMode, setInputMode] = useState<"text" | "position">("text");
+  const [selectedPosId, setSelectedPosId] = useState<string | null>(null);
+  const pager = usePositionPager((m) => toast.error(m || tt.positionFailed));
+  // 2단계 — 생성된 예상 질문(순차 진행)
   const [questions, setQuestions] = useState<InterviewQuestionItem[]>([]);
-  // 3단계 — 연습(선택 질문). null 이면 리스트.
-  const [selected, setSelected] = useState<number | null>(null);
-  const [answer, setAnswer] = useState("");
+  const [step, setStep] = useState(0); // 현재 질문 인덱스
+  const [done, setDone] = useState(false); // 마지막 질문까지 마침
+  const [answers, setAnswers] = useState<Record<number, string>>({}); // 질문별 답변
+  const [feedbacks, setFeedbacks] = useState<Record<number, InterviewFeedback>>({}); // 질문별 피드백
   const [evaluating, setEvaluating] = useState(false);
-  const [feedback, setFeedback] = useState<InterviewFeedback | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -64,10 +82,10 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
         setContent(compiled);
         setDesign(b.design ?? DEFAULT_DESIGN);
         setJobRole(compiled.desiredJobRole?.trim() ?? "");
-      } catch (err) {
+      } catch {
+        // 이력서가 없거나(삭제 등) 못 불러오면 에러로 튕기지 않고 '나의 이력서'를 보여준다.
         if (!alive) return;
-        toast.error(err instanceof Error ? err.message : t.loadFailed);
-        router.replace("/resume-maker");
+        setMissing(true);
       } finally {
         if (alive) setLoading(false);
       }
@@ -88,43 +106,52 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
         desiredJobRole: jobRole.trim() || undefined
       });
       setQuestions(qs);
-      setSelected(null);
-      setAnswer("");
-      setFeedback(null);
+      setStep(0);
+      setDone(false);
+      setAnswers({});
+      setFeedbacks({});
+      refreshUsage();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t.failedQuestions);
+      if (err instanceof AiQuotaError) {
+        refreshUsage();
+        setQuotaOpen(true);
+      } else {
+        toast.error(err instanceof Error ? err.message : t.failedQuestions);
+      }
     } finally {
       setGenerating(false);
     }
   }
 
-  function pick(i: number) {
-    setSelected(i);
-    setAnswer("");
-    setFeedback(null);
+  function selectPosition(p: PublicPositionListItem) {
+    setSelectedPosId(p.id);
+    setJobText(positionToJobText(p));
   }
 
-  function backToList() {
-    setSelected(null);
-    setAnswer("");
-    setFeedback(null);
+  // 같은 질문을 같은 질문으로 다시 연습(답변·피드백 초기화, 질문은 유지).
+  function restart() {
+    setStep(0);
+    setDone(false);
+    setAnswers({});
+    setFeedbacks({});
   }
 
   async function evaluate() {
-    if (!content || selected === null || evaluating) return;
-    if (!answer.trim()) {
+    if (!content || evaluating) return;
+    const answer = (answers[step] ?? "").trim();
+    if (!answer) {
       toast.info(t.needAnswer);
       return;
     }
     setEvaluating(true);
     try {
       const f = await getInterviewFeedback({
-        question: questions[selected].question,
-        answer: answer.trim(),
+        question: questions[step].question,
+        answer,
         resumeText: resumeToPlainText(content),
         desiredJobRole: jobRole.trim() || undefined
       });
-      setFeedback(f);
+      setFeedbacks((prev) => ({ ...prev, [step]: f }));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t.evalFailed);
     } finally {
@@ -136,20 +163,18 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
     void navigator.clipboard?.writeText(text).then(() => toast.success(t.copiedToast)).catch(() => {});
   }
 
-  const current = selected !== null ? questions[selected] : null;
   const catLabel = (c: string) =>
     c === "intro" ? t.catIntro : c === "experience" ? t.catExperience : c === "competency" ? t.catCompetency : c === "weakness" ? t.catWeakness : t.catOther;
-  // 카테고리(섹션)별로 묶되, 같은 카테고리는 등장 순서대로 한 그룹으로 모은다.
-  const catOrder: string[] = [];
-  const byCat = new Map<string, { q: InterviewQuestionItem; idx: number }[]>();
-  questions.forEach((q, idx) => {
-    if (!byCat.has(q.category)) {
-      byCat.set(q.category, []);
-      catOrder.push(q.category);
-    }
-    byCat.get(q.category)!.push({ q, idx });
-  });
-  const groups = catOrder.map((c) => ({ cat: c, items: byCat.get(c)! }));
+  const current = questions[step] ?? null;
+  const answer = answers[step] ?? "";
+  const feedback = feedbacks[step] ?? null;
+  const isLast = step >= questions.length - 1;
+  // 완료 화면용 — 평가받은 질문들의 평균 점수.
+  const scored = Object.values(feedbacks);
+  const avgScore = scored.length > 0 ? Math.round(scored.reduce((sum, f) => sum + f.score, 0) / scored.length) : null;
+
+  // 이력서가 없거나(삭제 등) 못 불러오면 모의 면접용 이력서 선택 화면으로.
+  if (missing) return <ResumeToolPickerPage tool="interview" />;
 
   return (
     <ResumeMakerShell>
@@ -171,83 +196,172 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
             {/* 1단계 — 준비(직무/JD) */}
             {questions.length === 0 ? (
               <>
-                <label className="mt-6 block text-[12.5px] font-medium text-foreground/80">
-                  {t.jobRoleLabel}
-                  <input
-                    value={jobRole}
-                    onChange={(e) => setJobRole(e.target.value)}
-                    placeholder={t.jobRolePlaceholder}
-                    maxLength={120}
-                    className="mt-1 h-11 w-full rounded-xl border border-border bg-white px-3 text-[14px] focus:border-primary focus:outline-none"
-                  />
-                </label>
-                <label className="mt-4 block text-[12.5px] font-medium text-foreground/80">
-                  {t.jobLabel}
-                  <textarea
-                    value={jobText}
-                    onChange={(e) => setJobText(e.target.value)}
-                    placeholder={t.jobPlaceholder}
-                    rows={5}
-                    maxLength={6000}
-                    className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] leading-relaxed focus:border-primary focus:outline-none"
-                  />
-                </label>
-                <Button variant="default" size="lg" className="mt-3 w-full" disabled={generating} onClick={() => void generate()}>
+                {/* 입력 모드 — 직접 입력 vs Aply 포지션 선택 (두꺼운 텍스트 탭) */}
+                <div className="mt-6 flex items-center gap-6">
+                  {(["text", "position"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        setInputMode(m);
+                        if (m === "position" && pager.positions === null) pager.search();
+                      }}
+                      className={`relative -mb-px pb-2.5 text-[16px] font-extrabold tracking-[-0.01em] transition-colors ${
+                        inputMode === m ? "text-[#0B1227]" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {m === "text" ? tt.modeText : tt.modePosition}
+                      {inputMode === m ? <span className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-[#0B46E8]" /> : null}
+                    </button>
+                  ))}
+                </div>
+
+                {inputMode === "text" ? (
+                  <>
+                  <label className="mt-3 block text-[12.5px] font-medium text-foreground/80">
+                    {t.jobRoleLabel}
+                    <input
+                      value={jobRole}
+                      onChange={(e) => setJobRole(e.target.value)}
+                      placeholder={t.jobRolePlaceholder}
+                      maxLength={120}
+                      className="mt-1 h-11 w-full rounded-xl border border-border bg-white px-3 text-[14px] focus:border-primary focus:outline-none"
+                    />
+                  </label>
+                  <label className="mt-4 block text-[12.5px] font-medium text-foreground/80">
+                    {t.jobLabel}
+                    <textarea
+                      value={jobText}
+                      onChange={(e) => {
+                        setJobText(e.target.value);
+                        setSelectedPosId(null);
+                      }}
+                      placeholder={t.jobPlaceholder}
+                      rows={5}
+                      maxLength={6000}
+                      className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] leading-relaxed focus:border-primary focus:outline-none"
+                    />
+                  </label>
+                  </>
+                ) : (
+                  <div className="mt-3">
+                    {/* 검색 — 입력은 다른 필드와 동일, 버튼은 우측 밖으로 */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={pager.query}
+                        onChange={(e) => pager.setQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            pager.search();
+                          }
+                        }}
+                        placeholder={tt.positionSearchPlaceholder}
+                        className="h-11 w-full flex-1 rounded-xl border border-border bg-white px-3 text-[14px] text-slate-800 focus:border-primary focus:outline-none placeholder:text-slate-400"
+                      />
+                      <Button
+                        size="lg"
+                        type="button"
+                        className="h-11 shrink-0 rounded-xl bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d]"
+                        onClick={() => pager.search()}
+                      >
+                        {tt.searchBtn}
+                      </Button>
+                    </div>
+                    {/* 목록 — 포지션 탐색의 PositionRow 그대로(한 페이지 5개) */}
+                    <div className="mt-3 space-y-2">
+                      {pager.loading ? (
+                        <div className="flex justify-center py-6 text-muted-foreground">
+                          <CircleNotch className="h-5 w-5 animate-spin" weight="bold" aria-hidden />
+                        </div>
+                      ) : pager.positions && pager.positions.length > 0 ? (
+                        pager.positions.map((p) => (
+                          <PositionRow
+                            key={p.id}
+                            p={mapPublicPositionToCard(p, locale)}
+                            isOwnPartnerPosting={false}
+                            isStudentUser
+                            isApplied={false}
+                            isFavorite={false}
+                            onToggleFavorite={() => {}}
+                            onApply={() => {}}
+                            locale={locale}
+                            compact
+                            onSelect={() => selectPosition(p)}
+                            selected={selectedPosId === p.id}
+                          />
+                        ))
+                      ) : (
+                        <p className="py-6 text-center text-[13px] text-muted-foreground">{tt.positionEmpty}</p>
+                      )}
+                    </div>
+                    {/* 페이지네이션 — 숫자 페이지(1,2,3…N) */}
+                    {!pager.loading ? (
+                      <PositionPagination page={pager.page} totalPages={pager.totalPages} onChange={pager.setPage} />
+                    ) : null}
+                  </div>
+                )}
+                <Button
+                  variant="default"
+                  size="lg"
+                  className="mt-3 w-full"
+                  disabled={generating || (inputMode === "position" ? !selectedPosId : !jobRole.trim() && !jobText.trim())}
+                  onClick={() => void generate()}
+                >
                   {generating ? <CircleNotch className="animate-spin" weight="bold" /> : <Sparkle weight="fill" />}
                   {generating ? t.generating : t.generate}
+                  {!generating ? <AiTicketCost /> : null}
                 </Button>
               </>
-            ) : current === null ? (
-              /* 2단계 — 예상 질문 리스트 */
-              <div className="mt-6">
-                <div className="flex items-center justify-between">
-                  <p className="text-[13px] font-bold text-[#0B1227]">{t.listTitle}</p>
-                  <button type="button" onClick={() => setQuestions([])} className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[#0B46E8] transition hover:underline">
-                    <Sparkle weight="fill" className="h-3.5 w-3.5" /> {t.regenerate}
-                  </button>
-                </div>
-                <div className="mt-4 space-y-5">
-                  {groups.map((g) => (
-                    <div key={g.cat}>
-                      <p className="text-[11.5px] font-bold uppercase tracking-wide text-[#0B46E8]">{catLabel(g.cat)}</p>
-                      <ul className="mt-2 space-y-2">
-                        {g.items.map(({ q, idx }) => (
-                          <li key={idx}>
-                            <button
-                              type="button"
-                              onClick={() => pick(idx)}
-                              className="group w-full rounded-xl border border-border bg-card p-4 text-left shadow-card transition hover:border-primary/40"
-                            >
-                              <p className="text-[14.5px] font-bold leading-relaxed text-[#0B1227]">{q.question}</p>
-                              {q.intent ? (
-                                <p className="mt-1.5 flex items-start gap-1.5 text-[12px] leading-relaxed text-muted-foreground">
-                                  <Lightbulb weight="fill" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden />
-                                  <span><span className="font-semibold">{t.intentLabel}:</span> {q.intent}</span>
-                                </p>
-                              ) : null}
-                              <span className="mt-2.5 inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#0B46E8]">
-                                {t.practiceThis} <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" weight="bold" aria-hidden />
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+            ) : done ? (
+              /* 완료 — 요약(평균 점수) */
+              <div className="mt-8 rounded-2xl border border-border bg-card p-6 text-center shadow-card">
+                <CheckCircle weight="fill" className="mx-auto h-10 w-10 text-emerald-500" aria-hidden />
+                <p className={`${paperlogy.className} mt-3 text-xl font-black text-[#0B1227]`}>{t.finishTitle}</p>
+                <p className="mt-1.5 text-[13.5px] text-muted-foreground">{t.finishDesc}</p>
+                {avgScore !== null ? (
+                  <div className="mt-4 inline-flex items-baseline gap-1.5 rounded-xl bg-muted/50 px-4 py-2.5">
+                    <span className="text-[12.5px] font-bold text-muted-foreground">{t.scoreLabel}</span>
+                    <span className="text-2xl font-black" style={{ color: scoreColor(avgScore) }}>{avgScore}</span>
+                    <span className="text-[13px] text-muted-foreground">/ 100</span>
+                  </div>
+                ) : null}
+                <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                  <Button variant="default" size="lg" onClick={restart}>
+                    <ArrowCounterClockwise weight="bold" /> {t.restart}
+                  </Button>
+                  <Button variant="outline" size="lg" onClick={() => setQuestions([])}>
+                    <Sparkle weight="fill" /> {t.regenerate}
+                  </Button>
                 </div>
               </div>
             ) : (
-              /* 3단계 — 연습(선택 질문) */
+              /* 순차 진행 — 한 질문씩 */
               <div className="mt-6">
-                <button type="button" onClick={backToList} className="inline-flex items-center gap-1 text-[13px] font-semibold text-muted-foreground transition hover:text-foreground">
-                  <ArrowLeft className="h-4 w-4" weight="bold" aria-hidden /> {t.backToList}
-                </button>
-                <div className="mt-2 rounded-2xl border border-border bg-card p-5 shadow-card">
-                  {current.category ? (
-                    <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-[#0B46E8]">{catLabel(current.category)}</span>
-                  ) : null}
-                  <p className="mt-1.5 text-[16px] font-bold leading-relaxed text-[#0B1227]">{current.question}</p>
-                  {current.intent ? (
+                {/* 진행 헤더 — 카테고리 · 진행도 · 질문 다시 만들기 */}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2">
+                    {current?.category ? (
+                      <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-[#0B46E8]">{catLabel(current.category)}</span>
+                    ) : null}
+                    <span className="text-[12.5px] font-bold text-muted-foreground">{t.questionProgress(step + 1, questions.length)}</span>
+                  </span>
+                  <button type="button" onClick={() => setQuestions([])} className="inline-flex shrink-0 items-center gap-1 text-[12.5px] font-medium text-[#0B46E8] transition hover:underline">
+                    <Sparkle weight="fill" className="h-3.5 w-3.5" /> {t.regenerate}
+                  </button>
+                </div>
+                {/* 진행 바 */}
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-[#0B46E8] transition-[width] duration-300"
+                    style={{ width: `${((step + 1) / questions.length) * 100}%` }}
+                  />
+                </div>
+
+                {/* 질문 */}
+                <div className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-card">
+                  <p className="text-[16px] font-bold leading-relaxed text-[#0B1227]">{current?.question}</p>
+                  {current?.intent ? (
                     <p className="mt-2 flex items-start gap-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
                       <Lightbulb weight="fill" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden />
                       <span><span className="font-semibold">{t.intentLabel}:</span> {current.intent}</span>
@@ -255,11 +369,12 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                   ) : null}
                 </div>
 
+                {/* 답변 */}
                 <label className="mt-4 block text-[12.5px] font-medium text-foreground/80">
                   {t.answerLabel}
                   <textarea
                     value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
+                    onChange={(e) => setAnswers((prev) => ({ ...prev, [step]: e.target.value }))}
                     placeholder={t.answerPlaceholder}
                     rows={5}
                     maxLength={4000}
@@ -268,7 +383,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                 </label>
 
                 {!feedback ? (
-                  <Button variant="default" size="lg" className="mt-3 w-full" disabled={evaluating} onClick={() => void evaluate()}>
+                  <Button variant="default" size="lg" className="mt-3 w-full" disabled={evaluating || !answer.trim()} onClick={() => void evaluate()}>
                     {evaluating ? <CircleNotch className="animate-spin" weight="bold" /> : <Sparkle weight="fill" />}
                     {evaluating ? t.evaluating : t.evaluate}
                   </Button>
@@ -312,12 +427,22 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                         <p className="mt-1.5 whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground/90">{feedback.sampleAnswer}</p>
                       </div>
                     ) : null}
-
-                    <Button variant="outline" size="lg" className="w-full" onClick={backToList}>
-                      <ArrowLeft weight="bold" /> {t.backToList}
-                    </Button>
                   </div>
                 )}
+
+                {/* 하단 내비게이션 — 이전 / 다음(또는 완료) */}
+                <div className="mt-5 flex items-center justify-between gap-3">
+                  <Button variant="ghost" size="lg" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))}>
+                    <ArrowLeft weight="bold" /> {t.prev}
+                  </Button>
+                  <Button
+                    variant={feedback ? "default" : "outline"}
+                    size="lg"
+                    onClick={() => (isLast ? setDone(true) : setStep((s) => s + 1))}
+                  >
+                    {isLast ? t.finish : t.next} <ArrowRight weight="bold" />
+                  </Button>
+                </div>
               </div>
             )}
             </div>
@@ -325,6 +450,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
           <ResumeToolPreview content={content} design={design} expandLabel={picker.expand} previewLabel={picker.preview} />
         </div>
       )}
+      {quotaOpen ? <AiQuotaModal resetAt={resetAt} onClose={() => setQuotaOpen(false)} /> : null}
     </ResumeMakerShell>
   );
 }

@@ -8,6 +8,7 @@ import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
 import { paperlogy } from "../../lib/fonts";
 import { deleteMyResume, getMyResumes, type Resume } from "../../lib/member-profile-client";
+import { setActiveResumeId } from "../../lib/resume-maker-active";
 import { builderContinuePath, createDraftResume, createResumeFromImport, importResume, isResumeMakerDraft } from "../../lib/resume-maker-client";
 import { trackResumeBuilderStarted, trackResumeBuilderViewed } from "../../lib/analytics";
 import { useLandingCopy } from "../../lib/resume-maker-i18n/landing";
@@ -25,7 +26,15 @@ function formatDateTime(iso: string): string {
   }
 }
 
-export function ResumeMakerLandingPage() {
+// hero: 공고 맞춤·모의 면접에서 이 화면을 쓸 때 히어로 문구를 그 도구에 맞게 덮어쓴다.
+// pick: '선택 모드' — 카드를 누르면 편집기 대신 그 도구로 진입(현재 이력서로 지정).
+export function ResumeMakerLandingPage({
+  hero,
+  pick
+}: {
+  hero?: { badge: string; title: string; subtitle: string };
+  pick?: { tool: "tailor" | "interview"; cta: string };
+} = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
@@ -140,15 +149,21 @@ export function ResumeMakerLandingPage() {
         <div className="text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-[12px] font-bold text-[#0B46E8]">
             <MagicWand className="h-3.5 w-3.5" weight="fill" aria-hidden />
-            {t.heroBadge}
+            {hero?.badge ?? t.heroBadge}
           </span>
           <h1 className={`${paperlogy.className} mt-5 text-3xl font-black leading-[1.2] tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>
-            {t.heroTitleLine1}
-            <br />
-            {t.heroTitleLine2}
+            {hero ? (
+              <span className="whitespace-pre-line">{hero.title}</span>
+            ) : (
+              <>
+                {t.heroTitleLine1}
+                <br />
+                {t.heroTitleLine2}
+              </>
+            )}
           </h1>
           <p className="mx-auto mt-5 max-w-lg text-[15px] leading-relaxed text-muted-foreground md:text-base">
-            {t.heroSubtitle}
+            {hero?.subtitle ?? t.heroSubtitle}
           </p>
 
           <div className="mt-8 flex flex-col items-center gap-7">
@@ -272,7 +287,14 @@ export function ResumeMakerLandingPage() {
                 <li key={d.id} className="flex items-stretch gap-2">
                   <button
                     type="button"
-                    onClick={() => router.push(builderContinuePath(d.id, d))}
+                    onClick={() => {
+                      if (pick) {
+                        setActiveResumeId(d.id);
+                        router.push(`/resume-maker/${d.id}/${pick.tool}`);
+                      } else {
+                        router.push(builderContinuePath(d.id, d));
+                      }
+                    }}
                     className="flex flex-1 items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-card transition hover:border-primary/40"
                   >
                     <span className="min-w-0">
@@ -280,7 +302,7 @@ export function ResumeMakerLandingPage() {
                       <span className="text-[12px] text-muted-foreground">{t.lastEdited} · {formatDateTime(d.updatedAt)}</span>
                     </span>
                     <span className="inline-flex shrink-0 items-center gap-1 text-[12.5px] font-semibold text-[#0B46E8]">
-                      {t.continueWriting} <ArrowRight className="h-3.5 w-3.5" weight="bold" aria-hidden />
+                      {pick ? pick.cta : t.continueWriting} <ArrowRight className="h-3.5 w-3.5" weight="bold" aria-hidden />
                     </span>
                   </button>
                   <button

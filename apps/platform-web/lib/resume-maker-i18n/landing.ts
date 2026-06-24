@@ -39,6 +39,7 @@ type Copy = {
   untitledResume: string;
   lastEdited: string;
   continueWriting: string;
+  selectCta: string;
   deleteResume: string;
   deleteConfirmTitle: string;
   deleteConfirmDesc: string;
@@ -89,6 +90,7 @@ const dict: Record<PlatformLocale, Copy> = {
     untitledResume: "제목 없는 이력서",
     lastEdited: "마지막 수정",
     continueWriting: "이어서 작성",
+    selectCta: "선택",
     deleteResume: "이력서 삭제",
     deleteConfirmTitle: "이력서를 삭제할까요?",
     deleteConfirmDesc: "삭제하면 작성 중인 내용을 되돌릴 수 없어요.",
@@ -137,6 +139,7 @@ const dict: Record<PlatformLocale, Copy> = {
     untitledResume: "Untitled resume",
     lastEdited: "Last edited",
     continueWriting: "Continue",
+    selectCta: "Select",
     deleteResume: "Delete resume",
     deleteConfirmTitle: "Delete this resume?",
     deleteConfirmDesc: "Once deleted, your in-progress content can't be recovered.",
@@ -185,6 +188,7 @@ const dict: Record<PlatformLocale, Copy> = {
     untitledResume: "无标题简历",
     lastEdited: "最后修改",
     continueWriting: "继续编写",
+    selectCta: "选择",
     deleteResume: "删除简历",
     deleteConfirmTitle: "要删除这份简历吗？",
     deleteConfirmDesc: "删除后，正在编写的内容将无法恢复。",
@@ -233,6 +237,7 @@ const dict: Record<PlatformLocale, Copy> = {
     untitledResume: "Hồ sơ chưa đặt tên",
     lastEdited: "Sửa lần cuối",
     continueWriting: "Tiếp tục",
+    selectCta: "Chọn",
     deleteResume: "Xóa hồ sơ",
     deleteConfirmTitle: "Xóa hồ sơ này?",
     deleteConfirmDesc: "Sau khi xóa, nội dung đang soạn sẽ không thể khôi phục.",
@@ -281,6 +286,7 @@ const dict: Record<PlatformLocale, Copy> = {
     untitledResume: "無題の履歴書",
     lastEdited: "最終更新",
     continueWriting: "続きを書く",
+    selectCta: "選択",
     deleteResume: "履歴書を削除",
     deleteConfirmTitle: "履歴書を削除しますか？",
     deleteConfirmDesc: "削除すると、作成中の内容は元に戻せません。",
@@ -329,6 +335,7 @@ const dict: Record<PlatformLocale, Copy> = {
     untitledResume: "Resume tanpa judul",
     lastEdited: "Terakhir diubah",
     continueWriting: "Lanjutkan",
+    selectCta: "Pilih",
     deleteResume: "Hapus resume",
     deleteConfirmTitle: "Hapus resume ini?",
     deleteConfirmDesc: "Setelah dihapus, isi yang sedang dibuat tidak dapat dikembalikan.",

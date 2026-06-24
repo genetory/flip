@@ -47,6 +47,7 @@ model User {
   positionStatusHistories PositionStatusHistory[]      @relation("PositionStatusAuthor")
   candidateProfile CandidateProfile?
   resumes Resume[]
+  aiUsages AiUsage[]
   sgcApplication SgcApplication? @relation("SgcApplicationUser")
   refreshTokens RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
@@ -1116,6 +1117,23 @@ model Resume {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   sgcApplications SgcApplication[] @relation("SgcApplicationResume")
 
+  @@index([userId])
+}
+
+// 프리미엄 한도 — 비싼/반복형 AI 기능(공고 맞춤 분석, 모의 면접 평가)의 월 사용량.
+// periodKey 는 KST 기준 "YYYY-MM". (userId, feature, periodKey) 당 한 행으로 카운트.
+model AiUsage {
+  id        String   @id @default(uuid())
+  userId    String
+  feature   String   // "tailor_analyze" | "interview_feedback"
+  periodKey String   // KST 기준 "YYYY-MM"
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, feature, periodKey])
   @@index([userId])
 }
 

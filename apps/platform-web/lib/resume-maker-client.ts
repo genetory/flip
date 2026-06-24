@@ -279,11 +279,47 @@ export async function fetchJobPosting(url: string): Promise<string> {
   return (payload.text ?? "").trim();
 }
 
+// ── AI 프리미엄 월 한도 ──
+// 공고 맞춤 분석·모의 면접 평가는 무료 월 한도가 있다. 초과 시 서버가 402 를 주고,
+// 클라이언트는 이를 AiQuotaError 로 바꿔 페이지가 업셀 모달을 띄우게 한다.
+export class AiQuotaError extends Error {
+  feature: string;
+  constructor(feature: string) {
+    super("ai quota exceeded");
+    this.name = "AiQuotaError";
+    this.feature = feature;
+  }
+}
+
+// 공용 티켓 — 공고 맞춤 분석·모의 면접 평가가 함께 쓰는 월간 잔량.
+export type AiUsage = { limit: number; used: number; remaining: number; resetAt: string };
+
+export async function getAiUsage(): Promise<AiUsage> {
+  const payload = (await authedJsonFetch<unknown>("/members/me/ai/usage", { method: "GET" })) as unknown as { usage?: Partial<AiUsage> };
+  const u = payload.usage ?? {};
+  return {
+    limit: typeof u.limit === "number" ? u.limit : 0,
+    used: typeof u.used === "number" ? u.used : 0,
+    remaining: typeof u.remaining === "number" ? u.remaining : 0,
+    resetAt: typeof u.resetAt === "string" ? u.resetAt : ""
+  };
+}
+
+function isQuotaError(err: unknown): boolean {
+  return !!err && typeof err === "object" && (err as { status?: number }).status === 402;
+}
+
 export async function tailorResume(input: { resumeText: string; jobText: string; desiredJobRole?: string }): Promise<TailorResult> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/tailor-resume", {
-    method: "POST",
-    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
-  })) as unknown as { result?: Partial<TailorResult> };
+  let payload: { result?: Partial<TailorResult> };
+  try {
+    payload = (await authedJsonFetch<unknown>("/members/me/ai/tailor-resume", {
+      method: "POST",
+      body: JSON.stringify({ ...input, locale: getBrowserLocale() })
+    })) as unknown as { result?: Partial<TailorResult> };
+  } catch (err) {
+    if (isQuotaError(err)) throw new AiQuotaError("tailor_analyze");
+    throw err;
+  }
   const r = payload.result ?? {};
   return {
     score: typeof r.score === "number" ? r.score : 0,
@@ -298,16 +334,24 @@ export async function tailorResume(input: { resumeText: string; jobText: string;
 export type InterviewQuestionItem = { question: string; intent: string; category: string };
 export type InterviewFeedback = { score: number; strengths: string[]; improvements: string[]; sampleAnswer: string };
 
+// 모의 면접 시작(질문 생성) = 티켓 1개. 초과 시 402 → AiQuotaError.
 export async function generateInterviewQuestions(input: { resumeText: string; jobText?: string; desiredJobRole?: string }): Promise<InterviewQuestionItem[]> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/interview-questions", {
-    method: "POST",
-    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
-  })) as unknown as { questions?: InterviewQuestionItem[] };
+  let payload: { questions?: InterviewQuestionItem[] };
+  try {
+    payload = (await authedJsonFetch<unknown>("/members/me/ai/interview-questions", {
+      method: "POST",
+      body: JSON.stringify({ ...input, locale: getBrowserLocale() })
+    })) as unknown as { questions?: InterviewQuestionItem[] };
+  } catch (err) {
+    if (isQuotaError(err)) throw new AiQuotaError("interview_questions");
+    throw err;
+  }
   const questions = Array.isArray(payload.questions) ? payload.questions : [];
   if (questions.length === 0) throw new Error("면접 질문을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
   return questions;
 }
 
+// 답변 평가는 무료(세션 시작 시 이미 티켓을 썼다).
 export async function getInterviewFeedback(input: { question: string; answer: string; resumeText?: string; desiredJobRole?: string }): Promise<InterviewFeedback> {
   const payload = (await authedJsonFetch<unknown>("/members/me/ai/interview-feedback", {
     method: "POST",

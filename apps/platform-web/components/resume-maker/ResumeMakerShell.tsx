@@ -4,10 +4,12 @@ import { type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { CircleNotch } from "@phosphor-icons/react/dist/ssr";
+import { CircleNotch, Ticket } from "@phosphor-icons/react/dist/ssr";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { paperlogy } from "../../lib/fonts";
 import { useShellCopy } from "../../lib/resume-maker-i18n/shell";
+import { useQuotaCopy } from "../../lib/resume-maker-i18n/quota";
+import { useAiUsage } from "../../lib/resume-maker-ai-usage";
 import { ResumeMakerLanguageSwitch } from "./ResumeMakerLanguageSwitch";
 import { getActiveResumeId, setActiveResumeId } from "../../lib/resume-maker-active";
 import { RESUME_TOOLS_WIP } from "../../lib/resume-maker-flags";
@@ -15,6 +17,22 @@ import { RESUME_TOOLS_WIP } from "../../lib/resume-maker-flags";
 // 커리어 도구 공용 경량 셸. aply.global GNB에 노출되지 않는 독립 도구 묶음이라
 // 표준 사이트 Header 대신 간결한 상단 바를 쓴다(로고 + 도구 네비 + 우측 슬롯).
 // STUDENT 로그인 게이트는 기존 ResumeCoachListPage 패턴과 동일.
+
+// GNB 우측 — 공용 AI 티켓 잔량(전 화면 공통). 잔량을 모르면(비STUDENT 등) 숨김.
+function GnbTicket() {
+  const { remaining } = useAiUsage();
+  const q = useQuotaCopy();
+  if (remaining === null) return null;
+  return (
+    <span
+      title={q.remaining(remaining)}
+      className="inline-flex items-center gap-1 rounded-full border border-[#0B46E8]/20 bg-[#0B46E8]/[0.06] px-2.5 py-1 text-[12.5px] font-bold text-[#0B46E8]"
+    >
+      <Ticket weight="fill" className="h-4 w-4" aria-hidden />
+      {remaining}
+    </span>
+  );
+}
 
 function FullState({ label }: { label: string }) {
   return (
@@ -61,8 +79,8 @@ export function ResumeMakerShell({
   const isInterview = pathname?.includes("/interview") ?? false;
   const tools: { labelKey: "toolResumeMaker" | "toolTailor" | "toolInterview"; href: string; active: boolean; wip?: boolean }[] = [
     { labelKey: "toolResumeMaker", href: "/resume-maker", active: !isTailor && !isInterview },
-    { labelKey: "toolTailor", href: activeId ? `/resume-maker/${activeId}/tailor` : "/resume-maker", active: isTailor, wip: RESUME_TOOLS_WIP },
-    { labelKey: "toolInterview", href: activeId ? `/resume-maker/${activeId}/interview` : "/resume-maker", active: isInterview, wip: RESUME_TOOLS_WIP }
+    { labelKey: "toolTailor", href: activeId ? `/resume-maker/${activeId}/tailor` : "/resume-maker/tailor", active: isTailor, wip: RESUME_TOOLS_WIP },
+    { labelKey: "toolInterview", href: activeId ? `/resume-maker/${activeId}/interview` : "/resume-maker/interview", active: isInterview, wip: RESUME_TOOLS_WIP }
   ];
 
   useEffect(() => {
@@ -119,6 +137,7 @@ export function ResumeMakerShell({
             ))}
           </nav>
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            <GnbTicket />
             {right}
             <ResumeMakerLanguageSwitch />
           </div>

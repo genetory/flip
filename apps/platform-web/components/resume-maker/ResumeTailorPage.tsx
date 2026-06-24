@@ -1,18 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { CheckCircle, CircleNotch, Copy as CopyIcon, Plus, Sparkle, Target, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import { ResumeMakerShell } from "./ResumeMakerShell";
+import { ResumeToolPickerPage } from "./ResumeToolPickerPage";
+import { AiQuotaModal } from "./AiQuotaModal";
+import { AiTicketCost } from "./AiTicketCost";
 import { ResumeBackBar } from "./ResumeBackBar";
 import { ResumeToolPreview } from "./ResumeToolPreview";
+import { PositionPagination } from "./PositionPagination";
 import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
+import { useLanguage } from "../i18n/LanguageProvider";
+import { PositionRow, mapPublicPositionToCard } from "../pages/PositionsPage";
 import { paperlogy } from "../../lib/fonts";
-import type { ResumeContent } from "../../lib/member-profile-client";
-import { fetchJobPosting, getBuilderState, getDraftResume, resumeToPlainText, saveResumeContent, tailorResume, type TailorResult } from "../../lib/resume-maker-client";
+import { type PublicPositionListItem, type ResumeContent } from "../../lib/member-profile-client";
+import { AiQuotaError, fetchJobPosting, getBuilderState, getDraftResume, resumeToPlainText, saveResumeContent, tailorResume, type TailorResult } from "../../lib/resume-maker-client";
 import { compileResumeContent } from "../../lib/resume-maker-compile";
 import { DEFAULT_DESIGN, type ResumeBuilderState, type ResumeDesignSettings } from "../../lib/resume-maker-types";
+import { positionToJobText } from "../../lib/resume-maker-position-jd";
+import { usePositionPager } from "../../lib/resume-maker-positions-pager";
+import { useAiUsage } from "../../lib/resume-maker-ai-usage";
 import { useTailorCopy } from "../../lib/resume-maker-i18n/tailor";
 import { useToolPickerCopy } from "../../lib/resume-maker-i18n/tool-picker";
 
@@ -23,14 +31,15 @@ function scoreColor(score: number): string {
   return "#dc2626";
 }
 
-const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "");
-
 export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
-  const router = useRouter();
   const toast = useToast();
   const t = useTailorCopy();
   const picker = useToolPickerCopy();
+  const { locale } = useLanguage();
+  const { resetAt, refresh: refreshUsage } = useAiUsage(); // 공용 AI 티켓(GNB 공유)
   const [loading, setLoading] = useState(true);
+  const [quotaOpen, setQuotaOpen] = useState(false); // 한도 초과 모달
+  const [missing, setMissing] = useState(false); // 이력서를 찾지 못하면 '나의 이력서'로 폴백
   const [resumeTitle, setResumeTitle] = useState("");
   const [content, setContent] = useState<ResumeContent | null>(null);
   const [builder, setBuilder] = useState<ResumeBuilderState | null>(null);
@@ -40,10 +49,10 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
   const [analyzing, setAnalyzing] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [result, setResult] = useState<TailorResult | null>(null);
-  // 드래프트 — 요약·자기소개를 편집하고 저장/취소로 확정. 저장 전까진 실제 이력서 미변경.
-  const [draftSummary, setDraftSummary] = useState("");
-  const [draftIntro, setDraftIntro] = useState("");
-  const [saving, setSaving] = useState(false);
+  // 입력 모드 — 직접 입력(텍스트/URL) vs Aply 포지션에서 선택
+  const [inputMode, setInputMode] = useState<"text" | "position">("text");
+  const [selectedPosId, setSelectedPosId] = useState<string | null>(null);
+  const pager = usePositionPager((m) => toast.error(m || t.positionFailed));
 
   useEffect(() => {
     let alive = true;
@@ -57,10 +66,10 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
         setBuilder(b);
         setBuilderContent(compileResumeContent(b, resume.content));
         setDesign(b.design ?? DEFAULT_DESIGN);
-      } catch (err) {
+      } catch {
+        // 이력서가 없거나(삭제 등) 못 불러오면 에러로 튕기지 않고 '나의 이력서'를 보여준다.
         if (!alive) return;
-        toast.error(err instanceof Error ? err.message : t.loadFailed);
-        router.replace("/resume-maker");
+        setMissing(true);
       } finally {
         if (alive) setLoading(false);
       }
@@ -102,70 +111,56 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
         desiredJobRole: builderContent.desiredJobRole?.trim() || undefined
       });
       setResult(r);
-      // 분석할 때마다 드래프트를 현재 이력서 값으로 초기화.
-      setDraftSummary(content?.summary ?? "");
-      setDraftIntro(content?.selfIntroduction ?? "");
+      refreshUsage();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t.failed);
+      if (err instanceof AiQuotaError) {
+        refreshUsage();
+        setQuotaOpen(true);
+      } else {
+        toast.error(err instanceof Error ? err.message : t.failed);
+      }
     } finally {
       setAnalyzing(false);
     }
   }
 
-  function adoptSummary() {
-    if (!result?.summary) return;
-    setDraftSummary(result.summary);
-    toast.success(t.adoptedToast);
+  function selectPosition(p: PublicPositionListItem) {
+    setSelectedPosId(p.id);
+    setJobText(positionToJobText(p));
   }
 
-  function addSuggestionToIntro(text: string) {
-    if (!text.trim()) return;
-    setDraftIntro((prev) => [prev.trim(), text.trim()].filter(Boolean).join("\n"));
-    toast.success(t.introAddedToast);
-  }
-
-  async function save() {
-    if (!content || saving) return;
-    setSaving(true);
-    const next = { ...content, summary: draftSummary, selfIntroduction: draftIntro };
+  // content 갱신 + 미리보기 재컴파일 + 저장(맞춤 제안을 이력서에 바로 반영).
+  async function applyContent(next: ResumeContent, msg: string) {
     setContent(next);
     if (builder) setBuilderContent(compileResumeContent(builder, next));
     try {
       await saveResumeContent(resumeId, next);
-      toast.success(t.appliedToast);
+      toast.success(msg);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t.failed);
-    } finally {
-      setSaving(false);
     }
   }
 
-  function cancelDraft() {
-    setDraftSummary(content?.summary ?? "");
-    setDraftIntro(content?.selfIntroduction ?? "");
+  // 맞춤 제안 문장을 자기소개에 한 줄로 덧붙여 바로 반영.
+  function addSuggestionToIntro(text: string) {
+    if (!content || !text.trim()) return;
+    const intro = [content.selfIntroduction?.trim(), text.trim()].filter(Boolean).join("\n");
+    void applyContent({ ...content, selfIntroduction: intro }, t.introAddedToast);
   }
 
   function copyText(text: string) {
     void navigator.clipboard?.writeText(text).then(() => toast.success(t.copiedToast)).catch(() => {});
   }
 
-  // 저장 안 한 변경 여부.
-  const dirty =
-    result !== null && content !== null && (draftSummary !== (content.summary ?? "") || draftIntro !== (content.selfIntroduction ?? ""));
+  // 결과 화면에서 접어 보여줄 "분석한 공고" — 포지션을 골랐으면 그 카드를, 아니면 입력 첫 줄을.
+  const selectedPosition = pager.positions?.find((x) => x.id === selectedPosId) ?? null;
+  const analyzedLabel = (() => {
+    const first = jobText.trim().split("\n").find((l) => l.trim());
+    return first ? first.replace(/^\[|\]$/g, "").slice(0, 60) : "—";
+  })();
 
-  // 우측 미리보기 — 드래프트(요약·자기소개)를 반영해 라이브로.
-  const previewContent =
-    result && builder && content ? compileResumeContent(builder, { ...content, summary: draftSummary, selfIntroduction: draftIntro }) : builderContent;
-
-  // 라이브 점수 — 부족 키워드가 드래프트(요약·자기소개)에 채워질수록 baseScore→100 으로 보정.
-  const draftBlob = norm(`${draftSummary}\n${draftIntro}`);
-  const covered = new Set(result ? result.missing.filter((k) => k && draftBlob.includes(norm(k))) : []);
-  const totalKw = result ? result.matched.length + result.missing.length : 0;
-  const liveScore = result
-    ? totalKw > 0
-      ? Math.min(100, Math.round(result.score + (covered.size / totalKw) * (100 - result.score)))
-      : result.score
-    : 0;
+  // 이력서가 없거나(삭제 등) 못 불러오면 공고 맞춤용 이력서 선택 화면으로.
+  if (missing) return <ResumeToolPickerPage tool="tailor" />;
 
   return (
     <ResumeMakerShell>
@@ -184,41 +179,169 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
               </div>
               <p className="mt-2 text-[14px] text-muted-foreground">{t.desc}</p>
 
-              <label className="mt-6 block text-[12.5px] font-medium text-foreground/80">
-                {t.jdLabel}
-                <textarea
-                  value={jobText}
-                  onChange={(e) => setJobText(e.target.value)}
-                  placeholder={t.jdPlaceholder}
-                  rows={7}
-                  maxLength={6000}
-                  className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] leading-relaxed focus:border-primary focus:outline-none"
-                />
-              </label>
-              <Button variant="default" size="lg" className="mt-3 w-full" disabled={analyzing} onClick={() => void analyze()}>
+              {!result ? (
+                <>
+              {/* 입력 모드 — 직접 입력 vs Aply 포지션 선택 (두꺼운 텍스트 탭) */}
+              <div className="mt-6 flex items-center gap-6">
+                {(["text", "position"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                      setInputMode(m);
+                      if (m === "position" && pager.positions === null) pager.search();
+                    }}
+                    className={`relative -mb-px pb-2.5 text-[16px] font-extrabold tracking-[-0.01em] transition-colors ${
+                      inputMode === m ? "text-[#0B1227]" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {m === "text" ? t.modeText : t.modePosition}
+                    {inputMode === m ? <span className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-[#0B46E8]" /> : null}
+                  </button>
+                ))}
+              </div>
+
+              {inputMode === "text" ? (
+                <label className="mt-3 block text-[12.5px] font-medium text-foreground/80">
+                  {t.jdLabel}
+                  <textarea
+                    value={jobText}
+                    onChange={(e) => {
+                      setJobText(e.target.value);
+                      setSelectedPosId(null);
+                    }}
+                    placeholder={t.jdPlaceholder}
+                    rows={7}
+                    maxLength={6000}
+                    className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] leading-relaxed focus:border-primary focus:outline-none"
+                  />
+                </label>
+              ) : (
+                <div className="mt-3">
+                  {/* 검색 — 입력은 다른 필드와 동일, 버튼은 우측 밖으로 */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={pager.query}
+                      onChange={(e) => pager.setQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          pager.search();
+                        }
+                      }}
+                      placeholder={t.positionSearchPlaceholder}
+                      className="h-11 w-full flex-1 rounded-xl border border-border bg-white px-3 text-[14px] text-slate-800 focus:border-primary focus:outline-none placeholder:text-slate-400"
+                    />
+                    <Button
+                      size="lg"
+                      type="button"
+                      className="h-11 shrink-0 rounded-xl bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d]"
+                      onClick={() => pager.search()}
+                    >
+                      {t.searchBtn}
+                    </Button>
+                  </div>
+                  {/* 목록 — 포지션 탐색의 PositionRow 그대로(한 페이지 5개) */}
+                  <div className="mt-3 space-y-2">
+                    {pager.loading ? (
+                      <div className="flex justify-center py-6 text-muted-foreground">
+                        <CircleNotch className="h-5 w-5 animate-spin" weight="bold" aria-hidden />
+                      </div>
+                    ) : pager.positions && pager.positions.length > 0 ? (
+                      pager.positions.map((p) => (
+                        <PositionRow
+                          key={p.id}
+                          p={mapPublicPositionToCard(p, locale)}
+                          isOwnPartnerPosting={false}
+                          isStudentUser
+                          isApplied={false}
+                          isFavorite={false}
+                          onToggleFavorite={() => {}}
+                          onApply={() => {}}
+                          locale={locale}
+                          compact
+                          onSelect={() => selectPosition(p)}
+                          selected={selectedPosId === p.id}
+                        />
+                      ))
+                    ) : (
+                      <p className="py-6 text-center text-[13px] text-muted-foreground">{t.positionEmpty}</p>
+                    )}
+                  </div>
+                  {/* 페이지네이션 — 숫자 페이지(1,2,3…N) */}
+                  {!pager.loading ? (
+                    <PositionPagination page={pager.page} totalPages={pager.totalPages} onChange={pager.setPage} />
+                  ) : null}
+                </div>
+              )}
+
+              <Button
+                variant="default"
+                size="lg"
+                className="mt-3 w-full"
+                disabled={analyzing || (inputMode === "position" ? !selectedPosId : !jobText.trim())}
+                onClick={() => void analyze()}
+              >
                 {analyzing ? <CircleNotch className="animate-spin" weight="bold" /> : <Sparkle weight="fill" />}
-                {analyzing ? (fetching ? t.fetchingUrl : t.analyzing) : result ? t.reanalyze : t.analyze}
+                {analyzing ? (fetching ? t.fetchingUrl : t.analyzing) : t.analyze}
+                {!analyzing ? <AiTicketCost /> : null}
               </Button>
 
-              {!result ? (
-                <p className="mt-6 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-[13px] text-muted-foreground">
-                  {t.emptyHint}
-                </p>
+              <p className="mt-6 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-[13px] text-muted-foreground">
+                {t.emptyHint}
+              </p>
+                </>
               ) : (
-                <div className="mt-6 space-y-5 pb-4">
-                  {/* 점수 — 라이브 */}
+                <>
+                {/* 분석한 공고 — 결과 화면에선 입력부를 접고, 고른 포지션은 카드 그대로 보여준다 */}
+                <div className="mt-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[12.5px] font-bold text-[#0B1227]">{t.analyzedJob}</span>
+                    <button
+                      type="button"
+                      onClick={() => setResult(null)}
+                      className="shrink-0 text-[12.5px] font-semibold text-[#0B46E8] hover:underline"
+                    >
+                      {t.changeJob}
+                    </button>
+                  </div>
+                  {selectedPosition ? (
+                    <div className="mt-2">
+                      <PositionRow
+                        p={mapPublicPositionToCard(selectedPosition, locale)}
+                        isOwnPartnerPosting={false}
+                        isStudentUser
+                        isApplied={false}
+                        isFavorite={false}
+                        onToggleFavorite={() => {}}
+                        onApply={() => {}}
+                        locale={locale}
+                        compact
+                        onSelect={() => {}}
+                        selected
+                      />
+                    </div>
+                  ) : (
+                    <div className="mt-2 rounded-xl border border-border bg-muted/30 px-3.5 py-2.5 text-[12.5px] text-muted-foreground">
+                      {analyzedLabel}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 space-y-5 pb-4">
+                  {/* 점수 */}
                   <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
                     <p className="text-[12px] font-bold text-muted-foreground">{t.scoreLabel}</p>
                     <div className="mt-1 flex items-end gap-2">
-                      <span className="text-4xl font-black tracking-tight transition-colors" style={{ color: scoreColor(liveScore) }}>{liveScore}</span>
+                      <span className="text-4xl font-black tracking-tight" style={{ color: scoreColor(result.score) }}>{result.score}</span>
                       <span className="mb-1.5 text-[13px] text-muted-foreground">/ 100</span>
                     </div>
                     <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${liveScore}%`, background: scoreColor(liveScore) }} />
+                      <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${result.score}%`, background: scoreColor(result.score) }} />
                     </div>
                   </div>
 
-                  {/* 보유 / 부족 (드래프트에 채워진 부족 키워드는 완료 표시) */}
+                  {/* 보유 / 부족 */}
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     {result.matched.length > 0 ? (
                       <div>
@@ -238,57 +361,13 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
                           <WarningCircle weight="fill" className="h-4 w-4" /> {t.missingTitle}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
-                          {result.missing.map((m, i) =>
-                            covered.has(m) ? (
-                              <span key={i} className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-medium text-emerald-700 line-through">
-                                <CheckCircle weight="fill" className="h-3 w-3" /> {m}
-                              </span>
-                            ) : (
-                              <span key={i} className="rounded-full bg-amber-50 px-2.5 py-1 text-[12px] font-medium text-amber-800">{m}</span>
-                            )
-                          )}
+                          {result.missing.map((m, i) => (
+                            <span key={i} className="rounded-full bg-amber-50 px-2.5 py-1 text-[12px] font-medium text-amber-800">{m}</span>
+                          ))}
                         </div>
                       </div>
                     ) : null}
                   </div>
-
-                  {/* 이력서에 반영 — 요약·자기소개 직접 편집(추가·삭제) */}
-                  <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
-                    <p className="text-[12.5px] font-bold text-[#0B46E8]">{t.applyTitle}</p>
-                    <label className="mt-2 block text-[12px] font-medium text-foreground/70">
-                      {t.summaryField}
-                      <input
-                        value={draftSummary}
-                        onChange={(e) => setDraftSummary(e.target.value)}
-                        maxLength={200}
-                        className="mt-1 h-11 w-full rounded-xl border border-border bg-white px-3 text-[14px] focus:border-primary focus:outline-none"
-                      />
-                    </label>
-                    <label className="mt-3 block text-[12px] font-medium text-foreground/70">
-                      {t.introField}
-                      <textarea
-                        value={draftIntro}
-                        onChange={(e) => setDraftIntro(e.target.value)}
-                        rows={6}
-                        maxLength={4000}
-                        className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] leading-relaxed focus:border-primary focus:outline-none"
-                      />
-                    </label>
-                  </div>
-
-                  {/* 맞춤 요약 제안 */}
-                  {result.summary ? (
-                    <div className="rounded-xl border border-border bg-card p-3.5">
-                      <p className="text-[12.5px] font-bold text-foreground/80">{t.summaryTitle}</p>
-                      <p className="mt-1.5 whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground/90">{result.summary}</p>
-                      <div className="mt-2.5 flex flex-wrap gap-2">
-                        <Button size="sm" onClick={() => adoptSummary()}>{t.adoptSummary}</Button>
-                        <Button size="sm" variant="ghost" onClick={() => copyText(result.summary)}>
-                          <CopyIcon weight="bold" /> {t.copy}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
 
                   {/* 맞춤 제안 */}
                   {result.suggestions.length > 0 ? (
@@ -315,27 +394,14 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
                     </div>
                   ) : null}
                 </div>
+                </>
               )}
             </div>
-
-            {/* 저장 / 취소 — 변경이 있을 때만, 하단 고정 */}
-            {dirty ? (
-              <div className="sticky bottom-0 z-10 mt-auto border-t border-border bg-background/95 py-3 backdrop-blur">
-                <div className="mx-auto flex w-full max-w-2xl gap-2">
-                  <Button variant="ghost" size="lg" onClick={cancelDraft} disabled={saving}>
-                    {t.cancel}
-                  </Button>
-                  <Button variant="default" size="lg" className="flex-1" onClick={() => void save()} disabled={saving}>
-                    {saving ? <CircleNotch className="animate-spin" weight="bold" /> : null}
-                    {t.save}
-                  </Button>
-                </div>
-              </div>
-            ) : null}
           </div>
-          <ResumeToolPreview content={previewContent} design={design} expandLabel={picker.expand} previewLabel={picker.preview} />
+          <ResumeToolPreview content={builderContent} design={design} expandLabel={picker.expand} previewLabel={picker.preview} />
         </div>
       )}
+      {quotaOpen ? <AiQuotaModal resetAt={resetAt} onClose={() => setQuotaOpen(false)} /> : null}
     </ResumeMakerShell>
   );
 }

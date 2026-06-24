@@ -1249,7 +1249,9 @@ export const PositionRow = ({
   onApply,
   onShowCip,
   locale,
-  compact = false
+  compact = false,
+  onSelect,
+  selected = false
 }: {
   p: PositionCard;
   isOwnPartnerPosting: boolean;
@@ -1264,6 +1266,9 @@ export const PositionRow = ({
   // 숨김(카드 전체가 링크라 클릭 한 번으로 상세 진입). 우측 상단 게시일/
   // 마감만 작게 유지.
   compact?: boolean;
+  // 선택 모드(공고 맞춤 등) — 주어지면 카드 전체가 상세 링크 대신 '선택' 동작이 된다.
+  onSelect?: () => void;
+  selected?: boolean;
 }) => {
   const isKo = locale === "ko";
   const isZh = locale === "zh-CN";
@@ -1303,8 +1308,15 @@ export const PositionRow = ({
           : copy.externalLink;
   const detailHref = externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? `/positions/${p.id}`;
   return (
-    <article className={`group relative rounded-xl border border-border/60 bg-card ${compact ? "p-2.5" : "p-3 md:p-4"}`}>
-      {isExternalSource(p.sourceKind) && p.sourceUrl ? (
+    <article className={`group relative rounded-xl border bg-card ${selected ? "border-primary ring-2 ring-inset ring-primary" : "border-border/60"} ${compact ? "p-2.5" : "p-3 md:p-4"}`}>
+      {onSelect ? (
+        <button
+          type="button"
+          onClick={onSelect}
+          aria-label={`${p.role} ${copy.detailSuffix}`}
+          className="absolute inset-0 z-30 rounded-xl"
+        />
+      ) : isExternalSource(p.sourceKind) && p.sourceUrl ? (
         <a
           href={detailHref}
           target="_blank"

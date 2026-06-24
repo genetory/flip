@@ -15,7 +15,7 @@ type Copy = {
 
 const dict: Record<PlatformLocale, Copy> = {
   ko: {
-    toolResumeMaker: "이력서 만들기",
+    toolResumeMaker: "나의 이력서",
     toolTailor: "공고 맞춤",
     toolInterview: "모의 면접",
     wipBadge: "준비중",
@@ -27,7 +27,7 @@ const dict: Record<PlatformLocale, Copy> = {
     goHome: "홈으로"
   },
   en: {
-    toolResumeMaker: "Resume Builder",
+    toolResumeMaker: "My Resume",
     toolTailor: "Job Match",
     toolInterview: "Mock Interview",
     wipBadge: "Soon",
@@ -39,7 +39,7 @@ const dict: Record<PlatformLocale, Copy> = {
     goHome: "Go home"
   },
   "zh-CN": {
-    toolResumeMaker: "制作简历",
+    toolResumeMaker: "我的简历",
     toolTailor: "岗位匹配",
     toolInterview: "模拟面试",
     wipBadge: "即将",
@@ -51,7 +51,7 @@ const dict: Record<PlatformLocale, Copy> = {
     goHome: "返回首页"
   },
   vi: {
-    toolResumeMaker: "Tạo hồ sơ",
+    toolResumeMaker: "Hồ sơ của tôi",
     toolTailor: "Khớp tin tuyển",
     toolInterview: "Phỏng vấn thử",
     wipBadge: "Sắp",
@@ -63,7 +63,7 @@ const dict: Record<PlatformLocale, Copy> = {
     goHome: "Về trang chủ"
   },
   ja: {
-    toolResumeMaker: "履歴書を作成",
+    toolResumeMaker: "マイ履歴書",
     toolTailor: "求人マッチ",
     toolInterview: "模擬面接",
     wipBadge: "準備中",
@@ -75,7 +75,7 @@ const dict: Record<PlatformLocale, Copy> = {
     goHome: "ホームへ"
   },
   id: {
-    toolResumeMaker: "Buat Resume",
+    toolResumeMaker: "Resume Saya",
     toolTailor: "Cocokkan Lowongan",
     toolInterview: "Wawancara Simulasi",
     wipBadge: "Segera",

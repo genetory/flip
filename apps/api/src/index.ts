@@ -13177,6 +13177,50 @@ function aiLangDirective(locale?: string): string {
   );
 }
 
+// ── AI 프리미엄 월 한도(공용 티켓) ─────────────────────────────────────
+// 비싸고 반복적인 AI 기능(공고 맞춤 분석·모의 면접 평가)이 '하나의 월간 공용 티켓 풀'을
+// 같이 쓴다. 각 기능 1회 = 1티켓. 카운트는 KST 월 단위 리셋. 작성/다듬기/질문 생성은 무료.
+// 기능별 카운트는 분석용으로 남기되, 한도는 전체 합산으로 본다.
+const AI_MONTHLY_CREDITS = 10;
+// 티켓을 쓰는 '도구 사용' 액션 — 공고 맞춤 분석 1회, 모의 면접 시작(질문 생성) 1회.
+// 모의 면접은 시작 시 1티켓을 쓰고, 그 세션의 답변 평가는 무료(이중 차감 방지).
+const AI_CREDIT_FEATURES = ["tailor_analyze", "interview_questions"] as const;
+
+// KST(UTC+9) 기준 "YYYY-MM".
+function aiQuotaPeriodKey(): string {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+// 다음 리셋 시점(다음 달 1일 00:00 KST)을 UTC ISO 로.
+function aiQuotaResetAt(): string {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const nextMonthKstMidnightUtcMs = Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth() + 1, 1, 0, 0, 0) - 9 * 60 * 60 * 1000;
+  return new Date(nextMonthKstMidnightUtcMs).toISOString();
+}
+
+type AiCreditStatus = { limit: number; used: number; remaining: number; resetAt: string };
+
+// 공용 티켓 잔량 — 한도가 걸린 모든 기능의 이번 달 사용 합산 기준.
+async function aiCreditStatus(userId: string): Promise<AiCreditStatus> {
+  const periodKey = aiQuotaPeriodKey();
+  const rows = await prisma.aiUsage.findMany({
+    where: { userId, periodKey, feature: { in: [...AI_CREDIT_FEATURES] } }
+  });
+  const used = rows.reduce((sum, r) => sum + r.count, 0);
+  return { limit: AI_MONTHLY_CREDITS, used, remaining: Math.max(0, AI_MONTHLY_CREDITS - used), resetAt: aiQuotaResetAt() };
+}
+
+// 성공한 호출 1건을 차감(증가). 동시 요청은 rate-limit 으로 충분히 막혀 무시 가능.
+async function aiQuotaConsume(userId: string, feature: string): Promise<void> {
+  const periodKey = aiQuotaPeriodKey();
+  await prisma.aiUsage.upsert({
+    where: { userId_feature_periodKey: { userId, feature, periodKey } },
+    create: { userId, feature, periodKey, count: 1 },
+    update: { count: { increment: 1 } }
+  });
+}
+
 // POST /members/me/ai/polish-intro — 사용자가 쓴 자기소개를 더 자연스럽고 설득력
 // 있게 다듬어 준다(없는 사실 금지, 분량 유지). style 별로 여러 형식을 시도 가능.
 const POLISH_STYLE_GUIDE: Record<string, string> = {
@@ -13292,6 +13336,21 @@ app.post(
   }
 );
 
+// GET /members/me/ai/usage — 이번 달 남은 공용 AI 티켓(UI 표시용).
+app.get(
+  "/members/me/ai/usage",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    try {
+      return res.json({ ok: true, usage: await aiCreditStatus(req.auth!.userId) });
+    } catch (err) {
+      console.error("[ai/usage] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to load usage" });
+    }
+  }
+);
+
 // POST /members/me/ai/tailor-resume — 채용 공고(JD)와 이력서를 비교해 적합도 점수,
 // 보유/부족 키워드, 그 공고에 맞춘 요약·문장 제안을 돌려준다. 없는 사실은 만들지 않는다.
 const tailorResumeSchema = z.object({
@@ -13309,6 +13368,9 @@ app.post(
     const parsed = tailorResumeSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    // 무료 월 한도(공용 티켓) — 초과 시 402 로 업셀 유도(성공 시에만 차감).
+    const quota = await aiCreditStatus(req.auth!.userId);
+    if (quota.remaining <= 0) return res.status(402).json({ ok: false, message: "ai quota exceeded", quota });
     try {
       const { resumeText, jobText, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
@@ -13320,7 +13382,8 @@ app.post(
         "4. summary: 이 공고에 맞춰 강조한 1~2문장 요약. 이력서에 있는 사실만 사용하고 없는 경력·수치를 지어내지 마세요.\n" +
         "5. suggestions: 이 공고에 맞춰 이력서에 넣거나 고치면 좋은 구체적 제안 2~4개. 각 항목은 { title(무엇을), text(공고에 맞춘 예시 문장) }. 이력서에 근거가 없는 경험을 새로 만들지 말고, 근거가 없으면 '경험이 있다면 이렇게 표현' 식으로 제안하세요.\n" +
         "6. summary 와 suggestions 의 text 는 '지원자 본인이 직접 이력서에 쓴 글'입니다. 반드시 1인칭(본인) 시점으로 쓰고, 지원자를 이름이나 3인칭(예: '문지윤은…', '그는…')으로 지칭하지 마세요. 이력서 문체 그대로(담백한 진술형, 주어 생략 가능).\n" +
-        "7. 과장·확정 표현(반드시 합격 등) 금지. 담백하고 실용적으로.\n\n" +
+        "7. 과장·확정 표현(반드시 합격 등) 금지. 담백하고 실용적으로.\n" +
+        "8. summary 와 text 에는 이력서에 그대로 들어갈 '완성된 문장'만 담으세요. '문장을 추가하겠습니다', '다음과 같이', '예시:' 같은 안내·머리말이나 감싸는 따옴표를 절대 붙이지 마세요.\n\n" +
         'JSON 한 개 객체로만 응답: { "score": number, "matched": string[], "missing": string[], "summary": string, "suggestions": [{ "title": string, "text": string }] }' +
         aiLangDirective(locale);
       const userPrompt =
@@ -13340,23 +13403,34 @@ app.post(
       try { j = JSON.parse(raw); } catch { /* fall through */ }
       const strArr = (v: unknown, n: number): string[] =>
         Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim().slice(0, 80)).slice(0, n) : [];
+      // AI가 가끔 붙이는 머리말("…문장을 추가하겠습니다", "예시:", 감싼 따옴표)을 제거한다.
+      const stripLeadIn = (s: string): string =>
+        s
+          .trim()
+          .replace(/^["'“”『「]+|["'“”』」]+$/g, "")
+          .replace(/^\s*(?:예시|예|제안|추천|요약)\s*[:：]\s*/i, "")
+          .replace(/^[^\n。.!?]{0,40}?(?:추가|작성|제안|수정|표현|반영|강조)하겠습니다[.!]?\s*/, "")
+          .replace(/^["'“”『「]+|["'“”』」]+$/g, "")
+          .trim();
       const score = typeof j.score === "number" && isFinite(j.score) ? Math.max(0, Math.min(100, Math.round(j.score))) : 0;
       const suggestions = Array.isArray(j.suggestions)
         ? j.suggestions
             .filter((s): s is { title?: unknown; text?: unknown } => typeof s === "object" && s !== null)
-            .map((s) => ({ title: typeof s.title === "string" ? s.title.trim().slice(0, 120) : "", text: typeof s.text === "string" ? s.text.trim().slice(0, 600) : "" }))
+            .map((s) => ({ title: typeof s.title === "string" ? s.title.trim().slice(0, 120) : "", text: typeof s.text === "string" ? stripLeadIn(s.text).slice(0, 600) : "" }))
             .filter((s) => s.title || s.text)
             .slice(0, 4)
         : [];
+      await aiQuotaConsume(req.auth!.userId, "tailor_analyze");
       return res.json({
         ok: true,
         result: {
           score,
           matched: strArr(j.matched, 8),
           missing: strArr(j.missing, 8),
-          summary: typeof j.summary === "string" ? j.summary.trim().slice(0, 400) : "",
+          summary: typeof j.summary === "string" ? stripLeadIn(j.summary).slice(0, 400) : "",
           suggestions
-        }
+        },
+        quota: await aiCreditStatus(req.auth!.userId)
       });
     } catch (err) {
       console.error("[ai/tailor-resume] failed", err);
@@ -13447,6 +13521,9 @@ app.post(
     const parsed = interviewQuestionsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    // 모의 면접 시작 = 티켓 1개(공용 풀). 초과 시 402(성공 시에만 차감).
+    const qQuota = await aiCreditStatus(req.auth!.userId);
+    if (qQuota.remaining <= 0) return res.status(402).json({ ok: false, message: "ai quota exceeded", quota: qQuota });
     try {
       const { resumeText, jobText, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
@@ -13491,7 +13568,8 @@ app.post(
             .slice(0, 8)
         : [];
       if (questions.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
-      return res.json({ ok: true, questions });
+      await aiQuotaConsume(req.auth!.userId, "interview_questions");
+      return res.json({ ok: true, questions, quota: await aiCreditStatus(req.auth!.userId) });
     } catch (err) {
       console.error("[ai/interview-questions] failed", err);
       return res.status(500).json({ ok: false, message: "failed to build interview questions" });
@@ -13517,6 +13595,7 @@ app.post(
     const parsed = interviewFeedbackSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    // 모의 면접 답변 평가는 무료 — 시작(질문 생성) 시 이미 티켓 1개를 썼다.
     try {
       const { question, answer, resumeText, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
