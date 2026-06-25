@@ -37,9 +37,34 @@ const KNOWN_GOOD_DOMAINS = new Set<string>([
   "yandex.ru"
 ]);
 
+/**
+ * 일회용/임시 이메일 도메인 — 봇·스팸 가입에 흔히 쓰인다. 이런 주소는 MX 가 있어
+ * 위 KNOWN_GOOD / MX 검사는 통과하므로 별도로 막는다. 인증 메일을 보내봐야
+ * 열어보지 않아 반송·미참여로 도메인 평판만 깎인다. 필요 시 계속 추가.
+ */
+const DISPOSABLE_DOMAINS = new Set<string>([
+  "mailinator.com", "mailinator.net", "mailinator.org",
+  "guerrillamail.com", "guerrillamail.net", "guerrillamail.org", "guerrillamail.biz", "guerrillamailblock.com",
+  "sharklasers.com", "grr.la", "spam4.me",
+  "10minutemail.com", "10minutemail.net", "20minutemail.com",
+  "temp-mail.org", "tempmail.com", "tempmailo.com", "tempmail.net", "tempr.email", "tempmail.plus", "temp-mail.io",
+  "throwawaymail.com", "throwawayemailaddresses.com",
+  "yopmail.com", "yopmail.net", "yopmail.fr",
+  "getnada.com", "nada.email",
+  "trashmail.com", "trashmail.net", "trashmail.de", "trash-mail.com",
+  "dispostable.com", "discard.email", "discardmail.com",
+  "maildrop.cc", "mintemail.com", "mohmal.com",
+  "fakeinbox.com", "fakemail.net", "fake-mail.net",
+  "mailnesia.com", "mailcatch.com", "maileater.com", "mailtemp.net",
+  "emailondeck.com", "getairmail.com", "moakt.com", "mytemp.email",
+  "inboxbear.com", "tempinbox.com", "tempemail.co", "spambog.com",
+  "anonbox.net", "burnermail.io", "33mail.com", "vomoto.com", "luxusmail.org",
+  "easytrashmail.com", "mail-temp.com", "linshiyouxiang.net"
+]);
+
 type DeliverabilityResult =
   | { ok: true; cached: boolean }
-  | { ok: false; reason: "no-mx" | "nxdomain" | "invalid-email" };
+  | { ok: false; reason: "no-mx" | "nxdomain" | "invalid-email" | "disposable" };
 
 const MX_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const MX_LOOKUP_TIMEOUT_MS = 4_000;
@@ -89,6 +114,9 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 export async function checkEmailDeliverable(email: string): Promise<DeliverabilityResult> {
   const domain = extractDomain(email);
   if (!domain) return { ok: false, reason: "invalid-email" };
+
+  // 일회용/임시 메일은 MX 가 있어 통과해버리므로 먼저 차단(봇·스팸 가입 + 반송 방지).
+  if (DISPOSABLE_DOMAINS.has(domain)) return { ok: false, reason: "disposable" };
 
   if (KNOWN_GOOD_DOMAINS.has(domain)) return { ok: true, cached: true };
 
