@@ -23,6 +23,10 @@ export function AiUsageProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     refresh();
+    // 어떤 화면에서든 AI 호출이 성공하면 잔량을 다시 불러온다.
+    const onChanged = () => refresh();
+    window.addEventListener("aply:ai-usage-changed", onChanged);
+    return () => window.removeEventListener("aply:ai-usage-changed", onChanged);
   }, [refresh]);
   return <Ctx.Provider value={{ remaining, resetAt, refresh }}>{children}</Ctx.Provider>;
 }

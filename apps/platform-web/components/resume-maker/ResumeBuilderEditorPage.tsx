@@ -22,6 +22,8 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { ResumeMakerShell } from "./ResumeMakerShell";
 import { ResumeSectionNav } from "./ResumeSectionNav";
+import { AiTicketCost } from "./AiTicketCost";
+import { AiChipButton } from "./AiChipButton";
 import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { useResumeContentAutosave } from "./useResumeMakerAutosave";
 import { ResumePreview } from "./ResumePreview";
@@ -884,6 +886,7 @@ function ContentTab({
                           >
                             {rewriting === b.id ? <CircleNotch className="h-3 w-3 animate-spin" weight="bold" /> : <Sparkle className="h-3 w-3" weight="fill" />}
                             {t.aiRewrite}
+                            {rewriting === b.id ? null : <AiTicketCost feature="draft_resume_text" tone="muted" />}
                           </button>
                         </div>
                       ))}
@@ -1177,23 +1180,17 @@ function IntroSection({
         <div className="mt-2">
           <p className="mb-1.5 text-[12px] text-muted-foreground">{t.polishWithAi}</p>
           <div className="flex flex-wrap gap-1.5">
-            {POLISH_STYLES.map((s) => {
-              const loading = polishingStyle === s.value;
-              return (
-                <button
-                  key={s.value}
-                  type="button"
-                  disabled={polishingStyle !== null}
-                  onClick={() => runPolish(s.value)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition disabled:opacity-60 ${
-                    loading ? "border-primary bg-primary/10 text-[#0B46E8]" : "border-border bg-card text-foreground/80 hover:border-primary/40"
-                  }`}
-                >
-                  {loading ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : <Sparkle className="h-3.5 w-3.5" weight="bold" />}
-                  {polishLabel(s.value)}
-                </button>
-              );
-            })}
+            {POLISH_STYLES.map((s) => (
+              <AiChipButton
+                key={s.value}
+                loading={polishingStyle === s.value}
+                disabled={polishingStyle !== null}
+                onClick={() => runPolish(s.value)}
+                feature="polish_intro"
+              >
+                {polishLabel(s.value)}
+              </AiChipButton>
+            ))}
           </div>
         </div>
         {polished !== null ? (
@@ -1228,10 +1225,9 @@ function IntroSection({
       <div>
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-[13px] font-bold text-[#0B1227]">{t.oneLineSummaryHeading}</h3>
-          <Button variant="outline" size="sm" disabled={summarizing} onClick={runSummary}>
-            {summarizing ? <CircleNotch className="animate-spin" weight="bold" /> : <Sparkle weight="bold" />}
+          <AiChipButton loading={summarizing} onClick={runSummary} feature="summarize_intro">
             {summarizing ? t.generating : t.aiRecommend}
-          </Button>
+          </AiChipButton>
         </div>
         <input
           className={`${inputCls} mt-2`}
@@ -1431,10 +1427,9 @@ function SkillsSection({
 
       {/* AI 추천 — 칩을 눌러 추가만 하면 됨 */}
       <div className="mt-2">
-        <Button variant="outline" size="sm" disabled={suggesting} onClick={() => void runSuggest()}>
-          {suggesting ? <CircleNotch className="animate-spin" weight="bold" /> : <Sparkle weight="fill" />}
+        <AiChipButton loading={suggesting} onClick={() => void runSuggest()} feature="suggest_skills">
           {suggesting ? t.recommending : t.aiSkillRecommend}
-        </Button>
+        </AiChipButton>
         {suggestions.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {suggestions.map((s) => (

@@ -13,6 +13,7 @@ import {
   WarningCircle
 } from "@phosphor-icons/react/dist/ssr";
 import { ResumeMakerShell } from "./ResumeMakerShell";
+import { AiTicketCost } from "./AiTicketCost";
 import { ResumeMakerWorkspace } from "./ResumeMakerWorkspace";
 import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { useResumeMakerAutosave } from "./useResumeMakerAutosave";
@@ -453,6 +454,7 @@ function InterviewView({
         <p className="text-[14px] text-muted-foreground">{t.questionsLoadFailed}</p>
         <Button variant="outline" size="lg" className="mt-4" onClick={onRetryQuestions}>
           {t.retry}
+          <AiTicketCost feature="experience_interview" tone="muted" />
         </Button>
       </div>
     );
@@ -519,6 +521,7 @@ function InterviewView({
         ) : (
           <Button variant="hero" size="lg" onClick={onGenerate}>
             <Sparkle weight="bold" /> {t.makeSentences}
+            <AiTicketCost feature="experience_bullets" tone="plain" />
           </Button>
         )}
       </div>

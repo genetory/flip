@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { CircleNotch, Ticket } from "@phosphor-icons/react/dist/ssr";
+import { CircleNotch, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { paperlogy } from "../../lib/fonts";
 import { useShellCopy } from "../../lib/resume-maker-i18n/shell";
@@ -28,7 +28,7 @@ function GnbTicket() {
       title={q.remaining(remaining)}
       className="inline-flex items-center gap-1 rounded-full border border-[#0B46E8]/20 bg-[#0B46E8]/[0.06] px-2.5 py-1 text-[12.5px] font-bold text-[#0B46E8]"
     >
-      <Ticket weight="fill" className="h-4 w-4" aria-hidden />
+      <Sparkle weight="fill" className="h-4 w-4" aria-hidden />
       {remaining}
     </span>
   );

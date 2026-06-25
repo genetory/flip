@@ -82,7 +82,7 @@ export async function generateExperienceInterview(input: {
   jobCategories?: string[];
   priorQa?: QaPair[];
 }): Promise<{ coachNote: string; questions: InterviewQuestion[] }> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/experience-interview", {
+  const payload = (await aiPost<unknown>("/members/me/ai/experience-interview", {
     method: "POST",
     body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { interview?: { coachNote?: string; questions?: InterviewQuestion[] } };
@@ -97,7 +97,7 @@ export async function generateExperienceBullets(input: {
   jobCategories?: string[];
   qa: QaPair[];
 }): Promise<Omit<ExperienceGeneration, "generatedAt">> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/experience-bullets", {
+  const payload = (await aiPost<unknown>("/members/me/ai/experience-bullets", {
     method: "POST",
     body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { generation?: Omit<ExperienceGeneration, "generatedAt"> };
@@ -138,7 +138,7 @@ export async function polishSelfIntro(input: {
   desiredJobRole?: string;
   jobCategories?: string[];
 }): Promise<string> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/polish-intro", {
+  const payload = (await aiPost<unknown>("/members/me/ai/polish-intro", {
     method: "POST",
     body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { polished?: string };
@@ -156,7 +156,7 @@ export async function draftSelfIntro(input: {
   skills?: string[];
   languages?: { language?: string; level?: string }[];
 }): Promise<string> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/draft-intro", {
+  const payload = (await aiPost<unknown>("/members/me/ai/draft-intro", {
     method: "POST",
     body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { draft?: string };
@@ -170,7 +170,7 @@ export type TranslateTarget = "ko" | "en";
 // 여러 문자열을 타깃 언어로 일괄 번역 (POST /members/me/ai/translate-texts).
 // 원문 언어 자동 감지 — 외국어로 쓴 이력서를 한국어로도 번역 가능. 순서·개수 보존.
 export async function translateTexts(texts: string[], target: TranslateTarget = "en"): Promise<string[]> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/translate-texts", {
+  const payload = (await aiPost<unknown>("/members/me/ai/translate-texts", {
     method: "POST",
     body: JSON.stringify({ texts, target })
   })) as unknown as { texts?: string[] };
@@ -213,7 +213,7 @@ export async function suggestSkills(input: {
   experiences?: string[];
   have?: string[];
 }): Promise<string[]> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/suggest-skills", {
+  const payload = (await aiPost<unknown>("/members/me/ai/suggest-skills", {
     method: "POST",
     body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { skills?: string[] };
@@ -222,7 +222,7 @@ export async function suggestSkills(input: {
 
 // 자기소개 → 한 줄 요약 추천 (POST /members/me/ai/summarize-intro).
 export async function summarizeSelfIntro(input: { text: string; desiredJobRole?: string }): Promise<string> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/summarize-intro", {
+  const payload = (await aiPost<unknown>("/members/me/ai/summarize-intro", {
     method: "POST",
     body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { summary?: string };
@@ -280,14 +280,38 @@ export async function fetchJobPosting(url: string): Promise<string> {
 }
 
 // ── AI 프리미엄 월 한도 ──
-// 공고 맞춤 분석·모의 면접 평가는 무료 월 한도가 있다. 초과 시 서버가 402 를 주고,
-// 클라이언트는 이를 AiQuotaError 로 바꿔 페이지가 업셀 모달을 띄우게 한다.
+// 모든 AI 기능은 월 공용 티켓을 쓴다. 초과 시 서버가 402 를 주고, 클라이언트는 이를
+// AiQuotaError 로 바꾼다. 도구(공고 맞춤·모의 면접)는 모달, 편집기 인라인 액션은
+// 이 친절한 메시지를 토스트로 보여준다(작은 동작엔 토스트가 적합).
+const AI_QUOTA_MESSAGES: Record<string, string> = {
+  ko: "이번 달 무료 AI 티켓을 다 썼어요. 다음 달에 다시 충전돼요.",
+  en: "You've used all your free AI tickets this month. They refresh next month.",
+  "zh-CN": "本月免费 AI 券已用完，下月会重置。",
+  vi: "Bạn đã dùng hết vé AI miễn phí tháng này. Sẽ làm mới vào tháng sau.",
+  ja: "今月の無料 AI チケットを使い切りました。来月リセットされます。",
+  id: "Tiket AI gratis bulan ini sudah habis. Akan disetel ulang bulan depan."
+};
+function aiQuotaMessage(): string {
+  return AI_QUOTA_MESSAGES[getBrowserLocale()] ?? AI_QUOTA_MESSAGES.en;
+}
+
 export class AiQuotaError extends Error {
   feature: string;
   constructor(feature: string) {
-    super("ai quota exceeded");
+    super(aiQuotaMessage());
     this.name = "AiQuotaError";
     this.feature = feature;
+  }
+}
+
+// 모든 AI POST 의 공통 래퍼 — 402(한도 초과)면 친절한 AiQuotaError 로 바꾼다.
+// feature 는 경로에서 유도(표시용일 뿐, 비용 산정은 서버가 한다).
+async function aiPost<T>(path: string, init: RequestInit) {
+  try {
+    return await authedJsonFetch<T>(path, init);
+  } catch (err) {
+    if (isQuotaError(err)) throw new AiQuotaError(path.replace("/members/me/ai/", "").replace(/-/g, "_"));
+    throw err;
   }
 }
 
@@ -351,12 +375,17 @@ export async function generateInterviewQuestions(input: { resumeText: string; jo
   return questions;
 }
 
-// 답변 평가는 무료(세션 시작 시 이미 티켓을 썼다).
 export async function getInterviewFeedback(input: { question: string; answer: string; resumeText?: string; desiredJobRole?: string }): Promise<InterviewFeedback> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/interview-feedback", {
-    method: "POST",
-    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
-  })) as unknown as { feedback?: Partial<InterviewFeedback> };
+  let payload: { feedback?: Partial<InterviewFeedback> };
+  try {
+    payload = (await authedJsonFetch<unknown>("/members/me/ai/interview-feedback", {
+      method: "POST",
+      body: JSON.stringify({ ...input, locale: getBrowserLocale() })
+    })) as unknown as { feedback?: Partial<InterviewFeedback> };
+  } catch (err) {
+    if (isQuotaError(err)) throw new AiQuotaError("interview_feedback");
+    throw err;
+  }
   const f = payload.feedback ?? {};
   return {
     score: typeof f.score === "number" ? f.score : 0,
@@ -368,7 +397,7 @@ export async function getInterviewFeedback(input: { question: string; answer: st
 
 // 경험 설명(한 일) 다듬기 (POST /members/me/ai/polish-experience). style 별로 형식을 달리.
 export async function polishExperienceText(input: { text: string; style?: PolishStyle; type?: string }): Promise<string> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/polish-experience", {
+  const payload = (await aiPost<unknown>("/members/me/ai/polish-experience", {
     method: "POST",
     body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { polished?: string };
@@ -385,7 +414,7 @@ export async function suggestExperienceTasks(input: {
   org?: string;
   rawInput?: string;
 }): Promise<{ tasks: string[]; note: string }> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/experience-tasks", {
+  const payload = (await aiPost<unknown>("/members/me/ai/experience-tasks", {
     method: "POST",
     body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { tasks?: string[]; note?: string };
@@ -396,7 +425,7 @@ export async function suggestExperienceTasks(input: {
 
 // 경험 설명 → 짧은 경험명 추천 (POST /members/me/ai/experience-title).
 export async function suggestExperienceTitle(input: { rawInput: string; type?: string }): Promise<string> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/experience-title", {
+  const payload = (await aiPost<unknown>("/members/me/ai/experience-title", {
     method: "POST",
     body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { title?: string };
@@ -422,7 +451,7 @@ export type ImportedResume = {
 
 // PDF(base64) 또는 붙여넣은 텍스트를 보내 구조화된 이력서 내용을 받는다.
 export async function importResume(input: { text?: string; pdfBase64?: string }): Promise<ImportedResume> {
-  const payload = (await authedJsonFetch<unknown>("/members/me/ai/import-resume", {
+  const payload = (await aiPost<unknown>("/members/me/ai/import-resume", {
     method: "POST",
     body: JSON.stringify(input)
   })) as unknown as { imported?: ImportedResume };

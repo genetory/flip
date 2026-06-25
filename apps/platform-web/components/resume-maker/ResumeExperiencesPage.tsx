@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CalendarBlank, CaretDown, CaretRight, CircleNotch, ListChecks, PencilSimple, Plus, Sparkle, Trash } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, CalendarBlank, CaretDown, CaretRight, CircleNotch, PencilSimple, Plus, Sparkle, Trash } from "@phosphor-icons/react/dist/ssr";
 import { ResumeMakerShell } from "./ResumeMakerShell";
+import { AiChipButton } from "./AiChipButton";
 import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { ResumeMakerWorkspace } from "./ResumeMakerWorkspace";
 import { ResumeSectionNav } from "./ResumeSectionNav";
@@ -457,15 +458,9 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                 <span className="text-[12.5px] font-medium text-foreground/80">
                   {editingId ? t.resumeSentenceLabel : t.whatDidYouDoLabel}
                 </span>
-                <button
-                  type="button"
-                  disabled={taskLoading}
-                  onClick={() => void loadTaskSuggestions()}
-                  className="inline-flex shrink-0 items-center gap-1 text-[12px] font-medium text-[#0B46E8] transition hover:underline disabled:opacity-40"
-                >
-                  {taskLoading ? <CircleNotch className="h-3 w-3 animate-spin" weight="bold" /> : <ListChecks className="h-3.5 w-3.5" weight="bold" />}
+                <AiChipButton loading={taskLoading} onClick={() => void loadTaskSuggestions()} feature="experience_tasks">
                   {taskSuggestions ? t.suggestAgain : t.suggestTasks}
-                </button>
+                </AiChipButton>
               </div>
               <textarea
                 value={form.rawInput}
@@ -480,23 +475,17 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
               <div className="mt-2">
                 <p className="mb-1.5 text-[12px] text-muted-foreground">{t.polishIntro}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {POLISH_STYLES.map((s) => {
-                    const loading = polishingStyle === s.value;
-                    return (
-                      <button
-                        key={s.value}
-                        type="button"
-                        disabled={polishingStyle !== null}
-                        onClick={() => void polishRaw(s.value)}
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition disabled:opacity-60 ${
-                          loading ? "border-primary bg-primary/10 text-[#0B46E8]" : "border-border bg-card text-foreground/80 hover:border-primary/40"
-                        }`}
-                      >
-                        {loading ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : <Sparkle className="h-3.5 w-3.5" weight="bold" />}
-                        {polishLabel(s.value)}
-                      </button>
-                    );
-                  })}
+                  {POLISH_STYLES.map((s) => (
+                    <AiChipButton
+                      key={s.value}
+                      loading={polishingStyle === s.value}
+                      disabled={polishingStyle !== null}
+                      onClick={() => void polishRaw(s.value)}
+                      feature="polish_experience"
+                    >
+                      {polishLabel(s.value)}
+                    </AiChipButton>
+                  ))}
                 </div>
               </div>
               {polishedRaw !== null ? (
@@ -547,15 +536,14 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                 <span className="text-[12.5px] font-medium text-foreground/80">
                   {t.experienceNameLabel} <span className="font-normal text-muted-foreground">{t.optional}</span>
                 </span>
-                <button
-                  type="button"
+                <AiChipButton
+                  loading={titling}
                   disabled={titling || !form.rawInput.trim()}
                   onClick={() => void suggestTitle()}
-                  className="inline-flex items-center gap-1 text-[12px] font-medium text-[#0B46E8] transition hover:underline disabled:opacity-40"
+                  feature="experience_title"
                 >
-                  {titling ? <CircleNotch className="h-3 w-3 animate-spin" weight="bold" /> : <Sparkle className="h-3 w-3" weight="fill" />}
                   {t.aiSuggest}
-                </button>
+                </AiChipButton>
               </div>
               <input
                 value={form.title}

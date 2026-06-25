@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, CircleNotch, Eye, PaperPlaneRight, X } from "@phosphor-icons/react/dist/ssr";
 import { ResumeMakerShell } from "./ResumeMakerShell";
 import { AutoSaveIndicator } from "./AutoSaveIndicator";
+import { AiTicketCost } from "./AiTicketCost";
 import { ResumePreview } from "./ResumePreview";
 import { useResumeContentAutosave } from "./useResumeMakerAutosave";
 import { Button } from "../ui/button";
@@ -880,15 +881,15 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
     setPhase("ex_type");
   }
 
-  const options: { label: string; onClick: () => void; kind?: "control" }[] =
+  const options: { label: string; onClick: () => void; kind?: "control"; feature?: string }[] =
     phase === "i_offer"
       ? [
-          { label: t.optIntroYes, onClick: () => void offerIntro(true) },
+          { label: t.optIntroYes, onClick: () => void offerIntro(true), feature: "draft_intro" },
           { label: t.optIntroSelf, onClick: () => void offerIntro(false), kind: "control" }
         ]
       : phase === "ex_content"
         ? [
-            { label: t.optPolishMore, onClick: () => startEditContentPolish() },
+            { label: t.optPolishMore, onClick: () => startEditContentPolish(), feature: "polish_experience" },
             { label: t.optKeepAsIs, onClick: () => void finishExperienceContent(), kind: "control" }
           ]
         : phase === "ex_type"
@@ -905,7 +906,7 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
         ? [
             { label: t.optAcceptPolish, onClick: () => acceptPolish() },
             { label: t.optKeepOriginal, onClick: () => keepOriginal(), kind: "control" },
-            { label: t.optGetSuggestions, onClick: () => void offerTasksFromPolish(), kind: "control" }
+            { label: t.optGetSuggestions, onClick: () => void offerTasksFromPolish(), kind: "control", feature: "experience_tasks" }
           ]
         : phase === "ex_tasks"
           ? [
@@ -980,18 +981,20 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
                       key={o.label}
                       type="button"
                       onClick={o.onClick}
-                      className="rounded-full border border-border bg-white px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground transition hover:bg-muted active:scale-[0.98]"
+                      className="inline-flex items-center rounded-full border border-border bg-white px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground transition hover:bg-muted active:scale-[0.98]"
                     >
                       {o.label}
+                      {o.feature ? <AiTicketCost feature={o.feature} tone="muted" /> : null}
                     </button>
                   ) : (
                     <button
                       key={o.label}
                       type="button"
                       onClick={o.onClick}
-                      className="rounded-full border border-[#0B46E8]/40 bg-white px-3.5 py-1.5 text-[13.5px] font-semibold text-[#0B46E8] transition hover:bg-[#0B46E8]/5 active:scale-[0.98]"
+                      className="inline-flex items-center rounded-full border border-[#0B46E8]/40 bg-white px-3.5 py-1.5 text-[13.5px] font-semibold text-[#0B46E8] transition hover:bg-[#0B46E8]/5 active:scale-[0.98]"
                     >
                       {o.label}
+                      {o.feature ? <AiTicketCost feature={o.feature} tone="muted" /> : null}
                     </button>
                   )
                 )}

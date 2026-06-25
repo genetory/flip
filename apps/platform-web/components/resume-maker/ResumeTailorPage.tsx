@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle, CircleNotch, Copy as CopyIcon, Plus, Sparkle, Target, WarningCircle } from "@phosphor-icons/react/dist/ssr";
+import { CheckCircle, CircleNotch, Copy as CopyIcon, Plus, Target, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import { ResumeMakerShell } from "./ResumeMakerShell";
 import { ResumeToolPickerPage } from "./ResumeToolPickerPage";
 import { AiQuotaModal } from "./AiQuotaModal";
@@ -282,9 +282,9 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
                 disabled={analyzing || (inputMode === "position" ? !selectedPosId : !jobText.trim())}
                 onClick={() => void analyze()}
               >
-                {analyzing ? <CircleNotch className="animate-spin" weight="bold" /> : <Sparkle weight="fill" />}
+                {analyzing ? <CircleNotch className="animate-spin" weight="bold" /> : null}
                 {analyzing ? (fetching ? t.fetchingUrl : t.analyzing) : t.analyze}
-                {!analyzing ? <AiTicketCost /> : null}
+                {!analyzing ? <AiTicketCost feature="tailor_analyze" tone="plain" /> : null}
               </Button>
 
               <p className="mt-6 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-[13px] text-muted-foreground">

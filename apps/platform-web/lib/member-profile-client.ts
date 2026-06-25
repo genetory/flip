@@ -183,6 +183,11 @@ export async function authedJsonFetch<T>(path: string, init: RequestInit = {}) {
     console.info("[platform-web][api][response]", { method, path, status: response.status });
   }
 
+  // AI 호출이 성공하면 티켓 잔량이 바뀌므로, 잔량을 보는 화면(GNB 등)에 갱신 신호를 보낸다.
+  if (method === "POST" && path.startsWith("/members/me/ai/") && typeof window !== "undefined") {
+    window.dispatchEvent(new Event("aply:ai-usage-changed"));
+  }
+
   return payload;
 }
 

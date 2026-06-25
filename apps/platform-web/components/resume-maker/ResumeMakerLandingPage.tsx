@@ -9,6 +9,7 @@ import { useToast } from "../toast/ToastProvider";
 import { paperlogy } from "../../lib/fonts";
 import { deleteMyResume, getMyResumes, type Resume } from "../../lib/member-profile-client";
 import { setActiveResumeId } from "../../lib/resume-maker-active";
+import { AiTicketCost } from "./AiTicketCost";
 import { builderContinuePath, createDraftResume, createResumeFromImport, importResume, isResumeMakerDraft } from "../../lib/resume-maker-client";
 import { trackResumeBuilderStarted, trackResumeBuilderViewed } from "../../lib/analytics";
 import { useLandingCopy } from "../../lib/resume-maker-i18n/landing";
@@ -266,6 +267,7 @@ export function ResumeMakerLandingPage({
             <Button variant="hero" size="lg" className="mt-3 w-full" onClick={() => void handleImport()} disabled={importing}>
               {importing ? <CircleNotch className="animate-spin" weight="bold" /> : <MagicWand weight="fill" />}
               {importing ? t.importReading : t.importAi}
+              {!importing ? <AiTicketCost feature="import_resume" tone="plain" /> : null}
             </Button>
             <p className="mt-3 text-[12px] text-muted-foreground">{t.importDisclaimer}</p>
           </div>

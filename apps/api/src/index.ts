@@ -12862,7 +12862,7 @@ const draftResumeTextSchema = z.object({
   locale: z.string().max(10).optional()
 });
 
-app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("draft_resume_text"), async (req, res) => {
   const parsed = draftResumeTextSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
   if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
@@ -13037,6 +13037,7 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ai-exp-interview", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("experience_interview"),
   async (req, res) => {
     const parsed = experienceInterviewSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -13086,6 +13087,7 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ai-exp-bullets", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("experience_bullets"),
   async (req, res) => {
     const parsed = experienceBulletsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -13177,14 +13179,37 @@ function aiLangDirective(locale?: string): string {
   );
 }
 
-// ── AI 프리미엄 월 한도(공용 티켓) ─────────────────────────────────────
-// 비싸고 반복적인 AI 기능(공고 맞춤 분석·모의 면접 평가)이 '하나의 월간 공용 티켓 풀'을
-// 같이 쓴다. 각 기능 1회 = 1티켓. 카운트는 KST 월 단위 리셋. 작성/다듬기/질문 생성은 무료.
-// 기능별 카운트는 분석용으로 남기되, 한도는 전체 합산으로 본다.
-const AI_MONTHLY_CREDITS = 10;
-// 티켓을 쓰는 '도구 사용' 액션 — 공고 맞춤 분석 1회, 모의 면접 시작(질문 생성) 1회.
-// 모의 면접은 시작 시 1티켓을 쓰고, 그 세션의 답변 평가는 무료(이중 차감 방지).
-const AI_CREDIT_FEATURES = ["tailor_analyze", "interview_questions"] as const;
+// ── AI 프리미엄 월 한도(공용 티켓, 가중 비용) ──────────────────────────
+// 모든 AI 기능이 '하나의 월간 공용 티켓 풀'을 같이 쓴다. 가벼운 작업은 1, 보통 2,
+// 무거운(전체 생성/파싱) 3 티켓. 보조성(웹 fetch)은 0(과금 안 함). KST 월 단위 리셋.
+// 초기 정책: 넉넉히 10000 지급(런칭/테스트 단계에서 사실상 막히지 않게).
+const AI_MONTHLY_CREDITS = 10000;
+
+// 기능별 티켓 비용. 없는 키는 0(과금 안 함).
+const AI_FEATURE_COST: Record<string, number> = {
+  // 무거움(3) — 이력서 전체 파싱/면접 질문 세트 생성
+  import_resume: 3,
+  interview_questions: 3,
+  // 보통(2) — 분석·초안 생성
+  tailor_analyze: 2,
+  draft_intro: 2,
+  generate_english_intro: 2,
+  // 가벼움(1) — 다듬기·제안·번역·단건 평가·단일 필드 개선
+  draft_resume_text: 1,
+  experience_interview: 1,
+  experience_bullets: 1,
+  experience_title: 1,
+  experience_tasks: 1,
+  polish_intro: 1,
+  polish_experience: 1,
+  summarize_intro: 1,
+  suggest_skills: 1,
+  translate_texts: 1,
+  interview_feedback: 1
+};
+function aiFeatureCost(feature: string): number {
+  return AI_FEATURE_COST[feature] ?? 0;
+}
 
 // KST(UTC+9) 기준 "YYYY-MM".
 function aiQuotaPeriodKey(): string {
@@ -13201,24 +13226,54 @@ function aiQuotaResetAt(): string {
 
 type AiCreditStatus = { limit: number; used: number; remaining: number; resetAt: string };
 
-// 공용 티켓 잔량 — 한도가 걸린 모든 기능의 이번 달 사용 합산 기준.
+// 공용 티켓 잔량 — 이번 달 모든 AI 사용(차감된 티켓) 합산 기준.
 async function aiCreditStatus(userId: string): Promise<AiCreditStatus> {
   const periodKey = aiQuotaPeriodKey();
-  const rows = await prisma.aiUsage.findMany({
-    where: { userId, periodKey, feature: { in: [...AI_CREDIT_FEATURES] } }
-  });
+  const rows = await prisma.aiUsage.findMany({ where: { userId, periodKey } });
   const used = rows.reduce((sum, r) => sum + r.count, 0);
   return { limit: AI_MONTHLY_CREDITS, used, remaining: Math.max(0, AI_MONTHLY_CREDITS - used), resetAt: aiQuotaResetAt() };
 }
 
-// 성공한 호출 1건을 차감(증가). 동시 요청은 rate-limit 으로 충분히 막혀 무시 가능.
+// 성공한 호출의 비용(cost 티켓)을 차감(증가). 동시 요청은 rate-limit 으로 충분히 막혀 무시 가능.
 async function aiQuotaConsume(userId: string, feature: string): Promise<void> {
+  const cost = aiFeatureCost(feature);
+  if (cost <= 0) return;
   const periodKey = aiQuotaPeriodKey();
   await prisma.aiUsage.upsert({
     where: { userId_feature_periodKey: { userId, feature, periodKey } },
-    create: { userId, feature, periodKey, count: 1 },
-    update: { count: { increment: 1 } }
+    create: { userId, feature, periodKey, count: cost },
+    update: { count: { increment: cost } }
   });
+}
+
+// 라우트 미들웨어 — 호출 전 잔량 확인(부족하면 402), 성공 응답(ok:true) 시 비용 차감.
+// 차감은 fire-and-forget 이라 응답을 지연시키지 않는다(클라이언트는 이벤트로 잔량 갱신).
+function aiCharge(feature: string): import("express").RequestHandler {
+  return async (req, res, next) => {
+    const cost = aiFeatureCost(feature);
+    if (cost <= 0) return next();
+    const userId = req.auth?.userId;
+    if (!userId) return next();
+    let status: AiCreditStatus;
+    try {
+      status = await aiCreditStatus(userId);
+    } catch {
+      return next(); // 사용량 조회 실패 시 막지 않음(가용성 우선)
+    }
+    if (status.remaining < cost) {
+      res.status(402).json({ ok: false, message: "ai quota exceeded", quota: status });
+      return;
+    }
+    const origJson = res.json.bind(res) as (body: unknown) => unknown;
+    res.json = ((body: unknown) => {
+      const b = body as { ok?: unknown } | null;
+      if (b && b.ok === true && res.statusCode >= 200 && res.statusCode < 300) {
+        void aiQuotaConsume(userId, feature);
+      }
+      return origJson(body);
+    }) as typeof res.json;
+    next();
+  };
 }
 
 // POST /members/me/ai/polish-intro — 사용자가 쓴 자기소개를 더 자연스럽고 설득력
@@ -13246,6 +13301,7 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ai-polish-intro", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("polish_intro"),
   async (req, res) => {
     const parsed = polishIntroSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -13300,6 +13356,7 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ai-summarize-intro", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("summarize_intro"),
   async (req, res) => {
     const parsed = summarizeIntroSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -13364,13 +13421,11 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "ai-tailor-resume", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("tailor_analyze"),
   async (req, res) => {
     const parsed = tailorResumeSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-    // 무료 월 한도(공용 티켓) — 초과 시 402 로 업셀 유도(성공 시에만 차감).
-    const quota = await aiCreditStatus(req.auth!.userId);
-    if (quota.remaining <= 0) return res.status(402).json({ ok: false, message: "ai quota exceeded", quota });
     try {
       const { resumeText, jobText, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
@@ -13420,7 +13475,6 @@ app.post(
             .filter((s) => s.title || s.text)
             .slice(0, 4)
         : [];
-      await aiQuotaConsume(req.auth!.userId, "tailor_analyze");
       return res.json({
         ok: true,
         result: {
@@ -13429,8 +13483,7 @@ app.post(
           missing: strArr(j.missing, 8),
           summary: typeof j.summary === "string" ? stripLeadIn(j.summary).slice(0, 400) : "",
           suggestions
-        },
-        quota: await aiCreditStatus(req.auth!.userId)
+        }
       });
     } catch (err) {
       console.error("[ai/tailor-resume] failed", err);
@@ -13517,13 +13570,11 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "ai-interview-q", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("interview_questions"),
   async (req, res) => {
     const parsed = interviewQuestionsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-    // 모의 면접 시작 = 티켓 1개(공용 풀). 초과 시 402(성공 시에만 차감).
-    const qQuota = await aiCreditStatus(req.auth!.userId);
-    if (qQuota.remaining <= 0) return res.status(402).json({ ok: false, message: "ai quota exceeded", quota: qQuota });
     try {
       const { resumeText, jobText, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
@@ -13568,8 +13619,7 @@ app.post(
             .slice(0, 8)
         : [];
       if (questions.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
-      await aiQuotaConsume(req.auth!.userId, "interview_questions");
-      return res.json({ ok: true, questions, quota: await aiCreditStatus(req.auth!.userId) });
+      return res.json({ ok: true, questions });
     } catch (err) {
       console.error("[ai/interview-questions] failed", err);
       return res.status(500).json({ ok: false, message: "failed to build interview questions" });
@@ -13591,11 +13641,11 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ai-interview-fb", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("interview_feedback"),
   async (req, res) => {
     const parsed = interviewFeedbackSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-    // 모의 면접 답변 평가는 무료 — 시작(질문 생성) 시 이미 티켓 1개를 썼다.
     try {
       const { question, answer, resumeText, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
@@ -13658,6 +13708,7 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ai-suggest-skills", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("suggest_skills"),
   async (req, res) => {
     const parsed = suggestSkillsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -13722,6 +13773,7 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "ai-english-intro", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("generate_english_intro"),
   async (req, res) => {
     const parsed = englishIntroSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -13774,6 +13826,7 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ai-translate-texts", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("translate_texts"),
   async (req, res) => {
     const parsed = translateTextsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -13850,6 +13903,7 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "ai-draft-intro", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("draft_intro"),
   async (req, res) => {
     const parsed = draftIntroSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -13925,6 +13979,7 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ai-polish-exp", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("polish_experience"),
   async (req, res) => {
     const parsed = polishExperienceSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -13978,6 +14033,7 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "ai-exp-title", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("experience_title"),
   async (req, res) => {
     const parsed = experienceTitleSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -14027,6 +14083,7 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ai-exp-tasks", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("experience_tasks"),
   async (req, res) => {
     const parsed = experienceTasksSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -14105,6 +14162,7 @@ app.post(
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "ai-import-resume", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("import_resume"),
   async (req, res) => {
     const parsed = importResumeSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });

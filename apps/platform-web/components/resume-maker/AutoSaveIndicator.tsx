@@ -5,24 +5,24 @@ import { ArrowsClockwise, Check, WarningCircle } from "@phosphor-icons/react/dis
 import type { AutosaveStatus } from "./useResumeMakerAutosave";
 import { useAutoSaveCopy } from "../../lib/resume-maker-i18n/auto-save";
 
-// 상단 저장 상태 표시 — 저장 중 / 저장됨 / 저장 실패. idle 은 노출하지 않음.
-// 저장이 막 끝나는 순간(저장 중 → 저장됨)마다 작은 컨페티를 터뜨려 "방금 저장됐다"는
-// 느낌을 준다.
+// 저장 상태 토스트 — 우측 상단에서 슬라이드되어 들어오는 검은 토스트.
+// 저장 중 / 저장됨 / 실패. '저장됨'은 작은 컨페티를 터뜨린 뒤 잠시 후 사라진다.
+// position: fixed 라 페이지 상단 바(GNB)에서 자리를 차지하지 않는다.
 
-const BURST_COLORS = ["#0B46E8", "#22c55e", "#f59e0b", "#ef4444", "#a855f7", "#06b6d4"];
+const BURST_COLORS = ["#60a5fa", "#34d399", "#fbbf24", "#f87171", "#c084fc", "#22d3ee"];
 
 function MiniBurst() {
   const pieces = useMemo(
     () =>
-      Array.from({ length: 12 }).map((_, i) => {
-        const angle = (i / 12) * 360 + Math.random() * 20;
-        const dist = 14 + Math.random() * 16;
+      Array.from({ length: 16 }).map((_, i) => {
+        const angle = (i / 16) * 360 + Math.random() * 20;
+        const dist = 18 + Math.random() * 22;
         const rad = (angle * Math.PI) / 180;
         return {
           dx: Math.cos(rad) * dist,
           dy: Math.sin(rad) * dist - 6,
           color: BURST_COLORS[i % BURST_COLORS.length],
-          delay: Math.random() * 0.05,
+          delay: Math.random() * 0.06,
           size: 4 + Math.random() * 3
         };
       }),
@@ -33,17 +33,18 @@ function MiniBurst() {
       {pieces.map((p, i) => (
         <span
           key={i}
-          style={{
-            position: "absolute",
-            width: p.size,
-            height: p.size,
-            borderRadius: 1,
-            background: p.color,
-            // CSS 변수로 도착 지점 전달.
-            ["--dx" as string]: `${p.dx}px`,
-            ["--dy" as string]: `${p.dy}px`,
-            animation: `rm-save-burst 0.8s ${p.delay}s ease-out forwards`
-          } as React.CSSProperties}
+          style={
+            {
+              position: "absolute",
+              width: p.size,
+              height: p.size,
+              borderRadius: 1,
+              background: p.color,
+              ["--dx" as string]: `${p.dx}px`,
+              ["--dy" as string]: `${p.dy}px`,
+              animation: `rm-save-burst 0.85s ${p.delay}s ease-out forwards`
+            } as React.CSSProperties
+          }
         />
       ))}
       <style>{`@keyframes rm-save-burst {
@@ -57,40 +58,60 @@ function MiniBurst() {
 export function AutoSaveIndicator({ status, onRetry }: { status: AutosaveStatus; onRetry?: () => void }) {
   const prev = useRef<AutosaveStatus>(status);
   const [burst, setBurst] = useState(0);
+  const [visible, setVisible] = useState(false);
   const t = useAutoSaveCopy();
 
   useEffect(() => {
+    if (status === "idle") {
+      setVisible(false);
+      prev.current = status;
+      return;
+    }
+    setVisible(true);
     if (prev.current === "saving" && status === "saved") setBurst((b) => b + 1);
     prev.current = status;
+    // '저장됨'은 잠시 보여준 뒤 슬라이드로 사라진다(저장 중·실패는 유지).
+    if (status === "saved") {
+      const id = setTimeout(() => setVisible(false), 1700);
+      return () => clearTimeout(id);
+    }
   }, [status]);
 
-  if (status === "idle") return null;
-  if (status === "saving") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-muted-foreground">
-        <ArrowsClockwise className="h-3.5 w-3.5 animate-spin" weight="bold" aria-hidden />
-        {t.saving}
-      </span>
-    );
-  }
-  if (status === "saved") {
-    return (
-      <span className="relative inline-flex items-center gap-1.5 text-[12.5px] font-medium text-emerald-600">
-        {burst > 0 ? <MiniBurst key={burst} /> : null}
-        <Check className="h-3.5 w-3.5" weight="bold" aria-hidden />
-        {t.saved}
-      </span>
-    );
-  }
   return (
-    <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-destructive">
-      <WarningCircle className="h-3.5 w-3.5" weight="fill" aria-hidden />
-      {t.failed}
-      {onRetry ? (
-        <button type="button" onClick={onRetry} className="underline underline-offset-2 hover:text-destructive/80">
-          {t.retry}
-        </button>
-      ) : null}
-    </span>
+    <div
+      className={`pointer-events-none fixed right-4 top-[70px] z-[60] transition-all duration-300 ease-out ${
+        visible ? "translate-x-0 opacity-100" : "translate-x-[130%] opacity-0"
+      }`}
+      aria-live="polite"
+    >
+      <div className="pointer-events-auto relative inline-flex items-center gap-2 rounded-full bg-[#0B1227] px-4 py-2 text-[12.5px] font-semibold text-white shadow-[0_8px_24px_rgba(11,18,39,0.28)] ring-1 ring-white/10">
+        {status === "saving" ? (
+          <>
+            <ArrowsClockwise className="h-3.5 w-3.5 animate-spin text-white/80" weight="bold" aria-hidden />
+            {t.saving}
+          </>
+        ) : status === "saved" ? (
+          <>
+            {burst > 0 ? <MiniBurst key={burst} /> : null}
+            <Check className="h-4 w-4 text-emerald-400" weight="bold" aria-hidden />
+            {t.saved}
+          </>
+        ) : status === "error" ? (
+          <>
+            <WarningCircle className="h-4 w-4 text-rose-400" weight="fill" aria-hidden />
+            {t.failed}
+            {onRetry ? (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="ml-0.5 rounded-full bg-white/15 px-2 py-0.5 text-[11.5px] font-bold text-white transition hover:bg-white/25"
+              >
+                {t.retry}
+              </button>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    </div>
   );
 }

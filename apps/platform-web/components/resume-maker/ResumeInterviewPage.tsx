@@ -153,7 +153,12 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
       });
       setFeedbacks((prev) => ({ ...prev, [step]: f }));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t.evalFailed);
+      if (err instanceof AiQuotaError) {
+        refreshUsage();
+        setQuotaOpen(true);
+      } else {
+        toast.error(err instanceof Error ? err.message : t.evalFailed);
+      }
     } finally {
       setEvaluating(false);
     }
@@ -308,9 +313,9 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                   disabled={generating || (inputMode === "position" ? !selectedPosId : !jobRole.trim() && !jobText.trim())}
                   onClick={() => void generate()}
                 >
-                  {generating ? <CircleNotch className="animate-spin" weight="bold" /> : <Sparkle weight="fill" />}
+                  {generating ? <CircleNotch className="animate-spin" weight="bold" /> : null}
                   {generating ? t.generating : t.generate}
-                  {!generating ? <AiTicketCost /> : null}
+                  {!generating ? <AiTicketCost feature="interview_questions" tone="plain" /> : null}
                 </Button>
               </>
             ) : done ? (
@@ -384,8 +389,9 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
 
                 {!feedback ? (
                   <Button variant="default" size="lg" className="mt-3 w-full" disabled={evaluating || !answer.trim()} onClick={() => void evaluate()}>
-                    {evaluating ? <CircleNotch className="animate-spin" weight="bold" /> : <Sparkle weight="fill" />}
+                    {evaluating ? <CircleNotch className="animate-spin" weight="bold" /> : null}
                     {evaluating ? t.evaluating : t.evaluate}
+                    {!evaluating ? <AiTicketCost feature="interview_feedback" tone="plain" /> : null}
                   </Button>
                 ) : (
                   <div className="mt-4 space-y-4">
