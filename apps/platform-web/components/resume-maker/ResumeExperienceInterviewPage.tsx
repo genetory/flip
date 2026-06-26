@@ -358,6 +358,7 @@ export function ResumeExperienceInterviewPage({ resumeId, experienceId }: { resu
       back={{ href: `/resume-maker/${resumeId}/experiences`, label: pickerCopy.back, title }}
       content={previewContent}
       design={design}
+      previewHref={`/resume-maker/${resumeId}/preview`}
     >
       <div>
         <div className="flex items-center justify-between gap-3">

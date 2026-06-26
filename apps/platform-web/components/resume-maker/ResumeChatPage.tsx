@@ -1003,7 +1003,7 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
           </div>
 
           {phase === "done" || showInput ? (
-            <div className="mx-auto w-full max-w-2xl border-t border-border/60 px-5 py-4">
+            <div className="mx-auto w-full max-w-2xl border-t border-border/60 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-5">
               {phase === "done" ? (
                 <div className="space-y-3">
                   {sec === "experiences" && (currentExp()?.approvedBullets?.length ?? 0) > 0 ? (

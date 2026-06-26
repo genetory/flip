@@ -52,7 +52,7 @@ export function ResumeToolPreview({
 
       {/* 모바일 — 하단 PDF 미리보기 버튼 */}
       {hasPdf ? (
-        <div className="sticky bottom-0 z-30 border-t border-border bg-background/95 px-5 py-3 backdrop-blur lg:hidden">
+        <div className="sticky bottom-0 z-30 border-t border-border bg-background/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
           <Button asChild variant="outline" size="lg" className="w-full">
             <Link href={pdfHref as string}>
               <Eye weight="bold" /> {pdfLabel}

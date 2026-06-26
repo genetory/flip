@@ -189,7 +189,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
         </div>
       ) : (
         <div className="mx-auto grid max-w-6xl gap-0 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="min-w-0 px-5 py-6 lg:max-h-[calc(100vh-100px)] lg:overflow-y-auto lg:py-8">
+          <div className="min-w-0 px-4 py-6 sm:px-5 lg:max-h-[calc(100vh-100px)] lg:overflow-y-auto lg:py-8">
             <div className="mx-auto max-w-2xl">
             <div className="flex items-center gap-2">
               <ChatCircleDots weight="bold" className="h-6 w-6 text-[#0B46E8]" aria-hidden />

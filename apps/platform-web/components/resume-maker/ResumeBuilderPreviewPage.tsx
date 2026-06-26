@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CircleNotch, DownloadSimple } from "@phosphor-icons/react/dist/ssr";
 import { ResumeMakerShell } from "./ResumeMakerShell";
@@ -35,6 +35,32 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
   const [koContent, setKoContent] = useState<ResumeContent | null>(null);
   const [enContent, setEnContent] = useState<ResumeContent | null>(null);
   const [translating, setTranslating] = useState(false);
+
+  // 모바일 fit-to-width — 고정 794px A4 시트를 가용 폭에 맞춰 축소(인쇄 시엔 원본 유지).
+  const outerRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [scaledH, setScaledH] = useState<number | null>(null);
+  useEffect(() => {
+    const compute = () => {
+      const avail = outerRef.current?.clientWidth;
+      const natH = sheetRef.current?.offsetHeight; // transform 영향 없는 자연 높이
+      if (!avail || !natH) return;
+      const s = Math.min(1, avail / 794);
+      setScale(s);
+      setScaledH(natH * s);
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    if (outerRef.current) ro.observe(outerRef.current);
+    if (sheetRef.current) ro.observe(sheetRef.current);
+    window.addEventListener("resize", compute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", compute);
+    };
+    // 시트 내용/번역/디자인이 바뀌면 높이가 달라지므로 재계산.
+  }, [content, view, koContent, enContent, design, loading]);
 
   // 번역 보기 — 처음 누를 때만 장문 필드를 타깃 언어로 번역해 캐시한다.
   // 한국어: 외국어로 쓴 이력서를 한국 기업이 읽도록 / 영어: 영문 이력서.
@@ -122,7 +148,9 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          .rm-print-root { position: absolute; left: 0; top: 0; width: 100%; }
+          /* 화면용 fit-to-width 축소는 인쇄 시 무효화(원본 크기로 출력) */
+          .rm-print-root { position: absolute; left: 0; top: 0; width: 100%; transform: none !important; transform-origin: top left !important; }
+          .rm-fit-box { width: auto !important; height: auto !important; }
           .rm-print-root .resume-sheet { width: 100% !important; min-height: auto !important; box-shadow: none !important; }
           .rm-print-only { display: flex !important; position: fixed; left: 0; right: 0; bottom: 7mm; }
           .rm-print-hide { display: none !important; }
@@ -131,7 +159,7 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
 
       {/* GNB 아래 서브 네비게이션 — 편집으로 돌아가기 + 언어 전환 + PDF */}
       <div className="rm-print-hide bg-background/95 backdrop-blur lg:sticky lg:top-14 lg:z-30">
-        <div className="container flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-2.5">
+        <div className="container flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
           <button
             type="button"
             onClick={() => router.back()}
@@ -183,19 +211,27 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
           </span>
         </div>
       ) : (
-        <section className="min-h-[calc(100vh-3.5rem)] bg-[#F2F4F6] px-5 py-8">
-          <div className="overflow-x-auto">
-            <div className="rm-print-root mx-auto" style={{ width: 794 }}>
-              <ResumeSheet
-                content={view === "ko" ? koContent ?? content : view === "en" ? enContent ?? content : content}
-                design={design}
-                lang={view === "en" ? "en" : "ko"}
-              />
-              {/* 인쇄 전용 하단 — 페이지 제일 하단 고정, Aply 로고 + 슬로건 (작게) */}
-              <div className="rm-print-only items-center justify-center gap-1.5">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/img_logo.webp" alt="Aply" className="h-3 w-auto opacity-70" />
-                <span className="text-[9.5px] tracking-wide text-slate-400">{t.slogan}</span>
+        <section className="min-h-[calc(100vh-3.5rem)] overflow-hidden bg-[#F2F4F6] px-4 py-8 sm:px-5">
+          {/* 가용 폭 측정 컨테이너(데스크탑은 794로 상한) */}
+          <div ref={outerRef} className="mx-auto w-full max-w-[794px]">
+            {/* 축소된 시트의 실제 크기를 차지하는 박스(인쇄 시 무효화) */}
+            <div className="rm-fit-box mx-auto" style={{ width: 794 * scale, height: scaledH ?? undefined }}>
+              <div
+                ref={sheetRef}
+                className="rm-print-root origin-top-left"
+                style={{ width: 794, transform: `scale(${scale})` }}
+              >
+                <ResumeSheet
+                  content={view === "ko" ? koContent ?? content : view === "en" ? enContent ?? content : content}
+                  design={design}
+                  lang={view === "en" ? "en" : "ko"}
+                />
+                {/* 인쇄 전용 하단 — 페이지 제일 하단 고정, Aply 로고 + 슬로건 (작게) */}
+                <div className="rm-print-only items-center justify-center gap-1.5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/img_logo.webp" alt="Aply" className="h-3 w-auto opacity-70" />
+                  <span className="text-[9.5px] tracking-wide text-slate-400">{t.slogan}</span>
+                </div>
               </div>
             </div>
           </div>

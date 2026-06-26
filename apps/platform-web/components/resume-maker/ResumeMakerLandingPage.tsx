@@ -155,7 +155,7 @@ export function ResumeMakerLandingPage({
   return (
     <ResumeMakerShell>
       <section className={showJourney ? "min-h-[calc(100vh-3.5rem)] bg-white" : ""}>
-        <div className={`container px-5 ${showJourney ? "max-w-xl py-6" : "max-w-3xl py-16 md:py-24"}`}>
+        <div className={`container px-4 sm:px-5 ${showJourney ? "max-w-xl py-6" : "max-w-3xl py-16 md:py-24"}`}>
         {showJourney ? (
           <>
             <ResumeMakerJourney
