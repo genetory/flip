@@ -12,6 +12,9 @@ type Copy = {
   msgAlmost: string;
   msgKeep: string;
   tickets: string;
+  questTitle: string;
+  questDone: string;
+  questFill: string;
   journeyTitle: string;
   s1Title: string;
   s2Title: string;
@@ -57,6 +60,9 @@ const dict: Record<PlatformLocale, Copy> = {
     msgAlmost: "거의 다 왔어요!",
     msgKeep: "한 칸씩 채우면 합격에 가까워져요",
     tickets: "보유한 AI 티켓",
+    questTitle: "나의 커리어 퀘스트",
+    questDone: "완료",
+    questFill: "채우기",
     journeyTitle: "취업 준비 여정",
     s1Title: "나의 이력서",
     s2Title: "공고 맞춤",
@@ -100,6 +106,9 @@ const dict: Record<PlatformLocale, Copy> = {
     msgAlmost: "Almost there!",
     msgKeep: "Each section gets you closer to an offer",
     tickets: "AI tickets you have",
+    questTitle: "My Career Quest",
+    questDone: "Done",
+    questFill: "Fill in",
     journeyTitle: "Your job-prep journey",
     s1Title: "My Resume",
     s2Title: "Job Match",
@@ -143,6 +152,9 @@ const dict: Record<PlatformLocale, Copy> = {
     msgAlmost: "就快好了！",
     msgKeep: "每填一项都离录用更近一步",
     tickets: "持有的 AI 券",
+    questTitle: "我的求职任务",
+    questDone: "完成",
+    questFill: "去填写",
     journeyTitle: "求职准备之旅",
     s1Title: "我的简历",
     s2Title: "岗位匹配",
@@ -186,6 +198,9 @@ const dict: Record<PlatformLocale, Copy> = {
     msgAlmost: "Sắp xong rồi!",
     msgKeep: "Mỗi mục giúp bạn gần hơn với lời mời làm việc",
     tickets: "Vé AI bạn có",
+    questTitle: "Nhiệm vụ sự nghiệp",
+    questDone: "Xong",
+    questFill: "Điền",
     journeyTitle: "Hành trình chuẩn bị xin việc",
     s1Title: "Hồ sơ của tôi",
     s2Title: "Khớp tin tuyển",
@@ -229,6 +244,9 @@ const dict: Record<PlatformLocale, Copy> = {
     msgAlmost: "あと少し！",
     msgKeep: "一つ埋めるごとに内定に近づきます",
     tickets: "保有 AI チケット",
+    questTitle: "私のキャリアクエスト",
+    questDone: "完了",
+    questFill: "入力",
     journeyTitle: "就活準備のジャーニー",
     s1Title: "マイ履歴書",
     s2Title: "求人マッチ",
@@ -272,6 +290,9 @@ const dict: Record<PlatformLocale, Copy> = {
     msgAlmost: "Hampir selesai!",
     msgKeep: "Tiap bagian mendekatkanmu ke tawaran kerja",
     tickets: "Tiket AI yang dimiliki",
+    questTitle: "Misi Karier Saya",
+    questDone: "Selesai",
+    questFill: "Isi",
     journeyTitle: "Perjalanan persiapan kerja",
     s1Title: "Resume Saya",
     s2Title: "Cocokkan Lowongan",

@@ -40,6 +40,9 @@ type Copy = {
   draftsTitle: string;
   untitledResume: string;
   lastEdited: string;
+  completion: string;
+  currentTag: string;
+  viewResume: string;
   continueWriting: string;
   selectCta: string;
   deleteResume: string;
@@ -93,6 +96,9 @@ const dict: Record<PlatformLocale, Copy> = {
     draftsTitle: "작성 중인 이력서",
     untitledResume: "제목 없는 이력서",
     lastEdited: "마지막 수정",
+    completion: "완성도",
+    currentTag: "작업 중",
+    viewResume: "이력서 보러가기",
     continueWriting: "이어서 작성",
     selectCta: "선택",
     deleteResume: "이력서 삭제",
@@ -144,6 +150,9 @@ const dict: Record<PlatformLocale, Copy> = {
     draftsTitle: "In-progress resumes",
     untitledResume: "Untitled resume",
     lastEdited: "Last edited",
+    completion: "Complete",
+    currentTag: "Active",
+    viewResume: "Open resume",
     continueWriting: "Continue",
     selectCta: "Select",
     deleteResume: "Delete resume",
@@ -195,6 +204,9 @@ const dict: Record<PlatformLocale, Copy> = {
     draftsTitle: "正在编写的简历",
     untitledResume: "无标题简历",
     lastEdited: "最后修改",
+    completion: "完成度",
+    currentTag: "进行中",
+    viewResume: "查看简历",
     continueWriting: "继续编写",
     selectCta: "选择",
     deleteResume: "删除简历",
@@ -246,6 +258,9 @@ const dict: Record<PlatformLocale, Copy> = {
     draftsTitle: "Hồ sơ đang soạn",
     untitledResume: "Hồ sơ chưa đặt tên",
     lastEdited: "Sửa lần cuối",
+    completion: "Hoàn thành",
+    currentTag: "Đang làm",
+    viewResume: "Xem hồ sơ",
     continueWriting: "Tiếp tục",
     selectCta: "Chọn",
     deleteResume: "Xóa hồ sơ",
@@ -297,6 +312,9 @@ const dict: Record<PlatformLocale, Copy> = {
     draftsTitle: "作成中の履歴書",
     untitledResume: "無題の履歴書",
     lastEdited: "最終更新",
+    completion: "完成度",
+    currentTag: "作業中",
+    viewResume: "履歴書を見る",
     continueWriting: "続きを書く",
     selectCta: "選択",
     deleteResume: "履歴書を削除",
@@ -348,6 +366,9 @@ const dict: Record<PlatformLocale, Copy> = {
     draftsTitle: "Resume sedang dibuat",
     untitledResume: "Resume tanpa judul",
     lastEdited: "Terakhir diubah",
+    completion: "Kelengkapan",
+    currentTag: "Aktif",
+    viewResume: "Lihat resume",
     continueWriting: "Lanjutkan",
     selectCta: "Pilih",
     deleteResume: "Hapus resume",

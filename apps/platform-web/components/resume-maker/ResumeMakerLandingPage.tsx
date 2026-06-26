@@ -47,6 +47,8 @@ export function ResumeMakerLandingPage({
   const [newName, setNewName] = useState("");
   const [loadingResumes, setLoadingResumes] = useState(true);
   const [drafts, setDrafts] = useState<Resume[]>([]);
+  // 홈 상단 여정이 가리키는 이력서(목록에서 누르면 전환). 초기값은 마지막 활성 이력서.
+  const [focusedId, setFocusedId] = useState<string | null>(() => (typeof window !== "undefined" ? getActiveResumeId() : null));
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -147,25 +149,29 @@ export function ResumeMakerLandingPage({
   }
 
   // 게임화 홈 — 이력서가 1개 이상이고, 도구 선택(pick)/히어로 오버라이드가 아닐 때만.
+  // 홈에서 다른 이력서를 누르면 상단 여정이 그 이력서로 전환된다(focusedId).
   const journeyResume =
-    drafts.find((d) => d.id === getActiveResumeId()) ?? drafts.find((d) => d.isPrimary) ?? drafts[0] ?? null;
+    drafts.find((d) => d.id === focusedId) ?? drafts.find((d) => d.isPrimary) ?? drafts[0] ?? null;
   const journeyProgress = journeyResume ? computeResumeProgress(journeyResume.content, getBuilderState(journeyResume)) : null;
   const showJourney = !hero && !pick && drafts.length > 0;
 
   return (
     <ResumeMakerShell>
       <section className={showJourney ? "min-h-[calc(100vh-3.5rem)] bg-white" : ""}>
-        <div className={`container px-4 sm:px-5 ${showJourney ? "max-w-xl py-6" : "max-w-3xl py-16 md:py-24"}`}>
+        <div className={`container px-4 sm:px-5 ${showJourney ? "flex flex-col gap-7 max-w-xl py-6" : "max-w-3xl py-16 md:py-24"}`}>
         {showJourney ? (
-          <>
+          // 순서: 이력서 목록(order-1) → 패널(2·3) → 인사·다음 할 일·진행도(order-4)
+          <div className="order-4">
             <ResumeMakerJourney
+              key={journeyResume?.id ?? "none"}
               activeId={journeyResume?.id ?? null}
+              resumeTitle={journeyResume?.title ?? ""}
               percent={journeyProgress?.percent ?? 0}
               levelLabel={journeyProgress?.level.label ?? ""}
               levelEmoji={journeyProgress?.level.emoji ?? ""}
               done={journeyProgress?.done ?? {}}
             />
-          </>
+          </div>
         ) : (
         <div className="text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EDF1FD] px-3 py-1 text-[12px] font-bold text-[#0B46E8]">
@@ -214,7 +220,7 @@ export function ResumeMakerLandingPage({
 
         {/* 새 이력서 — 이름 입력 */}
         {newOpen ? (
-          <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-border bg-card p-5 shadow-card">
+          <div className={`mx-auto max-w-xl rounded-2xl border border-border bg-card p-5 shadow-card ${showJourney ? "order-2" : "mt-10"}`}>
             <p className="text-[14px] font-bold text-[#0B1227]">{t.newNameTitle}</p>
             <p className="mt-1 text-[12.5px] text-muted-foreground">{t.newNameDesc}</p>
             <input
@@ -244,7 +250,7 @@ export function ResumeMakerLandingPage({
 
         {/* 기존 이력서 가져오기 — PDF 업로드 또는 내용 붙여넣기 → AI 구조화 */}
         {importOpen ? (
-          <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-border bg-card p-5 shadow-card">
+          <div className={`mx-auto max-w-xl rounded-2xl border border-border bg-card p-5 shadow-card ${showJourney ? "order-3" : "mt-10"}`}>
             <p className="text-[14px] font-bold text-[#0B1227]">{t.importTitle}</p>
             <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
               {t.importDesc}
@@ -294,74 +300,103 @@ export function ResumeMakerLandingPage({
           </div>
         ) : null}
 
-        {/* 작성 중인 이력서 — 이어서 작성 */}
+        {/* 작성 중인 이력서 — 이어서 작성 (홈에선 맨 위, order-1) */}
         {loadingResumes ? (
-          <p className="mx-auto mt-12 inline-flex w-full items-center justify-center gap-2 text-[13px] text-muted-foreground">
+          <p className={`mx-auto inline-flex w-full items-center justify-center gap-2 text-[13px] text-muted-foreground ${showJourney ? "order-1" : "mt-12"}`}>
             <CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t.loading}
           </p>
         ) : drafts.length > 0 ? (
-          <div className={`mt-3 ${showJourney ? "" : "mx-auto max-w-xl"}`}>
+          <div className={showJourney ? "order-1" : "mt-3 mx-auto max-w-xl"}>
+            {/* 헤더 — 카드 밖 섹션 라벨 + 액션 */}
+            <div className="mb-4 flex items-center justify-between gap-2 px-1.5">
+              <span className="text-[20px] font-bold tracking-[-0.01em] text-[#191F28]">{t.draftsTitle}</span>
+              {showJourney ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setNewOpen(true); setImportOpen(false); }}
+                    disabled={creating}
+                    className="inline-flex items-center gap-1 rounded-full bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white transition active:scale-95 disabled:opacity-60"
+                  >
+                    <Plus weight="bold" className="h-3.5 w-3.5" /> {t.newResumeCta}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setImportOpen((v) => !v); setNewOpen(false); }}
+                    aria-label={t.importTitle}
+                    title={t.importTitle}
+                    className="inline-flex items-center justify-center rounded-full bg-[#F2F4F6] p-2 text-[#4E5968] transition hover:text-[#0B46E8]"
+                  >
+                    <UploadSimple weight="bold" className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : null}
+            </div>
             <div className="rounded-3xl border border-[#F2F4F6] bg-white p-2.5 shadow-[0_2px_12px_rgba(17,24,39,0.05)]">
-              <div className="flex items-center justify-between gap-2 px-3 pb-1.5 pt-2.5">
-                <span className="text-[15px] font-bold text-[#191F28]">{t.draftsTitle}</span>
-                {showJourney ? (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => { setNewOpen(true); setImportOpen(false); }}
-                      disabled={creating}
-                      className="inline-flex items-center gap-1 rounded-full bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white transition active:scale-95 disabled:opacity-60"
-                    >
-                      <Plus weight="bold" className="h-3.5 w-3.5" /> {t.newResumeCta}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setImportOpen((v) => !v); setNewOpen(false); }}
-                      aria-label={t.importTitle}
-                      title={t.importTitle}
-                      className="inline-flex items-center justify-center rounded-full bg-[#F2F4F6] p-2 text-[#4E5968] transition hover:text-[#0B46E8]"
-                    >
-                      <UploadSimple weight="bold" className="h-4 w-4" />
-                    </button>
-                  </div>
-                ) : null}
-              </div>
               <ul>
-                {drafts.map((d) => (
-                  <li key={d.id} className="flex items-center">
+                {drafts.map((d) => {
+                  const dpct = computeResumeProgress(d.content, getBuilderState(d)).percent;
+                  const isCurrent = showJourney && d.id === journeyResume?.id;
+                  return (
+                  <li key={d.id} className="flex items-center rounded-2xl transition hover:bg-[#F2F4F6] active:bg-[#F2F4F6]">
                     <button
                       type="button"
                       onClick={() => {
                         if (pick) {
                           setActiveResumeId(d.id);
                           router.push(`/resume-maker/${d.id}/${pick.tool}`);
+                        } else if (showJourney) {
+                          // 홈 — 상단 여정을 이 이력서로 전환하고 맨 위로(이어서 작성은 여정의 CTA로).
+                          setFocusedId(d.id);
+                          setActiveResumeId(d.id);
+                          if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
                         } else {
                           router.push(builderContinuePath(d.id, d));
                         }
                       }}
-                      className="flex flex-1 items-center gap-3 rounded-2xl px-3 py-3 text-left transition active:bg-[#F2F4F6]"
+                      className="flex flex-1 items-center gap-3 px-3 py-3 text-left"
                     >
                       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#EDF1FD] text-[15px] font-bold text-[#0B46E8]">
                         {(d.title || "?").trim().charAt(0).toUpperCase()}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[15px] font-bold text-[#191F28]">{d.title || t.untitledResume}</span>
-                        <span className="text-[13px] text-[#8B95A1]">{t.lastEdited} · {formatDateTime(d.updatedAt)}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className={`truncate text-[15px] text-[#191F28] ${isCurrent ? "font-bold" : "font-semibold"}`}>{d.title || t.untitledResume}</span>
+                          {isCurrent ? (
+                            <span className="shrink-0 rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[10px] font-bold text-[#0B46E8]">{t.currentTag}</span>
+                          ) : null}
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-1.5 text-[13px] text-[#8B95A1]">
+                          <span className="font-semibold text-[#0B46E8]">{t.completion} {dpct}%</span>
+                          <span>· {formatDateTime(d.updatedAt)}</span>
+                        </span>
                       </span>
-                      <CaretRight weight="bold" className="h-4 w-4 shrink-0 text-[#C9CDD2]" />
                     </button>
                     {!pick ? (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDeleteId(d.id)}
-                        aria-label={t.deleteResume}
-                        className="mr-1 flex shrink-0 items-center justify-center rounded-full p-2.5 text-[#C9CDD2] transition hover:bg-rose-50 hover:text-rose-500"
-                      >
-                        <Trash className="h-[18px] w-[18px]" weight="bold" />
-                      </button>
-                    ) : null}
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => router.push(builderContinuePath(d.id, d))}
+                          className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[#EDF1FD] px-3 py-2 text-[12.5px] font-bold text-[#0B46E8] transition active:scale-95"
+                        >
+                          {t.viewResume}
+                          <CaretRight weight="bold" className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(d.id)}
+                          aria-label={t.deleteResume}
+                          className="mr-1 flex shrink-0 items-center justify-center rounded-full p-2.5 text-[#C9CDD2] transition hover:bg-rose-50 hover:text-rose-500"
+                        >
+                          <Trash className="h-[18px] w-[18px]" weight="bold" />
+                        </button>
+                      </>
+                    ) : (
+                      <CaretRight weight="bold" className="mr-2 h-4 w-4 shrink-0 text-[#C9CDD2]" />
+                    )}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </div>
           </div>
