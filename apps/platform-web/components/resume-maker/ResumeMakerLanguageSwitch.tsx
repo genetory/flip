@@ -27,7 +27,13 @@ const NAME: Record<PlatformLocale, string> = {
 export function ResumeMakerLanguageSwitch() {
   const { locale, setLocale } = useLanguage();
   return (
-    <div className="relative">
+    // 보이는 표시는 직접 그리고(모바일=이모지만, 데스크탑=이모지+이름), 네이티브 select 는
+    // 투명하게 위에 겹쳐 상호작용만 담당한다. 너비는 내용에 맞춰 가변(inline-flex).
+    <div className="relative inline-flex h-9 items-center rounded-lg transition hover:bg-[#F2F4F6]">
+      <span className="pointer-events-none inline-flex items-center gap-1.5 pl-2 pr-6 text-xs font-medium text-foreground">
+        <span className="text-[15px] leading-none">{EMOJI[locale]}</span>
+        <span className="hidden sm:inline">{NAME[locale]}</span>
+      </span>
       <CaretDown
         className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
         aria-hidden
@@ -36,7 +42,7 @@ export function ResumeMakerLanguageSwitch() {
         value={locale}
         onChange={(e) => setLocale(e.target.value as PlatformLocale)}
         aria-label="Language"
-        className="h-9 w-auto appearance-none truncate rounded-lg bg-transparent pl-2 pr-7 text-xs font-medium text-foreground transition hover:bg-muted focus-visible:outline-none"
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0 focus-visible:outline-none"
       >
         {PLATFORM_LOCALES.map((value) => (
           <option key={value} value={value}>

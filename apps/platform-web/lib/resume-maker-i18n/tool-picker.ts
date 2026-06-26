@@ -8,6 +8,9 @@ type Copy = {
   desc: string;
   lastEdited: string;
   untitled: string;
+  change: string;
+  switchResume: string;
+  completion: string;
   emptyTitle: string;
   emptyDesc: string;
   createBtn: string;
@@ -16,6 +19,7 @@ type Copy = {
   back: string;
   expand: string;
   preview: string;
+  previewPdf: string;
   resumeList: string;
   newResume: string;
   wipTitle: string;
@@ -34,6 +38,9 @@ const dict: Record<PlatformLocale, Copy> = {
     desc: "진행할 이력서를 선택하세요.",
     lastEdited: "마지막 수정",
     untitled: "제목 없는 이력서",
+    change: "변경",
+    switchResume: "이력서 변경",
+    completion: "완성도",
     emptyTitle: "아직 이력서가 없어요",
     emptyDesc: "먼저 이력서를 만들어 주세요.",
     createBtn: "이력서 만들기",
@@ -42,6 +49,7 @@ const dict: Record<PlatformLocale, Copy> = {
     back: "뒤로",
     expand: "크게 보기",
     preview: "이력서 미리보기",
+    previewPdf: "미리보기·PDF",
     resumeList: "이력서 목록",
     newResume: "새 이력서",
     wipTitle: "준비 중이에요",
@@ -58,6 +66,9 @@ const dict: Record<PlatformLocale, Copy> = {
     desc: "Pick the resume you want to work with.",
     lastEdited: "Last edited",
     untitled: "Untitled resume",
+    change: "Change",
+    switchResume: "Switch resume",
+    completion: "Complete",
     emptyTitle: "No resume yet",
     emptyDesc: "Create a resume first.",
     createBtn: "Create a resume",
@@ -66,6 +77,7 @@ const dict: Record<PlatformLocale, Copy> = {
     back: "Back",
     expand: "View large",
     preview: "Resume preview",
+    previewPdf: "Preview · PDF",
     resumeList: "Resume list",
     newResume: "New resume",
     wipTitle: "Coming soon",
@@ -82,6 +94,9 @@ const dict: Record<PlatformLocale, Copy> = {
     desc: "请选择要使用的简历。",
     lastEdited: "最后编辑",
     untitled: "未命名简历",
+    change: "更换",
+    switchResume: "更换简历",
+    completion: "完成度",
     emptyTitle: "还没有简历",
     emptyDesc: "请先创建一份简历。",
     createBtn: "制作简历",
@@ -90,6 +105,7 @@ const dict: Record<PlatformLocale, Copy> = {
     back: "返回",
     expand: "放大查看",
     preview: "简历预览",
+    previewPdf: "预览 · PDF",
     resumeList: "简历列表",
     newResume: "新建简历",
     wipTitle: "即将上线",
@@ -106,6 +122,9 @@ const dict: Record<PlatformLocale, Copy> = {
     desc: "Chọn hồ sơ bạn muốn dùng.",
     lastEdited: "Sửa lần cuối",
     untitled: "Hồ sơ chưa đặt tên",
+    change: "Đổi",
+    switchResume: "Đổi hồ sơ",
+    completion: "Hoàn thành",
     emptyTitle: "Chưa có hồ sơ",
     emptyDesc: "Hãy tạo hồ sơ trước.",
     createBtn: "Tạo hồ sơ",
@@ -114,6 +133,7 @@ const dict: Record<PlatformLocale, Copy> = {
     back: "Quay lại",
     expand: "Xem lớn",
     preview: "Xem trước hồ sơ",
+    previewPdf: "Xem trước · PDF",
     resumeList: "Danh sách hồ sơ",
     newResume: "Hồ sơ mới",
     wipTitle: "Sắp ra mắt",
@@ -130,6 +150,9 @@ const dict: Record<PlatformLocale, Copy> = {
     desc: "使用する履歴書を選んでください。",
     lastEdited: "最終編集",
     untitled: "無題の履歴書",
+    change: "変更",
+    switchResume: "履歴書を変更",
+    completion: "完成度",
     emptyTitle: "まだ履歴書がありません",
     emptyDesc: "まず履歴書を作成してください。",
     createBtn: "履歴書を作成",
@@ -138,6 +161,7 @@ const dict: Record<PlatformLocale, Copy> = {
     back: "戻る",
     expand: "拡大表示",
     preview: "履歴書プレビュー",
+    previewPdf: "プレビュー · PDF",
     resumeList: "履歴書一覧",
     newResume: "新しい履歴書",
     wipTitle: "準備中です",
@@ -154,6 +178,9 @@ const dict: Record<PlatformLocale, Copy> = {
     desc: "Pilih resume yang ingin Anda gunakan.",
     lastEdited: "Terakhir diubah",
     untitled: "Resume tanpa judul",
+    change: "Ganti",
+    switchResume: "Ganti resume",
+    completion: "Kelengkapan",
     emptyTitle: "Belum ada resume",
     emptyDesc: "Buat resume terlebih dahulu.",
     createBtn: "Buat resume",
@@ -162,6 +189,7 @@ const dict: Record<PlatformLocale, Copy> = {
     back: "Kembali",
     expand: "Lihat besar",
     preview: "Pratinjau resume",
+    previewPdf: "Pratinjau · PDF",
     resumeList: "Daftar resume",
     newResume: "Resume baru",
     wipTitle: "Segera hadir",

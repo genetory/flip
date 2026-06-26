@@ -13,7 +13,6 @@ import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { PositionRow, mapPublicPositionToCard } from "../pages/PositionsPage";
-import { paperlogy } from "../../lib/fonts";
 import { type PublicPositionListItem, type ResumeContent } from "../../lib/member-profile-client";
 import { AiQuotaError, fetchJobPosting, getBuilderState, getDraftResume, resumeToPlainText, saveResumeContent, tailorResume, type TailorResult } from "../../lib/resume-maker-client";
 import { compileResumeContent } from "../../lib/resume-maker-compile";
@@ -25,10 +24,36 @@ import { useTailorCopy } from "../../lib/resume-maker-i18n/tailor";
 import { useToolPickerCopy } from "../../lib/resume-maker-i18n/tool-picker";
 
 function scoreColor(score: number): string {
-  if (score >= 75) return "#16a34a";
+  if (score >= 75) return "#15C47E";
   if (score >= 50) return "#0B46E8";
   if (score >= 30) return "#d97706";
   return "#dc2626";
+}
+
+// 적합도 점수 원형 게이지 — 점수에 따라 색이 바뀌고, 마운트 시 부드럽게 채워진다.
+function ScoreRing({ score }: { score: number }) {
+  const size = 136;
+  const stroke = 12;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const off = c * (1 - Math.max(0, Math.min(100, score)) / 100);
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#EDF0F3" strokeWidth={stroke} />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke={scoreColor(score)}
+        strokeWidth={stroke}
+        strokeDasharray={c}
+        strokeDashoffset={off}
+        strokeLinecap="round"
+        style={{ transition: "stroke-dashoffset 1s cubic-bezier(0.22,1,0.36,1)" }}
+      />
+    </svg>
+  );
 }
 
 export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
@@ -158,13 +183,15 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
     const first = jobText.trim().split("\n").find((l) => l.trim());
     return first ? first.replace(/^\[|\]$/g, "").slice(0, 60) : "—";
   })();
+  // 점수대별 한 줄 판정.
+  const verdict = (s: number) => (s >= 75 ? t.verdictGreat : s >= 50 ? t.verdictGood : s >= 30 ? t.verdictFair : t.verdictLow);
 
   // 이력서가 없거나(삭제 등) 못 불러오면 공고 맞춤용 이력서 선택 화면으로.
   if (missing) return <ResumeToolPickerPage tool="tailor" />;
 
   return (
     <ResumeMakerShell>
-      <ResumeBackBar backHref="/resume-maker" backLabel={picker.resumeList} title={resumeTitle} />
+      <ResumeBackBar backHref="/resume-maker" backLabel={picker.back} title={resumeTitle} />
       {loading ? (
         <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
           <CircleNotch className="h-5 w-5 animate-spin" weight="bold" aria-hidden />
@@ -175,9 +202,9 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
             <div className="mx-auto w-full max-w-2xl">
               <div className="flex items-center gap-2">
                 <Target weight="bold" className="h-6 w-6 text-[#0B46E8]" aria-hidden />
-                <h2 className={`${paperlogy.className} text-2xl font-black tracking-[-0.02em] text-[#0B1227] md:text-3xl`}>{t.title}</h2>
+                <h2 className="text-[22px] font-bold tracking-[-0.02em] text-[#191F28] md:text-[26px]">{t.title}</h2>
               </div>
-              <p className="mt-2 text-[14px] text-muted-foreground">{t.desc}</p>
+              <p className="mt-2 text-[14px] text-[#8B95A1]">{t.desc}</p>
 
               {!result ? (
                 <>
@@ -192,7 +219,7 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
                       if (m === "position" && pager.positions === null) pager.search();
                     }}
                     className={`relative -mb-px pb-2.5 text-[16px] font-extrabold tracking-[-0.01em] transition-colors ${
-                      inputMode === m ? "text-[#0B1227]" : "text-muted-foreground hover:text-foreground"
+                      inputMode === m ? "text-[#191F28]" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     {m === "text" ? t.modeText : t.modePosition}
@@ -213,7 +240,7 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
                     placeholder={t.jdPlaceholder}
                     rows={7}
                     maxLength={6000}
-                    className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] leading-relaxed focus:border-primary focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 py-2.5 text-[14px] leading-relaxed focus:border-[#0B46E8] focus:bg-white focus:outline-none"
                   />
                 </label>
               ) : (
@@ -230,7 +257,7 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
                         }
                       }}
                       placeholder={t.positionSearchPlaceholder}
-                      className="h-11 w-full flex-1 rounded-xl border border-border bg-white px-3 text-[14px] text-slate-800 focus:border-primary focus:outline-none placeholder:text-slate-400"
+                      className="h-11 w-full flex-1 rounded-xl border border-transparent bg-[#F2F4F6] px-3 text-[14px] text-slate-800 focus:border-[#0B46E8] focus:bg-white focus:outline-none placeholder:text-slate-400"
                     />
                     <Button
                       size="lg"
@@ -287,16 +314,17 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
                 {!analyzing ? <AiTicketCost feature="tailor_analyze" tone="plain" /> : null}
               </Button>
 
-              <p className="mt-6 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-[13px] text-muted-foreground">
+              <p className="mt-6 rounded-xl bg-[#F2F4F6] px-4 py-6 text-center text-[13px] text-muted-foreground">
                 {t.emptyHint}
               </p>
                 </>
               ) : (
                 <>
+                <style>{`@keyframes rmt-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }`}</style>
                 {/* 분석한 공고 — 결과 화면에선 입력부를 접고, 고른 포지션은 카드 그대로 보여준다 */}
                 <div className="mt-6">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[12.5px] font-bold text-[#0B1227]">{t.analyzedJob}</span>
+                    <span className="text-[12.5px] font-bold text-[#191F28]">{t.analyzedJob}</span>
                     <button
                       type="button"
                       onClick={() => setResult(null)}
@@ -322,72 +350,80 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
                       />
                     </div>
                   ) : (
-                    <div className="mt-2 rounded-xl border border-border bg-muted/30 px-3.5 py-2.5 text-[12.5px] text-muted-foreground">
+                    <div className="mt-2 rounded-xl bg-[#F2F4F6] px-3.5 py-2.5 text-[12.5px] text-muted-foreground">
                       {analyzedLabel}
                     </div>
                   )}
                 </div>
 
-                <div className="mt-4 space-y-5 pb-4">
-                  {/* 점수 */}
-                  <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-                    <p className="text-[12px] font-bold text-muted-foreground">{t.scoreLabel}</p>
-                    <div className="mt-1 flex items-end gap-2">
-                      <span className="text-4xl font-black tracking-tight" style={{ color: scoreColor(result.score) }}>{result.score}</span>
-                      <span className="mb-1.5 text-[13px] text-muted-foreground">/ 100</span>
+                <div className="mt-4 space-y-3 pb-4">
+                  {/* 점수 히어로 — 원형 게이지 + 판정 */}
+                  <div className="rounded-3xl border border-[#F2F4F6] bg-white p-6 text-center shadow-card" style={{ animation: "rmt-rise 0.5s both" }}>
+                    <div className="relative mx-auto h-[136px] w-[136px]">
+                      <ScoreRing score={result.score} />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-[36px] font-extrabold leading-none tabular-nums" style={{ color: scoreColor(result.score) }}>{result.score}</span>
+                        <span className="mt-1 text-[12px] font-medium text-[#8B95A1]">/ 100</span>
+                      </div>
                     </div>
-                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${result.score}%`, background: scoreColor(result.score) }} />
-                    </div>
+                    <p className="mt-4 text-[18px] font-bold text-[#191F28]">{verdict(result.score)}</p>
+                    <p className="mt-1 text-[13px] text-[#8B95A1]">{t.scoreLabel}</p>
                   </div>
 
-                  {/* 보유 / 부족 */}
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {/* 보유 / 부족 — 스탯 카드 */}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {result.matched.length > 0 ? (
-                      <div>
-                        <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-emerald-700">
+                      <div className="rounded-2xl border border-[#F2F4F6] bg-white p-4" style={{ animation: "rmt-rise 0.5s 0.05s both" }}>
+                        <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#15C47E]">
                           <CheckCircle weight="fill" className="h-4 w-4" /> {t.matchedTitle}
+                          <span className="ml-auto rounded-full bg-[#15C47E]/12 px-2 py-0.5 text-[11px] font-bold tabular-nums text-[#0E9E66]">{result.matched.length}</span>
                         </p>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
+                        <div className="mt-2.5 flex flex-wrap gap-1.5">
                           {result.matched.map((m, i) => (
-                            <span key={i} className="rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-medium text-emerald-800">{m}</span>
+                            <span key={i} className="rounded-full bg-[#15C47E]/10 px-2.5 py-1 text-[12px] font-medium text-[#0E9E66]">{m}</span>
                           ))}
                         </div>
                       </div>
                     ) : null}
                     {result.missing.length > 0 ? (
-                      <div>
-                        <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-amber-700">
+                      <div className="rounded-2xl border border-[#F2F4F6] bg-white p-4" style={{ animation: "rmt-rise 0.5s 0.1s both" }}>
+                        <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#D97706]">
                           <WarningCircle weight="fill" className="h-4 w-4" /> {t.missingTitle}
+                          <span className="ml-auto rounded-full bg-[#D97706]/12 px-2 py-0.5 text-[11px] font-bold tabular-nums text-[#B45309]">{result.missing.length}</span>
                         </p>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
+                        <div className="mt-2.5 flex flex-wrap gap-1.5">
                           {result.missing.map((m, i) => (
-                            <span key={i} className="rounded-full bg-amber-50 px-2.5 py-1 text-[12px] font-medium text-amber-800">{m}</span>
+                            <span key={i} className="rounded-full bg-[#FBEFD9] px-2.5 py-1 text-[12px] font-medium text-[#B45309]">{m}</span>
                           ))}
                         </div>
                       </div>
                     ) : null}
                   </div>
 
-                  {/* 맞춤 제안 */}
+                  {/* 맞춤 제안 — 번호 카드 */}
                   {result.suggestions.length > 0 ? (
-                    <div>
-                      <p className="text-[12.5px] font-bold text-foreground/80">{t.suggestionsTitle}</p>
-                      <div className="mt-2 space-y-2">
+                    <div className="rounded-2xl border border-[#F2F4F6] bg-white p-4" style={{ animation: "rmt-rise 0.5s 0.15s both" }}>
+                      <p className="px-0.5 text-[14px] font-bold text-[#191F28]">{t.suggestionsTitle}</p>
+                      <div className="mt-3 space-y-2.5">
                         {result.suggestions.map((s, i) => (
-                          <div key={i} className="rounded-xl border border-border bg-card p-3.5">
-                            {s.title ? <p className="text-[13px] font-semibold text-[#0B1227]">{s.title}</p> : null}
-                            {s.text ? <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/75">{s.text}</p> : null}
-                            {s.text ? (
-                              <div className="mt-2.5 flex flex-wrap gap-2">
-                                <Button size="sm" onClick={() => addSuggestionToIntro(s.text)}>
-                                  <Plus weight="bold" /> {t.addToIntro}
-                                </Button>
-                                <Button size="sm" variant="ghost" onClick={() => copyText(s.text)}>
-                                  <CopyIcon weight="bold" /> {t.copy}
-                                </Button>
+                          <div key={i} className="rounded-2xl bg-[#F8F9FB] p-3.5">
+                            <div className="flex gap-3">
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#EDF1FD] text-[12px] font-bold text-[#0B46E8]">{i + 1}</span>
+                              <div className="min-w-0 flex-1">
+                                {s.title ? <p className="text-[13.5px] font-bold text-[#191F28]">{s.title}</p> : null}
+                                {s.text ? <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-[#4E5968]">{s.text}</p> : null}
+                                {s.text ? (
+                                  <div className="mt-2.5 flex flex-wrap gap-2">
+                                    <Button size="sm" onClick={() => addSuggestionToIntro(s.text)}>
+                                      <Plus weight="bold" /> {t.addToIntro}
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => copyText(s.text)}>
+                                      <CopyIcon weight="bold" /> {t.copy}
+                                    </Button>
+                                  </div>
+                                ) : null}
                               </div>
-                            ) : null}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -398,7 +434,7 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
               )}
             </div>
           </div>
-          <ResumeToolPreview content={builderContent} design={design} expandLabel={picker.expand} previewLabel={picker.preview} />
+          <ResumeToolPreview content={builderContent} design={design} previewLabel={picker.preview} pdfHref={`/resume-maker/${resumeId}/preview`} pdfLabel={picker.previewPdf} />
         </div>
       )}
       {quotaOpen ? <AiQuotaModal resetAt={resetAt} onClose={() => setQuotaOpen(false)} /> : null}

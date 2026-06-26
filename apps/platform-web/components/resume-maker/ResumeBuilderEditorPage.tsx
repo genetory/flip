@@ -13,7 +13,6 @@ import {
   Circle,
   CircleNotch,
   DotsSixVertical,
-  Eye,
   Plus,
   Sparkle,
   Trash,
@@ -26,10 +25,9 @@ import { AiTicketCost } from "./AiTicketCost";
 import { AiChipButton } from "./AiChipButton";
 import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { useResumeContentAutosave } from "./useResumeMakerAutosave";
-import { ResumePreview } from "./ResumePreview";
+import { ResumeToolPreview } from "./ResumeToolPreview";
 import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
-import { paperlogy } from "../../lib/fonts";
 import {
   getResumeCoach,
   postDraftResumeText,
@@ -99,7 +97,8 @@ type Preserved = {
   skills?: string[];
 };
 
-const inputCls = "h-10 w-full rounded-xl border border-border bg-white px-3 text-[13.5px] focus:border-primary focus:outline-none";
+const inputCls =
+  "h-11 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3.5 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:bg-white focus:outline-none";
 
 // 프로필 사진 — 자주 자동저장되므로 캔버스로 최대 변(maxPx)을 줄여 data URL 을
 // 가볍게 만든다. 저장 시 백엔드(resolveResumePhoto)가 Blob 으로 업로드한다.
@@ -151,8 +150,8 @@ const educationStatuses = (t: EditorCopy): { value: CandidateEducationStatus; la
   { value: "DROPPED_OUT", label: t.statusDropped }
 ];
 const chipCls = (active: boolean) =>
-  `rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition ${
-    active ? "border-primary bg-primary/10 text-[#0B46E8]" : "border-border bg-card text-foreground/80 hover:border-primary/40"
+  `rounded-full px-3.5 py-2 text-[13px] font-semibold transition ${
+    active ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E8EBF0]"
   }`;
 const languageLevels = (t: EditorCopy): string[] => [t.langBasic, t.langConversational, t.langBusiness, t.langFluent, t.langNative];
 
@@ -188,26 +187,26 @@ function AccordionRows<T>({
         return (
           <div
             key={i}
-            className={`overflow-hidden rounded-xl border bg-card transition ${
-              isOpen ? "border-primary/50 shadow-card" : "border-border hover:border-primary/30"
+            className={`overflow-hidden rounded-2xl border bg-white transition ${
+              isOpen ? "border-[#0B46E8]/40 shadow-card" : "border-[#F2F4F6] hover:border-[#0B46E8]/20"
             }`}
           >
-            <div className="flex items-center gap-1.5 px-3.5 py-2.5">
+            <div className="flex items-center gap-1.5 px-3.5 py-3">
               <button type="button" onClick={() => setOpen(isOpen ? null : i)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[11px] font-bold text-[#0B46E8]">{i + 1}</span>
-                <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-[#0B1227]">{sum || label(i)}</span>
-                <CaretDown className={`h-4 w-4 shrink-0 text-muted-foreground transition ${isOpen ? "rotate-180" : ""}`} weight="bold" aria-hidden />
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#EDF1FD] text-[11px] font-bold text-[#0B46E8]">{i + 1}</span>
+                <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-[#191F28]">{sum || label(i)}</span>
+                <CaretDown className={`h-4 w-4 shrink-0 text-[#8B95A1] transition ${isOpen ? "rotate-180" : ""}`} weight="bold" aria-hidden />
               </button>
               <button
                 type="button"
                 onClick={() => onRemove(i)}
                 aria-label={removeLabel}
-                className="shrink-0 rounded-md p-1.5 text-muted-foreground transition hover:bg-destructive/5 hover:text-destructive"
+                className="shrink-0 rounded-lg p-1.5 text-[#8B95A1] transition hover:bg-destructive/5 hover:text-destructive"
               >
                 <Trash className="h-4 w-4" weight="bold" />
               </button>
             </div>
-            {isOpen ? <div className="space-y-4 border-t border-border/60 px-3.5 pb-4 pt-3.5">{renderBody(item, i)}</div> : null}
+            {isOpen ? <div className="space-y-4 border-t border-[#F2F4F6] px-3.5 pb-4 pt-3.5">{renderBody(item, i)}</div> : null}
           </div>
         );
       })}
@@ -308,7 +307,6 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
     selfIntroduction: ""
   });
   const [extra, setExtra] = useState<Preserved>({});
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [highlight, setHighlight] = useState<"summary" | "selfIntro" | "careers" | "activities" | null>(null);
   const [coach, setCoach] = useState<ResumeCoachData | null>(null);
   const [coachLoading, setCoachLoading] = useState(false);
@@ -498,6 +496,7 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
   if (loading || !builder) {
     return (
       <ResumeMakerShell>
+        <ResumeBackBar backHref="/resume-maker" backLabel={pickerCopy.back} title={title} />
         <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
           <span className="inline-flex items-center gap-2 text-sm">
             <CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t.loading}
@@ -511,7 +510,7 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
     <ResumeMakerShell right={<AutoSaveIndicator status={status} onRetry={() => void flush()} />}>
       <ResumeBackBar backHref="/resume-maker" backLabel={pickerCopy.back} title={title} />
       {/* 3컬럼: 좌 섹션 레일 / 중 편집 폼 / 우 실시간 미리보기(항상 표시) */}
-      <div className="mx-auto grid max-w-6xl gap-0 lg:grid-cols-[200px_minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div className="mx-auto grid max-w-6xl gap-0 lg:grid-cols-[200px_minmax(0,1fr)_360px]">
         {/* 섹션 레일 — 데스크탑 세로, 모바일은 상단 가로 */}
         <div className="min-w-0 border-b border-border/60 px-5 pt-6 lg:border-b-0 lg:border-r lg:py-6 lg:max-h-[calc(100vh-56px)] lg:overflow-y-auto">
           {progress ? <ResumeCompletionConfetti percent={progress.percent} /> : null}
@@ -530,10 +529,10 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
 
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
-              <h2 className={`${paperlogy.className} text-2xl font-black tracking-[-0.02em] text-[#0B1227] md:text-3xl`}>
+              <h2 className="text-[22px] font-bold tracking-[-0.02em] text-[#191F28] md:text-[26px]">
                 {sectionHeaders(t)[section].title}
               </h2>
-              <p className="mt-2 text-[14px] text-muted-foreground">{sectionHeaders(t)[section].desc}</p>
+              <p className="mt-2 text-[14px] text-[#8B95A1]">{sectionHeaders(t)[section].desc}</p>
             </div>
             {section === "education" ? (
               <Button
@@ -580,7 +579,7 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
           {section !== "diagnosis" && section !== "design" ? (
             <Link
               href={`/resume-maker/${resumeId}/chat?section=${section}`}
-              className="mb-5 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-[13px] font-semibold text-[#0B46E8] transition hover:bg-primary/10"
+              className="mb-5 flex items-center gap-2.5 rounded-2xl bg-[#EDF1FD] px-4 py-3.5 text-[13.5px] font-bold text-[#0B46E8] transition hover:bg-[#E2EAFC]"
             >
               <Sparkle weight="fill" className="h-4 w-4" />{t.fillWithAi}
               <CaretRight weight="bold" className="ml-auto h-4 w-4" />
@@ -683,39 +682,17 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
           </div>
         </div>
 
-        {/* 우측: 실시간 미리보기 (데스크탑) — 모바일은 버튼→팝업 */}
-        <div className="hidden bg-muted/30 px-5 py-6 lg:block lg:max-h-[calc(100vh-56px)] lg:overflow-y-auto">
-          <div className="mb-4 flex items-center justify-end">
-            <Link
-              href={`/resume-maker/${resumeId}/preview`}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-[#0B46E8] shadow-card transition hover:bg-primary/5"
-            >
-              <Eye className="h-4 w-4" weight="bold" aria-hidden /> {t.previewPdf}
-            </Link>
-          </div>
-          <ResumePreview content={content} design={design} highlightSection={highlight} />
-        </div>
+        {/* 우측: 이력서 미리보기 — 공고 맞춤·모의 면접과 동일한 컬럼(데스크탑 작은 미리보기 +
+            '크게 보기', 모바일 하단 버튼 → 모달). 편집 중인 섹션 강조 + PDF 링크는 옵션으로 전달. */}
+        <ResumeToolPreview
+          content={content}
+          design={design}
+          highlightSection={highlight}
+          previewLabel={pickerCopy.preview}
+          pdfHref={`/resume-maker/${resumeId}/preview`}
+          pdfLabel={pickerCopy.previewPdf}
+        />
       </div>
-
-      {/* 모바일: 하단 미리보기 버튼 + 시트 */}
-      <div className="sticky bottom-0 z-30 border-t border-border bg-background/95 px-5 py-3 backdrop-blur lg:hidden">
-        <Button variant="default" size="lg" className="w-full" onClick={() => setPreviewOpen(true)}>
-          <Eye weight="bold" /> {t.previewResume}
-        </Button>
-      </div>
-      {previewOpen ? (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background lg:hidden">
-          <div className="flex items-center justify-between border-b border-border px-5 py-3">
-            <span className="text-[14px] font-bold text-[#0B1227]">{t.preview}</span>
-            <button type="button" onClick={() => setPreviewOpen(false)} aria-label={t.close} className="rounded-lg p-1.5 hover:bg-muted">
-              <X className="h-5 w-5" weight="bold" />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto bg-muted/30 p-4">
-            <ResumePreview content={content} design={design} highlightSection={highlight} />
-          </div>
-        </div>
-      ) : null}
     </ResumeMakerShell>
   );
 }
@@ -809,7 +786,7 @@ function ContentTab({
       <section id="content-selfIntro">
         <h3 className="text-[13px] font-bold text-[#0B1227]">{t.selfIntroHeading}</h3>
         <textarea
-          className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[13.5px] leading-relaxed focus:border-primary focus:outline-none"
+          className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[13.5px] leading-relaxed focus:border-[#0B46E8] focus:outline-none"
           rows={5}
           placeholder={t.selfIntroPlaceholder}
           value={basic.selfIntroduction}
@@ -835,7 +812,7 @@ function ContentTab({
                     {ready ? (
                       <button type="button" onClick={() => toggleInclude(exp.id)} aria-label={t.includeToggle}>
                         {includedSet.has(exp.id) ? (
-                          <CheckCircle className="h-5 w-5 text-primary" weight="fill" />
+                          <CheckCircle className="h-5 w-5 text-[#0B46E8]" weight="fill" />
                         ) : (
                           <Circle className="h-5 w-5 text-muted-foreground/50" weight="bold" />
                         )}
@@ -911,14 +888,14 @@ function BrainDump({ busy, onRun }: { busy: boolean; onRun: (text: string) => Pr
   const t = useEditorCopy();
   const [text, setText] = useState("");
   return (
-    <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+    <div className="rounded-2xl border border-[#0B46E8]/30 bg-[#EDF1FD]/60 p-4">
       <div className="flex items-center gap-1.5">
         <Sparkle weight="fill" className="h-4 w-4 text-[#0B46E8]" />
         <p className="text-[13.5px] font-bold text-[#0B1227]">{t.brainTitle}</p>
       </div>
       <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{t.brainDesc}</p>
       <textarea
-        className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[13.5px] leading-relaxed focus:border-primary focus:outline-none"
+        className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[13.5px] leading-relaxed focus:border-[#0B46E8] focus:outline-none"
         rows={4}
         placeholder={t.brainPlaceholder}
         value={text}
@@ -1015,7 +992,7 @@ function BasicSection({
         <div className="flex flex-1 flex-col gap-3 pt-0.5">
           <p className="text-[12px] font-semibold text-muted-foreground">{t.profilePhoto}</p>
           <div className="flex flex-wrap items-center gap-2">
-            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-[12.5px] font-medium text-foreground/80 transition hover:border-primary/40">
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-[12.5px] font-medium text-foreground/80 transition hover:border-[#0B46E8]/40">
               <Camera weight="bold" className="h-4 w-4" />
               {basic.basicPhotoUrl ? t.changePhoto : t.uploadPhoto}
               <input type="file" accept="image/*" className="sr-only" onChange={onPhoto} />
@@ -1169,7 +1146,7 @@ function IntroSection({
       {/* 자기소개 — 먼저 작성하고, 형식을 골라 AI로 다듬어 볼 수 있어요. */}
       <div>
         <textarea
-          className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[13.5px] leading-relaxed focus:border-primary focus:outline-none"
+          className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[13.5px] leading-relaxed focus:border-[#0B46E8] focus:outline-none"
           rows={8}
           placeholder={t.selfIntroLongPlaceholder}
           value={basic.selfIntroduction}
@@ -1194,7 +1171,7 @@ function IntroSection({
           </div>
         </div>
         {polished !== null ? (
-          <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+          <div className="mt-2 rounded-xl border border-[#0B46E8]/30 bg-[#EDF1FD]/60 p-3">
             <p className="text-[12px] font-semibold text-[#0B46E8]">
               {t.aiPolished(polishLabel(polished.style))}
             </p>
@@ -1238,7 +1215,7 @@ function IntroSection({
           onChange={(e) => onBasic({ ...basic, summary: e.target.value })}
         />
         {summarySuggestion !== null ? (
-          <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+          <div className="mt-2 rounded-xl border border-[#0B46E8]/30 bg-[#EDF1FD]/60 p-3">
             <p className="text-[12px] font-semibold text-[#0B46E8]">{t.aiRecommendedSummary}</p>
             <p className="mt-1.5 text-[13px] leading-relaxed text-foreground/90">{summarySuggestion}</p>
             <div className="mt-2.5 flex gap-2">
@@ -1268,10 +1245,12 @@ function IntroSection({
 function EmptyAddCard({ title, desc, onAdd }: { title: string; desc: string; onAdd: () => void }) {
   const t = useEditorCopy();
   return (
-    <div className="mt-2 rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center">
-      <Sparkle className="mx-auto h-7 w-7 text-[#0B46E8]" weight="fill" aria-hidden />
-      <p className="mt-3 text-[15px] font-bold text-[#0B1227]">{title}</p>
-      <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted-foreground">{desc}</p>
+    <div className="mt-2 rounded-2xl bg-[#F2F4F6] px-6 py-10 text-center">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#EDF1FD]">
+        <Sparkle className="h-6 w-6 text-[#0B46E8]" weight="fill" aria-hidden />
+      </div>
+      <p className="mt-3 text-[15px] font-bold text-[#191F28]">{title}</p>
+      <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#8B95A1]">{desc}</p>
       <Button variant="default" size="sm" className="mt-4" onClick={onAdd}>
         <Plus weight="bold" /> {t.add}
       </Button>
@@ -1420,7 +1399,7 @@ function SkillsSection({
             }
           }}
         />
-        <Button variant="default" size="sm" className="h-10 shrink-0" onClick={add}>
+        <Button variant="default" size="sm" className="h-11 shrink-0" onClick={add}>
           <Plus weight="bold" /> {t.add}
         </Button>
       </div>
@@ -1437,7 +1416,7 @@ function SkillsSection({
                 key={s}
                 type="button"
                 onClick={() => pickSuggestion(s)}
-                className="inline-flex items-center gap-1 rounded-full border border-[#0B46E8]/40 bg-primary/5 px-3 py-1 text-[12.5px] font-semibold text-[#0B46E8] transition hover:bg-primary/10"
+                className="inline-flex items-center gap-1 rounded-full border border-[#0B46E8]/40 bg-[#EDF1FD]/60 px-3 py-1 text-[12.5px] font-semibold text-[#0B46E8] transition hover:bg-[#E2EAFC]"
               >
                 <Plus className="h-3 w-3" weight="bold" /> {s}
               </button>
@@ -1449,7 +1428,7 @@ function SkillsSection({
       {skills.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {skills.map((s, i) => (
-            <span key={i} className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-[12.5px] text-foreground/80">
+            <span key={i} className="inline-flex items-center gap-1 rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-medium text-[#4E5968]">
               {s}
               <button
                 type="button"
@@ -1564,7 +1543,7 @@ function SectionOrderEditor({ design, onChange }: { design: ResumeDesignSettings
               dragIdx.current = null;
               setOverIdx(null);
             }}
-            className={`flex items-center gap-2 rounded-lg border bg-card px-3 py-2.5 transition ${overIdx === i ? "border-primary bg-primary/5" : "border-border"}`}
+            className={`flex items-center gap-2 rounded-lg border bg-card px-3 py-2.5 transition ${overIdx === i ? "border-[#0B46E8] bg-[#EDF1FD]/60" : "border-border"}`}
           >
             <DotsSixVertical className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing" weight="bold" aria-hidden />
             <span className="flex-1 text-[13px] font-semibold text-[#0B1227]">{sectionLabel(key)}</span>
@@ -1601,7 +1580,7 @@ function DesignTab({ design, onChange }: { design: ResumeDesignSettings; onChang
             type="button"
             onClick={() => set(o.v)}
             className={`flex-1 rounded-lg border px-3 py-2 text-[12.5px] font-medium transition ${
-              value === o.v ? "border-primary bg-primary/10 text-[#0B46E8]" : "border-border bg-card text-muted-foreground hover:border-primary/40"
+              value === o.v ? "border-[#0B46E8] bg-[#EDF1FD] text-[#0B46E8]" : "border-border bg-card text-muted-foreground hover:border-[#0B46E8]/40"
             }`}
           >
             {o.t}
@@ -1621,14 +1600,14 @@ function DesignTab({ design, onChange }: { design: ResumeDesignSettings; onChang
               type="button"
               onClick={() => pickLayout(l.id)}
               className={`flex w-full items-start justify-between gap-3 rounded-xl border p-3 text-left transition ${
-                layout === l.id ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border bg-card hover:border-primary/40"
+                layout === l.id ? "border-[#0B46E8] bg-[#EDF1FD]/60 ring-1 ring-[#0B46E8]" : "border-border bg-card hover:border-[#0B46E8]/40"
               }`}
             >
               <span>
                 <span className="block text-[13.5px] font-bold text-[#0B1227]">{l.label}</span>
                 <span className="mt-0.5 block text-[12px] text-muted-foreground">{l.desc}</span>
               </span>
-              {layout === l.id ? <CheckCircle className="h-5 w-5 shrink-0 text-primary" weight="fill" /> : null}
+              {layout === l.id ? <CheckCircle className="h-5 w-5 shrink-0 text-[#0B46E8]" weight="fill" /> : null}
             </button>
           ))}
         </div>
@@ -1670,7 +1649,7 @@ function DesignTab({ design, onChange }: { design: ResumeDesignSettings; onChang
                 type="button"
                 onClick={() => onChange({ ...design, titleMarker: m.id })}
                 className={`rounded-lg border px-3 py-2 text-[12.5px] font-medium transition ${
-                  active ? "border-primary bg-primary/10 text-[#0B46E8]" : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                  active ? "border-[#0B46E8] bg-[#EDF1FD] text-[#0B46E8]" : "border-border bg-card text-muted-foreground hover:border-[#0B46E8]/40"
                 }`}
               >
                 {m.label}

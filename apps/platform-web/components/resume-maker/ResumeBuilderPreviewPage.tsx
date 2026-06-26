@@ -134,15 +134,15 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
         <div className="container flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-2.5">
           <button
             type="button"
-            onClick={() => router.push(`/resume-maker/${resumeId}/edit`)}
+            onClick={() => router.back()}
             className="inline-flex items-center gap-1 text-[13px] font-semibold text-muted-foreground transition hover:text-foreground"
           >
-            <ArrowLeft className="h-4 w-4" weight="bold" aria-hidden /> {t.backToEdit}
+            <ArrowLeft className="h-4 w-4" weight="bold" aria-hidden /> {t.back}
           </button>
           {!loading && content ? (
             <div className="flex flex-wrap items-center gap-2">
               {/* 원문 / 한국어 / English — 첫 전환 시 AI 번역(외국어 원문도 한국어로) */}
-              <div className="inline-flex items-center rounded-full border border-border bg-card p-0.5">
+              <div className="inline-flex items-center rounded-full bg-[#F2F4F6] p-1">
                 {([
                   { v: "original", label: t.viewOriginal },
                   { v: "ko", label: "한국어" },
@@ -154,7 +154,7 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
                     onClick={() => void showView(o.v)}
                     disabled={translating}
                     className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition disabled:opacity-60 ${
-                      view === o.v ? "bg-primary/10 text-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
+                      view === o.v ? "bg-white text-[#0B46E8] shadow-sm" : "text-[#8B95A1] hover:text-[#191F28]"
                     }`}
                   >
                     {translating && view === o.v ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : null}
@@ -183,7 +183,7 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
           </span>
         </div>
       ) : (
-        <section className="px-5 py-8">
+        <section className="min-h-[calc(100vh-3.5rem)] bg-[#F2F4F6] px-5 py-8">
           <div className="overflow-x-auto">
             <div className="rm-print-root mx-auto" style={{ width: 794 }}>
               <ResumeSheet

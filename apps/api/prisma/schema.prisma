@@ -48,6 +48,7 @@ model User {
   candidateProfile CandidateProfile?
   resumes Resume[]
   aiUsages AiUsage[]
+  aiWallet AiWallet?
   sgcApplication SgcApplication? @relation("SgcApplicationUser")
   refreshTokens RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
@@ -1122,6 +1123,18 @@ model Resume {
 
 // 프리미엄 한도 — 비싼/반복형 AI 기능(공고 맞춤 분석, 모의 면접 평가)의 월 사용량.
 // periodKey 는 KST 기준 "YYYY-MM". (userId, feature, periodKey) 당 한 행으로 카운트.
+// 공용 AI 티켓 지갑(잔액) — 가입 시 1회 보너스 + 매일 일정량 적립(상한). 사용 시 차감.
+model AiWallet {
+  userId       String   @id
+  balance      Int      @default(0)
+  lastGrantDay Int      @default(0) // KST 기준 epoch-day 인덱스(마지막 적립일)
+  welcomed     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model AiUsage {
   id        String   @id @default(uuid())
   userId    String

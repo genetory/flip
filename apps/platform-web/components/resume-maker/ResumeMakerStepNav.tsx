@@ -28,7 +28,7 @@ export function ResumeMakerStepNav({ resumeId, active }: { resumeId: string; act
               key={s.key}
               href={`/resume-maker/${resumeId}/${s.suffix}`}
               className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition ${
-                isActive ? "bg-primary/10 text-[#0B46E8]" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                isActive ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
               <span className={`text-[11px] ${isActive ? "text-[#0B46E8]" : "text-muted-foreground/60"}`}>{i + 1}</span>

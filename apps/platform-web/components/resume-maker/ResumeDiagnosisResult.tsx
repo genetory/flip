@@ -59,7 +59,7 @@ export function ResumeDiagnosisResult({
   return (
     <div className="mt-5">
       {/* 상태 메시지 강조 */}
-      <div className="rounded-2xl border border-border bg-card p-5 text-center shadow-card">
+      <div className="rounded-2xl border border-[#F2F4F6] bg-white p-5 text-center shadow-card">
         <span className={`inline-flex rounded-full px-3 py-1 text-[13px] font-bold ${levelCls}`}>{levelLabel}</span>
         <div className="mt-3 flex items-center justify-center gap-6 text-[12px] text-muted-foreground">
           <span>{t.qualityScore(Math.round(coach.score.quality.total))}</span>
@@ -80,13 +80,13 @@ export function ResumeDiagnosisResult({
                     key={a.id}
                     type="button"
                     onClick={() => onGoto(a.targetSection)}
-                    className="flex w-full items-start justify-between gap-3 rounded-xl border border-border bg-card p-3 text-left transition hover:border-primary/40"
+                    className="flex w-full items-start justify-between gap-3 rounded-2xl border border-[#F2F4F6] bg-white p-3.5 text-left transition hover:border-[#0B46E8]/30 hover:shadow-card"
                   >
                     <span>
-                      <span className="block text-[13.5px] font-semibold text-[#0B1227]">{a.title}</span>
+                      <span className="block text-[13.5px] font-semibold text-[#191F28]">{a.title}</span>
                       <span className="mt-0.5 block text-[12px] leading-relaxed text-muted-foreground">{a.description}</span>
                     </span>
-                    <CaretRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" weight="bold" aria-hidden />
+                    <CaretRight className="mt-1 h-4 w-4 shrink-0 text-[#C9CDD2]" weight="bold" aria-hidden />
                   </button>
                 ))}
               </div>

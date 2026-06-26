@@ -8,7 +8,6 @@ import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { useResumeMakerAutosave } from "./useResumeMakerAutosave";
 import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
-import { paperlogy } from "../../lib/fonts";
 import type { ResumeContent } from "../../lib/member-profile-client";
 import { getBuilderState, getDraftResume } from "../../lib/resume-maker-client";
 import {
@@ -134,6 +133,7 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
 
   return (
     <ResumeMakerShell right={<AutoSaveIndicator status={status} onRetry={() => void flush()} />}>
+      <div className="min-h-[calc(100vh-3.5rem)] bg-[#F2F4F6]">
       <section className="container max-w-2xl px-5 py-10 md:py-14">
         {/* 진행률 */}
         <div className="mb-8">
@@ -143,16 +143,16 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
               {step} / {TOTAL_STEPS}
             </span>
           </div>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#F2F4F6]">
+            <div className="h-full rounded-full bg-[#0B46E8] transition-all" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
           </div>
         </div>
 
         {step === 1 ? (
           <div>
             {/* 외국인 여부 — 외국인이면 기본 정보에 비자 항목을 추가 */}
-            <div className="mb-7 rounded-2xl border border-border bg-card p-4">
-              <p className="text-[15px] font-bold text-[#0B1227]">{t.foreignerQuestion}</p>
+            <div className="mb-7 rounded-2xl border border-[#F2F4F6] bg-white p-4">
+              <p className="text-[15px] font-bold text-[#191F28]">{t.foreignerQuestion}</p>
               <p className="mt-1 text-[12.5px] text-muted-foreground">{t.foreignerHelp}</p>
               <div className="mt-3 flex gap-2">
                 {[
@@ -166,7 +166,7 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
                       type="button"
                       onClick={() => setForeigner(opt.v)}
                       className={`flex-1 rounded-xl border px-3 py-2.5 text-[13.5px] font-semibold transition ${
-                        selected ? "border-primary bg-primary/10 text-[#0B46E8]" : "border-border bg-card text-foreground/80 hover:border-primary/40"
+                        selected ? "border-[#0B46E8] bg-[#EDF1FD] text-[#0B46E8]" : "border-[#F2F4F6] bg-white text-[#4E5968] hover:border-[#0B46E8]/30"
                       }`}
                     >
                       {opt.t}
@@ -176,7 +176,7 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
               </div>
             </div>
 
-            <h2 className={`${paperlogy.className} text-2xl font-black tracking-[-0.02em] text-[#0B1227] md:text-3xl`}>
+            <h2 className="text-[22px] font-bold tracking-[-0.02em] text-[#191F28] md:text-[26px]">
               {t.purposeTitle}
             </h2>
             <p className="mt-2 text-[14px] text-muted-foreground">{t.purposeDesc}</p>
@@ -189,14 +189,14 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
                     type="button"
                     onClick={() => selectPurpose(p.value)}
                     className={`flex items-start justify-between gap-3 rounded-2xl border p-4 text-left transition ${
-                      selected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border bg-card hover:border-primary/40"
+                      selected ? "border-[#0B46E8] bg-[#EDF1FD] ring-1 ring-[#0B46E8]" : "border-[#F2F4F6] bg-white hover:border-[#0B46E8]/30"
                     }`}
                   >
                     <span>
-                      <span className="block text-[15px] font-bold text-[#0B1227]">{p.label}</span>
+                      <span className="block text-[15px] font-bold text-[#191F28]">{p.label}</span>
                       <span className="mt-1 block text-[12.5px] leading-relaxed text-muted-foreground">{p.desc}</span>
                     </span>
-                    {selected ? <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" weight="bold" aria-hidden /> : null}
+                    {selected ? <Check className="mt-0.5 h-5 w-5 shrink-0 text-[#0B46E8]" weight="bold" aria-hidden /> : null}
                   </button>
                 );
               })}
@@ -206,7 +206,7 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
 
         {step === 2 ? (
           <div>
-            <h2 className={`${paperlogy.className} text-2xl font-black tracking-[-0.02em] text-[#0B1227] md:text-3xl`}>
+            <h2 className="text-[22px] font-bold tracking-[-0.02em] text-[#191F28] md:text-[26px]">
               {t.jobTitle}
             </h2>
             <p className="mt-2 text-[14px] text-muted-foreground">{t.jobDesc}</p>
@@ -216,14 +216,14 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
               rows={3}
               maxLength={300}
               placeholder={t.jobPlaceholder}
-              className="mt-5 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] leading-relaxed focus:border-primary focus:outline-none"
+              className="mt-5 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 py-2.5 text-[14px] leading-relaxed focus:border-[#0B46E8] focus:bg-white focus:outline-none"
             />
           </div>
         ) : null}
 
         {step === 3 ? (
           <div>
-            <h2 className={`${paperlogy.className} text-2xl font-black tracking-[-0.02em] text-[#0B1227] md:text-3xl`}>
+            <h2 className="text-[22px] font-bold tracking-[-0.02em] text-[#191F28] md:text-[26px]">
               {t.startTitle}
             </h2>
             <p className="mt-2 text-[14px] text-muted-foreground">{t.startDesc}</p>
@@ -236,14 +236,14 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
                     type="button"
                     onClick={() => selectStartMethod(m.value)}
                     className={`flex items-center justify-between gap-3 rounded-2xl border p-4 text-left transition ${
-                      selected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border bg-card hover:border-primary/40"
+                      selected ? "border-[#0B46E8] bg-[#EDF1FD] ring-1 ring-[#0B46E8]" : "border-[#F2F4F6] bg-white hover:border-[#0B46E8]/30"
                     }`}
                   >
                     <span>
-                      <span className="block text-[15px] font-bold text-[#0B1227]">{m.label}</span>
+                      <span className="block text-[15px] font-bold text-[#191F28]">{m.label}</span>
                       <span className="mt-1 block text-[12.5px] leading-relaxed text-muted-foreground">{m.desc}</span>
                     </span>
-                    {selected ? <Check className="h-5 w-5 shrink-0 text-primary" weight="bold" aria-hidden /> : null}
+                    {selected ? <Check className="h-5 w-5 shrink-0 text-[#0B46E8]" weight="bold" aria-hidden /> : null}
                   </button>
                 );
               })}
@@ -279,6 +279,7 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
           )}
         </div>
       </section>
+      </div>
     </ResumeMakerShell>
   );
 }

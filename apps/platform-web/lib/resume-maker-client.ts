@@ -279,17 +279,17 @@ export async function fetchJobPosting(url: string): Promise<string> {
   return (payload.text ?? "").trim();
 }
 
-// ── AI 프리미엄 월 한도 ──
-// 모든 AI 기능은 월 공용 티켓을 쓴다. 초과 시 서버가 402 를 주고, 클라이언트는 이를
-// AiQuotaError 로 바꾼다. 도구(공고 맞춤·모의 면접)는 모달, 편집기 인라인 액션은
-// 이 친절한 메시지를 토스트로 보여준다(작은 동작엔 토스트가 적합).
+// ── AI 공용 티켓 ──
+// 모든 AI 기능은 공용 티켓을 쓴다(가입 보너스 + 매일 적립). 잔액이 부족하면 서버가 402 를
+// 주고, 클라이언트는 이를 AiQuotaError 로 바꾼다. 도구(공고 맞춤·모의 면접)는 모달,
+// 편집기 인라인 액션은 이 친절한 메시지를 토스트로 보여준다(작은 동작엔 토스트가 적합).
 const AI_QUOTA_MESSAGES: Record<string, string> = {
-  ko: "이번 달 무료 AI 티켓을 다 썼어요. 다음 달에 다시 충전돼요.",
-  en: "You've used all your free AI tickets this month. They refresh next month.",
-  "zh-CN": "本月免费 AI 券已用完，下月会重置。",
-  vi: "Bạn đã dùng hết vé AI miễn phí tháng này. Sẽ làm mới vào tháng sau.",
-  ja: "今月の無料 AI チケットを使い切りました。来月リセットされます。",
-  id: "Tiket AI gratis bulan ini sudah habis. Akan disetel ulang bulan depan."
+  ko: "AI 티켓을 다 썼어요. 내일 다시 충전돼요.",
+  en: "You're out of AI tickets. They refill tomorrow.",
+  "zh-CN": "AI 券已用完，明天会补充。",
+  vi: "Bạn đã hết vé AI. Vé sẽ được nạp lại vào ngày mai.",
+  ja: "AI チケットを使い切りました。明日また補充されます。",
+  id: "Tiket AI Anda habis. Akan diisi ulang besok."
 };
 function aiQuotaMessage(): string {
   return AI_QUOTA_MESSAGES[getBrowserLocale()] ?? AI_QUOTA_MESSAGES.en;

@@ -93,7 +93,7 @@ export function AutoSaveIndicator({ status, onRetry }: { status: AutosaveStatus;
         ) : status === "saved" ? (
           <>
             {burst > 0 ? <MiniBurst key={burst} /> : null}
-            <Check className="h-4 w-4 text-emerald-400" weight="bold" aria-hidden />
+            <Check className="h-4 w-4 text-[#15C47E]" weight="bold" aria-hidden />
             {t.saved}
           </>
         ) : status === "error" ? (

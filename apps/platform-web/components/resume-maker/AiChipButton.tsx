@@ -25,7 +25,7 @@ export function AiChipButton({
       disabled={disabled ?? loading}
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition disabled:opacity-60 ${
-        loading ? "border-primary bg-primary/10 text-[#0B46E8]" : "border-border bg-card text-foreground/80 hover:border-primary/40"
+        loading ? "border-[#0B46E8] bg-[#EDF1FD] text-[#0B46E8]" : "border-border bg-card text-foreground/80 hover:border-[#0B46E8]/40"
       }`}
     >
       {loading ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : null}

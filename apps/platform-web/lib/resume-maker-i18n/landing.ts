@@ -17,6 +17,8 @@ type Copy = {
   heroTitleLine2: string;
   heroSubtitle: string;
   newResumeCta: string;
+  newResumeSub: string;
+  importSub: string;
   importCta: string;
   newNameTitle: string;
   newNameDesc: string;
@@ -68,6 +70,8 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine2: "질문에 답하세요.",
     heroSubtitle: "AI가 내 경험을 찾아 지원 가능한 이력서로 만들어드립니다.",
     newResumeCta: "새 이력서 만들기",
+    newResumeSub: "처음부터 시작",
+    importSub: "PDF·내용 붙여넣기",
     importCta: "이미 만든 이력서가 있나요? 파일로 가져오기",
     newNameTitle: "이력서 이름을 정해주세요",
     newNameDesc: "나중에 ‘작성 중인 이력서’ 목록에서 구분하기 쉬워요.",
@@ -117,6 +121,8 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine2: "just answer questions.",
     heroSubtitle: "AI finds your experience and turns it into a resume ready to apply with.",
     newResumeCta: "Create a New Resume",
+    newResumeSub: "Start from scratch",
+    importSub: "PDF or paste text",
     importCta: "Already have a resume? Import it from a file",
     newNameTitle: "Give your resume a name",
     newNameDesc: "It'll be easier to tell apart later in your “In-progress resumes” list.",
@@ -166,6 +172,8 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine2: "回答问题就好。",
     heroSubtitle: "AI 会发掘你的经历，生成可直接投递的简历。",
     newResumeCta: "创建新简历",
+    newResumeSub: "从头开始",
+    importSub: "PDF 或粘贴内容",
     importCta: "已经有简历了？从文件导入",
     newNameTitle: "给简历起个名字",
     newNameDesc: "稍后在“正在编写的简历”列表中更容易区分。",
@@ -215,6 +223,8 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine2: "hãy trả lời câu hỏi.",
     heroSubtitle: "AI tìm ra kinh nghiệm của bạn và biến nó thành hồ sơ sẵn sàng để ứng tuyển.",
     newResumeCta: "Tạo hồ sơ mới",
+    newResumeSub: "Bắt đầu từ đầu",
+    importSub: "PDF hoặc dán nội dung",
     importCta: "Đã có hồ sơ rồi? Nhập từ tệp",
     newNameTitle: "Đặt tên cho hồ sơ của bạn",
     newNameDesc: "Sau này sẽ dễ phân biệt trong danh sách “Hồ sơ đang soạn”.",
@@ -264,6 +274,8 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine2: "質問に答えましょう。",
     heroSubtitle: "AIがあなたの経験を見つけ出し、応募できる履歴書に仕上げます。",
     newResumeCta: "新しい履歴書を作成",
+    newResumeSub: "ゼロから始める",
+    importSub: "PDF・内容を貼り付け",
     importCta: "すでに履歴書をお持ちですか？ ファイルから取り込む",
     newNameTitle: "履歴書の名前を決めましょう",
     newNameDesc: "あとで「作成中の履歴書」一覧で見分けやすくなります。",
@@ -313,6 +325,8 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine2: "cukup jawab pertanyaan.",
     heroSubtitle: "AI menemukan pengalaman Anda dan mengubahnya menjadi resume yang siap untuk melamar.",
     newResumeCta: "Buat Resume Baru",
+    newResumeSub: "Mulai dari awal",
+    importSub: "PDF atau tempel teks",
     importCta: "Sudah punya resume? Impor dari file",
     newNameTitle: "Beri nama resume Anda",
     newNameDesc: "Akan lebih mudah dibedakan nanti di daftar “Resume sedang dibuat”.",

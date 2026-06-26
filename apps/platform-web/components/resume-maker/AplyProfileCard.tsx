@@ -147,7 +147,7 @@ export function AplyProfileCard({
           <p className="text-[11px] font-bold text-muted-foreground">{t.sectionRecommendedRoles}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {roles.map((r, i) => (
-              <span key={i} className="rounded-full bg-primary/10 px-2.5 py-1 text-[12px] font-semibold text-[#0B46E8]">
+              <span key={i} className="rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[12px] font-semibold text-[#0B46E8]">
                 {r}
               </span>
             ))}

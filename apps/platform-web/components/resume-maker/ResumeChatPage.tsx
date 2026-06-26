@@ -935,7 +935,7 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
             <Link href={backHref} className="inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-muted-foreground transition hover:text-foreground">
               <ArrowLeft className="h-4 w-4" weight="bold" /> {t.back}
             </Link>
-            <span className="truncate text-[14px] font-bold text-[#0B1227]">{t.aiChatHeader(sectionLabel(sec))}</span>
+            <span className="truncate text-[14px] font-bold text-[#191F28]">{t.aiChatHeader(sectionLabel(sec))}</span>
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
@@ -957,7 +957,7 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
               <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
                   className={`max-w-[80%] whitespace-pre-line rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed ${
-                    m.role === "user" ? "bg-[#0B46E8] text-white" : "bg-muted text-foreground"
+                    m.role === "user" ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#191F28]"
                   }`}
                 >
                   {m.text}
@@ -966,7 +966,7 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
             ))}
             {busy ? (
               <div className="flex justify-start">
-                <div className="inline-flex items-center gap-2 rounded-2xl bg-muted px-4 py-2.5 text-[13px] text-muted-foreground">
+                <div className="inline-flex items-center gap-2 rounded-2xl bg-[#F2F4F6] px-4 py-2.5 text-[13px] text-[#8B95A1]">
                   <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" aria-hidden /> {t.writing}
                 </div>
               </div>
@@ -981,7 +981,7 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
                       key={o.label}
                       type="button"
                       onClick={o.onClick}
-                      className="inline-flex items-center rounded-full border border-border bg-white px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground transition hover:bg-muted active:scale-[0.98]"
+                      className="inline-flex items-center rounded-full bg-[#F2F4F6] px-3.5 py-2 text-[13px] font-semibold text-[#4E5968] transition hover:bg-[#E8EBF0] active:scale-[0.98]"
                     >
                       {o.label}
                       {o.feature ? <AiTicketCost feature={o.feature} tone="muted" /> : null}
@@ -991,7 +991,7 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
                       key={o.label}
                       type="button"
                       onClick={o.onClick}
-                      className="inline-flex items-center rounded-full border border-[#0B46E8]/40 bg-white px-3.5 py-1.5 text-[13.5px] font-semibold text-[#0B46E8] transition hover:bg-[#0B46E8]/5 active:scale-[0.98]"
+                      className="inline-flex items-center rounded-full bg-[#EDF1FD] px-3.5 py-2 text-[13.5px] font-semibold text-[#0B46E8] transition hover:bg-[#E2EAFC] active:scale-[0.98]"
                     >
                       {o.label}
                       {o.feature ? <AiTicketCost feature={o.feature} tone="muted" /> : null}
@@ -1008,7 +1008,7 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
                 <div className="space-y-3">
                   {sec === "experiences" && (currentExp()?.approvedBullets?.length ?? 0) > 0 ? (
                     <div>
-                      <p className="mb-1.5 text-[12.5px] font-semibold text-[#0B1227]">{t.generatedBulletsHint}</p>
+                      <p className="mb-1.5 text-[12.5px] font-semibold text-[#191F28]">{t.generatedBulletsHint}</p>
                       <div className="space-y-2">
                         {(currentExp()?.approvedBullets ?? []).map((b) => (
                           <textarea
@@ -1016,7 +1016,7 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
                             value={b.text}
                             onChange={(e) => editBullet(b.id, e.target.value)}
                             rows={2}
-                            className="w-full resize-none rounded-xl border border-border bg-white px-3 py-2 text-[13.5px] leading-relaxed focus:border-primary focus:outline-none"
+                            className="w-full resize-none rounded-xl border border-transparent bg-[#F2F4F6] px-3 py-2 text-[13.5px] leading-relaxed text-[#191F28] focus:border-[#0B46E8] focus:bg-white focus:outline-none"
                           />
                         ))}
                       </div>
@@ -1053,7 +1053,7 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
                     onChange={(e) => setInput(e.target.value)}
                     disabled={!showInput}
                     placeholder={t.inputPlaceholder}
-                    className="h-12 flex-1 rounded-xl border border-border bg-white px-4 text-[14px] focus:border-primary focus:outline-none"
+                    className="h-12 flex-1 rounded-xl border border-transparent bg-[#F2F4F6] px-4 text-[14px] text-[#191F28] focus:border-[#0B46E8] focus:bg-white focus:outline-none"
                     autoFocus
                   />
                   <Button type="submit" variant="default" size="lg" disabled={!input.trim() || busy}>
@@ -1067,7 +1067,7 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
         </div>
 
         {/* 우측: 실시간 미리보기 (데스크탑) — 모바일은 상단 ‘미리보기’ 버튼→팝업 */}
-        <div className="hidden bg-muted/30 px-5 py-6 lg:block lg:overflow-y-auto">
+        <div className="hidden bg-[#F2F4F6] px-5 py-6 lg:block lg:overflow-y-auto">
           {previewContent ? <ResumePreview content={previewContent} design={previewDesign} /> : null}
         </div>
       </div>
@@ -1076,12 +1076,12 @@ export function ResumeChatPage({ resumeId, section, expId }: { resumeId: string;
       {previewOpen ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-background lg:hidden">
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
-            <span className="text-[14px] font-bold text-[#0B1227]">{t.preview}</span>
+            <span className="text-[14px] font-bold text-[#191F28]">{t.preview}</span>
             <button type="button" onClick={() => setPreviewOpen(false)} aria-label={t.close} className="rounded-lg p-1.5 hover:bg-muted">
               <X className="h-5 w-5" weight="bold" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto bg-muted/30 p-4">
+          <div className="flex-1 overflow-y-auto bg-[#F2F4F6] p-4">
             {previewContent ? <ResumePreview content={previewContent} design={previewDesign} /> : null}
           </div>
         </div>

@@ -12,7 +12,6 @@ import { ResumeSectionNav } from "./ResumeSectionNav";
 import { useResumeMakerAutosave } from "./useResumeMakerAutosave";
 import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
-import { paperlogy } from "../../lib/fonts";
 import type { ResumeContent } from "../../lib/member-profile-client";
 import {
   getBuilderState,
@@ -400,8 +399,8 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
         {!formOpen ? (
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h2 className={`${paperlogy.className} text-2xl font-black tracking-[-0.02em] text-[#0B1227] md:text-3xl`}>{t.heading}</h2>
-            <p className="mt-2 text-[14px] text-muted-foreground">
+            <h2 className="text-[22px] font-bold tracking-[-0.02em] text-[#191F28] md:text-[26px]">{t.heading}</h2>
+            <p className="mt-2 text-[14px] text-[#8B95A1]">
               {t.registeredCount(experiences.length, readyCount)}
             </p>
           </div>
@@ -414,7 +413,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
         {!formOpen ? (
           <Link
             href={`/resume-maker/${resumeId}/chat?section=experiences`}
-            className="mb-5 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-[13px] font-semibold text-[#0B46E8] transition hover:bg-primary/10"
+            className="mb-5 flex items-center gap-2.5 rounded-2xl bg-[#EDF1FD] px-4 py-3.5 text-[13.5px] font-bold text-[#0B46E8] transition hover:bg-[#E2EAFC]"
           >
             <Sparkle weight="fill" className="h-4 w-4" />
             {t.fillWithAi}
@@ -436,7 +435,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                 <select
                   value={form.type}
                   onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as ExperienceType }))}
-                  className="h-11 w-full appearance-none rounded-xl border border-border bg-white px-3 pr-9 text-[14px] focus:border-primary focus:outline-none"
+                  className="h-11 w-full appearance-none rounded-xl border border-transparent bg-[#F2F4F6] px-3 pr-9 text-[14px] focus:border-[#0B46E8] focus:bg-white focus:outline-none"
                 >
                   {EXPERIENCE_TYPES.map((et) => (
                     <option key={et.value} value={et.value}>
@@ -468,7 +467,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                 placeholder={t.rawPlaceholder}
                 rows={3}
                 maxLength={1000}
-                className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] leading-relaxed focus:border-primary focus:outline-none"
+                className="mt-1 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 py-2.5 text-[14px] leading-relaxed focus:border-[#0B46E8] focus:bg-white focus:outline-none"
               />
 
               {/* AI 다듬기 — 메인: 한 문장 적고 다듬어 채택/다시 */}
@@ -489,7 +488,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                 </div>
               </div>
               {polishedRaw !== null ? (
-                <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                <div className="mt-2 rounded-xl border border-[#0B46E8]/30 bg-[#EDF1FD]/60 p-3">
                   <p className="text-[12px] font-semibold text-[#0B46E8]">{t.aiPolishedLabel(polishLabel(polishedRaw.style))}</p>
                   <p className="mt-1.5 whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">{polishedRaw.text}</p>
                   <div className="mt-2.5 flex flex-wrap gap-2">
@@ -521,7 +520,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                       key={task}
                       type="button"
                       onClick={() => addTask(task)}
-                      className="inline-flex items-center gap-1 rounded-full border border-[#0B46E8]/40 bg-primary/5 px-3 py-1 text-[12.5px] font-medium text-[#0B46E8] transition hover:bg-primary/10"
+                      className="inline-flex items-center gap-1 rounded-full border border-[#0B46E8]/40 bg-[#EDF1FD]/60 px-3 py-1 text-[12.5px] font-medium text-[#0B46E8] transition hover:bg-[#E2EAFC]"
                     >
                       <Plus className="h-3 w-3" weight="bold" /> {task}
                     </button>
@@ -550,7 +549,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                 placeholder={t.experienceNamePlaceholder}
                 maxLength={120}
-                className="mt-1 h-11 w-full rounded-xl border border-border bg-white px-3 text-[14px] focus:border-primary focus:outline-none"
+                className="mt-1 h-11 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 text-[14px] focus:border-[#0B46E8] focus:bg-white focus:outline-none"
               />
             </div>
 
@@ -565,14 +564,14 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                   value={form.startDate}
                   onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
                   aria-label={t.startMonthAria}
-                  className="h-11 w-full rounded-xl border border-border bg-white px-3 text-[14px] focus:border-primary focus:outline-none"
+                  className="h-11 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 text-[14px] focus:border-[#0B46E8] focus:bg-white focus:outline-none"
                 />
                 <input
                   type="month"
                   value={form.endDate}
                   onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
                   aria-label={t.endMonthAria}
-                  className="h-11 w-full rounded-xl border border-border bg-white px-3 text-[14px] focus:border-primary focus:outline-none"
+                  className="h-11 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 text-[14px] focus:border-[#0B46E8] focus:bg-white focus:outline-none"
                 />
               </div>
               <p className="mt-1 text-[11.5px] text-muted-foreground">{t.periodHint}</p>
@@ -596,7 +595,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                     onChange={(e) => setForm((f) => ({ ...f, org: e.target.value }))}
                     placeholder={t.orgPlaceholder}
                     maxLength={120}
-                    className="mt-1 h-11 w-full rounded-xl border border-border bg-white px-3 text-[14px] focus:border-primary focus:outline-none"
+                    className="mt-1 h-11 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 text-[14px] focus:border-[#0B46E8] focus:bg-white focus:outline-none"
                   />
                 </label>
                 <div className="grid grid-cols-1 gap-x-3 gap-y-4 sm:grid-cols-2">
@@ -607,7 +606,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                       onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
                       placeholder={t.rolePlaceholder}
                       maxLength={60}
-                      className="mt-1 h-11 w-full rounded-xl border border-border bg-white px-3 text-[14px] focus:border-primary focus:outline-none"
+                      className="mt-1 h-11 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 text-[14px] focus:border-[#0B46E8] focus:bg-white focus:outline-none"
                     />
                   </label>
                   <label className="block text-[12.5px] font-medium text-foreground/80">
@@ -617,7 +616,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                       onChange={(e) => setForm((f) => ({ ...f, rank: e.target.value }))}
                       placeholder={t.rankPlaceholder}
                       maxLength={40}
-                      className="mt-1 h-11 w-full rounded-xl border border-border bg-white px-3 text-[14px] focus:border-primary focus:outline-none"
+                      className="mt-1 h-11 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 text-[14px] focus:border-[#0B46E8] focus:bg-white focus:outline-none"
                     />
                   </label>
                 </div>
@@ -650,10 +649,12 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
         {!formOpen ? (
           experiences.length === 0 ? (
           !formOpen ? (
-            <div className="mt-10 rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-12 text-center">
-              <Sparkle className="mx-auto h-7 w-7 text-[#0B46E8]" weight="fill" aria-hidden />
-              <p className="mt-3 text-[15px] font-bold text-[#0B1227]">{t.emptyTitle}</p>
-              <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted-foreground">
+            <div className="mt-10 rounded-2xl bg-[#F2F4F6] px-6 py-12 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#EDF1FD]">
+                <Sparkle className="h-6 w-6 text-[#0B46E8]" weight="fill" aria-hidden />
+              </div>
+              <p className="mt-3 text-[15px] font-bold text-[#191F28]">{t.emptyTitle}</p>
+              <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#8B95A1]">
                 {t.emptyDescLine1}
                 <br />
                 {t.emptyDescLine2}
@@ -675,7 +676,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                     type="button"
                     onClick={() => setFilterType(tab.value)}
                     className={`shrink-0 border-b-2 px-3 py-2 text-[13px] font-semibold transition ${
-                      active ? "border-primary text-[#0B1227]" : "border-transparent text-muted-foreground hover:text-foreground"
+                      active ? "border-[#0B46E8] text-[#191F28]" : "border-transparent text-[#8B95A1] hover:text-[#191F28]"
                     }`}
                   >
                     {tab.label}
@@ -700,7 +701,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") openEdit(exp);
                     }}
-                    className="group w-full cursor-pointer rounded-xl border border-border bg-card p-3.5 text-left transition hover:border-primary/40"
+                    className="group w-full cursor-pointer rounded-2xl border border-[#F2F4F6] bg-white p-4 text-left transition hover:border-[#0B46E8]/30 hover:shadow-card"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -731,7 +732,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                         {exp.roleTags && exp.roleTags.length > 0 ? (
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {exp.roleTags.map((tag) => (
-                              <span key={tag} className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-[#0B46E8]">
+                              <span key={tag} className="rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[11px] font-medium text-[#0B46E8]">
                                 {tag}
                               </span>
                             ))}
@@ -770,7 +771,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                           e.stopPropagation();
                           openEditChat(exp);
                         }}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-[13px] font-semibold text-[#0B46E8] transition hover:bg-primary/10"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-[#EDF1FD] px-4 py-2.5 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#E2EAFC]"
                       >
                         <Sparkle className="h-4 w-4" weight="fill" aria-hidden />
                         {t.fillWithAiChat}

@@ -12,44 +12,44 @@ type Copy = {
 
 const dict: Record<PlatformLocale, Copy> = {
   ko: {
-    remaining: (n) => `이번 달 AI 티켓 ${n}개`,
-    limitTitle: "이번 달 무료 한도를 다 썼어요",
-    limitDesc: (date) => `${date}에 무료 한도가 다시 충전돼요.`,
+    remaining: (n) => `AI 티켓 ${n}개`,
+    limitTitle: "AI 티켓을 다 썼어요",
+    limitDesc: (date) => `${date}에 티켓이 다시 충전돼요.`,
     comingSoon: "곧 프리미엄으로 무제한 이용할 수 있어요.",
     ok: "확인"
   },
   en: {
-    remaining: (n) => `${n} AI tickets this month`,
-    limitTitle: "You've used this month's free limit",
-    limitDesc: (date) => `Your free limit refreshes on ${date}.`,
+    remaining: (n) => `${n} AI tickets`,
+    limitTitle: "You are out of AI tickets",
+    limitDesc: (date) => `Your tickets refill on ${date}.`,
     comingSoon: "Unlimited use with Premium is coming soon.",
     ok: "Got it"
   },
   "zh-CN": {
-    remaining: (n) => `本月 AI 券 ${n} 张`,
-    limitTitle: "本月免费次数已用完",
-    limitDesc: (date) => `免费次数将于 ${date} 重置。`,
+    remaining: (n) => `AI 券 ${n} 张`,
+    limitTitle: "AI 券已用完",
+    limitDesc: (date) => `券将于 ${date} 补充。`,
     comingSoon: "高级版无限使用即将上线。",
     ok: "知道了"
   },
   vi: {
-    remaining: (n) => `${n} vé AI tháng này`,
-    limitTitle: "Bạn đã dùng hết lượt miễn phí tháng này",
-    limitDesc: (date) => `Lượt miễn phí sẽ làm mới vào ${date}.`,
+    remaining: (n) => `${n} vé AI`,
+    limitTitle: "Bạn đã hết vé AI",
+    limitDesc: (date) => `Vé sẽ được nạp lại vào ${date}.`,
     comingSoon: "Dùng không giới hạn với Premium sẽ sớm ra mắt.",
     ok: "Đã hiểu"
   },
   ja: {
-    remaining: (n) => `今月の AI チケット ${n} 枚`,
-    limitTitle: "今月の無料回数を使い切りました",
-    limitDesc: (date) => `${date} に無料回数がリセットされます。`,
+    remaining: (n) => `AI チケット ${n} 枚`,
+    limitTitle: "AI チケットを使い切りました",
+    limitDesc: (date) => `${date} にチケットが補充されます。`,
     comingSoon: "プレミアムでの無制限利用は近日提供予定です。",
     ok: "OK"
   },
   id: {
-    remaining: (n) => `${n} tiket AI bulan ini`,
-    limitTitle: "Kuota gratis bulan ini sudah habis",
-    limitDesc: (date) => `Kuota gratis akan disetel ulang pada ${date}.`,
+    remaining: (n) => `${n} tiket AI`,
+    limitTitle: "Tiket AI Anda habis",
+    limitDesc: (date) => `Tiket akan diisi ulang pada ${date}.`,
     comingSoon: "Penggunaan tanpa batas dengan Premium segera hadir.",
     ok: "Mengerti"
   }

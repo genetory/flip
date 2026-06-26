@@ -207,7 +207,7 @@ export function ResumeDiagnosisEntryPage() {
             {/* 기업 추천 후보 등록 — funnel의 마지막 단계 (동의 → content 플래그 저장) */}
             {justRegistered || previewContent?.poolOptIn ? (
               <div className="mt-6 flex items-start gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-                <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" weight="fill" aria-hidden />
+                <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#15C47E]" weight="fill" aria-hidden />
                 <div>
                   <p className="text-[14px] font-bold text-emerald-900">{t.registeredTitle}</p>
                   <p className="mt-1 text-[12.5px] leading-relaxed text-emerald-800">
@@ -216,7 +216,7 @@ export function ResumeDiagnosisEntryPage() {
                 </div>
               </div>
             ) : (
-              <div className="mt-6 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-4">
+              <div className="mt-6 rounded-2xl border border-[#0B46E8]/30 bg-[#EDF1FD]/60 px-4 py-4">
                 <div className="flex items-center gap-2">
                   <Buildings className="h-5 w-5 text-[#0B46E8]" weight="fill" aria-hidden />
                   <p className="text-[14px] font-bold text-[#0B1227]">{t.registerCardTitle}</p>
@@ -265,7 +265,7 @@ export function ResumeDiagnosisEntryPage() {
     <ResumeMakerShell>
       <section className="container max-w-3xl px-5 py-16 md:py-24">
         <div className="text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-[12px] font-bold text-[#0B46E8]">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EDF1FD] px-3 py-1 text-[12px] font-bold text-[#0B46E8]">
             <Stethoscope className="h-3.5 w-3.5" weight="fill" aria-hidden />
             {t.badge}
           </span>
@@ -304,7 +304,7 @@ export function ResumeDiagnosisEntryPage() {
                   <button
                     type="button"
                     onClick={() => void runDiagnosis(r)}
-                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-card transition hover:border-primary/40"
+                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-card transition hover:border-[#0B46E8]/40"
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-[14px] font-semibold text-foreground">{r.title || t.untitledResume}</span>

@@ -13183,7 +13183,10 @@ function aiLangDirective(locale?: string): string {
 // 모든 AI 기능이 '하나의 월간 공용 티켓 풀'을 같이 쓴다. 가벼운 작업은 1, 보통 2,
 // 무거운(전체 생성/파싱) 3 티켓. 보조성(웹 fetch)은 0(과금 안 함). KST 월 단위 리셋.
 // 초기 정책: 넉넉히 10000 지급(런칭/테스트 단계에서 사실상 막히지 않게).
-const AI_MONTHLY_CREDITS = 10000;
+// 공용 AI 티켓 지갑 — 가입 시 1회 보너스 + 매일 적립(상한). 사용 시 차감.
+const AI_WELCOME_GRANT = 1000; // 가입(첫 사용) 시 1회 지급 — 스테이징 테스트용(프로덕션 전 15로 되돌릴 것)
+const AI_DAILY_GRANT = 5; // 매일 적립
+const AI_DAILY_CAP = 20; // 적립 누적 상한
 
 // 기능별 티켓 비용. 없는 키는 0(과금 안 함).
 const AI_FEATURE_COST: Record<string, number> = {
@@ -13211,39 +13214,74 @@ function aiFeatureCost(feature: string): number {
   return AI_FEATURE_COST[feature] ?? 0;
 }
 
-// KST(UTC+9) 기준 "YYYY-MM".
+// KST(UTC+9) 기준 epoch-day 인덱스(자정 단위 정수). 적립 일수 계산에 사용.
+function aiKstDayIndex(): number {
+  return Math.floor((Date.now() + 9 * 60 * 60 * 1000) / 86_400_000);
+}
+// KST 월 단위 키 — AiUsage(분석 로그)용으로 유지.
 function aiQuotaPeriodKey(): string {
   const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
   return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-// 다음 리셋 시점(다음 달 1일 00:00 KST)을 UTC ISO 로.
+// 다음 적립 시점(다음 날 00:00 KST)을 UTC ISO 로.
 function aiQuotaResetAt(): string {
-  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  const nextMonthKstMidnightUtcMs = Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth() + 1, 1, 0, 0, 0) - 9 * 60 * 60 * 1000;
-  return new Date(nextMonthKstMidnightUtcMs).toISOString();
+  const nextDayKstMidnightUtcMs = (aiKstDayIndex() + 1) * 86_400_000 - 9 * 60 * 60 * 1000;
+  return new Date(nextDayKstMidnightUtcMs).toISOString();
 }
 
 type AiCreditStatus = { limit: number; used: number; remaining: number; resetAt: string };
 
-// 공용 티켓 잔량 — 이번 달 모든 AI 사용(차감된 티켓) 합산 기준.
-async function aiCreditStatus(userId: string): Promise<AiCreditStatus> {
-  const periodKey = aiQuotaPeriodKey();
-  const rows = await prisma.aiUsage.findMany({ where: { userId, periodKey } });
-  const used = rows.reduce((sum, r) => sum + r.count, 0);
-  return { limit: AI_MONTHLY_CREDITS, used, remaining: Math.max(0, AI_MONTHLY_CREDITS - used), resetAt: aiQuotaResetAt() };
+// 지갑을 불러오며 가입 보너스 + 경과 일수만큼 일일 적립(상한)을 반영한다.
+// 변경이 있으면 저장하고, 항상 최신 잔액을 반환한다.
+async function aiWalletReconcile(userId: string): Promise<number> {
+  const today = aiKstDayIndex();
+  const wallet = await prisma.aiWallet.findUnique({ where: { userId } });
+  // 첫 사용 — 가입 보너스 지급.
+  if (!wallet) {
+    const created = await prisma.aiWallet.create({
+      data: { userId, balance: AI_WELCOME_GRANT, lastGrantDay: today, welcomed: true }
+    });
+    return created.balance;
+  }
+  // 날이 바뀌었으면 경과 일수만큼 적립(상한까지). 잔액이 이미 상한 이상이면 유지.
+  if (wallet.lastGrantDay < today) {
+    const days = today - wallet.lastGrantDay;
+    const next = Math.min(AI_DAILY_CAP, wallet.balance + AI_DAILY_GRANT * days);
+    const balance = Math.max(wallet.balance, next); // 적립은 줄이지 않는다
+    const updated = await prisma.aiWallet.update({
+      where: { userId },
+      data: { balance, lastGrantDay: today }
+    });
+    return updated.balance;
+  }
+  return wallet.balance;
 }
 
-// 성공한 호출의 비용(cost 티켓)을 차감(증가). 동시 요청은 rate-limit 으로 충분히 막혀 무시 가능.
+// 공용 티켓 잔량 — 지갑 기준(적립 반영).
+async function aiCreditStatus(userId: string): Promise<AiCreditStatus> {
+  const remaining = await aiWalletReconcile(userId);
+  return { limit: AI_DAILY_CAP, used: Math.max(0, AI_DAILY_CAP - remaining), remaining, resetAt: aiQuotaResetAt() };
+}
+
+// 성공한 호출의 비용을 지갑에서 차감(원자적 조건부 감소) + 분석용 사용량 로그 증가.
 async function aiQuotaConsume(userId: string, feature: string): Promise<void> {
   const cost = aiFeatureCost(feature);
   if (cost <= 0) return;
-  const periodKey = aiQuotaPeriodKey();
-  await prisma.aiUsage.upsert({
-    where: { userId_feature_periodKey: { userId, feature, periodKey } },
-    create: { userId, feature, periodKey, count: cost },
-    update: { count: { increment: cost } }
+  // 잔액이 충분할 때만 차감(동시성 안전). 부족하면 무시(게이트에서 이미 막힘).
+  await prisma.aiWallet.updateMany({
+    where: { userId, balance: { gte: cost } },
+    data: { balance: { decrement: cost } }
   });
+  // 분석 로그(월 단위 기능별 사용량) — 잔액과 별개로 통계 유지.
+  const periodKey = aiQuotaPeriodKey();
+  await prisma.aiUsage
+    .upsert({
+      where: { userId_feature_periodKey: { userId, feature, periodKey } },
+      create: { userId, feature, periodKey, count: cost },
+      update: { count: { increment: cost } }
+    })
+    .catch(() => {});
 }
 
 // 라우트 미들웨어 — 호출 전 잔량 확인(부족하면 402), 성공 응답(ok:true) 시 비용 차감.
@@ -13393,7 +13431,7 @@ app.post(
   }
 );
 
-// GET /members/me/ai/usage — 이번 달 남은 공용 AI 티켓(UI 표시용).
+// GET /members/me/ai/usage — 보유한 공용 AI 티켓 잔량(UI 표시용). 조회 시 일일 적립 반영.
 app.get(
   "/members/me/ai/usage",
   authenticate,

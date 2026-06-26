@@ -77,25 +77,25 @@ export function ResumeSectionNav({
             // 좁은 레일 — 줄을 나눠 글자가 잘리지 않게.
             <>
               <div className="flex items-baseline justify-between gap-1">
-                <span className="text-[12px] font-bold text-[#0B1227]">{t.completion}</span>
+                <span className="text-[12px] font-bold text-[#191F28]">{t.completion}</span>
                 <span className="text-[13px] font-bold text-[#0B46E8]">{progress.percent}%</span>
               </div>
-              <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[#F2F4F6]">
                 <div className="h-full rounded-full bg-[#0B46E8] transition-[width] duration-500" style={{ width: `${progress.percent}%` }} />
               </div>
-              <p className="mt-1.5 truncate text-[11px] text-muted-foreground">
+              <p className="mt-1.5 truncate text-[11px] text-[#8B95A1]">
                 {progress.level.emoji} {levelLabel(progress.level.key)}
               </p>
             </>
           ) : (
             <>
               <div className="flex items-center justify-between text-[12px]">
-                <span className="font-bold text-[#0B1227]">
+                <span className="font-bold text-[#191F28]">
                   {progress.level.emoji} {t.resumeCompletion} · {levelLabel(progress.level.key)}
                 </span>
                 <span className="font-semibold text-[#0B46E8]">{progress.percent}%</span>
               </div>
-              <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[#F2F4F6]">
                 <div className="h-full rounded-full bg-[#0B46E8] transition-[width] duration-500" style={{ width: `${progress.percent}%` }} />
               </div>
             </>
@@ -106,8 +106,8 @@ export function ResumeSectionNav({
         ref={navRef}
         className={
           rail
-            ? "mb-5 flex items-center gap-1 overflow-x-auto border-b border-border/60 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mb-0 lg:flex-col lg:items-stretch lg:gap-0.5 lg:overflow-visible lg:border-b-0 lg:pb-0"
-            : "mb-5 flex items-center gap-1 overflow-x-auto border-b border-border/60 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            ? "mb-5 flex items-center gap-1 overflow-x-auto border-b border-[#F2F4F6] pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mb-0 lg:flex-col lg:items-stretch lg:gap-0.5 lg:overflow-visible lg:border-b-0 lg:pb-0"
+            : "mb-5 flex items-center gap-1 overflow-x-auto border-b border-[#F2F4F6] pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         }
       >
         {SECTIONS.map((s) => {
@@ -119,11 +119,11 @@ export function ResumeSectionNav({
               data-active={isActive ? "true" : undefined}
               href={s.href(resumeId)}
               className={`inline-flex h-10 shrink-0 items-center gap-1 rounded-full px-4 text-[13.5px] font-semibold transition ${
-                rail ? "lg:h-auto lg:min-h-[2.25rem] lg:w-full lg:justify-start lg:whitespace-normal lg:px-3 lg:py-1.5 lg:text-[13px] lg:leading-tight" : ""
-              } ${isActive ? "bg-primary/10 text-[#0B46E8]" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                rail ? "lg:h-auto lg:min-h-[2.25rem] lg:w-full lg:justify-start lg:whitespace-normal lg:rounded-xl lg:px-3 lg:py-1.5 lg:text-[13px] lg:leading-tight" : ""
+              } ${isActive ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-[#4E5968] hover:bg-[#F2F4F6] hover:text-[#191F28]"}`}
             >
               {t[s.labelKey]}
-              {isDone ? <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-label={t.done} /> : null}
+              {isDone ? <span className="h-1.5 w-1.5 rounded-full bg-[#15C47E]" aria-label={t.done} /> : null}
             </Link>
           );
         })}

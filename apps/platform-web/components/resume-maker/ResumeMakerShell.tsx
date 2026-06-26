@@ -1,10 +1,10 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { CircleNotch, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { CircleNotch, House, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { paperlogy } from "../../lib/fonts";
 import { useShellCopy } from "../../lib/resume-maker-i18n/shell";
@@ -29,7 +29,7 @@ function GnbTicket() {
       className="inline-flex items-center gap-1 rounded-full border border-[#0B46E8]/20 bg-[#0B46E8]/[0.06] px-2.5 py-1 text-[12.5px] font-bold text-[#0B46E8]"
     >
       <Sparkle weight="fill" className="h-4 w-4" aria-hidden />
-      {remaining}
+      {remaining.toLocaleString()}
     </span>
   );
 }
@@ -77,8 +77,12 @@ export function ResumeMakerShell({
   // 바로, 현재 이력서가 없으면 메인으로 보내 고르게 한다.
   const isTailor = pathname?.includes("/tailor") ?? false;
   const isInterview = pathname?.includes("/interview") ?? false;
-  const tools: { labelKey: "toolResumeMaker" | "toolTailor" | "toolInterview"; href: string; active: boolean; wip?: boolean }[] = [
-    { labelKey: "toolResumeMaker", href: "/resume-maker", active: !isTailor && !isInterview },
+  const isHome = pathname === "/resume-maker";
+  // 편집 계열(편집·경험·온보딩·대화·미리보기·진단) — 홈/도구가 아닌 이력서 작업 화면.
+  const isEditor = !isHome && !isTailor && !isInterview;
+  const tools: { labelKey: "home" | "toolResumeMaker" | "toolTailor" | "toolInterview"; href: string; active: boolean; wip?: boolean; home?: boolean }[] = [
+    { labelKey: "home", href: "/resume-maker", active: isHome, home: true },
+    { labelKey: "toolResumeMaker", href: activeId ? `/resume-maker/${activeId}/edit` : "/resume-maker", active: isEditor },
     { labelKey: "toolTailor", href: activeId ? `/resume-maker/${activeId}/tailor` : "/resume-maker/tailor", active: isTailor, wip: RESUME_TOOLS_WIP },
     { labelKey: "toolInterview", href: activeId ? `/resume-maker/${activeId}/interview` : "/resume-maker/interview", active: isInterview, wip: RESUME_TOOLS_WIP }
   ];
@@ -112,25 +116,31 @@ export function ResumeMakerShell({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background font-sans text-foreground antialiased">
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur">
+    // resume-maker 전 화면의 primary/accent(버튼·링크 등 공용 Button 포함)를 홈 브랜드
+    // 블루(#0B46E8 = hsl(224 91% 48%))로 통일. 전역 테마는 건드리지 않는 스코프 오버라이드.
+    <div
+      className="flex min-h-screen flex-col bg-background font-sans text-foreground antialiased"
+      style={{ ["--primary"]: "224 91% 48%", ["--accent"]: "224 91% 48%" } as CSSProperties}
+    >
+      <header className="sticky top-0 z-40 border-b border-[#F2F4F6] bg-white">
         <div className="container relative flex h-14 max-w-6xl items-center gap-3">
           {left ? <div className="flex shrink-0 items-center">{left}</div> : null}
           <div className="flex min-w-0 items-center gap-2">
-            <Link href="/resume-maker" className="shrink-0">
+            <Link href="/" className="shrink-0">
               <Image src="/img_logo.webp" alt="aply" width={180} height={48} className="h-6 w-auto md:h-7" priority />
             </Link>
           </div>
-          {/* 상단 도구 네비 (데스크탑) — 컨테이너 정중앙 고정(좌/우 슬롯 너비와 무관) */}
-          <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-6 md:flex xl:gap-8">
+          {/* 상단 도구 네비 (데스크탑) — 세그먼트형 pill, 컨테이너 정중앙 고정 */}
+          <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full bg-[#F2F4F6] p-1 md:flex">
             {tools.map((tool) => (
               <Link
                 key={tool.labelKey}
                 href={tool.href}
-                className={`inline-flex items-center gap-1 text-xs transition-colors ${
-                  tool.active ? "font-semibold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] transition ${
+                  tool.active ? "bg-white font-bold text-[#0B46E8] shadow-sm" : "font-semibold text-[#4E5968] hover:text-[#191F28]"
                 }`}
               >
+                {tool.home ? <House weight={tool.active ? "fill" : "bold"} className="h-4 w-4" aria-hidden /> : null}
                 {t[tool.labelKey]}
                 {tool.wip ? <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">{t.wipBadge}</span> : null}
               </Link>
@@ -142,16 +152,17 @@ export function ResumeMakerShell({
             <ResumeMakerLanguageSwitch />
           </div>
         </div>
-        {/* 상단 도구 네비 (모바일) — 가운데 정렬, 넘치면 가로 스크롤 */}
-        <nav className="flex items-center justify-center gap-6 overflow-x-auto border-t border-border/60 px-4 py-2.5 md:hidden">
+        {/* 상단 도구 네비 (모바일) — pill, 가운데 정렬, 넘치면 가로 스크롤 */}
+        <nav className="flex items-center justify-center gap-1.5 overflow-x-auto border-t border-[#F2F4F6] px-4 py-2 md:hidden">
           {tools.map((tool) => (
             <Link
               key={tool.labelKey}
               href={tool.href}
-              className={`inline-flex shrink-0 items-center gap-1 text-xs transition-colors ${
-                tool.active ? "font-semibold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
+              className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] transition ${
+                tool.active ? "bg-[#EDF1FD] font-bold text-[#0B46E8]" : "font-semibold text-[#4E5968] hover:text-[#191F28]"
               }`}
             >
+              {tool.home ? <House weight={tool.active ? "fill" : "bold"} className="h-4 w-4" aria-hidden /> : null}
               {t[tool.labelKey]}
               {tool.wip ? <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">{t.wipBadge}</span> : null}
             </Link>

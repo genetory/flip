@@ -13,7 +13,6 @@ import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { PositionRow, mapPublicPositionToCard } from "../pages/PositionsPage";
-import { paperlogy } from "../../lib/fonts";
 import { type PublicPositionListItem, type ResumeContent } from "../../lib/member-profile-client";
 import {
   AiQuotaError,
@@ -35,7 +34,7 @@ import { useTailorCopy } from "../../lib/resume-maker-i18n/tailor";
 import { useToolPickerCopy } from "../../lib/resume-maker-i18n/tool-picker";
 
 function scoreColor(s: number): string {
-  if (s >= 75) return "#16a34a";
+  if (s >= 75) return "#15C47E";
   if (s >= 50) return "#0B46E8";
   if (s >= 30) return "#d97706";
   return "#dc2626";
@@ -183,7 +182,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
 
   return (
     <ResumeMakerShell>
-      <ResumeBackBar backHref="/resume-maker" backLabel={picker.resumeList} title={resumeTitle} />
+      <ResumeBackBar backHref="/resume-maker" backLabel={picker.back} title={resumeTitle} />
       {loading ? (
         <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
           <CircleNotch className="h-5 w-5 animate-spin" weight="bold" aria-hidden />
@@ -194,9 +193,9 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
             <div className="mx-auto max-w-2xl">
             <div className="flex items-center gap-2">
               <ChatCircleDots weight="bold" className="h-6 w-6 text-[#0B46E8]" aria-hidden />
-              <h2 className={`${paperlogy.className} text-2xl font-black tracking-[-0.02em] text-[#0B1227] md:text-3xl`}>{t.title}</h2>
+              <h2 className="text-[22px] font-bold tracking-[-0.02em] text-[#191F28] md:text-[26px]">{t.title}</h2>
             </div>
-            <p className="mt-2 text-[14px] text-muted-foreground">{t.desc}</p>
+            <p className="mt-2 text-[14px] text-[#8B95A1]">{t.desc}</p>
 
             {/* 1단계 — 준비(직무/JD) */}
             {questions.length === 0 ? (
@@ -212,7 +211,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                         if (m === "position" && pager.positions === null) pager.search();
                       }}
                       className={`relative -mb-px pb-2.5 text-[16px] font-extrabold tracking-[-0.01em] transition-colors ${
-                        inputMode === m ? "text-[#0B1227]" : "text-muted-foreground hover:text-foreground"
+                        inputMode === m ? "text-[#191F28]" : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       {m === "text" ? tt.modeText : tt.modePosition}
@@ -230,7 +229,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                       onChange={(e) => setJobRole(e.target.value)}
                       placeholder={t.jobRolePlaceholder}
                       maxLength={120}
-                      className="mt-1 h-11 w-full rounded-xl border border-border bg-white px-3 text-[14px] focus:border-primary focus:outline-none"
+                      className="mt-1 h-11 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 text-[14px] focus:border-[#0B46E8] focus:bg-white focus:outline-none"
                     />
                   </label>
                   <label className="mt-4 block text-[12.5px] font-medium text-foreground/80">
@@ -244,7 +243,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                       placeholder={t.jobPlaceholder}
                       rows={5}
                       maxLength={6000}
-                      className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] leading-relaxed focus:border-primary focus:outline-none"
+                      className="mt-1 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 py-2.5 text-[14px] leading-relaxed focus:border-[#0B46E8] focus:bg-white focus:outline-none"
                     />
                   </label>
                   </>
@@ -262,7 +261,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                           }
                         }}
                         placeholder={tt.positionSearchPlaceholder}
-                        className="h-11 w-full flex-1 rounded-xl border border-border bg-white px-3 text-[14px] text-slate-800 focus:border-primary focus:outline-none placeholder:text-slate-400"
+                        className="h-11 w-full flex-1 rounded-xl border border-transparent bg-[#F2F4F6] px-3 text-[14px] text-slate-800 focus:border-[#0B46E8] focus:bg-white focus:outline-none placeholder:text-slate-400"
                       />
                       <Button
                         size="lg"
@@ -320,12 +319,12 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
               </>
             ) : done ? (
               /* 완료 — 요약(평균 점수) */
-              <div className="mt-8 rounded-2xl border border-border bg-card p-6 text-center shadow-card">
-                <CheckCircle weight="fill" className="mx-auto h-10 w-10 text-emerald-500" aria-hidden />
-                <p className={`${paperlogy.className} mt-3 text-xl font-black text-[#0B1227]`}>{t.finishTitle}</p>
+              <div className="mt-8 rounded-2xl border border-[#F2F4F6] bg-white p-6 text-center shadow-card">
+                <CheckCircle weight="fill" className="mx-auto h-10 w-10 text-[#15C47E]" aria-hidden />
+                <p className="mt-3 text-xl font-bold text-[#191F28]">{t.finishTitle}</p>
                 <p className="mt-1.5 text-[13.5px] text-muted-foreground">{t.finishDesc}</p>
                 {avgScore !== null ? (
-                  <div className="mt-4 inline-flex items-baseline gap-1.5 rounded-xl bg-muted/50 px-4 py-2.5">
+                  <div className="mt-4 inline-flex items-baseline gap-1.5 rounded-xl bg-[#F2F4F6] px-4 py-2.5">
                     <span className="text-[12.5px] font-bold text-muted-foreground">{t.scoreLabel}</span>
                     <span className="text-2xl font-black" style={{ color: scoreColor(avgScore) }}>{avgScore}</span>
                     <span className="text-[13px] text-muted-foreground">/ 100</span>
@@ -347,7 +346,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                 <div className="flex items-center justify-between gap-3">
                   <span className="inline-flex items-center gap-2">
                     {current?.category ? (
-                      <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-[#0B46E8]">{catLabel(current.category)}</span>
+                      <span className="inline-flex rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[11px] font-bold text-[#0B46E8]">{catLabel(current.category)}</span>
                     ) : null}
                     <span className="text-[12.5px] font-bold text-muted-foreground">{t.questionProgress(step + 1, questions.length)}</span>
                   </span>
@@ -356,7 +355,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                   </button>
                 </div>
                 {/* 진행 바 */}
-                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#F2F4F6]">
                   <div
                     className="h-full rounded-full bg-[#0B46E8] transition-[width] duration-300"
                     style={{ width: `${((step + 1) / questions.length) * 100}%` }}
@@ -364,8 +363,8 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                 </div>
 
                 {/* 질문 */}
-                <div className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-card">
-                  <p className="text-[16px] font-bold leading-relaxed text-[#0B1227]">{current?.question}</p>
+                <div className="mt-4 rounded-2xl border border-[#F2F4F6] bg-white p-5 shadow-card">
+                  <p className="text-[16px] font-bold leading-relaxed text-[#191F28]">{current?.question}</p>
                   {current?.intent ? (
                     <p className="mt-2 flex items-start gap-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
                       <Lightbulb weight="fill" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden />
@@ -383,7 +382,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                     placeholder={t.answerPlaceholder}
                     rows={5}
                     maxLength={4000}
-                    className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] leading-relaxed focus:border-primary focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 py-2.5 text-[14px] leading-relaxed focus:border-[#0B46E8] focus:bg-white focus:outline-none"
                   />
                 </label>
 
@@ -395,7 +394,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                   </Button>
                 ) : (
                   <div className="mt-4 space-y-4">
-                    <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+                    <div className="rounded-2xl border border-[#F2F4F6] bg-white p-4 shadow-card">
                       <div className="flex items-baseline justify-between">
                         <p className="text-[12px] font-bold text-muted-foreground">{t.scoreLabel}</p>
                         <span className="text-2xl font-black" style={{ color: scoreColor(feedback.score) }}>{feedback.score}<span className="text-[13px] text-muted-foreground"> / 100</span></span>
@@ -423,7 +422,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
                     </div>
 
                     {feedback.sampleAnswer ? (
-                      <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+                      <div className="rounded-2xl bg-[#EDF1FD] p-4">
                         <div className="flex items-center justify-between">
                           <p className="text-[12.5px] font-bold text-[#0B46E8]">{t.sampleTitle}</p>
                           <button type="button" onClick={() => copyText(feedback.sampleAnswer)} className="inline-flex items-center gap-1 text-[12px] font-medium text-[#0B46E8] transition hover:underline">
@@ -453,7 +452,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
             )}
             </div>
           </div>
-          <ResumeToolPreview content={content} design={design} expandLabel={picker.expand} previewLabel={picker.preview} />
+          <ResumeToolPreview content={content} design={design} previewLabel={picker.preview} pdfHref={`/resume-maker/${resumeId}/preview`} pdfLabel={picker.previewPdf} />
         </div>
       )}
       {quotaOpen ? <AiQuotaModal resetAt={resetAt} onClose={() => setQuotaOpen(false)} /> : null}

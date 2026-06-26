@@ -2,7 +2,7 @@ import type { PlatformLocale } from "../auth-messages";
 import { useLanguage } from "../../components/i18n/LanguageProvider";
 
 type Copy = {
-  backToEdit: string;
+  back: string;
   viewOriginal: string;
   loading: string;
   slogan: string;
@@ -15,7 +15,7 @@ type Copy = {
 
 const dict: Record<PlatformLocale, Copy> = {
   ko: {
-    backToEdit: "편집으로",
+    back: "뒤로",
     viewOriginal: "원문",
     loading: "불러오는 중...",
     slogan: "AI로 만드는 이력서 · aply.global",
@@ -26,7 +26,7 @@ const dict: Record<PlatformLocale, Copy> = {
     langHint: "한국 기업 지원엔 한국어 이력서가 유리해요 — 위에서 ‘한국어’로 전환하면 자동 번역됩니다."
   },
   en: {
-    backToEdit: "Back to edit",
+    back: "Back",
     viewOriginal: "Original",
     loading: "Loading...",
     slogan: "AI-powered resume builder · aply.global",
@@ -37,7 +37,7 @@ const dict: Record<PlatformLocale, Copy> = {
     langHint: "Korean employers prefer a Korean resume — switch to ‘한국어’ above to auto-translate."
   },
   "zh-CN": {
-    backToEdit: "返回编辑",
+    back: "返回",
     viewOriginal: "原文",
     loading: "加载中...",
     slogan: "AI 智能简历 · aply.global",
@@ -48,7 +48,7 @@ const dict: Record<PlatformLocale, Copy> = {
     langHint: "申请韩国企业时韩语简历更有利 — 在上方切换为‘한국어’即可自动翻译。"
   },
   vi: {
-    backToEdit: "Quay lại chỉnh sửa",
+    back: "Quay lại",
     viewOriginal: "Bản gốc",
     loading: "Đang tải...",
     slogan: "Hồ sơ tạo bằng AI · aply.global",
@@ -59,7 +59,7 @@ const dict: Record<PlatformLocale, Copy> = {
     langHint: "Nhà tuyển dụng Hàn Quốc thích hồ sơ tiếng Hàn — chuyển sang ‘한국어’ ở trên để tự động dịch."
   },
   ja: {
-    backToEdit: "編集に戻る",
+    back: "戻る",
     viewOriginal: "原文",
     loading: "読み込み中...",
     slogan: "AIで作る履歴書 · aply.global",
@@ -70,7 +70,7 @@ const dict: Record<PlatformLocale, Copy> = {
     langHint: "韓国企業への応募は韓国語の履歴書が有利です — 上で「한국어」に切り替えると自動翻訳されます。"
   },
   id: {
-    backToEdit: "Kembali ke edit",
+    back: "Kembali",
     viewOriginal: "Asli",
     loading: "Memuat...",
     slogan: "Resume berbasis AI · aply.global",

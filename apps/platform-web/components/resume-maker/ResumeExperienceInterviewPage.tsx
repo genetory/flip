@@ -19,7 +19,6 @@ import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { useResumeMakerAutosave } from "./useResumeMakerAutosave";
 import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
-import { paperlogy } from "../../lib/fonts";
 import { postDraftResumeText, type ResumeContent } from "../../lib/member-profile-client";
 import {
   generateExperienceBullets,
@@ -369,7 +368,7 @@ export function ResumeExperienceInterviewPage({ resumeId, experienceId }: { resu
           >
             <ArrowLeft className="h-4 w-4" weight="bold" aria-hidden /> {t.experienceListBack}
           </button>
-          <span className="truncate text-[13px] font-semibold text-[#0B1227]">{exp.title}</span>
+          <span className="truncate text-[13px] font-semibold text-[#191F28]">{exp.title}</span>
         </div>
 
         {phase === "preparing" ? <div className="py-16">{spinner(t.preparingQuestions)}</div> : null}
@@ -389,7 +388,7 @@ export function ResumeExperienceInterviewPage({ resumeId, experienceId }: { resu
         {phase === "generating" ? (
           <div className="py-16 text-center">
             <Sparkle className="mx-auto h-8 w-8 animate-pulse text-[#0B46E8]" weight="fill" aria-hidden />
-            <p className="mt-4 text-[15px] font-semibold text-[#0B1227]">{generatingPhrases(t)[genPhrase]}</p>
+            <p className="mt-4 text-[15px] font-semibold text-[#191F28]">{generatingPhrases(t)[genPhrase]}</p>
             <p className="mt-1.5 text-[12.5px] text-muted-foreground">{t.generatingNote}</p>
           </div>
         ) : null}
@@ -472,17 +471,17 @@ function InterviewView({
         <span>{t.questionProgress(idx + 1, questions.length)}</span>
         <span>{t.answeredCount(answeredCount)}</span>
       </div>
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${((idx + 1) / questions.length) * 100}%` }} />
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#F2F4F6]">
+        <div className="h-full rounded-full bg-[#0B46E8] transition-all" style={{ width: `${((idx + 1) / questions.length) * 100}%` }} />
       </div>
 
       {exp.interview?.coachNote && idx === 0 ? (
-        <p className="mt-5 rounded-xl bg-primary/5 px-4 py-2.5 text-[13px] leading-relaxed text-foreground/80">{exp.interview.coachNote}</p>
+        <p className="mt-5 rounded-xl bg-[#EDF1FD] px-4 py-2.5 text-[13px] leading-relaxed text-[#4E5968]">{exp.interview.coachNote}</p>
       ) : null}
 
       {/* 큰 질문 카드 */}
-      <div className="mt-5 rounded-2xl border border-border bg-card p-6 shadow-card">
-        <h2 className={`${paperlogy.className} text-xl font-black leading-snug tracking-[-0.01em] text-[#0B1227] md:text-2xl`}>{q.prompt}</h2>
+      <div className="mt-5 rounded-2xl border border-[#F2F4F6] bg-white p-6 shadow-card">
+        <h2 className="text-xl font-bold leading-snug tracking-[-0.01em] text-[#191F28] md:text-2xl">{q.prompt}</h2>
         {q.helper ? <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">{q.helper}</p> : null}
         <div className="mt-5">
           <AnswerInput t={t} question={q} answer={answers[q.id]} onChange={(v) => onAnswer(q.id, v)} />
@@ -501,7 +500,7 @@ function InterviewView({
                 onAnswer(q.id, opt.v);
                 if (!isLast) setQIndex(idx + 1);
               }}
-              className="rounded-full border border-border bg-background px-3 py-1.5 text-[12.5px] font-medium text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
+              className="rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-medium text-[#4E5968] transition hover:bg-[#E8EBF0]"
             >
               {opt.label}
             </button>
@@ -543,7 +542,7 @@ function AnswerInput({
 }) {
   const textValue = answer?.kind === "text" ? answer.value : "";
   const choiceValue = answer?.kind === "choices" ? answer.value : [];
-  const inputCls = "w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] focus:border-primary focus:outline-none";
+  const inputCls = "w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 py-2.5 text-[14px] focus:border-[#0B46E8] focus:bg-white focus:outline-none";
 
   if (question.type === "long_text") {
     return (
@@ -593,7 +592,7 @@ function AnswerInput({
               type="button"
               onClick={() => toggle(opt)}
               className={`rounded-full border px-3.5 py-2 text-[13.5px] font-medium transition ${
-                selected ? "border-primary bg-primary/10 text-[#0B46E8]" : "border-border bg-card text-foreground/80 hover:border-primary/40"
+                selected ? "border-[#0B46E8] bg-[#EDF1FD] text-[#0B46E8]" : "border-[#F2F4F6] bg-white text-[#4E5968] hover:border-[#0B46E8]/30"
               }`}
             >
               {opt}
@@ -638,12 +637,12 @@ function ReviewView({
 
   return (
     <div className="mt-6">
-      <h2 className={`${paperlogy.className} text-2xl font-black tracking-[-0.02em] text-[#0B1227] md:text-3xl`}>{t.reviewTitle}</h2>
+      <h2 className="text-[22px] font-bold tracking-[-0.02em] text-[#191F28] md:text-[26px]">{t.reviewTitle}</h2>
       <p className="mt-2 text-[13.5px] text-muted-foreground">{t.reviewDesc}</p>
 
       {/* 원래 입력 */}
       {exp.rawInput ? (
-        <div className="mt-5 rounded-xl border border-border bg-muted/30 p-4">
+        <div className="mt-5 rounded-xl bg-[#F2F4F6] p-4">
           <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{t.rawInputLabel}</p>
           <p className="mt-1.5 text-[13.5px] leading-relaxed text-foreground/75">{exp.rawInput}</p>
         </div>
@@ -663,7 +662,7 @@ function ReviewView({
       {/* 문장 카드들 */}
       <div className="mt-5 space-y-3">
         {bullets.map((b) => (
-          <div key={b.id} className={`rounded-2xl border p-4 shadow-card transition ${b.approved ? "border-primary/50 bg-primary/[0.03]" : "border-border bg-card"}`}>
+          <div key={b.id} className={`rounded-2xl border p-4 shadow-card transition ${b.approved ? "border-[#0B46E8]/40 bg-[#EDF1FD]/50" : "border-[#F2F4F6] bg-white"}`}>
             <div className="flex items-start gap-3">
               <button
                 type="button"
@@ -672,7 +671,7 @@ function ReviewView({
                 className="mt-0.5 shrink-0"
               >
                 {b.approved ? (
-                  <CheckCircle className="h-5 w-5 text-primary" weight="fill" />
+                  <CheckCircle className="h-5 w-5 text-[#0B46E8]" weight="fill" />
                 ) : (
                   <Circle className="h-5 w-5 text-muted-foreground/50" weight="bold" />
                 )}
@@ -684,10 +683,10 @@ function ReviewView({
                     onChange={(e) => setBullets((prev) => prev.map((x) => (x.id === b.id ? { ...x, text: e.target.value } : x)))}
                     rows={3}
                     maxLength={400}
-                    className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[14px] leading-relaxed focus:border-primary focus:outline-none"
+                    className="w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 py-2.5 text-[14px] leading-relaxed focus:border-[#0B46E8] focus:bg-white focus:outline-none"
                   />
                 ) : (
-                  <p className="text-[14px] leading-relaxed text-[#0B1227]">{b.text}</p>
+                  <p className="text-[14px] leading-relaxed text-[#191F28]">{b.text}</p>
                 )}
                 {b.before && b.before !== b.text ? (
                   <p className="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-[12px] leading-relaxed text-muted-foreground">
@@ -707,7 +706,7 @@ function ReviewView({
                       type="button"
                       disabled={b.busy}
                       onClick={() => onTone(b.id, tone.hints)}
-                      className="rounded-full border border-border bg-background px-2.5 py-1 text-[11.5px] font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                      className="rounded-full bg-[#F2F4F6] px-2.5 py-1 text-[11.5px] font-medium text-[#4E5968] transition hover:bg-[#E8EBF0] hover:text-[#191F28] disabled:opacity-50"
                     >
                       {tone.label}
                     </button>
@@ -715,7 +714,7 @@ function ReviewView({
                   <button
                     type="button"
                     onClick={() => setBullets((prev) => prev.map((x) => (x.id === b.id ? { ...x, editing: !x.editing } : x)))}
-                    className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11.5px] font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
+                    className="inline-flex items-center gap-1 rounded-full bg-[#F2F4F6] px-2.5 py-1 text-[11.5px] font-medium text-[#4E5968] transition hover:bg-[#E8EBF0] hover:text-[#191F28]"
                   >
                     <PencilSimple className="h-3 w-3" weight="bold" aria-hidden /> {b.editing ? t.editDone : t.editManual}
                   </button>
@@ -733,7 +732,7 @@ function ReviewView({
           <p className="text-[12px] font-bold text-muted-foreground">{t.extractedSkills}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {gen.skills.map((s) => (
-              <span key={s} className="rounded-full bg-accent/10 px-2.5 py-1 text-[12px] font-medium text-[#0B46E8]">{s}</span>
+              <span key={s} className="rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[12px] font-medium text-[#0B46E8]">{s}</span>
             ))}
           </div>
         </div>

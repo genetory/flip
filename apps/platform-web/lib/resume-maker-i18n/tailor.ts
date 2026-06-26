@@ -31,6 +31,10 @@ type Copy = {
   analyzedJob: string;
   changeJob: string;
   scoreLabel: string;
+  verdictGreat: string;
+  verdictGood: string;
+  verdictFair: string;
+  verdictLow: string;
   matchedTitle: string;
   missingTitle: string;
   summaryTitle: string;
@@ -79,6 +83,10 @@ const dict: Record<PlatformLocale, Copy> = {
     analyzedJob: "분석한 공고",
     changeJob: "공고 변경",
     scoreLabel: "공고 적합도",
+    verdictGreat: "공고와 잘 맞아요",
+    verdictGood: "조금만 보완하면 좋아요",
+    verdictFair: "보완이 필요해요",
+    verdictLow: "아직 거리가 있어요",
     matchedTitle: "이미 잘 갖춘 부분",
     missingTitle: "보완하면 좋은 부분",
     summaryTitle: "이 공고에 맞춘 요약 제안",
@@ -125,6 +133,10 @@ const dict: Record<PlatformLocale, Copy> = {
     analyzedJob: "Analyzed posting",
     changeJob: "Change posting",
     scoreLabel: "Job fit",
+    verdictGreat: "Strong match",
+    verdictGood: "Close — a little polish",
+    verdictFair: "Needs some work",
+    verdictLow: "Quite a gap",
     matchedTitle: "What you already cover",
     missingTitle: "What to strengthen",
     summaryTitle: "Summary tailored to this posting",
@@ -171,6 +183,10 @@ const dict: Record<PlatformLocale, Copy> = {
     analyzedJob: "已分析的招聘",
     changeJob: "更换招聘",
     scoreLabel: "岗位匹配度",
+    verdictGreat: "非常匹配",
+    verdictGood: "稍加完善即可",
+    verdictFair: "需要补强",
+    verdictLow: "差距较大",
     matchedTitle: "你已具备的部分",
     missingTitle: "建议补强的部分",
     summaryTitle: "针对此岗位的摘要建议",
@@ -217,6 +233,10 @@ const dict: Record<PlatformLocale, Copy> = {
     analyzedJob: "Tin đã phân tích",
     changeJob: "Đổi tin tuyển dụng",
     scoreLabel: "Độ phù hợp",
+    verdictGreat: "Rất phù hợp",
+    verdictGood: "Gần đạt, chỉnh chút nữa",
+    verdictFair: "Cần cải thiện",
+    verdictLow: "Còn khá chênh lệch",
     matchedTitle: "Phần bạn đã đáp ứng",
     missingTitle: "Phần nên cải thiện",
     summaryTitle: "Tóm tắt theo tin tuyển dụng này",
@@ -263,6 +283,10 @@ const dict: Record<PlatformLocale, Copy> = {
     analyzedJob: "分析した求人",
     changeJob: "求人を変更",
     scoreLabel: "求人適合度",
+    verdictGreat: "とてもマッチ",
+    verdictGood: "あと少しで好印象",
+    verdictFair: "補強が必要",
+    verdictLow: "まだギャップあり",
     matchedTitle: "すでに満たしている点",
     missingTitle: "補強したい点",
     summaryTitle: "この求人に合わせた要約案",
@@ -309,6 +333,10 @@ const dict: Record<PlatformLocale, Copy> = {
     analyzedJob: "Lowongan dianalisis",
     changeJob: "Ganti lowongan",
     scoreLabel: "Kecocokan",
+    verdictGreat: "Sangat cocok",
+    verdictGood: "Hampir, sedikit lagi",
+    verdictFair: "Perlu diperkuat",
+    verdictLow: "Masih cukup jauh",
     matchedTitle: "Yang sudah Anda penuhi",
     missingTitle: "Yang perlu diperkuat",
     summaryTitle: "Ringkasan sesuai lowongan ini",

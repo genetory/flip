@@ -20,7 +20,7 @@ export function AiQuotaModal({ resetAt, onClose }: { resetAt: string | null; onC
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-5" onClick={onClose}>
       <div className="w-full max-w-sm rounded-2xl bg-card p-6 text-center shadow-elevated" onClick={(e) => e.stopPropagation()}>
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#EDF1FD]">
           <Sparkle weight="fill" className="h-6 w-6 text-[#0B46E8]" aria-hidden />
         </div>
         <p className="mt-4 text-[16px] font-bold text-[#0B1227]">{q.limitTitle}</p>

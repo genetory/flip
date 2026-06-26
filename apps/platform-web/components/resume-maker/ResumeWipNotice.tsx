@@ -14,7 +14,7 @@ export function ResumeWipNotice() {
       <ResumeBackBar backHref="/resume-maker" backLabel={t.resumeList} title="" />
       <div className="flex min-h-[50vh] items-center justify-center px-5 py-16">
         <div className="text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EDF1FD]">
             <Wrench weight="fill" className="h-7 w-7 text-[#0B46E8]" aria-hidden />
           </div>
           <p className={`${paperlogy.className} mt-4 text-xl font-black text-[#0B1227]`}>{t.wipTitle}</p>

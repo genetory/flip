@@ -66,7 +66,7 @@ export function ResumeMakerWorkspace({
             <div className="mb-4 flex items-center justify-end">
               <Link
                 href={previewHref}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-[#0B46E8] shadow-card transition hover:bg-primary/5"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-[#0B46E8] shadow-card transition hover:bg-[#EDF1FD]"
               >
                 <Eye className="h-4 w-4" weight="bold" aria-hidden /> {t.previewPdf}
               </Link>

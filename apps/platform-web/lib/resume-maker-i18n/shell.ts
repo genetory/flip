@@ -2,6 +2,7 @@ import type { PlatformLocale } from "../auth-messages";
 import { useLanguage } from "../../components/i18n/LanguageProvider";
 
 type Copy = {
+  home: string;
   toolResumeMaker: string;
   toolTailor: string;
   toolInterview: string;
@@ -15,6 +16,7 @@ type Copy = {
 
 const dict: Record<PlatformLocale, Copy> = {
   ko: {
+    home: "홈",
     toolResumeMaker: "나의 이력서",
     toolTailor: "공고 맞춤",
     toolInterview: "모의 면접",
@@ -27,6 +29,7 @@ const dict: Record<PlatformLocale, Copy> = {
     goHome: "홈으로"
   },
   en: {
+    home: "Home",
     toolResumeMaker: "My Resume",
     toolTailor: "Job Match",
     toolInterview: "Mock Interview",
@@ -39,6 +42,7 @@ const dict: Record<PlatformLocale, Copy> = {
     goHome: "Go home"
   },
   "zh-CN": {
+    home: "首页",
     toolResumeMaker: "我的简历",
     toolTailor: "岗位匹配",
     toolInterview: "模拟面试",
@@ -51,6 +55,7 @@ const dict: Record<PlatformLocale, Copy> = {
     goHome: "返回首页"
   },
   vi: {
+    home: "Trang chủ",
     toolResumeMaker: "Hồ sơ của tôi",
     toolTailor: "Khớp tin tuyển",
     toolInterview: "Phỏng vấn thử",
@@ -63,6 +68,7 @@ const dict: Record<PlatformLocale, Copy> = {
     goHome: "Về trang chủ"
   },
   ja: {
+    home: "ホーム",
     toolResumeMaker: "マイ履歴書",
     toolTailor: "求人マッチ",
     toolInterview: "模擬面接",
@@ -75,6 +81,7 @@ const dict: Record<PlatformLocale, Copy> = {
     goHome: "ホームへ"
   },
   id: {
+    home: "Beranda",
     toolResumeMaker: "Resume Saya",
     toolTailor: "Cocokkan Lowongan",
     toolInterview: "Wawancara Simulasi",
