@@ -17,7 +17,6 @@ import {
 import { useAiUsage } from "../../lib/resume-maker-ai-usage";
 import { useDashboardCopy } from "../../lib/resume-maker-i18n/dashboard";
 import { ResumeCompletionConfetti } from "./ResumeCompletionConfetti";
-import { ResumeMakerCoachTour } from "./ResumeMakerCoachTour";
 
 const BLUE = "#0B46E8";
 const INK = "#191F28";
@@ -109,7 +108,6 @@ export function ResumeMakerJourney({
   return (
     <div className="space-y-3">
       <ResumeCompletionConfetti percent={percent} />
-      <ResumeMakerCoachTour />
 
       {/* 인사 */}
       <div className="px-1 pb-1" style={{ animation: "rm-rise 0.45s both" }}>
