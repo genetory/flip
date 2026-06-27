@@ -84,21 +84,22 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
   const partnerDashLabel = locale === "ko" ? "관리 콘솔" : locale === "zh-CN" ? "管理控制台" : locale === "vi" ? "Bảng quản trị" : locale === "ja" ? "管理コンソール" : locale === "id" ? "Konsol Manajemen" : "Admin console";
   const opsDashLabel = locale === "ko" ? "운영 콘솔" : locale === "zh-CN" ? "运营控制台" : locale === "vi" ? "Bảng điều khiển vận hành" : locale === "ja" ? "運営コンソール" : locale === "id" ? "Konsol Operasional" : "Ops console";
   const eventLabel = locale === "ko" ? "이벤트" : locale === "zh-CN" ? "活动" : locale === "vi" ? "Sự kiện" : locale === "ja" ? "イベント" : locale === "id" ? "Acara" : "Events";
-  // 이력서 코칭 — STUDENT / 비로그인 사용자에게만 노출(/resume 진입 시 로그인 게이트 작동).
-  const resumeCoachLabel = locale === "ko"
-    ? "이력서 코칭"
-    : locale === "zh-CN" ? "简历辅导"
-    : locale === "vi" ? "Tư vấn hồ sơ"
-    : locale === "ja" ? "履歴書コーチング"
-    : locale === "id" ? "Bimbingan Resume"
-    : "Resume Coaching";
-  // 데스크탑 GNB: 이벤트 · 포지션 탐색 · 이력서 코칭 · 커뮤니티 를 "더보기" 왼쪽에 노출(primary).
+  // 이력서 — STUDENT / 비로그인 사용자에게만 노출. 누르면 AI 이력서(/resume-maker)를 새 탭으로 연다.
+  // (기존 '이력서 코칭'(/resume)은 잠시 가려둠 — 라벨/링크를 이력서로 교체.)
+  const resumeLabel = locale === "ko"
+    ? "이력서"
+    : locale === "zh-CN" ? "简历"
+    : locale === "vi" ? "Hồ sơ"
+    : locale === "ja" ? "履歴書"
+    : locale === "id" ? "Resume"
+    : "Resume";
+  // 데스크탑 GNB: 이벤트 · 포지션 탐색 · 이력서 · 커뮤니티 를 "더보기" 왼쪽에 노출(primary).
   // 맞춤 지원(/pricing) · 자료실(/resources) 은 "더보기" 드롭다운으로. 모바일은 전부 펼침.
   const defaultNavItems: { label: string; href: string; external?: boolean; promoted?: boolean; primary?: boolean }[] = [
     { label: eventLabel, href: "/events", primary: true },
     { label: copy.nav.positions, href: "/positions", primary: true },
     ...(user?.role === "STUDENT" || !isAuthenticated
-      ? [{ label: resumeCoachLabel, href: "/resume", primary: true }]
+      ? [{ label: resumeLabel, href: "/resume-maker", primary: true, external: true }]
       : []),
     // secondary — 더보기 드롭다운으로.
     { label: copy.nav.community, href: "/community" },  // 커뮤니티

@@ -216,7 +216,7 @@ export function ResumeMakerOnboardingPage({ resumeId }: { resumeId: string }) {
               rows={3}
               maxLength={300}
               placeholder={t.jobPlaceholder}
-              className="mt-5 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 py-2.5 text-[14px] leading-relaxed focus:border-[#0B46E8] focus:bg-white focus:outline-none"
+              className="mt-5 w-full rounded-xl border border-[#E5E8EB] bg-white px-3 py-2.5 text-[14px] leading-relaxed focus:border-[#0B46E8] focus:outline-none"
             />
           </div>
         ) : null}

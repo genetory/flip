@@ -13230,7 +13230,7 @@ function aiQuotaResetAt(): string {
   return new Date(nextDayKstMidnightUtcMs).toISOString();
 }
 
-type AiCreditStatus = { limit: number; used: number; remaining: number; resetAt: string };
+type AiCreditStatus = { limit: number; used: number; remaining: number; resetAt: string; dailyGrant: number };
 
 // 지갑을 불러오며 가입 보너스 + 경과 일수만큼 일일 적립(상한)을 반영한다.
 // 변경이 있으면 저장하고, 항상 최신 잔액을 반환한다.
@@ -13261,7 +13261,7 @@ async function aiWalletReconcile(userId: string): Promise<number> {
 // 공용 티켓 잔량 — 지갑 기준(적립 반영).
 async function aiCreditStatus(userId: string): Promise<AiCreditStatus> {
   const remaining = await aiWalletReconcile(userId);
-  return { limit: AI_DAILY_CAP, used: Math.max(0, AI_DAILY_CAP - remaining), remaining, resetAt: aiQuotaResetAt() };
+  return { limit: AI_DAILY_CAP, used: Math.max(0, AI_DAILY_CAP - remaining), remaining, resetAt: aiQuotaResetAt(), dailyGrant: AI_DAILY_GRANT };
 }
 
 // 성공한 호출의 비용을 지갑에서 차감(원자적 조건부 감소) + 분석용 사용량 로그 증가.

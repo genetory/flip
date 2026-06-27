@@ -12,6 +12,7 @@ const BLUE = "#0B46E8";
 const INK = "#191F28";
 const SUB = "#8B95A1";
 const GREEN = "#15C47E";
+const LIME = "#b7ff5a"; // 성취·완성 포인트(aply 라임). 100% 완성·퀘스트 올클리어에만.
 
 // 0 → target 으로 부드럽게 증가하는 숫자(카운트업). easeOutCubic.
 function useCountUp(target: number, durationMs = 900): number {
@@ -90,17 +91,24 @@ export function ResumeMakerJourney({
       <div className="rounded-3xl border border-[#F2F4F6] bg-white p-5 shadow-[0_2px_12px_rgba(17,24,39,0.05)]" style={{ animation: "rm-rise 0.5s 0.05s both" }}>
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-[16px] font-bold" style={{ color: INK }}>{resumeTitle || t.completeness}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-[16px] font-bold" style={{ color: INK }}>{resumeTitle || t.completeness}</p>
+              {percent >= 100 ? (
+                <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: LIME, color: "#14310A" }}>
+                  {t.completedBadge}
+                </span>
+              ) : null}
+            </div>
             <p className="mt-0.5 text-[13px] font-medium" style={{ color: SUB }}>
               {t.completeness} · {levelEmoji} {levelLabel}
             </p>
           </div>
-          <span className="shrink-0 text-[26px] font-bold leading-none tabular-nums" style={{ color: BLUE }}>{shown}%</span>
+          <span className="shrink-0 text-[26px] font-bold leading-none tabular-nums" style={{ color: percent >= 100 ? GREEN : BLUE }}>{shown}%</span>
         </div>
         <div className="mt-3.5 h-2.5 w-full overflow-hidden rounded-full bg-[#F2F4F6]">
           <div
             className="h-full rounded-full"
-            style={{ width: `${shown}%`, background: BLUE, transition: "width 0.4s cubic-bezier(0.22,1,0.36,1)" }}
+            style={{ width: `${shown}%`, background: percent >= 100 ? LIME : BLUE, transition: "width 0.4s cubic-bezier(0.22,1,0.36,1)" }}
           />
         </div>
       </div>
@@ -110,9 +118,15 @@ export function ResumeMakerJourney({
         {/* 타이틀 — '작성 중인 이력서'와 동일한 카드 밖 섹션 라벨(20px) */}
         <div className="mb-4 flex items-center justify-between gap-2 px-1">
           <span className="whitespace-nowrap text-[20px] font-bold tracking-[-0.01em]" style={{ color: INK }}>{t.questTitle}</span>
-          <span className="shrink-0 text-[13px] font-bold tabular-nums" style={{ color: SUB }}>
-            {doneCount}/{total} {t.questDone}
-          </span>
+          {doneCount >= total ? (
+            <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: LIME, color: "#14310A" }}>
+              {t.completedBadge}
+            </span>
+          ) : (
+            <span className="shrink-0 text-[13px] font-bold tabular-nums" style={{ color: SUB }}>
+              {doneCount}/{total} {t.questDone}
+            </span>
+          )}
         </div>
         <div className="rounded-3xl border border-[#F2F4F6] bg-white p-2.5 shadow-[0_2px_12px_rgba(17,24,39,0.05)]">
         <ul>

@@ -10,6 +10,8 @@ import { paperlogy } from "../../lib/fonts";
 import { useShellCopy } from "../../lib/resume-maker-i18n/shell";
 import { useQuotaCopy } from "../../lib/resume-maker-i18n/quota";
 import { useAiUsage } from "../../lib/resume-maker-ai-usage";
+import { useResumePresence } from "../../lib/resume-maker-resumes";
+import { AiTicketStatusModal } from "./AiTicketStatusModal";
 import { ResumeMakerLanguageSwitch } from "./ResumeMakerLanguageSwitch";
 import { getActiveResumeId, setActiveResumeId } from "../../lib/resume-maker-active";
 import { RESUME_TOOLS_WIP } from "../../lib/resume-maker-flags";
@@ -20,17 +22,23 @@ import { RESUME_TOOLS_WIP } from "../../lib/resume-maker-flags";
 
 // GNB 우측 — 공용 AI 티켓 잔량(전 화면 공통). 잔량을 모르면(비STUDENT 등) 숨김.
 function GnbTicket() {
-  const { remaining } = useAiUsage();
+  const { remaining, resetAt, dailyGrant } = useAiUsage();
   const q = useQuotaCopy();
+  const [open, setOpen] = useState(false);
   if (remaining === null) return null;
   return (
-    <span
-      title={q.remaining(remaining)}
-      className="inline-flex items-center gap-1 rounded-full border border-[#0B46E8]/20 bg-[#0B46E8]/[0.06] px-2.5 py-1 text-[12.5px] font-bold text-[#0B46E8]"
-    >
-      <Sparkle weight="fill" className="h-4 w-4" aria-hidden />
-      {remaining.toLocaleString()}
-    </span>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title={q.remaining(remaining)}
+        className="inline-flex items-center gap-1 rounded-full bg-[#0B46E8]/[0.06] px-2.5 py-1 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#0B46E8]/[0.12] active:scale-95"
+      >
+        <Sparkle weight="fill" className="h-4 w-4" aria-hidden />
+        {remaining.toLocaleString()}
+      </button>
+      {open ? <AiTicketStatusModal remaining={remaining} resetAt={resetAt} dailyGrant={dailyGrant} onClose={() => setOpen(false)} /> : null}
+    </>
   );
 }
 
@@ -58,6 +66,7 @@ export function ResumeMakerShell({
   const router = useRouter();
   const pathname = usePathname();
   const t = useShellCopy();
+  const { hasResume } = useResumePresence(); // 이력서가 없으면(=false) 도구 메뉴를 잠근다.
 
   // 현재 이력서(세 도구 공유) — 이력서 화면에 들어가면 그 id 를 활성으로 기억하고,
   // 메인 등 id 가 없는 화면에선 마지막 활성 id 를 쓴다.
@@ -80,11 +89,11 @@ export function ResumeMakerShell({
   const isHome = pathname === "/resume-maker";
   // 편집 계열(편집·경험·온보딩·대화·미리보기·진단) — 홈/도구가 아닌 이력서 작업 화면.
   const isEditor = !isHome && !isTailor && !isInterview;
-  const tools: { labelKey: "home" | "toolResumeMaker" | "toolTailor" | "toolInterview"; href: string; active: boolean; wip?: boolean; home?: boolean }[] = [
+  const tools: { labelKey: "home" | "toolResumeMaker" | "toolTailor" | "toolInterview"; href: string; active: boolean; wip?: boolean; home?: boolean; requiresResume?: boolean }[] = [
     { labelKey: "home", href: "/resume-maker", active: isHome, home: true },
-    { labelKey: "toolResumeMaker", href: activeId ? `/resume-maker/${activeId}/edit` : "/resume-maker", active: isEditor },
-    { labelKey: "toolTailor", href: activeId ? `/resume-maker/${activeId}/tailor` : "/resume-maker/tailor", active: isTailor, wip: RESUME_TOOLS_WIP },
-    { labelKey: "toolInterview", href: activeId ? `/resume-maker/${activeId}/interview` : "/resume-maker/interview", active: isInterview, wip: RESUME_TOOLS_WIP }
+    { labelKey: "toolResumeMaker", href: activeId ? `/resume-maker/${activeId}/edit` : "/resume-maker", active: isEditor, requiresResume: true },
+    { labelKey: "toolTailor", href: activeId ? `/resume-maker/${activeId}/tailor` : "/resume-maker/tailor", active: isTailor, wip: RESUME_TOOLS_WIP, requiresResume: true },
+    { labelKey: "toolInterview", href: activeId ? `/resume-maker/${activeId}/interview` : "/resume-maker/interview", active: isInterview, wip: RESUME_TOOLS_WIP, requiresResume: true }
   ];
 
   useEffect(() => {
@@ -132,19 +141,35 @@ export function ResumeMakerShell({
           </div>
           {/* 상단 도구 네비 (데스크탑) — 세그먼트형 pill, 컨테이너 정중앙 고정 */}
           <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full bg-[#F2F4F6] p-1 md:flex">
-            {tools.map((tool) => (
-              <Link
-                key={tool.labelKey}
-                href={tool.href}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] transition ${
-                  tool.active ? "bg-white font-bold text-[#0B46E8] shadow-sm" : "font-semibold text-[#4E5968] hover:text-[#191F28]"
-                }`}
-              >
-                {tool.home ? <House weight={tool.active ? "fill" : "bold"} className="h-4 w-4" aria-hidden /> : null}
-                {t[tool.labelKey]}
-                {tool.wip ? <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">{t.wipBadge}</span> : null}
-              </Link>
-            ))}
+            {tools.map((tool) => {
+              const locked = Boolean(tool.requiresResume) && hasResume === false;
+              const inner = (
+                <>
+                  {tool.home ? <House weight={tool.active ? "fill" : "bold"} className="h-4 w-4" aria-hidden /> : null}
+                  {t[tool.labelKey]}
+                  {tool.wip ? <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">{t.wipBadge}</span> : null}
+                </>
+              );
+              return locked ? (
+                <span
+                  key={tool.labelKey}
+                  aria-disabled="true"
+                  className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold text-[#C9CDD2]"
+                >
+                  {inner}
+                </span>
+              ) : (
+                <Link
+                  key={tool.labelKey}
+                  href={tool.href}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] transition ${
+                    tool.active ? "bg-white font-bold text-[#0B46E8] shadow-sm" : "font-semibold text-[#4E5968] hover:text-[#191F28]"
+                  }`}
+                >
+                  {inner}
+                </Link>
+              );
+            })}
           </nav>
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <GnbTicket />
@@ -154,19 +179,35 @@ export function ResumeMakerShell({
         </div>
         {/* 상단 도구 네비 (모바일) — pill, 가운데 정렬, 넘치면 가로 스크롤 */}
         <nav className="flex items-center justify-center gap-1.5 overflow-x-auto border-t border-[#F2F4F6] px-4 py-2 md:hidden">
-          {tools.map((tool) => (
-            <Link
-              key={tool.labelKey}
-              href={tool.href}
-              className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] transition ${
-                tool.active ? "bg-[#EDF1FD] font-bold text-[#0B46E8]" : "font-semibold text-[#4E5968] hover:text-[#191F28]"
-              }`}
-            >
-              {tool.home ? <House weight={tool.active ? "fill" : "bold"} className="h-4 w-4" aria-hidden /> : null}
-              {t[tool.labelKey]}
-              {tool.wip ? <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">{t.wipBadge}</span> : null}
-            </Link>
-          ))}
+          {tools.map((tool) => {
+            const locked = Boolean(tool.requiresResume) && hasResume === false;
+            const inner = (
+              <>
+                {tool.home ? <House weight={tool.active ? "fill" : "bold"} className="h-4 w-4" aria-hidden /> : null}
+                {t[tool.labelKey]}
+                {tool.wip ? <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">{t.wipBadge}</span> : null}
+              </>
+            );
+            return locked ? (
+              <span
+                key={tool.labelKey}
+                aria-disabled="true"
+                className="inline-flex shrink-0 cursor-not-allowed items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-semibold text-[#C9CDD2]"
+              >
+                {inner}
+              </span>
+            ) : (
+              <Link
+                key={tool.labelKey}
+                href={tool.href}
+                className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] transition ${
+                  tool.active ? "bg-[#EDF1FD] font-bold text-[#0B46E8]" : "font-semibold text-[#4E5968] hover:text-[#191F28]"
+                }`}
+              >
+                {inner}
+              </Link>
+            );
+          })}
         </nav>
       </header>
       <main className="flex-1">{children}</main>

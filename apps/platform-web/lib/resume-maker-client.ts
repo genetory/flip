@@ -316,7 +316,7 @@ async function aiPost<T>(path: string, init: RequestInit) {
 }
 
 // 공용 티켓 — 공고 맞춤 분석·모의 면접 평가가 함께 쓰는 월간 잔량.
-export type AiUsage = { limit: number; used: number; remaining: number; resetAt: string };
+export type AiUsage = { limit: number; used: number; remaining: number; resetAt: string; dailyGrant: number };
 
 export async function getAiUsage(): Promise<AiUsage> {
   const payload = (await authedJsonFetch<unknown>("/members/me/ai/usage", { method: "GET" })) as unknown as { usage?: Partial<AiUsage> };
@@ -325,7 +325,8 @@ export async function getAiUsage(): Promise<AiUsage> {
     limit: typeof u.limit === "number" ? u.limit : 0,
     used: typeof u.used === "number" ? u.used : 0,
     remaining: typeof u.remaining === "number" ? u.remaining : 0,
-    resetAt: typeof u.resetAt === "string" ? u.resetAt : ""
+    resetAt: typeof u.resetAt === "string" ? u.resetAt : "",
+    dailyGrant: typeof u.dailyGrant === "number" ? u.dailyGrant : 0
   };
 }
 

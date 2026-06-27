@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 // 이력서 완성도가 100%에 처음 도달하는 순간 한 번 터지는 가벼운 컨페티.
 // 외부 라이브러리 없이 DOM + CSS 키프레임으로 구현. 모션 최소화 설정은 존중.
 
-const COLORS = ["#0B46E8", "#22c55e", "#f59e0b", "#ef4444", "#a855f7", "#06b6d4"];
+const COLORS = ["#0B46E8", "#b7ff5a", "#15C47E", "#f59e0b", "#a855f7", "#06b6d4"];
 
 type Piece = { left: number; delay: number; dur: number; color: string; w: number; h: number; rotate: number };
 

@@ -122,7 +122,8 @@ const START: Record<PlatformLocale, Record<ResumeStartMethod, LD>> = {
 
 export function useStartMethodOptions(): { value: ResumeStartMethod; label: string; desc: string }[] {
   const m = START[useLocale()] ?? START.en;
-  return START_METHODS.map((s) => ({ value: s.value, label: m[s.value].label, desc: m[s.value].desc }));
+  // 붙여넣기(paste)는 제거 — 처음부터 만들기 / 기존 이력서 업로드만 제공.
+  return START_METHODS.filter((s) => s.value !== "paste").map((s) => ({ value: s.value, label: m[s.value].label, desc: m[s.value].desc }));
 }
 
 // ── 체류자격(비자) — 코드는 유지, 한국어 설명만 번역 ──

@@ -17,6 +17,7 @@ type Copy = {
   heroTitleLine2: string;
   heroSubtitle: string;
   newResumeCta: string;
+  editExistingCta: string;
   newResumeSub: string;
   importSub: string;
   importCta: string;
@@ -43,6 +44,8 @@ type Copy = {
   completion: string;
   currentTag: string;
   viewResume: string;
+  emptyResumeTitle: string;
+  emptyResumeDesc: string;
   continueWriting: string;
   selectCta: string;
   deleteResume: string;
@@ -73,6 +76,7 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine2: "질문에 답하세요.",
     heroSubtitle: "AI가 내 경험을 찾아 지원 가능한 이력서로 만들어드립니다.",
     newResumeCta: "새 이력서 만들기",
+    editExistingCta: "기존 이력서 수정하기",
     newResumeSub: "처음부터 시작",
     importSub: "PDF·내용 붙여넣기",
     importCta: "이미 만든 이력서가 있나요? 파일로 가져오기",
@@ -99,6 +103,8 @@ const dict: Record<PlatformLocale, Copy> = {
     completion: "완성도",
     currentTag: "작업 중",
     viewResume: "이력서 보러가기",
+    emptyResumeTitle: "아직 이력서가 없어요",
+    emptyResumeDesc: "새 이력서를 만들어 취업 준비를 시작해 보세요.",
     continueWriting: "이어서 작성",
     selectCta: "선택",
     deleteResume: "이력서 삭제",
@@ -127,6 +133,7 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine2: "just answer questions.",
     heroSubtitle: "AI finds your experience and turns it into a resume ready to apply with.",
     newResumeCta: "Create a New Resume",
+    editExistingCta: "Edit existing resume",
     newResumeSub: "Start from scratch",
     importSub: "PDF or paste text",
     importCta: "Already have a resume? Import it from a file",
@@ -153,6 +160,8 @@ const dict: Record<PlatformLocale, Copy> = {
     completion: "Complete",
     currentTag: "Active",
     viewResume: "Open resume",
+    emptyResumeTitle: "No resume yet",
+    emptyResumeDesc: "Create your first resume to get started.",
     continueWriting: "Continue",
     selectCta: "Select",
     deleteResume: "Delete resume",
@@ -181,6 +190,7 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine2: "回答问题就好。",
     heroSubtitle: "AI 会发掘你的经历，生成可直接投递的简历。",
     newResumeCta: "创建新简历",
+    editExistingCta: "修改已有简历",
     newResumeSub: "从头开始",
     importSub: "PDF 或粘贴内容",
     importCta: "已经有简历了？从文件导入",
@@ -207,6 +217,8 @@ const dict: Record<PlatformLocale, Copy> = {
     completion: "完成度",
     currentTag: "进行中",
     viewResume: "查看简历",
+    emptyResumeTitle: "还没有简历",
+    emptyResumeDesc: "创建第一份简历，开始求职准备吧。",
     continueWriting: "继续编写",
     selectCta: "选择",
     deleteResume: "删除简历",
@@ -235,6 +247,7 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine2: "hãy trả lời câu hỏi.",
     heroSubtitle: "AI tìm ra kinh nghiệm của bạn và biến nó thành hồ sơ sẵn sàng để ứng tuyển.",
     newResumeCta: "Tạo hồ sơ mới",
+    editExistingCta: "Sửa hồ sơ có sẵn",
     newResumeSub: "Bắt đầu từ đầu",
     importSub: "PDF hoặc dán nội dung",
     importCta: "Đã có hồ sơ rồi? Nhập từ tệp",
@@ -261,6 +274,8 @@ const dict: Record<PlatformLocale, Copy> = {
     completion: "Hoàn thành",
     currentTag: "Đang làm",
     viewResume: "Xem hồ sơ",
+    emptyResumeTitle: "Chưa có hồ sơ",
+    emptyResumeDesc: "Tạo hồ sơ đầu tiên để bắt đầu.",
     continueWriting: "Tiếp tục",
     selectCta: "Chọn",
     deleteResume: "Xóa hồ sơ",
@@ -289,6 +304,7 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine2: "質問に答えましょう。",
     heroSubtitle: "AIがあなたの経験を見つけ出し、応募できる履歴書に仕上げます。",
     newResumeCta: "新しい履歴書を作成",
+    editExistingCta: "既存の履歴書を編集",
     newResumeSub: "ゼロから始める",
     importSub: "PDF・内容を貼り付け",
     importCta: "すでに履歴書をお持ちですか？ ファイルから取り込む",
@@ -315,6 +331,8 @@ const dict: Record<PlatformLocale, Copy> = {
     completion: "完成度",
     currentTag: "作業中",
     viewResume: "履歴書を見る",
+    emptyResumeTitle: "履歴書がまだありません",
+    emptyResumeDesc: "新しい履歴書を作って始めましょう。",
     continueWriting: "続きを書く",
     selectCta: "選択",
     deleteResume: "履歴書を削除",
@@ -343,6 +361,7 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine2: "cukup jawab pertanyaan.",
     heroSubtitle: "AI menemukan pengalaman Anda dan mengubahnya menjadi resume yang siap untuk melamar.",
     newResumeCta: "Buat Resume Baru",
+    editExistingCta: "Edit resume yang ada",
     newResumeSub: "Mulai dari awal",
     importSub: "PDF atau tempel teks",
     importCta: "Sudah punya resume? Impor dari file",
@@ -369,6 +388,8 @@ const dict: Record<PlatformLocale, Copy> = {
     completion: "Kelengkapan",
     currentTag: "Aktif",
     viewResume: "Lihat resume",
+    emptyResumeTitle: "Belum ada resume",
+    emptyResumeDesc: "Buat resume pertama untuk memulai.",
     continueWriting: "Lanjutkan",
     selectCta: "Pilih",
     deleteResume: "Hapus resume",

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowCounterClockwise, ArrowLeft, ArrowRight, ChatCircleDots, CheckCircle, CircleNotch, Copy as CopyIcon, Lightbulb, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { ResumeMakerShell } from "./ResumeMakerShell";
-import { ResumeToolPickerPage } from "./ResumeToolPickerPage";
 import { ResumeBackBar } from "./ResumeBackBar";
 import { ResumeToolPreview } from "./ResumeToolPreview";
 import { PositionPagination } from "./PositionPagination";
@@ -13,17 +13,19 @@ import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { PositionRow, mapPublicPositionToCard } from "../pages/PositionsPage";
-import { type PublicPositionListItem, type ResumeContent } from "../../lib/member-profile-client";
+import { getMyResumes, type PublicPositionListItem, type ResumeContent } from "../../lib/member-profile-client";
 import {
   AiQuotaError,
   generateInterviewQuestions,
   getBuilderState,
   getDraftResume,
   getInterviewFeedback,
+  isResumeMakerDraft,
   resumeToPlainText,
   type InterviewFeedback,
   type InterviewQuestionItem
 } from "../../lib/resume-maker-client";
+import { setActiveResumeId } from "../../lib/resume-maker-active";
 import { compileResumeContent } from "../../lib/resume-maker-compile";
 import { DEFAULT_DESIGN, type ResumeDesignSettings } from "../../lib/resume-maker-types";
 import { positionToJobText } from "../../lib/resume-maker-position-jd";
@@ -42,13 +44,13 @@ function scoreColor(s: number): string {
 
 export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
   const toast = useToast();
+  const router = useRouter();
   const t = useInterviewPrepCopy();
   const tt = useTailorCopy(); // 입력 모드(직접 입력/포지션) 라벨은 공고 맞춤과 공유
   const picker = useToolPickerCopy();
   const { locale } = useLanguage();
   const { resetAt, refresh: refreshUsage } = useAiUsage(); // 공용 AI 티켓(GNB 공유)
   const [loading, setLoading] = useState(true);
-  const [missing, setMissing] = useState(false); // 이력서를 찾지 못하면 '나의 이력서'로 폴백
   const [quotaOpen, setQuotaOpen] = useState(false); // 한도 초과 모달
   const [resumeTitle, setResumeTitle] = useState("");
   const [content, setContent] = useState<ResumeContent | null>(null);
@@ -81,12 +83,26 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
         setContent(compiled);
         setDesign(b.design ?? DEFAULT_DESIGN);
         setJobRole(compiled.desiredJobRole?.trim() ?? "");
+        setLoading(false);
       } catch {
-        // 이력서가 없거나(삭제 등) 못 불러오면 에러로 튕기지 않고 '나의 이력서'를 보여준다.
+        // 선택된 이력서가 삭제/없음 — 다른 이력서가 있으면 '그 다음 이력서'로 자동 전환.
         if (!alive) return;
-        setMissing(true);
-      } finally {
-        if (alive) setLoading(false);
+        try {
+          const drafts = (await getMyResumes())
+            .filter(isResumeMakerDraft)
+            .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+          if (!alive) return;
+          const next = drafts.find((d) => d.id !== resumeId);
+          if (next) {
+            setActiveResumeId(next.id);
+            router.replace(`/resume-maker/${next.id}/interview`);
+            return; // 전환 중 — 로딩 유지
+          }
+        } catch {
+          /* 목록 조회 실패는 무시 */
+        }
+        // 이력서가 하나도 없음 — 홈(빈 이력서 카드)으로 보낸다(별도 선택 화면 없음).
+        router.replace("/resume-maker");
       }
     })();
     return () => {
@@ -177,8 +193,6 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
   const scored = Object.values(feedbacks);
   const avgScore = scored.length > 0 ? Math.round(scored.reduce((sum, f) => sum + f.score, 0) / scored.length) : null;
 
-  // 이력서가 없거나(삭제 등) 못 불러오면 모의 면접용 이력서 선택 화면으로.
-  if (missing) return <ResumeToolPickerPage tool="interview" />;
 
   return (
     <ResumeMakerShell>

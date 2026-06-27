@@ -15,6 +15,7 @@ type Copy = {
   questTitle: string;
   questDone: string;
   questFill: string;
+  completedBadge: string;
   journeyTitle: string;
   s1Title: string;
   s2Title: string;
@@ -63,6 +64,7 @@ const dict: Record<PlatformLocale, Copy> = {
     questTitle: "나의 커리어 퀘스트",
     questDone: "완료",
     questFill: "채우기",
+    completedBadge: "완성! 🎉",
     journeyTitle: "취업 준비 여정",
     s1Title: "나의 이력서",
     s2Title: "공고 맞춤",
@@ -109,6 +111,7 @@ const dict: Record<PlatformLocale, Copy> = {
     questTitle: "My Career Quest",
     questDone: "Done",
     questFill: "Fill in",
+    completedBadge: "Done! 🎉",
     journeyTitle: "Your job-prep journey",
     s1Title: "My Resume",
     s2Title: "Job Match",
@@ -155,6 +158,7 @@ const dict: Record<PlatformLocale, Copy> = {
     questTitle: "我的求职任务",
     questDone: "完成",
     questFill: "去填写",
+    completedBadge: "完成！🎉",
     journeyTitle: "求职准备之旅",
     s1Title: "我的简历",
     s2Title: "岗位匹配",
@@ -201,6 +205,7 @@ const dict: Record<PlatformLocale, Copy> = {
     questTitle: "Nhiệm vụ sự nghiệp",
     questDone: "Xong",
     questFill: "Điền",
+    completedBadge: "Hoàn tất! 🎉",
     journeyTitle: "Hành trình chuẩn bị xin việc",
     s1Title: "Hồ sơ của tôi",
     s2Title: "Khớp tin tuyển",
@@ -247,6 +252,7 @@ const dict: Record<PlatformLocale, Copy> = {
     questTitle: "私のキャリアクエスト",
     questDone: "完了",
     questFill: "入力",
+    completedBadge: "完成！🎉",
     journeyTitle: "就活準備のジャーニー",
     s1Title: "マイ履歴書",
     s2Title: "求人マッチ",
@@ -293,6 +299,7 @@ const dict: Record<PlatformLocale, Copy> = {
     questTitle: "Misi Karier Saya",
     questDone: "Selesai",
     questFill: "Isi",
+    completedBadge: "Selesai! 🎉",
     journeyTitle: "Perjalanan persiapan kerja",
     s1Title: "Resume Saya",
     s2Title: "Cocokkan Lowongan",
