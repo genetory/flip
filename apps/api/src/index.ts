@@ -13466,6 +13466,56 @@ app.post(
   }
 );
 
+// POST /members/me/ai/coupons — 운영자 전용 쿠폰 생성. 단일 코드(code) 또는 랜덤 N개(count).
+// 환경(스테이징/프로덕션)별 DB에 직접 SQL 없이 쿠폰을 만들 수 있다.
+const createCouponSchema = z.object({
+  tickets: z.number().int().min(1).max(100000),
+  count: z.number().int().min(1).max(200).optional(),
+  maxUses: z.number().int().min(1).max(10_000_000).optional(),
+  groupKey: z.string().trim().max(60).optional(),
+  prefix: z.string().trim().max(12).optional(),
+  code: z.string().trim().max(40).optional()
+});
+const COUPON_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // 0/O,1/I/L 등 제외
+function randomCouponCode(prefix: string): string {
+  let s = "";
+  for (let i = 0; i < 6; i++) s += COUPON_CHARS[randomInt(COUPON_CHARS.length)];
+  return (prefix + s).toUpperCase();
+}
+app.post(
+  "/members/me/ai/coupons",
+  authenticate,
+  requireRoles([MemberRole.OPERATOR]),
+  async (req, res) => {
+    const parsed = createCouponSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    try {
+      const { tickets } = parsed.data;
+      const maxUses = parsed.data.maxUses ?? 1;
+      const groupKey = parsed.data.groupKey || null;
+      const codes: string[] = [];
+      if (parsed.data.code) {
+        codes.push(parsed.data.code.trim().toUpperCase().replace(/\s+/g, ""));
+      } else {
+        const prefix = (parsed.data.prefix || "APLY").toUpperCase();
+        const want = parsed.data.count ?? 1;
+        const set = new Set<string>();
+        while (set.size < want) set.add(randomCouponCode(prefix));
+        codes.push(...set);
+      }
+      await prisma.coupon.createMany({
+        data: codes.map((code) => ({ code, tickets, maxUses, groupKey })),
+        skipDuplicates: true
+      });
+      const created = await prisma.coupon.findMany({ where: { code: { in: codes } }, select: { code: true, tickets: true, maxUses: true, groupKey: true } });
+      return res.json({ ok: true, coupons: created });
+    } catch (err) {
+      console.error("[ai/coupons] create failed", err);
+      return res.status(500).json({ ok: false, message: "failed to create coupons" });
+    }
+  }
+);
+
 // POST /members/me/ai/polish-intro — 사용자가 쓴 자기소개를 더 자연스럽고 설득력
 // 있게 다듬어 준다(없는 사실 금지, 분량 유지). style 별로 여러 형식을 시도 가능.
 const POLISH_STYLE_GUIDE: Record<string, string> = {
