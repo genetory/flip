@@ -69,3 +69,57 @@ export function trackAiAnalysisStart() {
 export function trackAiAnalysisCompleted(score: number) {
   safeSendEvent("complete_ai_analysis", { score });
 }
+
+// ---- resume maker (AI 이력서 만들기) ----
+
+export function trackResumeBuilderViewed() {
+  safeSendEvent("resume_builder_viewed", {});
+}
+
+export function trackResumeBuilderStarted(mode: "new" | "improve" | "import") {
+  safeSendEvent("resume_builder_started", { mode });
+}
+
+export function trackResumePurposeSelected(purpose: string) {
+  safeSendEvent("resume_purpose_selected", { purpose });
+}
+
+export function trackResumeJobSelected(jobs: string[]) {
+  safeSendEvent("resume_job_selected", { jobs: jobs.join(",") });
+}
+
+export function trackExperienceCreated(experienceType: string) {
+  safeSendEvent("experience_created", { experience_type: experienceType });
+}
+
+export function trackExperienceInterviewStarted() {
+  safeSendEvent("experience_interview_started", {});
+}
+
+export function trackExperienceInterviewCompleted() {
+  safeSendEvent("experience_interview_completed", {});
+}
+
+export function trackResumeSentenceGenerated(count: number) {
+  safeSendEvent("resume_sentence_generated", { count });
+}
+
+export function trackResumeSentenceAccepted() {
+  safeSendEvent("resume_sentence_accepted", {});
+}
+
+export function trackResumeTemplateSelected(templateId: string) {
+  safeSendEvent("resume_template_selected", { template_id: templateId });
+}
+
+export function trackResumeDiagnosed(level: string) {
+  safeSendEvent("resume_diagnosed", { level });
+}
+
+export function trackResumePdfDownloaded(templateId: string) {
+  safeSendEvent("resume_pdf_downloaded", { template_id: templateId });
+}
+
+export function trackResumeBuilderCompleted() {
+  safeSendEvent("resume_builder_completed", {});
+}

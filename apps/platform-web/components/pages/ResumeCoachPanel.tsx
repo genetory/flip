@@ -341,7 +341,7 @@ export function ResumeCoachPanel({
           </Link>
         </Button>
         <Button variant="outline" size="sm" asChild>
-          <Link href={`/resume/${resumeId}/edit`}>
+          <Link href={`/resume-maker/${resumeId}/edit`}>
             <PencilSimple className="h-3.5 w-3.5" weight="bold" />
             {tr("편집", "Edit", "编辑", "Sửa", "編集", "Sunting")}
           </Link>
@@ -481,7 +481,7 @@ export function ResumeCoachPanel({
                           {/* 카드 전체가 편집 화면 링크. 내부 "AI 추천 보기"
                               버튼은 e.preventDefault() 로 라우팅 가로채기. */}
                           <Link
-                            href={`/resume/${resumeId}/edit`}
+                            href={`/resume-maker/${resumeId}/edit`}
                             className="block rounded-2xl border border-border bg-background p-4 transition hover:border-foreground/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
                           >
                             <div className="flex items-start justify-between gap-2">

@@ -22,6 +22,7 @@ import {
   Stamp,
   Star,
   Target,
+  UserCheck,
   Users,
   Wallet,
   Workflow,
@@ -89,7 +90,8 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
     title: "사용자",
     links: [
       { label: "전체 사용자", href: "/dashboard/ops/support/users", icon: Users },
-      { label: "이력서", href: "/dashboard/ops/support/resumes", icon: FileUser }
+      { label: "이력서", href: "/dashboard/ops/support/resumes", icon: FileUser },
+      { label: "이력서 인재풀", href: "/dashboard/ops/operations/resume-pool", icon: UserCheck }
     ]
   },
   {

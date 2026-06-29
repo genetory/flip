@@ -1,4 +1,5 @@
 import { readAccessToken, refreshPlatformSession } from "./auth-client";
+import { getBrowserLocale } from "./auth-messages";
 import {
   trackAiAnalysisCompleted,
   trackAiAnalysisStart,
@@ -180,6 +181,11 @@ export async function authedJsonFetch<T>(path: string, init: RequestInit = {}) {
 
   if (enableApiLogs) {
     console.info("[platform-web][api][response]", { method, path, status: response.status });
+  }
+
+  // AI 호출이 성공하면 티켓 잔량이 바뀌므로, 잔량을 보는 화면(GNB 등)에 갱신 신호를 보낸다.
+  if (method === "POST" && path.startsWith("/members/me/ai/") && typeof window !== "undefined") {
+    window.dispatchEvent(new Event("aply:ai-usage-changed"));
   }
 
   return payload;
@@ -1353,8 +1359,15 @@ export type ResumeActivityEntry = {
   endDate?: string;
 };
 export type ResumeLanguageEntry = { language?: string; level?: string };
-export type ResumeCertificationEntry = { name?: string; issuer?: string };
+export type ResumeCertificationEntry = { name?: string; issuer?: string; date?: string };
 export type ResumeLinkEntry = { label?: string; url?: string };
+
+// 한국형 자기소개서 문항 1개 — 문항(prompt)과 작성한 답변(answer).
+export type ResumeCoverLetterItem = {
+  id: string;
+  prompt: string;
+  answer: string;
+};
 
 export type ResumeContent = {
   // 기본정보 — entered per-resume so the user can tailor the contact info
@@ -1365,6 +1378,8 @@ export type ResumeContent = {
   basicPhone?: string | null;
   basicResidence?: string | null;
   basicVisa?: CandidateVisaType | null;
+  // 국적 — 외국인 인재 매칭의 핵심 식별 정보(APLY Profile 카드에 노출).
+  nationality?: string | null;
   // Optional profile photo. The editor can upload a file → we POST a
   // base64 data URL; the server replaces it with a CDN URL on save and
   // returns it back. Always optional — Korean resumes work fine without.
@@ -1388,6 +1403,11 @@ export type ResumeContent = {
   // 자기소개 / 요약
   summary?: string | null;
   selfIntroduction?: string | null;
+  // 한국형 자기소개서(자소서) — 문항별 답변. 이력서 PDF와 별개로 보관/편집한다.
+  coverLetterItems?: ResumeCoverLetterItem[];
+  // 기업 추천 인재풀 등록 동의 — 학생이 결과 화면에서 동의하면 기록된다.
+  // (운영자/풀 연동은 백엔드에서 이 플래그를 읽어 처리)
+  poolOptIn?: { consentedAt: string } | null;
   // Legacy fields (read-only back-compat for resumes made before the
   // structured expansion).
   visaType?: CandidateVisaType | null;
@@ -1582,7 +1602,7 @@ export async function getResumeCoach(resumeId: string): Promise<ResumeCoachData>
   // authedJsonFetch 는 { ok, item, items } 기본 스키마만 타이핑하므로,
   // 커스텀 필드(coach/suggestion/reply)는 캐스팅으로 꺼낸다.
   const result = (await authedJsonFetch(
-    `/members/me/resumes/${encodeURIComponent(resumeId)}/coach`,
+    `/members/me/resumes/${encodeURIComponent(resumeId)}/coach?locale=${encodeURIComponent(getBrowserLocale())}`,
     { method: "GET" }
   )) as unknown as { coach?: ResumeCoachData };
   if (!result.coach) throw new Error("coach response missing payload");
@@ -1666,7 +1686,7 @@ export type DraftResumeTextResult = {
 export async function postDraftResumeText(input: DraftResumeTextInput): Promise<DraftResumeTextResult> {
   const result = (await authedJsonFetch("/members/me/ai/draft-resume-text", {
     method: "POST",
-    body: JSON.stringify(input)
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
   })) as unknown as { draft?: DraftResumeTextResult };
   if (!result.draft) throw new Error("draft response missing payload");
   return result.draft;

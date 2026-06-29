@@ -121,6 +121,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={initialLocale} suppressHydrationWarning>
       <head>
+        {/* 모바일 브라우저 자동 번역(구글 번역 등)이 DOM 텍스트 노드를 바꿔치기하면
+            React 가 그 노드를 제거/삽입하려다 "removeChild: not a child" 로 크래시한다.
+            노드가 실제 자식이 아니면 안전하게 무시하도록 가드(잘 알려진 표준 패치).
+            하이드레이션보다 먼저 실행되도록 head 최상단 inline script 로 둔다. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              '(function(){if(typeof Node!=="function"||!Node.prototype)return;var rc=Node.prototype.removeChild;Node.prototype.removeChild=function(c){if(c&&c.parentNode!==this){return c;}return rc.apply(this,arguments);};var ib=Node.prototype.insertBefore;Node.prototype.insertBefore=function(n,r){if(r&&r.parentNode!==this){return n;}return ib.apply(this,arguments);};})();'
+          }}
+        />
         {/* Must run BEFORE any GA / AdSense script so consent defaults
             (denied for ads + analytics) are set on the very first beacon. */}
         <ConsentInit />
