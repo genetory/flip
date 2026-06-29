@@ -29,12 +29,16 @@ type Copy = {
   listTitle: string;
   startTailor: string;
   startInterview: string;
+  selectResume: string;
+  selectCoverLetter: string;
+  noCoverLetter: string;
+  editItem: string;
 };
 
 const dict: Record<PlatformLocale, Copy> = {
   ko: {
-    titleTailor: "지원할 공고에 맞춰\n이력서를 다듬어요.",
-    titleInterview: "예상 질문으로\n면접을 미리 연습해요.",
+    titleTailor: "지원하려는 공고에 딱 맞게\n내 이력서를 분석하고 다듬어 드려요",
+    titleInterview: "나올 법한 질문을 미리 뽑아\n실전처럼 면접을 연습해 보세요",
     desc: "진행할 이력서를 선택하세요.",
     lastEdited: "마지막 수정",
     untitled: "제목 없는 이력서",
@@ -58,11 +62,15 @@ const dict: Record<PlatformLocale, Copy> = {
     badgeInterview: "AI 모의 면접",
     listTitle: "내 이력서",
     startTailor: "맞춤 시작",
-    startInterview: "면접 시작"
+    startInterview: "면접 시작",
+    selectResume: "이력서 선택",
+    selectCoverLetter: "자기소개서 (선택)",
+    noCoverLetter: "선택 안 함",
+    editItem: "수정하기"
   },
   en: {
-    titleTailor: "Tailor your resume\nto the job you want.",
-    titleInterview: "Practice your interview\nwith likely questions.",
+    titleTailor: "We analyze and refine your resume\nto fit the job you are applying to",
+    titleInterview: "Practice like the real thing\nwith the questions you are likely to get",
     desc: "Pick the resume you want to work with.",
     lastEdited: "Last edited",
     untitled: "Untitled resume",
@@ -86,11 +94,15 @@ const dict: Record<PlatformLocale, Copy> = {
     badgeInterview: "AI Mock Interview",
     listTitle: "My resumes",
     startTailor: "Tailor",
-    startInterview: "Start"
+    startInterview: "Start",
+    selectResume: "Choose a resume",
+    selectCoverLetter: "Cover letter (optional)",
+    noCoverLetter: "None",
+    editItem: "Edit"
   },
   "zh-CN": {
-    titleTailor: "针对目标岗位\n优化你的简历。",
-    titleInterview: "用可能的问题\n提前练习面试。",
+    titleTailor: "针对你要应聘的岗位\n分析并优化你的简历",
+    titleInterview: "提前准备可能出现的问题\n像实战一样练习面试",
     desc: "请选择要使用的简历。",
     lastEdited: "最后编辑",
     untitled: "未命名简历",
@@ -114,11 +126,15 @@ const dict: Record<PlatformLocale, Copy> = {
     badgeInterview: "AI 模拟面试",
     listTitle: "我的简历",
     startTailor: "开始优化",
-    startInterview: "开始面试"
+    startInterview: "开始面试",
+    selectResume: "选择简历",
+    selectCoverLetter: "自荐信（可选）",
+    noCoverLetter: "不选择",
+    editItem: "编辑"
   },
   vi: {
-    titleTailor: "Tinh chỉnh hồ sơ\ntheo tin tuyển dụng.",
-    titleInterview: "Luyện phỏng vấn\nvới câu hỏi có thể gặp.",
+    titleTailor: "Phân tích và tinh chỉnh hồ sơ\ncho khớp với tin tuyển bạn ứng tuyển",
+    titleInterview: "Luyện tập như thật\nvới những câu hỏi có thể gặp phải",
     desc: "Chọn hồ sơ bạn muốn dùng.",
     lastEdited: "Sửa lần cuối",
     untitled: "Hồ sơ chưa đặt tên",
@@ -142,11 +158,15 @@ const dict: Record<PlatformLocale, Copy> = {
     badgeInterview: "AI Phỏng vấn thử",
     listTitle: "Hồ sơ của tôi",
     startTailor: "Tối ưu",
-    startInterview: "Bắt đầu"
+    startInterview: "Bắt đầu",
+    selectResume: "Chọn hồ sơ",
+    selectCoverLetter: "Thư giới thiệu (tùy chọn)",
+    noCoverLetter: "Không chọn",
+    editItem: "Sửa"
   },
   ja: {
-    titleTailor: "応募する求人に合わせて\n履歴書を整えましょう。",
-    titleInterview: "想定質問で\n面接を事前に練習。",
+    titleTailor: "応募する求人にぴったり合うよう\n履歴書を分析して整えます",
+    titleInterview: "出そうな質問を事前に用意して\n本番のように面接を練習しましょう",
     desc: "使用する履歴書を選んでください。",
     lastEdited: "最終編集",
     untitled: "無題の履歴書",
@@ -170,11 +190,15 @@ const dict: Record<PlatformLocale, Copy> = {
     badgeInterview: "AI模擬面接",
     listTitle: "マイ履歴書",
     startTailor: "最適化",
-    startInterview: "開始"
+    startInterview: "開始",
+    selectResume: "履歴書を選択",
+    selectCoverLetter: "自己PR書（任意）",
+    noCoverLetter: "選択しない",
+    editItem: "編集"
   },
   id: {
-    titleTailor: "Sesuaikan resume Anda\ndengan lowongan incaran.",
-    titleInterview: "Latih wawancara Anda\ndengan pertanyaan yang mungkin.",
+    titleTailor: "Menganalisis & menyempurnakan resume\nagar cocok dengan lowongan incaran",
+    titleInterview: "Berlatih seperti aslinya\ndengan pertanyaan yang mungkin muncul",
     desc: "Pilih resume yang ingin Anda gunakan.",
     lastEdited: "Terakhir diubah",
     untitled: "Resume tanpa judul",
@@ -198,7 +222,11 @@ const dict: Record<PlatformLocale, Copy> = {
     badgeInterview: "AI Wawancara Simulasi",
     listTitle: "Resume saya",
     startTailor: "Sesuaikan",
-    startInterview: "Mulai"
+    startInterview: "Mulai",
+    selectResume: "Pilih resume",
+    selectCoverLetter: "Surat lamaran (opsional)",
+    noCoverLetter: "Tidak ada",
+    editItem: "Edit"
   }
 };
 

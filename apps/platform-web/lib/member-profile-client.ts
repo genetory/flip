@@ -1362,6 +1362,13 @@ export type ResumeLanguageEntry = { language?: string; level?: string };
 export type ResumeCertificationEntry = { name?: string; issuer?: string; date?: string };
 export type ResumeLinkEntry = { label?: string; url?: string };
 
+// 한국형 자기소개서 문항 1개 — 문항(prompt)과 작성한 답변(answer).
+export type ResumeCoverLetterItem = {
+  id: string;
+  prompt: string;
+  answer: string;
+};
+
 export type ResumeContent = {
   // 기본정보 — entered per-resume so the user can tailor the contact info
   // for each version (e.g. one in English with the romanized name). When
@@ -1396,6 +1403,8 @@ export type ResumeContent = {
   // 자기소개 / 요약
   summary?: string | null;
   selfIntroduction?: string | null;
+  // 한국형 자기소개서(자소서) — 문항별 답변. 이력서 PDF와 별개로 보관/편집한다.
+  coverLetterItems?: ResumeCoverLetterItem[];
   // 기업 추천 인재풀 등록 동의 — 학생이 결과 화면에서 동의하면 기록된다.
   // (운영자/풀 연동은 백엔드에서 이 플래그를 읽어 처리)
   poolOptIn?: { consentedAt: string } | null;

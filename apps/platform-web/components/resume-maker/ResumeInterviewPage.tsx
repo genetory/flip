@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowCounterClockwise, ArrowLeft, ArrowRight, ChatCircleDots, CheckCircle, CircleNotch, Copy as CopyIcon, Lightbulb, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { ResumeMakerShell } from "./ResumeMakerShell";
 import { ResumeBackBar } from "./ResumeBackBar";
-import { ResumeToolPreview } from "./ResumeToolPreview";
+import { ToolPreviewColumn } from "./ToolPreviewColumn";
 import { PositionPagination } from "./PositionPagination";
 import { AiQuotaModal } from "./AiQuotaModal";
 import { AiTicketCost } from "./AiTicketCost";
@@ -26,6 +26,7 @@ import {
   type InterviewQuestionItem
 } from "../../lib/resume-maker-client";
 import { setActiveResumeId } from "../../lib/resume-maker-active";
+import { coverLetterToPlainText, getCoverLetter, type CoverLetter } from "../../lib/cover-letter-client";
 import { compileResumeContent } from "../../lib/resume-maker-compile";
 import { DEFAULT_DESIGN, type ResumeDesignSettings } from "../../lib/resume-maker-types";
 import { positionToJobText } from "../../lib/resume-maker-position-jd";
@@ -45,6 +46,9 @@ function scoreColor(s: number): string {
 export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
   const toast = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const coverLetterId = searchParams.get("cl");
+  const [coverLetter, setCoverLetter] = useState<CoverLetter | null>(null);
   const t = useInterviewPrepCopy();
   const tt = useTailorCopy(); // 입력 모드(직접 입력/포지션) 라벨은 공고 맞춤과 공유
   const picker = useToolPickerCopy();
@@ -111,6 +115,26 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeId]);
 
+  // 선택 화면에서 함께 고른 자기소개서(cl) — 면접 질문 생성 시 참고 자료로 전달.
+  useEffect(() => {
+    let alive = true;
+    if (!coverLetterId) {
+      setCoverLetter(null);
+      return;
+    }
+    void (async () => {
+      try {
+        const clDoc = await getCoverLetter(coverLetterId);
+        if (alive) setCoverLetter(clDoc);
+      } catch {
+        if (alive) setCoverLetter(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [coverLetterId]);
+
   async function generate() {
     if (!content || generating) return;
     setGenerating(true);
@@ -118,6 +142,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
       const qs = await generateInterviewQuestions({
         resumeText: resumeToPlainText(content),
         jobText: jobText.trim() || undefined,
+        coverLetterText: coverLetter ? coverLetterToPlainText(coverLetter) || undefined : undefined,
         desiredJobRole: jobRole.trim() || undefined
       });
       setQuestions(qs);
@@ -466,7 +491,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
             )}
             </div>
           </div>
-          <ResumeToolPreview content={content} design={design} previewLabel={picker.preview} pdfHref={`/resume-maker/${resumeId}/preview`} pdfLabel={picker.previewPdf} />
+          <ToolPreviewColumn resumeContent={content} design={design} resumePdfHref={`/resume-maker/${resumeId}/preview`} coverLetter={coverLetter} />
         </div>
       )}
       {quotaOpen ? <AiQuotaModal resetAt={resetAt} onClose={() => setQuotaOpen(false)} /> : null}

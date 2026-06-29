@@ -4,6 +4,7 @@ import { useLanguage } from "../../components/i18n/LanguageProvider";
 type Copy = {
   home: string;
   toolResumeMaker: string;
+  toolCoverLetter: string;
   toolTailor: string;
   toolInterview: string;
   wipBadge: string;
@@ -17,7 +18,8 @@ type Copy = {
 const dict: Record<PlatformLocale, Copy> = {
   ko: {
     home: "홈",
-    toolResumeMaker: "나의 이력서",
+    toolResumeMaker: "이력서",
+    toolCoverLetter: "자기소개서",
     toolTailor: "공고 맞춤",
     toolInterview: "모의 면접",
     wipBadge: "준비중",
@@ -30,7 +32,8 @@ const dict: Record<PlatformLocale, Copy> = {
   },
   en: {
     home: "Home",
-    toolResumeMaker: "My Resume",
+    toolResumeMaker: "Resume",
+    toolCoverLetter: "Cover Letter",
     toolTailor: "Job Match",
     toolInterview: "Mock Interview",
     wipBadge: "Soon",
@@ -43,7 +46,8 @@ const dict: Record<PlatformLocale, Copy> = {
   },
   "zh-CN": {
     home: "首页",
-    toolResumeMaker: "我的简历",
+    toolResumeMaker: "简历",
+    toolCoverLetter: "自荐信",
     toolTailor: "岗位匹配",
     toolInterview: "模拟面试",
     wipBadge: "即将",
@@ -56,7 +60,8 @@ const dict: Record<PlatformLocale, Copy> = {
   },
   vi: {
     home: "Trang chủ",
-    toolResumeMaker: "Hồ sơ của tôi",
+    toolResumeMaker: "Hồ sơ",
+    toolCoverLetter: "Thư giới thiệu",
     toolTailor: "Khớp tin tuyển",
     toolInterview: "Phỏng vấn thử",
     wipBadge: "Sắp",
@@ -69,7 +74,8 @@ const dict: Record<PlatformLocale, Copy> = {
   },
   ja: {
     home: "ホーム",
-    toolResumeMaker: "マイ履歴書",
+    toolResumeMaker: "履歴書",
+    toolCoverLetter: "自己PR書",
     toolTailor: "求人マッチ",
     toolInterview: "模擬面接",
     wipBadge: "準備中",
@@ -82,7 +88,8 @@ const dict: Record<PlatformLocale, Copy> = {
   },
   id: {
     home: "Beranda",
-    toolResumeMaker: "Resume Saya",
+    toolResumeMaker: "Resume",
+    toolCoverLetter: "Surat Lamaran",
     toolTailor: "Cocokkan Lowongan",
     toolInterview: "Wawancara Simulasi",
     wipBadge: "Segera",

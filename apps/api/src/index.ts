@@ -12627,6 +12627,109 @@ app.post("/members/me/resumes/:resumeId/primary", authenticate, requireRoles([Me
 });
 
 // ---------------------------------------------------------------------------
+// Cover letters — 한국형 자기소개서. 이력서와 별개 컬렉션(회사/공고마다 다르게 제출).
+// 이력서 CRUD 와 같은 패턴이되, 번역/사진/필수필드 검증 없이 단순 보관한다.
+// ---------------------------------------------------------------------------
+const coverLetterItemSchema = z.object({
+  id: z.string().min(1).max(60),
+  prompt: z.string().max(300),
+  answer: z.string().max(6000)
+});
+const createCoverLetterSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  company: z.string().trim().max(120).optional(),
+  resumeId: z.string().max(60).optional()
+});
+const updateCoverLetterSchema = z.object({
+  title: z.string().trim().min(1).max(120).optional(),
+  company: z.string().trim().max(120).nullable().optional(),
+  resumeId: z.string().max(60).nullable().optional(),
+  items: z.array(coverLetterItemSchema).max(30).optional()
+});
+
+app.get("/members/me/cover-letters", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  try {
+    const items = await prisma.coverLetter.findMany({ where: { userId }, orderBy: { updatedAt: "desc" } });
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error("[GET /members/me/cover-letters] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to list cover letters" });
+  }
+});
+
+app.post("/members/me/cover-letters", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const parsed = createCoverLetterSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    const item = await prisma.coverLetter.create({
+      data: {
+        userId,
+        title: parsed.data.title,
+        company: parsed.data.company ?? null,
+        resumeId: parsed.data.resumeId ?? null,
+        items: [] as Prisma.InputJsonValue
+      }
+    });
+    return res.status(201).json({ ok: true, item });
+  } catch (err) {
+    console.error("[POST /members/me/cover-letters] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to create cover letter" });
+  }
+});
+
+app.get("/members/me/cover-letters/:coverLetterId", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const id = Array.isArray(req.params.coverLetterId) ? req.params.coverLetterId[0] : req.params.coverLetterId;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const item = await prisma.coverLetter.findFirst({ where: { id, userId } });
+    if (!item) return res.status(404).json({ ok: false, message: "cover letter not found" });
+    return res.json({ ok: true, item });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to get cover letter" });
+  }
+});
+
+app.patch("/members/me/cover-letters/:coverLetterId", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const id = Array.isArray(req.params.coverLetterId) ? req.params.coverLetterId[0] : req.params.coverLetterId;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid request" });
+  const parsed = updateCoverLetterSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    const existing = await prisma.coverLetter.findFirst({ where: { id, userId }, select: { id: true } });
+    if (!existing) return res.status(404).json({ ok: false, message: "cover letter not found" });
+    const item = await prisma.coverLetter.update({
+      where: { id },
+      data: {
+        ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
+        ...(parsed.data.company !== undefined ? { company: parsed.data.company } : {}),
+        ...(parsed.data.resumeId !== undefined ? { resumeId: parsed.data.resumeId } : {}),
+        ...(parsed.data.items !== undefined ? { items: parsed.data.items as Prisma.InputJsonValue } : {})
+      }
+    });
+    return res.json({ ok: true, item });
+  } catch (err) {
+    console.error("[PATCH /members/me/cover-letters] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to update cover letter" });
+  }
+});
+
+app.delete("/members/me/cover-letters/:coverLetterId", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const id = Array.isArray(req.params.coverLetterId) ? req.params.coverLetterId[0] : req.params.coverLetterId;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    await prisma.coverLetter.deleteMany({ where: { id, userId } });
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to delete cover letter" });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Resume Coach — unified scoring + action items + position matching in a
 // single response. Cheap to call (rule-based, ~10ms) so the frontend can
 // re-fetch after every save without worrying about cost. LLM-backed text
@@ -13184,19 +13287,21 @@ function aiLangDirective(locale?: string): string {
 // 무거운(전체 생성/파싱) 3 티켓. 보조성(웹 fetch)은 0(과금 안 함). KST 월 단위 리셋.
 // 초기 정책: 넉넉히 10000 지급(런칭/테스트 단계에서 사실상 막히지 않게).
 // 공용 AI 티켓 지갑 — 가입 시 1회 보너스 + 매일 적립(상한). 사용 시 차감.
-const AI_WELCOME_GRANT = 1000; // 가입(첫 사용) 시 1회 지급 — 스테이징 테스트용(프로덕션 전 15로 되돌릴 것)
+const AI_WELCOME_GRANT = 15; // 가입(첫 사용) 시 1회 지급
 const AI_DAILY_GRANT = 5; // 매일 적립
 const AI_DAILY_CAP = 20; // 적립 누적 상한
 
 // 기능별 티켓 비용. 없는 키는 0(과금 안 함).
 const AI_FEATURE_COST: Record<string, number> = {
-  // 무거움(3) — 이력서 전체 파싱/면접 질문 세트 생성
+  // 무거움(3) — 이력서/자소서 전체 파싱·면접 질문 세트 생성
   import_resume: 3,
+  import_cover_letter: 3,
   interview_questions: 3,
   // 보통(2) — 분석·초안 생성
   tailor_analyze: 2,
   draft_intro: 2,
   generate_english_intro: 2,
+  cover_letter: 2,
   // 가벼움(1) — 다듬기·제안·번역·단건 평가·단일 필드 개선
   draft_resume_text: 1,
   experience_interview: 1,
@@ -13314,6 +13419,53 @@ function aiCharge(feature: string): import("express").RequestHandler {
   };
 }
 
+// POST /members/me/ai/redeem-code — 쿠폰 코드로 AI 티켓 충전. 사용자당 같은 코드 1회,
+// 코드별 전체 사용 횟수(maxUses) 상한. 성공 시 지갑 잔액에 tickets 만큼 더한다.
+app.post(
+  "/members/me/ai/redeem-code",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "ai-redeem", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const userId = req.auth!.userId;
+    const code = String(req.body?.code ?? "").trim().toUpperCase().replace(/\s+/g, "");
+    if (!code || code.length > 40) return res.status(400).json({ ok: false, code: "COUPON_INVALID", message: "유효하지 않은 코드예요." });
+    try {
+      const coupon = await prisma.coupon.findFirst({ where: { code, active: true } });
+      if (!coupon) return res.status(404).json({ ok: false, code: "COUPON_INVALID", message: "유효하지 않은 코드예요." });
+      if (coupon.expiresAt && coupon.expiresAt.getTime() < Date.now()) return res.status(410).json({ ok: false, code: "COUPON_EXPIRED", message: "만료된 코드예요." });
+      const already = await prisma.couponRedemption.findUnique({ where: { couponId_userId: { couponId: coupon.id, userId } } });
+      if (already) return res.status(409).json({ ok: false, code: "COUPON_ALREADY", message: "이미 사용한 코드예요." });
+      // 같은 그룹(이벤트)의 다른 코드를 이미 사용했으면 — 그룹당 계정 1회.
+      if (coupon.groupKey) {
+        const groupUsed = await prisma.couponRedemption.findFirst({ where: { userId, groupKey: coupon.groupKey } });
+        if (groupUsed) return res.status(409).json({ ok: false, code: "COUPON_GROUP_USED", message: "이미 이 이벤트의 코드를 사용했어요." });
+      }
+
+      // 지갑 보장(없으면 생성·정리) 후, 사용 횟수를 원자적으로 증가(상한 체크).
+      await aiWalletReconcile(userId);
+      const bump = await prisma.coupon.updateMany({ where: { id: coupon.id, usedCount: { lt: coupon.maxUses } }, data: { usedCount: { increment: 1 } } });
+      if (bump.count === 0) return res.status(409).json({ ok: false, code: "COUPON_EXHAUSTED", message: "모두 사용된 코드예요." });
+
+      // 사용 기록 생성 — (couponId,userId)·(groupKey,userId) 유니크 제약으로 동시 중복·그룹 중복 방지.
+      // 실패하면 사용 횟수 롤백.
+      try {
+        await prisma.couponRedemption.create({ data: { couponId: coupon.id, userId, tickets: coupon.tickets, groupKey: coupon.groupKey } });
+      } catch {
+        await prisma.coupon.updateMany({ where: { id: coupon.id }, data: { usedCount: { decrement: 1 } } });
+        return coupon.groupKey
+          ? res.status(409).json({ ok: false, code: "COUPON_GROUP_USED", message: "이미 이 이벤트의 코드를 사용했어요." })
+          : res.status(409).json({ ok: false, code: "COUPON_ALREADY", message: "이미 사용한 코드예요." });
+      }
+      const wallet = await prisma.aiWallet.update({ where: { userId }, data: { balance: { increment: coupon.tickets } } });
+      return res.json({ ok: true, tickets: coupon.tickets, balance: wallet.balance });
+    } catch (err) {
+      console.error("[ai/redeem-code] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to redeem code" });
+    }
+  }
+);
+
 // POST /members/me/ai/polish-intro — 사용자가 쓴 자기소개를 더 자연스럽고 설득력
 // 있게 다듬어 준다(없는 사실 금지, 분량 유지). style 별로 여러 형식을 시도 가능.
 const POLISH_STYLE_GUIDE: Record<string, string> = {
@@ -13330,6 +13482,7 @@ const POLISH_STYLE_GUIDE: Record<string, string> = {
 const polishIntroSchema = z.object({
   text: z.string().trim().min(1).max(4000),
   style: z.enum(["natural", "concise", "professional", "impact", "expand", "achievement"]).optional(),
+  keywords: z.array(z.string().trim().max(40)).max(10).optional(), // 강조할 소재(반영해 보강)
   desiredJobRole: z.string().trim().max(120).optional(),
   jobCategories: z.array(z.string().trim().max(40)).max(5).optional(),
   locale: z.string().max(10).optional()
@@ -13345,16 +13498,20 @@ app.post(
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
-      const { text, desiredJobRole, jobCategories, style, locale } = parsed.data;
+      const { text, desiredJobRole, jobCategories, style, keywords, locale } = parsed.data;
       const styleGuide = POLISH_STYLE_GUIDE[style ?? "natural"] ?? POLISH_STYLE_GUIDE.natural;
+      const keywordList = (keywords ?? []).map((k) => k.trim()).filter(Boolean);
       const systemPrompt =
         "당신은 한국 채용 이력서의 자기소개를 다듬는 첨삭 코치입니다.\n" +
-        "사용자가 쓴 자기소개를 더 설득력 있게 다듬어 주세요.\n" +
-        `이번 다듬기 방향: ${styleGuide}\n` +
+        (keywordList.length
+          ? "사용자가 쓴 자기소개를 다듬되, 아래 '반드시 반영할 소재'를 새 문장으로 추가해 자연스럽게 녹여 주세요. 소재를 충분히 풀어내기 위해 분량을 늘려도 됩니다.\n"
+          : `사용자가 쓴 자기소개를 더 설득력 있게 다듬어 주세요.\n이번 다듬기 방향: ${styleGuide}\n`) +
         "규칙:\n" +
-        "1. 사용자가 적지 않은 경력·수치·회사명·성과를 지어내지 마세요. 있는 내용만 다듬습니다.\n" +
+        "1. 사용자가 적지 않은 경력·수치·회사명·성과를 지어내지 마세요. 있는 내용과 아래 '제공 소재'만 사용합니다.\n" +
         "2. 군더더기·중복을 없애고 문장을 매끄럽게, 맞춤법·띄어쓰기를 교정하세요.\n" +
-        "3. 1인칭 진술체를 유지하고, 한국어로만 작성하세요.\n\n" +
+        "3. 1인칭 진술체를 유지하고, 한국어로만 작성하세요.\n" +
+        (keywordList.length ? `4. [최우선] 반드시 반영할 소재: ${keywordList.map((k) => `「${k}」`).join(", ")} — 단순 나열이 아니라 이야기로 자연스럽게 녹입니다(제공되지 않은 수치·성과는 금지).\n` : "") +
+        "\n" +
         'JSON 한 개 객체로만 응답: { "polished": string }' + aiLangDirective(locale);
       const ctx = [desiredJobRole ? `희망 직무: ${desiredJobRole}` : "", jobCategories?.length ? `관심 직군: ${jobCategories.join(", ")}` : ""]
         .filter(Boolean)
@@ -13451,6 +13608,7 @@ app.get(
 const tailorResumeSchema = z.object({
   resumeText: z.string().trim().min(1).max(8000),
   jobText: z.string().trim().min(1).max(6000),
+  coverLetterText: z.string().trim().max(8000).optional(),
   desiredJobRole: z.string().trim().max(120).optional(),
   locale: z.string().max(10).optional()
 });
@@ -13465,9 +13623,10 @@ app.post(
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
-      const { resumeText, jobText, desiredJobRole, locale } = parsed.data;
+      const { resumeText, jobText, coverLetterText, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
-        "당신은 한국 기업 채용을 돕는 이력서 컨설턴트입니다. 주어진 채용 공고(JD)와 지원자의 이력서를 비교해, 그 공고에 맞게 이력서를 다듬도록 돕습니다.\n\n" +
+        "당신은 한국 기업 채용을 돕는 이력서 컨설턴트입니다. 주어진 채용 공고(JD)와 지원자의 이력서를 비교해, 그 공고에 맞게 이력서를 다듬도록 돕습니다.\n" +
+        "자기소개서가 함께 주어지면 지원자의 동기·강점·맥락을 파악하는 참고 자료로만 쓰세요(없으면 무시).\n\n" +
         "규칙:\n" +
         "1. score: 이 이력서가 이 공고에 얼마나 적합한지 0~100 정수로 평가(요구 역량·경험·키워드 충족도 기준).\n" +
         "2. matched: 공고가 요구하는데 이력서에도 드러나는 핵심 역량/키워드(최대 8개, 짧게).\n" +
@@ -13481,7 +13640,8 @@ app.post(
         aiLangDirective(locale);
       const userPrompt =
         `${desiredJobRole ? `지원자 희망 직무: ${desiredJobRole}\n\n` : ""}` +
-        `[채용 공고]\n${jobText}\n\n[이력서]\n${resumeText}`;
+        `[채용 공고]\n${jobText}\n\n[이력서]\n${resumeText}` +
+        `${coverLetterText ? `\n\n[자기소개서]\n${coverLetterText}` : ""}`;
       const completion = await openai.chat.completions.create({
         model: openaiTranslationModel,
         temperature: 0.4,
@@ -13600,6 +13760,7 @@ app.post(
 const interviewQuestionsSchema = z.object({
   resumeText: z.string().trim().min(1).max(8000),
   jobText: z.string().trim().max(6000).optional(),
+  coverLetterText: z.string().trim().max(8000).optional(),
   desiredJobRole: z.string().trim().max(120).optional(),
   locale: z.string().max(10).optional()
 });
@@ -13614,12 +13775,12 @@ app.post(
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
-      const { resumeText, jobText, desiredJobRole, locale } = parsed.data;
+      const { resumeText, jobText, coverLetterText, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
-        "당신은 한국 기업 채용 면접을 돕는 면접 코치입니다. 지원자의 이력서(와 있다면 채용 공고)를 보고, 실제로 나올 법한 면접 질문을 만듭니다.\n\n" +
+        "당신은 한국 기업 채용 면접을 돕는 면접 코치입니다. 지원자의 이력서·자기소개서(와 있다면 채용 공고)를 보고, 실제로 나올 법한 면접 질문을 만듭니다.\n\n" +
         "규칙:\n" +
-        "1. 질문 6개. 구성: ① 자기소개/지원동기형 1개, ② 이력서의 구체적 경험을 파고드는 질문 2~3개, ③ 직무 역량/문제해결형 1~2개, ④ 상황/약점형 1개.\n" +
-        "2. 이력서에 적힌 실제 경험을 근거로 개인화된 질문을 만드세요(일반론 X). 없는 사실을 단정하지 마세요.\n" +
+        "1. 질문 6개. 구성: ① 자기소개/지원동기형 1개, ② 이력서·자기소개서의 구체적 경험·일화를 파고드는 질문 2~3개, ③ 직무 역량/문제해결형 1~2개, ④ 상황/약점형 1개.\n" +
+        "2. 이력서·자기소개서에 적힌 실제 경험·동기를 근거로 개인화된 질문을 만드세요(일반론 X). 자기소개서가 있으면 거기 담긴 지원동기·가치관·일화도 적극 활용하세요. 없는 사실을 단정하지 마세요.\n" +
         "3. intent: 그 질문으로 면접관이 무엇을 보려는지 한 문장으로(지원자에게 도움이 되도록).\n" +
         "4. category: 질문 분류. 반드시 다음 영문 키 중 하나만(번역하지 말 것): \"intro\"(자기소개·지원동기), \"experience\"(경험 심층), \"competency\"(직무 역량·문제해결), \"weakness\"(상황·약점).\n" +
         "5. 정중한 존댓말.\n\n" +
@@ -13628,7 +13789,8 @@ app.post(
       const userPrompt =
         `${desiredJobRole ? `희망 직무: ${desiredJobRole}\n` : ""}` +
         `${jobText ? `\n[채용 공고]\n${jobText}\n` : ""}` +
-        `\n[이력서]\n${resumeText}`;
+        `\n[이력서]\n${resumeText}` +
+        `${coverLetterText ? `\n\n[자기소개서]\n${coverLetterText}` : ""}`;
       const completion = await openai.chat.completions.create({
         model: openaiTranslationModel,
         temperature: 0.6,
@@ -14004,6 +14166,134 @@ app.post(
   }
 );
 
+// POST /members/me/ai/cover-letter — 한국형 자기소개서(자소서) 문항별 답변을
+// 작성(draft)하거나 다듬는다(polish). 이력서에 입력된 사실만 사용(없는 사실 금지),
+// 1인칭·STAR 구조·목표 글자 수에 맞춰 한국어로 작성.
+const coverLetterSchema = z.object({
+  mode: z.enum(["draft", "polish"]).optional(), // 기본 draft
+  style: z.enum(["natural", "concise", "professional", "impact", "expand", "achievement"]).optional(), // polish 형식
+  prompt: z.string().trim().min(1).max(300), // 자소서 문항(지원동기 등)
+  current: z.string().trim().max(4000).optional(), // polish 대상(또는 draft 시 참고 메모)
+  keywords: z.array(z.string().trim().max(40)).max(10).optional(), // 강조할 키워드(반영해 보강)
+  targetChars: z.number().int().min(300).max(2000).optional(), // 목표 글자 수
+  desiredJobRole: z.string().trim().max(120).optional(),
+  jobCategories: z.array(z.string().trim().max(40)).max(5).optional(),
+  companyName: z.string().trim().max(120).optional(),
+  experiences: z
+    .array(
+      z.object({
+        type: z.string().trim().max(40).optional(),
+        title: z.string().trim().max(120).optional(),
+        org: z.string().trim().max(120).optional(),
+        period: z.string().trim().max(60).optional(),
+        summary: z.string().trim().max(1000).optional(),
+        bullets: z.array(z.string().trim().max(500)).max(10).optional()
+      })
+    )
+    .max(20)
+    .optional(),
+  education: z
+    .array(z.object({ school: z.string().trim().max(120).optional(), major: z.string().trim().max(120).optional(), status: z.string().trim().max(40).optional() }))
+    .max(10)
+    .optional(),
+  skills: z.array(z.string().trim().max(60)).max(40).optional(),
+  languages: z
+    .array(z.object({ language: z.string().trim().max(60).optional(), level: z.string().trim().max(40).optional() }))
+    .max(10)
+    .optional(),
+  summary: z.string().trim().max(1000).optional(),
+  selfIntroduction: z.string().trim().max(4000).optional(),
+  locale: z.string().max(10).optional()
+});
+app.post(
+  "/members/me/ai/cover-letter",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "ai-cover-letter", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("cover_letter"),
+  async (req, res) => {
+    const parsed = coverLetterSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { mode, style, prompt, current, keywords, targetChars, desiredJobRole, jobCategories, companyName, experiences, education, skills, languages, summary, selfIntroduction, locale } = parsed.data;
+      const isPolish = mode === "polish";
+      const target = targetChars ?? 800;
+      const styleGuide = POLISH_STYLE_GUIDE[style ?? "natural"] ?? POLISH_STYLE_GUIDE.natural;
+      const keywordList = (keywords ?? []).map((k) => k.trim()).filter(Boolean);
+      const expText = (experiences ?? [])
+        .map((e, i) => {
+          const head = [e.title, e.type, e.org, e.period].filter(Boolean).join(" · ");
+          const body = [e.summary, ...(e.bullets ?? [])].filter(Boolean).join("\n  - ");
+          return `${i + 1}. ${head}${body ? `\n  - ${body}` : ""}`;
+        })
+        .join("\n");
+      const eduText = (education ?? [])
+        .map((e) => [e.school, e.major, e.status].filter(Boolean).join(" · "))
+        .filter(Boolean)
+        .join("\n");
+      const langText = (languages ?? [])
+        .map((l) => [l.language, l.level].filter(Boolean).join(" - "))
+        .filter(Boolean)
+        .join(", ");
+      const systemPrompt =
+        "당신은 한국 기업 채용에 제출하는 한국형 자기소개서(자소서)를 대신 써 주는 전문 코치입니다.\n" +
+        (isPolish
+          ? keywordList.length
+            ? "사용자가 쓴 자소서 답변을 다듬되, 아래 '반드시 반영할 소재'를 새 문장으로 추가해 지원 동기·계기 이야기로 자연스럽게 녹여 넣으세요. 소재를 충분히 풀어내기 위해 분량을 늘려도 됩니다(제공되지 않은 수상·수치·성과는 지어내지 말 것).\n"
+            : `사용자가 쓴 자소서 답변을 다듬으세요(없는 사실 추가 금지).\n이번 다듬기 방향: ${styleGuide}\n`
+          : "사용자의 이력서 정보를 바탕으로 해당 자소서 문항에 대한 답변을 처음부터 작성하세요.\n") +
+        "규칙:\n" +
+        "1. 제공된 이력서 정보와 아래 '지원자 제공 소재'에 없는 사실(회사·수치·성과·기간·일화)을 지어내지 마세요. 주어진 내용 안에서만 작성합니다.\n" +
+        "2. 한국 자소서 문체 — 1인칭(저는), 정중한 '~습니다'체, 두괄식. 경험은 STAR(상황-과제-행동-결과) 흐름으로 구체적으로.\n" +
+        (isPolish
+          ? "3. 위 다듬기 방향에 맞게 분량을 조절하세요. 불릿/번호/머리말 없이 줄글로 작성합니다.\n"
+          : `3. 분량은 공백 포함 약 ${target}자(±15%)로 맞추세요. 한두 문단으로 자연스럽게 이어 쓰고, 불릿/번호/머리말 없이 줄글로 작성합니다.\n`) +
+        "4. 문항의 의도에 정확히 답하세요(지원동기면 동기와 회사 적합성, 성장과정이면 가치관 형성, 직무역량이면 경험 근거, 입사 후 포부면 구체적 계획).\n" +
+        "5. 정보가 부족하면 학력·스킬·어학·태도를 중심으로 담백하게. 과장·미사여구는 피합니다.\n" +
+        "6. 한국어로만 작성하세요.\n" +
+        (keywordList.length
+          ? "7. [최우선] 다음은 지원자가 직접 제공한 소재·사실입니다(이력서에 없어도 사실로 간주). 위 '다듬기 방향'이 분량·내용 유지를 지시하더라도, 이 소재만큼은 반드시 답변에 새로 녹여 넣으세요(필요하면 문장을 추가해 분량을 늘려도 됩니다). 단순 나열이 아니라, 왜 그것이 지원 동기·가치관·계기와 이어지는지 이야기로 발전시켜 풀어냅니다. 예: '아빠가 삼성전자 출신' → 아버지의 영향으로 그 분야를 존경하게 되었고 그 길을 따라 지원하게 된 계기로 서술. 다만 제공되지 않은 수상·수치·구체 성과를 새로 지어내지는 마세요.\n" +
+            `   반드시 반영할 소재: ${keywordList.map((k) => `「${k}」`).join(", ")}\n`
+          : "") +
+        '\nJSON 한 개 객체로만 응답: { "text": string }' + aiLangDirective(locale);
+      const ctx = [
+        companyName ? `지원 회사: ${companyName}` : "",
+        desiredJobRole ? `희망 직무: ${desiredJobRole}` : "",
+        jobCategories?.length ? `관심 직군: ${jobCategories.join(", ")}` : "",
+        eduText ? `학력:\n${eduText}` : "",
+        skills?.length ? `스킬: ${skills.join(", ")}` : "",
+        langText ? `어학: ${langText}` : "",
+        summary ? `한 줄 요약: ${summary}` : "",
+        selfIntroduction ? `자기소개: ${selfIntroduction}` : "",
+        expText ? `경험:\n${expText}` : "경험: (입력된 경험 없음)",
+        `\n[자소서 문항]\n${prompt}`,
+        isPolish && current ? `\n[다듬을 기존 답변]\n${current}` : current ? `\n[참고 메모]\n${current}` : ""
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.6,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: ctx }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { text?: unknown } = {};
+      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
+      const text = typeof parsedJson.text === "string" ? parsedJson.text.trim().slice(0, 6000) : "";
+      if (!text) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, text });
+    } catch (err) {
+      console.error("[ai/cover-letter] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to draft cover letter" });
+    }
+  }
+);
+
 // POST /members/me/ai/polish-experience — 사용자가 적은 경험 설명(한 일)을 더
 // 명확하고 이력서에 어울리게 다듬어 준다(없는 사실 금지, 분량 유지).
 const polishExperienceSchema = z.object({
@@ -14309,6 +14599,85 @@ app.post(
     } catch (err) {
       console.error("[ai/import-resume] failed", err);
       return res.status(500).json({ ok: false, message: "failed to import resume" });
+    }
+  }
+);
+
+// POST /members/me/ai/import-cover-letter — 기존 자기소개서(PDF/텍스트)를 읽어 문항·답변으로
+// 분해한다(없는 내용 금지). 회사명이 보이면 함께 추출.
+const importCoverLetterSchema = z
+  .object({
+    text: z.string().max(40000).optional(),
+    pdfBase64: z.string().max(16_000_000).optional()
+  })
+  .refine((d) => Boolean(d.text) || Boolean(d.pdfBase64), { message: "text or pdfBase64 required" });
+app.post(
+  "/members/me/ai/import-cover-letter",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "ai-import-cover-letter", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("import_cover_letter"),
+  async (req, res) => {
+    const parsed = importCoverLetterSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+    // 1) 원문 텍스트 확보 — PDF 면 서버에서 텍스트만 추출(import-resume 와 동일).
+    let sourceText = parsed.data.text?.trim() ?? "";
+    if (!sourceText && parsed.data.pdfBase64) {
+      try {
+        const base64 = parsed.data.pdfBase64.replace(/^data:[^,]*,/, "");
+        const buffer = Buffer.from(base64, "base64");
+        if (buffer.byteLength > 12 * 1024 * 1024) return res.status(413).json({ ok: false, message: "file too large" });
+        const { extractText, getDocumentProxy } = await import("unpdf");
+        const pdf = await getDocumentProxy(new Uint8Array(buffer));
+        const extracted = await extractText(pdf, { mergePages: true });
+        sourceText = (Array.isArray(extracted.text) ? extracted.text.join("\n") : extracted.text).trim();
+      } catch (err) {
+        console.error("[ai/import-cover-letter] pdf parse failed", err);
+        return res.status(422).json({ ok: false, message: "이 PDF에서 텍스트를 읽지 못했어요. 스캔본이면 내용을 직접 붙여넣어 주세요." });
+      }
+    }
+    sourceText = sourceText.slice(0, 40000);
+    if (sourceText.replace(/\s+/g, "").length < 20) {
+      return res.status(422).json({ ok: false, message: "읽을 내용이 충분하지 않아요. 내용을 직접 붙여넣어 주세요." });
+    }
+
+    // 2) LLM 으로 문항·답변 분해.
+    try {
+      const systemPrompt =
+        "당신은 기존 한국형 자기소개서(자소서) 텍스트를 문항·답변으로 분해하는 파서입니다. JSON 으로만 응답하세요.\n" +
+        "규칙:\n" +
+        "1. 원문에 실제로 적힌 내용만 사용. 없는 내용을 지어내지 마세요.\n" +
+        "2. 각 문항(소제목/질문)과 그 답변 본문을 짝지어 items 로. 문항 제목이 명시돼 있으면 그대로 prompt 로 쓰고, 없으면 내용에 맞는 표준 문항명(지원 동기/성장 과정/성격의 장단점/직무 역량·경험/입사 후 포부)으로 추정합니다.\n" +
+        "3. 답변(answer)은 원문 표현을 최대한 보존하되, 머리말·번호 없이 줄글로 정리합니다.\n" +
+        "4. 회사명이 보이면 company 로.\n\n" +
+        'JSON: { "company": string, "items": [{ "prompt": string, "answer": string }] }';
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `다음은 기존 자기소개서 원문입니다:\n\n${sourceText}` }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let j: Record<string, unknown> = {};
+      try { j = JSON.parse(raw); } catch { /* fall through */ }
+      const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+      const items = arr(j.items)
+        .slice(0, 20)
+        .map((e) => {
+          const o = (e ?? {}) as Record<string, unknown>;
+          return { prompt: pickStr(o.prompt, 300) ?? "", answer: pickStr(o.answer, 6000) ?? "" };
+        })
+        .filter((it) => it.prompt || it.answer);
+      const imported = { company: pickStr(j.company, 120), items };
+      return res.json({ ok: true, imported });
+    } catch (err) {
+      console.error("[ai/import-cover-letter] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to import cover letter" });
     }
   }
 );

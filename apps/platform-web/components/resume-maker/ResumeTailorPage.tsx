@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, CircleNotch, Copy as CopyIcon, Plus, Target, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import { ResumeMakerShell } from "./ResumeMakerShell";
 import { AiQuotaModal } from "./AiQuotaModal";
 import { AiTicketCost } from "./AiTicketCost";
 import { ResumeBackBar } from "./ResumeBackBar";
-import { ResumeToolPreview } from "./ResumeToolPreview";
+import { ToolPreviewColumn } from "./ToolPreviewColumn";
 import { PositionPagination } from "./PositionPagination";
 import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
@@ -16,6 +16,7 @@ import { PositionRow, mapPublicPositionToCard } from "../pages/PositionsPage";
 import { getMyResumes, type PublicPositionListItem, type ResumeContent } from "../../lib/member-profile-client";
 import { AiQuotaError, fetchJobPosting, getBuilderState, getDraftResume, isResumeMakerDraft, resumeToPlainText, saveResumeContent, tailorResume, type TailorResult } from "../../lib/resume-maker-client";
 import { setActiveResumeId } from "../../lib/resume-maker-active";
+import { coverLetterToPlainText, getCoverLetter, type CoverLetter } from "../../lib/cover-letter-client";
 import { compileResumeContent } from "../../lib/resume-maker-compile";
 import { DEFAULT_DESIGN, type ResumeBuilderState, type ResumeDesignSettings } from "../../lib/resume-maker-types";
 import { positionToJobText } from "../../lib/resume-maker-position-jd";
@@ -60,6 +61,9 @@ function ScoreRing({ score }: { score: number }) {
 export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
   const toast = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const coverLetterId = searchParams.get("cl");
+  const [coverLetter, setCoverLetter] = useState<CoverLetter | null>(null);
   const t = useTailorCopy();
   const picker = useToolPickerCopy();
   const { locale } = useLanguage();
@@ -120,6 +124,26 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeId]);
 
+  // 선택 화면에서 함께 고른 자기소개서(cl) — AI 분석 시 참고 자료로 전달.
+  useEffect(() => {
+    let alive = true;
+    if (!coverLetterId) {
+      setCoverLetter(null);
+      return;
+    }
+    void (async () => {
+      try {
+        const clDoc = await getCoverLetter(coverLetterId);
+        if (alive) setCoverLetter(clDoc);
+      } catch {
+        if (alive) setCoverLetter(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [coverLetterId]);
+
   async function analyze() {
     if (!builderContent || analyzing) return;
     let jd = jobText.trim();
@@ -148,6 +172,7 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
       const r = await tailorResume({
         resumeText: resumeToPlainText(builderContent),
         jobText: jd,
+        coverLetterText: coverLetter ? coverLetterToPlainText(coverLetter) || undefined : undefined,
         desiredJobRole: builderContent.desiredJobRole?.trim() || undefined
       });
       setResult(r);
@@ -447,7 +472,7 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
               )}
             </div>
           </div>
-          <ResumeToolPreview content={builderContent} design={design} previewLabel={picker.preview} pdfHref={`/resume-maker/${resumeId}/preview`} pdfLabel={picker.previewPdf} />
+          <ToolPreviewColumn resumeContent={builderContent} design={design} resumePdfHref={`/resume-maker/${resumeId}/preview`} coverLetter={coverLetter} />
         </div>
       )}
       {quotaOpen ? <AiQuotaModal resetAt={resetAt} onClose={() => setQuotaOpen(false)} /> : null}

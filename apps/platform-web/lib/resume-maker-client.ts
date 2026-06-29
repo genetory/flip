@@ -135,6 +135,7 @@ export const polishStyleLabel = (s: PolishStyle) => POLISH_STYLES.find((x) => x.
 export async function polishSelfIntro(input: {
   text: string;
   style?: PolishStyle;
+  keywords?: string[];
   desiredJobRole?: string;
   jobCategories?: string[];
 }): Promise<string> {
@@ -163,6 +164,46 @@ export async function draftSelfIntro(input: {
   const draft = (payload.draft ?? "").trim();
   if (!draft) throw new Error("초안을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
   return draft;
+}
+
+// 한국형 자기소개서(자소서) 문항 답변 작성/다듬기 (POST /members/me/ai/cover-letter).
+// mode="draft" 는 이력서 정보로 처음부터, "polish" 는 기존 답변을 다듬는다.
+export async function generateCoverLetter(input: {
+  mode: "draft" | "polish";
+  style?: PolishStyle;
+  prompt: string;
+  current?: string;
+  keywords?: string[];
+  targetChars?: number;
+  companyName?: string;
+  desiredJobRole?: string;
+  jobCategories?: string[];
+  experiences?: { type?: string; title?: string; org?: string; period?: string; summary?: string; bullets?: string[] }[];
+  education?: { school?: string; major?: string; status?: string }[];
+  skills?: string[];
+  languages?: { language?: string; level?: string }[];
+  summary?: string;
+  selfIntroduction?: string;
+}): Promise<string> {
+  const payload = (await aiPost<unknown>("/members/me/ai/cover-letter", {
+    method: "POST",
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
+  })) as unknown as { text?: string };
+  const text = (payload.text ?? "").trim();
+  if (!text) throw new Error("자소서를 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
+  return text;
+}
+
+// 기존 자기소개서(PDF/텍스트)를 문항·답변으로 분해 (POST /members/me/ai/import-cover-letter).
+export async function importCoverLetter(input: { text?: string; pdfBase64?: string }): Promise<{ company?: string; items: { prompt: string; answer: string }[] }> {
+  const payload = (await aiPost<unknown>("/members/me/ai/import-cover-letter", {
+    method: "POST",
+    body: JSON.stringify(input)
+  })) as unknown as { imported?: { company?: string; items?: { prompt?: string; answer?: string }[] } };
+  const imp = payload.imported;
+  if (!imp) throw new Error("자기소개서 내용을 읽지 못했어요. 잠시 후 다시 시도해 주세요.");
+  const items = (imp.items ?? []).map((it) => ({ prompt: String(it.prompt ?? ""), answer: String(it.answer ?? "") }));
+  return { company: imp.company, items };
 }
 
 export type TranslateTarget = "ko" | "en";
@@ -318,6 +359,16 @@ async function aiPost<T>(path: string, init: RequestInit) {
 // 공용 티켓 — 공고 맞춤 분석·모의 면접 평가가 함께 쓰는 월간 잔량.
 export type AiUsage = { limit: number; used: number; remaining: number; resetAt: string; dailyGrant: number };
 
+// 쿠폰 코드로 AI 티켓 충전 (POST /members/me/ai/redeem-code). 실패 시 MemberProfileApiError
+// (.code: COUPON_INVALID|COUPON_EXPIRED|COUPON_ALREADY|COUPON_EXHAUSTED)를 던진다.
+export async function redeemTicketCode(code: string): Promise<{ tickets: number; balance: number }> {
+  const payload = (await authedJsonFetch<unknown>("/members/me/ai/redeem-code", {
+    method: "POST",
+    body: JSON.stringify({ code })
+  })) as unknown as { tickets?: number; balance?: number };
+  return { tickets: payload.tickets ?? 0, balance: payload.balance ?? 0 };
+}
+
 export async function getAiUsage(): Promise<AiUsage> {
   const payload = (await authedJsonFetch<unknown>("/members/me/ai/usage", { method: "GET" })) as unknown as { usage?: Partial<AiUsage> };
   const u = payload.usage ?? {};
@@ -334,7 +385,7 @@ function isQuotaError(err: unknown): boolean {
   return !!err && typeof err === "object" && (err as { status?: number }).status === 402;
 }
 
-export async function tailorResume(input: { resumeText: string; jobText: string; desiredJobRole?: string }): Promise<TailorResult> {
+export async function tailorResume(input: { resumeText: string; jobText: string; coverLetterText?: string; desiredJobRole?: string }): Promise<TailorResult> {
   let payload: { result?: Partial<TailorResult> };
   try {
     payload = (await authedJsonFetch<unknown>("/members/me/ai/tailor-resume", {
@@ -360,7 +411,7 @@ export type InterviewQuestionItem = { question: string; intent: string; category
 export type InterviewFeedback = { score: number; strengths: string[]; improvements: string[]; sampleAnswer: string };
 
 // 모의 면접 시작(질문 생성) = 티켓 1개. 초과 시 402 → AiQuotaError.
-export async function generateInterviewQuestions(input: { resumeText: string; jobText?: string; desiredJobRole?: string }): Promise<InterviewQuestionItem[]> {
+export async function generateInterviewQuestions(input: { resumeText: string; jobText?: string; coverLetterText?: string; desiredJobRole?: string }): Promise<InterviewQuestionItem[]> {
   let payload: { questions?: InterviewQuestionItem[] };
   try {
     payload = (await authedJsonFetch<unknown>("/members/me/ai/interview-questions", {

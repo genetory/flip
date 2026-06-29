@@ -13,6 +13,7 @@ import { useAiUsage } from "../../lib/resume-maker-ai-usage";
 import { useResumePresence } from "../../lib/resume-maker-resumes";
 import { AiTicketStatusModal } from "./AiTicketStatusModal";
 import { ResumeMakerLanguageSwitch } from "./ResumeMakerLanguageSwitch";
+import { Footer } from "../site/Footer";
 import { getActiveResumeId, setActiveResumeId } from "../../lib/resume-maker-active";
 import { RESUME_TOOLS_WIP } from "../../lib/resume-maker-flags";
 
@@ -70,7 +71,9 @@ export function ResumeMakerShell({
 
   // 현재 이력서(세 도구 공유) — 이력서 화면에 들어가면 그 id 를 활성으로 기억하고,
   // 메인 등 id 가 없는 화면에선 마지막 활성 id 를 쓴다.
-  const pathResumeId = pathname?.match(/^\/resume-maker\/([^/]+)\//)?.[1];
+  // 첫 세그먼트가 자소서 정적 경로면 이력서 id 로 오인하지 않는다.
+  const rawSeg = pathname?.match(/^\/resume-maker\/([^/]+)\//)?.[1];
+  const pathResumeId = rawSeg && rawSeg !== "cover-letters" && rawSeg !== "resumes" ? rawSeg : undefined;
   const [storedActive, setStoredActive] = useState<string | null>(null);
   useEffect(() => {
     if (pathResumeId) {
@@ -84,16 +87,20 @@ export function ResumeMakerShell({
 
   // GNB 도구 메뉴 — 이력서 만들기는 메인(목록)으로. 공고 맞춤/모의 면접은 현재 이력서로
   // 바로, 현재 이력서가 없으면 메인으로 보내 고르게 한다.
+  const isCoverLetters = pathname?.startsWith("/resume-maker/cover-letters") ?? false;
+  const isResumes = pathname?.startsWith("/resume-maker/resumes") ?? false;
   const isTailor = pathname?.includes("/tailor") ?? false;
   const isInterview = pathname?.includes("/interview") ?? false;
   const isHome = pathname === "/resume-maker";
-  // 편집 계열(편집·경험·온보딩·대화·미리보기·진단) — 홈/도구가 아닌 이력서 작업 화면.
-  const isEditor = !isHome && !isTailor && !isInterview;
-  const tools: { labelKey: "home" | "toolResumeMaker" | "toolTailor" | "toolInterview"; href: string; active: boolean; wip?: boolean; home?: boolean; requiresResume?: boolean }[] = [
+  // 편집 계열(편집·경험·온보딩·대화·미리보기·진단) — 홈/목록/도구가 아닌 이력서 작업 화면.
+  const isEditor = !isHome && !isResumes && !isCoverLetters && !isTailor && !isInterview;
+  // 이력서·자기소개서 탭은 '목록 화면'으로(선택된 이력서 편집기로 직행하지 않음). 홈은 전체 개요.
+  const tools: { labelKey: "home" | "toolResumeMaker" | "toolCoverLetter" | "toolTailor" | "toolInterview"; href: string; active: boolean; wip?: boolean; home?: boolean; requiresResume?: boolean }[] = [
     { labelKey: "home", href: "/resume-maker", active: isHome, home: true },
-    { labelKey: "toolResumeMaker", href: activeId ? `/resume-maker/${activeId}/edit` : "/resume-maker", active: isEditor, requiresResume: true },
-    { labelKey: "toolTailor", href: activeId ? `/resume-maker/${activeId}/tailor` : "/resume-maker/tailor", active: isTailor, wip: RESUME_TOOLS_WIP, requiresResume: true },
-    { labelKey: "toolInterview", href: activeId ? `/resume-maker/${activeId}/interview` : "/resume-maker/interview", active: isInterview, wip: RESUME_TOOLS_WIP, requiresResume: true }
+    { labelKey: "toolResumeMaker", href: "/resume-maker/resumes", active: isResumes || isEditor },
+    { labelKey: "toolCoverLetter", href: "/resume-maker/cover-letters", active: isCoverLetters },
+    { labelKey: "toolTailor", href: "/resume-maker/tailor", active: isTailor, wip: RESUME_TOOLS_WIP, requiresResume: true },
+    { labelKey: "toolInterview", href: "/resume-maker/interview", active: isInterview, wip: RESUME_TOOLS_WIP, requiresResume: true }
   ];
 
   useEffect(() => {
@@ -211,6 +218,10 @@ export function ResumeMakerShell({
         </nav>
       </header>
       <main className="flex-1">{children}</main>
+      {/* 푸터 위 디바이더(상단 보더) 제거 — resume-maker 화면에서만 */}
+      <div className="[&>footer]:border-t-0">
+        <Footer />
+      </div>
     </div>
   );
 }

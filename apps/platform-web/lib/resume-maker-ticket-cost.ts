@@ -3,11 +3,13 @@
 export const AI_TICKET_COST: Record<string, number> = {
   // 무거움(3)
   import_resume: 3,
+  import_cover_letter: 3,
   interview_questions: 3,
   // 보통(2)
   tailor_analyze: 2,
   draft_intro: 2,
   generate_english_intro: 2,
+  cover_letter: 2,
   // 가벼움(1)
   draft_resume_text: 1,
   experience_interview: 1,

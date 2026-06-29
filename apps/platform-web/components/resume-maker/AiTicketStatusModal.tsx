@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowsClockwise, Sparkle, Target, Timer } from "@phosphor-icons/react/dist/ssr";
+import { ArrowsClockwise, CircleNotch, Sparkle, Target, Ticket, Timer } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "../ui/button";
+import { redeemTicketCode } from "../../lib/resume-maker-client";
 import { useQuotaCopy } from "../../lib/resume-maker-i18n/quota";
 
 // resetAt 까지 남은 시간을 HH:MM:SS 로 1초마다 갱신.
@@ -42,6 +43,34 @@ export function AiTicketStatusModal({
   const q = useQuotaCopy();
   const countdown = useCountdown(resetAt);
   const perDay = dailyGrant && dailyGrant > 0 ? dailyGrant : 5;
+  const [code, setCode] = useState("");
+  const [redeeming, setRedeeming] = useState(false);
+  const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function redeem() {
+    const c = code.trim();
+    if (!c || redeeming) return;
+    setRedeeming(true);
+    setFeedback(null);
+    try {
+      const r = await redeemTicketCode(c);
+      setFeedback({ ok: true, text: q.redeemSuccess(r.tickets) });
+      setCode("");
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed")); // 잔량 갱신
+    } catch (e) {
+      const ec = (e as { code?: string }).code;
+      const msg =
+        ec === "COUPON_INVALID" ? q.codeInvalid
+        : ec === "COUPON_EXPIRED" ? q.codeExpired
+        : ec === "COUPON_ALREADY" ? q.codeAlready
+        : ec === "COUPON_GROUP_USED" ? q.codeGroupUsed
+        : ec === "COUPON_EXHAUSTED" ? q.codeExhausted
+        : q.redeemFailed;
+      setFeedback({ ok: false, text: msg });
+    } finally {
+      setRedeeming(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-5" onClick={onClose}>
@@ -71,6 +100,33 @@ export function AiTicketStatusModal({
               ) : null}
             </div>
           </div>
+        </div>
+
+        {/* 코드로 충전 — 1회성 쿠폰 */}
+        <div className="mt-4">
+          <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#191F28]">
+            <Ticket weight="fill" className="h-4 w-4 text-[#0B46E8]" aria-hidden />
+            {q.codeTitle}
+          </p>
+          <div className="mt-2 flex gap-2">
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void redeem();
+              }}
+              placeholder={q.codePlaceholder}
+              maxLength={40}
+              className="h-11 min-w-0 flex-1 rounded-xl border border-[#E5E8EB] bg-white px-3 text-[13.5px] uppercase tracking-wide text-[#191F28] placeholder:normal-case placeholder:tracking-normal placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:outline-none"
+            />
+            <Button size="lg" className="shrink-0 px-4" disabled={redeeming || !code.trim()} onClick={() => void redeem()}>
+              {redeeming ? <CircleNotch className="animate-spin" weight="bold" /> : null}
+              {q.redeemBtn}
+            </Button>
+          </div>
+          {feedback ? (
+            <p className={`mt-1.5 text-[12px] font-semibold ${feedback.ok ? "text-[#15C47E]" : "text-rose-500"}`}>{feedback.text}</p>
+          ) : null}
         </div>
 
         {/* 사용처 */}

@@ -4,6 +4,7 @@ import { useLanguage } from "../../components/i18n/LanguageProvider";
 type Copy = {
   basic: string;
   intro: string;
+  coverLetter: string;
   experiences: string;
   education: string;
   awards: string;
@@ -23,6 +24,7 @@ const dict: Record<PlatformLocale, Copy> = {
   ko: {
     basic: "기본 정보",
     intro: "자기소개",
+    coverLetter: "자소서",
     experiences: "경험",
     education: "학력",
     awards: "자격·수상",
@@ -40,6 +42,7 @@ const dict: Record<PlatformLocale, Copy> = {
   en: {
     basic: "Basic info",
     intro: "About me",
+    coverLetter: "Cover letter",
     experiences: "Experience",
     education: "Education",
     awards: "Certifications & awards",
@@ -57,6 +60,7 @@ const dict: Record<PlatformLocale, Copy> = {
   "zh-CN": {
     basic: "基本信息",
     intro: "自我介绍",
+    coverLetter: "自荐信",
     experiences: "经历",
     education: "教育背景",
     awards: "资格·获奖",
@@ -74,6 +78,7 @@ const dict: Record<PlatformLocale, Copy> = {
   vi: {
     basic: "Thông tin cơ bản",
     intro: "Giới thiệu bản thân",
+    coverLetter: "Thư giới thiệu",
     experiences: "Kinh nghiệm",
     education: "Học vấn",
     awards: "Chứng chỉ · Giải thưởng",
@@ -91,6 +96,7 @@ const dict: Record<PlatformLocale, Copy> = {
   ja: {
     basic: "基本情報",
     intro: "自己紹介",
+    coverLetter: "自己PR書",
     experiences: "経験",
     education: "学歴",
     awards: "資格・受賞",
@@ -108,6 +114,7 @@ const dict: Record<PlatformLocale, Copy> = {
   id: {
     basic: "Info dasar",
     intro: "Tentang saya",
+    coverLetter: "Surat lamaran",
     experiences: "Pengalaman",
     education: "Pendidikan",
     awards: "Sertifikat & penghargaan",

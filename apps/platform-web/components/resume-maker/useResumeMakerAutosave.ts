@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ResumeContent } from "../../lib/member-profile-client";
+import type { ResumeContent, ResumeCoverLetterItem } from "../../lib/member-profile-client";
 import { saveBuilderState, saveResumeContent } from "../../lib/resume-maker-client";
+import { updateCoverLetter } from "../../lib/cover-letter-client";
 import type { ResumeBuilderState } from "../../lib/resume-maker-types";
 
 export type AutosaveStatus = "idle" | "saving" | "saved" | "error";
@@ -67,6 +68,52 @@ export function useResumeMakerAutosave(resumeId: string, baseContent: ResumeCont
   const schedule = useCallback(
     (builder: ResumeBuilderState) => {
       pending.current = builder;
+      setStatus("saving");
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => {
+        void flush();
+      }, DEBOUNCE_MS);
+    },
+    [flush]
+  );
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
+
+  return { status, schedule, flush };
+}
+
+// 자기소개서(자소서) 편집 전용 — title/company/resumeId/items 패치를 디바운스 저장.
+export type CoverLetterPatch = { title?: string; company?: string | null; resumeId?: string | null; items?: ResumeCoverLetterItem[] };
+export function useCoverLetterAutosave(id: string) {
+  const [status, setStatus] = useState<AutosaveStatus>("idle");
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pending = useRef<CoverLetterPatch | null>(null);
+
+  const flush = useCallback(async () => {
+    const patch = pending.current;
+    if (!patch) return;
+    pending.current = null;
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    setStatus("saving");
+    try {
+      await updateCoverLetter(id, patch);
+      setStatus("saved");
+    } catch {
+      setStatus("error");
+    }
+  }, [id]);
+
+  const schedule = useCallback(
+    (patch: CoverLetterPatch) => {
+      pending.current = { ...pending.current, ...patch };
       setStatus("saving");
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => {

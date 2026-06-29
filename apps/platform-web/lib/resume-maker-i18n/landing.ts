@@ -16,6 +16,10 @@ type Copy = {
   heroTitleLine1: string;
   heroTitleLine2: string;
   heroSubtitle: string;
+  homeBadge: string;
+  homeTitleLine1: string;
+  homeTitleLine2: string;
+  homeSubtitle: string;
   newResumeCta: string;
   editExistingCta: string;
   newResumeSub: string;
@@ -53,6 +57,9 @@ type Copy = {
   deleteConfirmDesc: string;
   cancel: string;
   delete: string;
+  edit: string;
+  createBtn: string;
+  nameLabel: string;
 };
 
 const dict: Record<PlatformLocale, Copy> = {
@@ -75,7 +82,11 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine1: "이력서를 쓰지 말고,",
     heroTitleLine2: "질문에 답하세요.",
     heroSubtitle: "AI가 내 경험을 찾아 지원 가능한 이력서로 만들어드립니다.",
-    newResumeCta: "새 이력서 만들기",
+    homeBadge: "AI 취업 도구",
+    homeTitleLine1: "이력서·자기소개서부터",
+    homeTitleLine2: "공고 맞춤·모의 면접까지",
+    homeSubtitle: "취업 준비에 필요한 모든 걸 AI와 한 곳에서.",
+    newResumeCta: "새 이력서",
     editExistingCta: "기존 이력서 수정하기",
     newResumeSub: "처음부터 시작",
     importSub: "PDF·내용 붙여넣기",
@@ -97,7 +108,7 @@ const dict: Record<PlatformLocale, Copy> = {
     importAi: "AI로 가져오기",
     importDisclaimer: "정확하지 않을 수 있어요 — 가져온 뒤 꼭 확인하고 다듬어 주세요.",
     loading: "불러오는 중...",
-    draftsTitle: "작성 중인 이력서",
+    draftsTitle: "나의 이력서",
     untitledResume: "제목 없는 이력서",
     lastEdited: "마지막 수정",
     completion: "완성도",
@@ -111,7 +122,10 @@ const dict: Record<PlatformLocale, Copy> = {
     deleteConfirmTitle: "이력서를 삭제할까요?",
     deleteConfirmDesc: "삭제하면 작성 중인 내용을 되돌릴 수 없어요.",
     cancel: "취소",
-    delete: "삭제"
+    delete: "삭제",
+    edit: "편집",
+    createBtn: "만들기",
+    nameLabel: "이름"
   },
   en: {
     heroBullets: [
@@ -132,7 +146,11 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine1: "Don't write a resume—",
     heroTitleLine2: "just answer questions.",
     heroSubtitle: "AI finds your experience and turns it into a resume ready to apply with.",
-    newResumeCta: "Create a New Resume",
+    homeBadge: "AI job tools",
+    homeTitleLine1: "From resumes & cover letters",
+    homeTitleLine2: "to job match & mock interviews",
+    homeSubtitle: "Everything for your job search, with AI in one place.",
+    newResumeCta: "New resume",
     editExistingCta: "Edit existing resume",
     newResumeSub: "Start from scratch",
     importSub: "PDF or paste text",
@@ -154,7 +172,7 @@ const dict: Record<PlatformLocale, Copy> = {
     importAi: "Import with AI",
     importDisclaimer: "It may not be accurate — be sure to review and refine after importing.",
     loading: "Loading...",
-    draftsTitle: "In-progress resumes",
+    draftsTitle: "My resumes",
     untitledResume: "Untitled resume",
     lastEdited: "Last edited",
     completion: "Complete",
@@ -168,7 +186,10 @@ const dict: Record<PlatformLocale, Copy> = {
     deleteConfirmTitle: "Delete this resume?",
     deleteConfirmDesc: "Once deleted, your in-progress content can't be recovered.",
     cancel: "Cancel",
-    delete: "Delete"
+    delete: "Delete",
+    edit: "Edit",
+    createBtn: "Create",
+    nameLabel: "Name"
   },
   "zh-CN": {
     heroBullets: [
@@ -189,7 +210,11 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine1: "不用写简历，",
     heroTitleLine2: "回答问题就好。",
     heroSubtitle: "AI 会发掘你的经历，生成可直接投递的简历。",
-    newResumeCta: "创建新简历",
+    homeBadge: "AI 求职工具",
+    homeTitleLine1: "从简历、自荐信",
+    homeTitleLine2: "到岗位匹配与模拟面试",
+    homeSubtitle: "求职所需的一切，与 AI 一站搞定。",
+    newResumeCta: "新建简历",
     editExistingCta: "修改已有简历",
     newResumeSub: "从头开始",
     importSub: "PDF 或粘贴内容",
@@ -211,7 +236,7 @@ const dict: Record<PlatformLocale, Copy> = {
     importAi: "用 AI 导入",
     importDisclaimer: "可能不够准确 —— 导入后请务必检查并完善。",
     loading: "加载中...",
-    draftsTitle: "正在编写的简历",
+    draftsTitle: "我的简历",
     untitledResume: "无标题简历",
     lastEdited: "最后修改",
     completion: "完成度",
@@ -225,7 +250,10 @@ const dict: Record<PlatformLocale, Copy> = {
     deleteConfirmTitle: "要删除这份简历吗？",
     deleteConfirmDesc: "删除后，正在编写的内容将无法恢复。",
     cancel: "取消",
-    delete: "删除"
+    delete: "删除",
+    edit: "编辑",
+    createBtn: "创建",
+    nameLabel: "名称"
   },
   vi: {
     heroBullets: [
@@ -246,7 +274,11 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine1: "Đừng viết hồ sơ,",
     heroTitleLine2: "hãy trả lời câu hỏi.",
     heroSubtitle: "AI tìm ra kinh nghiệm của bạn và biến nó thành hồ sơ sẵn sàng để ứng tuyển.",
-    newResumeCta: "Tạo hồ sơ mới",
+    homeBadge: "Công cụ tìm việc AI",
+    homeTitleLine1: "Từ hồ sơ & thư giới thiệu",
+    homeTitleLine2: "đến khớp tin tuyển & phỏng vấn thử",
+    homeSubtitle: "Mọi thứ cho việc tìm việc, cùng AI tại một nơi.",
+    newResumeCta: "Hồ sơ mới",
     editExistingCta: "Sửa hồ sơ có sẵn",
     newResumeSub: "Bắt đầu từ đầu",
     importSub: "PDF hoặc dán nội dung",
@@ -268,7 +300,7 @@ const dict: Record<PlatformLocale, Copy> = {
     importAi: "Nhập bằng AI",
     importDisclaimer: "Có thể không chính xác — hãy kiểm tra và chỉnh sửa sau khi nhập.",
     loading: "Đang tải...",
-    draftsTitle: "Hồ sơ đang soạn",
+    draftsTitle: "Hồ sơ của tôi",
     untitledResume: "Hồ sơ chưa đặt tên",
     lastEdited: "Sửa lần cuối",
     completion: "Hoàn thành",
@@ -282,7 +314,10 @@ const dict: Record<PlatformLocale, Copy> = {
     deleteConfirmTitle: "Xóa hồ sơ này?",
     deleteConfirmDesc: "Sau khi xóa, nội dung đang soạn sẽ không thể khôi phục.",
     cancel: "Hủy",
-    delete: "Xóa"
+    delete: "Xóa",
+    edit: "Sửa",
+    createBtn: "Tạo",
+    nameLabel: "Tên"
   },
   ja: {
     heroBullets: [
@@ -303,7 +338,11 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine1: "履歴書を書くのではなく、",
     heroTitleLine2: "質問に答えましょう。",
     heroSubtitle: "AIがあなたの経験を見つけ出し、応募できる履歴書に仕上げます。",
-    newResumeCta: "新しい履歴書を作成",
+    homeBadge: "AI就活ツール",
+    homeTitleLine1: "履歴書・自己PR書から",
+    homeTitleLine2: "求人マッチ・模擬面接まで",
+    homeSubtitle: "就活に必要なすべてを、AIとひとつの場所で。",
+    newResumeCta: "新規履歴書",
     editExistingCta: "既存の履歴書を編集",
     newResumeSub: "ゼロから始める",
     importSub: "PDF・内容を貼り付け",
@@ -325,7 +364,7 @@ const dict: Record<PlatformLocale, Copy> = {
     importAi: "AIで取り込む",
     importDisclaimer: "正確でない場合があります — 取り込んだ後、必ず確認して整えてください。",
     loading: "読み込み中...",
-    draftsTitle: "作成中の履歴書",
+    draftsTitle: "マイ履歴書",
     untitledResume: "無題の履歴書",
     lastEdited: "最終更新",
     completion: "完成度",
@@ -339,7 +378,10 @@ const dict: Record<PlatformLocale, Copy> = {
     deleteConfirmTitle: "履歴書を削除しますか？",
     deleteConfirmDesc: "削除すると、作成中の内容は元に戻せません。",
     cancel: "キャンセル",
-    delete: "削除"
+    delete: "削除",
+    edit: "編集",
+    createBtn: "作成",
+    nameLabel: "名前"
   },
   id: {
     heroBullets: [
@@ -360,7 +402,11 @@ const dict: Record<PlatformLocale, Copy> = {
     heroTitleLine1: "Jangan menulis resume,",
     heroTitleLine2: "cukup jawab pertanyaan.",
     heroSubtitle: "AI menemukan pengalaman Anda dan mengubahnya menjadi resume yang siap untuk melamar.",
-    newResumeCta: "Buat Resume Baru",
+    homeBadge: "Alat kerja AI",
+    homeTitleLine1: "Dari resume & surat lamaran",
+    homeTitleLine2: "hingga cocok lowongan & wawancara",
+    homeSubtitle: "Semua untuk lamaran kerja, dengan AI di satu tempat.",
+    newResumeCta: "Resume baru",
     editExistingCta: "Edit resume yang ada",
     newResumeSub: "Mulai dari awal",
     importSub: "PDF atau tempel teks",
@@ -382,7 +428,7 @@ const dict: Record<PlatformLocale, Copy> = {
     importAi: "Impor dengan AI",
     importDisclaimer: "Bisa jadi tidak akurat — pastikan untuk memeriksa dan menyempurnakan setelah diimpor.",
     loading: "Memuat...",
-    draftsTitle: "Resume sedang dibuat",
+    draftsTitle: "Resume saya",
     untitledResume: "Resume tanpa judul",
     lastEdited: "Terakhir diubah",
     completion: "Kelengkapan",
@@ -396,7 +442,10 @@ const dict: Record<PlatformLocale, Copy> = {
     deleteConfirmTitle: "Hapus resume ini?",
     deleteConfirmDesc: "Setelah dihapus, isi yang sedang dibuat tidak dapat dikembalikan.",
     cancel: "Batal",
-    delete: "Hapus"
+    delete: "Hapus",
+    edit: "Edit",
+    createBtn: "Buat",
+    nameLabel: "Nama"
   }
 };
 

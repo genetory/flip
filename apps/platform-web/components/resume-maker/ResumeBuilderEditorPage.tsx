@@ -682,8 +682,7 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
           </div>
         </div>
 
-        {/* 우측: 이력서 미리보기 — 공고 맞춤·모의 면접과 동일한 컬럼(데스크탑 작은 미리보기 +
-            '크게 보기', 모바일 하단 버튼 → 모달). 편집 중인 섹션 강조 + PDF 링크는 옵션으로 전달. */}
+        {/* 우측: 이력서 미리보기 — 공고 맞춤·모의 면접과 동일한 컬럼. 편집 중 섹션 강조 + PDF 링크. */}
         <ResumeToolPreview
           content={content}
           design={design}
@@ -1097,29 +1096,33 @@ function IntroSection({
   const toast = useToast();
   const t = useEditorCopy();
   const polishLabel = usePolishStyleLabel();
-  const [polishingStyle, setPolishingStyle] = useState<PolishStyle | null>(null);
+  const [polishing, setPolishing] = useState(false);
+  const [selStyle, setSelStyle] = useState<PolishStyle>("natural");
+  const [polishKw, setPolishKw] = useState("");
   const [polished, setPolished] = useState<{ style: PolishStyle; text: string } | null>(null);
   const [summarizing, setSummarizing] = useState(false);
   const [summarySuggestion, setSummarySuggestion] = useState<string | null>(null);
-  const runPolish = async (style: PolishStyle) => {
+  const runPolish = async () => {
     const text = basic.selfIntroduction.trim();
     if (text.length < 10) {
       toast.info(t.writeSelfIntroFirst);
       return;
     }
-    setPolishingStyle(style);
+    const kw = polishKw.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 10);
+    setPolishing(true);
     try {
       const result = await polishSelfIntro({
         text,
-        style,
+        style: selStyle,
+        keywords: kw.length ? kw : undefined,
         desiredJobRole: basic.desiredJobRole || undefined,
         jobCategories: jobCategories.length ? jobCategories : undefined
       });
-      setPolished({ style, text: result });
+      setPolished({ style: selStyle, text: result });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t.polishFailed);
     } finally {
-      setPolishingStyle(null);
+      setPolishing(false);
     }
   };
 
@@ -1154,20 +1157,38 @@ function IntroSection({
           onBlur={() => setHighlight(null)}
           onChange={(e) => onBasic({ ...basic, selfIntroduction: e.target.value })}
         />
-        <div className="mt-2">
-          <p className="mb-1.5 text-[12px] text-muted-foreground">{t.polishWithAi}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {POLISH_STYLES.map((s) => (
-              <AiChipButton
-                key={s.value}
-                loading={polishingStyle === s.value}
-                disabled={polishingStyle !== null}
-                onClick={() => runPolish(s.value)}
-                feature="polish_intro"
-              >
-                {polishLabel(s.value)}
-              </AiChipButton>
-            ))}
+        <div className="mt-3 rounded-2xl border border-[#E5E8EB] bg-[#F2F4F6] p-5">
+          <p className="mb-3 text-[12px] font-semibold text-[#4E5968]">{t.polishWithAi}</p>
+          {/* ① 소재 입력(선택) */}
+          <textarea
+            className="w-full rounded-lg border border-[#E5E8EB] bg-white px-2.5 py-2 text-[12.5px] leading-relaxed text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none"
+            rows={2}
+            placeholder={t.clKeywordPlaceholder}
+            value={polishKw}
+            onChange={(e) => setPolishKw(e.target.value)}
+          />
+          {/* ② 형식 선택(단일) + ③ 다듬기 버튼(우측) */}
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {POLISH_STYLES.map((s) => {
+              const active = selStyle === s.value;
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => setSelStyle(s.value)}
+                  className={`rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition ${
+                    active ? "border-[#0B46E8] bg-[#EDF1FD] text-[#0B46E8]" : "border-border bg-white text-foreground/80 hover:border-[#0B46E8]/40"
+                  }`}
+                >
+                  {polishLabel(s.value)}
+                </button>
+              );
+            })}
+            <Button size="sm" variant="outline" className="ml-auto" disabled={polishing} onClick={() => void runPolish()}>
+              {polishing ? <CircleNotch className="animate-spin" weight="bold" /> : <Sparkle weight="fill" />}
+              {polishing ? t.clGenerating : t.clPolish}
+              {polishing ? null : <AiTicketCost feature="polish_intro" tone="muted" />}
+            </Button>
           </div>
         </div>
         {polished !== null ? (

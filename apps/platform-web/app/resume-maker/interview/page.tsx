@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ResumeToolEntry } from "../../../components/resume-maker/ResumeToolEntry";
+import { ResumeToolPicker } from "../../../components/resume-maker/ResumeToolPicker";
 
 // aply.global GNB 에 노출하지 않는 독립 도구 — 검색 색인 제외.
 export const metadata: Metadata = {
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <ResumeToolEntry tool="interview" />;
+  return <ResumeToolPicker tool="interview" />;
 }

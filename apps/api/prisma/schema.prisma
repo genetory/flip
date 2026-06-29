@@ -47,6 +47,8 @@ model User {
   positionStatusHistories PositionStatusHistory[]      @relation("PositionStatusAuthor")
   candidateProfile CandidateProfile?
   resumes Resume[]
+  coverLetters CoverLetter[]
+  couponRedemptions CouponRedemption[]
   aiUsages AiUsage[]
   aiWallet AiWallet?
   sgcApplication SgcApplication? @relation("SgcApplicationUser")
@@ -1121,6 +1123,24 @@ model Resume {
   @@index([userId])
 }
 
+// 한국형 자기소개서(자소서) — 이력서와 별개 컬렉션. 회사/공고마다 다르게 제출하므로
+// 지원 건(회사)당 한 행으로 둔다. resumeId 로 근거 이력서를 느슨하게 연결(FK 아님,
+// 이력서가 지워져도 자소서는 남는다 — 코드에서 부재를 처리). items = [{id,prompt,answer}].
+model CoverLetter {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String   // 식별 라벨(예: "삼성전자 — 마케팅")
+  company   String?  // 지원 회사명(선택, AI 컨텍스트 + 미리보기 헤더)
+  resumeId  String?  // 근거/연결 이력서(선택)
+  items     Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 // 프리미엄 한도 — 비싼/반복형 AI 기능(공고 맞춤 분석, 모의 면접 평가)의 월 사용량.
 // periodKey 는 KST 기준 "YYYY-MM". (userId, feature, periodKey) 당 한 행으로 카운트.
 // 공용 AI 티켓 지갑(잔액) — 가입 시 1회 보너스 + 매일 일정량 적립(상한). 사용 시 차감.
@@ -1133,6 +1153,40 @@ model AiWallet {
   updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// AI 티켓 쿠폰 — 코드로 1회성(또는 제한 횟수) 충전. 사용자당 같은 코드는 한 번만.
+model Coupon {
+  id        String    @id @default(uuid())
+  code      String    @unique // 대문자/공백 정규화해 저장
+  tickets   Int       // 충전될 티켓 수
+  maxUses   Int       @default(1) // 코드별 전체 사용 가능 횟수
+  usedCount Int       @default(0)
+  // 같은 그룹(이벤트)의 여러 코드 중 계정당 1개만 등록 가능하게 묶는 키(없으면 코드 단독).
+  groupKey  String?
+  active    Boolean   @default(true)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  redemptions CouponRedemption[]
+
+  @@index([groupKey])
+}
+
+model CouponRedemption {
+  id        String   @id @default(uuid())
+  couponId  String
+  userId    String
+  tickets   Int
+  groupKey  String?  // 충전 시점의 쿠폰 그룹(그룹당 계정 1회 유니크 제약용)
+  createdAt DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, userId])
+  @@unique([groupKey, userId]) // 그룹당 계정 1회(groupKey null 은 다중 허용)
+  @@index([userId])
 }
 
 model AiUsage {
