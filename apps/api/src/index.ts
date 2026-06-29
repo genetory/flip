@@ -13474,7 +13474,8 @@ const createCouponSchema = z.object({
   maxUses: z.number().int().min(1).max(10_000_000).optional(),
   groupKey: z.string().trim().max(60).optional(),
   prefix: z.string().trim().max(12).optional(),
-  code: z.string().trim().max(40).optional()
+  code: z.string().trim().max(40).optional(),
+  codes: z.array(z.string().trim().max(40)).max(500).optional()
 });
 const COUPON_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // 0/O,1/I/L 등 제외
 function randomCouponCode(prefix: string): string {
@@ -13493,9 +13494,12 @@ app.post(
       const { tickets } = parsed.data;
       const maxUses = parsed.data.maxUses ?? 1;
       const groupKey = parsed.data.groupKey || null;
+      const norm = (c: string) => c.trim().toUpperCase().replace(/\s+/g, "");
       const codes: string[] = [];
-      if (parsed.data.code) {
-        codes.push(parsed.data.code.trim().toUpperCase().replace(/\s+/g, ""));
+      if (parsed.data.codes && parsed.data.codes.length) {
+        for (const c of parsed.data.codes) { const n = norm(c); if (n) codes.push(n); }
+      } else if (parsed.data.code) {
+        codes.push(norm(parsed.data.code));
       } else {
         const prefix = (parsed.data.prefix || "APLY").toUpperCase();
         const want = parsed.data.count ?? 1;
