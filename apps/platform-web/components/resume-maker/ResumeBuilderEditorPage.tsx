@@ -100,8 +100,13 @@ type Preserved = {
 const inputCls =
   "h-11 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3.5 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:bg-white focus:outline-none";
 
-// 프로필 사진 — 자주 자동저장되므로 캔버스로 최대 변(maxPx)을 줄여 data URL 을
-// 가볍게 만든다. 저장 시 백엔드(resolveResumePhoto)가 Blob 으로 업로드한다.
+// 프로필 사진 프레임 비율(세로형, 가로:세로 = 88:112). 에디터 아바타·미리보기·
+// PDF 의 사진 박스가 모두 이 비율이므로, 업로드 이미지를 이 비율로 중앙 크롭해
+// 두면 어떤 렌더러에서도 빈 여백/찌그러짐 없이 꽉 채워진다.
+const PHOTO_ASPECT = 88 / 112;
+
+// 프로필 사진 — 프레임 비율로 중앙 크롭 후 최대 변(maxPx)을 줄여 가벼운 data URL 로
+// 만든다. 저장 시 백엔드(resolveResumePhoto)가 Blob 으로 업로드한다.
 async function readPhotoAsDataUrl(file: File, maxPx = 480): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const r = new FileReader();
@@ -112,19 +117,33 @@ async function readPhotoAsDataUrl(file: File, maxPx = 480): Promise<string> {
   return await new Promise<string>((resolve) => {
     const img = new window.Image();
     img.onload = () => {
-      const longest = Math.max(img.width, img.height);
-      const scale = longest > maxPx ? maxPx / longest : 1;
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
+      // 원본에서 프레임 비율(PHOTO_ASPECT)에 맞는 최대 영역을 중앙 기준으로 잘라낸다.
+      const srcAspect = img.width / img.height;
+      let cropW: number;
+      let cropH: number;
+      if (srcAspect > PHOTO_ASPECT) {
+        // 원본이 더 넓음 → 높이를 기준으로 폭을 잘라낸다.
+        cropH = img.height;
+        cropW = cropH * PHOTO_ASPECT;
+      } else {
+        // 원본이 더 좁음(또는 같음) → 폭을 기준으로 높이를 잘라낸다.
+        cropW = img.width;
+        cropH = cropW / PHOTO_ASPECT;
+      }
+      const sx = (img.width - cropW) / 2;
+      const sy = (img.height - cropH) / 2;
+      // 출력 크기 — 긴 변(세로)을 maxPx 로 제한하고 비율 유지.
+      const outH = Math.min(maxPx, Math.round(cropH));
+      const outW = Math.round(outH * PHOTO_ASPECT);
       const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
+      canvas.width = outW;
+      canvas.height = outH;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         resolve(dataUrl);
         return;
       }
-      ctx.drawImage(img, 0, 0, w, h);
+      ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, outW, outH);
       resolve(canvas.toDataURL("image/jpeg", 0.85));
     };
     img.onerror = () => resolve(dataUrl);
