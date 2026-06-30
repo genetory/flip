@@ -592,6 +592,10 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
               onBasic={commitBasic}
               showPhoto={design.showPhoto}
               onShowPhoto={(v) => commitBuilder({ ...builder, design: { ...design, showPhoto: v } })}
+              // 사진(basic)과 showPhoto(builder)를 한 번의 commit으로 — 분리 호출 시 stale basic이 사진을 덮어씀
+              onPhotoUpload={(url) =>
+                commit({ ...builder, design: { ...design, showPhoto: true } }, { ...basic, basicPhotoUrl: url }, extra)
+              }
               isForeigner={Boolean(builder.onboarding.isForeigner)}
               onIsForeigner={(v) =>
                 // 끄면 국적·비자 값을 비워 미리보기에서도 사라지게 한다.
@@ -924,6 +928,7 @@ function BasicSection({
   onBasic,
   showPhoto,
   onShowPhoto,
+  onPhotoUpload,
   isForeigner,
   onIsForeigner,
   resumeTitle,
@@ -934,6 +939,9 @@ function BasicSection({
   onBasic: (b: Basic) => void;
   showPhoto: boolean;
   onShowPhoto: (v: boolean) => void;
+  // 사진 등록은 basic(사진)+builder(showPhoto)를 한 번의 commit으로 묶어야 한다.
+  // 둘을 따로 호출하면 두 번째 commit이 stale closure 의 basic 으로 사진을 덮어쓴다.
+  onPhotoUpload: (url: string) => void;
   isForeigner: boolean;
   onIsForeigner: (v: boolean) => void;
   resumeTitle: string;
@@ -957,8 +965,7 @@ function BasicSection({
     }
     try {
       const url = await readPhotoAsDataUrl(file);
-      onBasic({ ...basic, basicPhotoUrl: url });
-      onShowPhoto(true); // 업로드하면 바로 이력서에 표시
+      onPhotoUpload(url); // 사진 등록 + 이력서 표시(showPhoto)를 한 번에 — 따로 호출 시 사진이 덮어써짐
     } catch {
       toast.error(t.imageLoadFailed);
     }
