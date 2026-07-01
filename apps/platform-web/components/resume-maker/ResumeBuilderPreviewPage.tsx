@@ -23,6 +23,9 @@ function sanitizeFilePart(v: string): string {
 // A4 = 794×1123px(96dpi). 콘텐츠가 이 높이를 넘으면 페이지를 나눠 보여준다.
 const A4_W_PX = 794;
 const A4_H_PX = 1123;
+// 각 페이지 위·아래 동일 패딩(px, ≈12.7mm). 콘텐츠 영역 = A4_H - 2*PAGE_PAD.
+const PAGE_PAD_PX = 48;
+const PAGE_CONTENT_H_PX = A4_H_PX - PAGE_PAD_PX * 2;
 
 export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
   const router = useRouter();
@@ -53,7 +56,7 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
       if (!avail || !el || !el.offsetHeight) return;
       const s = Math.min(1, avail / A4_W_PX);
       setScale(s);
-      const { starts: st, total } = computePageBreaks(el, A4_H_PX);
+      const { starts: st, total } = computePageBreaks(el, PAGE_CONTENT_H_PX);
       setStarts((prev) => (prev.length === st.length && prev.every((v, i) => v === st[i]) ? prev : st));
       setContentH(total);
     };
@@ -145,7 +148,8 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
       <style>{`
         .rm-print-only { display: none; }
         @media print {
-          @page { size: A4; margin: 0; }
+          /* 각 페이지 위·아래 동일 여백(≈48px=12.7mm). 좌우는 시트 자체 패딩(52px)이 준다. */
+          @page { size: A4; margin: 12.7mm 0; }
           body { background: #ffffff; }
           body * { visibility: hidden; }
           .rm-print-root, .rm-print-root * { visibility: visible; }
@@ -238,7 +242,7 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
                     style={{ position: "absolute", left: -99999, top: 0, width: A4_W_PX }}
                     aria-hidden
                   >
-                    <ResumeSheet content={shown} design={design} lang={sheetLang} />
+                    <ResumeSheet content={shown} design={design} lang={sheetLang} noVerticalPad />
                     {/* 인쇄 전용 하단 — 페이지 제일 하단 고정, Aply 로고 + 슬로건 (작게) */}
                     <div className="rm-print-only items-center justify-center gap-1.5">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -247,11 +251,11 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
                     </div>
                   </div>
 
-                  {/* 화면 표시 — 실제 A4 페이지 카드(블록 경계에서 분리, 밀린 자리는 여백). 인쇄에선 숨김 */}
+                  {/* 화면 표시 — 실제 A4 페이지 카드(각 페이지 위·아래 동일 패딩, 넘치는 블록은 다음 장). 인쇄에선 숨김 */}
                   <div className="rm-print-hide space-y-3">
                     {starts.map((startPx, i) => {
                       const endPx = i < starts.length - 1 ? starts[i + 1] : contentH;
-                      const windowH = endPx - startPx;
+                      const windowH = Math.min(endPx - startPx, PAGE_CONTENT_H_PX);
                       return (
                         <div
                           key={i}
@@ -259,19 +263,21 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
                           style={{ width: A4_W_PX * scale, height: A4_H_PX * scale }}
                         >
                           <div
-                            style={{
-                              position: "absolute",
-                              top: -(startPx * scale),
-                              width: A4_W_PX,
-                              transform: `scale(${scale})`,
-                              transformOrigin: "top left"
-                            }}
+                            className="absolute left-0 overflow-hidden"
+                            style={{ top: PAGE_PAD_PX * scale, width: A4_W_PX * scale, height: windowH * scale }}
                           >
-                            <ResumeSheet content={shown} design={design} lang={sheetLang} />
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: -(startPx * scale),
+                                width: A4_W_PX,
+                                transform: `scale(${scale})`,
+                                transformOrigin: "top left"
+                              }}
+                            >
+                              <ResumeSheet content={shown} design={design} lang={sheetLang} noVerticalPad />
+                            </div>
                           </div>
-                          {windowH < A4_H_PX ? (
-                            <div className="absolute left-0 right-0 bg-white" style={{ top: windowH * scale, bottom: 0 }} />
-                          ) : null}
                         </div>
                       );
                     })}
