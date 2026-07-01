@@ -389,6 +389,32 @@ export function ResumeSheet({
   );
 }
 
+// 블록(헤더·섹션) 경계에서 페이지를 나눈다. 한 블록이 현재 페이지에 다 안 들어가면
+// 통째로 다음 페이지로 밀어(앞 페이지 아래는 여백), 블록이 중간에서 잘리지 않게 한다.
+// 반환: 각 페이지 시작 y(px, 원본 스케일 기준) 배열 + 전체 높이.
+export function computePageBreaks(root: HTMLElement, pageH: number): { starts: number[]; total: number } {
+  const total = root.scrollHeight;
+  const rootTop = root.getBoundingClientRect().top;
+  // 헤더·섹션을 블록으로 본다(중첩 섹션 없음). 세로 위치(top) 기준 정렬해 2단
+  // 레이아웃에서도 위→아래 순으로 페이지를 나눈다.
+  const blocks = Array.from(root.querySelectorAll<HTMLElement>("header, section"))
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      return { top: r.top - rootTop, bottom: r.top - rootTop + r.height };
+    })
+    .sort((a, b) => a.top - b.top);
+  const starts = [0];
+  let pageTop = 0;
+  for (const b of blocks) {
+    // 현재 페이지(pageTop~pageTop+pageH)에 이 블록의 끝이 안 들어가면 다음 페이지로.
+    if (b.bottom - pageTop > pageH && b.top > pageTop + 1) {
+      pageTop = b.top;
+      starts.push(pageTop);
+    }
+  }
+  return { starts, total };
+}
+
 export function ResumePreview({
   content,
   design,
@@ -403,7 +429,9 @@ export function ResumePreview({
   const wrapRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
-  const [pages, setPages] = useState(1);
+  const [starts, setStarts] = useState<number[]>([0]);
+  const [contentH, setContentH] = useState(A4_H);
+  const pages = starts.length;
 
   // 컨테이너 폭에 맞춰 스케일
   useEffect(() => {
@@ -419,12 +447,13 @@ export function ResumePreview({
     return () => ro.disconnect();
   }, []);
 
-  // 콘텐츠 높이 → 페이지 수
+  // 콘텐츠 → 블록 경계 페이지 분할. 값이 같으면 참조를 유지해 무한 리렌더를 막는다.
   useLayoutEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
-    const h = el.scrollHeight;
-    setPages(Math.max(1, Math.ceil(h / A4_H)));
+    const { starts: s, total } = computePageBreaks(el, A4_H);
+    setStarts((prev) => (prev.length === s.length && prev.every((v, i) => v === s[i]) ? prev : s));
+    setContentH(total);
   });
 
   return (
@@ -440,32 +469,40 @@ export function ResumePreview({
         ) : null}
       </div>
 
-      {/* 높이 측정용 숨김 시트 — 전체 콘텐츠 높이로 페이지 수를 계산한다. */}
+      {/* 높이 측정·블록 위치 계산용 숨김 시트 */}
       <div aria-hidden className="pointer-events-none absolute -left-[99999px] top-0" style={{ width: A4_W, visibility: "hidden" }}>
         <ResumeSheet innerRef={sheetRef} content={content} design={design} highlightSection={highlightSection} lang={locale} />
       </div>
 
       {/* 페이지가 넘어가면 실제 A4 페이지처럼 분리해서 보여준다(각 카드가 한 페이지). */}
       <div ref={wrapRef} className="w-full space-y-2">
-        {Array.from({ length: pages }).map((_, i) => (
-          <div
-            key={i}
-            className="relative overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.12)]"
-            style={{ width: A4_W * scale, height: A4_H * scale }}
-          >
+        {starts.map((startPx, i) => {
+          const endPx = i < starts.length - 1 ? starts[i + 1] : contentH;
+          const windowH = endPx - startPx;
+          return (
             <div
-              style={{
-                position: "absolute",
-                top: -(i * A4_H * scale),
-                width: A4_W,
-                transform: `scale(${scale})`,
-                transformOrigin: "top left"
-              }}
+              key={i}
+              className="relative overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.12)]"
+              style={{ width: A4_W * scale, height: A4_H * scale }}
             >
-              <ResumeSheet content={content} design={design} highlightSection={highlightSection} lang={locale} />
+              <div
+                style={{
+                  position: "absolute",
+                  top: -(startPx * scale),
+                  width: A4_W,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left"
+                }}
+              >
+                <ResumeSheet content={content} design={design} highlightSection={highlightSection} lang={locale} />
+              </div>
+              {/* 다음 블록이 밀려 생긴 아래 여백을 흰색으로 덮어 잘린 블록이 안 보이게 */}
+              {windowH < A4_H ? (
+                <div className="absolute left-0 right-0 bg-white" style={{ top: windowH * scale, bottom: 0 }} />
+              ) : null}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

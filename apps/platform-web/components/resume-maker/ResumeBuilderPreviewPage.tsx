@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CircleNotch, DownloadSimple } from "@phosphor-icons/react/dist/ssr";
 import { ResumeMakerShell } from "./ResumeMakerShell";
-import { ResumeSheet } from "./ResumePreview";
+import { ResumeSheet, computePageBreaks } from "./ResumePreview";
 import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
 import type { ResumeContent } from "../../lib/member-profile-client";
@@ -44,15 +44,18 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
   const outerRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
-  const [pages, setPages] = useState(1);
+  const [starts, setStarts] = useState<number[]>([0]);
+  const [contentH, setContentH] = useState(A4_H_PX);
   useEffect(() => {
     const compute = () => {
       const avail = outerRef.current?.clientWidth;
-      const natH = sheetRef.current?.offsetHeight; // transform 영향 없는 자연 높이
-      if (!avail || !natH) return;
+      const el = sheetRef.current;
+      if (!avail || !el || !el.offsetHeight) return;
       const s = Math.min(1, avail / A4_W_PX);
       setScale(s);
-      setPages(Math.max(1, Math.ceil(natH / A4_H_PX)));
+      const { starts: st, total } = computePageBreaks(el, A4_H_PX);
+      setStarts((prev) => (prev.length === st.length && prev.every((v, i) => v === st[i]) ? prev : st));
+      setContentH(total);
     };
     compute();
     const ro = new ResizeObserver(compute);
@@ -157,6 +160,8 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
           .rm-print-root { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; transform: none !important; transform-origin: top left !important; }
           .rm-fit-box { width: auto !important; height: auto !important; }
           .rm-print-root .resume-sheet { width: 100% !important; min-height: auto !important; box-shadow: none !important; }
+          /* 인쇄도 블록(섹션·헤더) 중간에서 잘리지 않게 — 화면 미리보기와 동일한 페이지 분할 */
+          .rm-print-root header, .rm-print-root section { break-inside: avoid; page-break-inside: avoid; }
           .rm-print-only { display: flex !important; position: fixed; left: 0; right: 0; bottom: 7mm; }
           .rm-print-hide { display: none !important; }
         }
@@ -242,27 +247,34 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
                     </div>
                   </div>
 
-                  {/* 화면 표시 — 실제 A4 페이지 카드(넘치면 여러 장으로 분리). 인쇄에선 숨김 */}
+                  {/* 화면 표시 — 실제 A4 페이지 카드(블록 경계에서 분리, 밀린 자리는 여백). 인쇄에선 숨김 */}
                   <div className="rm-print-hide space-y-3">
-                    {Array.from({ length: pages }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="relative mx-auto overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.06),0_10px_30px_-10px_rgba(0,0,0,0.15)]"
-                        style={{ width: A4_W_PX * scale, height: A4_H_PX * scale }}
-                      >
+                    {starts.map((startPx, i) => {
+                      const endPx = i < starts.length - 1 ? starts[i + 1] : contentH;
+                      const windowH = endPx - startPx;
+                      return (
                         <div
-                          style={{
-                            position: "absolute",
-                            top: -(i * A4_H_PX * scale),
-                            width: A4_W_PX,
-                            transform: `scale(${scale})`,
-                            transformOrigin: "top left"
-                          }}
+                          key={i}
+                          className="relative mx-auto overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.06),0_10px_30px_-10px_rgba(0,0,0,0.15)]"
+                          style={{ width: A4_W_PX * scale, height: A4_H_PX * scale }}
                         >
-                          <ResumeSheet content={shown} design={design} lang={sheetLang} />
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: -(startPx * scale),
+                              width: A4_W_PX,
+                              transform: `scale(${scale})`,
+                              transformOrigin: "top left"
+                            }}
+                          >
+                            <ResumeSheet content={shown} design={design} lang={sheetLang} />
+                          </div>
+                          {windowH < A4_H_PX ? (
+                            <div className="absolute left-0 right-0 bg-white" style={{ top: windowH * scale, bottom: 0 }} />
+                          ) : null}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
               );
