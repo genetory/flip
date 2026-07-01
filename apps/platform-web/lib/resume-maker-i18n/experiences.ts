@@ -18,7 +18,7 @@ type Copy = {
   submitHintEmpty: string;
   loadingText: string;
   heading: string;
-  registeredCount: (total: number, ready: number) => string;
+  registeredCount: (total: number) => string;
   add: string;
   fillWithAi: string;
   editHeading: string;
@@ -84,8 +84,8 @@ const dict: Record<PlatformLocale, Copy> = {
     submitHintEmpty: "이 경험에서 한 일을 한두 문장으로 적어 주세요.",
     loadingText: "불러오는 중...",
     heading: "경험",
-    registeredCount: (total, ready) =>
-      `등록된 경험 ${total}개 · 이력서 사용 가능 ${ready}개`,
+    registeredCount: (total) =>
+      `등록된 경험 ${total}개`,
     add: "추가",
     fillWithAi: "경험을 AI와 대화하며 채우기",
     editHeading: "경험 수정",
@@ -149,8 +149,8 @@ const dict: Record<PlatformLocale, Copy> = {
     submitHintEmpty: "Write one or two sentences about what you did in this experience.",
     loadingText: "Loading...",
     heading: "Experience",
-    registeredCount: (total, ready) =>
-      `${total} experiences registered · ${ready} ready for your resume`,
+    registeredCount: (total) =>
+      `${total} experiences registered`,
     add: "Add",
     fillWithAi: "Fill in your experience by chatting with AI",
     editHeading: "Edit experience",
@@ -214,8 +214,8 @@ const dict: Record<PlatformLocale, Copy> = {
     submitHintEmpty: "请用一两句话写下您在这段经历中做了什么。",
     loadingText: "加载中...",
     heading: "经历",
-    registeredCount: (total, ready) =>
-      `已登记 ${total} 段经历 · ${ready} 段可用于简历`,
+    registeredCount: (total) =>
+      `已登记 ${total} 段经历`,
     add: "添加",
     fillWithAi: "通过与 AI 对话填写经历",
     editHeading: "编辑经历",
@@ -279,8 +279,8 @@ const dict: Record<PlatformLocale, Copy> = {
     submitHintEmpty: "Hãy viết một hai câu về việc bạn đã làm trong kinh nghiệm này.",
     loadingText: "Đang tải...",
     heading: "Kinh nghiệm",
-    registeredCount: (total, ready) =>
-      `Đã đăng ký ${total} kinh nghiệm · ${ready} sẵn sàng cho hồ sơ`,
+    registeredCount: (total) =>
+      `Đã đăng ký ${total} kinh nghiệm`,
     add: "Thêm",
     fillWithAi: "Điền kinh nghiệm bằng cách trò chuyện với AI",
     editHeading: "Sửa kinh nghiệm",
@@ -344,8 +344,8 @@ const dict: Record<PlatformLocale, Copy> = {
     submitHintEmpty: "この経験でしたことを1〜2文で書いてください。",
     loadingText: "読み込み中...",
     heading: "経験",
-    registeredCount: (total, ready) =>
-      `登録済みの経験 ${total}件 · 履歴書で使用可能 ${ready}件`,
+    registeredCount: (total) =>
+      `登録済みの経験 ${total}件`,
     add: "追加",
     fillWithAi: "AIと対話しながら経験を埋める",
     editHeading: "経験を編集",
@@ -409,8 +409,8 @@ const dict: Record<PlatformLocale, Copy> = {
     submitHintEmpty: "Tulis satu atau dua kalimat tentang hal yang Anda lakukan dalam pengalaman ini.",
     loadingText: "Memuat...",
     heading: "Pengalaman",
-    registeredCount: (total, ready) =>
-      `${total} pengalaman terdaftar · ${ready} siap untuk resume`,
+    registeredCount: (total) =>
+      `${total} pengalaman terdaftar`,
     add: "Tambah",
     fillWithAi: "Isi pengalaman dengan mengobrol bersama AI",
     editHeading: "Edit pengalaman",
