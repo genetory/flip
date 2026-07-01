@@ -10,7 +10,7 @@ import { deleteMyResume, getMyResumes, type Resume } from "../../lib/member-prof
 import { getActiveResumeId, setActiveResumeId } from "../../lib/resume-maker-active";
 import { AiTicketCost } from "./AiTicketCost";
 import { FileImportPanel } from "./FileImportPanel";
-import { builderContinuePath, createDraftResume, createResumeFromImport, getBuilderState, importCoverLetter, importResume, isResumeMakerDraft } from "../../lib/resume-maker-client";
+import { builderContinuePath, createDraftResume, createResumeFromImport, deriveBuilderState, importCoverLetter, importResume } from "../../lib/resume-maker-client";
 import { computeResumeProgress } from "../../lib/resume-maker-progress";
 import { trackResumeBuilderStarted, trackResumeBuilderViewed } from "../../lib/analytics";
 import { useLandingCopy } from "../../lib/resume-maker-i18n/landing";
@@ -154,7 +154,7 @@ export function ResumeMakerLandingPage({
         const list = await getMyResumes();
         if (!alive) return;
         const drafted = list
-          .filter(isResumeMakerDraft)
+          .slice()
           .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
         setDrafts(drafted);
       } catch {
@@ -322,7 +322,7 @@ export function ResumeMakerLandingPage({
             <div className="rounded-3xl border border-[#F2F4F6] bg-white p-2.5 shadow-[0_2px_12px_rgba(17,24,39,0.05)]">
               <ul className="space-y-1">
                 {drafts.map((d) => {
-                  const dpct = computeResumeProgress(d.content, getBuilderState(d)).percent;
+                  const dpct = computeResumeProgress(d.content, deriveBuilderState(d)).percent;
                   return (
                   <li key={d.id} className="flex items-center rounded-2xl transition hover:bg-[#F2F4F6] active:bg-[#F2F4F6]">
                     <button

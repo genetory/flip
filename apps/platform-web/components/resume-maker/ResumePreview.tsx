@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import type { ResumeContent } from "../../lib/member-profile-client";
 import { RESUME_SECTION_KEYS, RESUME_VISA_OPTIONS, TEMPLATE_SECTION_ORDER, type ResumeDesignSettings, type ResumeSectionKey } from "../../lib/resume-maker-types";
 import { useLanguage } from "../i18n/LanguageProvider";
@@ -11,6 +10,9 @@ import type { PlatformLocale } from "../../lib/auth-messages";
 // transform scale 로 축소한다. 페이지 수는 실제 콘텐츠 높이 / 1123 으로 추정.
 const A4_W = 794;
 const A4_H = 1123;
+// 각 페이지 위·아래 동일 패딩(px). 콘텐츠 영역 = A4_H - 2*PAGE_PAD.
+const PAGE_PAD = 48;
+const PAGE_CONTENT_H = A4_H - PAGE_PAD * 2;
 
 type SectionKey = ResumeSectionKey;
 
@@ -57,13 +59,16 @@ export function ResumeSheet({
   design,
   highlightSection,
   innerRef,
-  lang = "ko"
+  lang = "ko",
+  noVerticalPad = false
 }: {
   content: ResumeContent;
   design: ResumeDesignSettings;
   highlightSection?: SectionKey | null;
   innerRef?: React.Ref<HTMLDivElement>;
   lang?: PlatformLocale;
+  // 페이지 분할 미리보기·인쇄에서는 세로 패딩을 시트가 아니라 각 페이지가 준다.
+  noVerticalPad?: boolean;
 }) {
   const accent = design.accentColor || "#0B46E8";
   const baseFont = 13.5 * design.fontScale;
@@ -308,13 +313,13 @@ export function ResumeSheet({
     <div
       ref={innerRef}
       className="resume-sheet bg-white text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.12)]"
-      style={{ width: A4_W, minHeight: A4_H, padding: "48px 52px", fontSize: baseFont, lineHeight: design.lineHeight }}
+      style={{ width: A4_W, minHeight: noVerticalPad ? undefined : A4_H, padding: noVerticalPad ? "0 52px" : "48px 52px", fontSize: baseFont, lineHeight: design.lineHeight }}
     >
       {layout === "band" ? (
         <>
           <header
             className={`flex ${headerAlign} gap-4`}
-            style={{ background: accent, color: "white", margin: "-48px -52px 0", padding: "30px 52px" }}
+            style={{ background: accent, color: "white", margin: noVerticalPad ? "0 -52px 0" : "-48px -52px 0", padding: "30px 52px" }}
           >
             {photo}
             <div>
@@ -389,6 +394,32 @@ export function ResumeSheet({
   );
 }
 
+// 블록(헤더·섹션) 경계에서 페이지를 나눈다. 한 블록이 현재 페이지에 다 안 들어가면
+// 통째로 다음 페이지로 밀어(앞 페이지 아래는 여백), 블록이 중간에서 잘리지 않게 한다.
+// 반환: 각 페이지 시작 y(px, 원본 스케일 기준) 배열 + 전체 높이.
+export function computePageBreaks(root: HTMLElement, pageH: number): { starts: number[]; total: number } {
+  const total = root.scrollHeight;
+  const rootTop = root.getBoundingClientRect().top;
+  // 헤더·섹션을 블록으로 본다(중첩 섹션 없음). 세로 위치(top) 기준 정렬해 2단
+  // 레이아웃에서도 위→아래 순으로 페이지를 나눈다.
+  const blocks = Array.from(root.querySelectorAll<HTMLElement>("header, section"))
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      return { top: r.top - rootTop, bottom: r.top - rootTop + r.height };
+    })
+    .sort((a, b) => a.top - b.top);
+  const starts = [0];
+  let pageTop = 0;
+  for (const b of blocks) {
+    // 현재 페이지(pageTop~pageTop+pageH)에 이 블록의 끝이 안 들어가면 다음 페이지로.
+    if (b.bottom - pageTop > pageH && b.top > pageTop + 1) {
+      pageTop = b.top;
+      starts.push(pageTop);
+    }
+  }
+  return { starts, total };
+}
+
 export function ResumePreview({
   content,
   design,
@@ -399,11 +430,11 @@ export function ResumePreview({
   highlightSection?: SectionKey | null;
 }) {
   const { locale } = useLanguage();
-  const chrome = CHROME[locale] ?? CHROME.en;
   const wrapRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
-  const [pages, setPages] = useState(1);
+  const [starts, setStarts] = useState<number[]>([0]);
+  const [contentH, setContentH] = useState(PAGE_CONTENT_H);
 
   // 컨테이너 폭에 맞춰 스케일
   useEffect(() => {
@@ -419,40 +450,53 @@ export function ResumePreview({
     return () => ro.disconnect();
   }, []);
 
-  // 콘텐츠 높이 → 페이지 수
+  // 콘텐츠 → 블록 경계 페이지 분할(페이지 콘텐츠 영역 기준). 값이 같으면 참조 유지.
   useLayoutEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
-    const h = el.scrollHeight;
-    setPages(Math.max(1, Math.ceil(h / A4_H)));
+    const { starts: s, total } = computePageBreaks(el, PAGE_CONTENT_H);
+    setStarts((prev) => (prev.length === s.length && prev.every((v, i) => v === s[i]) ? prev : s));
+    setContentH(total);
   });
 
   return (
     <div>
-      {/* 페이지 정보 / 경고 */}
-      <div className="mb-2 flex items-center justify-between text-[12px] text-muted-foreground">
-        <span>{chrome.a4(pages)}</span>
-        {pages > 1 ? (
-          <span className="inline-flex items-center gap-1 text-amber-700">
-            <WarningCircle className="h-3.5 w-3.5" weight="fill" aria-hidden />
-            {chrome.pageWarn(pages)}
-          </span>
-        ) : null}
+      {/* 높이 측정·블록 위치 계산용 숨김 시트(세로 패딩 없음 — 패딩은 각 페이지가 준다) */}
+      <div aria-hidden className="pointer-events-none absolute -left-[99999px] top-0" style={{ width: A4_W, visibility: "hidden" }}>
+        <ResumeSheet innerRef={sheetRef} content={content} design={design} highlightSection={highlightSection} lang={locale} noVerticalPad />
       </div>
 
-      <div ref={wrapRef} className="w-full" style={{ height: A4_H * scale * pages + (pages - 1) * 8 * scale }}>
-        <div style={{ position: "relative", width: A4_W, transform: `scale(${scale})`, transformOrigin: "top left" }}>
-          <ResumeSheet innerRef={sheetRef} content={content} design={design} highlightSection={highlightSection} lang={locale} />
-
-          {/* 페이지 경계선 */}
-          {Array.from({ length: pages - 1 }).map((_, i) => (
+      {/* 실제 A4 페이지 — 각 페이지 위·아래 동일 패딩, 넘치는 블록은 다음 장으로. */}
+      <div ref={wrapRef} className="w-full space-y-2">
+        {starts.map((startPx, i) => {
+          const endPx = i < starts.length - 1 ? starts[i + 1] : contentH;
+          const windowH = Math.min(endPx - startPx, PAGE_CONTENT_H);
+          return (
             <div
               key={i}
-              className="pointer-events-none absolute left-0 right-0 border-t border-dashed border-rose-300"
-              style={{ position: "absolute", top: A4_H * (i + 1) }}
-            />
-          ))}
-        </div>
+              className="relative overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.12)]"
+              style={{ width: A4_W * scale, height: A4_H * scale }}
+            >
+              {/* 위·아래 PAGE_PAD 만큼 여백을 두고, 그 안에서만 이 페이지 콘텐츠를 클립. */}
+              <div
+                className="absolute left-0 overflow-hidden"
+                style={{ top: PAGE_PAD * scale, width: A4_W * scale, height: windowH * scale }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: -(startPx * scale),
+                    width: A4_W,
+                    transform: `scale(${scale})`,
+                    transformOrigin: "top left"
+                  }}
+                >
+                  <ResumeSheet content={content} design={design} highlightSection={highlightSection} lang={locale} noVerticalPad />
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -20,13 +20,16 @@ export function CoverLetterSheet({
   title,
   companyName,
   emptyLabel,
-  innerRef
+  innerRef,
+  noVerticalPad = false
 }: {
   items: ResumeCoverLetterItem[];
   title: string;
   companyName?: string;
   emptyLabel: string;
   innerRef?: React.Ref<HTMLDivElement>;
+  // 페이지 분할 미리보기·인쇄에서는 세로 패딩을 시트가 아니라 각 페이지가 준다.
+  noVerticalPad?: boolean;
 }) {
   // 답변을 입력한 문항만 자소서 문서에 노출(문항만 추가하고 비워 두면 안 보임).
   const filled = items.filter((it) => it.answer && it.answer.trim());
@@ -34,7 +37,7 @@ export function CoverLetterSheet({
     <div
       ref={innerRef}
       className="cl-sheet bg-white text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.12)]"
-      style={{ width: A4_W, minHeight: A4_H, padding: "56px 60px", fontSize: 13.5, lineHeight: 1.7 }}
+      style={{ width: A4_W, minHeight: noVerticalPad ? undefined : A4_H, padding: noVerticalPad ? "0 60px" : "56px 60px", fontSize: 13.5, lineHeight: 1.7 }}
     >
       <h1 className="text-center text-[22px] font-bold tracking-[0.28em] text-slate-900">{title}</h1>
       {companyName ? <p className="mt-2 text-center text-[12.5px] font-semibold text-slate-500">{companyName}</p> : null}

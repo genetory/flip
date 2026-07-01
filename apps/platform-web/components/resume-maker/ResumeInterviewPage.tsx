@@ -20,7 +20,6 @@ import {
   getBuilderState,
   getDraftResume,
   getInterviewFeedback,
-  isResumeMakerDraft,
   resumeToPlainText,
   type InterviewFeedback,
   type InterviewQuestionItem
@@ -93,7 +92,7 @@ export function ResumeInterviewPage({ resumeId }: { resumeId: string }) {
         if (!alive) return;
         try {
           const drafts = (await getMyResumes())
-            .filter(isResumeMakerDraft)
+            .slice()
             .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
           if (!alive) return;
           const next = drafts.find((d) => d.id !== resumeId);

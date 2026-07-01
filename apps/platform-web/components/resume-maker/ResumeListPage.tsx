@@ -8,7 +8,7 @@ import { Button } from "../ui/button";
 import { AiTicketCost } from "./AiTicketCost";
 import { useToast } from "../toast/ToastProvider";
 import { deleteMyResume, getMyResumes, type Resume } from "../../lib/member-profile-client";
-import { createDraftResume, createResumeFromImport, getBuilderState, importResume, isResumeMakerDraft } from "../../lib/resume-maker-client";
+import { createDraftResume, createResumeFromImport, deriveBuilderState, importResume } from "../../lib/resume-maker-client";
 import { computeResumeProgress } from "../../lib/resume-maker-progress";
 import { useLandingCopy } from "../../lib/resume-maker-i18n/landing";
 
@@ -45,7 +45,8 @@ export function ResumeListPage() {
       try {
         const all = await getMyResumes();
         if (!alive) return;
-        setList(all.filter(isResumeMakerDraft).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)));
+        // 이력서 편집은 전부 resume-maker 로 통합 — 옛 이력서(builder 없음)도 함께 표시.
+        setList([...all].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)));
       } catch {
         /* 목록 로드 실패는 치명적이지 않음 */
       } finally {
@@ -197,7 +198,7 @@ export function ResumeListPage() {
               <div className="mt-6 rounded-3xl border border-[#F2F4F6] bg-white p-2.5 shadow-[0_2px_12px_rgba(17,24,39,0.05)]">
                 <ul className="space-y-1">
                   {list.map((r) => {
-                    const pct = computeResumeProgress(r.content, getBuilderState(r)).percent;
+                    const pct = computeResumeProgress(r.content, deriveBuilderState(r)).percent;
                     return (
                       <li key={r.id} className="flex items-center rounded-2xl transition hover:bg-[#F2F4F6] active:bg-[#F2F4F6]">
                         <button

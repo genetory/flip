@@ -14,7 +14,7 @@ import { useToast } from "../toast/ToastProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { PositionRow, mapPublicPositionToCard } from "../pages/PositionsPage";
 import { getMyResumes, type PublicPositionListItem, type ResumeContent } from "../../lib/member-profile-client";
-import { AiQuotaError, fetchJobPosting, getBuilderState, getDraftResume, isResumeMakerDraft, resumeToPlainText, saveResumeContent, tailorResume, type TailorResult } from "../../lib/resume-maker-client";
+import { AiQuotaError, fetchJobPosting, getBuilderState, getDraftResume, resumeToPlainText, saveResumeContent, tailorResume, type TailorResult } from "../../lib/resume-maker-client";
 import { setActiveResumeId } from "../../lib/resume-maker-active";
 import { coverLetterToPlainText, getCoverLetter, type CoverLetter } from "../../lib/cover-letter-client";
 import { compileResumeContent } from "../../lib/resume-maker-compile";
@@ -102,7 +102,7 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
         if (!alive) return;
         try {
           const drafts = (await getMyResumes())
-            .filter(isResumeMakerDraft)
+            .slice()
             .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
           if (!alive) return;
           const next = drafts.find((d) => d.id !== resumeId);

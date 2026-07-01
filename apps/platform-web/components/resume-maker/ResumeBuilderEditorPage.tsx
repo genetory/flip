@@ -42,7 +42,7 @@ import {
   type ResumeLinkEntry
 } from "../../lib/member-profile-client";
 import {
-  getBuilderState,
+  deriveBuilderState,
   getDraftResume,
   importResume,
   POLISH_STYLES,
@@ -477,7 +477,8 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
           summary: c.summary ?? "",
           selfIntroduction: c.selfIntroduction ?? ""
         });
-        const state = getBuilderState(resume);
+        // 옛 이력서(builder 없음)는 content 의 경력·활동을 experiences 로 파생해 편집 가능하게.
+        const state = deriveBuilderState(resume);
         setBuilder({ ...state, design: state.design ?? DEFAULT_DESIGN });
       } catch (err) {
         if (!alive) return;

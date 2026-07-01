@@ -8,7 +8,7 @@ import { Button } from "../ui/button";
 import { AiTicketCost } from "./AiTicketCost";
 import { useToast } from "../toast/ToastProvider";
 import { getMyResumes } from "../../lib/member-profile-client";
-import { importCoverLetter, isResumeMakerDraft } from "../../lib/resume-maker-client";
+import { importCoverLetter } from "../../lib/resume-maker-client";
 import { createCoverLetter, deleteCoverLetter, getMyCoverLetters, updateCoverLetter, type CoverLetter } from "../../lib/cover-letter-client";
 import { useCoverLetterCopy } from "../../lib/resume-maker-i18n/cover-letter";
 import { useEditorCopy } from "../../lib/resume-maker-i18n/editor";
@@ -53,7 +53,7 @@ export function CoverLetterListPage() {
         const [cls, allResumes] = await Promise.all([getMyCoverLetters(), getMyResumes().catch(() => [])]);
         if (!alive) return;
         setList(cls);
-        setResumes(allResumes.filter((r) => isResumeMakerDraft(r)).map((r) => ({ id: r.id, title: r.title })));
+        setResumes(allResumes.map((r) => ({ id: r.id, title: r.title })));
       } catch (err) {
         if (!alive) return;
         toast.error(err instanceof Error ? err.message : c.loadFailed);

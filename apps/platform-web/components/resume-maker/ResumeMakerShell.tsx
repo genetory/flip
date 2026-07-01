@@ -138,7 +138,7 @@ export function ResumeMakerShell({
       className="flex min-h-screen flex-col bg-background font-sans text-foreground antialiased"
       style={{ ["--primary"]: "224 91% 48%", ["--accent"]: "224 91% 48%" } as CSSProperties}
     >
-      <header className="sticky top-0 z-40 border-b border-[#F2F4F6] bg-white">
+      <header className="sticky top-0 z-40 border-b border-[#F2F4F6] bg-white print:hidden">
         <div className="container relative flex h-14 max-w-6xl items-center gap-3">
           {left ? <div className="flex shrink-0 items-center">{left}</div> : null}
           <div className="flex min-w-0 items-center gap-2">
@@ -218,8 +218,8 @@ export function ResumeMakerShell({
         </nav>
       </header>
       <main className="flex-1">{children}</main>
-      {/* 푸터 위 디바이더(상단 보더) 제거 — resume-maker 화면에서만 */}
-      <div className="[&>footer]:border-t-0">
+      {/* 푸터 위 디바이더(상단 보더) 제거 — resume-maker 화면에서만. 인쇄(PDF)엔 안 나오게 print:hidden */}
+      <div className="[&>footer]:border-t-0 print:hidden">
         <Footer />
       </div>
     </div>

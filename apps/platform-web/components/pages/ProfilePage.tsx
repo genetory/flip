@@ -29,6 +29,7 @@ import {
   type PublicPositionListItem,
   type Resume
 } from "../../lib/member-profile-client";
+import { createDraftResume } from "../../lib/resume-maker-client";
 import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import type { ApplicationStatus } from "../../lib/status-labels";
@@ -462,11 +463,21 @@ export function ProfilePage() {
     }
   }
 
-  function handleCreateResume() {
-    // 빈 이력서를 DB 에 만들지 않고, 사용자가 편집 화면에서 "저장" 을 누른
-    // 순간에만 createMyResume 가 실행되도록 sentinel 라우트 (/resume/new/edit)
-    // 으로 보낸다. 사용자가 그냥 페이지를 떠나면 row 가 남지 않음.
-    resumeRouter.push("/resume/new/edit");
+  const [creatingResume, setCreatingResume] = useState(false);
+  async function handleCreateResume() {
+    // 이력서 생성·편집은 resume-maker 로 통합. 초안을 만들고 resume-maker 편집기로 이동.
+    if (creatingResume) return;
+    setCreatingResume(true);
+    try {
+      const draft = await createDraftResume(
+        tr("내 이력서", "My Resume", "我的简历", "Hồ sơ của tôi", "私の履歴書", "Resume Saya")
+      );
+      resumeRouter.push(`/resume-maker/${draft.id}/edit`);
+    } catch {
+      // 생성 실패 시 resume-maker 홈으로 폴백(거기서 만들 수 있음).
+      resumeRouter.push("/resume-maker/resumes");
+      setCreatingResume(false);
+    }
   }
 
   async function handleResumeDelete(resumeId: string, resumeTitle: string) {
@@ -1377,7 +1388,7 @@ export function ProfilePage() {
                               "Kelola resume Anda dan pilih yang utama."
                             )}
                           </p>
-                          <Button size="sm" onClick={handleCreateResume}>
+                          <Button size="sm" onClick={handleCreateResume} disabled={creatingResume}>
                             {tr("이력서 만들기", "Create", "创建", "Tạo", "作成", "Buat")}
                           </Button>
                         </div>
@@ -1400,7 +1411,7 @@ export function ProfilePage() {
                           <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-white">
                             {[...myResumes].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary)).map((r) => (
                               <div key={r.id} className="flex items-center gap-3 px-4 py-5 transition hover:bg-muted/40">
-                                <Link href={`/resume/${r.id}/preview`} className="flex min-w-0 flex-1 items-center gap-3">
+                                <Link href={`/resume-maker/${r.id}/edit`} className="flex min-w-0 flex-1 items-center gap-3">
                                   <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-primary/10 text-primary">
                                     <FileText className="h-5 w-5" />
                                   </span>
@@ -1428,7 +1439,7 @@ export function ProfilePage() {
                                     </button>
                                   ) : null}
                                   <Link
-                                    href={`/resume/${r.id}/edit`}
+                                    href={`/resume-maker/${r.id}/edit`}
                                     aria-label={tr("수정", "Edit", "编辑", "Sửa", "編集", "Edit")}
                                     className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
                                   >
@@ -1991,10 +2002,9 @@ function SgcApplicationStatusCard({ application, tr }: { application: SgcApplica
           </Link>
         </Button>
         {application.resumeId ? (
-          // 이력서 코치(/resume/{id}) 가 아니라 미리보기(/preview) 로 — 사용자
-          // 입장에서 "내가 제출한 이력서 본문"을 그대로 확인하는 게 의도.
+          // 이력서 관리는 resume-maker 로 통합 — 제출 이력서 확인도 resume-maker 미리보기로.
           <Button variant="outline" asChild>
-            <Link href={`/resume/${application.resumeId}/preview`}>
+            <Link href={`/resume-maker/${application.resumeId}/preview`}>
               {tr("지원한 이력서 보기", "View submitted resume", "查看简历", "Xem hồ sơ đã nộp", "提出した履歴書", "Lihat resume")}
             </Link>
           </Button>
