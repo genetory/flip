@@ -27,7 +27,6 @@ import { computeResumeProgress } from "../../lib/resume-maker-progress";
 import { ResumeCompletionConfetti } from "./ResumeCompletionConfetti";
 import {
   DEFAULT_DESIGN,
-  EXPERIENCE_STATUS_META,
   EXPERIENCE_TYPES,
   type ApprovedBullet,
   type BuilderExperience,
@@ -37,14 +36,7 @@ import {
 import { trackExperienceCreated } from "../../lib/analytics";
 import { useExperiencesCopy } from "../../lib/resume-maker-i18n/experiences";
 import { useToolPickerCopy } from "../../lib/resume-maker-i18n/tool-picker";
-import { useExperienceTypeLabel, useResumeStatusLabel, usePolishStyleLabel } from "../../lib/resume-maker-i18n/labels";
-
-const STATUS_TONE_CLS: Record<string, string> = {
-  neutral: "bg-muted text-muted-foreground",
-  warn: "bg-amber-100 text-amber-800",
-  info: "bg-blue-100 text-blue-700",
-  success: "bg-emerald-100 text-emerald-700"
-};
+import { useExperienceTypeLabel, usePolishStyleLabel } from "../../lib/resume-maker-i18n/labels";
 
 function periodText(exp: BuilderExperience, inProgressLabel: string): string {
   if (!exp.startDate && !exp.endDate) return "";
@@ -110,7 +102,6 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
   const t = useExperiencesCopy();
   const pickerCopy = useToolPickerCopy();
   const expTypeLabel = useExperienceTypeLabel();
-  const statusLabel = useResumeStatusLabel();
   const polishLabel = usePolishStyleLabel();
   const [loading, setLoading] = useState(true);
   const [baseContent, setBaseContent] = useState<ResumeContent>({});
@@ -362,7 +353,6 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
   }
 
   const experiences = builder.experiences;
-  const readyCount = experiences.filter((e) => e.status === "ready").length;
   const typesPresent = EXPERIENCE_TYPES.filter((t) => experiences.some((e) => e.type === t.value));
   const visibleExperiences = filterType === "all" ? experiences : experiences.filter((e) => e.type === filterType);
   const categoryTabs: { value: ExperienceType | "all"; label: string; count: number }[] = [
@@ -401,7 +391,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
           <div>
             <h2 className="text-[22px] font-bold tracking-[-0.02em] text-[#191F28] md:text-[26px]">{t.heading}</h2>
             <p className="mt-2 text-[14px] text-[#8B95A1]">
-              {t.registeredCount(experiences.length, readyCount)}
+              {t.registeredCount(experiences.length)}
             </p>
           </div>
           <Button variant="default" size="sm" className="mt-1 shrink-0" onClick={openAdd}>
@@ -691,7 +681,6 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
             ) : (
               <ul className="mt-4 space-y-2">
                 {visibleExperiences.map((exp) => {
-              const meta = EXPERIENCE_STATUS_META[exp.status];
               return (
                 <li key={exp.id}>
                   <div
@@ -709,7 +698,6 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
                           <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
                             {expTypeLabel(exp.type)}
                           </span>
-                          <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${STATUS_TONE_CLS[meta.tone]}`}>{statusLabel(exp.status)}</span>
                         </div>
                         <p className="mt-2 truncate text-[15px] font-bold text-[#0B1227]">{exp.title}</p>
                         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px]">

@@ -100,8 +100,13 @@ type Preserved = {
 const inputCls =
   "h-11 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3.5 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:bg-white focus:outline-none";
 
-// 프로필 사진 — 자주 자동저장되므로 캔버스로 최대 변(maxPx)을 줄여 data URL 을
-// 가볍게 만든다. 저장 시 백엔드(resolveResumePhoto)가 Blob 으로 업로드한다.
+// 프로필 사진 프레임 비율(세로형, 가로:세로 = 88:112). 에디터 아바타·미리보기·
+// PDF 의 사진 박스가 모두 이 비율이므로, 업로드 이미지를 이 비율로 중앙 크롭해
+// 두면 어떤 렌더러에서도 빈 여백/찌그러짐 없이 꽉 채워진다.
+const PHOTO_ASPECT = 88 / 112;
+
+// 프로필 사진 — 프레임 비율로 중앙 크롭 후 최대 변(maxPx)을 줄여 가벼운 data URL 로
+// 만든다. 저장 시 백엔드(resolveResumePhoto)가 Blob 으로 업로드한다.
 async function readPhotoAsDataUrl(file: File, maxPx = 480): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const r = new FileReader();
@@ -112,19 +117,33 @@ async function readPhotoAsDataUrl(file: File, maxPx = 480): Promise<string> {
   return await new Promise<string>((resolve) => {
     const img = new window.Image();
     img.onload = () => {
-      const longest = Math.max(img.width, img.height);
-      const scale = longest > maxPx ? maxPx / longest : 1;
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
+      // 원본에서 프레임 비율(PHOTO_ASPECT)에 맞는 최대 영역을 중앙 기준으로 잘라낸다.
+      const srcAspect = img.width / img.height;
+      let cropW: number;
+      let cropH: number;
+      if (srcAspect > PHOTO_ASPECT) {
+        // 원본이 더 넓음 → 높이를 기준으로 폭을 잘라낸다.
+        cropH = img.height;
+        cropW = cropH * PHOTO_ASPECT;
+      } else {
+        // 원본이 더 좁음(또는 같음) → 폭을 기준으로 높이를 잘라낸다.
+        cropW = img.width;
+        cropH = cropW / PHOTO_ASPECT;
+      }
+      const sx = (img.width - cropW) / 2;
+      const sy = (img.height - cropH) / 2;
+      // 출력 크기 — 긴 변(세로)을 maxPx 로 제한하고 비율 유지.
+      const outH = Math.min(maxPx, Math.round(cropH));
+      const outW = Math.round(outH * PHOTO_ASPECT);
       const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
+      canvas.width = outW;
+      canvas.height = outH;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         resolve(dataUrl);
         return;
       }
-      ctx.drawImage(img, 0, 0, w, h);
+      ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, outW, outH);
       resolve(canvas.toDataURL("image/jpeg", 0.85));
     };
     img.onerror = () => resolve(dataUrl);
@@ -592,6 +611,10 @@ export function ResumeBuilderEditorPage({ resumeId }: { resumeId: string }) {
               onBasic={commitBasic}
               showPhoto={design.showPhoto}
               onShowPhoto={(v) => commitBuilder({ ...builder, design: { ...design, showPhoto: v } })}
+              // 사진(basic)과 showPhoto(builder)를 한 번의 commit으로 — 분리 호출 시 stale basic이 사진을 덮어씀
+              onPhotoUpload={(url) =>
+                commit({ ...builder, design: { ...design, showPhoto: true } }, { ...basic, basicPhotoUrl: url }, extra)
+              }
               isForeigner={Boolean(builder.onboarding.isForeigner)}
               onIsForeigner={(v) =>
                 // 끄면 국적·비자 값을 비워 미리보기에서도 사라지게 한다.
@@ -924,6 +947,7 @@ function BasicSection({
   onBasic,
   showPhoto,
   onShowPhoto,
+  onPhotoUpload,
   isForeigner,
   onIsForeigner,
   resumeTitle,
@@ -934,6 +958,9 @@ function BasicSection({
   onBasic: (b: Basic) => void;
   showPhoto: boolean;
   onShowPhoto: (v: boolean) => void;
+  // 사진 등록은 basic(사진)+builder(showPhoto)를 한 번의 commit으로 묶어야 한다.
+  // 둘을 따로 호출하면 두 번째 commit이 stale closure 의 basic 으로 사진을 덮어쓴다.
+  onPhotoUpload: (url: string) => void;
   isForeigner: boolean;
   onIsForeigner: (v: boolean) => void;
   resumeTitle: string;
@@ -957,8 +984,7 @@ function BasicSection({
     }
     try {
       const url = await readPhotoAsDataUrl(file);
-      onBasic({ ...basic, basicPhotoUrl: url });
-      onShowPhoto(true); // 업로드하면 바로 이력서에 표시
+      onPhotoUpload(url); // 사진 등록 + 이력서 표시(showPhoto)를 한 번에 — 따로 호출 시 사진이 덮어써짐
     } catch {
       toast.error(t.imageLoadFailed);
     }

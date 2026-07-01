@@ -13104,6 +13104,20 @@ const experienceQaSchema = z.array(
   z.object({ question: z.string().trim().max(400), answer: z.string().trim().max(2000) })
 ).max(40);
 
+// 경험 인터뷰/후속 질문에서 기간(시작·종료 시점)은 폼에서 이미 받았으므로 다시
+// 묻지 않는다. 프롬프트로 막지만 AI 가 어길 수 있어 서버에서도 방어적으로 걸러낸다.
+function isPeriodExperienceQuestion(prompt: string): boolean {
+  const p = prompt.replace(/\s/g, "");
+  if (p.includes("기간")) return true;
+  if (p.includes("언제부터") || p.includes("언제까지")) return true;
+  if (p.includes("시작시점") || p.includes("종료시점") || p.includes("시작일") || p.includes("종료일")) return true;
+  if (p.includes("언제") && (p.includes("시작") || p.includes("종료") || p.includes("끝"))) return true;
+  return false;
+}
+function dropPeriodQuestions<T extends { prompt: string }>(questions: T[]): T[] {
+  return questions.filter((q) => !isPeriodExperienceQuestion(q.prompt));
+}
+
 const experienceInterviewSchema = z.object({
   experience: experienceCtxSchema,
   jobCategories: z.array(z.string().trim().max(60)).max(5).optional(),
@@ -13153,6 +13167,7 @@ app.post(
         "2. 행동·역할·문제·결과·수치·협업·사용 도구를 구체적으로 끌어내는 질문을 만드세요.\n" +
         "3. 사용자가 제공하지 않은 사실을 단정하거나 유도하지 마세요. 열린 질문으로 물어보세요.\n" +
         "4. 질문은 4~6개. 각 질문은 한 번에 하나의 정보만 묻습니다.\n" +
+        "4-1. 이미 제공된 정보(경험명·유형·조직/프로젝트·기간·희망 직무)는 절대 다시 묻지 마세요. 특히 '기간'과 시작·종료 시점은 이미 입력받았으므로 질문으로 만들지 마세요.\n" +
         "5. 정확한 숫자를 모를 수 있는 질문은 optional: true 로 표시하세요.\n" +
         "6. 선택지가 자연스러운 질문은 options 를 제시하세요(단일/다중 선택).\n\n" +
         "JSON 한 개 객체로만 응답: { \"coachNote\": string, \"questions\": [{ \"prompt\": string, \"type\": \"short_text\"|\"long_text\"|\"number\"|\"single_select\"|\"multi_select\"|\"select_with_custom\", \"options\"?: string[], \"helper\"?: string, \"optional\": boolean }] }. coachNote 는 시작 안내 한 문장." + aiLangDirective(parsed.data.locale);
@@ -13172,8 +13187,11 @@ app.post(
       const raw = completion.choices?.[0]?.message?.content ?? "";
       let parsedJson: { coachNote?: unknown; questions?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
-      const questions = parseAiQuestions(parsedJson.questions);
-      if (questions.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+      const allQuestions = parseAiQuestions(parsedJson.questions);
+      if (allQuestions.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+      // 기간 질문 제거. 단, 전부 기간 질문이던 극단 케이스면 원본 유지(질문 0개 방지).
+      const withoutPeriod = dropPeriodQuestions(allQuestions);
+      const questions = withoutPeriod.length > 0 ? withoutPeriod : allQuestions;
       const coachNote = typeof parsedJson.coachNote === "string" ? parsedJson.coachNote.trim() : "";
       return res.json({ ok: true, interview: { coachNote, questions } });
     } catch (err) {
@@ -13245,7 +13263,8 @@ app.post(
         .map((s) => s.trim())
         .filter(Boolean)
         .slice(0, 12);
-      const followUpQuestions = parseAiQuestions(parsedJson.followUpQuestions);
+      // 기간은 폼에서 이미 받았으므로 후속 질문에서도 제외(인터뷰와 동일 정책).
+      const followUpQuestions = dropPeriodQuestions(parseAiQuestions(parsedJson.followUpQuestions));
       const warnings = (Array.isArray(parsedJson.warnings) ? parsedJson.warnings : [])
         .filter((w): w is string => typeof w === "string")
         .map((w) => w.trim())
