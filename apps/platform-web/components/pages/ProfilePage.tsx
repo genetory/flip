@@ -1411,7 +1411,7 @@ export function ProfilePage() {
                           <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-white">
                             {[...myResumes].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary)).map((r) => (
                               <div key={r.id} className="flex items-center gap-3 px-4 py-5 transition hover:bg-muted/40">
-                                <Link href={`/resume/${r.id}/preview`} className="flex min-w-0 flex-1 items-center gap-3">
+                                <Link href={`/resume-maker/${r.id}/edit`} className="flex min-w-0 flex-1 items-center gap-3">
                                   <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-primary/10 text-primary">
                                     <FileText className="h-5 w-5" />
                                   </span>
@@ -2002,10 +2002,9 @@ function SgcApplicationStatusCard({ application, tr }: { application: SgcApplica
           </Link>
         </Button>
         {application.resumeId ? (
-          // 이력서 코치(/resume/{id}) 가 아니라 미리보기(/preview) 로 — 사용자
-          // 입장에서 "내가 제출한 이력서 본문"을 그대로 확인하는 게 의도.
+          // 이력서 관리는 resume-maker 로 통합 — 제출 이력서 확인도 resume-maker 미리보기로.
           <Button variant="outline" asChild>
-            <Link href={`/resume/${application.resumeId}/preview`}>
+            <Link href={`/resume-maker/${application.resumeId}/preview`}>
               {tr("지원한 이력서 보기", "View submitted resume", "查看简历", "Xem hồ sơ đã nộp", "提出した履歴書", "Lihat resume")}
             </Link>
           </Button>

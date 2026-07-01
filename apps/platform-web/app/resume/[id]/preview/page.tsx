@@ -1,12 +1,12 @@
-import { ResumeDetailPage } from "../../../../components/pages/ResumeDetailPage";
+import { redirect } from "next/navigation";
 
-// 이력서 미리보기 / PDF 다운로드 / 공유 링크 복사. 기존 /resume/[id] 이
-// 했던 역할을 /preview 로 옮겼다. /resume/[id] 는 이제 Coach 가 차지.
+// 이력서 화면은 resume-maker 로 통합. 옛 미리보기 경로로 들어오면 resume-maker
+// 미리보기로 리다이렉트한다.
 type Props = {
   params: Promise<{ id: string }>;
 };
 
 export default async function Page({ params }: Props) {
   const { id } = await params;
-  return <ResumeDetailPage resumeId={id} />;
+  redirect(`/resume-maker/${id}/preview`);
 }
