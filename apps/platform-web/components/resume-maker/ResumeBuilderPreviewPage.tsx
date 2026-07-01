@@ -267,12 +267,6 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
                       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: PAGE_PAD_PX, background: "#fff" }} />
                       {/* 아래 패딩(넘친 블록·다음 페이지 콘텐츠 가림) */}
                       <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, top: PAGE_PAD_PX + windowH, background: "#fff" }} />
-                      {/* 하단 슬로건 — 각 페이지 맨 아래(패딩 영역, 콘텐츠엔 영향 없음) */}
-                      <div style={{ position: "absolute", left: 0, right: 0, bottom: "5mm", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src="/img_logo.webp" alt="Aply" style={{ height: 12, width: "auto", opacity: 0.7 }} />
-                        <span style={{ fontSize: 9.5, letterSpacing: "0.02em", color: "#94a3b8" }}>{t.slogan}</span>
-                      </div>
                     </div>
                   );
                 })}
