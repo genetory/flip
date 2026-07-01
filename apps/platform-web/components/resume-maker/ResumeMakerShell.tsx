@@ -138,7 +138,7 @@ export function ResumeMakerShell({
       className="flex min-h-screen flex-col bg-background font-sans text-foreground antialiased"
       style={{ ["--primary"]: "224 91% 48%", ["--accent"]: "224 91% 48%" } as CSSProperties}
     >
-      <header className="sticky top-0 z-40 border-b border-[#F2F4F6] bg-white">
+      <header className="sticky top-0 z-40 border-b border-[#F2F4F6] bg-white print:hidden">
         <div className="container relative flex h-14 max-w-6xl items-center gap-3">
           {left ? <div className="flex shrink-0 items-center">{left}</div> : null}
           <div className="flex min-w-0 items-center gap-2">

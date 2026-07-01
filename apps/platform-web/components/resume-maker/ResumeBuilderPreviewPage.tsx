@@ -143,34 +143,19 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
 
   return (
     <ResumeMakerShell>
-      {/* 인쇄 전용 스타일 — 시트만 출력. @page margin 0 으로 브라우저 기본
-          머리글/바닥글(날짜·제목·URL)을 제거하고, 여백은 시트 자체 패딩으로. */}
+      {/* 인쇄 스타일 — @page margin 0 으로 브라우저 기본 머리글/바닥글(날짜·URL·페이지번호)
+          제거. 페이지 상하 여백·분할은 아래 rm-print-page(각 A4 한 장)가 직접 담당한다. */}
       <style>{`
-        .rm-print-only { display: none; }
         @media print {
-          /* margin 0 이어야 브라우저 기본 머리글/바닥글(날짜·제목·URL·페이지번호)이 안 나온다.
-             페이지 상하 여백은 시트 자체의 세로 패딩으로 준다(아래 규칙). */
           @page { size: A4; margin: 0; }
-          body { background: #ffffff; }
-          body * { visibility: hidden; }
-          .rm-print-root, .rm-print-root * { visibility: visible; }
-          /* 인쇄 시 브라우저가 배경/포인트색을 지우지 않도록 — 섹션 마커(마름모·점),
-             세로바·밑줄·헤더 밴드 등 포인트 컬러를 그대로 출력. */
-          .rm-print-root, .rm-print-root * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          /* 인쇄 시 원본 크기·좌상단으로 복귀(화면에선 오프스크린에 둔 인라인 스타일을
-             반드시 덮어써야 백지 출력이 안 난다 → !important). */
-          .rm-print-root { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; transform: none !important; transform-origin: top left !important; }
-          .rm-fit-box { width: auto !important; height: auto !important; }
-          /* 화면용 noVerticalPad(세로 패딩 0)를 인쇄에선 되살려 시트 상하 여백을 준다.
-             (@page margin 0 이라 페이지 상하 여백은 이 패딩이 담당) */
-          .rm-print-root .resume-sheet { width: 100% !important; min-height: auto !important; box-shadow: none !important; padding-top: 48px !important; padding-bottom: 48px !important; }
-          /* 인쇄도 블록(섹션·헤더) 중간에서 잘리지 않게 — 화면 미리보기와 동일한 페이지 분할 */
-          .rm-print-root header, .rm-print-root section { break-inside: avoid; page-break-inside: avoid; }
-          .rm-print-only { display: flex !important; position: fixed; left: 0; right: 0; bottom: 4mm; }
+          html, body { background: #ffffff !important; margin: 0 !important; padding: 0 !important; }
           .rm-print-hide { display: none !important; }
+          .rm-print-pages { display: block !important; }
+          /* 포인트 컬러(마커·밴드 등) 그대로 출력 */
+          .rm-print-page, .rm-print-page * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .rm-print-page .resume-sheet { box-shadow: none !important; }
+          .rm-print-page { break-after: page; page-break-after: always; }
+          .rm-print-page:last-child { break-after: auto; page-break-after: auto; }
         }
       `}</style>
 
@@ -222,40 +207,25 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
       </div>
 
       {loading || !content ? (
-        <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
+        <div className="rm-print-hide flex min-h-[60vh] items-center justify-center text-muted-foreground">
           <span className="inline-flex items-center gap-2 text-sm">
             <CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t.loading}
           </span>
         </div>
       ) : (
-        <section className="min-h-[calc(100vh-3.5rem)] overflow-hidden bg-[#F2F4F6] px-4 py-8 sm:px-5">
-          {/* 가용 폭 측정 컨테이너(데스크탑은 794로 상한). relative 를 주지 않아야
-              인쇄 시 off-screen 인쇄 시트가 컨테이너가 아닌 페이지(뷰포트) 기준으로
-              0,0 에 배치된다. */}
-          <div ref={outerRef} className="mx-auto w-full max-w-[794px]">
-            {(() => {
-              const shown = view === "ko" ? koContent ?? content : view === "en" ? enContent ?? content : content;
-              const sheetLang = view === "en" ? "en" : "ko";
-              return (
-                <>
-                  {/* 인쇄 소스 겸 높이 측정용 — 화면에선 화면 밖(측정 가능·비표시), 인쇄 시 CSS 가 0,0 으로 복귀해 @page A4 로 자동 분할 */}
-                  <div
-                    ref={sheetRef}
-                    className="rm-print-root origin-top-left"
-                    style={{ position: "absolute", left: -99999, top: 0, width: A4_W_PX }}
-                    aria-hidden
-                  >
-                    <ResumeSheet content={shown} design={design} lang={sheetLang} noVerticalPad />
-                    {/* 인쇄 전용 하단 — 페이지 제일 하단 고정, Aply 로고 + 슬로건 (작게) */}
-                    <div className="rm-print-only items-center justify-center gap-1.5">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/img_logo.webp" alt="Aply" className="h-3 w-auto opacity-70" />
-                      <span className="text-[9.5px] tracking-wide text-slate-400">{t.slogan}</span>
-                    </div>
+        (() => {
+          const shown = view === "ko" ? koContent ?? content : view === "en" ? enContent ?? content : content;
+          const sheetLang: "ko" | "en" = view === "en" ? "en" : "ko";
+          return (
+            <>
+              {/* 화면 미리보기 — A4 페이지 카드(각 페이지 위·아래 동일 패딩). 인쇄엔 안 나옴 */}
+              <section className="rm-print-hide min-h-[calc(100vh-3.5rem)] overflow-hidden bg-[#F2F4F6] px-4 py-8 sm:px-5">
+                <div ref={outerRef} className="mx-auto w-full max-w-[794px]">
+                  {/* 높이 측정·블록 위치 계산용 숨김 시트(세로 패딩 없음) */}
+                  <div aria-hidden className="pointer-events-none absolute -left-[99999px] top-0" style={{ width: A4_W_PX, visibility: "hidden" }}>
+                    <ResumeSheet innerRef={sheetRef} content={shown} design={design} lang={sheetLang} noVerticalPad />
                   </div>
-
-                  {/* 화면 표시 — 실제 A4 페이지 카드(각 페이지 위·아래 동일 패딩, 넘치는 블록은 다음 장). 인쇄에선 숨김 */}
-                  <div className="rm-print-hide space-y-3">
+                  <div className="space-y-3">
                     {starts.map((startPx, i) => {
                       const endPx = i < starts.length - 1 ? starts[i + 1] : contentH;
                       const windowH = Math.min(endPx - startPx, PAGE_CONTENT_H_PX);
@@ -270,13 +240,7 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
                             style={{ top: PAGE_PAD_PX * scale, width: A4_W_PX * scale, height: windowH * scale }}
                           >
                             <div
-                              style={{
-                                position: "absolute",
-                                top: -(startPx * scale),
-                                width: A4_W_PX,
-                                transform: `scale(${scale})`,
-                                transformOrigin: "top left"
-                              }}
+                              style={{ position: "absolute", top: -(startPx * scale), width: A4_W_PX, transform: `scale(${scale})`, transformOrigin: "top left" }}
                             >
                               <ResumeSheet content={shown} design={design} lang={sheetLang} noVerticalPad />
                             </div>
@@ -285,11 +249,37 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
                       );
                     })}
                   </div>
-                </>
-              );
-            })()}
-          </div>
-        </section>
+                </div>
+              </section>
+
+              {/* 인쇄 전용 — 각 페이지를 개별 A4 한 장으로. 위·아래 동일 패딩 + 하단 슬로건. 화면엔 안 나옴 */}
+              <div className="rm-print-pages" style={{ display: "none" }}>
+                {starts.map((startPx, i) => {
+                  const endPx = i < starts.length - 1 ? starts[i + 1] : contentH;
+                  const windowH = Math.min(endPx - startPx, PAGE_CONTENT_H_PX);
+                  return (
+                    <div key={i} className="rm-print-page relative overflow-hidden bg-white" style={{ width: A4_W_PX, height: A4_H_PX }}>
+                      {/* 콘텐츠 — 이 페이지 슬라이스가 상단 패딩 위치에 오도록 이동 */}
+                      <div style={{ position: "absolute", left: 0, top: PAGE_PAD_PX - startPx, width: A4_W_PX }}>
+                        <ResumeSheet content={shown} design={design} lang={sheetLang} noVerticalPad />
+                      </div>
+                      {/* 위 패딩(그 위 콘텐츠 가림) */}
+                      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: PAGE_PAD_PX, background: "#fff" }} />
+                      {/* 아래 패딩(넘친 블록·다음 페이지 콘텐츠 가림) */}
+                      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, top: PAGE_PAD_PX + windowH, background: "#fff" }} />
+                      {/* 하단 슬로건 — 각 페이지 맨 아래(패딩 영역, 콘텐츠엔 영향 없음) */}
+                      <div style={{ position: "absolute", left: 0, right: 0, bottom: "5mm", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/img_logo.webp" alt="Aply" style={{ height: 12, width: "auto", opacity: 0.7 }} />
+                        <span style={{ fontSize: 9.5, letterSpacing: "0.02em", color: "#94a3b8" }}>{t.slogan}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()
       )}
     </ResumeMakerShell>
   );
