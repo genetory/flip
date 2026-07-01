@@ -18,44 +18,34 @@ export type QaPair = { question: string; answer: string };
 
 type ContentWithBuilder = ResumeContent & { builder?: ResumeBuilderState };
 
-// content 에서 빌더 상태를 안전하게 추출(없으면 빈 상태).
-export function getBuilderState(resume: Pick<Resume, "content">): ResumeBuilderState {
-  const builder = (resume.content as ContentWithBuilder | undefined)?.builder;
-  if (!builder || builder.version !== 1) return { ...EMPTY_BUILDER_STATE };
-  return {
-    ...EMPTY_BUILDER_STATE,
-    ...builder,
-    onboarding: { ...EMPTY_BUILDER_STATE.onboarding, ...builder.onboarding },
-    experiences: Array.isArray(builder.experiences) ? builder.experiences : []
-  };
-}
-
-function newExpId(): string {
-  try {
-    if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
-  } catch {
-    /* fall through */
-  }
-  return `exp-${Math.random().toString(36).slice(2, 10)}`;
-}
-function descriptionToBullets(desc?: string): ApprovedBullet[] {
+// 파생 experiences 의 고정 타임스탬프 — 결정적(순수) 결과를 위해 매 호출 동일 값 사용.
+const DERIVED_TS = "2020-01-01T00:00:00.000Z";
+function descriptionToBullets(desc: string | undefined, idPrefix: string): ApprovedBullet[] {
   return (desc ?? "")
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean)
-    .map((text) => ({ id: newExpId(), text }));
+    .map((text, j) => ({ id: `${idPrefix}-b${j}`, text }));
 }
 
-// 옛 이력서(content.builder 없음)를 resume-maker 에서 편집할 수 있도록, content 의
-// 경력(careers)·활동(activities)을 builder.experiences 로 파생한다. 이미 builder 가
-// 있으면 그대로 사용. 기본 정보·학력·스킬 등은 에디터가 content 에서 직접 읽으므로
-// 여기서 다루지 않는다(경력·활동만 experiences 로 옮기면 저장 시 손실이 없다).
-export function deriveBuilderState(resume: Pick<Resume, "content">): ResumeBuilderState {
+// content 에서 빌더 상태를 추출한다. builder 가 있으면 그대로, 없으면(옛 이력서)
+// content 의 경력(careers)·활동(activities)을 experiences 로 파생해 resume-maker 에서
+// 편집·미리보기·저장이 데이터 손실 없이 되도록 한다. 파생 결과는 결정적(순수)이라
+// 렌더 중 호출해도 안전하다. 기본정보·학력·스킬 등은 호출부가 content 에서 직접 읽는다.
+export function getBuilderState(resume: Pick<Resume, "content">): ResumeBuilderState {
   const content = resume.content as (ContentWithBuilder & ResumeContent) | undefined;
-  if (content?.builder && content.builder.version === 1) return getBuilderState(resume);
-  const now = new Date().toISOString();
+  const builder = content?.builder;
+  if (builder && builder.version === 1) {
+    return {
+      ...EMPTY_BUILDER_STATE,
+      ...builder,
+      onboarding: { ...EMPTY_BUILDER_STATE.onboarding, ...builder.onboarding },
+      experiences: Array.isArray(builder.experiences) ? builder.experiences : []
+    };
+  }
   const experiences: BuilderExperience[] = [];
   const mk = (
+    id: string,
     type: ExperienceType,
     title: string,
     org: string | undefined,
@@ -63,9 +53,9 @@ export function deriveBuilderState(resume: Pick<Resume, "content">): ResumeBuild
     endDate: string | undefined,
     description: string | undefined
   ): BuilderExperience => {
-    const bullets = descriptionToBullets(description);
+    const bullets = descriptionToBullets(description, id);
     return {
-      id: newExpId(),
+      id,
       type,
       title: (title || "").trim(),
       org: org?.trim() || undefined,
@@ -74,18 +64,21 @@ export function deriveBuilderState(resume: Pick<Resume, "content">): ResumeBuild
       approvedBullets: bullets.length ? bullets : undefined,
       rawInput: bullets.length ? undefined : description?.trim() || undefined,
       status: "ready",
-      createdAt: now,
-      updatedAt: now
+      createdAt: DERIVED_TS,
+      updatedAt: DERIVED_TS
     };
   };
-  for (const c of content?.careers ?? []) {
-    experiences.push(mk("career", c.position || c.companyName || "", c.companyName, c.startDate, c.endDate, c.description));
-  }
-  for (const a of content?.activities ?? []) {
-    experiences.push(mk("etc", a.title || "", a.organization, a.startDate, a.endDate, a.description));
-  }
+  (content?.careers ?? []).forEach((c, i) => {
+    experiences.push(mk(`derived-career-${i}`, "career", c.position || c.companyName || "", c.companyName, c.startDate, c.endDate, c.description));
+  });
+  (content?.activities ?? []).forEach((a, i) => {
+    experiences.push(mk(`derived-activity-${i}`, "etc", a.title || "", a.organization, a.startDate, a.endDate, a.description));
+  });
   return { ...EMPTY_BUILDER_STATE, experiences };
 }
+
+// 옛 이력서 파생을 명시적으로 부르고 싶은 호출부용 별칭(동작은 getBuilderState 와 동일).
+export const deriveBuilderState = getBuilderState;
 
 // 새 빌더 초안 생성. 완성 전이라 allowIncomplete: true.
 export async function createDraftResume(title: string): Promise<Resume> {

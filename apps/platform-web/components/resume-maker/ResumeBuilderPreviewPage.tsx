@@ -8,7 +8,7 @@ import { ResumeSheet } from "./ResumePreview";
 import { Button } from "../ui/button";
 import { useToast } from "../toast/ToastProvider";
 import type { ResumeContent } from "../../lib/member-profile-client";
-import { buildTranslatedResumeContent, getBuilderState, getDraftResume } from "../../lib/resume-maker-client";
+import { buildTranslatedResumeContent, deriveBuilderState, getDraftResume } from "../../lib/resume-maker-client";
 import { compileResumeContent } from "../../lib/resume-maker-compile";
 import { DEFAULT_DESIGN, type ResumeDesignSettings } from "../../lib/resume-maker-types";
 import { useJobCategoryLabel } from "../../lib/resume-maker-i18n/options";
@@ -19,6 +19,10 @@ import { useLanguage } from "../i18n/LanguageProvider";
 function sanitizeFilePart(v: string): string {
   return v.replace(/[\\/:*?"<>|\s]+/g, "").slice(0, 40);
 }
+
+// A4 = 794×1123px(96dpi). 콘텐츠가 이 높이를 넘으면 페이지를 나눠 보여준다.
+const A4_W_PX = 794;
+const A4_H_PX = 1123;
 
 export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
   const router = useRouter();
@@ -40,15 +44,15 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
   const outerRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
-  const [scaledH, setScaledH] = useState<number | null>(null);
+  const [pages, setPages] = useState(1);
   useEffect(() => {
     const compute = () => {
       const avail = outerRef.current?.clientWidth;
       const natH = sheetRef.current?.offsetHeight; // transform 영향 없는 자연 높이
       if (!avail || !natH) return;
-      const s = Math.min(1, avail / 794);
+      const s = Math.min(1, avail / A4_W_PX);
       setScale(s);
-      setScaledH(natH * s);
+      setPages(Math.max(1, Math.ceil(natH / A4_H_PX)));
     };
     compute();
     const ro = new ResizeObserver(compute);
@@ -88,7 +92,7 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
       try {
         const resume = await getDraftResume(resumeId);
         if (!alive) return;
-        const builder = getBuilderState(resume);
+        const builder = deriveBuilderState(resume);
         setTitle(resume.title);
         setContent(compileResumeContent(builder, resume.content));
         setDesign(builder.design ?? DEFAULT_DESIGN);
@@ -148,8 +152,9 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          /* 화면용 fit-to-width 축소는 인쇄 시 무효화(원본 크기로 출력) */
-          .rm-print-root { position: absolute; left: 0; top: 0; width: 100%; transform: none !important; transform-origin: top left !important; }
+          /* 인쇄 시 원본 크기·좌상단으로 복귀(화면에선 오프스크린에 둔 인라인 스타일을
+             반드시 덮어써야 백지 출력이 안 난다 → !important). */
+          .rm-print-root { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; transform: none !important; transform-origin: top left !important; }
           .rm-fit-box { width: auto !important; height: auto !important; }
           .rm-print-root .resume-sheet { width: 100% !important; min-height: auto !important; box-shadow: none !important; }
           .rm-print-only { display: flex !important; position: fixed; left: 0; right: 0; bottom: 7mm; }
@@ -212,28 +217,56 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
         </div>
       ) : (
         <section className="min-h-[calc(100vh-3.5rem)] overflow-hidden bg-[#F2F4F6] px-4 py-8 sm:px-5">
-          {/* 가용 폭 측정 컨테이너(데스크탑은 794로 상한) */}
+          {/* 가용 폭 측정 컨테이너(데스크탑은 794로 상한). relative 를 주지 않아야
+              인쇄 시 off-screen 인쇄 시트가 컨테이너가 아닌 페이지(뷰포트) 기준으로
+              0,0 에 배치된다. */}
           <div ref={outerRef} className="mx-auto w-full max-w-[794px]">
-            {/* 축소된 시트의 실제 크기를 차지하는 박스(인쇄 시 무효화) */}
-            <div className="rm-fit-box mx-auto" style={{ width: 794 * scale, height: scaledH ?? undefined }}>
-              <div
-                ref={sheetRef}
-                className="rm-print-root origin-top-left"
-                style={{ width: 794, transform: `scale(${scale})` }}
-              >
-                <ResumeSheet
-                  content={view === "ko" ? koContent ?? content : view === "en" ? enContent ?? content : content}
-                  design={design}
-                  lang={view === "en" ? "en" : "ko"}
-                />
-                {/* 인쇄 전용 하단 — 페이지 제일 하단 고정, Aply 로고 + 슬로건 (작게) */}
-                <div className="rm-print-only items-center justify-center gap-1.5">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/img_logo.webp" alt="Aply" className="h-3 w-auto opacity-70" />
-                  <span className="text-[9.5px] tracking-wide text-slate-400">{t.slogan}</span>
-                </div>
-              </div>
-            </div>
+            {(() => {
+              const shown = view === "ko" ? koContent ?? content : view === "en" ? enContent ?? content : content;
+              const sheetLang = view === "en" ? "en" : "ko";
+              return (
+                <>
+                  {/* 인쇄 소스 겸 높이 측정용 — 화면에선 화면 밖(측정 가능·비표시), 인쇄 시 CSS 가 0,0 으로 복귀해 @page A4 로 자동 분할 */}
+                  <div
+                    ref={sheetRef}
+                    className="rm-print-root origin-top-left"
+                    style={{ position: "absolute", left: -99999, top: 0, width: A4_W_PX }}
+                    aria-hidden
+                  >
+                    <ResumeSheet content={shown} design={design} lang={sheetLang} />
+                    {/* 인쇄 전용 하단 — 페이지 제일 하단 고정, Aply 로고 + 슬로건 (작게) */}
+                    <div className="rm-print-only items-center justify-center gap-1.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/img_logo.webp" alt="Aply" className="h-3 w-auto opacity-70" />
+                      <span className="text-[9.5px] tracking-wide text-slate-400">{t.slogan}</span>
+                    </div>
+                  </div>
+
+                  {/* 화면 표시 — 실제 A4 페이지 카드(넘치면 여러 장으로 분리). 인쇄에선 숨김 */}
+                  <div className="rm-print-hide space-y-3">
+                    {Array.from({ length: pages }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="relative mx-auto overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.06),0_10px_30px_-10px_rgba(0,0,0,0.15)]"
+                        style={{ width: A4_W_PX * scale, height: A4_H_PX * scale }}
+                      >
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: -(i * A4_H_PX * scale),
+                            width: A4_W_PX,
+                            transform: `scale(${scale})`,
+                            transformOrigin: "top left"
+                          }}
+                        >
+                          <ResumeSheet content={shown} design={design} lang={sheetLang} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </section>
       )}

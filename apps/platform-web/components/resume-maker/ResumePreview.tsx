@@ -440,19 +440,32 @@ export function ResumePreview({
         ) : null}
       </div>
 
-      <div ref={wrapRef} className="w-full" style={{ height: A4_H * scale * pages + (pages - 1) * 8 * scale }}>
-        <div style={{ position: "relative", width: A4_W, transform: `scale(${scale})`, transformOrigin: "top left" }}>
-          <ResumeSheet innerRef={sheetRef} content={content} design={design} highlightSection={highlightSection} lang={locale} />
+      {/* 높이 측정용 숨김 시트 — 전체 콘텐츠 높이로 페이지 수를 계산한다. */}
+      <div aria-hidden className="pointer-events-none absolute -left-[99999px] top-0" style={{ width: A4_W, visibility: "hidden" }}>
+        <ResumeSheet innerRef={sheetRef} content={content} design={design} highlightSection={highlightSection} lang={locale} />
+      </div>
 
-          {/* 페이지 경계선 */}
-          {Array.from({ length: pages - 1 }).map((_, i) => (
+      {/* 페이지가 넘어가면 실제 A4 페이지처럼 분리해서 보여준다(각 카드가 한 페이지). */}
+      <div ref={wrapRef} className="w-full space-y-2">
+        {Array.from({ length: pages }).map((_, i) => (
+          <div
+            key={i}
+            className="relative overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.12)]"
+            style={{ width: A4_W * scale, height: A4_H * scale }}
+          >
             <div
-              key={i}
-              className="pointer-events-none absolute left-0 right-0 border-t border-dashed border-rose-300"
-              style={{ position: "absolute", top: A4_H * (i + 1) }}
-            />
-          ))}
-        </div>
+              style={{
+                position: "absolute",
+                top: -(i * A4_H * scale),
+                width: A4_W,
+                transform: `scale(${scale})`,
+                transformOrigin: "top left"
+              }}
+            >
+              <ResumeSheet content={content} design={design} highlightSection={highlightSection} lang={locale} />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
