@@ -11965,6 +11965,27 @@ app.delete("/members/me/positions/:positionId/favorite", authenticate, requireRo
   }
 });
 
+// 지원 시 연결할 대표 이력서 id — isPrimary 우선, 없으면 최근 수정본, 이력서 없으면 null.
+async function resolvePrimaryResumeId(userId: string): Promise<string | null> {
+  const primary = await prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { id: true } });
+  if (primary) return primary.id;
+  const latest = await prisma.resume.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" }, select: { id: true } });
+  return latest?.id ?? null;
+}
+
+// 지원 상세에서 보여줄 이력서 브리프 — 지원에 붙은 이력서 우선, 없으면(과거 지원건)
+// 지원자의 현재 대표 이력서로 폴백. 파트너/운영자가 열람할 수 있게 shareSlug 포함.
+type ResumeBrief = { id: string; title: string; shareSlug: string } | null;
+async function resolveApplicationResumeBrief(
+  attached: ResumeBrief,
+  candidateUserId: string
+): Promise<ResumeBrief> {
+  if (attached) return attached;
+  const primary = await prisma.resume.findFirst({ where: { userId: candidateUserId, isPrimary: true }, select: { id: true, title: true, shareSlug: true } });
+  if (primary) return primary;
+  return prisma.resume.findFirst({ where: { userId: candidateUserId }, orderBy: { updatedAt: "desc" }, select: { id: true, title: true, shareSlug: true } });
+}
+
 app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const userId = req.auth!.userId;
   const parsed = memberPositionActionParamSchema.safeParse(req.params);
@@ -12003,12 +12024,15 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
     const existing = await prisma.application.findUnique({
       where: { positionId_candidateUserId: { positionId: parsed.data.positionId, candidateUserId: userId } }
     });
+    // 지원 시점의 대표 이력서를 연결(재지원 시에도 현재 대표 이력서로 갱신).
+    const resumeId = await resolvePrimaryResumeId(userId);
     if (!existing) {
       const created = await prisma.application.create({
         data: {
           positionId: parsed.data.positionId,
           candidateUserId: userId,
-          status: "SUBMITTED"
+          status: "SUBMITTED",
+          resumeId
         }
       });
       await prisma.applicationStatusHistory.create({
@@ -12021,7 +12045,7 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
     } else if (existing.status === "WITHDRAWN") {
       await prisma.application.update({
         where: { id: existing.id },
-        data: { status: "SUBMITTED", withdrawnAt: null, submittedAt: new Date() }
+        data: { status: "SUBMITTED", withdrawnAt: null, submittedAt: new Date(), resumeId }
       });
       await prisma.applicationStatusHistory.create({
         data: {
@@ -15702,6 +15726,8 @@ async function listPartnerApplicantsForUser(userId: string) {
     portfolioUrl: string | null;
     availableStartDate: string | null;
     memo: string | null;
+    resumeTitle: string | null;
+    resumeShareSlug: string | null;
   }> = [];
 
   const workflows = await prisma.partnerApplicantWorkflow.findMany({
@@ -15712,12 +15738,47 @@ async function listPartnerApplicantsForUser(userId: string) {
     workflows.map((item) => [`${item.candidateUserId}:${item.positionId}`, item])
   );
 
+  // 지원에 연결된 이력서(대표) — 지원 시점에 붙인 Application.resume 우선, 없으면
+  // (과거 지원건) 지원자의 현재 대표 이력서로 폴백해 파트너가 볼 수 있게 한다.
+  const candidateUserIds = Array.from(new Set(profiles.map((p) => p.userId)));
+  const applications = candidateUserIds.length
+    ? await prisma.application.findMany({
+        where: { positionId: { in: positionIds }, candidateUserId: { in: candidateUserIds } },
+        select: {
+          positionId: true,
+          candidateUserId: true,
+          resume: { select: { title: true, shareSlug: true } }
+        }
+      })
+    : [];
+  const applicationResumeMap = new Map(
+    applications.map((a) => [`${a.candidateUserId}:${a.positionId}`, a.resume])
+  );
+  const resumeRows = candidateUserIds.length
+    ? await prisma.resume.findMany({
+        where: { userId: { in: candidateUserIds } },
+        select: { userId: true, title: true, shareSlug: true, isPrimary: true },
+        orderBy: { updatedAt: "desc" }
+      })
+    : [];
+  // 사용자별 대표 이력서(isPrimary 우선, 없으면 최근 수정본).
+  const primaryResumeByUser = new Map<string, { title: string; shareSlug: string }>();
+  for (const r of resumeRows) {
+    const cur = primaryResumeByUser.get(r.userId);
+    if (!cur || r.isPrimary) primaryResumeByUser.set(r.userId, { title: r.title, shareSlug: r.shareSlug });
+  }
+
   for (const profile of profiles) {
     const appliedPositionId = profile.appliedPositionIds.find((id) => positionMap.has(id));
     if (!appliedPositionId) continue;
 
     const stateKey = buildPartnerApplicantCompositeId(profile.userId, appliedPositionId);
     const state = workflowMap.get(stateKey);
+    // 지원에 붙은 이력서 우선, 없으면 대표 이력서로 폴백.
+    const linkedResume =
+      applicationResumeMap.get(`${profile.userId}:${appliedPositionId}`) ??
+      primaryResumeByUser.get(profile.userId) ??
+      null;
     const latestEducation = profile.educations[0];
     const displayName = profile.user.realName?.trim() || profile.user.name?.trim() || "Unknown";
     const languages = profile.languageSkills.map((item) => languageLabel(item.language, item.level));
@@ -15741,7 +15802,9 @@ async function listPartnerApplicantsForUser(userId: string) {
       motivation: profile.programMotivation ?? null,
       portfolioUrl: null,
       availableStartDate: profile.programStartDate ? profile.programStartDate.toISOString().slice(0, 10) : null,
-      memo: state?.memo ?? null
+      memo: state?.memo ?? null,
+      resumeTitle: linkedResume?.title ?? null,
+      resumeShareSlug: linkedResume?.shareSlug ?? null
     });
   }
 
@@ -16925,7 +16988,9 @@ app.get("/partner/applicants", authenticate, requireRoles([MemberRole.PARTNER]),
         residence: item.residence,
         appliedAt: item.appliedAt,
         recommendation: item.recommendation,
-        status: item.status
+        status: item.status,
+        resumeTitle: item.resumeTitle,
+        resumeShareSlug: item.resumeShareSlug
       }))
     });
   } catch (error) {
@@ -17107,6 +17172,7 @@ app.get("/ops/applications/:id", authenticate, requireRoles([MemberRole.OPERATOR
         candidateUser: {
           select: { id: true, name: true, email: true, phoneNumber: true, nationality: true, affiliation: true, jobTitle: true, role: true, createdAt: true }
         },
+        resume: { select: { id: true, title: true, shareSlug: true } },
         position: {
           select: {
             id: true,
@@ -17146,7 +17212,8 @@ app.get("/ops/applications/:id", authenticate, requireRoles([MemberRole.OPERATOR
         assignedTo: { select: { id: true, name: true, email: true } }
       }
     });
-    return res.json({ ok: true, item: { ...application, issues } });
+    const resume = await resolveApplicationResumeBrief(application.resume, application.candidateUserId);
+    return res.json({ ok: true, item: { ...application, resume, issues } });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -17166,6 +17233,7 @@ app.get("/partner/applications/:id", authenticate, requireRoles([MemberRole.PART
         candidateUser: {
           select: { id: true, name: true, email: true, phoneNumber: true, nationality: true, affiliation: true, jobTitle: true, role: true, createdAt: true }
         },
+        resume: { select: { id: true, title: true, shareSlug: true } },
         position: {
           select: {
             id: true,
@@ -17208,7 +17276,8 @@ app.get("/partner/applications/:id", authenticate, requireRoles([MemberRole.PART
         reporter: { select: { id: true, name: true, email: true, role: true } }
       }
     });
-    return res.json({ ok: true, item: { ...application, issues } });
+    const resume = await resolveApplicationResumeBrief(application.resume, application.candidateUserId);
+    return res.json({ ok: true, item: { ...application, resume, issues } });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -20311,7 +20380,9 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
         motivation: found.motivation,
         portfolioUrl: found.portfolioUrl,
         availableStartDate: found.availableStartDate,
-        memo: found.memo
+        memo: found.memo,
+        resumeTitle: found.resumeTitle,
+        resumeShareSlug: found.resumeShareSlug
       }
     });
   } catch (error) {
