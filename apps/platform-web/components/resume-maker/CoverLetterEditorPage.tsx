@@ -14,7 +14,7 @@ import { useToast } from "../toast/ToastProvider";
 import type { ResumeCoverLetterItem } from "../../lib/member-profile-client";
 import { getMyResumes } from "../../lib/member-profile-client";
 import { getCoverLetter } from "../../lib/cover-letter-client";
-import { getBuilderState, getDraftResume, isResumeMakerDraft } from "../../lib/resume-maker-client";
+import { getBuilderState, getDraftResume } from "../../lib/resume-maker-client";
 import { useEditorCopy } from "../../lib/resume-maker-i18n/editor";
 import { useToolPickerCopy } from "../../lib/resume-maker-i18n/tool-picker";
 import { useCoverLetterCopy } from "../../lib/resume-maker-i18n/cover-letter";
@@ -109,7 +109,7 @@ export function CoverLetterEditorPage({ coverLetterId }: { coverLetterId: string
         const ensured = ensureStandard(cl.items, t.clStandardPrompts);
         setItems(ensured);
         setActiveKey(ensured[0]?.id ?? "settings");
-        setResumes(allResumes.filter((r) => isResumeMakerDraft(r)).map((r) => ({ id: r.id, title: r.title })));
+        setResumes(allResumes.map((r) => ({ id: r.id, title: r.title })));
         setResumeContext(await buildContextFor(cl.resumeId));
       } catch (err) {
         if (!alive) return;

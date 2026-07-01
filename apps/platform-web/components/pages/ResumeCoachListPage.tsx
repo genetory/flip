@@ -121,10 +121,8 @@ export function ResumeCoachListPage({ selectedResumeId }: { selectedResumeId?: s
   }
 
   function handleCreate() {
-    // DB row 는 첫 "저장" 시점에만 만들어진다. 그 전에 페이지를 떠나면
-    // 아무 흔적도 남지 않음. /resume/new/edit 는 ResumeEditPage 가
-    // resumeId === "new" sentinel 로 인식해서 빈 폼으로 띄움.
-    router.push("/resume/new/edit");
+    // 이력서 생성·편집은 resume-maker 로 통합. 생성 진입은 resume-maker 목록으로.
+    router.push("/resume-maker/resumes");
   }
 
   // 코치 패널에서 LLM 적용으로 본문/점수가 바뀌면 부모 리스트도 카드의

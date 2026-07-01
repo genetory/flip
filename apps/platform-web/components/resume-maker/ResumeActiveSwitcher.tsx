@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { CaretDown, Check, FilePlus, FileText, ListBullets } from "@phosphor-icons/react/dist/ssr";
 import { getMyResumes, type Resume } from "../../lib/member-profile-client";
-import { getBuilderState, isResumeMakerDraft } from "../../lib/resume-maker-client";
+import { deriveBuilderState } from "../../lib/resume-maker-client";
 import { computeResumeProgress } from "../../lib/resume-maker-progress";
 import { setActiveResumeId } from "../../lib/resume-maker-active";
 import { useToolPickerCopy } from "../../lib/resume-maker-i18n/tool-picker";
@@ -36,7 +36,7 @@ export function ResumeActiveSwitcher({ currentTitle }: { currentTitle: string })
     if (next && resumes === null) {
       void (async () => {
         try {
-          const drafts = (await getMyResumes()).filter(isResumeMakerDraft).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+          const drafts = (await getMyResumes()).slice().sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
           drafts.forEach((r) => TITLE_CACHE.set(r.id, r.title)); // 목록 로드 시 제목 캐시 채우기
           setResumes(drafts);
         } catch {
@@ -89,7 +89,7 @@ export function ResumeActiveSwitcher({ currentTitle }: { currentTitle: string })
               ) : (
                 resumes.map((r) => {
                   const isCur = r.id === currentId;
-                  const pct = computeResumeProgress(r.content, getBuilderState(r)).percent;
+                  const pct = computeResumeProgress(r.content, deriveBuilderState(r)).percent;
                   const ini = (r.title || t.untitled).trim().charAt(0).toUpperCase();
                   return (
                     <li key={r.id}>

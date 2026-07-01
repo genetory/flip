@@ -5,7 +5,7 @@
 import { authedJsonFetch } from "./member-profile-client";
 import { getBrowserLocale } from "./auth-messages";
 import type { Resume, ResumeContent } from "./member-profile-client";
-import { EMPTY_BUILDER_STATE, type ExperienceGeneration, type InterviewQuestion, type ResumeBuilderState } from "./resume-maker-types";
+import { EMPTY_BUILDER_STATE, type ApprovedBullet, type BuilderExperience, type ExperienceType, type InterviewQuestion, type ExperienceGeneration, type ResumeBuilderState } from "./resume-maker-types";
 
 export type ExperienceContextInput = {
   type?: string;
@@ -28,6 +28,63 @@ export function getBuilderState(resume: Pick<Resume, "content">): ResumeBuilderS
     onboarding: { ...EMPTY_BUILDER_STATE.onboarding, ...builder.onboarding },
     experiences: Array.isArray(builder.experiences) ? builder.experiences : []
   };
+}
+
+function newExpId(): string {
+  try {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  } catch {
+    /* fall through */
+  }
+  return `exp-${Math.random().toString(36).slice(2, 10)}`;
+}
+function descriptionToBullets(desc?: string): ApprovedBullet[] {
+  return (desc ?? "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((text) => ({ id: newExpId(), text }));
+}
+
+// 옛 이력서(content.builder 없음)를 resume-maker 에서 편집할 수 있도록, content 의
+// 경력(careers)·활동(activities)을 builder.experiences 로 파생한다. 이미 builder 가
+// 있으면 그대로 사용. 기본 정보·학력·스킬 등은 에디터가 content 에서 직접 읽으므로
+// 여기서 다루지 않는다(경력·활동만 experiences 로 옮기면 저장 시 손실이 없다).
+export function deriveBuilderState(resume: Pick<Resume, "content">): ResumeBuilderState {
+  const content = resume.content as (ContentWithBuilder & ResumeContent) | undefined;
+  if (content?.builder && content.builder.version === 1) return getBuilderState(resume);
+  const now = new Date().toISOString();
+  const experiences: BuilderExperience[] = [];
+  const mk = (
+    type: ExperienceType,
+    title: string,
+    org: string | undefined,
+    startDate: string | undefined,
+    endDate: string | undefined,
+    description: string | undefined
+  ): BuilderExperience => {
+    const bullets = descriptionToBullets(description);
+    return {
+      id: newExpId(),
+      type,
+      title: (title || "").trim(),
+      org: org?.trim() || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      approvedBullets: bullets.length ? bullets : undefined,
+      rawInput: bullets.length ? undefined : description?.trim() || undefined,
+      status: "ready",
+      createdAt: now,
+      updatedAt: now
+    };
+  };
+  for (const c of content?.careers ?? []) {
+    experiences.push(mk("career", c.position || c.companyName || "", c.companyName, c.startDate, c.endDate, c.description));
+  }
+  for (const a of content?.activities ?? []) {
+    experiences.push(mk("etc", a.title || "", a.organization, a.startDate, a.endDate, a.description));
+  }
+  return { ...EMPTY_BUILDER_STATE, experiences };
 }
 
 // 새 빌더 초안 생성. 완성 전이라 allowIncomplete: true.

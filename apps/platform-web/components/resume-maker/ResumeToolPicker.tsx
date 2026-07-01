@@ -7,7 +7,7 @@ import { CheckCircle, ChatCircleDots, Circle, CircleNotch, FileText, Target } fr
 import { ResumeMakerShell } from "./ResumeMakerShell";
 import { Button } from "../ui/button";
 import { getMyResumes, type Resume } from "../../lib/member-profile-client";
-import { getBuilderState, isResumeMakerDraft } from "../../lib/resume-maker-client";
+import { deriveBuilderState } from "../../lib/resume-maker-client";
 import { computeResumeProgress } from "../../lib/resume-maker-progress";
 import { getActiveResumeId, setActiveResumeId } from "../../lib/resume-maker-active";
 import { getMyCoverLetters, type CoverLetter } from "../../lib/cover-letter-client";
@@ -30,7 +30,7 @@ export function ResumeToolPicker({ tool }: { tool: "tailor" | "interview" }) {
       try {
         const [allResumes, cls] = await Promise.all([getMyResumes(), getMyCoverLetters().catch(() => [])]);
         if (!alive) return;
-        const drafts = allResumes.filter(isResumeMakerDraft).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+        const drafts = allResumes.slice().sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
         if (drafts.length === 0) {
           router.replace("/resume-maker");
           return;
@@ -95,7 +95,7 @@ export function ResumeToolPicker({ tool }: { tool: "tailor" | "interview" }) {
               <div className="rounded-3xl border border-[#F2F4F6] bg-white p-2.5 shadow-[0_2px_12px_rgba(17,24,39,0.05)]">
                 <ul className="space-y-1">
                   {resumes.map((r) => {
-                    const pct = computeResumeProgress(r.content, getBuilderState(r)).percent;
+                    const pct = computeResumeProgress(r.content, deriveBuilderState(r)).percent;
                     const active = r.id === resumeId;
                     return (
                       <li key={r.id} className={`flex items-center rounded-2xl transition ${active ? "bg-[#EDF1FD]" : "hover:bg-[#F2F4F6]"}`}>
