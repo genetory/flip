@@ -148,8 +148,9 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
       <style>{`
         .rm-print-only { display: none; }
         @media print {
-          /* 각 페이지 위·아래 동일 여백(≈48px=12.7mm). 좌우는 시트 자체 패딩(52px)이 준다. */
-          @page { size: A4; margin: 12.7mm 0; }
+          /* margin 0 이어야 브라우저 기본 머리글/바닥글(날짜·제목·URL·페이지번호)이 안 나온다.
+             페이지 상하 여백은 시트 자체의 세로 패딩으로 준다(아래 규칙). */
+          @page { size: A4; margin: 0; }
           body { background: #ffffff; }
           body * { visibility: hidden; }
           .rm-print-root, .rm-print-root * { visibility: visible; }
@@ -163,10 +164,12 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
              반드시 덮어써야 백지 출력이 안 난다 → !important). */
           .rm-print-root { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; transform: none !important; transform-origin: top left !important; }
           .rm-fit-box { width: auto !important; height: auto !important; }
-          .rm-print-root .resume-sheet { width: 100% !important; min-height: auto !important; box-shadow: none !important; }
+          /* 화면용 noVerticalPad(세로 패딩 0)를 인쇄에선 되살려 시트 상하 여백을 준다.
+             (@page margin 0 이라 페이지 상하 여백은 이 패딩이 담당) */
+          .rm-print-root .resume-sheet { width: 100% !important; min-height: auto !important; box-shadow: none !important; padding-top: 48px !important; padding-bottom: 48px !important; }
           /* 인쇄도 블록(섹션·헤더) 중간에서 잘리지 않게 — 화면 미리보기와 동일한 페이지 분할 */
           .rm-print-root header, .rm-print-root section { break-inside: avoid; page-break-inside: avoid; }
-          .rm-print-only { display: flex !important; position: fixed; left: 0; right: 0; bottom: 7mm; }
+          .rm-print-only { display: flex !important; position: fixed; left: 0; right: 0; bottom: 4mm; }
           .rm-print-hide { display: none !important; }
         }
       `}</style>
