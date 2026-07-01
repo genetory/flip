@@ -13330,9 +13330,9 @@ function aiLangDirective(locale?: string): string {
 // 무거운(전체 생성/파싱) 3 티켓. 보조성(웹 fetch)은 0(과금 안 함). KST 월 단위 리셋.
 // 초기 정책: 넉넉히 10000 지급(런칭/테스트 단계에서 사실상 막히지 않게).
 // 공용 AI 티켓 지갑 — 가입 시 1회 보너스 + 매일 적립(상한). 사용 시 차감.
-const AI_WELCOME_GRANT = 15; // 가입(첫 사용) 시 1회 지급
-const AI_DAILY_GRANT = 5; // 매일 적립
-const AI_DAILY_CAP = 20; // 적립 누적 상한
+const AI_WELCOME_GRANT = 100; // 가입(첫 사용) 시 1회 지급
+const AI_DAILY_GRANT = 20; // 매일 적립
+const AI_DAILY_CAP = 200; // 적립 누적 상한
 
 // 기능별 티켓 비용. 없는 키는 0(과금 안 함).
 const AI_FEATURE_COST: Record<string, number> = {
