@@ -15,6 +15,8 @@ export type ApplicationDetail = {
   memo: string | null;
   submittedAt: string;
   updatedAt: string;
+  // 지원에 연결된 대표 이력서(resume-maker). 없으면 null.
+  resume?: { id: string; title: string; shareSlug: string } | null;
   candidateUser: {
     id: string;
     name: string | null;
@@ -351,6 +353,25 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
             최근 업데이트
             <p style={{ marginTop: 4, color: "#111827", fontSize: 13 }}>{formatDateTime(data.updatedAt)}</p>
           </label>
+        </div>
+
+        <div className="ops-form-label" style={{ marginTop: 16, display: "block" }}>
+          지원 이력서
+          <div style={{ marginTop: 4 }}>
+            {data.resume ? (
+              <a
+                href={`/resume/share/${data.resume.shareSlug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ops-btn"
+                style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                📄 {data.resume.title || "이력서"} 보기
+              </a>
+            ) : (
+              <p className="ops-card-subtle" style={{ margin: 0 }}>연결된 이력서가 없습니다.</p>
+            )}
+          </div>
         </div>
 
         <div className="ops-row" style={{ marginTop: 12 }}>
