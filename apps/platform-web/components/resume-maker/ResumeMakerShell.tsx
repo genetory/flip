@@ -218,8 +218,8 @@ export function ResumeMakerShell({
         </nav>
       </header>
       <main className="flex-1">{children}</main>
-      {/* 푸터 위 디바이더(상단 보더) 제거 — resume-maker 화면에서만 */}
-      <div className="[&>footer]:border-t-0">
+      {/* 푸터 위 디바이더(상단 보더) 제거 — resume-maker 화면에서만. 인쇄(PDF)엔 안 나오게 print:hidden */}
+      <div className="[&>footer]:border-t-0 print:hidden">
         <Footer />
       </div>
     </div>
