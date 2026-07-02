@@ -60,6 +60,17 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// data: URL 은 브라우저가 최상위 이동을 차단하므로 Blob URL 로 변환해 연다.
+function toOpenableUrl(value: string): string {
+  if (/^https?:\/\//.test(value) || value.startsWith("/")) return value;
+  const match = value.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) return value;
+  const bin = atob(match[2]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type: match[1] }));
+}
+
 export default function ReviewQueuePage() {
   const [tab, setTab] = useState<ReviewTab>("partners");
 
@@ -232,6 +243,28 @@ export default function ReviewQueuePage() {
       window.alert(err instanceof Error ? err.message : "반려 실패");
     } finally {
       setUpdating(null);
+    }
+  }
+
+  // 업로드된 인증 서류(사업자등록증·4대보험 명부) 열기 — 상세 API 에서 data 를 받아
+  // Blob 으로 새 탭에 표시. 팝업 차단 회피를 위해 클릭 즉시 빈 창을 먼저 연다.
+  async function openPartnerDoc(partnerId: string, which: "br" | "fi") {
+    const w = window.open("", "_blank");
+    try {
+      const res = await fetch(`${apiBaseUrl()}/ops/partners/${partnerId}`, { headers: authHeaders(), cache: "no-store" });
+      const j = (await res.json()) as { item?: { businessRegistrationDocumentData?: string | null; fourInsuranceSubscriberListData?: string | null } };
+      const val = which === "br" ? j.item?.businessRegistrationDocumentData : j.item?.fourInsuranceSubscriberListData;
+      if (!val) {
+        w?.close();
+        window.alert("업로드된 파일이 없습니다.");
+        return;
+      }
+      const url = toOpenableUrl(String(val));
+      if (w) w.location.href = url;
+      else window.open(url, "_blank", "noopener");
+    } catch {
+      w?.close();
+      window.alert("서류를 불러오지 못했습니다.");
     }
   }
 
@@ -552,14 +585,26 @@ export default function ReviewQueuePage() {
                         <td>{PARTNER_TYPE_LABEL[p.partnerType] ?? p.partnerType}</td>
                         <td>{p.industry}</td>
                         <td>{p.companySize ? COMPANY_SIZE_LABEL[p.companySize] ?? p.companySize : "-"}</td>
-                        <td>
+                        <td onClick={(e) => e.stopPropagation()}>
                           <div style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
-                            <span className={`ops-pill ${p.businessRegistrationDocumentData ? "ops-pill-green" : "ops-pill-amber"}`}>
-                              사업자등록증 {p.businessRegistrationDocumentData ? "O" : "X"}
-                            </span>
-                            <span className={`ops-pill ${p.fourInsuranceSubscriberListData ? "ops-pill-green" : "ops-pill-amber"}`}>
-                              4대보험 {p.fourInsuranceSubscriberListData ? "O" : "X"}
-                            </span>
+                            <button
+                              type="button"
+                              className="ops-pill"
+                              onClick={() => void openPartnerDoc(p.id, "br")}
+                              style={{ cursor: "pointer", border: "1px solid #C9CDD2", background: "#fff", color: "#0B46E8" }}
+                              title="사업자등록증 보기"
+                            >
+                              사업자등록증 보기
+                            </button>
+                            <button
+                              type="button"
+                              className="ops-pill"
+                              onClick={() => void openPartnerDoc(p.id, "fi")}
+                              style={{ cursor: "pointer", border: "1px solid #C9CDD2", background: "#fff", color: "#0B46E8" }}
+                              title="4대보험 가입자 명부 보기"
+                            >
+                              4대보험 명부 보기
+                            </button>
                           </div>
                         </td>
                         <td className="ops-row-sub">{formatRelativeTime(p.createdAt)}</td>
