@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
@@ -143,6 +143,7 @@ export function ProfilePage() {
   const tr = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
     locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
   const { user, isReady, isAuthenticated, logout } = useAuthSession();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
 
@@ -165,6 +166,20 @@ export function ProfilePage() {
   const [resumePrimaryBusyId, setResumePrimaryBusyId] = useState<string | null>(null);
   const [resumeDeletingId, setResumeDeletingId] = useState<string | null>(null);
   const resumeRouter = useRouter();
+  // 선택한 탭을 URL(?tab=)에 반영 — 다른 페이지 갔다가 뒤로가기해도 탭이 그대로 유지됨.
+  const writeTabParam = (tab: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    resumeRouter.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+  const selectStudentTab = (tab: "info" | "resume" | "applied" | "favorites" | "sgc") => {
+    setStudentTab(tab);
+    writeTabParam(tab);
+  };
+  const selectActiveTab = (tab: "info" | "positions" | "notifications") => {
+    setActiveTab(tab);
+    writeTabParam(tab);
+  };
   const [applications, setApplications] = useState<MyApplication[]>([]);
   const [interviewTarget, setInterviewTarget] = useState<MyApplication | null>(null);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
@@ -909,7 +924,7 @@ export function ProfilePage() {
                     <div className="flex items-center gap-1 overflow-x-auto border-b border-border/70 px-2 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <button
                         type="button"
-                        onClick={() => setActiveTab("info")}
+                        onClick={() => selectActiveTab("info")}
                         className={`relative px-4 py-3 text-sm font-medium transition-colors ${
                           activeTab === "info" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
                         }`}
@@ -918,7 +933,7 @@ export function ProfilePage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setActiveTab("positions")}
+                        onClick={() => selectActiveTab("positions")}
                         className={`relative px-4 py-3 text-sm font-medium transition-colors ${
                           activeTab === "positions" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
                         }`}
@@ -927,7 +942,7 @@ export function ProfilePage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setActiveTab("notifications")}
+                        onClick={() => selectActiveTab("notifications")}
                         className={`relative px-4 py-3 text-sm font-medium transition-colors ${
                           activeTab === "notifications" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
                         }`}
@@ -1193,7 +1208,7 @@ export function ProfilePage() {
                     <div className="flex items-center gap-1 overflow-x-auto border-b border-border/70 px-2 pt-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <button
                         type="button"
-                        onClick={() => setStudentTab("info")}
+                        onClick={() => selectStudentTab("info")}
                         className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
                           studentTab === "info" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
                         }`}
@@ -1202,7 +1217,7 @@ export function ProfilePage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setStudentTab("resume")}
+                        onClick={() => selectStudentTab("resume")}
                         className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
                           studentTab === "resume" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
                         }`}
@@ -1211,7 +1226,7 @@ export function ProfilePage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setStudentTab("applied")}
+                        onClick={() => selectStudentTab("applied")}
                         className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
                           studentTab === "applied" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
                         }`}
@@ -1220,7 +1235,7 @@ export function ProfilePage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setStudentTab("favorites")}
+                        onClick={() => selectStudentTab("favorites")}
                         className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
                           studentTab === "favorites" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
                         }`}
@@ -1230,7 +1245,7 @@ export function ProfilePage() {
                       {sgcApplication ? (
                         <button
                           type="button"
-                          onClick={() => setStudentTab("sgc")}
+                          onClick={() => selectStudentTab("sgc")}
                           className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
                             studentTab === "sgc" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
                           }`}
