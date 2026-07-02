@@ -11965,12 +11965,48 @@ app.delete("/members/me/positions/:positionId/favorite", authenticate, requireRo
   }
 });
 
-// 지원 시 연결할 대표 이력서 id — isPrimary 우선, 없으면 최근 수정본, 이력서 없으면 null.
-async function resolvePrimaryResumeId(userId: string): Promise<string | null> {
-  const primary = await prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { id: true } });
-  if (primary) return primary.id;
-  const latest = await prisma.resume.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" }, select: { id: true } });
-  return latest?.id ?? null;
+// 지원 제출 시 첨부할 서류 + 제출 시점 스냅샷을 만든다.
+// - 이력서: 대표(isPrimary→최근본)를 연결하고 content 를 스냅샷으로 보존.
+// - 자소서: 지원 회사명과 일치하는 자소서만 자동 첨부(엉뚱한 회사 자소서 방지).
+//   여러 개면 최근 수정본. 일치 없으면 미첨부.
+type ApplicationDocs = {
+  resumeId: string | null;
+  resumeSnapshot: Prisma.InputJsonValue | undefined;
+  coverLetterId: string | null;
+  coverLetterSnapshot: Prisma.InputJsonValue | undefined;
+};
+async function snapshotApplicationDocs(userId: string, companyName: string | null): Promise<ApplicationDocs> {
+  // 이력서
+  const resume =
+    (await prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { id: true, content: true } })) ??
+    (await prisma.resume.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" }, select: { id: true, content: true } }));
+
+  // 자소서 — 회사명 일치(부분 포함, 대소문자 무시)하는 것만.
+  let coverLetterId: string | null = null;
+  let coverLetterSnapshot: Prisma.InputJsonValue | undefined = undefined;
+  const company = (companyName ?? "").trim().toLowerCase();
+  if (company) {
+    const cls = await prisma.coverLetter.findMany({
+      where: { userId, company: { not: null } },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, title: true, company: true, items: true }
+    });
+    const match = cls.find((c) => {
+      const cc = (c.company ?? "").trim().toLowerCase();
+      return cc && (cc.includes(company) || company.includes(cc));
+    });
+    if (match) {
+      coverLetterId = match.id;
+      coverLetterSnapshot = { title: match.title, company: match.company, items: match.items } as Prisma.InputJsonValue;
+    }
+  }
+
+  return {
+    resumeId: resume?.id ?? null,
+    resumeSnapshot: resume ? ((resume.content ?? {}) as Prisma.InputJsonValue) : undefined,
+    coverLetterId,
+    coverLetterSnapshot
+  };
 }
 
 // 지원 상세에서 보여줄 이력서 브리프 — 지원에 붙은 이력서 우선, 없으면(과거 지원건)
@@ -12024,15 +12060,19 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
     const existing = await prisma.application.findUnique({
       where: { positionId_candidateUserId: { positionId: parsed.data.positionId, candidateUserId: userId } }
     });
-    // 지원 시점의 대표 이력서를 연결(재지원 시에도 현재 대표 이력서로 갱신).
-    const resumeId = await resolvePrimaryResumeId(userId);
+    // 지원 시점의 서류(대표 이력서 + 회사일치 자소서)를 연결 + 제출본 스냅샷 저장.
+    // 재지원 시에도 현재 서류로 스냅샷 갱신.
+    const docs = await snapshotApplicationDocs(userId, position.partnerOrganization?.name ?? null);
     if (!existing) {
       const created = await prisma.application.create({
         data: {
           positionId: parsed.data.positionId,
           candidateUserId: userId,
           status: "SUBMITTED",
-          resumeId
+          resumeId: docs.resumeId,
+          resumeSnapshot: docs.resumeSnapshot,
+          coverLetterId: docs.coverLetterId,
+          coverLetterSnapshot: docs.coverLetterSnapshot
         }
       });
       await prisma.applicationStatusHistory.create({
@@ -12045,7 +12085,15 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
     } else if (existing.status === "WITHDRAWN") {
       await prisma.application.update({
         where: { id: existing.id },
-        data: { status: "SUBMITTED", withdrawnAt: null, submittedAt: new Date(), resumeId }
+        data: {
+          status: "SUBMITTED",
+          withdrawnAt: null,
+          submittedAt: new Date(),
+          resumeId: docs.resumeId,
+          resumeSnapshot: docs.resumeSnapshot,
+          coverLetterId: docs.coverLetterId,
+          coverLetterSnapshot: docs.coverLetterSnapshot
+        }
       });
       await prisma.applicationStatusHistory.create({
         data: {

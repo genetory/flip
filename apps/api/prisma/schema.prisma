@@ -657,9 +657,13 @@ model Application {
   id              String            @id @default(uuid())
   positionId      String
   candidateUserId String
-  // 지원 시점에 연결된 대표 이력서(resume-maker). 이력서가 삭제되면 null 로 남겨
-  // 지원 자체는 유지한다. 과거 지원건은 null 이며, 조회 시 현재 대표 이력서로 폴백.
+  // 지원 시점에 연결된 대표 이력서(resume-maker) 참조. 조회는 스냅샷 우선.
   resumeId        String?
+  // 지원 시점 서류 스냅샷(제출본 보존) — 지원 후 원본을 수정해도 파트너는 제출 당시
+  // 그대로 본다. resumeSnapshot=resume.content 사본, coverLetterSnapshot=자소서 사본.
+  resumeSnapshot        Json?
+  coverLetterId         String?
+  coverLetterSnapshot   Json?
   status          ApplicationStatus @default(SUBMITTED)
   memo            String?
   submittedAt     DateTime          @default(now())
@@ -668,6 +672,7 @@ model Application {
   position        Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
   candidateUser   User     @relation("ApplicationCandidate", fields: [candidateUserId], references: [id], onDelete: Cascade)
   resume          Resume?  @relation("ApplicationResume", fields: [resumeId], references: [id], onDelete: SetNull)
+  coverLetter     CoverLetter? @relation("ApplicationCoverLetter", fields: [coverLetterId], references: [id], onDelete: SetNull)
   statusHistories ApplicationStatusHistory[]
   interviewSlots  InterviewSlot[]
   assignments     Assignment[]
@@ -681,6 +686,7 @@ model Application {
   @@index([status])
   @@index([submittedAt])
   @@index([resumeId])
+  @@index([coverLetterId])
 }
 
 model InterviewSlot {
@@ -1146,6 +1152,7 @@ model CoverLetter {
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications Application[] @relation("ApplicationCoverLetter")
 
   @@index([userId])
 }

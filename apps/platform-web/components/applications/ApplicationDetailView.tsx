@@ -6,6 +6,8 @@ import { readAccessToken } from "../../lib/auth-client";
 import { getApplicationStatusLabel, type ApplicationStatus } from "../../lib/status-labels";
 import { ProposeInterviewSlotsModal } from "../interviews/ProposeInterviewSlotsModal";
 import { AssignmentManagerModal } from "../assignments/AssignmentManagerModal";
+import { ApplicationDocsModal } from "./ApplicationDocsModal";
+import type { ResumeContent } from "../../lib/member-profile-client";
 
 export type ApplicationDetail = {
   id: string;
@@ -17,6 +19,9 @@ export type ApplicationDetail = {
   updatedAt: string;
   // 지원에 연결된 대표 이력서(resume-maker). 없으면 null.
   resume?: { id: string; title: string; shareSlug: string } | null;
+  // 제출 시점 스냅샷(제출본 보존). 있으면 스냅샷을 보여주고, 없으면(과거 지원건) resume 라이브 링크로 폴백.
+  resumeSnapshot?: unknown | null;
+  coverLetterSnapshot?: { title?: string; company?: string | null; items?: Array<{ id?: string; prompt?: string; answer?: string }> } | null;
   candidateUser: {
     id: string;
     name: string | null;
@@ -176,6 +181,7 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
   const [memoDraft, setMemoDraft] = useState("");
   const [interviewOpen, setInterviewOpen] = useState(false);
   const [assignmentOpen, setAssignmentOpen] = useState(false);
+  const [docsTab, setDocsTab] = useState<"resume" | "cover" | null>(null);
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentDraft, setCommentDraft] = useState("");
@@ -356,9 +362,14 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
         </div>
 
         <div className="ops-form-label" style={{ marginTop: 16, display: "block" }}>
-          지원 이력서
-          <div style={{ marginTop: 4 }}>
-            {data.resume ? (
+          지원 서류 <span className="ops-card-subtle">(제출 당시 그대로)</span>
+          <div className="ops-row" style={{ marginTop: 4, gap: 8 }}>
+            {data.resumeSnapshot ? (
+              <button type="button" className="ops-btn" onClick={() => setDocsTab("resume")} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                📄 이력서 보기
+              </button>
+            ) : data.resume ? (
+              // 과거 지원건(스냅샷 없음) — 현재 이력서 공유 링크로 폴백
               <a
                 href={`/resume/share/${data.resume.shareSlug}`}
                 target="_blank"
@@ -366,13 +377,28 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
                 className="ops-btn"
                 style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
               >
-                📄 {data.resume.title || "이력서"} 보기
+                📄 이력서 보기(현재본)
               </a>
-            ) : (
-              <p className="ops-card-subtle" style={{ margin: 0 }}>연결된 이력서가 없습니다.</p>
-            )}
+            ) : null}
+            {data.coverLetterSnapshot && (data.coverLetterSnapshot.items ?? []).some((it) => it?.answer?.trim()) ? (
+              <button type="button" className="ops-btn" onClick={() => setDocsTab("cover")} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                ✍️ 자기소개서 보기
+              </button>
+            ) : null}
+            {!data.resumeSnapshot && !data.resume && !data.coverLetterSnapshot ? (
+              <p className="ops-card-subtle" style={{ margin: 0 }}>연결된 서류가 없습니다.</p>
+            ) : null}
           </div>
         </div>
+
+        {docsTab ? (
+          <ApplicationDocsModal
+            resumeContent={(data.resumeSnapshot as ResumeContent | null) ?? null}
+            coverLetter={data.coverLetterSnapshot ?? null}
+            initialTab={docsTab}
+            onClose={() => setDocsTab(null)}
+          />
+        ) : null}
 
         <div className="ops-row" style={{ marginTop: 12 }}>
           <button type="button" className="ops-btn" onClick={() => setInterviewOpen(true)}>
