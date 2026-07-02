@@ -5,6 +5,31 @@ import { ReactNode, useEffect, useState } from "react";
 import { OpsBadge, toneFromEmailVerified, toneFromPartnerOrgRole } from "./OpsBadge";
 import { getOpsPositionStatusMeta, type PositionStatus } from "../../_components/position-status-meta";
 
+// 업로드 서류(사업자등록증·4대보험 명부) 열기. data: URL 은 모던 브라우저가 최상위
+// 이동을 차단하므로 Blob 으로 변환해 새 탭에서 연다(이미지·PDF 모두 브라우저가 렌더).
+function openUploadedDoc(value: string) {
+  try {
+    if (/^https?:\/\//.test(value) || value.startsWith("/")) {
+      window.open(value, "_blank", "noopener");
+      return;
+    }
+    const match = value.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) {
+      window.open(value, "_blank", "noopener");
+      return;
+    }
+    const mime = match[1];
+    const bin = atob(match[2]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+    window.open(url, "_blank", "noopener");
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch {
+    window.open(value, "_blank", "noopener");
+  }
+}
+
 type PartnerDetailTab = "basic" | "members" | "jobs" | "memo";
 
 type PartnerDetailViewProps = {
@@ -684,9 +709,13 @@ export function PartnerDetailView({
                       <span>{String(label)}</span>
                       <strong>
                         {value ? (
-                          <a href={String(value)} target="_blank" rel="noopener noreferrer">
+                          <button
+                            type="button"
+                            onClick={() => openUploadedDoc(String(value))}
+                            style={{ background: "none", border: "none", padding: 0, color: "#0B46E8", cursor: "pointer", textDecoration: "underline", font: "inherit" }}
+                          >
                             업로드됨 (보기)
-                          </a>
+                          </button>
                         ) : (
                           "미업로드"
                         )}
