@@ -10,6 +10,7 @@ export type CoverLetter = {
   company: string | null; // 지원 회사명(선택)
   resumeId: string | null; // 근거/연결 이력서(선택)
   items: ResumeCoverLetterItem[];
+  shareSlug?: string; // 공개 공유 slug
   createdAt: string;
   updatedAt: string;
 };
@@ -38,6 +39,23 @@ export function coverLetterToPlainText(cl: Pick<CoverLetter, "company" | "items"
 export async function getMyCoverLetters(): Promise<CoverLetter[]> {
   const result = await authedJsonFetch<CoverLetter>("/members/me/cover-letters", { method: "GET" });
   return (result.items ?? []).map(normalize);
+}
+
+export type SharedCoverLetter = { id: string; title: string; company: string | null; items: ResumeCoverLetterItem[]; shareSlug: string };
+
+// 공개(로그인 불필요) 자소서 조회 — /cover-letters/share/:slug. 이력서 공유와 동일 패턴.
+export async function getSharedCoverLetter(slug: string): Promise<SharedCoverLetter> {
+  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  const res = await fetch(`${base}/cover-letters/share/${encodeURIComponent(slug)}`, { cache: "no-store" });
+  const payload = (await res.json().catch(() => null)) as { ok?: boolean; item?: CoverLetter; message?: string } | null;
+  if (!res.ok || !payload?.item) throw new Error(payload?.message ?? "자기소개서를 불러오지 못했어요.");
+  const raw = payload.item;
+  const items = Array.isArray(raw.items)
+    ? raw.items
+        .filter((it): it is ResumeCoverLetterItem => Boolean(it && typeof it === "object"))
+        .map((it) => ({ id: String(it.id ?? ""), prompt: String(it.prompt ?? ""), answer: String(it.answer ?? "") }))
+    : [];
+  return { id: raw.id, title: raw.title, company: raw.company ?? null, items, shareSlug: raw.shareSlug ?? slug };
 }
 
 export async function getCoverLetter(id: string): Promise<CoverLetter> {

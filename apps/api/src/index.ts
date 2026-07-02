@@ -12753,6 +12753,25 @@ app.delete("/members/me/cover-letters/:coverLetterId", authenticate, requireRole
   }
 });
 
+// GET /cover-letters/share/:slug — 공개(로그인 불필요) 자소서 읽기 전용. 이력서 공유
+// (/resumes/share/:slug)와 동일한 패턴. 자소서엔 구조화된 PII(이메일·전화) 필드가
+// 없어 items/title/company 만 노출한다.
+app.get("/cover-letters/share/:slug", async (req, res) => {
+  const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+  if (!slug || typeof slug !== "string") return res.status(400).json({ ok: false, message: "invalid slug" });
+  try {
+    const cl = await prisma.coverLetter.findUnique({
+      where: { shareSlug: slug },
+      select: { id: true, title: true, company: true, items: true, shareSlug: true, createdAt: true, updatedAt: true }
+    });
+    if (!cl) return res.status(404).json({ ok: false, message: "cover letter not found" });
+    return res.json({ ok: true, item: cl });
+  } catch (err) {
+    console.error("[GET /cover-letters/share] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load cover letter" });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Resume Coach — unified scoring + action items + position matching in a
 // single response. Cheap to call (rule-based, ~10ms) so the frontend can
