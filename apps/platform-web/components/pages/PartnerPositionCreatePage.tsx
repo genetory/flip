@@ -374,9 +374,9 @@ export function PartnerPositionCreatePage({
   async function handleSubmit() {
     if (!validateCurrentStep()) return;
 
-    // 이미지 총 용량 사전 체크(서버 한계 36mb 대비 여유 32mb).
+    // 이미지 총 용량 사전 체크(서버 body 한계 40mb 대비 여유 38MiB — 썸네일 5장 최대치는 통과).
     const thumbBytes = thumbnailImages.reduce((sum, img) => sum + (img?.length ?? 0), 0);
-    if (thumbBytes > 32 * 1024 * 1024) {
+    if (thumbBytes > 38 * 1024 * 1024) {
       setErrorMessage(TOO_LARGE_MESSAGE());
       return;
     }
