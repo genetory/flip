@@ -1625,10 +1625,10 @@ app.use(cors({
   },
   credentials: true
 }));
-// 공고 생성(POST /partner/positions)은 썸네일 5장(각 최대 5MB)+배너(5MB)를 base64
-// data URL 로 함께 보낼 수 있어 body 가 최대 ~30MB 에 달한다(핸들러에서 Blob 업로드로
-// 옮겨 DB 는 URL 만 저장). body 파싱은 그 전 단계라 제한을 스키마 최대치에 맞춘다.
-app.use(express.json({ limit: "36mb" }));
+// 공고 생성(POST /partner/positions)은 썸네일 5장(각 base64 최대 ~7.2M자)을 함께
+// 보낼 수 있어 body 가 최대 ~36MB(+텍스트)에 달한다(핸들러에서 Blob 업로드로 옮겨
+// DB 는 URL 만 저장). body 파싱은 그 전 단계라 제한을 스키마 최대치+여유로 맞춘다.
+app.use(express.json({ limit: "40mb" }));
 
 type RateLimitBucket = { count: number; resetAt: number };
 const rateLimitStore = new Map<string, RateLimitBucket>();
@@ -2501,7 +2501,9 @@ const createPositionSchema = z.object({
   status: positionStatusEnum.optional(),
   workType: positionWorkTypeEnum.optional(),
   employmentType: positionEmploymentTypeEnum.optional(),
-  thumbnailImages: z.array(z.string().trim().min(1).max(5_000_000)).max(5).optional(),
+  // base64 data URL 은 원본보다 ~33% 커진다. 프론트는 "디코딩 5MB" 까지 허용하므로
+  // 문자열은 약 7M자에 달할 수 있다 → 서버 한도도 그에 맞춘다(불일치로 거부되던 문제 수정).
+  thumbnailImages: z.array(z.string().trim().min(1).max(7_200_000)).max(5).optional(),
   eligibleVisas: z.array(z.string().trim().min(1).max(20)).max(20).optional(),
   matchingParticipants: lineArraySchema,
   postingProgressLogs: lineArraySchema,
