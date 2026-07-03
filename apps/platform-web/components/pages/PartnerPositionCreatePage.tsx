@@ -360,8 +360,26 @@ export function PartnerPositionCreatePage({
     return true;
   }
 
+  // 서버 body 제한(36mb)에 걸려 413 이 나기 전에, 제출 전 썸네일 총 용량을 미리 확인.
+  const TOO_LARGE_MESSAGE = () =>
+    t(
+      "이미지 용량이 너무 큽니다. 사진 장수를 줄이거나 크기가 작은 이미지를 사용해 주세요.",
+      "Images are too large. Reduce the number of photos or use smaller images.",
+      "图片过大。请减少照片数量或使用更小的图片。",
+      "Hình ảnh quá lớn. Hãy giảm số lượng ảnh hoặc dùng ảnh nhỏ hơn.",
+      "画像の容量が大きすぎます。枚数を減らすか、小さい画像を使用してください。",
+      "Gambar terlalu besar. Kurangi jumlah foto atau gunakan gambar yang lebih kecil."
+    );
+
   async function handleSubmit() {
     if (!validateCurrentStep()) return;
+
+    // 이미지 총 용량 사전 체크(서버 한계 36mb 대비 여유 32mb).
+    const thumbBytes = thumbnailImages.reduce((sum, img) => sum + (img?.length ?? 0), 0);
+    if (thumbBytes > 32 * 1024 * 1024) {
+      setErrorMessage(TOO_LARGE_MESSAGE());
+      return;
+    }
 
     const parsedHiringCount = hiringCount.trim() ? Number(hiringCount) : undefined;
     const employmentType = toEmploymentTypeFromClassification(employmentClassification);
@@ -418,13 +436,19 @@ export function PartnerPositionCreatePage({
       }
       router.refresh();
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : mode === "edit"
-            ? t("포지션 수정에 실패했습니다.", "Failed to update position.", "更新职位失败。", "Cập nhật vị trí thất bại.", "ポジションの修正に失敗しました。", "Gagal memperbarui posisi.")
-            : t("포지션 생성에 실패했습니다.", "Failed to create position.", "创建职位失败。", "Tạo vị trí thất bại.", "ポジションの作成に失敗しました。", "Gagal membuat posisi.")
-      );
+      const status = (error as { status?: number } | null)?.status;
+      if (status === 413) {
+        // 용량 초과 — 구체적 안내(일반 실패 메시지 대신).
+        setErrorMessage(TOO_LARGE_MESSAGE());
+      } else {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : mode === "edit"
+              ? t("포지션 수정에 실패했습니다.", "Failed to update position.", "更新职位失败。", "Cập nhật vị trí thất bại.", "ポジションの修正に失敗しました。", "Gagal memperbarui posisi.")
+              : t("포지션 생성에 실패했습니다.", "Failed to create position.", "创建职位失败。", "Tạo vị trí thất bại.", "ポジションの作成に失敗しました。", "Gagal membuat posisi.")
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
