@@ -1625,7 +1625,10 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json({ limit: "12mb" }));
+// 공고 생성(POST /partner/positions)은 썸네일 5장(각 최대 5MB)+배너(5MB)를 base64
+// data URL 로 함께 보낼 수 있어 body 가 최대 ~30MB 에 달한다(핸들러에서 Blob 업로드로
+// 옮겨 DB 는 URL 만 저장). body 파싱은 그 전 단계라 제한을 스키마 최대치에 맞춘다.
+app.use(express.json({ limit: "36mb" }));
 
 type RateLimitBucket = { count: number; resetAt: number };
 const rateLimitStore = new Map<string, RateLimitBucket>();
