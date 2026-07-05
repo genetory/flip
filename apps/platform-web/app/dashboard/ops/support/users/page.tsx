@@ -332,6 +332,33 @@ export default function PartnerUsersPage() {
     }
   }
 
+  // 운영진이 이메일 인증을 직접 승인/해제.
+  const [emailVerifySaving, setEmailVerifySaving] = useState(false);
+  async function setUserEmailVerified(verified: boolean) {
+    if (!selectedUser) return;
+    setEmailVerifySaving(true);
+    try {
+      const token = readCookie(TOKEN_COOKIE_KEY);
+      const response = await fetch(`${apiBaseUrl}/ops/users/${selectedUser.id}/email-verified`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ verified })
+      });
+      const payload = (await response.json()) as { ok?: boolean; item?: { id: string; emailVerified: boolean }; message?: string };
+      if (!response.ok || !payload.ok || !payload.item) {
+        window.alert(payload.message ?? "이메일 인증 처리에 실패했습니다.");
+        return;
+      }
+      const nextVerified = payload.item.emailVerified;
+      setItems((prev) => prev.map((item) => (item.id === selectedUser.id ? { ...item, emailVerified: nextVerified } : item)));
+      setSelectedUser((prev) => (prev ? { ...prev, emailVerified: nextVerified } : prev));
+    } catch {
+      window.alert("이메일 인증 처리 중 오류가 발생했습니다.");
+    } finally {
+      setEmailVerifySaving(false);
+    }
+  }
+
   function handleDialogCancel(event: SyntheticEvent<HTMLDialogElement, Event>) {
     event.preventDefault();
     requestCloseDetailModal();
@@ -652,10 +679,26 @@ export default function PartnerUsersPage() {
                           <div><span>유형</span><strong>{selectedUser.partnerType || "-"}</strong></div>
                           <div>
                             <span>이메일 인증 상태</span>
-                            <strong>
+                            <strong style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                               <OpsBadge tone={toneFromEmailVerified(selectedUser.emailVerified)}>
                                 {selectedUser.emailVerified ? "승인 완료" : "미승인"}
                               </OpsBadge>
+                              <button
+                                type="button"
+                                onClick={() => void setUserEmailVerified(!selectedUser.emailVerified)}
+                                disabled={emailVerifySaving}
+                                style={{
+                                  cursor: "pointer",
+                                  border: "1px solid #C9CDD2",
+                                  borderRadius: 6,
+                                  background: "#fff",
+                                  color: selectedUser.emailVerified ? "#8B95A1" : "#0B46E8",
+                                  padding: "2px 8px",
+                                  fontSize: 12
+                                }}
+                              >
+                                {emailVerifySaving ? "처리 중..." : selectedUser.emailVerified ? "인증 해제" : "인증 승인"}
+                              </button>
                             </strong>
                           </div>
                           <div><span>가입일</span><strong>{formatDate(selectedUser.createdAt)}</strong></div>
