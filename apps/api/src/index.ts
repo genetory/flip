@@ -22123,6 +22123,29 @@ app.patch("/ops/users/:id/admin-memo", authenticate, requireRoles([MemberRole.OP
   }
 });
 
+// 운영진이 사용자(파트너 포함) 이메일 인증을 직접 승인/해제. 인증메일이 막혀 가입을
+// 못 끝낸 계정을 운영 콘솔에서 바로 인증 처리할 수 있게 한다.
+const setEmailVerifiedSchema = z.object({ verified: z.boolean() });
+app.patch("/ops/users/:id/email-verified", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid user id" });
+  const parsed = setEmailVerifiedSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { emailVerified: parsed.data.verified },
+      select: { id: true, email: true, emailVerified: true }
+    });
+    return res.json({ ok: true, item: updated });
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
+      return res.status(404).json({ ok: false, message: "user not found" });
+    }
+    return res.status(500).json({ ok: false, message: "failed to update email verification" });
+  }
+});
+
 // Hard-delete a user from the database. Restricted to a single super-admin
 // email so a normal operator can't wipe production users by accident. The
 // allow-listed admin can be overridden with OPS_HARD_DELETE_ALLOWED_EMAILS
