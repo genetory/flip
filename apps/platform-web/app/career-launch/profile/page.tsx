@@ -6,9 +6,8 @@ import { Footer } from "../../../components/site/Footer";
 // 9. 나의 Global Talent Profile 페이지 — 기업 제출용.
 const SECTIONS: { key: string; label: string; done: boolean; desc: string }[] = [
   { key: "basic", label: "기본 정보", done: true, desc: "이름 · 학교 · 전공 · 비자" },
-  { key: "resume", label: "이력서", done: false, desc: "resume-maker 로 작성한 대표 이력서" },
+  { key: "resume", label: "이력서", done: false, desc: "프로그램에서 만든 대표 이력서" },
   { key: "cover", label: "자기소개서", done: false, desc: "목표 회사용 자기소개서" },
-  { key: "interview", label: "모의면접 결과", done: false, desc: "AI 모의면접 리포트" },
   { key: "portfolio", label: "포트폴리오", done: false, desc: "작업물 · 링크" }
 ];
 
@@ -66,11 +65,11 @@ export default function LaunchProfilePage() {
         <div className="mt-7">
           <Card>
             <p className="text-[13.5px] leading-relaxed text-[#4E5968]">
-              이력서·자기소개서는 <b className="text-[#0B46E8]">resume-maker</b>에서 작성한 내용이 자동으로 연결됩니다.
+              이력서·자기소개서는 <b className="text-[#0B46E8]">이 프로그램 안에서</b> 만든 내용이 자동으로 연결돼요.
             </p>
             <div className="mt-3 flex gap-2">
-              <LaunchButton href="/resume-maker" variant="outline">이력서 만들기</LaunchButton>
-              <LaunchButton href="/resume-maker/cover-letters" variant="outline">자소서 만들기</LaunchButton>
+              <LaunchButton href="/career-launch/resume" variant="outline">이력서 만들기</LaunchButton>
+              <LaunchButton href="/career-launch/cover-letter" variant="outline">자소서 만들기</LaunchButton>
             </div>
           </Card>
         </div>

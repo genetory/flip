@@ -43,15 +43,15 @@ export const WEEKS: WeekPlan[] = [
   {
     week: 1,
     title: "취업 가능성 진단 & 직무 방향 설정",
-    subtitle: "지금 내 위치를 확인하고 목표 직무를 정해봐요",
-    goal: "AI 진단으로 지금 내 취업 준비 상태를 살펴보고, 지원하고 싶은 직무를 3개 이내로 편하게 좁혀봐요.",
+    subtitle: "지금 내 상태를 점검하고 목표 직무를 정해봐요",
+    goal: "내 취업 준비 상태를 점검하고, 지원하고 싶은 직무를 3개 이내로 정해요. 다음 주 이력서에 담을 재료도 미리 모아봐요.",
     seminar: { date: "2026-07-13 (월)", time: "19:00–21:00", place: "온라인 (Zoom)", online: true },
     steps: [
       {
         id: "w1s1",
-        title: "AI 이력서 자가진단 실행",
-        desc: "resume-maker에서 지금 이력서를 진단해봐요. 완성도와 부족한 부분을 리포트로 한눈에 확인할 수 있어요.",
-        action: { label: "이력서 진단하기", href: "/resume-maker" }
+        title: "취업 준비 상태 자가진단",
+        desc: "경력·어학·비자·직무 이해도 등 지금 내 준비 상태를 스스로 점검해봐요. 어디를 채우면 좋을지 방향이 보여요.",
+        action: { label: "진단 시작하기", href: "/career-launch/week/1" }
       },
       {
         id: "w1s2",
@@ -61,95 +61,97 @@ export const WEEKS: WeekPlan[] = [
       },
       {
         id: "w1s3",
-        title: "직무별 필요 역량 정리",
-        desc: "고른 직무가 어떤 역량·자격을 원하는지 정리해봐요. 지금 내가 가진 것과 비교하면 무엇을 채우면 될지 보여요."
+        title: "이력서에 담을 재료 모으기",
+        desc: "고른 직무가 원하는 역량·자격을 정리하고, 내 경험·프로젝트·성과를 떠오르는 대로 메모해둬요. 다음 주 이력서 작성이 훨씬 수월해져요."
       }
     ],
-    submission: { required: true, status: "todo", label: "진단 결과 + 목표 직무", source: "resume-maker 이력서 진단" },
+    submission: { required: true, status: "todo", label: "목표 직무 + 이력서 재료", source: "정한 목표 직무와 정리한 경험 메모" },
     feedback: { status: "none" }
   },
   {
     week: 2,
-    title: "이력서 & 자기소개서 완성",
-    subtitle: "resume-maker로 기업에 낼 이력서·자소서를 만들어봐요",
-    goal: "기업에 낼 대표 이력서 1부와 목표 회사용 자기소개서 1부를 완성해봐요. 하나씩 채우다 보면 금방이에요!",
+    title: "이력서 만들기",
+    subtitle: "프로그램 안에서 바로 대표 이력서를 완성해봐요",
+    goal: "기업에 낼 대표 이력서 초안을 완성해요. AI 진단으로 부족한 부분까지 채우면 든든한 이력서 한 부가 만들어져요.",
     seminar: { date: "2026-07-20 (월)", time: "19:00–21:00", place: "온라인 (Zoom)", online: true },
     steps: [
       {
         id: "w2s1",
-        title: "이력서 필수 항목 작성",
-        desc: "resume-maker로 기본 정보·학력·연락처 같은 필수 항목부터 채워 이력서의 뼈대를 만들어봐요.",
-        action: { label: "이력서 작성하기", href: "/resume-maker" }
+        title: "이력서 기본 항목 작성",
+        desc: "기본 정보·학력·연락처 같은 필수 항목부터 채워 이력서의 뼈대를 만들어봐요.",
+        action: { label: "이력서 작성하기", href: "/career-launch/resume" }
       },
       {
         id: "w2s2",
         title: "경력·경험 3개 이상 정리",
-        desc: "경험 채팅으로 프로젝트·인턴·활동을 3개 이상 정리해봐요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
-        action: { label: "경험 정리하기", href: "/resume-maker" }
+        desc: "지난 주 모아둔 재료로 프로젝트·인턴·활동을 3개 이상 정리해요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
+        action: { label: "경험 정리하기", href: "/career-launch/resume" }
       },
       {
         id: "w2s3",
-        title: "자기소개서 4문항 작성",
-        desc: "목표 회사에 맞춰 지원 동기·강점 등 4개 문항을 채워 자기소개서를 완성해봐요.",
-        action: { label: "자기소개서 작성", href: "/resume-maker" }
+        title: "AI 이력서 진단으로 보완",
+        desc: "완성한 이력서를 AI로 진단해 완성도와 부족한 부분을 확인하고 채워봐요.",
+        action: { label: "이력서 진단하기", href: "/career-launch/resume" }
       }
     ],
-    submission: { required: true, status: "todo", label: "이력서 + 자기소개서", source: "resume-maker 대표 이력서·자기소개서" },
+    submission: { required: true, status: "todo", label: "대표 이력서 초안", source: "프로그램에서 만든 대표 이력서" },
     feedback: { status: "none" }
   },
   {
     week: 3,
-    title: "모의면접 & 기업 지원 준비",
-    subtitle: "AI 모의면접으로 답변을 다듬고 지원 준비를 마쳐봐요",
-    goal: "모의면접으로 답변을 다듬고, 지원할 공고 3개까지 준비를 마쳐봐요. 실전이 한결 편해질 거예요.",
+    title: "자기소개서 만들기 & 다듬기",
+    subtitle: "자기소개서를 쓰고 이력서와 맞춰 완성본을 만들어요",
+    goal: "목표 회사에 맞춘 자기소개서를 완성하고, 이력서와 서로 어울리게 다듬어 이력서·자소서 완성본을 만들어요.",
     seminar: { date: "2026-07-27 (월)", time: "19:00–21:00", place: "오프라인 (강남)", online: false },
     steps: [
       {
         id: "w3s1",
-        title: "AI 모의면접 1회 진행",
-        desc: "AI 모의면접으로 실제 면접처럼 답변을 연습해봐요. 끝나면 개선할 점을 리포트로 알려드려요.",
-        action: { label: "모의면접 시작", href: "/resume-maker" }
+        title: "자기소개서 4문항 작성",
+        desc: "지원 동기·강점 등 4개 문항을 채워 목표 회사용 자기소개서를 써봐요.",
+        action: { label: "자기소개서 작성", href: "/career-launch/cover-letter" }
       },
       {
         id: "w3s2",
-        title: "예상 질문 10개 답변 정리",
-        desc: "자주 나오는 예상 질문 10개를 뽑아 나만의 답변을 미리 준비해두면 훨씬 든든해요."
+        title: "이력서·자소서 함께 다듬기",
+        desc: "이력서와 자기소개서의 메시지가 서로 일관되게 맞춰 다듬어봐요. 두 문서가 같은 이야기를 하면 설득력이 커져요.",
+        action: { label: "이력서 다듬기", href: "/career-launch/resume" }
       },
       {
         id: "w3s3",
-        title: "지원할 공고 3개 선정",
-        desc: "실제로 지원할 공고 3개를 정하고, 마감일과 자격요건을 미리 체크해봐요.",
-        action: { label: "공고 보기", href: "/positions" }
+        title: "완성도 점검 & 피드백 반영",
+        desc: "AI 진단과 운영진 피드백을 반영해 완성도를 끌어올려 완성본을 만들어요."
       }
     ],
-    submission: { required: true, status: "todo", label: "모의면접 결과 + 지원 리스트", source: "AI 모의면접 결과와 저장한 공고" },
+    submission: { required: true, status: "todo", label: "이력서 + 자기소개서 완성본", source: "프로그램에서 만든 이력서·자기소개서" },
     feedback: { status: "none" }
   },
   {
     week: 4,
-    title: "기업 제출용 프로필 완성",
-    subtitle: "Global Talent Profile을 완성해 기업에 선보여요",
-    goal: "이력서·자소서·면접 결과를 한데 모아 나만의 Global Talent Profile을 완성해봐요. 이제 정말 거의 다 왔어요!",
+    title: "완성 & 기업 지원",
+    subtitle: "완성한 이력서·자소서로 기업에 지원해봐요",
+    goal: "이력서·자기소개서 완성본을 확정하고, 목표 공고에 실제로 지원해요. 4주의 결실을 맺는 단계예요!",
     seminar: { date: "2026-08-03 (월)", time: "19:00–21:00", place: "오프라인 (강남)", online: false },
     steps: [
       {
         id: "w4s1",
-        title: "프로필 최종 검토",
-        desc: "이력서·자소서·모의면접 결과가 프로필에 잘 담겼는지 마지막으로 점검해봐요.",
-        action: { label: "내 프로필 보기", href: "/career-launch/profile" }
+        title: "이력서·자소서 최종 확정",
+        desc: "완성한 이력서와 자기소개서를 마지막으로 검토해 확정해요.",
+        action: { label: "내 이력서 보기", href: "/career-launch/resume" }
       },
       {
         id: "w4s2",
-        title: "포트폴리오·링크 정리",
-        desc: "작업물·깃허브·포트폴리오 링크를 정리해 프로필에 더해봐요."
+        title: "지원할 공고 3개 선정",
+        desc: "지원할 채용 공고 3개를 정하고 마감일과 자격요건을 미리 체크해요.",
+        action: { label: "공고 보기", href: "/positions" }
       },
       {
         id: "w4s3",
-        title: "기업 제출 동의",
-        desc: "완성한 프로필을 참여 기업에 공유하는 데 동의하면 모든 준비가 끝나요. 정말 수고 많았어요!"
+        title: "기업에 지원하기",
+        desc: "완성한 이력서로 목표 기업에 지원해봐요. 드디어 실전이에요!",
+        action: { label: "지원하러 가기", href: "/positions" }
       }
     ],
-    submission: { required: true, status: "todo", label: "Global Talent Profile", source: "완성된 Global Talent Profile" },
+    submission: { required: true, status: "todo", label: "기업 지원 완료", source: "완성한 이력서로 제출한 지원" },
     feedback: { status: "none" }
   }
 ];
@@ -167,9 +169,9 @@ export const STUDENT = {
 
 // 수료 조건.
 export const COMPLETION_CRITERIA = [
-  "4주차까지 미션 모두 완료하기",
+  "4주 미션 모두 완료하기",
   "세미나 3회 이상 참석하기",
-  "Global Talent Profile 완성하기"
+  "이력서·자기소개서 완성하고 기업에 지원하기"
 ];
 
 // 다음 오프라인 세미나(대시보드용) — 프로그램 시작 시점 기준 Week 1 세미나.
