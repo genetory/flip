@@ -2,7 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Card, LaunchButton, LaunchContainer, LaunchTopBar, SectionTitle } from "../../../components/launch/ui";
+import { Card, LaunchButton, LaunchContainer, SectionTitle } from "../../../components/launch/ui";
+import { Header } from "../../../components/site/Header";
+import { Footer } from "../../../components/site/Footer";
 
 const inputCls =
   "mt-1 w-full rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:outline-none";
@@ -25,8 +27,9 @@ export default function LaunchApplyPage() {
   const canSubmit = form.name.trim() && form.email.trim() && form.school.trim();
 
   return (
-    <main className="pb-16">
-      <LaunchTopBar back={{ href: "/career-launch", label: "프로그램" }} />
+    <div className="flex min-h-screen flex-col bg-background">
+      <Header />
+      <main className="flex-1 pb-16">
       <LaunchContainer className="pt-6">
         <SectionTitle sub="선발 결과는 이메일로 안내됩니다">참가 신청</SectionTitle>
         <form onSubmit={submit}>
@@ -71,6 +74,8 @@ export default function LaunchApplyPage() {
           </div>
         </form>
       </LaunchContainer>
-    </main>
+      </main>
+      <Footer />
+    </div>
   );
 }

@@ -6,7 +6,6 @@ export default function LaunchLoginRoute() {
   return (
     <LoginPage
       defaultNext="/career-launch/dashboard"
-      chromeless
       brandTitle="Career Launch Bootcamp"
       brandSubtitle="외국인 유학생을 위한 4주 한국 취업 준비 부트캠프"
     />

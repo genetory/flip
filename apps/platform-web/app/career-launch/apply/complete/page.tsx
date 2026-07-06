@@ -1,9 +1,13 @@
 import { Card, LaunchButton, LaunchContainer } from "../../../../components/launch/ui";
+import { Header } from "../../../../components/site/Header";
+import { Footer } from "../../../../components/site/Footer";
 
 // 3. 신청 완료 페이지
 export default function LaunchApplyCompletePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center pb-16">
+    <div className="flex min-h-screen flex-col bg-background">
+      <Header />
+      <main className="flex flex-1 flex-col items-center justify-center py-16">
       <LaunchContainer>
         <Card className="text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#B7FF5A] text-[30px]">🎉</div>
@@ -33,6 +37,8 @@ export default function LaunchApplyCompletePage() {
           </div>
         </Card>
       </LaunchContainer>
-    </main>
+      </main>
+      <Footer />
+    </div>
   );
 }

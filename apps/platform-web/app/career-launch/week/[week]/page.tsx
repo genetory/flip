@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { WEEKS } from "../../../../lib/launch/data";
-import { Card, Checklist, LaunchContainer, LaunchTopBar, Pill, SectionTitle, SubmissionBox } from "../../../../components/launch/ui";
+import { Card, Checklist, LaunchContainer, Pill, SectionTitle, SubmissionBox } from "../../../../components/launch/ui";
+import { Header } from "../../../../components/site/Header";
+import { Footer } from "../../../../components/site/Footer";
 
 // 5~8. Week 1~4 미션 페이지 (동적 라우트)
 export default async function LaunchWeekPage({ params }: { params: Promise<{ week: string }> }) {
@@ -17,8 +19,9 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
   }[plan.feedback.status];
 
   return (
-    <main className="pb-16">
-      <LaunchTopBar back={{ href: "/career-launch/dashboard", label: "대시보드" }} />
+    <div className="flex min-h-screen flex-col bg-background">
+      <Header />
+      <main className="flex-1 pb-16">
       <LaunchContainer className="pt-6">
         {/* 헤더 */}
         <div className="flex items-center gap-3">
@@ -85,6 +88,8 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
           </Link>
         )}
       </LaunchContainer>
-    </main>
+      </main>
+      <Footer />
+    </div>
   );
 }

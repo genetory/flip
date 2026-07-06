@@ -1,5 +1,7 @@
 import { overallProgress, STUDENT } from "../../../lib/launch/data";
-import { Card, LaunchButton, LaunchContainer, LaunchTopBar, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
+import { Card, LaunchButton, LaunchContainer, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
+import { Header } from "../../../components/site/Header";
+import { Footer } from "../../../components/site/Footer";
 
 // 9. 나의 Global Talent Profile 페이지 — 기업 제출용.
 const SECTIONS: { key: string; label: string; done: boolean; desc: string }[] = [
@@ -15,8 +17,9 @@ export default function LaunchProfilePage() {
   const doneCount = SECTIONS.filter((s) => s.done).length;
 
   return (
-    <main className="pb-16">
-      <LaunchTopBar back={{ href: "/career-launch/dashboard", label: "대시보드" }} />
+    <div className="flex min-h-screen flex-col bg-background">
+      <Header />
+      <main className="flex-1 pb-16">
       <LaunchContainer className="pt-6">
         {/* 프로필 헤더 */}
         <Card>
@@ -80,6 +83,8 @@ export default function LaunchProfilePage() {
           <p className="mt-3 text-center text-[12px] text-[#8B95A1]">제출 시 참여 기업에 프로필이 공유됩니다.</p>
         </div>
       </LaunchContainer>
-    </main>
+      </main>
+      <Footer />
+    </div>
   );
 }

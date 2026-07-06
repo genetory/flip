@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { COMPLETION_CRITERIA, NEXT_SEMINAR, overallProgress, STUDENT, WEEKS } from "../../../lib/launch/data";
-import { Card, LaunchContainer, LaunchTopBar, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
+import { Card, LaunchContainer, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
+import { Header } from "../../../components/site/Header";
+import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
 const SUBMIT_LABEL = { todo: { t: "미제출", tone: "grey" as const }, submitted: { t: "제출 완료", tone: "blue" as const }, reviewed: { t: "피드백 완료", tone: "green" as const } };
@@ -30,8 +32,9 @@ export default function LaunchDashboardPage() {
   }
 
   return (
-    <main className="pb-16">
-      <LaunchTopBar />
+    <div className="flex min-h-screen flex-col bg-background">
+      <Header />
+      <main className="flex-1 pb-16">
       <LaunchContainer className="pt-6">
         {/* 인사 + 진행률 */}
         <Card>
@@ -117,6 +120,8 @@ export default function LaunchDashboardPage() {
           </Card>
         </div>
       </LaunchContainer>
-    </main>
+      </main>
+      <Footer />
+    </div>
   );
 }

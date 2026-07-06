@@ -13,7 +13,7 @@ const TABS = [
 export function OpsTabs() {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-30 border-b border-[#EEF1F5] bg-white/90 backdrop-blur">
+    <div className="border-b border-[#EEF1F5] bg-white/90 backdrop-blur">
       <LaunchContainer className="!max-w-[640px]">
         <div className="flex h-12 items-center justify-between">
           <span className="text-[13px] font-extrabold text-[#0B1227]">Launch 운영</span>
@@ -34,6 +34,6 @@ export function OpsTabs() {
           })}
         </nav>
       </LaunchContainer>
-    </header>
+    </div>
   );
 }
