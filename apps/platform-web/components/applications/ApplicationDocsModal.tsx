@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "@phosphor-icons/react/dist/ssr";
 import { CoverLetterSheet } from "../resume-maker/CoverLetterToolPreview";
-import { SharedResumePage } from "../pages/SharedResumePage";
-import type { ResumeContent, SharedResume } from "../../lib/member-profile-client";
+import { ResumeBuilderPreviewPage } from "../resume-maker/ResumeBuilderPreviewPage";
+import type { ResumeContent } from "../../lib/member-profile-client";
 
 const A4_W = 794;
 
@@ -40,11 +40,6 @@ export function ApplicationDocsModal({
     return () => ro.disconnect();
   }, [tab]);
 
-  // 제출 스냅샷을 공유뷰(resume-maker /resume/share)와 동일하게 렌더하기 위해
-  // 최소 SharedResume 형태로 감싼다. 운영자 시점이므로 연락처까지 노출.
-  const sharedResume: SharedResume | null = resumeContent
-    ? ({ content: resumeContent, viewerScope: "operator" } as unknown as SharedResume)
-    : null;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 p-4" onClick={onClose}>
@@ -75,10 +70,11 @@ export function ApplicationDocsModal({
           </button>
         </div>
 
-        {/* 이력서: 공유 페이지(resume-maker)와 동일한 뷰로 렌더 */}
-        {tab === "resume" && sharedResume ? (
+        {/* 이력서: resume-maker 미리보기(/resume-maker/[id]/preview)와 동일한 뷰로 렌더.
+            운영자는 STUDENT 셸 게이트를 피하려 embedded 로 본문만 렌더. */}
+        {tab === "resume" && resumeContent ? (
           <div className="overflow-hidden rounded-lg bg-white">
-            <SharedResumePage slug="" preloaded={sharedResume} />
+            <ResumeBuilderPreviewPage resumeId="" preloadedContent={resumeContent} embedded />
           </div>
         ) : null}
         {/* 자기소개서: 기존 시트로 렌더(zoom 축소) */}
