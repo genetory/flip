@@ -104,7 +104,7 @@ export function LoginPage({
       <main className="container py-12 md:py-16">
         <section>
           {brandTitle ? (
-            <div className="mx-auto mb-8 max-w-md text-center">
+            <div className="mx-auto mb-8 text-center">
               <Image
                 src="/img_logo.webp"
                 alt="aply logo"
@@ -113,11 +113,11 @@ export function LoginPage({
                 className="mx-auto mb-5 h-8 w-auto md:h-9"
                 priority
               />
-              <h1 className="text-[30px] font-black leading-[1.15] tracking-[-0.02em] text-[#0B1227] md:text-[40px]">
+              <h1 className="whitespace-nowrap text-[22px] font-black leading-[1.15] tracking-[-0.02em] text-[#0B1227] sm:text-[30px] md:text-[38px]">
                 {brandTitle}
               </h1>
               {brandSubtitle ? (
-                <p className="mt-3 text-[14px] leading-relaxed text-[#8B95A1] md:text-[15.5px]">{brandSubtitle}</p>
+                <p className="mx-auto mt-3 max-w-md text-[14px] leading-relaxed text-[#8B95A1] md:text-[15.5px]">{brandSubtitle}</p>
               ) : null}
             </div>
           ) : null}
