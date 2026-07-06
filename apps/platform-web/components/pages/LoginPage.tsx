@@ -24,7 +24,12 @@ function sanitizeNextParam(raw: string | null): string | null {
 
 // defaultNext: ?next= 가 없을 때 로그인 후 이동할 기본 경로(예: launch 서브도메인은
 // /launch/dashboard). chromeless: 사이트 헤더/푸터 없이 폼만(서브도메인 재사용용).
-export function LoginPage({ defaultNext, chromeless }: { defaultNext?: string; chromeless?: boolean } = {}) {
+export function LoginPage({
+  defaultNext,
+  chromeless,
+  brandTitle,
+  brandSubtitle
+}: { defaultNext?: string; chromeless?: boolean; brandTitle?: string; brandSubtitle?: string } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   // 신청 페이지 등에서 `?next=/events/...` 로 들어오면 로그인 후 그 경로로 복귀.
@@ -97,6 +102,15 @@ export function LoginPage({ defaultNext, chromeless }: { defaultNext?: string; c
       {!chromeless && <Header />}
       <main className="container py-12 md:py-16">
         <section>
+          {brandTitle ? (
+            <div className="mx-auto mb-6 max-w-md text-center">
+              <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0B46E8]">
+                <span className="inline-block h-3.5 w-3.5 rotate-45 rounded-[3px]" style={{ background: "#B7FF5A" }} />
+              </span>
+              <h1 className="text-[24px] font-black tracking-[-0.02em] text-[#0B1227]">{brandTitle}</h1>
+              {brandSubtitle ? <p className="mt-1.5 text-[13.5px] text-[#8B95A1]">{brandSubtitle}</p> : null}
+            </div>
+          ) : null}
           <div className="mx-auto max-w-md rounded-2xl border border-border/60 bg-card p-6 md:p-8">
             <form className="space-y-4" onSubmit={handleSubmit}>
               <label className="block text-sm font-medium">
