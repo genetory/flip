@@ -56,8 +56,8 @@ export const WEEKS: WeekPlan[] = [
       {
         id: "w1s2",
         title: "관심 직무 3개 선정",
-        desc: "채용 공고를 둘러보며 마음이 가는 직무를 3개 이내로 좁혀봐요. 너무 넓게 잡기보다 집중할 방향을 정하는 게 좋아요.",
-        action: { label: "공고 둘러보기", href: "/positions" }
+        desc: "AI가 전공·강점을 분석해 어울리는 직무를 추천해드려요. 마음이 가는 직무를 3개 이내로 좁혀봐요.",
+        action: { label: "AI 직무 추천 받기", href: "/career-launch/jobs" }
       },
       {
         id: "w1s3",
@@ -176,6 +176,59 @@ export const COMPLETION_CRITERIA = [
 
 // 다음 오프라인 세미나(대시보드용) — 프로그램 시작 시점 기준 Week 1 세미나.
 export const NEXT_SEMINAR = { title: "Week 1 · 취업 가능성 진단 세미나", date: "2026-07-13 (월)", time: "19:00", place: "온라인 (Zoom)" };
+
+// Week 1 — AI 직무 추천(목). 실제로는 학생 프로필·전공·관심사를 분석해 생성.
+export type RecommendedJob = {
+  id: string;
+  role: string; // 추천 직무
+  match: number; // 매칭 점수(%)
+  reason: string; // 추천 이유
+  skills: string[]; // 관련 역량
+  query: string; // /positions 검색어
+};
+
+export const RECOMMENDED_JOBS: RecommendedJob[] = [
+  {
+    id: "rj1",
+    role: "글로벌 마케팅",
+    match: 92,
+    reason: "경영학 전공과 다국어 역량이 잘 맞아요. 해외 시장을 겨냥하는 국내 기업 수요가 많은 직무예요.",
+    skills: ["시장 분석", "콘텐츠 기획", "다국어 커뮤니케이션"],
+    query: "글로벌 마케팅"
+  },
+  {
+    id: "rj2",
+    role: "해외영업 · 글로벌 세일즈",
+    match: 88,
+    reason: "모국어·한국어·영어를 함께 쓰는 강점이 크게 작용해요. 외국인 인재를 적극 채용하는 분야예요.",
+    skills: ["협상", "고객 관리", "영어 · 모국어"],
+    query: "해외영업"
+  },
+  {
+    id: "rj3",
+    role: "고객경험(CX) · CS 매니저",
+    match: 83,
+    reason: "커뮤니케이션 강점과 꼼꼼함이 잘 어울려요. 글로벌 고객을 대응하는 팀에서 선호해요.",
+    skills: ["고객 응대", "문제 해결", "다국어"],
+    query: "고객경험"
+  },
+  {
+    id: "rj4",
+    role: "데이터 분석",
+    match: 76,
+    reason: "숫자로 성과를 정리하는 걸 좋아한다면 도전해볼 만해요. 기초 역량을 조금 더 쌓으면 경쟁력이 커져요.",
+    skills: ["엑셀 · SQL", "데이터 해석", "리포팅"],
+    query: "데이터 분석"
+  },
+  {
+    id: "rj5",
+    role: "브랜드 · 콘텐츠 마케팅",
+    match: 74,
+    reason: "기획·표현에 관심이 있다면 잘 맞아요. 포트폴리오를 함께 준비하면 더 강해져요.",
+    skills: ["콘텐츠 기획", "브랜딩", "SNS 운영"],
+    query: "콘텐츠 마케팅"
+  }
+];
 
 // 전체 진행률(완료 스텝 / 전체).
 export function overallProgress(): number {
