@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { COMPLETION_CRITERIA, overallProgress, STUDENT, WEEKS } from "../../../lib/launch/data";
-import { AutoSubmitStatus, Card, Pill, ProgressBar, SectionTitle, Stepper } from "../../../components/launch/ui";
+import { COMPLETION_CRITERIA, STUDENT, WEEKS } from "../../../lib/launch/data";
+import { AutoSubmitStatus, Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
+import { LiveWeekSteps, type DiagResult } from "../../../components/launch/live-week-steps";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -19,11 +20,33 @@ export default function LaunchDashboardPage() {
     if (isReady && !isAuthenticated) router.replace("/career-launch");
   }, [isReady, isAuthenticated, router]);
 
-  const progress = overallProgress();
+  // 진단·직무 선정 결과(localStorage)를 읽어 현재 주차 진행에 반영한다.
+  const [diag, setDiag] = useState<DiagResult>(null);
+  const [jobs, setJobs] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const d = window.localStorage.getItem("career-launch:diagnosis");
+      if (d) setDiag(JSON.parse(d));
+      const j = window.localStorage.getItem("career-launch:selected-jobs");
+      if (j) setJobs(JSON.parse(j));
+    } catch {
+      // localStorage 접근 불가 시 결과 없이 진행
+    }
+  }, []);
+
   const currentWeek = WEEKS.find((w) => w.week === STUDENT.currentWeek)!;
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
   const totalSteps = WEEKS.reduce((n, w) => n + w.steps.length, 0);
-  const doneSteps = WEEKS.reduce((n, w) => n + w.steps.filter((s) => s.done).length, 0);
+
+  // 현재 주차 스텝의 실제 완료 여부(진단/직무 결과 + data.done).
+  const isStepDone = (id: string, dataDone?: boolean) =>
+    id === "w1s1" ? Boolean(diag) : id === "w1s2" ? jobs.length > 0 : Boolean(dataDone);
+  const currentDone = currentWeek.steps.filter((s) => isStepDone(s.id, s.done)).length;
+  const doneSteps = WEEKS.reduce(
+    (n, w) => n + w.steps.filter((s) => (w.week === currentWeek.week ? isStepDone(s.id, s.done) : s.done)).length,
+    0
+  );
+  const progress = Math.round((doneSteps / totalSteps) * 100);
 
   if (!isReady || !isAuthenticated) {
     return (
@@ -81,7 +104,7 @@ export default function LaunchDashboardPage() {
                     <p className="mt-0.5 text-[13.5px] font-semibold leading-relaxed text-[#0B1227]">{currentWeek.goal}</p>
                   </div>
                   <div className="mt-3 flex items-center gap-2 text-[12px] text-[#8B95A1]">
-                    <span className="font-semibold text-[#4E5968]">스텝 {currentWeek.steps.filter((s) => s.done).length}/{currentWeek.steps.length} 완료</span>
+                    <span className="font-semibold text-[#4E5968]">스텝 {currentDone}/{currentWeek.steps.length} 완료</span>
                     <span>·</span>
                     <span>{currentWeek.seminar.online ? "온라인" : "오프라인"} 세미나 {currentWeek.seminar.date}</span>
                   </div>
@@ -92,7 +115,7 @@ export default function LaunchDashboardPage() {
               <div>
                 <SectionTitle sub="한 단계씩 끝내고 번호를 콕 눌러 체크해요">이번 주 해야 할 일</SectionTitle>
                 <Card className="md:!p-6">
-                  <Stepper steps={currentWeek.steps} />
+                  <LiveWeekSteps steps={currentWeek.steps} diag={diag} jobs={jobs} />
                 </Card>
               </div>
 

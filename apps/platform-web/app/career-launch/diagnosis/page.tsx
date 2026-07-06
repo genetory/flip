@@ -89,13 +89,23 @@ export default function LaunchDiagnosisPage() {
   const level = percent >= 75 ? "탄탄해요" : percent >= 45 ? "무난해요" : "이제 시작이에요";
   const weakAreas = QUESTIONS.filter((q) => (answers[q.id] ?? 0) <= 1);
 
+  // 결과를 저장해 대시보드에서 확인할 수 있게 한다(스텝을 강제로 잇지 않는다).
+  const submit = () => {
+    try {
+      window.localStorage.setItem("career-launch:diagnosis", JSON.stringify({ percent, level }));
+    } catch {
+      // 저장 불가 시에도 결과 화면은 보여준다
+    }
+    setSubmitted(true);
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-2xl px-5 pt-6 md:pt-10">
-          <Link href="/career-launch/week/1" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-            ← Week 1
+          <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+            ← 대시보드
           </Link>
 
           <div className="mt-3 rounded-2xl border border-[#CFE0FF] bg-[#EDF1FD] p-5 md:p-6">
@@ -150,7 +160,7 @@ export default function LaunchDiagnosisPage() {
               <button
                 type="button"
                 disabled={!allAnswered}
-                onClick={() => setSubmitted(true)}
+                onClick={submit}
                 className={`mt-6 flex w-full items-center justify-center rounded-xl py-3.5 text-[14.5px] font-bold transition ${
                   allAnswered ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
                 }`}
@@ -195,10 +205,10 @@ export default function LaunchDiagnosisPage() {
 
               <div className="mt-7 flex flex-col gap-2.5">
                 <Link
-                  href="/career-launch/jobs"
+                  href="/career-launch/dashboard"
                   className="flex items-center justify-center rounded-xl bg-[#0B46E8] py-3.5 text-[14.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
                 >
-                  다음: 직무 선정하기 →
+                  대시보드에서 확인하기 →
                 </Link>
                 <button
                   type="button"

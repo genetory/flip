@@ -39,8 +39,8 @@ export default function LaunchJobsPage() {
       <Header />
       <main className="flex-1 pb-28">
         <div className="mx-auto w-full max-w-4xl px-5 pt-6 md:pt-10">
-          <Link href="/career-launch/week/1" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-            ← Week 1
+          <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+            ← 대시보드
           </Link>
 
           {/* 헤더 */}
@@ -124,10 +124,10 @@ export default function LaunchJobsPage() {
           </p>
           {saved ? (
             <Link
-              href="/career-launch/week/1"
+              href="/career-launch/dashboard"
               className="rounded-xl bg-[#0B46E8] px-5 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
             >
-              Week 1로 돌아가기 →
+              대시보드에서 확인하기 →
             </Link>
           ) : (
             <button
