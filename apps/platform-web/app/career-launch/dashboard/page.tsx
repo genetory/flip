@@ -22,6 +22,8 @@ export default function LaunchDashboardPage() {
   const progress = overallProgress();
   const currentWeek = WEEKS.find((w) => w.week === STUDENT.currentWeek)!;
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
+  const totalSteps = WEEKS.reduce((n, w) => n + w.steps.length, 0);
+  const doneSteps = WEEKS.reduce((n, w) => n + w.steps.filter((s) => s.done).length, 0);
 
   if (!isReady || !isAuthenticated) {
     return (
@@ -38,26 +40,34 @@ export default function LaunchDashboardPage() {
         {/* 포지션 탐색 페이지와 동일한 컨텐츠 폭(max-w-4xl). 모바일 1단 / 데스크탑 2단 */}
         <div className="mx-auto w-full max-w-4xl px-5 pt-6 md:pt-10">
           {/* 인사 + 진행률 (전체 폭) */}
-          <Card className="md:!p-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-[13px] text-[#8B95A1]">{STUDENT.cohort}</p>
-                <p className="text-[18px] font-black text-[#0B1227] md:text-[22px]">{displayName}님</p>
+          <Card className="md:!p-7">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[12.5px] font-semibold text-[#8B95A1]">{STUDENT.cohort}</p>
+                <h1 className="mt-1 text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[27px]">{displayName}님, 반가워요 👋</h1>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-[#4E5968]">
+                  지금은 <b className="font-bold text-[#0B46E8]">Week {currentWeek.week}</b> · {currentWeek.title} 단계예요.
+                </p>
               </div>
               <Pill tone="blue">Week {STUDENT.currentWeek} / 4</Pill>
             </div>
-            <div className="mt-4 md:mt-5">
-              <div className="mb-1.5 flex items-center justify-between text-[12.5px] md:text-[13.5px]">
-                <span className="font-semibold text-[#4E5968]">전체 진행률</span>
-                <span className="font-black text-[#0B46E8]">{progress}%</span>
+            <div className="mt-5 rounded-2xl bg-[#F6F8FB] p-4 md:mt-6 md:p-5">
+              <div className="mb-2.5 flex items-end justify-between">
+                <div>
+                  <p className="text-[13px] font-bold text-[#333D4B]">전체 진행률</p>
+                  <p className="mt-0.5 text-[12px] text-[#8B95A1]">완료한 스텝 {doneSteps}/{totalSteps}</p>
+                </div>
+                <span className="text-[26px] font-black leading-none text-[#0B46E8] md:text-[30px]">
+                  {progress}<span className="text-[16px]">%</span>
+                </span>
               </div>
-              <ProgressBar value={progress} />
+              <ProgressBar value={progress} height={12} />
             </div>
           </Card>
 
-          <div className="mt-6 grid gap-6 md:mt-8 lg:grid-cols-[1.55fr_1fr] lg:gap-7">
+          <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
             {/* ── 메인 컬럼: 이번 주에 실제로 해야 할 일 ── */}
-            <div className="space-y-6 md:space-y-7">
+            <div className="space-y-7 md:space-y-8">
               {/* 이번 주 개요 + 목표 */}
               <div>
                 <SectionTitle sub={currentWeek.subtitle}>이번 주 · Week {currentWeek.week}</SectionTitle>
@@ -97,7 +107,7 @@ export default function LaunchDashboardPage() {
             </div>
 
             {/* ── 사이드바 컬럼 ── */}
-            <div className="space-y-6 md:space-y-7">
+            <div className="space-y-7 md:space-y-8">
               {/* 이번 주 세미나 */}
               <div>
                 <SectionTitle>이번 주 세미나</SectionTitle>
@@ -116,11 +126,11 @@ export default function LaunchDashboardPage() {
               {/* 주차별 진행 */}
               <div>
                 <SectionTitle>4주 전체 진행</SectionTitle>
-                <div className="space-y-2.5">
+                <div className="space-y-3">
                   {WEEKS.map((w) => {
                     const isCurrent = w.week === STUDENT.currentWeek;
                     return (
-                      <Link key={w.week} href={`/career-launch/week/${w.week}`}>
+                      <Link key={w.week} href={`/career-launch/week/${w.week}`} className="block">
                         <Card className={`flex items-center justify-between !p-4 ${isCurrent ? "!border-[#0B46E8]/40 ring-1 ring-[#0B46E8]/20" : ""}`}>
                           <div className="flex items-center gap-3">
                             <span className={`flex h-8 w-8 flex-none items-center justify-center rounded-lg text-[12.5px] font-black ${w.week <= STUDENT.currentWeek ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#B0B8C1]"}`}>W{w.week}</span>

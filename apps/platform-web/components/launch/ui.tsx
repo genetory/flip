@@ -77,31 +77,31 @@ export function Stepper({ steps }: { steps: Step[] }) {
         const done = state[s.id];
         const last = i === steps.length - 1;
         return (
-          <li key={s.id} className="flex gap-3.5">
+          <li key={s.id} className="flex gap-4">
             {/* 번호/체크 + 연결선 */}
             <div className="flex flex-col items-center">
               <button
                 type="button"
                 onClick={() => setState((prev) => ({ ...prev, [s.id]: !prev[s.id] }))}
                 aria-label={done ? "완료 취소" : "완료로 표시"}
-                className={`flex h-8 w-8 flex-none items-center justify-center rounded-full text-[13px] font-black transition ${
-                  done ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#8B95A1] hover:border-[#0B46E8]/50"
+                className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[14px] font-black shadow-sm transition ${
+                  done ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#4E5968] hover:border-[#0B46E8] hover:text-[#0B46E8]"
                 }`}
               >
                 {done ? "✓" : i + 1}
               </button>
-              {!last ? <span className="mt-1 w-[2px] flex-1 rounded bg-[#EAECEF]" /> : null}
+              {!last ? <span className="mt-1.5 w-[2px] flex-1 rounded bg-[#E5E8EB]" /> : null}
             </div>
             {/* 내용 */}
-            <div className={`min-w-0 flex-1 ${last ? "" : "pb-5"}`}>
-              <p className={`text-[15px] font-bold tracking-[-0.01em] ${done ? "text-[#8B95A1] line-through" : "text-[#191F28]"}`}>{s.title}</p>
-              <p className="mt-1 text-[13px] leading-relaxed text-[#4E5968]">{s.desc}</p>
+            <div className={`min-w-0 flex-1 ${last ? "pb-0.5" : "pb-7"}`}>
+              <p className={`text-[15.5px] font-bold leading-snug tracking-[-0.01em] md:text-[16px] ${done ? "text-[#B0B8C1] line-through" : "text-[#191F28]"}`}>{s.title}</p>
+              <p className={`mt-1.5 text-[13.5px] leading-[1.7] ${done ? "text-[#B0B8C1]" : "text-[#4E5968]"}`}>{s.desc}</p>
               {s.action ? (
                 <Link
                   href={s.action.href}
-                  className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E0E8FC]"
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#EDF1FD] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]"
                 >
-                  {s.action.label} →
+                  {s.action.label} <span aria-hidden>→</span>
                 </Link>
               ) : null}
             </div>
@@ -174,12 +174,15 @@ export function SubmissionBox({ label, initialStatus }: { label: string; initial
   );
 }
 
-// 섹션 제목.
+// 섹션 제목 — 좌측 라임 악센트 바 + 큰 제목으로 위계를 명확히.
 export function SectionTitle({ children, sub }: { children: React.ReactNode; sub?: string }) {
   return (
-    <div className="mb-3">
-      <h2 className="text-[16px] font-extrabold tracking-[-0.01em] text-[#0B1227]">{children}</h2>
-      {sub ? <p className="mt-0.5 text-[13px] text-[#8B95A1]">{sub}</p> : null}
+    <div className="mb-4">
+      <div className="flex items-center gap-2">
+        <span className="h-[15px] w-[3px] flex-none rounded-full bg-[#0B46E8]" />
+        <h2 className="text-[17px] font-extrabold tracking-[-0.01em] text-[#0B1227] md:text-[18.5px]">{children}</h2>
+      </div>
+      {sub ? <p className="mt-1.5 pl-[11px] text-[13px] leading-relaxed text-[#8B95A1]">{sub}</p> : null}
     </div>
   );
 }

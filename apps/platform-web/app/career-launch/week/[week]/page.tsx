@@ -43,7 +43,7 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
             <p className="mt-1 text-[14px] font-semibold leading-relaxed text-[#0B1227] md:text-[15px]">{plan.goal}</p>
           </div>
 
-          <div className="mt-7 grid gap-6 md:mt-8 lg:grid-cols-[1.55fr_1fr] lg:gap-7">
+          <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
             {/* ── 메인: 스텝별 해야 할 일 ── */}
             <div>
               <SectionTitle sub={`총 ${plan.steps.length}단계 · ${doneCount}단계 완료 · 각 단계를 완료하면 번호를 눌러 체크하세요`}>
@@ -55,7 +55,7 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
             </div>
 
             {/* ── 사이드바 ── */}
-            <div className="space-y-6">
+            <div className="space-y-7">
               {/* 세미나 정보 */}
               <div>
                 <SectionTitle>세미나 정보</SectionTitle>
