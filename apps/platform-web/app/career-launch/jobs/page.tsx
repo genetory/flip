@@ -56,15 +56,19 @@ export default function LaunchJobsPage() {
   // 진입 — 세션 로딩 후 1회. 이전 대화가 있으면 이어서 고르게, 없으면 질문부터.
   useEffect(() => {
     if (!isReady || seeded) return;
+    // ?restart=1 로 오면(대시보드 '다시 선정') 이전 대화를 무시하고 처음부터 시작.
+    const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
     let prevAnswers: string[] = [];
     let prevSelected: string[] = [];
-    try {
-      const s = window.localStorage.getItem(KEY_SEL);
-      if (s) prevSelected = JSON.parse(s);
-      const c = window.localStorage.getItem(KEY_COND);
-      if (c) prevAnswers = (JSON.parse(c) as { answers?: string[] }).answers ?? [];
-    } catch {
-      // 접근 실패 시 새 대화
+    if (!restart) {
+      try {
+        const s = window.localStorage.getItem(KEY_SEL);
+        if (s) prevSelected = JSON.parse(s);
+        const c = window.localStorage.getItem(KEY_COND);
+        if (c) prevAnswers = (JSON.parse(c) as { answers?: string[] }).answers ?? [];
+      } catch {
+        // 접근 실패 시 새 대화
+      }
     }
     if (prevAnswers.length) {
       const q = prevAnswers.join(" ");

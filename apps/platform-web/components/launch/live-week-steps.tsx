@@ -82,7 +82,7 @@ export function LiveWeekSteps({
                     <p className="min-w-0 text-[13.5px] font-bold text-[#191F28]">
                       선정한 직무 <span className="text-[#0B46E8]">{jobs.length}개</span> · {pickedRoles.join(" · ")}
                     </p>
-                    <Link href="/career-launch/jobs" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">
+                    <Link href="/career-launch/jobs?restart=1" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">
                       다시 선정
                     </Link>
                   </div>
