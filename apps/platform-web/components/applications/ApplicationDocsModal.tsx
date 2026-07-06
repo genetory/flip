@@ -2,10 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X } from "@phosphor-icons/react/dist/ssr";
-import { ResumeSheet } from "../resume-maker/ResumePreview";
 import { CoverLetterSheet } from "../resume-maker/CoverLetterToolPreview";
-import { DEFAULT_DESIGN, type ResumeDesignSettings } from "../../lib/resume-maker-types";
-import type { ResumeContent } from "../../lib/member-profile-client";
+import { SharedResumePage } from "../pages/SharedResumePage";
+import type { ResumeContent, SharedResume } from "../../lib/member-profile-client";
 
 const A4_W = 794;
 
@@ -39,10 +38,13 @@ export function ApplicationDocsModal({
     const ro = new ResizeObserver(sync);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [tab]);
 
-  const design: ResumeDesignSettings =
-    ((resumeContent as { builder?: { design?: ResumeDesignSettings } } | null)?.builder?.design) ?? DEFAULT_DESIGN;
+  // 제출 스냅샷을 공유뷰(resume-maker /resume/share)와 동일하게 렌더하기 위해
+  // 최소 SharedResume 형태로 감싼다. 운영자 시점이므로 연락처까지 노출.
+  const sharedResume: SharedResume | null = resumeContent
+    ? ({ content: resumeContent, viewerScope: "operator" } as unknown as SharedResume)
+    : null;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 p-4" onClick={onClose}>
@@ -73,14 +75,15 @@ export function ApplicationDocsModal({
           </button>
         </div>
 
-        <div ref={boxRef} className="overflow-hidden rounded-lg bg-[#F2F4F6] p-2">
-          {/* zoom 은 transform 과 달리 레이아웃 높이도 함께 축소 → 컨테이너가 자연스럽게 맞춰짐 */}
-          {tab === "resume" && resumeContent ? (
-            <div style={{ zoom: scale } as React.CSSProperties}>
-              <ResumeSheet content={resumeContent} design={design} lang="ko" />
-            </div>
-          ) : null}
-          {tab === "cover" && coverLetter ? (
+        {/* 이력서: 공유 페이지(resume-maker)와 동일한 뷰로 렌더 */}
+        {tab === "resume" && sharedResume ? (
+          <div className="overflow-hidden rounded-lg bg-white">
+            <SharedResumePage slug="" preloaded={sharedResume} />
+          </div>
+        ) : null}
+        {/* 자기소개서: 기존 시트로 렌더(zoom 축소) */}
+        {tab === "cover" && coverLetter ? (
+          <div ref={boxRef} className="overflow-hidden rounded-lg bg-[#F2F4F6] p-2">
             <div style={{ zoom: scale } as React.CSSProperties}>
               <CoverLetterSheet
                 items={(coverLetter.items ?? []).map((it) => ({ id: it.id ?? "", prompt: it.prompt ?? "", answer: it.answer ?? "" }))}
@@ -89,8 +92,8 @@ export function ApplicationDocsModal({
                 emptyLabel=""
               />
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

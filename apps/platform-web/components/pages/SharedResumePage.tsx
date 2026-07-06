@@ -33,13 +33,16 @@ function useTr() {
 
 type Layout = "single" | "two-column";
 
-export function SharedResumePage({ slug }: { slug: string }) {
+// preloaded: 슬러그로 API 조회하지 않고 이미 가진 이력서(예: 운영콘솔의 제출 스냅샷)를
+// 그대로 공유뷰로 렌더할 때 넘긴다. 넘기면 fetch 를 생략한다.
+export function SharedResumePage({ slug, preloaded }: { slug: string; preloaded?: SharedResume }) {
   const tr = useTr();
-  const [resume, setResume] = useState<SharedResume | null>(null);
+  const [resume, setResume] = useState<SharedResume | null>(preloaded ?? null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [layout, setLayout] = useState<Layout>("single");
 
   useEffect(() => {
+    if (preloaded) return; // 미리 받은 이력서면 조회 생략
     let cancelled = false;
     void (async () => {
       try {
@@ -52,7 +55,7 @@ export function SharedResumePage({ slug }: { slug: string }) {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, preloaded]);
 
   function handlePrint() {
     if (typeof window === "undefined") return;
