@@ -3,6 +3,7 @@
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
@@ -103,12 +104,21 @@ export function LoginPage({
       <main className="container py-12 md:py-16">
         <section>
           {brandTitle ? (
-            <div className="mx-auto mb-6 max-w-md text-center">
-              <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0B46E8]">
-                <span className="inline-block h-3.5 w-3.5 rotate-45 rounded-[3px]" style={{ background: "#B7FF5A" }} />
-              </span>
-              <h1 className="text-[24px] font-black tracking-[-0.02em] text-[#0B1227]">{brandTitle}</h1>
-              {brandSubtitle ? <p className="mt-1.5 text-[13.5px] text-[#8B95A1]">{brandSubtitle}</p> : null}
+            <div className="mx-auto mb-8 max-w-md text-center">
+              <Image
+                src="/img_logo.webp"
+                alt="aply logo"
+                width={180}
+                height={48}
+                className="mx-auto mb-5 h-8 w-auto md:h-9"
+                priority
+              />
+              <h1 className="text-[30px] font-black leading-[1.15] tracking-[-0.02em] text-[#0B1227] md:text-[40px]">
+                {brandTitle}
+              </h1>
+              {brandSubtitle ? (
+                <p className="mt-3 text-[14px] leading-relaxed text-[#8B95A1] md:text-[15.5px]">{brandSubtitle}</p>
+              ) : null}
             </div>
           ) : null}
           <div className="mx-auto max-w-md rounded-2xl border border-border/60 bg-card p-6 md:p-8">
