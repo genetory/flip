@@ -6,6 +6,7 @@ import { RECOMMENDED_JOBS, STUDENT } from "../../../lib/launch/data";
 import { Card, Pill, SectionTitle } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
+import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
 // Week 1 — 프로그램 안에서 AI가 추천한 직무를 보고, 관심 직무를 최대 3개 선택한다.
 // (추천·선택 저장은 지금은 로컬 목업. 이후 프로필 분석/서버 저장 연동)
@@ -13,6 +14,8 @@ const MAX_PICK = 3;
 const STORAGE_KEY = "career-launch:selected-jobs";
 
 export default function LaunchJobsPage() {
+  const { user } = useAuthSession();
+  const displayName = user?.name?.trim() || user?.email || STUDENT.name;
   const [picked, setPicked] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
 
@@ -50,7 +53,7 @@ export default function LaunchJobsPage() {
               <p className="text-[12.5px] font-bold text-[#0B46E8]">AI 직무 추천</p>
             </div>
             <h1 className="mt-1.5 text-[20px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">
-              {STUDENT.name}님께 어울리는 직무예요
+              {displayName}님께 어울리는 직무예요
             </h1>
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#4E5968] md:text-[14px]">
               전공·관심사·강점을 바탕으로 추천했어요. 마음이 가는 <b className="text-[#0B46E8]">직무를 최대 {MAX_PICK}개</b> 골라
