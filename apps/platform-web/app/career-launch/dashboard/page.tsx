@@ -20,15 +20,18 @@ export default function LaunchDashboardPage() {
     if (isReady && !isAuthenticated) router.replace("/career-launch");
   }, [isReady, isAuthenticated, router]);
 
-  // 진단·직무 선정 결과(localStorage)를 읽어 현재 주차 진행에 반영한다.
+  // 진단·직무 선정·재료 결과(localStorage)를 읽어 현재 주차 진행에 반영한다.
   const [diag, setDiag] = useState<DiagResult>(null);
   const [jobs, setJobs] = useState<string[]>([]);
+  const [materials, setMaterials] = useState(0);
   useEffect(() => {
     try {
       const d = window.localStorage.getItem("career-launch:diagnosis");
       if (d) setDiag(JSON.parse(d));
       const j = window.localStorage.getItem("career-launch:selected-jobs");
       if (j) setJobs(JSON.parse(j));
+      const m = window.localStorage.getItem("career-launch:materials");
+      if (m) setMaterials((JSON.parse(m) as unknown[]).length);
     } catch {
       // localStorage 접근 불가 시 결과 없이 진행
     }
@@ -40,7 +43,7 @@ export default function LaunchDashboardPage() {
 
   // 현재 주차 스텝의 실제 완료 여부(진단/직무 결과 + data.done).
   const isStepDone = (id: string, dataDone?: boolean) =>
-    id === "w1s1" ? Boolean(diag) : id === "w1s2" ? jobs.length > 0 : Boolean(dataDone);
+    id === "w1s1" ? Boolean(diag) : id === "w1s2" ? jobs.length > 0 : id === "w1s3" ? materials > 0 : Boolean(dataDone);
   const currentDone = currentWeek.steps.filter((s) => isStepDone(s.id, s.done)).length;
   const doneSteps = WEEKS.reduce(
     (n, w) => n + w.steps.filter((s) => (w.week === currentWeek.week ? isStepDone(s.id, s.done) : s.done)).length,
@@ -117,7 +120,7 @@ export default function LaunchDashboardPage() {
               <div>
                 <SectionTitle sub="한 단계씩 끝내고 번호를 콕 눌러 체크해요">이번 주 해야 할 일</SectionTitle>
                 <Card className="md:!p-6">
-                  <LiveWeekSteps steps={currentWeek.steps} diag={diag} jobs={jobs} />
+                  <LiveWeekSteps steps={currentWeek.steps} diag={diag} jobs={jobs} materials={materials} />
                 </Card>
               </div>
 

@@ -62,7 +62,8 @@ export const WEEKS: WeekPlan[] = [
       {
         id: "w1s3",
         title: "이력서에 담을 재료 모으기",
-        desc: "고른 직무가 원하는 역량·자격을 정리하고, 내 경험·프로젝트·성과를 떠오르는 대로 메모해둬요. 다음 주 이력서 작성이 훨씬 수월해져요."
+        desc: "선택한 직무에 맞춘 질문에 채팅하듯 답하면, 그대로 이력서 재료가 돼요. 다음 주 이력서 작성이 훨씬 수월해져요.",
+        action: { label: "채팅으로 정리하기", href: "/career-launch/materials" }
       }
     ],
     submission: { required: true, status: "todo", label: "목표 직무 + 이력서 재료", source: "정한 목표 직무와 정리한 경험 메모" },

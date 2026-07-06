@@ -9,16 +9,27 @@ export type DiagResult = { percent: number; level: string } | null;
 // 대시보드용 스텝 목록 — 스텝을 강제로 이어붙이지 않고, 각 스텝을 완료하면
 // 그 결과(진단 준비도 / 선정 직무)를 여기서 바로 보여준다. 사용자는 결과를
 // 확인하고 원하는 다음 스텝을 고른다.
-export function LiveWeekSteps({ steps, diag, jobs }: { steps: Step[]; diag: DiagResult; jobs: string[] }) {
-  // 결과로 완료되지 않는 일반 스텝(예: 재료 모으기)은 수동 체크.
+export function LiveWeekSteps({
+  steps,
+  diag,
+  jobs,
+  materials
+}: {
+  steps: Step[];
+  diag: DiagResult;
+  jobs: string[];
+  materials: number;
+}) {
+  // 결과로 완료되지 않는 일반 스텝은 수동 체크.
   const [manual, setManual] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(steps.map((s) => [s.id, Boolean(s.done)]))
   );
 
-  const resultStep = (id: string) => id === "w1s1" || id === "w1s2";
+  const resultStep = (id: string) => id === "w1s1" || id === "w1s2" || id === "w1s3";
   const isDone = (s: Step) => {
     if (s.id === "w1s1") return Boolean(diag);
     if (s.id === "w1s2") return jobs.length > 0;
+    if (s.id === "w1s3") return materials > 0;
     return Boolean(manual[s.id]);
   };
 
@@ -73,6 +84,17 @@ export function LiveWeekSteps({ steps, diag, jobs }: { steps: Step[]; diag: Diag
                     </p>
                     <Link href="/career-launch/jobs" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">
                       다시 선정
+                    </Link>
+                  </div>
+                </div>
+              ) : s.id === "w1s3" && materials > 0 ? (
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[13.5px] font-bold text-[#191F28]">
+                      이력서 재료 <span className="text-[#0B46E8]">{materials}개</span> 정리 완료
+                    </p>
+                    <Link href="/career-launch/materials" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">
+                      다시 정리
                     </Link>
                   </div>
                 </div>
