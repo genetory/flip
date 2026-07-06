@@ -11,8 +11,10 @@ import {
   type CandidateEducationStatus,
   type CandidateEducationType,
   type CandidateVisaType,
+  type ResumeContent,
   type SharedResume
 } from "../../lib/member-profile-client";
+import { ResumeBuilderPreviewPage } from "../resume-maker/ResumeBuilderPreviewPage";
 
 // ---------------------------------------------------------------------------
 // Public, anonymous resume share view.
@@ -114,6 +116,16 @@ export function SharedResumePage({ slug, preloaded }: { slug: string; preloaded?
     return <ResumeSheetSkeleton />;
   }
 
+  // 운영자 시점(운영콘솔에서 로그인 상태로 연 경우)에는 resume-maker 미리보기와
+  // 동일한 뷰로 보여준다. 공개 공유 링크(public)는 기존 공유뷰 그대로.
+  if (resume.viewerScope === "operator") {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC]">
+        <ResumeBuilderPreviewPage resumeId="" embedded preloadedContent={(resume.content as ResumeContent) ?? null} />
+      </div>
+    );
+  }
+
   const c = resume.content ?? {};
   // 한국어 번역 캐시 — 외국어로 쓴 자기소개·요약·경력·활동 description 옆에
   // KO 라벨 인용 박스로 표시. 보는 사람(채용 담당자) 이 모국어로 읽게.
@@ -151,20 +163,7 @@ export function SharedResumePage({ slug, preloaded }: { slug: string; preloaded?
     <div className="min-h-screen bg-[#F8FAFC]">
       <main className="container pb-16 pt-6 md:pt-10">
         <div className="mx-auto max-w-4xl">
-          {/* 운영자 시점일 때만 보이는 안내 — 연락처가 노출되고 있다는 컨텍스트. */}
-          {resume.viewerScope === "operator" ? (
-            <div className="resume-toolbar mb-3 inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-[12px] font-medium text-amber-800">
-              <span aria-hidden>🔒</span>
-              {tr(
-                "운영자 시점 — 전화·이메일·주소까지 노출됩니다.",
-                "Operator view — phone, email and residence are shown.",
-                "运营者视图 — 包含电话/邮箱/居住地。",
-                "Chế độ vận hành — hiển thị cả điện thoại / email / địa chỉ.",
-                "運営者ビュー — 電話・メール・住所まで表示。",
-                "Tampilan operator — termasuk telepon, email, dan domisili."
-              )}
-            </div>
-          ) : null}
+          {/* 운영자 시점은 위에서 미리보기 뷰로 렌더되므로 여기(공개 공유뷰)엔 배너가 없다. */}
 
           {/* Top bar — Aply 로고+슬로건(왼쪽) + 레이아웃 토글·PDF(오른쪽). 인쇄 시 숨김. */}
           <div className="resume-toolbar mb-5 flex flex-wrap items-center justify-between gap-2">
