@@ -2,158 +2,102 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { recommendJobs, STUDENT, type RecommendedJob } from "../../../lib/launch/data";
+import { RECOMMENDED_JOBS, STUDENT, type RecommendedJob } from "../../../lib/launch/data";
+import { requestJobChat, type JobChatMsg } from "../../../lib/launch/job-chat-client";
 import { Pill } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
-// Week 1 — AI와 대화하며 관심 직무를 이끌어낸다. 질문 → 채팅 안에서 추천 직무를
-// 보여주고 고르게 → 마음에 드는 3개가 나올 때까지 계속 대화하며 새 추천 제시.
-// (질문·추천은 지금 목업. 이후 실제 AI 대화로 연동)
+// Week 1 — AI와 실제로 대화하며 관심 직무를 이끌어낸다. 백엔드(/career-launch/job-chat)가
+// 대화를 이어받아 다음 질문 + 후보 풀에서 고른 추천 직무를 돌려주고, 채팅 안에서 바로
+// 골라 마음에 드는 3개가 나올 때까지 대화한다.
 const MAX_PICK = 3;
-const BATCH = 3;
 const KEY_SEL = "career-launch:selected-jobs";
-const KEY_COND = "career-launch:job-conditions";
 
 type Msg =
   | { role: "bot" | "user"; kind: "text"; text: string }
   | { role: "bot"; kind: "jobs"; jobs: RecommendedJob[] };
-
-const ACKS = ["좋아요 🙂", "그렇군요!", "잘 들었어요 👍", "메모해뒀어요."];
-const QUESTIONS = [
-  "먼저, 전공이나 학과가 어떻게 되나요? (없으면 관심 분야도 좋아요)",
-  "요즘 어떤 분야나 산업에 관심이 가요? 예를 들면 IT·게임·마케팅·금융·디자인처럼요.",
-  "평소 어떤 일을 할 때 시간 가는 줄 몰랐어요? 스스로 잘한다고 느낀 것도 좋아요.",
-  "이런 일 중에 끌리는 게 있어요? — 만들기(개발)·분석(데이터)·꾸미기(디자인)·기획·알리기(마케팅)·사람 만나기(영업) 중에서요."
-];
-// 추천 단계에서 취향을 더 파고들어 좁혀가는 후속 질문(순서대로 하나씩).
-const FOLLOWUPS = [
-  "이 중에 눈길 가는 게 있었어요? 아니면 전혀 다른 쪽이 좋을까요?",
-  "일할 때 사람들과 협업하는 게 좋아요, 혼자 몰입하는 게 좋아요?",
-  "안정적인 환경이 좋아요, 새로운 걸 빠르게 시도해보는 게 좋아요?",
-  "숫자·데이터를 다루는 일은 어때요 — 재밌을 것 같아요, 부담될 것 같아요?",
-  "글쓰기나 발표처럼 표현하는 일은 어떤가요?",
-  "선호하는 분야나 산업이 더 있으면 알려줘요. 그쪽으로 좁혀서 찾아볼게요."
-];
 
 export default function LaunchJobsPage() {
   const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
   const [seeded, setSeeded] = useState(false);
-  const [phase, setPhase] = useState<"asking" | "recommending">("asking");
   const [messages, setMessages] = useState<Msg[]>([]);
-  const [qi, setQi] = useState(0);
-  const [query, setQuery] = useState("");
-  const [answers, setAnswers] = useState<string[]>([]);
-  const [shownIds, setShownIds] = useState<string[]>([]);
-  const [followupIdx, setFollowupIdx] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const endRef = useRef<HTMLDivElement>(null);
 
-  // 다음 추천 묶음 — 아직 안 보여준 + 선택 안 한 직무에서 상위 몇 개.
-  // 다 보여줬으면(바닥나면) 다시 상위부터 — 3개 고를 때까지 끊기지 않게.
-  const nextBatch = (q: string, shown: string[], sel: string[]) => {
-    const all = recommendJobs(q).filter((j) => !sel.includes(j.role));
-    let batch = all.filter((j) => !shown.includes(j.id)).slice(0, BATCH);
-    if (batch.length === 0) batch = all.slice(0, BATCH);
-    return { batch, newShown: [...shown, ...batch.map((j) => j.id)] };
+  const rolesToJobs = (roles: string[]): RecommendedJob[] =>
+    roles.map((r) => RECOMMENDED_JOBS.find((j) => j.role === r)).filter((j): j is RecommendedJob => Boolean(j));
+
+  const appendFromAi = (reply: string, recommend: string[]) => {
+    setMessages((m) => {
+      const add: Msg[] = [];
+      if (reply) add.push({ role: "bot", kind: "text", text: reply });
+      const jobs = rolesToJobs(recommend);
+      if (jobs.length) add.push({ role: "bot", kind: "jobs", jobs });
+      return [...m, ...add];
+    });
   };
 
-  // 진입 — 세션 로딩 후 1회. 이전 대화가 있으면 이어서 고르게, 없으면 질문부터.
+  // 진입 — 세션 로딩 후 1회. AI에게 첫 인사·질문을 요청한다. ?restart=1 이면 선택 초기화.
   useEffect(() => {
     if (!isReady || seeded) return;
-    // ?restart=1 로 오면(대시보드 '다시 선정') 이전 대화를 무시하고 처음부터 시작.
+    setSeeded(true);
     const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
-    let prevAnswers: string[] = [];
-    let prevSelected: string[] = [];
+    let sel: string[] = [];
     if (!restart) {
       try {
         const s = window.localStorage.getItem(KEY_SEL);
-        if (s) prevSelected = JSON.parse(s);
-        const c = window.localStorage.getItem(KEY_COND);
-        if (c) prevAnswers = (JSON.parse(c) as { answers?: string[] }).answers ?? [];
+        if (s) sel = JSON.parse(s);
       } catch {
-        // 접근 실패 시 새 대화
+        // 무시
       }
     }
-    if (prevAnswers.length) {
-      const q = prevAnswers.join(" ");
-      const { batch, newShown } = nextBatch(q, [], prevSelected);
-      setAnswers(prevAnswers);
-      setSelected(prevSelected);
-      setQuery(q);
-      setShownIds(newShown);
-      setPhase("recommending");
-      setMessages([
-        { role: "bot", kind: "text", text: `${displayName}님, 다시 왔네요 👋 이어서 골라볼까요? 마음에 드는 직무를 눌러 고르면 돼요.` },
-        { role: "bot", kind: "jobs", jobs: batch }
-      ]);
-    } else {
-      setMessages([
-        { role: "bot", kind: "text", text: `${displayName}님, 반가워요 👋 몇 가지만 이야기 나눠보면 어울리는 직무를 찾아드릴게요.` },
-        { role: "bot", kind: "text", text: QUESTIONS[0] }
-      ]);
-    }
-    setSeeded(true);
+    setSelected(sel);
+    setLoading(true);
+    void (async () => {
+      try {
+        const { reply, recommend } = await requestJobChat([], sel);
+        appendFromAi(reply || `${displayName}님, 반가워요 👋 어떤 일에 관심이 있는지 편하게 이야기해줄래요?`, recommend);
+      } catch {
+        setMessages([{ role: "bot", kind: "text", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
+      } finally {
+        setLoading(false);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady, seeded]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages]);
+  }, [messages, loading]);
 
   const send = (raw: string) => {
     const a = raw.trim();
-    if (!a) return;
+    if (!a || loading) return;
     setInput("");
-
-    if (phase === "asking") {
-      const nextAnswers = [...answers, a];
-      const msgs: Msg[] = [...messages, { role: "user", kind: "text", text: a }];
-      const nextI = qi + 1;
-      if (nextI < QUESTIONS.length) {
-        msgs.push({ role: "bot", kind: "text", text: ACKS[qi % ACKS.length] });
-        msgs.push({ role: "bot", kind: "text", text: QUESTIONS[nextI] });
-        setQi(nextI);
-        setAnswers(nextAnswers);
-        setMessages(msgs);
-      } else {
-        const q = nextAnswers.join(" ");
-        const { batch, newShown } = nextBatch(q, [], selected);
-        msgs.push({ role: "bot", kind: "text", text: "이야기해준 걸 바탕으로 이런 직무들이 어울릴 것 같아요 👇 마음에 들면 눌러서 골라요." });
-        msgs.push({ role: "bot", kind: "jobs", jobs: batch });
-        // 바로 다른 걸 던지지 않고, 후속 질문으로 취향을 더 파고든다.
-        msgs.push({ role: "bot", kind: "text", text: FOLLOWUPS[0] });
-        setFollowupIdx(1);
-        setAnswers(nextAnswers);
-        setQuery(q);
-        setShownIds(newShown);
-        setPhase("recommending");
-        setMessages(msgs);
+    const nextMsgs: Msg[] = [...messages, { role: "user", kind: "text", text: a }];
+    setMessages(nextMsgs);
+    setLoading(true);
+    void (async () => {
+      try {
+        const history: JobChatMsg[] = nextMsgs
+          .filter((m): m is Extract<Msg, { kind: "text" }> => m.kind === "text")
+          .map((m) => ({ role: m.role, text: m.text }));
+        const { reply, recommend } = await requestJobChat(history, selected);
+        appendFromAi(reply, recommend);
+      } catch {
+        setMessages((m) => [...m, { role: "bot", kind: "text", text: "잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?" }]);
+      } finally {
+        setLoading(false);
       }
-      return;
-    }
-
-    // recommending — 반응을 반영해 새 추천 + 후속 질문으로 계속 이끈다(3개 고를 때까지).
-    const nq = `${query} ${a}`.trim();
-    const { batch, newShown } = nextBatch(nq, shownIds, selected);
-    const msgs: Msg[] = [...messages, { role: "user", kind: "text", text: a }];
-    msgs.push({ role: "bot", kind: "text", text: ACKS[followupIdx % ACKS.length] });
-    msgs.push({ role: "bot", kind: "jobs", jobs: batch });
-    setShownIds(newShown);
-    // 아직 3개를 못 골랐으면 후속 질문으로 취향을 더 파고든다(질문 순환·반복).
-    const remaining = MAX_PICK - selected.length;
-    if (remaining > 0) {
-      msgs.push({ role: "bot", kind: "text", text: `${FOLLOWUPS[followupIdx % FOLLOWUPS.length]} (${remaining}개 더 고르면 돼요)` });
-      setFollowupIdx((n) => n + 1);
-    }
-    setQuery(nq);
-    setMessages(msgs);
+    })();
   };
 
   const toggleJob = (role: string) => {
@@ -173,7 +117,6 @@ export default function LaunchJobsPage() {
   const save = () => {
     try {
       window.localStorage.setItem(KEY_SEL, JSON.stringify(selected));
-      window.localStorage.setItem(KEY_COND, JSON.stringify({ answers }));
     } catch {
       // 저장 실패해도 화면 상태 유지
     }
@@ -197,7 +140,7 @@ export default function LaunchJobsPage() {
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
               <p className="text-[15px] font-black text-[#0B1227]">관심 직무 찾기</p>
-              <p className="text-[12px] text-[#8B95A1]">대화하며 마음에 드는 직무 {MAX_PICK}개를 골라요</p>
+              <p className="text-[12px] text-[#8B95A1]">AI와 대화하며 마음에 드는 직무 {MAX_PICK}개를 골라요</p>
             </div>
           </div>
 
@@ -208,13 +151,13 @@ export default function LaunchJobsPage() {
                 return m.role === "bot" ? (
                   <div key={i} className="flex items-end gap-2">
                     <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
-                    <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
+                    <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
                       {m.text}
                     </div>
                   </div>
                 ) : (
                   <div key={i} className="flex justify-end">
-                    <div className="max-w-[80%] rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white">{m.text}</div>
+                    <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white">{m.text}</div>
                   </div>
                 );
               }
@@ -263,6 +206,16 @@ export default function LaunchJobsPage() {
                 </div>
               );
             })}
+            {loading ? (
+              <div className="flex items-end gap-2">
+                <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
+                <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.2s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.1s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2]" />
+                </div>
+              </div>
+            ) : null}
             <div ref={endRef} />
           </div>
 
@@ -286,14 +239,15 @@ export default function LaunchJobsPage() {
                   }
                 }}
                 rows={1}
-                placeholder={phase === "asking" ? "답변을 입력하세요" : "더 보고 싶은 방향을 알려줘도 돼요 (예: 개발 쪽 더)"}
-                className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none"
+                placeholder="편하게 답해주세요"
+                disabled={loading}
+                className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
               />
               <button
                 type="submit"
-                disabled={!input.trim()}
+                disabled={!input.trim() || loading}
                 className={`h-[46px] shrink-0 rounded-xl px-4 text-[14px] font-bold transition ${
-                  input.trim() ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
+                  input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
                 }`}
               >
                 보내기

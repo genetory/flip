@@ -13772,6 +13772,118 @@ app.get(
   }
 );
 
+// POST /career-launch/job-chat — Career Launch 프로그램의 '관심 직무 찾기' AI 대화.
+// 학생과 자연스럽게 대화하며 후보 직무 풀에서 어울리는 직무를 추천하고, 마음에 드는
+// 3개를 고를 때까지 이끈다. 유료 프로그램이라 크레딧 차감 없이(포함) 매끄럽게 진행.
+const jobChatSchema = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["bot", "user"]),
+        text: z.string().trim().max(2000)
+      })
+    )
+    .max(80)
+    .default([]),
+  selected: z.array(z.string().trim().max(120)).max(3).default([]),
+  pool: z
+    .array(
+      z.object({
+        role: z.string().trim().min(1).max(120),
+        keywords: z.array(z.string().trim().max(40)).max(24).optional()
+      })
+    )
+    .min(1)
+    .max(80),
+  locale: z.string().max(10).optional()
+});
+app.post(
+  "/career-launch/job-chat",
+  authenticate,
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-job-chat", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = jobChatSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const { messages, selected, pool, locale } = parsed.data;
+    const poolRoles = new Set(pool.map((p) => p.role));
+    try {
+      const systemPrompt =
+        "너는 한국 취업을 준비하는 외국인 유학생을 돕는 따뜻하고 노련한 커리어 상담사야. " +
+        "학생과 자연스럽게 대화하며 학생이 '관심 직무 3개'를 찾도록 부드럽게 이끈다.\n\n" +
+        "규칙:\n" +
+        "1. 따뜻하고 정중한 대화체. 한 번에 질문은 하나만, 짧고 부담 없게. 학생 답변에 공감 한마디를 먼저 건네도 좋아.\n" +
+        "2. 학생의 전공·관심·강점·성향·가치관·좋아하는 활동을 파고드는 통찰 있는 질문을 해. 이전 답변을 반영해 점점 좁혀가.\n" +
+        "3. 학생의 관심·강점이 조금이라도 드러나면(보통 1~2번 답한 뒤부터) 주저 말고 아래 [후보 직무]에서 어울리는 직무를 2~3개 골라 recommend 에 담아 보여줘. 대화가 진행될수록 추천을 더 정교하게 갱신해. 각 값은 후보 목록의 role 과 글자까지 정확히 일치해야 하고, 목록에 없는 직무는 만들지 마. 정말 정보가 하나도 없을 때만 비워.\n" +
+        "4. 이미 고른 직무(고른 직무 목록)는 recommend 에 다시 넣지 마.\n" +
+        "5. 학생이 마음에 드는 직무를 3개 고르면(고른 직무가 3개면) done 을 true 로 하고 따뜻한 축하·마무리 한마디를 reply 에 담아.\n" +
+        "6. 사실을 지어내거나 학생이 하지 않은 말을 단정하지 마. 후보 목록에 없는 직무를 지어내지 마.\n" +
+        "7. 대화가 처음이면(메시지가 없으면) 가볍게 인사하고 편안한 첫 질문을 해. recommend 는 비워. 이미 대화가 진행 중이면 다시 인사(안녕하세요 등)하지 말고 바로 이어서 답해.\n\n" +
+        'JSON 한 개 객체로만 응답: { "reply": string, "recommend": string[], "done": boolean }' +
+        aiLangDirective(locale);
+
+      const convo = messages.length
+        ? messages.map((m) => `${m.role === "bot" ? "상담사" : "학생"}: ${m.text}`).join("\n")
+        : "(아직 대화 없음 — 인사하고 편안한 첫 질문을 해줘)";
+      const poolText = pool.map((p) => `- ${p.role}${p.keywords?.length ? ` (${p.keywords.join(", ")})` : ""}`).join("\n");
+      const userPrompt =
+        `지금까지 대화:\n${convo}\n\n` +
+        `학생이 고른 직무(${selected.length}/3): ${selected.length ? selected.join(", ") : "(아직 없음)"}\n\n` +
+        `[후보 직무]\n${poolText}`;
+
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.6,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let parsedJson: { reply?: unknown; recommend?: unknown; done?: unknown } = {};
+      try {
+        parsedJson = JSON.parse(raw);
+      } catch {
+        /* fall through */
+      }
+      const reply = typeof parsedJson.reply === "string" ? parsedJson.reply.trim() : "";
+      let recommend = Array.isArray(parsedJson.recommend)
+        ? Array.from(
+            new Set(
+              parsedJson.recommend
+                .filter((r): r is string => typeof r === "string")
+                .map((r) => r.trim())
+                .filter((r) => poolRoles.has(r) && !selected.includes(r))
+            )
+          ).slice(0, 3)
+        : [];
+      // 폴백 — AI가 추천을 비웠지만 학생이 이미 답했다면, 대화 키워드로 후보 풀에서
+      // 매칭해 추천을 채운다(유료 프로그램에서 추천이 비지 않도록).
+      if (recommend.length === 0 && messages.some((m) => m.role === "user")) {
+        const text = messages
+          .filter((m) => m.role === "user")
+          .map((m) => m.text)
+          .join(" ")
+          .toLowerCase();
+        recommend = pool
+          .filter((p) => !selected.includes(p.role))
+          .map((p) => ({ role: p.role, score: (p.keywords ?? []).reduce((n, k) => (text.includes(k.toLowerCase()) ? n + 1 : n), 0) }))
+          .filter((x) => x.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3)
+          .map((x) => x.role);
+      }
+      const done = parsedJson.done === true || selected.length >= 3;
+      if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, reply, recommend, done });
+    } catch (err) {
+      console.error("[career-launch/job-chat] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to continue chat" });
+    }
+  }
+);
+
 // POST /members/me/ai/tailor-resume — 채용 공고(JD)와 이력서를 비교해 적합도 점수,
 // 보유/부족 키워드, 그 공고에 맞춘 요약·문장 제안을 돌려준다. 없는 사실은 만들지 않는다.
 const tailorResumeSchema = z.object({
