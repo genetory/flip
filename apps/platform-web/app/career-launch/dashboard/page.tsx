@@ -129,18 +129,31 @@ export default function LaunchDashboardPage() {
                 <div className="space-y-3">
                   {WEEKS.map((w) => {
                     const isCurrent = w.week === STUDENT.currentWeek;
-                    return (
-                      <Link key={w.week} href={`/career-launch/week/${w.week}`} className="block">
-                        <Card className={`flex items-center justify-between !p-4 ${isCurrent ? "!border-[#0B46E8]/40 ring-1 ring-[#0B46E8]/20" : ""}`}>
-                          <div className="flex items-center gap-3">
-                            <span className={`flex h-8 w-8 flex-none items-center justify-center rounded-lg text-[12.5px] font-black ${w.week <= STUDENT.currentWeek ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#B0B8C1]"}`}>W{w.week}</span>
-                            <div className="min-w-0">
-                              <p className="truncate text-[13.5px] font-bold text-[#191F28]">{w.title}</p>
-                              {isCurrent ? <p className="text-[11px] font-bold text-[#0B46E8]">진행 중</p> : null}
-                            </div>
+                    const locked = w.week > STUDENT.currentWeek; // 아직 시작 안 된 주차
+                    const inner = (
+                      <Card className={`flex items-center justify-between !p-4 ${isCurrent ? "!border-[#0B46E8]/40 ring-1 ring-[#0B46E8]/20" : ""} ${locked ? "opacity-60" : ""}`}>
+                        <div className="flex items-center gap-3">
+                          <span className={`flex h-8 w-8 flex-none items-center justify-center rounded-lg text-[12.5px] font-black ${locked ? "bg-[#F2F4F6] text-[#B0B8C1]" : "bg-[#0B46E8] text-white"}`}>W{w.week}</span>
+                          <div className="min-w-0">
+                            <p className={`truncate text-[13.5px] font-bold ${locked ? "text-[#8B95A1]" : "text-[#191F28]"}`}>{w.title}</p>
+                            {isCurrent ? <p className="text-[11px] font-bold text-[#0B46E8]">진행 중</p> : null}
                           </div>
+                        </div>
+                        {locked ? (
+                          <Pill tone="grey">🔒 예정</Pill>
+                        ) : (
                           <Pill tone={SUBMIT_LABEL[w.submission.status].tone}>{SUBMIT_LABEL[w.submission.status].t}</Pill>
-                        </Card>
+                        )}
+                      </Card>
+                    );
+                    // 시작 전 주차는 링크 비활성화(클릭 불가), 현재·지난 주차만 이동 가능.
+                    return locked ? (
+                      <div key={w.week} aria-disabled className="block cursor-not-allowed">
+                        {inner}
+                      </div>
+                    ) : (
+                      <Link key={w.week} href={`/career-launch/week/${w.week}`} className="block">
+                        {inner}
                       </Link>
                     );
                   })}
