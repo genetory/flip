@@ -90,7 +90,7 @@ export default function LaunchDashboardPage() {
 
               {/* 이번 주 스텝별 해야 할 일 (대시보드에서 바로 진행) */}
               <div>
-                <SectionTitle sub="각 단계를 완료하면 번호를 눌러 체크하세요">이번 주 해야 할 일</SectionTitle>
+                <SectionTitle sub="한 단계씩 끝내고 번호를 콕 눌러 체크해요">이번 주 해야 할 일</SectionTitle>
                 <Card className="md:!p-6">
                   <Stepper steps={currentWeek.steps} />
                   <Link href={`/career-launch/week/${currentWeek.week}`} className="mt-5 flex w-full items-center justify-center rounded-xl bg-[#0B46E8] py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">

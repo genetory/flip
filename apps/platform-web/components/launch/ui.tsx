@@ -195,8 +195,8 @@ export function AutoSubmitStatus({ label, status, source }: { label: string; sta
           </div>
           <p className="mt-1.5 text-[13px] leading-relaxed text-[#4E5968]">
             {done
-              ? `${source}에서 자동으로 수집돼 제출됐어요. 따로 제출할 필요가 없어요.`
-              : `${source}을(를) 완료하면 자동으로 제출돼요. 별도 제출 절차가 없습니다.`}
+              ? `${source}에서 자동으로 담겨 제출됐어요. 따로 제출하지 않아도 괜찮아요 👍`
+              : `${source}을(를) 마치면 자동으로 제출돼요. 번거로운 제출 절차가 없으니 활동에만 집중하면 돼요.`}
           </p>
         </div>
       </div>
