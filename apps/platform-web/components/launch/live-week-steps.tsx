@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
+import { type Step } from "../../lib/launch/data";
 
 export type DiagResult = { percent: number; level: string } | null;
 
@@ -22,9 +22,7 @@ export function LiveWeekSteps({ steps, diag, jobs }: { steps: Step[]; diag: Diag
     return Boolean(manual[s.id]);
   };
 
-  const pickedRoles = jobs
-    .map((id) => RECOMMENDED_JOBS.find((j) => j.id === id)?.role)
-    .filter((r): r is string => Boolean(r));
+  const pickedRoles = jobs; // 저장 형식이 직무명(role) 배열
 
   return (
     <ol className="space-y-1">

@@ -184,6 +184,7 @@ export type RecommendedJob = {
   match: number; // 매칭 점수(%)
   reason: string; // 추천 이유
   skills: string[]; // 관련 역량
+  tags: string[]; // 매칭용 키워드(전공·분야)
   query: string; // /positions 검색어
 };
 
@@ -194,6 +195,7 @@ export const RECOMMENDED_JOBS: RecommendedJob[] = [
     match: 92,
     reason: "경영학 전공과 다국어 역량이 잘 맞아요. 해외 시장을 겨냥하는 국내 기업 수요가 많은 직무예요.",
     skills: ["시장 분석", "콘텐츠 기획", "다국어 커뮤니케이션"],
+    tags: ["마케팅", "경영", "경영학", "글로벌", "해외", "비즈니스"],
     query: "글로벌 마케팅"
   },
   {
@@ -202,6 +204,7 @@ export const RECOMMENDED_JOBS: RecommendedJob[] = [
     match: 88,
     reason: "모국어·한국어·영어를 함께 쓰는 강점이 크게 작용해요. 외국인 인재를 적극 채용하는 분야예요.",
     skills: ["협상", "고객 관리", "영어 · 모국어"],
+    tags: ["영업", "세일즈", "경영", "무역", "글로벌", "해외"],
     query: "해외영업"
   },
   {
@@ -210,6 +213,7 @@ export const RECOMMENDED_JOBS: RecommendedJob[] = [
     match: 83,
     reason: "커뮤니케이션 강점과 꼼꼼함이 잘 어울려요. 글로벌 고객을 대응하는 팀에서 선호해요.",
     skills: ["고객 응대", "문제 해결", "다국어"],
+    tags: ["고객", "서비스", "cs", "경영", "커뮤니케이션"],
     query: "고객경험"
   },
   {
@@ -218,6 +222,7 @@ export const RECOMMENDED_JOBS: RecommendedJob[] = [
     match: 76,
     reason: "숫자로 성과를 정리하는 걸 좋아한다면 도전해볼 만해요. 기초 역량을 조금 더 쌓으면 경쟁력이 커져요.",
     skills: ["엑셀 · SQL", "데이터 해석", "리포팅"],
+    tags: ["데이터", "통계", "it", "컴퓨터", "분석", "경영"],
     query: "데이터 분석"
   },
   {
@@ -226,9 +231,62 @@ export const RECOMMENDED_JOBS: RecommendedJob[] = [
     match: 74,
     reason: "기획·표현에 관심이 있다면 잘 맞아요. 포트폴리오를 함께 준비하면 더 강해져요.",
     skills: ["콘텐츠 기획", "브랜딩", "SNS 운영"],
+    tags: ["마케팅", "콘텐츠", "디자인", "미디어", "브랜드"],
     query: "콘텐츠 마케팅"
+  },
+  {
+    id: "rj6",
+    role: "인사(HR) · 채용",
+    match: 72,
+    reason: "사람과 조직에 관심이 있다면 잘 맞아요. 글로벌 인재를 채용·관리하는 팀에서 강점이 돼요.",
+    skills: ["채용", "조직 관리", "커뮤니케이션"],
+    tags: ["인사", "hr", "경영", "심리", "조직"],
+    query: "인사"
+  },
+  {
+    id: "rj7",
+    role: "무역 · 물류",
+    match: 70,
+    reason: "국제 비즈니스에 관심이 있다면 잘 어울려요. 다국어와 서류 처리 강점이 크게 작용해요.",
+    skills: ["수출입", "공급망", "서류 관리"],
+    tags: ["무역", "물류", "경영", "국제", "공급망", "비즈니스"],
+    query: "무역"
+  },
+  {
+    id: "rj8",
+    role: "서비스 기획(PM)",
+    match: 68,
+    reason: "사용자 관점에서 서비스를 설계하는 걸 좋아한다면 도전해볼 만해요. 기획 경험을 쌓아가면 좋아요.",
+    skills: ["기획", "사용자 리서치", "협업"],
+    tags: ["기획", "it", "컴퓨터", "서비스", "pm", "경영"],
+    query: "서비스 기획"
+  },
+  {
+    id: "rj9",
+    role: "통·번역 코디네이터",
+    match: 66,
+    reason: "언어 강점을 바로 살릴 수 있어요. 글로벌 협업이 많은 조직에서 수요가 있어요.",
+    skills: ["통역", "번역", "문서화"],
+    tags: ["통역", "번역", "어학", "언어", "외국어"],
+    query: "통역"
   }
 ];
+
+// 입력한 전공·관심 키워드로 추천 직무를 재정렬(매칭되는 직무를 앞으로).
+// (지금은 목업 규칙. 이후 실제 프로필 분석으로 대체)
+export function recommendJobs(query?: string): RecommendedJob[] {
+  const q = (query ?? "").trim().toLowerCase();
+  const byMatch = (a: RecommendedJob, b: RecommendedJob) => b.match - a.match;
+  if (!q) return [...RECOMMENDED_JOBS].sort(byMatch);
+  const words = q.split(/[\s,·]+/).filter(Boolean);
+  const hit = (j: RecommendedJob) => {
+    const hay = [j.role, j.reason, ...j.skills, ...j.tags].join(" ").toLowerCase();
+    return words.some((w) => hay.includes(w));
+  };
+  const hits = RECOMMENDED_JOBS.filter(hit).sort(byMatch);
+  const rest = RECOMMENDED_JOBS.filter((j) => !hit(j)).sort(byMatch);
+  return [...hits, ...rest];
+}
 
 // 전체 진행률(완료 스텝 / 전체).
 export function overallProgress(): number {

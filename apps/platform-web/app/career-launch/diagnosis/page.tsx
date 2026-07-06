@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Card, SectionTitle } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
@@ -77,9 +77,26 @@ const TIP: Record<string, string> = {
   visa: "비자 전환 요건을 미리 확인해 두면 지원 단계에서 막히지 않아요."
 };
 
+const STORAGE_KEY = "career-launch:diagnosis";
+
 export default function LaunchDiagnosisPage() {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [submitted, setSubmitted] = useState(false);
+
+  // 저장된 답변·결과 복원 — 다시 와도 이전에 진단한 내용이 그대로 보인다.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { answers?: Record<string, number> };
+      if (saved.answers && Object.keys(saved.answers).length > 0) {
+        setAnswers(saved.answers);
+        setSubmitted(true);
+      }
+    } catch {
+      // 복원 실패 시 빈 상태로 시작
+    }
+  }, []);
 
   const answeredCount = Object.keys(answers).length;
   const allAnswered = answeredCount === QUESTIONS.length;
@@ -89,10 +106,10 @@ export default function LaunchDiagnosisPage() {
   const level = percent >= 75 ? "탄탄해요" : percent >= 45 ? "무난해요" : "이제 시작이에요";
   const weakAreas = QUESTIONS.filter((q) => (answers[q.id] ?? 0) <= 1);
 
-  // 결과를 저장해 대시보드에서 확인할 수 있게 한다(스텝을 강제로 잇지 않는다).
+  // 답변·결과를 저장해 대시보드에서 확인하고, 다시 와도 그대로 보이게 한다.
   const submit = () => {
     try {
-      window.localStorage.setItem("career-launch:diagnosis", JSON.stringify({ percent, level }));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ answers, percent, level }));
     } catch {
       // 저장 불가 시에도 결과 화면은 보여준다
     }
