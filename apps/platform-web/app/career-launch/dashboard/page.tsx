@@ -97,7 +97,9 @@ export default function LaunchDashboardPage() {
                 <Card className="md:!p-6">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-[16px] font-black text-[#191F28] md:text-[18px]">{currentWeek.title}</p>
-                    <Pill tone={SUBMIT_LABEL[currentWeek.submission.status].tone}>{SUBMIT_LABEL[currentWeek.submission.status].t}</Pill>
+                    {currentWeek.submission.status !== "todo" ? (
+                      <Pill tone={SUBMIT_LABEL[currentWeek.submission.status].tone}>{SUBMIT_LABEL[currentWeek.submission.status].t}</Pill>
+                    ) : null}
                   </div>
                   <div className="mt-3 rounded-xl bg-[#EDF1FD] p-3.5">
                     <p className="text-[11.5px] font-bold text-[#0B46E8]">이번 주 목표</p>
@@ -161,9 +163,9 @@ export default function LaunchDashboardPage() {
                         </div>
                         {locked ? (
                           <Pill tone="grey">🔒 예정</Pill>
-                        ) : (
+                        ) : w.submission.status !== "todo" ? (
                           <Pill tone={SUBMIT_LABEL[w.submission.status].tone}>{SUBMIT_LABEL[w.submission.status].t}</Pill>
-                        )}
+                        ) : null}
                       </Card>
                     );
                     // 현재 주차는 대시보드에 이미 상세가 나오므로 링크 없음(클릭 불필요).
