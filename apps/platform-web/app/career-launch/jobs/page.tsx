@@ -184,7 +184,8 @@ export default function LaunchJobsPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  // 한글 IME 조합 중 Enter 는 무시(마지막 글자 중복 방지)
+                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                     e.preventDefault();
                     sendAnswer(input);
                   }
@@ -261,7 +262,7 @@ export default function LaunchJobsPage() {
                     value={custom}
                     onChange={(e) => setCustom(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                         e.preventDefault();
                         addCustom();
                       }
