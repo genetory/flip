@@ -13818,15 +13818,39 @@ app.post(
         "4. 이미 고른 직무(고른 직무 목록)는 recommend 에 다시 넣지 마.\n" +
         "5. 학생이 마음에 드는 직무를 3개 고르면(고른 직무가 3개면) done 을 true 로 하고 따뜻한 축하·마무리 한마디를 reply 에 담아.\n" +
         "6. 사실을 지어내거나 학생이 하지 않은 말을 단정하지 마. 후보 목록에 없는 직무를 지어내지 마.\n" +
-        "7. 대화가 처음이면(메시지가 없으면) 가볍게 인사하고 편안한 첫 질문을 해. recommend 는 비워. 이미 대화가 진행 중이면 다시 인사(안녕하세요 등)하지 말고 바로 이어서 답해.\n\n" +
+        "7. 대화가 처음이면(메시지가 없으면) 가볍게 인사하고 편안한 첫 질문을 해. recommend 는 비워. 이미 대화가 진행 중이면 다시 인사(안녕하세요 등)하지 말고 바로 이어서 답해.\n" +
+        "8. [학생 프로필]이 주어지면 전공·학교·스킬 등 이미 아는 정보는 다시 묻지 말고, 그 정보를 반영해 더 개인화된 질문·추천을 해. 첫 인사에서 전공을 자연스럽게 언급하면 좋아.\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "recommend": string[], "done": boolean }' +
         aiLangDirective(locale);
+
+      // 학생 프로필(전공·학교·스킬·자기소개)을 초기 컨텍스트로 넣어 개인화한다. 실패해도 대화는 진행.
+      let profileSummary = "";
+      try {
+        const [profile, meUser] = await Promise.all([
+          prisma.candidateProfile.findUnique({
+            where: { userId: req.auth!.userId },
+            include: { educations: { orderBy: { createdAt: "desc" }, take: 1 } }
+          }),
+          prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { name: true } })
+        ]);
+        const edu = profile?.educations?.[0];
+        const parts: string[] = [];
+        if (meUser?.name?.trim()) parts.push(`이름: ${meUser.name.trim()}`);
+        if (edu?.schoolName) parts.push(`학교: ${edu.schoolName}`);
+        if (edu?.major) parts.push(`전공: ${edu.major}`);
+        if (profile?.skills?.length) parts.push(`보유 스킬: ${profile.skills.slice(0, 10).join(", ")}`);
+        if (profile?.selfIntroduction?.trim()) parts.push(`자기소개: ${profile.selfIntroduction.trim().slice(0, 240)}`);
+        profileSummary = parts.join("\n");
+      } catch {
+        /* 프로필 조회 실패 시 프로필 없이 진행 */
+      }
 
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "상담사" : "학생"}: ${m.text}`).join("\n")
         : "(아직 대화 없음 — 인사하고 편안한 첫 질문을 해줘)";
       const poolText = pool.map((p) => `- ${p.role}${p.keywords?.length ? ` (${p.keywords.join(", ")})` : ""}`).join("\n");
       const userPrompt =
+        (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `지금까지 대화:\n${convo}\n\n` +
         `학생이 고른 직무(${selected.length}/3): ${selected.length ? selected.join(", ") : "(아직 없음)"}\n\n` +
         `[후보 직무]\n${poolText}`;
