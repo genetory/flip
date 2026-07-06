@@ -1,4 +1,4 @@
-import { resolveMx } from "dns/promises";
+import { resolveMx, resolve4, resolve6 } from "dns/promises";
 
 /**
  * Domains we know are valid mail providers — skip DNS lookup so we don't
@@ -101,6 +101,22 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+// MX 가 없는 도메인(특히 서브도메인)도 A/AAAA 레코드가 있으면 메일을 받을 수 있다
+// (RFC 5321 §5.1 — MX 없으면 A/AAAA 를 암시적 MX 로 사용). 그래서 MX 부재 시 주소
+// 레코드로 폴백해 서브도메인 이메일이 잘못 차단되지 않게 한다.
+async function hasAddressRecord(domain: string): Promise<boolean> {
+  const check = async (fn: (name: string) => Promise<unknown[]>): Promise<boolean> => {
+    try {
+      const records = await withTimeout(fn(domain), MX_LOOKUP_TIMEOUT_MS);
+      return Array.isArray(records) && records.length > 0;
+    } catch {
+      return false;
+    }
+  };
+  if (await check(resolve4)) return true;
+  return check(resolve6);
+}
+
 /**
  * Returns whether the email's domain can actually receive mail.
  *
@@ -126,18 +142,27 @@ export async function checkEmailDeliverable(email: string): Promise<Deliverabili
   try {
     const records = await withTimeout(resolveMx(domain), MX_LOOKUP_TIMEOUT_MS);
     const hasUsableMx = Array.isArray(records) && records.some((r) => r && typeof r.exchange === "string" && r.exchange.trim().length > 0);
-    const result: DeliverabilityResult = hasUsableMx ? { ok: true, cached: false } : { ok: false, reason: "no-mx" };
+    if (hasUsableMx) {
+      const result: DeliverabilityResult = { ok: true, cached: false };
+      setCached(domain, result);
+      return result;
+    }
+    // MX 없음 → A/AAAA(암시적 MX) 폴백. 서브도메인이 A레코드로만 메일 받는 경우 통과.
+    const hasAddr = await hasAddressRecord(domain);
+    const result: DeliverabilityResult = hasAddr ? { ok: true, cached: false } : { ok: false, reason: "no-mx" };
     setCached(domain, result);
     return result;
   } catch (error) {
     const code = (error as NodeJS.ErrnoException)?.code;
-    if (code === "ENOTFOUND") {
-      const result: DeliverabilityResult = { ok: false, reason: "nxdomain" };
-      setCached(domain, result);
-      return result;
-    }
-    if (code === "ENODATA") {
-      const result: DeliverabilityResult = { ok: false, reason: "no-mx" };
+    // MX 조회가 NXDOMAIN/ENODATA 여도, 주소 레코드가 있으면 메일 수신 가능(암시적 MX).
+    if (code === "ENOTFOUND" || code === "ENODATA") {
+      const hasAddr = await hasAddressRecord(domain);
+      if (hasAddr) {
+        const result: DeliverabilityResult = { ok: true, cached: false };
+        setCached(domain, result);
+        return result;
+      }
+      const result: DeliverabilityResult = { ok: false, reason: code === "ENOTFOUND" ? "nxdomain" : "no-mx" };
       setCached(domain, result);
       return result;
     }
