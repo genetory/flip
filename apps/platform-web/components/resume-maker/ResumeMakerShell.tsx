@@ -4,7 +4,7 @@ import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { CircleNotch, House, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, CircleNotch, House, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { paperlogy } from "../../lib/fonts";
 import { useShellCopy } from "../../lib/resume-maker-i18n/shell";
@@ -92,6 +92,9 @@ export function ResumeMakerShell({
   const isTailor = pathname?.includes("/tailor") ?? false;
   const isInterview = pathname?.includes("/interview") ?? false;
   const isHome = pathname === "/resume-maker";
+  // Career Launch 프로그램 안에 임베드된 화면(/career-launch/*)이면 resume-maker
+  // 로고·도구 네비를 숨기고 프로그램 되돌아가기 바로 바꿔 '프로그램 안'으로 느껴지게 한다.
+  const embedded = pathname?.startsWith("/career-launch") ?? false;
   // 편집 계열(편집·경험·온보딩·대화·미리보기·진단) — 홈/목록/도구가 아닌 이력서 작업 화면.
   const isEditor = !isHome && !isResumes && !isCoverLetters && !isTailor && !isInterview;
   // 이력서·자기소개서 탭은 '목록 화면'으로(선택된 이력서 편집기로 직행하지 않음). 홈은 전체 개요.
@@ -142,12 +145,22 @@ export function ResumeMakerShell({
         <div className="container relative flex h-14 max-w-6xl items-center gap-3">
           {left ? <div className="flex shrink-0 items-center">{left}</div> : null}
           <div className="flex min-w-0 items-center gap-2">
-            <Link href="/" className="shrink-0">
-              <Image src="/img_logo.webp" alt="aply" width={180} height={48} className="h-6 w-auto md:h-7" priority />
-            </Link>
+            {embedded ? (
+              <Link
+                href="/career-launch/dashboard"
+                className="inline-flex shrink-0 items-center gap-1.5 text-[13.5px] font-bold text-[#4E5968] transition hover:text-[#0B1227]"
+              >
+                <ArrowLeft weight="bold" className="h-4 w-4" aria-hidden />
+                Career Launch
+              </Link>
+            ) : (
+              <Link href="/" className="shrink-0">
+                <Image src="/img_logo.webp" alt="aply" width={180} height={48} className="h-6 w-auto md:h-7" priority />
+              </Link>
+            )}
           </div>
-          {/* 상단 도구 네비 (데스크탑) — 세그먼트형 pill, 컨테이너 정중앙 고정 */}
-          <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full bg-[#F2F4F6] p-1 md:flex">
+          {/* 상단 도구 네비 (데스크탑) — 세그먼트형 pill, 컨테이너 정중앙 고정. 프로그램 임베드 시 숨김. */}
+          <nav className={`absolute left-1/2 -translate-x-1/2 items-center gap-1 rounded-full bg-[#F2F4F6] p-1 ${embedded ? "hidden" : "hidden md:flex"}`}>
             {tools.map((tool) => {
               const locked = Boolean(tool.requiresResume) && hasResume === false;
               const inner = (
@@ -184,8 +197,8 @@ export function ResumeMakerShell({
             <ResumeMakerLanguageSwitch />
           </div>
         </div>
-        {/* 상단 도구 네비 (모바일) — pill, 가운데 정렬, 넘치면 가로 스크롤 */}
-        <nav className="flex items-center justify-center gap-1.5 overflow-x-auto border-t border-[#F2F4F6] px-4 py-2 md:hidden">
+        {/* 상단 도구 네비 (모바일) — pill, 가운데 정렬, 넘치면 가로 스크롤. 프로그램 임베드 시 숨김. */}
+        <nav className={`items-center justify-center gap-1.5 overflow-x-auto border-t border-[#F2F4F6] px-4 py-2 ${embedded ? "hidden" : "flex md:hidden"}`}>
           {tools.map((tool) => {
             const locked = Boolean(tool.requiresResume) && hasResume === false;
             const inner = (
