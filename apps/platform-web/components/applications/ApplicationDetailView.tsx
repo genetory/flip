@@ -371,7 +371,7 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
             ) : data.resume ? (
               // 과거 지원건(스냅샷 없음) — 현재 이력서 공유 링크로 폴백
               <a
-                href={`/resume/share/${data.resume.shareSlug}`}
+                href={`/resume/share/${data.resume.shareSlug}?view=preview`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ops-btn"

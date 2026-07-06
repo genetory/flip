@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { SharedResumePage } from "../../../../components/pages/SharedResumePage";
+import { ResumeSheetSkeleton } from "../../../../components/pages/ResumeSheetSkeleton";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -36,5 +38,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function Page({ params }: Props) {
   const { slug } = await params;
-  return <SharedResumePage slug={slug} />;
+  // useSearchParams(?view=preview) 를 쓰므로 Suspense 경계로 감싼다.
+  return (
+    <Suspense fallback={<ResumeSheetSkeleton />}>
+      <SharedResumePage slug={slug} />
+    </Suspense>
+  );
 }

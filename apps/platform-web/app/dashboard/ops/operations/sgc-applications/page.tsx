@@ -453,7 +453,7 @@ export default function SgcApplicationsPage() {
                     <td>
                       {a.resume ? (
                         <a
-                          href={`/resume/share/${a.resume.shareSlug}`}
+                          href={`/resume/share/${a.resume.shareSlug}?view=preview`}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{ color: "#1d4ed8", fontSize: 12 }}
@@ -738,7 +738,7 @@ function ApplicationDetailModal({
               지원 이력서
             </p>
             <a
-              href={`/resume/share/${application.resume.shareSlug}`}
+              href={`/resume/share/${application.resume.shareSlug}?view=preview`}
               target="_blank"
               rel="noopener noreferrer"
               style={{

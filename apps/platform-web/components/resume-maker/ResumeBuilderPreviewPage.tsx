@@ -27,15 +27,26 @@ const A4_H_PX = 1123;
 const PAGE_PAD_PX = 48;
 const PAGE_CONTENT_H_PX = A4_H_PX - PAGE_PAD_PX * 2;
 
-export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
+// preloadedContent: 슬러그 조회 없이 이미 가진 이력서(운영콘솔 제출 스냅샷)를 그대로
+// 미리보기 렌더할 때 넘긴다. embedded: 운영콘솔 모달 등에서 resume-maker 셸(STUDENT
+// 전용 게이트) 없이 미리보기 본문만 렌더한다.
+export function ResumeBuilderPreviewPage({
+  resumeId,
+  preloadedContent,
+  embedded
+}: {
+  resumeId: string;
+  preloadedContent?: ResumeContent | null;
+  embedded?: boolean;
+}) {
   const router = useRouter();
   const toast = useToast();
   const t = useBuilderPreviewCopy();
   const { locale } = useLanguage();
   const jobCategoryLabel = useJobCategoryLabel();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!preloadedContent);
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState<ResumeContent | null>(null);
+  const [content, setContent] = useState<ResumeContent | null>(preloadedContent ?? null);
   const [design, setDesign] = useState<ResumeDesignSettings>(DEFAULT_DESIGN);
   const [jobLabel, setJobLabel] = useState("");
   const [view, setView] = useState<"original" | "ko" | "en">("original");
@@ -93,6 +104,13 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
   }
 
   useEffect(() => {
+    // 미리 받은 이력서(운영콘솔 스냅샷)면 조회 없이 그대로 렌더. design 은 스냅샷의
+    // builder.design 을 쓴다(없으면 기본).
+    if (preloadedContent) {
+      const d = (preloadedContent as { builder?: { design?: ResumeDesignSettings } }).builder?.design;
+      if (d) setDesign(d);
+      return;
+    }
     let alive = true;
     void (async () => {
       try {
@@ -116,7 +134,7 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumeId]);
+  }, [resumeId, preloadedContent]);
 
   const fileName = useMemo(() => {
     const name = sanitizeFilePart(content?.basicName || t.resumeFallback);
@@ -141,8 +159,8 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
     }
   }
 
-  return (
-    <ResumeMakerShell>
+  const body = (
+    <>
       {/* 인쇄 스타일 — @page margin 0 으로 브라우저 기본 머리글/바닥글(날짜·URL·페이지번호)
           제거. 페이지 상하 여백·분할은 아래 rm-print-page(각 A4 한 장)가 직접 담당한다. */}
       <style>{`
@@ -159,16 +177,22 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
         }
       `}</style>
 
-      {/* GNB 아래 서브 네비게이션 — 편집으로 돌아가기 + 언어 전환 + PDF */}
-      <div className="rm-print-hide bg-background/95 backdrop-blur lg:sticky lg:top-14 lg:z-30">
+      {/* GNB 아래 서브 네비게이션 — 편집으로 돌아가기 + 언어 전환 + PDF.
+          embedded(운영콘솔)에선 셸이 없으므로 최상단에 붙이고 로고를 표시한다. */}
+      <div className={`rm-print-hide bg-background/95 backdrop-blur lg:sticky lg:z-30 ${embedded ? "border-b border-[#F2F4F6] lg:top-0" : "lg:top-14"}`}>
         <div className="container flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-1 text-[13px] font-semibold text-muted-foreground transition hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" weight="bold" aria-hidden /> {t.back}
-          </button>
+          {embedded ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/img_logo.webp" alt="Aply" className="h-6 w-auto" />
+          ) : (
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-1 text-[13px] font-semibold text-muted-foreground transition hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" weight="bold" aria-hidden /> {t.back}
+            </button>
+          )}
           {!loading && content ? (
             <div className="flex flex-wrap items-center gap-2">
               {/* 원문 / 한국어 / English — 첫 전환 시 AI 번역(외국어 원문도 한국어로) */}
@@ -281,6 +305,9 @@ export function ResumeBuilderPreviewPage({ resumeId }: { resumeId: string }) {
           );
         })()
       )}
-    </ResumeMakerShell>
+    </>
   );
+
+  // 운영콘솔 모달 등 embedded 에서는 STUDENT 전용 셸 없이 본문만 렌더.
+  return embedded ? body : <ResumeMakerShell>{body}</ResumeMakerShell>;
 }

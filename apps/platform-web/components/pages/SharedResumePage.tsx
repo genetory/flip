@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowSquareOut, DownloadSimple, Rows, SidebarSimple } from "@phosphor-icons/react/dist/ssr";
 import { ResumeSheetSkeleton } from "./ResumeSheetSkeleton";
@@ -11,8 +12,10 @@ import {
   type CandidateEducationStatus,
   type CandidateEducationType,
   type CandidateVisaType,
+  type ResumeContent,
   type SharedResume
 } from "../../lib/member-profile-client";
+import { ResumeBuilderPreviewPage } from "../resume-maker/ResumeBuilderPreviewPage";
 
 // ---------------------------------------------------------------------------
 // Public, anonymous resume share view.
@@ -33,13 +36,19 @@ function useTr() {
 
 type Layout = "single" | "two-column";
 
-export function SharedResumePage({ slug }: { slug: string }) {
+// preloaded: 슬러그로 API 조회하지 않고 이미 가진 이력서(예: 운영콘솔의 제출 스냅샷)를
+// 그대로 공유뷰로 렌더할 때 넘긴다. 넘기면 fetch 를 생략한다.
+export function SharedResumePage({ slug, preloaded }: { slug: string; preloaded?: SharedResume }) {
   const tr = useTr();
-  const [resume, setResume] = useState<SharedResume | null>(null);
+  // 운영콘솔에서 ?view=preview 로 열면 스코프와 무관하게 미리보기(학생과 동일) 뷰로 렌더.
+  const searchParams = useSearchParams();
+  const forcePreview = searchParams.get("view") === "preview";
+  const [resume, setResume] = useState<SharedResume | null>(preloaded ?? null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [layout, setLayout] = useState<Layout>("single");
 
   useEffect(() => {
+    if (preloaded) return; // 미리 받은 이력서면 조회 생략
     let cancelled = false;
     void (async () => {
       try {
@@ -52,7 +61,7 @@ export function SharedResumePage({ slug }: { slug: string }) {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, preloaded]);
 
   function handlePrint() {
     if (typeof window === "undefined") return;
@@ -111,6 +120,16 @@ export function SharedResumePage({ slug }: { slug: string }) {
     return <ResumeSheetSkeleton />;
   }
 
+  // 운영콘솔에서 연 경우(?view=preview 또는 operator 스코프)에는 학생이 보는 것과
+  // 동일한 resume-maker 미리보기 뷰로 렌더. 일반 공개 공유 링크는 기존 공유뷰 그대로.
+  if (forcePreview || resume.viewerScope === "operator") {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC]">
+        <ResumeBuilderPreviewPage resumeId="" embedded preloadedContent={(resume.content as ResumeContent) ?? null} />
+      </div>
+    );
+  }
+
   const c = resume.content ?? {};
   // 한국어 번역 캐시 — 외국어로 쓴 자기소개·요약·경력·활동 description 옆에
   // KO 라벨 인용 박스로 표시. 보는 사람(채용 담당자) 이 모국어로 읽게.
@@ -148,20 +167,7 @@ export function SharedResumePage({ slug }: { slug: string }) {
     <div className="min-h-screen bg-[#F8FAFC]">
       <main className="container pb-16 pt-6 md:pt-10">
         <div className="mx-auto max-w-4xl">
-          {/* 운영자 시점일 때만 보이는 안내 — 연락처가 노출되고 있다는 컨텍스트. */}
-          {resume.viewerScope === "operator" ? (
-            <div className="resume-toolbar mb-3 inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-[12px] font-medium text-amber-800">
-              <span aria-hidden>🔒</span>
-              {tr(
-                "운영자 시점 — 전화·이메일·주소까지 노출됩니다.",
-                "Operator view — phone, email and residence are shown.",
-                "运营者视图 — 包含电话/邮箱/居住地。",
-                "Chế độ vận hành — hiển thị cả điện thoại / email / địa chỉ.",
-                "運営者ビュー — 電話・メール・住所まで表示。",
-                "Tampilan operator — termasuk telepon, email, dan domisili."
-              )}
-            </div>
-          ) : null}
+          {/* 운영자 시점은 위에서 미리보기 뷰로 렌더되므로 여기(공개 공유뷰)엔 배너가 없다. */}
 
           {/* Top bar — Aply 로고+슬로건(왼쪽) + 레이아웃 토글·PDF(오른쪽). 인쇄 시 숨김. */}
           <div className="resume-toolbar mb-5 flex flex-wrap items-center justify-between gap-2">

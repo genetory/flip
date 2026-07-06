@@ -390,7 +390,7 @@ export default function OpsResumesPage() {
                         // 앵커는 기본 display 가 inline 이라 ops-detail-button 의 height 가
                         // 안 잡힘 — inline-flex + center 로 \"상세정보\" 버튼과 같은 30px 박스.
                         <a
-                          href={`/resume/share/${item.shareSlug}`}
+                          href={`/resume/share/${item.shareSlug}?view=preview`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="ops-detail-button"

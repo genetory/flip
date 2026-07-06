@@ -3,6 +3,7 @@
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
@@ -22,11 +23,20 @@ function sanitizeNextParam(raw: string | null): string | null {
   return trimmed;
 }
 
-export function LoginPage() {
+// defaultNext: ?next= 가 없을 때 로그인 후 이동할 기본 경로(예: /career-launch 는
+// /career-launch/dashboard). chromeless: 사이트 헤더/푸터 없이 폼만.
+// brandTitle/brandSubtitle: 로그인 카드 위 중앙 브랜드 헤더(예: Career Launch Bootcamp).
+export function LoginPage({
+  defaultNext,
+  chromeless,
+  brandTitle,
+  brandSubtitle
+}: { defaultNext?: string; chromeless?: boolean; brandTitle?: string; brandSubtitle?: string } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   // 신청 페이지 등에서 `?next=/events/...` 로 들어오면 로그인 후 그 경로로 복귀.
   const nextParam = sanitizeNextParam(searchParams.get("next"));
+  const effectiveNext = nextParam ?? (defaultNext ? sanitizeNextParam(defaultNext) : null);
   const { setAuthenticatedUser } = useAuthSession();
   const { locale } = useLanguage();
   const [email, setEmail] = useState("");
@@ -47,8 +57,8 @@ export function LoginPage() {
       // 우선순위: ?next= (signup 과 동일 패턴) → referrer (same-origin) →
       // role 기반 기본 (getPostLoginUrl). next 는 같은 origin 의 절대 경로만
       // 허용 — open-redirect 방지.
-      if (nextParam) {
-        router.push(nextParam);
+      if (effectiveNext) {
+        router.push(effectiveNext);
         router.refresh();
         return;
       }
@@ -91,9 +101,27 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
-      <Header />
+      {!chromeless && <Header />}
       <main className="container py-12 md:py-16">
         <section>
+          {brandTitle ? (
+            <div className="mx-auto mb-8 text-center">
+              <Image
+                src="/img_logo.webp"
+                alt="aply logo"
+                width={180}
+                height={48}
+                className="mx-auto mb-5 h-8 w-auto md:h-9"
+                priority
+              />
+              <h1 className="whitespace-nowrap text-[22px] font-black leading-[1.15] tracking-[-0.02em] text-[#0B1227] sm:text-[30px] md:text-[38px]">
+                {brandTitle}
+              </h1>
+              {brandSubtitle ? (
+                <p className="mx-auto mt-3 max-w-md text-[14px] leading-relaxed text-[#8B95A1] md:text-[15.5px]">{brandSubtitle}</p>
+              ) : null}
+            </div>
+          ) : null}
           <div className="mx-auto max-w-md rounded-2xl border border-border/60 bg-card p-6 md:p-8">
             <form className="space-y-4" onSubmit={handleSubmit}>
               <label className="block text-sm font-medium">
@@ -198,7 +226,7 @@ export function LoginPage() {
               {copy.signupPrompt}{" "}
               {/* 가입 후에도 같은 next 로 돌아가야 하므로 그대로 전달. */}
               <Link
-                href={nextParam ? `/signup?next=${encodeURIComponent(nextParam)}` : "/signup"}
+                href={effectiveNext ? `/signup?next=${encodeURIComponent(effectiveNext)}` : "/signup"}
                 className="font-semibold text-foreground"
               >
                 {copy.signupLink}
@@ -207,7 +235,7 @@ export function LoginPage() {
           </div>
         </section>
       </main>
-      <Footer />
+      {!chromeless && <Footer />}
     </div>
   );
 }
