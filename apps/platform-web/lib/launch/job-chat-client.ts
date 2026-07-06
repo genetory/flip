@@ -30,9 +30,9 @@ async function postCareerChat(path: string, body: unknown): Promise<Record<strin
 
 const asStringArray = (v: unknown): string[] => (Array.isArray(v) ? (v.filter((x) => typeof x === "string") as string[]) : []);
 
-export async function requestJobChat(messages: JobChatMsg[], selected: string[]): Promise<JobChatResult> {
+export async function requestJobChat(messages: JobChatMsg[], selected: string[], exclude: string[] = []): Promise<JobChatResult> {
   const pool = RECOMMENDED_JOBS.map((j) => ({ role: j.role, keywords: [...j.tags, ...j.skills] }));
-  const data = await postCareerChat("/career-launch/job-chat", { messages, selected, pool, locale: "ko" });
+  const data = await postCareerChat("/career-launch/job-chat", { messages, selected, exclude, pool, locale: "ko" });
   return {
     reply: typeof data.reply === "string" ? data.reply : "",
     recommend: asStringArray(data.recommend),

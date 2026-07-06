@@ -13772,6 +13772,10 @@ app.get(
   }
 );
 
+// Career Launch AI 대화 공용 말투 지침 — 친근하고 편안하게, 딱딱한 격식체 지양.
+const CAREER_TONE =
+  "말투는 친한 선배가 옆에서 편하게 이야기하듯 따뜻하고 친근하게 해. 딱딱한 격식체나 사무적인 표현('~하시기 바랍니다', '~에 대해 말씀해 주십시오' 등)은 쓰지 말고, 편안한 존댓말('~해요', '~해볼까요?')에 이모지를 가볍게 섞어. 너무 길지 않게, 사람처럼 자연스럽게.";
+
 // Career Launch AI 대화들이 공용으로 쓰는 학생 프로필 요약(전공·학교·스킬·자기소개).
 // 개인화 컨텍스트로 프롬프트에 넣는다. 실패해도 빈 문자열로 안전하게 진행.
 async function buildCandidateProfileSummary(userId: string): Promise<string> {
@@ -13810,6 +13814,7 @@ const jobChatSchema = z.object({
     .max(80)
     .default([]),
   selected: z.array(z.string().trim().max(120)).max(3).default([]),
+  exclude: z.array(z.string().trim().max(120)).max(80).default([]),
   pool: z
     .array(
       z.object({
@@ -13829,19 +13834,21 @@ app.post(
     const parsed = jobChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-    const { messages, selected, pool, locale } = parsed.data;
+    const { messages, selected, exclude, pool, locale } = parsed.data;
     const poolRoles = new Set(pool.map((p) => p.role));
+    const excludeSet = new Set(exclude);
     try {
       const systemPrompt =
         "너는 한국 취업을 준비하는 외국인 유학생을 돕는 따뜻하고 노련한 커리어 상담사야. " +
         "학생과 자연스럽게 대화하며 학생이 '관심 직무 3개'를 찾도록 부드럽게 이끈다.\n\n" +
         "규칙:\n" +
-        "1. 따뜻하고 정중한 대화체. 한 번에 질문은 하나만, 짧고 부담 없게. 학생 답변에 공감 한마디를 먼저 건네도 좋아.\n" +
+        "1. " + CAREER_TONE + " 한 번에 질문은 하나만, 짧고 부담 없게. 학생 답변엔 공감 한마디를 먼저 건네줘.\n" +
         "2. 학생의 전공·관심·강점·성향·가치관·좋아하는 활동을 파고드는 통찰 있는 질문을 해. 이전 답변을 반영해 점점 좁혀가.\n" +
         "3. 학생의 관심·강점이 조금이라도 드러나면(보통 1~2번 답한 뒤부터) 주저 말고 아래 [후보 직무]에서 어울리는 직무를 2~3개 골라 recommend 에 담아 보여줘. 대화가 진행될수록 추천을 더 정교하게 갱신해. 각 값은 후보 목록의 role 과 글자까지 정확히 일치해야 하고, 목록에 없는 직무는 만들지 마. 정말 정보가 하나도 없을 때만 비워.\n" +
         "4. 이미 고른 직무(고른 직무 목록)는 recommend 에 다시 넣지 마.\n" +
         "5. 학생이 마음에 드는 직무를 3개 고르면(고른 직무가 3개면) done 을 true 로 하고 따뜻한 축하·마무리 한마디를 reply 에 담아.\n" +
         "6. 사실을 지어내거나 학생이 하지 않은 말을 단정하지 마. 후보 목록에 없는 직무를 지어내지 마.\n" +
+        "6-1. 학생이 추천이 마음에 안 든다거나 다른 걸 보고 싶다고 하면, 왜 그런지 가볍게 물어보고 이전과 다른 분야의 직무를 recommend 에 담아. [이미 보여준 직무]에 있는 건 되도록 다시 추천하지 마. 후보에 정말 맞는 게 없어 보이면, 학생이 직접 원하는 직무를 말하도록 권하고 그 방향을 존중해.\n" +
         "7. 대화가 처음이면(메시지가 없으면) 가볍게 인사하고 편안한 첫 질문을 해. recommend 는 비워. 이미 대화가 진행 중이면 다시 인사(안녕하세요 등)하지 말고 바로 이어서 답해.\n" +
         "8. [학생 프로필]이 주어지면 전공·학교·스킬 등 이미 아는 정보는 다시 묻지 말고, 그 정보를 반영해 더 개인화된 질문·추천을 해. 첫 인사에서 전공을 자연스럽게 언급하면 좋아.\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "recommend": string[], "done": boolean }' +
@@ -13858,6 +13865,7 @@ app.post(
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `지금까지 대화:\n${convo}\n\n` +
         `학생이 고른 직무(${selected.length}/3): ${selected.length ? selected.join(", ") : "(아직 없음)"}\n\n` +
+        (exclude.length ? `[이미 보여준 직무] ${exclude.join(", ")}\n\n` : "") +
         `[후보 직무]\n${poolText}`;
 
       const completion = await openai.chat.completions.create({
@@ -13895,13 +13903,17 @@ app.post(
           .map((m) => m.text)
           .join(" ")
           .toLowerCase();
-        recommend = pool
-          .filter((p) => !selected.includes(p.role))
-          .map((p) => ({ role: p.role, score: (p.keywords ?? []).reduce((n, k) => (text.includes(k.toLowerCase()) ? n + 1 : n), 0) }))
-          .filter((x) => x.score > 0)
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 3)
-          .map((x) => x.role);
+        const freshPool = pool.filter((p) => !selected.includes(p.role) && !excludeSet.has(p.role));
+        // 이미 보여준 걸 뺀 풀에서 먼저 찾고, 없으면(다 보여줬으면) 제외 무시하고 다시.
+        const scoreFrom = (list: typeof pool) =>
+          list
+            .map((p) => ({ role: p.role, score: (p.keywords ?? []).reduce((n, k) => (text.includes(k.toLowerCase()) ? n + 1 : n), 0) }))
+            .filter((x) => x.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 3)
+            .map((x) => x.role);
+        recommend = scoreFrom(freshPool);
+        if (recommend.length === 0) recommend = scoreFrom(pool.filter((p) => !selected.includes(p.role)));
       }
       const done = parsedJson.done === true || selected.length >= 3;
       if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
@@ -13934,7 +13946,7 @@ app.post(
       const systemPrompt =
         "너는 외국인 유학생의 이력서 작성을 돕는 따뜻한 커리어 코치야. 학생의 관심 직무와 프로필을 참고해, 이력서에 담을 '재료'(경험·프로젝트·성과·역량)를 대화로 이끌어낸다.\n\n" +
         "규칙:\n" +
-        "1. 따뜻한 대화체, 한 번에 하나씩. 경험의 행동·역할·문제·결과·수치·사용 도구를 구체적으로 끌어내는 질문을 해.\n" +
+        "1. " + CAREER_TONE + " 한 번에 하나씩 물어봐. 경험의 행동·역할·문제·결과·수치·사용 도구를 구체적으로 끌어내는 질문을 해.\n" +
         "2. 학생 답변에서 이력서에 바로 쓸 수 있는 재료를 뽑아 materials 배열에 담아(간결한 한 줄, 한국어). 이전 턴에서 뽑은 재료도 계속 유지해 매 턴 누적 반환해.\n" +
         "3. 경험·프로젝트, 성과(숫자), 스킬·도구, 어학·자격을 골고루 다뤄. 재료가 4개 이상 충분히 모이면 done 을 true 로 하고 따뜻한 마무리 한마디를 reply 에 담아.\n" +
         "4. 사실을 지어내지 마. 학생이 말한 것만 재료로 삼아.\n" +
@@ -13998,7 +14010,7 @@ app.post(
       const systemPrompt =
         "너는 외국인 유학생의 '취업 준비 상태'를 진단하는 따뜻한 커리어 코치야. 짧은 대화로 준비 상태를 파악하고, 마지막에 준비도와 조언을 준다.\n\n" +
         "규칙:\n" +
-        "1. 따뜻한 대화체, 한 번에 하나씩. 다음을 자연스럽게 확인해: 목표 직무 방향, 이력서 준비 정도, 한국어 수준, 직무 관련 경험, 비자·근무 가능 여부.\n" +
+        "1. " + CAREER_TONE + " 한 번에 하나씩 물어봐. 다음을 자연스럽게 확인해: 목표 직무 방향, 이력서 준비 정도, 한국어 수준, 직무 관련 경험, 비자·근무 가능 여부.\n" +
         "2. 4~5번 정도 주고받아 충분히 파악되면 done 을 true 로 하고 result 에 진단 결과를 담아: percent(0~100 정수 준비도), level(준비 상태를 한 문장으로), strengths(강점 2~3개), improvements(이번 4주에 집중하면 좋을 점 2~3개).\n" +
         "3. done 이 false 인 동안엔 result 를 null 로 두고 다음 질문을 reply 에 담아.\n" +
         "4. 사실을 지어내지 마. 학생이 말한 것과 프로필만 근거로 삼아.\n" +
