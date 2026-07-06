@@ -68,8 +68,9 @@ export function LiveWeekSteps({
               {s.id === "w1s1" && diag ? (
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[13.5px] font-bold text-[#191F28]">
-                      취업 준비도 <span className="text-[#0B46E8]">{diag.percent}%</span> · 준비 상태가 {diag.level}
+                    <p className="min-w-0 text-[13.5px] font-bold text-[#191F28]">
+                      취업 준비도 <span className="text-[#0B46E8]">{diag.percent}%</span>
+                      {diag.level ? <span className="font-medium text-[#4E5968]"> · {diag.level}</span> : null}
                     </p>
                     <Link href="/career-launch/diagnosis" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">
                       다시 보기

@@ -13772,6 +13772,30 @@ app.get(
   }
 );
 
+// Career Launch AI 대화들이 공용으로 쓰는 학생 프로필 요약(전공·학교·스킬·자기소개).
+// 개인화 컨텍스트로 프롬프트에 넣는다. 실패해도 빈 문자열로 안전하게 진행.
+async function buildCandidateProfileSummary(userId: string): Promise<string> {
+  try {
+    const [profile, meUser] = await Promise.all([
+      prisma.candidateProfile.findUnique({
+        where: { userId },
+        include: { educations: { orderBy: { createdAt: "desc" }, take: 1 } }
+      }),
+      prisma.user.findUnique({ where: { id: userId }, select: { name: true } })
+    ]);
+    const edu = profile?.educations?.[0];
+    const parts: string[] = [];
+    if (meUser?.name?.trim()) parts.push(`이름: ${meUser.name.trim()}`);
+    if (edu?.schoolName) parts.push(`학교: ${edu.schoolName}`);
+    if (edu?.major) parts.push(`전공: ${edu.major}`);
+    if (profile?.skills?.length) parts.push(`보유 스킬: ${profile.skills.slice(0, 10).join(", ")}`);
+    if (profile?.selfIntroduction?.trim()) parts.push(`자기소개: ${profile.selfIntroduction.trim().slice(0, 240)}`);
+    return parts.join("\n");
+  } catch {
+    return "";
+  }
+}
+
 // POST /career-launch/job-chat — Career Launch 프로그램의 '관심 직무 찾기' AI 대화.
 // 학생과 자연스럽게 대화하며 후보 직무 풀에서 어울리는 직무를 추천하고, 마음에 드는
 // 3개를 고를 때까지 이끈다. 유료 프로그램이라 크레딧 차감 없이(포함) 매끄럽게 진행.
@@ -13823,27 +13847,8 @@ app.post(
         'JSON 한 개 객체로만 응답: { "reply": string, "recommend": string[], "done": boolean }' +
         aiLangDirective(locale);
 
-      // 학생 프로필(전공·학교·스킬·자기소개)을 초기 컨텍스트로 넣어 개인화한다. 실패해도 대화는 진행.
-      let profileSummary = "";
-      try {
-        const [profile, meUser] = await Promise.all([
-          prisma.candidateProfile.findUnique({
-            where: { userId: req.auth!.userId },
-            include: { educations: { orderBy: { createdAt: "desc" }, take: 1 } }
-          }),
-          prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { name: true } })
-        ]);
-        const edu = profile?.educations?.[0];
-        const parts: string[] = [];
-        if (meUser?.name?.trim()) parts.push(`이름: ${meUser.name.trim()}`);
-        if (edu?.schoolName) parts.push(`학교: ${edu.schoolName}`);
-        if (edu?.major) parts.push(`전공: ${edu.major}`);
-        if (profile?.skills?.length) parts.push(`보유 스킬: ${profile.skills.slice(0, 10).join(", ")}`);
-        if (profile?.selfIntroduction?.trim()) parts.push(`자기소개: ${profile.selfIntroduction.trim().slice(0, 240)}`);
-        profileSummary = parts.join("\n");
-      } catch {
-        /* 프로필 조회 실패 시 프로필 없이 진행 */
-      }
+      // 학생 프로필(전공·학교·스킬·자기소개)을 초기 컨텍스트로 넣어 개인화한다.
+      const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
 
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "상담사" : "학생"}: ${m.text}`).join("\n")
@@ -13903,6 +13908,141 @@ app.post(
       return res.json({ ok: true, reply, recommend, done });
     } catch (err) {
       console.error("[career-launch/job-chat] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to continue chat" });
+    }
+  }
+);
+
+// POST /career-launch/material-chat — Week 1 '이력서 재료 모으기' AI 대화. 학생의 관심
+// 직무·프로필을 참고해 이력서에 담을 경험·성과·역량을 대화로 이끌어내고 재료를 누적 반환.
+const materialChatSchema = z.object({
+  messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(80).default([]),
+  selected: z.array(z.string().trim().max(120)).max(3).default([]),
+  locale: z.string().max(10).optional()
+});
+app.post(
+  "/career-launch/material-chat",
+  authenticate,
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-material-chat", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = materialChatSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const { messages, selected, locale } = parsed.data;
+    try {
+      const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
+      const systemPrompt =
+        "너는 외국인 유학생의 이력서 작성을 돕는 따뜻한 커리어 코치야. 학생의 관심 직무와 프로필을 참고해, 이력서에 담을 '재료'(경험·프로젝트·성과·역량)를 대화로 이끌어낸다.\n\n" +
+        "규칙:\n" +
+        "1. 따뜻한 대화체, 한 번에 하나씩. 경험의 행동·역할·문제·결과·수치·사용 도구를 구체적으로 끌어내는 질문을 해.\n" +
+        "2. 학생 답변에서 이력서에 바로 쓸 수 있는 재료를 뽑아 materials 배열에 담아(간결한 한 줄, 한국어). 이전 턴에서 뽑은 재료도 계속 유지해 매 턴 누적 반환해.\n" +
+        "3. 경험·프로젝트, 성과(숫자), 스킬·도구, 어학·자격을 골고루 다뤄. 재료가 4개 이상 충분히 모이면 done 을 true 로 하고 따뜻한 마무리 한마디를 reply 에 담아.\n" +
+        "4. 사실을 지어내지 마. 학생이 말한 것만 재료로 삼아.\n" +
+        "5. 대화가 처음이면 인사하고 첫 질문을 해(materials 는 빈 배열). 이미 진행 중이면 재인사 없이 이어가.\n\n" +
+        'JSON 한 개 객체로만 응답: { "reply": string, "materials": string[], "done": boolean }' +
+        aiLangDirective(locale);
+      const convo = messages.length
+        ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
+        : "(아직 대화 없음 — 인사하고 첫 질문을 해줘)";
+      const userPrompt =
+        (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        `학생이 고른 관심 직무: ${selected.length ? selected.join(", ") : "(미정)"}\n\n` +
+        `지금까지 대화:\n${convo}`;
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.6,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let pj: { reply?: unknown; materials?: unknown; done?: unknown } = {};
+      try {
+        pj = JSON.parse(raw);
+      } catch {
+        /* fall through */
+      }
+      const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
+      const materials = Array.isArray(pj.materials)
+        ? pj.materials.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean).slice(0, 20)
+        : [];
+      const done = pj.done === true;
+      if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, reply, materials, done });
+    } catch (err) {
+      console.error("[career-launch/material-chat] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to continue chat" });
+    }
+  }
+);
+
+// POST /career-launch/diagnosis-chat — Week 1 '취업 준비 상태 자가진단' AI 대화. 짧은
+// 대화로 준비 상태를 파악하고, 충분해지면 진단 결과(준비도·강점·보완점)를 반환한다.
+const diagnosisChatSchema = z.object({
+  messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(80).default([]),
+  locale: z.string().max(10).optional()
+});
+app.post(
+  "/career-launch/diagnosis-chat",
+  authenticate,
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-diagnosis-chat", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = diagnosisChatSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const { messages, locale } = parsed.data;
+    try {
+      const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
+      const systemPrompt =
+        "너는 외국인 유학생의 '취업 준비 상태'를 진단하는 따뜻한 커리어 코치야. 짧은 대화로 준비 상태를 파악하고, 마지막에 준비도와 조언을 준다.\n\n" +
+        "규칙:\n" +
+        "1. 따뜻한 대화체, 한 번에 하나씩. 다음을 자연스럽게 확인해: 목표 직무 방향, 이력서 준비 정도, 한국어 수준, 직무 관련 경험, 비자·근무 가능 여부.\n" +
+        "2. 4~5번 정도 주고받아 충분히 파악되면 done 을 true 로 하고 result 에 진단 결과를 담아: percent(0~100 정수 준비도), level(준비 상태를 한 문장으로), strengths(강점 2~3개), improvements(이번 4주에 집중하면 좋을 점 2~3개).\n" +
+        "3. done 이 false 인 동안엔 result 를 null 로 두고 다음 질문을 reply 에 담아.\n" +
+        "4. 사실을 지어내지 마. 학생이 말한 것과 프로필만 근거로 삼아.\n" +
+        "5. 대화가 처음이면 인사하고 첫 질문을 해. 이미 진행 중이면 재인사 없이 이어가.\n\n" +
+        'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "result": { "percent": number, "level": string, "strengths": string[], "improvements": string[] } | null }' +
+        aiLangDirective(locale);
+      const convo = messages.length
+        ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
+        : "(아직 대화 없음 — 인사하고 첫 질문을 해줘)";
+      const userPrompt = (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") + `지금까지 대화:\n${convo}`;
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.5,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let pj: { reply?: unknown; done?: unknown; result?: unknown } = {};
+      try {
+        pj = JSON.parse(raw);
+      } catch {
+        /* fall through */
+      }
+      const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
+      const done = pj.done === true;
+      let result: { percent: number; level: string; strengths: string[]; improvements: string[] } | null = null;
+      if (done && pj.result && typeof pj.result === "object") {
+        const r = pj.result as { percent?: unknown; level?: unknown; strengths?: unknown; improvements?: unknown };
+        const strList = (v: unknown) =>
+          Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean).slice(0, 4) : [];
+        result = {
+          percent: Math.max(0, Math.min(100, Math.round(Number(r.percent)) || 0)),
+          level: typeof r.level === "string" ? r.level.trim() : "",
+          strengths: strList(r.strengths),
+          improvements: strList(r.improvements)
+        };
+      }
+      if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, reply, done, result });
+    } catch (err) {
+      console.error("[career-launch/diagnosis-chat] failed", err);
       return res.status(500).json({ ok: false, message: "failed to continue chat" });
     }
   }

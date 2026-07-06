@@ -1,241 +1,233 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Card, SectionTitle } from "../../../components/launch/ui";
+import { STUDENT } from "../../../lib/launch/data";
+import { requestDiagnosisChat, type DiagnosisResult, type JobChatMsg } from "../../../lib/launch/job-chat-client";
+import { Card } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
+import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
-// Week 1 — 취업 준비 상태 자가진단(프로그램 안). 이력서가 없는 시점이라
-// 이력서 진단이 아니라, 준비 상태를 점검해 방향을 잡아주는 문항형 진단.
-// (지금은 로컬 채점 목업. 이후 실제 진단 로직/저장 연동)
+// Week 1 스텝1 — AI 코치가 짧은 대화로 취업 준비 상태를 진단하고, 준비도·강점·보완점을 준다.
+const KEY_DIAG = "career-launch:diagnosis";
 
-type Choice = { label: string; score: number };
-type Question = { id: string; q: string; help: string; choices: Choice[] };
-
-const QUESTIONS: Question[] = [
-  {
-    id: "direction",
-    q: "지원하고 싶은 직무 방향이 정해졌나요?",
-    help: "구체적일수록 이력서 준비가 빨라져요.",
-    choices: [
-      { label: "아직 잘 모르겠어요", score: 0 },
-      { label: "대략 생각은 있어요", score: 1 },
-      { label: "명확하게 정해졌어요", score: 2 }
-    ]
-  },
-  {
-    id: "resume",
-    q: "이력서를 준비해본 적 있나요?",
-    help: "이번 프로그램에서 함께 완성할 거예요.",
-    choices: [
-      { label: "아직 없어요", score: 0 },
-      { label: "초안 정도는 있어요", score: 1 },
-      { label: "완성본이 있어요", score: 2 }
-    ]
-  },
-  {
-    id: "korean",
-    q: "한국어로 업무 소통이 가능한가요?",
-    help: "직무에 따라 필요 수준이 달라요.",
-    choices: [
-      { label: "기초 수준이에요", score: 0 },
-      { label: "일상 대화는 가능해요", score: 1 },
-      { label: "업무 소통이 가능해요", score: 2 }
-    ]
-  },
-  {
-    id: "experience",
-    q: "직무 관련 경험(인턴·프로젝트)이 있나요?",
-    help: "이력서에 담을 재료가 돼요.",
-    choices: [
-      { label: "아직 없어요", score: 0 },
-      { label: "1~2개 있어요", score: 1 },
-      { label: "3개 이상 있어요", score: 2 }
-    ]
-  },
-  {
-    id: "visa",
-    q: "한국에서 근무 가능한 비자 상태인가요?",
-    help: "취업 비자 전환 계획도 포함해요.",
-    choices: [
-      { label: "준비가 필요해요", score: 0 },
-      { label: "확인 중이에요", score: 1 },
-      { label: "근무 가능해요", score: 2 }
-    ]
-  }
-];
-
-const MAX = QUESTIONS.length * 2;
-
-// 낮게 답한 항목별 보완 코멘트.
-const TIP: Record<string, string> = {
-  direction: "먼저 직무 방향을 좁혀보세요. 다음 단계의 AI 직무 추천이 도움돼요.",
-  resume: "2주차에 프로그램 안에서 이력서를 처음부터 함께 만들어요. 걱정 없어요.",
-  korean: "직무별 요구 한국어 수준을 확인하고, 부족하면 학습 계획을 세워보세요.",
-  experience: "작은 프로젝트·활동도 경험이 돼요. 떠오르는 걸 미리 메모해두세요.",
-  visa: "비자 전환 요건을 미리 확인해 두면 지원 단계에서 막히지 않아요."
-};
-
-const STORAGE_KEY = "career-launch:diagnosis";
+type Msg = { role: "bot" | "user"; text: string };
 
 export default function LaunchDiagnosisPage() {
-  const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [submitted, setSubmitted] = useState(false);
+  const { user, isReady } = useAuthSession();
+  const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
-  // 저장된 답변·결과 복원 — 다시 와도 이전에 진단한 내용이 그대로 보인다.
+  const [seeded, setSeeded] = useState(false);
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<DiagnosisResult | null>(null);
+
+  const endRef = useRef<HTMLDivElement>(null);
+
+  const startChat = () => {
+    setResult(null);
+    setMessages([]);
+    setLoading(true);
+    void (async () => {
+      try {
+        const { reply } = await requestDiagnosisChat([]);
+        setMessages([{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 취업 준비 상태를 함께 점검해볼까요?` }]);
+      } catch {
+        setMessages([{ role: "bot", text: "지금은 진단을 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  };
+
   useEffect(() => {
+    if (!isReady || seeded) return;
+    setSeeded(true);
+    // 이전에 진단한 결과가 있으면 대화 대신 그 결과를 바로 보여준다(다시 보기).
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as { answers?: Record<string, number> };
-      if (saved.answers && Object.keys(saved.answers).length > 0) {
-        setAnswers(saved.answers);
-        setSubmitted(true);
+      const saved = window.localStorage.getItem(KEY_DIAG);
+      if (saved) {
+        const s = JSON.parse(saved) as Partial<DiagnosisResult>;
+        if (typeof s?.percent === "number") {
+          setResult({ percent: s.percent, level: s.level ?? "", strengths: s.strengths ?? [], improvements: s.improvements ?? [] });
+          return;
+        }
       }
     } catch {
-      // 복원 실패 시 빈 상태로 시작
+      // 무시하고 새 진단 시작
     }
-  }, []);
+    startChat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, seeded]);
 
-  const answeredCount = Object.keys(answers).length;
-  const allAnswered = answeredCount === QUESTIONS.length;
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, loading, result]);
 
-  const total = useMemo(() => Object.values(answers).reduce((n, v) => n + v, 0), [answers]);
-  const percent = Math.round((total / MAX) * 100);
-  const level = percent >= 75 ? "탄탄해요" : percent >= 45 ? "무난해요" : "이제 시작이에요";
-  const weakAreas = QUESTIONS.filter((q) => (answers[q.id] ?? 0) <= 1);
-
-  // 답변·결과를 저장해 대시보드에서 확인하고, 다시 와도 그대로 보이게 한다.
-  const submit = () => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ answers, percent, level }));
-    } catch {
-      // 저장 불가 시에도 결과 화면은 보여준다
-    }
-    setSubmitted(true);
+  const send = (raw: string) => {
+    const a = raw.trim();
+    if (!a || loading || result) return;
+    setInput("");
+    const nextMsgs: Msg[] = [...messages, { role: "user", text: a }];
+    setMessages(nextMsgs);
+    setLoading(true);
+    void (async () => {
+      try {
+        const history: JobChatMsg[] = nextMsgs.map((m) => ({ role: m.role, text: m.text }));
+        const { reply, done, result: r } = await requestDiagnosisChat(history);
+        setMessages((m) => [...m, { role: "bot", text: reply }]);
+        if (done && r) {
+          setResult(r);
+          try {
+            window.localStorage.setItem(KEY_DIAG, JSON.stringify({ percent: r.percent, level: r.level, strengths: r.strengths, improvements: r.improvements }));
+          } catch {
+            // 무시
+          }
+        }
+      } catch {
+        setMessages((m) => [...m, { role: "bot", text: "잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?" }]);
+      } finally {
+        setLoading(false);
+      }
+    })();
   };
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
-      <main className="flex-1 pb-16">
-        <div className="mx-auto w-full max-w-2xl px-5 pt-6 md:pt-10">
+      <main className="flex-1">
+        <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-3xl flex-col px-5 pb-4 pt-4 md:pt-6">
           <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
             ← 대시보드
           </Link>
-
-          <div className="mt-3 rounded-2xl border border-[#CFE0FF] bg-[#EDF1FD] p-5 md:p-6">
-            <p className="text-[12.5px] font-bold text-[#0B46E8]">취업 준비 상태 자가진단</p>
-            <h1 className="mt-1.5 text-[20px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">
-              지금 내 준비 상태를 점검해봐요
-            </h1>
-            <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#4E5968]">
-              5개 문항에 답하면 준비도와 이번 주에 집중할 방향을 알려드려요.
-            </p>
+          <div className="mt-3 flex items-center gap-2.5">
+            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
+            <div>
+              <p className="text-[15px] font-black text-[#0B1227]">취업 준비 상태 자가진단</p>
+              <p className="text-[12px] text-[#8B95A1]">AI 코치와 짧게 대화하면 준비도를 알려드려요</p>
+            </div>
           </div>
 
-          {!submitted ? (
-            <>
-              <div className="mt-7 space-y-4">
-                {QUESTIONS.map((question, i) => (
-                  <Card key={question.id} className="md:!p-6">
-                    <p className="text-[15px] font-bold text-[#191F28]">
-                      <span className="text-[#0B46E8]">Q{i + 1}.</span> {question.q}
-                    </p>
-                    <p className="mt-1 text-[12.5px] text-[#8B95A1]">{question.help}</p>
-                    <div className="mt-3 grid gap-2">
-                      {question.choices.map((c) => {
-                        const active = answers[question.id] === c.score;
-                        return (
-                          <button
-                            key={c.label}
-                            type="button"
-                            onClick={() => setAnswers((prev) => ({ ...prev, [question.id]: c.score }))}
-                            className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-left text-[14px] font-medium transition ${
-                              active
-                                ? "border-[#0B46E8] bg-[#EDF1FD] text-[#0B46E8]"
-                                : "border-[#E5E8EB] bg-white text-[#333D4B] hover:border-[#0B46E8]/40"
-                            }`}
-                          >
-                            <span
-                              className={`flex h-5 w-5 flex-none items-center justify-center rounded-full border-2 text-[11px] font-black ${
-                                active ? "border-[#0B46E8] bg-[#0B46E8] text-white" : "border-[#C9CDD2] text-transparent"
-                              }`}
-                            >
-                              ✓
-                            </span>
-                            {c.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </Card>
-                ))}
+          {/* 대화 */}
+          <div className="mt-4 flex-1 space-y-3 overflow-y-auto rounded-2xl border border-[#EEF1F5] bg-[#F8FAFC] p-4">
+            {messages.map((m, i) =>
+              m.role === "bot" ? (
+                <div key={i} className="flex items-end gap-2">
+                  <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
+                  <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
+                    {m.text}
+                  </div>
+                </div>
+              ) : (
+                <div key={i} className="flex justify-end">
+                  <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white">{m.text}</div>
+                </div>
+              )
+            )}
+            {loading ? (
+              <div className="flex items-end gap-2">
+                <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
+                <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.2s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.1s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2]" />
+                </div>
               </div>
+            ) : null}
 
+            {/* 진단 결과 카드 */}
+            {result ? (
+              <Card className="md:!p-5">
+                <div className="text-center">
+                  <p className="text-[12.5px] font-semibold text-[#8B95A1]">나의 취업 준비도</p>
+                  <p className="mt-0.5 text-[38px] font-black leading-none text-[#0B46E8]">
+                    {result.percent}
+                    <span className="text-[20px]">%</span>
+                  </p>
+                  {result.level ? <p className="mt-2 text-[13.5px] font-bold text-[#191F28]">{result.level}</p> : null}
+                </div>
+                {result.strengths.length > 0 ? (
+                  <div className="mt-4">
+                    <p className="text-[12px] font-bold text-[#3A6B00]">강점</p>
+                    <ul className="mt-1.5 space-y-1">
+                      {result.strengths.map((s, i) => (
+                        <li key={i} className="flex gap-1.5 text-[13px] leading-relaxed text-[#333D4B]">
+                          <span className="text-[#3A6B00]">✓</span>
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {result.improvements.length > 0 ? (
+                  <div className="mt-3">
+                    <p className="text-[12px] font-bold text-[#0B46E8]">이번 4주에 집중하면 좋은 점</p>
+                    <ul className="mt-1.5 space-y-1">
+                      {result.improvements.map((s, i) => (
+                        <li key={i} className="flex gap-1.5 text-[13px] leading-relaxed text-[#333D4B]">
+                          <span className="text-[#0B46E8]">💡</span>
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </Card>
+            ) : null}
+            <div ref={endRef} />
+          </div>
+
+          {/* 입력 / 완료 */}
+          {result ? (
+            <div className="mt-3 flex gap-2">
               <button
                 type="button"
-                disabled={!allAnswered}
-                onClick={submit}
-                className={`mt-6 flex w-full items-center justify-center rounded-xl py-3.5 text-[14.5px] font-bold transition ${
-                  allAnswered ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
+                onClick={startChat}
+                className="h-[46px] shrink-0 rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
+              >
+                다시 진단하기
+              </button>
+              <Link
+                href="/career-launch/dashboard"
+                className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+              >
+                대시보드에서 확인하기 →
+              </Link>
+            </div>
+          ) : (
+            <form
+              className="mt-3 flex items-end gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                send(input);
+              }}
+            >
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    send(input);
+                  }
+                }}
+                rows={1}
+                placeholder="편하게 답해주세요"
+                disabled={loading}
+                className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
+              />
+              <button
+                type="submit"
+                disabled={!input.trim() || loading}
+                className={`h-[46px] shrink-0 rounded-xl px-4 text-[14px] font-bold transition ${
+                  input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
                 }`}
               >
-                {allAnswered ? "진단 결과 보기" : `${answeredCount}/${QUESTIONS.length} 문항 응답`}
+                보내기
               </button>
-            </>
-          ) : (
-            <>
-              {/* 결과 */}
-              <div className="mt-7">
-                <Card className="text-center md:!p-7">
-                  <p className="text-[13px] font-semibold text-[#8B95A1]">나의 취업 준비도</p>
-                  <p className="mt-1 text-[44px] font-black leading-none text-[#0B46E8]">
-                    {percent}
-                    <span className="text-[22px]">%</span>
-                  </p>
-                  <p className="mt-2 text-[14px] font-bold text-[#191F28]">준비 상태가 {level}</p>
-                </Card>
-              </div>
-
-              <div className="mt-6">
-                <SectionTitle sub="이번 주에 이 부분을 채워두면 좋아요">집중하면 좋은 부분</SectionTitle>
-                {weakAreas.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {weakAreas.map((q) => (
-                      <Card key={q.id} className="flex gap-3 !p-4">
-                        <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#FFF4E5] text-[14px]">💡</span>
-                        <div>
-                          <p className="text-[13.5px] font-bold text-[#191F28]">{q.q.replace(/\?$/, "")}</p>
-                          <p className="mt-0.5 text-[13px] leading-relaxed text-[#4E5968]">{TIP[q.id]}</p>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <Card className="!p-4 text-[13.5px] text-[#4E5968]">
-                    준비가 잘 되어 있어요! 바로 직무를 정하고 이력서로 넘어가도 좋아요. 👍
-                  </Card>
-                )}
-              </div>
-
-              <div className="mt-7 flex flex-col gap-2.5">
-                <Link
-                  href="/career-launch/dashboard"
-                  className="flex items-center justify-center rounded-xl bg-[#0B46E8] py-3.5 text-[14.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
-                >
-                  대시보드에서 확인하기 →
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setSubmitted(false)}
-                  className="flex items-center justify-center rounded-xl border border-[#D7DCE3] bg-white py-3 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
-                >
-                  다시 진단하기
-                </button>
-              </div>
-            </>
+            </form>
           )}
         </div>
       </main>
