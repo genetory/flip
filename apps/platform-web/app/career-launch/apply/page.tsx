@@ -30,7 +30,7 @@ export default function LaunchApplyPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1 pb-16">
-      <div className="mx-auto w-full max-w-2xl px-5 pt-6 md:pt-10">
+      <div className="mx-auto w-full max-w-3xl px-5 pt-6 md:pt-10">
         <SectionTitle sub="선발 결과는 이메일로 안내됩니다">참가 신청</SectionTitle>
         <form onSubmit={submit}>
           <Card className="space-y-4 md:!p-6">

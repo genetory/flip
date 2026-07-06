@@ -6,8 +6,8 @@ import { Footer } from "../../../components/site/Footer";
 // 9. 나의 Global Talent Profile 페이지 — 기업 제출용.
 const SECTIONS: { key: string; label: string; done: boolean; desc: string }[] = [
   { key: "basic", label: "기본 정보", done: true, desc: "이름 · 학교 · 전공 · 비자" },
-  { key: "resume", label: "이력서", done: true, desc: "resume-maker 로 작성한 대표 이력서" },
-  { key: "cover", label: "자기소개서", done: true, desc: "목표 회사용 자기소개서" },
+  { key: "resume", label: "이력서", done: false, desc: "resume-maker 로 작성한 대표 이력서" },
+  { key: "cover", label: "자기소개서", done: false, desc: "목표 회사용 자기소개서" },
   { key: "interview", label: "모의면접 결과", done: false, desc: "AI 모의면접 리포트" },
   { key: "portfolio", label: "포트폴리오", done: false, desc: "작업물 · 링크" }
 ];
@@ -20,7 +20,7 @@ export default function LaunchProfilePage() {
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1 pb-16">
-      <div className="mx-auto w-full max-w-2xl px-5 pt-6 md:pt-10">
+      <div className="mx-auto w-full max-w-4xl px-5 pt-6 md:pt-10">
         {/* 프로필 헤더 */}
         <Card className="md:!p-6">
           <div className="flex items-center gap-3">
@@ -44,7 +44,7 @@ export default function LaunchProfilePage() {
         {/* 구성 요소 */}
         <div className="mt-7">
           <SectionTitle sub="기업에 제출할 프로필 구성 요소">Global Talent Profile</SectionTitle>
-          <div className="grid gap-2.5 sm:grid-cols-2">
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {SECTIONS.map((s) => (
               <Card key={s.key} className="flex items-center justify-between !p-4">
                 <div className="flex items-center gap-3">

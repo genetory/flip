@@ -50,8 +50,7 @@ export const WEEKS: WeekPlan[] = [
         id: "w1s1",
         title: "AI 이력서 자가진단 실행",
         desc: "resume-maker에서 현재 이력서를 진단해 완성도와 취업 가능성을 확인합니다. 부족한 항목이 리포트로 나옵니다.",
-        action: { label: "이력서 진단하기", href: "/resume-maker" },
-        done: true
+        action: { label: "이력서 진단하기", href: "/resume-maker" }
       },
       {
         id: "w1s2",
@@ -65,8 +64,8 @@ export const WEEKS: WeekPlan[] = [
         desc: "선정한 직무가 요구하는 필수 역량·자격·경험을 각각 정리합니다. 지금 내가 가진 것과 비교해 격차를 파악하세요."
       }
     ],
-    submission: { required: true, status: "reviewed", label: "진단 결과 + 목표 직무 제출" },
-    feedback: { status: "done", note: "직무 방향이 명확합니다. 2주차에 이력서로 구체화해요." }
+    submission: { required: true, status: "todo", label: "진단 결과 + 목표 직무 제출" },
+    feedback: { status: "none" }
   },
   {
     week: 2,
@@ -94,8 +93,8 @@ export const WEEKS: WeekPlan[] = [
         action: { label: "자기소개서 작성", href: "/resume-maker" }
       }
     ],
-    submission: { required: true, status: "submitted", label: "이력서 + 자소서 링크 제출" },
-    feedback: { status: "pending" }
+    submission: { required: true, status: "todo", label: "이력서 + 자소서 링크 제출" },
+    feedback: { status: "none" }
   },
   {
     week: 3,
@@ -161,7 +160,7 @@ export const STUDENT = {
   email: "mai@example.com",
   school: "고려대학교",
   major: "경영학",
-  currentWeek: 2 as 1 | 2 | 3 | 4,
+  currentWeek: 1 as 1 | 2 | 3 | 4,
   cohort: "2026 여름 1기"
 };
 
@@ -172,8 +171,8 @@ export const COMPLETION_CRITERIA = [
   "Global Talent Profile 완성 및 제출"
 ];
 
-// 다음 오프라인 세미나(대시보드용).
-export const NEXT_SEMINAR = { title: "Week 3 · 모의면접 워크숍", date: "2026-07-27 (월)", time: "19:00", place: "강남 세미나룸 A" };
+// 다음 오프라인 세미나(대시보드용) — 프로그램 시작 시점 기준 Week 1 세미나.
+export const NEXT_SEMINAR = { title: "Week 1 · 취업 가능성 진단 세미나", date: "2026-07-13 (월)", time: "19:00", place: "온라인 (Zoom)" };
 
 // 전체 진행률(완료 스텝 / 전체).
 export function overallProgress(): number {

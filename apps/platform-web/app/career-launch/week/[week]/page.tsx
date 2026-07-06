@@ -24,7 +24,7 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
       <Header />
       <main className="flex-1 pb-16">
         {/* aply.global 반응형: 모바일 1단 / 데스크탑(lg) 좌 스텝 + 우 사이드바 2단 */}
-        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
+        <div className="container pt-6 md:pt-10">
           {/* 뒤로 + 헤더 */}
           <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
             ← 대시보드

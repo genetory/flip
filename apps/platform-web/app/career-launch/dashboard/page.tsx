@@ -36,7 +36,7 @@ export default function LaunchDashboardPage() {
       <Header />
       <main className="flex-1 pb-16">
         {/* aply.global 반응형: 모바일 1단, 데스크탑(lg) 좌(메인)/우(사이드바) 2단 */}
-        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
+        <div className="container pt-6 md:pt-10">
           {/* 인사 + 진행률 (전체 폭) */}
           <Card className="md:!p-6">
             <div className="flex items-center justify-between gap-4">
