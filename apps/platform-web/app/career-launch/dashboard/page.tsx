@@ -60,8 +60,8 @@ export default function LaunchDashboardPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1 pb-16">
-        {/* 포지션 탐색 페이지와 동일한 컨텐츠 폭(max-w-4xl). 모바일 1단 / 데스크탑 2단 */}
-        <div className="mx-auto w-full max-w-4xl px-5 pt-6 md:pt-10">
+        {/* 포지션 탐색 페이지와 동일한 컨텐츠 폭(max-w-6xl). 모바일 1단 / 데스크탑 2단 */}
+        <div className="mx-auto w-full max-w-6xl px-5 pt-6 md:pt-10">
           {/* 인사 + 진행률 (전체 폭) */}
           <Card className="md:!p-7">
             <div className="flex flex-wrap items-start justify-between gap-3">

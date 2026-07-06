@@ -38,7 +38,7 @@ export default function LaunchJobsPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1 pb-28">
-        <div className="mx-auto w-full max-w-4xl px-5 pt-6 md:pt-10">
+        <div className="mx-auto w-full max-w-6xl px-5 pt-6 md:pt-10">
           <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
             ← 대시보드
           </Link>
@@ -61,7 +61,7 @@ export default function LaunchJobsPage() {
           {/* 추천 목록 */}
           <div className="mt-7">
             <SectionTitle sub="카드를 눌러 관심 직무를 선택해요">추천 직무</SectionTitle>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {RECOMMENDED_JOBS.map((job) => {
                 const selected = picked.includes(job.id);
                 const disabled = !selected && picked.length >= MAX_PICK;
@@ -111,7 +111,7 @@ export default function LaunchJobsPage() {
 
       {/* 하단 고정 — 선정 요약 + 완료 */}
       <div className="sticky bottom-0 z-30 border-t border-[#EEF1F5] bg-white/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 px-5 py-3.5">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-5 py-3.5">
           <p className="text-[13px] font-semibold text-[#4E5968]">
             {saved ? (
               <span className="text-[#0B46E8]">✓ {picked.length}개 직무를 선정했어요</span>

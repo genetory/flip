@@ -19,7 +19,7 @@ export default function LaunchProfilePage() {
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1 pb-16">
-      <div className="mx-auto w-full max-w-4xl px-5 pt-6 md:pt-10">
+      <div className="mx-auto w-full max-w-6xl px-5 pt-6 md:pt-10">
         {/* 프로필 헤더 */}
         <Card className="md:!p-6">
           <div className="flex items-center gap-3">
