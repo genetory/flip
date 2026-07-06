@@ -93,9 +93,6 @@ export default function LaunchDashboardPage() {
                 <SectionTitle sub="한 단계씩 끝내고 번호를 콕 눌러 체크해요">이번 주 해야 할 일</SectionTitle>
                 <Card className="md:!p-6">
                   <Stepper steps={currentWeek.steps} />
-                  <Link href={`/career-launch/week/${currentWeek.week}`} className="mt-5 flex w-full items-center justify-center rounded-xl bg-[#0B46E8] py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">
-                    Week {currentWeek.week} 상세 페이지 →
-                  </Link>
                 </Card>
               </div>
 
@@ -146,12 +143,16 @@ export default function LaunchDashboardPage() {
                         )}
                       </Card>
                     );
-                    // 시작 전 주차는 링크 비활성화(클릭 불가), 현재·지난 주차만 이동 가능.
-                    return locked ? (
-                      <div key={w.week} aria-disabled className="block cursor-not-allowed">
-                        {inner}
-                      </div>
-                    ) : (
+                    // 현재 주차는 대시보드에 이미 상세가 나오므로 링크 없음(클릭 불필요).
+                    // 시작 전 주차는 비활성. 지난 주차만 상세로 이동한다.
+                    if (locked || isCurrent) {
+                      return (
+                        <div key={w.week} aria-disabled={locked} className={`block ${locked ? "cursor-not-allowed" : ""}`}>
+                          {inner}
+                        </div>
+                      );
+                    }
+                    return (
                       <Link key={w.week} href={`/career-launch/week/${w.week}`} className="block">
                         {inner}
                       </Link>
