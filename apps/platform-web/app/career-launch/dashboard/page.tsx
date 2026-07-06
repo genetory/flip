@@ -66,7 +66,7 @@ export default function LaunchDashboardPage() {
                   <p className="mt-1 text-[13px] leading-relaxed text-[#4E5968] md:text-[14px]">{currentWeek.goal}</p>
                   <div className="mt-3 flex items-center gap-2">
                     <Pill tone={SUBMIT_LABEL[currentWeek.submission.status].tone}>{SUBMIT_LABEL[currentWeek.submission.status].t}</Pill>
-                    <span className="text-[12px] text-[#8B95A1]">미션 {currentWeek.missions.filter((m) => m.done).length}/{currentWeek.missions.length} 완료</span>
+                    <span className="text-[12px] text-[#8B95A1]">스텝 {currentWeek.steps.filter((s) => s.done).length}/{currentWeek.steps.length} 완료</span>
                   </div>
                   <Link href={`/career-launch/week/${currentWeek.week}`} className="mt-4 flex w-full items-center justify-center rounded-xl bg-[#0B46E8] py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">
                     이번 주 미션 진행하기 →

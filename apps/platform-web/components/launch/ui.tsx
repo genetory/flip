@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { LAUNCH, type Mission } from "../../lib/launch/data";
+import { LAUNCH, type Mission, type Step } from "../../lib/launch/data";
 
 // 모바일 우선 컨테이너 — 최대 폭 좁게, 카드형 레이아웃.
 export function LaunchContainer({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -65,6 +65,50 @@ export function Checklist({ items }: { items: Mission[] }) {
         );
       })}
     </ul>
+  );
+}
+
+// 주차별 "스텝별 해야 할 일" — 번호 + 연결선 스테퍼. 완료는 로컬 토글(MVP).
+export function Stepper({ steps }: { steps: Step[] }) {
+  const [state, setState] = useState<Record<string, boolean>>(() => Object.fromEntries(steps.map((s) => [s.id, Boolean(s.done)])));
+  return (
+    <ol className="space-y-1">
+      {steps.map((s, i) => {
+        const done = state[s.id];
+        const last = i === steps.length - 1;
+        return (
+          <li key={s.id} className="flex gap-3.5">
+            {/* 번호/체크 + 연결선 */}
+            <div className="flex flex-col items-center">
+              <button
+                type="button"
+                onClick={() => setState((prev) => ({ ...prev, [s.id]: !prev[s.id] }))}
+                aria-label={done ? "완료 취소" : "완료로 표시"}
+                className={`flex h-8 w-8 flex-none items-center justify-center rounded-full text-[13px] font-black transition ${
+                  done ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#8B95A1] hover:border-[#0B46E8]/50"
+                }`}
+              >
+                {done ? "✓" : i + 1}
+              </button>
+              {!last ? <span className="mt-1 w-[2px] flex-1 rounded bg-[#EAECEF]" /> : null}
+            </div>
+            {/* 내용 */}
+            <div className={`min-w-0 flex-1 ${last ? "" : "pb-5"}`}>
+              <p className={`text-[15px] font-bold tracking-[-0.01em] ${done ? "text-[#8B95A1] line-through" : "text-[#191F28]"}`}>{s.title}</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-[#4E5968]">{s.desc}</p>
+              {s.action ? (
+                <Link
+                  href={s.action.href}
+                  className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E0E8FC]"
+                >
+                  {s.action.label} →
+                </Link>
+              ) : null}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

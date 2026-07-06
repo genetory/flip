@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Card, LaunchButton, LaunchContainer, SectionTitle } from "../../../components/launch/ui";
+import { Card, LaunchButton, SectionTitle } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 
@@ -30,10 +30,10 @@ export default function LaunchApplyPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1 pb-16">
-      <LaunchContainer className="pt-6">
+      <div className="mx-auto w-full max-w-2xl px-5 pt-6 md:pt-10">
         <SectionTitle sub="선발 결과는 이메일로 안내됩니다">참가 신청</SectionTitle>
         <form onSubmit={submit}>
-          <Card className="space-y-4">
+          <Card className="space-y-4 md:!p-6">
             <label className="block text-[12.5px] font-semibold text-[#4E5968]">
               이름 <span className="text-[#0B46E8]">*</span>
               <input className={inputCls} value={form.name} onChange={set("name")} placeholder="Nguyen Mai" />
@@ -73,7 +73,7 @@ export default function LaunchApplyPage() {
             {!canSubmit ? <p className="mt-2 text-center text-[12px] text-[#8B95A1]">이름·이메일·학교는 필수입니다.</p> : null}
           </div>
         </form>
-      </LaunchContainer>
+      </div>
       </main>
       <Footer />
     </div>

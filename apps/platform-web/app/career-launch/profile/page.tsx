@@ -1,5 +1,5 @@
 import { overallProgress, STUDENT } from "../../../lib/launch/data";
-import { Card, LaunchButton, LaunchContainer, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
+import { Card, LaunchButton, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 
@@ -20,9 +20,9 @@ export default function LaunchProfilePage() {
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1 pb-16">
-      <LaunchContainer className="pt-6">
+      <div className="mx-auto w-full max-w-2xl px-5 pt-6 md:pt-10">
         {/* 프로필 헤더 */}
-        <Card>
+        <Card className="md:!p-6">
           <div className="flex items-center gap-3">
             <span className="flex h-14 w-14 flex-none items-center justify-center rounded-2xl bg-[#0B46E8] text-[22px] font-black text-white">
               {STUDENT.name.charAt(0)}
@@ -44,7 +44,7 @@ export default function LaunchProfilePage() {
         {/* 구성 요소 */}
         <div className="mt-7">
           <SectionTitle sub="기업에 제출할 프로필 구성 요소">Global Talent Profile</SectionTitle>
-          <div className="space-y-2.5">
+          <div className="grid gap-2.5 sm:grid-cols-2">
             {SECTIONS.map((s) => (
               <Card key={s.key} className="flex items-center justify-between !p-4">
                 <div className="flex items-center gap-3">
@@ -82,7 +82,7 @@ export default function LaunchProfilePage() {
           </LaunchButton>
           <p className="mt-3 text-center text-[12px] text-[#8B95A1]">제출 시 참여 기업에 프로필이 공유됩니다.</p>
         </div>
-      </LaunchContainer>
+      </div>
       </main>
       <Footer />
     </div>
