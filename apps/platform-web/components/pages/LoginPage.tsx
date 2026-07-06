@@ -23,8 +23,9 @@ function sanitizeNextParam(raw: string | null): string | null {
   return trimmed;
 }
 
-// defaultNext: ?next= 가 없을 때 로그인 후 이동할 기본 경로(예: launch 서브도메인은
-// /launch/dashboard). chromeless: 사이트 헤더/푸터 없이 폼만(서브도메인 재사용용).
+// defaultNext: ?next= 가 없을 때 로그인 후 이동할 기본 경로(예: /career-launch 는
+// /career-launch/dashboard). chromeless: 사이트 헤더/푸터 없이 폼만.
+// brandTitle/brandSubtitle: 로그인 카드 위 중앙 브랜드 헤더(예: Career Launch Bootcamp).
 export function LoginPage({
   defaultNext,
   chromeless,

@@ -19,11 +19,22 @@ const CANONICAL_ORIGIN = "https://aply.global";
 export function middleware(req: NextRequest) {
   // Strip the optional port — Azure Container Apps forwards the original
   // Host header which usually carries no port, but be defensive.
-  const host = (req.headers.get("host") ?? "").toLowerCase().split(":")[0];
+  const rawHost = (req.headers.get("host") ?? "").toLowerCase();
+  const host = rawHost.split(":")[0];
   if (LEGACY_DOMAIN_HOSTS.has(host)) {
     const url = new URL(req.url);
     const dest = new URL(`${url.pathname}${url.search}`, CANONICAL_ORIGIN);
     return NextResponse.redirect(dest, 308);
+  }
+
+  // Career Launch 는 서브도메인(launch.*)을 폐기하고 /career-launch 경로만 쓴다.
+  // launch.aply.global / launch.localhost 등으로 들어오면 서브도메인을 떼어낸
+  // 정식 호스트의 /career-launch 로 영구 리다이렉트한다.
+  if (host.startsWith("launch.")) {
+    const baseHost = host.slice("launch.".length);
+    const proto = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "") ?? "https";
+    const port = rawHost.includes(":") ? `:${rawHost.split(":")[1]}` : "";
+    return NextResponse.redirect(`${proto}://${baseHost}${port}/career-launch`, 308);
   }
 
   const user = process.env.BASIC_AUTH_USER?.trim();
