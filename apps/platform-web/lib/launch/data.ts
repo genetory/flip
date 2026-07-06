@@ -51,13 +51,13 @@ export const WEEKS: WeekPlan[] = [
         id: "w1s1",
         title: "취업 준비 상태 자가진단",
         desc: "경력·어학·비자·직무 이해도 등 지금 내 준비 상태를 스스로 점검해봐요. 어디를 채우면 좋을지 방향이 보여요.",
-        action: { label: "진단 시작하기", href: "/career-launch/week/1" }
+        action: { label: "진단 시작하기", href: "/career-launch/diagnosis" }
       },
       {
         id: "w1s2",
         title: "관심 직무 3개 선정",
-        desc: "AI가 전공·강점을 분석해 어울리는 직무를 추천해드려요. 마음이 가는 직무를 3개 이내로 좁혀봐요.",
-        action: { label: "AI 직무 추천 받기", href: "/career-launch/jobs" }
+        desc: "AI가 전공·강점을 분석해 어울리는 직무를 추천해드려요. 마음이 가는 직무를 3개 이내로 골라봐요.",
+        action: { label: "직무 선정하기", href: "/career-launch/jobs" }
       },
       {
         id: "w1s3",
