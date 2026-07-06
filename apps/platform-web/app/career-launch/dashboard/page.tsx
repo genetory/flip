@@ -133,7 +133,7 @@ export default function LaunchDashboardPage() {
                     const inner = (
                       <Card className={`flex items-center justify-between !p-4 ${isCurrent ? "!border-[#0B46E8]/40 ring-1 ring-[#0B46E8]/20" : ""} ${locked ? "opacity-60" : ""}`}>
                         <div className="flex items-center gap-3">
-                          <span className={`flex h-8 w-8 flex-none items-center justify-center rounded-lg text-[12.5px] font-black ${locked ? "bg-[#F2F4F6] text-[#B0B8C1]" : "bg-[#0B46E8] text-white"}`}>W{w.week}</span>
+                          <span className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12.5px] font-black leading-none ${locked ? "bg-[#F2F4F6] text-[#B0B8C1]" : "bg-[#0B46E8] text-white"}`}>W{w.week}</span>
                           <div className="min-w-0">
                             <p className={`truncate text-[13.5px] font-bold ${locked ? "text-[#8B95A1]" : "text-[#191F28]"}`}>{w.title}</p>
                             {isCurrent ? <p className="text-[11px] font-bold text-[#0B46E8]">진행 중</p> : null}
