@@ -2,44 +2,57 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { recommendJobs, STUDENT } from "../../../lib/launch/data";
+import { buildJobQuery, JOB_FIELDS, JOB_INDUSTRIES, recommendJobs, STUDENT } from "../../../lib/launch/data";
 import { Card, Pill, SectionTitle } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
-// Week 1 — 전공·관심 정보로 추천을 재정렬하고, 추천에서 고르거나 직무를 직접
-// 추가해 관심 직무를 최대 3개 선택한다. 선택·입력은 저장돼 다시 와도 유지된다.
-// (추천·저장은 지금은 로컬 목업. 이후 프로필 분석/서버 저장 연동)
+// Week 1 — 학과·관심 산업·관심 직군을 입력하면 그에 맞게 추천을 재정렬하고,
+// 추천에서 고르거나 직무를 직접 추가해 관심 직무를 최대 3개 선택한다.
+// 입력·선택은 저장돼 다시 와도 유지된다. (추천·저장은 지금은 로컬 목업)
 const MAX_PICK = 3;
 const KEY_SEL = "career-launch:selected-jobs";
-const KEY_KW = "career-launch:jobs-keyword";
+const KEY_COND = "career-launch:job-conditions";
 
 export default function LaunchJobsPage() {
   const { user } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
-  const [keyword, setKeyword] = useState("");
+  const [major, setMajor] = useState("");
+  const [industries, setIndustries] = useState<string[]>([]);
+  const [fields, setFields] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [custom, setCustom] = useState("");
   const [saved, setSaved] = useState(false);
 
-  // 저장된 선택·키워드 복원(다시 와도 유지).
+  // 저장된 조건·선택 복원(다시 와도 유지).
   useEffect(() => {
     try {
       const s = window.localStorage.getItem(KEY_SEL);
       if (s) setSelected(JSON.parse(s));
-      const k = window.localStorage.getItem(KEY_KW);
-      if (k) setKeyword(k);
+      const c = window.localStorage.getItem(KEY_COND);
+      if (c) {
+        const cond = JSON.parse(c) as { major?: string; industries?: string[]; fields?: string[] };
+        setMajor(cond.major ?? "");
+        setIndustries(cond.industries ?? []);
+        setFields(cond.fields ?? []);
+      }
     } catch {
       // 복원 실패 시 빈 상태로 시작
     }
   }, []);
 
-  const recs = recommendJobs(keyword);
+  const recs = recommendJobs(buildJobQuery({ major, industries, fields }));
   const full = selected.length >= MAX_PICK;
+  const hasCondition = Boolean(major.trim() || industries.length || fields.length);
 
-  const toggle = (role: string) => {
+  const toggleIn = (list: string[], set: (v: string[]) => void, v: string) => {
+    setSaved(false);
+    set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  };
+
+  const toggleJob = (role: string) => {
     setSaved(false);
     setSelected((prev) => (prev.includes(role) ? prev.filter((x) => x !== role) : prev.length >= MAX_PICK ? prev : [...prev, role]));
   };
@@ -55,12 +68,17 @@ export default function LaunchJobsPage() {
   const save = () => {
     try {
       window.localStorage.setItem(KEY_SEL, JSON.stringify(selected));
-      window.localStorage.setItem(KEY_KW, keyword);
+      window.localStorage.setItem(KEY_COND, JSON.stringify({ major, industries, fields }));
     } catch {
       // 저장 불가 시 화면 상태는 유지
     }
     setSaved(true);
   };
+
+  const chip = (active: boolean) =>
+    `rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition ${
+      active ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
+    }`;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -81,35 +99,48 @@ export default function LaunchJobsPage() {
               {displayName}님께 어울리는 직무예요
             </h1>
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#4E5968] md:text-[14px]">
-              전공·관심 분야를 입력하면 그에 맞게 추천해드려요. 추천에서 고르거나 <b className="text-[#0B46E8]">직무를 직접 추가</b>해
+              학과·관심 산업·직군을 입력하면 그에 맞게 추천해드려요. 추천에서 고르거나 <b className="text-[#0B46E8]">직접 추가</b>해
               최대 {MAX_PICK}개를 정해봐요.
             </p>
           </div>
 
-          {/* 내 정보 입력 */}
+          {/* 추천 조건 입력 */}
           <div className="mt-7">
-            <SectionTitle sub="전공·관심 분야를 입력하면 추천이 바뀌어요">내 정보로 맞춤 추천</SectionTitle>
-            <Card className="md:!p-5">
-              <label className="block text-[12.5px] font-semibold text-[#4E5968]">
-                전공 · 관심 분야
+            <SectionTitle sub="입력한 조건에 맞춰 추천이 바뀌어요">추천 조건</SectionTitle>
+            <Card className="space-y-5 md:!p-6">
+              <label className="block text-[12.5px] font-bold text-[#4E5968]">
+                학과 · 전공
                 <input
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  placeholder="예: 경영학, 마케팅, IT, 무역"
+                  value={major}
+                  onChange={(e) => {
+                    setSaved(false);
+                    setMajor(e.target.value);
+                  }}
+                  placeholder="예: 컴퓨터공학, 경영학, 디자인학과"
                   className="mt-1.5 h-11 w-full rounded-xl border border-[#E5E8EB] bg-white px-3.5 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none"
                 />
               </label>
-              <div className="mt-2.5 flex flex-wrap gap-1.5">
-                {["경영학", "마케팅", "IT", "무역", "디자인"].map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => setKeyword(k)}
-                    className="rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]"
-                  >
-                    {k}
-                  </button>
-                ))}
+
+              <div>
+                <p className="text-[12.5px] font-bold text-[#4E5968]">관심 산업</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {JOB_INDUSTRIES.map((o) => (
+                    <button key={o.label} type="button" onClick={() => toggleIn(industries, setIndustries, o.label)} className={chip(industries.includes(o.label))}>
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[12.5px] font-bold text-[#4E5968]">관심 직군</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {JOB_FIELDS.map((o) => (
+                    <button key={o.label} type="button" onClick={() => toggleIn(fields, setFields, o.label)} className={chip(fields.includes(o.label))}>
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </Card>
           </div>
@@ -127,7 +158,7 @@ export default function LaunchJobsPage() {
                     addCustom();
                   }
                 }}
-                placeholder="예: UX 디자이너"
+                placeholder="예: 프로덕트 애널리스트"
                 className="h-11 flex-1 rounded-xl border border-[#E5E8EB] bg-white px-3.5 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none"
               />
               <button
@@ -149,14 +180,11 @@ export default function LaunchJobsPage() {
               <SectionTitle>선택한 직무 ({selected.length}/{MAX_PICK})</SectionTitle>
               <div className="flex flex-wrap gap-2">
                 {selected.map((role) => (
-                  <span
-                    key={role}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[#EDF1FD] py-1.5 pl-3.5 pr-2 text-[13px] font-bold text-[#0B46E8]"
-                  >
+                  <span key={role} className="inline-flex items-center gap-1.5 rounded-full bg-[#EDF1FD] py-1.5 pl-3.5 pr-2 text-[13px] font-bold text-[#0B46E8]">
                     {role}
                     <button
                       type="button"
-                      onClick={() => toggle(role)}
+                      onClick={() => toggleJob(role)}
                       aria-label={`${role} 선택 해제`}
                       className="flex h-5 w-5 items-center justify-center rounded-full text-[#0B46E8]/70 transition hover:bg-[#0B46E8]/10 hover:text-[#0B46E8]"
                     >
@@ -170,9 +198,7 @@ export default function LaunchJobsPage() {
 
           {/* 추천 목록 */}
           <div className="mt-7">
-            <SectionTitle sub={keyword.trim() ? `'${keyword.trim()}'에 맞춰 정렬했어요` : "매칭이 높은 순서로 보여드려요"}>
-              추천 직무
-            </SectionTitle>
+            <SectionTitle sub={hasCondition ? "입력한 조건에 맞춰 정렬했어요" : "매칭이 높은 순서로 보여드려요"}>추천 직무</SectionTitle>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {recs.map((job) => {
                 const isSel = selected.includes(job.role);
@@ -180,7 +206,7 @@ export default function LaunchJobsPage() {
                 return (
                   <Card
                     key={job.id}
-                    onClick={disabled ? undefined : () => toggle(job.role)}
+                    onClick={disabled ? undefined : () => toggleJob(job.role)}
                     className={`flex flex-col md:!p-5 ${isSel ? "!border-[#0B46E8] ring-1 ring-[#0B46E8]/30" : disabled ? "opacity-55" : ""}`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -192,7 +218,7 @@ export default function LaunchJobsPage() {
                         >
                           ✓
                         </span>
-                        <p className="text-[15.5px] font-bold text-[#191F28]">{job.role}</p>
+                        <p className="text-[15px] font-bold text-[#191F28]">{job.role}</p>
                       </div>
                       <Pill tone="blue">매칭 {job.match}%</Pill>
                     </div>
@@ -204,13 +230,6 @@ export default function LaunchJobsPage() {
                         </span>
                       ))}
                     </div>
-                    <Link
-                      href={`/positions?query=${encodeURIComponent(job.query)}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="mt-4 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#F2F4F6] py-2.5 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]"
-                    >
-                      이 직무 공고 보기 →
-                    </Link>
                   </Card>
                 );
               })}
@@ -233,10 +252,7 @@ export default function LaunchJobsPage() {
             )}
           </p>
           {saved ? (
-            <Link
-              href="/career-launch/dashboard"
-              className="rounded-xl bg-[#0B46E8] px-5 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
-            >
+            <Link href="/career-launch/dashboard" className="rounded-xl bg-[#0B46E8] px-5 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
               대시보드에서 확인하기 →
             </Link>
           ) : (
