@@ -177,11 +177,13 @@ export function ResumeBuilderPreviewPage({
         }
       `}</style>
 
-      {/* GNB 아래 서브 네비게이션 — 편집으로 돌아가기 + 언어 전환 + PDF */}
-      <div className="rm-print-hide bg-background/95 backdrop-blur lg:sticky lg:top-14 lg:z-30">
+      {/* GNB 아래 서브 네비게이션 — 편집으로 돌아가기 + 언어 전환 + PDF.
+          embedded(운영콘솔)에선 셸이 없으므로 최상단에 붙이고 로고를 표시한다. */}
+      <div className={`rm-print-hide bg-background/95 backdrop-blur lg:sticky lg:z-30 ${embedded ? "border-b border-[#F2F4F6] lg:top-0" : "lg:top-14"}`}>
         <div className="container flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
           {embedded ? (
-            <span />
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/img_logo.webp" alt="Aply" className="h-6 w-auto" />
           ) : (
             <button
               type="button"
