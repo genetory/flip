@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { COMPLETION_CRITERIA, overallProgress, STUDENT, WEEKS } from "../../../lib/launch/data";
-import { Card, Pill, ProgressBar, SectionTitle, Stepper, SubmissionBox } from "../../../components/launch/ui";
+import { AutoSubmitStatus, Card, Pill, ProgressBar, SectionTitle, Stepper } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -99,10 +99,10 @@ export default function LaunchDashboardPage() {
                 </Card>
               </div>
 
-              {/* 이번 주 과제 제출 */}
+              {/* 이번 주 과제 — aply.global 활동에서 자동 수집 */}
               <div>
-                <SectionTitle>이번 주 과제 제출</SectionTitle>
-                <SubmissionBox label={currentWeek.submission.label} initialStatus={currentWeek.submission.status} />
+                <SectionTitle sub="따로 제출하지 않아도 활동을 하면 자동으로 반영돼요">이번 주 과제</SectionTitle>
+                <AutoSubmitStatus label={currentWeek.submission.label} status={currentWeek.submission.status} source={currentWeek.submission.source} />
               </div>
             </div>
 

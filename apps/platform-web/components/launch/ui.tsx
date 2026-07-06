@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { LAUNCH, type Mission, type Step } from "../../lib/launch/data";
+import { LAUNCH, type Mission, type MissionStatus, type Step } from "../../lib/launch/data";
 
 // 모바일 우선 컨테이너 — 최대 폭 좁게, 카드형 레이아웃.
 export function LaunchContainer({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -170,6 +170,36 @@ export function SubmissionBox({ label, initialStatus }: { label: string; initial
       <LaunchButton variant="primary" full onClick={() => setStatus("submitted")}>
         과제 제출하기
       </LaunchButton>
+    </div>
+  );
+}
+
+// 과제 "제출" — 학생이 수동 제출하는 게 아니라, resume-maker·모의면접 등
+// aply.global 활동 결과가 자동으로 수집·반영되는 상태를 보여준다.
+export function AutoSubmitStatus({ label, status, source }: { label: string; status: MissionStatus; source: string }) {
+  const done = status !== "todo";
+  return (
+    <div
+      className={`rounded-2xl border p-4 md:p-5 ${
+        done ? "border-emerald-200 bg-emerald-50/50" : "border-[#EEF1F5] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04)]"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <span className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl text-[18px] ${done ? "bg-emerald-100" : "bg-[#EDF1FD]"}`}>
+          {done ? "✓" : "🪄"}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[14.5px] font-bold text-[#191F28]">{label}</p>
+            {done ? <Pill tone="green">자동 제출됨</Pill> : <Pill tone="grey">활동 시 자동 반영</Pill>}
+          </div>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-[#4E5968]">
+            {done
+              ? `${source}에서 자동으로 수집돼 제출됐어요. 따로 제출할 필요가 없어요.`
+              : `${source}을(를) 완료하면 자동으로 제출돼요. 별도 제출 절차가 없습니다.`}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

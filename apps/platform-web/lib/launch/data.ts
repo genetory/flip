@@ -34,7 +34,8 @@ export type WeekPlan = {
   goal: string;
   seminar: { date: string; time: string; place: string; online: boolean };
   steps: Step[];
-  submission: { required: boolean; status: MissionStatus; label: string };
+  // 과제는 수동 제출이 아니라 aply.global 활동에서 자동 수집된다. source 는 그 출처.
+  submission: { required: boolean; status: MissionStatus; label: string; source: string };
   feedback: { status: "none" | "pending" | "done"; note?: string };
 };
 
@@ -64,7 +65,7 @@ export const WEEKS: WeekPlan[] = [
         desc: "선정한 직무가 요구하는 필수 역량·자격·경험을 각각 정리합니다. 지금 내가 가진 것과 비교해 격차를 파악하세요."
       }
     ],
-    submission: { required: true, status: "todo", label: "진단 결과 + 목표 직무 제출" },
+    submission: { required: true, status: "todo", label: "진단 결과 + 목표 직무", source: "resume-maker 이력서 진단" },
     feedback: { status: "none" }
   },
   {
@@ -93,7 +94,7 @@ export const WEEKS: WeekPlan[] = [
         action: { label: "자기소개서 작성", href: "/resume-maker" }
       }
     ],
-    submission: { required: true, status: "todo", label: "이력서 + 자소서 링크 제출" },
+    submission: { required: true, status: "todo", label: "이력서 + 자기소개서", source: "resume-maker 대표 이력서·자기소개서" },
     feedback: { status: "none" }
   },
   {
@@ -121,7 +122,7 @@ export const WEEKS: WeekPlan[] = [
         action: { label: "공고 보기", href: "/positions" }
       }
     ],
-    submission: { required: true, status: "todo", label: "모의면접 결과 + 지원 리스트 제출" },
+    submission: { required: true, status: "todo", label: "모의면접 결과 + 지원 리스트", source: "AI 모의면접 결과와 저장한 공고" },
     feedback: { status: "none" }
   },
   {
@@ -148,7 +149,7 @@ export const WEEKS: WeekPlan[] = [
         desc: "완성된 프로필을 참여 기업에 공유하는 데 동의하면 제출 준비가 끝납니다."
       }
     ],
-    submission: { required: true, status: "todo", label: "Global Talent Profile 제출" },
+    submission: { required: true, status: "todo", label: "Global Talent Profile", source: "완성된 Global Talent Profile" },
     feedback: { status: "none" }
   }
 ];
