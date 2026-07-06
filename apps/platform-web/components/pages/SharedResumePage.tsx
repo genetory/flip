@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowSquareOut, DownloadSimple, Rows, SidebarSimple } from "@phosphor-icons/react/dist/ssr";
 import { ResumeSheetSkeleton } from "./ResumeSheetSkeleton";
@@ -39,6 +40,9 @@ type Layout = "single" | "two-column";
 // 그대로 공유뷰로 렌더할 때 넘긴다. 넘기면 fetch 를 생략한다.
 export function SharedResumePage({ slug, preloaded }: { slug: string; preloaded?: SharedResume }) {
   const tr = useTr();
+  // 운영콘솔에서 ?view=preview 로 열면 스코프와 무관하게 미리보기(학생과 동일) 뷰로 렌더.
+  const searchParams = useSearchParams();
+  const forcePreview = searchParams.get("view") === "preview";
   const [resume, setResume] = useState<SharedResume | null>(preloaded ?? null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [layout, setLayout] = useState<Layout>("single");
@@ -116,9 +120,9 @@ export function SharedResumePage({ slug, preloaded }: { slug: string; preloaded?
     return <ResumeSheetSkeleton />;
   }
 
-  // 운영자 시점(운영콘솔에서 로그인 상태로 연 경우)에는 resume-maker 미리보기와
-  // 동일한 뷰로 보여준다. 공개 공유 링크(public)는 기존 공유뷰 그대로.
-  if (resume.viewerScope === "operator") {
+  // 운영콘솔에서 연 경우(?view=preview 또는 operator 스코프)에는 학생이 보는 것과
+  // 동일한 resume-maker 미리보기 뷰로 렌더. 일반 공개 공유 링크는 기존 공유뷰 그대로.
+  if (forcePreview || resume.viewerScope === "operator") {
     return (
       <div className="min-h-screen bg-[#F8FAFC]">
         <ResumeBuilderPreviewPage resumeId="" embedded preloadedContent={(resume.content as ResumeContent) ?? null} />
