@@ -27,6 +27,15 @@ const QUESTIONS = [
   "평소 어떤 일을 할 때 시간 가는 줄 몰랐어요? 스스로 잘한다고 느낀 것도 좋아요.",
   "이런 일 중에 끌리는 게 있어요? — 만들기(개발)·분석(데이터)·꾸미기(디자인)·기획·알리기(마케팅)·사람 만나기(영업) 중에서요."
 ];
+// 추천 단계에서 취향을 더 파고들어 좁혀가는 후속 질문(순서대로 하나씩).
+const FOLLOWUPS = [
+  "이 중에 눈길 가는 게 있었어요? 아니면 전혀 다른 쪽이 좋을까요?",
+  "일할 때 사람들과 협업하는 게 좋아요, 혼자 몰입하는 게 좋아요?",
+  "안정적인 환경이 좋아요, 새로운 걸 빠르게 시도해보는 게 좋아요?",
+  "숫자·데이터를 다루는 일은 어때요 — 재밌을 것 같아요, 부담될 것 같아요?",
+  "글쓰기나 발표처럼 표현하는 일은 어떤가요?",
+  "선호하는 분야나 산업이 더 있으면 알려줘요. 그쪽으로 좁혀서 찾아볼게요."
+];
 
 export default function LaunchJobsPage() {
   const { user, isReady } = useAuthSession();
@@ -39,6 +48,7 @@ export default function LaunchJobsPage() {
   const [query, setQuery] = useState("");
   const [answers, setAnswers] = useState<string[]>([]);
   const [shownIds, setShownIds] = useState<string[]>([]);
+  const [followupIdx, setFollowupIdx] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
   const [input, setInput] = useState("");
   const [saved, setSaved] = useState(false);
@@ -46,10 +56,11 @@ export default function LaunchJobsPage() {
   const endRef = useRef<HTMLDivElement>(null);
 
   // 다음 추천 묶음 — 아직 안 보여준 + 선택 안 한 직무에서 상위 몇 개.
+  // 다 보여줬으면(바닥나면) 다시 상위부터 — 3개 고를 때까지 끊기지 않게.
   const nextBatch = (q: string, shown: string[], sel: string[]) => {
-    const batch = recommendJobs(q)
-      .filter((j) => !shown.includes(j.id) && !sel.includes(j.role))
-      .slice(0, BATCH);
+    const all = recommendJobs(q).filter((j) => !sel.includes(j.role));
+    let batch = all.filter((j) => !shown.includes(j.id)).slice(0, BATCH);
+    if (batch.length === 0) batch = all.slice(0, BATCH);
     return { batch, newShown: [...shown, ...batch.map((j) => j.id)] };
   };
 
@@ -114,8 +125,11 @@ export default function LaunchJobsPage() {
       } else {
         const q = nextAnswers.join(" ");
         const { batch, newShown } = nextBatch(q, [], selected);
-        msgs.push({ role: "bot", kind: "text", text: "이야기해준 걸 바탕으로 이런 직무들이 어울릴 것 같아요 👇 마음에 드는 걸 눌러서 골라보세요." });
+        msgs.push({ role: "bot", kind: "text", text: "이야기해준 걸 바탕으로 이런 직무들이 어울릴 것 같아요 👇 마음에 들면 눌러서 골라요." });
         msgs.push({ role: "bot", kind: "jobs", jobs: batch });
+        // 바로 다른 걸 던지지 않고, 후속 질문으로 취향을 더 파고든다.
+        msgs.push({ role: "bot", kind: "text", text: FOLLOWUPS[0] });
+        setFollowupIdx(1);
         setAnswers(nextAnswers);
         setQuery(q);
         setShownIds(newShown);
@@ -125,16 +139,18 @@ export default function LaunchJobsPage() {
       return;
     }
 
-    // recommending — 반응을 반영해 새 추천 제시
+    // recommending — 반응을 반영해 새 추천 + 후속 질문으로 계속 이끈다(3개 고를 때까지).
     const nq = `${query} ${a}`.trim();
     const { batch, newShown } = nextBatch(nq, shownIds, selected);
     const msgs: Msg[] = [...messages, { role: "user", kind: "text", text: a }];
-    if (batch.length) {
-      msgs.push({ role: "bot", kind: "text", text: "그럼 이런 직무는 어때요? 👇" });
-      msgs.push({ role: "bot", kind: "jobs", jobs: batch });
-      setShownIds(newShown);
-    } else {
-      msgs.push({ role: "bot", kind: "text", text: "지금까지 어울리는 직무는 거의 다 보여드렸어요. 관심 분야를 조금 더 구체적으로 알려주면 새로 찾아볼게요!" });
+    msgs.push({ role: "bot", kind: "text", text: ACKS[followupIdx % ACKS.length] });
+    msgs.push({ role: "bot", kind: "jobs", jobs: batch });
+    setShownIds(newShown);
+    // 아직 3개를 못 골랐으면 후속 질문으로 취향을 더 파고든다(질문 순환·반복).
+    const remaining = MAX_PICK - selected.length;
+    if (remaining > 0) {
+      msgs.push({ role: "bot", kind: "text", text: `${FOLLOWUPS[followupIdx % FOLLOWUPS.length]} (${remaining}개 더 고르면 돼요)` });
+      setFollowupIdx((n) => n + 1);
     }
     setQuery(nq);
     setMessages(msgs);
