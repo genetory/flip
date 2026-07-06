@@ -1,13 +1,33 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { COMPLETION_CRITERIA, NEXT_SEMINAR, overallProgress, STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, LaunchContainer, LaunchTopBar, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
+import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
 const SUBMIT_LABEL = { todo: { t: "미제출", tone: "grey" as const }, submitted: { t: "제출 완료", tone: "blue" as const }, reviewed: { t: "피드백 완료", tone: "green" as const } };
 
-// 4. 학생 로그인 후 대시보드
+// 4. 학생 로그인 후 대시보드 — aply.global 세션 필요.
 export default function LaunchDashboardPage() {
+  const router = useRouter();
+  const { user, isReady, isAuthenticated } = useAuthSession();
+  useEffect(() => {
+    if (isReady && !isAuthenticated) router.replace("/career-launch");
+  }, [isReady, isAuthenticated, router]);
+
   const progress = overallProgress();
   const currentWeek = WEEKS.find((w) => w.week === STUDENT.currentWeek)!;
+  const displayName = user?.name?.trim() || user?.email || STUDENT.name;
+
+  if (!isReady || !isAuthenticated) {
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <span className="text-[13px] text-[#8B95A1]">불러오는 중...</span>
+      </main>
+    );
+  }
 
   return (
     <main className="pb-16">
@@ -18,7 +38,7 @@ export default function LaunchDashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[13px] text-[#8B95A1]">{STUDENT.cohort}</p>
-              <p className="text-[18px] font-black text-[#0B1227]">{STUDENT.name}님</p>
+              <p className="text-[18px] font-black text-[#0B1227]">{displayName}님</p>
             </div>
             <Pill tone="blue">Week {STUDENT.currentWeek} / 4</Pill>
           </div>
@@ -41,7 +61,7 @@ export default function LaunchDashboardPage() {
               <Pill tone={SUBMIT_LABEL[currentWeek.submission.status].tone}>{SUBMIT_LABEL[currentWeek.submission.status].t}</Pill>
               <span className="text-[12px] text-[#8B95A1]">미션 {currentWeek.missions.filter((m) => m.done).length}/{currentWeek.missions.length} 완료</span>
             </div>
-            <Link href={`/launch/week/${currentWeek.week}`} className="mt-4 flex w-full items-center justify-center rounded-xl bg-[#0B46E8] py-3 text-[14px] font-bold text-white">
+            <Link href={`/career-launch/week/${currentWeek.week}`} className="mt-4 flex w-full items-center justify-center rounded-xl bg-[#0B46E8] py-3 text-[14px] font-bold text-white">
               이번 주 미션 진행하기 →
             </Link>
           </Card>
@@ -67,7 +87,7 @@ export default function LaunchDashboardPage() {
           <SectionTitle>주차별 제출 상태</SectionTitle>
           <div className="space-y-2.5">
             {WEEKS.map((w) => (
-              <Link key={w.week} href={`/launch/week/${w.week}`}>
+              <Link key={w.week} href={`/career-launch/week/${w.week}`}>
                 <Card className="flex items-center justify-between !p-4">
                   <div className="flex items-center gap-3">
                     <span className={`flex h-8 w-8 flex-none items-center justify-center rounded-lg text-[12.5px] font-black ${w.week <= STUDENT.currentWeek ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#B0B8C1]"}`}>W{w.week}</span>

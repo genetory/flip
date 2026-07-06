@@ -19,14 +19,14 @@ export default function LaunchApplyPage() {
     if (submitting) return;
     setSubmitting(true);
     // TODO: 백엔드 연동. 지금은 완료 페이지로 이동.
-    router.push("/launch/apply/complete");
+    router.push("/career-launch/apply/complete");
   }
 
   const canSubmit = form.name.trim() && form.email.trim() && form.school.trim();
 
   return (
     <main className="pb-16">
-      <LaunchTopBar back={{ href: "/launch", label: "프로그램" }} />
+      <LaunchTopBar back={{ href: "/career-launch", label: "프로그램" }} />
       <LaunchContainer className="pt-6">
         <SectionTitle sub="선발 결과는 이메일로 안내됩니다">참가 신청</SectionTitle>
         <form onSubmit={submit}>

@@ -150,12 +150,12 @@ export function LaunchTopBar({ back }: { back?: { href: string; label: string } 
             ← {back.label}
           </Link>
         ) : (
-          <Link href="/launch" className="flex items-center gap-2">
+          <Link href="/career-launch" className="flex items-center gap-2">
             <span className="inline-block h-2.5 w-2.5 rotate-45 rounded-[2px]" style={{ background: LAUNCH.blue }} />
             <span className="text-[14px] font-extrabold text-[#0B1227]">Career Launch</span>
           </Link>
         )}
-        <Link href="/launch/dashboard" className="text-[13px] font-semibold text-[#0B46E8]">대시보드</Link>
+        <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#0B46E8]">대시보드</Link>
       </LaunchContainer>
     </header>
   );

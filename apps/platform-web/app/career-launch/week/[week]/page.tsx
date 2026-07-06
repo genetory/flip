@@ -18,7 +18,7 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
 
   return (
     <main className="pb-16">
-      <LaunchTopBar back={{ href: "/launch/dashboard", label: "대시보드" }} />
+      <LaunchTopBar back={{ href: "/career-launch/dashboard", label: "대시보드" }} />
       <LaunchContainer className="pt-6">
         {/* 헤더 */}
         <div className="flex items-center gap-3">
@@ -76,11 +76,11 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
 
         {/* 다음 주 이동 */}
         {plan.week < 4 ? (
-          <Link href={`/launch/week/${plan.week + 1}`} className="mt-7 flex items-center justify-center rounded-xl border border-[#D7DCE3] bg-white py-3 text-[14px] font-bold text-[#191F28]">
+          <Link href={`/career-launch/week/${plan.week + 1}`} className="mt-7 flex items-center justify-center rounded-xl border border-[#D7DCE3] bg-white py-3 text-[14px] font-bold text-[#191F28]">
             Week {plan.week + 1} 미리보기 →
           </Link>
         ) : (
-          <Link href="/launch/profile" className="mt-7 flex items-center justify-center rounded-xl bg-[#B7FF5A] py-3.5 text-[14px] font-bold text-[#111]">
+          <Link href="/career-launch/profile" className="mt-7 flex items-center justify-center rounded-xl bg-[#B7FF5A] py-3.5 text-[14px] font-bold text-[#111]">
             Global Talent Profile 완성하기 →
           </Link>
         )}

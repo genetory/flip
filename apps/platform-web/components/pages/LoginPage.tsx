@@ -22,11 +22,14 @@ function sanitizeNextParam(raw: string | null): string | null {
   return trimmed;
 }
 
-export function LoginPage() {
+// defaultNext: ?next= 가 없을 때 로그인 후 이동할 기본 경로(예: launch 서브도메인은
+// /launch/dashboard). chromeless: 사이트 헤더/푸터 없이 폼만(서브도메인 재사용용).
+export function LoginPage({ defaultNext, chromeless }: { defaultNext?: string; chromeless?: boolean } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   // 신청 페이지 등에서 `?next=/events/...` 로 들어오면 로그인 후 그 경로로 복귀.
   const nextParam = sanitizeNextParam(searchParams.get("next"));
+  const effectiveNext = nextParam ?? (defaultNext ? sanitizeNextParam(defaultNext) : null);
   const { setAuthenticatedUser } = useAuthSession();
   const { locale } = useLanguage();
   const [email, setEmail] = useState("");
@@ -47,8 +50,8 @@ export function LoginPage() {
       // 우선순위: ?next= (signup 과 동일 패턴) → referrer (same-origin) →
       // role 기반 기본 (getPostLoginUrl). next 는 같은 origin 의 절대 경로만
       // 허용 — open-redirect 방지.
-      if (nextParam) {
-        router.push(nextParam);
+      if (effectiveNext) {
+        router.push(effectiveNext);
         router.refresh();
         return;
       }
@@ -91,7 +94,7 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
-      <Header />
+      {!chromeless && <Header />}
       <main className="container py-12 md:py-16">
         <section>
           <div className="mx-auto max-w-md rounded-2xl border border-border/60 bg-card p-6 md:p-8">
@@ -198,7 +201,7 @@ export function LoginPage() {
               {copy.signupPrompt}{" "}
               {/* 가입 후에도 같은 next 로 돌아가야 하므로 그대로 전달. */}
               <Link
-                href={nextParam ? `/signup?next=${encodeURIComponent(nextParam)}` : "/signup"}
+                href={effectiveNext ? `/signup?next=${encodeURIComponent(effectiveNext)}` : "/signup"}
                 className="font-semibold text-foreground"
               >
                 {copy.signupLink}
@@ -207,7 +210,7 @@ export function LoginPage() {
           </div>
         </section>
       </main>
-      <Footer />
+      {!chromeless && <Footer />}
     </div>
   );
 }

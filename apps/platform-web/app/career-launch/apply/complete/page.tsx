@@ -24,10 +24,10 @@ export default function LaunchApplyCompletePage() {
           </div>
 
           <div className="mt-6 flex flex-col gap-2.5">
-            <LaunchButton href="/launch/dashboard" variant="primary" full>
+            <LaunchButton href="/career-launch/dashboard" variant="primary" full>
               대시보드로 이동
             </LaunchButton>
-            <LaunchButton href="/launch" variant="outline" full>
+            <LaunchButton href="/career-launch" variant="outline" full>
               홈으로
             </LaunchButton>
           </div>

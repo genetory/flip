@@ -16,7 +16,7 @@ export default function LaunchProfilePage() {
 
   return (
     <main className="pb-16">
-      <LaunchTopBar back={{ href: "/launch/dashboard", label: "대시보드" }} />
+      <LaunchTopBar back={{ href: "/career-launch/dashboard", label: "대시보드" }} />
       <LaunchContainer className="pt-6">
         {/* 프로필 헤더 */}
         <Card>
@@ -74,7 +74,7 @@ export default function LaunchProfilePage() {
 
         {/* 제출 */}
         <div className="mt-8">
-          <LaunchButton variant="lime" full href="/launch/dashboard">
+          <LaunchButton variant="lime" full href="/career-launch/dashboard">
             {progress >= 100 ? "기업에 제출하기" : "미션을 완료하고 제출할 수 있어요"}
           </LaunchButton>
           <p className="mt-3 text-center text-[12px] text-[#8B95A1]">제출 시 참여 기업에 프로필이 공유됩니다.</p>
