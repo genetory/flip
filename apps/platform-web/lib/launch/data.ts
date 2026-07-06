@@ -56,7 +56,7 @@ export const WEEKS: WeekPlan[] = [
       {
         id: "w1s2",
         title: "관심 직무 3개 선정",
-        desc: "AI가 전공·강점을 분석해 어울리는 직무를 추천해드려요. 마음이 가는 직무를 3개 이내로 골라봐요.",
+        desc: "AI와 대화하며 나에게 어울리는 직무를 찾아봐요. 추천받은 직무 중 마음이 가는 걸 3개 이내로 골라요.",
         action: { label: "직무 선정하기", href: "/career-launch/jobs" }
       },
       {
