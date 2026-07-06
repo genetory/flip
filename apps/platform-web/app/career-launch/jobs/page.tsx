@@ -27,9 +27,10 @@ const QUESTIONS = [
 ];
 
 export default function LaunchJobsPage() {
-  const { user } = useAuthSession();
+  const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
+  const [seeded, setSeeded] = useState(false);
   const [phase, setPhase] = useState<"chat" | "result">("chat");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [qi, setQi] = useState(0);
@@ -43,8 +44,10 @@ export default function LaunchJobsPage() {
 
   const endRef = useRef<HTMLDivElement>(null);
 
-  // 진입 — 이전에 선택/대화한 적이 있으면 결과 단계로 복원, 아니면 대화 시작.
+  // 진입 — 세션 로딩 후 1회. 이전에 대화한 적 있으면 결과 단계로 복원, 아니면 대화 시작.
+  // (세션이 준비된 뒤 인사해야 실제 이름이 나온다)
   useEffect(() => {
+    if (!isReady || seeded) return;
     let restored = false;
     try {
       const s = window.localStorage.getItem(KEY_SEL);
@@ -63,14 +66,14 @@ export default function LaunchJobsPage() {
       // 접근 실패 시 새 대화
     }
     if (!restored) {
-      const name = user?.name?.trim() || user?.email || STUDENT.name;
       setMessages([
-        { role: "bot", text: `${name}님, 반가워요 👋 몇 가지만 이야기 나눠보면 어울리는 직무를 찾아드릴게요.` },
+        { role: "bot", text: `${displayName}님, 반가워요 👋 몇 가지만 이야기 나눠보면 어울리는 직무를 찾아드릴게요.` },
         { role: "bot", text: QUESTIONS[0] }
       ]);
     }
+    setSeeded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isReady, seeded]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });

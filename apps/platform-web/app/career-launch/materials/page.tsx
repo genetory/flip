@@ -35,7 +35,7 @@ function buildQuestions(roles: string[]): string[] {
 }
 
 export default function LaunchMaterialsPage() {
-  const { user } = useAuthSession();
+  const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
   const [ready, setReady] = useState(false);
@@ -49,8 +49,10 @@ export default function LaunchMaterialsPage() {
 
   const endRef = useRef<HTMLDivElement>(null);
 
-  // 진입 시 선택 직무를 읽어 질문을 만들고 대화를 시작한다.
+  // 세션 로딩 후 1회 — 선택 직무를 읽어 질문을 만들고 대화를 시작한다.
+  // (세션이 준비된 뒤 인사해야 실제 이름이 나온다)
   useEffect(() => {
+    if (!isReady || ready) return;
     let roles: string[] = [];
     try {
       const s = window.localStorage.getItem(KEY_SEL);
@@ -62,16 +64,14 @@ export default function LaunchMaterialsPage() {
     }
     const qs = buildQuestions(roles);
     setQuestions(qs);
-    const name = user?.name?.trim() || user?.email || STUDENT.name;
     setMessages([
-      { role: "bot", text: `${name}님, 반가워요 👋` },
+      { role: "bot", text: `${displayName}님, 반가워요 👋` },
       { role: "bot", text: "선택한 직무에 맞춰 몇 가지 물어볼게요. 편하게 답하면 그대로 이력서 재료가 돼요." },
       { role: "bot", text: qs[0] }
     ]);
     setReady(true);
-    // user 는 최초 1회만 반영
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isReady, ready]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
