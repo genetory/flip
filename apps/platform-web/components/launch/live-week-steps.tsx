@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { type Step } from "../../lib/launch/data";
 
-export type DiagResult = { percent: number; level: string } | null;
+export type DiagResult = { percent: number; level: string; strengths?: string[]; improvements?: string[] } | null;
 
 // 대시보드용 스텝 목록 — 스텝을 강제로 이어붙이지 않고, 각 스텝을 완료하면
 // 그 결과(진단 준비도 / 선정 직무)를 여기서 바로 보여준다. 사용자는 결과를
@@ -88,11 +88,13 @@ export function LiveWeekSteps({
               {/* 진단 결과 */}
               {s.id === "w1s1" && diag ? (
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="min-w-0 text-[13.5px] font-bold text-[#191F28]">
-                      취업 준비도 <span className="text-[#0B46E8]">{diag.percent}%</span>
-                      {diag.level ? <span className="font-medium text-[#4E5968]"> · {diag.level}</span> : null}
-                    </p>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-bold text-[#191F28]">
+                        취업 준비도 <span className="text-[#0B46E8]">{diag.percent}%</span>
+                      </p>
+                      {diag.level ? <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{diag.level}</p> : null}
+                    </div>
                     <span className="flex shrink-0 items-center gap-2">
                       <Link href="/career-launch/diagnosis" className="text-[12.5px] font-bold text-[#0B46E8] underline">
                         다시 보기
@@ -102,6 +104,32 @@ export function LiveWeekSteps({
                       </button>
                     </span>
                   </div>
+                  {diag.strengths && diag.strengths.length > 0 ? (
+                    <div className="mt-2.5">
+                      <p className="text-[11.5px] font-bold text-[#3A6B00]">강점</p>
+                      <ul className="mt-1 space-y-0.5">
+                        {diag.strengths.map((x, si) => (
+                          <li key={si} className="flex gap-1.5 break-keep text-[12.5px] leading-relaxed text-[#333D4B]">
+                            <span className="text-[#3A6B00]">✓</span>
+                            {x}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {diag.improvements && diag.improvements.length > 0 ? (
+                    <div className="mt-2">
+                      <p className="text-[11.5px] font-bold text-[#0B46E8]">이번 4주에 집중하면 좋은 점</p>
+                      <ul className="mt-1 space-y-0.5">
+                        {diag.improvements.map((x, ii) => (
+                          <li key={ii} className="flex gap-1.5 break-keep text-[12.5px] leading-relaxed text-[#333D4B]">
+                            <span className="text-[#0B46E8]">💡</span>
+                            {x}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
               ) : s.id === "w1s2" && jobs.length > 0 ? (
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
