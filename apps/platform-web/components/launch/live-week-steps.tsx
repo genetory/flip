@@ -117,19 +117,6 @@ export function LiveWeekSteps({
                       </ul>
                     </div>
                   ) : null}
-                  {diag.improvements && diag.improvements.length > 0 ? (
-                    <div className="mt-2">
-                      <p className="text-[11.5px] font-bold text-[#0B46E8]">이번 4주에 집중하면 좋은 점</p>
-                      <ul className="mt-1 space-y-0.5">
-                        {diag.improvements.map((x, ii) => (
-                          <li key={ii} className="flex gap-1.5 break-keep text-[12.5px] leading-relaxed text-[#333D4B]">
-                            <span className="text-[#0B46E8]">💡</span>
-                            {x}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
                 </div>
               ) : s.id === "w1s2" && jobs.length > 0 ? (
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
