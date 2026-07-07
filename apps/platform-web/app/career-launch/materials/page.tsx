@@ -36,6 +36,20 @@ export default function LaunchMaterialsPage() {
     }
   };
 
+  // 정리한 직무 정보는 대화가 이어져도 지우지 않고 계속 쌓는다(중복 제외).
+  const mergeMaterials = (prev: string[], next: string[]) => {
+    const seen = new Set(prev.map((m) => m.trim()));
+    const merged = [...prev];
+    for (const item of next) {
+      const t = item.trim();
+      if (t && !seen.has(t)) {
+        seen.add(t);
+        merged.push(item);
+      }
+    }
+    return merged;
+  };
+
   useEffect(() => {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
@@ -47,11 +61,20 @@ export default function LaunchMaterialsPage() {
       // 무시
     }
     setSelected(sel);
+    // 이전에 정리해둔 직무 정보를 복원해 계속 이어서 쌓는다.
+    let saved: string[] = [];
+    try {
+      const m = window.localStorage.getItem(KEY_MAT);
+      if (m) saved = JSON.parse(m);
+    } catch {
+      // 무시
+    }
+    if (saved.length) setMaterials(saved);
     setLoading(true);
     void (async () => {
       try {
         const { reply, materials: mats } = await requestMaterialChat([], sel);
-        setMaterials(mats);
+        if (mats.length) setMaterials((prev) => mergeMaterials(prev, mats));
         setMessages([{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 선정한 직무를 함께 자세히 알아볼까요?` }]);
       } catch {
         setMessages([{ role: "bot", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
@@ -77,10 +100,14 @@ export default function LaunchMaterialsPage() {
       try {
         const history: JobChatMsg[] = nextMsgs.map((m) => ({ role: m.role, text: m.text }));
         const { reply, materials: mats, done: isDone } = await requestMaterialChat(history, selected);
-        if (mats.length) setMaterials(mats);
+        const merged = mats.length ? mergeMaterials(materials, mats) : materials;
+        if (mats.length) {
+          setMaterials(merged);
+          saveMaterials(merged); // 대화 도중에도 계속 저장해 쌓아둔다.
+        }
         setMessages((m) => [...m, { role: "bot", text: reply }]);
         if (isDone) {
-          saveMaterials(mats.length ? mats : materials);
+          saveMaterials(merged);
           setDone(true);
         }
       } catch {
