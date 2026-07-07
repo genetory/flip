@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { RECOMMENDED_JOBS, STUDENT, type RecommendedJob } from "../../../lib/launch/data";
 import { requestJobChat, type JobChatMsg } from "../../../lib/launch/job-chat-client";
-import { Pill } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -219,18 +218,15 @@ export default function LaunchJobsPage() {
                             isSel ? "border-[#0B46E8] ring-1 ring-[#0B46E8]/30" : disabled ? "border-[#EEF1F5] opacity-55" : "border-[#EEF1F5] hover:border-[#0B46E8]/40"
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`flex h-5 w-5 flex-none items-center justify-center rounded-md border-2 text-[11px] font-black ${
-                                  isSel ? "border-[#0B46E8] bg-[#0B46E8] text-white" : "border-[#C9CDD2] text-transparent"
-                                }`}
-                              >
-                                ✓
-                              </span>
-                              <p className="text-[14.5px] font-bold text-[#191F28]">{job.role}</p>
-                            </div>
-                            <Pill tone="blue">매칭 {job.match}%</Pill>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`flex h-5 w-5 flex-none items-center justify-center rounded-md border-2 text-[11px] font-black ${
+                                isSel ? "border-[#0B46E8] bg-[#0B46E8] text-white" : "border-[#C9CDD2] text-transparent"
+                              }`}
+                            >
+                              ✓
+                            </span>
+                            <p className="text-[14.5px] font-bold text-[#191F28]">{job.role}</p>
                           </div>
                           <p className="mt-1.5 pl-7 text-[12.5px] leading-relaxed text-[#4E5968]">{job.reason}</p>
                           <div className="mt-2 flex flex-wrap gap-1.5 pl-7">
