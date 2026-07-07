@@ -74,7 +74,16 @@ export function LiveWeekSteps({
                   <span className="rounded-full bg-[#F2F4F6] px-2 py-0.5 text-[11px] font-semibold text-[#8B95A1]">⏱ 약 {s.minutes}분</span>
                 ) : null}
               </div>
-              <p className={`mt-1.5 break-keep text-[13.5px] leading-[1.7] ${done ? "text-[#B0B8C1]" : locked ? "text-[#C9CDD2]" : "text-[#4E5968]"}`}>{s.desc}</p>
+              <p className={`mt-1.5 break-keep text-[13.5px] leading-[1.7] ${done ? "text-[#B0B8C1]" : locked ? "text-[#C9CDD2]" : "text-[#4E5968]"}`}>
+                {s.desc
+                  .split(/(?<=\.)\s+/)
+                  .filter(Boolean)
+                  .map((line, li) => (
+                    <span key={li} className="block">
+                      {line}
+                    </span>
+                  ))}
+              </p>
 
               {/* 진단 결과 */}
               {s.id === "w1s1" && diag ? (
