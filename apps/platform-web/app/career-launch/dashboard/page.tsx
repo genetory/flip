@@ -141,7 +141,16 @@ export default function LaunchDashboardPage() {
                   </div>
                   <div className="mt-3 rounded-xl bg-[#EDF1FD] p-3.5">
                     <p className="text-[11.5px] font-bold text-[#0B46E8]">이번 주 목표</p>
-                    <p className="mt-0.5 text-[13.5px] font-semibold leading-relaxed text-[#0B1227]">{currentWeek.goal}</p>
+                    <p className="mt-0.5 break-keep text-[13.5px] font-semibold leading-relaxed text-[#0B1227]">
+                      {currentWeek.goal
+                        .split(/(?<=\.)\s+/)
+                        .filter(Boolean)
+                        .map((line, li) => (
+                          <span key={li} className="block">
+                            {line}
+                          </span>
+                        ))}
+                    </p>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[#8B95A1]">
                     <span className="font-semibold text-[#4E5968]">스텝 {currentDone}/{currentWeek.steps.length} 완료</span>

@@ -40,7 +40,16 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
           {/* 이번 주 목표 배너 (전체 폭) */}
           <div className="mt-5 rounded-2xl border border-[#CFE0FF] bg-[#EDF1FD] p-4 md:p-5">
             <p className="text-[12px] font-bold text-[#0B46E8]">이번 주 목표</p>
-            <p className="mt-1 text-[14px] font-semibold leading-relaxed text-[#0B1227] md:text-[15px]">{plan.goal}</p>
+            <p className="mt-1 break-keep text-[14px] font-semibold leading-relaxed text-[#0B1227] md:text-[15px]">
+              {plan.goal
+                .split(/(?<=\.)\s+/)
+                .filter(Boolean)
+                .map((line, li) => (
+                  <span key={li} className="block">
+                    {line}
+                  </span>
+                ))}
+            </p>
           </div>
 
           <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
