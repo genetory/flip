@@ -13774,7 +13774,7 @@ app.get(
 
 // Career Launch AI 대화 공용 말투 지침 — 친근하고 편안하게, 딱딱한 격식체 지양.
 const CAREER_TONE =
-  "말투는 친한 선배가 옆에서 편하게 이야기하듯 따뜻하고 친근하게 해. 딱딱한 격식체나 사무적인 표현('~하시기 바랍니다', '~에 대해 말씀해 주십시오' 등)은 쓰지 말고, 편안한 존댓말('~해요', '~해볼까요?')에 이모지를 가볍게 섞어. 너무 길지 않게, 사람처럼 자연스럽게.";
+  "말투는 친한 선배가 옆에서 편하게 이야기하듯 따뜻하고 친근하게 해. 단, 반말은 절대 쓰지 말고 항상 친근한 존댓말('~해요', '~해볼까요?', '~네요')로 말해. 딱딱한 격식체·사무체('~하시기 바랍니다', '~에 대해 말씀해 주십시오' 등)도 피하고, 이모지를 가볍게 섞어. 너무 길지 않게, 사람처럼 자연스럽게.";
 
 // Career Launch AI 대화들이 공용으로 쓰는 학생 프로필 요약(전공·학교·스킬·자기소개).
 // 개인화 컨텍스트로 프롬프트에 넣는다. 실패해도 빈 문자열로 안전하게 진행.
@@ -13799,6 +13799,84 @@ async function buildCandidateProfileSummary(userId: string): Promise<string> {
     return "";
   }
 }
+
+// Career Launch AI 대화 공용 호출 — 고품질 모델(gpt-5.x, Responses API + json_schema)로
+// 먼저 시도하고, 실패 시 gpt-4o-mini(chat.completions, json_object)로 폴백해 항상 파싱된
+// 객체를 반환한다. (유료 프로그램 품질 우선 + 안정성)
+async function careerChatComplete(
+  system: string,
+  user: string,
+  schemaName: string,
+  schema: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  if (!openai) throw new Error("openai_unavailable");
+  try {
+    const response = await openai.responses.create({
+      model: openaiMatchingModel,
+      input: [
+        { role: "system", content: system },
+        { role: "user", content: user }
+      ],
+      text: { format: { type: "json_schema", name: schemaName, schema } }
+    });
+    return JSON.parse(response.output_text ?? "{}") as Record<string, unknown>;
+  } catch (err) {
+    console.warn("[career-chat] responses api failed, fallback to mini:", err instanceof Error ? err.message : err);
+    const completion = await openai.chat.completions.create({
+      model: openaiTranslationModel,
+      temperature: 0.6,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user }
+      ]
+    });
+    return JSON.parse(completion.choices?.[0]?.message?.content ?? "{}") as Record<string, unknown>;
+  }
+}
+
+const JOB_CHAT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "recommend", "done"],
+  properties: {
+    reply: { type: "string" },
+    recommend: { type: "array", items: { type: "string" }, maxItems: 3 },
+    done: { type: "boolean" }
+  }
+} as const;
+
+const MATERIAL_CHAT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "materials", "done"],
+  properties: {
+    reply: { type: "string" },
+    materials: { type: "array", items: { type: "string" } },
+    done: { type: "boolean" }
+  }
+} as const;
+
+const DIAGNOSIS_CHAT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "done", "result"],
+  properties: {
+    reply: { type: "string" },
+    done: { type: "boolean" },
+    result: {
+      type: ["object", "null"],
+      additionalProperties: false,
+      required: ["percent", "level", "strengths", "improvements"],
+      properties: {
+        percent: { type: "number" },
+        level: { type: "string" },
+        strengths: { type: "array", items: { type: "string" } },
+        improvements: { type: "array", items: { type: "string" } }
+      }
+    }
+  }
+} as const;
 
 // POST /career-launch/job-chat — Career Launch 프로그램의 '관심 직무 찾기' AI 대화.
 // 학생과 자연스럽게 대화하며 후보 직무 풀에서 어울리는 직무를 추천하고, 마음에 드는
@@ -13868,22 +13946,11 @@ app.post(
         (exclude.length ? `[이미 보여준 직무] ${exclude.join(", ")}\n\n` : "") +
         `[후보 직무]\n${poolText}`;
 
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let parsedJson: { reply?: unknown; recommend?: unknown; done?: unknown } = {};
-      try {
-        parsedJson = JSON.parse(raw);
-      } catch {
-        /* fall through */
-      }
+      const parsedJson = (await careerChatComplete(systemPrompt, userPrompt, "job_chat", JOB_CHAT_SCHEMA)) as {
+        reply?: unknown;
+        recommend?: unknown;
+        done?: unknown;
+      };
       const reply = typeof parsedJson.reply === "string" ? parsedJson.reply.trim() : "";
       let recommend = Array.isArray(parsedJson.recommend)
         ? Array.from(
@@ -13960,22 +14027,11 @@ app.post(
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `학생이 고른 관심 직무: ${selected.length ? selected.join(", ") : "(미정)"}\n\n` +
         `지금까지 대화:\n${convo}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let pj: { reply?: unknown; materials?: unknown; done?: unknown } = {};
-      try {
-        pj = JSON.parse(raw);
-      } catch {
-        /* fall through */
-      }
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "material_chat", MATERIAL_CHAT_SCHEMA)) as {
+        reply?: unknown;
+        materials?: unknown;
+        done?: unknown;
+      };
       const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
       const materials = Array.isArray(pj.materials)
         ? pj.materials.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean).slice(0, 20)
@@ -14021,22 +14077,11 @@ app.post(
         ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
         : "(아직 대화 없음 — 인사하고 첫 질문을 해줘)";
       const userPrompt = (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") + `지금까지 대화:\n${convo}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let pj: { reply?: unknown; done?: unknown; result?: unknown } = {};
-      try {
-        pj = JSON.parse(raw);
-      } catch {
-        /* fall through */
-      }
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "diagnosis_chat", DIAGNOSIS_CHAT_SCHEMA)) as {
+        reply?: unknown;
+        done?: unknown;
+        result?: unknown;
+      };
       const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
       const done = pj.done === true;
       let result: { percent: number; level: string; strengths: string[]; improvements: string[] } | null = null;
