@@ -64,9 +64,9 @@ export const WEEKS: WeekPlan[] = [
       },
       {
         id: "w1s3",
-        title: "이력서에 담을 재료 모으기",
-        minutes: 15,
-        desc: "선택한 직무에 맞춘 질문에 채팅하듯 답하면, 그대로 이력서 재료가 돼요. 다음 주 이력서 작성이 훨씬 수월해져요.",
+        title: "선정 직무 깊이 알기",
+        minutes: 10,
+        desc: "고른 직무가 실제로 어떤 일을 하고, 어떤 역량·자격이 필요한지 AI와 알아봐요. 뭘 준비하면 좋을지 방향이 잡혀요.",
         action: { label: "시작하기", href: "/career-launch/materials" }
       },
       {

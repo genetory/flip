@@ -148,7 +148,7 @@ export function LiveWeekSteps({
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[13.5px] font-bold text-[#191F28]">
-                      이력서 재료 <span className="text-[#0B46E8]">{materials}개</span> 정리 완료
+                      선정 직무 정보 <span className="text-[#0B46E8]">{materials}개</span> 정리 완료
                     </p>
                     <span className="flex shrink-0 items-center gap-2">
                       <Link href="/career-launch/materials" className="text-[12.5px] font-bold text-[#0B46E8] underline">

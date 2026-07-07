@@ -8,7 +8,7 @@ import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
-// Week 1 스텝3 — 선택한 직무·프로필을 참고해 AI 코치가 이력서 재료를 대화로 이끌어낸다.
+// Week 1 스텝3 — 선택한 직무·프로필을 참고해 AI 코치가 그 직무를 깊이 이해하도록 대화로 이끈다.
 const KEY_SEL = "career-launch:selected-jobs";
 const KEY_MAT = "career-launch:materials";
 
@@ -52,7 +52,7 @@ export default function LaunchMaterialsPage() {
       try {
         const { reply, materials: mats } = await requestMaterialChat([], sel);
         setMaterials(mats);
-        setMessages([{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 이력서에 담을 경험을 함께 정리해볼까요?` }]);
+        setMessages([{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 선정한 직무를 함께 자세히 알아볼까요?` }]);
       } catch {
         setMessages([{ role: "bot", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
       } finally {
@@ -94,7 +94,7 @@ export default function LaunchMaterialsPage() {
   const finishNow = () => {
     saveMaterials(materials);
     setDone(true);
-    setMessages((m) => [...m, { role: "bot", text: `좋아요! 지금까지 정리한 재료 ${materials.length}개를 저장했어요. 다음 주에 이 재료로 이력서를 만들어봐요 🙌` }]);
+    setMessages((m) => [...m, { role: "bot", text: `좋아요! 지금까지 정리한 직무 정보 ${materials.length}개를 저장했어요. 다음 주엔 이 방향으로 이력서를 만들어봐요 🙌` }]);
   };
 
   return (
@@ -106,13 +106,13 @@ export default function LaunchMaterialsPage() {
             <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               ← 대시보드
             </Link>
-            <span className="text-[12px] font-bold text-[#0B46E8]">모은 재료 {materials.length}개</span>
+            <span className="text-[12px] font-bold text-[#0B46E8]">정리한 정보 {materials.length}개</span>
           </div>
           <div className="mt-3 flex items-center gap-2.5">
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
-              <p className="text-[15px] font-black text-[#0B1227]">이력서 재료 모으기</p>
-              <p className="text-[12px] text-[#8B95A1]">AI 코치와 대화하며 경험·성과를 정리해요 · ⏱ 약 15분</p>
+              <p className="text-[15px] font-black text-[#0B1227]">선정 직무 깊이 알기</p>
+              <p className="text-[12px] text-[#8B95A1]">AI 코치와 대화하며 선정 직무를 깊이 이해해요 · ⏱ 약 10분</p>
             </div>
           </div>
 
@@ -137,7 +137,7 @@ export default function LaunchMaterialsPage() {
               <div className="flex items-start gap-2">
                 <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EAFFD1] text-[13px]">📋</span>
                 <div className="max-w-[88%] rounded-2xl rounded-bl-md border border-[#D9F2B8] bg-[#F6FFE9] px-3.5 py-3">
-                  <p className="text-[11.5px] font-bold text-[#3A6B00]">모은 이력서 재료</p>
+                  <p className="text-[11.5px] font-bold text-[#3A6B00]">정리한 직무 정보</p>
                   <ul className="mt-1.5 space-y-1">
                     {materials.map((mat, i) => (
                       <li key={i} className="flex gap-1.5 text-[12.5px] leading-relaxed text-[#333D4B]">
