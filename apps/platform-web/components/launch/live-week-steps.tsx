@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { type Step } from "../../lib/launch/data";
+import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
 
 export type DiagResult = { percent: number; level: string; strengths?: string[]; improvements?: string[] } | null;
 
@@ -38,7 +38,6 @@ export function LiveWeekSteps({
     return Boolean(manual[s.id]);
   };
 
-  const pickedRoles = jobs; // 저장 형식이 직무명(role) 배열
 
   return (
     <ol className="space-y-1">
@@ -121,8 +120,8 @@ export function LiveWeekSteps({
               ) : s.id === "w1s2" && jobs.length > 0 ? (
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="min-w-0 text-[13.5px] font-bold text-[#191F28]">
-                      선정한 직무 <span className="text-[#0B46E8]">{jobs.length}개</span> · {pickedRoles.join(" · ")}
+                    <p className="text-[13.5px] font-bold text-[#191F28]">
+                      선정한 직무 <span className="text-[#0B46E8]">{jobs.length}개</span>
                     </p>
                     <span className="flex shrink-0 items-center gap-2">
                       <Link href="/career-launch/jobs?restart=1" className="text-[12.5px] font-bold text-[#0B46E8] underline">
@@ -133,6 +132,22 @@ export function LiveWeekSteps({
                       </button>
                     </span>
                   </div>
+                  <ul className="mt-2 space-y-2">
+                    {jobs.map((role) => {
+                      const job = RECOMMENDED_JOBS.find((x) => x.role === role);
+                      return (
+                        <li key={role} className="rounded-lg bg-white/70 p-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[13px] font-bold text-[#191F28]">{role}</p>
+                            {job ? (
+                              <span className="shrink-0 rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[11px] font-bold text-[#0B46E8]">매칭 {job.match}%</span>
+                            ) : null}
+                          </div>
+                          {job?.reason ? <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{job.reason}</p> : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               ) : s.id === "w1s3" && materials > 0 ? (
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
