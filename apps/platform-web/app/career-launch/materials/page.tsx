@@ -112,7 +112,7 @@ export default function LaunchMaterialsPage() {
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
               <p className="text-[15px] font-black text-[#0B1227]">이력서 재료 모으기</p>
-              <p className="text-[12px] text-[#8B95A1]">AI 코치와 대화하며 경험·성과를 정리해요</p>
+              <p className="text-[12px] text-[#8B95A1]">AI 코치와 대화하며 경험·성과를 정리해요 · ⏱ 약 15분</p>
             </div>
           </div>
 

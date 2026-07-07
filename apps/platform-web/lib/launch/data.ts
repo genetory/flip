@@ -24,6 +24,7 @@ export type Step = {
   title: string;
   desc: string;
   action?: { label: string; href: string };
+  minutes?: number; // 예상 소요 시간(분)
   done?: boolean;
 };
 
@@ -50,18 +51,21 @@ export const WEEKS: WeekPlan[] = [
       {
         id: "w1s1",
         title: "취업 준비 상태 자가진단",
+        minutes: 10,
         desc: "경력·어학·비자·직무 이해도 등 지금 내 준비 상태를 스스로 점검해봐요. 어디를 채우면 좋을지 방향이 보여요.",
         action: { label: "진단 시작하기", href: "/career-launch/diagnosis" }
       },
       {
         id: "w1s2",
         title: "관심 직무 3개 선정",
+        minutes: 10,
         desc: "AI와 대화하며 나에게 어울리는 직무를 찾아봐요. 추천받은 직무 중 마음이 가는 걸 3개 이내로 골라요.",
         action: { label: "직무 선정하기", href: "/career-launch/jobs" }
       },
       {
         id: "w1s3",
         title: "이력서에 담을 재료 모으기",
+        minutes: 15,
         desc: "선택한 직무에 맞춘 질문에 채팅하듯 답하면, 그대로 이력서 재료가 돼요. 다음 주 이력서 작성이 훨씬 수월해져요.",
         action: { label: "채팅으로 정리하기", href: "/career-launch/materials" }
       }

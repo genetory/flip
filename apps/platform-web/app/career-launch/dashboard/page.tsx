@@ -45,6 +45,7 @@ export default function LaunchDashboardPage() {
   const isStepDone = (id: string, dataDone?: boolean) =>
     id === "w1s1" ? Boolean(diag) : id === "w1s2" ? jobs.length > 0 : id === "w1s3" ? materials > 0 : Boolean(dataDone);
   const currentDone = currentWeek.steps.filter((s) => isStepDone(s.id, s.done)).length;
+  const weekMinutes = currentWeek.steps.reduce((n, s) => n + (s.minutes ?? 0), 0);
   const doneSteps = WEEKS.reduce(
     (n, w) => n + w.steps.filter((s) => (w.week === currentWeek.week ? isStepDone(s.id, s.done) : s.done)).length,
     0
@@ -108,11 +109,18 @@ export default function LaunchDashboardPage() {
                     <p className="text-[11.5px] font-bold text-[#0B46E8]">이번 주 목표</p>
                     <p className="mt-0.5 text-[13.5px] font-semibold leading-relaxed text-[#0B1227]">{currentWeek.goal}</p>
                   </div>
-                  <div className="mt-3 flex items-center gap-2 text-[12px] text-[#8B95A1]">
+                  <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[#8B95A1]">
                     <span className="font-semibold text-[#4E5968]">스텝 {currentDone}/{currentWeek.steps.length} 완료</span>
+                    {weekMinutes > 0 ? (
+                      <>
+                        <span>·</span>
+                        <span>⏱ 예상 약 {weekMinutes}분</span>
+                      </>
+                    ) : null}
                     <span>·</span>
                     <span>{currentWeek.seminar.online ? "온라인" : "오프라인"} 세미나 {currentWeek.seminar.date}</span>
                   </div>
+                  <p className="mt-2 text-[11.5px] leading-relaxed text-[#8B95A1]">💡 하루에 몰아서 하기보다 하나씩 며칠에 나눠 진행하면 더 좋아요.</p>
                 </Card>
               </div>
 

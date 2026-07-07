@@ -158,7 +158,7 @@ export default function LaunchJobsPage() {
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
               <p className="text-[15px] font-black text-[#0B1227]">관심 직무 찾기</p>
-              <p className="text-[12px] text-[#8B95A1]">AI와 대화하며 마음에 드는 직무 {MAX_PICK}개를 골라요</p>
+              <p className="text-[12px] text-[#8B95A1]">AI와 대화하며 마음에 드는 직무 {MAX_PICK}개를 골라요 · ⏱ 약 10분</p>
             </div>
           </div>
 

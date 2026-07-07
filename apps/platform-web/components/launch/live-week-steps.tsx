@@ -59,9 +59,14 @@ export function LiveWeekSteps({
             </div>
 
             <div className={`min-w-0 flex-1 ${last ? "pb-0.5" : "pb-7"}`}>
-              <p className={`text-[15.5px] font-bold leading-snug tracking-[-0.01em] md:text-[16px] ${done ? "text-[#8B95A1]" : "text-[#191F28]"}`}>
-                {s.title}
-              </p>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <p className={`text-[15.5px] font-bold leading-snug tracking-[-0.01em] md:text-[16px] ${done ? "text-[#8B95A1]" : "text-[#191F28]"}`}>
+                  {s.title}
+                </p>
+                {!done && s.minutes ? (
+                  <span className="rounded-full bg-[#F2F4F6] px-2 py-0.5 text-[11px] font-semibold text-[#8B95A1]">⏱ 약 {s.minutes}분</span>
+                ) : null}
+              </div>
               <p className={`mt-1.5 text-[13.5px] leading-[1.7] ${done ? "text-[#B0B8C1]" : "text-[#4E5968]"}`}>{s.desc}</p>
 
               {/* 진단 결과 */}
