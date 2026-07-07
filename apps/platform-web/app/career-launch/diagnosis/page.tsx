@@ -18,7 +18,7 @@ export default function LaunchDiagnosisPage() {
   const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
-  const [seeded, setSeeded] = useState(false);
+  const startedRef = useRef(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,8 +43,8 @@ export default function LaunchDiagnosisPage() {
   };
 
   useEffect(() => {
-    if (!isReady || seeded) return;
-    setSeeded(true);
+    if (!isReady || startedRef.current) return;
+    startedRef.current = true;
     // 이전에 진단한 결과가 있으면 대화 대신 그 결과를 바로 보여준다(다시 보기).
     try {
       const saved = window.localStorage.getItem(KEY_DIAG);
@@ -60,7 +60,7 @@ export default function LaunchDiagnosisPage() {
     }
     startChat();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, seeded]);
+  }, [isReady]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });

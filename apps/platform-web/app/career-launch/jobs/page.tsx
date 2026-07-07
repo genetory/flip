@@ -23,7 +23,7 @@ export default function LaunchJobsPage() {
   const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
-  const [seeded, setSeeded] = useState(false);
+  const startedRef = useRef(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [shownRoles, setShownRoles] = useState<string[]>([]);
@@ -51,8 +51,8 @@ export default function LaunchJobsPage() {
 
   // 진입 — 세션 로딩 후 1회. AI에게 첫 인사·질문을 요청한다. ?restart=1 이면 선택 초기화.
   useEffect(() => {
-    if (!isReady || seeded) return;
-    setSeeded(true);
+    if (!isReady || startedRef.current) return;
+    startedRef.current = true;
     const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
     let sel: string[] = [];
     if (!restart) {
@@ -76,7 +76,7 @@ export default function LaunchJobsPage() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, seeded]);
+  }, [isReady]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });

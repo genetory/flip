@@ -18,7 +18,7 @@ export default function LaunchMaterialsPage() {
   const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
-  const [seeded, setSeeded] = useState(false);
+  const startedRef = useRef(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [materials, setMaterials] = useState<string[]>([]);
@@ -37,8 +37,8 @@ export default function LaunchMaterialsPage() {
   };
 
   useEffect(() => {
-    if (!isReady || seeded) return;
-    setSeeded(true);
+    if (!isReady || startedRef.current) return;
+    startedRef.current = true;
     let sel: string[] = [];
     try {
       const s = window.localStorage.getItem(KEY_SEL);
@@ -60,7 +60,7 @@ export default function LaunchMaterialsPage() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, seeded]);
+  }, [isReady]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
