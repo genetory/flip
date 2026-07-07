@@ -136,7 +136,30 @@ export default function LaunchJobsPage() {
       // 저장 실패해도 화면 상태 유지
     }
     setSaved(true);
-    setMessages((m) => [...m, { role: "bot", kind: "text", text: "저장했어요! 대시보드에서 확인할 수 있어요. 다음 주엔 이 방향으로 이력서를 만들어봐요 🙌" }]);
+    setMessages((m) => [
+      ...m,
+      { role: "bot", kind: "text", text: "선정 완료! 🙌 대시보드에 저장했어요. 다음 주엔 이 방향으로 이력서를 만들어봐요. 혹시 다시 골라보고 싶으면 아래에서 처음부터 다시 할 수 있어요." }
+    ]);
+  };
+
+  // 처음부터 다시 대화(선정 초기화 후 새 대화 시작).
+  const restartChat = () => {
+    setSaved(false);
+    setSelected([]);
+    setShownRoles([]);
+    setInput("");
+    setMessages([]);
+    setLoading(true);
+    void (async () => {
+      try {
+        const { reply, recommend } = await requestJobChat([], []);
+        appendFromAi(reply || `${displayName}님, 다시 이야기 나눠볼까요? 어떤 일에 관심이 있는지 편하게 들려주세요 👋`, recommend);
+      } catch {
+        setMessages([{ role: "bot", kind: "text", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
+      } finally {
+        setLoading(false);
+      }
+    })();
   };
 
   // 마지막 추천 묶음 인덱스 — 그 아래에만 '다른 직무 보기 / 직접 입력'을 붙인다.
@@ -283,49 +306,58 @@ export default function LaunchJobsPage() {
             <div ref={endRef} />
           </div>
 
-          {/* 입력 + 선정 완료 */}
-          <div className="mt-3 flex items-end gap-2">
-            <form
-              className="flex flex-1 items-end gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                send(input);
-              }}
-            >
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  // 한글 IME 조합 중 Enter 는 무시(마지막 글자 중복 방지)
-                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                    e.preventDefault();
-                    send(input);
-                  }
-                }}
-                rows={1}
-                placeholder="편하게 답해주세요"
-                disabled={loading}
-                className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
-              />
+          {/* 저장 후엔 대화 종료 — 다시 선정 or 대시보드. 아니면 입력 + 선정 완료 */}
+          {saved ? (
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <button
-                type="submit"
-                disabled={!input.trim() || loading}
-                className={`h-[46px] shrink-0 rounded-xl px-4 text-[14px] font-bold transition ${
-                  input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
-                }`}
+                type="button"
+                onClick={restartChat}
+                className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
               >
-                보내기
+                처음부터 다시 선정
               </button>
-            </form>
-            {selected.length > 0 ? (
-              saved ? (
-                <Link
-                  href="/career-launch/dashboard"
-                  className="flex h-[46px] shrink-0 items-center rounded-xl bg-[#0B46E8] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
+              <Link
+                href="/career-launch/dashboard"
+                className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+              >
+                대시보드에서 확인하기 →
+              </Link>
+            </div>
+          ) : (
+            <div className="mt-3 flex items-end gap-2">
+              <form
+                className="flex flex-1 items-end gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  send(input);
+                }}
+              >
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    // 한글 IME 조합 중 Enter 는 무시(마지막 글자 중복 방지)
+                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                      e.preventDefault();
+                      send(input);
+                    }
+                  }}
+                  rows={1}
+                  placeholder="편하게 답해주세요"
+                  disabled={loading}
+                  className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
+                />
+                <button
+                  type="submit"
+                  disabled={!input.trim() || loading}
+                  className={`h-[46px] shrink-0 rounded-xl px-4 text-[14px] font-bold transition ${
+                    input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
+                  }`}
                 >
-                  대시보드 →
-                </Link>
-              ) : (
+                  보내기
+                </button>
+              </form>
+              {selected.length > 0 ? (
                 <button
                   type="button"
                   onClick={save}
@@ -333,9 +365,9 @@ export default function LaunchJobsPage() {
                 >
                   선정 완료 ({selected.length})
                 </button>
-              )
-            ) : null}
-          </div>
+              ) : null}
+            </div>
+          )}
         </div>
       </main>
       <Footer />
