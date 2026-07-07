@@ -139,6 +139,9 @@ export default function LaunchJobsPage() {
     setMessages((m) => [...m, { role: "bot", kind: "text", text: "저장했어요! 대시보드에서 확인할 수 있어요. 다음 주엔 이 방향으로 이력서를 만들어봐요 🙌" }]);
   };
 
+  // 마지막 추천 묶음 인덱스 — 그 아래에만 '다른 직무 보기 / 직접 입력'을 붙인다.
+  const lastJobsIdx = messages.reduce((acc, m, i) => (m.kind === "jobs" ? i : acc), -1);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
@@ -217,6 +220,52 @@ export default function LaunchJobsPage() {
                         </button>
                       );
                     })}
+                    {/* 추천이 마음에 안 들 때 — 리스트 바로 아래(채팅 안) */}
+                    {i === lastJobsIdx && !saved ? (
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => send("추천해준 것 말고 다른 직무도 보고 싶어요")}
+                          disabled={loading}
+                          className="rounded-full border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-50"
+                        >
+                          🔄 다른 직무 보기
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCustomOpen((o) => !o)}
+                          disabled={selected.length >= MAX_PICK}
+                          className="rounded-full border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-50"
+                        >
+                          ✏️ 직접 입력
+                        </button>
+                        {customOpen ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <input
+                              value={custom}
+                              onChange={(e) => setCustom(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                                  e.preventDefault();
+                                  addCustom();
+                                }
+                              }}
+                              autoFocus
+                              placeholder="예: UX 리서처"
+                              className="h-8 w-40 rounded-full border border-[#E5E8EB] bg-white px-3 text-[12px] text-[#191F28] placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={addCustom}
+                              disabled={!custom.trim()}
+                              className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${custom.trim() ? "bg-[#0B46E8] text-white" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"}`}
+                            >
+                              추가
+                            </button>
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               );
@@ -234,54 +283,8 @@ export default function LaunchJobsPage() {
             <div ref={endRef} />
           </div>
 
-          {/* 빠른 도움 — 추천이 마음에 안 들 때 */}
-          {messages.length > 0 && !loading ? (
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => send("추천해준 것 말고 다른 직무도 보고 싶어요")}
-                className="rounded-full border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
-              >
-                🔄 다른 직무 보기
-              </button>
-              <button
-                type="button"
-                onClick={() => setCustomOpen((o) => !o)}
-                disabled={selected.length >= MAX_PICK}
-                className="rounded-full border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-50"
-              >
-                ✏️ 직접 입력
-              </button>
-              {customOpen ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <input
-                    value={custom}
-                    onChange={(e) => setCustom(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                        e.preventDefault();
-                        addCustom();
-                      }
-                    }}
-                    autoFocus
-                    placeholder="예: UX 리서처"
-                    className="h-8 w-40 rounded-full border border-[#E5E8EB] bg-white px-3 text-[12.5px] text-[#191F28] placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={addCustom}
-                    disabled={!custom.trim()}
-                    className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold transition ${custom.trim() ? "bg-[#0B46E8] text-white" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"}`}
-                  >
-                    추가
-                  </button>
-                </span>
-              ) : null}
-            </div>
-          ) : null}
-
           {/* 입력 + 선정 완료 */}
-          <div className="mt-2 flex items-end gap-2">
+          <div className="mt-3 flex items-end gap-2">
             <form
               className="flex flex-1 items-end gap-2"
               onSubmit={(e) => {
