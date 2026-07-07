@@ -46,33 +46,35 @@ export function LiveWeekSteps({
         const done = isDone(s);
         const last = i === steps.length - 1;
         const toggleable = !resultStep(s.id);
+        // 순차 연계 — 이전 스텝을 모두 완료해야 이 스텝을 시작할 수 있다.
+        const locked = !done && !steps.slice(0, i).every(isDone);
         return (
           <li key={s.id} className="flex gap-4">
             <div className="flex flex-col items-center">
               <button
                 type="button"
-                disabled={!toggleable}
-                onClick={toggleable ? () => setManual((p) => ({ ...p, [s.id]: !p[s.id] })) : undefined}
-                aria-label={toggleable ? (done ? "완료 취소" : "완료로 표시") : undefined}
-                className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[14px] font-black shadow-sm transition ${
-                  done ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#4E5968]"
-                } ${toggleable ? "hover:border-[#0B46E8] hover:text-[#0B46E8]" : "cursor-default"}`}
+                disabled={!toggleable || locked}
+                onClick={toggleable && !locked ? () => setManual((p) => ({ ...p, [s.id]: !p[s.id] })) : undefined}
+                aria-label={toggleable && !locked ? (done ? "완료 취소" : "완료로 표시") : undefined}
+                className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[13px] font-black shadow-sm transition ${
+                  done ? "bg-[#0B46E8] text-white" : locked ? "border-2 border-[#E5E8EB] bg-[#F8FAFC] text-[#C9CDD2]" : "border-2 border-[#D7DCE3] bg-white text-[#4E5968]"
+                } ${toggleable && !locked ? "hover:border-[#0B46E8] hover:text-[#0B46E8]" : "cursor-default"}`}
               >
-                {done ? "✓" : i + 1}
+                {done ? "✓" : locked ? "🔒" : i + 1}
               </button>
               {!last ? <span className="mt-1.5 w-[2px] flex-1 rounded bg-[#E5E8EB]" /> : null}
             </div>
 
             <div className={`min-w-0 flex-1 ${last ? "pb-0.5" : "pb-7"}`}>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <p className={`text-[15.5px] font-bold leading-snug tracking-[-0.01em] md:text-[16px] ${done ? "text-[#8B95A1]" : "text-[#191F28]"}`}>
+                <p className={`text-[15.5px] font-bold leading-snug tracking-[-0.01em] md:text-[16px] ${done ? "text-[#8B95A1]" : locked ? "text-[#B0B8C1]" : "text-[#191F28]"}`}>
                   {s.title}
                 </p>
                 {!done && s.minutes ? (
                   <span className="rounded-full bg-[#F2F4F6] px-2 py-0.5 text-[11px] font-semibold text-[#8B95A1]">⏱ 약 {s.minutes}분</span>
                 ) : null}
               </div>
-              <p className={`mt-1.5 text-[13.5px] leading-[1.7] ${done ? "text-[#B0B8C1]" : "text-[#4E5968]"}`}>{s.desc}</p>
+              <p className={`mt-1.5 break-keep text-[13.5px] leading-[1.7] ${done ? "text-[#B0B8C1]" : locked ? "text-[#C9CDD2]" : "text-[#4E5968]"}`}>{s.desc}</p>
 
               {/* 진단 결과 */}
               {s.id === "w1s1" && diag ? (
@@ -139,6 +141,10 @@ export function LiveWeekSteps({
                     삭제
                   </button>
                 </div>
+              ) : locked ? (
+                <p className="mt-2 inline-flex items-center gap-1 text-[12.5px] font-medium text-[#B0B8C1]">
+                  🔒 이전 단계를 완료하면 시작할 수 있어요
+                </p>
               ) : s.action ? (
                 <Link
                   href={s.action.href}

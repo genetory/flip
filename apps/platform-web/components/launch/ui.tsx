@@ -95,7 +95,7 @@ export function Stepper({ steps }: { steps: Step[] }) {
             {/* 내용 */}
             <div className={`min-w-0 flex-1 ${last ? "pb-0.5" : "pb-7"}`}>
               <p className={`text-[15.5px] font-bold leading-snug tracking-[-0.01em] md:text-[16px] ${done ? "text-[#B0B8C1] line-through" : "text-[#191F28]"}`}>{s.title}</p>
-              <p className={`mt-1.5 text-[13.5px] leading-[1.7] ${done ? "text-[#B0B8C1]" : "text-[#4E5968]"}`}>{s.desc}</p>
+              <p className={`mt-1.5 break-keep text-[13.5px] leading-[1.7] ${done ? "text-[#B0B8C1]" : "text-[#4E5968]"}`}>{s.desc}</p>
               {s.action ? (
                 <Link
                   href={s.action.href}

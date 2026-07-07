@@ -53,28 +53,28 @@ export const WEEKS: WeekPlan[] = [
         title: "취업 준비 상태 자가진단",
         minutes: 10,
         desc: "경력·어학·비자·직무 이해도 등 지금 내 준비 상태를 스스로 점검해봐요. 어디를 채우면 좋을지 방향이 보여요.",
-        action: { label: "진단 시작하기", href: "/career-launch/diagnosis" }
+        action: { label: "시작하기", href: "/career-launch/diagnosis" }
       },
       {
         id: "w1s2",
         title: "관심 직무 3개 선정",
         minutes: 10,
         desc: "AI와 대화하며 나에게 어울리는 직무를 찾아봐요. 추천받은 직무 중 마음이 가는 걸 3개 이내로 골라요.",
-        action: { label: "직무 선정하기", href: "/career-launch/jobs" }
+        action: { label: "시작하기", href: "/career-launch/jobs" }
       },
       {
         id: "w1s3",
         title: "이력서에 담을 재료 모으기",
         minutes: 15,
         desc: "선택한 직무에 맞춘 질문에 채팅하듯 답하면, 그대로 이력서 재료가 돼요. 다음 주 이력서 작성이 훨씬 수월해져요.",
-        action: { label: "채팅으로 정리하기", href: "/career-launch/materials" }
+        action: { label: "시작하기", href: "/career-launch/materials" }
       },
       {
         id: "w1s4",
         title: "한국 기업문화 이해",
         minutes: 10,
         desc: "한국의 채용 방식과 직장 문화를 먼저 이해해두면 이력서·면접 준비의 방향이 잡혀요.",
-        action: { label: "학습하기", href: "/career-launch/culture/w1s4" }
+        action: { label: "시작하기", href: "/career-launch/culture/w1s4" }
       }
     ],
     submission: { required: true, status: "todo", label: "목표 직무 + 이력서 재료", source: "정한 목표 직무와 정리한 경험 메모" },
@@ -91,26 +91,26 @@ export const WEEKS: WeekPlan[] = [
         id: "w2s1",
         title: "이력서 기본 항목 작성",
         desc: "기본 정보·학력·연락처 같은 필수 항목부터 채워 이력서의 뼈대를 만들어봐요.",
-        action: { label: "이력서 작성하기", href: "/career-launch/resume" }
+        action: { label: "시작하기", href: "/career-launch/resume" }
       },
       {
         id: "w2s2",
         title: "경력·경험 3개 이상 정리",
         desc: "지난 주 모아둔 재료로 프로젝트·인턴·활동을 3개 이상 정리해요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
-        action: { label: "경험 정리하기", href: "/career-launch/resume" }
+        action: { label: "시작하기", href: "/career-launch/resume" }
       },
       {
         id: "w2s3",
         title: "AI 이력서 진단으로 보완",
         desc: "완성한 이력서를 AI로 진단해 완성도와 부족한 부분을 확인하고 채워봐요.",
-        action: { label: "이력서 진단하기", href: "/career-launch/resume" }
+        action: { label: "시작하기", href: "/career-launch/resume" }
       },
       {
         id: "w2s4",
         title: "한국식 이력서 매너",
         minutes: 10,
         desc: "사진·양식·표현 등 한국 이력서에서 지켜야 할 것과 피해야 할 것을 알아둬요.",
-        action: { label: "학습하기", href: "/career-launch/culture/w2s4" }
+        action: { label: "시작하기", href: "/career-launch/culture/w2s4" }
       }
     ],
     submission: { required: true, status: "todo", label: "대표 이력서 초안", source: "프로그램에서 만든 대표 이력서" },
@@ -127,13 +127,13 @@ export const WEEKS: WeekPlan[] = [
         id: "w3s1",
         title: "자기소개서 4문항 작성",
         desc: "지원 동기·강점 등 4개 문항을 채워 목표 회사용 자기소개서를 써봐요.",
-        action: { label: "자기소개서 작성", href: "/career-launch/cover-letter" }
+        action: { label: "시작하기", href: "/career-launch/cover-letter" }
       },
       {
         id: "w3s2",
         title: "이력서·자소서 함께 다듬기",
         desc: "이력서와 자기소개서의 메시지가 서로 일관되게 맞춰 다듬어봐요. 두 문서가 같은 이야기를 하면 설득력이 커져요.",
-        action: { label: "이력서 다듬기", href: "/career-launch/resume" }
+        action: { label: "시작하기", href: "/career-launch/resume" }
       },
       {
         id: "w3s3",
@@ -145,7 +145,7 @@ export const WEEKS: WeekPlan[] = [
         title: "비즈니스 커뮤니케이션 예절",
         minutes: 10,
         desc: "존댓말·호칭, 이메일 형식, 회신 매너 등 한국 직장의 소통 예절을 익혀요.",
-        action: { label: "학습하기", href: "/career-launch/culture/w3s4" }
+        action: { label: "시작하기", href: "/career-launch/culture/w3s4" }
       }
     ],
     submission: { required: true, status: "todo", label: "이력서 + 자기소개서 완성본", source: "프로그램에서 만든 이력서·자기소개서" },
@@ -162,26 +162,26 @@ export const WEEKS: WeekPlan[] = [
         id: "w4s1",
         title: "이력서·자소서 최종 확정",
         desc: "완성한 이력서와 자기소개서를 마지막으로 검토해 확정해요.",
-        action: { label: "내 이력서 보기", href: "/career-launch/resume" }
+        action: { label: "시작하기", href: "/career-launch/resume" }
       },
       {
         id: "w4s2",
         title: "지원할 공고 3개 선정",
         desc: "지원할 채용 공고 3개를 정하고 마감일과 자격요건을 미리 체크해요.",
-        action: { label: "공고 보기", href: "/positions" }
+        action: { label: "시작하기", href: "/positions" }
       },
       {
         id: "w4s3",
         title: "기업에 지원하기",
         desc: "완성한 이력서로 목표 기업에 지원해봐요. 드디어 실전이에요!",
-        action: { label: "지원하러 가기", href: "/positions" }
+        action: { label: "시작하기", href: "/positions" }
       },
       {
         id: "w4s4",
         title: "면접 예절 & 입사 매너",
         minutes: 10,
         desc: "복장·인사·시간 약속·감사 메일까지, 면접과 입사 첫인상을 좌우하는 매너를 알아둬요.",
-        action: { label: "학습하기", href: "/career-launch/culture/w4s4" }
+        action: { label: "시작하기", href: "/career-launch/culture/w4s4" }
       }
     ],
     submission: { required: true, status: "todo", label: "기업 지원 완료", source: "완성한 이력서로 제출한 지원" },
