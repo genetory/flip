@@ -13,12 +13,16 @@ export function LiveWeekSteps({
   steps,
   diag,
   jobs,
-  materials
+  materials,
+  doneIds,
+  onReset
 }: {
   steps: Step[];
   diag: DiagResult;
   jobs: string[];
   materials: number;
+  doneIds: string[];
+  onReset: (id: string) => void;
 }) {
   // 결과로 완료되지 않는 일반 스텝은 수동 체크.
   const [manual, setManual] = useState<Record<string, boolean>>(() =>
@@ -30,6 +34,7 @@ export function LiveWeekSteps({
     if (s.id === "w1s1") return Boolean(diag);
     if (s.id === "w1s2") return jobs.length > 0;
     if (s.id === "w1s3") return materials > 0;
+    if (doneIds.includes(s.id)) return true; // 학습 카드 등 완료 체크형 스텝
     return Boolean(manual[s.id]);
   };
 
@@ -77,9 +82,14 @@ export function LiveWeekSteps({
                       취업 준비도 <span className="text-[#0B46E8]">{diag.percent}%</span>
                       {diag.level ? <span className="font-medium text-[#4E5968]"> · {diag.level}</span> : null}
                     </p>
-                    <Link href="/career-launch/diagnosis" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">
-                      다시 보기
-                    </Link>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <Link href="/career-launch/diagnosis" className="text-[12.5px] font-bold text-[#0B46E8] underline">
+                        다시 보기
+                      </Link>
+                      <button type="button" onClick={() => onReset(s.id)} className="text-[12.5px] font-semibold text-[#8B95A1] underline hover:text-[#4E5968]">
+                        삭제
+                      </button>
+                    </span>
                   </div>
                 </div>
               ) : s.id === "w1s2" && jobs.length > 0 ? (
@@ -88,9 +98,14 @@ export function LiveWeekSteps({
                     <p className="min-w-0 text-[13.5px] font-bold text-[#191F28]">
                       선정한 직무 <span className="text-[#0B46E8]">{jobs.length}개</span> · {pickedRoles.join(" · ")}
                     </p>
-                    <Link href="/career-launch/jobs?restart=1" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">
-                      다시 선정
-                    </Link>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <Link href="/career-launch/jobs?restart=1" className="text-[12.5px] font-bold text-[#0B46E8] underline">
+                        다시 선정
+                      </Link>
+                      <button type="button" onClick={() => onReset(s.id)} className="text-[12.5px] font-semibold text-[#8B95A1] underline hover:text-[#4E5968]">
+                        삭제
+                      </button>
+                    </span>
                   </div>
                 </div>
               ) : s.id === "w1s3" && materials > 0 ? (
@@ -99,12 +114,32 @@ export function LiveWeekSteps({
                     <p className="text-[13.5px] font-bold text-[#191F28]">
                       이력서 재료 <span className="text-[#0B46E8]">{materials}개</span> 정리 완료
                     </p>
-                    <Link href="/career-launch/materials" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">
-                      다시 정리
-                    </Link>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <Link href="/career-launch/materials" className="text-[12.5px] font-bold text-[#0B46E8] underline">
+                        다시 정리
+                      </Link>
+                      <button type="button" onClick={() => onReset(s.id)} className="text-[12.5px] font-semibold text-[#8B95A1] underline hover:text-[#4E5968]">
+                        삭제
+                      </button>
+                    </span>
                   </div>
                 </div>
-              ) : s.action && !done ? (
+              ) : done ? (
+                // 완료된 학습·일반 스텝 — 완료 표시 + 삭제(초기화)
+                <div className="mt-2 flex items-center gap-2 text-[12.5px]">
+                  <span className="font-bold text-emerald-600">✓ 완료</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onReset(s.id);
+                      setManual((m) => ({ ...m, [s.id]: false }));
+                    }}
+                    className="font-semibold text-[#8B95A1] underline hover:text-[#4E5968]"
+                  >
+                    삭제
+                  </button>
+                </div>
+              ) : s.action ? (
                 <Link
                   href={s.action.href}
                   className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-3.5 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]"

@@ -68,6 +68,13 @@ export const WEEKS: WeekPlan[] = [
         minutes: 15,
         desc: "선택한 직무에 맞춘 질문에 채팅하듯 답하면, 그대로 이력서 재료가 돼요. 다음 주 이력서 작성이 훨씬 수월해져요.",
         action: { label: "채팅으로 정리하기", href: "/career-launch/materials" }
+      },
+      {
+        id: "w1s4",
+        title: "한국 기업문화 이해",
+        minutes: 10,
+        desc: "한국의 채용 방식과 직장 문화를 먼저 이해해두면 이력서·면접 준비의 방향이 잡혀요.",
+        action: { label: "학습하기", href: "/career-launch/culture/w1s4" }
       }
     ],
     submission: { required: true, status: "todo", label: "목표 직무 + 이력서 재료", source: "정한 목표 직무와 정리한 경험 메모" },
@@ -97,6 +104,13 @@ export const WEEKS: WeekPlan[] = [
         title: "AI 이력서 진단으로 보완",
         desc: "완성한 이력서를 AI로 진단해 완성도와 부족한 부분을 확인하고 채워봐요.",
         action: { label: "이력서 진단하기", href: "/career-launch/resume" }
+      },
+      {
+        id: "w2s4",
+        title: "한국식 이력서 매너",
+        minutes: 10,
+        desc: "사진·양식·표현 등 한국 이력서에서 지켜야 할 것과 피해야 할 것을 알아둬요.",
+        action: { label: "학습하기", href: "/career-launch/culture/w2s4" }
       }
     ],
     submission: { required: true, status: "todo", label: "대표 이력서 초안", source: "프로그램에서 만든 대표 이력서" },
@@ -125,6 +139,13 @@ export const WEEKS: WeekPlan[] = [
         id: "w3s3",
         title: "완성도 점검 & 피드백 반영",
         desc: "AI 진단과 운영진 피드백을 반영해 완성도를 끌어올려 완성본을 만들어요."
+      },
+      {
+        id: "w3s4",
+        title: "비즈니스 커뮤니케이션 예절",
+        minutes: 10,
+        desc: "존댓말·호칭, 이메일 형식, 회신 매너 등 한국 직장의 소통 예절을 익혀요.",
+        action: { label: "학습하기", href: "/career-launch/culture/w3s4" }
       }
     ],
     submission: { required: true, status: "todo", label: "이력서 + 자기소개서 완성본", source: "프로그램에서 만든 이력서·자기소개서" },
@@ -154,6 +175,13 @@ export const WEEKS: WeekPlan[] = [
         title: "기업에 지원하기",
         desc: "완성한 이력서로 목표 기업에 지원해봐요. 드디어 실전이에요!",
         action: { label: "지원하러 가기", href: "/positions" }
+      },
+      {
+        id: "w4s4",
+        title: "면접 예절 & 입사 매너",
+        minutes: 10,
+        desc: "복장·인사·시간 약속·감사 메일까지, 면접과 입사 첫인상을 좌우하는 매너를 알아둬요.",
+        action: { label: "학습하기", href: "/career-launch/culture/w4s4" }
       }
     ],
     submission: { required: true, status: "todo", label: "기업 지원 완료", source: "완성한 이력서로 제출한 지원" },
@@ -326,6 +354,70 @@ export function recommendJobs(query?: string): RecommendedJob[] {
     .sort((a, b) => b.s - a.s || b.j.match - a.j.match)
     .map((x) => x.j);
 }
+
+// 주차별 '한국 기업문화·예절' 학습 카드(스텝 id 로 키). 핵심 포인트 + 완료 체크.
+export type CultureLesson = {
+  id: string;
+  emoji: string;
+  title: string;
+  intro: string;
+  points: { title: string; body: string }[];
+};
+
+export const CULTURE_LESSONS: Record<string, CultureLesson> = {
+  w1s4: {
+    id: "w1s4",
+    emoji: "🏢",
+    title: "한국 기업문화 이해",
+    intro: "한국의 채용 방식과 직장 문화를 먼저 알아두면, 앞으로의 이력서·면접 준비 방향이 잡혀요.",
+    points: [
+      { title: "채용 방식 — 공채와 수시", body: "대기업은 정기 공채가, 스타트업·외국계는 상시(수시) 채용이 많아요. 관심 기업이 어느 쪽인지 알아두면 시기를 맞추기 좋아요." },
+      { title: "대기업 vs 스타트업", body: "대기업은 체계·안정, 스타트업은 빠른 성장과 다양한 역할이 강점이에요. 내 성향에 맞는 쪽을 고민해봐요." },
+      { title: "위계와 존중 문화", body: "직급·연차를 존중하는 문화가 남아 있어요. 예의 바른 태도와 겸손함이 좋은 인상을 줘요." },
+      { title: "팀워크 중심", body: "개인보다 팀 성과를 중시하는 경우가 많아요. 협조적이고 소통 잘하는 사람을 선호해요." },
+      { title: "외국인으로서의 강점", body: "다국어·글로벌 감각은 큰 무기예요. 한국어를 배우려는 성실한 태도도 아주 좋게 봐요." }
+    ]
+  },
+  w2s4: {
+    id: "w2s4",
+    emoji: "📄",
+    title: "한국식 이력서 매너",
+    intro: "한국 이력서에서 지켜야 할 것과 피해야 할 것을 알아두면 완성도가 확 올라가요.",
+    points: [
+      { title: "증명사진", body: "단정한 증명사진을 넣는 경우가 많아요. 밝은 표정, 깔끔한 복장이 좋아요(필수는 아니에요)." },
+      { title: "간결·사실 중심", body: "과장 없이 사실과 성과 위주로. 보통 1~2장이 적당해요." },
+      { title: "최신순 정렬", body: "경력·학력은 가장 최근 것부터 적어요." },
+      { title: "개인정보 주의", body: "주민번호 등 필요 이상의 민감 정보는 넣지 않아요." },
+      { title: "피해야 할 것", body: "오타·비격식 표현·과한 디자인, 직무와 무관한 내용 나열은 피해요." }
+    ]
+  },
+  w3s4: {
+    id: "w3s4",
+    emoji: "✉️",
+    title: "비즈니스 커뮤니케이션 예절",
+    intro: "존댓말·이메일·회신 매너 같은 한국 직장의 소통 예절을 익혀두면 어디서든 신뢰를 얻어요.",
+    points: [
+      { title: "존댓말과 호칭", body: "상대를 '○○님' 또는 직급(팀장님, 대리님)으로 불러요. 이름만 부르지 않아요." },
+      { title: "이메일 형식", body: "인사 → 소속·이름 → 용건 → 정중한 맺음말 순서로. 제목은 내용이 바로 보이게 명확히." },
+      { title: "빠른 회신", body: "가능하면 하루 안에 답하는 게 예의예요. 늦어지면 양해를 구해요." },
+      { title: "정중한 표현", body: "부탁·거절도 완곡하게 — '가능하실까요?', '조금 어려울 것 같아요'처럼요." },
+      { title: "실수했을 때", body: "빠르게 사과하고 바로잡는 태도가 오히려 신뢰를 줘요." }
+    ]
+  },
+  w4s4: {
+    id: "w4s4",
+    emoji: "🤝",
+    title: "면접 예절 & 입사 매너",
+    intro: "면접과 입사 첫인상을 좌우하는 매너를 알아두면 준비한 실력을 온전히 보여줄 수 있어요.",
+    points: [
+      { title: "복장", body: "단정한 정장이나 비즈니스 캐주얼이 무난해요. 과하지 않게 깔끔하게." },
+      { title: "시간 약속", body: "약속 시간 10분 전 도착이 기본이에요. 늦을 것 같으면 반드시 미리 연락해요." },
+      { title: "면접 태도", body: "밝게 인사하고, 눈을 맞추며 경청해요. 모르는 건 솔직하게 말하는 게 좋아요." },
+      { title: "감사 메일", body: "면접 후 짧게 감사 인사를 보내면 좋은 인상을 남길 수 있어요." },
+      { title: "입사 첫인상", body: "먼저 인사하고 질문하며 배우려는 태도를 보여요. 시간·약속을 지키는 게 가장 기본이에요." }
+    ]
+  }
+};
 
 // 전체 진행률(완료 스텝 / 전체).
 export function overallProgress(): number {

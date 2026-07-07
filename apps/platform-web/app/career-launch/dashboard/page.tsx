@@ -24,6 +24,7 @@ export default function LaunchDashboardPage() {
   const [diag, setDiag] = useState<DiagResult>(null);
   const [jobs, setJobs] = useState<string[]>([]);
   const [materials, setMaterials] = useState(0);
+  const [doneIds, setDoneIds] = useState<string[]>([]);
   useEffect(() => {
     try {
       const d = window.localStorage.getItem("career-launch:diagnosis");
@@ -32,6 +33,8 @@ export default function LaunchDashboardPage() {
       if (j) setJobs(JSON.parse(j));
       const m = window.localStorage.getItem("career-launch:materials");
       if (m) setMaterials((JSON.parse(m) as unknown[]).length);
+      const ds = window.localStorage.getItem("career-launch:done-steps");
+      if (ds) setDoneIds(JSON.parse(ds));
     } catch {
       // localStorage 접근 불가 시 결과 없이 진행
     }
@@ -43,9 +46,40 @@ export default function LaunchDashboardPage() {
 
   // 현재 주차 스텝의 실제 완료 여부(진단/직무 결과 + data.done).
   const isStepDone = (id: string, dataDone?: boolean) =>
-    id === "w1s1" ? Boolean(diag) : id === "w1s2" ? jobs.length > 0 : id === "w1s3" ? materials > 0 : Boolean(dataDone);
+    id === "w1s1"
+      ? Boolean(diag)
+      : id === "w1s2"
+        ? jobs.length > 0
+        : id === "w1s3"
+          ? materials > 0
+          : doneIds.includes(id) || Boolean(dataDone);
   const currentDone = currentWeek.steps.filter((s) => isStepDone(s.id, s.done)).length;
   const weekMinutes = currentWeek.steps.reduce((n, s) => n + (s.minutes ?? 0), 0);
+
+  // 이미 진행한 스텝 결과를 삭제(초기화)해 다시 안 한 상태로 되돌린다.
+  const resetStep = (id: string) => {
+    try {
+      if (id === "w1s1") {
+        window.localStorage.removeItem("career-launch:diagnosis");
+        setDiag(null);
+      } else if (id === "w1s2") {
+        window.localStorage.removeItem("career-launch:selected-jobs");
+        window.localStorage.removeItem("career-launch:job-conditions");
+        setJobs([]);
+      } else if (id === "w1s3") {
+        window.localStorage.removeItem("career-launch:materials");
+        setMaterials(0);
+      } else {
+        const raw = window.localStorage.getItem("career-launch:done-steps");
+        const list = raw ? (JSON.parse(raw) as string[]) : [];
+        const next = list.filter((x) => x !== id);
+        window.localStorage.setItem("career-launch:done-steps", JSON.stringify(next));
+        setDoneIds(next);
+      }
+    } catch {
+      // 무시
+    }
+  };
   const doneSteps = WEEKS.reduce(
     (n, w) => n + w.steps.filter((s) => (w.week === currentWeek.week ? isStepDone(s.id, s.done) : s.done)).length,
     0
@@ -128,7 +162,14 @@ export default function LaunchDashboardPage() {
               <div>
                 <SectionTitle sub="한 단계씩 끝내고 번호를 콕 눌러 체크해요">이번 주 해야 할 일</SectionTitle>
                 <Card className="md:!p-6">
-                  <LiveWeekSteps steps={currentWeek.steps} diag={diag} jobs={jobs} materials={materials} />
+                  <LiveWeekSteps
+                    steps={currentWeek.steps}
+                    diag={diag}
+                    jobs={jobs}
+                    materials={materials}
+                    doneIds={doneIds}
+                    onReset={resetStep}
+                  />
                 </Card>
               </div>
 
