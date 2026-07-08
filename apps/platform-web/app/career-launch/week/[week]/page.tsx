@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { WEEKS } from "../../../../lib/launch/data";
-import { AutoSubmitStatus, Card, Pill, SectionTitle, Stepper } from "../../../../components/launch/ui";
+import { Card, Pill, SectionTitle, Stepper } from "../../../../components/launch/ui";
 import { Header } from "../../../../components/site/Header";
 import { Footer } from "../../../../components/site/Footer";
 
@@ -40,7 +40,16 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
           {/* 이번 주 목표 배너 (전체 폭) */}
           <div className="mt-5 rounded-2xl border border-[#CFE0FF] bg-[#EDF1FD] p-4 md:p-5">
             <p className="text-[12px] font-bold text-[#0B46E8]">이번 주 목표</p>
-            <p className="mt-1 text-[14px] font-semibold leading-relaxed text-[#0B1227] md:text-[15px]">{plan.goal}</p>
+            <p className="mt-1 break-keep text-[14px] font-semibold leading-relaxed text-[#0B1227] md:text-[15px]">
+              {plan.goal
+                .split(/(?<=\.)\s+/)
+                .filter(Boolean)
+                .map((line, li) => (
+                  <span key={li} className="block">
+                    {line}
+                  </span>
+                ))}
+            </p>
           </div>
 
           <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
@@ -69,12 +78,6 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
                 </Card>
               </div>
 
-              {/* 과제 — aply.global 활동에서 자동 수집 */}
-              <div>
-                <SectionTitle sub="따로 제출하지 않아도 자동으로 반영돼요">이번 주 과제</SectionTitle>
-                <AutoSubmitStatus label={plan.submission.label} status={plan.submission.status} source={plan.submission.source} />
-              </div>
-
               {/* 피드백 상태 */}
               <div>
                 <SectionTitle>피드백</SectionTitle>
@@ -86,19 +89,46 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
                   {plan.feedback.note ? <p className="mt-3 rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]">“{plan.feedback.note}”</p> : null}
                 </Card>
               </div>
+
+              {/* 4주 전체 진행 — 모든 주차 페이지에 동일하게 노출 */}
+              <div>
+                <SectionTitle>4주 전체 진행</SectionTitle>
+                <div className="space-y-3">
+                  {WEEKS.map((w) => {
+                    const isCurrent = w.week === plan.week;
+                    const inner = (
+                      <Card className={`flex items-center justify-between !p-4 ${isCurrent ? "!border-[#0B46E8]/40 ring-1 ring-[#0B46E8]/20" : ""}`}>
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#0B46E8] text-[12.5px] font-black leading-none text-white">W{w.week}</span>
+                          <div className="min-w-0">
+                            <p className="truncate text-[13.5px] font-bold text-[#191F28]">{w.title}</p>
+                            {isCurrent ? <p className="text-[11px] font-bold text-[#0B46E8]">보는 중</p> : null}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                    if (isCurrent) {
+                      return (
+                        <div key={w.week}>{inner}</div>
+                      );
+                    }
+                    return (
+                      <Link key={w.week} href={`/career-launch/week/${w.week}`} className="block">
+                        {inner}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* 다음 주 이동 */}
-          {plan.week < 4 ? (
-            <Link href={`/career-launch/week/${plan.week + 1}`} className="mt-8 flex items-center justify-center rounded-xl border border-[#D7DCE3] bg-white py-3.5 text-[14px] font-bold text-[#191F28] transition hover:border-[#0B46E8]/40">
-              Week {plan.week + 1} 미리보기 →
-            </Link>
-          ) : (
+          {/* 최종 주차 CTA */}
+          {plan.week === 4 ? (
             <Link href="/career-launch/profile" className="mt-8 flex items-center justify-center rounded-xl bg-[#B7FF5A] py-3.5 text-[14px] font-bold text-[#111] transition hover:brightness-105">
               Global Talent Profile 완성하기 →
             </Link>
-          )}
+          ) : null}
         </div>
       </main>
       <Footer />

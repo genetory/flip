@@ -18,7 +18,7 @@ export default function LaunchDiagnosisPage() {
   const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
-  const [seeded, setSeeded] = useState(false);
+  const startedRef = useRef(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,8 +43,8 @@ export default function LaunchDiagnosisPage() {
   };
 
   useEffect(() => {
-    if (!isReady || seeded) return;
-    setSeeded(true);
+    if (!isReady || startedRef.current) return;
+    startedRef.current = true;
     // 이전에 진단한 결과가 있으면 대화 대신 그 결과를 바로 보여준다(다시 보기).
     try {
       const saved = window.localStorage.getItem(KEY_DIAG);
@@ -60,7 +60,7 @@ export default function LaunchDiagnosisPage() {
     }
     startChat();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, seeded]);
+  }, [isReady]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -106,7 +106,7 @@ export default function LaunchDiagnosisPage() {
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
               <p className="text-[15px] font-black text-[#0B1227]">취업 준비 상태 자가진단</p>
-              <p className="text-[12px] text-[#8B95A1]">AI 코치와 짧게 대화하면 준비도를 알려드려요</p>
+              <p className="text-[12px] text-[#8B95A1]">AI 코치와 대화하면 준비도를 알려드려요 · ⏱ 약 10분</p>
             </div>
           </div>
 
@@ -197,8 +197,24 @@ export default function LaunchDiagnosisPage() {
               </Link>
             </div>
           ) : (
+            <div className="mt-3">
+              {/* 할 말이 없어 막힐 때를 위한 빠른 응답 — 대화가 끊기지 않게 */}
+              {messages.length > 0 && !loading ? (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {["잘 모르겠어요", "아직 준비 안 됐어요", "예시를 보여주세요"].map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => send(q)}
+                      className="rounded-full border border-[#D7DCE3] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8]"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             <form
-              className="mt-3 flex items-end gap-2"
+              className="flex items-end gap-2"
               onSubmit={(e) => {
                 e.preventDefault();
                 send(input);
@@ -228,6 +244,7 @@ export default function LaunchDiagnosisPage() {
                 보내기
               </button>
             </form>
+            </div>
           )}
         </div>
       </main>

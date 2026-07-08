@@ -10,72 +10,74 @@ datasource db {
 }
 
 model User {
-  id          String      @id @default(uuid())
-  email       String
-  emailVerified Boolean   @default(false)
-  isActive    Boolean     @default(true)
-  suspendedAt DateTime?
-  suspendedReason String?
-  realName    String?
-  name        String?
-  phoneNumber String?
-  nationality String?
-  affiliation String?
-  birthDate   DateTime?
-  gender      String?
-  jobTitle    String?
-  profileImageUrl String?
-  adminMemo   String?
-  passwordHash String?
-  authProvider AuthProvider @default(EMAIL)
-  providerId   String?
-  role        MemberRole  @default(STUDENT)
-  partnerType PartnerType?
-  partnerOrgRole PartnerOrgUserRole?
-  partnerOrganizationId String?
-  partnerOrganizationName String?
+  id                                   String                        @id @default(uuid())
+  email                                String
+  emailVerified                        Boolean                       @default(false)
+  isActive                             Boolean                       @default(true)
+  suspendedAt                          DateTime?
+  suspendedReason                      String?
+  realName                             String?
+  name                                 String?
+  phoneNumber                          String?
+  nationality                          String?
+  affiliation                          String?
+  birthDate                            DateTime?
+  gender                               String?
+  jobTitle                             String?
+  profileImageUrl                      String?
+  adminMemo                            String?
+  passwordHash                         String?
+  authProvider                         AuthProvider                  @default(EMAIL)
+  providerId                           String?
+  role                                 MemberRole                    @default(STUDENT)
+  partnerType                          PartnerType?
+  partnerOrgRole                       PartnerOrgUserRole?
+  partnerOrganizationId                String?
+  partnerOrganizationName              String?
   // Signup forensics — captured at /auth/register so ops can trace
   // bot/spam waves without a separate audit table. Null for legacy rows
   // and OAuth signups before this field was added.
-  signupIp        String?
-  signupUserAgent String?
-  signupReferer   String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  positionParticipants   PositionMatchingParticipant[] @relation("PositionParticipantAuthor")
-  positionProgressLogs   PositionProgressLog[]         @relation("PositionLogAuthor")
-  positionStatusHistories PositionStatusHistory[]      @relation("PositionStatusAuthor")
-  candidateProfile CandidateProfile?
-  resumes Resume[]
-  coverLetters CoverLetter[]
-  couponRedemptions CouponRedemption[]
-  aiUsages AiUsage[]
-  aiWallet AiWallet?
-  sgcApplication SgcApplication? @relation("SgcApplicationUser")
-  refreshTokens RefreshToken[]
-  emailVerificationTokens EmailVerificationToken[]
-  communityPosts CommunityPost[]
-  communityPostLikes CommunityPostLike[]
-  communityPostComments CommunityPostComment[]
-  partnerApplicantWorkflowsAsPartner PartnerApplicantWorkflow[] @relation("PartnerApplicantWorkflowPartnerUser")
-  partnerApplicantWorkflowsAsCandidate PartnerApplicantWorkflow[] @relation("PartnerApplicantWorkflowCandidateUser")
-  applications        Application[] @relation("ApplicationCandidate")
-  applicationStatusChanges ApplicationStatusHistory[] @relation("ApplicationStatusChangedBy")
-  reportedIssues      IssueReport[] @relation("IssueReportReporter")
-  subjectIssues       IssueReport[] @relation("IssueReportSubject")
-  assignedIssues      IssueReport[] @relation("IssueReportAssignee")
-  assignmentsAssigned Assignment[]  @relation("AssignmentAssignedBy")
-  assignmentsReviewed Assignment[]  @relation("AssignmentReviewedBy")
-  programFeedbacks    ProgramFeedback[] @relation("ProgramFeedbackAuthor")
-  certificatesIssued  Certificate[]    @relation("CertificateIssuer")
-  recommendationsIssued Recommendation[] @relation("RecommendationIssuer")
-  schoolCreditReviews SchoolCreditRequest[] @relation("SchoolCreditReviewer")
-  notifications       Notification[]
-  applicationComments ApplicationComment[] @relation("ApplicationCommentAuthor")
-  partnerOrganization PartnerOrganization? @relation(fields: [partnerOrganizationId], references: [id], onDelete: SetNull)
-  createdPartnerJoinCodes PartnerOrganizationJoinCode[]
-  requestedPositionRevisions PositionRevision[] @relation("PositionRevisionRequester")
-  reviewedPositionRevisions PositionRevision[] @relation("PositionRevisionReviewer")
+  signupIp                             String?
+  signupUserAgent                      String?
+  signupReferer                        String?
+  createdAt                            DateTime                      @default(now())
+  updatedAt                            DateTime                      @updatedAt
+  positionParticipants                 PositionMatchingParticipant[] @relation("PositionParticipantAuthor")
+  positionProgressLogs                 PositionProgressLog[]         @relation("PositionLogAuthor")
+  positionStatusHistories              PositionStatusHistory[]       @relation("PositionStatusAuthor")
+  candidateProfile                     CandidateProfile?
+  resumes                              Resume[]
+  coverLetters                         CoverLetter[]
+  couponRedemptions                    CouponRedemption[]
+  aiUsages                             AiUsage[]
+  aiWallet                             AiWallet?
+  sgcApplication                       SgcApplication?               @relation("SgcApplicationUser")
+  refreshTokens                        RefreshToken[]
+  emailVerificationTokens              EmailVerificationToken[]
+  communityPosts                       CommunityPost[]
+  communityPostLikes                   CommunityPostLike[]
+  communityPostComments                CommunityPostComment[]
+  partnerApplicantWorkflowsAsPartner   PartnerApplicantWorkflow[]    @relation("PartnerApplicantWorkflowPartnerUser")
+  partnerApplicantWorkflowsAsCandidate PartnerApplicantWorkflow[]    @relation("PartnerApplicantWorkflowCandidateUser")
+  applications                         Application[]                 @relation("ApplicationCandidate")
+  applicationStatusChanges             ApplicationStatusHistory[]    @relation("ApplicationStatusChangedBy")
+  reportedIssues                       IssueReport[]                 @relation("IssueReportReporter")
+  subjectIssues                        IssueReport[]                 @relation("IssueReportSubject")
+  assignedIssues                       IssueReport[]                 @relation("IssueReportAssignee")
+  assignmentsAssigned                  Assignment[]                  @relation("AssignmentAssignedBy")
+  assignmentsReviewed                  Assignment[]                  @relation("AssignmentReviewedBy")
+  programFeedbacks                     ProgramFeedback[]             @relation("ProgramFeedbackAuthor")
+  careerLaunchFeedbacksReceived        CareerLaunchFeedback[]        @relation("CareerLaunchFeedbackStudent")
+  careerLaunchFeedbacksAuthored        CareerLaunchFeedback[]        @relation("CareerLaunchFeedbackAuthor")
+  certificatesIssued                   Certificate[]                 @relation("CertificateIssuer")
+  recommendationsIssued                Recommendation[]              @relation("RecommendationIssuer")
+  schoolCreditReviews                  SchoolCreditRequest[]         @relation("SchoolCreditReviewer")
+  notifications                        Notification[]
+  applicationComments                  ApplicationComment[]          @relation("ApplicationCommentAuthor")
+  partnerOrganization                  PartnerOrganization?          @relation(fields: [partnerOrganizationId], references: [id], onDelete: SetNull)
+  createdPartnerJoinCodes              PartnerOrganizationJoinCode[]
+  requestedPositionRevisions           PositionRevision[]            @relation("PositionRevisionRequester")
+  reviewedPositionRevisions            PositionRevision[]            @relation("PositionRevisionReviewer")
 
   @@unique([email, authProvider])
   @@unique([authProvider, providerId])
@@ -103,13 +105,13 @@ enum CommunityPostCategory {
 }
 
 model EmailPreverificationToken {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   email      String
   codeHash   String
   expiresAt  DateTime
   verifiedAt DateTime?
   usedAt     DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([email])
   @@index([expiresAt])
@@ -118,19 +120,19 @@ model EmailPreverificationToken {
 }
 
 model PartnerSignupRequest {
-  id               String   @id @default(uuid())
+  id               String    @id @default(uuid())
   companyName      String
   companyIndustry  String
   companySize      String
   requesterName    String
   requesterEmail   String
   requesterPhone   String?
-  status           String   @default("PENDING")
+  status           String    @default("PENDING")
   reviewedByUserId String?
   reviewedAt       DateTime?
   reviewNote       String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([status])
   @@index([requesterEmail])
@@ -138,12 +140,12 @@ model PartnerSignupRequest {
 }
 
 model EmailVerificationToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -153,13 +155,13 @@ model EmailVerificationToken {
 }
 
 model RefreshToken {
-  id         String   @id @default(uuid())
-  userId     String
-  tokenHash  String   @unique
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -446,10 +448,10 @@ enum CandidatePreferredJobRole {
 }
 
 model PartnerOrganization {
-  id                               String          @id @default(uuid())
+  id                               String                        @id @default(uuid())
   partnerType                      PartnerType
   name                             String
-  slug                             String          @unique
+  slug                             String                        @unique
   companySize                      PartnerCompanySize?
   officeAddress                    String?
   website                          String?
@@ -462,10 +464,10 @@ model PartnerOrganization {
   fourInsuranceSubscriberListData  String?
   companyLogoImageData             String?
   officePhotoImageData             String?
-  verificationApproved             Boolean         @default(false)
+  verificationApproved             Boolean                       @default(false)
   verificationApprovedAt           DateTime?
-  createdAt                        DateTime        @default(now())
-  updatedAt                        DateTime        @updatedAt
+  createdAt                        DateTime                      @default(now())
+  updatedAt                        DateTime                      @updatedAt
   positions                        Position[]
   positionRevisions                PositionRevision[]
   users                            User[]
@@ -479,13 +481,13 @@ model PartnerOrganization {
 }
 
 model PartnerOrganizationJoinCode {
-  id                    String   @id @default(uuid())
+  id                    String    @id @default(uuid())
   partnerOrganizationId String
   createdByUserId       String
-  codeHash              String   @unique
+  codeHash              String    @unique
   expiresAt             DateTime
   usedAt                DateTime?
-  createdAt             DateTime @default(now())
+  createdAt             DateTime  @default(now())
 
   partnerOrganization PartnerOrganization @relation(fields: [partnerOrganizationId], references: [id], onDelete: Cascade)
   createdByUser       User                @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
@@ -497,22 +499,22 @@ model PartnerOrganizationJoinCode {
 }
 
 model Position {
-  id                      String         @id @default(uuid())
+  id                      String                      @id @default(uuid())
   partnerOrganizationId   String?
-  sourceKind              PositionSourceKind @default(INTERNAL)
-  sourceProvider          PositionSourceProvider @default(INTERNAL)
+  sourceKind              PositionSourceKind          @default(INTERNAL)
+  sourceProvider          PositionSourceProvider      @default(INTERNAL)
   sourceExternalId        String?
   sourceUrl               String?
   sourceFetchedAt         DateTime?
   sourceDeadlineDate      DateTime?
   title                   String
-  status                  PositionStatus @default(DRAFT)
+  status                  PositionStatus              @default(DRAFT)
   workType                String?
-  employmentType          PositionEmploymentType @default(UNPAID_INTERN)
-  thumbnailImages         String[]       @default([])
-  eligibleVisas           String[]       @default([])
-  preferredNationalities  String[]       @default([])
-  communicationLanguages  String[]       @default([])
+  employmentType          PositionEmploymentType      @default(UNPAID_INTERN)
+  thumbnailImages         String[]                    @default([])
+  eligibleVisas           String[]                    @default([])
+  preferredNationalities  String[]                    @default([])
+  communicationLanguages  String[]                    @default([])
   hiringProcess           String?
   preferredJobRole        String?
   hiringCount             Int?
@@ -526,28 +528,28 @@ model Position {
   wantsPreTraining        Boolean?
   additionalNotes         String?
   adminMemo               String?
-  viewCount               Int            @default(0)
-  externalClickCount      Int            @default(0)
+  viewCount               Int                         @default(0)
+  externalClickCount      Int                         @default(0)
   embedding               Unsupported("vector(768)")?
   embeddingUpdatedAt      DateTime?
   // Per-locale translation cache (keyed by BCP47 locale).
   // Shape: { en: { title, mainResponsibilities, requiredQualifications, ... } }
   // Filled lazily on first non-Korean view for INTERNAL postings.
   translations            Json?
-  createdAt               DateTime       @default(now())
-  updatedAt               DateTime       @updatedAt
+  createdAt               DateTime                    @default(now())
+  updatedAt               DateTime                    @updatedAt
 
-  partnerOrganization PartnerOrganization? @relation(fields: [partnerOrganizationId], references: [id], onDelete: SetNull)
+  partnerOrganization  PartnerOrganization?          @relation(fields: [partnerOrganizationId], references: [id], onDelete: SetNull)
   matchingParticipants PositionMatchingParticipant[]
-  progressLogs PositionProgressLog[]
-  statusHistories PositionStatusHistory[]
-  applicantWorkflows PartnerApplicantWorkflow[]
-  applications Application[]
-  revisions PositionRevision[]
+  progressLogs         PositionProgressLog[]
+  statusHistories      PositionStatusHistory[]
+  applicantWorkflows   PartnerApplicantWorkflow[]
+  applications         Application[]
+  revisions            PositionRevision[]
 
+  @@unique([sourceProvider, sourceExternalId])
   @@index([partnerOrganizationId])
   @@index([sourceKind, sourceProvider])
-  @@unique([sourceProvider, sourceExternalId])
   @@index([status])
   @@index([title])
   @@index([createdAt])
@@ -596,8 +598,8 @@ model PositionMatchingParticipant {
   createdByUserId String?
   createdAt       DateTime @default(now())
 
-  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
-  createdBy User?   @relation("PositionParticipantAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  position  Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("PositionParticipantAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@index([positionId])
   @@index([createdAt])
@@ -610,24 +612,24 @@ model PositionProgressLog {
   createdByUserId String?
   createdAt       DateTime @default(now())
 
-  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
-  createdBy User?   @relation("PositionLogAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  position  Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("PositionLogAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@index([positionId])
   @@index([createdAt])
 }
 
 model PositionStatusHistory {
-  id              String         @id @default(uuid())
+  id              String          @id @default(uuid())
   positionId      String
   fromStatus      PositionStatus?
   toStatus        PositionStatus
   note            String?
   createdByUserId String?
-  createdAt       DateTime       @default(now())
+  createdAt       DateTime        @default(now())
 
-  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
-  createdBy User?   @relation("PositionStatusAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  position  Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("PositionStatusAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@index([positionId])
   @@index([createdAt])
@@ -643,8 +645,8 @@ model PartnerApplicantWorkflow {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  partnerUser User     @relation("PartnerApplicantWorkflowPartnerUser", fields: [partnerUserId], references: [id], onDelete: Cascade)
-  candidateUser User   @relation("PartnerApplicantWorkflowCandidateUser", fields: [candidateUserId], references: [id], onDelete: Cascade)
+  partnerUser   User     @relation("PartnerApplicantWorkflowPartnerUser", fields: [partnerUserId], references: [id], onDelete: Cascade)
+  candidateUser User     @relation("PartnerApplicantWorkflowCandidateUser", fields: [candidateUserId], references: [id], onDelete: Cascade)
   position      Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
 
   @@unique([partnerUserId, candidateUserId, positionId])
@@ -654,25 +656,25 @@ model PartnerApplicantWorkflow {
 }
 
 model Application {
-  id              String            @id @default(uuid())
-  positionId      String
-  candidateUserId String
+  id                  String            @id @default(uuid())
+  positionId          String
+  candidateUserId     String
   // 지원 시점에 연결된 대표 이력서(resume-maker) 참조. 조회는 스냅샷 우선.
-  resumeId        String?
+  resumeId            String?
   // 지원 시점 서류 스냅샷(제출본 보존) — 지원 후 원본을 수정해도 파트너는 제출 당시
   // 그대로 본다. resumeSnapshot=resume.content 사본, coverLetterSnapshot=자소서 사본.
-  resumeSnapshot        Json?
-  coverLetterId         String?
-  coverLetterSnapshot   Json?
-  status          ApplicationStatus @default(SUBMITTED)
-  memo            String?
-  submittedAt     DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  resumeSnapshot      Json?
+  coverLetterId       String?
+  coverLetterSnapshot Json?
+  status              ApplicationStatus @default(SUBMITTED)
+  memo                String?
+  submittedAt         DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
-  position        Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
-  candidateUser   User     @relation("ApplicationCandidate", fields: [candidateUserId], references: [id], onDelete: Cascade)
-  resume          Resume?  @relation("ApplicationResume", fields: [resumeId], references: [id], onDelete: SetNull)
-  coverLetter     CoverLetter? @relation("ApplicationCoverLetter", fields: [coverLetterId], references: [id], onDelete: SetNull)
+  position        Position                   @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  candidateUser   User                       @relation("ApplicationCandidate", fields: [candidateUserId], references: [id], onDelete: Cascade)
+  resume          Resume?                    @relation("ApplicationResume", fields: [resumeId], references: [id], onDelete: SetNull)
+  coverLetter     CoverLetter?               @relation("ApplicationCoverLetter", fields: [coverLetterId], references: [id], onDelete: SetNull)
   statusHistories ApplicationStatusHistory[]
   interviewSlots  InterviewSlot[]
   assignments     Assignment[]
@@ -791,6 +793,28 @@ model ProgramFeedback {
   @@index([authorUserId])
 }
 
+// Career Launch(부트캠프) 제출물 단위 코치 피드백. 운영자가 학생의 이력서·자소서를
+// 보고 남긴 코멘트를 학생 대시보드로 전달한다. Program/Application 파이프라인과
+// 무관하게 학생 userId 로 직접 연결한다.
+model CareerLaunchFeedback {
+  id            String    @id @default(uuid())
+  studentUserId String
+  authorUserId  String
+  week          Int? // 1~4 주차(선택)
+  docType       String // "resume" | "cover_letter" | "general"
+  docId         String? // 대상 이력서/자소서 id(선택)
+  body          String
+  readAt        DateTime? // 학생이 확인한 시각
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  student User @relation("CareerLaunchFeedbackStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+  author  User @relation("CareerLaunchFeedbackAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@index([studentUserId])
+  @@index([authorUserId])
+}
+
 model Certificate {
   id             String   @id @default(uuid())
   programId      String   @unique
@@ -855,22 +879,22 @@ model ApplicationStatusHistory {
 }
 
 model IssueReport {
-  id              String            @id @default(uuid())
-  type            IssueReportType
-  status          IssueReportStatus @default(OPEN)
-  title           String
-  description     String
-  reporterUserId  String
-  subjectUserId   String?
-  positionId      String?
-  applicationId   String?
+  id               String            @id @default(uuid())
+  type             IssueReportType
+  status           IssueReportStatus @default(OPEN)
+  title            String
+  description      String
+  reporterUserId   String
+  subjectUserId    String?
+  positionId       String?
+  applicationId    String?
   assignedToUserId String?
-  resolutionNote  String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  resolvedAt      DateTime?
+  resolutionNote   String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  resolvedAt       DateTime?
 
-  reporter   User @relation("IssueReportReporter", fields: [reporterUserId], references: [id], onDelete: Cascade)
+  reporter   User  @relation("IssueReportReporter", fields: [reporterUserId], references: [id], onDelete: Cascade)
   subject    User? @relation("IssueReportSubject", fields: [subjectUserId], references: [id], onDelete: SetNull)
   assignedTo User? @relation("IssueReportAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
 
@@ -882,14 +906,14 @@ model IssueReport {
 }
 
 model Notification {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
   type      String
   title     String
   message   String?
   linkPath  String?
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -898,14 +922,14 @@ model Notification {
 }
 
 model ApplicationComment {
-  id             String                       @id @default(uuid())
-  applicationId  String
-  authorUserId   String
-  authorRole     MemberRole
-  content        String
-  visibility     ApplicationCommentVisibility @default(INTERNAL)
-  createdAt      DateTime                     @default(now())
-  updatedAt      DateTime                     @updatedAt
+  id            String                       @id @default(uuid())
+  applicationId String
+  authorUserId  String
+  authorRole    MemberRole
+  content       String
+  visibility    ApplicationCommentVisibility @default(INTERNAL)
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
 
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   author      User        @relation("ApplicationCommentAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
@@ -916,7 +940,7 @@ model ApplicationComment {
 }
 
 model AuditLog {
-  id          String   @id @default(uuid())
+  id          String      @id @default(uuid())
   actorUserId String?
   actorRole   MemberRole?
   action      String
@@ -924,7 +948,7 @@ model AuditLog {
   resourceId  String?
   metadata    Json?
   ipAddress   String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime    @default(now())
 
   @@index([actorUserId, createdAt])
   @@index([resource, resourceId])
@@ -933,18 +957,18 @@ model AuditLog {
 }
 
 model Announcement {
-  id          String               @id @default(uuid())
-  title       String
-  body        String
-  severity    AnnouncementSeverity @default(INFO)
-  audience    AnnouncementAudience @default(ALL)
-  linkPath    String?
-  active      Boolean              @default(true)
-  startsAt    DateTime             @default(now())
-  endsAt      DateTime?
+  id              String               @id @default(uuid())
+  title           String
+  body            String
+  severity        AnnouncementSeverity @default(INFO)
+  audience        AnnouncementAudience @default(ALL)
+  linkPath        String?
+  active          Boolean              @default(true)
+  startsAt        DateTime             @default(now())
+  endsAt          DateTime?
   createdByUserId String
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
   @@index([active, audience])
   @@index([startsAt])
@@ -979,50 +1003,50 @@ model MatchingRunHistory {
 }
 
 model CandidateProfile {
-  id                String            @id @default(uuid())
-  userId            String            @unique
-  workPermit        Boolean?
-  visaType          CandidateVisaType?
-  visaExpiryDate    DateTime?
-  livesInKorea      Boolean?
-  hasAccommodation  Boolean?
-  residenceProvince String?
-  residenceDistrict String?
-  residenceAddress  String?
+  id                       String                       @id @default(uuid())
+  userId                   String                       @unique
+  workPermit               Boolean?
+  visaType                 CandidateVisaType?
+  visaExpiryDate           DateTime?
+  livesInKorea             Boolean?
+  hasAccommodation         Boolean?
+  residenceProvince        String?
+  residenceDistrict        String?
+  residenceAddress         String?
   preferredProgramDuration CandidateProgramDuration?
-  programStartOption CandidateProgramStartOption?
-  programStartDate  DateTime?
-  preferredIndustries PartnerIndustry[] @default([])
-  preferredJobRoles CandidatePreferredJobRole[] @default([])
-  favoritePositionIds String[] @default([])
-  appliedPositionIds String[] @default([])
-  skills            String[] @default([])
-  selfIntroduction  String?
-  programMotivation String?
-  preferenceConditionNote String?
-  capabilityNote    String?
-  additionalInfoNote String?
-  emergencyContactName String?
+  programStartOption       CandidateProgramStartOption?
+  programStartDate         DateTime?
+  preferredIndustries      PartnerIndustry[]            @default([])
+  preferredJobRoles        CandidatePreferredJobRole[]  @default([])
+  favoritePositionIds      String[]                     @default([])
+  appliedPositionIds       String[]                     @default([])
+  skills                   String[]                     @default([])
+  selfIntroduction         String?
+  programMotivation        String?
+  preferenceConditionNote  String?
+  capabilityNote           String?
+  additionalInfoNote       String?
+  emergencyContactName     String?
   emergencyContactRelation String?
-  emergencyContactPhone String?
-  emergencyContactEmail String?
-  emergencyContactAddress String?
-  matchingResultNote String?
-  resumeUrl         String?
-  resumeFileName    String?
-  coverLetterUrl    String?
-  coverLetterFileName String?
-  portfolioUrl      String?
-  portfolioFileName String?
-  passportImageUrl  String?
-  passportImageFileName String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  emergencyContactPhone    String?
+  emergencyContactEmail    String?
+  emergencyContactAddress  String?
+  matchingResultNote       String?
+  resumeUrl                String?
+  resumeFileName           String?
+  coverLetterUrl           String?
+  coverLetterFileName      String?
+  portfolioUrl             String?
+  portfolioFileName        String?
+  passportImageUrl         String?
+  passportImageFileName    String?
+  createdAt                DateTime                     @default(now())
+  updatedAt                DateTime                     @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  educations CandidateEducation[]
-  languageSkills CandidateLanguageSkill[]
-  careers CandidateCareer[]
+  user                User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  educations          CandidateEducation[]
+  languageSkills      CandidateLanguageSkill[]
+  careers             CandidateCareer[]
   activityExperiences CandidateActivityExperience[]
 
   @@index([visaType])
@@ -1030,17 +1054,17 @@ model CandidateProfile {
 }
 
 model CandidateCareer {
-  id                 String   @id @default(uuid())
+  id                 String    @id @default(uuid())
   candidateProfileId String
   companyName        String
   position           String
   department         String?
-  isCurrent          Boolean  @default(false)
+  isCurrent          Boolean   @default(false)
   startDate          DateTime?
   endDate            DateTime?
   description        String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   candidateProfile CandidateProfile @relation(fields: [candidateProfileId], references: [id], onDelete: Cascade)
 
@@ -1049,19 +1073,19 @@ model CandidateCareer {
 }
 
 model CandidateEducation {
-  id            String                  @id @default(uuid())
+  id                 String                   @id @default(uuid())
   candidateProfileId String
-  schoolName    String
-  educationType CandidateEducationType
-  major         String?
-  status        CandidateEducationStatus
-  country       String?
-  city          String?
-  startDate     DateTime?
-  endDate       DateTime?
-  isKoreanSchool Boolean?
-  createdAt     DateTime                @default(now())
-  updatedAt     DateTime                @updatedAt
+  schoolName         String
+  educationType      CandidateEducationType
+  major              String?
+  status             CandidateEducationStatus
+  country            String?
+  city               String?
+  startDate          DateTime?
+  endDate            DateTime?
+  isKoreanSchool     Boolean?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
 
   candidateProfile CandidateProfile @relation(fields: [candidateProfileId], references: [id], onDelete: Cascade)
 
@@ -1071,14 +1095,14 @@ model CandidateEducation {
 }
 
 model CandidateLanguageSkill {
-  id            String                @id @default(uuid())
+  id                 String                 @id @default(uuid())
   candidateProfileId String
-  language      CandidateLanguageType
-  level         CandidateLanguageLevel
-  testName      String?
-  score         String?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  language           CandidateLanguageType
+  level              CandidateLanguageLevel
+  testName           String?
+  score              String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
 
   candidateProfile CandidateProfile @relation(fields: [candidateProfileId], references: [id], onDelete: Cascade)
 
@@ -1110,27 +1134,27 @@ model CandidateActivityExperience {
 // (e.g. one per target role). The structured fields live in `content` as
 // JSON so the builder can evolve without a migration per field.
 model Resume {
-  id        String   @id @default(uuid())
-  userId    String
-  title     String
-  content   Json     @default("{}")
-  isPrimary Boolean  @default(false)
+  id           String   @id @default(uuid())
+  userId       String
+  title        String
+  content      Json     @default("{}")
+  isPrimary    Boolean  @default(false)
   // Public share slug — anyone with the link can view a read-only single-
   // page rendering of this resume without signing in. We mint a fresh cuid
   // on row insert; old rows get one backfilled by the migration so the
   // column can stay NOT NULL + unique.
-  shareSlug String   @unique @default(cuid())
+  shareSlug    String   @unique @default(cuid())
   // Per-locale translation cache. Same idea as Position.translations.
   // Shape: { ko: { summary, selfIntroduction, careers: [{ description }], activities: [{ description }] } }
   // Filled on save whenever a long-form field is detected as non-Korean.
   // Existing rows stay null until the next edit; readers must handle absence.
   translations Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   sgcApplications SgcApplication[] @relation("SgcApplicationResume")
-  applications Application[] @relation("ApplicationResume")
+  applications    Application[]    @relation("ApplicationResume")
 
   @@index([userId])
 }
@@ -1141,9 +1165,9 @@ model Resume {
 model CoverLetter {
   id        String   @id @default(uuid())
   userId    String
-  title     String   // 식별 라벨(예: "삼성전자 — 마케팅")
-  company   String?  // 지원 회사명(선택, AI 컨텍스트 + 미리보기 헤더)
-  resumeId  String?  // 근거/연결 이력서(선택)
+  title     String // 식별 라벨(예: "삼성전자 — 마케팅")
+  company   String? // 지원 회사명(선택, AI 컨텍스트 + 미리보기 헤더)
+  resumeId  String? // 근거/연결 이력서(선택)
   items     Json     @default("[]")
   // 공개 공유 slug — 이력서(Resume.shareSlug)와 동일. 링크만 있으면 로그인 없이
   // 읽기 전용으로 열람. 신규 행은 cuid 자동 생성, 기존 행은 마이그레이션에서 backfill.
@@ -1151,7 +1175,7 @@ model CoverLetter {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   applications Application[] @relation("ApplicationCoverLetter")
 
   @@index([userId])
@@ -1175,7 +1199,7 @@ model AiWallet {
 model Coupon {
   id        String    @id @default(uuid())
   code      String    @unique // 대문자/공백 정규화해 저장
-  tickets   Int       // 충전될 티켓 수
+  tickets   Int // 충전될 티켓 수
   maxUses   Int       @default(1) // 코드별 전체 사용 가능 횟수
   usedCount Int       @default(0)
   // 같은 그룹(이벤트)의 여러 코드 중 계정당 1개만 등록 가능하게 묶는 키(없으면 코드 단독).
@@ -1194,7 +1218,7 @@ model CouponRedemption {
   couponId  String
   userId    String
   tickets   Int
-  groupKey  String?  // 충전 시점의 쿠폰 그룹(그룹당 계정 1회 유니크 제약용)
+  groupKey  String? // 충전 시점의 쿠폰 그룹(그룹당 계정 1회 유니크 제약용)
   createdAt DateTime @default(now())
 
   coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
@@ -1208,8 +1232,8 @@ model CouponRedemption {
 model AiUsage {
   id        String   @id @default(uuid())
   userId    String
-  feature   String   // "tailor_analyze" | "interview_feedback"
-  periodKey String   // KST 기준 "YYYY-MM"
+  feature   String // "tailor_analyze" | "interview_feedback"
+  periodKey String // KST 기준 "YYYY-MM"
   count     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1221,20 +1245,20 @@ model AiUsage {
 }
 
 model CommunityPost {
-  id        String                @id @default(uuid())
-  authorId  String?
+  id         String                @id @default(uuid())
+  authorId   String?
   authorName String
-  category  CommunityPostCategory
-  title     String
-  body      String
-  imageUrls String[]              @default([])
-  likes     Int                   @default(0)
-  comments  Int                   @default(0)
-  createdAt DateTime              @default(now())
-  updatedAt DateTime              @updatedAt
+  category   CommunityPostCategory
+  title      String
+  body       String
+  imageUrls  String[]              @default([])
+  likes      Int                   @default(0)
+  comments   Int                   @default(0)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
 
-  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  likedBy CommunityPostLike[]
+  author       User?                  @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  likedBy      CommunityPostLike[]
   commentItems CommunityPostComment[]
 
   @@index([category])
@@ -1339,7 +1363,7 @@ model SajuPrediction {
   createdAt              DateTime  @default(now())
   claimedAt              DateTime?
 
-  leads                  SajuLead[]
+  leads SajuLead[]
 
   @@index([userId])
   @@index([createdAt])
@@ -1351,7 +1375,7 @@ model SajuPrediction {
 // Profile Pool. userId is filled once they sign up (claim flow), at which
 // point poolStage moves toward VERIFIED / RECOMMENDABLE.
 model SajuLead {
-  id               String          @id @default(uuid())
+  id               String   @id @default(uuid())
   predictionId     String?
   shareSlug        String?
   name             String?
@@ -1370,27 +1394,27 @@ model SajuLead {
   hasResume        Boolean?
   // Rule-based recommendation snapshot (no LLM cost) shown back to the user
   // and surfaced to ops so the funnel result is auditable.
-  recommendedRoles String[]        @default([])
-  improvements     String[]        @default([])
+  recommendedRoles String[] @default([])
+  improvements     String[] @default([])
   recommendStatus  String?
   // Pool classification + auto-generated filter tags (nationality / role /
   // visa / language / work type).
-  poolStage        String          @default("PROFILE")
-  tags             String[]        @default([])
+  poolStage        String   @default("PROFILE")
+  tags             String[] @default([])
   // Consent is split by purpose (career-info collection vs. employer
   // referral) per the privacy design.
-  consentCareer    Boolean         @default(false)
-  consentRecommend Boolean         @default(false)
+  consentCareer    Boolean  @default(false)
+  consentRecommend Boolean  @default(false)
   // Opt-in to be contacted later (email / messenger) and to have the info
   // used for follow-up. Required before any outreach from the ops Pool.
-  consentContact   Boolean         @default(false)
+  consentContact   Boolean  @default(false)
   userId           String?
-  locale           String          @default("ko")
+  locale           String   @default("ko")
   ipHash           String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  prediction       SajuPrediction? @relation(fields: [predictionId], references: [id], onDelete: SetNull)
+  prediction SajuPrediction? @relation(fields: [predictionId], references: [id], onDelete: SetNull)
 
   @@index([predictionId])
   @@index([userId])
@@ -1404,13 +1428,13 @@ model SajuLead {
 // the schema doesn't need to know the shape (it's a moving target as
 // scrapers change).
 model CrawlerRun {
-  id            String   @id @default(uuid())
-  source        String   // "all" | "buddies" | "wanted"
-  triggeredBy   String   @default("manual") // "scheduler" | "manual"
-  startedAt     DateTime @default(now())
+  id            String    @id @default(uuid())
+  source        String // "all" | "buddies" | "wanted"
+  triggeredBy   String    @default("manual") // "scheduler" | "manual"
+  startedAt     DateTime  @default(now())
   finishedAt    DateTime?
-  elapsedMs     Int      @default(0)
-  ok            Boolean  @default(false)
+  elapsedMs     Int       @default(0)
+  ok            Boolean   @default(false)
   errorMessage  String?
   buddiesResult Json?
   wantedResult  Json?
@@ -1425,19 +1449,19 @@ model CrawlerRun {
 // slug so the result page can be opened by anyone and shared on socials.
 // userId is set once a visitor signs up post-result (claim flow).
 model MbtiPrediction {
-  id                     String   @id @default(uuid())
-  mbtiType               String   // e.g. "ENTJ", "ISFP"
+  id                     String    @id @default(uuid())
+  mbtiType               String // e.g. "ENTJ", "ISFP"
   name                   String?
   nationality            String?
   recommendedRoleNames   String[]
   recommendedPositionIds String[]
-  cultureSummary         String   @default("")
-  interpretation         String   @default("")
-  shareSlug              String   @unique @default(cuid())
+  cultureSummary         String    @default("")
+  interpretation         String    @default("")
+  shareSlug              String    @unique @default(cuid())
   userId                 String?
   ipHash                 String?
-  locale                 String   @default("ko")
-  createdAt              DateTime @default(now())
+  locale                 String    @default("ko")
+  createdAt              DateTime  @default(now())
   claimedAt              DateTime?
 
   @@index([userId])
@@ -1448,32 +1472,32 @@ model MbtiPrediction {
 // 비자 가능성 체크 이벤트 — rule-based eligibility hint. NOT legal advice;
 // the result page must surface that disclaimer prominently.
 model VisaCheckResult {
-  id                     String   @id @default(uuid())
+  id                     String    @id @default(uuid())
   name                   String?
   nationality            String
-  currentVisa            String?  // current visa code (e.g. "D-2") if any
-  educationLevel         String   // "HIGH_SCHOOL" | "BACHELOR" | "MASTER" | "PHD"
-  majorCategory          String?  // "IT" | "BUSINESS" | "HUMANITIES" | ...
-  koreanLevel            String   // "NONE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "NATIVE"
-  workYears              Int      @default(0)
+  currentVisa            String? // current visa code (e.g. "D-2") if any
+  educationLevel         String // "HIGH_SCHOOL" | "BACHELOR" | "MASTER" | "PHD"
+  majorCategory          String? // "IT" | "BUSINESS" | "HUMANITIES" | ...
+  koreanLevel            String // "NONE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "NATIVE"
+  workYears              Int       @default(0)
   targetRole             String?
   // Phase 1 신규 입력 — 결과 페이지의 5단계 상태 분류 + 로드맵 우선순위에
   // 사용된다. JSON 안이 아닌 top-level 컬럼으로 둬서 운영 콘솔의 raw-pool
   // 필터링/정렬을 가능하게 한다.
   inKorea                Boolean?
   hasJobOffer            Boolean?
-  graduationStatus       String?  // "not_applicable" | "completed" | "within_6mo" | "within_1y" | "later"
+  graduationStatus       String? // "not_applicable" | "completed" | "within_6mo" | "within_1y" | "later"
   // wrapper: { visas, roadmap, nextSteps, inputContext } (legacy: bare array)
   eligibleVisas          Json
   recommendedPositionIds String[]
-  shareSlug              String   @unique @default(cuid())
+  shareSlug              String    @unique @default(cuid())
   userId                 String?
   ipHash                 String?
-  locale                 String   @default("ko")
-  createdAt              DateTime @default(now())
+  locale                 String    @default("ko")
+  createdAt              DateTime  @default(now())
   claimedAt              DateTime?
 
-  leads                  VisaLead[]
+  leads VisaLead[]
 
   @@index([userId])
   @@index([createdAt])
@@ -1487,37 +1511,37 @@ model VisaCheckResult {
 // (희망 입사일·졸업일·현재 비자) 를 더한 형태. 익명 단계에 모았다가 사용자
 // 가 가입하면 userId 가 채워지며 회원과 자동 연결.
 model VisaLead {
-  id               String           @id @default(uuid())
+  id               String   @id @default(uuid())
   visaResultId     String?
   shareSlug        String?
   name             String?
   // 연락 채널 — 이메일 또는 전화번호. contactType 으로 구분.
   contact          String?
-  contactType      String?          // "email" | "phone" | "messenger"
+  contactType      String? // "email" | "phone" | "messenger"
   // 결과 페이지에서 한 번 더 확인/보완하는 funnel 필드.
   nationality      String?
   currentVisa      String?
-  expectedJoinDate String?          // 희망 입사일 ("YYYY-MM" 자유 입력)
-  graduationDate   String?          // 대학 졸업일 ("YYYY-MM")
+  expectedJoinDate String? // 희망 입사일 ("YYYY-MM" 자유 입력)
+  graduationDate   String? // 대학 졸업일 ("YYYY-MM")
   university       String?
   major            String?
   preferredJobRole String?
   koreanLevel      String?
   englishLevel     String?
   // pool classification + 자동 태그 (국적 / 직무 / 비자 / 언어 등).
-  poolStage        String           @default("PROFILE")
-  tags             String[]         @default([])
+  poolStage        String   @default("PROFILE")
+  tags             String[] @default([])
   // 동의 분기 — saju 와 동일한 3-purpose 모델.
-  consentCareer    Boolean          @default(false)
-  consentRecommend Boolean          @default(false)
-  consentContact   Boolean          @default(false)
+  consentCareer    Boolean  @default(false)
+  consentRecommend Boolean  @default(false)
+  consentContact   Boolean  @default(false)
   userId           String?
-  locale           String           @default("ko")
+  locale           String   @default("ko")
   ipHash           String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  visaResult       VisaCheckResult? @relation(fields: [visaResultId], references: [id], onDelete: SetNull)
+  visaResult VisaCheckResult? @relation(fields: [visaResultId], references: [id], onDelete: SetNull)
 
   @@index([visaResultId])
   @@index([userId])
@@ -1529,56 +1553,56 @@ model VisaLead {
 // 가능(이력서 기반) — anonymous 신청은 받지 않고, 사용자 본인 이력서 1개를
 // 묶어 운영팀에 전달. 한 사용자당 1회 지원으로 중복 방지.
 model SgcApplication {
-  id              String   @id @default(uuid())
-  userId          String
+  id                 String  @id @default(uuid())
+  userId             String
   // 지원자 본인 이력서 1개 — 운영팀이 ops 콘솔에서 자동 연결해 검토.
   // 이력서가 삭제돼도 지원 row 는 남도록 Restrict (운영 기록 보존).
-  resumeId        String
+  resumeId           String
   // 신청자 직접 입력 (SGC 공식 포스터 폼). 프로필/이력서에서 prefill 하되
   // 제출값은 지원서에 독립 저장한다. 기존 row 호환 위해 전부 nullable —
   // 필수 여부는 API zod 레벨에서 강제한다.
-  applicantName      String?  // 이름 (본명 / 한국어명)
-  birthDate          String?  // 생년월일 "YYYY-MM-DD"
-  gender             String?  // "FEMALE" | "MALE"
-  nationality        String?  // 국적 (한국어 작성)
-  university         String?  // 대학교 이름
-  major              String?  // 전공 학과
-  grade              String?  // "UNDERGRAD_4" | "GRAD" | "GRADUATED"
-  expectedGraduation String?  // 졸업 예정일 (예: "2026년 8월")
-  koreaStayDuration  String?  // "LT_1Y" | "Y1_2" | "Y2_3" | "Y3_5" | "GTE_5Y"
-  address            String?  // 주소 (예: "서울시 종로구")
-  email              String?  // 이메일 주소
-  phone              String?  // 휴대폰 번호
-  referralSource     String?  // 알게된 경로 (enum key, 아래 참조)
-  referralOther      String?  // 경로 "기타" 또는 인터넷 검색명
-  topikLevel         String?  // "4" | "5" | "6"
-  topikCertUrl       String?  // TOPIK 성적증명서 업로드 (blob URL / data URL)
+  applicantName      String? // 이름 (본명 / 한국어명)
+  birthDate          String? // 생년월일 "YYYY-MM-DD"
+  gender             String? // "FEMALE" | "MALE"
+  nationality        String? // 국적 (한국어 작성)
+  university         String? // 대학교 이름
+  major              String? // 전공 학과
+  grade              String? // "UNDERGRAD_4" | "GRAD" | "GRADUATED"
+  expectedGraduation String? // 졸업 예정일 (예: "2026년 8월")
+  koreaStayDuration  String? // "LT_1Y" | "Y1_2" | "Y2_3" | "Y3_5" | "GTE_5Y"
+  address            String? // 주소 (예: "서울시 종로구")
+  email              String? // 이메일 주소
+  phone              String? // 휴대폰 번호
+  referralSource     String? // 알게된 경로 (enum key, 아래 참조)
+  referralOther      String? // 경로 "기타" 또는 인터넷 검색명
+  topikLevel         String? // "4" | "5" | "6"
+  topikCertUrl       String? // TOPIK 성적증명서 업로드 (blob URL / data URL)
 
-  visaType        String   // "D-2" | "D-10" | "OTHER"
-  visaOther       String?
-  healthNote      String   // 지병 / 알러지 / 식습관 등 자유 입력
+  visaType           String // "D-2" | "D-10" | "OTHER"
+  visaOther          String?
+  healthNote         String // 지병 / 알러지 / 식습관 등 자유 입력
   // 취업 희망 직무 — 다중 선택. "DEV" | "MARKETING" | "SALES" | "OTHER".
-  desiredJobs     String[] @default([])
-  desiredJob      String?  // legacy 단일 (구버전 호환, 신규는 desiredJobs 사용)
-  desiredJobOther String?
-  motivation      String   // 신청 동기 장문
+  desiredJobs        String[] @default([])
+  desiredJob         String? // legacy 단일 (구버전 호환, 신규는 desiredJobs 사용)
+  desiredJobOther    String?
+  motivation         String // 신청 동기 장문
   // 동의 분기 — 마케팅(선택)은 raw flag, 개인정보(필수)는 항상 true 만 저장.
-  marketingOptIn  Boolean  @default(false)
-  privacyConsent  Boolean  @default(true)
+  marketingOptIn     Boolean  @default(false)
+  privacyConsent     Boolean  @default(true)
   // 사전 교육(최종 합격자 익일, 6/30) 필수 참여 동의 — 신규 폼 필드. 기존
   // row 호환 위해 nullable (null = 동의 항목 도입 전 지원, true = 동의함).
   preTrainingConsent Boolean?
   // 운영 단계 — SUBMITTED → INTERVIEW → ACCEPTED / REJECTED / WITHDRAWN
-  status          String   @default("SUBMITTED")
+  status             String   @default("SUBMITTED")
   // 운영 메모 (operator only)
-  adminMemo       String?
-  ipHash          String?
-  locale          String   @default("ko")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  adminMemo          String?
+  ipHash             String?
+  locale             String   @default("ko")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  user            User     @relation("SgcApplicationUser", fields: [userId], references: [id], onDelete: Cascade)
-  resume          Resume   @relation("SgcApplicationResume", fields: [resumeId], references: [id], onDelete: Restrict)
+  user   User   @relation("SgcApplicationUser", fields: [userId], references: [id], onDelete: Cascade)
+  resume Resume @relation("SgcApplicationResume", fields: [resumeId], references: [id], onDelete: Restrict)
 
   @@unique([userId])
   @@index([status])

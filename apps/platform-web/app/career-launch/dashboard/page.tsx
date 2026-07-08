@@ -4,13 +4,17 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { COMPLETION_CRITERIA, STUDENT, WEEKS } from "../../../lib/launch/data";
-import { AutoSubmitStatus, Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
+import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
 import { LiveWeekSteps, type DiagResult } from "../../../components/launch/live-week-steps";
+import { CoachFeedback } from "../../../components/launch/coach-feedback";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
 const SUBMIT_LABEL = { todo: { t: "미제출", tone: "grey" as const }, submitted: { t: "제출 완료", tone: "blue" as const }, reviewed: { t: "피드백 완료", tone: "green" as const } };
+
+// 테스트용 — 켜면 아직 시작 안 한 주차도 잠금 없이 열람할 수 있다(2·3·4주차 진행 확인용).
+const TEST_UNLOCK_ALL_WEEKS = true;
 
 // 4. 학생 로그인 후 대시보드 — aply.global 세션 필요.
 export default function LaunchDashboardPage() {
@@ -23,7 +27,8 @@ export default function LaunchDashboardPage() {
   // 진단·직무 선정·재료 결과(localStorage)를 읽어 현재 주차 진행에 반영한다.
   const [diag, setDiag] = useState<DiagResult>(null);
   const [jobs, setJobs] = useState<string[]>([]);
-  const [materials, setMaterials] = useState(0);
+  const [materials, setMaterials] = useState<string[]>([]);
+  const [doneIds, setDoneIds] = useState<string[]>([]);
   useEffect(() => {
     try {
       const d = window.localStorage.getItem("career-launch:diagnosis");
@@ -31,7 +36,9 @@ export default function LaunchDashboardPage() {
       const j = window.localStorage.getItem("career-launch:selected-jobs");
       if (j) setJobs(JSON.parse(j));
       const m = window.localStorage.getItem("career-launch:materials");
-      if (m) setMaterials((JSON.parse(m) as unknown[]).length);
+      if (m) setMaterials((JSON.parse(m) as string[]).filter((x) => typeof x === "string"));
+      const ds = window.localStorage.getItem("career-launch:done-steps");
+      if (ds) setDoneIds(JSON.parse(ds));
     } catch {
       // localStorage 접근 불가 시 결과 없이 진행
     }
@@ -43,8 +50,40 @@ export default function LaunchDashboardPage() {
 
   // 현재 주차 스텝의 실제 완료 여부(진단/직무 결과 + data.done).
   const isStepDone = (id: string, dataDone?: boolean) =>
-    id === "w1s1" ? Boolean(diag) : id === "w1s2" ? jobs.length > 0 : id === "w1s3" ? materials > 0 : Boolean(dataDone);
+    id === "w1s1"
+      ? Boolean(diag)
+      : id === "w1s2"
+        ? jobs.length > 0
+        : id === "w1s3"
+          ? materials.length > 0
+          : doneIds.includes(id) || Boolean(dataDone);
   const currentDone = currentWeek.steps.filter((s) => isStepDone(s.id, s.done)).length;
+  const weekMinutes = currentWeek.steps.reduce((n, s) => n + (s.minutes ?? 0), 0);
+
+  // 이미 진행한 스텝 결과를 삭제(초기화)해 다시 안 한 상태로 되돌린다.
+  const resetStep = (id: string) => {
+    try {
+      if (id === "w1s1") {
+        window.localStorage.removeItem("career-launch:diagnosis");
+        setDiag(null);
+      } else if (id === "w1s2") {
+        window.localStorage.removeItem("career-launch:selected-jobs");
+        window.localStorage.removeItem("career-launch:job-conditions");
+        setJobs([]);
+      } else if (id === "w1s3") {
+        window.localStorage.removeItem("career-launch:materials");
+        setMaterials([]);
+      } else {
+        const raw = window.localStorage.getItem("career-launch:done-steps");
+        const list = raw ? (JSON.parse(raw) as string[]) : [];
+        const next = list.filter((x) => x !== id);
+        window.localStorage.setItem("career-launch:done-steps", JSON.stringify(next));
+        setDoneIds(next);
+      }
+    } catch {
+      // 무시
+    }
+  };
   const doneSteps = WEEKS.reduce(
     (n, w) => n + w.steps.filter((s) => (w.week === currentWeek.week ? isStepDone(s.id, s.done) : s.done)).length,
     0
@@ -106,13 +145,29 @@ export default function LaunchDashboardPage() {
                   </div>
                   <div className="mt-3 rounded-xl bg-[#EDF1FD] p-3.5">
                     <p className="text-[11.5px] font-bold text-[#0B46E8]">이번 주 목표</p>
-                    <p className="mt-0.5 text-[13.5px] font-semibold leading-relaxed text-[#0B1227]">{currentWeek.goal}</p>
+                    <p className="mt-0.5 break-keep text-[13.5px] font-semibold leading-relaxed text-[#0B1227]">
+                      {currentWeek.goal
+                        .split(/(?<=\.)\s+/)
+                        .filter(Boolean)
+                        .map((line, li) => (
+                          <span key={li} className="block">
+                            {line}
+                          </span>
+                        ))}
+                    </p>
                   </div>
-                  <div className="mt-3 flex items-center gap-2 text-[12px] text-[#8B95A1]">
+                  <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[#8B95A1]">
                     <span className="font-semibold text-[#4E5968]">스텝 {currentDone}/{currentWeek.steps.length} 완료</span>
+                    {weekMinutes > 0 ? (
+                      <>
+                        <span>·</span>
+                        <span>⏱ 예상 약 {weekMinutes}분</span>
+                      </>
+                    ) : null}
                     <span>·</span>
                     <span>{currentWeek.seminar.online ? "온라인" : "오프라인"} 세미나 {currentWeek.seminar.date}</span>
                   </div>
+                  <p className="mt-2 text-[11.5px] leading-relaxed text-[#8B95A1]">💡 하루에 몰아서 하기보다 하나씩 며칠에 나눠 진행하면 더 좋아요.</p>
                 </Card>
               </div>
 
@@ -120,19 +175,23 @@ export default function LaunchDashboardPage() {
               <div>
                 <SectionTitle sub="한 단계씩 끝내고 번호를 콕 눌러 체크해요">이번 주 해야 할 일</SectionTitle>
                 <Card className="md:!p-6">
-                  <LiveWeekSteps steps={currentWeek.steps} diag={diag} jobs={jobs} materials={materials} />
+                  <LiveWeekSteps
+                    steps={currentWeek.steps}
+                    diag={diag}
+                    jobs={jobs}
+                    materials={materials}
+                    doneIds={doneIds}
+                    onReset={resetStep}
+                  />
                 </Card>
-              </div>
-
-              {/* 이번 주 과제 — aply.global 활동에서 자동 수집 */}
-              <div>
-                <SectionTitle sub="따로 제출하지 않아도 활동을 하면 자동으로 반영돼요">이번 주 과제</SectionTitle>
-                <AutoSubmitStatus label={currentWeek.submission.label} status={currentWeek.submission.status} source={currentWeek.submission.source} />
               </div>
             </div>
 
             {/* ── 사이드바 컬럼 ── */}
             <div className="space-y-7 md:space-y-8">
+              {/* 코치 피드백 — 운영진이 남긴 제출물 피드백(있을 때만 노출) */}
+              <CoachFeedback />
+
               {/* 이번 주 세미나 */}
               <div>
                 <SectionTitle>이번 주 세미나</SectionTitle>
@@ -154,7 +213,7 @@ export default function LaunchDashboardPage() {
                 <div className="space-y-3">
                   {WEEKS.map((w) => {
                     const isCurrent = w.week === STUDENT.currentWeek;
-                    const locked = w.week > STUDENT.currentWeek; // 아직 시작 안 된 주차
+                    const locked = !TEST_UNLOCK_ALL_WEEKS && w.week > STUDENT.currentWeek; // 아직 시작 안 된 주차
                     const inner = (
                       <Card className={`flex items-center justify-between !p-4 ${isCurrent ? "!border-[#0B46E8]/40 ring-1 ring-[#0B46E8]/20" : ""} ${locked ? "opacity-60" : ""}`}>
                         <div className="flex items-center gap-3">

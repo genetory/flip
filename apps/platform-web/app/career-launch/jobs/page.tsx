@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { RECOMMENDED_JOBS, STUDENT, type RecommendedJob } from "../../../lib/launch/data";
 import { requestJobChat, type JobChatMsg } from "../../../lib/launch/job-chat-client";
-import { Pill } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -23,7 +22,7 @@ export default function LaunchJobsPage() {
   const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
-  const [seeded, setSeeded] = useState(false);
+  const startedRef = useRef(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [shownRoles, setShownRoles] = useState<string[]>([]);
@@ -51,8 +50,8 @@ export default function LaunchJobsPage() {
 
   // 진입 — 세션 로딩 후 1회. AI에게 첫 인사·질문을 요청한다. ?restart=1 이면 선택 초기화.
   useEffect(() => {
-    if (!isReady || seeded) return;
-    setSeeded(true);
+    if (!isReady || startedRef.current) return;
+    startedRef.current = true;
     const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
     let sel: string[] = [];
     if (!restart) {
@@ -76,7 +75,7 @@ export default function LaunchJobsPage() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, seeded]);
+  }, [isReady]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -136,8 +135,34 @@ export default function LaunchJobsPage() {
       // 저장 실패해도 화면 상태 유지
     }
     setSaved(true);
-    setMessages((m) => [...m, { role: "bot", kind: "text", text: "저장했어요! 대시보드에서 확인할 수 있어요. 다음 주엔 이 방향으로 이력서를 만들어봐요 🙌" }]);
+    setMessages((m) => [
+      ...m,
+      { role: "bot", kind: "text", text: "선정 완료! 🙌 대시보드에 저장했어요. 다음 주엔 이 방향으로 이력서를 만들어봐요. 혹시 다시 골라보고 싶으면 아래에서 처음부터 다시 할 수 있어요." }
+    ]);
   };
+
+  // 처음부터 다시 대화(선정 초기화 후 새 대화 시작).
+  const restartChat = () => {
+    setSaved(false);
+    setSelected([]);
+    setShownRoles([]);
+    setInput("");
+    setMessages([]);
+    setLoading(true);
+    void (async () => {
+      try {
+        const { reply, recommend } = await requestJobChat([], []);
+        appendFromAi(reply || `${displayName}님, 다시 이야기 나눠볼까요? 어떤 일에 관심이 있는지 편하게 들려주세요 👋`, recommend);
+      } catch {
+        setMessages([{ role: "bot", kind: "text", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  };
+
+  // 마지막 추천 묶음 인덱스 — 그 아래에만 '다른 직무 보기 / 직접 입력'을 붙인다.
+  const lastJobsIdx = messages.reduce((acc, m, i) => (m.kind === "jobs" ? i : acc), -1);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -155,7 +180,7 @@ export default function LaunchJobsPage() {
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
               <p className="text-[15px] font-black text-[#0B1227]">관심 직무 찾기</p>
-              <p className="text-[12px] text-[#8B95A1]">AI와 대화하며 마음에 드는 직무 {MAX_PICK}개를 골라요</p>
+              <p className="text-[12px] text-[#8B95A1]">AI와 대화하며 마음에 드는 직무 {MAX_PICK}개를 골라요 · ⏱ 약 10분</p>
             </div>
           </div>
 
@@ -193,18 +218,15 @@ export default function LaunchJobsPage() {
                             isSel ? "border-[#0B46E8] ring-1 ring-[#0B46E8]/30" : disabled ? "border-[#EEF1F5] opacity-55" : "border-[#EEF1F5] hover:border-[#0B46E8]/40"
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`flex h-5 w-5 flex-none items-center justify-center rounded-md border-2 text-[11px] font-black ${
-                                  isSel ? "border-[#0B46E8] bg-[#0B46E8] text-white" : "border-[#C9CDD2] text-transparent"
-                                }`}
-                              >
-                                ✓
-                              </span>
-                              <p className="text-[14.5px] font-bold text-[#191F28]">{job.role}</p>
-                            </div>
-                            <Pill tone="blue">매칭 {job.match}%</Pill>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`flex h-5 w-5 flex-none items-center justify-center rounded-md border-2 text-[11px] font-black ${
+                                isSel ? "border-[#0B46E8] bg-[#0B46E8] text-white" : "border-[#C9CDD2] text-transparent"
+                              }`}
+                            >
+                              ✓
+                            </span>
+                            <p className="text-[14.5px] font-bold text-[#191F28]">{job.role}</p>
                           </div>
                           <p className="mt-1.5 pl-7 text-[12.5px] leading-relaxed text-[#4E5968]">{job.reason}</p>
                           <div className="mt-2 flex flex-wrap gap-1.5 pl-7">
@@ -217,6 +239,52 @@ export default function LaunchJobsPage() {
                         </button>
                       );
                     })}
+                    {/* 추천이 마음에 안 들 때 — 리스트 바로 아래(채팅 안) */}
+                    {i === lastJobsIdx && !saved ? (
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => send("추천해준 것 말고 다른 직무도 보고 싶어요")}
+                          disabled={loading}
+                          className="rounded-full border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-50"
+                        >
+                          🔄 다른 직무 보기
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCustomOpen((o) => !o)}
+                          disabled={selected.length >= MAX_PICK}
+                          className="rounded-full border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-50"
+                        >
+                          ✏️ 직접 입력
+                        </button>
+                        {customOpen ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <input
+                              value={custom}
+                              onChange={(e) => setCustom(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                                  e.preventDefault();
+                                  addCustom();
+                                }
+                              }}
+                              autoFocus
+                              placeholder="예: UX 리서처"
+                              className="h-8 w-40 rounded-full border border-[#E5E8EB] bg-white px-3 text-[12px] text-[#191F28] placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={addCustom}
+                              disabled={!custom.trim()}
+                              className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${custom.trim() ? "bg-[#0B46E8] text-white" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"}`}
+                            >
+                              추가
+                            </button>
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               );
@@ -234,95 +302,74 @@ export default function LaunchJobsPage() {
             <div ref={endRef} />
           </div>
 
-          {/* 빠른 도움 — 추천이 마음에 안 들 때 */}
-          {messages.length > 0 && !loading ? (
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {/* 저장 후엔 대화 종료 — 다시 선정 or 대시보드. 아니면 입력 + 선정 완료 */}
+          {saved ? (
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
-                onClick={() => send("추천해준 것 말고 다른 직무도 보고 싶어요")}
-                className="rounded-full border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
+                onClick={restartChat}
+                className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
               >
-                🔄 다른 직무 보기
+                처음부터 다시 선정
               </button>
-              <button
-                type="button"
-                onClick={() => setCustomOpen((o) => !o)}
-                disabled={selected.length >= MAX_PICK}
-                className="rounded-full border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-50"
+              <Link
+                href="/career-launch/dashboard"
+                className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
               >
-                ✏️ 직접 입력
-              </button>
-              {customOpen ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <input
-                    value={custom}
-                    onChange={(e) => setCustom(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                        e.preventDefault();
-                        addCustom();
-                      }
-                    }}
-                    autoFocus
-                    placeholder="예: UX 리서처"
-                    className="h-8 w-40 rounded-full border border-[#E5E8EB] bg-white px-3 text-[12.5px] text-[#191F28] placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={addCustom}
-                    disabled={!custom.trim()}
-                    className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold transition ${custom.trim() ? "bg-[#0B46E8] text-white" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"}`}
-                  >
-                    추가
-                  </button>
-                </span>
-              ) : null}
+                대시보드에서 확인하기 →
+              </Link>
             </div>
-          ) : null}
-
-          {/* 입력 + 선정 완료 */}
-          <div className="mt-2 flex items-end gap-2">
-            <form
-              className="flex flex-1 items-end gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                send(input);
-              }}
-            >
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  // 한글 IME 조합 중 Enter 는 무시(마지막 글자 중복 방지)
-                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                    e.preventDefault();
-                    send(input);
-                  }
+          ) : (
+            <div className="mt-3">
+              {/* 할 말이 없어 막힐 때를 위한 빠른 응답 — 대화가 끊기지 않게 */}
+              {messages.length > 0 && !loading ? (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {["잘 모르겠어요", "예시를 보여주세요", "직무 추천해주세요"].map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => send(q)}
+                      className="rounded-full border border-[#D7DCE3] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8]"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <div className="flex items-end gap-2">
+              <form
+                className="flex flex-1 items-end gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  send(input);
                 }}
-                rows={1}
-                placeholder="편하게 답해주세요"
-                disabled={loading}
-                className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
-              />
-              <button
-                type="submit"
-                disabled={!input.trim() || loading}
-                className={`h-[46px] shrink-0 rounded-xl px-4 text-[14px] font-bold transition ${
-                  input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
-                }`}
               >
-                보내기
-              </button>
-            </form>
-            {selected.length > 0 ? (
-              saved ? (
-                <Link
-                  href="/career-launch/dashboard"
-                  className="flex h-[46px] shrink-0 items-center rounded-xl bg-[#0B46E8] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    // 한글 IME 조합 중 Enter 는 무시(마지막 글자 중복 방지)
+                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                      e.preventDefault();
+                      send(input);
+                    }
+                  }}
+                  rows={1}
+                  placeholder="편하게 답해주세요"
+                  disabled={loading}
+                  className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
+                />
+                <button
+                  type="submit"
+                  disabled={!input.trim() || loading}
+                  className={`h-[46px] shrink-0 rounded-xl px-4 text-[14px] font-bold transition ${
+                    input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
+                  }`}
                 >
-                  대시보드 →
-                </Link>
-              ) : (
+                  보내기
+                </button>
+              </form>
+              {selected.length > 0 ? (
                 <button
                   type="button"
                   onClick={save}
@@ -330,9 +377,10 @@ export default function LaunchJobsPage() {
                 >
                   선정 완료 ({selected.length})
                 </button>
-              )
-            ) : null}
-          </div>
+              ) : null}
+              </div>
+            </div>
+          )}
         </div>
       </main>
       <Footer />

@@ -13774,7 +13774,11 @@ app.get(
 
 // Career Launch AI 대화 공용 말투 지침 — 친근하고 편안하게, 딱딱한 격식체 지양.
 const CAREER_TONE =
-  "말투는 친한 선배가 옆에서 편하게 이야기하듯 따뜻하고 친근하게 해. 딱딱한 격식체나 사무적인 표현('~하시기 바랍니다', '~에 대해 말씀해 주십시오' 등)은 쓰지 말고, 편안한 존댓말('~해요', '~해볼까요?')에 이모지를 가볍게 섞어. 너무 길지 않게, 사람처럼 자연스럽게.";
+  "말투는 친한 선배가 옆에서 편하게 이야기하듯 따뜻하고 친근하게 해. 단, 반말은 절대 쓰지 말고 항상 친근한 존댓말('~해요', '~해볼까요?', '~네요')로 말해. 딱딱한 격식체·사무체('~하시기 바랍니다', '~에 대해 말씀해 주십시오' 등)도 피하고, 이모지를 가볍게 섞어. 너무 길지 않게, 사람처럼 자연스럽게.";
+
+// 유료 프로그램 — 학생이 충분히 시간을 들여 깊이 참여하도록. 성급히 끝내지 말 것.
+const CAREER_DEPTH =
+  "유료 프로그램인 만큼 성급히 마무리하지 말고 충분히 깊게 대화해. 학생이 너무 짧거나 두루뭉술하게 답하면('네', '없어요', '잘 모르겠어요' 등) 바로 넘어가지 말고, 구체적인 예시나 상황을 들어 한두 번 더 물어봐 실질적인 내용을 끌어내. 학생이 스스로 생각하고 시간을 들여 답하도록 이끌어.";
 
 // Career Launch AI 대화들이 공용으로 쓰는 학생 프로필 요약(전공·학교·스킬·자기소개).
 // 개인화 컨텍스트로 프롬프트에 넣는다. 실패해도 빈 문자열로 안전하게 진행.
@@ -13799,6 +13803,84 @@ async function buildCandidateProfileSummary(userId: string): Promise<string> {
     return "";
   }
 }
+
+// Career Launch AI 대화 공용 호출 — 고품질 모델(gpt-5.x, Responses API + json_schema)로
+// 먼저 시도하고, 실패 시 gpt-4o-mini(chat.completions, json_object)로 폴백해 항상 파싱된
+// 객체를 반환한다. (유료 프로그램 품질 우선 + 안정성)
+async function careerChatComplete(
+  system: string,
+  user: string,
+  schemaName: string,
+  schema: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  if (!openai) throw new Error("openai_unavailable");
+  try {
+    const response = await openai.responses.create({
+      model: openaiMatchingModel,
+      input: [
+        { role: "system", content: system },
+        { role: "user", content: user }
+      ],
+      text: { format: { type: "json_schema", name: schemaName, schema } }
+    });
+    return JSON.parse(response.output_text ?? "{}") as Record<string, unknown>;
+  } catch (err) {
+    console.warn("[career-chat] responses api failed, fallback to mini:", err instanceof Error ? err.message : err);
+    const completion = await openai.chat.completions.create({
+      model: openaiTranslationModel,
+      temperature: 0.6,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user }
+      ]
+    });
+    return JSON.parse(completion.choices?.[0]?.message?.content ?? "{}") as Record<string, unknown>;
+  }
+}
+
+const JOB_CHAT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "recommend", "done"],
+  properties: {
+    reply: { type: "string" },
+    recommend: { type: "array", items: { type: "string" }, maxItems: 3 },
+    done: { type: "boolean" }
+  }
+} as const;
+
+const MATERIAL_CHAT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "materials", "done"],
+  properties: {
+    reply: { type: "string" },
+    materials: { type: "array", items: { type: "string" } },
+    done: { type: "boolean" }
+  }
+} as const;
+
+const DIAGNOSIS_CHAT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "done", "result"],
+  properties: {
+    reply: { type: "string" },
+    done: { type: "boolean" },
+    result: {
+      type: ["object", "null"],
+      additionalProperties: false,
+      required: ["percent", "level", "strengths", "improvements"],
+      properties: {
+        percent: { type: "number" },
+        level: { type: "string" },
+        strengths: { type: "array", items: { type: "string" } },
+        improvements: { type: "array", items: { type: "string" } }
+      }
+    }
+  }
+} as const;
 
 // POST /career-launch/job-chat — Career Launch 프로그램의 '관심 직무 찾기' AI 대화.
 // 학생과 자연스럽게 대화하며 후보 직무 풀에서 어울리는 직무를 추천하고, 마음에 드는
@@ -13839,18 +13921,23 @@ app.post(
     const excludeSet = new Set(exclude);
     try {
       const systemPrompt =
-        "너는 한국 취업을 준비하는 외국인 유학생을 돕는 따뜻하고 노련한 커리어 상담사야. " +
-        "학생과 자연스럽게 대화하며 학생이 '관심 직무 3개'를 찾도록 부드럽게 이끈다.\n\n" +
+        "너는 한국 취업을 준비하는 외국인 유학생의 진로를 함께 찾는, 경험 많은 커리어 상담사야. 유료 부트캠프의 1:1 코치답게 밀도 있고 통찰 있게, 그러나 편안하게 대화해. 목표는 학생에게 잘 맞는 '관심 직무 3개'를 찾도록 이끄는 것.\n\n" +
+        "탐색 프레임(대화에 자연스럽게 녹여 하나씩 확인):\n" +
+        "- 흥미: 어떤 일·주제에 시간 가는 줄 모르는지\n" +
+        "- 강점: 잘한다고 느끼거나 칭찬받은 것, 전공·스킬로 할 수 있는 것\n" +
+        "- 가치·업무 성향: 협업 vs 혼자 몰입, 안정 vs 새로운 도전, 사람 상대 vs 데이터·제작\n" +
+        "- 글로벌 강점: 다국어·문화 이해를 살릴 수 있는 방향인지\n\n" +
         "규칙:\n" +
-        "1. " + CAREER_TONE + " 한 번에 질문은 하나만, 짧고 부담 없게. 학생 답변엔 공감 한마디를 먼저 건네줘.\n" +
-        "2. 학생의 전공·관심·강점·성향·가치관·좋아하는 활동을 파고드는 통찰 있는 질문을 해. 이전 답변을 반영해 점점 좁혀가.\n" +
-        "3. 학생의 관심·강점이 조금이라도 드러나면(보통 1~2번 답한 뒤부터) 주저 말고 아래 [후보 직무]에서 어울리는 직무를 2~3개 골라 recommend 에 담아 보여줘. 대화가 진행될수록 추천을 더 정교하게 갱신해. 각 값은 후보 목록의 role 과 글자까지 정확히 일치해야 하고, 목록에 없는 직무는 만들지 마. 정말 정보가 하나도 없을 때만 비워.\n" +
-        "4. 이미 고른 직무(고른 직무 목록)는 recommend 에 다시 넣지 마.\n" +
-        "5. 학생이 마음에 드는 직무를 3개 고르면(고른 직무가 3개면) done 을 true 로 하고 따뜻한 축하·마무리 한마디를 reply 에 담아.\n" +
-        "6. 사실을 지어내거나 학생이 하지 않은 말을 단정하지 마. 후보 목록에 없는 직무를 지어내지 마.\n" +
-        "6-1. 학생이 추천이 마음에 안 든다거나 다른 걸 보고 싶다고 하면, 왜 그런지 가볍게 물어보고 이전과 다른 분야의 직무를 recommend 에 담아. [이미 보여준 직무]에 있는 건 되도록 다시 추천하지 마. 후보에 정말 맞는 게 없어 보이면, 학생이 직접 원하는 직무를 말하도록 권하고 그 방향을 존중해.\n" +
-        "7. 대화가 처음이면(메시지가 없으면) 가볍게 인사하고 편안한 첫 질문을 해. recommend 는 비워. 이미 대화가 진행 중이면 다시 인사(안녕하세요 등)하지 말고 바로 이어서 답해.\n" +
-        "8. [학생 프로필]이 주어지면 전공·학교·스킬 등 이미 아는 정보는 다시 묻지 말고, 그 정보를 반영해 더 개인화된 질문·추천을 해. 첫 인사에서 전공을 자연스럽게 언급하면 좋아.\n\n" +
+        "1. " + CAREER_TONE + " 한 번에 질문은 하나만. 학생 답을 먼저 짧게 공감·요약한 뒤 다음을 물어봐.\n" +
+        "1-1. " + CAREER_DEPTH + " 흥미·강점·가치·성향을 충분히 탐색하기 전에 성급히 결론내지 마(단, 학생이 원하면 언제든 고를 수 있게 추천은 계속 제공).\n" +
+        "2. 위 프레임을 순서대로가 아니라 대화 흐름에 맞게 파고들어. 이전 답을 반영해 점점 좁혀가고, 같은 걸 반복해 묻지 마.\n" +
+        "3. 처음부터 직무 리스트를 주지 마. 이게 이 대화에서 가장 중요해 — 먼저 흥미·강점·가치·성향을 대화로 충분히 파고들어 학생을 제대로 이해하는 게 우선이야. 보통 3~4번 이상 진지하게 주고받아 방향이 뚜렷해진 뒤부터 추천을 시작해. 그 전까지는 recommend 를 비우고(빈 배열) 질문을 더 해. 이해가 충분해지거나 학생이 '추천해줘'라고 하면, 그때 [후보 직무]에서 2~3개를 recommend 에 담고 reply 에 '이런 점 때문에 어울릴 것 같다'는 이유를 곁들여. role 값은 후보 목록과 글자까지 정확히 일치, 목록에 없는 직무는 만들지 마.\n" +
+        "4. 대화가 깊어질수록 추천을 더 정교하게 갱신해. 이미 고른 직무는 다시 추천하지 마.\n" +
+        "5. 학생이 추천이 별로거나 다른 걸 원하면, 이유를 가볍게 묻고 [이미 보여준 직무]와 겹치지 않는 다른 분야를 제안해. 후보에 정말 맞는 게 없으면 학생이 직접 원하는 직무를 말하도록 권하고 그 방향을 존중해.\n" +
+        "6. 학생이 3개를 고르면 done=true. 각 선택이 왜 좋은 방향인지 한두 줄로 짚어주며 따뜻하게 마무리해.\n" +
+        "7. 사실이나 직무를 지어내지 마. [학생 프로필]로 아는 정보(전공·학교·스킬)는 다시 묻지 말고 반영해. 첫 인사에서 전공을 자연스럽게 언급하면 좋아.\n" +
+        "8. 처음이면(메시지 없음) 가볍게 인사하고 편안한 첫 질문을 해. recommend 는 비워. 진행 중이면 재인사 없이 이어가.\n" +
+        "9. [대화가 끊기지 않게] 학생이 '잘 모르겠어요/글쎄요/딱히 없어요'처럼 막막해하면 절대 다그치지 말고, 답하기 쉬운 형태로 바꿔 물어봐 — 선택형(예: 'A와 B 중 어느 쪽이 더 끌리세요?')이나 예시 몇 개를 제시해 고르게 해. 모든 reply 는 학생이 바로 답하거나 고를 수 있는 '다음 한 걸음'으로 끝나야 해. 학생이 무슨 말을 해야 할지 몰라 멈추는 일이 없게 해.\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "recommend": string[], "done": boolean }' +
         aiLangDirective(locale);
 
@@ -13868,22 +13955,11 @@ app.post(
         (exclude.length ? `[이미 보여준 직무] ${exclude.join(", ")}\n\n` : "") +
         `[후보 직무]\n${poolText}`;
 
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let parsedJson: { reply?: unknown; recommend?: unknown; done?: unknown } = {};
-      try {
-        parsedJson = JSON.parse(raw);
-      } catch {
-        /* fall through */
-      }
+      const parsedJson = (await careerChatComplete(systemPrompt, userPrompt, "job_chat", JOB_CHAT_SCHEMA)) as {
+        reply?: unknown;
+        recommend?: unknown;
+        done?: unknown;
+      };
       const reply = typeof parsedJson.reply === "string" ? parsedJson.reply.trim() : "";
       let recommend = Array.isArray(parsedJson.recommend)
         ? Array.from(
@@ -13895,9 +13971,10 @@ app.post(
             )
           ).slice(0, 3)
         : [];
-      // 폴백 — AI가 추천을 비웠지만 학생이 이미 답했다면, 대화 키워드로 후보 풀에서
-      // 매칭해 추천을 채운다(유료 프로그램에서 추천이 비지 않도록).
-      if (recommend.length === 0 && messages.some((m) => m.role === "user")) {
+      // 폴백 — 대화를 충분히(사용자 4턴 이상) 나눴는데도 AI가 추천을 비웠다면, 그때만
+      // 대화 키워드로 후보 풀에서 매칭해 채운다. 초반엔 리스트를 강제하지 않고 대화 우선.
+      const userTurns = messages.filter((m) => m.role === "user").length;
+      if (recommend.length === 0 && userTurns >= 4) {
         const text = messages
           .filter((m) => m.role === "user")
           .map((m) => m.text)
@@ -13944,13 +14021,24 @@ app.post(
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const systemPrompt =
-        "너는 외국인 유학생의 이력서 작성을 돕는 따뜻한 커리어 코치야. 학생의 관심 직무와 프로필을 참고해, 이력서에 담을 '재료'(경험·프로젝트·성과·역량)를 대화로 이끌어낸다.\n\n" +
+        "너는 한국 취업을 준비하는 외국인 유학생의 진로를 돕는 전문 커리어 코치야. 유료 부트캠프의 1:1 코치답게, 학생이 고른 관심 직무를 '깊이 이해'하도록 대화로 이끌어. 목표는 그 직무가 실제로 어떤 일을 하고 무엇을 준비해야 하는지 학생이 감을 잡게 하는 것.\n\n" +
+        "고른 직무별로 함께 알아볼 것:\n" +
+        "- 실제 하는 일: 하루/프로젝트 단위로 어떤 업무를 하는지\n" +
+        "- 필요한 핵심 역량·기술: 어떤 스킬·툴·지식이 중요한지\n" +
+        "- 자격·요건: 필요한 전공·자격증·경력 수준(외국인은 비자·한국어도)\n" +
+        "- 커리어 경로: 어떤 회사/포지션에서 시작하고 어떻게 성장하는지\n" +
+        "- 나의 준비 상태: 지금 내가 가진 것과 채우면 좋을 점(격차)\n\n" +
         "규칙:\n" +
-        "1. " + CAREER_TONE + " 한 번에 하나씩 물어봐. 경험의 행동·역할·문제·결과·수치·사용 도구를 구체적으로 끌어내는 질문을 해.\n" +
-        "2. 학생 답변에서 이력서에 바로 쓸 수 있는 재료를 뽑아 materials 배열에 담아(간결한 한 줄, 한국어). 이전 턴에서 뽑은 재료도 계속 유지해 매 턴 누적 반환해.\n" +
-        "3. 경험·프로젝트, 성과(숫자), 스킬·도구, 어학·자격을 골고루 다뤄. 재료가 4개 이상 충분히 모이면 done 을 true 로 하고 따뜻한 마무리 한마디를 reply 에 담아.\n" +
-        "4. 사실을 지어내지 마. 학생이 말한 것만 재료로 삼아.\n" +
-        "5. 대화가 처음이면 인사하고 첫 질문을 해(materials 는 빈 배열). 이미 진행 중이면 재인사 없이 이어가.\n\n" +
+        "1. " + CAREER_TONE + " 한 번에 하나씩. 학생 답에 먼저 짧게 공감·반응해줘.\n" +
+        "1-1. " + CAREER_DEPTH + " 한 직무를 충분히 다루기 전엔 다음 직무로 넘어가지 마.\n" +
+        "1-2. 선정한 직무를 [나열된 순서]대로 하나씩 차례차례 다뤄. 지금 다루는 직무가 무엇인지 분명히 밝히고(예: '먼저 첫 번째로 고르신 OO부터 알아볼게요'), 그 직무의 실제 하는 일·핵심 역량·자격·커리어 경로·나의 준비 상태를 충분히 짚은 뒤에야 '이제 다음으로 △△를 볼까요?' 하고 자연스럽게 다음 직무로 넘어가. 여러 직무를 한꺼번에 섞어서 다루지 마.\n" +
+        "2. 너는 그 직무를 잘 아는 전문가야. 학생이 모르는 부분(실제 하는 일·필요 역량 등)은 네가 구체적으로 알려주고, 그다음 학생의 생각·상황을 물어봐. 일방적 설명만 하지 말고 대화로 주고받아.\n" +
+        "3. 대화에서 학생이 '알게 된/정리할 만한' 핵심 포인트를 materials 배열에 간결한 한 줄로 담아(예: '백엔드 개발자: 서버·API 설계·구현이 주 업무, Java/Spring·DB 지식이 핵심'). 어느 직무 얘기인지 알 수 있게 앞에 '직무명: '을 붙여. 이전 것도 유지해 매 턴 누적 반환.\n" +
+        "4. 선정한 직무를 [처음부터 끝까지 순서대로 모두] 다뤘고 각 직무마다 핵심 포인트가 정리되면 done=true, 따뜻한 마무리와 함께 '다음 주엔 이 방향으로 이력서를 만든다'는 안내를 reply 에 담아. 아직 안 다룬 직무가 남았거나 얕으면 done 을 서두르지 마.\n" +
+        "5. 사실을 지어내지 마. 확실하지 않으면 일반적인 경향으로 설명하고 단정하지 마. [학생 프로필]과 고른 직무를 반영해.\n" +
+        "6. 처음이면 인사하고 첫 질문·안내(materials 는 빈 배열). 진행 중이면 재인사 없이 이어가.\n" +
+        "7. [대화가 끊기지 않게] 학생은 그 직무를 잘 몰라도 되고, 사전 지식이 없어도 돼. 대화를 이끄는 건 항상 너야. 학생이 '잘 모르겠어요/네/글쎄요'처럼 짧거나 막막해하면 절대 다그치지 말고, 네가 전문가로서 먼저 알기 쉽게 설명해준 뒤 이어가. 답하기 어려운 열린 질문 대신 고르기 쉬운 질문(예: 'A와 B 중 어느 쪽이 더 끌리세요?', '이 부분 더 들어볼까요, 아니면 다음으로 넘어갈까요?')으로 물어봐.\n" +
+        "8. 모든 reply 는 반드시 '다음 한 걸음'으로 끝나야 해 — 가벼운 질문이나 '다음으로 넘어갈까요?' 같은 안내. 학생이 무슨 말을 해야 할지 몰라 멈추는 일이 없게 해. 학생이 '다음/넘어가요/모르겠어요'라고 하면 그 뜻을 존중해 자연스럽게 다음 내용·직무로 진행해.\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "materials": string[], "done": boolean }' +
         aiLangDirective(locale);
       const convo = messages.length
@@ -13958,24 +14046,13 @@ app.post(
         : "(아직 대화 없음 — 인사하고 첫 질문을 해줘)";
       const userPrompt =
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
-        `학생이 고른 관심 직무: ${selected.length ? selected.join(", ") : "(미정)"}\n\n` +
+        `학생이 고른 관심 직무(이 순서대로 하나씩 다뤄):\n${selected.length ? selected.map((s, i) => `${i + 1}. ${s}`).join("\n") : "(미정)"}\n\n` +
         `지금까지 대화:\n${convo}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let pj: { reply?: unknown; materials?: unknown; done?: unknown } = {};
-      try {
-        pj = JSON.parse(raw);
-      } catch {
-        /* fall through */
-      }
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "material_chat", MATERIAL_CHAT_SCHEMA)) as {
+        reply?: unknown;
+        materials?: unknown;
+        done?: unknown;
+      };
       const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
       const materials = Array.isArray(pj.materials)
         ? pj.materials.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean).slice(0, 20)
@@ -14008,35 +14085,35 @@ app.post(
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const systemPrompt =
-        "너는 외국인 유학생의 '취업 준비 상태'를 진단하는 따뜻한 커리어 코치야. 짧은 대화로 준비 상태를 파악하고, 마지막에 준비도와 조언을 준다.\n\n" +
+        "너는 한국 취업을 준비하는 외국인 유학생을 전문적으로 돕는 커리어 코치야. 유료 부트캠프의 진단 세션답게, 짧지만 밀도 있는 대화로 '취업 준비 상태'를 정확히 파악하고 마지막에 준비도와 4주 실행 조언을 준다.\n\n" +
+        "진단 영역(대화로 모두 자연스럽게 파악):\n" +
+        "A. 목표 직무 방향 — 지원 직무가 얼마나 구체적인가\n" +
+        "B. 이력서·자기소개서 준비 정도\n" +
+        "C. 한국어 업무 수준 — 회의·이메일·문서 가능 여부, TOPIK 등 자격\n" +
+        "D. 직무 관련 경험·역량 — 인턴·프로젝트·대외활동·스킬\n" +
+        "E. 비자·근무 요건 — 현재 비자(D-2/D-10 등)와 취업 비자(E-7) 전환 계획\n" +
+        "F. 취업 활동 — 지원 경험·정보 탐색·네트워크\n\n" +
         "규칙:\n" +
-        "1. " + CAREER_TONE + " 한 번에 하나씩 물어봐. 다음을 자연스럽게 확인해: 목표 직무 방향, 이력서 준비 정도, 한국어 수준, 직무 관련 경험, 비자·근무 가능 여부.\n" +
-        "2. 4~5번 정도 주고받아 충분히 파악되면 done 을 true 로 하고 result 에 진단 결과를 담아: percent(0~100 정수 준비도), level(준비 상태를 한 문장으로), strengths(강점 2~3개), improvements(이번 4주에 집중하면 좋을 점 2~3개).\n" +
-        "3. done 이 false 인 동안엔 result 를 null 로 두고 다음 질문을 reply 에 담아.\n" +
-        "4. 사실을 지어내지 마. 학생이 말한 것과 프로필만 근거로 삼아.\n" +
-        "5. 대화가 처음이면 인사하고 첫 질문을 해. 이미 진행 중이면 재인사 없이 이어가.\n\n" +
+        "1. " + CAREER_TONE + " 한 번에 하나씩, 학생 답에 짧게 공감한 뒤 다음을 물어봐. [학생 프로필]로 이미 아는 건 다시 묻지 말고 가볍게 확인만 해.\n" +
+        "1-1. " + CAREER_DEPTH + "\n" +
+        "2. 답이 모호하면 한 번 더 구체화해 물어봐(예: '업무 회의도 가능한 수준인가요?'). 단정하지 말고 열린 질문으로.\n" +
+        "3. 성급히 끝내지 말고 보통 6~8번 주고받으며 A~F 를 깊이 있게 파악한 뒤 done=true, result 를 채워: percent(정수, 아래 기준), level(현재 상태를 격려하는 한 문장), strengths(구체적 근거 기반 2~3개), improvements(이번 4주 프로그램에서 바로 실행할 항목 2~3개 — 예: '2주차에 이력서 완성하기', '3주차 모의면접으로 답변 다듬기').\n" +
+        "4. percent 산정 기준: A~F 준비도를 종합해 — 방향·서류·경험이 대체로 약하면 30~50, 방향은 있으나 서류·경험이 부족하면 50~70, 대부분 갖췄으면 70~90. 유학생 특성상 완벽한 경우는 드무니 100은 피하고, 점수가 낮아도 반드시 격려하는 톤으로.\n" +
+        "5. strengths 엔 다국어·문화 이해 같은 유학생 고유 강점도 적극 반영해.\n" +
+        "6. done 이 false 인 동안엔 result 를 null 로 두고 다음 질문을 reply 에 담아. 사실을 지어내지 말고 학생 말·프로필만 근거로.\n" +
+        "7. 처음이면 따뜻한 인사 + 첫 질문(가능하면 전공 언급). 진행 중이면 재인사 없이 이어가.\n" +
+        "8. [대화가 끊기지 않게] 학생이 '잘 모르겠어요/글쎄요'처럼 막막해하면 절대 다그치지 말고, 답하기 쉬운 선택형으로 바꾸거나 예시를 제시해 물어봐(예: '업무 회의까지 가능/일상 대화는 가능/아직 어려움 중 어디에 가까우세요?'). 진단이 끝나기 전(done=false)의 모든 reply 는 학생이 바로 답할 수 있는 질문 하나로 끝나야 해. 멈추는 일이 없게 해.\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "result": { "percent": number, "level": string, "strengths": string[], "improvements": string[] } | null }' +
         aiLangDirective(locale);
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
         : "(아직 대화 없음 — 인사하고 첫 질문을 해줘)";
       const userPrompt = (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") + `지금까지 대화:\n${convo}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let pj: { reply?: unknown; done?: unknown; result?: unknown } = {};
-      try {
-        pj = JSON.parse(raw);
-      } catch {
-        /* fall through */
-      }
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "diagnosis_chat", DIAGNOSIS_CHAT_SCHEMA)) as {
+        reply?: unknown;
+        done?: unknown;
+        result?: unknown;
+      };
       const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
       const done = pj.done === true;
       let result: { percent: number; level: string; strengths: string[]; improvements: string[] } | null = null;
@@ -14059,6 +14136,90 @@ app.post(
     }
   }
 );
+
+// ── Career Launch 제출물 단위 코치 피드백 ──
+// 운영자가 학생 이력서·자소서를 보고 남긴 텍스트 피드백을 학생 대시보드로 전달한다.
+const careerFeedbackDocTypes = ["resume", "cover_letter", "general"] as const;
+const createCareerFeedbackSchema = z.object({
+  studentUserId: z.string().uuid(),
+  week: z.number().int().min(1).max(4).optional(),
+  docType: z.enum(careerFeedbackDocTypes).default("general"),
+  docId: z.string().max(200).optional(),
+  body: z.string().trim().min(1).max(8000)
+});
+
+// POST /career-launch/feedback — 운영자가 학생에게 피드백 작성.
+app.post("/career-launch/feedback", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = createCareerFeedbackSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  const { studentUserId, week, docType, docId, body } = parsed.data;
+  try {
+    const student = await prisma.user.findUnique({ where: { id: studentUserId }, select: { id: true, role: true } });
+    if (!student) return res.status(404).json({ ok: false, message: "student not found" });
+    const created = await prisma.careerLaunchFeedback.create({
+      data: { studentUserId, authorUserId: req.auth!.userId, week: week ?? null, docType, docId: docId ?? null, body }
+    });
+    return res.status(201).json({ ok: true, item: created });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET /career-launch/feedback?studentUserId= — 운영자가 특정 학생의 피드백 목록 조회.
+app.get("/career-launch/feedback", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const studentUserId = typeof req.query.studentUserId === "string" ? req.query.studentUserId : "";
+  if (!studentUserId) return res.status(400).json({ ok: false, message: "studentUserId required" });
+  try {
+    const items = await prisma.careerLaunchFeedback.findMany({
+      where: { studentUserId },
+      orderBy: { createdAt: "desc" },
+      include: { author: { select: { id: true, name: true, realName: true } } }
+    });
+    return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// DELETE /career-launch/feedback/:id — 운영자가 피드백 삭제.
+app.delete("/career-launch/feedback/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id : "";
+  if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    await prisma.careerLaunchFeedback.delete({ where: { id } });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET /career-launch/my-feedback — 로그인한 학생이 자신에게 온 피드백을 조회.
+app.get("/career-launch/my-feedback", authenticate, async (req, res) => {
+  try {
+    const items = await prisma.careerLaunchFeedback.findMany({
+      where: { studentUserId: req.auth!.userId },
+      orderBy: { createdAt: "desc" },
+      include: { author: { select: { id: true, name: true, realName: true } } }
+    });
+    const unreadCount = items.filter((it) => !it.readAt).length;
+    return res.json({ ok: true, items, unreadCount });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// POST /career-launch/my-feedback/read — 학생이 받은 피드백을 모두 읽음 처리.
+app.post("/career-launch/my-feedback/read", authenticate, async (req, res) => {
+  try {
+    await prisma.careerLaunchFeedback.updateMany({
+      where: { studentUserId: req.auth!.userId, readAt: null },
+      data: { readAt: new Date() }
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
 
 // POST /members/me/ai/tailor-resume — 채용 공고(JD)와 이력서를 비교해 적합도 점수,
 // 보유/부족 키워드, 그 공고에 맞춘 요약·문장 제안을 돌려준다. 없는 사실은 만들지 않는다.
