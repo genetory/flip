@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { COMPLETION_CRITERIA, STUDENT, WEEKS } from "../../../lib/launch/data";
-import { AutoSubmitStatus, Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
+import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
 import { LiveWeekSteps, type DiagResult } from "../../../components/launch/live-week-steps";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
@@ -180,12 +180,6 @@ export default function LaunchDashboardPage() {
                     onReset={resetStep}
                   />
                 </Card>
-              </div>
-
-              {/* 이번 주 과제 — aply.global 활동에서 자동 수집 */}
-              <div>
-                <SectionTitle sub="따로 제출하지 않아도 활동을 하면 자동으로 반영돼요">이번 주 과제</SectionTitle>
-                <AutoSubmitStatus label={currentWeek.submission.label} status={currentWeek.submission.status} source={currentWeek.submission.source} />
               </div>
             </div>
 

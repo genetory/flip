@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { WEEKS } from "../../../../lib/launch/data";
-import { AutoSubmitStatus, Card, Pill, SectionTitle, Stepper } from "../../../../components/launch/ui";
+import { Card, Pill, SectionTitle, Stepper } from "../../../../components/launch/ui";
 import { Header } from "../../../../components/site/Header";
 import { Footer } from "../../../../components/site/Footer";
 
@@ -76,12 +76,6 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
                     <p className="text-[12.5px] text-[#8B95A1]">{plan.seminar.place}</p>
                   </div>
                 </Card>
-              </div>
-
-              {/* 과제 — aply.global 활동에서 자동 수집 */}
-              <div>
-                <SectionTitle sub="따로 제출하지 않아도 자동으로 반영돼요">이번 주 과제</SectionTitle>
-                <AutoSubmitStatus label={plan.submission.label} status={plan.submission.status} source={plan.submission.source} />
               </div>
 
               {/* 피드백 상태 */}
