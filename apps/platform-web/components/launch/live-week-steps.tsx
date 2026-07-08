@@ -6,6 +6,25 @@ import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
 
 export type DiagResult = { percent: number; level: string; strengths?: string[]; improvements?: string[] } | null;
 
+// 정리한 직무 정보는 '직무명: 내용' 형식으로 쌓인다. 앞의 직무명으로 묶어
+// 직무별로 볼 수 있게 그룹핑한다(접두어가 없으면 '기타'로 모은다).
+function groupMaterialsByJob(materials: string[]): { job: string; items: string[] }[] {
+  const groups: { job: string; items: string[] }[] = [];
+  const index = new Map<string, number>();
+  for (const raw of materials) {
+    const m = raw.match(/^\s*([^:：]{1,40})[:：]\s*(.+)$/);
+    const job = m ? m[1].trim() : "기타";
+    const item = m ? m[2].trim() : raw.trim();
+    if (!item) continue;
+    if (!index.has(job)) {
+      index.set(job, groups.length);
+      groups.push({ job, items: [] });
+    }
+    groups[index.get(job)!].items.push(item);
+  }
+  return groups;
+}
+
 // 대시보드용 스텝 목록 — 스텝을 강제로 이어붙이지 않고, 각 스텝을 완료하면
 // 그 결과(진단 준비도 / 선정 직무)를 여기서 바로 보여준다. 사용자는 결과를
 // 확인하고 원하는 다음 스텝을 고른다.
@@ -159,14 +178,21 @@ export function LiveWeekSteps({
                       </button>
                     </span>
                   </div>
-                  <ul className="mt-2 space-y-1.5">
-                    {materials.map((mat, mi) => (
-                      <li key={mi} className="flex gap-1.5 break-keep rounded-lg bg-white/70 px-2.5 py-2 text-[12.5px] leading-relaxed text-[#333D4B]">
-                        <span className="text-[#3A6B00]">•</span>
-                        {mat}
-                      </li>
+                  <div className="mt-2.5 space-y-2.5">
+                    {groupMaterialsByJob(materials).map((g) => (
+                      <div key={g.job} className="rounded-lg bg-white/70 p-2.5">
+                        <p className="text-[12.5px] font-bold text-[#191F28]">{g.job}</p>
+                        <ul className="mt-1.5 space-y-1">
+                          {g.items.map((item, ii) => (
+                            <li key={ii} className="flex gap-1.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">
+                              <span className="text-[#3A6B00]">•</span>
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               ) : done ? (
                 // 완료된 학습·일반 스텝 — 완료 표시 + 삭제(초기화)
