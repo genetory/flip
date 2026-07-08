@@ -89,6 +89,37 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
                   {plan.feedback.note ? <p className="mt-3 rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]">“{plan.feedback.note}”</p> : null}
                 </Card>
               </div>
+
+              {/* 4주 전체 진행 — 모든 주차 페이지에 동일하게 노출 */}
+              <div>
+                <SectionTitle>4주 전체 진행</SectionTitle>
+                <div className="space-y-3">
+                  {WEEKS.map((w) => {
+                    const isCurrent = w.week === plan.week;
+                    const inner = (
+                      <Card className={`flex items-center justify-between !p-4 ${isCurrent ? "!border-[#0B46E8]/40 ring-1 ring-[#0B46E8]/20" : ""}`}>
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#0B46E8] text-[12.5px] font-black leading-none text-white">W{w.week}</span>
+                          <div className="min-w-0">
+                            <p className="truncate text-[13.5px] font-bold text-[#191F28]">{w.title}</p>
+                            {isCurrent ? <p className="text-[11px] font-bold text-[#0B46E8]">보는 중</p> : null}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                    if (isCurrent) {
+                      return (
+                        <div key={w.week}>{inner}</div>
+                      );
+                    }
+                    return (
+                      <Link key={w.week} href={`/career-launch/week/${w.week}`} className="block">
+                        {inner}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
 
