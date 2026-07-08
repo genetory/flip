@@ -17,19 +17,23 @@ export function OperatorResumeFeedback({
   studentUserId,
   docId,
   docType = "resume",
-  studentName
+  studentName,
+  allowDocTypeSelect = false
 }: {
   studentUserId: string;
   docId?: string;
   docType?: FeedbackDocType;
   studentName?: string | null;
+  allowDocTypeSelect?: boolean;
 }) {
   const [items, setItems] = useState<CareerFeedback[]>([]);
   const [loading, setLoading] = useState(true);
   const [week, setWeek] = useState<number | "">("");
+  const [docTypeSel, setDocTypeSel] = useState<FeedbackDocType>(allowDocTypeSelect ? "general" : docType);
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const activeDocType: FeedbackDocType = allowDocTypeSelect ? docTypeSel : docType;
 
   useEffect(() => {
     let alive = true;
@@ -57,8 +61,8 @@ export function OperatorResumeFeedback({
       const created = await createStudentFeedback({
         studentUserId,
         week: week === "" ? undefined : Number(week),
-        docType,
-        docId,
+        docType: activeDocType,
+        docId: allowDocTypeSelect ? undefined : docId,
         body: text
       });
       setItems((prev) => [created, ...prev]);
@@ -98,7 +102,22 @@ export function OperatorResumeFeedback({
             <option value={3}>Week 3</option>
             <option value={4}>Week 4</option>
           </select>
-          <span style={{ fontSize: 12, color: "#94a3b8" }}>· {DOC_LABEL[docType]} 기준</span>
+          {allowDocTypeSelect ? (
+            <>
+              <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginLeft: 4 }}>대상</label>
+              <select
+                value={docTypeSel}
+                onChange={(e) => setDocTypeSel(e.target.value as FeedbackDocType)}
+                style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
+              >
+                <option value="general">전체</option>
+                <option value="resume">이력서</option>
+                <option value="cover_letter">자기소개서</option>
+              </select>
+            </>
+          ) : (
+            <span style={{ fontSize: 12, color: "#94a3b8" }}>· {DOC_LABEL[docType]} 기준</span>
+          )}
         </div>
         <textarea
           value={body}
