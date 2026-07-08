@@ -198,7 +198,23 @@ export default function LaunchMaterialsPage() {
               대시보드에서 확인하기 →
             </Link>
           ) : (
-            <div className="mt-3 flex items-end gap-2">
+            <div className="mt-3">
+              {/* 할 말이 없어 막힐 때를 위한 빠른 응답 — 대화가 끊기지 않게 */}
+              {messages.length > 0 && !loading ? (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {["잘 모르겠어요", "더 자세히 알려주세요", "다음으로 넘어갈래요"].map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => send(q)}
+                      className="rounded-full border border-[#D7DCE3] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8]"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <div className="flex items-end gap-2">
               <form
                 className="flex flex-1 items-end gap-2"
                 onSubmit={(e) => {
@@ -239,6 +255,7 @@ export default function LaunchMaterialsPage() {
                   정리 완료
                 </button>
               ) : null}
+              </div>
             </div>
           )}
         </div>
