@@ -20,7 +20,7 @@ export function LiveWeekSteps({
   steps: Step[];
   diag: DiagResult;
   jobs: string[];
-  materials: number;
+  materials: string[];
   doneIds: string[];
   onReset: (id: string) => void;
 }) {
@@ -33,7 +33,7 @@ export function LiveWeekSteps({
   const isDone = (s: Step) => {
     if (s.id === "w1s1") return Boolean(diag);
     if (s.id === "w1s2") return jobs.length > 0;
-    if (s.id === "w1s3") return materials > 0;
+    if (s.id === "w1s3") return materials.length > 0;
     if (doneIds.includes(s.id)) return true; // 학습 카드 등 완료 체크형 스텝
     return Boolean(manual[s.id]);
   };
@@ -144,21 +144,29 @@ export function LiveWeekSteps({
                     })}
                   </ul>
                 </div>
-              ) : s.id === "w1s3" && materials > 0 ? (
+              ) : s.id === "w1s3" && materials.length > 0 ? (
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[13.5px] font-bold text-[#191F28]">
-                      선정 직무 정보 <span className="text-[#0B46E8]">{materials}개</span> 정리 완료
+                      선정 직무 정보 <span className="text-[#0B46E8]">{materials.length}개</span> 정리 완료
                     </p>
                     <span className="flex shrink-0 items-center gap-2">
                       <Link href="/career-launch/materials" className="text-[12.5px] font-bold text-[#0B46E8] underline">
-                        다시 정리
+                        이어서 정리
                       </Link>
                       <button type="button" onClick={() => onReset(s.id)} className="text-[12.5px] font-semibold text-[#8B95A1] underline hover:text-[#4E5968]">
                         삭제
                       </button>
                     </span>
                   </div>
+                  <ul className="mt-2 space-y-1.5">
+                    {materials.map((mat, mi) => (
+                      <li key={mi} className="flex gap-1.5 break-keep rounded-lg bg-white/70 px-2.5 py-2 text-[12.5px] leading-relaxed text-[#333D4B]">
+                        <span className="text-[#3A6B00]">•</span>
+                        {mat}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ) : done ? (
                 // 완료된 학습·일반 스텝 — 완료 표시 + 삭제(초기화)

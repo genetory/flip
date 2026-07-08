@@ -23,7 +23,7 @@ export default function LaunchDashboardPage() {
   // 진단·직무 선정·재료 결과(localStorage)를 읽어 현재 주차 진행에 반영한다.
   const [diag, setDiag] = useState<DiagResult>(null);
   const [jobs, setJobs] = useState<string[]>([]);
-  const [materials, setMaterials] = useState(0);
+  const [materials, setMaterials] = useState<string[]>([]);
   const [doneIds, setDoneIds] = useState<string[]>([]);
   useEffect(() => {
     try {
@@ -32,7 +32,7 @@ export default function LaunchDashboardPage() {
       const j = window.localStorage.getItem("career-launch:selected-jobs");
       if (j) setJobs(JSON.parse(j));
       const m = window.localStorage.getItem("career-launch:materials");
-      if (m) setMaterials((JSON.parse(m) as unknown[]).length);
+      if (m) setMaterials((JSON.parse(m) as string[]).filter((x) => typeof x === "string"));
       const ds = window.localStorage.getItem("career-launch:done-steps");
       if (ds) setDoneIds(JSON.parse(ds));
     } catch {
@@ -51,7 +51,7 @@ export default function LaunchDashboardPage() {
       : id === "w1s2"
         ? jobs.length > 0
         : id === "w1s3"
-          ? materials > 0
+          ? materials.length > 0
           : doneIds.includes(id) || Boolean(dataDone);
   const currentDone = currentWeek.steps.filter((s) => isStepDone(s.id, s.done)).length;
   const weekMinutes = currentWeek.steps.reduce((n, s) => n + (s.minutes ?? 0), 0);
@@ -68,7 +68,7 @@ export default function LaunchDashboardPage() {
         setJobs([]);
       } else if (id === "w1s3") {
         window.localStorage.removeItem("career-launch:materials");
-        setMaterials(0);
+        setMaterials([]);
       } else {
         const raw = window.localStorage.getItem("career-launch:done-steps");
         const list = raw ? (JSON.parse(raw) as string[]) : [];
