@@ -12,6 +12,9 @@ import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
 const SUBMIT_LABEL = { todo: { t: "미제출", tone: "grey" as const }, submitted: { t: "제출 완료", tone: "blue" as const }, reviewed: { t: "피드백 완료", tone: "green" as const } };
 
+// 테스트용 — 켜면 아직 시작 안 한 주차도 잠금 없이 열람할 수 있다(2·3·4주차 진행 확인용).
+const TEST_UNLOCK_ALL_WEEKS = true;
+
 // 4. 학생 로그인 후 대시보드 — aply.global 세션 필요.
 export default function LaunchDashboardPage() {
   const router = useRouter();
@@ -206,7 +209,7 @@ export default function LaunchDashboardPage() {
                 <div className="space-y-3">
                   {WEEKS.map((w) => {
                     const isCurrent = w.week === STUDENT.currentWeek;
-                    const locked = w.week > STUDENT.currentWeek; // 아직 시작 안 된 주차
+                    const locked = !TEST_UNLOCK_ALL_WEEKS && w.week > STUDENT.currentWeek; // 아직 시작 안 된 주차
                     const inner = (
                       <Card className={`flex items-center justify-between !p-4 ${isCurrent ? "!border-[#0B46E8]/40 ring-1 ring-[#0B46E8]/20" : ""} ${locked ? "opacity-60" : ""}`}>
                         <div className="flex items-center gap-3">
