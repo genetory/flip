@@ -2,6 +2,7 @@
 
 import { ArrowDown, ArrowUp, ArrowsDownUp, Star, X } from "@phosphor-icons/react";
 import { MouseEvent, SyntheticEvent, useEffect, useMemo, useRef, useState } from "react";
+import { OperatorResumeFeedback } from "../../../../../components/launch/operator-resume-feedback";
 
 // ---------------------------------------------------------------------------
 // Ops console — all resumes list.
@@ -553,6 +554,11 @@ export default function OpsResumesPage() {
                     {JSON.stringify(detail.content ?? {}, null, 2)}
                   </pre>
                 </section>
+
+                {/* Career Launch 코치 피드백 — 학생에게 바로 전달 */}
+                {detail.user?.id ? (
+                  <OperatorResumeFeedback studentUserId={detail.user.id} docId={detail.id} docType="resume" studentName={detail.user?.name} />
+                ) : null}
               </div>
             ) : (
               <p className="ops-table-empty">이력서 정보를 불러오지 못했습니다.</p>

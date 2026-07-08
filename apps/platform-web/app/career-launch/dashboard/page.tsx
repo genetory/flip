@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { COMPLETION_CRITERIA, STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
 import { LiveWeekSteps, type DiagResult } from "../../../components/launch/live-week-steps";
+import { CoachFeedback } from "../../../components/launch/coach-feedback";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -188,6 +189,9 @@ export default function LaunchDashboardPage() {
 
             {/* ── 사이드바 컬럼 ── */}
             <div className="space-y-7 md:space-y-8">
+              {/* 코치 피드백 — 운영진이 남긴 제출물 피드백(있을 때만 노출) */}
+              <CoachFeedback />
+
               {/* 이번 주 세미나 */}
               <div>
                 <SectionTitle>이번 주 세미나</SectionTitle>
