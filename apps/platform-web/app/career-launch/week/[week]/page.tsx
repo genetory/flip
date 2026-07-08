@@ -123,16 +123,12 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
             </div>
           </div>
 
-          {/* 다음 주 이동 */}
-          {plan.week < 4 ? (
-            <Link href={`/career-launch/week/${plan.week + 1}`} className="mt-8 flex items-center justify-center rounded-xl border border-[#D7DCE3] bg-white py-3.5 text-[14px] font-bold text-[#191F28] transition hover:border-[#0B46E8]/40">
-              Week {plan.week + 1} 미리보기 →
-            </Link>
-          ) : (
+          {/* 최종 주차 CTA */}
+          {plan.week === 4 ? (
             <Link href="/career-launch/profile" className="mt-8 flex items-center justify-center rounded-xl bg-[#B7FF5A] py-3.5 text-[14px] font-bold text-[#111] transition hover:brightness-105">
               Global Talent Profile 완성하기 →
             </Link>
-          )}
+          ) : null}
         </div>
       </main>
       <Footer />
