@@ -138,7 +138,8 @@ export const WEEKS: WeekPlan[] = [
       {
         id: "w3s3",
         title: "완성도 점검 & 피드백 반영",
-        desc: "AI 진단과 운영진 피드백을 반영해 완성도를 끌어올려 완성본을 만들어요."
+        desc: "AI 진단과 운영진 피드백을 반영해 완성도를 끌어올려 완성본을 만들어요.",
+        action: { label: "시작하기", href: "/career-launch/resume" }
       },
       {
         id: "w3s4",
