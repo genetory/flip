@@ -106,6 +106,12 @@ export default function CultureLessonPage() {
                             <div>
                               <p className="text-[14.5px] font-bold text-[#191F28]">{p.title}</p>
                               <p className="mt-1 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">{p.body}</p>
+                              {p.example ? (
+                                <div className="mt-2 rounded-lg border border-[#E5E8EB] bg-[#F8FAFC] px-3 py-2.5">
+                                  <p className="text-[11px] font-bold text-[#8B95A1]">예시</p>
+                                  <p className="mt-1 whitespace-pre-wrap break-keep text-[12.5px] leading-relaxed text-[#333D4B]">{p.example}</p>
+                                </div>
+                              ) : null}
                               {p.tip ? (
                                 <p className="mt-2 flex gap-1.5 break-keep rounded-lg bg-[#F6FFE9] px-2.5 py-2 text-[12.5px] leading-relaxed text-[#3A6B00]">
                                   <span className="flex-none">💡</span>
