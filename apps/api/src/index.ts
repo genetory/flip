@@ -14344,6 +14344,14 @@ function normalizeResumeData(raw: unknown): Record<string, unknown> {
   return { basic, educations, experiences, skills, languages };
 }
 
+// 정규화된 이력서 데이터에 실제 내용이 있는지(빈 데이터 판별).
+function hasResumeDataContent(d: Record<string, unknown>): boolean {
+  const b = (d.basic ?? {}) as Record<string, unknown>;
+  const basicFilled = Boolean(b.name || b.email || b.phone || b.summary);
+  const len = (v: unknown) => (Array.isArray(v) ? v.length : 0);
+  return basicFilled || len(d.educations) > 0 || len(d.experiences) > 0 || len(d.skills) > 0 || len(d.languages) > 0;
+}
+
 // POST /career-launch/resume-chat — 이력서 재료를 대화로 수집하고 누적 데이터를 저장.
 app.post(
   "/career-launch/resume-chat",
@@ -14370,14 +14378,19 @@ app.post(
         "2. [대화가 끊기지 않게] 학생이 막막해하면 다그치지 말고, 예시를 보여주거나 고르기 쉬운 질문으로 바꿔. 모든 reply 는 학생이 바로 답할 수 있는 '다음 한 걸음'으로 끝나야 해.\n" +
         "3. 경력·경험은 '무엇을 했다'가 아니라 '어떤 성과를 냈다'로 이끌어. 애매하면 숫자·결과를 물어봐 bullets 를 구체화해.\n" +
         "4. 매 턴 [현재까지 데이터]에 새로 알게 된 정보를 합쳐 data 전체를 반환해(이전 것 유지·누적). 값이 없으면 null 또는 빈 배열. 학생이 직접 말하지 않은 값(특히 summary)은 절대 지어내지 말고 null 로 둬. data 의 키는 반드시 영어 스키마 키(name, email, phone, summary, school, major, degree, period, note, title, org, bullets, language, level)를 그대로 써.\n" +
-        "5. [학생 프로필]로 이미 아는 정보(이름·전공·학교·스킬)는 다시 묻지 말고 data 에 채워두고 가볍게 확인만 해.\n" +
+        "5. [학생 프로필]·[현재까지 데이터]에 이미 채워진 값은 절대 다시 묻지 마. 이미 아는 정보는 가볍게 확인만 하고, 비어있는 항목·섹션부터 이어가.\n" +
         "6. 기본정보~어학이 두루 채워지면 done=true, 따뜻한 마무리와 함께 '이력서 미리보기에서 확인할 수 있다'고 안내해. 얕으면 done 을 서두르지 마.\n" +
-        "7. 처음이면(메시지 없음) 인사하고 첫 질문(basic 부터). 진행 중이면 재인사 없이 이어가.\n\n" +
+        "7. [현재까지 데이터]가 비어있으면 인사하고 basic 부터. 이미 저장된 데이터가 있으면 처음부터 다시 묻지 말고, 채워진 내용을 한 줄로 짚어준 뒤 '비어있는 섹션'부터 이어서 물어봐. 진행 중이면 재인사 없이 이어가.\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": {basic,educations,experiences,skills,languages}, "done": boolean }' +
         aiLangDirective(locale);
+      // 저장된 데이터가 이미 있는지 — kickoff 시 재질문 방지용.
+      const savedNorm = normalizeResumeData(data);
+      const hasSaved = hasResumeDataContent(savedNorm);
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
-        : "(아직 대화 없음 — 인사하고 기본정보부터 물어봐)";
+        : hasSaved
+          ? "(아직 이번 세션 대화는 없음 — 단, [현재까지 데이터]에 이미 저장된 정보가 있음. 처음부터 다시 묻지 말고, 저장된 내용을 짧게 요약·확인한 뒤 비어있는 섹션부터 이어서 물어봐.)"
+          : "(아직 대화 없음 — 인사하고 기본정보부터 물어봐)";
       const userPrompt =
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `[현재까지 데이터]\n${JSON.stringify(data ?? {})}\n\n` +
