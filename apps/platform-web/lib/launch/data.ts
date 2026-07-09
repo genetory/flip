@@ -125,21 +125,21 @@ export const WEEKS: WeekPlan[] = [
     steps: [
       {
         id: "w3s1",
-        title: "대화로 자기소개서 채우기",
-        desc: "별도 작성 없이 AI와 대화하며 지원 동기·성장 과정·강점·포부 문항을 채워요. 답하는 대로 자소서가 자동으로 쌓여요.",
+        title: "지원 동기·성장 과정 작성",
+        desc: "AI와 대화하며 자기소개서의 지원 동기와 성장 과정 문항을 채워요. 답하는 대로 자소서가 자동으로 쌓여요.",
         action: { label: "시작하기", href: "/career-launch/cover-collect" }
       },
       {
         id: "w3s2",
-        title: "이력서·자소서 함께 다듬기",
-        desc: "이력서와 자기소개서의 메시지가 서로 일관되게 맞춰 다듬어봐요. 두 문서가 같은 이야기를 하면 설득력이 커져요.",
-        action: { label: "시작하기", href: "/career-launch/resume" }
+        title: "강점·입사 후 포부 작성",
+        desc: "이어서 나의 강점과 입사 후 포부 문항을 대화로 채워요. 구체적인 경험과 목표를 담으면 설득력이 커져요.",
+        action: { label: "시작하기", href: "/career-launch/cover-collect" }
       },
       {
         id: "w3s3",
-        title: "완성도 점검 & 피드백 반영",
-        desc: "AI 진단과 운영진 피드백을 반영해 완성도를 끌어올려 완성본을 만들어요.",
-        action: { label: "시작하기", href: "/career-launch/resume" }
+        title: "자기소개서 완성·다듬기",
+        desc: "작성한 문항을 다시 보며 문장을 다듬고 완성해요. 운영진 피드백이 있으면 반영해 완성본을 만들어요.",
+        action: { label: "시작하기", href: "/career-launch/cover-collect" }
       },
       {
         id: "w3s4",

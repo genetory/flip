@@ -7,8 +7,6 @@ import { COMPLETION_CRITERIA, STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
 import { LiveWeekSteps, type DiagResult } from "../../../components/launch/live-week-steps";
 import { CoachFeedback } from "../../../components/launch/coach-feedback";
-import { ResumeCard } from "../../../components/launch/resume-card";
-import { CoverCard } from "../../../components/launch/cover-card";
 import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
@@ -192,10 +190,6 @@ export default function LaunchDashboardPage() {
             <div className="space-y-7 md:space-y-8">
               {/* 코치 피드백 — 운영진이 남긴 제출물 피드백(있을 때만 노출) */}
               <CoachFeedback />
-
-              {/* 내 이력서 / 내 자소서 — 대화로 쌓은 데이터를 확인(데이터 있으면 이어하기) */}
-              <ResumeCard />
-              <CoverCard />
 
               {/* 이번 주 세미나 */}
               <div>

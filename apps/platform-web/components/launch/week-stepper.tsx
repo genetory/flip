@@ -16,10 +16,10 @@ const STEP_KIND: Record<string, string> = {
   w2s1: "resume-basic", // 기본정보·학력
   w2s2: "resume-exp", // 경력·경험
   w2s3: "resume-skills", // 스킬·어학
-  w3s1: "cover", // 자소서 문항
-  w3s2: "both", // 이력서·자소서 다듬기
-  w3s3: "both", // 완성도 점검
-  w4s1: "both" // 최종 확정
+  w3s1: "cover", // 자소서 — 지원동기·성장과정(문항 1개+)
+  w3s2: "cover3", // 자소서 — 강점·포부(문항 3개+)
+  w3s3: "cover4", // 자소서 — 완성·다듬기(문항 4개+)
+  w4s1: "both" // 최종 확정(이력서+자소서)
 };
 
 // 주차 페이지용 스텝 목록 — 1주차처럼 순차 잠금 + 스텝별(섹션별) 결과 표시.
@@ -69,7 +69,9 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
       case "resume-basic": return resumeBasicDone;
       case "resume-exp": return resumeExpDone;
       case "resume-skills": return skillN > 0 || langN > 0;
-      case "cover": return coverReady;
+      case "cover": return coverN >= 1;
+      case "cover3": return coverN >= 3;
+      case "cover4": return coverN >= 4;
       case "both": return resumeReady && coverReady;
       default: return false;
     }
@@ -216,7 +218,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
       );
     }
     // 자소서 — 문항별 질문 + 답변(week1/2와 같은 텍스트 디테일). 전문은 우측 컬럼.
-    if (kind === "cover" && coverReady) {
+    if ((kind === "cover" || kind === "cover3" || kind === "cover4") && coverReady) {
       const filled = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
       return (
         <ResultCard href="/career-launch/cover-collect" hrefLabel="이어하기">
