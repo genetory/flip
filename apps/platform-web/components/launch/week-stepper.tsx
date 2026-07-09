@@ -125,7 +125,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     // 이력서 — 기본정보·학력
     if (kind === "resume-basic" && resumeBasicDone) {
       return (
-        <ResultCard continueHref="/career-launch/resume-collect" continueLabel="이어하기" restartHref="/career-launch/resume-collect?restart=1">
+        <ResultCard continueHref="/career-launch/resume-collect" continueLabel="이어하기" restartHref="/career-launch/resume-collect?restart=1&scope=basic">
           <p className="text-[13.5px] font-bold text-[#191F28]">📄 기본정보 · 학력</p>
           {resume.basic?.name ? <p className="mt-1 text-[12.5px] text-[#333D4B]">{resume.basic.name}{resume.basic.summary ? ` — ${resume.basic.summary}` : ""}</p> : null}
           {eduN > 0 ? (
@@ -143,7 +143,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     // 이력서 — 경력·경험
     if (kind === "resume-exp" && resumeExpDone) {
       return (
-        <ResultCard continueHref="/career-launch/resume-collect" continueLabel="이어하기" restartHref="/career-launch/resume-collect?restart=1">
+        <ResultCard continueHref="/career-launch/resume-collect" continueLabel="이어하기" restartHref="/career-launch/resume-collect?restart=1&scope=exp">
           <p className="text-[13.5px] font-bold text-[#191F28]">📄 경력·경험 <span className="text-[#0B46E8]">{expN}개</span></p>
           <ul className="mt-2 space-y-2">
             {resume.experiences!.map((x, i) => (
@@ -165,7 +165,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     // 이력서 — 스킬·어학
     if (kind === "resume-skills" && (skillN > 0 || langN > 0)) {
       return (
-        <ResultCard continueHref="/career-launch/resume-collect" continueLabel="이어하기" restartHref="/career-launch/resume-collect?restart=1">
+        <ResultCard continueHref="/career-launch/resume-collect" continueLabel="이어하기" restartHref="/career-launch/resume-collect?restart=1&scope=skills">
           <p className="text-[13.5px] font-bold text-[#191F28]">📄 스킬 {skillN} · 어학 {langN}</p>
           {skillN > 0 ? (
             <div className="mt-1.5 flex flex-wrap gap-1">
@@ -183,8 +183,10 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     // 자기소개서 — 문항별 질문 + 답변(week1/2와 같은 텍스트 디테일). 전문은 우측 컬럼.
     if ((kind === "cover" || kind === "cover3" || kind === "cover4") && coverReady) {
       const filled = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
+      // 스텝별 부분 초기화 스코프 — s1(동기·성장부터), s2(강점·포부부터), s3(완성 단계만)
+      const coverScope = kind === "cover" ? "s1" : kind === "cover3" ? "s2" : "s3";
       return (
-        <ResultCard continueHref="/career-launch/cover-collect" continueLabel="이어하기" restartHref="/career-launch/cover-collect?restart=1">
+        <ResultCard continueHref="/career-launch/cover-collect" continueLabel="이어하기" restartHref={`/career-launch/cover-collect?restart=1&scope=${coverScope}`}>
           <p className="text-[13.5px] font-bold text-[#191F28]">📝 자기소개서 <span className="text-[#0B46E8]">{coverN}개 문항</span>{cover.company ? <span className="font-normal text-[#8B95A1]"> · {cover.company}</span> : null}</p>
           <ul className="mt-2 space-y-2">
             {filled.map((it, i) => (

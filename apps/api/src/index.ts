@@ -14542,13 +14542,27 @@ app.get("/career-launch/resume-data", authenticate, async (req, res) => {
   }
 });
 
-// DELETE /career-launch/resume-data — '다시하기'용 초기화. 병합이 축소하지 않으므로 내용을 비워 새로 시작.
+// DELETE /career-launch/resume-data — '다시하기'용 초기화. 병합이 축소하지 않으므로 여기서 비운다.
+// ?scope=basic|exp|skills 면 해당 스텝 섹션만 초기화(부분), 없으면 전체 초기화.
+const RESUME_RESET_SCOPES: Record<string, string[]> = {
+  basic: ["basic", "educations"],
+  exp: ["experiences"],
+  skills: ["skills", "languages"]
+};
 app.delete("/career-launch/resume-data", authenticate, async (req, res) => {
+  const scope = typeof req.query.scope === "string" ? req.query.scope : "";
+  const keys = RESUME_RESET_SCOPES[scope];
   try {
+    let content: Record<string, unknown> = {};
+    if (keys) {
+      const row = await prisma.careerResumeData.findUnique({ where: { studentUserId: req.auth!.userId } });
+      content = row?.content && typeof row.content === "object" ? { ...(row.content as Record<string, unknown>) } : {};
+      for (const k of keys) delete content[k];
+    }
     await prisma.careerResumeData.upsert({
       where: { studentUserId: req.auth!.userId },
-      create: { studentUserId: req.auth!.userId, content: {} },
-      update: { content: {} }
+      create: { studentUserId: req.auth!.userId, content: content as object },
+      update: { content: content as object }
     });
     return res.json({ ok: true });
   } catch (error) {
@@ -14687,13 +14701,25 @@ app.get("/career-launch/cover-data", authenticate, async (req, res) => {
   }
 });
 
-// DELETE /career-launch/cover-data — '다시하기'용 초기화. 내용을 비워 새로 시작.
+// DELETE /career-launch/cover-data — '다시하기'용 초기화.
+// 자기소개서는 문항을 순서대로 쌓으므로 스텝별 부분 초기화는 '앞쪽 N개 문항만 남기고 이후 제거'로 처리.
+// ?scope=s1|s2|s3 → keep 0/2/3 (s1=지원동기·성장부터 전체, s2=강점·포부부터, s3=완성 단계만). scope 없으면 전체 초기화.
+const COVER_RESET_KEEP: Record<string, number> = { s1: 0, s2: 2, s3: 3 };
 app.delete("/career-launch/cover-data", authenticate, async (req, res) => {
+  const scope = typeof req.query.scope === "string" ? req.query.scope : "";
+  const keep = COVER_RESET_KEEP[scope];
   try {
+    let content: Record<string, unknown> = {};
+    if (typeof keep === "number" && keep > 0) {
+      const row = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: req.auth!.userId } });
+      const prev = row?.content && typeof row.content === "object" ? (row.content as Record<string, unknown>) : {};
+      const items = Array.isArray(prev.items) ? prev.items.slice(0, keep) : [];
+      content = { ...prev, items };
+    }
     await prisma.careerCoverLetterData.upsert({
       where: { studentUserId: req.auth!.userId },
-      create: { studentUserId: req.auth!.userId, content: {} },
-      update: { content: {} }
+      create: { studentUserId: req.auth!.userId, content: content as object },
+      update: { content: content as object }
     });
     return res.json({ ok: true });
   } catch (error) {

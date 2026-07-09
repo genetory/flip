@@ -29,25 +29,27 @@ export default function CoverCollectPage() {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
     setLoading(true);
-    // ?restart=1 이면 저장된 자기소개서를 비우고 처음부터 새로 작성.
-    const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
+    // ?restart=1 이면 초기화. &scope=s1|s2|s3 면 해당 스텝 이후 문항만, 없으면 전체.
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    const restart = params.get("restart") === "1";
+    const scopeRaw = params.get("scope");
+    const scope = scopeRaw === "s1" || scopeRaw === "s2" || scopeRaw === "s3" ? scopeRaw : undefined;
     void (async () => {
       let seed: CoverData = {};
       if (restart) {
         try {
-          await resetCoverData();
+          await resetCoverData(scope);
         } catch {
-          // 초기화 실패해도 빈 seed 로 진행
+          // 초기화 실패해도 남은 데이터로 진행
         }
-        setData({});
-      } else {
-        try {
-          const saved = await fetchCoverData();
-          seed = saved.data ?? {};
-          setData(seed);
-        } catch {
-          // 저장분 없음
-        }
+      }
+      // 초기화 후 남은 문항(부분 초기화 시)은 seed 로 이어간다. 전체 초기화면 빈 seed.
+      try {
+        const saved = await fetchCoverData();
+        seed = saved.data ?? {};
+        setData(seed);
+      } catch {
+        // 저장분 없음
       }
       // 이어하기(저장분 있음) — 즉시 반기고 미리보기를 띄운다.
       const continuing = hasCoverContent(seed);

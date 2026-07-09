@@ -60,9 +60,10 @@ export async function fetchResumeData(): Promise<{ data: ResumeData; updatedAt: 
   return { data: (d.data as ResumeData) ?? {}, updatedAt: (d.updatedAt as string) ?? null };
 }
 
-// '다시하기' — 저장된 이력서 데이터를 비워 처음부터 새로 작성.
-export async function resetResumeData(): Promise<void> {
-  await req("/career-launch/resume-data", { method: "DELETE", headers: authHeaders() });
+// '다시하기' — scope(basic|exp|skills) 면 해당 스텝 섹션만, 없으면 전체 초기화.
+export async function resetResumeData(scope?: "basic" | "exp" | "skills"): Promise<void> {
+  const q = scope ? `?scope=${scope}` : "";
+  await req(`/career-launch/resume-data${q}`, { method: "DELETE", headers: authHeaders() });
 }
 
 // 데이터가 실제로 채워졌는지(빈 데이터 판별).

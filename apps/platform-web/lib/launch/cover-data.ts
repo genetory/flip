@@ -44,9 +44,10 @@ export async function fetchCoverData(): Promise<{ data: CoverData; updatedAt: st
   return { data: (d.data as CoverData) ?? {}, updatedAt: (d.updatedAt as string) ?? null };
 }
 
-// '다시하기' — 저장된 자기소개서 데이터를 비워 처음부터 새로 작성.
-export async function resetCoverData(): Promise<void> {
-  await req("/career-launch/cover-data", { method: "DELETE", headers: authHeaders() });
+// '다시하기' — scope(s1|s2|s3) 면 해당 스텝 이후 문항만, 없으면 전체 초기화.
+export async function resetCoverData(scope?: "s1" | "s2" | "s3"): Promise<void> {
+  const q = scope ? `?scope=${scope}` : "";
+  await req(`/career-launch/cover-data${q}`, { method: "DELETE", headers: authHeaders() });
 }
 
 export function hasCoverContent(data: CoverData | null | undefined): boolean {

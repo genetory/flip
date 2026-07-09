@@ -39,25 +39,27 @@ export default function ResumeCollectPage() {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
     setLoading(true);
-    // ?restart=1 이면 저장된 이력서를 비우고 처음부터 새로 작성.
-    const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
+    // ?restart=1 이면 초기화. &scope=basic|exp|skills 면 해당 스텝 섹션만, 없으면 전체.
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    const restart = params.get("restart") === "1";
+    const scopeRaw = params.get("scope");
+    const scope = scopeRaw === "basic" || scopeRaw === "exp" || scopeRaw === "skills" ? scopeRaw : undefined;
     void (async () => {
       let seed: ResumeData = {};
       if (restart) {
         try {
-          await resetResumeData();
+          await resetResumeData(scope);
         } catch {
-          // 초기화 실패해도 빈 seed 로 진행
+          // 초기화 실패해도 남은 데이터로 진행
         }
-        setData({});
-      } else {
-        try {
-          const saved = await fetchResumeData();
-          seed = saved.data ?? {};
-          setData(seed);
-        } catch {
-          // 저장분 없거나 조회 실패 — 빈 데이터로 시작
-        }
+      }
+      // 초기화 후에도 남은 섹션(부분 초기화 시)은 seed 로 이어간다. 전체 초기화면 빈 seed.
+      try {
+        const saved = await fetchResumeData();
+        seed = saved.data ?? {};
+        setData(seed);
+      } catch {
+        // 저장분 없거나 조회 실패 — 빈 데이터로 시작
       }
       // 이어하기(저장분 있음) — 스피너만 보이지 않게 즉시 반기고 미리보기를 띄운다.
       const continuing = hasResumeContent(seed);
