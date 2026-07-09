@@ -47,8 +47,11 @@ export default function LaunchOpsReportPage() {
 
   return (
     <main className="pb-16">
-      <LaunchContainer className="!max-w-[640px] pt-6">
-        <SectionTitle sub="Career Launch 실사용 데이터 기준">결과 리포트</SectionTitle>
+      <LaunchContainer className="!max-w-6xl pt-6 md:pt-10">
+        <div className="mb-6">
+          <h1 className="text-[20px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">결과 리포트</h1>
+          <p className="mt-1 text-[13.5px] text-[#8B95A1]">Career Launch 실사용 데이터로 집계한 지표예요.</p>
+        </div>
 
         {loading ? (
           <Card className="!p-6 text-center text-[14px] text-[#8B95A1]">불러오는 중…</Card>
@@ -56,7 +59,7 @@ export default function LaunchOpsReportPage() {
           <Card className="!p-6 text-center text-[14px] text-red-600">{error}</Card>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
               {[
                 { k: "이용 학생", v: `${stats.total}명`, tone: "text-[#0B46E8]" },
                 { k: "진단 완료", v: `${stats.diagCount}명`, tone: "text-[#0B46E8]" },
@@ -70,7 +73,8 @@ export default function LaunchOpsReportPage() {
               ))}
             </div>
 
-            <div className="mt-7">
+            <div className="mt-7 grid gap-6 lg:grid-cols-2 lg:gap-8 lg:items-start">
+            <div>
               <SectionTitle>단계별 완료율</SectionTitle>
               <Card className="space-y-5">
                 <Metric label="진단 완료율" value={stats.pctDiag} />
@@ -79,7 +83,7 @@ export default function LaunchOpsReportPage() {
               </Card>
             </div>
 
-            <div className="mt-7">
+            <div>
               <SectionTitle sub="이용 → 진단 → 직무 → 이력서">참여 퍼널</SectionTitle>
               <Card className="space-y-3.5">
                 {funnel.map((f) => (
@@ -99,6 +103,7 @@ export default function LaunchOpsReportPage() {
                   </div>
                 ))}
               </Card>
+            </div>
             </div>
           </>
         )}

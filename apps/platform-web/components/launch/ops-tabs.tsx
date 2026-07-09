@@ -14,7 +14,7 @@ export function OpsTabs() {
   const pathname = usePathname();
   return (
     <div className="border-b border-[#EEF1F5] bg-white/90 backdrop-blur">
-      <LaunchContainer className="!max-w-[640px]">
+      <LaunchContainer className="!max-w-6xl">
         <div className="flex h-12 items-center justify-between">
           <span className="text-[13px] font-extrabold text-[#0B1227]">Launch 운영</span>
           <Link href="/career-launch" className="text-[12px] font-semibold text-[#8B95A1]">← 프로그램</Link>

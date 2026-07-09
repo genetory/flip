@@ -13783,9 +13783,11 @@ const CAREER_DEPTH =
 // 각 스텝 대화의 시스템 프롬프트(본문). 운영자가 어드민에서 편집할 수 있고, 편집분은
 // AppSetting(career_prompt_<key>)에 저장된다. JSON 출력 형식 계약 라인은 각 핸들러가
 // 뒤에 자동으로 붙이므로 본문 편집으로 깨지지 않는다.
-const CAREER_PROMPTS: Record<string, { label: string; default: string }> = {
+const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string; default: string }> = {
   diagnosis: {
     label: "취업 준비 진단",
+    week: 1,
+    step: "스텝 1 · 취업 준비 상태 자가진단",
     default:
       "너는 한국 취업을 준비하는 외국인 유학생을 전문적으로 돕는 커리어 코치야. 유료 부트캠프의 진단 세션답게, 짧지만 밀도 있는 대화로 '취업 준비 상태'를 정확히 파악하고 마지막에 준비도와 4주 실행 조언을 준다.\n\n" +
       "진단 영역(대화로 모두 자연스럽게 파악):\n" +
@@ -13808,6 +13810,8 @@ const CAREER_PROMPTS: Record<string, { label: string; default: string }> = {
   },
   job: {
     label: "관심 직무 찾기",
+    week: 1,
+    step: "스텝 2 · 관심 직무 3개 선정",
     default:
       "너는 한국 취업을 준비하는 외국인 유학생의 진로를 함께 찾는, 경험 많은 커리어 상담사야. 유료 부트캠프의 1:1 코치답게 밀도 있고 통찰 있게, 그러나 편안하게 대화해. 목표는 학생에게 잘 맞는 '관심 직무 3개'를 찾도록 이끄는 것.\n\n" +
       "탐색 프레임(대화에 자연스럽게 녹여 하나씩 확인):\n" +
@@ -13829,6 +13833,8 @@ const CAREER_PROMPTS: Record<string, { label: string; default: string }> = {
   },
   material: {
     label: "선정 직무 깊이 알기",
+    week: 1,
+    step: "스텝 3 · 선정 직무 깊이 알기",
     default:
       "너는 한국 취업을 준비하는 외국인 유학생의 진로를 돕는 전문 커리어 코치야. 유료 부트캠프의 1:1 코치답게, 학생이 고른 관심 직무를 '깊이 이해'하도록 대화로 이끌어. 목표는 그 직무가 실제로 어떤 일을 하고 무엇을 준비해야 하는지 학생이 감을 잡게 하는 것.\n\n" +
       "고른 직무별로 함께 알아볼 것:\n" +
@@ -13851,6 +13857,8 @@ const CAREER_PROMPTS: Record<string, { label: string; default: string }> = {
   },
   resume: {
     label: "대화로 이력서 채우기",
+    week: 2,
+    step: "스텝 1 · 대화로 이력서 시작하기",
     default:
       "너는 한국 취업을 준비하는 외국인 유학생의 이력서를 함께 만드는 전문 커리어 코치야. 학생은 별도 이력서 빌더로 가지 않고, 너와의 대화만으로 이력서 재료를 모아. 목표는 대화로 이력서 정보를 이끌어내 구조화된 data 로 차곡차곡 쌓는 것.\n\n" +
       "채울 섹션(이 순서대로 하나씩):\n" +
@@ -14542,7 +14550,7 @@ app.get("/career-launch/ops/prompts", authenticate, requireRoles([MemberRole.OPE
     const overrides = new Map(rows.map((r) => [r.key, r.value] as const));
     const items = Object.entries(CAREER_PROMPTS).map(([key, v]) => {
       const override = overrides.get(`career_prompt_${key}`);
-      return { key, label: v.label, default: v.default, value: override ?? v.default, isOverridden: typeof override === "string" };
+      return { key, label: v.label, week: v.week, step: v.step, default: v.default, value: override ?? v.default, isOverridden: typeof override === "string" };
     });
     return res.json({ ok: true, items });
   } catch (error) {

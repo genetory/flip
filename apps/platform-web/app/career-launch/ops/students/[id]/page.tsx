@@ -44,7 +44,7 @@ export default function LaunchOpsStudentDetailPage() {
 
   return (
     <main className="pb-16">
-      <LaunchContainer className="!max-w-[640px] pt-6">
+      <LaunchContainer className="!max-w-6xl pt-6 md:pt-10">
         <Link href="/career-launch/ops/students" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
           ← 학생 목록
         </Link>
@@ -69,8 +69,11 @@ export default function LaunchOpsStudentDetailPage() {
               </div>
             </div>
 
+            <div className="mt-7 grid gap-6 lg:grid-cols-[1.6fr_1fr] lg:items-start lg:gap-8">
+              {/* 왼쪽: 진행 상태 + 이력서 */}
+              <div>
             {/* 진단 결과 */}
-            <div className="mt-6">
+            <div className="mt-6 first:mt-0">
               <SectionTitle>취업 준비 진단</SectionTitle>
               {diag && typeof diag.percent === "number" ? (
                 <Card className="!p-4">
@@ -164,12 +167,14 @@ export default function LaunchOpsStudentDetailPage() {
               )}
             </div>
 
-            {/* 피드백 */}
-            <div className="mt-6">
-              <SectionTitle>피드백</SectionTitle>
-              <Card className="!p-4">
-                <OperatorResumeFeedback studentUserId={detail.user.id} allowDocTypeSelect studentName={name} />
-              </Card>
+              </div>
+              {/* 오른쪽: 피드백 (데스크탑에서 고정) */}
+              <div className="lg:sticky lg:top-6">
+                <SectionTitle>피드백</SectionTitle>
+                <Card className="!p-4">
+                  <OperatorResumeFeedback studentUserId={detail.user.id} allowDocTypeSelect studentName={name} />
+                </Card>
+              </div>
             </div>
           </>
         )}

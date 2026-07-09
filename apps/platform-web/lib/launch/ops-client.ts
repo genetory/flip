@@ -28,7 +28,7 @@ async function req(path: string, init: RequestInit): Promise<Record<string, unkn
 }
 
 // ── 프롬프트 ──
-export type OpsPrompt = { key: string; label: string; default: string; value: string; isOverridden: boolean };
+export type OpsPrompt = { key: string; label: string; week: number; step: string; default: string; value: string; isOverridden: boolean };
 
 export async function fetchOpsPrompts(): Promise<OpsPrompt[]> {
   const d = await req("/career-launch/ops/prompts", { headers: authHeaders() });

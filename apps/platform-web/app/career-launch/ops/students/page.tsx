@@ -32,8 +32,13 @@ export default function LaunchOpsStudentsPage() {
 
   return (
     <main className="pb-16">
-      <LaunchContainer className="!max-w-[640px] pt-6">
-        <div className="grid grid-cols-3 gap-2.5">
+      <LaunchContainer className="!max-w-6xl pt-6 md:pt-10">
+        <div className="mb-6">
+          <h1 className="text-[20px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">학생 관리</h1>
+          <p className="mt-1 text-[13.5px] text-[#8B95A1]">Career Launch 를 이용한 학생의 진행 상태와 이력서를 보고 피드백을 남겨요.</p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2.5 sm:max-w-md">
           {[
             { k: "이용 학생", v: students.length },
             { k: "이력서 작성", v: withResume },
@@ -47,7 +52,7 @@ export default function LaunchOpsStudentsPage() {
         </div>
 
         <div className="mt-7">
-          <SectionTitle sub="진행 상태·이력서를 보고 피드백을 남길 수 있어요">학생 목록</SectionTitle>
+          <SectionTitle sub="카드를 누르면 상세로 이동해요">학생 목록</SectionTitle>
           {loading ? (
             <Card className="!p-6 text-center text-[14px] text-[#8B95A1]">불러오는 중…</Card>
           ) : error ? (
@@ -55,10 +60,10 @@ export default function LaunchOpsStudentsPage() {
           ) : students.length === 0 ? (
             <Card className="!p-6 text-center text-[14px] text-[#8B95A1]">아직 Career Launch 를 이용한 학생이 없어요.</Card>
           ) : (
-            <div className="space-y-2.5">
+            <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
               {students.map((st) => (
                 <Link key={st.userId} href={`/career-launch/ops/students/${st.userId}`} className="block">
-                  <Card className="!p-4 transition hover:border-[#0B46E8]/40">
+                  <Card className="h-full !p-4 transition hover:border-[#0B46E8]/40">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2.5">
                         <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[13px] font-black text-[#0B46E8]">
