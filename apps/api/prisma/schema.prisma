@@ -70,6 +70,7 @@ model User {
   careerLaunchFeedbacksReceived        CareerLaunchFeedback[]        @relation("CareerLaunchFeedbackStudent")
   careerLaunchFeedbacksAuthored        CareerLaunchFeedback[]        @relation("CareerLaunchFeedbackAuthor")
   careerResumeData                     CareerResumeData?             @relation("CareerResumeDataStudent")
+  careerLaunchProgress                 CareerLaunchProgress?         @relation("CareerLaunchProgressStudent")
   certificatesIssued                   Certificate[]                 @relation("CertificateIssuer")
   recommendationsIssued                Recommendation[]              @relation("RecommendationIssuer")
   schoolCreditReviews                  SchoolCreditRequest[]         @relation("SchoolCreditReviewer")
@@ -827,6 +828,19 @@ model CareerResumeData {
   updatedAt     DateTime @updatedAt
 
   student User @relation("CareerResumeDataStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+}
+
+// Career Launch 진행 상태. 진단결과·선정직무·정리한 직무정보·완료스텝 등 프로그램
+// 진행 상태를 계정 기준으로 저장해, 다른 기기·브라우저에서도 그대로 이어가게 한다.
+// (기존 localStorage 를 대체) 학생당 1행, state JSON 블롭.
+model CareerLaunchProgress {
+  id            String   @id @default(uuid())
+  studentUserId String   @unique
+  state         Json     @default("{}") // { diagnosis, selectedJobs[], materials[], doneSteps[] }
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  student User @relation("CareerLaunchProgressStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
 }
 
 model Certificate {

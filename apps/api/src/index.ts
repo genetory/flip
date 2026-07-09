@@ -14466,6 +14466,37 @@ app.get("/career-launch/resume-data", authenticate, async (req, res) => {
   }
 });
 
+// ── Career Launch 진행 상태(진단·직무·정리정보·완료스텝) — 계정 기준 저장, 기기 간 동기화 ──
+// GET /career-launch/progress — 저장된 진행 상태 조회.
+app.get("/career-launch/progress", authenticate, async (req, res) => {
+  try {
+    const row = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: req.auth!.userId } });
+    return res.json({ ok: true, state: row?.state ?? {} });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// PATCH /career-launch/progress — 제공된 키만 얕게 병합해 저장(부분 갱신).
+const progressPatchSchema = z.record(z.string(), z.unknown());
+app.patch("/career-launch/progress", authenticate, async (req, res) => {
+  const parsed = progressPatchSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const existing = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: req.auth!.userId } });
+    const prev = (existing?.state && typeof existing.state === "object" ? existing.state : {}) as Record<string, unknown>;
+    const merged = { ...prev, ...parsed.data };
+    await prisma.careerLaunchProgress.upsert({
+      where: { studentUserId: req.auth!.userId },
+      create: { studentUserId: req.auth!.userId, state: merged as object },
+      update: { state: merged as object }
+    });
+    return res.json({ ok: true, state: merged });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // POST /members/me/ai/tailor-resume — 채용 공고(JD)와 이력서를 비교해 적합도 점수,
 // 보유/부족 키워드, 그 공고에 맞춘 요약·문장 제안을 돌려준다. 없는 사실은 만들지 않는다.
 const tailorResumeSchema = z.object({

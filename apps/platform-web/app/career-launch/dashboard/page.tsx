@@ -8,6 +8,7 @@ import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launc
 import { LiveWeekSteps, type DiagResult } from "../../../components/launch/live-week-steps";
 import { CoachFeedback } from "../../../components/launch/coach-feedback";
 import { ResumeCard } from "../../../components/launch/resume-card";
+import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -25,25 +26,30 @@ export default function LaunchDashboardPage() {
     if (isReady && !isAuthenticated) router.replace("/career-launch");
   }, [isReady, isAuthenticated, router]);
 
-  // 진단·직무 선정·재료 결과(localStorage)를 읽어 현재 주차 진행에 반영한다.
+  // 진단·직무 선정·재료·완료스텝을 백엔드(progress)에서 읽어 현재 주차 진행에 반영한다.
   const [diag, setDiag] = useState<DiagResult>(null);
   const [jobs, setJobs] = useState<string[]>([]);
   const [materials, setMaterials] = useState<string[]>([]);
   const [doneIds, setDoneIds] = useState<string[]>([]);
   useEffect(() => {
-    try {
-      const d = window.localStorage.getItem("career-launch:diagnosis");
-      if (d) setDiag(JSON.parse(d));
-      const j = window.localStorage.getItem("career-launch:selected-jobs");
-      if (j) setJobs(JSON.parse(j));
-      const m = window.localStorage.getItem("career-launch:materials");
-      if (m) setMaterials((JSON.parse(m) as string[]).filter((x) => typeof x === "string"));
-      const ds = window.localStorage.getItem("career-launch:done-steps");
-      if (ds) setDoneIds(JSON.parse(ds));
-    } catch {
-      // localStorage 접근 불가 시 결과 없이 진행
-    }
-  }, []);
+    if (!isReady) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const p = await fetchProgress();
+        if (!alive) return;
+        if (p.diagnosis && typeof p.diagnosis.percent === "number") setDiag(p.diagnosis);
+        if (Array.isArray(p.selectedJobs)) setJobs(p.selectedJobs);
+        if (Array.isArray(p.materials)) setMaterials(p.materials.filter((x) => typeof x === "string"));
+        if (Array.isArray(p.doneSteps)) setDoneIds(p.doneSteps);
+      } catch {
+        // 조회 실패 시 결과 없이 진행
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [isReady]);
 
   const currentWeek = WEEKS.find((w) => w.week === STUDENT.currentWeek)!;
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
@@ -63,26 +69,19 @@ export default function LaunchDashboardPage() {
 
   // 이미 진행한 스텝 결과를 삭제(초기화)해 다시 안 한 상태로 되돌린다.
   const resetStep = (id: string) => {
-    try {
-      if (id === "w1s1") {
-        window.localStorage.removeItem("career-launch:diagnosis");
-        setDiag(null);
-      } else if (id === "w1s2") {
-        window.localStorage.removeItem("career-launch:selected-jobs");
-        window.localStorage.removeItem("career-launch:job-conditions");
-        setJobs([]);
-      } else if (id === "w1s3") {
-        window.localStorage.removeItem("career-launch:materials");
-        setMaterials([]);
-      } else {
-        const raw = window.localStorage.getItem("career-launch:done-steps");
-        const list = raw ? (JSON.parse(raw) as string[]) : [];
-        const next = list.filter((x) => x !== id);
-        window.localStorage.setItem("career-launch:done-steps", JSON.stringify(next));
-        setDoneIds(next);
-      }
-    } catch {
-      // 무시
+    if (id === "w1s1") {
+      setDiag(null);
+      void patchProgress({ diagnosis: null }).catch(() => {});
+    } else if (id === "w1s2") {
+      setJobs([]);
+      void patchProgress({ selectedJobs: [] }).catch(() => {});
+    } else if (id === "w1s3") {
+      setMaterials([]);
+      void patchProgress({ materials: [] }).catch(() => {});
+    } else {
+      const next = doneIds.filter((x) => x !== id);
+      setDoneIds(next);
+      void patchProgress({ doneSteps: next }).catch(() => {});
     }
   };
   const doneSteps = WEEKS.reduce(
