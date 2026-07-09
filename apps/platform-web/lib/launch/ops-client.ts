@@ -1,6 +1,7 @@
 // Career Launch 운영자(어드민) 클라이언트 — 프롬프트 편집 + 학생 진행 현황.
 import type { CareerProgress } from "./progress-client";
 import type { ResumeData } from "./resume-data";
+import type { CoverData } from "./cover-data";
 
 const TOKEN_KEY = "platform_access_token";
 
@@ -62,6 +63,8 @@ export type OpsStudentDetail = {
   state: CareerProgress;
   resume: ResumeData;
   resumeUpdatedAt: string | null;
+  cover: CoverData;
+  coverUpdatedAt: string | null;
 };
 
 export async function fetchOpsStudents(): Promise<OpsStudent[]> {
@@ -71,5 +74,12 @@ export async function fetchOpsStudents(): Promise<OpsStudent[]> {
 
 export async function fetchOpsStudentDetail(id: string): Promise<OpsStudentDetail> {
   const d = await req(`/career-launch/ops/students/${encodeURIComponent(id)}`, { headers: authHeaders() });
-  return { user: d.user as OpsStudentDetail["user"], state: (d.state as CareerProgress) ?? {}, resume: (d.resume as ResumeData) ?? {}, resumeUpdatedAt: (d.resumeUpdatedAt as string) ?? null };
+  return {
+    user: d.user as OpsStudentDetail["user"],
+    state: (d.state as CareerProgress) ?? {},
+    resume: (d.resume as ResumeData) ?? {},
+    resumeUpdatedAt: (d.resumeUpdatedAt as string) ?? null,
+    cover: (d.cover as CoverData) ?? {},
+    coverUpdatedAt: (d.coverUpdatedAt as string) ?? null
+  };
 }

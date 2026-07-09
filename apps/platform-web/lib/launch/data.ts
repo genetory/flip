@@ -125,9 +125,9 @@ export const WEEKS: WeekPlan[] = [
     steps: [
       {
         id: "w3s1",
-        title: "자기소개서 4문항 작성",
-        desc: "지원 동기·강점 등 4개 문항을 채워 목표 회사용 자기소개서를 써봐요.",
-        action: { label: "시작하기", href: "/career-launch/cover-letter" }
+        title: "대화로 자기소개서 채우기",
+        desc: "별도 작성 없이 AI와 대화하며 지원 동기·성장 과정·강점·포부 문항을 채워요. 답하는 대로 자소서가 자동으로 쌓여요.",
+        action: { label: "시작하기", href: "/career-launch/cover-collect" }
       },
       {
         id: "w3s2",

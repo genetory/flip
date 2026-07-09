@@ -13876,6 +13876,27 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
       "5. [학생 프로필]·[현재까지 데이터]에 이미 채워진 값은 절대 다시 묻지 마. 이미 아는 정보는 가볍게 확인만 하고, 비어있는 항목·섹션부터 이어가.\n" +
       "6. 기본정보~어학이 두루 채워지면 done=true, 따뜻한 마무리와 함께 '이력서 미리보기에서 확인할 수 있다'고 안내해. 얕으면 done 을 서두르지 마.\n" +
       "7. [현재까지 데이터]가 비어있으면 인사하고 basic 부터. 이미 저장된 데이터가 있으면 처음부터 다시 묻지 말고, 채워진 내용을 한 줄로 짚어준 뒤 '비어있는 섹션'부터 이어서 물어봐. 진행 중이면 재인사 없이 이어가."
+  },
+  cover: {
+    label: "대화로 자소서 채우기",
+    week: 3,
+    step: "스텝 1 · 자기소개서 문항 작성",
+    default:
+      "너는 한국 취업을 준비하는 외국인 유학생의 자기소개서(자소서)를 함께 쓰는 전문 커리어 코치야. 학생은 별도 빌더로 가지 않고, 너와의 대화만으로 자소서를 완성해. 목표는 대화로 각 문항의 답을 이끌어내 구조화된 data 로 쌓는 것.\n\n" +
+      "한국 자소서의 대표 문항(이 순서로 하나씩, 회사가 정해지면 그 회사 맞춤으로):\n" +
+      "1. 지원 동기 — 왜 이 직무/회사인지\n" +
+      "2. 성장 과정·경험 — 나를 만든 경험, 배운 점\n" +
+      "3. 강점·역량 — 직무와 연결되는 강점(근거·사례 포함)\n" +
+      "4. 입사 후 포부 — 입사 후 무엇을 어떻게 기여할지\n\n" +
+      "규칙:\n" +
+      "1. " + CAREER_TONE + " 한 번에 문항 하나씩. 학생 답에 먼저 짧게 공감·반응해줘.\n" +
+      "1-1. " + CAREER_DEPTH + " 한 문항이 충분히 채워지기 전엔 다음으로 넘어가지 마. 자소서는 '스토리'가 핵심이라 구체적 경험·상황·결과를 캐물어 답을 풍부하게 만들어.\n" +
+      "2. [대화가 끊기지 않게] 학생이 막막해하면 다그치지 말고, 예시 문장이나 고르기 쉬운 질문으로 바꿔. 모든 reply 는 학생이 바로 답할 수 있는 '다음 한 걸음'으로 끝나야 해.\n" +
+      "3. 학생의 답을 바탕으로 각 문항의 answer 를 자연스러운 자소서 문장으로 다듬어 data.items 에 담아(question=문항, answer=완성 문장). 학생이 말하지 않은 사실은 지어내지 마. 지원 회사를 말하면 data.company 에 담아.\n" +
+      "4. 매 턴 [현재까지 데이터]에 새 내용을 합쳐 data 전체를 누적 반환해(이전 answer 절대 삭제·누락 금지). 아직 안 쓴 문항의 answer 는 빈 문자열로 둬.\n" +
+      "5. [학생 프로필]·[현재까지 데이터]로 이미 아는 내용은 다시 묻지 말고, 비어있는 문항부터 이어가.\n" +
+      "6. 대표 문항이 두루 채워지면 done=true, 따뜻한 마무리와 함께 '자소서 미리보기에서 확인할 수 있다'고 안내해. 얕으면 done 을 서두르지 마.\n" +
+      "7. [현재까지 데이터]가 비어있으면 인사하고 지원 동기부터. 이미 저장된 데이터가 있으면 처음부터 다시 묻지 말고, 채워진 문항을 한 줄로 짚어준 뒤 비어있는 문항부터 이어가. 진행 중이면 재인사 없이 이어가."
   }
 };
 
@@ -14511,6 +14532,137 @@ app.get("/career-launch/resume-data", authenticate, async (req, res) => {
   }
 });
 
+// ── Career Launch 자기소개서 데이터 수집(대화형) ──
+const COVER_DATA_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "data", "done"],
+  properties: {
+    reply: { type: "string" },
+    done: { type: "boolean" },
+    data: {
+      type: "object",
+      additionalProperties: false,
+      required: ["company", "items"],
+      properties: {
+        company: { type: ["string", "null"] },
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["question", "answer"],
+            properties: { question: { type: "string" }, answer: { type: "string" } }
+          }
+        }
+      }
+    }
+  }
+} as const;
+
+const coverChatSchema = z.object({
+  messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(120).default([]),
+  data: z.record(z.string(), z.unknown()).optional(),
+  locale: z.string().max(10).optional()
+});
+
+// 자소서 데이터 정규화 — items[{question, answer}] + company.
+function normalizeCoverData(raw: unknown): Record<string, unknown> {
+  const src = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const company = typeof src.company === "string" && src.company.trim() ? src.company.trim() : null;
+  const items = Array.isArray(src.items)
+    ? src.items
+        .filter((x) => x && typeof x === "object")
+        .map((x) => x as Record<string, unknown>)
+        .map((x) => ({
+          question: typeof x.question === "string" ? x.question.trim() : "",
+          answer: typeof x.answer === "string" ? x.answer.trim() : ""
+        }))
+        .filter((x) => x.question)
+    : [];
+  return { company, items };
+}
+
+// 자소서 병합 — 문항(question) 기준 union, 새 answer 우선(비어있으면 기존 유지).
+function mergeCoverData(saved: Record<string, unknown>, incoming: Record<string, unknown>): Record<string, unknown> {
+  const so = normalizeCoverData(saved);
+  const io = normalizeCoverData(incoming);
+  const map = new Map<string, { question: string; answer: string }>();
+  for (const it of so.items as { question: string; answer: string }[]) map.set(it.question, it);
+  for (const it of io.items as { question: string; answer: string }[]) {
+    const prev = map.get(it.question);
+    // 새 답이 비어있고 기존에 답이 있으면 기존 유지.
+    map.set(it.question, { question: it.question, answer: it.answer || prev?.answer || "" });
+  }
+  return { company: (io.company as string | null) ?? (so.company as string | null), items: Array.from(map.values()) };
+}
+
+function hasCoverContent(d: Record<string, unknown>): boolean {
+  const items = Array.isArray(d.items) ? (d.items as { answer?: string }[]) : [];
+  return items.some((x) => (x.answer ?? "").trim().length > 0);
+}
+
+// POST /career-launch/cover-chat — 자소서 문항을 대화로 수집하고 누적 저장.
+app.post(
+  "/career-launch/cover-chat",
+  authenticate,
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-cover-chat", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = coverChatSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const { messages, data, locale } = parsed.data;
+    try {
+      const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
+      const savedNorm = normalizeCoverData(data);
+      const hasSaved = hasCoverContent(savedNorm);
+      const systemPrompt =
+        (await getCareerPrompt("cover")) + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "reply": string, "data": { "company": string|null, "items": [{ "question": string, "answer": string }] }, "done": boolean }' +
+        aiLangDirective(locale);
+      const convo = messages.length
+        ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
+        : hasSaved
+          ? "(아직 이번 세션 대화는 없음 — 단, [현재까지 데이터]에 이미 쓴 문항이 있음. 처음부터 다시 묻지 말고, 채운 문항을 짧게 짚은 뒤 비어있는 문항부터 이어가.)"
+          : "(아직 대화 없음 — 인사하고 지원 동기부터 물어봐)";
+      const userPrompt =
+        (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        `[현재까지 데이터]\n${JSON.stringify(data ?? {})}\n\n` +
+        `지금까지 대화:\n${convo}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "cover_chat", COVER_DATA_SCHEMA, true)) as {
+        reply?: unknown;
+        data?: unknown;
+        done?: unknown;
+      };
+      const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
+      const done = pj.done === true;
+      if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
+      const existing = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: req.auth!.userId } });
+      const savedContent = (existing?.content && typeof existing.content === "object" ? existing.content : {}) as Record<string, unknown>;
+      const coverData = mergeCoverData(savedContent, pj.data as Record<string, unknown>);
+      await prisma.careerCoverLetterData.upsert({
+        where: { studentUserId: req.auth!.userId },
+        create: { studentUserId: req.auth!.userId, content: coverData as object },
+        update: { content: coverData as object }
+      });
+      return res.json({ ok: true, reply, data: coverData, done });
+    } catch (err) {
+      console.error("[career-launch/cover-chat] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to continue chat" });
+    }
+  }
+);
+
+// GET /career-launch/cover-data — 로그인한 학생의 누적 자소서 데이터 조회.
+app.get("/career-launch/cover-data", authenticate, async (req, res) => {
+  try {
+    const row = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: req.auth!.userId } });
+    return res.json({ ok: true, data: row?.content ?? {}, updatedAt: row?.updatedAt ?? null });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // ── Career Launch 진행 상태(진단·직무·정리정보·완료스텝) — 계정 기준 저장, 기기 간 동기화 ──
 // GET /career-launch/progress — 저장된 진행 상태 조회.
 app.get("/career-launch/progress", authenticate, async (req, res) => {
@@ -14637,10 +14789,11 @@ app.get("/career-launch/ops/students/:id", authenticate, requireRoles([MemberRol
   const id = typeof req.params.id === "string" ? req.params.id : "";
   if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
   try {
-    const [user, progress, resume] = await Promise.all([
+    const [user, progress, resume, cover] = await Promise.all([
       prisma.user.findUnique({ where: { id }, select: { id: true, name: true, realName: true, email: true, phoneNumber: true } }),
       prisma.careerLaunchProgress.findUnique({ where: { studentUserId: id } }),
-      prisma.careerResumeData.findUnique({ where: { studentUserId: id } })
+      prisma.careerResumeData.findUnique({ where: { studentUserId: id } }),
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: id } })
     ]);
     if (!user) return res.status(404).json({ ok: false, message: "student not found" });
     return res.json({
@@ -14648,7 +14801,9 @@ app.get("/career-launch/ops/students/:id", authenticate, requireRoles([MemberRol
       user,
       state: progress?.state ?? {},
       resume: resume?.content ?? {},
-      resumeUpdatedAt: resume?.updatedAt ?? null
+      resumeUpdatedAt: resume?.updatedAt ?? null,
+      cover: cover?.content ?? {},
+      coverUpdatedAt: cover?.updatedAt ?? null
     });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });

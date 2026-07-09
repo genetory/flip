@@ -5,8 +5,10 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { fetchOpsStudentDetail, type OpsStudentDetail } from "../../../../../lib/launch/ops-client";
 import { hasResumeContent } from "../../../../../lib/launch/resume-data";
+import { hasCoverContent } from "../../../../../lib/launch/cover-data";
 import { RECOMMENDED_JOBS } from "../../../../../lib/launch/data";
 import { ResumeRender } from "../../../../../components/launch/resume-render";
+import { CoverRender } from "../../../../../components/launch/cover-render";
 import { OperatorResumeFeedback } from "../../../../../components/launch/operator-resume-feedback";
 import { Card, LaunchContainer, Pill, SectionTitle } from "../../../../../components/launch/ui";
 
@@ -164,6 +166,16 @@ export default function LaunchOpsStudentDetailPage() {
                 <ResumeRender data={detail.resume} />
               ) : (
                 <Card className="!p-4 text-[13px] text-[#8B95A1]">아직 이력서를 만들지 않았어요.</Card>
+              )}
+            </div>
+
+            {/* 대화로 만든 자기소개서 */}
+            <div className="mt-6">
+              <SectionTitle>대화로 만든 자기소개서</SectionTitle>
+              {hasCoverContent(detail.cover) ? (
+                <CoverRender data={detail.cover} />
+              ) : (
+                <Card className="!p-4 text-[13px] text-[#8B95A1]">아직 자기소개서를 만들지 않았어요.</Card>
               )}
             </div>
 
