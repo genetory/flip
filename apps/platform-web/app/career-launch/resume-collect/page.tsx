@@ -49,12 +49,21 @@ export default function ResumeCollectPage() {
       } catch {
         // 저장분 없거나 조회 실패 — 빈 데이터로 시작
       }
+      // 이어하기(저장분 있음) — 스피너만 보이지 않게 즉시 반기고 미리보기를 띄운다.
+      const continuing = hasResumeContent(seed);
+      if (continuing) {
+        setMessages([{ role: "bot", text: `${displayName}님, 다시 오셨네요 👋 지금까지 채운 이력서는 아래에 있어요. 이어서 마저 채워볼게요!` }]);
+      }
       try {
         const { reply, data: merged } = await requestResumeChat([], seed);
         setData(merged);
-        setMessages([{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 대화하면서 이력서를 함께 채워볼까요?` }]);
+        setMessages((m) =>
+          continuing
+            ? [...m, { role: "bot", text: reply }]
+            : [{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 대화하면서 이력서를 함께 채워볼까요?` }]
+        );
       } catch {
-        setMessages([{ role: "bot", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
+        setMessages((m) => (continuing ? [...m, { role: "bot", text: "잠시 문제가 생겼어요 😥 다시 한 번 시도해줄래요?" }] : [{ role: "bot", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]));
       } finally {
         setLoading(false);
       }
