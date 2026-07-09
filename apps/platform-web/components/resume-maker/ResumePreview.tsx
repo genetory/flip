@@ -419,7 +419,15 @@ export function computePageBreaks(root: HTMLElement, pageH: number): { starts: n
       if (t > pageTop + 1 && t <= pageBottom) next = t;
       else if (t > pageBottom) break;
     }
-    if (next < 0) {
+    if (next >= 0) {
+      // 'next'에서 시작하는 블록이 한 페이지보다 크면(내부에 분할 지점 없음) 어차피
+      // 잘려야 하므로, 시작점에서 끊어 현재 페이지를 비우지 말고 경계에서 채워 자른다.
+      let after = total;
+      for (const t of tops) {
+        if (t > next) { after = t; break; }
+      }
+      if (after - next > pageH) next = pageBottom;
+    } else {
       // 이 페이지 안에 안전한 분할 지점이 없다(한 블록이 한 페이지보다 큼).
       // 내용 유실 없이 이어지도록 페이지 경계에서 그대로 자른다.
       next = pageBottom;
