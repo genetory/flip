@@ -11,7 +11,7 @@ import { CoverRender } from "../../../components/launch/cover-render";
 import { fetchProgress } from "../../../lib/launch/progress-client";
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data";
-import { weekDoneCount, type LaunchData } from "../../../lib/launch/step-status";
+import { weekDoneCount, weekUnlocked, type LaunchData } from "../../../lib/launch/step-status";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -163,36 +163,38 @@ export default function LaunchDashboardPage() {
                   {WEEKS.map((w) => {
                     const done = weekDoneCount(w.steps, data);
                     const total = w.steps.length;
-                    const status = done === total ? "완료" : done > 0 ? "진행 중" : "시작 전";
-                    const tone = done === total ? "green" : done > 0 ? "blue" : "grey";
-                    return (
-                      <li key={w.week}>
-                        <Link href={`/career-launch/week/${w.week}`} className="block">
-                          <Card className="!p-4 transition hover:border-[#0B46E8]/40 md:!p-5">
-                            <div className="flex items-start gap-3.5">
-                              <span
-                                className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12.5px] font-black leading-none ${
-                                  done === total ? "bg-emerald-500 text-white" : done > 0 ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#8B95A1]"
-                                }`}
-                              >
-                                W{w.week}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                                  <p className="text-[15.5px] font-black tracking-[-0.01em] text-[#191F28] md:text-[16.5px]">{w.title}</p>
-                                  <Pill tone={tone}>{status}</Pill>
-                                </div>
-                                <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">{w.subtitle}</p>
-                                <div className="mt-2 flex items-center gap-2">
-                                  <span className="rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[11px] font-bold text-[#0B46E8]">📦 {WEEK_DELIVERABLE[w.week]}</span>
-                                  <span className="text-[11.5px] font-semibold text-[#8B95A1]">스텝 {done}/{total}</span>
-                                </div>
-                              </div>
+                    const unlocked = weekUnlocked(w.week, data);
+                    const status = !unlocked ? "잠김" : done === total ? "완료" : done > 0 ? "진행 중" : "시작 전";
+                    const tone = !unlocked ? "grey" : done === total ? "green" : done > 0 ? "blue" : "grey";
+                    const card = (
+                      <Card className={`!p-4 md:!p-5 ${unlocked ? "transition hover:border-[#0B46E8]/40" : "opacity-60"}`}>
+                        <div className="flex items-start gap-3.5">
+                          <span
+                            className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12.5px] font-black leading-none ${
+                              !unlocked ? "bg-[#F2F4F6] text-[#B0B8C1]" : done === total ? "bg-emerald-500 text-white" : done > 0 ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#8B95A1]"
+                            }`}
+                          >
+                            {unlocked ? `W${w.week}` : "🔒"}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                              <p className={`text-[15.5px] font-black tracking-[-0.01em] md:text-[16.5px] ${unlocked ? "text-[#191F28]" : "text-[#8B95A1]"}`}>{w.title}</p>
+                              <Pill tone={tone}>{status}</Pill>
                             </div>
-                          </Card>
-                        </Link>
-                      </li>
+                            <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">{w.subtitle}</p>
+                            {unlocked ? (
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[11px] font-bold text-[#0B46E8]">📦 {WEEK_DELIVERABLE[w.week]}</span>
+                                <span className="text-[11.5px] font-semibold text-[#8B95A1]">스텝 {done}/{total}</span>
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-[11.5px] font-medium text-[#B0B8C1]">🔒 Week {w.week - 1}를 완료하면 열려요</p>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
                     );
+                    return <li key={w.week}>{unlocked ? <Link href={`/career-launch/week/${w.week}`} className="block">{card}</Link> : card}</li>;
                   })}
                 </ol>
               </div>
