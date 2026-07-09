@@ -161,7 +161,7 @@ export function ResumeSheet({
           {sectionTitle("경력", key)}
           <div className="space-y-2.5">
             {items.map((c, i) => (
-              <div key={i}>
+              <div key={i} data-break>
                 <div className="flex items-baseline justify-between gap-2">
                   <p className="font-semibold text-slate-800">
                     {c.position}
@@ -184,7 +184,7 @@ export function ResumeSheet({
           {sectionTitle("활동 · 프로젝트", key)}
           <div className="space-y-2.5">
             {items.map((a, i) => (
-              <div key={i}>
+              <div key={i} data-break>
                 <div className="flex items-baseline justify-between gap-2">
                   <p className="font-semibold text-slate-800">
                     {a.title}
@@ -213,7 +213,7 @@ export function ResumeSheet({
           {sectionTitle("학력", key)}
           <div className="space-y-1.5">
             {items.map((e, i) => (
-              <div key={i} className="flex items-baseline justify-between gap-2">
+              <div key={i} data-break className="flex items-baseline justify-between gap-2">
                 <p className="text-slate-800">
                   {e.schoolName}
                   {nonEmpty(e.major) ? <span className="text-slate-500"> · {e.major}</span> : null}
@@ -235,7 +235,7 @@ export function ResumeSheet({
             {items.map((c, i) => {
               const meta = [c.issuer, c.date].filter(nonEmpty).join(" · ");
               return (
-                <div key={i} className="flex items-baseline justify-between gap-2">
+                <div key={i} data-break className="flex items-baseline justify-between gap-2">
                   <p className="text-slate-800">{c.name}</p>
                   {meta ? <span className="shrink-0 text-[11px] text-slate-400">{meta}</span> : null}
                 </div>
@@ -263,7 +263,7 @@ export function ResumeSheet({
           {sectionTitle("어학", key)}
           <div className="space-y-1">
             {items.map((l, i) => (
-              <div key={i} className="flex items-baseline justify-between gap-2">
+              <div key={i} data-break className="flex items-baseline justify-between gap-2">
                 <p className="text-slate-800">{l.language}</p>
                 {nonEmpty(l.level) ? <span className="shrink-0 text-[11px] text-slate-400">{l.level}</span> : null}
               </div>
@@ -280,7 +280,7 @@ export function ResumeSheet({
           {sectionTitle("링크", key)}
           <div className="space-y-1">
             {items.map((l, i) => (
-              <div key={i} className="flex items-baseline justify-between gap-2">
+              <div key={i} data-break className="flex items-baseline justify-between gap-2">
                 <p className="min-w-0 break-all text-slate-800">{nonEmpty(l.label) ? l.label : l.url}</p>
                 {nonEmpty(l.label) ? (
                   <span className="shrink-0 truncate text-[11px] text-slate-400" style={{ maxWidth: "55%" }}>
@@ -400,22 +400,32 @@ export function ResumeSheet({
 export function computePageBreaks(root: HTMLElement, pageH: number): { starts: number[]; total: number } {
   const total = root.scrollHeight;
   const rootTop = root.getBoundingClientRect().top;
-  // 헤더·섹션을 블록으로 본다(중첩 섹션 없음). 세로 위치(top) 기준 정렬해 2단
-  // 레이아웃에서도 위→아래 순으로 페이지를 나눈다.
-  const blocks = Array.from(root.querySelectorAll<HTMLElement>("header, section"))
-    .map((el) => {
-      const r = el.getBoundingClientRect();
-      return { top: r.top - rootTop, bottom: r.top - rootTop + r.height };
-    })
-    .sort((a, b) => a.top - b.top);
+  // 안전하게 페이지를 나눌 수 있는 지점(top) 후보 — 헤더·섹션 시작 + 섹션 내부의
+  // 항목([data-break]). 항목 단위로 나눌 수 있어야 긴 섹션이 페이지에 꽉 차고,
+  // 통째로 다음 장으로 밀려 빈 공간이 생기는 문제를 막는다.
+  const candidates = Array.from(root.querySelectorAll<HTMLElement>("header, section, [data-break]"))
+    .map((el) => el.getBoundingClientRect().top - rootTop)
+    .filter((t) => t > 0);
+  const tops = Array.from(new Set(candidates)).sort((a, b) => a - b);
+
   const starts = [0];
   let pageTop = 0;
-  for (const b of blocks) {
-    // 현재 페이지(pageTop~pageTop+pageH)에 이 블록의 끝이 안 들어가면 다음 페이지로.
-    if (b.bottom - pageTop > pageH && b.top > pageTop + 1) {
-      pageTop = b.top;
-      starts.push(pageTop);
+  // 페이지를 채우며 내려간다 — 각 페이지에서 '들어가는 가장 먼 후보'까지 채운다.
+  for (let guard = 0; guard < 400 && pageTop + pageH < total - 1; guard++) {
+    const pageBottom = pageTop + pageH;
+    // pageTop 이후, 현재 페이지 안에 들어가는 가장 먼 분할 지점.
+    let next = -1;
+    for (const t of tops) {
+      if (t > pageTop + 1 && t <= pageBottom) next = t;
+      else if (t > pageBottom) break;
     }
+    if (next < 0) {
+      // 이 페이지 안에 안전한 분할 지점이 없다(한 블록이 한 페이지보다 큼).
+      // 내용 유실 없이 이어지도록 페이지 경계에서 그대로 자른다.
+      next = pageBottom;
+    }
+    starts.push(next);
+    pageTop = next;
   }
   return { starts, total };
 }
