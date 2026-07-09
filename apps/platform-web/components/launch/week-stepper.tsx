@@ -76,9 +76,11 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
   };
 
   const isDone = (id: string) => {
+    const doneMarked = (prog.doneSteps ?? []).includes(id);
     const kind = STEP_KIND[id];
-    if (kind) return kindDone(kind);
-    return (prog.doneSteps ?? []).includes(id);
+    // 데이터로 완료되거나, 저장된 완료 표시(doneSteps)가 있으면 완료.
+    if (kind) return kindDone(kind) || doneMarked;
+    return doneMarked;
   };
 
   const toggle = (id: string) => {
