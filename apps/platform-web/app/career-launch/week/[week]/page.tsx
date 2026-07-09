@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { WEEKS } from "../../../../lib/launch/data";
-import { Card, Pill, SectionTitle, Stepper } from "../../../../components/launch/ui";
+import { Card, Pill, SectionTitle } from "../../../../components/launch/ui";
+import { WeekStepper } from "../../../../components/launch/week-stepper";
+import { WeekDocs } from "../../../../components/launch/week-docs";
 import { Header } from "../../../../components/site/Header";
 import { Footer } from "../../../../components/site/Footer";
 
@@ -54,17 +56,20 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
 
           <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
             {/* ── 메인: 스텝별 해야 할 일 ── */}
-            <div>
+            <div className="min-w-0">
               <SectionTitle sub={`총 ${plan.steps.length}단계 중 ${doneCount}단계 완료했어요 · 끝낸 단계는 번호를 콕 눌러 체크해요`}>
                 이번 주 해야 할 일
               </SectionTitle>
               <Card className="md:!p-6">
-                <Stepper steps={plan.steps} />
+                <WeekStepper steps={plan.steps} />
               </Card>
             </div>
 
             {/* ── 사이드바 ── */}
-            <div className="space-y-7">
+            <div className="min-w-0 space-y-7">
+              {/* 내 이력서·자소서 — 2주차부터 항상 미리보기 */}
+              {plan.week >= 2 ? <WeekDocs week={plan.week} /> : null}
+
               {/* 세미나 정보 */}
               <div>
                 <SectionTitle>세미나 정보</SectionTitle>

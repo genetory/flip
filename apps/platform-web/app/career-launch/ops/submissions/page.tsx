@@ -17,7 +17,7 @@ export default function LaunchOpsSubmissionsPage() {
 
   return (
     <main className="pb-16">
-      <LaunchContainer className="!max-w-[640px] pt-6">
+      <LaunchContainer className="!max-w-6xl pt-6 md:pt-10">
         <div className="grid grid-cols-2 gap-2.5">
           <Card className="!p-4 text-center">
             <p className="text-[22px] font-black text-[#0B46E8]">{subs.length}</p>

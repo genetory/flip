@@ -1,0 +1,89 @@
+// 테스트용 — student@test.com 계정에 Career Launch 전체를 완료한 것처럼 목업 데이터 주입.
+// 실행: cd apps/api && set -a; . ../../.env; set +a; node --import tsx scripts/seed-career-launch-demo.ts
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+const EMAIL = "student@test.com";
+
+const ALL_STEPS = [
+  "w1s1", "w1s2", "w1s3", "w1s4",
+  "w2s1", "w2s2", "w2s3", "w2s4",
+  "w3s1", "w3s2", "w3s3", "w3s4",
+  "w4s1", "w4s2", "w4s3", "w4s4"
+];
+
+const progressState = {
+  diagnosis: {
+    percent: 72,
+    level: "방향은 뚜렷하고 서류만 다듬으면 충분히 경쟁력 있어요",
+    strengths: ["다국어(한국어·영어·베트남어) 소통 능력", "데이터 분석 프로젝트 경험", "성실하고 배우려는 태도"],
+    improvements: ["2주차에 대표 이력서 완성하기", "3주차 자기소개서 문항별로 다듬기", "E-7 비자 지원 가능 기업 리스트업"]
+  },
+  selectedJobs: ["백엔드 개발자", "프론트엔드 개발자", "소프트웨어 엔지니어"],
+  materials: [
+    "백엔드 개발자: 서버·API 설계·구현이 주 업무, Java/Spring·DB 지식이 핵심",
+    "프론트엔드 개발자: 사용자 화면 구현, React·TypeScript 역량이 중요",
+    "소프트웨어 엔지니어: 전반적 개발 역량과 CS 기초(자료구조·알고리즘)가 바탕"
+  ],
+  doneSteps: ALL_STEPS
+};
+
+const resumeContent = {
+  basic: { name: "응우옌 마이", email: "mai@example.com", phone: "010-1234-5678", summary: "데이터로 문제를 푸는 걸 좋아하는 백엔드 개발자 지망생입니다." },
+  educations: [{ school: "고려대학교", major: "컴퓨터학과", degree: "학사", period: "2020.03~2024.02", note: null }],
+  experiences: [
+    { title: "백엔드 인턴", org: "네이버", period: "2023.06~2023.12", bullets: ["Java/Spring 기반 API 응답 속도를 30% 개선", "일 100만 건 로그 처리 파이프라인 구축에 참여"] },
+    { title: "데이터 분석 동아리", org: "고려대 DSC", period: "2022.03~2023.02", bullets: ["팀 프로젝트 5건 리딩, 교내 공모전 1회 입상"] }
+  ],
+  skills: ["Java", "Spring", "Python", "SQL", "Git"],
+  languages: [
+    { language: "한국어", level: "TOPIK 5급" },
+    { language: "영어", level: "업무 회화 가능" },
+    { language: "베트남어", level: "모국어" }
+  ]
+};
+
+const coverContent = {
+  company: "네이버",
+  items: [
+    { question: "지원 동기 — 왜 이 직무/회사인지", answer: "어릴 때부터 데이터로 문제를 푸는 과정에 매력을 느꼈고, 네이버의 데이터 기반 서비스에 기여하고 싶어 백엔드 개발자로 지원했습니다." },
+    { question: "성장 과정·경험 — 나를 만든 경험, 배운 점", answer: "유학 생활 동안 다양한 국적의 팀원과 협업하며 소통과 책임감을 배웠고, 데이터 분석 동아리에서 프로젝트를 이끌며 문제 해결 능력을 키웠습니다." },
+    { question: "강점·역량 — 직무와 연결되는 강점", answer: "네이버 인턴 시절 Java/Spring 기반 API 응답 속도를 30% 개선한 경험이 있으며, 다국어 소통 능력으로 글로벌 협업에도 기여할 수 있습니다." },
+    { question: "입사 후 포부 — 입사 후 무엇을 어떻게 기여할지", answer: "입사 후 안정적이고 빠른 백엔드 시스템을 만드는 데 기여하고, 글로벌 사용자를 위한 서비스 확장에 제 언어·문화 이해를 더하고 싶습니다." }
+  ]
+};
+
+async function main() {
+  const user = await prisma.user.findFirst({ where: { email: EMAIL } });
+  if (!user) throw new Error(`user not found: ${EMAIL}`);
+  const uid = user.id;
+
+  await prisma.careerLaunchProgress.upsert({
+    where: { studentUserId: uid },
+    create: { studentUserId: uid, state: progressState },
+    update: { state: progressState }
+  });
+  await prisma.careerResumeData.upsert({
+    where: { studentUserId: uid },
+    create: { studentUserId: uid, content: resumeContent },
+    update: { content: resumeContent }
+  });
+  await prisma.careerCoverLetterData.upsert({
+    where: { studentUserId: uid },
+    create: { studentUserId: uid, content: coverContent },
+    update: { content: coverContent }
+  });
+
+  console.log(`✓ seeded Career Launch demo data for ${EMAIL} (userId=${uid})`);
+  console.log(`  - progress: diagnosis ${progressState.diagnosis.percent}%, jobs ${progressState.selectedJobs.length}, materials ${progressState.materials.length}, doneSteps ${progressState.doneSteps.length}`);
+  console.log(`  - resume: ${resumeContent.experiences.length} experiences, ${resumeContent.skills.length} skills`);
+  console.log(`  - cover: ${coverContent.items.length} items @ ${coverContent.company}`);
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());

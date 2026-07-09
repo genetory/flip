@@ -4,15 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { RECOMMENDED_JOBS, STUDENT, type RecommendedJob } from "../../../lib/launch/data";
 import { requestJobChat, type JobChatMsg } from "../../../lib/launch/job-chat-client";
+import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
 // Week 1 — AI와 실제로 대화하며 관심 직무를 이끌어낸다. 백엔드(/career-launch/job-chat)가
 // 대화를 이어받아 다음 질문 + 후보 풀에서 고른 추천 직무를 돌려주고, 채팅 안에서 바로
-// 골라 마음에 드는 3개가 나올 때까지 대화한다.
+// 골라 마음에 드는 3개가 나올 때까지 대화한다. 선정 직무는 백엔드(progress)에 저장.
 const MAX_PICK = 3;
-const KEY_SEL = "career-launch:selected-jobs";
 
 type Msg =
   | { role: "bot" | "user"; kind: "text"; text: string }
@@ -53,18 +53,18 @@ export default function LaunchJobsPage() {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
     const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
-    let sel: string[] = [];
-    if (!restart) {
-      try {
-        const s = window.localStorage.getItem(KEY_SEL);
-        if (s) sel = JSON.parse(s);
-      } catch {
-        // 무시
-      }
-    }
-    setSelected(sel);
     setLoading(true);
     void (async () => {
+      let sel: string[] = [];
+      if (!restart) {
+        try {
+          const { selectedJobs } = await fetchProgress();
+          if (Array.isArray(selectedJobs)) sel = selectedJobs;
+        } catch {
+          // 무시
+        }
+      }
+      setSelected(sel);
       try {
         const { reply, recommend } = await requestJobChat([], sel);
         appendFromAi(reply || `${displayName}님, 반가워요 👋 어떤 일에 관심이 있는지 편하게 이야기해줄래요?`, recommend);
@@ -129,11 +129,9 @@ export default function LaunchJobsPage() {
   };
 
   const save = () => {
-    try {
-      window.localStorage.setItem(KEY_SEL, JSON.stringify(selected));
-    } catch {
+    void patchProgress({ selectedJobs: selected }).catch(() => {
       // 저장 실패해도 화면 상태 유지
-    }
+    });
     setSaved(true);
     setMessages((m) => [
       ...m,

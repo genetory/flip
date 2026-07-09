@@ -4,14 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestMaterialChat, type JobChatMsg } from "../../../lib/launch/job-chat-client";
+import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
 // Week 1 스텝3 — 선택한 직무·프로필을 참고해 AI 코치가 그 직무를 깊이 이해하도록 대화로 이끈다.
-const KEY_SEL = "career-launch:selected-jobs";
-const KEY_MAT = "career-launch:materials";
-
+// 선정 직무·정리한 직무정보는 백엔드(progress)에 저장 → 기기 간 동기화.
 type Msg = { role: "bot" | "user"; text: string };
 
 export default function LaunchMaterialsPage() {
@@ -29,11 +28,9 @@ export default function LaunchMaterialsPage() {
   const endRef = useRef<HTMLDivElement>(null);
 
   const saveMaterials = (list: string[]) => {
-    try {
-      window.localStorage.setItem(KEY_MAT, JSON.stringify(list));
-    } catch {
-      // 무시
-    }
+    void patchProgress({ materials: list }).catch(() => {
+      // 저장 실패해도 화면 상태 유지
+    });
   };
 
   // 정리한 직무 정보는 대화가 이어져도 지우지 않고 계속 쌓는다(중복 제외).
@@ -53,25 +50,18 @@ export default function LaunchMaterialsPage() {
   useEffect(() => {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
-    let sel: string[] = [];
-    try {
-      const s = window.localStorage.getItem(KEY_SEL);
-      if (s) sel = JSON.parse(s);
-    } catch {
-      // 무시
-    }
-    setSelected(sel);
-    // 이전에 정리해둔 직무 정보를 복원해 계속 이어서 쌓는다.
-    let saved: string[] = [];
-    try {
-      const m = window.localStorage.getItem(KEY_MAT);
-      if (m) saved = JSON.parse(m);
-    } catch {
-      // 무시
-    }
-    if (saved.length) setMaterials(saved);
     setLoading(true);
     void (async () => {
+      // 선정 직무 + 이전에 정리해둔 직무 정보를 백엔드에서 복원해 이어서 쌓는다.
+      let sel: string[] = [];
+      try {
+        const { selectedJobs, materials: savedMat } = await fetchProgress();
+        if (Array.isArray(selectedJobs)) sel = selectedJobs;
+        setSelected(sel);
+        if (Array.isArray(savedMat) && savedMat.length) setMaterials(savedMat);
+      } catch {
+        // 무시
+      }
       try {
         const { reply, materials: mats } = await requestMaterialChat([], sel);
         if (mats.length) setMaterials((prev) => mergeMaterials(prev, mats));

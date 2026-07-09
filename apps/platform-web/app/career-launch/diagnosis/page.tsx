@@ -4,14 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestDiagnosisChat, type DiagnosisResult, type JobChatMsg } from "../../../lib/launch/job-chat-client";
+import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
 import { Card } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
 // Week 1 스텝1 — AI 코치가 짧은 대화로 취업 준비 상태를 진단하고, 준비도·강점·보완점을 준다.
-const KEY_DIAG = "career-launch:diagnosis";
-
+// 진단 결과는 백엔드(career-launch/progress)에 계정 기준으로 저장 → 기기 간 동기화.
 type Msg = { role: "bot" | "user"; text: string };
 
 export default function LaunchDiagnosisPage() {
@@ -46,19 +46,18 @@ export default function LaunchDiagnosisPage() {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
     // 이전에 진단한 결과가 있으면 대화 대신 그 결과를 바로 보여준다(다시 보기).
-    try {
-      const saved = window.localStorage.getItem(KEY_DIAG);
-      if (saved) {
-        const s = JSON.parse(saved) as Partial<DiagnosisResult>;
-        if (typeof s?.percent === "number") {
+    void (async () => {
+      try {
+        const { diagnosis: s } = await fetchProgress();
+        if (s && typeof s.percent === "number") {
           setResult({ percent: s.percent, level: s.level ?? "", strengths: s.strengths ?? [], improvements: s.improvements ?? [] });
           return;
         }
+      } catch {
+        // 무시하고 새 진단 시작
       }
-    } catch {
-      // 무시하고 새 진단 시작
-    }
-    startChat();
+      startChat();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady]);
 
@@ -81,9 +80,9 @@ export default function LaunchDiagnosisPage() {
         if (done && r) {
           setResult(r);
           try {
-            window.localStorage.setItem(KEY_DIAG, JSON.stringify({ percent: r.percent, level: r.level, strengths: r.strengths, improvements: r.improvements }));
+            await patchProgress({ diagnosis: { percent: r.percent, level: r.level, strengths: r.strengths, improvements: r.improvements } });
           } catch {
-            // 무시
+            // 저장 실패해도 화면엔 결과 표시
           }
         }
       } catch {

@@ -89,21 +89,21 @@ export const WEEKS: WeekPlan[] = [
     steps: [
       {
         id: "w2s1",
-        title: "이력서 기본 항목 작성",
-        desc: "기본 정보·학력·연락처 같은 필수 항목부터 채워 이력서의 뼈대를 만들어봐요.",
-        action: { label: "시작하기", href: "/career-launch/resume" }
+        title: "대화로 이력서 시작하기",
+        desc: "별도 작성 없이 AI와 대화하며 기본정보·학력을 채워요. 답하는 대로 이력서 데이터가 자동으로 쌓여요.",
+        action: { label: "시작하기", href: "/career-launch/resume-collect" }
       },
       {
         id: "w2s2",
-        title: "경력·경험 3개 이상 정리",
-        desc: "지난 주 모아둔 재료로 프로젝트·인턴·활동을 3개 이상 정리해요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
-        action: { label: "시작하기", href: "/career-launch/resume" }
+        title: "경력·경험 대화로 정리",
+        desc: "인턴·프로젝트·활동을 AI와 대화하며 풀어내요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
+        action: { label: "시작하기", href: "/career-launch/resume-collect" }
       },
       {
         id: "w2s3",
-        title: "AI 이력서 진단으로 보완",
-        desc: "완성한 이력서를 AI로 진단해 완성도와 부족한 부분을 확인하고 채워봐요.",
-        action: { label: "시작하기", href: "/career-launch/resume" }
+        title: "스킬·어학 정리",
+        desc: "직무 스킬과 어학 능력을 AI와 대화하며 정리해요. 이력서의 마지막 조각을 채우면 대표 이력서가 완성돼요.",
+        action: { label: "시작하기", href: "/career-launch/resume-collect" }
       },
       {
         id: "w2s4",
@@ -125,9 +125,9 @@ export const WEEKS: WeekPlan[] = [
     steps: [
       {
         id: "w3s1",
-        title: "자기소개서 4문항 작성",
-        desc: "지원 동기·강점 등 4개 문항을 채워 목표 회사용 자기소개서를 써봐요.",
-        action: { label: "시작하기", href: "/career-launch/cover-letter" }
+        title: "대화로 자기소개서 채우기",
+        desc: "별도 작성 없이 AI와 대화하며 지원 동기·성장 과정·강점·포부 문항을 채워요. 답하는 대로 자소서가 자동으로 쌓여요.",
+        action: { label: "시작하기", href: "/career-launch/cover-collect" }
       },
       {
         id: "w3s2",

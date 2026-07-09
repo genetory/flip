@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { CULTURE_LESSONS } from "../../../../lib/launch/data";
+import { fetchProgress, patchProgress } from "../../../../lib/launch/progress-client";
 import { Card } from "../../../../components/launch/ui";
 import { Header } from "../../../../components/site/Header";
 import { Footer } from "../../../../components/site/Footer";
 
 // Week 별 '한국 기업문화·예절' 학습 카드. 핵심 포인트를 읽고 '학습 완료'로 체크하면
-// 대시보드 스텝이 완료 처리된다(career-launch:done-steps 에 스텝 id 저장).
-const KEY_DONE = "career-launch:done-steps";
+// 대시보드 스텝이 완료 처리된다(백엔드 progress.doneSteps 에 스텝 id 저장).
 
 export default function CultureLessonPage() {
   const params = useParams();
@@ -24,27 +24,31 @@ export default function CultureLessonPage() {
   const quizDone = quiz.length === 0 || answeredCount === quiz.length;
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(KEY_DONE);
-      const list = raw ? (JSON.parse(raw) as string[]) : [];
-      if (list.includes(id)) setDone(true);
-    } catch {
-      // 무시
-    }
+    let alive = true;
+    void (async () => {
+      try {
+        const { doneSteps } = await fetchProgress();
+        if (alive && Array.isArray(doneSteps) && doneSteps.includes(id)) setDone(true);
+      } catch {
+        // 무시
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, [id]);
 
   const complete = () => {
-    try {
-      const raw = window.localStorage.getItem(KEY_DONE);
-      const list = raw ? (JSON.parse(raw) as string[]) : [];
-      if (!list.includes(id)) {
-        list.push(id);
-        window.localStorage.setItem(KEY_DONE, JSON.stringify(list));
-      }
-    } catch {
-      // 저장 실패해도 화면 완료 처리
-    }
     setDone(true);
+    void (async () => {
+      try {
+        const { doneSteps } = await fetchProgress();
+        const list = Array.isArray(doneSteps) ? doneSteps : [];
+        if (!list.includes(id)) await patchProgress({ doneSteps: [...list, id] });
+      } catch {
+        // 저장 실패해도 화면 완료 처리
+      }
+    })();
   };
 
   return (

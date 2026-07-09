@@ -69,6 +69,9 @@ model User {
   programFeedbacks                     ProgramFeedback[]             @relation("ProgramFeedbackAuthor")
   careerLaunchFeedbacksReceived        CareerLaunchFeedback[]        @relation("CareerLaunchFeedbackStudent")
   careerLaunchFeedbacksAuthored        CareerLaunchFeedback[]        @relation("CareerLaunchFeedbackAuthor")
+  careerResumeData                     CareerResumeData?             @relation("CareerResumeDataStudent")
+  careerCoverLetterData                CareerCoverLetterData?        @relation("CareerCoverLetterDataStudent")
+  careerLaunchProgress                 CareerLaunchProgress?         @relation("CareerLaunchProgressStudent")
   certificatesIssued                   Certificate[]                 @relation("CertificateIssuer")
   recommendationsIssued                Recommendation[]              @relation("RecommendationIssuer")
   schoolCreditReviews                  SchoolCreditRequest[]         @relation("SchoolCreditReviewer")
@@ -813,6 +816,44 @@ model CareerLaunchFeedback {
 
   @@index([studentUserId])
   @@index([authorUserId])
+}
+
+// Career Launch 이력서 데이터. 학생이 별도 이력서 빌더로 가지 않고, 프로그램
+// 안에서 AI와 대화하며 기본정보·학력·경력·스킬 등을 대화로 쌓는다. 누적된
+// 구조화 데이터(content JSON)를 나중에 이력서 형태로 렌더링한다. 학생당 1개.
+model CareerResumeData {
+  id            String   @id @default(uuid())
+  studentUserId String   @unique
+  content       Json     @default("{}") // { basic, educations[], experiences[], skills[], languages[] }
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  student User @relation("CareerResumeDataStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+}
+
+// Career Launch 자기소개서 데이터. 이력서와 마찬가지로 별도 빌더 없이 AI와 대화하며
+// 자소서 문항·답변을 쌓는다. content JSON = { company, items:[{question, answer}] }. 학생당 1개.
+model CareerCoverLetterData {
+  id            String   @id @default(uuid())
+  studentUserId String   @unique
+  content       Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  student User @relation("CareerCoverLetterDataStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+}
+
+// Career Launch 진행 상태. 진단결과·선정직무·정리한 직무정보·완료스텝 등 프로그램
+// 진행 상태를 계정 기준으로 저장해, 다른 기기·브라우저에서도 그대로 이어가게 한다.
+// (기존 localStorage 를 대체) 학생당 1행, state JSON 블롭.
+model CareerLaunchProgress {
+  id            String   @id @default(uuid())
+  studentUserId String   @unique
+  state         Json     @default("{}") // { diagnosis, selectedJobs[], materials[], doneSteps[] }
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  student User @relation("CareerLaunchProgressStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
 }
 
 model Certificate {
