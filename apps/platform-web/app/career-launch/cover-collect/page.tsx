@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestCoverChat, fetchCoverData, hasCoverContent, type CoverChatMsg, type CoverData } from "../../../lib/launch/cover-data";
-import { CoverRender } from "../../../components/launch/cover-render";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -42,7 +41,7 @@ export default function CoverCollectPage() {
       // 이어하기(저장분 있음) — 즉시 반기고 미리보기를 띄운다.
       const continuing = hasCoverContent(seed);
       if (continuing) {
-        setMessages([{ role: "bot", text: `${displayName}님, 다시 오셨네요 👋 지금까지 쓴 자기소개서는 아래에 있어요. 이어서 마저 써볼게요!` }]);
+        setMessages([{ role: "bot", text: `${displayName}님, 다시 오셨네요 👋 이어서 마저 써볼게요!` }]);
       }
       try {
         const { reply, data: merged } = await requestCoverChat([], seed);
@@ -121,16 +120,6 @@ export default function CoverCollectPage() {
                 </div>
               )
             )}
-            {/* 지금까지 작성된 자소서 — 실시간 */}
-            {hasCoverContent(data) ? (
-              <div className="flex items-start gap-2">
-                <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EAFFD1] text-[13px]">📝</span>
-                <div className="w-full max-w-[92%]">
-                  <p className="mb-1.5 text-[11.5px] font-bold text-[#3A6B00]">지금까지 작성된 자기소개서</p>
-                  <CoverRender data={data} />
-                </div>
-              </div>
-            ) : null}
             {loading ? (
               <div className="flex items-end gap-2">
                 <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>

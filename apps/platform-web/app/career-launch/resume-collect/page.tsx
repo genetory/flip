@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestResumeChat, fetchResumeData, hasResumeContent, type ResumeChatMsg, type ResumeData } from "../../../lib/launch/resume-data";
-import { ResumeRender } from "../../../components/launch/resume-render";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -52,7 +51,7 @@ export default function ResumeCollectPage() {
       // 이어하기(저장분 있음) — 스피너만 보이지 않게 즉시 반기고 미리보기를 띄운다.
       const continuing = hasResumeContent(seed);
       if (continuing) {
-        setMessages([{ role: "bot", text: `${displayName}님, 다시 오셨네요 👋 지금까지 채운 이력서는 아래에 있어요. 이어서 마저 채워볼게요!` }]);
+        setMessages([{ role: "bot", text: `${displayName}님, 다시 오셨네요 👋 이어서 마저 채워볼게요!` }]);
       }
       try {
         const { reply, data: merged } = await requestResumeChat([], seed);
@@ -133,16 +132,6 @@ export default function ResumeCollectPage() {
                 </div>
               )
             )}
-            {/* 지금까지 정리된 이력서 — 대화가 채워질수록 실시간으로 보여줌 */}
-            {hasResumeContent(data) ? (
-              <div className="flex items-start gap-2">
-                <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EAFFD1] text-[13px]">📄</span>
-                <div className="w-full max-w-[92%]">
-                  <p className="mb-1.5 text-[11.5px] font-bold text-[#3A6B00]">지금까지 정리된 이력서</p>
-                  <ResumeRender data={data} />
-                </div>
-              </div>
-            ) : null}
             {loading ? (
               <div className="flex items-end gap-2">
                 <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
