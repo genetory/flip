@@ -106,7 +106,7 @@ export default function LaunchDashboardPage() {
                 <SectionTitle>프로그램 소개</SectionTitle>
                 <Card className="md:!p-6">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/img_global_career_launch.webp" alt="Global Career Launch" className="mb-4 max-h-[200px] w-full rounded-xl object-cover" />
+                  <img src="/img_global_career_launch.webp" alt="Global Career Launch" className="mb-4 h-auto w-full rounded-xl" />
                   <p className="text-[15px] font-black text-[#0B1227] md:text-[16px]">AI 코치와 함께하는 4주 취업 완성 부트캠프</p>
                   <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">
                     한국 취업을 준비하는 외국인 유학생을 위한 프로그램이에요. 혼자서는 막막한 취업 준비를 AI 코치가 옆에서 이끌어줘요. 취업 준비 상태 진단부터 직무 방향 설정, 대화만으로 완성하는 이력서·자기소개서, 그리고 실제 기업 지원까지 — 4주 동안 하나씩 밟아가며 완주해요.
