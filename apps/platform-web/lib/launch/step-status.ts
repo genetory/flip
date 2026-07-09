@@ -2,7 +2,7 @@
 import type { CareerProgress } from "./progress-client";
 import { hasResumeContent, type ResumeData } from "./resume-data";
 import { hasCoverContent, type CoverData } from "./cover-data";
-import type { Step } from "./data";
+import { WEEKS, type Step } from "./data";
 
 // 스텝별로 어떤 결과(섹션)로 완료 판정하는지. 여기 없는 스텝은 doneSteps 수동 체크.
 export const STEP_KIND: Record<string, string> = {
@@ -51,4 +51,15 @@ export function isStepDone(id: string, d: LaunchData): boolean {
 
 export function weekDoneCount(steps: Step[], d: LaunchData): number {
   return steps.filter((s) => isStepDone(s.id, d)).length;
+}
+
+export function isWeekComplete(week: number, d: LaunchData): boolean {
+  const w = WEEKS.find((x) => x.week === week);
+  return Boolean(w && weekDoneCount(w.steps, d) === w.steps.length);
+}
+
+// 주차 순차 잠금 — 1주차는 항상 열림, 그 외엔 직전 주차를 모두 완료해야 열린다.
+export function weekUnlocked(week: number, d: LaunchData): boolean {
+  if (week <= 1) return true;
+  return isWeekComplete(week - 1, d);
 }

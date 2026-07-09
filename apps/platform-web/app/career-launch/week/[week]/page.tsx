@@ -4,6 +4,7 @@ import { WEEKS } from "../../../../lib/launch/data";
 import { Card, Pill, SectionTitle } from "../../../../components/launch/ui";
 import { WeekStepper } from "../../../../components/launch/week-stepper";
 import { WeekDocs } from "../../../../components/launch/week-docs";
+import { WeekGate } from "../../../../components/launch/week-gate";
 import { Header } from "../../../../components/site/Header";
 import { Footer } from "../../../../components/site/Footer";
 
@@ -57,9 +58,11 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
             {/* ── 메인: 스텝별 해야 할 일 ── */}
             <div className="min-w-0">
               <SectionTitle sub="끝낸 단계는 번호를 콕 눌러 체크해요">이번 주 해야 할 일</SectionTitle>
-              <Card className="md:!p-6">
-                <WeekStepper steps={plan.steps} />
-              </Card>
+              <WeekGate week={plan.week}>
+                <Card className="md:!p-6">
+                  <WeekStepper steps={plan.steps} />
+                </Card>
+              </WeekGate>
             </div>
 
             {/* ── 사이드바 ── */}
