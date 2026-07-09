@@ -33,10 +33,13 @@ export function WeekDocs({ week }: { week: number }) {
     };
   }, []);
 
+  // 2주차: 이력서 · 3주차: 자소서 · 4주차: 둘 다.
+  const showResume = week === 2 || week >= 4;
   const showCover = week >= 3;
 
   return (
     <>
+      {showResume ? (
       <div>
         <div className="flex items-center justify-between">
           <SectionTitle>내 이력서</SectionTitle>
@@ -52,6 +55,7 @@ export function WeekDocs({ week }: { week: number }) {
           <Card className="!p-4 text-[13px] text-[#8B95A1]">아직 이력서를 만들지 않았어요. 대화로 채워보세요.</Card>
         )}
       </div>
+      ) : null}
 
       {showCover ? (
         <div>

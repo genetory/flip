@@ -6,7 +6,6 @@ import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
 import { fetchProgress, patchProgress, type CareerProgress } from "../../lib/launch/progress-client";
 import { fetchResumeData, hasResumeContent, type ResumeData } from "../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
-import { ResumeRender } from "./resume-render";
 import { CoverRender } from "./cover-render";
 
 // 스텝별로 어떤 결과(섹션)를 다루는지 매핑. 여기 있는 스텝은 실제 데이터로 완료 판정
@@ -219,12 +218,22 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     if (kind === "cover" && coverReady) {
       return <ResultBlock title={`자기소개서 — 문항 ${coverN}개${cover.company ? ` · ${cover.company}` : ""}`} href="/career-launch/cover-collect" hrefLabel="이어하기"><CoverRender data={cover} /></ResultBlock>;
     }
-    // 이력서 + 자소서 전문 (다듬기·완성도·최종 확정)
+    // 이력서 + 자소서 요약 (다듬기·완성도·최종 확정) — 전체 미리보기는 우측 컬럼에 있으므로 컴팩트하게.
     if (kind === "both" && (resumeReady || coverReady)) {
       return (
-        <div className="mt-3 space-y-3">
-          {resumeReady ? <ResultBlock title="이력서" href="/career-launch/resume-preview" hrefLabel="미리보기"><ResumeRender data={resume} /></ResultBlock> : null}
-          {coverReady ? <ResultBlock title="자기소개서" href="/career-launch/cover-collect" hrefLabel="이어하기"><CoverRender data={cover} /></ResultBlock> : null}
+        <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
+          {resumeReady ? (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[13px] font-bold text-[#191F28]">📄 이력서 — 경력 {expN} · 스킬 {skillN}</p>
+              <Link href="/career-launch/resume-preview" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">보기</Link>
+            </div>
+          ) : null}
+          {coverReady ? (
+            <div className={`flex items-center justify-between gap-2 ${resumeReady ? "mt-2" : ""}`}>
+              <p className="text-[13px] font-bold text-[#191F28]">📝 자소서 — 문항 {coverN}개{cover.company ? ` · ${cover.company}` : ""}</p>
+              <Link href="/career-launch/cover-collect" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">보기</Link>
+            </div>
+          ) : null}
         </div>
       );
     }
