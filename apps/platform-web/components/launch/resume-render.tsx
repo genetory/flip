@@ -56,8 +56,10 @@ function toResumeContent(data: ResumeData): ResumeContent {
 // maxWidth: 미리보기 최대 폭(px). ResumePreview 는 컨테이너 폭에 맞춰 스케일되므로,
 // 좁은 사이드바·패널에서는 작은 값을 줘서 컴팩트하게 보여준다. 미지정 시 컨테이너 폭.
 export function ResumeRender({ data, maxWidth }: { data: ResumeData; maxWidth?: number }) {
+  // min-w-0 + overflow-hidden: A4(794px) 콘텐츠가 flex/grid 아이템의 min-width 를
+  // 밀어올려 컬럼을 넓히지 않도록 — 항상 컨테이너(컬럼) 폭에 맞춰 스케일된다.
   return (
-    <div style={maxWidth ? { maxWidth } : undefined}>
+    <div className="min-w-0 overflow-hidden" style={maxWidth ? { maxWidth } : undefined}>
       <ResumePreview content={toResumeContent(data)} design={DEFAULT_DESIGN} />
     </div>
   );
