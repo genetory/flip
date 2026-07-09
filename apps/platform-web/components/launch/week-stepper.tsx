@@ -6,15 +6,26 @@ import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
 import { fetchProgress, patchProgress, type CareerProgress } from "../../lib/launch/progress-client";
 import { fetchResumeData, hasResumeContent, type ResumeData } from "../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
+import { ResumeRender } from "./resume-render";
+import { CoverRender } from "./cover-render";
 
-// 결과로 완료되는 스텝(수동 체크 불가) — 실제 진행 결과로 완료 판정.
-const RESULT_STEP = new Set(["w1s1", "w1s2", "w1s3", "w2s1", "w2s2", "w2s3", "w3s1", "w3s2", "w3s3", "w4s1"]);
-// 이력서/자소서 데이터에 연결된 스텝.
-const RESUME_STEP = new Set(["w2s1", "w2s2", "w2s3", "w3s2", "w3s3", "w4s1"]);
-const COVER_STEP = new Set(["w3s1", "w3s2", "w3s3"]);
+// 스텝별로 어떤 결과(섹션)를 다루는지 매핑. 여기 있는 스텝은 실제 데이터로 완료 판정
+// (수동 체크 불가), 없는 스텝은 doneSteps 수동 체크.
+const STEP_KIND: Record<string, string> = {
+  w1s1: "diag",
+  w1s2: "jobs",
+  w1s3: "materials",
+  w2s1: "resume-basic", // 기본정보·학력
+  w2s2: "resume-exp", // 경력·경험
+  w2s3: "resume-full", // 스킬·어학 + 전체 미리보기
+  w3s1: "cover", // 자소서 문항
+  w3s2: "both", // 이력서·자소서 다듬기
+  w3s3: "both", // 완성도 점검
+  w4s1: "both" // 최종 확정
+};
 
-// 주차 페이지용 스텝 목록 — 1주차처럼 순차 잠금 + 스텝별 결과 표시. 완료 상태는
-// 백엔드(progress)에 저장돼 기기 간 동기화된다.
+// 주차 페이지용 스텝 목록 — 1주차처럼 순차 잠금 + 스텝별(섹션별) 결과 표시.
+// 완료 상태는 백엔드(progress)에 저장돼 기기 간 동기화된다.
 export function WeekStepper({ steps }: { steps: Step[] }) {
   const [prog, setProg] = useState<CareerProgress>({});
   const [resume, setResume] = useState<ResumeData>({});
@@ -41,22 +52,39 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     };
   }, []);
 
+  const eduN = resume.educations?.length ?? 0;
+  const expN = resume.experiences?.length ?? 0;
+  const skillN = resume.skills?.length ?? 0;
+  const langN = resume.languages?.length ?? 0;
+  const resumeBasicDone = Boolean(resume.basic?.name || eduN > 0);
+  const resumeExpDone = expN > 0;
   const resumeReady = hasResumeContent(resume);
   const coverReady = hasCoverContent(cover);
+  const coverN = (cover.items ?? []).filter((x) => (x.answer ?? "").trim().length > 0).length;
 
-  // 완료 판정 — 결과 스텝은 실제 데이터로, 그 외는 doneSteps 수동 체크.
+  // 종류별 완료 판정.
+  const kindDone = (kind: string): boolean => {
+    switch (kind) {
+      case "diag": return Boolean(prog.diagnosis && typeof prog.diagnosis.percent === "number");
+      case "jobs": return (prog.selectedJobs?.length ?? 0) > 0;
+      case "materials": return (prog.materials?.length ?? 0) > 0;
+      case "resume-basic": return resumeBasicDone;
+      case "resume-exp": return resumeExpDone;
+      case "resume-full": return resumeReady;
+      case "cover": return coverReady;
+      case "both": return resumeReady && coverReady;
+      default: return false;
+    }
+  };
+
   const isDone = (id: string) => {
-    if (id === "w1s1") return Boolean(prog.diagnosis && typeof prog.diagnosis.percent === "number");
-    if (id === "w1s2") return (prog.selectedJobs?.length ?? 0) > 0;
-    if (id === "w1s3") return (prog.materials?.length ?? 0) > 0;
-    if (RESUME_STEP.has(id) && COVER_STEP.has(id)) return resumeReady && coverReady;
-    if (RESUME_STEP.has(id)) return resumeReady;
-    if (COVER_STEP.has(id)) return coverReady;
+    const kind = STEP_KIND[id];
+    if (kind) return kindDone(kind);
     return (prog.doneSteps ?? []).includes(id);
   };
 
   const toggle = (id: string) => {
-    if (RESULT_STEP.has(id)) return; // 결과 스텝은 수동 체크 불가
+    if (STEP_KIND[id]) return; // 결과 스텝은 수동 체크 불가
     const cur = prog.doneSteps ?? [];
     const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
     setProg((p) => ({ ...p, doneSteps: next }));
@@ -65,27 +93,41 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     });
   };
 
-  // 스텝별 결과 패널 — 데이터가 있으면 그 내용을, 없으면 null(→ 시작하기 버튼).
+  // 스텝별 결과 패널 — 해당 섹션 데이터가 있으면 그 내용을, 없으면 null(→ 시작하기).
   const stepResult = (id: string) => {
-    if (id === "w1s1" && prog.diagnosis && typeof prog.diagnosis.percent === "number") {
+    const kind = STEP_KIND[id];
+    if (!kind) return null;
+
+    if (kind === "diag" && prog.diagnosis && typeof prog.diagnosis.percent === "number") {
       const d = prog.diagnosis;
       return (
         <ResultCard href="/career-launch/diagnosis" hrefLabel="다시 보기">
-          <p className="text-[13.5px] font-bold text-[#191F28]">
-            취업 준비도 <span className="text-[#0B46E8]">{d.percent}%</span>
-          </p>
+          <p className="text-[13.5px] font-bold text-[#191F28]">취업 준비도 <span className="text-[#0B46E8]">{d.percent}%</span></p>
           {d.level ? <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{d.level}</p> : null}
           {d.strengths?.length ? (
-            <ul className="mt-2 space-y-0.5">
-              {d.strengths.map((x, i) => (
-                <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#333D4B]"><span className="text-[#3A6B00]">✓</span>{x}</li>
-              ))}
-            </ul>
+            <div className="mt-2">
+              <p className="text-[11.5px] font-bold text-[#3A6B00]">강점</p>
+              <ul className="mt-1 space-y-0.5">
+                {d.strengths.map((x, i) => (
+                  <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#333D4B]"><span className="text-[#3A6B00]">✓</span>{x}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {d.improvements?.length ? (
+            <div className="mt-2">
+              <p className="text-[11.5px] font-bold text-[#8B95A1]">보완점</p>
+              <ul className="mt-1 space-y-0.5">
+                {d.improvements.map((x, i) => (
+                  <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#4E5968]"><span className="text-[#B0B8C1]">•</span>{x}</li>
+                ))}
+              </ul>
+            </div>
           ) : null}
         </ResultCard>
       );
     }
-    if (id === "w1s2" && (prog.selectedJobs?.length ?? 0) > 0) {
+    if (kind === "jobs" && (prog.selectedJobs?.length ?? 0) > 0) {
       return (
         <ResultCard href="/career-launch/jobs?restart=1" hrefLabel="다시 선정">
           <p className="text-[13.5px] font-bold text-[#191F28]">선정한 직무 <span className="text-[#0B46E8]">{prog.selectedJobs!.length}개</span></p>
@@ -103,7 +145,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
         </ResultCard>
       );
     }
-    if (id === "w1s3" && (prog.materials?.length ?? 0) > 0) {
+    if (kind === "materials" && (prog.materials?.length ?? 0) > 0) {
       return (
         <ResultCard href="/career-launch/materials" hrefLabel="이어서 정리">
           <p className="text-[13.5px] font-bold text-[#191F28]">선정 직무 정보 <span className="text-[#0B46E8]">{prog.materials!.length}개</span> 정리</p>
@@ -115,31 +157,60 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
         </ResultCard>
       );
     }
-    // 이력서/자소서 연결 스텝 — 현재 작성 상태 요약.
-    const showResume = RESUME_STEP.has(id) && resumeReady;
-    const showCover = COVER_STEP.has(id) && coverReady;
-    if (showResume || showCover) {
-      const eduN = resume.educations?.length ?? 0;
-      const expN = resume.experiences?.length ?? 0;
-      const skillN = resume.skills?.length ?? 0;
-      const coverN = (cover.items ?? []).filter((x) => (x.answer ?? "").trim().length > 0).length;
+    // 이력서 — 기본정보·학력
+    if (kind === "resume-basic" && resumeBasicDone) {
       return (
-        <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
-          {showResume ? (
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[13px] font-bold text-[#191F28]">📄 이력서 — 학력 {eduN} · 경력 {expN} · 스킬 {skillN}</p>
-              <span className="flex shrink-0 items-center gap-2 text-[12.5px] font-bold">
-                <Link href="/career-launch/resume-preview" className="text-[#0B46E8] underline">보기</Link>
-                <Link href="/career-launch/resume-collect" className="text-[#0B46E8] underline">이어하기</Link>
-              </span>
-            </div>
+        <ResultCard href="/career-launch/resume-collect" hrefLabel="이어하기">
+          <p className="text-[13.5px] font-bold text-[#191F28]">📄 기본정보 · 학력</p>
+          {resume.basic?.name ? <p className="mt-1 text-[12.5px] text-[#333D4B]">{resume.basic.name}{resume.basic.summary ? ` — ${resume.basic.summary}` : ""}</p> : null}
+          {eduN > 0 ? (
+            <ul className="mt-1.5 space-y-1">
+              {resume.educations!.map((e, i) => (
+                <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#4E5968]">
+                  <span className="text-[#3A6B00]">•</span>{[e.school, e.major, e.period].filter(Boolean).join(" · ")}
+                </li>
+              ))}
+            </ul>
           ) : null}
-          {showCover ? (
-            <div className={`flex items-center justify-between gap-2 ${showResume ? "mt-2" : ""}`}>
-              <p className="text-[13px] font-bold text-[#191F28]">📝 자소서 — 문항 {coverN}개{cover.company ? ` · ${cover.company}` : ""}</p>
-              <Link href="/career-launch/cover-collect" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">이어하기</Link>
-            </div>
-          ) : null}
+        </ResultCard>
+      );
+    }
+    // 이력서 — 경력·경험
+    if (kind === "resume-exp" && resumeExpDone) {
+      return (
+        <ResultCard href="/career-launch/resume-collect" hrefLabel="이어하기">
+          <p className="text-[13.5px] font-bold text-[#191F28]">📄 경력·경험 <span className="text-[#0B46E8]">{expN}개</span></p>
+          <ul className="mt-2 space-y-2">
+            {resume.experiences!.map((x, i) => (
+              <li key={i} className="rounded-lg bg-white/70 p-2.5">
+                <p className="text-[13px] font-bold text-[#191F28]">{[x.title, x.org].filter(Boolean).join(" · ")}{x.period ? <span className="font-normal text-[#8B95A1]"> ({x.period})</span> : null}</p>
+                {x.bullets?.length ? (
+                  <ul className="mt-1 space-y-0.5">
+                    {x.bullets.map((b, bi) => (
+                      <li key={bi} className="flex gap-1.5 break-keep text-[12px] text-[#4E5968]"><span className="text-[#0B46E8]">•</span>{b}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </ResultCard>
+      );
+    }
+    // 이력서 — 스킬·어학 + 전체 이력서 전문
+    if (kind === "resume-full" && resumeReady) {
+      return <ResultBlock title={`완성된 이력서 — 스킬 ${skillN} · 어학 ${langN}`} href="/career-launch/resume-preview" hrefLabel="미리보기"><ResumeRender data={resume} /></ResultBlock>;
+    }
+    // 자소서 — 문항 전문
+    if (kind === "cover" && coverReady) {
+      return <ResultBlock title={`자기소개서 — 문항 ${coverN}개${cover.company ? ` · ${cover.company}` : ""}`} href="/career-launch/cover-collect" hrefLabel="이어하기"><CoverRender data={cover} /></ResultBlock>;
+    }
+    // 이력서 + 자소서 전문 (다듬기·완성도·최종 확정)
+    if (kind === "both" && (resumeReady || coverReady)) {
+      return (
+        <div className="mt-3 space-y-3">
+          {resumeReady ? <ResultBlock title="이력서" href="/career-launch/resume-preview" hrefLabel="미리보기"><ResumeRender data={resume} /></ResultBlock> : null}
+          {coverReady ? <ResultBlock title="자기소개서" href="/career-launch/cover-collect" hrefLabel="이어하기"><CoverRender data={cover} /></ResultBlock> : null}
         </div>
       );
     }
@@ -151,7 +222,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
       {steps.map((s, i) => {
         const done = isDone(s.id);
         const last = i === steps.length - 1;
-        const result = RESULT_STEP.has(s.id);
+        const result = Boolean(STEP_KIND[s.id]);
         const panel = stepResult(s.id);
         // 순차 연계 — 이전 스텝을 모두 완료해야 이 스텝을 시작할 수 있다.
         const locked = ready && !done && !steps.slice(0, i).every((p) => isDone(p.id));
@@ -228,7 +299,20 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
   );
 }
 
-// 결과 카드 — 진단/직무/직무정보 공통 래퍼(우상단 링크 포함).
+// 결과 블록 — 전문(이력서/자소서 전체 렌더) 위에 제목 + 링크 헤더.
+function ResultBlock({ title, href, hrefLabel, children }: { title: string; href: string; hrefLabel: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-3">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <p className="text-[12.5px] font-bold text-[#3A6B00]">{title}</p>
+        <Link href={href} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">{hrefLabel}</Link>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// 결과 카드 — 진단/직무/이력서 섹션 공통 래퍼(우상단 링크 포함).
 function ResultCard({ href, hrefLabel, children }: { href: string; hrefLabel: string; children: React.ReactNode }) {
   return (
     <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
