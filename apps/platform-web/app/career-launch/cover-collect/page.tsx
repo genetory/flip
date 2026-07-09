@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { STUDENT } from "../../../lib/launch/data";
-import { requestCoverChat, fetchCoverData, resetCoverData, hasCoverContent, type CoverChatMsg, type CoverData } from "../../../lib/launch/cover-data";
+import { requestCoverChat, fetchCoverData, resetCoverData, hasCoverContent, type CoverChatMsg, type CoverData, type CoverSection } from "../../../lib/launch/cover-data";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -23,22 +23,24 @@ export default function CoverCollectPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [focus, setFocus] = useState<CoverSection | undefined>(undefined); // 이 스텝이 집중할 문항
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
     setLoading(true);
-    // ?restart=1 이면 초기화. &scope=s1|s2|s3 면 해당 스텝 이후 문항만, 없으면 전체.
+    // ?section=motive|growth|strength|aspiration|polish 이 스텝의 집중 문항(= 리셋 스코프). ?restart=1 이면 그 문항부터 초기화.
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
     const restart = params.get("restart") === "1";
-    const scopeRaw = params.get("scope");
-    const scope = scopeRaw === "s1" || scopeRaw === "s2" || scopeRaw === "s3" ? scopeRaw : undefined;
+    const sectionRaw = params.get("section");
+    const section = (["motive", "growth", "strength", "aspiration", "polish"] as const).find((s) => s === sectionRaw);
+    setFocus(section);
     void (async () => {
       let seed: CoverData = {};
-      if (restart) {
+      if (restart && section && section !== "polish") {
         try {
-          await resetCoverData(scope);
+          await resetCoverData(section);
         } catch {
           // 초기화 실패해도 남은 데이터로 진행
         }
@@ -57,7 +59,7 @@ export default function CoverCollectPage() {
         setMessages([{ role: "bot", text: `${displayName}님, 다시 오셨네요 👋 이어서 마저 써볼게요!` }]);
       }
       try {
-        const { reply, data: merged } = await requestCoverChat([], seed);
+        const { reply, data: merged } = await requestCoverChat([], seed, section);
         setData(merged);
         setMessages((m) =>
           continuing
@@ -87,7 +89,7 @@ export default function CoverCollectPage() {
     void (async () => {
       try {
         const history: CoverChatMsg[] = nextMsgs.map((m) => ({ role: m.role, text: m.text }));
-        const { reply, data: merged, done: isDone } = await requestCoverChat(history, data);
+        const { reply, data: merged, done: isDone } = await requestCoverChat(history, data, focus);
         setData(merged);
         setMessages((m) => [...m, { role: "bot", text: reply }]);
         if (isDone) setDone(true);

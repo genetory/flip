@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { STUDENT } from "../../../lib/launch/data";
-import { requestResumeChat, fetchResumeData, resetResumeData, hasResumeContent, type ResumeChatMsg, type ResumeData } from "../../../lib/launch/resume-data";
+import { requestResumeChat, fetchResumeData, resetResumeData, hasResumeContent, type ResumeChatMsg, type ResumeData, type ResumeSection } from "../../../lib/launch/resume-data";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -33,22 +33,24 @@ export default function ResumeCollectPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [focus, setFocus] = useState<ResumeSection | undefined>(undefined); // 이 스텝이 집중할 섹션
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
     setLoading(true);
-    // ?restart=1 이면 초기화. &scope=basic|exp|skills 면 해당 스텝 섹션만, 없으면 전체.
+    // ?section=basic|edu|exp|skill|lang 이 스텝의 집중 섹션(= 리셋 스코프). ?restart=1 이면 그 섹션만 초기화.
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
     const restart = params.get("restart") === "1";
-    const scopeRaw = params.get("scope");
-    const scope = scopeRaw === "basic" || scopeRaw === "exp" || scopeRaw === "skills" ? scopeRaw : undefined;
+    const sectionRaw = params.get("section");
+    const section = (["basic", "edu", "exp", "skill", "lang"] as const).find((s) => s === sectionRaw);
+    setFocus(section);
     void (async () => {
       let seed: ResumeData = {};
       if (restart) {
         try {
-          await resetResumeData(scope);
+          await resetResumeData(section);
         } catch {
           // 초기화 실패해도 남은 데이터로 진행
         }
@@ -67,7 +69,7 @@ export default function ResumeCollectPage() {
         setMessages([{ role: "bot", text: `${displayName}님, 다시 오셨네요 👋 이어서 마저 채워볼게요!` }]);
       }
       try {
-        const { reply, data: merged } = await requestResumeChat([], seed);
+        const { reply, data: merged } = await requestResumeChat([], seed, section);
         setData(merged);
         setMessages((m) =>
           continuing
@@ -97,7 +99,7 @@ export default function ResumeCollectPage() {
     void (async () => {
       try {
         const history: ResumeChatMsg[] = nextMsgs.map((m) => ({ role: m.role, text: m.text }));
-        const { reply, data: merged, done: isDone } = await requestResumeChat(history, data);
+        const { reply, data: merged, done: isDone } = await requestResumeChat(history, data, focus);
         setData(merged);
         setMessages((m) => [...m, { role: "bot", text: reply }]);
         if (isDone) setDone(true);

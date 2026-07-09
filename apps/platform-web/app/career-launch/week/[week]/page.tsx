@@ -31,12 +31,10 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
           <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
             ← 대시보드
           </Link>
-          <div className="mt-3 flex items-center gap-3">
-            <span className="flex h-12 w-12 flex-none items-center justify-center rounded-2xl bg-[#0B46E8] text-[17px] font-black text-white">W{plan.week}</span>
-            <div>
-              <p className="text-[12.5px] font-bold text-[#8B95A1]">Week {plan.week} · {plan.subtitle}</p>
-              <h1 className="text-[19px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">{plan.title}</h1>
-            </div>
+          <div className="mt-3">
+            <p className="text-[28px] font-black leading-none tracking-[-0.02em] text-[#0B46E8] md:text-[34px]">Week {plan.week}</p>
+            <p className="mt-2 text-[12.5px] font-bold text-[#8B95A1]">{plan.subtitle}</p>
+            <h1 className="mt-0.5 text-[19px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">{plan.title}</h1>
           </div>
 
           {/* 이번 주 목표 배너 (전체 폭) */}

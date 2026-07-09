@@ -40,7 +40,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
   const expN = resume.experiences?.length ?? 0;
   const skillN = resume.skills?.length ?? 0;
   const langN = resume.languages?.length ?? 0;
-  const resumeBasicDone = Boolean(resume.basic?.name || eduN > 0);
+  const resumeBasicDone = Boolean(resume.basic?.name || resume.basic?.summary);
   const resumeExpDone = expN > 0;
   const resumeReady = hasResumeContent(resume);
   const coverReady = hasCoverContent(cover);
@@ -122,28 +122,35 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
         </ResultCard>
       );
     }
-    // 이력서 — 기본정보·학력
+    // 이력서 — 기본정보·한줄소개
     if (kind === "resume-basic" && resumeBasicDone) {
       return (
-        <ResultCard continueHref="/career-launch/resume-collect" continueLabel="이어하기" restartHref="/career-launch/resume-collect?restart=1&scope=basic">
-          <p className="text-[13.5px] font-bold text-[#191F28]">📄 기본정보 · 학력</p>
-          {resume.basic?.name ? <p className="mt-1 text-[12.5px] text-[#333D4B]">{resume.basic.name}{resume.basic.summary ? ` — ${resume.basic.summary}` : ""}</p> : null}
-          {eduN > 0 ? (
-            <ul className="mt-1.5 space-y-1">
-              {resume.educations!.map((e, i) => (
-                <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#4E5968]">
-                  <span className="text-[#3A6B00]">•</span>{[e.school, e.major, e.period].filter(Boolean).join(" · ")}
-                </li>
-              ))}
-            </ul>
-          ) : null}
+        <ResultCard continueHref="/career-launch/resume-collect?section=basic" continueLabel="이어하기" restartHref="/career-launch/resume-collect?section=basic&restart=1">
+          <p className="text-[13.5px] font-bold text-[#191F28]">📄 기본정보 · 한줄소개</p>
+          {resume.basic?.name ? <p className="mt-1 text-[12.5px] font-semibold text-[#333D4B]">{[resume.basic.name, resume.basic.email, resume.basic.phone].filter(Boolean).join(" · ")}</p> : null}
+          {resume.basic?.summary ? <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">“{resume.basic.summary}”</p> : null}
+        </ResultCard>
+      );
+    }
+    // 이력서 — 학력
+    if (kind === "resume-edu" && eduN > 0) {
+      return (
+        <ResultCard continueHref="/career-launch/resume-collect?section=edu" continueLabel="이어하기" restartHref="/career-launch/resume-collect?section=edu&restart=1">
+          <p className="text-[13.5px] font-bold text-[#191F28]">📄 학력 <span className="text-[#0B46E8]">{eduN}개</span></p>
+          <ul className="mt-1.5 space-y-1">
+            {resume.educations!.map((e, i) => (
+              <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#4E5968]">
+                <span className="text-[#3A6B00]">•</span>{[e.school, e.major, e.period].filter(Boolean).join(" · ")}
+              </li>
+            ))}
+          </ul>
         </ResultCard>
       );
     }
     // 이력서 — 경력·경험
     if (kind === "resume-exp" && resumeExpDone) {
       return (
-        <ResultCard continueHref="/career-launch/resume-collect" continueLabel="이어하기" restartHref="/career-launch/resume-collect?restart=1&scope=exp">
+        <ResultCard continueHref="/career-launch/resume-collect?section=exp" continueLabel="이어하기" restartHref="/career-launch/resume-collect?section=exp&restart=1">
           <p className="text-[13.5px] font-bold text-[#191F28]">📄 경력·경험 <span className="text-[#0B46E8]">{expN}개</span></p>
           <ul className="mt-2 space-y-2">
             {resume.experiences!.map((x, i) => (
@@ -162,40 +169,39 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
         </ResultCard>
       );
     }
-    // 이력서 — 스킬·어학
-    if (kind === "resume-skills" && (skillN > 0 || langN > 0)) {
+    // 이력서 — 스킬
+    if (kind === "resume-skill" && skillN > 0) {
       return (
-        <ResultCard continueHref="/career-launch/resume-collect" continueLabel="이어하기" restartHref="/career-launch/resume-collect?restart=1&scope=skills">
-          <p className="text-[13.5px] font-bold text-[#191F28]">📄 스킬 {skillN} · 어학 {langN}</p>
-          {skillN > 0 ? (
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {resume.skills!.map((s, i) => (
-                <span key={i} className="rounded-full bg-white/70 px-2 py-0.5 text-[11.5px] font-semibold text-[#0B46E8]">{s}</span>
-              ))}
-            </div>
-          ) : null}
-          {langN > 0 ? (
-            <p className="mt-1.5 text-[12.5px] text-[#4E5968]">{resume.languages!.map((l) => [l.language, l.level].filter(Boolean).join(" ")).join(" · ")}</p>
-          ) : null}
+        <ResultCard continueHref="/career-launch/resume-collect?section=skill" continueLabel="이어하기" restartHref="/career-launch/resume-collect?section=skill&restart=1">
+          <p className="text-[13.5px] font-bold text-[#191F28]">📄 스킬 <span className="text-[#0B46E8]">{skillN}개</span></p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {resume.skills!.map((s, i) => (
+              <span key={i} className="rounded-full bg-white/70 px-2 py-0.5 text-[11.5px] font-semibold text-[#0B46E8]">{s}</span>
+            ))}
+          </div>
         </ResultCard>
       );
     }
-    // 자기소개서 — 문항별 질문 + 답변(week1/2와 같은 텍스트 디테일). 전문은 우측 컬럼.
-    if ((kind === "cover" || kind === "cover3" || kind === "cover4") && coverReady) {
-      const filled = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
-      // 스텝별 부분 초기화 스코프 — s1(동기·성장부터), s2(강점·포부부터), s3(완성 단계만)
-      const coverScope = kind === "cover" ? "s1" : kind === "cover3" ? "s2" : "s3";
+    // 이력서 — 어학
+    if (kind === "resume-lang" && langN > 0) {
       return (
-        <ResultCard continueHref="/career-launch/cover-collect" continueLabel="이어하기" restartHref={`/career-launch/cover-collect?restart=1&scope=${coverScope}`}>
-          <p className="text-[13.5px] font-bold text-[#191F28]">📝 자기소개서 <span className="text-[#0B46E8]">{coverN}개 문항</span>{cover.company ? <span className="font-normal text-[#8B95A1]"> · {cover.company}</span> : null}</p>
-          <ul className="mt-2 space-y-2">
-            {filled.map((it, i) => (
-              <li key={i} className="rounded-lg bg-white/70 p-2.5">
-                <p className="break-keep text-[12.5px] font-semibold text-[#191F28]">{it.question}</p>
-                <p className="mt-0.5 break-keep text-[12px] leading-relaxed text-[#4E5968]">{it.answer}</p>
-              </li>
-            ))}
-          </ul>
+        <ResultCard continueHref="/career-launch/resume-collect?section=lang" continueLabel="이어하기" restartHref="/career-launch/resume-collect?section=lang&restart=1">
+          <p className="text-[13.5px] font-bold text-[#191F28]">📄 어학 <span className="text-[#0B46E8]">{langN}개</span></p>
+          <p className="mt-1.5 text-[12.5px] text-[#4E5968]">{resume.languages!.map((l) => [l.language, l.level].filter(Boolean).join(" ")).join(" · ")}</p>
+        </ResultCard>
+      );
+    }
+    // 자기소개서 — 문항별(한 스텝 = 한 문항). 해당 문항의 질문+답변만 보여준다.
+    if (kind === "cover1" || kind === "cover2" || kind === "cover3" || kind === "cover4") {
+      const idx = kind === "cover1" ? 0 : kind === "cover2" ? 1 : kind === "cover3" ? 2 : 3;
+      const section = (["motive", "growth", "strength", "aspiration"] as const)[idx];
+      const filled = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
+      const it = filled[idx];
+      if (!it) return null;
+      return (
+        <ResultCard continueHref={`/career-launch/cover-collect?section=${section}`} continueLabel="이어하기" restartHref={`/career-launch/cover-collect?section=${section}&restart=1`}>
+          <p className="break-keep text-[12.5px] font-bold text-[#191F28]">📝 {it.question}</p>
+          <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{it.answer}</p>
         </ResultCard>
       );
     }

@@ -41,11 +41,12 @@ async function req(path: string, init: RequestInit): Promise<Record<string, unkn
 }
 
 // 채팅으로 이력서 데이터 수집 — 누적 data 를 함께 보내고, 갱신된 전체 data 를 받는다.
-export async function requestResumeChat(messages: ResumeChatMsg[], data: ResumeData): Promise<ResumeChatResult> {
+export type ResumeSection = "basic" | "edu" | "exp" | "skill" | "lang";
+export async function requestResumeChat(messages: ResumeChatMsg[], data: ResumeData, focus?: ResumeSection): Promise<ResumeChatResult> {
   const d = await req("/career-launch/resume-chat", {
     method: "POST",
     headers: authHeaders(true),
-    body: JSON.stringify({ messages, data, locale: "ko" })
+    body: JSON.stringify({ messages, data, focus, locale: "ko" })
   });
   return {
     reply: typeof d.reply === "string" ? d.reply : "",
@@ -60,8 +61,8 @@ export async function fetchResumeData(): Promise<{ data: ResumeData; updatedAt: 
   return { data: (d.data as ResumeData) ?? {}, updatedAt: (d.updatedAt as string) ?? null };
 }
 
-// '다시하기' — scope(basic|exp|skills) 면 해당 스텝 섹션만, 없으면 전체 초기화.
-export async function resetResumeData(scope?: "basic" | "exp" | "skills"): Promise<void> {
+// '다시하기' — scope(basic|edu|exp|skill|lang) 면 해당 스텝 섹션만, 없으면 전체 초기화.
+export async function resetResumeData(scope?: ResumeSection): Promise<void> {
   const q = scope ? `?scope=${scope}` : "";
   await req(`/career-launch/resume-data${q}`, { method: "DELETE", headers: authHeaders() });
 }

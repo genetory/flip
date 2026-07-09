@@ -88,22 +88,34 @@ export const WEEKS: WeekPlan[] = [
     seminar: { date: "2026-07-20 (월)", time: "19:00–21:00", place: "온라인 (Zoom)", online: true },
     steps: [
       {
-        id: "w2s1",
-        title: "대화로 이력서 시작하기",
-        desc: "별도 작성 없이 AI와 대화하며 기본정보·학력을 채워요. 답하는 대로 이력서 데이터가 자동으로 쌓여요.",
-        action: { label: "시작하기", href: "/career-launch/resume-collect" }
+        id: "w2-basic",
+        title: "기본정보·한줄소개",
+        desc: "이름·연락처와 나를 한 줄로 소개하는 문장을 AI와 대화하며 정리해요. 이력서 맨 위 첫인상이에요.",
+        action: { label: "시작하기", href: "/career-launch/resume-collect?section=basic" }
       },
       {
-        id: "w2s2",
-        title: "경력·경험 대화로 정리",
-        desc: "인턴·프로젝트·활동을 AI와 대화하며 풀어내요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
-        action: { label: "시작하기", href: "/career-launch/resume-collect" }
+        id: "w2-edu",
+        title: "학력",
+        desc: "학교·전공·학위·재학 기간을 대화로 정리해요. 최신 학력부터 순서대로 담아요.",
+        action: { label: "시작하기", href: "/career-launch/resume-collect?section=edu" }
       },
       {
-        id: "w2s3",
-        title: "스킬·어학 정리",
-        desc: "직무 스킬과 어학 능력을 AI와 대화하며 정리해요. 이력서의 마지막 조각을 채우면 대표 이력서가 완성돼요.",
-        action: { label: "시작하기", href: "/career-launch/resume-collect" }
+        id: "w2-exp",
+        title: "경력·경험",
+        desc: "인턴·프로젝트·대외활동을 AI와 대화하며 풀어내요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
+        action: { label: "시작하기", href: "/career-launch/resume-collect?section=exp" }
+      },
+      {
+        id: "w2-skill",
+        title: "스킬",
+        desc: "직무에 쓰는 기술·툴을 대화로 정리해요. 지원 직무와 맞닿은 스킬을 앞세워요.",
+        action: { label: "시작하기", href: "/career-launch/resume-collect?section=skill" }
+      },
+      {
+        id: "w2-lang",
+        title: "어학",
+        desc: "구사 언어와 수준(TOPIK 등 자격 포함)을 대화로 정리해요. 유학생의 강력한 강점이에요.",
+        action: { label: "시작하기", href: "/career-launch/resume-collect?section=lang" }
       },
       {
         id: "w2s4",
@@ -124,22 +136,34 @@ export const WEEKS: WeekPlan[] = [
     seminar: { date: "2026-07-27 (월)", time: "19:00–21:00", place: "오프라인 (강남)", online: false },
     steps: [
       {
-        id: "w3s1",
-        title: "지원 동기·성장 과정 작성",
-        desc: "AI와 대화하며 자기소개서의 지원 동기와 성장 과정 문항을 채워요. 답하는 대로 자기소개서가 자동으로 쌓여요.",
-        action: { label: "시작하기", href: "/career-launch/cover-collect" }
+        id: "w3-motive",
+        title: "지원 동기",
+        desc: "왜 이 직무·회사에 지원하는지 AI와 대화하며 지원 동기 문항을 채워요.",
+        action: { label: "시작하기", href: "/career-launch/cover-collect?section=motive" }
       },
       {
-        id: "w3s2",
-        title: "강점·입사 후 포부 작성",
-        desc: "이어서 나의 강점과 입사 후 포부 문항을 대화로 채워요. 구체적인 경험과 목표를 담으면 설득력이 커져요.",
-        action: { label: "시작하기", href: "/career-launch/cover-collect" }
+        id: "w3-growth",
+        title: "성장 과정",
+        desc: "지금의 나를 만든 경험을 대화로 풀어 성장 과정 문항을 채워요.",
+        action: { label: "시작하기", href: "/career-launch/cover-collect?section=growth" }
       },
       {
-        id: "w3s3",
-        title: "자기소개서 완성·다듬기",
-        desc: "작성한 문항을 다시 보며 문장을 다듬고 완성해요. 운영진 피드백이 있으면 반영해 완성본을 만들어요.",
-        action: { label: "시작하기", href: "/career-launch/cover-collect" }
+        id: "w3-strength",
+        title: "성격의 장단점·강점",
+        desc: "직무에 살릴 강점과 보완점을 구체적 사례로 대화하며 정리해요.",
+        action: { label: "시작하기", href: "/career-launch/cover-collect?section=strength" }
+      },
+      {
+        id: "w3-aspiration",
+        title: "입사 후 포부",
+        desc: "입사 후 이루고 싶은 목표와 회사에 줄 기여를 대화로 구체화해요.",
+        action: { label: "시작하기", href: "/career-launch/cover-collect?section=aspiration" }
+      },
+      {
+        id: "w3-polish",
+        title: "완성·다듬기",
+        desc: "작성한 문항을 다시 보며 문장을 다듬고 일관되게 완성해요. 운영진 피드백이 있으면 반영해요.",
+        action: { label: "시작하기", href: "/career-launch/cover-collect?section=polish" }
       },
       {
         id: "w3s4",

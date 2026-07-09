@@ -9,12 +9,17 @@ export const STEP_KIND: Record<string, string> = {
   w1s1: "diag",
   w1s2: "jobs",
   w1s3: "materials",
-  w2s1: "resume-basic",
-  w2s2: "resume-exp",
-  w2s3: "resume-skills",
-  w3s1: "cover",
-  w3s2: "cover3",
-  w3s3: "cover4",
+  // week2 이력서 — 표시 섹션 단위
+  "w2-basic": "resume-basic",
+  "w2-edu": "resume-edu",
+  "w2-exp": "resume-exp",
+  "w2-skill": "resume-skill",
+  "w2-lang": "resume-lang",
+  // week3 자기소개서 — 문항 단위(순서대로 누적)
+  "w3-motive": "cover1",
+  "w3-growth": "cover2",
+  "w3-strength": "cover3",
+  "w3-aspiration": "cover4",
   w4s1: "both"
 };
 
@@ -37,10 +42,13 @@ export function isStepDone(id: string, d: LaunchData): boolean {
     case "diag": kd = Boolean(prog.diagnosis && typeof prog.diagnosis.percent === "number"); break;
     case "jobs": kd = (prog.selectedJobs?.length ?? 0) > 0; break;
     case "materials": kd = (prog.materials?.length ?? 0) > 0; break;
-    case "resume-basic": kd = Boolean(resume.basic?.name || eduN > 0); break;
+    case "resume-basic": kd = Boolean(resume.basic?.name || resume.basic?.summary); break;
+    case "resume-edu": kd = eduN > 0; break;
     case "resume-exp": kd = expN > 0; break;
-    case "resume-skills": kd = skillN > 0 || langN > 0; break;
-    case "cover": kd = coverN >= 1; break;
+    case "resume-skill": kd = skillN > 0; break;
+    case "resume-lang": kd = langN > 0; break;
+    case "cover1": kd = coverN >= 1; break;
+    case "cover2": kd = coverN >= 2; break;
     case "cover3": kd = coverN >= 3; break;
     case "cover4": kd = coverN >= 4; break;
     case "both": kd = hasResumeContent(resume) && hasCoverContent(cover); break;

@@ -14388,8 +14388,23 @@ const RESUME_DATA_SCHEMA = {
 const resumeChatSchema = z.object({
   messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(120).default([]),
   data: z.record(z.string(), z.unknown()).optional(),
+  focus: z.string().max(20).optional(), // basic|edu|exp|skill|lang — 이 섹션만 집중
   locale: z.string().max(10).optional()
 });
+
+// 이력서 섹션별 집중 대화 지시 — 해당 스텝이 그 섹션만 다루고 끝나게 한다(스텝 단위 진행·수정 용이).
+const RESUME_FOCUS: Record<string, string> = {
+  basic:
+    "[이번 스텝: 기본정보·한줄소개] 이번 대화는 이름·이메일·연락처와 나를 한 줄로 표현하는 소개(basic.summary)만 다룬다. 다른 섹션(학력·경력·스킬·어학)은 이번엔 묻지 마. 기본정보와 한줄소개가 채워지면 done=true 로 이 스텝을 마무리해.",
+  edu:
+    "[이번 스텝: 학력] 이번 대화는 학력(educations)만 다룬다. 학교·전공·학위·재학 기간을 확인해 채워. 다른 섹션은 묻지 마. 학력이 충분히 정리되면 done=true.",
+  exp:
+    "[이번 스텝: 경력·경험] 이번 대화는 경력·경험(experiences: 인턴·프로젝트·대외활동)만 다룬다. 각 경험의 직무·기관·기간·성과(bullets)를 구체적으로 끌어내. 다른 섹션은 묻지 마. 주요 경험이 충분히 정리되면 done=true.",
+  skill:
+    "[이번 스텝: 스킬] 이번 대화는 스킬(skills)만 다룬다. 직무에 쓰는 기술·툴을 정리해. 다른 섹션은 묻지 마. 스킬이 충분히 정리되면 done=true.",
+  lang:
+    "[이번 스텝: 어학] 이번 대화는 어학(languages)만 다룬다. 구사 언어와 수준(TOPIK 등 자격 포함)을 정리해. 다른 섹션은 묻지 마. 어학이 정리되면 done=true."
+};
 
 // 반환 데이터를 정규 스키마 키로 정규화(strict 실패로 fallback 시 한국어 키 대비).
 function normalizeResumeData(raw: unknown): Record<string, unknown> {
@@ -14488,11 +14503,12 @@ app.post(
     const parsed = resumeChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-    const { messages, data, locale } = parsed.data;
+    const { messages, data, focus, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
+      const focusDirective = focus && RESUME_FOCUS[focus] ? RESUME_FOCUS[focus] + "\n\n" : "";
       const systemPrompt =
-        (await getCareerPrompt("resume")) + "\n\n" + CAREER_SCOPE + "\n\n" +
+        (await getCareerPrompt("resume")) + "\n\n" + CAREER_SCOPE + "\n\n" + focusDirective +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": {basic,educations,experiences,skills,languages}, "done": boolean }' +
         aiLangDirective(locale);
       // 저장된 데이터가 이미 있는지 — kickoff 시 재질문 방지용.
@@ -14500,9 +14516,11 @@ app.post(
       const hasSaved = hasResumeDataContent(savedNorm);
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
-        : hasSaved
-          ? "(이어하기 — 학생은 이미 채운 내용을 화면에서 보고 있어. 다시 인사하거나 길게 요약하지 말고, 한 문장으로 가볍게 반긴 뒤 비어있는 다음 항목 하나만 바로 자연스럽게 물어봐.)"
-          : "(아직 대화 없음 — 인사하고 기본정보부터 물어봐)";
+        : focus
+          ? "(아직 대화 없음 — 가볍게 인사하고 이번 스텝 섹션의 첫 질문 하나만 바로 물어봐. 이번 섹션 밖 항목은 묻지 마.)"
+          : hasSaved
+            ? "(이어하기 — 학생은 이미 채운 내용을 화면에서 보고 있어. 다시 인사하거나 길게 요약하지 말고, 한 문장으로 가볍게 반긴 뒤 비어있는 다음 항목 하나만 바로 자연스럽게 물어봐.)"
+            : "(아직 대화 없음 — 인사하고 기본정보부터 물어봐)";
       const userPrompt =
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `[현재까지 데이터]\n${JSON.stringify(data ?? {})}\n\n` +
@@ -14545,9 +14563,11 @@ app.get("/career-launch/resume-data", authenticate, async (req, res) => {
 // DELETE /career-launch/resume-data — '다시하기'용 초기화. 병합이 축소하지 않으므로 여기서 비운다.
 // ?scope=basic|exp|skills 면 해당 스텝 섹션만 초기화(부분), 없으면 전체 초기화.
 const RESUME_RESET_SCOPES: Record<string, string[]> = {
-  basic: ["basic", "educations"],
+  basic: ["basic"],
+  edu: ["educations"],
   exp: ["experiences"],
-  skills: ["skills", "languages"]
+  skill: ["skills"],
+  lang: ["languages"]
 };
 app.delete("/career-launch/resume-data", authenticate, async (req, res) => {
   const scope = typeof req.query.scope === "string" ? req.query.scope : "";
@@ -14601,8 +14621,33 @@ const COVER_DATA_SCHEMA = {
 const coverChatSchema = z.object({
   messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(120).default([]),
   data: z.record(z.string(), z.unknown()).optional(),
+  focus: z.string().max(20).optional(), // motive|growth|strength|aspiration|polish — 이 문항만 집중
   locale: z.string().max(10).optional()
 });
+
+// 자기소개서 문항별 집중 대화 — 한 스텝이 한 문항만 다루게 한다. question 라벨은 고정(병합 키).
+const COVER_FOCUS: Record<string, { label: string; directive: string }> = {
+  motive: {
+    label: "지원 동기",
+    directive: "[이번 스텝: 지원 동기] 이번 대화는 '지원 동기' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '지원 동기' 로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 이 문항이 충분히 완성되면 done=true."
+  },
+  growth: {
+    label: "성장 과정",
+    directive: "[이번 스텝: 성장 과정] 이번 대화는 '성장 과정' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '성장 과정' 으로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
+  },
+  strength: {
+    label: "성격의 장단점",
+    directive: "[이번 스텝: 성격의 장단점·강점] 이번 대화는 '성격의 장단점' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '성격의 장단점' 으로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
+  },
+  aspiration: {
+    label: "입사 후 포부",
+    directive: "[이번 스텝: 입사 후 포부] 이번 대화는 '입사 후 포부' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '입사 후 포부' 로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
+  },
+  polish: {
+    label: "완성·다듬기",
+    directive: "[이번 스텝: 완성·다듬기] 새 문항을 만들지 마. 이미 작성한 모든 문항(items)을 그대로 두되 문장을 자연스럽게 다듬고 문항 간 톤·일관성을 맞춰 answer 를 갱신한다. 학생이 만족하면 done=true."
+  }
+};
 
 // 자소서 데이터 정규화 — items[{question, answer}] + company.
 function normalizeCoverData(raw: unknown): Record<string, unknown> {
@@ -14649,20 +14694,26 @@ app.post(
     const parsed = coverChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-    const { messages, data, locale } = parsed.data;
+    const { messages, data, focus, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const savedNorm = normalizeCoverData(data);
       const hasSaved = hasCoverContent(savedNorm);
+      const focusInfo = focus ? COVER_FOCUS[focus] : undefined;
+      const focusDirective = focusInfo ? focusInfo.directive + "\n\n" : "";
       const systemPrompt =
-        (await getCareerPrompt("cover")) + "\n\n" + CAREER_SCOPE + "\n\n" +
+        (await getCareerPrompt("cover")) + "\n\n" + CAREER_SCOPE + "\n\n" + focusDirective +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": { "company": string|null, "items": [{ "question": string, "answer": string }] }, "done": boolean }' +
         aiLangDirective(locale);
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
-        : hasSaved
-          ? "(이어하기 — 학생은 이미 쓴 문항을 화면에서 보고 있어. 다시 인사하거나 길게 요약하지 말고, 한 문장으로 가볍게 반긴 뒤 비어있는 다음 문항 하나만 바로 자연스럽게 물어봐.)"
-          : "(아직 대화 없음 — 인사하고 지원 동기부터 물어봐)";
+        : focusInfo
+          ? focus === "polish"
+            ? "(아직 대화 없음 — 가볍게 인사하고, 이미 쓴 문항들을 어떻게 다듬을지 안내하며 시작해줘.)"
+            : `(아직 대화 없음 — 가볍게 인사하고 '${focusInfo.label}' 문항을 위한 첫 질문 하나만 바로 물어봐. 이 문항 외에는 다루지 마.)`
+          : hasSaved
+            ? "(이어하기 — 학생은 이미 쓴 문항을 화면에서 보고 있어. 다시 인사하거나 길게 요약하지 말고, 한 문장으로 가볍게 반긴 뒤 비어있는 다음 문항 하나만 바로 자연스럽게 물어봐.)"
+            : "(아직 대화 없음 — 인사하고 지원 동기부터 물어봐)";
       const userPrompt =
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `[현재까지 데이터]\n${JSON.stringify(data ?? {})}\n\n` +
@@ -14703,8 +14754,8 @@ app.get("/career-launch/cover-data", authenticate, async (req, res) => {
 
 // DELETE /career-launch/cover-data — '다시하기'용 초기화.
 // 자기소개서는 문항을 순서대로 쌓으므로 스텝별 부분 초기화는 '앞쪽 N개 문항만 남기고 이후 제거'로 처리.
-// ?scope=s1|s2|s3 → keep 0/2/3 (s1=지원동기·성장부터 전체, s2=강점·포부부터, s3=완성 단계만). scope 없으면 전체 초기화.
-const COVER_RESET_KEEP: Record<string, number> = { s1: 0, s2: 2, s3: 3 };
+// ?scope=motive|growth|strength|aspiration → 그 문항부터 이후 제거(앞쪽 문항은 유지). scope 없으면 전체 초기화.
+const COVER_RESET_KEEP: Record<string, number> = { motive: 0, growth: 1, strength: 2, aspiration: 3 };
 app.delete("/career-launch/cover-data", authenticate, async (req, res) => {
   const scope = typeof req.query.scope === "string" ? req.query.scope : "";
   const keep = COVER_RESET_KEEP[scope];
