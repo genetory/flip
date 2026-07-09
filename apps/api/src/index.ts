@@ -13811,7 +13811,11 @@ async function careerChatComplete(
   system: string,
   user: string,
   schemaName: string,
-  schema: Record<string, unknown>
+  schema: Record<string, unknown>,
+  // strict=true 면 스키마 키를 정확히 강제한다(중첩 객체 키가 중요할 때).
+  // 단, strict 모드는 maxItems 등 일부 키워드를 불허하므로 해당 키워드가 없는
+  // 스키마에만 켤 것.
+  strict = false
 ): Promise<Record<string, unknown>> {
   if (!openai) throw new Error("openai_unavailable");
   try {
@@ -13821,7 +13825,7 @@ async function careerChatComplete(
         { role: "system", content: system },
         { role: "user", content: user }
       ],
-      text: { format: { type: "json_schema", name: schemaName, schema } }
+      text: { format: { type: "json_schema", name: schemaName, schema, ...(strict ? { strict: true } : {}) } }
     });
     return JSON.parse(response.output_text ?? "{}") as Record<string, unknown>;
   } catch (err) {
@@ -14216,6 +14220,196 @@ app.post("/career-launch/my-feedback/read", authenticate, async (req, res) => {
       data: { readAt: new Date() }
     });
     return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── Career Launch 이력서 데이터 수집(대화형) ──
+// 학생이 별도 빌더로 가지 않고 AI와 대화하며 이력서 재료를 구조화해 쌓는다.
+const RESUME_DATA_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "data", "done"],
+  properties: {
+    reply: { type: "string" },
+    done: { type: "boolean" },
+    data: {
+      type: "object",
+      additionalProperties: false,
+      required: ["basic", "educations", "experiences", "skills", "languages"],
+      properties: {
+        basic: {
+          type: "object",
+          additionalProperties: false,
+          required: ["name", "email", "phone", "summary"],
+          properties: {
+            name: { type: ["string", "null"] },
+            email: { type: ["string", "null"] },
+            phone: { type: ["string", "null"] },
+            summary: { type: ["string", "null"] }
+          }
+        },
+        educations: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["school", "major", "degree", "period", "note"],
+            properties: {
+              school: { type: ["string", "null"] },
+              major: { type: ["string", "null"] },
+              degree: { type: ["string", "null"] },
+              period: { type: ["string", "null"] },
+              note: { type: ["string", "null"] }
+            }
+          }
+        },
+        experiences: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["title", "org", "period", "bullets"],
+            properties: {
+              title: { type: ["string", "null"] },
+              org: { type: ["string", "null"] },
+              period: { type: ["string", "null"] },
+              bullets: { type: "array", items: { type: "string" } }
+            }
+          }
+        },
+        skills: { type: "array", items: { type: "string" } },
+        languages: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["language", "level"],
+            properties: { language: { type: ["string", "null"] }, level: { type: ["string", "null"] } }
+          }
+        }
+      }
+    }
+  }
+} as const;
+
+const resumeChatSchema = z.object({
+  messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(120).default([]),
+  data: z.record(z.string(), z.unknown()).optional(),
+  locale: z.string().max(10).optional()
+});
+
+// 반환 데이터를 정규 스키마 키로 정규화(strict 실패로 fallback 시 한국어 키 대비).
+function normalizeResumeData(raw: unknown): Record<string, unknown> {
+  const src = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const pick = (o: Record<string, unknown>, keys: string[]): string | null => {
+    for (const k of keys) {
+      const v = o[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+    return null;
+  };
+  const asObj = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+  const asArr = (v: unknown): Record<string, unknown>[] =>
+    Array.isArray(v) ? v.filter((x) => x && typeof x === "object").map((x) => x as Record<string, unknown>) : [];
+  const strArr = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean) : [];
+
+  const b = asObj(src.basic);
+  const basic = {
+    name: pick(b, ["name", "이름", "성명"]),
+    email: pick(b, ["email", "이메일", "메일"]),
+    phone: pick(b, ["phone", "연락처", "전화", "전화번호"]),
+    summary: pick(b, ["summary", "자기소개", "소개", "한줄소개"])
+  };
+  const educations = asArr(src.educations).map((e) => ({
+    school: pick(e, ["school", "학교", "학교명"]),
+    major: pick(e, ["major", "전공"]),
+    degree: pick(e, ["degree", "학위"]),
+    period: pick(e, ["period", "기간", "재학기간"]),
+    note: pick(e, ["note", "비고", "메모"])
+  }));
+  const experiences = asArr(src.experiences).map((x) => ({
+    title: pick(x, ["title", "역할", "직함", "직무"]),
+    org: pick(x, ["org", "소속", "회사", "기관"]),
+    period: pick(x, ["period", "기간"]),
+    bullets: strArr(x.bullets ?? x["성과"] ?? x["내용"])
+  }));
+  const skills = strArr(src.skills ?? src["스킬"] ?? src["역량"]);
+  const languages = asArr(src.languages).map((l) => ({
+    language: pick(l, ["language", "언어"]),
+    level: pick(l, ["level", "수준", "레벨"])
+  }));
+  return { basic, educations, experiences, skills, languages };
+}
+
+// POST /career-launch/resume-chat — 이력서 재료를 대화로 수집하고 누적 데이터를 저장.
+app.post(
+  "/career-launch/resume-chat",
+  authenticate,
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-resume-chat", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = resumeChatSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const { messages, data, locale } = parsed.data;
+    try {
+      const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
+      const systemPrompt =
+        "너는 한국 취업을 준비하는 외국인 유학생의 이력서를 함께 만드는 전문 커리어 코치야. 학생은 별도 이력서 빌더로 가지 않고, 너와의 대화만으로 이력서 재료를 모아. 목표는 대화로 이력서 정보를 이끌어내 구조화된 data 로 차곡차곡 쌓는 것.\n\n" +
+        "채울 섹션(이 순서대로 하나씩):\n" +
+        "1. 기본정보(basic): 이름·이메일·연락처, 그리고 한 줄 자기소개(summary)\n" +
+        "2. 학력(educations): 학교·전공·학위·기간\n" +
+        "3. 경력·경험(experiences): 인턴·프로젝트·대외활동 — 역할(title)·소속(org)·기간·구체적 성과(bullets, 가능하면 숫자로)\n" +
+        "4. 스킬(skills): 툴·기술·직무 역량\n" +
+        "5. 어학(languages): 언어와 수준(TOPIK 급수 등)\n\n" +
+        "규칙:\n" +
+        "1. " + CAREER_TONE + " 한 번에 하나씩 물어봐. 학생 답에 먼저 짧게 공감·반응해줘.\n" +
+        "1-1. " + CAREER_DEPTH + " 한 섹션이 충분히 채워지기 전엔 다음으로 넘어가지 마.\n" +
+        "2. [대화가 끊기지 않게] 학생이 막막해하면 다그치지 말고, 예시를 보여주거나 고르기 쉬운 질문으로 바꿔. 모든 reply 는 학생이 바로 답할 수 있는 '다음 한 걸음'으로 끝나야 해.\n" +
+        "3. 경력·경험은 '무엇을 했다'가 아니라 '어떤 성과를 냈다'로 이끌어. 애매하면 숫자·결과를 물어봐 bullets 를 구체화해.\n" +
+        "4. 매 턴 [현재까지 데이터]에 새로 알게 된 정보를 합쳐 data 전체를 반환해(이전 것 유지·누적). 값이 없으면 null 또는 빈 배열. 학생이 직접 말하지 않은 값(특히 summary)은 절대 지어내지 말고 null 로 둬. data 의 키는 반드시 영어 스키마 키(name, email, phone, summary, school, major, degree, period, note, title, org, bullets, language, level)를 그대로 써.\n" +
+        "5. [학생 프로필]로 이미 아는 정보(이름·전공·학교·스킬)는 다시 묻지 말고 data 에 채워두고 가볍게 확인만 해.\n" +
+        "6. 기본정보~어학이 두루 채워지면 done=true, 따뜻한 마무리와 함께 '이력서 미리보기에서 확인할 수 있다'고 안내해. 얕으면 done 을 서두르지 마.\n" +
+        "7. 처음이면(메시지 없음) 인사하고 첫 질문(basic 부터). 진행 중이면 재인사 없이 이어가.\n\n" +
+        'JSON 한 개 객체로만 응답: { "reply": string, "data": {basic,educations,experiences,skills,languages}, "done": boolean }' +
+        aiLangDirective(locale);
+      const convo = messages.length
+        ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
+        : "(아직 대화 없음 — 인사하고 기본정보부터 물어봐)";
+      const userPrompt =
+        (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        `[현재까지 데이터]\n${JSON.stringify(data ?? {})}\n\n` +
+        `지금까지 대화:\n${convo}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "resume_chat", RESUME_DATA_SCHEMA, true)) as {
+        reply?: unknown;
+        data?: unknown;
+        done?: unknown;
+      };
+      const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
+      const resumeData = normalizeResumeData(pj.data);
+      const done = pj.done === true;
+      if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
+      // 누적 데이터를 학생당 1행으로 저장(upsert).
+      await prisma.careerResumeData.upsert({
+        where: { studentUserId: req.auth!.userId },
+        create: { studentUserId: req.auth!.userId, content: resumeData as object },
+        update: { content: resumeData as object }
+      });
+      return res.json({ ok: true, reply, data: resumeData, done });
+    } catch (err) {
+      console.error("[career-launch/resume-chat] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to continue chat" });
+    }
+  }
+);
+
+// GET /career-launch/resume-data — 로그인한 학생의 누적 이력서 데이터 조회.
+app.get("/career-launch/resume-data", authenticate, async (req, res) => {
+  try {
+    const row = await prisma.careerResumeData.findUnique({ where: { studentUserId: req.auth!.userId } });
+    return res.json({ ok: true, data: row?.content ?? {}, updatedAt: row?.updatedAt ?? null });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }

@@ -89,21 +89,21 @@ export const WEEKS: WeekPlan[] = [
     steps: [
       {
         id: "w2s1",
-        title: "이력서 기본 항목 작성",
-        desc: "기본 정보·학력·연락처 같은 필수 항목부터 채워 이력서의 뼈대를 만들어봐요.",
-        action: { label: "시작하기", href: "/career-launch/resume" }
+        title: "대화로 이력서 시작하기",
+        desc: "별도 작성 없이 AI와 대화하며 기본정보·학력을 채워요. 답하는 대로 이력서 데이터가 자동으로 쌓여요.",
+        action: { label: "시작하기", href: "/career-launch/resume-collect" }
       },
       {
         id: "w2s2",
-        title: "경력·경험 3개 이상 정리",
-        desc: "지난 주 모아둔 재료로 프로젝트·인턴·활동을 3개 이상 정리해요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
-        action: { label: "시작하기", href: "/career-launch/resume" }
+        title: "경력·경험 대화로 정리",
+        desc: "인턴·프로젝트·활동을 AI와 대화하며 풀어내요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
+        action: { label: "시작하기", href: "/career-launch/resume-collect" }
       },
       {
         id: "w2s3",
-        title: "AI 이력서 진단으로 보완",
-        desc: "완성한 이력서를 AI로 진단해 완성도와 부족한 부분을 확인하고 채워봐요.",
-        action: { label: "시작하기", href: "/career-launch/resume" }
+        title: "이력서 미리보기 확인",
+        desc: "대화로 쌓인 정보가 이력서로 어떻게 보이는지 확인해요. 부족한 부분은 이어서 대화로 채우면 돼요.",
+        action: { label: "시작하기", href: "/career-launch/resume-preview" }
       },
       {
         id: "w2s4",

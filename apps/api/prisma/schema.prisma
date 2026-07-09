@@ -69,6 +69,7 @@ model User {
   programFeedbacks                     ProgramFeedback[]             @relation("ProgramFeedbackAuthor")
   careerLaunchFeedbacksReceived        CareerLaunchFeedback[]        @relation("CareerLaunchFeedbackStudent")
   careerLaunchFeedbacksAuthored        CareerLaunchFeedback[]        @relation("CareerLaunchFeedbackAuthor")
+  careerResumeData                     CareerResumeData?             @relation("CareerResumeDataStudent")
   certificatesIssued                   Certificate[]                 @relation("CertificateIssuer")
   recommendationsIssued                Recommendation[]              @relation("RecommendationIssuer")
   schoolCreditReviews                  SchoolCreditRequest[]         @relation("SchoolCreditReviewer")
@@ -813,6 +814,19 @@ model CareerLaunchFeedback {
 
   @@index([studentUserId])
   @@index([authorUserId])
+}
+
+// Career Launch 이력서 데이터. 학생이 별도 이력서 빌더로 가지 않고, 프로그램
+// 안에서 AI와 대화하며 기본정보·학력·경력·스킬 등을 대화로 쌓는다. 누적된
+// 구조화 데이터(content JSON)를 나중에 이력서 형태로 렌더링한다. 학생당 1개.
+model CareerResumeData {
+  id            String   @id @default(uuid())
+  studentUserId String   @unique
+  content       Json     @default("{}") // { basic, educations[], experiences[], skills[], languages[] }
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  student User @relation("CareerResumeDataStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
 }
 
 model Certificate {
