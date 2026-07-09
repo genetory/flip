@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { WEEKS } from "../../../../lib/launch/data";
-import { Card, Pill, SectionTitle, Stepper } from "../../../../components/launch/ui";
+import { Card, Pill, SectionTitle } from "../../../../components/launch/ui";
+import { WeekStepper } from "../../../../components/launch/week-stepper";
 import { Header } from "../../../../components/site/Header";
 import { Footer } from "../../../../components/site/Footer";
 
@@ -59,7 +60,7 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
                 이번 주 해야 할 일
               </SectionTitle>
               <Card className="md:!p-6">
-                <Stepper steps={plan.steps} />
+                <WeekStepper steps={plan.steps} />
               </Card>
             </div>
 
