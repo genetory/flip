@@ -100,7 +100,7 @@ export default function LaunchDashboardPage() {
 
           <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
             {/* ── 메인: 4주 여정 퍼널 ── */}
-            <div className="space-y-7 md:space-y-8">
+            <div className="min-w-0 space-y-7 md:space-y-8">
               <div>
                 <SectionTitle sub="각 주차를 눌러 진행하세요 · 완료할수록 결과물이 완성돼요">4주 여정</SectionTitle>
                 <ol className="space-y-3">
@@ -143,7 +143,7 @@ export default function LaunchDashboardPage() {
             </div>
 
             {/* ── 사이드바 ── */}
-            <div className="space-y-7 md:space-y-8">
+            <div className="min-w-0 space-y-7 md:space-y-8">
               {/* 코치 피드백 */}
               <CoachFeedback />
 
