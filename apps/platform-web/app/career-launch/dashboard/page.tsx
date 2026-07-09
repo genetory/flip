@@ -74,6 +74,12 @@ export default function LaunchDashboardPage() {
       <Header />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-6xl px-5 pt-6 md:pt-10">
+          {/* 운영자는 학생 화면을 본인 계정으로 전부 체험할 수 있음 — 콘솔 복귀 링크 */}
+          {user?.role === "OPERATOR" ? (
+            <Link href="/career-launch/ops/students" className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-[#F0B429]/40 bg-[#FFF9EC] px-3 py-1.5 text-[12.5px] font-bold text-[#B7791F] transition hover:bg-[#FEF3D6]">
+              ← 운영자 콘솔 · 지금은 학생 화면 체험 중
+            </Link>
+          ) : null}
           {/* 인사 + 전체 진행률 */}
           <Card className="md:!p-7">
             <div className="flex flex-wrap items-start justify-between gap-3">
