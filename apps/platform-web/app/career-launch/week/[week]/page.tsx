@@ -19,7 +19,6 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
     pending: <Pill tone="amber">피드백 대기 중</Pill>,
     done: <Pill tone="green">피드백 완료</Pill>
   }[plan.feedback.status];
-  const doneCount = plan.steps.filter((s) => s.done).length;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -57,9 +56,7 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
           <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
             {/* ── 메인: 스텝별 해야 할 일 ── */}
             <div className="min-w-0">
-              <SectionTitle sub={`총 ${plan.steps.length}단계 중 ${doneCount}단계 완료했어요 · 끝낸 단계는 번호를 콕 눌러 체크해요`}>
-                이번 주 해야 할 일
-              </SectionTitle>
+              <SectionTitle sub="끝낸 단계는 번호를 콕 눌러 체크해요">이번 주 해야 할 일</SectionTitle>
               <Card className="md:!p-6">
                 <WeekStepper steps={plan.steps} />
               </Card>

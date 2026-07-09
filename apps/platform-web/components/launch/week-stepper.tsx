@@ -271,7 +271,16 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     return null;
   };
 
+  const doneN = steps.filter((s) => isDone(s.id)).length;
+
   return (
+    <>
+      <div className="mb-4 flex items-center gap-2.5">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EEF1F5]">
+          <div className="h-full rounded-full bg-[#0B46E8] transition-[width]" style={{ width: `${steps.length ? (doneN / steps.length) * 100 : 0}%` }} />
+        </div>
+        <span className="shrink-0 text-[12px] font-bold text-[#4E5968]">{doneN}/{steps.length} 완료</span>
+      </div>
     <ol className="space-y-1">
       {steps.map((s, i) => {
         const done = isDone(s.id);
@@ -350,6 +359,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
         );
       })}
     </ol>
+    </>
   );
 }
 
