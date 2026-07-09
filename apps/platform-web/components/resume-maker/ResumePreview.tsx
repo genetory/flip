@@ -13,6 +13,9 @@ const A4_H = 1123;
 // 각 페이지 위·아래 동일 패딩(px). 콘텐츠 영역 = A4_H - 2*PAGE_PAD.
 const PAGE_PAD = 48;
 const PAGE_CONTENT_H = A4_H - PAGE_PAD * 2;
+// 페이지 하단에 이 정도 이하로만 빈 공간이 남으면 블록을 통째로 다음 장으로 넘겨
+// 깔끔하게 유지하고, 그보다 크면 문단을 잘라서라도 페이지를 채운다(빈 페이지 방지).
+const KEEP_TOGETHER_MAX = 140;
 
 type SectionKey = ResumeSectionKey;
 
@@ -420,13 +423,18 @@ export function computePageBreaks(root: HTMLElement, pageH: number): { starts: n
       else if (t > pageBottom) break;
     }
     if (next >= 0) {
-      // 'next'에서 시작하는 블록이 한 페이지보다 크면(내부에 분할 지점 없음) 어차피
-      // 잘려야 하므로, 시작점에서 끊어 현재 페이지를 비우지 말고 경계에서 채워 자른다.
       let after = total;
       for (const t of tops) {
         if (t > next) { after = t; break; }
       }
-      if (after - next > pageH) next = pageBottom;
+      // 'next'(안전 분할 지점)에서 끊으면 현재 페이지에 남는 빈 공간.
+      const gap = pageBottom - next;
+      // 블록이 한 페이지보다 크거나(내부 분할 지점 없음) 빈 공간이 크게 남으면,
+      // 시작점에서 밀지 말고 경계에서 문단을 잘라 페이지를 채운다. 빈 공간이 조금만
+      // 남을 땐(작은 항목) 통째로 넘겨 깔끔하게 유지.
+      if ((after - next > pageH || gap > KEEP_TOGETHER_MAX) && next < total - 1) {
+        next = pageBottom;
+      }
     } else {
       // 이 페이지 안에 안전한 분할 지점이 없다(한 블록이 한 페이지보다 큼).
       // 내용 유실 없이 이어지도록 페이지 경계에서 그대로 자른다.
