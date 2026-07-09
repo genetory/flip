@@ -43,9 +43,11 @@ export function WeekDocs({ week }: { week: number }) {
       <div>
         <div className="flex items-center justify-between">
           <SectionTitle>내 이력서</SectionTitle>
-          <Link href="/career-launch/resume-collect" className="-mt-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">
-            {hasResumeContent(resume) ? "이어하기" : "시작하기"} →
-          </Link>
+          {hasResumeContent(resume) ? (
+            <Link href="/career-launch/resume-preview" target="_blank" rel="noopener noreferrer" className="-mt-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">
+              크게보기 ↗
+            </Link>
+          ) : null}
         </div>
         {!ready ? (
           <Card className="!p-4 text-[13px] text-[#8B95A1]">불러오는 중…</Card>
@@ -61,9 +63,11 @@ export function WeekDocs({ week }: { week: number }) {
         <div>
           <div className="flex items-center justify-between">
             <SectionTitle>내 자소서</SectionTitle>
-            <Link href="/career-launch/cover-collect" className="-mt-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">
-              {hasCoverContent(cover) ? "이어하기" : "시작하기"} →
-            </Link>
+            {hasCoverContent(cover) ? (
+              <Link href="/career-launch/cover-preview" target="_blank" rel="noopener noreferrer" className="-mt-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">
+                크게보기 ↗
+              </Link>
+            ) : null}
           </div>
           {!ready ? (
             <Card className="!p-4 text-[13px] text-[#8B95A1]">불러오는 중…</Card>
