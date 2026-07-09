@@ -169,10 +169,22 @@ export default function LaunchJobsPage() {
         <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-3xl flex-col px-5 pb-4 pt-4 md:pt-6">
           {/* 헤더 */}
           <div className="flex items-center justify-between gap-3">
-            <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              ← 대시보드
+            <Link href="/career-launch/week/1" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+              ← 1주차
             </Link>
-            <span className="text-[12px] font-bold text-[#0B46E8]">{selected.length}/{MAX_PICK} 선택</span>
+            <div className="flex items-center gap-2.5">
+              <span className="text-[12px] font-bold text-[#0B46E8]">{selected.length}/{MAX_PICK} 선택</span>
+              {!saved ? (
+                <button
+                  type="button"
+                  onClick={() => send("이 부분은 넘어가고 다음으로 진행해줘.")}
+                  disabled={loading}
+                  className="rounded-full border border-[#D7DCE3] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8] disabled:opacity-40"
+                >
+                  넘어가기 ⏭
+                </button>
+              ) : null}
+            </div>
           </div>
           <div className="mt-3 flex items-center gap-2.5">
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
@@ -311,10 +323,10 @@ export default function LaunchJobsPage() {
                 처음부터 다시 선정
               </button>
               <Link
-                href="/career-launch/dashboard"
+                href="/career-launch/week/1"
                 className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
               >
-                대시보드에서 확인하기 →
+                1주차 페이지로 →
               </Link>
             </div>
           ) : (

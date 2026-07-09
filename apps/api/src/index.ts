@@ -13780,6 +13780,10 @@ const CAREER_TONE =
 const CAREER_DEPTH =
   "유료 프로그램인 만큼 성급히 마무리하지 말고 충분히 깊게 대화해. 학생이 너무 짧거나 두루뭉술하게 답하면('네', '없어요', '잘 모르겠어요' 등) 바로 넘어가지 말고, 구체적인 예시나 상황을 들어 한두 번 더 물어봐 실질적인 내용을 끌어내. 학생이 스스로 생각하고 시간을 들여 답하도록 이끌어.";
 
+// 이 스텝의 주제·목적을 벗어나지 않도록 하는 스코프 제한. 각 챗에 공통 적용.
+const CAREER_SCOPE =
+  "[중요 - 주제 유지] 이 스텝의 주제와 목적에만 집중해. 스텝과 무관한 주제(다른 스텝의 내용, 잡담, 일반 상식 등)로 새지 마. 필요 이상으로 깊게 파고들거나 곁가지 질문을 늘리지 말고, 이 스텝에 꼭 필요한 핵심만 효율적으로 확인한 뒤 진행해. 학생이 넘기고 싶어 하면(넘어가기·다음·그만·스킵 등) 더 캐묻지 말고 즉시 다음으로 넘어가. 스텝 범위를 벗어난 요청에는 '그 부분은 이 단계에서 다루지 않아요'라고 짧게 안내하고 현재 주제로 부드럽게 돌아와.";
+
 // 각 스텝 대화의 시스템 프롬프트(본문). 운영자가 어드민에서 편집할 수 있고, 편집분은
 // AppSetting(career_prompt_<key>)에 저장된다. JSON 출력 형식 계약 라인은 각 핸들러가
 // 뒤에 자동으로 붙이므로 본문 편집으로 깨지지 않는다.
@@ -14056,7 +14060,7 @@ app.post(
     const excludeSet = new Set(exclude);
     try {
       const systemPrompt =
-        (await getCareerPrompt("job")) + "\n\n" +
+        (await getCareerPrompt("job")) + "\n\n" + CAREER_SCOPE + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "recommend": string[], "done": boolean }' +
         aiLangDirective(locale);
 
@@ -14140,7 +14144,7 @@ app.post(
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const systemPrompt =
-        (await getCareerPrompt("material")) + "\n\n" +
+        (await getCareerPrompt("material")) + "\n\n" + CAREER_SCOPE + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "materials": string[], "done": boolean }' +
         aiLangDirective(locale);
       const convo = messages.length
@@ -14187,7 +14191,7 @@ app.post(
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const systemPrompt =
-        (await getCareerPrompt("diagnosis")) + "\n\n" +
+        (await getCareerPrompt("diagnosis")) + "\n\n" + CAREER_SCOPE + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "result": { "percent": number, "level": string, "strengths": string[], "improvements": string[] } | null }' +
         aiLangDirective(locale);
       const convo = messages.length
@@ -14482,7 +14486,7 @@ app.post(
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const systemPrompt =
-        (await getCareerPrompt("resume")) + "\n\n" +
+        (await getCareerPrompt("resume")) + "\n\n" + CAREER_SCOPE + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": {basic,educations,experiences,skills,languages}, "done": boolean }' +
         aiLangDirective(locale);
       // 저장된 데이터가 이미 있는지 — kickoff 시 재질문 방지용.
@@ -14617,7 +14621,7 @@ app.post(
       const savedNorm = normalizeCoverData(data);
       const hasSaved = hasCoverContent(savedNorm);
       const systemPrompt =
-        (await getCareerPrompt("cover")) + "\n\n" +
+        (await getCareerPrompt("cover")) + "\n\n" + CAREER_SCOPE + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": { "company": string|null, "items": [{ "question": string, "answer": string }] }, "done": boolean }' +
         aiLangDirective(locale);
       const convo = messages.length
