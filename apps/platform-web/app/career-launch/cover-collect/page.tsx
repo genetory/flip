@@ -101,7 +101,7 @@ export default function CoverCollectPage() {
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
               <p className="text-[15px] font-black text-[#0B1227]">대화로 자기소개서 채우기</p>
-              <p className="text-[12px] text-[#8B95A1]">AI와 대화하면 자소서 문항이 자동으로 채워져요</p>
+              <p className="text-[12px] text-[#8B95A1]">AI와 대화하면 자기소개서 문항이 자동으로 채워져요</p>
             </div>
           </div>
 

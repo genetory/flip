@@ -8,7 +8,7 @@ import { ResumeRender } from "./resume-render";
 import { CoverRender } from "./cover-render";
 import { SectionTitle, Card } from "./ui";
 
-// 주차 페이지 우측 컬럼 — 대화로 만드는 이력서(2주차~)와 자소서(3주차~)를 항상 미리보기.
+// 주차 페이지 우측 컬럼 — 대화로 만드는 이력서(2주차~)와 자기소개서(3주차~)를 항상 미리보기.
 export function WeekDocs({ week }: { week: number }) {
   const [resume, setResume] = useState<ResumeData>({});
   const [cover, setCover] = useState<CoverData>({});
@@ -33,7 +33,7 @@ export function WeekDocs({ week }: { week: number }) {
     };
   }, []);
 
-  // 2주차: 이력서 · 3주차: 자소서 · 4주차: 이력서 + 자소서. (1주차는 노출 안 함)
+  // 2주차: 이력서 · 3주차: 자기소개서 · 4주차: 이력서 + 자기소개서. (1주차는 노출 안 함)
   const showResume = week === 2 || week >= 4;
   const showCover = week >= 3;
 
@@ -62,7 +62,7 @@ export function WeekDocs({ week }: { week: number }) {
       {showCover ? (
         <div>
           <div className="flex items-center justify-between">
-            <SectionTitle>내 자소서</SectionTitle>
+            <SectionTitle>내 자기소개서</SectionTitle>
             {hasCoverContent(cover) ? (
               <Link href="/career-launch/cover-preview" target="_blank" rel="noopener noreferrer" className="-mt-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">
                 크게보기 ↗
@@ -74,7 +74,7 @@ export function WeekDocs({ week }: { week: number }) {
           ) : hasCoverContent(cover) ? (
             <CoverRender data={cover} />
           ) : (
-            <Card className="!p-4 text-[13px] text-[#8B95A1]">아직 자소서를 만들지 않았어요. 대화로 채워보세요.</Card>
+            <Card className="!p-4 text-[13px] text-[#8B95A1]">아직 자기소개서를 만들지 않았어요. 대화로 채워보세요.</Card>
           )}
         </div>
       ) : null}

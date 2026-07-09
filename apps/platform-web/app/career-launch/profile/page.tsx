@@ -69,7 +69,7 @@ export default function LaunchProfilePage() {
             </p>
             <div className="mt-3 flex gap-2">
               <LaunchButton href="/career-launch/resume" variant="outline">이력서 만들기</LaunchButton>
-              <LaunchButton href="/career-launch/cover-letter" variant="outline">자소서 만들기</LaunchButton>
+              <LaunchButton href="/career-launch/cover-letter" variant="outline">자기소개서 만들기</LaunchButton>
             </div>
           </Card>
         </div>

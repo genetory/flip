@@ -8,7 +8,7 @@ import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
-// 대화로 쌓은 자기소개서 데이터를 실제 자소서로 크게 보여주는 페이지.
+// 대화로 쌓은 자기소개서 데이터를 실제 자기소개서로 크게 보여주는 페이지.
 export default function CoverPreviewPage() {
   const { isReady } = useAuthSession();
   const [data, setData] = useState<CoverData | null>(null);

@@ -180,7 +180,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
         </ResultCard>
       );
     }
-    // 자소서 — 문항별 질문 + 답변(week1/2와 같은 텍스트 디테일). 전문은 우측 컬럼.
+    // 자기소개서 — 문항별 질문 + 답변(week1/2와 같은 텍스트 디테일). 전문은 우측 컬럼.
     if ((kind === "cover" || kind === "cover3" || kind === "cover4") && coverReady) {
       const filled = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
       return (
@@ -197,7 +197,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
         </ResultCard>
       );
     }
-    // 이력서 + 자소서 (다듬기·완성도·최종 확정) — 경력·문항 목록으로 디테일하게. 전문은 우측 컬럼.
+    // 이력서 + 자기소개서 (다듬기·완성도·최종 확정) — 경력·문항 목록으로 디테일하게. 전문은 우측 컬럼.
     if (kind === "both" && (resumeReady || coverReady)) {
       const filledCover = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
       return (
@@ -220,7 +220,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
           {coverReady ? (
             <div>
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[13px] font-bold text-[#191F28]">📝 자소서 — 문항 {coverN}개{cover.company ? ` · ${cover.company}` : ""}</p>
+                <p className="text-[13px] font-bold text-[#191F28]">📝 자기소개서 — 문항 {coverN}개{cover.company ? ` · ${cover.company}` : ""}</p>
                 <Link href="/career-launch/cover-collect" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">보기</Link>
               </div>
               <ul className="mt-1.5 space-y-1">

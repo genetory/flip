@@ -140,19 +140,6 @@ export default function LaunchDashboardPage() {
                   })}
                 </ol>
               </div>
-
-              {/* 결과물 — 이력서·자소서 미리보기(없으면 점선 placeholder) */}
-              <div>
-                <SectionTitle sub="대화로 만드는 이력서와 자기소개서">내 결과물</SectionTitle>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <DocPreview title="내 이력서" ready={resumeReady} previewHref="/career-launch/resume-preview" startHref="/career-launch/resume-collect" emptyTitle="아직 이력서가 없어요" emptySub="2주차에 대화로 만들어요">
-                    {resumeReady ? <ResumeRender data={data.resume} /> : null}
-                  </DocPreview>
-                  <DocPreview title="내 자기소개서" ready={coverReady} previewHref="/career-launch/cover-preview" startHref="/career-launch/cover-collect" emptyTitle="아직 자기소개서가 없어요" emptySub="3주차에 대화로 만들어요">
-                    {coverReady ? <CoverRender data={data.cover} /> : null}
-                  </DocPreview>
-                </div>
-              </div>
             </div>
 
             {/* ── 사이드바 ── */}
@@ -190,6 +177,17 @@ export default function LaunchDashboardPage() {
                     ))}
                   </ul>
                 </Card>
+              </div>
+
+              {/* 내 결과물 — 이력서·자기소개서 미리보기(없으면 점선 placeholder) */}
+              <div className="space-y-4">
+                <SectionTitle sub="대화로 만드는 이력서와 자기소개서">내 결과물</SectionTitle>
+                <DocPreview title="내 이력서" ready={resumeReady} previewHref="/career-launch/resume-preview" startHref="/career-launch/resume-collect" emptyTitle="아직 이력서가 없어요" emptySub="2주차에 대화로 만들어요">
+                  {resumeReady ? <ResumeRender data={data.resume} /> : null}
+                </DocPreview>
+                <DocPreview title="내 자기소개서" ready={coverReady} previewHref="/career-launch/cover-preview" startHref="/career-launch/cover-collect" emptyTitle="아직 자기소개서가 없어요" emptySub="3주차에 대화로 만들어요">
+                  {coverReady ? <CoverRender data={data.cover} /> : null}
+                </DocPreview>
               </div>
             </div>
           </div>
