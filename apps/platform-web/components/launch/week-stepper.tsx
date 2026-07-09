@@ -17,7 +17,7 @@ const STEP_KIND: Record<string, string> = {
   w1s3: "materials",
   w2s1: "resume-basic", // 기본정보·학력
   w2s2: "resume-exp", // 경력·경험
-  w2s3: "resume-full", // 스킬·어학 + 전체 미리보기
+  w2s3: "resume-skills", // 스킬·어학
   w3s1: "cover", // 자소서 문항
   w3s2: "both", // 이력서·자소서 다듬기
   w3s3: "both", // 완성도 점검
@@ -70,7 +70,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
       case "materials": return (prog.materials?.length ?? 0) > 0;
       case "resume-basic": return resumeBasicDone;
       case "resume-exp": return resumeExpDone;
-      case "resume-full": return resumeReady;
+      case "resume-skills": return skillN > 0 || langN > 0;
       case "cover": return coverReady;
       case "both": return resumeReady && coverReady;
       default: return false;
@@ -197,9 +197,23 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
         </ResultCard>
       );
     }
-    // 이력서 — 스킬·어학 + 전체 이력서 전문
-    if (kind === "resume-full" && resumeReady) {
-      return <ResultBlock title={`완성된 이력서 — 스킬 ${skillN} · 어학 ${langN}`} href="/career-launch/resume-preview" hrefLabel="미리보기"><ResumeRender data={resume} /></ResultBlock>;
+    // 이력서 — 스킬·어학
+    if (kind === "resume-skills" && (skillN > 0 || langN > 0)) {
+      return (
+        <ResultCard href="/career-launch/resume-collect" hrefLabel="이어하기">
+          <p className="text-[13.5px] font-bold text-[#191F28]">📄 스킬 {skillN} · 어학 {langN}</p>
+          {skillN > 0 ? (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {resume.skills!.map((s, i) => (
+                <span key={i} className="rounded-full bg-white/70 px-2 py-0.5 text-[11.5px] font-semibold text-[#0B46E8]">{s}</span>
+              ))}
+            </div>
+          ) : null}
+          {langN > 0 ? (
+            <p className="mt-1.5 text-[12.5px] text-[#4E5968]">{resume.languages!.map((l) => [l.language, l.level].filter(Boolean).join(" ")).join(" · ")}</p>
+          ) : null}
+        </ResultCard>
+      );
     }
     // 자소서 — 문항 전문
     if (kind === "cover" && coverReady) {

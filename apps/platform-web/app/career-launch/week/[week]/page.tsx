@@ -3,6 +3,7 @@ import Link from "next/link";
 import { WEEKS } from "../../../../lib/launch/data";
 import { Card, Pill, SectionTitle } from "../../../../components/launch/ui";
 import { WeekStepper } from "../../../../components/launch/week-stepper";
+import { WeekDocs } from "../../../../components/launch/week-docs";
 import { Header } from "../../../../components/site/Header";
 import { Footer } from "../../../../components/site/Footer";
 
@@ -66,6 +67,9 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
 
             {/* ── 사이드바 ── */}
             <div className="space-y-7">
+              {/* 내 이력서·자소서 — 2주차부터 항상 미리보기 */}
+              {plan.week >= 2 ? <WeekDocs week={plan.week} /> : null}
+
               {/* 세미나 정보 */}
               <div>
                 <SectionTitle>세미나 정보</SectionTitle>

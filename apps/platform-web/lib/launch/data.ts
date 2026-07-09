@@ -101,9 +101,9 @@ export const WEEKS: WeekPlan[] = [
       },
       {
         id: "w2s3",
-        title: "이력서 미리보기 확인",
-        desc: "대화로 쌓인 정보가 이력서로 어떻게 보이는지 확인해요. 부족한 부분은 이어서 대화로 채우면 돼요.",
-        action: { label: "시작하기", href: "/career-launch/resume-preview" }
+        title: "스킬·어학 정리",
+        desc: "직무 스킬과 어학 능력을 AI와 대화하며 정리해요. 이력서의 마지막 조각을 채우면 대표 이력서가 완성돼요.",
+        action: { label: "시작하기", href: "/career-launch/resume-collect" }
       },
       {
         id: "w2s4",
