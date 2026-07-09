@@ -7,6 +7,7 @@ import { COMPLETION_CRITERIA, STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
 import { LiveWeekSteps, type DiagResult } from "../../../components/launch/live-week-steps";
 import { CoachFeedback } from "../../../components/launch/coach-feedback";
+import { ResumeCard } from "../../../components/launch/resume-card";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -192,22 +193,8 @@ export default function LaunchDashboardPage() {
               {/* 코치 피드백 — 운영진이 남긴 제출물 피드백(있을 때만 노출) */}
               <CoachFeedback />
 
-              {/* 내 이력서 — 대화로 쌓은 데이터를 이력서로 확인 */}
-              <div>
-                <SectionTitle>내 이력서</SectionTitle>
-                <Card className="flex items-center justify-between gap-3 !p-4">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[20px]">📄</span>
-                    <div>
-                      <p className="text-[14px] font-bold text-[#191F28]">대화로 만드는 이력서</p>
-                      <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">AI와 대화하면 이력서가 자동으로 쌓여요</p>
-                    </div>
-                  </div>
-                  <Link href="/career-launch/resume-preview" className="shrink-0 rounded-lg bg-[#0B46E8] px-3 py-2 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
-                    보기
-                  </Link>
-                </Card>
-              </div>
+              {/* 내 이력서 — 대화로 쌓은 데이터를 이력서로 확인(데이터 있으면 이어하기) */}
+              <ResumeCard />
 
               {/* 이번 주 세미나 */}
               <div>

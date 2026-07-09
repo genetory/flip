@@ -14344,6 +14344,42 @@ function normalizeResumeData(raw: unknown): Record<string, unknown> {
   return { basic, educations, experiences, skills, languages };
 }
 
+// 저장된 데이터와 새로 반환된 데이터를 병합한다. LLM 이 누적 반환에서 이전 항목을
+// 빠뜨려도 저장분이 사라지지 않도록 — 배열은 key 기준 union(새 값 우선), basic 은
+// 필드별로 새 값(non-null) 우선·없으면 기존 값 유지.
+function mergeResumeData(saved: Record<string, unknown>, incoming: Record<string, unknown>): Record<string, unknown> {
+  const so = normalizeResumeData(saved);
+  const io = normalizeResumeData(incoming);
+  const sb = so.basic as Record<string, unknown>;
+  const ib = io.basic as Record<string, unknown>;
+  const basic = {
+    name: ib.name ?? sb.name,
+    email: ib.email ?? sb.email,
+    phone: ib.phone ?? sb.phone,
+    summary: ib.summary ?? sb.summary
+  };
+  const unionBy = (savedArr: unknown, incomingArr: unknown, keyOf: (x: Record<string, unknown>) => string) => {
+    const s = Array.isArray(savedArr) ? (savedArr as Record<string, unknown>[]) : [];
+    const inc = Array.isArray(incomingArr) ? (incomingArr as Record<string, unknown>[]) : [];
+    const map = new Map<string, Record<string, unknown>>();
+    for (const it of s) map.set(keyOf(it), it);
+    for (const it of inc) map.set(keyOf(it), it); // 같은 key 면 새 값(수정·보강)으로 대체
+    return Array.from(map.values()).filter((it) => keyOf(it).replace(/\|/g, "").trim().length > 0);
+  };
+  const educations = unionBy(so.educations, io.educations, (e) => `${e.school ?? ""}|${e.major ?? ""}|${e.degree ?? ""}|${e.period ?? ""}`);
+  const experiences = unionBy(so.experiences, io.experiences, (x) => `${x.title ?? ""}|${x.org ?? ""}|${x.period ?? ""}`);
+  const languages = unionBy(so.languages, io.languages, (l) => `${l.language ?? ""}`);
+  const skillSet = new Set<string>();
+  const skills: string[] = [];
+  for (const arr of [so.skills, io.skills]) {
+    if (Array.isArray(arr)) for (const s of arr as string[]) {
+      const k = String(s).trim().toLowerCase();
+      if (k && !skillSet.has(k)) { skillSet.add(k); skills.push(String(s).trim()); }
+    }
+  }
+  return { basic, educations, experiences, skills, languages };
+}
+
 // 정규화된 이력서 데이터에 실제 내용이 있는지(빈 데이터 판별).
 function hasResumeDataContent(d: Record<string, unknown>): boolean {
   const b = (d.basic ?? {}) as Record<string, unknown>;
@@ -14401,10 +14437,12 @@ app.post(
         done?: unknown;
       };
       const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
-      const resumeData = normalizeResumeData(pj.data);
       const done = pj.done === true;
       if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
-      // 누적 데이터를 학생당 1행으로 저장(upsert).
+      // 저장분과 병합해 누적 — LLM 이 이전 항목을 빠뜨려도 사라지지 않게 한다.
+      const existing = await prisma.careerResumeData.findUnique({ where: { studentUserId: req.auth!.userId } });
+      const savedContent = (existing?.content && typeof existing.content === "object" ? existing.content : {}) as Record<string, unknown>;
+      const resumeData = mergeResumeData(savedContent, pj.data as Record<string, unknown>);
       await prisma.careerResumeData.upsert({
         where: { studentUserId: req.auth!.userId },
         create: { studentUserId: req.auth!.userId, content: resumeData as object },
