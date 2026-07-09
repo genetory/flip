@@ -99,8 +99,31 @@ export default function LaunchDashboardPage() {
           </Card>
 
           <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
-            {/* ── 메인: 4주 여정 퍼널 ── */}
+            {/* ── 메인: 프로그램 소개 + 4주 여정 퍼널 ── */}
             <div className="min-w-0 space-y-7 md:space-y-8">
+              {/* 프로그램 소개 */}
+              <div>
+                <SectionTitle>프로그램 소개</SectionTitle>
+                <Card className="md:!p-6">
+                  <p className="text-[15px] font-black text-[#0B1227] md:text-[16px]">AI 코치와 함께하는 4주 취업 완성 부트캠프</p>
+                  <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">
+                    한국 취업을 준비하는 외국인 유학생을 위한 프로그램이에요. 취업 준비 상태 진단부터 직무 방향 설정, 대화로 만드는 이력서·자기소개서, 그리고 기업 지원까지 4주 동안 한 번에 완주해요.
+                  </p>
+                  <div className="mt-3.5 flex flex-wrap gap-2">
+                    {[
+                      { e: "💬", t: "대화로 만드는 이력서·자기소개서" },
+                      { e: "🎓", t: "주간 세미나" },
+                      { e: "✍️", t: "코치 1:1 피드백" }
+                    ].map((f) => (
+                      <span key={f.t} className="inline-flex items-center gap-1.5 rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12px] font-semibold text-[#4E5968]">
+                        <span>{f.e}</span>
+                        {f.t}
+                      </span>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+
               <div>
                 <SectionTitle sub="각 주차를 눌러 진행하세요 · 완료할수록 결과물이 완성돼요">4주 여정</SectionTitle>
                 <ol className="space-y-3">
