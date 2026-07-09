@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestResumeChat, fetchResumeData, hasResumeContent, type ResumeChatMsg, type ResumeData } from "../../../lib/launch/resume-data";
-import { ResumeRender } from "../../../components/launch/resume-render";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -49,12 +48,21 @@ export default function ResumeCollectPage() {
       } catch {
         // 저장분 없거나 조회 실패 — 빈 데이터로 시작
       }
+      // 이어하기(저장분 있음) — 스피너만 보이지 않게 즉시 반기고 미리보기를 띄운다.
+      const continuing = hasResumeContent(seed);
+      if (continuing) {
+        setMessages([{ role: "bot", text: `${displayName}님, 다시 오셨네요 👋 이어서 마저 채워볼게요!` }]);
+      }
       try {
         const { reply, data: merged } = await requestResumeChat([], seed);
         setData(merged);
-        setMessages([{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 대화하면서 이력서를 함께 채워볼까요?` }]);
+        setMessages((m) =>
+          continuing
+            ? [...m, { role: "bot", text: reply }]
+            : [{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 대화하면서 이력서를 함께 채워볼까요?` }]
+        );
       } catch {
-        setMessages([{ role: "bot", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
+        setMessages((m) => (continuing ? [...m, { role: "bot", text: "잠시 문제가 생겼어요 😥 다시 한 번 시도해줄래요?" }] : [{ role: "bot", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]));
       } finally {
         setLoading(false);
       }
@@ -124,16 +132,6 @@ export default function ResumeCollectPage() {
                 </div>
               )
             )}
-            {/* 지금까지 정리된 이력서 — 대화가 채워질수록 실시간으로 보여줌 */}
-            {hasResumeContent(data) ? (
-              <div className="flex items-start gap-2">
-                <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EAFFD1] text-[13px]">📄</span>
-                <div className="w-full max-w-[92%]">
-                  <p className="mb-1.5 text-[11.5px] font-bold text-[#3A6B00]">지금까지 정리된 이력서</p>
-                  <ResumeRender data={data} />
-                </div>
-              </div>
-            ) : null}
             {loading ? (
               <div className="flex items-end gap-2">
                 <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>

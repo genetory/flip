@@ -95,7 +95,7 @@ export default function LaunchOpsReportPage() {
                     <div className="h-8 w-full overflow-hidden rounded-lg bg-[#F2F4F6]">
                       <div
                         className="flex h-full items-center justify-end rounded-lg pr-2 text-[11px] font-bold text-white"
-                        style={{ width: `${Math.max(12, (f.value / maxFunnel) * 100)}%`, background: "linear-gradient(90deg,#0B46E8,#4F7BFF)" }}
+                        style={{ width: `${Math.max(12, (f.value / maxFunnel) * 100)}%`, background: "#0B46E8" }}
                       >
                         {Math.round((f.value / maxFunnel) * 100)}%
                       </div>

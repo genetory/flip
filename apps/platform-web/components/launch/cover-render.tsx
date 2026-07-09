@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CoverData } from "../../lib/launch/cover-data";
 import { CoverLetterSheet } from "../resume-maker/CoverLetterToolPreview";
 
-// Career Launch 자기소개서를 resume-maker(자소서 만들기)와 동일한 A4 형식으로 렌더.
+// Career Launch 자기소개서를 resume-maker(자기소개서 만들기)와 동일한 A4 형식으로 렌더.
 // CoverLetterSheet(순수 시트)를 컨테이너 폭에 맞춰 스케일한다(이력서 미리보기와 동일).
 const A4_W = 794;
 const A4_H = 1123;

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { fetchCoverData, hasCoverContent } from "../../lib/launch/cover-data";
 import { SectionTitle, Card } from "./ui";
 
-// 대시보드 '내 자소서' 카드 — 저장된 데이터 유무에 따라 시작하기/이어하기로 안내.
+// 대시보드 '내 자기소개서' 카드 — 저장된 데이터 유무에 따라 시작하기/이어하기로 안내.
 export function CoverCard() {
   const [has, setHas] = useState<boolean | null>(null);
 
@@ -28,14 +28,14 @@ export function CoverCard() {
 
   return (
     <div>
-      <SectionTitle>내 자소서</SectionTitle>
+      <SectionTitle>내 자기소개서</SectionTitle>
       <Card className="!p-4">
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[20px]">📝</span>
           <div className="min-w-0">
             <p className="text-[14px] font-bold text-[#191F28]">대화로 만드는 자기소개서</p>
             <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">
-              {started ? "이어서 대화하면 자소서가 더 채워져요" : "AI와 대화하면 자소서가 자동으로 쌓여요"}
+              {started ? "이어서 대화하면 자기소개서가 더 채워져요" : "AI와 대화하면 자기소개서가 자동으로 쌓여요"}
             </p>
           </div>
         </div>

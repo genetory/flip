@@ -19,7 +19,6 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
     pending: <Pill tone="amber">피드백 대기 중</Pill>,
     done: <Pill tone="green">피드백 완료</Pill>
   }[plan.feedback.status];
-  const doneCount = plan.steps.filter((s) => s.done).length;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -57,9 +56,7 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
           <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
             {/* ── 메인: 스텝별 해야 할 일 ── */}
             <div className="min-w-0">
-              <SectionTitle sub={`총 ${plan.steps.length}단계 중 ${doneCount}단계 완료했어요 · 끝낸 단계는 번호를 콕 눌러 체크해요`}>
-                이번 주 해야 할 일
-              </SectionTitle>
+              <SectionTitle sub="끝낸 단계는 번호를 콕 눌러 체크해요">이번 주 해야 할 일</SectionTitle>
               <Card className="md:!p-6">
                 <WeekStepper steps={plan.steps} />
               </Card>
@@ -67,9 +64,6 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
 
             {/* ── 사이드바 ── */}
             <div className="min-w-0 space-y-7">
-              {/* 내 이력서·자소서 — 2주차부터 항상 미리보기 */}
-              {plan.week >= 2 ? <WeekDocs week={plan.week} /> : null}
-
               {/* 세미나 정보 */}
               <div>
                 <SectionTitle>세미나 정보</SectionTitle>
@@ -94,6 +88,9 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
                   {plan.feedback.note ? <p className="mt-3 rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]">“{plan.feedback.note}”</p> : null}
                 </Card>
               </div>
+
+              {/* 내 이력서·자기소개서 — 2주차부터 미리보기(세미나·피드백 아래) */}
+              {plan.week >= 2 ? <WeekDocs week={plan.week} /> : null}
 
               {/* 4주 전체 진행 — 모든 주차 페이지에 동일하게 노출 */}
               <div>

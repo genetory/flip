@@ -6,22 +6,7 @@ import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
 import { fetchProgress, patchProgress, type CareerProgress } from "../../lib/launch/progress-client";
 import { fetchResumeData, hasResumeContent, type ResumeData } from "../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
-import { CoverRender } from "./cover-render";
-
-// 스텝별로 어떤 결과(섹션)를 다루는지 매핑. 여기 있는 스텝은 실제 데이터로 완료 판정
-// (수동 체크 불가), 없는 스텝은 doneSteps 수동 체크.
-const STEP_KIND: Record<string, string> = {
-  w1s1: "diag",
-  w1s2: "jobs",
-  w1s3: "materials",
-  w2s1: "resume-basic", // 기본정보·학력
-  w2s2: "resume-exp", // 경력·경험
-  w2s3: "resume-skills", // 스킬·어학
-  w3s1: "cover", // 자소서 문항
-  w3s2: "both", // 이력서·자소서 다듬기
-  w3s3: "both", // 완성도 점검
-  w4s1: "both" // 최종 확정
-};
+import { STEP_KIND, isStepDone } from "../../lib/launch/step-status";
 
 // 주차 페이지용 스텝 목록 — 1주차처럼 순차 잠금 + 스텝별(섹션별) 결과 표시.
 // 완료 상태는 백엔드(progress)에 저장돼 기기 간 동기화된다.
@@ -61,26 +46,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
   const coverReady = hasCoverContent(cover);
   const coverN = (cover.items ?? []).filter((x) => (x.answer ?? "").trim().length > 0).length;
 
-  // 종류별 완료 판정.
-  const kindDone = (kind: string): boolean => {
-    switch (kind) {
-      case "diag": return Boolean(prog.diagnosis && typeof prog.diagnosis.percent === "number");
-      case "jobs": return (prog.selectedJobs?.length ?? 0) > 0;
-      case "materials": return (prog.materials?.length ?? 0) > 0;
-      case "resume-basic": return resumeBasicDone;
-      case "resume-exp": return resumeExpDone;
-      case "resume-skills": return skillN > 0 || langN > 0;
-      case "cover": return coverReady;
-      case "both": return resumeReady && coverReady;
-      default: return false;
-    }
-  };
-
-  const isDone = (id: string) => {
-    const kind = STEP_KIND[id];
-    if (kind) return kindDone(kind);
-    return (prog.doneSteps ?? []).includes(id);
-  };
+  const isDone = (id: string) => isStepDone(id, { progress: prog, resume, cover });
 
   const toggle = (id: string) => {
     if (STEP_KIND[id]) return; // 결과 스텝은 수동 체크 불가
@@ -214,24 +180,54 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
         </ResultCard>
       );
     }
-    // 자소서 — 문항 전문
-    if (kind === "cover" && coverReady) {
-      return <ResultBlock title={`자기소개서 — 문항 ${coverN}개${cover.company ? ` · ${cover.company}` : ""}`} href="/career-launch/cover-collect" hrefLabel="이어하기"><CoverRender data={cover} /></ResultBlock>;
-    }
-    // 이력서 + 자소서 요약 (다듬기·완성도·최종 확정) — 전체 미리보기는 우측 컬럼에 있으므로 컴팩트하게.
-    if (kind === "both" && (resumeReady || coverReady)) {
+    // 자기소개서 — 문항별 질문 + 답변(week1/2와 같은 텍스트 디테일). 전문은 우측 컬럼.
+    if ((kind === "cover" || kind === "cover3" || kind === "cover4") && coverReady) {
+      const filled = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
       return (
-        <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
+        <ResultCard href="/career-launch/cover-collect" hrefLabel="이어하기">
+          <p className="text-[13.5px] font-bold text-[#191F28]">📝 자기소개서 <span className="text-[#0B46E8]">{coverN}개 문항</span>{cover.company ? <span className="font-normal text-[#8B95A1]"> · {cover.company}</span> : null}</p>
+          <ul className="mt-2 space-y-2">
+            {filled.map((it, i) => (
+              <li key={i} className="rounded-lg bg-white/70 p-2.5">
+                <p className="break-keep text-[12.5px] font-semibold text-[#191F28]">{it.question}</p>
+                <p className="mt-0.5 break-keep text-[12px] leading-relaxed text-[#4E5968]">{it.answer}</p>
+              </li>
+            ))}
+          </ul>
+        </ResultCard>
+      );
+    }
+    // 이력서 + 자기소개서 (다듬기·완성도·최종 확정) — 경력·문항 목록으로 디테일하게. 전문은 우측 컬럼.
+    if (kind === "both" && (resumeReady || coverReady)) {
+      const filledCover = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
+      return (
+        <div className="mt-3 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
           {resumeReady ? (
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[13px] font-bold text-[#191F28]">📄 이력서 — 경력 {expN} · 스킬 {skillN}</p>
-              <Link href="/career-launch/resume-preview" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">보기</Link>
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[13px] font-bold text-[#191F28]">📄 이력서 — 경력 {expN} · 스킬 {skillN}</p>
+                <Link href="/career-launch/resume-preview" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">보기</Link>
+              </div>
+              {expN > 0 ? (
+                <ul className="mt-1.5 space-y-1">
+                  {resume.experiences!.map((x, i) => (
+                    <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#4E5968]"><span className="text-[#3A6B00]">•</span>{[x.title, x.org].filter(Boolean).join(" · ")}</li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           ) : null}
           {coverReady ? (
-            <div className={`flex items-center justify-between gap-2 ${resumeReady ? "mt-2" : ""}`}>
-              <p className="text-[13px] font-bold text-[#191F28]">📝 자소서 — 문항 {coverN}개{cover.company ? ` · ${cover.company}` : ""}</p>
-              <Link href="/career-launch/cover-collect" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">보기</Link>
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[13px] font-bold text-[#191F28]">📝 자기소개서 — 문항 {coverN}개{cover.company ? ` · ${cover.company}` : ""}</p>
+                <Link href="/career-launch/cover-collect" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">보기</Link>
+              </div>
+              <ul className="mt-1.5 space-y-1">
+                {filledCover.map((it, i) => (
+                  <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#4E5968]"><span className="text-[#3A6B00]">•</span>{it.question}</li>
+                ))}
+              </ul>
             </div>
           ) : null}
         </div>
@@ -240,7 +236,16 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     return null;
   };
 
+  const doneN = steps.filter((s) => isDone(s.id)).length;
+
   return (
+    <>
+      <div className="mb-4 flex items-center gap-2.5">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EEF1F5]">
+          <div className="h-full rounded-full bg-[#0B46E8] transition-[width]" style={{ width: `${steps.length ? (doneN / steps.length) * 100 : 0}%` }} />
+        </div>
+        <span className="shrink-0 text-[12px] font-bold text-[#4E5968]">{doneN}/{steps.length} 완료</span>
+      </div>
     <ol className="space-y-1">
       {steps.map((s, i) => {
         const done = isDone(s.id);
@@ -319,19 +324,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
         );
       })}
     </ol>
-  );
-}
-
-// 결과 블록 — 전문(이력서/자소서 전체 렌더) 위에 제목 + 링크 헤더.
-function ResultBlock({ title, href, hrefLabel, children }: { title: string; href: string; hrefLabel: string; children: React.ReactNode }) {
-  return (
-    <div className="mt-3">
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <p className="text-[12.5px] font-bold text-[#3A6B00]">{title}</p>
-        <Link href={href} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">{hrefLabel}</Link>
-      </div>
-      {children}
-    </div>
+    </>
   );
 }
 

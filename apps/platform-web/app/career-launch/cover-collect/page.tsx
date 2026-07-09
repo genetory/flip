@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestCoverChat, fetchCoverData, hasCoverContent, type CoverChatMsg, type CoverData } from "../../../lib/launch/cover-data";
-import { CoverRender } from "../../../components/launch/cover-render";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -39,12 +38,21 @@ export default function CoverCollectPage() {
       } catch {
         // 저장분 없음
       }
+      // 이어하기(저장분 있음) — 즉시 반기고 미리보기를 띄운다.
+      const continuing = hasCoverContent(seed);
+      if (continuing) {
+        setMessages([{ role: "bot", text: `${displayName}님, 다시 오셨네요 👋 이어서 마저 써볼게요!` }]);
+      }
       try {
         const { reply, data: merged } = await requestCoverChat([], seed);
         setData(merged);
-        setMessages([{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 대화하면서 자기소개서를 함께 채워볼까요?` }]);
+        setMessages((m) =>
+          continuing
+            ? [...m, { role: "bot", text: reply }]
+            : [{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 대화하면서 자기소개서를 함께 채워볼까요?` }]
+        );
       } catch {
-        setMessages([{ role: "bot", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
+        setMessages((m) => (continuing ? [...m, { role: "bot", text: "잠시 문제가 생겼어요 😥 다시 한 번 시도해줄래요?" }] : [{ role: "bot", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]));
       } finally {
         setLoading(false);
       }
@@ -93,7 +101,7 @@ export default function CoverCollectPage() {
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
               <p className="text-[15px] font-black text-[#0B1227]">대화로 자기소개서 채우기</p>
-              <p className="text-[12px] text-[#8B95A1]">AI와 대화하면 자소서 문항이 자동으로 채워져요</p>
+              <p className="text-[12px] text-[#8B95A1]">AI와 대화하면 자기소개서 문항이 자동으로 채워져요</p>
             </div>
           </div>
 
@@ -112,16 +120,6 @@ export default function CoverCollectPage() {
                 </div>
               )
             )}
-            {/* 지금까지 작성된 자소서 — 실시간 */}
-            {hasCoverContent(data) ? (
-              <div className="flex items-start gap-2">
-                <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EAFFD1] text-[13px]">📝</span>
-                <div className="w-full max-w-[92%]">
-                  <p className="mb-1.5 text-[11.5px] font-bold text-[#3A6B00]">지금까지 작성된 자기소개서</p>
-                  <CoverRender data={data} />
-                </div>
-              </div>
-            ) : null}
             {loading ? (
               <div className="flex items-end gap-2">
                 <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
