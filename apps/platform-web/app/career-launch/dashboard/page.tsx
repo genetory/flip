@@ -107,7 +107,6 @@ export default function LaunchDashboardPage() {
                   {WEEKS.map((w) => {
                     const done = weekDoneCount(w.steps, data);
                     const total = w.steps.length;
-                    const pct = total ? Math.round((done / total) * 100) : 0;
                     const status = done === total ? "완료" : done > 0 ? "진행 중" : "시작 전";
                     const tone = done === total ? "green" : done > 0 ? "blue" : "grey";
                     return (
@@ -131,9 +130,6 @@ export default function LaunchDashboardPage() {
                                 <div className="mt-2 flex items-center gap-2">
                                   <span className="rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[11px] font-bold text-[#0B46E8]">📦 {WEEK_DELIVERABLE[w.week]}</span>
                                   <span className="text-[11.5px] font-semibold text-[#8B95A1]">스텝 {done}/{total}</span>
-                                </div>
-                                <div className="mt-2">
-                                  <ProgressBar value={pct} height={6} />
                                 </div>
                               </div>
                             </div>
