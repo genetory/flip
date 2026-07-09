@@ -5,19 +5,24 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { COMPLETION_CRITERIA, STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
-import { LiveWeekSteps, type DiagResult } from "../../../components/launch/live-week-steps";
 import { CoachFeedback } from "../../../components/launch/coach-feedback";
-import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
+import { fetchProgress } from "../../../lib/launch/progress-client";
+import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
+import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data";
+import { weekDoneCount, type LaunchData } from "../../../lib/launch/step-status";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 
-const SUBMIT_LABEL = { todo: { t: "미제출", tone: "grey" as const }, submitted: { t: "제출 완료", tone: "blue" as const }, reviewed: { t: "피드백 완료", tone: "green" as const } };
+// 주차별 최종 결과물(이 주에 나오는 것).
+const WEEK_DELIVERABLE: Record<number, string> = {
+  1: "취업 진단 · 직무 방향",
+  2: "대표 이력서",
+  3: "자기소개서",
+  4: "기업 지원"
+};
 
-// 테스트용 — 켜면 아직 시작 안 한 주차도 잠금 없이 열람할 수 있다(2·3·4주차 진행 확인용).
-const TEST_UNLOCK_ALL_WEEKS = true;
-
-// 4. 학생 로그인 후 대시보드 — aply.global 세션 필요.
+// 4. 학생 로그인 후 대시보드 — 4주 여정 퍼널 + 진행 + 결과물 + 피드백 개요.
 export default function LaunchDashboardPage() {
   const router = useRouter();
   const { user, isReady, isAuthenticated } = useAuthSession();
@@ -25,24 +30,20 @@ export default function LaunchDashboardPage() {
     if (isReady && !isAuthenticated) router.replace("/career-launch");
   }, [isReady, isAuthenticated, router]);
 
-  // 진단·직무 선정·재료·완료스텝을 백엔드(progress)에서 읽어 현재 주차 진행에 반영한다.
-  const [diag, setDiag] = useState<DiagResult>(null);
-  const [jobs, setJobs] = useState<string[]>([]);
-  const [materials, setMaterials] = useState<string[]>([]);
-  const [doneIds, setDoneIds] = useState<string[]>([]);
+  const [data, setData] = useState<LaunchData>({ progress: {}, resume: {}, cover: {} });
   useEffect(() => {
     if (!isReady) return;
     let alive = true;
     void (async () => {
       try {
-        const p = await fetchProgress();
-        if (!alive) return;
-        if (p.diagnosis && typeof p.diagnosis.percent === "number") setDiag(p.diagnosis);
-        if (Array.isArray(p.selectedJobs)) setJobs(p.selectedJobs);
-        if (Array.isArray(p.materials)) setMaterials(p.materials.filter((x) => typeof x === "string"));
-        if (Array.isArray(p.doneSteps)) setDoneIds(p.doneSteps);
+        const [p, r, c] = await Promise.all([
+          fetchProgress(),
+          fetchResumeData().catch(() => ({ data: {} })),
+          fetchCoverData().catch(() => ({ data: {} }))
+        ]);
+        if (alive) setData({ progress: p, resume: r.data ?? {}, cover: c.data ?? {} });
       } catch {
-        // 조회 실패 시 결과 없이 진행
+        // 조회 실패 시 빈 상태
       }
     })();
     return () => {
@@ -50,44 +51,15 @@ export default function LaunchDashboardPage() {
     };
   }, [isReady]);
 
-  const currentWeek = WEEKS.find((w) => w.week === STUDENT.currentWeek)!;
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
   const totalSteps = WEEKS.reduce((n, w) => n + w.steps.length, 0);
+  const doneSteps = WEEKS.reduce((n, w) => n + weekDoneCount(w.steps, data), 0);
+  const overall = totalSteps ? Math.round((doneSteps / totalSteps) * 100) : 0;
 
-  // 현재 주차 스텝의 실제 완료 여부(진단/직무 결과 + data.done).
-  const isStepDone = (id: string, dataDone?: boolean) =>
-    id === "w1s1"
-      ? Boolean(diag)
-      : id === "w1s2"
-        ? jobs.length > 0
-        : id === "w1s3"
-          ? materials.length > 0
-          : doneIds.includes(id) || Boolean(dataDone);
-  const currentDone = currentWeek.steps.filter((s) => isStepDone(s.id, s.done)).length;
-  const weekMinutes = currentWeek.steps.reduce((n, s) => n + (s.minutes ?? 0), 0);
-
-  // 이미 진행한 스텝 결과를 삭제(초기화)해 다시 안 한 상태로 되돌린다.
-  const resetStep = (id: string) => {
-    if (id === "w1s1") {
-      setDiag(null);
-      void patchProgress({ diagnosis: null }).catch(() => {});
-    } else if (id === "w1s2") {
-      setJobs([]);
-      void patchProgress({ selectedJobs: [] }).catch(() => {});
-    } else if (id === "w1s3") {
-      setMaterials([]);
-      void patchProgress({ materials: [] }).catch(() => {});
-    } else {
-      const next = doneIds.filter((x) => x !== id);
-      setDoneIds(next);
-      void patchProgress({ doneSteps: next }).catch(() => {});
-    }
-  };
-  const doneSteps = WEEKS.reduce(
-    (n, w) => n + w.steps.filter((s) => (w.week === currentWeek.week ? isStepDone(s.id, s.done) : s.done)).length,
-    0
-  );
-  const progress = Math.round((doneSteps / totalSteps) * 100);
+  const diag = data.progress.diagnosis;
+  const jobs = data.progress.selectedJobs ?? [];
+  const resumeReady = hasResumeContent(data.resume);
+  const coverReady = hasCoverContent(data.cover);
 
   if (!isReady || !isAuthenticated) {
     return (
@@ -101,19 +73,16 @@ export default function LaunchDashboardPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1 pb-16">
-        {/* 포지션 탐색 페이지와 동일한 컨텐츠 폭(max-w-6xl). 모바일 1단 / 데스크탑 2단 */}
         <div className="mx-auto w-full max-w-6xl px-5 pt-6 md:pt-10">
-          {/* 인사 + 진행률 (전체 폭) */}
+          {/* 인사 + 전체 진행률 */}
           <Card className="md:!p-7">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[12.5px] font-semibold text-[#8B95A1]">{STUDENT.cohort}</p>
                 <h1 className="mt-1 text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[27px]">{displayName}님, 반가워요 👋</h1>
-                <p className="mt-1.5 text-[14px] leading-relaxed text-[#4E5968]">
-                  지금은 <b className="font-bold text-[#0B46E8]">Week {currentWeek.week}</b> · {currentWeek.title} 단계예요.
-                </p>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-[#4E5968]">4주 동안 이력서·자기소개서를 완성하고 기업에 지원해요.</p>
               </div>
-              <Pill tone="blue">Week {STUDENT.currentWeek} / 4</Pill>
+              <Pill tone="blue">{doneSteps}/{totalSteps} 스텝</Pill>
             </div>
             <div className="mt-5 rounded-2xl bg-[#F6F8FB] p-4 md:mt-6 md:p-5">
               <div className="mb-2.5 flex items-end justify-between">
@@ -122,128 +91,116 @@ export default function LaunchDashboardPage() {
                   <p className="mt-0.5 text-[12px] text-[#8B95A1]">완료한 스텝 {doneSteps}/{totalSteps}</p>
                 </div>
                 <span className="text-[26px] font-black leading-none text-[#0B46E8] md:text-[30px]">
-                  {progress}<span className="text-[16px]">%</span>
+                  {overall}<span className="text-[16px]">%</span>
                 </span>
               </div>
-              <ProgressBar value={progress} height={12} />
+              <ProgressBar value={overall} height={12} />
             </div>
           </Card>
 
           <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
-            {/* ── 메인 컬럼: 이번 주에 실제로 해야 할 일 ── */}
+            {/* ── 메인: 4주 여정 퍼널 ── */}
             <div className="space-y-7 md:space-y-8">
-              {/* 이번 주 개요 + 목표 */}
               <div>
-                <SectionTitle sub={currentWeek.subtitle}>이번 주 · Week {currentWeek.week}</SectionTitle>
-                <Card className="md:!p-6">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-[16px] font-black text-[#191F28] md:text-[18px]">{currentWeek.title}</p>
-                    {currentWeek.submission.status !== "todo" ? (
-                      <Pill tone={SUBMIT_LABEL[currentWeek.submission.status].tone}>{SUBMIT_LABEL[currentWeek.submission.status].t}</Pill>
-                    ) : null}
-                  </div>
-                  <div className="mt-3 rounded-xl bg-[#EDF1FD] p-3.5">
-                    <p className="text-[11.5px] font-bold text-[#0B46E8]">이번 주 목표</p>
-                    <p className="mt-0.5 break-keep text-[13.5px] font-semibold leading-relaxed text-[#0B1227]">
-                      {currentWeek.goal
-                        .split(/(?<=\.)\s+/)
-                        .filter(Boolean)
-                        .map((line, li) => (
-                          <span key={li} className="block">
-                            {line}
-                          </span>
-                        ))}
-                    </p>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[#8B95A1]">
-                    <span className="font-semibold text-[#4E5968]">스텝 {currentDone}/{currentWeek.steps.length} 완료</span>
-                    {weekMinutes > 0 ? (
-                      <>
-                        <span>·</span>
-                        <span>⏱ 예상 약 {weekMinutes}분</span>
-                      </>
-                    ) : null}
-                    <span>·</span>
-                    <span>{currentWeek.seminar.online ? "온라인" : "오프라인"} 세미나 {currentWeek.seminar.date}</span>
-                  </div>
-                  <p className="mt-2 text-[11.5px] leading-relaxed text-[#8B95A1]">💡 하루에 몰아서 하기보다 하나씩 며칠에 나눠 진행하면 더 좋아요.</p>
-                </Card>
+                <SectionTitle sub="각 주차를 눌러 진행하세요 · 완료할수록 결과물이 완성돼요">4주 여정</SectionTitle>
+                <ol className="space-y-3">
+                  {WEEKS.map((w, i) => {
+                    const done = weekDoneCount(w.steps, data);
+                    const total = w.steps.length;
+                    const pct = total ? Math.round((done / total) * 100) : 0;
+                    const status = done === total ? "완료" : done > 0 ? "진행 중" : "시작 전";
+                    const tone = done === total ? "green" : done > 0 ? "blue" : "grey";
+                    const last = i === WEEKS.length - 1;
+                    return (
+                      <li key={w.week} className="relative">
+                        {!last ? <span className="absolute left-[18px] top-[46px] h-[calc(100%-30px)] w-[2px] rounded bg-[#E5E8EB]" /> : null}
+                        <Link href={`/career-launch/week/${w.week}`} className="block">
+                          <Card className="!p-4 transition hover:border-[#0B46E8]/40 md:!p-5">
+                            <div className="flex items-start gap-3.5">
+                              <span
+                                className={`relative z-10 flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12.5px] font-black leading-none ${
+                                  done === total ? "bg-emerald-500 text-white" : done > 0 ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#8B95A1]"
+                                }`}
+                              >
+                                {done === total ? "✓" : `W${w.week}`}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                                  <p className="text-[15.5px] font-black tracking-[-0.01em] text-[#191F28] md:text-[16.5px]">{w.title}</p>
+                                  <Pill tone={tone}>{status}</Pill>
+                                </div>
+                                <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">{w.subtitle}</p>
+                                <div className="mt-2 flex items-center gap-2">
+                                  <span className="rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[11px] font-bold text-[#0B46E8]">📦 {WEEK_DELIVERABLE[w.week]}</span>
+                                  <span className="text-[11.5px] font-semibold text-[#8B95A1]">스텝 {done}/{total}</span>
+                                </div>
+                                <div className="mt-2">
+                                  <ProgressBar value={pct} height={6} />
+                                </div>
+                              </div>
+                            </div>
+                          </Card>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ol>
               </div>
 
-              {/* 이번 주 스텝별 해야 할 일 (대시보드에서 바로 진행) */}
+              {/* 결과물 */}
               <div>
-                <SectionTitle sub="한 단계씩 끝내고 번호를 콕 눌러 체크해요">이번 주 해야 할 일</SectionTitle>
-                <Card className="md:!p-6">
-                  <LiveWeekSteps
-                    steps={currentWeek.steps}
-                    diag={diag}
-                    jobs={jobs}
-                    materials={materials}
-                    doneIds={doneIds}
-                    onReset={resetStep}
+                <SectionTitle sub="4주 동안 만들어지는 결과물">내 결과물</SectionTitle>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <ResultTile
+                    emoji="🧭"
+                    title="취업 진단 · 직무 방향"
+                    status={diag && typeof diag.percent === "number" ? `준비도 ${diag.percent}%${jobs.length ? ` · 직무 ${jobs.length}개` : ""}` : "진단 전"}
+                    ready={Boolean(diag)}
+                    href="/career-launch/diagnosis"
+                    cta="보기"
                   />
-                </Card>
+                  <ResultTile
+                    emoji="📄"
+                    title="대표 이력서"
+                    status={resumeReady ? "작성 중 · 크게보기" : "시작 전"}
+                    ready={resumeReady}
+                    href={resumeReady ? "/career-launch/resume-preview" : "/career-launch/resume-collect"}
+                    cta={resumeReady ? "크게보기 ↗" : "시작하기"}
+                    blank={resumeReady}
+                  />
+                  <ResultTile
+                    emoji="📝"
+                    title="자기소개서"
+                    status={coverReady ? "작성 중 · 크게보기" : "시작 전"}
+                    ready={coverReady}
+                    href={coverReady ? "/career-launch/cover-preview" : "/career-launch/cover-collect"}
+                    cta={coverReady ? "크게보기 ↗" : "시작하기"}
+                    blank={coverReady}
+                  />
+                  <ResultTile emoji="🚀" title="기업 지원" status={data.progress.doneSteps?.includes("w4s3") ? "지원 완료" : "준비 중"} ready={Boolean(data.progress.doneSteps?.includes("w4s3"))} href="/career-launch/week/4" cta="보기" />
+                </div>
               </div>
             </div>
 
-            {/* ── 사이드바 컬럼 ── */}
+            {/* ── 사이드바 ── */}
             <div className="space-y-7 md:space-y-8">
-              {/* 코치 피드백 — 운영진이 남긴 제출물 피드백(있을 때만 노출) */}
+              {/* 코치 피드백 */}
               <CoachFeedback />
 
-              {/* 이번 주 세미나 */}
+              {/* 다가오는 세미나 */}
               <div>
-                <SectionTitle>이번 주 세미나</SectionTitle>
-                <Card>
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[20px]">{currentWeek.seminar.online ? "💻" : "📍"}</span>
-                    <div>
-                      <p className="text-[14.5px] font-bold text-[#191F28]">Week {currentWeek.week} 세미나</p>
-                      <p className="mt-0.5 text-[13px] text-[#4E5968]">{currentWeek.seminar.date} · {currentWeek.seminar.time}</p>
-                      <p className="text-[12.5px] text-[#8B95A1]">{currentWeek.seminar.place}</p>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-
-              {/* 주차별 진행 */}
-              <div>
-                <SectionTitle>4주 전체 진행</SectionTitle>
-                <div className="space-y-3">
-                  {WEEKS.map((w) => {
-                    const isCurrent = w.week === STUDENT.currentWeek;
-                    const locked = !TEST_UNLOCK_ALL_WEEKS && w.week > STUDENT.currentWeek; // 아직 시작 안 된 주차
-                    const inner = (
-                      <Card className={`flex items-center justify-between !p-4 ${isCurrent ? "!border-[#0B46E8]/40 ring-1 ring-[#0B46E8]/20" : ""} ${locked ? "opacity-60" : ""}`}>
-                        <div className="flex items-center gap-3">
-                          <span className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12.5px] font-black leading-none ${locked ? "bg-[#F2F4F6] text-[#B0B8C1]" : "bg-[#0B46E8] text-white"}`}>W{w.week}</span>
-                          <div className="min-w-0">
-                            <p className={`truncate text-[13.5px] font-bold ${locked ? "text-[#8B95A1]" : "text-[#191F28]"}`}>{w.title}</p>
-                            {isCurrent ? <p className="text-[11px] font-bold text-[#0B46E8]">진행 중</p> : null}
-                          </div>
-                        </div>
-                        {locked ? (
-                          <Pill tone="grey">🔒 예정</Pill>
-                        ) : w.submission.status !== "todo" ? (
-                          <Pill tone={SUBMIT_LABEL[w.submission.status].tone}>{SUBMIT_LABEL[w.submission.status].t}</Pill>
-                        ) : null}
-                      </Card>
-                    );
-                    // 현재 주차는 대시보드에 이미 상세가 나오므로 링크 없음(클릭 불필요).
-                    // 시작 전 주차는 비활성. 지난 주차만 상세로 이동한다.
-                    if (locked || isCurrent) {
-                      return (
-                        <div key={w.week} aria-disabled={locked} className={`block ${locked ? "cursor-not-allowed" : ""}`}>
-                          {inner}
-                        </div>
-                      );
-                    }
-                    return (
-                      <Link key={w.week} href={`/career-launch/week/${w.week}`} className="block">
-                        {inner}
-                      </Link>
-                    );
-                  })}
+                <SectionTitle>세미나 일정</SectionTitle>
+                <div className="space-y-2.5">
+                  {WEEKS.map((w) => (
+                    <Card key={w.week} className="flex items-start gap-3 !p-4">
+                      <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[18px]">{w.seminar.online ? "💻" : "📍"}</span>
+                      <div className="min-w-0">
+                        <p className="text-[13.5px] font-bold text-[#191F28]">Week {w.week} 세미나</p>
+                        <p className="mt-0.5 text-[12.5px] text-[#4E5968]">{w.seminar.date} · {w.seminar.time}</p>
+                        <p className="text-[12px] text-[#8B95A1]">{w.seminar.place}</p>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
               </div>
 
@@ -267,5 +224,27 @@ export default function LaunchDashboardPage() {
       </main>
       <Footer />
     </div>
+  );
+}
+
+// 결과물 타일 — 상태 + 링크(크게보기/시작하기).
+function ResultTile({ emoji, title, status, ready, href, cta, blank }: { emoji: string; title: string; status: string; ready: boolean; href: string; cta: string; blank?: boolean }) {
+  return (
+    <Card className="flex items-center justify-between gap-3 !p-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl text-[18px] ${ready ? "bg-[#EAFFD1]" : "bg-[#F2F4F6]"}`}>{emoji}</span>
+        <div className="min-w-0">
+          <p className="truncate text-[13.5px] font-bold text-[#191F28]">{title}</p>
+          <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{status}</p>
+        </div>
+      </div>
+      <Link
+        href={href}
+        {...(blank ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+        className={`shrink-0 rounded-lg px-3 py-2 text-[12.5px] font-bold transition ${ready ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "border border-[#D7DCE3] bg-white text-[#4E5968] hover:border-[#0B46E8]/40"}`}
+      >
+        {cta}
+      </Link>
+    </Card>
   );
 }

@@ -6,21 +6,7 @@ import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
 import { fetchProgress, patchProgress, type CareerProgress } from "../../lib/launch/progress-client";
 import { fetchResumeData, hasResumeContent, type ResumeData } from "../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
-
-// 스텝별로 어떤 결과(섹션)를 다루는지 매핑. 여기 있는 스텝은 실제 데이터로 완료 판정
-// (수동 체크 불가), 없는 스텝은 doneSteps 수동 체크.
-const STEP_KIND: Record<string, string> = {
-  w1s1: "diag",
-  w1s2: "jobs",
-  w1s3: "materials",
-  w2s1: "resume-basic", // 기본정보·학력
-  w2s2: "resume-exp", // 경력·경험
-  w2s3: "resume-skills", // 스킬·어학
-  w3s1: "cover", // 자소서 — 지원동기·성장과정(문항 1개+)
-  w3s2: "cover3", // 자소서 — 강점·포부(문항 3개+)
-  w3s3: "cover4", // 자소서 — 완성·다듬기(문항 4개+)
-  w4s1: "both" // 최종 확정(이력서+자소서)
-};
+import { STEP_KIND, isStepDone } from "../../lib/launch/step-status";
 
 // 주차 페이지용 스텝 목록 — 1주차처럼 순차 잠금 + 스텝별(섹션별) 결과 표시.
 // 완료 상태는 백엔드(progress)에 저장돼 기기 간 동기화된다.
@@ -60,30 +46,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
   const coverReady = hasCoverContent(cover);
   const coverN = (cover.items ?? []).filter((x) => (x.answer ?? "").trim().length > 0).length;
 
-  // 종류별 완료 판정.
-  const kindDone = (kind: string): boolean => {
-    switch (kind) {
-      case "diag": return Boolean(prog.diagnosis && typeof prog.diagnosis.percent === "number");
-      case "jobs": return (prog.selectedJobs?.length ?? 0) > 0;
-      case "materials": return (prog.materials?.length ?? 0) > 0;
-      case "resume-basic": return resumeBasicDone;
-      case "resume-exp": return resumeExpDone;
-      case "resume-skills": return skillN > 0 || langN > 0;
-      case "cover": return coverN >= 1;
-      case "cover3": return coverN >= 3;
-      case "cover4": return coverN >= 4;
-      case "both": return resumeReady && coverReady;
-      default: return false;
-    }
-  };
-
-  const isDone = (id: string) => {
-    const doneMarked = (prog.doneSteps ?? []).includes(id);
-    const kind = STEP_KIND[id];
-    // 데이터로 완료되거나, 저장된 완료 표시(doneSteps)가 있으면 완료.
-    if (kind) return kindDone(kind) || doneMarked;
-    return doneMarked;
-  };
+  const isDone = (id: string) => isStepDone(id, { progress: prog, resume, cover });
 
   const toggle = (id: string) => {
     if (STEP_KIND[id]) return; // 결과 스텝은 수동 체크 불가
