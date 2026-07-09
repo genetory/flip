@@ -163,7 +163,7 @@ export default function LaunchOpsStudentDetailPage() {
             <div className="mt-6">
               <SectionTitle>대화로 만든 이력서</SectionTitle>
               {hasResumeContent(detail.resume) ? (
-                <ResumeRender data={detail.resume} maxWidth={440} />
+                <ResumeRender data={detail.resume} />
               ) : (
                 <Card className="!p-4 text-[13px] text-[#8B95A1]">아직 이력서를 만들지 않았어요.</Card>
               )}

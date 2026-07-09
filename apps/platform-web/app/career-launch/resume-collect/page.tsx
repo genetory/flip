@@ -130,7 +130,7 @@ export default function ResumeCollectPage() {
                 <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EAFFD1] text-[13px]">📄</span>
                 <div className="w-full max-w-[92%]">
                   <p className="mb-1.5 text-[11.5px] font-bold text-[#3A6B00]">지금까지 정리된 이력서</p>
-                  <ResumeRender data={data} maxWidth={380} />
+                  <ResumeRender data={data} />
                 </div>
               </div>
             ) : null}
