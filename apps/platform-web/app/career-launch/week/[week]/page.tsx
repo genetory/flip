@@ -67,9 +67,6 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
 
             {/* ── 사이드바 ── */}
             <div className="min-w-0 space-y-7">
-              {/* 내 이력서·자소서 — 2주차부터 항상 미리보기 */}
-              {plan.week >= 2 ? <WeekDocs week={plan.week} /> : null}
-
               {/* 세미나 정보 */}
               <div>
                 <SectionTitle>세미나 정보</SectionTitle>
@@ -94,6 +91,9 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
                   {plan.feedback.note ? <p className="mt-3 rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]">“{plan.feedback.note}”</p> : null}
                 </Card>
               </div>
+
+              {/* 내 이력서·자소서 — 2주차부터 항상 미리보기(세미나·피드백 아래) */}
+              {plan.week >= 2 ? <WeekDocs week={plan.week} /> : null}
 
               {/* 4주 전체 진행 — 모든 주차 페이지에 동일하게 노출 */}
               <div>
