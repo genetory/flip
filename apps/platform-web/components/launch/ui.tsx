@@ -35,7 +35,7 @@ export function Pill({ children, tone = "blue" }: { children: React.ReactNode; t
 export function ProgressBar({ value, height = 10 }: { value: number; height?: number }) {
   return (
     <div className="w-full overflow-hidden rounded-full bg-[#F2F4F6]" style={{ height }}>
-      <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: `linear-gradient(90deg, ${LAUNCH.blue}, ${LAUNCH.lime})` }} />
+      <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: LAUNCH.blue }} />
     </div>
   );
 }
