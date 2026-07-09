@@ -39,21 +39,13 @@ export function ResumeCard() {
             </p>
           </div>
         </div>
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3">
           <Link
             href="/career-launch/resume-collect"
-            className="flex flex-1 items-center justify-center rounded-lg bg-[#0B46E8] px-3 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]"
+            className="flex items-center justify-center rounded-lg bg-[#0B46E8] px-3 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]"
           >
             {started ? "이어하기" : "시작하기"}
           </Link>
-          {started ? (
-            <Link
-              href="/career-launch/resume-preview"
-              className="flex items-center justify-center rounded-lg border border-[#D7DCE3] bg-white px-3 py-2 text-[13px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
-            >
-              미리보기
-            </Link>
-          ) : null}
         </div>
       </Card>
     </div>

@@ -149,10 +149,10 @@ export default function ResumeCollectPage() {
 
           {done ? (
             <Link
-              href="/career-launch/resume-preview"
+              href="/career-launch/dashboard"
               className="mt-3 flex items-center justify-center rounded-xl bg-[#0B46E8] py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
             >
-              완성된 이력서 미리보기 →
+              대시보드로 돌아가기 →
             </Link>
           ) : (
             <div className="mt-3">
@@ -202,14 +202,6 @@ export default function ResumeCollectPage() {
                     보내기
                   </button>
                 </form>
-                {hasResumeContent(data) ? (
-                  <Link
-                    href="/career-launch/resume-preview"
-                    className="flex h-[46px] shrink-0 items-center rounded-xl bg-[#B7FF5A] px-4 text-[13.5px] font-black text-[#111] transition hover:brightness-105"
-                  >
-                    미리보기
-                  </Link>
-                ) : null}
               </div>
             </div>
           )}
