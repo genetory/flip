@@ -45,6 +45,12 @@ export default function LaunchDiagnosisPage() {
   useEffect(() => {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
+    // ?restart=1 이면 저장 결과를 무시하고 처음부터 새 진단(완료 시 결과가 덮어씀).
+    const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
+    if (restart) {
+      startChat();
+      return;
+    }
     // 이전에 진단한 결과가 있으면 대화 대신 그 결과를 바로 보여준다(다시 보기).
     void (async () => {
       try {

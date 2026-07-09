@@ -66,7 +66,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     if (kind === "diag" && prog.diagnosis && typeof prog.diagnosis.percent === "number") {
       const d = prog.diagnosis;
       return (
-        <ResultCard href="/career-launch/diagnosis" hrefLabel="다시 보기">
+        <ResultCard continueHref="/career-launch/diagnosis" continueLabel="다시 보기" restartHref="/career-launch/diagnosis?restart=1">
           <p className="text-[13.5px] font-bold text-[#191F28]">취업 준비도 <span className="text-[#0B46E8]">{d.percent}%</span></p>
           {d.level ? <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{d.level}</p> : null}
           {d.strengths?.length ? (
@@ -94,7 +94,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     }
     if (kind === "jobs" && (prog.selectedJobs?.length ?? 0) > 0) {
       return (
-        <ResultCard href="/career-launch/jobs?restart=1" hrefLabel="다시 선정">
+        <ResultCard continueHref="/career-launch/jobs" continueLabel="이어서" restartHref="/career-launch/jobs?restart=1">
           <p className="text-[13.5px] font-bold text-[#191F28]">선정한 직무 <span className="text-[#0B46E8]">{prog.selectedJobs!.length}개</span></p>
           <ul className="mt-2 space-y-2">
             {prog.selectedJobs!.map((role) => {
@@ -112,7 +112,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     }
     if (kind === "materials" && (prog.materials?.length ?? 0) > 0) {
       return (
-        <ResultCard href="/career-launch/materials" hrefLabel="이어서 정리">
+        <ResultCard continueHref="/career-launch/materials" continueLabel="이어서 정리" restartHref="/career-launch/materials?restart=1">
           <p className="text-[13.5px] font-bold text-[#191F28]">선정 직무 정보 <span className="text-[#0B46E8]">{prog.materials!.length}개</span> 정리</p>
           <ul className="mt-2 space-y-1.5">
             {prog.materials!.map((m, i) => (
@@ -125,7 +125,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     // 이력서 — 기본정보·학력
     if (kind === "resume-basic" && resumeBasicDone) {
       return (
-        <ResultCard href="/career-launch/resume-collect" hrefLabel="이어하기">
+        <ResultCard continueHref="/career-launch/resume-collect" continueLabel="이어하기" restartHref="/career-launch/resume-collect?restart=1">
           <p className="text-[13.5px] font-bold text-[#191F28]">📄 기본정보 · 학력</p>
           {resume.basic?.name ? <p className="mt-1 text-[12.5px] text-[#333D4B]">{resume.basic.name}{resume.basic.summary ? ` — ${resume.basic.summary}` : ""}</p> : null}
           {eduN > 0 ? (
@@ -143,7 +143,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     // 이력서 — 경력·경험
     if (kind === "resume-exp" && resumeExpDone) {
       return (
-        <ResultCard href="/career-launch/resume-collect" hrefLabel="이어하기">
+        <ResultCard continueHref="/career-launch/resume-collect" continueLabel="이어하기" restartHref="/career-launch/resume-collect?restart=1">
           <p className="text-[13.5px] font-bold text-[#191F28]">📄 경력·경험 <span className="text-[#0B46E8]">{expN}개</span></p>
           <ul className="mt-2 space-y-2">
             {resume.experiences!.map((x, i) => (
@@ -165,7 +165,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     // 이력서 — 스킬·어학
     if (kind === "resume-skills" && (skillN > 0 || langN > 0)) {
       return (
-        <ResultCard href="/career-launch/resume-collect" hrefLabel="이어하기">
+        <ResultCard continueHref="/career-launch/resume-collect" continueLabel="이어하기" restartHref="/career-launch/resume-collect?restart=1">
           <p className="text-[13.5px] font-bold text-[#191F28]">📄 스킬 {skillN} · 어학 {langN}</p>
           {skillN > 0 ? (
             <div className="mt-1.5 flex flex-wrap gap-1">
@@ -184,7 +184,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     if ((kind === "cover" || kind === "cover3" || kind === "cover4") && coverReady) {
       const filled = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
       return (
-        <ResultCard href="/career-launch/cover-collect" hrefLabel="이어하기">
+        <ResultCard continueHref="/career-launch/cover-collect" continueLabel="이어하기" restartHref="/career-launch/cover-collect?restart=1">
           <p className="text-[13.5px] font-bold text-[#191F28]">📝 자기소개서 <span className="text-[#0B46E8]">{coverN}개 문항</span>{cover.company ? <span className="font-normal text-[#8B95A1]"> · {cover.company}</span> : null}</p>
           <ul className="mt-2 space-y-2">
             {filled.map((it, i) => (
@@ -328,13 +328,16 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
   );
 }
 
-// 결과 카드 — 진단/직무/이력서 섹션 공통 래퍼(우상단 링크 포함).
-function ResultCard({ href, hrefLabel, children }: { href: string; hrefLabel: string; children: React.ReactNode }) {
+// 결과 카드 — 진단/직무/이력서 섹션 공통 래퍼. 우상단에 이어하기 + 다시하기 링크.
+function ResultCard({ continueHref, continueLabel, restartHref, children }: { continueHref: string; continueLabel: string; restartHref: string; children: React.ReactNode }) {
   return (
     <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">{children}</div>
-        <Link href={href} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">{hrefLabel}</Link>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Link href={continueHref} className="text-[12.5px] font-bold text-[#0B46E8] underline">{continueLabel}</Link>
+          <Link href={restartHref} className="text-[12px] font-semibold text-[#8B95A1] underline hover:text-[#4E5968]">다시하기</Link>
+        </div>
       </div>
     </div>
   );

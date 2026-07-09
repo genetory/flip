@@ -51,19 +51,29 @@ export default function LaunchMaterialsPage() {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
     setLoading(true);
+    // ?restart=1 이면 정리한 정보를 비우고 처음부터(선정 직무는 그대로 두고).
+    const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
     void (async () => {
       // 선정 직무 + 이전에 정리해둔 직무 정보를 백엔드에서 복원해 이어서 쌓는다.
       let sel: string[] = [];
+      let initialMats: string[] = [];
       try {
         const { selectedJobs, materials: savedMat } = await fetchProgress();
         if (Array.isArray(selectedJobs)) sel = selectedJobs;
         setSelected(sel);
-        if (Array.isArray(savedMat) && savedMat.length) setMaterials(savedMat);
+        if (restart) {
+          setMaterials([]);
+          saveMaterials([]); // 백엔드도 비워 진짜 처음부터
+        } else if (Array.isArray(savedMat) && savedMat.length) {
+          initialMats = savedMat;
+          setMaterials(savedMat);
+        }
       } catch {
         // 무시
       }
       try {
-        const { reply, materials: mats } = await requestMaterialChat([], sel);
+        // 이미 정리한 정보를 함께 보내 AI가 같은 걸 다시 묻지 않고 이어가게 한다.
+        const { reply, materials: mats } = await requestMaterialChat([], sel, initialMats);
         if (mats.length) setMaterials((prev) => mergeMaterials(prev, mats));
         setMessages([{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 선정한 직무를 함께 자세히 알아볼까요?` }]);
       } catch {
@@ -89,7 +99,7 @@ export default function LaunchMaterialsPage() {
     void (async () => {
       try {
         const history: JobChatMsg[] = nextMsgs.map((m) => ({ role: m.role, text: m.text }));
-        const { reply, materials: mats, done: isDone } = await requestMaterialChat(history, selected);
+        const { reply, materials: mats, done: isDone } = await requestMaterialChat(history, selected, materials);
         const merged = mats.length ? mergeMaterials(materials, mats) : materials;
         if (mats.length) {
           setMaterials(merged);

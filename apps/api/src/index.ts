@@ -14130,6 +14130,7 @@ app.post(
 const materialChatSchema = z.object({
   messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(80).default([]),
   selected: z.array(z.string().trim().max(120)).max(3).default([]),
+  materials: z.array(z.string().trim().max(400)).max(30).default([]),
   locale: z.string().max(10).optional()
 });
 app.post(
@@ -14140,19 +14141,24 @@ app.post(
     const parsed = materialChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-    const { messages, selected, locale } = parsed.data;
+    const { messages, selected, materials: gathered, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const systemPrompt =
         (await getCareerPrompt("material")) + "\n\n" + CAREER_SCOPE + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "materials": string[], "done": boolean }' +
         aiLangDirective(locale);
+      // 재입장 시 대화 기록이 비어도 이미 정리한 정보로 이어가도록 — 같은 내용을 다시 묻지 않게.
+      const continuing = messages.length === 0 && gathered.length > 0;
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
-        : "(아직 대화 없음 — 인사하고 첫 질문을 해줘)";
+        : continuing
+          ? "(이전 대화는 없지만 아래 [이미 정리한 정보]가 있음 — 다시 인사하되 이미 정리한 내용은 반복해 묻지 말고, 아직 안 다룬 직무·항목부터 이어서 진행해)"
+          : "(아직 대화 없음 — 인사하고 첫 질문을 해줘)";
       const userPrompt =
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `학생이 고른 관심 직무(이 순서대로 하나씩 다뤄):\n${selected.length ? selected.map((s, i) => `${i + 1}. ${s}`).join("\n") : "(미정)"}\n\n` +
+        (gathered.length ? `[이미 정리한 정보](이 내용은 다시 묻지 말고 이어서 보완):\n${gathered.map((m, i) => `${i + 1}. ${m}`).join("\n")}\n\n` : "") +
         `지금까지 대화:\n${convo}`;
       const pj = (await careerChatComplete(systemPrompt, userPrompt, "material_chat", MATERIAL_CHAT_SCHEMA)) as {
         reply?: unknown;
@@ -14536,6 +14542,20 @@ app.get("/career-launch/resume-data", authenticate, async (req, res) => {
   }
 });
 
+// DELETE /career-launch/resume-data — '다시하기'용 초기화. 병합이 축소하지 않으므로 내용을 비워 새로 시작.
+app.delete("/career-launch/resume-data", authenticate, async (req, res) => {
+  try {
+    await prisma.careerResumeData.upsert({
+      where: { studentUserId: req.auth!.userId },
+      create: { studentUserId: req.auth!.userId, content: {} },
+      update: { content: {} }
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // ── Career Launch 자기소개서 데이터 수집(대화형) ──
 const COVER_DATA_SCHEMA = {
   type: "object",
@@ -14662,6 +14682,20 @@ app.get("/career-launch/cover-data", authenticate, async (req, res) => {
   try {
     const row = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: req.auth!.userId } });
     return res.json({ ok: true, data: row?.content ?? {}, updatedAt: row?.updatedAt ?? null });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// DELETE /career-launch/cover-data — '다시하기'용 초기화. 내용을 비워 새로 시작.
+app.delete("/career-launch/cover-data", authenticate, async (req, res) => {
+  try {
+    await prisma.careerCoverLetterData.upsert({
+      where: { studentUserId: req.auth!.userId },
+      create: { studentUserId: req.auth!.userId, content: {} },
+      update: { content: {} }
+    });
+    return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }

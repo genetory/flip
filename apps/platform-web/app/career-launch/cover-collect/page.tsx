@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { STUDENT } from "../../../lib/launch/data";
-import { requestCoverChat, fetchCoverData, hasCoverContent, type CoverChatMsg, type CoverData } from "../../../lib/launch/cover-data";
+import { requestCoverChat, fetchCoverData, resetCoverData, hasCoverContent, type CoverChatMsg, type CoverData } from "../../../lib/launch/cover-data";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -29,14 +29,25 @@ export default function CoverCollectPage() {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
     setLoading(true);
+    // ?restart=1 이면 저장된 자기소개서를 비우고 처음부터 새로 작성.
+    const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
     void (async () => {
       let seed: CoverData = {};
-      try {
-        const saved = await fetchCoverData();
-        seed = saved.data ?? {};
-        setData(seed);
-      } catch {
-        // 저장분 없음
+      if (restart) {
+        try {
+          await resetCoverData();
+        } catch {
+          // 초기화 실패해도 빈 seed 로 진행
+        }
+        setData({});
+      } else {
+        try {
+          const saved = await fetchCoverData();
+          seed = saved.data ?? {};
+          setData(seed);
+        } catch {
+          // 저장분 없음
+        }
       }
       // 이어하기(저장분 있음) — 즉시 반기고 미리보기를 띄운다.
       const continuing = hasCoverContent(seed);

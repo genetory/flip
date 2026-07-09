@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { STUDENT } from "../../../lib/launch/data";
-import { requestResumeChat, fetchResumeData, hasResumeContent, type ResumeChatMsg, type ResumeData } from "../../../lib/launch/resume-data";
+import { requestResumeChat, fetchResumeData, resetResumeData, hasResumeContent, type ResumeChatMsg, type ResumeData } from "../../../lib/launch/resume-data";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -39,14 +39,25 @@ export default function ResumeCollectPage() {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
     setLoading(true);
+    // ?restart=1 이면 저장된 이력서를 비우고 처음부터 새로 작성.
+    const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
     void (async () => {
       let seed: ResumeData = {};
-      try {
-        const saved = await fetchResumeData();
-        seed = saved.data ?? {};
-        setData(seed);
-      } catch {
-        // 저장분 없거나 조회 실패 — 빈 데이터로 시작
+      if (restart) {
+        try {
+          await resetResumeData();
+        } catch {
+          // 초기화 실패해도 빈 seed 로 진행
+        }
+        setData({});
+      } else {
+        try {
+          const saved = await fetchResumeData();
+          seed = saved.data ?? {};
+          setData(seed);
+        } catch {
+          // 저장분 없거나 조회 실패 — 빈 데이터로 시작
+        }
       }
       // 이어하기(저장분 있음) — 스피너만 보이지 않게 즉시 반기고 미리보기를 띄운다.
       const continuing = hasResumeContent(seed);
