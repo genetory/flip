@@ -1,19 +1,43 @@
-import { OPS_STATS, OPS_STUDENTS } from "../../../../lib/launch/data";
-import { Card, LaunchContainer, Pill, ProgressBar, SectionTitle } from "../../../../components/launch/ui";
+"use client";
 
-// 10. 운영자 학생 관리 페이지
-const STATUS_TONE = { 지원: "grey", 선발: "blue", 진행중: "amber", 수료예정: "green", 탈락: "grey" } as const;
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { fetchOpsStudents, type OpsStudent } from "../../../../lib/launch/ops-client";
+import { Card, LaunchContainer, Pill, SectionTitle } from "../../../../components/launch/ui";
 
+// 운영자 학생 관리 — Career Launch 를 이용한 학생 목록(실데이터). 클릭 시 상세로 이동.
 export default function LaunchOpsStudentsPage() {
+  const [students, setStudents] = useState<OpsStudent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const list = await fetchOpsStudents();
+        if (alive) setStudents(list);
+      } catch (e) {
+        if (alive) setError(e instanceof Error ? e.message : "불러오지 못했어요.");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const withResume = students.filter((s) => s.hasResume).length;
+
   return (
     <main className="pb-16">
       <LaunchContainer className="!max-w-[640px] pt-6">
-        {/* 요약 지표 */}
         <div className="grid grid-cols-3 gap-2.5">
           {[
-            { k: "신청자", v: OPS_STATS.applicants },
-            { k: "선발", v: OPS_STATS.selected },
-            { k: "수료 예상", v: OPS_STATS.expectedCompletion }
+            { k: "이용 학생", v: students.length },
+            { k: "이력서 작성", v: withResume },
+            { k: "진단 완료", v: students.filter((s) => s.diagnosisPercent !== null).length }
           ].map((s) => (
             <Card key={s.k} className="!p-4 text-center">
               <p className="text-[22px] font-black text-[#0B46E8]">{s.v}</p>
@@ -23,38 +47,43 @@ export default function LaunchOpsStudentsPage() {
         </div>
 
         <div className="mt-7">
-          <SectionTitle sub={`선발 ${OPS_STATS.selected}명 · 진행 중`}>학생 목록</SectionTitle>
-          <div className="space-y-2.5">
-            {OPS_STUDENTS.map((st) => (
-              <Card key={st.id} className="!p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[13px] font-black text-[#0B46E8]">
-                      {st.name.charAt(0)}
-                    </span>
-                    <div>
-                      <p className="flex items-center gap-1.5 text-[14px] font-bold text-[#191F28]">
-                        {st.name}
-                        {st.top ? <span title="우수 후보자">⭐</span> : null}
-                      </p>
-                      <p className="text-[12px] text-[#8B95A1]">{st.school} · {st.major}</p>
+          <SectionTitle sub="진행 상태·이력서를 보고 피드백을 남길 수 있어요">학생 목록</SectionTitle>
+          {loading ? (
+            <Card className="!p-6 text-center text-[14px] text-[#8B95A1]">불러오는 중…</Card>
+          ) : error ? (
+            <Card className="!p-6 text-center text-[14px] text-red-600">{error}</Card>
+          ) : students.length === 0 ? (
+            <Card className="!p-6 text-center text-[14px] text-[#8B95A1]">아직 Career Launch 를 이용한 학생이 없어요.</Card>
+          ) : (
+            <div className="space-y-2.5">
+              {students.map((st) => (
+                <Link key={st.userId} href={`/career-launch/ops/students/${st.userId}`} className="block">
+                  <Card className="!p-4 transition hover:border-[#0B46E8]/40">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[13px] font-black text-[#0B46E8]">
+                          {(st.name ?? st.email).charAt(0).toUpperCase()}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-[14px] font-bold text-[#191F28]">{st.name ?? "이름 미설정"}</p>
+                          <p className="truncate text-[12px] text-[#8B95A1]">{st.email}</p>
+                        </div>
+                      </div>
+                      <span className="flex flex-none items-center gap-1.5">
+                        {st.diagnosisPercent !== null ? <Pill tone="blue">진단 {st.diagnosisPercent}%</Pill> : null}
+                        {st.hasResume ? <Pill tone="green">이력서</Pill> : null}
+                      </span>
                     </div>
-                  </div>
-                  <Pill tone={STATUS_TONE[st.status]}>{st.status}</Pill>
-                </div>
-                <div className="mt-3">
-                  <div className="mb-1 flex items-center justify-between text-[11.5px]">
-                    <span className="text-[#8B95A1]">Week {st.week} · 진행률 {st.progress}%</span>
-                    <span className="flex gap-1.5">
-                      <span className={st.resumeDone ? "text-emerald-600" : "text-[#C9CDD2]"}>이력서{st.resumeDone ? "✓" : "·"}</span>
-                      <span className={st.interviewDone ? "text-emerald-600" : "text-[#C9CDD2]"}>면접{st.interviewDone ? "✓" : "·"}</span>
-                    </span>
-                  </div>
-                  <ProgressBar value={st.progress} height={7} />
-                </div>
-              </Card>
-            ))}
-          </div>
+                    <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-[#8B95A1]">
+                      <span>직무 {st.selectedJobs}개</span>
+                      <span>직무정보 {st.materials}개</span>
+                      <span>완료 스텝 {st.doneSteps}개</span>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </LaunchContainer>
     </main>

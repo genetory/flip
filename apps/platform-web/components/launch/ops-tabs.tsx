@@ -6,7 +6,7 @@ import { LaunchContainer } from "./ui";
 
 const TABS = [
   { href: "/career-launch/ops/students", label: "학생 관리" },
-  { href: "/career-launch/ops/submissions", label: "제출물" },
+  { href: "/career-launch/ops/prompts", label: "프롬프트" },
   { href: "/career-launch/ops/report", label: "리포트" }
 ];
 
@@ -21,7 +21,7 @@ export function OpsTabs() {
         </div>
         <nav className="flex gap-1 pb-2">
           {TABS.map((t) => {
-            const active = pathname === t.href;
+            const active = pathname === t.href || pathname.startsWith(`${t.href}/`);
             return (
               <Link
                 key={t.href}
