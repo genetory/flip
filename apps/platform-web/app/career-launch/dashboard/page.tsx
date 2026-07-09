@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { COMPLETION_CRITERIA, STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
 import { CoachFeedback } from "../../../components/launch/coach-feedback";
+import { ResumeRender } from "../../../components/launch/resume-render";
+import { CoverRender } from "../../../components/launch/cover-render";
 import { fetchProgress } from "../../../lib/launch/progress-client";
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data";
@@ -56,8 +58,6 @@ export default function LaunchDashboardPage() {
   const doneSteps = WEEKS.reduce((n, w) => n + weekDoneCount(w.steps, data), 0);
   const overall = totalSteps ? Math.round((doneSteps / totalSteps) * 100) : 0;
 
-  const diag = data.progress.diagnosis;
-  const jobs = data.progress.selectedJobs ?? [];
   const resumeReady = hasResumeContent(data.resume);
   const coverReady = hasCoverContent(data.cover);
 
@@ -145,37 +145,16 @@ export default function LaunchDashboardPage() {
                 </ol>
               </div>
 
-              {/* 결과물 */}
+              {/* 결과물 — 이력서·자소서 미리보기(없으면 점선 placeholder) */}
               <div>
-                <SectionTitle sub="4주 동안 만들어지는 결과물">내 결과물</SectionTitle>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ResultTile
-                    emoji="🧭"
-                    title="취업 진단 · 직무 방향"
-                    status={diag && typeof diag.percent === "number" ? `준비도 ${diag.percent}%${jobs.length ? ` · 직무 ${jobs.length}개` : ""}` : "진단 전"}
-                    ready={Boolean(diag)}
-                    href="/career-launch/diagnosis"
-                    cta="보기"
-                  />
-                  <ResultTile
-                    emoji="📄"
-                    title="대표 이력서"
-                    status={resumeReady ? "작성 중 · 크게보기" : "시작 전"}
-                    ready={resumeReady}
-                    href={resumeReady ? "/career-launch/resume-preview" : "/career-launch/resume-collect"}
-                    cta={resumeReady ? "크게보기 ↗" : "시작하기"}
-                    blank={resumeReady}
-                  />
-                  <ResultTile
-                    emoji="📝"
-                    title="자기소개서"
-                    status={coverReady ? "작성 중 · 크게보기" : "시작 전"}
-                    ready={coverReady}
-                    href={coverReady ? "/career-launch/cover-preview" : "/career-launch/cover-collect"}
-                    cta={coverReady ? "크게보기 ↗" : "시작하기"}
-                    blank={coverReady}
-                  />
-                  <ResultTile emoji="🚀" title="기업 지원" status={data.progress.doneSteps?.includes("w4s3") ? "지원 완료" : "준비 중"} ready={Boolean(data.progress.doneSteps?.includes("w4s3"))} href="/career-launch/week/4" cta="보기" />
+                <SectionTitle sub="대화로 만드는 이력서와 자기소개서">내 결과물</SectionTitle>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <DocPreview title="내 이력서" ready={resumeReady} previewHref="/career-launch/resume-preview" startHref="/career-launch/resume-collect" emptyTitle="아직 이력서가 없어요" emptySub="2주차에 대화로 만들어요">
+                    {resumeReady ? <ResumeRender data={data.resume} /> : null}
+                  </DocPreview>
+                  <DocPreview title="내 자기소개서" ready={coverReady} previewHref="/career-launch/cover-preview" startHref="/career-launch/cover-collect" emptyTitle="아직 자기소개서가 없어요" emptySub="3주차에 대화로 만들어요">
+                    {coverReady ? <CoverRender data={data.cover} /> : null}
+                  </DocPreview>
                 </div>
               </div>
             </div>
@@ -225,24 +204,47 @@ export default function LaunchDashboardPage() {
   );
 }
 
-// 결과물 타일 — 상태 + 링크(크게보기/시작하기).
-function ResultTile({ emoji, title, status, ready, href, cta, blank }: { emoji: string; title: string; status: string; ready: boolean; href: string; cta: string; blank?: boolean }) {
+// 결과물 미리보기 — 있으면 실제 문서 렌더 + 크게보기, 없으면 점선 placeholder + 시작하기.
+function DocPreview({
+  title,
+  ready,
+  previewHref,
+  startHref,
+  emptyTitle,
+  emptySub,
+  children
+}: {
+  title: string;
+  ready: boolean;
+  previewHref: string;
+  startHref: string;
+  emptyTitle: string;
+  emptySub: string;
+  children?: React.ReactNode;
+}) {
   return (
-    <Card className="flex items-center justify-between gap-3 !p-4">
-      <div className="flex min-w-0 items-center gap-3">
-        <span className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl text-[18px] ${ready ? "bg-[#EAFFD1]" : "bg-[#F2F4F6]"}`}>{emoji}</span>
-        <div className="min-w-0">
-          <p className="truncate text-[13.5px] font-bold text-[#191F28]">{title}</p>
-          <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{status}</p>
-        </div>
+    <div>
+      <div className="mb-1.5 flex items-center justify-between">
+        <p className="text-[13.5px] font-bold text-[#191F28]">{title}</p>
+        {ready ? (
+          <Link href={previewHref} target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-[#0B46E8] transition hover:underline">
+            크게보기 ↗
+          </Link>
+        ) : null}
       </div>
-      <Link
-        href={href}
-        {...(blank ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-        className={`shrink-0 rounded-lg px-3 py-2 text-[12.5px] font-bold transition ${ready ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "border border-[#D7DCE3] bg-white text-[#4E5968] hover:border-[#0B46E8]/40"}`}
-      >
-        {cta}
-      </Link>
-    </Card>
+      {ready ? (
+        children
+      ) : (
+        <Link
+          href={startHref}
+          className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#D7DCE3] bg-[#FAFBFC] p-6 text-center transition hover:border-[#0B46E8]/40"
+        >
+          <span className="text-[22px] opacity-40">📄</span>
+          <p className="mt-2 text-[13px] font-semibold text-[#8B95A1]">{emptyTitle}</p>
+          <p className="mt-0.5 text-[12px] text-[#B0B8C1]">{emptySub}</p>
+          <span className="mt-3 rounded-lg bg-[#0B46E8] px-3.5 py-1.5 text-[12.5px] font-bold text-white">시작하기 →</span>
+        </Link>
+      )}
+    </div>
   );
 }
