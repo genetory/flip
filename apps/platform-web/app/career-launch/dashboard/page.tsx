@@ -104,25 +104,23 @@ export default function LaunchDashboardPage() {
               <div>
                 <SectionTitle sub="각 주차를 눌러 진행하세요 · 완료할수록 결과물이 완성돼요">4주 여정</SectionTitle>
                 <ol className="space-y-3">
-                  {WEEKS.map((w, i) => {
+                  {WEEKS.map((w) => {
                     const done = weekDoneCount(w.steps, data);
                     const total = w.steps.length;
                     const pct = total ? Math.round((done / total) * 100) : 0;
                     const status = done === total ? "완료" : done > 0 ? "진행 중" : "시작 전";
                     const tone = done === total ? "green" : done > 0 ? "blue" : "grey";
-                    const last = i === WEEKS.length - 1;
                     return (
-                      <li key={w.week} className="relative">
-                        {!last ? <span className="absolute left-[18px] top-[46px] h-[calc(100%-30px)] w-[2px] rounded bg-[#E5E8EB]" /> : null}
+                      <li key={w.week}>
                         <Link href={`/career-launch/week/${w.week}`} className="block">
                           <Card className="!p-4 transition hover:border-[#0B46E8]/40 md:!p-5">
                             <div className="flex items-start gap-3.5">
                               <span
-                                className={`relative z-10 flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12.5px] font-black leading-none ${
+                                className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12.5px] font-black leading-none ${
                                   done === total ? "bg-emerald-500 text-white" : done > 0 ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#8B95A1]"
                                 }`}
                               >
-                                {done === total ? "✓" : `W${w.week}`}
+                                W{w.week}
                               </span>
                               <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
