@@ -223,7 +223,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
     if (kind === "both" && (resumeReady || coverReady)) {
       return (
         <div className="mt-3 space-y-3">
-          {resumeReady ? <ResultBlock title="이력서" href="/career-launch/resume-preview" hrefLabel="미리보기"><ResumeRender data={resume} /></ResultBlock> : null}
+          {resumeReady ? <ResultBlock title="이력서" href="/career-launch/resume-preview" hrefLabel="미리보기"><ResumeRender data={resume} maxWidth={360} /></ResultBlock> : null}
           {coverReady ? <ResultBlock title="자기소개서" href="/career-launch/cover-collect" hrefLabel="이어하기"><CoverRender data={cover} /></ResultBlock> : null}
         </div>
       );

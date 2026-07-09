@@ -53,6 +53,12 @@ function toResumeContent(data: ResumeData): ResumeContent {
   };
 }
 
-export function ResumeRender({ data }: { data: ResumeData }) {
-  return <ResumePreview content={toResumeContent(data)} design={DEFAULT_DESIGN} />;
+// maxWidth: 미리보기 최대 폭(px). ResumePreview 는 컨테이너 폭에 맞춰 스케일되므로,
+// 좁은 사이드바·패널에서는 작은 값을 줘서 컴팩트하게 보여준다. 미지정 시 컨테이너 폭.
+export function ResumeRender({ data, maxWidth }: { data: ResumeData; maxWidth?: number }) {
+  return (
+    <div style={maxWidth ? { maxWidth } : undefined}>
+      <ResumePreview content={toResumeContent(data)} design={DEFAULT_DESIGN} />
+    </div>
+  );
 }

@@ -47,7 +47,7 @@ export function WeekDocs({ week }: { week: number }) {
         {!ready ? (
           <Card className="!p-4 text-[13px] text-[#8B95A1]">불러오는 중…</Card>
         ) : hasResumeContent(resume) ? (
-          <ResumeRender data={resume} />
+          <ResumeRender data={resume} maxWidth={340} />
         ) : (
           <Card className="!p-4 text-[13px] text-[#8B95A1]">아직 이력서를 만들지 않았어요. 대화로 채워보세요.</Card>
         )}
