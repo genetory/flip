@@ -105,6 +105,8 @@ export default function LaunchDashboardPage() {
               <div>
                 <SectionTitle>프로그램 소개</SectionTitle>
                 <Card className="md:!p-6">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/img_global_career_launch.webp" alt="Global Career Launch" className="mb-4 max-h-[200px] w-full rounded-xl object-cover" />
                   <p className="text-[15px] font-black text-[#0B1227] md:text-[16px]">AI 코치와 함께하는 4주 취업 완성 부트캠프</p>
                   <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">
                     한국 취업을 준비하는 외국인 유학생을 위한 프로그램이에요. 혼자서는 막막한 취업 준비를 AI 코치가 옆에서 이끌어줘요. 취업 준비 상태 진단부터 직무 방향 설정, 대화만으로 완성하는 이력서·자기소개서, 그리고 실제 기업 지원까지 — 4주 동안 하나씩 밟아가며 완주해요.
@@ -221,10 +223,10 @@ export default function LaunchDashboardPage() {
               {/* 내 결과물 — 이력서·자기소개서 미리보기(없으면 점선 placeholder) */}
               <div className="space-y-4">
                 <SectionTitle sub="대화로 만드는 이력서와 자기소개서">내 결과물</SectionTitle>
-                <DocPreview title="내 이력서" ready={resumeReady} previewHref="/career-launch/resume-preview" startHref="/career-launch/resume-collect" emptyTitle="아직 이력서가 없어요" emptySub="2주차에 대화로 만들어요">
+                <DocPreview title="내 이력서" ready={resumeReady} previewHref="/career-launch/resume-preview" emptyTitle="아직 이력서가 없어요" emptySub="2주차에 대화로 만들어요">
                   {resumeReady ? <ResumeRender data={data.resume} /> : null}
                 </DocPreview>
-                <DocPreview title="내 자기소개서" ready={coverReady} previewHref="/career-launch/cover-preview" startHref="/career-launch/cover-collect" emptyTitle="아직 자기소개서가 없어요" emptySub="3주차에 대화로 만들어요">
+                <DocPreview title="내 자기소개서" ready={coverReady} previewHref="/career-launch/cover-preview" emptyTitle="아직 자기소개서가 없어요" emptySub="3주차에 대화로 만들어요">
                   {coverReady ? <CoverRender data={data.cover} /> : null}
                 </DocPreview>
               </div>
@@ -237,12 +239,11 @@ export default function LaunchDashboardPage() {
   );
 }
 
-// 결과물 미리보기 — 있으면 실제 문서 렌더 + 크게보기, 없으면 점선 placeholder + 시작하기.
+// 결과물 미리보기 — 있으면 실제 문서 렌더 + 크게보기, 없으면 점선 placeholder(안내만, 버튼 없음).
 function DocPreview({
   title,
   ready,
   previewHref,
-  startHref,
   emptyTitle,
   emptySub,
   children
@@ -250,7 +251,6 @@ function DocPreview({
   title: string;
   ready: boolean;
   previewHref: string;
-  startHref: string;
   emptyTitle: string;
   emptySub: string;
   children?: React.ReactNode;
@@ -268,15 +268,11 @@ function DocPreview({
       {ready ? (
         children
       ) : (
-        <Link
-          href={startHref}
-          className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#D7DCE3] bg-[#FAFBFC] p-6 text-center transition hover:border-[#0B46E8]/40"
-        >
+        <div className="flex min-h-[200px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#D7DCE3] bg-[#FAFBFC] p-6 text-center">
           <span className="text-[22px] opacity-40">📄</span>
           <p className="mt-2 text-[13px] font-semibold text-[#8B95A1]">{emptyTitle}</p>
           <p className="mt-0.5 text-[12px] text-[#B0B8C1]">{emptySub}</p>
-          <span className="mt-3 rounded-lg bg-[#0B46E8] px-3.5 py-1.5 text-[12.5px] font-bold text-white">시작하기 →</span>
-        </Link>
+        </div>
       )}
     </div>
   );
