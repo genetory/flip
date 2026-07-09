@@ -107,7 +107,7 @@ export default function LaunchDashboardPage() {
                 <Card className="md:!p-6">
                   <p className="text-[15px] font-black text-[#0B1227] md:text-[16px]">AI 코치와 함께하는 4주 취업 완성 부트캠프</p>
                   <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">
-                    한국 취업을 준비하는 외국인 유학생을 위한 프로그램이에요. 취업 준비 상태 진단부터 직무 방향 설정, 대화로 만드는 이력서·자기소개서, 그리고 기업 지원까지 4주 동안 한 번에 완주해요.
+                    한국 취업을 준비하는 외국인 유학생을 위한 프로그램이에요. 혼자서는 막막한 취업 준비를 AI 코치가 옆에서 이끌어줘요. 취업 준비 상태 진단부터 직무 방향 설정, 대화만으로 완성하는 이력서·자기소개서, 그리고 실제 기업 지원까지 — 4주 동안 하나씩 밟아가며 완주해요.
                   </p>
                   <div className="mt-3.5 flex flex-wrap gap-2">
                     {[
@@ -120,6 +120,37 @@ export default function LaunchDashboardPage() {
                         {f.t}
                       </span>
                     ))}
+                  </div>
+
+                  {/* 4주 후 얻는 것 */}
+                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
+                    <p className="text-[12.5px] font-bold text-[#0B46E8]">🎯 4주 후, 이런 걸 완성해요</p>
+                    <div className="mt-2.5 grid grid-cols-2 gap-2">
+                      {[
+                        { e: "🧭", t: "취업 준비도 진단 · 직무 방향" },
+                        { e: "📄", t: "기업에 낼 대표 이력서" },
+                        { e: "📝", t: "회사 맞춤 자기소개서" },
+                        { e: "🚀", t: "실제 기업 지원 완료" }
+                      ].map((o) => (
+                        <div key={o.t} className="flex items-center gap-2 rounded-xl bg-[#F8FAFC] px-3 py-2.5">
+                          <span className="text-[16px]">{o.e}</span>
+                          <span className="break-keep text-[12.5px] font-semibold text-[#333D4B]">{o.t}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 수료 조건 */}
+                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
+                    <p className="text-[12.5px] font-bold text-[#3A6B00]">✅ 수료 조건</p>
+                    <ul className="mt-2 space-y-1.5 text-[13px] text-[#333D4B]">
+                      {COMPLETION_CRITERIA.map((c, i) => (
+                        <li key={i} className="flex gap-2">
+                          <span className="mt-0.5 flex h-4 w-4 flex-none items-center justify-center rounded-full bg-[#B7FF5A] text-[10px] font-black text-[#111]">{i + 1}</span>
+                          <span className="break-keep">{c}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </Card>
               </div>
@@ -185,21 +216,6 @@ export default function LaunchDashboardPage() {
                     </Card>
                   ))}
                 </div>
-              </div>
-
-              {/* 수료 조건 */}
-              <div>
-                <SectionTitle>수료 조건</SectionTitle>
-                <Card>
-                  <ul className="space-y-2.5 text-[13.5px] text-[#333D4B]">
-                    {COMPLETION_CRITERIA.map((c, i) => (
-                      <li key={i} className="flex gap-2">
-                        <span className="mt-0.5 flex h-4 w-4 flex-none items-center justify-center rounded-full bg-[#B7FF5A] text-[10px] font-black text-[#111]">{i + 1}</span>
-                        {c}
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
               </div>
 
               {/* 내 결과물 — 이력서·자기소개서 미리보기(없으면 점선 placeholder) */}

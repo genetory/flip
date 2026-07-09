@@ -118,8 +118,8 @@ export const WEEKS: WeekPlan[] = [
   },
   {
     week: 3,
-    title: "자기소개서 만들기 & 다듬기",
-    subtitle: "자기소개서를 쓰고 이력서와 맞춰 완성본을 만들어요",
+    title: "자기소개서 만들기",
+    subtitle: "지원 동기·강점 등 문항을 채워 자기소개서를 완성해요",
     goal: "목표 회사에 맞춘 자기소개서를 완성하고, 이력서와 서로 어울리게 다듬어 이력서·자기소개서 완성본을 만들어요.",
     seminar: { date: "2026-07-27 (월)", time: "19:00–21:00", place: "오프라인 (강남)", online: false },
     steps: [
