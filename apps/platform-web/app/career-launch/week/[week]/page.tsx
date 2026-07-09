@@ -92,8 +92,8 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
                 </Card>
               </div>
 
-              {/* 내 이력서·자소서 — 3주차부터 미리보기(세미나·피드백 아래) */}
-              {plan.week >= 3 ? <WeekDocs week={plan.week} /> : null}
+              {/* 내 이력서·자소서 — 2주차부터 미리보기(세미나·피드백 아래) */}
+              {plan.week >= 2 ? <WeekDocs week={plan.week} /> : null}
 
               {/* 4주 전체 진행 — 모든 주차 페이지에 동일하게 노출 */}
               <div>

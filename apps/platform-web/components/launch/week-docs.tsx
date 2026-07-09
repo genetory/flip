@@ -33,8 +33,8 @@ export function WeekDocs({ week }: { week: number }) {
     };
   }, []);
 
-  // 3주차: 자소서 · 4주차: 이력서 + 자소서. (1·2주차는 노출 안 함)
-  const showResume = week >= 4;
+  // 2주차: 이력서 · 3주차: 자소서 · 4주차: 이력서 + 자소서. (1주차는 노출 안 함)
+  const showResume = week === 2 || week >= 4;
   const showCover = week >= 3;
 
   return (
