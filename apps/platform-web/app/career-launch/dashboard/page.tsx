@@ -7,6 +7,7 @@ import { COMPLETION_CRITERIA, STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
 import { CoachFeedback } from "../../../components/launch/coach-feedback";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
+import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
 import { ResumeRender } from "../../../components/launch/resume-render";
 import { CoverRender } from "../../../components/launch/cover-render";
 import { fetchProgress } from "../../../lib/launch/progress-client";
@@ -125,6 +126,13 @@ export default function LaunchDashboardPage() {
               </div>
             </Card>
           )}
+
+          {/* 완주 시 — 이력서·자소서·면접 종합 최종 피드백 */}
+          {overall === 100 ? (
+            <div className="mt-4">
+              <FinalFeedbackCard />
+            </div>
+          ) : null}
 
           <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
             {/* ── 메인: 프로그램 소개 + 4주 여정 퍼널 ── */}

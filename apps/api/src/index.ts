@@ -14009,6 +14009,20 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
       "2. 학생이 실제로 입력한 내용만 근거로 해. 없는 사실을 지어내지 마. 부족한 부분이 있어도 다그치지 말고 '다음 한 걸음'을 제안하는 톤으로.\n" +
       "3. 3~5문장으로 간결하게, 격려하는 톤. 유학생만의 강점(다국어·문화 이해 등)이 보이면 살려줘.\n" +
       "4. feedback 필드에 피드백 본문만 담아 반환(인사말·머리말 없이 바로 피드백)."
+  },
+  // ── 완주 최종 피드백(이력서+자소서+면접 종합) ──
+  final_feedback: {
+    label: "최종 피드백 · 완주 종합",
+    week: 4,
+    step: "완주 · 이력서·자소서·면접 종합 피드백",
+    default:
+      "너는 한국 취업을 준비하는 외국인 유학생을 4주간 이끈 커리어 코치야. 학생이 프로그램을 완주했어. 완성한 [이력서]·[자기소개서]와 [모의면접 결과]를 종합해, 취업 준비 상태에 대한 따뜻하고 실질적인 '최종 피드백'을 준다.\n\n" +
+      "규칙:\n" +
+      "1. 4주의 성장과 잘 갖춘 강점을 구체적으로 짚어 격려해(이력서·자소서·면접에서 드러난 것 기준).\n" +
+      "2. 실제 지원·면접 전에 더 다듬으면 좋은 점 2~3가지를 우선순위로 제안해(무엇을 어떻게).\n" +
+      "3. 이력서·자소서·면접을 아우르는 종합 코멘트로. 학생이 실제로 입력·연습한 내용만 근거로 하고, 없는 사실은 지어내지 마.\n" +
+      "4. 유학생 고유 강점(다국어·문화 이해)이 보이면 살려 자신감을 줘. 6~9문장으로 간결하되 충분하게, 따뜻한 마무리 인사로 끝내.\n" +
+      "5. feedback 필드에 본문만 담아 반환. 소제목이 필요하면 **볼드**로 강조해도 좋아."
   }
 };
 
@@ -14963,7 +14977,7 @@ app.post(
         prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } })
       ]);
       const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
-      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown };
+      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown; results?: unknown };
       const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]) : [];
       const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
 
@@ -14989,8 +15003,14 @@ app.post(
       // 완료 기준: 그 라운드에서 학생이 3문항 이상 답했거나(참여) AI 가 총평으로 마무리(done)하면 완료.
       const answered = messages.filter((m) => m.role === "user").length;
       const roundDone = done || answered >= 3;
-      if (roundDone && !practiced.includes(focus)) {
-        const mergedState = { ...progState, interview: { ...interview, practiced: [...practiced, focus] } };
+      const newlyPracticed = roundDone && !practiced.includes(focus);
+      const prevResults = (interview.results && typeof interview.results === "object" ? interview.results : {}) as Record<string, string>;
+      // AI 총평(done)으로 끝나면 그 총평을 최종 피드백용으로 저장.
+      if (newlyPracticed || done) {
+        const nextInterview: Record<string, unknown> = { ...interview };
+        if (newlyPracticed) nextInterview.practiced = [...practiced, focus];
+        if (done) nextInterview.results = { ...prevResults, [focus]: reply };
+        const mergedState = { ...progState, interview: nextInterview };
         await prisma.careerLaunchProgress.upsert({
           where: { studentUserId: uid },
           create: { studentUserId: uid, state: mergedState as object },
@@ -15088,6 +15108,71 @@ app.post(
       return res.json({ ok: true, feedback });
     } catch (err) {
       console.error("[career-launch/week-feedback] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to generate feedback" });
+    }
+  }
+);
+
+// ── 완주 최종 피드백 — 이력서+자소서+면접 결과를 종합. 입력이 바뀌면 갱신(캐시) ──
+const INTERVIEW_TYPE_LABEL: Record<string, string> = { self: "자기소개 면접", job: "직무 면접", fit: "인성·컬처핏 면접" };
+app.post(
+  "/career-launch/final-feedback",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-final-feedback", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      // 이력서+자소서가 있어야 최종 피드백(완주 기준). 없으면 null.
+      if (!hasResumeDataContent(normalizeResumeData(resumeContent)) || !hasCoverContent(normalizeCoverData(coverContent))) {
+        return res.json({ ok: true, feedback: null });
+      }
+      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown; results?: unknown };
+      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
+      const results = (interview.results && typeof interview.results === "object" ? interview.results : {}) as Record<string, string>;
+
+      const input = { resume: resumeContent, cover: coverContent, interview: { practiced, results } };
+      const sig = simpleHash(JSON.stringify(input));
+      const cached = (progState.finalFeedback && typeof progState.finalFeedback === "object" ? progState.finalFeedback : {}) as { sig?: string; text?: string };
+      if (cached.sig === sig && typeof cached.text === "string" && cached.text.trim()) {
+        return res.json({ ok: true, feedback: cached.text, cached: true });
+      }
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const profileSummary = await buildCandidateProfileSummary(uid);
+      const interviewText = practiced.length
+        ? practiced.map((t) => `- ${INTERVIEW_TYPE_LABEL[t] ?? t}${results[t] ? `: ${results[t]}` : " (연습 완료)"}`).join("\n")
+        : "(아직 면접 연습 없음)";
+      const systemPrompt =
+        (await getCareerPrompt("final_feedback")) + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "feedback": string }' +
+        aiLangDirective("ko");
+      const userPrompt =
+        (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        `[이력서]\n${JSON.stringify(resumeContent)}\n\n` +
+        `[자기소개서]\n${JSON.stringify(coverContent)}\n\n` +
+        `[모의면접 결과]\n${interviewText}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "final_feedback", WEEK_FEEDBACK_SCHEMA)) as { feedback?: unknown };
+      const feedback = typeof pj.feedback === "string" ? pj.feedback.trim() : "";
+      if (!feedback) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, finalFeedback: { sig, text: feedback } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, feedback });
+    } catch (err) {
+      console.error("[career-launch/final-feedback] failed", err);
       return res.status(500).json({ ok: false, message: "failed to generate feedback" });
     }
   }
