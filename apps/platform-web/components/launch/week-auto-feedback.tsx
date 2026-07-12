@@ -34,7 +34,7 @@ export function WeekAutoFeedback({ week }: { week: number }) {
   return (
     <Card>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[13.5px] font-semibold text-[#4E5968]">코치 자동 피드백</span>
+        <span className="text-[13.5px] font-semibold text-[#4E5968]">피드백</span>
         {state === "loading" ? (
           <Pill tone="grey">생성 중…</Pill>
         ) : state === "done" ? (
