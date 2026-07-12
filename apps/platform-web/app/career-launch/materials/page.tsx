@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { RichText } from "../../../components/launch/rich-text";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestMaterialChat, type JobChatMsg } from "../../../lib/launch/job-chat-client";
 import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
@@ -51,19 +52,29 @@ export default function LaunchMaterialsPage() {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
     setLoading(true);
+    // ?restart=1 이면 정리한 정보를 비우고 처음부터(선정 직무는 그대로 두고).
+    const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
     void (async () => {
       // 선정 직무 + 이전에 정리해둔 직무 정보를 백엔드에서 복원해 이어서 쌓는다.
       let sel: string[] = [];
+      let initialMats: string[] = [];
       try {
         const { selectedJobs, materials: savedMat } = await fetchProgress();
         if (Array.isArray(selectedJobs)) sel = selectedJobs;
         setSelected(sel);
-        if (Array.isArray(savedMat) && savedMat.length) setMaterials(savedMat);
+        if (restart) {
+          setMaterials([]);
+          saveMaterials([]); // 백엔드도 비워 진짜 처음부터
+        } else if (Array.isArray(savedMat) && savedMat.length) {
+          initialMats = savedMat;
+          setMaterials(savedMat);
+        }
       } catch {
         // 무시
       }
       try {
-        const { reply, materials: mats } = await requestMaterialChat([], sel);
+        // 이미 정리한 정보를 함께 보내 AI가 같은 걸 다시 묻지 않고 이어가게 한다.
+        const { reply, materials: mats } = await requestMaterialChat([], sel, initialMats);
         if (mats.length) setMaterials((prev) => mergeMaterials(prev, mats));
         setMessages([{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 선정한 직무를 함께 자세히 알아볼까요?` }]);
       } catch {
@@ -89,7 +100,7 @@ export default function LaunchMaterialsPage() {
     void (async () => {
       try {
         const history: JobChatMsg[] = nextMsgs.map((m) => ({ role: m.role, text: m.text }));
-        const { reply, materials: mats, done: isDone } = await requestMaterialChat(history, selected);
+        const { reply, materials: mats, done: isDone } = await requestMaterialChat(history, selected, materials);
         const merged = mats.length ? mergeMaterials(materials, mats) : materials;
         if (mats.length) {
           setMaterials(merged);
@@ -120,10 +131,22 @@ export default function LaunchMaterialsPage() {
       <main className="flex-1">
         <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-3xl flex-col px-5 pb-4 pt-4 md:pt-6">
           <div className="flex items-center justify-between gap-3">
-            <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              ← 대시보드
+            <Link href="/career-launch/week/1" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+              ← 1주차
             </Link>
-            <span className="text-[12px] font-bold text-[#0B46E8]">정리한 정보 {materials.length}개</span>
+            <div className="flex items-center gap-2.5">
+              <span className="text-[12px] font-bold text-[#0B46E8]">정리한 정보 {materials.length}개</span>
+              {!done ? (
+                <button
+                  type="button"
+                  onClick={() => send("이 직무는 여기까지 하고 다음으로 넘어갈게요.")}
+                  disabled={loading}
+                  className="rounded-full border border-[#D7DCE3] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8] disabled:opacity-40"
+                >
+                  넘어가기 ⏭
+                </button>
+              ) : null}
+            </div>
           </div>
           <div className="mt-3 flex items-center gap-2.5">
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
@@ -140,12 +163,12 @@ export default function LaunchMaterialsPage() {
                 <div key={i} className="flex items-end gap-2">
                   <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
                   <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
-                    {m.text}
+                    <RichText text={m.text} />
                   </div>
                 </div>
               ) : (
                 <div key={i} className="flex justify-end">
-                  <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white">{m.text}</div>
+                  <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white"><RichText text={m.text} /></div>
                 </div>
               )
             )}
@@ -181,12 +204,21 @@ export default function LaunchMaterialsPage() {
 
           {/* 입력 / 완료 */}
           {done ? (
-            <Link
-              href="/career-launch/dashboard"
-              className="mt-3 flex items-center justify-center rounded-xl bg-[#0B46E8] py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
-            >
-              대시보드에서 확인하기 →
-            </Link>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setDone(false)}
+                className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
+              >
+                계속 정리하기
+              </button>
+              <Link
+                href="/career-launch/week/1"
+                className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+              >
+                1주차 페이지로 →
+              </Link>
+            </div>
           ) : (
             <div className="mt-3">
               {/* 할 말이 없어 막힐 때를 위한 빠른 응답 — 대화가 끊기지 않게 */}

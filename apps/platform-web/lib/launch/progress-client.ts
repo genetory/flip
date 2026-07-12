@@ -20,11 +20,13 @@ function authHeaders(json = false): Record<string, string> {
 }
 
 export type CareerDiagnosis = { percent: number; level: string; strengths: string[]; improvements: string[] };
+export type CareerInterview = { practiced?: string[] }; // 완료한 면접 유형(self|job|fit)
 export type CareerProgress = {
   diagnosis?: CareerDiagnosis | null;
   selectedJobs?: string[];
   materials?: string[];
   doneSteps?: string[];
+  interview?: CareerInterview | null;
 };
 
 async function req(path: string, init: RequestInit): Promise<Record<string, unknown>> {

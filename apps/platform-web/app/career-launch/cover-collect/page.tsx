@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { RichText } from "../../../components/launch/rich-text";
 import { STUDENT } from "../../../lib/launch/data";
-import { requestCoverChat, fetchCoverData, hasCoverContent, type CoverChatMsg, type CoverData } from "../../../lib/launch/cover-data";
+import { requestCoverChat, fetchCoverData, resetCoverData, hasCoverContent, type CoverChatMsg, type CoverData, type CoverSection } from "../../../lib/launch/cover-data";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -11,7 +12,13 @@ import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 // Week 3 — 별도 빌더로 가지 않고 AI와 대화하며 자기소개서를 채운다. 백엔드에 자동 저장.
 type Msg = { role: "bot" | "user"; text: string };
 
-const answeredCount = (d: CoverData) => (d.items ?? []).filter((x) => (x.answer ?? "").trim().length > 0).length;
+// 현재 작성하는 문항 표시용 라벨.
+const SECTION_LABEL: Record<CoverSection, string> = {
+  motive: "지원 동기",
+  growth: "성장 과정",
+  strength: "성격의 장단점·강점",
+  aspiration: "입사 후 포부"
+};
 
 export default function CoverCollectPage() {
   const { user, isReady } = useAuthSession();
@@ -23,14 +30,29 @@ export default function CoverCollectPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [focus, setFocus] = useState<CoverSection | undefined>(undefined); // 이 스텝이 집중할 문항
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
     setLoading(true);
+    // ?section=motive|growth|strength|aspiration 이 스텝의 집중 문항(= 리셋 스코프). ?restart=1 이면 그 문항부터 초기화.
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    const restart = params.get("restart") === "1";
+    const sectionRaw = params.get("section");
+    const section = (["motive", "growth", "strength", "aspiration"] as const).find((s) => s === sectionRaw);
+    setFocus(section);
     void (async () => {
       let seed: CoverData = {};
+      if (restart && section) {
+        try {
+          await resetCoverData(section);
+        } catch {
+          // 초기화 실패해도 남은 데이터로 진행
+        }
+      }
+      // 초기화 후 남은 문항(부분 초기화 시)은 seed 로 이어간다. 전체 초기화면 빈 seed.
       try {
         const saved = await fetchCoverData();
         seed = saved.data ?? {};
@@ -44,7 +66,7 @@ export default function CoverCollectPage() {
         setMessages([{ role: "bot", text: `${displayName}님, 다시 오셨네요 👋 이어서 마저 써볼게요!` }]);
       }
       try {
-        const { reply, data: merged } = await requestCoverChat([], seed);
+        const { reply, data: merged } = await requestCoverChat([], seed, section);
         setData(merged);
         setMessages((m) =>
           continuing
@@ -74,7 +96,7 @@ export default function CoverCollectPage() {
     void (async () => {
       try {
         const history: CoverChatMsg[] = nextMsgs.map((m) => ({ role: m.role, text: m.text }));
-        const { reply, data: merged, done: isDone } = await requestCoverChat(history, data);
+        const { reply, data: merged, done: isDone } = await requestCoverChat(history, data, focus);
         setData(merged);
         setMessages((m) => [...m, { role: "bot", text: reply }]);
         if (isDone) setDone(true);
@@ -92,16 +114,15 @@ export default function CoverCollectPage() {
       <main className="flex-1">
         <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-3xl flex-col px-5 pb-4 pt-4 md:pt-6">
           <div className="flex items-center justify-between gap-3">
-            <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              ← 대시보드
+            <Link href="/career-launch/week/3" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+              ← 3주차
             </Link>
-            <span className="text-[12px] font-bold text-[#0B46E8]">작성한 문항 {answeredCount(data)}개</span>
           </div>
           <div className="mt-3 flex items-center gap-2.5">
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
-              <p className="text-[15px] font-black text-[#0B1227]">대화로 자기소개서 채우기</p>
-              <p className="text-[12px] text-[#8B95A1]">AI와 대화하면 자기소개서 문항이 자동으로 채워져요</p>
+              <p className="text-[12px] font-bold text-[#0B46E8]">자기소개서{focus ? " 작성 중" : ""}</p>
+              <p className="text-[15px] font-black text-[#0B1227]">{focus ? SECTION_LABEL[focus] : "대화로 자기소개서 채우기"}</p>
             </div>
           </div>
 
@@ -111,12 +132,12 @@ export default function CoverCollectPage() {
                 <div key={i} className="flex items-end gap-2">
                   <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
                   <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
-                    {m.text}
+                    <RichText text={m.text} />
                   </div>
                 </div>
               ) : (
                 <div key={i} className="flex justify-end">
-                  <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white">{m.text}</div>
+                  <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white"><RichText text={m.text} /></div>
                 </div>
               )
             )}
@@ -134,12 +155,21 @@ export default function CoverCollectPage() {
           </div>
 
           {done ? (
-            <Link
-              href="/career-launch/dashboard"
-              className="mt-3 flex items-center justify-center rounded-xl bg-[#0B46E8] py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
-            >
-              대시보드로 돌아가기 →
-            </Link>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setDone(false)}
+                className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
+              >
+                계속 작성하기
+              </button>
+              <Link
+                href="/career-launch/week/3"
+                className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+              >
+                3주차 페이지로 →
+              </Link>
+            </div>
           ) : (
             <div className="mt-3">
               {messages.length > 0 && !loading ? (

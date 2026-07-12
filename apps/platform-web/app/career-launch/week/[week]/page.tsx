@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { WEEKS } from "../../../../lib/launch/data";
-import { Card, Pill, SectionTitle } from "../../../../components/launch/ui";
+import { Card, SectionTitle } from "../../../../components/launch/ui";
 import { WeekStepper } from "../../../../components/launch/week-stepper";
 import { WeekDocs } from "../../../../components/launch/week-docs";
 import { WeekGate } from "../../../../components/launch/week-gate";
+import { WeekAutoFeedback } from "../../../../components/launch/week-auto-feedback";
 import { Header } from "../../../../components/site/Header";
 import { Footer } from "../../../../components/site/Footer";
 
@@ -14,12 +15,6 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
   const n = Number(week);
   const plan = WEEKS.find((w) => w.week === n);
   if (!plan) notFound();
-
-  const feedbackPill = {
-    none: <Pill tone="grey">피드백 없음</Pill>,
-    pending: <Pill tone="amber">피드백 대기 중</Pill>,
-    done: <Pill tone="green">피드백 완료</Pill>
-  }[plan.feedback.status];
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -31,12 +26,10 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
           <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
             ← 대시보드
           </Link>
-          <div className="mt-3 flex items-center gap-3">
-            <span className="flex h-12 w-12 flex-none items-center justify-center rounded-2xl bg-[#0B46E8] text-[17px] font-black text-white">W{plan.week}</span>
-            <div>
-              <p className="text-[12.5px] font-bold text-[#8B95A1]">Week {plan.week} · {plan.subtitle}</p>
-              <h1 className="text-[19px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">{plan.title}</h1>
-            </div>
+          <div className="mt-3">
+            <p className="text-[28px] font-black leading-none tracking-[-0.02em] text-[#0B46E8] md:text-[34px]">Week {plan.week}</p>
+            <p className="mt-2 text-[12.5px] font-normal text-[#8B95A1]">{plan.subtitle}</p>
+            <h1 className="mt-3 text-[19px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">{plan.title}</h1>
           </div>
 
           {/* 이번 주 목표 배너 (전체 폭) */}
@@ -60,7 +53,8 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
               <SectionTitle sub="끝낸 단계는 번호를 콕 눌러 체크해요">이번 주 해야 할 일</SectionTitle>
               <WeekGate week={plan.week}>
                 <Card className="md:!p-6">
-                  <WeekStepper steps={plan.steps} />
+                  {/* 4주차는 스텝이 독립적이라 순서 잠금 없이 자유롭게 진행 */}
+                  <WeekStepper steps={plan.steps} sequential={plan.week !== 4} />
                 </Card>
               </WeekGate>
             </div>
@@ -80,17 +74,13 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
                 </Card>
               </div>
 
-              {/* 피드백 상태 */}
-              <div>
-                <SectionTitle>피드백</SectionTitle>
-                <Card>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13.5px] font-semibold text-[#4E5968]">피드백 상태</span>
-                    {feedbackPill}
-                  </div>
-                  {plan.feedback.note ? <p className="mt-3 rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]">“{plan.feedback.note}”</p> : null}
-                </Card>
-              </div>
+              {/* 피드백 — 1~3주차만 결과물 기반 자동 코치 피드백(4주차는 없음) */}
+              {plan.week <= 3 ? (
+                <div>
+                  <SectionTitle>피드백</SectionTitle>
+                  <WeekAutoFeedback week={plan.week} />
+                </div>
+              ) : null}
 
               {/* 내 이력서·자기소개서 — 2주차부터 미리보기(세미나·피드백 아래) */}
               {plan.week >= 2 ? <WeekDocs week={plan.week} /> : null}
@@ -128,10 +118,10 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
             </div>
           </div>
 
-          {/* 최종 주차 CTA */}
+          {/* 최종 주차 CTA — 대시보드로 이동해 완성한 내 결과물을 확인 */}
           {plan.week === 4 ? (
-            <Link href="/career-launch/profile" className="mt-8 flex items-center justify-center rounded-xl bg-[#B7FF5A] py-3.5 text-[14px] font-bold text-[#111] transition hover:brightness-105">
-              Global Talent Profile 완성하기 →
+            <Link href="/career-launch/dashboard" className="mt-8 flex items-center justify-center rounded-xl bg-[#B7FF5A] py-3.5 text-[14px] font-bold text-[#111] transition hover:brightness-105">
+              완성한 내 결과물 보러 가기 →
             </Link>
           ) : null}
         </div>

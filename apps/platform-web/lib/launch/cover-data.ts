@@ -30,11 +30,12 @@ async function req(path: string, init: RequestInit): Promise<Record<string, unkn
   return d;
 }
 
-export async function requestCoverChat(messages: CoverChatMsg[], data: CoverData): Promise<CoverChatResult> {
+export type CoverSection = "motive" | "growth" | "strength" | "aspiration";
+export async function requestCoverChat(messages: CoverChatMsg[], data: CoverData, focus?: CoverSection): Promise<CoverChatResult> {
   const d = await req("/career-launch/cover-chat", {
     method: "POST",
     headers: authHeaders(true),
-    body: JSON.stringify({ messages, data, locale: "ko" })
+    body: JSON.stringify({ messages, data, focus, locale: "ko" })
   });
   return { reply: typeof d.reply === "string" ? d.reply : "", data: (d.data as CoverData) ?? {}, done: d.done === true };
 }
@@ -42,6 +43,12 @@ export async function requestCoverChat(messages: CoverChatMsg[], data: CoverData
 export async function fetchCoverData(): Promise<{ data: CoverData; updatedAt: string | null }> {
   const d = await req("/career-launch/cover-data", { headers: authHeaders() });
   return { data: (d.data as CoverData) ?? {}, updatedAt: (d.updatedAt as string) ?? null };
+}
+
+// '다시하기' — scope(motive|growth|strength|aspiration) 면 그 문항부터 이후만, 없으면 전체 초기화.
+export async function resetCoverData(scope?: CoverSection): Promise<void> {
+  const q = scope ? `?scope=${scope}` : "";
+  await req(`/career-launch/cover-data${q}`, { method: "DELETE", headers: authHeaders() });
 }
 
 export function hasCoverContent(data: CoverData | null | undefined): boolean {

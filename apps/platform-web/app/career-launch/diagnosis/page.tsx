@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { RichText } from "../../../components/launch/rich-text";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestDiagnosisChat, type DiagnosisResult, type JobChatMsg } from "../../../lib/launch/job-chat-client";
 import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
@@ -45,6 +46,12 @@ export default function LaunchDiagnosisPage() {
   useEffect(() => {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
+    // ?restart=1 이면 저장 결과를 무시하고 처음부터 새 진단(완료 시 결과가 덮어씀).
+    const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
+    if (restart) {
+      startChat();
+      return;
+    }
     // 이전에 진단한 결과가 있으면 대화 대신 그 결과를 바로 보여준다(다시 보기).
     void (async () => {
       try {
@@ -98,9 +105,21 @@ export default function LaunchDiagnosisPage() {
       <Header />
       <main className="flex-1">
         <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-3xl flex-col px-5 pb-4 pt-4 md:pt-6">
-          <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-            ← 대시보드
-          </Link>
+          <div className="flex items-center justify-between gap-3">
+            <Link href="/career-launch/week/1" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+              ← 1주차
+            </Link>
+            {!result ? (
+              <button
+                type="button"
+                onClick={() => send("이 질문은 건너뛰고 다음으로 넘어갈게요.")}
+                disabled={loading}
+                className="rounded-full border border-[#D7DCE3] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8] disabled:opacity-40"
+              >
+                넘어가기 ⏭
+              </button>
+            ) : null}
+          </div>
           <div className="mt-3 flex items-center gap-2.5">
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
@@ -116,12 +135,12 @@ export default function LaunchDiagnosisPage() {
                 <div key={i} className="flex items-end gap-2">
                   <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
                   <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
-                    {m.text}
+                    <RichText text={m.text} />
                   </div>
                 </div>
               ) : (
                 <div key={i} className="flex justify-end">
-                  <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white">{m.text}</div>
+                  <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white"><RichText text={m.text} /></div>
                 </div>
               )
             )}
@@ -189,10 +208,10 @@ export default function LaunchDiagnosisPage() {
                 다시 진단하기
               </button>
               <Link
-                href="/career-launch/dashboard"
+                href="/career-launch/week/1"
                 className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
               >
-                대시보드에서 확인하기 →
+                1주차 페이지로 →
               </Link>
             </div>
           ) : (

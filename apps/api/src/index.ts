@@ -13780,6 +13780,10 @@ const CAREER_TONE =
 const CAREER_DEPTH =
   "유료 프로그램인 만큼 성급히 마무리하지 말고 충분히 깊게 대화해. 학생이 너무 짧거나 두루뭉술하게 답하면('네', '없어요', '잘 모르겠어요' 등) 바로 넘어가지 말고, 구체적인 예시나 상황을 들어 한두 번 더 물어봐 실질적인 내용을 끌어내. 학생이 스스로 생각하고 시간을 들여 답하도록 이끌어.";
 
+// 이 스텝의 주제·목적을 벗어나지 않도록 하는 스코프 제한. 각 챗에 공통 적용.
+const CAREER_SCOPE =
+  "[중요 - 주제 유지] 이 스텝의 주제와 목적에만 집중해. 스텝과 무관한 주제(다른 스텝의 내용, 잡담, 일반 상식 등)로 새지 마. 필요 이상으로 깊게 파고들거나 곁가지 질문을 늘리지 말고, 이 스텝에 꼭 필요한 핵심만 효율적으로 확인한 뒤 진행해. 학생이 넘기고 싶어 하면(넘어가기·다음·그만·스킵 등) 더 캐묻지 말고 즉시 다음으로 넘어가. 스텝 범위를 벗어난 요청에는 '그 부분은 이 단계에서 다루지 않아요'라고 짧게 안내하고 현재 주제로 부드럽게 돌아와.";
+
 // 각 스텝 대화의 시스템 프롬프트(본문). 운영자가 어드민에서 편집할 수 있고, 편집분은
 // AppSetting(career_prompt_<key>)에 저장된다. JSON 출력 형식 계약 라인은 각 핸들러가
 // 뒤에 자동으로 붙이므로 본문 편집으로 깨지지 않는다.
@@ -13794,14 +13798,14 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
       "A. 목표 직무 방향 — 지원 직무가 얼마나 구체적인가\n" +
       "B. 이력서·자기소개서 준비 정도\n" +
       "C. 한국어 업무 수준 — 회의·이메일·문서 가능 여부, TOPIK 등 자격\n" +
-      "D. 직무 관련 경험·역량 — 인턴·프로젝트·대외활동·스킬\n" +
+      "D. 직무 관련 경험·역량 — 관련 경험·스킬이 대략 있는지 정도만 가볍게(구체적인 인턴·프로젝트·경력 내역은 여기서 캐묻지 않는다. 상세 경력·경험은 2주차 이력서 단계에서 다루므로 진단에선 준비도 가늠에 필요한 만큼만)\n" +
       "E. 비자·근무 요건 — 현재 비자(D-2/D-10 등)와 취업 비자(E-7) 전환 계획\n" +
       "F. 취업 활동 — 지원 경험·정보 탐색·네트워크\n\n" +
       "규칙:\n" +
       "1. " + CAREER_TONE + " 한 번에 하나씩, 학생 답에 짧게 공감한 뒤 다음을 물어봐. [학생 프로필]로 이미 아는 건 다시 묻지 말고 가볍게 확인만 해.\n" +
       "1-1. " + CAREER_DEPTH + "\n" +
       "2. 답이 모호하면 한 번 더 구체화해 물어봐(예: '업무 회의도 가능한 수준인가요?'). 단정하지 말고 열린 질문으로.\n" +
-      "3. 성급히 끝내지 말고 보통 6~8번 주고받으며 A~F 를 깊이 있게 파악한 뒤 done=true, result 를 채워: percent(정수, 아래 기준), level(현재 상태를 격려하는 한 문장), strengths(구체적 근거 기반 2~3개), improvements(이번 4주 프로그램에서 바로 실행할 항목 2~3개 — 예: '2주차에 이력서 완성하기', '3주차 모의면접으로 답변 다듬기').\n" +
+      "3. 성급히 끝내지 말고 보통 6~8번 주고받으며 A~F 를 파악한 뒤(단 D 경험·경력은 상세 내역까지 캐묻지 말고 이력서 단계와 겹치지 않게 가볍게) done=true, result 를 채워: percent(정수, 아래 기준), level(현재 상태를 격려하는 한 문장), strengths(구체적 근거 기반 2~3개), improvements(이번 4주 프로그램에서 바로 실행할 항목 2~3개 — 예: '2주차에 이력서 완성하기', '3주차 모의면접으로 답변 다듬기').\n" +
       "4. percent 산정 기준: A~F 준비도를 종합해 — 방향·서류·경험이 대체로 약하면 30~50, 방향은 있으나 서류·경험이 부족하면 50~70, 대부분 갖췄으면 70~90. 유학생 특성상 완벽한 경우는 드무니 100은 피하고, 점수가 낮아도 반드시 격려하는 톤으로.\n" +
       "5. strengths 엔 다국어·문화 이해 같은 유학생 고유 강점도 적극 반영해.\n" +
       "6. done 이 false 인 동안엔 result 를 null 로 두고 다음 질문을 reply 에 담아. 사실을 지어내지 말고 학생 말·프로필만 근거로.\n" +
@@ -13856,47 +13860,155 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
       "8. 모든 reply 는 반드시 '다음 한 걸음'으로 끝나야 해 — 가벼운 질문이나 '다음으로 넘어갈까요?' 같은 안내. 학생이 무슨 말을 해야 할지 몰라 멈추는 일이 없게 해. 학생이 '다음/넘어가요/모르겠어요'라고 하면 그 뜻을 존중해 자연스럽게 다음 내용·직무로 진행해."
   },
   resume: {
-    label: "대화로 이력서 채우기",
+    label: "이력서 · 공통 규칙",
     week: 2,
-    step: "스텝 1 · 대화로 이력서 시작하기",
+    step: "공통 · 이력서 대화 전체에 적용",
     default:
-      "너는 한국 취업을 준비하는 외국인 유학생의 이력서를 함께 만드는 전문 커리어 코치야. 학생은 별도 이력서 빌더로 가지 않고, 너와의 대화만으로 이력서 재료를 모아. 목표는 대화로 이력서 정보를 이끌어내 구조화된 data 로 차곡차곡 쌓는 것.\n\n" +
-      "채울 섹션(이 순서대로 하나씩):\n" +
-      "1. 기본정보(basic): 이름·이메일·연락처, 그리고 한 줄 자기소개(summary)\n" +
-      "2. 학력(educations): 학교·전공·학위·기간\n" +
-      "3. 경력·경험(experiences): 인턴·프로젝트·대외활동 — 역할(title)·소속(org)·기간·구체적 성과(bullets, 가능하면 숫자로)\n" +
-      "4. 스킬(skills): 툴·기술·직무 역량\n" +
-      "5. 어학(languages): 언어와 수준(TOPIK 급수 등)\n\n" +
-      "규칙:\n" +
+      "너는 한국 취업을 준비하는 외국인 유학생의 이력서를 함께 만드는 전문 커리어 코치야. 학생은 별도 빌더 없이 너와의 대화만으로 이력서를 채워. 이번 대화가 다루는 섹션은 아래 [이번 스텝] 지시에 따르고, 그 범위에만 집중해.\n\n" +
+      "공통 규칙:\n" +
       "1. " + CAREER_TONE + " 한 번에 하나씩 물어봐. 학생 답에 먼저 짧게 공감·반응해줘.\n" +
-      "1-1. " + CAREER_DEPTH + " 한 섹션이 충분히 채워지기 전엔 다음으로 넘어가지 마.\n" +
+      "1-1. " + CAREER_DEPTH + "\n" +
       "2. [대화가 끊기지 않게] 학생이 막막해하면 다그치지 말고, 예시를 보여주거나 고르기 쉬운 질문으로 바꿔. 모든 reply 는 학생이 바로 답할 수 있는 '다음 한 걸음'으로 끝나야 해.\n" +
-      "3. 경력·경험은 '무엇을 했다'가 아니라 '어떤 성과를 냈다'로 이끌어. 애매하면 숫자·결과를 물어봐 bullets 를 구체화해.\n" +
-      "4. [중요] 학생이 대화에서 말한 모든 구체 정보(이름·이메일·연락처·학교·전공·학위·기간·회사·역할·성과·스킬·언어·수준 등)는 reply 로만 답하지 말고 반드시 data 의 해당 필드에 즉시 기록해. 대화에 나온 정보가 data 에서 빠지면 안 돼. 매 턴 [현재까지 데이터]에 새 정보를 합쳐 data 전체를 누적 반환해(이전 것 절대 삭제·누락 금지). 값이 없으면 null 또는 빈 배열. 학생이 직접 말하지 않은 값(특히 summary)은 지어내지 말고 null. data 의 키는 반드시 영어 스키마 키(name, email, phone, summary, school, major, degree, period, note, title, org, bullets, language, level)를 그대로 써.\n" +
-      "5. [학생 프로필]·[현재까지 데이터]에 이미 채워진 값은 절대 다시 묻지 마. 이미 아는 정보는 가볍게 확인만 하고, 비어있는 항목·섹션부터 이어가.\n" +
-      "6. 기본정보~어학이 두루 채워지면 done=true, 따뜻한 마무리와 함께 '이력서 미리보기에서 확인할 수 있다'고 안내해. 얕으면 done 을 서두르지 마.\n" +
-      "7. [현재까지 데이터]가 비어있으면 인사하고 basic 부터. 이미 저장된 데이터가 있으면 처음부터 다시 묻지 말고, 채워진 내용을 한 줄로 짚어준 뒤 '비어있는 섹션'부터 이어서 물어봐. 진행 중이면 재인사 없이 이어가."
+      "3. 경력·경험을 다룰 땐 '무엇을 했다'가 아니라 '어떤 성과를 냈다'로 이끌어. 애매하면 숫자·결과를 물어봐 bullets 를 구체화해.\n" +
+      "4. [중요] 학생이 대화에서 말한 모든 구체 정보(이름·이메일·연락처·학교·전공·학위·기간·회사·역할·성과·스킬·언어·수준 등)는 reply 로만 답하지 말고 반드시 data 의 해당 필드에 즉시 기록해. 매 턴 [현재까지 데이터]에 새 정보를 합쳐 data 전체를 누적 반환해(이전 것 절대 삭제·누락 금지). 값이 없으면 null 또는 빈 배열. 학생이 직접 말하지 않은 값(특히 summary)은 지어내지 말고 null. data 의 키는 반드시 영어 스키마 키(name, email, phone, summary, school, major, degree, period, note, title, org, bullets, language, level)를 그대로 써.\n" +
+      "5. [학생 프로필]·[현재까지 데이터]에 이미 채워진 값은 다시 묻지 말고 가볍게 확인만 해.\n" +
+      "5-1. [중복 금지] 같은 학교(educations)·같은 기관/경험(experiences)은 항목을 새로 만들지 말고, [현재까지 데이터]의 기존 항목을 찾아 그 항목의 비어있는 필드를 채워 넣어 하나로 유지해. 학교·전공·학위·기간이 하나씩 채워지더라도 항목을 늘리지 마. 서로 다른 학교·기관·경험일 때만 새 항목을 추가해(여러 개 가능).\n" +
+      "6. [done 규칙] done 은 이 스텝을 실제로 끝낼 때만 true 로 둬. 학생에게 되묻는 중이면(‘더 추가할 내용 있나요?’, ‘다른 학교도 있나요?’처럼 질문으로 끝나는 reply) 반드시 done=false — 질문을 던지면서 done=true 로 대화를 끊지 마. 학생이 ‘없어요/충분해요/다음’처럼 마무리에 동의하면 그때 질문 없이 짧게 마무리하며 done=true. 얕으면 서두르지 마. 진행 중이면 재인사 없이 이어가."
   },
   cover: {
-    label: "대화로 자기소개서 채우기",
+    label: "자기소개서 · 공통 규칙",
     week: 3,
-    step: "스텝 1 · 자기소개서 문항 작성",
+    step: "공통 · 자기소개서 대화 전체에 적용",
     default:
-      "너는 한국 취업을 준비하는 외국인 유학생의 자기소개서를 함께 쓰는 전문 커리어 코치야. 학생은 별도 빌더로 가지 않고, 너와의 대화만으로 자기소개서를 완성해. 목표는 대화로 각 문항의 답을 이끌어내 구조화된 data 로 쌓는 것.\n\n" +
-      "한국 자기소개서의 대표 문항(이 순서로 하나씩, 회사가 정해지면 그 회사 맞춤으로):\n" +
-      "1. 지원 동기 — 왜 이 직무/회사인지\n" +
-      "2. 성장 과정·경험 — 나를 만든 경험, 배운 점\n" +
-      "3. 강점·역량 — 직무와 연결되는 강점(근거·사례 포함)\n" +
-      "4. 입사 후 포부 — 입사 후 무엇을 어떻게 기여할지\n\n" +
-      "규칙:\n" +
-      "1. " + CAREER_TONE + " 한 번에 문항 하나씩. 학생 답에 먼저 짧게 공감·반응해줘.\n" +
-      "1-1. " + CAREER_DEPTH + " 한 문항이 충분히 채워지기 전엔 다음으로 넘어가지 마. 자기소개서는 '스토리'가 핵심이라 구체적 경험·상황·결과를 캐물어 답을 풍부하게 만들어.\n" +
+      "너는 한국 취업을 준비하는 외국인 유학생의 자기소개서를 함께 쓰는 전문 커리어 코치야. 학생은 별도 빌더 없이 너와의 대화만으로 자기소개서를 완성해. 이번 대화가 다루는 문항은 아래 [이번 스텝] 지시에 따르고, 그 문항에만 집중해.\n\n" +
+      "공통 규칙:\n" +
+      "1. " + CAREER_TONE + " 한 번에 하나씩. 학생 답에 먼저 짧게 공감·반응해줘.\n" +
+      "1-1. " + CAREER_DEPTH + " 자기소개서는 '스토리'가 핵심이라 구체적 경험·상황·결과를 캐물어 답을 풍부하게 만들어.\n" +
       "2. [대화가 끊기지 않게] 학생이 막막해하면 다그치지 말고, 예시 문장이나 고르기 쉬운 질문으로 바꿔. 모든 reply 는 학생이 바로 답할 수 있는 '다음 한 걸음'으로 끝나야 해.\n" +
-      "3. 학생의 답을 바탕으로 각 문항의 answer 를 자연스러운 자기소개서 문장으로 다듬어 data.items 에 담아(question=문항, answer=완성 문장). 학생이 말하지 않은 사실은 지어내지 마. 지원 회사를 말하면 data.company 에 담아.\n" +
-      "4. 매 턴 [현재까지 데이터]에 새 내용을 합쳐 data 전체를 누적 반환해(이전 answer 절대 삭제·누락 금지). 아직 안 쓴 문항의 answer 는 빈 문자열로 둬.\n" +
-      "5. [학생 프로필]·[현재까지 데이터]로 이미 아는 내용은 다시 묻지 말고, 비어있는 문항부터 이어가.\n" +
-      "6. 대표 문항이 두루 채워지면 done=true, 따뜻한 마무리와 함께 '자기소개서 미리보기에서 확인할 수 있다'고 안내해. 얕으면 done 을 서두르지 마.\n" +
-      "7. [현재까지 데이터]가 비어있으면 인사하고 지원 동기부터. 이미 저장된 데이터가 있으면 처음부터 다시 묻지 말고, 채워진 문항을 한 줄로 짚어준 뒤 비어있는 문항부터 이어가. 진행 중이면 재인사 없이 이어가."
+      "3. 학생의 답을 바탕으로 answer 를 자연스러운 자기소개서 문장으로 다듬어 data.items 에 담아(question=문항, answer=완성 문장). 학생이 말하지 않은 사실은 지어내지 마. 지원 회사를 말하면 data.company 에 담아.\n" +
+      "4. 매 턴 [현재까지 데이터]에 새 내용을 합쳐 data 전체를 누적 반환해(이전 answer 절대 삭제·누락 금지). 이번에 다루지 않는 다른 문항의 answer 는 건드리지 마.\n" +
+      "5. [학생 프로필]·[현재까지 데이터]로 이미 아는 내용은 다시 묻지 마.\n" +
+      "6. [done 규칙] done 은 이 문항을 실제로 끝낼 때만 true 로 둬. 학생에게 되묻는 중이면(‘더 다듬을까요?’, ‘추가할 내용 있나요?’처럼 질문으로 끝나는 reply) 반드시 done=false — 질문을 던지면서 done=true 로 대화를 끊지 마. 학생이 마무리에 동의하면 그때 질문 없이 짧게 마무리하며 done=true. 얕으면 서두르지 마. 진행 중이면 재인사 없이 이어가."
+  },
+  // ── 이력서 스텝별(섹션) 프롬프트 — 공통(resume) 뒤에 이어붙는다. 스텝 대화는 이 섹션만 다룬다. ──
+  resume_basic: {
+    label: "이력서 · 기본정보·한줄소개",
+    week: 2,
+    step: "스텝 1 · 기본정보·한줄소개",
+    default:
+      "[이번 스텝: 기본정보·한줄소개] 이번 대화는 이름·이메일·연락처와 나를 한 줄로 표현하는 소개(basic.summary)만 다룬다. 다른 섹션(학력·경력·스킬·어학)은 이번엔 묻지 마. 기본정보와 한줄소개가 채워지면 done=true 로 이 스텝을 마무리해."
+  },
+  resume_edu: {
+    label: "이력서 · 학력",
+    week: 2,
+    step: "스텝 2 · 학력",
+    default:
+      "[이번 스텝: 학력] 이번 대화는 학력(educations)만 다룬다. 학교·전공·학위·재학 기간을 확인해 채워. 다른 섹션은 묻지 마. 학력이 충분히 정리되면 done=true."
+  },
+  resume_exp: {
+    label: "이력서 · 경력·경험",
+    week: 2,
+    step: "스텝 3 · 경력·경험",
+    default:
+      "[이번 스텝: 경력·경험] 이번 대화는 경력·경험(experiences: 인턴·프로젝트·대외활동)만 다룬다. 각 경험의 직무·기관·기간·성과(bullets)를 구체적으로 끌어내. 다른 섹션은 묻지 마. 주요 경험이 충분히 정리되면 done=true."
+  },
+  resume_skill: {
+    label: "이력서 · 스킬",
+    week: 2,
+    step: "스텝 4 · 스킬",
+    default:
+      "[이번 스텝: 스킬] 이번 대화는 스킬(skills)만 다룬다. 직무에 쓰는 기술·툴을 정리해. 다른 섹션은 묻지 마. 스킬이 충분히 정리되면 done=true."
+  },
+  resume_lang: {
+    label: "이력서 · 어학",
+    week: 2,
+    step: "스텝 5 · 어학",
+    default:
+      "[이번 스텝: 어학] 이번 대화는 어학(languages)만 다룬다. 구사 언어와 수준(TOPIK 등 자격 포함)을 정리해. 다른 섹션은 묻지 마. 어학이 정리되면 done=true."
+  },
+  // ── 자기소개서 문항별 프롬프트 — 공통(cover) 뒤에 이어붙는다. 스텝 대화는 이 문항만 다룬다. ──
+  cover_motive: {
+    label: "자기소개서 · 지원 동기",
+    week: 3,
+    step: "스텝 1 · 지원 동기",
+    default:
+      "[이번 스텝: 지원 동기] 이번 대화는 '지원 동기' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '지원 동기' 로 넣고 answer 를 채워라. 다른 문항은 만들지 마.\n" +
+      "특정 회사를 정하지 않아도 되는 '대표 자기소개서'다. 어느 회사인지 묻지 말고, 학생이 이 '직무·분야'를 선택한 이유(관심을 갖게 된 계기, 준비해온 것, 이 분야에서 이루고 싶은 것)를 중심으로 지원 동기를 이끌어내. 학생이 특정 회사를 먼저 언급하면 그 맥락만 반영하되, 없다고 회사를 만들어내거나 강요하지 마.\n" +
+      "이 문항이 충분히 완성되면 done=true."
+  },
+  cover_growth: {
+    label: "자기소개서 · 성장 과정",
+    week: 3,
+    step: "스텝 2 · 성장 과정",
+    default:
+      "[이번 스텝: 성장 과정] 이번 대화는 '성장 과정' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '성장 과정' 으로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
+  },
+  cover_strength: {
+    label: "자기소개서 · 성격의 장단점·강점",
+    week: 3,
+    step: "스텝 3 · 성격의 장단점·강점",
+    default:
+      "[이번 스텝: 성격의 장단점·강점] 이번 대화는 '성격의 장단점' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '성격의 장단점' 으로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
+  },
+  cover_aspiration: {
+    label: "자기소개서 · 입사 후 포부",
+    week: 3,
+    step: "스텝 4 · 입사 후 포부",
+    default:
+      "[이번 스텝: 입사 후 포부] 이번 대화는 '입사 후 포부' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '입사 후 포부' 로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
+  },
+  // ── Week4 모의면접(유형별) — 공통(interview) + 유형 지시(interview_self/job/fit) ──
+  interview: {
+    label: "모의면접 · 공통 규칙",
+    week: 4,
+    step: "공통 · 모의면접 전체에 적용",
+    default:
+      "너는 한국 기업의 면접관 역할로 외국인 유학생과 '모의면접'을 진행하는 커리어 코치야. 학생의 [이력서]·[자기소개서]·[선정 직무]를 근거로, 실제 면접처럼 질문하고 답변에 코치로서 피드백을 준다. 이번 면접의 유형은 아래 [이번 면접] 지시에 따르고, 그 유형의 질문에 집중해.\n\n" +
+      "공통 규칙:\n" +
+      "1. " + CAREER_TONE + " 한 번에 질문 하나씩. 학생이 답하면 (1) 좋은 점 (2) 보완하면 좋을 점 (3) 더 나은 답변 방향을 간결히 피드백한 뒤, 자연스럽게 다음 질문으로 넘어가.\n" +
+      "1-1. [중요 - 피드백 기준] 피드백은 오직 학생이 이 면접에서 '말로 답한 내용'만 근거로 평가해. 이력서·자기소개서에 쓰여 있는 내용은 질문을 만들 때만 참고하고, 학생이 면접에서 말하지 않았다면 피드백에서 아는 척하거나 대신 채워주지 마(예: 자소서엔 있지만 답변에서 언급 안 한 성과를 '잘 말했다'고 하면 안 돼). 답변이 부족하면 '이력서엔 있지만 면접에서는 그 경험을 구체적으로 말하면 더 좋다'처럼, 답변 자체를 기준으로 짚어줘.\n" +
+      "2. 학생 답을 파고드는 꼬리질문도 적절히 섞어 실전감을 줘. 질문은 이력서·자소서를 근거로 만들되, 사실을 지어내지 마.\n" +
+      "3. 너무 몰아붙이지 말고 격려하는 톤을 유지하되, 형식적 칭찬만 하지 말고 실질적으로 도움이 되는 피드백을 줘.\n" +
+      "4. 처음이면 가볍게 인사하고 '그럼 면접을 시작하겠습니다'로 이 유형의 첫 질문을 던져. 보통 4~6문항을 주고받아 충분히 연습했으면 이 유형에 대한 총평(강점·보완점·팁)을 정리하며 done=true. 되묻거나 아직 질문이 남았으면 done=false.\n" +
+      "5. 모든 reply 는 학생이 바로 답할 수 있게 질문이나 안내로 끝나야 해. 학생이 '그만/충분해요'라고 하면 존중해 총평으로 마무리해.\n" +
+      "6. [모범 답변 요청] 학생이 '모범 답변/예시 답변 보여줘'라고 하면, 방금(또는 가장 최근) 던진 질문에 대한 모범 답변을 학생 입장의 1인칭으로 구체적으로 작성해 보여줘. 이때는 학생의 [이력서]·[자기소개서]의 실제 경험을 재료로 삼아 그 학생에게 어울리는 답변으로 만들되, 맨 앞에 '💡 예시 답변'이라고 밝혀. 없는 사실을 지어내지는 마. 예시 답변을 보여준 뒤엔 '이제 직접 답해보실래요?'처럼 자연스럽게 이어가고 done 은 false 로 둬(예시 제공은 면접 완료가 아님)."
+  },
+  interview_self: {
+    label: "모의면접 · 자기소개 면접",
+    week: 4,
+    step: "스텝 2 · 자기소개 면접",
+    default:
+      "[이번 면접: 자기소개 면접] 면접 초반 라운드처럼 진행한다.\n" +
+      "1. 가장 먼저, 실제 면접처럼 '그럼 먼저 간단히 자기소개 부탁드립니다.'로 학생에게 자기소개를 요청하며 시작해(첫 reply). 이력서·자소서 내용을 미리 읊지 말고, 학생이 스스로 소개하게 해.\n" +
+      "2. 학생의 자기소개 답변을 들은 뒤부터는, 그 답변과 학생이 실제로 작성한 [이력서]·[자기소개서]를 근거로 이어서 파고들어. 일반적인 질문을 던지지 말고 학생이 말한/쓴 문장·경험을 직접 인용하거나 언급하며 물어봐. 예: '방금 ○○ 경험을 말씀하셨는데', '자기소개서에 △△라고 쓰셨는데 그 계기가 무엇이었나요?', 이력서의 특정 활동을 짚으며 '여기서 맡은 역할을 더 설명해 주세요'.\n" +
+      "3. 지원 동기, 성격·강점, 성장 배경 등 '이 사람이 누구인지'를 확인하는 라운드야. 직무 기술 심화나 압박 질문은 이번 라운드에서 다루지 마."
+  },
+  interview_job: {
+    label: "모의면접 · 직무 면접",
+    week: 4,
+    step: "스텝 3 · 직무 면접",
+    default:
+      "[이번 면접: 직무 면접] 실무진 면접처럼 진행한다. 선정 직무와 이력서의 경력·프로젝트·스킬을 근거로, 실제로 한 일과 성과, 문제 해결 방식, 직무 이해도를 파고드는 질문에 집중해. '그때 왜 그렇게 했나요', '수치로 말하면?' 같은 구체적 꼬리질문으로 실전감을 줘. 단순 인성·자기소개 질문은 이번 라운드에서 최소화해."
+  },
+  interview_fit: {
+    label: "모의면접 · 인성·컬처핏 면접",
+    week: 4,
+    step: "스텝 4 · 인성·컬처핏 면접",
+    default:
+      "[이번 면접: 인성·컬처핏 면접] 임원·컬처핏 면접처럼 진행한다. 협업·갈등 해결, 가치관, 일하는 태도, 그리고 외국인 지원자가 자주 받는 질문(한국어 업무 수준, 비자·장기 근속 의지, 한국 조직 적응)에 집중해. 정답을 캐묻기보다 태도와 진정성을 보는 라운드이니, 편안하되 진솔한 답을 끌어내고 답변 방향을 코치해줘."
+  },
+  // ── 주차 자동 피드백(1~3주차 공통) ──
+  auto_feedback: {
+    label: "자동 피드백 · 1~3주차 공통",
+    week: 1,
+    step: "자동 · 주차 결과물 코치 피드백",
+    default:
+      "너는 한국 취업을 준비하는 외국인 유학생을 돕는 따뜻하고 전문적인 커리어 코치야. 학생이 이번 주차에 만든 결과물을 보고, 지금 바로 도움이 되는 짧은 코치 피드백을 준다.\n\n" +
+      "규칙:\n" +
+      "1. 먼저 잘한 점 1~2가지를 구체적으로 짚어 칭찬해(무엇이 왜 좋은지). 그다음 더 좋아질 수 있는 점 1~2가지를 바로 실행할 수 있는 조언으로 제안해.\n" +
+      "2. 학생이 실제로 입력한 내용만 근거로 해. 없는 사실을 지어내지 마. 부족한 부분이 있어도 다그치지 말고 '다음 한 걸음'을 제안하는 톤으로.\n" +
+      "3. 3~5문장으로 간결하게, 격려하는 톤. 유학생만의 강점(다국어·문화 이해 등)이 보이면 살려줘.\n" +
+      "4. feedback 필드에 피드백 본문만 담아 반환(인사말·머리말 없이 바로 피드백)."
   }
 };
 
@@ -14056,7 +14168,7 @@ app.post(
     const excludeSet = new Set(exclude);
     try {
       const systemPrompt =
-        (await getCareerPrompt("job")) + "\n\n" +
+        (await getCareerPrompt("job")) + "\n\n" + CAREER_SCOPE + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "recommend": string[], "done": boolean }' +
         aiLangDirective(locale);
 
@@ -14126,6 +14238,7 @@ app.post(
 const materialChatSchema = z.object({
   messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(80).default([]),
   selected: z.array(z.string().trim().max(120)).max(3).default([]),
+  materials: z.array(z.string().trim().max(400)).max(30).default([]),
   locale: z.string().max(10).optional()
 });
 app.post(
@@ -14136,19 +14249,24 @@ app.post(
     const parsed = materialChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-    const { messages, selected, locale } = parsed.data;
+    const { messages, selected, materials: gathered, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const systemPrompt =
-        (await getCareerPrompt("material")) + "\n\n" +
+        (await getCareerPrompt("material")) + "\n\n" + CAREER_SCOPE + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "materials": string[], "done": boolean }' +
         aiLangDirective(locale);
+      // 재입장 시 대화 기록이 비어도 이미 정리한 정보로 이어가도록 — 같은 내용을 다시 묻지 않게.
+      const continuing = messages.length === 0 && gathered.length > 0;
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
-        : "(아직 대화 없음 — 인사하고 첫 질문을 해줘)";
+        : continuing
+          ? "(이전 대화는 없지만 아래 [이미 정리한 정보]가 있음 — 다시 인사하되 이미 정리한 내용은 반복해 묻지 말고, 아직 안 다룬 직무·항목부터 이어서 진행해)"
+          : "(아직 대화 없음 — 인사하고 첫 질문을 해줘)";
       const userPrompt =
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `학생이 고른 관심 직무(이 순서대로 하나씩 다뤄):\n${selected.length ? selected.map((s, i) => `${i + 1}. ${s}`).join("\n") : "(미정)"}\n\n` +
+        (gathered.length ? `[이미 정리한 정보](이 내용은 다시 묻지 말고 이어서 보완):\n${gathered.map((m, i) => `${i + 1}. ${m}`).join("\n")}\n\n` : "") +
         `지금까지 대화:\n${convo}`;
       const pj = (await careerChatComplete(systemPrompt, userPrompt, "material_chat", MATERIAL_CHAT_SCHEMA)) as {
         reply?: unknown;
@@ -14187,7 +14305,7 @@ app.post(
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const systemPrompt =
-        (await getCareerPrompt("diagnosis")) + "\n\n" +
+        (await getCareerPrompt("diagnosis")) + "\n\n" + CAREER_SCOPE + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "result": { "percent": number, "level": string, "strengths": string[], "improvements": string[] } | null }' +
         aiLangDirective(locale);
       const convo = messages.length
@@ -14378,8 +14496,12 @@ const RESUME_DATA_SCHEMA = {
 const resumeChatSchema = z.object({
   messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(120).default([]),
   data: z.record(z.string(), z.unknown()).optional(),
+  focus: z.string().max(20).optional(), // basic|edu|exp|skill|lang — 이 섹션만 집중
   locale: z.string().max(10).optional()
 });
+
+// 이력서 스텝 섹션 — 각 스텝의 집중 프롬프트는 CAREER_PROMPTS["resume_<section>"](편집 가능).
+const RESUME_SECTIONS = ["basic", "edu", "exp", "skill", "lang"] as const;
 
 // 반환 데이터를 정규 스키마 키로 정규화(strict 실패로 fallback 시 한국어 키 대비).
 function normalizeResumeData(raw: unknown): Record<string, unknown> {
@@ -14439,17 +14561,44 @@ function mergeResumeData(saved: Record<string, unknown>, incoming: Record<string
     phone: ib.phone ?? sb.phone,
     summary: ib.summary ?? sb.summary
   };
-  const unionBy = (savedArr: unknown, incomingArr: unknown, keyOf: (x: Record<string, unknown>) => string) => {
-    const s = Array.isArray(savedArr) ? (savedArr as Record<string, unknown>[]) : [];
-    const inc = Array.isArray(incomingArr) ? (incomingArr as Record<string, unknown>[]) : [];
+  // 안정적인 앵커(학교/기관/언어명) 기준으로 같은 항목이면 필드를 병합한다.
+  // 대화가 진행되며 전공·학위·기간 등이 뒤늦게 채워져도(초기엔 null) 같은 앵커면 하나로 합쳐 중복 폭증을 막는다.
+  const normKey = (v: unknown) => String(v ?? "").toLowerCase().replace(/\s+/g, "").trim();
+  const pref = (nv: unknown, pv: unknown) => (nv != null && String(nv).trim() ? nv : pv); // 새 값(non-null) 우선, 없으면 기존 유지
+  const mergeArr = (
+    savedArr: unknown,
+    incomingArr: unknown,
+    anchorOf: (x: Record<string, unknown>) => string,
+    mergeFields: (prev: Record<string, unknown>, next: Record<string, unknown>) => Record<string, unknown>
+  ) => {
+    const all = [
+      ...(Array.isArray(savedArr) ? (savedArr as Record<string, unknown>[]) : []),
+      ...(Array.isArray(incomingArr) ? (incomingArr as Record<string, unknown>[]) : [])
+    ];
     const map = new Map<string, Record<string, unknown>>();
-    for (const it of s) map.set(keyOf(it), it);
-    for (const it of inc) map.set(keyOf(it), it); // 같은 key 면 새 값(수정·보강)으로 대체
-    return Array.from(map.values()).filter((it) => keyOf(it).replace(/\|/g, "").trim().length > 0);
+    for (const it of all) {
+      const k = anchorOf(it);
+      if (!k) continue;
+      const prev = map.get(k);
+      map.set(k, prev ? mergeFields(prev, it) : { ...it });
+    }
+    return Array.from(map.values());
   };
-  const educations = unionBy(so.educations, io.educations, (e) => `${e.school ?? ""}|${e.major ?? ""}|${e.degree ?? ""}|${e.period ?? ""}`);
-  const experiences = unionBy(so.experiences, io.experiences, (x) => `${x.title ?? ""}|${x.org ?? ""}|${x.period ?? ""}`);
-  const languages = unionBy(so.languages, io.languages, (l) => `${l.language ?? ""}`);
+  const educations = mergeArr(
+    so.educations, io.educations,
+    (e) => normKey(e.school) || normKey(e.major),
+    (p, n) => ({ school: pref(n.school, p.school), major: pref(n.major, p.major), degree: pref(n.degree, p.degree), period: pref(n.period, p.period), note: pref(n.note, p.note) })
+  );
+  const experiences = mergeArr(
+    so.experiences, io.experiences,
+    (x) => normKey(x.org) || normKey(x.title),
+    (p, n) => ({ title: pref(n.title, p.title), org: pref(n.org, p.org), period: pref(n.period, p.period), bullets: Array.isArray(n.bullets) && n.bullets.length ? n.bullets : p.bullets })
+  );
+  const languages = mergeArr(
+    so.languages, io.languages,
+    (l) => normKey(l.language),
+    (p, n) => ({ language: pref(n.language, p.language), level: pref(n.level, p.level) })
+  );
   const skillSet = new Set<string>();
   const skills: string[] = [];
   for (const arr of [so.skills, io.skills]) {
@@ -14478,11 +14627,12 @@ app.post(
     const parsed = resumeChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-    const { messages, data, locale } = parsed.data;
+    const { messages, data, focus, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
+      const focusDirective = focus && (RESUME_SECTIONS as readonly string[]).includes(focus) ? (await getCareerPrompt(`resume_${focus}`)) + "\n\n" : "";
       const systemPrompt =
-        (await getCareerPrompt("resume")) + "\n\n" +
+        (await getCareerPrompt("resume")) + "\n\n" + CAREER_SCOPE + "\n\n" + focusDirective +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": {basic,educations,experiences,skills,languages}, "done": boolean }' +
         aiLangDirective(locale);
       // 저장된 데이터가 이미 있는지 — kickoff 시 재질문 방지용.
@@ -14490,9 +14640,11 @@ app.post(
       const hasSaved = hasResumeDataContent(savedNorm);
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
-        : hasSaved
-          ? "(이어하기 — 학생은 이미 채운 내용을 화면에서 보고 있어. 다시 인사하거나 길게 요약하지 말고, 한 문장으로 가볍게 반긴 뒤 비어있는 다음 항목 하나만 바로 자연스럽게 물어봐.)"
-          : "(아직 대화 없음 — 인사하고 기본정보부터 물어봐)";
+        : focus
+          ? "(아직 대화 없음 — 가볍게 인사하고 이번 스텝 섹션의 첫 질문 하나만 바로 물어봐. 이번 섹션 밖 항목은 묻지 마.)"
+          : hasSaved
+            ? "(이어하기 — 학생은 이미 채운 내용을 화면에서 보고 있어. 다시 인사하거나 길게 요약하지 말고, 한 문장으로 가볍게 반긴 뒤 비어있는 다음 항목 하나만 바로 자연스럽게 물어봐.)"
+            : "(아직 대화 없음 — 인사하고 기본정보부터 물어봐)";
       const userPrompt =
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `[현재까지 데이터]\n${JSON.stringify(data ?? {})}\n\n` +
@@ -14532,6 +14684,36 @@ app.get("/career-launch/resume-data", authenticate, async (req, res) => {
   }
 });
 
+// DELETE /career-launch/resume-data — '다시하기'용 초기화. 병합이 축소하지 않으므로 여기서 비운다.
+// ?scope=basic|exp|skills 면 해당 스텝 섹션만 초기화(부분), 없으면 전체 초기화.
+const RESUME_RESET_SCOPES: Record<string, string[]> = {
+  basic: ["basic"],
+  edu: ["educations"],
+  exp: ["experiences"],
+  skill: ["skills"],
+  lang: ["languages"]
+};
+app.delete("/career-launch/resume-data", authenticate, async (req, res) => {
+  const scope = typeof req.query.scope === "string" ? req.query.scope : "";
+  const keys = RESUME_RESET_SCOPES[scope];
+  try {
+    let content: Record<string, unknown> = {};
+    if (keys) {
+      const row = await prisma.careerResumeData.findUnique({ where: { studentUserId: req.auth!.userId } });
+      content = row?.content && typeof row.content === "object" ? { ...(row.content as Record<string, unknown>) } : {};
+      for (const k of keys) delete content[k];
+    }
+    await prisma.careerResumeData.upsert({
+      where: { studentUserId: req.auth!.userId },
+      create: { studentUserId: req.auth!.userId, content: content as object },
+      update: { content: content as object }
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // ── Career Launch 자기소개서 데이터 수집(대화형) ──
 const COVER_DATA_SCHEMA = {
   type: "object",
@@ -14563,8 +14745,17 @@ const COVER_DATA_SCHEMA = {
 const coverChatSchema = z.object({
   messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(120).default([]),
   data: z.record(z.string(), z.unknown()).optional(),
+  focus: z.string().max(20).optional(), // motive|growth|strength|aspiration — 이 문항만 집중
   locale: z.string().max(10).optional()
 });
+
+// 자기소개서 문항 라벨(킥오프 안내·검증용). 각 스텝의 집중 프롬프트는 CAREER_PROMPTS["cover_<section>"](편집 가능).
+const COVER_LABELS: Record<string, string> = {
+  motive: "지원 동기",
+  growth: "성장 과정",
+  strength: "성격의 장단점",
+  aspiration: "입사 후 포부"
+};
 
 // 자소서 데이터 정규화 — items[{question, answer}] + company.
 function normalizeCoverData(raw: unknown): Record<string, unknown> {
@@ -14611,20 +14802,24 @@ app.post(
     const parsed = coverChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-    const { messages, data, locale } = parsed.data;
+    const { messages, data, focus, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const savedNorm = normalizeCoverData(data);
       const hasSaved = hasCoverContent(savedNorm);
+      const focusLabel = focus ? COVER_LABELS[focus] : undefined;
+      const focusDirective = focus && focusLabel ? (await getCareerPrompt(`cover_${focus}`)) + "\n\n" : "";
       const systemPrompt =
-        (await getCareerPrompt("cover")) + "\n\n" +
+        (await getCareerPrompt("cover")) + "\n\n" + CAREER_SCOPE + "\n\n" + focusDirective +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": { "company": string|null, "items": [{ "question": string, "answer": string }] }, "done": boolean }' +
         aiLangDirective(locale);
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
-        : hasSaved
-          ? "(이어하기 — 학생은 이미 쓴 문항을 화면에서 보고 있어. 다시 인사하거나 길게 요약하지 말고, 한 문장으로 가볍게 반긴 뒤 비어있는 다음 문항 하나만 바로 자연스럽게 물어봐.)"
-          : "(아직 대화 없음 — 인사하고 지원 동기부터 물어봐)";
+        : focusLabel
+          ? `(아직 대화 없음 — 가볍게 인사하고 '${focusLabel}' 문항을 위한 첫 질문 하나만 바로 물어봐. 이 문항 외에는 다루지 마.)`
+          : hasSaved
+            ? "(이어하기 — 학생은 이미 쓴 문항을 화면에서 보고 있어. 다시 인사하거나 길게 요약하지 말고, 한 문장으로 가볍게 반긴 뒤 비어있는 다음 문항 하나만 바로 자연스럽게 물어봐.)"
+            : "(아직 대화 없음 — 인사하고 지원 동기부터 물어봐)";
       const userPrompt =
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `[현재까지 데이터]\n${JSON.stringify(data ?? {})}\n\n` +
@@ -14663,6 +14858,32 @@ app.get("/career-launch/cover-data", authenticate, async (req, res) => {
   }
 });
 
+// DELETE /career-launch/cover-data — '다시하기'용 초기화.
+// 자기소개서는 문항을 순서대로 쌓으므로 스텝별 부분 초기화는 '앞쪽 N개 문항만 남기고 이후 제거'로 처리.
+// ?scope=motive|growth|strength|aspiration → 그 문항부터 이후 제거(앞쪽 문항은 유지). scope 없으면 전체 초기화.
+const COVER_RESET_KEEP: Record<string, number> = { motive: 0, growth: 1, strength: 2, aspiration: 3 };
+app.delete("/career-launch/cover-data", authenticate, async (req, res) => {
+  const scope = typeof req.query.scope === "string" ? req.query.scope : "";
+  const keep = COVER_RESET_KEEP[scope];
+  try {
+    let content: Record<string, unknown> = {};
+    if (typeof keep === "number" && keep > 0) {
+      const row = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: req.auth!.userId } });
+      const prev = row?.content && typeof row.content === "object" ? (row.content as Record<string, unknown>) : {};
+      const items = Array.isArray(prev.items) ? prev.items.slice(0, keep) : [];
+      content = { ...prev, items };
+    }
+    await prisma.careerCoverLetterData.upsert({
+      where: { studentUserId: req.auth!.userId },
+      create: { studentUserId: req.auth!.userId, content: content as object },
+      update: { content: content as object }
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // ── Career Launch 진행 상태(진단·직무·정리정보·완료스텝) — 계정 기준 저장, 기기 간 동기화 ──
 // GET /career-launch/progress — 저장된 진행 상태 조회.
 app.get("/career-launch/progress", authenticate, async (req, res) => {
@@ -14693,6 +14914,167 @@ app.patch("/career-launch/progress", authenticate, async (req, res) => {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
 });
+
+// ── Week4 모의면접(유형별: self/job/fit) — 완료한 유형은 progress.interview.practiced 에 누적 ──
+const interviewChatSchema = z.object({
+  messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(120).default([]),
+  focus: z.enum(["self", "job", "fit"]),
+  locale: z.string().max(10).optional()
+});
+const INTERVIEW_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "done"],
+  properties: { reply: { type: "string" }, done: { type: "boolean" } }
+} as const;
+
+app.post(
+  "/career-launch/interview-chat",
+  authenticate,
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-interview-chat", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = interviewChatSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const { messages, focus, locale } = parsed.data;
+    const uid = req.auth!.userId;
+    try {
+      const [profileSummary, resumeRow, coverRow, progRow] = await Promise.all([
+        buildCandidateProfileSummary(uid),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown };
+      const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]) : [];
+      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
+
+      const systemPrompt =
+        (await getCareerPrompt("interview")) + "\n\n" + CAREER_SCOPE + "\n\n" +
+        (await getCareerPrompt(`interview_${focus}`)) + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean }' +
+        aiLangDirective(locale);
+      const convo = messages.length
+        ? messages.map((m) => `${m.role === "bot" ? "면접관" : "학생"}: ${m.text}`).join("\n")
+        : "(아직 대화 없음 — 가볍게 인사하고 이 유형의 첫 질문을 던져줘)";
+      const userPrompt =
+        (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        `[선정 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(미정)"}\n\n` +
+        `[이력서]\n${JSON.stringify(resumeRow?.content ?? {})}\n\n` +
+        `[자기소개서]\n${JSON.stringify(coverRow?.content ?? {})}\n\n` +
+        `지금까지 대화:\n${convo}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, `interview_${focus}`, INTERVIEW_SCHEMA)) as { reply?: unknown; done?: unknown };
+      const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
+      const done = pj.done === true;
+      if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      // 완료 기준: 그 라운드에서 학생이 3문항 이상 답했거나(참여) AI 가 총평으로 마무리(done)하면 완료.
+      const answered = messages.filter((m) => m.role === "user").length;
+      const roundDone = done || answered >= 3;
+      if (roundDone && !practiced.includes(focus)) {
+        const mergedState = { ...progState, interview: { ...interview, practiced: [...practiced, focus] } };
+        await prisma.careerLaunchProgress.upsert({
+          where: { studentUserId: uid },
+          create: { studentUserId: uid, state: mergedState as object },
+          update: { state: mergedState as object }
+        });
+      }
+      return res.json({ ok: true, reply, done });
+    } catch (err) {
+      console.error("[career-launch/interview-chat] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to continue chat" });
+    }
+  }
+);
+
+// ── 주차 자동 피드백(1~3주차) — 그 주차 결과물을 근거로 AI가 자동 생성, 입력이 바뀌면 갱신 ──
+const weekFeedbackSchema = z.object({ week: z.number().int().min(1).max(3) });
+const WEEK_FEEDBACK_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["feedback"],
+  properties: { feedback: { type: "string" } }
+} as const;
+const WEEK_FEEDBACK_TITLE: Record<number, string> = { 1: "취업 준비 진단·관심 직무·직무 정보", 2: "대화로 만든 이력서", 3: "대화로 만든 자기소개서" };
+// 캐시 무효화용 간단 해시(입력이 바뀌면 값이 달라져 재생성).
+function simpleHash(s: string): string {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0;
+  return String(h >>> 0);
+}
+
+app.post(
+  "/career-launch/week-feedback",
+  authenticate,
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "career-week-feedback", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = weekFeedbackSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+    const { week } = parsed.data;
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        week === 2 ? prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }) : Promise.resolve(null),
+        week === 3 ? prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } }) : Promise.resolve(null)
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+
+      // 주차별 입력 결과물 + 데이터 유무 판단.
+      let input: unknown = {};
+      let hasData = false;
+      if (week === 1) {
+        const diagnosis = progState.diagnosis ?? null;
+        const selectedJobs = Array.isArray(progState.selectedJobs) ? progState.selectedJobs : [];
+        const materials = Array.isArray(progState.materials) ? progState.materials : [];
+        input = { diagnosis, selectedJobs, materials };
+        hasData = Boolean(diagnosis) || selectedJobs.length > 0 || materials.length > 0;
+      } else if (week === 2) {
+        const content = (resumeRow?.content ?? {}) as Record<string, unknown>;
+        input = content;
+        hasData = hasResumeDataContent(normalizeResumeData(content));
+      } else {
+        const content = (coverRow?.content ?? {}) as Record<string, unknown>;
+        input = content;
+        hasData = hasCoverContent(normalizeCoverData(content));
+      }
+      if (!hasData) return res.json({ ok: true, feedback: null });
+
+      // 캐시 확인 — 입력 해시가 같으면 저장된 피드백 반환(불필요한 재생성·비용 방지).
+      const sig = simpleHash(JSON.stringify(input));
+      const autoFeedback = (progState.autoFeedback && typeof progState.autoFeedback === "object" ? progState.autoFeedback : {}) as Record<string, { sig?: string; text?: string }>;
+      const cached = autoFeedback[String(week)];
+      if (cached && cached.sig === sig && typeof cached.text === "string" && cached.text.trim()) {
+        return res.json({ ok: true, feedback: cached.text, cached: true });
+      }
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const profileSummary = await buildCandidateProfileSummary(uid);
+      const systemPrompt =
+        (await getCareerPrompt("auto_feedback")) + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "feedback": string }' +
+        aiLangDirective("ko");
+      const userPrompt =
+        (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        `[${week}주차 결과물: ${WEEK_FEEDBACK_TITLE[week]}]\n${JSON.stringify(input)}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "week_feedback", WEEK_FEEDBACK_SCHEMA)) as { feedback?: unknown };
+      const feedback = typeof pj.feedback === "string" ? pj.feedback.trim() : "";
+      if (!feedback) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, autoFeedback: { ...autoFeedback, [String(week)]: { sig, text: feedback } } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, feedback });
+    } catch (err) {
+      console.error("[career-launch/week-feedback] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to generate feedback" });
+    }
+  }
+);
 
 // ── Career Launch 운영자(어드민) — 프롬프트 편집 ──
 // GET /career-launch/ops/prompts — 스텝별 프롬프트(기본값 + 편집분) 목록.

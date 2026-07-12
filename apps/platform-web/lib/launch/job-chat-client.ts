@@ -41,8 +41,8 @@ export async function requestJobChat(messages: JobChatMsg[], selected: string[],
 }
 
 export type MaterialChatResult = { reply: string; materials: string[]; done: boolean };
-export async function requestMaterialChat(messages: JobChatMsg[], selected: string[]): Promise<MaterialChatResult> {
-  const data = await postCareerChat("/career-launch/material-chat", { messages, selected, locale: "ko" });
+export async function requestMaterialChat(messages: JobChatMsg[], selected: string[], materials: string[] = []): Promise<MaterialChatResult> {
+  const data = await postCareerChat("/career-launch/material-chat", { messages, selected, materials, locale: "ko" });
   return {
     reply: typeof data.reply === "string" ? data.reply : "",
     materials: asStringArray(data.materials),

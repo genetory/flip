@@ -33,9 +33,18 @@ export default function LaunchOpsStudentsPage() {
   return (
     <main className="pb-16">
       <LaunchContainer className="!max-w-6xl pt-6 md:pt-10">
-        <div className="mb-6">
-          <h1 className="text-[20px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">학생 관리</h1>
-          <p className="mt-1 text-[13.5px] text-[#8B95A1]">Career Launch 를 이용한 학생의 진행 상태와 이력서를 보고 피드백을 남겨요.</p>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-[20px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">학생 관리</h1>
+            <p className="mt-1 text-[13.5px] text-[#8B95A1]">Career Launch 를 이용한 학생의 진행 상태와 이력서를 보고 피드백을 남겨요.</p>
+          </div>
+          {/* 운영자도 학생 화면을 본인 계정으로 전부 체험할 수 있게 진입 링크 */}
+          <Link
+            href="/career-launch/dashboard"
+            className="inline-flex flex-none items-center gap-1.5 rounded-xl border border-[#0B46E8]/25 bg-white px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
+          >
+            학생 화면 체험하기 →
+          </Link>
         </div>
 
         <div className="grid grid-cols-3 gap-2.5 sm:max-w-md">

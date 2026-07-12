@@ -40,6 +40,16 @@ async function req(path: string, init: RequestInit): Promise<Record<string, unkn
   return data;
 }
 
+// 학생: 주차(1~3) 자동 코치 피드백 — 그 주차 결과물 기반으로 자동 생성/갱신. 결과물 없으면 null.
+export async function fetchWeekFeedback(week: number): Promise<string | null> {
+  const data = await req("/career-launch/week-feedback", {
+    method: "POST",
+    headers: authHeaders(true),
+    body: JSON.stringify({ week })
+  });
+  return typeof data.feedback === "string" ? data.feedback : null;
+}
+
 // 학생: 내게 온 피드백 조회
 export async function fetchMyFeedback(): Promise<{ items: CareerFeedback[]; unreadCount: number }> {
   const data = await req("/career-launch/my-feedback", { headers: authHeaders() });
