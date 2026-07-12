@@ -179,9 +179,9 @@ export const WEEKS: WeekPlan[] = [
     steps: [
       {
         id: "w4s1",
-        title: "이력서·자기소개서 최종 확정",
-        desc: "완성한 이력서와 자기소개서를 마지막으로 검토해 확정해요.",
-        action: { label: "시작하기", href: "/career-launch/resume" }
+        title: "이력서·자기소개서 최종 점검",
+        desc: "완성한 이력서와 자기소개서를 확인하고, 고치고 싶은 곳은 각각 수정하기로 해당 주차에서 다듬어요.",
+        action: { label: "이력서 점검하기", href: "/career-launch/week/2" }
       },
       {
         id: "w4s2",

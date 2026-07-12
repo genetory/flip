@@ -205,7 +205,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
         </ResultCard>
       );
     }
-    // 이력서 + 자기소개서 (다듬기·완성도·최종 확정) — 경력·문항 목록으로 디테일하게. 전문은 우측 컬럼.
+    // 이력서 + 자기소개서 최종 점검 — 요약을 보여주고, 고칠 곳은 각각 week2/week3 로 이동해 수정.
     if (kind === "both" && (resumeReady || coverReady)) {
       const filledCover = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
       return (
@@ -214,7 +214,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
             <div>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[13px] font-bold text-[#191F28]">📄 이력서 — 경력 {expN} · 스킬 {skillN}</p>
-                <Link href="/career-launch/resume-preview" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">보기</Link>
+                <Link href="/career-launch/week/2" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">이력서 수정하기</Link>
               </div>
               {expN > 0 ? (
                 <ul className="mt-1.5 space-y-1">
@@ -229,7 +229,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
             <div>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[13px] font-bold text-[#191F28]">📝 자기소개서 — 문항 {coverN}개{cover.company ? ` · ${cover.company}` : ""}</p>
-                <Link href="/career-launch/cover-collect" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">보기</Link>
+                <Link href="/career-launch/week/3" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">자기소개서 수정하기</Link>
               </div>
               <ul className="mt-1.5 space-y-1">
                 {filledCover.map((it, i) => (
