@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { LaunchContainer } from "./ui";
 
 const TABS = [
+  { href: "/career-launch/ops/cohorts", label: "기수 관리" },
   { href: "/career-launch/ops/students", label: "학생 관리" },
   { href: "/career-launch/ops/prompts", label: "프롬프트" },
   { href: "/career-launch/ops/report", label: "리포트" }

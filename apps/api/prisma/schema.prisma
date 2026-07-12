@@ -72,6 +72,7 @@ model User {
   careerResumeData                     CareerResumeData?             @relation("CareerResumeDataStudent")
   careerCoverLetterData                CareerCoverLetterData?        @relation("CareerCoverLetterDataStudent")
   careerLaunchProgress                 CareerLaunchProgress?         @relation("CareerLaunchProgressStudent")
+  careerEnrollments                    CareerEnrollment[]            @relation("CareerEnrollmentStudent")
   certificatesIssued                   Certificate[]                 @relation("CertificateIssuer")
   recommendationsIssued                Recommendation[]              @relation("RecommendationIssuer")
   schoolCreditReviews                  SchoolCreditRequest[]         @relation("SchoolCreditReviewer")
@@ -854,6 +855,38 @@ model CareerLaunchProgress {
   updatedAt     DateTime @updatedAt
 
   student User @relation("CareerLaunchProgressStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+}
+
+// Career Launch 기수(Cohort) — 대학·기수 단위로 운영한다. 등록(CareerEnrollment)된
+// 학생만 프로그램에 접근할 수 있고, 운영자가 어드민에서 기수·등록을 관리한다.
+model CareerCohort {
+  id         String    @id @default(uuid())
+  university String // 대학명 (예: 고려대학교)
+  name       String // 기수 이름 (예: 2기)
+  inviteCode String    @unique // 초대코드 자가등록용
+  startsAt   DateTime?
+  endsAt     DateTime?
+  status     String    @default("active") // active | ended
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  enrollments CareerEnrollment[]
+
+  @@index([status])
+}
+
+// Career Launch 등록 — 학생을 기수에 연결한다. 등록이 있어야 프로그램에 접근 가능.
+model CareerEnrollment {
+  id            String   @id @default(uuid())
+  cohortId      String
+  studentUserId String
+  createdAt     DateTime @default(now())
+
+  cohort  CareerCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  student User         @relation("CareerEnrollmentStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, studentUserId])
+  @@index([studentUserId])
 }
 
 model Certificate {

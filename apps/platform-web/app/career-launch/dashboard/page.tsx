@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { COMPLETION_CRITERIA, STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
 import { CoachFeedback } from "../../../components/launch/coach-feedback";
+import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { ResumeRender } from "../../../components/launch/resume-render";
 import { CoverRender } from "../../../components/launch/cover-render";
 import { fetchProgress } from "../../../lib/launch/progress-client";
@@ -70,6 +71,7 @@ export default function LaunchDashboardPage() {
   }
 
   return (
+    <EnrollmentGate>
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1 pb-16">
@@ -264,6 +266,7 @@ export default function LaunchDashboardPage() {
       </main>
       <Footer />
     </div>
+    </EnrollmentGate>
   );
 }
 

@@ -14023,6 +14023,23 @@ async function getCareerPrompt(key: string): Promise<string> {
   }
 }
 
+// 학생이 어떤 기수에든 등록돼 있는지. 등록된 학생만 Career Launch 데이터에 접근 가능.
+async function isCareerEnrolled(userId: string): Promise<boolean> {
+  const e = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, select: { id: true } });
+  return Boolean(e);
+}
+
+// Career Launch 학생 데이터 엔드포인트 게이트 — 운영자는 통과(학생 화면 체험), 그 외엔 등록 필수.
+const requireCareerEnrollment: import("express").RequestHandler = async (req, res, next) => {
+  try {
+    if (req.auth?.role === MemberRole.OPERATOR) return next();
+    if (req.auth?.userId && (await isCareerEnrolled(req.auth.userId))) return next();
+    return res.status(403).json({ ok: false, code: "not_enrolled", message: "Career Launch 기수에 등록되어야 이용할 수 있어요. 운영자에게 문의해 주세요." });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+};
+
 // Career Launch AI 대화들이 공용으로 쓰는 학생 프로필 요약(전공·학교·스킬·자기소개).
 // 개인화 컨텍스트로 프롬프트에 넣는다. 실패해도 빈 문자열로 안전하게 진행.
 async function buildCandidateProfileSummary(userId: string): Promise<string> {
@@ -14157,7 +14174,7 @@ const jobChatSchema = z.object({
 });
 app.post(
   "/career-launch/job-chat",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-job-chat", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = jobChatSchema.safeParse(req.body);
@@ -14243,7 +14260,7 @@ const materialChatSchema = z.object({
 });
 app.post(
   "/career-launch/material-chat",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-material-chat", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = materialChatSchema.safeParse(req.body);
@@ -14295,7 +14312,7 @@ const diagnosisChatSchema = z.object({
 });
 app.post(
   "/career-launch/diagnosis-chat",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-diagnosis-chat", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = diagnosisChatSchema.safeParse(req.body);
@@ -14397,7 +14414,7 @@ app.delete("/career-launch/feedback/:id", authenticate, requireRoles([MemberRole
 });
 
 // GET /career-launch/my-feedback — 로그인한 학생이 자신에게 온 피드백을 조회.
-app.get("/career-launch/my-feedback", authenticate, async (req, res) => {
+app.get("/career-launch/my-feedback", authenticate, requireCareerEnrollment, async (req, res) => {
   try {
     const items = await prisma.careerLaunchFeedback.findMany({
       where: { studentUserId: req.auth!.userId },
@@ -14412,7 +14429,7 @@ app.get("/career-launch/my-feedback", authenticate, async (req, res) => {
 });
 
 // POST /career-launch/my-feedback/read — 학생이 받은 피드백을 모두 읽음 처리.
-app.post("/career-launch/my-feedback/read", authenticate, async (req, res) => {
+app.post("/career-launch/my-feedback/read", authenticate, requireCareerEnrollment, async (req, res) => {
   try {
     await prisma.careerLaunchFeedback.updateMany({
       where: { studentUserId: req.auth!.userId, readAt: null },
@@ -14621,7 +14638,7 @@ function hasResumeDataContent(d: Record<string, unknown>): boolean {
 // POST /career-launch/resume-chat — 이력서 재료를 대화로 수집하고 누적 데이터를 저장.
 app.post(
   "/career-launch/resume-chat",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-resume-chat", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = resumeChatSchema.safeParse(req.body);
@@ -14675,7 +14692,7 @@ app.post(
 );
 
 // GET /career-launch/resume-data — 로그인한 학생의 누적 이력서 데이터 조회.
-app.get("/career-launch/resume-data", authenticate, async (req, res) => {
+app.get("/career-launch/resume-data", authenticate, requireCareerEnrollment, async (req, res) => {
   try {
     const row = await prisma.careerResumeData.findUnique({ where: { studentUserId: req.auth!.userId } });
     return res.json({ ok: true, data: row?.content ?? {}, updatedAt: row?.updatedAt ?? null });
@@ -14693,7 +14710,7 @@ const RESUME_RESET_SCOPES: Record<string, string[]> = {
   skill: ["skills"],
   lang: ["languages"]
 };
-app.delete("/career-launch/resume-data", authenticate, async (req, res) => {
+app.delete("/career-launch/resume-data", authenticate, requireCareerEnrollment, async (req, res) => {
   const scope = typeof req.query.scope === "string" ? req.query.scope : "";
   const keys = RESUME_RESET_SCOPES[scope];
   try {
@@ -14796,7 +14813,7 @@ function hasCoverContent(d: Record<string, unknown>): boolean {
 // POST /career-launch/cover-chat — 자소서 문항을 대화로 수집하고 누적 저장.
 app.post(
   "/career-launch/cover-chat",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-cover-chat", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = coverChatSchema.safeParse(req.body);
@@ -14849,7 +14866,7 @@ app.post(
 );
 
 // GET /career-launch/cover-data — 로그인한 학생의 누적 자소서 데이터 조회.
-app.get("/career-launch/cover-data", authenticate, async (req, res) => {
+app.get("/career-launch/cover-data", authenticate, requireCareerEnrollment, async (req, res) => {
   try {
     const row = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: req.auth!.userId } });
     return res.json({ ok: true, data: row?.content ?? {}, updatedAt: row?.updatedAt ?? null });
@@ -14862,7 +14879,7 @@ app.get("/career-launch/cover-data", authenticate, async (req, res) => {
 // 자기소개서는 문항을 순서대로 쌓으므로 스텝별 부분 초기화는 '앞쪽 N개 문항만 남기고 이후 제거'로 처리.
 // ?scope=motive|growth|strength|aspiration → 그 문항부터 이후 제거(앞쪽 문항은 유지). scope 없으면 전체 초기화.
 const COVER_RESET_KEEP: Record<string, number> = { motive: 0, growth: 1, strength: 2, aspiration: 3 };
-app.delete("/career-launch/cover-data", authenticate, async (req, res) => {
+app.delete("/career-launch/cover-data", authenticate, requireCareerEnrollment, async (req, res) => {
   const scope = typeof req.query.scope === "string" ? req.query.scope : "";
   const keep = COVER_RESET_KEEP[scope];
   try {
@@ -14886,7 +14903,7 @@ app.delete("/career-launch/cover-data", authenticate, async (req, res) => {
 
 // ── Career Launch 진행 상태(진단·직무·정리정보·완료스텝) — 계정 기준 저장, 기기 간 동기화 ──
 // GET /career-launch/progress — 저장된 진행 상태 조회.
-app.get("/career-launch/progress", authenticate, async (req, res) => {
+app.get("/career-launch/progress", authenticate, requireCareerEnrollment, async (req, res) => {
   try {
     const row = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: req.auth!.userId } });
     return res.json({ ok: true, state: row?.state ?? {} });
@@ -14897,7 +14914,7 @@ app.get("/career-launch/progress", authenticate, async (req, res) => {
 
 // PATCH /career-launch/progress — 제공된 키만 얕게 병합해 저장(부분 갱신).
 const progressPatchSchema = z.record(z.string(), z.unknown());
-app.patch("/career-launch/progress", authenticate, async (req, res) => {
+app.patch("/career-launch/progress", authenticate, requireCareerEnrollment, async (req, res) => {
   const parsed = progressPatchSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
@@ -14930,7 +14947,7 @@ const INTERVIEW_SCHEMA = {
 
 app.post(
   "/career-launch/interview-chat",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-interview-chat", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = interviewChatSchema.safeParse(req.body);
@@ -15006,7 +15023,7 @@ function simpleHash(s: string): string {
 
 app.post(
   "/career-launch/week-feedback",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "career-week-feedback", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = weekFeedbackSchema.safeParse(req.body);
@@ -15161,6 +15178,189 @@ app.get("/career-launch/ops/students", authenticate, requireRoles([MemberRole.OP
     });
     items.sort((a, b) => String(b.updatedAt ?? "").localeCompare(String(a.updatedAt ?? "")));
     return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── Career Launch 기수(Cohort)·등록 관리 ──
+function genCareerInviteCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 헷갈리는 글자(0/O/1/I) 제외
+  let c = "";
+  for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
+  return c;
+}
+async function genUniqueInviteCode(): Promise<string> {
+  for (let i = 0; i < 8; i++) {
+    const code = genCareerInviteCode();
+    const exists = await prisma.careerCohort.findUnique({ where: { inviteCode: code }, select: { id: true } });
+    if (!exists) return code;
+  }
+  return genCareerInviteCode() + genCareerInviteCode();
+}
+
+// 운영자: 기수 목록(+등록 인원)
+app.get("/career-launch/ops/cohorts", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const rows = await prisma.careerCohort.findMany({ orderBy: { createdAt: "desc" }, include: { _count: { select: { enrollments: true } } } });
+    const items = rows.map((c) => ({ id: c.id, university: c.university, name: c.name, inviteCode: c.inviteCode, status: c.status, startsAt: c.startsAt, endsAt: c.endsAt, enrolledCount: c._count.enrollments, createdAt: c.createdAt }));
+    return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수 생성(초대코드 자동 발급)
+const cohortCreateSchema = z.object({
+  university: z.string().trim().min(1).max(120),
+  name: z.string().trim().min(1).max(80),
+  startsAt: z.string().datetime().optional(),
+  endsAt: z.string().datetime().optional()
+});
+app.post("/career-launch/ops/cohorts", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = cohortCreateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    const inviteCode = await genUniqueInviteCode();
+    const c = await prisma.careerCohort.create({
+      data: {
+        university: parsed.data.university,
+        name: parsed.data.name,
+        inviteCode,
+        startsAt: parsed.data.startsAt ? new Date(parsed.data.startsAt) : null,
+        endsAt: parsed.data.endsAt ? new Date(parsed.data.endsAt) : null
+      }
+    });
+    return res.status(201).json({ ok: true, item: c });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수 수정(대학·이름·상태·기간)
+const cohortPatchSchema = z.object({
+  university: z.string().trim().min(1).max(120).optional(),
+  name: z.string().trim().min(1).max(80).optional(),
+  status: z.enum(["active", "ended"]).optional(),
+  startsAt: z.string().datetime().nullable().optional(),
+  endsAt: z.string().datetime().nullable().optional()
+});
+app.patch("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = cohortPatchSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const id = String(req.params.id ?? "");
+  try {
+    const data: Record<string, unknown> = {};
+    if (parsed.data.university !== undefined) data.university = parsed.data.university;
+    if (parsed.data.name !== undefined) data.name = parsed.data.name;
+    if (parsed.data.status !== undefined) data.status = parsed.data.status;
+    if (parsed.data.startsAt !== undefined) data.startsAt = parsed.data.startsAt ? new Date(parsed.data.startsAt) : null;
+    if (parsed.data.endsAt !== undefined) data.endsAt = parsed.data.endsAt ? new Date(parsed.data.endsAt) : null;
+    const c = await prisma.careerCohort.update({ where: { id }, data });
+    return res.json({ ok: true, item: c });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수 삭제(등록도 함께 삭제 — onDelete Cascade)
+app.delete("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = String(req.params.id ?? "");
+  try {
+    await prisma.careerCohort.delete({ where: { id } });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수 상세(+등록 학생 목록)
+app.get("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = String(req.params.id ?? "");
+  try {
+    const c = await prisma.careerCohort.findUnique({
+      where: { id },
+      include: { enrollments: { include: { student: { select: { id: true, name: true, realName: true, email: true } } }, orderBy: { createdAt: "desc" } } }
+    });
+    if (!c) return res.status(404).json({ ok: false, message: "cohort not found" });
+    const students = c.enrollments.map((e) => ({
+      studentUserId: e.studentUserId,
+      name: e.student?.name ?? e.student?.realName ?? null,
+      email: e.student?.email ?? "",
+      enrolledAt: e.createdAt
+    }));
+    return res.json({ ok: true, item: { id: c.id, university: c.university, name: c.name, inviteCode: c.inviteCode, status: c.status, startsAt: c.startsAt, endsAt: c.endsAt, students } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수에 학생 등록(이메일)
+const cohortEnrollSchema = z.object({ email: z.string().trim().email() });
+app.post("/career-launch/ops/cohorts/:id/enroll", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = cohortEnrollSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "이메일 형식이 올바르지 않아요." });
+  const id = String(req.params.id ?? "");
+  try {
+    const cohort = await prisma.careerCohort.findUnique({ where: { id }, select: { id: true } });
+    if (!cohort) return res.status(404).json({ ok: false, message: "cohort not found" });
+    const user = await prisma.user.findFirst({ where: { email: parsed.data.email }, select: { id: true, name: true, realName: true, email: true } });
+    if (!user) return res.status(404).json({ ok: false, message: "해당 이메일의 회원을 찾을 수 없어요." });
+    await prisma.careerEnrollment.upsert({
+      where: { cohortId_studentUserId: { cohortId: id, studentUserId: user.id } },
+      create: { cohortId: id, studentUserId: user.id },
+      update: {}
+    });
+    return res.status(201).json({ ok: true, item: { studentUserId: user.id, name: user.name ?? user.realName ?? null, email: user.email } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수에서 학생 해제
+app.delete("/career-launch/ops/cohorts/:id/enroll/:studentUserId", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const sid = String(req.params.studentUserId ?? "");
+  try {
+    await prisma.careerEnrollment.deleteMany({ where: { cohortId: id, studentUserId: sid } });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 학생: 내 등록 상태(게이트 없음 — 접근 가능 여부 판단용). 운영자는 항상 enrolled.
+app.get("/career-launch/my-enrollment", authenticate, async (req, res) => {
+  try {
+    const isOperator = req.auth?.role === MemberRole.OPERATOR;
+    const rows = await prisma.careerEnrollment.findMany({
+      where: { studentUserId: req.auth!.userId },
+      include: { cohort: { select: { university: true, name: true, status: true } } },
+      orderBy: { createdAt: "desc" }
+    });
+    const cohorts = rows.map((e) => ({ university: e.cohort.university, name: e.cohort.name, status: e.cohort.status }));
+    return res.json({ ok: true, enrolled: isOperator || cohorts.length > 0, isOperator, cohorts });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 학생: 초대코드로 자가등록(게이트 없음)
+const enrollByCodeSchema = z.object({ code: z.string().trim().min(1).max(40) });
+app.post("/career-launch/enroll-by-code", authenticate, async (req, res) => {
+  const parsed = enrollByCodeSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "초대코드를 입력해 주세요." });
+  try {
+    const code = parsed.data.code.trim().toUpperCase();
+    const cohort = await prisma.careerCohort.findUnique({ where: { inviteCode: code }, select: { id: true, status: true, university: true, name: true } });
+    if (!cohort) return res.status(404).json({ ok: false, message: "유효하지 않은 초대코드예요." });
+    if (cohort.status !== "active") return res.status(400).json({ ok: false, message: "이미 종료된 기수예요. 운영자에게 문의해 주세요." });
+    await prisma.careerEnrollment.upsert({
+      where: { cohortId_studentUserId: { cohortId: cohort.id, studentUserId: req.auth!.userId } },
+      create: { cohortId: cohort.id, studentUserId: req.auth!.userId },
+      update: {}
+    });
+    return res.json({ ok: true, cohort: { university: cohort.university, name: cohort.name } });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
