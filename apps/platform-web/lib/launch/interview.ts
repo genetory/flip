@@ -18,9 +18,9 @@ function authHeaders(json = false): Record<string, string> {
   return headers;
 }
 
-export type InterviewFocus = "prep" | "mock";
+export type InterviewFocus = "self" | "job" | "fit";
 export type InterviewChatMsg = { role: "bot" | "user"; text: string };
-export type InterviewChatResult = { reply: string; questions: string[]; done: boolean };
+export type InterviewChatResult = { reply: string; done: boolean };
 
 async function req(path: string, init: RequestInit): Promise<Record<string, unknown>> {
   const res = await fetch(`${apiBase()}${path}`, init);
@@ -37,7 +37,6 @@ export async function requestInterviewChat(messages: InterviewChatMsg[], focus: 
   });
   return {
     reply: typeof d.reply === "string" ? d.reply : "",
-    questions: Array.isArray(d.questions) ? (d.questions as unknown[]).filter((x): x is string => typeof x === "string") : [],
     done: d.done === true
   };
 }

@@ -45,8 +45,7 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
   const resumeReady = hasResumeContent(resume);
   const coverReady = hasCoverContent(cover);
   const coverN = (cover.items ?? []).filter((x) => (x.answer ?? "").trim().length > 0).length;
-  const interviewQ = prog.interview?.questions ?? [];
-  const practiced = prog.interview?.practiced === true;
+  const practicedTypes = prog.interview?.practiced ?? [];
 
   const isDone = (id: string) => isStepDone(id, { progress: prog, resume, cover });
 
@@ -207,32 +206,18 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
         </ResultCard>
       );
     }
-    // 면접 — 예상 질문 준비
-    if (kind === "interview-prep" && interviewQ.length > 0) {
+    // 면접 — 유형별 모의면접(자기소개/직무/인성). 완료했으면 카드 + 다시 연습 링크.
+    if (kind === "interview-self" || kind === "interview-job" || kind === "interview-fit") {
+      const type = kind === "interview-self" ? "self" : kind === "interview-job" ? "job" : "fit";
+      if (!practicedTypes.includes(type)) return null;
+      const label = type === "self" ? "자기소개 면접" : type === "job" ? "직무 면접" : "인성·컬처핏 면접";
       return (
         <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-[13px] font-bold text-[#191F28]">🎤 예상 면접 질문 <span className="text-[#0B46E8]">{interviewQ.length}개</span></p>
-            <Link href="/career-launch/interview?section=prep" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">이어서 준비</Link>
+            <p className="text-[13px] font-bold text-[#191F28]">🎤 {label} 연습 완료</p>
+            <Link href={`/career-launch/interview?section=${type}`} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">다시 연습</Link>
           </div>
-          <ul className="mt-2 space-y-1">
-            {interviewQ.slice(0, 6).map((q, i) => (
-              <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#4E5968]"><span className="text-[#3A6B00]">{i + 1}.</span>{q}</li>
-            ))}
-            {interviewQ.length > 6 ? <li className="pl-4 text-[12px] text-[#8B95A1]">외 {interviewQ.length - 6}개…</li> : null}
-          </ul>
-        </div>
-      );
-    }
-    // 면접 — 모의면접
-    if (kind === "interview-mock" && practiced) {
-      return (
-        <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-[13px] font-bold text-[#191F28]">🎤 모의면접 연습 완료</p>
-            <Link href="/career-launch/interview?section=mock" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">다시 연습</Link>
-          </div>
-          <p className="mt-1 break-keep text-[12.5px] text-[#4E5968]">준비한 질문으로 실전 연습을 마쳤어요. 필요하면 다시 연습해봐요.</p>
+          <p className="mt-1 break-keep text-[12.5px] text-[#4E5968]">면접관과 실전처럼 주고받으며 연습을 마쳤어요. 필요하면 다시 연습해봐요.</p>
         </div>
       );
     }

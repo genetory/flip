@@ -20,7 +20,7 @@ function authHeaders(json = false): Record<string, string> {
 }
 
 export type CareerDiagnosis = { percent: number; level: string; strengths: string[]; improvements: string[] };
-export type CareerInterview = { questions?: string[]; practiced?: boolean };
+export type CareerInterview = { practiced?: string[] }; // 완료한 면접 유형(self|job|fit)
 export type CareerProgress = {
   diagnosis?: CareerDiagnosis | null;
   selectedJobs?: string[];

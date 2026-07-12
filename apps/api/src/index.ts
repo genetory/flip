@@ -13957,32 +13957,40 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
     default:
       "[이번 스텝: 입사 후 포부] 이번 대화는 '입사 후 포부' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '입사 후 포부' 로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
   },
-  // ── Week4 면접 준비 ──
-  interview_prep: {
-    label: "면접 · 예상 질문 준비",
+  // ── Week4 모의면접(유형별) — 공통(interview) + 유형 지시(interview_self/job/fit) ──
+  interview: {
+    label: "모의면접 · 공통 규칙",
     week: 4,
-    step: "스텝 2 · 예상 면접 질문 준비",
+    step: "공통 · 모의면접 전체에 적용",
     default:
-      "너는 한국 취업을 준비하는 외국인 유학생의 면접을 돕는 커리어 코치야. 이번 대화의 목표는 학생의 [이력서]·[자기소개서]·[선정 직무]를 근거로 '이 학생이 실제로 받을 법한 예상 면접 질문'을 함께 정리하는 것.\n\n" +
-      "규칙:\n" +
-      "1. " + CAREER_TONE + " 학생의 이력서·자소서에서 실제로 파고들 만한 지점(경력·프로젝트·지원 동기·강점, 그리고 외국인으로서 자주 받는 질문: 한국어 수준·비자·장기 근속 의지 등)을 근거로 질문을 뽑아.\n" +
-      "2. 질문은 questions 배열에 담아 매 턴 누적 반환(이전 것 유지). 각 질문은 간결한 한 줄. 처음엔 핵심 5~7개를 제안하고, 학생이 특정 직무·회사·유형(인성/직무/압박)을 원하면 그 방향으로 더 뽑아줘.\n" +
-      "3. 질문만 나열하지 말고, 학생이 원하면 그 질문에 어떻게 접근하면 좋을지(무엇을 강조/피할지) 간단한 답변 방향도 reply 로 알려줘. 사실을 지어내지 말고 학생 데이터만 근거로.\n" +
-      "4. 처음이면 가볍게 인사하고 바로 예상 질문을 제시해. 학생이 '충분해요/이 정도면 됐어요'라고 하거나 핵심 질문이 두루 정리되면 done=true, 다음 스텝(모의면접)으로 안내하며 마무리. 되묻는 중이면 done=false.\n" +
-      "5. 모든 reply 는 학생이 바로 답할 수 있는 '다음 한 걸음'으로 끝나야 해(예: '이 중 압박 질문을 더 볼까요, 아니면 이대로 모의면접으로 갈까요?')."
-  },
-  interview_mock: {
-    label: "면접 · 모의면접",
-    week: 4,
-    step: "스텝 3 · 모의면접",
-    default:
-      "너는 한국 기업의 면접관 역할로 외국인 유학생과 '모의면접'을 진행하는 커리어 코치야. 학생의 [이력서]·[자기소개서]·[선정 직무]와 [준비한 예상 질문]을 근거로 실제 면접처럼 질문하고, 답변에 코치로서 피드백을 준다.\n\n" +
-      "규칙:\n" +
+      "너는 한국 기업의 면접관 역할로 외국인 유학생과 '모의면접'을 진행하는 커리어 코치야. 학생의 [이력서]·[자기소개서]·[선정 직무]를 근거로, 실제 면접처럼 질문하고 답변에 코치로서 피드백을 준다. 이번 면접의 유형은 아래 [이번 면접] 지시에 따르고, 그 유형의 질문에 집중해.\n\n" +
+      "공통 규칙:\n" +
       "1. " + CAREER_TONE + " 한 번에 질문 하나씩. 학생이 답하면 (1) 좋은 점 (2) 보완하면 좋을 점 (3) 더 나은 답변 방향을 간결히 피드백한 뒤, 자연스럽게 다음 질문으로 넘어가.\n" +
-      "2. 질문은 지원 동기·경험·강점·직무 이해·상황(압박)·외국인 관련(한국어·비자·적응) 등에서 골고루. 학생 답을 파고드는 꼬리질문도 적절히 섞어 실전감을 줘.\n" +
-      "3. 사실을 지어내지 말고 학생 데이터만 근거로. 너무 몰아붙이지 말고 격려하는 톤을 유지하되, 형식적으로 칭찬만 하지 말고 실질적으로 도움이 되는 피드백을 줘.\n" +
-      "4. 처음이면 가볍게 인사하고 '그럼 면접을 시작하겠습니다'로 첫 질문. 보통 5~6문항을 주고받아 충분히 연습했으면 전체 총평(강점·보완점·팁)을 정리하며 done=true. 되묻거나 아직 질문이 남았으면 done=false.\n" +
+      "2. 학생 답을 파고드는 꼬리질문도 적절히 섞어 실전감을 줘. 사실을 지어내지 말고 학생 데이터만 근거로.\n" +
+      "3. 너무 몰아붙이지 말고 격려하는 톤을 유지하되, 형식적 칭찬만 하지 말고 실질적으로 도움이 되는 피드백을 줘.\n" +
+      "4. 처음이면 가볍게 인사하고 '그럼 면접을 시작하겠습니다'로 이 유형의 첫 질문을 던져. 보통 4~6문항을 주고받아 충분히 연습했으면 이 유형에 대한 총평(강점·보완점·팁)을 정리하며 done=true. 되묻거나 아직 질문이 남았으면 done=false.\n" +
       "5. 모든 reply 는 학생이 바로 답할 수 있게 질문이나 안내로 끝나야 해. 학생이 '그만/충분해요'라고 하면 존중해 총평으로 마무리해."
+  },
+  interview_self: {
+    label: "모의면접 · 자기소개 면접",
+    week: 4,
+    step: "스텝 2 · 자기소개 면접",
+    default:
+      "[이번 면접: 자기소개 면접] 면접 초반 라운드처럼 진행한다. 1분 자기소개, 지원 동기, 성격·강점, 성장 배경 등 '이 사람이 누구인지'를 파악하는 질문에 집중해. 특히 자기소개서(지원 동기·성장 과정)와 연결해 자연스럽게 물어봐. 직무 기술 심화나 압박 질문은 이번 라운드에서 다루지 마."
+  },
+  interview_job: {
+    label: "모의면접 · 직무 면접",
+    week: 4,
+    step: "스텝 3 · 직무 면접",
+    default:
+      "[이번 면접: 직무 면접] 실무진 면접처럼 진행한다. 선정 직무와 이력서의 경력·프로젝트·스킬을 근거로, 실제로 한 일과 성과, 문제 해결 방식, 직무 이해도를 파고드는 질문에 집중해. '그때 왜 그렇게 했나요', '수치로 말하면?' 같은 구체적 꼬리질문으로 실전감을 줘. 단순 인성·자기소개 질문은 이번 라운드에서 최소화해."
+  },
+  interview_fit: {
+    label: "모의면접 · 인성·컬처핏 면접",
+    week: 4,
+    step: "스텝 4 · 인성·컬처핏 면접",
+    default:
+      "[이번 면접: 인성·컬처핏 면접] 임원·컬처핏 면접처럼 진행한다. 협업·갈등 해결, 가치관, 일하는 태도, 그리고 외국인 지원자가 자주 받는 질문(한국어 업무 수준, 비자·장기 근속 의지, 한국 조직 적응)에 집중해. 정답을 캐묻기보다 태도와 진정성을 보는 라운드이니, 편안하되 진솔한 답을 끌어내고 답변 방향을 코치해줘."
   }
 };
 
@@ -14889,19 +14897,13 @@ app.patch("/career-launch/progress", authenticate, async (req, res) => {
   }
 });
 
-// ── Week4 면접 준비 대화(예상 질문 준비 / 모의면접) — 결과는 progress.interview 에 저장 ──
+// ── Week4 모의면접(유형별: self/job/fit) — 완료한 유형은 progress.interview.practiced 에 누적 ──
 const interviewChatSchema = z.object({
   messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(120).default([]),
-  focus: z.enum(["prep", "mock"]),
+  focus: z.enum(["self", "job", "fit"]),
   locale: z.string().max(10).optional()
 });
-const INTERVIEW_PREP_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["reply", "questions", "done"],
-  properties: { reply: { type: "string" }, questions: { type: "array", items: { type: "string" } }, done: { type: "boolean" } }
-} as const;
-const INTERVIEW_MOCK_SCHEMA = {
+const INTERVIEW_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: ["reply", "done"],
@@ -14918,7 +14920,6 @@ app.post(
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, focus, locale } = parsed.data;
     const uid = req.auth!.userId;
-    const isPrep = focus === "prep";
     try {
       const [profileSummary, resumeRow, coverRow, progRow] = await Promise.all([
         buildCandidateProfileSummary(uid),
@@ -14927,60 +14928,39 @@ app.post(
         prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } })
       ]);
       const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
-      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { questions?: unknown; practiced?: unknown };
+      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown };
       const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]) : [];
-      const prepared = Array.isArray(interview.questions) ? (interview.questions as string[]) : [];
+      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
 
       const systemPrompt =
-        (await getCareerPrompt(isPrep ? "interview_prep" : "interview_mock")) + "\n\n" + CAREER_SCOPE + "\n\n" +
-        (isPrep
-          ? 'JSON 한 개 객체로만 응답: { "reply": string, "questions": string[], "done": boolean }'
-          : 'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean }') +
+        (await getCareerPrompt("interview")) + "\n\n" + CAREER_SCOPE + "\n\n" +
+        (await getCareerPrompt(`interview_${focus}`)) + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean }' +
         aiLangDirective(locale);
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "면접관" : "학생"}: ${m.text}`).join("\n")
-        : "(아직 대화 없음 — 가볍게 인사하고 시작해줘)";
+        : "(아직 대화 없음 — 가볍게 인사하고 이 유형의 첫 질문을 던져줘)";
       const userPrompt =
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `[선정 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(미정)"}\n\n` +
         `[이력서]\n${JSON.stringify(resumeRow?.content ?? {})}\n\n` +
         `[자기소개서]\n${JSON.stringify(coverRow?.content ?? {})}\n\n` +
-        (prepared.length ? `[${isPrep ? "지금까지 정리한" : "준비한"} 예상 질문]\n${prepared.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\n` : "") +
         `지금까지 대화:\n${convo}`;
-      const pj = (await careerChatComplete(
-        systemPrompt,
-        userPrompt,
-        isPrep ? "interview_prep" : "interview_mock",
-        isPrep ? INTERVIEW_PREP_SCHEMA : INTERVIEW_MOCK_SCHEMA
-      )) as { reply?: unknown; questions?: unknown; done?: unknown };
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, `interview_${focus}`, INTERVIEW_SCHEMA)) as { reply?: unknown; done?: unknown };
       const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
       const done = pj.done === true;
       if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
 
-      const nextInterview: { questions?: string[]; practiced?: boolean } = { ...interview } as { questions?: string[]; practiced?: boolean };
-      let questions = prepared;
-      if (isPrep) {
-        const incoming = Array.isArray(pj.questions)
-          ? pj.questions.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean)
-          : [];
-        const seen = new Set<string>();
-        questions = [];
-        for (const q of [...prepared, ...incoming]) {
-          const k = q.toLowerCase().replace(/\s+/g, "");
-          if (k && !seen.has(k)) { seen.add(k); questions.push(q); }
-        }
-        questions = questions.slice(0, 20);
-        nextInterview.questions = questions;
+      // 이 유형 면접을 마쳤으면 practiced 에 누적(새로 완료된 경우에만 저장).
+      if (done && !practiced.includes(focus)) {
+        const mergedState = { ...progState, interview: { ...interview, practiced: [...practiced, focus] } };
+        await prisma.careerLaunchProgress.upsert({
+          where: { studentUserId: uid },
+          create: { studentUserId: uid, state: mergedState as object },
+          update: { state: mergedState as object }
+        });
       }
-      if (!isPrep && done) nextInterview.practiced = true;
-
-      const mergedState = { ...progState, interview: nextInterview };
-      await prisma.careerLaunchProgress.upsert({
-        where: { studentUserId: uid },
-        create: { studentUserId: uid, state: mergedState as object },
-        update: { state: mergedState as object }
-      });
-      return res.json({ ok: true, reply, questions, done });
+      return res.json({ ok: true, reply, done });
     } catch (err) {
       console.error("[career-launch/interview-chat] failed", err);
       return res.status(500).json({ ok: false, message: "failed to continue chat" });

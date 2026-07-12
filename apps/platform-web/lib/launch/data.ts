@@ -174,7 +174,7 @@ export const WEEKS: WeekPlan[] = [
     week: 4,
     title: "완성 & 면접 준비",
     subtitle: "완성한 서류로 면접을 준비하고 스스로 지원할 힘을 길러요",
-    goal: "이력서·자기소개서를 최종 점검하고, 예상 질문·모의면접으로 면접을 준비해요. 스스로 지원할 수 있도록 실전 감각까지 갖추는 마무리 단계예요!",
+    goal: "이력서·자기소개서를 최종 점검하고, 자기소개·직무·인성 면접을 유형별로 직접 연습해요. 스스로 지원할 수 있도록 실전 감각까지 갖추는 마무리 단계예요!",
     seminar: { date: "2026-08-03 (월)", time: "19:00–21:00", place: "오프라인 (강남)", online: false },
     steps: [
       {
@@ -184,16 +184,22 @@ export const WEEKS: WeekPlan[] = [
         action: { label: "이력서 점검하기", href: "/career-launch/week/2" }
       },
       {
-        id: "w4-qprep",
-        title: "예상 면접 질문 준비",
-        desc: "내 이력서·자기소개서를 근거로 실제 받을 법한 면접 질문을 AI와 함께 정리해요.",
-        action: { label: "시작하기", href: "/career-launch/interview?section=prep" }
+        id: "w4-self",
+        title: "자기소개 면접",
+        desc: "AI 면접관이 1분 자기소개·지원 동기·성격을 물어봐요. 직접 답하며 첫인상 라운드를 연습해요.",
+        action: { label: "면접 보기", href: "/career-launch/interview?section=self" }
       },
       {
-        id: "w4-mock",
-        title: "모의면접",
-        desc: "AI 면접관과 실제 면접처럼 질문·답변을 주고받고, 답변마다 피드백을 받아 실전 감각을 키워요.",
-        action: { label: "시작하기", href: "/career-launch/interview?section=mock" }
+        id: "w4-job",
+        title: "직무 면접",
+        desc: "선정 직무와 이력서의 경력·프로젝트를 파고드는 실무 면접이에요. 구체적 경험을 답하며 연습해요.",
+        action: { label: "면접 보기", href: "/career-launch/interview?section=job" }
+      },
+      {
+        id: "w4-fit",
+        title: "인성·컬처핏 면접",
+        desc: "협업·가치관·한국 적응(한국어·비자·근속)을 보는 면접이에요. 태도와 진정성을 답하며 연습해요.",
+        action: { label: "면접 보기", href: "/career-launch/interview?section=fit" }
       },
       {
         id: "w4-apply",
@@ -210,7 +216,7 @@ export const WEEKS: WeekPlan[] = [
         action: { label: "시작하기", href: "/career-launch/culture/w4s4" }
       }
     ],
-    submission: { required: true, status: "todo", label: "면접 준비 완료", source: "예상 질문 정리 + 모의면접 연습" },
+    submission: { required: true, status: "todo", label: "면접 준비 완료", source: "자기소개·직무·인성 모의면접 연습" },
     feedback: { status: "none" }
   }
 ];
