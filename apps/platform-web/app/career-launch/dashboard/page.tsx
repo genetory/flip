@@ -21,7 +21,7 @@ const WEEK_DELIVERABLE: Record<number, string> = {
   1: "취업 진단 · 직무 방향",
   2: "대표 이력서",
   3: "자기소개서",
-  4: "기업 지원"
+  4: "면접 준비"
 };
 
 // 4. 학생 로그인 후 대시보드 — 4주 여정 퍼널 + 진행 + 결과물 + 피드백 개요.
@@ -80,29 +80,49 @@ export default function LaunchDashboardPage() {
               ← 운영자 콘솔 · 지금은 학생 화면 체험 중
             </Link>
           ) : null}
-          {/* 인사 + 전체 진행률 */}
-          <Card className="md:!p-7">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[12.5px] font-semibold text-[#8B95A1]">{STUDENT.cohort}</p>
-                <h1 className="mt-1 text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[27px]">{displayName}님, 반가워요 👋</h1>
-                <p className="mt-1.5 text-[14px] leading-relaxed text-[#4E5968]">4주 동안 이력서·자기소개서를 완성하고 기업에 지원해요.</p>
+          {/* 인사 + 전체 진행률 (완주 시 축하 히어로로 전환) */}
+          {overall === 100 ? (
+            <Card className="border-[#B7FF5A] bg-[#F6FFE9] md:!p-7">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[12.5px] font-bold text-[#3A6B00]">🎉 4주 프로그램 완주</p>
+                  <h1 className="mt-1 text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[27px]">{displayName}님, 완주를 축하해요! 🎉</h1>
+                  <p className="mt-1.5 break-keep text-[14px] leading-relaxed text-[#4E5968]">이력서·자기소개서를 완성하고 면접 준비까지 마쳤어요. 이제 자신 있게 지원해봐요!</p>
+                </div>
+                <Pill tone="green">수료 완료</Pill>
               </div>
-              <Pill tone="blue">{doneSteps}/{totalSteps} 스텝</Pill>
-            </div>
-            <div className="mt-5 rounded-2xl bg-[#F6F8FB] p-4 md:mt-6 md:p-5">
-              <div className="mb-2.5 flex items-end justify-between">
+              <div className="mt-5 flex items-center gap-3 rounded-2xl bg-white p-4 md:mt-6 md:p-5">
+                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-[#EAFFD1] text-[22px]">🏁</span>
                 <div>
-                  <p className="text-[13px] font-bold text-[#333D4B]">전체 진행률</p>
+                  <p className="text-[14px] font-black text-[#0B1227]">전체 진행률 100% · 모든 스텝 완료</p>
                   <p className="mt-0.5 text-[12px] text-[#8B95A1]">완료한 스텝 {doneSteps}/{totalSteps}</p>
                 </div>
-                <span className="text-[26px] font-black leading-none text-[#0B46E8] md:text-[30px]">
-                  {overall}<span className="text-[16px]">%</span>
-                </span>
               </div>
-              <ProgressBar value={overall} height={12} />
-            </div>
-          </Card>
+            </Card>
+          ) : (
+            <Card className="md:!p-7">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[12.5px] font-semibold text-[#8B95A1]">{STUDENT.cohort}</p>
+                  <h1 className="mt-1 text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[27px]">{displayName}님, 반가워요 👋</h1>
+                  <p className="mt-1.5 text-[14px] leading-relaxed text-[#4E5968]">4주 동안 이력서·자기소개서를 완성하고 면접까지 준비해요.</p>
+                </div>
+                <Pill tone="blue">{doneSteps}/{totalSteps} 스텝</Pill>
+              </div>
+              <div className="mt-5 rounded-2xl bg-[#F6F8FB] p-4 md:mt-6 md:p-5">
+                <div className="mb-2.5 flex items-end justify-between">
+                  <div>
+                    <p className="text-[13px] font-bold text-[#333D4B]">전체 진행률</p>
+                    <p className="mt-0.5 text-[12px] text-[#8B95A1]">완료한 스텝 {doneSteps}/{totalSteps}</p>
+                  </div>
+                  <span className="text-[26px] font-black leading-none text-[#0B46E8] md:text-[30px]">
+                    {overall}<span className="text-[16px]">%</span>
+                  </span>
+                </div>
+                <ProgressBar value={overall} height={12} />
+              </div>
+            </Card>
+          )}
 
           <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
             {/* ── 메인: 프로그램 소개 + 4주 여정 퍼널 ── */}
@@ -115,7 +135,7 @@ export default function LaunchDashboardPage() {
                   <img src="/img_global_career_launch.webp" alt="Global Career Launch" className="mb-4 h-auto w-full rounded-xl" />
                   <p className="text-[15px] font-black text-[#0B1227] md:text-[16px]">AI 코치와 함께하는 4주 취업 완성 부트캠프</p>
                   <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">
-                    한국 취업을 준비하는 외국인 유학생을 위한 프로그램이에요. 혼자서는 막막한 취업 준비를 AI 코치가 옆에서 이끌어줘요. 취업 준비 상태 진단부터 직무 방향 설정, 대화만으로 완성하는 이력서·자기소개서, 그리고 실제 기업 지원까지 — 4주 동안 하나씩 밟아가며 완주해요.
+                    한국 취업을 준비하는 외국인 유학생을 위한 프로그램이에요. 혼자서는 막막한 취업 준비를 AI 코치가 옆에서 이끌어줘요. 취업 준비 상태 진단부터 직무 방향 설정, 대화만으로 완성하는 이력서·자기소개서, 그리고 유형별 모의면접까지 — 4주 동안 하나씩 밟아가며 완주해요.
                   </p>
                   <div className="mt-3.5 flex flex-wrap gap-2">
                     {[
@@ -138,7 +158,7 @@ export default function LaunchDashboardPage() {
                         { e: "🧭", t: "취업 준비도 진단 · 직무 방향" },
                         { e: "📄", t: "기업에 낼 대표 이력서" },
                         { e: "📝", t: "회사 맞춤 자기소개서" },
-                        { e: "🚀", t: "실제 기업 지원 완료" }
+                        { e: "🎤", t: "유형별 모의면접 · 실전 준비" }
                       ].map((o) => (
                         <div key={o.t} className="flex items-center gap-2 rounded-xl bg-[#F8FAFC] px-3 py-2.5">
                           <span className="text-[16px]">{o.e}</span>
