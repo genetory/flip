@@ -20,7 +20,10 @@ export const STEP_KIND: Record<string, string> = {
   "w3-growth": "cover2",
   "w3-strength": "cover3",
   "w3-aspiration": "cover4",
-  w4s1: "both"
+  // week4
+  w4s1: "both",
+  "w4-qprep": "interview-prep",
+  "w4-mock": "interview-mock"
 };
 
 export type LaunchData = { progress: CareerProgress; resume: ResumeData; cover: CoverData };
@@ -51,6 +54,8 @@ export function isStepDone(id: string, d: LaunchData): boolean {
     case "cover2": kd = coverN >= 2; break;
     case "cover3": kd = coverN >= 3; break;
     case "cover4": kd = coverN >= 4; break;
+    case "interview-prep": kd = (prog.interview?.questions?.length ?? 0) > 0; break;
+    case "interview-mock": kd = prog.interview?.practiced === true; break;
     case "both": kd = hasResumeContent(resume) && hasCoverContent(cover); break;
     default: kd = false;
   }

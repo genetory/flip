@@ -10,7 +10,7 @@ const ALL_STEPS = [
   "w1s1", "w1s2", "w1s3", "w1s4",
   "w2-basic", "w2-edu", "w2-exp", "w2-skill", "w2-lang", "w2s4",
   "w3-motive", "w3-growth", "w3-strength", "w3-aspiration", "w3s4",
-  "w4s1", "w4s2", "w4s3", "w4s4"
+  "w4s1", "w4-qprep", "w4-mock", "w4-apply", "w4s4"
 ];
 
 const progressState = {
@@ -26,6 +26,17 @@ const progressState = {
     "프론트엔드 개발자: 사용자 화면 구현, React·TypeScript 역량이 중요",
     "소프트웨어 엔지니어: 전반적 개발 역량과 CS 기초(자료구조·알고리즘)가 바탕"
   ],
+  interview: {
+    questions: [
+      "간단히 자기소개와 지원 동기를 말씀해 주세요.",
+      "네이버 인턴 때 API 응답 속도를 30% 개선했다고 했는데, 구체적으로 어떻게 접근했나요?",
+      "협업 중 갈등이 있었을 때 어떻게 풀었나요?",
+      "한국어로 업무 회의나 문서 작성이 가능한 수준인가요?",
+      "우리 회사(직무)에 지원한 이유가 무엇인가요?",
+      "입사 후 이루고 싶은 목표는 무엇인가요?"
+    ],
+    practiced: true
+  },
   doneSteps: ALL_STEPS
 };
 
