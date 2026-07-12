@@ -13996,6 +13996,19 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
     step: "스텝 4 · 인성·컬처핏 면접",
     default:
       "[이번 면접: 인성·컬처핏 면접] 임원·컬처핏 면접처럼 진행한다. 협업·갈등 해결, 가치관, 일하는 태도, 그리고 외국인 지원자가 자주 받는 질문(한국어 업무 수준, 비자·장기 근속 의지, 한국 조직 적응)에 집중해. 정답을 캐묻기보다 태도와 진정성을 보는 라운드이니, 편안하되 진솔한 답을 끌어내고 답변 방향을 코치해줘."
+  },
+  // ── 주차 자동 피드백(1~3주차 공통) ──
+  auto_feedback: {
+    label: "자동 피드백 · 1~3주차 공통",
+    week: 1,
+    step: "자동 · 주차 결과물 코치 피드백",
+    default:
+      "너는 한국 취업을 준비하는 외국인 유학생을 돕는 따뜻하고 전문적인 커리어 코치야. 학생이 이번 주차에 만든 결과물을 보고, 지금 바로 도움이 되는 짧은 코치 피드백을 준다.\n\n" +
+      "규칙:\n" +
+      "1. 먼저 잘한 점 1~2가지를 구체적으로 짚어 칭찬해(무엇이 왜 좋은지). 그다음 더 좋아질 수 있는 점 1~2가지를 바로 실행할 수 있는 조언으로 제안해.\n" +
+      "2. 학생이 실제로 입력한 내용만 근거로 해. 없는 사실을 지어내지 마. 부족한 부분이 있어도 다그치지 말고 '다음 한 걸음'을 제안하는 톤으로.\n" +
+      "3. 3~5문장으로 간결하게, 격려하는 톤. 유학생만의 강점(다국어·문화 이해 등)이 보이면 살려줘.\n" +
+      "4. feedback 필드에 피드백 본문만 담아 반환(인사말·머리말 없이 바로 피드백)."
   }
 };
 
@@ -14969,6 +14982,94 @@ app.post(
     } catch (err) {
       console.error("[career-launch/interview-chat] failed", err);
       return res.status(500).json({ ok: false, message: "failed to continue chat" });
+    }
+  }
+);
+
+// ── 주차 자동 피드백(1~3주차) — 그 주차 결과물을 근거로 AI가 자동 생성, 입력이 바뀌면 갱신 ──
+const weekFeedbackSchema = z.object({ week: z.number().int().min(1).max(3) });
+const WEEK_FEEDBACK_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["feedback"],
+  properties: { feedback: { type: "string" } }
+} as const;
+const WEEK_FEEDBACK_TITLE: Record<number, string> = { 1: "취업 준비 진단·관심 직무·직무 정보", 2: "대화로 만든 이력서", 3: "대화로 만든 자기소개서" };
+// 캐시 무효화용 간단 해시(입력이 바뀌면 값이 달라져 재생성).
+function simpleHash(s: string): string {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0;
+  return String(h >>> 0);
+}
+
+app.post(
+  "/career-launch/week-feedback",
+  authenticate,
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "career-week-feedback", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = weekFeedbackSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+    const { week } = parsed.data;
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        week === 2 ? prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }) : Promise.resolve(null),
+        week === 3 ? prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } }) : Promise.resolve(null)
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+
+      // 주차별 입력 결과물 + 데이터 유무 판단.
+      let input: unknown = {};
+      let hasData = false;
+      if (week === 1) {
+        const diagnosis = progState.diagnosis ?? null;
+        const selectedJobs = Array.isArray(progState.selectedJobs) ? progState.selectedJobs : [];
+        const materials = Array.isArray(progState.materials) ? progState.materials : [];
+        input = { diagnosis, selectedJobs, materials };
+        hasData = Boolean(diagnosis) || selectedJobs.length > 0 || materials.length > 0;
+      } else if (week === 2) {
+        const content = (resumeRow?.content ?? {}) as Record<string, unknown>;
+        input = content;
+        hasData = hasResumeDataContent(normalizeResumeData(content));
+      } else {
+        const content = (coverRow?.content ?? {}) as Record<string, unknown>;
+        input = content;
+        hasData = hasCoverContent(normalizeCoverData(content));
+      }
+      if (!hasData) return res.json({ ok: true, feedback: null });
+
+      // 캐시 확인 — 입력 해시가 같으면 저장된 피드백 반환(불필요한 재생성·비용 방지).
+      const sig = simpleHash(JSON.stringify(input));
+      const autoFeedback = (progState.autoFeedback && typeof progState.autoFeedback === "object" ? progState.autoFeedback : {}) as Record<string, { sig?: string; text?: string }>;
+      const cached = autoFeedback[String(week)];
+      if (cached && cached.sig === sig && typeof cached.text === "string" && cached.text.trim()) {
+        return res.json({ ok: true, feedback: cached.text, cached: true });
+      }
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const profileSummary = await buildCandidateProfileSummary(uid);
+      const systemPrompt =
+        (await getCareerPrompt("auto_feedback")) + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "feedback": string }' +
+        aiLangDirective("ko");
+      const userPrompt =
+        (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        `[${week}주차 결과물: ${WEEK_FEEDBACK_TITLE[week]}]\n${JSON.stringify(input)}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "week_feedback", WEEK_FEEDBACK_SCHEMA)) as { feedback?: unknown };
+      const feedback = typeof pj.feedback === "string" ? pj.feedback.trim() : "";
+      if (!feedback) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, autoFeedback: { ...autoFeedback, [String(week)]: { sig, text: feedback } } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, feedback });
+    } catch (err) {
+      console.error("[career-launch/week-feedback] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to generate feedback" });
     }
   }
 );

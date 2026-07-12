@@ -5,6 +5,7 @@ import { Card, Pill, SectionTitle } from "../../../../components/launch/ui";
 import { WeekStepper } from "../../../../components/launch/week-stepper";
 import { WeekDocs } from "../../../../components/launch/week-docs";
 import { WeekGate } from "../../../../components/launch/week-gate";
+import { WeekAutoFeedback } from "../../../../components/launch/week-auto-feedback";
 import { Header } from "../../../../components/site/Header";
 import { Footer } from "../../../../components/site/Footer";
 
@@ -79,16 +80,20 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
                 </Card>
               </div>
 
-              {/* 피드백 상태 */}
+              {/* 피드백 — 1~3주차는 결과물 기반 자동 코치 피드백, 4주차는 기존 상태 카드 */}
               <div>
                 <SectionTitle>피드백</SectionTitle>
-                <Card>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13.5px] font-semibold text-[#4E5968]">피드백 상태</span>
-                    {feedbackPill}
-                  </div>
-                  {plan.feedback.note ? <p className="mt-3 rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]">“{plan.feedback.note}”</p> : null}
-                </Card>
+                {plan.week <= 3 ? (
+                  <WeekAutoFeedback week={plan.week} />
+                ) : (
+                  <Card>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13.5px] font-semibold text-[#4E5968]">피드백 상태</span>
+                      {feedbackPill}
+                    </div>
+                    {plan.feedback.note ? <p className="mt-3 rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]">“{plan.feedback.note}”</p> : null}
+                  </Card>
+                )}
               </div>
 
               {/* 내 이력서·자기소개서 — 2주차부터 미리보기(세미나·피드백 아래) */}
