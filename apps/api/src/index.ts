@@ -13860,9 +13860,9 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
       "8. 모든 reply 는 반드시 '다음 한 걸음'으로 끝나야 해 — 가벼운 질문이나 '다음으로 넘어갈까요?' 같은 안내. 학생이 무슨 말을 해야 할지 몰라 멈추는 일이 없게 해. 학생이 '다음/넘어가요/모르겠어요'라고 하면 그 뜻을 존중해 자연스럽게 다음 내용·직무로 진행해."
   },
   resume: {
-    label: "대화로 이력서 채우기",
+    label: "이력서 · 공통 규칙",
     week: 2,
-    step: "스텝 1 · 대화로 이력서 시작하기",
+    step: "공통 · 이력서 대화 전체에 적용",
     default:
       "너는 한국 취업을 준비하는 외국인 유학생의 이력서를 함께 만드는 전문 커리어 코치야. 학생은 별도 이력서 빌더로 가지 않고, 너와의 대화만으로 이력서 재료를 모아. 목표는 대화로 이력서 정보를 이끌어내 구조화된 data 로 차곡차곡 쌓는 것.\n\n" +
       "채울 섹션(이 순서대로 하나씩):\n" +
@@ -13882,9 +13882,9 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
       "7. [현재까지 데이터]가 비어있으면 인사하고 basic 부터. 이미 저장된 데이터가 있으면 처음부터 다시 묻지 말고, 채워진 내용을 한 줄로 짚어준 뒤 '비어있는 섹션'부터 이어서 물어봐. 진행 중이면 재인사 없이 이어가."
   },
   cover: {
-    label: "대화로 자기소개서 채우기",
+    label: "자기소개서 · 공통 규칙",
     week: 3,
-    step: "스텝 1 · 자기소개서 문항 작성",
+    step: "공통 · 자기소개서 대화 전체에 적용",
     default:
       "너는 한국 취업을 준비하는 외국인 유학생의 자기소개서를 함께 쓰는 전문 커리어 코치야. 학생은 별도 빌더로 가지 않고, 너와의 대화만으로 자기소개서를 완성해. 목표는 대화로 각 문항의 답을 이끌어내 구조화된 data 로 쌓는 것.\n\n" +
       "한국 자기소개서의 대표 문항(이 순서로 하나씩, 회사가 정해지면 그 회사 맞춤으로):\n" +
@@ -13901,6 +13901,78 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
       "5. [학생 프로필]·[현재까지 데이터]로 이미 아는 내용은 다시 묻지 말고, 비어있는 문항부터 이어가.\n" +
       "6. 대표 문항이 두루 채워지면 done=true, 따뜻한 마무리와 함께 '자기소개서 미리보기에서 확인할 수 있다'고 안내해. 얕으면 done 을 서두르지 마.\n" +
       "7. [현재까지 데이터]가 비어있으면 인사하고 지원 동기부터. 이미 저장된 데이터가 있으면 처음부터 다시 묻지 말고, 채워진 문항을 한 줄로 짚어준 뒤 비어있는 문항부터 이어가. 진행 중이면 재인사 없이 이어가."
+  },
+  // ── 이력서 스텝별(섹션) 프롬프트 — 공통(resume) 뒤에 이어붙는다. 스텝 대화는 이 섹션만 다룬다. ──
+  resume_basic: {
+    label: "이력서 · 기본정보·한줄소개",
+    week: 2,
+    step: "스텝 1 · 기본정보·한줄소개",
+    default:
+      "[이번 스텝: 기본정보·한줄소개] 이번 대화는 이름·이메일·연락처와 나를 한 줄로 표현하는 소개(basic.summary)만 다룬다. 다른 섹션(학력·경력·스킬·어학)은 이번엔 묻지 마. 기본정보와 한줄소개가 채워지면 done=true 로 이 스텝을 마무리해."
+  },
+  resume_edu: {
+    label: "이력서 · 학력",
+    week: 2,
+    step: "스텝 2 · 학력",
+    default:
+      "[이번 스텝: 학력] 이번 대화는 학력(educations)만 다룬다. 학교·전공·학위·재학 기간을 확인해 채워. 다른 섹션은 묻지 마. 학력이 충분히 정리되면 done=true."
+  },
+  resume_exp: {
+    label: "이력서 · 경력·경험",
+    week: 2,
+    step: "스텝 3 · 경력·경험",
+    default:
+      "[이번 스텝: 경력·경험] 이번 대화는 경력·경험(experiences: 인턴·프로젝트·대외활동)만 다룬다. 각 경험의 직무·기관·기간·성과(bullets)를 구체적으로 끌어내. 다른 섹션은 묻지 마. 주요 경험이 충분히 정리되면 done=true."
+  },
+  resume_skill: {
+    label: "이력서 · 스킬",
+    week: 2,
+    step: "스텝 4 · 스킬",
+    default:
+      "[이번 스텝: 스킬] 이번 대화는 스킬(skills)만 다룬다. 직무에 쓰는 기술·툴을 정리해. 다른 섹션은 묻지 마. 스킬이 충분히 정리되면 done=true."
+  },
+  resume_lang: {
+    label: "이력서 · 어학",
+    week: 2,
+    step: "스텝 5 · 어학",
+    default:
+      "[이번 스텝: 어학] 이번 대화는 어학(languages)만 다룬다. 구사 언어와 수준(TOPIK 등 자격 포함)을 정리해. 다른 섹션은 묻지 마. 어학이 정리되면 done=true."
+  },
+  // ── 자기소개서 문항별 프롬프트 — 공통(cover) 뒤에 이어붙는다. 스텝 대화는 이 문항만 다룬다. ──
+  cover_motive: {
+    label: "자기소개서 · 지원 동기",
+    week: 3,
+    step: "스텝 1 · 지원 동기",
+    default:
+      "[이번 스텝: 지원 동기] 이번 대화는 '지원 동기' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '지원 동기' 로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 이 문항이 충분히 완성되면 done=true."
+  },
+  cover_growth: {
+    label: "자기소개서 · 성장 과정",
+    week: 3,
+    step: "스텝 2 · 성장 과정",
+    default:
+      "[이번 스텝: 성장 과정] 이번 대화는 '성장 과정' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '성장 과정' 으로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
+  },
+  cover_strength: {
+    label: "자기소개서 · 성격의 장단점·강점",
+    week: 3,
+    step: "스텝 3 · 성격의 장단점·강점",
+    default:
+      "[이번 스텝: 성격의 장단점·강점] 이번 대화는 '성격의 장단점' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '성격의 장단점' 으로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
+  },
+  cover_aspiration: {
+    label: "자기소개서 · 입사 후 포부",
+    week: 3,
+    step: "스텝 4 · 입사 후 포부",
+    default:
+      "[이번 스텝: 입사 후 포부] 이번 대화는 '입사 후 포부' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '입사 후 포부' 로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
+  },
+  cover_polish: {
+    label: "자기소개서 · 완성·다듬기",
+    week: 3,
+    step: "스텝 5 · 완성·다듬기",
+    default:
+      "[이번 스텝: 완성·다듬기] 새 문항을 만들지 마. 이미 작성한 모든 문항(items)을 그대로 두되 문장을 자연스럽게 다듬고 문항 간 톤·일관성을 맞춰 answer 를 갱신한다. 학생이 만족하면 done=true."
   }
 };
 
@@ -14392,19 +14464,8 @@ const resumeChatSchema = z.object({
   locale: z.string().max(10).optional()
 });
 
-// 이력서 섹션별 집중 대화 지시 — 해당 스텝이 그 섹션만 다루고 끝나게 한다(스텝 단위 진행·수정 용이).
-const RESUME_FOCUS: Record<string, string> = {
-  basic:
-    "[이번 스텝: 기본정보·한줄소개] 이번 대화는 이름·이메일·연락처와 나를 한 줄로 표현하는 소개(basic.summary)만 다룬다. 다른 섹션(학력·경력·스킬·어학)은 이번엔 묻지 마. 기본정보와 한줄소개가 채워지면 done=true 로 이 스텝을 마무리해.",
-  edu:
-    "[이번 스텝: 학력] 이번 대화는 학력(educations)만 다룬다. 학교·전공·학위·재학 기간을 확인해 채워. 다른 섹션은 묻지 마. 학력이 충분히 정리되면 done=true.",
-  exp:
-    "[이번 스텝: 경력·경험] 이번 대화는 경력·경험(experiences: 인턴·프로젝트·대외활동)만 다룬다. 각 경험의 직무·기관·기간·성과(bullets)를 구체적으로 끌어내. 다른 섹션은 묻지 마. 주요 경험이 충분히 정리되면 done=true.",
-  skill:
-    "[이번 스텝: 스킬] 이번 대화는 스킬(skills)만 다룬다. 직무에 쓰는 기술·툴을 정리해. 다른 섹션은 묻지 마. 스킬이 충분히 정리되면 done=true.",
-  lang:
-    "[이번 스텝: 어학] 이번 대화는 어학(languages)만 다룬다. 구사 언어와 수준(TOPIK 등 자격 포함)을 정리해. 다른 섹션은 묻지 마. 어학이 정리되면 done=true."
-};
+// 이력서 스텝 섹션 — 각 스텝의 집중 프롬프트는 CAREER_PROMPTS["resume_<section>"](편집 가능).
+const RESUME_SECTIONS = ["basic", "edu", "exp", "skill", "lang"] as const;
 
 // 반환 데이터를 정규 스키마 키로 정규화(strict 실패로 fallback 시 한국어 키 대비).
 function normalizeResumeData(raw: unknown): Record<string, unknown> {
@@ -14506,7 +14567,7 @@ app.post(
     const { messages, data, focus, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
-      const focusDirective = focus && RESUME_FOCUS[focus] ? RESUME_FOCUS[focus] + "\n\n" : "";
+      const focusDirective = focus && (RESUME_SECTIONS as readonly string[]).includes(focus) ? (await getCareerPrompt(`resume_${focus}`)) + "\n\n" : "";
       const systemPrompt =
         (await getCareerPrompt("resume")) + "\n\n" + CAREER_SCOPE + "\n\n" + focusDirective +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": {basic,educations,experiences,skills,languages}, "done": boolean }' +
@@ -14625,28 +14686,13 @@ const coverChatSchema = z.object({
   locale: z.string().max(10).optional()
 });
 
-// 자기소개서 문항별 집중 대화 — 한 스텝이 한 문항만 다루게 한다. question 라벨은 고정(병합 키).
-const COVER_FOCUS: Record<string, { label: string; directive: string }> = {
-  motive: {
-    label: "지원 동기",
-    directive: "[이번 스텝: 지원 동기] 이번 대화는 '지원 동기' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '지원 동기' 로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 이 문항이 충분히 완성되면 done=true."
-  },
-  growth: {
-    label: "성장 과정",
-    directive: "[이번 스텝: 성장 과정] 이번 대화는 '성장 과정' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '성장 과정' 으로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
-  },
-  strength: {
-    label: "성격의 장단점",
-    directive: "[이번 스텝: 성격의 장단점·강점] 이번 대화는 '성격의 장단점' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '성격의 장단점' 으로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
-  },
-  aspiration: {
-    label: "입사 후 포부",
-    directive: "[이번 스텝: 입사 후 포부] 이번 대화는 '입사 후 포부' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '입사 후 포부' 로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
-  },
-  polish: {
-    label: "완성·다듬기",
-    directive: "[이번 스텝: 완성·다듬기] 새 문항을 만들지 마. 이미 작성한 모든 문항(items)을 그대로 두되 문장을 자연스럽게 다듬고 문항 간 톤·일관성을 맞춰 answer 를 갱신한다. 학생이 만족하면 done=true."
-  }
+// 자기소개서 문항 라벨(킥오프 안내·검증용). 각 스텝의 집중 프롬프트는 CAREER_PROMPTS["cover_<section>"](편집 가능).
+const COVER_LABELS: Record<string, string> = {
+  motive: "지원 동기",
+  growth: "성장 과정",
+  strength: "성격의 장단점",
+  aspiration: "입사 후 포부",
+  polish: "완성·다듬기"
 };
 
 // 자소서 데이터 정규화 — items[{question, answer}] + company.
@@ -14699,18 +14745,18 @@ app.post(
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const savedNorm = normalizeCoverData(data);
       const hasSaved = hasCoverContent(savedNorm);
-      const focusInfo = focus ? COVER_FOCUS[focus] : undefined;
-      const focusDirective = focusInfo ? focusInfo.directive + "\n\n" : "";
+      const focusLabel = focus ? COVER_LABELS[focus] : undefined;
+      const focusDirective = focus && focusLabel ? (await getCareerPrompt(`cover_${focus}`)) + "\n\n" : "";
       const systemPrompt =
         (await getCareerPrompt("cover")) + "\n\n" + CAREER_SCOPE + "\n\n" + focusDirective +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": { "company": string|null, "items": [{ "question": string, "answer": string }] }, "done": boolean }' +
         aiLangDirective(locale);
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
-        : focusInfo
+        : focusLabel
           ? focus === "polish"
             ? "(아직 대화 없음 — 가볍게 인사하고, 이미 쓴 문항들을 어떻게 다듬을지 안내하며 시작해줘.)"
-            : `(아직 대화 없음 — 가볍게 인사하고 '${focusInfo.label}' 문항을 위한 첫 질문 하나만 바로 물어봐. 이 문항 외에는 다루지 마.)`
+            : `(아직 대화 없음 — 가볍게 인사하고 '${focusLabel}' 문항을 위한 첫 질문 하나만 바로 물어봐. 이 문항 외에는 다루지 마.)`
           : hasSaved
             ? "(이어하기 — 학생은 이미 쓴 문항을 화면에서 보고 있어. 다시 인사하거나 길게 요약하지 말고, 한 문장으로 가볍게 반긴 뒤 비어있는 다음 문항 하나만 바로 자연스럽게 물어봐.)"
             : "(아직 대화 없음 — 인사하고 지원 동기부터 물어봐)";
