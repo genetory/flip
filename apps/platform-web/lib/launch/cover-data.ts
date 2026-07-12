@@ -30,7 +30,7 @@ async function req(path: string, init: RequestInit): Promise<Record<string, unkn
   return d;
 }
 
-export type CoverSection = "motive" | "growth" | "strength" | "aspiration" | "polish";
+export type CoverSection = "motive" | "growth" | "strength" | "aspiration";
 export async function requestCoverChat(messages: CoverChatMsg[], data: CoverData, focus?: CoverSection): Promise<CoverChatResult> {
   const d = await req("/career-launch/cover-chat", {
     method: "POST",
@@ -46,7 +46,7 @@ export async function fetchCoverData(): Promise<{ data: CoverData; updatedAt: st
 }
 
 // '다시하기' — scope(motive|growth|strength|aspiration) 면 그 문항부터 이후만, 없으면 전체 초기화.
-export async function resetCoverData(scope?: Exclude<CoverSection, "polish">): Promise<void> {
+export async function resetCoverData(scope?: CoverSection): Promise<void> {
   const q = scope ? `?scope=${scope}` : "";
   await req(`/career-launch/cover-data${q}`, { method: "DELETE", headers: authHeaders() });
 }

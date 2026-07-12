@@ -13956,13 +13956,6 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
     step: "스텝 4 · 입사 후 포부",
     default:
       "[이번 스텝: 입사 후 포부] 이번 대화는 '입사 후 포부' 한 문항만 작성한다. items 에는 반드시 question 을 정확히 '입사 후 포부' 로 넣고 answer 를 채워라. 다른 문항은 만들지 마. 충분히 완성되면 done=true."
-  },
-  cover_polish: {
-    label: "자기소개서 · 완성·다듬기",
-    week: 3,
-    step: "스텝 5 · 완성·다듬기",
-    default:
-      "[이번 스텝: 완성·다듬기] 새 문항을 만들지 마. 이미 작성한 모든 문항(items)을 그대로 두되 문장을 자연스럽게 다듬고 문항 간 톤·일관성을 맞춰 answer 를 갱신한다. 학생이 만족하면 done=true."
   }
 };
 
@@ -14699,7 +14692,7 @@ const COVER_DATA_SCHEMA = {
 const coverChatSchema = z.object({
   messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(120).default([]),
   data: z.record(z.string(), z.unknown()).optional(),
-  focus: z.string().max(20).optional(), // motive|growth|strength|aspiration|polish — 이 문항만 집중
+  focus: z.string().max(20).optional(), // motive|growth|strength|aspiration — 이 문항만 집중
   locale: z.string().max(10).optional()
 });
 
@@ -14708,8 +14701,7 @@ const COVER_LABELS: Record<string, string> = {
   motive: "지원 동기",
   growth: "성장 과정",
   strength: "성격의 장단점",
-  aspiration: "입사 후 포부",
-  polish: "완성·다듬기"
+  aspiration: "입사 후 포부"
 };
 
 // 자소서 데이터 정규화 — items[{question, answer}] + company.
@@ -14771,9 +14763,7 @@ app.post(
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
         : focusLabel
-          ? focus === "polish"
-            ? "(아직 대화 없음 — 가볍게 인사하고, 이미 쓴 문항들을 어떻게 다듬을지 안내하며 시작해줘.)"
-            : `(아직 대화 없음 — 가볍게 인사하고 '${focusLabel}' 문항을 위한 첫 질문 하나만 바로 물어봐. 이 문항 외에는 다루지 마.)`
+          ? `(아직 대화 없음 — 가볍게 인사하고 '${focusLabel}' 문항을 위한 첫 질문 하나만 바로 물어봐. 이 문항 외에는 다루지 마.)`
           : hasSaved
             ? "(이어하기 — 학생은 이미 쓴 문항을 화면에서 보고 있어. 다시 인사하거나 길게 요약하지 말고, 한 문장으로 가볍게 반긴 뒤 비어있는 다음 문항 하나만 바로 자연스럽게 물어봐.)"
             : "(아직 대화 없음 — 인사하고 지원 동기부터 물어봐)";

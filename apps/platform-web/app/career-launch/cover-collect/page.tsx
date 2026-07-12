@@ -16,8 +16,7 @@ const SECTION_LABEL: Record<CoverSection, string> = {
   motive: "지원 동기",
   growth: "성장 과정",
   strength: "성격의 장단점·강점",
-  aspiration: "입사 후 포부",
-  polish: "완성·다듬기"
+  aspiration: "입사 후 포부"
 };
 
 export default function CoverCollectPage() {
@@ -37,15 +36,15 @@ export default function CoverCollectPage() {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
     setLoading(true);
-    // ?section=motive|growth|strength|aspiration|polish 이 스텝의 집중 문항(= 리셋 스코프). ?restart=1 이면 그 문항부터 초기화.
+    // ?section=motive|growth|strength|aspiration 이 스텝의 집중 문항(= 리셋 스코프). ?restart=1 이면 그 문항부터 초기화.
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
     const restart = params.get("restart") === "1";
     const sectionRaw = params.get("section");
-    const section = (["motive", "growth", "strength", "aspiration", "polish"] as const).find((s) => s === sectionRaw);
+    const section = (["motive", "growth", "strength", "aspiration"] as const).find((s) => s === sectionRaw);
     setFocus(section);
     void (async () => {
       let seed: CoverData = {};
-      if (restart && section && section !== "polish") {
+      if (restart && section) {
         try {
           await resetCoverData(section);
         } catch {

@@ -160,12 +160,6 @@ export const WEEKS: WeekPlan[] = [
         action: { label: "시작하기", href: "/career-launch/cover-collect?section=aspiration" }
       },
       {
-        id: "w3-polish",
-        title: "완성·다듬기",
-        desc: "작성한 문항을 다시 보며 문장을 다듬고 일관되게 완성해요. 운영진 피드백이 있으면 반영해요.",
-        action: { label: "시작하기", href: "/career-launch/cover-collect?section=polish" }
-      },
-      {
         id: "w3s4",
         title: "비즈니스 커뮤니케이션 예절",
         minutes: 10,

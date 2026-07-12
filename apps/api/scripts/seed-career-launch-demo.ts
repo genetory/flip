@@ -9,7 +9,7 @@ const EMAIL = "student@test.com";
 const ALL_STEPS = [
   "w1s1", "w1s2", "w1s3", "w1s4",
   "w2-basic", "w2-edu", "w2-exp", "w2-skill", "w2-lang", "w2s4",
-  "w3-motive", "w3-growth", "w3-strength", "w3-aspiration", "w3-polish", "w3s4",
+  "w3-motive", "w3-growth", "w3-strength", "w3-aspiration", "w3s4",
   "w4s1", "w4s2", "w4s3", "w4s4"
 ];
 
