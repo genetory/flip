@@ -13872,6 +13872,7 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
       "3. 경력·경험을 다룰 땐 '무엇을 했다'가 아니라 '어떤 성과를 냈다'로 이끌어. 애매하면 숫자·결과를 물어봐 bullets 를 구체화해.\n" +
       "4. [중요] 학생이 대화에서 말한 모든 구체 정보(이름·이메일·연락처·학교·전공·학위·기간·회사·역할·성과·스킬·언어·수준 등)는 reply 로만 답하지 말고 반드시 data 의 해당 필드에 즉시 기록해. 매 턴 [현재까지 데이터]에 새 정보를 합쳐 data 전체를 누적 반환해(이전 것 절대 삭제·누락 금지). 값이 없으면 null 또는 빈 배열. 학생이 직접 말하지 않은 값(특히 summary)은 지어내지 말고 null. data 의 키는 반드시 영어 스키마 키(name, email, phone, summary, school, major, degree, period, note, title, org, bullets, language, level)를 그대로 써.\n" +
       "5. [학생 프로필]·[현재까지 데이터]에 이미 채워진 값은 다시 묻지 말고 가볍게 확인만 해.\n" +
+      "5-1. [중복 금지] 같은 학교(educations)·같은 기관/경험(experiences)은 항목을 새로 만들지 말고, [현재까지 데이터]의 기존 항목을 찾아 그 항목의 비어있는 필드를 채워 넣어 하나로 유지해. 학교·전공·학위·기간이 하나씩 채워지더라도 항목을 늘리지 마. 서로 다른 학교·기관·경험일 때만 새 항목을 추가해(여러 개 가능).\n" +
       "6. 이번 스텝 섹션이 충분히 채워지면 done=true 로 마무리하고, 얕으면 done 을 서두르지 마. 진행 중이면 재인사 없이 이어가."
   },
   cover: {
@@ -14512,17 +14513,44 @@ function mergeResumeData(saved: Record<string, unknown>, incoming: Record<string
     phone: ib.phone ?? sb.phone,
     summary: ib.summary ?? sb.summary
   };
-  const unionBy = (savedArr: unknown, incomingArr: unknown, keyOf: (x: Record<string, unknown>) => string) => {
-    const s = Array.isArray(savedArr) ? (savedArr as Record<string, unknown>[]) : [];
-    const inc = Array.isArray(incomingArr) ? (incomingArr as Record<string, unknown>[]) : [];
+  // 안정적인 앵커(학교/기관/언어명) 기준으로 같은 항목이면 필드를 병합한다.
+  // 대화가 진행되며 전공·학위·기간 등이 뒤늦게 채워져도(초기엔 null) 같은 앵커면 하나로 합쳐 중복 폭증을 막는다.
+  const normKey = (v: unknown) => String(v ?? "").toLowerCase().replace(/\s+/g, "").trim();
+  const pref = (nv: unknown, pv: unknown) => (nv != null && String(nv).trim() ? nv : pv); // 새 값(non-null) 우선, 없으면 기존 유지
+  const mergeArr = (
+    savedArr: unknown,
+    incomingArr: unknown,
+    anchorOf: (x: Record<string, unknown>) => string,
+    mergeFields: (prev: Record<string, unknown>, next: Record<string, unknown>) => Record<string, unknown>
+  ) => {
+    const all = [
+      ...(Array.isArray(savedArr) ? (savedArr as Record<string, unknown>[]) : []),
+      ...(Array.isArray(incomingArr) ? (incomingArr as Record<string, unknown>[]) : [])
+    ];
     const map = new Map<string, Record<string, unknown>>();
-    for (const it of s) map.set(keyOf(it), it);
-    for (const it of inc) map.set(keyOf(it), it); // 같은 key 면 새 값(수정·보강)으로 대체
-    return Array.from(map.values()).filter((it) => keyOf(it).replace(/\|/g, "").trim().length > 0);
+    for (const it of all) {
+      const k = anchorOf(it);
+      if (!k) continue;
+      const prev = map.get(k);
+      map.set(k, prev ? mergeFields(prev, it) : { ...it });
+    }
+    return Array.from(map.values());
   };
-  const educations = unionBy(so.educations, io.educations, (e) => `${e.school ?? ""}|${e.major ?? ""}|${e.degree ?? ""}|${e.period ?? ""}`);
-  const experiences = unionBy(so.experiences, io.experiences, (x) => `${x.title ?? ""}|${x.org ?? ""}|${x.period ?? ""}`);
-  const languages = unionBy(so.languages, io.languages, (l) => `${l.language ?? ""}`);
+  const educations = mergeArr(
+    so.educations, io.educations,
+    (e) => normKey(e.school) || normKey(e.major),
+    (p, n) => ({ school: pref(n.school, p.school), major: pref(n.major, p.major), degree: pref(n.degree, p.degree), period: pref(n.period, p.period), note: pref(n.note, p.note) })
+  );
+  const experiences = mergeArr(
+    so.experiences, io.experiences,
+    (x) => normKey(x.org) || normKey(x.title),
+    (p, n) => ({ title: pref(n.title, p.title), org: pref(n.org, p.org), period: pref(n.period, p.period), bullets: Array.isArray(n.bullets) && n.bullets.length ? n.bullets : p.bullets })
+  );
+  const languages = mergeArr(
+    so.languages, io.languages,
+    (l) => normKey(l.language),
+    (p, n) => ({ language: pref(n.language, p.language), level: pref(n.level, p.level) })
+  );
   const skillSet = new Set<string>();
   const skills: string[] = [];
   for (const arr of [so.skills, io.skills]) {
