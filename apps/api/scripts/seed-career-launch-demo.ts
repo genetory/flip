@@ -76,6 +76,15 @@ async function main() {
     update: { content: coverContent }
   });
 
+  // 기수 등록 — 등록된 학생만 접근 가능하므로 데모 기수에 등록.
+  let cohort = await prisma.careerCohort.findFirst({ where: { university: "테스트대학교", name: "1기" } });
+  if (!cohort) cohort = await prisma.careerCohort.create({ data: { university: "테스트대학교", name: "1기", inviteCode: "TEST01", status: "active" } });
+  await prisma.careerEnrollment.upsert({
+    where: { cohortId_studentUserId: { cohortId: cohort.id, studentUserId: uid } },
+    create: { cohortId: cohort.id, studentUserId: uid },
+    update: {}
+  });
+
   console.log(`✓ seeded Career Launch demo data for ${EMAIL} (userId=${uid})`);
   console.log(`  - progress: diagnosis ${progressState.diagnosis.percent}%, jobs ${progressState.selectedJobs.length}, materials ${progressState.materials.length}, doneSteps ${progressState.doneSteps.length}`);
   console.log(`  - resume: ${resumeContent.experiences.length} experiences, ${resumeContent.skills.length} skills`);

@@ -14009,6 +14009,20 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
       "2. 학생이 실제로 입력한 내용만 근거로 해. 없는 사실을 지어내지 마. 부족한 부분이 있어도 다그치지 말고 '다음 한 걸음'을 제안하는 톤으로.\n" +
       "3. 3~5문장으로 간결하게, 격려하는 톤. 유학생만의 강점(다국어·문화 이해 등)이 보이면 살려줘.\n" +
       "4. feedback 필드에 피드백 본문만 담아 반환(인사말·머리말 없이 바로 피드백)."
+  },
+  // ── 완주 최종 피드백(이력서+자소서+면접 종합) ──
+  final_feedback: {
+    label: "최종 피드백 · 완주 종합",
+    week: 4,
+    step: "완주 · 이력서·자소서·면접 종합 피드백",
+    default:
+      "너는 한국 취업을 준비하는 외국인 유학생을 4주간 이끈 커리어 코치야. 학생이 프로그램을 완주했어. 완성한 [이력서]·[자기소개서]와 [모의면접 결과]를 종합해, 취업 준비 상태에 대한 따뜻하고 실질적인 '최종 피드백'을 준다.\n\n" +
+      "규칙:\n" +
+      "1. 4주의 성장과 잘 갖춘 강점을 구체적으로 짚어 격려해(이력서·자소서·면접에서 드러난 것 기준).\n" +
+      "2. 실제 지원·면접 전에 더 다듬으면 좋은 점 2~3가지를 우선순위로 제안해(무엇을 어떻게).\n" +
+      "3. 이력서·자소서·면접을 아우르는 종합 코멘트로. 학생이 실제로 입력·연습한 내용만 근거로 하고, 없는 사실은 지어내지 마.\n" +
+      "4. 유학생 고유 강점(다국어·문화 이해)이 보이면 살려 자신감을 줘. 6~9문장으로 간결하되 충분하게, 따뜻한 마무리 인사로 끝내.\n" +
+      "5. feedback 필드에 본문만 담아 반환. 소제목이 필요하면 **볼드**로 강조해도 좋아."
   }
 };
 
@@ -14022,6 +14036,23 @@ async function getCareerPrompt(key: string): Promise<string> {
     return def;
   }
 }
+
+// 학생이 어떤 기수에든 등록돼 있는지. 등록된 학생만 Career Launch 데이터에 접근 가능.
+async function isCareerEnrolled(userId: string): Promise<boolean> {
+  const e = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, select: { id: true } });
+  return Boolean(e);
+}
+
+// Career Launch 학생 데이터 엔드포인트 게이트 — 운영자는 통과(학생 화면 체험), 그 외엔 등록 필수.
+const requireCareerEnrollment: import("express").RequestHandler = async (req, res, next) => {
+  try {
+    if (req.auth?.role === MemberRole.OPERATOR) return next();
+    if (req.auth?.userId && (await isCareerEnrolled(req.auth.userId))) return next();
+    return res.status(403).json({ ok: false, code: "not_enrolled", message: "Career Launch 기수에 등록되어야 이용할 수 있어요. 운영자에게 문의해 주세요." });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+};
 
 // Career Launch AI 대화들이 공용으로 쓰는 학생 프로필 요약(전공·학교·스킬·자기소개).
 // 개인화 컨텍스트로 프롬프트에 넣는다. 실패해도 빈 문자열로 안전하게 진행.
@@ -14157,7 +14188,7 @@ const jobChatSchema = z.object({
 });
 app.post(
   "/career-launch/job-chat",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-job-chat", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = jobChatSchema.safeParse(req.body);
@@ -14243,7 +14274,7 @@ const materialChatSchema = z.object({
 });
 app.post(
   "/career-launch/material-chat",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-material-chat", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = materialChatSchema.safeParse(req.body);
@@ -14295,7 +14326,7 @@ const diagnosisChatSchema = z.object({
 });
 app.post(
   "/career-launch/diagnosis-chat",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-diagnosis-chat", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = diagnosisChatSchema.safeParse(req.body);
@@ -14397,7 +14428,7 @@ app.delete("/career-launch/feedback/:id", authenticate, requireRoles([MemberRole
 });
 
 // GET /career-launch/my-feedback — 로그인한 학생이 자신에게 온 피드백을 조회.
-app.get("/career-launch/my-feedback", authenticate, async (req, res) => {
+app.get("/career-launch/my-feedback", authenticate, requireCareerEnrollment, async (req, res) => {
   try {
     const items = await prisma.careerLaunchFeedback.findMany({
       where: { studentUserId: req.auth!.userId },
@@ -14412,7 +14443,7 @@ app.get("/career-launch/my-feedback", authenticate, async (req, res) => {
 });
 
 // POST /career-launch/my-feedback/read — 학생이 받은 피드백을 모두 읽음 처리.
-app.post("/career-launch/my-feedback/read", authenticate, async (req, res) => {
+app.post("/career-launch/my-feedback/read", authenticate, requireCareerEnrollment, async (req, res) => {
   try {
     await prisma.careerLaunchFeedback.updateMany({
       where: { studentUserId: req.auth!.userId, readAt: null },
@@ -14621,7 +14652,7 @@ function hasResumeDataContent(d: Record<string, unknown>): boolean {
 // POST /career-launch/resume-chat — 이력서 재료를 대화로 수집하고 누적 데이터를 저장.
 app.post(
   "/career-launch/resume-chat",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-resume-chat", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = resumeChatSchema.safeParse(req.body);
@@ -14675,7 +14706,7 @@ app.post(
 );
 
 // GET /career-launch/resume-data — 로그인한 학생의 누적 이력서 데이터 조회.
-app.get("/career-launch/resume-data", authenticate, async (req, res) => {
+app.get("/career-launch/resume-data", authenticate, requireCareerEnrollment, async (req, res) => {
   try {
     const row = await prisma.careerResumeData.findUnique({ where: { studentUserId: req.auth!.userId } });
     return res.json({ ok: true, data: row?.content ?? {}, updatedAt: row?.updatedAt ?? null });
@@ -14693,7 +14724,7 @@ const RESUME_RESET_SCOPES: Record<string, string[]> = {
   skill: ["skills"],
   lang: ["languages"]
 };
-app.delete("/career-launch/resume-data", authenticate, async (req, res) => {
+app.delete("/career-launch/resume-data", authenticate, requireCareerEnrollment, async (req, res) => {
   const scope = typeof req.query.scope === "string" ? req.query.scope : "";
   const keys = RESUME_RESET_SCOPES[scope];
   try {
@@ -14796,7 +14827,7 @@ function hasCoverContent(d: Record<string, unknown>): boolean {
 // POST /career-launch/cover-chat — 자소서 문항을 대화로 수집하고 누적 저장.
 app.post(
   "/career-launch/cover-chat",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-cover-chat", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = coverChatSchema.safeParse(req.body);
@@ -14849,7 +14880,7 @@ app.post(
 );
 
 // GET /career-launch/cover-data — 로그인한 학생의 누적 자소서 데이터 조회.
-app.get("/career-launch/cover-data", authenticate, async (req, res) => {
+app.get("/career-launch/cover-data", authenticate, requireCareerEnrollment, async (req, res) => {
   try {
     const row = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: req.auth!.userId } });
     return res.json({ ok: true, data: row?.content ?? {}, updatedAt: row?.updatedAt ?? null });
@@ -14862,7 +14893,7 @@ app.get("/career-launch/cover-data", authenticate, async (req, res) => {
 // 자기소개서는 문항을 순서대로 쌓으므로 스텝별 부분 초기화는 '앞쪽 N개 문항만 남기고 이후 제거'로 처리.
 // ?scope=motive|growth|strength|aspiration → 그 문항부터 이후 제거(앞쪽 문항은 유지). scope 없으면 전체 초기화.
 const COVER_RESET_KEEP: Record<string, number> = { motive: 0, growth: 1, strength: 2, aspiration: 3 };
-app.delete("/career-launch/cover-data", authenticate, async (req, res) => {
+app.delete("/career-launch/cover-data", authenticate, requireCareerEnrollment, async (req, res) => {
   const scope = typeof req.query.scope === "string" ? req.query.scope : "";
   const keep = COVER_RESET_KEEP[scope];
   try {
@@ -14886,7 +14917,7 @@ app.delete("/career-launch/cover-data", authenticate, async (req, res) => {
 
 // ── Career Launch 진행 상태(진단·직무·정리정보·완료스텝) — 계정 기준 저장, 기기 간 동기화 ──
 // GET /career-launch/progress — 저장된 진행 상태 조회.
-app.get("/career-launch/progress", authenticate, async (req, res) => {
+app.get("/career-launch/progress", authenticate, requireCareerEnrollment, async (req, res) => {
   try {
     const row = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: req.auth!.userId } });
     return res.json({ ok: true, state: row?.state ?? {} });
@@ -14897,7 +14928,7 @@ app.get("/career-launch/progress", authenticate, async (req, res) => {
 
 // PATCH /career-launch/progress — 제공된 키만 얕게 병합해 저장(부분 갱신).
 const progressPatchSchema = z.record(z.string(), z.unknown());
-app.patch("/career-launch/progress", authenticate, async (req, res) => {
+app.patch("/career-launch/progress", authenticate, requireCareerEnrollment, async (req, res) => {
   const parsed = progressPatchSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
@@ -14930,7 +14961,7 @@ const INTERVIEW_SCHEMA = {
 
 app.post(
   "/career-launch/interview-chat",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-interview-chat", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = interviewChatSchema.safeParse(req.body);
@@ -14946,7 +14977,7 @@ app.post(
         prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } })
       ]);
       const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
-      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown };
+      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown; results?: unknown };
       const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]) : [];
       const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
 
@@ -14972,8 +15003,14 @@ app.post(
       // 완료 기준: 그 라운드에서 학생이 3문항 이상 답했거나(참여) AI 가 총평으로 마무리(done)하면 완료.
       const answered = messages.filter((m) => m.role === "user").length;
       const roundDone = done || answered >= 3;
-      if (roundDone && !practiced.includes(focus)) {
-        const mergedState = { ...progState, interview: { ...interview, practiced: [...practiced, focus] } };
+      const newlyPracticed = roundDone && !practiced.includes(focus);
+      const prevResults = (interview.results && typeof interview.results === "object" ? interview.results : {}) as Record<string, string>;
+      // AI 총평(done)으로 끝나면 그 총평을 최종 피드백용으로 저장.
+      if (newlyPracticed || done) {
+        const nextInterview: Record<string, unknown> = { ...interview };
+        if (newlyPracticed) nextInterview.practiced = [...practiced, focus];
+        if (done) nextInterview.results = { ...prevResults, [focus]: reply };
+        const mergedState = { ...progState, interview: nextInterview };
         await prisma.careerLaunchProgress.upsert({
           where: { studentUserId: uid },
           create: { studentUserId: uid, state: mergedState as object },
@@ -15006,7 +15043,7 @@ function simpleHash(s: string): string {
 
 app.post(
   "/career-launch/week-feedback",
-  authenticate,
+  authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "career-week-feedback", message: "잠시 후 다시 시도해 주세요." }),
   async (req, res) => {
     const parsed = weekFeedbackSchema.safeParse(req.body);
@@ -15071,6 +15108,71 @@ app.post(
       return res.json({ ok: true, feedback });
     } catch (err) {
       console.error("[career-launch/week-feedback] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to generate feedback" });
+    }
+  }
+);
+
+// ── 완주 최종 피드백 — 이력서+자소서+면접 결과를 종합. 입력이 바뀌면 갱신(캐시) ──
+const INTERVIEW_TYPE_LABEL: Record<string, string> = { self: "자기소개 면접", job: "직무 면접", fit: "인성·컬처핏 면접" };
+app.post(
+  "/career-launch/final-feedback",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-final-feedback", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      // 이력서+자소서가 있어야 최종 피드백(완주 기준). 없으면 null.
+      if (!hasResumeDataContent(normalizeResumeData(resumeContent)) || !hasCoverContent(normalizeCoverData(coverContent))) {
+        return res.json({ ok: true, feedback: null });
+      }
+      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown; results?: unknown };
+      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
+      const results = (interview.results && typeof interview.results === "object" ? interview.results : {}) as Record<string, string>;
+
+      const input = { resume: resumeContent, cover: coverContent, interview: { practiced, results } };
+      const sig = simpleHash(JSON.stringify(input));
+      const cached = (progState.finalFeedback && typeof progState.finalFeedback === "object" ? progState.finalFeedback : {}) as { sig?: string; text?: string };
+      if (cached.sig === sig && typeof cached.text === "string" && cached.text.trim()) {
+        return res.json({ ok: true, feedback: cached.text, cached: true });
+      }
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const profileSummary = await buildCandidateProfileSummary(uid);
+      const interviewText = practiced.length
+        ? practiced.map((t) => `- ${INTERVIEW_TYPE_LABEL[t] ?? t}${results[t] ? `: ${results[t]}` : " (연습 완료)"}`).join("\n")
+        : "(아직 면접 연습 없음)";
+      const systemPrompt =
+        (await getCareerPrompt("final_feedback")) + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "feedback": string }' +
+        aiLangDirective("ko");
+      const userPrompt =
+        (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        `[이력서]\n${JSON.stringify(resumeContent)}\n\n` +
+        `[자기소개서]\n${JSON.stringify(coverContent)}\n\n` +
+        `[모의면접 결과]\n${interviewText}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "final_feedback", WEEK_FEEDBACK_SCHEMA)) as { feedback?: unknown };
+      const feedback = typeof pj.feedback === "string" ? pj.feedback.trim() : "";
+      if (!feedback) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, finalFeedback: { sig, text: feedback } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, feedback });
+    } catch (err) {
+      console.error("[career-launch/final-feedback] failed", err);
       return res.status(500).json({ ok: false, message: "failed to generate feedback" });
     }
   }
@@ -15161,6 +15263,189 @@ app.get("/career-launch/ops/students", authenticate, requireRoles([MemberRole.OP
     });
     items.sort((a, b) => String(b.updatedAt ?? "").localeCompare(String(a.updatedAt ?? "")));
     return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── Career Launch 기수(Cohort)·등록 관리 ──
+function genCareerInviteCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 헷갈리는 글자(0/O/1/I) 제외
+  let c = "";
+  for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
+  return c;
+}
+async function genUniqueInviteCode(): Promise<string> {
+  for (let i = 0; i < 8; i++) {
+    const code = genCareerInviteCode();
+    const exists = await prisma.careerCohort.findUnique({ where: { inviteCode: code }, select: { id: true } });
+    if (!exists) return code;
+  }
+  return genCareerInviteCode() + genCareerInviteCode();
+}
+
+// 운영자: 기수 목록(+등록 인원)
+app.get("/career-launch/ops/cohorts", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const rows = await prisma.careerCohort.findMany({ orderBy: { createdAt: "desc" }, include: { _count: { select: { enrollments: true } } } });
+    const items = rows.map((c) => ({ id: c.id, university: c.university, name: c.name, inviteCode: c.inviteCode, status: c.status, startsAt: c.startsAt, endsAt: c.endsAt, enrolledCount: c._count.enrollments, createdAt: c.createdAt }));
+    return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수 생성(초대코드 자동 발급)
+const cohortCreateSchema = z.object({
+  university: z.string().trim().min(1).max(120),
+  name: z.string().trim().min(1).max(80),
+  startsAt: z.string().datetime().optional(),
+  endsAt: z.string().datetime().optional()
+});
+app.post("/career-launch/ops/cohorts", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = cohortCreateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    const inviteCode = await genUniqueInviteCode();
+    const c = await prisma.careerCohort.create({
+      data: {
+        university: parsed.data.university,
+        name: parsed.data.name,
+        inviteCode,
+        startsAt: parsed.data.startsAt ? new Date(parsed.data.startsAt) : null,
+        endsAt: parsed.data.endsAt ? new Date(parsed.data.endsAt) : null
+      }
+    });
+    return res.status(201).json({ ok: true, item: c });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수 수정(대학·이름·상태·기간)
+const cohortPatchSchema = z.object({
+  university: z.string().trim().min(1).max(120).optional(),
+  name: z.string().trim().min(1).max(80).optional(),
+  status: z.enum(["active", "ended"]).optional(),
+  startsAt: z.string().datetime().nullable().optional(),
+  endsAt: z.string().datetime().nullable().optional()
+});
+app.patch("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = cohortPatchSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const id = String(req.params.id ?? "");
+  try {
+    const data: Record<string, unknown> = {};
+    if (parsed.data.university !== undefined) data.university = parsed.data.university;
+    if (parsed.data.name !== undefined) data.name = parsed.data.name;
+    if (parsed.data.status !== undefined) data.status = parsed.data.status;
+    if (parsed.data.startsAt !== undefined) data.startsAt = parsed.data.startsAt ? new Date(parsed.data.startsAt) : null;
+    if (parsed.data.endsAt !== undefined) data.endsAt = parsed.data.endsAt ? new Date(parsed.data.endsAt) : null;
+    const c = await prisma.careerCohort.update({ where: { id }, data });
+    return res.json({ ok: true, item: c });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수 삭제(등록도 함께 삭제 — onDelete Cascade)
+app.delete("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = String(req.params.id ?? "");
+  try {
+    await prisma.careerCohort.delete({ where: { id } });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수 상세(+등록 학생 목록)
+app.get("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = String(req.params.id ?? "");
+  try {
+    const c = await prisma.careerCohort.findUnique({
+      where: { id },
+      include: { enrollments: { include: { student: { select: { id: true, name: true, realName: true, email: true } } }, orderBy: { createdAt: "desc" } } }
+    });
+    if (!c) return res.status(404).json({ ok: false, message: "cohort not found" });
+    const students = c.enrollments.map((e) => ({
+      studentUserId: e.studentUserId,
+      name: e.student?.name ?? e.student?.realName ?? null,
+      email: e.student?.email ?? "",
+      enrolledAt: e.createdAt
+    }));
+    return res.json({ ok: true, item: { id: c.id, university: c.university, name: c.name, inviteCode: c.inviteCode, status: c.status, startsAt: c.startsAt, endsAt: c.endsAt, students } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수에 학생 등록(이메일)
+const cohortEnrollSchema = z.object({ email: z.string().trim().email() });
+app.post("/career-launch/ops/cohorts/:id/enroll", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = cohortEnrollSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "이메일 형식이 올바르지 않아요." });
+  const id = String(req.params.id ?? "");
+  try {
+    const cohort = await prisma.careerCohort.findUnique({ where: { id }, select: { id: true } });
+    if (!cohort) return res.status(404).json({ ok: false, message: "cohort not found" });
+    const user = await prisma.user.findFirst({ where: { email: parsed.data.email }, select: { id: true, name: true, realName: true, email: true } });
+    if (!user) return res.status(404).json({ ok: false, message: "해당 이메일의 회원을 찾을 수 없어요." });
+    await prisma.careerEnrollment.upsert({
+      where: { cohortId_studentUserId: { cohortId: id, studentUserId: user.id } },
+      create: { cohortId: id, studentUserId: user.id },
+      update: {}
+    });
+    return res.status(201).json({ ok: true, item: { studentUserId: user.id, name: user.name ?? user.realName ?? null, email: user.email } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수에서 학생 해제
+app.delete("/career-launch/ops/cohorts/:id/enroll/:studentUserId", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const sid = String(req.params.studentUserId ?? "");
+  try {
+    await prisma.careerEnrollment.deleteMany({ where: { cohortId: id, studentUserId: sid } });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 학생: 내 등록 상태(게이트 없음 — 접근 가능 여부 판단용). 운영자는 항상 enrolled.
+app.get("/career-launch/my-enrollment", authenticate, async (req, res) => {
+  try {
+    const isOperator = req.auth?.role === MemberRole.OPERATOR;
+    const rows = await prisma.careerEnrollment.findMany({
+      where: { studentUserId: req.auth!.userId },
+      include: { cohort: { select: { university: true, name: true, status: true } } },
+      orderBy: { createdAt: "desc" }
+    });
+    const cohorts = rows.map((e) => ({ university: e.cohort.university, name: e.cohort.name, status: e.cohort.status }));
+    return res.json({ ok: true, enrolled: isOperator || cohorts.length > 0, isOperator, cohorts });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 학생: 초대코드로 자가등록(게이트 없음)
+const enrollByCodeSchema = z.object({ code: z.string().trim().min(1).max(40) });
+app.post("/career-launch/enroll-by-code", authenticate, async (req, res) => {
+  const parsed = enrollByCodeSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "초대코드를 입력해 주세요." });
+  try {
+    const code = parsed.data.code.trim().toUpperCase();
+    const cohort = await prisma.careerCohort.findUnique({ where: { inviteCode: code }, select: { id: true, status: true, university: true, name: true } });
+    if (!cohort) return res.status(404).json({ ok: false, message: "유효하지 않은 초대코드예요." });
+    if (cohort.status !== "active") return res.status(400).json({ ok: false, message: "이미 종료된 기수예요. 운영자에게 문의해 주세요." });
+    await prisma.careerEnrollment.upsert({
+      where: { cohortId_studentUserId: { cohortId: cohort.id, studentUserId: req.auth!.userId } },
+      create: { cohortId: cohort.id, studentUserId: req.auth!.userId },
+      update: {}
+    });
+    return res.json({ ok: true, cohort: { university: cohort.university, name: cohort.name } });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
