@@ -11,17 +11,14 @@ import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 // Week 2 — 별도 빌더로 가지 않고 AI와 대화하며 이력서 데이터를 쌓는다. 백엔드에 자동 저장.
 type Msg = { role: "bot" | "user"; text: string };
 
-// 채워진 섹션 개수 요약(진행감).
-function filledCount(d: ResumeData): number {
-  let n = 0;
-  const b = d.basic;
-  if (b && (b.name || b.email || b.phone || b.summary)) n += 1;
-  if ((d.experiences?.length ?? 0) > 0) n += 1;
-  if ((d.educations?.length ?? 0) > 0) n += 1;
-  if ((d.skills?.length ?? 0) > 0) n += 1;
-  if ((d.languages?.length ?? 0) > 0) n += 1;
-  return n;
-}
+// 현재 채우는 섹션 표시용 라벨.
+const SECTION_LABEL: Record<ResumeSection, string> = {
+  basic: "기본정보·한줄소개",
+  edu: "학력",
+  exp: "경력·경험",
+  skill: "스킬",
+  lang: "어학"
+};
 
 export default function ResumeCollectPage() {
   const { user, isReady } = useAuthSession();
@@ -111,8 +108,6 @@ export default function ResumeCollectPage() {
     })();
   };
 
-  const filled = filledCount(data);
-
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
@@ -122,25 +117,12 @@ export default function ResumeCollectPage() {
             <Link href="/career-launch/week/2" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               ← 2주차
             </Link>
-            <div className="flex items-center gap-2.5">
-              <span className="text-[12px] font-bold text-[#0B46E8]">채운 섹션 {filled}/5</span>
-              {!done ? (
-                <button
-                  type="button"
-                  onClick={() => send("이 부분은 건너뛰고 다음으로 넘어갈게요.")}
-                  disabled={loading}
-                  className="rounded-full border border-[#D7DCE3] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8] disabled:opacity-40"
-                >
-                  넘어가기 ⏭
-                </button>
-              ) : null}
-            </div>
           </div>
           <div className="mt-3 flex items-center gap-2.5">
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
-              <p className="text-[15px] font-black text-[#0B1227]">대화로 이력서 채우기</p>
-              <p className="text-[12px] text-[#8B95A1]">AI와 대화하면 이력서 데이터가 자동으로 쌓여요 · 미리보기에서 확인해요</p>
+              <p className="text-[12px] font-bold text-[#0B46E8]">이력서{focus ? " 작성 중" : ""}</p>
+              <p className="text-[15px] font-black text-[#0B1227]">{focus ? SECTION_LABEL[focus] : "대화로 이력서 채우기"}</p>
             </div>
           </div>
 

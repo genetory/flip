@@ -11,7 +11,14 @@ import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 // Week 3 — 별도 빌더로 가지 않고 AI와 대화하며 자기소개서를 채운다. 백엔드에 자동 저장.
 type Msg = { role: "bot" | "user"; text: string };
 
-const answeredCount = (d: CoverData) => (d.items ?? []).filter((x) => (x.answer ?? "").trim().length > 0).length;
+// 현재 작성하는 문항 표시용 라벨.
+const SECTION_LABEL: Record<CoverSection, string> = {
+  motive: "지원 동기",
+  growth: "성장 과정",
+  strength: "성격의 장단점·강점",
+  aspiration: "입사 후 포부",
+  polish: "완성·다듬기"
+};
 
 export default function CoverCollectPage() {
   const { user, isReady } = useAuthSession();
@@ -110,25 +117,12 @@ export default function CoverCollectPage() {
             <Link href="/career-launch/week/3" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               ← 3주차
             </Link>
-            <div className="flex items-center gap-2.5">
-              <span className="text-[12px] font-bold text-[#0B46E8]">작성한 문항 {answeredCount(data)}개</span>
-              {!done ? (
-                <button
-                  type="button"
-                  onClick={() => send("이 문항은 건너뛰고 다음으로 넘어갈게요.")}
-                  disabled={loading}
-                  className="rounded-full border border-[#D7DCE3] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8] disabled:opacity-40"
-                >
-                  넘어가기 ⏭
-                </button>
-              ) : null}
-            </div>
           </div>
           <div className="mt-3 flex items-center gap-2.5">
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
-              <p className="text-[15px] font-black text-[#0B1227]">대화로 자기소개서 채우기</p>
-              <p className="text-[12px] text-[#8B95A1]">AI와 대화하면 자기소개서 문항이 자동으로 채워져요</p>
+              <p className="text-[12px] font-bold text-[#0B46E8]">자기소개서{focus ? " 작성 중" : ""}</p>
+              <p className="text-[15px] font-black text-[#0B1227]">{focus ? SECTION_LABEL[focus] : "대화로 자기소개서 채우기"}</p>
             </div>
           </div>
 
