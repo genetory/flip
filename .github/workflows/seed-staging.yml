@@ -65,6 +65,12 @@ jobs:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
         run: node --import tsx apps/api/scripts/seed-dev-users.ts
 
+      - name: Seed Career Launch demo (student@test.com — 4주 완주 목업)
+        if: ${{ github.event.inputs.target == 'user' || github.event.inputs.target == 'both' }}
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: node --import tsx apps/api/scripts/seed-career-launch-demo.ts
+
       - name: Run community seed
         if: ${{ github.event.inputs.target == 'community' || github.event.inputs.target == 'both' }}
         env:
