@@ -10,7 +10,7 @@ import { STEP_KIND, isStepDone } from "../../lib/launch/step-status";
 
 // 주차 페이지용 스텝 목록 — 1주차처럼 순차 잠금 + 스텝별(섹션별) 결과 표시.
 // 완료 상태는 백엔드(progress)에 저장돼 기기 간 동기화된다.
-export function WeekStepper({ steps }: { steps: Step[] }) {
+export function WeekStepper({ steps, sequential = true }: { steps: Step[]; sequential?: boolean }) {
   const [prog, setProg] = useState<CareerProgress>({});
   const [resume, setResume] = useState<ResumeData>({});
   const [cover, setCover] = useState<CoverData>({});
@@ -276,8 +276,8 @@ export function WeekStepper({ steps }: { steps: Step[] }) {
         const last = i === steps.length - 1;
         const result = Boolean(STEP_KIND[s.id]);
         const panel = stepResult(s.id);
-        // 순차 연계 — 이전 스텝을 모두 완료해야 이 스텝을 시작할 수 있다.
-        const locked = ready && !done && !steps.slice(0, i).every((p) => isDone(p.id));
+        // 순차 연계 — 이전 스텝을 모두 완료해야 이 스텝을 시작할 수 있다(sequential=false 면 잠금 없음).
+        const locked = sequential && ready && !done && !steps.slice(0, i).every((p) => isDone(p.id));
         const toggleable = !result && !locked;
         return (
           <li key={s.id} className="flex gap-4">

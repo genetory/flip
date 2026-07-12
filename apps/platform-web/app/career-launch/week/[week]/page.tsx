@@ -58,7 +58,8 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
               <SectionTitle sub="끝낸 단계는 번호를 콕 눌러 체크해요">이번 주 해야 할 일</SectionTitle>
               <WeekGate week={plan.week}>
                 <Card className="md:!p-6">
-                  <WeekStepper steps={plan.steps} />
+                  {/* 4주차는 스텝이 독립적이라 순서 잠금 없이 자유롭게 진행 */}
+                  <WeekStepper steps={plan.steps} sequential={plan.week !== 4} />
                 </Card>
               </WeekGate>
             </div>
