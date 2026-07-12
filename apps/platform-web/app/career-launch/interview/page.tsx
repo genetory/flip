@@ -142,7 +142,7 @@ export default function InterviewPage() {
             <div className="mt-3">
               {messages.length > 0 && !loading ? (
                 <div className="mb-2 flex flex-wrap gap-1.5">
-                  {["잘 모르겠어요", "다시 답해볼게요", "피드백 주세요"].map((q) => (
+                  {["모범 답변 보기", "잘 모르겠어요", "다시 답해볼게요"].map((q) => (
                     <button
                       key={q}
                       type="button"
