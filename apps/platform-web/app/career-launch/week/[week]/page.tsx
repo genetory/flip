@@ -118,10 +118,10 @@ export default async function LaunchWeekPage({ params }: { params: Promise<{ wee
             </div>
           </div>
 
-          {/* 최종 주차 CTA */}
+          {/* 최종 주차 CTA — 대시보드로 이동해 완성한 내 결과물을 확인 */}
           {plan.week === 4 ? (
-            <Link href="/career-launch/profile" className="mt-8 flex items-center justify-center rounded-xl bg-[#B7FF5A] py-3.5 text-[14px] font-bold text-[#111] transition hover:brightness-105">
-              Global Talent Profile 완성하기 →
+            <Link href="/career-launch/dashboard" className="mt-8 flex items-center justify-center rounded-xl bg-[#B7FF5A] py-3.5 text-[14px] font-bold text-[#111] transition hover:brightness-105">
+              완성한 내 결과물 보러 가기 →
             </Link>
           ) : null}
         </div>
