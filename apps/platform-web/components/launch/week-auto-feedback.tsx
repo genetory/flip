@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { fetchWeekFeedback } from "../../lib/launch/feedback-client";
 import { Card, Pill } from "./ui";
+import { RichText } from "./rich-text";
 
 // 1~3주차 자동 코치 피드백 — 그 주차 결과물을 근거로 AI가 자동 생성하고,
 // 결과물이 바뀌면 다음 방문 때 갱신된다(백엔드에서 입력 해시로 캐시).
@@ -46,7 +47,7 @@ export function WeekAutoFeedback({ week }: { week: number }) {
       {state === "loading" ? (
         <p className="mt-3 text-[13px] text-[#8B95A1]">이번 주 결과물을 살펴보고 있어요…</p>
       ) : state === "done" ? (
-        <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]">{text}</p>
+        <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]"><RichText text={text} /></p>
       ) : state === "none" ? (
         <p className="mt-3 text-[13px] leading-relaxed text-[#8B95A1]">이번 주 활동을 시작하면 코치가 자동으로 피드백을 드려요.</p>
       ) : (
