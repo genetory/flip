@@ -203,12 +203,21 @@ export default function LaunchMaterialsPage() {
 
           {/* 입력 / 완료 */}
           {done ? (
-            <Link
-              href="/career-launch/week/1"
-              className="mt-3 flex items-center justify-center rounded-xl bg-[#0B46E8] py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
-            >
-              1주차 페이지로 →
-            </Link>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setDone(false)}
+                className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
+              >
+                계속 정리하기
+              </button>
+              <Link
+                href="/career-launch/week/1"
+                className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+              >
+                1주차 페이지로 →
+              </Link>
+            </div>
           ) : (
             <div className="mt-3">
               {/* 할 말이 없어 막힐 때를 위한 빠른 응답 — 대화가 끊기지 않게 */}

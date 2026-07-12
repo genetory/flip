@@ -173,12 +173,21 @@ export default function ResumeCollectPage() {
           </div>
 
           {done ? (
-            <Link
-              href="/career-launch/week/2"
-              className="mt-3 flex items-center justify-center rounded-xl bg-[#0B46E8] py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
-            >
-              2주차 페이지로 →
-            </Link>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setDone(false)}
+                className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
+              >
+                계속 작성하기
+              </button>
+              <Link
+                href="/career-launch/week/2"
+                className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+              >
+                2주차 페이지로 →
+              </Link>
+            </div>
           ) : (
             <div className="mt-3">
               {messages.length > 0 && !loading ? (
