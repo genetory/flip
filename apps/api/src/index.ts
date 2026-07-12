@@ -14969,8 +14969,10 @@ app.post(
       const done = pj.done === true;
       if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
 
-      // 이 유형 면접을 마쳤으면 practiced 에 누적(새로 완료된 경우에만 저장).
-      if (done && !practiced.includes(focus)) {
+      // 완료 기준: 그 라운드에서 학생이 3문항 이상 답했거나(참여) AI 가 총평으로 마무리(done)하면 완료.
+      const answered = messages.filter((m) => m.role === "user").length;
+      const roundDone = done || answered >= 3;
+      if (roundDone && !practiced.includes(focus)) {
         const mergedState = { ...progState, interview: { ...interview, practiced: [...practiced, focus] } };
         await prisma.careerLaunchProgress.upsert({
           where: { studentUserId: uid },
