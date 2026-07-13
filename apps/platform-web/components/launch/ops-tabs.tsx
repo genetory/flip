@@ -11,6 +11,7 @@ export function OpsTabs() {
   const TABS = [
     { href: "/career-launch/ops/cohorts", label: t("기수 관리", "Cohorts", "期次管理", "Quản lý khóa", "期の管理", "Manajemen angkatan") },
     { href: "/career-launch/ops/students", label: t("학생 관리", "Students", "学生管理", "Quản lý sinh viên", "学生管理", "Manajemen siswa") },
+    { href: "/career-launch/ops/submissions", label: t("피드백", "Feedback", "反馈", "Phản hồi", "フィードバック", "Umpan balik") },
     { href: "/career-launch/ops/prompts", label: t("프롬프트", "Prompts", "提示词", "Prompt", "プロンプト", "Prompt") },
     { href: "/career-launch/ops/report", label: t("리포트", "Report", "报告", "Báo cáo", "レポート", "Laporan") }
   ];
