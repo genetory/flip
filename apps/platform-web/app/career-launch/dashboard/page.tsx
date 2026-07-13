@@ -85,7 +85,7 @@ export default function LaunchDashboardPage() {
           ) : null}
           {/* 인사 + 전체 진행률 (완주 시 축하 히어로로 전환) */}
           {overall === 100 ? (
-            <Card className="border-[#B7FF5A] bg-[#F6FFE9] md:!p-7">
+            <Card className="!border-[#A6EF3F] !bg-[#B7FF5A] md:!p-7">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[12.5px] font-bold text-[#3A6B00]">🎉 4주 프로그램 완주</p>
@@ -127,9 +127,10 @@ export default function LaunchDashboardPage() {
             </Card>
           )}
 
-          {/* 완주 시 — 이력서·자소서·면접 종합 최종 피드백 */}
+          {/* 완주 시 — 이력서·자소서·면접 종합 최종 피드백(프로그램 소개처럼 섹션) */}
           {overall === 100 ? (
-            <div className="mt-4">
+            <div className="mt-7">
+              <SectionTitle sub="이력서·자기소개서·면접을 종합한 코치 피드백">최종 피드백</SectionTitle>
               <FinalFeedbackCard />
             </div>
           ) : null}
@@ -300,7 +301,7 @@ function DocPreview({
         <p className="text-[13.5px] font-bold text-[#191F28]">{title}</p>
         {ready ? (
           <Link href={previewHref} target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-[#0B46E8] transition hover:underline">
-            크게보기 ↗
+            열기 · PDF ↗
           </Link>
         ) : null}
       </div>

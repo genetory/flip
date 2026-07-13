@@ -25,15 +25,29 @@ const PAGE_CONTENT_H_PX = A4_H_PX - PAGE_PAD_PX * 2;
 
 // 자소서 PDF 미리보기 — 이력서 PDF 화면(ResumeBuilderPreviewPage)과 동일한 구조.
 // A4 시트를 가용 폭에 맞춰 축소하고, 인쇄 시엔 원본 크기로 출력(브라우저 PDF 저장).
-export function CoverLetterPreviewPage({ coverLetterId }: { coverLetterId: string }) {
+export function CoverLetterPreviewPage({
+  coverLetterId,
+  preloadedItems,
+  preloadedCompany,
+  preloadedTitle,
+  embedded,
+  onPdf
+}: {
+  coverLetterId?: string;
+  preloadedItems?: ResumeCoverLetterItem[];
+  preloadedCompany?: string;
+  preloadedTitle?: string;
+  embedded?: boolean;
+  onPdf?: () => void; // PDF 다운로드 시 외부 트래킹 훅(선택)
+}) {
   const router = useRouter();
   const toast = useToast();
   const t = useEditorCopy();
   const pv = useBuilderPreviewCopy();
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<ResumeCoverLetterItem[]>([]);
-  const [name, setName] = useState("");
-  const [company, setCompany] = useState("");
+  const [loading, setLoading] = useState(!preloadedItems);
+  const [items, setItems] = useState<ResumeCoverLetterItem[]>(preloadedItems ?? []);
+  const [name, setName] = useState(preloadedTitle ?? "");
+  const [company, setCompany] = useState(preloadedCompany ?? "");
 
   // fit-to-width 스케일 + 블록 경계 페이지 분할(이력서 PDF 화면과 동일).
   const outerRef = useRef<HTMLDivElement>(null);
@@ -63,6 +77,10 @@ export function CoverLetterPreviewPage({ coverLetterId }: { coverLetterId: strin
   }, [items, loading]);
 
   useEffect(() => {
+    if (preloadedItems || !coverLetterId) {
+      setLoading(false);
+      return;
+    }
     let alive = true;
     void (async () => {
       try {
@@ -93,6 +111,7 @@ export function CoverLetterPreviewPage({ coverLetterId }: { coverLetterId: strin
     document.title = fileName;
     try {
       window.print();
+      onPdf?.();
     } catch {
       toast.error(pv.pdfFailed);
     } finally {
@@ -102,8 +121,13 @@ export function CoverLetterPreviewPage({ coverLetterId }: { coverLetterId: strin
     }
   }
 
+  // embedded(운영콘솔·Career Launch)에선 resume-maker GNB 셸 대신 단순 셸을 쓴다.
+  const Shell = embedded
+    ? ({ children }: { children: React.ReactNode }) => <div className="flex min-h-screen flex-col bg-background">{children}</div>
+    : ResumeMakerShell;
+
   return (
-    <ResumeMakerShell>
+    <Shell>
       {/* 인쇄 스타일 — 이력서 PDF 와 동일. @page margin 0(브라우저 머리글/바닥글 제거),
           페이지 상하 여백·분할은 아래 rm-print-page(각 A4 한 장)가 직접 담당. */}
       <style>{`
@@ -119,16 +143,21 @@ export function CoverLetterPreviewPage({ coverLetterId }: { coverLetterId: strin
         }
       `}</style>
 
-      {/* GNB 아래 서브 네비게이션 — 편집으로 돌아가기 + PDF */}
-      <div className="rm-print-hide bg-background/95 backdrop-blur lg:sticky lg:top-14 lg:z-30">
+      {/* GNB 아래 서브 네비게이션 — 편집으로 돌아가기 + PDF (embedded 는 GNB 가 없어 top-0) */}
+      <div className={`rm-print-hide bg-background/95 backdrop-blur lg:sticky lg:z-30 ${embedded ? "border-b border-[#F2F4F6] lg:top-0" : "lg:top-14"}`}>
         <div className="container flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-1 text-[13px] font-semibold text-muted-foreground transition hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" weight="bold" aria-hidden /> {pv.back}
-          </button>
+          {embedded ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/img_logo.webp" alt="Aply" className="h-6 w-auto" />
+          ) : (
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-1 text-[13px] font-semibold text-muted-foreground transition hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" weight="bold" aria-hidden /> {pv.back}
+            </button>
+          )}
           {!loading ? (
             <Button variant="hero" size="sm" onClick={downloadPdf}>
               <DownloadSimple weight="bold" /> PDF
@@ -199,6 +228,6 @@ export function CoverLetterPreviewPage({ coverLetterId }: { coverLetterId: strin
           </div>
         </>
       )}
-    </ResumeMakerShell>
+    </Shell>
   );
 }

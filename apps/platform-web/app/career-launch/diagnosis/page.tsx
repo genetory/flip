@@ -6,6 +6,7 @@ import { RichText } from "../../../components/launch/rich-text";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestDiagnosisChat, type DiagnosisResult, type JobChatMsg } from "../../../lib/launch/job-chat-client";
 import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
+import { trackCareerStepComplete } from "../../../lib/analytics";
 import { Card } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
@@ -86,6 +87,7 @@ export default function LaunchDiagnosisPage() {
         setMessages((m) => [...m, { role: "bot", text: reply }]);
         if (done && r) {
           setResult(r);
+          trackCareerStepComplete("diagnosis");
           try {
             await patchProgress({ diagnosis: { percent: r.percent, level: r.level, strengths: r.strengths, improvements: r.improvements } });
           } catch {

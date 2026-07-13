@@ -33,11 +33,13 @@ const PAGE_CONTENT_H_PX = A4_H_PX - PAGE_PAD_PX * 2;
 export function ResumeBuilderPreviewPage({
   resumeId,
   preloadedContent,
-  embedded
+  embedded,
+  onPdf
 }: {
   resumeId: string;
   preloadedContent?: ResumeContent | null;
   embedded?: boolean;
+  onPdf?: () => void; // PDF 다운로드 시 외부 트래킹 훅(선택)
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -150,6 +152,7 @@ export function ResumeBuilderPreviewPage({
       window.print();
       trackResumePdfDownloaded(design.templateId);
       trackResumeBuilderCompleted();
+      onPdf?.();
     } catch {
       toast.error(t.pdfFailed);
     } finally {

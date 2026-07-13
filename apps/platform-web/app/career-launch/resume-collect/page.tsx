@@ -8,6 +8,7 @@ import { requestResumeChat, fetchResumeData, resetResumeData, hasResumeContent, 
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
+import { trackCareerStepComplete } from "../../../lib/analytics";
 
 // Week 2 — 별도 빌더로 가지 않고 AI와 대화하며 이력서 데이터를 쌓는다. 백엔드에 자동 저장.
 type Msg = { role: "bot" | "user"; text: string };
@@ -100,7 +101,10 @@ export default function ResumeCollectPage() {
         const { reply, data: merged, done: isDone } = await requestResumeChat(history, data, focus);
         setData(merged);
         setMessages((m) => [...m, { role: "bot", text: reply }]);
-        if (isDone) setDone(true);
+        if (isDone) {
+          trackCareerStepComplete("resume");
+          setDone(true);
+        }
       } catch {
         setMessages((m) => [...m, { role: "bot", text: "잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?" }]);
       } finally {

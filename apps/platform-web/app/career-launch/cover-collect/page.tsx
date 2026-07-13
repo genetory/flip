@@ -8,6 +8,7 @@ import { requestCoverChat, fetchCoverData, resetCoverData, hasCoverContent, type
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
+import { trackCareerStepComplete } from "../../../lib/analytics";
 
 // Week 3 — 별도 빌더로 가지 않고 AI와 대화하며 자기소개서를 채운다. 백엔드에 자동 저장.
 type Msg = { role: "bot" | "user"; text: string };
@@ -99,7 +100,10 @@ export default function CoverCollectPage() {
         const { reply, data: merged, done: isDone } = await requestCoverChat(history, data, focus);
         setData(merged);
         setMessages((m) => [...m, { role: "bot", text: reply }]);
-        if (isDone) setDone(true);
+        if (isDone) {
+          trackCareerStepComplete("cover");
+          setDone(true);
+        }
       } catch {
         setMessages((m) => [...m, { role: "bot", text: "잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?" }]);
       } finally {

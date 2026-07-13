@@ -6,6 +6,7 @@ import { RichText } from "../../../components/launch/rich-text";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestMaterialChat, type JobChatMsg } from "../../../lib/launch/job-chat-client";
 import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
+import { trackCareerStepComplete } from "../../../lib/analytics";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -109,6 +110,7 @@ export default function LaunchMaterialsPage() {
         setMessages((m) => [...m, { role: "bot", text: reply }]);
         if (isDone) {
           saveMaterials(merged);
+          trackCareerStepComplete("materials");
           setDone(true);
         }
       } catch {
@@ -121,6 +123,7 @@ export default function LaunchMaterialsPage() {
 
   const finishNow = () => {
     saveMaterials(materials);
+    trackCareerStepComplete("materials");
     setDone(true);
     setMessages((m) => [...m, { role: "bot", text: `좋아요! 지금까지 정리한 직무 정보 ${materials.length}개를 저장했어요. 다음 주엔 이 방향으로 이력서를 만들어봐요 🙌` }]);
   };
