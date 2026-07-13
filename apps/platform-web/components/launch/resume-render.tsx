@@ -21,7 +21,7 @@ function splitPeriod(p?: string | null): { start?: string; end?: string } {
   return { start: parts[0], end: parts[0] };
 }
 
-function toResumeContent(data: ResumeData): ResumeContent {
+export function toResumeContent(data: ResumeData): ResumeContent {
   const b = data.basic ?? {};
   return {
     basicName: b.name ?? null,
