@@ -36,7 +36,7 @@ export function CoverRender({ data, maxWidth }: { data: CoverData; maxWidth?: nu
   });
 
   return (
-    <div className="min-w-0 overflow-hidden" style={maxWidth ? { maxWidth } : undefined}>
+    <div className="min-w-0 overflow-hidden [&_*]:!shadow-none" style={maxWidth ? { maxWidth } : undefined}>
       <div ref={wrapRef} className="w-full" style={{ height: A4_H * scale * pages + (pages - 1) * 8 * scale }}>
         <div style={{ position: "relative", width: A4_W, transform: `scale(${scale})`, transformOrigin: "top left" }}>
           <CoverLetterSheet innerRef={sheetRef} items={items} title="자기소개서" companyName={data.company ?? undefined} emptyLabel="아직 작성한 문항이 없어요." />

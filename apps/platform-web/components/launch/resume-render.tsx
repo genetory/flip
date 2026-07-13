@@ -59,7 +59,7 @@ export function ResumeRender({ data, maxWidth }: { data: ResumeData; maxWidth?: 
   // min-w-0 + overflow-hidden: A4(794px) 콘텐츠가 flex/grid 아이템의 min-width 를
   // 밀어올려 컬럼을 넓히지 않도록 — 항상 컨테이너(컬럼) 폭에 맞춰 스케일된다.
   return (
-    <div className="min-w-0 overflow-hidden" style={maxWidth ? { maxWidth } : undefined}>
+    <div className="min-w-0 overflow-hidden [&_*]:!shadow-none" style={maxWidth ? { maxWidth } : undefined}>
       <ResumePreview content={toResumeContent(data)} design={DEFAULT_DESIGN} />
     </div>
   );
