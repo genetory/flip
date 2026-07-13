@@ -35,8 +35,13 @@ export default function ResumePreviewPage() {
   }, [isReady]);
 
   // 완성본이 있으면 resume-maker 미리보기/PDF 화면(embedded)으로 렌더.
+  // [&_*]:!shadow-none — A4 페이지 카드 그림자(하단 실선처럼 보임) 제거.
   if (state === "ready" && content) {
-    return <ResumeBuilderPreviewPage resumeId="" embedded preloadedContent={content} onPdf={() => trackCareerPdfDownload("resume")} />;
+    return (
+      <div className="[&_*]:!shadow-none">
+        <ResumeBuilderPreviewPage resumeId="" embedded preloadedContent={content} onPdf={() => trackCareerPdfDownload("resume")} />
+      </div>
+    );
   }
 
   // 로딩·빈 상태 — 사이트 셸로 안내.

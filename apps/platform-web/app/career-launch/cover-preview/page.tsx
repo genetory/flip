@@ -39,8 +39,13 @@ export default function CoverPreviewPage() {
   }, [isReady]);
 
   // 완성본이 있으면 resume-maker 자소서 미리보기/PDF 화면(embedded)으로 렌더.
+  // [&_*]:!shadow-none — A4 페이지 카드 그림자(하단 실선처럼 보임) 제거.
   if (state === "ready" && items) {
-    return <CoverLetterPreviewPage embedded preloadedItems={items} preloadedCompany={company} onPdf={() => trackCareerPdfDownload("cover")} />;
+    return (
+      <div className="[&_*]:!shadow-none">
+        <CoverLetterPreviewPage embedded preloadedItems={items} preloadedCompany={company} onPdf={() => trackCareerPdfDownload("cover")} />
+      </div>
+    );
   }
 
   // 로딩·빈 상태 — 사이트 셸로 안내.
