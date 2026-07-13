@@ -3,14 +3,17 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { fetchOpsStudentDetail, type OpsStudentDetail } from "../../../../../lib/launch/ops-client";
+import { fetchOpsStudentDetail, resetStudentStep, type OpsStudentDetail, type OpsResetTarget } from "../../../../../lib/launch/ops-client";
 import { hasResumeContent } from "../../../../../lib/launch/resume-data";
 import { hasCoverContent } from "../../../../../lib/launch/cover-data";
 import { RECOMMENDED_JOBS } from "../../../../../lib/launch/data";
 import { ResumeRender } from "../../../../../components/launch/resume-render";
 import { CoverRender } from "../../../../../components/launch/cover-render";
 import { OperatorResumeFeedback } from "../../../../../components/launch/operator-resume-feedback";
+import { RichText } from "../../../../../components/launch/rich-text";
 import { Card, LaunchContainer, Pill, SectionTitle } from "../../../../../components/launch/ui";
+
+const INTERVIEW_LABEL: Record<string, string> = { self: "자기소개 면접", job: "직무 면접", fit: "인성·컬처핏 면접" };
 
 // 운영자 학생 상세 — 진행 상태 + 대화로 만든 이력서 + 피드백 작성.
 export default function LaunchOpsStudentDetailPage() {
@@ -19,29 +22,45 @@ export default function LaunchOpsStudentDetailPage() {
   const [detail, setDetail] = useState<OpsStudentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [resetting, setResetting] = useState("");
+
+  const load = async () => {
+    try {
+      const d = await fetchOpsStudentDetail(id);
+      setDetail(d);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "불러오지 못했어요.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
-    let alive = true;
-    void (async () => {
-      try {
-        const d = await fetchOpsStudentDetail(id);
-        if (alive) setDetail(d);
-      } catch (e) {
-        if (alive) setError(e instanceof Error ? e.message : "불러오지 못했어요.");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const doReset = async (target: OpsResetTarget, label: string) => {
+    if (resetting) return;
+    if (!confirm(`이 학생의 '${label}'을(를) 초기화할까요? 되돌릴 수 없어요.`)) return;
+    setResetting(target);
+    try {
+      await resetStudentStep(id, target);
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "초기화에 실패했어요.");
+    } finally {
+      setResetting("");
+    }
+  };
 
   const diag = detail?.state.diagnosis ?? null;
   const jobs = detail?.state.selectedJobs ?? [];
   const materials = detail?.state.materials ?? [];
   const doneSteps = detail?.state.doneSteps ?? [];
+  const interviewPracticed = detail?.state.interview?.practiced ?? [];
+  const finalFeedbackText = detail?.state.finalFeedback?.text ?? "";
   const name = detail?.user.name?.trim() || detail?.user.realName?.trim() || detail?.user.email || "학생";
 
   return (
@@ -68,6 +87,11 @@ export default function LaunchOpsStudentDetailPage() {
                   {detail.user.email}
                   {detail.user.phoneNumber ? ` · ${detail.user.phoneNumber}` : ""}
                 </p>
+                {detail.cohort ? (
+                  <p className="mt-0.5 truncate text-[12px] font-semibold text-[#0B46E8]">🎓 {detail.cohort.university} · {detail.cohort.name}</p>
+                ) : (
+                  <p className="mt-0.5 text-[12px] font-semibold text-[#C9CDD2]">기수 미등록</p>
+                )}
               </div>
             </div>
 
@@ -177,6 +201,57 @@ export default function LaunchOpsStudentDetailPage() {
               ) : (
                 <Card className="!p-4 text-[13px] text-[#8B95A1]">아직 자기소개서를 만들지 않았어요.</Card>
               )}
+            </div>
+
+            {/* 모의면접 */}
+            <div className="mt-6">
+              <SectionTitle>모의면접 {interviewPracticed.length > 0 ? `(${interviewPracticed.length}/3)` : ""}</SectionTitle>
+              <Card className="!p-4">
+                <div className="flex flex-wrap gap-1.5">
+                  {(["self", "job", "fit"] as const).map((tp) => (
+                    <Pill key={tp} tone={interviewPracticed.includes(tp) ? "green" : "grey"}>{INTERVIEW_LABEL[tp]}</Pill>
+                  ))}
+                </div>
+                {interviewPracticed.length === 0 ? <p className="mt-2 text-[12.5px] text-[#8B95A1]">아직 모의면접을 연습하지 않았어요.</p> : null}
+              </Card>
+            </div>
+
+            {/* 최종 피드백 */}
+            {finalFeedbackText ? (
+              <div className="mt-6">
+                <SectionTitle>최종 피드백</SectionTitle>
+                <Card className="!p-4">
+                  <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-[#333D4B]"><RichText text={finalFeedbackText} /></p>
+                </Card>
+              </div>
+            ) : null}
+
+            {/* 운영자 개입 — 단계 초기화(재진행 유도) */}
+            <div className="mt-6">
+              <SectionTitle sub="학생이 다시 진행하도록 해당 단계 데이터를 초기화해요">운영자 개입</SectionTitle>
+              <Card className="!p-4">
+                <div className="flex flex-wrap gap-1.5">
+                  {([
+                    { t: "diagnosis", l: "진단" },
+                    { t: "jobs", l: "선정 직무" },
+                    { t: "materials", l: "직무 정리" },
+                    { t: "resume", l: "이력서" },
+                    { t: "cover", l: "자기소개서" },
+                    { t: "interview", l: "모의면접" },
+                    { t: "final_feedback", l: "최종 피드백" }
+                  ] as const).map((r) => (
+                    <button
+                      key={r.t}
+                      type="button"
+                      disabled={resetting !== ""}
+                      onClick={() => doReset(r.t, r.l)}
+                      className="rounded-lg border border-[#E5484D]/25 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-[#E5484D] transition hover:bg-[#FFF1F1] disabled:opacity-40"
+                    >
+                      {resetting === r.t ? "초기화 중…" : `${r.l} 초기화`}
+                    </button>
+                  ))}
+                </div>
+              </Card>
             </div>
 
               </div>

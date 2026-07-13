@@ -15491,22 +15491,51 @@ app.get("/career-launch/ops/students/:id", authenticate, requireRoles([MemberRol
   const id = typeof req.params.id === "string" ? req.params.id : "";
   if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
   try {
-    const [user, progress, resume, cover] = await Promise.all([
+    const [user, progress, resume, cover, enrollment] = await Promise.all([
       prisma.user.findUnique({ where: { id }, select: { id: true, name: true, realName: true, email: true, phoneNumber: true } }),
       prisma.careerLaunchProgress.findUnique({ where: { studentUserId: id } }),
       prisma.careerResumeData.findUnique({ where: { studentUserId: id } }),
-      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: id } })
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: id } }),
+      prisma.careerEnrollment.findFirst({ where: { studentUserId: id }, include: { cohort: { select: { id: true, university: true, name: true } } }, orderBy: { createdAt: "asc" } })
     ]);
     if (!user) return res.status(404).json({ ok: false, message: "student not found" });
     return res.json({
       ok: true,
       user,
+      cohort: enrollment?.cohort ?? null,
       state: progress?.state ?? {},
       resume: resume?.content ?? {},
       resumeUpdatedAt: resume?.updatedAt ?? null,
       cover: cover?.content ?? {},
       coverUpdatedAt: cover?.updatedAt ?? null
     });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자 개입: 학생의 특정 단계 데이터를 초기화(재진행 유도).
+// target: diagnosis|jobs|materials|interview|final_feedback|resume|cover
+const opsResetSchema = z.object({ target: z.enum(["diagnosis", "jobs", "materials", "interview", "final_feedback", "resume", "cover"]) });
+app.post("/career-launch/ops/students/:id/reset", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id : "";
+  const parsed = opsResetSchema.safeParse(req.body);
+  if (!id || !parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const target = parsed.data.target;
+  try {
+    if (target === "resume") {
+      await prisma.careerResumeData.upsert({ where: { studentUserId: id }, create: { studentUserId: id, content: {} }, update: { content: {} } });
+    } else if (target === "cover") {
+      await prisma.careerCoverLetterData.upsert({ where: { studentUserId: id }, create: { studentUserId: id, content: {} }, update: { content: {} } });
+    } else {
+      // progress.state 안의 키 초기화(진단·직무·정리·면접·최종피드백).
+      const row = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: id } });
+      const prev = (row?.state && typeof row.state === "object" ? { ...(row.state as Record<string, unknown>) } : {}) as Record<string, unknown>;
+      const keyByTarget: Record<string, string> = { diagnosis: "diagnosis", jobs: "selectedJobs", materials: "materials", interview: "interview", final_feedback: "finalFeedback" };
+      delete prev[keyByTarget[target]];
+      await prisma.careerLaunchProgress.upsert({ where: { studentUserId: id }, create: { studentUserId: id, state: prev as object }, update: { state: prev as object } });
+    }
+    return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }

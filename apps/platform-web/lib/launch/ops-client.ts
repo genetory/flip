@@ -64,12 +64,15 @@ export type OpsStudent = {
 
 export type OpsStudentDetail = {
   user: { id: string; name: string | null; realName: string | null; email: string; phoneNumber: string | null };
+  cohort: OpsStudentCohort | null;
   state: CareerProgress;
   resume: ResumeData;
   resumeUpdatedAt: string | null;
   cover: CoverData;
   coverUpdatedAt: string | null;
 };
+
+export type OpsResetTarget = "diagnosis" | "jobs" | "materials" | "interview" | "final_feedback" | "resume" | "cover";
 
 export async function fetchOpsStudents(): Promise<OpsStudent[]> {
   const d = await req("/career-launch/ops/students", { headers: authHeaders() });
@@ -80,10 +83,16 @@ export async function fetchOpsStudentDetail(id: string): Promise<OpsStudentDetai
   const d = await req(`/career-launch/ops/students/${encodeURIComponent(id)}`, { headers: authHeaders() });
   return {
     user: d.user as OpsStudentDetail["user"],
+    cohort: (d.cohort as OpsStudentCohort | null) ?? null,
     state: (d.state as CareerProgress) ?? {},
     resume: (d.resume as ResumeData) ?? {},
     resumeUpdatedAt: (d.resumeUpdatedAt as string) ?? null,
     cover: (d.cover as CoverData) ?? {},
     coverUpdatedAt: (d.coverUpdatedAt as string) ?? null
   };
+}
+
+// 운영자 개입 — 학생의 특정 단계 데이터 초기화.
+export async function resetStudentStep(id: string, target: OpsResetTarget): Promise<void> {
+  await req(`/career-launch/ops/students/${encodeURIComponent(id)}/reset`, { method: "POST", headers: authHeaders(true), body: JSON.stringify({ target }) });
 }
