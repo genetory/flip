@@ -290,6 +290,28 @@ export function PositionsPage() {
   const [isCipModalOpen, setIsCipModalOpen] = useState(false);
   const [loginPromptMessage, setLoginPromptMessage] = useState("");
   const [myPartnerOrganizationId, setMyPartnerOrganizationId] = useState<string | null>(null);
+
+  // '오직 Aply에서만' 등 소스 필터를 세션에 저장해, 상세로 갔다가 뒤로 와도 선택이 유지되게 한다.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("aply_positions_sources");
+      const parsed = raw ? (JSON.parse(raw) as unknown) : null;
+      if (Array.isArray(parsed)) {
+        const valid = parsed.filter((v): v is PositionSourceFilter => v === "INTERNAL" || v === "BUDDIES" || v === "WANTED");
+        if (valid.length) setPositionSources(valid);
+      }
+    } catch {
+      // 무시
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("aply_positions_sources", JSON.stringify(positionSources));
+    } catch {
+      // 무시
+    }
+  }, [positionSources]);
+
   const isKo = locale === "ko";
   const isZh = locale === "zh-CN";
   const isVi = locale === "vi";
