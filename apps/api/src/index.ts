@@ -15238,40 +15238,64 @@ app.delete("/career-launch/ops/prompts/:key", authenticate, requireRoles([Member
 
 // ── Career Launch 운영자(어드민) — 학생 진행 현황 ──
 // GET /career-launch/ops/students — Career Launch 를 이용한(진행/이력서 데이터가 있는) 학생 목록 + 요약.
-app.get("/career-launch/ops/students", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+app.get("/career-launch/ops/students", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const cohortFilter = typeof req.query.cohortId === "string" ? req.query.cohortId : "";
   try {
-    const [progressRows, resumeRows] = await Promise.all([
+    const [enrollRows, progressRows, resumeRows, coverRows] = await Promise.all([
+      prisma.careerEnrollment.findMany({
+        include: { cohort: { select: { id: true, university: true, name: true } }, student: { select: { id: true, name: true, realName: true, email: true } } },
+        orderBy: { createdAt: "asc" }
+      }),
       prisma.careerLaunchProgress.findMany({ include: { student: { select: { id: true, name: true, realName: true, email: true } } } }),
-      prisma.careerResumeData.findMany({ select: { studentUserId: true, content: true, updatedAt: true } })
+      prisma.careerResumeData.findMany({ select: { studentUserId: true, content: true, updatedAt: true } }),
+      prisma.careerCoverLetterData.findMany({ select: { studentUserId: true, content: true, updatedAt: true } })
     ]);
-    const resumeMap = new Map(resumeRows.map((r) => [r.studentUserId, r] as const));
+
+    // 학생 → 소속 기수(첫 등록 기준).
+    const cohortByUser = new Map<string, { id: string; university: string; name: string }>();
+    for (const e of enrollRows) if (e.student && !cohortByUser.has(e.studentUserId)) cohortByUser.set(e.studentUserId, e.cohort);
+
+    // 대상 학생 = 등록 학생 + 데이터(progress/resume/cover)가 있는 학생.
     const byUser = new Map<string, { id: string; name: string | null; realName: string | null; email: string }>();
+    for (const e of enrollRows) if (e.student) byUser.set(e.student.id, e.student);
     for (const p of progressRows) if (p.student) byUser.set(p.student.id, p.student);
-    // 이력서만 있고 progress 는 없는 학생도 포함.
-    const missing = resumeRows.map((r) => r.studentUserId).filter((id) => !byUser.has(id));
+    const dataIds = [...new Set([...resumeRows.map((r) => r.studentUserId), ...coverRows.map((c) => c.studentUserId)])];
+    const missing = dataIds.filter((id) => !byUser.has(id));
     if (missing.length) {
       const users = await prisma.user.findMany({ where: { id: { in: missing } }, select: { id: true, name: true, realName: true, email: true } });
       for (const u of users) byUser.set(u.id, u);
     }
+
     const progMap = new Map(progressRows.map((p) => [p.studentUserId, p] as const));
-    const items = Array.from(byUser.values()).map((u) => {
+    const resumeMap = new Map(resumeRows.map((r) => [r.studentUserId, r] as const));
+    const coverMap = new Map(coverRows.map((c) => [c.studentUserId, c] as const));
+    const arrLen = (v: unknown) => (Array.isArray(v) ? v.length : 0);
+
+    let items = Array.from(byUser.values()).map((u) => {
       const st = (progMap.get(u.id)?.state ?? {}) as Record<string, unknown>;
       const diag = (st.diagnosis ?? null) as { percent?: number } | null;
+      const interview = (st.interview && typeof st.interview === "object" ? st.interview : {}) as { practiced?: unknown };
       const resume = resumeMap.get(u.id);
       const rc = (resume?.content ?? {}) as Record<string, unknown>;
-      const arrLen = (v: unknown) => (Array.isArray(v) ? v.length : 0);
+      const cover = coverMap.get(u.id);
+      const cc = (cover?.content ?? {}) as Record<string, unknown>;
+      const coverItems = Array.isArray(cc.items) ? (cc.items as { answer?: string }[]).filter((x) => (x.answer ?? "").trim()) : [];
       return {
         userId: u.id,
         name: u.name ?? u.realName ?? null,
         email: u.email,
+        cohort: cohortByUser.get(u.id) ?? null,
         diagnosisPercent: typeof diag?.percent === "number" ? diag.percent : null,
         selectedJobs: arrLen(st.selectedJobs),
         materials: arrLen(st.materials),
         doneSteps: arrLen(st.doneSteps),
         hasResume: arrLen(rc.educations) + arrLen(rc.experiences) + arrLen(rc.skills) > 0 || Boolean((rc.basic as { name?: string } | undefined)?.name),
-        updatedAt: (progMap.get(u.id)?.updatedAt ?? resume?.updatedAt ?? null)
+        coverItems: coverItems.length,
+        interviewPracticed: arrLen(interview.practiced),
+        updatedAt: progMap.get(u.id)?.updatedAt ?? resume?.updatedAt ?? cover?.updatedAt ?? null
       };
     });
+    if (cohortFilter) items = items.filter((it) => it.cohort?.id === cohortFilter);
     items.sort((a, b) => String(b.updatedAt ?? "").localeCompare(String(a.updatedAt ?? "")));
     return res.json({ ok: true, items });
   } catch (error) {
@@ -15467,22 +15491,51 @@ app.get("/career-launch/ops/students/:id", authenticate, requireRoles([MemberRol
   const id = typeof req.params.id === "string" ? req.params.id : "";
   if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
   try {
-    const [user, progress, resume, cover] = await Promise.all([
+    const [user, progress, resume, cover, enrollment] = await Promise.all([
       prisma.user.findUnique({ where: { id }, select: { id: true, name: true, realName: true, email: true, phoneNumber: true } }),
       prisma.careerLaunchProgress.findUnique({ where: { studentUserId: id } }),
       prisma.careerResumeData.findUnique({ where: { studentUserId: id } }),
-      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: id } })
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: id } }),
+      prisma.careerEnrollment.findFirst({ where: { studentUserId: id }, include: { cohort: { select: { id: true, university: true, name: true } } }, orderBy: { createdAt: "asc" } })
     ]);
     if (!user) return res.status(404).json({ ok: false, message: "student not found" });
     return res.json({
       ok: true,
       user,
+      cohort: enrollment?.cohort ?? null,
       state: progress?.state ?? {},
       resume: resume?.content ?? {},
       resumeUpdatedAt: resume?.updatedAt ?? null,
       cover: cover?.content ?? {},
       coverUpdatedAt: cover?.updatedAt ?? null
     });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자 개입: 학생의 특정 단계 데이터를 초기화(재진행 유도).
+// target: diagnosis|jobs|materials|interview|final_feedback|resume|cover
+const opsResetSchema = z.object({ target: z.enum(["diagnosis", "jobs", "materials", "interview", "final_feedback", "resume", "cover"]) });
+app.post("/career-launch/ops/students/:id/reset", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id : "";
+  const parsed = opsResetSchema.safeParse(req.body);
+  if (!id || !parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const target = parsed.data.target;
+  try {
+    if (target === "resume") {
+      await prisma.careerResumeData.upsert({ where: { studentUserId: id }, create: { studentUserId: id, content: {} }, update: { content: {} } });
+    } else if (target === "cover") {
+      await prisma.careerCoverLetterData.upsert({ where: { studentUserId: id }, create: { studentUserId: id, content: {} }, update: { content: {} } });
+    } else {
+      // progress.state 안의 키 초기화(진단·직무·정리·면접·최종피드백).
+      const row = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: id } });
+      const prev = (row?.state && typeof row.state === "object" ? { ...(row.state as Record<string, unknown>) } : {}) as Record<string, unknown>;
+      const keyByTarget: Record<string, string> = { diagnosis: "diagnosis", jobs: "selectedJobs", materials: "materials", interview: "interview", final_feedback: "finalFeedback" };
+      delete prev[keyByTarget[target]];
+      await prisma.careerLaunchProgress.upsert({ where: { studentUserId: id }, create: { studentUserId: id, state: prev as object }, update: { state: prev as object } });
+    }
+    return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }

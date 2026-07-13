@@ -99,6 +99,7 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
     links: [
       { label: "파트너", href: "/dashboard/ops/partners/management", icon: Building2 },
       { label: "파트너 사용자", href: "/dashboard/ops/partners/users", icon: Users },
+      { label: "직접등록 포지션", href: "/dashboard/ops/operations/direct-positions", icon: Briefcase },
       { label: "포지션", href: "/dashboard/ops/operations/positions", icon: Briefcase },
       { label: "프리미엄 포지션", href: "/dashboard/ops/operations/premium-positions", icon: Star }
     ]

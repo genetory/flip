@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { LAUNCH, type Mission, type MissionStatus, type Step } from "../../lib/launch/data";
+import { useLaunchT } from "../../lib/launch/i18n";
 
 // 모바일 우선 컨테이너 — 최대 폭 좁게, 카드형 레이아웃.
 export function LaunchContainer({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -70,6 +71,7 @@ export function Checklist({ items }: { items: Mission[] }) {
 
 // 주차별 "스텝별 해야 할 일" — 번호 + 연결선 스테퍼. 완료는 로컬 토글(MVP).
 export function Stepper({ steps }: { steps: Step[] }) {
+  const t = useLaunchT();
   const [state, setState] = useState<Record<string, boolean>>(() => Object.fromEntries(steps.map((s) => [s.id, Boolean(s.done)])));
   return (
     <ol className="space-y-1">
@@ -83,7 +85,9 @@ export function Stepper({ steps }: { steps: Step[] }) {
               <button
                 type="button"
                 onClick={() => setState((prev) => ({ ...prev, [s.id]: !prev[s.id] }))}
-                aria-label={done ? "완료 취소" : "완료로 표시"}
+                aria-label={done
+                  ? t("완료 취소", "Mark as incomplete", "取消完成", "Bỏ đánh dấu hoàn thành", "完了を取り消す", "Batalkan selesai")
+                  : t("완료로 표시", "Mark as done", "标记为完成", "Đánh dấu hoàn thành", "完了にする", "Tandai selesai")}
                 className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[14px] font-black shadow-sm transition ${
                   done ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#4E5968] hover:border-[#0B46E8] hover:text-[#0B46E8]"
                 }`}
@@ -149,21 +153,22 @@ export function LaunchButton({
 
 // 과제 제출 영역(MVP — 로컬 상태). 링크/메모 입력 후 제출 → 제출됨 상태 표시.
 export function SubmissionBox({ label, initialStatus }: { label: string; initialStatus: "todo" | "submitted" | "reviewed" }) {
+  const t = useLaunchT();
   const [status, setStatus] = useState(initialStatus);
   const [value, setValue] = useState("");
   if (status === "reviewed") {
     return (
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-[13.5px] font-semibold text-emerald-700">
-        ✓ 제출 완료 · 피드백까지 받았어요
+        ✓ {t("제출 완료 · 피드백까지 받았어요", "Submitted · Feedback received", "已提交 · 已收到反馈", "Đã nộp · Đã nhận phản hồi", "提出完了 · フィードバックも受け取りました", "Terkirim · Umpan balik diterima")}
       </div>
     );
   }
   if (status === "submitted") {
     return (
       <div className="flex items-center justify-between rounded-xl border border-[#CFE0FF] bg-[#EDF1FD] px-4 py-3.5">
-        <span className="text-[13.5px] font-semibold text-[#0B46E8]">✓ 제출 완료 · 피드백 대기 중</span>
+        <span className="text-[13.5px] font-semibold text-[#0B46E8]">✓ {t("제출 완료 · 피드백 대기 중", "Submitted · Awaiting feedback", "已提交 · 等待反馈中", "Đã nộp · Đang chờ phản hồi", "提出完了 · フィードバック待ち", "Terkirim · Menunggu umpan balik")}</span>
         <button type="button" onClick={() => setStatus("todo")} className="text-[12px] font-semibold text-[#8B95A1] underline">
-          다시 제출
+          {t("다시 제출", "Resubmit", "重新提交", "Nộp lại", "再提出", "Kirim ulang")}
         </button>
       </div>
     );
@@ -177,7 +182,7 @@ export function SubmissionBox({ label, initialStatus }: { label: string; initial
         className="w-full rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:outline-none"
       />
       <LaunchButton variant="primary" full onClick={() => setStatus("submitted")}>
-        과제 제출하기
+        {t("과제 제출하기", "Submit assignment", "提交作业", "Nộp bài tập", "課題を提出する", "Kirim tugas")}
       </LaunchButton>
     </div>
   );
@@ -186,6 +191,7 @@ export function SubmissionBox({ label, initialStatus }: { label: string; initial
 // 과제 "제출" — 학생이 수동 제출하는 게 아니라, resume-maker·모의면접 등
 // aply.global 활동 결과가 자동으로 수집·반영되는 상태를 보여준다.
 export function AutoSubmitStatus({ label, status, source }: { label: string; status: MissionStatus; source: string }) {
+  const t = useLaunchT();
   const done = status !== "todo";
   return (
     <div
@@ -200,12 +206,28 @@ export function AutoSubmitStatus({ label, status, source }: { label: string; sta
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[14.5px] font-bold text-[#191F28]">{label}</p>
-            {done ? <Pill tone="green">자동 제출됨</Pill> : <Pill tone="grey">활동 시 자동 반영</Pill>}
+            {done
+              ? <Pill tone="green">{t("자동 제출됨", "Auto-submitted", "已自动提交", "Đã tự động nộp", "自動提出済み", "Terkirim otomatis")}</Pill>
+              : <Pill tone="grey">{t("활동 시 자동 반영", "Applied automatically on activity", "活动时自动应用", "Tự động cập nhật khi hoạt động", "活動時に自動反映", "Otomatis saat beraktivitas")}</Pill>}
           </div>
           <p className="mt-1.5 text-[13px] leading-relaxed text-[#4E5968]">
             {done
-              ? `${source}에서 자동으로 담겨 제출됐어요. 따로 제출하지 않아도 괜찮아요 👍`
-              : `${source}을(를) 마치면 자동으로 제출돼요. 번거로운 제출 절차가 없으니 활동에만 집중하면 돼요.`}
+              ? t(
+                  `${source}에서 자동으로 담겨 제출됐어요. 따로 제출하지 않아도 괜찮아요 👍`,
+                  `It was automatically collected and submitted from ${source}. No need to submit separately 👍`,
+                  `已从 ${source} 自动收集并提交，无需另行提交 👍`,
+                  `Đã được tự động thu thập và nộp từ ${source}. Bạn không cần nộp riêng 👍`,
+                  `${source} から自動でまとめて提出されました。別途提出しなくても大丈夫です 👍`,
+                  `Sudah otomatis dikumpulkan dan dikirim dari ${source}. Tidak perlu mengirim terpisah 👍`
+                )
+              : t(
+                  `${source}을(를) 마치면 자동으로 제출돼요. 번거로운 제출 절차가 없으니 활동에만 집중하면 돼요.`,
+                  `Once you finish ${source}, it's submitted automatically. No tedious submission steps — just focus on the activity.`,
+                  `完成 ${source} 后会自动提交。没有繁琐的提交步骤，专注活动即可。`,
+                  `Khi bạn hoàn thành ${source}, nó sẽ được nộp tự động. Không có bước nộp rườm rà, chỉ cần tập trung vào hoạt động.`,
+                  `${source} を終えると自動で提出されます。面倒な提出手続きがないので、活動に集中すれば大丈夫です。`,
+                  `Setelah Anda menyelesaikan ${source}, akan dikirim otomatis. Tanpa langkah pengiriman merepotkan, cukup fokus pada aktivitas.`
+                )}
           </p>
         </div>
       </div>
@@ -228,6 +250,7 @@ export function SectionTitle({ children, sub }: { children: React.ReactNode; sub
 
 // 상단 브랜드 바(런치 전용).
 export function LaunchTopBar({ back }: { back?: { href: string; label: string } }) {
+  const t = useLaunchT();
   return (
     <header className="sticky top-0 z-30 border-b border-[#EEF1F5] bg-white/90 backdrop-blur">
       <LaunchContainer className="flex h-14 items-center justify-between">
@@ -241,7 +264,7 @@ export function LaunchTopBar({ back }: { back?: { href: string; label: string } 
             <span className="text-[14px] font-extrabold text-[#0B1227]">Career Launch</span>
           </Link>
         )}
-        <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#0B46E8]">대시보드</Link>
+        <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#0B46E8]">{t("대시보드", "Dashboard", "仪表盘", "Bảng điều khiển", "ダッシュボード", "Dasbor")}</Link>
       </LaunchContainer>
     </header>
   );

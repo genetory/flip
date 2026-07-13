@@ -27,6 +27,7 @@ export type CareerProgress = {
   materials?: string[];
   doneSteps?: string[];
   interview?: CareerInterview | null;
+  finalFeedback?: { v?: number; sig?: string; text?: string } | null;
 };
 
 async function req(path: string, init: RequestInit): Promise<Record<string, unknown>> {

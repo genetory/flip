@@ -284,7 +284,9 @@ function formFromItem(item: PositionItem): PositionForm {
   };
 }
 
-export default function PositionManagementPage() {
+// forcedSourceProvider: 특정 소스만 보여주는 화면(예: 직접등록=INTERNAL)에서 소스 필터를
+// 고정하고 소스 선택 UI를 숨긴다. 라우트로 렌더될 땐 Next 가 이 prop 을 넘기지 않아 전체가 보인다.
+export default function PositionManagementPage({ forcedSourceProvider }: { forcedSourceProvider?: PositionSourceProvider } = {}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const apiBaseUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000", []);
   const router = useRouter();
@@ -307,7 +309,7 @@ export default function PositionManagementPage() {
   // Server-side filters: status + crawl-source provider. Match the same "ALL"
   // sentinel pattern the all-users page uses so the <select> stays controlled.
   const [statusFilter, setStatusFilter] = useState<"ALL" | PositionStatus>("ALL");
-  const [sourceProviderFilter, setSourceProviderFilter] = useState<"ALL" | PositionSourceProvider>("ALL");
+  const [sourceProviderFilter, setSourceProviderFilter] = useState<"ALL" | PositionSourceProvider>(forcedSourceProvider ?? "ALL");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<20 | 40 | 100>(20);
@@ -387,7 +389,8 @@ export default function PositionManagementPage() {
       if (industryFilter) params.set("partnerIndustry", industryFilter);
       if (companySizeFilter) params.set("partnerCompanySize", companySizeFilter);
       if (statusFilter !== "ALL") params.set("status", statusFilter);
-      if (sourceProviderFilter !== "ALL") params.set("sourceProvider", sourceProviderFilter);
+      const effectiveSource = forcedSourceProvider ?? sourceProviderFilter;
+      if (effectiveSource !== "ALL") params.set("sourceProvider", effectiveSource);
       params.set("sortBy", sortField);
       params.set("sortOrder", sortOrder);
       params.set("page", String(page));
@@ -439,7 +442,7 @@ export default function PositionManagementPage() {
 
   useEffect(() => {
     void fetchPositions();
-  }, [debouncedSearch, industryFilter, companySizeFilter, statusFilter, sourceProviderFilter, sortField, sortOrder, page, pageSize]);
+  }, [debouncedSearch, industryFilter, companySizeFilter, statusFilter, sourceProviderFilter, forcedSourceProvider, sortField, sortOrder, page, pageSize]);
 
   useEffect(() => {
     if (!detailIdFromQuery) return;
@@ -784,8 +787,12 @@ export default function PositionManagementPage() {
   return (
     <section className="ops-content-section">
       <header>
-        <h1>포지션 관리</h1>
-        <p>공고 등록부터 상태 변경, 매칭 참여자, 진행 로그, 관리자 메모까지 한 화면에서 운영합니다.</p>
+        <h1>{forcedSourceProvider === "INTERNAL" ? "직접등록 포지션" : "포지션 관리"}</h1>
+        <p>
+          {forcedSourceProvider === "INTERNAL"
+            ? "Aply에 직접 등록한 공고만 모아 봅니다. 등록부터 상태 변경, 매칭 참여자, 진행 로그, 관리자 메모까지 한 화면에서 운영합니다."
+            : "공고 등록부터 상태 변경, 매칭 참여자, 진행 로그, 관리자 메모까지 한 화면에서 운영합니다."}
+        </p>
       </header>
 
       <article className="ops-partner-list-card">
@@ -822,20 +829,22 @@ export default function PositionManagementPage() {
             <option value="CLOSED">{statusLabel("CLOSED")}</option>
             <option value="REJECTED">{statusLabel("REJECTED")}</option>
           </select>
-          <select
-            value={sourceProviderFilter}
-            onChange={(e) => {
-              setSourceProviderFilter(e.target.value as typeof sourceProviderFilter);
-              setPage(1);
-            }}
-            aria-label="출처 필터"
-          >
-            <option value="ALL">전체 출처</option>
-            <option value="INTERNAL">직접 등록</option>
-            <option value="BUDDIES">버디즈</option>
-            <option value="WANTED">원티드</option>
-            <option value="OTHER">기타 외부</option>
-          </select>
+          {forcedSourceProvider ? null : (
+            <select
+              value={sourceProviderFilter}
+              onChange={(e) => {
+                setSourceProviderFilter(e.target.value as typeof sourceProviderFilter);
+                setPage(1);
+              }}
+              aria-label="출처 필터"
+            >
+              <option value="ALL">전체 출처</option>
+              <option value="INTERNAL">직접 등록</option>
+              <option value="BUDDIES">버디즈</option>
+              <option value="WANTED">원티드</option>
+              <option value="OTHER">기타 외부</option>
+            </select>
+          )}
           <select
             value={industryFilter}
             onChange={(e) => {
@@ -879,7 +888,7 @@ export default function PositionManagementPage() {
             <option value="100">100개</option>
           </select>
           {statusFilter !== "ALL" ||
-          sourceProviderFilter !== "ALL" ||
+          (!forcedSourceProvider && sourceProviderFilter !== "ALL") ||
           industryFilter ||
           companySizeFilter ||
           search ? (
@@ -889,7 +898,7 @@ export default function PositionManagementPage() {
               onClick={() => {
                 setSearch("");
                 setStatusFilter("ALL");
-                setSourceProviderFilter("ALL");
+                setSourceProviderFilter(forcedSourceProvider ?? "ALL");
                 setIndustryFilter("");
                 setCompanySizeFilter("");
                 setPage(1);

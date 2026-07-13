@@ -11,12 +11,14 @@ import { Card } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
+import { useLaunchT } from "../../../lib/launch/i18n";
 
 // Week 1 스텝1 — AI 코치가 짧은 대화로 취업 준비 상태를 진단하고, 준비도·강점·보완점을 준다.
 // 진단 결과는 백엔드(career-launch/progress)에 계정 기준으로 저장 → 기기 간 동기화.
 type Msg = { role: "bot" | "user"; text: string };
 
 export default function LaunchDiagnosisPage() {
+  const t = useLaunchT();
   const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
@@ -35,9 +37,9 @@ export default function LaunchDiagnosisPage() {
     void (async () => {
       try {
         const { reply } = await requestDiagnosisChat([]);
-        setMessages([{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 취업 준비 상태를 함께 점검해볼까요?` }]);
+        setMessages([{ role: "bot", text: reply || t(`${displayName}님, 반가워요 👋 취업 준비 상태를 함께 점검해볼까요?`, `Hi ${displayName} 👋 Shall we check your job-readiness together?`, `${displayName}，你好 👋 我们一起看看你的求职准备状态吧？`, `Chào ${displayName} 👋 Cùng kiểm tra mức độ sẵn sàng xin việc của bạn nhé?`, `${displayName}さん、こんにちは 👋 就職準備の状態を一緒にチェックしてみましょうか？`, `Hai ${displayName} 👋 Yuk kita cek kesiapan kariermu bersama?`) }]);
       } catch {
-        setMessages([{ role: "bot", text: "지금은 진단을 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
+        setMessages([{ role: "bot", text: t("지금은 진단을 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?", "We can't start the diagnosis right now 😥 Could you come back in a moment?", "现在无法开始诊断 😥 请稍后再进来好吗？", "Hiện chưa thể bắt đầu chẩn đoán 😥 Bạn quay lại sau một lát nhé?", "今は診断を開始できません 😥 少し経ってからもう一度来ていただけますか？", "Saat ini belum bisa memulai diagnosis 😥 Bisa kembali lagi sebentar lagi?") }]);
       } finally {
         setLoading(false);
       }
@@ -95,7 +97,7 @@ export default function LaunchDiagnosisPage() {
           }
         }
       } catch {
-        setMessages((m) => [...m, { role: "bot", text: "잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?" }]);
+        setMessages((m) => [...m, { role: "bot", text: t("잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?", "Something went wrong 😥 Could you say that once more?", "出了点问题 😥 可以再说一次吗？", "Có chút trục trặc 😥 Bạn nói lại một lần nữa nhé?", "少し問題が発生しました 😥 もう一度言っていただけますか？", "Ada sedikit masalah 😥 Bisa ulangi sekali lagi?") }]);
       } finally {
         setLoading(false);
       }
@@ -109,7 +111,7 @@ export default function LaunchDiagnosisPage() {
         <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-3xl flex-col px-5 pb-4 pt-4 md:pt-6">
           <div className="flex items-center justify-between gap-3">
             <Link href="/career-launch/week/1" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              ← 1주차
+              ← {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
             </Link>
             {!result ? (
               <button
@@ -118,15 +120,15 @@ export default function LaunchDiagnosisPage() {
                 disabled={loading}
                 className="rounded-full border border-[#D7DCE3] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8] disabled:opacity-40"
               >
-                넘어가기 ⏭
+                {t("넘어가기", "Skip", "跳过", "Bỏ qua", "スキップ", "Lewati")} ⏭
               </button>
             ) : null}
           </div>
           <div className="mt-3 flex items-center gap-2.5">
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
-              <p className="text-[15px] font-black text-[#0B1227]">취업 준비 상태 자가진단</p>
-              <p className="text-[12px] text-[#8B95A1]">AI 코치와 대화하면 준비도를 알려드려요 · ⏱ 약 10분</p>
+              <p className="text-[15px] font-black text-[#0B1227]">{t("취업 준비 상태 자가진단", "Job-Readiness Self-Diagnosis", "求职准备状态自我诊断", "Tự chẩn đoán mức độ sẵn sàng xin việc", "就職準備状態のセルフ診断", "Diagnosis Mandiri Kesiapan Karier")}</p>
+              <p className="text-[12px] text-[#8B95A1]">{t("AI 코치와 대화하면 준비도를 알려드려요", "Chat with the AI coach and we'll tell you your readiness", "与 AI 教练对话，我们会告诉你准备程度", "Trò chuyện với huấn luyện viên AI và chúng tôi sẽ cho bạn biết mức độ sẵn sàng", "AIコーチと話すと準備度をお伝えします", "Mengobrol dengan pelatih AI dan kami akan memberi tahu tingkat kesiapanmu")} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
             </div>
           </div>
 
@@ -161,7 +163,7 @@ export default function LaunchDiagnosisPage() {
             {result ? (
               <Card className="md:!p-5">
                 <div className="text-center">
-                  <p className="text-[12.5px] font-semibold text-[#8B95A1]">나의 취업 준비도</p>
+                  <p className="text-[12.5px] font-semibold text-[#8B95A1]">{t("나의 취업 준비도", "My Job-Readiness", "我的求职准备度", "Mức sẵn sàng xin việc của tôi", "私の就職準備度", "Tingkat Kesiapan Karierku")}</p>
                   <p className="mt-0.5 text-[38px] font-black leading-none text-[#0B46E8]">
                     {result.percent}
                     <span className="text-[20px]">%</span>
@@ -170,7 +172,7 @@ export default function LaunchDiagnosisPage() {
                 </div>
                 {result.strengths.length > 0 ? (
                   <div className="mt-4">
-                    <p className="text-[12px] font-bold text-[#3A6B00]">강점</p>
+                    <p className="text-[12px] font-bold text-[#3A6B00]">{t("강점", "Strengths", "优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
                     <ul className="mt-1.5 space-y-1">
                       {result.strengths.map((s, i) => (
                         <li key={i} className="flex gap-1.5 text-[13px] leading-relaxed text-[#333D4B]">
@@ -183,7 +185,7 @@ export default function LaunchDiagnosisPage() {
                 ) : null}
                 {result.improvements.length > 0 ? (
                   <div className="mt-3">
-                    <p className="text-[12px] font-bold text-[#0B46E8]">이번 4주에 집중하면 좋은 점</p>
+                    <p className="text-[12px] font-bold text-[#0B46E8]">{t("이번 4주에 집중하면 좋은 점", "Worth focusing on over these 4 weeks", "接下来 4 周值得重点关注的地方", "Điều nên tập trung trong 4 tuần này", "この4週間で集中すると良い点", "Hal yang baik difokuskan selama 4 minggu ini")}</p>
                     <ul className="mt-1.5 space-y-1">
                       {result.improvements.map((s, i) => (
                         <li key={i} className="flex gap-1.5 text-[13px] leading-relaxed text-[#333D4B]">
@@ -207,13 +209,13 @@ export default function LaunchDiagnosisPage() {
                 onClick={startChat}
                 className="h-[46px] shrink-0 rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
               >
-                다시 진단하기
+                {t("다시 진단하기", "Diagnose again", "重新诊断", "Chẩn đoán lại", "もう一度診断する", "Diagnosis ulang")}
               </button>
               <Link
                 href="/career-launch/week/1"
                 className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
               >
-                1주차 페이지로 →
+                {t("1주차 페이지로", "To Week 1 page", "前往第1周页面", "Đến trang Tuần 1", "1週目のページへ", "Ke halaman Minggu 1")} →
               </Link>
             </div>
           ) : (
@@ -221,14 +223,18 @@ export default function LaunchDiagnosisPage() {
               {/* 할 말이 없어 막힐 때를 위한 빠른 응답 — 대화가 끊기지 않게 */}
               {messages.length > 0 && !loading ? (
                 <div className="mb-2 flex flex-wrap gap-1.5">
-                  {["잘 모르겠어요", "아직 준비 안 됐어요", "예시를 보여주세요"].map((q) => (
+                  {[
+                    { label: t("잘 모르겠어요", "I'm not sure", "我不太清楚", "Tôi không chắc", "よく分かりません", "Saya kurang yakin"), send: "잘 모르겠어요" },
+                    { label: t("아직 준비 안 됐어요", "I'm not ready yet", "我还没准备好", "Tôi chưa sẵn sàng", "まだ準備できていません", "Saya belum siap"), send: "아직 준비 안 됐어요" },
+                    { label: t("예시를 보여주세요", "Show me an example", "给我看个例子", "Cho tôi xem ví dụ", "例を見せてください", "Tunjukkan contohnya") , send: "예시를 보여주세요" }
+                  ].map((q) => (
                     <button
-                      key={q}
+                      key={q.send}
                       type="button"
-                      onClick={() => send(q)}
+                      onClick={() => send(q.send)}
                       className="rounded-full border border-[#D7DCE3] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8]"
                     >
-                      {q}
+                      {q.label}
                     </button>
                   ))}
                 </div>
@@ -250,7 +256,7 @@ export default function LaunchDiagnosisPage() {
                   }
                 }}
                 rows={1}
-                placeholder="편하게 답해주세요"
+                placeholder={t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
                 disabled={loading}
                 className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
               />
@@ -261,7 +267,7 @@ export default function LaunchDiagnosisPage() {
                   input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
                 }`}
               >
-                보내기
+                {t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
               </button>
             </form>
             </div>

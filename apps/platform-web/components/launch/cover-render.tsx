@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CoverData } from "../../lib/launch/cover-data";
 import { CoverLetterSheet } from "../resume-maker/CoverLetterToolPreview";
+import { useLaunchT } from "../../lib/launch/i18n";
 
 // Career Launch 자기소개서를 resume-maker(자기소개서 만들기)와 동일한 A4 형식으로 렌더.
 // CoverLetterSheet(순수 시트)를 컨테이너 폭에 맞춰 스케일한다(이력서 미리보기와 동일).
@@ -10,6 +11,7 @@ const A4_W = 794;
 const A4_H = 1123;
 
 export function CoverRender({ data, maxWidth }: { data: CoverData; maxWidth?: number }) {
+  const t = useLaunchT();
   const items = (data.items ?? [])
     .filter((x) => (x.answer ?? "").trim())
     .map((x, i) => ({ id: String(i), prompt: x.question ?? "", answer: x.answer ?? "" }));
@@ -39,7 +41,13 @@ export function CoverRender({ data, maxWidth }: { data: CoverData; maxWidth?: nu
     <div className="min-w-0 overflow-hidden [&_*]:!shadow-none" style={maxWidth ? { maxWidth } : undefined}>
       <div ref={wrapRef} className="w-full" style={{ height: A4_H * scale * pages + (pages - 1) * 8 * scale }}>
         <div style={{ position: "relative", width: A4_W, transform: `scale(${scale})`, transformOrigin: "top left" }}>
-          <CoverLetterSheet innerRef={sheetRef} items={items} title="자기소개서" companyName={data.company ?? undefined} emptyLabel="아직 작성한 문항이 없어요." />
+          <CoverLetterSheet
+            innerRef={sheetRef}
+            items={items}
+            title={t("자기소개서", "Cover letter", "自我介绍信", "Thư giới thiệu bản thân", "自己紹介書", "Surat lamaran")}
+            companyName={data.company ?? undefined}
+            emptyLabel={t("아직 작성한 문항이 없어요.", "No questions answered yet.", "还没有填写任何问题。", "Chưa có câu hỏi nào được trả lời.", "まだ作成した項目がありません。", "Belum ada pertanyaan yang dijawab.")}
+          />
         </div>
       </div>
     </div>
