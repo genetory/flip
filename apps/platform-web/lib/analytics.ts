@@ -123,3 +123,35 @@ export function trackResumePdfDownloaded(templateId: string) {
 export function trackResumeBuilderCompleted() {
   safeSendEvent("resume_builder_completed", {});
 }
+
+// ---- Career Launch (기수 취업 부트캠프) ----
+
+export type CareerStep =
+  | "diagnosis"
+  | "jobs"
+  | "materials"
+  | "resume"
+  | "cover"
+  | "interview_self"
+  | "interview_job"
+  | "interview_fit";
+
+// 기수 등록 성공(초대코드 자가등록 / 운영자 직접 추가).
+export function trackCareerEnroll(method: "code" | "operator") {
+  safeSendEvent("career_enroll", { method });
+}
+
+// 스텝(진단·직무·정리·이력서·자소서·모의면접) 완료.
+export function trackCareerStepComplete(step: CareerStep) {
+  safeSendEvent("career_step_complete", { step });
+}
+
+// 결과물 PDF 다운로드(이력서/자기소개서).
+export function trackCareerPdfDownload(doc: "resume" | "cover") {
+  safeSendEvent("career_pdf_download", { doc });
+}
+
+// 완주 최종 피드백 — 열람/다시 받기.
+export function trackCareerFinalFeedback(action: "view" | "regenerate") {
+  safeSendEvent("career_final_feedback", { action });
+}

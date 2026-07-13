@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchFinalFeedback } from "../../lib/launch/feedback-client";
+import { trackCareerFinalFeedback } from "../../lib/analytics";
 import { Card } from "./ui";
 import { RichText } from "./rich-text";
 
@@ -23,6 +24,7 @@ export function FinalFeedbackCard() {
           setText(fb.text);
           setStale(fb.stale);
           setState("done");
+          trackCareerFinalFeedback("view");
         } else {
           setState("none");
         }
@@ -38,6 +40,7 @@ export function FinalFeedbackCard() {
   const regenerate = async () => {
     if (regenerating) return;
     setRegenerating(true);
+    trackCareerFinalFeedback("regenerate");
     try {
       const fb = await fetchFinalFeedback(true);
       if (fb.text && fb.text.trim()) {

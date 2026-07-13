@@ -6,6 +6,7 @@ import { RichText } from "../../../components/launch/rich-text";
 import { RECOMMENDED_JOBS, STUDENT, type RecommendedJob } from "../../../lib/launch/data";
 import { requestJobChat, type JobChatMsg } from "../../../lib/launch/job-chat-client";
 import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
+import { trackCareerStepComplete } from "../../../lib/analytics";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -133,6 +134,7 @@ export default function LaunchJobsPage() {
     void patchProgress({ selectedJobs: selected }).catch(() => {
       // 저장 실패해도 화면 상태 유지
     });
+    trackCareerStepComplete("jobs");
     setSaved(true);
     setMessages((m) => [
       ...m,

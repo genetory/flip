@@ -7,6 +7,7 @@ import { ResumeRender } from "../../../components/launch/resume-render";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
+import { trackCareerPdfDownload } from "../../../lib/analytics";
 
 // 대화로 쌓은 이력서 데이터를 실제 이력서로 보여주는 페이지.
 export default function ResumePreviewPage() {
@@ -41,7 +42,7 @@ export default function ResumePreviewPage() {
             </Link>
             <div className="flex items-center gap-3">
               {filled ? (
-                <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
+                <button type="button" onClick={() => { trackCareerPdfDownload("resume"); window.print(); }} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
                   PDF 다운로드
                 </button>
               ) : null}

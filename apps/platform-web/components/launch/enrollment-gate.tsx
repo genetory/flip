@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchMyEnrollment, enrollByCode } from "../../lib/launch/enrollment-client";
+import { trackCareerEnroll } from "../../lib/analytics";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { Card } from "./ui";
@@ -34,6 +35,7 @@ export function EnrollmentGate({ children }: { children: React.ReactNode }) {
     setErr("");
     try {
       await enrollByCode(c);
+      trackCareerEnroll("code");
       await check(); // 성공 → 재확인 후 통과
     } catch (e) {
       setErr(e instanceof Error ? e.message : "등록에 실패했어요.");

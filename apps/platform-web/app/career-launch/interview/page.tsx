@@ -8,6 +8,7 @@ import { requestInterviewChat, type InterviewChatMsg, type InterviewFocus } from
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
+import { trackCareerStepComplete } from "../../../lib/analytics";
 
 // Week 4 — 이력서·자소서를 근거로 유형별 모의면접(자기소개/직무/인성·컬처핏)을 진행한다.
 type Msg = { role: "bot" | "user"; text: string };
@@ -66,7 +67,10 @@ export default function InterviewPage() {
         const history: InterviewChatMsg[] = nextMsgs.map((m) => ({ role: m.role, text: m.text }));
         const { reply, done: isDone } = await requestInterviewChat(history, focus);
         setMessages((m) => [...m, { role: "bot", text: reply }]);
-        if (isDone) setDone(true);
+        if (isDone) {
+          trackCareerStepComplete(`interview_${focus}` as "interview_self" | "interview_job" | "interview_fit");
+          setDone(true);
+        }
       } catch {
         setMessages((m) => [...m, { role: "bot", text: "잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?" }]);
       } finally {
