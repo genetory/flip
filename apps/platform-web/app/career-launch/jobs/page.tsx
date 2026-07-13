@@ -10,6 +10,8 @@ import { trackCareerStepComplete } from "../../../lib/analytics";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
+import { useLaunchT } from "../../../lib/launch/i18n";
+import { useJobReason } from "../../../lib/launch/data-i18n";
 
 // Week 1 — AI와 실제로 대화하며 관심 직무를 이끌어낸다. 백엔드(/career-launch/job-chat)가
 // 대화를 이어받아 다음 질문 + 후보 풀에서 고른 추천 직무를 돌려주고, 채팅 안에서 바로
@@ -21,6 +23,8 @@ type Msg =
   | { role: "bot"; kind: "jobs"; jobs: RecommendedJob[] };
 
 export default function LaunchJobsPage() {
+  const t = useLaunchT();
+  const jobReason = useJobReason();
   const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
@@ -69,9 +73,9 @@ export default function LaunchJobsPage() {
       setSelected(sel);
       try {
         const { reply, recommend } = await requestJobChat([], sel);
-        appendFromAi(reply || `${displayName}님, 반가워요 👋 어떤 일에 관심이 있는지 편하게 이야기해줄래요?`, recommend);
+        appendFromAi(reply || t(`${displayName}님, 반가워요 👋 어떤 일에 관심이 있는지 편하게 이야기해줄래요?`, `Hi ${displayName} 👋 Tell me freely what kind of work interests you?`, `${displayName}，你好 👋 可以随意告诉我你对什么样的工作感兴趣吗？`, `Chào ${displayName} 👋 Hãy thoải mái chia sẻ bạn quan tâm đến công việc nào nhé?`, `${displayName}さん、こんにちは 👋 どんな仕事に興味があるか気軽に教えてくれますか？`, `Hai ${displayName} 👋 Ceritakan dengan santai pekerjaan seperti apa yang kamu minati?`), recommend);
       } catch {
-        setMessages([{ role: "bot", kind: "text", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
+        setMessages([{ role: "bot", kind: "text", text: t("지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?", "We can't start the chat right now 😥 Could you come back in a moment?", "现在无法开始对话 😥 请稍后再进来好吗？", "Hiện chưa thể bắt đầu trò chuyện 😥 Bạn quay lại sau một lát nhé?", "今は会話を開始できません 😥 少し経ってからもう一度来ていただけますか？", "Saat ini belum bisa memulai obrolan 😥 Bisa kembali lagi sebentar lagi?") }]);
       } finally {
         setLoading(false);
       }
@@ -98,7 +102,7 @@ export default function LaunchJobsPage() {
         const { reply, recommend } = await requestJobChat(history, selected, shownRoles);
         appendFromAi(reply, recommend);
       } catch {
-        setMessages((m) => [...m, { role: "bot", kind: "text", text: "잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?" }]);
+        setMessages((m) => [...m, { role: "bot", kind: "text", text: t("잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?", "Something went wrong 😥 Could you say that once more?", "出了点问题 😥 可以再说一次吗？", "Có chút trục trặc 😥 Bạn nói lại một lần nữa nhé?", "少し問題が発生しました 😥 もう一度言っていただけますか？", "Ada sedikit masalah 😥 Bisa ulangi sekali lagi?") }]);
       } finally {
         setLoading(false);
       }
@@ -114,7 +118,7 @@ export default function LaunchJobsPage() {
     if (!has && next.length === MAX_PICK) {
       setMessages((m) => [
         ...m,
-        { role: "bot", kind: "text", text: "좋아요! 마음에 드는 3개를 골랐어요 🎉 아래 ‘선정 완료’를 누르면 저장돼요." }
+        { role: "bot", kind: "text", text: t("좋아요! 마음에 드는 3개를 골랐어요 🎉 아래 ‘선정 완료’를 누르면 저장돼요.", "Great! You've picked your 3 favorites 🎉 Press 'Confirm selection' below to save.", "太好了！你已经选好了 3 个心仪的 🎉 点击下方的‘完成选择’即可保存。", "Tuyệt! Bạn đã chọn 3 công việc yêu thích 🎉 Nhấn 'Hoàn tất chọn' bên dưới để lưu.", "いいですね！お気に入りの3つを選びました 🎉 下の「選定完了」を押すと保存されます。", "Bagus! Kamu sudah memilih 3 favorit 🎉 Tekan 'Selesai memilih' di bawah untuk menyimpan.") }
       ]);
     }
   };
@@ -127,7 +131,7 @@ export default function LaunchJobsPage() {
     setSelected((prev) => [...prev, r]);
     setCustom("");
     setCustomOpen(false);
-    setMessages((m) => [...m, { role: "bot", kind: "text", text: `‘${r}’를 관심 직무에 추가했어요 👍` }]);
+    setMessages((m) => [...m, { role: "bot", kind: "text", text: t(`‘${r}’를 관심 직무에 추가했어요 👍`, `Added '${r}' to your jobs of interest 👍`, `已将‘${r}’加入你的兴趣职务 👍`, `Đã thêm '${r}' vào công việc quan tâm 👍`, `「${r}」を関心のある職務に追加しました 👍`, `'${r}' ditambahkan ke pekerjaan yang kamu minati 👍`) }]);
   };
 
   const save = () => {
@@ -138,7 +142,7 @@ export default function LaunchJobsPage() {
     setSaved(true);
     setMessages((m) => [
       ...m,
-      { role: "bot", kind: "text", text: "선정 완료! 🙌 대시보드에 저장했어요. 다음 주엔 이 방향으로 이력서를 만들어봐요. 혹시 다시 골라보고 싶으면 아래에서 처음부터 다시 할 수 있어요." }
+      { role: "bot", kind: "text", text: t("선정 완료! 🙌 대시보드에 저장했어요. 다음 주엔 이 방향으로 이력서를 만들어봐요. 혹시 다시 골라보고 싶으면 아래에서 처음부터 다시 할 수 있어요.", "All set! 🙌 Saved to your dashboard. Next week let's build your resume in this direction. If you'd like to pick again, you can start over below.", "选择完成！🙌 已保存到仪表盘。下周就朝这个方向来做简历吧。如果想重新选择，可以在下方从头再来。", "Xong rồi! 🙌 Đã lưu vào bảng điều khiển. Tuần sau hãy làm CV theo hướng này nhé. Nếu muốn chọn lại, bạn có thể bắt đầu lại bên dưới.", "選定完了！🙌 ダッシュボードに保存しました。来週はこの方向で履歴書を作ってみましょう。もう一度選び直したい場合は、下から最初からやり直せます。", "Selesai! 🙌 Tersimpan di dasbormu. Minggu depan mari buat resume ke arah ini. Kalau mau memilih ulang, kamu bisa mulai lagi dari bawah.") }
     ]);
   };
 
@@ -153,9 +157,9 @@ export default function LaunchJobsPage() {
     void (async () => {
       try {
         const { reply, recommend } = await requestJobChat([], []);
-        appendFromAi(reply || `${displayName}님, 다시 이야기 나눠볼까요? 어떤 일에 관심이 있는지 편하게 들려주세요 👋`, recommend);
+        appendFromAi(reply || t(`${displayName}님, 다시 이야기 나눠볼까요? 어떤 일에 관심이 있는지 편하게 들려주세요 👋`, `Shall we chat again, ${displayName}? Tell me freely what kind of work interests you 👋`, `${displayName}，我们再聊聊吧？可以随意告诉我你对什么样的工作感兴趣 👋`, `Cùng trò chuyện lại nhé ${displayName}? Hãy thoải mái chia sẻ bạn quan tâm đến công việc nào 👋`, `${displayName}さん、もう一度話しましょうか？どんな仕事に興味があるか気軽に教えてください 👋`, `Yuk ngobrol lagi, ${displayName}? Ceritakan dengan santai pekerjaan seperti apa yang kamu minati 👋`), recommend);
       } catch {
-        setMessages([{ role: "bot", kind: "text", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
+        setMessages([{ role: "bot", kind: "text", text: t("지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?", "We can't start the chat right now 😥 Could you come back in a moment?", "现在无法开始对话 😥 请稍后再进来好吗？", "Hiện chưa thể bắt đầu trò chuyện 😥 Bạn quay lại sau một lát nhé?", "今は会話を開始できません 😥 少し経ってからもう一度来ていただけますか？", "Saat ini belum bisa memulai obrolan 😥 Bisa kembali lagi sebentar lagi?") }]);
       } finally {
         setLoading(false);
       }
@@ -173,10 +177,10 @@ export default function LaunchJobsPage() {
           {/* 헤더 */}
           <div className="flex items-center justify-between gap-3">
             <Link href="/career-launch/week/1" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              ← 1주차
+              ← {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
             </Link>
             <div className="flex items-center gap-2.5">
-              <span className="text-[12px] font-bold text-[#0B46E8]">{selected.length}/{MAX_PICK} 선택</span>
+              <span className="text-[12px] font-bold text-[#0B46E8]">{selected.length}/{MAX_PICK} {t("선택", "selected", "已选", "đã chọn", "選択", "dipilih")}</span>
               {!saved ? (
                 <button
                   type="button"
@@ -184,7 +188,7 @@ export default function LaunchJobsPage() {
                   disabled={loading}
                   className="rounded-full border border-[#D7DCE3] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8] disabled:opacity-40"
                 >
-                  넘어가기 ⏭
+                  {t("넘어가기", "Skip", "跳过", "Bỏ qua", "スキップ", "Lewati")} ⏭
                 </button>
               ) : null}
             </div>
@@ -192,8 +196,8 @@ export default function LaunchJobsPage() {
           <div className="mt-3 flex items-center gap-2.5">
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
-              <p className="text-[15px] font-black text-[#0B1227]">관심 직무 찾기</p>
-              <p className="text-[12px] text-[#8B95A1]">AI와 대화하며 마음에 드는 직무 {MAX_PICK}개를 골라요 · ⏱ 약 10분</p>
+              <p className="text-[15px] font-black text-[#0B1227]">{t("관심 직무 찾기", "Find Your Jobs of Interest", "寻找感兴趣的职务", "Tìm công việc bạn quan tâm", "興味のある職務を探す", "Temukan Pekerjaan yang Kamu Minati")}</p>
+              <p className="text-[12px] text-[#8B95A1]">{t(`AI와 대화하며 마음에 드는 직무 ${MAX_PICK}개를 골라요`, `Chat with AI and pick your ${MAX_PICK} favorite jobs`, `与 AI 对话，挑选 ${MAX_PICK} 个你喜欢的职务`, `Trò chuyện với AI và chọn ${MAX_PICK} công việc bạn thích`, `AIと話しながらお気に入りの職務を${MAX_PICK}つ選びます`, `Mengobrol dengan AI dan pilih ${MAX_PICK} pekerjaan favoritmu`)} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
             </div>
           </div>
 
@@ -241,7 +245,7 @@ export default function LaunchJobsPage() {
                             </span>
                             <p className="text-[14.5px] font-bold text-[#191F28]">{job.role}</p>
                           </div>
-                          <p className="mt-1.5 pl-7 text-[12.5px] leading-relaxed text-[#4E5968]">{job.reason}</p>
+                          <p className="mt-1.5 pl-7 text-[12.5px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p>
                           <div className="mt-2 flex flex-wrap gap-1.5 pl-7">
                             {job.skills.map((s) => (
                               <span key={s} className="rounded-full bg-[#F2F4F6] px-2 py-0.5 text-[11px] font-semibold text-[#4E5968]">
@@ -261,7 +265,7 @@ export default function LaunchJobsPage() {
                           disabled={loading}
                           className="rounded-full border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-50"
                         >
-                          🔄 다른 직무 보기
+                          🔄 {t("다른 직무 보기", "See other jobs", "查看其他职务", "Xem công việc khác", "他の職務を見る", "Lihat pekerjaan lain")}
                         </button>
                         <button
                           type="button"
@@ -269,7 +273,7 @@ export default function LaunchJobsPage() {
                           disabled={selected.length >= MAX_PICK}
                           className="rounded-full border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-50"
                         >
-                          ✏️ 직접 입력
+                          ✏️ {t("직접 입력", "Enter manually", "手动输入", "Nhập trực tiếp", "自分で入力", "Masukkan sendiri")}
                         </button>
                         {customOpen ? (
                           <span className="inline-flex items-center gap-1.5">
@@ -283,7 +287,7 @@ export default function LaunchJobsPage() {
                                 }
                               }}
                               autoFocus
-                              placeholder="예: UX 리서처"
+                              placeholder={t("예: UX 리서처", "e.g. UX Researcher", "例：UX 研究员", "VD: UX Researcher", "例：UXリサーチャー", "cth: UX Researcher")}
                               className="h-8 w-40 rounded-full border border-[#E5E8EB] bg-white px-3 text-[12px] text-[#191F28] placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:outline-none"
                             />
                             <button
@@ -292,7 +296,7 @@ export default function LaunchJobsPage() {
                               disabled={!custom.trim()}
                               className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${custom.trim() ? "bg-[#0B46E8] text-white" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"}`}
                             >
-                              추가
+                              {t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}
                             </button>
                           </span>
                         ) : null}
@@ -323,13 +327,13 @@ export default function LaunchJobsPage() {
                 onClick={restartChat}
                 className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
               >
-                처음부터 다시 선정
+                {t("처음부터 다시 선정", "Select again from scratch", "从头重新选择", "Chọn lại từ đầu", "最初から選び直す", "Pilih ulang dari awal")}
               </button>
               <Link
                 href="/career-launch/week/1"
                 className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
               >
-                1주차 페이지로 →
+                {t("1주차 페이지로", "To Week 1 page", "前往第1周页面", "Đến trang Tuần 1", "1週目のページへ", "Ke halaman Minggu 1")} →
               </Link>
             </div>
           ) : (
@@ -337,14 +341,18 @@ export default function LaunchJobsPage() {
               {/* 할 말이 없어 막힐 때를 위한 빠른 응답 — 대화가 끊기지 않게 */}
               {messages.length > 0 && !loading ? (
                 <div className="mb-2 flex flex-wrap gap-1.5">
-                  {["잘 모르겠어요", "예시를 보여주세요", "직무 추천해주세요"].map((q) => (
+                  {[
+                    { label: t("잘 모르겠어요", "I'm not sure", "我不太清楚", "Tôi không chắc", "よく分かりません", "Saya kurang yakin"), send: "잘 모르겠어요" },
+                    { label: t("예시를 보여주세요", "Show me an example", "给我看个例子", "Cho tôi xem ví dụ", "例を見せてください", "Tunjukkan contohnya"), send: "예시를 보여주세요" },
+                    { label: t("직무 추천해주세요", "Recommend jobs for me", "给我推荐职务", "Gợi ý công việc cho tôi", "職務を推薦してください", "Rekomendasikan pekerjaan") , send: "직무 추천해주세요" }
+                  ].map((q) => (
                     <button
-                      key={q}
+                      key={q.send}
                       type="button"
-                      onClick={() => send(q)}
+                      onClick={() => send(q.send)}
                       className="rounded-full border border-[#D7DCE3] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8]"
                     >
-                      {q}
+                      {q.label}
                     </button>
                   ))}
                 </div>
@@ -368,7 +376,7 @@ export default function LaunchJobsPage() {
                     }
                   }}
                   rows={1}
-                  placeholder="편하게 답해주세요"
+                  placeholder={t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
                   disabled={loading}
                   className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
                 />
@@ -379,7 +387,7 @@ export default function LaunchJobsPage() {
                     input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
                   }`}
                 >
-                  보내기
+                  {t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
                 </button>
               </form>
               {selected.length > 0 ? (
@@ -388,7 +396,7 @@ export default function LaunchJobsPage() {
                   onClick={save}
                   className="h-[46px] shrink-0 rounded-xl bg-[#B7FF5A] px-4 text-[13.5px] font-black text-[#111] transition hover:brightness-105"
                 >
-                  선정 완료 ({selected.length})
+                  {t("선정 완료", "Confirm selection", "完成选择", "Hoàn tất chọn", "選定完了", "Selesai memilih")} ({selected.length})
                 </button>
               ) : null}
               </div>

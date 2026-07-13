@@ -5,10 +5,12 @@ import { fetchFinalFeedback } from "../../lib/launch/feedback-client";
 import { trackCareerFinalFeedback } from "../../lib/analytics";
 import { Card } from "./ui";
 import { RichText } from "./rich-text";
+import { useLaunchT } from "../../lib/launch/i18n";
 
 // 완주 최종 피드백 — 이력서·자기소개서·면접 종합. 프로그램 소개처럼 섹션 카드로 보여준다.
 // 생성은 1회 후 저장·재사용(토큰 절약), 결과물이 바뀌면(stale) '다시 받기' 노출.
 export function FinalFeedbackCard() {
+  const t = useLaunchT();
   const [state, setState] = useState<"loading" | "done" | "none" | "error">("loading");
   const [text, setText] = useState("");
   const [stale, setStale] = useState(false);
@@ -61,25 +63,25 @@ export function FinalFeedbackCard() {
     <Card className="md:!p-6">
       {state === "done" && stale ? (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#FFF9EC] px-3 py-2">
-          <p className="text-[12px] font-semibold text-[#B7791F]">결과물이 바뀌었어요. 최신 내용으로 다시 받을 수 있어요.</p>
+          <p className="text-[12px] font-semibold text-[#B7791F]">{t("결과물이 바뀌었어요. 최신 내용으로 다시 받을 수 있어요.", "Your work has changed. You can get updated feedback based on the latest content.", "你的内容已更新，可以根据最新内容重新获取反馈。", "Nội dung của bạn đã thay đổi. Bạn có thể nhận lại phản hồi theo nội dung mới nhất.", "内容が変わりました。最新の内容でもう一度受け取れます。", "Hasil kerja Anda telah berubah. Anda bisa mendapatkan umpan balik terbaru sesuai konten terkini.")}</p>
           <button
             type="button"
             onClick={regenerate}
             disabled={regenerating}
             className="shrink-0 rounded-lg border border-[#0B46E8]/25 bg-white px-2.5 py-1 text-[11.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD] disabled:opacity-50"
           >
-            {regenerating ? "받는 중…" : "다시 받기"}
+            {regenerating ? t("받는 중…", "Getting…", "获取中…", "Đang nhận…", "受け取り中…", "Sedang mengambil…") : t("다시 받기", "Get again", "重新获取", "Nhận lại", "もう一度受け取る", "Ambil lagi")}
           </button>
         </div>
       ) : null}
       {state === "loading" ? (
-        <p className="text-[13px] text-[#8B95A1]">4주 결과물(이력서·자기소개서·면접)을 종합해 피드백을 준비하고 있어요…</p>
+        <p className="text-[13px] text-[#8B95A1]">{t("4주 결과물(이력서·자기소개서·면접)을 종합해 피드백을 준비하고 있어요…", "Putting together feedback from your 4-week work (resume, cover letter, interview)…", "正在综合你 4 周的成果（简历、自我介绍书、面试）准备反馈…", "Đang tổng hợp phản hồi từ kết quả 4 tuần của bạn (CV, thư giới thiệu bản thân, phỏng vấn)…", "4週間の成果（履歴書・自己紹介書・面接）をまとめてフィードバックを準備しています…", "Sedang menyusun umpan balik dari hasil kerja 4 minggu Anda (resume, surat lamaran, wawancara)…")}</p>
       ) : state === "done" ? (
         <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-[#333D4B]">
           <RichText text={text} />
         </p>
       ) : (
-        <p className="text-[13px] text-[#8B95A1]">피드백을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p>
+        <p className="text-[13px] text-[#8B95A1]">{t("피드백을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't load the feedback. Please try again in a moment.", "无法加载反馈。请稍后再试。", "Không thể tải phản hồi. Vui lòng thử lại sau giây lát.", "フィードバックを読み込めませんでした。少し後にもう一度お試しください。", "Tidak dapat memuat umpan balik. Silakan coba lagi sebentar lagi.")}</p>
       )}
     </Card>
   );

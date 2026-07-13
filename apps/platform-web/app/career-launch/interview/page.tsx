@@ -9,18 +9,28 @@ import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { trackCareerStepComplete } from "../../../lib/analytics";
+import { useLaunchT } from "../../../lib/launch/i18n";
 
 // Week 4 — 이력서·자소서를 근거로 유형별 모의면접(자기소개/직무/인성·컬처핏)을 진행한다.
 type Msg = { role: "bot" | "user"; text: string };
 
-const HEADER: Record<InterviewFocus, { title: string; sub: string }> = {
-  self: { title: "자기소개 면접", sub: "1분 자기소개·지원 동기·성격을 실전처럼 답해봐요" },
-  job: { title: "직무 면접", sub: "선정 직무·경력·프로젝트를 파고드는 실무 면접이에요" },
-  fit: { title: "인성·컬처핏 면접", sub: "협업·가치관·한국 적응 등 태도를 보는 면접이에요" }
-};
-
 export default function InterviewPage() {
+  const t = useLaunchT();
   const { user, isReady } = useAuthSession();
+  const HEADER: Record<InterviewFocus, { title: string; sub: string }> = {
+    self: {
+      title: t("자기소개 면접", "Self-Introduction Interview", "自我介绍面试", "Phỏng vấn giới thiệu bản thân", "自己紹介面接", "Wawancara Perkenalan Diri"),
+      sub: t("1분 자기소개·지원 동기·성격을 실전처럼 답해봐요", "Answer your 1-minute intro, motivation, and personality as if it's real", "像实战一样回答一分钟自我介绍、应聘动机和性格", "Trả lời phần giới thiệu 1 phút, động lực và tính cách như thật", "1分自己紹介・志望動機・性格を実践のように答えてみましょう", "Jawab perkenalan 1 menit, motivasi, dan kepribadian seperti sungguhan")
+    },
+    job: {
+      title: t("직무 면접", "Job Interview", "职务面试", "Phỏng vấn chuyên môn", "職務面接", "Wawancara Pekerjaan"),
+      sub: t("선정 직무·경력·프로젝트를 파고드는 실무 면접이에요", "A practical interview digging into your selected job, experience, and projects", "深入探讨选定职务、经历和项目的实务面试", "Phỏng vấn thực tế đào sâu công việc, kinh nghiệm và dự án đã chọn", "選定した職務・経歴・プロジェクトを掘り下げる実務面接です", "Wawancara praktis yang menggali pekerjaan pilihan, pengalaman, dan proyekmu")
+    },
+    fit: {
+      title: t("인성·컬처핏 면접", "Personality & Culture-Fit Interview", "人品·文化契合面试", "Phỏng vấn tính cách & phù hợp văn hóa", "人柄・カルチャーフィット面接", "Wawancara Kepribadian & Kecocokan Budaya"),
+      sub: t("협업·가치관·한국 적응 등 태도를 보는 면접이에요", "An interview assessing attitude like teamwork, values, and adapting to Korea", "考察协作、价值观、适应韩国等态度的面试", "Phỏng vấn đánh giá thái độ như hợp tác, giá trị và thích nghi với Hàn Quốc", "協働・価値観・韓国への適応など態度を見る面接です", "Wawancara menilai sikap seperti kerja sama, nilai, dan adaptasi di Korea")
+    }
+  };
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
   const startedRef = useRef(false);
@@ -41,9 +51,9 @@ export default function InterviewPage() {
     void (async () => {
       try {
         const { reply } = await requestInterviewChat([], f);
-        setMessages([{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 모의면접을 시작해볼까요?` }]);
+        setMessages([{ role: "bot", text: reply || t(`${displayName}님, 반가워요 👋 모의면접을 시작해볼까요?`, `Hi ${displayName} 👋 Shall we start the mock interview?`, `${displayName}，你好 👋 我们开始模拟面试吧？`, `Chào ${displayName} 👋 Cùng bắt đầu phỏng vấn thử nhé?`, `${displayName}さん、こんにちは 👋 模擬面接を始めましょうか？`, `Hai ${displayName} 👋 Yuk kita mulai wawancara simulasi?`) }]);
       } catch {
-        setMessages([{ role: "bot", text: "지금은 면접을 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
+        setMessages([{ role: "bot", text: t("지금은 면접을 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?", "We can't start the interview right now 😥 Could you come back in a moment?", "现在无法开始面试 😥 请稍后再进来好吗？", "Hiện chưa thể bắt đầu phỏng vấn 😥 Bạn quay lại sau một lát nhé?", "今は面接を開始できません 😥 少し経ってからもう一度来ていただけますか？", "Saat ini belum bisa memulai wawancara 😥 Bisa kembali lagi sebentar lagi?") }]);
       } finally {
         setLoading(false);
       }
@@ -72,7 +82,7 @@ export default function InterviewPage() {
           setDone(true);
         }
       } catch {
-        setMessages((m) => [...m, { role: "bot", text: "잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?" }]);
+        setMessages((m) => [...m, { role: "bot", text: t("잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?", "Something went wrong 😥 Could you say that once more?", "出了点问题 😥 可以再说一次吗？", "Có chút trục trặc 😥 Bạn nói lại một lần nữa nhé?", "少し問題が発生しました 😥 もう一度言っていただけますか？", "Ada sedikit masalah 😥 Bisa ulangi sekali lagi?") }]);
       } finally {
         setLoading(false);
       }
@@ -88,13 +98,13 @@ export default function InterviewPage() {
         <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-3xl flex-col px-5 pb-4 pt-4 md:pt-6">
           <div className="flex items-center justify-between gap-3">
             <Link href="/career-launch/week/4" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              ← 4주차
+              ← {t("4주차", "Week 4", "第4周", "Tuần 4", "4週目", "Minggu 4")}
             </Link>
           </div>
           <div className="mt-3 flex items-center gap-2.5">
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🎤</span>
             <div>
-              <p className="text-[12px] font-bold text-[#0B46E8]">모의면접</p>
+              <p className="text-[12px] font-bold text-[#0B46E8]">{t("모의면접", "Mock Interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara Simulasi")}</p>
               <p className="text-[15px] font-black text-[#0B1227]">{h.title}</p>
             </div>
           </div>
@@ -134,27 +144,31 @@ export default function InterviewPage() {
                 onClick={() => setDone(false)}
                 className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
               >
-                더 연습하기
+                {t("더 연습하기", "Practice more", "继续练习", "Luyện tập thêm", "もっと練習する", "Latihan lagi")}
               </button>
               <Link
                 href="/career-launch/week/4"
                 className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
               >
-                4주차 페이지로 →
+                {t("4주차 페이지로", "To Week 4 page", "前往第4周页面", "Đến trang Tuần 4", "4週目のページへ", "Ke halaman Minggu 4")} →
               </Link>
             </div>
           ) : (
             <div className="mt-3">
               {messages.length > 0 && !loading ? (
                 <div className="mb-2 flex flex-wrap gap-1.5">
-                  {["모범 답변 보기", "잘 모르겠어요", "다시 답해볼게요"].map((q) => (
+                  {[
+                    { label: t("모범 답변 보기", "See a model answer", "查看范例答案", "Xem câu trả lời mẫu", "模範解答を見る", "Lihat jawaban contoh"), send: "모범 답변 보기" },
+                    { label: t("잘 모르겠어요", "I'm not sure", "我不太清楚", "Tôi không chắc", "よく分かりません", "Saya kurang yakin"), send: "잘 모르겠어요" },
+                    { label: t("다시 답해볼게요", "Let me answer again", "我再回答一次", "Tôi trả lời lại", "もう一度答えてみます", "Saya jawab lagi") , send: "다시 답해볼게요" }
+                  ].map((q) => (
                     <button
-                      key={q}
+                      key={q.send}
                       type="button"
-                      onClick={() => send(q)}
+                      onClick={() => send(q.send)}
                       className="rounded-full border border-[#D7DCE3] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8]"
                     >
-                      {q}
+                      {q.label}
                     </button>
                   ))}
                 </div>
@@ -176,7 +190,7 @@ export default function InterviewPage() {
                     }
                   }}
                   rows={1}
-                  placeholder="면접관의 질문에 답해보세요"
+                  placeholder={t("면접관의 질문에 답해보세요", "Answer the interviewer's question", "请回答面试官的问题", "Hãy trả lời câu hỏi của người phỏng vấn", "面接官の質問に答えてみましょう", "Jawab pertanyaan pewawancara")}
                   disabled={loading}
                   className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
                 />
@@ -187,7 +201,7 @@ export default function InterviewPage() {
                     input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
                   }`}
                 >
-                  보내기
+                  {t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
                 </button>
               </form>
             </div>

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
+import { useLaunchT } from "../../lib/launch/i18n";
+import { useStepText, useJobReason } from "../../lib/launch/data-i18n";
 
 export type DiagResult = { percent: number; level: string; strengths?: string[]; improvements?: string[] } | null;
 
@@ -43,6 +45,9 @@ export function LiveWeekSteps({
   doneIds: string[];
   onReset: (id: string) => void;
 }) {
+  const t = useLaunchT();
+  const stepText = useStepText();
+  const jobReason = useJobReason();
   // 결과로 완료되지 않는 일반 스텝은 수동 체크.
   const [manual, setManual] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(steps.map((s) => [s.id, Boolean(s.done)]))
@@ -73,7 +78,7 @@ export function LiveWeekSteps({
                 type="button"
                 disabled={!toggleable || locked}
                 onClick={toggleable && !locked ? () => setManual((p) => ({ ...p, [s.id]: !p[s.id] })) : undefined}
-                aria-label={toggleable && !locked ? (done ? "완료 취소" : "완료로 표시") : undefined}
+                aria-label={toggleable && !locked ? (done ? t("완료 취소", "Undo complete", "取消完成", "Hủy hoàn thành", "完了を取り消す", "Batalkan selesai") : t("완료로 표시", "Mark as complete", "标记为完成", "Đánh dấu hoàn thành", "完了にする", "Tandai selesai")) : undefined}
                 className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[13px] font-black shadow-sm transition ${
                   done ? "bg-[#0B46E8] text-white" : locked ? "border-2 border-[#E5E8EB] bg-[#F8FAFC] text-[#C9CDD2]" : "border-2 border-[#D7DCE3] bg-white text-[#4E5968]"
                 } ${toggleable && !locked ? "hover:border-[#0B46E8] hover:text-[#0B46E8]" : "cursor-default"}`}
@@ -86,14 +91,14 @@ export function LiveWeekSteps({
             <div className={`min-w-0 flex-1 ${last ? "pb-0.5" : "pb-7"}`}>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <p className={`text-[15.5px] font-bold leading-snug tracking-[-0.01em] md:text-[16px] ${done ? "text-[#8B95A1]" : locked ? "text-[#B0B8C1]" : "text-[#191F28]"}`}>
-                  {s.title}
+                  {stepText(s.id, "title")}
                 </p>
                 {!done && s.minutes ? (
-                  <span className="rounded-full bg-[#F2F4F6] px-2 py-0.5 text-[11px] font-semibold text-[#8B95A1]">⏱ 약 {s.minutes}분</span>
+                  <span className="rounded-full bg-[#F2F4F6] px-2 py-0.5 text-[11px] font-semibold text-[#8B95A1]">⏱ {t(`약 ${s.minutes}분`, `about ${s.minutes} min`, `约 ${s.minutes} 分钟`, `khoảng ${s.minutes} phút`, `約 ${s.minutes}分`, `sekitar ${s.minutes} mnt`)}</span>
                 ) : null}
               </div>
               <p className={`mt-1.5 break-keep text-[13.5px] leading-[1.7] ${done ? "text-[#B0B8C1]" : locked ? "text-[#C9CDD2]" : "text-[#4E5968]"}`}>
-                {s.desc
+                {stepText(s.id, "desc")
                   .split(/(?<=\.)\s+/)
                   .filter(Boolean)
                   .map((line, li) => (
@@ -109,22 +114,22 @@ export function LiveWeekSteps({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-[13.5px] font-bold text-[#191F28]">
-                        취업 준비도 <span className="text-[#0B46E8]">{diag.percent}%</span>
+                        {t("취업 준비도", "Job readiness", "求职准备度", "Mức độ sẵn sàng tìm việc", "就職準備度", "Kesiapan kerja")} <span className="text-[#0B46E8]">{diag.percent}%</span>
                       </p>
                       {diag.level ? <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{diag.level}</p> : null}
                     </div>
                     <span className="flex shrink-0 items-center gap-2">
                       <Link href="/career-launch/diagnosis" className="text-[12.5px] font-bold text-[#0B46E8] underline">
-                        다시 보기
+                        {t("다시 보기", "View again", "再看一次", "Xem lại", "もう一度見る", "Lihat lagi")}
                       </Link>
                       <button type="button" onClick={() => onReset(s.id)} className="text-[12.5px] font-semibold text-[#8B95A1] underline hover:text-[#4E5968]">
-                        삭제
+                        {t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}
                       </button>
                     </span>
                   </div>
                   {diag.strengths && diag.strengths.length > 0 ? (
                     <div className="mt-2.5">
-                      <p className="text-[11.5px] font-bold text-[#3A6B00]">강점</p>
+                      <p className="text-[11.5px] font-bold text-[#3A6B00]">{t("강점", "Strengths", "优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
                       <ul className="mt-1 space-y-0.5">
                         {diag.strengths.map((x, si) => (
                           <li key={si} className="flex gap-1.5 break-keep text-[12.5px] leading-relaxed text-[#333D4B]">
@@ -140,14 +145,14 @@ export function LiveWeekSteps({
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[13.5px] font-bold text-[#191F28]">
-                      선정한 직무 <span className="text-[#0B46E8]">{jobs.length}개</span>
+                      {t("선정한 직무", "Selected jobs", "已选职位", "Công việc đã chọn", "選んだ職務", "Pekerjaan yang dipilih")} <span className="text-[#0B46E8]">{t(`${jobs.length}개`, `${jobs.length}`, `${jobs.length} 个`, `${jobs.length}`, `${jobs.length}件`, `${jobs.length}`)}</span>
                     </p>
                     <span className="flex shrink-0 items-center gap-2">
                       <Link href="/career-launch/jobs?restart=1" className="text-[12.5px] font-bold text-[#0B46E8] underline">
-                        다시 선정
+                        {t("다시 선정", "Reselect", "重新选择", "Chọn lại", "選び直す", "Pilih ulang")}
                       </Link>
                       <button type="button" onClick={() => onReset(s.id)} className="text-[12.5px] font-semibold text-[#8B95A1] underline hover:text-[#4E5968]">
-                        삭제
+                        {t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}
                       </button>
                     </span>
                   </div>
@@ -157,7 +162,7 @@ export function LiveWeekSteps({
                       return (
                         <li key={role} className="rounded-lg bg-white/70 p-2.5">
                           <p className="text-[13px] font-bold text-[#191F28]">{role}</p>
-                          {job?.reason ? <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{job.reason}</p> : null}
+                          {job?.reason ? <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p> : null}
                         </li>
                       );
                     })}
@@ -167,14 +172,14 @@ export function LiveWeekSteps({
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[13.5px] font-bold text-[#191F28]">
-                      선정 직무 정보 <span className="text-[#0B46E8]">{materials.length}개</span> 정리 완료
+                      {t("선정 직무 정보", "Selected job info", "所选职位信息", "Thông tin công việc đã chọn", "選んだ職務の情報", "Info pekerjaan yang dipilih")} <span className="text-[#0B46E8]">{t(`${materials.length}개`, `${materials.length}`, `${materials.length} 条`, `${materials.length}`, `${materials.length}件`, `${materials.length}`)}</span> {t("정리 완료", "organized", "整理完成", "đã sắp xếp", "整理完了", "selesai dirapikan")}
                     </p>
                     <span className="flex shrink-0 items-center gap-2">
                       <Link href="/career-launch/materials" className="text-[12.5px] font-bold text-[#0B46E8] underline">
-                        이어서 정리
+                        {t("이어서 정리", "Continue organizing", "继续整理", "Tiếp tục sắp xếp", "続けて整理", "Lanjut merapikan")}
                       </Link>
                       <button type="button" onClick={() => onReset(s.id)} className="text-[12.5px] font-semibold text-[#8B95A1] underline hover:text-[#4E5968]">
-                        삭제
+                        {t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}
                       </button>
                     </span>
                   </div>
@@ -197,7 +202,7 @@ export function LiveWeekSteps({
               ) : done ? (
                 // 완료된 학습·일반 스텝 — 완료 표시 + 삭제(초기화)
                 <div className="mt-2 flex items-center gap-2 text-[12.5px]">
-                  <span className="font-bold text-emerald-600">✓ 완료</span>
+                  <span className="font-bold text-emerald-600">✓ {t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")}</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -206,12 +211,12 @@ export function LiveWeekSteps({
                     }}
                     className="font-semibold text-[#8B95A1] underline hover:text-[#4E5968]"
                   >
-                    삭제
+                    {t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}
                   </button>
                 </div>
               ) : locked ? (
                 <p className="mt-2 inline-flex items-center gap-1 text-[12.5px] font-medium text-[#B0B8C1]">
-                  🔒 이전 단계를 완료하면 시작할 수 있어요
+                  🔒 {t("이전 단계를 완료하면 시작할 수 있어요", "Finish the previous step to start this one.", "完成上一步后即可开始。", "Hoàn thành bước trước để bắt đầu bước này.", "前のステップを完了すると始められます。", "Selesaikan langkah sebelumnya untuk memulai.")}
                 </p>
               ) : s.action ? (
                 <Link

@@ -10,12 +10,14 @@ import { trackCareerStepComplete } from "../../../lib/analytics";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
+import { useLaunchT } from "../../../lib/launch/i18n";
 
 // Week 1 스텝3 — 선택한 직무·프로필을 참고해 AI 코치가 그 직무를 깊이 이해하도록 대화로 이끈다.
 // 선정 직무·정리한 직무정보는 백엔드(progress)에 저장 → 기기 간 동기화.
 type Msg = { role: "bot" | "user"; text: string };
 
 export default function LaunchMaterialsPage() {
+  const t = useLaunchT();
   const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
@@ -77,9 +79,9 @@ export default function LaunchMaterialsPage() {
         // 이미 정리한 정보를 함께 보내 AI가 같은 걸 다시 묻지 않고 이어가게 한다.
         const { reply, materials: mats } = await requestMaterialChat([], sel, initialMats);
         if (mats.length) setMaterials((prev) => mergeMaterials(prev, mats));
-        setMessages([{ role: "bot", text: reply || `${displayName}님, 반가워요 👋 선정한 직무를 함께 자세히 알아볼까요?` }]);
+        setMessages([{ role: "bot", text: reply || t(`${displayName}님, 반가워요 👋 선정한 직무를 함께 자세히 알아볼까요?`, `Hi ${displayName} 👋 Shall we explore your selected jobs in detail together?`, `${displayName}，你好 👋 我们一起来详细了解你选定的职务吧？`, `Chào ${displayName} 👋 Cùng tìm hiểu chi tiết về công việc bạn đã chọn nhé?`, `${displayName}さん、こんにちは 👋 選んだ職務を一緒に詳しく調べてみましょうか？`, `Hai ${displayName} 👋 Yuk kita pelajari pekerjaan pilihanmu lebih detail bersama?`) }]);
       } catch {
-        setMessages([{ role: "bot", text: "지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?" }]);
+        setMessages([{ role: "bot", text: t("지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?", "We can't start the chat right now 😥 Could you come back in a moment?", "现在无法开始对话 😥 请稍后再进来好吗？", "Hiện chưa thể bắt đầu trò chuyện 😥 Bạn quay lại sau một lát nhé?", "今は会話を開始できません 😥 少し経ってからもう一度来ていただけますか？", "Saat ini belum bisa memulai obrolan 😥 Bisa kembali lagi sebentar lagi?") }]);
       } finally {
         setLoading(false);
       }
@@ -114,7 +116,7 @@ export default function LaunchMaterialsPage() {
           setDone(true);
         }
       } catch {
-        setMessages((m) => [...m, { role: "bot", text: "잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?" }]);
+        setMessages((m) => [...m, { role: "bot", text: t("잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?", "Something went wrong 😥 Could you say that once more?", "出了点问题 😥 可以再说一次吗？", "Có chút trục trặc 😥 Bạn nói lại một lần nữa nhé?", "少し問題が発生しました 😥 もう一度言っていただけますか？", "Ada sedikit masalah 😥 Bisa ulangi sekali lagi?") }]);
       } finally {
         setLoading(false);
       }
@@ -125,7 +127,7 @@ export default function LaunchMaterialsPage() {
     saveMaterials(materials);
     trackCareerStepComplete("materials");
     setDone(true);
-    setMessages((m) => [...m, { role: "bot", text: `좋아요! 지금까지 정리한 직무 정보 ${materials.length}개를 저장했어요. 다음 주엔 이 방향으로 이력서를 만들어봐요 🙌` }]);
+    setMessages((m) => [...m, { role: "bot", text: t(`좋아요! 지금까지 정리한 직무 정보 ${materials.length}개를 저장했어요. 다음 주엔 이 방향으로 이력서를 만들어봐요 🙌`, `Great! We've saved the ${materials.length} job insights you've gathered so far. Next week let's build your resume in this direction 🙌`, `太好了！已保存你目前整理的 ${materials.length} 条职务信息。下周就朝这个方向来做简历吧 🙌`, `Tuyệt! Đã lưu ${materials.length} thông tin công việc bạn tổng hợp đến giờ. Tuần sau hãy làm CV theo hướng này nhé 🙌`, `いいですね！これまで整理した職務情報${materials.length}件を保存しました。来週はこの方向で履歴書を作ってみましょう 🙌`, `Bagus! Kami sudah menyimpan ${materials.length} info pekerjaan yang kamu kumpulkan. Minggu depan mari buat resume ke arah ini 🙌`) }]);
   };
 
   return (
@@ -135,10 +137,10 @@ export default function LaunchMaterialsPage() {
         <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-3xl flex-col px-5 pb-4 pt-4 md:pt-6">
           <div className="flex items-center justify-between gap-3">
             <Link href="/career-launch/week/1" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              ← 1주차
+              ← {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
             </Link>
             <div className="flex items-center gap-2.5">
-              <span className="text-[12px] font-bold text-[#0B46E8]">정리한 정보 {materials.length}개</span>
+              <span className="text-[12px] font-bold text-[#0B46E8]">{t(`정리한 정보 ${materials.length}개`, `${materials.length} insights gathered`, `已整理 ${materials.length} 条信息`, `${materials.length} thông tin đã tổng hợp`, `整理した情報${materials.length}件`, `${materials.length} info terkumpul`)}</span>
               {!done ? (
                 <button
                   type="button"
@@ -146,7 +148,7 @@ export default function LaunchMaterialsPage() {
                   disabled={loading}
                   className="rounded-full border border-[#D7DCE3] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8] disabled:opacity-40"
                 >
-                  넘어가기 ⏭
+                  {t("넘어가기", "Skip", "跳过", "Bỏ qua", "スキップ", "Lewati")} ⏭
                 </button>
               ) : null}
             </div>
@@ -154,8 +156,8 @@ export default function LaunchMaterialsPage() {
           <div className="mt-3 flex items-center gap-2.5">
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
             <div>
-              <p className="text-[15px] font-black text-[#0B1227]">선정 직무 깊이 알기</p>
-              <p className="text-[12px] text-[#8B95A1]">AI 코치와 대화하며 선정 직무를 깊이 이해해요 · ⏱ 약 10분</p>
+              <p className="text-[15px] font-black text-[#0B1227]">{t("선정 직무 깊이 알기", "Get to Know Your Selected Jobs", "深入了解选定的职务", "Hiểu sâu công việc đã chọn", "選定した職務を深く知る", "Kenali Pekerjaan Pilihanmu Lebih Dalam")}</p>
+              <p className="text-[12px] text-[#8B95A1]">{t("AI 코치와 대화하며 선정 직무를 깊이 이해해요", "Chat with the AI coach to deeply understand your selected jobs", "与 AI 教练对话，深入了解选定的职务", "Trò chuyện với huấn luyện viên AI để hiểu sâu công việc đã chọn", "AIコーチと話しながら選定した職務を深く理解します", "Mengobrol dengan pelatih AI untuk memahami pekerjaan pilihanmu lebih dalam")} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
             </div>
           </div>
 
@@ -180,7 +182,7 @@ export default function LaunchMaterialsPage() {
               <div className="flex items-start gap-2">
                 <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EAFFD1] text-[13px]">📋</span>
                 <div className="max-w-[88%] rounded-2xl rounded-bl-md border border-[#D9F2B8] bg-[#F6FFE9] px-3.5 py-3">
-                  <p className="text-[11.5px] font-bold text-[#3A6B00]">정리한 직무 정보</p>
+                  <p className="text-[11.5px] font-bold text-[#3A6B00]">{t("정리한 직무 정보", "Job insights gathered", "整理的职务信息", "Thông tin công việc đã tổng hợp", "整理した職務情報", "Info pekerjaan terkumpul")}</p>
                   <ul className="mt-1.5 space-y-1">
                     {materials.map((mat, i) => (
                       <li key={i} className="flex gap-1.5 text-[12.5px] leading-relaxed text-[#333D4B]">
@@ -213,13 +215,13 @@ export default function LaunchMaterialsPage() {
                 onClick={() => setDone(false)}
                 className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
               >
-                계속 정리하기
+                {t("계속 정리하기", "Keep gathering", "继续整理", "Tiếp tục tổng hợp", "続けて整理する", "Lanjut mengumpulkan")}
               </button>
               <Link
                 href="/career-launch/week/1"
                 className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
               >
-                1주차 페이지로 →
+                {t("1주차 페이지로", "To Week 1 page", "前往第1周页面", "Đến trang Tuần 1", "1週目のページへ", "Ke halaman Minggu 1")} →
               </Link>
             </div>
           ) : (
@@ -227,14 +229,18 @@ export default function LaunchMaterialsPage() {
               {/* 할 말이 없어 막힐 때를 위한 빠른 응답 — 대화가 끊기지 않게 */}
               {messages.length > 0 && !loading ? (
                 <div className="mb-2 flex flex-wrap gap-1.5">
-                  {["잘 모르겠어요", "더 자세히 알려주세요", "다음으로 넘어갈래요"].map((q) => (
+                  {[
+                    { label: t("잘 모르겠어요", "I'm not sure", "我不太清楚", "Tôi không chắc", "よく分かりません", "Saya kurang yakin"), send: "잘 모르겠어요" },
+                    { label: t("더 자세히 알려주세요", "Tell me more", "请告诉我更多", "Cho tôi biết thêm", "もっと詳しく教えてください", "Beri tahu lebih detail"), send: "더 자세히 알려주세요" },
+                    { label: t("다음으로 넘어갈래요", "Move to the next", "我想进入下一步", "Tôi muốn sang bước tiếp theo", "次に進みたいです", "Lanjut ke berikutnya") , send: "다음으로 넘어갈래요" }
+                  ].map((q) => (
                     <button
-                      key={q}
+                      key={q.send}
                       type="button"
-                      onClick={() => send(q)}
+                      onClick={() => send(q.send)}
                       className="rounded-full border border-[#D7DCE3] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8]"
                     >
-                      {q}
+                      {q.label}
                     </button>
                   ))}
                 </div>
@@ -257,7 +263,7 @@ export default function LaunchMaterialsPage() {
                     }
                   }}
                   rows={1}
-                  placeholder="편하게 답해주세요"
+                  placeholder={t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
                   disabled={loading}
                   className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
                 />
@@ -268,7 +274,7 @@ export default function LaunchMaterialsPage() {
                     input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
                   }`}
                 >
-                  보내기
+                  {t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
                 </button>
               </form>
               {materials.length >= 3 ? (
@@ -277,7 +283,7 @@ export default function LaunchMaterialsPage() {
                   onClick={finishNow}
                   className="h-[46px] shrink-0 rounded-xl bg-[#B7FF5A] px-4 text-[13.5px] font-black text-[#111] transition hover:brightness-105"
                 >
-                  정리 완료
+                  {t("정리 완료", "Done gathering", "整理完成", "Hoàn tất tổng hợp", "整理完了", "Selesai")}
                 </button>
               ) : null}
               </div>
