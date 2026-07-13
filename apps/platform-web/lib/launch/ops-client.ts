@@ -65,6 +65,26 @@ export type OpsStudent = {
   updatedAt: string | null;
 };
 
+// 학생 진행 체크포인트 — 목록/상세에서 진행률과 미완료 항목을 공통으로 계산.
+// 면접은 3종(self/job/fit)이라 3칸으로 세분화한다.
+export type ProgressStepKey = "diagnosis" | "jobs" | "resume" | "cover" | "interview1" | "interview2" | "interview3";
+
+export function studentProgress(
+  s: Pick<OpsStudent, "diagnosisPercent" | "selectedJobs" | "hasResume" | "coverItems" | "interviewPracticed">
+): { steps: { key: ProgressStepKey; done: boolean }[]; done: number; total: number; percent: number } {
+  const steps: { key: ProgressStepKey; done: boolean }[] = [
+    { key: "diagnosis", done: s.diagnosisPercent !== null },
+    { key: "jobs", done: s.selectedJobs > 0 },
+    { key: "resume", done: s.hasResume },
+    { key: "cover", done: s.coverItems > 0 },
+    { key: "interview1", done: s.interviewPracticed >= 1 },
+    { key: "interview2", done: s.interviewPracticed >= 2 },
+    { key: "interview3", done: s.interviewPracticed >= 3 }
+  ];
+  const done = steps.filter((x) => x.done).length;
+  return { steps, done, total: steps.length, percent: Math.round((done / steps.length) * 100) };
+}
+
 export type OpsStudentDetail = {
   user: { id: string; name: string | null; realName: string | null; email: string; phoneNumber: string | null };
   cohort: OpsStudentCohort | null;

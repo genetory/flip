@@ -102,6 +102,53 @@ export default function LaunchOpsStudentDetailPage() {
               </div>
             </div>
 
+            {/* 진행 체크리스트 — 무엇이 됐고 무엇이 안 됐는지 한눈에 */}
+            {(() => {
+              const checklist = [
+                { l: t("취업 진단", "Diagnosis", "求职诊断", "Chẩn đoán", "就活診断", "Diagnosis"), done: Boolean(diag && typeof diag.percent === "number") },
+                { l: t("직무 선정", "Job selection", "职务选择", "Chọn vị trí", "職務選定", "Pilih posisi"), done: jobs.length > 0 },
+                { l: t("이력서", "Resume", "简历", "CV", "履歴書", "Resume"), done: hasResumeContent(detail.resume) },
+                { l: t("자기소개서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter"), done: hasCoverContent(detail.cover) },
+                { l: INTERVIEW_LABEL.self, done: interviewPracticed.includes("self") },
+                { l: INTERVIEW_LABEL.job, done: interviewPracticed.includes("job") },
+                { l: INTERVIEW_LABEL.fit, done: interviewPracticed.includes("fit") },
+                { l: t("최종 피드백", "Final feedback", "最终反馈", "Phản hồi cuối cùng", "最終フィードバック", "Umpan balik akhir"), done: Boolean(finalFeedbackText) }
+              ];
+              const doneCount = checklist.filter((c) => c.done).length;
+              const percent = Math.round((doneCount / checklist.length) * 100);
+              const allDone = doneCount === checklist.length;
+              const pending = checklist.filter((c) => !c.done).map((c) => c.l);
+              return (
+                <div className="mt-6">
+                  <SectionTitle>{t("진행 현황", "Progress overview", "进度概览", "Tổng quan tiến độ", "進捗状況", "Ikhtisar progres")}</SectionTitle>
+                  <Card className="!p-4">
+                    <div className="flex items-center justify-between text-[13px]">
+                      <span className="font-bold text-[#191F28]">{t("진행률", "Progress", "进度", "Tiến độ", "進捗", "Progres")} <span className={allDone ? "text-[#3A6B00]" : "text-[#0B46E8]"}>{percent}%</span></span>
+                      <span className="text-[12px] text-[#8B95A1]">{doneCount}/{checklist.length}</span>
+                    </div>
+                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[#EEF1F5]">
+                      <div className={`h-full rounded-full ${allDone ? "bg-[#3A6B00]" : "bg-[#0B46E8]"}`} style={{ width: `${percent}%` }} />
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+                      {checklist.map((c, i) => (
+                        <div key={i} className="flex items-center gap-1.5 text-[12.5px]">
+                          <span className={c.done ? "text-[#3A6B00]" : "text-[#C9CDD2]"}>{c.done ? "✓" : "○"}</span>
+                          <span className={c.done ? "font-semibold text-[#333D4B]" : "text-[#B0B8C1]"}>{c.l}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {pending.length > 0 ? (
+                      <p className="mt-3 border-t border-[#F2F4F6] pt-2.5 text-[12px] text-[#8B95A1]">
+                        <span className="font-bold text-amber-600">{t("미완료", "Not done", "未完成", "Chưa xong", "未完了", "Belum selesai")}</span> · {pending.join(" · ")}
+                      </p>
+                    ) : (
+                      <p className="mt-3 border-t border-[#F2F4F6] pt-2.5 text-[12px] font-bold text-[#3A6B00]">{t("모든 단계를 완료했어요 🎉", "All steps complete 🎉", "已完成所有步骤 🎉", "Đã hoàn thành tất cả 🎉", "すべてのステップ完了 🎉", "Semua langkah selesai 🎉")}</p>
+                    )}
+                  </Card>
+                </div>
+              );
+            })()}
+
             <div className="mt-7 grid gap-6 lg:grid-cols-[1.6fr_1fr] lg:items-start lg:gap-8">
               {/* 왼쪽: 진행 상태 + 이력서 */}
               <div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { fetchOpsStudents, type OpsStudent } from "../../../../lib/launch/ops-client";
+import { fetchOpsStudents, studentProgress, type OpsStudent } from "../../../../lib/launch/ops-client";
 import { Card, LaunchContainer, Pill, SectionTitle } from "../../../../components/launch/ui";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 
@@ -13,6 +13,7 @@ export default function LaunchOpsStudentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<string>("all"); // "all" | cohortId | "none"
+  const [sort, setSort] = useState<"recent" | "progress">("recent");
 
   useEffect(() => {
     let alive = true;
@@ -40,10 +41,14 @@ export default function LaunchOpsStudentsPage() {
   const hasUnassigned = students.some((s) => !s.cohort);
 
   const filtered = useMemo(() => {
-    if (filter === "all") return students;
-    if (filter === "none") return students.filter((s) => !s.cohort);
-    return students.filter((s) => s.cohort?.id === filter);
-  }, [students, filter]);
+    const base =
+      filter === "all" ? students : filter === "none" ? students.filter((s) => !s.cohort) : students.filter((s) => s.cohort?.id === filter);
+    if (sort === "progress") {
+      // 진행률 낮은 순 — 뒤처진 학생을 위로.
+      return [...base].sort((a, b) => studentProgress(a).done - studentProgress(b).done);
+    }
+    return base; // 기본: 백엔드가 최근 활동순으로 정렬해 반환.
+  }, [students, filter, sort]);
 
   const withResume = filtered.filter((s) => s.hasResume).length;
   const withCover = filtered.filter((s) => s.coverItems > 0).length;
@@ -95,7 +100,16 @@ export default function LaunchOpsStudentsPage() {
         </div>
 
         <div className="mt-7">
-          <SectionTitle sub={t("카드를 누르면 상세로 이동해요", "Tap a card to open the detail page", "点击卡片打开详情页", "Nhấn vào thẻ để mở trang chi tiết", "カードをタップすると詳細に移動します", "Ketuk kartu untuk membuka halaman detail")}>{t("학생 목록", "Student list", "学生列表", "Danh sách sinh viên", "学生一覧", "Daftar siswa")}</SectionTitle>
+          <div className="mb-2.5 flex items-center justify-between gap-3">
+            <SectionTitle sub={t("카드를 누르면 상세로 이동해요", "Tap a card to open the detail page", "点击卡片打开详情页", "Nhấn vào thẻ để mở trang chi tiết", "カードをタップすると詳細に移動します", "Ketuk kartu untuk membuka halaman detail")}>{t("학생 목록", "Student list", "学生列表", "Danh sách sinh viên", "学生一覧", "Daftar siswa")}</SectionTitle>
+            <button
+              type="button"
+              onClick={() => setSort((s) => (s === "recent" ? "progress" : "recent"))}
+              className={`flex-none rounded-full px-3 py-1.5 text-[12.5px] font-bold transition ${sort === "progress" ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E9ECF0]"}`}
+            >
+              {sort === "progress" ? t("진행률 낮은 순", "Least progress first", "进度最低优先", "Tiến độ thấp trước", "進捗が低い順", "Progres terendah dahulu") : t("최근 활동순", "Recent activity", "最近活动", "Hoạt động gần đây", "最近の活動順", "Aktivitas terbaru")}
+            </button>
+          </div>
           {loading ? (
             <Card className="!p-6 text-center text-[14px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</Card>
           ) : error ? (
@@ -104,7 +118,10 @@ export default function LaunchOpsStudentsPage() {
             <Card className="!p-6 text-center text-[14px] text-[#8B95A1]">{t("해당 기수에 학생이 없어요.", "No students in this cohort.", "此期数没有学生。", "Không có sinh viên trong khóa này.", "このコホートに学生がいません。", "Tidak ada siswa di batch ini.")}</Card>
           ) : (
             <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((st) => (
+              {filtered.map((st) => {
+                const prog = studentProgress(st);
+                const done = prog.done === prog.total;
+                return (
                 <Link key={st.userId} href={`/career-launch/ops/students/${st.userId}`} className="block">
                   <Card className="h-full !p-4 transition hover:border-[#0B46E8]/40">
                     <div className="flex items-center justify-between gap-2">
@@ -117,14 +134,25 @@ export default function LaunchOpsStudentsPage() {
                           <p className="truncate text-[12px] text-[#8B95A1]">{st.email}</p>
                         </div>
                       </div>
-                      {st.diagnosisPercent !== null ? <Pill tone="blue">{t("진단", "Diagnosis", "诊断", "Chẩn đoán", "診断", "Diagnosis")} {st.diagnosisPercent}%</Pill> : null}
+                      <Pill tone={done ? "green" : "grey"}>{done ? t("완주", "Complete", "已完成", "Hoàn thành", "完走", "Selesai") : `${prog.percent}%`}</Pill>
                     </div>
                     {st.cohort ? (
                       <p className="mt-2 truncate text-[11.5px] font-semibold text-[#0B46E8]">🎓 {st.cohort.university} · {st.cohort.name}</p>
                     ) : (
                       <p className="mt-2 text-[11.5px] font-semibold text-[#C9CDD2]">{t("기수 미등록", "Not assigned to a cohort", "未分配期数", "Chưa xếp khóa", "コホート未登録", "Belum ditetapkan ke batch")}</p>
                     )}
-                    <div className="mt-2 flex flex-wrap gap-1.5">
+                    {/* 진행률 바 — 7개 체크포인트 중 완료 수 */}
+                    <div className="mt-2.5">
+                      <div className="flex items-center justify-between text-[11px] text-[#8B95A1]">
+                        <span>{t("진행률", "Progress", "进度", "Tiến độ", "進捗", "Progres")}</span>
+                        <span className="font-bold text-[#4E5968]">{prog.done}/{prog.total}</span>
+                      </div>
+                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#EEF1F5]">
+                        <div className={`h-full rounded-full ${done ? "bg-[#3A6B00]" : "bg-[#0B46E8]"}`} style={{ width: `${prog.percent}%` }} />
+                      </div>
+                    </div>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      <Sig on={st.diagnosisPercent !== null}>{t("진단", "Diagnosis", "诊断", "Chẩn đoán", "診断", "Diagnosis")}</Sig>
                       <Sig on={st.selectedJobs > 0}>{t("직무", "Jobs", "职务", "Vị trí", "職務", "Posisi")} {st.selectedJobs}</Sig>
                       <Sig on={st.hasResume}>{t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</Sig>
                       <Sig on={st.coverItems > 0}>{t("자소서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter")} {st.coverItems}</Sig>
@@ -132,7 +160,8 @@ export default function LaunchOpsStudentsPage() {
                     </div>
                   </Card>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
