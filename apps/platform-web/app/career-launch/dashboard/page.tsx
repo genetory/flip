@@ -127,9 +127,10 @@ export default function LaunchDashboardPage() {
             </Card>
           )}
 
-          {/* 완주 시 — 이력서·자소서·면접 종합 최종 피드백 */}
+          {/* 완주 시 — 이력서·자소서·면접 종합 최종 피드백(프로그램 소개처럼 섹션) */}
           {overall === 100 ? (
-            <div className="mt-4">
+            <div className="mt-7">
+              <SectionTitle sub="이력서·자기소개서·면접을 종합한 코치 피드백">최종 피드백</SectionTitle>
               <FinalFeedbackCard />
             </div>
           ) : null}
