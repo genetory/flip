@@ -46,15 +46,19 @@ export async function resetOpsPrompt(key: string): Promise<string> {
 }
 
 // ── 학생 ──
+export type OpsStudentCohort = { id: string; university: string; name: string };
 export type OpsStudent = {
   userId: string;
   name: string | null;
   email: string;
+  cohort: OpsStudentCohort | null;
   diagnosisPercent: number | null;
   selectedJobs: number;
   materials: number;
   doneSteps: number;
   hasResume: boolean;
+  coverItems: number;
+  interviewPracticed: number;
   updatedAt: string | null;
 };
 

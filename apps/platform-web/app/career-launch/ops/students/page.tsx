@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { fetchOpsStudents, type OpsStudent } from "../../../../lib/launch/ops-client";
 import { Card, LaunchContainer, Pill, SectionTitle } from "../../../../components/launch/ui";
 
-// 운영자 학생 관리 — Career Launch 를 이용한 학생 목록(실데이터). 클릭 시 상세로 이동.
+// 운영자 학생 관리 — 기수별로 필터해 진행 상태를 보고, 클릭 시 상세로 이동.
 export default function LaunchOpsStudentsPage() {
   const [students, setStudents] = useState<OpsStudent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [filter, setFilter] = useState<string>("all"); // "all" | cohortId | "none"
 
   useEffect(() => {
     let alive = true;
@@ -28,7 +29,23 @@ export default function LaunchOpsStudentsPage() {
     };
   }, []);
 
-  const withResume = students.filter((s) => s.hasResume).length;
+  // 학생들에게서 나타난 기수 목록(필터용).
+  const cohorts = useMemo(() => {
+    const map = new Map<string, { id: string; university: string; name: string }>();
+    for (const s of students) if (s.cohort) map.set(s.cohort.id, s.cohort);
+    return [...map.values()].sort((a, b) => `${a.university}${a.name}`.localeCompare(`${b.university}${b.name}`));
+  }, [students]);
+  const hasUnassigned = students.some((s) => !s.cohort);
+
+  const filtered = useMemo(() => {
+    if (filter === "all") return students;
+    if (filter === "none") return students.filter((s) => !s.cohort);
+    return students.filter((s) => s.cohort?.id === filter);
+  }, [students, filter]);
+
+  const withResume = filtered.filter((s) => s.hasResume).length;
+  const withCover = filtered.filter((s) => s.coverItems > 0).length;
+  const diagDone = filtered.filter((s) => s.diagnosisPercent !== null).length;
 
   return (
     <main className="pb-16">
@@ -36,9 +53,8 @@ export default function LaunchOpsStudentsPage() {
         <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">학생 관리</h1>
-            <p className="mt-1 text-[13.5px] text-[#8B95A1]">Career Launch 를 이용한 학생의 진행 상태와 이력서를 보고 피드백을 남겨요.</p>
+            <p className="mt-1 text-[13.5px] text-[#8B95A1]">기수별로 학생의 진행 상태를 보고 상세에서 피드백을 남겨요.</p>
           </div>
-          {/* 운영자도 학생 화면을 본인 계정으로 전부 체험할 수 있게 진입 링크 */}
           <Link
             href="/career-launch/dashboard"
             className="inline-flex flex-none items-center gap-1.5 rounded-xl border border-[#0B46E8]/25 bg-white px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
@@ -47,11 +63,27 @@ export default function LaunchOpsStudentsPage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5 sm:max-w-md">
+        {/* 기수 필터 */}
+        {!loading && (cohorts.length > 0 || hasUnassigned) ? (
+          <div className="mb-5 flex flex-wrap gap-1.5">
+            <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>전체 {students.length}</FilterChip>
+            {cohorts.map((c) => (
+              <FilterChip key={c.id} active={filter === c.id} onClick={() => setFilter(c.id)}>
+                {c.university} · {c.name} {students.filter((s) => s.cohort?.id === c.id).length}
+              </FilterChip>
+            ))}
+            {hasUnassigned ? (
+              <FilterChip active={filter === "none"} onClick={() => setFilter("none")}>미등록 {students.filter((s) => !s.cohort).length}</FilterChip>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-4 gap-2.5 sm:max-w-lg">
           {[
-            { k: "이용 학생", v: students.length },
-            { k: "이력서 작성", v: withResume },
-            { k: "진단 완료", v: students.filter((s) => s.diagnosisPercent !== null).length }
+            { k: "학생", v: filtered.length },
+            { k: "진단", v: diagDone },
+            { k: "이력서", v: withResume },
+            { k: "자소서", v: withCover }
           ].map((s) => (
             <Card key={s.k} className="!p-4 text-center">
               <p className="text-[22px] font-black text-[#0B46E8]">{s.v}</p>
@@ -66,11 +98,11 @@ export default function LaunchOpsStudentsPage() {
             <Card className="!p-6 text-center text-[14px] text-[#8B95A1]">불러오는 중…</Card>
           ) : error ? (
             <Card className="!p-6 text-center text-[14px] text-red-600">{error}</Card>
-          ) : students.length === 0 ? (
-            <Card className="!p-6 text-center text-[14px] text-[#8B95A1]">아직 Career Launch 를 이용한 학생이 없어요.</Card>
+          ) : filtered.length === 0 ? (
+            <Card className="!p-6 text-center text-[14px] text-[#8B95A1]">해당 기수에 학생이 없어요.</Card>
           ) : (
             <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              {students.map((st) => (
+              {filtered.map((st) => (
                 <Link key={st.userId} href={`/career-launch/ops/students/${st.userId}`} className="block">
                   <Card className="h-full !p-4 transition hover:border-[#0B46E8]/40">
                     <div className="flex items-center justify-between gap-2">
@@ -83,15 +115,18 @@ export default function LaunchOpsStudentsPage() {
                           <p className="truncate text-[12px] text-[#8B95A1]">{st.email}</p>
                         </div>
                       </div>
-                      <span className="flex flex-none items-center gap-1.5">
-                        {st.diagnosisPercent !== null ? <Pill tone="blue">진단 {st.diagnosisPercent}%</Pill> : null}
-                        {st.hasResume ? <Pill tone="green">이력서</Pill> : null}
-                      </span>
+                      {st.diagnosisPercent !== null ? <Pill tone="blue">진단 {st.diagnosisPercent}%</Pill> : null}
                     </div>
-                    <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-[#8B95A1]">
-                      <span>직무 {st.selectedJobs}개</span>
-                      <span>직무정보 {st.materials}개</span>
-                      <span>완료 스텝 {st.doneSteps}개</span>
+                    {st.cohort ? (
+                      <p className="mt-2 truncate text-[11.5px] font-semibold text-[#0B46E8]">🎓 {st.cohort.university} · {st.cohort.name}</p>
+                    ) : (
+                      <p className="mt-2 text-[11.5px] font-semibold text-[#C9CDD2]">기수 미등록</p>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <Sig on={st.selectedJobs > 0}>직무 {st.selectedJobs}</Sig>
+                      <Sig on={st.hasResume}>이력서</Sig>
+                      <Sig on={st.coverItems > 0}>자소서 {st.coverItems}</Sig>
+                      <Sig on={st.interviewPracticed > 0}>면접 {st.interviewPracticed}/3</Sig>
                     </div>
                   </Card>
                 </Link>
@@ -101,5 +136,24 @@ export default function LaunchOpsStudentsPage() {
         </div>
       </LaunchContainer>
     </main>
+  );
+}
+
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold transition ${active ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E9ECF0]"}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// 진행 신호 배지 — 완료면 초록, 아니면 회색.
+function Sig({ on, children }: { on: boolean; children: React.ReactNode }) {
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${on ? "bg-[#EAFFD1] text-[#3A6B00]" : "bg-[#F2F4F6] text-[#B0B8C1]"}`}>{children}</span>
   );
 }
