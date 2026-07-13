@@ -300,7 +300,7 @@ function DocPreview({
         <p className="text-[13.5px] font-bold text-[#191F28]">{title}</p>
         {ready ? (
           <Link href={previewHref} target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-[#0B46E8] transition hover:underline">
-            크게보기 ↗
+            열기 · PDF ↗
           </Link>
         ) : null}
       </div>

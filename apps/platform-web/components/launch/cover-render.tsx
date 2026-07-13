@@ -40,9 +40,6 @@ export function CoverRender({ data, maxWidth }: { data: CoverData; maxWidth?: nu
       <div ref={wrapRef} className="w-full" style={{ height: A4_H * scale * pages + (pages - 1) * 8 * scale }}>
         <div style={{ position: "relative", width: A4_W, transform: `scale(${scale})`, transformOrigin: "top left" }}>
           <CoverLetterSheet innerRef={sheetRef} items={items} title="자기소개서" companyName={data.company ?? undefined} emptyLabel="아직 작성한 문항이 없어요." />
-          {Array.from({ length: pages - 1 }).map((_, i) => (
-            <div key={i} className="pointer-events-none absolute left-0 right-0 border-t border-dashed border-rose-300" style={{ top: A4_H * (i + 1) }} />
-          ))}
         </div>
       </div>
     </div>

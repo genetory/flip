@@ -59,7 +59,7 @@ export function FinalFeedbackCard() {
           <span className="text-[16px]">🏆</span>
           <p className="text-[13.5px] font-black text-[#0B1227]">코치 최종 피드백</p>
         </div>
-        {state === "done" ? (
+        {state === "done" && stale ? (
           <button
             type="button"
             onClick={regenerate}
