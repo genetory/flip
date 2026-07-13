@@ -55,22 +55,22 @@ export function FinalFeedbackCard() {
   };
 
   return (
-    <Card className="!border-[#B7FF5A] !bg-[#F6FFE9] !p-0">
+    <Card className="!border-[#0B46E8] !bg-white !p-0">
       <button type="button" onClick={toggle} className="flex w-full items-center justify-between gap-2 px-4 py-3.5 text-left md:px-5">
         <div className="flex items-center gap-2">
           <span className="text-[16px]">🏆</span>
           <div>
             <p className="text-[13.5px] font-black text-[#0B1227]">최종 피드백</p>
-            {!open ? <p className="mt-0.5 text-[11.5px] text-[#3A6B00]">4주 결과물을 종합한 코치 피드백 · 열어서 확인하기</p> : null}
+            {!open ? <p className="mt-0.5 text-[11.5px] text-[#8B95A1]">4주 결과물을 종합한 코치 피드백 · 열어서 확인하기</p> : null}
           </div>
         </div>
         <span className="shrink-0 text-[12px] font-bold text-[#0B46E8]">{open ? "닫기 ▲" : "열기 ▼"}</span>
       </button>
 
       {open ? (
-        <div className="border-t border-[#D9F2B8] px-4 pb-4 pt-3 md:px-5">
+        <div className="border-t border-[#EEF1F5] px-4 pb-4 pt-3 md:px-5">
           {state === "done" && stale ? (
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#FFF9EC] px-3 py-2">
               <p className="text-[12px] font-semibold text-[#B7791F]">결과물이 바뀌었어요. 최신 내용으로 다시 받을 수 있어요.</p>
               <button
                 type="button"
