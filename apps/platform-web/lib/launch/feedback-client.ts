@@ -50,10 +50,11 @@ export async function fetchWeekFeedback(week: number): Promise<string | null> {
   return typeof data.feedback === "string" ? data.feedback : null;
 }
 
-// 학생: 완주 최종 피드백 — 이력서+자소서+면접 결과 종합. 완주 전이면 null.
-export async function fetchFinalFeedback(): Promise<string | null> {
-  const data = await req("/career-launch/final-feedback", { method: "POST", headers: authHeaders(true), body: JSON.stringify({}) });
-  return typeof data.feedback === "string" ? data.feedback : null;
+// 학생: 완주 최종 피드백 — 이력서+자소서+면접 결과 종합. 완주 전이면 text=null.
+// 생성은 1회 후 저장·재사용(토큰 절약). 결과물이 바뀌면 stale=true(다시 받기 버튼). force=true면 강제 재생성.
+export async function fetchFinalFeedback(force = false): Promise<{ text: string | null; stale: boolean }> {
+  const data = await req("/career-launch/final-feedback", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force }) });
+  return { text: typeof data.feedback === "string" ? data.feedback : null, stale: data.stale === true };
 }
 
 // 학생: 내게 온 피드백 조회

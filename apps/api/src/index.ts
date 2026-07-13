@@ -15141,16 +15141,21 @@ app.post(
         return res.json({ ok: true, feedback: null });
       }
 
-      // 한 번 생성하면 저장해두고 그대로 재사용(LLM 토큰 절약). 버전이 바뀌면 한 번만 재생성.
-      const cached = (progState.finalFeedback && typeof progState.finalFeedback === "object" ? progState.finalFeedback : {}) as { v?: number; text?: string };
-      if (cached.v === FINAL_FEEDBACK_VERSION && typeof cached.text === "string" && cached.text.trim()) {
-        return res.json({ ok: true, feedback: cached.text, cached: true });
-      }
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-
       const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown; results?: unknown };
       const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
       const results = (interview.results && typeof interview.results === "object" ? interview.results : {}) as Record<string, string>;
+      const currentSig = simpleHash(JSON.stringify({ resume: resumeContent, cover: coverContent, interview: { practiced, results } }));
+
+      // 한 번 생성하면 저장해두고 그대로 재사용(LLM 토큰 절약). force=true(다시 받기)면 재생성.
+      // 저장 당시 입력 서명과 현재가 다르면 stale=true 로 알려 프론트에서 '다시 받기' 버튼을 띄운다.
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const cached = (progState.finalFeedback && typeof progState.finalFeedback === "object" ? progState.finalFeedback : {}) as { v?: number; sig?: string; text?: string };
+      if (!force && cached.v === FINAL_FEEDBACK_VERSION && typeof cached.text === "string" && cached.text.trim()) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, feedback: cached.text, stale, cached: true });
+      }
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
       const studentName = (user?.realName?.trim() || user?.name?.trim() || ((resumeContent.basic as { name?: string } | undefined)?.name ?? "").trim() || "").trim();
       const profileSummary = await buildCandidateProfileSummary(uid);
       const interviewText = practiced.length
@@ -15170,13 +15175,13 @@ app.post(
       const feedback = typeof pj.feedback === "string" ? pj.feedback.trim() : "";
       if (!feedback) return res.status(502).json({ ok: false, message: "ai response empty" });
 
-      const mergedState = { ...progState, finalFeedback: { v: FINAL_FEEDBACK_VERSION, text: feedback } };
+      const mergedState = { ...progState, finalFeedback: { v: FINAL_FEEDBACK_VERSION, sig: currentSig, text: feedback } };
       await prisma.careerLaunchProgress.upsert({
         where: { studentUserId: uid },
         create: { studentUserId: uid, state: mergedState as object },
         update: { state: mergedState as object }
       });
-      return res.json({ ok: true, feedback });
+      return res.json({ ok: true, feedback, stale: false });
     } catch (err) {
       console.error("[career-launch/final-feedback] failed", err);
       return res.status(500).json({ ok: false, message: "failed to generate feedback" });
