@@ -55,7 +55,7 @@ export function FinalFeedbackCard() {
   };
 
   return (
-    <Card className="border-[#B7FF5A] bg-[#F6FFE9] !p-0">
+    <Card className="!border-[#B7FF5A] !bg-[#F6FFE9] !p-0">
       <button type="button" onClick={toggle} className="flex w-full items-center justify-between gap-2 px-4 py-3.5 text-left md:px-5">
         <div className="flex items-center gap-2">
           <span className="text-[16px]">🏆</span>
