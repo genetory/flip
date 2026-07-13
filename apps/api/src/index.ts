@@ -14016,13 +14016,15 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
     week: 4,
     step: "완주 · 이력서·자소서·면접 종합 피드백",
     default:
-      "너는 한국 취업을 준비하는 외국인 유학생을 4주간 이끈 커리어 코치야. 학생이 프로그램을 완주했어. 완성한 [이력서]·[자기소개서]와 [모의면접 결과]를 종합해, 취업 준비 상태에 대한 따뜻하고 실질적인 '최종 피드백'을 준다.\n\n" +
+      "너는 한국 취업을 준비하는 외국인 유학생을 4주간 이끈 커리어 코치야. 학생이 프로그램을 완주했어. 완성한 [이력서]·[자기소개서]와 [모의면접 결과]를 종합해, 취업 준비 상태에 대한 따뜻하고 실질적이며 충분히 상세한 '최종 피드백'을 준다.\n\n" +
       "규칙:\n" +
-      "1. 4주의 성장과 잘 갖춘 강점을 구체적으로 짚어 격려해(이력서·자소서·면접에서 드러난 것 기준).\n" +
-      "2. 실제 지원·면접 전에 더 다듬으면 좋은 점 2~3가지를 우선순위로 제안해(무엇을 어떻게).\n" +
-      "3. 이력서·자소서·면접을 아우르는 종합 코멘트로. 학생이 실제로 입력·연습한 내용만 근거로 하고, 없는 사실은 지어내지 마.\n" +
-      "4. 유학생 고유 강점(다국어·문화 이해)이 보이면 살려 자신감을 줘. 6~9문장으로 간결하되 충분하게, 따뜻한 마무리 인사로 끝내.\n" +
-      "5. feedback 필드에 본문만 담아 반환. 소제목이 필요하면 **볼드**로 강조해도 좋아."
+      "1. [이름 호출] 반드시 [학생 이름]에 주어진 실제 이름으로 '○○님'처럼 부르며 시작하고, 중간에도 자연스럽게 이름을 불러줘. 이름이 주어지지 않았을 때만 '○○님' 없이 진행해.\n" +
+      "2. 4주의 성장과 잘 갖춘 강점을 이력서·자소서·면접에서 드러난 구체적 근거를 인용해 짚어 격려해.\n" +
+      "3. 이력서, 자기소개서, 모의면접(자기소개·직무·인성) 각각에 대해 잘된 점과 더 다듬으면 좋은 점을 구체적으로 코멘트해. 실제 지원·면접 전에 개선하면 좋은 항목은 '무엇을 어떻게' 실행 조언으로.\n" +
+      "4. 학생이 실제로 입력·연습한 내용만 근거로 하고, 없는 사실은 지어내지 마.\n" +
+      "5. 유학생 고유 강점(다국어·문화 이해)이 보이면 살려 자신감을 줘.\n" +
+      "6. [분량] 짧게 요약하지 말고 충분히 길고 상세하게 써. 최소 3~4개 문단(예: ① 총평·성장 ② 이력서·자소서 코멘트 ③ 면접 코멘트 ④ 앞으로의 조언·응원)으로 나눠, 각 문단을 여러 문장으로 풍부하게. 따뜻한 마무리 응원으로 끝내.\n" +
+      "7. feedback 필드에 본문만 담아 반환. 문단 소제목은 **볼드**로 강조하고, 문단 사이는 줄바꿈으로 구분해."
   }
 };
 
@@ -15115,6 +15117,8 @@ app.post(
 
 // ── 완주 최종 피드백 — 이력서+자소서+면접 결과를 종합. 입력이 바뀌면 갱신(캐시) ──
 const INTERVIEW_TYPE_LABEL: Record<string, string> = { self: "자기소개 면접", job: "직무 면접", fit: "인성·컬처핏 면접" };
+// 프롬프트/형식이 바뀌면 올려서 기존 캐시를 한 번 무효화. 이후로는 생성 1회 후 재사용(토큰 절약).
+const FINAL_FEEDBACK_VERSION = 2;
 app.post(
   "/career-launch/final-feedback",
   authenticate,
@@ -15123,10 +15127,11 @@ app.post(
   async (req, res) => {
     const uid = req.auth!.userId;
     try {
-      const [progRow, resumeRow, coverRow] = await Promise.all([
+      const [progRow, resumeRow, coverRow, user] = await Promise.all([
         prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
         prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
-        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } }),
+        prisma.user.findUnique({ where: { id: uid }, select: { name: true, realName: true } })
       ]);
       const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
       const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
@@ -15135,18 +15140,18 @@ app.post(
       if (!hasResumeDataContent(normalizeResumeData(resumeContent)) || !hasCoverContent(normalizeCoverData(coverContent))) {
         return res.json({ ok: true, feedback: null });
       }
-      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown; results?: unknown };
-      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
-      const results = (interview.results && typeof interview.results === "object" ? interview.results : {}) as Record<string, string>;
 
-      const input = { resume: resumeContent, cover: coverContent, interview: { practiced, results } };
-      const sig = simpleHash(JSON.stringify(input));
-      const cached = (progState.finalFeedback && typeof progState.finalFeedback === "object" ? progState.finalFeedback : {}) as { sig?: string; text?: string };
-      if (cached.sig === sig && typeof cached.text === "string" && cached.text.trim()) {
+      // 한 번 생성하면 저장해두고 그대로 재사용(LLM 토큰 절약). 버전이 바뀌면 한 번만 재생성.
+      const cached = (progState.finalFeedback && typeof progState.finalFeedback === "object" ? progState.finalFeedback : {}) as { v?: number; text?: string };
+      if (cached.v === FINAL_FEEDBACK_VERSION && typeof cached.text === "string" && cached.text.trim()) {
         return res.json({ ok: true, feedback: cached.text, cached: true });
       }
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
+      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown; results?: unknown };
+      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
+      const results = (interview.results && typeof interview.results === "object" ? interview.results : {}) as Record<string, string>;
+      const studentName = (user?.realName?.trim() || user?.name?.trim() || ((resumeContent.basic as { name?: string } | undefined)?.name ?? "").trim() || "").trim();
       const profileSummary = await buildCandidateProfileSummary(uid);
       const interviewText = practiced.length
         ? practiced.map((t) => `- ${INTERVIEW_TYPE_LABEL[t] ?? t}${results[t] ? `: ${results[t]}` : " (연습 완료)"}`).join("\n")
@@ -15156,6 +15161,7 @@ app.post(
         'JSON 한 개 객체로만 응답: { "feedback": string }' +
         aiLangDirective("ko");
       const userPrompt =
+        (studentName ? `[학생 이름] ${studentName} (피드백에서 이 이름으로 '${studentName}님'처럼 불러줘)\n\n` : "") +
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `[이력서]\n${JSON.stringify(resumeContent)}\n\n` +
         `[자기소개서]\n${JSON.stringify(coverContent)}\n\n` +
@@ -15164,7 +15170,7 @@ app.post(
       const feedback = typeof pj.feedback === "string" ? pj.feedback.trim() : "";
       if (!feedback) return res.status(502).json({ ok: false, message: "ai response empty" });
 
-      const mergedState = { ...progState, finalFeedback: { sig, text: feedback } };
+      const mergedState = { ...progState, finalFeedback: { v: FINAL_FEEDBACK_VERSION, text: feedback } };
       await prisma.careerLaunchProgress.upsert({
         where: { studentUserId: uid },
         create: { studentUserId: uid, state: mergedState as object },
