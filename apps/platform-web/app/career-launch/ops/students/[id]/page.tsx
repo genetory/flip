@@ -360,7 +360,7 @@ export default function LaunchOpsStudentDetailPage() {
                     {!hasResume ? (
                       <p className="ops-detail-empty">{t("아직 이력서를 만들지 않았어요.", "No resume created yet.", "尚未生成简历。", "Chưa tạo CV.", "まだ履歴書を作っていません。", "Belum membuat resume.")}</p>
                     ) : (
-                      <div className="rounded-xl border border-[#eef2f7] p-4">
+                      <div>
                         {detail.resume.basic?.summary ? (
                           <p className="break-keep text-[13px] leading-relaxed text-[#374151]">{detail.resume.basic.summary}</p>
                         ) : null}
@@ -503,7 +503,7 @@ export default function LaunchOpsStudentDetailPage() {
                       {(["self", "job", "fit"] as const)
                         .filter((tp) => interviewResults[tp])
                         .map((tp) => (
-                          <div key={tp} className="rounded-lg border border-[#e5e7eb] p-3">
+                          <div key={tp} className="border-t border-[#f3f4f6] pt-3 first:border-t-0 first:pt-0">
                             <p className="text-[12.5px] font-bold text-[#111827]">{INTERVIEW_LABEL[tp]}</p>
                             <div className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#374151]">
                               <RichText text={interviewResults[tp]} />

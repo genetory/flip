@@ -51,3 +51,39 @@
 .launch-ops .ops-detail-section > .ops-detail-actions {
   justify-content: flex-start;
 }
+
+/* ── 섹션을 카드로 분리 ──
+ * dashboard.css 의 .ops-detail-section 은 카드 크롬이 없는 flat 스타일이라
+ * (border:0; padding:0; background:transparent) 섹션들이 경계 없이 이어져
+ * 긴 상세 화면에서는 '벽'처럼 읽힌다. 여기서만 카드로 감싸 경계를 준다. */
+.launch-ops .ops-detail-section {
+  border: 1px solid #eef2f7;
+  border-radius: 14px;
+  padding: 18px 20px;
+  background: #fff;
+}
+
+/* 섹션 제목 — 카드 안에서 눈에 먼저 들어오게. */
+.launch-ops .ops-detail-section > h3 {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.01em;
+}
+
+/* 카드 안의 제목 바(제목 + 우측 액션)는 카드 여백을 그대로 쓰게 한다. */
+.launch-ops .ops-detail-section > .ops-partner-list-top {
+  margin-top: 0;
+}
+
+/* 섹션 사이 간격 — .ops-detail-sections 의 grid gap(28px)이 카드엔 다소 넓다. */
+.launch-ops .ops-detail-sections {
+  gap: 16px;
+}
+
+/* 카드 안에 또 카드를 그리지 않는다(면접 총평·자소서 문항 등 자체 테두리를 가진 블록). */
+.launch-ops .ops-detail-section .ops-detail-section {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
