@@ -49,8 +49,10 @@ export async function resetOpsPrompt(key: string): Promise<string> {
 export type OpsStudentCohort = { id: string; university: string; name: string };
 export type OpsStudent = {
   userId: string;
-  name: string | null;
+  name: string | null; // 실명 우선(없으면 닉네임)
+  realName: string | null; // 실명 — 없으면 운영자가 연락/서류 작성에 어려움
   email: string;
+  phone: string | null;
   cohort: OpsStudentCohort | null;
   diagnosisPercent: number | null;
   selectedJobs: number;
@@ -62,14 +64,38 @@ export type OpsStudent = {
   updatedAt: string | null;
 };
 
+// 학생 진행 체크포인트 — 목록/상세에서 진행률과 미완료 항목을 공통으로 계산.
+// 면접은 3종(self/job/fit)이라 3칸으로 세분화한다.
+export type ProgressStepKey = "diagnosis" | "jobs" | "resume" | "cover" | "interview1" | "interview2" | "interview3";
+
+export function studentProgress(
+  s: Pick<OpsStudent, "diagnosisPercent" | "selectedJobs" | "hasResume" | "coverItems" | "interviewPracticed">
+): { steps: { key: ProgressStepKey; done: boolean }[]; done: number; total: number; percent: number } {
+  const steps: { key: ProgressStepKey; done: boolean }[] = [
+    { key: "diagnosis", done: s.diagnosisPercent !== null },
+    { key: "jobs", done: s.selectedJobs > 0 },
+    { key: "resume", done: s.hasResume },
+    { key: "cover", done: s.coverItems > 0 },
+    { key: "interview1", done: s.interviewPracticed >= 1 },
+    { key: "interview2", done: s.interviewPracticed >= 2 },
+    { key: "interview3", done: s.interviewPracticed >= 3 }
+  ];
+  const done = steps.filter((x) => x.done).length;
+  return { steps, done, total: steps.length, percent: Math.round((done / steps.length) * 100) };
+}
+
 export type OpsStudentDetail = {
   user: { id: string; name: string | null; realName: string | null; email: string; phoneNumber: string | null };
   cohort: OpsStudentCohort | null;
   state: CareerProgress;
+  opsMemo: string; // 운영자 내부 메모(학생 비공개)
+  lastNudgedAt: string | null; // 마지막 독려 메일 발송 시각
+  nudgeCount: number;
   resume: ResumeData;
   resumeUpdatedAt: string | null;
   cover: CoverData;
   coverUpdatedAt: string | null;
+  updatedAt: string | null;
 };
 
 export type OpsResetTarget = "diagnosis" | "jobs" | "materials" | "interview" | "final_feedback" | "resume" | "cover";
@@ -85,14 +111,104 @@ export async function fetchOpsStudentDetail(id: string): Promise<OpsStudentDetai
     user: d.user as OpsStudentDetail["user"],
     cohort: (d.cohort as OpsStudentCohort | null) ?? null,
     state: (d.state as CareerProgress) ?? {},
+    opsMemo: (d.opsMemo as string) ?? "",
+    lastNudgedAt: (d.lastNudgedAt as string) ?? null,
+    nudgeCount: (d.nudgeCount as number) ?? 0,
     resume: (d.resume as ResumeData) ?? {},
     resumeUpdatedAt: (d.resumeUpdatedAt as string) ?? null,
     cover: (d.cover as CoverData) ?? {},
-    coverUpdatedAt: (d.coverUpdatedAt as string) ?? null
+    coverUpdatedAt: (d.coverUpdatedAt as string) ?? null,
+    updatedAt: (d.updatedAt as string) ?? null
+  };
+}
+
+// 운영자 내부 메모 저장.
+export async function saveStudentMemo(id: string, memo: string): Promise<void> {
+  await req(`/career-launch/ops/students/${encodeURIComponent(id)}/memo`, { method: "PUT", headers: authHeaders(true), body: JSON.stringify({ memo }) });
+}
+
+// ── 일괄 작업 ──
+export async function bulkResetStudents(studentIds: string[], target: OpsResetTarget): Promise<number> {
+  const d = await req("/career-launch/ops/students/bulk/reset", {
+    method: "POST",
+    headers: authHeaders(true),
+    body: JSON.stringify({ studentIds, target })
+  });
+  return (d.count as number) ?? studentIds.length;
+}
+
+export async function bulkMoveCohort(studentIds: string[], cohortId: string): Promise<number> {
+  const d = await req("/career-launch/ops/students/bulk/cohort", {
+    method: "POST",
+    headers: authHeaders(true),
+    body: JSON.stringify({ studentIds, cohortId })
+  });
+  return (d.count as number) ?? studentIds.length;
+}
+
+// 독려(리마인더) 메일 — 남은 단계를 짚어 학생을 다시 불러온다.
+// delivery: "smtp"면 실제 발송, "log"면 서버 로그만(SMTP 미설정 환경).
+export async function nudgeStudents(
+  studentIds: string[],
+  message?: string
+): Promise<{ sent: number; skipped: number; delivery: "smtp" | "log" }> {
+  const d = await req("/career-launch/ops/students/nudge", {
+    method: "POST",
+    headers: authHeaders(true),
+    body: JSON.stringify({ studentIds, message: message?.trim() || undefined })
+  });
+  return {
+    sent: (d.sent as number) ?? 0,
+    skipped: (d.skipped as number) ?? 0,
+    delivery: (d.delivery as "smtp" | "log") ?? "log"
   };
 }
 
 // 운영자 개입 — 학생의 특정 단계 데이터 초기화.
 export async function resetStudentStep(id: string, target: OpsResetTarget): Promise<void> {
   await req(`/career-launch/ops/students/${encodeURIComponent(id)}/reset`, { method: "POST", headers: authHeaders(true), body: JSON.stringify({ target }) });
+}
+
+// ── 기수별 성과 리포트(학교 제출용) ──
+export type CohortReportStudent = {
+  userId: string;
+  name: string | null;
+  email: string;
+  enrolledAt: string;
+  diagnosisBefore: number | null;
+  diagnosisAfter: number | null;
+  gain: number | null;
+  selectedJobs: number;
+  hasResume: boolean;
+  coverItems: number;
+  interviewPracticed: number;
+  completed: boolean;
+};
+export type CohortReport = {
+  cohort: { id: string; university: string; name: string; startsAt: string | null; endsAt: string | null; status: string };
+  summary: {
+    enrolled: number;
+    diagnosed: number;
+    jobsSelected: number;
+    resumes: number;
+    coverLetters: number;
+    interviewAny: number;
+    interviewAll: number;
+    completed: number;
+    measured: number;
+    avgBefore: number;
+    avgAfter: number;
+    avgGain: number;
+    improved: number;
+  };
+  students: CohortReportStudent[];
+};
+
+export async function fetchCohortReport(cohortId: string): Promise<CohortReport> {
+  const d = await req(`/career-launch/ops/report/cohort/${encodeURIComponent(cohortId)}`, { headers: authHeaders() });
+  return {
+    cohort: d.cohort as CohortReport["cohort"],
+    summary: d.summary as CohortReport["summary"],
+    students: (d.students as CohortReportStudent[]) ?? []
+  };
 }

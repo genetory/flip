@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
-import { CoachFeedback } from "../../../components/launch/coach-feedback";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
 import { ResumeRender } from "../../../components/launch/resume-render";
@@ -250,9 +249,6 @@ export default function LaunchDashboardPage() {
 
             {/* ── 사이드바 ── */}
             <div className="min-w-0 space-y-7 md:space-y-8">
-              {/* 코치 피드백 */}
-              <CoachFeedback />
-
               {/* 다가오는 세미나 */}
               <div>
                 <SectionTitle>{t("세미나 일정", "Seminar schedule", "研讨会日程", "Lịch hội thảo", "セミナー日程", "Jadwal seminar")}</SectionTitle>

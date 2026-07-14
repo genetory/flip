@@ -1,0 +1,90 @@
+/* Career Launch 운영 콘솔 — 간격(세로 리듬).
+ *
+ * dashboard.css 는 "제목 바 뒤에 오는 요소가 각자 margin-top 을 갖는다"는 전제로 짜여 있다
+ * (.ops-partner-filters / .ops-partner-table-wrap / .ops-bulk-actionbar / .ops-pagination 은
+ *  스스로 margin-top:12~14px 을 가짐). 반면 우리가 조합에 쓰는
+ * .ops-filter-chip-row / .ops-kpi-grid / .ops-card-grid / .ops-detail-actions /
+ * .ops-empty-card / .ops-error-card / .ops-detail-section 등은 여백이 0이라 서로 달라붙는다.
+ *
+ * 그래서 개별 조합마다 규칙을 더하는 대신, 컨테이너 안의 "형제 사이"에 균일한 간격을 준다.
+ * 선택자를 .launch-ops 로 스코프해 실제 운영콘솔(dashboard.css 공유)에는 영향이 없다.
+ *
+ * 최상위 리듬(header→28px, 형제→24px)은 dashboard.css 규칙을 그대로 쓰고 덮어쓰지 않는다.
+ */
+
+/* 목록 카드 안: 모든 형제 사이 16px.
+ * 콘솔이 자체로 갖고 있던 12px 도 여기서 16px 로 통일된다(선택자 우선순위가 높음). */
+.launch-ops .ops-partner-list-card > * + * {
+  margin-top: 16px;
+}
+
+/* 상세 섹션 안: 제목(h3) 아래 여백을 끄고, 형제 사이 12px 로 통일.
+ * (h3 의 margin-bottom:12px 을 그대로 두면 아래 규칙과 겹쳐 24px 이 된다.) */
+.launch-ops .ops-detail-section > h3 {
+  margin-bottom: 0;
+}
+.launch-ops .ops-detail-section > * + * {
+  margin-top: 12px;
+}
+
+/* 폼 라벨은 입력 위에 한 줄로 — 콘솔 기본값엔 display/여백이 없다. */
+.launch-ops .ops-form-label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* 카드 제목 바 우측 액션들이 서로 붙지 않게. */
+.launch-ops .ops-partner-list-top {
+  flex-wrap: wrap;
+}
+
+/* 링크로 쓰는 ops-detail-button — 콘솔 정의는 <button> 전제라 <a> 에선 높이/정렬이 무너진다. */
+.launch-ops a.ops-detail-button,
+.launch-ops a.ops-btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* 상세 섹션의 액션은 설명 바로 아래(좌측)에 붙인다 —
+ * 콘솔 기본값(justify-content:flex-end)은 모달 푸터용이라, 본문에선 버튼이 멀리 떠 보인다. */
+.launch-ops .ops-detail-section > .ops-detail-actions {
+  justify-content: flex-start;
+}
+
+/* ── 섹션을 카드로 분리 ──
+ * dashboard.css 의 .ops-detail-section 은 카드 크롬이 없는 flat 스타일이라
+ * (border:0; padding:0; background:transparent) 섹션들이 경계 없이 이어져
+ * 긴 상세 화면에서는 '벽'처럼 읽힌다. 여기서만 카드로 감싸 경계를 준다. */
+.launch-ops .ops-detail-section {
+  border: 1px solid #eef2f7;
+  border-radius: 14px;
+  padding: 18px 20px;
+  background: #fff;
+}
+
+/* 섹션 제목 — 카드 안에서 눈에 먼저 들어오게. */
+.launch-ops .ops-detail-section > h3 {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.01em;
+}
+
+/* 카드 안의 제목 바(제목 + 우측 액션)는 카드 여백을 그대로 쓰게 한다. */
+.launch-ops .ops-detail-section > .ops-partner-list-top {
+  margin-top: 0;
+}
+
+/* 섹션 사이 간격 — .ops-detail-sections 의 grid gap(28px)이 카드엔 다소 넓다. */
+.launch-ops .ops-detail-sections {
+  gap: 16px;
+}
+
+/* 카드 안에 또 카드를 그리지 않는다(면접 총평·자소서 문항 등 자체 테두리를 가진 블록). */
+.launch-ops .ops-detail-section .ops-detail-section {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}

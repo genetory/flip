@@ -25,6 +25,11 @@ export function SocialAccountTypePage() {
   const [provider, setProvider] = useState<SocialProvider | null>(null);
   const [accountType, setAccountType] = useState<"GENERAL" | "BUSINESS">("GENERAL");
   const [nextPath, setNextPath] = useState<string>("/profile");
+  // 실명·이메일 — 운영상 학생에게 연락해야 하므로 실제 값이 필요하다.
+  // provider 가 주는 값: 네이버=실명, 카카오=닉네임, 구글=표시이름 → 네이버만 신뢰할 수 있다.
+  const [realName, setRealName] = useState("");
+  const [email, setEmail] = useState("");
+  const [needEmail, setNeedEmail] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,6 +45,10 @@ export function SocialAccountTypePage() {
     }
     setCtx(ctxValue);
     setProvider(providerValue);
+    setNeedEmail(params.get("hasEmail") === "0");
+    // 네이버가 준 이름은 실명이므로 미리 채워준다(사용자가 고칠 수 있음).
+    const providerName = params.get("pname") ?? "";
+    if (providerValue === "naver" && providerName) setRealName(providerName);
     if (nextValue && nextValue.startsWith("/") && !nextValue.startsWith("//")) {
       setNextPath(nextValue);
     }
@@ -50,21 +59,36 @@ export function SocialAccountTypePage() {
   // continuous flow. Business intent always requires the manual picker.
   const isEventFlow = nextPath.startsWith("/events/");
 
-  // For event-landing flows, finalize as GENERAL the moment ctx/provider
-  // are ready — the visitor never sees this page.
+  // 이벤트 플로우는 이 화면을 건너뛰고 자동 가입한다 —
+  // 단, 실명/이메일이 비면 값을 지어낼 수 없으므로 그때는 화면을 보여주고 물어본다.
+  const canAutoFinalize = Boolean(ctx && provider && !needEmail && realName.trim());
   useEffect(() => {
-    if (!isEventFlow || !ctx || !provider || isSubmitting) return;
+    if (!isEventFlow || !canAutoFinalize || isSubmitting) return;
     void handleSubmit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEventFlow, ctx, provider]);
+  }, [isEventFlow, canAutoFinalize]);
 
   async function handleSubmit() {
     if (!ctx || !provider || isSubmitting) return;
+    if (!realName.trim()) {
+      setErrorMessage(t("실명을 입력해주세요.", "Please enter your legal name.", "请输入真实姓名。", "Vui lòng nhập họ tên thật.", "本名を入力してください。", "Silakan masukkan nama asli Anda."));
+      return;
+    }
+    if (needEmail && !email.trim()) {
+      setErrorMessage(t("이메일을 입력해주세요.", "Please enter your email.", "请输入邮箱。", "Vui lòng nhập email.", "メールアドレスを入力してください。", "Silakan masukkan email Anda."));
+      return;
+    }
     setErrorMessage(null);
     setIsSubmitting(true);
 
     try {
-      const { user } = await finalizeSocialSignup({ provider, ctx, accountType });
+      const { user } = await finalizeSocialSignup({
+        provider,
+        ctx,
+        accountType,
+        realName: realName.trim(),
+        ...(needEmail ? { email: email.trim() } : {})
+      });
       setAuthenticatedUser(user);
       if (typeof window !== "undefined") {
         window.location.replace(nextPath);
@@ -141,6 +165,69 @@ export function SocialAccountTypePage() {
                   <p className="mt-1 text-xs text-muted-foreground">{option.description}</p>
                 </button>
               ))}
+            </div>
+
+            {/* 실명 — 학교 제출 문서·연락에 필요. 네이버는 provider 값을 미리 채워둔다. */}
+            <div className="mt-6 space-y-4">
+              <div>
+                <label htmlFor="social-realname" className="block text-sm font-semibold">
+                  {t("실명", "Legal name", "真实姓名", "Họ tên thật", "本名", "Nama asli")}
+                </label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(
+                    "지원서·수료증 등 공식 서류에 사용돼요. 닉네임이 아닌 실제 이름을 입력해주세요.",
+                    "Used on official documents such as applications and certificates. Please use your real name, not a nickname.",
+                    "将用于申请书、结业证书等正式文件。请填写真实姓名，而非昵称。",
+                    "Được dùng cho hồ sơ, giấy chứng nhận và các giấy tờ chính thức. Vui lòng nhập tên thật, không phải biệt danh.",
+                    "応募書類や修了証などの公式書類に使われます。ニックネームではなく本名を入力してください。",
+                    "Digunakan untuk dokumen resmi seperti lamaran dan sertifikat. Masukkan nama asli, bukan nama panggilan."
+                  )}
+                </p>
+                <input
+                  id="social-realname"
+                  value={realName}
+                  onChange={(e) => {
+                    setRealName(e.target.value);
+                    setErrorMessage(null);
+                  }}
+                  disabled={isSubmitting}
+                  maxLength={120}
+                  className="mt-2 h-11 w-full rounded-md border border-input/60 bg-card px-3 text-sm outline-none focus:border-foreground/60"
+                  placeholder={t("예) 홍길동", "e.g. Jane Doe", "例）张三", "VD) Nguyen Van A", "例）山田太郎", "Contoh) Budi Santoso")}
+                />
+              </div>
+
+              {/* 이메일 — provider 가 주지 않은 경우에만. 가짜 주소를 만들지 않는다. */}
+              {needEmail ? (
+                <div>
+                  <label htmlFor="social-email" className="block text-sm font-semibold">
+                    {t("이메일", "Email", "邮箱", "Email", "メールアドレス", "Email")}
+                  </label>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t(
+                      "연동한 계정에서 이메일을 받지 못했어요. 안내를 받을 이메일을 입력해주세요.",
+                      "We couldn't get an email from your social account. Please enter one so we can reach you.",
+                      "未能从您的社交账号获取邮箱，请输入可接收通知的邮箱。",
+                      "Chúng tôi không nhận được email từ tài khoản mạng xã hội của bạn. Vui lòng nhập email để nhận thông báo.",
+                      "連携したアカウントからメールアドレスを取得できませんでした。ご案内を受け取るメールを入力してください。",
+                      "Kami tidak mendapat email dari akun sosial Anda. Masukkan email agar kami bisa menghubungi Anda."
+                    )}
+                  </p>
+                  <input
+                    id="social-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setErrorMessage(null);
+                    }}
+                    disabled={isSubmitting}
+                    maxLength={200}
+                    className="mt-2 h-11 w-full rounded-md border border-input/60 bg-card px-3 text-sm outline-none focus:border-foreground/60"
+                    placeholder="you@example.com"
+                  />
+                </div>
+              ) : null}
             </div>
 
             {errorMessage ? (

@@ -98,6 +98,12 @@ export function OpsDashboardSidebar() {
       </nav>
 
       <div className="ops-console-logout-wrap" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Career Launch 운영 콘솔 — 기수/학생/피드백은 별도 콘솔에서 관리한다. */}
+        <Link href="/career-launch/ops">
+          <button type="button" className="ops-console-logout">
+            커리어 콘솔
+          </button>
+        </Link>
         <Link href="/">
           <button type="button" className="ops-console-logout">
             플랫폼으로 이동

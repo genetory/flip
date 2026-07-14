@@ -214,6 +214,12 @@ export const WEEKS: WeekPlan[] = [
         minutes: 10,
         desc: "복장·인사·시간 약속·감사 메일까지, 면접과 입사 첫인상을 좌우하는 매너를 알아둬요.",
         action: { label: "시작하기", href: "/career-launch/culture/w4s4" }
+      },
+      {
+        id: "w4-final-diagnosis",
+        title: "수료 진단",
+        desc: "처음 받았던 취업 준비 자가진단을 다시 받아, 4주 동안 얼마나 성장했는지 확인해요. 학교에 제출하는 성과 리포트의 근거가 돼요.",
+        action: { label: "수료 진단 받기", href: "/career-launch/diagnosis?final=1" }
       }
     ],
     submission: { required: true, status: "todo", label: "면접 준비 완료", source: "자기소개·직무·인성 모의면접 연습" },

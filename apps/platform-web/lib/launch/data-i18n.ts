@@ -6,6 +6,7 @@
 // 미제공/누락 로케일은 data.ts 의 한국어 원본으로 폴백한다.
 
 import { useLanguage } from "../../components/i18n/LanguageProvider";
+import { useCareerContentOverride } from "../../components/launch/content-provider";
 import { type LT } from "./i18n";
 import { WEEKS, COMPLETION_CRITERIA, RECOMMENDED_JOBS, STUDENT } from "./data";
 
@@ -903,21 +904,34 @@ function pick(t: LT | undefined, locale: string, fallback: string): string {
   return (t as Record<string, string>)[locale] ?? t.en ?? t.ko ?? fallback;
 }
 
-// 주차 title/subtitle/goal — 없으면 data.ts 원본으로 폴백.
+// 운영자 오버라이드는 "그 로케일이 실제로 채워졌을 때만" 덮어쓴다.
+// (한국어만 채웠다고 영어 자리에 한국어가 나오면 기존 번역을 망친다.)
+function pickOverride(t: LT | undefined, locale: string, base: string): string {
+  const v = (t as Record<string, string> | undefined)?.[locale];
+  return v && v.trim() ? v : base;
+}
+
+// 주차 title/subtitle/goal.
+// 우선순위: 운영자 오버라이드 > 정적 번역(WEEK_TEXT) > data.ts 원본.
 export function useWeekText() {
   const locale = useLocale();
+  const ov = useCareerContentOverride();
   return (week: number, field: WeekField): string => {
     const orig = WEEKS.find((w) => w.week === week)?.[field] ?? "";
-    return pick(WEEK_TEXT[week]?.[field], locale, orig);
+    const base = pick(WEEK_TEXT[week]?.[field], locale, orig);
+    return pickOverride(ov.weeks?.[String(week)]?.[field], locale, base);
   };
 }
 
-// 스텝 title/desc(스텝 id 기준) — 없으면 data.ts 원본으로 폴백.
+// 스텝 title/desc(스텝 id 기준).
+// 우선순위: 운영자 오버라이드 > 정적 번역(STEP_TEXT) > data.ts 원본.
 export function useStepText() {
   const locale = useLocale();
+  const ov = useCareerContentOverride();
   return (stepId: string, field: StepField): string => {
     const orig = WEEKS.flatMap((w) => w.steps).find((s) => s.id === stepId)?.[field] ?? "";
-    return pick(STEP_TEXT[stepId]?.[field], locale, orig);
+    const base = pick(STEP_TEXT[stepId]?.[field], locale, orig);
+    return pickOverride(ov.steps?.[stepId]?.[field], locale, base);
   };
 }
 

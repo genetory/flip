@@ -135,12 +135,23 @@ export async function loginWithEmail(input: { email: string; password: string })
 
 export type SocialProvider = "naver" | "google" | "kakao";
 
-export async function finalizeSocialSignup(input: { provider: SocialProvider; ctx: string; accountType: AccountType }) {
+export async function finalizeSocialSignup(input: {
+  provider: SocialProvider;
+  ctx: string;
+  accountType: AccountType;
+  realName?: string; // provider 가 실명을 주지 않을 때 가입 화면에서 입력받은 값
+  email?: string; // provider 가 이메일을 주지 않을 때만 사용
+}) {
   const response = await authFetch(`${getApiBaseUrl()}/auth/${input.provider}/finalize`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ ctx: input.ctx, accountType: input.accountType })
+    body: JSON.stringify({
+      ctx: input.ctx,
+      accountType: input.accountType,
+      ...(input.realName?.trim() ? { realName: input.realName.trim() } : {}),
+      ...(input.email?.trim() ? { email: input.email.trim() } : {})
+    })
   });
 
   const result = await parseAuthResponse(response);

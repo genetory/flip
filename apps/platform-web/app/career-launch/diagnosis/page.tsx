@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { RichText } from "../../../components/launch/rich-text";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestDiagnosisChat, type DiagnosisResult, type JobChatMsg } from "../../../lib/launch/job-chat-client";
@@ -18,6 +19,9 @@ import { useLaunchT } from "../../../lib/launch/i18n";
 type Msg = { role: "bot" | "user"; text: string };
 
 export default function LaunchDiagnosisPage() {
+  // ?final=1 — 4주차 '수료 진단'. 서버가 이 플래그로 diagnosisFinal 을 기록해
+  // 성과 리포트의 '사전 → 사후 향상도'를 만든다.
+  const isFinal = useSearchParams().get("final") === "1";
   const t = useLaunchT();
   const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
@@ -50,8 +54,9 @@ export default function LaunchDiagnosisPage() {
     if (!isReady || startedRef.current) return;
     startedRef.current = true;
     // ?restart=1 이면 저장 결과를 무시하고 처음부터 새 진단(완료 시 결과가 덮어씀).
+    // ?final=1('수료 진단')도 마찬가지 — 저장된 사전 진단 결과를 보여주면 재진단이 되지 않는다.
     const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
-    if (restart) {
+    if (restart || isFinal) {
       startChat();
       return;
     }
@@ -91,7 +96,10 @@ export default function LaunchDiagnosisPage() {
           setResult(r);
           trackCareerStepComplete("diagnosis");
           try {
-            await patchProgress({ diagnosis: { percent: r.percent, level: r.level, strengths: r.strengths, improvements: r.improvements } });
+            await patchProgress({
+              diagnosis: { percent: r.percent, level: r.level, strengths: r.strengths, improvements: r.improvements },
+              ...(isFinal ? { finalDiagnosis: true } : {})
+            });
           } catch {
             // 저장 실패해도 화면엔 결과 표시
           }

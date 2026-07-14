@@ -83,6 +83,8 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
   const loginButtonLabel = locale === "ko" ? "로그인하기" : locale === "zh-CN" ? "去登录" : locale === "vi" ? "Đăng nhập" : locale === "ja" ? "ログイン" : locale === "id" ? "Masuk" : "Sign in";
   const partnerDashLabel = locale === "ko" ? "관리 콘솔" : locale === "zh-CN" ? "管理控制台" : locale === "vi" ? "Bảng quản trị" : locale === "ja" ? "管理コンソール" : locale === "id" ? "Konsol Manajemen" : "Admin console";
   const opsDashLabel = locale === "ko" ? "운영 콘솔" : locale === "zh-CN" ? "运营控制台" : locale === "vi" ? "Bảng điều khiển vận hành" : locale === "ja" ? "運営コンソール" : locale === "id" ? "Konsol Operasional" : "Ops console";
+  // Career Launch 운영 콘솔 — 운영자에게만, '운영 콘솔' 바로 오른쪽에 노출.
+  const careerOpsLabel = locale === "ko" ? "커리어 콘솔" : locale === "zh-CN" ? "职业控制台" : locale === "vi" ? "Bảng điều khiển Career" : locale === "ja" ? "キャリアコンソール" : locale === "id" ? "Konsol Karier" : "Career console";
   const eventLabel = locale === "ko" ? "이벤트" : locale === "zh-CN" ? "活动" : locale === "vi" ? "Sự kiện" : locale === "ja" ? "イベント" : locale === "id" ? "Acara" : "Events";
   // 이력서 — STUDENT / 비로그인 사용자에게만 노출. 누르면 AI 이력서(/resume-maker)를 새 탭으로 연다.
   // (기존 '이력서 코칭'(/resume)은 잠시 가려둠 — 라벨/링크를 이력서로 교체.)
@@ -106,7 +108,12 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
     { label: copy.nav.pricing, href: "/pricing" },     // 맞춤 지원
     { label: copy.nav.resources, href: "/resources" }, // 자료실
     ...(user?.role === "PARTNER" ? [{ label: partnerDashLabel, href: "/dashboard/partner", primary: true }] : []),
-    ...(user?.role === "OPERATOR" ? [{ label: opsDashLabel, href: "/dashboard/ops", primary: true }] : [])
+    ...(user?.role === "OPERATOR"
+      ? [
+          { label: opsDashLabel, href: "/dashboard/ops", primary: true },
+          { label: careerOpsLabel, href: "/career-launch/ops", primary: true }
+        ]
+      : [])
   ];
   // 비즈니스 변형 GNB — 페이지 섹션 순서대로, 로케일별 라벨 적용.
   const businessNavItems: typeof defaultNavItems = BUSINESS_NAV.map((n) => ({
