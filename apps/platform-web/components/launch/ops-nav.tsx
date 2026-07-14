@@ -143,7 +143,8 @@ export function OpsSidebar() {
 
   return (
     <aside className="hidden w-56 flex-none lg:block">
-      <div className="sticky top-6 py-8">
+      {/* 상단 여백은 콘텐츠(main pt-6 md:pt-10)와 맞춰 제목선이 나란히 오게 한다. */}
+      <div className="sticky top-6 pb-8 pt-6 md:pt-10">
         <Link href="/career-launch/ops" className="block px-3 text-[15px] font-black tracking-[-0.01em] text-[#0B1227] transition hover:text-[#0B46E8]">
           {t("Launch 운영", "Launch admin", "Launch 运营", "Quản trị Launch", "Launch 運営", "Admin Launch")}
         </Link>
