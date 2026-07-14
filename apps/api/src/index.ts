@@ -8548,8 +8548,9 @@ app.get("/positions", async (req, res) => {
               strengths: true,
               website: true,
               socialMedia: true,
-              companyLogoImageData: true,
-              officePhotoImageData: true
+              companyLogoImageData: true
+              // officePhotoImageData 는 목록에서 쓰지 않는다 — 상세에서만 필요하다.
+              // base64 원본이라 한 건에 8MB 까지 나가며, 20건이면 응답이 38MB 가 된다(실측).
             }
           },
           matchingParticipants: { select: { id: true } }
@@ -8666,8 +8667,9 @@ app.get("/positions", async (req, res) => {
           strengths: true,
           website: true,
           socialMedia: true,
-          companyLogoImageData: true,
-          officePhotoImageData: true
+          companyLogoImageData: true
+          // officePhotoImageData 는 목록에서 쓰지 않는다 — 상세에서만 필요하다.
+          // base64 원본이라 한 건에 8MB 까지 나가며, 20건이면 응답이 38MB 가 된다(실측).
         }
       },
       matchingParticipants: {
