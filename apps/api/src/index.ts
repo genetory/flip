@@ -15455,25 +15455,74 @@ app.put("/career-launch/ops/students/:id/memo", authenticate, requireRoles([Memb
 // 운영자 개입: 학생의 특정 단계 데이터를 초기화(재진행 유도).
 // target: diagnosis|jobs|materials|interview|final_feedback|resume|cover
 const opsResetSchema = z.object({ target: z.enum(["diagnosis", "jobs", "materials", "interview", "final_feedback", "resume", "cover"]) });
+type OpsResetTargetKey = z.infer<typeof opsResetSchema>["target"];
+
+// 학생 한 명의 특정 단계를 초기화 — 단건/일괄 엔드포인트가 함께 쓴다.
+async function resetCareerStudentStep(id: string, target: OpsResetTargetKey): Promise<void> {
+  if (target === "resume") {
+    await prisma.careerResumeData.upsert({ where: { studentUserId: id }, create: { studentUserId: id, content: {} }, update: { content: {} } });
+    return;
+  }
+  if (target === "cover") {
+    await prisma.careerCoverLetterData.upsert({ where: { studentUserId: id }, create: { studentUserId: id, content: {} }, update: { content: {} } });
+    return;
+  }
+  // progress.state 안의 키 초기화(진단·직무·정리·면접·최종피드백).
+  const row = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: id } });
+  const prev = (row?.state && typeof row.state === "object" ? { ...(row.state as Record<string, unknown>) } : {}) as Record<string, unknown>;
+  const keyByTarget: Record<string, string> = { diagnosis: "diagnosis", jobs: "selectedJobs", materials: "materials", interview: "interview", final_feedback: "finalFeedback" };
+  delete prev[keyByTarget[target]];
+  await prisma.careerLaunchProgress.upsert({ where: { studentUserId: id }, create: { studentUserId: id, state: prev as object }, update: { state: prev as object } });
+}
+
 app.post("/career-launch/ops/students/:id/reset", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const id = typeof req.params.id === "string" ? req.params.id : "";
   const parsed = opsResetSchema.safeParse(req.body);
   if (!id || !parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  const target = parsed.data.target;
   try {
-    if (target === "resume") {
-      await prisma.careerResumeData.upsert({ where: { studentUserId: id }, create: { studentUserId: id, content: {} }, update: { content: {} } });
-    } else if (target === "cover") {
-      await prisma.careerCoverLetterData.upsert({ where: { studentUserId: id }, create: { studentUserId: id, content: {} }, update: { content: {} } });
-    } else {
-      // progress.state 안의 키 초기화(진단·직무·정리·면접·최종피드백).
-      const row = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: id } });
-      const prev = (row?.state && typeof row.state === "object" ? { ...(row.state as Record<string, unknown>) } : {}) as Record<string, unknown>;
-      const keyByTarget: Record<string, string> = { diagnosis: "diagnosis", jobs: "selectedJobs", materials: "materials", interview: "interview", final_feedback: "finalFeedback" };
-      delete prev[keyByTarget[target]];
-      await prisma.careerLaunchProgress.upsert({ where: { studentUserId: id }, create: { studentUserId: id, state: prev as object }, update: { state: prev as object } });
-    }
+    await resetCareerStudentStep(id, parsed.data.target);
     return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 일괄 작업(여러 학생) ──
+const opsBulkResetSchema = z.object({
+  studentIds: z.array(z.string().uuid()).min(1).max(200),
+  target: opsResetSchema.shape.target
+});
+app.post("/career-launch/ops/students/bulk/reset", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsBulkResetSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    for (const id of parsed.data.studentIds) await resetCareerStudentStep(id, parsed.data.target);
+    return res.json({ ok: true, count: parsed.data.studentIds.length });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 기수 일괄 이동 — 기존 등록을 지우고 대상 기수로 다시 등록한다.
+const opsBulkCohortSchema = z.object({
+  studentIds: z.array(z.string().uuid()).min(1).max(200),
+  cohortId: z.string().uuid()
+});
+app.post("/career-launch/ops/students/bulk/cohort", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsBulkCohortSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  const { studentIds, cohortId } = parsed.data;
+  try {
+    const cohort = await prisma.careerCohort.findUnique({ where: { id: cohortId }, select: { id: true } });
+    if (!cohort) return res.status(404).json({ ok: false, message: "cohort not found" });
+    await prisma.$transaction([
+      prisma.careerEnrollment.deleteMany({ where: { studentUserId: { in: studentIds } } }),
+      prisma.careerEnrollment.createMany({
+        data: studentIds.map((studentUserId) => ({ studentUserId, cohortId })),
+        skipDuplicates: true
+      })
+    ]);
+    return res.json({ ok: true, count: studentIds.length });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }

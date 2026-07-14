@@ -3,10 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { fetchOpsStudents, studentProgress, type OpsStudent } from "../../../../lib/launch/ops-client";
+import {
+  fetchOpsStudents,
+  studentProgress,
+  bulkResetStudents,
+  bulkMoveCohort,
+  type OpsStudent,
+  type OpsResetTarget
+} from "../../../../lib/launch/ops-client";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 
-// 운영자 학생 관리 — 기수별로 필터해 진행 상태를 보고, 클릭 시 상세로 이동.
+const PAGE_SIZE = 25;
+
+type StatusFilter = "all" | "notStarted" | "inProgress" | "completed";
+
+// 운영자 학생 관리 — 검색·기수·상태로 좁혀 보고, 선택해 일괄 처리한다.
 export default function LaunchOpsStudentsPage() {
   const t = useLaunchT();
   const router = useRouter();
@@ -14,26 +25,30 @@ export default function LaunchOpsStudentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<string>("all"); // "all" | cohortId | "none"
+  const [status, setStatus] = useState<StatusFilter>("all");
+  const [q, setQ] = useState("");
   const [sort, setSort] = useState<"recent" | "progress">("recent");
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    try {
+      const list = await fetchOpsStudents();
+      setStudents(list);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("불러오지 못했어요.", "Couldn't load.", "加载失败。", "Không thể tải.", "読み込めませんでした。", "Gagal memuat."));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const list = await fetchOpsStudents();
-        if (alive) setStudents(list);
-      } catch (e) {
-        if (alive) setError(e instanceof Error ? e.message : t("불러오지 못했어요.", "Couldn't load.", "加载失败。", "Không thể tải.", "読み込めませんでした。", "Gagal memuat."));
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 학생들에게서 나타난 기수 목록(필터용).
+  // 학생들에게서 나타난 기수 목록(필터·이동 대상).
   const cohorts = useMemo(() => {
     const map = new Map<string, { id: string; university: string; name: string }>();
     for (const s of students) if (s.cohort) map.set(s.cohort.id, s.cohort);
@@ -41,15 +56,131 @@ export default function LaunchOpsStudentsPage() {
   }, [students]);
   const hasUnassigned = students.some((s) => !s.cohort);
 
+  const statusOf = (s: OpsStudent): StatusFilter => {
+    const p = studentProgress(s);
+    if (p.done === 0) return "notStarted";
+    if (p.done === p.total) return "completed";
+    return "inProgress";
+  };
+
   const filtered = useMemo(() => {
-    const base =
+    const needle = q.trim().toLowerCase();
+    let base =
       filter === "all" ? students : filter === "none" ? students.filter((s) => !s.cohort) : students.filter((s) => s.cohort?.id === filter);
+    if (status !== "all") base = base.filter((s) => statusOf(s) === status);
+    if (needle) {
+      base = base.filter(
+        (s) => (s.name ?? "").toLowerCase().includes(needle) || s.email.toLowerCase().includes(needle)
+      );
+    }
     if (sort === "progress") {
       // 진행률 낮은 순 — 뒤처진 학생을 위로.
       return [...base].sort((a, b) => studentProgress(a).done - studentProgress(b).done);
     }
     return base; // 기본: 백엔드가 최근 활동순으로 정렬해 반환.
-  }, [students, filter, sort]);
+  }, [students, filter, status, q, sort]);
+
+  // 필터가 바뀌면 1페이지로, 화면에서 사라진 선택은 해제.
+  useEffect(() => {
+    setPage(1);
+  }, [filter, status, q, sort]);
+  useEffect(() => {
+    setSelected((prev) => {
+      const visible = new Set(filtered.map((s) => s.userId));
+      const next = new Set([...prev].filter((id) => visible.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [filtered]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const allOnPageSelected = pageItems.length > 0 && pageItems.every((s) => selected.has(s.userId));
+  const toggleAllOnPage = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) pageItems.forEach((s) => next.delete(s.userId));
+      else pageItems.forEach((s) => next.add(s.userId));
+      return next;
+    });
+  };
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const ids = [...selected];
+
+  const doBulkReset = async (target: OpsResetTarget, label: string) => {
+    if (!ids.length || busy) return;
+    if (!confirm(t(`선택한 ${ids.length}명의 '${label}'을(를) 초기화할까요? 되돌릴 수 없어요.`, `Reset '${label}' for ${ids.length} selected students? This can't be undone.`, `确定重置所选 ${ids.length} 名学生的“${label}”吗？无法撤销。`, `Đặt lại '${label}' cho ${ids.length} sinh viên đã chọn? Không thể hoàn tác.`, `選択した${ids.length}名の「${label}」をリセットしますか？元に戻せません。`, `Reset '${label}' untuk ${ids.length} siswa terpilih? Tidak dapat dibatalkan.`))) return;
+    setBusy(true);
+    try {
+      await bulkResetStudents(ids, target);
+      setSelected(new Set());
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t("일괄 처리에 실패했어요.", "Bulk action failed.", "批量处理失败。", "Xử lý hàng loạt thất bại.", "一括処理に失敗しました。", "Aksi massal gagal."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doBulkMove = async (cohortId: string) => {
+    if (!ids.length || !cohortId || busy) return;
+    const c = cohorts.find((x) => x.id === cohortId);
+    const label = c ? `${c.university} · ${c.name}` : "";
+    if (!confirm(t(`선택한 ${ids.length}명을 '${label}' 기수로 옮길까요?`, `Move ${ids.length} selected students to '${label}'?`, `将所选 ${ids.length} 名学生移至“${label}”期？`, `Chuyển ${ids.length} sinh viên đã chọn sang khóa '${label}'?`, `選択した${ids.length}名を「${label}」期に移動しますか？`, `Pindahkan ${ids.length} siswa terpilih ke '${label}'?`))) return;
+    setBusy(true);
+    try {
+      await bulkMoveCohort(ids, cohortId);
+      setSelected(new Set());
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t("기수 이동에 실패했어요.", "Failed to move cohort.", "移动期数失败。", "Chuyển khóa thất bại.", "コホート移動に失敗しました。", "Gagal memindahkan angkatan."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const exportCsv = () => {
+    const target = ids.length ? filtered.filter((s) => selected.has(s.userId)) : filtered;
+    const head = [
+      t("이름", "Name", "姓名", "Tên", "氏名", "Nama"),
+      t("이메일", "Email", "邮箱", "Email", "メール", "Email"),
+      t("기수", "Cohort", "期数", "Khóa", "コホート", "Batch"),
+      t("진행률(%)", "Progress (%)", "进度(%)", "Tiến độ (%)", "進捗(%)", "Progres (%)"),
+      t("진단(%)", "Diagnosis (%)", "诊断(%)", "Chẩn đoán (%)", "診断(%)", "Diagnosis (%)"),
+      t("이력서", "Resume", "简历", "CV", "履歴書", "Resume"),
+      t("자소서문항", "Cover letter items", "自我介绍题项", "Mục thư xin việc", "自己PR項目", "Item cover letter"),
+      t("면접라운드", "Interview rounds", "面试轮次", "Vòng phỏng vấn", "面接ラウンド", "Ronde wawancara")
+    ];
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = target.map((s) =>
+      [
+        s.name ?? "",
+        s.email,
+        s.cohort ? `${s.cohort.university} ${s.cohort.name}` : t("미등록", "Unassigned", "未分配", "Chưa xếp khóa", "未登録", "Belum ditetapkan"),
+        studentProgress(s).percent,
+        s.diagnosisPercent ?? "",
+        s.hasResume ? "O" : "",
+        s.coverItems,
+        `${s.interviewPracticed}/3`
+      ].map(esc).join(",")
+    );
+    const csv = "﻿" + [head.map(esc).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `career-launch_${t("학생", "students", "学生", "sinh-vien", "学生", "siswa")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const withResume = filtered.filter((s) => s.hasResume).length;
   const withCover = filtered.filter((s) => s.coverItems > 0).length;
@@ -62,14 +193,27 @@ export default function LaunchOpsStudentsPage() {
     { id: "cover", k: t("자소서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter"), v: withCover, tone: "ops-kpi-green" }
   ];
 
+  const statusChips: { key: StatusFilter; label: string }[] = [
+    { key: "all", label: t("전체", "All", "全部", "Tất cả", "全体", "Semua") },
+    { key: "notStarted", label: t("미시작", "Not started", "未开始", "Chưa bắt đầu", "未着手", "Belum mulai") },
+    { key: "inProgress", label: t("진행 중", "In progress", "进行中", "Đang thực hiện", "進行中", "Berjalan") },
+    { key: "completed", label: t("완주", "Completed", "已完成", "Hoàn thành", "完走", "Selesai") }
+  ];
+  const statusCount = (k: StatusFilter) => {
+    const base = filter === "all" ? students : filter === "none" ? students.filter((s) => !s.cohort) : students.filter((s) => s.cohort?.id === filter);
+    return k === "all" ? base.length : base.filter((s) => statusOf(s) === k).length;
+  };
+
   const detailLabel = t("상세정보", "Details", "详情", "Chi tiết", "詳細", "Detail");
+  const doneLabel = t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai");
+  const notDoneLabel = t("미완료", "Not done", "未完成", "Chưa xong", "未完了", "Belum");
 
   return (
     <main className="pb-16 pt-6 md:pt-10">
       <section className="ops-content-section">
         <header>
           <h1>{t("학생 관리", "Student management", "学生管理", "Quản lý sinh viên", "学生管理", "Manajemen siswa")}</h1>
-          <p>{t("기수별로 학생의 진행 상태를 보고 상세에서 피드백을 남겨요.", "View student progress by cohort and leave feedback on the detail page.", "按期数查看学生进度，并在详情页留下反馈。", "Xem tiến độ sinh viên theo khóa và để lại phản hồi ở trang chi tiết.", "コホート別に学生の進捗を確認し、詳細ページでフィードバックを残します。", "Lihat progres siswa per batch dan beri umpan balik di halaman detail.")}</p>
+          <p>{t("검색·기수·상태로 좁혀 보고, 선택해 일괄 처리하세요.", "Narrow by search, cohort, and status — then act on a selection in bulk.", "按搜索、期数与状态筛选，并批量处理所选学生。", "Lọc theo tìm kiếm, khóa và trạng thái — rồi xử lý hàng loạt.", "検索・コホート・状態で絞り込み、選択して一括処理できます。", "Saring dengan pencarian, angkatan, dan status — lalu proses massal.")}</p>
         </header>
 
         <div className="ops-kpi-grid">
@@ -84,47 +228,116 @@ export default function LaunchOpsStudentsPage() {
         <article className="ops-partner-list-card">
           <div className="ops-partner-list-top">
             <h2>{t("학생 목록", "Student list", "学生列表", "Danh sách sinh viên", "学生一覧", "Daftar siswa")}</h2>
-            <button
-              type="button"
-              className="ops-detail-button"
-              onClick={() => setSort((s) => (s === "recent" ? "progress" : "recent"))}
-            >
-              {sort === "progress" ? t("진행률 낮은 순", "Least progress first", "进度最低优先", "Tiến độ thấp trước", "進捗が低い順", "Progres terendah dahulu") : t("최근 활동순", "Recent activity", "最近活动", "Hoạt động gần đây", "最近の活動順", "Aktivitas terbaru")}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" className="ops-detail-button" onClick={exportCsv}>
+                {ids.length
+                  ? t(`선택 ${ids.length}명 CSV`, `CSV (${ids.length} selected)`, `导出所选 ${ids.length} 人`, `CSV (${ids.length} đã chọn)`, `選択${ids.length}名をCSV`, `CSV (${ids.length} dipilih)`)
+                  : t("CSV 내보내기", "Export CSV", "导出 CSV", "Xuất CSV", "CSV エクスポート", "Ekspor CSV")}
+              </button>
+              <button type="button" className="ops-detail-button" onClick={() => setSort((s) => (s === "recent" ? "progress" : "recent"))}>
+                {sort === "progress"
+                  ? t("진행률 낮은 순", "Least progress first", "进度最低优先", "Tiến độ thấp trước", "進捗が低い順", "Progres terendah dahulu")
+                  : t("최근 활동순", "Recent activity", "最近活动", "Hoạt động gần đây", "最近の活動順", "Aktivitas terbaru")}
+              </button>
+            </div>
+          </div>
+
+          {/* 검색 */}
+          <div className="ops-partner-filters">
+            <input
+              className="ops-partner-filter-search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("이름 또는 이메일 검색", "Search by name or email", "按姓名或邮箱搜索", "Tìm theo tên hoặc email", "氏名またはメールで検索", "Cari nama atau email")}
+            />
+            <button type="button" className="ops-partner-filter-reset" onClick={() => { setQ(""); setFilter("all"); setStatus("all"); }}>
+              {t("초기화", "Reset", "重置", "Đặt lại", "リセット", "Reset")}
             </button>
           </div>
 
           {/* 기수 필터 */}
           {!loading && (cohorts.length > 0 || hasUnassigned) ? (
             <div className="ops-filter-chip-row">
-              <button
-                type="button"
-                className={`ops-filter-chip ${filter === "all" ? "is-active" : ""}`}
-                onClick={() => setFilter("all")}
-              >
-                {t("전체", "All", "全部", "Tất cả", "全体", "Semua")}
+              <button type="button" className={`ops-filter-chip ${filter === "all" ? "is-active" : ""}`} onClick={() => setFilter("all")}>
+                {t("전체 기수", "All cohorts", "全部期数", "Tất cả khóa", "全コホート", "Semua angkatan")}
                 <span className="ops-filter-chip-count">{students.length}</span>
               </button>
               {cohorts.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`ops-filter-chip ${filter === c.id ? "is-active" : ""}`}
-                  onClick={() => setFilter(c.id)}
-                >
+                <button key={c.id} type="button" className={`ops-filter-chip ${filter === c.id ? "is-active" : ""}`} onClick={() => setFilter(c.id)}>
                   {c.university} · {c.name}
                   <span className="ops-filter-chip-count">{students.filter((s) => s.cohort?.id === c.id).length}</span>
                 </button>
               ))}
               {hasUnassigned ? (
-                <button
-                  type="button"
-                  className={`ops-filter-chip ${filter === "none" ? "is-active" : ""}`}
-                  onClick={() => setFilter("none")}
-                >
+                <button type="button" className={`ops-filter-chip ${filter === "none" ? "is-active" : ""}`} onClick={() => setFilter("none")}>
                   {t("미등록", "Unassigned", "未分配", "Chưa xếp khóa", "未登録", "Belum ditetapkan")}
                   <span className="ops-filter-chip-count">{students.filter((s) => !s.cohort).length}</span>
                 </button>
               ) : null}
+            </div>
+          ) : null}
+
+          {/* 상태 필터 */}
+          {!loading ? (
+            <div className="ops-filter-chip-row">
+              {statusChips.map((c) => (
+                <button key={c.key} type="button" className={`ops-filter-chip ${status === c.key ? "is-active" : ""}`} onClick={() => setStatus(c.key)}>
+                  {c.label}
+                  <span className="ops-filter-chip-count">{statusCount(c.key)}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {/* 일괄 작업 바 — 선택이 있을 때만 */}
+          {ids.length > 0 ? (
+            <div className="ops-bulk-actionbar">
+              <strong>
+                {t(`${ids.length}명 선택됨`, `${ids.length} selected`, `已选 ${ids.length} 人`, `Đã chọn ${ids.length}`, `${ids.length}名を選択`, `${ids.length} dipilih`)}
+              </strong>
+              <div className="ops-bulk-actionbar-buttons">
+                {cohorts.length > 0 ? (
+                  <select
+                    className="ops-detail-button"
+                    disabled={busy}
+                    defaultValue=""
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      e.target.value = "";
+                      if (v) void doBulkMove(v);
+                    }}
+                  >
+                    <option value="">{t("기수 이동…", "Move to cohort…", "移动到期数…", "Chuyển khóa…", "コホートへ移動…", "Pindah angkatan…")}</option>
+                    {cohorts.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.university} · {c.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+                <select
+                  className="ops-detail-button"
+                  disabled={busy}
+                  defaultValue=""
+                  onChange={(e) => {
+                    const v = e.target.value as OpsResetTarget | "";
+                    const label = e.target.selectedOptions[0]?.text ?? "";
+                    e.target.value = "";
+                    if (v) void doBulkReset(v, label);
+                  }}
+                >
+                  <option value="">{t("일괄 초기화…", "Bulk reset…", "批量重置…", "Đặt lại hàng loạt…", "一括初期化…", "Reset massal…")}</option>
+                  <option value="diagnosis">{t("진단", "Diagnosis", "诊断", "Chẩn đoán", "診断", "Diagnosis")}</option>
+                  <option value="jobs">{t("선정 직무", "Selected jobs", "已选职务", "Vị trí đã chọn", "選定した職務", "Posisi terpilih")}</option>
+                  <option value="resume">{t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</option>
+                  <option value="cover">{t("자기소개서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter")}</option>
+                  <option value="interview">{t("모의면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}</option>
+                  <option value="final_feedback">{t("최종 피드백", "Final feedback", "最终反馈", "Phản hồi cuối cùng", "最終フィードバック", "Umpan balik akhir")}</option>
+                </select>
+                <button type="button" className="ops-detail-button" disabled={busy} onClick={() => setSelected(new Set())}>
+                  {t("선택 해제", "Clear selection", "取消选择", "Bỏ chọn", "選択解除", "Batal pilih")}
+                </button>
+              </div>
             </div>
           ) : null}
 
@@ -134,6 +347,9 @@ export default function LaunchOpsStudentsPage() {
             <table className="ops-partner-table">
               <thead>
                 <tr>
+                  <th style={{ width: 36 }}>
+                    <input type="checkbox" checked={allOnPageSelected} onChange={toggleAllOnPage} aria-label="select all" />
+                  </th>
                   <th>{t("학생", "Student", "学生", "Sinh viên", "学生", "Siswa")}</th>
                   <th>{t("기수", "Cohort", "期数", "Khóa", "コホート", "Batch")}</th>
                   <th>{t("진행률", "Progress", "进度", "Tiến độ", "進捗", "Progres")}</th>
@@ -147,30 +363,36 @@ export default function LaunchOpsStudentsPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="ops-table-empty">
+                    <td colSpan={9} className="ops-table-empty">
                       {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}
                     </td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={8} className="ops-table-empty">{error}</td>
+                    <td colSpan={9} className="ops-table-empty">{error}</td>
                   </tr>
-                ) : filtered.length === 0 ? (
+                ) : pageItems.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="ops-table-empty">
-                      {t("해당 기수에 학생이 없어요.", "No students in this cohort.", "此期数没有学生。", "Không có sinh viên trong khóa này.", "このコホートに学生がいません。", "Tidak ada siswa di batch ini.")}
+                    <td colSpan={9} className="ops-table-empty">
+                      {q.trim()
+                        ? t("검색 결과가 없어요.", "No matching students.", "没有匹配的学生。", "Không có sinh viên phù hợp.", "該当する学生がいません。", "Tidak ada siswa yang cocok.")
+                        : t("조건에 맞는 학생이 없어요.", "No students match the filters.", "没有符合条件的学生。", "Không có sinh viên khớp bộ lọc.", "条件に合う学生がいません。", "Tidak ada siswa yang cocok dengan filter.")}
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((st) => {
+                  pageItems.map((st) => {
                     const prog = studentProgress(st);
                     const done = prog.done === prog.total;
                     return (
-                      <tr
-                        key={st.userId}
-                        className="ops-clickable-row"
-                        onClick={() => router.push(`/career-launch/ops/students/${st.userId}`)}
-                      >
+                      <tr key={st.userId} className="ops-clickable-row" onClick={() => router.push(`/career-launch/ops/students/${st.userId}`)}>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selected.has(st.userId)}
+                            onChange={() => toggleOne(st.userId)}
+                            aria-label={st.email}
+                          />
+                        </td>
                         <td>
                           <span className="block font-bold text-[#191F28]">
                             {st.name ?? t("이름 미설정", "No name set", "未设置姓名", "Chưa đặt tên", "名前未設定", "Nama belum diatur")}
@@ -182,23 +404,13 @@ export default function LaunchOpsStudentsPage() {
                             `${st.cohort.university} · ${st.cohort.name}`
                           ) : (
                             <span className="ops-status-badge ops-status-draft">
-                              {t("기수 미등록", "Not assigned to a cohort", "未分配期数", "Chưa xếp khóa", "コホート未登録", "Belum ditetapkan ke batch")}
+                              {t("미등록", "Unassigned", "未分配", "Chưa xếp khóa", "未登録", "Belum ditetapkan")}
                             </span>
                           )}
                         </td>
                         <td>
                           <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 120 }}>
-                            <span
-                              style={{
-                                position: "relative",
-                                display: "block",
-                                flex: 1,
-                                height: 6,
-                                borderRadius: 999,
-                                background: "#EEF1F5",
-                                overflow: "hidden"
-                              }}
-                            >
+                            <span style={{ position: "relative", display: "block", flex: 1, height: 6, borderRadius: 999, background: "#EEF1F5", overflow: "hidden" }}>
                               <span
                                 style={{
                                   display: "block",
@@ -216,23 +428,17 @@ export default function LaunchOpsStudentsPage() {
                         </td>
                         <td>
                           <span className={`ops-status-badge ${st.diagnosisPercent !== null ? "ops-status-approved" : "ops-status-draft"}`}>
-                            {st.diagnosisPercent !== null
-                              ? t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")
-                              : t("미완료", "Not done", "未完成", "Chưa xong", "未完了", "Belum")}
+                            {st.diagnosisPercent !== null ? doneLabel : notDoneLabel}
                           </span>
                         </td>
                         <td>
                           <span className={`ops-status-badge ${st.hasResume ? "ops-status-approved" : "ops-status-draft"}`}>
-                            {st.hasResume
-                              ? t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")
-                              : t("미완료", "Not done", "未完成", "Chưa xong", "未完了", "Belum")}
+                            {st.hasResume ? doneLabel : notDoneLabel}
                           </span>
                         </td>
                         <td>
                           <span className={`ops-status-badge ${st.coverItems > 0 ? "ops-status-approved" : "ops-status-draft"}`}>
-                            {st.coverItems > 0
-                              ? `${t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")} ${st.coverItems}`
-                              : t("미완료", "Not done", "未完成", "Chưa xong", "未完了", "Belum")}
+                            {st.coverItems > 0 ? `${doneLabel} ${st.coverItems}` : notDoneLabel}
                           </span>
                         </td>
                         <td>
@@ -252,6 +458,21 @@ export default function LaunchOpsStudentsPage() {
               </tbody>
             </table>
           </div>
+
+          {/* 페이지네이션 */}
+          {!loading && totalPages > 1 ? (
+            <div className="ops-pagination">
+              <button type="button" className="ops-detail-button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                {t("이전", "Prev", "上一页", "Trước", "前へ", "Sebelumnya")}
+              </button>
+              <span style={{ fontSize: 12.5, color: "#6b7280" }}>
+                {page} / {totalPages}
+              </span>
+              <button type="button" className="ops-detail-button" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                {t("다음", "Next", "下一页", "Sau", "次へ", "Berikutnya")}
+              </button>
+            </div>
+          ) : null}
         </article>
       </section>
     </main>

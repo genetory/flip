@@ -121,6 +121,25 @@ export async function saveStudentMemo(id: string, memo: string): Promise<void> {
   await req(`/career-launch/ops/students/${encodeURIComponent(id)}/memo`, { method: "PUT", headers: authHeaders(true), body: JSON.stringify({ memo }) });
 }
 
+// ── 일괄 작업 ──
+export async function bulkResetStudents(studentIds: string[], target: OpsResetTarget): Promise<number> {
+  const d = await req("/career-launch/ops/students/bulk/reset", {
+    method: "POST",
+    headers: authHeaders(true),
+    body: JSON.stringify({ studentIds, target })
+  });
+  return (d.count as number) ?? studentIds.length;
+}
+
+export async function bulkMoveCohort(studentIds: string[], cohortId: string): Promise<number> {
+  const d = await req("/career-launch/ops/students/bulk/cohort", {
+    method: "POST",
+    headers: authHeaders(true),
+    body: JSON.stringify({ studentIds, cohortId })
+  });
+  return (d.count as number) ?? studentIds.length;
+}
+
 // 운영자 개입 — 학생의 특정 단계 데이터 초기화.
 export async function resetStudentStep(id: string, target: OpsResetTarget): Promise<void> {
   await req(`/career-launch/ops/students/${encodeURIComponent(id)}/reset`, { method: "POST", headers: authHeaders(true), body: JSON.stringify({ target }) });
