@@ -119,10 +119,10 @@ export default function LaunchOpsReportPage() {
   const unit = t("명", "", "人", "", "名", "");
 
   const summaryCards = [
-    { id: "total", k: t("학생", "Students", "学生", "Sinh viên", "学生", "Siswa"), v: `${stats.total}${unit}` },
-    { id: "completed", k: t("완주(면접 3라운드)", "Completed (3 interview rounds)", "完成（面试3轮）", "Hoàn thành (3 vòng phỏng vấn)", "完走(面接3ラウンド)", "Selesai (3 ronde wawancara)"), v: `${stats.interviewAll}${unit}` },
-    { id: "resume_cover", k: t("이력서·자소서", "Resume · Cover letter", "简历·自我介绍", "CV · Thư xin việc", "履歴書・自己PR", "Resume · Cover letter"), v: `${stats.resume}·${stats.cover}${unit}` },
-    { id: "avg", k: t("평균 준비도", "Avg. readiness", "平均准备度", "Mức sẵn sàng TB", "平均準備度", "Rata-rata kesiapan"), v: `${stats.avgDiag}%` }
+    { id: "total", k: t("학생", "Students", "学生", "Sinh viên", "学生", "Siswa"), v: `${stats.total}${unit}`, tone: "ops-kpi-blue" },
+    { id: "completed", k: t("완주(면접 3라운드)", "Completed (3 interview rounds)", "完成（面试3轮）", "Hoàn thành (3 vòng phỏng vấn)", "完走(面接3ラウンド)", "Selesai (3 ronde wawancara)"), v: `${stats.interviewAll}${unit}`, tone: "ops-kpi-green" },
+    { id: "resume_cover", k: t("이력서·자소서", "Resume · Cover letter", "简历·自我介绍", "CV · Thư xin việc", "履歴書・自己PR", "Resume · Cover letter"), v: `${stats.resume}·${stats.cover}${unit}`, tone: "ops-kpi-blue" },
+    { id: "avg", k: t("평균 준비도", "Avg. readiness", "平均准备度", "Mức sẵn sàng TB", "平均準備度", "Rata-rata kesiapan"), v: `${stats.avgDiag}%`, tone: "ops-kpi-amber" }
   ];
 
   return (
@@ -180,12 +180,12 @@ export default function LaunchOpsReportPage() {
               {filtered.length === 0 ? (
                 <div className="ops-empty-card">{t("집계할 학생이 없어요.", "No students to report on.", "没有可统计的学生。", "Không có sinh viên để thống kê.", "集計対象の学生がいません。", "Tidak ada siswa untuk dilaporkan.")}</div>
               ) : (
-                <div className="ops-card-grid">
+                <div className="ops-kpi-grid">
                   {summaryCards.map((s) => (
-                    <article key={s.id} className="ops-card">
-                      <h3 className="ops-section-title">{s.k}</h3>
-                      <p style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: "-0.01em", color: "#111827" }}>{s.v}</p>
-                    </article>
+                    <div key={s.id} className={`ops-kpi-tile ${s.tone}`}>
+                      <p className="ops-kpi-label">{s.k}</p>
+                      <p className="ops-kpi-value">{s.v}</p>
+                    </div>
                   ))}
                 </div>
               )}

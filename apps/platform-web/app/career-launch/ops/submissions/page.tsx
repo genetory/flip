@@ -67,10 +67,10 @@ export default function LaunchOpsFeedbackPage() {
   const sentCount = byCohort.reduce((n, s) => n + s.feedbackTotal, 0);
 
   const summary = [
-    { id: "submitted", k: t("제출한 학생", "Submitted", "已提交", "Đã nộp", "提出済み", "Sudah kirim"), v: submitted, tone: "text-[#0B46E8]" },
-    { id: "need", k: t("피드백 필요", "Needs feedback", "需反馈", "Cần phản hồi", "要対応", "Butuh umpan balik"), v: needCount, tone: "text-amber-600" },
-    { id: "unread", k: t("미확인", "Unread", "未读", "Chưa đọc", "未読", "Belum dibaca"), v: unreadCount, tone: "text-amber-600" },
-    { id: "sent", k: t("보낸 피드백", "Feedback sent", "已发送", "Đã gửi", "送信済み", "Terkirim"), v: sentCount, tone: "text-[#3A6B00]" }
+    { id: "submitted", k: t("제출한 학생", "Submitted", "已提交", "Đã nộp", "提出済み", "Sudah kirim"), v: submitted, tone: "ops-kpi-blue" },
+    { id: "need", k: t("피드백 필요", "Needs feedback", "需反馈", "Cần phản hồi", "要対応", "Butuh umpan balik"), v: needCount, tone: "ops-kpi-amber" },
+    { id: "unread", k: t("미확인", "Unread", "未读", "Chưa đọc", "未読", "Belum dibaca"), v: unreadCount, tone: "ops-kpi-amber" },
+    { id: "sent", k: t("보낸 피드백", "Feedback sent", "已发送", "Đã gửi", "送信済み", "Terkirim"), v: sentCount, tone: "ops-kpi-green" }
   ];
 
   return (
@@ -81,12 +81,12 @@ export default function LaunchOpsFeedbackPage() {
           <p>{t("제출물과 피드백 전달 상태를 보고, 피드백이 필요한 학생을 먼저 챙기세요.", "Track submissions and delivery status, and prioritize students who still need feedback.", "查看提交物与反馈送达状态，优先处理仍需反馈的学生。", "Theo dõi bài nộp và trạng thái gửi phản hồi, ưu tiên sinh viên còn cần phản hồi.", "提出物とフィードバックの送達状況を確認し、フィードバックが必要な学生を優先しましょう。", "Pantau kiriman dan status pengiriman umpan balik, dahulukan siswa yang masih butuh umpan balik.")}</p>
         </header>
 
-        <div className="ops-card-grid">
+        <div className="ops-kpi-grid">
           {summary.map((s) => (
-            <article key={s.id} className="ops-card">
-              <h3 className="ops-section-title">{s.k}</h3>
-              <p className={`text-[24px] font-black ${s.tone}`}>{s.v}</p>
-            </article>
+            <div key={s.id} className={`ops-kpi-tile ${s.tone}`}>
+              <p className="ops-kpi-label">{s.k}</p>
+              <p className="ops-kpi-value">{s.v}</p>
+            </div>
           ))}
         </div>
 

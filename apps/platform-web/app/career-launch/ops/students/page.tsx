@@ -56,10 +56,10 @@ export default function LaunchOpsStudentsPage() {
   const diagDone = filtered.filter((s) => s.diagnosisPercent !== null).length;
 
   const summary = [
-    { id: "students", k: t("학생", "Students", "学生", "Sinh viên", "学生", "Siswa"), v: filtered.length },
-    { id: "diagnosis", k: t("진단", "Diagnosis", "诊断", "Chẩn đoán", "診断", "Diagnosis"), v: diagDone },
-    { id: "resume", k: t("이력서", "Resume", "简历", "CV", "履歴書", "Resume"), v: withResume },
-    { id: "cover", k: t("자소서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter"), v: withCover }
+    { id: "students", k: t("학생", "Students", "学生", "Sinh viên", "学生", "Siswa"), v: filtered.length, tone: "ops-kpi-blue" },
+    { id: "diagnosis", k: t("진단", "Diagnosis", "诊断", "Chẩn đoán", "診断", "Diagnosis"), v: diagDone, tone: "ops-kpi-blue" },
+    { id: "resume", k: t("이력서", "Resume", "简历", "CV", "履歴書", "Resume"), v: withResume, tone: "ops-kpi-green" },
+    { id: "cover", k: t("자소서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter"), v: withCover, tone: "ops-kpi-green" }
   ];
 
   const detailLabel = t("상세정보", "Details", "详情", "Chi tiết", "詳細", "Detail");
@@ -72,12 +72,12 @@ export default function LaunchOpsStudentsPage() {
           <p>{t("기수별로 학생의 진행 상태를 보고 상세에서 피드백을 남겨요.", "View student progress by cohort and leave feedback on the detail page.", "按期数查看学生进度，并在详情页留下反馈。", "Xem tiến độ sinh viên theo khóa và để lại phản hồi ở trang chi tiết.", "コホート別に学生の進捗を確認し、詳細ページでフィードバックを残します。", "Lihat progres siswa per batch dan beri umpan balik di halaman detail.")}</p>
         </header>
 
-        <div className="ops-card-grid">
+        <div className="ops-kpi-grid">
           {summary.map((s) => (
-            <article key={s.id} className="ops-card">
-              <h3 className="ops-section-title">{s.k}</h3>
-              <p className="text-[24px] font-black text-[#0B46E8]">{s.v}</p>
-            </article>
+            <div key={s.id} className={`ops-kpi-tile ${s.tone}`}>
+              <p className="ops-kpi-label">{s.k}</p>
+              <p className="ops-kpi-value">{s.v}</p>
+            </div>
           ))}
         </div>
 
