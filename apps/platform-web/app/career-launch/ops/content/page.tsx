@@ -203,7 +203,7 @@ export default function LaunchOpsContentPage() {
                     { f: "goal", label: t("목표", "Goal", "目标", "Mục tiêu", "目標", "Tujuan"), orig: week.goal }
                   ] as const
                 ).map((row) => (
-                  <div key={row.f} style={{ marginBottom: 14 }}>
+                  <div key={row.f}>
                     <label className="ops-form-label">{row.label}</label>
                     <textarea
                       value={weekVal(week.week, row.f)}
@@ -231,7 +231,7 @@ export default function LaunchOpsContentPage() {
                       { f: "desc", label: t("설명", "Description", "说明", "Mô tả", "説明", "Deskripsi"), orig: st.desc, rows: 3 }
                     ] as const
                   ).map((row) => (
-                    <div key={row.f} style={{ marginBottom: 14 }}>
+                    <div key={row.f}>
                       <label className="ops-form-label">{row.label}</label>
                       <textarea
                         value={stepVal(st.id, row.f)}

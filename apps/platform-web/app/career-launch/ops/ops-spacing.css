@@ -1,37 +1,39 @@
-/* Career Launch 운영 콘솔 — 간격(세로 리듬) 보정.
+/* Career Launch 운영 콘솔 — 간격(세로 리듬).
  *
- * dashboard.css 의 flat 레이아웃은 "제목 바 다음에 오는 요소가 각자 margin-top 을
- * 갖는다"는 전제로 짜여 있다(.ops-partner-filters / .ops-partner-table-wrap 은
- * margin-top:12px 를 스스로 가짐). 그런데 우리가 카드 안에서 쓰는
- * .ops-kpi-grid / .ops-card-grid / .ops-filter-chip-row 는 여백이 없어서
- * 제목 바에 딱 붙는다. 그 케이스만 보정한다.
+ * dashboard.css 는 "제목 바 뒤에 오는 요소가 각자 margin-top 을 갖는다"는 전제로 짜여 있다
+ * (.ops-partner-filters / .ops-partner-table-wrap / .ops-bulk-actionbar / .ops-pagination 은
+ *  스스로 margin-top:12~14px 을 가짐). 반면 우리가 조합에 쓰는
+ * .ops-filter-chip-row / .ops-kpi-grid / .ops-card-grid / .ops-detail-actions /
+ * .ops-empty-card / .ops-error-card / .ops-detail-section 등은 여백이 0이라 서로 달라붙는다.
  *
- * dashboard.css 는 실제 운영콘솔과 공유하므로 건드리지 않고, 여기서 .launch-ops
- * 로 스코프해 career-launch 운영 화면에만 적용한다.
- * 최상위 세로 리듬(header→28px, 형제→24px)은 dashboard.css 규칙을 그대로 쓰고
- * 덮어쓰지 않는다(선택자를 카드 내부로 한정).
+ * 그래서 개별 조합마다 규칙을 더하는 대신, 컨테이너 안의 "형제 사이"에 균일한 간격을 준다.
+ * 선택자를 .launch-ops 로 스코프해 실제 운영콘솔(dashboard.css 공유)에는 영향이 없다.
+ *
+ * 최상위 리듬(header→28px, 형제→24px)은 dashboard.css 규칙을 그대로 쓰고 덮어쓰지 않는다.
  */
 
-/* 카드 제목 바 다음 첫 요소 */
-.launch-ops .ops-partner-list-card > .ops-partner-list-top + * {
+/* 목록 카드 안: 모든 형제 사이 16px.
+ * 콘솔이 자체로 갖고 있던 12px 도 여기서 16px 로 통일된다(선택자 우선순위가 높음). */
+.launch-ops .ops-partner-list-card > * + * {
   margin-top: 16px;
 }
 
-/* 카드 안에서 필터 칩 다음에 오는 블록(테이블 등) */
-.launch-ops .ops-partner-list-card > .ops-filter-chip-row + * {
-  margin-top: 16px;
+/* 상세 섹션 안: 제목(h3) 아래 여백을 끄고, 형제 사이 12px 로 통일.
+ * (h3 의 margin-bottom:12px 을 그대로 두면 아래 규칙과 겹쳐 24px 이 된다.) */
+.launch-ops .ops-detail-section > h3 {
+  margin-bottom: 0;
+}
+.launch-ops .ops-detail-section > * + * {
+  margin-top: 12px;
 }
 
-/* 카드 안 블록들 사이 최소 간격 — 위 두 규칙이 못 잡는 연속 블록 */
-.launch-ops .ops-partner-list-card > .ops-kpi-grid + *,
-.launch-ops .ops-partner-list-card > .ops-card-grid + * {
-  margin-top: 16px;
+/* 폼 라벨은 입력 위에 한 줄로 — 콘솔 기본값엔 display/여백이 없다. */
+.launch-ops .ops-form-label {
+  display: block;
+  margin-bottom: 6px;
 }
 
-/* 상세 섹션 안에서 카드 그리드/칩이 제목(h3) 바로 뒤에 올 때는
- * h3 의 margin-bottom(12px)으로 충분하므로 추가 여백을 주지 않는다. */
-
-/* 목록 카드끼리(같은 상세 섹션 안) */
-.launch-ops .ops-detail-section > .ops-partner-list-card + .ops-partner-list-card {
-  margin-top: 20px;
+/* 카드 제목 바 우측 액션들이 서로 붙지 않게. */
+.launch-ops .ops-partner-list-top {
+  flex-wrap: wrap;
 }
