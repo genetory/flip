@@ -59,9 +59,6 @@ export type OpsStudent = {
   hasResume: boolean;
   coverItems: number;
   interviewPracticed: number;
-  feedbackTotal: number;
-  feedbackUnread: number;
-  feedbackLastAt: string | null;
   updatedAt: string | null;
 };
 

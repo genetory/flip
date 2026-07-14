@@ -18,21 +18,6 @@ function authHeaders(json = false): Record<string, string> {
   return headers;
 }
 
-export type FeedbackDocType = "resume" | "cover_letter" | "general";
-
-export type CareerFeedback = {
-  id: string;
-  studentUserId: string;
-  authorUserId: string;
-  week: number | null;
-  docType: FeedbackDocType;
-  docId: string | null;
-  body: string;
-  readAt: string | null;
-  createdAt: string;
-  author?: { id: string; name: string | null; realName: string | null } | null;
-};
-
 async function req(path: string, init: RequestInit): Promise<Record<string, unknown>> {
   const res = await fetch(`${apiBase()}${path}`, init);
   const data = (await res.json().catch(() => null)) as (Record<string, unknown> & { ok?: boolean; message?: string }) | null;
@@ -58,39 +43,3 @@ export async function fetchFinalFeedback(force = false): Promise<{ text: string 
 }
 
 // 학생: 내게 온 피드백 조회
-export async function fetchMyFeedback(): Promise<{ items: CareerFeedback[]; unreadCount: number }> {
-  const data = await req("/career-launch/my-feedback", { headers: authHeaders() });
-  return { items: (data.items as CareerFeedback[]) ?? [], unreadCount: Number(data.unreadCount) || 0 };
-}
-
-// 학생: 받은 피드백 모두 읽음 처리
-export async function markMyFeedbackRead(): Promise<void> {
-  await req("/career-launch/my-feedback/read", { method: "POST", headers: authHeaders() });
-}
-
-// 운영자: 특정 학생의 피드백 목록
-export async function fetchStudentFeedback(studentUserId: string): Promise<CareerFeedback[]> {
-  const data = await req(`/career-launch/feedback?studentUserId=${encodeURIComponent(studentUserId)}`, { headers: authHeaders() });
-  return (data.items as CareerFeedback[]) ?? [];
-}
-
-// 운영자: 피드백 작성
-export async function createStudentFeedback(input: {
-  studentUserId: string;
-  week?: number;
-  docType: FeedbackDocType;
-  docId?: string;
-  body: string;
-}): Promise<CareerFeedback> {
-  const data = await req("/career-launch/feedback", {
-    method: "POST",
-    headers: authHeaders(true),
-    body: JSON.stringify(input)
-  });
-  return data.item as CareerFeedback;
-}
-
-// 운영자: 피드백 삭제
-export async function deleteStudentFeedback(id: string): Promise<void> {
-  await req(`/career-launch/feedback/${encodeURIComponent(id)}`, { method: "DELETE", headers: authHeaders() });
-}

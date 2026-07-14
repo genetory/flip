@@ -4,7 +4,6 @@ import { ArrowDown, ArrowUp, ArrowsDownUp, FileArrowUp, FileText, PencilSimple, 
 import { FormEvent, MouseEvent, SyntheticEvent, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getOpsBadgeClassName } from "../../partners/_components/OpsBadge";
-import { OperatorResumeFeedback } from "../../../../../components/launch/operator-resume-feedback";
 
 const TOKEN_COOKIE_KEY = "ops_admin_token";
 
@@ -20,8 +19,7 @@ type CandidateDetailTab =
   | "additionalInfo"
   | "emergencyContact"
   | "adminMemo"
-  | "matchingResult"
-  | "feedback";
+  | "matchingResult";
 type EducationLanguageView = "list" | "educationAdd" | "languageAdd";
 type CareerView = "list" | "add";
 type ActivityExperienceView = "list" | "add";
@@ -2134,8 +2132,7 @@ export default function CandidateManagementPage() {
     { key: "additionalInfo", label: "추가 정보" },
     { key: "emergencyContact", label: "비상 연락망" },
     { key: "matchingResult", label: "매칭 결과" },
-    { key: "adminMemo", label: "관리자 메모" },
-    { key: "feedback", label: "피드백" }
+    { key: "adminMemo", label: "관리자 메모" }
   ];
 
   return (
@@ -3662,15 +3659,6 @@ export default function CandidateManagementPage() {
                     </div>
                   )}
                 </section>
-              ) : detailTab === "feedback" ? (
-                selectedCandidate ? (
-                  <OperatorResumeFeedback studentUserId={selectedCandidate.id} allowDocTypeSelect studentName={selectedCandidate.name} />
-                ) : (
-                  <section className="ops-detail-section">
-                    <h3>피드백</h3>
-                    <p className="ops-detail-empty">학생을 선택하면 피드백을 남길 수 있어요.</p>
-                  </section>
-                )
               ) : (
                 <section className="ops-detail-section">
                   <h3>{detailTabs.find((tabItem) => tabItem.key === detailTab)?.label || "상세 정보"}</h3>

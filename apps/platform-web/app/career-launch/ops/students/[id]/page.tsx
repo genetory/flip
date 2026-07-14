@@ -9,7 +9,6 @@ import { hasCoverContent } from "../../../../../lib/launch/cover-data";
 import { RECOMMENDED_JOBS } from "../../../../../lib/launch/data";
 import { ResumeRender } from "../../../../../components/launch/resume-render";
 import { CoverRender } from "../../../../../components/launch/cover-render";
-import { OperatorResumeFeedback } from "../../../../../components/launch/operator-resume-feedback";
 import { RichText } from "../../../../../components/launch/rich-text";
 import { useLaunchT } from "../../../../../lib/launch/i18n";
 import { useJobReason } from "../../../../../lib/launch/data-i18n";
@@ -96,8 +95,7 @@ export default function LaunchOpsStudentDetailPage() {
         ) : error || !detail ? (
           <div className="ops-error-card">{error || t("학생을 찾을 수 없어요.", "Student not found.", "找不到学生。", "Không tìm thấy sinh viên.", "学生が見つかりません。", "Siswa tidak ditemukan.")}</div>
         ) : (
-          <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr] lg:items-start">
-            {/* 왼쪽: 진행 상태 + 제출물 */}
+          <div>
             <div className="ops-detail-sections">
               {/* 진행 체크리스트 — 무엇이 됐고 무엇이 안 됐는지 한눈에 */}
               {(() => {
@@ -317,14 +315,6 @@ export default function LaunchOpsStudentDetailPage() {
                     </button>
                   ))}
                 </div>
-              </section>
-            </div>
-
-            {/* 오른쪽: 피드백 (데스크탑에서 고정) */}
-            <div className="lg:sticky lg:top-6">
-              <section className="ops-detail-section">
-                <h3>{t("피드백", "Feedback", "反馈", "Phản hồi", "フィードバック", "Umpan balik")}</h3>
-                <OperatorResumeFeedback studentUserId={detail.user.id} allowDocTypeSelect studentName={name} />
               </section>
             </div>
           </div>

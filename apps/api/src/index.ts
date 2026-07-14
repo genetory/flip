@@ -14373,90 +14373,6 @@ app.post(
   }
 );
 
-// ── Career Launch 제출물 단위 코치 피드백 ──
-// 운영자가 학생 이력서·자소서를 보고 남긴 텍스트 피드백을 학생 대시보드로 전달한다.
-const careerFeedbackDocTypes = ["resume", "cover_letter", "general"] as const;
-const createCareerFeedbackSchema = z.object({
-  studentUserId: z.string().uuid(),
-  week: z.number().int().min(1).max(4).optional(),
-  docType: z.enum(careerFeedbackDocTypes).default("general"),
-  docId: z.string().max(200).optional(),
-  body: z.string().trim().min(1).max(8000)
-});
-
-// POST /career-launch/feedback — 운영자가 학생에게 피드백 작성.
-app.post("/career-launch/feedback", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
-  const parsed = createCareerFeedbackSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-  const { studentUserId, week, docType, docId, body } = parsed.data;
-  try {
-    const student = await prisma.user.findUnique({ where: { id: studentUserId }, select: { id: true, role: true } });
-    if (!student) return res.status(404).json({ ok: false, message: "student not found" });
-    const created = await prisma.careerLaunchFeedback.create({
-      data: { studentUserId, authorUserId: req.auth!.userId, week: week ?? null, docType, docId: docId ?? null, body }
-    });
-    return res.status(201).json({ ok: true, item: created });
-  } catch (error) {
-    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
-  }
-});
-
-// GET /career-launch/feedback?studentUserId= — 운영자가 특정 학생의 피드백 목록 조회.
-app.get("/career-launch/feedback", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
-  const studentUserId = typeof req.query.studentUserId === "string" ? req.query.studentUserId : "";
-  if (!studentUserId) return res.status(400).json({ ok: false, message: "studentUserId required" });
-  try {
-    const items = await prisma.careerLaunchFeedback.findMany({
-      where: { studentUserId },
-      orderBy: { createdAt: "desc" },
-      include: { author: { select: { id: true, name: true, realName: true } } }
-    });
-    return res.json({ ok: true, items });
-  } catch (error) {
-    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
-  }
-});
-
-// DELETE /career-launch/feedback/:id — 운영자가 피드백 삭제.
-app.delete("/career-launch/feedback/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
-  const id = typeof req.params.id === "string" ? req.params.id : "";
-  if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
-  try {
-    await prisma.careerLaunchFeedback.delete({ where: { id } });
-    return res.json({ ok: true });
-  } catch (error) {
-    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
-  }
-});
-
-// GET /career-launch/my-feedback — 로그인한 학생이 자신에게 온 피드백을 조회.
-app.get("/career-launch/my-feedback", authenticate, requireCareerEnrollment, async (req, res) => {
-  try {
-    const items = await prisma.careerLaunchFeedback.findMany({
-      where: { studentUserId: req.auth!.userId },
-      orderBy: { createdAt: "desc" },
-      include: { author: { select: { id: true, name: true, realName: true } } }
-    });
-    const unreadCount = items.filter((it) => !it.readAt).length;
-    return res.json({ ok: true, items, unreadCount });
-  } catch (error) {
-    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
-  }
-});
-
-// POST /career-launch/my-feedback/read — 학생이 받은 피드백을 모두 읽음 처리.
-app.post("/career-launch/my-feedback/read", authenticate, requireCareerEnrollment, async (req, res) => {
-  try {
-    await prisma.careerLaunchFeedback.updateMany({
-      where: { studentUserId: req.auth!.userId, readAt: null },
-      data: { readAt: new Date() }
-    });
-    return res.json({ ok: true });
-  } catch (error) {
-    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
-  }
-});
-
 // ── Career Launch 이력서 데이터 수집(대화형) ──
 // 학생이 별도 빌더로 가지 않고 AI와 대화하며 이력서 재료를 구조화해 쌓는다.
 const RESUME_DATA_SCHEMA = {
@@ -15241,26 +15157,15 @@ app.delete("/career-launch/ops/prompts/:key", authenticate, requireRoles([Member
 app.get("/career-launch/ops/students", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const cohortFilter = typeof req.query.cohortId === "string" ? req.query.cohortId : "";
   try {
-    const [enrollRows, progressRows, resumeRows, coverRows, feedbackRows] = await Promise.all([
+    const [enrollRows, progressRows, resumeRows, coverRows] = await Promise.all([
       prisma.careerEnrollment.findMany({
         include: { cohort: { select: { id: true, university: true, name: true } }, student: { select: { id: true, name: true, realName: true, email: true } } },
         orderBy: { createdAt: "asc" }
       }),
       prisma.careerLaunchProgress.findMany({ include: { student: { select: { id: true, name: true, realName: true, email: true } } } }),
       prisma.careerResumeData.findMany({ select: { studentUserId: true, content: true, updatedAt: true } }),
-      prisma.careerCoverLetterData.findMany({ select: { studentUserId: true, content: true, updatedAt: true } }),
-      prisma.careerLaunchFeedback.findMany({ select: { studentUserId: true, readAt: true, createdAt: true } })
+      prisma.careerCoverLetterData.findMany({ select: { studentUserId: true, content: true, updatedAt: true } })
     ]);
-
-    // 학생별 피드백 집계(보낸 수 / 미확인 수 / 마지막 발송일).
-    const feedbackByUser = new Map<string, { total: number; unread: number; lastAt: Date | null }>();
-    for (const f of feedbackRows) {
-      const cur = feedbackByUser.get(f.studentUserId) ?? { total: 0, unread: 0, lastAt: null };
-      cur.total += 1;
-      if (!f.readAt) cur.unread += 1;
-      if (!cur.lastAt || f.createdAt > cur.lastAt) cur.lastAt = f.createdAt;
-      feedbackByUser.set(f.studentUserId, cur);
-    }
 
     // 학생 → 소속 기수(첫 등록 기준).
     const cohortByUser = new Map<string, { id: string; university: string; name: string }>();
@@ -15303,9 +15208,6 @@ app.get("/career-launch/ops/students", authenticate, requireRoles([MemberRole.OP
         hasResume: arrLen(rc.educations) + arrLen(rc.experiences) + arrLen(rc.skills) > 0 || Boolean((rc.basic as { name?: string } | undefined)?.name),
         coverItems: coverItems.length,
         interviewPracticed: arrLen(interview.practiced),
-        feedbackTotal: feedbackByUser.get(u.id)?.total ?? 0,
-        feedbackUnread: feedbackByUser.get(u.id)?.unread ?? 0,
-        feedbackLastAt: feedbackByUser.get(u.id)?.lastAt ?? null,
         updatedAt: progMap.get(u.id)?.updatedAt ?? resume?.updatedAt ?? cover?.updatedAt ?? null
       };
     });

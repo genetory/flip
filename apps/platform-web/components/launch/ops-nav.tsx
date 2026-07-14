@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   LayoutDashboard,
   Users,
-  MessageSquare,
   GraduationCap,
   SlidersHorizontal,
   BarChart3,
@@ -14,37 +13,16 @@ import {
   ExternalLink,
   type LucideIcon
 } from "lucide-react";
-import { fetchOpsStudents } from "../../lib/launch/ops-client";
 import { useLaunchT } from "../../lib/launch/i18n";
 
-type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean; badge?: number };
+type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean };
 // 대분류(그룹) → 소분류(항목). single=true 인 그룹은 제목 없이 한 줄 링크로 렌더한다.
 type NavGroup = { key: string; title: string; items: NavItem[]; single?: boolean };
 
 // 운영 콘솔 네비게이션 — 대분류/소분류 + 접기·펼치기(운영콘솔과 동일한 구조).
-// '피드백 필요'(제출했으나 피드백 0건) 건수를 배지로 띄워 할 일이 바로 보이게 한다.
 function useOpsNav() {
   const t = useLaunchT();
   const pathname = usePathname();
-  const [needFeedback, setNeedFeedback] = useState(0);
-
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const list = await fetchOpsStudents();
-        if (!alive) return;
-        setNeedFeedback(
-          list.filter((s) => (s.hasResume || s.coverItems > 0 || s.interviewPracticed > 0) && s.feedbackTotal === 0).length
-        );
-      } catch {
-        // 배지는 실패 시 숨김(네비는 계속 동작)
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [pathname]); // 페이지 이동 시 갱신 — 피드백을 남기면 배지가 바로 줄어든다.
 
   const groups: NavGroup[] = [
     {
@@ -68,12 +46,6 @@ function useOpsNav() {
           href: "/career-launch/ops/students",
           label: t("학생 현황", "Student status", "学生状态", "Tình trạng sinh viên", "学生の状況", "Status siswa"),
           icon: Users
-        },
-        {
-          href: "/career-launch/ops/submissions",
-          label: t("피드백", "Feedback", "反馈", "Phản hồi", "フィードバック", "Umpan balik"),
-          icon: MessageSquare,
-          badge: needFeedback
         }
       ]
     },
@@ -122,15 +94,6 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
     >
       <Icon className={`h-4 w-4 flex-none ${active ? "text-white" : "text-[#8B95A1]"}`} aria-hidden />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
-      {item.badge && item.badge > 0 ? (
-        <span
-          className={`flex-none rounded-full px-1.5 py-0.5 text-[10.5px] font-black ${
-            active ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700"
-          }`}
-        >
-          {item.badge}
-        </span>
-      ) : null}
     </Link>
   );
 }
@@ -228,11 +191,6 @@ export function OpsMobileNav() {
               >
                 <Icon className={`h-3.5 w-3.5 ${active ? "text-white" : "text-[#8B95A1]"}`} aria-hidden />
                 {i.label}
-                {i.badge && i.badge > 0 ? (
-                  <span className={`rounded-full px-1.5 text-[10.5px] font-black ${active ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700"}`}>
-                    {i.badge}
-                  </span>
-                ) : null}
               </Link>
             );
           })}

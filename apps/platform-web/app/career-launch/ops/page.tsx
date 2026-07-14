@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Users, MessageSquare, GraduationCap, BarChart3, SlidersHorizontal, ArrowRight } from "lucide-react";
+import { Users, GraduationCap, BarChart3, SlidersHorizontal, ArrowRight } from "lucide-react";
 import { fetchOpsStudents, studentProgress, type OpsStudent } from "../../../lib/launch/ops-client";
 import { fetchCohorts, type OpsCohort } from "../../../lib/launch/enrollment-client";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
-// Career Launch 운영 콘솔 대표 홈 — 핵심 지표 요약 + 섹션 바로가기 + 오늘 챙길 학생.
+// Career Launch 운영 콘솔 대표 홈 — 핵심 지표 요약 + 섹션 바로가기 + 진행이 더딘 학생.
 export default function LaunchOpsHomePage() {
   const t = useLaunchT();
   const [students, setStudents] = useState<OpsStudent[]>([]);
@@ -40,18 +40,21 @@ export default function LaunchOpsHomePage() {
     const activeCohorts = cohorts.filter((c) => c.status === "active").length;
     const total = students.length;
     const avgProgress = total ? Math.round(students.reduce((n, s) => n + studentProgress(s).percent, 0) / total) : 0;
-    const hasSubmission = (s: OpsStudent) => s.hasResume || s.coverItems > 0 || s.interviewPracticed > 0;
-    const needFeedback = students.filter((s) => hasSubmission(s) && s.feedbackTotal === 0);
-    const unread = students.reduce((n, s) => n + s.feedbackUnread, 0);
     const completed = students.filter((s) => studentProgress(s).done === studentProgress(s).total).length;
-    return { activeCohorts, cohortTotal: cohorts.length, total, avgProgress, needFeedback, unread, completed };
+    const notStarted = students.filter((s) => studentProgress(s).done === 0).length;
+    return { activeCohorts, cohortTotal: cohorts.length, total, avgProgress, completed, notStarted };
   }, [students, cohorts]);
 
-  // 오늘 챙길 학생 — 피드백 필요 우선, 그다음 진행률 낮은 순.
-  const attention = useMemo(() => {
-    const need = stats.needFeedback.slice(0, 6);
-    return need;
-  }, [stats.needFeedback]);
+  // 진행이 더딘 학생 — 아직 완주하지 않은 학생을 진행률 낮은 순으로.
+  const attention = useMemo(
+    () =>
+      students
+        .filter((s) => studentProgress(s).done < studentProgress(s).total)
+        .sort((a, b) => studentProgress(a).done - studentProgress(b).done)
+        .slice(0, 6),
+    [students]
+  );
+  const behindCount = students.filter((s) => studentProgress(s).done < studentProgress(s).total).length;
 
   const navCards = [
     {
@@ -61,14 +64,6 @@ export default function LaunchOpsHomePage() {
       desc: t("진행률과 산출물을 보고 개입해요", "See progress and deliverables", "查看进度与产出并介入", "Xem tiến độ và sản phẩm", "進捗と成果物を確認して対応", "Lihat progres dan hasil"),
       badge: `${stats.total}${t("명", "", "人", "", "名", "")}`,
       tone: "ops-pill-blue"
-    },
-    {
-      href: "/career-launch/ops/submissions",
-      icon: MessageSquare,
-      title: t("피드백", "Feedback", "反馈", "Phản hồi", "フィードバック", "Umpan balik"),
-      desc: t("제출물에 피드백을 전달해요", "Deliver feedback on submissions", "对提交物给出反馈", "Gửi phản hồi cho bài nộp", "提出物にフィードバック", "Beri umpan balik kiriman"),
-      badge: stats.needFeedback.length > 0 ? t(`${stats.needFeedback.length} 필요`, `${stats.needFeedback.length} to do`, `需${stats.needFeedback.length}`, `${stats.needFeedback.length} cần`, `${stats.needFeedback.length}件`, `${stats.needFeedback.length} perlu`) : t("모두 완료", "All done", "全部完成", "Đã xong", "全て完了", "Selesai"),
-      tone: stats.needFeedback.length > 0 ? "ops-pill-amber" : "ops-pill-green"
     },
     {
       href: "/career-launch/ops/cohorts",
@@ -99,7 +94,7 @@ export default function LaunchOpsHomePage() {
   const summaryCards = [
     { k: t("학생", "Students", "学生", "Sinh viên", "学生", "Siswa"), v: stats.total, tone: "ops-kpi-blue" },
     { k: t("평균 진행률", "Avg progress", "平均进度", "Tiến độ TB", "平均進捗", "Progres rata"), v: `${stats.avgProgress}%`, tone: "ops-kpi-blue" },
-    { k: t("피드백 필요", "Needs feedback", "需反馈", "Cần phản hồi", "要対応", "Perlu umpan balik"), v: stats.needFeedback.length, tone: "ops-kpi-amber" },
+    { k: t("미시작", "Not started", "未开始", "Chưa bắt đầu", "未着手", "Belum mulai"), v: stats.notStarted, tone: "ops-kpi-amber" },
     { k: t("완주", "Completed", "已完成", "Hoàn thành", "完走", "Selesai"), v: stats.completed, tone: "ops-kpi-green" }
   ];
 
@@ -164,17 +159,17 @@ export default function LaunchOpsHomePage() {
           </div>
         </article>
 
-        {/* 지금 챙길 학생 */}
+        {/* 진행이 더딘 학생 */}
         <article className="ops-partner-list-card">
           <div className="ops-partner-list-top">
-            <h2>{t("지금 챙길 학생", "Needs your attention", "需要关注", "Cần chú ý", "今チェックすべき学生", "Perlu perhatian")}</h2>
-            {!loading && stats.needFeedback.length > attention.length ? (
-              <Link href="/career-launch/ops/submissions" className="ops-btn">
-                {t(`+${stats.needFeedback.length - attention.length}명 더 보기`, `See ${stats.needFeedback.length - attention.length} more`, `查看更多${stats.needFeedback.length - attention.length}人`, `Xem thêm ${stats.needFeedback.length - attention.length}`, `他${stats.needFeedback.length - attention.length}名を見る`, `Lihat ${stats.needFeedback.length - attention.length} lagi`)}
+            <h2>{t("진행이 더딘 학생", "Students falling behind", "进度落后的学生", "Sinh viên chậm tiến độ", "進捗が遅れている学生", "Siswa yang tertinggal")}</h2>
+            {!loading && behindCount > attention.length ? (
+              <Link href="/career-launch/ops/students" className="ops-btn">
+                {t(`+${behindCount - attention.length}명 더 보기`, `See ${behindCount - attention.length} more`, `查看更多${behindCount - attention.length}人`, `Xem thêm ${behindCount - attention.length}`, `他${behindCount - attention.length}名を見る`, `Lihat ${behindCount - attention.length} lagi`)}
               </Link>
             ) : null}
           </div>
-          <p className="ops-card-subtle">{t("제출했지만 아직 피드백을 못 받은 학생이에요", "Students who submitted but have no feedback yet", "已提交但尚未获得反馈的学生", "Sinh viên đã nộp nhưng chưa có phản hồi", "提出済みだがフィードバック未受領の学生", "Siswa yang sudah kirim tapi belum ada umpan balik")}</p>
+          <p className="ops-card-subtle">{t("아직 완주하지 않은 학생을 진행률이 낮은 순으로 보여줘요", "Students who haven't finished yet, lowest progress first", "尚未完成的学生，按进度从低到高排列", "Sinh viên chưa hoàn thành, tiến độ thấp trước", "まだ完走していない学生を進捗が低い順に表示します", "Siswa yang belum selesai, progres terendah dahulu")}</p>
 
           <div className="ops-partner-table-wrap">
             <table className="ops-partner-table">
@@ -197,7 +192,7 @@ export default function LaunchOpsHomePage() {
                 ) : attention.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="ops-table-empty">
-                      {t("지금 바로 챙길 학생은 없어요. 👍", "Nothing needs attention right now. 👍", "目前没有需要处理的学生。👍", "Hiện không có gì cần xử lý. 👍", "今すぐ対応が必要な学生はいません。👍", "Tidak ada yang perlu ditangani sekarang. 👍")}
+                      {t("모든 학생이 완주했어요. 👍", "Every student has finished. 👍", "所有学生都已完成。👍", "Tất cả sinh viên đã hoàn thành. 👍", "全ての学生が完走しました。👍", "Semua siswa telah selesai. 👍")}
                     </td>
                   </tr>
                 ) : (
@@ -221,8 +216,10 @@ export default function LaunchOpsHomePage() {
                           </div>
                         </td>
                         <td>
-                          <span className="ops-status-badge ops-status-pending">
-                            {t("피드백 필요", "Needs feedback", "需反馈", "Cần phản hồi", "要対応", "Perlu umpan balik")}
+                          <span className={`ops-status-badge ${prog.done === 0 ? "ops-status-pending" : "ops-status-draft"}`}>
+                            {prog.done === 0
+                              ? t("미시작", "Not started", "未开始", "Chưa bắt đầu", "未着手", "Belum mulai")
+                              : t("진행 중", "In progress", "进行中", "Đang thực hiện", "進行中", "Sedang berjalan")}
                           </span>
                         </td>
                         <td>
