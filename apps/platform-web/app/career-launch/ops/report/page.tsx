@@ -183,11 +183,19 @@ export default function LaunchOpsReportPage() {
             <article className="ops-partner-list-card">
               <div className="ops-partner-list-top">
                 <h2>{t("집계 대상", "Report scope", "统计范围", "Phạm vi thống kê", "集計対象", "Cakupan laporan")}</h2>
-                {filtered.length > 0 ? (
-                  <button type="button" className="ops-btn ops-btn-primary" onClick={downloadCsv}>
-                    {t("CSV 내보내기", "Export CSV", "导出 CSV", "Xuất CSV", "CSV エクスポート", "Ekspor CSV")}
-                  </button>
-                ) : null}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {/* 특정 기수를 보고 있을 때만 — 학교 제출용 성과 리포트는 기수 단위 문서다. */}
+                  {filter !== "all" && filter !== "none" ? (
+                    <a href={`/career-launch/ops-report/${filter}`} target="_blank" rel="noopener noreferrer" className="ops-btn ops-btn-primary">
+                      {t("학교 제출용 성과 리포트", "Outcome report for the school", "供学校提交的成果报告", "Báo cáo kết quả nộp cho trường", "学校提出用の成果レポート", "Laporan hasil untuk sekolah")}
+                    </a>
+                  ) : null}
+                  {filtered.length > 0 ? (
+                    <button type="button" className="ops-btn" onClick={downloadCsv}>
+                      {t("CSV 내보내기", "Export CSV", "导出 CSV", "Xuất CSV", "CSV エクスポート", "Ekspor CSV")}
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
               {cohorts.length > 0 ? (
@@ -295,7 +303,7 @@ export default function LaunchOpsReportPage() {
                 </article>
 
                 {/* 3. 기수별 비교 — 전체 보기일 때만 */}
-                {filter === "all" && cohortRows.length > 1 ? (
+                {filter === "all" && cohortRows.length > 0 ? (
                   <article className="ops-partner-list-card">
                     <div className="ops-partner-list-top">
                       <h2>{t("기수별 비교", "Cohort comparison", "各期对比", "So sánh theo khóa", "期別比較", "Perbandingan angkatan")}</h2>

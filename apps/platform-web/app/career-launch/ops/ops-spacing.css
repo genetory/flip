@@ -39,7 +39,8 @@
 }
 
 /* 링크로 쓰는 ops-detail-button — 콘솔 정의는 <button> 전제라 <a> 에선 높이/정렬이 무너진다. */
-.launch-ops a.ops-detail-button {
+.launch-ops a.ops-detail-button,
+.launch-ops a.ops-btn {
   display: inline-flex;
   align-items: center;
   text-decoration: none;
