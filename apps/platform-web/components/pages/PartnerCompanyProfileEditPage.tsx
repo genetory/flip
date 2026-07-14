@@ -59,9 +59,16 @@ async function convertImageFileToWebpDataUrl(
     img.src = originalDataUrl;
   });
 
-  let width = image.width;
-  let height = image.height;
-  let quality = 0.9;
+  // 예전엔 원본 해상도로 시작해 "5MB 이하면 통과"였다 — 사실상 리사이즈가 되지 않아
+  // 사무실 사진이 장당 2~4MB 로 올라갔고, 목록 응답이 38MB 까지 커졌다.
+  // 긴 변을 1600px 로 제한하고 목표 용량도 현실적으로 낮춘다.
+  const MAX_DIM = 1600;
+  const TARGET_BYTES = 400 * 1024;
+
+  const scale = Math.min(1, MAX_DIM / Math.max(image.width, image.height));
+  let width = image.width * scale;
+  let height = image.height * scale;
+  let quality = 0.82;
   let output = originalDataUrl;
 
   for (let i = 0; i < 6; i += 1) {
@@ -72,12 +79,12 @@ async function convertImageFileToWebpDataUrl(
     if (!ctx) throw new Error(readFailed);
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
     output = canvas.toDataURL("image/webp", quality);
-    if (estimateDataUrlBytes(output) <= 5 * 1024 * 1024) {
+    if (estimateDataUrlBytes(output) <= TARGET_BYTES) {
       return output;
     }
-    quality = Math.max(0.5, quality - 0.1);
-    width *= 0.9;
-    height *= 0.9;
+    quality = Math.max(0.5, quality - 0.08);
+    width *= 0.85;
+    height *= 0.85;
   }
 
   return output;

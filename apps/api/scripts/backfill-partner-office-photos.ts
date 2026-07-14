@@ -16,6 +16,7 @@ import "dotenv/config";
 import { randomBytes } from "crypto";
 import { PrismaClient } from "@prisma/client";
 import { BlobServiceClient } from "@azure/storage-blob";
+import sharp from "sharp";
 
 const prisma = new PrismaClient();
 
@@ -79,17 +80,39 @@ async function main() {
         continue;
       }
       const mime = match[1]!;
-      const content = Buffer.from(match[2]!, "base64");
+      const original = Buffer.from(match[2]!, "base64");
       orgBytes += entry.length;
 
+      // 옮기면서 함께 줄인다 — 원본 그대로 Blob 에 올리면 상세 페이지는 여전히 무겁다.
+      // 긴 변 1600px, WebP 82 품질(서버 업로드 경로와 동일한 기준).
+      let content = original;
+      let outMime = mime;
+      if (mime !== "image/svg+xml") {
+        try {
+          const resized = await sharp(original, { failOn: "none" })
+            .rotate()
+            .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+            .webp({ quality: 82 })
+            .toBuffer();
+          if (resized.length < original.length) {
+            content = resized;
+            outMime = "image/webp";
+          }
+        } catch (err) {
+          console.warn("    (리사이즈 실패 — 원본 업로드)", err);
+        }
+      }
+
       if (!APPLY) {
-        urls.push(`(업로드 예정 ${(content.length / 1024 / 1024).toFixed(2)}MB)`);
+        urls.push(
+          `(예정: ${(original.length / 1024 / 1024).toFixed(2)}MB → ${(content.length / 1024).toFixed(0)}KB)`
+        );
         continue;
       }
-      const blobName = `partner/office-photo/${Date.now()}-${randomBytes(8).toString("hex")}.${extFromMime(mime)}`;
+      const blobName = `partner/office-photo/${Date.now()}-${randomBytes(8).toString("hex")}.${extFromMime(outMime)}`;
       const client = container.getBlockBlobClient(blobName);
       await client.uploadData(content, {
-        blobHTTPHeaders: { blobContentType: mime, blobCacheControl: "public, max-age=31536000, immutable" }
+        blobHTTPHeaders: { blobContentType: outMime, blobCacheControl: "public, max-age=31536000, immutable" }
       });
       urls.push(client.url);
     }

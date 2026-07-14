@@ -3131,6 +3131,33 @@ function inferImageExtFromMime(mime: string): string {
   return "bin";
 }
 
+// 업로드 이미지 표준화 — 클라이언트를 믿지 않고 서버에서 다시 줄인다.
+//
+// 파트너사 사무실 사진이 장당 2~4MB 로 올라오고 있었다. 프론트에 리사이즈 로직이 있긴 했지만
+// 최대 해상도 제한이 없고 "5MB 이하면 통과"라 사실상 원본이 올라갔다.
+// 여기서 긴 변 1600px, WebP 82 품질로 다시 인코딩하면 보통 수백 KB 로 떨어진다.
+// (실패하면 원본을 그대로 올린다 — 업로드 자체를 막지는 않는다.)
+const IMAGE_MAX_DIM = 1600;
+const IMAGE_WEBP_QUALITY = 82;
+
+async function normalizeImageBuffer(input: Buffer): Promise<{ content: Buffer; mime: string }> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const sharp = require("sharp") as typeof import("sharp");
+    const out = await sharp(input, { failOn: "none" })
+      .rotate() // EXIF 방향 반영
+      .resize({ width: IMAGE_MAX_DIM, height: IMAGE_MAX_DIM, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: IMAGE_WEBP_QUALITY })
+      .toBuffer();
+    // 원본이 이미 더 작으면 원본을 쓴다(로고 같은 작은 PNG/SVG 를 키우지 않기 위해).
+    if (out.length >= input.length) return { content: input, mime: "" };
+    return { content: out, mime: "image/webp" };
+  } catch (err) {
+    console.warn("[storage] image normalize failed, uploading original", err);
+    return { content: input, mime: "" };
+  }
+}
+
 async function uploadDataUrlImageIfNeeded(value: string, prefix: string): Promise<string> {
   const raw = value.trim();
   // Policy:
@@ -3161,9 +3188,14 @@ async function uploadDataUrlImageIfNeeded(value: string, prefix: string): Promis
   }
 
   await container.createIfNotExists({ access: "blob" });
-  const mime = match[1]!;
+  const originalMime = match[1]!;
   const base64Data = match[2]!;
-  const content = Buffer.from(base64Data, "base64");
+  const original = Buffer.from(base64Data, "base64");
+
+  // SVG 는 래스터화하면 안 되므로 그대로 둔다.
+  const normalized = originalMime === "image/svg+xml" ? { content: original, mime: "" } : await normalizeImageBuffer(original);
+  const content = normalized.content;
+  const mime = normalized.mime || originalMime;
   const ext = inferImageExtFromMime(mime);
   const blobName = `${prefix}/${Date.now()}-${randomBytes(8).toString("hex")}.${ext}`;
   const client = container.getBlockBlobClient(blobName);
