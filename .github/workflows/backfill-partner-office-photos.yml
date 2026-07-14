@@ -1,0 +1,81 @@
+name: Backfill Partner Office Photos (base64 → Blob)
+
+# 파트너사 사무실 사진이 base64 로 DB 에 저장돼 /positions 목록 응답이 38MB 까지 커졌다.
+# 코드는 고쳤지만(신규 업로드는 Blob 으로 감) 이미 쌓인 행은 그대로라 여기서 옮긴다.
+#
+# 기본은 dry-run(미리보기) — 실제 반영하려면 mode 를 apply 로 선택해야 한다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Environment"
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      mode:
+        description: "dry-run: 변경 없이 미리보기 / apply: 실제 반영"
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - apply
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install deps
+        run: npm ci --no-audit --no-fund
+
+      - name: Generate Prisma client
+        run: npx prisma generate --schema apps/api/prisma/schema.prisma
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Pull DB + Storage secrets from App Service
+        run: |
+          APP=${{ secrets.AZURE_WEBAPP_API_NAME }}
+          RG=${{ secrets.AZURE_RESOURCE_GROUP || 'rg-aply' }}
+          DB_URL=$(az webapp config appsettings list \
+            --name "$APP" --resource-group "$RG" \
+            --query "[?name=='DATABASE_URL'].value" -o tsv)
+          STORAGE=$(az webapp config appsettings list \
+            --name "$APP" --resource-group "$RG" \
+            --query "[?name=='AZURE_STORAGE_CONNECTION_STRING'].value" -o tsv)
+          CONTAINER=$(az webapp config appsettings list \
+            --name "$APP" --resource-group "$RG" \
+            --query "[?name=='AZURE_STORAGE_CONTAINER_NAME'].value" -o tsv)
+          if [ -z "$DB_URL" ]; then echo "DATABASE_URL not found on App Service $APP" && exit 1; fi
+          if [ -z "$STORAGE" ]; then echo "AZURE_STORAGE_CONNECTION_STRING not found on App Service $APP" && exit 1; fi
+          echo "::add-mask::$DB_URL"
+          echo "::add-mask::$STORAGE"
+          echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
+          echo "AZURE_STORAGE_CONNECTION_STRING=$STORAGE" >> "$GITHUB_ENV"
+          echo "AZURE_STORAGE_CONTAINER_NAME=${CONTAINER:-uploads}" >> "$GITHUB_ENV"
+
+      - name: Run backfill
+        run: |
+          if [ "${{ github.event.inputs.mode }}" = "apply" ]; then
+            echo "::warning::apply 모드 — DB 를 실제로 변경합니다."
+            npx tsx apps/api/scripts/backfill-partner-office-photos.ts --apply
+          else
+            npx tsx apps/api/scripts/backfill-partner-office-photos.ts
+          fi

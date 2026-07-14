@@ -3150,7 +3150,15 @@ async function uploadDataUrlImageIfNeeded(value: string, prefix: string): Promis
   if (!match) return raw;
 
   const container = getAzureContainerClient();
-  if (!container) return raw;
+  if (!container) {
+    // 조용히 base64 를 DB 에 넣지 않는다 — 실제로 이 침묵 때문에 사무실 사진이
+    // base64 로 쌓여 목록 응답이 38MB 까지 커졌다. 최소한 눈에 띄게 남긴다.
+    console.error(
+      "[storage] AZURE_STORAGE_CONNECTION_STRING is not set — image is being stored as base64 in the DB.",
+      "prefix=", prefix, "bytes=", raw.length
+    );
+    return raw;
+  }
 
   await container.createIfNotExists({ access: "blob" });
   const mime = match[1]!;
@@ -3166,6 +3174,34 @@ async function uploadDataUrlImageIfNeeded(value: string, prefix: string): Promis
     }
   });
   return client.url;
+}
+
+// 사무실 사진처럼 "JSON 배열을 문자열로 직렬화해" 한 컬럼에 넣는 필드용.
+//
+// 프론트는 여러 장을 JSON.stringify([...]) 로 보내는데, 예전엔 이 값을 단일 data URL 로 보고
+// uploadDataUrlImageIfNeeded 에 넘겼다. 그 함수는 "data:image/" 로 시작하지 않으면(→ "[") 그대로
+// 반환하므로 base64 배열이 통째로 DB 에 저장됐다(한 건 7.9MB, 목록 응답 38MB).
+// 여기서 배열을 풀어 각 장을 Blob 에 올리고 URL 배열로 되돌린다.
+async function uploadJsonArrayImagesIfNeeded(value: string, prefix: string): Promise<string> {
+  const raw = value.trim();
+  if (!raw.startsWith("[")) {
+    // 단일 값(레거시) — 기존 경로 그대로.
+    return uploadDataUrlImageIfNeeded(raw, prefix);
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return raw; // JSON 이 아니면 건드리지 않는다.
+  }
+  if (!Array.isArray(parsed)) return raw;
+
+  const uploaded: string[] = [];
+  for (const entry of parsed) {
+    if (typeof entry !== "string" || !entry.trim()) continue;
+    uploaded.push(await uploadDataUrlImageIfNeeded(entry.trim(), prefix));
+  }
+  return JSON.stringify(uploaded);
 }
 
 async function uploadImageArrayIfNeeded(values: string[] | undefined, prefix: string): Promise<string[]> {
@@ -8548,8 +8584,9 @@ app.get("/positions", async (req, res) => {
               strengths: true,
               website: true,
               socialMedia: true,
-              companyLogoImageData: true,
-              officePhotoImageData: true
+              companyLogoImageData: true
+              // officePhotoImageData 는 목록에서 쓰지 않는다 — 상세에서만 필요하다.
+              // base64 원본이라 한 건에 8MB 까지 나가며, 20건이면 응답이 38MB 가 된다(실측).
             }
           },
           matchingParticipants: { select: { id: true } }
@@ -8666,8 +8703,9 @@ app.get("/positions", async (req, res) => {
           strengths: true,
           website: true,
           socialMedia: true,
-          companyLogoImageData: true,
-          officePhotoImageData: true
+          companyLogoImageData: true
+          // officePhotoImageData 는 목록에서 쓰지 않는다 — 상세에서만 필요하다.
+          // base64 원본이라 한 건에 8MB 까지 나가며, 20건이면 응답이 38MB 가 된다(실측).
         }
       },
       matchingParticipants: {
@@ -11504,7 +11542,7 @@ app.patch("/members/me/partner-organization", authenticate, requireRoles([Member
     const officePhotoImageData =
       parsed.data.officePhotoImageData !== undefined
         ? (parsed.data.officePhotoImageData?.trim()
-          ? await uploadDataUrlImageIfNeeded(parsed.data.officePhotoImageData.trim(), "partner/office-photo")
+          ? await uploadJsonArrayImagesIfNeeded(parsed.data.officePhotoImageData.trim(), "partner/office-photo")
           : null)
         : undefined;
 
@@ -24552,7 +24590,7 @@ app.post("/ops/partners", authenticate, requireRoles([MemberRole.OPERATOR]), asy
       ? await uploadDataUrlImageIfNeeded(parsed.data.companyLogoImageData.trim(), "partner/company-logo")
       : parsed.data.companyLogoImageData;
     const officePhotoImageData = parsed.data.officePhotoImageData?.trim()
-      ? await uploadDataUrlImageIfNeeded(parsed.data.officePhotoImageData.trim(), "partner/office-photo")
+      ? await uploadJsonArrayImagesIfNeeded(parsed.data.officePhotoImageData.trim(), "partner/office-photo")
       : parsed.data.officePhotoImageData;
 
     const created = await prisma.partnerOrganization.create({
@@ -24604,7 +24642,7 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
       parsed.data.officePhotoImageData === undefined
         ? undefined
         : (parsed.data.officePhotoImageData?.trim()
-          ? await uploadDataUrlImageIfNeeded(parsed.data.officePhotoImageData.trim(), "partner/office-photo")
+          ? await uploadJsonArrayImagesIfNeeded(parsed.data.officePhotoImageData.trim(), "partner/office-photo")
           : null);
     const shouldResetVerificationApproval =
       parsed.data.businessRegistrationDocumentData !== undefined
