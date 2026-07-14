@@ -87,7 +87,38 @@ const app = express();
 // resolves to the real client IP instead of the proxy. Without this every
 // signup logs as the platform's edge IP and forensics are useless.
 app.set("trust proxy", true);
-const prisma = new PrismaClient();
+// Prisma 커넥션 풀.
+//
+// 기본값은 vCPU*2+1 로, 프로덕션(2 vCPU)에서 5였다. 배포와 백필이 겹치자 곧바로
+// "Timed out fetching a new connection from the connection pool (limit: 5)" 가 터졌다.
+// 트래픽이 몰려도 같은 일이 난다.
+//
+// 숫자는 환경변수로 조절 가능하게 둔다 — Postgres 의 max_connections 를 넘기면
+// 오히려 DB 가 접속을 거부하므로, 인스턴스 수 × connection_limit 이 그 아래여야 한다.
+// (기본 10: 인스턴스 2대여도 20커넥션 — Azure Flexible Server 최소 SKU(35)에서도 안전)
+function buildDatabaseUrl(): string | undefined {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return undefined;
+  try {
+    const url = new URL(raw);
+    // DATABASE_URL 에 이미 명시돼 있으면 그 값을 존중한다.
+    if (!url.searchParams.has("connection_limit")) {
+      url.searchParams.set("connection_limit", process.env.DB_CONNECTION_LIMIT?.trim() || "10");
+    }
+    if (!url.searchParams.has("pool_timeout")) {
+      url.searchParams.set("pool_timeout", process.env.DB_POOL_TIMEOUT?.trim() || "20");
+    }
+    console.info("[db] pool", {
+      connection_limit: url.searchParams.get("connection_limit"),
+      pool_timeout: url.searchParams.get("pool_timeout")
+    });
+    return url.toString();
+  } catch {
+    return raw; // URL 파싱 실패 시 원본 그대로(연결 자체를 막지 않는다)
+  }
+}
+
+const prisma = new PrismaClient({ datasources: { db: { url: buildDatabaseUrl() } } });
 
 async function createNotification(input: {
   userId: string;

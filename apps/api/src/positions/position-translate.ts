@@ -208,6 +208,13 @@ export async function getPositionTranslationsBatch(
 // 같은 공고를 동시에 여러 요청이 번역하지 않도록 하는 진행 중 표시.
 const inFlightTranslations = new Set<string>();
 
+// 백그라운드 번역 동시 실행 상한.
+// 목록 한 번에 캐시 미스가 20건이면 백그라운드 작업 20개가 동시에 뜨고,
+// 각자 번역을 마친 뒤 DB 에 쓴다 — Prisma 커넥션 풀(기본 5)을 압박한다.
+// 사용자 응답을 막지 않는 작업이니 천천히 처리해도 무방하다.
+const MAX_BACKGROUND_TRANSLATIONS = 2;
+let backgroundTranslations = 0;
+
 // 목록용 — 절대 LLM 을 기다리지 않는다.
 //
 // 기존에는 목록 응답 경로에서 캐시가 없으면 그 자리에서 LLM 번역(2~4초)을 돌렸다.
@@ -235,11 +242,16 @@ export async function getPositionTranslationsCachedOnly(
     }
 
     // 캐시 미스 — 응답을 막지 않고 뒤에서 채운다.
-    if (!inFlightTranslations.has(p.id)) {
+    // 상한을 넘으면 이번엔 건너뛴다(다음 요청에서 다시 시도된다).
+    if (!inFlightTranslations.has(p.id) && backgroundTranslations < MAX_BACKGROUND_TRANSLATIONS) {
       inFlightTranslations.add(p.id);
+      backgroundTranslations += 1;
       void getPositionTranslation(prisma, p)
         .catch((err) => console.error("[position-translate] background failed", p.id, err))
-        .finally(() => inFlightTranslations.delete(p.id));
+        .finally(() => {
+          inFlightTranslations.delete(p.id);
+          backgroundTranslations -= 1;
+        });
     }
   }
 
