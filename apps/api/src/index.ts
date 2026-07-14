@@ -14861,7 +14861,14 @@ app.patch("/career-launch/progress", authenticate, requireCareerEnrollment, asyn
     const incoming = (parsed.data as Record<string, unknown>).diagnosis;
     if (incoming && typeof incoming === "object") {
       const stamped = { ...(incoming as Record<string, unknown>), at: new Date().toISOString() };
-      if (!prev.diagnosisInitial) merged.diagnosisInitial = stamped;
+      if (!prev.diagnosisInitial) {
+        // 이 기능 이전에 이미 진단한 학생은 diagnosisInitial 이 없다.
+        // 그때 들어오는 진단(=수료 재진단일 수도 있다)을 사전 진단으로 기록하면
+        // 기존 점수가 baseline 에서 사라져 향상도가 0이 된다.
+        // 따라서 기존 진단이 있으면 그것을 사전 진단으로 승격하고,
+        // 아예 처음 진단하는 학생만 이번 값을 사전 진단으로 삼는다.
+        merged.diagnosisInitial = prev.diagnosis ?? stamped;
+      }
       if ((req.body as Record<string, unknown>).finalDiagnosis === true) merged.diagnosisFinal = stamped;
     }
     delete (merged as Record<string, unknown>).finalDiagnosis; // 플래그는 상태에 남기지 않는다
