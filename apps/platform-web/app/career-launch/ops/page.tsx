@@ -14,6 +14,7 @@ export default function LaunchOpsHomePage() {
   const [students, setStudents] = useState<OpsStudent[]>([]);
   const [cohorts, setCohorts] = useState<OpsCohort[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -24,6 +25,8 @@ export default function LaunchOpsHomePage() {
           setStudents(s);
           setCohorts(c);
         }
+      } catch (e) {
+        if (alive) setError(e instanceof Error ? e.message : t("불러오지 못했어요.", "Couldn't load.", "加载失败。", "Không thể tải.", "読み込めませんでした。", "Gagal memuat."));
       } finally {
         if (alive) setLoading(false);
       }
@@ -31,6 +34,7 @@ export default function LaunchOpsHomePage() {
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const stats = useMemo(() => {
@@ -116,6 +120,12 @@ export default function LaunchOpsHomePage() {
             {t("학생 화면 체험 →", "Try student view →", "体验学生界面 →", "Xem giao diện sinh viên →", "学生画面を体験 →", "Coba tampilan siswa →")}
           </Link>
         </div>
+
+        {error ? (
+          <Card className="mb-5 !p-4 text-center text-[13.5px] text-red-600">
+            {error} · {t("운영자 계정으로 로그인했는지 확인해 주세요.", "Please check that you're signed in as an operator.", "请确认已以运营者账号登录。", "Vui lòng kiểm tra bạn đã đăng nhập bằng tài khoản quản trị.", "運営者アカウントでログインしているか確認してください。", "Pastikan Anda masuk sebagai operator.")}
+          </Card>
+        ) : null}
 
         {/* 요약 지표 */}
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
