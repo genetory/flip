@@ -87,6 +87,8 @@ export type OpsStudentDetail = {
   cohort: OpsStudentCohort | null;
   state: CareerProgress;
   opsMemo: string; // 운영자 내부 메모(학생 비공개)
+  lastNudgedAt: string | null; // 마지막 독려 메일 발송 시각
+  nudgeCount: number;
   resume: ResumeData;
   resumeUpdatedAt: string | null;
   cover: CoverData;
@@ -108,6 +110,8 @@ export async function fetchOpsStudentDetail(id: string): Promise<OpsStudentDetai
     cohort: (d.cohort as OpsStudentCohort | null) ?? null,
     state: (d.state as CareerProgress) ?? {},
     opsMemo: (d.opsMemo as string) ?? "",
+    lastNudgedAt: (d.lastNudgedAt as string) ?? null,
+    nudgeCount: (d.nudgeCount as number) ?? 0,
     resume: (d.resume as ResumeData) ?? {},
     resumeUpdatedAt: (d.resumeUpdatedAt as string) ?? null,
     cover: (d.cover as CoverData) ?? {},
@@ -138,6 +142,24 @@ export async function bulkMoveCohort(studentIds: string[], cohortId: string): Pr
     body: JSON.stringify({ studentIds, cohortId })
   });
   return (d.count as number) ?? studentIds.length;
+}
+
+// 독려(리마인더) 메일 — 남은 단계를 짚어 학생을 다시 불러온다.
+// delivery: "smtp"면 실제 발송, "log"면 서버 로그만(SMTP 미설정 환경).
+export async function nudgeStudents(
+  studentIds: string[],
+  message?: string
+): Promise<{ sent: number; skipped: number; delivery: "smtp" | "log" }> {
+  const d = await req("/career-launch/ops/students/nudge", {
+    method: "POST",
+    headers: authHeaders(true),
+    body: JSON.stringify({ studentIds, message: message?.trim() || undefined })
+  });
+  return {
+    sent: (d.sent as number) ?? 0,
+    skipped: (d.skipped as number) ?? 0,
+    delivery: (d.delivery as "smtp" | "log") ?? "log"
+  };
 }
 
 // 운영자 개입 — 학생의 특정 단계 데이터 초기화.

@@ -15421,6 +15421,8 @@ app.get("/career-launch/ops/students/:id", authenticate, requireRoles([MemberRol
       cohort: enrollment?.cohort ?? null,
       state: progress?.state ?? {},
       opsMemo: progress?.opsMemo ?? "",
+      lastNudgedAt: progress?.lastNudgedAt ?? null,
+      nudgeCount: progress?.nudgeCount ?? 0,
       resume: resume?.content ?? {},
       resumeUpdatedAt: resume?.updatedAt ?? null,
       cover: cover?.content ?? {},
@@ -15498,6 +15500,155 @@ app.post("/career-launch/ops/students/bulk/reset", authenticate, requireRoles([M
   try {
     for (const id of parsed.data.studentIds) await resetCareerStudentStep(id, parsed.data.target);
     return res.json({ ok: true, count: parsed.data.studentIds.length });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 메일 본문에 사용자 입력을 넣기 전 최소 이스케이프(email-layout 의 escapeHtml 은 모듈 내부 전용).
+function escapeHtmlBasic(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// ── 독려(리마인더) 메일 ──
+// 진행이 더딘 학생에게 "무엇이 남았는지"를 짚어 다시 들어오게 만든다.
+// 유학생 대상이라 한국어·영어를 한 통에 병기한다(User 에 언어 필드가 없음).
+const opsNudgeSchema = z.object({
+  studentIds: z.array(z.string().uuid()).min(1).max(200),
+  message: z.string().trim().max(1000).optional() // 운영자가 덧붙이는 한마디(선택)
+});
+
+// 진행 상태에서 아직 안 한 것들을 사람이 읽을 문구로.
+function pendingCareerSteps(state: Record<string, unknown>, hasResume: boolean, hasCover: boolean): { ko: string[]; en: string[] } {
+  const interview = (state.interview && typeof state.interview === "object" ? state.interview : {}) as { practiced?: unknown };
+  const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]) : [];
+  const ko: string[] = [];
+  const en: string[] = [];
+  const add = (k: string, e: string) => {
+    ko.push(k);
+    en.push(e);
+  };
+  if (!state.diagnosis) add("취업 준비 자가진단", "Job-readiness diagnosis");
+  if (!Array.isArray(state.selectedJobs) || state.selectedJobs.length === 0) add("직무 선정", "Job selection");
+  if (!hasResume) add("이력서 만들기", "Build your resume");
+  if (!hasCover) add("자기소개서 만들기", "Write your cover letter");
+  if (practiced.length < 3) add(`모의면접 (${practiced.length}/3 완료)`, `Mock interviews (${practiced.length}/3 done)`);
+  return { ko, en };
+}
+
+app.post("/career-launch/ops/students/nudge", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsNudgeSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  const { studentIds, message } = parsed.data;
+  try {
+    const [users, progressRows, resumeRows, coverRows] = await Promise.all([
+      prisma.user.findMany({ where: { id: { in: studentIds } }, select: { id: true, email: true, name: true, realName: true } }),
+      prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: studentIds } } }),
+      prisma.careerResumeData.findMany({ where: { studentUserId: { in: studentIds } }, select: { studentUserId: true, content: true } }),
+      prisma.careerCoverLetterData.findMany({ where: { studentUserId: { in: studentIds } }, select: { studentUserId: true, content: true } })
+    ]);
+    const progByUser = new Map(progressRows.map((p) => [p.studentUserId, p] as const));
+    const resumeByUser = new Map(resumeRows.map((r) => [r.studentUserId, r] as const));
+    const coverByUser = new Map(coverRows.map((c) => [c.studentUserId, c] as const));
+
+    const transporter = getSmtpTransporter();
+    const dashboardUrl = `${platformWebUrl}/career-launch/dashboard`;
+    let sent = 0;
+    let skipped = 0;
+
+    for (const u of users) {
+      if (!u.email) {
+        skipped += 1;
+        continue;
+      }
+      const state = (progByUser.get(u.id)?.state ?? {}) as Record<string, unknown>;
+      const rc = (resumeByUser.get(u.id)?.content ?? {}) as Record<string, unknown>;
+      const cc = (coverByUser.get(u.id)?.content ?? {}) as Record<string, unknown>;
+      const hasResume =
+        (Array.isArray(rc.educations) && rc.educations.length > 0) ||
+        (Array.isArray(rc.experiences) && rc.experiences.length > 0) ||
+        (Array.isArray(rc.skills) && rc.skills.length > 0) ||
+        Boolean((rc.basic as { name?: string } | undefined)?.name);
+      const hasCover = Array.isArray(cc.items) && (cc.items as { answer?: string }[]).some((x) => (x.answer ?? "").trim());
+      const pending = pendingCareerSteps(state, hasResume, hasCover);
+      const displayName = (u.name ?? u.realName ?? "").trim();
+
+      const listHtml = (arr: string[]) =>
+        arr.length
+          ? `<ul style="margin:8px 0 0;padding-left:18px;color:#374151;font-size:14px;line-height:1.7;">${arr.map((x) => `<li>${escapeHtmlBasic(x)}</li>`).join("")}</ul>`
+          : "";
+
+      const bodyHtml = `
+        <p style="margin:0 0 14px;font-size:15px;color:#111827;line-height:1.7;">
+          ${displayName ? `${escapeHtmlBasic(displayName)}님, ` : ""}Career Launch 진행이 잠시 멈춰 있어요.<br />
+          <span style="color:#6b7280;">${displayName ? `Hi ${escapeHtmlBasic(displayName)}, ` : ""}your Career Launch progress is paused.</span>
+        </p>
+        ${
+          pending.ko.length
+            ? `<p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#111827;">아직 남은 단계 / What's left</p>
+               ${listHtml(pending.ko)}
+               <div style="height:6px"></div>
+               ${listHtml(pending.en)}`
+            : ""
+        }
+        ${
+          message
+            ? `<div style="margin:18px 0 0;padding:12px 14px;background:#f9fafb;border-radius:10px;">
+                 <p style="margin:0;font-size:14px;color:#374151;line-height:1.7;white-space:pre-wrap;">${escapeHtmlBasic(message)}</p>
+               </div>`
+            : ""
+        }
+        <p style="margin:22px 0 0;">
+          <a href="${dashboardUrl}" style="display:inline-block;background:#0B46E8;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:10px;">
+            이어서 진행하기 / Continue
+          </a>
+        </p>
+      `;
+
+      const html = renderEmailLayout({
+        locale: "ko",
+        previewText: "Career Launch 진행을 이어가 주세요 / Continue your Career Launch",
+        title: "Career Launch",
+        bodyHtml
+      });
+      const text = [
+        `${displayName ? `${displayName}님, ` : ""}Career Launch 진행이 멈춰 있어요.`,
+        pending.ko.length ? `남은 단계: ${pending.ko.join(", ")}` : "",
+        message ? `\n${message}` : "",
+        `\n이어서 진행하기: ${dashboardUrl}`
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      if (transporter) {
+        await transporter.sendMail({
+          from: emailFromAddress,
+          to: u.email,
+          replyTo: emailReplyToAddress,
+          subject: "[Aply] Career Launch 진행을 이어가 주세요 / Continue your Career Launch",
+          text,
+          html,
+          envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: u.email } : undefined,
+          headers: { "X-Mailer": "Aply Mailer", "Auto-Submitted": "auto-generated" }
+        });
+      } else {
+        console.info(`[career-launch][nudge][log-only] ${u.email} pending=${pending.ko.join("|")}`);
+      }
+      sent += 1;
+
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: u.id },
+        update: { lastNudgedAt: new Date(), nudgeCount: { increment: 1 } },
+        create: { studentUserId: u.id, state: {}, lastNudgedAt: new Date(), nudgeCount: 1 }
+      });
+    }
+
+    return res.json({ ok: true, sent, skipped, delivery: transporter ? "smtp" : "log" });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }

@@ -8,6 +8,7 @@ import {
   studentProgress,
   bulkResetStudents,
   bulkMoveCohort,
+  nudgeStudents,
   type OpsStudent,
   type OpsResetTarget
 } from "../../../../lib/launch/ops-client";
@@ -142,6 +143,37 @@ export default function LaunchOpsStudentsPage() {
       await load();
     } catch (e) {
       alert(e instanceof Error ? e.message : t("기수 이동에 실패했어요.", "Failed to move cohort.", "移动期数失败。", "Chuyển khóa thất bại.", "コホート移動に失敗しました。", "Gagal memindahkan angkatan."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doNudge = async () => {
+    if (!ids.length || busy) return;
+    const message = window.prompt(
+      t(
+        `선택한 ${ids.length}명에게 독려 메일을 보냅니다.\n덧붙일 한마디가 있으면 입력하세요(선택).`,
+        `Sending a reminder email to ${ids.length} students.\nAdd an optional note.`,
+        `将向所选 ${ids.length} 名学生发送提醒邮件。\n可添加附言（可选）。`,
+        `Gửi email nhắc nhở tới ${ids.length} sinh viên.\nThêm lời nhắn (tùy chọn).`,
+        `選択した${ids.length}名にリマインダーメールを送ります。\n一言（任意）を入力してください。`,
+        `Mengirim email pengingat ke ${ids.length} siswa.\nTambahkan catatan (opsional).`
+      ),
+      ""
+    );
+    if (message === null) return; // 취소
+    setBusy(true);
+    try {
+      const r = await nudgeStudents(ids, message);
+      setSelected(new Set());
+      await load();
+      alert(
+        r.delivery === "smtp"
+          ? t(`${r.sent}명에게 독려 메일을 보냈어요.`, `Reminder sent to ${r.sent} students.`, `已向 ${r.sent} 名学生发送提醒。`, `Đã gửi nhắc nhở tới ${r.sent} sinh viên.`, `${r.sent}名にリマインダーを送信しました。`, `Pengingat terkirim ke ${r.sent} siswa.`)
+          : t(`메일 서버(SMTP)가 설정되지 않아 실제 발송은 되지 않았어요. ${r.sent}명 대상 로그만 남겼습니다.`, `SMTP isn't configured, so nothing was actually sent. Logged ${r.sent} recipients.`, `未配置 SMTP，未实际发送。已记录 ${r.sent} 名收件人。`, `SMTP chưa cấu hình nên chưa gửi thật. Đã ghi log ${r.sent} người nhận.`, `SMTPが未設定のため実際には送信されていません。${r.sent}名分をログに記録しました。`, `SMTP belum dikonfigurasi, jadi tidak benar-benar terkirim. ${r.sent} penerima dicatat.`)
+      );
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t("독려 메일 발송에 실패했어요.", "Failed to send reminder.", "发送提醒失败。", "Gửi nhắc nhở thất bại.", "リマインダー送信に失敗しました。", "Gagal mengirim pengingat."));
     } finally {
       setBusy(false);
     }
@@ -334,6 +366,9 @@ export default function LaunchOpsStudentsPage() {
                   <option value="interview">{t("모의면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}</option>
                   <option value="final_feedback">{t("최종 피드백", "Final feedback", "最终反馈", "Phản hồi cuối cùng", "最終フィードバック", "Umpan balik akhir")}</option>
                 </select>
+                <button type="button" className="ops-btn ops-btn-primary" disabled={busy} onClick={() => void doNudge()}>
+                  {t("독려 메일 보내기", "Send reminder", "发送提醒邮件", "Gửi email nhắc", "リマインダー送信", "Kirim pengingat")}
+                </button>
                 <button type="button" className="ops-detail-button" disabled={busy} onClick={() => setSelected(new Set())}>
                   {t("선택 해제", "Clear selection", "取消选择", "Bỏ chọn", "選択解除", "Batal pilih")}
                 </button>

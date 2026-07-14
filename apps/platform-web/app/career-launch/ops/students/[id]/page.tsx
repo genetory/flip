@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { fetchOpsStudentDetail, resetStudentStep, saveStudentMemo, type OpsStudentDetail, type OpsResetTarget } from "../../../../../lib/launch/ops-client";
+import { fetchOpsStudentDetail, resetStudentStep, saveStudentMemo, nudgeStudents, type OpsStudentDetail, type OpsResetTarget } from "../../../../../lib/launch/ops-client";
 import { hasResumeContent } from "../../../../../lib/launch/resume-data";
 import { hasCoverContent } from "../../../../../lib/launch/cover-data";
 import { RECOMMENDED_JOBS } from "../../../../../lib/launch/data";
@@ -31,6 +31,7 @@ export default function LaunchOpsStudentDetailPage() {
   const [memo, setMemo] = useState("");
   const [memoSaving, setMemoSaving] = useState(false);
   const [memoSaved, setMemoSaved] = useState(false);
+  const [nudging, setNudging] = useState(false);
 
   const load = async () => {
     try {
@@ -61,6 +62,29 @@ export default function LaunchOpsStudentDetailPage() {
       alert(e instanceof Error ? e.message : t("초기화에 실패했어요.", "Failed to reset.", "重置失败。", "Đặt lại không thành công.", "リセットに失敗しました。", "Gagal mereset."));
     } finally {
       setResetting("");
+    }
+  };
+
+  const doNudge = async () => {
+    if (nudging) return;
+    const message = window.prompt(
+      t("독려 메일을 보냅니다. 덧붙일 한마디가 있으면 입력하세요(선택).", "Sending a reminder email. Add an optional note.", "将发送提醒邮件。可添加附言（可选）。", "Gửi email nhắc nhở. Thêm lời nhắn (tùy chọn).", "リマインダーメールを送ります。一言（任意）を入力してください。", "Mengirim email pengingat. Tambahkan catatan (opsional)."),
+      ""
+    );
+    if (message === null) return;
+    setNudging(true);
+    try {
+      const r = await nudgeStudents([id], message);
+      await load();
+      alert(
+        r.delivery === "smtp"
+          ? t("독려 메일을 보냈어요.", "Reminder sent.", "已发送提醒邮件。", "Đã gửi email nhắc nhở.", "リマインダーを送信しました。", "Pengingat terkirim.")
+          : t("메일 서버(SMTP)가 설정되지 않아 실제 발송은 되지 않았어요(로그만 기록).", "SMTP isn't configured, so nothing was actually sent (logged only).", "未配置 SMTP，未实际发送（仅记录日志）。", "SMTP chưa cấu hình nên chưa gửi thật (chỉ ghi log).", "SMTPが未設定のため実際には送信されていません（ログのみ）。", "SMTP belum dikonfigurasi, jadi tidak terkirim (hanya dicatat).")
+      );
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t("독려 메일 발송에 실패했어요.", "Failed to send reminder.", "发送提醒失败。", "Gửi nhắc nhở thất bại.", "リマインダー送信に失敗しました。", "Gagal mengirim pengingat."));
+    } finally {
+      setNudging(false);
     }
   };
 
@@ -330,6 +354,30 @@ export default function LaunchOpsStudentDetailPage() {
               </section>
 
               {/* 운영자 메모 — 학생에게는 보이지 않는 내부 기록 */}
+              {/* 독려 메일 */}
+              <section className="ops-detail-section">
+                <h3>{t("독려 메일", "Reminder email", "提醒邮件", "Email nhắc nhở", "リマインダーメール", "Email pengingat")}</h3>
+                <p className="ops-detail-empty">
+                  {detail.lastNudgedAt
+                    ? t(
+                        `마지막 발송 ${detail.lastNudgedAt.slice(0, 10)} · 총 ${detail.nudgeCount}회`,
+                        `Last sent ${detail.lastNudgedAt.slice(0, 10)} · ${detail.nudgeCount} total`,
+                        `最后发送 ${detail.lastNudgedAt.slice(0, 10)} · 共 ${detail.nudgeCount} 次`,
+                        `Gửi lần cuối ${detail.lastNudgedAt.slice(0, 10)} · tổng ${detail.nudgeCount} lần`,
+                        `最終送信 ${detail.lastNudgedAt.slice(0, 10)} · 計${detail.nudgeCount}回`,
+                        `Terakhir ${detail.lastNudgedAt.slice(0, 10)} · total ${detail.nudgeCount}x`
+                      )
+                    : t("아직 독려 메일을 보내지 않았어요.", "No reminder sent yet.", "尚未发送提醒邮件。", "Chưa gửi email nhắc nhở.", "まだリマインダーを送っていません。", "Belum ada pengingat terkirim.")}
+                </p>
+                <div className="ops-detail-actions mt-2">
+                  <button type="button" className="ops-btn ops-btn-primary" disabled={nudging} onClick={() => void doNudge()}>
+                    {nudging
+                      ? t("보내는 중…", "Sending…", "发送中…", "Đang gửi…", "送信中…", "Mengirim…")
+                      : t("독려 메일 보내기", "Send reminder", "发送提醒邮件", "Gửi email nhắc", "リマインダーを送る", "Kirim pengingat")}
+                  </button>
+                </div>
+              </section>
+
               <section className="ops-detail-section">
                 <h3>{t("운영자 메모", "Operator memo", "运营者备注", "Ghi chú của quản trị", "運営者メモ", "Memo operator")}</h3>
                 <p className="ops-detail-empty mb-2">
