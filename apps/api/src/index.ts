@@ -363,6 +363,7 @@ type AuthTokenUser = {
 
 type AuthErrorCode =
   | "INVALID_REQUEST"
+  | "EMAIL_REQUIRED" // 소셜 가입인데 provider 가 이메일을 주지 않아 입력이 필요함
   | "BUSINESS_EMAIL_REQUIRED"
   | "EMAIL_ALREADY_EXISTS"
   | "EMAIL_REGISTERED_DIFFERENT_ROLE"
@@ -10496,6 +10497,12 @@ app.get("/auth/naver/callback", async (req, res) => {
     }
 
     if (existingUser) {
+      // 실명 보완 — 네이버는 실명을 주는데 예전 가입자는 name 에만 저장되고 realName 이 비어 있다.
+      // 학생에게 연락하거나 학교 제출 문서를 만들 때 실명이 필요하므로, 로그인할 때 조용히 채운다.
+      if (!existingUser.realName?.trim() && naverName) {
+        await prisma.user.update({ where: { id: existingUser.id }, data: { realName: naverName } });
+      }
+
       const { accessToken, refreshToken } = await issueAuthTokens(existingUser);
       setRefreshTokenCookie(res, refreshToken);
 
@@ -10515,7 +10522,14 @@ app.get("/auth/naver/callback", async (req, res) => {
       ts: Date.now()
     });
     const nextForSignup = typeof stateData.next === "string" && stateData.next.startsWith("/") ? stateData.next : "";
-    const fragmentParams: Record<string, string> = { ctx: signupContext, provider: "naver" };
+    const fragmentParams: Record<string, string> = {
+      ctx: signupContext,
+      provider: "naver",
+      // 가입 완료 화면이 "무엇을 더 물어야 하는지" 판단할 근거.
+      // 이메일이 없으면 가짜 주소를 만들지 않고 화면에서 입력받는다.
+      hasEmail: naverEmail ? "1" : "0",
+      pname: naverName ?? ""
+    };
     if (nextForSignup) fragmentParams.next = nextForSignup;
     const ctxFragment = new URLSearchParams(fragmentParams).toString();
     return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
@@ -10527,7 +10541,11 @@ app.get("/auth/naver/callback", async (req, res) => {
 
 const naverFinalizeSchema = z.object({
   ctx: z.string().min(10).max(4000),
-  accountType: z.enum(["GENERAL", "BUSINESS"])
+  accountType: z.enum(["GENERAL", "BUSINESS"]),
+  // 실명·이메일 — 운영상 학생에게 연락해야 하므로 반드시 실제 값이 필요하다.
+  // provider 가 주지 않는 경우 가입 완료 화면에서 입력받아 넘어온다.
+  realName: z.string().trim().min(1).max(120).optional(),
+  email: z.string().trim().email().max(200).optional()
 });
 
 app.post("/auth/naver/finalize", async (req, res) => {
@@ -10572,11 +10590,22 @@ app.post("/auth/naver/finalize", async (req, res) => {
   const partnerType = role === MemberRole.PARTNER ? PartnerType.COMPANY : null;
   const partnerOrgRole = role === MemberRole.PARTNER ? PartnerOrgUserRole.MEMBER : null;
 
+  // 이메일 — provider 가 안 주면 가입 완료 화면에서 입력받는다.
+  // 예전엔 `naver-<id>@noemail.local` 같은 가짜 주소를 만들었는데,
+  // 그러면 "이메일이 있다"고 착각하게 되고 안내 메일이 조용히 반송된다.
+  const finalEmail = ctxEmail || (parsed.data.email?.trim().toLowerCase() ?? "");
+  if (!finalEmail) {
+    return sendAuthError(res, 400, "EMAIL_REQUIRED", "email required");
+  }
+  // 실명 — 네이버는 실명을 주므로 입력이 없으면 그 값을 쓴다.
+  const finalRealName = parsed.data.realName?.trim() || ctxName?.trim() || null;
+
   const created = await prisma.user.create({
     data: {
-      email: ctxEmail || `naver-${providerId}@noemail.local`,
+      email: finalEmail,
       emailVerified: true,
-      name: ctxName?.trim() || generateNicknameFromEmail(ctxEmail),
+      name: ctxName?.trim() || generateNicknameFromEmail(finalEmail),
+      realName: finalRealName,
       phoneNumber: ctxMobile,
       authProvider: AuthProvider.NAVER,
       providerId,
@@ -10753,7 +10782,14 @@ app.get("/auth/google/callback", async (req, res) => {
       ts: Date.now()
     });
     const nextForSignup = typeof stateData.next === "string" && stateData.next.startsWith("/") ? stateData.next : "";
-    const fragmentParams: Record<string, string> = { ctx: signupContext, provider: "google" };
+    const fragmentParams: Record<string, string> = {
+      ctx: signupContext,
+      provider: "google",
+      // 가입 완료 화면이 "무엇을 더 물어야 하는지" 판단할 근거.
+      // 이메일이 없으면 가짜 주소를 만들지 않고 화면에서 입력받는다.
+      hasEmail: googleEmail ? "1" : "0",
+      pname: googleName ?? ""
+    };
     if (nextForSignup) fragmentParams.next = nextForSignup;
     const ctxFragment = new URLSearchParams(fragmentParams).toString();
     return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
@@ -10765,7 +10801,11 @@ app.get("/auth/google/callback", async (req, res) => {
 
 const googleFinalizeSchema = z.object({
   ctx: z.string().min(10).max(4000),
-  accountType: z.enum(["GENERAL", "BUSINESS"])
+  accountType: z.enum(["GENERAL", "BUSINESS"]),
+  // 실명·이메일 — 운영상 학생에게 연락해야 하므로 반드시 실제 값이 필요하다.
+  // provider 가 주지 않는 경우 가입 완료 화면에서 입력받아 넘어온다.
+  realName: z.string().trim().min(1).max(120).optional(),
+  email: z.string().trim().email().max(200).optional()
 });
 
 app.post("/auth/google/finalize", async (req, res) => {
@@ -10809,9 +10849,19 @@ app.post("/auth/google/finalize", async (req, res) => {
   const partnerType = role === MemberRole.PARTNER ? PartnerType.COMPANY : null;
   const partnerOrgRole = role === MemberRole.PARTNER ? PartnerOrgUserRole.MEMBER : null;
 
+  // 이메일 — provider 가 안 주면 가입 완료 화면에서 입력받는다.
+  // 예전엔 `google-<id>@noemail.local` 같은 가짜 주소를 만들었는데,
+  // 그러면 "이메일이 있다"고 착각하게 되고 안내 메일이 조용히 반송된다.
+  const finalEmail = ctxEmail || (parsed.data.email?.trim().toLowerCase() ?? "");
+  if (!finalEmail) {
+    return sendAuthError(res, 400, "EMAIL_REQUIRED", "email required");
+  }
+  // 실명 — 카카오는 닉네임, 구글은 표시이름이라 실명으로 신뢰할 수 없다 — 입력값만 쓴다.
+  const finalRealName = parsed.data.realName?.trim() || null;
+
   const created = await prisma.user.create({
     data: {
-      email: ctxEmail || `google-${providerId}@noemail.local`,
+      email: finalEmail,
       emailVerified: true,
       name: ctxName?.trim() || generateNicknameFromEmail(ctxEmail),
       authProvider: AuthProvider.GOOGLE,
@@ -10988,7 +11038,14 @@ app.get("/auth/kakao/callback", async (req, res) => {
       ts: Date.now()
     });
     const nextForSignup = typeof stateData.next === "string" && stateData.next.startsWith("/") ? stateData.next : "";
-    const fragmentParams: Record<string, string> = { ctx: signupContext, provider: "kakao" };
+    const fragmentParams: Record<string, string> = {
+      ctx: signupContext,
+      provider: "kakao",
+      // 가입 완료 화면이 "무엇을 더 물어야 하는지" 판단할 근거.
+      // 이메일이 없으면 가짜 주소를 만들지 않고 화면에서 입력받는다.
+      hasEmail: kakaoEmail ? "1" : "0",
+      pname: kakaoName ?? ""
+    };
     if (nextForSignup) fragmentParams.next = nextForSignup;
     const ctxFragment = new URLSearchParams(fragmentParams).toString();
     return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
@@ -11000,7 +11057,11 @@ app.get("/auth/kakao/callback", async (req, res) => {
 
 const kakaoFinalizeSchema = z.object({
   ctx: z.string().min(10).max(4000),
-  accountType: z.enum(["GENERAL", "BUSINESS"])
+  accountType: z.enum(["GENERAL", "BUSINESS"]),
+  // 실명·이메일 — 운영상 학생에게 연락해야 하므로 반드시 실제 값이 필요하다.
+  // provider 가 주지 않는 경우 가입 완료 화면에서 입력받아 넘어온다.
+  realName: z.string().trim().min(1).max(120).optional(),
+  email: z.string().trim().email().max(200).optional()
 });
 
 app.post("/auth/kakao/finalize", async (req, res) => {
@@ -11044,9 +11105,19 @@ app.post("/auth/kakao/finalize", async (req, res) => {
   const partnerType = role === MemberRole.PARTNER ? PartnerType.COMPANY : null;
   const partnerOrgRole = role === MemberRole.PARTNER ? PartnerOrgUserRole.MEMBER : null;
 
+  // 이메일 — provider 가 안 주면 가입 완료 화면에서 입력받는다.
+  // 예전엔 `kakao-<id>@noemail.local` 같은 가짜 주소를 만들었는데,
+  // 그러면 "이메일이 있다"고 착각하게 되고 안내 메일이 조용히 반송된다.
+  const finalEmail = ctxEmail || (parsed.data.email?.trim().toLowerCase() ?? "");
+  if (!finalEmail) {
+    return sendAuthError(res, 400, "EMAIL_REQUIRED", "email required");
+  }
+  // 실명 — 카카오는 닉네임, 구글은 표시이름이라 실명으로 신뢰할 수 없다 — 입력값만 쓴다.
+  const finalRealName = parsed.data.realName?.trim() || null;
+
   const created = await prisma.user.create({
     data: {
-      email: ctxEmail || `kakao-${providerId}@noemail.local`,
+      email: finalEmail,
       emailVerified: true,
       name: ctxName?.trim() || generateNicknameFromEmail(ctxEmail),
       authProvider: AuthProvider.KAKAO,
@@ -15340,7 +15411,8 @@ app.get("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole
     if (!c) return res.status(404).json({ ok: false, message: "cohort not found" });
     const students = c.enrollments.map((e) => ({
       studentUserId: e.studentUserId,
-      name: e.student?.name ?? e.student?.realName ?? null,
+      // 실명 우선 — name 은 SNS 닉네임(예: 'Genetory')일 수 있어 공식 문서·연락에 부적합하다.
+        name: e.student?.realName ?? e.student?.name ?? null,
       email: e.student?.email ?? "",
       enrolledAt: e.createdAt
     }));
@@ -15583,7 +15655,8 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
 
       return {
         userId: e.studentUserId,
-        name: e.student?.name ?? e.student?.realName ?? null,
+        // 실명 우선 — name 은 SNS 닉네임(예: 'Genetory')일 수 있어 공식 문서·연락에 부적합하다.
+        name: e.student?.realName ?? e.student?.name ?? null,
         email: e.student?.email ?? "",
         enrolledAt: e.createdAt,
         diagnosisBefore: before,
