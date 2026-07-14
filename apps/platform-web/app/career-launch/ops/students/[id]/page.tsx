@@ -11,7 +11,7 @@ import { ResumeRender } from "../../../../../components/launch/resume-render";
 import { CoverRender } from "../../../../../components/launch/cover-render";
 import { RichText } from "../../../../../components/launch/rich-text";
 import { useLaunchT } from "../../../../../lib/launch/i18n";
-import { useJobReason } from "../../../../../lib/launch/data-i18n";
+import { useJobReason, useStepText } from "../../../../../lib/launch/data-i18n";
 
 type Tab = "overview" | "docs" | "interview" | "ops";
 
@@ -24,6 +24,7 @@ type Tab = "overview" | "docs" | "interview" | "ops";
 export default function LaunchOpsStudentDetailPage() {
   const t = useLaunchT();
   const jobReason = useJobReason();
+  const stepText = useStepText();
   const INTERVIEW_LABEL: Record<string, string> = {
     self: t("자기소개 면접", "Self-intro interview", "自我介绍面试", "Phỏng vấn giới thiệu bản thân", "自己紹介面接", "Wawancara perkenalan diri"),
     job: t("직무 면접", "Job interview", "职务面试", "Phỏng vấn chuyên môn", "職務面接", "Wawancara pekerjaan"),
@@ -337,7 +338,8 @@ export default function LaunchOpsStudentDetailPage() {
                       <div className="flex flex-wrap gap-2">
                         {doneSteps.map((s) => (
                           <span key={s} className="ops-status-badge ops-status-approved">
-                            {s}
+                            {/* 내부 스텝 id(w2s4 등) 대신 사람이 읽을 제목으로 */}
+                            {stepText(s, "title") || s}
                           </span>
                         ))}
                       </div>
