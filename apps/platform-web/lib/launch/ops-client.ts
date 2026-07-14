@@ -49,8 +49,10 @@ export async function resetOpsPrompt(key: string): Promise<string> {
 export type OpsStudentCohort = { id: string; university: string; name: string };
 export type OpsStudent = {
   userId: string;
-  name: string | null;
+  name: string | null; // 실명 우선(없으면 닉네임)
+  realName: string | null; // 실명 — 없으면 운영자가 연락/서류 작성에 어려움
   email: string;
+  phone: string | null;
   cohort: OpsStudentCohort | null;
   diagnosisPercent: number | null;
   selectedJobs: number;

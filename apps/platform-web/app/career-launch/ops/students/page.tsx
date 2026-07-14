@@ -71,7 +71,10 @@ export default function LaunchOpsStudentsPage() {
     if (status !== "all") base = base.filter((s) => statusOf(s) === status);
     if (needle) {
       base = base.filter(
-        (s) => (s.name ?? "").toLowerCase().includes(needle) || s.email.toLowerCase().includes(needle)
+        (s) =>
+          (s.name ?? "").toLowerCase().includes(needle) ||
+          s.email.toLowerCase().includes(needle) ||
+          (s.phone ?? "").replace(/-/g, "").includes(needle.replace(/-/g, ""))
       );
     }
     if (sort === "progress") {
@@ -183,7 +186,9 @@ export default function LaunchOpsStudentsPage() {
     const target = ids.length ? filtered.filter((s) => selected.has(s.userId)) : filtered;
     const head = [
       t("이름", "Name", "姓名", "Tên", "氏名", "Nama"),
+      t("실명", "Legal name", "真实姓名", "Họ tên thật", "本名", "Nama asli"),
       t("이메일", "Email", "邮箱", "Email", "メール", "Email"),
+      t("전화번호", "Phone", "电话", "Số điện thoại", "電話番号", "Telepon"),
       t("기수", "Cohort", "期数", "Khóa", "コホート", "Batch"),
       t("진행률(%)", "Progress (%)", "进度(%)", "Tiến độ (%)", "進捗(%)", "Progres (%)"),
       t("진단(%)", "Diagnosis (%)", "诊断(%)", "Chẩn đoán (%)", "診断(%)", "Diagnosis (%)"),
@@ -195,7 +200,9 @@ export default function LaunchOpsStudentsPage() {
     const rows = target.map((s) =>
       [
         s.name ?? "",
+        s.realName ?? "",
         s.email,
+        s.phone ?? "",
         s.cohort ? `${s.cohort.university} ${s.cohort.name}` : t("미등록", "Unassigned", "未分配", "Chưa xếp khóa", "未登録", "Belum ditetapkan"),
         studentProgress(s).percent,
         s.diagnosisPercent ?? "",
@@ -386,6 +393,7 @@ export default function LaunchOpsStudentsPage() {
                     <input type="checkbox" checked={allOnPageSelected} onChange={toggleAllOnPage} aria-label="select all" />
                   </th>
                   <th>{t("학생", "Student", "学生", "Sinh viên", "学生", "Siswa")}</th>
+                  <th>{t("연락처", "Contact", "联系方式", "Liên hệ", "連絡先", "Kontak")}</th>
                   <th>{t("기수", "Cohort", "期数", "Khóa", "コホート", "Batch")}</th>
                   <th>{t("진행률", "Progress", "进度", "Tiến độ", "進捗", "Progres")}</th>
                   <th>{t("진단", "Diagnosis", "诊断", "Chẩn đoán", "診断", "Diagnosis")}</th>
@@ -398,17 +406,17 @@ export default function LaunchOpsStudentsPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="ops-table-empty">
+                    <td colSpan={10} className="ops-table-empty">
                       {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}
                     </td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={9} className="ops-table-empty">{error}</td>
+                    <td colSpan={10} className="ops-table-empty">{error}</td>
                   </tr>
                 ) : pageItems.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="ops-table-empty">
+                    <td colSpan={10} className="ops-table-empty">
                       {q.trim()
                         ? t("검색 결과가 없어요.", "No matching students.", "没有匹配的学生。", "Không có sinh viên phù hợp.", "該当する学生がいません。", "Tidak ada siswa yang cocok.")
                         : t("조건에 맞는 학생이 없어요.", "No students match the filters.", "没有符合条件的学生。", "Không có sinh viên khớp bộ lọc.", "条件に合う学生がいません。", "Tidak ada siswa yang cocok dengan filter.")}
@@ -432,7 +440,26 @@ export default function LaunchOpsStudentsPage() {
                           <span className="block font-bold text-[#191F28]">
                             {st.name ?? t("이름 미설정", "No name set", "未设置姓名", "Chưa đặt tên", "名前未設定", "Nama belum diatur")}
                           </span>
-                          <span className="block text-[12px] text-[#8B95A1]">{st.email}</span>
+                          {/* 실명이 없으면 SNS 닉네임을 쓰고 있다는 뜻 — 연락·서류에 문제가 되니 눈에 띄게 알린다. */}
+                          {!st.realName ? (
+                            <span className="ops-status-badge ops-status-pending">
+                              {t("실명 미등록", "No legal name", "未登记真实姓名", "Chưa có tên thật", "本名未登録", "Nama asli belum ada")}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <a href={`mailto:${st.email}`} className="block text-[12.5px] text-[#1d4ed8]">
+                            {st.email}
+                          </a>
+                          {st.phone ? (
+                            <a href={`tel:${st.phone}`} className="block text-[12.5px] text-[#4b5563]">
+                              {st.phone}
+                            </a>
+                          ) : (
+                            <span className="block text-[12px] text-[#c9cdd2]">
+                              {t("전화번호 없음", "No phone", "无电话", "Không có SĐT", "電話番号なし", "Tidak ada telepon")}
+                            </span>
+                          )}
                         </td>
                         <td>
                           {st.cohort ? (

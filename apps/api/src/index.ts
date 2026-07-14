@@ -15249,10 +15249,13 @@ app.get("/career-launch/ops/students", authenticate, requireRoles([MemberRole.OP
   try {
     const [enrollRows, progressRows, resumeRows, coverRows] = await Promise.all([
       prisma.careerEnrollment.findMany({
-        include: { cohort: { select: { id: true, university: true, name: true } }, student: { select: { id: true, name: true, realName: true, email: true } } },
+        include: {
+          cohort: { select: { id: true, university: true, name: true } },
+          student: { select: { id: true, name: true, realName: true, email: true, phoneNumber: true } }
+        },
         orderBy: { createdAt: "asc" }
       }),
-      prisma.careerLaunchProgress.findMany({ include: { student: { select: { id: true, name: true, realName: true, email: true } } } }),
+      prisma.careerLaunchProgress.findMany({ include: { student: { select: { id: true, name: true, realName: true, email: true, phoneNumber: true } } } }),
       prisma.careerResumeData.findMany({ select: { studentUserId: true, content: true, updatedAt: true } }),
       prisma.careerCoverLetterData.findMany({ select: { studentUserId: true, content: true, updatedAt: true } })
     ]);
@@ -15262,13 +15265,13 @@ app.get("/career-launch/ops/students", authenticate, requireRoles([MemberRole.OP
     for (const e of enrollRows) if (e.student && !cohortByUser.has(e.studentUserId)) cohortByUser.set(e.studentUserId, e.cohort);
 
     // 대상 학생 = 등록 학생 + 데이터(progress/resume/cover)가 있는 학생.
-    const byUser = new Map<string, { id: string; name: string | null; realName: string | null; email: string }>();
+    const byUser = new Map<string, { id: string; name: string | null; realName: string | null; email: string; phoneNumber: string | null }>();
     for (const e of enrollRows) if (e.student) byUser.set(e.student.id, e.student);
     for (const p of progressRows) if (p.student) byUser.set(p.student.id, p.student);
     const dataIds = [...new Set([...resumeRows.map((r) => r.studentUserId), ...coverRows.map((c) => c.studentUserId)])];
     const missing = dataIds.filter((id) => !byUser.has(id));
     if (missing.length) {
-      const users = await prisma.user.findMany({ where: { id: { in: missing } }, select: { id: true, name: true, realName: true, email: true } });
+      const users = await prisma.user.findMany({ where: { id: { in: missing } }, select: { id: true, name: true, realName: true, email: true, phoneNumber: true } });
       for (const u of users) byUser.set(u.id, u);
     }
 
@@ -15288,8 +15291,11 @@ app.get("/career-launch/ops/students", authenticate, requireRoles([MemberRole.OP
       const coverItems = Array.isArray(cc.items) ? (cc.items as { answer?: string }[]).filter((x) => (x.answer ?? "").trim()) : [];
       return {
         userId: u.id,
-        name: u.name ?? u.realName ?? null,
+        // 실명 우선 — name 은 SNS 닉네임일 수 있어 연락·공식 문서에 부적합하다.
+        name: u.realName ?? u.name ?? null,
+        realName: u.realName ?? null,
         email: u.email,
+        phone: u.phoneNumber ?? null,
         cohort: cohortByUser.get(u.id) ?? null,
         diagnosisPercent: typeof diag?.percent === "number" ? diag.percent : null,
         selectedJobs: arrLen(st.selectedJobs),
