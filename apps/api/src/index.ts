@@ -15515,6 +15515,73 @@ function escapeHtmlBasic(text: string): string {
     .replace(/'/g, "&#39;");
 }
 
+// ── 프로그램 콘텐츠 오버라이드 ──
+// 주차/스텝의 표시 문구를 코드 수정 없이 운영자가 6개 언어로 덮어쓴다.
+// 기본값은 웹앱의 data.ts / data-i18n.ts 에 있고, 여기 저장된 값만 그 위에 얹힌다.
+// (일부 로케일만 채워도 되고, 비우면 기본값으로 되돌아간다.)
+const CAREER_CONTENT_KEY = "career_content_overrides";
+
+const ltSchema = z
+  .object({
+    ko: z.string().max(2000).optional(),
+    en: z.string().max(2000).optional(),
+    "zh-CN": z.string().max(2000).optional(),
+    vi: z.string().max(2000).optional(),
+    ja: z.string().max(2000).optional(),
+    id: z.string().max(2000).optional()
+  })
+  .partial();
+
+const careerContentSchema = z.object({
+  weeks: z.record(z.string(), z.object({ title: ltSchema.optional(), subtitle: ltSchema.optional(), goal: ltSchema.optional() })).optional(),
+  steps: z.record(z.string(), z.object({ title: ltSchema.optional(), desc: ltSchema.optional() })).optional()
+});
+
+async function readCareerContentOverrides(): Promise<unknown> {
+  try {
+    const row = await prisma.appSetting.findUnique({ where: { key: CAREER_CONTENT_KEY } });
+    if (!row?.value) return {};
+    return JSON.parse(row.value);
+  } catch {
+    return {};
+  }
+}
+
+// 학생·운영자 모두 읽는다(화면 문구라 민감정보 아님).
+app.get("/career-launch/content", authenticate, async (_req, res) => {
+  try {
+    return res.json({ ok: true, content: await readCareerContentOverrides() });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/career-launch/ops/content", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    return res.json({ ok: true, content: await readCareerContentOverrides() });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.put("/career-launch/ops/content", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = careerContentSchema.safeParse(req.body?.content);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    // 빈 문자열만 있는 항목은 저장하지 않는다 — 그래야 기본값으로 되돌아간다.
+    const clean = JSON.parse(JSON.stringify(parsed.data), (_k, v) => (v === "" ? undefined : v));
+    const value = JSON.stringify(clean ?? {});
+    await prisma.appSetting.upsert({
+      where: { key: CAREER_CONTENT_KEY },
+      update: { value },
+      create: { key: CAREER_CONTENT_KEY, value, description: "Career Launch 주차·스텝 문구 오버라이드(운영자 편집)" }
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // ── 독려(리마인더) 메일 ──
 // 진행이 더딘 학생에게 "무엇이 남았는지"를 짚어 다시 들어오게 만든다.
 // 유학생 대상이라 한국어·영어를 한 통에 병기한다(User 에 언어 필드가 없음).

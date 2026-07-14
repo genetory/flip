@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Users,
   GraduationCap,
+  FileText,
   SlidersHorizontal,
   BarChart3,
   ChevronDown,
@@ -57,6 +58,11 @@ function useOpsNav() {
           href: "/career-launch/ops/cohorts",
           label: t("기수 관리", "Cohorts", "期次管理", "Quản lý khóa", "期の管理", "Angkatan"),
           icon: GraduationCap
+        },
+        {
+          href: "/career-launch/ops/content",
+          label: t("프로그램 콘텐츠", "Program content", "项目内容", "Nội dung chương trình", "プログラム内容", "Konten program"),
+          icon: FileText
         },
         {
           href: "/career-launch/ops/prompts",

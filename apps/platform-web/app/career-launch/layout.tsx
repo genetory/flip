@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CareerContentProvider } from "../../components/launch/content-provider";
 
 export const metadata: Metadata = {
   title: "APLY Global Career Launch — 4주 취업 준비 프로그램",
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 
 // 런치 서브도메인 전용 셸 — 모바일 우선, 밝은 배경.
 export default function LaunchLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-screen bg-[#F6F8FB] text-[#191F28]">{children}</div>;
+  return (
+    <CareerContentProvider>
+      <div className="min-h-screen bg-[#F6F8FB] text-[#191F28]">{children}</div>
+    </CareerContentProvider>
+  );
 }
