@@ -7,8 +7,6 @@ import { fetchOpsStudentDetail, resetStudentStep, saveStudentMemo, nudgeStudents
 import { hasResumeContent } from "../../../../../lib/launch/resume-data";
 import { hasCoverContent } from "../../../../../lib/launch/cover-data";
 import { RECOMMENDED_JOBS } from "../../../../../lib/launch/data";
-import { ResumeRender } from "../../../../../components/launch/resume-render";
-import { CoverRender } from "../../../../../components/launch/cover-render";
 import { RichText } from "../../../../../components/launch/rich-text";
 import { useLaunchT } from "../../../../../lib/launch/i18n";
 import { useJobReason, useStepText } from "../../../../../lib/launch/data-i18n";
@@ -205,11 +203,6 @@ export default function LaunchOpsStudentDetailPage() {
                     {t("자소서 PDF", "Cover letter PDF", "自我介绍 PDF", "PDF thư xin việc", "自己PR PDF", "PDF Cover letter")}
                   </a>
                 ) : null}
-                <button type="button" className="ops-btn ops-btn-primary" disabled={nudging} onClick={() => void doNudge()}>
-                  {nudging
-                    ? t("보내는 중…", "Sending…", "发送中…", "Đang gửi…", "送信中…", "Mengirim…")
-                    : t("독려 메일", "Send reminder", "提醒邮件", "Gửi nhắc", "リマインダー", "Pengingat")}
-                </button>
               </div>
             </div>
 
@@ -349,37 +342,136 @@ export default function LaunchOpsStudentDetailPage() {
               ) : null}
 
               {/* ── 산출물 ── */}
+              {/* A4 시트(ResumeRender/CoverRender)는 학생 미리보기용이라 내용이 짧아도
+                  페이지 높이를 그대로 차지해 어드민에선 빈 여백만 커진다.
+                  여기선 훑어보기 좋은 압축 뷰를 쓰고, 실제 문서는 'PDF 보기'로 넘긴다. */}
               {tab === "docs" ? (
-                <div className="ops-detail-sections">
+                <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+                  {/* 이력서 */}
                   <section className="ops-detail-section">
                     <div className="ops-partner-list-top">
-                      <h3>{t("대화로 만든 이력서", "Resume built through chat", "通过对话生成的简历", "CV được tạo qua trò chuyện", "対話で作った履歴書", "Resume yang dibuat lewat obrolan")}</h3>
+                      <h3>{t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</h3>
                       {hasResume ? (
                         <a href={`/career-launch/ops-print/${id}?doc=resume`} target="_blank" rel="noopener noreferrer" className="ops-detail-button">
                           {t("PDF 보기", "View PDF", "查看 PDF", "Xem PDF", "PDFを見る", "Lihat PDF")}
                         </a>
                       ) : null}
                     </div>
-                    {hasResume ? (
-                      <ResumeRender data={detail.resume} />
-                    ) : (
+                    {!hasResume ? (
                       <p className="ops-detail-empty">{t("아직 이력서를 만들지 않았어요.", "No resume created yet.", "尚未生成简历。", "Chưa tạo CV.", "まだ履歴書を作っていません。", "Belum membuat resume.")}</p>
+                    ) : (
+                      <div className="rounded-xl border border-[#eef2f7] p-4">
+                        {detail.resume.basic?.summary ? (
+                          <p className="break-keep text-[13px] leading-relaxed text-[#374151]">{detail.resume.basic.summary}</p>
+                        ) : null}
+
+                        {detail.resume.experiences?.length ? (
+                          <div className="mt-4">
+                            <p className="text-[12px] font-bold uppercase tracking-wide text-[#9ca3af]">
+                              {t("경력", "Experience", "经历", "Kinh nghiệm", "経歴", "Pengalaman")}
+                            </p>
+                            <ul className="mt-2 space-y-3">
+                              {detail.resume.experiences.map((e, i) => (
+                                <li key={i}>
+                                  <p className="text-[13.5px] font-semibold text-[#111827]">
+                                    {e.title || "-"}
+                                    {e.org ? <span className="font-normal text-[#6b7280]"> · {e.org}</span> : null}
+                                    {e.period ? <span className="ml-1 text-[12px] font-normal text-[#9ca3af]">{e.period}</span> : null}
+                                  </p>
+                                  {e.bullets?.length ? (
+                                    <ul className="mt-1 space-y-0.5">
+                                      {e.bullets.map((b, bi) => (
+                                        <li key={bi} className="flex gap-1.5 break-keep text-[12.5px] text-[#4b5563]">
+                                          <span className="text-[#c9cdd2]">•</span>
+                                          {b}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+
+                        {detail.resume.educations?.length ? (
+                          <div className="mt-4">
+                            <p className="text-[12px] font-bold uppercase tracking-wide text-[#9ca3af]">
+                              {t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")}
+                            </p>
+                            <ul className="mt-2 space-y-1">
+                              {detail.resume.educations.map((e, i) => (
+                                <li key={i} className="text-[13px] text-[#374151]">
+                                  <span className="font-semibold text-[#111827]">{e.school || "-"}</span>
+                                  {e.major ? ` · ${e.major}` : ""}
+                                  {e.degree ? ` · ${e.degree}` : ""}
+                                  {e.period ? <span className="ml-1 text-[12px] text-[#9ca3af]">{e.period}</span> : null}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+
+                        {detail.resume.skills?.length ? (
+                          <div className="mt-4">
+                            <p className="text-[12px] font-bold uppercase tracking-wide text-[#9ca3af]">
+                              {t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian")}
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {detail.resume.skills.map((sk, i) => (
+                                <span key={i} className="ops-status-badge ops-status-draft">
+                                  {sk}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {detail.resume.languages?.length ? (
+                          <div className="mt-4">
+                            <p className="text-[12px] font-bold uppercase tracking-wide text-[#9ca3af]">
+                              {t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")}
+                            </p>
+                            <ul className="mt-2 space-y-1">
+                              {detail.resume.languages.map((l, i) => (
+                                <li key={i} className="text-[13px] text-[#374151]">
+                                  <span className="font-semibold text-[#111827]">{l.language || "-"}</span>
+                                  {l.level ? <span className="text-[#6b7280]"> · {l.level}</span> : null}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
                     )}
                   </section>
 
+                  {/* 자기소개서 */}
                   <section className="ops-detail-section">
                     <div className="ops-partner-list-top">
-                      <h3>{t("대화로 만든 자기소개서", "Cover letter built through chat", "通过对话生成的自我介绍", "Thư xin việc được tạo qua trò chuyện", "対話で作った自己PR", "Cover letter yang dibuat lewat obrolan")}</h3>
+                      <h3>
+                        {t("자기소개서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter")}
+                        {detail.cover.items?.length ? <span className="ml-1 text-[12px] font-normal text-[#9ca3af]">({detail.cover.items.length})</span> : null}
+                      </h3>
                       {hasCover ? (
                         <a href={`/career-launch/ops-print/${id}?doc=cover`} target="_blank" rel="noopener noreferrer" className="ops-detail-button">
                           {t("PDF 보기", "View PDF", "查看 PDF", "Xem PDF", "PDFを見る", "Lihat PDF")}
                         </a>
                       ) : null}
                     </div>
-                    {hasCover ? (
-                      <CoverRender data={detail.cover} />
-                    ) : (
+                    {!hasCover ? (
                       <p className="ops-detail-empty">{t("아직 자기소개서를 만들지 않았어요.", "No cover letter created yet.", "尚未生成自我介绍。", "Chưa tạo thư xin việc.", "まだ自己PRを作っていません。", "Belum membuat cover letter.")}</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {(detail.cover.items ?? [])
+                          .filter((it) => (it.answer ?? "").trim())
+                          .map((it, i) => (
+                            <details key={i} open={i === 0} className="rounded-xl border border-[#eef2f7] p-4">
+                              <summary className="cursor-pointer text-[13.5px] font-semibold text-[#111827]">{it.question}</summary>
+                              <p className="mt-2 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#4b5563]">{it.answer}</p>
+                            </details>
+                          ))}
+                      </div>
                     )}
                   </section>
                 </div>
