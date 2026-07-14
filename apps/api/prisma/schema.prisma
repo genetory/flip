@@ -850,7 +850,8 @@ model CareerCoverLetterData {
 model CareerLaunchProgress {
   id            String   @id @default(uuid())
   studentUserId String   @unique
-  state         Json     @default("{}") // { diagnosis, selectedJobs[], materials[], doneSteps[] }
+  state         Json     @default("{}") // { diagnosis, selectedJobs[], materials[], doneSteps[], interview{practiced[],results{}}, finalFeedback }
+  opsMemo       String? // 운영자 내부 메모(학생에게 보이지 않음)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

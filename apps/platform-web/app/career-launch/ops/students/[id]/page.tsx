@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { fetchOpsStudentDetail, resetStudentStep, type OpsStudentDetail, type OpsResetTarget } from "../../../../../lib/launch/ops-client";
+import { fetchOpsStudentDetail, resetStudentStep, saveStudentMemo, type OpsStudentDetail, type OpsResetTarget } from "../../../../../lib/launch/ops-client";
 import { hasResumeContent } from "../../../../../lib/launch/resume-data";
 import { hasCoverContent } from "../../../../../lib/launch/cover-data";
 import { RECOMMENDED_JOBS } from "../../../../../lib/launch/data";
@@ -28,11 +28,15 @@ export default function LaunchOpsStudentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [resetting, setResetting] = useState("");
+  const [memo, setMemo] = useState("");
+  const [memoSaving, setMemoSaving] = useState(false);
+  const [memoSaved, setMemoSaved] = useState(false);
 
   const load = async () => {
     try {
       const d = await fetchOpsStudentDetail(id);
       setDetail(d);
+      setMemo(d.opsMemo ?? "");
     } catch (e) {
       setError(e instanceof Error ? e.message : t("불러오지 못했어요.", "Couldn't load.", "加载失败。", "Không thể tải.", "読み込めませんでした。", "Gagal memuat."));
     } finally {
@@ -60,11 +64,26 @@ export default function LaunchOpsStudentDetailPage() {
     }
   };
 
+  const submitMemo = async () => {
+    if (memoSaving) return;
+    setMemoSaving(true);
+    setMemoSaved(false);
+    try {
+      await saveStudentMemo(id, memo);
+      setMemoSaved(true);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t("메모를 저장하지 못했어요.", "Couldn't save the memo.", "无法保存备注。", "Không thể lưu ghi chú.", "メモを保存できませんでした。", "Gagal menyimpan memo."));
+    } finally {
+      setMemoSaving(false);
+    }
+  };
+
   const diag = detail?.state.diagnosis ?? null;
   const jobs = detail?.state.selectedJobs ?? [];
   const materials = detail?.state.materials ?? [];
   const doneSteps = detail?.state.doneSteps ?? [];
   const interviewPracticed = detail?.state.interview?.practiced ?? [];
+  const interviewResults = detail?.state.interview?.results ?? {};
   const finalFeedbackText = detail?.state.finalFeedback?.text ?? "";
   const name = detail?.user.name?.trim() || detail?.user.realName?.trim() || detail?.user.email || t("학생", "Student", "学生", "Sinh viên", "学生", "Siswa");
 
@@ -243,7 +262,14 @@ export default function LaunchOpsStudentDetailPage() {
 
               {/* 대화로 만든 이력서 */}
               <section className="ops-detail-section">
-                <h3>{t("대화로 만든 이력서", "Resume built through chat", "通过对话生成的简历", "CV được tạo qua trò chuyện", "対話で作った履歴書", "Resume yang dibuat lewat obrolan")}</h3>
+                <div className="ops-partner-list-top">
+                  <h3>{t("대화로 만든 이력서", "Resume built through chat", "通过对话生成的简历", "CV được tạo qua trò chuyện", "対話で作った履歴書", "Resume yang dibuat lewat obrolan")}</h3>
+                  {hasResumeContent(detail.resume) ? (
+                    <a href={`/career-launch/ops-print/${id}?doc=resume`} target="_blank" rel="noopener noreferrer" className="ops-detail-button">
+                      {t("PDF 보기", "View PDF", "查看 PDF", "Xem PDF", "PDFを見る", "Lihat PDF")}
+                    </a>
+                  ) : null}
+                </div>
                 {hasResumeContent(detail.resume) ? (
                   <ResumeRender data={detail.resume} />
                 ) : (
@@ -253,7 +279,14 @@ export default function LaunchOpsStudentDetailPage() {
 
               {/* 대화로 만든 자기소개서 */}
               <section className="ops-detail-section">
-                <h3>{t("대화로 만든 자기소개서", "Cover letter built through chat", "通过对话生成的自我介绍", "Thư xin việc được tạo qua trò chuyện", "対話で作った自己PR", "Cover letter yang dibuat lewat obrolan")}</h3>
+                <div className="ops-partner-list-top">
+                  <h3>{t("대화로 만든 자기소개서", "Cover letter built through chat", "通过对话生成的自我介绍", "Thư xin việc được tạo qua trò chuyện", "対話で作った自己PR", "Cover letter yang dibuat lewat obrolan")}</h3>
+                  {hasCoverContent(detail.cover) ? (
+                    <a href={`/career-launch/ops-print/${id}?doc=cover`} target="_blank" rel="noopener noreferrer" className="ops-detail-button">
+                      {t("PDF 보기", "View PDF", "查看 PDF", "Xem PDF", "PDFを見る", "Lihat PDF")}
+                    </a>
+                  ) : null}
+                </div>
                 {hasCoverContent(detail.cover) ? (
                   <CoverRender data={detail.cover} />
                 ) : (
@@ -276,6 +309,51 @@ export default function LaunchOpsStudentDetailPage() {
                 {interviewPracticed.length === 0 ? (
                   <p className="ops-detail-empty mt-3">{t("아직 모의면접을 연습하지 않았어요.", "No mock interview practiced yet.", "尚未练习模拟面试。", "Chưa luyện phỏng vấn thử.", "まだ模擬面接を練習していません。", "Belum berlatih wawancara simulasi.")}</p>
                 ) : null}
+
+                {/* 유형별 AI 총평 — 면접을 마치면 저장된다(채팅 원문은 보관하지 않음). */}
+                {interviewResults && Object.keys(interviewResults).length > 0 ? (
+                  <div className="mt-4 space-y-3">
+                    {(["self", "job", "fit"] as const)
+                      .filter((tp) => interviewResults[tp])
+                      .map((tp) => (
+                        <div key={tp} className="rounded-lg border border-[#e5e7eb] p-3">
+                          <p className="text-[12.5px] font-bold text-[#111827]">
+                            {INTERVIEW_LABEL[tp]} · {t("AI 총평", "AI summary", "AI 总评", "Tổng kết AI", "AI総評", "Ringkasan AI")}
+                          </p>
+                          <div className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#374151]">
+                            <RichText text={interviewResults[tp]} />
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : null}
+              </section>
+
+              {/* 운영자 메모 — 학생에게는 보이지 않는 내부 기록 */}
+              <section className="ops-detail-section">
+                <h3>{t("운영자 메모", "Operator memo", "运营者备注", "Ghi chú của quản trị", "運営者メモ", "Memo operator")}</h3>
+                <p className="ops-detail-empty mb-2">
+                  {t("학생에게는 보이지 않아요. 상담 내용이나 특이사항을 남겨두세요.", "Not visible to the student. Keep notes on calls or anything notable.", "学生看不到。可记录咨询内容或特殊事项。", "Sinh viên không thấy được. Ghi lại nội dung tư vấn hoặc điểm đáng chú ý.", "学生には表示されません。相談内容や特記事項を残してください。", "Tidak terlihat oleh siswa. Catat hasil konsultasi atau hal penting.")}
+                </p>
+                <textarea
+                  value={memo}
+                  onChange={(e) => {
+                    setMemo(e.target.value);
+                    setMemoSaved(false);
+                  }}
+                  rows={4}
+                  maxLength={4000}
+                  className="w-full rounded-lg border border-[#e5e7eb] p-3 text-[13px] leading-relaxed"
+                  placeholder={t("예) 3주차 이후 연락 두절, 담당 교수와 확인 필요", "e.g. Unreachable after week 3, need to check with the professor", "例）第3周后失联，需与教授确认", "VD) Mất liên lạc sau tuần 3, cần kiểm tra với giáo sư", "例）3週目以降 連絡が取れない、担当教授に確認が必要", "Contoh) Tidak bisa dihubungi setelah minggu 3, perlu cek ke dosen")}
+                />
+                <div className="ops-detail-actions mt-2">
+                  {memoSaved ? (
+                    <span className="ops-status-badge ops-status-approved">{t("저장됨", "Saved", "已保存", "Đã lưu", "保存済み", "Tersimpan")}</span>
+                  ) : null}
+                  <button type="button" className="ops-btn ops-btn-primary" disabled={memoSaving} onClick={() => void submitMemo()}>
+                    {memoSaving ? t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…") : t("메모 저장", "Save memo", "保存备注", "Lưu ghi chú", "メモを保存", "Simpan memo")}
+                  </button>
+                </div>
               </section>
 
               {/* 최종 피드백 */}

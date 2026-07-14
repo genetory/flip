@@ -86,10 +86,12 @@ export type OpsStudentDetail = {
   user: { id: string; name: string | null; realName: string | null; email: string; phoneNumber: string | null };
   cohort: OpsStudentCohort | null;
   state: CareerProgress;
+  opsMemo: string; // 운영자 내부 메모(학생 비공개)
   resume: ResumeData;
   resumeUpdatedAt: string | null;
   cover: CoverData;
   coverUpdatedAt: string | null;
+  updatedAt: string | null;
 };
 
 export type OpsResetTarget = "diagnosis" | "jobs" | "materials" | "interview" | "final_feedback" | "resume" | "cover";
@@ -105,11 +107,18 @@ export async function fetchOpsStudentDetail(id: string): Promise<OpsStudentDetai
     user: d.user as OpsStudentDetail["user"],
     cohort: (d.cohort as OpsStudentCohort | null) ?? null,
     state: (d.state as CareerProgress) ?? {},
+    opsMemo: (d.opsMemo as string) ?? "",
     resume: (d.resume as ResumeData) ?? {},
     resumeUpdatedAt: (d.resumeUpdatedAt as string) ?? null,
     cover: (d.cover as CoverData) ?? {},
-    coverUpdatedAt: (d.coverUpdatedAt as string) ?? null
+    coverUpdatedAt: (d.coverUpdatedAt as string) ?? null,
+    updatedAt: (d.updatedAt as string) ?? null
   };
+}
+
+// 운영자 내부 메모 저장.
+export async function saveStudentMemo(id: string, memo: string): Promise<void> {
+  await req(`/career-launch/ops/students/${encodeURIComponent(id)}/memo`, { method: "PUT", headers: authHeaders(true), body: JSON.stringify({ memo }) });
 }
 
 // 운영자 개입 — 학생의 특정 단계 데이터 초기화.

@@ -15420,11 +15420,33 @@ app.get("/career-launch/ops/students/:id", authenticate, requireRoles([MemberRol
       user,
       cohort: enrollment?.cohort ?? null,
       state: progress?.state ?? {},
+      opsMemo: progress?.opsMemo ?? "",
       resume: resume?.content ?? {},
       resumeUpdatedAt: resume?.updatedAt ?? null,
       cover: cover?.content ?? {},
-      coverUpdatedAt: cover?.updatedAt ?? null
+      coverUpdatedAt: cover?.updatedAt ?? null,
+      updatedAt: progress?.updatedAt ?? null
     });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자 내부 메모 저장 — 학생에게는 노출되지 않는다.
+const opsMemoSchema = z.object({ memo: z.string().max(4000) });
+app.put("/career-launch/ops/students/:id/memo", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id : "";
+  if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
+  const parsed = opsMemoSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    // 진행 레코드가 아직 없는 학생(등록만 한 상태)도 메모를 남길 수 있게 upsert.
+    await prisma.careerLaunchProgress.upsert({
+      where: { studentUserId: id },
+      update: { opsMemo: parsed.data.memo },
+      create: { studentUserId: id, state: {}, opsMemo: parsed.data.memo }
+    });
+    return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
