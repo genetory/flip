@@ -166,3 +166,47 @@ export async function nudgeStudents(
 export async function resetStudentStep(id: string, target: OpsResetTarget): Promise<void> {
   await req(`/career-launch/ops/students/${encodeURIComponent(id)}/reset`, { method: "POST", headers: authHeaders(true), body: JSON.stringify({ target }) });
 }
+
+// ── 기수별 성과 리포트(학교 제출용) ──
+export type CohortReportStudent = {
+  userId: string;
+  name: string | null;
+  email: string;
+  enrolledAt: string;
+  diagnosisBefore: number | null;
+  diagnosisAfter: number | null;
+  gain: number | null;
+  selectedJobs: number;
+  hasResume: boolean;
+  coverItems: number;
+  interviewPracticed: number;
+  completed: boolean;
+};
+export type CohortReport = {
+  cohort: { id: string; university: string; name: string; startsAt: string | null; endsAt: string | null; status: string };
+  summary: {
+    enrolled: number;
+    diagnosed: number;
+    jobsSelected: number;
+    resumes: number;
+    coverLetters: number;
+    interviewAny: number;
+    interviewAll: number;
+    completed: number;
+    measured: number;
+    avgBefore: number;
+    avgAfter: number;
+    avgGain: number;
+    improved: number;
+  };
+  students: CohortReportStudent[];
+};
+
+export async function fetchCohortReport(cohortId: string): Promise<CohortReport> {
+  const d = await req(`/career-launch/ops/report/cohort/${encodeURIComponent(cohortId)}`, { headers: authHeaders() });
+  return {
+    cohort: d.cohort as CohortReport["cohort"],
+    summary: d.summary as CohortReport["summary"],
+    students: (d.students as CohortReportStudent[]) ?? []
+  };
+}

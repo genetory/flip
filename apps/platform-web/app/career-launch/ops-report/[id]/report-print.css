@@ -1,0 +1,240 @@
+/* 기수별 성과 리포트 — 학교 제출용 A4 인쇄 스타일.
+ * 화면에서는 A4 시트를 흉내 내고, 인쇄 시에는 툴바를 감추고 여백을 프린터에 맡긴다. */
+
+.rp {
+  background: #f3f4f6;
+  min-height: 100vh;
+  padding: 24px 16px 64px;
+}
+
+.rp-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.rp-toolbar {
+  max-width: 794px;
+  margin: 0 auto 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+.rp-toolbar button {
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 10px;
+  background: #0b46e8;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* A4 시트 */
+.rp-sheet {
+  max-width: 794px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 56px 56px 40px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* 표지 */
+.rp-head {
+  border-bottom: 3px solid #0b46e8;
+  padding-bottom: 20px;
+}
+.rp-brand {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #0b46e8;
+  text-transform: uppercase;
+}
+.rp-head h1 {
+  margin: 8px 0 4px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.rp-sub {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #4b5563;
+}
+.rp-meta {
+  display: flex;
+  gap: 28px;
+  margin: 18px 0 0;
+}
+.rp-meta dt {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 600;
+}
+.rp-meta dd {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+/* 섹션 */
+.rp-sec {
+  margin-top: 32px;
+}
+.rp-sec h2 {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* 핵심 지표 */
+.rp-kpis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.rp-kpi {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rp-kpi--hero {
+  grid-column: 1 / -1;
+  background: #f8faff;
+  border-color: #c7d7ff;
+}
+.rp-kpi-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #6b7280;
+}
+.rp-kpi-value {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0b46e8;
+}
+.rp-kpi-value--muted {
+  color: #9ca3af;
+}
+.rp-kpi-value em {
+  font-style: normal;
+  font-size: 15px;
+  color: #6b7280;
+}
+.rp-kpi-gain {
+  font-size: 15px;
+  font-weight: 800;
+  color: #047857;
+}
+.rp-kpi-note {
+  font-size: 11.5px;
+  color: #9ca3af;
+}
+
+/* 표 */
+.rp-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.rp-table th,
+.rp-table td {
+  text-align: left;
+  padding: 9px 10px;
+  border-bottom: 1px solid #f1f3f7;
+  font-size: 12.5px;
+}
+.rp-table thead th {
+  border-bottom: 1.5px solid #e5e7eb;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #6b7280;
+}
+.rp-num {
+  text-align: right;
+  white-space: nowrap;
+}
+.rp-up {
+  color: #047857;
+  font-weight: 700;
+}
+
+/* 달성률 막대 */
+.rp-bar {
+  display: block;
+  height: 7px;
+  border-radius: 999px;
+  background: #f1f3f7;
+  overflow: hidden;
+  min-width: 120px;
+}
+.rp-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #0b46e8;
+}
+
+.rp-empty {
+  color: #9ca3af;
+  font-size: 12.5px;
+}
+
+.rp-foot {
+  margin-top: 36px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+  color: #9ca3af;
+  font-size: 11px;
+}
+.rp-foot p {
+  margin: 0;
+}
+
+/* 인쇄 */
+@page {
+  size: A4;
+  margin: 16mm 14mm;
+}
+
+@media print {
+  .rp {
+    background: #fff;
+    padding: 0;
+  }
+  .rp-toolbar {
+    display: none; /* 인쇄물에 버튼이 찍히지 않게 */
+  }
+  .rp-sheet {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+  /* 표가 페이지 경계에서 잘리지 않게 */
+  .rp-sec,
+  .rp-table tr {
+    break-inside: avoid;
+  }
+  .rp-break {
+    break-before: page;
+  }
+  .rp-bar-fill,
+  .rp-kpi--hero {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

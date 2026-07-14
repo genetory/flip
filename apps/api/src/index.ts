@@ -14853,6 +14853,18 @@ app.patch("/career-launch/progress", authenticate, requireCareerEnrollment, asyn
     const existing = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: req.auth!.userId } });
     const prev = (existing?.state && typeof existing.state === "object" ? existing.state : {}) as Record<string, unknown>;
     const merged = { ...prev, ...parsed.data };
+
+    // 진단 이력 — 성과 리포트의 '사전 → 사후 향상도'는 여기서만 만들어진다.
+    // 클라이언트가 값을 지어내지 못하도록 서버가 직접 기록한다:
+    //   diagnosisInitial : 최초 1회만 기록(이후 덮어쓰지 않음)
+    //   diagnosisFinal   : 수료 재진단(body.finalDiagnosis === true)일 때만 기록
+    const incoming = (parsed.data as Record<string, unknown>).diagnosis;
+    if (incoming && typeof incoming === "object") {
+      const stamped = { ...(incoming as Record<string, unknown>), at: new Date().toISOString() };
+      if (!prev.diagnosisInitial) merged.diagnosisInitial = stamped;
+      if ((req.body as Record<string, unknown>).finalDiagnosis === true) merged.diagnosisFinal = stamped;
+    }
+    delete (merged as Record<string, unknown>).finalDiagnosis; // 플래그는 상태에 남기지 않는다
     await prisma.careerLaunchProgress.upsert({
       where: { studentUserId: req.auth!.userId },
       create: { studentUserId: req.auth!.userId, state: merged as object },
@@ -15514,6 +15526,96 @@ function escapeHtmlBasic(text: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+// ── 기수별 성과 리포트(학교 제출용) ──
+// 참여·완주뿐 아니라 '사전 → 사후 준비도 향상'까지 담는다.
+// 향상도는 학생이 4주차 '수료 진단'을 마쳐야 산출된다(diagnosisInitial/diagnosisFinal).
+app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const cohortId = typeof req.params.id === "string" ? req.params.id : "";
+  if (!cohortId) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    const cohort = await prisma.careerCohort.findUnique({ where: { id: cohortId } });
+    if (!cohort) return res.status(404).json({ ok: false, message: "cohort not found" });
+
+    const enrollments = await prisma.careerEnrollment.findMany({
+      where: { cohortId },
+      include: { student: { select: { id: true, name: true, realName: true, email: true } } },
+      orderBy: { createdAt: "asc" }
+    });
+    const ids = enrollments.map((e) => e.studentUserId);
+
+    const [progressRows, resumeRows, coverRows] = await Promise.all([
+      prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: ids } } }),
+      prisma.careerResumeData.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, content: true } }),
+      prisma.careerCoverLetterData.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, content: true } })
+    ]);
+    const progByUser = new Map(progressRows.map((p) => [p.studentUserId, p] as const));
+    const resumeByUser = new Map(resumeRows.map((r) => [r.studentUserId, r] as const));
+    const coverByUser = new Map(coverRows.map((c) => [c.studentUserId, c] as const));
+
+    const pctOf = (v: unknown) => {
+      const p = (v as { percent?: unknown } | null)?.percent;
+      return typeof p === "number" ? p : null;
+    };
+
+    const students = enrollments.map((e) => {
+      const st = (progByUser.get(e.studentUserId)?.state ?? {}) as Record<string, unknown>;
+      const interview = (st.interview && typeof st.interview === "object" ? st.interview : {}) as { practiced?: unknown };
+      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]) : [];
+      const rc = (resumeByUser.get(e.studentUserId)?.content ?? {}) as Record<string, unknown>;
+      const cc = (coverByUser.get(e.studentUserId)?.content ?? {}) as Record<string, unknown>;
+      const hasResume =
+        (Array.isArray(rc.educations) && rc.educations.length > 0) ||
+        (Array.isArray(rc.experiences) && rc.experiences.length > 0) ||
+        (Array.isArray(rc.skills) && rc.skills.length > 0) ||
+        Boolean((rc.basic as { name?: string } | undefined)?.name);
+      const coverItems = Array.isArray(cc.items) ? (cc.items as { answer?: string }[]).filter((x) => (x.answer ?? "").trim()).length : 0;
+
+      const before = pctOf(st.diagnosisInitial) ?? pctOf(st.diagnosis);
+      const after = pctOf(st.diagnosisFinal);
+
+      return {
+        userId: e.studentUserId,
+        name: e.student?.name ?? e.student?.realName ?? null,
+        email: e.student?.email ?? "",
+        enrolledAt: e.createdAt,
+        diagnosisBefore: before,
+        diagnosisAfter: after,
+        gain: before !== null && after !== null ? after - before : null,
+        selectedJobs: Array.isArray(st.selectedJobs) ? (st.selectedJobs as unknown[]).length : 0,
+        hasResume,
+        coverItems,
+        interviewPracticed: practiced.length,
+        completed: practiced.length >= 3 && hasResume && coverItems > 0
+      };
+    });
+
+    const n = students.length;
+    const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
+    const withGain = students.filter((s) => s.gain !== null);
+
+    const summary = {
+      enrolled: n,
+      diagnosed: students.filter((s) => s.diagnosisBefore !== null).length,
+      jobsSelected: students.filter((s) => s.selectedJobs > 0).length,
+      resumes: students.filter((s) => s.hasResume).length,
+      coverLetters: students.filter((s) => s.coverItems > 0).length,
+      interviewAny: students.filter((s) => s.interviewPracticed > 0).length,
+      interviewAll: students.filter((s) => s.interviewPracticed >= 3).length,
+      completed: students.filter((s) => s.completed).length,
+      // 향상도 — 사전·사후 진단을 모두 마친 학생만 대상(측정 가능 인원도 함께 알린다)
+      measured: withGain.length,
+      avgBefore: avg(withGain.map((s) => s.diagnosisBefore as number)),
+      avgAfter: avg(withGain.map((s) => s.diagnosisAfter as number)),
+      avgGain: avg(withGain.map((s) => s.gain as number)),
+      improved: withGain.filter((s) => (s.gain as number) > 0).length
+    };
+
+    return res.json({ ok: true, cohort, summary, students });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
 
 // ── 프로그램 콘텐츠 오버라이드 ──
 // 주차/스텝의 표시 문구를 코드 수정 없이 운영자가 6개 언어로 덮어쓴다.

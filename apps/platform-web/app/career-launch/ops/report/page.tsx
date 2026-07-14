@@ -313,6 +313,7 @@ export default function LaunchOpsReportPage() {
                             <th>{t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</th>
                             <th>{t("자소서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter")}</th>
                             <th>{t("완주", "Completed", "已完成", "Hoàn thành", "完走", "Selesai")}</th>
+                            <th>{t("성과 리포트", "Outcome report", "成果报告", "Báo cáo kết quả", "成果レポート", "Laporan hasil")}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -343,6 +344,15 @@ export default function LaunchOpsReportPage() {
                                 <span className={`ops-status-badge ${r.completed > 0 ? "ops-status-approved" : "ops-status-draft"}`}>
                                   {r.completed}/{r.total}
                                 </span>
+                              </td>
+                              <td onClick={(e) => e.stopPropagation()}>
+                                {r.id !== "none" ? (
+                                  <a href={`/career-launch/ops-report/${r.id}`} target="_blank" rel="noopener noreferrer" className="ops-detail-button">
+                                    {t("학교 제출용", "For the school", "供学校提交", "Nộp cho trường", "学校提出用", "Untuk sekolah")}
+                                  </a>
+                                ) : (
+                                  <span style={{ color: "#c9cdd2" }}>-</span>
+                                )}
                               </td>
                             </tr>
                           ))}
