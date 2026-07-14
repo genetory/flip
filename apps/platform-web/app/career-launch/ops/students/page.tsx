@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { fetchOpsStudents, studentProgress, type OpsStudent } from "../../../../lib/launch/ops-client";
-import { Card, LaunchContainer, Pill, SectionTitle } from "../../../../components/launch/ui";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 
 // 운영자 학생 관리 — 기수별로 필터해 진행 상태를 보고, 클릭 시 상세로 이동.
 export default function LaunchOpsStudentsPage() {
   const t = useLaunchT();
+  const router = useRouter();
   const [students, setStudents] = useState<OpsStudent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -54,137 +55,205 @@ export default function LaunchOpsStudentsPage() {
   const withCover = filtered.filter((s) => s.coverItems > 0).length;
   const diagDone = filtered.filter((s) => s.diagnosisPercent !== null).length;
 
+  const summary = [
+    { id: "students", k: t("학생", "Students", "学生", "Sinh viên", "学生", "Siswa"), v: filtered.length },
+    { id: "diagnosis", k: t("진단", "Diagnosis", "诊断", "Chẩn đoán", "診断", "Diagnosis"), v: diagDone },
+    { id: "resume", k: t("이력서", "Resume", "简历", "CV", "履歴書", "Resume"), v: withResume },
+    { id: "cover", k: t("자소서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter"), v: withCover }
+  ];
+
+  const detailLabel = t("상세정보", "Details", "详情", "Chi tiết", "詳細", "Detail");
+
   return (
-    <main className="pb-16">
-      <LaunchContainer className="!max-w-6xl pt-6 md:pt-10">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-[20px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">{t("학생 관리", "Student management", "学生管理", "Quản lý sinh viên", "学生管理", "Manajemen siswa")}</h1>
-            <p className="mt-1 text-[13.5px] text-[#8B95A1]">{t("기수별로 학생의 진행 상태를 보고 상세에서 피드백을 남겨요.", "View student progress by cohort and leave feedback on the detail page.", "按期数查看学生进度，并在详情页留下反馈。", "Xem tiến độ sinh viên theo khóa và để lại phản hồi ở trang chi tiết.", "コホート別に学生の進捗を確認し、詳細ページでフィードバックを残します。", "Lihat progres siswa per batch dan beri umpan balik di halaman detail.")}</p>
-          </div>
-          <Link
-            href="/career-launch/dashboard"
-            className="inline-flex flex-none items-center gap-1.5 rounded-xl border border-[#0B46E8]/25 bg-white px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
-          >
-            {t("학생 화면 체험하기 →", "Try the student view →", "体验学生界面 →", "Trải nghiệm giao diện sinh viên →", "学生画面を体験する →", "Coba tampilan siswa →")}
-          </Link>
-        </div>
+    <main className="pb-16 pt-6 md:pt-10">
+      <section className="ops-content-section">
+        <header>
+          <h1>{t("학생 관리", "Student management", "学生管理", "Quản lý sinh viên", "学生管理", "Manajemen siswa")}</h1>
+          <p>{t("기수별로 학생의 진행 상태를 보고 상세에서 피드백을 남겨요.", "View student progress by cohort and leave feedback on the detail page.", "按期数查看学生进度，并在详情页留下反馈。", "Xem tiến độ sinh viên theo khóa và để lại phản hồi ở trang chi tiết.", "コホート別に学生の進捗を確認し、詳細ページでフィードバックを残します。", "Lihat progres siswa per batch dan beri umpan balik di halaman detail.")}</p>
+        </header>
 
-        {/* 기수 필터 */}
-        {!loading && (cohorts.length > 0 || hasUnassigned) ? (
-          <div className="mb-5 flex flex-wrap gap-1.5">
-            <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>{t("전체", "All", "全部", "Tất cả", "全体", "Semua")} {students.length}</FilterChip>
-            {cohorts.map((c) => (
-              <FilterChip key={c.id} active={filter === c.id} onClick={() => setFilter(c.id)}>
-                {c.university} · {c.name} {students.filter((s) => s.cohort?.id === c.id).length}
-              </FilterChip>
-            ))}
-            {hasUnassigned ? (
-              <FilterChip active={filter === "none"} onClick={() => setFilter("none")}>{t("미등록", "Unassigned", "未分配", "Chưa xếp khóa", "未登録", "Belum ditetapkan")} {students.filter((s) => !s.cohort).length}</FilterChip>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div className="grid grid-cols-4 gap-2.5 sm:max-w-lg">
-          {[
-            { id: "students", k: t("학생", "Students", "学生", "Sinh viên", "学生", "Siswa"), v: filtered.length },
-            { id: "diagnosis", k: t("진단", "Diagnosis", "诊断", "Chẩn đoán", "診断", "Diagnosis"), v: diagDone },
-            { id: "resume", k: t("이력서", "Resume", "简历", "CV", "履歴書", "Resume"), v: withResume },
-            { id: "cover", k: t("자소서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter"), v: withCover }
-          ].map((s) => (
-            <Card key={s.id} className="!p-4 text-center">
-              <p className="text-[22px] font-black text-[#0B46E8]">{s.v}</p>
-              <p className="mt-0.5 text-[11.5px] text-[#8B95A1]">{s.k}</p>
-            </Card>
+        <div className="ops-card-grid">
+          {summary.map((s) => (
+            <article key={s.id} className="ops-card">
+              <h3 className="ops-section-title">{s.k}</h3>
+              <p className="text-[24px] font-black text-[#0B46E8]">{s.v}</p>
+            </article>
           ))}
         </div>
 
-        <div className="mt-7">
-          <div className="mb-2.5 flex items-center justify-between gap-3">
-            <SectionTitle sub={t("카드를 누르면 상세로 이동해요", "Tap a card to open the detail page", "点击卡片打开详情页", "Nhấn vào thẻ để mở trang chi tiết", "カードをタップすると詳細に移動します", "Ketuk kartu untuk membuka halaman detail")}>{t("학생 목록", "Student list", "学生列表", "Danh sách sinh viên", "学生一覧", "Daftar siswa")}</SectionTitle>
+        <article className="ops-partner-list-card">
+          <div className="ops-partner-list-top">
+            <h2>{t("학생 목록", "Student list", "学生列表", "Danh sách sinh viên", "学生一覧", "Daftar siswa")}</h2>
             <button
               type="button"
+              className="ops-detail-button"
               onClick={() => setSort((s) => (s === "recent" ? "progress" : "recent"))}
-              className={`flex-none rounded-full px-3 py-1.5 text-[12.5px] font-bold transition ${sort === "progress" ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E9ECF0]"}`}
             >
               {sort === "progress" ? t("진행률 낮은 순", "Least progress first", "进度最低优先", "Tiến độ thấp trước", "進捗が低い順", "Progres terendah dahulu") : t("최근 활동순", "Recent activity", "最近活动", "Hoạt động gần đây", "最近の活動順", "Aktivitas terbaru")}
             </button>
           </div>
-          {loading ? (
-            <Card className="!p-6 text-center text-[14px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</Card>
-          ) : error ? (
-            <Card className="!p-6 text-center text-[14px] text-red-600">{error}</Card>
-          ) : filtered.length === 0 ? (
-            <Card className="!p-6 text-center text-[14px] text-[#8B95A1]">{t("해당 기수에 학생이 없어요.", "No students in this cohort.", "此期数没有学生。", "Không có sinh viên trong khóa này.", "このコホートに学生がいません。", "Tidak ada siswa di batch ini.")}</Card>
-          ) : (
-            <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((st) => {
-                const prog = studentProgress(st);
-                const done = prog.done === prog.total;
-                return (
-                <Link key={st.userId} href={`/career-launch/ops/students/${st.userId}`} className="block">
-                  <Card className="h-full !p-4 transition hover:border-[#0B46E8]/40">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2.5">
-                        <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[13px] font-black text-[#0B46E8]">
-                          {(st.name ?? st.email).charAt(0).toUpperCase()}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate text-[14px] font-bold text-[#191F28]">{st.name ?? t("이름 미설정", "No name set", "未设置姓名", "Chưa đặt tên", "名前未設定", "Nama belum diatur")}</p>
-                          <p className="truncate text-[12px] text-[#8B95A1]">{st.email}</p>
-                        </div>
-                      </div>
-                      <Pill tone={done ? "green" : "grey"}>{done ? t("완주", "Complete", "已完成", "Hoàn thành", "完走", "Selesai") : `${prog.percent}%`}</Pill>
-                    </div>
-                    {st.cohort ? (
-                      <p className="mt-2 truncate text-[11.5px] font-semibold text-[#0B46E8]">🎓 {st.cohort.university} · {st.cohort.name}</p>
-                    ) : (
-                      <p className="mt-2 text-[11.5px] font-semibold text-[#C9CDD2]">{t("기수 미등록", "Not assigned to a cohort", "未分配期数", "Chưa xếp khóa", "コホート未登録", "Belum ditetapkan ke batch")}</p>
-                    )}
-                    {/* 진행률 바 — 7개 체크포인트 중 완료 수 */}
-                    <div className="mt-2.5">
-                      <div className="flex items-center justify-between text-[11px] text-[#8B95A1]">
-                        <span>{t("진행률", "Progress", "进度", "Tiến độ", "進捗", "Progres")}</span>
-                        <span className="font-bold text-[#4E5968]">{prog.done}/{prog.total}</span>
-                      </div>
-                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#EEF1F5]">
-                        <div className={`h-full rounded-full ${done ? "bg-[#3A6B00]" : "bg-[#0B46E8]"}`} style={{ width: `${prog.percent}%` }} />
-                      </div>
-                    </div>
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
-                      <Sig on={st.diagnosisPercent !== null}>{t("진단", "Diagnosis", "诊断", "Chẩn đoán", "診断", "Diagnosis")}</Sig>
-                      <Sig on={st.selectedJobs > 0}>{t("직무", "Jobs", "职务", "Vị trí", "職務", "Posisi")} {st.selectedJobs}</Sig>
-                      <Sig on={st.hasResume}>{t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</Sig>
-                      <Sig on={st.coverItems > 0}>{t("자소서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter")} {st.coverItems}</Sig>
-                      <Sig on={st.interviewPracticed > 0}>{t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara")} {st.interviewPracticed}/3</Sig>
-                    </div>
-                  </Card>
-                </Link>
-                );
-              })}
+
+          {/* 기수 필터 */}
+          {!loading && (cohorts.length > 0 || hasUnassigned) ? (
+            <div className="ops-filter-chip-row">
+              <button
+                type="button"
+                className={`ops-filter-chip ${filter === "all" ? "is-active" : ""}`}
+                onClick={() => setFilter("all")}
+              >
+                {t("전체", "All", "全部", "Tất cả", "全体", "Semua")}
+                <span className="ops-filter-chip-count">{students.length}</span>
+              </button>
+              {cohorts.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`ops-filter-chip ${filter === c.id ? "is-active" : ""}`}
+                  onClick={() => setFilter(c.id)}
+                >
+                  {c.university} · {c.name}
+                  <span className="ops-filter-chip-count">{students.filter((s) => s.cohort?.id === c.id).length}</span>
+                </button>
+              ))}
+              {hasUnassigned ? (
+                <button
+                  type="button"
+                  className={`ops-filter-chip ${filter === "none" ? "is-active" : ""}`}
+                  onClick={() => setFilter("none")}
+                >
+                  {t("미등록", "Unassigned", "未分配", "Chưa xếp khóa", "未登録", "Belum ditetapkan")}
+                  <span className="ops-filter-chip-count">{students.filter((s) => !s.cohort).length}</span>
+                </button>
+              ) : null}
             </div>
-          )}
-        </div>
-      </LaunchContainer>
+          ) : null}
+
+          {error ? <p className="ops-form-error">{error}</p> : null}
+
+          <div className="ops-partner-table-wrap">
+            <table className="ops-partner-table">
+              <thead>
+                <tr>
+                  <th>{t("학생", "Student", "学生", "Sinh viên", "学生", "Siswa")}</th>
+                  <th>{t("기수", "Cohort", "期数", "Khóa", "コホート", "Batch")}</th>
+                  <th>{t("진행률", "Progress", "进度", "Tiến độ", "進捗", "Progres")}</th>
+                  <th>{t("진단", "Diagnosis", "诊断", "Chẩn đoán", "診断", "Diagnosis")}</th>
+                  <th>{t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</th>
+                  <th>{t("자소서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter")}</th>
+                  <th>{t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara")}</th>
+                  <th>{detailLabel}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="ops-table-empty">
+                      {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={8} className="ops-table-empty">{error}</td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="ops-table-empty">
+                      {t("해당 기수에 학생이 없어요.", "No students in this cohort.", "此期数没有学生。", "Không có sinh viên trong khóa này.", "このコホートに学生がいません。", "Tidak ada siswa di batch ini.")}
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((st) => {
+                    const prog = studentProgress(st);
+                    const done = prog.done === prog.total;
+                    return (
+                      <tr
+                        key={st.userId}
+                        className="ops-clickable-row"
+                        onClick={() => router.push(`/career-launch/ops/students/${st.userId}`)}
+                      >
+                        <td>
+                          <span className="block font-bold text-[#191F28]">
+                            {st.name ?? t("이름 미설정", "No name set", "未设置姓名", "Chưa đặt tên", "名前未設定", "Nama belum diatur")}
+                          </span>
+                          <span className="block text-[12px] text-[#8B95A1]">{st.email}</span>
+                        </td>
+                        <td>
+                          {st.cohort ? (
+                            `${st.cohort.university} · ${st.cohort.name}`
+                          ) : (
+                            <span className="ops-status-badge ops-status-draft">
+                              {t("기수 미등록", "Not assigned to a cohort", "未分配期数", "Chưa xếp khóa", "コホート未登録", "Belum ditetapkan ke batch")}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 120 }}>
+                            <span
+                              style={{
+                                position: "relative",
+                                display: "block",
+                                flex: 1,
+                                height: 6,
+                                borderRadius: 999,
+                                background: "#EEF1F5",
+                                overflow: "hidden"
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "block",
+                                  height: "100%",
+                                  width: `${prog.percent}%`,
+                                  borderRadius: 999,
+                                  background: done ? "#3A6B00" : "#0B46E8"
+                                }}
+                              />
+                            </span>
+                            <span style={{ flex: "none", fontWeight: 700, color: "#4E5968" }}>
+                              {prog.done}/{prog.total}
+                            </span>
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`ops-status-badge ${st.diagnosisPercent !== null ? "ops-status-approved" : "ops-status-draft"}`}>
+                            {st.diagnosisPercent !== null
+                              ? t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")
+                              : t("미완료", "Not done", "未完成", "Chưa xong", "未完了", "Belum")}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`ops-status-badge ${st.hasResume ? "ops-status-approved" : "ops-status-draft"}`}>
+                            {st.hasResume
+                              ? t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")
+                              : t("미완료", "Not done", "未完成", "Chưa xong", "未完了", "Belum")}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`ops-status-badge ${st.coverItems > 0 ? "ops-status-approved" : "ops-status-draft"}`}>
+                            {st.coverItems > 0
+                              ? `${t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")} ${st.coverItems}`
+                              : t("미완료", "Not done", "未完成", "Chưa xong", "未完了", "Belum")}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`ops-status-badge ${st.interviewPracticed > 0 ? "ops-status-approved" : "ops-status-draft"}`}>
+                            {st.interviewPracticed}/3
+                          </span>
+                        </td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <Link className="ops-detail-button" href={`/career-launch/ops/students/${st.userId}`}>
+                            {detailLabel}
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
     </main>
-  );
-}
-
-function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold transition ${active ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E9ECF0]"}`}
-    >
-      {children}
-    </button>
-  );
-}
-
-// 진행 신호 배지 — 완료면 초록, 아니면 회색.
-function Sig({ on, children }: { on: boolean; children: React.ReactNode }) {
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${on ? "bg-[#EAFFD1] text-[#3A6B00]" : "bg-[#F2F4F6] text-[#B0B8C1]"}`}>{children}</span>
   );
 }

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { fetchCohort, enrollStudent, unenrollStudent, deleteCohort, type OpsCohortDetail } from "../../../../../lib/launch/enrollment-client";
-import { Card, LaunchContainer, Pill, SectionTitle } from "../../../../../components/launch/ui";
 import { useLaunchT } from "../../../../../lib/launch/i18n";
 
 // 운영자 기수 상세 — 초대코드 확인 + 학생 등록(이메일)/해제.
@@ -69,69 +68,138 @@ export default function LaunchOpsCohortDetailPage() {
     }
   };
 
+  const fmt = (iso: string | null) => (iso ? new Date(iso).toISOString().slice(0, 10) : "—");
+
   return (
-    <main className="pb-16">
-      <LaunchContainer className="!max-w-6xl pt-6 md:pt-10">
-        <Link href="/career-launch/ops/cohorts" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">{t("← 기수 관리", "← Cohort management", "← 期数管理", "← Quản lý khóa", "← コホート管理", "← Manajemen batch")}</Link>
+    <main className="pb-16 pt-6 md:pt-10">
+      <section className="ops-content-section">
+        <header>
+          <Link href="/career-launch/ops/cohorts" className="ops-card-subtle">
+            {t("← 기수 관리", "← Cohort management", "← 期数管理", "← Quản lý khóa", "← コホート管理", "← Manajemen batch")}
+          </Link>
+          <h1>
+            {cohort ? `${cohort.university} · ${cohort.name}` : t("기수 상세", "Cohort details", "期数详情", "Chi tiết khóa", "コホート詳細", "Detail batch")}
+          </h1>
+          <p>{t("초대코드로 학생이 자가등록할 수 있고, 이메일로 직접 등록할 수도 있어요.", "Students can self-enroll with the invite code, or you can enroll them directly by email.", "学生可用邀请码自行注册，也可以用邮箱直接注册。", "Sinh viên có thể tự đăng ký bằng mã mời, hoặc bạn có thể đăng ký trực tiếp bằng email.", "学生は招待コードで自己登録でき、メールで直接登録することもできます。", "Siswa dapat mendaftar sendiri dengan kode undangan, atau Anda dapat mendaftarkan langsung lewat email.")}</p>
+        </header>
 
         {loading ? (
-          <Card className="mt-4 !p-6 text-center text-[13px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</Card>
+          <div className="ops-empty-card">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</div>
         ) : !cohort ? (
-          <Card className="mt-4 !p-6 text-center text-[14px] text-[#8B95A1]">{error || t("기수를 찾을 수 없어요.", "Cohort not found.", "找不到期数。", "Không tìm thấy khóa.", "コホートが見つかりません。", "Batch tidak ditemukan.")}</Card>
+          <div className="ops-empty-card">{error || t("기수를 찾을 수 없어요.", "Cohort not found.", "找不到期数。", "Không tìm thấy khóa.", "コホートが見つかりません。", "Batch tidak ditemukan.")}</div>
         ) : (
           <>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-[20px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">{cohort.university} · {cohort.name}</h1>
-                {cohort.status === "active" ? <Pill tone="green">{t("진행 중", "Active", "进行中", "Đang diễn ra", "進行中", "Aktif")}</Pill> : <Pill tone="grey">{t("종료", "Ended", "已结束", "Đã kết thúc", "終了", "Selesai")}</Pill>}
-              </div>
-              <button type="button" onClick={removeCohort} className="text-[12.5px] font-semibold text-[#E5484D] transition hover:underline">{t("기수 삭제", "Delete cohort", "删除期数", "Xóa khóa", "コホートを削除", "Hapus batch")}</button>
-            </div>
-            <p className="mt-1.5 text-[13.5px] text-[#4E5968]">
-              {t("초대코드", "Invite code", "邀请码", "Mã mời", "招待コード", "Kode undangan")} <span className="font-black tracking-[0.1em] text-[#0B46E8]">{cohort.inviteCode}</span>
-              <span className="ml-2 text-[12.5px] text-[#8B95A1]">{t("— 학생이 이 코드로 자가등록할 수 있어요", "— Students can self-enroll with this code", "— 学生可用此码自行注册", "— Sinh viên có thể tự đăng ký bằng mã này", "— 学生はこのコードで自己登録できます", "— Siswa dapat mendaftar sendiri dengan kode ini")}</span>
-            </p>
-
-            <div className="mt-7 grid gap-7 lg:grid-cols-[1fr_1.4fr] lg:gap-8">
-              {/* 학생 등록 */}
-              <div>
-                <SectionTitle sub={t("가입된 회원의 이메일로 바로 등록해요", "Enroll instantly with a registered member's email", "使用已注册会员的邮箱直接注册", "Đăng ký ngay bằng email của thành viên đã đăng ký", "登録済み会員のメールアドレスですぐに登録します", "Daftarkan langsung dengan email anggota terdaftar")}>{t("학생 등록", "Enroll student", "注册学生", "Đăng ký sinh viên", "学生登録", "Daftarkan siswa")}</SectionTitle>
-                <Card className="md:!p-6">
-                  <form onSubmit={add} className="space-y-2">
-                    <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder={t("학생 이메일", "Student email", "学生邮箱", "Email sinh viên", "学生のメール", "Email siswa")} className="w-full rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[14px] focus:border-[#0B46E8] focus:outline-none" />
-                    {addErr ? <p className="text-[12.5px] text-[#E5484D]">{addErr}</p> : null}
-                    <button type="submit" disabled={!email.trim() || adding} className={`w-full rounded-xl py-2.5 text-[13.5px] font-bold transition ${email.trim() && !adding ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"}`}>
-                      {adding ? t("등록 중…", "Enrolling…", "注册中…", "Đang đăng ký…", "登録中…", "Mendaftar…") : t("등록하기", "Enroll", "注册", "Đăng ký", "登録する", "Daftarkan")}
-                    </button>
-                  </form>
-                </Card>
+            {/* 기수 정보 */}
+            <article className="ops-partner-list-card">
+              <div className="ops-partner-list-top">
+                <h2>{t("기수 정보", "Cohort info", "期数信息", "Thông tin khóa", "コホート情報", "Info batch")}</h2>
+                <button type="button" className="ops-btn ops-btn-danger" onClick={() => void removeCohort()}>
+                  {t("기수 삭제", "Delete cohort", "删除期数", "Xóa khóa", "コホートを削除", "Hapus batch")}
+                </button>
               </div>
 
-              {/* 등록 학생 목록 */}
-              <div>
-                <SectionTitle>{t("등록 학생", "Enrolled students", "已注册学生", "Sinh viên đã đăng ký", "登録済み学生", "Siswa terdaftar")} <span className="text-[#0B46E8]">{cohort.students.length}{t("명", "", "人", "", "名", "")}</span></SectionTitle>
-                {cohort.students.length === 0 ? (
-                  <Card className="!p-6 text-center text-[13px] text-[#8B95A1]">{t("아직 등록된 학생이 없어요.", "No students enrolled yet.", "还没有注册的学生。", "Chưa có sinh viên nào đăng ký.", "まだ登録された学生がいません。", "Belum ada siswa yang terdaftar.")}</Card>
-                ) : (
-                  <div className="space-y-2">
-                    {cohort.students.map((s) => (
-                      <Card key={s.studentUserId} className="flex items-center justify-between !p-3.5">
-                        <div className="min-w-0">
-                          <p className="truncate text-[14px] font-bold text-[#191F28]">{s.name ?? s.email}</p>
-                          <p className="truncate text-[12.5px] text-[#8B95A1]">{s.email}</p>
-                        </div>
-                        <button type="button" onClick={() => remove(s.studentUserId)} className="shrink-0 rounded-lg border border-[#D7DCE3] bg-white px-2.5 py-1.5 text-[12px] font-semibold text-[#8B95A1] transition hover:border-[#E5484D]/40 hover:text-[#E5484D]">
-                          {t("해제", "Remove", "解除", "Gỡ bỏ", "解除", "Lepaskan")}
-                        </button>
-                      </Card>
-                    ))}
+              {error ? <p className="ops-form-error">{error}</p> : null}
+
+              <div className="ops-detail-sections">
+                <div className="ops-detail-section">
+                  <div className="ops-detail-grid">
+                    <div>
+                      <span>{t("대학", "University", "大学", "Trường", "大学", "Universitas")}</span>
+                      <strong>{cohort.university}</strong>
+                    </div>
+                    <div>
+                      <span>{t("기수", "Cohort", "期数", "Khóa", "コホート", "Batch")}</span>
+                      <strong>{cohort.name}</strong>
+                    </div>
+                    <div>
+                      <span>{t("초대코드", "Invite code", "邀请码", "Mã mời", "招待コード", "Kode undangan")}</span>
+                      <strong>{cohort.inviteCode}</strong>
+                    </div>
+                    <div>
+                      <span>{t("기간", "Period", "期间", "Thời gian", "期間", "Periode")}</span>
+                      <strong>{fmt(cohort.startsAt)} — {fmt(cohort.endsAt)}</strong>
+                    </div>
+                    <div>
+                      <span>{t("상태", "Status", "状态", "Trạng thái", "ステータス", "Status")}</span>
+                      <strong>
+                        {cohort.status === "active" ? (
+                          <span className="ops-status-badge ops-status-approved">{t("진행 중", "Active", "进行中", "Đang diễn ra", "進行中", "Aktif")}</span>
+                        ) : (
+                          <span className="ops-status-badge ops-status-closed">{t("종료", "Ended", "已结束", "Đã kết thúc", "終了", "Selesai")}</span>
+                        )}
+                      </strong>
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
-            </div>
+            </article>
+
+            {/* 학생 등록 */}
+            <article className="ops-partner-form-card">
+              <h2>{t("학생 등록", "Enroll student", "注册学生", "Đăng ký sinh viên", "学生登録", "Daftarkan siswa")}</h2>
+              <p>{t("가입된 회원의 이메일로 바로 등록해요", "Enroll instantly with a registered member's email", "使用已注册会员的邮箱直接注册", "Đăng ký ngay bằng email của thành viên đã đăng ký", "登録済み会員のメールアドレスですぐに登録します", "Daftarkan langsung dengan email anggota terdaftar")}</p>
+              <form onSubmit={add} className="ops-partner-form">
+                <div className="ops-partner-form-field">
+                  <span className="ops-form-label">{t("학생 이메일", "Student email", "学生邮箱", "Email sinh viên", "学生のメール", "Email siswa")}</span>
+                  <input
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    type="email"
+                    placeholder={t("학생 이메일", "Student email", "学生邮箱", "Email sinh viên", "学生のメール", "Email siswa")}
+                  />
+                </div>
+                {addErr ? <p className="ops-form-error">{addErr}</p> : null}
+                <div>
+                  <button type="submit" className="ops-btn ops-btn-primary" disabled={!email.trim() || adding}>
+                    {adding ? t("등록 중…", "Enrolling…", "注册中…", "Đang đăng ký…", "登録中…", "Mendaftar…") : t("등록하기", "Enroll", "注册", "Đăng ký", "登録する", "Daftarkan")}
+                  </button>
+                </div>
+              </form>
+            </article>
+
+            {/* 등록 학생 목록 */}
+            <article className="ops-partner-list-card">
+              <div className="ops-partner-list-top">
+                <h2>{t("등록 학생", "Enrolled students", "已注册学生", "Sinh viên đã đăng ký", "登録済み学生", "Siswa terdaftar")}</h2>
+                <span className="ops-card-subtle">{cohort.students.length}</span>
+              </div>
+
+              <div className="ops-partner-table-wrap">
+                <table className="ops-partner-table">
+                  <thead>
+                    <tr>
+                      <th>{t("학생", "Student", "学生", "Sinh viên", "学生", "Siswa")}</th>
+                      <th>{t("이메일", "Email", "邮箱", "Email", "メール", "Email")}</th>
+                      <th>{t("등록일", "Enrolled at", "注册日", "Ngày đăng ký", "登録日", "Tanggal daftar")}</th>
+                      <th>{t("액션", "Actions", "操作", "Hành động", "アクション", "Aksi")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cohort.students.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="ops-table-empty">{t("아직 등록된 학생이 없어요.", "No students enrolled yet.", "还没有注册的学生。", "Chưa có sinh viên nào đăng ký.", "まだ登録された学生がいません。", "Belum ada siswa yang terdaftar.")}</td>
+                      </tr>
+                    ) : (
+                      cohort.students.map((s) => (
+                        <tr key={s.studentUserId}>
+                          <td>{s.name ?? s.email}</td>
+                          <td>{s.email}</td>
+                          <td>{fmt(s.enrolledAt)}</td>
+                          <td>
+                            <button type="button" className="ops-detail-button" onClick={() => void remove(s.studentUserId)}>
+                              {t("해제", "Remove", "解除", "Gỡ bỏ", "解除", "Lepaskan")}
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </article>
           </>
         )}
-      </LaunchContainer>
+      </section>
     </main>
   );
 }
