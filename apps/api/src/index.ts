@@ -74,7 +74,8 @@ import {
 import { evaluateVisa } from "./visa/visa-rules";
 import {
   getPositionTranslation,
-  getPositionTranslationsBatch,
+  getPositionTranslationsCachedOnly,
+  warmPositionTranslation,
   shouldTranslateForLocale,
   type PositionTranslatableFields
 } from "./positions/position-translate";
@@ -8575,8 +8576,9 @@ app.get("/positions", async (req, res) => {
       scored.sort((a, b) => b.score - a.score);
       const top = scored.slice(0, limit).map((entry) => entry.item);
 
+      // 목록은 번역을 기다리지 않는다 — 캐시가 없으면 원문을 보여주고 뒤에서 채운다.
       const hybridTranslations = wantTranslation
-        ? await getPositionTranslationsBatch(
+        ? await getPositionTranslationsCachedOnly(
             prisma,
             top.filter((i) => i.sourceKind === PositionSourceKind.INTERNAL)
           )
@@ -8686,8 +8688,9 @@ app.get("/positions", async (req, res) => {
       : Buffer.from(`${tail.createdAt.toISOString()}|${tail.id}`, "utf8").toString("base64")
     : null;
 
+  // 목록은 번역을 기다리지 않는다 — 캐시가 없으면 원문을 보여주고 뒤에서 채운다.
   const pageTranslations = wantTranslation
-    ? await getPositionTranslationsBatch(
+    ? await getPositionTranslationsCachedOnly(
         prisma,
         pageItems.filter((i) => i.sourceKind === PositionSourceKind.INTERNAL)
       )
@@ -9695,6 +9698,8 @@ app.post("/ops/positions", authenticate, requireRoles([MemberRole.OPERATOR]), as
       createdAt: created.createdAt
     });
     void embedAndSavePosition(prisma, created.id);
+    // 번역 예열 — 저장 시점에 미리 만들어 두면 조회하는 사람이 LLM 을 기다리지 않는다.
+    void warmPositionTranslation(prisma, created.id);
 
     return res.status(201).json({ ok: true, item: toPosition(created) });
   } catch (error) {
@@ -9828,6 +9833,10 @@ app.patch("/ops/positions/:id", authenticate, requireRoles([MemberRole.OPERATOR]
       }
     });
     void embedAndSavePosition(prisma, updated.id);
+    // 본문이 바뀌면 기존 번역 캐시의 sourceHash 가 어긋난다.
+    // 예전엔 그 비용(2~4초 LLM)을 다음 조회자가 대신 치렀다 — 지금 미리 갱신한다.
+    void warmPositionTranslation(prisma, updated.id);
+
     return res.json({ ok: true, item: toPosition(updated) });
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
@@ -18634,6 +18643,8 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER, M
       createdAt: created.createdAt
     });
     void embedAndSavePosition(prisma, created.id);
+    // 번역 예열 — 저장 시점에 미리 만들어 두면 조회하는 사람이 LLM 을 기다리지 않는다.
+    void warmPositionTranslation(prisma, created.id);
 
     return res.status(201).json({ ok: true, item: toPosition(created) });
   } catch (error) {

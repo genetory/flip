@@ -189,6 +189,8 @@ export async function getPositionTranslation(
 }
 
 // Convenience: many INTERNAL items in one go. Parallel LLM calls.
+// NOTE: this BLOCKS on the LLM for cache misses — only use where waiting is acceptable
+// (e.g. a single position detail). List endpoints must use the cached-only variant below.
 export async function getPositionTranslationsBatch(
   prisma: PrismaClient,
   positions: Array<{ id: string; updatedAt: Date; translations: unknown } & Record<string, unknown>>
@@ -203,9 +205,68 @@ export async function getPositionTranslationsBatch(
   return out;
 }
 
+// 같은 공고를 동시에 여러 요청이 번역하지 않도록 하는 진행 중 표시.
+const inFlightTranslations = new Set<string>();
+
+// 목록용 — 절대 LLM 을 기다리지 않는다.
+//
+// 기존에는 목록 응답 경로에서 캐시가 없으면 그 자리에서 LLM 번역(2~4초)을 돌렸다.
+// INTERNAL(직접등록) 공고에만 번역이 붙는 탓에, 외부 공고 목록은 5ms 인데
+// Aply 공고 목록만 첫 요청이 4초씩 걸렸다. 공고를 수정하면 sourceHash 가 바뀌므로
+// 그 다음 접속자가 매번 그 비용을 대신 치렀다.
+//
+// 이제 캐시가 있으면 쓰고, 없으면 원문(한국어)을 그대로 보여준 뒤 백그라운드에서 번역해
+// 다음 요청부터 번역본이 나오게 한다. 사용자는 번역을 기다리지 않는다.
+export async function getPositionTranslationsCachedOnly(
+  prisma: PrismaClient,
+  positions: Array<{ id: string; updatedAt: Date; translations: unknown } & Record<string, unknown>>
+): Promise<Map<string, PositionTranslatableFields>> {
+  const out = new Map<string, PositionTranslatableFields>();
+
+  for (const p of positions) {
+    const source = pickFields(p);
+    const sourceHash = hashSource(source);
+    const cached = ((p.translations ?? {}) as TranslationsBlob).en;
+
+    if (cached && cached.sourceHash === sourceHash) {
+      const { sourceHash: _h, ...fields } = cached;
+      out.set(p.id, fields);
+      continue;
+    }
+
+    // 캐시 미스 — 응답을 막지 않고 뒤에서 채운다.
+    if (!inFlightTranslations.has(p.id)) {
+      inFlightTranslations.add(p.id);
+      void getPositionTranslation(prisma, p)
+        .catch((err) => console.error("[position-translate] background failed", p.id, err))
+        .finally(() => inFlightTranslations.delete(p.id));
+    }
+  }
+
+  return out;
+}
+
 // True when a viewer's locale should see the English translation.
 // (Korean keeps original; everyone else gets English.)
 export function shouldTranslateForLocale(locale: string | undefined | null): boolean {
   if (!locale) return false;
   return locale.toLowerCase() !== "ko";
+}
+
+// 공고를 저장한 뒤 번역을 미리 만들어 둔다(응답을 막지 않는 fire-and-forget).
+// 외부(크롤링) 공고는 번역하지 않으므로 INTERNAL 만 대상으로 한다.
+export async function warmPositionTranslation(prisma: PrismaClient, positionId: string): Promise<void> {
+  try {
+    const position = await prisma.position.findUnique({ where: { id: positionId } });
+    if (!position || position.sourceKind !== "INTERNAL") return;
+    if (inFlightTranslations.has(positionId)) return;
+    inFlightTranslations.add(positionId);
+    try {
+      await getPositionTranslation(prisma, position as unknown as { id: string; translations: unknown } & Record<string, unknown>);
+    } finally {
+      inFlightTranslations.delete(positionId);
+    }
+  } catch (err) {
+    console.error("[position-translate] warm failed", positionId, err);
+  }
 }
