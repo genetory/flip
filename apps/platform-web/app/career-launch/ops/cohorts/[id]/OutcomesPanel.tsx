@@ -151,56 +151,64 @@ export default function OutcomesPanel({ cohortId }: { cohortId: string }) {
                 return (
                   <tr key={s.userId}>
                     <td>
-                      <strong>{s.name || s.email}</strong>
-                      <div className="ops-card-subtle">
-                        현재: {statusBadge(s)}
-                        {s.placementCompany ? ` · ${s.placementCompany}` : ""}
+                      <div className="op-cell">
+                        <strong>{s.name || s.email}</strong>
+                        <div className="ops-card-subtle op-sub">
+                          현재: {statusBadge(s)}
+                          {s.placementCompany ? ` · ${s.placementCompany}` : ""}
+                        </div>
                       </div>
                     </td>
                     <td>
-                      <div className="op-row">
-                        <input className="ops-input op-company" placeholder="기업명" value={d.company} onChange={(e) => patch(s.userId, { company: e.target.value })} />
-                        <select className="ops-input op-sel" value={d.status} onChange={(e) => patch(s.userId, { status: e.target.value as EmploymentOutcomeStatus })}>
-                          {OUTCOME_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>{o.label}</option>
-                          ))}
-                        </select>
-                        <button type="button" className="ops-btn" disabled={!d.company.trim() || busy === s.userId + ":outcome"} onClick={() => void addOutcome(s.userId)}>
-                          기록
+                      <div className="op-cell">
+                        <div className="op-row">
+                          <input className="ops-input op-company" placeholder="기업명" value={d.company} onChange={(e) => patch(s.userId, { company: e.target.value })} />
+                          <select className="ops-input op-sel" value={d.status} onChange={(e) => patch(s.userId, { status: e.target.value as EmploymentOutcomeStatus })}>
+                            {OUTCOME_OPTIONS.map((o) => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </select>
+                          <button type="button" className="ops-btn" disabled={!d.company.trim() || busy === s.userId + ":outcome"} onClick={() => void addOutcome(s.userId)}>
+                            기록
+                          </button>
+                        </div>
+                        <div className="ops-card-subtle op-sub">지원 {s.applications}건</div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="op-cell">
+                        <div className="op-row">
+                          <select className="ops-input op-sel" value={d.rating} onChange={(e) => patch(s.userId, { rating: e.target.value })}>
+                            <option value="">만족도</option>
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <option key={n} value={n}>{n}점</option>
+                            ))}
+                          </select>
+                          <select className="ops-input op-sel" value={d.nps} onChange={(e) => patch(s.userId, { nps: e.target.value })}>
+                            <option value="">NPS</option>
+                            {Array.from({ length: 11 }, (_, i) => i).map((n) => (
+                              <option key={n} value={n}>{n}</option>
+                            ))}
+                          </select>
+                          <button type="button" className="ops-btn" disabled={busy === s.userId + ":sat"} onClick={() => void saveSat(s.userId)}>
+                            저장
+                          </button>
+                        </div>
+                        <input className="ops-input op-comment" placeholder="후기 / 추천사 (리포트에 인용)" value={d.comment} onChange={(e) => patch(s.userId, { comment: e.target.value })} />
+                      </div>
+                    </td>
+                    <td>
+                      <div className="op-cell">
+                        <button
+                          type="button"
+                          className={`ops-btn ${s.certificateNo ? "ops-btn-danger" : "ops-btn-primary"}`}
+                          disabled={busy === s.userId + ":cert"}
+                          onClick={() => void toggleCert(s)}
+                        >
+                          {s.certificateNo ? "회수" : "발급"}
                         </button>
+                        {s.certificateNo ? <div className="ops-card-subtle op-sub">{s.certificateNo}</div> : null}
                       </div>
-                      <div className="ops-card-subtle">지원 {s.applications}건</div>
-                    </td>
-                    <td>
-                      <div className="op-row">
-                        <select className="ops-input op-sel" value={d.rating} onChange={(e) => patch(s.userId, { rating: e.target.value })}>
-                          <option value="">만족도</option>
-                          {[1, 2, 3, 4, 5].map((n) => (
-                            <option key={n} value={n}>{n}점</option>
-                          ))}
-                        </select>
-                        <select className="ops-input op-sel" value={d.nps} onChange={(e) => patch(s.userId, { nps: e.target.value })}>
-                          <option value="">NPS</option>
-                          {Array.from({ length: 11 }, (_, i) => i).map((n) => (
-                            <option key={n} value={n}>{n}</option>
-                          ))}
-                        </select>
-                        <button type="button" className="ops-btn" disabled={busy === s.userId + ":sat"} onClick={() => void saveSat(s.userId)}>
-                          저장
-                        </button>
-                      </div>
-                      <input className="ops-input op-comment" placeholder="후기 / 추천사 (리포트에 인용)" value={d.comment} onChange={(e) => patch(s.userId, { comment: e.target.value })} />
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className={`ops-btn ${s.certificateNo ? "ops-btn-danger" : "ops-btn-primary"}`}
-                        disabled={busy === s.userId + ":cert"}
-                        onClick={() => void toggleCert(s)}
-                      >
-                        {s.certificateNo ? "회수" : "발급"}
-                      </button>
-                      {s.certificateNo ? <div className="ops-card-subtle">{s.certificateNo}</div> : null}
                     </td>
                   </tr>
                 );
@@ -211,22 +219,30 @@ export default function OutcomesPanel({ cohortId }: { cohortId: string }) {
       </div>
 
       <style jsx>{`
+        /* 셀 내부 세로 리듬 — 컨트롤 행과 보조 텍스트 사이 8px 로 통일 */
+        .op-cell {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
         .op-row {
           display: flex;
-          gap: 6px;
+          gap: 8px;
           align-items: center;
           flex-wrap: wrap;
         }
         .op-company {
-          width: 120px;
+          width: 128px;
         }
         .op-sel {
-          width: 88px;
+          width: 92px;
         }
         .op-comment {
-          margin-top: 6px;
           width: 100%;
-          min-width: 200px;
+          min-width: 220px;
+        }
+        .op-sub {
+          margin: 0;
         }
       `}</style>
     </article>
