@@ -9,6 +9,7 @@ import { WeekStepper } from "../../../../components/launch/week-stepper";
 import { WeekDocs } from "../../../../components/launch/week-docs";
 import { WeekGate } from "../../../../components/launch/week-gate";
 import { WeekAutoFeedback } from "../../../../components/launch/week-auto-feedback";
+import { WeekSeminar } from "../../../../components/launch/week-seminar";
 import { Header } from "../../../../components/site/Header";
 import { Footer } from "../../../../components/site/Footer";
 import { useLaunchT } from "../../../../lib/launch/i18n";
@@ -68,6 +69,9 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
 
             {/* ── 사이드바 ── */}
             <div className="min-w-0 space-y-7">
+              {/* 세미나 정보 — 운영자가 기수에 입력한 일정 */}
+              <WeekSeminar week={plan.week} />
+
               {/* 피드백 — 1~3주차만 결과물 기반 자동 코치 피드백(4주차는 없음) */}
               {plan.week <= 3 ? (
                 <div>

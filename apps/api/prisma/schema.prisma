@@ -881,8 +881,28 @@ model CareerCohort {
   employmentOutcomes CareerEmploymentOutcome[]
   satisfactions      CareerLaunchSatisfaction[]
   certificates       CareerLaunchCertificate[]
+  seminars           CareerSeminar[]
 
   @@index([status])
+}
+
+// Career Launch 세미나 일정 — 기수별·주차별 1건. 운영자가 입력하고 학생 주차 화면에 노출된다.
+model CareerSeminar {
+  id        String   @id @default(uuid())
+  cohortId  String
+  week      Int // 1~4 주차
+  title     String?
+  startsAt  DateTime
+  location  String? // 오프라인 장소 또는 안내 문구
+  online    Boolean  @default(false)
+  url       String? // 온라인 접속 링크(Zoom 등)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cohort CareerCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, week])
+  @@index([cohortId])
 }
 
 // Career Launch 등록 — 학생을 기수에 연결한다. 등록이 있어야 프로그램에 접근 가능.

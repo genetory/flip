@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { fetchCohort, enrollStudent, unenrollStudent, deleteCohort, type OpsCohortDetail } from "../../../../../lib/launch/enrollment-client";
 import { useLaunchT } from "../../../../../lib/launch/i18n";
 import OutcomesPanel from "./OutcomesPanel";
+import SeminarPanel from "./SeminarPanel";
 
 // 운영자 기수 상세 — 초대코드 확인 + 학생 등록(이메일)/해제.
 export default function LaunchOpsCohortDetailPage() {
@@ -198,6 +199,9 @@ export default function LaunchOpsCohortDetailPage() {
                 </table>
               </div>
             </article>
+
+            {/* 세미나 일정 */}
+            <SeminarPanel cohortId={id} seminars={cohort.seminars} />
 
             {/* 성과 관리 — 취업·만족도·수료증 */}
             <OutcomesPanel cohortId={id} />

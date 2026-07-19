@@ -15522,7 +15522,10 @@ app.get("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole
   try {
     const c = await prisma.careerCohort.findUnique({
       where: { id },
-      include: { enrollments: { include: { student: { select: { id: true, name: true, realName: true, email: true } } }, orderBy: { createdAt: "desc" } } }
+      include: {
+        enrollments: { include: { student: { select: { id: true, name: true, realName: true, email: true } } }, orderBy: { createdAt: "desc" } },
+        seminars: { orderBy: { week: "asc" } }
+      }
     });
     if (!c) return res.status(404).json({ ok: false, message: "cohort not found" });
     const students = c.enrollments.map((e) => ({
@@ -15532,7 +15535,60 @@ app.get("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole
       email: e.student?.email ?? "",
       enrolledAt: e.createdAt
     }));
-    return res.json({ ok: true, item: { id: c.id, university: c.university, name: c.name, inviteCode: c.inviteCode, status: c.status, startsAt: c.startsAt, endsAt: c.endsAt, students } });
+    const seminars = c.seminars.map((s) => ({ week: s.week, title: s.title, startsAt: s.startsAt, location: s.location, online: s.online, url: s.url }));
+    return res.json({ ok: true, item: { id: c.id, university: c.university, name: c.name, inviteCode: c.inviteCode, status: c.status, startsAt: c.startsAt, endsAt: c.endsAt, students, seminars } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수 세미나 일정 입력(주차별 1건 upsert) / 삭제
+const seminarSchema = z.object({
+  title: z.string().max(200).nullable().optional(),
+  startsAt: z.string().min(1),
+  location: z.string().max(300).nullable().optional(),
+  online: z.boolean().optional(),
+  url: z.string().max(500).nullable().optional()
+});
+app.put("/career-launch/ops/cohorts/:cohortId/seminars/:week", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const cohortId = String(req.params.cohortId ?? "");
+  const week = Number(req.params.week);
+  if (!cohortId || !Number.isInteger(week) || week < 1 || week > 4) return res.status(400).json({ ok: false, message: "invalid params" });
+  const parsed = seminarSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    const d = parsed.data;
+    const startsAt = new Date(d.startsAt);
+    if (Number.isNaN(startsAt.getTime())) return res.status(400).json({ ok: false, message: "invalid startsAt" });
+    const seminar = await prisma.careerSeminar.upsert({
+      where: { cohortId_week: { cohortId, week } },
+      create: { cohortId, week, title: d.title ?? null, startsAt, location: d.location ?? null, online: d.online ?? false, url: d.url ?? null },
+      update: { title: d.title ?? null, startsAt, location: d.location ?? null, online: d.online ?? false, url: d.url ?? null }
+    });
+    return res.json({ ok: true, seminar });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+app.delete("/career-launch/ops/cohorts/:cohortId/seminars/:week", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const cohortId = String(req.params.cohortId ?? "");
+  const week = Number(req.params.week);
+  if (!cohortId || !Number.isInteger(week)) return res.status(400).json({ ok: false, message: "invalid params" });
+  try {
+    await prisma.careerSeminar.deleteMany({ where: { cohortId, week } });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 학생: 내 기수의 세미나 일정(주차별)
+app.get("/career-launch/seminars", authenticate, async (req, res) => {
+  try {
+    const enrollments = await prisma.careerEnrollment.findMany({ where: { studentUserId: req.auth!.userId }, select: { cohortId: true } });
+    const cohortIds = enrollments.map((e) => e.cohortId);
+    const rows = cohortIds.length ? await prisma.careerSeminar.findMany({ where: { cohortId: { in: cohortIds } }, orderBy: { week: "asc" } }) : [];
+    return res.json({ ok: true, seminars: rows.map((s) => ({ week: s.week, title: s.title, startsAt: s.startsAt, location: s.location, online: s.online, url: s.url })) });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
