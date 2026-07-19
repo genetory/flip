@@ -504,6 +504,24 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
       ja: "服装・挨拶・時間厳守・お礼メールまで、面接と入社の第一印象を左右するマナーを知っておきましょう。",
       id: "Pelajari tata krama yang menentukan kesan pertama saat wawancara dan masuk kerja — pakaian, sapaan, ketepatan waktu, hingga email terima kasih."
     }
+  },
+  "w4-final-diagnosis": {
+    title: {
+      ko: "수료 진단",
+      en: "Completion diagnosis",
+      "zh-CN": "结业诊断",
+      vi: "Chẩn đoán hoàn thành",
+      ja: "修了診断",
+      id: "Diagnosis kelulusan"
+    },
+    desc: {
+      ko: "처음 받았던 취업 준비 자가진단을 다시 받아, 4주 동안 얼마나 성장했는지 확인해요. 학교에 제출하는 성과 리포트의 근거가 돼요.",
+      en: "Retake the initial job-readiness self-diagnosis to see how much you've grown over 4 weeks. It becomes the basis of the outcome report submitted to your school.",
+      "zh-CN": "重新进行最初的求职准备自我诊断，确认这4周成长了多少。这将成为提交给学校的成果报告的依据。",
+      vi: "Làm lại bài tự chẩn đoán mức độ sẵn sàng tìm việc ban đầu để xem bạn đã tiến bộ bao nhiêu sau 4 tuần. Đây là cơ sở cho báo cáo kết quả gửi về trường.",
+      ja: "最初に受けた就職準備セルフ診断をもう一度受け、4週間でどれだけ成長したか確認します。学校に提出する成果レポートの根拠になります。",
+      id: "Ulangi diagnosis mandiri kesiapan kerja awal untuk melihat seberapa besar perkembanganmu selama 4 minggu. Ini menjadi dasar laporan hasil yang diserahkan ke kampusmu."
+    }
   }
 };
 
@@ -933,6 +951,18 @@ export function useStepText() {
     const base = pick(STEP_TEXT[stepId]?.[field], locale, orig);
     return pickOverride(ov.steps?.[stepId]?.[field], locale, base);
   };
+}
+
+// 스텝 CTA 버튼 라벨(한국어 원본 기준) 다국어화 — data.ts 의 action.label 은 한국어라 로케일별로 변환한다.
+const STEP_ACTION_TEXT: Record<string, LT> = {
+  시작하기: { ko: "시작하기", en: "Start", "zh-CN": "开始", vi: "Bắt đầu", ja: "始める", id: "Mulai" },
+  "면접 보기": { ko: "면접 보기", en: "Start mock interview", "zh-CN": "开始模拟面试", vi: "Bắt đầu phỏng vấn thử", ja: "模擬面接を受ける", id: "Mulai wawancara simulasi" },
+  "이력서 점검하기": { ko: "이력서 점검하기", en: "Review my resume", "zh-CN": "检查我的简历", vi: "Kiểm tra hồ sơ của tôi", ja: "履歴書を点検する", id: "Periksa resume saya" },
+  "수료 진단 받기": { ko: "수료 진단 받기", en: "Take completion diagnosis", "zh-CN": "接受结业诊断", vi: "Làm chẩn đoán hoàn thành", ja: "修了診断を受ける", id: "Ikuti diagnosis kelulusan" }
+};
+export function useStepActionLabel() {
+  const locale = useLocale();
+  return (label: string): string => pick(STEP_ACTION_TEXT[label], locale, label);
 }
 
 // 수료 조건 목록 — 원본 순서 유지, 미번역 항목은 원본으로 폴백.
