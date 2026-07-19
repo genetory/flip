@@ -30,11 +30,25 @@ export default function CohortOutcomeReportPage() {
   if (error) return <main className="rp-state">{error}</main>;
   if (!data) return <main className="rp-state">불러오는 중…</main>;
 
-  const { cohort, summary, students } = data;
+  const { cohort, summary, students, placements, testimonials } = data;
   const period = [cohort.startsAt?.slice(0, 10), cohort.endsAt?.slice(0, 10)].filter(Boolean).join(" ~ ") || "-";
   const pct = (n: number) => (summary.enrolled ? Math.round((n / summary.enrolled) * 100) : 0);
   const today = new Date().toISOString().slice(0, 10);
   const completers = students.filter((s) => s.completed);
+
+  // 섹션 번호는 데이터 유무에 따라 유동적이라 순서대로 매긴다.
+  const showEmployment = summary.tracked > 0 || summary.hiredCount > 0;
+  const showSatisfaction = summary.satisfactionCount > 0;
+  const showIndividual = summary.measured > 0;
+  let no = 0;
+  const secNo = {
+    core: ++no,
+    employment: showEmployment ? ++no : 0,
+    satisfaction: showSatisfaction ? ++no : 0,
+    stages: ++no,
+    individual: showIndividual ? ++no : 0,
+    completers: ++no
+  };
 
   const stages = [
     { label: "취업 준비 진단", n: summary.diagnosed },
@@ -80,7 +94,7 @@ export default function CohortOutcomeReportPage() {
 
         {/* 1. 핵심 성과 */}
         <section className="rp-sec">
-          <h2>1. 핵심 성과</h2>
+          <h2>{secNo.core}. 핵심 성과</h2>
           <div className="rp-kpis">
             <div className="rp-kpi rp-kpi--hero">
               <span className="rp-kpi-label">취업 준비도 향상</span>
@@ -108,6 +122,15 @@ export default function CohortOutcomeReportPage() {
               </span>
               <span className="rp-kpi-note">이력서·자기소개서·모의면접 3라운드를 모두 마친 학생</span>
             </div>
+            {showEmployment ? (
+              <div className="rp-kpi">
+                <span className="rp-kpi-label">취업률</span>
+                <span className="rp-kpi-value">{summary.hireRate}%</span>
+                <span className="rp-kpi-note">
+                  참여 {summary.enrolled}명 중 {summary.hiredCount}명 취업
+                </span>
+              </div>
+            ) : null}
             <div className="rp-kpi">
               <span className="rp-kpi-label">서류 완성</span>
               <span className="rp-kpi-value">
@@ -118,9 +141,99 @@ export default function CohortOutcomeReportPage() {
           </div>
         </section>
 
-        {/* 2. 단계별 참여 */}
+        {/* 취업 성과 */}
+        {showEmployment ? (
+          <section className="rp-sec">
+            <h2>{secNo.employment}. 취업 성과</h2>
+            <p className="rp-sec-lead">Career Launch 참여 학생의 실제 취업 결과입니다. aply.global 내부 공고뿐 아니라 외부 채용까지 포함합니다.</p>
+            <div className="rp-kpis">
+              <div className="rp-kpi rp-kpi--hero">
+                <span className="rp-kpi-label">취업률</span>
+                <span className="rp-kpi-value">{summary.hireRate}%</span>
+                <span className="rp-kpi-note">
+                  참여 {summary.enrolled}명 중 {summary.hiredCount}명 취업(입사·합격) · 지원 {summary.totalApplications}건
+                </span>
+              </div>
+              <div className="rp-kpi">
+                <span className="rp-kpi-label">면접</span>
+                <span className="rp-kpi-value">{summary.interviewedCount}명</span>
+                <span className="rp-kpi-note">면접 이상 진행</span>
+              </div>
+              <div className="rp-kpi">
+                <span className="rp-kpi-label">합격 · 오퍼</span>
+                <span className="rp-kpi-value">{summary.offerCount}명</span>
+                <span className="rp-kpi-note">최종 합격 또는 오퍼 수령</span>
+              </div>
+            </div>
+            {placements.length > 0 ? (
+              <table className="rp-table">
+                <thead>
+                  <tr>
+                    <th>학생</th>
+                    <th>취업 기업</th>
+                    <th>직무</th>
+                    <th className="rp-num">상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {placements.map((p, i) => (
+                    <tr key={i}>
+                      <td>{p.name || "-"}</td>
+                      <td>{p.company || "-"}</td>
+                      <td>{p.positionTitle || "-"}</td>
+                      <td className={`rp-num ${p.hired ? "rp-up" : ""}`}>{p.hired ? "입사" : "합격"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+          </section>
+        ) : null}
+
+        {/* 만족도 & 추천 */}
+        {showSatisfaction ? (
+          <section className="rp-sec">
+            <h2>{secNo.satisfaction}. 만족도 &amp; 추천</h2>
+            <div className="rp-kpis">
+              <div className="rp-kpi rp-kpi--hero">
+                <span className="rp-kpi-label">평균 만족도</span>
+                <span className="rp-kpi-value">
+                  {summary.avgSatisfaction} <em>/ 5</em>
+                </span>
+                <span className="rp-kpi-note">{summary.satisfactionCount}명 응답</span>
+              </div>
+              {summary.nps !== null ? (
+                <div className="rp-kpi">
+                  <span className="rp-kpi-label">추천 지수 (NPS)</span>
+                  <span className="rp-kpi-value">{summary.nps > 0 ? `+${summary.nps}` : summary.nps}</span>
+                  <span className="rp-kpi-note">{summary.npsCount}명 기준 · 0~10 추천 점수</span>
+                </div>
+              ) : null}
+              <div className="rp-kpi">
+                <span className="rp-kpi-label">수료증 발급</span>
+                <span className="rp-kpi-value">{summary.certificatesIssued}건</span>
+                <span className="rp-kpi-note">프로그램 수료 인증</span>
+              </div>
+            </div>
+            {testimonials.length > 0 ? (
+              <div className="rp-quotes">
+                {testimonials.slice(0, 6).map((t, i) => (
+                  <blockquote key={i} className="rp-quote">
+                    <p>“{t.comment}”</p>
+                    <cite>
+                      — {t.name || "수료생"}
+                      {t.rating ? ` · 만족도 ${t.rating}/5` : ""}
+                    </cite>
+                  </blockquote>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
+        {/* 단계별 참여 */}
         <section className="rp-sec">
-          <h2>2. 단계별 참여 현황</h2>
+          <h2>{secNo.stages}. 단계별 참여 현황</h2>
           <table className="rp-table">
             <thead>
               <tr>
@@ -150,7 +263,7 @@ export default function CohortOutcomeReportPage() {
         {/* 3. 개인별 향상도 */}
         {summary.measured > 0 ? (
           <section className="rp-sec">
-            <h2>3. 개인별 준비도 향상</h2>
+            <h2>{secNo.individual}. 개인별 준비도 향상</h2>
             <table className="rp-table">
               <thead>
                 <tr>
@@ -181,7 +294,7 @@ export default function CohortOutcomeReportPage() {
 
         {/* 4. 수료자 명단 */}
         <section className="rp-sec rp-break">
-          <h2>{summary.measured > 0 ? "4" : "3"}. 수료자 명단</h2>
+          <h2>{secNo.completers}. 수료자 명단</h2>
           {completers.length === 0 ? (
             <p className="rp-empty">아직 완주한 학생이 없습니다.</p>
           ) : (
@@ -190,21 +303,19 @@ export default function CohortOutcomeReportPage() {
                 <tr>
                   <th className="rp-num">No.</th>
                   <th>학생</th>
-                  <th>이메일</th>
-                  <th className="rp-num">이력서</th>
-                  <th className="rp-num">자기소개서</th>
                   <th className="rp-num">모의면접</th>
+                  <th className="rp-num">취업</th>
+                  <th className="rp-num">수료증</th>
                 </tr>
               </thead>
               <tbody>
                 {completers.map((s, i) => (
                   <tr key={s.userId}>
                     <td className="rp-num">{i + 1}</td>
-                    <td>{s.name || "-"}</td>
-                    <td>{s.email}</td>
-                    <td className="rp-num">완료</td>
-                    <td className="rp-num">{s.coverItems}문항</td>
+                    <td>{s.name || s.email}</td>
                     <td className="rp-num">{s.interviewPracticed}/3</td>
+                    <td className={`rp-num ${s.hired ? "rp-up" : ""}`}>{s.hired ? "취업" : s.reachedOffer ? "합격" : s.reachedInterview ? "면접" : "-"}</td>
+                    <td className="rp-num">{s.certificateNo ? "발급" : "-"}</td>
                   </tr>
                 ))}
               </tbody>

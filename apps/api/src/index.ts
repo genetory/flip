@@ -15739,14 +15739,28 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
     });
     const ids = enrollments.map((e) => e.studentUserId);
 
-    const [progressRows, resumeRows, coverRows] = await Promise.all([
+    const [progressRows, resumeRows, coverRows, outcomeRows, satRows, certRows] = await Promise.all([
       prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: ids } } }),
       prisma.careerResumeData.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, content: true } }),
-      prisma.careerCoverLetterData.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, content: true } })
+      prisma.careerCoverLetterData.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, content: true } }),
+      // 취업 성과 — 학생별 모든 지원/결과(내부·외부·오프라인 포함)
+      prisma.careerEmploymentOutcome.findMany({ where: { studentUserId: { in: ids } } }),
+      prisma.careerLaunchSatisfaction.findMany({ where: { cohortId, studentUserId: { in: ids } } }),
+      prisma.careerLaunchCertificate.findMany({ where: { cohortId, studentUserId: { in: ids } } })
     ]);
     const progByUser = new Map(progressRows.map((p) => [p.studentUserId, p] as const));
     const resumeByUser = new Map(resumeRows.map((r) => [r.studentUserId, r] as const));
     const coverByUser = new Map(coverRows.map((c) => [c.studentUserId, c] as const));
+    const outcomesByUser = new Map<string, typeof outcomeRows>();
+    for (const o of outcomeRows) {
+      const arr = outcomesByUser.get(o.studentUserId) ?? [];
+      arr.push(o);
+      outcomesByUser.set(o.studentUserId, arr);
+    }
+    const satByUser = new Map(satRows.map((s) => [s.studentUserId, s] as const));
+    const certByUser = new Map(certRows.map((c) => [c.studentUserId, c] as const));
+    // 지원 → 면접 → 오퍼 → 입사 진행 순위(불합격은 성과 카운트에서 제외)
+    const OUTCOME_RANK: Record<string, number> = { APPLIED: 1, INTERVIEW: 2, OFFER: 3, HIRED: 4, REJECTED: 0 };
 
     const pctOf = (v: unknown) => {
       const p = (v as { percent?: unknown } | null)?.percent;
@@ -15769,6 +15783,12 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
       const before = pctOf(st.diagnosisInitial) ?? pctOf(st.diagnosis);
       const after = pctOf(st.diagnosisFinal);
 
+      const myOutcomes = outcomesByUser.get(e.studentUserId) ?? [];
+      const bestRank = myOutcomes.reduce((m, o) => Math.max(m, OUTCOME_RANK[o.status] ?? 0), 0);
+      const placement = myOutcomes.find((o) => o.status === "HIRED") ?? myOutcomes.find((o) => o.status === "OFFER");
+      const sat = satByUser.get(e.studentUserId) ?? null;
+      const cert = certByUser.get(e.studentUserId) ?? null;
+
       return {
         userId: e.studentUserId,
         // 실명 우선 — name 은 SNS 닉네임(예: 'Genetory')일 수 있어 공식 문서·연락에 부적합하다.
@@ -15782,13 +15802,28 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
         hasResume,
         coverItems,
         interviewPracticed: practiced.length,
-        completed: practiced.length >= 3 && hasResume && coverItems > 0
+        completed: practiced.length >= 3 && hasResume && coverItems > 0,
+        // 취업 성과(모든 포지션)
+        applications: myOutcomes.length,
+        reachedInterview: bestRank >= 2,
+        reachedOffer: bestRank >= 3,
+        hired: bestRank >= 4,
+        placementCompany: placement?.companyName ?? null,
+        placementTitle: placement?.positionTitle ?? null,
+        placementSource: placement?.source ?? null,
+        // 만족도/추천·수료증
+        satisfactionRating: sat?.rating ?? null,
+        npsScore: sat?.npsScore ?? null,
+        comment: sat?.comment ?? null,
+        certificateNo: cert?.certificateNo ?? null
       };
     });
 
     const n = students.length;
     const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
     const withGain = students.filter((s) => s.gain !== null);
+    const satWith = students.filter((s) => s.satisfactionRating !== null);
+    const npsWith = students.filter((s) => s.npsScore !== null);
 
     const summary = {
       enrolled: n,
@@ -15804,10 +15839,167 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
       avgBefore: avg(withGain.map((s) => s.diagnosisBefore as number)),
       avgAfter: avg(withGain.map((s) => s.diagnosisAfter as number)),
       avgGain: avg(withGain.map((s) => s.gain as number)),
-      improved: withGain.filter((s) => (s.gain as number) > 0).length
+      improved: withGain.filter((s) => (s.gain as number) > 0).length,
+      // 취업 성과 — aply.global 모든 포지션(내부·외부·오프라인) 대상, 운영자가 기록한 결과 기준
+      tracked: students.filter((s) => s.applications > 0).length,
+      totalApplications: students.reduce((a, s) => a + s.applications, 0),
+      interviewedCount: students.filter((s) => s.reachedInterview).length,
+      offerCount: students.filter((s) => s.reachedOffer).length,
+      hiredCount: students.filter((s) => s.hired).length,
+      hireRate: n ? Math.round((students.filter((s) => s.hired).length / n) * 100) : 0,
+      // 만족도/추천(NPS)
+      satisfactionCount: satWith.length,
+      avgSatisfaction: satWith.length ? Math.round((satWith.reduce((a, s) => a + (s.satisfactionRating as number), 0) / satWith.length) * 10) / 10 : 0,
+      npsCount: npsWith.length,
+      nps: npsWith.length
+        ? Math.round(((npsWith.filter((s) => (s.npsScore as number) >= 9).length - npsWith.filter((s) => (s.npsScore as number) <= 6).length) / npsWith.length) * 100)
+        : null,
+      // 수료증 발급
+      certificatesIssued: students.filter((s) => s.certificateNo !== null).length
     };
 
-    return res.json({ ok: true, cohort, summary, students });
+    // 학교 리포트용 부가 목록 — 취업 현황 표 / 학생 후기
+    const placements = students
+      .filter((s) => s.hired || s.reachedOffer)
+      .map((s) => ({ name: s.name, company: s.placementCompany, positionTitle: s.placementTitle, source: s.placementSource, hired: s.hired }));
+    const testimonials = students
+      .filter((s) => (s.comment ?? "").trim().length > 0)
+      .map((s) => ({ name: s.name, rating: s.satisfactionRating, npsScore: s.npsScore, comment: s.comment }));
+
+    return res.json({ ok: true, cohort, summary, students, placements, testimonials });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── Career Launch 취업 성과 · 만족도 · 수료증 (운영자 입력) ──
+// 취업 성과는 aply.global 내부(INTERNAL)뿐 아니라 외부 공고·오프라인 채용까지 운영자가 직접 기록한다.
+const outcomeStatusEnum = z.enum(["APPLIED", "INTERVIEW", "OFFER", "HIRED", "REJECTED"]);
+const createOutcomeSchema = z.object({
+  studentUserId: z.string().min(1),
+  cohortId: z.string().min(1).optional(),
+  status: outcomeStatusEnum.default("APPLIED"),
+  companyName: z.string().min(1).max(200),
+  positionTitle: z.string().max(200).optional(),
+  source: z.string().max(40).optional(),
+  positionId: z.string().optional(),
+  note: z.string().max(1000).optional(),
+  decidedAt: z.string().optional()
+});
+app.post("/career-launch/ops/outcomes", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = createOutcomeSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    const d = parsed.data;
+    const outcome = await prisma.careerEmploymentOutcome.create({
+      data: {
+        studentUserId: d.studentUserId,
+        cohortId: d.cohortId ?? null,
+        status: d.status,
+        companyName: d.companyName,
+        positionTitle: d.positionTitle ?? null,
+        source: d.source ?? null,
+        positionId: d.positionId ?? null,
+        note: d.note ?? null,
+        decidedAt: d.decidedAt ? new Date(d.decidedAt) : d.status === "HIRED" || d.status === "OFFER" ? new Date() : null,
+        createdByUserId: req.auth!.userId
+      }
+    });
+    return res.json({ ok: true, outcome });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const patchOutcomeSchema = z.object({
+  status: outcomeStatusEnum.optional(),
+  companyName: z.string().min(1).max(200).optional(),
+  positionTitle: z.string().max(200).nullable().optional(),
+  source: z.string().max(40).nullable().optional(),
+  note: z.string().max(1000).nullable().optional()
+});
+app.patch("/career-launch/ops/outcomes/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id : "";
+  const parsed = patchOutcomeSchema.safeParse(req.body);
+  if (!id || !parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const d = parsed.data;
+    const outcome = await prisma.careerEmploymentOutcome.update({
+      where: { id },
+      data: {
+        ...(d.status !== undefined ? { status: d.status, decidedAt: d.status === "HIRED" || d.status === "OFFER" ? new Date() : null } : {}),
+        ...(d.companyName !== undefined ? { companyName: d.companyName } : {}),
+        ...(d.positionTitle !== undefined ? { positionTitle: d.positionTitle } : {}),
+        ...(d.source !== undefined ? { source: d.source } : {}),
+        ...(d.note !== undefined ? { note: d.note } : {})
+      }
+    });
+    return res.json({ ok: true, outcome });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.delete("/career-launch/ops/outcomes/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id : "";
+  if (!id) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    await prisma.careerEmploymentOutcome.delete({ where: { id } });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 만족도/추천(NPS) — cohort+student 당 1건 upsert
+const satisfactionSchema = z.object({
+  studentUserId: z.string().min(1),
+  cohortId: z.string().min(1),
+  rating: z.number().int().min(1).max(5),
+  npsScore: z.number().int().min(0).max(10).nullable().optional(),
+  comment: z.string().max(2000).nullable().optional()
+});
+app.put("/career-launch/ops/satisfaction", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = satisfactionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    const d = parsed.data;
+    const satisfaction = await prisma.careerLaunchSatisfaction.upsert({
+      where: { cohortId_studentUserId: { cohortId: d.cohortId, studentUserId: d.studentUserId } },
+      create: { cohortId: d.cohortId, studentUserId: d.studentUserId, rating: d.rating, npsScore: d.npsScore ?? null, comment: d.comment ?? null },
+      update: { rating: d.rating, npsScore: d.npsScore ?? null, comment: d.comment ?? null }
+    });
+    return res.json({ ok: true, satisfaction });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 수료증 발급/회수 — cohort+student 당 1건
+app.post("/career-launch/ops/cohorts/:cohortId/certificates/:studentUserId", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const cohortId = typeof req.params.cohortId === "string" ? req.params.cohortId : "";
+  const studentUserId = typeof req.params.studentUserId === "string" ? req.params.studentUserId : "";
+  if (!cohortId || !studentUserId) return res.status(400).json({ ok: false, message: "invalid params" });
+  try {
+    const existing = await prisma.careerLaunchCertificate.findUnique({ where: { cohortId_studentUserId: { cohortId, studentUserId } } });
+    if (existing) return res.json({ ok: true, certificate: existing });
+    const seq = (await prisma.careerLaunchCertificate.count({ where: { cohortId } })) + 1;
+    const certificateNo = `APLY-CL-${cohortId.slice(0, 8).toUpperCase()}-${String(seq).padStart(3, "0")}`;
+    const certificate = await prisma.careerLaunchCertificate.create({
+      data: { cohortId, studentUserId, certificateNo, issuedByUserId: req.auth!.userId }
+    });
+    return res.json({ ok: true, certificate });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+app.delete("/career-launch/ops/cohorts/:cohortId/certificates/:studentUserId", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const cohortId = typeof req.params.cohortId === "string" ? req.params.cohortId : "";
+  const studentUserId = typeof req.params.studentUserId === "string" ? req.params.studentUserId : "";
+  if (!cohortId || !studentUserId) return res.status(400).json({ ok: false, message: "invalid params" });
+  try {
+    await prisma.careerLaunchCertificate.deleteMany({ where: { cohortId, studentUserId } });
+    return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
