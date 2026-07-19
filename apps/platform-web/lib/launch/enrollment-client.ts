@@ -57,7 +57,8 @@ export type OpsCohort = {
   createdAt?: string;
 };
 export type OpsCohortStudent = { studentUserId: string; name: string | null; email: string; enrolledAt: string };
-export type OpsCohortDetail = Omit<OpsCohort, "enrolledCount" | "createdAt"> & { students: OpsCohortStudent[] };
+export type CohortSeminar = { week: number; title: string | null; startsAt: string; location: string | null; online: boolean; url: string | null };
+export type OpsCohortDetail = Omit<OpsCohort, "enrolledCount" | "createdAt"> & { students: OpsCohortStudent[]; seminars: CohortSeminar[] };
 
 export async function fetchCohorts(): Promise<OpsCohort[]> {
   const d = await req("/career-launch/ops/cohorts", { headers: authHeaders() });
@@ -90,4 +91,23 @@ export async function enrollStudent(cohortId: string, email: string): Promise<Op
 
 export async function unenrollStudent(cohortId: string, studentUserId: string): Promise<void> {
   await req(`/career-launch/ops/cohorts/${encodeURIComponent(cohortId)}/enroll/${encodeURIComponent(studentUserId)}`, { method: "DELETE", headers: authHeaders() });
+}
+
+// ── 세미나 일정 ──
+export async function saveSeminar(
+  cohortId: string,
+  week: number,
+  input: { title?: string | null; startsAt: string; location?: string | null; online?: boolean; url?: string | null }
+): Promise<void> {
+  await req(`/career-launch/ops/cohorts/${encodeURIComponent(cohortId)}/seminars/${week}`, { method: "PUT", headers: authHeaders(true), body: JSON.stringify(input) });
+}
+
+export async function deleteSeminar(cohortId: string, week: number): Promise<void> {
+  await req(`/career-launch/ops/cohorts/${encodeURIComponent(cohortId)}/seminars/${week}`, { method: "DELETE", headers: authHeaders() });
+}
+
+// 학생: 내 기수 세미나 일정
+export async function fetchMySeminars(): Promise<CohortSeminar[]> {
+  const d = await req("/career-launch/seminars", { headers: authHeaders() });
+  return (d.seminars as CohortSeminar[]) ?? [];
 }
