@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   fetchCohortReport,
   createEmploymentOutcome,
+  deleteEmploymentOutcome,
   saveSatisfaction,
   issueCertificate,
   revokeCertificate,
@@ -11,6 +12,14 @@ import {
   type CohortReportStudent,
   type EmploymentOutcomeStatus
 } from "../../../../../lib/launch/ops-client";
+
+const OUTCOME_LABEL: Record<EmploymentOutcomeStatus, string> = {
+  APPLIED: "지원",
+  INTERVIEW: "면접",
+  OFFER: "합격",
+  HIRED: "입사",
+  REJECTED: "불합격"
+};
 
 // 기수 성과 관리 — 운영자가 학생별 취업 성과·만족도·수료증을 입력한다.
 // 여기 입력한 값이 학교 제출용 성과 리포트에 그대로 반영된다.
@@ -22,7 +31,7 @@ const OUTCOME_OPTIONS: { value: EmploymentOutcomeStatus; label: string }[] = [
   { value: "REJECTED", label: "불합격" }
 ];
 
-type Draft = { company: string; status: EmploymentOutcomeStatus; rating: string; nps: string; comment: string };
+type Draft = { company: string; title: string; status: EmploymentOutcomeStatus; rating: string; nps: string; comment: string };
 
 function statusBadge(s: CohortReportStudent): string {
   if (s.hired) return "입사";
@@ -48,6 +57,7 @@ export default function OutcomesPanel({ cohortId }: { cohortId: string }) {
           if (!next[s.userId]) {
             next[s.userId] = {
               company: "",
+              title: "",
               status: "HIRED",
               rating: s.satisfactionRating ? String(s.satisfactionRating) : "",
               nps: s.npsScore !== null ? String(s.npsScore) : "",
@@ -70,14 +80,26 @@ export default function OutcomesPanel({ cohortId }: { cohortId: string }) {
 
   const addOutcome = async (uid: string) => {
     const d = drafts[uid];
-    if (!d?.company.trim()) return;
+    if (!d?.company.trim() || busy) return; // busy 가드로 중복 등록 방지
     setBusy(uid + ":outcome");
     try {
-      await createEmploymentOutcome({ studentUserId: uid, cohortId, status: d.status, companyName: d.company.trim() });
-      patch(uid, { company: "" });
+      await createEmploymentOutcome({ studentUserId: uid, cohortId, status: d.status, companyName: d.company.trim(), positionTitle: d.title.trim() || undefined });
+      patch(uid, { company: "", title: "" });
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "저장 실패");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const delOutcome = async (uid: string, outcomeId: string) => {
+    setBusy(uid + ":del:" + outcomeId);
+    try {
+      await deleteEmploymentOutcome(outcomeId);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "삭제 실패");
     } finally {
       setBusy(null);
     }
@@ -147,7 +169,7 @@ export default function OutcomesPanel({ cohortId }: { cohortId: string }) {
               </tr>
             ) : (
               report.students.map((s) => {
-                const d = drafts[s.userId] ?? { company: "", status: "HIRED", rating: "", nps: "", comment: "" };
+                const d = drafts[s.userId] ?? { company: "", title: "", status: "HIRED" as EmploymentOutcomeStatus, rating: "", nps: "", comment: "" };
                 return (
                   <tr key={s.userId}>
                     <td>
@@ -163,6 +185,7 @@ export default function OutcomesPanel({ cohortId }: { cohortId: string }) {
                       <div className="op-cell">
                         <div className="op-row">
                           <input className="ops-input op-company" placeholder="기업명" value={d.company} onChange={(e) => patch(s.userId, { company: e.target.value })} />
+                          <input className="ops-input op-title" placeholder="직무(선택)" value={d.title} onChange={(e) => patch(s.userId, { title: e.target.value })} />
                           <select className="ops-input op-sel" value={d.status} onChange={(e) => patch(s.userId, { status: e.target.value as EmploymentOutcomeStatus })}>
                             {OUTCOME_OPTIONS.map((o) => (
                               <option key={o.value} value={o.value}>{o.label}</option>
@@ -172,7 +195,23 @@ export default function OutcomesPanel({ cohortId }: { cohortId: string }) {
                             기록
                           </button>
                         </div>
-                        <div className="ops-card-subtle op-sub">지원 {s.applications}건</div>
+                        {s.outcomes.length > 0 ? (
+                          <ul className="op-list">
+                            {s.outcomes.map((o) => (
+                              <li key={o.id} className="op-list-item">
+                                <span>
+                                  {o.companyName}
+                                  {o.positionTitle ? ` · ${o.positionTitle}` : ""} <em>({OUTCOME_LABEL[o.status]})</em>
+                                </span>
+                                <button type="button" className="op-del" disabled={busy === s.userId + ":del:" + o.id} onClick={() => void delOutcome(s.userId, o.id)} aria-label="삭제">
+                                  ✕
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="ops-card-subtle op-sub">기록된 성과 없음</div>
+                        )}
                       </div>
                     </td>
                     <td>
@@ -234,6 +273,9 @@ export default function OutcomesPanel({ cohortId }: { cohortId: string }) {
         .op-company {
           width: 128px;
         }
+        .op-title {
+          width: 112px;
+        }
         .op-sel {
           width: 92px;
         }
@@ -243,6 +285,38 @@ export default function OutcomesPanel({ cohortId }: { cohortId: string }) {
         }
         .op-sub {
           margin: 0;
+        }
+        .op-list {
+          list-style: none;
+          margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .op-list-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          font-size: 12px;
+          color: #374151;
+        }
+        .op-list-item em {
+          font-style: normal;
+          color: #6b7280;
+        }
+        .op-del {
+          border: 0;
+          background: transparent;
+          color: #9ca3af;
+          cursor: pointer;
+          font-size: 12px;
+          line-height: 1;
+          padding: 2px 4px;
+        }
+        .op-del:hover {
+          color: #dc2626;
         }
       `}</style>
     </article>

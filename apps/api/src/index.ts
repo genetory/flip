@@ -15811,6 +15811,8 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
         placementCompany: placement?.companyName ?? null,
         placementTitle: placement?.positionTitle ?? null,
         placementSource: placement?.source ?? null,
+        // 개별 취업 성과 행(운영자 수정/삭제용)
+        outcomes: myOutcomes.map((o) => ({ id: o.id, companyName: o.companyName, positionTitle: o.positionTitle, status: o.status, source: o.source })),
         // 만족도/추천·수료증
         satisfactionRating: sat?.rating ?? null,
         npsScore: sat?.npsScore ?? null,

@@ -191,6 +191,7 @@ export type CohortReportStudent = {
   placementCompany: string | null;
   placementTitle: string | null;
   placementSource: string | null;
+  outcomes: { id: string; companyName: string; positionTitle: string | null; status: EmploymentOutcomeStatus; source: string | null }[];
   // 만족도·수료증
   satisfactionRating: number | null;
   npsScore: number | null;
