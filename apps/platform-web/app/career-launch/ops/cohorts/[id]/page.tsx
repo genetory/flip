@@ -19,6 +19,7 @@ export default function LaunchOpsCohortDetailPage() {
   const [error, setError] = useState("");
   const [email, setEmail] = useState("");
   const [adding, setAdding] = useState(false);
+  const [tab, setTab] = useState<"students" | "seminar" | "outcome">("students");
   const [addErr, setAddErr] = useState("");
 
   const load = async () => {
@@ -136,6 +137,21 @@ export default function LaunchOpsCohortDetailPage() {
               </div>
             </article>
 
+            {/* 하위 탭 — 학생 / 세미나 / 성과 */}
+            <div className="ops-detail-tabs" role="tablist" aria-label={t("기수 관리 탭", "Cohort tabs", "期数管理标签", "Tab quản lý khóa", "コホート管理タブ", "Tab manajemen batch")}>
+              <button type="button" role="tab" aria-selected={tab === "students"} className={`ops-detail-tab ${tab === "students" ? "is-active" : ""}`} onClick={() => setTab("students")}>
+                {t("학생", "Students", "学生", "Sinh viên", "学生", "Siswa")} ({cohort.students.length})
+              </button>
+              <button type="button" role="tab" aria-selected={tab === "seminar"} className={`ops-detail-tab ${tab === "seminar" ? "is-active" : ""}`} onClick={() => setTab("seminar")}>
+                {t("세미나 일정", "Seminars", "研讨会", "Hội thảo", "セミナー", "Seminar")}
+              </button>
+              <button type="button" role="tab" aria-selected={tab === "outcome"} className={`ops-detail-tab ${tab === "outcome" ? "is-active" : ""}`} onClick={() => setTab("outcome")}>
+                {t("성과 관리", "Outcomes", "成果管理", "Kết quả", "成果管理", "Hasil")}
+              </button>
+            </div>
+
+            {tab === "students" ? (
+              <>
             {/* 학생 등록 */}
             <article className="ops-partner-form-card">
               <h2>{t("학생 등록", "Enroll student", "注册学生", "Đăng ký sinh viên", "学生登録", "Daftarkan siswa")}</h2>
@@ -199,12 +215,14 @@ export default function LaunchOpsCohortDetailPage() {
                 </table>
               </div>
             </article>
+              </>
+            ) : null}
 
             {/* 세미나 일정 */}
-            <SeminarPanel cohortId={id} seminars={cohort.seminars} />
+            {tab === "seminar" ? <SeminarPanel cohortId={id} seminars={cohort.seminars} /> : null}
 
             {/* 성과 관리 — 취업·만족도·수료증 */}
-            <OutcomesPanel cohortId={id} />
+            {tab === "outcome" ? <OutcomesPanel cohortId={id} /> : null}
           </>
         )}
       </section>
