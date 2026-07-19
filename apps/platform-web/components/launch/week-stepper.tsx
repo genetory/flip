@@ -8,7 +8,7 @@ import { fetchResumeData, hasResumeContent, type ResumeData } from "../../lib/la
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
 import { STEP_KIND, isStepDone } from "../../lib/launch/step-status";
 import { useLaunchT } from "../../lib/launch/i18n";
-import { useStepText, useJobReason, useStepActionLabel } from "../../lib/launch/data-i18n";
+import { useStepText, useJobReason, useStepActionLabel, useJobName } from "../../lib/launch/data-i18n";
 
 // 주차 페이지용 스텝 목록 — 1주차처럼 순차 잠금 + 스텝별(섹션별) 결과 표시.
 // 완료 상태는 백엔드(progress)에 저장돼 기기 간 동기화된다.
@@ -17,6 +17,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
   const stepText = useStepText();
   const actionLabel = useStepActionLabel();
   const jobReason = useJobReason();
+  const jobName = useJobName();
   const [prog, setProg] = useState<CareerProgress>({});
   const [resume, setResume] = useState<ResumeData>({});
   const [cover, setCover] = useState<CoverData>({});
@@ -108,7 +109,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
               const job = RECOMMENDED_JOBS.find((x) => x.role === role);
               return (
                 <li key={role} className="rounded-lg bg-white/70 p-2.5">
-                  <p className="text-[13px] font-bold text-[#191F28]">{role}</p>
+                  <p className="text-[13px] font-bold text-[#191F28]">{jobName(role)}</p>
                   {job?.reason ? <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p> : null}
                 </li>
               );

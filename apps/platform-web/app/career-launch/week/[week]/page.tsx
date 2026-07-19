@@ -68,19 +68,6 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
 
             {/* ── 사이드바 ── */}
             <div className="min-w-0 space-y-7">
-              {/* 세미나 정보 */}
-              <div>
-                <SectionTitle>{t("세미나 정보", "Seminar info", "研讨会信息", "Thông tin hội thảo", "セミナー情報", "Info seminar")}</SectionTitle>
-                <Card className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[20px]">{plan.seminar.online ? "💻" : "📍"}</span>
-                  <div>
-                    <p className="text-[14px] font-bold text-[#191F28]">{plan.seminar.date}</p>
-                    <p className="mt-0.5 text-[13px] text-[#4E5968]">{plan.seminar.time}</p>
-                    <p className="text-[12.5px] text-[#8B95A1]">{plan.seminar.place}</p>
-                  </div>
-                </Card>
-              </div>
-
               {/* 피드백 — 1~3주차만 결과물 기반 자동 코치 피드백(4주차는 없음) */}
               {plan.week <= 3 ? (
                 <div>

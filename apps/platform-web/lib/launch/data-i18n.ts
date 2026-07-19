@@ -980,6 +980,58 @@ export function useJobReason() {
   };
 }
 
+// 추천 직무 이름(role 문자열 기준) 다국어화 — role 은 매칭·저장 키라 원본은 그대로 두고 표시만 변환한다.
+// AI 대화로 나온 자유 입력 직무 등 미등록 값은 원본 문자열로 폴백한다.
+const JOB_NAME: Record<string, LT> = {
+  "고객경험(CX) · CS": { ko: "고객경험(CX) · CS", en: "Customer Experience (CX) · CS", "zh-CN": "客户体验(CX)·客服", vi: "Trải nghiệm khách hàng (CX) · CS", ja: "顧客体験(CX)・CS", id: "Customer Experience (CX) · CS" },
+  "통·번역 코디네이터": { ko: "통·번역 코디네이터", en: "Interpretation & Translation Coordinator", "zh-CN": "口译·笔译协调员", vi: "Điều phối phiên dịch & biên dịch", ja: "通訳・翻訳コーディネーター", id: "Koordinator Interpretasi & Terjemahan" },
+  "백엔드 개발자": { ko: "백엔드 개발자", en: "Backend Developer", "zh-CN": "后端开发", vi: "Lập trình viên Backend", ja: "バックエンド開発者", id: "Backend Developer" },
+  "프론트엔드 개발자": { ko: "프론트엔드 개발자", en: "Frontend Developer", "zh-CN": "前端开发", vi: "Lập trình viên Frontend", ja: "フロントエンド開発者", id: "Frontend Developer" },
+  "소프트웨어 엔지니어": { ko: "소프트웨어 엔지니어", en: "Software Engineer", "zh-CN": "软件工程师", vi: "Kỹ sư phần mềm", ja: "ソフトウェアエンジニア", id: "Software Engineer" },
+  "웹 · 풀스택 개발자": { ko: "웹 · 풀스택 개발자", en: "Web / Full-stack Developer", "zh-CN": "Web·全栈开发", vi: "Lập trình viên Web / Full-stack", ja: "Web・フルスタック開発者", id: "Web / Full-stack Developer" },
+  "안드로이드 개발자": { ko: "안드로이드 개발자", en: "Android Developer", "zh-CN": "Android 开发", vi: "Lập trình viên Android", ja: "Android 開発者", id: "Android Developer" },
+  "iOS 개발자": { ko: "iOS 개발자", en: "iOS Developer", "zh-CN": "iOS 开发", vi: "Lập trình viên iOS", ja: "iOS 開発者", id: "iOS Developer" },
+  "데이터 엔지니어": { ko: "데이터 엔지니어", en: "Data Engineer", "zh-CN": "数据工程师", vi: "Kỹ sư dữ liệu", ja: "データエンジニア", id: "Data Engineer" },
+  "머신러닝 · AI 엔지니어": { ko: "머신러닝 · AI 엔지니어", en: "ML / AI Engineer", "zh-CN": "机器学习·AI 工程师", vi: "Kỹ sư Machine Learning / AI", ja: "機械学習・AIエンジニア", id: "ML / AI Engineer" },
+  "DevOps · 인프라 엔지니어": { ko: "DevOps · 인프라 엔지니어", en: "DevOps / Infrastructure Engineer", "zh-CN": "DevOps·基础架构工程师", vi: "Kỹ sư DevOps / Hạ tầng", ja: "DevOps・インフラエンジニア", id: "DevOps / Infrastructure Engineer" },
+  "QA 엔지니어": { ko: "QA 엔지니어", en: "QA Engineer", "zh-CN": "QA 工程师", vi: "Kỹ sư QA", ja: "QAエンジニア", id: "QA Engineer" },
+  "보안 엔지니어": { ko: "보안 엔지니어", en: "Security Engineer", "zh-CN": "安全工程师", vi: "Kỹ sư bảo mật", ja: "セキュリティエンジニア", id: "Security Engineer" },
+  "게임 개발자": { ko: "게임 개발자", en: "Game Developer", "zh-CN": "游戏开发", vi: "Lập trình viên game", ja: "ゲーム開発者", id: "Game Developer" },
+  "웹 퍼블리셔": { ko: "웹 퍼블리셔", en: "Web Publisher", "zh-CN": "Web 前端页面开发", vi: "Web Publisher", ja: "Webパブリッシャー", id: "Web Publisher" },
+  "데이터 사이언티스트": { ko: "데이터 사이언티스트", en: "Data Scientist", "zh-CN": "数据科学家", vi: "Nhà khoa học dữ liệu", ja: "データサイエンティスト", id: "Data Scientist" },
+  "데이터 분석가": { ko: "데이터 분석가", en: "Data Analyst", "zh-CN": "数据分析师", vi: "Chuyên viên phân tích dữ liệu", ja: "データアナリスト", id: "Data Analyst" },
+  "BI · 데이터 기획": { ko: "BI · 데이터 기획", en: "BI / Data Planning", "zh-CN": "BI·数据规划", vi: "BI / Hoạch định dữ liệu", ja: "BI・データ企画", id: "BI / Perencanaan Data" },
+  "UX · UI 디자이너": { ko: "UX · UI 디자이너", en: "UX / UI Designer", "zh-CN": "UX·UI 设计师", vi: "Nhà thiết kế UX / UI", ja: "UX・UIデザイナー", id: "UX / UI Designer" },
+  "프로덕트 디자이너": { ko: "프로덕트 디자이너", en: "Product Designer", "zh-CN": "产品设计师", vi: "Nhà thiết kế sản phẩm", ja: "プロダクトデザイナー", id: "Product Designer" },
+  "BX · 브랜드 디자이너": { ko: "BX · 브랜드 디자이너", en: "BX / Brand Designer", "zh-CN": "BX·品牌设计师", vi: "Nhà thiết kế BX / thương hiệu", ja: "BX・ブランドデザイナー", id: "BX / Brand Designer" },
+  "영상 · 모션 디자이너": { ko: "영상 · 모션 디자이너", en: "Video / Motion Designer", "zh-CN": "视频·动效设计师", vi: "Nhà thiết kế video / motion", ja: "映像・モーションデザイナー", id: "Video / Motion Designer" },
+  "프로덕트 매니저(PM)": { ko: "프로덕트 매니저(PM)", en: "Product Manager (PM)", "zh-CN": "产品经理(PM)", vi: "Quản lý sản phẩm (PM)", ja: "プロダクトマネージャー(PM)", id: "Product Manager (PM)" },
+  "서비스 기획자": { ko: "서비스 기획자", en: "Service Planner", "zh-CN": "服务企划", vi: "Chuyên viên hoạch định dịch vụ", ja: "サービス企画", id: "Service Planner" },
+  "프로젝트 매니저 · PMO": { ko: "프로젝트 매니저 · PMO", en: "Project Manager / PMO", "zh-CN": "项目经理·PMO", vi: "Quản lý dự án / PMO", ja: "プロジェクトマネージャー・PMO", id: "Project Manager / PMO" },
+  "게임 기획자": { ko: "게임 기획자", en: "Game Designer (Planner)", "zh-CN": "游戏策划", vi: "Chuyên viên thiết kế game", ja: "ゲームプランナー", id: "Game Designer (Planner)" },
+  "그로스 마케터": { ko: "그로스 마케터", en: "Growth Marketer", "zh-CN": "增长营销", vi: "Growth Marketer", ja: "グロースマーケター", id: "Growth Marketer" },
+  "퍼포먼스 마케터": { ko: "퍼포먼스 마케터", en: "Performance Marketer", "zh-CN": "效果营销", vi: "Performance Marketer", ja: "パフォーマンスマーケター", id: "Performance Marketer" },
+  "글로벌 마케팅": { ko: "글로벌 마케팅", en: "Global Marketing", "zh-CN": "全球营销", vi: "Marketing toàn cầu", ja: "グローバルマーケティング", id: "Global Marketing" },
+  "콘텐츠 · 브랜드 마케터": { ko: "콘텐츠 · 브랜드 마케터", en: "Content / Brand Marketer", "zh-CN": "内容·品牌营销", vi: "Content / Brand Marketer", ja: "コンテンツ・ブランドマーケター", id: "Content / Brand Marketer" },
+  "CRM 마케터": { ko: "CRM 마케터", en: "CRM Marketer", "zh-CN": "CRM 营销", vi: "CRM Marketer", ja: "CRMマーケター", id: "CRM Marketer" },
+  "PR · 홍보": { ko: "PR · 홍보", en: "PR / Communications", "zh-CN": "公关·宣传", vi: "PR / Truyền thông", ja: "PR・広報", id: "PR / Komunikasi" },
+  "해외영업 · 글로벌 세일즈": { ko: "해외영업 · 글로벌 세일즈", en: "Overseas / Global Sales", "zh-CN": "海外销售·全球销售", vi: "Kinh doanh quốc tế / Global Sales", ja: "海外営業・グローバルセールス", id: "Overseas / Global Sales" },
+  "사업개발(BD)": { ko: "사업개발(BD)", en: "Business Development (BD)", "zh-CN": "商务拓展(BD)", vi: "Phát triển kinh doanh (BD)", ja: "事業開発(BD)", id: "Business Development (BD)" },
+  "기술영업 (Sales Engineer)": { ko: "기술영업 (Sales Engineer)", en: "Sales Engineer", "zh-CN": "技术销售(Sales Engineer)", vi: "Kỹ sư bán hàng (Sales Engineer)", ja: "技術営業(セールスエンジニア)", id: "Sales Engineer" },
+  "경영기획 · 전략": { ko: "경영기획 · 전략", en: "Corporate Planning / Strategy", "zh-CN": "经营企划·战略", vi: "Hoạch định / Chiến lược doanh nghiệp", ja: "経営企画・戦略", id: "Corporate Planning / Strategy" },
+  "인사(HR) · 채용": { ko: "인사(HR) · 채용", en: "HR / Recruiting", "zh-CN": "人事(HR)·招聘", vi: "Nhân sự (HR) / Tuyển dụng", ja: "人事(HR)・採用", id: "HR / Rekrutmen" },
+  "재무 · 회계": { ko: "재무 · 회계", en: "Finance / Accounting", "zh-CN": "财务·会计", vi: "Tài chính / Kế toán", ja: "財務・会計", id: "Keuangan / Akuntansi" },
+  "HRD · 교육 담당": { ko: "HRD · 교육 담당", en: "HRD / Training", "zh-CN": "HRD·培训", vi: "HRD / Đào tạo", ja: "HRD・教育担当", id: "HRD / Pelatihan" },
+  "무역 · 수출입": { ko: "무역 · 수출입", en: "Trade / Import-Export", "zh-CN": "贸易·进出口", vi: "Thương mại / Xuất nhập khẩu", ja: "貿易・輸出入", id: "Perdagangan / Ekspor-Impor" },
+  "물류 · SCM": { ko: "물류 · SCM", en: "Logistics / SCM", "zh-CN": "物流·SCM", vi: "Logistics / SCM", ja: "物流・SCM", id: "Logistik / SCM" },
+  "구매 · 소싱": { ko: "구매 · 소싱", en: "Purchasing / Sourcing", "zh-CN": "采购·寻源", vi: "Mua hàng / Sourcing", ja: "購買・ソーシング", id: "Pembelian / Sourcing" },
+  "콘텐츠 에디터 · 작가": { ko: "콘텐츠 에디터 · 작가", en: "Content Editor / Writer", "zh-CN": "内容编辑·作者", vi: "Biên tập nội dung / Người viết", ja: "コンテンツエディター・ライター", id: "Content Editor / Writer" }
+};
+export function useJobName() {
+  const locale = useLocale();
+  return (role: string): string => pick(JOB_NAME[role], locale, role);
+}
+
 // STUDENT.cohort 표시 문자열.
 export function useStudentCohort() {
   const locale = useLocale();

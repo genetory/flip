@@ -11,7 +11,7 @@ import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
-import { useJobReason } from "../../../lib/launch/data-i18n";
+import { useJobReason, useJobName } from "../../../lib/launch/data-i18n";
 
 // Week 1 — AI와 실제로 대화하며 관심 직무를 이끌어낸다. 백엔드(/career-launch/job-chat)가
 // 대화를 이어받아 다음 질문 + 후보 풀에서 고른 추천 직무를 돌려주고, 채팅 안에서 바로
@@ -25,6 +25,7 @@ type Msg =
 export default function LaunchJobsPage() {
   const t = useLaunchT();
   const jobReason = useJobReason();
+  const jobName = useJobName();
   const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
@@ -243,7 +244,7 @@ export default function LaunchJobsPage() {
                             >
                               ✓
                             </span>
-                            <p className="text-[14.5px] font-bold text-[#191F28]">{job.role}</p>
+                            <p className="text-[14.5px] font-bold text-[#191F28]">{jobName(job.role)}</p>
                           </div>
                           <p className="mt-1.5 pl-7 text-[12.5px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p>
                           <div className="mt-2 flex flex-wrap gap-1.5 pl-7">
