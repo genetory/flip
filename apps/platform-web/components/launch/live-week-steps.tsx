@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
 import { useLaunchT } from "../../lib/launch/i18n";
-import { useStepText, useJobReason } from "../../lib/launch/data-i18n";
+import { useStepText, useJobReason, useStepActionLabel, useJobName } from "../../lib/launch/data-i18n";
 
 export type DiagResult = { percent: number; level: string; strengths?: string[]; improvements?: string[] } | null;
 
@@ -47,7 +47,9 @@ export function LiveWeekSteps({
 }) {
   const t = useLaunchT();
   const stepText = useStepText();
+  const actionLabel = useStepActionLabel();
   const jobReason = useJobReason();
+  const jobName = useJobName();
   // 결과로 완료되지 않는 일반 스텝은 수동 체크.
   const [manual, setManual] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(steps.map((s) => [s.id, Boolean(s.done)]))
@@ -161,7 +163,7 @@ export function LiveWeekSteps({
                       const job = RECOMMENDED_JOBS.find((x) => x.role === role);
                       return (
                         <li key={role} className="rounded-lg bg-white/70 p-2.5">
-                          <p className="text-[13px] font-bold text-[#191F28]">{role}</p>
+                          <p className="text-[13px] font-bold text-[#191F28]">{jobName(role)}</p>
                           {job?.reason ? <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p> : null}
                         </li>
                       );
@@ -223,7 +225,7 @@ export function LiveWeekSteps({
                   href={s.action.href}
                   className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-3.5 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]"
                 >
-                  {s.action.label} <span aria-hidden>→</span>
+                  {actionLabel(s.action.label)} <span aria-hidden>→</span>
                 </Link>
               ) : null}
             </div>

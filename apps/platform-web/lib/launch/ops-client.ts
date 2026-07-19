@@ -183,7 +183,22 @@ export type CohortReportStudent = {
   coverItems: number;
   interviewPracticed: number;
   completed: boolean;
+  // 취업 성과(모든 포지션)
+  applications: number;
+  reachedInterview: boolean;
+  reachedOffer: boolean;
+  hired: boolean;
+  placementCompany: string | null;
+  placementTitle: string | null;
+  placementSource: string | null;
+  // 만족도·수료증
+  satisfactionRating: number | null;
+  npsScore: number | null;
+  comment: string | null;
+  certificateNo: string | null;
 };
+export type CohortReportPlacement = { name: string | null; company: string | null; positionTitle: string | null; source: string | null; hired: boolean };
+export type CohortReportTestimonial = { name: string | null; rating: number | null; npsScore: number | null; comment: string | null };
 export type CohortReport = {
   cohort: { id: string; university: string; name: string; startsAt: string | null; endsAt: string | null; status: string };
   summary: {
@@ -200,8 +215,24 @@ export type CohortReport = {
     avgAfter: number;
     avgGain: number;
     improved: number;
+    // 취업 성과
+    tracked: number;
+    totalApplications: number;
+    interviewedCount: number;
+    offerCount: number;
+    hiredCount: number;
+    hireRate: number;
+    // 만족도/추천
+    satisfactionCount: number;
+    avgSatisfaction: number;
+    npsCount: number;
+    nps: number | null;
+    // 수료증
+    certificatesIssued: number;
   };
   students: CohortReportStudent[];
+  placements: CohortReportPlacement[];
+  testimonials: CohortReportTestimonial[];
 };
 
 export async function fetchCohortReport(cohortId: string): Promise<CohortReport> {
@@ -209,6 +240,37 @@ export async function fetchCohortReport(cohortId: string): Promise<CohortReport>
   return {
     cohort: d.cohort as CohortReport["cohort"],
     summary: d.summary as CohortReport["summary"],
-    students: (d.students as CohortReportStudent[]) ?? []
+    students: (d.students as CohortReportStudent[]) ?? [],
+    placements: (d.placements as CohortReportPlacement[]) ?? [],
+    testimonials: (d.testimonials as CohortReportTestimonial[]) ?? []
   };
+}
+
+// ── 취업 성과 · 만족도 · 수료증 (운영자 입력) ──
+export type EmploymentOutcomeStatus = "APPLIED" | "INTERVIEW" | "OFFER" | "HIRED" | "REJECTED";
+export async function createEmploymentOutcome(input: {
+  studentUserId: string;
+  cohortId?: string;
+  status?: EmploymentOutcomeStatus;
+  companyName: string;
+  positionTitle?: string;
+  source?: string;
+  note?: string;
+}): Promise<void> {
+  await req("/career-launch/ops/outcomes", { method: "POST", headers: authHeaders(true), body: JSON.stringify(input) });
+}
+export async function updateEmploymentOutcome(id: string, input: { status?: EmploymentOutcomeStatus; companyName?: string; positionTitle?: string | null; note?: string | null }): Promise<void> {
+  await req(`/career-launch/ops/outcomes/${encodeURIComponent(id)}`, { method: "PATCH", headers: authHeaders(true), body: JSON.stringify(input) });
+}
+export async function deleteEmploymentOutcome(id: string): Promise<void> {
+  await req(`/career-launch/ops/outcomes/${encodeURIComponent(id)}`, { method: "DELETE", headers: authHeaders() });
+}
+export async function saveSatisfaction(input: { studentUserId: string; cohortId: string; rating: number; npsScore?: number | null; comment?: string | null }): Promise<void> {
+  await req("/career-launch/ops/satisfaction", { method: "PUT", headers: authHeaders(true), body: JSON.stringify(input) });
+}
+export async function issueCertificate(cohortId: string, studentUserId: string): Promise<void> {
+  await req(`/career-launch/ops/cohorts/${encodeURIComponent(cohortId)}/certificates/${encodeURIComponent(studentUserId)}`, { method: "POST", headers: authHeaders() });
+}
+export async function revokeCertificate(cohortId: string, studentUserId: string): Promise<void> {
+  await req(`/career-launch/ops/cohorts/${encodeURIComponent(cohortId)}/certificates/${encodeURIComponent(studentUserId)}`, { method: "DELETE", headers: authHeaders() });
 }

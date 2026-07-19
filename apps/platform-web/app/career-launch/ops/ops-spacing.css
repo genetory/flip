@@ -12,6 +12,22 @@
  * 최상위 리듬(header→28px, 형제→24px)은 dashboard.css 규칙을 그대로 쓰고 덮어쓰지 않는다.
  */
 
+/* dashboard.css 의 디자인 토큰(--ops-*, --ink 등)은 .ops-console-shell 스코프에만
+ * 정의돼 있다. 커리어런치 콘솔의 래퍼는 .launch-ops 라서 그 토큰들이 상속되지 않고,
+ * var(--ops-accent-dark) 를 쓰는 공유 규칙이 무효화된다.
+ * (대표 증상: .ops-partner-form button { background: var(--ops-accent-dark) } 가
+ *  투명 배경이 되어 "기수 만들기" 버튼이 흰 카드 위 흰 글씨로 안 보였다.)
+ * 콘솔과 동일한 토큰을 .launch-ops 에도 정의해 공유 규칙이 정상 렌더되게 한다. */
+.launch-ops {
+  --ops-bg-1: #14171f;
+  --ops-bg-2: #222938;
+  --ops-accent: #f97316;
+  --ops-accent-dark: #ea580c;
+  --ink: #111827;
+  --line: #e5e7eb;
+  --surface: #ffffff;
+}
+
 /* 목록 카드 안: 모든 형제 사이 16px.
  * 콘솔이 자체로 갖고 있던 12px 도 여기서 16px 로 통일된다(선택자 우선순위가 높음). */
 .launch-ops .ops-partner-list-card > * + * {

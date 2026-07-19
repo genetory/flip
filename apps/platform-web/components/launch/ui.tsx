@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { LAUNCH, type Mission, type MissionStatus, type Step } from "../../lib/launch/data";
 import { useLaunchT } from "../../lib/launch/i18n";
+import { useStepActionLabel } from "../../lib/launch/data-i18n";
 
 // 모바일 우선 컨테이너 — 최대 폭 좁게, 카드형 레이아웃.
 export function LaunchContainer({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -72,6 +73,7 @@ export function Checklist({ items }: { items: Mission[] }) {
 // 주차별 "스텝별 해야 할 일" — 번호 + 연결선 스테퍼. 완료는 로컬 토글(MVP).
 export function Stepper({ steps }: { steps: Step[] }) {
   const t = useLaunchT();
+  const actionLabel = useStepActionLabel();
   const [state, setState] = useState<Record<string, boolean>>(() => Object.fromEntries(steps.map((s) => [s.id, Boolean(s.done)])));
   return (
     <ol className="space-y-1">
@@ -114,7 +116,7 @@ export function Stepper({ steps }: { steps: Step[] }) {
                   href={s.action.href}
                   className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#EDF1FD] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]"
                 >
-                  {s.action.label} <span aria-hidden>→</span>
+                  {actionLabel(s.action.label)} <span aria-hidden>→</span>
                 </Link>
               ) : null}
             </div>

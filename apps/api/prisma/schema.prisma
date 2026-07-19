@@ -73,6 +73,10 @@ model User {
   careerCoverLetterData                CareerCoverLetterData?        @relation("CareerCoverLetterDataStudent")
   careerLaunchProgress                 CareerLaunchProgress?         @relation("CareerLaunchProgressStudent")
   careerEnrollments                    CareerEnrollment[]            @relation("CareerEnrollmentStudent")
+  careerEmploymentOutcomes             CareerEmploymentOutcome[]     @relation("CareerEmploymentOutcomeStudent")
+  careerLaunchSatisfactions            CareerLaunchSatisfaction[]    @relation("CareerLaunchSatisfactionStudent")
+  careerLaunchCertificatesReceived     CareerLaunchCertificate[]     @relation("CareerLaunchCertificateStudent")
+  careerLaunchCertificatesIssued       CareerLaunchCertificate[]     @relation("CareerLaunchCertificateIssuer")
   certificatesIssued                   Certificate[]                 @relation("CertificateIssuer")
   recommendationsIssued                Recommendation[]              @relation("RecommendationIssuer")
   schoolCreditReviews                  SchoolCreditRequest[]         @relation("SchoolCreditReviewer")
@@ -873,7 +877,10 @@ model CareerCohort {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  enrollments CareerEnrollment[]
+  enrollments        CareerEnrollment[]
+  employmentOutcomes CareerEmploymentOutcome[]
+  satisfactions      CareerLaunchSatisfaction[]
+  certificates       CareerLaunchCertificate[]
 
   @@index([status])
 }
@@ -890,6 +897,75 @@ model CareerEnrollment {
 
   @@unique([cohortId, studentUserId])
   @@index([studentUserId])
+}
+
+// Career Launch 취업 성과 — 수료생의 실제 취업 결과를 기록한다.
+// aply.global 내부(INTERNAL) 공고뿐 아니라 외부 공고·오프라인 채용까지 모든 경로를 포괄한다
+// (외부 공고 지원은 익명 클릭이라 학생별 귀속이 안 되므로, 운영자가 결과를 직접 기록한다).
+model CareerEmploymentOutcome {
+  id              String                  @id @default(uuid())
+  studentUserId   String
+  cohortId        String?
+  status          EmploymentOutcomeStatus @default(APPLIED)
+  companyName     String
+  positionTitle   String?
+  source          String? // "INTERNAL" | "WANTED" | "BUDDIES" | "EXTERNAL" | "OFFLINE"
+  positionId      String? // aply.global 포지션이면 연결(선택)
+  note            String?
+  decidedAt       DateTime? // 합격/최종 확정 시각
+  createdByUserId String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  student User          @relation("CareerEmploymentOutcomeStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+  cohort  CareerCohort? @relation(fields: [cohortId], references: [id], onDelete: SetNull)
+
+  @@index([studentUserId])
+  @@index([cohortId])
+  @@index([status])
+}
+
+// Career Launch 만족도/추천(NPS) — 수료생이 남기는 프로그램 평가. 학교 리포트의 정성 지표.
+model CareerLaunchSatisfaction {
+  id            String   @id @default(uuid())
+  studentUserId String
+  cohortId      String
+  rating        Int // 1~5 만족도
+  npsScore      Int? // 0~10 추천 점수(NPS)
+  comment       String? // 후기/추천사
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  student User         @relation("CareerLaunchSatisfactionStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+  cohort  CareerCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, studentUserId])
+  @@index([cohortId])
+}
+
+// Career Launch 수료증 — 기수 단위 프로그램 수료 인증(내부 Program 수료증과 별개).
+model CareerLaunchCertificate {
+  id             String   @id @default(uuid())
+  studentUserId  String
+  cohortId       String
+  certificateNo  String   @unique
+  issuedByUserId String?
+  issuedAt       DateTime @default(now())
+
+  student  User          @relation("CareerLaunchCertificateStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+  cohort   CareerCohort  @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  issuedBy User?         @relation("CareerLaunchCertificateIssuer", fields: [issuedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([cohortId, studentUserId])
+  @@index([cohortId])
+}
+
+enum EmploymentOutcomeStatus {
+  APPLIED // 지원
+  INTERVIEW // 면접
+  OFFER // 합격(오퍼)
+  HIRED // 최종 입사
+  REJECTED // 불합격
 }
 
 model Certificate {
