@@ -1234,6 +1234,85 @@ async function getPartnerTeamEmails(partnerOrganizationId: string | null): Promi
   return members.map((m) => m.email).filter((e): e is string => Boolean(e && e.includes("@")));
 }
 
+// 비자 매칭 잡 얼럿 — 포지션이 처음 OPEN 되면 비자 조건이 맞는 지원자에게 신규 공고를 알린다.
+// 대량 지원자 메일이라 기본 OFF(ENABLE_JOB_ALERTS=true 로 활성화). 중복 방지(jobAlertSentAt) + opt-in 존중.
+const VISA_ENUM_TO_CODE: Record<string, string> = {
+  D10_JOB_SEEKING: "D-10",
+  D2_STUDENT: "D-2",
+  D4_GENERAL_TRAINING: "D-4",
+  F2_RESIDENCE: "F-2",
+  F4_OVERSEAS_KOREAN: "F-4",
+  F5_PERMANENT_RESIDENCE: "F-5",
+  F6_MARRIAGE_IMMIGRATION: "F-6",
+  E7_SPECIFIC_ACTIVITY: "E-7",
+  H1_WORKING_HOLIDAY: "H-1"
+};
+const JOB_ALERT_MAX_RECIPIENTS = 500;
+
+async function sendPositionOpenJobAlerts(positionId: string) {
+  if (process.env.ENABLE_JOB_ALERTS !== "true") return; // 기본 OFF — 매칭/빈도 튜닝 후 켠다.
+  try {
+    const position = await prisma.position.findUnique({
+      where: { id: positionId },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        eligibleVisas: true,
+        jobAlertSentAt: true,
+        partnerOrganization: { select: { name: true } }
+      }
+    });
+    if (!position || position.status !== PositionStatus.OPEN || position.jobAlertSentAt) return;
+
+    const eligible = position.eligibleVisas ?? [];
+    const openToAll = eligible.length === 0 || eligible.includes("NO_VISA_REQUIRED");
+    const matchVisaEnums = openToAll
+      ? null
+      : (Object.entries(VISA_ENUM_TO_CODE)
+          .filter(([, code]) => eligible.includes(code))
+          .map(([e]) => e) as CandidateVisaType[]);
+
+    // 매칭되는 비자가 하나도 없으면 발송 없이 마킹(재시도 방지).
+    if (!openToAll && (!matchVisaEnums || matchVisaEnums.length === 0)) {
+      await prisma.position.update({ where: { id: position.id }, data: { jobAlertSentAt: new Date() } });
+      return;
+    }
+
+    const transporter = getSmtpTransporter();
+    if (transporter) {
+      const candidates = await prisma.candidateProfile.findMany({
+        where: {
+          ...(openToAll ? {} : { visaType: { in: matchVisaEnums! } }),
+          user: { role: MemberRole.STUDENT, isActive: true, emailNotifications: true }
+        },
+        take: JOB_ALERT_MAX_RECIPIENTS,
+        select: { user: { select: { id: true, email: true } } }
+      });
+      const companyLine = position.partnerOrganization?.name ? `${position.partnerOrganization.name} · ${position.title}` : position.title;
+      for (const c of candidates) {
+        if (!c.user?.email || !c.user.email.includes("@")) continue;
+        void sendNotificationEmail({
+          toUser: { id: c.user.id, email: c.user.email },
+          subject: `[Aply] 새 채용 공고 — ${position.title}`,
+          previewText: `비자 조건에 맞는 새 공고: ${position.title}`,
+          title: "새 채용 공고",
+          headline: "비자 조건에 맞는 새 공고가 올라왔어요",
+          contextLine: companyLine,
+          bodyText: "회원님의 비자로 지원 가능한 새 포지션이 등록되었습니다. 지금 확인해 보세요.",
+          ctaLabel: "공고 보기",
+          ctaPath: `/positions/${encodeURIComponent(position.id)}`,
+          footerNote: "본 메일은 회원님의 비자 조건에 맞는 신규 공고 알림입니다. 알림 설정에서 끌 수 있어요.",
+          logKey: "job_alert_email"
+        });
+      }
+    }
+    await prisma.position.update({ where: { id: position.id }, data: { jobAlertSentAt: new Date() } });
+  } catch (error) {
+    console.error("position_job_alert_failed", { error: getErrorMessage(error) });
+  }
+}
+
 // ───────────────────────────────────────────────────────────────
 // 자동 리마인더/넛지 스케줄러 — 방치된 연결을 시스템이 대신 챙긴다.
 // (Aply 는 개입 없이 트래킹만 하고, 흐름은 자동으로 굴러가도록)
@@ -10623,6 +10702,10 @@ app.patch("/ops/positions/:id/status", authenticate, requireRoles([MemberRole.OP
         }
       }
     });
+    // 처음 OPEN 되면 비자 매칭 지원자에게 잡 얼럿(기본 OFF 플래그).
+    if (parsed.data.status === PositionStatus.OPEN && current.status !== PositionStatus.OPEN) {
+      void sendPositionOpenJobAlerts(id);
+    }
     return res.json({ ok: true, item: toPosition(updated) });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to update position status" });

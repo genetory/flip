@@ -527,6 +527,7 @@ model Position {
   communicationLanguages  String[]                    @default([])
   hiringProcess           String?
   preferredJobRole        String?
+  jobAlertSentAt          DateTime? // 비자 매칭 지원자에게 잡 얼럿 발송한 시각(중복 방지)
   hiringCount             Int?
   workingHours            String?
   workLocation            String?
