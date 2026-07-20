@@ -851,13 +851,13 @@
 .ops-inline-add-row select {
   height: 40px;
   background: var(--surface-2);
-  border-color: #e9eef5;
+  border-color: var(--line);
   color: var(--ink-faint);
   font-size: 12px;
 }
 
 .ops-inline-add-row select:focus {
-  border-color: #dbe4ee;
+  border-color: var(--line);
   box-shadow: none;
 }
 
@@ -911,7 +911,7 @@
 
 .ops-selected-item-text {
   font-size: 13px;
-  color: #0b1220;
+  color: var(--ink);
   font-weight: 600;
   line-height: 1.2;
 }
@@ -921,7 +921,7 @@
   height: 16px;
   border: 0;
   background: transparent !important;
-  color: #dc2626 !important;
+  color: var(--danger) !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -934,14 +934,14 @@
 
 .ops-selected-delete:hover {
   background: transparent !important;
-  color: #dc2626 !important;
+  color: var(--danger) !important;
 }
 
 .ops-selected-delete:focus,
 .ops-selected-delete:focus-visible,
 .ops-selected-delete:active {
   background: transparent !important;
-  color: #dc2626 !important;
+  color: var(--danger) !important;
   box-shadow: none !important;
   outline: none;
 }
@@ -1153,7 +1153,7 @@
 
 .ops-table-empty {
   text-align: center !important;
-  color: #6b7280 !important;
+  color: var(--ink-faint) !important;
   padding: 28px 14px !important;
 }
 
@@ -1372,19 +1372,19 @@
 }
 
 .ops-status-toggle-menu button.approve {
-  border-color: #86efac;
+  border-color: transparent;
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
 
 .ops-status-toggle-menu button.pending {
-  border-color: #fde68a;
+  border-color: transparent;
   background: var(--sand-soft);
   color: var(--sand);
 }
 
 .ops-status-toggle-menu button.reject {
-  border-color: #fecaca;
+  border-color: transparent;
   background: var(--danger-soft);
   color: var(--danger);
 }
@@ -1408,56 +1408,56 @@
 
 .ops-position-status-toggle-menu button.ops-position-status-draft,
 .ops-status-change-button.ops-position-status-draft {
-  border-color: #cbd5e1;
+  border-color: transparent;
   background: var(--surface-2);
   color: var(--ink-soft);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-pending,
 .ops-status-change-button.ops-position-status-pending {
-  border-color: #fcd34d;
+  border-color: transparent;
   background: var(--sand-soft);
   color: var(--sand);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-approved,
 .ops-status-change-button.ops-position-status-approved {
-  border-color: #93c5fd;
+  border-color: transparent;
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-open,
 .ops-status-change-button.ops-position-status-open {
-  border-color: #93c5fd;
+  border-color: transparent;
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-paused,
 .ops-status-change-button.ops-position-status-paused {
-  border-color: #67e8f9;
+  border-color: transparent;
   background: var(--surface-2);
-  color: #155e75;
+  color: var(--ink-soft);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-matching,
 .ops-status-change-button.ops-position-status-matching {
-  border-color: #99f6e4;
+  border-color: transparent;
   background: var(--surface-2);
-  color: #0f766e;
+  color: var(--ink-soft);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-closed,
 .ops-status-change-button.ops-position-status-closed {
-  border-color: #d1d5db;
+  border-color: var(--line-strong);
   background: var(--surface-2);
   color: var(--ink-soft);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-rejected,
 .ops-status-change-button.ops-position-status-rejected {
-  border-color: #fca5a5;
+  border-color: transparent;
   background: var(--danger-soft);
   color: var(--danger);
 }
@@ -1777,31 +1777,31 @@
 }
 
 .ops-profile-completion-tone-neutral {
-  border-color: #e5e7eb;
+  border-color: var(--line);
   background: var(--surface-2);
   color: var(--ink-faint);
 }
 
 .ops-profile-completion-tone-very-low {
-  border-color: #fecaca;
+  border-color: transparent;
   background: var(--danger-soft);
   color: var(--danger);
 }
 
 .ops-profile-completion-tone-low {
-  border-color: #fed7aa;
+  border-color: transparent;
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
 
 .ops-profile-completion-tone-medium {
-  border-color: #fef08a;
+  border-color: transparent;
   background: var(--sand-soft);
   color: var(--sand);
 }
 
 .ops-profile-completion-tone-high {
-  border-color: #bbf7d0;
+  border-color: transparent;
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
@@ -2863,7 +2863,7 @@
 
 .ops-matching-reco-card > ul > li small {
   font-size: 13px;
-  color: #475569;
+  color: var(--ink-soft);
   grid-column: 1 / -1;
 }
 
