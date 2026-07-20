@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { readAccessToken } from "../../../../lib/auth-client";
 import { InterviewSlotDetailModal, type SlotDetailItem } from "../../../../components/interviews/InterviewSlotDetailModal";
@@ -156,8 +157,9 @@ export default function PartnerInterviewsPage() {
                   type="button"
                   className="ops-btn"
                   onClick={() => setCalendarAnchor(new Date(year, month - 1, 1))}
+                  aria-label="이전 달"
                 >
-                  ←
+                  <CaretLeft size={14} weight="bold" aria-hidden />
                 </button>
                 <h3>{monthLabel}</h3>
                 <div className="ops-row">
@@ -175,8 +177,9 @@ export default function PartnerInterviewsPage() {
                     type="button"
                     className="ops-btn"
                     onClick={() => setCalendarAnchor(new Date(year, month + 1, 1))}
+                    aria-label="다음 달"
                   >
-                    →
+                    <CaretRight size={14} weight="bold" aria-hidden />
                   </button>
                 </div>
               </div>
@@ -208,7 +211,7 @@ export default function PartnerInterviewsPage() {
                         </button>
                       ))}
                       {events.length > 3 ? (
-                        <span style={{ fontSize: 10, color: "#9ca3af" }}>+{events.length - 3}건</span>
+                        <span style={{ fontSize: 10, color: "var(--ink-faint)" }}>+{events.length - 3}건</span>
                       ) : null}
                     </div>
                   );

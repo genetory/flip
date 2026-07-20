@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { X } from "@phosphor-icons/react";
 import {
   getMyPartnerOrganization,
   isPartnerOrganizationProfileComplete,
@@ -80,8 +81,8 @@ export default function PartnerCompanyPage() {
         <div className="ops-error-card">{error}</div>
       ) : !org ? (
         <article className="ops-card">
-          <div style={{ border: "1px dashed #d1d5db", borderRadius: 12, padding: 24, background: "#f9fafb" }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "#111827" }}>아직 파트너로 등록되지 않았어요</h2>
+          <div style={{ border: "1px dashed var(--line-strong)", borderRadius: 12, padding: 24, background: "var(--surface-2)" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--ink)" }}>아직 파트너로 등록되지 않았어요</h2>
             <p className="ops-card-subtle" style={{ marginTop: 8, fontSize: 14 }}>
               파트너 정보를 등록하거나 초대 코드로 합류하면 정보·포지션·알림을 관리할 수 있어요.
             </p>
@@ -102,27 +103,27 @@ export default function PartnerCompanyPage() {
             <dl style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", margin: 0, fontSize: 14 }}>
               <div>
                 <dt className="ops-form-label">회사명</dt>
-                <dd style={{ color: "#111827", fontWeight: 500, margin: 0 }}>{org.name}</dd>
+                <dd style={{ color: "var(--ink)", fontWeight: 500, margin: 0 }}>{org.name}</dd>
               </div>
               <div>
                 <dt className="ops-form-label">파트너 타입</dt>
-                <dd style={{ color: "#111827", fontWeight: 500, margin: 0 }}>{PARTNER_TYPE_LABEL[org.partnerType] ?? org.partnerType}</dd>
+                <dd style={{ color: "var(--ink)", fontWeight: 500, margin: 0 }}>{PARTNER_TYPE_LABEL[org.partnerType] ?? org.partnerType}</dd>
               </div>
               <div>
                 <dt className="ops-form-label">업종</dt>
-                <dd style={{ color: "#111827", fontWeight: 500, margin: 0 }}>{partnerIndustryLabel(org.industry)}</dd>
+                <dd style={{ color: "var(--ink)", fontWeight: 500, margin: 0 }}>{partnerIndustryLabel(org.industry)}</dd>
               </div>
               <div>
                 <dt className="ops-form-label">회사 규모</dt>
-                <dd style={{ color: "#111827", fontWeight: 500, margin: 0 }}>{org.companySize ? COMPANY_SIZE_LABEL[org.companySize] ?? org.companySize : "-"}</dd>
+                <dd style={{ color: "var(--ink)", fontWeight: 500, margin: 0 }}>{org.companySize ? COMPANY_SIZE_LABEL[org.companySize] ?? org.companySize : "-"}</dd>
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <dt className="ops-form-label">웹사이트</dt>
-                <dd style={{ color: "#111827", fontWeight: 500, margin: 0 }}>{org.website ?? "-"}</dd>
+                <dd style={{ color: "var(--ink)", fontWeight: 500, margin: 0 }}>{org.website ?? "-"}</dd>
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <dt className="ops-form-label">주소</dt>
-                <dd style={{ color: "#111827", fontWeight: 500, margin: 0 }}>{org.officeAddress ?? "-"}</dd>
+                <dd style={{ color: "var(--ink)", fontWeight: 500, margin: 0 }}>{org.officeAddress ?? "-"}</dd>
               </div>
             </dl>
           </article>
@@ -136,13 +137,13 @@ export default function PartnerCompanyPage() {
             </div>
             <ul style={{ display: "flex", flexDirection: "column", gap: 8, margin: 0, padding: 0, listStyle: "none", fontSize: 14 }}>
               <li style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                <span style={{ color: "#6b7280" }}>회사 프로필</span>
+                <span style={{ color: "var(--ink-faint)" }}>회사 프로필</span>
                 <span className={`ops-pill ${profileComplete ? "ops-pill-green" : "ops-pill-amber"}`}>
                   {profileComplete ? "완료" : "미완료"}
                 </span>
               </li>
               <li style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                <span style={{ color: "#6b7280" }}>인증 정보</span>
+                <span style={{ color: "var(--ink-faint)" }}>인증 정보</span>
                 <span className={`ops-pill ${verificationComplete ? "ops-pill-green" : "ops-pill-amber"}`}>
                   {verificationComplete ? "완료" : "미완료"}
                 </span>
@@ -183,15 +184,15 @@ export default function PartnerCompanyPage() {
               boxShadow: "0 24px 60px -20px rgba(15, 23, 42, 0.4)"
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #e5e7eb", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--line)", flexShrink: 0 }}>
               <p style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>{modalTitle}</p>
               <button
                 type="button"
                 onClick={closeModal}
                 aria-label="닫기"
-                style={{ background: "transparent", border: 0, fontSize: 22, cursor: "pointer", color: "#6b7280", lineHeight: 1 }}
+                style={{ background: "transparent", border: 0, cursor: "pointer", color: "var(--ink-faint)", lineHeight: 1, display: "inline-flex" }}
               >
-                ✕
+                <X size={20} weight="bold" aria-hidden />
               </button>
             </div>
             <div style={{ flex: 1, overflowY: "auto" }}>

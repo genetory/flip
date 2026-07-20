@@ -522,7 +522,7 @@ export default function PartnerPositionsPage() {
         >
           <div className="ops-modal-panel ops-status-change-modal" onClick={(event) => event.stopPropagation()}>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>상태 변경</h3>
-            <p style={{ margin: "8px 0 0", color: "#6b7280", fontSize: 13 }}>변경할 상태를 선택하세요.</p>
+            <p style={{ margin: "8px 0 0", color: "var(--ink-faint)", fontSize: 13 }}>변경할 상태를 선택하세요.</p>
             <div className="ops-status-change-grid" style={{ marginTop: 14 }}>
               {POSITION_STATUS_OPTIONS.map((status) => {
                 const current = items.find((item) => item.id === openStatusModalId)?.status;

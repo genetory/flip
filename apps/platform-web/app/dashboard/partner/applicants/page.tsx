@@ -227,8 +227,8 @@ export default function PartnerApplicantsPage() {
       {actionError ? <div className="ops-error-card">{actionError}</div> : null}
 
       {selectedIds.size > 0 && viewMode === "table" ? (
-        <article className="ops-card" style={{ background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#111827" }}>
+        <article className="ops-card" style={{ background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
             {selectedIds.size}명 선택됨
           </p>
           <div className="ops-table-actions">

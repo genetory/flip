@@ -147,8 +147,8 @@ export default function PartnerIssuesPage() {
                     <span className={`ops-pill ${STATUS_PILL[it.status]}`}>{STATUS_KO[it.status]}</span>
                     <span className="ops-pill ops-pill-gray" style={{ background: "transparent" }}>{formatRelative(it.createdAt)}</span>
                   </div>
-                  <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "#111827" }}>{it.title}</h3>
-                  <p style={{ fontSize: 13, color: "#374151", margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{it.description}</p>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "var(--ink)" }}>{it.title}</h3>
+                  <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{it.description}</p>
                   <p className="ops-card-subtle" style={{ marginTop: 8 }}>
                     신고: {it.reporter.name ?? it.reporter.email} ({it.reporter.role})
                     {it.subject ? ` · 대상: ${it.subject.name ?? it.subject.email}` : ""}

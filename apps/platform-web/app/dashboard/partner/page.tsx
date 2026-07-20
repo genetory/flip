@@ -63,13 +63,13 @@ type ActivityItem = {
 };
 
 const ACTIVITY_DOT_COLOR: Record<string, string> = {
-  APPLICATION_NEW: "#10b981",
-  APPLICATION_STATUS: "#3b82f6",
-  INTERVIEW_SELECTED: "#16a34a",
-  INTERVIEW_CANCELLED: "#9ca3af",
-  ASSIGNMENT_SUBMITTED: "#1d4ed8",
-  ASSIGNMENT_REVIEWED: "#047857",
-  COMMENT_NEW: "#7c3aed"
+  APPLICATION_NEW: "var(--accent-ink)",
+  APPLICATION_STATUS: "var(--accent)",
+  INTERVIEW_SELECTED: "var(--accent-ink)",
+  INTERVIEW_CANCELLED: "var(--ink-faint)",
+  ASSIGNMENT_SUBMITTED: "var(--accent-ink)",
+  ASSIGNMENT_REVIEWED: "var(--accent-ink)",
+  COMMENT_NEW: "var(--accent-ink)"
 };
 
 function formatRelativeKo(iso: string) {
@@ -205,7 +205,7 @@ export default function PartnerDashboardHome() {
                     <Link key={it.id} href={it.linkPath} className="ops-activity-item">
                       <span
                         className="ops-activity-dot"
-                        style={{ background: ACTIVITY_DOT_COLOR[it.type] ?? "#9ca3af" }}
+                        style={{ background: ACTIVITY_DOT_COLOR[it.type] ?? "var(--ink-faint)" }}
                         aria-hidden
                       />
                       <div className="ops-activity-text">

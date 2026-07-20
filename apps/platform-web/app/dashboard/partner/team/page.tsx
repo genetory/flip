@@ -160,7 +160,7 @@ export default function PartnerTeamPage() {
           {joinCode ? (
             <div className="ops-soft-card" style={{ marginTop: 12 }}>
               <p className="ops-form-label">초대 코드</p>
-              <p style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 20, fontWeight: 700, color: "#111827", margin: "4px 0 0" }}>
+              <p style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 20, fontWeight: 700, color: "var(--ink)", margin: "4px 0 0" }}>
                 {joinCode.code}
               </p>
               <p className="ops-card-subtle" style={{ marginTop: 4 }}>

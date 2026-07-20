@@ -219,7 +219,7 @@ export default function PartnerReportsPage() {
                         <td className="ops-row-strong">{p.applicationsTotal.toLocaleString()}</td>
                         <td>{p.byStatus.SUBMITTED.toLocaleString()}</td>
                         <td>{p.byStatus.INTERVIEW.toLocaleString()}</td>
-                        <td style={{ color: "#047857", fontWeight: 600 }}>{p.byStatus.ACCEPTED.toLocaleString()}</td>
+                        <td style={{ color: "var(--accent-ink)", fontWeight: 600 }}>{p.byStatus.ACCEPTED.toLocaleString()}</td>
                         <td>{p.byStatus.REJECTED.toLocaleString()}</td>
                         <td className="ops-row-sub">{p.acceptanceRate}%</td>
                       </tr>
