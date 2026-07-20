@@ -178,6 +178,14 @@ export type CohortReportStudent = {
   diagnosisBefore: number | null;
   diagnosisAfter: number | null;
   gain: number | null;
+  // 진단 근거 — AI 자가진단 정성 평가
+  diagLevel: string | null;
+  diagStrengths: string[];
+  diagImprovements: string[];
+  prepCompletion: number;
+  successBefore: number | null;
+  successAfter: number | null;
+  successGain: number | null;
   selectedJobs: number;
   hasResume: boolean;
   coverItems: number;
@@ -216,6 +224,10 @@ export type CohortReport = {
     avgAfter: number;
     avgGain: number;
     improved: number;
+    avgSuccessBefore: number;
+    avgSuccessAfter: number;
+    avgSuccessGain: number;
+    avgPrepCompletion: number;
     // 취업 성과
     tracked: number;
     totalApplications: number;
