@@ -1,16 +1,81 @@
 /* Scoped admin/dashboard styles — imported only by dashboard layouts */
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css");
 
-.ops-console-shell {
+/* ─────────────────────────────────────────────────────────────
+ * 디자인 토큰 (Toss 톤: 회색 그라운드 + 흰 카드 + 파란 액센트)
+ * 운영콘솔(.ops-console-shell)·커리어콘솔(.launch-ops) 공용. 라이트 기본 + OS 다크 자동.
+ * 상태색은 accent(정보/정상) · sand(경고) · danger(위험) 3종만 사용한다.
+ * ───────────────────────────────────────────────────────────── */
+.ops-console-shell,
+.launch-ops {
+  --ground: #f2f4f6;
+  --surface: #ffffff;
+  --surface-2: #f7f8fa;
+  --ink: #191f28;
+  --ink-soft: #4e5968;
+  --ink-faint: #8b95a1;
+  --line: #e8ebed;
+  --line-strong: #d1d6db;
+  --accent: #3182f6;
+  --accent-ink: #1b64da;
+  --accent-soft: #e8f2fe;
+  --sand: #d98218;
+  --sand-soft: #fff3e0;
+  --danger: #e5484d;
+  --danger-soft: #fdecec;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.05);
+  --shadow-card-lg: 0 6px 28px rgba(0, 0, 0, 0.09);
+
+  /* 레거시 토큰(--ops-accent 등) 재지정 — 기존 규칙이 그대로 새 액센트를 쓰게 한다.
+   * (기존 주황 #f97316 → accent 블루). 개별 규칙은 Phase 1에서 토큰으로 마저 교체. */
+  --ops-accent: var(--accent);
+  --ops-accent-dark: var(--accent-ink);
   --ops-bg-1: #14171f;
   --ops-bg-2: #222938;
-  --ops-accent: #f97316;
-  --ops-accent-dark: #ea580c;
-  --ink: #111827;
-  --line: #e5e7eb;
-  --surface: #ffffff;
-  font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+
+  font-family: "Pretendard Variable", "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   color: var(--ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  .ops-console-shell,
+  .launch-ops {
+    --ground: #131417;
+    --surface: #1d1f24;
+    --surface-2: #26282e;
+    --ink: #f2f4f6;
+    --ink-soft: #b0b8c1;
+    --ink-faint: #6b7684;
+    --line: #2c2f36;
+    --line-strong: #3a3e46;
+    --accent: #4593fc;
+    --accent-ink: #6ba8fc;
+    --accent-soft: #17253c;
+    --sand: #e0a050;
+    --sand-soft: #2e2415;
+    --danger: #f16a6f;
+    --danger-soft: #3a1e1f;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.28);
+    --shadow-card-lg: 0 6px 28px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* 포커스 링(accent) — 접근성 */
+.ops-console-shell :is(a, button, select, input, textarea):focus-visible,
+.launch-ops :is(a, button, select, input, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ops-console-shell *,
+  .launch-ops * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }
 
 .ops-page {
@@ -238,18 +303,18 @@
   height: 100dvh;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
-  background: #fff;
+  background: var(--ground);
   overflow: hidden;
   overscroll-behavior: none;
 }
 
 .ops-console-sidebar {
-  background: #151923;
-  color: #fff;
+  background: var(--surface);
+  color: var(--ink);
   padding: 22px 14px 16px;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid var(--line);
   height: 100dvh;
   overflow: hidden;
 }
@@ -262,7 +327,12 @@
   width: 85px;
   height: auto;
   display: block;
-  filter: brightness(0) invert(1);
+}
+/* 다크 모드에선 어두운 사이드바 위에서 로고가 보이도록 반전 */
+@media (prefers-color-scheme: dark) {
+  .ops-console-brand img {
+    filter: brightness(0) invert(1);
+  }
 }
 
 .ops-console-nav {
@@ -287,7 +357,7 @@
 
 .ops-console-nav-group {
   padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--line);
 }
 
 .ops-console-nav-group:first-child {
@@ -313,18 +383,18 @@
   background: transparent;
   border: 0;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--ink-faint);
   cursor: pointer;
   border-radius: 8px;
   transition: color 120ms ease, background 120ms ease;
 }
 
 .ops-console-nav-group-toggle:hover {
-  color: rgba(255, 255, 255, 0.72);
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink-soft);
+  background: var(--surface-2);
 }
 
 .ops-console-nav-chevron {
@@ -342,9 +412,9 @@
   margin: 0;
   padding: 0 8px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.52);
+  color: var(--ink-faint);
 }
 
 .ops-console-nav-group ul {
@@ -360,12 +430,12 @@
   align-items: center;
   gap: 10px;
   position: relative;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 9px 10px;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--ink-soft);
   text-decoration: none;
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 600;
   transition: background 100ms ease, color 100ms ease;
 }
 
@@ -373,27 +443,27 @@
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--ink-faint);
   transition: color 100ms ease;
 }
 
 .ops-console-nav-group a:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: rgba(255, 255, 255, 0.96);
+  background: var(--surface-2);
+  color: var(--ink);
 }
 
 .ops-console-nav-group a:hover .ops-console-nav-icon {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--ink);
 }
 
 .ops-console-nav-group a.is-active {
-  background: linear-gradient(90deg, rgba(249, 115, 22, 0.28), rgba(234, 88, 12, 0.18));
-  color: #fff;
-  font-weight: 500;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 700;
 }
 
 .ops-console-nav-group a.is-active .ops-console-nav-icon {
-  color: #fff;
+  color: var(--accent-ink);
 }
 
 .ops-console-logout-wrap {
@@ -404,17 +474,23 @@
 .ops-console-logout {
   width: 100%;
   height: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
   background: transparent;
-  color: #fff;
+  color: var(--ink-soft);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 700;
   cursor: pointer;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.ops-console-logout:hover {
+  background: var(--surface-2);
+  color: var(--ink);
 }
 
 .ops-console-main {
-  background: #fff;
+  background: var(--ground);
   padding: 24px;
   height: 100dvh;
   /* Both axes scroll: vertical for tall pages, horizontal for narrow
@@ -434,15 +510,17 @@
 
 .ops-content-section header h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 26px;
+  font-weight: 800;
   line-height: 1.2;
-  color: #111827;
+  letter-spacing: -0.02em;
+  color: var(--ink);
 }
 
 .ops-content-section header p {
   margin: 10px 0 0;
   font-size: 14px;
-  color: #6b7280;
+  color: var(--ink-soft);
 }
 
 .ops-content-grid {
@@ -480,10 +558,10 @@
 
 .ops-partner-form-card,
 .ops-partner-list-card {
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  box-shadow: none;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .ops-content-section > .ops-partner-list-card {
@@ -911,15 +989,24 @@
   text-align: left;
   padding: 13px 14px;
   font-size: 13px;
-  border-bottom: 1px solid #f5f7fb;
+  border-bottom: 1px solid var(--line);
   vertical-align: middle;
   white-space: nowrap;
 }
 
 .ops-partner-table th {
-  background: #fafbfc;
-  font-weight: 600;
-  color: #374151;
+  background: transparent;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* 숫자 정렬 셀은 tabular-nums 로 자릿수 정렬 */
+.ops-partner-table td.ops-num,
+.ops-partner-table .ops-num {
+  font-variant-numeric: tabular-nums;
 }
 
 .ops-th-sort {
@@ -940,7 +1027,11 @@
 }
 
 .ops-partner-table td {
-  color: #4b5563;
+  color: var(--ink-soft);
+}
+
+.ops-partner-table tbody tr:hover {
+  background: var(--surface-2);
 }
 
 .ops-position-list-table {
@@ -3300,17 +3391,25 @@
 /* ===== Shared admin card utilities (new pages) ===== */
 
 .ops-card {
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  box-shadow: none;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-card);
 }
 
-/* Vertical rhythm (Toss-style flat layout): no card chrome, so siblings
-   rely on margin alone for separation. 28px between header and first
-   section, 24px between subsequent siblings. */
+/* Vertical rhythm: 28px between header and first block, 24px between blocks.
+   Blocks are surface cards over the grey ground. */
 .ops-content-section > header + * {
   margin-top: 28px;
+}
+
+/* 섹션 바로 아래에 그냥 놓인 테이블·필터바도 흰 카드로 감싼다(회색 그라운드 위 부유 방지). */
+.ops-content-section > .ops-partner-table-wrap,
+.ops-content-section > .ops-partner-filters {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .ops-content-section > header ~ * + * {
@@ -3329,13 +3428,13 @@
   margin: 0;
   font-size: 16px;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
 }
 
 .ops-card-subtle {
   margin: 6px 0 0;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--ink-faint);
   line-height: 1.55;
 }
 
@@ -3352,20 +3451,20 @@
   padding: 7px 14px;
   border: 0;
   border-radius: 999px;
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--surface-2);
+  color: var(--ink-soft);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: background-color 0.15s, color 0.15s;
 }
 
 .ops-filter-chip:hover {
-  background: #e5e7eb;
+  background: var(--line);
 }
 
 .ops-filter-chip.is-active {
-  background: #111827;
+  background: var(--accent);
   color: #fff;
 }
 
@@ -3384,15 +3483,15 @@
   padding: 40px 0;
   box-shadow: none;
   text-align: center;
-  color: #6b7280;
+  color: var(--ink-faint);
   font-size: 14px;
 }
 
 .ops-error-card {
-  background: #fef2f2;
+  background: var(--danger-soft);
   border-radius: 14px;
   padding: 16px 20px;
-  color: #b91c1c;
+  color: var(--danger);
   font-size: 13px;
 }
 
@@ -3403,10 +3502,10 @@
 }
 
 .ops-list-card {
-  background: #fff;
-  border-radius: 14px;
+  background: var(--surface);
+  border-radius: 16px;
   padding: 18px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -3417,7 +3516,7 @@
 
 a.ops-list-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-card-lg);
 }
 
 .ops-list-card-head {
@@ -3430,14 +3529,14 @@ a.ops-list-card:hover {
 .ops-list-card-title {
   font-size: 15px;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
   margin: 0;
 }
 
 .ops-list-card-sub {
   margin: 2px 0 0;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 .ops-list-card-meta {
@@ -3450,12 +3549,12 @@ a.ops-list-card:hover {
 }
 
 .ops-list-card-meta dt {
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 .ops-list-card-meta dd {
   margin: 0;
-  color: #374151;
+  color: var(--ink-soft);
 }
 
 .ops-tag-row {
@@ -3474,12 +3573,13 @@ a.ops-list-card:hover {
   line-height: 1.6;
 }
 
-.ops-pill-amber { background: #fffbeb; color: #b45309; }
-.ops-pill-blue { background: #eff6ff; color: #1d4ed8; }
-.ops-pill-green { background: #ecfdf5; color: #047857; }
-.ops-pill-gray { background: #f3f4f6; color: #4b5563; }
-.ops-pill-red { background: #fef2f2; color: #b91c1c; }
-.ops-pill-violet { background: #f5f3ff; color: #6d28d9; }
+/* 상태색은 accent(정보/정상)·sand(경고)·danger(위험) 3종 + 중립만 사용 */
+.ops-pill-amber { background: var(--sand-soft); color: var(--sand); }
+.ops-pill-blue { background: var(--accent-soft); color: var(--accent-ink); }
+.ops-pill-green { background: var(--accent-soft); color: var(--accent-ink); }
+.ops-pill-gray { background: var(--surface-2); color: var(--ink-soft); }
+.ops-pill-red { background: var(--danger-soft); color: var(--danger); }
+.ops-pill-violet { background: var(--surface-2); color: var(--ink-soft); }
 
 .ops-kpi-grid {
   display: grid;
@@ -3488,34 +3588,36 @@ a.ops-list-card:hover {
 }
 
 .ops-kpi-tile {
-  background: #f9fafb;
-  border-radius: 10px;
+  background: var(--surface-2);
+  border-radius: 12px;
   padding: 14px;
 }
 
 .ops-kpi-label {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--ink-faint);
   margin: 0;
 }
 
 .ops-kpi-value {
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 800;
   margin: 6px 0 0;
-  color: #111827;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
-.ops-kpi-tile.ops-kpi-blue .ops-kpi-label { color: #1e40af; }
-.ops-kpi-tile.ops-kpi-blue .ops-kpi-value { color: #1d4ed8; }
-.ops-kpi-tile.ops-kpi-green .ops-kpi-label { color: #065f46; }
-.ops-kpi-tile.ops-kpi-green .ops-kpi-value { color: #047857; }
-.ops-kpi-tile.ops-kpi-amber .ops-kpi-label { color: #92400e; }
-.ops-kpi-tile.ops-kpi-amber .ops-kpi-value { color: #b45309; }
+/* 톤 변형 — accent(정보)·sand(경고)만. green(성공)은 accent 로 수렴 */
+.ops-kpi-tile.ops-kpi-blue .ops-kpi-label,
+.ops-kpi-tile.ops-kpi-green .ops-kpi-label { color: var(--accent-ink); }
+.ops-kpi-tile.ops-kpi-blue .ops-kpi-value,
+.ops-kpi-tile.ops-kpi-green .ops-kpi-value { color: var(--accent-ink); }
+.ops-kpi-tile.ops-kpi-amber .ops-kpi-label { color: var(--sand); }
+.ops-kpi-tile.ops-kpi-amber .ops-kpi-value { color: var(--sand); }
 
-.ops-kpi-tile.ops-kpi-blue { background: #eff6ff; }
-.ops-kpi-tile.ops-kpi-green { background: #ecfdf5; }
-.ops-kpi-tile.ops-kpi-amber { background: #fffbeb; }
+.ops-kpi-tile.ops-kpi-blue,
+.ops-kpi-tile.ops-kpi-green { background: var(--accent-soft); }
+.ops-kpi-tile.ops-kpi-amber { background: var(--sand-soft); }
 
 /* ---- Reports page v2: icon KPI strip + 2-col chart row + tabbed table ----
    Visual reference: shop-dashboard style. Colors stay with the ops console
@@ -3529,10 +3631,11 @@ a.ops-list-card:hover {
 }
 
 .ops-report-kpi {
-  background: #fff;
-  border: 1px solid #eef0f3;
-  border-radius: 12px;
+  background: var(--surface);
+  border: 0;
+  border-radius: 16px;
   padding: 18px 20px;
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -3548,8 +3651,7 @@ a.ops-report-kpi--link {
 }
 
 a.ops-report-kpi--link:hover {
-  border-color: var(--ops-accent-dark);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-card-lg);
   transform: translateY(-1px);
 }
 
@@ -3566,9 +3668,9 @@ a.ops-report-kpi--link:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #6b7280;
+  color: var(--ink-faint);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .ops-report-kpi-head .icon {
@@ -3578,29 +3680,30 @@ a.ops-report-kpi--link:focus-visible {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: #fff7ed;
-  color: var(--ops-accent-dark);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
   flex: 0 0 auto;
 }
 
 .ops-report-kpi .value {
   font-size: 32px;
-  font-weight: 700;
+  font-weight: 800;
   margin: 0;
-  color: #111827;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
   line-height: 1.05;
   letter-spacing: -0.02em;
 }
 
+/* 증감: 상승=accent(정보/긍정), 하락=danger, 변화없음=중립 (Toss 톤) */
 .ops-report-kpi .delta {
   font-size: 12px;
   margin: 0;
-  font-weight: 500;
-  color: #16a34a;
+  font-weight: 700;
+  color: var(--accent-ink);
 }
-.ops-report-kpi .delta.is-down { color: #dc2626; }
-.ops-report-kpi .delta.is-muted { color: #6b7280; }
+.ops-report-kpi .delta.is-down { color: var(--danger); }
+.ops-report-kpi .delta.is-muted { color: var(--ink-faint); }
 
 /* Two-column chart row: 2/3 + 1/3 */
 .ops-report-chart-row {
@@ -3615,10 +3718,11 @@ a.ops-report-kpi--link:focus-visible {
 }
 
 .ops-report-chart-card {
-  background: #fff;
-  border: 1px solid #eef0f3;
-  border-radius: 12px;
+  background: var(--surface);
+  border: 0;
+  border-radius: 16px;
   padding: 18px 20px 20px;
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -3634,8 +3738,7 @@ a.ops-report-chart-card--link {
 }
 
 a.ops-report-chart-card--link:hover {
-  border-color: var(--ops-accent-dark);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-card-lg);
   transform: translateY(-1px);
 }
 
@@ -3663,14 +3766,14 @@ a.ops-report-chart-card--link:focus-visible {
 
 .ops-report-chart-title .name {
   font-size: 12px;
-  color: #6b7280;
-  font-weight: 500;
+  color: var(--ink-faint);
+  font-weight: 600;
 }
 
 .ops-report-chart-title .num {
   font-size: 26px;
-  font-weight: 700;
-  color: #111827;
+  font-weight: 800;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
