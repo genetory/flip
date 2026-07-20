@@ -19306,6 +19306,34 @@ app.get("/partner/dashboard", authenticate, requireRoles([MemberRole.PARTNER, Me
   }
 });
 
+// 파트너 사이드바 뱃지용 — 지금 처리할 게 몇 건인지(검토 대기 지원·과제, 열린 이슈).
+app.get("/partner/nav-counts", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) {
+      return res.json({ ok: true, applicants: 0, assignments: 0, issues: 0 });
+    }
+    const orgId = affiliation.organization.id;
+    const [orgUsers, orgApps] = await Promise.all([
+      prisma.user.findMany({ where: { partnerOrganizationId: orgId }, select: { id: true } }),
+      prisma.application.findMany({ where: { position: { partnerOrganizationId: orgId } }, select: { id: true } })
+    ]);
+    const [applicants, assignments, issues] = await Promise.all([
+      prisma.application.count({ where: { position: { partnerOrganizationId: orgId }, status: "SUBMITTED" } }),
+      prisma.assignment.count({ where: { status: "SUBMITTED", application: { position: { partnerOrganizationId: orgId } } } }),
+      prisma.issueReport.count({
+        where: {
+          status: "OPEN",
+          OR: [{ reporterUserId: { in: orgUsers.map((u) => u.id) } }, { applicationId: { in: orgApps.map((a) => a.id) } }]
+        }
+      })
+    ]);
+    return res.json({ ok: true, applicants, assignments, issues });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.get("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
   if (!affiliation?.organization) {
