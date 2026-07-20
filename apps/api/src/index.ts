@@ -15839,6 +15839,16 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
       const before = pctOf(st.diagnosisInitial) ?? pctOf(st.diagnosis);
       const after = pctOf(st.diagnosisFinal);
 
+      // 취업 성공 가능성(추정) — 취업은 직접 알선하지 않으므로 '취업률' 대신 준비 완성도 기반 지표로 제시.
+      // 산출: 취업 준비도(가중 0.65) + 프로그램 완성도(0.35). 시작 시점은 완성도 0%로 본다.
+      const selectedJobsCount = Array.isArray(st.selectedJobs) ? (st.selectedJobs as unknown[]).length : 0;
+      const prepSignals = [before !== null, selectedJobsCount > 0, hasResume, coverItems > 0, practiced.includes("self"), practiced.includes("job"), practiced.includes("fit")];
+      const prepCompletion = Math.round((prepSignals.filter(Boolean).length / prepSignals.length) * 100);
+      const measurable = before !== null && after !== null;
+      const successBefore = measurable ? Math.round(0.65 * (before as number)) : null;
+      const successAfter = measurable ? Math.round(0.65 * (after as number) + 0.35 * prepCompletion) : null;
+      const successGain = successBefore !== null && successAfter !== null ? successAfter - successBefore : null;
+
       const myOutcomes = outcomesByUser.get(e.studentUserId) ?? [];
       const bestRank = myOutcomes.reduce((m, o) => Math.max(m, OUTCOME_RANK[o.status] ?? 0), 0);
       const placement = myOutcomes.find((o) => o.status === "HIRED") ?? myOutcomes.find((o) => o.status === "OFFER");
@@ -15854,7 +15864,16 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
         diagnosisBefore: before,
         diagnosisAfter: after,
         gain: before !== null && after !== null ? after - before : null,
-        selectedJobs: Array.isArray(st.selectedJobs) ? (st.selectedJobs as unknown[]).length : 0,
+        // 진단 근거 — AI 자가진단이 남긴 정성 평가(왜 이 점수인지의 근거)
+        diagLevel: (st.diagnosis as { level?: unknown } | null)?.level && typeof (st.diagnosis as { level?: unknown }).level === "string" ? ((st.diagnosis as { level: string }).level) : null,
+        diagStrengths: Array.isArray((st.diagnosis as { strengths?: unknown } | null)?.strengths) ? ((st.diagnosis as { strengths: string[] }).strengths).slice(0, 3) : [],
+        diagImprovements: Array.isArray((st.diagnosis as { improvements?: unknown } | null)?.improvements) ? ((st.diagnosis as { improvements: string[] }).improvements).slice(0, 2) : [],
+        // 취업 성공 가능성(추정) + 산출 근거(준비 완성도)
+        prepCompletion,
+        successBefore,
+        successAfter,
+        successGain,
+        selectedJobs: selectedJobsCount,
         hasResume,
         coverItems,
         interviewPracticed: practiced.length,
@@ -15898,6 +15917,11 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
       avgAfter: avg(withGain.map((s) => s.diagnosisAfter as number)),
       avgGain: avg(withGain.map((s) => s.gain as number)),
       improved: withGain.filter((s) => (s.gain as number) > 0).length,
+      // 취업 성공 가능성(추정) — 준비도 + 완성도 복합. 헤드라인 지표.
+      avgSuccessBefore: avg(withGain.map((s) => s.successBefore as number)),
+      avgSuccessAfter: avg(withGain.map((s) => s.successAfter as number)),
+      avgSuccessGain: avg(withGain.map((s) => s.successGain as number)),
+      avgPrepCompletion: avg(students.map((s) => s.prepCompletion)),
       // 취업 성과 — aply.global 모든 포지션(내부·외부·오프라인) 대상, 운영자가 기록한 결과 기준
       tracked: students.filter((s) => s.applications > 0).length,
       totalApplications: students.reduce((a, s) => a + s.applications, 0),

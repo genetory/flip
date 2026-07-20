@@ -30,20 +30,19 @@ export default function CohortOutcomeReportPage() {
   if (error) return <main className="rp-state">{error}</main>;
   if (!data) return <main className="rp-state">불러오는 중…</main>;
 
-  const { cohort, summary, students, placements, testimonials } = data;
+  const { cohort, summary, students, testimonials } = data;
   const period = [cohort.startsAt?.slice(0, 10), cohort.endsAt?.slice(0, 10)].filter(Boolean).join(" ~ ") || "-";
   const pct = (n: number) => (summary.enrolled ? Math.round((n / summary.enrolled) * 100) : 0);
   const today = new Date().toISOString().slice(0, 10);
   const completers = students.filter((s) => s.completed);
 
   // 섹션 번호는 데이터 유무에 따라 유동적이라 순서대로 매긴다.
-  const showEmployment = summary.tracked > 0 || summary.hiredCount > 0;
+  // 리포트는 '취업 성공 가능성 향상'이 핵심 — 실제 취업 결과는 다루지 않는다(직접 알선이 아니므로).
   const showSatisfaction = summary.satisfactionCount > 0;
   const showIndividual = summary.measured > 0;
   let no = 0;
   const secNo = {
     core: ++no,
-    employment: showEmployment ? ++no : 0,
     satisfaction: showSatisfaction ? ++no : 0,
     stages: ++no,
     individual: showIndividual ? ++no : 0,
@@ -95,24 +94,37 @@ export default function CohortOutcomeReportPage() {
         {/* 1. 핵심 성과 */}
         <section className="rp-sec">
           <h2>{secNo.core}. 핵심 성과</h2>
-          <div className="rp-kpis">
+          <div className="rp-kpis rp-kpis--3">
             <div className="rp-kpi rp-kpi--hero">
-              <span className="rp-kpi-label">취업 준비도 향상</span>
+              <span className="rp-kpi-label">취업 성공 가능성</span>
+              {summary.measured > 0 ? (
+                <>
+                  <span className="rp-kpi-value">
+                    {summary.avgSuccessBefore}% → {summary.avgSuccessAfter}%
+                  </span>
+                  <span className="rp-kpi-gain">{summary.avgSuccessGain >= 0 ? `+${summary.avgSuccessGain}%p` : `${summary.avgSuccessGain}%p`}</span>
+                  <span className="rp-kpi-note">취업 준비도 + 프로그램 완성도 기반 추정 · {summary.measured}명 기준</span>
+                </>
+              ) : (
+                <>
+                  <span className="rp-kpi-value rp-kpi-value--muted">측정 전</span>
+                  <span className="rp-kpi-note">수료 진단을 마친 학생이 아직 없어 산출할 수 없습니다.</span>
+                </>
+              )}
+            </div>
+            <div className="rp-kpi">
+              <span className="rp-kpi-label">취업 준비도 향상 (근거)</span>
               {summary.measured > 0 ? (
                 <>
                   <span className="rp-kpi-value">
                     {summary.avgBefore}% → {summary.avgAfter}%
                   </span>
-                  <span className="rp-kpi-gain">{summary.avgGain >= 0 ? `+${summary.avgGain}%p` : `${summary.avgGain}%p`}</span>
                   <span className="rp-kpi-note">
-                    사전·사후 진단을 모두 마친 {summary.measured}명 기준 · {summary.improved}명 향상
+                    사전·사후 진단 {summary.measured}명 · +{summary.avgGain}%p ({summary.improved}명 향상)
                   </span>
                 </>
               ) : (
-                <>
-                  <span className="rp-kpi-value rp-kpi-value--muted">측정 전</span>
-                  <span className="rp-kpi-note">수료 진단을 마친 학생이 아직 없어 향상도를 산출할 수 없습니다.</span>
-                </>
+                <span className="rp-kpi-value rp-kpi-value--muted">측정 전</span>
               )}
             </div>
             <div className="rp-kpi">
@@ -120,17 +132,8 @@ export default function CohortOutcomeReportPage() {
               <span className="rp-kpi-value">
                 {summary.completed}명 <em>({pct(summary.completed)}%)</em>
               </span>
-              <span className="rp-kpi-note">이력서·자기소개서·모의면접 3라운드를 모두 마친 학생</span>
+              <span className="rp-kpi-note">이력서·자기소개서·모의면접 3라운드 완주</span>
             </div>
-            {showEmployment ? (
-              <div className="rp-kpi">
-                <span className="rp-kpi-label">취업률</span>
-                <span className="rp-kpi-value">{summary.hireRate}%</span>
-                <span className="rp-kpi-note">
-                  참여 {summary.enrolled}명 중 {summary.hiredCount}명 취업
-                </span>
-              </div>
-            ) : null}
             <div className="rp-kpi">
               <span className="rp-kpi-label">서류 완성</span>
               <span className="rp-kpi-value">
@@ -139,56 +142,29 @@ export default function CohortOutcomeReportPage() {
               <span className="rp-kpi-note">이력서 / 자기소개서 완성 인원</span>
             </div>
           </div>
-        </section>
-
-        {/* 취업 성과 */}
-        {showEmployment ? (
-          <section className="rp-sec">
-            <h2>{secNo.employment}. 취업 성과</h2>
-            <p className="rp-sec-lead">Career Launch 참여 학생의 실제 취업 결과입니다. aply.global 내부 공고뿐 아니라 외부 채용까지 포함합니다.</p>
-            <div className="rp-kpis">
-              <div className="rp-kpi rp-kpi--hero">
-                <span className="rp-kpi-label">취업률</span>
-                <span className="rp-kpi-value">{summary.hireRate}%</span>
-                <span className="rp-kpi-note">
-                  참여 {summary.enrolled}명 중 {summary.hiredCount}명 취업(입사·합격) · 지원 {summary.totalApplications}건
-                </span>
-              </div>
-              <div className="rp-kpi">
-                <span className="rp-kpi-label">면접</span>
-                <span className="rp-kpi-value">{summary.interviewedCount}명</span>
-                <span className="rp-kpi-note">면접 이상 진행</span>
-              </div>
-              <div className="rp-kpi">
-                <span className="rp-kpi-label">합격 · 오퍼</span>
-                <span className="rp-kpi-value">{summary.offerCount}명</span>
-                <span className="rp-kpi-note">최종 합격 또는 오퍼 수령</span>
-              </div>
+          {summary.measured > 0 ? (
+            <div className="rp-method">
+              <p className="rp-method-title">산출 근거 · 방법론</p>
+              <ul className="rp-method-list">
+                <li>
+                  <strong>취업 준비도</strong>는 AI 자가진단(경력 · 어학 · 비자 · 직무 이해 · 서류 · 면접 준비)으로 <strong>사전 · 사후 2회 측정</strong>합니다. 학생들이 4주 커리큘럼(취업 진단 → 직무 선정 → 이력서 → 자기소개서 → 모의면접 3라운드)을 완주하며{" "}
+                  <strong>
+                    {summary.avgBefore}% → {summary.avgAfter}% (+{summary.avgGain}%p)
+                  </strong>{" "}
+                  향상되었습니다. 개인별 향상 내역은 아래 <strong>‘개인별 준비도 향상’</strong>에서 확인할 수 있습니다.
+                </li>
+                <li>
+                  <strong>취업 성공 가능성</strong> = 취업 준비도 × 0.65 + 준비 단계 완성도 × 0.35 로 산출합니다. 준비 단계 완성도는 진단 · 직무 선정 · 이력서 · 자기소개서 · 모의면접(3종)의 <strong>완주율</strong>이며, 프로그램 시작 시점 0% → 수료 시 평균 {summary.avgPrepCompletion}% 입니다. 결과:{" "}
+                  <strong>
+                    {summary.avgSuccessBefore}% → {summary.avgSuccessAfter}% (+{summary.avgSuccessGain}%p)
+                  </strong>
+                  .
+                </li>
+              </ul>
+              <p className="rp-method-note">※ 본 지표는 준비 완성도 기반 추정치입니다. Aply는 학생의 취업 준비도를 높일 뿐, 직접 채용을 알선하지 않습니다.</p>
             </div>
-            {placements.length > 0 ? (
-              <table className="rp-table">
-                <thead>
-                  <tr>
-                    <th>학생</th>
-                    <th>취업 기업</th>
-                    <th>직무</th>
-                    <th className="rp-num">상태</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {placements.map((p, i) => (
-                    <tr key={i}>
-                      <td>{p.name || "-"}</td>
-                      <td>{p.company || "-"}</td>
-                      <td>{p.positionTitle || "-"}</td>
-                      <td className={`rp-num ${p.hired ? "rp-up" : ""}`}>{p.hired ? "입사" : "합격"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : null}
-          </section>
-        ) : null}
+          ) : null}
+        </section>
 
         {/* 만족도 & 추천 */}
         {showSatisfaction ? (
@@ -233,7 +209,8 @@ export default function CohortOutcomeReportPage() {
 
         {/* 단계별 참여 */}
         <section className="rp-sec">
-          <h2>{secNo.stages}. 단계별 참여 현황</h2>
+          <h2>{secNo.stages}. 단계별 참여 현황 <span style={{ fontSize: "13px", fontWeight: 400, color: "#8b95a1" }}>— 취업 성공 가능성 향상의 근거</span></h2>
+          <p className="rp-sec-lead">학생들이 아래 준비 단계를 실제로 완주했기에 취업 성공 가능성이 올랐습니다.</p>
           <table className="rp-table">
             <thead>
               <tr>
@@ -263,32 +240,73 @@ export default function CohortOutcomeReportPage() {
         {/* 3. 개인별 향상도 */}
         {summary.measured > 0 ? (
           <section className="rp-sec">
-            <h2>{secNo.individual}. 개인별 준비도 향상</h2>
-            <table className="rp-table">
-              <thead>
-                <tr>
-                  <th>학생</th>
-                  <th className="rp-num">사전</th>
-                  <th className="rp-num">사후</th>
-                  <th className="rp-num">향상</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students
-                  .filter((s) => s.gain !== null)
-                  .sort((a, b) => (b.gain ?? 0) - (a.gain ?? 0))
-                  .map((s) => (
-                    <tr key={s.userId}>
-                      <td>{s.name || s.email}</td>
-                      <td className="rp-num">{s.diagnosisBefore}%</td>
-                      <td className="rp-num">{s.diagnosisAfter}%</td>
-                      <td className={`rp-num ${(s.gain ?? 0) > 0 ? "rp-up" : ""}`}>
-                        {(s.gain ?? 0) >= 0 ? `+${s.gain}` : s.gain}%p
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+            <h2>{secNo.individual}. 개인별 준비도 향상 · 근거</h2>
+            <p className="rp-sec-lead">
+              학생마다 <strong>사전→사후 점수가 왜 그렇게 나왔는지</strong>를 ① 완주한 준비 단계(관찰 가능한 사실)와 ② AI 진단 평가로 함께 제시합니다.
+            </p>
+            <div className="rp-cards">
+              {students
+                .filter((s) => s.gain !== null)
+                .sort((a, b) => (b.gain ?? 0) - (a.gain ?? 0))
+                .map((s) => {
+                  const steps = [
+                    { label: "취업 진단", done: s.diagnosisBefore !== null },
+                    { label: "직무 선정", done: s.selectedJobs > 0 },
+                    { label: "이력서", done: s.hasResume },
+                    { label: "자기소개서", done: s.coverItems > 0 },
+                    { label: `모의면접 ${s.interviewPracticed}/3`, done: s.interviewPracticed > 0 }
+                  ];
+                  return (
+                    <div key={s.userId} className="rp-card">
+                      <div className="rp-card-head">
+                        <span className="rp-card-name">{s.name || s.email}</span>
+                        <span className="rp-card-score">
+                          <em>취업 준비도</em> {s.diagnosisBefore}% <span className="rp-card-arrow">→</span>{" "}
+                          <strong>{s.diagnosisAfter}%</strong>
+                          <span className={`rp-card-gain ${(s.gain ?? 0) > 0 ? "rp-up" : ""}`}>
+                            {(s.gain ?? 0) >= 0 ? `+${s.gain}` : s.gain}%p
+                          </span>
+                        </span>
+                      </div>
+                      <div className="rp-card-basis">
+                        <p className="rp-card-blabel">완주한 준비 단계 (사후 점수의 근거)</p>
+                        <div className="rp-steps">
+                          {steps.map((st, i) => (
+                            <span key={i} className={`rp-step ${st.done ? "rp-step--done" : ""}`}>
+                              {st.done ? "✓ " : "· "}
+                              {st.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      {s.diagLevel || s.diagStrengths.length > 0 || s.diagImprovements.length > 0 ? (
+                        <div className="rp-card-basis">
+                          <p className="rp-card-blabel">AI 진단 평가</p>
+                          {s.diagLevel ? <p className="rp-card-level">{s.diagLevel}</p> : null}
+                          {s.diagStrengths.length > 0 ? (
+                            <ul className="rp-card-list">
+                              {s.diagStrengths.map((t, i) => (
+                                <li key={i} className="rp-card-str">
+                                  {t}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          {s.diagImprovements.length > 0 ? (
+                            <ul className="rp-card-list rp-card-list--imp">
+                              {s.diagImprovements.map((t, i) => (
+                                <li key={i} className="rp-card-imp">
+                                  {t}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+            </div>
           </section>
         ) : null}
 
@@ -304,7 +322,7 @@ export default function CohortOutcomeReportPage() {
                   <th className="rp-num">No.</th>
                   <th>학생</th>
                   <th className="rp-num">모의면접</th>
-                  <th className="rp-num">취업</th>
+                  <th className="rp-num">성공 가능성</th>
                   <th className="rp-num">수료증</th>
                 </tr>
               </thead>
@@ -314,7 +332,7 @@ export default function CohortOutcomeReportPage() {
                     <td className="rp-num">{i + 1}</td>
                     <td>{s.name || s.email}</td>
                     <td className="rp-num">{s.interviewPracticed}/3</td>
-                    <td className={`rp-num ${s.hired ? "rp-up" : ""}`}>{s.hired ? "취업" : s.reachedOffer ? "합격" : s.reachedInterview ? "면접" : "-"}</td>
+                    <td className={`rp-num ${s.successAfter !== null ? "rp-up" : ""}`}>{s.successAfter !== null ? `${s.successAfter}%` : "-"}</td>
                     <td className="rp-num">{s.certificateNo ? "발급" : "-"}</td>
                   </tr>
                 ))}
@@ -329,6 +347,14 @@ export default function CohortOutcomeReportPage() {
           </p>
           <p>주식회사 플리퍼스 (Flippers Inc.) · aply.global</p>
         </footer>
+
+        {/* 인쇄 전용 러닝 푸터 — 이력서/자소서 PDF처럼 매 페이지 하단에 로고 + 슬로건.
+            (브라우저 기본 머리글/바닥글은 @page margin:0 으로 제거) */}
+        <div className="rp-print-footer" aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/img_logo.webp" alt="Aply" />
+          <span>커리어의 시작 · aply.global</span>
+        </div>
       </article>
     </main>
   );
