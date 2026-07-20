@@ -113,14 +113,14 @@ export function OpsSidebar() {
 
   return (
     <aside className="w-60 flex-none">
-      {/* 화면 높이에 고정하고 메뉴가 길어지면 사이드바만 스크롤한다. */}
-      <div className="sticky top-0 flex h-screen flex-col overflow-y-auto px-3 py-6">
+      {/* 화면 높이에 고정 — 브랜드/버튼은 고정되고, 메뉴(nav)만 스크롤된다(운영콘솔과 동일). */}
+      <div className="sticky top-0 flex h-screen flex-col overflow-hidden px-3 py-6">
         <Link href="/career-launch/ops" className="block px-3 text-[15px] font-black tracking-[-0.01em] text-[var(--ink)] transition hover:text-[var(--accent)]">
           {t("Launch 운영", "Launch admin", "Launch 运营", "Quản trị Launch", "Launch 運営", "Admin Launch")}
         </Link>
         <p className="mt-0.5 px-3 text-[11.5px] text-[var(--ink-faint)]">{t("운영 콘솔", "Admin console", "运营控制台", "Bảng quản trị", "運営コンソール", "Konsol admin")}</p>
 
-        <nav className="mt-5 flex flex-col gap-1">
+        <nav className="mt-5 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
           {groups.map((g) => {
             // 단일 그룹(홈)은 제목/토글 없이 한 줄 링크로 — 시각적 잡음을 줄인다.
             if (g.single) {
