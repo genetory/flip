@@ -40,7 +40,8 @@ export function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [companyName, setCompanyName] = useState("");
-  const [accountType, setAccountType] = useState<"GENERAL" | "BUSINESS">("GENERAL");
+  // 로그인 화면의 '파트너(기업)' 토글에서 넘어오면 기업 가입을 미리 선택한다.
+  const [accountType, setAccountType] = useState<"GENERAL" | "BUSINESS">(searchParams.get("type") === "business" ? "BUSINESS" : "GENERAL");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const copy = getAuthPageMessages(locale).signup;
