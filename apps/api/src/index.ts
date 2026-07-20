@@ -915,7 +915,7 @@ async function notifyPartnerTeamOnApplication(input: {
 
   const members = await prisma.user.findMany({
     where: { partnerOrganizationId: input.partnerOrganizationId, role: MemberRole.PARTNER },
-    select: { id: true, email: true }
+    select: { id: true, email: true, emailNotifications: true }
   });
   if (members.length === 0) return;
 
@@ -935,8 +935,9 @@ async function notifyPartnerTeamOnApplication(input: {
 
   const transporter = getSmtpTransporter();
   if (!transporter) return;
+  // 이메일 알림을 켠 팀원에게만 발송(인앱 알림은 위에서 전원에게 이미 생성).
   const recipients = Array.from(
-    new Set(members.map((m) => m.email).filter((e): e is string => Boolean(e && e.includes("@"))))
+    new Set(members.filter((m) => m.emailNotifications).map((m) => m.email).filter((e): e is string => Boolean(e && e.includes("@"))))
   );
   if (recipients.length === 0) return;
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -992,6 +993,7 @@ async function notifyPartnerTeamOnApplication(input: {
 // 지원 상태 변경(면접 예정·합격·불합격)을 지원자 본인에게 이메일로 알린다.
 // Aply 는 참조(CC)로 함께 받아 회사↔지원자 소통을 트래킹한다. SMTP 미설정 시 스킵.
 async function sendApplicationStatusEmailToApplicant(input: {
+  applicantUserId: string;
   applicantEmail: string | null;
   applicantName: string | null;
   positionTitle: string;
@@ -1000,6 +1002,7 @@ async function sendApplicationStatusEmailToApplicant(input: {
   memo: string | null;
 }) {
   if (!input.applicantEmail || !input.applicantEmail.includes("@")) return;
+  if ((await emailOptedOutIds([input.applicantUserId])).has(input.applicantUserId)) return; // 이메일 알림 끔
   const transporter = getSmtpTransporter();
   if (!transporter) return;
 
@@ -1055,6 +1058,7 @@ async function sendApplicationStatusEmailToApplicant(input: {
 
 // 회사가 면접 일정을 제안하면 지원자에게 제안된 시간 목록을 이메일로 통보(Aply 참조).
 async function sendInterviewProposalEmailToApplicant(input: {
+  applicantUserId: string;
   applicantEmail: string | null;
   applicantName: string | null;
   positionTitle: string;
@@ -1062,6 +1066,7 @@ async function sendInterviewProposalEmailToApplicant(input: {
   slots: { startsAt: Date; endsAt: Date; location: string | null }[];
 }) {
   if (!input.applicantEmail || !input.applicantEmail.includes("@") || input.slots.length === 0) return;
+  if ((await emailOptedOutIds([input.applicantUserId])).has(input.applicantUserId)) return; // 이메일 알림 끔
   const transporter = getSmtpTransporter();
   if (!transporter) return;
 
@@ -1124,10 +1129,22 @@ async function sendInterviewProposalEmailToApplicant(input: {
 }
 
 // 범용 알림 이메일 — 회사↔지원자 알림 공통 발송기. Aply(info@)를 CC 로 함께 받아 트래킹.
-// 단일 수신자(to) 또는 팀 전원(bcc) 중 하나로 보낸다. SMTP 미설정/수신자 없음이면 스킵.
+// 이메일 알림을 끈(emailNotifications=false) 사용자 id 집합.
+async function emailOptedOutIds(userIds: string[]): Promise<Set<string>> {
+  const ids = Array.from(new Set(userIds.filter(Boolean)));
+  if (ids.length === 0) return new Set();
+  const off = await prisma.user.findMany({
+    where: { id: { in: ids }, emailNotifications: false },
+    select: { id: true }
+  });
+  return new Set(off.map((u) => u.id));
+}
+
+// 단일 수신자(toUser) 또는 팀 전원(bccUsers) 중 하나로 보낸다. SMTP 미설정/수신자 없음이면 스킵.
 async function sendNotificationEmail(input: {
-  to?: string | null;
-  bcc?: string[];
+  // 수신자는 user 참조로 받아 이메일 수신 설정(emailNotifications)을 존중한다.
+  toUser?: { id: string; email: string | null } | null;
+  bccUsers?: { id: string; email: string | null }[];
   subject: string;
   previewText: string;
   title: string;
@@ -1142,8 +1159,23 @@ async function sendNotificationEmail(input: {
 }) {
   const transporter = getSmtpTransporter();
   if (!transporter) return;
-  const to = input.to && input.to.includes("@") ? input.to : null;
-  const bcc = Array.from(new Set((input.bcc ?? []).filter((e) => e && e.includes("@"))));
+
+  // 이메일 알림을 끈 사용자는 제외(인앱 알림은 별개로 이미 발생).
+  const optedOut = await emailOptedOutIds([
+    ...(input.toUser ? [input.toUser.id] : []),
+    ...(input.bccUsers ?? []).map((u) => u.id)
+  ]);
+  const to =
+    input.toUser && input.toUser.email && input.toUser.email.includes("@") && !optedOut.has(input.toUser.id)
+      ? input.toUser.email
+      : null;
+  const bcc = Array.from(
+    new Set(
+      (input.bccUsers ?? [])
+        .filter((u) => !optedOut.has(u.id) && u.email && u.email.includes("@"))
+        .map((u) => u.email as string)
+    )
+  );
   if (!to && bcc.length === 0) return;
 
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -1255,7 +1287,7 @@ async function runAutoNudgesAndReminders() {
       // 지원자
       void createNotification({ userId: app.candidateUserId, type: "INTERVIEW_REMINDER", title: "곧 면접이 예정되어 있어요", message: `${when}${loc}`, linkPath: "/profile?tab=applied" });
       void sendNotificationEmail({
-        to: app.candidateUser?.email ?? null,
+        toUser: { id: app.candidateUserId, email: app.candidateUser?.email ?? null },
         subject: `[Aply] 면접 리마인더 — ${when}`,
         previewText: `곧 면접이 예정되어 있어요: ${when}`,
         title: "면접 리마인더",
@@ -1270,7 +1302,7 @@ async function runAutoNudgesAndReminders() {
       // 회사
       for (const u of partners) void createNotification({ userId: u.id, type: "INTERVIEW_REMINDER", title: `곧 면접 — ${applicantName}`, message: `${when}${loc}`, linkPath: "/dashboard/partner/interviews" });
       void sendNotificationEmail({
-        bcc: partners.map((u) => u.email).filter((e): e is string => Boolean(e)),
+        bccUsers: partners,
         subject: `[Aply] 면접 리마인더 — ${applicantName} (${when})`,
         previewText: `곧 면접: ${applicantName}`,
         title: "면접 리마인더",
@@ -1301,7 +1333,7 @@ async function runAutoNudgesAndReminders() {
     for (const app of needSelect) {
       void createNotification({ userId: app.candidateUserId, type: "INTERVIEW_SELECT_REMINDER", title: "면접 시간을 선택해 주세요", message: app.position.title, linkPath: "/profile?tab=applied" });
       void sendNotificationEmail({
-        to: app.candidateUser?.email ?? null,
+        toUser: { id: app.candidateUserId, email: app.candidateUser?.email ?? null },
         subject: `[Aply] 면접 시간 선택 안내 — ${app.position.title}`,
         previewText: "제안된 면접 시간을 선택해 주세요",
         title: "면접 시간 선택",
@@ -1330,7 +1362,7 @@ async function runAutoNudgesAndReminders() {
       const applicantName = app.candidateUser?.name?.trim() || "지원자";
       for (const u of partners) void createNotification({ userId: u.id, type: "APPLICATION_STALE_REMINDER", title: `검토 대기 중인 지원자 — ${applicantName}`, message: app.position.title, linkPath: "/dashboard/partner/applicants" });
       void sendNotificationEmail({
-        bcc: partners.map((u) => u.email).filter((e): e is string => Boolean(e)),
+        bccUsers: partners,
         subject: `[Aply] 검토 대기 지원자 — ${applicantName}`,
         previewText: "검토를 기다리는 지원자가 있어요",
         title: "검토 대기 알림",
@@ -12666,6 +12698,28 @@ async function resolveApplicationResumeBrief(
   return prisma.resume.findFirst({ where: { userId: candidateUserId }, orderBy: { updatedAt: "desc" }, select: { id: true, title: true, shareSlug: true } });
 }
 
+// 이메일 알림 수신 설정 — 전 role 대상(인앱 알림은 항상 유지, 이메일만 on/off).
+app.get("/members/me/notification-settings", authenticate, async (req, res) => {
+  try {
+    const u = await prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { emailNotifications: true } });
+    return res.json({ ok: true, emailNotifications: u?.emailNotifications ?? true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const notificationSettingsSchema = z.object({ emailNotifications: z.boolean() });
+app.patch("/members/me/notification-settings", authenticate, async (req, res) => {
+  const parsed = notificationSettingsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    await prisma.user.update({ where: { id: req.auth!.userId }, data: { emailNotifications: parsed.data.emailNotifications } });
+    return res.json({ ok: true, emailNotifications: parsed.data.emailNotifications });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const userId = req.auth!.userId;
   const parsed = memberPositionActionParamSchema.safeParse(req.params);
@@ -20731,6 +20785,7 @@ app.patch("/applications/:id/status", authenticate, requireRoles([MemberRole.PAR
       // 회사↔지원자 다이렉트 알림 — 면접/합격/불합격은 지원자에게 이메일로도 통보(Aply 참조).
       if (parsed.data.status === "INTERVIEW" || parsed.data.status === "ACCEPTED" || parsed.data.status === "REJECTED") {
         void sendApplicationStatusEmailToApplicant({
+          applicantUserId: application.candidateUserId,
           applicantEmail: application.candidateUser?.email ?? null,
           applicantName: application.candidateUser?.name ?? null,
           positionTitle: application.position.title,
@@ -20865,7 +20920,7 @@ app.post(
           })));
           // 회사 팀 전원에게 이메일(+CC 트래킹)
           void sendNotificationEmail({
-            bcc: partnerUsers.map((u) => u.email).filter((e): e is string => Boolean(e)),
+            bccUsers: partnerUsers,
             subject: `[Aply] 지원자 메시지 — ${authorName || "지원자"}`,
             previewText: `${authorName || "지원자"}님이 메시지를 남겼어요`,
             title: "지원자 메시지",
@@ -20892,7 +20947,7 @@ app.post(
             select: { candidateUser: { select: { email: true } }, position: { select: { title: true, partnerOrganization: { select: { name: true } } } } }
           });
           void sendNotificationEmail({
-            to: info?.candidateUser?.email ?? null,
+            toUser: { id: auth.candidateUserId, email: info?.candidateUser?.email ?? null },
             subject: `[Aply] 회사 메시지${info?.position.title ? ` — ${info.position.title}` : ""}`,
             previewText: "지원한 포지션의 회사가 메시지를 남겼어요",
             title: "회사 메시지",
@@ -20986,7 +21041,7 @@ app.post(
       {
         const applicantName = application.candidateUser?.name?.trim() || "지원자";
         void sendNotificationEmail({
-          bcc: partnerUsers.map((u) => u.email).filter((e): e is string => Boolean(e)),
+          bccUsers: partnerUsers,
           subject: `[Aply] 지원 철회 — ${applicantName}`,
           previewText: `${applicantName}님이 지원을 철회했어요`,
           title: "지원 철회",
@@ -21085,6 +21140,7 @@ app.post(
       });
       // 회사↔지원자 다이렉트 알림 — 지원자에게 제안된 면접 일정을 이메일로 통보(Aply 참조).
       void sendInterviewProposalEmailToApplicant({
+        applicantUserId: application.candidateUserId,
         applicantEmail: application.candidateUser?.email ?? null,
         applicantName: application.candidateUser?.name ?? null,
         positionTitle: application.position.title,
@@ -21232,7 +21288,7 @@ app.patch(
       {
         const applicantName = fullApp?.candidateUser?.name?.trim() || "지원자";
         void sendNotificationEmail({
-          bcc: partnerUsers.map((u) => u.email).filter((e): e is string => Boolean(e)),
+          bccUsers: partnerUsers,
           subject: `[Aply] 면접 시간 선택 — ${applicantName}`,
           previewText: `${applicantName}님이 면접 시간을 선택했어요`,
           title: "면접 시간 선택",
@@ -21320,7 +21376,7 @@ app.post(
           ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" }).format(created.dueAt)
           : null;
         void sendNotificationEmail({
-          to: application.candidateUser?.email ?? null,
+          toUser: { id: application.candidateUserId, email: application.candidateUser?.email ?? null },
           subject: `[Aply] '${application.position.title}' 새 과제 — ${parsed.data.title}`,
           previewText: `새 과제가 부여되었어요: ${parsed.data.title}`,
           title: "새 과제 부여",
@@ -21483,7 +21539,7 @@ app.patch(
       {
         const applicantName = assignment.application.candidateUser?.name?.trim() || "지원자";
         void sendNotificationEmail({
-          bcc: partnerUsers.map((u) => u.email).filter((e): e is string => Boolean(e)),
+          bccUsers: partnerUsers,
           subject: `[Aply] 과제 제출 — ${applicantName} (${assignment.title})`,
           previewText: `${applicantName}님이 과제를 제출했어요`,
           title: "과제 제출",
@@ -21556,7 +21612,7 @@ app.patch(
         });
         // 지원자에게 이메일(+CC 트래킹)
         void sendNotificationEmail({
-          to: application.candidateUser?.email ?? null,
+          toUser: { id: application.candidateUserId, email: application.candidateUser?.email ?? null },
           subject: `[Aply] 과제 피드백 등록 — ${assignment.title}`,
           previewText: `'${assignment.title}' 과제에 피드백이 등록되었어요`,
           title: "과제 피드백",

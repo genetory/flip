@@ -32,7 +32,8 @@ export const partnerDashboardMenuGroups: MenuGroup[] = [
     links: [
       { label: "회사 정보/검증", href: "/dashboard/partner/company" },
       { label: "팀 멤버", href: "/dashboard/partner/team" },
-      { label: "이슈 리포트", href: "/dashboard/partner/issues" }
+      { label: "이슈 리포트", href: "/dashboard/partner/issues" },
+      { label: "알림 설정", href: "/profile/notifications" }
     ]
   }
 ];
