@@ -56,6 +56,18 @@ export default function PartnerApplicantsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkRunning, setBulkRunning] = useState(false);
 
+  // 리포트 등에서 ?status= / ?position= 로 딥링크되면 초기 필터를 맞춘다(useSearchParams 대신 window 로 읽어 Suspense 불필요).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    const s = sp.get("status");
+    if (s && ["ALL", "SUBMITTED", "INTERVIEW", "ACCEPTED", "REJECTED"].includes(s)) {
+      setFilterStatus(s as ApplicationStatus | "ALL");
+    }
+    const pos = sp.get("position");
+    if (pos) setPositionFilter(pos);
+  }, []);
+
   async function load() {
     setLoading(true);
     setError(null);

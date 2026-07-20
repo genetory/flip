@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { readAccessToken } from "../../../../lib/auth-client";
 
 type PartnerReports = {
@@ -136,22 +137,22 @@ export default function PartnerReportsPage() {
           <article className="ops-card">
             <h2 className="ops-section-title">지원 → 합격 퍼널</h2>
             <div className="ops-funnel-grid">
-              <div className="ops-kpi-tile">
-                <p className="ops-kpi-label">검토 중</p>
+              <Link href="/dashboard/partner/applicants?status=SUBMITTED" className="ops-kpi-tile" style={{ textDecoration: "none" }}>
+                <p className="ops-kpi-label">검토 중 →</p>
                 <p className="ops-kpi-value">{stats.applications.byStatus.SUBMITTED.toLocaleString()}</p>
-              </div>
-              <div className="ops-kpi-tile ops-kpi-blue">
-                <p className="ops-kpi-label">면접 예정</p>
+              </Link>
+              <Link href="/dashboard/partner/applicants?status=INTERVIEW" className="ops-kpi-tile ops-kpi-blue" style={{ textDecoration: "none" }}>
+                <p className="ops-kpi-label">면접 예정 →</p>
                 <p className="ops-kpi-value">{stats.applications.byStatus.INTERVIEW.toLocaleString()}</p>
-              </div>
-              <div className="ops-kpi-tile ops-kpi-green">
-                <p className="ops-kpi-label">합격</p>
+              </Link>
+              <Link href="/dashboard/partner/applicants?status=ACCEPTED" className="ops-kpi-tile ops-kpi-green" style={{ textDecoration: "none" }}>
+                <p className="ops-kpi-label">합격 →</p>
                 <p className="ops-kpi-value">{stats.applications.byStatus.ACCEPTED.toLocaleString()}</p>
-              </div>
-              <div className="ops-kpi-tile">
-                <p className="ops-kpi-label">불합격</p>
+              </Link>
+              <Link href="/dashboard/partner/applicants?status=REJECTED" className="ops-kpi-tile" style={{ textDecoration: "none" }}>
+                <p className="ops-kpi-label">불합격 →</p>
                 <p className="ops-kpi-value">{stats.applications.byStatus.REJECTED.toLocaleString()}</p>
-              </div>
+              </Link>
             </div>
             <p className="ops-card-subtle" style={{ marginTop: 8 }}>최근 7일 신규 지원: <strong>{stats.applications.last7Days.toLocaleString()}</strong>건</p>
           </article>
