@@ -20,7 +20,12 @@ export function PartnerDashboardSidebar() {
             <h2>{group.title}</h2>
             <ul>
               {group.links.map((link) => {
-                const isActive = pathname === link.href;
+                // 상세 라우트(/applicants/[id] 등)에서도 상위 메뉴가 활성으로 표시되게 prefix 매칭.
+                // 단, 대시보드 홈(/dashboard/partner)은 모든 경로의 접두사라 정확히 일치할 때만.
+                const isActive =
+                  link.href === "/dashboard/partner"
+                    ? pathname === "/dashboard/partner"
+                    : pathname === link.href || pathname.startsWith(link.href + "/");
                 return (
                   <li key={link.href}>
                     <Link href={link.href} className={isActive ? "is-active" : undefined}>

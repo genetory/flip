@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PushPin, Clock } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { readAccessToken } from "../../../../lib/auth-client";
 import { getApplicationStatusLabel, type ApplicationStatus } from "../../../../lib/status-labels";
@@ -49,6 +50,8 @@ export default function PartnerApplicantsPage() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<PartnerApplication | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
+  const [search, setSearch] = useState("");
+  const [positionFilter, setPositionFilter] = useState<string>("ALL");
   const [actionError, setActionError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkRunning, setBulkRunning] = useState(false);
@@ -81,6 +84,11 @@ export default function PartnerApplicantsPage() {
   }, []);
 
   async function updateStatus(applicationId: string, status: ApplicationStatus) {
+    // 합격·불합격은 지원자에게 통보되는 최종 결정 — 오클릭 방지용 확인.
+    if (status === "ACCEPTED" || status === "REJECTED") {
+      const label = status === "ACCEPTED" ? "합격" : "불합격";
+      if (!window.confirm(`이 지원자를 '${label}'(으)로 처리하시겠습니까?`)) return;
+    }
     setUpdating(applicationId);
     try {
       const token = readAccessToken();
@@ -103,10 +111,34 @@ export default function PartnerApplicantsPage() {
     }
   }
 
+  // 검색(이름/이메일/포지션) + 포지션 필터는 목록·칸반 양쪽에 적용된다.
+  const filteredBase = useMemo(() => {
+    let next = items;
+    if (positionFilter !== "ALL") next = next.filter((it) => it.positionId === positionFilter);
+    const q = search.trim().toLowerCase();
+    if (q) {
+      next = next.filter(
+        (it) =>
+          (it.candidateName ?? "").toLowerCase().includes(q) ||
+          it.candidateEmail.toLowerCase().includes(q) ||
+          it.positionTitle.toLowerCase().includes(q)
+      );
+    }
+    return next;
+  }, [items, search, positionFilter]);
+
+  // 상태 칩은 목록 뷰에만 적용(칸반은 컬럼이 상태이므로).
   const filtered = useMemo(() => {
-    if (filterStatus === "ALL") return items;
-    return items.filter((it) => it.status === filterStatus);
-  }, [items, filterStatus]);
+    if (filterStatus === "ALL") return filteredBase;
+    return filteredBase.filter((it) => it.status === filterStatus);
+  }, [filteredBase, filterStatus]);
+
+  // 포지션 필터 드롭다운용 — 지원이 있는 포지션 목록(중복 제거).
+  const positionOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const it of items) if (!map.has(it.positionId)) map.set(it.positionId, it.positionTitle);
+    return Array.from(map, ([id, title]) => ({ id, title }));
+  }, [items]);
 
   async function bulkUpdateStatus(status: ApplicationStatus) {
     const ids = Array.from(selectedIds);
@@ -146,16 +178,16 @@ export default function PartnerApplicantsPage() {
 
   const counts = useMemo(() => {
     const result: Record<ApplicationStatus | "ALL", number> = {
-      ALL: items.length,
+      ALL: filteredBase.length,
       SUBMITTED: 0,
       INTERVIEW: 0,
       ACCEPTED: 0,
       REJECTED: 0,
       WITHDRAWN: 0
     };
-    for (const it of items) result[it.status] += 1;
+    for (const it of filteredBase) result[it.status] += 1;
     return result;
-  }, [items]);
+  }, [filteredBase]);
 
   return (
     <section className="ops-content-section">
@@ -165,22 +197,21 @@ export default function PartnerApplicantsPage() {
       </header>
 
       <article className="ops-card">
-        <div className="ops-card-header">
-          <div className="ops-filter-chip-row">
-            {(["ALL", "SUBMITTED", "INTERVIEW", "ACCEPTED", "REJECTED"] as const).map((key) => {
-              const active = filterStatus === key;
-              const label = key === "ALL" ? "전체" : STATUS_FLOW.find((s) => s.value === key)?.label;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setFilterStatus(key)}
-                  className={`ops-filter-chip ${active ? "is-active" : ""}`}
-                >
-                  {label} <span className="ops-filter-chip-count">{counts[key]}</span>
-                </button>
-              );
-            })}
+        <div className="ops-card-header" style={{ gap: 10 }}>
+          <div className="ops-row" style={{ gap: 8, flexWrap: "wrap" }}>
+            <input
+              className="ops-partner-filter-search"
+              placeholder="이름·이메일·포지션 검색"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ minWidth: 220 }}
+            />
+            <select className="ops-select" value={positionFilter} onChange={(e) => setPositionFilter(e.target.value)} style={{ width: "auto", minWidth: 150 }}>
+              <option value="ALL">전체 포지션</option>
+              {positionOptions.map((o) => (
+                <option key={o.id} value={o.id}>{o.title}</option>
+              ))}
+            </select>
           </div>
           <div className="ops-row">
             <div className="ops-view-toggle">
@@ -224,6 +255,26 @@ export default function PartnerApplicantsPage() {
         </div>
       </article>
 
+      {/* 상태 칩은 목록 뷰에만 — 칸반은 컬럼 자체가 상태이므로 숨긴다 */}
+      {viewMode === "table" ? (
+        <div className="ops-filter-chip-row">
+          {(["ALL", "SUBMITTED", "INTERVIEW", "ACCEPTED", "REJECTED"] as const).map((key) => {
+            const active = filterStatus === key;
+            const label = key === "ALL" ? "전체" : STATUS_FLOW.find((s) => s.value === key)?.label;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFilterStatus(key)}
+                className={`ops-filter-chip ${active ? "is-active" : ""}`}
+              >
+                {label} <span className="ops-filter-chip-count">{counts[key]}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
       {actionError ? <div className="ops-error-card">{actionError}</div> : null}
 
       {selectedIds.size > 0 && viewMode === "table" ? (
@@ -264,7 +315,7 @@ export default function PartnerApplicantsPage() {
       ) : viewMode === "kanban" ? (
         <div className="ops-kanban">
           {STATUS_FLOW.map((stage) => {
-            const stageItems = items.filter((it) => it.status === stage.value);
+            const stageItems = filteredBase.filter((it) => it.status === stage.value);
             return (
               <div key={stage.value} className="ops-kanban-column">
                 <div className="ops-kanban-column-head">
@@ -282,10 +333,12 @@ export default function PartnerApplicantsPage() {
                           <p className="ops-kanban-card-name">{it.candidateName ?? "-"}</p>
                           <p className="ops-kanban-card-sub">{it.candidateEmail}</p>
                           {it.candidateNationality ? <p className="ops-kanban-card-sub">{it.candidateNationality}</p> : null}
-                          <p className="ops-kanban-card-sub" style={{ marginTop: 4 }}>
-                            📌 {it.positionTitle}
+                          <p className="ops-kanban-card-sub" style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                            <PushPin size={12} weight="bold" aria-hidden /> {it.positionTitle}
                           </p>
-                          <p className="ops-kanban-card-sub">⏱ {formatRelativeTime(it.submittedAt)}</p>
+                          <p className="ops-kanban-card-sub" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <Clock size={12} weight="bold" aria-hidden /> {formatRelativeTime(it.submittedAt)}
+                          </p>
                         </Link>
                         <div className="ops-kanban-card-actions">
                           <select

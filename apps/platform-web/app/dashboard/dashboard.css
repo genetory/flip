@@ -4782,6 +4782,17 @@ a.ops-kanban-card:hover {
 }
 
 /* KPI tiles */
+/* 클릭 가능한 KPI 카드 — 목록으로 드릴다운 */
+a.partner-kpi--link {
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+a.partner-kpi--link:hover {
+  box-shadow: var(--shadow-card-lg);
+  transform: translateY(-1px);
+}
+
 .partner-kpi {
   display: flex;
   flex-direction: column;

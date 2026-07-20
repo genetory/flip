@@ -29,15 +29,21 @@ const QUICK_LINKS = [
 ];
 
 const STATUS_LABEL: Record<string, string> = {
+  DRAFT: "임시저장",
+  PENDING_REVIEW: "승인대기",
   OPEN: "모집중",
   PAUSED: "일시 중단",
-  CLOSED: "마감"
+  CLOSED: "마감",
+  REJECTED: "반려"
 };
 
 const STATUS_PILL: Record<string, string> = {
+  DRAFT: "ops-pill-gray",
+  PENDING_REVIEW: "ops-pill-amber",
   OPEN: "ops-pill-green",
   PAUSED: "ops-pill-amber",
-  CLOSED: "ops-pill-gray"
+  CLOSED: "ops-pill-gray",
+  REJECTED: "ops-pill-red"
 };
 
 function formatRelativeTime(iso: string) {
@@ -170,13 +176,13 @@ export default function PartnerDashboardHome() {
         <>
           {stats ? (
             <section className="ops-card-grid">
-              <article className="ops-card partner-kpi">
+              <Link href="/dashboard/partner/positions" className="ops-card partner-kpi partner-kpi--link">
                 <p className="partner-kpi-label">전체 포지션</p>
                 <p className="partner-kpi-value">{stats.positions.total.toLocaleString()}</p>
                 <p className="partner-kpi-sub">
                   모집중 {stats.positions.open.toLocaleString()} · 마감 {stats.positions.closed.toLocaleString()}
                 </p>
-              </article>
+              </Link>
               <article className="ops-card partner-kpi">
                 <p className="partner-kpi-label">회사 인증 상태</p>
                 <p className={`partner-kpi-value ${org?.verificationApproved ? "is-emerald" : "is-amber"}`}>
