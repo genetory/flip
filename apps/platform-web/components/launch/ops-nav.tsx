@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+// 아이콘은 Phosphor 로 통일(기존 lucide 이름으로 alias).
 import {
-  LayoutDashboard,
+  SquaresFour as LayoutDashboard,
   Users,
   GraduationCap,
   FileText,
   SlidersHorizontal,
-  BarChart3,
-  ChevronDown,
-  ExternalLink,
-  type LucideIcon
-} from "lucide-react";
+  ChartBar as BarChart3,
+  CaretDown as ChevronDown,
+  ArrowSquareOut as ExternalLink,
+  type Icon as LucideIcon
+} from "@phosphor-icons/react";
 import { useLaunchT } from "../../lib/launch/i18n";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean };

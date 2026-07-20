@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Users, GraduationCap, BarChart3, SlidersHorizontal, ArrowRight } from "lucide-react";
+import { Users, GraduationCap, ChartBar as BarChart3, SlidersHorizontal, ArrowRight } from "@phosphor-icons/react";
 import { fetchOpsStudents, studentProgress, type OpsStudent } from "../../../lib/launch/ops-client";
 import { fetchCohorts, type OpsCohort } from "../../../lib/launch/enrollment-client";
 import { useLaunchT } from "../../../lib/launch/i18n";

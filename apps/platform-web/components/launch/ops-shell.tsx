@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Globe, LogOut, ExternalLink } from "lucide-react";
+import { Globe, SignOut as LogOut, ArrowSquareOut as ExternalLink } from "@phosphor-icons/react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLaunchT } from "../../lib/launch/i18n";

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { CaretDown as ChevronDown } from "@phosphor-icons/react";
 import { opsDashboardMenuGroups } from "./menu";
 
 // Treat "/dashboard/ops" as a strict match — every other ops page starts with

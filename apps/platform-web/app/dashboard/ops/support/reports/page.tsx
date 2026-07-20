@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Briefcase, GraduationCap, Inbox, Users } from "lucide-react";
+import { Briefcase, GraduationCap, Tray as Inbox, Users } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { readAccessToken } from "../../../../../lib/auth-client";
 import { getApplicationStatusLabel, type ApplicationStatus } from "../../../../../lib/status-labels";
