@@ -16,7 +16,11 @@ export default function LaunchOpsLayout({ children }: { children: React.ReactNod
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <OpsTopbar />
+        {/* 상단바는 데스크톱에선 제거(운영콘솔처럼 사이드바로 통일). 모바일에선 사이드바가
+            숨겨지므로 언어·로그아웃 접근을 위해 상단바를 유지한다. */}
+        <div className="lg:hidden">
+          <OpsTopbar />
+        </div>
         <div className="min-w-0 flex-1 overflow-y-auto px-5 pb-16 md:px-8">
           <OpsMobileNav />
           {/* 운영 콘솔은 데스크톱 설계(.ops-content-section min-width:960px). 좁은 화면에선

@@ -13,9 +13,23 @@ import {
   ChartBar as BarChart3,
   CaretDown as ChevronDown,
   ArrowSquareOut as ExternalLink,
+  Globe,
+  SignOut,
   type Icon as LucideIcon
 } from "@phosphor-icons/react";
 import { useLaunchT } from "../../lib/launch/i18n";
+import { useLanguage } from "../i18n/LanguageProvider";
+import { useAuthSession } from "../auth/AuthSessionProvider";
+
+// 상단바를 없앤 데스크톱 사이드바에서 쓰는 언어 목록(상단바와 동일).
+const OPS_LOCALES = [
+  { key: "ko", label: "한국어" },
+  { key: "en", label: "English" },
+  { key: "zh-CN", label: "中文" },
+  { key: "vi", label: "Tiếng Việt" },
+  { key: "ja", label: "日本語" },
+  { key: "id", label: "Indonesia" }
+] as const;
 
 type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean };
 // 대분류(그룹) → 소분류(항목). single=true 인 그룹은 제목 없이 한 줄 링크로 렌더한다.
@@ -109,6 +123,8 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
 export function OpsSidebar() {
   const t = useLaunchT();
   const { groups, isActive } = useOpsNav();
+  const { locale, setLocale } = useLanguage();
+  const { logout } = useAuthSession();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   return (
@@ -154,8 +170,33 @@ export function OpsSidebar() {
           })}
         </nav>
 
-        {/* 하단 — 운영 콘솔과 동일한 버튼 스택(콘솔 전환·플랫폼·프로필) */}
+        {/* 하단 — 운영 콘솔과 동일한 버튼 스택(콘솔 전환·플랫폼·프로필) + 언어·로그아웃(상단바 대체) */}
         <div className="ops-console-logout-wrap mt-auto" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex items-center gap-2">
+            <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded-xl bg-[var(--surface-2)] px-2.5 py-2">
+              <Globe className="h-3.5 w-3.5 flex-none text-[var(--ink-faint)]" aria-hidden />
+              <select
+                value={locale}
+                onChange={(e) => setLocale(e.target.value as typeof locale)}
+                className="w-full bg-transparent text-[12.5px] font-semibold text-[var(--ink-soft)] outline-none"
+                aria-label={t("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa")}
+              >
+                {OPS_LOCALES.map((l) => (
+                  <option key={l.key} value={l.key}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => void logout()}
+              aria-label={t("로그아웃", "Sign out", "退出", "Đăng xuất", "ログアウト", "Keluar")}
+              className="flex-none rounded-xl bg-[var(--surface-2)] p-2 text-[var(--ink-faint)] transition hover:bg-[var(--line)] hover:text-[var(--ink)]"
+            >
+              <SignOut className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
           <Link href="/career-launch/dashboard">
             <button type="button" className="ops-console-logout">
               {t("학생 화면 체험", "Try student view", "体验学生界面", "Xem giao diện sinh viên", "学生画面を体験", "Coba tampilan siswa")}
