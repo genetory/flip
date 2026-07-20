@@ -1123,6 +1123,85 @@ async function sendInterviewProposalEmailToApplicant(input: {
   }
 }
 
+// 범용 알림 이메일 — 회사↔지원자 알림 공통 발송기. Aply(info@)를 CC 로 함께 받아 트래킹.
+// 단일 수신자(to) 또는 팀 전원(bcc) 중 하나로 보낸다. SMTP 미설정/수신자 없음이면 스킵.
+async function sendNotificationEmail(input: {
+  to?: string | null;
+  bcc?: string[];
+  subject: string;
+  previewText: string;
+  title: string;
+  headline: string;
+  contextLine?: string | null;
+  bodyText: string;
+  memo?: string | null;
+  ctaLabel: string;
+  ctaPath: string;
+  footerNote: string;
+  logKey: string;
+}) {
+  const transporter = getSmtpTransporter();
+  if (!transporter) return;
+  const to = input.to && input.to.includes("@") ? input.to : null;
+  const bcc = Array.from(new Set((input.bcc ?? []).filter((e) => e && e.includes("@"))));
+  if (!to && bcc.length === 0) return;
+
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const ctaUrl = `${platformWebUrl}${input.ctaPath}`;
+  const memoHtml = input.memo
+    ? `<div style="margin-top:16px;padding:14px 16px;background:#f7f8fa;border-radius:12px;font-size:13.5px;color:#4e5968;line-height:1.6;">${esc(input.memo)}</div>`
+    : "";
+  const bodyHtml = `
+    ${input.contextLine ? `<p style="margin:0 0 8px;font-size:13px;color:#8b95a1;">${esc(input.contextLine)}</p>` : ""}
+    <p style="margin:0 0 12px;font-size:16px;font-weight:800;color:#191f28;">${esc(input.headline)}</p>
+    <p style="margin:0;font-size:14.5px;color:#4e5968;line-height:1.6;">${esc(input.bodyText)}</p>
+    ${memoHtml}
+    <div style="margin-top:24px;">
+      <a href="${ctaUrl}" style="display:inline-block;background:#3182f6;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:12px;">${esc(input.ctaLabel)}</a>
+    </div>`;
+  const text = `${input.headline}\n\n${input.bodyText}${input.memo ? `\n\n${input.memo}` : ""}\n\n${input.ctaLabel}: ${ctaUrl}`;
+  const html = renderEmailLayout({
+    locale: "ko",
+    previewText: input.previewText,
+    title: input.title,
+    headerLabel: "지원 알림",
+    footerNote: input.footerNote,
+    bodyHtml
+  });
+  const envelopeTo = to ? [to, emailTrackingCc] : [...bcc, emailTrackingCc];
+
+  try {
+    await transporter.sendMail({
+      from: emailFromAddress,
+      to: to ?? emailFromAddress,
+      bcc: to ? undefined : bcc,
+      cc: emailTrackingCc,
+      replyTo: emailReplyToAddress,
+      subject: input.subject,
+      text,
+      html,
+      envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: envelopeTo } : undefined,
+      headers: {
+        "X-Mailer": "Aply Mailer",
+        "X-Auto-Response-Suppress": "OOF, AutoReply",
+        "Auto-Submitted": "auto-generated"
+      }
+    });
+  } catch (error) {
+    console.error(`${input.logKey}_failed`, { error: getErrorMessage(error) });
+  }
+}
+
+// 특정 파트너 조직의 팀원(파트너 계정) 이메일 목록.
+async function getPartnerTeamEmails(partnerOrganizationId: string | null): Promise<string[]> {
+  if (!partnerOrganizationId) return [];
+  const members = await prisma.user.findMany({
+    where: { partnerOrganizationId, role: MemberRole.PARTNER },
+    select: { email: true }
+  });
+  return members.map((m) => m.email).filter((e): e is string => Boolean(e && e.includes("@")));
+}
+
 // SGC × Aply 6주 일경험 지원 알림. 운영팀이 지원 들어오는 즉시 인지하도록.
 // 본인 이력서 + SGC-specific 답변을 한 카드로. 운영 ops 페이지로 바로 가는
 // 링크 포함.
@@ -20606,19 +20685,42 @@ app.post(
         include: { author: { select: { id: true, name: true, email: true, role: true } } }
       });
       if (visibility === "CANDIDATE") {
+        const authorName = created.author?.name?.trim() || "";
         if (isStudent) {
           const fullApp = await prisma.application.findUnique({
             where: { id: applicationId },
-            include: { position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } } } } } }
+            include: {
+              position: {
+                select: {
+                  title: true,
+                  partnerOrganization: { select: { users: { where: { role: MemberRole.PARTNER }, select: { id: true, email: true } } } }
+                }
+              }
+            }
           });
-          const partnerUserIds = fullApp?.position.partnerOrganization?.users.map((u) => u.id) ?? [];
-          await Promise.all(partnerUserIds.map((uid) => createNotification({
-            userId: uid,
+          const partnerUsers = fullApp?.position.partnerOrganization?.users ?? [];
+          await Promise.all(partnerUsers.map((u) => createNotification({
+            userId: u.id,
             type: "APPLICATION_COMMENT_FROM_CANDIDATE",
             title: "지원자가 댓글을 남겼습니다",
             message: parsed.data.content.slice(0, 80),
             linkPath: `/dashboard/partner/applicants/${applicationId}`
           })));
+          // 회사 팀 전원에게 이메일(+CC 트래킹)
+          void sendNotificationEmail({
+            bcc: partnerUsers.map((u) => u.email).filter((e): e is string => Boolean(e)),
+            subject: `[Aply] 지원자 메시지 — ${authorName || "지원자"}`,
+            previewText: `${authorName || "지원자"}님이 메시지를 남겼어요`,
+            title: "지원자 메시지",
+            headline: "지원자가 메시지를 남겼어요",
+            contextLine: fullApp?.position.title ?? null,
+            bodyText: `${authorName || "지원자"}님이 메시지를 남겼습니다.`,
+            memo: parsed.data.content,
+            ctaLabel: "메시지 확인하기",
+            ctaPath: `/dashboard/partner/applicants/${applicationId}`,
+            footerNote: "본 메일은 회원님 회사의 포지션 지원자가 메시지를 남겨 발송되는 알림 메일입니다.",
+            logKey: "comment_from_candidate_email"
+          });
         } else {
           void createNotification({
             userId: auth.candidateUserId,
@@ -20626,6 +20728,25 @@ app.post(
             title: "회사가 댓글을 남겼습니다",
             message: parsed.data.content.slice(0, 80),
             linkPath: "/profile?tab=applied"
+          });
+          // 지원자에게 이메일(+CC 트래킹)
+          const info = await prisma.application.findUnique({
+            where: { id: applicationId },
+            select: { candidateUser: { select: { email: true } }, position: { select: { title: true, partnerOrganization: { select: { name: true } } } } }
+          });
+          void sendNotificationEmail({
+            to: info?.candidateUser?.email ?? null,
+            subject: `[Aply] 회사 메시지${info?.position.title ? ` — ${info.position.title}` : ""}`,
+            previewText: "지원한 포지션의 회사가 메시지를 남겼어요",
+            title: "회사 메시지",
+            headline: "회사가 메시지를 남겼어요",
+            contextLine: info ? `${info.position.partnerOrganization?.name ? `${info.position.partnerOrganization.name} · ` : ""}${info.position.title}` : null,
+            bodyText: "지원한 포지션의 회사가 메시지를 남겼습니다.",
+            memo: parsed.data.content,
+            ctaLabel: "메시지 확인하기",
+            ctaPath: "/profile?tab=applied",
+            footerNote: "본 메일은 회원님이 지원한 포지션의 회사가 메시지를 남겨 발송되는 알림 메일입니다.",
+            logKey: "comment_from_company_email"
           });
         }
       }
@@ -20669,7 +20790,10 @@ app.post(
     try {
       const application = await prisma.application.findUnique({
         where: { id: applicationId },
-        include: { position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } } } } } }
+        include: {
+          candidateUser: { select: { name: true } },
+          position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true, email: true } } } } } }
+        }
       });
       if (!application) return res.status(404).json({ ok: false, message: "application not found" });
       if (application.candidateUserId !== req.auth!.userId) {
@@ -20693,14 +20817,31 @@ app.post(
           memo: "지원자 본인 철회"
         }
       });
-      const partnerUserIds = application.position.partnerOrganization?.users.map((u) => u.id) ?? [];
-      await Promise.all(partnerUserIds.map((uid) => createNotification({
-        userId: uid,
+      const partnerUsers = application.position.partnerOrganization?.users ?? [];
+      await Promise.all(partnerUsers.map((u) => createNotification({
+        userId: u.id,
         type: "APPLICATION_WITHDRAWN",
         title: "지원자가 지원을 철회했습니다",
         message: application.position.title,
         linkPath: `/dashboard/partner/applicants/${applicationId}`
       })));
+      // 회사 팀 전원에게 이메일(+CC 트래킹)
+      {
+        const applicantName = application.candidateUser?.name?.trim() || "지원자";
+        void sendNotificationEmail({
+          bcc: partnerUsers.map((u) => u.email).filter((e): e is string => Boolean(e)),
+          subject: `[Aply] 지원 철회 — ${applicantName}`,
+          previewText: `${applicantName}님이 지원을 철회했어요`,
+          title: "지원 철회",
+          headline: "지원자가 지원을 철회했어요",
+          contextLine: application.position.title,
+          bodyText: `${applicantName}님이 '${application.position.title}' 포지션 지원을 철회했습니다.`,
+          ctaLabel: "지원자 목록 보기",
+          ctaPath: "/dashboard/partner/applicants",
+          footerNote: "본 메일은 회원님 회사의 포지션 지원자가 지원을 철회하여 발송되는 알림 메일입니다.",
+          logKey: "application_withdrawn_email"
+        });
+      }
       return res.json({ ok: true, item: { id: updated.id, status: updated.status, withdrawnAt: updated.withdrawnAt } });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -20911,17 +21052,43 @@ app.patch(
 
       const fullApp = await prisma.application.findUnique({
         where: { id: slot.application.id },
-        include: { position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } } } } } }
+        include: {
+          candidateUser: { select: { name: true } },
+          position: {
+            select: {
+              title: true,
+              partnerOrganization: { select: { users: { where: { role: MemberRole.PARTNER }, select: { id: true, email: true } } } }
+            }
+          }
+        }
       });
-      const partnerUserIds = fullApp?.position.partnerOrganization?.users.map((u) => u.id) ?? [];
+      const partnerUsers = fullApp?.position.partnerOrganization?.users ?? [];
       const slotTime = new Date(updated.startsAt).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
-      await Promise.all(partnerUserIds.map((uid) => createNotification({
-        userId: uid,
+      await Promise.all(partnerUsers.map((u) => createNotification({
+        userId: u.id,
         type: "INTERVIEW_SLOT_SELECTED",
         title: "지원자가 면접 일정을 선택했습니다",
         message: slotTime,
         linkPath: "/dashboard/partner/applicants"
       })));
+      // 회사 팀 전원에게 이메일(+CC 트래킹)
+      {
+        const applicantName = fullApp?.candidateUser?.name?.trim() || "지원자";
+        void sendNotificationEmail({
+          bcc: partnerUsers.map((u) => u.email).filter((e): e is string => Boolean(e)),
+          subject: `[Aply] 면접 시간 선택 — ${applicantName}`,
+          previewText: `${applicantName}님이 면접 시간을 선택했어요`,
+          title: "면접 시간 선택",
+          headline: "지원자가 면접 시간을 선택했어요",
+          contextLine: fullApp?.position.title ?? null,
+          bodyText: `${applicantName}님이 아래 시간으로 면접을 선택했습니다.`,
+          memo: `선택한 시간: ${slotTime}`,
+          ctaLabel: "지원자 확인하기",
+          ctaPath: "/dashboard/partner/applicants",
+          footerNote: "본 메일은 회원님 회사의 포지션 지원자가 면접 시간을 선택하여 발송되는 알림 메일입니다.",
+          logKey: "interview_slot_selected_email"
+        });
+      }
 
       return res.json({ ok: true, item: updated });
     } catch (error) {
@@ -20960,7 +21127,10 @@ app.post(
     try {
       const application = await prisma.application.findUnique({
         where: { id: applicationId },
-        include: { position: { select: { partnerOrganizationId: true } } }
+        include: {
+          candidateUser: { select: { email: true, name: true } },
+          position: { select: { title: true, partnerOrganizationId: true, partnerOrganization: { select: { name: true } } } }
+        }
       });
       if (!application) return res.status(404).json({ ok: false, message: "application not found" });
 
@@ -20987,6 +21157,26 @@ app.post(
         message: parsed.data.title,
         linkPath: "/profile/assignments"
       });
+      // 지원자에게 이메일(+CC 트래킹)
+      {
+        const dueLabel = created.dueAt
+          ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" }).format(created.dueAt)
+          : null;
+        void sendNotificationEmail({
+          to: application.candidateUser?.email ?? null,
+          subject: `[Aply] '${application.position.title}' 새 과제 — ${parsed.data.title}`,
+          previewText: `새 과제가 부여되었어요: ${parsed.data.title}`,
+          title: "새 과제 부여",
+          headline: "새 과제가 부여되었어요",
+          contextLine: `${application.position.partnerOrganization?.name ? `${application.position.partnerOrganization.name} · ` : ""}${application.position.title}`,
+          bodyText: `과제: ${parsed.data.title}`,
+          memo: dueLabel ? `마감: ${dueLabel}` : null,
+          ctaLabel: "과제 확인하기",
+          ctaPath: "/profile/assignments",
+          footerNote: "본 메일은 회원님이 지원한 포지션의 과제 부여에 따라 발송되는 알림 메일입니다.",
+          logKey: "assignment_created_email"
+        });
+      }
       return res.status(201).json({ ok: true, item: created });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -21096,10 +21286,11 @@ app.patch(
         include: {
           application: {
             include: {
+              candidateUser: { select: { name: true } },
               position: {
                 include: {
                   partnerOrganization: {
-                    include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } }
+                    include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true, email: true } } }
                   }
                 }
               }
@@ -21123,14 +21314,31 @@ app.patch(
           status: "SUBMITTED"
         }
       });
-      const partnerUserIds = assignment.application.position.partnerOrganization?.users.map((u) => u.id) ?? [];
-      await Promise.all(partnerUserIds.map((uid) => createNotification({
-        userId: uid,
+      const partnerUsers = assignment.application.position.partnerOrganization?.users ?? [];
+      await Promise.all(partnerUsers.map((u) => createNotification({
+        userId: u.id,
         type: "ASSIGNMENT_SUBMITTED",
         title: "지원자가 과제를 제출했습니다",
         message: assignment.title,
         linkPath: `/dashboard/partner/applicants/${assignment.applicationId}`
       })));
+      // 회사 팀 전원에게 이메일(+CC 트래킹)
+      {
+        const applicantName = assignment.application.candidateUser?.name?.trim() || "지원자";
+        void sendNotificationEmail({
+          bcc: partnerUsers.map((u) => u.email).filter((e): e is string => Boolean(e)),
+          subject: `[Aply] 과제 제출 — ${applicantName} (${assignment.title})`,
+          previewText: `${applicantName}님이 과제를 제출했어요`,
+          title: "과제 제출",
+          headline: "지원자가 과제를 제출했어요",
+          contextLine: assignment.application.position.title,
+          bodyText: `${applicantName}님이 '${assignment.title}' 과제를 제출했습니다. 제출물을 검토해 주세요.`,
+          ctaLabel: "제출물 확인하기",
+          ctaPath: `/dashboard/partner/applicants/${assignment.applicationId}`,
+          footerNote: "본 메일은 회원님 회사의 포지션 지원자가 과제를 제출하여 발송되는 알림 메일입니다.",
+          logKey: "assignment_submitted_email"
+        });
+      }
       return res.json({ ok: true, item: updated });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -21179,7 +21387,7 @@ app.patch(
       });
       const application = await prisma.application.findUnique({
         where: { id: assignment.applicationId },
-        select: { candidateUserId: true }
+        select: { candidateUserId: true, candidateUser: { select: { email: true } }, position: { select: { title: true } } }
       });
       if (application) {
         void createNotification({
@@ -21188,6 +21396,21 @@ app.patch(
           title: "과제에 피드백이 등록되었습니다",
           message: assignment.title,
           linkPath: "/profile/assignments"
+        });
+        // 지원자에게 이메일(+CC 트래킹)
+        void sendNotificationEmail({
+          to: application.candidateUser?.email ?? null,
+          subject: `[Aply] 과제 피드백 등록 — ${assignment.title}`,
+          previewText: `'${assignment.title}' 과제에 피드백이 등록되었어요`,
+          title: "과제 피드백",
+          headline: "과제에 피드백이 등록되었어요",
+          contextLine: application.position.title,
+          bodyText: `'${assignment.title}' 과제에 회사가 피드백을 남겼습니다. 확인해 보세요.`,
+          memo: parsed.data.feedbackContent,
+          ctaLabel: "피드백 확인하기",
+          ctaPath: "/profile/assignments",
+          footerNote: "본 메일은 회원님이 제출한 과제의 피드백 등록에 따라 발송되는 알림 메일입니다.",
+          logKey: "assignment_reviewed_email"
         });
       }
       return res.json({ ok: true, item: updated });
