@@ -16739,7 +16739,8 @@ const translateTextsSchema = z.object({
 app.post(
   "/members/me/ai/translate-texts",
   authenticate,
-  requireRoles([MemberRole.STUDENT]),
+  // 번역은 role 무관하게 로그인한 모든 사용자에게 허용(학생·파트너·운영자).
+  // AI 지갑은 userId 기준으로 첫 사용 시 자동 지급되므로 비-STUDENT도 정상 과금된다.
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ai-translate-texts", message: "잠시 후 다시 시도해 주세요." }),
   aiCharge("translate_texts"),
   async (req, res) => {
