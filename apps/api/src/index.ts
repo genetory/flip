@@ -23734,6 +23734,75 @@ app.patch("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PART
   }
 });
 
+// 커넥션 트래킹 — Aply 가 개입 없이 회사↔지원자 연결을 추적하는 운영 지표.
+// 전체 퍼널 + 파트너별 성과 + 지금 챙겨야 할 정체 건.
+app.get("/ops/connections/tracking", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const now = Date.now();
+    const staleCutoff = new Date(now - STALE_APPLICATION_DAYS * 86400000);
+    const selectCutoff = new Date(now - STALE_INTERVIEW_SELECT_DAYS * 86400000);
+
+    const apps = await prisma.application.findMany({
+      select: {
+        status: true,
+        submittedAt: true,
+        partnerNudgedAt: true,
+        position: { select: { partnerOrganizationId: true, partnerOrganization: { select: { name: true } } } }
+      }
+    });
+
+    const funnel = { total: apps.length, submitted: 0, interview: 0, accepted: 0, rejected: 0, withdrawn: 0 };
+    type Row = { orgId: string; name: string; applied: number; interview: number; accepted: number; rejected: number; stale: number };
+    const byOrg = new Map<string, Row>();
+    let staleApplications = 0;
+
+    for (const a of apps) {
+      if (a.status === "SUBMITTED") funnel.submitted += 1;
+      else if (a.status === "INTERVIEW") funnel.interview += 1;
+      else if (a.status === "ACCEPTED") funnel.accepted += 1;
+      else if (a.status === "REJECTED") funnel.rejected += 1;
+      else if (a.status === "WITHDRAWN") funnel.withdrawn += 1;
+
+      const isStale = a.status === "SUBMITTED" && a.submittedAt <= staleCutoff;
+      if (isStale) staleApplications += 1;
+
+      const orgId = a.position.partnerOrganizationId;
+      if (!orgId) continue;
+      const row = byOrg.get(orgId) ?? { orgId, name: a.position.partnerOrganization?.name ?? "-", applied: 0, interview: 0, accepted: 0, rejected: 0, stale: 0 };
+      row.applied += 1;
+      if (a.status === "INTERVIEW") row.interview += 1;
+      if (a.status === "ACCEPTED") row.accepted += 1;
+      if (a.status === "REJECTED") row.rejected += 1;
+      if (isStale) row.stale += 1;
+      byOrg.set(orgId, row);
+    }
+
+    // 면접 도달 = 현재 INTERVIEW + ACCEPTED(면접 통과), 합격 = ACCEPTED
+    const reachedInterview = funnel.interview + funnel.accepted;
+    const partners = Array.from(byOrg.values())
+      .map((r) => ({ ...r, reachedInterview: r.interview + r.accepted }))
+      .sort((a, b) => b.applied - a.applied)
+      .slice(0, 30);
+
+    // 지금 챙길 정체 — 미선택 면접(3일+ 제안, 미선택)
+    const pendingInterviewSelect = await prisma.application.count({
+      where: {
+        status: "INTERVIEW",
+        interviewSlots: { some: { status: "PROPOSED", proposedAt: { lte: selectCutoff } }, none: { status: "SELECTED" } }
+      }
+    });
+
+    return res.json({
+      ok: true,
+      funnel: { ...funnel, reachedInterview },
+      attention: { staleApplications, staleThresholdDays: STALE_APPLICATION_DAYS, pendingInterviewSelect, selectThresholdDays: STALE_INTERVIEW_SELECT_DAYS },
+      partners
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.get("/ops/dashboard", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
   try {
     const [totalUsers, students, partners, operators, totalPartnerOrgs, verifiedPartnerOrgs, totalPositions, openPositions, recentSignups] = await Promise.all([

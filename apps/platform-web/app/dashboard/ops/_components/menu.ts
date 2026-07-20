@@ -118,6 +118,7 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
   {
     title: "분석 & 소통",
     links: [
+      { label: "커넥션 트래킹", href: "/dashboard/ops/support/connections", icon: Handshake },
       { label: "유입 경로", href: "/dashboard/ops/support/inflow", icon: BarChart3 },
       { label: "리포트", href: "/dashboard/ops/support/reports", icon: BarChart3 },
       { label: "공지사항", href: "/dashboard/ops/operations/announcements", icon: Megaphone }
