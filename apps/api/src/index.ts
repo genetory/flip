@@ -901,6 +901,76 @@ async function sendPositionApplyDiscordNotification(input: {
   }
 }
 
+// 포지션에 지원이 접수되면, 그 포지션을 올린 파트너사 팀 멤버(파트너 계정) 전원에게
+// 이메일로 알린다. 지원자 관리 화면 링크 포함. SMTP 미설정이면 조용히 스킵한다.
+async function sendPositionApplyPartnerEmails(input: {
+  positionTitle: string;
+  partnerOrganizationId: string | null;
+  applicantName: string | null;
+  applicantEmail: string;
+}) {
+  if (!input.partnerOrganizationId) return;
+  const transporter = getSmtpTransporter();
+  if (!transporter) return;
+
+  const members = await prisma.user.findMany({
+    where: { partnerOrganizationId: input.partnerOrganizationId, role: MemberRole.PARTNER },
+    select: { email: true }
+  });
+  const recipients = Array.from(
+    new Set(members.map((m) => m.email).filter((e): e is string => Boolean(e && e.includes("@"))))
+  );
+  if (recipients.length === 0) return;
+
+  const applicantLabel = (input.applicantName ?? "").trim() || input.applicantEmail;
+  const applicantsUrl = `${platformWebUrl}/dashboard/partner/applicants`;
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const subject = `[Aply] '${input.positionTitle}' 새 지원자 — ${applicantLabel}`;
+  const bodyHtml = `
+    <p style="margin:0 0 16px;font-size:15px;color:#191f28;">
+      <strong>${esc(input.positionTitle)}</strong> 포지션에 새로운 지원이 접수되었습니다.
+    </p>
+    <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;color:#4e5968;">
+      <tr><td style="padding:6px 0;width:88px;color:#8b95a1;">지원자</td><td style="padding:6px 0;color:#191f28;font-weight:600;">${esc(applicantLabel)}</td></tr>
+      <tr><td style="padding:6px 0;color:#8b95a1;">이메일</td><td style="padding:6px 0;">${esc(input.applicantEmail)}</td></tr>
+      <tr><td style="padding:6px 0;color:#8b95a1;">포지션</td><td style="padding:6px 0;">${esc(input.positionTitle)}</td></tr>
+    </table>
+    <div style="margin-top:24px;">
+      <a href="${applicantsUrl}" style="display:inline-block;background:#3182f6;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:12px;">지원자 확인하기</a>
+    </div>
+    <p style="margin:20px 0 0;font-size:12.5px;color:#8b95a1;">
+      Aply 파트너 콘솔 &gt; 지원자 관리에서 지원 서류를 검토하고 다음 단계로 진행할 수 있어요.
+    </p>
+  `;
+  const text = `'${input.positionTitle}' 포지션에 새 지원이 접수되었습니다.\n\n지원자: ${applicantLabel}\n이메일: ${input.applicantEmail}\n\n지원자 확인: ${applicantsUrl}`;
+  const html = renderEmailLayout({
+    locale: "ko",
+    previewText: `'${input.positionTitle}'에 ${applicantLabel}님이 지원했습니다.`,
+    title: "새 지원자 알림",
+    bodyHtml
+  });
+
+  try {
+    await transporter.sendMail({
+      from: emailFromAddress,
+      to: emailFromAddress,
+      bcc: recipients,
+      replyTo: emailReplyToAddress,
+      subject,
+      text,
+      html,
+      envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: recipients } : undefined,
+      headers: {
+        "X-Mailer": "Aply Mailer",
+        "X-Auto-Response-Suppress": "OOF, AutoReply",
+        "Auto-Submitted": "auto-generated"
+      }
+    });
+  } catch (error) {
+    console.error("position_apply_partner_email_failed", { error: getErrorMessage(error) });
+  }
+}
+
 // SGC × Aply 6주 일경험 지원 알림. 운영팀이 지원 들어오는 즉시 인지하도록.
 // 본인 이력서 + SGC-specific 답변을 한 카드로. 운영 ops 페이지로 바로 가는
 // 링크 포함.
@@ -12220,6 +12290,7 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
       id: true,
       title: true,
       status: true,
+      partnerOrganizationId: true,
       partnerOrganization: {
         select: {
           name: true
@@ -12249,7 +12320,11 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
     // 지원 시점의 서류(대표 이력서 + 회사일치 자소서)를 연결 + 제출본 스냅샷 저장.
     // 재지원 시에도 현재 서류로 스냅샷 갱신.
     const docs = await snapshotApplicationDocs(userId, position.partnerOrganization?.name ?? null);
+    // 새 지원(최초 지원 또는 철회 후 재지원)일 때만 파트너사에 이메일 알림을 보낸다
+    // (이미 진행 중인 지원에 다시 apply 를 눌러도 팀에 중복 메일이 가지 않게).
+    let isNewSubmission = false;
     if (!existing) {
+      isNewSubmission = true;
       const created = await prisma.application.create({
         data: {
           positionId: parsed.data.positionId,
@@ -12269,6 +12344,7 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
         }
       });
     } else if (existing.status === "WITHDRAWN") {
+      isNewSubmission = true;
       await prisma.application.update({
         where: { id: existing.id },
         data: {
@@ -12304,6 +12380,15 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
         partnerName: position.partnerOrganization?.name ?? null,
         appliedAt: new Date()
       });
+      // 새 지원일 때만 파트너사 팀 멤버 전원에게 이메일 알림
+      if (isNewSubmission) {
+        void sendPositionApplyPartnerEmails({
+          positionTitle: position.title,
+          partnerOrganizationId: position.partnerOrganizationId,
+          applicantName: applicant.name,
+          applicantEmail: applicant.email
+        });
+      }
     }
     return res.json({ ok: true, ids: next });
   } catch {
