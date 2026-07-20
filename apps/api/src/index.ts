@@ -308,6 +308,8 @@ const discordSgcApplicationWebhookUrl =
 const companyConsultationDiscordTestToken = process.env.COMPANY_CONSULTATION_DISCORD_TEST_TOKEN?.trim() ?? "";
 const emailFromAddress = process.env.EMAIL_FROM?.trim() ?? "";
 const emailReplyToAddress = process.env.EMAIL_REPLY_TO?.trim() || process.env.EMAIL_SUPPORT_ADDRESS?.trim() || "info@flip-ers.com";
+// 회사↔지원자 알림 메일을 Aply 가 트래킹하도록 참조(CC)로 함께 받는 주소.
+const emailTrackingCc = process.env.EMAIL_TRACKING_CC?.trim() || "info@flip-ers.com";
 const emailEnvelopeFrom = process.env.EMAIL_ENVELOPE_FROM?.trim() || process.env.SMTP_USER?.trim() || "";
 const smtpHost = process.env.SMTP_HOST?.trim() ?? "";
 const smtpPort = Number(process.env.SMTP_PORT ?? 587);
@@ -902,28 +904,41 @@ async function sendPositionApplyDiscordNotification(input: {
 }
 
 // 포지션에 지원이 접수되면, 그 포지션을 올린 파트너사 팀 멤버(파트너 계정) 전원에게
-// 이메일로 알린다. 지원자 관리 화면 링크 포함. SMTP 미설정이면 조용히 스킵한다.
-async function sendPositionApplyPartnerEmails(input: {
+// 서비스(인앱) 알림 + 이메일로 알린다. 인앱 알림은 SMTP 설정과 무관하게 항상 생성한다.
+async function notifyPartnerTeamOnApplication(input: {
   positionTitle: string;
   partnerOrganizationId: string | null;
   applicantName: string | null;
   applicantEmail: string;
 }) {
   if (!input.partnerOrganizationId) return;
-  const transporter = getSmtpTransporter();
-  if (!transporter) return;
 
   const members = await prisma.user.findMany({
     where: { partnerOrganizationId: input.partnerOrganizationId, role: MemberRole.PARTNER },
-    select: { email: true }
+    select: { id: true, email: true }
   });
+  if (members.length === 0) return;
+
+  const applicantLabel = (input.applicantName ?? "").trim() || input.applicantEmail;
+  const applicantsUrl = `${platformWebUrl}/dashboard/partner/applicants`;
+
+  // 서비스(인앱) 알림 — 팀원 전원에게(이메일 발송 여부와 무관하게 항상).
+  for (const m of members) {
+    void createNotification({
+      userId: m.id,
+      type: "POSITION_APPLICATION_RECEIVED",
+      title: `'${input.positionTitle}'에 새 지원자 — ${applicantLabel}`,
+      message: null,
+      linkPath: "/dashboard/partner/applicants"
+    });
+  }
+
+  const transporter = getSmtpTransporter();
+  if (!transporter) return;
   const recipients = Array.from(
     new Set(members.map((m) => m.email).filter((e): e is string => Boolean(e && e.includes("@"))))
   );
   if (recipients.length === 0) return;
-
-  const applicantLabel = (input.applicantName ?? "").trim() || input.applicantEmail;
-  const applicantsUrl = `${platformWebUrl}/dashboard/partner/applicants`;
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const subject = `[Aply] '${input.positionTitle}' 새 지원자 — ${applicantLabel}`;
   const bodyHtml = `
@@ -957,11 +972,12 @@ async function sendPositionApplyPartnerEmails(input: {
       from: emailFromAddress,
       to: emailFromAddress,
       bcc: recipients,
+      cc: emailTrackingCc, // Aply 트래킹용 참조
       replyTo: emailReplyToAddress,
       subject,
       text,
       html,
-      envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: recipients } : undefined,
+      envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: [...recipients, emailTrackingCc] } : undefined,
       headers: {
         "X-Mailer": "Aply Mailer",
         "X-Auto-Response-Suppress": "OOF, AutoReply",
@@ -970,6 +986,140 @@ async function sendPositionApplyPartnerEmails(input: {
     });
   } catch (error) {
     console.error("position_apply_partner_email_failed", { error: getErrorMessage(error) });
+  }
+}
+
+// 지원 상태 변경(면접 예정·합격·불합격)을 지원자 본인에게 이메일로 알린다.
+// Aply 는 참조(CC)로 함께 받아 회사↔지원자 소통을 트래킹한다. SMTP 미설정 시 스킵.
+async function sendApplicationStatusEmailToApplicant(input: {
+  applicantEmail: string | null;
+  applicantName: string | null;
+  positionTitle: string;
+  partnerName: string | null;
+  status: "INTERVIEW" | "ACCEPTED" | "REJECTED";
+  memo: string | null;
+}) {
+  if (!input.applicantEmail || !input.applicantEmail.includes("@")) return;
+  const transporter = getSmtpTransporter();
+  if (!transporter) return;
+
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const statusMeta = {
+    INTERVIEW: { ko: "면접 예정", line: "축하합니다! 서류 검토를 통과하여 면접 대상자로 선정되었습니다.", cta: "면접 일정 확인하기" },
+    ACCEPTED: { ko: "합격", line: "축하합니다! 최종 합격하셨습니다.", cta: "결과 확인하기" },
+    REJECTED: { ko: "불합격", line: "아쉽게도 이번 지원은 합격하지 못했습니다. 관심과 지원에 감사드립니다.", cta: "다른 포지션 보기" }
+  }[input.status];
+  const appliedUrl = input.status === "REJECTED" ? `${platformWebUrl}/positions` : `${platformWebUrl}/profile?tab=applied`;
+  const companyLine = input.partnerName ? `${esc(input.partnerName)} · ` : "";
+  const memoHtml = input.memo
+    ? `<div style="margin-top:16px;padding:14px 16px;background:#f7f8fa;border-radius:12px;font-size:13.5px;color:#4e5968;line-height:1.6;"><strong style="color:#191f28;">회사 메시지</strong><br/>${esc(input.memo)}</div>`
+    : "";
+  const bodyHtml = `
+    <p style="margin:0 0 8px;font-size:13px;color:#8b95a1;">${companyLine}${esc(input.positionTitle)}</p>
+    <p style="margin:0 0 16px;font-size:16px;font-weight:800;color:#191f28;">지원 상태: ${statusMeta.ko}</p>
+    <p style="margin:0;font-size:14.5px;color:#4e5968;line-height:1.6;">${statusMeta.line}</p>
+    ${memoHtml}
+    <div style="margin-top:24px;">
+      <a href="${appliedUrl}" style="display:inline-block;background:#3182f6;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:12px;">${statusMeta.cta}</a>
+    </div>`;
+  const text = `[${input.positionTitle}] 지원 상태가 '${statusMeta.ko}'(으)로 변경되었습니다.\n\n${statusMeta.line}${input.memo ? `\n\n회사 메시지: ${input.memo}` : ""}\n\n확인: ${appliedUrl}`;
+  const html = renderEmailLayout({
+    locale: "ko",
+    previewText: `'${input.positionTitle}' 지원 상태: ${statusMeta.ko}`,
+    title: "지원 상태 알림",
+    headerLabel: "지원 알림",
+    footerNote: "본 메일은 회원님이 지원한 포지션의 상태 변경에 따라 발송되는 알림 메일입니다.",
+    bodyHtml
+  });
+
+  try {
+    await transporter.sendMail({
+      from: emailFromAddress,
+      to: input.applicantEmail,
+      cc: emailTrackingCc, // Aply 트래킹용 참조
+      replyTo: emailReplyToAddress,
+      subject: `[Aply] '${input.positionTitle}' 지원 상태: ${statusMeta.ko}`,
+      text,
+      html,
+      envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: [input.applicantEmail, emailTrackingCc] } : undefined,
+      headers: {
+        "X-Mailer": "Aply Mailer",
+        "X-Auto-Response-Suppress": "OOF, AutoReply",
+        "Auto-Submitted": "auto-generated"
+      }
+    });
+  } catch (error) {
+    console.error("application_status_email_failed", { error: getErrorMessage(error) });
+  }
+}
+
+// 회사가 면접 일정을 제안하면 지원자에게 제안된 시간 목록을 이메일로 통보(Aply 참조).
+async function sendInterviewProposalEmailToApplicant(input: {
+  applicantEmail: string | null;
+  applicantName: string | null;
+  positionTitle: string;
+  partnerName: string | null;
+  slots: { startsAt: Date; endsAt: Date; location: string | null }[];
+}) {
+  if (!input.applicantEmail || !input.applicantEmail.includes("@") || input.slots.length === 0) return;
+  const transporter = getSmtpTransporter();
+  if (!transporter) return;
+
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const fmt = (d: Date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(d);
+  const selectUrl = `${platformWebUrl}/profile?tab=applied`;
+  const companyLine = input.partnerName ? `${esc(input.partnerName)} · ` : "";
+  const slotsHtml = input.slots
+    .map(
+      (s) =>
+        `<tr><td style="padding:8px 12px;border:1px solid #e8ebed;border-radius:0;font-size:13.5px;color:#191f28;">${esc(fmt(s.startsAt))} ~ ${esc(new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" }).format(s.endsAt))}${s.location ? ` · ${esc(s.location)}` : ""}</td></tr>`
+    )
+    .join("");
+  const bodyHtml = `
+    <p style="margin:0 0 6px;font-size:13px;color:#8b95a1;">${companyLine}${esc(input.positionTitle)}</p>
+    <p style="margin:0 0 16px;font-size:16px;font-weight:800;color:#191f28;">면접 일정이 제안되었어요</p>
+    <p style="margin:0 0 12px;font-size:14px;color:#4e5968;line-height:1.6;">아래 제안된 시간 중 하나를 선택해 주세요.</p>
+    <table role="presentation" style="width:100%;border-collapse:separate;border-spacing:0 6px;">${slotsHtml}</table>
+    <div style="margin-top:20px;">
+      <a href="${selectUrl}" style="display:inline-block;background:#3182f6;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:12px;">면접 시간 선택하기</a>
+    </div>`;
+  const textLines = input.slots.map((s) => `- ${fmt(s.startsAt)}${s.location ? ` (${s.location})` : ""}`).join("\n");
+  const text = `'${input.positionTitle}' 면접 일정이 제안되었습니다.\n\n${textLines}\n\n시간 선택: ${selectUrl}`;
+  const html = renderEmailLayout({
+    locale: "ko",
+    previewText: `'${input.positionTitle}' 면접 일정을 선택해 주세요.`,
+    title: "면접 일정 제안",
+    headerLabel: "지원 알림",
+    footerNote: "본 메일은 회원님이 지원한 포지션의 면접 일정 제안에 따라 발송되는 알림 메일입니다.",
+    bodyHtml
+  });
+
+  try {
+    await transporter.sendMail({
+      from: emailFromAddress,
+      to: input.applicantEmail,
+      cc: emailTrackingCc,
+      replyTo: emailReplyToAddress,
+      subject: `[Aply] '${input.positionTitle}' 면접 일정 제안`,
+      text,
+      html,
+      envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: [input.applicantEmail, emailTrackingCc] } : undefined,
+      headers: {
+        "X-Mailer": "Aply Mailer",
+        "X-Auto-Response-Suppress": "OOF, AutoReply",
+        "Auto-Submitted": "auto-generated"
+      }
+    });
+  } catch (error) {
+    console.error("interview_proposal_email_failed", { error: getErrorMessage(error) });
   }
 }
 
@@ -12382,9 +12532,9 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
         partnerName: position.partnerOrganization?.name ?? null,
         appliedAt: new Date()
       });
-      // 새 지원일 때만 파트너사 팀 멤버 전원에게 이메일 알림
+      // 새 지원일 때만 파트너사 팀 멤버 전원에게 서비스 알림 + 이메일
       if (isNewSubmission) {
-        void sendPositionApplyPartnerEmails({
+        void notifyPartnerTeamOnApplication({
           positionTitle: position.title,
           partnerOrganizationId: position.partnerOrganizationId,
           applicantName: applicant.name,
@@ -20279,7 +20429,10 @@ app.patch("/applications/:id/status", authenticate, requireRoles([MemberRole.PAR
   try {
     const application = await prisma.application.findUnique({
       where: { id: applicationId },
-      include: { position: { select: { partnerOrganizationId: true } } }
+      include: {
+        candidateUser: { select: { email: true, name: true } },
+        position: { select: { title: true, partnerOrganizationId: true, partnerOrganization: { select: { name: true } } } }
+      }
     });
     if (!application) return res.status(404).json({ ok: false, message: "application not found" });
 
@@ -20339,6 +20492,17 @@ app.patch("/applications/:id/status", authenticate, requireRoles([MemberRole.PAR
         message: parsed.data.memo ?? null,
         linkPath: "/profile?tab=applied"
       });
+      // 회사↔지원자 다이렉트 알림 — 면접/합격/불합격은 지원자에게 이메일로도 통보(Aply 참조).
+      if (parsed.data.status === "INTERVIEW" || parsed.data.status === "ACCEPTED" || parsed.data.status === "REJECTED") {
+        void sendApplicationStatusEmailToApplicant({
+          applicantEmail: application.candidateUser?.email ?? null,
+          applicantName: application.candidateUser?.name ?? null,
+          positionTitle: application.position.title,
+          partnerName: application.position.partnerOrganization?.name ?? null,
+          status: parsed.data.status,
+          memo: parsed.data.memo ?? null
+        });
+      }
     }
 
     return res.json({ ok: true, item: { id: updated.id, status: updated.status, updatedAt: updated.updatedAt } });
@@ -20558,7 +20722,10 @@ app.post(
     try {
       const application = await prisma.application.findUnique({
         where: { id: applicationId },
-        include: { position: { select: { partnerOrganizationId: true } } }
+        include: {
+          candidateUser: { select: { email: true, name: true } },
+          position: { select: { title: true, partnerOrganizationId: true, partnerOrganization: { select: { name: true } } } }
+        }
       });
       if (!application) return res.status(404).json({ ok: false, message: "application not found" });
 
@@ -20617,6 +20784,14 @@ app.post(
         title: "면접 일정이 제안되었습니다",
         message: `${created.length}개의 일정 중 선택해 주세요.`,
         linkPath: "/profile?tab=applied"
+      });
+      // 회사↔지원자 다이렉트 알림 — 지원자에게 제안된 면접 일정을 이메일로 통보(Aply 참조).
+      void sendInterviewProposalEmailToApplicant({
+        applicantEmail: application.candidateUser?.email ?? null,
+        applicantName: application.candidateUser?.name ?? null,
+        positionTitle: application.position.title,
+        partnerName: application.position.partnerOrganization?.name ?? null,
+        slots: created.map((s) => ({ startsAt: s.startsAt, endsAt: s.endsAt, location: s.location }))
       });
 
       return res.status(201).json({ ok: true, items: created });
