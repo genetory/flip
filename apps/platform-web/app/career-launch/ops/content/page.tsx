@@ -166,7 +166,7 @@ export default function LaunchOpsContentPage() {
 
             {error ? <p className="ops-form-error">{error}</p> : null}
             {saved ? (
-              <p className="ops-detail-empty" style={{ color: "#047857", fontWeight: 700 }}>
+              <p className="ops-detail-empty" style={{ color: "var(--accent-ink)", fontWeight: 700 }}>
                 {t("저장했어요. 학생 화면에 바로 반영됩니다.", "Saved. It applies to the student view right away.", "已保存，学生端立即生效。", "Đã lưu. Áp dụng ngay cho sinh viên.", "保存しました。学生画面に即反映されます。", "Tersimpan. Langsung berlaku di tampilan siswa.")}
               </p>
             ) : null}
@@ -209,7 +209,7 @@ export default function LaunchOpsContentPage() {
                       value={weekVal(week.week, row.f)}
                       onChange={(e) => setWeekField(week.week, row.f, e.target.value)}
                       rows={row.f === "goal" ? 3 : 2}
-                      className="w-full rounded-lg border border-[#e5e7eb] p-2.5 text-[13px] leading-relaxed"
+                      className="w-full rounded-lg border border-[var(--line)] p-2.5 text-[13px] leading-relaxed"
                       placeholder={row.orig}
                     />
                     <p className="ops-detail-empty" style={{ marginTop: 4 }}>
@@ -237,7 +237,7 @@ export default function LaunchOpsContentPage() {
                         value={stepVal(st.id, row.f)}
                         onChange={(e) => setStepField(st.id, row.f, e.target.value)}
                         rows={row.rows}
-                        className="w-full rounded-lg border border-[#e5e7eb] p-2.5 text-[13px] leading-relaxed"
+                        className="w-full rounded-lg border border-[var(--line)] p-2.5 text-[13px] leading-relaxed"
                         placeholder={row.orig}
                       />
                       <p className="ops-detail-empty" style={{ marginTop: 4 }}>

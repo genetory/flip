@@ -162,7 +162,7 @@ export default function CrawlersPage() {
             {running === "all" ? "전체 실행 중..." : "전체 실행"}
           </button>
         </div>
-        {error ? <p style={{ marginTop: 14, color: "#b42318" }}>{error}</p> : null}
+        {error ? <p style={{ marginTop: 14, color: "var(--danger)" }}>{error}</p> : null}
       </article>
 
       <article className="ops-partner-list-card">
@@ -170,7 +170,7 @@ export default function CrawlersPage() {
           <h2>최근 실행 결과</h2>
         </div>
         {lastResult ? (
-          <pre style={{ margin: "14px 0 0", whiteSpace: "pre-wrap", wordBreak: "break-word", background: "#f8fafc", borderRadius: 10, padding: 14 }}>
+          <pre style={{ margin: "14px 0 0", whiteSpace: "pre-wrap", wordBreak: "break-word", background: "var(--surface-2)", borderRadius: 10, padding: 14 }}>
             {JSON.stringify(lastResult, null, 2)}
           </pre>
         ) : (
@@ -185,7 +185,7 @@ export default function CrawlersPage() {
             {historyLoading ? "새로고침 중..." : "새로고침"}
           </button>
         </div>
-        {historyError ? <p style={{ marginTop: 12, color: "#b42318" }}>{historyError}</p> : null}
+        {historyError ? <p style={{ marginTop: 12, color: "var(--danger)" }}>{historyError}</p> : null}
         <div className="ops-partner-table-wrap" style={{ marginTop: 12 }}>
           <table className="ops-partner-table">
             <thead>

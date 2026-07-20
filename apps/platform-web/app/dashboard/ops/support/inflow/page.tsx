@@ -80,7 +80,7 @@ function PeriodToggle({ value, onChange }: { value: PeriodMode; onChange: (v: Pe
     <div
       role="tablist"
       aria-label="기간 선택"
-      style={{ display: "inline-flex", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}
+      style={{ display: "inline-flex", border: "1px solid var(--line)", borderRadius: 8, overflow: "hidden" }}
     >
       {(["weekly", "monthly"] as PeriodMode[]).map((mode) => {
         const active = mode === value;
@@ -98,7 +98,7 @@ function PeriodToggle({ value, onChange }: { value: PeriodMode; onChange: (v: Pe
               cursor: "pointer",
               border: 0,
               background: active ? "var(--ops-accent-dark)" : "#fff",
-              color: active ? "#fff" : "#6b7280"
+              color: active ? "#fff" : "var(--ink-faint)"
             }}
           >
             {mode === "weekly" ? "주간" : "월간"}
@@ -155,7 +155,7 @@ function ChartBars({ buckets, max, height = 120 }: { buckets: ChartBucket[]; max
                     left: "50%",
                     transform: "translateX(-50%)",
                     marginBottom: 6,
-                    background: "#111827",
+                    background: "var(--ink)",
                     color: "#fff",
                     fontSize: 11,
                     lineHeight: 1.5,
@@ -179,7 +179,7 @@ function ChartBars({ buckets, max, height = 120 }: { buckets: ChartBucket[]; max
               ) : null}
               {total === 0 ? (
                 // Zero baseline so the bucket is still visible on the axis
-                <div style={{ width: "100%", height: 2, background: "#e5e7eb", borderRadius: 2 }} />
+                <div style={{ width: "100%", height: 2, background: "var(--line)", borderRadius: 2 }} />
               ) : (
                 b.segments.map((seg, segIdx) => {
                   if (seg.value <= 0) return null;
@@ -199,7 +199,7 @@ function ChartBars({ buckets, max, height = 120 }: { buckets: ChartBucket[]; max
                 })
               )}
             </div>
-            <span style={{ fontSize: 10, color: "#6b7280", whiteSpace: "nowrap" }}>{b.label}</span>
+            <span style={{ fontSize: 10, color: "var(--ink-faint)", whiteSpace: "nowrap" }}>{b.label}</span>
           </div>
         );
       })}
@@ -363,16 +363,16 @@ export default function InflowPage() {
                   key: b.key,
                   label: b.label,
                   segments: [
-                    { value: b.STUDENT, color: "#3b82f6" },
-                    { value: b.PARTNER, color: "#8b5cf6" },
-                    { value: b.OPERATOR, color: "#f59e0b" }
+                    { value: b.STUDENT, color: "var(--accent)" },
+                    { value: b.PARTNER, color: "var(--accent)" },
+                    { value: b.OPERATOR, color: "var(--sand)" }
                   ],
                   tooltipTitle: signupPeriod === "weekly" ? `주 시작 ${b.key}` : `${b.key}`,
                   tooltipLines: [
-                    { label: "학생", value: b.STUDENT, color: "#3b82f6" },
-                    { label: "파트너", value: b.PARTNER, color: "#8b5cf6" },
-                    { label: "운영자", value: b.OPERATOR, color: "#f59e0b" },
-                    { label: "합계", value: b.STUDENT + b.PARTNER + b.OPERATOR, color: "#374151" }
+                    { label: "학생", value: b.STUDENT, color: "var(--accent)" },
+                    { label: "파트너", value: b.PARTNER, color: "var(--accent)" },
+                    { label: "운영자", value: b.OPERATOR, color: "var(--sand)" },
+                    { label: "합계", value: b.STUDENT + b.PARTNER + b.OPERATOR, color: "var(--ink-soft)" }
                   ]
                 }))}
                 max={signupMax}

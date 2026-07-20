@@ -10,7 +10,7 @@ export default function OpsApplicationDetailPage() {
   if (!id) return null;
   return (
     <section className="ops-content-section">
-      <Link href="/dashboard/ops/operations/applications" style={{ fontSize: 12, color: "#6b7280", textDecoration: "none" }}>
+      <Link href="/dashboard/ops/operations/applications" style={{ fontSize: 12, color: "var(--ink-faint)", textDecoration: "none" }}>
         ← 지원 목록
       </Link>
       <header style={{ marginTop: 8 }}>

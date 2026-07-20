@@ -142,14 +142,14 @@ export default function LaunchOpsHomePage() {
               return (
                 <Link key={c.href} href={c.href} className="ops-list-card">
                   <div className="ops-list-card-head">
-                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, borderRadius: 10, background: "#eff6ff", flex: "none" }}>
-                      <Icon size={18} color="#1d4ed8" />
+                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, borderRadius: 10, background: "var(--accent-soft)", flex: "none" }}>
+                      <Icon size={18} color="var(--accent-ink)" />
                     </span>
                     <span className={`ops-pill ${c.tone}`}>{loading ? "…" : c.badge}</span>
                   </div>
                   <div>
                     <p className="ops-list-card-title" style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      {c.title} <ArrowRight size={14} color="#9ca3af" />
+                      {c.title} <ArrowRight size={14} color="var(--ink-faint)" />
                     </p>
                     <p className="ops-list-card-sub">{c.desc}</p>
                   </div>
@@ -202,15 +202,15 @@ export default function LaunchOpsHomePage() {
                       <tr key={st.userId} className="ops-clickable-row">
                         <td>
                           <strong>{st.name ?? st.email}</strong>
-                          {st.name ? <div style={{ color: "#6b7280", fontSize: 12 }}>{st.email}</div> : null}
+                          {st.name ? <div style={{ color: "var(--ink-faint)", fontSize: 12 }}>{st.email}</div> : null}
                         </td>
                         <td>{st.cohort ? `${st.cohort.university} · ${st.cohort.name}` : "-"}</td>
                         <td>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 120 }}>
-                            <span style={{ flex: 1, height: 6, borderRadius: 999, background: "#eef1f5", overflow: "hidden", display: "block" }}>
-                              <span style={{ display: "block", height: "100%", width: `${prog.percent}%`, borderRadius: 999, background: "#1d4ed8" }} />
+                            <span style={{ flex: 1, height: 6, borderRadius: 999, background: "var(--line)", overflow: "hidden", display: "block" }}>
+                              <span style={{ display: "block", height: "100%", width: `${prog.percent}%`, borderRadius: 999, background: "var(--accent-ink)" }} />
                             </span>
-                            <span style={{ flex: "none", fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
+                            <span style={{ flex: "none", fontSize: 12, color: "var(--ink-faint)", fontWeight: 600 }}>
                               {prog.done}/{prog.total}
                             </span>
                           </div>

@@ -677,10 +677,10 @@ export default function PartnerUsersPage() {
                                 disabled={emailVerifySaving}
                                 style={{
                                   cursor: "pointer",
-                                  border: "1px solid #C9CDD2",
+                                  border: "1px solid var(--ink-faint)",
                                   borderRadius: 6,
                                   background: "#fff",
-                                  color: selectedUser.emailVerified ? "#8B95A1" : "#0B46E8",
+                                  color: selectedUser.emailVerified ? "var(--ink-faint)" : "var(--accent)",
                                   padding: "2px 8px",
                                   fontSize: 12
                                 }}

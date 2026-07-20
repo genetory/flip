@@ -109,7 +109,7 @@ export default function DataManagementPage() {
   };
 
   const numField = (label: string, value: number, setValue: (n: number) => void, min: number, max: number) => (
-    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "#374151" }}>
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "var(--ink-soft)" }}>
       {label}
       <input
         type="number"
@@ -118,7 +118,7 @@ export default function DataManagementPage() {
         value={value}
         onChange={(e) => setValue(Math.max(min, Math.min(max, Number(e.target.value) || 0)))}
         disabled={genRunning}
-        style={{ width: 110, height: 36, padding: "0 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14 }}
+        style={{ width: 110, height: 36, padding: "0 12px", border: "1px solid var(--line-strong)", borderRadius: 8, fontSize: 14 }}
       />
     </label>
   );
@@ -194,15 +194,15 @@ export default function DataManagementPage() {
             {genRunning ? "생성 중..." : "생성하기"}
           </button>
         </div>
-        {genError ? <p style={{ marginTop: 12, color: "#b42318" }}>{genError}</p> : null}
+        {genError ? <p style={{ marginTop: 12, color: "var(--danger)" }}>{genError}</p> : null}
         {genResult ? (
-          <p style={{ marginTop: 12, color: "#047857" }}>
+          <p style={{ marginTop: 12, color: "var(--accent-ink)" }}>
             ✓ 생성 완료 — 글 {genResult.postsCreated.toLocaleString()}개, 댓글 {genResult.commentsCreated.toLocaleString()}개
           </p>
         ) : null}
 
-        <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid #e5e7eb" }}>
-          <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 10 }}>
+        <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
+          <p style={{ fontSize: 13, color: "var(--ink-faint)", marginBottom: 10 }}>
             글 생성 전에 외국인 후보자 계정이 필요합니다. 아래로 후보자 20명을 시드하고, 자유게시판을 운영자 글만 남기고 정리할 수 있어요.
           </p>
           <div className="ops-inline-actions" style={{ gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -223,14 +223,14 @@ export default function DataManagementPage() {
               {delPostsRunning ? "삭제 중..." : "자유게시판 정리 (운영자 글만 남김)"}
             </button>
           </div>
-          {candError ? <p style={{ marginTop: 10, color: "#b42318" }}>{candError}</p> : null}
+          {candError ? <p style={{ marginTop: 10, color: "var(--danger)" }}>{candError}</p> : null}
           {candResult ? (
-            <p style={{ marginTop: 10, color: "#047857" }}>
+            <p style={{ marginTop: 10, color: "var(--accent-ink)" }}>
               ✓ 후보자 시드 완료 — 신규 {candResult.created}명 (총 {candResult.total}명)
             </p>
           ) : null}
           {delPostsResult !== null ? (
-            <p style={{ marginTop: 10, color: "#047857" }}>✓ 정리 완료 — {delPostsResult.toLocaleString()}개 글 삭제</p>
+            <p style={{ marginTop: 10, color: "var(--accent-ink)" }}>✓ 정리 완료 — {delPostsResult.toLocaleString()}개 글 삭제</p>
           ) : null}
         </div>
       </article>
@@ -254,7 +254,7 @@ export default function DataManagementPage() {
               maxWidth: 260,
               height: 36,
               padding: "0 12px",
-              border: "1px solid #d1d5db",
+              border: "1px solid var(--line-strong)",
               borderRadius: 8,
               fontSize: 14
             }}
@@ -269,7 +269,7 @@ export default function DataManagementPage() {
           </button>
         </div>
         {positionResult ? (
-          <p style={{ marginTop: 12, color: "#047857" }}>
+          <p style={{ marginTop: 12, color: "var(--accent-ink)" }}>
             ✓ 삭제 완료 — {positionResult.deleted.toLocaleString()}건 삭제 (이전: {positionResult.before.toLocaleString()}건)
           </p>
         ) : null}
@@ -296,7 +296,7 @@ export default function DataManagementPage() {
               maxWidth: 260,
               height: 36,
               padding: "0 12px",
-              border: "1px solid #d1d5db",
+              border: "1px solid var(--line-strong)",
               borderRadius: 8,
               fontSize: 14
             }}
@@ -311,7 +311,7 @@ export default function DataManagementPage() {
           </button>
         </div>
         {userResult ? (
-          <p style={{ marginTop: 12, color: "#047857" }}>
+          <p style={{ marginTop: 12, color: "var(--accent-ink)" }}>
             ✓ 삭제 완료 — {userResult.deleted.toLocaleString()}건 삭제, {(userResult.preserved ?? 0).toLocaleString()}건 보존
             (이전: {userResult.before.toLocaleString()}건)
           </p>
@@ -319,8 +319,8 @@ export default function DataManagementPage() {
       </article>
 
       {error ? (
-        <article className="ops-partner-list-card" style={{ borderColor: "#fecaca" }}>
-          <p style={{ color: "#b42318" }}>{error}</p>
+        <article className="ops-partner-list-card" style={{ borderColor: "var(--danger-soft)" }}>
+          <p style={{ color: "var(--danger)" }}>{error}</p>
         </article>
       ) : null}
     </section>

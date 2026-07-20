@@ -20,7 +20,7 @@ export default function PaymentManagementPage() {
 
       <article className="ops-card">
         <h2 className="ops-section-title">예정된 기능</h2>
-        <ul style={{ margin: 0, paddingLeft: 20, color: "#374151", fontSize: 13, lineHeight: 1.8 }}>
+        <ul style={{ margin: 0, paddingLeft: 20, color: "var(--ink-soft)", fontSize: 13, lineHeight: 1.8 }}>
           <li>파트너 결제 내역 조회 (구독/광고/프리미엄 포지션)</li>
           <li>학생/소속 학교에 대한 인센티브 지급 관리</li>
           <li>환불 / 분쟁 케이스 처리</li>

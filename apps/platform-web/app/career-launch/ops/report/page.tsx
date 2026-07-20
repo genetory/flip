@@ -259,7 +259,7 @@ export default function LaunchOpsReportPage() {
                           return (
                             <tr key={f.id}>
                               <td>
-                                <strong style={{ color: last ? "#047857" : "#111827" }}>{f.label}</strong>
+                                <strong style={{ color: last ? "var(--accent-ink)" : "var(--ink)" }}>{f.label}</strong>
                               </td>
                               <td>
                                 <strong>{f.value}</strong>
@@ -267,22 +267,22 @@ export default function LaunchOpsReportPage() {
                               </td>
                               <td>
                                 <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 200 }}>
-                                  <div style={{ flex: 1, height: 10, borderRadius: 999, background: "#f3f4f6", overflow: "hidden" }}>
+                                  <div style={{ flex: 1, height: 10, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden" }}>
                                     <div
                                       style={{
                                         width: `${f.rate}%`,
                                         height: "100%",
                                         borderRadius: 999,
-                                        background: last ? "#047857" : "#1d4ed8"
+                                        background: last ? "var(--accent-ink)" : "var(--accent-ink)"
                                       }}
                                     />
                                   </div>
-                                  <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", minWidth: 34, textAlign: "right" }}>{f.rate}%</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink)", minWidth: 34, textAlign: "right" }}>{f.rate}%</span>
                                 </div>
                               </td>
                               <td>
                                 {i === 0 ? (
-                                  <span style={{ color: "#9ca3af" }}>–</span>
+                                  <span style={{ color: "var(--ink-faint)" }}>–</span>
                                 ) : f.dropped === 0 ? (
                                   <span className="ops-status-badge ops-status-approved">
                                     {t("이탈 없음", "No drop-off", "无流失", "Không rời bỏ", "離脱なし", "Tidak ada")}
@@ -336,10 +336,10 @@ export default function LaunchOpsReportPage() {
                               </td>
                               <td>
                                 <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 140 }}>
-                                  <div style={{ flex: 1, height: 8, borderRadius: 999, background: "#f3f4f6", overflow: "hidden" }}>
-                                    <div style={{ width: `${r.avg}%`, height: "100%", borderRadius: 999, background: "#1d4ed8" }} />
+                                  <div style={{ flex: 1, height: 8, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden" }}>
+                                    <div style={{ width: `${r.avg}%`, height: "100%", borderRadius: 999, background: "var(--accent-ink)" }} />
                                   </div>
-                                  <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", minWidth: 34, textAlign: "right" }}>{r.avg}%</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink)", minWidth: 34, textAlign: "right" }}>{r.avg}%</span>
                                 </div>
                               </td>
                               <td>
@@ -359,7 +359,7 @@ export default function LaunchOpsReportPage() {
                                     {t("학교 제출용", "For the school", "供学校提交", "Nộp cho trường", "学校提出用", "Untuk sekolah")}
                                   </a>
                                 ) : (
-                                  <span style={{ color: "#c9cdd2" }}>-</span>
+                                  <span style={{ color: "var(--ink-faint)" }}>-</span>
                                 )}
                               </td>
                             </tr>

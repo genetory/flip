@@ -249,7 +249,7 @@ export default function OpsUserDetailPage() {
 
   return (
     <section className="ops-content-section">
-      <Link href="/dashboard/ops/system/admin-users" style={{ fontSize: 12, color: "#6b7280", textDecoration: "none" }}>
+      <Link href="/dashboard/ops/system/admin-users" style={{ fontSize: 12, color: "var(--ink-faint)", textDecoration: "none" }}>
         ← 사용자 목록
       </Link>
       <header style={{ marginTop: 8 }}>
@@ -268,7 +268,7 @@ export default function OpsUserDetailPage() {
           <article className="ops-card">
             <div className="ops-card-header">
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: 700, color: "#111827", margin: 0 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
                   {data.user.name ?? "-"}
                 </h2>
                 <p className="ops-card-subtle" style={{ marginTop: 4 }}>
@@ -317,48 +317,48 @@ export default function OpsUserDetailPage() {
               </label>
               <label className="ops-form-label">
                 전화번호
-                <p style={{ marginTop: 4, color: "#111827", fontSize: 13 }}>{data.user.phoneNumber ?? "-"}</p>
+                <p style={{ marginTop: 4, color: "var(--ink)", fontSize: 13 }}>{data.user.phoneNumber ?? "-"}</p>
               </label>
               <label className="ops-form-label">
                 가입 방식
-                <p style={{ marginTop: 4, color: "#111827", fontSize: 13 }}>{PROVIDER_LABEL[data.user.authProvider] ?? data.user.authProvider}</p>
+                <p style={{ marginTop: 4, color: "var(--ink)", fontSize: 13 }}>{PROVIDER_LABEL[data.user.authProvider] ?? data.user.authProvider}</p>
               </label>
             </div>
 
             <div className="ops-form-grid-3" style={{ marginTop: 10 }}>
               <label className="ops-form-label">
                 국적
-                <p style={{ marginTop: 4, color: "#111827", fontSize: 13 }}>{data.user.nationality ?? "-"}</p>
+                <p style={{ marginTop: 4, color: "var(--ink)", fontSize: 13 }}>{data.user.nationality ?? "-"}</p>
               </label>
               <label className="ops-form-label">
                 소속
-                <p style={{ marginTop: 4, color: "#111827", fontSize: 13 }}>{data.user.affiliation ?? "-"}</p>
+                <p style={{ marginTop: 4, color: "var(--ink)", fontSize: 13 }}>{data.user.affiliation ?? "-"}</p>
               </label>
               <label className="ops-form-label">
                 직무 희망
-                <p style={{ marginTop: 4, color: "#111827", fontSize: 13 }}>{data.user.jobTitle ?? "-"}</p>
+                <p style={{ marginTop: 4, color: "var(--ink)", fontSize: 13 }}>{data.user.jobTitle ?? "-"}</p>
               </label>
             </div>
 
             <div className="ops-form-grid-3" style={{ marginTop: 10 }}>
               <label className="ops-form-label">
                 생년월일
-                <p style={{ marginTop: 4, color: "#111827", fontSize: 13 }}>{data.user.birthDate ? formatDate(data.user.birthDate) : "-"}</p>
+                <p style={{ marginTop: 4, color: "var(--ink)", fontSize: 13 }}>{data.user.birthDate ? formatDate(data.user.birthDate) : "-"}</p>
               </label>
               <label className="ops-form-label">
                 성별
-                <p style={{ marginTop: 4, color: "#111827", fontSize: 13 }}>{data.user.gender ?? "-"}</p>
+                <p style={{ marginTop: 4, color: "var(--ink)", fontSize: 13 }}>{data.user.gender ?? "-"}</p>
               </label>
               <label className="ops-form-label">
                 가입일
-                <p style={{ marginTop: 4, color: "#111827", fontSize: 13 }}>{formatDateTime(data.user.createdAt)}</p>
+                <p style={{ marginTop: 4, color: "var(--ink)", fontSize: 13 }}>{formatDateTime(data.user.createdAt)}</p>
               </label>
             </div>
 
             {data.user.partnerOrganization ? (
               <div className="ops-soft-card" style={{ marginTop: 12 }}>
                 <p className="ops-form-label">파트너 소속</p>
-                <p style={{ fontSize: 14, fontWeight: 600, color: "#111827", margin: "4px 0 0" }}>{data.user.partnerOrganization.name}</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: "4px 0 0" }}>{data.user.partnerOrganization.name}</p>
                 <p className="ops-card-subtle" style={{ marginTop: 2 }}>{data.user.partnerOrganization.partnerType} · {data.user.partnerOrganization.industry}</p>
               </div>
             ) : null}
@@ -482,7 +482,7 @@ export default function OpsUserDetailPage() {
                           <span className="ops-pill ops-pill-gray">{ISSUE_TYPE_KO[i.type] ?? i.type}</span>
                           <span className={`ops-pill ${ISSUE_STATUS_PILL[i.status]}`}>{i.status}</span>
                         </div>
-                        <p style={{ fontSize: 14, fontWeight: 600, color: "#111827", margin: 0 }}>{i.title}</p>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{i.title}</p>
                         <p className="ops-card-subtle" style={{ marginTop: 4 }}>{formatDateTime(i.createdAt)}</p>
                       </div>
                     </div>

@@ -39,12 +39,12 @@ type RecentSignup = {
 };
 
 const OPS_ACTIVITY_COLOR: Record<string, string> = {
-  USER_SIGNUP: "#10b981",
-  POSITION_NEW: "#1d4ed8",
-  APPLICATION_STATUS: "#3b82f6",
-  ISSUE_NEW: "#dc2626",
-  PROGRAM_STARTED: "#047857",
-  SCHOOL_CREDIT: "#b45309"
+  USER_SIGNUP: "var(--accent-ink)",
+  POSITION_NEW: "var(--accent-ink)",
+  APPLICATION_STATUS: "var(--accent)",
+  ISSUE_NEW: "var(--danger)",
+  PROGRAM_STARTED: "var(--accent-ink)",
+  SCHOOL_CREDIT: "var(--sand)"
 };
 
 const ROLE_LABEL: Record<string, string> = {
@@ -132,18 +132,18 @@ function FunnelRows({ stages }: { stages: { label: string; value: number }[] }) 
                 marginBottom: 8
               }}
             >
-              <span style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>{s.label}</span>
+              <span style={{ fontSize: 13, color: "var(--ink-soft)", fontWeight: 500 }}>{s.label}</span>
               <span
                 style={{
                   fontSize: 18,
                   fontWeight: 700,
-                  color: "#111827",
+                  color: "var(--ink)",
                   fontVariantNumeric: "tabular-nums"
                 }}
               >
                 {s.value.toLocaleString()}
                 {conv !== null ? (
-                  <span style={{ marginLeft: 10, fontSize: 11, color: "#6b7280", fontWeight: 500 }}>
+                  <span style={{ marginLeft: 10, fontSize: 11, color: "var(--ink-faint)", fontWeight: 500 }}>
                     → {conv}%
                   </span>
                 ) : null}
@@ -153,7 +153,7 @@ function FunnelRows({ stages }: { stages: { label: string; value: number }[] }) 
               style={{
                 width: "100%",
                 height: 6,
-                background: "#f3f4f6",
+                background: "var(--surface-2)",
                 borderRadius: 999,
                 overflow: "hidden"
               }}
@@ -416,7 +416,7 @@ export default function OpsDashboardHome() {
                   style={{
                     fontSize: 32,
                     fontWeight: 700,
-                    color: staleUnverified.count > 0 ? "#b42318" : "#16a34a",
+                    color: staleUnverified.count > 0 ? "var(--danger)" : "var(--accent-ink)",
                     fontVariantNumeric: "tabular-nums",
                     lineHeight: 1.1
                   }}
@@ -482,7 +482,7 @@ export default function OpsDashboardHome() {
                   <Link key={it.id} href={it.linkPath} className="ops-activity-item">
                     <span
                       className="ops-activity-dot"
-                      style={{ background: OPS_ACTIVITY_COLOR[it.type] ?? "#9ca3af" }}
+                      style={{ background: OPS_ACTIVITY_COLOR[it.type] ?? "var(--ink-faint)" }}
                       aria-hidden
                     />
                     <div className="ops-activity-text">

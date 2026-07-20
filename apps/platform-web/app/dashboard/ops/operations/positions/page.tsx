@@ -1046,7 +1046,7 @@ export default function PositionManagementPage({ forcedSourceProvider }: { force
               </button>
             </div>
             <div className="ops-modal-panel-body">
-              <p style={{ margin: "0 0 14px", color: "#6b7280", fontSize: 13 }}>변경할 상태를 선택하세요.</p>
+              <p style={{ margin: "0 0 14px", color: "var(--ink-faint)", fontSize: 13 }}>변경할 상태를 선택하세요.</p>
               <div className="ops-status-change-grid">
                 {(["DRAFT", "PENDING_REVIEW", "OPEN", "PAUSED", "CLOSED", "REJECTED"] as PositionStatus[]).map((status) => (
                   <button

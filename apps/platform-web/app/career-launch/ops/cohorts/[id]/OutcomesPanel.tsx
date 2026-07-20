@@ -300,23 +300,23 @@ export default function OutcomesPanel({ cohortId }: { cohortId: string }) {
           justify-content: space-between;
           gap: 8px;
           font-size: 12px;
-          color: #374151;
+          color: var(--ink-soft);
         }
         .op-list-item em {
           font-style: normal;
-          color: #6b7280;
+          color: var(--ink-faint);
         }
         .op-del {
           border: 0;
           background: transparent;
-          color: #9ca3af;
+          color: var(--ink-faint);
           cursor: pointer;
           font-size: 12px;
           line-height: 1;
           padding: 2px 4px;
         }
         .op-del:hover {
-          color: #dc2626;
+          color: var(--danger);
         }
       `}</style>
     </article>

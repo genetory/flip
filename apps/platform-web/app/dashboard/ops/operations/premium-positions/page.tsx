@@ -719,7 +719,7 @@ export default function PremiumPositionsPage() {
 
             {selectedItem && (modalMode === "manage" || registerStep === "edit") ? (
               <>
-                <p style={{ margin: "14px 0 0", fontSize: 13, color: "#4b5563" }}>
+                <p style={{ margin: "14px 0 0", fontSize: 13, color: "var(--ink-soft)" }}>
                   선택 포지션: {selectedItem.title} · {selectedItem.partnerOrganization?.name ?? "기업 정보 없음"}
                 </p>
 
@@ -731,13 +731,13 @@ export default function PremiumPositionsPage() {
                     marginRight: "auto",
                     borderRadius: 12,
                     overflow: "hidden",
-                    border: "1px solid #e5e7eb",
+                    border: "1px solid var(--line)",
                     aspectRatio: "16 / 9",
                     height: 200,
                     position: "relative",
                     background: form.bannerImageUrl
                       ? `center / cover no-repeat url(${form.bannerImageUrl})`
-                      : "linear-gradient(120deg, #111827 0%, #374151 100%)"
+                      : "linear-gradient(120deg, var(--ink) 0%, var(--ink-soft) 100%)"
                   }}
                 >
                   <div

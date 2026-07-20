@@ -294,14 +294,14 @@ export default function SgcApplicationsPage() {
               gap: 12
             }}
           >
-            <div style={{ padding: "12px 14px", border: "1px solid #eef0f3", borderRadius: 10, background: "#fcfcfd" }}>
+            <div style={{ padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 10, background: "var(--surface-2)" }}>
               <div className="ops-row-sub" style={{ marginBottom: 4 }}>총 지원자</div>
               <div className="ops-row-strong" style={{ fontSize: 20 }}>{data.totalAll.toLocaleString()}명</div>
             </div>
             {(Object.keys(STATUS_LABEL) as SgcStatus[]).map((s) => (
               <div
                 key={s}
-                style={{ padding: "12px 14px", border: "1px solid #eef0f3", borderRadius: 10, background: "#fcfcfd" }}
+                style={{ padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 10, background: "var(--surface-2)" }}
               >
                 <div className="ops-row-sub" style={{ marginBottom: 4 }}>{STATUS_LABEL[s]}</div>
                 <div className="ops-row-strong" style={{ fontSize: 20 }}>{(data.statusCounts[s] ?? 0).toLocaleString()}명</div>
@@ -438,14 +438,14 @@ export default function SgcApplicationsPage() {
                     <td>{jobLabel}</td>
                     <td className="ops-row-sub">
                       {emailHref ? (
-                        <a href={emailHref} style={{ color: "#1d4ed8" }}>{a.user?.email}</a>
+                        <a href={emailHref} style={{ color: "var(--accent-ink)" }}>{a.user?.email}</a>
                       ) : (
                         a.user?.email ?? "-"
                       )}
                     </td>
                     <td className="ops-row-sub">
                       {phoneHref ? (
-                        <a href={phoneHref} style={{ color: "#1d4ed8" }}>{a.user?.phoneNumber}</a>
+                        <a href={phoneHref} style={{ color: "var(--accent-ink)" }}>{a.user?.phoneNumber}</a>
                       ) : (
                         a.user?.phoneNumber ?? "-"
                       )}
@@ -456,7 +456,7 @@ export default function SgcApplicationsPage() {
                           href={`/resume/share/${a.resume.shareSlug}?view=preview`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          style={{ color: "#1d4ed8", fontSize: 12 }}
+                          style={{ color: "var(--accent-ink)", fontSize: 12 }}
                         >
                           {a.resume.title} ↗
                         </a>
@@ -656,7 +656,7 @@ function ApplicationDetailModal({
                 marginTop: 4,
                 fontSize: 20,
                 fontWeight: 700,
-                color: "#0f172a"
+                color: "var(--ink)"
               }}
             >
               {application.user?.name ?? "익명"}
@@ -681,7 +681,7 @@ function ApplicationDetailModal({
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: 8,
-                border: "1px solid #e5e7eb",
+                border: "1px solid var(--line)",
                 background: "#fff",
                 cursor: "pointer"
               }}
@@ -698,7 +698,7 @@ function ApplicationDetailModal({
             gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
             gap: 12,
             padding: 12,
-            background: "#f8fafc",
+            background: "var(--surface-2)",
             borderRadius: 10,
             marginBottom: 20
           }}
@@ -747,10 +747,10 @@ function ApplicationDetailModal({
                 gap: 6,
                 padding: "8px 14px",
                 borderRadius: 8,
-                border: "1px solid #e5e7eb",
+                border: "1px solid var(--line)",
                 background: "#fff",
                 fontSize: 13,
-                color: "#1d4ed8",
+                color: "var(--accent-ink)",
                 textDecoration: "none"
               }}
             >
@@ -761,21 +761,21 @@ function ApplicationDetailModal({
 
         {/* 신청 동기 */}
         <DetailBlock title="신청 동기">
-          <p style={{ whiteSpace: "pre-wrap", fontSize: 13.5, lineHeight: 1.6, color: "#1e293b", margin: 0 }}>
+          <p style={{ whiteSpace: "pre-wrap", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink)", margin: 0 }}>
             {application.motivation || "-"}
           </p>
         </DetailBlock>
 
         {/* 건강상 특이사항 */}
         <DetailBlock title="건강상 특이사항">
-          <p style={{ whiteSpace: "pre-wrap", fontSize: 13.5, lineHeight: 1.6, color: "#1e293b", margin: 0 }}>
+          <p style={{ whiteSpace: "pre-wrap", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink)", margin: 0 }}>
             {application.healthNote || "-"}
           </p>
         </DetailBlock>
 
         {/* 사전 교육 참여 동의 — 신규 폼 필드. 도입 전 지원은 null(-). */}
         <DetailBlock title="사전 교육 필수 참여 동의">
-          <p style={{ fontSize: 13.5, color: "#1e293b", margin: 0 }}>
+          <p style={{ fontSize: 13.5, color: "var(--ink)", margin: 0 }}>
             {application.preTrainingConsent == null
               ? "-"
               : application.preTrainingConsent
@@ -786,7 +786,7 @@ function ApplicationDetailModal({
 
         {/* SGC 정보 수신 */}
         <DetailBlock title="SGC 정보 수신 동의">
-          <p style={{ fontSize: 13.5, color: "#1e293b", margin: 0 }}>
+          <p style={{ fontSize: 13.5, color: "var(--ink)", margin: 0 }}>
             {application.marketingOptIn ? "동의" : "동의하지 않음"}
           </p>
         </DetailBlock>
@@ -805,14 +805,14 @@ function ApplicationDetailModal({
             marginTop: 24,
             padding: 14,
             borderRadius: 10,
-            border: "1px solid #fecaca",
+            border: "1px solid var(--danger-soft)",
             background: "#fff5f5"
           }}
         >
-          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#991b1b" }}>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "var(--danger)" }}>
             위험 — 지원 삭제
           </p>
-          <p style={{ margin: "4px 0 10px", fontSize: 12, color: "#7f1d1d", lineHeight: 1.5 }}>
+          <p style={{ margin: "4px 0 10px", fontSize: 12, color: "var(--danger)", lineHeight: 1.5 }}>
             이 지원 행 자체를 삭제합니다. 같은 사용자로 다시 신청 가능해지며 운영 풀에서도 사라집니다.
             테스트나 명백한 오등록 정리 용도로만 사용하세요. 실제 거절은 단계 변경(불합격)으로 처리.
           </p>
@@ -830,8 +830,8 @@ function ApplicationDetailModal({
               padding: "8px 14px",
               height: 36,
               borderRadius: 8,
-              border: "1px solid #dc2626",
-              background: "#dc2626",
+              border: "1px solid var(--danger)",
+              background: "var(--danger)",
               color: "#fff",
               fontSize: 13,
               fontWeight: 600,
@@ -851,7 +851,7 @@ function DetailMeta({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
       <p className="ops-row-sub" style={{ fontSize: 11, fontWeight: 600, marginBottom: 2 }}>{label}</p>
-      <p style={{ fontSize: 13, color: "#1e293b", margin: 0 }}>{value ?? "-"}</p>
+      <p style={{ fontSize: 13, color: "var(--ink)", margin: 0 }}>{value ?? "-"}</p>
     </div>
   );
 }
@@ -891,7 +891,7 @@ function AdminMemoEditor({ value, onSave }: { value: string; onSave: (memo: stri
           minHeight: 80,
           padding: 8,
           borderRadius: 6,
-          border: "1px solid #d1d5db",
+          border: "1px solid var(--line-strong)",
           fontSize: 13,
           fontFamily: "inherit"
         }}
@@ -906,7 +906,7 @@ function AdminMemoEditor({ value, onSave }: { value: string; onSave: (memo: stri
         >
           저장
         </button>
-        {saved ? <span style={{ fontSize: 11, color: "#16a34a" }}>저장됨</span> : null}
+        {saved ? <span style={{ fontSize: 11, color: "var(--accent-ink)" }}>저장됨</span> : null}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { NotePencil } from "@phosphor-icons/react";
 import { readAccessToken } from "../../../../../lib/auth-client";
 
 type SchoolCreditRequestRow = {
@@ -141,7 +142,7 @@ export default function SchoolCreditReviewPage() {
               <article key={r.id} className="ops-card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
                   <div>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
                       {r.candidateName ?? "-"} · {r.schoolName}
                       {r.courseCode ? ` · ${r.courseCode}` : ""}
                       {` · ${r.credits}학점`}
@@ -161,7 +162,9 @@ export default function SchoolCreditReviewPage() {
                 </div>
 
                 {r.reviewNote ? (
-                  <p style={{ fontSize: 12, color: "#374151", marginTop: 8, whiteSpace: "pre-wrap" }}>📝 {r.reviewNote}</p>
+                  <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 8, whiteSpace: "pre-wrap", display: "flex", alignItems: "flex-start", gap: 4 }}>
+                    <NotePencil size={13} weight="bold" aria-hidden style={{ marginTop: 2, flex: "0 0 auto" }} /> {r.reviewNote}
+                  </p>
                 ) : null}
 
                 {r.status === "REQUESTED" ? (
