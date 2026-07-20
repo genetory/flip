@@ -1202,6 +1202,163 @@ async function getPartnerTeamEmails(partnerOrganizationId: string | null): Promi
   return members.map((m) => m.email).filter((e): e is string => Boolean(e && e.includes("@")));
 }
 
+// ───────────────────────────────────────────────────────────────
+// 자동 리마인더/넛지 스케줄러 — 방치된 연결을 시스템이 대신 챙긴다.
+// (Aply 는 개입 없이 트래킹만 하고, 흐름은 자동으로 굴러가도록)
+// ───────────────────────────────────────────────────────────────
+const STALE_APPLICATION_DAYS = 5; // 회사가 이 기간 넘게 미검토한 지원
+const STALE_INTERVIEW_SELECT_DAYS = 3; // 지원자가 이 기간 넘게 미선택한 면접
+const AUTO_NUDGE_INTERVAL_MS = 30 * 60 * 1000; // 30분마다
+
+function fmtKstDateTime(d: Date) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(d);
+}
+
+async function runAutoNudgesAndReminders() {
+  const now = Date.now();
+  try {
+    // 1) 면접 리마인더 — 선택 확정된 면접이 12~36시간 뒤 시작, 아직 리마인더 안 보냄 → 양쪽에.
+    const upcoming = await prisma.interviewSlot.findMany({
+      where: {
+        status: "SELECTED",
+        reminderSentAt: null,
+        startsAt: { gte: new Date(now + 12 * 3600 * 1000), lte: new Date(now + 36 * 3600 * 1000) }
+      },
+      take: 100,
+      include: {
+        application: {
+          include: {
+            candidateUser: { select: { name: true, email: true } },
+            position: {
+              select: {
+                title: true,
+                partnerOrganization: { select: { users: { where: { role: MemberRole.PARTNER }, select: { id: true, email: true } } } }
+              }
+            }
+          }
+        }
+      }
+    });
+    for (const slot of upcoming) {
+      const app = slot.application;
+      const when = fmtKstDateTime(slot.startsAt);
+      const loc = slot.location ? ` · ${slot.location}` : "";
+      const applicantName = app.candidateUser?.name?.trim() || "지원자";
+      const partners = app.position.partnerOrganization?.users ?? [];
+      // 지원자
+      void createNotification({ userId: app.candidateUserId, type: "INTERVIEW_REMINDER", title: "곧 면접이 예정되어 있어요", message: `${when}${loc}`, linkPath: "/profile?tab=applied" });
+      void sendNotificationEmail({
+        to: app.candidateUser?.email ?? null,
+        subject: `[Aply] 면접 리마인더 — ${when}`,
+        previewText: `곧 면접이 예정되어 있어요: ${when}`,
+        title: "면접 리마인더",
+        headline: "곧 면접이 예정되어 있어요",
+        contextLine: app.position.title,
+        bodyText: `${when}${loc}`,
+        ctaLabel: "면접 정보 보기",
+        ctaPath: "/profile?tab=applied",
+        footerNote: "본 메일은 예정된 면접 리마인더입니다.",
+        logKey: "interview_reminder_applicant_email"
+      });
+      // 회사
+      for (const u of partners) void createNotification({ userId: u.id, type: "INTERVIEW_REMINDER", title: `곧 면접 — ${applicantName}`, message: `${when}${loc}`, linkPath: "/dashboard/partner/interviews" });
+      void sendNotificationEmail({
+        bcc: partners.map((u) => u.email).filter((e): e is string => Boolean(e)),
+        subject: `[Aply] 면접 리마인더 — ${applicantName} (${when})`,
+        previewText: `곧 면접: ${applicantName}`,
+        title: "면접 리마인더",
+        headline: "곧 면접이 예정되어 있어요",
+        contextLine: app.position.title,
+        bodyText: `${applicantName}님과의 면접 · ${when}${loc}`,
+        ctaLabel: "면접 일정 보기",
+        ctaPath: "/dashboard/partner/interviews",
+        footerNote: "본 메일은 예정된 면접 리마인더입니다.",
+        logKey: "interview_reminder_partner_email"
+      });
+      await prisma.interviewSlot.update({ where: { id: slot.id }, data: { reminderSentAt: new Date() } });
+    }
+
+    // 2) 지원자 면접 선택 넛지 — 면접(INTERVIEW) 상태, 3일+ 전 제안된 슬롯이 있고 아직 선택 안 함.
+    const needSelect = await prisma.application.findMany({
+      where: {
+        status: "INTERVIEW",
+        applicantInterviewNudgedAt: null,
+        interviewSlots: {
+          some: { status: "PROPOSED", proposedAt: { lte: new Date(now - STALE_INTERVIEW_SELECT_DAYS * 86400000) } },
+          none: { status: "SELECTED" }
+        }
+      },
+      take: 100,
+      include: { candidateUser: { select: { email: true } }, position: { select: { title: true } } }
+    });
+    for (const app of needSelect) {
+      void createNotification({ userId: app.candidateUserId, type: "INTERVIEW_SELECT_REMINDER", title: "면접 시간을 선택해 주세요", message: app.position.title, linkPath: "/profile?tab=applied" });
+      void sendNotificationEmail({
+        to: app.candidateUser?.email ?? null,
+        subject: `[Aply] 면접 시간 선택 안내 — ${app.position.title}`,
+        previewText: "제안된 면접 시간을 선택해 주세요",
+        title: "면접 시간 선택",
+        headline: "면접 시간을 아직 선택하지 않으셨어요",
+        contextLine: app.position.title,
+        bodyText: "회사가 제안한 면접 시간 중 하나를 선택해 주세요. 응답이 늦어지면 면접 기회가 사라질 수 있어요.",
+        ctaLabel: "면접 시간 선택하기",
+        ctaPath: "/profile?tab=applied",
+        footerNote: "본 메일은 미선택 면접 일정 안내입니다.",
+        logKey: "interview_select_nudge_email"
+      });
+      await prisma.application.update({ where: { id: app.id }, data: { applicantInterviewNudgedAt: new Date() } });
+    }
+
+    // 3) 회사 방치 지원 넛지 — 5일+ 미검토(SUBMITTED) → 회사 팀에.
+    const stale = await prisma.application.findMany({
+      where: { status: "SUBMITTED", partnerNudgedAt: null, submittedAt: { lte: new Date(now - STALE_APPLICATION_DAYS * 86400000) } },
+      take: 100,
+      include: {
+        candidateUser: { select: { name: true } },
+        position: { select: { title: true, partnerOrganization: { select: { users: { where: { role: MemberRole.PARTNER }, select: { id: true, email: true } } } } } }
+      }
+    });
+    for (const app of stale) {
+      const partners = app.position.partnerOrganization?.users ?? [];
+      const applicantName = app.candidateUser?.name?.trim() || "지원자";
+      for (const u of partners) void createNotification({ userId: u.id, type: "APPLICATION_STALE_REMINDER", title: `검토 대기 중인 지원자 — ${applicantName}`, message: app.position.title, linkPath: "/dashboard/partner/applicants" });
+      void sendNotificationEmail({
+        bcc: partners.map((u) => u.email).filter((e): e is string => Boolean(e)),
+        subject: `[Aply] 검토 대기 지원자 — ${applicantName}`,
+        previewText: "검토를 기다리는 지원자가 있어요",
+        title: "검토 대기 알림",
+        headline: "검토를 기다리는 지원자가 있어요",
+        contextLine: app.position.title,
+        bodyText: `${applicantName}님이 ${STALE_APPLICATION_DAYS}일 넘게 검토를 기다리고 있어요. 지원 서류를 확인하고 다음 단계로 진행해 주세요.`,
+        ctaLabel: "지원자 확인하기",
+        ctaPath: "/dashboard/partner/applicants",
+        footerNote: "본 메일은 장기간 미검토된 지원 안내입니다.",
+        logKey: "application_stale_nudge_email"
+      });
+      await prisma.application.update({ where: { id: app.id }, data: { partnerNudgedAt: new Date() } });
+    }
+  } catch (error) {
+    console.error("auto_nudges_reminders_failed", { error: getErrorMessage(error) });
+  }
+}
+
+// 프로덕션(또는 명시 활성화)에서만 자동 실행 — 로컬 개발에서 실수로 실메일이 나가지 않게.
+if (process.env.NODE_ENV === "production" || process.env.ENABLE_AUTO_NUDGES === "true") {
+  setInterval(() => {
+    void runAutoNudgesAndReminders();
+  }, AUTO_NUDGE_INTERVAL_MS).unref?.();
+  setTimeout(() => {
+    void runAutoNudgesAndReminders();
+  }, 60 * 1000).unref?.();
+}
+
 // SGC × Aply 6주 일경험 지원 알림. 운영팀이 지원 들어오는 즉시 인지하도록.
 // 본인 이력서 + SGC-specific 답변을 한 카드로. 운영 ops 페이지로 바로 가는
 // 링크 포함.

@@ -689,6 +689,9 @@ model Application {
   program         Program?
   comments        ApplicationComment[]
   withdrawnAt     DateTime?
+  // 자동 넛지 추적 — 회사가 방치한 지원(SUBMITTED) 리마인더, 지원자가 미선택한 면접 리마인더.
+  partnerNudgedAt           DateTime?
+  applicantInterviewNudgedAt DateTime?
 
   @@unique([positionId, candidateUserId])
   @@index([positionId])
@@ -710,6 +713,7 @@ model InterviewSlot {
   proposedAt    DateTime            @default(now())
   selectedAt    DateTime?
   cancelledAt   DateTime?
+  reminderSentAt DateTime? // 면접 전날 리마인더 발송 시각(중복 방지)
 
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
