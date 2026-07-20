@@ -947,6 +947,8 @@ async function sendPositionApplyPartnerEmails(input: {
     locale: "ko",
     previewText: `'${input.positionTitle}'에 ${applicantLabel}님이 지원했습니다.`,
     title: "새 지원자 알림",
+    headerLabel: "지원 알림",
+    footerNote: "본 메일은 회원님 회사가 등록한 포지션에 지원이 접수되어 발송되는 알림 메일입니다.",
     bodyHtml
   });
 
