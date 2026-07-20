@@ -513,38 +513,42 @@ export default function LaunchOpsStudentDetailPage() {
               {/* ── 면접 ── */}
               {tab === "interview" ? (
                 <div className="ops-detail-sections">
+                  {/* 유형별로 완료 상태 + AI 총평을 한 카드에 묶어 스캔하기 쉽게. */}
                   <section className="ops-detail-section">
                     <h3>
                       {t("모의면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")} ({interviewPracticed.length}/3)
                     </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {(["self", "job", "fit"] as const).map((tp) => (
-                        <span key={tp} className={`ops-status-badge ${interviewPracticed.includes(tp) ? "ops-status-approved" : "ops-status-draft"}`}>
-                          {INTERVIEW_LABEL[tp]}
-                        </span>
-                      ))}
-                    </div>
-                    {interviewPracticed.length === 0 ? (
-                      <p className="ops-detail-empty">{t("아직 모의면접을 연습하지 않았어요.", "No mock interview practiced yet.", "尚未练习模拟面试。", "Chưa luyện phỏng vấn thử.", "まだ模擬面接を練習していません。", "Belum berlatih wawancara simulasi.")}</p>
-                    ) : null}
-                  </section>
-
-                  {/* 유형별 AI 총평 — 면접을 마치면 저장된다(채팅 원문은 보관하지 않음). */}
-                  {Object.keys(interviewResults).length > 0 ? (
-                    <section className="ops-detail-section">
-                      <h3>{t("면접 AI 총평", "AI interview summary", "面试 AI 总评", "Tổng kết phỏng vấn AI", "面接AI総評", "Ringkasan wawancara AI")}</h3>
-                      {(["self", "job", "fit"] as const)
-                        .filter((tp) => interviewResults[tp])
-                        .map((tp) => (
-                          <div key={tp} className="border-t border-[#f3f4f6] pt-3 first:border-t-0 first:pt-0">
-                            <p className="text-[12.5px] font-bold text-[#111827]">{INTERVIEW_LABEL[tp]}</p>
-                            <div className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#374151]">
-                              <RichText text={interviewResults[tp]} />
+                    <div className="space-y-2.5">
+                      {(["self", "job", "fit"] as const).map((tp) => {
+                        const done = interviewPracticed.includes(tp);
+                        const summary = interviewResults[tp];
+                        return (
+                          <article key={tp} className={`rounded-xl border p-4 ${done ? "border-[#eef2f7]" : "border-[#f3f4f6] bg-[#fafafa]"}`}>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`flex h-5 w-5 flex-none items-center justify-center rounded-full text-[11px] font-bold ${
+                                  done ? "bg-[#dcfce7] text-[#15803d]" : "border border-[#e5e7eb] text-transparent"
+                                }`}
+                              >
+                                ✓
+                              </span>
+                              <p className={`text-[13.5px] font-semibold ${done ? "text-[#111827]" : "text-[#9ca3af]"}`}>{INTERVIEW_LABEL[tp]}</p>
+                              <span className={`ml-auto text-[12px] font-semibold ${done ? "text-[#15803d]" : "text-[#9ca3af]"}`}>
+                                {done ? t("완료", "Done", "已完成", "Xong", "完了", "Selesai") : t("미진행", "Not started", "未进行", "Chưa làm", "未実施", "Belum")}
+                              </span>
                             </div>
-                          </div>
-                        ))}
-                    </section>
-                  ) : null}
+                            {summary ? (
+                              <div className="mt-2.5 whitespace-pre-wrap break-keep border-t border-[#f3f4f6] pt-2.5 text-[13px] leading-relaxed text-[#374151]">
+                                <RichText text={summary} />
+                              </div>
+                            ) : done ? (
+                              <p className="mt-2 text-[12.5px] text-[#9ca3af]">{t("AI 총평이 없어요.", "No AI summary.", "无 AI 总评。", "Không có tổng kết AI.", "AI総評はありません。", "Tidak ada ringkasan AI.")}</p>
+                            ) : null}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
 
                   {finalFeedbackText ? (
                     <section className="ops-detail-section">
