@@ -95,10 +95,10 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
     <Link
       href={item.href}
       className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13.5px] font-bold transition ${
-        active ? "bg-[#0B46E8] text-white" : "text-[#4E5968] hover:bg-[#F2F4F6]"
+        active ? "bg-[var(--accent)] text-white" : "text-[var(--ink-soft)] hover:bg-[var(--surface-2)]"
       }`}
     >
-      <Icon className={`h-4 w-4 flex-none ${active ? "text-white" : "text-[#8B95A1]"}`} aria-hidden />
+      <Icon className={`h-4 w-4 flex-none ${active ? "text-white" : "text-[var(--ink-faint)]"}`} aria-hidden />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
     </Link>
   );
@@ -114,10 +114,10 @@ export function OpsSidebar() {
     <aside className="w-60 flex-none">
       {/* 화면 높이에 고정하고 메뉴가 길어지면 사이드바만 스크롤한다. */}
       <div className="sticky top-0 flex h-screen flex-col overflow-y-auto px-3 py-6">
-        <Link href="/career-launch/ops" className="block px-3 text-[15px] font-black tracking-[-0.01em] text-[#0B1227] transition hover:text-[#0B46E8]">
+        <Link href="/career-launch/ops" className="block px-3 text-[15px] font-black tracking-[-0.01em] text-[var(--ink)] transition hover:text-[var(--accent)]">
           {t("Launch 운영", "Launch admin", "Launch 运营", "Quản trị Launch", "Launch 運営", "Admin Launch")}
         </Link>
-        <p className="mt-0.5 px-3 text-[11.5px] text-[#B0B8C1]">{t("운영 콘솔", "Admin console", "运营控制台", "Bảng quản trị", "運営コンソール", "Konsol admin")}</p>
+        <p className="mt-0.5 px-3 text-[11.5px] text-[var(--ink-faint)]">{t("운영 콘솔", "Admin console", "运营控制台", "Bảng quản trị", "運営コンソール", "Konsol admin")}</p>
 
         <nav className="mt-5 flex flex-col gap-1">
           {groups.map((g) => {
@@ -131,12 +131,12 @@ export function OpsSidebar() {
             }
             const open = !collapsed[g.key];
             return (
-              <section key={g.key} className="border-t border-[#EEF1F5] pt-2.5">
+              <section key={g.key} className="border-t border-[var(--line)] pt-2.5">
                 <button
                   type="button"
                   onClick={() => setCollapsed((prev) => ({ ...prev, [g.key]: !prev[g.key] }))}
                   aria-expanded={open}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[#C9CDD2] transition hover:text-[#8B95A1]"
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[var(--ink-faint)] transition hover:text-[var(--ink-faint)]"
                 >
                   <span>{g.title}</span>
                   <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "" : "-rotate-90"}`} aria-hidden />
@@ -153,15 +153,15 @@ export function OpsSidebar() {
           })}
         </nav>
 
-        <div className="mt-auto border-t border-[#EEF1F5] pt-4">
+        <div className="mt-auto border-t border-[var(--line)] pt-4">
           <Link
             href="/career-launch/dashboard"
-            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
+            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[12.5px] font-bold text-[var(--accent)] transition hover:bg-[var(--accent-soft)]"
           >
             <ExternalLink className="h-3.5 w-3.5" aria-hidden />
             {t("학생 화면 체험", "Try student view", "体验学生界面", "Xem giao diện sinh viên", "学生画面を体験", "Coba tampilan siswa")}
           </Link>
-          <Link href="/career-launch" className="mt-0.5 block px-3 py-2 text-[12.5px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+          <Link href="/career-launch" className="mt-0.5 block px-3 py-2 text-[12.5px] font-semibold text-[var(--ink-faint)] transition hover:text-[var(--ink)]">
             ← {t("프로그램", "Program", "项目", "Chương trình", "プログラム", "Program")}
           </Link>
         </div>
@@ -180,8 +180,8 @@ export function OpsMobileNav() {
         <div key={g.key} className="flex flex-none items-center gap-1.5">
           {!g.single ? (
             <>
-              {gi > 0 ? <span className="mx-0.5 h-3.5 w-px flex-none bg-[#E5E8EB]" aria-hidden /> : null}
-              <span className="flex-none text-[10.5px] font-bold uppercase tracking-wide text-[#C9CDD2]">{g.title}</span>
+              {gi > 0 ? <span className="mx-0.5 h-3.5 w-px flex-none bg-[var(--line)]" aria-hidden /> : null}
+              <span className="flex-none text-[10.5px] font-bold uppercase tracking-wide text-[var(--ink-faint)]">{g.title}</span>
             </>
           ) : null}
           {g.items.map((i) => {
@@ -192,10 +192,10 @@ export function OpsMobileNav() {
                 key={i.href}
                 href={i.href}
                 className={`flex flex-none items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-bold transition ${
-                  active ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#4E5968]"
+                  active ? "bg-[var(--accent)] text-white" : "bg-[var(--surface-2)] text-[var(--ink-soft)]"
                 }`}
               >
-                <Icon className={`h-3.5 w-3.5 ${active ? "text-white" : "text-[#8B95A1]"}`} aria-hidden />
+                <Icon className={`h-3.5 w-3.5 ${active ? "text-white" : "text-[var(--ink-faint)]"}`} aria-hidden />
                 {i.label}
               </Link>
             );

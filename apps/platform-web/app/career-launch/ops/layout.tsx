@@ -9,9 +9,9 @@ import { OpsTopbar } from "../../../components/launch/ops-shell";
 // 얇은 상단 바 + 사이드바 + 넓은 본문의 전용 셸을 쓴다(운영콘솔과 같은 사고방식).
 export default function LaunchOpsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="launch-ops flex min-h-screen bg-white">
+    <div className="launch-ops flex min-h-screen bg-[var(--ground)]">
       {/* 사이드바 — 자체 스크롤, 화면 높이 고정 */}
-      <div className="hidden flex-none border-r border-[#eef2f7] lg:block">
+      <div className="hidden flex-none border-r border-[var(--line)] bg-[var(--surface)] lg:block">
         <OpsSidebar />
       </div>
 
