@@ -114,7 +114,7 @@ export function OpsSidebar() {
   return (
     <aside className="w-60 flex-none">
       {/* 화면 높이에 고정 — 브랜드/버튼은 고정되고, 메뉴(nav)만 스크롤된다(운영콘솔과 동일). */}
-      <div className="sticky top-0 flex h-screen flex-col overflow-hidden px-3 py-6">
+      <div className="flex h-[100dvh] flex-col overflow-hidden px-3 py-6">
         <Link href="/career-launch/ops" className="block px-3 text-[15px] font-black tracking-[-0.01em] text-[var(--ink)] transition hover:text-[var(--accent)]">
           {t("Launch 운영", "Launch admin", "Launch 运营", "Quản trị Launch", "Launch 運営", "Admin Launch")}
         </Link>

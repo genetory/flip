@@ -9,15 +9,15 @@ import { OpsTopbar } from "../../../components/launch/ops-shell";
 // 얇은 상단 바 + 사이드바 + 넓은 본문의 전용 셸을 쓴다(운영콘솔과 같은 사고방식).
 export default function LaunchOpsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="launch-ops flex min-h-screen bg-[var(--ground)]">
-      {/* 사이드바 — 자체 스크롤, 화면 높이 고정 */}
+    <div className="launch-ops flex h-[100dvh] overflow-hidden bg-[var(--ground)]">
+      {/* 사이드바 — 화면 높이 고정. 페이지가 아니라 메인 영역만 내부 스크롤한다(운영콘솔과 동일). */}
       <div className="hidden flex-none border-r border-[var(--line)] bg-[var(--surface)] lg:block">
         <OpsSidebar />
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <OpsTopbar />
-        <div className="min-w-0 flex-1 px-5 pb-16 md:px-8">
+        <div className="min-w-0 flex-1 overflow-y-auto px-5 pb-16 md:px-8">
           <OpsMobileNav />
           {/* 운영 콘솔은 데스크톱 설계(.ops-content-section min-width:960px). 좁은 화면에선
               콘텐츠를 찌그러뜨리지 않고 가로 스크롤로 접근하게 한다(콘텐츠가 잘리지 않도록). */}
