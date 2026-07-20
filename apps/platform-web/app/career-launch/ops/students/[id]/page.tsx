@@ -110,6 +110,9 @@ export default function LaunchOpsStudentDetailPage() {
   };
 
   const diag = detail?.state.diagnosis ?? null;
+  const diagBefore = detail?.state.diagnosisInitial?.percent ?? diag?.percent ?? null;
+  const diagAfter = detail?.state.diagnosisFinal?.percent ?? null;
+  const diagGain = diagBefore !== null && diagBefore !== undefined && diagAfter !== null && diagAfter !== undefined ? diagAfter - diagBefore : null;
   const jobs = detail?.state.selectedJobs ?? [];
   const materials = detail?.state.materials ?? [];
   const doneSteps = detail?.state.doneSteps ?? [];
@@ -228,19 +231,28 @@ export default function LaunchOpsStudentDetailPage() {
                 <div className="ops-detail-sections">
                   <section className="ops-detail-section">
                     <h3>{t("진행 현황", "Progress overview", "进度概览", "Tổng quan tiến độ", "進捗状況", "Ikhtisar progres")}</h3>
-                    <div className="flex flex-wrap gap-2">
+                    {/* 완료/미완료를 색·아이콘으로 구분해 한눈에 스캔되게. */}
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
                       {checklist.map((c, i) => (
-                        <span key={i} className={`ops-status-badge ${c.done ? "ops-status-approved" : "ops-status-draft"}`}>
-                          {c.l}
-                        </span>
+                        <div key={i} className={`flex items-center gap-2 text-[13px] ${c.done ? "text-[#111827]" : "text-[#9ca3af]"}`}>
+                          <span
+                            className={`flex h-5 w-5 flex-none items-center justify-center rounded-full text-[11px] font-bold ${
+                              c.done ? "bg-[#dcfce7] text-[#15803d]" : "border border-[#e5e7eb] text-transparent"
+                            }`}
+                          >
+                            ✓
+                          </span>
+                          <span className={c.done ? "font-medium" : ""}>{c.l}</span>
+                        </div>
                       ))}
                     </div>
                     {pending.length > 0 ? (
-                      <p className="ops-detail-empty">
-                        <span className="font-semibold text-[#92400e]">{t("미완료", "Not done", "未完成", "Chưa xong", "未完了", "Belum selesai")}</span> · {pending.join(" · ")}
-                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-[#fffbeb] px-3 py-2 text-[13px]">
+                        <span className="font-bold text-[#b45309]">{t("다음 할 일", "Next up", "下一步", "Tiếp theo", "次のステップ", "Berikutnya")}</span>
+                        <span className="break-keep text-[#92400e]">{pending.join(" · ")}</span>
+                      </div>
                     ) : (
-                      <p className="ops-detail-empty font-semibold" style={{ color: "#15803d" }}>
+                      <p className="mt-3 font-semibold text-[#15803d]">
                         {t("모든 단계를 완료했어요 🎉", "All steps complete 🎉", "已完成所有步骤 🎉", "Đã hoàn thành tất cả 🎉", "すべてのステップ完了 🎉", "Semua langkah selesai 🎉")}
                       </p>
                     )}
@@ -250,10 +262,25 @@ export default function LaunchOpsStudentDetailPage() {
                     <h3>{t("취업 준비 진단", "Job-readiness diagnosis", "求职准备诊断", "Chẩn đoán mức độ sẵn sàng xin việc", "就活準備の診断", "Diagnosis kesiapan kerja")}</h3>
                     {diag && typeof diag.percent === "number" ? (
                       <>
-                        <p className="text-[14px] font-semibold text-[#111827]">
-                          {t("준비도", "Readiness", "准备度", "Mức độ sẵn sàng", "準備度", "Kesiapan")} <span className="text-[#1d4ed8]">{diag.percent}%</span>
-                          {diag.level ? <span className="ml-1.5 text-[13px] font-normal text-[#6b7280]">· {diag.level}</span> : null}
-                        </p>
+                        {diagAfter !== null && diagAfter !== undefined ? (
+                          <p className="text-[15px] font-semibold text-[#111827]">
+                            {t("준비도", "Readiness", "准备度", "Mức độ sẵn sàng", "準備度", "Kesiapan")}{" "}
+                            <span className="text-[#6b7280]">{diagBefore}%</span>
+                            <span className="mx-1 text-[#9ca3af]">→</span>
+                            <span className="text-[#1d4ed8]">{diagAfter}%</span>
+                            {diagGain !== null ? (
+                              <span className="ml-2 rounded-md bg-[#dcfce7] px-1.5 py-0.5 text-[12.5px] font-bold text-[#15803d]">
+                                {diagGain >= 0 ? `+${diagGain}` : diagGain}%p
+                              </span>
+                            ) : null}
+                            {diag.level ? <span className="ml-1.5 block text-[13px] font-normal text-[#6b7280]">{diag.level}</span> : null}
+                          </p>
+                        ) : (
+                          <p className="text-[14px] font-semibold text-[#111827]">
+                            {t("준비도", "Readiness", "准备度", "Mức độ sẵn sàng", "準備度", "Kesiapan")} <span className="text-[#1d4ed8]">{diag.percent}%</span>
+                            {diag.level ? <span className="ml-1.5 text-[13px] font-normal text-[#6b7280]">· {diag.level}</span> : null}
+                          </p>
+                        )}
                         {diag.strengths?.length ? (
                           <div>
                             <p className="text-[12px] font-semibold text-[#15803d]">{t("강점", "Strengths", "优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
@@ -326,16 +353,22 @@ export default function LaunchOpsStudentDetailPage() {
                   {doneSteps.length ? (
                     <section className="ops-detail-section">
                       <h3>
-                        {t("완료 스텝", "Completed steps", "已完成步骤", "Bước đã hoàn thành", "完了ステップ", "Langkah selesai")} ({doneSteps.length})
+                        {t("완료 스텝", "Completed steps", "已完成步骤", "Bước đã hoàn thành", "完了ステップ", "Langkah selesai")} ({doneSteps.length}/21)
                       </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {doneSteps.map((s) => (
-                          <span key={s} className="ops-status-badge ops-status-approved">
-                            {/* 내부 스텝 id(w2s4 등) 대신 사람이 읽을 제목으로 */}
-                            {stepText(s, "title") || s}
-                          </span>
-                        ))}
-                      </div>
+                      {/* 21개 칩은 노이즈라 기본 접힘 — 필요할 때만 펼친다. */}
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-[13px] text-[#6b7280] transition hover:text-[#111827]">
+                          {t("세부 스텝 보기", "Show step details", "查看详细步骤", "Xem chi tiết các bước", "詳細ステップを表示", "Lihat detail langkah")}
+                        </summary>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {doneSteps.map((s) => (
+                            <span key={s} className="ops-status-badge ops-status-approved">
+                              {/* 내부 스텝 id(w2s4 등) 대신 사람이 읽을 제목으로 */}
+                              {stepText(s, "title") || s}
+                            </span>
+                          ))}
+                        </div>
+                      </details>
                     </section>
                   ) : null}
                 </div>
