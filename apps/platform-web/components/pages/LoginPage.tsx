@@ -30,8 +30,9 @@ export function LoginPage({
   defaultNext,
   chromeless,
   brandTitle,
-  brandSubtitle
-}: { defaultNext?: string; chromeless?: boolean; brandTitle?: string; brandSubtitle?: string } = {}) {
+  brandSubtitle,
+  showRoleToggle
+}: { defaultNext?: string; chromeless?: boolean; brandTitle?: string; brandSubtitle?: string; showRoleToggle?: boolean } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   // 신청 페이지 등에서 `?next=/events/...` 로 들어오면 로그인 후 그 경로로 복귀.
@@ -44,6 +45,17 @@ export function LoginPage({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const copy = useMemo(() => getAuthPageMessages(locale).login, [locale]);
+  // 학생/파트너 안내용 토글(UI·카피·가입 링크만 바꾼다 — 로그인 동작·역할은 계정이 결정).
+  const [role, setRole] = useState<"student" | "partner">("student");
+  const L = (ko: string, en: string, zh: string, vi: string, ja: string, id: string) =>
+    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  const signupHref = (() => {
+    const params = new URLSearchParams();
+    if (role === "partner") params.set("type", "business");
+    if (effectiveNext) params.set("next", effectiveNext);
+    const qs = params.toString();
+    return qs ? `/signup?${qs}` : "/signup";
+  })();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -123,6 +135,49 @@ export function LoginPage({
             </div>
           ) : null}
           <div className="mx-auto max-w-md rounded-2xl border border-border/60 bg-card p-6 md:p-8">
+            {showRoleToggle ? (
+              <div className="mb-5">
+                <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1" role="tablist" aria-label={L("로그인 유형", "Login type", "登录类型", "Loại đăng nhập", "ログイン種別", "Tipe login")}>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={role === "student"}
+                    onClick={() => setRole("student")}
+                    className={`h-9 rounded-lg text-sm font-bold transition ${role === "student" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+                  >
+                    {L("학생", "Student", "学生", "Sinh viên", "学生", "Siswa")}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={role === "partner"}
+                    onClick={() => setRole("partner")}
+                    className={`h-9 rounded-lg text-sm font-bold transition ${role === "partner" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+                  >
+                    {L("파트너(기업)", "Partner (company)", "合作伙伴（企业）", "Đối tác (doanh nghiệp)", "パートナー（企業）", "Mitra (perusahaan)")}
+                  </button>
+                </div>
+                <p className="mt-2 text-center text-xs text-muted-foreground">
+                  {role === "student"
+                    ? L(
+                        "구직·커리어런치는 학생 계정으로 로그인하세요.",
+                        "Log in with your student account for jobs & Career Launch.",
+                        "求职·Career Launch 请使用学生账号登录。",
+                        "Đăng nhập bằng tài khoản sinh viên cho việc làm & Career Launch.",
+                        "求職・Career Launchは学生アカウントでログインしてください。",
+                        "Masuk dengan akun siswa untuk lowongan & Career Launch."
+                      )
+                    : L(
+                        "채용·기업 관리는 파트너(기업) 계정으로 로그인하세요.",
+                        "Log in with your partner account to manage hiring.",
+                        "招聘·企业管理请使用合作伙伴账号登录。",
+                        "Đăng nhập bằng tài khoản đối tác để quản lý tuyển dụng.",
+                        "採用・企業管理はパートナーアカウントでログインしてください。",
+                        "Masuk dengan akun mitra untuk mengelola rekrutmen."
+                      )}
+                </p>
+              </div>
+            ) : null}
             <form className="space-y-4" onSubmit={handleSubmit}>
               <label className="block text-sm font-medium">
                 {copy.emailLabel}
@@ -224,12 +279,11 @@ export function LoginPage({
 
             <p className="mt-4 text-center text-sm text-muted-foreground">
               {copy.signupPrompt}{" "}
-              {/* 가입 후에도 같은 next 로 돌아가야 하므로 그대로 전달. */}
-              <Link
-                href={effectiveNext ? `/signup?next=${encodeURIComponent(effectiveNext)}` : "/signup"}
-                className="font-semibold text-foreground"
-              >
-                {copy.signupLink}
+              {/* 파트너 토글이면 기업 가입으로, 아니면 일반 가입으로. next 는 유지. */}
+              <Link href={signupHref} className="font-semibold text-foreground">
+                {showRoleToggle && role === "partner"
+                  ? L("기업 계정 만들기", "Create a company account", "创建企业账号", "Tạo tài khoản doanh nghiệp", "企業アカウントを作成", "Buat akun perusahaan")
+                  : copy.signupLink}
               </Link>
             </p>
           </div>
