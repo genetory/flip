@@ -19,7 +19,9 @@ export default function LaunchOpsLayout({ children }: { children: React.ReactNod
         <OpsTopbar />
         <div className="min-w-0 flex-1 px-5 pb-16 md:px-8">
           <OpsMobileNav />
-          <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+          {/* 운영 콘솔은 데스크톱 설계(.ops-content-section min-width:960px). 좁은 화면에선
+              콘텐츠를 찌그러뜨리지 않고 가로 스크롤로 접근하게 한다(콘텐츠가 잘리지 않도록). */}
+          <div className="mx-auto w-full max-w-[1400px] overflow-x-auto">{children}</div>
         </div>
       </div>
     </div>
