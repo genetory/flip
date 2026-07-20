@@ -26,6 +26,9 @@ export type CareerInterview = {
 };
 export type CareerProgress = {
   diagnosis?: CareerDiagnosis | null;
+  // 사전(1주차)·사후(4주차 수료) 진단 점수 — 향상도 산출용.
+  diagnosisInitial?: { percent?: number } | null;
+  diagnosisFinal?: { percent?: number } | null;
   selectedJobs?: string[];
   materials?: string[];
   doneSteps?: string[];
