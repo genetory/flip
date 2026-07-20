@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Check } from "@phosphor-icons/react";
 import { readAccessToken } from "../../../../../lib/auth-client";
 
 const CONFIRM_PHRASE = "DELETE";
@@ -197,7 +198,7 @@ export default function DataManagementPage() {
         {genError ? <p style={{ marginTop: 12, color: "var(--danger)" }}>{genError}</p> : null}
         {genResult ? (
           <p style={{ marginTop: 12, color: "var(--accent-ink)" }}>
-            ✓ 생성 완료 — 글 {genResult.postsCreated.toLocaleString()}개, 댓글 {genResult.commentsCreated.toLocaleString()}개
+            <Check size={13} weight="bold" aria-hidden style={{ display: "inline", verticalAlign: "-2px", marginRight: 2 }} />생성 완료 — 글 {genResult.postsCreated.toLocaleString()}개, 댓글 {genResult.commentsCreated.toLocaleString()}개
           </p>
         ) : null}
 
@@ -226,11 +227,11 @@ export default function DataManagementPage() {
           {candError ? <p style={{ marginTop: 10, color: "var(--danger)" }}>{candError}</p> : null}
           {candResult ? (
             <p style={{ marginTop: 10, color: "var(--accent-ink)" }}>
-              ✓ 후보자 시드 완료 — 신규 {candResult.created}명 (총 {candResult.total}명)
+              <Check size={13} weight="bold" aria-hidden style={{ display: "inline", verticalAlign: "-2px", marginRight: 2 }} />후보자 시드 완료 — 신규 {candResult.created}명 (총 {candResult.total}명)
             </p>
           ) : null}
           {delPostsResult !== null ? (
-            <p style={{ marginTop: 10, color: "var(--accent-ink)" }}>✓ 정리 완료 — {delPostsResult.toLocaleString()}개 글 삭제</p>
+            <p style={{ marginTop: 10, color: "var(--accent-ink)" }}><Check size={13} weight="bold" aria-hidden style={{ display: "inline", verticalAlign: "-2px", marginRight: 2 }} />정리 완료 — {delPostsResult.toLocaleString()}개 글 삭제</p>
           ) : null}
         </div>
       </article>
@@ -270,7 +271,7 @@ export default function DataManagementPage() {
         </div>
         {positionResult ? (
           <p style={{ marginTop: 12, color: "var(--accent-ink)" }}>
-            ✓ 삭제 완료 — {positionResult.deleted.toLocaleString()}건 삭제 (이전: {positionResult.before.toLocaleString()}건)
+            <Check size={13} weight="bold" aria-hidden style={{ display: "inline", verticalAlign: "-2px", marginRight: 2 }} />삭제 완료 — {positionResult.deleted.toLocaleString()}건 삭제 (이전: {positionResult.before.toLocaleString()}건)
           </p>
         ) : null}
       </article>
@@ -312,7 +313,7 @@ export default function DataManagementPage() {
         </div>
         {userResult ? (
           <p style={{ marginTop: 12, color: "var(--accent-ink)" }}>
-            ✓ 삭제 완료 — {userResult.deleted.toLocaleString()}건 삭제, {(userResult.preserved ?? 0).toLocaleString()}건 보존
+            <Check size={13} weight="bold" aria-hidden style={{ display: "inline", verticalAlign: "-2px", marginRight: 2 }} />삭제 완료 — {userResult.deleted.toLocaleString()}건 삭제, {(userResult.preserved ?? 0).toLocaleString()}건 보존
             (이전: {userResult.before.toLocaleString()}건)
           </p>
         ) : null}

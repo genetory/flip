@@ -154,16 +154,27 @@ export function OpsSidebar() {
           })}
         </nav>
 
-        <div className="mt-auto border-t border-[var(--line)] pt-4">
-          <Link
-            href="/career-launch/dashboard"
-            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[12.5px] font-bold text-[var(--accent)] transition hover:bg-[var(--accent-soft)]"
-          >
-            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-            {t("학생 화면 체험", "Try student view", "体验学生界面", "Xem giao diện sinh viên", "学生画面を体験", "Coba tampilan siswa")}
+        {/* 하단 — 운영 콘솔과 동일한 버튼 스택(콘솔 전환·플랫폼·프로필) */}
+        <div className="ops-console-logout-wrap mt-auto" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <Link href="/career-launch/dashboard">
+            <button type="button" className="ops-console-logout">
+              {t("학생 화면 체험", "Try student view", "体验学生界面", "Xem giao diện sinh viên", "学生画面を体験", "Coba tampilan siswa")}
+            </button>
           </Link>
-          <Link href="/career-launch" className="mt-0.5 block px-3 py-2 text-[12.5px] font-semibold text-[var(--ink-faint)] transition hover:text-[var(--ink)]">
-            ← {t("프로그램", "Program", "项目", "Chương trình", "プログラム", "Program")}
+          <Link href="/dashboard/ops">
+            <button type="button" className="ops-console-logout">
+              {t("운영 콘솔", "Ops console", "运营控制台", "Bảng vận hành", "運営コンソール", "Konsol operasi")}
+            </button>
+          </Link>
+          <Link href="/">
+            <button type="button" className="ops-console-logout">
+              {t("플랫폼으로 이동", "Go to platform", "前往平台", "Đến nền tảng", "プラットフォームへ", "Ke platform")}
+            </button>
+          </Link>
+          <Link href="/profile">
+            <button type="button" className="ops-console-logout">
+              {t("내 프로필로 이동", "My profile", "我的资料", "Hồ sơ của tôi", "マイプロフィール", "Profil saya")}
+            </button>
           </Link>
         </div>
       </div>

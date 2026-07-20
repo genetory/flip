@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft, Check } from "@phosphor-icons/react";
 import { fetchOpsStudentDetail, resetStudentStep, saveStudentMemo, nudgeStudents, type OpsStudentDetail, type OpsResetTarget } from "../../../../../lib/launch/ops-client";
 import { hasResumeContent } from "../../../../../lib/launch/resume-data";
 import { hasCoverContent } from "../../../../../lib/launch/cover-data";
@@ -164,8 +165,9 @@ export default function LaunchOpsStudentDetailPage() {
   return (
     <main className="pb-16 pt-6 md:pt-10">
       <section className="ops-content-section">
-        <Link href="/career-launch/ops/students" className="text-[13px] font-semibold text-[var(--ink-faint)] transition hover:text-[var(--ink)]">
-          {t("← 학생 목록", "← Student list", "← 学生列表", "← Danh sách sinh viên", "← 学生一覧", "← Daftar siswa")}
+        <Link href="/career-launch/ops/students" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[var(--ink-faint)] transition hover:text-[var(--ink)]">
+          <ArrowLeft size={13} weight="bold" aria-hidden />
+          {t("학생 목록", "Student list", "学生列表", "Danh sách sinh viên", "学生一覧", "Daftar siswa")}
         </Link>
 
         <header className="mt-3">
@@ -192,7 +194,7 @@ export default function LaunchOpsStudentDetailPage() {
                   </span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full" style={{ background: "var(--surface-2)" }}>
-                  <div className="h-full rounded-full" style={{ width: `${percent}%`, background: allDone ? "var(--accent-ink)" : "var(--ink)" }} />
+                  <div className="h-full rounded-full" style={{ width: `${percent}%`, background: allDone ? "var(--accent-ink)" : "var(--accent)" }} />
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -240,7 +242,7 @@ export default function LaunchOpsStudentDetailPage() {
                               c.done ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]" : "border border-[var(--line)] text-transparent"
                             }`}
                           >
-                            ✓
+                            <Check size={12} weight="bold" aria-hidden />
                           </span>
                           <span className={c.done ? "font-medium" : ""}>{c.l}</span>
                         </div>
@@ -287,7 +289,7 @@ export default function LaunchOpsStudentDetailPage() {
                             <ul className="mt-1.5 space-y-1">
                               {diag.strengths.map((x, i) => (
                                 <li key={i} className="flex gap-1.5 break-keep text-[13px] text-[var(--ink-soft)]">
-                                  <span className="text-[var(--accent-ink)]">✓</span>
+                                  <span className="text-[var(--accent-ink)]"><Check size={12} weight="bold" aria-hidden /></span>
                                   {x}
                                 </li>
                               ))}
@@ -530,7 +532,7 @@ export default function LaunchOpsStudentDetailPage() {
                                   done ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]" : "border border-[var(--line)] text-transparent"
                                 }`}
                               >
-                                ✓
+                                <Check size={12} weight="bold" aria-hidden />
                               </span>
                               <p className={`text-[13.5px] font-semibold ${done ? "text-[var(--ink)]" : "text-[var(--ink-faint)]"}`}>{INTERVIEW_LABEL[tp]}</p>
                               <span className={`ml-auto text-[12px] font-semibold ${done ? "text-[var(--accent-ink)]" : "text-[var(--ink-faint)]"}`}>

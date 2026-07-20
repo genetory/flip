@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { readAccessToken } from "../../../../../../lib/auth-client";
@@ -249,8 +250,8 @@ export default function OpsUserDetailPage() {
 
   return (
     <section className="ops-content-section">
-      <Link href="/dashboard/ops/system/admin-users" style={{ fontSize: 12, color: "var(--ink-faint)", textDecoration: "none" }}>
-        ← 사용자 목록
+      <Link href="/dashboard/ops/system/admin-users" style={{ fontSize: 12, color: "var(--ink-faint)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+        <ArrowLeft size={13} weight="bold" aria-hidden /> 사용자 목록
       </Link>
       <header style={{ marginTop: 8 }}>
         <h1>사용자 상세</h1>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { X } from "@phosphor-icons/react";
 import {
   fetchCohortReport,
   createEmploymentOutcome,
@@ -204,7 +205,7 @@ export default function OutcomesPanel({ cohortId }: { cohortId: string }) {
                                   {o.positionTitle ? ` · ${o.positionTitle}` : ""} <em>({OUTCOME_LABEL[o.status]})</em>
                                 </span>
                                 <button type="button" className="op-del" disabled={busy === s.userId + ":del:" + o.id} onClick={() => void delOutcome(s.userId, o.id)} aria-label="삭제">
-                                  ✕
+                                  <X size={12} weight="bold" aria-hidden />
                                 </button>
                               </li>
                             ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { useParams } from "next/navigation";
 import { ApplicationDetailView } from "../../../../../../components/applications/ApplicationDetailView";
 
@@ -10,8 +11,8 @@ export default function OpsApplicationDetailPage() {
   if (!id) return null;
   return (
     <section className="ops-content-section">
-      <Link href="/dashboard/ops/operations/applications" style={{ fontSize: 12, color: "var(--ink-faint)", textDecoration: "none" }}>
-        ← 지원 목록
+      <Link href="/dashboard/ops/operations/applications" style={{ fontSize: 12, color: "var(--ink-faint)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+        <ArrowLeft size={13} weight="bold" aria-hidden /> 지원 목록
       </Link>
       <header style={{ marginTop: 8 }}>
         <h1>지원 상세</h1>
