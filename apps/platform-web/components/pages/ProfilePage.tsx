@@ -39,6 +39,7 @@ import type { PlatformLocale } from "../../lib/auth-messages";
 import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
 import { SealCheck as BadgeCheck, Bookmark, Briefcase, FileText, Globe, Handshake, SquaresFour as LayoutGrid, List, Envelope as Mail, MapPin, Pencil, Phone, Star, Trash as Trash2 } from "@phosphor-icons/react";
 import { getMySgcApplication, type SgcApplication } from "../../lib/sgc-event-client";
+import { paperlogy } from "../../lib/fonts";
 
 const PROFILE_SQUIRCLE_CLIP_ID = "profile-page-squircle-clip";
 const PROFILE_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
@@ -781,7 +782,7 @@ export function ProfilePage() {
       <Header />
       <main className="container py-12 md:py-16">
         <div className="mx-auto max-w-4xl">
-          <h1 className="mb-6 font-display text-3xl font-bold tracking-tight">{tr("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "私のプロフィール", "Profil saya")}</h1>
+          <h1 className={`${paperlogy.className} mb-8 text-3xl font-black tracking-[-0.03em] text-black md:text-5xl`}>{tr("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "私のプロフィール", "Profil saya")}</h1>
 
           {!isReady ? (
             <section className="rounded-2xl bg-white p-5 md:p-6">
@@ -843,7 +844,7 @@ export function ProfilePage() {
                   )}
                   <div className="min-w-0">
                     <div className="flex min-w-0 items-center gap-2">
-                      <p className="truncate text-lg font-semibold">{user.name ?? tr("이름 없음", "No name", "无名称", "Không có tên", "名前なし", "Tanpa nama")}</p>
+                      <p className="truncate font-display text-lg font-bold tracking-tight md:text-xl">{user.name ?? tr("이름 없음", "No name", "无名称", "Không có tên", "名前なし", "Tanpa nama")}</p>
                       {roleLabel ? (
                         <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{roleLabel}</span>
                       ) : null}
