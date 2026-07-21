@@ -2,7 +2,7 @@
 
 import { Button } from "../ui/button";
 import Link from "next/link";
-import { CheckCircle2, MapPin, Briefcase } from "lucide-react";
+import { CheckCircle as CheckCircle2, MapPin, Briefcase } from "@phosphor-icons/react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { paperlogy } from "../../lib/fonts";
