@@ -13,7 +13,7 @@ const COUNT_BY_HREF: Record<string, "applicants" | "assignments" | "issues"> = {
   "/dashboard/partner/issues": "issues"
 };
 
-export function PartnerDashboardSidebar() {
+export function PartnerDashboardSidebar({ open = false }: { open?: boolean }) {
   const pathname = usePathname();
   const [counts, setCounts] = useState<{ applicants: number; assignments: number; issues: number } | null>(null);
 
@@ -36,7 +36,7 @@ export function PartnerDashboardSidebar() {
   }, [pathname]);
 
   return (
-    <aside className="ops-console-sidebar">
+    <aside className={`ops-console-sidebar${open ? " is-open" : ""}`}>
       <div className="ops-console-brand">
         <img src="/aply_logo.webp" alt="Aply" />
         <strong>Aply Partner Admin</strong>

@@ -3594,14 +3594,14 @@ a.ops-list-card:hover {
 
 .ops-kpi-grid {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .ops-kpi-tile {
   background: var(--surface-2);
   border-radius: 12px;
-  padding: 14px;
+  padding: 18px 16px;
 }
 
 .ops-kpi-label {
@@ -3613,7 +3613,7 @@ a.ops-list-card:hover {
 .ops-kpi-value {
   font-size: 22px;
   font-weight: 800;
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
@@ -4942,5 +4942,107 @@ a.partner-kpi-value:hover {
   font-weight: 600;
   color: var(--ink);
   margin: 0;
+}
+
+/* =====================================================================
+   모바일 대응 (운영콘솔 · 파트너 어드민)
+   데스크톱 셸(.ops-console-shell = 280px 사이드바 + 본문)은 좁은 화면에서
+   사이드바가 화면을 덮고 본문이 잘렸다. 좁은 화면에서는 사이드바를 슬라이드
+   드로어로 바꾸고, 상단바의 햄버거로 열도록 한다. 모든 규칙은 미디어 쿼리에
+   게이트하고 파일 맨 끝에 두어 데스크톱 레이아웃에는 영향을 주지 않는다.
+   ===================================================================== */
+
+/* 상단바·스크림은 기본 숨김(데스크톱). 아래 미디어 쿼리에서만 노출. */
+.ops-mobile-topbar {
+  display: none;
+}
+.ops-console-scrim {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  /* 2열 그리드 → 1열. 사이드바는 흐름에서 빠져(fixed) 본문이 전체 폭을 쓴다. */
+  .ops-console-shell {
+    grid-template-columns: 1fr;
+  }
+
+  /* 본문이 뷰포트 폭에 맞도록 최소 폭 제한을 푼다(넓은 표는 카드 안에서 가로 스크롤). */
+  .ops-content-section {
+    min-width: 0;
+  }
+
+  /* 사이드바 = 화면 밖 슬라이드 드로어 */
+  .ops-console-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100dvh;
+    width: min(84vw, 300px);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 60;
+    box-shadow: 0 24px 48px rgba(11, 18, 39, 0.25);
+    will-change: transform;
+  }
+  .ops-console-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  /* 드로어 뒤 어둡게(열렸을 때만) */
+  .ops-console-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(11, 18, 39, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .ops-console-scrim.is-open {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* 본문 상단의 얇은 모바일 바(햄버거 + 화면 이름) — sticky */
+  .ops-mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+  .ops-mobile-topbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .ops-mobile-topbar-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+
+  /* 본문 패딩 축소 + 상단바가 최상단에 붙도록 위쪽 패딩 제거 */
+  .ops-console-main,
+  .ops-console-main.partner-shell,
+  .partner-shell {
+    padding: 0 12px 28px;
+  }
+  .ops-mobile-topbar {
+    margin: 0 -12px 12px;
+    padding: 10px 12px;
+  }
 }
 

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
+import { AdminConsoleFrame } from "../../../components/dashboard/AdminConsoleFrame";
 import { OpsDashboardSidebar } from "./_components/DashboardSidebar";
 
 export default function OpsDashboardLayout({ children }: { children: React.ReactNode }) {
@@ -38,9 +39,12 @@ export default function OpsDashboardLayout({ children }: { children: React.React
   }
 
   return (
-    <main className="ops-console-shell">
-      <OpsDashboardSidebar />
-      <div className="ops-console-main">{children}</div>
-    </main>
+    <AdminConsoleFrame
+      title="운영 콘솔"
+      mainClassName="ops-console-main"
+      renderSidebar={(open) => <OpsDashboardSidebar open={open} />}
+    >
+      {children}
+    </AdminConsoleFrame>
   );
 }

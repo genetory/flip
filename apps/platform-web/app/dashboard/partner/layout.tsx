@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
+import { AdminConsoleFrame } from "../../../components/dashboard/AdminConsoleFrame";
 import { PartnerDashboardSidebar } from "./_components/DashboardSidebar";
 
 export default function PartnerDashboardLayout({ children }: { children: React.ReactNode }) {
@@ -38,9 +39,12 @@ export default function PartnerDashboardLayout({ children }: { children: React.R
   }
 
   return (
-    <main className="ops-console-shell">
-      <PartnerDashboardSidebar />
-      <div className="ops-console-main partner-shell">{children}</div>
-    </main>
+    <AdminConsoleFrame
+      title="파트너 어드민"
+      mainClassName="ops-console-main partner-shell"
+      renderSidebar={(open) => <PartnerDashboardSidebar open={open} />}
+    >
+      {children}
+    </AdminConsoleFrame>
   );
 }
