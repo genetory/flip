@@ -898,9 +898,10 @@ export async function removeMyFavoritePosition(positionId: string) {
   return result;
 }
 
-export async function applyMyPosition(positionId: string) {
+export async function applyMyPosition(positionId: string, resumeId?: string) {
   const result = await authedJsonFetch<unknown>(`/members/me/positions/${encodeURIComponent(positionId)}/apply`, {
-    method: "POST"
+    method: "POST",
+    ...(resumeId ? { body: JSON.stringify({ resumeId }) } : {})
   });
   trackPositionApply(positionId, "unknown");
   return result;

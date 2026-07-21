@@ -12735,9 +12735,12 @@ type ApplicationDocs = {
   coverLetterId: string | null;
   coverLetterSnapshot: Prisma.InputJsonValue | undefined;
 };
-async function snapshotApplicationDocs(userId: string, companyName: string | null): Promise<ApplicationDocs> {
-  // 이력서
+async function snapshotApplicationDocs(userId: string, companyName: string | null, selectedResumeId?: string | null): Promise<ApplicationDocs> {
+  // 이력서 — 지원자가 고른 이력서(본인 소유)가 있으면 우선, 없으면 대표→최근 순으로 폴백.
   const resume =
+    (selectedResumeId
+      ? await prisma.resume.findFirst({ where: { id: selectedResumeId, userId }, select: { id: true, content: true } })
+      : null) ??
     (await prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { id: true, content: true } })) ??
     (await prisma.resume.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" }, select: { id: true, content: true } }));
 
@@ -12843,9 +12846,13 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
     const existing = await prisma.application.findUnique({
       where: { positionId_candidateUserId: { positionId: parsed.data.positionId, candidateUserId: userId } }
     });
-    // 지원 시점의 서류(대표 이력서 + 회사일치 자소서)를 연결 + 제출본 스냅샷 저장.
-    // 재지원 시에도 현재 서류로 스냅샷 갱신.
-    const docs = await snapshotApplicationDocs(userId, position.partnerOrganization?.name ?? null);
+    // 지원 시점의 서류(선택/대표 이력서 + 회사일치 자소서)를 연결 + 제출본 스냅샷 저장.
+    // 재지원 시에도 현재 서류로 스냅샷 갱신. 지원자가 이력서를 고르면 그걸 우선 사용.
+    const selectedResumeId =
+      typeof (req.body as { resumeId?: unknown } | undefined)?.resumeId === "string" && (req.body as { resumeId: string }).resumeId.trim()
+        ? (req.body as { resumeId: string }).resumeId.trim()
+        : null;
+    const docs = await snapshotApplicationDocs(userId, position.partnerOrganization?.name ?? null, selectedResumeId);
     // 새 지원(최초 지원 또는 철회 후 재지원)일 때만 파트너사에 이메일 알림을 보낸다
     // (이미 진행 중인 지원에 다시 apply 를 눌러도 팀에 중복 메일이 가지 않게).
     let isNewSubmission = false;

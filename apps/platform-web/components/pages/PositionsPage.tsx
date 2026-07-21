@@ -27,6 +27,7 @@ import { InFeedAd } from "../ads/InFeedAd";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { useToast } from "../toast/ToastProvider";
+import { ApplyResumeModal } from "../positions/ApplyResumeModal";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import { ALL_POSITIONS, type Position } from "../../lib/positions-data";
 import { paperlogy } from "../../lib/fonts";
@@ -278,6 +279,8 @@ export function PositionsPage() {
   const [workTypeOptions, setWorkTypeOptions] = useState<string[]>([...FALLBACK_WORK_TYPES]);
   const [myVisaCode, setMyVisaCode] = useState<string | null>(null);
   const [onlyMyVisaEligible, setOnlyMyVisaEligible] = useState(false);
+  const [applyTargetId, setApplyTargetId] = useState<string | null>(null);
+  const [applyingList, setApplyingList] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
@@ -594,14 +597,25 @@ export function PositionsPage() {
       return;
     }
     if (appliedIds.includes(positionId)) return;
-    const optimistic = [...appliedIds, positionId];
-    setAppliedIds(optimistic);
+    // 어떤 이력서로 지원할지 고르는 모달을 연다.
+    setApplyTargetId(positionId);
+  }
+
+  async function confirmListApply(resumeId: string) {
+    const positionId = applyTargetId;
+    if (!positionId) return;
+    setApplyingList(true);
+    const prevApplied = appliedIds;
+    setAppliedIds([...appliedIds, positionId]);
     try {
-      await applyMyPosition(positionId);
+      await applyMyPosition(positionId, resumeId);
       toast.success(t("지원이 접수되었어요", "Application submitted", "已提交申请", "Đã nộp đơn", "応募が完了しました", "Lamaran terkirim"));
+      setApplyTargetId(null);
     } catch (error) {
-      setAppliedIds(appliedIds);
+      setAppliedIds(prevApplied);
       toast.error(error instanceof Error ? error.message : copy.applyFailed);
+    } finally {
+      setApplyingList(false);
     }
   }
 
@@ -1268,6 +1282,13 @@ export function PositionsPage() {
       {isCipModalOpen ? (
         <CipInfoModal locale={locale} onClose={() => setIsCipModalOpen(false)} />
       ) : null}
+      <ApplyResumeModal
+        open={applyTargetId !== null}
+        positionTitle={positions.find((p) => p.id === applyTargetId)?.role ?? null}
+        onClose={() => setApplyTargetId(null)}
+        onConfirm={confirmListApply}
+        submitting={applyingList}
+      />
       <Footer />
     </div>
   );

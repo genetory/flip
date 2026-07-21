@@ -18,6 +18,7 @@ import {
 import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { ArrowLeft, Briefcase, CaretLeft as ChevronLeft, CaretRight as ChevronRight, Spinner as Loader2, MapPin } from "@phosphor-icons/react";
 import { AplyCipBadgeButton, CipInfoModal } from "../positions/AplyCipBadge";
+import { ApplyResumeModal } from "../positions/ApplyResumeModal";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useToast } from "../toast/ToastProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
@@ -120,6 +121,8 @@ export function PositionDetailPage({
   const router = useRouter();
   const pathname = usePathname();
   const toast = useToast();
+  const [applyModalOpen, setApplyModalOpen] = useState(false);
+  const [applying, setApplying] = useState(false);
   const { locale } = useLanguage();
   const { user, isAuthenticated } = useAuthSession();
 
@@ -452,13 +455,23 @@ export function PositionDetailPage({
       return;
     }
     if (appliedPositionIds.includes(position.id)) return;
+    // 어떤 이력서로 지원할지 고르는 모달을 연다.
+    setApplyModalOpen(true);
+  }
+
+  async function confirmApply(resumeId: string) {
+    if (!position) return;
+    setApplying(true);
     try {
-      setAppliedPositionIds((prev) => [...prev, position.id]);
-      await applyMyPosition(position.id);
+      setAppliedPositionIds((prev) => (prev.includes(position.id) ? prev : [...prev, position.id]));
+      await applyMyPosition(position.id, resumeId);
       toast.success(copy.appliedAdded);
+      setApplyModalOpen(false);
     } catch (error) {
       setAppliedPositionIds((prev) => prev.filter((id) => id !== position.id));
       toast.error(error instanceof Error ? error.message : copy.applyFailed);
+    } finally {
+      setApplying(false);
     }
   }
 
@@ -935,6 +948,13 @@ export function PositionDetailPage({
       {isCipModalOpen ? (
         <CipInfoModal locale={locale} onClose={() => setIsCipModalOpen(false)} />
       ) : null}
+      <ApplyResumeModal
+        open={applyModalOpen}
+        positionTitle={position.title}
+        onClose={() => setApplyModalOpen(false)}
+        onConfirm={confirmApply}
+        submitting={applying}
+      />
       <Footer />
     </div>
   );
