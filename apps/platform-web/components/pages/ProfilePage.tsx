@@ -1448,7 +1448,7 @@ export function ProfilePage() {
                                       type="button"
                                       onClick={() => handleResumeSetPrimary(r.id)}
                                       disabled={resumePrimaryBusyId === r.id}
-                                      className="mr-1 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-muted-foreground ring-1 ring-border transition hover:text-amber-700 hover:ring-amber-300 disabled:opacity-50"
+                                      className="mr-1 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-muted-foreground ring-1 ring-border transition hover:text-[#0B46E8] hover:ring-[#0B46E8]/40 disabled:opacity-50"
                                     >
                                       {tr("대표로 설정", "Set primary", "设为代表", "Đặt đại diện", "代表に設定", "Jadikan utama")}
                                     </button>
@@ -1483,10 +1483,14 @@ export function ProfilePage() {
                     ) : (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-3">
-                          <span className="text-sm text-muted-foreground">
-                            {studentTab === "applied" ? appliedPositions.length : favoritePositions.length}
-                            {tr("개", "", "个", "", "件", "")}
-                          </span>
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {studentTab === "applied"
+                              ? tr("지원한 포지션", "Applied positions", "已申请的职位", "Vị trí đã ứng tuyển", "応募したポジション", "Posisi yang dilamar")
+                              : tr("즐겨찾기한 포지션", "Favorite positions", "收藏的职位", "Vị trí đã lưu", "お気に入りのポジション", "Posisi favorit")}
+                            <span className="ml-1.5 font-normal text-muted-foreground">
+                              {studentTab === "applied" ? appliedPositions.length : favoritePositions.length}
+                            </span>
+                          </h3>
                         </div>
 
                         {studentPositionsError ? <p className="text-sm text-destructive">{studentPositionsError}</p> : null}
@@ -1499,10 +1503,17 @@ export function ProfilePage() {
 
                           if (source.length === 0) {
                             return (
-                              <div className="rounded-md border border-border/50 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-                                {studentTab === "applied"
-                                  ? tr("아직 지원한 포지션이 없습니다.", "No applied positions yet.", "尚未申请任何职位。", "Chưa có vị trí nào đã ứng tuyển.", "まだ応募したポジションはありません。", "Belum ada posisi yang dilamar.")
-                                  : tr("아직 즐겨찾기한 포지션이 없습니다.", "No favorite positions yet.", "尚未收藏任何职位。", "Chưa có vị trí yêu thích nào.", "まだお気に入りのポジションはありません。", "Belum ada posisi favorit.")}
+                              <div className="rounded-2xl border border-dashed border-border bg-white px-5 py-12 text-center">
+                                {studentTab === "applied" ? (
+                                  <Briefcase className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" aria-hidden />
+                                ) : (
+                                  <Bookmark className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" aria-hidden />
+                                )}
+                                <p className="text-sm text-muted-foreground">
+                                  {studentTab === "applied"
+                                    ? tr("아직 지원한 포지션이 없습니다.", "No applied positions yet.", "尚未申请任何职位。", "Chưa có vị trí nào đã ứng tuyển.", "まだ応募したポジションはありません。", "Belum ada posisi yang dilamar.")
+                                    : tr("아직 즐겨찾기한 포지션이 없습니다.", "No favorite positions yet.", "尚未收藏任何职位。", "Chưa có vị trí yêu thích nào.", "まだお気に入りのポジションはありません。", "Belum ada posisi favorit.")}
+                                </p>
                               </div>
                             );
                           }
