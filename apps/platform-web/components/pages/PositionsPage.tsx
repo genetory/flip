@@ -26,6 +26,7 @@ import { trackExternalPositionClick, trackPositionSearch } from "../../lib/analy
 import { InFeedAd } from "../ads/InFeedAd";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { useToast } from "../toast/ToastProvider";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import { ALL_POSITIONS, type Position } from "../../lib/positions-data";
 import { paperlogy } from "../../lib/fonts";
@@ -257,6 +258,7 @@ export function PositionsPage() {
   const searchParams = useSearchParams();
   const initialSearchQuery = searchParams.get("q")?.trim() ?? "";
   const { locale } = useLanguage();
+  const toast = useToast();
   const { user, isReady, isAuthenticated } = useAuthSession();
   const [positions, setPositions] = useState<PositionCard[]>([]);
   const [isPositionsLoading, setIsPositionsLoading] = useState(true);
@@ -559,7 +561,7 @@ export function PositionsPage() {
       return;
     }
     if (user.role !== "STUDENT") {
-      window.alert(copy.studentRequiredFavorite);
+      toast.error(copy.studentRequiredFavorite);
       return;
     }
     const isFavorite = favoriteIds.includes(positionId);
@@ -570,12 +572,14 @@ export function PositionsPage() {
     try {
       if (isFavorite) {
         await removeMyFavoritePosition(positionId);
+        toast.success(t("저장 해제했어요", "Removed from saved", "已取消收藏", "Đã bỏ lưu", "保存を解除しました", "Dihapus dari simpanan"));
       } else {
         await addMyFavoritePosition(positionId);
+        toast.success(t("저장했어요", "Saved", "已收藏", "Đã lưu", "保存しました", "Disimpan"));
       }
     } catch (error) {
       setFavoriteIds(favoriteIds);
-      window.alert(error instanceof Error ? error.message : copy.favoriteFailed);
+      toast.error(error instanceof Error ? error.message : copy.favoriteFailed);
     }
   }
 
@@ -586,7 +590,7 @@ export function PositionsPage() {
       return;
     }
     if (user.role !== "STUDENT") {
-      window.alert(copy.studentRequiredApply);
+      toast.error(copy.studentRequiredApply);
       return;
     }
     if (appliedIds.includes(positionId)) return;
@@ -594,9 +598,10 @@ export function PositionsPage() {
     setAppliedIds(optimistic);
     try {
       await applyMyPosition(positionId);
+      toast.success(t("지원이 접수되었어요", "Application submitted", "已提交申请", "Đã nộp đơn", "応募が完了しました", "Lamaran terkirim"));
     } catch (error) {
       setAppliedIds(appliedIds);
-      window.alert(error instanceof Error ? error.message : copy.applyFailed);
+      toast.error(error instanceof Error ? error.message : copy.applyFailed);
     }
   }
 

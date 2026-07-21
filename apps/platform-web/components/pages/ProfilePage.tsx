@@ -37,7 +37,7 @@ import { SelectInterviewSlotModal } from "../interviews/SelectInterviewSlotModal
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import type { PlatformLocale } from "../../lib/auth-messages";
 import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
-import { SealCheck as BadgeCheck, Bookmark, Briefcase, FileText, Globe, Handshake, SquaresFour as LayoutGrid, List, Envelope as Mail, MapPin, Pencil, Phone, Star, Trash as Trash2, Megaphone, CheckCircle } from "@phosphor-icons/react";
+import { SealCheck as BadgeCheck, Bookmark, Briefcase, FileText, Globe, Handshake, SquaresFour as LayoutGrid, List, Envelope as Mail, MapPin, Pencil, Phone, Star, Trash as Trash2, Megaphone, CheckCircle, Sparkle } from "@phosphor-icons/react";
 import { getMySgcApplication, type SgcApplication } from "../../lib/sgc-event-client";
 import { paperlogy } from "../../lib/fonts";
 // 지원/즐겨찾기·파트너 올린 포지션 리스트는 '포지션 탐색'과 동일한 카드를 재사용.
@@ -924,6 +924,37 @@ export function ProfilePage() {
                     </button>
                   </div>
                 ) : null}
+                {user.role === "STUDENT" && (myResumes.length === 0 || !studentProfile?.selfIntroduction?.trim()) ? (
+                  <div className="flex flex-col gap-3 rounded-2xl bg-[#0B46E8]/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-[#0B46E8]/[0.12] text-[#0B46E8]">
+                        <Sparkle className="h-5 w-5" weight="fill" aria-hidden />
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{tr("프로필을 완성하고 매칭 확률을 높이세요", "Complete your profile to boost matching", "完善资料以提升匹配率", "Hoàn thiện hồ sơ để tăng cơ hội", "プロフィールを完成させてマッチ率を上げましょう", "Lengkapi profil untuk peluang lebih besar")}</p>
+                        <p className="mt-0.5 text-[13px] text-muted-foreground">
+                          {myResumes.length === 0 && !studentProfile?.selfIntroduction?.trim()
+                            ? tr("이력서와 자기소개가 아직 없어요.", "You haven't added a resume or self-introduction yet.", "还没有简历和自我介绍。", "Bạn chưa có hồ sơ và giới thiệu.", "履歴書と自己紹介がまだありません。", "Belum ada resume dan pengenalan diri.")
+                            : myResumes.length === 0
+                              ? tr("이력서를 만들면 지원이 훨씬 쉬워져요.", "Create a resume to apply faster.", "创建简历后申请更方便。", "Tạo hồ sơ để ứng tuyển nhanh hơn.", "履歴書を作ると応募が簡単になります。", "Buat resume agar melamar lebih cepat.")
+                              : tr("자기소개를 채우면 회사에 더 잘 보여요.", "Add a self-introduction to stand out.", "填写自我介绍更吸引企业。", "Thêm giới thiệu để nổi bật.", "自己紹介を書くと企業に伝わります。", "Tambahkan pengenalan agar menonjol.")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-none flex-wrap gap-2">
+                      {myResumes.length === 0 ? (
+                        <button type="button" onClick={handleCreateResume} disabled={creatingResume} className="inline-flex items-center rounded-full bg-[#0B46E8] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#0A3FCF] disabled:opacity-60">
+                          {tr("이력서 만들기", "Create resume", "创建简历", "Tạo hồ sơ", "履歴書を作る", "Buat resume")}
+                        </button>
+                      ) : null}
+                      {!studentProfile?.selfIntroduction?.trim() ? (
+                        <Link href="/profile/edit" className="inline-flex items-center rounded-full border border-[#0B46E8]/30 bg-white px-4 py-2 text-[13px] font-semibold text-[#0B46E8] transition hover:bg-[#0B46E8]/[0.05]">
+                          {tr("자기소개 쓰기", "Write intro", "填写介绍", "Viết giới thiệu", "自己紹介を書く", "Tulis pengenalan")}
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
                 {user.role === "PARTNER" && partnerOrg ? (
                   <div className="grid grid-cols-3 gap-3 sm:gap-4">
                     <button
@@ -1528,6 +1559,12 @@ export function ProfilePage() {
                                     ? tr("아직 지원한 포지션이 없습니다.", "No applied positions yet.", "尚未申请任何职位。", "Chưa có vị trí nào đã ứng tuyển.", "まだ応募したポジションはありません。", "Belum ada posisi yang dilamar.")
                                     : tr("아직 즐겨찾기한 포지션이 없습니다.", "No favorite positions yet.", "尚未收藏任何职位。", "Chưa có vị trí yêu thích nào.", "まだお気に入りのポジションはありません。", "Belum ada posisi favorit.")}
                                 </p>
+                                <Link
+                                  href="/positions"
+                                  className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#0B46E8] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#0A3FCF]"
+                                >
+                                  {tr("포지션 둘러보기", "Browse positions", "浏览职位", "Xem vị trí", "ポジションを見る", "Lihat posisi")}
+                                </Link>
                               </div>
                             );
                           }
