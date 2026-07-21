@@ -835,9 +835,9 @@ export function ProfilePage() {
               ) : null}
 
               <div className="overflow-hidden rounded-2xl bg-card shadow-card">
-                <div className="relative bg-gradient-to-br from-[#EEF4FF] via-[#F4F8FF] to-[#F0FBFF] px-5 py-6 md:px-8 md:py-7">
+                <div className="relative px-5 py-6 md:px-8 md:py-7">
                   <div className="absolute right-5 top-5 md:right-6 md:top-6">
-                    <Button variant="outline" size="sm" asChild disabled={!canEditBasic} className="shrink-0 border-border/60 bg-white/70 backdrop-blur">
+                    <Button variant="outline" size="sm" asChild disabled={!canEditBasic} className="shrink-0 border-border/60">
                       <Link href="/profile/edit">{tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}</Link>
                     </Button>
                   </div>
@@ -846,13 +846,13 @@ export function ProfilePage() {
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={profileImage} alt={tr("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")} className="h-20 w-20 shrink-0 object-cover md:h-24 md:w-24" style={PROFILE_SQUIRCLE_STYLE} />
                     ) : (
-                      <div className="grid h-20 w-20 shrink-0 place-items-center bg-white text-2xl font-bold text-muted-foreground shadow-sm md:h-24 md:w-24" style={PROFILE_SQUIRCLE_STYLE}>{avatarFallback}</div>
+                      <div className="grid h-20 w-20 shrink-0 place-items-center bg-muted text-2xl font-bold text-muted-foreground md:h-24 md:w-24" style={PROFILE_SQUIRCLE_STYLE}>{avatarFallback}</div>
                     )}
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2 pr-16 sm:pr-0">
                         <h2 className="font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{user.name ?? tr("이름 없음", "No name", "无名称", "Không có tên", "名前なし", "Tanpa nama")}</h2>
                         {roleLabel ? (
-                          <span className="inline-flex items-center rounded-full bg-white/80 px-2.5 py-0.5 text-xs font-semibold text-[#0B46E8]">{roleLabel}</span>
+                          <span className="inline-flex items-center rounded-full bg-[#0B46E8]/[0.08] px-2.5 py-0.5 text-xs font-semibold text-[#0B46E8]">{roleLabel}</span>
                         ) : null}
                         {partnerVerificationBadge ? (
                           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${partnerVerificationBadge.className}`}>
@@ -863,18 +863,18 @@ export function ProfilePage() {
                       </div>
                       {user.realName ? <p className="mt-1 text-sm text-muted-foreground">{user.realName}</p> : null}
                       <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-[13px] text-foreground">
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[13px] text-foreground">
                           <Mail className="h-3.5 w-3.5 flex-none text-muted-foreground" aria-hidden />
                           <span className="truncate">{user.email}</span>
                         </span>
                         {user.phoneNumber ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-[13px] text-foreground">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[13px] text-foreground">
                             <Phone className="h-3.5 w-3.5 flex-none text-muted-foreground" aria-hidden />
                             {user.phoneNumber}
                           </span>
                         ) : null}
                         {user.authProvider && user.authProvider !== "EMAIL" ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-[13px] text-muted-foreground">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[13px] text-muted-foreground">
                             <span className={`h-2 w-2 flex-none rounded-full ${user.authProvider === "KAKAO" ? "bg-[#FEE500]" : user.authProvider === "NAVER" ? "bg-[#03C75A]" : "bg-[#4285F4]"}`} aria-hidden />
                             {user.authProvider === "KAKAO" ? "Kakao" : user.authProvider === "NAVER" ? "Naver" : "Google"}
                           </span>
