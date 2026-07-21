@@ -37,7 +37,7 @@ import { SelectInterviewSlotModal } from "../interviews/SelectInterviewSlotModal
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import type { PlatformLocale } from "../../lib/auth-messages";
 import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
-import { SealCheck as BadgeCheck, Bookmark, Briefcase, FileText, Globe, Handshake, SquaresFour as LayoutGrid, List, Envelope as Mail, MapPin, Pencil, Phone, Star, Trash as Trash2 } from "@phosphor-icons/react";
+import { SealCheck as BadgeCheck, Bookmark, Briefcase, FileText, Globe, Handshake, SquaresFour as LayoutGrid, List, Envelope as Mail, MapPin, Pencil, Phone, Star, Trash as Trash2, Megaphone, CheckCircle } from "@phosphor-icons/react";
 import { getMySgcApplication, type SgcApplication } from "../../lib/sgc-event-client";
 import { paperlogy } from "../../lib/fonts";
 // 지원/즐겨찾기·파트너 올린 포지션 리스트는 '포지션 탐색'과 동일한 카드를 재사용.
@@ -921,6 +921,43 @@ export function ProfilePage() {
                       </span>
                       <p className="mt-3 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{favoritePositions.length}</p>
                       <p className="mt-0.5 text-[13px] text-muted-foreground">{tr("찜", "Saved", "收藏", "Đã lưu", "お気に入り", "Favorit")}</p>
+                    </button>
+                  </div>
+                ) : null}
+                {user.role === "PARTNER" && partnerOrg ? (
+                  <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                    <button
+                      type="button"
+                      onClick={() => selectActiveTab("positions")}
+                      className="group rounded-2xl bg-card p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated md:p-5"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0B46E8]/[0.08] text-[#0B46E8]">
+                        <Briefcase className="h-5 w-5" weight="duotone" aria-hidden />
+                      </span>
+                      <p className="mt-3 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{postedPositions.length}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">{tr("올린 공고", "Positions", "已发布职位", "Vị trí đã đăng", "掲載中の求人", "Posisi")}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectActiveTab("positions")}
+                      className="group rounded-2xl bg-card p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated md:p-5"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0B46E8]/[0.08] text-[#0B46E8]">
+                        <Megaphone className="h-5 w-5" weight="duotone" aria-hidden />
+                      </span>
+                      <p className="mt-3 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{postedPositions.filter((pp) => pp.status === "OPEN").length}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">{tr("모집 중", "Open", "招聘中", "Đang tuyển", "募集中", "Dibuka")}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectActiveTab("positions")}
+                      className="group rounded-2xl bg-card p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated md:p-5"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0B46E8]/[0.08] text-[#0B46E8]">
+                        <CheckCircle className="h-5 w-5" weight="duotone" aria-hidden />
+                      </span>
+                      <p className="mt-3 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{postedPositions.filter((pp) => pp.status === "CLOSED").length}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">{tr("마감", "Closed", "已截止", "Đã đóng", "締切", "Ditutup")}</p>
                     </button>
                   </div>
                 ) : null}
