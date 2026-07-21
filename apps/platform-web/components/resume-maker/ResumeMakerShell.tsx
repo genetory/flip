@@ -14,6 +14,7 @@ import { useResumePresence } from "../../lib/resume-maker-resumes";
 import { AiTicketStatusModal } from "./AiTicketStatusModal";
 import { ResumeMakerLanguageSwitch } from "./ResumeMakerLanguageSwitch";
 import { Footer } from "../site/Footer";
+import { Header } from "../site/Header";
 import { getActiveResumeId, setActiveResumeId } from "../../lib/resume-maker-active";
 import { RESUME_TOOLS_WIP } from "../../lib/resume-maker-flags";
 
@@ -141,7 +142,9 @@ export function ResumeMakerShell({
       className="flex min-h-screen flex-col bg-background font-sans text-foreground antialiased"
       style={{ ["--primary"]: "224 91% 48%", ["--accent"]: "224 91% 48%" } as CSSProperties}
     >
-      <header className="sticky top-0 z-40 border-b border-[#F2F4F6] bg-white print:hidden">
+      {/* 임베드(Career Launch)가 아니면 aply.global 메인 GNB를 그대로 얹는다. */}
+      {!embedded ? <Header /> : null}
+      <header className={`z-30 border-b border-[#F2F4F6] bg-white print:hidden ${embedded ? "sticky top-0 z-40" : "sticky top-14"}`}>
         <div className="container relative flex h-14 max-w-6xl items-center gap-3">
           {left ? <div className="flex shrink-0 items-center">{left}</div> : null}
           <div className="flex min-w-0 items-center gap-2">
@@ -153,11 +156,7 @@ export function ResumeMakerShell({
                 <ArrowLeft weight="bold" className="h-4 w-4" aria-hidden />
                 Career Launch
               </Link>
-            ) : (
-              <Link href="/" className="shrink-0">
-                <Image src="/img_logo.webp" alt="aply" width={180} height={48} className="h-6 w-auto md:h-7" priority />
-              </Link>
-            )}
+            ) : null}
           </div>
           {/* 상단 도구 네비 (데스크탑) — 세그먼트형 pill, 컨테이너 정중앙 고정. 프로그램 임베드 시 숨김. */}
           <nav className={`absolute left-1/2 -translate-x-1/2 items-center gap-1 rounded-full bg-[#F2F4F6] p-1 ${embedded ? "hidden" : "hidden md:flex"}`}>
@@ -194,7 +193,8 @@ export function ResumeMakerShell({
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <GnbTicket />
             {right}
-            <ResumeMakerLanguageSwitch />
+            {/* 언어 전환은 메인 GNB가 담당(임베드일 때만 여기 노출). */}
+            {embedded ? <ResumeMakerLanguageSwitch /> : null}
           </div>
         </div>
         {/* 상단 도구 네비 (모바일) — pill, 가운데 정렬, 넘치면 가로 스크롤. 프로그램 임베드 시 숨김. */}
