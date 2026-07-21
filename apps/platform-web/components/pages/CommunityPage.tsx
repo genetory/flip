@@ -1089,14 +1089,14 @@ export const CommunityPage = () => {
                       >
                         <p
                           className={`${paperlogy.className} text-xl md:text-2xl ${
-                            isActive ? "font-extrabold text-[#111111]" : "font-extrabold text-slate-300"
+                            isActive ? "font-extrabold text-[#0B46E8]" : "font-extrabold text-slate-300"
                           }`}
                         >
                           {category.label}
                         </p>
                         <span
                           className={`mt-1 block h-[2px] w-full transition-colors ${
-                            isActive ? "bg-[#111111]" : "bg-transparent"
+                            isActive ? "bg-[#0B46E8]" : "bg-transparent"
                           }`}
                         />
                       </button>
