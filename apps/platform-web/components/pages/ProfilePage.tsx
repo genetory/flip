@@ -1637,7 +1637,7 @@ const PostedPositionRow = ({
           <div className="flex items-center gap-1.5">
             {showStudentActions ? (
               <>
-                <Button variant="outline" size="icon" aria-label={tr("저장", "Save", "保存", "Lưu", "保存", "Simpan")} onClick={onToggleFavorite}>
+                <Button variant="outline" size="icon" className="h-9 w-9" aria-label={tr("저장", "Save", "保存", "Lưu", "保存", "Simpan")} onClick={onToggleFavorite}>
                   <Bookmark weight={isFavorite ? "fill" : "regular"} className={isFavorite ? "text-foreground" : ""} />
                 </Button>
                 {(() => {
@@ -1816,7 +1816,7 @@ const PostedPositionGridCard = ({
         {showStudentActions ? (
           <>
             <Button variant="outline" size="icon" aria-label={tr("저장", "Save", "保存", "Lưu", "保存", "Simpan")} onClick={onToggleFavorite}>
-              <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
+              <Bookmark weight={isFavorite ? "fill" : "regular"} className={isFavorite ? "text-foreground" : ""} />
             </Button>
             <Button
               variant="dark"
