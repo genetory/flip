@@ -11,6 +11,7 @@ import { FAQ } from "../site/FAQ";
 import { FinalCTA } from "../site/FinalCTA";
 import { Footer } from "../site/Footer";
 import { ProvenResults } from "../site/ProvenResults";
+import { RecommendedForYou } from "./RecommendedForYou";
 
 export function HomePage() {
   return (
@@ -19,6 +20,8 @@ export function HomePage() {
       <main>
         <CoverSection />
         <Hero />
+        {/* 로그인 학생에게만 노출되는 개인화 추천(비자 매칭). 비회원/무매칭이면 렌더 안 됨. */}
+        <RecommendedForYou />
         <Positions />
         <StudentProfile />
         <Scenario />
