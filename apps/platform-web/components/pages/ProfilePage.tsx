@@ -831,7 +831,7 @@ export function ProfilePage() {
                 </Link>
               ) : null}
 
-              <div className="rounded-2xl border border-border/50 bg-card shadow-card p-5 md:p-6">
+              <div className="rounded-2xl bg-card shadow-card p-5 md:p-6">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex min-w-0 flex-1 items-center gap-4">
                   {profileImage ? (
@@ -897,8 +897,8 @@ export function ProfilePage() {
               <div className="space-y-6">
                 {user.role === "PARTNER" ? (
                   partnerOrgChecked && !partnerOrg ? (
-                    <article className="space-y-5 rounded-2xl border border-border/50 bg-card shadow-card p-5 md:p-6">
-                      <div className="flex flex-col items-start gap-4 rounded-xl border border-dashed border-border/70 bg-muted/10 p-6 text-left">
+                    <article className="space-y-5 rounded-2xl bg-card shadow-card p-5 md:p-6">
+                      <div className="flex flex-col items-start gap-4 rounded-xl border border-dashed border-border/60 bg-muted/10 p-6 text-left">
                         <div>
                           <h3 className="text-base font-semibold">
                             {tr("아직 파트너로 등록되지 않았어요", "You haven't registered as a partner yet", "您还未注册为合作伙伴", "Bạn chưa đăng ký làm đối tác", "まだパートナーとして登録されていません", "Anda belum terdaftar sebagai mitra")}
@@ -920,8 +920,8 @@ export function ProfilePage() {
                       </div>
                     </article>
                   ) : (
-                  <article className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-card">
-                    <div className="flex items-center gap-1 overflow-x-auto border-b border-border/70 px-2 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <article className="overflow-hidden rounded-2xl bg-card shadow-card">
+                    <div className="flex items-center gap-1 overflow-x-auto border-b border-border/60 px-2 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <button
                         type="button"
                         onClick={() => selectActiveTab("info")}
@@ -1204,8 +1204,8 @@ export function ProfilePage() {
                   </article>
                   )
                 ) : user.role === "STUDENT" ? (
-                  <article className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-card">
-                    <div className="flex items-center gap-1 overflow-x-auto border-b border-border/70 px-2 pt-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <article className="overflow-hidden rounded-2xl bg-card shadow-card">
+                    <div className="flex items-center gap-1 overflow-x-auto border-b border-border/60 px-2 pt-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <button
                         type="button"
                         onClick={() => selectStudentTab("info")}
@@ -1409,7 +1409,7 @@ export function ProfilePage() {
                         </div>
 
                         {myResumes.length === 0 ? (
-                          <div className="rounded-2xl border border-dashed border-border bg-white px-5 py-12 text-center">
+                          <div className="rounded-2xl border border-dashed border-border/60 bg-white px-5 py-12 text-center">
                             <FileText className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" strokeWidth={1.5} />
                             <p className="text-sm text-muted-foreground">
                               {tr(
@@ -1423,7 +1423,7 @@ export function ProfilePage() {
                             </p>
                           </div>
                         ) : (
-                          <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-white">
+                          <div className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/50 bg-white">
                             {[...myResumes].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary)).map((r) => (
                               <div key={r.id} className="flex items-center gap-3 px-4 py-5 transition hover:bg-muted/40">
                                 <Link href={`/resume-maker/${r.id}/edit`} className="flex min-w-0 flex-1 items-center gap-3">
@@ -1503,7 +1503,7 @@ export function ProfilePage() {
 
                           if (source.length === 0) {
                             return (
-                              <div className="rounded-2xl border border-dashed border-border bg-white px-5 py-12 text-center">
+                              <div className="rounded-2xl border border-dashed border-border/60 bg-white px-5 py-12 text-center">
                                 {studentTab === "applied" ? (
                                   <Briefcase className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" aria-hidden />
                                 ) : (
@@ -1563,7 +1563,7 @@ export function ProfilePage() {
                   </article>
                 ) : null}
 
-                <article className="rounded-2xl border border-border/50 bg-card shadow-card">
+                <article className="rounded-2xl bg-card shadow-card">
                   <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between md:p-6">
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">{tr("로그아웃", "Log out", "退出登录", "Đăng xuất", "ログアウト", "Keluar")}</h3>
