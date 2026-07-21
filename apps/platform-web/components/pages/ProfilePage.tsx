@@ -1073,7 +1073,7 @@ export function ProfilePage() {
 
                                 {/* About */}
                                 <div className="border-t border-border/60 pt-5">
-                                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                  <p className="text-xs font-semibold text-muted-foreground">
                                     {tr("회사 소개", "About", "公司简介", "Giới thiệu", "会社紹介", "Tentang")}
                                   </p>
                                   {partnerOrg?.description?.trim() ? (
@@ -1096,7 +1096,7 @@ export function ProfilePage() {
 
                                 {/* Photos */}
                                 <div className="border-t border-border/60 pt-5">
-                                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                  <p className="text-xs font-semibold text-muted-foreground">
                                     {tr("사진", "Photos", "照片", "Hình ảnh", "写真", "Foto")}
                                   </p>
                                   {additionalCompanyImages.length > 0 ? (
@@ -1297,7 +1297,7 @@ export function ProfilePage() {
                       <div className="space-y-6">
                         {/* About — 자기소개 */}
                         <div className="pt-1">
-                          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                          <p className="text-xs font-semibold text-muted-foreground">
                             {tr("자기 소개", "About me", "自我介绍", "Giới thiệu bản thân", "自己紹介", "Tentang saya")}
                           </p>
                           {studentProfile?.selfIntroduction?.trim() ? (
@@ -1320,7 +1320,7 @@ export function ProfilePage() {
 
                         {/* 상세 정보 */}
                         <div className="border-t border-border/60 pt-5">
-                          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                          <p className="text-xs font-semibold text-muted-foreground">
                             {tr("상세 정보", "Details", "详细信息", "Thông tin chi tiết", "詳細情報", "Detail")}
                           </p>
                           <div className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
