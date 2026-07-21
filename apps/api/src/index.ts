@@ -15637,6 +15637,59 @@ app.get("/career-launch/progress", authenticate, requireCareerEnrollment, async 
 
 // PATCH /career-launch/progress — 제공된 키만 얕게 병합해 저장(부분 갱신).
 const progressPatchSchema = z.record(z.string(), z.unknown());
+// 완주 시 수료증 자동 발급 — 모의면접 3라운드 + 이력서 + 자소서 완성이면 수료증 생성(중복 방지) + 알림.
+async function maybeAutoIssueCareerCertificate(userId: string, state: Record<string, unknown>) {
+  try {
+    const interview = (state.interview && typeof state.interview === "object" ? state.interview : {}) as { practiced?: unknown };
+    const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]) : [];
+    if (practiced.length < 3) return;
+
+    const [resume, cover] = await Promise.all([
+      prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true } }),
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId }, select: { content: true } })
+    ]);
+    const rc = (resume?.content ?? {}) as Record<string, unknown>;
+    const cc = (cover?.content ?? {}) as Record<string, unknown>;
+    const hasResume =
+      (Array.isArray(rc.educations) && rc.educations.length > 0) ||
+      (Array.isArray(rc.experiences) && rc.experiences.length > 0) ||
+      (Array.isArray(rc.skills) && rc.skills.length > 0) ||
+      Boolean((rc.basic as { name?: string } | undefined)?.name);
+    const coverItems = Array.isArray(cc.items) ? (cc.items as { answer?: string }[]).filter((x) => (x.answer ?? "").trim()).length : 0;
+    if (!hasResume || coverItems === 0) return;
+
+    const enrollment = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, orderBy: { createdAt: "desc" }, select: { cohortId: true } });
+    if (!enrollment?.cohortId) return;
+    const cohortId = enrollment.cohortId;
+
+    const existing = await prisma.careerLaunchCertificate.findUnique({ where: { cohortId_studentUserId: { cohortId, studentUserId: userId } } });
+    if (existing) return;
+
+    const seq = (await prisma.careerLaunchCertificate.count({ where: { cohortId } })) + 1;
+    const certificateNo = `APLY-CL-${cohortId.slice(0, 8).toUpperCase()}-${String(seq).padStart(3, "0")}`;
+    await prisma.careerLaunchCertificate.create({ data: { cohortId, studentUserId: userId, certificateNo, issuedByUserId: null } }).catch(() => {});
+
+    void createNotification({ userId, type: "CAREER_CERTIFICATE_ISSUED", title: "Career Launch 수료증이 발급되었어요", message: certificateNo, linkPath: "/career-launch/dashboard" });
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (u?.email) {
+      void sendNotificationEmail({
+        toUser: { id: userId, email: u.email },
+        subject: "[Aply] Career Launch 수료증 발급",
+        previewText: "프로그램을 완주하여 수료증이 발급되었어요",
+        title: "수료증 발급",
+        headline: "Career Launch를 완주하셨어요!",
+        bodyText: `축하합니다! 4주 프로그램을 완주하여 수료증(${certificateNo})이 발급되었습니다. 취업 성과 설문에도 참여해 주세요.`,
+        ctaLabel: "수료증·설문 보기",
+        ctaPath: "/career-launch/survey",
+        footerNote: "본 메일은 Career Launch 프로그램 완주에 따라 발송되는 알림입니다.",
+        logKey: "career_certificate_email"
+      });
+    }
+  } catch (error) {
+    console.error("auto_certificate_failed", { error: getErrorMessage(error) });
+  }
+}
+
 app.patch("/career-launch/progress", authenticate, requireCareerEnrollment, async (req, res) => {
   const parsed = progressPatchSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
@@ -15668,7 +15721,63 @@ app.patch("/career-launch/progress", authenticate, requireCareerEnrollment, asyn
       create: { studentUserId: req.auth!.userId, state: merged as object },
       update: { state: merged as object }
     });
+    // 완주 조건 충족 시 수료증 자동 발급(중복은 내부에서 방지).
+    void maybeAutoIssueCareerCertificate(req.auth!.userId, merged as Record<string, unknown>);
     return res.json({ ok: true, state: merged });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 취업 성과 설문(수료생 자기 보고) ──
+// GET: 내 수료증 발급 여부 + 이미 제출한 성과. POST: 취업 상태 자기 보고(자기 기록으로 upsert).
+app.get("/career-launch/me/employment-status", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const enrollment = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, orderBy: { createdAt: "desc" }, select: { cohortId: true } });
+    const cohortId = enrollment?.cohortId ?? null;
+    const [cert, outcome] = await Promise.all([
+      cohortId ? prisma.careerLaunchCertificate.findUnique({ where: { cohortId_studentUserId: { cohortId, studentUserId: userId } }, select: { certificateNo: true, issuedAt: true } }) : Promise.resolve(null),
+      prisma.careerEmploymentOutcome.findFirst({ where: { studentUserId: userId, createdByUserId: userId }, orderBy: { updatedAt: "desc" }, select: { status: true, companyName: true, positionTitle: true, updatedAt: true } })
+    ]);
+    return res.json({ ok: true, certificate: cert, outcome });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const employmentSurveySchema = z.object({
+  status: z.enum(["SEARCHING", "INTERVIEW", "OFFER", "HIRED"]),
+  companyName: z.string().trim().max(200).optional(),
+  positionTitle: z.string().trim().max(200).optional()
+});
+app.post("/career-launch/me/employment-status", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = employmentSurveySchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  const d = parsed.data;
+  if (d.status !== "SEARCHING" && !d.companyName?.trim()) {
+    return res.status(400).json({ ok: false, message: "회사명을 입력해 주세요." });
+  }
+  try {
+    const userId = req.auth!.userId;
+    const enrollment = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, orderBy: { createdAt: "desc" }, select: { cohortId: true } });
+    const status = d.status === "SEARCHING" ? "APPLIED" : d.status; // SEARCHING → APPLIED 로 저장
+    const companyName = d.status === "SEARCHING" ? "구직 중" : (d.companyName?.trim() || "-");
+    const decidedAt = d.status === "HIRED" || d.status === "OFFER" ? new Date() : null;
+
+    // 자기 기록(자기 보고) 1건을 upsert — 있으면 갱신, 없으면 생성.
+    const existing = await prisma.careerEmploymentOutcome.findFirst({ where: { studentUserId: userId, createdByUserId: userId }, select: { id: true } });
+    if (existing) {
+      await prisma.careerEmploymentOutcome.update({
+        where: { id: existing.id },
+        data: { status, companyName, positionTitle: d.positionTitle?.trim() || null, cohortId: enrollment?.cohortId ?? null, source: "SELF_REPORT", decidedAt }
+      });
+    } else {
+      await prisma.careerEmploymentOutcome.create({
+        data: { studentUserId: userId, cohortId: enrollment?.cohortId ?? null, status, companyName, positionTitle: d.positionTitle?.trim() || null, source: "SELF_REPORT", createdByUserId: userId, decidedAt }
+      });
+    }
+    return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
