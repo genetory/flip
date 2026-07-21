@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "@phosphor-icons/react";
+import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 import { Footer } from "../../../components/site/Footer";
 import { Header } from "../../../components/site/Header";
 import { CompanyPositionsSection } from "../../../components/pages/CompanyPositionsSection";
