@@ -348,7 +348,7 @@ const PositionRow = ({
               className="block h-full w-full object-cover"
             />
           ) : (
-            <div className="grid h-full w-full place-items-center bg-muted font-display text-2xl font-bold leading-none text-muted-foreground">
+            <div className="grid h-full w-full place-items-center bg-[#EEF4FF] font-display text-2xl font-bold leading-none text-[#0B46E8]/45">
               {p.initial}
             </div>
           )}
@@ -441,7 +441,7 @@ const PositionGridCard = ({
         {p.thumbnailUrl ? (
           <img src={p.thumbnailUrl} alt={`${p.company} ${copy.thumbnailSuffix}`} className="block aspect-[16/9] w-full rounded-xl object-cover" />
         ) : (
-          <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-4xl font-bold text-muted-foreground">
+          <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-[#EEF4FF] font-display text-4xl font-bold text-[#0B46E8]/45">
             {p.initial}
           </div>
         )}

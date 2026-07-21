@@ -880,6 +880,40 @@ export function PositionsPage() {
               </div>
               )}
 
+              {/* 퀵 필터 칩 — 자주 쓰는 필터(내 비자·근무형태)를 목록 위에서 바로 토글 */}
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                {isAuthenticated && user?.role === "STUDENT" ? (
+                  <button
+                    type="button"
+                    onClick={() => setOnlyMyVisaEligible((v) => !v)}
+                    aria-pressed={onlyMyVisaEligible}
+                    className={`inline-flex h-8 items-center rounded-full px-3.5 text-[13px] font-semibold transition ${
+                      onlyMyVisaEligible ? "bg-[#0B46E8] text-white" : "bg-[#EEF4FF] text-[#0B46E8] hover:bg-[#DBEAFE]"
+                    }`}
+                  >
+                    {copy.myVisaOnly}
+                  </button>
+                ) : null}
+                {workTypeOptions.map((wt) => {
+                  const active = workTypes.includes(wt);
+                  return (
+                    <button
+                      key={wt}
+                      type="button"
+                      onClick={() =>
+                        setWorkTypes((prev) => (prev.includes(wt) ? prev.filter((x) => x !== wt) : [...prev, wt]))
+                      }
+                      aria-pressed={active}
+                      className={`inline-flex h-8 items-center rounded-full px-3.5 text-[13px] font-medium transition ${
+                        active ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:bg-muted/70"
+                      }`}
+                    >
+                      {workTypeLabel(wt, locale)}
+                    </button>
+                  );
+                })}
+              </div>
+
               {selectedFilterChips.length > 0 ? (
                 <div className="mb-4 flex flex-wrap items-center gap-2">
                   <button
@@ -1391,7 +1425,7 @@ export const PositionRow = ({
               className="block h-full w-full object-cover"
             />
           ) : (
-            <div className={`grid h-full w-full place-items-center bg-muted font-display font-bold leading-none text-muted-foreground ${compact ? "text-xl" : "text-2xl"}`}>
+            <div className={`grid h-full w-full place-items-center bg-[#EEF4FF] font-display font-bold leading-none text-[#0B46E8]/45 ${compact ? "text-xl" : "text-2xl"}`}>
               {p.initial}
             </div>
           )}
@@ -1585,7 +1619,7 @@ export const PositionGridCard = ({
         {p.thumbnailUrl ? (
           <img src={p.thumbnailUrl} alt={`${p.company} ${copy.thumbnailSuffix}`} className="block aspect-[16/9] w-full rounded-xl object-cover" />
         ) : (
-          <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-4xl font-bold text-muted-foreground">
+          <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-[#EEF4FF] font-display text-4xl font-bold text-[#0B46E8]/45">
             {p.initial}
           </div>
         )}

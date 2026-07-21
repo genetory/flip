@@ -637,7 +637,7 @@ export function PositionDetailPage({
                 <span className={`absolute left-2 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge.className}`}>
                   {statusBadge.label}
                 </span>
-                <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-5xl font-bold text-muted-foreground">
+                <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-[#EEF4FF] font-display text-5xl font-bold text-[#0B46E8]/45">
                   {initial}
                 </div>
               </div>
