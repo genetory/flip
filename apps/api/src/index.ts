@@ -21313,10 +21313,28 @@ app.post(
         return res.status(400).json({ ok: false, message: "종료된 지원에는 면접 일정을 제안할 수 없습니다." });
       }
 
+      // 면접 제안 시간은 30분 그리드에 맞고(시작·종료 모두), 서로 겹치지 않아야 한다.
+      const HALF_HOUR_MS = 30 * 60 * 1000;
+      const proposedRanges: { start: number; end: number }[] = [];
       for (const slot of parsed.data.slots) {
-        if (new Date(slot.endsAt) <= new Date(slot.startsAt)) {
+        const start = new Date(slot.startsAt);
+        const end = new Date(slot.endsAt);
+        if (end <= start) {
           return res.status(400).json({ ok: false, message: "endsAt must be after startsAt" });
         }
+        // 30분 경계 확인(한국 표준시는 정시 오프셋이라 UTC 분값이 로컬과 일치).
+        if (start.getUTCMinutes() % 30 !== 0 || start.getUTCSeconds() !== 0 || end.getUTCMinutes() % 30 !== 0 || end.getUTCSeconds() !== 0) {
+          return res.status(400).json({ ok: false, message: "면접 시간은 30분 단위여야 합니다." });
+        }
+        const startMs = start.getTime();
+        const endMs = end.getTime();
+        if ((endMs - startMs) % HALF_HOUR_MS !== 0) {
+          return res.status(400).json({ ok: false, message: "면접 시간은 30분 단위여야 합니다." });
+        }
+        if (proposedRanges.some((r) => startMs < r.end && endMs > r.start)) {
+          return res.status(400).json({ ok: false, message: "제안한 면접 시간이 서로 겹칩니다." });
+        }
+        proposedRanges.push({ start: startMs, end: endMs });
       }
 
       const created = await prisma.$transaction(async (tx) => {
