@@ -40,6 +40,8 @@ import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
 import { SealCheck as BadgeCheck, Bookmark, Briefcase, FileText, Globe, Handshake, SquaresFour as LayoutGrid, List, Envelope as Mail, MapPin, Pencil, Phone, Star, Trash as Trash2 } from "@phosphor-icons/react";
 import { getMySgcApplication, type SgcApplication } from "../../lib/sgc-event-client";
 import { paperlogy } from "../../lib/fonts";
+// 지원/즐겨찾기 탭의 포지션 리스트는 '포지션 탐색'과 동일한 카드(PositionRow)를 재사용.
+import { PositionRow, mapPublicPositionToCard } from "./PositionsPage";
 
 const PROFILE_SQUIRCLE_CLIP_ID = "profile-page-squircle-clip";
 const PROFILE_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
@@ -1475,34 +1477,67 @@ export function ProfilePage() {
                             <div className="space-y-3">
                               {source.map((item) => {
                                 const app = studentTab === "applied" ? applicationByPositionId.get(item.id) : null;
+                                const statusLabel = app
+                                  ? app.status === "INTERVIEW"
+                                    ? tr("면접 예정", "Interview", "面试预定", "Phỏng vấn", "面接予定", "Wawancara")
+                                    : app.status === "ACCEPTED"
+                                      ? tr("합격", "Accepted", "录用", "Đã đậu", "合格", "Diterima")
+                                      : app.status === "REJECTED"
+                                        ? tr("불합격", "Not accepted", "未录用", "Không đậu", "不合格", "Tidak diterima")
+                                        : app.status === "WITHDRAWN"
+                                          ? tr("철회됨", "Withdrawn", "已撤回", "Đã rút", "取り下げ", "Ditarik")
+                                          : tr("검토 중", "Under review", "审核中", "Đang xem xét", "審査中", "Sedang ditinjau")
+                                  : "";
+                                const statusTone = app
+                                  ? app.status === "ACCEPTED"
+                                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                    : app.status === "INTERVIEW"
+                                      ? "border-[#0B46E8]/30 bg-[#0B46E8]/[0.06] text-[#0B46E8]"
+                                      : app.status === "REJECTED"
+                                        ? "border-rose-300 bg-rose-50 text-rose-700"
+                                        : app.status === "WITHDRAWN"
+                                          ? "border-zinc-300 bg-zinc-100 text-zinc-500"
+                                          : "border-zinc-300 bg-zinc-100 text-zinc-600"
+                                  : "";
+                                const canWithdraw = app && app.status !== "ACCEPTED" && app.status !== "WITHDRAWN";
                                 return (
                                   <div key={item.id} className="space-y-2">
-                                    {app?.status === "INTERVIEW" ? (
-                                      <div className="flex items-center justify-end gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() => setInterviewTarget(app)}
-                                          className="text-[11px] font-semibold text-primary hover:underline"
-                                        >
-                                          {tr("면접 일정 선택", "Select interview slot", "选择面试时间", "Chọn lịch phỏng vấn", "面接日程を選択", "Pilih jadwal wawancara")}
-                                        </button>
+                                    {app ? (
+                                      <div className="flex items-center justify-between gap-2 px-1">
+                                        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${statusTone}`}>{statusLabel}</span>
+                                        <div className="flex items-center gap-3">
+                                          {app.status === "INTERVIEW" ? (
+                                            <button type="button" onClick={() => setInterviewTarget(app)} className="text-[11px] font-semibold text-[#0B46E8] hover:underline">
+                                              {tr("면접 일정 선택", "Select interview slot", "选择面试时间", "Chọn lịch phỏng vấn", "面接日程を選択", "Pilih jadwal wawancara")}
+                                            </button>
+                                          ) : null}
+                                          {canWithdraw ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => void handleWithdraw(app)}
+                                              disabled={withdrawingId === app.id}
+                                              className="text-[11px] font-semibold text-muted-foreground transition hover:text-rose-600 hover:underline disabled:opacity-50"
+                                            >
+                                              {tr("지원 철회", "Withdraw", "撤回申请", "Rút đơn", "応募取り下げ", "Tarik lamaran")}
+                                            </button>
+                                          ) : null}
+                                        </div>
                                       </div>
                                     ) : null}
-                                    <PostedPositionRow
-                                      item={item}
-                                      canEdit={false}
-                                      showStudentActions
-                                      isFavorite={favoriteIdSet.has(item.id)}
+                                    <PositionRow
+                                      p={mapPublicPositionToCard(item, locale)}
+                                      isOwnPartnerPosting={false}
+                                      isStudentUser={user.role === "STUDENT"}
                                       isApplied={appliedIdSet.has(item.id)}
-                                      applicationStatus={app?.status ?? null}
-                                      isWithdrawing={app ? withdrawingId === app.id : false}
+                                      isFavorite={favoriteIdSet.has(item.id)}
                                       onToggleFavorite={() => {
                                         void toggleStudentFavorite(item.id);
                                       }}
                                       onApply={() => {
                                         void applyFromStudentFavorite(item.id);
                                       }}
-                                      onWithdraw={app ? () => void handleWithdraw(app) : undefined}
+                                      onShowCip={() => {}}
+                                      locale={locale}
                                     />
                                   </div>
                                 );
