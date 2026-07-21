@@ -37,7 +37,7 @@ import { SelectInterviewSlotModal } from "../interviews/SelectInterviewSlotModal
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import type { PlatformLocale } from "../../lib/auth-messages";
 import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
-import { BadgeCheck, Bookmark, Briefcase, FileText, Globe, Handshake, LayoutGrid, List, Mail, MapPin, Pencil, Phone, Star, Trash2 } from "lucide-react";
+import { SealCheck as BadgeCheck, Bookmark, Briefcase, FileText, Globe, Handshake, SquaresFour as LayoutGrid, List, Envelope as Mail, MapPin, Pencil, Phone, Star, Trash as Trash2 } from "@phosphor-icons/react";
 import { getMySgcApplication, type SgcApplication } from "../../lib/sgc-event-client";
 
 const PROFILE_SQUIRCLE_CLIP_ID = "profile-page-squircle-clip";
@@ -831,7 +831,7 @@ export function ProfilePage() {
                 </Link>
               ) : null}
 
-              <div className="rounded-2xl border border-border/70 bg-card p-5 md:p-6">
+              <div className="rounded-2xl border border-border/50 bg-card shadow-card p-5 md:p-6">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex min-w-0 flex-1 items-center gap-4">
                   {profileImage ? (
@@ -897,7 +897,7 @@ export function ProfilePage() {
               <div className="space-y-6">
                 {user.role === "PARTNER" ? (
                   partnerOrgChecked && !partnerOrg ? (
-                    <article className="space-y-5 rounded-2xl border border-border/70 bg-card p-5 md:p-6">
+                    <article className="space-y-5 rounded-2xl border border-border/50 bg-card shadow-card p-5 md:p-6">
                       <div className="flex flex-col items-start gap-4 rounded-xl border border-dashed border-border/70 bg-muted/10 p-6 text-left">
                         <div>
                           <h3 className="text-base font-semibold">
@@ -920,13 +920,13 @@ export function ProfilePage() {
                       </div>
                     </article>
                   ) : (
-                  <article className="overflow-hidden rounded-2xl border border-border/70 bg-card">
+                  <article className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-card">
                     <div className="flex items-center gap-1 overflow-x-auto border-b border-border/70 px-2 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <button
                         type="button"
                         onClick={() => selectActiveTab("info")}
                         className={`relative px-4 py-3 text-sm font-medium transition-colors ${
-                          activeTab === "info" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          activeTab === "info" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("정보", "Info", "信息", "Thông tin", "情報", "Info")}
@@ -935,7 +935,7 @@ export function ProfilePage() {
                         type="button"
                         onClick={() => selectActiveTab("positions")}
                         className={`relative px-4 py-3 text-sm font-medium transition-colors ${
-                          activeTab === "positions" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          activeTab === "positions" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("올려진 포지션", "Posted positions", "已发布的职位", "Vị trí đã đăng", "掲載中のポジション", "Posisi yang diposting")}
@@ -944,7 +944,7 @@ export function ProfilePage() {
                         type="button"
                         onClick={() => selectActiveTab("notifications")}
                         className={`relative px-4 py-3 text-sm font-medium transition-colors ${
-                          activeTab === "notifications" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          activeTab === "notifications" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("알림", "Notifications", "通知", "Thông báo", "通知", "Notifikasi")}
@@ -1204,13 +1204,13 @@ export function ProfilePage() {
                   </article>
                   )
                 ) : user.role === "STUDENT" ? (
-                  <article className="overflow-hidden rounded-2xl border border-border/70 bg-card">
+                  <article className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-card">
                     <div className="flex items-center gap-1 overflow-x-auto border-b border-border/70 px-2 pt-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <button
                         type="button"
                         onClick={() => selectStudentTab("info")}
                         className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
-                          studentTab === "info" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          studentTab === "info" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("정보", "Info", "信息", "Thông tin", "情報", "Info")}
@@ -1219,7 +1219,7 @@ export function ProfilePage() {
                         type="button"
                         onClick={() => selectStudentTab("resume")}
                         className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
-                          studentTab === "resume" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          studentTab === "resume" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("이력서 관리", "Resumes", "简历管理", "Quản lý hồ sơ", "履歴書管理", "Resumes")}
@@ -1228,7 +1228,7 @@ export function ProfilePage() {
                         type="button"
                         onClick={() => selectStudentTab("applied")}
                         className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
-                          studentTab === "applied" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          studentTab === "applied" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("지원한 포지션", "Applied positions", "已申请的职位", "Vị trí đã ứng tuyển", "応募したポジション", "Posisi yang dilamar")}
@@ -1237,7 +1237,7 @@ export function ProfilePage() {
                         type="button"
                         onClick={() => selectStudentTab("favorites")}
                         className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
-                          studentTab === "favorites" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          studentTab === "favorites" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("즐겨찾기한 포지션", "Favorite positions", "收藏的职位", "Vị trí đã lưu", "お気に入りのポジション", "Posisi favorit")}
@@ -1247,7 +1247,7 @@ export function ProfilePage() {
                           type="button"
                           onClick={() => selectStudentTab("sgc")}
                           className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
-                            studentTab === "sgc" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                            studentTab === "sgc" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                           }`}
                         >
                           <span className="inline-flex items-center gap-1.5">
@@ -1435,7 +1435,7 @@ export function ProfilePage() {
                                       <span className="truncate text-[17px] font-semibold text-foreground">{r.title}</span>
                                       {r.isPrimary ? (
                                         <span className="inline-flex flex-none items-center gap-1 rounded-full bg-[#b7ff5a] px-2 py-0.5 text-[11px] font-semibold text-[#111111]">
-                                          <Star className="h-3 w-3 fill-current" />
+                                          <Star className="h-3 w-3" weight="fill" />
                                           {tr("대표", "Primary", "代表", "Đại diện", "代表", "Utama")}
                                         </span>
                                       ) : null}
@@ -1552,7 +1552,7 @@ export function ProfilePage() {
                   </article>
                 ) : null}
 
-                <article className="rounded-2xl border border-border/70 bg-card">
+                <article className="rounded-2xl border border-border/50 bg-card shadow-card">
                   <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between md:p-6">
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">{tr("로그아웃", "Log out", "退出登录", "Đăng xuất", "ログアウト", "Keluar")}</h3>
@@ -1674,7 +1674,7 @@ const PostedPositionRow = ({
             {showStudentActions ? (
               <>
                 <Button variant="outline" size="icon" aria-label={tr("저장", "Save", "保存", "Lưu", "保存", "Simpan")} onClick={onToggleFavorite}>
-                  <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
+                  <Bookmark weight={isFavorite ? "fill" : "regular"} className={isFavorite ? "text-foreground" : ""} />
                 </Button>
                 {(() => {
                   // Crawled (EXTERNAL) postings — 원티드 / 버디즈 / 기타 외부 —
