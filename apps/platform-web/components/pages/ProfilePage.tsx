@@ -40,8 +40,8 @@ import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
 import { SealCheck as BadgeCheck, Bookmark, Briefcase, FileText, Globe, Handshake, SquaresFour as LayoutGrid, List, Envelope as Mail, MapPin, Pencil, Phone, Star, Trash as Trash2 } from "@phosphor-icons/react";
 import { getMySgcApplication, type SgcApplication } from "../../lib/sgc-event-client";
 import { paperlogy } from "../../lib/fonts";
-// 지원/즐겨찾기 탭의 포지션 리스트는 '포지션 탐색'과 동일한 카드(PositionRow)를 재사용.
-import { PositionRow, mapPublicPositionToCard } from "./PositionsPage";
+// 지원/즐겨찾기·파트너 올린 포지션 리스트는 '포지션 탐색'과 동일한 카드를 재사용.
+import { PositionRow, PositionGridCard, mapPublicPositionToCard } from "./PositionsPage";
 
 const PROFILE_SQUIRCLE_CLIP_ID = "profile-page-squircle-clip";
 const PROFILE_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
@@ -1190,13 +1190,35 @@ export function ProfilePage() {
                         ) : postedViewMode === "grid" ? (
                           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                             {postedPositions.map((item) => (
-                              <PostedPositionGridCard key={item.id} item={item} canEdit={user.role === "PARTNER"} />
+                              <PositionGridCard
+                                key={item.id}
+                                p={mapPublicPositionToCard(item, locale)}
+                                isOwnPartnerPosting={user.role === "PARTNER"}
+                                isStudentUser={false}
+                                isApplied={false}
+                                isFavorite={false}
+                                onToggleFavorite={() => {}}
+                                onApply={() => {}}
+                                onShowCip={() => {}}
+                                locale={locale}
+                              />
                             ))}
                           </div>
                         ) : (
                           <div className="space-y-3">
                             {postedPositions.map((item) => (
-                              <PostedPositionRow key={item.id} item={item} canEdit={user.role === "PARTNER"} />
+                              <PositionRow
+                                key={item.id}
+                                p={mapPublicPositionToCard(item, locale)}
+                                isOwnPartnerPosting={user.role === "PARTNER"}
+                                isStudentUser={false}
+                                isApplied={false}
+                                isFavorite={false}
+                                onToggleFavorite={() => {}}
+                                onApply={() => {}}
+                                onShowCip={() => {}}
+                                locale={locale}
+                              />
                             ))}
                           </div>
                         )}

@@ -1438,9 +1438,12 @@ export const PositionRow = ({
         {compact ? null : (
         <div className="relative z-20 col-span-2 flex shrink-0 flex-row items-center justify-end gap-2 pt-1 md:col-span-1 md:mt-auto md:self-end md:pt-0">
           <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="icon" className="h-9 w-9" aria-label={copy.save} onClick={onToggleFavorite}>
-              <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
-            </Button>
+            {/* 자기 회사 공고에는 저장(북마크) 버튼을 노출하지 않는다. */}
+            {!isOwnPartnerPosting ? (
+              <Button variant="outline" size="icon" className="h-9 w-9" aria-label={copy.save} onClick={onToggleFavorite}>
+                <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
+              </Button>
+            ) : null}
             {isExternalSource(p.sourceKind) && p.sourceUrl ? (
               <Button
                 variant={p.sourceProvider === "WANTED" ? "outline" : "dark"}
@@ -1487,7 +1490,7 @@ export const PositionRow = ({
   );
 };
 
-const PositionGridCard = ({
+export const PositionGridCard = ({
   p,
   isOwnPartnerPosting,
   isStudentUser,
@@ -1608,9 +1611,11 @@ const PositionGridCard = ({
         <span className="inline-flex min-w-0 items-center gap-1 truncate"><Briefcase className="h-3 w-3 shrink-0" />{workTypeLabel(p.type, locale)}</span>
       </div>
       <div className="relative z-20 mt-auto flex items-center gap-2 pt-3">
-        <Button variant="outline" size="icon" className="h-9 w-9" aria-label={copy.save} onClick={onToggleFavorite}>
-          <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
-        </Button>
+        {!isOwnPartnerPosting ? (
+          <Button variant="outline" size="icon" className="h-9 w-9" aria-label={copy.save} onClick={onToggleFavorite}>
+            <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
+          </Button>
+        ) : null}
         {isExternalSource(p.sourceKind) && p.sourceUrl ? (
           <Button
             variant={p.sourceProvider === "WANTED" ? "outline" : "dark"}
