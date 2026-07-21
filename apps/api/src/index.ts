@@ -1156,6 +1156,7 @@ async function sendNotificationEmail(input: {
   ctaPath: string;
   footerNote: string;
   logKey: string;
+  headerLabel?: string;
 }) {
   const transporter = getSmtpTransporter();
   if (!transporter) return;
@@ -1196,7 +1197,7 @@ async function sendNotificationEmail(input: {
     locale: "ko",
     previewText: input.previewText,
     title: input.title,
-    headerLabel: "지원 알림",
+    headerLabel: input.headerLabel ?? "지원 알림",
     footerNote: input.footerNote,
     bodyHtml
   });
@@ -20778,6 +20779,67 @@ const updateIssueReportSchema = z.object({
   resolutionNote: z.string().trim().max(4000).nullable().optional()
 });
 
+const ISSUE_TYPE_LABEL_KO: Record<string, string> = {
+  NO_SHOW: "노쇼 (면접·면담 불참)",
+  BEHAVIOR: "행동·태도 문제",
+  DROPOUT: "참여 중단",
+  ATTITUDE: "커뮤니케이션 문제",
+  PAYMENT: "정산/결제 이슈",
+  OTHER: "기타"
+};
+
+// 이슈 신고 시 운영팀 전원에게 이메일(+info@flip-ers.com 참조)로 알린다.
+// 수신자별 이메일 수신 설정을 존중하고, 트래킹 참조는 sendNotificationEmail 이 자동 처리.
+async function notifyOperatorsIssueEmail(input: {
+  issueId: string;
+  type: string;
+  title: string;
+  description: string;
+  reporterUserId: string;
+  subjectUserId: string | null;
+  positionId: string | null;
+}) {
+  const [operators, reporter, subject, position] = await Promise.all([
+    prisma.user.findMany({ where: { role: MemberRole.OPERATOR }, select: { id: true, email: true } }),
+    prisma.user.findUnique({
+      where: { id: input.reporterUserId },
+      select: { name: true, realName: true, email: true, partnerOrganization: { select: { name: true } } }
+    }),
+    input.subjectUserId
+      ? prisma.user.findUnique({ where: { id: input.subjectUserId }, select: { name: true, realName: true, email: true } })
+      : Promise.resolve(null),
+    input.positionId
+      ? prisma.position.findUnique({ where: { id: input.positionId }, select: { title: true } })
+      : Promise.resolve(null)
+  ]);
+  if (operators.length === 0) return;
+
+  const reporterName = reporter?.name || reporter?.realName || reporter?.email || "알 수 없음";
+  const orgName = reporter?.partnerOrganization?.name;
+  const reporterLine = orgName ? `${reporterName} · ${orgName}` : reporterName;
+  const subjectName = subject ? subject.name || subject.realName || subject.email || "-" : null;
+  const typeLabel = ISSUE_TYPE_LABEL_KO[input.type] ?? input.type;
+
+  const contextParts = [`신고자: ${reporterLine}`];
+  if (subjectName) contextParts.push(`대상: ${subjectName}`);
+  if (position?.title) contextParts.push(`포지션: ${position.title}`);
+
+  await sendNotificationEmail({
+    bccUsers: operators,
+    headerLabel: "이슈 신고",
+    subject: `[이슈 신고] ${typeLabel} · ${input.title}`,
+    previewText: `${reporterLine} 님이 이슈를 신고했습니다.`,
+    title: "새 이슈가 신고되었습니다",
+    headline: `${typeLabel} · ${input.title}`,
+    contextLine: contextParts.join("  ·  "),
+    bodyText: input.description,
+    ctaLabel: "이슈 리포트에서 확인하기",
+    ctaPath: "/dashboard/ops/operations/issues",
+    footerNote: "이 메일은 파트너/지원자 이슈 신고 시 운영팀에 자동 발송됩니다.",
+    logKey: `issue-${input.issueId}`
+  });
+}
+
 app.post("/issues", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   const parsed = createIssueReportSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -20801,6 +20863,17 @@ app.post("/issues", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.P
       message: `${parsed.data.title}`,
       linkPath: "/dashboard/ops/operations/issues"
     });
+    // 지원/상태 자동화와 동일한 정책: 운영팀에 이메일 + info@flip-ers.com 참조로
+    // 트래킹까지 함께 보낸다(인앱 알림은 위 notifyOperators 로 이미 발생).
+    void notifyOperatorsIssueEmail({
+      issueId: created.id,
+      type: parsed.data.type,
+      title: parsed.data.title,
+      description: parsed.data.description,
+      reporterUserId: req.auth!.userId,
+      subjectUserId: parsed.data.subjectUserId ?? null,
+      positionId: parsed.data.positionId ?? null
+    }).catch(() => {});
     return res.status(201).json({ ok: true, item: created });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
