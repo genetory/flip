@@ -4,6 +4,10 @@ import Link from "next/link";
 import { PushPin, Clock } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { readAccessToken } from "../../../../lib/auth-client";
+import { useToast } from "../../../../components/toast/ToastProvider";
+
+// 상태 변경 시 지원자에게 알림이 나가는 상태(면접/합격/불합격) — 파트너에게 이를 알린다.
+const NOTIFY_STATUSES: ApplicationStatus[] = ["INTERVIEW", "ACCEPTED", "REJECTED"];
 import { getApplicationStatusLabel, type ApplicationStatus } from "../../../../lib/status-labels";
 import { ReportIssueModal } from "../../../../components/issues/ReportIssueModal";
 import { downloadCsv, formatCsvDate } from "../../../../lib/csv-export";
@@ -55,6 +59,7 @@ export default function PartnerApplicantsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkRunning, setBulkRunning] = useState(false);
+  const toast = useToast();
 
   // 리포트 등에서 ?status= / ?position= 로 딥링크되면 초기 필터를 맞춘다(useSearchParams 대신 window 로 읽어 Suspense 불필요).
   useEffect(() => {
@@ -96,10 +101,15 @@ export default function PartnerApplicantsPage() {
   }, []);
 
   async function updateStatus(applicationId: string, status: ApplicationStatus) {
-    // 합격·불합격은 지원자에게 통보되는 최종 결정 — 오클릭 방지용 확인.
-    if (status === "ACCEPTED" || status === "REJECTED") {
-      const label = status === "ACCEPTED" ? "합격" : "불합격";
-      if (!window.confirm(`이 지원자를 '${label}'(으)로 처리하시겠습니까?`)) return;
+    const label = STATUS_FLOW.find((s) => s.value === status)?.label ?? status;
+    const notifies = NOTIFY_STATUSES.includes(status);
+    // 변경 전 확인 — 지원자에게 알림이 나간다는 것을 명확히 알린다(특히 합격/불합격).
+    if (notifies) {
+      const msg =
+        status === "ACCEPTED" || status === "REJECTED"
+          ? `이 지원자를 '${label}'(으)로 처리할까요?\n지원자에게 결과 이메일·서비스 알림이 전송됩니다.`
+          : `상태를 '${label}'(으)로 변경할까요?\n지원자에게 이메일·서비스 알림이 전송됩니다.`;
+      if (!window.confirm(msg)) return;
     }
     setUpdating(applicationId);
     try {
@@ -116,8 +126,10 @@ export default function PartnerApplicantsPage() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       setItems((prev) => prev.map((it) => (it.id === applicationId ? { ...it, status } : it)));
       setActionError(null);
+      toast.success(notifies ? `'${label}'(으)로 변경했어요. 지원자에게 알림을 보냈어요.` : `'${label}'(으)로 변경했어요.`);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "상태 변경 실패");
+      toast.error("상태 변경에 실패했어요. 다시 시도해 주세요.");
     } finally {
       setUpdating(null);
     }
@@ -155,7 +167,10 @@ export default function PartnerApplicantsPage() {
   async function bulkUpdateStatus(status: ApplicationStatus) {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
-    if (!window.confirm(`선택한 ${ids.length}명을 '${STATUS_FLOW.find((s) => s.value === status)?.label ?? status}'(으)로 변경하시겠습니까?`)) return;
+    const label = STATUS_FLOW.find((s) => s.value === status)?.label ?? status;
+    const notifies = NOTIFY_STATUSES.includes(status);
+    const confirmMsg = `선택한 ${ids.length}명을 '${label}'(으)로 변경할까요?${notifies ? "\n각 지원자에게 이메일·서비스 알림이 전송됩니다." : ""}`;
+    if (!window.confirm(confirmMsg)) return;
     setBulkRunning(true);
     setActionError(null);
     try {
@@ -172,8 +187,10 @@ export default function PartnerApplicantsPage() {
       );
       setItems((prev) => prev.map((it) => (selectedIds.has(it.id) ? { ...it, status } : it)));
       setSelectedIds(new Set());
+      toast.success(notifies ? `${ids.length}명을 '${label}'(으)로 변경하고 알림을 보냈어요.` : `${ids.length}명을 '${label}'(으)로 변경했어요.`);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "일괄 상태 변경 실패");
+      toast.error("일괄 변경에 실패했어요. 다시 시도해 주세요.");
     } finally {
       setBulkRunning(false);
     }

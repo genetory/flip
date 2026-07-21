@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { readAccessToken } from "../../lib/auth-client";
 import { getApplicationStatusLabel, type ApplicationStatus } from "../../lib/status-labels";
+import { useToast } from "../toast/ToastProvider";
 import { ProposeInterviewSlotsModal } from "../interviews/ProposeInterviewSlotsModal";
 import { AssignmentManagerModal } from "../assignments/AssignmentManagerModal";
 import { ApplicationDocsModal } from "./ApplicationDocsModal";
@@ -173,7 +174,11 @@ type Comment = {
   author: { id: string; name: string | null; email: string; role: string };
 };
 
+// 상태 변경 시 지원자에게 이메일·서비스 알림이 나가는 상태.
+const DETAIL_NOTIFY_STATUSES: ApplicationStatus[] = ["INTERVIEW", "ACCEPTED", "REJECTED"];
+
 export function ApplicationDetailView({ applicationId, viewer }: Props) {
+  const toast = useToast();
   const [data, setData] = useState<ApplicationDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -235,6 +240,17 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
 
   async function updateStatus(nextStatus: ApplicationStatus) {
     if (!data) return;
+    const label = getApplicationStatusLabel(nextStatus, viewer).label;
+    const notifies = DETAIL_NOTIFY_STATUSES.includes(nextStatus);
+    // 변경 전 확인 — 지원자에게 알림(메모 포함)이 나간다는 것을 명확히 알린다.
+    if (notifies) {
+      const base =
+        nextStatus === "ACCEPTED" || nextStatus === "REJECTED"
+          ? `이 지원자를 '${label}'(으)로 처리할까요?`
+          : `상태를 '${label}'(으)로 변경할까요?`;
+      const memoNote = memoDraft.trim() ? "\n메모가 회사 메시지로 함께 전달됩니다." : "";
+      if (!window.confirm(`${base}\n지원자에게 이메일·서비스 알림이 전송됩니다.${memoNote}`)) return;
+    }
     setUpdating(true);
     setError(null);
     try {
@@ -245,8 +261,10 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       await load();
+      toast.success(notifies ? `'${label}'(으)로 변경했어요. 지원자에게 알림을 보냈어요.` : `'${label}'(으)로 변경했어요.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "상태 변경 실패");
+      toast.error("상태 변경에 실패했어요. 다시 시도해 주세요.");
     } finally {
       setUpdating(false);
     }
