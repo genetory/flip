@@ -34,14 +34,14 @@ import {
   MapPin,
   Briefcase,
   Bookmark,
-  ChevronDown,
+  CaretDown as ChevronDown,
   SlidersHorizontal,
-  LayoutGrid,
+  SquaresFour as LayoutGrid,
   List,
-  RotateCcw,
+  ArrowCounterClockwise as RotateCcw,
   Star,
   X
-} from "lucide-react";
+} from "@phosphor-icons/react";
 
 const FALLBACK_JOB_ROLES = Array.from(new Set(ALL_POSITIONS.map((position) => position.category)));
 const FALLBACK_WORK_TYPES = ["On-site", "Hybrid", "Remote"] as const;
@@ -1441,7 +1441,7 @@ export const PositionRow = ({
             {/* 자기 회사 공고에는 저장(북마크) 버튼을 노출하지 않는다. */}
             {!isOwnPartnerPosting ? (
               <Button variant="outline" size="icon" className="h-9 w-9" aria-label={copy.save} onClick={onToggleFavorite}>
-                <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
+                <Bookmark weight={isFavorite ? "fill" : "regular"} className={isFavorite ? "text-foreground" : ""} />
               </Button>
             ) : null}
             {isExternalSource(p.sourceKind) && p.sourceUrl ? (
@@ -1613,7 +1613,7 @@ export const PositionGridCard = ({
       <div className="relative z-20 mt-auto flex items-center gap-2 pt-3">
         {!isOwnPartnerPosting ? (
           <Button variant="outline" size="icon" className="h-9 w-9" aria-label={copy.save} onClick={onToggleFavorite}>
-            <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
+            <Bookmark weight={isFavorite ? "fill" : "regular"} className={isFavorite ? "text-foreground" : ""} />
           </Button>
         ) : null}
         {isExternalSource(p.sourceKind) && p.sourceUrl ? (

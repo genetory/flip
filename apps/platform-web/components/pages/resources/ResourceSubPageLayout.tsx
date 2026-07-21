@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ChevronLeft } from "lucide-react";
+import { CaretLeft as ChevronLeft } from "@phosphor-icons/react";
 import { Header } from "../../site/Header";
 import { Footer } from "../../site/Footer";
 import { useLanguage } from "../../i18n/LanguageProvider";

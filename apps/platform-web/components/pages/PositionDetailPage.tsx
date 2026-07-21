@@ -16,7 +16,7 @@ import {
   type PublicPositionListItem
 } from "../../lib/member-profile-client";
 import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
-import { ArrowLeft, Briefcase, ChevronLeft, ChevronRight, Loader2, MapPin } from "lucide-react";
+import { ArrowLeft, Briefcase, CaretLeft as ChevronLeft, CaretRight as ChevronRight, Spinner as Loader2, MapPin } from "@phosphor-icons/react";
 import { AplyCipBadgeButton, CipInfoModal } from "../positions/AplyCipBadge";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";

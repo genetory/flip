@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText } from "lucide-react";
+import { FileText } from "@phosphor-icons/react";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { ResourceSubPageLayout } from "./ResourceSubPageLayout";
 

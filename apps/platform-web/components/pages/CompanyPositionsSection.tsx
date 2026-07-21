@@ -15,7 +15,7 @@ import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { type Position } from "../../lib/positions-data";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { Button } from "../ui/button";
-import { Bookmark, Briefcase, LayoutGrid, List, MapPin } from "lucide-react";
+import { Bookmark, Briefcase, SquaresFour as LayoutGrid, List, MapPin } from "@phosphor-icons/react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
 type PositionCard = Position & { status: PublicPositionListItem["status"] };
@@ -376,7 +376,7 @@ const PositionRow = ({
         <div className="relative z-20 flex shrink-0 flex-row items-center justify-between gap-2 border-t border-border pt-1.5 md:mt-auto md:self-end md:border-0 md:pt-0">
           <div className="flex items-center gap-1.5">
             <Button variant="outline" size="icon" aria-label={copy.save} onClick={onToggleFavorite}>
-              <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
+              <Bookmark weight={isFavorite ? "fill" : "regular"} className={isFavorite ? "text-foreground" : ""} />
             </Button>
             {isOwnPartnerPosting ? (
               <Button variant="dark" size="sm" asChild>
@@ -465,7 +465,7 @@ const PositionGridCard = ({
       </div>
       <div className="relative z-20 mt-auto flex items-center gap-2 pt-3">
         <Button variant="outline" size="icon" aria-label={copy.save} onClick={onToggleFavorite}>
-          <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
+          <Bookmark weight={isFavorite ? "fill" : "regular"} className={isFavorite ? "text-foreground" : ""} />
         </Button>
         {isOwnPartnerPosting ? (
           <Button variant="dark" className="h-10 flex-1 text-sm" asChild>
