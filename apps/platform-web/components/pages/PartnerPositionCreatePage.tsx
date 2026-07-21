@@ -417,7 +417,7 @@ export function PartnerPositionCreatePage({
           window.alert(
             isOperator
               ? t("수정사항이 저장되었습니다.", "Changes saved.", "修改已保存。", "Đã lưu thay đổi.", "変更が保存されました。", "Perubahan disimpan.")
-              : t("수정사항이 저장되었고 어드민 관리자 승인 요청이 접수되었습니다.", "Changes were saved and sent for ops admin approval.", "修改已保存，并已提交管理员审批请求。", "Các thay đổi đã được lưu và gửi yêu cầu phê duyệt cho quản trị viên.", "変更が保存され、運営管理者への承認依頼が受け付けられました。", "Perubahan telah disimpan dan dikirim untuk persetujuan admin operasi.")
+              : t("수정사항이 저장되어 바로 반영되었습니다.", "Changes saved and published right away.", "修改已保存并立即生效。", "Các thay đổi đã được lưu và áp dụng ngay.", "変更が保存され、すぐに反映されました。", "Perubahan disimpan dan langsung diterapkan.")
           );
           router.push(`/positions/${encodeURIComponent(positionId)}`);
         }
@@ -429,7 +429,7 @@ export function PartnerPositionCreatePage({
           window.alert(
             isOperator
               ? t("포지션이 즉시 게시되었습니다.", "Position published.", "职位已立即发布。", "Vị trí đã được đăng ngay.", "ポジションが即時公開されました。", "Posisi langsung diterbitkan.")
-              : t("포지션이 등록되었고 어드민 관리자 승인 요청이 접수되었습니다.", "Position was created and sent for ops admin approval.", "职位已创建，并已提交管理员审批请求。", "Vị trí đã được tạo và gửi yêu cầu phê duyệt cho quản trị viên.", "ポジションが登録され、運営管理者への承認依頼が受け付けられました。", "Posisi telah dibuat dan dikirim untuk persetujuan admin operasi.")
+              : t("포지션이 등록되어 바로 게시되었습니다.", "Position created and published right away.", "职位已创建并立即发布。", "Vị trí đã được tạo và đăng ngay.", "ポジションが登録され、すぐに公開されました。", "Posisi dibuat dan langsung diterbitkan.")
           );
           router.push(`/positions/${encodeURIComponent(created.id)}`);
         }

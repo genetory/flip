@@ -19680,7 +19680,9 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER, M
   }
 
   try {
-    const nextStatus = isOperator ? PositionStatus.OPEN : PositionStatus.PENDING_REVIEW;
+    // 인증된 파트너(위 canPostPositions 게이트 통과)는 승인 라운드트립 없이 즉시 공개한다.
+    // 운영자도 동일하게 바로 OPEN. 미인증 파트너는 애초에 위에서 차단된다.
+    const nextStatus = PositionStatus.OPEN;
     const uploadedThumbnailImages = await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails");
     const created = await prisma.position.create({
       data: {
@@ -19710,7 +19712,7 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER, M
           create: {
             fromStatus: null,
             toStatus: nextStatus,
-            note: isOperator ? "운영자 공고 생성 (자동 승인)" : "파트너 공고 생성 (어드민 관리자 승인 대기)",
+            note: isOperator ? "운영자 공고 생성 (자동 공개)" : "파트너 공고 생성 (인증 파트너 즉시 공개)",
             createdByUserId: req.auth!.userId
           }
         }
@@ -19976,7 +19978,6 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
       "partner affiliation is required. request organization assignment."
     );
   }
-  const organizationId = affiliation.organization.id;
 
   const current = await prisma.position.findFirst({
     where: {
@@ -20067,58 +20068,42 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
         ? await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails")
         : undefined;
 
-    const normalizedPayload = {
-      ...parsed.data,
-      ...(uploadedThumbnailImages !== undefined
-        ? { thumbnailImages: uploadedThumbnailImages.slice(0, 5) }
-        : {}),
-      ...(parsed.data.eligibleVisas !== undefined ? { eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas) } : {}),
-      ...(parsed.data.preferredNationalities !== undefined
-        ? { preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities) }
-        : {}),
-      ...(parsed.data.communicationLanguages !== undefined
-        ? { communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages) }
-        : {})
-    };
-
-    await prisma.$transaction(async (tx) => {
-      await tx.positionRevision.updateMany({
-        where: {
-          positionId: current.id,
-          partnerOrganizationId: organizationId,
-          status: PositionRevisionStatus.PENDING
-        },
-        data: {
-          status: PositionRevisionStatus.REJECTED,
-          reviewNote: "새 수정요청으로 대체됨",
-          reviewedByUserId: req.auth!.userId,
-          reviewedAt: new Date()
-        }
-      });
-
-      await tx.positionRevision.create({
-        data: {
-          positionId: current.id,
-          partnerOrganizationId: organizationId,
-          requestedByUserId: req.auth!.userId,
-          status: PositionRevisionStatus.PENDING,
-          payload: normalizedPayload
-        }
-      });
-
-      await tx.positionStatusHistory.create({
-        data: {
-          positionId: current.id,
-          fromStatus: current.status,
-          toStatus: PositionStatus.PENDING_REVIEW,
-          note: "파트너 공고 수정 요청 (어드민 관리자 승인 대기)",
-          createdByUserId: req.auth!.userId
-        }
-      });
-    });
-
-    const latest = await prisma.position.findUnique({
+    // 인증된 파트너는 자기 회사 공고를 승인 라운드트립 없이 즉시 수정 반영한다
+    // (운영자 직접 수정과 동일한 필드 매핑). 상태는 현재 값을 유지한다.
+    const updated = await prisma.position.update({
       where: { id: current.id },
+      data: {
+        ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
+        ...(parsed.data.workType !== undefined ? { workType: parsed.data.workType } : {}),
+        ...(parsed.data.employmentType !== undefined ? { employmentType: parsed.data.employmentType } : {}),
+        ...(uploadedThumbnailImages !== undefined ? { thumbnailImages: uploadedThumbnailImages.slice(0, 5) } : {}),
+        ...(parsed.data.eligibleVisas !== undefined ? { eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas) } : {}),
+        ...(parsed.data.preferredNationalities !== undefined ? { preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities) } : {}),
+        ...(parsed.data.communicationLanguages !== undefined ? { communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages) } : {}),
+        ...(parsed.data.hiringProcess !== undefined ? { hiringProcess: parsed.data.hiringProcess } : {}),
+        ...(parsed.data.preferredJobRole !== undefined ? { preferredJobRole: parsed.data.preferredJobRole } : {}),
+        ...(parsed.data.hiringCount !== undefined ? { hiringCount: parsed.data.hiringCount } : {}),
+        ...(parsed.data.workingHours !== undefined ? { workingHours: parsed.data.workingHours } : {}),
+        ...(parsed.data.workLocation !== undefined ? { workLocation: parsed.data.workLocation } : {}),
+        ...(parsed.data.startDate !== undefined ? { startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null } : {}),
+        ...(parsed.data.mainResponsibilities !== undefined ? { mainResponsibilities: parsed.data.mainResponsibilities } : {}),
+        ...(parsed.data.requiredQualifications !== undefined ? { requiredQualifications: parsed.data.requiredQualifications } : {}),
+        ...(parsed.data.preferredQualifications !== undefined ? { preferredQualifications: parsed.data.preferredQualifications } : {}),
+        ...(parsed.data.dressCode !== undefined ? { dressCode: parsed.data.dressCode } : {}),
+        ...(parsed.data.wantsPreTraining !== undefined ? { wantsPreTraining: parsed.data.wantsPreTraining } : {}),
+        ...(parsed.data.additionalNotes !== undefined ? { additionalNotes: parsed.data.additionalNotes } : {}),
+        ...(parsed.data.employmentClassification !== undefined
+          ? { adminMemo: mergeEmploymentClassificationMeta(current.adminMemo, parsed.data.employmentClassification ?? null) }
+          : {}),
+        statusHistories: {
+          create: {
+            fromStatus: current.status,
+            toStatus: current.status,
+            note: "파트너 공고 수정 (인증 파트너 즉시 반영)",
+            createdByUserId: req.auth!.userId
+          }
+        }
+      },
       include: {
         partnerOrganization: { select: { id: true, name: true } },
         matchingParticipants: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
@@ -20126,8 +20111,10 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
         statusHistories: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } }
       }
     });
-    if (!latest) return res.status(404).json({ ok: false, message: "position not found" });
-    return res.json({ ok: true, item: toPosition(latest), message: "수정 요청이 접수되었습니다. 어드민 관리자 승인 후 반영됩니다." });
+    void embedAndSavePosition(prisma, updated.id).catch(() => {});
+    // 내용이 바뀌었으니 번역도 다시 예열한다(실패해도 조용히 무시 — 부가 작업).
+    void warmPositionTranslation(prisma, updated.id).catch(() => {});
+    return res.json({ ok: true, item: toPosition(updated), message: "수정되었습니다." });
   } catch (error) {
     console.error("[partner/positions][update][failed]", {
       positionId: id,
