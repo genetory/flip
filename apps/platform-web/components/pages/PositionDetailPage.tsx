@@ -459,12 +459,12 @@ export function PositionDetailPage({
     setApplyModalOpen(true);
   }
 
-  async function confirmApply(resumeId: string) {
+  async function confirmApply(resumeId: string, coverLetterId: string) {
     if (!position) return;
     setApplying(true);
     try {
       setAppliedPositionIds((prev) => (prev.includes(position.id) ? prev : [...prev, position.id]));
-      await applyMyPosition(position.id, resumeId);
+      await applyMyPosition(position.id, resumeId, coverLetterId);
       toast.success(copy.appliedAdded);
       setApplyModalOpen(false);
     } catch (error) {

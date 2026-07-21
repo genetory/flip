@@ -601,14 +601,14 @@ export function PositionsPage() {
     setApplyTargetId(positionId);
   }
 
-  async function confirmListApply(resumeId: string) {
+  async function confirmListApply(resumeId: string, coverLetterId: string) {
     const positionId = applyTargetId;
     if (!positionId) return;
     setApplyingList(true);
     const prevApplied = appliedIds;
     setAppliedIds([...appliedIds, positionId]);
     try {
-      await applyMyPosition(positionId, resumeId);
+      await applyMyPosition(positionId, resumeId, coverLetterId);
       toast.success(t("지원이 접수되었어요", "Application submitted", "已提交申请", "Đã nộp đơn", "応募が完了しました", "Lamaran terkirim"));
       setApplyTargetId(null);
     } catch (error) {

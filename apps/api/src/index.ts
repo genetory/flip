@@ -12735,7 +12735,7 @@ type ApplicationDocs = {
   coverLetterId: string | null;
   coverLetterSnapshot: Prisma.InputJsonValue | undefined;
 };
-async function snapshotApplicationDocs(userId: string, companyName: string | null, selectedResumeId?: string | null): Promise<ApplicationDocs> {
+async function snapshotApplicationDocs(userId: string, companyName: string | null, selectedResumeId?: string | null, selectedCoverLetterId?: string | null): Promise<ApplicationDocs> {
   // 이력서 — 지원자가 고른 이력서(본인 소유)가 있으면 우선, 없으면 대표→최근 순으로 폴백.
   const resume =
     (selectedResumeId
@@ -12744,24 +12744,27 @@ async function snapshotApplicationDocs(userId: string, companyName: string | nul
     (await prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { id: true, content: true } })) ??
     (await prisma.resume.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" }, select: { id: true, content: true } }));
 
-  // 자소서 — 회사명 일치(부분 포함, 대소문자 무시)하는 것만.
+  // 자소서 — 지원자가 고른 것(본인 소유) 우선, 없으면 회사명 일치, 그것도 없으면 최근 수정본.
   let coverLetterId: string | null = null;
   let coverLetterSnapshot: Prisma.InputJsonValue | undefined = undefined;
+  const allCls = await prisma.coverLetter.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, title: true, company: true, items: true }
+  });
   const company = (companyName ?? "").trim().toLowerCase();
-  if (company) {
-    const cls = await prisma.coverLetter.findMany({
-      where: { userId, company: { not: null } },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true, title: true, company: true, items: true }
-    });
-    const match = cls.find((c) => {
-      const cc = (c.company ?? "").trim().toLowerCase();
-      return cc && (cc.includes(company) || company.includes(cc));
-    });
-    if (match) {
-      coverLetterId = match.id;
-      coverLetterSnapshot = { title: match.title, company: match.company, items: match.items } as Prisma.InputJsonValue;
-    }
+  const chosenCl =
+    (selectedCoverLetterId ? allCls.find((c) => c.id === selectedCoverLetterId) : undefined) ??
+    (company
+      ? allCls.find((c) => {
+          const cc = (c.company ?? "").trim().toLowerCase();
+          return cc && (cc.includes(company) || company.includes(cc));
+        })
+      : undefined) ??
+    allCls[0];
+  if (chosenCl) {
+    coverLetterId = chosenCl.id;
+    coverLetterSnapshot = { title: chosenCl.title, company: chosenCl.company, items: chosenCl.items } as Prisma.InputJsonValue;
   }
 
   return {
@@ -12832,6 +12835,20 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
     return res.status(400).json({ ok: false, message: "현재 지원 가능한 포지션이 아닙니다." });
   }
 
+  // 지원 전제조건: 이력서와 자기소개서가 모두 작성되어 있어야 지원 가능.
+  const [resumeCount, coverLetterCount] = await Promise.all([
+    prisma.resume.count({ where: { userId } }),
+    prisma.coverLetter.count({ where: { userId } })
+  ]);
+  if (resumeCount === 0 || coverLetterCount === 0) {
+    return res.status(400).json({
+      ok: false,
+      code: "DOCUMENTS_REQUIRED",
+      missing: { resume: resumeCount === 0, coverLetter: coverLetterCount === 0 },
+      message: "지원하려면 이력서와 자기소개서를 먼저 작성해 주세요."
+    });
+  }
+
   try {
     const profile = await getOrCreateCandidateProfile(userId);
     const set = new Set(profile.appliedPositionIds ?? []);
@@ -12852,7 +12869,11 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
       typeof (req.body as { resumeId?: unknown } | undefined)?.resumeId === "string" && (req.body as { resumeId: string }).resumeId.trim()
         ? (req.body as { resumeId: string }).resumeId.trim()
         : null;
-    const docs = await snapshotApplicationDocs(userId, position.partnerOrganization?.name ?? null, selectedResumeId);
+    const selectedCoverLetterId =
+      typeof (req.body as { coverLetterId?: unknown } | undefined)?.coverLetterId === "string" && (req.body as { coverLetterId: string }).coverLetterId.trim()
+        ? (req.body as { coverLetterId: string }).coverLetterId.trim()
+        : null;
+    const docs = await snapshotApplicationDocs(userId, position.partnerOrganization?.name ?? null, selectedResumeId, selectedCoverLetterId);
     // 새 지원(최초 지원 또는 철회 후 재지원)일 때만 파트너사에 이메일 알림을 보낸다
     // (이미 진행 중인 지원에 다시 apply 를 눌러도 팀에 중복 메일이 가지 않게).
     let isNewSubmission = false;
