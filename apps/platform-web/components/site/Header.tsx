@@ -256,8 +256,8 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
           </clipPath>
         </defs>
       </svg>
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background">
-        <div className="container flex h-[52px] items-center justify-between">
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+        <div className="container flex h-14 items-center justify-between">
         <Link href={variant === "business" ? "/business" : "/"} className="flex items-center gap-1.5">
           <Image
             src="/img_logo.webp"
@@ -279,8 +279,8 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
             // 반짝거려 평범한 텍스트 nav 들 사이에서 자연스럽게 시선이 감.
             const cls = item.promoted
               ? "inline-flex items-center rounded-full bg-[#b7ff5a] px-3 py-1 text-[11px] font-bold text-[#111111] transition hover:bg-[#a3eb43] animate-glow-pulse"
-              : `text-xs transition-colors ${
-                  isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
+              : `text-[13px] transition-colors ${
+                  isNavActive(item.href) ? "font-semibold text-[#0B46E8]" : "font-medium text-muted-foreground hover:text-foreground"
                 }`;
             if (item.external) {
               // 새창으로 열기 — Next의 Link 대신 평범한 <a target="_blank">.
@@ -426,7 +426,7 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
               const mobileCls = item.promoted
                 ? "inline-flex w-fit items-center rounded-full bg-[#b7ff5a] px-3.5 py-1.5 text-sm font-bold text-[#111111] animate-glow-pulse"
                 : `text-base ${
-                    isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
+                    isNavActive(item.href) ? "font-semibold text-[#0B46E8]" : "font-medium text-muted-foreground"
                   }`;
               if (item.external) {
                 return (

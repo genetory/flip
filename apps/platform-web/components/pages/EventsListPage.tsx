@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { CaretRight, Sparkle, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
+import type { Icon } from "@phosphor-icons/react";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
 import { useLanguage } from "../i18n/LanguageProvider";
@@ -27,12 +28,17 @@ type EventCopy = {
 type EventEntry = {
   key: "saju" | "visa" | "mbti" | "sgc";
   href: string;
-  // emoji 또는 logoSrc 중 하나. logoSrc 가 있으면 이미지가 우선되어 좌측
-  // 아이콘 슬롯을 가로형 로고로 대체 (협력/콜라보 카드용).
-  emoji?: string;
+  // Phosphor 아이콘(ICON_BY_KEY) 또는 logoSrc 중 하나. logoSrc 가 있으면 이미지가
+  // 우선되어 좌측 아이콘 슬롯을 가로형 로고로 대체 (협력/콜라보 카드용).
   logoSrc?: string;
   logoAlt?: string;
   copy: Record<PlatformLocale, EventCopy>;
+};
+
+// 이벤트별 좌측 아이콘 — 이모지 대신 Phosphor 아이콘 타일(브랜드 톤 통일).
+const ICON_BY_KEY: Partial<Record<EventEntry["key"], Icon>> = {
+  saju: Sparkle,
+  visa: IdentificationCard
 };
 
 // 이벤트 순서 — 신규/협력 프로그램(sgc)을 최상단으로 강조, 그 다음 viral
@@ -88,7 +94,6 @@ const EVENTS: EventEntry[] = [
   {
     key: "saju",
     href: "/events/saju",
-    emoji: "🔮",
     copy: {
       ko: {
         pill: "사주 × 직업 적성",
@@ -131,7 +136,6 @@ const EVENTS: EventEntry[] = [
   {
     key: "visa",
     href: "/events/visa",
-    emoji: "🛂",
     copy: {
       ko: {
         pill: "한국 비자 진단",
@@ -210,11 +214,12 @@ export function EventsListPage() {
             <div className="flex flex-col gap-4">
               {EVENTS.map((event) => {
                 const c = event.copy[locale] ?? event.copy.ko;
+                const EventIcon = ICON_BY_KEY[event.key];
                 return (
                   <Link
                     key={event.key}
                     href={event.href}
-                    className="group block rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 transition hover:shadow-md active:scale-[0.995]"
+                    className="group block rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(11,18,39,0.04),0_10px_28px_rgba(11,18,39,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(11,18,39,0.05),0_16px_40px_rgba(11,18,39,0.10)] active:translate-y-0"
                   >
                     <article
                       className={`flex gap-4 ${
@@ -243,8 +248,8 @@ export function EventsListPage() {
                           />
                         </div>
                       ) : (
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted/40 text-xl">
-                          <span aria-hidden>{event.emoji}</span>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#0B46E8]/[0.07] text-[#0B46E8] transition-colors group-hover:bg-[#0B46E8]/[0.12]">
+                          {EventIcon ? <EventIcon className="h-6 w-6" weight="duotone" aria-hidden /> : null}
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
