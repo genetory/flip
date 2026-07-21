@@ -242,14 +242,19 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
     if (!data) return;
     const label = getApplicationStatusLabel(nextStatus, viewer).label;
     const notifies = DETAIL_NOTIFY_STATUSES.includes(nextStatus);
-    // 변경 전 확인 — 지원자에게 알림(메모 포함)이 나간다는 것을 명확히 알린다.
-    if (notifies) {
-      const base =
-        nextStatus === "ACCEPTED" || nextStatus === "REJECTED"
-          ? `이 지원자를 '${label}'(으)로 처리할까요?`
-          : `상태를 '${label}'(으)로 변경할까요?`;
+    // 면접 예정으로 넘어갈 때는 곧바로 '면접 일정 제안' 흐름으로 유도한다.
+    if (nextStatus === "INTERVIEW" && data.status !== "INTERVIEW") {
+      const go = window.confirm(
+        "이 지원자를 면접 대상자로 선정합니다.\n지금 면접 일정을 제안하시겠어요?\n\n확인: 면접 일정 제안 창 열기\n취소: 상태만 '면접 예정'으로 변경(지원자에게 선정 알림)"
+      );
+      if (go) {
+        setInterviewOpen(true); // 제안 창이 상태 전환 + 시간 이메일까지 처리
+        return;
+      }
+      // 취소 시 아래 일반 흐름으로 상태만 '면접 예정'으로 변경한다.
+    } else if (nextStatus === "ACCEPTED" || nextStatus === "REJECTED") {
       const memoNote = memoDraft.trim() ? "\n메모가 회사 메시지로 함께 전달됩니다." : "";
-      if (!window.confirm(`${base}\n지원자에게 이메일·서비스 알림이 전송됩니다.${memoNote}`)) return;
+      if (!window.confirm(`이 지원자를 '${label}'(으)로 처리할까요?\n지원자에게 이메일·서비스 알림이 전송됩니다.${memoNote}`)) return;
     }
     setUpdating(true);
     setError(null);
@@ -474,7 +479,18 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
       <article className="ops-card">
         <h3 className="ops-section-title">면접 일정 ({data.interviewSlots.length})</h3>
         {data.interviewSlots.length === 0 ? (
-          <p className="ops-card-subtle" style={{ margin: 0 }}>제안된 면접 일정이 없습니다.</p>
+          <div className="ops-stack" style={{ gap: 10 }}>
+            <p className="ops-card-subtle" style={{ margin: 0 }}>
+              {data.status === "INTERVIEW"
+                ? "면접 대상자로 선정됐어요. 준비되면 아래 버튼으로 면접 일정을 제안하세요. (지금 바로 잡지 않아도 됩니다)"
+                : "제안된 면접 일정이 없습니다."}
+            </p>
+            <div className="ops-row">
+              <button type="button" className="ops-btn ops-btn-primary" onClick={() => setInterviewOpen(true)}>
+                면접 일정 제안하기
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="ops-stack">
             {data.interviewSlots.map((slot) => (
