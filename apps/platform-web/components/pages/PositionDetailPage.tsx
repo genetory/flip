@@ -656,6 +656,25 @@ export function PositionDetailPage({
                   <AplyCipBadgeButton size="md" onClick={() => setIsCipModalOpen(true)} />
                 </div>
               ) : null}
+
+              {/* 상단 눈에 띄는 지원 CTA — 하단까지 스크롤하지 않아도 바로 지원/편집 */}
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                {canModerate ? (
+                  <Button variant="dark" size="lg" className="w-full sm:w-auto" asChild>
+                    <Link href={`/positions/${position.id}/edit`}>{copy.edit}</Link>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="dark"
+                    size="lg"
+                    onClick={markAsApplied}
+                    disabled={user?.role === "STUDENT" && appliedPositionIds.includes(position.id)}
+                    className={`w-full sm:w-auto ${user?.role === "STUDENT" && appliedPositionIds.includes(position.id) ? "border border-zinc-300 bg-zinc-200 text-zinc-500 hover:bg-zinc-200 disabled:opacity-100" : ""}`}
+                  >
+                    {user?.role === "STUDENT" && appliedPositionIds.includes(position.id) ? copy.applied : copy.apply}
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div className="mt-8">
