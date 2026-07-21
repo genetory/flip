@@ -42,6 +42,7 @@ import { getMySgcApplication, type SgcApplication } from "../../lib/sgc-event-cl
 import { paperlogy } from "../../lib/fonts";
 // 지원/즐겨찾기·파트너 올린 포지션 리스트는 '포지션 탐색'과 동일한 카드를 재사용.
 import { PositionRow, PositionGridCard, mapPublicPositionToCard } from "./PositionsPage";
+import { ApplyResumeModal } from "../positions/ApplyResumeModal";
 
 const PROFILE_SQUIRCLE_CLIP_ID = "profile-page-squircle-clip";
 const PROFILE_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
@@ -186,6 +187,8 @@ export function ProfilePage() {
   const [applications, setApplications] = useState<MyApplication[]>([]);
   const [interviewTarget, setInterviewTarget] = useState<MyApplication | null>(null);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+  const [applyDocsTarget, setApplyDocsTarget] = useState<string | null>(null);
+  const [applyingDocs, setApplyingDocs] = useState(false);
 
   async function handleWithdraw(app: MyApplication) {
     const confirmed = window.confirm(
@@ -746,21 +749,31 @@ export function ProfilePage() {
     }
   }
 
-  async function applyFromStudentFavorite(positionId: string) {
+  function applyFromStudentFavorite(positionId: string) {
     if (!user || user.role !== "STUDENT") return;
     if (appliedPositions.some((item) => item.id === positionId)) return;
+    // 이력서·자기소개서 선택 모달을 연다(둘 다 있어야 지원 가능).
+    setApplyDocsTarget(positionId);
+  }
 
+  async function confirmDocsApply(resumeId: string, coverLetterId: string) {
+    const positionId = applyDocsTarget;
+    if (!positionId) return;
+    setApplyingDocs(true);
     try {
-      await applyMyPosition(positionId);
+      await applyMyPosition(positionId, resumeId, coverLetterId);
       if (!appliedPositions.some((item) => item.id === positionId)) {
         const found = favoritePositions.find((item) => item.id === positionId);
         if (found) {
           setAppliedPositions((prev) => [found, ...prev]);
         }
       }
+      setApplyDocsTarget(null);
       window.alert(tr("지원한 포지션에 추가되었습니다.", "Added to applied positions.", "已添加到已申请职位。", "Đã thêm vào vị trí đã ứng tuyển.", "応募済みポジションに追加されました。", "Ditambahkan ke posisi yang dilamar."));
     } catch (error) {
       window.alert(error instanceof Error ? error.message : tr("지원 처리에 실패했습니다.", "Failed to apply.", "申请处理失败。", "Không thể ứng tuyển.", "応募処理に失敗しました。", "Gagal melamar."));
+    } finally {
+      setApplyingDocs(false);
     }
   }
 
@@ -1684,6 +1697,13 @@ export function ProfilePage() {
         </div>
       </main>
       <Footer />
+      <ApplyResumeModal
+        open={applyDocsTarget !== null}
+        positionTitle={[...favoritePositions, ...appliedPositions].find((p) => p.id === applyDocsTarget)?.title ?? null}
+        onClose={() => setApplyDocsTarget(null)}
+        onConfirm={confirmDocsApply}
+        submitting={applyingDocs}
+      />
       <SelectInterviewSlotModal
         open={interviewTarget !== null}
         applicationId={interviewTarget?.id}

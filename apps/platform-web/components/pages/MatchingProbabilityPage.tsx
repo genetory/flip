@@ -19,6 +19,7 @@ import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { ApplyResumeModal } from "../positions/ApplyResumeModal";
 import { paperlogy } from "../../lib/fonts";
 import {
   addMyFavoritePosition,
@@ -186,6 +187,8 @@ export function MatchingProbabilityPage() {
   const [recommendedPositions, setRecommendedPositions] = useState<PublicPositionListItem[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
+  const [applyTargetId, setApplyTargetId] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
   const prevScoreRef = useRef<number | null>(null);
 
   const reportStorageKey = useMemo(
@@ -474,21 +477,33 @@ export function MatchingProbabilityPage() {
     }
   }
 
-  async function handleApply(positionId: string) {
+  function handleApply(positionId: string) {
     if (appliedIds.has(positionId)) return;
+    // 이력서·자기소개서 선택 모달을 연다(둘 다 있어야 지원 가능).
+    setApplyTargetId(positionId);
+  }
+
+  async function confirmApply(resumeId: string, coverLetterId: string) {
+    const positionId = applyTargetId;
+    if (!positionId) return;
+    setApplying(true);
     setAppliedIds((prev) => {
       const next = new Set(prev);
       next.add(positionId);
       return next;
     });
     try {
-      await applyMyPosition(positionId);
-    } catch {
+      await applyMyPosition(positionId, resumeId, coverLetterId);
+      setApplyTargetId(null);
+    } catch (error) {
       setAppliedIds((prev) => {
         const next = new Set(prev);
         next.delete(positionId);
         return next;
       });
+      window.alert(error instanceof Error ? error.message : "지원 처리에 실패했습니다.");
+    } finally {
+      setApplying(false);
     }
   }
 
@@ -985,6 +1000,13 @@ export function MatchingProbabilityPage() {
           </div>
         </div>
       </main>
+      <ApplyResumeModal
+        open={applyTargetId !== null}
+        positionTitle={recommendedPositions.find((p) => p.id === applyTargetId)?.title ?? null}
+        onClose={() => setApplyTargetId(null)}
+        onConfirm={confirmApply}
+        submitting={applying}
+      />
       <Footer />
     </div>
   );
