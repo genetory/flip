@@ -832,70 +832,96 @@ export function ProfilePage() {
                 </Link>
               ) : null}
 
-              <div className="rounded-2xl bg-card shadow-card p-5 md:p-6">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex min-w-0 flex-1 items-center gap-4">
-                  {profileImage ? (
-                    <img src={profileImage} alt={tr("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")} className="h-16 w-16 shrink-0 object-cover" style={PROFILE_SQUIRCLE_STYLE} />
-                  ) : (
-                    <div className={`grid h-16 w-16 shrink-0 place-items-center text-lg font-semibold ${
-                      user.role === "STUDENT" ? "border border-border/60 bg-[#F8FAFC] text-muted-foreground" : "bg-muted"
-                    }`} style={PROFILE_SQUIRCLE_STYLE}>{avatarFallback}</div>
-                  )}
-                  <div className="min-w-0">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <p className="truncate font-display text-lg font-bold tracking-tight md:text-xl">{user.name ?? tr("이름 없음", "No name", "无名称", "Không có tên", "名前なし", "Tanpa nama")}</p>
-                      {roleLabel ? (
-                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{roleLabel}</span>
-                      ) : null}
-                      {partnerVerificationBadge ? (
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${partnerVerificationBadge.className}`}>
-                          <BadgeCheck className="h-3.5 w-3.5" />
-                          {partnerVerificationBadge.label}
-                        </span>
-                      ) : null}
-                    </div>
-                    {user.authProvider === "KAKAO" ? (
-                      <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <span className="grid h-4 w-4 place-items-center rounded-sm bg-[#FEE500]">
-                          <svg aria-hidden className="h-2.5 w-2.5 text-[#191919]" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.86 5.36 4.66 6.78L5.5 21.5c-.1.34.27.62.57.43L10.5 19c.5.05 1 .08 1.5.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
-                          </svg>
-                        </span>
-                        <span>{tr("카카오로 연결중", "Connected with Kakao", "通过 Kakao 连接", "Đã kết nối Kakao", "Kakaoで連携中", "Terhubung dengan Kakao")}</span>
-                      </div>
-                    ) : user.authProvider === "GOOGLE" ? (
-                      <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <svg aria-hidden className="h-4 w-4" viewBox="0 0 48 48">
-                          <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
-                          <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
-                          <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
-                          <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
-                        </svg>
-                        <span>{tr("구글로 연결중", "Connected with Google", "通过 Google 连接", "Đã kết nối Google", "Googleで連携中", "Terhubung dengan Google")}</span>
-                      </div>
-                    ) : user.authProvider === "NAVER" ? (
-                      <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <span className="grid h-4 w-4 place-items-center rounded-sm bg-[#03C75A] text-[10px] font-black leading-none text-white">N</span>
-                        <span>{tr("네이버로 연결중", "Connected with Naver", "通过 Naver 连接", "Đã kết nối Naver", "Naverで連携中", "Terhubung dengan Naver")}</span>
-                      </div>
-                    ) : (
-                      <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
-                        <Mail className="h-4 w-4 shrink-0" />
-                        <span className="truncate">{user.email}</span>
-                      </div>
-                    )}
+              <div className="overflow-hidden rounded-2xl bg-card shadow-card">
+                <div className="relative bg-gradient-to-br from-[#EEF4FF] via-[#F4F8FF] to-[#F0FBFF] px-5 py-6 md:px-8 md:py-7">
+                  <div className="absolute right-5 top-5 md:right-6 md:top-6">
+                    <Button variant="outline" size="sm" asChild disabled={!canEditBasic} className="shrink-0 border-border/60 bg-white/70 backdrop-blur">
+                      <Link href="/profile/edit">{tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}</Link>
+                    </Button>
                   </div>
+                  <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                    {profileImage ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={profileImage} alt={tr("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")} className="h-20 w-20 shrink-0 object-cover md:h-24 md:w-24" style={PROFILE_SQUIRCLE_STYLE} />
+                    ) : (
+                      <div className="grid h-20 w-20 shrink-0 place-items-center bg-white text-2xl font-bold text-muted-foreground shadow-sm md:h-24 md:w-24" style={PROFILE_SQUIRCLE_STYLE}>{avatarFallback}</div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 pr-16 sm:pr-0">
+                        <h2 className="font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{user.name ?? tr("이름 없음", "No name", "无名称", "Không có tên", "名前なし", "Tanpa nama")}</h2>
+                        {roleLabel ? (
+                          <span className="inline-flex items-center rounded-full bg-white/80 px-2.5 py-0.5 text-xs font-semibold text-[#0B46E8]">{roleLabel}</span>
+                        ) : null}
+                        {partnerVerificationBadge ? (
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${partnerVerificationBadge.className}`}>
+                            <BadgeCheck className="h-3.5 w-3.5" />
+                            {partnerVerificationBadge.label}
+                          </span>
+                        ) : null}
+                      </div>
+                      {user.realName ? <p className="mt-1 text-sm text-muted-foreground">{user.realName}</p> : null}
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-[13px] text-foreground">
+                          <Mail className="h-3.5 w-3.5 flex-none text-muted-foreground" aria-hidden />
+                          <span className="truncate">{user.email}</span>
+                        </span>
+                        {user.phoneNumber ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-[13px] text-foreground">
+                            <Phone className="h-3.5 w-3.5 flex-none text-muted-foreground" aria-hidden />
+                            {user.phoneNumber}
+                          </span>
+                        ) : null}
+                        {user.authProvider && user.authProvider !== "EMAIL" ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-[13px] text-muted-foreground">
+                            <span className={`h-2 w-2 flex-none rounded-full ${user.authProvider === "KAKAO" ? "bg-[#FEE500]" : user.authProvider === "NAVER" ? "bg-[#03C75A]" : "bg-[#4285F4]"}`} aria-hidden />
+                            {user.authProvider === "KAKAO" ? "Kakao" : user.authProvider === "NAVER" ? "Naver" : "Google"}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                  {profileError ? <p className="mt-3 text-sm text-destructive">{profileError}</p> : null}
                 </div>
-                <Button variant="outline" size="sm" asChild disabled={!canEditBasic} className="shrink-0">
-                  <Link href="/profile/edit">{tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}</Link>
-                </Button>
-              </div>
-
-              {profileError ? <p className="text-sm text-destructive">{profileError}</p> : null}
               </div>
 
               <div className="space-y-6">
+                {user.role === "STUDENT" ? (
+                  <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                    <button
+                      type="button"
+                      onClick={() => selectStudentTab("resume")}
+                      className="group rounded-2xl bg-card p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated md:p-5"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0B46E8]/[0.08] text-[#0B46E8]">
+                        <FileText className="h-5 w-5" weight="duotone" aria-hidden />
+                      </span>
+                      <p className="mt-3 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{myResumes.length}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">{tr("이력서", "Resumes", "简历", "Hồ sơ", "履歴書", "Resume")}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectStudentTab("applied")}
+                      className="group rounded-2xl bg-card p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated md:p-5"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0B46E8]/[0.08] text-[#0B46E8]">
+                        <Briefcase className="h-5 w-5" weight="duotone" aria-hidden />
+                      </span>
+                      <p className="mt-3 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{appliedPositions.length}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">{tr("지원", "Applied", "已申请", "Đã ứng tuyển", "応募", "Dilamar")}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectStudentTab("favorites")}
+                      className="group rounded-2xl bg-card p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated md:p-5"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0B46E8]/[0.08] text-[#0B46E8]">
+                        <Bookmark className="h-5 w-5" weight="duotone" aria-hidden />
+                      </span>
+                      <p className="mt-3 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{favoritePositions.length}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">{tr("찜", "Saved", "收藏", "Đã lưu", "お気に入り", "Favorit")}</p>
+                    </button>
+                  </div>
+                ) : null}
                 {user.role === "PARTNER" ? (
                   partnerOrgChecked && !partnerOrg ? (
                     <article className="space-y-5 rounded-2xl bg-card shadow-card p-5 md:p-6">
@@ -1269,82 +1295,8 @@ export function ProfilePage() {
 
                     {studentTab === "info" ? (
                       <div className="space-y-6">
-                        {/* Hero: 큰 프로필 사진 + identity */}
-                        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start">
-                          <div className="absolute right-0 top-0">
-                            <Button variant="outline" size="sm" asChild>
-                              <Link href="/profile/edit">
-                                {tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}
-                              </Link>
-                            </Button>
-                          </div>
-
-                          {profileImage ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img
-                              src={profileImage}
-                              alt={tr("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")}
-                              className="h-28 w-28 flex-none object-cover"
-                              style={PROFILE_SQUIRCLE_STYLE}
-                            />
-                          ) : (
-                            <div
-                              className="flex h-28 w-28 flex-none items-center justify-center border border-border/60 bg-muted text-3xl font-bold text-muted-foreground"
-                              style={PROFILE_SQUIRCLE_STYLE}
-                            >
-                              {avatarFallback}
-                            </div>
-                          )}
-
-                          <div className="flex-1 min-w-0 pr-0 sm:pr-20">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <h4 className="font-display text-2xl font-bold tracking-tight text-foreground">
-                                {user.name ?? tr("이름 없음", "No name", "无名称", "Không có tên", "名前なし", "Tanpa nama")}
-                              </h4>
-                              {roleLabel ? (
-                                <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                                  {roleLabel}
-                                </span>
-                              ) : null}
-                            </div>
-                            {user.realName ? (
-                              <p className="mt-1 text-sm text-muted-foreground">{user.realName}</p>
-                            ) : null}
-
-                            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                              <span className="inline-flex items-center gap-1.5 min-w-0">
-                                {user.authProvider === "KAKAO" ? (
-                                  <span className="grid h-4 w-4 flex-none place-items-center rounded-sm bg-[#FEE500]">
-                                    <svg aria-hidden className="h-2.5 w-2.5 text-[#191919]" viewBox="0 0 24 24" fill="currentColor">
-                                      <path d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.86 5.36 4.66 6.78L5.5 21.5c-.1.34.27.62.57.43L10.5 19c.5.05 1 .08 1.5.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
-                                    </svg>
-                                  </span>
-                                ) : user.authProvider === "GOOGLE" ? (
-                                  <svg aria-hidden className="h-4 w-4 flex-none" viewBox="0 0 48 48">
-                                    <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
-                                    <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
-                                    <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
-                                    <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
-                                  </svg>
-                                ) : user.authProvider === "NAVER" ? (
-                                  <span className="grid h-4 w-4 flex-none place-items-center rounded-sm bg-[#03C75A] text-[10px] font-black leading-none text-white">N</span>
-                                ) : (
-                                  <Mail className="h-4 w-4 flex-none text-muted-foreground" aria-hidden />
-                                )}
-                                <span className="truncate text-foreground">{user.email}</span>
-                              </span>
-                              {user.phoneNumber ? (
-                                <span className="inline-flex items-center gap-1.5 min-w-0">
-                                  <Phone className="h-4 w-4 flex-none text-muted-foreground" aria-hidden />
-                                  <span className="truncate text-foreground">{user.phoneNumber}</span>
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-
                         {/* About — 자기소개 */}
-                        <div className="border-t border-border/60 pt-5">
+                        <div className="pt-1">
                           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                             {tr("자기 소개", "About me", "自我介绍", "Giới thiệu bản thân", "自己紹介", "Tentang saya")}
                           </p>
