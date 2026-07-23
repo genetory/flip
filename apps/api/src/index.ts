@@ -16649,7 +16649,8 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
     };
 
     const students = enrollments.map((e) => {
-      const st = (progByUser.get(e.studentUserId)?.state ?? {}) as Record<string, unknown>;
+      const progRow = progByUser.get(e.studentUserId);
+      const st = (progRow?.state ?? {}) as Record<string, unknown>;
       const interview = (st.interview && typeof st.interview === "object" ? st.interview : {}) as { practiced?: unknown };
       const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]) : [];
       const rc = (resumeByUser.get(e.studentUserId)?.content ?? {}) as Record<string, unknown>;
@@ -16684,11 +16685,23 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
       const resumeExperiences = cnt(rc.experiences);
       const resumeSkills = cnt(rc.skills);
       const resumeLanguages = cnt(rc.languages);
-      const coverChars = Array.isArray(cc.items)
-        ? (cc.items as { answer?: unknown }[]).reduce((a, x) => a + (typeof x.answer === "string" ? x.answer.trim().length : 0), 0)
-        : 0;
+      const coverItemChars = Array.isArray(cc.items)
+        ? (cc.items as { answer?: unknown }[]).map((x) => (typeof x.answer === "string" ? x.answer.trim().length : 0)).filter((len) => len > 0)
+        : [];
+      const coverChars = coverItemChars.reduce((a, b) => a + b, 0);
       const roundLabel: Record<string, string> = { self: "인성", job: "직무", fit: "컬처핏" };
       const interviewRounds = practiced.filter((r): r is string => typeof r === "string").map((r) => roundLabel[r] ?? r);
+
+      // 주차별 진행 타임라인 — doneSteps 는 "w1s1..w4s4" 형태. wNs4 가 있으면 그 주차 완료로 본다.
+      const doneStepList = Array.isArray(st.doneSteps) ? (st.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
+      const weekDone = [1, 2, 3, 4].map((w) => doneStepList.includes(`w${w}s4`));
+      const weeksCompleted = weekDone.filter(Boolean).length;
+      const doneStepsCount = doneStepList.length;
+      // 생성 자료 수 + 활동 기간(등록 ~ 최근 활동 일수)
+      const materialsCount = Array.isArray(st.materials) ? (st.materials as unknown[]).length : 0;
+      const activityDays = progRow?.updatedAt && e.createdAt
+        ? Math.max(1, Math.round((new Date(progRow.updatedAt).getTime() - new Date(e.createdAt).getTime()) / 86_400_000))
+        : null;
 
       const myOutcomes = outcomesByUser.get(e.studentUserId) ?? [];
       const bestRank = myOutcomes.reduce((m, o) => Math.max(m, OUTCOME_RANK[o.status] ?? 0), 0);
@@ -16727,6 +16740,13 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
         resumeSkills,
         resumeLanguages,
         coverChars,
+        coverItemChars,
+        // 주차 타임라인·활동 기간·생성 자료
+        weekDone,
+        weeksCompleted,
+        doneStepsCount,
+        materialsCount,
+        activityDays,
         // 취업 성과(모든 포지션)
         applications: myOutcomes.length,
         reachedInterview: bestRank >= 2,

@@ -199,6 +199,13 @@ export type CohortReportStudent = {
   resumeSkills: number;
   resumeLanguages: number;
   coverChars: number;
+  coverItemChars: number[];
+  // 주차 타임라인·활동 기간·생성 자료
+  weekDone: boolean[];
+  weeksCompleted: number;
+  doneStepsCount: number;
+  materialsCount: number;
+  activityDays: number | null;
   // 취업 성과(모든 포지션)
   applications: number;
   reachedInterview: boolean;
