@@ -1,6 +1,6 @@
 "use client";
 
-import { HelpCircle, Star, X, ExternalLink as ExternalLinkIcon } from "lucide-react";
+import { Question as HelpCircle, Star, X, ArrowSquareOut as ExternalLinkIcon } from "@phosphor-icons/react";
 import type { PlatformLocale } from "../../lib/auth-messages";
 
 // "Aply CIP" 직접등록 포지션을 표시하는 라임색 배지 버튼.
@@ -37,7 +37,7 @@ export function AplyCipBadgeButton({
       }}
       className={`relative z-20 inline-flex items-center gap-1 rounded-full bg-[#b7ff5a] font-bold text-[#111111] transition hover:bg-[#a3eb43] ${sizeCls} ${className}`}
     >
-      <Star className={`${iconSize} fill-current`} />
+      <Star className={iconSize} weight="fill" />
       Aply CIP
       <HelpCircle className={size === "md" ? "h-3.5 w-3.5" : "h-3 w-3"} />
     </button>

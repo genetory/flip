@@ -15,9 +15,10 @@ import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { type Position } from "../../lib/positions-data";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { Button } from "../ui/button";
-import { Bookmark, Briefcase, LayoutGrid, List, MapPin } from "lucide-react";
+import { Bookmark, Briefcase, SquaresFour as LayoutGrid, List, MapPin } from "@phosphor-icons/react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
+import { ApplyResumeModal } from "../positions/ApplyResumeModal";
 type PositionCard = Position & { status: PublicPositionListItem["status"] };
 
 function inferWorkType(value?: string | null): "On-site" | "Hybrid" | "Remote" {
@@ -147,6 +148,8 @@ export function CompanyPositionsSection({ items }: { items: PublicPositionListIt
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [appliedIds, setAppliedIds] = useState<string[]>([]);
   const [myPartnerOrganizationId, setMyPartnerOrganizationId] = useState<string | null>(null);
+  const [applyTargetId, setApplyTargetId] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
   const positions = items.map((item) => mapPublicPositionToCard(item, locale));
 
   useEffect(() => {
@@ -213,14 +216,26 @@ export function CompanyPositionsSection({ items }: { items: PublicPositionListIt
     }
   }
 
-  async function applyFromList(positionId: string) {
+  function applyFromList(positionId: string) {
     if (!isAuthenticated || !user?.id || user.role !== "STUDENT") return;
     if (appliedIds.includes(positionId)) return;
-    setAppliedIds((prev) => [...prev, positionId]);
+    // 이력서·자기소개서 선택 모달을 연다(둘 다 있어야 지원 가능).
+    setApplyTargetId(positionId);
+  }
+
+  async function confirmApply(resumeId: string, coverLetterId: string) {
+    const positionId = applyTargetId;
+    if (!positionId) return;
+    setApplying(true);
+    setAppliedIds((prev) => (prev.includes(positionId) ? prev : [...prev, positionId]));
     try {
-      await applyMyPosition(positionId);
-    } catch {
+      await applyMyPosition(positionId, resumeId, coverLetterId);
+      setApplyTargetId(null);
+    } catch (error) {
       setAppliedIds((prev) => prev.filter((id) => id !== positionId));
+      window.alert(error instanceof Error ? error.message : pick("지원 처리에 실패했습니다.", "Failed to apply.", "申请处理失败。", "Không thể ứng tuyển.", "応募処理に失敗しました。", "Gagal melamar."));
+    } finally {
+      setApplying(false);
     }
   }
 
@@ -301,6 +316,13 @@ export function CompanyPositionsSection({ items }: { items: PublicPositionListIt
           })}
         </div>
       )}
+      <ApplyResumeModal
+        open={applyTargetId !== null}
+        positionTitle={items.find((p) => p.id === applyTargetId)?.title ?? null}
+        onClose={() => setApplyTargetId(null)}
+        onConfirm={confirmApply}
+        submitting={applying}
+      />
     </section>
   );
 }
@@ -348,7 +370,7 @@ const PositionRow = ({
               className="block h-full w-full object-cover"
             />
           ) : (
-            <div className="grid h-full w-full place-items-center bg-muted font-display text-2xl font-bold leading-none text-muted-foreground">
+            <div className="grid h-full w-full place-items-center bg-[#EEF4FF] font-display text-2xl font-bold leading-none text-[#0B46E8]/45">
               {p.initial}
             </div>
           )}
@@ -376,7 +398,7 @@ const PositionRow = ({
         <div className="relative z-20 flex shrink-0 flex-row items-center justify-between gap-2 border-t border-border pt-1.5 md:mt-auto md:self-end md:border-0 md:pt-0">
           <div className="flex items-center gap-1.5">
             <Button variant="outline" size="icon" aria-label={copy.save} onClick={onToggleFavorite}>
-              <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
+              <Bookmark weight={isFavorite ? "fill" : "regular"} className={isFavorite ? "text-foreground" : ""} />
             </Button>
             {isOwnPartnerPosting ? (
               <Button variant="dark" size="sm" asChild>
@@ -441,7 +463,7 @@ const PositionGridCard = ({
         {p.thumbnailUrl ? (
           <img src={p.thumbnailUrl} alt={`${p.company} ${copy.thumbnailSuffix}`} className="block aspect-[16/9] w-full rounded-xl object-cover" />
         ) : (
-          <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-4xl font-bold text-muted-foreground">
+          <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-[#EEF4FF] font-display text-4xl font-bold text-[#0B46E8]/45">
             {p.initial}
           </div>
         )}
@@ -465,7 +487,7 @@ const PositionGridCard = ({
       </div>
       <div className="relative z-20 mt-auto flex items-center gap-2 pt-3">
         <Button variant="outline" size="icon" aria-label={copy.save} onClick={onToggleFavorite}>
-          <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
+          <Bookmark weight={isFavorite ? "fill" : "regular"} className={isFavorite ? "text-foreground" : ""} />
         </Button>
         {isOwnPartnerPosting ? (
           <Button variant="dark" className="h-10 flex-1 text-sm" asChild>

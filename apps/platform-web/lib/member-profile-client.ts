@@ -807,6 +807,13 @@ export type MyApplication = {
   status: "SUBMITTED" | "INTERVIEW" | "ACCEPTED" | "REJECTED" | "WITHDRAWN";
   submittedAt: string;
   updatedAt: string;
+  // 면접 일정 — 확정된 슬롯 시각(있으면) + 아직 선택 대기 중인지
+  interviewSelectedAt: string | null;
+  interviewSelectedEndsAt: string | null;
+  interviewLocation: string | null;
+  interviewPending: boolean;
+  // 회사가 보낸 안 읽은 메시지 수(문의 뱃지용)
+  unreadMessages: number;
 };
 
 export async function getMyApplications() {
@@ -819,6 +826,30 @@ export async function getMyApplications() {
 export async function withdrawMyApplication(applicationId: string) {
   return authedJsonFetch<{ id: string; status: string }>(`/members/me/applications/${encodeURIComponent(applicationId)}/withdraw`, {
     method: "POST"
+  });
+}
+
+// 지원자 ↔ 회사 메시지(쪽지) — 지원 건별 스레드. 백엔드는 ApplicationComment(visibility=CANDIDATE)를
+// 재사용하며, 학생은 CANDIDATE 메시지만 보고, 학생이 보내면 자동으로 CANDIDATE 로 저장된다.
+export type ApplicationMessage = {
+  id: string;
+  content: string;
+  authorRole: "STUDENT" | "PARTNER" | "OPERATOR";
+  createdAt: string;
+  author?: { id: string; name: string | null; email: string; role: string } | null;
+};
+
+export async function getApplicationMessages(applicationId: string) {
+  const result = await authedJsonFetch<ApplicationMessage>(`/applications/${encodeURIComponent(applicationId)}/comments`, {
+    method: "GET"
+  });
+  return (result.items ?? []) as ApplicationMessage[];
+}
+
+export async function sendApplicationMessage(applicationId: string, content: string) {
+  return authedJsonFetch<ApplicationMessage>(`/applications/${encodeURIComponent(applicationId)}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ content: content.trim() })
   });
 }
 
@@ -898,9 +929,13 @@ export async function removeMyFavoritePosition(positionId: string) {
   return result;
 }
 
-export async function applyMyPosition(positionId: string) {
+export async function applyMyPosition(positionId: string, resumeId?: string, coverLetterId?: string) {
+  const body: Record<string, string> = {};
+  if (resumeId) body.resumeId = resumeId;
+  if (coverLetterId) body.coverLetterId = coverLetterId;
   const result = await authedJsonFetch<unknown>(`/members/me/positions/${encodeURIComponent(positionId)}/apply`, {
-    method: "POST"
+    method: "POST",
+    ...(Object.keys(body).length ? { body: JSON.stringify(body) } : {})
   });
   trackPositionApply(positionId, "unknown");
   return result;

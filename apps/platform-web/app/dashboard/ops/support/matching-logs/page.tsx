@@ -215,7 +215,7 @@ export default function MatchingLogsPage() {
             <p className="ops-form-label">결과 JSON</p>
             <pre
               style={{
-                background: "#f9fafb",
+                background: "var(--surface-2)",
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 11,

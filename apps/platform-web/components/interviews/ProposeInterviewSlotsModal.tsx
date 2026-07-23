@@ -19,8 +19,27 @@ type Props = {
   onProposed?: () => void;
 };
 
+// 30분 단위 시간 옵션(00:00 ~ 23:30) — 면접 제안 시간은 항상 30분 그리드에 맞춘다.
+const TIME_OPTIONS: string[] = Array.from({ length: 48 }, (_, i) => {
+  const h = Math.floor(i / 2);
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${String(h).padStart(2, "0")}:${m}`;
+});
+
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(mins: number): string {
+  const clamped = Math.max(0, Math.min(23 * 60 + 30, mins));
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 function emptySlot(): SlotInput {
-  return { date: "", startTime: "10:00", endTime: "11:00", location: "" };
+  return { date: "", startTime: "10:00", endTime: "10:30", location: "" };
 }
 
 function toIsoString(date: string, time: string) {
@@ -50,6 +69,20 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
     setSlots((prev) => prev.map((s, i) => (i === index ? { ...s, ...partial } : s)));
   }
 
+  // 시작 시간을 바꾸면 종료가 시작보다 이르거나 같아지지 않도록 자동으로 +30분 보정.
+  function changeStart(index: number, startTime: string) {
+    setSlots((prev) =>
+      prev.map((s, i) => {
+        if (i !== index) return s;
+        const next = { ...s, startTime };
+        if (timeToMinutes(next.endTime) <= timeToMinutes(startTime)) {
+          next.endTime = minutesToTime(timeToMinutes(startTime) + 30);
+        }
+        return next;
+      })
+    );
+  }
+
   function addSlot() {
     if (slots.length >= 5) return;
     setSlots((prev) => [...prev, emptySlot()]);
@@ -63,6 +96,8 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
     if (!applicationId) return;
     setError(null);
     const payload: { startsAt: string; endsAt: string; location?: string; notes?: string }[] = [];
+    // 겹침 검증용 구간(ms). 같은 시간대가 서로 겹치지 않아야 한다.
+    const ranges: { start: number; end: number }[] = [];
     for (const s of slots) {
       const startsAt = toIsoString(s.date, s.startTime);
       const endsAt = toIsoString(s.date, s.endTime);
@@ -70,10 +105,23 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
         setError("모든 일정의 날짜와 시간을 입력해 주세요.");
         return;
       }
-      if (new Date(endsAt) <= new Date(startsAt)) {
+      // 30분 그리드 확인(안전장치 — 셀렉트로만 입력되면 항상 통과).
+      if (timeToMinutes(s.startTime) % 30 !== 0 || timeToMinutes(s.endTime) % 30 !== 0) {
+        setError("면접 시간은 30분 단위로 선택해 주세요.");
+        return;
+      }
+      const startMs = new Date(startsAt).getTime();
+      const endMs = new Date(endsAt).getTime();
+      if (endMs <= startMs) {
         setError("종료 시간이 시작 시간보다 늦어야 합니다.");
         return;
       }
+      // 앞선 옵션들과 시간대가 겹치는지 확인(반열림 구간 [start, end)).
+      if (ranges.some((r) => startMs < r.end && endMs > r.start)) {
+        setError("제안한 면접 시간이 서로 겹칩니다. 겹치지 않게 조정해 주세요.");
+        return;
+      }
+      ranges.push({ start: startMs, end: endMs });
       payload.push({
         startsAt,
         endsAt,
@@ -168,21 +216,27 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
                 </label>
                 <label style={{ fontSize: 11, color: "#6b7280" }}>
                   시작
-                  <input
-                    type="time"
+                  <select
                     value={slot.startTime}
-                    onChange={(e) => updateSlot(index, { startTime: e.target.value })}
-                    style={{ marginTop: 4, width: "100%", padding: "6px 8px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: 13 }}
-                  />
+                    onChange={(e) => changeStart(index, e.target.value)}
+                    style={{ marginTop: 4, width: "100%", padding: "6px 8px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: 13, background: "#fff" }}
+                  >
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
                 </label>
                 <label style={{ fontSize: 11, color: "#6b7280" }}>
                   종료
-                  <input
-                    type="time"
+                  <select
                     value={slot.endTime}
                     onChange={(e) => updateSlot(index, { endTime: e.target.value })}
-                    style={{ marginTop: 4, width: "100%", padding: "6px 8px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: 13 }}
-                  />
+                    style={{ marginTop: 4, width: "100%", padding: "6px 8px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: 13, background: "#fff" }}
+                  >
+                    {TIME_OPTIONS.filter((t) => timeToMinutes(t) > timeToMinutes(slot.startTime)).map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
                 </label>
               </div>
               <label style={{ fontSize: 11, color: "#6b7280", marginTop: 8, display: "block" }}>

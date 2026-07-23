@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { FileCheck2, BookOpen, ExternalLink } from "lucide-react";
+import { FileText as FileCheck2, BookOpen, ArrowSquareOut as ExternalLink } from "@phosphor-icons/react";
 import { Sparkle } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { Header } from "../site/Header";

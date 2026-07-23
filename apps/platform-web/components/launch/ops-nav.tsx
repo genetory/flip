@@ -3,17 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+// 아이콘은 Phosphor 로 통일(기존 lucide 이름으로 alias).
 import {
-  LayoutDashboard,
+  SquaresFour as LayoutDashboard,
   Users,
   GraduationCap,
   FileText,
   SlidersHorizontal,
-  BarChart3,
-  ChevronDown,
-  ExternalLink,
-  type LucideIcon
-} from "lucide-react";
+  ChartBar as BarChart3,
+  CaretDown as ChevronDown,
+  type Icon as LucideIcon
+} from "@phosphor-icons/react";
 import { useLaunchT } from "../../lib/launch/i18n";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean };
@@ -95,10 +95,10 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
     <Link
       href={item.href}
       className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13.5px] font-bold transition ${
-        active ? "bg-[#0B46E8] text-white" : "text-[#4E5968] hover:bg-[#F2F4F6]"
+        active ? "bg-[var(--accent)] text-white" : "text-[var(--ink-soft)] hover:bg-[var(--surface-2)]"
       }`}
     >
-      <Icon className={`h-4 w-4 flex-none ${active ? "text-white" : "text-[#8B95A1]"}`} aria-hidden />
+      <Icon className={`h-4 w-4 flex-none ${active ? "text-white" : "text-[var(--ink-faint)]"}`} aria-hidden />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
     </Link>
   );
@@ -112,14 +112,14 @@ export function OpsSidebar() {
 
   return (
     <aside className="w-60 flex-none">
-      {/* 화면 높이에 고정하고 메뉴가 길어지면 사이드바만 스크롤한다. */}
-      <div className="sticky top-0 flex h-screen flex-col overflow-y-auto px-3 py-6">
-        <Link href="/career-launch/ops" className="block px-3 text-[15px] font-black tracking-[-0.01em] text-[#0B1227] transition hover:text-[#0B46E8]">
+      {/* 화면 높이에 고정 — 브랜드/버튼은 고정되고, 메뉴(nav)만 스크롤된다(운영콘솔과 동일). */}
+      <div className="flex h-[100dvh] flex-col overflow-hidden px-3 py-6">
+        <Link href="/career-launch/ops" className="block px-3 text-[15px] font-black tracking-[-0.01em] text-[var(--ink)] transition hover:text-[var(--accent)]">
           {t("Launch 운영", "Launch admin", "Launch 运营", "Quản trị Launch", "Launch 運営", "Admin Launch")}
         </Link>
-        <p className="mt-0.5 px-3 text-[11.5px] text-[#B0B8C1]">{t("운영 콘솔", "Admin console", "运营控制台", "Bảng quản trị", "運営コンソール", "Konsol admin")}</p>
+        <p className="mt-0.5 px-3 text-[11.5px] text-[var(--ink-faint)]">{t("운영 콘솔", "Admin console", "运营控制台", "Bảng quản trị", "運営コンソール", "Konsol admin")}</p>
 
-        <nav className="mt-5 flex flex-col gap-1">
+        <nav className="mt-5 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
           {groups.map((g) => {
             // 단일 그룹(홈)은 제목/토글 없이 한 줄 링크로 — 시각적 잡음을 줄인다.
             if (g.single) {
@@ -131,12 +131,12 @@ export function OpsSidebar() {
             }
             const open = !collapsed[g.key];
             return (
-              <section key={g.key} className="border-t border-[#EEF1F5] pt-2.5">
+              <section key={g.key} className="border-t border-[var(--line)] pt-2.5">
                 <button
                   type="button"
                   onClick={() => setCollapsed((prev) => ({ ...prev, [g.key]: !prev[g.key] }))}
                   aria-expanded={open}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[#C9CDD2] transition hover:text-[#8B95A1]"
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[var(--ink-faint)] transition hover:text-[var(--ink-faint)]"
                 >
                   <span>{g.title}</span>
                   <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "" : "-rotate-90"}`} aria-hidden />
@@ -153,16 +153,27 @@ export function OpsSidebar() {
           })}
         </nav>
 
-        <div className="mt-auto border-t border-[#EEF1F5] pt-4">
-          <Link
-            href="/career-launch/dashboard"
-            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
-          >
-            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-            {t("학생 화면 체험", "Try student view", "体验学生界面", "Xem giao diện sinh viên", "学生画面を体験", "Coba tampilan siswa")}
+        {/* 하단 — 운영 콘솔과 동일한 버튼 스택(콘솔 전환·플랫폼·프로필) */}
+        <div className="ops-console-logout-wrap mt-auto" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <Link href="/career-launch/dashboard">
+            <button type="button" className="ops-console-logout">
+              {t("학생 화면 체험", "Try student view", "体验学生界面", "Xem giao diện sinh viên", "学生画面を体験", "Coba tampilan siswa")}
+            </button>
           </Link>
-          <Link href="/career-launch" className="mt-0.5 block px-3 py-2 text-[12.5px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-            ← {t("프로그램", "Program", "项目", "Chương trình", "プログラム", "Program")}
+          <Link href="/dashboard/ops">
+            <button type="button" className="ops-console-logout">
+              {t("운영 콘솔", "Ops console", "运营控制台", "Bảng vận hành", "運営コンソール", "Konsol operasi")}
+            </button>
+          </Link>
+          <Link href="/">
+            <button type="button" className="ops-console-logout">
+              {t("플랫폼으로 이동", "Go to platform", "前往平台", "Đến nền tảng", "プラットフォームへ", "Ke platform")}
+            </button>
+          </Link>
+          <Link href="/profile">
+            <button type="button" className="ops-console-logout">
+              {t("내 프로필로 이동", "My profile", "我的资料", "Hồ sơ của tôi", "マイプロフィール", "Profil saya")}
+            </button>
           </Link>
         </div>
       </div>
@@ -180,8 +191,8 @@ export function OpsMobileNav() {
         <div key={g.key} className="flex flex-none items-center gap-1.5">
           {!g.single ? (
             <>
-              {gi > 0 ? <span className="mx-0.5 h-3.5 w-px flex-none bg-[#E5E8EB]" aria-hidden /> : null}
-              <span className="flex-none text-[10.5px] font-bold uppercase tracking-wide text-[#C9CDD2]">{g.title}</span>
+              {gi > 0 ? <span className="mx-0.5 h-3.5 w-px flex-none bg-[var(--line)]" aria-hidden /> : null}
+              <span className="flex-none text-[10.5px] font-bold uppercase tracking-wide text-[var(--ink-faint)]">{g.title}</span>
             </>
           ) : null}
           {g.items.map((i) => {
@@ -192,10 +203,10 @@ export function OpsMobileNav() {
                 key={i.href}
                 href={i.href}
                 className={`flex flex-none items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-bold transition ${
-                  active ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#4E5968]"
+                  active ? "bg-[var(--accent)] text-white" : "bg-[var(--surface-2)] text-[var(--ink-soft)]"
                 }`}
               >
-                <Icon className={`h-3.5 w-3.5 ${active ? "text-white" : "text-[#8B95A1]"}`} aria-hidden />
+                <Icon className={`h-3.5 w-3.5 ${active ? "text-white" : "text-[var(--ink-faint)]"}`} aria-hidden />
                 {i.label}
               </Link>
             );

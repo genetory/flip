@@ -12,6 +12,9 @@ export const PLATFORM_ACCESS_TOKEN_KEY = "platform_access_token";
 type AuthUser = {
   id: string;
   email: string;
+  emailVerified?: boolean;
+  // 인증됐고 실제 도달 가능한 이메일이면 true. false면 연락처 인증 배너/소프트 게이트 대상.
+  contactVerified?: boolean;
   realName?: string | null;
   name?: string | null;
   phoneNumber?: string | null;

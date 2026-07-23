@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { CaretDown as ChevronDown } from "@phosphor-icons/react";
 import { opsDashboardMenuGroups } from "./menu";
 
 // Treat "/dashboard/ops" as a strict match — every other ops page starts with
@@ -14,7 +14,7 @@ function isLinkActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function OpsDashboardSidebar() {
+export function OpsDashboardSidebar({ open = false }: { open?: boolean }) {
   const pathname = usePathname();
 
   // Default: every group is expanded. Operator can manually collapse any
@@ -29,7 +29,7 @@ export function OpsDashboardSidebar() {
   }
 
   return (
-    <aside className="ops-console-sidebar">
+    <aside className={`ops-console-sidebar${open ? " is-open" : ""}`}>
       <div className="ops-console-brand">
         <img src="/aply_logo.webp" alt="Aply" />
         <strong>Aply Ops Admin</strong>

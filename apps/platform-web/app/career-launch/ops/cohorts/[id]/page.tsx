@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { useParams } from "next/navigation";
 import { fetchCohort, enrollStudent, unenrollStudent, deleteCohort, type OpsCohortDetail } from "../../../../../lib/launch/enrollment-client";
 import { useLaunchT } from "../../../../../lib/launch/i18n";
@@ -77,8 +78,9 @@ export default function LaunchOpsCohortDetailPage() {
     <main className="pb-16 pt-6 md:pt-10">
       <section className="ops-content-section">
         <header>
-          <Link href="/career-launch/ops/cohorts" className="ops-card-subtle">
-            {t("← 기수 관리", "← Cohort management", "← 期数管理", "← Quản lý khóa", "← コホート管理", "← Manajemen batch")}
+          <Link href="/career-launch/ops/cohorts" className="ops-card-subtle" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <ArrowLeft size={13} weight="bold" aria-hidden />
+            {t("기수 관리", "Cohort management", "期数管理", "Quản lý khóa", "コホート管理", "Manajemen batch")}
           </Link>
           <h1>
             {cohort ? `${cohort.university} · ${cohort.name}` : t("기수 상세", "Cohort details", "期数详情", "Chi tiết khóa", "コホート詳細", "Detail batch")}

@@ -1,16 +1,81 @@
 /* Scoped admin/dashboard styles — imported only by dashboard layouts */
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css");
 
-.ops-console-shell {
+/* ─────────────────────────────────────────────────────────────
+ * 디자인 토큰 (Toss 톤: 회색 그라운드 + 흰 카드 + 파란 액센트)
+ * 운영콘솔(.ops-console-shell)·커리어콘솔(.launch-ops) 공용. 라이트 기본 + OS 다크 자동.
+ * 상태색은 accent(정보/정상) · sand(경고) · danger(위험) 3종만 사용한다.
+ * ───────────────────────────────────────────────────────────── */
+.ops-console-shell,
+.launch-ops {
+  --ground: #f2f4f6;
+  --surface: #ffffff;
+  --surface-2: #f7f8fa;
+  --ink: #191f28;
+  --ink-soft: #4e5968;
+  --ink-faint: #8b95a1;
+  --line: #e8ebed;
+  --line-strong: #d1d6db;
+  --accent: #3182f6;
+  --accent-ink: #1b64da;
+  --accent-soft: #e8f2fe;
+  --sand: #d98218;
+  --sand-soft: #fff3e0;
+  --danger: #e5484d;
+  --danger-soft: #fdecec;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.05);
+  --shadow-card-lg: 0 6px 28px rgba(0, 0, 0, 0.09);
+
+  /* 레거시 토큰(--ops-accent 등) 재지정 — 기존 규칙이 그대로 새 액센트를 쓰게 한다.
+   * (기존 주황 #f97316 → accent 블루). 개별 규칙은 Phase 1에서 토큰으로 마저 교체. */
+  --ops-accent: var(--accent);
+  --ops-accent-dark: var(--accent-ink);
   --ops-bg-1: #14171f;
   --ops-bg-2: #222938;
-  --ops-accent: #f97316;
-  --ops-accent-dark: #ea580c;
-  --ink: #111827;
-  --line: #e5e7eb;
-  --surface: #ffffff;
-  font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+
+  font-family: "Pretendard Variable", "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   color: var(--ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  .ops-console-shell,
+  .launch-ops {
+    --ground: #131417;
+    --surface: #1d1f24;
+    --surface-2: #26282e;
+    --ink: #f2f4f6;
+    --ink-soft: #b0b8c1;
+    --ink-faint: #6b7684;
+    --line: #2c2f36;
+    --line-strong: #3a3e46;
+    --accent: #4593fc;
+    --accent-ink: #6ba8fc;
+    --accent-soft: #17253c;
+    --sand: #e0a050;
+    --sand-soft: #2e2415;
+    --danger: #f16a6f;
+    --danger-soft: #3a1e1f;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.28);
+    --shadow-card-lg: 0 6px 28px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* 포커스 링(accent) — 접근성 */
+.ops-console-shell :is(a, button, select, input, textarea):focus-visible,
+.launch-ops :is(a, button, select, input, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ops-console-shell *,
+  .launch-ops * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }
 
 .ops-page {
@@ -101,7 +166,7 @@
 }
 
 .ops-login-area {
-  background: #f3f4f6;
+  background: var(--surface-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -142,7 +207,7 @@
   gap: 8px;
   font-size: 13px;
   font-weight: 500;
-  color: #374151;
+  color: var(--ink-soft);
 }
 
 .row-between {
@@ -169,8 +234,8 @@
 }
 
 .ops-login-form input:focus {
-  border-color: #fdba74;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.16);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .ops-login-form button {
@@ -184,7 +249,7 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 10px 20px rgba(249, 115, 22, 0.28);
+  box-shadow: var(--shadow-card-lg);
 }
 
 .ops-login-form button:disabled {
@@ -195,20 +260,20 @@
 .ops-login-error {
   margin: 2px 0 0;
   font-size: 12px;
-  color: #dc2626;
+  color: var(--danger);
 }
 
 .ops-benefits-box {
   margin-top: 16px;
   border-radius: 12px;
-  background: #fff7ed;
+  background: var(--accent-soft);
   border: 1px solid #fed7aa;
   padding: 14px 14px 12px;
 }
 
 .ops-benefits-box h3 {
   margin: 0;
-  color: #c2410c;
+  color: var(--accent-ink);
   font-size: 14px;
 }
 
@@ -223,7 +288,7 @@
 .ops-benefits-box li {
   position: relative;
   padding-left: 16px;
-  color: #c2410c;
+  color: var(--accent-ink);
   font-size: 13px;
 }
 
@@ -238,18 +303,18 @@
   height: 100dvh;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
-  background: #fff;
+  background: var(--ground);
   overflow: hidden;
   overscroll-behavior: none;
 }
 
 .ops-console-sidebar {
-  background: #151923;
-  color: #fff;
+  background: var(--surface);
+  color: var(--ink);
   padding: 22px 14px 16px;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid var(--line);
   height: 100dvh;
   overflow: hidden;
 }
@@ -262,7 +327,12 @@
   width: 85px;
   height: auto;
   display: block;
-  filter: brightness(0) invert(1);
+}
+/* 다크 모드에선 어두운 사이드바 위에서 로고가 보이도록 반전 */
+@media (prefers-color-scheme: dark) {
+  .ops-console-brand img {
+    filter: brightness(0) invert(1);
+  }
 }
 
 .ops-console-nav {
@@ -287,7 +357,7 @@
 
 .ops-console-nav-group {
   padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--line);
 }
 
 .ops-console-nav-group:first-child {
@@ -313,18 +383,18 @@
   background: transparent;
   border: 0;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--ink-faint);
   cursor: pointer;
   border-radius: 8px;
   transition: color 120ms ease, background 120ms ease;
 }
 
 .ops-console-nav-group-toggle:hover {
-  color: rgba(255, 255, 255, 0.72);
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink-soft);
+  background: var(--surface-2);
 }
 
 .ops-console-nav-chevron {
@@ -342,9 +412,9 @@
   margin: 0;
   padding: 0 8px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.52);
+  color: var(--ink-faint);
 }
 
 .ops-console-nav-group ul {
@@ -360,12 +430,12 @@
   align-items: center;
   gap: 10px;
   position: relative;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 9px 10px;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--ink-soft);
   text-decoration: none;
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 600;
   transition: background 100ms ease, color 100ms ease;
 }
 
@@ -373,27 +443,27 @@
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--ink-faint);
   transition: color 100ms ease;
 }
 
 .ops-console-nav-group a:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: rgba(255, 255, 255, 0.96);
+  background: var(--surface-2);
+  color: var(--ink);
 }
 
 .ops-console-nav-group a:hover .ops-console-nav-icon {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--ink);
 }
 
 .ops-console-nav-group a.is-active {
-  background: linear-gradient(90deg, rgba(249, 115, 22, 0.28), rgba(234, 88, 12, 0.18));
-  color: #fff;
-  font-weight: 500;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 700;
 }
 
 .ops-console-nav-group a.is-active .ops-console-nav-icon {
-  color: #fff;
+  color: var(--accent-ink);
 }
 
 .ops-console-logout-wrap {
@@ -404,17 +474,23 @@
 .ops-console-logout {
   width: 100%;
   height: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
   background: transparent;
-  color: #fff;
+  color: var(--ink-soft);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 700;
   cursor: pointer;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.ops-console-logout:hover {
+  background: var(--surface-2);
+  color: var(--ink);
 }
 
 .ops-console-main {
-  background: #fff;
+  background: var(--ground);
   padding: 24px;
   height: 100dvh;
   /* Both axes scroll: vertical for tall pages, horizontal for narrow
@@ -434,15 +510,17 @@
 
 .ops-content-section header h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 26px;
+  font-weight: 800;
   line-height: 1.2;
-  color: #111827;
+  letter-spacing: -0.02em;
+  color: var(--ink);
 }
 
 .ops-content-section header p {
   margin: 10px 0 0;
   font-size: 14px;
-  color: #6b7280;
+  color: var(--ink-soft);
 }
 
 .ops-content-grid {
@@ -453,7 +531,7 @@
 }
 
 .ops-content-grid article {
-  background: #fff;
+  background: var(--surface);
   border-radius: 14px;
   padding: 18px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
@@ -466,7 +544,7 @@
 
 .ops-content-grid article p {
   margin: 10px 0 0;
-  color: #4b5563;
+  color: var(--ink-soft);
   line-height: 1.55;
   font-size: 14px;
 }
@@ -480,10 +558,10 @@
 
 .ops-partner-form-card,
 .ops-partner-list-card {
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  box-shadow: none;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .ops-content-section > .ops-partner-list-card {
@@ -498,7 +576,7 @@
 
 .ops-partner-form-card > p {
   margin: 10px 0 0;
-  color: #6b7280;
+  color: var(--ink-faint);
   font-size: 13px;
 }
 
@@ -532,17 +610,17 @@
 
 .ops-partner-filter-reset {
   height: 38px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 0 14px;
   font-size: 13px;
-  background: #fff;
-  color: #4b5563;
+  background: var(--surface);
+  color: var(--ink-soft);
   cursor: pointer;
 }
 
 .ops-partner-filter-reset:hover {
-  background: #f3f4f6;
+  background: var(--surface-2);
 }
 
 /* Inline "verification icon + email" cell used in the all-users list.
@@ -558,11 +636,11 @@
 }
 
 .ops-email-verify-icon.is-verified {
-  color: #16a34a;
+  color: var(--accent);
 }
 
 .ops-email-verify-icon.is-unverified {
-  color: #9ca3af;
+  color: var(--ink-faint);
 }
 
 /* Bulk action bar — sits between filters and the table when ≥1 row is
@@ -575,11 +653,11 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  background: #f9fafb;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent-soft);
   font-size: 13px;
-  color: #374151;
+  color: var(--ink-soft);
 }
 
 .ops-bulk-actionbar-buttons {
@@ -590,17 +668,21 @@
 
 .ops-partner-filter-search {
   height: 38px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 14px;
   font-size: 13px;
+  background: var(--surface-2);
+  color: var(--ink);
 }
 
 .ops-partner-filters select {
   height: 38px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 0 40px 0 12px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 40px 0 14px;
+  background-color: var(--surface-2);
+  color: var(--ink);
   font-size: 13px;
   appearance: none;
   -webkit-appearance: none;
@@ -659,7 +741,7 @@
   gap: 8px;
   padding-block: 3px;
   font-size: 13px;
-  color: #374151;
+  color: var(--ink-soft);
   font-weight: 500;
 }
 
@@ -668,12 +750,12 @@
   gap: 8px;
   padding-block: 3px;
   font-size: 13px;
-  color: #374151;
+  color: var(--ink-soft);
   font-weight: 500;
 }
 
 .ops-required {
-  color: #f97316;
+  color: var(--accent);
 }
 
 .ops-label-required {
@@ -687,13 +769,13 @@
 .ops-partner-form select,
 .ops-partner-form textarea {
   width: 100%;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 13px;
   font-family: inherit;
   outline: none;
-  background: #fff;
+  background: var(--surface);
 }
 
 .ops-partner-form select {
@@ -720,8 +802,8 @@
 .ops-partner-form input:focus,
 .ops-partner-form select:focus,
 .ops-partner-form textarea:focus {
-  border-color: #fdba74;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .ops-partner-form-two-cols {
@@ -739,9 +821,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px 12px;
   padding: 10px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface);
   max-height: 220px;
   overflow: auto;
 }
@@ -751,7 +833,7 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #111827;
+  color: var(--ink);
 }
 
 .ops-inline-check input {
@@ -768,23 +850,23 @@
 
 .ops-inline-add-row select {
   height: 40px;
-  background: #f8fafc;
-  border-color: #e9eef5;
-  color: #6b7280;
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--ink-faint);
   font-size: 12px;
 }
 
 .ops-inline-add-row select:focus {
-  border-color: #dbe4ee;
+  border-color: var(--line);
   box-shadow: none;
 }
 
 .ops-inline-add-button {
   min-width: 64px;
   height: 44px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  color: #111827;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
   border-radius: 10px;
   font-size: 13px;
   font-weight: 600;
@@ -822,14 +904,14 @@
   gap: 10px;
   min-height: 38px;
   padding: 0 14px;
-  border: 1px solid #d3ddeb;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: #f8fbff;
+  background: var(--surface-2);
 }
 
 .ops-selected-item-text {
   font-size: 13px;
-  color: #0b1220;
+  color: var(--ink);
   font-weight: 600;
   line-height: 1.2;
 }
@@ -839,7 +921,7 @@
   height: 16px;
   border: 0;
   background: transparent !important;
-  color: #dc2626 !important;
+  color: var(--danger) !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -852,21 +934,21 @@
 
 .ops-selected-delete:hover {
   background: transparent !important;
-  color: #dc2626 !important;
+  color: var(--danger) !important;
 }
 
 .ops-selected-delete:focus,
 .ops-selected-delete:focus-visible,
 .ops-selected-delete:active {
   background: transparent !important;
-  color: #dc2626 !important;
+  color: var(--danger) !important;
   box-shadow: none !important;
   outline: none;
 }
 
 .ops-form-error {
   margin: 8px 0 0;
-  color: #dc2626;
+  color: var(--danger);
   font-size: 12px;
 }
 
@@ -888,7 +970,7 @@
 
 .ops-list-empty {
   margin: 14px 0 0;
-  color: #6b7280;
+  color: var(--ink-faint);
   font-size: 13px;
 }
 
@@ -911,15 +993,24 @@
   text-align: left;
   padding: 13px 14px;
   font-size: 13px;
-  border-bottom: 1px solid #f5f7fb;
+  border-bottom: 1px solid var(--line);
   vertical-align: middle;
   white-space: nowrap;
 }
 
 .ops-partner-table th {
-  background: #fafbfc;
-  font-weight: 600;
-  color: #374151;
+  background: transparent;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* 숫자 정렬 셀은 tabular-nums 로 자릿수 정렬 */
+.ops-partner-table td.ops-num,
+.ops-partner-table .ops-num {
+  font-variant-numeric: tabular-nums;
 }
 
 .ops-th-sort {
@@ -940,7 +1031,11 @@
 }
 
 .ops-partner-table td {
-  color: #4b5563;
+  color: var(--ink-soft);
+}
+
+.ops-partner-table tbody tr:hover {
+  background: var(--surface-2);
 }
 
 .ops-position-list-table {
@@ -1058,20 +1153,21 @@
 
 .ops-table-empty {
   text-align: center !important;
-  color: #6b7280 !important;
+  color: var(--ink-faint) !important;
   padding: 28px 14px !important;
 }
 
 .ops-detail-button {
   height: 30px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 0 10px;
-  background: #fff;
-  color: #374151;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: var(--surface-2);
+  color: var(--ink-soft);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
   cursor: pointer;
+  transition: background 100ms ease;
 }
 
 .ops-icon-danger-button {
@@ -1080,7 +1176,7 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #dc2626;
+  color: var(--danger);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1088,7 +1184,7 @@
 }
 
 .ops-icon-danger-button:hover {
-  background: #fef2f2;
+  background: var(--danger-soft);
 }
 
 .ops-icon-action-button {
@@ -1097,7 +1193,7 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #374151;
+  color: var(--ink-soft);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1105,7 +1201,7 @@
 }
 
 .ops-icon-action-button:hover {
-  background: #f3f4f6;
+  background: var(--surface-2);
 }
 
 .ops-inline-icon-actions {
@@ -1118,8 +1214,9 @@
   border: 0;
   background: transparent;
   padding: 0;
-  color: #2563eb;
+  color: var(--accent-ink);
   font: inherit;
+  font-weight: 600;
   cursor: pointer;
   text-align: left;
 }
@@ -1187,58 +1284,51 @@
   align-items: start;
 }
 
+/* 상태 배지 — accent(정보/정상)·sand(경고)·danger(위험) + 중립(surface-2)만.
+ * 테두리 대신 소프트 배경 + 강조 텍스트. */
 .ops-status-pending {
-  background: #fffbeb;
-  color: #92400e;
-  border: 1px solid #fcd34d;
+  background: var(--sand-soft);
+  color: var(--sand);
 }
 
 .ops-status-draft {
-  background: #f8fafc;
-  color: #334155;
-  border: 1px solid #cbd5e1;
+  background: var(--surface-2);
+  color: var(--ink-soft);
 }
 
 .ops-status-approved {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #93c5fd;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
 .ops-status-closed {
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background: var(--surface-2);
+  color: var(--ink-soft);
 }
 
 .ops-status-rejected {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #fca5a5;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .ops-status-paused {
-  background: #ecfeff;
-  color: #155e75;
-  border: 1px solid #67e8f9;
+  background: var(--surface-2);
+  color: var(--ink-soft);
 }
 
 .ops-role-owner {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
 .ops-role-admin {
-  background: #ecfeff;
-  color: #0f766e;
-  border: 1px solid #99f6e4;
+  background: var(--surface-2);
+  color: var(--ink-soft);
 }
 
 .ops-role-member {
-  background: #f9fafb;
-  color: #374151;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-2);
+  color: var(--ink-soft);
 }
 
 .ops-status-badge.is-clickable {
@@ -1262,8 +1352,8 @@
   gap: 6px;
   padding: 6px;
   border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  border: 1px solid var(--line);
+  background: var(--surface);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
 }
 
@@ -1271,9 +1361,9 @@
   height: 28px;
   min-width: 52px;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  color: #4b5563;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
   font-size: 12px;
   font-weight: 600;
   padding: 0 8px;
@@ -1282,21 +1372,21 @@
 }
 
 .ops-status-toggle-menu button.approve {
-  border-color: #86efac;
-  background: #dcfce7;
-  color: #166534;
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
 .ops-status-toggle-menu button.pending {
-  border-color: #fde68a;
-  background: #fef9c3;
-  color: #854d0e;
+  border-color: transparent;
+  background: var(--sand-soft);
+  color: var(--sand);
 }
 
 .ops-status-toggle-menu button.reject {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
+  border-color: transparent;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .ops-status-toggle-menu button.approve.is-active {
@@ -1318,58 +1408,58 @@
 
 .ops-position-status-toggle-menu button.ops-position-status-draft,
 .ops-status-change-button.ops-position-status-draft {
-  border-color: #cbd5e1;
-  background: #f8fafc;
-  color: #334155;
+  border-color: transparent;
+  background: var(--surface-2);
+  color: var(--ink-soft);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-pending,
 .ops-status-change-button.ops-position-status-pending {
-  border-color: #fcd34d;
-  background: #fffbeb;
-  color: #92400e;
+  border-color: transparent;
+  background: var(--sand-soft);
+  color: var(--sand);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-approved,
 .ops-status-change-button.ops-position-status-approved {
-  border-color: #93c5fd;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-open,
 .ops-status-change-button.ops-position-status-open {
-  border-color: #93c5fd;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-paused,
 .ops-status-change-button.ops-position-status-paused {
-  border-color: #67e8f9;
-  background: #ecfeff;
-  color: #155e75;
+  border-color: transparent;
+  background: var(--surface-2);
+  color: var(--ink-soft);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-matching,
 .ops-status-change-button.ops-position-status-matching {
-  border-color: #99f6e4;
-  background: #ecfeff;
-  color: #0f766e;
+  border-color: transparent;
+  background: var(--surface-2);
+  color: var(--ink-soft);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-closed,
 .ops-status-change-button.ops-position-status-closed {
-  border-color: #d1d5db;
-  background: #f3f4f6;
-  color: #374151;
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink-soft);
 }
 
 .ops-position-status-toggle-menu button.ops-position-status-rejected,
 .ops-status-change-button.ops-position-status-rejected {
-  border-color: #fca5a5;
-  background: #fef2f2;
-  color: #991b1b;
+  border-color: transparent;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .ops-position-status-toggle-menu button.is-active,
@@ -1405,10 +1495,10 @@
 .ops-modal-panel {
   width: min(640px, calc(100% - 24px));
   max-height: calc(100dvh - 120px);
-  border-radius: 14px;
-  background: #fff;
+  border-radius: 16px;
+  background: var(--surface);
   padding: 16px;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.22);
+  box-shadow: var(--shadow-card-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1446,13 +1536,15 @@
 .ops-modal-panel-header h2 {
   margin: 0;
   font-size: 17px;
-  color: #111827;
+  font-weight: 800;
+  color: var(--ink);
 }
 
 .ops-modal-panel-body {
-  padding: 6px 22px 14px;
+  padding: 10px 22px 16px;
   overflow-y: auto;
   min-height: 0;
+  line-height: 1.6;
 }
 
 .ops-modal-panel-footer {
@@ -1461,7 +1553,7 @@
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
-  border-top: 1px solid #eef0f3;
+  border-top: 1px solid var(--line);
 }
 
 /* Status-change popup keeps a slightly wider variant for the 2-col grid. */
@@ -1478,8 +1570,8 @@
 .ops-status-change-button {
   height: 36px;
   border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  border: 1px solid var(--line);
+  background: var(--surface);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -1495,7 +1587,7 @@
 
 .ops-pagination span {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 .ops-pagination div {
@@ -1509,7 +1601,7 @@
   border-radius: 8px;
   padding: 0 10px;
   background: transparent;
-  color: #374151;
+  color: var(--ink-soft);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -1521,7 +1613,7 @@
 }
 
 .ops-pagination-numbers button.is-active {
-  color: #ea580c;
+  color: var(--accent-ink);
   font-weight: 600;
 }
 
@@ -1532,10 +1624,10 @@
 }
 
 .ops-partner-item {
-  border: 1px solid #eceff5;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 12px;
-  background: #fcfcfd;
+  background: var(--surface-2);
 }
 
 .ops-partner-item-head {
@@ -1551,9 +1643,9 @@
 
 .ops-partner-item-head span {
   font-size: 11px;
-  color: #9a3412;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
+  color: var(--sand);
+  background: var(--sand-soft);
+  border: 0;
   border-radius: 999px;
   padding: 2px 8px;
 }
@@ -1561,7 +1653,7 @@
 .ops-partner-item p {
   margin: 6px 0 0;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 .ops-modal-dialog {
@@ -1608,9 +1700,9 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.22);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card-lg);
   padding: 0;
 }
 
@@ -1635,7 +1727,7 @@
 .ops-modal-back {
   border: 0;
   background: transparent;
-  color: #374151;
+  color: var(--ink-soft);
   border-radius: 0;
   padding: 0;
   font-size: 0;
@@ -1686,33 +1778,33 @@
 }
 
 .ops-profile-completion-tone-neutral {
-  border-color: #e5e7eb;
-  background: #f3f4f6;
-  color: #6b7280;
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--ink-faint);
 }
 
 .ops-profile-completion-tone-very-low {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
+  border-color: transparent;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .ops-profile-completion-tone-low {
-  border-color: #fed7aa;
-  background: #fff7ed;
-  color: #c2410c;
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
 .ops-profile-completion-tone-medium {
-  border-color: #fef08a;
-  background: #fefce8;
-  color: #a16207;
+  border-color: transparent;
+  background: var(--sand-soft);
+  color: var(--sand);
 }
 
 .ops-profile-completion-tone-high {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
 .ops-detail-top-right {
@@ -1735,7 +1827,7 @@
   display: flex;
   gap: 2px;
   flex-wrap: wrap;
-  border-bottom: 1px solid #eef2f7;
+  border-bottom: 1px solid var(--line);
 }
 
 .ops-position-detail-tabs {
@@ -1753,16 +1845,16 @@
   border-radius: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: #4b5563;
+  color: var(--ink-faint);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
   padding: 0 12px;
   cursor: pointer;
 }
 
 .ops-detail-tab.is-active {
-  border-bottom-color: #f97316;
-  color: #c2410c;
+  border-bottom-color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .ops-detail-tab-panel {
@@ -1774,55 +1866,72 @@
 
 .ops-modal-header h2 {
   margin: 0;
-  font-size: 17px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 
 .ops-modal-close {
   height: 34px;
   width: 34px;
   border: 0;
-  border-radius: 0;
+  border-radius: 8px;
   padding: 0;
   background: transparent;
-  color: #374151;
+  color: var(--ink-soft);
   font-size: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.ops-modal-close:hover {
+  background: var(--surface-2);
+  color: var(--ink);
 }
 
 .ops-modal-card > p {
   margin: 3px 0 0;
-  color: #6b7280;
+  color: var(--ink-faint);
   font-size: 13px;
 }
 
 .ops-modal-scroll-body {
   min-height: 0;
   overflow-y: auto;
-  padding: 6px 22px 14px;
+  padding: 10px 22px 16px;
+  line-height: 1.6;
 }
 
+/* 액션(푸터) 영역을 본문과 선으로 분리해 '무엇을 할지'가 한눈에 보이게 */
 .ops-modal-fixed-bottom {
-  padding: 14px 22px 20px;
+  padding: 14px 22px 18px;
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
+  border-top: 1px solid var(--line);
 }
 
 .ops-modal-submit {
   width: auto;
   min-width: 140px;
-  height: 46px;
+  height: 44px;
   border: 0;
-  border-radius: 10px;
-  background: var(--ops-accent-dark);
+  border-radius: 12px;
+  background: var(--accent);
   color: #fff;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  transition: filter 100ms ease;
+}
+
+.ops-modal-submit:hover:not(:disabled) {
+  filter: brightness(0.96);
 }
 
 .ops-modal-submit:disabled {
@@ -1908,7 +2017,7 @@
 .ops-candidate-education-sections-scroll .ops-period-sub {
   margin-top: 2px;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-faint);
   white-space: nowrap;
   word-break: normal;
 }
@@ -1922,9 +2031,10 @@
 
 .ops-detail-section h3 {
   margin: 0 0 12px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #111827;
+  font-size: 14.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 
 .ops-detail-grid {
@@ -1958,13 +2068,13 @@
 .ops-detail-grid > div > span,
 .ops-detail-grid > label > span {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-faint);
   line-height: 1.5;
 }
 
 .ops-detail-grid > label > span {
   font-size: 13px;
-  color: #374151;
+  color: var(--ink-soft);
   font-weight: 500;
 }
 
@@ -1974,12 +2084,12 @@
 }
 
 .ops-detail-grid .ops-required {
-  color: #f97316;
+  color: var(--accent);
 }
 
 .ops-detail-grid strong {
   font-size: 13px;
-  color: #111827;
+  color: var(--ink);
   white-space: pre-wrap;
   word-break: break-word;
   font-weight: 500;
@@ -1991,13 +2101,13 @@
 .ops-detail-grid select,
 .ops-detail-grid textarea {
   width: 100%;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 13px;
   font-family: inherit;
   outline: none;
-  background: #fff;
+  background: var(--surface);
 }
 
 .ops-detail-grid input,
@@ -2024,14 +2134,14 @@
 .ops-detail-grid input:focus,
 .ops-detail-grid select:focus,
 .ops-detail-grid textarea:focus {
-  border-color: #fdba74;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .ops-detail-empty {
   margin: 0;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 .ops-file-card-grid {
@@ -2042,9 +2152,9 @@
 }
 
 .ops-file-card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
   padding: 12px;
   display: grid;
   gap: 10px;
@@ -2063,13 +2173,13 @@
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #111827;
+  color: var(--ink);
 }
 
 .ops-file-card-file-name {
   margin: 0;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-faint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2084,7 +2194,7 @@
 
 .ops-file-card-upload {
   height: 34px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--line-strong);
   border-radius: 10px;
   padding: 0 10px;
   display: inline-flex;
@@ -2092,8 +2202,8 @@
   gap: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: #374151;
-  background: #fff;
+  color: var(--ink-soft);
+  background: var(--surface);
   cursor: pointer;
 }
 
@@ -2107,7 +2217,7 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #dc2626;
+  color: var(--danger);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2115,13 +2225,13 @@
 }
 
 .ops-file-card-clear:disabled {
-  color: #9ca3af;
+  color: var(--ink-faint);
   cursor: not-allowed;
 }
 
 .ops-file-card-status {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 .ops-position-lines {
@@ -2129,7 +2239,7 @@
   padding-left: 18px;
   display: grid;
   gap: 8px;
-  color: #1f2937;
+  color: var(--ink);
   font-size: 13px;
   line-height: 1.55;
 }
@@ -2183,7 +2293,7 @@
 
 .ops-position-inline-form input {
   height: 40px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 0 12px;
   font-size: 13px;
@@ -2191,8 +2301,8 @@
 
 .ops-position-inline-form input:focus {
   outline: none;
-  border-color: #fdba74;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .ops-checkbox-group {
@@ -2207,7 +2317,7 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #1f2937;
+  color: var(--ink);
 }
 
 .ops-detail-grid .ops-checkbox-item input {
@@ -2259,13 +2369,13 @@
 
 .ops-partner-members-head {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-faint);
   font-weight: 600;
 }
 
 .ops-partner-members-row {
   font-size: 13px;
-  color: #111827;
+  color: var(--ink);
 }
 
 .ops-partner-members-row > span {
@@ -2285,7 +2395,7 @@
   margin-top: 10px;
   border: 0;
   background: transparent;
-  color: #2563eb;
+  color: var(--accent-ink);
   font-size: 12px;
   font-weight: 600;
   padding: 0;
@@ -2308,19 +2418,19 @@
 
 .ops-action-reject {
   border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .ops-action-approve {
   border: 1px solid #86efac;
-  background: #dcfce7;
-  color: #166534;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
 .ops-action-save {
   border: 0;
-  background: var(--ops-accent-dark);
+  background: var(--accent);
   color: #fff;
   min-width: 92px;
 }
@@ -2328,13 +2438,13 @@
 .ops-action-cancel {
   height: 40px;
   min-width: 92px;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
+  border: 0;
+  border-radius: 12px;
   padding: 0 12px;
-  background: #fff;
-  color: #374151;
+  background: var(--surface-2);
+  color: var(--ink-soft);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -2343,7 +2453,7 @@
   cursor: not-allowed;
 }
 
-/* Unified button size/shape */
+/* Unified button size/shape — 기본은 보조 버튼(surface-2), 아래에서 역할별 오버라이드 */
 .ops-partner-add-button,
 .ops-detail-button,
 .ops-modal-submit,
@@ -2352,13 +2462,13 @@
 .ops-action-cancel,
 .ops-action-save {
   height: 40px;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
+  border: 0;
+  border-radius: 12px;
   padding: 0 12px;
-  background: #fff;
-  color: #374151;
+  background: var(--surface-2);
+  color: var(--ink-soft);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   box-shadow: none;
 }
 
@@ -2367,44 +2477,37 @@
   min-width: 140px;
 }
 
+/* 기본(primary) CTA = accent */
 .ops-partner-add-button,
-.ops-modal-submit {
-  border-color: #ea580c;
-  background: var(--ops-accent-dark);
-  color: #fff;
-}
-
+.ops-modal-submit,
 .ops-action-save {
-  border-color: var(--ops-accent-dark);
-  background: var(--ops-accent-dark);
+  background: var(--accent);
   color: #fff;
 }
 
+/* 승인/긍정 = accent 소프트 (성공 green 은 accent 로 수렴) */
 .ops-action-approve {
-  border-color: #86efac;
-  background: #dcfce7;
-  color: #166534;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
+/* 소프트 거절 = danger 소프트 */
 .ops-action-reject {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
-/* Solid red for destructive / irreversible actions (DB wipes, hard delete,
-   forum purge). Visually heavier than `.ops-action-reject` (which is the
-   soft "decline" variant used in moderation queues). */
+/* Solid danger for destructive / irreversible actions (DB wipes, hard delete). */
 .ops-action-danger {
   height: 40px;
   min-width: 92px;
-  border: 1px solid #b42318;
-  border-radius: 10px;
+  border: 0;
+  border-radius: 12px;
   padding: 0 12px;
-  background: #b42318;
+  background: var(--danger);
   color: #fff;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -2419,14 +2522,13 @@
 
 .ops-detail-button,
 .ops-action-cancel {
-  border-color: #d1d5db;
-  background: #fff;
-  color: #374151;
+  background: var(--surface-2);
+  color: var(--ink-soft);
 }
 
 .ops-detail-button {
   border: 0;
-  background: #f3f4f6;
+  background: var(--surface-2);
 }
 
 .ops-partner-add-button:hover,
@@ -2435,15 +2537,15 @@
   filter: brightness(0.96);
 }
 
-.ops-action-reject:hover,
-.ops-action-approve:hover,
-.ops-modal-close:hover,
-.ops-action-cancel:hover {
-  background: transparent;
+.ops-action-cancel:hover,
+.ops-detail-button:hover {
+  background: var(--line);
 }
 
-.ops-detail-button:hover {
-  background: #e5e7eb;
+.ops-action-reject:hover,
+.ops-action-approve:hover,
+.ops-modal-close:hover {
+  filter: brightness(0.97);
 }
 
 .ops-inline-actions {
@@ -2454,7 +2556,7 @@
 
 .ops-matching-run-meta {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 .ops-matching-modal-card .ops-modal-scroll-body {
@@ -2480,17 +2582,17 @@
 
 .ops-matching-action-buttons button {
   height: 40px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--line-strong);
   border-radius: 10px;
-  background: #fff;
-  color: #374151;
+  background: var(--surface);
+  color: var(--ink-soft);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .ops-matching-action-buttons button.is-active {
-  border-color: #ea580c;
+  border-color: var(--accent-ink);
   background: var(--ops-accent-dark);
   color: #fff;
 }
@@ -2498,7 +2600,7 @@
 .ops-matching-helper {
   margin: 12px 0 0;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 .ops-matching-manual-form {
@@ -2515,12 +2617,12 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  background: #fff;
+  background: var(--surface);
   padding-bottom: 6px;
 }
 
 .ops-matching-select-list {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 8px;
   height: 300px;
@@ -2540,7 +2642,7 @@
 .ops-matching-select-list button {
   border: 1px solid transparent;
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   text-align: left;
   padding: 11px 12px;
   min-height: 58px;
@@ -2553,7 +2655,7 @@
 .ops-matching-select-list button strong {
   display: block;
   font-size: 13px;
-  color: #111827;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2562,26 +2664,26 @@
 .ops-matching-select-list button span {
   display: block;
   font-size: 12px;
-  color: #64748b;
+  color: var(--ink-faint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .ops-matching-select-list button:hover {
-  background: #f9fafb;
+  background: var(--surface-2);
 }
 
 .ops-matching-select-list button.is-active {
-  border-color: #fdba74;
-  background: #fff7ed;
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .ops-matching-select-empty {
   margin: 0;
   width: 100%;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-faint);
   text-align: center;
 }
 
@@ -2662,19 +2764,19 @@
 }
 
 .ops-matching-split-select option {
-  color: #111827;
+  color: var(--ink);
 }
 
 .ops-matching-popup-result {
   margin-top: 14px;
   padding-top: 10px;
-  border-top: 1px solid #eef2f7;
+  border-top: 1px solid var(--line);
 }
 
 .ops-matching-popup-result h3 {
   margin: 0 0 10px;
   font-size: 13px;
-  color: #111827;
+  color: var(--ink);
 }
 
 .ops-matching-popup-result .ops-matching-reco-grid {
@@ -2690,8 +2792,8 @@
 }
 
 .ops-matching-popup-result .ops-matching-reco-card > ul > li {
-  border: 1px solid #e5e7eb;
-  background: #f8fafc;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
   border-radius: 10px;
   padding: 12px;
   margin-bottom: 8px;
@@ -2703,17 +2805,17 @@
 
 .ops-matching-popup-result-position .ops-matching-reco-card > ul > li {
   padding: 12px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--line);
 }
 
 .ops-matching-popup-result-position .ops-matching-reco-card > ul > li:first-child {
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--line);
 }
 
 .ops-matching-loading-screen {
   height: 100%;
   min-height: min(560px, calc(100dvh - 260px));
-  background: #fff;
+  background: var(--surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2724,7 +2826,7 @@
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: var(--ink);
 }
 
 .ops-matching-reco-grid {
@@ -2735,10 +2837,10 @@
 }
 
 .ops-matching-reco-card {
-  border: 1px solid #eef2f7;
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 16px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .ops-matching-reco-card h3 {
@@ -2749,7 +2851,7 @@
 .ops-matching-reco-card > p {
   margin: 5px 0 0;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 .ops-matching-reco-card > ul {
@@ -2761,7 +2863,7 @@
 }
 
 .ops-matching-reco-card > ul > li {
-  border: 1px solid #f1f5f9;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 14px 14px;
   display: grid;
@@ -2774,13 +2876,13 @@
 .ops-matching-reco-card > ul > li strong {
   font-size: 16px;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
   min-width: 0;
 }
 
 .ops-matching-reco-card > ul > li small {
   font-size: 13px;
-  color: #475569;
+  color: var(--ink-soft);
   grid-column: 1 / -1;
 }
 
@@ -2788,7 +2890,7 @@
   display: grid;
   gap: 6px;
   font-size: 13px;
-  color: #334155;
+  color: var(--ink-soft);
   line-height: 1.55;
 }
 
@@ -2800,7 +2902,7 @@
 }
 
 .ops-matching-feedback {
-  color: #1f2937;
+  color: var(--ink);
   font-weight: 600;
 }
 
@@ -2809,7 +2911,7 @@
 }
 
 .ops-matching-clickable-item:focus-visible {
-  outline: 2px solid #fdba74;
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
@@ -2821,7 +2923,7 @@
 .ops-matching-bullet-title {
   font-size: 12px;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
 }
 
 .ops-matching-bullet-list {
@@ -2829,13 +2931,13 @@
   padding-left: 18px;
   display: grid;
   gap: 4px;
-  color: #334155;
+  color: var(--ink-soft);
   list-style-type: disc;
   list-style-position: outside;
 }
 
 .ops-matching-bullet-list li::marker {
-  color: #334155;
+  color: var(--ink-soft);
 }
 
 .ops-matching-score {
@@ -2849,9 +2951,9 @@
   padding: 0 14px;
   font-size: 15px;
   font-weight: 700;
-  background: #eff6ff;
+  background: var(--accent-soft);
   border: 1px solid #bfdbfe;
-  color: #1d4ed8;
+  color: var(--accent-ink);
 }
 
 .ops-matching-activity-list {
@@ -2863,7 +2965,7 @@
 }
 
 .ops-matching-activity-list li {
-  border: 1px solid #eef2f7;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 12px 14px;
   display: grid;
@@ -2873,18 +2975,18 @@
 
 .ops-matching-activity-list li span {
   font-size: 12px;
-  color: #64748b;
+  color: var(--ink-faint);
 }
 
 .ops-matching-activity-list li small {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 .ops-matching-cell-sub {
   margin-top: 4px;
   font-size: 11px;
-  color: #64748b;
+  color: var(--ink-faint);
 }
 
 .ops-matching-progress-track {
@@ -2893,7 +2995,7 @@
   height: 8px;
   border-radius: 999px;
   overflow: hidden;
-  background: #eef2f7;
+  background: var(--surface-2);
 }
 
 .ops-matching-progress-track > span {
@@ -2908,7 +3010,7 @@
 }
 
 .ops-matching-history-row:focus-visible {
-  outline: 2px solid #fdba74;
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
@@ -2930,22 +3032,22 @@
 }
 
 .ops-matching-history-meta > div {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 12px;
-  background: #f8fafc;
+  background: var(--surface-2);
 }
 
 .ops-matching-history-meta dt {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--ink-faint);
   margin: 0;
 }
 
 .ops-matching-history-meta dd {
   margin: 4px 0 0;
   font-size: 13px;
-  color: #111827;
+  color: var(--ink);
 }
 
 .ops-matching-history-result-list > ul {
@@ -2957,10 +3059,10 @@
 }
 
 .ops-matching-history-result-list > ul > li {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 12px;
-  background: #fff;
+  background: var(--surface);
   display: grid;
   gap: 8px;
 }
@@ -2974,7 +3076,7 @@
 
 .ops-matching-history-result-top > strong {
   font-size: 15px;
-  color: #111827;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2991,22 +3093,22 @@
 }
 
 .ops-matching-candidate-text-block {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 12px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .ops-matching-candidate-text-block > h4 {
   margin: 0;
   font-size: 13px;
-  color: #111827;
+  color: var(--ink);
 }
 
 .ops-matching-candidate-text-block > p {
   margin: 8px 0 0;
   font-size: 14px;
-  color: #334155;
+  color: var(--ink-soft);
   line-height: 1.55;
   white-space: pre-line;
 }
@@ -3016,7 +3118,7 @@
   padding-left: 18px;
   display: grid;
   gap: 4px;
-  color: #334155;
+  color: var(--ink-soft);
   font-size: 14px;
 }
 
@@ -3032,7 +3134,7 @@
 .ops-matching-history-result-list .ops-matching-bullet-block > p {
   margin: 0;
   font-size: 14px;
-  color: #334155;
+  color: var(--ink-soft);
   line-height: 1.5;
   white-space: pre-line;
 }
@@ -3065,7 +3167,7 @@
   max-height: none;
   min-height: min(680px, calc(100dvh - 220px));
   box-shadow: none;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
 }
 
 .ops-matching-history-result-list .ops-matching-bullet-block + .ops-matching-bullet-block {
@@ -3300,17 +3402,25 @@
 /* ===== Shared admin card utilities (new pages) ===== */
 
 .ops-card {
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  box-shadow: none;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-card);
 }
 
-/* Vertical rhythm (Toss-style flat layout): no card chrome, so siblings
-   rely on margin alone for separation. 28px between header and first
-   section, 24px between subsequent siblings. */
+/* Vertical rhythm: 28px between header and first block, 24px between blocks.
+   Blocks are surface cards over the grey ground. */
 .ops-content-section > header + * {
   margin-top: 28px;
+}
+
+/* 섹션 바로 아래에 그냥 놓인 테이블·필터바도 흰 카드로 감싼다(회색 그라운드 위 부유 방지). */
+.ops-content-section > .ops-partner-table-wrap,
+.ops-content-section > .ops-partner-filters {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .ops-content-section > header ~ * + * {
@@ -3329,13 +3439,13 @@
   margin: 0;
   font-size: 16px;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
 }
 
 .ops-card-subtle {
   margin: 6px 0 0;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--ink-faint);
   line-height: 1.55;
 }
 
@@ -3352,20 +3462,20 @@
   padding: 7px 14px;
   border: 0;
   border-radius: 999px;
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--surface-2);
+  color: var(--ink-soft);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: background-color 0.15s, color 0.15s;
 }
 
 .ops-filter-chip:hover {
-  background: #e5e7eb;
+  background: var(--line);
 }
 
 .ops-filter-chip.is-active {
-  background: #111827;
+  background: var(--accent);
   color: #fff;
 }
 
@@ -3384,15 +3494,15 @@
   padding: 40px 0;
   box-shadow: none;
   text-align: center;
-  color: #6b7280;
+  color: var(--ink-faint);
   font-size: 14px;
 }
 
 .ops-error-card {
-  background: #fef2f2;
+  background: var(--danger-soft);
   border-radius: 14px;
   padding: 16px 20px;
-  color: #b91c1c;
+  color: var(--danger);
   font-size: 13px;
 }
 
@@ -3403,10 +3513,10 @@
 }
 
 .ops-list-card {
-  background: #fff;
-  border-radius: 14px;
+  background: var(--surface);
+  border-radius: 16px;
   padding: 18px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -3417,7 +3527,7 @@
 
 a.ops-list-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-card-lg);
 }
 
 .ops-list-card-head {
@@ -3430,14 +3540,14 @@ a.ops-list-card:hover {
 .ops-list-card-title {
   font-size: 15px;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
   margin: 0;
 }
 
 .ops-list-card-sub {
   margin: 2px 0 0;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 .ops-list-card-meta {
@@ -3450,12 +3560,12 @@ a.ops-list-card:hover {
 }
 
 .ops-list-card-meta dt {
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 .ops-list-card-meta dd {
   margin: 0;
-  color: #374151;
+  color: var(--ink-soft);
 }
 
 .ops-tag-row {
@@ -3474,48 +3584,51 @@ a.ops-list-card:hover {
   line-height: 1.6;
 }
 
-.ops-pill-amber { background: #fffbeb; color: #b45309; }
-.ops-pill-blue { background: #eff6ff; color: #1d4ed8; }
-.ops-pill-green { background: #ecfdf5; color: #047857; }
-.ops-pill-gray { background: #f3f4f6; color: #4b5563; }
-.ops-pill-red { background: #fef2f2; color: #b91c1c; }
-.ops-pill-violet { background: #f5f3ff; color: #6d28d9; }
+/* 상태색은 accent(정보/정상)·sand(경고)·danger(위험) 3종 + 중립만 사용 */
+.ops-pill-amber { background: var(--sand-soft); color: var(--sand); }
+.ops-pill-blue { background: var(--accent-soft); color: var(--accent-ink); }
+.ops-pill-green { background: var(--accent-soft); color: var(--accent-ink); }
+.ops-pill-gray { background: var(--surface-2); color: var(--ink-soft); }
+.ops-pill-red { background: var(--danger-soft); color: var(--danger); }
+.ops-pill-violet { background: var(--surface-2); color: var(--ink-soft); }
 
 .ops-kpi-grid {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .ops-kpi-tile {
-  background: #f9fafb;
-  border-radius: 10px;
-  padding: 14px;
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 18px 16px;
 }
 
 .ops-kpi-label {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--ink-faint);
   margin: 0;
 }
 
 .ops-kpi-value {
   font-size: 22px;
-  font-weight: 700;
-  margin: 6px 0 0;
-  color: #111827;
+  font-weight: 800;
+  margin: 8px 0 0;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
-.ops-kpi-tile.ops-kpi-blue .ops-kpi-label { color: #1e40af; }
-.ops-kpi-tile.ops-kpi-blue .ops-kpi-value { color: #1d4ed8; }
-.ops-kpi-tile.ops-kpi-green .ops-kpi-label { color: #065f46; }
-.ops-kpi-tile.ops-kpi-green .ops-kpi-value { color: #047857; }
-.ops-kpi-tile.ops-kpi-amber .ops-kpi-label { color: #92400e; }
-.ops-kpi-tile.ops-kpi-amber .ops-kpi-value { color: #b45309; }
+/* 톤 변형 — accent(정보)·sand(경고)만. green(성공)은 accent 로 수렴 */
+.ops-kpi-tile.ops-kpi-blue .ops-kpi-label,
+.ops-kpi-tile.ops-kpi-green .ops-kpi-label { color: var(--accent-ink); }
+.ops-kpi-tile.ops-kpi-blue .ops-kpi-value,
+.ops-kpi-tile.ops-kpi-green .ops-kpi-value { color: var(--accent-ink); }
+.ops-kpi-tile.ops-kpi-amber .ops-kpi-label { color: var(--sand); }
+.ops-kpi-tile.ops-kpi-amber .ops-kpi-value { color: var(--sand); }
 
-.ops-kpi-tile.ops-kpi-blue { background: #eff6ff; }
-.ops-kpi-tile.ops-kpi-green { background: #ecfdf5; }
-.ops-kpi-tile.ops-kpi-amber { background: #fffbeb; }
+.ops-kpi-tile.ops-kpi-blue,
+.ops-kpi-tile.ops-kpi-green { background: var(--accent-soft); }
+.ops-kpi-tile.ops-kpi-amber { background: var(--sand-soft); }
 
 /* ---- Reports page v2: icon KPI strip + 2-col chart row + tabbed table ----
    Visual reference: shop-dashboard style. Colors stay with the ops console
@@ -3529,10 +3642,11 @@ a.ops-list-card:hover {
 }
 
 .ops-report-kpi {
-  background: #fff;
-  border: 1px solid #eef0f3;
-  border-radius: 12px;
+  background: var(--surface);
+  border: 0;
+  border-radius: 16px;
   padding: 18px 20px;
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -3548,8 +3662,7 @@ a.ops-report-kpi--link {
 }
 
 a.ops-report-kpi--link:hover {
-  border-color: var(--ops-accent-dark);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-card-lg);
   transform: translateY(-1px);
 }
 
@@ -3566,9 +3679,9 @@ a.ops-report-kpi--link:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #6b7280;
+  color: var(--ink-faint);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .ops-report-kpi-head .icon {
@@ -3578,29 +3691,30 @@ a.ops-report-kpi--link:focus-visible {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: #fff7ed;
-  color: var(--ops-accent-dark);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
   flex: 0 0 auto;
 }
 
 .ops-report-kpi .value {
   font-size: 32px;
-  font-weight: 700;
+  font-weight: 800;
   margin: 0;
-  color: #111827;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
   line-height: 1.05;
   letter-spacing: -0.02em;
 }
 
+/* 증감: 상승=accent(정보/긍정), 하락=danger, 변화없음=중립 (Toss 톤) */
 .ops-report-kpi .delta {
   font-size: 12px;
   margin: 0;
-  font-weight: 500;
-  color: #16a34a;
+  font-weight: 700;
+  color: var(--accent-ink);
 }
-.ops-report-kpi .delta.is-down { color: #dc2626; }
-.ops-report-kpi .delta.is-muted { color: #6b7280; }
+.ops-report-kpi .delta.is-down { color: var(--danger); }
+.ops-report-kpi .delta.is-muted { color: var(--ink-faint); }
 
 /* Two-column chart row: 2/3 + 1/3 */
 .ops-report-chart-row {
@@ -3615,10 +3729,11 @@ a.ops-report-kpi--link:focus-visible {
 }
 
 .ops-report-chart-card {
-  background: #fff;
-  border: 1px solid #eef0f3;
-  border-radius: 12px;
+  background: var(--surface);
+  border: 0;
+  border-radius: 16px;
   padding: 18px 20px 20px;
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -3634,8 +3749,7 @@ a.ops-report-chart-card--link {
 }
 
 a.ops-report-chart-card--link:hover {
-  border-color: var(--ops-accent-dark);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-card-lg);
   transform: translateY(-1px);
 }
 
@@ -3663,21 +3777,21 @@ a.ops-report-chart-card--link:focus-visible {
 
 .ops-report-chart-title .name {
   font-size: 12px;
-  color: #6b7280;
-  font-weight: 500;
+  color: var(--ink-faint);
+  font-weight: 600;
 }
 
 .ops-report-chart-title .num {
   font-size: 26px;
-  font-weight: 700;
-  color: #111827;
+  font-weight: 800;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
 
 .ops-report-chart-title .delta {
   font-size: 11px;
-  color: #16a34a;
+  color: var(--accent-ink);
   font-weight: 500;
 }
 
@@ -3706,7 +3820,7 @@ a.ops-report-chart-card--link:focus-visible {
   min-height: 0;
   display: flex;
   flex-direction: column-reverse;
-  background: #f3f4f6;
+  background: var(--surface-2);
   border-radius: 8px 8px 0 0;
   overflow: hidden;
 }
@@ -3720,7 +3834,7 @@ a.ops-report-chart-card--link:focus-visible {
 
 .ops-report-vbars .label {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--ink-faint);
   white-space: nowrap;
 }
 
@@ -3729,7 +3843,7 @@ a.ops-report-chart-card--link:focus-visible {
   display: inline-flex;
   gap: 4px;
   padding: 4px;
-  background: #f3f4f6;
+  background: var(--surface-2);
   border-radius: 10px;
 }
 
@@ -3741,7 +3855,7 @@ a.ops-report-chart-card--link:focus-visible {
   border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--ink-faint);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -3749,12 +3863,12 @@ a.ops-report-chart-card--link:focus-visible {
 }
 
 .ops-report-tab:hover {
-  color: #374151;
+  color: var(--ink-soft);
 }
 
 .ops-report-tab.is-active {
-  background: #fff;
-  color: #111827;
+  background: var(--surface);
+  color: var(--ink);
   font-weight: 600;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
@@ -3786,8 +3900,8 @@ a.ops-report-chart-card--link:focus-visible {
 }
 
 .ops-report-hero-tile {
-  background: #fff;
-  border: 1px solid #eef0f3;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 24px 26px;
   display: flex;
@@ -3797,7 +3911,7 @@ a.ops-report-chart-card--link:focus-visible {
 
 .ops-report-hero-tile .label {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--ink-faint);
   margin: 0;
   font-weight: 500;
 }
@@ -3806,7 +3920,7 @@ a.ops-report-chart-card--link:focus-visible {
   font-size: 40px;
   font-weight: 700;
   margin: 0;
-  color: #111827;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
   line-height: 1.05;
   letter-spacing: -0.02em;
@@ -3814,13 +3928,13 @@ a.ops-report-chart-card--link:focus-visible {
 
 .ops-report-hero-tile .delta {
   font-size: 12px;
-  color: #16a34a;
+  color: var(--accent-ink);
   margin: 0;
   font-weight: 500;
 }
 
 .ops-report-hero-tile .delta.is-muted {
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 /* Horizontal proportional share bar — shows category split as colored slices.
@@ -3835,7 +3949,7 @@ a.ops-report-chart-card--link:focus-visible {
   height: 16px;
   border-radius: 999px;
   overflow: hidden;
-  background: #f3f4f6;
+  background: var(--surface-2);
 }
 
 .ops-report-share-bar > span {
@@ -3856,7 +3970,7 @@ a.ops-report-chart-card--link:focus-visible {
   align-items: center;
   gap: 10px;
   font-size: 14px;
-  color: #374151;
+  color: var(--ink-soft);
 }
 
 .ops-report-share-legend-item .dot {
@@ -3869,19 +3983,19 @@ a.ops-report-chart-card--link:focus-visible {
 
 .ops-report-share-legend-item .name {
   flex: 1;
-  color: #6b7280;
+  color: var(--ink-faint);
   font-size: 13px;
 }
 
 .ops-report-share-legend-item .num {
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
   font-size: 16px;
 }
 
 .ops-report-share-legend-item .pct {
-  color: #9ca3af;
+  color: var(--ink-faint);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
@@ -3903,13 +4017,13 @@ a.ops-report-chart-card--link:focus-visible {
 
 .ops-report-row .label {
   font-size: 14px;
-  color: #374151;
+  color: var(--ink-soft);
   font-weight: 500;
 }
 
 .ops-report-row .track {
   height: 10px;
-  background: #f3f4f6;
+  background: var(--surface-2);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -3924,14 +4038,14 @@ a.ops-report-chart-card--link:focus-visible {
 .ops-report-row .num {
   font-size: 18px;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 .ops-report-row .pct {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--ink-faint);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -3953,7 +4067,7 @@ a.ops-report-chart-card--link:focus-visible {
 .ops-report-funnel-stage .label {
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: var(--ink-soft);
 }
 
 .ops-report-funnel-stage .bar {
@@ -3971,13 +4085,13 @@ a.ops-report-chart-card--link:focus-visible {
 }
 
 .ops-report-funnel-stage .bar.is-secondary {
-  background: #d1d5db;
-  color: #4b5563;
+  background: var(--line-strong);
+  color: var(--ink-soft);
 }
 
 .ops-report-funnel-stage .conv {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--ink-faint);
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
@@ -3987,8 +4101,8 @@ a.ops-report-chart-card--link:focus-visible {
   background: transparent;
   border-radius: 0;
   box-shadow: none;
-  border-top: 1px solid #eef0f3;
-  border-bottom: 1px solid #eef0f3;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
   overflow: visible;
 }
 
@@ -4000,24 +4114,24 @@ a.ops-report-chart-card--link:focus-visible {
 }
 
 .ops-table-card thead tr {
-  background: #fafbfc;
+  background: var(--surface-2);
 }
 
 .ops-table-card th {
   text-align: left;
   padding: 12px 14px;
   font-weight: 600;
-  color: #374151;
+  color: var(--ink-soft);
   font-size: 12px;
-  border-bottom: 1px solid #f5f7fb;
+  border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
 
 .ops-table-card td {
   padding: 12px 14px;
-  color: #4b5563;
+  color: var(--ink-soft);
   vertical-align: middle;
-  border-bottom: 1px solid #f5f7fb;
+  border-bottom: 1px solid var(--line);
   line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4055,17 +4169,17 @@ a.ops-report-chart-card--link:focus-visible {
 }
 
 .ops-table-card tbody tr:hover {
-  background: #fafbfc;
+  background: var(--surface-2);
 }
 
 .ops-table-card .ops-row-strong {
-  color: #111827;
+  color: var(--ink);
   font-weight: 500;
 }
 
 .ops-table-card .ops-row-sub {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--ink-faint);
   margin-top: 2px;
 }
 
@@ -4078,39 +4192,41 @@ a.ops-report-chart-card--link:focus-visible {
 .ops-btn {
   height: 30px;
   padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #374151;
+  border-radius: 10px;
+  border: 0;
+  background: var(--surface-2);
+  color: var(--ink-soft);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  transition: background 100ms ease;
 }
 
 .ops-btn:hover {
-  background: #f9fafb;
+  background: var(--line);
 }
 
 .ops-btn-primary {
-  background: #111827;
+  background: var(--accent);
   color: #fff;
-  border-color: #111827;
 }
 
 .ops-btn-primary:hover {
-  background: #1f2937;
+  background: var(--accent);
+  filter: brightness(0.96);
 }
 
 .ops-btn-danger {
-  border-color: #fecaca;
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .ops-btn-danger:hover {
-  background: #fef2f2;
+  background: var(--danger-soft);
+  filter: brightness(0.97);
 }
 
 .ops-btn:disabled {
@@ -4122,13 +4238,19 @@ a.ops-report-chart-card--link:focus-visible {
 .ops-textarea,
 .ops-select {
   width: 100%;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 14px;
   font-size: 13px;
   font-family: inherit;
   outline: none;
-  background: #fff;
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.ops-input::placeholder,
+.ops-textarea::placeholder {
+  color: var(--ink-faint);
 }
 
 .ops-select {
@@ -4146,8 +4268,7 @@ a.ops-report-chart-card--link:focus-visible {
 .ops-input:focus,
 .ops-textarea:focus,
 .ops-select:focus {
-  border-color: #fdba74;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .ops-textarea {
@@ -4181,8 +4302,8 @@ a.ops-report-chart-card--link:focus-visible {
 
 .ops-form-label {
   font-size: 11px;
-  color: #6b7280;
-  font-weight: 500;
+  color: var(--ink-faint);
+  font-weight: 600;
   display: block;
 }
 
@@ -4194,8 +4315,8 @@ a.ops-report-chart-card--link:focus-visible {
 }
 
 .ops-soft-card {
-  background: #f9fafb;
-  border-radius: 10px;
+  background: var(--surface-2);
+  border-radius: 12px;
   padding: 14px;
 }
 
@@ -4233,14 +4354,14 @@ a.ops-report-chart-card--link:focus-visible {
 .ops-section-title {
   font-size: 13px;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
   margin: 0 0 12px;
   letter-spacing: -0.005em;
 }
 
 .ops-view-toggle {
   display: inline-flex;
-  background: #f3f4f6;
+  background: var(--surface-2);
   border-radius: 8px;
   padding: 2px;
 }
@@ -4252,13 +4373,13 @@ a.ops-report-chart-card--link:focus-visible {
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--ink-faint);
   cursor: pointer;
 }
 
 .ops-view-toggle button.is-active {
-  background: #fff;
-  color: #111827;
+  background: var(--surface);
+  color: var(--ink);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
@@ -4269,7 +4390,7 @@ a.ops-report-chart-card--link:focus-visible {
 }
 
 .ops-kanban-column {
-  background: #f9fafb;
+  background: var(--surface-2);
   border-radius: 12px;
   padding: 12px;
   min-height: 280px;
@@ -4288,14 +4409,14 @@ a.ops-report-chart-card--link:focus-visible {
 .ops-kanban-column-title {
   font-size: 12px;
   font-weight: 700;
-  color: #374151;
+  color: var(--ink-soft);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .ops-kanban-column-count {
-  background: #fff;
-  color: #6b7280;
+  background: var(--surface);
+  color: var(--ink-faint);
   font-size: 11px;
   font-weight: 600;
   padding: 2px 8px;
@@ -4303,7 +4424,7 @@ a.ops-report-chart-card--link:focus-visible {
 }
 
 .ops-kanban-card {
-  background: #fff;
+  background: var(--surface);
   border-radius: 10px;
   padding: 12px;
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
@@ -4323,13 +4444,13 @@ a.ops-kanban-card:hover {
 .ops-kanban-card-name {
   font-size: 13px;
   font-weight: 600;
-  color: #111827;
+  color: var(--ink);
   margin: 0;
 }
 
 .ops-kanban-card-sub {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--ink-faint);
   margin: 0;
 }
 
@@ -4350,13 +4471,13 @@ a.ops-kanban-card:hover {
 
 .ops-kanban-empty {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--ink-faint);
   text-align: center;
   padding: 20px 0;
 }
 
 .ops-calendar-wrap {
-  background: #fff;
+  background: var(--surface);
   border-radius: 14px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
   padding: 16px;
@@ -4373,7 +4494,7 @@ a.ops-kanban-card:hover {
   margin: 0;
   font-size: 15px;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
 }
 
 .ops-calendar-grid {
@@ -4385,7 +4506,7 @@ a.ops-kanban-card:hover {
 .ops-calendar-day-head {
   font-size: 11px;
   font-weight: 700;
-  color: #6b7280;
+  color: var(--ink-faint);
   text-align: center;
   padding: 6px 0;
   letter-spacing: 0.04em;
@@ -4394,7 +4515,7 @@ a.ops-kanban-card:hover {
 
 .ops-calendar-day {
   min-height: 110px;
-  background: #fafbfc;
+  background: var(--surface-2);
   border-radius: 8px;
   padding: 8px;
   display: flex;
@@ -4403,7 +4524,7 @@ a.ops-kanban-card:hover {
 }
 
 .ops-calendar-day.is-today {
-  background: #eff6ff;
+  background: var(--accent-soft);
   outline: 2px solid #93c5fd;
   outline-offset: -2px;
 }
@@ -4415,16 +4536,16 @@ a.ops-kanban-card:hover {
 .ops-calendar-date {
   font-size: 11px;
   font-weight: 600;
-  color: #374151;
+  color: var(--ink-soft);
 }
 
 .ops-calendar-event {
-  background: #fff;
+  background: var(--surface);
   border-left: 3px solid #3b82f6;
   border-radius: 4px;
   padding: 4px 6px;
   font-size: 11px;
-  color: #111827;
+  color: var(--ink);
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4433,16 +4554,16 @@ a.ops-kanban-card:hover {
 }
 
 .ops-calendar-event:hover {
-  background: #f9fafb;
+  background: var(--surface-2);
 }
 
 .ops-calendar-event.is-selected {
-  border-left-color: #16a34a;
-  background: #ecfdf5;
+  border-left-color: var(--accent-ink);
+  background: var(--accent-soft);
 }
 
 .ops-calendar-event.is-cancelled {
-  border-left-color: #9ca3af;
+  border-left-color: var(--ink-faint);
   text-decoration: line-through;
   opacity: 0.55;
 }
@@ -4459,14 +4580,14 @@ a.ops-kanban-card:hover {
   gap: 10px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: #fafbfc;
+  background: var(--surface-2);
   text-decoration: none;
   color: inherit;
   transition: background 0.15s;
 }
 
 .ops-activity-item:hover {
-  background: #f3f4f6;
+  background: var(--surface-2);
 }
 
 .ops-activity-dot {
@@ -4485,7 +4606,7 @@ a.ops-kanban-card:hover {
 .ops-activity-title {
   font-size: 13px;
   font-weight: 500;
-  color: #111827;
+  color: var(--ink);
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4494,7 +4615,7 @@ a.ops-kanban-card:hover {
 
 .ops-activity-sub {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--ink-faint);
   margin: 2px 0 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4503,7 +4624,7 @@ a.ops-kanban-card:hover {
 
 .ops-activity-time {
   font-size: 10px;
-  color: #9ca3af;
+  color: var(--ink-faint);
   flex-shrink: 0;
 }
 
@@ -4522,7 +4643,7 @@ a.ops-kanban-card:hover {
 .ops-section-heading {
   font-size: 15px;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
   margin: 0 0 12px;
   letter-spacing: -0.01em;
 }
@@ -4563,13 +4684,13 @@ a.ops-kanban-card:hover {
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.01em;
-  color: #111827;
+  color: var(--ink);
 }
 
 .partner-shell .ops-content-section header p {
   margin-top: 6px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--ink-faint);
   line-height: 1.55;
 }
 
@@ -4584,7 +4705,7 @@ a.ops-kanban-card:hover {
 .partner-shell .ops-section-heading {
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: var(--ink-soft);
   margin: 0 0 10px;
   letter-spacing: 0;
 }
@@ -4603,7 +4724,7 @@ a.ops-kanban-card:hover {
 .partner-shell .ops-card-subtle {
   margin-top: 6px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--ink-faint);
   line-height: 1.55;
 }
 
@@ -4639,20 +4760,20 @@ a.ops-kanban-card:hover {
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: #111827;
+  color: var(--ink);
 }
 
 .partner-dashboard .dashboard-header p {
   margin-top: 6px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--ink-faint);
   line-height: 1.55;
 }
 
 .partner-dashboard .ops-section-heading {
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: var(--ink-soft);
   margin: 0 0 10px;
   letter-spacing: 0;
 }
@@ -4680,6 +4801,17 @@ a.ops-kanban-card:hover {
 }
 
 /* KPI tiles */
+/* 클릭 가능한 KPI 카드 — 목록으로 드릴다운 */
+a.partner-kpi--link {
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+a.partner-kpi--link:hover {
+  box-shadow: var(--shadow-card-lg);
+  transform: translateY(-1px);
+}
+
 .partner-kpi {
   display: flex;
   flex-direction: column;
@@ -4689,7 +4821,7 @@ a.ops-kanban-card:hover {
 .partner-kpi-label {
   font-size: 12px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--ink-faint);
   margin: 0;
   letter-spacing: 0;
   text-transform: none;
@@ -4699,13 +4831,13 @@ a.ops-kanban-card:hover {
   font-size: 24px;
   font-weight: 700;
   line-height: 1.15;
-  color: #111827;
+  color: var(--ink);
   margin: 0;
   letter-spacing: -0.01em;
 }
 
-.partner-kpi-value.is-amber { color: #b45309; }
-.partner-kpi-value.is-emerald { color: #047857; }
+.partner-kpi-value.is-amber { color: var(--sand); }
+.partner-kpi-value.is-emerald { color: var(--accent-ink); }
 
 a.partner-kpi-value {
   text-decoration: none;
@@ -4718,7 +4850,7 @@ a.partner-kpi-value:hover {
 .partner-kpi-sub {
   margin: 2px 0 0;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-faint);
   line-height: 1.5;
 }
 
@@ -4726,7 +4858,7 @@ a.partner-kpi-value:hover {
   margin: 2px 0 0;
   font-size: 12px;
   font-weight: 500;
-  color: #1d4ed8;
+  color: var(--accent-ink);
   text-decoration: none;
 }
 
@@ -4744,7 +4876,7 @@ a.partner-kpi-value:hover {
 .partner-dashboard .ops-list-card-sub {
   font-size: 12px;
   line-height: 1.5;
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 /* Activity feed */
@@ -4774,7 +4906,7 @@ a.partner-kpi-value:hover {
   font-size: 12px;
   font-weight: 600;
   padding: 11px 14px;
-  color: #6b7280;
+  color: var(--ink-faint);
 }
 
 .partner-dashboard .ops-table-card td {
@@ -4783,7 +4915,7 @@ a.partner-kpi-value:hover {
 }
 
 .partner-dashboard .ops-table-row-title {
-  color: #111827;
+  color: var(--ink);
   font-weight: 500;
   text-decoration: none;
 }
@@ -4808,7 +4940,109 @@ a.partner-kpi-value:hover {
 .partner-dashboard .ops-card-inline-heading {
   font-size: 14px;
   font-weight: 600;
-  color: #111827;
+  color: var(--ink);
   margin: 0;
+}
+
+/* =====================================================================
+   모바일 대응 (운영콘솔 · 파트너 어드민)
+   데스크톱 셸(.ops-console-shell = 280px 사이드바 + 본문)은 좁은 화면에서
+   사이드바가 화면을 덮고 본문이 잘렸다. 좁은 화면에서는 사이드바를 슬라이드
+   드로어로 바꾸고, 상단바의 햄버거로 열도록 한다. 모든 규칙은 미디어 쿼리에
+   게이트하고 파일 맨 끝에 두어 데스크톱 레이아웃에는 영향을 주지 않는다.
+   ===================================================================== */
+
+/* 상단바·스크림은 기본 숨김(데스크톱). 아래 미디어 쿼리에서만 노출. */
+.ops-mobile-topbar {
+  display: none;
+}
+.ops-console-scrim {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  /* 2열 그리드 → 1열. 사이드바는 흐름에서 빠져(fixed) 본문이 전체 폭을 쓴다. */
+  .ops-console-shell {
+    grid-template-columns: 1fr;
+  }
+
+  /* 본문이 뷰포트 폭에 맞도록 최소 폭 제한을 푼다(넓은 표는 카드 안에서 가로 스크롤). */
+  .ops-content-section {
+    min-width: 0;
+  }
+
+  /* 사이드바 = 화면 밖 슬라이드 드로어 */
+  .ops-console-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100dvh;
+    width: min(84vw, 300px);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 60;
+    box-shadow: 0 24px 48px rgba(11, 18, 39, 0.25);
+    will-change: transform;
+  }
+  .ops-console-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  /* 드로어 뒤 어둡게(열렸을 때만) */
+  .ops-console-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(11, 18, 39, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .ops-console-scrim.is-open {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* 본문 상단의 얇은 모바일 바(햄버거 + 화면 이름) — sticky */
+  .ops-mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+  .ops-mobile-topbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .ops-mobile-topbar-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+
+  /* 본문 패딩 축소 + 상단바가 최상단에 붙도록 위쪽 패딩 제거 */
+  .ops-console-main,
+  .ops-console-main.partner-shell,
+  .partner-shell {
+    padding: 0 12px 28px;
+  }
+  .ops-mobile-topbar {
+    margin: 0 -12px 12px;
+    padding: 10px 12px;
+  }
 }
 

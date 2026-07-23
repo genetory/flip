@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Globe, LogOut, ExternalLink } from "lucide-react";
+import { Globe, SignOut as LogOut, ArrowSquareOut as ExternalLink } from "@phosphor-icons/react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLaunchT } from "../../lib/launch/i18n";
@@ -24,19 +24,19 @@ export function OpsTopbar() {
   const who = user?.name?.trim() || user?.email || "";
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 flex-none items-center justify-between gap-3 border-b border-[#eef2f7] bg-white/95 px-5 backdrop-blur md:px-8">
-      <Link href="/" className="flex items-center gap-1.5 text-[12.5px] font-semibold text-[#6b7280] transition hover:text-[#111827]">
+    <header className="sticky top-0 z-20 flex h-14 flex-none items-center justify-between gap-3 border-b border-[var(--line)] bg-[var(--surface)] px-5 backdrop-blur md:px-8">
+      <Link href="/" className="flex items-center gap-1.5 text-[12.5px] font-semibold text-[var(--ink-faint)] transition hover:text-[var(--ink)]">
         <ExternalLink className="h-3.5 w-3.5" aria-hidden />
         {t("aply.global로", "Back to aply.global", "返回 aply.global", "Về aply.global", "aply.global へ", "Ke aply.global")}
       </Link>
 
       <div className="flex items-center gap-2">
-        <label className="flex items-center gap-1.5 rounded-lg border border-[#e5e7eb] px-2 py-1.5">
-          <Globe className="h-3.5 w-3.5 text-[#9ca3af]" aria-hidden />
+        <label className="flex items-center gap-1.5 rounded-lg border border-[var(--line)] px-2 py-1.5">
+          <Globe className="h-3.5 w-3.5 text-[var(--ink-faint)]" aria-hidden />
           <select
             value={locale}
             onChange={(e) => setLocale(e.target.value as typeof locale)}
-            className="bg-transparent text-[12.5px] font-semibold text-[#4b5563] outline-none"
+            className="bg-transparent text-[12.5px] font-semibold text-[var(--ink-soft)] outline-none"
             aria-label={t("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa")}
           >
             {LOCALES.map((l) => (
@@ -47,11 +47,11 @@ export function OpsTopbar() {
           </select>
         </label>
 
-        {who ? <span className="hidden text-[12.5px] font-semibold text-[#4b5563] sm:inline">{who}</span> : null}
+        {who ? <span className="hidden text-[12.5px] font-semibold text-[var(--ink-soft)] sm:inline">{who}</span> : null}
         <button
           type="button"
           onClick={() => void logout()}
-          className="flex items-center gap-1.5 rounded-lg border border-[#e5e7eb] px-2.5 py-1.5 text-[12.5px] font-semibold text-[#6b7280] transition hover:bg-[#f9fafb]"
+          className="flex items-center gap-1.5 rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-[12.5px] font-semibold text-[var(--ink-faint)] transition hover:bg-[var(--surface-2)]"
         >
           <LogOut className="h-3.5 w-3.5" aria-hidden />
           {t("로그아웃", "Sign out", "退出", "Đăng xuất", "ログアウト", "Keluar")}

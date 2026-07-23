@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Briefcase, GraduationCap, Inbox, Users } from "lucide-react";
+import { Briefcase, GraduationCap, Tray as Inbox, Users } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { readAccessToken } from "../../../../../lib/auth-client";
 import { getApplicationStatusLabel, type ApplicationStatus } from "../../../../../lib/status-labels";
@@ -305,12 +305,12 @@ export default function ReportsPage() {
                     };
                     return (
                       <div key={key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ minWidth: 60, fontSize: 12, color: "#6b7280" }}>{labelMap[key]}</span>
+                        <span style={{ minWidth: 60, fontSize: 12, color: "var(--ink-faint)" }}>{labelMap[key]}</span>
                         <div
                           style={{
                             flex: 1,
                             height: 8,
-                            background: "#f3f4f6",
+                            background: "var(--surface-2)",
                             borderRadius: 999,
                             overflow: "hidden"
                           }}
@@ -330,7 +330,7 @@ export default function ReportsPage() {
                             textAlign: "right",
                             fontSize: 13,
                             fontWeight: 600,
-                            color: "#111827",
+                            color: "var(--ink)",
                             fontVariantNumeric: "tabular-nums"
                           }}
                         >

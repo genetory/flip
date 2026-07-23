@@ -712,7 +712,7 @@ export function PartnerDetailView({
                           <button
                             type="button"
                             onClick={() => openUploadedDoc(String(value))}
-                            style={{ background: "none", border: "none", padding: 0, color: "#0B46E8", cursor: "pointer", textDecoration: "underline", font: "inherit" }}
+                            style={{ background: "none", border: "none", padding: 0, color: "var(--accent)", cursor: "pointer", textDecoration: "underline", font: "inherit" }}
                           >
                             업로드됨 (보기)
                           </button>

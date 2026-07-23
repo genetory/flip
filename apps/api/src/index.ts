@@ -126,6 +126,7 @@ async function createNotification(input: {
   title: string;
   message?: string | null;
   linkPath?: string | null;
+  applicationId?: string | null;
 }) {
   try {
     await prisma.notification.create({
@@ -134,7 +135,8 @@ async function createNotification(input: {
         type: input.type,
         title: input.title,
         message: input.message ?? null,
-        linkPath: input.linkPath ?? null
+        linkPath: input.linkPath ?? null,
+        applicationId: input.applicationId ?? null
       }
     });
   } catch (error) {
@@ -308,6 +310,8 @@ const discordSgcApplicationWebhookUrl =
 const companyConsultationDiscordTestToken = process.env.COMPANY_CONSULTATION_DISCORD_TEST_TOKEN?.trim() ?? "";
 const emailFromAddress = process.env.EMAIL_FROM?.trim() ?? "";
 const emailReplyToAddress = process.env.EMAIL_REPLY_TO?.trim() || process.env.EMAIL_SUPPORT_ADDRESS?.trim() || "info@flip-ers.com";
+// 회사↔지원자 알림 메일을 Aply 가 트래킹하도록 참조(CC)로 함께 받는 주소.
+const emailTrackingCc = process.env.EMAIL_TRACKING_CC?.trim() || "info@flip-ers.com";
 const emailEnvelopeFrom = process.env.EMAIL_ENVELOPE_FROM?.trim() || process.env.SMTP_USER?.trim() || "";
 const smtpHost = process.env.SMTP_HOST?.trim() ?? "";
 const smtpPort = Number(process.env.SMTP_PORT ?? 587);
@@ -318,6 +322,9 @@ const signupEmailVerificationCodeTtlMinutes = Math.max(1, Number(process.env.SIG
 const partnerJoinCodeTtlMinutesDefault = Math.max(5, Number(process.env.PARTNER_JOIN_CODE_TTL_MINUTES ?? 120));
 const partnerJoinCodeTtlMinutesMax = Math.max(partnerJoinCodeTtlMinutesDefault, Number(process.env.PARTNER_JOIN_CODE_TTL_MAX_MINUTES ?? 10080));
 const isProduction = process.env.NODE_ENV === "production";
+// 연락처 소프트 게이트(지원 차단 + 배너) on/off. 기본 OFF — 기존 사용자(가짜 이메일 소셜
+// 계정 등)를 갑자기 막지 않도록. 준비되면 CONTACT_GATE_ENABLED=true 로 켠다.
+const contactGateEnabled = process.env.CONTACT_GATE_ENABLED === "true";
 const allowedOrigins = [
   platformWebUrl,
   partnerAdminUrl,
@@ -899,6 +906,586 @@ async function sendPositionApplyDiscordNotification(input: {
       error: getErrorMessage(error)
     });
   }
+}
+
+// 포지션에 지원이 접수되면, 그 포지션을 올린 파트너사 팀 멤버(파트너 계정) 전원에게
+// 서비스(인앱) 알림 + 이메일로 알린다. 인앱 알림은 SMTP 설정과 무관하게 항상 생성한다.
+async function notifyPartnerTeamOnApplication(input: {
+  positionTitle: string;
+  partnerOrganizationId: string | null;
+  applicantName: string | null;
+  applicantEmail: string;
+}) {
+  if (!input.partnerOrganizationId) return;
+
+  const members = await prisma.user.findMany({
+    where: { partnerOrganizationId: input.partnerOrganizationId, role: MemberRole.PARTNER },
+    select: { id: true, email: true, emailNotifications: true }
+  });
+  if (members.length === 0) return;
+
+  const applicantLabel = (input.applicantName ?? "").trim() || input.applicantEmail;
+  const applicantsUrl = `${platformWebUrl}/dashboard/partner/applicants`;
+
+  // 서비스(인앱) 알림 — 팀원 전원에게(이메일 발송 여부와 무관하게 항상).
+  for (const m of members) {
+    void createNotification({
+      userId: m.id,
+      type: "POSITION_APPLICATION_RECEIVED",
+      title: `'${input.positionTitle}'에 새 지원자 — ${applicantLabel}`,
+      message: null,
+      linkPath: "/dashboard/partner/applicants"
+    });
+  }
+
+  const transporter = getSmtpTransporter();
+  if (!transporter) return;
+  // 이메일 알림을 켠 팀원에게만 발송(인앱 알림은 위에서 전원에게 이미 생성).
+  const recipients = Array.from(
+    new Set(members.filter((m) => m.emailNotifications).map((m) => m.email).filter((e): e is string => Boolean(e && e.includes("@"))))
+  );
+  if (recipients.length === 0) return;
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const subject = `[Aply] '${input.positionTitle}' 새 지원자 — ${applicantLabel}`;
+  const bodyHtml = `
+    <p style="margin:0 0 16px;font-size:15px;color:#191f28;">
+      <strong>${esc(input.positionTitle)}</strong> 포지션에 새로운 지원이 접수되었습니다.
+    </p>
+    <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;color:#4e5968;">
+      <tr><td style="padding:6px 0;width:88px;color:#8b95a1;">지원자</td><td style="padding:6px 0;color:#191f28;font-weight:600;">${esc(applicantLabel)}</td></tr>
+      <tr><td style="padding:6px 0;color:#8b95a1;">이메일</td><td style="padding:6px 0;">${esc(input.applicantEmail)}</td></tr>
+      <tr><td style="padding:6px 0;color:#8b95a1;">포지션</td><td style="padding:6px 0;">${esc(input.positionTitle)}</td></tr>
+    </table>
+    <div style="margin-top:24px;">
+      <a href="${applicantsUrl}" style="display:inline-block;background:#3182f6;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:12px;">지원자 확인하기</a>
+    </div>
+    <p style="margin:20px 0 0;font-size:12.5px;color:#8b95a1;">
+      Aply 파트너 콘솔 &gt; 지원자 관리에서 지원 서류를 검토하고 다음 단계로 진행할 수 있어요.
+    </p>
+  `;
+  const text = `'${input.positionTitle}' 포지션에 새 지원이 접수되었습니다.\n\n지원자: ${applicantLabel}\n이메일: ${input.applicantEmail}\n\n지원자 확인: ${applicantsUrl}`;
+  const html = renderEmailLayout({
+    locale: "ko",
+    previewText: `'${input.positionTitle}'에 ${applicantLabel}님이 지원했습니다.`,
+    title: "새 지원자 알림",
+    headerLabel: "지원 알림",
+    footerNote: "본 메일은 회원님 회사가 등록한 포지션에 지원이 접수되어 발송되는 알림 메일입니다.",
+    bodyHtml
+  });
+
+  try {
+    await transporter.sendMail({
+      from: emailFromAddress,
+      to: emailFromAddress,
+      bcc: recipients,
+      cc: emailTrackingCc, // Aply 트래킹용 참조
+      replyTo: emailReplyToAddress,
+      subject,
+      text,
+      html,
+      envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: [...recipients, emailTrackingCc] } : undefined,
+      headers: {
+        "X-Mailer": "Aply Mailer",
+        "X-Auto-Response-Suppress": "OOF, AutoReply",
+        "Auto-Submitted": "auto-generated"
+      }
+    });
+  } catch (error) {
+    console.error("position_apply_partner_email_failed", { error: getErrorMessage(error) });
+  }
+}
+
+// 지원 상태 변경(면접 예정·합격·불합격)을 지원자 본인에게 이메일로 알린다.
+// Aply 는 참조(CC)로 함께 받아 회사↔지원자 소통을 트래킹한다. SMTP 미설정 시 스킵.
+async function sendApplicationStatusEmailToApplicant(input: {
+  applicantUserId: string;
+  applicantEmail: string | null;
+  applicantName: string | null;
+  positionTitle: string;
+  partnerName: string | null;
+  status: "INTERVIEW" | "ACCEPTED" | "REJECTED";
+  memo: string | null;
+}) {
+  if (!input.applicantEmail || !input.applicantEmail.includes("@")) return;
+  if ((await emailOptedOutIds([input.applicantUserId])).has(input.applicantUserId)) return; // 이메일 알림 끔
+  const transporter = getSmtpTransporter();
+  if (!transporter) return;
+
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const statusMeta = {
+    INTERVIEW: { ko: "면접 예정", line: "축하합니다! 서류 검토를 통과하여 면접 대상자로 선정되었습니다.", cta: "면접 일정 확인하기" },
+    ACCEPTED: { ko: "합격", line: "축하합니다! 최종 합격하셨습니다.", cta: "결과 확인하기" },
+    REJECTED: { ko: "불합격", line: "아쉽게도 이번 지원은 합격하지 못했습니다. 관심과 지원에 감사드립니다.", cta: "다른 포지션 보기" }
+  }[input.status];
+  const appliedUrl = input.status === "REJECTED" ? `${platformWebUrl}/positions` : `${platformWebUrl}/profile?tab=applied`;
+  const companyLine = input.partnerName ? `${esc(input.partnerName)} · ` : "";
+  const memoHtml = input.memo
+    ? `<div style="margin-top:16px;padding:14px 16px;background:#f7f8fa;border-radius:12px;font-size:13.5px;color:#4e5968;line-height:1.6;"><strong style="color:#191f28;">회사 메시지</strong><br/>${esc(input.memo)}</div>`
+    : "";
+  const bodyHtml = `
+    <p style="margin:0 0 8px;font-size:13px;color:#8b95a1;">${companyLine}${esc(input.positionTitle)}</p>
+    <p style="margin:0 0 16px;font-size:16px;font-weight:800;color:#191f28;">지원 상태: ${statusMeta.ko}</p>
+    <p style="margin:0;font-size:14.5px;color:#4e5968;line-height:1.6;">${statusMeta.line}</p>
+    ${memoHtml}
+    <div style="margin-top:24px;">
+      <a href="${appliedUrl}" style="display:inline-block;background:#3182f6;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:12px;">${statusMeta.cta}</a>
+    </div>`;
+  const text = `[${input.positionTitle}] 지원 상태가 '${statusMeta.ko}'(으)로 변경되었습니다.\n\n${statusMeta.line}${input.memo ? `\n\n회사 메시지: ${input.memo}` : ""}\n\n확인: ${appliedUrl}`;
+  const html = renderEmailLayout({
+    locale: "ko",
+    previewText: `'${input.positionTitle}' 지원 상태: ${statusMeta.ko}`,
+    title: "지원 상태 알림",
+    headerLabel: "지원 알림",
+    footerNote: "본 메일은 회원님이 지원한 포지션의 상태 변경에 따라 발송되는 알림 메일입니다.",
+    bodyHtml
+  });
+
+  try {
+    await transporter.sendMail({
+      from: emailFromAddress,
+      to: input.applicantEmail,
+      cc: emailTrackingCc, // Aply 트래킹용 참조
+      replyTo: emailReplyToAddress,
+      subject: `[Aply] '${input.positionTitle}' 지원 상태: ${statusMeta.ko}`,
+      text,
+      html,
+      envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: [input.applicantEmail, emailTrackingCc] } : undefined,
+      headers: {
+        "X-Mailer": "Aply Mailer",
+        "X-Auto-Response-Suppress": "OOF, AutoReply",
+        "Auto-Submitted": "auto-generated"
+      }
+    });
+  } catch (error) {
+    console.error("application_status_email_failed", { error: getErrorMessage(error) });
+  }
+}
+
+// 회사가 면접 일정을 제안하면 지원자에게 제안된 시간 목록을 이메일로 통보(Aply 참조).
+async function sendInterviewProposalEmailToApplicant(input: {
+  applicantUserId: string;
+  applicantEmail: string | null;
+  applicantName: string | null;
+  positionTitle: string;
+  partnerName: string | null;
+  slots: { startsAt: Date; endsAt: Date; location: string | null }[];
+}) {
+  if (!input.applicantEmail || !input.applicantEmail.includes("@") || input.slots.length === 0) return;
+  if ((await emailOptedOutIds([input.applicantUserId])).has(input.applicantUserId)) return; // 이메일 알림 끔
+  const transporter = getSmtpTransporter();
+  if (!transporter) return;
+
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const fmt = (d: Date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(d);
+  const selectUrl = `${platformWebUrl}/profile?tab=applied`;
+  const companyLine = input.partnerName ? `${esc(input.partnerName)} · ` : "";
+  const slotsHtml = input.slots
+    .map(
+      (s) =>
+        `<tr><td style="padding:8px 12px;border:1px solid #e8ebed;border-radius:0;font-size:13.5px;color:#191f28;">${esc(fmt(s.startsAt))} ~ ${esc(new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" }).format(s.endsAt))}${s.location ? ` · ${esc(s.location)}` : ""}</td></tr>`
+    )
+    .join("");
+  const bodyHtml = `
+    <p style="margin:0 0 6px;font-size:13px;color:#8b95a1;">${companyLine}${esc(input.positionTitle)}</p>
+    <p style="margin:0 0 16px;font-size:16px;font-weight:800;color:#191f28;">면접 일정이 제안되었어요</p>
+    <p style="margin:0 0 12px;font-size:14px;color:#4e5968;line-height:1.6;">아래 제안된 시간 중 하나를 선택해 주세요.</p>
+    <table role="presentation" style="width:100%;border-collapse:separate;border-spacing:0 6px;">${slotsHtml}</table>
+    <div style="margin-top:20px;">
+      <a href="${selectUrl}" style="display:inline-block;background:#3182f6;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:12px;">면접 시간 선택하기</a>
+    </div>`;
+  const textLines = input.slots.map((s) => `- ${fmt(s.startsAt)}${s.location ? ` (${s.location})` : ""}`).join("\n");
+  const text = `'${input.positionTitle}' 면접 일정이 제안되었습니다.\n\n${textLines}\n\n시간 선택: ${selectUrl}`;
+  const html = renderEmailLayout({
+    locale: "ko",
+    previewText: `'${input.positionTitle}' 면접 일정을 선택해 주세요.`,
+    title: "면접 일정 제안",
+    headerLabel: "지원 알림",
+    footerNote: "본 메일은 회원님이 지원한 포지션의 면접 일정 제안에 따라 발송되는 알림 메일입니다.",
+    bodyHtml
+  });
+
+  try {
+    await transporter.sendMail({
+      from: emailFromAddress,
+      to: input.applicantEmail,
+      cc: emailTrackingCc,
+      replyTo: emailReplyToAddress,
+      subject: `[Aply] '${input.positionTitle}' 면접 일정 제안`,
+      text,
+      html,
+      envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: [input.applicantEmail, emailTrackingCc] } : undefined,
+      headers: {
+        "X-Mailer": "Aply Mailer",
+        "X-Auto-Response-Suppress": "OOF, AutoReply",
+        "Auto-Submitted": "auto-generated"
+      }
+    });
+  } catch (error) {
+    console.error("interview_proposal_email_failed", { error: getErrorMessage(error) });
+  }
+}
+
+// 범용 알림 이메일 — 회사↔지원자 알림 공통 발송기. Aply(info@)를 CC 로 함께 받아 트래킹.
+// 이메일 알림을 끈(emailNotifications=false) 사용자 id 집합.
+async function emailOptedOutIds(userIds: string[]): Promise<Set<string>> {
+  const ids = Array.from(new Set(userIds.filter(Boolean)));
+  if (ids.length === 0) return new Set();
+  const off = await prisma.user.findMany({
+    where: { id: { in: ids }, emailNotifications: false },
+    select: { id: true }
+  });
+  return new Set(off.map((u) => u.id));
+}
+
+// 단일 수신자(toUser) 또는 팀 전원(bccUsers) 중 하나로 보낸다. SMTP 미설정/수신자 없음이면 스킵.
+async function sendNotificationEmail(input: {
+  // 수신자는 user 참조로 받아 이메일 수신 설정(emailNotifications)을 존중한다.
+  toUser?: { id: string; email: string | null } | null;
+  bccUsers?: { id: string; email: string | null }[];
+  subject: string;
+  previewText: string;
+  title: string;
+  headline: string;
+  contextLine?: string | null;
+  bodyText: string;
+  memo?: string | null;
+  // 상대방(지원자/회사) 정보 블록 — 라벨:값 목록으로 렌더. 누가 보냈는지·어떤 지원인지 명확히.
+  infoRows?: { label: string; value: string }[];
+  ctaLabel: string;
+  ctaPath: string;
+  footerNote: string;
+  logKey: string;
+  headerLabel?: string;
+}) {
+  const transporter = getSmtpTransporter();
+  if (!transporter) return;
+
+  // 이메일 알림을 끈 사용자는 제외(인앱 알림은 별개로 이미 발생).
+  const optedOut = await emailOptedOutIds([
+    ...(input.toUser ? [input.toUser.id] : []),
+    ...(input.bccUsers ?? []).map((u) => u.id)
+  ]);
+  const to =
+    input.toUser && input.toUser.email && input.toUser.email.includes("@") && !optedOut.has(input.toUser.id)
+      ? input.toUser.email
+      : null;
+  const bcc = Array.from(
+    new Set(
+      (input.bccUsers ?? [])
+        .filter((u) => !optedOut.has(u.id) && u.email && u.email.includes("@"))
+        .map((u) => u.email as string)
+    )
+  );
+  if (!to && bcc.length === 0) return;
+
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const ctaUrl = `${platformWebUrl}${input.ctaPath}`;
+  const memoHtml = input.memo
+    ? `<div style="margin-top:16px;padding:14px 16px;background:#f7f8fa;border-radius:12px;font-size:13.5px;color:#4e5968;line-height:1.6;">${esc(input.memo)}</div>`
+    : "";
+  const infoRows = (input.infoRows ?? []).filter((r) => r.value && r.value.trim());
+  const infoHtml = infoRows.length
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:16px;width:100%;background:#f7f8fa;border-radius:12px;"><tbody>${infoRows
+        .map(
+          (r) =>
+            `<tr><td style="padding:7px 16px;font-size:12.5px;color:#8b95a1;white-space:nowrap;vertical-align:top;">${esc(r.label)}</td><td style="padding:7px 16px;font-size:13px;color:#191f28;font-weight:600;">${esc(r.value)}</td></tr>`
+        )
+        .join("")}</tbody></table>`
+    : "";
+  const bodyHtml = `
+    ${input.contextLine ? `<p style="margin:0 0 8px;font-size:13px;color:#8b95a1;">${esc(input.contextLine)}</p>` : ""}
+    <p style="margin:0 0 12px;font-size:16px;font-weight:800;color:#191f28;">${esc(input.headline)}</p>
+    <p style="margin:0;font-size:14.5px;color:#4e5968;line-height:1.6;">${esc(input.bodyText)}</p>
+    ${infoHtml}
+    ${memoHtml}
+    <div style="margin-top:24px;">
+      <a href="${ctaUrl}" style="display:inline-block;background:#3182f6;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:12px;">${esc(input.ctaLabel)}</a>
+    </div>`;
+  const text = `${input.headline}\n\n${input.bodyText}${input.memo ? `\n\n${input.memo}` : ""}\n\n${input.ctaLabel}: ${ctaUrl}`;
+  const html = renderEmailLayout({
+    locale: "ko",
+    previewText: input.previewText,
+    title: input.title,
+    headerLabel: input.headerLabel ?? "지원 알림",
+    footerNote: input.footerNote,
+    bodyHtml
+  });
+  const envelopeTo = to ? [to, emailTrackingCc] : [...bcc, emailTrackingCc];
+
+  try {
+    await transporter.sendMail({
+      from: emailFromAddress,
+      to: to ?? emailFromAddress,
+      bcc: to ? undefined : bcc,
+      cc: emailTrackingCc,
+      replyTo: emailReplyToAddress,
+      subject: input.subject,
+      text,
+      html,
+      envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: envelopeTo } : undefined,
+      headers: {
+        "X-Mailer": "Aply Mailer",
+        "X-Auto-Response-Suppress": "OOF, AutoReply",
+        "Auto-Submitted": "auto-generated"
+      }
+    });
+  } catch (error) {
+    console.error(`${input.logKey}_failed`, { error: getErrorMessage(error) });
+  }
+}
+
+// 특정 파트너 조직의 팀원(파트너 계정) 이메일 목록.
+async function getPartnerTeamEmails(partnerOrganizationId: string | null): Promise<string[]> {
+  if (!partnerOrganizationId) return [];
+  const members = await prisma.user.findMany({
+    where: { partnerOrganizationId, role: MemberRole.PARTNER },
+    select: { email: true }
+  });
+  return members.map((m) => m.email).filter((e): e is string => Boolean(e && e.includes("@")));
+}
+
+// 비자 매칭 잡 얼럿 — 포지션이 처음 OPEN 되면 비자 조건이 맞는 지원자에게 신규 공고를 알린다.
+// 대량 지원자 메일이라 기본 OFF(ENABLE_JOB_ALERTS=true 로 활성화). 중복 방지(jobAlertSentAt) + opt-in 존중.
+const VISA_ENUM_TO_CODE: Record<string, string> = {
+  D10_JOB_SEEKING: "D-10",
+  D2_STUDENT: "D-2",
+  D4_GENERAL_TRAINING: "D-4",
+  F2_RESIDENCE: "F-2",
+  F4_OVERSEAS_KOREAN: "F-4",
+  F5_PERMANENT_RESIDENCE: "F-5",
+  F6_MARRIAGE_IMMIGRATION: "F-6",
+  E7_SPECIFIC_ACTIVITY: "E-7",
+  H1_WORKING_HOLIDAY: "H-1"
+};
+const JOB_ALERT_MAX_RECIPIENTS = 500;
+
+async function sendPositionOpenJobAlerts(positionId: string) {
+  if (process.env.ENABLE_JOB_ALERTS !== "true") return; // 기본 OFF — 매칭/빈도 튜닝 후 켠다.
+  try {
+    const position = await prisma.position.findUnique({
+      where: { id: positionId },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        eligibleVisas: true,
+        jobAlertSentAt: true,
+        partnerOrganization: { select: { name: true } }
+      }
+    });
+    if (!position || position.status !== PositionStatus.OPEN || position.jobAlertSentAt) return;
+
+    const eligible = position.eligibleVisas ?? [];
+    const openToAll = eligible.length === 0 || eligible.includes("NO_VISA_REQUIRED");
+    const matchVisaEnums = openToAll
+      ? null
+      : (Object.entries(VISA_ENUM_TO_CODE)
+          .filter(([, code]) => eligible.includes(code))
+          .map(([e]) => e) as CandidateVisaType[]);
+
+    // 매칭되는 비자가 하나도 없으면 발송 없이 마킹(재시도 방지).
+    if (!openToAll && (!matchVisaEnums || matchVisaEnums.length === 0)) {
+      await prisma.position.update({ where: { id: position.id }, data: { jobAlertSentAt: new Date() } });
+      return;
+    }
+
+    const transporter = getSmtpTransporter();
+    if (transporter) {
+      const candidates = await prisma.candidateProfile.findMany({
+        where: {
+          ...(openToAll ? {} : { visaType: { in: matchVisaEnums! } }),
+          user: { role: MemberRole.STUDENT, isActive: true, emailNotifications: true }
+        },
+        take: JOB_ALERT_MAX_RECIPIENTS,
+        select: { user: { select: { id: true, email: true } } }
+      });
+      const companyLine = position.partnerOrganization?.name ? `${position.partnerOrganization.name} · ${position.title}` : position.title;
+      for (const c of candidates) {
+        if (!c.user?.email || !c.user.email.includes("@")) continue;
+        void sendNotificationEmail({
+          toUser: { id: c.user.id, email: c.user.email },
+          subject: `[Aply] 새 채용 공고 — ${position.title}`,
+          previewText: `비자 조건에 맞는 새 공고: ${position.title}`,
+          title: "새 채용 공고",
+          headline: "비자 조건에 맞는 새 공고가 올라왔어요",
+          contextLine: companyLine,
+          bodyText: "회원님의 비자로 지원 가능한 새 포지션이 등록되었습니다. 지금 확인해 보세요.",
+          ctaLabel: "공고 보기",
+          ctaPath: `/positions/${encodeURIComponent(position.id)}`,
+          footerNote: "본 메일은 회원님의 비자 조건에 맞는 신규 공고 알림입니다. 알림 설정에서 끌 수 있어요.",
+          logKey: "job_alert_email"
+        });
+      }
+    }
+    await prisma.position.update({ where: { id: position.id }, data: { jobAlertSentAt: new Date() } });
+  } catch (error) {
+    console.error("position_job_alert_failed", { error: getErrorMessage(error) });
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// 자동 리마인더/넛지 스케줄러 — 방치된 연결을 시스템이 대신 챙긴다.
+// (Aply 는 개입 없이 트래킹만 하고, 흐름은 자동으로 굴러가도록)
+// ───────────────────────────────────────────────────────────────
+const STALE_APPLICATION_DAYS = 5; // 회사가 이 기간 넘게 미검토한 지원
+const STALE_INTERVIEW_SELECT_DAYS = 3; // 지원자가 이 기간 넘게 미선택한 면접
+const AUTO_NUDGE_INTERVAL_MS = 30 * 60 * 1000; // 30분마다
+
+function fmtKstDateTime(d: Date) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(d);
+}
+
+async function runAutoNudgesAndReminders() {
+  const now = Date.now();
+  try {
+    // 1) 면접 리마인더 — 선택 확정된 면접이 12~36시간 뒤 시작, 아직 리마인더 안 보냄 → 양쪽에.
+    const upcoming = await prisma.interviewSlot.findMany({
+      where: {
+        status: "SELECTED",
+        reminderSentAt: null,
+        startsAt: { gte: new Date(now + 12 * 3600 * 1000), lte: new Date(now + 36 * 3600 * 1000) }
+      },
+      take: 100,
+      include: {
+        application: {
+          include: {
+            candidateUser: { select: { name: true, email: true } },
+            position: {
+              select: {
+                title: true,
+                partnerOrganization: { select: { users: { where: { role: MemberRole.PARTNER }, select: { id: true, email: true } } } }
+              }
+            }
+          }
+        }
+      }
+    });
+    for (const slot of upcoming) {
+      const app = slot.application;
+      const when = fmtKstDateTime(slot.startsAt);
+      const loc = slot.location ? ` · ${slot.location}` : "";
+      const applicantName = app.candidateUser?.name?.trim() || "지원자";
+      const partners = app.position.partnerOrganization?.users ?? [];
+      // 지원자
+      void createNotification({ userId: app.candidateUserId, type: "INTERVIEW_REMINDER", title: "곧 면접이 예정되어 있어요", message: `${when}${loc}`, linkPath: "/profile?tab=applied" });
+      void sendNotificationEmail({
+        toUser: { id: app.candidateUserId, email: app.candidateUser?.email ?? null },
+        subject: `[Aply] 면접 리마인더 — ${when}`,
+        previewText: `곧 면접이 예정되어 있어요: ${when}`,
+        title: "면접 리마인더",
+        headline: "곧 면접이 예정되어 있어요",
+        contextLine: app.position.title,
+        bodyText: `${when}${loc}`,
+        ctaLabel: "면접 정보 보기",
+        ctaPath: "/profile?tab=applied",
+        footerNote: "본 메일은 예정된 면접 리마인더입니다.",
+        logKey: "interview_reminder_applicant_email"
+      });
+      // 회사
+      for (const u of partners) void createNotification({ userId: u.id, type: "INTERVIEW_REMINDER", title: `곧 면접 — ${applicantName}`, message: `${when}${loc}`, linkPath: "/dashboard/partner/interviews" });
+      void sendNotificationEmail({
+        bccUsers: partners,
+        subject: `[Aply] 면접 리마인더 — ${applicantName} (${when})`,
+        previewText: `곧 면접: ${applicantName}`,
+        title: "면접 리마인더",
+        headline: "곧 면접이 예정되어 있어요",
+        contextLine: app.position.title,
+        bodyText: `${applicantName}님과의 면접 · ${when}${loc}`,
+        ctaLabel: "면접 일정 보기",
+        ctaPath: "/dashboard/partner/interviews",
+        footerNote: "본 메일은 예정된 면접 리마인더입니다.",
+        logKey: "interview_reminder_partner_email"
+      });
+      await prisma.interviewSlot.update({ where: { id: slot.id }, data: { reminderSentAt: new Date() } });
+    }
+
+    // 2) 지원자 면접 선택 넛지 — 면접(INTERVIEW) 상태, 3일+ 전 제안된 슬롯이 있고 아직 선택 안 함.
+    const needSelect = await prisma.application.findMany({
+      where: {
+        status: "INTERVIEW",
+        applicantInterviewNudgedAt: null,
+        interviewSlots: {
+          some: { status: "PROPOSED", proposedAt: { lte: new Date(now - STALE_INTERVIEW_SELECT_DAYS * 86400000) } },
+          none: { status: "SELECTED" }
+        }
+      },
+      take: 100,
+      include: { candidateUser: { select: { email: true } }, position: { select: { title: true } } }
+    });
+    for (const app of needSelect) {
+      void createNotification({ userId: app.candidateUserId, type: "INTERVIEW_SELECT_REMINDER", title: "면접 시간을 선택해 주세요", message: app.position.title, linkPath: "/profile?tab=applied" });
+      void sendNotificationEmail({
+        toUser: { id: app.candidateUserId, email: app.candidateUser?.email ?? null },
+        subject: `[Aply] 면접 시간 선택 안내 — ${app.position.title}`,
+        previewText: "제안된 면접 시간을 선택해 주세요",
+        title: "면접 시간 선택",
+        headline: "면접 시간을 아직 선택하지 않으셨어요",
+        contextLine: app.position.title,
+        bodyText: "회사가 제안한 면접 시간 중 하나를 선택해 주세요. 응답이 늦어지면 면접 기회가 사라질 수 있어요.",
+        ctaLabel: "면접 시간 선택하기",
+        ctaPath: "/profile?tab=applied",
+        footerNote: "본 메일은 미선택 면접 일정 안내입니다.",
+        logKey: "interview_select_nudge_email"
+      });
+      await prisma.application.update({ where: { id: app.id }, data: { applicantInterviewNudgedAt: new Date() } });
+    }
+
+    // 3) 회사 방치 지원 넛지 — 5일+ 미검토(SUBMITTED) → 회사 팀에.
+    const stale = await prisma.application.findMany({
+      where: { status: "SUBMITTED", partnerNudgedAt: null, submittedAt: { lte: new Date(now - STALE_APPLICATION_DAYS * 86400000) } },
+      take: 100,
+      include: {
+        candidateUser: { select: { name: true } },
+        position: { select: { title: true, partnerOrganization: { select: { users: { where: { role: MemberRole.PARTNER }, select: { id: true, email: true } } } } } }
+      }
+    });
+    for (const app of stale) {
+      const partners = app.position.partnerOrganization?.users ?? [];
+      const applicantName = app.candidateUser?.name?.trim() || "지원자";
+      for (const u of partners) void createNotification({ userId: u.id, type: "APPLICATION_STALE_REMINDER", title: `검토 대기 중인 지원자 — ${applicantName}`, message: app.position.title, linkPath: "/dashboard/partner/applicants" });
+      void sendNotificationEmail({
+        bccUsers: partners,
+        subject: `[Aply] 검토 대기 지원자 — ${applicantName}`,
+        previewText: "검토를 기다리는 지원자가 있어요",
+        title: "검토 대기 알림",
+        headline: "검토를 기다리는 지원자가 있어요",
+        contextLine: app.position.title,
+        bodyText: `${applicantName}님이 ${STALE_APPLICATION_DAYS}일 넘게 검토를 기다리고 있어요. 지원 서류를 확인하고 다음 단계로 진행해 주세요.`,
+        ctaLabel: "지원자 확인하기",
+        ctaPath: "/dashboard/partner/applicants",
+        footerNote: "본 메일은 장기간 미검토된 지원 안내입니다.",
+        logKey: "application_stale_nudge_email"
+      });
+      await prisma.application.update({ where: { id: app.id }, data: { partnerNudgedAt: new Date() } });
+    }
+  } catch (error) {
+    console.error("auto_nudges_reminders_failed", { error: getErrorMessage(error) });
+  }
+}
+
+// 프로덕션(또는 명시 활성화)에서만 자동 실행 — 로컬 개발에서 실수로 실메일이 나가지 않게.
+if (process.env.NODE_ENV === "production" || process.env.ENABLE_AUTO_NUDGES === "true") {
+  setInterval(() => {
+    void runAutoNudgesAndReminders();
+  }, AUTO_NUDGE_INTERVAL_MS).unref?.();
+  setTimeout(() => {
+    void runAutoNudgesAndReminders();
+  }, 60 * 1000).unref?.();
 }
 
 // SGC × Aply 6주 일경험 지원 알림. 운영팀이 지원 들어오는 즉시 인지하도록.
@@ -2763,6 +3350,21 @@ function fromCommunityPostCategory(category: CommunityPostCategory): CommunityCa
   return "free";
 }
 
+// 연락 가능한 실제 이메일인지 — 빈 값이나 예전 가짜 도메인(@noemail.local)은 도달 불가로 본다.
+function isReachableEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const e = email.trim().toLowerCase();
+  if (!e) return false;
+  if (e.endsWith("@noemail.local")) return false;
+  return true;
+}
+
+// "우리가 연락할 수 있는가" — 이메일이 인증됐고(emailVerified) 실제 도달 가능한 주소여야 true.
+// 소셜 수동 입력·미검증 이메일, 예전 가짜 주소 사용자는 false 로 걸러 소프트 게이트 대상이 된다.
+function isContactVerified(user: { email: string | null; emailVerified: boolean }): boolean {
+  return Boolean(user.emailVerified) && isReachableEmail(user.email);
+}
+
 function toSafeUser(user: {
   id: string;
   email: string;
@@ -2788,6 +3390,9 @@ function toSafeUser(user: {
     id: user.id,
     email: user.email,
     emailVerified: user.emailVerified,
+    // 프론트가 "연락처 인증 배너/게이트"를 띄울 판단 근거. 게이트 OFF면 항상 true 로 보고해
+    // 배너를 띄우지 않는다(기존 사용자 방해 방지). ON일 때만 실제 도달 여부로 판단.
+    contactVerified: contactGateEnabled ? isContactVerified(user) : true,
     realName: user.realName ?? null,
     name: user.name,
     phoneNumber: user.phoneNumber,
@@ -10133,6 +10738,10 @@ app.patch("/ops/positions/:id/status", authenticate, requireRoles([MemberRole.OP
         }
       }
     });
+    // 처음 OPEN 되면 비자 매칭 지원자에게 잡 얼럿(기본 OFF 플래그).
+    if (parsed.data.status === PositionStatus.OPEN && current.status !== PositionStatus.OPEN) {
+      void sendPositionOpenJobAlerts(id);
+    }
     return res.json({ ok: true, item: toPosition(updated) });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to update position status" });
@@ -10649,6 +11258,35 @@ app.get("/auth/naver/callback", async (req, res) => {
   }
 });
 
+// 소셜 가입 마무리 공통 처리. 소프트 게이트 정책이므로 이메일 미검증이어도 토큰을 발급해
+// 로그인은 시키되, 도달 가능한 검증 이메일이 없으면 인증 메일을 보내고 프론트에
+// requiresEmailVerification=true 를 돌려줘 배너/게이트로 유도한다.
+async function finishSocialSignup(
+  req: express.Request,
+  res: express.Response,
+  user: Parameters<typeof toSafeUser>[0] & Parameters<typeof issueAuthTokens>[0]
+) {
+  const { accessToken, refreshToken } = await issueAuthTokens(user);
+  setRefreshTokenCookie(res, refreshToken);
+  const needsVerification = !isContactVerified(user);
+  if (needsVerification && user.email) {
+    try {
+      const { token } = await createEmailVerificationToken(user.id);
+      const locale = resolveEmailLocale(req, undefined);
+      await sendVerificationEmail(user.email, token, locale);
+    } catch (err) {
+      console.error("[social-signup] verification email send failed", err);
+    }
+  }
+  return res.json({
+    ok: true,
+    token: accessToken,
+    accessToken,
+    requiresEmailVerification: needsVerification,
+    user: toSafeUser(user)
+  });
+}
+
 const naverFinalizeSchema = z.object({
   ctx: z.string().min(10).max(4000),
   accountType: z.enum(["GENERAL", "BUSINESS"]),
@@ -10707,13 +11345,17 @@ app.post("/auth/naver/finalize", async (req, res) => {
   if (!finalEmail) {
     return sendAuthError(res, 400, "EMAIL_REQUIRED", "email required");
   }
+  // 이메일 검증 — 네이버는 가입 시 이메일을 인증하므로 provider 가 준 이메일(ctxEmail)은 신뢰한다.
+  // 반면 provider 가 이메일을 안 줘서 화면에서 손으로 입력한 값은 도달 여부를 알 수 없으므로
+  // 미검증으로 두고 인증 메일을 보낸다(finishSocialSignup).
+  const emailFromProvider = Boolean(ctxEmail);
   // 실명 — 네이버는 실명을 주므로 입력이 없으면 그 값을 쓴다.
   const finalRealName = parsed.data.realName?.trim() || ctxName?.trim() || null;
 
   const created = await prisma.user.create({
     data: {
       email: finalEmail,
-      emailVerified: true,
+      emailVerified: emailFromProvider,
       name: ctxName?.trim() || generateNicknameFromEmail(finalEmail),
       realName: finalRealName,
       phoneNumber: ctxMobile,
@@ -10736,15 +11378,7 @@ app.post("/auth/naver/finalize", async (req, res) => {
     createdAt: created.createdAt
   }).catch((err) => console.error("[naver-oauth] discord signup notify failed", err));
 
-  const { accessToken, refreshToken } = await issueAuthTokens(created);
-  setRefreshTokenCookie(res, refreshToken);
-
-  return res.json({
-    ok: true,
-    token: accessToken,
-    accessToken,
-    user: toSafeUser(created)
-  });
+  return finishSocialSignup(req, res, created);
 });
 
 // ---------- Google OAuth ----------
@@ -10966,14 +11600,18 @@ app.post("/auth/google/finalize", async (req, res) => {
   if (!finalEmail) {
     return sendAuthError(res, 400, "EMAIL_REQUIRED", "email required");
   }
+  // 이메일 검증 — 구글이 email_verified=true 로 준 이메일만 신뢰한다(ctxEmailVerified).
+  // provider 미검증이거나 화면에서 손으로 입력한 이메일은 미검증으로 두고 인증 메일을 보낸다.
+  const emailVerifiedByProvider = Boolean(ctxEmail) && ctxEmailVerified;
   // 실명 — 카카오는 닉네임, 구글은 표시이름이라 실명으로 신뢰할 수 없다 — 입력값만 쓴다.
   const finalRealName = parsed.data.realName?.trim() || null;
 
   const created = await prisma.user.create({
     data: {
       email: finalEmail,
-      emailVerified: true,
+      emailVerified: emailVerifiedByProvider,
       name: ctxName?.trim() || generateNicknameFromEmail(ctxEmail),
+      realName: finalRealName,
       authProvider: AuthProvider.GOOGLE,
       providerId,
       passwordHash: null,
@@ -10993,15 +11631,7 @@ app.post("/auth/google/finalize", async (req, res) => {
     createdAt: created.createdAt
   }).catch((err) => console.error("[google-oauth] discord signup notify failed", err));
 
-  const { accessToken, refreshToken } = await issueAuthTokens(created);
-  setRefreshTokenCookie(res, refreshToken);
-
-  return res.json({
-    ok: true,
-    token: accessToken,
-    accessToken,
-    user: toSafeUser(created)
-  });
+  return finishSocialSignup(req, res, created);
 });
 
 // ---------- Kakao OAuth ----------
@@ -11021,6 +11651,14 @@ app.get("/auth/kakao/start", (req, res) => {
   authorizeUrl.searchParams.set("redirect_uri", kakaoOAuthRedirectUri);
   authorizeUrl.searchParams.set("state", state);
   authorizeUrl.searchParams.set("prompt", "login");
+  // 이메일을 실제로 받아오려면 카카오 스코프(account_email)를 명시해야 한다. 다만 이 스코프는
+  // 카카오 개발자 콘솔에서 '카카오계정(이메일)' 동의항목을 활성화·검수해 둔 경우에만 유효하며,
+  // 등록돼 있지 않으면 KOE205(잘못된 요청)로 로그인 자체가 막힌다. 그래서 콘솔 준비가 끝나면
+  // 환경변수 KAKAO_OAUTH_SCOPE 로 켤 수 있게 해 두고, 기본값(미설정)에선 스코프를 보내지 않는다.
+  const kakaoScope = process.env.KAKAO_OAUTH_SCOPE?.trim();
+  if (kakaoScope) {
+    authorizeUrl.searchParams.set("scope", kakaoScope);
+  }
   return res.redirect(authorizeUrl.toString());
 });
 
@@ -11129,7 +11767,26 @@ app.get("/auth/kakao/callback", async (req, res) => {
     }
 
     if (existingUser) {
-      const { accessToken, refreshToken } = await issueAuthTokens(existingUser);
+      // 이메일 자동 치유 — 카카오가 검증된 실제 이메일을 줬는데 기존 계정 이메일이
+      // 도달 불가(@noemail.local 등)이거나 미검증이면, 이번 로그인에서 받은 이메일로 갱신한다.
+      // (예전 가짜 이메일로 만들어진 계정을 다음 로그인 때 자동으로 고쳐준다.)
+      let sessionUser = existingUser;
+      if (
+        kakaoEmail &&
+        kakaoEmailVerified &&
+        isReachableEmail(kakaoEmail) &&
+        kakaoEmail !== existingUser.email.trim().toLowerCase() &&
+        (!isReachableEmail(existingUser.email) || !existingUser.emailVerified)
+      ) {
+        sessionUser = await prisma.user
+          .update({ where: { id: existingUser.id }, data: { email: kakaoEmail, emailVerified: true } })
+          .catch((err) => {
+            // 이미 같은 이메일을 쓰는 카카오 계정이 있으면 unique 충돌 — 치유는 건너뛰고 로그인은 진행.
+            console.error("[kakao-oauth] email heal skipped", err instanceof Error ? err.message : err);
+            return existingUser;
+          });
+      }
+      const { accessToken, refreshToken } = await issueAuthTokens(sessionUser);
       setRefreshTokenCookie(res, refreshToken);
 
       const nextRaw = typeof stateData.next === "string" ? stateData.next : "/";
@@ -11222,14 +11879,18 @@ app.post("/auth/kakao/finalize", async (req, res) => {
   if (!finalEmail) {
     return sendAuthError(res, 400, "EMAIL_REQUIRED", "email required");
   }
+  // 이메일 검증 — 카카오가 is_email_verified=true 로 준 이메일만 신뢰한다(ctxEmailVerified).
+  // provider 미검증이거나 화면에서 손으로 입력한 이메일은 미검증으로 두고 인증 메일을 보낸다.
+  const emailVerifiedByProvider = Boolean(ctxEmail) && ctxEmailVerified;
   // 실명 — 카카오는 닉네임, 구글은 표시이름이라 실명으로 신뢰할 수 없다 — 입력값만 쓴다.
   const finalRealName = parsed.data.realName?.trim() || null;
 
   const created = await prisma.user.create({
     data: {
       email: finalEmail,
-      emailVerified: true,
+      emailVerified: emailVerifiedByProvider,
       name: ctxName?.trim() || generateNicknameFromEmail(ctxEmail),
+      realName: finalRealName,
       authProvider: AuthProvider.KAKAO,
       providerId,
       passwordHash: null,
@@ -11249,15 +11910,7 @@ app.post("/auth/kakao/finalize", async (req, res) => {
     createdAt: created.createdAt
   }).catch((err) => console.error("[kakao-oauth] discord signup notify failed", err));
 
-  const { accessToken, refreshToken } = await issueAuthTokens(created);
-  setRefreshTokenCookie(res, refreshToken);
-
-  return res.json({
-    ok: true,
-    token: accessToken,
-    accessToken,
-    user: toSafeUser(created)
-  });
+  return finishSocialSignup(req, res, created);
 });
 
 app.post("/auth/verify-email", async (req, res) => {
@@ -12161,30 +12814,36 @@ type ApplicationDocs = {
   coverLetterId: string | null;
   coverLetterSnapshot: Prisma.InputJsonValue | undefined;
 };
-async function snapshotApplicationDocs(userId: string, companyName: string | null): Promise<ApplicationDocs> {
-  // 이력서
+async function snapshotApplicationDocs(userId: string, companyName: string | null, selectedResumeId?: string | null, selectedCoverLetterId?: string | null): Promise<ApplicationDocs> {
+  // 이력서 — 지원자가 고른 이력서(본인 소유)가 있으면 우선, 없으면 대표→최근 순으로 폴백.
   const resume =
+    (selectedResumeId
+      ? await prisma.resume.findFirst({ where: { id: selectedResumeId, userId }, select: { id: true, content: true } })
+      : null) ??
     (await prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { id: true, content: true } })) ??
     (await prisma.resume.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" }, select: { id: true, content: true } }));
 
-  // 자소서 — 회사명 일치(부분 포함, 대소문자 무시)하는 것만.
+  // 자소서 — 지원자가 고른 것(본인 소유) 우선, 없으면 회사명 일치, 그것도 없으면 최근 수정본.
   let coverLetterId: string | null = null;
   let coverLetterSnapshot: Prisma.InputJsonValue | undefined = undefined;
+  const allCls = await prisma.coverLetter.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, title: true, company: true, items: true }
+  });
   const company = (companyName ?? "").trim().toLowerCase();
-  if (company) {
-    const cls = await prisma.coverLetter.findMany({
-      where: { userId, company: { not: null } },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true, title: true, company: true, items: true }
-    });
-    const match = cls.find((c) => {
-      const cc = (c.company ?? "").trim().toLowerCase();
-      return cc && (cc.includes(company) || company.includes(cc));
-    });
-    if (match) {
-      coverLetterId = match.id;
-      coverLetterSnapshot = { title: match.title, company: match.company, items: match.items } as Prisma.InputJsonValue;
-    }
+  const chosenCl =
+    (selectedCoverLetterId ? allCls.find((c) => c.id === selectedCoverLetterId) : undefined) ??
+    (company
+      ? allCls.find((c) => {
+          const cc = (c.company ?? "").trim().toLowerCase();
+          return cc && (cc.includes(company) || company.includes(cc));
+        })
+      : undefined) ??
+    allCls[0];
+  if (chosenCl) {
+    coverLetterId = chosenCl.id;
+    coverLetterSnapshot = { title: chosenCl.title, company: chosenCl.company, items: chosenCl.items } as Prisma.InputJsonValue;
   }
 
   return {
@@ -12208,6 +12867,28 @@ async function resolveApplicationResumeBrief(
   return prisma.resume.findFirst({ where: { userId: candidateUserId }, orderBy: { updatedAt: "desc" }, select: { id: true, title: true, shareSlug: true } });
 }
 
+// 이메일 알림 수신 설정 — 전 role 대상(인앱 알림은 항상 유지, 이메일만 on/off).
+app.get("/members/me/notification-settings", authenticate, async (req, res) => {
+  try {
+    const u = await prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { emailNotifications: true } });
+    return res.json({ ok: true, emailNotifications: u?.emailNotifications ?? true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const notificationSettingsSchema = z.object({ emailNotifications: z.boolean() });
+app.patch("/members/me/notification-settings", authenticate, async (req, res) => {
+  const parsed = notificationSettingsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    await prisma.user.update({ where: { id: req.auth!.userId }, data: { emailNotifications: parsed.data.emailNotifications } });
+    return res.json({ ok: true, emailNotifications: parsed.data.emailNotifications });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const userId = req.auth!.userId;
   const parsed = memberPositionActionParamSchema.safeParse(req.params);
@@ -12220,6 +12901,7 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
       id: true,
       title: true,
       status: true,
+      partnerOrganizationId: true,
       partnerOrganization: {
         select: {
           name: true
@@ -12230,6 +12912,39 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
   if (!position) return res.status(404).json({ ok: false, message: "position not found" });
   if (position.status !== PositionStatus.OPEN) {
     return res.status(400).json({ ok: false, message: "현재 지원 가능한 포지션이 아닙니다." });
+  }
+
+  // 소프트 게이트 — 지원(핵심 액션) 전에 "연락 가능한 이메일 인증"을 요구한다.
+  // 로그인·둘러보기는 막지 않지만, 파트너/운영팀이 지원자에게 연락해야 하므로
+  // 도달 가능한 검증 이메일이 없으면 여기서 막고 인증을 유도한다.
+  // 단, CONTACT_GATE_ENABLED=true 일 때만 차단(기본 OFF — 기존 사용자 방해 방지).
+  if (contactGateEnabled) {
+    const applicant = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, emailVerified: true }
+    });
+    if (!applicant || !isContactVerified(applicant)) {
+      return res.status(403).json({
+        ok: false,
+        code: "EMAIL_VERIFICATION_REQUIRED",
+        email: applicant?.email && isReachableEmail(applicant.email) ? applicant.email : null,
+        message: "지원하려면 연락 가능한 이메일 인증이 필요합니다."
+      });
+    }
+  }
+
+  // 지원 전제조건: 이력서와 자기소개서가 모두 작성되어 있어야 지원 가능.
+  const [resumeCount, coverLetterCount] = await Promise.all([
+    prisma.resume.count({ where: { userId } }),
+    prisma.coverLetter.count({ where: { userId } })
+  ]);
+  if (resumeCount === 0 || coverLetterCount === 0) {
+    return res.status(400).json({
+      ok: false,
+      code: "DOCUMENTS_REQUIRED",
+      missing: { resume: resumeCount === 0, coverLetter: coverLetterCount === 0 },
+      message: "지원하려면 이력서와 자기소개서를 먼저 작성해 주세요."
+    });
   }
 
   try {
@@ -12246,10 +12961,22 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
     const existing = await prisma.application.findUnique({
       where: { positionId_candidateUserId: { positionId: parsed.data.positionId, candidateUserId: userId } }
     });
-    // 지원 시점의 서류(대표 이력서 + 회사일치 자소서)를 연결 + 제출본 스냅샷 저장.
-    // 재지원 시에도 현재 서류로 스냅샷 갱신.
-    const docs = await snapshotApplicationDocs(userId, position.partnerOrganization?.name ?? null);
+    // 지원 시점의 서류(선택/대표 이력서 + 회사일치 자소서)를 연결 + 제출본 스냅샷 저장.
+    // 재지원 시에도 현재 서류로 스냅샷 갱신. 지원자가 이력서를 고르면 그걸 우선 사용.
+    const selectedResumeId =
+      typeof (req.body as { resumeId?: unknown } | undefined)?.resumeId === "string" && (req.body as { resumeId: string }).resumeId.trim()
+        ? (req.body as { resumeId: string }).resumeId.trim()
+        : null;
+    const selectedCoverLetterId =
+      typeof (req.body as { coverLetterId?: unknown } | undefined)?.coverLetterId === "string" && (req.body as { coverLetterId: string }).coverLetterId.trim()
+        ? (req.body as { coverLetterId: string }).coverLetterId.trim()
+        : null;
+    const docs = await snapshotApplicationDocs(userId, position.partnerOrganization?.name ?? null, selectedResumeId, selectedCoverLetterId);
+    // 새 지원(최초 지원 또는 철회 후 재지원)일 때만 파트너사에 이메일 알림을 보낸다
+    // (이미 진행 중인 지원에 다시 apply 를 눌러도 팀에 중복 메일이 가지 않게).
+    let isNewSubmission = false;
     if (!existing) {
+      isNewSubmission = true;
       const created = await prisma.application.create({
         data: {
           positionId: parsed.data.positionId,
@@ -12269,6 +12996,7 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
         }
       });
     } else if (existing.status === "WITHDRAWN") {
+      isNewSubmission = true;
       await prisma.application.update({
         where: { id: existing.id },
         data: {
@@ -12304,6 +13032,15 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
         partnerName: position.partnerOrganization?.name ?? null,
         appliedAt: new Date()
       });
+      // 새 지원일 때만 파트너사 팀 멤버 전원에게 서비스 알림 + 이메일
+      if (isNewSubmission) {
+        void notifyPartnerTeamOnApplication({
+          positionTitle: position.title,
+          partnerOrganizationId: position.partnerOrganizationId,
+          applicantName: applicant.name,
+          applicantEmail: applicant.email
+        });
+      }
     }
     return res.json({ ok: true, ids: next });
   } catch {
@@ -15027,6 +15764,59 @@ app.get("/career-launch/progress", authenticate, requireCareerEnrollment, async 
 
 // PATCH /career-launch/progress — 제공된 키만 얕게 병합해 저장(부분 갱신).
 const progressPatchSchema = z.record(z.string(), z.unknown());
+// 완주 시 수료증 자동 발급 — 모의면접 3라운드 + 이력서 + 자소서 완성이면 수료증 생성(중복 방지) + 알림.
+async function maybeAutoIssueCareerCertificate(userId: string, state: Record<string, unknown>) {
+  try {
+    const interview = (state.interview && typeof state.interview === "object" ? state.interview : {}) as { practiced?: unknown };
+    const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]) : [];
+    if (practiced.length < 3) return;
+
+    const [resume, cover] = await Promise.all([
+      prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true } }),
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId }, select: { content: true } })
+    ]);
+    const rc = (resume?.content ?? {}) as Record<string, unknown>;
+    const cc = (cover?.content ?? {}) as Record<string, unknown>;
+    const hasResume =
+      (Array.isArray(rc.educations) && rc.educations.length > 0) ||
+      (Array.isArray(rc.experiences) && rc.experiences.length > 0) ||
+      (Array.isArray(rc.skills) && rc.skills.length > 0) ||
+      Boolean((rc.basic as { name?: string } | undefined)?.name);
+    const coverItems = Array.isArray(cc.items) ? (cc.items as { answer?: string }[]).filter((x) => (x.answer ?? "").trim()).length : 0;
+    if (!hasResume || coverItems === 0) return;
+
+    const enrollment = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, orderBy: { createdAt: "desc" }, select: { cohortId: true } });
+    if (!enrollment?.cohortId) return;
+    const cohortId = enrollment.cohortId;
+
+    const existing = await prisma.careerLaunchCertificate.findUnique({ where: { cohortId_studentUserId: { cohortId, studentUserId: userId } } });
+    if (existing) return;
+
+    const seq = (await prisma.careerLaunchCertificate.count({ where: { cohortId } })) + 1;
+    const certificateNo = `APLY-CL-${cohortId.slice(0, 8).toUpperCase()}-${String(seq).padStart(3, "0")}`;
+    await prisma.careerLaunchCertificate.create({ data: { cohortId, studentUserId: userId, certificateNo, issuedByUserId: null } }).catch(() => {});
+
+    void createNotification({ userId, type: "CAREER_CERTIFICATE_ISSUED", title: "Career Launch 수료증이 발급되었어요", message: certificateNo, linkPath: "/career-launch/dashboard" });
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (u?.email) {
+      void sendNotificationEmail({
+        toUser: { id: userId, email: u.email },
+        subject: "[Aply] Career Launch 수료증 발급",
+        previewText: "프로그램을 완주하여 수료증이 발급되었어요",
+        title: "수료증 발급",
+        headline: "Career Launch를 완주하셨어요!",
+        bodyText: `축하합니다! 4주 프로그램을 완주하여 수료증(${certificateNo})이 발급되었습니다. 취업 성과 설문에도 참여해 주세요.`,
+        ctaLabel: "수료증·설문 보기",
+        ctaPath: "/career-launch/survey",
+        footerNote: "본 메일은 Career Launch 프로그램 완주에 따라 발송되는 알림입니다.",
+        logKey: "career_certificate_email"
+      });
+    }
+  } catch (error) {
+    console.error("auto_certificate_failed", { error: getErrorMessage(error) });
+  }
+}
+
 app.patch("/career-launch/progress", authenticate, requireCareerEnrollment, async (req, res) => {
   const parsed = progressPatchSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
@@ -15058,7 +15848,63 @@ app.patch("/career-launch/progress", authenticate, requireCareerEnrollment, asyn
       create: { studentUserId: req.auth!.userId, state: merged as object },
       update: { state: merged as object }
     });
+    // 완주 조건 충족 시 수료증 자동 발급(중복은 내부에서 방지).
+    void maybeAutoIssueCareerCertificate(req.auth!.userId, merged as Record<string, unknown>);
     return res.json({ ok: true, state: merged });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 취업 성과 설문(수료생 자기 보고) ──
+// GET: 내 수료증 발급 여부 + 이미 제출한 성과. POST: 취업 상태 자기 보고(자기 기록으로 upsert).
+app.get("/career-launch/me/employment-status", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const enrollment = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, orderBy: { createdAt: "desc" }, select: { cohortId: true } });
+    const cohortId = enrollment?.cohortId ?? null;
+    const [cert, outcome] = await Promise.all([
+      cohortId ? prisma.careerLaunchCertificate.findUnique({ where: { cohortId_studentUserId: { cohortId, studentUserId: userId } }, select: { certificateNo: true, issuedAt: true } }) : Promise.resolve(null),
+      prisma.careerEmploymentOutcome.findFirst({ where: { studentUserId: userId, createdByUserId: userId }, orderBy: { updatedAt: "desc" }, select: { status: true, companyName: true, positionTitle: true, updatedAt: true } })
+    ]);
+    return res.json({ ok: true, certificate: cert, outcome });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const employmentSurveySchema = z.object({
+  status: z.enum(["SEARCHING", "INTERVIEW", "OFFER", "HIRED"]),
+  companyName: z.string().trim().max(200).optional(),
+  positionTitle: z.string().trim().max(200).optional()
+});
+app.post("/career-launch/me/employment-status", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = employmentSurveySchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  const d = parsed.data;
+  if (d.status !== "SEARCHING" && !d.companyName?.trim()) {
+    return res.status(400).json({ ok: false, message: "회사명을 입력해 주세요." });
+  }
+  try {
+    const userId = req.auth!.userId;
+    const enrollment = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, orderBy: { createdAt: "desc" }, select: { cohortId: true } });
+    const status = d.status === "SEARCHING" ? "APPLIED" : d.status; // SEARCHING → APPLIED 로 저장
+    const companyName = d.status === "SEARCHING" ? "구직 중" : (d.companyName?.trim() || "-");
+    const decidedAt = d.status === "HIRED" || d.status === "OFFER" ? new Date() : null;
+
+    // 자기 기록(자기 보고) 1건을 upsert — 있으면 갱신, 없으면 생성.
+    const existing = await prisma.careerEmploymentOutcome.findFirst({ where: { studentUserId: userId, createdByUserId: userId }, select: { id: true } });
+    if (existing) {
+      await prisma.careerEmploymentOutcome.update({
+        where: { id: existing.id },
+        data: { status, companyName, positionTitle: d.positionTitle?.trim() || null, cohortId: enrollment?.cohortId ?? null, source: "SELF_REPORT", decidedAt }
+      });
+    } else {
+      await prisma.careerEmploymentOutcome.create({
+        data: { studentUserId: userId, cohortId: enrollment?.cohortId ?? null, status, companyName, positionTitle: d.positionTitle?.trim() || null, source: "SELF_REPORT", createdByUserId: userId, decidedAt }
+      });
+    }
+    return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -15824,7 +16670,8 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
     };
 
     const students = enrollments.map((e) => {
-      const st = (progByUser.get(e.studentUserId)?.state ?? {}) as Record<string, unknown>;
+      const progRow = progByUser.get(e.studentUserId);
+      const st = (progRow?.state ?? {}) as Record<string, unknown>;
       const interview = (st.interview && typeof st.interview === "object" ? st.interview : {}) as { practiced?: unknown };
       const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]) : [];
       const rc = (resumeByUser.get(e.studentUserId)?.content ?? {}) as Record<string, unknown>;
@@ -15848,6 +16695,34 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
       const successBefore = measurable ? Math.round(0.65 * (before as number)) : null;
       const successAfter = measurable ? Math.round(0.65 * (after as number) + 0.35 * prepCompletion) : null;
       const successGain = successBefore !== null && successAfter !== null ? successAfter - successBefore : null;
+
+      // 학생별 산출물 정량화 — 리포트에 "실제로 이만큼 만들었다"는 근거를 더 풍부하게 담기 위해
+      // 이미 불러온 원본(진단 state·이력서/자소서 content)에서 세부 수치를 계산한다.
+      const cnt = (v: unknown) => (Array.isArray(v) ? v.length : 0);
+      const selectedJobTitles = Array.isArray(st.selectedJobs)
+        ? (st.selectedJobs as unknown[]).filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, 6)
+        : [];
+      const resumeEducations = cnt(rc.educations);
+      const resumeExperiences = cnt(rc.experiences);
+      const resumeSkills = cnt(rc.skills);
+      const resumeLanguages = cnt(rc.languages);
+      const coverItemChars = Array.isArray(cc.items)
+        ? (cc.items as { answer?: unknown }[]).map((x) => (typeof x.answer === "string" ? x.answer.trim().length : 0)).filter((len) => len > 0)
+        : [];
+      const coverChars = coverItemChars.reduce((a, b) => a + b, 0);
+      const roundLabel: Record<string, string> = { self: "인성", job: "직무", fit: "컬처핏" };
+      const interviewRounds = practiced.filter((r): r is string => typeof r === "string").map((r) => roundLabel[r] ?? r);
+
+      // 주차별 진행 타임라인 — doneSteps 는 "w1s1..w4s4" 형태. wNs4 가 있으면 그 주차 완료로 본다.
+      const doneStepList = Array.isArray(st.doneSteps) ? (st.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
+      const weekDone = [1, 2, 3, 4].map((w) => doneStepList.includes(`w${w}s4`));
+      const weeksCompleted = weekDone.filter(Boolean).length;
+      const doneStepsCount = doneStepList.length;
+      // 생성 자료 수 + 활동 기간(등록 ~ 최근 활동 일수)
+      const materialsCount = Array.isArray(st.materials) ? (st.materials as unknown[]).length : 0;
+      const activityDays = progRow?.updatedAt && e.createdAt
+        ? Math.max(1, Math.round((new Date(progRow.updatedAt).getTime() - new Date(e.createdAt).getTime()) / 86_400_000))
+        : null;
 
       const myOutcomes = outcomesByUser.get(e.studentUserId) ?? [];
       const bestRank = myOutcomes.reduce((m, o) => Math.max(m, OUTCOME_RANK[o.status] ?? 0), 0);
@@ -15874,10 +16749,25 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
         successAfter,
         successGain,
         selectedJobs: selectedJobsCount,
+        selectedJobTitles,
         hasResume,
         coverItems,
         interviewPracticed: practiced.length,
+        interviewRounds,
         completed: practiced.length >= 3 && hasResume && coverItems > 0,
+        // 산출물 정량화(학생별 상세 근거)
+        resumeEducations,
+        resumeExperiences,
+        resumeSkills,
+        resumeLanguages,
+        coverChars,
+        coverItemChars,
+        // 주차 타임라인·활동 기간·생성 자료
+        weekDone,
+        weeksCompleted,
+        doneStepsCount,
+        materialsCount,
+        activityDays,
         // 취업 성과(모든 포지션)
         applications: myOutcomes.length,
         reachedInterview: bestRank >= 2,
@@ -18779,6 +19669,34 @@ app.get("/partner/dashboard", authenticate, requireRoles([MemberRole.PARTNER, Me
   }
 });
 
+// 파트너 사이드바 뱃지용 — 지금 처리할 게 몇 건인지(검토 대기 지원·과제, 열린 이슈).
+app.get("/partner/nav-counts", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) {
+      return res.json({ ok: true, applicants: 0, assignments: 0, issues: 0 });
+    }
+    const orgId = affiliation.organization.id;
+    const [orgUsers, orgApps] = await Promise.all([
+      prisma.user.findMany({ where: { partnerOrganizationId: orgId }, select: { id: true } }),
+      prisma.application.findMany({ where: { position: { partnerOrganizationId: orgId } }, select: { id: true } })
+    ]);
+    const [applicants, assignments, issues] = await Promise.all([
+      prisma.application.count({ where: { position: { partnerOrganizationId: orgId }, status: "SUBMITTED" } }),
+      prisma.assignment.count({ where: { status: "SUBMITTED", application: { position: { partnerOrganizationId: orgId } } } }),
+      prisma.issueReport.count({
+        where: {
+          status: "OPEN",
+          OR: [{ reporterUserId: { in: orgUsers.map((u) => u.id) } }, { applicationId: { in: orgApps.map((a) => a.id) } }]
+        }
+      })
+    ]);
+    return res.json({ ok: true, applicants, assignments, issues });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.get("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
   if (!affiliation?.organization) {
@@ -18932,7 +19850,9 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER, M
   }
 
   try {
-    const nextStatus = isOperator ? PositionStatus.OPEN : PositionStatus.PENDING_REVIEW;
+    // 인증된 파트너(위 canPostPositions 게이트 통과)는 승인 라운드트립 없이 즉시 공개한다.
+    // 운영자도 동일하게 바로 OPEN. 미인증 파트너는 애초에 위에서 차단된다.
+    const nextStatus = PositionStatus.OPEN;
     const uploadedThumbnailImages = await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails");
     const created = await prisma.position.create({
       data: {
@@ -18962,7 +19882,7 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER, M
           create: {
             fromStatus: null,
             toStatus: nextStatus,
-            note: isOperator ? "운영자 공고 생성 (자동 승인)" : "파트너 공고 생성 (어드민 관리자 승인 대기)",
+            note: isOperator ? "운영자 공고 생성 (자동 공개)" : "파트너 공고 생성 (인증 파트너 즉시 공개)",
             createdByUserId: req.auth!.userId
           }
         }
@@ -19228,7 +20148,6 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
       "partner affiliation is required. request organization assignment."
     );
   }
-  const organizationId = affiliation.organization.id;
 
   const current = await prisma.position.findFirst({
     where: {
@@ -19319,58 +20238,42 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
         ? await uploadImageArrayIfNeeded(parsed.data.thumbnailImages, "positions/thumbnails")
         : undefined;
 
-    const normalizedPayload = {
-      ...parsed.data,
-      ...(uploadedThumbnailImages !== undefined
-        ? { thumbnailImages: uploadedThumbnailImages.slice(0, 5) }
-        : {}),
-      ...(parsed.data.eligibleVisas !== undefined ? { eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas) } : {}),
-      ...(parsed.data.preferredNationalities !== undefined
-        ? { preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities) }
-        : {}),
-      ...(parsed.data.communicationLanguages !== undefined
-        ? { communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages) }
-        : {})
-    };
-
-    await prisma.$transaction(async (tx) => {
-      await tx.positionRevision.updateMany({
-        where: {
-          positionId: current.id,
-          partnerOrganizationId: organizationId,
-          status: PositionRevisionStatus.PENDING
-        },
-        data: {
-          status: PositionRevisionStatus.REJECTED,
-          reviewNote: "새 수정요청으로 대체됨",
-          reviewedByUserId: req.auth!.userId,
-          reviewedAt: new Date()
-        }
-      });
-
-      await tx.positionRevision.create({
-        data: {
-          positionId: current.id,
-          partnerOrganizationId: organizationId,
-          requestedByUserId: req.auth!.userId,
-          status: PositionRevisionStatus.PENDING,
-          payload: normalizedPayload
-        }
-      });
-
-      await tx.positionStatusHistory.create({
-        data: {
-          positionId: current.id,
-          fromStatus: current.status,
-          toStatus: PositionStatus.PENDING_REVIEW,
-          note: "파트너 공고 수정 요청 (어드민 관리자 승인 대기)",
-          createdByUserId: req.auth!.userId
-        }
-      });
-    });
-
-    const latest = await prisma.position.findUnique({
+    // 인증된 파트너는 자기 회사 공고를 승인 라운드트립 없이 즉시 수정 반영한다
+    // (운영자 직접 수정과 동일한 필드 매핑). 상태는 현재 값을 유지한다.
+    const updated = await prisma.position.update({
       where: { id: current.id },
+      data: {
+        ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
+        ...(parsed.data.workType !== undefined ? { workType: parsed.data.workType } : {}),
+        ...(parsed.data.employmentType !== undefined ? { employmentType: parsed.data.employmentType } : {}),
+        ...(uploadedThumbnailImages !== undefined ? { thumbnailImages: uploadedThumbnailImages.slice(0, 5) } : {}),
+        ...(parsed.data.eligibleVisas !== undefined ? { eligibleVisas: normalizeStringArray(parsed.data.eligibleVisas) } : {}),
+        ...(parsed.data.preferredNationalities !== undefined ? { preferredNationalities: normalizeStringArray(parsed.data.preferredNationalities) } : {}),
+        ...(parsed.data.communicationLanguages !== undefined ? { communicationLanguages: normalizeStringArray(parsed.data.communicationLanguages) } : {}),
+        ...(parsed.data.hiringProcess !== undefined ? { hiringProcess: parsed.data.hiringProcess } : {}),
+        ...(parsed.data.preferredJobRole !== undefined ? { preferredJobRole: parsed.data.preferredJobRole } : {}),
+        ...(parsed.data.hiringCount !== undefined ? { hiringCount: parsed.data.hiringCount } : {}),
+        ...(parsed.data.workingHours !== undefined ? { workingHours: parsed.data.workingHours } : {}),
+        ...(parsed.data.workLocation !== undefined ? { workLocation: parsed.data.workLocation } : {}),
+        ...(parsed.data.startDate !== undefined ? { startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null } : {}),
+        ...(parsed.data.mainResponsibilities !== undefined ? { mainResponsibilities: parsed.data.mainResponsibilities } : {}),
+        ...(parsed.data.requiredQualifications !== undefined ? { requiredQualifications: parsed.data.requiredQualifications } : {}),
+        ...(parsed.data.preferredQualifications !== undefined ? { preferredQualifications: parsed.data.preferredQualifications } : {}),
+        ...(parsed.data.dressCode !== undefined ? { dressCode: parsed.data.dressCode } : {}),
+        ...(parsed.data.wantsPreTraining !== undefined ? { wantsPreTraining: parsed.data.wantsPreTraining } : {}),
+        ...(parsed.data.additionalNotes !== undefined ? { additionalNotes: parsed.data.additionalNotes } : {}),
+        ...(parsed.data.employmentClassification !== undefined
+          ? { adminMemo: mergeEmploymentClassificationMeta(current.adminMemo, parsed.data.employmentClassification ?? null) }
+          : {}),
+        statusHistories: {
+          create: {
+            fromStatus: current.status,
+            toStatus: current.status,
+            note: "파트너 공고 수정 (인증 파트너 즉시 반영)",
+            createdByUserId: req.auth!.userId
+          }
+        }
+      },
       include: {
         partnerOrganization: { select: { id: true, name: true } },
         matchingParticipants: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } },
@@ -19378,8 +20281,10 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
         statusHistories: { orderBy: { createdAt: "desc" }, include: { createdBy: { select: { id: true, name: true, email: true } } } }
       }
     });
-    if (!latest) return res.status(404).json({ ok: false, message: "position not found" });
-    return res.json({ ok: true, item: toPosition(latest), message: "수정 요청이 접수되었습니다. 어드민 관리자 승인 후 반영됩니다." });
+    void embedAndSavePosition(prisma, updated.id).catch(() => {});
+    // 내용이 바뀌었으니 번역도 다시 예열한다(실패해도 조용히 무시 — 부가 작업).
+    void warmPositionTranslation(prisma, updated.id).catch(() => {});
+    return res.json({ ok: true, item: toPosition(updated), message: "수정되었습니다." });
   } catch (error) {
     console.error("[partner/positions][update][failed]", {
       positionId: id,
@@ -19637,22 +20542,45 @@ app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDE
             status: true,
             partnerOrganization: { select: { id: true, name: true } }
           }
-        }
+        },
+        // 면접 슬롯 — 카드가 "일정 선택 전 / 확정" 을 구분해 버튼을 바꿀 수 있게.
+        interviewSlots: { select: { startsAt: true, endsAt: true, location: true, status: true } }
       }
     });
+    // 안 읽은 회사 메시지 수(지원 건별) — 카드의 '회사에 문의' 뱃지용.
+    const appIds = items.map((a) => a.id);
+    const unreadGroups = appIds.length
+      ? await prisma.notification.groupBy({
+          by: ["applicationId"],
+          where: { userId: req.auth!.userId, type: "APPLICATION_COMMENT_FROM_COMPANY", readAt: null, applicationId: { in: appIds } },
+          _count: { _all: true }
+        })
+      : [];
+    const unreadByApp = new Map(unreadGroups.map((g) => [g.applicationId, g._count._all]));
     return res.json({
       ok: true,
-      items: items.map((a) => ({
-        id: a.id,
-        positionId: a.positionId,
-        positionTitle: a.position.title,
-        positionStatus: a.position.status,
-        partnerOrganizationId: a.position.partnerOrganization?.id ?? null,
-        partnerOrganizationName: a.position.partnerOrganization?.name ?? null,
-        status: a.status,
-        submittedAt: a.submittedAt,
-        updatedAt: a.updatedAt
-      }))
+      items: items.map((a) => {
+        const slots = a.interviewSlots ?? [];
+        const selected = slots.find((s) => s.status === "SELECTED") ?? null;
+        const hasProposed = slots.some((s) => s.status === "PROPOSED");
+        return {
+          id: a.id,
+          positionId: a.positionId,
+          positionTitle: a.position.title,
+          positionStatus: a.position.status,
+          partnerOrganizationId: a.position.partnerOrganization?.id ?? null,
+          partnerOrganizationName: a.position.partnerOrganization?.name ?? null,
+          status: a.status,
+          submittedAt: a.submittedAt,
+          updatedAt: a.updatedAt,
+          // 면접 일정: 확정 슬롯(있으면) + 아직 선택 대기 중인지
+          interviewSelectedAt: selected?.startsAt ?? null,
+          interviewSelectedEndsAt: selected?.endsAt ?? null,
+          interviewLocation: selected?.location ?? null,
+          interviewPending: !selected && hasProposed,
+          unreadMessages: unreadByApp.get(a.id) ?? 0
+        };
+      })
     });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -19670,24 +20598,41 @@ app.get("/partner/applications", authenticate, requireRoles([MemberRole.PARTNER]
       orderBy: { submittedAt: "desc" },
       include: {
         position: { select: { id: true, title: true, status: true } },
-        candidateUser: { select: { id: true, name: true, email: true, nationality: true } }
+        candidateUser: { select: { id: true, name: true, email: true, nationality: true } },
+        interviewSlots: { select: { id: true } }
       }
     });
+    // 안 읽은 지원자 메시지 수(지원 건별) — 이 파트너 사용자 기준.
+    const appIds = items.map((a) => a.id);
+    const unreadGroups = appIds.length
+      ? await prisma.notification.groupBy({
+          by: ["applicationId"],
+          where: { userId: req.auth!.userId, type: "APPLICATION_COMMENT_FROM_CANDIDATE", readAt: null, applicationId: { in: appIds } },
+          _count: { _all: true }
+        })
+      : [];
+    const unreadByApp = new Map(unreadGroups.map((g) => [g.applicationId, g._count._all]));
     return res.json({
       ok: true,
-      items: items.map((a) => ({
-        id: a.id,
-        positionId: a.positionId,
-        positionTitle: a.position.title,
-        candidateUserId: a.candidateUserId,
-        candidateName: a.candidateUser.name,
-        candidateEmail: a.candidateUser.email,
-        candidateNationality: a.candidateUser.nationality,
-        status: a.status,
-        memo: a.memo,
-        submittedAt: a.submittedAt,
-        updatedAt: a.updatedAt
-      }))
+      items: items.map((a) => {
+        // 연락처는 면접 요청(슬롯 제안) 후에만 공개.
+        const contactUnlocked = a.status === "INTERVIEW" || a.status === "ACCEPTED" || a.interviewSlots.length > 0;
+        return {
+          id: a.id,
+          positionId: a.positionId,
+          positionTitle: a.position.title,
+          candidateUserId: a.candidateUserId,
+          candidateName: a.candidateUser.name,
+          candidateEmail: contactUnlocked ? a.candidateUser.email : null,
+          candidateNationality: a.candidateUser.nationality,
+          contactUnlocked,
+          status: a.status,
+          memo: a.memo,
+          submittedAt: a.submittedAt,
+          updatedAt: a.updatedAt,
+          unreadMessages: unreadByApp.get(a.id) ?? 0
+        };
+      })
     });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -19898,7 +20843,16 @@ app.get("/partner/applications/:id", authenticate, requireRoles([MemberRole.PART
       }
     });
     const resume = await resolveApplicationResumeBrief(application.resume, application.candidateUserId);
-    return res.json({ ok: true, item: { ...application, resume, issues } });
+    // 개인정보 보호 — 회사(파트너)는 면접을 요청(슬롯 제안)했거나 면접/합격 단계에 이르러야
+    // 지원자의 직접 연락처(이메일·전화)를 볼 수 있다. 그전엔 마스킹하고 플랫폼 메시지로만 소통.
+    const contactUnlocked =
+      application.status === "INTERVIEW" ||
+      application.status === "ACCEPTED" ||
+      (application.interviewSlots?.length ?? 0) > 0;
+    const safeCandidate = contactUnlocked
+      ? application.candidateUser
+      : { ...application.candidateUser, email: null, phoneNumber: null };
+    return res.json({ ok: true, item: { ...application, candidateUser: safeCandidate, contactUnlocked, resume, issues } });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -20031,6 +20985,67 @@ const updateIssueReportSchema = z.object({
   resolutionNote: z.string().trim().max(4000).nullable().optional()
 });
 
+const ISSUE_TYPE_LABEL_KO: Record<string, string> = {
+  NO_SHOW: "노쇼 (면접·면담 불참)",
+  BEHAVIOR: "행동·태도 문제",
+  DROPOUT: "참여 중단",
+  ATTITUDE: "커뮤니케이션 문제",
+  PAYMENT: "정산/결제 이슈",
+  OTHER: "기타"
+};
+
+// 이슈 신고 시 운영팀 전원에게 이메일(+info@flip-ers.com 참조)로 알린다.
+// 수신자별 이메일 수신 설정을 존중하고, 트래킹 참조는 sendNotificationEmail 이 자동 처리.
+async function notifyOperatorsIssueEmail(input: {
+  issueId: string;
+  type: string;
+  title: string;
+  description: string;
+  reporterUserId: string;
+  subjectUserId: string | null;
+  positionId: string | null;
+}) {
+  const [operators, reporter, subject, position] = await Promise.all([
+    prisma.user.findMany({ where: { role: MemberRole.OPERATOR }, select: { id: true, email: true } }),
+    prisma.user.findUnique({
+      where: { id: input.reporterUserId },
+      select: { name: true, realName: true, email: true, partnerOrganization: { select: { name: true } } }
+    }),
+    input.subjectUserId
+      ? prisma.user.findUnique({ where: { id: input.subjectUserId }, select: { name: true, realName: true, email: true } })
+      : Promise.resolve(null),
+    input.positionId
+      ? prisma.position.findUnique({ where: { id: input.positionId }, select: { title: true } })
+      : Promise.resolve(null)
+  ]);
+  if (operators.length === 0) return;
+
+  const reporterName = reporter?.name || reporter?.realName || reporter?.email || "알 수 없음";
+  const orgName = reporter?.partnerOrganization?.name;
+  const reporterLine = orgName ? `${reporterName} · ${orgName}` : reporterName;
+  const subjectName = subject ? subject.name || subject.realName || subject.email || "-" : null;
+  const typeLabel = ISSUE_TYPE_LABEL_KO[input.type] ?? input.type;
+
+  const contextParts = [`신고자: ${reporterLine}`];
+  if (subjectName) contextParts.push(`대상: ${subjectName}`);
+  if (position?.title) contextParts.push(`포지션: ${position.title}`);
+
+  await sendNotificationEmail({
+    bccUsers: operators,
+    headerLabel: "이슈 신고",
+    subject: `[이슈 신고] ${typeLabel} · ${input.title}`,
+    previewText: `${reporterLine} 님이 이슈를 신고했습니다.`,
+    title: "새 이슈가 신고되었습니다",
+    headline: `${typeLabel} · ${input.title}`,
+    contextLine: contextParts.join("  ·  "),
+    bodyText: input.description,
+    ctaLabel: "이슈 리포트에서 확인하기",
+    ctaPath: "/dashboard/ops/operations/issues",
+    footerNote: "이 메일은 파트너/지원자 이슈 신고 시 운영팀에 자동 발송됩니다.",
+    logKey: `issue-${input.issueId}`
+  });
+}
+
 app.post("/issues", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   const parsed = createIssueReportSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -20054,6 +21069,17 @@ app.post("/issues", authenticate, requireRoles([MemberRole.STUDENT, MemberRole.P
       message: `${parsed.data.title}`,
       linkPath: "/dashboard/ops/operations/issues"
     });
+    // 지원/상태 자동화와 동일한 정책: 운영팀에 이메일 + info@flip-ers.com 참조로
+    // 트래킹까지 함께 보낸다(인앱 알림은 위 notifyOperators 로 이미 발생).
+    void notifyOperatorsIssueEmail({
+      issueId: created.id,
+      type: parsed.data.type,
+      title: parsed.data.title,
+      description: parsed.data.description,
+      reporterUserId: req.auth!.userId,
+      subjectUserId: parsed.data.subjectUserId ?? null,
+      positionId: parsed.data.positionId ?? null
+    }).catch(() => {});
     return res.status(201).json({ ok: true, item: created });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -20192,7 +21218,10 @@ app.patch("/applications/:id/status", authenticate, requireRoles([MemberRole.PAR
   try {
     const application = await prisma.application.findUnique({
       where: { id: applicationId },
-      include: { position: { select: { partnerOrganizationId: true } } }
+      include: {
+        candidateUser: { select: { email: true, name: true } },
+        position: { select: { title: true, partnerOrganizationId: true, partnerOrganization: { select: { name: true } } } }
+      }
     });
     if (!application) return res.status(404).json({ ok: false, message: "application not found" });
 
@@ -20252,6 +21281,18 @@ app.patch("/applications/:id/status", authenticate, requireRoles([MemberRole.PAR
         message: parsed.data.memo ?? null,
         linkPath: "/profile?tab=applied"
       });
+      // 회사↔지원자 다이렉트 알림 — 면접/합격/불합격은 지원자에게 이메일로도 통보(Aply 참조).
+      if (parsed.data.status === "INTERVIEW" || parsed.data.status === "ACCEPTED" || parsed.data.status === "REJECTED") {
+        void sendApplicationStatusEmailToApplicant({
+          applicantUserId: application.candidateUserId,
+          applicantEmail: application.candidateUser?.email ?? null,
+          applicantName: application.candidateUser?.name ?? null,
+          positionTitle: application.position.title,
+          partnerName: application.position.partnerOrganization?.name ?? null,
+          status: parsed.data.status,
+          memo: parsed.data.memo ?? null
+        });
+      }
     }
 
     return res.json({ ok: true, item: { id: updated.id, status: updated.status, updatedAt: updated.updatedAt } });
@@ -20319,6 +21360,16 @@ app.get(
         orderBy: { createdAt: "asc" },
         include: { author: { select: { id: true, name: true, email: true, role: true } } }
       });
+      // 스레드를 열었으니 이 지원 건의 '메시지' 알림을 읽음 처리(카드 안 읽음 뱃지 해제).
+      void prisma.notification.updateMany({
+        where: {
+          userId: req.auth!.userId,
+          applicationId,
+          type: { in: ["APPLICATION_COMMENT_FROM_COMPANY", "APPLICATION_COMMENT_FROM_CANDIDATE"] },
+          readAt: null
+        },
+        data: { readAt: new Date() }
+      }).catch(() => {});
       return res.json({ ok: true, items: comments });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -20355,26 +21406,79 @@ app.post(
         include: { author: { select: { id: true, name: true, email: true, role: true } } }
       });
       if (visibility === "CANDIDATE") {
+        const authorName = created.author?.name?.trim() || "";
         if (isStudent) {
           const fullApp = await prisma.application.findUnique({
             where: { id: applicationId },
-            include: { position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } } } } } }
+            include: {
+              position: {
+                select: {
+                  title: true,
+                  partnerOrganization: { select: { users: { where: { role: MemberRole.PARTNER }, select: { id: true, email: true } } } }
+                }
+              }
+            }
           });
-          const partnerUserIds = fullApp?.position.partnerOrganization?.users.map((u) => u.id) ?? [];
-          await Promise.all(partnerUserIds.map((uid) => createNotification({
-            userId: uid,
+          const partnerUsers = fullApp?.position.partnerOrganization?.users ?? [];
+          await Promise.all(partnerUsers.map((u) => createNotification({
+            userId: u.id,
             type: "APPLICATION_COMMENT_FROM_CANDIDATE",
             title: "지원자가 댓글을 남겼습니다",
             message: parsed.data.content.slice(0, 80),
-            linkPath: `/dashboard/partner/applicants/${applicationId}`
+            linkPath: `/dashboard/partner/applicants/${applicationId}`,
+            applicationId
           })));
+          // 회사 팀 전원에게 이메일(+CC 트래킹)
+          void sendNotificationEmail({
+            bccUsers: partnerUsers,
+            subject: `[Aply] 지원자 메시지 — ${authorName || "지원자"}`,
+            previewText: `${authorName || "지원자"}님이 메시지를 남겼어요`,
+            title: "지원자 메시지",
+            headline: "지원자가 메시지를 남겼어요",
+            contextLine: fullApp?.position.title ?? null,
+            bodyText: `${authorName || "지원자"}님이 메시지를 남겼습니다. 답장은 Aply 지원자 상세에서 남겨주세요.`,
+            // 개인정보 보호 — 지원자 직접 연락처는 담지 않는다(이름·포지션만).
+            infoRows: [
+              { label: "지원자", value: authorName || "지원자" },
+              { label: "지원 포지션", value: fullApp?.position.title ?? "" }
+            ],
+            memo: parsed.data.content,
+            ctaLabel: "메시지 확인하기",
+            ctaPath: `/dashboard/partner/applicants/${applicationId}`,
+            footerNote: "본 메일은 회원님 회사의 포지션 지원자가 메시지를 남겨 발송되는 알림 메일입니다.",
+            logKey: "comment_from_candidate_email"
+          });
         } else {
           void createNotification({
             userId: auth.candidateUserId,
             type: "APPLICATION_COMMENT_FROM_COMPANY",
             title: "회사가 댓글을 남겼습니다",
             message: parsed.data.content.slice(0, 80),
-            linkPath: "/profile?tab=applied"
+            linkPath: "/profile?tab=applied",
+            applicationId
+          });
+          // 지원자에게 이메일(+CC 트래킹)
+          const info = await prisma.application.findUnique({
+            where: { id: applicationId },
+            select: { candidateUser: { select: { email: true } }, position: { select: { title: true, partnerOrganization: { select: { name: true } } } } }
+          });
+          void sendNotificationEmail({
+            toUser: { id: auth.candidateUserId, email: info?.candidateUser?.email ?? null },
+            subject: `[Aply] 회사 메시지${info?.position.title ? ` — ${info.position.title}` : ""}`,
+            previewText: "지원한 포지션의 회사가 메시지를 남겼어요",
+            title: "회사 메시지",
+            headline: "회사가 메시지를 남겼어요",
+            contextLine: info ? `${info.position.partnerOrganization?.name ? `${info.position.partnerOrganization.name} · ` : ""}${info.position.title}` : null,
+            bodyText: "지원한 포지션의 회사가 메시지를 남겼습니다.",
+            infoRows: [
+              { label: "회사", value: info?.position.partnerOrganization?.name ?? "" },
+              { label: "지원 포지션", value: info?.position.title ?? "" }
+            ],
+            memo: parsed.data.content,
+            ctaLabel: "메시지 확인하기",
+            ctaPath: "/profile?tab=applied",
+            footerNote: "본 메일은 회원님이 지원한 포지션의 회사가 메시지를 남겨 발송되는 알림 메일입니다.",
+            logKey: "comment_from_company_email"
           });
         }
       }
@@ -20418,7 +21522,10 @@ app.post(
     try {
       const application = await prisma.application.findUnique({
         where: { id: applicationId },
-        include: { position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } } } } } }
+        include: {
+          candidateUser: { select: { name: true } },
+          position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true, email: true } } } } } }
+        }
       });
       if (!application) return res.status(404).json({ ok: false, message: "application not found" });
       if (application.candidateUserId !== req.auth!.userId) {
@@ -20442,14 +21549,31 @@ app.post(
           memo: "지원자 본인 철회"
         }
       });
-      const partnerUserIds = application.position.partnerOrganization?.users.map((u) => u.id) ?? [];
-      await Promise.all(partnerUserIds.map((uid) => createNotification({
-        userId: uid,
+      const partnerUsers = application.position.partnerOrganization?.users ?? [];
+      await Promise.all(partnerUsers.map((u) => createNotification({
+        userId: u.id,
         type: "APPLICATION_WITHDRAWN",
         title: "지원자가 지원을 철회했습니다",
         message: application.position.title,
         linkPath: `/dashboard/partner/applicants/${applicationId}`
       })));
+      // 회사 팀 전원에게 이메일(+CC 트래킹)
+      {
+        const applicantName = application.candidateUser?.name?.trim() || "지원자";
+        void sendNotificationEmail({
+          bccUsers: partnerUsers,
+          subject: `[Aply] 지원 철회 — ${applicantName}`,
+          previewText: `${applicantName}님이 지원을 철회했어요`,
+          title: "지원 철회",
+          headline: "지원자가 지원을 철회했어요",
+          contextLine: application.position.title,
+          bodyText: `${applicantName}님이 '${application.position.title}' 포지션 지원을 철회했습니다.`,
+          ctaLabel: "지원자 목록 보기",
+          ctaPath: "/dashboard/partner/applicants",
+          footerNote: "본 메일은 회원님 회사의 포지션 지원자가 지원을 철회하여 발송되는 알림 메일입니다.",
+          logKey: "application_withdrawn_email"
+        });
+      }
       return res.json({ ok: true, item: { id: updated.id, status: updated.status, withdrawnAt: updated.withdrawnAt } });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -20471,7 +21595,10 @@ app.post(
     try {
       const application = await prisma.application.findUnique({
         where: { id: applicationId },
-        include: { position: { select: { partnerOrganizationId: true } } }
+        include: {
+          candidateUser: { select: { email: true, name: true } },
+          position: { select: { title: true, partnerOrganizationId: true, partnerOrganization: { select: { name: true } } } }
+        }
       });
       if (!application) return res.status(404).json({ ok: false, message: "application not found" });
 
@@ -20486,10 +21613,28 @@ app.post(
         return res.status(400).json({ ok: false, message: "종료된 지원에는 면접 일정을 제안할 수 없습니다." });
       }
 
+      // 면접 제안 시간은 30분 그리드에 맞고(시작·종료 모두), 서로 겹치지 않아야 한다.
+      const HALF_HOUR_MS = 30 * 60 * 1000;
+      const proposedRanges: { start: number; end: number }[] = [];
       for (const slot of parsed.data.slots) {
-        if (new Date(slot.endsAt) <= new Date(slot.startsAt)) {
+        const start = new Date(slot.startsAt);
+        const end = new Date(slot.endsAt);
+        if (end <= start) {
           return res.status(400).json({ ok: false, message: "endsAt must be after startsAt" });
         }
+        // 30분 경계 확인(한국 표준시는 정시 오프셋이라 UTC 분값이 로컬과 일치).
+        if (start.getUTCMinutes() % 30 !== 0 || start.getUTCSeconds() !== 0 || end.getUTCMinutes() % 30 !== 0 || end.getUTCSeconds() !== 0) {
+          return res.status(400).json({ ok: false, message: "면접 시간은 30분 단위여야 합니다." });
+        }
+        const startMs = start.getTime();
+        const endMs = end.getTime();
+        if ((endMs - startMs) % HALF_HOUR_MS !== 0) {
+          return res.status(400).json({ ok: false, message: "면접 시간은 30분 단위여야 합니다." });
+        }
+        if (proposedRanges.some((r) => startMs < r.end && endMs > r.start)) {
+          return res.status(400).json({ ok: false, message: "제안한 면접 시간이 서로 겹칩니다." });
+        }
+        proposedRanges.push({ start: startMs, end: endMs });
       }
 
       const created = await prisma.$transaction(async (tx) => {
@@ -20530,6 +21675,15 @@ app.post(
         title: "면접 일정이 제안되었습니다",
         message: `${created.length}개의 일정 중 선택해 주세요.`,
         linkPath: "/profile?tab=applied"
+      });
+      // 회사↔지원자 다이렉트 알림 — 지원자에게 제안된 면접 일정을 이메일로 통보(Aply 참조).
+      void sendInterviewProposalEmailToApplicant({
+        applicantUserId: application.candidateUserId,
+        applicantEmail: application.candidateUser?.email ?? null,
+        applicantName: application.candidateUser?.name ?? null,
+        positionTitle: application.position.title,
+        partnerName: application.position.partnerOrganization?.name ?? null,
+        slots: created.map((s) => ({ startsAt: s.startsAt, endsAt: s.endsAt, location: s.location }))
       });
 
       return res.status(201).json({ ok: true, items: created });
@@ -20649,17 +21803,43 @@ app.patch(
 
       const fullApp = await prisma.application.findUnique({
         where: { id: slot.application.id },
-        include: { position: { include: { partnerOrganization: { include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } } } } } }
+        include: {
+          candidateUser: { select: { name: true } },
+          position: {
+            select: {
+              title: true,
+              partnerOrganization: { select: { users: { where: { role: MemberRole.PARTNER }, select: { id: true, email: true } } } }
+            }
+          }
+        }
       });
-      const partnerUserIds = fullApp?.position.partnerOrganization?.users.map((u) => u.id) ?? [];
+      const partnerUsers = fullApp?.position.partnerOrganization?.users ?? [];
       const slotTime = new Date(updated.startsAt).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
-      await Promise.all(partnerUserIds.map((uid) => createNotification({
-        userId: uid,
+      await Promise.all(partnerUsers.map((u) => createNotification({
+        userId: u.id,
         type: "INTERVIEW_SLOT_SELECTED",
         title: "지원자가 면접 일정을 선택했습니다",
         message: slotTime,
         linkPath: "/dashboard/partner/applicants"
       })));
+      // 회사 팀 전원에게 이메일(+CC 트래킹)
+      {
+        const applicantName = fullApp?.candidateUser?.name?.trim() || "지원자";
+        void sendNotificationEmail({
+          bccUsers: partnerUsers,
+          subject: `[Aply] 면접 시간 선택 — ${applicantName}`,
+          previewText: `${applicantName}님이 면접 시간을 선택했어요`,
+          title: "면접 시간 선택",
+          headline: "지원자가 면접 시간을 선택했어요",
+          contextLine: fullApp?.position.title ?? null,
+          bodyText: `${applicantName}님이 아래 시간으로 면접을 선택했습니다.`,
+          memo: `선택한 시간: ${slotTime}`,
+          ctaLabel: "지원자 확인하기",
+          ctaPath: "/dashboard/partner/applicants",
+          footerNote: "본 메일은 회원님 회사의 포지션 지원자가 면접 시간을 선택하여 발송되는 알림 메일입니다.",
+          logKey: "interview_slot_selected_email"
+        });
+      }
 
       return res.json({ ok: true, item: updated });
     } catch (error) {
@@ -20698,7 +21878,10 @@ app.post(
     try {
       const application = await prisma.application.findUnique({
         where: { id: applicationId },
-        include: { position: { select: { partnerOrganizationId: true } } }
+        include: {
+          candidateUser: { select: { email: true, name: true } },
+          position: { select: { title: true, partnerOrganizationId: true, partnerOrganization: { select: { name: true } } } }
+        }
       });
       if (!application) return res.status(404).json({ ok: false, message: "application not found" });
 
@@ -20725,6 +21908,26 @@ app.post(
         message: parsed.data.title,
         linkPath: "/profile/assignments"
       });
+      // 지원자에게 이메일(+CC 트래킹)
+      {
+        const dueLabel = created.dueAt
+          ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" }).format(created.dueAt)
+          : null;
+        void sendNotificationEmail({
+          toUser: { id: application.candidateUserId, email: application.candidateUser?.email ?? null },
+          subject: `[Aply] '${application.position.title}' 새 과제 — ${parsed.data.title}`,
+          previewText: `새 과제가 부여되었어요: ${parsed.data.title}`,
+          title: "새 과제 부여",
+          headline: "새 과제가 부여되었어요",
+          contextLine: `${application.position.partnerOrganization?.name ? `${application.position.partnerOrganization.name} · ` : ""}${application.position.title}`,
+          bodyText: `과제: ${parsed.data.title}`,
+          memo: dueLabel ? `마감: ${dueLabel}` : null,
+          ctaLabel: "과제 확인하기",
+          ctaPath: "/profile/assignments",
+          footerNote: "본 메일은 회원님이 지원한 포지션의 과제 부여에 따라 발송되는 알림 메일입니다.",
+          logKey: "assignment_created_email"
+        });
+      }
       return res.status(201).json({ ok: true, item: created });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -20834,10 +22037,11 @@ app.patch(
         include: {
           application: {
             include: {
+              candidateUser: { select: { name: true } },
               position: {
                 include: {
                   partnerOrganization: {
-                    include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true } } }
+                    include: { users: { where: { role: MemberRole.PARTNER }, select: { id: true, email: true } } }
                   }
                 }
               }
@@ -20861,14 +22065,31 @@ app.patch(
           status: "SUBMITTED"
         }
       });
-      const partnerUserIds = assignment.application.position.partnerOrganization?.users.map((u) => u.id) ?? [];
-      await Promise.all(partnerUserIds.map((uid) => createNotification({
-        userId: uid,
+      const partnerUsers = assignment.application.position.partnerOrganization?.users ?? [];
+      await Promise.all(partnerUsers.map((u) => createNotification({
+        userId: u.id,
         type: "ASSIGNMENT_SUBMITTED",
         title: "지원자가 과제를 제출했습니다",
         message: assignment.title,
         linkPath: `/dashboard/partner/applicants/${assignment.applicationId}`
       })));
+      // 회사 팀 전원에게 이메일(+CC 트래킹)
+      {
+        const applicantName = assignment.application.candidateUser?.name?.trim() || "지원자";
+        void sendNotificationEmail({
+          bccUsers: partnerUsers,
+          subject: `[Aply] 과제 제출 — ${applicantName} (${assignment.title})`,
+          previewText: `${applicantName}님이 과제를 제출했어요`,
+          title: "과제 제출",
+          headline: "지원자가 과제를 제출했어요",
+          contextLine: assignment.application.position.title,
+          bodyText: `${applicantName}님이 '${assignment.title}' 과제를 제출했습니다. 제출물을 검토해 주세요.`,
+          ctaLabel: "제출물 확인하기",
+          ctaPath: `/dashboard/partner/applicants/${assignment.applicationId}`,
+          footerNote: "본 메일은 회원님 회사의 포지션 지원자가 과제를 제출하여 발송되는 알림 메일입니다.",
+          logKey: "assignment_submitted_email"
+        });
+      }
       return res.json({ ok: true, item: updated });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -20917,7 +22138,7 @@ app.patch(
       });
       const application = await prisma.application.findUnique({
         where: { id: assignment.applicationId },
-        select: { candidateUserId: true }
+        select: { candidateUserId: true, candidateUser: { select: { email: true } }, position: { select: { title: true } } }
       });
       if (application) {
         void createNotification({
@@ -20926,6 +22147,21 @@ app.patch(
           title: "과제에 피드백이 등록되었습니다",
           message: assignment.title,
           linkPath: "/profile/assignments"
+        });
+        // 지원자에게 이메일(+CC 트래킹)
+        void sendNotificationEmail({
+          toUser: { id: application.candidateUserId, email: application.candidateUser?.email ?? null },
+          subject: `[Aply] 과제 피드백 등록 — ${assignment.title}`,
+          previewText: `'${assignment.title}' 과제에 피드백이 등록되었어요`,
+          title: "과제 피드백",
+          headline: "과제에 피드백이 등록되었어요",
+          contextLine: application.position.title,
+          bodyText: `'${assignment.title}' 과제에 회사가 피드백을 남겼습니다. 확인해 보세요.`,
+          memo: parsed.data.feedbackContent,
+          ctaLabel: "피드백 확인하기",
+          ctaPath: "/profile/assignments",
+          footerNote: "본 메일은 회원님이 제출한 과제의 피드백 등록에 따라 발송되는 알림 메일입니다.",
+          logKey: "assignment_reviewed_email"
         });
       }
       return res.json({ ok: true, item: updated });
@@ -22924,6 +24160,18 @@ app.get(
   }
 );
 
+// 경량 미읽음 카운트 — 뱃지 폴링용(목록 없이 count 만). 백그라운드 폴링 부하를 줄인다.
+app.get("/members/me/notifications/unread-count", authenticate, async (req, res) => {
+  try {
+    const unreadCount = await prisma.notification.count({
+      where: { userId: req.auth!.userId, readAt: null }
+    });
+    return res.json({ ok: true, unreadCount });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.patch(
   "/members/me/notifications/:id/read",
   authenticate,
@@ -23086,6 +24334,75 @@ app.patch("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PART
         status: nextStatus,
         memo: nextMemo
       }
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 커넥션 트래킹 — Aply 가 개입 없이 회사↔지원자 연결을 추적하는 운영 지표.
+// 전체 퍼널 + 파트너별 성과 + 지금 챙겨야 할 정체 건.
+app.get("/ops/connections/tracking", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const now = Date.now();
+    const staleCutoff = new Date(now - STALE_APPLICATION_DAYS * 86400000);
+    const selectCutoff = new Date(now - STALE_INTERVIEW_SELECT_DAYS * 86400000);
+
+    const apps = await prisma.application.findMany({
+      select: {
+        status: true,
+        submittedAt: true,
+        partnerNudgedAt: true,
+        position: { select: { partnerOrganizationId: true, partnerOrganization: { select: { name: true } } } }
+      }
+    });
+
+    const funnel = { total: apps.length, submitted: 0, interview: 0, accepted: 0, rejected: 0, withdrawn: 0 };
+    type Row = { orgId: string; name: string; applied: number; interview: number; accepted: number; rejected: number; stale: number };
+    const byOrg = new Map<string, Row>();
+    let staleApplications = 0;
+
+    for (const a of apps) {
+      if (a.status === "SUBMITTED") funnel.submitted += 1;
+      else if (a.status === "INTERVIEW") funnel.interview += 1;
+      else if (a.status === "ACCEPTED") funnel.accepted += 1;
+      else if (a.status === "REJECTED") funnel.rejected += 1;
+      else if (a.status === "WITHDRAWN") funnel.withdrawn += 1;
+
+      const isStale = a.status === "SUBMITTED" && a.submittedAt <= staleCutoff;
+      if (isStale) staleApplications += 1;
+
+      const orgId = a.position.partnerOrganizationId;
+      if (!orgId) continue;
+      const row = byOrg.get(orgId) ?? { orgId, name: a.position.partnerOrganization?.name ?? "-", applied: 0, interview: 0, accepted: 0, rejected: 0, stale: 0 };
+      row.applied += 1;
+      if (a.status === "INTERVIEW") row.interview += 1;
+      if (a.status === "ACCEPTED") row.accepted += 1;
+      if (a.status === "REJECTED") row.rejected += 1;
+      if (isStale) row.stale += 1;
+      byOrg.set(orgId, row);
+    }
+
+    // 면접 도달 = 현재 INTERVIEW + ACCEPTED(면접 통과), 합격 = ACCEPTED
+    const reachedInterview = funnel.interview + funnel.accepted;
+    const partners = Array.from(byOrg.values())
+      .map((r) => ({ ...r, reachedInterview: r.interview + r.accepted }))
+      .sort((a, b) => b.applied - a.applied)
+      .slice(0, 30);
+
+    // 지금 챙길 정체 — 미선택 면접(3일+ 제안, 미선택)
+    const pendingInterviewSelect = await prisma.application.count({
+      where: {
+        status: "INTERVIEW",
+        interviewSlots: { some: { status: "PROPOSED", proposedAt: { lte: selectCutoff } }, none: { status: "SELECTED" } }
+      }
+    });
+
+    return res.json({
+      ok: true,
+      funnel: { ...funnel, reachedInterview },
+      attention: { staleApplications, staleThresholdDays: STALE_APPLICATION_DAYS, pendingInterviewSelect, selectThresholdDays: STALE_INTERVIEW_SELECT_DAYS },
+      partners
     });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });

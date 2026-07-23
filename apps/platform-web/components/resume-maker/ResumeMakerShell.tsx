@@ -4,7 +4,7 @@ import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, CircleNotch, House, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, CircleNotch, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { paperlogy } from "../../lib/fonts";
 import { useShellCopy } from "../../lib/resume-maker-i18n/shell";
@@ -117,9 +117,9 @@ export function ResumeMakerShell({
   if (!isReady) return <FullState label={t.loading} />;
   if (!isAuthenticated) return <FullState label={t.redirectingToLogin} />;
 
-  // 이력서 API 는 STUDENT(구직 회원) 전용이라, 다른 역할은 클릭 후 403 을 맞기 전에
-  // 미리 안내한다.
-  if (user && user.role !== "STUDENT") {
+  // 이력서 API 는 STUDENT(구직 회원)용이지만, 운영자(OPERATOR)는 학생 기능까지 모두
+  // 사용할 수 있는 슈퍼유저이므로 허용한다. 그 외 역할(파트너 등)만 안내 화면을 띄운다.
+  if (user && user.role !== "STUDENT" && user.role !== "OPERATOR") {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center font-sans">
         <p className={`${paperlogy.className} text-xl font-black text-[#0B1227]`}>{t.studentOnlyTitle}</p>
@@ -141,90 +141,83 @@ export function ResumeMakerShell({
       className="flex min-h-screen flex-col bg-background font-sans text-foreground antialiased"
       style={{ ["--primary"]: "224 91% 48%", ["--accent"]: "224 91% 48%" } as CSSProperties}
     >
-      <header className="sticky top-0 z-40 border-b border-[#F2F4F6] bg-white print:hidden">
-        <div className="container relative flex h-14 max-w-6xl items-center gap-3">
-          {left ? <div className="flex shrink-0 items-center">{left}</div> : null}
-          <div className="flex min-w-0 items-center gap-2">
+      {/* resume-maker 자체 GNB — 로고 + 도구 메뉴(홈/이력서/자소서/공고맞춤/모의면접) + 포인트.
+          UI/UX 는 aply.global 메인 GNB 스타일(반투명 배경·backdrop-blur·하단 보더,
+          plain 텍스트 네비, 활성=브랜드 블루)과 동일하게 맞춘다. */}
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 print:hidden">
+        <div className="container flex h-14 max-w-6xl items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-5 lg:gap-8">
             {embedded ? (
               <Link
                 href="/career-launch/dashboard"
-                className="inline-flex shrink-0 items-center gap-1.5 text-[13.5px] font-bold text-[#4E5968] transition hover:text-[#0B1227]"
+                className="inline-flex shrink-0 items-center gap-1.5 text-[13px] font-semibold text-muted-foreground transition hover:text-foreground"
               >
                 <ArrowLeft weight="bold" className="h-4 w-4" aria-hidden />
                 Career Launch
               </Link>
             ) : (
-              <Link href="/" className="shrink-0">
-                <Image src="/img_logo.webp" alt="aply" width={180} height={48} className="h-6 w-auto md:h-7" priority />
+              <Link href="/" className="flex shrink-0 items-center" title="aply.global 홈으로">
+                <Image src="/img_logo.webp" alt="aply logo" width={180} height={48} className="h-6 w-auto md:h-7" priority />
               </Link>
             )}
+            {left ? <div className="flex shrink-0 items-center">{left}</div> : null}
+            {/* 도구 네비 (데스크탑) — aply GNB 와 동일한 plain 텍스트 링크. 임베드 시 숨김. */}
+            <nav className={`items-center gap-4 lg:gap-7 ${embedded ? "hidden" : "hidden md:flex"}`}>
+              {tools.map((tool) => {
+                const locked = Boolean(tool.requiresResume) && hasResume === false;
+                const label = (
+                  <>
+                    {t[tool.labelKey]}
+                    {tool.wip ? <span className="ml-1 align-middle rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">{t.wipBadge}</span> : null}
+                  </>
+                );
+                return locked ? (
+                  <span key={tool.labelKey} aria-disabled="true" className="cursor-not-allowed text-[13px] font-medium text-[#C9CDD2]">
+                    {label}
+                  </span>
+                ) : (
+                  <Link
+                    key={tool.labelKey}
+                    href={tool.href}
+                    className={`text-[13px] transition-colors ${
+                      tool.active ? "font-semibold text-[#0B46E8]" : "font-medium text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
-          {/* 상단 도구 네비 (데스크탑) — 세그먼트형 pill, 컨테이너 정중앙 고정. 프로그램 임베드 시 숨김. */}
-          <nav className={`absolute left-1/2 -translate-x-1/2 items-center gap-1 rounded-full bg-[#F2F4F6] p-1 ${embedded ? "hidden" : "hidden md:flex"}`}>
-            {tools.map((tool) => {
-              const locked = Boolean(tool.requiresResume) && hasResume === false;
-              const inner = (
-                <>
-                  {tool.home ? <House weight={tool.active ? "fill" : "bold"} className="h-4 w-4" aria-hidden /> : null}
-                  {t[tool.labelKey]}
-                  {tool.wip ? <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">{t.wipBadge}</span> : null}
-                </>
-              );
-              return locked ? (
-                <span
-                  key={tool.labelKey}
-                  aria-disabled="true"
-                  className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold text-[#C9CDD2]"
-                >
-                  {inner}
-                </span>
-              ) : (
-                <Link
-                  key={tool.labelKey}
-                  href={tool.href}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] transition ${
-                    tool.active ? "bg-white font-bold text-[#0B46E8] shadow-sm" : "font-semibold text-[#4E5968] hover:text-[#191F28]"
-                  }`}
-                >
-                  {inner}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <GnbTicket />
             {right}
-            <ResumeMakerLanguageSwitch />
+            {embedded ? null : <ResumeMakerLanguageSwitch />}
           </div>
         </div>
-        {/* 상단 도구 네비 (모바일) — pill, 가운데 정렬, 넘치면 가로 스크롤. 프로그램 임베드 시 숨김. */}
-        <nav className={`items-center justify-center gap-1.5 overflow-x-auto border-t border-[#F2F4F6] px-4 py-2 ${embedded ? "hidden" : "flex md:hidden"}`}>
+        {/* 도구 네비 (모바일) — 하단 보더 아래 가로 스크롤. 임베드 시 숨김. */}
+        <nav className={`items-center gap-5 overflow-x-auto border-t border-border/60 px-4 py-2.5 ${embedded ? "hidden" : "flex md:hidden"}`}>
           {tools.map((tool) => {
             const locked = Boolean(tool.requiresResume) && hasResume === false;
-            const inner = (
+            const label = (
               <>
-                {tool.home ? <House weight={tool.active ? "fill" : "bold"} className="h-4 w-4" aria-hidden /> : null}
                 {t[tool.labelKey]}
-                {tool.wip ? <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">{t.wipBadge}</span> : null}
+                {tool.wip ? <span className="ml-1 align-middle rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">{t.wipBadge}</span> : null}
               </>
             );
             return locked ? (
-              <span
-                key={tool.labelKey}
-                aria-disabled="true"
-                className="inline-flex shrink-0 cursor-not-allowed items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-semibold text-[#C9CDD2]"
-              >
-                {inner}
+              <span key={tool.labelKey} aria-disabled="true" className="shrink-0 cursor-not-allowed text-[13px] font-medium text-[#C9CDD2]">
+                {label}
               </span>
             ) : (
               <Link
                 key={tool.labelKey}
                 href={tool.href}
-                className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] transition ${
-                  tool.active ? "bg-[#EDF1FD] font-bold text-[#0B46E8]" : "font-semibold text-[#4E5968] hover:text-[#191F28]"
+                className={`shrink-0 text-[13px] transition-colors ${
+                  tool.active ? "font-semibold text-[#0B46E8]" : "font-medium text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {inner}
+                {label}
               </Link>
             );
           })}

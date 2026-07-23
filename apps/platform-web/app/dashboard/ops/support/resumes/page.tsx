@@ -342,7 +342,7 @@ export default function OpsResumesPage() {
               ) : (
                 items.map((item) => {
                   const pct = item.completionRate ?? 0;
-                  const barColor = pct >= 80 ? "#16a34a" : pct >= 50 ? "#f59e0b" : "#ef4444";
+                  const barColor = pct >= 80 ? "var(--accent-ink)" : pct >= 50 ? "var(--sand)" : "var(--danger)";
                   return (
                   <tr
                     key={item.id}
@@ -354,7 +354,7 @@ export default function OpsResumesPage() {
                     <td>{item.user?.email || "-"}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 110 }}>
-                        <div style={{ flex: 1, height: 6, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
+                        <div style={{ flex: 1, height: 6, background: "var(--line)", borderRadius: 999, overflow: "hidden" }}>
                           <div
                             style={{
                               height: "100%",
@@ -373,14 +373,14 @@ export default function OpsResumesPage() {
                     <td>
                       {item.isPrimary ? (
                         <span
-                          style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#f59e0b", fontWeight: 600 }}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "var(--sand)", fontWeight: 600 }}
                           aria-label="대표 이력서"
                         >
                           <Star size={14} weight="fill" />
                           <span>대표</span>
                         </span>
                       ) : (
-                        <span style={{ color: "#9ca3af" }}>-</span>
+                        <span style={{ color: "var(--ink-faint)" }}>-</span>
                       )}
                     </td>
                     <td>{formatDate(item.createdAt)}</td>
@@ -399,7 +399,7 @@ export default function OpsResumesPage() {
                           이력서 보기
                         </a>
                       ) : (
-                        <span style={{ color: "#9ca3af" }}>-</span>
+                        <span style={{ color: "var(--ink-faint)" }}>-</span>
                       )}
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
@@ -511,10 +511,10 @@ export default function OpsResumesPage() {
                       <span className="ops-detail-label">완성률</span>
                       {(() => {
                         const pct = detail.completionRate ?? 0;
-                        const color = pct >= 80 ? "#16a34a" : pct >= 50 ? "#f59e0b" : "#ef4444";
+                        const color = pct >= 80 ? "var(--accent-ink)" : pct >= 50 ? "var(--sand)" : "var(--danger)";
                         return (
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 140 }}>
-                            <span style={{ flex: 1, height: 6, background: "#f1f5f9", borderRadius: 999, overflow: "hidden", display: "inline-block", minWidth: 80 }}>
+                            <span style={{ flex: 1, height: 6, background: "var(--line)", borderRadius: 999, overflow: "hidden", display: "inline-block", minWidth: 80 }}>
                               <span style={{ display: "block", height: "100%", width: `${pct}%`, background: color, borderRadius: 999 }} />
                             </span>
                             <span style={{ fontVariantNumeric: "tabular-nums", color, fontWeight: 600 }}>{pct}%</span>
@@ -540,8 +540,8 @@ export default function OpsResumesPage() {
                     style={{
                       maxHeight: "60vh",
                       overflow: "auto",
-                      background: "#0f172a",
-                      color: "#e2e8f0",
+                      background: "var(--ink)",
+                      color: "var(--line)",
                       padding: "12px 14px",
                       borderRadius: 10,
                       fontSize: 12,

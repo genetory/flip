@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Heart, ImagePlus, MessageCircle, Share, X } from "lucide-react";
+import { Heart, ImageSquare as ImagePlus, ChatCircle as MessageCircle, ShareNetwork as Share, X } from "@phosphor-icons/react";
 import { DotsThree, User } from "@phosphor-icons/react/dist/ssr";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
@@ -1089,14 +1089,14 @@ export const CommunityPage = () => {
                       >
                         <p
                           className={`${paperlogy.className} text-xl md:text-2xl ${
-                            isActive ? "font-extrabold text-[#111111]" : "font-extrabold text-slate-300"
+                            isActive ? "font-extrabold text-[#0B46E8]" : "font-extrabold text-slate-300"
                           }`}
                         >
                           {category.label}
                         </p>
                         <span
                           className={`mt-1 block h-[2px] w-full transition-colors ${
-                            isActive ? "bg-[#111111]" : "bg-transparent"
+                            isActive ? "bg-[#0B46E8]" : "bg-transparent"
                           }`}
                         />
                       </button>
@@ -1326,7 +1326,7 @@ export const CommunityPage = () => {
                           disabled={Boolean(likeLoadingByPost[post.id])}
                           className={`inline-flex items-center gap-1.5 ${post.likedByMe ? "text-[#DC2626]" : "text-slate-500"} disabled:opacity-60`}
                         >
-                          <Heart className={`h-4 w-4 ${post.likedByMe ? "fill-[#DC2626] text-[#DC2626]" : "text-slate-500"}`} />
+                          <Heart weight={post.likedByMe ? "fill" : "regular"} className={`h-4 w-4 ${post.likedByMe ? "text-[#DC2626]" : "text-slate-500"}`} />
                           <span>{post.likes}</span>
                         </button>
                         <button

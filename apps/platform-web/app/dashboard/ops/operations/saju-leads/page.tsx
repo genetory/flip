@@ -220,13 +220,13 @@ export default function SajuLeadsPage() {
               gap: 12
             }}
           >
-            <div style={{ padding: "12px 14px", border: "1px solid #eef0f3", borderRadius: 10, background: "#fcfcfd" }}>
+            <div style={{ padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 10, background: "var(--surface-2)" }}>
               <div className="ops-row-sub" style={{ marginBottom: 4 }}>사주 본 사람</div>
               <div className="ops-row-strong" style={{ fontSize: 20 }}>
                 {data.funnel.predictionsTotal.toLocaleString()}명
               </div>
             </div>
-            <div style={{ padding: "12px 14px", border: "1px solid #eef0f3", borderRadius: 10, background: "#fcfcfd" }}>
+            <div style={{ padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 10, background: "var(--surface-2)" }}>
               <div className="ops-row-sub" style={{ marginBottom: 4 }}>커리어 정보 입력</div>
               <div className="ops-row-strong" style={{ fontSize: 20 }}>
                 {data.funnel.leadsTotal.toLocaleString()}명
@@ -239,7 +239,7 @@ export default function SajuLeadsPage() {
                 %
               </div>
             </div>
-            <div style={{ padding: "12px 14px", border: "1px solid #eef0f3", borderRadius: 10, background: "#fcfcfd" }}>
+            <div style={{ padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 10, background: "var(--surface-2)" }}>
               <div className="ops-row-sub" style={{ marginBottom: 4 }}>가입 전환</div>
               <div className="ops-row-strong" style={{ fontSize: 20 }}>
                 {data.funnel.leadsConverted.toLocaleString()}명
@@ -384,7 +384,7 @@ export default function SajuLeadsPage() {
                             href={href}
                             target={lead.contactType === "WHATSAPP" ? "_blank" : undefined}
                             rel="noopener noreferrer"
-                            style={{ color: "#1d4ed8" }}
+                            style={{ color: "var(--accent-ink)" }}
                           >
                             {prefix}
                             {lead.contact}
@@ -634,7 +634,7 @@ function SajuPredictionsSection() {
                     href={`/events/saju/result/${p.shareSlug}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: "#1d4ed8", fontSize: 12 }}
+                    style={{ color: "var(--accent-ink)", fontSize: 12 }}
                   >
                     열기 ↗
                   </a>

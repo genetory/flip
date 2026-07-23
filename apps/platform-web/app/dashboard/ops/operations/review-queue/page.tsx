@@ -591,7 +591,7 @@ export default function ReviewQueuePage() {
                               type="button"
                               className="ops-pill"
                               onClick={() => void openPartnerDoc(p.id, "br")}
-                              style={{ cursor: "pointer", border: "1px solid #C9CDD2", background: "#fff", color: "#0B46E8" }}
+                              style={{ cursor: "pointer", border: "1px solid var(--ink-faint)", background: "#fff", color: "var(--accent)" }}
                               title="사업자등록증 보기"
                             >
                               사업자등록증 보기
@@ -600,7 +600,7 @@ export default function ReviewQueuePage() {
                               type="button"
                               className="ops-pill"
                               onClick={() => void openPartnerDoc(p.id, "fi")}
-                              style={{ cursor: "pointer", border: "1px solid #C9CDD2", background: "#fff", color: "#0B46E8" }}
+                              style={{ cursor: "pointer", border: "1px solid var(--ink-faint)", background: "#fff", color: "var(--accent)" }}
                               title="4대보험 가입자 명부 보기"
                             >
                               4대보험 명부 보기

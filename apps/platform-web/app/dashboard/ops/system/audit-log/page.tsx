@@ -152,7 +152,7 @@ export default function AuditLogPage() {
                   <td className="ops-row-sub">{it.ipAddress ?? "-"}</td>
                   <td>
                     {it.metadata && Object.keys(it.metadata).length > 0 ? (
-                      <pre style={{ margin: 0, fontSize: 10, fontFamily: "ui-monospace, Menlo, monospace", whiteSpace: "pre-wrap", color: "#374151" }}>
+                      <pre style={{ margin: 0, fontSize: 10, fontFamily: "ui-monospace, Menlo, monospace", whiteSpace: "pre-wrap", color: "var(--ink-soft)" }}>
                         {JSON.stringify(it.metadata)}
                       </pre>
                     ) : (

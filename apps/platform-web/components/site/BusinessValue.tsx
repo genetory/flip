@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useMemo, useState, type FormEvent } from "react";
 import { Button } from "../ui/button";
-import { ShieldCheck, UserCheck, Workflow, Globe2, X } from "lucide-react";
+import { ShieldCheck, UserCheck, FlowArrow as Workflow, Globe as Globe2, X } from "@phosphor-icons/react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { Reveal } from "./Reveal";
@@ -242,7 +242,7 @@ export const BusinessValue = () => {
                 delayMs={index * 80}
                 y="sm"
               >
-                <Icon className="mb-5 h-6 w-6 fill-white stroke-white" />
+                <Icon className="mb-5 h-6 w-6 text-white" weight="fill" />
                 <h3 className={`mb-2 font-display font-black leading-tight tracking-[-0.02em] text-white text-balance ${isEnglish ? "text-[1.55rem] md:text-[1.65rem]" : "text-2xl md:text-[1.9rem]"}`}>
                   {card.title}
                 </h3>

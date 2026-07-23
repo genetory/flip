@@ -79,7 +79,7 @@ export default function LaunchOpsPromptsPage() {
           <div className="ops-partner-list-top">
             <h2>{t("편집 안내", "How it works", "编辑说明", "Hướng dẫn chỉnh sửa", "編集ガイド", "Panduan edit")}</h2>
           </div>
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: "#4b5563" }}>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: "var(--ink-soft)" }}>
             {t("JSON 출력 형식은 서버가 자동으로 붙여요. 말투·규칙·질문 흐름 등 대화 내용만 편집하면 돼요.", "The server adds the JSON output format automatically. Just edit the conversation content — tone, rules, question flow, and so on.", "服务器会自动添加 JSON 输出格式。您只需编辑语气、规则、提问流程等对话内容。", "Máy chủ tự động thêm định dạng JSON. Bạn chỉ cần chỉnh sửa nội dung trò chuyện như giọng điệu, quy tắc, luồng câu hỏi.", "JSON 出力形式はサーバーが自動で付けます。口調・ルール・質問の流れなど会話の内容だけ編集すればOKです。", "Server menambahkan format keluaran JSON secara otomatis. Cukup edit isi percakapan seperti nada, aturan, dan alur pertanyaan.")}
           </p>
         </article>

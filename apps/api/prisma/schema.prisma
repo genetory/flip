@@ -14,6 +14,8 @@ model User {
   email                                String
   emailVerified                        Boolean                       @default(false)
   isActive                             Boolean                       @default(true)
+  // 이메일 알림 수신 여부(인앱 알림은 항상 유지). 사용자가 설정에서 끌 수 있다.
+  emailNotifications                   Boolean                       @default(true)
   suspendedAt                          DateTime?
   suspendedReason                      String?
   realName                             String?
@@ -525,6 +527,7 @@ model Position {
   communicationLanguages  String[]                    @default([])
   hiringProcess           String?
   preferredJobRole        String?
+  jobAlertSentAt          DateTime? // 비자 매칭 지원자에게 잡 얼럿 발송한 시각(중복 방지)
   hiringCount             Int?
   workingHours            String?
   workLocation            String?
@@ -689,6 +692,9 @@ model Application {
   program         Program?
   comments        ApplicationComment[]
   withdrawnAt     DateTime?
+  // 자동 넛지 추적 — 회사가 방치한 지원(SUBMITTED) 리마인더, 지원자가 미선택한 면접 리마인더.
+  partnerNudgedAt           DateTime?
+  applicantInterviewNudgedAt DateTime?
 
   @@unique([positionId, candidateUserId])
   @@index([positionId])
@@ -710,6 +716,7 @@ model InterviewSlot {
   proposedAt    DateTime            @default(now())
   selectedAt    DateTime?
   cancelledAt   DateTime?
+  reminderSentAt DateTime? // 면접 전날 리마인더 발송 시각(중복 방지)
 
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
@@ -1079,19 +1086,22 @@ model IssueReport {
 }
 
 model Notification {
-  id        String    @id @default(uuid())
-  userId    String
-  type      String
-  title     String
-  message   String?
-  linkPath  String?
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
+  id            String    @id @default(uuid())
+  userId        String
+  type          String
+  title         String
+  message       String?
+  linkPath      String?
+  // 연관 지원 건(있으면) — 지원 카드별 '안 읽은 메시지' 뱃지 계산·읽음 처리에 사용.
+  applicationId String?
+  readAt        DateTime?
+  createdAt     DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
+  @@index([userId, applicationId, readAt])
 }
 
 model ApplicationComment {

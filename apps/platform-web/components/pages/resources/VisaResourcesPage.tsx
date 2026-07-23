@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { MagnifyingGlass as Search } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { ResourceSubPageLayout } from "./ResourceSubPageLayout";

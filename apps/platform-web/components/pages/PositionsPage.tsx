@@ -26,6 +26,8 @@ import { trackExternalPositionClick, trackPositionSearch } from "../../lib/analy
 import { InFeedAd } from "../ads/InFeedAd";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { useToast } from "../toast/ToastProvider";
+import { ApplyResumeModal } from "../positions/ApplyResumeModal";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import { ALL_POSITIONS, type Position } from "../../lib/positions-data";
 import { paperlogy } from "../../lib/fonts";
@@ -34,14 +36,14 @@ import {
   MapPin,
   Briefcase,
   Bookmark,
-  ChevronDown,
+  CaretDown as ChevronDown,
   SlidersHorizontal,
-  LayoutGrid,
+  SquaresFour as LayoutGrid,
   List,
-  RotateCcw,
+  ArrowCounterClockwise as RotateCcw,
   Star,
   X
-} from "lucide-react";
+} from "@phosphor-icons/react";
 
 const FALLBACK_JOB_ROLES = Array.from(new Set(ALL_POSITIONS.map((position) => position.category)));
 const FALLBACK_WORK_TYPES = ["On-site", "Hybrid", "Remote"] as const;
@@ -257,6 +259,7 @@ export function PositionsPage() {
   const searchParams = useSearchParams();
   const initialSearchQuery = searchParams.get("q")?.trim() ?? "";
   const { locale } = useLanguage();
+  const toast = useToast();
   const { user, isReady, isAuthenticated } = useAuthSession();
   const [positions, setPositions] = useState<PositionCard[]>([]);
   const [isPositionsLoading, setIsPositionsLoading] = useState(true);
@@ -276,6 +279,8 @@ export function PositionsPage() {
   const [workTypeOptions, setWorkTypeOptions] = useState<string[]>([...FALLBACK_WORK_TYPES]);
   const [myVisaCode, setMyVisaCode] = useState<string | null>(null);
   const [onlyMyVisaEligible, setOnlyMyVisaEligible] = useState(false);
+  const [applyTargetId, setApplyTargetId] = useState<string | null>(null);
+  const [applyingList, setApplyingList] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
@@ -559,7 +564,7 @@ export function PositionsPage() {
       return;
     }
     if (user.role !== "STUDENT") {
-      window.alert(copy.studentRequiredFavorite);
+      toast.error(copy.studentRequiredFavorite);
       return;
     }
     const isFavorite = favoriteIds.includes(positionId);
@@ -570,12 +575,14 @@ export function PositionsPage() {
     try {
       if (isFavorite) {
         await removeMyFavoritePosition(positionId);
+        toast.success(t("저장 해제했어요", "Removed from saved", "已取消收藏", "Đã bỏ lưu", "保存を解除しました", "Dihapus dari simpanan"));
       } else {
         await addMyFavoritePosition(positionId);
+        toast.success(t("저장했어요", "Saved", "已收藏", "Đã lưu", "保存しました", "Disimpan"));
       }
     } catch (error) {
       setFavoriteIds(favoriteIds);
-      window.alert(error instanceof Error ? error.message : copy.favoriteFailed);
+      toast.error(error instanceof Error ? error.message : copy.favoriteFailed);
     }
   }
 
@@ -586,17 +593,29 @@ export function PositionsPage() {
       return;
     }
     if (user.role !== "STUDENT") {
-      window.alert(copy.studentRequiredApply);
+      toast.error(copy.studentRequiredApply);
       return;
     }
     if (appliedIds.includes(positionId)) return;
-    const optimistic = [...appliedIds, positionId];
-    setAppliedIds(optimistic);
+    // 어떤 이력서로 지원할지 고르는 모달을 연다.
+    setApplyTargetId(positionId);
+  }
+
+  async function confirmListApply(resumeId: string, coverLetterId: string) {
+    const positionId = applyTargetId;
+    if (!positionId) return;
+    setApplyingList(true);
+    const prevApplied = appliedIds;
+    setAppliedIds([...appliedIds, positionId]);
     try {
-      await applyMyPosition(positionId);
+      await applyMyPosition(positionId, resumeId, coverLetterId);
+      toast.success(t("지원이 접수되었어요", "Application submitted", "已提交申请", "Đã nộp đơn", "応募が完了しました", "Lamaran terkirim"));
+      setApplyTargetId(null);
     } catch (error) {
-      setAppliedIds(appliedIds);
-      window.alert(error instanceof Error ? error.message : copy.applyFailed);
+      setAppliedIds(prevApplied);
+      toast.error(error instanceof Error ? error.message : copy.applyFailed);
+    } finally {
+      setApplyingList(false);
     }
   }
 
@@ -874,6 +893,40 @@ export function PositionsPage() {
                 </div>
               </div>
               )}
+
+              {/* 퀵 필터 칩 — 자주 쓰는 필터(내 비자·근무형태)를 목록 위에서 바로 토글 */}
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                {isAuthenticated && user?.role === "STUDENT" ? (
+                  <button
+                    type="button"
+                    onClick={() => setOnlyMyVisaEligible((v) => !v)}
+                    aria-pressed={onlyMyVisaEligible}
+                    className={`inline-flex h-8 items-center rounded-full px-3.5 text-[13px] font-semibold transition ${
+                      onlyMyVisaEligible ? "bg-[#0B46E8] text-white" : "bg-[#EEF4FF] text-[#0B46E8] hover:bg-[#DBEAFE]"
+                    }`}
+                  >
+                    {copy.myVisaOnly}
+                  </button>
+                ) : null}
+                {workTypeOptions.map((wt) => {
+                  const active = workTypes.includes(wt);
+                  return (
+                    <button
+                      key={wt}
+                      type="button"
+                      onClick={() =>
+                        setWorkTypes((prev) => (prev.includes(wt) ? prev.filter((x) => x !== wt) : [...prev, wt]))
+                      }
+                      aria-pressed={active}
+                      className={`inline-flex h-8 items-center rounded-full px-3.5 text-[13px] font-medium transition ${
+                        active ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:bg-muted/70"
+                      }`}
+                    >
+                      {workTypeLabel(wt, locale)}
+                    </button>
+                  );
+                })}
+              </div>
 
               {selectedFilterChips.length > 0 ? (
                 <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -1229,6 +1282,13 @@ export function PositionsPage() {
       {isCipModalOpen ? (
         <CipInfoModal locale={locale} onClose={() => setIsCipModalOpen(false)} />
       ) : null}
+      <ApplyResumeModal
+        open={applyTargetId !== null}
+        positionTitle={positions.find((p) => p.id === applyTargetId)?.role ?? null}
+        onClose={() => setApplyTargetId(null)}
+        onConfirm={confirmListApply}
+        submitting={applyingList}
+      />
       <Footer />
     </div>
   );
@@ -1273,7 +1333,10 @@ export const PositionRow = ({
   locale,
   compact = false,
   onSelect,
-  selected = false
+  selected = false,
+  appliedStatusLabel,
+  appliedStatusTone,
+  appliedAction
 }: {
   p: PositionCard;
   isOwnPartnerPosting: boolean;
@@ -1284,6 +1347,12 @@ export const PositionRow = ({
   onApply: () => void;
   onShowCip?: () => void;
   locale: PlatformLocale;
+  // 지원 내역용 — 주어지면 지원 버튼 자리에 "지원완료" 대신 실제 지원 상태
+  // (검토 중/면접 예정/합격/불합격/철회됨) 배지를 색(appliedStatusTone)으로 노출한다.
+  appliedStatusLabel?: string | null;
+  appliedStatusTone?: string | null;
+  // 상태에 맞는 액션 버튼 — 주어지면 배지 대신 실제 버튼을 렌더(예: 면접 예정 → "면접 일정 선택").
+  appliedAction?: { label: string; onClick: () => void; primary?: boolean; disabled?: boolean } | null;
   // 코치 패널 같은 좁은 영역용. 썸네일 정방형 + 폰트 축소 + 우측 액션 버튼
   // 숨김(카드 전체가 링크라 클릭 한 번으로 상세 진입). 우측 상단 게시일/
   // 마감만 작게 유지.
@@ -1386,7 +1455,7 @@ export const PositionRow = ({
               className="block h-full w-full object-cover"
             />
           ) : (
-            <div className={`grid h-full w-full place-items-center bg-muted font-display font-bold leading-none text-muted-foreground ${compact ? "text-xl" : "text-2xl"}`}>
+            <div className={`grid h-full w-full place-items-center bg-[#EEF4FF] font-display font-bold leading-none text-[#0B46E8]/45 ${compact ? "text-xl" : "text-2xl"}`}>
               {p.initial}
             </div>
           )}
@@ -1438,9 +1507,12 @@ export const PositionRow = ({
         {compact ? null : (
         <div className="relative z-20 col-span-2 flex shrink-0 flex-row items-center justify-end gap-2 pt-1 md:col-span-1 md:mt-auto md:self-end md:pt-0">
           <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="icon" className="h-9 w-9" aria-label={copy.save} onClick={onToggleFavorite}>
-              <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
-            </Button>
+            {/* 자기 회사 공고에는 저장(북마크) 버튼을 노출하지 않는다. */}
+            {!isOwnPartnerPosting ? (
+              <Button variant="outline" size="icon" className="h-9 w-9" aria-label={copy.save} onClick={onToggleFavorite}>
+                <Bookmark weight={isFavorite ? "fill" : "regular"} className={isFavorite ? "text-foreground" : ""} />
+              </Button>
+            ) : null}
             {isExternalSource(p.sourceKind) && p.sourceUrl ? (
               <Button
                 variant={p.sourceProvider === "WANTED" ? "outline" : "dark"}
@@ -1465,15 +1537,33 @@ export const PositionRow = ({
                 <Link href={`/positions/${p.id}/edit`}>{copy.edit}</Link>
               </Button>
             ) : isStudentUser ? (
-              <Button
-                variant="dark"
-                size="sm"
-                onClick={onApply}
-                disabled={isApplied}
-                className={isApplied ? "border border-zinc-300 bg-zinc-200 text-zinc-500 hover:bg-zinc-200 disabled:opacity-100" : undefined}
-              >
-                {isApplied ? copy.applyDone : copy.apply}
-              </Button>
+              appliedAction ? (
+                <Button
+                  variant={appliedAction.primary ? "dark" : "outline"}
+                  size="sm"
+                  onClick={appliedAction.onClick}
+                  disabled={appliedAction.disabled}
+                  className={appliedAction.primary ? "bg-[#0B46E8] text-white hover:bg-[#0A3FCF]" : "text-muted-foreground hover:text-rose-600"}
+                >
+                  {appliedAction.label}
+                </Button>
+              ) : isApplied && appliedStatusLabel ? (
+                <span
+                  className={`inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border px-3 text-sm font-semibold ${appliedStatusTone ?? "border-zinc-300 bg-zinc-100 text-zinc-600"}`}
+                >
+                  {appliedStatusLabel}
+                </span>
+              ) : (
+                <Button
+                  variant="dark"
+                  size="sm"
+                  onClick={onApply}
+                  disabled={isApplied}
+                  className={isApplied ? "border border-zinc-300 bg-zinc-200 text-zinc-500 hover:bg-zinc-200 disabled:opacity-100" : undefined}
+                >
+                  {isApplied ? copy.applyDone : copy.apply}
+                </Button>
+              )
             ) : (
               <Button variant="dark" size="sm" asChild>
                 <Link href={`/positions/${p.id}`}>{copy.apply}</Link>
@@ -1487,7 +1577,7 @@ export const PositionRow = ({
   );
 };
 
-const PositionGridCard = ({
+export const PositionGridCard = ({
   p,
   isOwnPartnerPosting,
   isStudentUser,
@@ -1577,7 +1667,7 @@ const PositionGridCard = ({
         {p.thumbnailUrl ? (
           <img src={p.thumbnailUrl} alt={`${p.company} ${copy.thumbnailSuffix}`} className="block aspect-[16/9] w-full rounded-xl object-cover" />
         ) : (
-          <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-4xl font-bold text-muted-foreground">
+          <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-[#EEF4FF] font-display text-4xl font-bold text-[#0B46E8]/45">
             {p.initial}
           </div>
         )}
@@ -1608,9 +1698,11 @@ const PositionGridCard = ({
         <span className="inline-flex min-w-0 items-center gap-1 truncate"><Briefcase className="h-3 w-3 shrink-0" />{workTypeLabel(p.type, locale)}</span>
       </div>
       <div className="relative z-20 mt-auto flex items-center gap-2 pt-3">
-        <Button variant="outline" size="icon" className="h-9 w-9" aria-label={copy.save} onClick={onToggleFavorite}>
-          <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
-        </Button>
+        {!isOwnPartnerPosting ? (
+          <Button variant="outline" size="icon" className="h-9 w-9" aria-label={copy.save} onClick={onToggleFavorite}>
+            <Bookmark weight={isFavorite ? "fill" : "regular"} className={isFavorite ? "text-foreground" : ""} />
+          </Button>
+        ) : null}
         {isExternalSource(p.sourceKind) && p.sourceUrl ? (
           <Button
             variant={p.sourceProvider === "WANTED" ? "outline" : "dark"}

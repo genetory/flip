@@ -29,15 +29,21 @@ const QUICK_LINKS = [
 ];
 
 const STATUS_LABEL: Record<string, string> = {
+  DRAFT: "임시저장",
+  PENDING_REVIEW: "승인대기",
   OPEN: "모집중",
   PAUSED: "일시 중단",
-  CLOSED: "마감"
+  CLOSED: "마감",
+  REJECTED: "반려"
 };
 
 const STATUS_PILL: Record<string, string> = {
+  DRAFT: "ops-pill-gray",
+  PENDING_REVIEW: "ops-pill-amber",
   OPEN: "ops-pill-green",
   PAUSED: "ops-pill-amber",
-  CLOSED: "ops-pill-gray"
+  CLOSED: "ops-pill-gray",
+  REJECTED: "ops-pill-red"
 };
 
 function formatRelativeTime(iso: string) {
@@ -63,13 +69,13 @@ type ActivityItem = {
 };
 
 const ACTIVITY_DOT_COLOR: Record<string, string> = {
-  APPLICATION_NEW: "#10b981",
-  APPLICATION_STATUS: "#3b82f6",
-  INTERVIEW_SELECTED: "#16a34a",
-  INTERVIEW_CANCELLED: "#9ca3af",
-  ASSIGNMENT_SUBMITTED: "#1d4ed8",
-  ASSIGNMENT_REVIEWED: "#047857",
-  COMMENT_NEW: "#7c3aed"
+  APPLICATION_NEW: "var(--accent-ink)",
+  APPLICATION_STATUS: "var(--accent)",
+  INTERVIEW_SELECTED: "var(--accent-ink)",
+  INTERVIEW_CANCELLED: "var(--ink-faint)",
+  ASSIGNMENT_SUBMITTED: "var(--accent-ink)",
+  ASSIGNMENT_REVIEWED: "var(--accent-ink)",
+  COMMENT_NEW: "var(--accent-ink)"
 };
 
 function formatRelativeKo(iso: string) {
@@ -170,13 +176,13 @@ export default function PartnerDashboardHome() {
         <>
           {stats ? (
             <section className="ops-card-grid">
-              <article className="ops-card partner-kpi">
+              <Link href="/dashboard/partner/positions" className="ops-card partner-kpi partner-kpi--link">
                 <p className="partner-kpi-label">전체 포지션</p>
                 <p className="partner-kpi-value">{stats.positions.total.toLocaleString()}</p>
                 <p className="partner-kpi-sub">
                   모집중 {stats.positions.open.toLocaleString()} · 마감 {stats.positions.closed.toLocaleString()}
                 </p>
-              </article>
+              </Link>
               <article className="ops-card partner-kpi">
                 <p className="partner-kpi-label">회사 인증 상태</p>
                 <p className={`partner-kpi-value ${org?.verificationApproved ? "is-emerald" : "is-amber"}`}>
@@ -205,7 +211,7 @@ export default function PartnerDashboardHome() {
                     <Link key={it.id} href={it.linkPath} className="ops-activity-item">
                       <span
                         className="ops-activity-dot"
-                        style={{ background: ACTIVITY_DOT_COLOR[it.type] ?? "#9ca3af" }}
+                        style={{ background: ACTIVITY_DOT_COLOR[it.type] ?? "var(--ink-faint)" }}
                         aria-hidden
                       />
                       <div className="ops-activity-text">

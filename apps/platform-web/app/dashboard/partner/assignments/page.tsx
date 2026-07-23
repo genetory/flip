@@ -137,6 +137,9 @@ export default function PartnerAssignmentsPage() {
             <tbody>
               {filtered.map((it) => {
                 const badge = STATUS_LABEL[it.status];
+                // 마감이 지났는데 아직 제출 안 된 과제 = 마감 초과(눈에 띄게 표시)
+                const dueMs = it.dueAt ? new Date(it.dueAt).getTime() : null;
+                const overdue = dueMs !== null && !it.submittedAt && dueMs < Date.now();
                 return (
                   <tr key={it.id}>
                     <td className="ops-row-strong">{it.title}</td>
@@ -145,7 +148,10 @@ export default function PartnerAssignmentsPage() {
                       <div className="ops-row-sub">{it.candidateEmail}</div>
                     </td>
                     <td>{it.positionTitle}</td>
-                    <td>{formatDateTime(it.dueAt)}</td>
+                    <td>
+                      <span style={overdue ? { color: "var(--danger)", fontWeight: 700 } : undefined}>{formatDateTime(it.dueAt)}</span>
+                      {overdue ? <span className="ops-pill ops-pill-red" style={{ marginLeft: 6 }}>마감 초과</span> : null}
+                    </td>
                     <td>{formatDateTime(it.submittedAt)}</td>
                     <td>
                       <span className={`ops-pill ${badge.pill}`}>{badge.label}</span>

@@ -437,7 +437,7 @@ export default function LaunchOpsStudentsPage() {
                           />
                         </td>
                         <td>
-                          <span className="block font-bold text-[#191F28]">
+                          <span className="block font-bold text-[var(--ink)]">
                             {st.name ?? t("이름 미설정", "No name set", "未设置姓名", "Chưa đặt tên", "名前未設定", "Nama belum diatur")}
                           </span>
                           {/* 실명이 없으면 SNS 닉네임을 쓰고 있다는 뜻 — 연락·서류에 문제가 되니 눈에 띄게 알린다. */}
@@ -448,15 +448,15 @@ export default function LaunchOpsStudentsPage() {
                           ) : null}
                         </td>
                         <td onClick={(e) => e.stopPropagation()}>
-                          <a href={`mailto:${st.email}`} className="block text-[12.5px] text-[#1d4ed8]">
+                          <a href={`mailto:${st.email}`} className="block text-[12.5px] text-[var(--accent-ink)]">
                             {st.email}
                           </a>
                           {st.phone ? (
-                            <a href={`tel:${st.phone}`} className="block text-[12.5px] text-[#4b5563]">
+                            <a href={`tel:${st.phone}`} className="block text-[12.5px] text-[var(--ink-soft)]">
                               {st.phone}
                             </a>
                           ) : (
-                            <span className="block text-[12px] text-[#c9cdd2]">
+                            <span className="block text-[12px] text-[var(--ink-faint)]">
                               {t("전화번호 없음", "No phone", "无电话", "Không có SĐT", "電話番号なし", "Tidak ada telepon")}
                             </span>
                           )}
@@ -472,18 +472,18 @@ export default function LaunchOpsStudentsPage() {
                         </td>
                         <td>
                           <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 120 }}>
-                            <span style={{ position: "relative", display: "block", flex: 1, height: 6, borderRadius: 999, background: "#EEF1F5", overflow: "hidden" }}>
+                            <span style={{ position: "relative", display: "block", flex: 1, height: 6, borderRadius: 999, background: "var(--line)", overflow: "hidden" }}>
                               <span
                                 style={{
                                   display: "block",
                                   height: "100%",
                                   width: `${prog.percent}%`,
                                   borderRadius: 999,
-                                  background: done ? "#3A6B00" : "#0B46E8"
+                                  background: done ? "var(--accent-ink)" : "var(--accent)"
                                 }}
                               />
                             </span>
-                            <span style={{ flex: "none", fontWeight: 700, color: "#4E5968" }}>
+                            <span style={{ flex: "none", fontWeight: 700, color: "var(--ink-soft)" }}>
                               {prog.done}/{prog.total}
                             </span>
                           </span>
@@ -527,7 +527,7 @@ export default function LaunchOpsStudentsPage() {
               <button type="button" className="ops-detail-button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
                 {t("이전", "Prev", "上一页", "Trước", "前へ", "Sebelumnya")}
               </button>
-              <span style={{ fontSize: 12.5, color: "#6b7280" }}>
+              <span style={{ fontSize: 12.5, color: "var(--ink-faint)" }}>
                 {page} / {totalPages}
               </span>
               <button type="button" className="ops-detail-button" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>

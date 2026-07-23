@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { ArrowsClockwise, CircleNotch, Sparkle, Target, Ticket, Timer } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "../ui/button";
 import { redeemTicketCode } from "../../lib/resume-maker-client";
@@ -43,6 +44,13 @@ export function AiTicketStatusModal({
   const q = useQuotaCopy();
   const countdown = useCountdown(resetAt);
   const perDay = dailyGrant && dailyGrant > 0 ? dailyGrant : 5;
+  // 이 모달은 backdrop-blur 가 걸린 GNB 헤더 안에서 렌더된다. 조상에 filter 가 있으면
+  // position:fixed 가 뷰포트가 아니라 그 조상 기준이 되어 모달이 헤더 안에 갇혀 잘린다.
+  // 그래서 portal 로 document.body 에 렌더해 헤더의 containing block 에서 빼낸다.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [code, setCode] = useState("");
   const [redeeming, setRedeeming] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
@@ -72,9 +80,11 @@ export function AiTicketStatusModal({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-5" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-elevated" onClick={(e) => e.stopPropagation()}>
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-5" onClick={onClose}>
+      <div className="my-auto w-full max-w-sm rounded-3xl bg-white p-6 shadow-elevated" onClick={(e) => e.stopPropagation()}>
         {/* 보유 현황 */}
         <p className="text-[13px] font-bold text-[#8B95A1]">{q.statusTitle}</p>
         <div className="mt-1 flex items-baseline gap-2">
@@ -139,6 +149,7 @@ export function AiTicketStatusModal({
           {q.ok}
         </Button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -34,11 +34,15 @@ import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import type { ApplicationStatus } from "../../lib/status-labels";
 import { SelectInterviewSlotModal } from "../interviews/SelectInterviewSlotModal";
+import { ApplicationMessagesModal } from "../applications/ApplicationMessagesModal";
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import type { PlatformLocale } from "../../lib/auth-messages";
 import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
-import { BadgeCheck, Bookmark, Briefcase, FileText, Globe, Handshake, LayoutGrid, List, Mail, MapPin, Pencil, Phone, Star, Trash2 } from "lucide-react";
-import { getMySgcApplication, type SgcApplication } from "../../lib/sgc-event-client";
+import { SealCheck as BadgeCheck, Bookmark, Briefcase, FileText, Globe, SquaresFour as LayoutGrid, List, Envelope as Mail, MapPin, Pencil, Phone, Star, Trash as Trash2, Megaphone, CheckCircle, Sparkle } from "@phosphor-icons/react";
+import { paperlogy } from "../../lib/fonts";
+// 지원/즐겨찾기·파트너 올린 포지션 리스트는 '포지션 탐색'과 동일한 카드를 재사용.
+import { PositionRow, PositionGridCard, mapPublicPositionToCard } from "./PositionsPage";
+import { ApplyResumeModal } from "../positions/ApplyResumeModal";
 
 const PROFILE_SQUIRCLE_CLIP_ID = "profile-page-squircle-clip";
 const PROFILE_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
@@ -152,10 +156,7 @@ export function ProfilePage() {
   const [partnerOrg, setPartnerOrg] = useState<MyPartnerOrganization | null>(null);
   const [partnerOrgChecked, setPartnerOrgChecked] = useState(false);
   const [activeTab, setActiveTab] = useState<"info" | "positions" | "notifications">("info");
-  // "sgc" 탭은 학생이 SGC 일경험 프로그램에 지원한 경우에만 노출. 비지원자
-  // 에게는 아예 보이지 않으므로 기본 진입 흐름엔 영향 없음.
-  const [studentTab, setStudentTab] = useState<"info" | "resume" | "applied" | "favorites" | "sgc">("info");
-  const [sgcApplication, setSgcApplication] = useState<SgcApplication | null>(null);
+  const [studentTab, setStudentTab] = useState<"info" | "resume" | "applied" | "favorites">("info");
   const [postedPositions, setPostedPositions] = useState<PublicPositionListItem[]>([]);
   const [partnerPositions, setPartnerPositions] = useState<PartnerPosition[]>([]);
   const [positionsError, setPositionsError] = useState<string | null>(null);
@@ -172,7 +173,7 @@ export function ProfilePage() {
     params.set("tab", tab);
     resumeRouter.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
-  const selectStudentTab = (tab: "info" | "resume" | "applied" | "favorites" | "sgc") => {
+  const selectStudentTab = (tab: "info" | "resume" | "applied" | "favorites") => {
     setStudentTab(tab);
     writeTabParam(tab);
   };
@@ -182,7 +183,10 @@ export function ProfilePage() {
   };
   const [applications, setApplications] = useState<MyApplication[]>([]);
   const [interviewTarget, setInterviewTarget] = useState<MyApplication | null>(null);
+  const [messageTarget, setMessageTarget] = useState<MyApplication | null>(null);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+  const [applyDocsTarget, setApplyDocsTarget] = useState<string | null>(null);
+  const [applyingDocs, setApplyingDocs] = useState(false);
 
   async function handleWithdraw(app: MyApplication) {
     const confirmed = window.confirm(
@@ -533,31 +537,13 @@ export function ProfilePage() {
 
     if (
       tabParam === "resume" || tabParam === "applied" || tabParam === "favorites" ||
-      tabParam === "info" || tabParam === "sgc"
+      tabParam === "info"
     ) {
       setStudentTab(tabParam);
     } else {
       setStudentTab("info");
     }
   }, [tabParam, user]);
-
-  // 학생 사용자의 SGC 일경험 지원 상태를 한 번 조회. 지원했으면 row 가 있고
-  // 탭이 노출됨. 비지원자에게는 null 이라 탭 자체가 안 보임.
-  useEffect(() => {
-    if (!user || user.role !== "STUDENT") return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const application = await getMySgcApplication();
-        if (!cancelled) setSgcApplication(application);
-      } catch {
-        if (!cancelled) setSgcApplication(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
 
   const additionalCompanyImages = useMemo(() => {
     const raw = partnerOrg?.officePhotoImageData;
@@ -743,21 +729,31 @@ export function ProfilePage() {
     }
   }
 
-  async function applyFromStudentFavorite(positionId: string) {
+  function applyFromStudentFavorite(positionId: string) {
     if (!user || user.role !== "STUDENT") return;
     if (appliedPositions.some((item) => item.id === positionId)) return;
+    // 이력서·자기소개서 선택 모달을 연다(둘 다 있어야 지원 가능).
+    setApplyDocsTarget(positionId);
+  }
 
+  async function confirmDocsApply(resumeId: string, coverLetterId: string) {
+    const positionId = applyDocsTarget;
+    if (!positionId) return;
+    setApplyingDocs(true);
     try {
-      await applyMyPosition(positionId);
+      await applyMyPosition(positionId, resumeId, coverLetterId);
       if (!appliedPositions.some((item) => item.id === positionId)) {
         const found = favoritePositions.find((item) => item.id === positionId);
         if (found) {
           setAppliedPositions((prev) => [found, ...prev]);
         }
       }
+      setApplyDocsTarget(null);
       window.alert(tr("지원한 포지션에 추가되었습니다.", "Added to applied positions.", "已添加到已申请职位。", "Đã thêm vào vị trí đã ứng tuyển.", "応募済みポジションに追加されました。", "Ditambahkan ke posisi yang dilamar."));
     } catch (error) {
       window.alert(error instanceof Error ? error.message : tr("지원 처리에 실패했습니다.", "Failed to apply.", "申请处理失败。", "Không thể ứng tuyển.", "応募処理に失敗しました。", "Gagal melamar."));
+    } finally {
+      setApplyingDocs(false);
     }
   }
 
@@ -781,7 +777,7 @@ export function ProfilePage() {
       <Header />
       <main className="container py-12 md:py-16">
         <div className="mx-auto max-w-4xl">
-          <h1 className="mb-6 font-display text-3xl font-bold tracking-tight">{tr("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "私のプロフィール", "Profil saya")}</h1>
+          <h1 className={`${paperlogy.className} mb-8 text-3xl font-black tracking-[-0.03em] text-black md:text-5xl`}>{tr("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "私のプロフィール", "Profil saya")}</h1>
 
           {!isReady ? (
             <section className="rounded-2xl bg-white p-5 md:p-6">
@@ -831,74 +827,168 @@ export function ProfilePage() {
                 </Link>
               ) : null}
 
-              <div className="rounded-2xl border border-border/70 bg-card p-5 md:p-6">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex min-w-0 flex-1 items-center gap-4">
-                  {profileImage ? (
-                    <img src={profileImage} alt={tr("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")} className="h-16 w-16 shrink-0 object-cover" style={PROFILE_SQUIRCLE_STYLE} />
-                  ) : (
-                    <div className={`grid h-16 w-16 shrink-0 place-items-center text-lg font-semibold ${
-                      user.role === "STUDENT" ? "border border-border/60 bg-[#F8FAFC] text-muted-foreground" : "bg-muted"
-                    }`} style={PROFILE_SQUIRCLE_STYLE}>{avatarFallback}</div>
-                  )}
-                  <div className="min-w-0">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <p className="truncate text-lg font-semibold">{user.name ?? tr("이름 없음", "No name", "无名称", "Không có tên", "名前なし", "Tanpa nama")}</p>
-                      {roleLabel ? (
-                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{roleLabel}</span>
-                      ) : null}
-                      {partnerVerificationBadge ? (
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${partnerVerificationBadge.className}`}>
-                          <BadgeCheck className="h-3.5 w-3.5" />
-                          {partnerVerificationBadge.label}
-                        </span>
-                      ) : null}
-                    </div>
-                    {user.authProvider === "KAKAO" ? (
-                      <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <span className="grid h-4 w-4 place-items-center rounded-sm bg-[#FEE500]">
-                          <svg aria-hidden className="h-2.5 w-2.5 text-[#191919]" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.86 5.36 4.66 6.78L5.5 21.5c-.1.34.27.62.57.43L10.5 19c.5.05 1 .08 1.5.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
-                          </svg>
-                        </span>
-                        <span>{tr("카카오로 연결중", "Connected with Kakao", "通过 Kakao 连接", "Đã kết nối Kakao", "Kakaoで連携中", "Terhubung dengan Kakao")}</span>
-                      </div>
-                    ) : user.authProvider === "GOOGLE" ? (
-                      <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <svg aria-hidden className="h-4 w-4" viewBox="0 0 48 48">
-                          <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
-                          <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
-                          <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
-                          <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
-                        </svg>
-                        <span>{tr("구글로 연결중", "Connected with Google", "通过 Google 连接", "Đã kết nối Google", "Googleで連携中", "Terhubung dengan Google")}</span>
-                      </div>
-                    ) : user.authProvider === "NAVER" ? (
-                      <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <span className="grid h-4 w-4 place-items-center rounded-sm bg-[#03C75A] text-[10px] font-black leading-none text-white">N</span>
-                        <span>{tr("네이버로 연결중", "Connected with Naver", "通过 Naver 连接", "Đã kết nối Naver", "Naverで連携中", "Terhubung dengan Naver")}</span>
-                      </div>
-                    ) : (
-                      <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
-                        <Mail className="h-4 w-4 shrink-0" />
-                        <span className="truncate">{user.email}</span>
-                      </div>
-                    )}
+              <div className="overflow-hidden rounded-2xl bg-card shadow-card">
+                <div className="relative px-5 py-6 md:px-8 md:py-7">
+                  <div className="absolute right-5 top-5 md:right-6 md:top-6">
+                    <Button variant="outline" size="sm" asChild disabled={!canEditBasic} className="shrink-0 border-border/60">
+                      <Link href="/profile/edit">{tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}</Link>
+                    </Button>
                   </div>
+                  <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                    {profileImage ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={profileImage} alt={tr("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")} className="h-20 w-20 shrink-0 object-cover md:h-24 md:w-24" style={PROFILE_SQUIRCLE_STYLE} />
+                    ) : (
+                      <div className="grid h-20 w-20 shrink-0 place-items-center bg-muted text-2xl font-bold text-muted-foreground md:h-24 md:w-24" style={PROFILE_SQUIRCLE_STYLE}>{avatarFallback}</div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 pr-16 sm:pr-0">
+                        <h2 className="font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{user.name ?? tr("이름 없음", "No name", "无名称", "Không có tên", "名前なし", "Tanpa nama")}</h2>
+                        {roleLabel ? (
+                          <span className="inline-flex items-center rounded-full bg-[#0B46E8]/[0.08] px-2.5 py-0.5 text-xs font-semibold text-[#0B46E8]">{roleLabel}</span>
+                        ) : null}
+                        {partnerVerificationBadge ? (
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${partnerVerificationBadge.className}`}>
+                            <BadgeCheck className="h-3.5 w-3.5" />
+                            {partnerVerificationBadge.label}
+                          </span>
+                        ) : null}
+                      </div>
+                      {user.realName ? <p className="mt-1 text-sm text-muted-foreground">{user.realName}</p> : null}
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[13px] text-foreground">
+                          <Mail className="h-3.5 w-3.5 flex-none text-muted-foreground" aria-hidden />
+                          <span className="truncate">{user.email}</span>
+                        </span>
+                        {user.phoneNumber ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[13px] text-foreground">
+                            <Phone className="h-3.5 w-3.5 flex-none text-muted-foreground" aria-hidden />
+                            {user.phoneNumber}
+                          </span>
+                        ) : null}
+                        {user.authProvider && user.authProvider !== "EMAIL" ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[13px] text-muted-foreground">
+                            <span className={`h-2 w-2 flex-none rounded-full ${user.authProvider === "KAKAO" ? "bg-[#FEE500]" : user.authProvider === "NAVER" ? "bg-[#03C75A]" : "bg-[#4285F4]"}`} aria-hidden />
+                            {user.authProvider === "KAKAO" ? "Kakao" : user.authProvider === "NAVER" ? "Naver" : "Google"}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                  {profileError ? <p className="mt-3 text-sm text-destructive">{profileError}</p> : null}
                 </div>
-                <Button variant="outline" size="sm" asChild disabled={!canEditBasic} className="shrink-0">
-                  <Link href="/profile/edit">{tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}</Link>
-                </Button>
-              </div>
-
-              {profileError ? <p className="text-sm text-destructive">{profileError}</p> : null}
               </div>
 
               <div className="space-y-6">
+                {user.role === "STUDENT" ? (
+                  <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                    <button
+                      type="button"
+                      onClick={() => selectStudentTab("resume")}
+                      className="group rounded-2xl bg-card p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated md:p-5"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0B46E8]/[0.08] text-[#0B46E8]">
+                        <FileText className="h-5 w-5" weight="duotone" aria-hidden />
+                      </span>
+                      <p className="mt-3 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{myResumes.length}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">{tr("이력서", "Resumes", "简历", "Hồ sơ", "履歴書", "Resume")}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectStudentTab("applied")}
+                      className="group rounded-2xl bg-card p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated md:p-5"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0B46E8]/[0.08] text-[#0B46E8]">
+                        <Briefcase className="h-5 w-5" weight="duotone" aria-hidden />
+                      </span>
+                      <p className="mt-3 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{appliedPositions.length}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">{tr("지원", "Applied", "已申请", "Đã ứng tuyển", "応募", "Dilamar")}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectStudentTab("favorites")}
+                      className="group rounded-2xl bg-card p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated md:p-5"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0B46E8]/[0.08] text-[#0B46E8]">
+                        <Bookmark className="h-5 w-5" weight="duotone" aria-hidden />
+                      </span>
+                      <p className="mt-3 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{favoritePositions.length}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">{tr("찜", "Saved", "收藏", "Đã lưu", "お気に入り", "Favorit")}</p>
+                    </button>
+                  </div>
+                ) : null}
+                {user.role === "STUDENT" && (myResumes.length === 0 || !studentProfile?.selfIntroduction?.trim()) ? (
+                  <div className="flex flex-col gap-3 rounded-2xl bg-[#0B46E8]/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-[#0B46E8]/[0.12] text-[#0B46E8]">
+                        <Sparkle className="h-5 w-5" weight="fill" aria-hidden />
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{tr("프로필을 완성하고 매칭 확률을 높이세요", "Complete your profile to boost matching", "完善资料以提升匹配率", "Hoàn thiện hồ sơ để tăng cơ hội", "プロフィールを完成させてマッチ率を上げましょう", "Lengkapi profil untuk peluang lebih besar")}</p>
+                        <p className="mt-0.5 text-[13px] text-muted-foreground">
+                          {myResumes.length === 0 && !studentProfile?.selfIntroduction?.trim()
+                            ? tr("이력서와 자기소개가 아직 없어요.", "You haven't added a resume or self-introduction yet.", "还没有简历和自我介绍。", "Bạn chưa có hồ sơ và giới thiệu.", "履歴書と自己紹介がまだありません。", "Belum ada resume dan pengenalan diri.")
+                            : myResumes.length === 0
+                              ? tr("이력서를 만들면 지원이 훨씬 쉬워져요.", "Create a resume to apply faster.", "创建简历后申请更方便。", "Tạo hồ sơ để ứng tuyển nhanh hơn.", "履歴書を作ると応募が簡単になります。", "Buat resume agar melamar lebih cepat.")
+                              : tr("자기소개를 채우면 회사에 더 잘 보여요.", "Add a self-introduction to stand out.", "填写自我介绍更吸引企业。", "Thêm giới thiệu để nổi bật.", "自己紹介を書くと企業に伝わります。", "Tambahkan pengenalan agar menonjol.")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-none flex-wrap gap-2">
+                      {myResumes.length === 0 ? (
+                        <button type="button" onClick={handleCreateResume} disabled={creatingResume} className="inline-flex items-center rounded-full bg-[#0B46E8] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#0A3FCF] disabled:opacity-60">
+                          {tr("이력서 만들기", "Create resume", "创建简历", "Tạo hồ sơ", "履歴書を作る", "Buat resume")}
+                        </button>
+                      ) : null}
+                      {!studentProfile?.selfIntroduction?.trim() ? (
+                        <Link href="/profile/edit" className="inline-flex items-center rounded-full border border-[#0B46E8]/30 bg-white px-4 py-2 text-[13px] font-semibold text-[#0B46E8] transition hover:bg-[#0B46E8]/[0.05]">
+                          {tr("자기소개 쓰기", "Write intro", "填写介绍", "Viết giới thiệu", "自己紹介を書く", "Tulis pengenalan")}
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+                {user.role === "PARTNER" && partnerOrg ? (
+                  <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                    <button
+                      type="button"
+                      onClick={() => selectActiveTab("positions")}
+                      className="group rounded-2xl bg-card p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated md:p-5"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0B46E8]/[0.08] text-[#0B46E8]">
+                        <Briefcase className="h-5 w-5" weight="duotone" aria-hidden />
+                      </span>
+                      <p className="mt-3 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{postedPositions.length}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">{tr("올린 공고", "Positions", "已发布职位", "Vị trí đã đăng", "掲載中の求人", "Posisi")}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectActiveTab("positions")}
+                      className="group rounded-2xl bg-card p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated md:p-5"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0B46E8]/[0.08] text-[#0B46E8]">
+                        <Megaphone className="h-5 w-5" weight="duotone" aria-hidden />
+                      </span>
+                      <p className="mt-3 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{postedPositions.filter((pp) => pp.status === "OPEN").length}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">{tr("모집 중", "Open", "招聘中", "Đang tuyển", "募集中", "Dibuka")}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectActiveTab("positions")}
+                      className="group rounded-2xl bg-card p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-elevated md:p-5"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0B46E8]/[0.08] text-[#0B46E8]">
+                        <CheckCircle className="h-5 w-5" weight="duotone" aria-hidden />
+                      </span>
+                      <p className="mt-3 font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">{postedPositions.filter((pp) => pp.status === "CLOSED").length}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">{tr("마감", "Closed", "已截止", "Đã đóng", "締切", "Ditutup")}</p>
+                    </button>
+                  </div>
+                ) : null}
                 {user.role === "PARTNER" ? (
                   partnerOrgChecked && !partnerOrg ? (
-                    <article className="space-y-5 rounded-2xl border border-border/70 bg-card p-5 md:p-6">
-                      <div className="flex flex-col items-start gap-4 rounded-xl border border-dashed border-border/70 bg-muted/10 p-6 text-left">
+                    <article className="space-y-5 rounded-2xl bg-card shadow-card p-5 md:p-6">
+                      <div className="flex flex-col items-start gap-4 rounded-xl border border-dashed border-border/60 bg-muted/10 p-6 text-left">
                         <div>
                           <h3 className="text-base font-semibold">
                             {tr("아직 파트너로 등록되지 않았어요", "You haven't registered as a partner yet", "您还未注册为合作伙伴", "Bạn chưa đăng ký làm đối tác", "まだパートナーとして登録されていません", "Anda belum terdaftar sebagai mitra")}
@@ -920,13 +1010,13 @@ export function ProfilePage() {
                       </div>
                     </article>
                   ) : (
-                  <article className="overflow-hidden rounded-2xl border border-border/70 bg-card">
-                    <div className="flex items-center gap-1 overflow-x-auto border-b border-border/70 px-2 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <article className="overflow-hidden rounded-2xl bg-card shadow-card">
+                    <div className="flex items-center gap-1 overflow-x-auto border-b border-border/60 px-2 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <button
                         type="button"
                         onClick={() => selectActiveTab("info")}
                         className={`relative px-4 py-3 text-sm font-medium transition-colors ${
-                          activeTab === "info" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          activeTab === "info" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("정보", "Info", "信息", "Thông tin", "情報", "Info")}
@@ -935,7 +1025,7 @@ export function ProfilePage() {
                         type="button"
                         onClick={() => selectActiveTab("positions")}
                         className={`relative px-4 py-3 text-sm font-medium transition-colors ${
-                          activeTab === "positions" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          activeTab === "positions" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("올려진 포지션", "Posted positions", "已发布的职位", "Vị trí đã đăng", "掲載中のポジション", "Posisi yang diposting")}
@@ -944,7 +1034,7 @@ export function ProfilePage() {
                         type="button"
                         onClick={() => selectActiveTab("notifications")}
                         className={`relative px-4 py-3 text-sm font-medium transition-colors ${
-                          activeTab === "notifications" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          activeTab === "notifications" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("알림", "Notifications", "通知", "Thông báo", "通知", "Notifikasi")}
@@ -1046,7 +1136,7 @@ export function ProfilePage() {
 
                                 {/* About */}
                                 <div className="border-t border-border/60 pt-5">
-                                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                  <p className="text-xs font-semibold text-muted-foreground">
                                     {tr("회사 소개", "About", "公司简介", "Giới thiệu", "会社紹介", "Tentang")}
                                   </p>
                                   {partnerOrg?.description?.trim() ? (
@@ -1069,7 +1159,7 @@ export function ProfilePage() {
 
                                 {/* Photos */}
                                 <div className="border-t border-border/60 pt-5">
-                                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                  <p className="text-xs font-semibold text-muted-foreground">
                                     {tr("사진", "Photos", "照片", "Hình ảnh", "写真", "Foto")}
                                   </p>
                                   {additionalCompanyImages.length > 0 ? (
@@ -1161,13 +1251,35 @@ export function ProfilePage() {
                         ) : postedViewMode === "grid" ? (
                           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                             {postedPositions.map((item) => (
-                              <PostedPositionGridCard key={item.id} item={item} canEdit={user.role === "PARTNER"} />
+                              <PositionGridCard
+                                key={item.id}
+                                p={mapPublicPositionToCard(item, locale)}
+                                isOwnPartnerPosting={user.role === "PARTNER"}
+                                isStudentUser={false}
+                                isApplied={false}
+                                isFavorite={false}
+                                onToggleFavorite={() => {}}
+                                onApply={() => {}}
+                                onShowCip={() => {}}
+                                locale={locale}
+                              />
                             ))}
                           </div>
                         ) : (
                           <div className="space-y-3">
                             {postedPositions.map((item) => (
-                              <PostedPositionRow key={item.id} item={item} canEdit={user.role === "PARTNER"} />
+                              <PositionRow
+                                key={item.id}
+                                p={mapPublicPositionToCard(item, locale)}
+                                isOwnPartnerPosting={user.role === "PARTNER"}
+                                isStudentUser={false}
+                                isApplied={false}
+                                isFavorite={false}
+                                onToggleFavorite={() => {}}
+                                onApply={() => {}}
+                                onShowCip={() => {}}
+                                locale={locale}
+                              />
                             ))}
                           </div>
                         )}
@@ -1204,13 +1316,13 @@ export function ProfilePage() {
                   </article>
                   )
                 ) : user.role === "STUDENT" ? (
-                  <article className="overflow-hidden rounded-2xl border border-border/70 bg-card">
-                    <div className="flex items-center gap-1 overflow-x-auto border-b border-border/70 px-2 pt-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <article className="overflow-hidden rounded-2xl bg-card shadow-card">
+                    <div className="flex items-center gap-1 overflow-x-auto border-b border-border/60 px-2 pt-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <button
                         type="button"
                         onClick={() => selectStudentTab("info")}
                         className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
-                          studentTab === "info" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          studentTab === "info" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("정보", "Info", "信息", "Thông tin", "情報", "Info")}
@@ -1219,7 +1331,7 @@ export function ProfilePage() {
                         type="button"
                         onClick={() => selectStudentTab("resume")}
                         className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
-                          studentTab === "resume" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          studentTab === "resume" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("이력서 관리", "Resumes", "简历管理", "Quản lý hồ sơ", "履歴書管理", "Resumes")}
@@ -1228,7 +1340,7 @@ export function ProfilePage() {
                         type="button"
                         onClick={() => selectStudentTab("applied")}
                         className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
-                          studentTab === "applied" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          studentTab === "applied" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("지원한 포지션", "Applied positions", "已申请的职位", "Vị trí đã ứng tuyển", "応募したポジション", "Posisi yang dilamar")}
@@ -1237,114 +1349,19 @@ export function ProfilePage() {
                         type="button"
                         onClick={() => selectStudentTab("favorites")}
                         className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
-                          studentTab === "favorites" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
+                          studentTab === "favorites" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {tr("즐겨찾기한 포지션", "Favorite positions", "收藏的职位", "Vị trí đã lưu", "お気に入りのポジション", "Posisi favorit")}
                       </button>
-                      {sgcApplication ? (
-                        <button
-                          type="button"
-                          onClick={() => selectStudentTab("sgc")}
-                          className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
-                            studentTab === "sgc" ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground" : "text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          <span className="inline-flex items-center gap-1.5">
-                            <Handshake className="h-4 w-4" />
-                            {tr(
-                              "SGC × Aply 일경험",
-                              "SGC × Aply Work Experience",
-                              "SGC × Aply 实习",
-                              "SGC × Aply Thực tập",
-                              "SGC × Aply 就業体験",
-                              "SGC × Aply Magang"
-                            )}
-                          </span>
-                        </button>
-                      ) : null}
                     </div>
                     <div className="space-y-5 p-5 md:p-6">
 
                     {studentTab === "info" ? (
                       <div className="space-y-6">
-                        {/* Hero: 큰 프로필 사진 + identity */}
-                        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start">
-                          <div className="absolute right-0 top-0">
-                            <Button variant="outline" size="sm" asChild>
-                              <Link href="/profile/edit">
-                                {tr("편집", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}
-                              </Link>
-                            </Button>
-                          </div>
-
-                          {profileImage ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img
-                              src={profileImage}
-                              alt={tr("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")}
-                              className="h-28 w-28 flex-none object-cover"
-                              style={PROFILE_SQUIRCLE_STYLE}
-                            />
-                          ) : (
-                            <div
-                              className="flex h-28 w-28 flex-none items-center justify-center border border-border/60 bg-muted text-3xl font-bold text-muted-foreground"
-                              style={PROFILE_SQUIRCLE_STYLE}
-                            >
-                              {avatarFallback}
-                            </div>
-                          )}
-
-                          <div className="flex-1 min-w-0 pr-0 sm:pr-20">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <h4 className="font-display text-2xl font-bold tracking-tight text-foreground">
-                                {user.name ?? tr("이름 없음", "No name", "无名称", "Không có tên", "名前なし", "Tanpa nama")}
-                              </h4>
-                              {roleLabel ? (
-                                <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                                  {roleLabel}
-                                </span>
-                              ) : null}
-                            </div>
-                            {user.realName ? (
-                              <p className="mt-1 text-sm text-muted-foreground">{user.realName}</p>
-                            ) : null}
-
-                            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                              <span className="inline-flex items-center gap-1.5 min-w-0">
-                                {user.authProvider === "KAKAO" ? (
-                                  <span className="grid h-4 w-4 flex-none place-items-center rounded-sm bg-[#FEE500]">
-                                    <svg aria-hidden className="h-2.5 w-2.5 text-[#191919]" viewBox="0 0 24 24" fill="currentColor">
-                                      <path d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.86 5.36 4.66 6.78L5.5 21.5c-.1.34.27.62.57.43L10.5 19c.5.05 1 .08 1.5.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
-                                    </svg>
-                                  </span>
-                                ) : user.authProvider === "GOOGLE" ? (
-                                  <svg aria-hidden className="h-4 w-4 flex-none" viewBox="0 0 48 48">
-                                    <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
-                                    <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
-                                    <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
-                                    <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
-                                  </svg>
-                                ) : user.authProvider === "NAVER" ? (
-                                  <span className="grid h-4 w-4 flex-none place-items-center rounded-sm bg-[#03C75A] text-[10px] font-black leading-none text-white">N</span>
-                                ) : (
-                                  <Mail className="h-4 w-4 flex-none text-muted-foreground" aria-hidden />
-                                )}
-                                <span className="truncate text-foreground">{user.email}</span>
-                              </span>
-                              {user.phoneNumber ? (
-                                <span className="inline-flex items-center gap-1.5 min-w-0">
-                                  <Phone className="h-4 w-4 flex-none text-muted-foreground" aria-hidden />
-                                  <span className="truncate text-foreground">{user.phoneNumber}</span>
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-
                         {/* About — 자기소개 */}
-                        <div className="border-t border-border/60 pt-5">
-                          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                        <div className="pt-1">
+                          <p className="text-xs font-semibold text-muted-foreground">
                             {tr("자기 소개", "About me", "自我介绍", "Giới thiệu bản thân", "自己紹介", "Tentang saya")}
                           </p>
                           {studentProfile?.selfIntroduction?.trim() ? (
@@ -1367,7 +1384,7 @@ export function ProfilePage() {
 
                         {/* 상세 정보 */}
                         <div className="border-t border-border/60 pt-5">
-                          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                          <p className="text-xs font-semibold text-muted-foreground">
                             {tr("상세 정보", "Details", "详细信息", "Thông tin chi tiết", "詳細情報", "Detail")}
                           </p>
                           <div className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -1409,7 +1426,7 @@ export function ProfilePage() {
                         </div>
 
                         {myResumes.length === 0 ? (
-                          <div className="rounded-2xl border border-dashed border-border bg-white px-5 py-12 text-center">
+                          <div className="rounded-2xl border border-dashed border-border/60 bg-white px-5 py-12 text-center">
                             <FileText className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" strokeWidth={1.5} />
                             <p className="text-sm text-muted-foreground">
                               {tr(
@@ -1423,7 +1440,7 @@ export function ProfilePage() {
                             </p>
                           </div>
                         ) : (
-                          <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-white">
+                          <div className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/50 bg-white">
                             {[...myResumes].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary)).map((r) => (
                               <div key={r.id} className="flex items-center gap-3 px-4 py-5 transition hover:bg-muted/40">
                                 <Link href={`/resume-maker/${r.id}/edit`} className="flex min-w-0 flex-1 items-center gap-3">
@@ -1435,7 +1452,7 @@ export function ProfilePage() {
                                       <span className="truncate text-[17px] font-semibold text-foreground">{r.title}</span>
                                       {r.isPrimary ? (
                                         <span className="inline-flex flex-none items-center gap-1 rounded-full bg-[#b7ff5a] px-2 py-0.5 text-[11px] font-semibold text-[#111111]">
-                                          <Star className="h-3 w-3 fill-current" />
+                                          <Star className="h-3 w-3" weight="fill" />
                                           {tr("대표", "Primary", "代表", "Đại diện", "代表", "Utama")}
                                         </span>
                                       ) : null}
@@ -1448,7 +1465,7 @@ export function ProfilePage() {
                                       type="button"
                                       onClick={() => handleResumeSetPrimary(r.id)}
                                       disabled={resumePrimaryBusyId === r.id}
-                                      className="mr-1 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-muted-foreground ring-1 ring-border transition hover:text-amber-700 hover:ring-amber-300 disabled:opacity-50"
+                                      className="mr-1 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-muted-foreground ring-1 ring-border transition hover:text-[#0B46E8] hover:ring-[#0B46E8]/40 disabled:opacity-50"
                                     >
                                       {tr("대표로 설정", "Set primary", "设为代表", "Đặt đại diện", "代表に設定", "Jadikan utama")}
                                     </button>
@@ -1475,18 +1492,17 @@ export function ProfilePage() {
                           </div>
                         )}
                       </div>
-                    ) : studentTab === "sgc" && sgcApplication ? (
-                      <SgcApplicationStatusCard
-                        application={sgcApplication}
-                        tr={tr}
-                      />
                     ) : (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-3">
-                          <span className="text-sm text-muted-foreground">
-                            {studentTab === "applied" ? appliedPositions.length : favoritePositions.length}
-                            {tr("개", "", "个", "", "件", "")}
-                          </span>
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {studentTab === "applied"
+                              ? tr("지원한 포지션", "Applied positions", "已申请的职位", "Vị trí đã ứng tuyển", "応募したポジション", "Posisi yang dilamar")
+                              : tr("즐겨찾기한 포지션", "Favorite positions", "收藏的职位", "Vị trí đã lưu", "お気に入りのポジション", "Posisi favorit")}
+                            <span className="ml-1.5 font-normal text-muted-foreground">
+                              {studentTab === "applied" ? appliedPositions.length : favoritePositions.length}
+                            </span>
+                          </h3>
                         </div>
 
                         {studentPositionsError ? <p className="text-sm text-destructive">{studentPositionsError}</p> : null}
@@ -1499,10 +1515,23 @@ export function ProfilePage() {
 
                           if (source.length === 0) {
                             return (
-                              <div className="rounded-md border border-border/50 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-                                {studentTab === "applied"
-                                  ? tr("아직 지원한 포지션이 없습니다.", "No applied positions yet.", "尚未申请任何职位。", "Chưa có vị trí nào đã ứng tuyển.", "まだ応募したポジションはありません。", "Belum ada posisi yang dilamar.")
-                                  : tr("아직 즐겨찾기한 포지션이 없습니다.", "No favorite positions yet.", "尚未收藏任何职位。", "Chưa có vị trí yêu thích nào.", "まだお気に入りのポジションはありません。", "Belum ada posisi favorit.")}
+                              <div className="rounded-2xl border border-dashed border-border/60 bg-white px-5 py-12 text-center">
+                                {studentTab === "applied" ? (
+                                  <Briefcase className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" aria-hidden />
+                                ) : (
+                                  <Bookmark className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" aria-hidden />
+                                )}
+                                <p className="text-sm text-muted-foreground">
+                                  {studentTab === "applied"
+                                    ? tr("아직 지원한 포지션이 없습니다.", "No applied positions yet.", "尚未申请任何职位。", "Chưa có vị trí nào đã ứng tuyển.", "まだ応募したポジションはありません。", "Belum ada posisi yang dilamar.")
+                                    : tr("아직 즐겨찾기한 포지션이 없습니다.", "No favorite positions yet.", "尚未收藏任何职位。", "Chưa có vị trí yêu thích nào.", "まだお気に入りのポジションはありません。", "Belum ada posisi favorit.")}
+                                </p>
+                                <Link
+                                  href="/positions"
+                                  className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#0B46E8] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#0A3FCF]"
+                                >
+                                  {tr("포지션 둘러보기", "Browse positions", "浏览职位", "Xem vị trí", "ポジションを見る", "Lihat posisi")}
+                                </Link>
                               </div>
                             );
                           }
@@ -1511,34 +1540,108 @@ export function ProfilePage() {
                             <div className="space-y-3">
                               {source.map((item) => {
                                 const app = studentTab === "applied" ? applicationByPositionId.get(item.id) : null;
+                                const statusLabel = app
+                                  ? app.status === "INTERVIEW"
+                                    ? tr("면접 예정", "Interview", "面试预定", "Phỏng vấn", "面接予定", "Wawancara")
+                                    : app.status === "ACCEPTED"
+                                      ? tr("합격", "Accepted", "录用", "Đã đậu", "合格", "Diterima")
+                                      : app.status === "REJECTED"
+                                        ? tr("불합격", "Not accepted", "未录用", "Không đậu", "不合格", "Tidak diterima")
+                                        : app.status === "WITHDRAWN"
+                                          ? tr("철회됨", "Withdrawn", "已撤回", "Đã rút", "取り下げ", "Ditarik")
+                                          : tr("검토 중", "Under review", "审核中", "Đang xem xét", "審査中", "Sedang ditinjau")
+                                  : "";
+                                const statusTone = app
+                                  ? app.status === "ACCEPTED"
+                                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                    : app.status === "INTERVIEW"
+                                      ? "border-[#0B46E8]/30 bg-[#0B46E8]/[0.06] text-[#0B46E8]"
+                                      : app.status === "REJECTED"
+                                        ? "border-rose-300 bg-rose-50 text-rose-700"
+                                        : app.status === "WITHDRAWN"
+                                          ? "border-zinc-300 bg-zinc-100 text-zinc-500"
+                                          : "border-zinc-300 bg-zinc-100 text-zinc-600"
+                                  : "";
+                                // 면접 확정(슬롯 선택 완료) 여부 — 확정이면 배지를 '면접 확정'(초록)으로 바꾼다.
+                                const localeCode = locale === "ko" ? "ko-KR" : locale === "ja" ? "ja-JP" : locale === "zh-CN" ? "zh-CN" : locale === "vi" ? "vi-VN" : locale === "id" ? "id-ID" : "en-US";
+                                const interviewConfirmed = Boolean(app && app.status === "INTERVIEW" && app.interviewSelectedAt);
+                                const confirmedText = interviewConfirmed && app
+                                  ? new Date(app.interviewSelectedAt as string).toLocaleString(localeCode, { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) + (app.interviewLocation ? ` · ${app.interviewLocation}` : "")
+                                  : "";
+                                const cardStatusLabel = interviewConfirmed
+                                  ? tr("면접 확정", "Interview confirmed", "面试已确认", "Đã xác nhận PV", "面接確定", "Wawancara dikonfirmasi")
+                                  : statusLabel;
+                                const cardStatusTone = interviewConfirmed ? "border-emerald-300 bg-emerald-50 text-emerald-700" : statusTone;
+                                const submittedText = app
+                                  ? new Date(app.submittedAt).toLocaleDateString(
+                                      locale === "ko" ? "ko-KR" : locale === "ja" ? "ja-JP" : locale === "zh-CN" ? "zh-CN" : locale === "vi" ? "vi-VN" : locale === "id" ? "id-ID" : "en-US"
+                                    )
+                                  : "";
+                                // 카드 버튼 = 상태별 주요 액션. 면접 예정 + 아직 슬롯 미선택(interviewPending)일 때만
+                                // '면접 일정 선택'(파란 버튼). 확정됐으면 '면접 확정' 배지로 바뀐다.
+                                const appliedAction = app && app.status === "INTERVIEW" && app.interviewPending
+                                  ? { label: tr("면접 일정 선택", "Select interview slot", "选择面试时间", "Chọn lịch phỏng vấn", "面接日程を選択", "Pilih jadwal wawancara"), onClick: () => setInterviewTarget(app), primary: true }
+                                  : null;
+                                // 지원 철회 — 진행 중(검토 중·면접 예정)일 때만 보조 링크로 상시 제공.
+                                const canWithdraw = app && (app.status === "SUBMITTED" || app.status === "INTERVIEW");
                                 return (
                                   <div key={item.id} className="space-y-2">
-                                    {app?.status === "INTERVIEW" ? (
-                                      <div className="flex items-center justify-end gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() => setInterviewTarget(app)}
-                                          className="text-[11px] font-semibold text-primary hover:underline"
-                                        >
-                                          {tr("면접 일정 선택", "Select interview slot", "选择面试时间", "Chọn lịch phỏng vấn", "面接日程を選択", "Pilih jadwal wawancara")}
-                                        </button>
+                                    {app ? (
+                                      <div className="flex items-center justify-between gap-2 px-1">
+                                        <span className="text-[11px] font-medium text-muted-foreground">
+                                          {submittedText} {tr("지원", "Applied", "申请", "Đã nộp", "応募", "Dilamar")}
+                                          {interviewConfirmed ? (
+                                            <span className="ml-1.5 font-semibold text-emerald-600">
+                                              · {tr("면접", "Interview", "面试", "PV", "面接", "Wawancara")} {confirmedText}
+                                            </span>
+                                          ) : null}
+                                        </span>
+                                        <div className="flex shrink-0 items-center gap-3">
+                                          {/* 회사에 문의(쪽지) — 철회된 지원은 제외하고 상시 제공. 안 읽은 회사 메시지 있으면 ● 표시. */}
+                                          {app.status !== "WITHDRAWN" ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => setMessageTarget(app)}
+                                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0B46E8] transition hover:underline"
+                                            >
+                                              {app.unreadMessages > 0 ? (
+                                                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#0B46E8] px-1 text-[9px] font-bold text-white">
+                                                  {app.unreadMessages > 9 ? "9+" : app.unreadMessages}
+                                                </span>
+                                              ) : null}
+                                              {tr("회사에 문의", "Message company", "联系公司", "Nhắn công ty", "会社に問い合わせ", "Hubungi perusahaan")}
+                                            </button>
+                                          ) : null}
+                                          {canWithdraw ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => void handleWithdraw(app)}
+                                              disabled={withdrawingId === app.id}
+                                              className="text-[11px] font-semibold text-muted-foreground transition hover:text-rose-600 hover:underline disabled:opacity-50"
+                                            >
+                                              {tr("지원 철회", "Withdraw", "撤回申请", "Rút đơn", "応募取り下げ", "Tarik lamaran")}
+                                            </button>
+                                          ) : null}
+                                        </div>
                                       </div>
                                     ) : null}
-                                    <PostedPositionRow
-                                      item={item}
-                                      canEdit={false}
-                                      showStudentActions
-                                      isFavorite={favoriteIdSet.has(item.id)}
+                                    <PositionRow
+                                      p={mapPublicPositionToCard(item, locale)}
+                                      isOwnPartnerPosting={false}
+                                      isStudentUser={user.role === "STUDENT"}
                                       isApplied={appliedIdSet.has(item.id)}
-                                      applicationStatus={app?.status ?? null}
-                                      isWithdrawing={app ? withdrawingId === app.id : false}
+                                      isFavorite={favoriteIdSet.has(item.id)}
                                       onToggleFavorite={() => {
                                         void toggleStudentFavorite(item.id);
                                       }}
                                       onApply={() => {
                                         void applyFromStudentFavorite(item.id);
                                       }}
-                                      onWithdraw={app ? () => void handleWithdraw(app) : undefined}
+                                      onShowCip={() => {}}
+                                      locale={locale}
+                                      appliedStatusLabel={app ? cardStatusLabel : undefined}
+                                      appliedStatusTone={app ? cardStatusTone : undefined}
+                                      appliedAction={appliedAction}
                                     />
                                   </div>
                                 );
@@ -1552,7 +1655,7 @@ export function ProfilePage() {
                   </article>
                 ) : null}
 
-                <article className="rounded-2xl border border-border/70 bg-card">
+                <article className="rounded-2xl bg-card shadow-card">
                   <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between md:p-6">
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">{tr("로그아웃", "Log out", "退出登录", "Đăng xuất", "ログアウト", "Keluar")}</h3>
@@ -1589,442 +1692,34 @@ export function ProfilePage() {
         </div>
       </main>
       <Footer />
+      <ApplyResumeModal
+        open={applyDocsTarget !== null}
+        positionTitle={[...favoritePositions, ...appliedPositions].find((p) => p.id === applyDocsTarget)?.title ?? null}
+        onClose={() => setApplyDocsTarget(null)}
+        onConfirm={confirmDocsApply}
+        submitting={applyingDocs}
+      />
       <SelectInterviewSlotModal
         open={interviewTarget !== null}
         applicationId={interviewTarget?.id}
         positionTitle={interviewTarget?.positionTitle}
         onClose={() => setInterviewTarget(null)}
+        onSelected={() => {
+          // 슬롯 선택 즉시 카드가 '면접 확정'으로 바뀌도록 지원 목록을 새로고침.
+          void getMyApplications().then(setApplications).catch(() => {});
+        }}
       />
-    </div>
-  );
-}
-
-const PostedPositionRow = ({
-  item,
-  canEdit,
-  showStudentActions = false,
-  isFavorite = false,
-  isApplied = false,
-  applicationStatus = null,
-  isWithdrawing = false,
-  onToggleFavorite,
-  onApply,
-  onWithdraw
-}: {
-  item: PublicPositionListItem;
-  canEdit: boolean;
-  showStudentActions?: boolean;
-  isFavorite?: boolean;
-  isApplied?: boolean;
-  applicationStatus?: ApplicationStatus | null;
-  isWithdrawing?: boolean;
-  onToggleFavorite?: () => void;
-  onApply?: () => void;
-  onWithdraw?: () => void;
-}) => {
-  const { locale } = useLanguage();
-  const tr = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
-  const itemCompany = item.partnerOrganization?.name?.trim() || tr("파트너 기업", "Partner company", "合作伙伴企业", "Doanh nghiệp đối tác", "パートナー企業", "Perusahaan mitra");
-  const itemCompanyHref = companyHref(item.partnerOrganization?.id);
-  const itemWorkType = item.workType ?? inferWorkType(item.workingHours);
-  const itemLocation = item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || tr("협의", "To be discussed", "面议", "Thỏa thuận", "協議", "Akan dibahas");
-  const itemJobRole = item.preferredJobRole?.trim() || tr("직무 미정", "Role TBD", "职位待定", "Chưa xác định vị trí", "職務未定", "Peran belum ditentukan");
-  const thumbnail = item.thumbnailImages?.[0];
-  const statusBadge = getPositionStatusBadge(item.status, locale);
-
-  return (
-    <article className="group relative rounded-xl border border-border/60 bg-card p-4">
-      <Link href={`/positions/${item.id}`} aria-label={`${item.title} ${tr("상세보기", "View details", "查看详情", "Xem chi tiết", "詳細を見る", "Lihat detail")}`} className="absolute inset-0 z-10 rounded-xl" />
-      <p className="absolute right-4 top-3 text-[11px] text-muted-foreground">{formatPostedDate(item.createdAt, locale)}</p>
-      <div className="flex flex-col gap-2 md:grid md:grid-cols-[180px_1fr_auto] md:items-stretch md:gap-3">
-        <div className="relative aspect-[16/9] w-full shrink-0 self-start overflow-hidden rounded-xl md:w-[180px] md:self-auto">
-          <span className={`absolute left-2 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge.className}`}>
-            {statusBadge.label}
-          </span>
-          {thumbnail ? (
-            <img src={thumbnail} alt={`${itemCompany} ${tr("썸네일", "thumbnail", "缩略图", "ảnh thu nhỏ", "サムネイル", "thumbnail")}`} className="block h-full w-full object-cover" />
-          ) : (
-            <div className="grid h-full w-full place-items-center bg-muted font-display text-2xl font-bold leading-none text-muted-foreground">
-              {itemCompany[0]?.toUpperCase() ?? "P"}
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1 md:flex md:flex-col md:justify-center">
-          <div className="mb-0.5 min-w-0 text-xs text-muted-foreground">
-            {itemCompanyHref ? (
-              <Link href={itemCompanyHref} className="relative z-20 block max-w-[45%] truncate font-semibold">
-                {itemCompany}
-              </Link>
-            ) : (
-              <p className="max-w-[45%] truncate font-semibold">{itemCompany}</p>
-            )}
-            <p className="mt-1 truncate leading-tight">{itemJobRole}</p>
-          </div>
-          <h3 className="line-clamp-1 font-display text-lg font-bold leading-snug">{item.title}</h3>
-          <div className="mt-0.5 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-xs text-muted-foreground">
-            <span className="inline-flex min-w-0 max-w-[50%] items-center gap-1 truncate"><MapPin className="h-3 w-3 shrink-0" />{itemLocation}</span>
-            <span className="inline-flex min-w-0 items-center gap-1 truncate"><Briefcase className="h-3 w-3 shrink-0" />{workTypeLabel(itemWorkType, locale)}</span>
-          </div>
-        </div>
-
-        <div className="relative z-20 flex shrink-0 flex-row items-center justify-between gap-2 border-t border-border/60 pt-1.5 md:mt-auto md:self-end md:border-0 md:pt-0">
-          <div className="flex items-center gap-1.5">
-            {showStudentActions ? (
-              <>
-                <Button variant="outline" size="icon" aria-label={tr("저장", "Save", "保存", "Lưu", "保存", "Simpan")} onClick={onToggleFavorite}>
-                  <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
-                </Button>
-                {(() => {
-                  // Crawled (EXTERNAL) postings — 원티드 / 버디즈 / 기타 외부 —
-                  // can't be applied to via Aply itself. Show a link out to
-                  // the source instead and skip the apply/withdraw flow.
-                  if (item.sourceKind === "EXTERNAL" && item.sourceUrl) {
-                    const sourceName = (() => {
-                      switch (item.sourceProvider) {
-                        case "WANTED":
-                          return tr("원티드", "Wanted", "Wanted", "Wanted", "Wanted", "Wanted");
-                        case "BUDDIES":
-                          return tr("버디즈", "Buddies", "Buddies", "Buddies", "Buddies", "Buddies");
-                        default:
-                          return tr("외부", "External", "外部", "Bên ngoài", "外部", "Eksternal");
-                      }
-                    })();
-                    return (
-                      <Button variant="dark" size="sm" asChild>
-                        <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">
-                          {tr(`${sourceName}에서 보기`, `View on ${sourceName}`, `在 ${sourceName} 查看`, `Xem trên ${sourceName}`, `${sourceName}で見る`, `Lihat di ${sourceName}`)}
-                        </a>
-                      </Button>
-                    );
-                  }
-
-                  // Button label/style mirror the application status when the
-                  // student already applied. Without a status we fall back to
-                  // the generic "지원완료" so unauthenticated/legacy rows still
-                  // render meaningfully.
-                  if (!isApplied) {
-                    return (
-                      <Button variant="dark" size="sm" onClick={onApply}>
-                        {tr("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar")}
-                      </Button>
-                    );
-                  }
-                  const label = (() => {
-                    switch (applicationStatus) {
-                      case "INTERVIEW":
-                        return tr("면접 예정", "Interview", "面试预定", "Phỏng vấn", "面接予定", "Wawancara");
-                      case "ACCEPTED":
-                        return tr("합격", "Accepted", "录用", "Đã đậu", "合格", "Diterima");
-                      case "REJECTED":
-                        return tr("불합격", "Not accepted", "未录用", "Không đậu", "不合格", "Tidak diterima");
-                      case "WITHDRAWN":
-                        return tr("철회됨", "Withdrawn", "已撤回", "Đã rút", "取り下げ", "Ditarik");
-                      case "SUBMITTED":
-                      default:
-                        return tr("검토 중", "Under review", "审核中", "Đang xem xét", "審査中", "Sedang ditinjau");
-                    }
-                  })();
-                  const cls = (() => {
-                    switch (applicationStatus) {
-                      case "ACCEPTED":
-                        return "border border-emerald-300 bg-emerald-100 text-emerald-700 disabled:opacity-100";
-                      case "INTERVIEW":
-                        return "border border-emerald-300 bg-emerald-50 text-emerald-700 disabled:opacity-100";
-                      case "REJECTED":
-                        return "border border-rose-300 bg-rose-50 text-rose-700 disabled:opacity-100";
-                      case "WITHDRAWN":
-                        return "border border-zinc-300 bg-zinc-100 text-zinc-500 disabled:opacity-100";
-                      case "SUBMITTED":
-                      default:
-                        return "border border-zinc-300 bg-zinc-200 text-zinc-500 disabled:opacity-100";
-                    }
-                  })();
-                  // Withdraw allowed while the application is still in flight —
-                  // mirrors the original visibility (any status except ACCEPTED
-                  // / WITHDRAWN).
-                  const canWithdraw =
-                    onWithdraw &&
-                    applicationStatus !== "ACCEPTED" &&
-                    applicationStatus !== "WITHDRAWN";
-                  return (
-                    <>
-                      <Button variant="dark" size="sm" disabled className={cls}>
-                        {label}
-                      </Button>
-                      {canWithdraw ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={onWithdraw}
-                          disabled={isWithdrawing}
-                          className="border-zinc-300 text-zinc-600 hover:bg-zinc-50"
-                        >
-                          {tr("지원 철회", "Withdraw", "撤回申请", "Rút đơn", "応募取り下げ", "Tarik lamaran")}
-                        </Button>
-                      ) : null}
-                    </>
-                  );
-                })()}
-              </>
-            ) : (
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/positions/${item.id}`}>{tr("상세보기", "View details", "查看详情", "Xem chi tiết", "詳細を見る", "Lihat detail")}</Link>
-              </Button>
-            )}
-            {canEdit && !showStudentActions ? (
-              <Button variant="dark" size="sm" asChild>
-                <Link href={`/positions/${item.id}/edit`}>{tr("수정하기", "Edit", "编辑", "Chỉnh sửa", "編集する", "Edit")}</Link>
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    </article>
-  );
-};
-
-const PostedPositionGridCard = ({
-  item,
-  canEdit,
-  showStudentActions = false,
-  isFavorite = false,
-  isApplied = false,
-  onToggleFavorite,
-  onApply
-}: {
-  item: PublicPositionListItem;
-  canEdit: boolean;
-  showStudentActions?: boolean;
-  isFavorite?: boolean;
-  isApplied?: boolean;
-  onToggleFavorite?: () => void;
-  onApply?: () => void;
-}) => {
-  const { locale } = useLanguage();
-  const tr = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
-  const itemCompany = item.partnerOrganization?.name?.trim() || tr("파트너 기업", "Partner company", "合作伙伴企业", "Doanh nghiệp đối tác", "パートナー企業", "Perusahaan mitra");
-  const itemCompanyHref = companyHref(item.partnerOrganization?.id);
-  const itemWorkType = item.workType ?? inferWorkType(item.workingHours);
-  const itemLocation = item.workLocation?.trim() || item.partnerOrganization?.officeAddress?.trim() || tr("협의", "To be discussed", "面议", "Thỏa thuận", "協議", "Akan dibahas");
-  const itemJobRole = item.preferredJobRole?.trim() || tr("직무 미정", "Role TBD", "职位待定", "Chưa xác định vị trí", "職務未定", "Peran belum ditentukan");
-  const thumbnail = item.thumbnailImages?.[0];
-  const statusBadge = getPositionStatusBadge(item.status, locale);
-
-  return (
-    <article className="group relative flex h-full flex-col rounded-xl border border-border/60 bg-card p-4">
-      <Link href={`/positions/${item.id}`} aria-label={`${item.title} ${tr("상세보기", "View details", "查看详情", "Xem chi tiết", "詳細を見る", "Lihat detail")}`} className="absolute inset-0 z-10 rounded-xl" />
-      <div className="relative">
-        <span className={`absolute left-2 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge.className}`}>
-          {statusBadge.label}
-        </span>
-        {thumbnail ? (
-          <img src={thumbnail} alt={`${itemCompany} ${tr("썸네일", "thumbnail", "缩略图", "ảnh thu nhỏ", "サムネイル", "thumbnail")}`} className="block aspect-[16/9] w-full rounded-xl object-cover" />
-        ) : (
-          <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-4xl font-bold text-muted-foreground">
-            {itemCompany[0]?.toUpperCase() ?? "P"}
-          </div>
-        )}
-      </div>
-
-      <div className="mt-4 text-xs text-muted-foreground">
-        <div className="min-w-0 md:flex md:flex-col md:justify-center">
-          {itemCompanyHref ? (
-            <Link href={itemCompanyHref} className="relative z-20 block truncate font-semibold">
-              {itemCompany}
-            </Link>
-          ) : (
-            <p className="truncate font-semibold">{itemCompany}</p>
-          )}
-          <p className="mt-1 truncate">{itemJobRole}</p>
-        </div>
-      </div>
-
-      <h3 className="mt-1 truncate font-display text-base font-bold leading-tight">{item.title}</h3>
-      <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-xs text-muted-foreground">
-        <span className="inline-flex min-w-0 max-w-[58%] items-center gap-1 truncate"><MapPin className="h-3 w-3 shrink-0" />{itemLocation}</span>
-        <span className="inline-flex min-w-0 items-center gap-1 truncate"><Briefcase className="h-3 w-3 shrink-0" />{workTypeLabel(itemWorkType, locale)}</span>
-      </div>
-
-      <div className="relative z-20 mt-auto flex items-center gap-2 pt-3">
-        {showStudentActions ? (
-          <>
-            <Button variant="outline" size="icon" aria-label={tr("저장", "Save", "保存", "Lưu", "保存", "Simpan")} onClick={onToggleFavorite}>
-              <Bookmark className={isFavorite ? "fill-current text-foreground" : ""} />
-            </Button>
-            <Button
-              variant="dark"
-              className={`h-10 flex-1 text-sm ${isApplied ? "border border-zinc-300 bg-zinc-200 text-zinc-500 disabled:opacity-100" : ""}`}
-              onClick={onApply}
-              disabled={isApplied}
-            >
-              {isApplied ? tr("지원완료", "Applied", "已申请", "Đã ứng tuyển", "応募完了", "Telah melamar") : tr("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar")}
-            </Button>
-          </>
-        ) : (
-          <Button variant="outline" className="h-10 flex-1 text-sm" asChild>
-            <Link href={`/positions/${item.id}`}>{tr("상세보기", "View details", "查看详情", "Xem chi tiết", "詳細を見る", "Lihat detail")}</Link>
-          </Button>
-        )}
-
-        {canEdit && !showStudentActions ? (
-          <Button variant="dark" className="h-10 flex-1 text-sm" asChild>
-            <Link href={`/positions/${item.id}/edit`}>{tr("수정하기", "Edit", "编辑", "Chỉnh sửa", "編集する", "Edit")}</Link>
-          </Button>
-        ) : null}
-      </div>
-    </article>
-  );
-};
-
-// SGC × Aply 6주 일경험 프로그램 지원 상태 카드. 학생 본인 프로필 안 "SGC"
-// 탭에 노출되어 현재 단계 + 안내 + 빠른 이동 링크 를 제공한다.
-type Trans = (
-  ko: string,
-  en: string,
-  zh: string,
-  vi: string,
-  ja: string,
-  id: string
-) => string;
-
-function SgcApplicationStatusCard({ application, tr }: { application: SgcApplication; tr: Trans }) {
-  const status = application.status;
-  const STATUS_LABEL: Record<typeof status, string> = {
-    SUBMITTED: tr("접수 완료", "Received", "已接收", "Đã nhận", "受付完了", "Diterima"),
-    INTERVIEW: tr("면접 진행", "Interview", "面试中", "Phỏng vấn", "面接進行中", "Wawancara"),
-    ACCEPTED:  tr("합격", "Accepted", "录取", "Đậu", "合格", "Diterima"),
-    REJECTED:  tr("불합격", "Not selected", "未录取", "Không đậu", "不合格", "Tidak terpilih"),
-    WITHDRAWN: tr("지원 취소", "Withdrawn", "已撤销", "Đã rút", "辞退", "Ditarik")
-  };
-  const STATUS_TONE: Record<typeof status, string> = {
-    SUBMITTED: "bg-blue-50 text-blue-700 border-blue-200",
-    INTERVIEW: "bg-violet-50 text-violet-700 border-violet-200",
-    ACCEPTED:  "bg-emerald-50 text-emerald-700 border-emerald-200",
-    REJECTED:  "bg-zinc-100 text-zinc-700 border-zinc-200",
-    WITHDRAWN: "bg-zinc-100 text-zinc-700 border-zinc-200"
-  };
-  // 다음 행동 안내 — status 별 메시지.
-  const STATUS_NEXT: Record<typeof status, string> = {
-    SUBMITTED: tr(
-      "운영팀이 이력서와 함께 검토 중입니다. 면접 일정이 잡히면 따로 안내드릴게요.",
-      "Our team is reviewing your resume + answers. We'll reach out when an interview is scheduled.",
-      "运营团队正在审核您的简历与申请。安排面试后我们会单独联系。",
-      "Đội ngũ vận hành đang xem xét hồ sơ của bạn. Chúng tôi sẽ liên hệ khi sắp xếp phỏng vấn.",
-      "運営チームが履歴書と回答を確認中です。面接が決まり次第ご連絡します。",
-      "Tim kami sedang meninjau resume + jawaban Anda. Kami akan menghubungi saat wawancara dijadwalkan."
-    ),
-    INTERVIEW: tr(
-      "면접 단계로 이동했어요. 운영팀이 곧 일정을 안내드릴 예정입니다.",
-      "Moved to the interview stage. Our team will share the schedule shortly.",
-      "已进入面试阶段。运营团队稍后将告知具体安排。",
-      "Đã chuyển sang giai đoạn phỏng vấn. Đội ngũ sẽ gửi lịch sớm.",
-      "面接段階に進みました。運営チームが間もなくスケジュールをご案内します。",
-      "Beralih ke tahap wawancara. Tim kami akan segera mengirim jadwal."
-    ),
-    ACCEPTED: tr(
-      "축하해요! 합격하셨습니다 🎉 6주 일경험 시작 전 준비 사항을 운영팀이 안내드릴게요.",
-      "Congrats! You're in 🎉 Our team will share what to prepare before the 6-week program begins.",
-      "恭喜！您已被录取 🎉 在 6 周项目开始前，运营团队将告知准备事项。",
-      "Chúc mừng! Bạn đã đậu 🎉 Đội ngũ sẽ thông báo những điều cần chuẩn bị.",
-      "おめでとうございます！合格です 🎉 6 週間プログラム開始前の準備事項をご案内します。",
-      "Selamat! Anda diterima 🎉 Tim kami akan memberi tahu persiapan sebelum program 6 minggu dimulai."
-    ),
-    REJECTED: tr(
-      "이번 모집에서는 함께하지 못하게 됐어요. 관심 가져주셔서 진심으로 감사합니다.",
-      "We won't be moving forward this round. Thank you sincerely for applying.",
-      "本次招募未能合作。非常感谢您的关心与申请。",
-      "Lần tuyển này chưa thể đồng hành cùng bạn. Cảm ơn vì đã quan tâm.",
-      "今回の募集ではご一緒できませんでした。応募いただき本当にありがとうございました。",
-      "Kami tidak melanjutkan kali ini. Terima kasih atas minat dan lamarannya."
-    ),
-    WITHDRAWN: tr(
-      "지원이 취소된 상태입니다. 문의는 운영팀으로 부탁드려요.",
-      "Your application has been withdrawn. Please contact our team for inquiries.",
-      "您的申请已被撤销。如有疑问请联系运营团队。",
-      "Đơn của bạn đã bị rút. Vui lòng liên hệ đội ngũ nếu có thắc mắc.",
-      "応募は取り消されました。お問い合わせは運営チームまで。",
-      "Lamaran Anda telah ditarik. Silakan hubungi tim untuk pertanyaan."
-    )
-  };
-  const VISA_LABEL: Record<string, string> = {
-    "D-2": tr("D-2 (유학)", "D-2 (student)", "D-2 (留学)", "D-2 (du học)", "D-2 (留学)", "D-2 (pelajar)"),
-    "D-10": tr("D-10 (구직)", "D-10 (job-seeking)", "D-10 (求职)", "D-10 (tìm việc)", "D-10 (求職)", "D-10 (pencari kerja)"),
-    OTHER: tr("기타", "Other", "其他", "Khác", "その他", "Lainnya")
-  };
-  const JOB_LABEL: Record<string, string> = {
-    MARKETING:   tr("마케팅", "Marketing", "市场营销", "Marketing", "マーケティング", "Marketing"),
-    SALES:       tr("세일즈", "Sales", "销售", "Sales", "セールス", "Sales"),
-    TRANSLATION: tr("통번역", "Translation", "翻译", "Phiên dịch", "通訳・翻訳", "Penerjemahan"),
-    DEV:         tr("개발", "Engineering", "开发", "Phát triển", "開発", "Pengembangan"),
-    OTHER:       tr("기타", "Other", "其他", "Khác", "その他", "Lainnya")
-  };
-
-  const visaText =
-    application.visaType === "OTHER"
-      ? tr("기타", "Other", "其他", "Khác", "その他", "Lainnya")
-      : VISA_LABEL[application.visaType ?? ""] ?? (application.visaType ?? "-");
-  const jobText =
-    application.desiredJob === "OTHER"
-      ? tr("기타", "Other", "其他", "Khác", "その他", "Lainnya")
-      : JOB_LABEL[application.desiredJob ?? ""] ?? (application.desiredJob ?? "-");
-
-  return (
-    <div className="space-y-4">
-      {/* 큰 status 카드 + 다음 단계 안내 */}
-      <div className={`rounded-2xl border p-5 ${STATUS_TONE[status]}`}>
-        <p className="text-[11px] font-bold uppercase tracking-wider opacity-70">
-          {tr("지원 상태", "Status", "申请状态", "Trạng thái", "応募状況", "Status")}
-        </p>
-        <p className="mt-1 text-xl font-bold">{STATUS_LABEL[status]}</p>
-        <p className="mt-3 text-[13.5px] leading-relaxed">{STATUS_NEXT[status]}</p>
-      </div>
-
-      {/* 지원 내용 요약 */}
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <p className="text-sm font-bold text-foreground">
-          {tr("지원 내용", "Submission", "申请内容", "Nội dung", "応募内容", "Pengajuan")}
-        </p>
-        <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              {tr("체류자격", "Visa", "签证", "Visa", "在留資格", "Visa")}
-            </dt>
-            <dd className="mt-0.5">{visaText}</dd>
-          </div>
-          <div>
-            <dt className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              {tr("희망 직무", "Desired role", "希望职位", "Vị trí mong muốn", "希望職務", "Posisi diinginkan")}
-            </dt>
-            <dd className="mt-0.5">{jobText}</dd>
-          </div>
-          <div className="sm:col-span-2">
-            <dt className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              {tr("접수일", "Submitted", "提交日", "Ngày nộp", "受付日", "Dikirim")}
-            </dt>
-            <dd className="mt-0.5">{new Date(application.createdAt).toLocaleString("ko-KR")}</dd>
-          </div>
-        </dl>
-      </div>
-
-      {/* 빠른 이동 */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" asChild>
-          <Link href="/events/seoul-global-center">
-            {tr("프로그램 페이지", "Program page", "活动页面", "Trang chương trình", "プログラムページ", "Halaman program")}
-          </Link>
-        </Button>
-        {application.resumeId ? (
-          // 이력서 관리는 resume-maker 로 통합 — 제출 이력서 확인도 resume-maker 미리보기로.
-          <Button variant="outline" asChild>
-            <Link href={`/resume-maker/${application.resumeId}/preview`}>
-              {tr("지원한 이력서 보기", "View submitted resume", "查看简历", "Xem hồ sơ đã nộp", "提出した履歴書", "Lihat resume")}
-            </Link>
-          </Button>
-        ) : null}
-      </div>
+      <ApplicationMessagesModal
+        open={messageTarget !== null}
+        applicationId={messageTarget?.id}
+        positionTitle={messageTarget?.positionTitle}
+        companyName={messageTarget?.partnerOrganizationName}
+        onClose={() => {
+          setMessageTarget(null);
+          // 스레드를 열면 서버가 메시지 알림을 읽음 처리하므로, 목록을 새로고침해 뱃지를 갱신.
+          void getMyApplications().then(setApplications).catch(() => {});
+        }}
+      />
     </div>
   );
 }

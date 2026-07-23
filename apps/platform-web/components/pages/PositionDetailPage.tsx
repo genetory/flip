@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Header } from "../site/Header";
 import { Footer } from "../site/Footer";
@@ -16,9 +16,11 @@ import {
   type PublicPositionListItem
 } from "../../lib/member-profile-client";
 import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
-import { ArrowLeft, Briefcase, ChevronLeft, ChevronRight, Loader2, MapPin } from "lucide-react";
+import { ArrowLeft, Briefcase, CaretLeft as ChevronLeft, CaretRight as ChevronRight, Spinner as Loader2, MapPin } from "@phosphor-icons/react";
 import { AplyCipBadgeButton, CipInfoModal } from "../positions/AplyCipBadge";
+import { ApplyResumeModal } from "../positions/ApplyResumeModal";
 import { useAuthSession } from "../auth/AuthSessionProvider";
+import { useToast } from "../toast/ToastProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import type { PlatformLocale } from "../../lib/auth-messages";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
@@ -117,6 +119,10 @@ export function PositionDetailPage({
   // last render) fires when the state later becomes non-null. So every
   // hook used by the full page is declared here, BEFORE the early return.
   const router = useRouter();
+  const pathname = usePathname();
+  const toast = useToast();
+  const [applyModalOpen, setApplyModalOpen] = useState(false);
+  const [applying, setApplying] = useState(false);
   const { locale } = useLanguage();
   const { user, isAuthenticated } = useAuthSession();
 
@@ -439,22 +445,33 @@ export function PositionDetailPage({
 
   async function markAsApplied() {
     if (!position) return;
+    // 비로그인: 막다른 alert 대신 로그인으로 유도하고, 로그인 후 이 공고로 복귀.
     if (!isAuthenticated || !user?.id) {
-      window.alert(copy.loginRequired);
+      router.push(`/login?next=${encodeURIComponent(pathname ?? `/positions/${position.id}`)}`);
       return;
     }
     if (user.role !== "STUDENT") {
-      window.alert(copy.studentRequired);
+      toast.error(copy.studentRequired);
       return;
     }
     if (appliedPositionIds.includes(position.id)) return;
+    // 어떤 이력서로 지원할지 고르는 모달을 연다.
+    setApplyModalOpen(true);
+  }
+
+  async function confirmApply(resumeId: string, coverLetterId: string) {
+    if (!position) return;
+    setApplying(true);
     try {
-      setAppliedPositionIds((prev) => [...prev, position.id]);
-      await applyMyPosition(position.id);
-      window.alert(copy.appliedAdded);
+      setAppliedPositionIds((prev) => (prev.includes(position.id) ? prev : [...prev, position.id]));
+      await applyMyPosition(position.id, resumeId, coverLetterId);
+      toast.success(copy.appliedAdded);
+      setApplyModalOpen(false);
     } catch (error) {
       setAppliedPositionIds((prev) => prev.filter((id) => id !== position.id));
-      window.alert(error instanceof Error ? error.message : copy.applyFailed);
+      toast.error(error instanceof Error ? error.message : copy.applyFailed);
+    } finally {
+      setApplying(false);
     }
   }
 
@@ -494,7 +511,7 @@ export function PositionDetailPage({
           </div>
         </div>
       ) : null}
-      <main className="container py-10 md:py-14">
+      <main className="container py-10 pb-28 md:py-14 lg:pb-14">
         <div
           className={`mx-auto max-w-4xl transition-opacity duration-200 ${isTranslating ? "opacity-50" : "opacity-100"}`}
         >
@@ -633,7 +650,7 @@ export function PositionDetailPage({
                 <span className={`absolute left-2 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge.className}`}>
                   {statusBadge.label}
                 </span>
-                <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-muted font-display text-5xl font-bold text-muted-foreground">
+                <div className="grid aspect-[16/9] w-full place-items-center rounded-xl bg-[#EEF4FF] font-display text-5xl font-bold text-[#0B46E8]/45">
                   {initial}
                 </div>
               </div>
@@ -656,6 +673,25 @@ export function PositionDetailPage({
                   <AplyCipBadgeButton size="md" onClick={() => setIsCipModalOpen(true)} />
                 </div>
               ) : null}
+
+              {/* 상단 눈에 띄는 지원 CTA — 하단까지 스크롤하지 않아도 바로 지원/편집 */}
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                {canModerate ? (
+                  <Button variant="dark" size="lg" className="w-full sm:w-auto" asChild>
+                    <Link href={`/positions/${position.id}/edit`}>{copy.edit}</Link>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="dark"
+                    size="lg"
+                    onClick={markAsApplied}
+                    disabled={user?.role === "STUDENT" && appliedPositionIds.includes(position.id)}
+                    className={`w-full sm:w-auto ${user?.role === "STUDENT" && appliedPositionIds.includes(position.id) ? "border border-zinc-300 bg-zinc-200 text-zinc-500 hover:bg-zinc-200 disabled:opacity-100" : ""}`}
+                  >
+                    {user?.role === "STUDENT" && appliedPositionIds.includes(position.id) ? copy.applied : copy.apply}
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div className="mt-8">
@@ -886,9 +922,39 @@ export function PositionDetailPage({
           ) : null}
         </div>
       </main>
+      {/* 모바일 하단 sticky 지원 바 — 스크롤 위치와 무관하게 항상 지원/편집 가능 */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur lg:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="container py-3">
+          {canModerate ? (
+            <Button variant="dark" size="lg" className="w-full" asChild>
+              <Link href={`/positions/${position.id}/edit`}>{copy.edit}</Link>
+            </Button>
+          ) : (
+            <Button
+              variant="dark"
+              size="lg"
+              onClick={markAsApplied}
+              disabled={user?.role === "STUDENT" && appliedPositionIds.includes(position.id)}
+              className={`w-full ${user?.role === "STUDENT" && appliedPositionIds.includes(position.id) ? "border border-zinc-300 bg-zinc-200 text-zinc-500 hover:bg-zinc-200 disabled:opacity-100" : ""}`}
+            >
+              {user?.role === "STUDENT" && appliedPositionIds.includes(position.id) ? copy.applied : copy.apply}
+            </Button>
+          )}
+        </div>
+      </div>
       {isCipModalOpen ? (
         <CipInfoModal locale={locale} onClose={() => setIsCipModalOpen(false)} />
       ) : null}
+      <ApplyResumeModal
+        open={applyModalOpen}
+        positionTitle={position.title}
+        onClose={() => setApplyModalOpen(false)}
+        onConfirm={confirmApply}
+        submitting={applying}
+      />
       <Footer />
     </div>
   );

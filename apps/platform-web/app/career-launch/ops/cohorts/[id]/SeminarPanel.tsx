@@ -127,14 +127,14 @@ export default function SeminarPanel({ cohortId, seminars }: { cohortId: string;
           gap: 12px;
           align-items: flex-start;
           padding: 12px;
-          border: 1px solid #eef2f7;
+          border: 1px solid var(--line);
           border-radius: 12px;
         }
         .sem-week {
           flex: 0 0 52px;
           font-size: 13px;
           font-weight: 700;
-          color: #111827;
+          color: var(--ink);
           padding-top: 8px;
         }
         .sem-fields {
@@ -170,7 +170,7 @@ export default function SeminarPanel({ cohortId, seminars }: { cohortId: string;
           align-items: center;
           gap: 4px;
           font-size: 12.5px;
-          color: #4e5968;
+          color: var(--ink-soft);
           white-space: nowrap;
         }
         .sem-actions {

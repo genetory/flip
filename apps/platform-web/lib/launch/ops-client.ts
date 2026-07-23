@@ -187,10 +187,25 @@ export type CohortReportStudent = {
   successAfter: number | null;
   successGain: number | null;
   selectedJobs: number;
+  selectedJobTitles: string[];
   hasResume: boolean;
   coverItems: number;
   interviewPracticed: number;
+  interviewRounds: string[];
   completed: boolean;
+  // 산출물 정량화(학생별 상세 근거)
+  resumeEducations: number;
+  resumeExperiences: number;
+  resumeSkills: number;
+  resumeLanguages: number;
+  coverChars: number;
+  coverItemChars: number[];
+  // 주차 타임라인·활동 기간·생성 자료
+  weekDone: boolean[];
+  weeksCompleted: number;
+  doneStepsCount: number;
+  materialsCount: number;
+  activityDays: number | null;
   // 취업 성과(모든 포지션)
   applications: number;
   reachedInterview: boolean;

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
-import { Check } from "lucide-react";
+import { Check } from "@phosphor-icons/react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { useAuthSession } from "../auth/AuthSessionProvider";

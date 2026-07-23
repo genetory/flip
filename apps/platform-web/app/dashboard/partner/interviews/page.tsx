@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { readAccessToken } from "../../../../lib/auth-client";
 import { InterviewSlotDetailModal, type SlotDetailItem } from "../../../../components/interviews/InterviewSlotDetailModal";
@@ -83,12 +84,52 @@ export default function PartnerInterviewsPage() {
     [items, filterStatus]
   );
 
+  // 오늘/이번 주 확정 면접 + 선택 대기(제안됨) 요약
+  const summary = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(startOfToday);
+    endOfToday.setDate(endOfToday.getDate() + 1);
+    const endOfWeek = new Date(startOfToday);
+    endOfWeek.setDate(endOfWeek.getDate() + 7);
+    let today = 0;
+    let week = 0;
+    let pending = 0;
+    for (const s of items) {
+      if (s.status === "PROPOSED") pending += 1;
+      if (s.status === "SELECTED") {
+        const t = new Date(s.startsAt);
+        if (t >= startOfToday && t < endOfToday) today += 1;
+        if (t >= startOfToday && t < endOfWeek) week += 1;
+      }
+    }
+    return { today, week, pending };
+  }, [items]);
+
   return (
     <section className="ops-content-section">
       <header>
         <h1>면접 일정</h1>
         <p>회사 모든 지원자의 면접 슬롯을 한곳에서 확인하세요.</p>
       </header>
+
+      {!loading && !error && items.length > 0 ? (
+        <div className="ops-report-kpi-strip">
+          <div className="ops-report-kpi">
+            <div className="ops-report-kpi-head"><span>오늘 면접</span></div>
+            <p className="value">{summary.today}</p>
+          </div>
+          <div className="ops-report-kpi">
+            <div className="ops-report-kpi-head"><span>이번 주 면접</span></div>
+            <p className="value">{summary.week}</p>
+          </div>
+          <div className="ops-report-kpi">
+            <div className="ops-report-kpi-head"><span>선택 대기(제안됨)</span></div>
+            <p className="value">{summary.pending}</p>
+            {summary.pending > 0 ? <p className="delta is-muted">지원자 응답을 기다리는 중</p> : null}
+          </div>
+        </div>
+      ) : null}
 
       <article className="ops-card">
         <div className="ops-card-header">
@@ -156,8 +197,9 @@ export default function PartnerInterviewsPage() {
                   type="button"
                   className="ops-btn"
                   onClick={() => setCalendarAnchor(new Date(year, month - 1, 1))}
+                  aria-label="이전 달"
                 >
-                  ←
+                  <CaretLeft size={14} weight="bold" aria-hidden />
                 </button>
                 <h3>{monthLabel}</h3>
                 <div className="ops-row">
@@ -175,8 +217,9 @@ export default function PartnerInterviewsPage() {
                     type="button"
                     className="ops-btn"
                     onClick={() => setCalendarAnchor(new Date(year, month + 1, 1))}
+                    aria-label="다음 달"
                   >
-                    →
+                    <CaretRight size={14} weight="bold" aria-hidden />
                   </button>
                 </div>
               </div>
@@ -208,7 +251,7 @@ export default function PartnerInterviewsPage() {
                         </button>
                       ))}
                       {events.length > 3 ? (
-                        <span style={{ fontSize: 10, color: "#9ca3af" }}>+{events.length - 3}건</span>
+                        <span style={{ fontSize: 10, color: "var(--ink-faint)" }}>+{events.length - 3}건</span>
                       ) : null}
                     </div>
                   );

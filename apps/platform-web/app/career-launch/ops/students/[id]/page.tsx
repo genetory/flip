@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft, Check } from "@phosphor-icons/react";
 import { fetchOpsStudentDetail, resetStudentStep, saveStudentMemo, nudgeStudents, type OpsStudentDetail, type OpsResetTarget } from "../../../../../lib/launch/ops-client";
 import { hasResumeContent } from "../../../../../lib/launch/resume-data";
 import { hasCoverContent } from "../../../../../lib/launch/cover-data";
@@ -164,8 +165,9 @@ export default function LaunchOpsStudentDetailPage() {
   return (
     <main className="pb-16 pt-6 md:pt-10">
       <section className="ops-content-section">
-        <Link href="/career-launch/ops/students" className="text-[13px] font-semibold text-[#6b7280] transition hover:text-[#111827]">
-          {t("← 학생 목록", "← Student list", "← 学生列表", "← Danh sách sinh viên", "← 学生一覧", "← Daftar siswa")}
+        <Link href="/career-launch/ops/students" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[var(--ink-faint)] transition hover:text-[var(--ink)]">
+          <ArrowLeft size={13} weight="bold" aria-hidden />
+          {t("학생 목록", "Student list", "学生列表", "Danh sách sinh viên", "学生一覧", "Daftar siswa")}
         </Link>
 
         <header className="mt-3">
@@ -183,16 +185,16 @@ export default function LaunchOpsStudentDetailPage() {
             <div className="ops-partner-list-top">
               <div style={{ minWidth: 220, flex: 1 }}>
                 <div className="flex items-center justify-between text-[13px]">
-                  <span className="font-semibold text-[#111827]">
+                  <span className="font-semibold text-[var(--ink)]">
                     {t("진행률", "Progress", "进度", "Tiến độ", "進捗", "Progres")}{" "}
-                    <span className={allDone ? "text-[#15803d]" : "text-[#1d4ed8]"}>{percent}%</span>
+                    <span className={allDone ? "text-[var(--accent-ink)]" : "text-[var(--accent-ink)]"}>{percent}%</span>
                   </span>
-                  <span className="text-[12px] text-[#6b7280]">
+                  <span className="text-[12px] text-[var(--ink-faint)]">
                     {doneCount}/{checklist.length}
                   </span>
                 </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full" style={{ background: "#f3f4f6" }}>
-                  <div className="h-full rounded-full" style={{ width: `${percent}%`, background: allDone ? "#15803d" : "#111827" }} />
+                <div className="mt-2 h-2 overflow-hidden rounded-full" style={{ background: "var(--surface-2)" }}>
+                  <div className="h-full rounded-full" style={{ width: `${percent}%`, background: allDone ? "var(--accent-ink)" : "var(--accent)" }} />
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -234,26 +236,26 @@ export default function LaunchOpsStudentDetailPage() {
                     {/* 완료/미완료를 색·아이콘으로 구분해 한눈에 스캔되게. */}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
                       {checklist.map((c, i) => (
-                        <div key={i} className={`flex items-center gap-2 text-[13px] ${c.done ? "text-[#111827]" : "text-[#9ca3af]"}`}>
+                        <div key={i} className={`flex items-center gap-2 text-[13px] ${c.done ? "text-[var(--ink)]" : "text-[var(--ink-faint)]"}`}>
                           <span
                             className={`flex h-5 w-5 flex-none items-center justify-center rounded-full text-[11px] font-bold ${
-                              c.done ? "bg-[#dcfce7] text-[#15803d]" : "border border-[#e5e7eb] text-transparent"
+                              c.done ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]" : "border border-[var(--line)] text-transparent"
                             }`}
                           >
-                            ✓
+                            <Check size={12} weight="bold" aria-hidden />
                           </span>
                           <span className={c.done ? "font-medium" : ""}>{c.l}</span>
                         </div>
                       ))}
                     </div>
                     {pending.length > 0 ? (
-                      <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-[#fffbeb] px-3 py-2 text-[13px]">
-                        <span className="font-bold text-[#b45309]">{t("다음 할 일", "Next up", "下一步", "Tiếp theo", "次のステップ", "Berikutnya")}</span>
-                        <span className="break-keep text-[#92400e]">{pending.join(" · ")}</span>
+                      <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-[var(--sand-soft)] px-3 py-2 text-[13px]">
+                        <span className="font-bold text-[var(--sand)]">{t("다음 할 일", "Next up", "下一步", "Tiếp theo", "次のステップ", "Berikutnya")}</span>
+                        <span className="break-keep text-[var(--sand)]">{pending.join(" · ")}</span>
                       </div>
                     ) : (
-                      <p className="mt-3 font-semibold text-[#15803d]">
-                        {t("모든 단계를 완료했어요 🎉", "All steps complete 🎉", "已完成所有步骤 🎉", "Đã hoàn thành tất cả 🎉", "すべてのステップ完了 🎉", "Semua langkah selesai 🎉")}
+                      <p className="mt-3 font-semibold text-[var(--accent-ink)]">
+                        {t("모든 단계를 완료했어요", "All steps complete", "已完成所有步骤", "Đã hoàn thành tất cả", "すべてのステップ完了", "Semua langkah selesai")}
                       </p>
                     )}
                   </section>
@@ -263,31 +265,31 @@ export default function LaunchOpsStudentDetailPage() {
                     {diag && typeof diag.percent === "number" ? (
                       <>
                         {diagAfter !== null && diagAfter !== undefined ? (
-                          <p className="text-[15px] font-semibold text-[#111827]">
+                          <p className="text-[15px] font-semibold text-[var(--ink)]">
                             {t("준비도", "Readiness", "准备度", "Mức độ sẵn sàng", "準備度", "Kesiapan")}{" "}
-                            <span className="text-[#6b7280]">{diagBefore}%</span>
-                            <span className="mx-1 text-[#9ca3af]">→</span>
-                            <span className="text-[#1d4ed8]">{diagAfter}%</span>
+                            <span className="text-[var(--ink-faint)]">{diagBefore}%</span>
+                            <span className="mx-1 text-[var(--ink-faint)]">→</span>
+                            <span className="text-[var(--accent-ink)]">{diagAfter}%</span>
                             {diagGain !== null ? (
-                              <span className="ml-2 rounded-md bg-[#dcfce7] px-1.5 py-0.5 text-[12.5px] font-bold text-[#15803d]">
+                              <span className="ml-2 rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[12.5px] font-bold text-[var(--accent-ink)]">
                                 {diagGain >= 0 ? `+${diagGain}` : diagGain}%p
                               </span>
                             ) : null}
-                            {diag.level ? <span className="ml-1.5 block text-[13px] font-normal text-[#6b7280]">{diag.level}</span> : null}
+                            {diag.level ? <span className="ml-1.5 block text-[13px] font-normal text-[var(--ink-faint)]">{diag.level}</span> : null}
                           </p>
                         ) : (
-                          <p className="text-[14px] font-semibold text-[#111827]">
-                            {t("준비도", "Readiness", "准备度", "Mức độ sẵn sàng", "準備度", "Kesiapan")} <span className="text-[#1d4ed8]">{diag.percent}%</span>
-                            {diag.level ? <span className="ml-1.5 text-[13px] font-normal text-[#6b7280]">· {diag.level}</span> : null}
+                          <p className="text-[14px] font-semibold text-[var(--ink)]">
+                            {t("준비도", "Readiness", "准备度", "Mức độ sẵn sàng", "準備度", "Kesiapan")} <span className="text-[var(--accent-ink)]">{diag.percent}%</span>
+                            {diag.level ? <span className="ml-1.5 text-[13px] font-normal text-[var(--ink-faint)]">· {diag.level}</span> : null}
                           </p>
                         )}
                         {diag.strengths?.length ? (
                           <div>
-                            <p className="text-[12px] font-semibold text-[#15803d]">{t("강점", "Strengths", "优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
+                            <p className="text-[12px] font-semibold text-[var(--accent-ink)]">{t("강점", "Strengths", "优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
                             <ul className="mt-1.5 space-y-1">
                               {diag.strengths.map((x, i) => (
-                                <li key={i} className="flex gap-1.5 break-keep text-[13px] text-[#374151]">
-                                  <span className="text-[#15803d]">✓</span>
+                                <li key={i} className="flex gap-1.5 break-keep text-[13px] text-[var(--ink-soft)]">
+                                  <span className="text-[var(--accent-ink)]"><Check size={12} weight="bold" aria-hidden /></span>
                                   {x}
                                 </li>
                               ))}
@@ -296,11 +298,11 @@ export default function LaunchOpsStudentDetailPage() {
                         ) : null}
                         {diag.improvements?.length ? (
                           <div>
-                            <p className="text-[12px] font-semibold text-[#6b7280]">{t("보완점", "Areas to improve", "待改进点", "Điểm cần cải thiện", "改善点", "Hal yang perlu diperbaiki")}</p>
+                            <p className="text-[12px] font-semibold text-[var(--ink-faint)]">{t("보완점", "Areas to improve", "待改进点", "Điểm cần cải thiện", "改善点", "Hal yang perlu diperbaiki")}</p>
                             <ul className="mt-1.5 space-y-1">
                               {diag.improvements.map((x, i) => (
-                                <li key={i} className="flex gap-1.5 break-keep text-[13px] text-[#4b5563]">
-                                  <span className="text-[#9ca3af]">•</span>
+                                <li key={i} className="flex gap-1.5 break-keep text-[13px] text-[var(--ink-soft)]">
+                                  <span className="text-[var(--ink-faint)]">•</span>
                                   {x}
                                 </li>
                               ))}
@@ -323,8 +325,8 @@ export default function LaunchOpsStudentDetailPage() {
                           const job = RECOMMENDED_JOBS.find((x) => x.role === role);
                           return (
                             <article key={role} className="ops-list-card">
-                              <p className="text-[14px] font-semibold text-[#111827]">{role}</p>
-                              {job?.reason ? <p className="break-keep text-[13px] leading-relaxed text-[#4b5563]">{jobReason(job.id)}</p> : null}
+                              <p className="text-[14px] font-semibold text-[var(--ink)]">{role}</p>
+                              {job?.reason ? <p className="break-keep text-[13px] leading-relaxed text-[var(--ink-soft)]">{jobReason(job.id)}</p> : null}
                             </article>
                           );
                         })}
@@ -341,8 +343,8 @@ export default function LaunchOpsStudentDetailPage() {
                       </h3>
                       <ul className="space-y-1">
                         {materials.map((m, i) => (
-                          <li key={i} className="flex gap-1.5 break-keep text-[13px] text-[#374151]">
-                            <span className="text-[#9ca3af]">•</span>
+                          <li key={i} className="flex gap-1.5 break-keep text-[13px] text-[var(--ink-soft)]">
+                            <span className="text-[var(--ink-faint)]">•</span>
                             {m}
                           </li>
                         ))}
@@ -357,7 +359,7 @@ export default function LaunchOpsStudentDetailPage() {
                       </h3>
                       {/* 21개 칩은 노이즈라 기본 접힘 — 필요할 때만 펼친다. */}
                       <details className="mt-1">
-                        <summary className="cursor-pointer text-[13px] text-[#6b7280] transition hover:text-[#111827]">
+                        <summary className="cursor-pointer text-[13px] text-[var(--ink-faint)] transition hover:text-[var(--ink)]">
                           {t("세부 스텝 보기", "Show step details", "查看详细步骤", "Xem chi tiết các bước", "詳細ステップを表示", "Lihat detail langkah")}
                         </summary>
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -395,27 +397,27 @@ export default function LaunchOpsStudentDetailPage() {
                     ) : (
                       <div>
                         {detail.resume.basic?.summary ? (
-                          <p className="break-keep text-[13px] leading-relaxed text-[#374151]">{detail.resume.basic.summary}</p>
+                          <p className="break-keep text-[13px] leading-relaxed text-[var(--ink-soft)]">{detail.resume.basic.summary}</p>
                         ) : null}
 
                         {detail.resume.experiences?.length ? (
                           <div className="mt-4">
-                            <p className="text-[12px] font-bold uppercase tracking-wide text-[#9ca3af]">
+                            <p className="text-[12px] font-bold uppercase tracking-wide text-[var(--ink-faint)]">
                               {t("경력", "Experience", "经历", "Kinh nghiệm", "経歴", "Pengalaman")}
                             </p>
                             <ul className="mt-2 space-y-3">
                               {detail.resume.experiences.map((e, i) => (
                                 <li key={i}>
-                                  <p className="text-[13.5px] font-semibold text-[#111827]">
+                                  <p className="text-[13.5px] font-semibold text-[var(--ink)]">
                                     {e.title || "-"}
-                                    {e.org ? <span className="font-normal text-[#6b7280]"> · {e.org}</span> : null}
-                                    {e.period ? <span className="ml-1 text-[12px] font-normal text-[#9ca3af]">{e.period}</span> : null}
+                                    {e.org ? <span className="font-normal text-[var(--ink-faint)]"> · {e.org}</span> : null}
+                                    {e.period ? <span className="ml-1 text-[12px] font-normal text-[var(--ink-faint)]">{e.period}</span> : null}
                                   </p>
                                   {e.bullets?.length ? (
                                     <ul className="mt-1 space-y-0.5">
                                       {e.bullets.map((b, bi) => (
-                                        <li key={bi} className="flex gap-1.5 break-keep text-[12.5px] text-[#4b5563]">
-                                          <span className="text-[#c9cdd2]">•</span>
+                                        <li key={bi} className="flex gap-1.5 break-keep text-[12.5px] text-[var(--ink-soft)]">
+                                          <span className="text-[var(--ink-faint)]">•</span>
                                           {b}
                                         </li>
                                       ))}
@@ -429,16 +431,16 @@ export default function LaunchOpsStudentDetailPage() {
 
                         {detail.resume.educations?.length ? (
                           <div className="mt-4">
-                            <p className="text-[12px] font-bold uppercase tracking-wide text-[#9ca3af]">
+                            <p className="text-[12px] font-bold uppercase tracking-wide text-[var(--ink-faint)]">
                               {t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")}
                             </p>
                             <ul className="mt-2 space-y-1">
                               {detail.resume.educations.map((e, i) => (
-                                <li key={i} className="text-[13px] text-[#374151]">
-                                  <span className="font-semibold text-[#111827]">{e.school || "-"}</span>
+                                <li key={i} className="text-[13px] text-[var(--ink-soft)]">
+                                  <span className="font-semibold text-[var(--ink)]">{e.school || "-"}</span>
                                   {e.major ? ` · ${e.major}` : ""}
                                   {e.degree ? ` · ${e.degree}` : ""}
-                                  {e.period ? <span className="ml-1 text-[12px] text-[#9ca3af]">{e.period}</span> : null}
+                                  {e.period ? <span className="ml-1 text-[12px] text-[var(--ink-faint)]">{e.period}</span> : null}
                                 </li>
                               ))}
                             </ul>
@@ -447,7 +449,7 @@ export default function LaunchOpsStudentDetailPage() {
 
                         {detail.resume.skills?.length ? (
                           <div className="mt-4">
-                            <p className="text-[12px] font-bold uppercase tracking-wide text-[#9ca3af]">
+                            <p className="text-[12px] font-bold uppercase tracking-wide text-[var(--ink-faint)]">
                               {t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian")}
                             </p>
                             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -462,14 +464,14 @@ export default function LaunchOpsStudentDetailPage() {
 
                         {detail.resume.languages?.length ? (
                           <div className="mt-4">
-                            <p className="text-[12px] font-bold uppercase tracking-wide text-[#9ca3af]">
+                            <p className="text-[12px] font-bold uppercase tracking-wide text-[var(--ink-faint)]">
                               {t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")}
                             </p>
                             <ul className="mt-2 space-y-1">
                               {detail.resume.languages.map((l, i) => (
-                                <li key={i} className="text-[13px] text-[#374151]">
-                                  <span className="font-semibold text-[#111827]">{l.language || "-"}</span>
-                                  {l.level ? <span className="text-[#6b7280]"> · {l.level}</span> : null}
+                                <li key={i} className="text-[13px] text-[var(--ink-soft)]">
+                                  <span className="font-semibold text-[var(--ink)]">{l.language || "-"}</span>
+                                  {l.level ? <span className="text-[var(--ink-faint)]"> · {l.level}</span> : null}
                                 </li>
                               ))}
                             </ul>
@@ -484,7 +486,7 @@ export default function LaunchOpsStudentDetailPage() {
                     <div className="ops-partner-list-top">
                       <h3>
                         {t("자기소개서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter")}
-                        {detail.cover.items?.length ? <span className="ml-1 text-[12px] font-normal text-[#9ca3af]">({detail.cover.items.length})</span> : null}
+                        {detail.cover.items?.length ? <span className="ml-1 text-[12px] font-normal text-[var(--ink-faint)]">({detail.cover.items.length})</span> : null}
                       </h3>
                       {hasCover ? (
                         <a href={`/career-launch/ops-print/${id}?doc=cover`} target="_blank" rel="noopener noreferrer" className="ops-detail-button">
@@ -499,9 +501,9 @@ export default function LaunchOpsStudentDetailPage() {
                         {(detail.cover.items ?? [])
                           .filter((it) => (it.answer ?? "").trim())
                           .map((it, i) => (
-                            <details key={i} open={i === 0} className="rounded-xl border border-[#eef2f7] p-4">
-                              <summary className="cursor-pointer text-[13.5px] font-semibold text-[#111827]">{it.question}</summary>
-                              <p className="mt-2 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#4b5563]">{it.answer}</p>
+                            <details key={i} open={i === 0} className="rounded-xl border border-[var(--line)] p-4">
+                              <summary className="cursor-pointer text-[13.5px] font-semibold text-[var(--ink)]">{it.question}</summary>
+                              <p className="mt-2 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[var(--ink-soft)]">{it.answer}</p>
                             </details>
                           ))}
                       </div>
@@ -523,26 +525,26 @@ export default function LaunchOpsStudentDetailPage() {
                         const done = interviewPracticed.includes(tp);
                         const summary = interviewResults[tp];
                         return (
-                          <article key={tp} className={`rounded-xl border p-4 ${done ? "border-[#eef2f7]" : "border-[#f3f4f6] bg-[#fafafa]"}`}>
+                          <article key={tp} className={`rounded-xl border p-4 ${done ? "border-[var(--line)]" : "border-[var(--surface-2)] bg-[var(--surface-2)]"}`}>
                             <div className="flex items-center gap-2">
                               <span
                                 className={`flex h-5 w-5 flex-none items-center justify-center rounded-full text-[11px] font-bold ${
-                                  done ? "bg-[#dcfce7] text-[#15803d]" : "border border-[#e5e7eb] text-transparent"
+                                  done ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]" : "border border-[var(--line)] text-transparent"
                                 }`}
                               >
-                                ✓
+                                <Check size={12} weight="bold" aria-hidden />
                               </span>
-                              <p className={`text-[13.5px] font-semibold ${done ? "text-[#111827]" : "text-[#9ca3af]"}`}>{INTERVIEW_LABEL[tp]}</p>
-                              <span className={`ml-auto text-[12px] font-semibold ${done ? "text-[#15803d]" : "text-[#9ca3af]"}`}>
+                              <p className={`text-[13.5px] font-semibold ${done ? "text-[var(--ink)]" : "text-[var(--ink-faint)]"}`}>{INTERVIEW_LABEL[tp]}</p>
+                              <span className={`ml-auto text-[12px] font-semibold ${done ? "text-[var(--accent-ink)]" : "text-[var(--ink-faint)]"}`}>
                                 {done ? t("완료", "Done", "已完成", "Xong", "完了", "Selesai") : t("미진행", "Not started", "未进行", "Chưa làm", "未実施", "Belum")}
                               </span>
                             </div>
                             {summary ? (
-                              <div className="mt-2.5 whitespace-pre-wrap break-keep border-t border-[#f3f4f6] pt-2.5 text-[13px] leading-relaxed text-[#374151]">
+                              <div className="mt-2.5 whitespace-pre-wrap break-keep border-t border-[var(--surface-2)] pt-2.5 text-[13px] leading-relaxed text-[var(--ink-soft)]">
                                 <RichText text={summary} />
                               </div>
                             ) : done ? (
-                              <p className="mt-2 text-[12.5px] text-[#9ca3af]">{t("AI 총평이 없어요.", "No AI summary.", "无 AI 总评。", "Không có tổng kết AI.", "AI総評はありません。", "Tidak ada ringkasan AI.")}</p>
+                              <p className="mt-2 text-[12.5px] text-[var(--ink-faint)]">{t("AI 총평이 없어요.", "No AI summary.", "无 AI 总评。", "Không có tổng kết AI.", "AI総評はありません。", "Tidak ada ringkasan AI.")}</p>
                             ) : null}
                           </article>
                         );
@@ -553,7 +555,7 @@ export default function LaunchOpsStudentDetailPage() {
                   {finalFeedbackText ? (
                     <section className="ops-detail-section">
                       <h3>{t("최종 피드백", "Final feedback", "最终反馈", "Phản hồi cuối cùng", "最終フィードバック", "Umpan balik akhir")}</h3>
-                      <div className="whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#374151]">
+                      <div className="whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[var(--ink-soft)]">
                         <RichText text={finalFeedbackText} />
                       </div>
                     </section>
@@ -600,7 +602,7 @@ export default function LaunchOpsStudentDetailPage() {
                       }}
                       rows={4}
                       maxLength={4000}
-                      className="w-full rounded-lg border border-[#e5e7eb] p-3 text-[13px] leading-relaxed"
+                      className="w-full rounded-lg border border-[var(--line)] p-3 text-[13px] leading-relaxed"
                       placeholder={t("예) 3주차 이후 연락 두절, 담당 교수와 확인 필요", "e.g. Unreachable after week 3, need to check with the professor", "例）第3周后失联，需与教授确认", "VD) Mất liên lạc sau tuần 3, cần kiểm tra với giáo sư", "例）3週目以降 連絡が取れない、担当教授に確認が必要", "Contoh) Tidak bisa dihubungi setelah minggu 3, perlu cek ke dosen")}
                     />
                     <div className="ops-detail-actions">

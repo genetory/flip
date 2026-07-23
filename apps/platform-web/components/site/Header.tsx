@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu } from "lucide-react";
+import { List as Menu } from "@phosphor-icons/react";
 import { CaretDown, ArrowsLeftRight } from "@phosphor-icons/react/dist/ssr";
 import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../i18n/LanguageProvider";
@@ -13,6 +13,7 @@ import { getHeaderMessages, PLATFORM_LOCALES, type PlatformLocale } from "../../
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { AnnouncementBanner } from "../announcements/AnnouncementBanner";
+import { ContactVerificationBanner } from "../auth/ContactVerificationBanner";
 
 const HEADER_SQUIRCLE_CLIP_ID = "header-avatar-squircle-clip";
 const HEADER_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
@@ -256,8 +257,8 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
           </clipPath>
         </defs>
       </svg>
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background">
-        <div className="container flex h-[52px] items-center justify-between">
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+        <div className="container flex h-14 items-center justify-between">
         <Link href={variant === "business" ? "/business" : "/"} className="flex items-center gap-1.5">
           <Image
             src="/img_logo.webp"
@@ -279,8 +280,8 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
             // 반짝거려 평범한 텍스트 nav 들 사이에서 자연스럽게 시선이 감.
             const cls = item.promoted
               ? "inline-flex items-center rounded-full bg-[#b7ff5a] px-3 py-1 text-[11px] font-bold text-[#111111] transition hover:bg-[#a3eb43] animate-glow-pulse"
-              : `text-xs transition-colors ${
-                  isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
+              : `text-[13px] transition-colors ${
+                  isNavActive(item.href) ? "font-semibold text-[#0B46E8]" : "font-medium text-muted-foreground hover:text-foreground"
                 }`;
             if (item.external) {
               // 새창으로 열기 — Next의 Link 대신 평범한 <a target="_blank">.
@@ -426,7 +427,7 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
               const mobileCls = item.promoted
                 ? "inline-flex w-fit items-center rounded-full bg-[#b7ff5a] px-3.5 py-1.5 text-sm font-bold text-[#111111] animate-glow-pulse"
                 : `text-base ${
-                    isNavActive(item.href) ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
+                    isNavActive(item.href) ? "font-semibold text-[#0B46E8]" : "font-medium text-muted-foreground"
                   }`;
               if (item.external) {
                 return (
@@ -469,6 +470,7 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
       )}
     </header>
     <AnnouncementBanner />
+    <ContactVerificationBanner />
     </>
   );
 };

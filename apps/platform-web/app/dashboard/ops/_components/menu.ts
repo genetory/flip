@@ -1,33 +1,34 @@
+// 아이콘은 Phosphor 로 통일. 기존 lucide 이름으로 alias 해 사용처는 그대로 둔다.
 import {
-  AlertTriangle,
-  BarChart3,
-  Bot,
+  Warning as AlertTriangle,
+  ChartBar as BarChart3,
+  Robot as Bot,
   Briefcase,
-  Building2,
-  ClipboardCheck,
-  ClipboardList,
+  Buildings as Building2,
+  ListChecks as ClipboardCheck,
+  ClipboardText as ClipboardList,
   Database,
   FileText,
-  FileUser,
+  ReadCvLogo as FileUser,
   GraduationCap,
   Handshake,
-  Home,
-  Inbox,
+  House as Home,
+  Tray as Inbox,
   Megaphone,
-  ScrollText,
-  Settings,
+  Scroll as ScrollText,
+  Gear as Settings,
   Shield,
   Globe,
-  Sparkles,
+  Sparkle as Sparkles,
   Stamp,
   Star,
   Target,
   UserCheck,
   Users,
   Wallet,
-  Workflow,
-  type LucideIcon
-} from "lucide-react";
+  FlowArrow as Workflow,
+  type Icon as LucideIcon
+} from "@phosphor-icons/react";
 
 export type MenuLink = {
   label: string;
@@ -117,6 +118,7 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
   {
     title: "분석 & 소통",
     links: [
+      { label: "커넥션 트래킹", href: "/dashboard/ops/support/connections", icon: Handshake },
       { label: "유입 경로", href: "/dashboard/ops/support/inflow", icon: BarChart3 },
       { label: "리포트", href: "/dashboard/ops/support/reports", icon: BarChart3 },
       { label: "공지사항", href: "/dashboard/ops/operations/announcements", icon: Megaphone }

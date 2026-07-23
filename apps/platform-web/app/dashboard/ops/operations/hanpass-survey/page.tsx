@@ -166,22 +166,22 @@ export default function HanpassSurveyPage() {
             같은 전화번호로 다시 응답하면 기존 응답이 갱신됩니다(1인 1행, 최초 응답 시각 유지).
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
-            <div style={{ padding: "12px 14px", border: "1px solid #eef0f3", borderRadius: 10, background: "#fcfcfd" }}>
+            <div style={{ padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 10, background: "var(--surface-2)" }}>
               <div className="ops-row-sub" style={{ marginBottom: 4 }}>전체 응답</div>
               <div className="ops-row-strong" style={{ fontSize: 20 }}>{data.summary.total.toLocaleString()}명</div>
             </div>
-            <div style={{ padding: "12px 14px", border: "1px solid #d8e2ff", borderRadius: 10, background: "#f5f8ff" }}>
+            <div style={{ padding: "12px 14px", border: "1px solid var(--accent-soft)", borderRadius: 10, background: "var(--accent-soft)" }}>
               <div className="ops-row-sub" style={{ marginBottom: 4 }}>첨삭·컨설팅 신청</div>
-              <div className="ops-row-strong" style={{ fontSize: 20, color: "#1d4ed8" }}>
+              <div className="ops-row-strong" style={{ fontSize: 20, color: "var(--accent-ink)" }}>
                 {data.summary.applicants.toLocaleString()}명
               </div>
               <div className="ops-row-sub" style={{ marginTop: 4, fontSize: 11 }}>상단 10명이 우선 대상</div>
             </div>
-            <div style={{ padding: "12px 14px", border: "1px solid #eef0f3", borderRadius: 10, background: "#fcfcfd" }}>
+            <div style={{ padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 10, background: "var(--surface-2)" }}>
               <div className="ops-row-sub" style={{ marginBottom: 4 }}>정보만 희망</div>
               <div className="ops-row-strong" style={{ fontSize: 20 }}>{data.summary.infoOnly.toLocaleString()}명</div>
             </div>
-            <div style={{ padding: "12px 14px", border: "1px solid #eef0f3", borderRadius: 10, background: "#fcfcfd" }}>
+            <div style={{ padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 10, background: "var(--surface-2)" }}>
               <div className="ops-row-sub" style={{ marginBottom: 4 }}>미정</div>
               <div className="ops-row-strong" style={{ fontSize: 20 }}>{data.summary.unsure.toLocaleString()}명</div>
             </div>
@@ -286,10 +286,10 @@ export default function HanpassSurveyPage() {
                       <td className="ops-row-sub">{r.rank}</td>
                       <td className="ops-row-strong">{r.name}</td>
                       <td className="ops-row-sub">
-                        <a href={`tel:${r.phone.replace(/[^+\d]/g, "")}`} style={{ color: "#1d4ed8" }}>{r.phone}</a>
+                        <a href={`tel:${r.phone.replace(/[^+\d]/g, "")}`} style={{ color: "var(--accent-ink)" }}>{r.phone}</a>
                       </td>
                       <td className="ops-row-sub">
-                        <a href={`mailto:${r.email}`} style={{ color: "#1d4ed8" }}>{r.email}</a>
+                        <a href={`mailto:${r.email}`} style={{ color: "var(--accent-ink)" }}>{r.email}</a>
                       </td>
                       <td>{label(JOB_INTENT_LABEL, r.jobIntent)}</td>
                       <td>{label(AVAILABLE_FROM_LABEL, r.availableFrom)}</td>

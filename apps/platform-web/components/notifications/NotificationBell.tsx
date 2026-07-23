@@ -57,8 +57,10 @@ export function NotificationBell() {
     const width = Math.min(360, window.innerWidth - right - margin);
     setMenuStyle({ top: rect ? Math.round(rect.bottom + 8) : 64, right, width });
     setOpen(true);
+    void load(); // 열 때 전체 목록을 최신으로 불러온다.
   }
 
+  // 전체 목록 로드 — 드롭다운을 열 때만. (폴링은 아래 경량 카운트만.)
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -77,13 +79,53 @@ export function NotificationBell() {
     }
   }, []);
 
+  // 뱃지용 경량 미읽음 카운트 — 목록 없이 count 만.
+  const loadCount = useCallback(async () => {
+    try {
+      const response = await fetch(`${apiBase()}/members/me/notifications/unread-count`, {
+        headers: authHeaders(),
+        cache: "no-store"
+      });
+      if (!response.ok) return;
+      const payload = (await response.json()) as { unreadCount?: number };
+      setUnreadCount(payload.unreadCount ?? 0);
+    } catch {
+      // silent
+    }
+  }, []);
+
+  // 탭이 보일 때만 60초 폴링(카운트). 백그라운드 탭에선 멈추고, 복귀/포커스 시 즉시 갱신.
   useEffect(() => {
-    void load();
-    const interval = setInterval(() => {
-      void load();
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [load]);
+    void loadCount();
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const startPolling = () => {
+      if (interval) return;
+      interval = setInterval(() => void loadCount(), 60000);
+    };
+    const stopPolling = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void loadCount();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+    const onFocus = () => void loadCount();
+    if (document.visibilityState === "visible") startPolling();
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [loadCount]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {

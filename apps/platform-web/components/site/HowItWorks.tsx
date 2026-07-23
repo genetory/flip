@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, UserPlus, Sparkles, Activity } from "lucide-react";
+import { Plus, UserPlus, Sparkle as Sparkles, Pulse as Activity } from "@phosphor-icons/react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { Reveal } from "./Reveal";

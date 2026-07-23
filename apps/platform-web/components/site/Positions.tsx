@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "../ui/button";
-import { MapPin, Briefcase, Bookmark } from "lucide-react";
+import { MapPin, Briefcase, Bookmark } from "@phosphor-icons/react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
 import { getPublicPositionsPage, type PublicPositionListItem } from "../../lib/member-profile-client";

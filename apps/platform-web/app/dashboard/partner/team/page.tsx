@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Copy, Check } from "@phosphor-icons/react";
 import { readAccessToken } from "../../../../lib/auth-client";
 
 type Member = {
@@ -50,6 +51,7 @@ export default function PartnerTeamPage() {
   const [error, setError] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState<JoinCode | null>(null);
   const [generatingCode, setGeneratingCode] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [myOrgRole, setMyOrgRole] = useState<"OWNER" | "ADMIN" | "MEMBER" | null>(null);
@@ -160,9 +162,24 @@ export default function PartnerTeamPage() {
           {joinCode ? (
             <div className="ops-soft-card" style={{ marginTop: 12 }}>
               <p className="ops-form-label">초대 코드</p>
-              <p style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 20, fontWeight: 700, color: "#111827", margin: "4px 0 0" }}>
-                {joinCode.code}
-              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0 0" }}>
+                <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 20, fontWeight: 700, color: "var(--ink)", letterSpacing: "0.04em" }}>
+                  {joinCode.code}
+                </span>
+                <button
+                  type="button"
+                  className="ops-btn"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(joinCode.code).then(() => {
+                      setCopied(true);
+                      window.setTimeout(() => setCopied(false), 1500);
+                    });
+                  }}
+                >
+                  {copied ? <Check size={13} weight="bold" aria-hidden /> : <Copy size={13} weight="bold" aria-hidden />}
+                  {copied ? "복사됨" : "복사"}
+                </button>
+              </div>
               <p className="ops-card-subtle" style={{ marginTop: 4 }}>
                 만료: {formatDateTime(joinCode.expiresAt)} · 새 사용자가 회원가입 시 이 코드를 입력하면 회사에 자동 합류됩니다.
               </p>

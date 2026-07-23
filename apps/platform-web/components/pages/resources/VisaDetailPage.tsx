@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { CaretLeft as ChevronLeft } from "@phosphor-icons/react";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { ResourceSubPageLayout } from "./ResourceSubPageLayout";
 import { getFlatVisaItems } from "./VisaResourcesPage";

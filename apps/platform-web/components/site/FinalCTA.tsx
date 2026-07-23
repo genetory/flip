@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "../ui/button";
-import { Building2, GraduationCap } from "lucide-react";
+import { Buildings as Building2, GraduationCap } from "@phosphor-icons/react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { getSiteMessages } from "../../lib/site-messages";

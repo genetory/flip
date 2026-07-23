@@ -10,6 +10,9 @@ type LayoutInput = {
   previewText: string;
   title: string;
   bodyHtml: string;
+  // 헤더 우측 뱃지·푸터 안내 문구(생략 시 인증 메일 기본값). 알림 메일 등에서 맞춤 문구 사용.
+  headerLabel?: string;
+  footerNote?: string;
 };
 
 function escapeHtml(text: string) {
@@ -21,11 +24,13 @@ function escapeHtml(text: string) {
     .replace(/'/g, "&#39;");
 }
 
-function renderFooter(locale: EmailLocale) {
+function renderFooter(locale: EmailLocale, footerNote?: string) {
+  const koNote = footerNote ?? "본 메일은 회원가입 인증 목적으로 발송되는 트랜잭션 메일입니다. 광고/마케팅 정보는 포함되어 있지 않습니다.";
+  const enNote = footerNote ?? "This is a transactional email sent for account verification only. No marketing content is included.";
   if (locale === "ko") {
     return `
       <p style="margin:0 0 6px;font-size:12px;color:#6b7280;line-height:1.6;">
-        본 메일은 회원가입 인증 목적으로 발송되는 트랜잭션 메일입니다. 광고/마케팅 정보는 포함되어 있지 않습니다.
+        ${escapeHtml(koNote)}
       </p>
       <p style="margin:0 0 12px;font-size:12px;color:#6b7280;line-height:1.6;">
         문의: <a href="mailto:${supportEmail}" style="color:#6b7280;text-decoration:underline;">${supportEmail}</a>
@@ -40,7 +45,7 @@ function renderFooter(locale: EmailLocale) {
   }
   return `
     <p style="margin:0 0 6px;font-size:12px;color:#6b7280;line-height:1.6;">
-      This is a transactional email sent for account verification only. No marketing content is included.
+      ${escapeHtml(enNote)}
     </p>
     <p style="margin:0 0 12px;font-size:12px;color:#6b7280;line-height:1.6;">
       Support: <a href="mailto:${supportEmail}" style="color:#6b7280;text-decoration:underline;">${supportEmail}</a>
@@ -54,7 +59,7 @@ function renderFooter(locale: EmailLocale) {
   `;
 }
 
-export function renderEmailLayout({ locale, previewText, title, bodyHtml }: LayoutInput): string {
+export function renderEmailLayout({ locale, previewText, title, bodyHtml, headerLabel, footerNote }: LayoutInput): string {
   const lang = locale === "ko" ? "ko" : "en";
   const safePreview = escapeHtml(previewText);
   const safeTitle = escapeHtml(title);
@@ -86,7 +91,7 @@ export function renderEmailLayout({ locale, previewText, title, bodyHtml }: Layo
                   </a>
                 </td>
                 <td align="right" style="font-size:12px;color:#9ca3af;">
-                  ${locale === "ko" ? "인증 메일" : "Account verification"}
+                  ${escapeHtml(headerLabel ?? (locale === "ko" ? "인증 메일" : "Account verification"))}
                 </td>
               </tr>
             </table>
@@ -101,7 +106,7 @@ export function renderEmailLayout({ locale, previewText, title, bodyHtml }: Layo
         <!-- Footer -->
         <tr>
           <td style="padding:20px 32px;background-color:#FAFAFA;border-top:1px solid #E5E7EB;">
-            ${renderFooter(locale)}
+            ${renderFooter(locale, footerNote)}
           </td>
         </tr>
       </table>

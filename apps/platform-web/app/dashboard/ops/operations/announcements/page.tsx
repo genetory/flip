@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { LinkSimple } from "@phosphor-icons/react";
 import { readAccessToken } from "../../../../../lib/auth-client";
 
 type Severity = "INFO" | "SUCCESS" | "WARNING" | "CRITICAL";
@@ -295,11 +296,11 @@ export default function AnnouncementsPage() {
                       <span className="ops-pill ops-pill-gray">{AUDIENCE_KO[it.audience]}</span>
                       {it.active ? <span className="ops-pill ops-pill-green">활성</span> : <span className="ops-pill ops-pill-gray">비활성</span>}
                     </div>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>{it.title}</p>
-                    <p style={{ fontSize: 13, color: "#374151", whiteSpace: "pre-wrap", margin: "4px 0 0" }}>{it.body}</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)", margin: 0 }}>{it.title}</p>
+                    <p style={{ fontSize: 13, color: "var(--ink-soft)", whiteSpace: "pre-wrap", margin: "4px 0 0" }}>{it.body}</p>
                     {it.linkPath ? (
-                      <p className="ops-card-subtle" style={{ marginTop: 6 }}>
-                        🔗 {it.linkPath}
+                      <p className="ops-card-subtle" style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <LinkSimple size={13} weight="bold" aria-hidden /> {it.linkPath}
                       </p>
                     ) : null}
                     <p className="ops-card-subtle" style={{ marginTop: 4 }}>

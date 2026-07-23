@@ -67,6 +67,8 @@ type PositionForm = {
 };
 
 const POSITION_STATUS_OPTIONS: PositionStatus[] = ["OPEN", "PAUSED", "CLOSED"];
+// 필터 칩 순서(운영/지원자 목록과 동일한 카운트 칩 UX)
+const STATUS_FILTER_ORDER: PositionStatus[] = ["OPEN", "PENDING_REVIEW", "DRAFT", "PAUSED", "CLOSED", "REJECTED"];
 
 function readCookie(key: string) {
   if (typeof document === "undefined") return "";
@@ -332,6 +334,13 @@ export default function PartnerPositionsPage() {
     return next;
   }, [items, search, sortField, sortOrder, statusFilter]);
 
+  // 상태별 개수 — 필터 칩에 표시(전체 items 기준, 필터와 무관)
+  const statusCounts = useMemo(() => {
+    const c: Partial<Record<PositionStatus, number>> = {};
+    for (const it of items) c[it.status] = (c[it.status] ?? 0) + 1;
+    return c;
+  }, [items]);
+
   const setSort = (field: SortField) => {
     if (sortField === field) {
       setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -344,6 +353,11 @@ export default function PartnerPositionsPage() {
   const updateStatus = async (id: string, status: PositionStatus) => {
     const token = readCookie(TOKEN_COOKIE_KEY);
     if (!token) return;
+
+    // 마감은 지원자가 더 이상 지원할 수 없는 되돌리기 어려운 조치 — 확인을 받는다.
+    if (status === "CLOSED" && !window.confirm("이 포지션을 마감하시겠습니까? 마감하면 지원자가 더 이상 지원할 수 없습니다.")) {
+      return;
+    }
 
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
     setOpenStatusModalId(null);
@@ -414,35 +428,44 @@ export default function PartnerPositionsPage() {
           </button>
         </div>
 
-        <div className="ops-partner-filters ops-position-filters">
+        <div className="ops-position-filters">
           <input
             className="ops-partner-filter-search"
             placeholder="제목/희망직무 검색"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
+            style={{ flex: 1, minWidth: 240 }}
           />
-          <div className="ops-position-filter-right">
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "ALL" | PositionStatus)}>
-              <option value="ALL">전체 상태</option>
-              <option value="DRAFT">임시저장</option>
-              <option value="PENDING_REVIEW">승인대기</option>
-              <option value="OPEN">모집중</option>
-              <option value="PAUSED">일시중지</option>
-              <option value="CLOSED">마감</option>
-              <option value="REJECTED">반려</option>
-            </select>
-          </div>
+        </div>
+        {/* 상태 필터 — 각 상태별 개수를 한눈에(다른 목록과 동일한 카운트 칩) */}
+        <div className="ops-filter-chip-row" role="tablist" aria-label="상태 필터">
+          <button
+            type="button"
+            className={`ops-filter-chip ${statusFilter === "ALL" ? "is-active" : ""}`}
+            onClick={() => setStatusFilter("ALL")}
+          >
+            전체 <span className="ops-filter-chip-count">{items.length}</span>
+          </button>
+          {STATUS_FILTER_ORDER.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={`ops-filter-chip ${statusFilter === s ? "is-active" : ""}`}
+              onClick={() => setStatusFilter(s)}
+            >
+              {statusLabel(s)} <span className="ops-filter-chip-count">{statusCounts[s] ?? 0}</span>
+            </button>
+          ))}
         </div>
 
         <div className="ops-partner-table-wrap ops-position-list-table-wrap">
           <table className="ops-partner-table ops-position-list-table">
             <colgroup>
-              <col style={{ width: "19%" }} />
-              <col style={{ width: "9%" }} />
-              <col style={{ width: "14%" }} />
-              <col style={{ width: "23%" }} />
+              <col style={{ width: "24%" }} />
               <col style={{ width: "11%" }} />
+              <col style={{ width: "28%" }} />
               <col style={{ width: "12%" }} />
+              <col style={{ width: "13%" }} />
               <col style={{ width: "12%" }} />
             </colgroup>
             <thead>
@@ -457,7 +480,6 @@ export default function PartnerPositionsPage() {
                     상태
                   </button>
                 </th>
-                <th>파트너사</th>
                 <th>희망 직무</th>
                 <th>
                   <button type="button" className="ops-th-sort" onClick={() => setSort("hiringCount")}>
@@ -474,11 +496,11 @@ export default function PartnerPositionsPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="ops-table-empty">불러오는 중...</td></tr>
+                <tr><td colSpan={6} className="ops-table-empty">불러오는 중...</td></tr>
               ) : error ? (
-                <tr><td colSpan={7} className="ops-table-empty">{error}</td></tr>
+                <tr><td colSpan={6} className="ops-table-empty">{error}</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="ops-table-empty">등록된 포지션이 없습니다.</td></tr>
+                <tr><td colSpan={6} className="ops-table-empty">등록된 포지션이 없습니다.</td></tr>
               ) : (
                 filtered.map((item) => (
                   <tr key={item.id} className="ops-clickable-row" onClick={() => openEdit(item.id)}>
@@ -494,7 +516,6 @@ export default function PartnerPositionsPage() {
                         </button>
                       </div>
                     </td>
-                    <td><span className="ops-cell-clamp-3">내 회사</span></td>
                     <td><span className="ops-cell-clamp-3">{item.preferredJobRole ?? "-"}</span></td>
                     <td><span className="ops-cell-clamp-3">{item.hiringCount ? `${item.hiringCount}명` : "-"}</span></td>
                     <td><span className="ops-cell-clamp-3">{new Date(item.createdAt).toLocaleDateString("ko-KR")}</span></td>
@@ -522,7 +543,7 @@ export default function PartnerPositionsPage() {
         >
           <div className="ops-modal-panel ops-status-change-modal" onClick={(event) => event.stopPropagation()}>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>상태 변경</h3>
-            <p style={{ margin: "8px 0 0", color: "#6b7280", fontSize: 13 }}>변경할 상태를 선택하세요.</p>
+            <p style={{ margin: "8px 0 0", color: "var(--ink-faint)", fontSize: 13 }}>변경할 상태를 선택하세요.</p>
             <div className="ops-status-change-grid" style={{ marginTop: 14 }}>
               {POSITION_STATUS_OPTIONS.map((status) => {
                 const current = items.find((item) => item.id === openStatusModalId)?.status;
