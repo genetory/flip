@@ -117,9 +117,9 @@ export function ResumeMakerShell({
   if (!isReady) return <FullState label={t.loading} />;
   if (!isAuthenticated) return <FullState label={t.redirectingToLogin} />;
 
-  // 이력서 API 는 STUDENT(구직 회원) 전용이라, 다른 역할은 클릭 후 403 을 맞기 전에
-  // 미리 안내한다.
-  if (user && user.role !== "STUDENT") {
+  // 이력서 API 는 STUDENT(구직 회원)용이지만, 운영자(OPERATOR)는 학생 기능까지 모두
+  // 사용할 수 있는 슈퍼유저이므로 허용한다. 그 외 역할(파트너 등)만 안내 화면을 띄운다.
+  if (user && user.role !== "STUDENT" && user.role !== "OPERATOR") {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center font-sans">
         <p className={`${paperlogy.className} text-xl font-black text-[#0B1227]`}>{t.studentOnlyTitle}</p>

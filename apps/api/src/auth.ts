@@ -1,4 +1,5 @@
-import type { MemberRole, PartnerType } from "@prisma/client";
+import { MemberRole } from "@prisma/client";
+import type { PartnerType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { createHash } from "crypto";
 import jwt from "jsonwebtoken";
@@ -80,6 +81,11 @@ export function requireRoles(allowed: MemberRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.auth) {
       return res.status(401).json({ ok: false, message: "authentication required" });
+    }
+    // 운영자(OPERATOR)는 학생·파트너가 할 수 있는 모든 기능에 접근 가능한 슈퍼유저로 취급한다.
+    // (역할별 requireRoles 게이트를 항상 통과 — 개별 라우트에 OPERATOR 를 일일이 추가하지 않아도 됨.)
+    if (req.auth.role === MemberRole.OPERATOR) {
+      return next();
     }
     if (!allowed.includes(req.auth.role)) {
       return res.status(403).json({ ok: false, message: "forbidden" });
