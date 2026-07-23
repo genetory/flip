@@ -24117,6 +24117,18 @@ app.get(
   }
 );
 
+// 경량 미읽음 카운트 — 뱃지 폴링용(목록 없이 count 만). 백그라운드 폴링 부하를 줄인다.
+app.get("/members/me/notifications/unread-count", authenticate, async (req, res) => {
+  try {
+    const unreadCount = await prisma.notification.count({
+      where: { userId: req.auth!.userId, readAt: null }
+    });
+    return res.json({ ok: true, unreadCount });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.patch(
   "/members/me/notifications/:id/read",
   authenticate,
