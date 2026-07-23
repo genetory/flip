@@ -34,6 +34,7 @@ import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import type { ApplicationStatus } from "../../lib/status-labels";
 import { SelectInterviewSlotModal } from "../interviews/SelectInterviewSlotModal";
+import { ApplicationMessagesModal } from "../applications/ApplicationMessagesModal";
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import type { PlatformLocale } from "../../lib/auth-messages";
 import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
@@ -182,6 +183,7 @@ export function ProfilePage() {
   };
   const [applications, setApplications] = useState<MyApplication[]>([]);
   const [interviewTarget, setInterviewTarget] = useState<MyApplication | null>(null);
+  const [messageTarget, setMessageTarget] = useState<MyApplication | null>(null);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [applyDocsTarget, setApplyDocsTarget] = useState<string | null>(null);
   const [applyingDocs, setApplyingDocs] = useState(false);
@@ -1594,16 +1596,28 @@ export function ProfilePage() {
                                             </span>
                                           ) : null}
                                         </span>
-                                        {canWithdraw ? (
-                                          <button
-                                            type="button"
-                                            onClick={() => void handleWithdraw(app)}
-                                            disabled={withdrawingId === app.id}
-                                            className="text-[11px] font-semibold text-muted-foreground transition hover:text-rose-600 hover:underline disabled:opacity-50"
-                                          >
-                                            {tr("지원 철회", "Withdraw", "撤回申请", "Rút đơn", "応募取り下げ", "Tarik lamaran")}
-                                          </button>
-                                        ) : null}
+                                        <div className="flex shrink-0 items-center gap-3">
+                                          {/* 회사에 문의(쪽지) — 철회된 지원은 제외하고 상시 제공. */}
+                                          {app.status !== "WITHDRAWN" ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => setMessageTarget(app)}
+                                              className="text-[11px] font-semibold text-[#0B46E8] transition hover:underline"
+                                            >
+                                              {tr("회사에 문의", "Message company", "联系公司", "Nhắn công ty", "会社に問い合わせ", "Hubungi perusahaan")}
+                                            </button>
+                                          ) : null}
+                                          {canWithdraw ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => void handleWithdraw(app)}
+                                              disabled={withdrawingId === app.id}
+                                              className="text-[11px] font-semibold text-muted-foreground transition hover:text-rose-600 hover:underline disabled:opacity-50"
+                                            >
+                                              {tr("지원 철회", "Withdraw", "撤回申请", "Rút đơn", "応募取り下げ", "Tarik lamaran")}
+                                            </button>
+                                          ) : null}
+                                        </div>
                                       </div>
                                     ) : null}
                                     <PositionRow
@@ -1689,6 +1703,13 @@ export function ProfilePage() {
           // 슬롯 선택 즉시 카드가 '면접 확정'으로 바뀌도록 지원 목록을 새로고침.
           void getMyApplications().then(setApplications).catch(() => {});
         }}
+      />
+      <ApplicationMessagesModal
+        open={messageTarget !== null}
+        applicationId={messageTarget?.id}
+        positionTitle={messageTarget?.positionTitle}
+        companyName={messageTarget?.partnerOrganizationName}
+        onClose={() => setMessageTarget(null)}
       />
     </div>
   );
