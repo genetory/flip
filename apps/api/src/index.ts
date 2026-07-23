@@ -11633,6 +11633,10 @@ app.get("/auth/kakao/start", (req, res) => {
   authorizeUrl.searchParams.set("redirect_uri", kakaoOAuthRedirectUri);
   authorizeUrl.searchParams.set("state", state);
   authorizeUrl.searchParams.set("prompt", "login");
+  // 이메일을 실제로 받아오려면 카카오 스코프(account_email)를 명시해야 한다.
+  // (지금까진 scope 자체가 없어 카카오가 이메일을 안 넘겨줬고, 옛 코드가 @noemail.local 로 대체됐음.)
+  // 전제: 카카오 개발자 콘솔의 '카카오계정(이메일)' 동의항목이 활성화·검수되어 있어야 함.
+  authorizeUrl.searchParams.set("scope", "account_email,profile_nickname");
   return res.redirect(authorizeUrl.toString());
 });
 
