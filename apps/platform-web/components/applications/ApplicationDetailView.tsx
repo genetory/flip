@@ -18,6 +18,8 @@ export type ApplicationDetail = {
   memo: string | null;
   submittedAt: string;
   updatedAt: string;
+  // 연락처 공개 여부 — 파트너는 면접 요청(슬롯 제안) 후에만 지원자 이메일·전화를 볼 수 있다.
+  contactUnlocked?: boolean;
   // 지원에 연결된 대표 이력서(resume-maker). 없으면 null.
   resume?: { id: string; title: string; shareSlug: string } | null;
   // 제출 시점 스냅샷(제출본 보존). 있으면 스냅샷을 보여주고, 없으면(과거 지원건) resume 라이브 링크로 폴백.
@@ -26,7 +28,7 @@ export type ApplicationDetail = {
   candidateUser: {
     id: string;
     name: string | null;
-    email: string;
+    email: string | null;
     phoneNumber: string | null;
     nationality: string | null;
     affiliation: string | null;
@@ -365,8 +367,14 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
               {data.position.partnerOrganization?.name ?? "-"} · {data.position.title}
             </p>
             <p className="ops-card-subtle" style={{ marginTop: 2 }}>
-              {data.candidateUser.email}
-              {data.candidateUser.phoneNumber ? ` · ${data.candidateUser.phoneNumber}` : ""}
+              {data.candidateUser.email ? (
+                <>
+                  {data.candidateUser.email}
+                  {data.candidateUser.phoneNumber ? ` · ${data.candidateUser.phoneNumber}` : ""}
+                </>
+              ) : (
+                <span style={{ color: "#f59e0b", fontWeight: 600 }}>🔒 연락처는 면접을 요청하면 공개됩니다</span>
+              )}
               {data.candidateUser.nationality ? ` · ${data.candidateUser.nationality}` : ""}
             </p>
             <p className="ops-card-subtle" style={{ marginTop: 2 }}>

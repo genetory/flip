@@ -1152,6 +1152,8 @@ async function sendNotificationEmail(input: {
   contextLine?: string | null;
   bodyText: string;
   memo?: string | null;
+  // 상대방(지원자/회사) 정보 블록 — 라벨:값 목록으로 렌더. 누가 보냈는지·어떤 지원인지 명확히.
+  infoRows?: { label: string; value: string }[];
   ctaLabel: string;
   ctaPath: string;
   footerNote: string;
@@ -1184,10 +1186,20 @@ async function sendNotificationEmail(input: {
   const memoHtml = input.memo
     ? `<div style="margin-top:16px;padding:14px 16px;background:#f7f8fa;border-radius:12px;font-size:13.5px;color:#4e5968;line-height:1.6;">${esc(input.memo)}</div>`
     : "";
+  const infoRows = (input.infoRows ?? []).filter((r) => r.value && r.value.trim());
+  const infoHtml = infoRows.length
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:16px;width:100%;background:#f7f8fa;border-radius:12px;"><tbody>${infoRows
+        .map(
+          (r) =>
+            `<tr><td style="padding:7px 16px;font-size:12.5px;color:#8b95a1;white-space:nowrap;vertical-align:top;">${esc(r.label)}</td><td style="padding:7px 16px;font-size:13px;color:#191f28;font-weight:600;">${esc(r.value)}</td></tr>`
+        )
+        .join("")}</tbody></table>`
+    : "";
   const bodyHtml = `
     ${input.contextLine ? `<p style="margin:0 0 8px;font-size:13px;color:#8b95a1;">${esc(input.contextLine)}</p>` : ""}
     <p style="margin:0 0 12px;font-size:16px;font-weight:800;color:#191f28;">${esc(input.headline)}</p>
     <p style="margin:0;font-size:14.5px;color:#4e5968;line-height:1.6;">${esc(input.bodyText)}</p>
+    ${infoHtml}
     ${memoHtml}
     <div style="margin-top:24px;">
       <a href="${ctaUrl}" style="display:inline-block;background:#3182f6;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:12px;">${esc(input.ctaLabel)}</a>
@@ -20566,24 +20578,30 @@ app.get("/partner/applications", authenticate, requireRoles([MemberRole.PARTNER]
       orderBy: { submittedAt: "desc" },
       include: {
         position: { select: { id: true, title: true, status: true } },
-        candidateUser: { select: { id: true, name: true, email: true, nationality: true } }
+        candidateUser: { select: { id: true, name: true, email: true, nationality: true } },
+        interviewSlots: { select: { id: true } }
       }
     });
     return res.json({
       ok: true,
-      items: items.map((a) => ({
-        id: a.id,
-        positionId: a.positionId,
-        positionTitle: a.position.title,
-        candidateUserId: a.candidateUserId,
-        candidateName: a.candidateUser.name,
-        candidateEmail: a.candidateUser.email,
-        candidateNationality: a.candidateUser.nationality,
-        status: a.status,
-        memo: a.memo,
-        submittedAt: a.submittedAt,
-        updatedAt: a.updatedAt
-      }))
+      items: items.map((a) => {
+        // 연락처는 면접 요청(슬롯 제안) 후에만 공개.
+        const contactUnlocked = a.status === "INTERVIEW" || a.status === "ACCEPTED" || a.interviewSlots.length > 0;
+        return {
+          id: a.id,
+          positionId: a.positionId,
+          positionTitle: a.position.title,
+          candidateUserId: a.candidateUserId,
+          candidateName: a.candidateUser.name,
+          candidateEmail: contactUnlocked ? a.candidateUser.email : null,
+          candidateNationality: a.candidateUser.nationality,
+          contactUnlocked,
+          status: a.status,
+          memo: a.memo,
+          submittedAt: a.submittedAt,
+          updatedAt: a.updatedAt
+        };
+      })
     });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -20794,7 +20812,16 @@ app.get("/partner/applications/:id", authenticate, requireRoles([MemberRole.PART
       }
     });
     const resume = await resolveApplicationResumeBrief(application.resume, application.candidateUserId);
-    return res.json({ ok: true, item: { ...application, resume, issues } });
+    // 개인정보 보호 — 회사(파트너)는 면접을 요청(슬롯 제안)했거나 면접/합격 단계에 이르러야
+    // 지원자의 직접 연락처(이메일·전화)를 볼 수 있다. 그전엔 마스킹하고 플랫폼 메시지로만 소통.
+    const contactUnlocked =
+      application.status === "INTERVIEW" ||
+      application.status === "ACCEPTED" ||
+      (application.interviewSlots?.length ?? 0) > 0;
+    const safeCandidate = contactUnlocked
+      ? application.candidateUser
+      : { ...application.candidateUser, email: null, phoneNumber: null };
+    return res.json({ ok: true, item: { ...application, candidateUser: safeCandidate, contactUnlocked, resume, issues } });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -21367,7 +21394,12 @@ app.post(
             title: "지원자 메시지",
             headline: "지원자가 메시지를 남겼어요",
             contextLine: fullApp?.position.title ?? null,
-            bodyText: `${authorName || "지원자"}님이 메시지를 남겼습니다.`,
+            bodyText: `${authorName || "지원자"}님이 메시지를 남겼습니다. 답장은 Aply 지원자 상세에서 남겨주세요.`,
+            // 개인정보 보호 — 지원자 직접 연락처는 담지 않는다(이름·포지션만).
+            infoRows: [
+              { label: "지원자", value: authorName || "지원자" },
+              { label: "지원 포지션", value: fullApp?.position.title ?? "" }
+            ],
             memo: parsed.data.content,
             ctaLabel: "메시지 확인하기",
             ctaPath: `/dashboard/partner/applicants/${applicationId}`,
@@ -21395,6 +21427,10 @@ app.post(
             headline: "회사가 메시지를 남겼어요",
             contextLine: info ? `${info.position.partnerOrganization?.name ? `${info.position.partnerOrganization.name} · ` : ""}${info.position.title}` : null,
             bodyText: "지원한 포지션의 회사가 메시지를 남겼습니다.",
+            infoRows: [
+              { label: "회사", value: info?.position.partnerOrganization?.name ?? "" },
+              { label: "지원 포지션", value: info?.position.title ?? "" }
+            ],
             memo: parsed.data.content,
             ctaLabel: "메시지 확인하기",
             ctaPath: "/profile?tab=applied",
