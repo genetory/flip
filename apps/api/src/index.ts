@@ -3333,6 +3333,21 @@ function fromCommunityPostCategory(category: CommunityPostCategory): CommunityCa
   return "free";
 }
 
+// 연락 가능한 실제 이메일인지 — 빈 값이나 예전 가짜 도메인(@noemail.local)은 도달 불가로 본다.
+function isReachableEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const e = email.trim().toLowerCase();
+  if (!e) return false;
+  if (e.endsWith("@noemail.local")) return false;
+  return true;
+}
+
+// "우리가 연락할 수 있는가" — 이메일이 인증됐고(emailVerified) 실제 도달 가능한 주소여야 true.
+// 소셜 수동 입력·미검증 이메일, 예전 가짜 주소 사용자는 false 로 걸러 소프트 게이트 대상이 된다.
+function isContactVerified(user: { email: string | null; emailVerified: boolean }): boolean {
+  return Boolean(user.emailVerified) && isReachableEmail(user.email);
+}
+
 function toSafeUser(user: {
   id: string;
   email: string;
@@ -3358,6 +3373,8 @@ function toSafeUser(user: {
     id: user.id,
     email: user.email,
     emailVerified: user.emailVerified,
+    // 프론트가 "연락처 인증 배너/게이트"를 띄울 판단 근거 — 인증됐고 실제 도달 가능한 이메일이면 true.
+    contactVerified: isContactVerified(user),
     realName: user.realName ?? null,
     name: user.name,
     phoneNumber: user.phoneNumber,
@@ -11223,6 +11240,35 @@ app.get("/auth/naver/callback", async (req, res) => {
   }
 });
 
+// 소셜 가입 마무리 공통 처리. 소프트 게이트 정책이므로 이메일 미검증이어도 토큰을 발급해
+// 로그인은 시키되, 도달 가능한 검증 이메일이 없으면 인증 메일을 보내고 프론트에
+// requiresEmailVerification=true 를 돌려줘 배너/게이트로 유도한다.
+async function finishSocialSignup(
+  req: express.Request,
+  res: express.Response,
+  user: Parameters<typeof toSafeUser>[0] & Parameters<typeof issueAuthTokens>[0]
+) {
+  const { accessToken, refreshToken } = await issueAuthTokens(user);
+  setRefreshTokenCookie(res, refreshToken);
+  const needsVerification = !isContactVerified(user);
+  if (needsVerification && user.email) {
+    try {
+      const { token } = await createEmailVerificationToken(user.id);
+      const locale = resolveEmailLocale(req, undefined);
+      await sendVerificationEmail(user.email, token, locale);
+    } catch (err) {
+      console.error("[social-signup] verification email send failed", err);
+    }
+  }
+  return res.json({
+    ok: true,
+    token: accessToken,
+    accessToken,
+    requiresEmailVerification: needsVerification,
+    user: toSafeUser(user)
+  });
+}
+
 const naverFinalizeSchema = z.object({
   ctx: z.string().min(10).max(4000),
   accountType: z.enum(["GENERAL", "BUSINESS"]),
@@ -11281,13 +11327,17 @@ app.post("/auth/naver/finalize", async (req, res) => {
   if (!finalEmail) {
     return sendAuthError(res, 400, "EMAIL_REQUIRED", "email required");
   }
+  // 이메일 검증 — 네이버는 가입 시 이메일을 인증하므로 provider 가 준 이메일(ctxEmail)은 신뢰한다.
+  // 반면 provider 가 이메일을 안 줘서 화면에서 손으로 입력한 값은 도달 여부를 알 수 없으므로
+  // 미검증으로 두고 인증 메일을 보낸다(finishSocialSignup).
+  const emailFromProvider = Boolean(ctxEmail);
   // 실명 — 네이버는 실명을 주므로 입력이 없으면 그 값을 쓴다.
   const finalRealName = parsed.data.realName?.trim() || ctxName?.trim() || null;
 
   const created = await prisma.user.create({
     data: {
       email: finalEmail,
-      emailVerified: true,
+      emailVerified: emailFromProvider,
       name: ctxName?.trim() || generateNicknameFromEmail(finalEmail),
       realName: finalRealName,
       phoneNumber: ctxMobile,
@@ -11310,15 +11360,7 @@ app.post("/auth/naver/finalize", async (req, res) => {
     createdAt: created.createdAt
   }).catch((err) => console.error("[naver-oauth] discord signup notify failed", err));
 
-  const { accessToken, refreshToken } = await issueAuthTokens(created);
-  setRefreshTokenCookie(res, refreshToken);
-
-  return res.json({
-    ok: true,
-    token: accessToken,
-    accessToken,
-    user: toSafeUser(created)
-  });
+  return finishSocialSignup(req, res, created);
 });
 
 // ---------- Google OAuth ----------
@@ -11540,14 +11582,18 @@ app.post("/auth/google/finalize", async (req, res) => {
   if (!finalEmail) {
     return sendAuthError(res, 400, "EMAIL_REQUIRED", "email required");
   }
+  // 이메일 검증 — 구글이 email_verified=true 로 준 이메일만 신뢰한다(ctxEmailVerified).
+  // provider 미검증이거나 화면에서 손으로 입력한 이메일은 미검증으로 두고 인증 메일을 보낸다.
+  const emailVerifiedByProvider = Boolean(ctxEmail) && ctxEmailVerified;
   // 실명 — 카카오는 닉네임, 구글은 표시이름이라 실명으로 신뢰할 수 없다 — 입력값만 쓴다.
   const finalRealName = parsed.data.realName?.trim() || null;
 
   const created = await prisma.user.create({
     data: {
       email: finalEmail,
-      emailVerified: true,
+      emailVerified: emailVerifiedByProvider,
       name: ctxName?.trim() || generateNicknameFromEmail(ctxEmail),
+      realName: finalRealName,
       authProvider: AuthProvider.GOOGLE,
       providerId,
       passwordHash: null,
@@ -11567,15 +11613,7 @@ app.post("/auth/google/finalize", async (req, res) => {
     createdAt: created.createdAt
   }).catch((err) => console.error("[google-oauth] discord signup notify failed", err));
 
-  const { accessToken, refreshToken } = await issueAuthTokens(created);
-  setRefreshTokenCookie(res, refreshToken);
-
-  return res.json({
-    ok: true,
-    token: accessToken,
-    accessToken,
-    user: toSafeUser(created)
-  });
+  return finishSocialSignup(req, res, created);
 });
 
 // ---------- Kakao OAuth ----------
@@ -11796,14 +11834,18 @@ app.post("/auth/kakao/finalize", async (req, res) => {
   if (!finalEmail) {
     return sendAuthError(res, 400, "EMAIL_REQUIRED", "email required");
   }
+  // 이메일 검증 — 카카오가 is_email_verified=true 로 준 이메일만 신뢰한다(ctxEmailVerified).
+  // provider 미검증이거나 화면에서 손으로 입력한 이메일은 미검증으로 두고 인증 메일을 보낸다.
+  const emailVerifiedByProvider = Boolean(ctxEmail) && ctxEmailVerified;
   // 실명 — 카카오는 닉네임, 구글은 표시이름이라 실명으로 신뢰할 수 없다 — 입력값만 쓴다.
   const finalRealName = parsed.data.realName?.trim() || null;
 
   const created = await prisma.user.create({
     data: {
       email: finalEmail,
-      emailVerified: true,
+      emailVerified: emailVerifiedByProvider,
       name: ctxName?.trim() || generateNicknameFromEmail(ctxEmail),
+      realName: finalRealName,
       authProvider: AuthProvider.KAKAO,
       providerId,
       passwordHash: null,
@@ -11823,15 +11865,7 @@ app.post("/auth/kakao/finalize", async (req, res) => {
     createdAt: created.createdAt
   }).catch((err) => console.error("[kakao-oauth] discord signup notify failed", err));
 
-  const { accessToken, refreshToken } = await issueAuthTokens(created);
-  setRefreshTokenCookie(res, refreshToken);
-
-  return res.json({
-    ok: true,
-    token: accessToken,
-    accessToken,
-    user: toSafeUser(created)
-  });
+  return finishSocialSignup(req, res, created);
 });
 
 app.post("/auth/verify-email", async (req, res) => {
@@ -12833,6 +12867,22 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
   if (!position) return res.status(404).json({ ok: false, message: "position not found" });
   if (position.status !== PositionStatus.OPEN) {
     return res.status(400).json({ ok: false, message: "현재 지원 가능한 포지션이 아닙니다." });
+  }
+
+  // 소프트 게이트 — 지원(핵심 액션) 전에 "연락 가능한 이메일 인증"을 요구한다.
+  // 로그인·둘러보기는 막지 않지만, 파트너/운영팀이 지원자에게 연락해야 하므로
+  // 도달 가능한 검증 이메일이 없으면 여기서 막고 인증을 유도한다.
+  const applicant = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, emailVerified: true }
+  });
+  if (!applicant || !isContactVerified(applicant)) {
+    return res.status(403).json({
+      ok: false,
+      code: "EMAIL_VERIFICATION_REQUIRED",
+      email: applicant?.email && isReachableEmail(applicant.email) ? applicant.email : null,
+      message: "지원하려면 연락 가능한 이메일 인증이 필요합니다."
+    });
   }
 
   // 지원 전제조건: 이력서와 자기소개서가 모두 작성되어 있어야 지원 가능.

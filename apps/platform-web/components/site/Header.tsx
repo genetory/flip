@@ -13,6 +13,7 @@ import { getHeaderMessages, PLATFORM_LOCALES, type PlatformLocale } from "../../
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { AnnouncementBanner } from "../announcements/AnnouncementBanner";
+import { ContactVerificationBanner } from "../auth/ContactVerificationBanner";
 
 const HEADER_SQUIRCLE_CLIP_ID = "header-avatar-squircle-clip";
 const HEADER_SQUIRCLE_PATH = "M50,0 C74,0 86,3 93,10 C97,14 100,26 100,50 C100,74 97,86 93,90 C86,97 74,100 50,100 C26,100 14,97 7,90 C3,86 0,74 0,50 C0,26 3,14 7,10 C14,3 26,0 50,0 Z";
@@ -469,6 +470,7 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
       )}
     </header>
     <AnnouncementBanner />
+    <ContactVerificationBanner />
     </>
   );
 };
