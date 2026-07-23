@@ -16674,6 +16674,22 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
       const successAfter = measurable ? Math.round(0.65 * (after as number) + 0.35 * prepCompletion) : null;
       const successGain = successBefore !== null && successAfter !== null ? successAfter - successBefore : null;
 
+      // 학생별 산출물 정량화 — 리포트에 "실제로 이만큼 만들었다"는 근거를 더 풍부하게 담기 위해
+      // 이미 불러온 원본(진단 state·이력서/자소서 content)에서 세부 수치를 계산한다.
+      const cnt = (v: unknown) => (Array.isArray(v) ? v.length : 0);
+      const selectedJobTitles = Array.isArray(st.selectedJobs)
+        ? (st.selectedJobs as unknown[]).filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, 6)
+        : [];
+      const resumeEducations = cnt(rc.educations);
+      const resumeExperiences = cnt(rc.experiences);
+      const resumeSkills = cnt(rc.skills);
+      const resumeLanguages = cnt(rc.languages);
+      const coverChars = Array.isArray(cc.items)
+        ? (cc.items as { answer?: unknown }[]).reduce((a, x) => a + (typeof x.answer === "string" ? x.answer.trim().length : 0), 0)
+        : 0;
+      const roundLabel: Record<string, string> = { self: "인성", job: "직무", fit: "컬처핏" };
+      const interviewRounds = practiced.filter((r): r is string => typeof r === "string").map((r) => roundLabel[r] ?? r);
+
       const myOutcomes = outcomesByUser.get(e.studentUserId) ?? [];
       const bestRank = myOutcomes.reduce((m, o) => Math.max(m, OUTCOME_RANK[o.status] ?? 0), 0);
       const placement = myOutcomes.find((o) => o.status === "HIRED") ?? myOutcomes.find((o) => o.status === "OFFER");
@@ -16699,10 +16715,18 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
         successAfter,
         successGain,
         selectedJobs: selectedJobsCount,
+        selectedJobTitles,
         hasResume,
         coverItems,
         interviewPracticed: practiced.length,
+        interviewRounds,
         completed: practiced.length >= 3 && hasResume && coverItems > 0,
+        // 산출물 정량화(학생별 상세 근거)
+        resumeEducations,
+        resumeExperiences,
+        resumeSkills,
+        resumeLanguages,
+        coverChars,
         // 취업 성과(모든 포지션)
         applications: myOutcomes.length,
         reachedInterview: bestRank >= 2,

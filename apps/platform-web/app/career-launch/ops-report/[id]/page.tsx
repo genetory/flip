@@ -256,6 +256,26 @@ export default function CohortOutcomeReportPage() {
                     { label: "자기소개서", done: s.coverItems > 0 },
                     { label: `모의면접 ${s.interviewPracticed}/3`, done: s.interviewPracticed > 0 }
                   ];
+                  // 산출물 정량 근거 — 실제로 만들어낸 결과물의 수치를 함께 제시(자료를 풍부하게).
+                  const facts: { label: string; value: string }[] = [
+                    ...(s.successBefore !== null && s.successAfter !== null
+                      ? [{ label: "취업 성공 가능성", value: `${s.successBefore}% → ${s.successAfter}%${s.successGain !== null ? ` (${s.successGain >= 0 ? "+" : ""}${s.successGain}%p)` : ""}` }]
+                      : []),
+                    { label: "준비 완성도", value: `${s.prepCompletion}%` },
+                    ...(s.selectedJobTitles.length > 0
+                      ? [{ label: "선정 직무", value: s.selectedJobTitles.join(", ") }]
+                      : s.selectedJobs > 0
+                        ? [{ label: "선정 직무", value: `${s.selectedJobs}개` }]
+                        : []),
+                    ...(s.hasResume
+                      ? [{ label: "이력서 구성", value: `학력 ${s.resumeEducations} · 경력 ${s.resumeExperiences} · 스킬 ${s.resumeSkills} · 어학 ${s.resumeLanguages}` }]
+                      : []),
+                    ...(s.coverItems > 0 ? [{ label: "자기소개서", value: `${s.coverItems}문항 · ${s.coverChars.toLocaleString()}자` }] : []),
+                    ...(s.interviewPracticed > 0
+                      ? [{ label: "모의면접", value: `${s.interviewRounds.length > 0 ? s.interviewRounds.join(" · ") : ""}${s.interviewRounds.length > 0 ? " " : ""}(${s.interviewPracticed}/3)` }]
+                      : []),
+                    { label: "등록일", value: s.enrolledAt ? s.enrolledAt.slice(0, 10) : "-" }
+                  ];
                   return (
                     <div key={s.userId} className="rp-card">
                       <div className="rp-card-head">
@@ -276,6 +296,17 @@ export default function CohortOutcomeReportPage() {
                               {st.done ? "✓ " : "· "}
                               {st.label}
                             </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="rp-card-basis">
+                        <p className="rp-card-blabel">활동 산출물 (정량 근거)</p>
+                        <div className="rp-facts">
+                          {facts.map((f, i) => (
+                            <div key={i} className="rp-fact">
+                              <span>{f.label}</span>
+                              <strong>{f.value}</strong>
+                            </div>
                           ))}
                         </div>
                       </div>
