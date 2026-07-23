@@ -1086,19 +1086,22 @@ model IssueReport {
 }
 
 model Notification {
-  id        String    @id @default(uuid())
-  userId    String
-  type      String
-  title     String
-  message   String?
-  linkPath  String?
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
+  id            String    @id @default(uuid())
+  userId        String
+  type          String
+  title         String
+  message       String?
+  linkPath      String?
+  // 연관 지원 건(있으면) — 지원 카드별 '안 읽은 메시지' 뱃지 계산·읽음 처리에 사용.
+  applicationId String?
+  readAt        DateTime?
+  createdAt     DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
+  @@index([userId, applicationId, readAt])
 }
 
 model ApplicationComment {

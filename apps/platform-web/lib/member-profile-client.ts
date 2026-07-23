@@ -812,6 +812,8 @@ export type MyApplication = {
   interviewSelectedEndsAt: string | null;
   interviewLocation: string | null;
   interviewPending: boolean;
+  // 회사가 보낸 안 읽은 메시지 수(문의 뱃지용)
+  unreadMessages: number;
 };
 
 export async function getMyApplications() {

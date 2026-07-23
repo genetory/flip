@@ -1597,13 +1597,18 @@ export function ProfilePage() {
                                           ) : null}
                                         </span>
                                         <div className="flex shrink-0 items-center gap-3">
-                                          {/* 회사에 문의(쪽지) — 철회된 지원은 제외하고 상시 제공. */}
+                                          {/* 회사에 문의(쪽지) — 철회된 지원은 제외하고 상시 제공. 안 읽은 회사 메시지 있으면 ● 표시. */}
                                           {app.status !== "WITHDRAWN" ? (
                                             <button
                                               type="button"
                                               onClick={() => setMessageTarget(app)}
-                                              className="text-[11px] font-semibold text-[#0B46E8] transition hover:underline"
+                                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0B46E8] transition hover:underline"
                                             >
+                                              {app.unreadMessages > 0 ? (
+                                                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#0B46E8] px-1 text-[9px] font-bold text-white">
+                                                  {app.unreadMessages > 9 ? "9+" : app.unreadMessages}
+                                                </span>
+                                              ) : null}
                                               {tr("회사에 문의", "Message company", "联系公司", "Nhắn công ty", "会社に問い合わせ", "Hubungi perusahaan")}
                                             </button>
                                           ) : null}
@@ -1709,7 +1714,11 @@ export function ProfilePage() {
         applicationId={messageTarget?.id}
         positionTitle={messageTarget?.positionTitle}
         companyName={messageTarget?.partnerOrganizationName}
-        onClose={() => setMessageTarget(null)}
+        onClose={() => {
+          setMessageTarget(null);
+          // 스레드를 열면 서버가 메시지 알림을 읽음 처리하므로, 목록을 새로고침해 뱃지를 갱신.
+          void getMyApplications().then(setApplications).catch(() => {});
+        }}
       />
     </div>
   );

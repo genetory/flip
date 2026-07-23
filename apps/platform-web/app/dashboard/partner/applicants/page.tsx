@@ -18,12 +18,16 @@ type PartnerApplication = {
   positionTitle: string;
   candidateUserId: string;
   candidateName: string | null;
-  candidateEmail: string;
+  // 연락처는 면접 요청 후에만 공개 — 그 전에는 null.
+  candidateEmail: string | null;
   candidateNationality: string | null;
+  contactUnlocked?: boolean;
   status: ApplicationStatus;
   memo: string | null;
   submittedAt: string;
   updatedAt: string;
+  // 안 읽은 지원자 메시지 수(뱃지용)
+  unreadMessages: number;
 };
 
 const STATUS_FLOW: { value: ApplicationStatus; label: string }[] = [
@@ -144,7 +148,7 @@ export default function PartnerApplicantsPage() {
       next = next.filter(
         (it) =>
           (it.candidateName ?? "").toLowerCase().includes(q) ||
-          it.candidateEmail.toLowerCase().includes(q) ||
+          (it.candidateEmail ?? "").toLowerCase().includes(q) ||
           it.positionTitle.toLowerCase().includes(q)
       );
     }
@@ -267,7 +271,7 @@ export default function PartnerApplicantsPage() {
                   ["지원자", "이메일", "국적", "포지션", "상태", "메모", "지원 시점"],
                   filtered.map((it) => [
                     it.candidateName ?? "",
-                    it.candidateEmail,
+                    it.candidateEmail ?? "",
                     it.candidateNationality ?? "",
                     it.positionTitle,
                     statusKo[it.status] ?? it.status,
@@ -359,8 +363,15 @@ export default function PartnerApplicantsPage() {
                     return (
                       <div key={it.id} className="ops-kanban-card">
                         <Link href={`/dashboard/partner/applicants/${it.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-                          <p className="ops-kanban-card-name">{it.candidateName ?? "-"}</p>
-                          <p className="ops-kanban-card-sub">{it.candidateEmail}</p>
+                          <p className="ops-kanban-card-name" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            {it.candidateName ?? "-"}
+                            {it.unreadMessages > 0 ? (
+                              <span title="새 메시지" style={{ display: "inline-flex", minWidth: 16, height: 16, padding: "0 4px", alignItems: "center", justifyContent: "center", borderRadius: 999, background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 700 }}>
+                                {it.unreadMessages > 9 ? "9+" : it.unreadMessages}
+                              </span>
+                            ) : null}
+                          </p>
+                          <p className="ops-kanban-card-sub">{it.candidateEmail ?? "연락처 비공개(면접 요청 후)"}</p>
                           {it.candidateNationality ? <p className="ops-kanban-card-sub">{it.candidateNationality}</p> : null}
                           <p className="ops-kanban-card-sub" style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
                             <PushPin size={12} weight="bold" aria-hidden /> {it.positionTitle}
@@ -438,8 +449,15 @@ export default function PartnerApplicantsPage() {
                       />
                     </td>
                     <td>
-                      <div className="ops-row-strong">{it.candidateName ?? "-"}</div>
-                      <div className="ops-row-sub">{it.candidateEmail}</div>
+                      <div className="ops-row-strong" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {it.candidateName ?? "-"}
+                        {it.unreadMessages > 0 ? (
+                          <span title="새 메시지" style={{ display: "inline-flex", minWidth: 16, height: 16, padding: "0 4px", alignItems: "center", justifyContent: "center", borderRadius: 999, background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 700 }}>
+                            {it.unreadMessages > 9 ? "9+" : it.unreadMessages}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="ops-row-sub">{it.candidateEmail ?? "연락처 비공개(면접 요청 후)"}</div>
                       {it.candidateNationality ? <div className="ops-row-sub">{it.candidateNationality}</div> : null}
                     </td>
                     <td>{it.positionTitle}</td>

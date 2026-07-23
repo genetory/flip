@@ -126,6 +126,7 @@ async function createNotification(input: {
   title: string;
   message?: string | null;
   linkPath?: string | null;
+  applicationId?: string | null;
 }) {
   try {
     await prisma.notification.create({
@@ -134,7 +135,8 @@ async function createNotification(input: {
         type: input.type,
         title: input.title,
         message: input.message ?? null,
-        linkPath: input.linkPath ?? null
+        linkPath: input.linkPath ?? null,
+        applicationId: input.applicationId ?? null
       }
     });
   } catch (error) {
@@ -20538,6 +20540,16 @@ app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDE
         interviewSlots: { select: { startsAt: true, endsAt: true, location: true, status: true } }
       }
     });
+    // 안 읽은 회사 메시지 수(지원 건별) — 카드의 '회사에 문의' 뱃지용.
+    const appIds = items.map((a) => a.id);
+    const unreadGroups = appIds.length
+      ? await prisma.notification.groupBy({
+          by: ["applicationId"],
+          where: { userId: req.auth!.userId, type: "APPLICATION_COMMENT_FROM_COMPANY", readAt: null, applicationId: { in: appIds } },
+          _count: { _all: true }
+        })
+      : [];
+    const unreadByApp = new Map(unreadGroups.map((g) => [g.applicationId, g._count._all]));
     return res.json({
       ok: true,
       items: items.map((a) => {
@@ -20558,7 +20570,8 @@ app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDE
           interviewSelectedAt: selected?.startsAt ?? null,
           interviewSelectedEndsAt: selected?.endsAt ?? null,
           interviewLocation: selected?.location ?? null,
-          interviewPending: !selected && hasProposed
+          interviewPending: !selected && hasProposed,
+          unreadMessages: unreadByApp.get(a.id) ?? 0
         };
       })
     });
@@ -20582,6 +20595,16 @@ app.get("/partner/applications", authenticate, requireRoles([MemberRole.PARTNER]
         interviewSlots: { select: { id: true } }
       }
     });
+    // 안 읽은 지원자 메시지 수(지원 건별) — 이 파트너 사용자 기준.
+    const appIds = items.map((a) => a.id);
+    const unreadGroups = appIds.length
+      ? await prisma.notification.groupBy({
+          by: ["applicationId"],
+          where: { userId: req.auth!.userId, type: "APPLICATION_COMMENT_FROM_CANDIDATE", readAt: null, applicationId: { in: appIds } },
+          _count: { _all: true }
+        })
+      : [];
+    const unreadByApp = new Map(unreadGroups.map((g) => [g.applicationId, g._count._all]));
     return res.json({
       ok: true,
       items: items.map((a) => {
@@ -20599,7 +20622,8 @@ app.get("/partner/applications", authenticate, requireRoles([MemberRole.PARTNER]
           status: a.status,
           memo: a.memo,
           submittedAt: a.submittedAt,
-          updatedAt: a.updatedAt
+          updatedAt: a.updatedAt,
+          unreadMessages: unreadByApp.get(a.id) ?? 0
         };
       })
     });
@@ -21329,6 +21353,16 @@ app.get(
         orderBy: { createdAt: "asc" },
         include: { author: { select: { id: true, name: true, email: true, role: true } } }
       });
+      // 스레드를 열었으니 이 지원 건의 '메시지' 알림을 읽음 처리(카드 안 읽음 뱃지 해제).
+      void prisma.notification.updateMany({
+        where: {
+          userId: req.auth!.userId,
+          applicationId,
+          type: { in: ["APPLICATION_COMMENT_FROM_COMPANY", "APPLICATION_COMMENT_FROM_CANDIDATE"] },
+          readAt: null
+        },
+        data: { readAt: new Date() }
+      }).catch(() => {});
       return res.json({ ok: true, items: comments });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -21384,7 +21418,8 @@ app.post(
             type: "APPLICATION_COMMENT_FROM_CANDIDATE",
             title: "지원자가 댓글을 남겼습니다",
             message: parsed.data.content.slice(0, 80),
-            linkPath: `/dashboard/partner/applicants/${applicationId}`
+            linkPath: `/dashboard/partner/applicants/${applicationId}`,
+            applicationId
           })));
           // 회사 팀 전원에게 이메일(+CC 트래킹)
           void sendNotificationEmail({
@@ -21412,7 +21447,8 @@ app.post(
             type: "APPLICATION_COMMENT_FROM_COMPANY",
             title: "회사가 댓글을 남겼습니다",
             message: parsed.data.content.slice(0, 80),
-            linkPath: "/profile?tab=applied"
+            linkPath: "/profile?tab=applied",
+            applicationId
           });
           // 지원자에게 이메일(+CC 트래킹)
           const info = await prisma.application.findUnique({
