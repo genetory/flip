@@ -11633,10 +11633,14 @@ app.get("/auth/kakao/start", (req, res) => {
   authorizeUrl.searchParams.set("redirect_uri", kakaoOAuthRedirectUri);
   authorizeUrl.searchParams.set("state", state);
   authorizeUrl.searchParams.set("prompt", "login");
-  // 이메일을 실제로 받아오려면 카카오 스코프(account_email)를 명시해야 한다.
-  // (지금까진 scope 자체가 없어 카카오가 이메일을 안 넘겨줬고, 옛 코드가 @noemail.local 로 대체됐음.)
-  // 전제: 카카오 개발자 콘솔의 '카카오계정(이메일)' 동의항목이 활성화·검수되어 있어야 함.
-  authorizeUrl.searchParams.set("scope", "account_email,profile_nickname");
+  // 이메일을 실제로 받아오려면 카카오 스코프(account_email)를 명시해야 한다. 다만 이 스코프는
+  // 카카오 개발자 콘솔에서 '카카오계정(이메일)' 동의항목을 활성화·검수해 둔 경우에만 유효하며,
+  // 등록돼 있지 않으면 KOE205(잘못된 요청)로 로그인 자체가 막힌다. 그래서 콘솔 준비가 끝나면
+  // 환경변수 KAKAO_OAUTH_SCOPE 로 켤 수 있게 해 두고, 기본값(미설정)에선 스코프를 보내지 않는다.
+  const kakaoScope = process.env.KAKAO_OAUTH_SCOPE?.trim();
+  if (kakaoScope) {
+    authorizeUrl.searchParams.set("scope", kakaoScope);
+  }
   return res.redirect(authorizeUrl.toString());
 });
 
@@ -11745,7 +11749,26 @@ app.get("/auth/kakao/callback", async (req, res) => {
     }
 
     if (existingUser) {
-      const { accessToken, refreshToken } = await issueAuthTokens(existingUser);
+      // 이메일 자동 치유 — 카카오가 검증된 실제 이메일을 줬는데 기존 계정 이메일이
+      // 도달 불가(@noemail.local 등)이거나 미검증이면, 이번 로그인에서 받은 이메일로 갱신한다.
+      // (예전 가짜 이메일로 만들어진 계정을 다음 로그인 때 자동으로 고쳐준다.)
+      let sessionUser = existingUser;
+      if (
+        kakaoEmail &&
+        kakaoEmailVerified &&
+        isReachableEmail(kakaoEmail) &&
+        kakaoEmail !== existingUser.email.trim().toLowerCase() &&
+        (!isReachableEmail(existingUser.email) || !existingUser.emailVerified)
+      ) {
+        sessionUser = await prisma.user
+          .update({ where: { id: existingUser.id }, data: { email: kakaoEmail, emailVerified: true } })
+          .catch((err) => {
+            // 이미 같은 이메일을 쓰는 카카오 계정이 있으면 unique 충돌 — 치유는 건너뛰고 로그인은 진행.
+            console.error("[kakao-oauth] email heal skipped", err instanceof Error ? err.message : err);
+            return existingUser;
+          });
+      }
+      const { accessToken, refreshToken } = await issueAuthTokens(sessionUser);
       setRefreshTokenCookie(res, refreshToken);
 
       const nextRaw = typeof stateData.next === "string" ? stateData.next : "/";
