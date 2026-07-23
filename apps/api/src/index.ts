@@ -322,6 +322,9 @@ const signupEmailVerificationCodeTtlMinutes = Math.max(1, Number(process.env.SIG
 const partnerJoinCodeTtlMinutesDefault = Math.max(5, Number(process.env.PARTNER_JOIN_CODE_TTL_MINUTES ?? 120));
 const partnerJoinCodeTtlMinutesMax = Math.max(partnerJoinCodeTtlMinutesDefault, Number(process.env.PARTNER_JOIN_CODE_TTL_MAX_MINUTES ?? 10080));
 const isProduction = process.env.NODE_ENV === "production";
+// 연락처 소프트 게이트(지원 차단 + 배너) on/off. 기본 OFF — 기존 사용자(가짜 이메일 소셜
+// 계정 등)를 갑자기 막지 않도록. 준비되면 CONTACT_GATE_ENABLED=true 로 켠다.
+const contactGateEnabled = process.env.CONTACT_GATE_ENABLED === "true";
 const allowedOrigins = [
   platformWebUrl,
   partnerAdminUrl,
@@ -3387,8 +3390,9 @@ function toSafeUser(user: {
     id: user.id,
     email: user.email,
     emailVerified: user.emailVerified,
-    // 프론트가 "연락처 인증 배너/게이트"를 띄울 판단 근거 — 인증됐고 실제 도달 가능한 이메일이면 true.
-    contactVerified: isContactVerified(user),
+    // 프론트가 "연락처 인증 배너/게이트"를 띄울 판단 근거. 게이트 OFF면 항상 true 로 보고해
+    // 배너를 띄우지 않는다(기존 사용자 방해 방지). ON일 때만 실제 도달 여부로 판단.
+    contactVerified: contactGateEnabled ? isContactVerified(user) : true,
     realName: user.realName ?? null,
     name: user.name,
     phoneNumber: user.phoneNumber,
@@ -12913,17 +12917,20 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
   // 소프트 게이트 — 지원(핵심 액션) 전에 "연락 가능한 이메일 인증"을 요구한다.
   // 로그인·둘러보기는 막지 않지만, 파트너/운영팀이 지원자에게 연락해야 하므로
   // 도달 가능한 검증 이메일이 없으면 여기서 막고 인증을 유도한다.
-  const applicant = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { email: true, emailVerified: true }
-  });
-  if (!applicant || !isContactVerified(applicant)) {
-    return res.status(403).json({
-      ok: false,
-      code: "EMAIL_VERIFICATION_REQUIRED",
-      email: applicant?.email && isReachableEmail(applicant.email) ? applicant.email : null,
-      message: "지원하려면 연락 가능한 이메일 인증이 필요합니다."
+  // 단, CONTACT_GATE_ENABLED=true 일 때만 차단(기본 OFF — 기존 사용자 방해 방지).
+  if (contactGateEnabled) {
+    const applicant = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, emailVerified: true }
     });
+    if (!applicant || !isContactVerified(applicant)) {
+      return res.status(403).json({
+        ok: false,
+        code: "EMAIL_VERIFICATION_REQUIRED",
+        email: applicant?.email && isReachableEmail(applicant.email) ? applicant.email : null,
+        message: "지원하려면 연락 가능한 이메일 인증이 필요합니다."
+      });
+    }
   }
 
   // 지원 전제조건: 이력서와 자기소개서가 모두 작성되어 있어야 지원 가능.
