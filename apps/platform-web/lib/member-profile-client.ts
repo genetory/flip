@@ -807,6 +807,11 @@ export type MyApplication = {
   status: "SUBMITTED" | "INTERVIEW" | "ACCEPTED" | "REJECTED" | "WITHDRAWN";
   submittedAt: string;
   updatedAt: string;
+  // 면접 일정 — 확정된 슬롯 시각(있으면) + 아직 선택 대기 중인지
+  interviewSelectedAt: string | null;
+  interviewSelectedEndsAt: string | null;
+  interviewLocation: string | null;
+  interviewPending: boolean;
 };
 
 export async function getMyApplications() {

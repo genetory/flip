@@ -20521,22 +20521,34 @@ app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDE
             status: true,
             partnerOrganization: { select: { id: true, name: true } }
           }
-        }
+        },
+        // 면접 슬롯 — 카드가 "일정 선택 전 / 확정" 을 구분해 버튼을 바꿀 수 있게.
+        interviewSlots: { select: { startsAt: true, endsAt: true, location: true, status: true } }
       }
     });
     return res.json({
       ok: true,
-      items: items.map((a) => ({
-        id: a.id,
-        positionId: a.positionId,
-        positionTitle: a.position.title,
-        positionStatus: a.position.status,
-        partnerOrganizationId: a.position.partnerOrganization?.id ?? null,
-        partnerOrganizationName: a.position.partnerOrganization?.name ?? null,
-        status: a.status,
-        submittedAt: a.submittedAt,
-        updatedAt: a.updatedAt
-      }))
+      items: items.map((a) => {
+        const slots = a.interviewSlots ?? [];
+        const selected = slots.find((s) => s.status === "SELECTED") ?? null;
+        const hasProposed = slots.some((s) => s.status === "PROPOSED");
+        return {
+          id: a.id,
+          positionId: a.positionId,
+          positionTitle: a.position.title,
+          positionStatus: a.position.status,
+          partnerOrganizationId: a.position.partnerOrganization?.id ?? null,
+          partnerOrganizationName: a.position.partnerOrganization?.name ?? null,
+          status: a.status,
+          submittedAt: a.submittedAt,
+          updatedAt: a.updatedAt,
+          // 면접 일정: 확정 슬롯(있으면) + 아직 선택 대기 중인지
+          interviewSelectedAt: selected?.startsAt ?? null,
+          interviewSelectedEndsAt: selected?.endsAt ?? null,
+          interviewLocation: selected?.location ?? null,
+          interviewPending: !selected && hasProposed
+        };
+      })
     });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });

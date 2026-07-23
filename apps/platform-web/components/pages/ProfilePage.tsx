@@ -1560,14 +1560,24 @@ export function ProfilePage() {
                                           ? "border-zinc-300 bg-zinc-100 text-zinc-500"
                                           : "border-zinc-300 bg-zinc-100 text-zinc-600"
                                   : "";
+                                // 면접 확정(슬롯 선택 완료) 여부 — 확정이면 배지를 '면접 확정'(초록)으로 바꾼다.
+                                const localeCode = locale === "ko" ? "ko-KR" : locale === "ja" ? "ja-JP" : locale === "zh-CN" ? "zh-CN" : locale === "vi" ? "vi-VN" : locale === "id" ? "id-ID" : "en-US";
+                                const interviewConfirmed = Boolean(app && app.status === "INTERVIEW" && app.interviewSelectedAt);
+                                const confirmedText = interviewConfirmed && app
+                                  ? new Date(app.interviewSelectedAt as string).toLocaleString(localeCode, { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) + (app.interviewLocation ? ` · ${app.interviewLocation}` : "")
+                                  : "";
+                                const cardStatusLabel = interviewConfirmed
+                                  ? tr("면접 확정", "Interview confirmed", "面试已确认", "Đã xác nhận PV", "面接確定", "Wawancara dikonfirmasi")
+                                  : statusLabel;
+                                const cardStatusTone = interviewConfirmed ? "border-emerald-300 bg-emerald-50 text-emerald-700" : statusTone;
                                 const submittedText = app
                                   ? new Date(app.submittedAt).toLocaleDateString(
                                       locale === "ko" ? "ko-KR" : locale === "ja" ? "ja-JP" : locale === "zh-CN" ? "zh-CN" : locale === "vi" ? "vi-VN" : locale === "id" ? "id-ID" : "en-US"
                                     )
                                   : "";
-                                // 카드 버튼 = 상태별 주요 액션. 면접 예정 → '면접 일정 선택'(파란 버튼).
-                                // 그 외(검토 중/합격/불합격/철회)는 appliedStatusLabel 상태 배지로 표시.
-                                const appliedAction = app && app.status === "INTERVIEW"
+                                // 카드 버튼 = 상태별 주요 액션. 면접 예정 + 아직 슬롯 미선택(interviewPending)일 때만
+                                // '면접 일정 선택'(파란 버튼). 확정됐으면 '면접 확정' 배지로 바뀐다.
+                                const appliedAction = app && app.status === "INTERVIEW" && app.interviewPending
                                   ? { label: tr("면접 일정 선택", "Select interview slot", "选择面试时间", "Chọn lịch phỏng vấn", "面接日程を選択", "Pilih jadwal wawancara"), onClick: () => setInterviewTarget(app), primary: true }
                                   : null;
                                 // 지원 철회 — 진행 중(검토 중·면접 예정)일 때만 보조 링크로 상시 제공.
@@ -1578,6 +1588,11 @@ export function ProfilePage() {
                                       <div className="flex items-center justify-between gap-2 px-1">
                                         <span className="text-[11px] font-medium text-muted-foreground">
                                           {submittedText} {tr("지원", "Applied", "申请", "Đã nộp", "応募", "Dilamar")}
+                                          {interviewConfirmed ? (
+                                            <span className="ml-1.5 font-semibold text-emerald-600">
+                                              · {tr("면접", "Interview", "面试", "PV", "面接", "Wawancara")} {confirmedText}
+                                            </span>
+                                          ) : null}
                                         </span>
                                         {canWithdraw ? (
                                           <button
@@ -1605,8 +1620,8 @@ export function ProfilePage() {
                                       }}
                                       onShowCip={() => {}}
                                       locale={locale}
-                                      appliedStatusLabel={app ? statusLabel : undefined}
-                                      appliedStatusTone={app ? statusTone : undefined}
+                                      appliedStatusLabel={app ? cardStatusLabel : undefined}
+                                      appliedStatusTone={app ? cardStatusTone : undefined}
                                       appliedAction={appliedAction}
                                     />
                                   </div>
@@ -1670,6 +1685,10 @@ export function ProfilePage() {
         applicationId={interviewTarget?.id}
         positionTitle={interviewTarget?.positionTitle}
         onClose={() => setInterviewTarget(null)}
+        onSelected={() => {
+          // 슬롯 선택 즉시 카드가 '면접 확정'으로 바뀌도록 지원 목록을 새로고침.
+          void getMyApplications().then(setApplications).catch(() => {});
+        }}
       />
     </div>
   );
