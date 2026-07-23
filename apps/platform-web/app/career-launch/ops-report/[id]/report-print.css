@@ -42,8 +42,8 @@
   padding: 56px 56px 40px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   color: #111827;
-  font-size: 13px;
-  line-height: 1.7;
+  font-size: 13.5px;
+  line-height: 1.72;
 }
 
 /* 표지 */
@@ -88,11 +88,11 @@
 
 /* 섹션 */
 .rp-sec {
-  margin-top: 32px;
+  margin-top: 38px;
 }
 .rp-sec h2 {
-  margin: 0 0 14px;
-  font-size: 15px;
+  margin: 0 0 16px;
+  font-size: 16.5px;
   font-weight: 800;
   letter-spacing: -0.01em;
 }
@@ -106,10 +106,10 @@
 .rp-kpi {
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 16px 18px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 .rp-kpi--hero {
   grid-column: 1 / -1;
@@ -121,7 +121,7 @@
   grid-template-columns: repeat(3, 1fr);
 }
 .rp-kpi-label {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   color: #6b7280;
 }
@@ -145,16 +145,17 @@
   color: #047857;
 }
 .rp-kpi-note {
-  font-size: 11.5px;
+  font-size: 12px;
   color: #9ca3af;
+  line-height: 1.5;
 }
 
 /* 섹션 리드 문구 */
 .rp-sec-lead {
-  font-size: 12px;
+  font-size: 12.5px;
   color: #6b7280;
-  margin: -4px 0 12px;
-  line-height: 1.5;
+  margin: -4px 0 14px;
+  line-height: 1.55;
 }
 
 /* 산출 근거·방법론 박스 */
@@ -181,8 +182,8 @@
   gap: 7px;
 }
 .rp-method-list li {
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 12.5px;
+  line-height: 1.65;
   color: #374151;
 }
 .rp-method-list strong {
@@ -207,12 +208,12 @@
 .rp-cards {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
 .rp-card {
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 13px 16px;
+  border-radius: 13px;
+  padding: 17px 20px;
   break-inside: avoid;
 }
 .rp-card-head {
@@ -221,11 +222,11 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  padding-bottom: 9px;
+  padding-bottom: 12px;
   border-bottom: 1px solid #f1f3f7;
 }
 .rp-card-name {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 800;
   letter-spacing: -0.01em;
   color: #111827;
@@ -260,11 +261,11 @@
   color: #047857;
 }
 .rp-card-basis {
-  margin-top: 9px;
+  margin-top: 14px;
 }
 .rp-card-blabel {
-  margin: 0 0 5px;
-  font-size: 10.5px;
+  margin: 0 0 8px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.02em;
   color: #9ca3af;
@@ -273,12 +274,12 @@
 .rp-steps {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px 6px;
+  gap: 7px 8px;
 }
 .rp-step {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  padding: 3px 9px;
+  padding: 5px 12px;
   border-radius: 999px;
   background: #f3f4f6;
   color: #9ca3af;
@@ -292,15 +293,15 @@
 .rp-facts {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 3px 18px;
+  gap: 6px 24px;
 }
 .rp-fact {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 11.5px;
-  line-height: 1.5;
-  padding: 2px 0;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  padding: 4px 0;
   border-bottom: 1px solid #f3f4f6;
 }
 .rp-fact > span {
@@ -315,16 +316,16 @@
 /* 주차별 진행 타임라인 */
 .rp-weeks {
   display: flex;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 12px;
 }
 .rp-week {
   flex: 1;
   text-align: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 4px 0;
-  border-radius: 7px;
+  padding: 7px 0;
+  border-radius: 8px;
   background: #f3f4f6;
   color: #9ca3af;
   white-space: nowrap;
@@ -334,24 +335,24 @@
   color: #4338ca;
 }
 .rp-card-level {
-  margin: 0 0 6px;
-  font-size: 12px;
-  line-height: 1.55;
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  line-height: 1.6;
   color: #1f2937;
 }
 .rp-card-list {
   margin: 0;
-  padding-left: 15px;
+  padding-left: 16px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
 .rp-card-list--imp {
-  margin-top: 5px;
+  margin-top: 7px;
 }
 .rp-card-str {
-  font-size: 11.5px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.55;
   color: #374151;
 }
 .rp-card-str::marker {
@@ -360,8 +361,8 @@
   font-weight: 700;
 }
 .rp-card-imp {
-  font-size: 11.5px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.55;
   color: #6b7280;
 }
 .rp-card-imp::marker {
@@ -405,9 +406,9 @@
 .rp-table th,
 .rp-table td {
   text-align: left;
-  padding: 9px 10px;
+  padding: 11px 12px;
   border-bottom: 1px solid #f1f3f7;
-  font-size: 12.5px;
+  font-size: 13px;
 }
 .rp-table thead th {
   border-bottom: 1.5px solid #e5e7eb;
