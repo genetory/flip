@@ -190,8 +190,10 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentDraft, setCommentDraft] = useState("");
-  const [commentVisibility, setCommentVisibility] = useState<"INTERNAL" | "CANDIDATE">("INTERNAL");
   const [postingComment, setPostingComment] = useState(false);
+  // 지원자와의 대화(채팅) — 항상 CANDIDATE 공개로 전송된다.
+  const [chatDraft, setChatDraft] = useState("");
+  const [sendingChat, setSendingChat] = useState(false);
 
   const fetchPath = viewer === "operator"
     ? `/ops/applications/${applicationId}`
@@ -294,24 +296,43 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
     }
   }
 
+  async function postMessage(content: string, visibility: "INTERNAL" | "CANDIDATE") {
+    if (!data) return false;
+    const response = await fetch(`${apiBase()}/applications/${data.id}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ content: content.trim(), visibility })
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    await loadComments();
+    return true;
+  }
+
   async function postComment() {
-    if (!data) return;
     if (!commentDraft.trim()) return;
     setPostingComment(true);
     setError(null);
     try {
-      const response = await fetch(`${apiBase()}/applications/${data.id}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ content: commentDraft.trim(), visibility: commentVisibility })
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await postMessage(commentDraft, "INTERNAL");
       setCommentDraft("");
-      await loadComments();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "댓글 작성 실패");
+      setError(err instanceof Error ? err.message : "메모 작성 실패");
     } finally {
       setPostingComment(false);
+    }
+  }
+
+  async function sendChat() {
+    if (!chatDraft.trim()) return;
+    setSendingChat(true);
+    setError(null);
+    try {
+      await postMessage(chatDraft, "CANDIDATE");
+      setChatDraft("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "메시지 전송 실패");
+    } finally {
+      setSendingChat(false);
     }
   }
 
@@ -610,74 +631,115 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
         )}
       </article>
 
+      {/* 지원자와의 대화 — CANDIDATE 공개 메시지만 채팅형으로. 지원자 프로필의 '회사에 문의'와 대칭. */}
       <article className="ops-card">
-        <h3 className="ops-section-title">댓글 / 메모 ({comments.length})</h3>
-        <div className="ops-soft-card" style={{ marginBottom: 12 }}>
+        <h3 className="ops-section-title">지원자와의 대화</h3>
+        <p className="ops-card-subtle" style={{ margin: "0 0 12px" }}>여기 남긴 메시지는 지원자에게 바로 전달됩니다(알림·이메일). 질문 답변·일정 조율에 사용하세요.</p>
+        {(() => {
+          const chat = comments.filter((c) => c.visibility === "CANDIDATE");
+          return (
+            <div className="ops-stack" style={{ maxHeight: 360, overflowY: "auto", marginBottom: 12, gap: 10 }}>
+              {chat.length === 0 ? (
+                <p className="ops-card-subtle" style={{ margin: 0 }}>아직 지원자와 주고받은 메시지가 없습니다.</p>
+              ) : (
+                chat.map((c) => {
+                  const mine = c.author.role !== "STUDENT"; // 회사/운영자 = 우리(오른쪽)
+                  return (
+                    <div key={c.id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
+                      <div style={{ maxWidth: "78%" }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 3, textAlign: mine ? "right" : "left" }}>
+                          {mine ? (c.author.role === "OPERATOR" ? "운영자" : "회사") : (c.author.name ?? "지원자")}
+                        </div>
+                        <div
+                          style={{
+                            padding: "10px 14px",
+                            borderRadius: 14,
+                            fontSize: 13,
+                            lineHeight: 1.6,
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                            background: mine ? "#0B46E8" : "#fff",
+                            color: mine ? "#fff" : "#111827",
+                            border: mine ? "none" : "1px solid #e5e7eb"
+                          }}
+                        >
+                          {c.content}
+                        </div>
+                        <div style={{ fontSize: 10.5, color: "#9ca3af", marginTop: 3, textAlign: mine ? "right" : "left" }}>{formatDateTime(c.createdAt)}</div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          );
+        })()}
+        <div className="ops-soft-card">
           <textarea
-            value={commentDraft}
-            onChange={(e) => setCommentDraft(e.target.value)}
-            placeholder={
-              viewer === "operator"
-                ? "내부 메모 또는 회사·지원자와 공유할 내용"
-                : "지원자에게 공유할 메시지 또는 회사 내부 메모"
-            }
-            rows={3}
+            value={chatDraft}
+            onChange={(e) => setChatDraft(e.target.value)}
+            placeholder="지원자에게 보낼 메시지를 입력하세요..."
+            rows={2}
             className="ops-textarea"
           />
-          <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-            <select
-              value={commentVisibility}
-              onChange={(e) => setCommentVisibility(e.target.value as "INTERNAL" | "CANDIDATE")}
-              className="ops-select"
-              style={{ width: "auto", minWidth: 180 }}
-            >
-              <option value="INTERNAL">🔒 내부 (회사·운영자만)</option>
-              <option value="CANDIDATE">👁 지원자에게도 공개</option>
-            </select>
-            <button type="button" onClick={() => void postComment()} disabled={postingComment} className="ops-btn ops-btn-primary">
-              {postingComment ? "작성 중..." : "댓글 등록"}
+          <div className="ops-row-end" style={{ marginTop: 8 }}>
+            <button type="button" onClick={() => void sendChat()} disabled={sendingChat || !chatDraft.trim()} className="ops-btn ops-btn-primary">
+              {sendingChat ? "전송 중..." : "지원자에게 전송"}
             </button>
           </div>
         </div>
-        {comments.length === 0 ? (
-          <p className="ops-card-subtle" style={{ margin: 0 }}>아직 작성된 댓글이 없습니다.</p>
-        ) : (
-          <div className="ops-stack">
-            {comments.map((c) => {
-              const isPartner = c.author.role === "PARTNER";
-              const isOps = c.author.role === "OPERATOR";
-              const isStudent = c.author.role === "STUDENT";
-              return (
-                <div
-                  key={c.id}
-                  style={{
-                    padding: 12,
-                    borderRadius: 10,
-                    background: isOps ? "#fffbeb" : isPartner ? "#eff6ff" : isStudent ? "#fdf4ff" : "#f9fafb"
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <div className="ops-tag-row">
-                      <span className={`ops-pill ${isOps ? "ops-pill-amber" : isPartner ? "ops-pill-blue" : "ops-pill-violet"}`}>
-                        {c.author.name ?? c.author.email} ({isOps ? "운영자" : isPartner ? "회사" : "지원자"})
-                      </span>
-                      <span className={`ops-pill ${c.visibility === "INTERNAL" ? "ops-pill-gray" : "ops-pill-green"}`}>
-                        {c.visibility === "INTERNAL" ? "🔒 내부" : "👁 공개"}
-                      </span>
-                    </div>
-                    <span className="ops-card-subtle" style={{ flexShrink: 0 }}>{formatDateTime(c.createdAt)}</span>
-                  </div>
-                  <p style={{ fontSize: 13, color: "#111827", whiteSpace: "pre-wrap", margin: "8px 0 0" }}>{c.content}</p>
-                  <div className="ops-row-end" style={{ marginTop: 6 }}>
-                    <button type="button" onClick={() => void deleteComment(c.id)} className="ops-btn ops-btn-danger" style={{ height: 24, fontSize: 11, padding: "0 8px" }}>
-                      삭제
-                    </button>
-                  </div>
+      </article>
+
+      {/* 내부 메모 — INTERNAL 만. 지원자에게 보이지 않는다. */}
+      <article className="ops-card">
+        {(() => {
+          const internal = comments.filter((c) => c.visibility === "INTERNAL");
+          return (
+            <>
+              <h3 className="ops-section-title">내부 메모 ({internal.length})</h3>
+              <p className="ops-card-subtle" style={{ margin: "0 0 12px" }}>🔒 회사{viewer === "operator" ? "·운영자" : ""}에게만 보입니다. 지원자에게는 전달되지 않습니다.</p>
+              <div className="ops-soft-card" style={{ marginBottom: 12 }}>
+                <textarea
+                  value={commentDraft}
+                  onChange={(e) => setCommentDraft(e.target.value)}
+                  placeholder="이 지원에 대한 내부 메모"
+                  rows={3}
+                  className="ops-textarea"
+                />
+                <div className="ops-row-end" style={{ marginTop: 8 }}>
+                  <button type="button" onClick={() => void postComment()} disabled={postingComment} className="ops-btn ops-btn-primary">
+                    {postingComment ? "작성 중..." : "메모 등록"}
+                  </button>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+              {internal.length === 0 ? (
+                <p className="ops-card-subtle" style={{ margin: 0 }}>아직 작성된 내부 메모가 없습니다.</p>
+              ) : (
+                <div className="ops-stack">
+                  {internal.map((c) => {
+                    const isOps = c.author.role === "OPERATOR";
+                    return (
+                      <div key={c.id} style={{ padding: 12, borderRadius: 10, background: isOps ? "#fffbeb" : "#f9fafb" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                          <span className={`ops-pill ${isOps ? "ops-pill-amber" : "ops-pill-blue"}`}>
+                            {c.author.name ?? c.author.email} ({isOps ? "운영자" : "회사"})
+                          </span>
+                          <span className="ops-card-subtle" style={{ flexShrink: 0 }}>{formatDateTime(c.createdAt)}</span>
+                        </div>
+                        <p style={{ fontSize: 13, color: "#111827", whiteSpace: "pre-wrap", margin: "8px 0 0" }}>{c.content}</p>
+                        <div className="ops-row-end" style={{ marginTop: 6 }}>
+                          <button type="button" onClick={() => void deleteComment(c.id)} className="ops-btn ops-btn-danger" style={{ height: 24, fontSize: 11, padding: "0 8px" }}>
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </article>
 
       {error ? <div className="ops-error-card">{error}</div> : null}
