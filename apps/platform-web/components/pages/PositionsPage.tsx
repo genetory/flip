@@ -1335,7 +1335,8 @@ export const PositionRow = ({
   onSelect,
   selected = false,
   appliedStatusLabel,
-  appliedStatusTone
+  appliedStatusTone,
+  appliedAction
 }: {
   p: PositionCard;
   isOwnPartnerPosting: boolean;
@@ -1350,6 +1351,8 @@ export const PositionRow = ({
   // (검토 중/면접 예정/합격/불합격/철회됨) 배지를 색(appliedStatusTone)으로 노출한다.
   appliedStatusLabel?: string | null;
   appliedStatusTone?: string | null;
+  // 상태에 맞는 액션 버튼 — 주어지면 배지 대신 실제 버튼을 렌더(예: 면접 예정 → "면접 일정 선택").
+  appliedAction?: { label: string; onClick: () => void; primary?: boolean; disabled?: boolean } | null;
   // 코치 패널 같은 좁은 영역용. 썸네일 정방형 + 폰트 축소 + 우측 액션 버튼
   // 숨김(카드 전체가 링크라 클릭 한 번으로 상세 진입). 우측 상단 게시일/
   // 마감만 작게 유지.
@@ -1534,7 +1537,17 @@ export const PositionRow = ({
                 <Link href={`/positions/${p.id}/edit`}>{copy.edit}</Link>
               </Button>
             ) : isStudentUser ? (
-              isApplied && appliedStatusLabel ? (
+              appliedAction ? (
+                <Button
+                  variant={appliedAction.primary ? "dark" : "outline"}
+                  size="sm"
+                  onClick={appliedAction.onClick}
+                  disabled={appliedAction.disabled}
+                  className={appliedAction.primary ? "bg-[#0B46E8] text-white hover:bg-[#0A3FCF]" : "text-muted-foreground hover:text-rose-600"}
+                >
+                  {appliedAction.label}
+                </Button>
+              ) : isApplied && appliedStatusLabel ? (
                 <span
                   className={`inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border px-3 text-sm font-semibold ${appliedStatusTone ?? "border-zinc-300 bg-zinc-100 text-zinc-600"}`}
                 >

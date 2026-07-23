@@ -1560,36 +1560,27 @@ export function ProfilePage() {
                                           ? "border-zinc-300 bg-zinc-100 text-zinc-500"
                                           : "border-zinc-300 bg-zinc-100 text-zinc-600"
                                   : "";
-                                const canWithdraw = app && app.status !== "ACCEPTED" && app.status !== "WITHDRAWN";
                                 const submittedText = app
                                   ? new Date(app.submittedAt).toLocaleDateString(
                                       locale === "ko" ? "ko-KR" : locale === "ja" ? "ja-JP" : locale === "zh-CN" ? "zh-CN" : locale === "vi" ? "vi-VN" : locale === "id" ? "id-ID" : "en-US"
                                     )
                                   : "";
+                                // 카드 버튼을 상태에 맞는 액션으로 — 면접 예정 → '면접 일정 선택', 검토 중 → '지원 취소'.
+                                // 합격/불합격/철회 등 액션이 없는 상태는 appliedStatusLabel 배지로 표시된다.
+                                const appliedAction = app
+                                  ? app.status === "INTERVIEW"
+                                    ? { label: tr("면접 일정 선택", "Select interview slot", "选择面试时间", "Chọn lịch phỏng vấn", "面接日程を選択", "Pilih jadwal wawancara"), onClick: () => setInterviewTarget(app), primary: true }
+                                    : app.status === "SUBMITTED"
+                                      ? { label: tr("지원 취소", "Cancel application", "取消申请", "Hủy ứng tuyển", "応募を取り消す", "Batalkan lamaran"), onClick: () => void handleWithdraw(app), disabled: withdrawingId === app.id }
+                                      : null
+                                  : null;
                                 return (
                                   <div key={item.id} className="space-y-2">
                                     {app ? (
-                                      <div className="flex items-center justify-between gap-2 px-1">
+                                      <div className="flex items-center gap-2 px-1">
                                         <span className="text-[11px] font-medium text-muted-foreground">
                                           {submittedText} {tr("지원", "Applied", "申请", "Đã nộp", "応募", "Dilamar")}
                                         </span>
-                                        <div className="flex items-center gap-3">
-                                          {app.status === "INTERVIEW" ? (
-                                            <button type="button" onClick={() => setInterviewTarget(app)} className="text-[11px] font-semibold text-[#0B46E8] hover:underline">
-                                              {tr("면접 일정 선택", "Select interview slot", "选择面试时间", "Chọn lịch phỏng vấn", "面接日程を選択", "Pilih jadwal wawancara")}
-                                            </button>
-                                          ) : null}
-                                          {canWithdraw ? (
-                                            <button
-                                              type="button"
-                                              onClick={() => void handleWithdraw(app)}
-                                              disabled={withdrawingId === app.id}
-                                              className="text-[11px] font-semibold text-muted-foreground transition hover:text-rose-600 hover:underline disabled:opacity-50"
-                                            >
-                                              {tr("지원 철회", "Withdraw", "撤回申请", "Rút đơn", "応募取り下げ", "Tarik lamaran")}
-                                            </button>
-                                          ) : null}
-                                        </div>
                                       </div>
                                     ) : null}
                                     <PositionRow
@@ -1608,6 +1599,7 @@ export function ProfilePage() {
                                       locale={locale}
                                       appliedStatusLabel={app ? statusLabel : undefined}
                                       appliedStatusTone={app ? statusTone : undefined}
+                                      appliedAction={appliedAction}
                                     />
                                   </div>
                                 );
