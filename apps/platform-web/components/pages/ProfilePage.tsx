@@ -1561,11 +1561,18 @@ export function ProfilePage() {
                                           : "border-zinc-300 bg-zinc-100 text-zinc-600"
                                   : "";
                                 const canWithdraw = app && app.status !== "ACCEPTED" && app.status !== "WITHDRAWN";
+                                const submittedText = app
+                                  ? new Date(app.submittedAt).toLocaleDateString(
+                                      locale === "ko" ? "ko-KR" : locale === "ja" ? "ja-JP" : locale === "zh-CN" ? "zh-CN" : locale === "vi" ? "vi-VN" : locale === "id" ? "id-ID" : "en-US"
+                                    )
+                                  : "";
                                 return (
                                   <div key={item.id} className="space-y-2">
                                     {app ? (
                                       <div className="flex items-center justify-between gap-2 px-1">
-                                        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${statusTone}`}>{statusLabel}</span>
+                                        <span className="text-[11px] font-medium text-muted-foreground">
+                                          {submittedText} {tr("지원", "Applied", "申请", "Đã nộp", "応募", "Dilamar")}
+                                        </span>
                                         <div className="flex items-center gap-3">
                                           {app.status === "INTERVIEW" ? (
                                             <button type="button" onClick={() => setInterviewTarget(app)} className="text-[11px] font-semibold text-[#0B46E8] hover:underline">
@@ -1599,6 +1606,8 @@ export function ProfilePage() {
                                       }}
                                       onShowCip={() => {}}
                                       locale={locale}
+                                      appliedStatusLabel={app ? statusLabel : undefined}
+                                      appliedStatusTone={app ? statusTone : undefined}
                                     />
                                   </div>
                                 );

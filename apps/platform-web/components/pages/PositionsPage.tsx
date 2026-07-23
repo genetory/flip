@@ -1333,7 +1333,9 @@ export const PositionRow = ({
   locale,
   compact = false,
   onSelect,
-  selected = false
+  selected = false,
+  appliedStatusLabel,
+  appliedStatusTone
 }: {
   p: PositionCard;
   isOwnPartnerPosting: boolean;
@@ -1344,6 +1346,10 @@ export const PositionRow = ({
   onApply: () => void;
   onShowCip?: () => void;
   locale: PlatformLocale;
+  // 지원 내역용 — 주어지면 지원 버튼 자리에 "지원완료" 대신 실제 지원 상태
+  // (검토 중/면접 예정/합격/불합격/철회됨) 배지를 색(appliedStatusTone)으로 노출한다.
+  appliedStatusLabel?: string | null;
+  appliedStatusTone?: string | null;
   // 코치 패널 같은 좁은 영역용. 썸네일 정방형 + 폰트 축소 + 우측 액션 버튼
   // 숨김(카드 전체가 링크라 클릭 한 번으로 상세 진입). 우측 상단 게시일/
   // 마감만 작게 유지.
@@ -1528,15 +1534,23 @@ export const PositionRow = ({
                 <Link href={`/positions/${p.id}/edit`}>{copy.edit}</Link>
               </Button>
             ) : isStudentUser ? (
-              <Button
-                variant="dark"
-                size="sm"
-                onClick={onApply}
-                disabled={isApplied}
-                className={isApplied ? "border border-zinc-300 bg-zinc-200 text-zinc-500 hover:bg-zinc-200 disabled:opacity-100" : undefined}
-              >
-                {isApplied ? copy.applyDone : copy.apply}
-              </Button>
+              isApplied && appliedStatusLabel ? (
+                <span
+                  className={`inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border px-3 text-sm font-semibold ${appliedStatusTone ?? "border-zinc-300 bg-zinc-100 text-zinc-600"}`}
+                >
+                  {appliedStatusLabel}
+                </span>
+              ) : (
+                <Button
+                  variant="dark"
+                  size="sm"
+                  onClick={onApply}
+                  disabled={isApplied}
+                  className={isApplied ? "border border-zinc-300 bg-zinc-200 text-zinc-500 hover:bg-zinc-200 disabled:opacity-100" : undefined}
+                >
+                  {isApplied ? copy.applyDone : copy.apply}
+                </Button>
+              )
             ) : (
               <Button variant="dark" size="sm" asChild>
                 <Link href={`/positions/${p.id}`}>{copy.apply}</Link>
