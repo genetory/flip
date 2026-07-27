@@ -155,3 +155,24 @@ export function trackCareerPdfDownload(doc: "resume" | "cover") {
 export function trackCareerFinalFeedback(action: "view" | "regenerate") {
   safeSendEvent("career_final_feedback", { action });
 }
+
+// Career Launch 퍼널 이벤트 — 베타 검증용 단계별 시작/완료 계측(GA4).
+export type CareerFunnelEvent =
+  | "career_launch_started"
+  | "profile_started"
+  | "profile_completed"
+  | "resume_generated"
+  | "resume_edited"
+  | "resume_downloaded"
+  | "job_posting_added"
+  | "job_match_completed"
+  | "tailored_resume_generated"
+  | "mock_interview_started"
+  | "mock_interview_completed"
+  | "career_report_viewed"
+  | "next_action_clicked"
+  | "career_launch_completed";
+
+export function trackCareerFunnel(event: CareerFunnelEvent, params: Record<string, unknown> = {}) {
+  safeSendEvent(event, params);
+}

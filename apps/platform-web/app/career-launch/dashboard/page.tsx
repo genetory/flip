@@ -18,6 +18,7 @@ import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 import { useWeekText, useCompletionCriteria, useStudentCohort } from "../../../lib/launch/data-i18n";
+import { trackCareerFunnel } from "../../../lib/analytics";
 
 // 4. 학생 로그인 후 대시보드 — 4주 여정 퍼널 + 진행 + 결과물 + 피드백 개요.
 export default function LaunchDashboardPage() {
@@ -37,6 +38,10 @@ export default function LaunchDashboardPage() {
   useEffect(() => {
     if (isReady && !isAuthenticated) router.replace("/career-launch");
   }, [isReady, isAuthenticated, router]);
+  // 퍼널: Career Launch 진입(대시보드) 1회 계측.
+  useEffect(() => {
+    if (isReady && isAuthenticated) trackCareerFunnel("career_launch_started");
+  }, [isReady, isAuthenticated]);
 
   const [data, setData] = useState<LaunchData>({ progress: {}, resume: {}, cover: {} });
   useEffect(() => {

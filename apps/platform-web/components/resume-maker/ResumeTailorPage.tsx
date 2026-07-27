@@ -10,6 +10,7 @@ import { ResumeBackBar } from "./ResumeBackBar";
 import { ToolPreviewColumn } from "./ToolPreviewColumn";
 import { PositionPagination } from "./PositionPagination";
 import { Button } from "../ui/button";
+import { trackCareerFunnel } from "../../lib/analytics";
 import { useToast } from "../toast/ToastProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { PositionRow, mapPublicPositionToCard } from "../pages/PositionsPage";
@@ -176,6 +177,8 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
         desiredJobRole: builderContent.desiredJobRole?.trim() || undefined
       });
       setResult(r);
+      trackCareerFunnel("job_match_completed");
+      trackCareerFunnel("tailored_resume_generated");
       refreshUsage();
     } catch (err) {
       if (err instanceof AiQuotaError) {

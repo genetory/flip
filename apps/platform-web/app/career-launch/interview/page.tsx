@@ -8,7 +8,7 @@ import { requestInterviewChat, type InterviewChatMsg, type InterviewFocus } from
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
-import { trackCareerStepComplete } from "../../../lib/analytics";
+import { trackCareerStepComplete, trackCareerFunnel } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
 // Week 4 — 이력서·자소서를 근거로 유형별 모의면접(자기소개/직무/인성·컬처핏)을 진행한다.
@@ -48,6 +48,7 @@ export default function InterviewPage() {
     const sectionRaw = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("section") : null;
     const f: InterviewFocus = sectionRaw === "job" ? "job" : sectionRaw === "fit" ? "fit" : "self";
     setFocus(f);
+    trackCareerFunnel("mock_interview_started", { focus: f });
     void (async () => {
       try {
         const { reply } = await requestInterviewChat([], f);
@@ -79,6 +80,7 @@ export default function InterviewPage() {
         setMessages((m) => [...m, { role: "bot", text: reply }]);
         if (isDone) {
           trackCareerStepComplete(`interview_${focus}` as "interview_self" | "interview_job" | "interview_fit");
+          trackCareerFunnel("mock_interview_completed", { focus });
           setDone(true);
         }
       } catch {
