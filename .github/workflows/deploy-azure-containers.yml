@@ -124,6 +124,8 @@ jobs:
             --build-arg NEXT_PUBLIC_ADSENSE_SLOT_SIDEBAR_RIGHT="${{ secrets.NEXT_PUBLIC_ADSENSE_SLOT_SIDEBAR_RIGHT }}" \
             --build-arg NEXT_PUBLIC_ADSENSE_SLOT_INFEED="${{ secrets.NEXT_PUBLIC_ADSENSE_SLOT_INFEED }}" \
             --build-arg NEXT_PUBLIC_ADSENSE_LAYOUT_KEY_INFEED="${{ secrets.NEXT_PUBLIC_ADSENSE_LAYOUT_KEY_INFEED }}" \
+            --build-arg NEXT_PUBLIC_CAREER_SURVEY_MID_URL="${{ secrets.NEXT_PUBLIC_CAREER_SURVEY_MID_URL }}" \
+            --build-arg NEXT_PUBLIC_CAREER_SURVEY_FINAL_URL="${{ secrets.NEXT_PUBLIC_CAREER_SURVEY_FINAL_URL }}" \
             -f apps/platform-web/Dockerfile \
             -t "$WEB_IMAGE" .
           docker push "$WEB_IMAGE"
