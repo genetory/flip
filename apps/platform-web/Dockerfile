@@ -1,5 +1,5 @@
 FROM node:22-alpine AS builder
-# ci trigger: rebuild web image (adsense client ID update)
+# ci trigger: rebuild web image (career-launch 설문 CTA 링크 env 주입)
 WORKDIR /app
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
