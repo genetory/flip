@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "@phosphor-icons/react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { fetchCohort, enrollStudent, unenrollStudent, deleteCohort, type OpsCohortDetail } from "../../../../../lib/launch/enrollment-client";
 import { useLaunchT } from "../../../../../lib/launch/i18n";
 import OutcomesPanel from "./OutcomesPanel";
@@ -13,6 +13,7 @@ import SeminarPanel from "./SeminarPanel";
 export default function LaunchOpsCohortDetailPage() {
   const t = useLaunchT();
   const params = useParams();
+  const router = useRouter();
   const id = String((params as { id?: string })?.id ?? "");
 
   const [cohort, setCohort] = useState<OpsCohortDetail | null>(null);
@@ -213,7 +214,11 @@ export default function LaunchOpsCohortDetailPage() {
                             ]
                           : [];
                         return (
-                        <tr key={s.studentUserId}>
+                        <tr
+                          key={s.studentUserId}
+                          className="ops-clickable-row"
+                          onClick={() => router.push(`/career-launch/ops/students/${s.studentUserId}`)}
+                        >
                           <td>{s.name ?? s.email}</td>
                           <td>{s.email}</td>
                           <td>{fmt(s.enrolledAt)}</td>
@@ -253,9 +258,14 @@ export default function LaunchOpsCohortDetailPage() {
                             )}
                           </td>
                           <td>
-                            <button type="button" className="ops-detail-button" onClick={() => void remove(s.studentUserId)}>
-                              {t("해제", "Remove", "解除", "Gỡ bỏ", "解除", "Lepaskan")}
-                            </button>
+                            <div style={{ display: "flex", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                              <Link className="ops-detail-button" href={`/career-launch/ops/students/${s.studentUserId}`}>
+                                {t("상세", "Detail", "详情", "Chi tiết", "詳細", "Detail")}
+                              </Link>
+                              <button type="button" className="ops-detail-button" onClick={() => void remove(s.studentUserId)}>
+                                {t("해제", "Remove", "解除", "Gỡ bỏ", "解除", "Lepaskan")}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                         );
