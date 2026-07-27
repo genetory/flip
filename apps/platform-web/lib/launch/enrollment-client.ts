@@ -56,7 +56,19 @@ export type OpsCohort = {
   enrolledCount: number;
   createdAt?: string;
 };
-export type OpsCohortStudent = { studentUserId: string; name: string | null; email: string; enrolledAt: string };
+export type OpsCohortStudentProgress = {
+  diagnosed: boolean;
+  diagnosisBefore: number | null;
+  diagnosisAfter: number | null;
+  selectedJobs: number;
+  hasResume: boolean;
+  hasCover: boolean;
+  interviewPracticed: number;
+  doneStepsCount: number;
+  weeksCompleted: number;
+  completed: boolean;
+};
+export type OpsCohortStudent = { studentUserId: string; name: string | null; email: string; enrolledAt: string; progress?: OpsCohortStudentProgress };
 export type CohortSeminar = { week: number; title: string | null; startsAt: string; location: string | null; online: boolean; url: string | null };
 export type OpsCohortDetail = Omit<OpsCohort, "enrolledCount" | "createdAt"> & { students: OpsCohortStudent[]; seminars: CohortSeminar[] };
 
