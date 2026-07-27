@@ -889,8 +889,26 @@ model CareerCohort {
   satisfactions      CareerLaunchSatisfaction[]
   certificates       CareerLaunchCertificate[]
   seminars           CareerSeminar[]
+  weeks              CareerCohortWeek[]
 
   @@index([status])
+}
+
+// Career Launch 기수별 주차 오픈 일정 — 운영자가 각 주차(1~4)의 오픈일을 지정하거나
+// 강제 오픈할 수 있다. 학생 주차 게이팅이 이 값을 참조한다.
+model CareerCohortWeek {
+  id        String    @id @default(uuid())
+  cohortId  String
+  week      Int // 1~4 주차
+  opensAt   DateTime? // 이 시각 이후 자동 오픈(null이면 미지정)
+  forceOpen Boolean   @default(false) // 운영자 강제 오픈(날짜 무관 즉시 열림)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  cohort CareerCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, week])
+  @@index([cohortId])
 }
 
 // Career Launch 세미나 일정 — 기수별·주차별 1건. 운영자가 입력하고 학생 주차 화면에 노출된다.

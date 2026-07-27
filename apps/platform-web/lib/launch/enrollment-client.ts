@@ -70,7 +70,18 @@ export type OpsCohortStudentProgress = {
 };
 export type OpsCohortStudent = { studentUserId: string; name: string | null; email: string; enrolledAt: string; progress?: OpsCohortStudentProgress };
 export type CohortSeminar = { week: number; title: string | null; startsAt: string; location: string | null; online: boolean; url: string | null };
-export type OpsCohortDetail = Omit<OpsCohort, "enrolledCount" | "createdAt"> & { students: OpsCohortStudent[]; seminars: CohortSeminar[] };
+export type CohortWeekOpen = { week: number; opensAt: string | null; forceOpen: boolean };
+export type OpsCohortDetail = Omit<OpsCohort, "enrolledCount" | "createdAt"> & { students: OpsCohortStudent[]; seminars: CohortSeminar[]; weekSchedule: CohortWeekOpen[] };
+
+// 주차 오픈 일정 설정 — 오픈일(opensAt) 지정 또는 강제 오픈(forceOpen) 토글.
+export async function setCohortWeek(cohortId: string, week: number, body: { opensAt?: string | null; forceOpen?: boolean }): Promise<CohortWeekOpen> {
+  const d = await req(`/career-launch/ops/cohorts/${encodeURIComponent(cohortId)}/weeks/${week}`, {
+    method: "PUT",
+    headers: authHeaders(true),
+    body: JSON.stringify(body)
+  });
+  return d.week as CohortWeekOpen;
+}
 
 export async function fetchCohorts(): Promise<OpsCohort[]> {
   const d = await req("/career-launch/ops/cohorts", { headers: authHeaders() });

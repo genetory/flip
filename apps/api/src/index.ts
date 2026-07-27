@@ -15816,6 +15816,27 @@ app.get("/career-launch/progress", authenticate, requireCareerEnrollment, async 
   }
 });
 
+// 학생 주차 게이팅용 — 본인 기수의 주차 오픈 일정 + 서버 현재시각.
+// forceOpen 이거나 opensAt<=now 면 그 주차는 날짜상 열림(미설정이면 프론트가 진행 기반으로 폴백).
+app.get("/career-launch/week-schedule", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const enrollment = await prisma.careerEnrollment.findFirst({
+      where: { studentUserId: req.auth!.userId },
+      orderBy: { createdAt: "desc" },
+      select: { cohortId: true }
+    });
+    let weekSchedule = [1, 2, 3, 4].map((w) => ({ week: w, opensAt: null as Date | null, forceOpen: false }));
+    if (enrollment?.cohortId) {
+      const weeks = await prisma.careerCohortWeek.findMany({ where: { cohortId: enrollment.cohortId } });
+      const m = new Map(weeks.map((w) => [w.week, w] as const));
+      weekSchedule = [1, 2, 3, 4].map((w) => ({ week: w, opensAt: m.get(w)?.opensAt ?? null, forceOpen: m.get(w)?.forceOpen ?? false }));
+    }
+    return res.json({ ok: true, weekSchedule, serverNow: new Date().toISOString() });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // PATCH /career-launch/progress — 제공된 키만 얕게 병합해 저장(부분 갱신).
 const progressPatchSchema = z.record(z.string(), z.unknown());
 // 완주 시 수료증 자동 발급 — 모의면접 3라운드 + 이력서 + 자소서 완성이면 수료증 생성(중복 방지) + 알림.
@@ -16424,7 +16445,8 @@ app.get("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole
       where: { id },
       include: {
         enrollments: { include: { student: { select: { id: true, name: true, realName: true, email: true } } }, orderBy: { createdAt: "desc" } },
-        seminars: { orderBy: { week: "asc" } }
+        seminars: { orderBy: { week: "asc" } },
+        weeks: { orderBy: { week: "asc" } }
       }
     });
     if (!c) return res.status(404).json({ ok: false, message: "cohort not found" });
@@ -16482,7 +16504,42 @@ app.get("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole
       progress: buildProgress(e.studentUserId)
     }));
     const seminars = c.seminars.map((s) => ({ week: s.week, title: s.title, startsAt: s.startsAt, location: s.location, online: s.online, url: s.url }));
-    return res.json({ ok: true, item: { id: c.id, university: c.university, name: c.name, inviteCode: c.inviteCode, status: c.status, startsAt: c.startsAt, endsAt: c.endsAt, students, seminars } });
+    // 주차 오픈 일정 — 1~4주차 모두 표시(미설정 주차는 opensAt null·forceOpen false 로 채움).
+    const weekMap = new Map(c.weeks.map((w) => [w.week, w] as const));
+    const weekSchedule = [1, 2, 3, 4].map((w) => ({
+      week: w,
+      opensAt: weekMap.get(w)?.opensAt ?? null,
+      forceOpen: weekMap.get(w)?.forceOpen ?? false
+    }));
+    return res.json({ ok: true, item: { id: c.id, university: c.university, name: c.name, inviteCode: c.inviteCode, status: c.status, startsAt: c.startsAt, endsAt: c.endsAt, students, seminars, weekSchedule } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 운영자: 기수 주차 오픈 일정 설정 — 오픈일(opensAt) 지정 또는 강제 오픈(forceOpen) 토글.
+const cohortWeekSchema = z.object({
+  opensAt: z.string().min(1).nullable().optional(),
+  forceOpen: z.boolean().optional()
+});
+app.put("/career-launch/ops/cohorts/:cohortId/weeks/:week", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const cohortId = String(req.params.cohortId ?? "");
+  const week = Number(req.params.week);
+  if (!cohortId || !Number.isInteger(week) || week < 1 || week > 4) return res.status(400).json({ ok: false, message: "invalid params" });
+  const parsed = cohortWeekSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    const opensAt = parsed.data.opensAt === undefined ? undefined : parsed.data.opensAt === null ? null : new Date(parsed.data.opensAt);
+    if (opensAt instanceof Date && Number.isNaN(opensAt.getTime())) return res.status(400).json({ ok: false, message: "invalid opensAt" });
+    const row = await prisma.careerCohortWeek.upsert({
+      where: { cohortId_week: { cohortId, week } },
+      create: { cohortId, week, opensAt: opensAt ?? null, forceOpen: parsed.data.forceOpen ?? false },
+      update: {
+        ...(opensAt !== undefined ? { opensAt } : {}),
+        ...(parsed.data.forceOpen !== undefined ? { forceOpen: parsed.data.forceOpen } : {})
+      }
+    });
+    return res.json({ ok: true, week: { week: row.week, opensAt: row.opensAt, forceOpen: row.forceOpen } });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
