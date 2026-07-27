@@ -409,6 +409,9 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
                     </div>
                     <p className="mt-4 text-[18px] font-bold text-[#191F28]">{verdict(result.score)}</p>
                     <p className="mt-1 text-[13px] text-[#8B95A1]">{t.scoreLabel}</p>
+                    {result.summary ? (
+                      <p className="mx-auto mt-3 max-w-xl break-keep text-left text-[13.5px] leading-relaxed text-[#4E5968]">{result.summary}</p>
+                    ) : null}
                   </div>
 
                   {/* 보유 / 부족 — 스탯 카드 */}
