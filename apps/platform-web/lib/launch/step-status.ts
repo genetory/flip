@@ -73,8 +73,26 @@ export function isWeekComplete(week: number, d: LaunchData): boolean {
   return Boolean(w && weekDoneCount(w.steps, d) === w.steps.length);
 }
 
-// 주차 순차 잠금 — 1주차는 항상 열림, 그 외엔 직전 주차를 모두 완료해야 열린다.
-export function weekUnlocked(week: number, d: LaunchData): boolean {
+export type WeekOpen = { week: number; opensAt: string | null; forceOpen: boolean };
+
+// 주차 잠금 규칙:
+//  - 기수에 오픈 일정이 지정된 주차(forceOpen 또는 opensAt 설정)는 "날짜 기반" — 강제 오픈이거나
+//    오픈일이 지났으면 열림(진행과 무관). 오픈일 전이면 잠김.
+//  - 일정이 미설정인 주차는 기존 "진행 기반"(직전 주차 완료 시 열림)으로 폴백.
+export function weekUnlocked(week: number, d: LaunchData, schedule?: WeekOpen[], now?: Date): boolean {
+  const entry = schedule?.find((s) => s.week === week);
+  const scheduled = Boolean(entry && (entry.forceOpen || entry.opensAt));
+  if (scheduled && entry) {
+    if (entry.forceOpen) return true;
+    const nowMs = (now ?? new Date()).getTime();
+    return entry.opensAt ? new Date(entry.opensAt).getTime() <= nowMs : false;
+  }
+  // 일정 미설정 → 진행 기반 폴백.
   if (week <= 1) return true;
   return isWeekComplete(week - 1, d);
+}
+
+// 잠긴 주차의 예정 오픈일(있으면) — 잠금 화면 안내용.
+export function weekOpensAt(week: number, schedule?: WeekOpen[]): string | null {
+  return schedule?.find((s) => s.week === week)?.opensAt ?? null;
 }

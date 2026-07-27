@@ -7,7 +7,7 @@ import { RichText } from "../../../components/launch/rich-text";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestDiagnosisChat, type DiagnosisResult, type JobChatMsg } from "../../../lib/launch/job-chat-client";
 import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
-import { trackCareerStepComplete } from "../../../lib/analytics";
+import { trackCareerStepComplete, trackCareerFunnel } from "../../../lib/analytics";
 import { Card } from "../../../components/launch/ui";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
@@ -38,6 +38,7 @@ export default function LaunchDiagnosisPage() {
     setResult(null);
     setMessages([]);
     setLoading(true);
+    trackCareerFunnel("profile_started");
     void (async () => {
       try {
         const { reply } = await requestDiagnosisChat([]);
@@ -95,6 +96,7 @@ export default function LaunchDiagnosisPage() {
         if (done && r) {
           setResult(r);
           trackCareerStepComplete("diagnosis");
+          trackCareerFunnel("profile_completed", { percent: r.percent });
           try {
             await patchProgress({
               diagnosis: { percent: r.percent, level: r.level, strengths: r.strengths, improvements: r.improvements },

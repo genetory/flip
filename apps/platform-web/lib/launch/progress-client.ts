@@ -49,6 +49,20 @@ export async function fetchProgress(): Promise<CareerProgress> {
   return (d.state as CareerProgress) ?? {};
 }
 
+// 기수 주차 오픈 일정(본인 기수) — 주차 게이팅에 사용.
+export type WeekScheduleEntry = { week: number; opensAt: string | null; forceOpen: boolean };
+export async function fetchWeekSchedule(): Promise<{ weekSchedule: WeekScheduleEntry[]; serverNow: string }> {
+  try {
+    const d = await req("/career-launch/week-schedule", { headers: authHeaders() });
+    return {
+      weekSchedule: (d.weekSchedule as WeekScheduleEntry[]) ?? [],
+      serverNow: (d.serverNow as string) ?? new Date().toISOString()
+    };
+  } catch {
+    return { weekSchedule: [], serverNow: new Date().toISOString() };
+  }
+}
+
 // 일부 키만 갱신(얕은 병합). 갱신된 전체 상태를 반환.
 export async function patchProgress(partial: Partial<CareerProgress>): Promise<CareerProgress> {
   const d = await req("/career-launch/progress", {

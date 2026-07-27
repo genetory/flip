@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
@@ -9,7 +9,7 @@ import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
 import { ResumeRender } from "../../../components/launch/resume-render";
 import { CoverRender } from "../../../components/launch/cover-render";
-import { fetchProgress } from "../../../lib/launch/progress-client";
+import { fetchProgress, fetchWeekSchedule, type WeekScheduleEntry } from "../../../lib/launch/progress-client";
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data";
 import { weekDoneCount, weekUnlocked, type LaunchData } from "../../../lib/launch/step-status";
@@ -18,6 +18,7 @@ import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 import { useWeekText, useCompletionCriteria, useStudentCohort } from "../../../lib/launch/data-i18n";
+import { trackCareerFunnel } from "../../../lib/analytics";
 
 // 4. 학생 로그인 후 대시보드 — 4주 여정 퍼널 + 진행 + 결과물 + 피드백 개요.
 export default function LaunchDashboardPage() {
@@ -37,19 +38,32 @@ export default function LaunchDashboardPage() {
   useEffect(() => {
     if (isReady && !isAuthenticated) router.replace("/career-launch");
   }, [isReady, isAuthenticated, router]);
+  // 퍼널: Career Launch 진입(대시보드) 1회 계측.
+  useEffect(() => {
+    if (isReady && isAuthenticated) trackCareerFunnel("career_launch_started");
+  }, [isReady, isAuthenticated]);
+  // 퍼널: 완주(최종 리포트 열람 + 완료) 1회 계측.
+  const reportedRef = useRef(false);
 
   const [data, setData] = useState<LaunchData>({ progress: {}, resume: {}, cover: {} });
+  const [schedule, setSchedule] = useState<WeekScheduleEntry[]>([]);
+  const [serverNow, setServerNow] = useState<Date>(() => new Date(0)); // 스케줄 로드 전엔 과거로 둬서 날짜 오픈 미판정
   useEffect(() => {
     if (!isReady) return;
     let alive = true;
     void (async () => {
       try {
-        const [p, r, c] = await Promise.all([
+        const [p, r, c, sched] = await Promise.all([
           fetchProgress(),
           fetchResumeData().catch(() => ({ data: {} })),
-          fetchCoverData().catch(() => ({ data: {} }))
+          fetchCoverData().catch(() => ({ data: {} })),
+          fetchWeekSchedule().catch(() => ({ weekSchedule: [] as WeekScheduleEntry[], serverNow: new Date().toISOString() }))
         ]);
-        if (alive) setData({ progress: p, resume: r.data ?? {}, cover: c.data ?? {} });
+        if (alive) {
+          setData({ progress: p, resume: r.data ?? {}, cover: c.data ?? {} });
+          setSchedule(sched.weekSchedule);
+          setServerNow(new Date(sched.serverNow));
+        }
       } catch {
         // 조회 실패 시 빈 상태
       }
@@ -66,6 +80,15 @@ export default function LaunchDashboardPage() {
 
   const resumeReady = hasResumeContent(data.resume);
   const coverReady = hasCoverContent(data.cover);
+  // 다음 할 일 — 열려 있고 아직 완료 안 된 첫 주차.
+  const nextWeek = WEEKS.find((w) => weekUnlocked(w.week, data, schedule, serverNow) && weekDoneCount(w.steps, data) < w.steps.length) ?? null;
+  useEffect(() => {
+    if (overall === 100 && !reportedRef.current) {
+      reportedRef.current = true;
+      trackCareerFunnel("career_report_viewed");
+      trackCareerFunnel("career_launch_completed");
+    }
+  }, [overall]);
 
   if (!isReady || !isAuthenticated) {
     return (
@@ -131,11 +154,53 @@ export default function LaunchDashboardPage() {
             </Card>
           )}
 
+          {/* 다음 할 일 — 열려 있고 미완료인 첫 주차로 바로 이동 */}
+          {overall < 100 && nextWeek ? (
+            <Link
+              href={`/career-launch/week/${nextWeek.week}`}
+              className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#0B46E8]/20 bg-[#EDF1FD] px-5 py-4 transition hover:bg-[#E3EAFD]"
+            >
+              <div className="min-w-0">
+                <p className="text-[12px] font-bold text-[#0B46E8]">{t("다음 할 일", "Your next step", "下一步", "Việc tiếp theo", "次にやること", "Langkah berikutnya")}</p>
+                <p className="mt-0.5 truncate text-[15px] font-black text-[#0B1227]">
+                  Week {nextWeek.week} · {WEEK_DELIVERABLE[nextWeek.week]}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2 text-[13.5px] font-bold text-white">
+                {t("이어서 하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjut")} →
+              </span>
+            </Link>
+          ) : null}
+
           {/* 완주 시 — 이력서·자소서·면접 종합 최종 피드백(프로그램 소개처럼 섹션) */}
           {overall === 100 ? (
             <div className="mt-7">
               <SectionTitle sub={t("이력서·자기소개서·면접을 종합한 코치 피드백", "Coach feedback across your resume, cover letter, and interview", "综合简历、求职信与面试的教练反馈", "Phản hồi từ coach tổng hợp hồ sơ, thư tự giới thiệu và phỏng vấn", "履歴書・自己紹介書・面接を総合したコーチのフィードバック", "Umpan balik coach dari resume, cover letter, dan wawancara")}>{t("최종 피드백", "Final feedback", "最终反馈", "Phản hồi cuối cùng", "最終フィードバック", "Umpan balik akhir")}</SectionTitle>
               <FinalFeedbackCard />
+
+              {/* 다음 행동 — 분석으로 끝내지 말고 실제 지원 행동으로 연결 */}
+              <div className="mt-6">
+                <SectionTitle sub={t("결과물을 실제 지원으로 이어가요", "Turn your results into real applications", "把成果转化为实际投递", "Biến kết quả thành ứng tuyển thực tế", "成果を実際の応募につなげましょう", "Ubah hasil menjadi lamaran nyata")}>{t("다음 행동", "Next actions", "下一步行动", "Hành động tiếp theo", "次のアクション", "Aksi berikutnya")}</SectionTitle>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  {[
+                    { href: "/positions", emoji: "🔎", label: t("지금 지원할 공고 보기", "Browse jobs to apply", "查看可投递的职位", "Xem vị trí để ứng tuyển", "今すぐ応募できる求人を見る", "Lihat lowongan untuk dilamar"), action: "browse_positions", external: false },
+                    { href: "/resume-maker", emoji: "📄", label: t("이력서 최종 수정하기", "Polish your resume", "最终修改简历", "Hoàn thiện hồ sơ", "履歴書を仕上げる", "Sempurnakan resume"), action: "edit_resume", external: true },
+                    { href: "/career-launch/interview", emoji: "🎤", label: t("모의면접 한 번 더", "One more mock interview", "再来一次模拟面试", "Phỏng vấn thử lần nữa", "模擬面接をもう一度", "Wawancara simulasi lagi"), action: "mock_interview", external: false }
+                  ].map((a) => (
+                    <Link
+                      key={a.action}
+                      href={a.href}
+                      target={a.external ? "_blank" : undefined}
+                      rel={a.external ? "noopener noreferrer" : undefined}
+                      onClick={() => trackCareerFunnel("next_action_clicked", { action: a.action })}
+                      className="flex items-center gap-3 rounded-2xl border border-[#E5E8EB] bg-white px-4 py-4 transition hover:border-[#0B46E8]/40 hover:bg-[#F7F9FF]"
+                    >
+                      <span className="text-[22px]">{a.emoji}</span>
+                      <span className="text-[14px] font-bold text-[#0B1227]">{a.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : null}
 
@@ -204,7 +269,7 @@ export default function LaunchDashboardPage() {
                   {WEEKS.map((w) => {
                     const done = weekDoneCount(w.steps, data);
                     const total = w.steps.length;
-                    const unlocked = weekUnlocked(w.week, data);
+                    const unlocked = weekUnlocked(w.week, data, schedule, serverNow);
                     const status = !unlocked
                       ? t("잠김", "Locked", "已锁定", "Đã khóa", "ロック中", "Terkunci")
                       : done === total

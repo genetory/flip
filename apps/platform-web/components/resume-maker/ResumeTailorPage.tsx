@@ -10,6 +10,7 @@ import { ResumeBackBar } from "./ResumeBackBar";
 import { ToolPreviewColumn } from "./ToolPreviewColumn";
 import { PositionPagination } from "./PositionPagination";
 import { Button } from "../ui/button";
+import { trackCareerFunnel } from "../../lib/analytics";
 import { useToast } from "../toast/ToastProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { PositionRow, mapPublicPositionToCard } from "../pages/PositionsPage";
@@ -176,6 +177,8 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
         desiredJobRole: builderContent.desiredJobRole?.trim() || undefined
       });
       setResult(r);
+      trackCareerFunnel("job_match_completed");
+      trackCareerFunnel("tailored_resume_generated");
       refreshUsage();
     } catch (err) {
       if (err instanceof AiQuotaError) {
@@ -406,6 +409,9 @@ export function ResumeTailorPage({ resumeId }: { resumeId: string }) {
                     </div>
                     <p className="mt-4 text-[18px] font-bold text-[#191F28]">{verdict(result.score)}</p>
                     <p className="mt-1 text-[13px] text-[#8B95A1]">{t.scoreLabel}</p>
+                    {result.summary ? (
+                      <p className="mx-auto mt-3 max-w-xl break-keep text-left text-[13.5px] leading-relaxed text-[#4E5968]">{result.summary}</p>
+                    ) : null}
                   </div>
 
                   {/* 보유 / 부족 — 스탯 카드 */}

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { useParams, useRouter } from "next/navigation";
-import { fetchCohort, enrollStudent, unenrollStudent, deleteCohort, type OpsCohortDetail } from "../../../../../lib/launch/enrollment-client";
+import { fetchCohort, enrollStudent, unenrollStudent, deleteCohort, setCohortWeek, type OpsCohortDetail, type CohortWeekOpen } from "../../../../../lib/launch/enrollment-client";
 import { useLaunchT } from "../../../../../lib/launch/i18n";
 import OutcomesPanel from "./OutcomesPanel";
 import SeminarPanel from "./SeminarPanel";
@@ -155,6 +155,12 @@ export default function LaunchOpsCohortDetailPage() {
 
             {tab === "students" ? (
               <>
+            {/* 진행 요약 퍼널 */}
+            <CohortFunnelCard students={cohort.students} />
+
+            {/* 주차 오픈 일정 */}
+            <WeekScheduleCard cohortId={id} weekSchedule={cohort.weekSchedule ?? []} />
+
             {/* 학생 등록 */}
             <article className="ops-partner-form-card">
               <h2>{t("학생 등록", "Enroll student", "注册学生", "Đăng ký sinh viên", "学生登録", "Daftarkan siswa")}</h2>
@@ -287,5 +293,117 @@ export default function LaunchOpsCohortDetailPage() {
         )}
       </section>
     </main>
+  );
+}
+
+// ISO(UTC) → datetime-local 입력값(브라우저 로컬 시각). 한국 운영자는 브라우저가 KST라 그대로 KST.
+function toLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// 기수 주차 오픈 일정 — 각 주차 오픈일 지정 + 강제 오픈 토글.
+function WeekScheduleCard({ cohortId, weekSchedule }: { cohortId: string; weekSchedule: CohortWeekOpen[] }) {
+  const t = useLaunchT();
+  const initial: Record<number, { opensAt: string; forceOpen: boolean }> = {};
+  for (const w of [1, 2, 3, 4]) {
+    const e = weekSchedule.find((x) => x.week === w);
+    initial[w] = { opensAt: toLocalInput(e?.opensAt ?? null), forceOpen: e?.forceOpen ?? false };
+  }
+  const [rows, setRows] = useState(initial);
+  const [savingWeek, setSavingWeek] = useState<number | null>(null);
+  const [savedWeek, setSavedWeek] = useState<number | null>(null);
+
+  const save = async (week: number) => {
+    setSavingWeek(week);
+    setSavedWeek(null);
+    try {
+      const r = rows[week];
+      await setCohortWeek(cohortId, week, {
+        opensAt: r.opensAt ? new Date(r.opensAt).toISOString() : null,
+        forceOpen: r.forceOpen
+      });
+      setSavedWeek(week);
+      setTimeout(() => setSavedWeek((v) => (v === week ? null : v)), 2000);
+    } catch {
+      // 무시
+    } finally {
+      setSavingWeek(null);
+    }
+  };
+
+  return (
+    <article className="ops-partner-form-card">
+      <h2>{t("주차 오픈 일정", "Week open schedule", "周次开放日程", "Lịch mở tuần", "週次オープン日程", "Jadwal buka minggu")}</h2>
+      <p>{t("주차별 오픈일을 정하면 그 날짜에 자동으로 열려요. '지금 열기'로 즉시 열 수도 있어요.", "Set an open date per week to auto-unlock; use 'Open now' to unlock immediately.", "设置每周开放日期后将自动开放；也可用“立即开放”。", "Đặt ngày mở cho từng tuần để tự mở; hoặc 'Mở ngay'.", "週ごとにオープン日を設定すると自動で開きます。「今すぐ開く」で即時オープンも可能。", "Atur tanggal buka per minggu; atau 'Buka sekarang'.")}</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
+        {[1, 2, 3, 4].map((w) => (
+          <div key={w} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ minWidth: 52, fontWeight: 700, fontSize: 13 }}>{t(`${w}주차`, `Week ${w}`, `第${w}周`, `Tuần ${w}`, `${w}週`, `Minggu ${w}`)}</span>
+            <input
+              type="datetime-local"
+              value={rows[w].opensAt}
+              onChange={(e) => setRows((prev) => ({ ...prev, [w]: { ...prev[w], opensAt: e.target.value } }))}
+              disabled={rows[w].forceOpen}
+              className="ops-input"
+              style={{ maxWidth: 220 }}
+            />
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#4E5968" }}>
+              <input
+                type="checkbox"
+                checked={rows[w].forceOpen}
+                onChange={(e) => setRows((prev) => ({ ...prev, [w]: { ...prev[w], forceOpen: e.target.checked } }))}
+              />
+              {t("지금 열기(강제)", "Open now (force)", "立即开放", "Mở ngay", "今すぐ開く", "Buka sekarang")}
+            </label>
+            <button type="button" className="ops-btn ops-btn-primary" onClick={() => void save(w)} disabled={savingWeek === w}>
+              {savingWeek === w ? t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…") : t("저장", "Save", "保存", "Lưu", "保存", "Simpan")}
+            </button>
+            {savedWeek === w ? <span style={{ fontSize: 12, color: "#15C47E", fontWeight: 600 }}>✓ {t("저장됨", "Saved", "已保存", "Đã lưu", "保存済み", "Tersimpan")}</span> : null}
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+// 기수 진행 요약 퍼널 — 등록 → 진단 → 직무선정 → 이력서 → 자소서 → 모의면접 → 완주 단계별 인원/비율.
+function CohortFunnelCard({ students }: { students: OpsCohortDetail["students"] }) {
+  const t = useLaunchT();
+  const n = students.length;
+  const has = (fn: (p: NonNullable<OpsCohortDetail["students"][number]["progress"]>) => boolean) =>
+    students.filter((s) => s.progress && fn(s.progress)).length;
+  const steps = [
+    { label: t("등록", "Enrolled", "注册", "Đăng ký", "登録", "Terdaftar"), count: n },
+    { label: t("취업 진단", "Diagnosis", "求职诊断", "Chẩn đoán", "就活診断", "Diagnosis"), count: has((p) => p.diagnosed) },
+    { label: t("직무 선정", "Job select", "职务选定", "Chọn vị trí", "職務選定", "Pilih posisi"), count: has((p) => p.selectedJobs > 0) },
+    { label: t("이력서", "Resume", "简历", "CV", "履歴書", "Resume"), count: has((p) => p.hasResume) },
+    { label: t("자기소개서", "Cover", "自荐信", "Thư", "自己PR", "Surat"), count: has((p) => p.hasCover) },
+    { label: t("모의면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara"), count: has((p) => p.interviewPracticed > 0) },
+    { label: t("완주", "Completed", "完成", "Hoàn tất", "完走", "Selesai"), count: has((p) => p.completed) }
+  ];
+  const pct = (c: number) => (n ? Math.round((c / n) * 100) : 0);
+  return (
+    <article className="ops-partner-list-card">
+      <div className="ops-partner-list-top">
+        <h2>{t("진행 요약", "Funnel", "进度概览", "Tổng quan", "進捗サマリー", "Ringkasan")}</h2>
+        <span className="ops-card-subtle">{t(`등록 ${n}명`, `${n} enrolled`, `注册 ${n} 人`, `${n} đăng ký`, `登録 ${n}名`, `${n} terdaftar`)}</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${steps.length}, minmax(0,1fr))`, gap: 8, marginTop: 6 }}>
+        {steps.map((s, i) => (
+          <div key={i} style={{ border: "1px solid #eef1f5", borderRadius: 10, padding: "12px 10px", textAlign: "center", background: "#fbfcfe" }}>
+            <div style={{ fontSize: 11.5, color: "#8B95A1", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.label}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#191F28", marginTop: 4, lineHeight: 1.1 }}>{s.count}</div>
+            <div style={{ fontSize: 11, color: "#0B46E8", fontWeight: 700 }}>{pct(s.count)}%</div>
+            <div style={{ height: 4, borderRadius: 999, background: "#eef1f5", marginTop: 6, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${pct(s.count)}%`, background: "#0B46E8" }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </article>
   );
 }
