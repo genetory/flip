@@ -22953,7 +22953,7 @@ app.post(
           location: parsed.data.location ?? null
         }
       });
-      const whenStr = new Date(created.scheduledAt).toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short" });
+      const whenStr = new Date(created.scheduledAt).toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Seoul" });
       void notifyCareerLaunchStudent(programId, {
         type: "PROGRAM_MEETING_SCHEDULED",
         title: "미팅 일정이 잡혔어요",
@@ -23002,7 +23002,7 @@ app.patch(
       // 재조정(시간 변경) 또는 취소 시 학생에게 안내.
       if (parsed.data.scheduledAt !== undefined || parsed.data.status === "CANCELLED") {
         const cancelled = parsed.data.status === "CANCELLED";
-        const whenStr = new Date(updated.scheduledAt).toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short" });
+        const whenStr = new Date(updated.scheduledAt).toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Seoul" });
         void notifyCareerLaunchStudent(updated.programId, {
           type: "PROGRAM_MEETING_UPDATED",
           title: cancelled ? "미팅이 취소되었습니다" : "미팅 일정이 변경되었어요",
