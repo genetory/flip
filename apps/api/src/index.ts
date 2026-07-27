@@ -1242,6 +1242,60 @@ async function sendNotificationEmail(input: {
   }
 }
 
+// Career Launch 프로그램 상태 변화 → 학생에게 인앱 알림 + 이메일(참조: info@flip-ers.com).
+// sendNotificationEmail 이 CC(emailTrackingCc)로 info@flip-ers.com 을 자동 첨부한다.
+async function notifyCareerLaunchStudent(
+  programId: string,
+  input: {
+    type: string;
+    title: string;
+    message?: string | null;
+    ctaPath: string;
+    ctaLabel?: string;
+    subject?: string;
+    headline?: string;
+    bodyText?: string;
+    infoRows?: { label: string; value: string }[];
+  }
+) {
+  try {
+    const p = await prisma.program.findUnique({
+      where: { id: programId },
+      select: {
+        application: {
+          select: {
+            candidateUserId: true,
+            candidateUser: { select: { email: true } },
+            position: { select: { title: true } }
+          }
+        }
+      }
+    });
+    if (!p?.application) return;
+    const userId = p.application.candidateUserId;
+    const email = p.application.candidateUser?.email ?? null;
+    const posTitle = p.application.position?.title ?? null;
+    void createNotification({ userId, type: input.type, title: input.title, message: input.message ?? null, linkPath: input.ctaPath });
+    void sendNotificationEmail({
+      toUser: { id: userId, email },
+      subject: input.subject ?? `[Aply] ${input.title}`,
+      previewText: input.title,
+      title: input.title,
+      headerLabel: "Career Launch",
+      headline: input.headline ?? input.title,
+      contextLine: posTitle ? `Career Launch · ${posTitle}` : "Career Launch",
+      bodyText: input.bodyText ?? input.message ?? input.title,
+      infoRows: input.infoRows,
+      ctaLabel: input.ctaLabel ?? "확인하기",
+      ctaPath: input.ctaPath,
+      footerNote: "본 메일은 Career Launch 프로그램 진행 상태 변경에 따라 발송되는 알림 메일입니다.",
+      logKey: `career_launch_${input.type.toLowerCase()}_email`
+    });
+  } catch (error) {
+    console.error("career_launch_notify_failed", { error: getErrorMessage(error) });
+  }
+}
+
 // 특정 파트너 조직의 팀원(파트너 계정) 이메일 목록.
 async function getPartnerTeamEmails(partnerOrganizationId: string | null): Promise<string[]> {
   if (!partnerOrganizationId) return [];
@@ -22857,6 +22911,18 @@ app.patch(
       if (parsed.data.endsAt !== undefined) data.endsAt = parsed.data.endsAt ? new Date(parsed.data.endsAt) : null;
       if (parsed.data.notes !== undefined) data.notes = parsed.data.notes;
       const updated = await prisma.program.update({ where: { id: programId }, data });
+      if (parsed.data.status === "COMPLETED" || parsed.data.status === "CANCELLED") {
+        const done = parsed.data.status === "COMPLETED";
+        void notifyCareerLaunchStudent(programId, {
+          type: done ? "PROGRAM_COMPLETED" : "PROGRAM_CANCELLED",
+          title: done ? "프로그램을 수료했어요" : "프로그램이 종료되었습니다",
+          ctaPath: `/profile/programs/${programId}`,
+          headline: done ? "Career Launch 프로그램을 수료했어요 🎉" : "Career Launch 프로그램이 종료되었습니다",
+          bodyText: done
+            ? "축하합니다! Career Launch 프로그램을 성공적으로 수료했습니다."
+            : "Career Launch 프로그램이 종료되었습니다. 문의는 운영팀으로 연락 주세요."
+        });
+      }
       return res.json({ ok: true, item: updated });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -22886,6 +22952,21 @@ app.post(
           agenda: parsed.data.agenda ?? null,
           location: parsed.data.location ?? null
         }
+      });
+      const whenStr = new Date(created.scheduledAt).toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Seoul" });
+      void notifyCareerLaunchStudent(programId, {
+        type: "PROGRAM_MEETING_SCHEDULED",
+        title: "미팅 일정이 잡혔어요",
+        message: whenStr,
+        ctaPath: `/profile/programs/${programId}`,
+        ctaLabel: "일정 보기",
+        headline: "Career Launch 미팅 일정이 잡혔어요",
+        bodyText: "담당자와의 미팅 일정이 등록되었습니다.",
+        infoRows: [
+          { label: "일시", value: whenStr },
+          ...(created.location ? [{ label: "장소", value: created.location }] : []),
+          ...(created.agenda ? [{ label: "안건", value: created.agenda }] : [])
+        ]
       });
       return res.status(201).json({ ok: true, item: created });
     } catch (error) {
@@ -22918,6 +22999,23 @@ app.patch(
       if (parsed.data.notes !== undefined) data.notes = parsed.data.notes;
       if (parsed.data.status !== undefined) data.status = parsed.data.status;
       const updated = await prisma.programMeeting.update({ where: { id: meetingId }, data });
+      // 재조정(시간 변경) 또는 취소 시 학생에게 안내.
+      if (parsed.data.scheduledAt !== undefined || parsed.data.status === "CANCELLED") {
+        const cancelled = parsed.data.status === "CANCELLED";
+        const whenStr = new Date(updated.scheduledAt).toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Seoul" });
+        void notifyCareerLaunchStudent(updated.programId, {
+          type: "PROGRAM_MEETING_UPDATED",
+          title: cancelled ? "미팅이 취소되었습니다" : "미팅 일정이 변경되었어요",
+          message: cancelled ? null : whenStr,
+          ctaPath: `/profile/programs/${updated.programId}`,
+          ctaLabel: "일정 보기",
+          headline: cancelled ? "Career Launch 미팅이 취소되었습니다" : "Career Launch 미팅 일정이 변경되었어요",
+          bodyText: cancelled ? "예정된 미팅이 취소되었습니다. 자세한 내용은 운영팀에 문의해 주세요." : "미팅 일정이 변경되었습니다. 새 일정을 확인해 주세요.",
+          infoRows: cancelled
+            ? undefined
+            : [{ label: "변경된 일시", value: whenStr }, ...(updated.location ? [{ label: "장소", value: updated.location }] : [])]
+        });
+      }
       return res.json({ ok: true, item: updated });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -22974,19 +23072,15 @@ app.put(
         update: { title: parsed.data.title, content: parsed.data.content, issuedByUserId: req.auth!.userId, issuedAt: new Date() },
         create: { programId, title: parsed.data.title, content: parsed.data.content, issuedByUserId: req.auth!.userId }
       });
-      const programInfo = await prisma.program.findUnique({
-        where: { id: programId },
-        select: { application: { select: { candidateUserId: true } } }
+      void notifyCareerLaunchStudent(programId, {
+        type: "CERTIFICATE_ISSUED",
+        title: "수료증이 발급되었습니다",
+        message: parsed.data.title,
+        ctaPath: `/profile/programs/${programId}`,
+        ctaLabel: "수료증 보기",
+        headline: "수료증이 발급되었어요 🎉",
+        bodyText: "Career Launch 프로그램 수료증이 발급되었습니다. 아래에서 확인하세요."
       });
-      if (programInfo) {
-        void createNotification({
-          userId: programInfo.application.candidateUserId,
-          type: "CERTIFICATE_ISSUED",
-          title: "수료증이 발급되었습니다",
-          message: parsed.data.title,
-          linkPath: `/profile/programs/${programId}`
-        });
-      }
       return res.json({ ok: true, item: cert });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -23025,19 +23119,15 @@ app.put(
           issuedByUserId: req.auth!.userId
         }
       });
-      const programInfo = await prisma.program.findUnique({
-        where: { id: programId },
-        select: { application: { select: { candidateUserId: true } } }
+      void notifyCareerLaunchStudent(programId, {
+        type: "RECOMMENDATION_ISSUED",
+        title: "추천서가 발급되었습니다",
+        message: `${parsed.data.signerName}님이 추천서를 작성했어요.`,
+        ctaPath: `/profile/programs/${programId}`,
+        ctaLabel: "추천서 보기",
+        headline: "추천서가 발급되었어요",
+        bodyText: `${parsed.data.signerName}님이 Career Launch 추천서를 작성했습니다.`
       });
-      if (programInfo) {
-        void createNotification({
-          userId: programInfo.application.candidateUserId,
-          type: "RECOMMENDATION_ISSUED",
-          title: "추천서가 발급되었습니다",
-          message: `${parsed.data.signerName}님이 추천서를 작성했어요.`,
-          linkPath: `/profile/programs/${programId}`
-        });
-      }
       return res.json({ ok: true, item: rec });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -23161,19 +23251,19 @@ app.patch(
           reviewedByUserId: req.auth!.userId
         }
       });
-      const programInfo = await prisma.program.findUnique({
-        where: { id: updated.programId },
-        select: { id: true, application: { select: { candidateUserId: true } } }
+      const approved = parsed.data.status === "APPROVED";
+      void notifyCareerLaunchStudent(updated.programId, {
+        type: "SCHOOL_CREDIT_REVIEWED",
+        title: `학점 인정 요청이 ${approved ? "승인" : "반려"}되었습니다`,
+        message: parsed.data.reviewNote ?? null,
+        ctaPath: `/profile/programs/${updated.programId}`,
+        ctaLabel: "결과 보기",
+        headline: `학점 인정 요청이 ${approved ? "승인되었어요 🎉" : "반려되었습니다"}`,
+        bodyText: approved
+          ? "제출하신 학점 인정 요청이 승인되었습니다."
+          : "제출하신 학점 인정 요청이 반려되었습니다. 사유를 확인해 주세요.",
+        infoRows: parsed.data.reviewNote ? [{ label: "심사 메모", value: parsed.data.reviewNote }] : undefined
       });
-      if (programInfo) {
-        void createNotification({
-          userId: programInfo.application.candidateUserId,
-          type: "SCHOOL_CREDIT_REVIEWED",
-          title: `학점 인정 요청이 ${parsed.data.status === "APPROVED" ? "승인" : "반려"}되었습니다`,
-          message: parsed.data.reviewNote ?? null,
-          linkPath: `/profile/programs/${programInfo.id}`
-        });
-      }
       return res.json({ ok: true, item: updated });
     } catch (error) {
       if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025") {
