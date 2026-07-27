@@ -171,6 +171,10 @@ export type CareerFunnelEvent =
   | "mock_interview_completed"
   | "career_report_viewed"
   | "next_action_clicked"
+  | "survey_mid_prompted"
+  | "survey_mid_clicked"
+  | "survey_final_prompted"
+  | "survey_final_clicked"
   | "career_launch_completed";
 
 export function trackCareerFunnel(event: CareerFunnelEvent, params: Record<string, unknown> = {}) {

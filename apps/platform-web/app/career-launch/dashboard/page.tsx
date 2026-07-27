@@ -19,6 +19,7 @@ import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 import { useWeekText, useCompletionCriteria, useStudentCohort } from "../../../lib/launch/data-i18n";
 import { trackCareerFunnel } from "../../../lib/analytics";
+import { CareerSurveyCta } from "../../../components/launch/survey-cta";
 
 // 4. 학생 로그인 후 대시보드 — 4주 여정 퍼널 + 진행 + 결과물 + 피드백 개요.
 export default function LaunchDashboardPage() {
@@ -171,6 +172,9 @@ export default function LaunchDashboardPage() {
               </span>
             </Link>
           ) : null}
+
+          {/* 베타 설문 CTA — 1·2주차 완료 / 전체 완료 시점에 자동 노출(링크는 env 주입) */}
+          <CareerSurveyCta data={data} />
 
           {/* 완주 시 — 이력서·자소서·면접 종합 최종 피드백(프로그램 소개처럼 섹션) */}
           {overall === 100 ? (
