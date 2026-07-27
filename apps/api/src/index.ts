@@ -16428,12 +16428,58 @@ app.get("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole
       }
     });
     if (!c) return res.status(404).json({ ok: false, message: "cohort not found" });
+    // 학생별 진행 현황 — 리포트와 동일 원본(진단 state·이력서/자소서 content)에서 계산.
+    const ids = c.enrollments.map((e) => e.studentUserId);
+    const [progressRows, resumeRows, coverRows] = await Promise.all([
+      prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: ids } } }),
+      prisma.careerResumeData.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, content: true } }),
+      prisma.careerCoverLetterData.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, content: true } })
+    ]);
+    const progByUser = new Map(progressRows.map((p) => [p.studentUserId, p] as const));
+    const resumeByUser = new Map(resumeRows.map((r) => [r.studentUserId, r] as const));
+    const coverByUser = new Map(coverRows.map((cc) => [cc.studentUserId, cc] as const));
+    const pctOfVal = (v: unknown) => {
+      const p = (v as { percent?: unknown } | null)?.percent;
+      return typeof p === "number" ? p : null;
+    };
+    const buildProgress = (userId: string) => {
+      const st = (progByUser.get(userId)?.state ?? {}) as Record<string, unknown>;
+      const interview = (st.interview && typeof st.interview === "object" ? st.interview : {}) as { practiced?: unknown };
+      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]) : [];
+      const rc = (resumeByUser.get(userId)?.content ?? {}) as Record<string, unknown>;
+      const cc = (coverByUser.get(userId)?.content ?? {}) as Record<string, unknown>;
+      const hasResume =
+        (Array.isArray(rc.educations) && rc.educations.length > 0) ||
+        (Array.isArray(rc.experiences) && rc.experiences.length > 0) ||
+        (Array.isArray(rc.skills) && rc.skills.length > 0) ||
+        Boolean((rc.basic as { name?: string } | undefined)?.name);
+      const coverItems = Array.isArray(cc.items) ? (cc.items as { answer?: string }[]).filter((x) => (x.answer ?? "").trim()).length : 0;
+      const before = pctOfVal(st.diagnosisInitial) ?? pctOfVal(st.diagnosis);
+      const after = pctOfVal(st.diagnosisFinal);
+      const selectedJobs = Array.isArray(st.selectedJobs) ? (st.selectedJobs as unknown[]).length : 0;
+      const doneSteps = Array.isArray(st.doneSteps) ? (st.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
+      const weeksCompleted = [1, 2, 3, 4].filter((w) => doneSteps.includes(`w${w}s4`)).length;
+      const interviewPracticed = practiced.length;
+      return {
+        diagnosed: before !== null,
+        diagnosisBefore: before,
+        diagnosisAfter: after,
+        selectedJobs,
+        hasResume,
+        hasCover: coverItems > 0,
+        interviewPracticed,
+        doneStepsCount: doneSteps.length,
+        weeksCompleted,
+        completed: interviewPracticed >= 3 && hasResume && coverItems > 0
+      };
+    };
     const students = c.enrollments.map((e) => ({
       studentUserId: e.studentUserId,
       // 실명 우선 — name 은 SNS 닉네임(예: 'Genetory')일 수 있어 공식 문서·연락에 부적합하다.
         name: e.student?.realName ?? e.student?.name ?? null,
       email: e.student?.email ?? "",
-      enrolledAt: e.createdAt
+      enrolledAt: e.createdAt,
+      progress: buildProgress(e.studentUserId)
     }));
     const seminars = c.seminars.map((s) => ({ week: s.week, title: s.title, startsAt: s.startsAt, location: s.location, online: s.online, url: s.url }));
     return res.json({ ok: true, item: { id: c.id, university: c.university, name: c.name, inviteCode: c.inviteCode, status: c.status, startsAt: c.startsAt, endsAt: c.endsAt, students, seminars } });

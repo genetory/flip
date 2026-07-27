@@ -191,27 +191,75 @@ export default function LaunchOpsCohortDetailPage() {
                       <th>{t("학생", "Student", "学生", "Sinh viên", "学生", "Siswa")}</th>
                       <th>{t("이메일", "Email", "邮箱", "Email", "メール", "Email")}</th>
                       <th>{t("등록일", "Enrolled at", "注册日", "Ngày đăng ký", "登録日", "Tanggal daftar")}</th>
+                      <th>{t("진행", "Progress", "进度", "Tiến độ", "進捗", "Progres")}</th>
+                      <th>{t("상태", "Status", "状态", "Trạng thái", "状態", "Status")}</th>
                       <th>{t("액션", "Actions", "操作", "Hành động", "アクション", "Aksi")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {cohort.students.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="ops-table-empty">{t("아직 등록된 학생이 없어요.", "No students enrolled yet.", "还没有注册的学生。", "Chưa có sinh viên nào đăng ký.", "まだ登録された学生がいません。", "Belum ada siswa yang terdaftar.")}</td>
+                        <td colSpan={6} className="ops-table-empty">{t("아직 등록된 학생이 없어요.", "No students enrolled yet.", "还没有注册的学生。", "Chưa có sinh viên nào đăng ký.", "まだ登録された学生がいません。", "Belum ada siswa yang terdaftar.")}</td>
                       </tr>
                     ) : (
-                      cohort.students.map((s) => (
+                      cohort.students.map((s) => {
+                        const pr = s.progress;
+                        const steps = pr
+                          ? [
+                              { label: t("진단", "Diag", "诊断", "Chẩn", "診断", "Diag"), done: pr.diagnosed },
+                              { label: t("이력서", "Resume", "简历", "CV", "履歴", "CV"), done: pr.hasResume },
+                              { label: t("자소서", "Cover", "自荐", "Thư", "自己PR", "Surat"), done: pr.hasCover },
+                              { label: `${t("면접", "Interview", "面试", "PV", "面接", "Wwc")} ${pr.interviewPracticed}/3`, done: pr.interviewPracticed > 0 }
+                            ]
+                          : [];
+                        return (
                         <tr key={s.studentUserId}>
                           <td>{s.name ?? s.email}</td>
                           <td>{s.email}</td>
                           <td>{fmt(s.enrolledAt)}</td>
+                          <td>
+                            {pr ? (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                                {steps.map((c, i) => (
+                                  <span
+                                    key={i}
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      padding: "2px 7px",
+                                      borderRadius: 999,
+                                      background: c.done ? "#ecfdf5" : "#f3f4f6",
+                                      color: c.done ? "#047857" : "#9ca3af",
+                                      whiteSpace: "nowrap"
+                                    }}
+                                  >
+                                    {c.done ? "✓ " : "· "}
+                                    {c.label}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="ops-card-subtle">-</span>
+                            )}
+                          </td>
+                          <td>
+                            {pr?.completed ? (
+                              <span className="ops-status-badge ops-status-approved">{t("완주", "Completed", "完成", "Hoàn tất", "完走", "Selesai")}</span>
+                            ) : (
+                              <span className="ops-status-badge">
+                                {t("진행 중", "In progress", "进行中", "Đang tiến hành", "進行中", "Berlangsung")}
+                                {pr ? ` · ${pr.weeksCompleted}/4${t("주", "w", "周", "t", "週", "mg")}` : ""}
+                              </span>
+                            )}
+                          </td>
                           <td>
                             <button type="button" className="ops-detail-button" onClick={() => void remove(s.studentUserId)}>
                               {t("해제", "Remove", "解除", "Gỡ bỏ", "解除", "Lepaskan")}
                             </button>
                           </td>
                         </tr>
-                      ))
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
