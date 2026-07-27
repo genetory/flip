@@ -9,7 +9,7 @@ import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
 import { ResumeRender } from "../../../components/launch/resume-render";
 import { CoverRender } from "../../../components/launch/cover-render";
-import { fetchProgress } from "../../../lib/launch/progress-client";
+import { fetchProgress, fetchWeekSchedule, type WeekScheduleEntry } from "../../../lib/launch/progress-client";
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data";
 import { weekDoneCount, weekUnlocked, type LaunchData } from "../../../lib/launch/step-status";
@@ -44,17 +44,24 @@ export default function LaunchDashboardPage() {
   }, [isReady, isAuthenticated]);
 
   const [data, setData] = useState<LaunchData>({ progress: {}, resume: {}, cover: {} });
+  const [schedule, setSchedule] = useState<WeekScheduleEntry[]>([]);
+  const [serverNow, setServerNow] = useState<Date>(() => new Date(0)); // 스케줄 로드 전엔 과거로 둬서 날짜 오픈 미판정
   useEffect(() => {
     if (!isReady) return;
     let alive = true;
     void (async () => {
       try {
-        const [p, r, c] = await Promise.all([
+        const [p, r, c, sched] = await Promise.all([
           fetchProgress(),
           fetchResumeData().catch(() => ({ data: {} })),
-          fetchCoverData().catch(() => ({ data: {} }))
+          fetchCoverData().catch(() => ({ data: {} })),
+          fetchWeekSchedule().catch(() => ({ weekSchedule: [] as WeekScheduleEntry[], serverNow: new Date().toISOString() }))
         ]);
-        if (alive) setData({ progress: p, resume: r.data ?? {}, cover: c.data ?? {} });
+        if (alive) {
+          setData({ progress: p, resume: r.data ?? {}, cover: c.data ?? {} });
+          setSchedule(sched.weekSchedule);
+          setServerNow(new Date(sched.serverNow));
+        }
       } catch {
         // 조회 실패 시 빈 상태
       }
@@ -71,6 +78,8 @@ export default function LaunchDashboardPage() {
 
   const resumeReady = hasResumeContent(data.resume);
   const coverReady = hasCoverContent(data.cover);
+  // 다음 할 일 — 열려 있고 아직 완료 안 된 첫 주차.
+  const nextWeek = WEEKS.find((w) => weekUnlocked(w.week, data, schedule, serverNow) && weekDoneCount(w.steps, data) < w.steps.length) ?? null;
 
   if (!isReady || !isAuthenticated) {
     return (
@@ -135,6 +144,24 @@ export default function LaunchDashboardPage() {
               </div>
             </Card>
           )}
+
+          {/* 다음 할 일 — 열려 있고 미완료인 첫 주차로 바로 이동 */}
+          {overall < 100 && nextWeek ? (
+            <Link
+              href={`/career-launch/week/${nextWeek.week}`}
+              className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#0B46E8]/20 bg-[#EDF1FD] px-5 py-4 transition hover:bg-[#E3EAFD]"
+            >
+              <div className="min-w-0">
+                <p className="text-[12px] font-bold text-[#0B46E8]">{t("다음 할 일", "Your next step", "下一步", "Việc tiếp theo", "次にやること", "Langkah berikutnya")}</p>
+                <p className="mt-0.5 truncate text-[15px] font-black text-[#0B1227]">
+                  Week {nextWeek.week} · {WEEK_DELIVERABLE[nextWeek.week]}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2 text-[13.5px] font-bold text-white">
+                {t("이어서 하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjut")} →
+              </span>
+            </Link>
+          ) : null}
 
           {/* 완주 시 — 이력서·자소서·면접 종합 최종 피드백(프로그램 소개처럼 섹션) */}
           {overall === 100 ? (
@@ -209,7 +236,7 @@ export default function LaunchDashboardPage() {
                   {WEEKS.map((w) => {
                     const done = weekDoneCount(w.steps, data);
                     const total = w.steps.length;
-                    const unlocked = weekUnlocked(w.week, data);
+                    const unlocked = weekUnlocked(w.week, data, schedule, serverNow);
                     const status = !unlocked
                       ? t("잠김", "Locked", "已锁定", "Đã khóa", "ロック中", "Terkunci")
                       : done === total
