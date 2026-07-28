@@ -166,9 +166,18 @@ export default function CoverCollectPage() {
             ) : null}
             <div ref={endRef} />
           </div>
+          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 진행 내용은 자동 저장돼요", "💬 Feel free to answer in your own language · 💾 Your progress saves automatically", "💬 可以用你的母语回答 · 💾 进度会自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 Tiến trình được lưu tự động", "💬 母国語で答えても大丈夫です · 💾 進行内容は自動保存されます", "💬 Boleh menjawab dalam bahasa ibumu · 💾 Progres tersimpan otomatis")}</p>
 
           {done ? (
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <div className="mt-3">
+              <div className="mb-2 flex items-center gap-2.5 rounded-2xl border border-[#A6EF3F] bg-[#EAFFD1] px-4 py-3">
+                <span className="text-[22px]">🎉</span>
+                <div className="min-w-0">
+                  <p className="text-[13.5px] font-black text-[#0B1227]">{t(`${focus ? SECTION_LABEL[focus] : t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Cover letter")} 정리 완료!`, `${focus ? SECTION_LABEL[focus] : "Cover letter"} done!`, `${focus ? SECTION_LABEL[focus] : "自我介绍书"} 整理完成！`, `Hoàn thành ${focus ? SECTION_LABEL[focus] : "thư giới thiệu"}!`, `${focus ? SECTION_LABEL[focus] : "自己紹介書"} 整理完了！`, `${focus ? SECTION_LABEL[focus] : "Cover letter"} selesai!`)}</p>
+                  <p className="mt-0.5 text-[12px] text-[#3A6B00]">{t("잘하고 있어요 — 다음 단계로 이어가 볼까요?", "Great work — ready for the next step?", "做得很好 — 继续下一步吧？", "Làm tốt lắm — sang bước tiếp theo nhé?", "その調子です — 次のステップに進みましょうか？", "Kerja bagus — lanjut ke langkah berikutnya?")}</p>
+                </div>
+              </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
                 onClick={() => setDone(false)}
@@ -182,6 +191,10 @@ export default function CoverCollectPage() {
               >
                 {t("3주차 페이지로", "To Week 3 page", "前往第3周页面", "Đến trang Tuần 3", "3週目のページへ", "Ke halaman Minggu 3")} →
               </Link>
+            </div>
+            <Link href="/career-launch/cover-preview" target="_blank" rel="noopener noreferrer" className="mt-2.5 block text-center text-[12.5px] font-bold text-[#0B46E8] underline">
+              {t("완성된 자기소개서 전체 보기 · PDF ↗", "View & download full cover letter · PDF ↗", "查看完整自我介绍书 · PDF ↗", "Xem toàn bộ thư giới thiệu · PDF ↗", "完成した自己紹介書を全体表示 · PDF ↗", "Lihat cover letter lengkap · PDF ↗")}
+            </Link>
             </div>
           ) : (
             <div className="mt-3">

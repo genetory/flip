@@ -101,15 +101,36 @@ export function ResumeSectionPreview({ data, focus }: { data: ResumeData; focus?
     );
   }
 
-  if (!blocks.length) return null;
+  // 이력서 완성도 — 5개 항목(기본정보·학력·경험·스킬·어학) 채움 비율. 경험은 경력/활동 중 하나만 있어도 채움.
+  const buckets = [
+    Boolean(b.name || b.summary),
+    (data.educations?.length ?? 0) > 0,
+    exps.length > 0,
+    (data.skills?.length ?? 0) > 0,
+    (data.languages?.length ?? 0) > 0
+  ];
+  const filled = buckets.filter(Boolean).length;
+  const pct = Math.round((filled / buckets.length) * 100);
+
+  if (filled === 0 && !blocks.length) return null;
 
   return (
     <div className="mt-3 rounded-2xl border border-[#E5E8EB] bg-white p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
-      <div className="mb-2 flex items-center gap-1.5">
-        <span className="text-[13px]">📄</span>
-        <p className="text-[12.5px] font-bold text-[#191F28]">{t("이력서에 이렇게 담겨요", "Here's how it'll appear on your resume", "简历中将这样呈现", "Sẽ xuất hiện trên CV như thế này", "履歴書にはこう載ります", "Beginilah tampil di resume")}</p>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[13px]">📄</span>
+          <p className="text-[12.5px] font-bold text-[#191F28]">{t("이력서에 이렇게 담겨요", "Here's how it'll appear on your resume", "简历中将这样呈现", "Sẽ xuất hiện trên CV như thế này", "履歴書にはこう載ります", "Beginilah tampil di resume")}</p>
+        </div>
+        <span className="shrink-0 text-[11.5px] font-bold text-[#0B46E8]">{t("완성도", "Complete", "完成度", "Hoàn thiện", "完成度", "Kelengkapan")} {pct}%</span>
       </div>
-      <div className="max-h-[34vh] space-y-3 overflow-y-auto pr-1">{blocks}</div>
+      <div className="mb-2.5 h-1.5 overflow-hidden rounded-full bg-[#EEF1F5]">
+        <div className="h-full rounded-full bg-[#0B46E8] transition-[width]" style={{ width: `${pct}%` }} />
+      </div>
+      {blocks.length ? (
+        <div className="max-h-[34vh] space-y-3 overflow-y-auto pr-1">{blocks}</div>
+      ) : (
+        <p className="rounded-lg bg-[#F8FAFC] px-3 py-2.5 text-center text-[12px] text-[#8B95A1]">{t("이 항목에 답하면 여기에 정리돼서 보여요.", "Answer this step and it'll appear here.", "回答此项后会在这里整理显示。", "Trả lời mục này rồi sẽ hiển thị ở đây.", "この項目に答えるとここに整理されて表示されます。", "Jawab langkah ini, akan tampil di sini.")}</p>
+      )}
     </div>
   );
 }

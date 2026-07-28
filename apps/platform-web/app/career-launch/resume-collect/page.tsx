@@ -27,6 +27,15 @@ export default function ResumeCollectPage() {
     skill: t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian"),
     lang: t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")
   };
+  // 스텝별 입력 예시 — 학생이 무엇을 어떻게 답할지 바로 감 잡도록 placeholder 로 보여준다.
+  const PLACEHOLDER: Record<ResumeSection, string> = {
+    basic: t("예: 응우옌 마이, 고려대 경영학과, 마케팅 직무 준비 중", "e.g., Nguyen Mai, Korea Univ. Business, aiming for marketing", "例：阮梅，高丽大学经营学，准备市场营销岗位", "VD: Nguyen Mai, ĐH Korea ngành Kinh doanh, hướng marketing", "例：グエン・マイ、高麗大経営学科、マーケティング志望", "Cth: Nguyen Mai, Korea Univ. Bisnis, incar marketing"),
+    edu: t("예: 고려대학교 경영학과 학사, 2021.03~2025.02", "e.g., Korea Univ., B.A. in Business, 2021.03–2025.02", "例：高丽大学经营学学士，2021.03~2025.02", "VD: ĐH Korea, Cử nhân Kinh doanh, 2021.03–2025.02", "例：高麗大学 経営学 学士、2021.03〜2025.02", "Cth: Korea Univ., S1 Bisnis, 2021.03–2025.02"),
+    exp: t("예: 스타트업 A에서 3개월 마케팅 인턴, SNS 캠페인 운영", "e.g., 3-month marketing intern at Startup A, ran SNS campaigns", "例：在初创A做3个月市场营销实习，运营社媒活动", "VD: Thực tập marketing 3 tháng tại Startup A, chạy chiến dịch SNS", "例：スタートアップAで3ヶ月マーケインターン、SNS運用", "Cth: Magang marketing 3 bln di Startup A, kelola kampanye SNS"),
+    expOther: t("예: 교내 창업동아리 팀장, 데모데이 발표·수상", "e.g., Led a startup club, presented & won at demo day", "例：校内创业社团组长，Demo Day发表并获奖", "VD: Trưởng nhóm CLB khởi nghiệp, thuyết trình & đoạt giải demo day", "例：学内起業サークル代表、デモデイ発表・受賞", "Cth: Ketua klub startup, presentasi & menang demo day"),
+    skill: t("예: Python, SQL, Figma, 포토샵", "e.g., Python, SQL, Figma, Photoshop", "例：Python、SQL、Figma、Photoshop", "VD: Python, SQL, Figma, Photoshop", "例：Python、SQL、Figma、Photoshop", "Cth: Python, SQL, Figma, Photoshop"),
+    lang: t("예: 한국어 TOPIK 5급, 영어 TOEIC 900", "e.g., Korean TOPIK 5, English TOEIC 900", "例：韩语TOPIK5级，英语TOEIC900", "VD: Tiếng Hàn TOPIK 5, Tiếng Anh TOEIC 900", "例：韓国語TOPIK5級、英語TOEIC900", "Cth: Korea TOPIK 5, Inggris TOEIC 900")
+  };
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
   const startedRef = useRef(false);
@@ -172,9 +181,18 @@ export default function ResumeCollectPage() {
             ) : null}
             <div ref={endRef} />
           </div>
+          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 진행 내용은 자동 저장돼요", "💬 Feel free to answer in your own language · 💾 Your progress saves automatically", "💬 可以用你的母语回答 · 💾 进度会自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 Tiến trình được lưu tự động", "💬 母国語で答えても大丈夫です · 💾 進行内容は自動保存されます", "💬 Boleh menjawab dalam bahasa ibumu · 💾 Progres tersimpan otomatis")}</p>
 
           {done ? (
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <div className="mt-3">
+              <div className="mb-2 flex items-center gap-2.5 rounded-2xl border border-[#A6EF3F] bg-[#EAFFD1] px-4 py-3">
+                <span className="text-[22px]">🎉</span>
+                <div className="min-w-0">
+                  <p className="text-[13.5px] font-black text-[#0B1227]">{t(`${focus ? SECTION_LABEL[focus] : t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")} 정리 완료!`, `${focus ? SECTION_LABEL[focus] : "Resume"} done!`, `${focus ? SECTION_LABEL[focus] : "简历"} 整理完成！`, `Hoàn thành ${focus ? SECTION_LABEL[focus] : "CV"}!`, `${focus ? SECTION_LABEL[focus] : "履歴書"} 整理完了！`, `${focus ? SECTION_LABEL[focus] : "Resume"} selesai!`)}</p>
+                  <p className="mt-0.5 text-[12px] text-[#3A6B00]">{t("잘하고 있어요 — 다음 단계로 이어가 볼까요?", "Great work — ready for the next step?", "做得很好 — 继续下一步吧？", "Làm tốt lắm — sang bước tiếp theo nhé?", "その調子です — 次のステップに進みましょうか？", "Kerja bagus — lanjut ke langkah berikutnya?")}</p>
+                </div>
+              </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
                 onClick={() => setDone(false)}
@@ -188,6 +206,10 @@ export default function ResumeCollectPage() {
               >
                 {t("2주차 페이지로", "To Week 2 page", "前往第2周页面", "Đến trang Tuần 2", "2週目のページへ", "Ke halaman Minggu 2")} →
               </Link>
+            </div>
+            <Link href="/career-launch/resume-preview" target="_blank" rel="noopener noreferrer" className="mt-2.5 block text-center text-[12.5px] font-bold text-[#0B46E8] underline">
+              {t("완성된 이력서 전체 보기 · PDF ↗", "View & download full resume · PDF ↗", "查看完整简历 · PDF ↗", "Xem toàn bộ CV · PDF ↗", "完成した履歴書を全体表示 · PDF ↗", "Lihat resume lengkap · PDF ↗")}
+            </Link>
             </div>
           ) : (
             <div className="mt-3">
@@ -227,7 +249,7 @@ export default function ResumeCollectPage() {
                       }
                     }}
                     rows={1}
-                    placeholder={t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
+                    placeholder={focus ? PLACEHOLDER[focus] : t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
                     disabled={loading}
                     className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
                   />
