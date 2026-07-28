@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { RichText } from "../../../components/launch/rich-text";
+import { ResumeSectionPreview } from "../../../components/launch/resume-section-preview";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestResumeChat, fetchResumeData, resetResumeData, hasResumeContent, type ResumeChatMsg, type ResumeData, type ResumeSection } from "../../../lib/launch/resume-data";
 import { Header } from "../../../components/site/Header";
@@ -139,6 +140,9 @@ export default function ResumeCollectPage() {
               <p className="text-[15px] font-black text-[#0B1227]">{focus ? SECTION_LABEL[focus] : t("대화로 이력서 채우기", "Build your resume through a chat", "边聊边填写简历", "Hoàn thiện CV qua trò chuyện", "会話で履歴書を埋める", "Isi resume lewat obrolan")}</p>
             </div>
           </div>
+
+          {/* 답변을 토대로 이력서에 담길 내용을 이력서답게 정리해 실시간으로 보여준다. */}
+          <ResumeSectionPreview data={data} focus={focus} />
 
           <div className="mt-4 flex-1 space-y-3 overflow-y-auto rounded-2xl border border-[#EEF1F5] bg-[#F8FAFC] p-4">
             {messages.map((m, i) =>
