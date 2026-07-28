@@ -37,17 +37,33 @@ export function toResumeContent(data: ResumeData): ResumeContent {
         endDate: end
       };
     }),
-    careers: (data.experiences ?? []).map((x) => {
-      const { start, end } = splitPeriod(x.period);
-      const bullets = (x.bullets ?? []).filter(Boolean);
-      return {
-        position: x.title ?? undefined,
-        companyName: x.org ?? undefined,
-        description: bullets.length ? bullets.map((t) => `• ${t}`).join("\n") : undefined,
-        startDate: start,
-        endDate: end
-      };
-    }),
+    // 회사경험(kind: work, 미지정 포함) → 경력(careers). 나머지(kind: other) → 활동·프로젝트(activities).
+    careers: (data.experiences ?? [])
+      .filter((x) => x.kind !== "other")
+      .map((x) => {
+        const { start, end } = splitPeriod(x.period);
+        const bullets = (x.bullets ?? []).filter(Boolean);
+        return {
+          position: x.title ?? undefined,
+          companyName: x.org ?? undefined,
+          description: bullets.length ? bullets.map((t) => `• ${t}`).join("\n") : undefined,
+          startDate: start,
+          endDate: end
+        };
+      }),
+    activities: (data.experiences ?? [])
+      .filter((x) => x.kind === "other")
+      .map((x) => {
+        const { start, end } = splitPeriod(x.period);
+        const bullets = (x.bullets ?? []).filter(Boolean);
+        return {
+          title: x.title ?? undefined,
+          organization: x.org ?? undefined,
+          description: bullets.length ? bullets.map((t) => `• ${t}`).join("\n") : undefined,
+          startDate: start,
+          endDate: end
+        };
+      }),
     skills: (data.skills ?? []).filter(Boolean),
     languages: (data.languages ?? []).map((l) => ({ language: l.language ?? undefined, level: l.level ?? undefined }))
   };

@@ -400,34 +400,43 @@ export default function LaunchOpsStudentDetailPage() {
                           <p className="break-keep text-[13px] leading-relaxed text-[var(--ink-soft)]">{detail.resume.basic.summary}</p>
                         ) : null}
 
-                        {detail.resume.experiences?.length ? (
-                          <div className="mt-4">
-                            <p className="text-[12px] font-bold uppercase tracking-wide text-[var(--ink-faint)]">
-                              {t("경력", "Experience", "经历", "Kinh nghiệm", "経歴", "Pengalaman")}
-                            </p>
-                            <ul className="mt-2 space-y-3">
-                              {detail.resume.experiences.map((e, i) => (
-                                <li key={i}>
-                                  <p className="text-[13.5px] font-semibold text-[var(--ink)]">
-                                    {e.title || "-"}
-                                    {e.org ? <span className="font-normal text-[var(--ink-faint)]"> · {e.org}</span> : null}
-                                    {e.period ? <span className="ml-1 text-[12px] font-normal text-[var(--ink-faint)]">{e.period}</span> : null}
-                                  </p>
-                                  {e.bullets?.length ? (
-                                    <ul className="mt-1 space-y-0.5">
-                                      {e.bullets.map((b, bi) => (
-                                        <li key={bi} className="flex gap-1.5 break-keep text-[12.5px] text-[var(--ink-soft)]">
-                                          <span className="text-[var(--ink-faint)]">•</span>
-                                          {b}
+                        {detail.resume.experiences?.length
+                          ? (() => {
+                              const exps = detail.resume.experiences ?? [];
+                              const groups: { label: string; items: typeof exps }[] = [
+                                { label: t("경력", "Experience", "经历", "Kinh nghiệm", "経歴", "Pengalaman"), items: exps.filter((e) => e.kind !== "other") },
+                                { label: t("활동·프로젝트", "Activities & projects", "活动·项目", "Hoạt động·Dự án", "活動·プロジェクト", "Aktivitas·Proyek"), items: exps.filter((e) => e.kind === "other") }
+                              ];
+                              return groups
+                                .filter((g) => g.items.length)
+                                .map((g) => (
+                                  <div key={g.label} className="mt-4">
+                                    <p className="text-[12px] font-bold uppercase tracking-wide text-[var(--ink-faint)]">{g.label}</p>
+                                    <ul className="mt-2 space-y-3">
+                                      {g.items.map((e, i) => (
+                                        <li key={i}>
+                                          <p className="text-[13.5px] font-semibold text-[var(--ink)]">
+                                            {e.title || "-"}
+                                            {e.org ? <span className="font-normal text-[var(--ink-faint)]"> · {e.org}</span> : null}
+                                            {e.period ? <span className="ml-1 text-[12px] font-normal text-[var(--ink-faint)]">{e.period}</span> : null}
+                                          </p>
+                                          {e.bullets?.length ? (
+                                            <ul className="mt-1 space-y-0.5">
+                                              {e.bullets.map((b, bi) => (
+                                                <li key={bi} className="flex gap-1.5 break-keep text-[12.5px] text-[var(--ink-soft)]">
+                                                  <span className="text-[var(--ink-faint)]">•</span>
+                                                  {b}
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          ) : null}
                                         </li>
                                       ))}
                                     </ul>
-                                  ) : null}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null}
+                                  </div>
+                                ));
+                            })()
+                          : null}
 
                         {detail.resume.educations?.length ? (
                           <div className="mt-4">
