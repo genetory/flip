@@ -15602,19 +15602,32 @@ async function syncCareerResumeToResume(userId: string): Promise<void> {
   try {
     const cr = await prisma.careerResumeData.findUnique({ where: { studentUserId: userId } });
     if (!cr) return;
-    const norm = normalizeResumeData(cr.content);
-    const hasContent = hasResumeDataContent(norm);
-    const linked = cr.resumeId ? await prisma.resume.findFirst({ where: { id: cr.resumeId, userId }, select: { id: true } }) : null;
-    if (!hasContent && !linked) return; // 빈 내용 + 미러 없음 → 아무것도 안 함
-    const content = careerResumeToResumeContent(cr.content);
-    if (linked) {
-      await prisma.resume.update({ where: { id: linked.id }, data: { content: content as Prisma.InputJsonValue } });
-    } else {
+    const hasContent = hasResumeDataContent(normalizeResumeData(cr.content));
+    // 유효한 미러 링크 확인 — Resume 가 삭제됐으면 무효화하고 재생성 경로로.
+    let resumeId: string | null = cr.resumeId ?? null;
+    if (resumeId && !(await prisma.resume.findFirst({ where: { id: resumeId, userId }, select: { id: true } }))) {
+      resumeId = null;
+    }
+    if (!resumeId && !hasContent) return; // 빈 내용 + 미러 없음 → 아무것도 안 함
+    const content = careerResumeToResumeContent(cr.content) as Prisma.InputJsonValue;
+    if (!resumeId) {
+      // 최초 생성 — 동시 요청으로 중복 생성되지 않도록 원자적 클레임(resumeId 가 null 일 때만 링크).
       const existingCount = await prisma.resume.count({ where: { userId } });
       const created = await prisma.resume.create({
-        data: { userId, title: "글로벌 커리어 런치 이력서", content: content as Prisma.InputJsonValue, isPrimary: existingCount === 0 }
+        data: { userId, title: "글로벌 커리어 런치 이력서", content, isPrimary: existingCount === 0 }
       });
-      await prisma.careerResumeData.update({ where: { studentUserId: userId }, data: { resumeId: created.id } });
+      const claim = await prisma.careerResumeData.updateMany({ where: { studentUserId: userId, resumeId: null }, data: { resumeId: created.id } });
+      if (claim.count === 0) {
+        // 동시 실행이 이미 미러를 만들어 링크함 → 방금 만든 것 폐기하고 기존 링크 사용.
+        await prisma.resume.delete({ where: { id: created.id } }).catch(() => {});
+        const fresh = await prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { resumeId: true } });
+        resumeId = fresh?.resumeId ?? null;
+      } else {
+        resumeId = created.id;
+      }
+    }
+    if (resumeId) {
+      await prisma.resume.update({ where: { id: resumeId }, data: { content } });
     }
   } catch (err) {
     console.error("[career-launch] syncCareerResumeToResume failed", err);
@@ -15807,22 +15820,33 @@ async function syncCareerCoverToCoverLetter(userId: string): Promise<void> {
     if (!cc) return;
     const norm = normalizeCoverData(cc.content);
     const hasContent = hasCoverContent(norm);
-    const linked = cc.coverLetterId ? await prisma.coverLetter.findFirst({ where: { id: cc.coverLetterId, userId }, select: { id: true } }) : null;
-    if (!hasContent && !linked) return;
+    // 유효한 미러 링크 확인 — CoverLetter 가 삭제됐으면 무효화하고 재생성 경로로.
+    let coverLetterId: string | null = cc.coverLetterId ?? null;
+    if (coverLetterId && !(await prisma.coverLetter.findFirst({ where: { id: coverLetterId, userId }, select: { id: true } }))) {
+      coverLetterId = null;
+    }
+    if (!coverLetterId && !hasContent) return;
     const company = (norm.company as string | null) ?? null;
     const items = (norm.items as { question: string; answer: string }[]).map((it, i) => ({
       id: `career-${i}`,
       prompt: it.question.slice(0, 300),
       answer: it.answer.slice(0, 6000)
-    }));
+    })) as Prisma.InputJsonValue;
     const title = company ? `${company} 자기소개서` : "글로벌 커리어 런치 자기소개서";
-    if (linked) {
-      await prisma.coverLetter.update({ where: { id: linked.id }, data: { company, items: items as Prisma.InputJsonValue } });
-    } else {
-      const created = await prisma.coverLetter.create({
-        data: { userId, title, company, items: items as Prisma.InputJsonValue }
-      });
-      await prisma.careerCoverLetterData.update({ where: { studentUserId: userId }, data: { coverLetterId: created.id } });
+    if (!coverLetterId) {
+      // 최초 생성 — 동시 요청 중복 방지 원자적 클레임(coverLetterId 가 null 일 때만 링크).
+      const created = await prisma.coverLetter.create({ data: { userId, title, company, items } });
+      const claim = await prisma.careerCoverLetterData.updateMany({ where: { studentUserId: userId, coverLetterId: null }, data: { coverLetterId: created.id } });
+      if (claim.count === 0) {
+        await prisma.coverLetter.delete({ where: { id: created.id } }).catch(() => {});
+        const fresh = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId }, select: { coverLetterId: true } });
+        coverLetterId = fresh?.coverLetterId ?? null;
+      } else {
+        coverLetterId = created.id;
+      }
+    }
+    if (coverLetterId) {
+      await prisma.coverLetter.update({ where: { id: coverLetterId }, data: { company, items } });
     }
   } catch (err) {
     console.error("[career-launch] syncCareerCoverToCoverLetter failed", err);
