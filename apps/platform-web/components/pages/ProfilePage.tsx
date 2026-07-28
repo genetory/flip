@@ -30,6 +30,7 @@ import {
   type Resume
 } from "../../lib/member-profile-client";
 import { createDraftResume } from "../../lib/resume-maker-client";
+import { getMyCoverLetters, type CoverLetter } from "../../lib/cover-letter-client";
 import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import type { ApplicationStatus } from "../../lib/status-labels";
@@ -164,6 +165,7 @@ export function ProfilePage() {
   const [favoritePositions, setFavoritePositions] = useState<PublicPositionListItem[]>([]);
   const [appliedPositions, setAppliedPositions] = useState<PublicPositionListItem[]>([]);
   const [myResumes, setMyResumes] = useState<Resume[]>([]);
+  const [myCoverLetters, setMyCoverLetters] = useState<CoverLetter[]>([]);
   const [resumePrimaryBusyId, setResumePrimaryBusyId] = useState<string | null>(null);
   const [resumeDeletingId, setResumeDeletingId] = useState<string | null>(null);
   const resumeRouter = useRouter();
@@ -444,12 +446,13 @@ export function ProfilePage() {
 
     void (async () => {
       try {
-        const [favorites, applied, profile, apps, resumes] = await Promise.all([
+        const [favorites, applied, profile, apps, resumes, coverLetters] = await Promise.all([
           getMyFavoritePositions(),
           getMyAppliedPositions(),
           getMyCandidateProfile(),
           getMyApplications().catch(() => [] as MyApplication[]),
-          getMyResumes().catch(() => [] as Resume[])
+          getMyResumes().catch(() => [] as Resume[]),
+          getMyCoverLetters().catch(() => [] as CoverLetter[])
         ]);
         if (!isMounted) return;
         setFavoritePositions(favorites);
@@ -457,6 +460,7 @@ export function ProfilePage() {
         setApplications(apps);
         setStudentProfile(profile ?? null);
         setMyResumes(resumes);
+        setMyCoverLetters(coverLetters);
         setStudentPositionsError(null);
       } catch (error) {
         if (!isMounted) return;
@@ -1334,7 +1338,7 @@ export function ProfilePage() {
                           studentTab === "resume" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        {tr("이력서 관리", "Resumes", "简历管理", "Quản lý hồ sơ", "履歴書管理", "Resumes")}
+                        {tr("이력서·자소서", "Documents", "简历·求职信", "Hồ sơ·Thư", "履歴書·自己紹介書", "Dokumen")}
                       </button>
                       <button
                         type="button"
@@ -1488,6 +1492,52 @@ export function ProfilePage() {
                                   </button>
                                 </div>
                               </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* 자기소개서 — resume-maker·career-launch 어느 쪽에서 만들었든 여기 보이고 지원에 사용된다. */}
+                        <div className="mt-8 flex items-center justify-between gap-3">
+                          <p className="text-sm text-muted-foreground">
+                            {tr(
+                              "만든 자기소개서예요. 지원할 때 함께 제출돼요.",
+                              "Your cover letters. They're submitted when you apply.",
+                              "你的求职信。申请时一并提交。",
+                              "Thư tự giới thiệu của bạn. Được nộp khi ứng tuyển.",
+                              "作成した自己紹介書です。応募時に一緒に提出されます。",
+                              "Cover letter Anda. Dikirim saat melamar."
+                            )}
+                          </p>
+                          <Link href="/resume-maker/cover-letters" className="flex-none">
+                            <Button size="sm" variant="outline">
+                              {tr("자기소개서 만들기", "Create", "创建", "Tạo", "作成", "Buat")}
+                            </Button>
+                          </Link>
+                        </div>
+                        {myCoverLetters.length === 0 ? (
+                          <div className="rounded-2xl border border-dashed border-border/60 bg-white px-5 py-10 text-center">
+                            <FileText className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" strokeWidth={1.5} />
+                            <p className="text-sm text-muted-foreground">
+                              {tr("아직 만든 자기소개서가 없어요.", "No cover letters yet.", "还没有求职信。", "Chưa có thư tự giới thiệu nào.", "まだ自己紹介書がありません。", "Belum ada cover letter.")}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/50 bg-white">
+                            {myCoverLetters.map((c) => (
+                              <Link
+                                key={c.id}
+                                href={`/resume-maker/cover-letters/${c.id}`}
+                                className="flex items-center gap-3 px-4 py-5 transition hover:bg-muted/40"
+                              >
+                                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                  <FileText className="h-5 w-5" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="truncate text-[17px] font-semibold text-foreground">{c.title}</span>
+                                  {c.company ? <span className="ml-2 text-[13px] text-muted-foreground">{c.company}</span> : null}
+                                </span>
+                                <Pencil className="h-4 w-4 flex-none text-muted-foreground" />
+                              </Link>
                             ))}
                           </div>
                         )}

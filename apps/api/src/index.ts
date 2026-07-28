@@ -15550,6 +15550,77 @@ function hasResumeDataContent(d: Record<string, unknown>): boolean {
   return basicFilled || len(d.educations) > 0 || len(d.experiences) > 0 || len(d.skills) > 0 || len(d.languages) > 0;
 }
 
+// CareerResumeData content → resume-maker Resume content(ResumeContent) 변환.
+// resume-render.tsx 의 toResumeContent 와 동일 규칙: kind 로 careers(회사경험)/activities(나머지) 분리.
+function careerResumeToResumeContent(raw: unknown): Record<string, unknown> {
+  const d = normalizeResumeData(raw);
+  const b = d.basic as Record<string, unknown>;
+  const splitPeriod = (p: unknown): { start?: string; end?: string } => {
+    const s = typeof p === "string" ? p.trim() : "";
+    if (!s) return {};
+    const parts = s.split(/\s*(?:[~–—]|\s-\s|부터|\bto\b)\s*/).map((x) => x.trim()).filter(Boolean);
+    if (parts.length >= 2) return { start: parts[0], end: parts.slice(1).join(" ") };
+    return { start: parts[0], end: parts[0] };
+  };
+  const arr = (v: unknown) => (Array.isArray(v) ? (v as Record<string, unknown>[]) : []);
+  const bulletsDesc = (x: Record<string, unknown>) => {
+    const bl = Array.isArray(x.bullets) ? (x.bullets as unknown[]).filter((t): t is string => typeof t === "string" && t.trim().length > 0) : [];
+    return bl.length ? bl.map((t) => `• ${t}`).join("\n") : undefined;
+  };
+  const exps = arr(d.experiences);
+  const careers = exps.filter((x) => x.kind !== "other").map((x) => {
+    const { start, end } = splitPeriod(x.period);
+    return { position: x.title ?? undefined, companyName: x.org ?? undefined, description: bulletsDesc(x), startDate: start, endDate: end };
+  });
+  const activities = exps.filter((x) => x.kind === "other").map((x) => {
+    const { start, end } = splitPeriod(x.period);
+    return { title: x.title ?? undefined, organization: x.org ?? undefined, description: bulletsDesc(x), startDate: start, endDate: end };
+  });
+  const educations = arr(d.educations).map((e) => {
+    const { start, end } = splitPeriod(e.period);
+    return { schoolName: e.school ?? undefined, major: [e.major, e.degree].filter(Boolean).join(" · ") || undefined, startDate: start, endDate: end };
+  });
+  const languages = arr(d.languages).map((l) => ({ language: l.language ?? undefined, level: l.level ?? undefined }));
+  const skills = Array.isArray(d.skills) ? (d.skills as unknown[]).filter((s): s is string => typeof s === "string" && s.trim().length > 0) : [];
+  return {
+    basicName: b.name ?? null,
+    basicEmail: b.email ?? null,
+    basicPhone: b.phone ?? null,
+    summary: b.summary ?? null,
+    educations,
+    careers,
+    activities,
+    skills,
+    languages
+  };
+}
+
+// career-launch 이력서를 실제 aply.global Resume(지원·프로필용)로 자동 미러링한다.
+// 내용이 있으면 Resume 를 생성/갱신하고 CareerResumeData.resumeId 로 연결. 대표 이력서가
+// 없으면 대표로 지정해 바로 지원 가능하게 한다. 실패는 삼켜 대화 흐름을 막지 않는다.
+async function syncCareerResumeToResume(userId: string): Promise<void> {
+  try {
+    const cr = await prisma.careerResumeData.findUnique({ where: { studentUserId: userId } });
+    if (!cr) return;
+    const norm = normalizeResumeData(cr.content);
+    const hasContent = hasResumeDataContent(norm);
+    const linked = cr.resumeId ? await prisma.resume.findFirst({ where: { id: cr.resumeId, userId }, select: { id: true } }) : null;
+    if (!hasContent && !linked) return; // 빈 내용 + 미러 없음 → 아무것도 안 함
+    const content = careerResumeToResumeContent(cr.content);
+    if (linked) {
+      await prisma.resume.update({ where: { id: linked.id }, data: { content: content as Prisma.InputJsonValue } });
+    } else {
+      const existingCount = await prisma.resume.count({ where: { userId } });
+      const created = await prisma.resume.create({
+        data: { userId, title: "글로벌 커리어 런치 이력서", content: content as Prisma.InputJsonValue, isPrimary: existingCount === 0 }
+      });
+      await prisma.careerResumeData.update({ where: { studentUserId: userId }, data: { resumeId: created.id } });
+    }
+  } catch (err) {
+    console.error("[career-launch] syncCareerResumeToResume failed", err);
+  }
+}
+
 // POST /career-launch/resume-chat — 이력서 재료를 대화로 수집하고 누적 데이터를 저장.
 app.post(
   "/career-launch/resume-chat",
@@ -15598,6 +15669,8 @@ app.post(
         create: { studentUserId: req.auth!.userId, content: resumeData as object },
         update: { content: resumeData as object }
       });
+      // 저장 즉시 실제 aply.global Resume 로 자동 미러링 → 프로필 노출·지원에 바로 사용 가능.
+      await syncCareerResumeToResume(req.auth!.userId);
       return res.json({ ok: true, reply, data: resumeData, done });
     } catch (err) {
       console.error("[career-launch/resume-chat] failed", err);
@@ -15725,6 +15798,37 @@ function hasCoverContent(d: Record<string, unknown>): boolean {
   return items.some((x) => (x.answer ?? "").trim().length > 0);
 }
 
+// career-launch 자소서를 실제 aply.global CoverLetter(지원·프로필용)로 자동 미러링한다.
+// 답변이 있는 문항이 하나라도 있으면 CoverLetter 를 생성/갱신하고 coverLetterId 로 연결.
+// question→prompt 키 변환. 실패는 삼켜 대화 흐름을 막지 않는다.
+async function syncCareerCoverToCoverLetter(userId: string): Promise<void> {
+  try {
+    const cc = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId } });
+    if (!cc) return;
+    const norm = normalizeCoverData(cc.content);
+    const hasContent = hasCoverContent(norm);
+    const linked = cc.coverLetterId ? await prisma.coverLetter.findFirst({ where: { id: cc.coverLetterId, userId }, select: { id: true } }) : null;
+    if (!hasContent && !linked) return;
+    const company = (norm.company as string | null) ?? null;
+    const items = (norm.items as { question: string; answer: string }[]).map((it, i) => ({
+      id: `career-${i}`,
+      prompt: it.question.slice(0, 300),
+      answer: it.answer.slice(0, 6000)
+    }));
+    const title = company ? `${company} 자기소개서` : "글로벌 커리어 런치 자기소개서";
+    if (linked) {
+      await prisma.coverLetter.update({ where: { id: linked.id }, data: { company, items: items as Prisma.InputJsonValue } });
+    } else {
+      const created = await prisma.coverLetter.create({
+        data: { userId, title, company, items: items as Prisma.InputJsonValue }
+      });
+      await prisma.careerCoverLetterData.update({ where: { studentUserId: userId }, data: { coverLetterId: created.id } });
+    }
+  } catch (err) {
+    console.error("[career-launch] syncCareerCoverToCoverLetter failed", err);
+  }
+}
+
 // POST /career-launch/cover-chat — 자소서 문항을 대화로 수집하고 누적 저장.
 app.post(
   "/career-launch/cover-chat",
@@ -15772,6 +15876,8 @@ app.post(
         create: { studentUserId: req.auth!.userId, content: coverData as object },
         update: { content: coverData as object }
       });
+      // 저장 즉시 실제 aply.global CoverLetter 로 자동 미러링 → 프로필 노출·지원에 바로 사용 가능.
+      await syncCareerCoverToCoverLetter(req.auth!.userId);
       return res.json({ ok: true, reply, data: coverData, done });
     } catch (err) {
       console.error("[career-launch/cover-chat] failed", err);

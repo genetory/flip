@@ -837,6 +837,9 @@ model CareerResumeData {
   id            String   @id @default(uuid())
   studentUserId String   @unique
   content       Json     @default("{}") // { basic, educations[], experiences[], skills[], languages[] }
+  // 이 career-launch 이력서를 미러링한 실제 aply.global Resume(지원·프로필용) id.
+  // 저장 시마다 자동 동기화한다. 느슨한 링크(FK 아님) — Resume 삭제 시 재생성.
+  resumeId      String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -849,6 +852,9 @@ model CareerCoverLetterData {
   id            String   @id @default(uuid())
   studentUserId String   @unique
   content       Json     @default("{}")
+  // 이 career-launch 자소서를 미러링한 실제 aply.global CoverLetter(지원·프로필용) id.
+  // 저장 시마다 자동 동기화한다. 느슨한 링크(FK 아님) — CoverLetter 삭제 시 재생성.
+  coverLetterId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
