@@ -146,6 +146,7 @@ export default function LaunchMaterialsPage() {
             <Link href="/career-launch/week/1" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               ← {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
             </Link>
+            <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
             <div className="flex items-center gap-2.5">
               <span className="text-[12px] font-bold text-[#0B46E8]">{t(`정리한 정보 ${materials.length}개`, `${materials.length} insights gathered`, `已整理 ${materials.length} 条信息`, `${materials.length} thông tin đã tổng hợp`, `整理した情報${materials.length}件`, `${materials.length} info terkumpul`)}</span>
               {!done ? (
