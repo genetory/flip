@@ -12,7 +12,8 @@ export const STEP_KIND: Record<string, string> = {
   // week2 이력서 — 표시 섹션 단위
   "w2-basic": "resume-basic",
   "w2-edu": "resume-edu",
-  "w2-exp": "resume-exp",
+  "w2-exp": "resume-exp-work",
+  "w2-exp-other": "resume-exp-other",
   "w2-skill": "resume-skill",
   "w2-lang": "resume-lang",
   // week3 자기소개서 — 문항 단위(순서대로 누적)
@@ -36,7 +37,6 @@ export function isStepDone(id: string, d: LaunchData): boolean {
   if (!kind) return doneMarked;
 
   const eduN = resume.educations?.length ?? 0;
-  const expN = resume.experiences?.length ?? 0;
   const skillN = resume.skills?.length ?? 0;
   const langN = resume.languages?.length ?? 0;
   const coverN = (cover.items ?? []).filter((x) => (x.answer ?? "").trim().length > 0).length;
@@ -48,7 +48,8 @@ export function isStepDone(id: string, d: LaunchData): boolean {
     case "materials": kd = (prog.materials?.length ?? 0) > 0; break;
     case "resume-basic": kd = Boolean(resume.basic?.name || resume.basic?.summary); break;
     case "resume-edu": kd = eduN > 0; break;
-    case "resume-exp": kd = expN > 0; break;
+    case "resume-exp-work": kd = (resume.experiences ?? []).some((x) => x.kind !== "other"); break;
+    case "resume-exp-other": kd = (resume.experiences ?? []).some((x) => x.kind === "other"); break;
     case "resume-skill": kd = skillN > 0; break;
     case "resume-lang": kd = langN > 0; break;
     case "cover1": kd = coverN >= 1; break;

@@ -21,7 +21,8 @@ export default function ResumeCollectPage() {
   const SECTION_LABEL: Record<ResumeSection, string> = {
     basic: t("기본정보·한줄소개", "Basic info & one-line intro", "基本信息·一句话介绍", "Thông tin cơ bản & giới thiệu ngắn", "基本情報・一言紹介", "Info dasar & perkenalan singkat"),
     edu: t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan"),
-    exp: t("경력·경험", "Work & experience", "经历·经验", "Kinh nghiệm làm việc", "経歴・経験", "Pengalaman kerja"),
+    exp: t("경력 (회사 경력)", "Work experience", "工作经历", "Kinh nghiệm làm việc", "職歴（会社経歴）", "Pengalaman kerja"),
+    expOther: t("활동·프로젝트", "Activities & projects", "活动·项目", "Hoạt động·Dự án", "活動・プロジェクト", "Aktivitas·Proyek"),
     skill: t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian"),
     lang: t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")
   };
@@ -51,7 +52,7 @@ export default function ResumeCollectPage() {
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
     const restart = params.get("restart") === "1";
     const sectionRaw = params.get("section");
-    const section = (["basic", "edu", "exp", "skill", "lang"] as const).find((s) => s === sectionRaw);
+    const section = (["basic", "edu", "exp", "expOther", "skill", "lang"] as const).find((s) => s === sectionRaw);
     setFocus(section);
     void (async () => {
       let seed: ResumeData = {};

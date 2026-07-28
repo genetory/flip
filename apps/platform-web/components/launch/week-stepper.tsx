@@ -48,7 +48,6 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
   const skillN = resume.skills?.length ?? 0;
   const langN = resume.languages?.length ?? 0;
   const resumeBasicDone = Boolean(resume.basic?.name || resume.basic?.summary);
-  const resumeExpDone = expN > 0;
   const resumeReady = hasResumeContent(resume);
   const coverReady = hasCoverContent(cover);
   const coverN = (cover.items ?? []).filter((x) => (x.answer ?? "").trim().length > 0).length;
@@ -70,6 +69,20 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
   const stepResult = (id: string) => {
     const kind = STEP_KIND[id];
     if (!kind) return null;
+
+    // 경력/활동 결과 아이템 공통 렌더러.
+    const renderExpItem = (x: ResumeExperience, i: number) => (
+      <li key={i} className="rounded-lg bg-white/70 p-2.5">
+        <p className="text-[13px] font-bold text-[#191F28]">{[x.title, x.org].filter(Boolean).join(" · ")}{x.period ? <span className="font-normal text-[#8B95A1]"> ({x.period})</span> : null}</p>
+        {x.bullets?.length ? (
+          <ul className="mt-1 space-y-0.5">
+            {x.bullets.map((b, bi) => (
+              <li key={bi} className="flex gap-1.5 break-keep text-[12px] text-[#4E5968]"><span className="text-[#0B46E8]">•</span>{b}</li>
+            ))}
+          </ul>
+        ) : null}
+      </li>
+    );
 
     if (kind === "diag" && prog.diagnosis && typeof prog.diagnosis.percent === "number") {
       const d = prog.diagnosis;
@@ -155,40 +168,25 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
         </ResultCard>
       );
     }
-    // 이력서 — 경력·경험
-    if (kind === "resume-exp" && resumeExpDone) {
-      const exps = resume.experiences ?? [];
-      const workExps = exps.filter((x) => x.kind !== "other");
-      const otherExps = exps.filter((x) => x.kind === "other");
-      const renderItem = (x: ResumeExperience, i: number) => (
-        <li key={i} className="rounded-lg bg-white/70 p-2.5">
-          <p className="text-[13px] font-bold text-[#191F28]">{[x.title, x.org].filter(Boolean).join(" · ")}{x.period ? <span className="font-normal text-[#8B95A1]"> ({x.period})</span> : null}</p>
-          {x.bullets?.length ? (
-            <ul className="mt-1 space-y-0.5">
-              {x.bullets.map((b, bi) => (
-                <li key={bi} className="flex gap-1.5 break-keep text-[12px] text-[#4E5968]"><span className="text-[#0B46E8]">•</span>{b}</li>
-              ))}
-            </ul>
-          ) : null}
-        </li>
-      );
-      const groupLabel = (ko: string, en: string, zh: string, vi: string, ja: string, id: string, n: number) => (
-        <p className="text-[13.5px] font-bold text-[#191F28]">📄 {t(ko, en, zh, vi, ja, id)} <span className="text-[#0B46E8]">{t(`${n}개`, `${n}`, `${n} 项`, `${n}`, `${n}件`, `${n}`)}</span></p>
-      );
+    // 이력서 — 경력(회사경험)
+    if (kind === "resume-exp-work") {
+      const items = (resume.experiences ?? []).filter((x) => x.kind !== "other");
+      if (!items.length) return null;
       return (
         <ResultCard continueHref="/career-launch/resume-collect?section=exp" continueLabel={t("이어하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjutkan")} restartHref="/career-launch/resume-collect?section=exp&restart=1">
-          {workExps.length ? (
-            <div>
-              {groupLabel("경력", "Experience", "经历", "Kinh nghiệm", "職歴", "Pengalaman", workExps.length)}
-              <ul className="mt-2 space-y-2">{workExps.map(renderItem)}</ul>
-            </div>
-          ) : null}
-          {otherExps.length ? (
-            <div className={workExps.length ? "mt-3" : ""}>
-              {groupLabel("활동·프로젝트", "Activities & projects", "活动·项目", "Hoạt động·Dự án", "活動·プロジェクト", "Aktivitas·Proyek", otherExps.length)}
-              <ul className="mt-2 space-y-2">{otherExps.map(renderItem)}</ul>
-            </div>
-          ) : null}
+          <p className="text-[13.5px] font-bold text-[#191F28]">📄 {t("경력", "Experience", "经历", "Kinh nghiệm", "職歴", "Pengalaman")} <span className="text-[#0B46E8]">{t(`${items.length}개`, `${items.length}`, `${items.length} 项`, `${items.length}`, `${items.length}件`, `${items.length}`)}</span></p>
+          <ul className="mt-2 space-y-2">{items.map(renderExpItem)}</ul>
+        </ResultCard>
+      );
+    }
+    // 이력서 — 활동·프로젝트(나머지)
+    if (kind === "resume-exp-other") {
+      const items = (resume.experiences ?? []).filter((x) => x.kind === "other");
+      if (!items.length) return null;
+      return (
+        <ResultCard continueHref="/career-launch/resume-collect?section=expOther" continueLabel={t("이어하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjutkan")} restartHref="/career-launch/resume-collect?section=expOther&restart=1">
+          <p className="text-[13.5px] font-bold text-[#191F28]">📄 {t("활동·프로젝트", "Activities & projects", "活动·项目", "Hoạt động·Dự án", "活動·プロジェクト", "Aktivitas·Proyek")} <span className="text-[#0B46E8]">{t(`${items.length}개`, `${items.length}`, `${items.length} 项`, `${items.length}`, `${items.length}件`, `${items.length}`)}</span></p>
+          <ul className="mt-2 space-y-2">{items.map(renderExpItem)}</ul>
         </ResultCard>
       );
     }

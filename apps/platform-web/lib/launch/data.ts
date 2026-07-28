@@ -101,9 +101,15 @@ export const WEEKS: WeekPlan[] = [
       },
       {
         id: "w2-exp",
-        title: "경력·경험",
-        desc: "인턴·프로젝트·대외활동을 AI와 대화하며 풀어내요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
+        title: "경력 (회사 경력)",
+        desc: "정규직·계약직·인턴 등 회사에 소속되어 일한 명확한 회사 경력을 AI와 대화하며 정리해요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
         action: { label: "시작하기", href: "/career-launch/resume-collect?section=exp" }
+      },
+      {
+        id: "w2-exp-other",
+        title: "활동·프로젝트",
+        desc: "아르바이트·프로젝트·동아리·대외활동·봉사 등 회사 경력 외의 경험을 대화로 풀어내요. 신입에게는 이 경험도 큰 강점이에요.",
+        action: { label: "시작하기", href: "/career-launch/resume-collect?section=expOther" }
       },
       {
         id: "w2-skill",

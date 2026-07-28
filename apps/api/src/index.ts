@@ -14878,11 +14878,18 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
       "[이번 스텝: 학력] 이번 대화는 학력(educations)만 다룬다. 학교·전공·학위·재학 기간을 확인해 채워. 다른 섹션은 묻지 마. 학력이 충분히 정리되면 done=true."
   },
   resume_exp: {
-    label: "이력서 · 경력·경험",
+    label: "이력서 · 경력(회사 경력)",
     week: 2,
-    step: "스텝 3 · 경력·경험",
+    step: "스텝 3 · 경력",
     default:
-      "[이번 스텝: 경력·경험] 이번 대화는 경력·경험(experiences)만 다룬다. 각 경험의 직무·기관·기간·성과(bullets)를 구체적으로 끌어내. 각 경험은 kind 로 분류해라 — 회사·인턴·아르바이트 등 조직에 소속돼 일한 '회사경험'은 kind:\"work\", 프로젝트·동아리·대외활동·봉사·공모전 등은 kind:\"other\". 애매하면 \"work\". 다른 섹션은 묻지 마. 주요 경험이 충분히 정리되면 done=true."
+      "[이번 스텝: 경력] 이번 대화는 '명확한 회사 근무 경력'만 다룬다 — 정규직·계약직·인턴 등 회사(기업·기관)에 정식 소속되어 담당 직무를 수행한 경력. 각 경력의 직무·회사·기간·성과(bullets)를 구체적으로 끌어내고, 모든 항목은 kind:\"work\" 로 저장해라. 아르바이트·프로젝트·동아리·대외활동·봉사·공모전 등은 회사 경력이 아니므로 여기서 묻지 말고 다음 스텝(활동·프로젝트)에서 다룬다. 다른 섹션도 묻지 마. 회사 경력이 충분히 정리되면 done=true. (없다고 하면 '없다'는 것도 인정하고 바로 done=true.)"
+  },
+  resume_expOther: {
+    label: "이력서 · 활동·프로젝트",
+    week: 2,
+    step: "스텝 4 · 활동·프로젝트",
+    default:
+      "[이번 스텝: 활동·프로젝트] 이번 대화는 정규 회사 경력을 뺀 '나머지 경험'만 다룬다 — 아르바이트, 학교/개인 프로젝트, 동아리, 대외활동, 봉사, 공모전 등. 각 항목의 역할·소속(팀/단체/매장)·기간·성과(bullets)를 구체적으로 끌어내고, 모든 항목은 kind:\"other\" 로 저장해라. 정규직·계약직·인턴 같은 회사 경력은 여기서 묻지 마(이전 스텝에서 다룬다). 다른 섹션도 묻지 마. 활동이 충분히 정리되면 done=true. (없다고 하면 인정하고 done=true.)"
   },
   resume_skill: {
     label: "이력서 · 스킬",
@@ -15450,7 +15457,8 @@ const resumeChatSchema = z.object({
 });
 
 // 이력서 스텝 섹션 — 각 스텝의 집중 프롬프트는 CAREER_PROMPTS["resume_<section>"](편집 가능).
-const RESUME_SECTIONS = ["basic", "edu", "exp", "skill", "lang"] as const;
+// exp = 경력(회사경험/work), expOther = 활동·프로젝트(나머지/other). 둘 다 experiences[] 에 kind 로 저장.
+const RESUME_SECTIONS = ["basic", "edu", "exp", "expOther", "skill", "lang"] as const;
 
 // 반환 데이터를 정규 스키마 키로 정규화(strict 실패로 fallback 시 한국어 키 대비).
 function normalizeResumeData(raw: unknown): Record<string, unknown> {
@@ -15709,6 +15717,26 @@ app.post(
       });
       // 저장 즉시 실제 aply.global Resume 로 자동 미러링 → 프로필 노출·지원에 바로 사용 가능.
       await syncCareerResumeToResume(req.auth!.userId);
+      // 경력(exp)·활동(expOther) 은 '없음'도 정상 — 대화가 done 이면 데이터가 비어도 해당 스텝을
+      // 완료 처리(doneSteps)해, 회사 경력이 없는(또는 활동이 없는) 학생도 W2 를 막힘없이 진행한다.
+      if (done && (focus === "exp" || focus === "expOther")) {
+        const stepId = focus === "exp" ? "w2-exp" : "w2-exp-other";
+        try {
+          const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: req.auth!.userId }, select: { state: true } });
+          const st = (prog?.state && typeof prog.state === "object" ? { ...(prog.state as Record<string, unknown>) } : {}) as Record<string, unknown>;
+          const doneSteps = Array.isArray(st.doneSteps) ? (st.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
+          if (!doneSteps.includes(stepId)) {
+            st.doneSteps = [...doneSteps, stepId];
+            await prisma.careerLaunchProgress.upsert({
+              where: { studentUserId: req.auth!.userId },
+              create: { studentUserId: req.auth!.userId, state: st as object },
+              update: { state: st as object }
+            });
+          }
+        } catch (e) {
+          console.error("[career-launch] mark exp step done failed", e);
+        }
+      }
       return res.json({ ok: true, reply, data: resumeData, done });
     } catch (err) {
       console.error("[career-launch/resume-chat] failed", err);
@@ -15729,19 +15757,26 @@ app.get("/career-launch/resume-data", authenticate, requireCareerEnrollment, asy
 
 // DELETE /career-launch/resume-data — '다시하기'용 초기화. 병합이 축소하지 않으므로 여기서 비운다.
 // ?scope=basic|exp|skills 면 해당 스텝 섹션만 초기화(부분), 없으면 전체 초기화.
+// exp/expOther 는 experiences[] 를 kind 로 부분 정리(아래 특수 처리). 나머지는 키 삭제.
 const RESUME_RESET_SCOPES: Record<string, string[]> = {
   basic: ["basic"],
   edu: ["educations"],
-  exp: ["experiences"],
   skill: ["skills"],
   lang: ["languages"]
 };
 app.delete("/career-launch/resume-data", authenticate, requireCareerEnrollment, async (req, res) => {
   const scope = typeof req.query.scope === "string" ? req.query.scope : "";
   const keys = RESUME_RESET_SCOPES[scope];
+  const isExpScope = scope === "exp" || scope === "expOther";
   try {
     let content: Record<string, unknown> = {};
-    if (keys) {
+    if (isExpScope) {
+      // 경력(exp) 리셋 → 활동만 남기고 회사경험 제거 / 활동(expOther) 리셋 → 그 반대.
+      const row = await prisma.careerResumeData.findUnique({ where: { studentUserId: req.auth!.userId } });
+      content = row?.content && typeof row.content === "object" ? { ...(row.content as Record<string, unknown>) } : {};
+      const exps = Array.isArray(content.experiences) ? (content.experiences as Record<string, unknown>[]) : [];
+      content.experiences = exps.filter((x) => (scope === "exp" ? x?.kind === "other" : x?.kind !== "other"));
+    } else if (keys) {
       const row = await prisma.careerResumeData.findUnique({ where: { studentUserId: req.auth!.userId } });
       content = row?.content && typeof row.content === "object" ? { ...(row.content as Record<string, unknown>) } : {};
       for (const k of keys) delete content[k];
