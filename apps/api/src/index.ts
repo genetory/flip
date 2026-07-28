@@ -15180,12 +15180,37 @@ app.post(
       // 학생 프로필(전공·학교·스킬·자기소개)을 초기 컨텍스트로 넣어 개인화한다.
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
 
+      // 1주차 '취업 준비 자가진단' 결과(강점·보완점·수준)를 컨텍스트로 재활용 —
+      // 학생이 이미 답한 내용을 바탕으로 더 맞춤한 직무를 추천하고 같은 질문 반복을 줄인다.
+      const diagSummary = await (async () => {
+        try {
+          const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: req.auth!.userId }, select: { state: true } });
+          const st = (prog?.state ?? {}) as Record<string, unknown>;
+          const d = (st.diagnosis ?? null) as { level?: unknown; strengths?: unknown; improvements?: unknown } | null;
+          if (!d || typeof d !== "object") return "";
+          const strArr = (v: unknown) => (Array.isArray(v) ? (v as unknown[]).filter((x): x is string => typeof x === "string" && x.trim().length > 0) : []);
+          const level = typeof d.level === "string" ? d.level.trim() : "";
+          const strengths = strArr(d.strengths);
+          const improvements = strArr(d.improvements);
+          if (!level && !strengths.length && !improvements.length) return "";
+          return [
+            "[취업 준비 자가진단 결과 — 이 강점·보완점을 참고해 직무를 추천해]",
+            level ? `준비 수준: ${level}` : null,
+            strengths.length ? `강점: ${strengths.join(", ")}` : null,
+            improvements.length ? `보완점: ${improvements.join(", ")}` : null
+          ].filter(Boolean).join("\n");
+        } catch {
+          return "";
+        }
+      })();
+
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "상담사" : "학생"}: ${m.text}`).join("\n")
         : "(아직 대화 없음 — 인사하고 편안한 첫 질문을 해줘)";
       const poolText = pool.map((p) => `- ${p.role}${p.keywords?.length ? ` (${p.keywords.join(", ")})` : ""}`).join("\n");
       const userPrompt =
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        (diagSummary ? `${diagSummary}\n\n` : "") +
         `지금까지 대화:\n${convo}\n\n` +
         `학생이 고른 직무(${selected.length}/3): ${selected.length ? selected.join(", ") : "(아직 없음)"}\n\n` +
         (exclude.length ? `[이미 보여준 직무] ${exclude.join(", ")}\n\n` : "") +
