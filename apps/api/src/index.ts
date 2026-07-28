@@ -15791,6 +15791,23 @@ app.delete("/career-launch/resume-data", authenticate, requireCareerEnrollment, 
       create: { studentUserId: req.auth!.userId, content: content as object },
       update: { content: content as object }
     });
+    // 경력/활동 리셋 시 해당 스텝의 완료 표시(doneSteps)도 제거 — 리셋 후 '완료' 배지가 남지 않게.
+    if (isExpScope) {
+      const stepId = scope === "exp" ? "w2-exp" : "w2-exp-other";
+      try {
+        const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: req.auth!.userId }, select: { state: true } });
+        const st = (prog?.state && typeof prog.state === "object" ? { ...(prog.state as Record<string, unknown>) } : {}) as Record<string, unknown>;
+        const doneSteps = Array.isArray(st.doneSteps) ? (st.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
+        if (doneSteps.includes(stepId)) {
+          st.doneSteps = doneSteps.filter((s) => s !== stepId);
+          await prisma.careerLaunchProgress.update({ where: { studentUserId: req.auth!.userId }, data: { state: st as object } });
+        }
+      } catch (e) {
+        console.error("[career-launch] reset doneSteps failed", e);
+      }
+    }
+    // 리셋 결과를 실제 aply.global Resume 미러에도 반영.
+    await syncCareerResumeToResume(req.auth!.userId);
     return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -16005,6 +16022,8 @@ app.delete("/career-launch/cover-data", authenticate, requireCareerEnrollment, a
       create: { studentUserId: req.auth!.userId, content: content as object },
       update: { content: content as object }
     });
+    // 리셋 결과를 실제 aply.global CoverLetter 미러에도 반영.
+    await syncCareerCoverToCoverLetter(req.auth!.userId);
     return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
