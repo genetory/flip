@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
 import { fetchProgress, patchProgress, type CareerProgress } from "../../lib/launch/progress-client";
-import { fetchResumeData, hasResumeContent, type ResumeData } from "../../lib/launch/resume-data";
+import { fetchResumeData, hasResumeContent, type ResumeData, type ResumeExperience } from "../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
 import { STEP_KIND, isStepDone } from "../../lib/launch/step-status";
 import { useLaunchT } from "../../lib/launch/i18n";
@@ -157,23 +157,38 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
     }
     // 이력서 — 경력·경험
     if (kind === "resume-exp" && resumeExpDone) {
+      const exps = resume.experiences ?? [];
+      const workExps = exps.filter((x) => x.kind !== "other");
+      const otherExps = exps.filter((x) => x.kind === "other");
+      const renderItem = (x: ResumeExperience, i: number) => (
+        <li key={i} className="rounded-lg bg-white/70 p-2.5">
+          <p className="text-[13px] font-bold text-[#191F28]">{[x.title, x.org].filter(Boolean).join(" · ")}{x.period ? <span className="font-normal text-[#8B95A1]"> ({x.period})</span> : null}</p>
+          {x.bullets?.length ? (
+            <ul className="mt-1 space-y-0.5">
+              {x.bullets.map((b, bi) => (
+                <li key={bi} className="flex gap-1.5 break-keep text-[12px] text-[#4E5968]"><span className="text-[#0B46E8]">•</span>{b}</li>
+              ))}
+            </ul>
+          ) : null}
+        </li>
+      );
+      const groupLabel = (ko: string, en: string, zh: string, vi: string, ja: string, id: string, n: number) => (
+        <p className="text-[13.5px] font-bold text-[#191F28]">📄 {t(ko, en, zh, vi, ja, id)} <span className="text-[#0B46E8]">{t(`${n}개`, `${n}`, `${n} 项`, `${n}`, `${n}件`, `${n}`)}</span></p>
+      );
       return (
         <ResultCard continueHref="/career-launch/resume-collect?section=exp" continueLabel={t("이어하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjutkan")} restartHref="/career-launch/resume-collect?section=exp&restart=1">
-          <p className="text-[13.5px] font-bold text-[#191F28]">📄 {t("경력·경험", "Work & experience", "工作·经历", "Kinh nghiệm làm việc", "職歴·経験", "Pengalaman kerja")} <span className="text-[#0B46E8]">{t(`${expN}개`, `${expN}`, `${expN} 项`, `${expN}`, `${expN}件`, `${expN}`)}</span></p>
-          <ul className="mt-2 space-y-2">
-            {resume.experiences!.map((x, i) => (
-              <li key={i} className="rounded-lg bg-white/70 p-2.5">
-                <p className="text-[13px] font-bold text-[#191F28]">{[x.title, x.org].filter(Boolean).join(" · ")}{x.period ? <span className="font-normal text-[#8B95A1]"> ({x.period})</span> : null}</p>
-                {x.bullets?.length ? (
-                  <ul className="mt-1 space-y-0.5">
-                    {x.bullets.map((b, bi) => (
-                      <li key={bi} className="flex gap-1.5 break-keep text-[12px] text-[#4E5968]"><span className="text-[#0B46E8]">•</span>{b}</li>
-                    ))}
-                  </ul>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+          {workExps.length ? (
+            <div>
+              {groupLabel("경력", "Experience", "经历", "Kinh nghiệm", "職歴", "Pengalaman", workExps.length)}
+              <ul className="mt-2 space-y-2">{workExps.map(renderItem)}</ul>
+            </div>
+          ) : null}
+          {otherExps.length ? (
+            <div className={workExps.length ? "mt-3" : ""}>
+              {groupLabel("활동·프로젝트", "Activities & projects", "活动·项目", "Hoạt động·Dự án", "活動·プロジェクト", "Aktivitas·Proyek", otherExps.length)}
+              <ul className="mt-2 space-y-2">{otherExps.map(renderItem)}</ul>
+            </div>
+          ) : null}
         </ResultCard>
       );
     }

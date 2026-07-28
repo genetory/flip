@@ -14882,7 +14882,7 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
     week: 2,
     step: "스텝 3 · 경력·경험",
     default:
-      "[이번 스텝: 경력·경험] 이번 대화는 경력·경험(experiences: 인턴·프로젝트·대외활동)만 다룬다. 각 경험의 직무·기관·기간·성과(bullets)를 구체적으로 끌어내. 다른 섹션은 묻지 마. 주요 경험이 충분히 정리되면 done=true."
+      "[이번 스텝: 경력·경험] 이번 대화는 경력·경험(experiences)만 다룬다. 각 경험의 직무·기관·기간·성과(bullets)를 구체적으로 끌어내. 각 경험은 kind 로 분류해라 — 회사·인턴·아르바이트 등 조직에 소속돼 일한 '회사경험'은 kind:\"work\", 프로젝트·동아리·대외활동·봉사·공모전 등은 kind:\"other\". 애매하면 \"work\". 다른 섹션은 묻지 마. 주요 경험이 충분히 정리되면 done=true."
   },
   resume_skill: {
     label: "이력서 · 스킬",
@@ -15390,8 +15390,11 @@ const RESUME_DATA_SCHEMA = {
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["title", "org", "period", "bullets"],
+            required: ["kind", "title", "org", "period", "bullets"],
             properties: {
+              // 회사경험(work) vs 나머지(other) — 회사·인턴·아르바이트 등 조직에 소속돼 일한 경험은 "work",
+              // 프로젝트·동아리·대외활동·봉사·공모전 등은 "other". 미상이면 "work".
+              kind: { type: ["string", "null"], enum: ["work", "other", null] },
               title: { type: ["string", "null"] },
               org: { type: ["string", "null"] },
               period: { type: ["string", "null"] },
@@ -15454,7 +15457,15 @@ function normalizeResumeData(raw: unknown): Record<string, unknown> {
     period: pick(e, ["period", "기간", "재학기간"]),
     note: pick(e, ["note", "비고", "메모"])
   }));
+  const kindOf = (x: Record<string, unknown>): "work" | "other" => {
+    const v = pick(x, ["kind", "유형", "구분"]);
+    if (!v) return "work"; // 미상은 회사경험으로(기존 데이터 현행 유지)
+    const s = v.toLowerCase();
+    if (s === "other" || v.includes("활동") || v.includes("프로젝트") || v.includes("기타") || v.includes("대외") || v.includes("봉사") || v.includes("동아리") || v.includes("공모")) return "other";
+    return "work";
+  };
   const experiences = asArr(src.experiences).map((x) => ({
+    kind: kindOf(x),
     title: pick(x, ["title", "역할", "직함", "직무"]),
     org: pick(x, ["org", "소속", "회사", "기관"]),
     period: pick(x, ["period", "기간"]),
@@ -15513,7 +15524,7 @@ function mergeResumeData(saved: Record<string, unknown>, incoming: Record<string
   const experiences = mergeArr(
     so.experiences, io.experiences,
     (x) => normKey(x.org) || normKey(x.title),
-    (p, n) => ({ title: pref(n.title, p.title), org: pref(n.org, p.org), period: pref(n.period, p.period), bullets: Array.isArray(n.bullets) && n.bullets.length ? n.bullets : p.bullets })
+    (p, n) => ({ kind: pref(n.kind, p.kind) ?? "work", title: pref(n.title, p.title), org: pref(n.org, p.org), period: pref(n.period, p.period), bullets: Array.isArray(n.bullets) && n.bullets.length ? n.bullets : p.bullets })
   );
   const languages = mergeArr(
     so.languages, io.languages,

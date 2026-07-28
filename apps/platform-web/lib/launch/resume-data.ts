@@ -20,7 +20,8 @@ function authHeaders(json = false): Record<string, string> {
 
 export type ResumeBasic = { name?: string | null; email?: string | null; phone?: string | null; summary?: string | null };
 export type ResumeEducation = { school?: string | null; major?: string | null; degree?: string | null; period?: string | null; note?: string | null };
-export type ResumeExperience = { title?: string | null; org?: string | null; period?: string | null; bullets?: string[] };
+// kind: 회사경험(work) / 나머지(other). 미지정(기존 데이터)은 회사경험으로 취급.
+export type ResumeExperience = { kind?: "work" | "other" | null; title?: string | null; org?: string | null; period?: string | null; bullets?: string[] };
 export type ResumeLanguage = { language?: string | null; level?: string | null };
 export type ResumeData = {
   basic?: ResumeBasic;
