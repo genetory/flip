@@ -31,6 +31,13 @@ export default function CoverCollectPage() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  // 전송 완료(loading true→false) 시 입력창 포커스를 되돌려, 채팅 중 포커스가 풀리지 않게 한다.
+  const prevLoadingRef = useRef(false);
+  useEffect(() => {
+    if (prevLoadingRef.current && !loading) inputRef.current?.focus();
+    prevLoadingRef.current = loading;
+  }, [loading]);
   const [done, setDone] = useState(false);
   const [focus, setFocus] = useState<CoverSection | undefined>(undefined); // 이 스텝이 집중할 문항
   const endRef = useRef<HTMLDivElement>(null);
@@ -122,9 +129,10 @@ export default function CoverCollectPage() {
             <Link href="/career-launch/week/3" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               ← {t("3주차", "Week 3", "第3周", "Tuần 3", "3週目", "Minggu 3")}
             </Link>
+            <Link href="/career-launch/week/3" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
           </div>
           <div className="mt-3 flex items-center gap-2.5">
-            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
+            <span className="flex h-9 w-9 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1.5" /></span>
             <div>
               <p className="text-[12px] font-bold text-[#0B46E8]">{t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Cover letter")}{focus ? t(" 작성 중", " in progress", " 编写中", " đang viết", " 作成中", " sedang dibuat") : ""}</p>
               <p className="text-[15px] font-black text-[#0B1227]">{focus ? SECTION_LABEL[focus] : t("대화로 자기소개서 채우기", "Write your cover letter through a chat", "边聊边填写自我介绍书", "Hoàn thiện thư giới thiệu qua trò chuyện", "会話で自己紹介書を埋める", "Isi cover letter lewat obrolan")}</p>
@@ -135,7 +143,7 @@ export default function CoverCollectPage() {
             {messages.map((m, i) =>
               m.role === "bot" ? (
                 <div key={i} className="flex items-end gap-2">
-                  <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
+                  <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1" /></span>
                   <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
                     <RichText text={m.text} />
                   </div>
@@ -148,7 +156,7 @@ export default function CoverCollectPage() {
             )}
             {loading ? (
               <div className="flex items-end gap-2">
-                <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
+                <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1" /></span>
                 <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.2s]" />
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.1s]" />
@@ -158,9 +166,18 @@ export default function CoverCollectPage() {
             ) : null}
             <div ref={endRef} />
           </div>
+          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 진행 내용은 자동 저장돼요", "💬 Feel free to answer in your own language · 💾 Your progress saves automatically", "💬 可以用你的母语回答 · 💾 进度会自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 Tiến trình được lưu tự động", "💬 母国語で答えても大丈夫です · 💾 進行内容は自動保存されます", "💬 Boleh menjawab dalam bahasa ibumu · 💾 Progres tersimpan otomatis")}</p>
 
           {done ? (
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <div className="mt-3">
+              <div className="mb-2 flex items-center gap-2.5 rounded-2xl border border-[#A6EF3F] bg-[#EAFFD1] px-4 py-3">
+                <span className="text-[22px]">🎉</span>
+                <div className="min-w-0">
+                  <p className="text-[13.5px] font-black text-[#0B1227]">{t(`${focus ? SECTION_LABEL[focus] : t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Cover letter")} 정리 완료!`, `${focus ? SECTION_LABEL[focus] : "Cover letter"} done!`, `${focus ? SECTION_LABEL[focus] : "自我介绍书"} 整理完成！`, `Hoàn thành ${focus ? SECTION_LABEL[focus] : "thư giới thiệu"}!`, `${focus ? SECTION_LABEL[focus] : "自己紹介書"} 整理完了！`, `${focus ? SECTION_LABEL[focus] : "Cover letter"} selesai!`)}</p>
+                  <p className="mt-0.5 text-[12px] text-[#3A6B00]">{t("잘하고 있어요 — 다음 단계로 이어가 볼까요?", "Great work — ready for the next step?", "做得很好 — 继续下一步吧？", "Làm tốt lắm — sang bước tiếp theo nhé?", "その調子です — 次のステップに進みましょうか？", "Kerja bagus — lanjut ke langkah berikutnya?")}</p>
+                </div>
+              </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
                 onClick={() => setDone(false)}
@@ -174,6 +191,10 @@ export default function CoverCollectPage() {
               >
                 {t("3주차 페이지로", "To Week 3 page", "前往第3周页面", "Đến trang Tuần 3", "3週目のページへ", "Ke halaman Minggu 3")} →
               </Link>
+            </div>
+            <Link href="/career-launch/cover-preview" target="_blank" rel="noopener noreferrer" className="mt-2.5 block text-center text-[12.5px] font-bold text-[#0B46E8] underline">
+              {t("완성된 자기소개서 전체 보기 · PDF ↗", "View & download full cover letter · PDF ↗", "查看完整自我介绍书 · PDF ↗", "Xem toàn bộ thư giới thiệu · PDF ↗", "完成した自己紹介書を全体表示 · PDF ↗", "Lihat cover letter lengkap · PDF ↗")}
+            </Link>
             </div>
           ) : (
             <div className="mt-3">
@@ -203,7 +224,7 @@ export default function CoverCollectPage() {
                     send(input);
                   }}
                 >
-                  <textarea
+                  <textarea ref={inputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {

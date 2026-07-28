@@ -35,6 +35,13 @@ export default function LaunchJobsPage() {
   const [shownRoles, setShownRoles] = useState<string[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  // 전송 완료(loading true→false) 시 입력창 포커스를 되돌려, 채팅 중 포커스가 풀리지 않게 한다.
+  const prevLoadingRef = useRef(false);
+  useEffect(() => {
+    if (prevLoadingRef.current && !loading) inputRef.current?.focus();
+    prevLoadingRef.current = loading;
+  }, [loading]);
   const [saved, setSaved] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [custom, setCustom] = useState("");
@@ -180,6 +187,7 @@ export default function LaunchJobsPage() {
             <Link href="/career-launch/week/1" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               ← {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
             </Link>
+            <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
             <div className="flex items-center gap-2.5">
               <span className="text-[12px] font-bold text-[#0B46E8]">{selected.length}/{MAX_PICK} {t("선택", "selected", "已选", "đã chọn", "選択", "dipilih")}</span>
               {!saved ? (
@@ -195,7 +203,7 @@ export default function LaunchJobsPage() {
             </div>
           </div>
           <div className="mt-3 flex items-center gap-2.5">
-            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
+            <span className="flex h-9 w-9 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1.5" /></span>
             <div>
               <p className="text-[15px] font-black text-[#0B1227]">{t("관심 직무 찾기", "Find Your Jobs of Interest", "寻找感兴趣的职务", "Tìm công việc bạn quan tâm", "興味のある職務を探す", "Temukan Pekerjaan yang Kamu Minati")}</p>
               <p className="text-[12px] text-[#8B95A1]">{t(`AI와 대화하며 마음에 드는 직무 ${MAX_PICK}개를 골라요`, `Chat with AI and pick your ${MAX_PICK} favorite jobs`, `与 AI 对话，挑选 ${MAX_PICK} 个你喜欢的职务`, `Trò chuyện với AI và chọn ${MAX_PICK} công việc bạn thích`, `AIと話しながらお気に入りの職務を${MAX_PICK}つ選びます`, `Mengobrol dengan AI dan pilih ${MAX_PICK} pekerjaan favoritmu`)} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
@@ -208,7 +216,7 @@ export default function LaunchJobsPage() {
               if (m.kind === "text") {
                 return m.role === "bot" ? (
                   <div key={i} className="flex items-end gap-2">
-                    <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
+                    <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1" /></span>
                     <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
                       <RichText text={m.text} />
                     </div>
@@ -222,7 +230,7 @@ export default function LaunchJobsPage() {
               // 추천 직무 묶음(채팅 안에서 바로 선택)
               return (
                 <div key={i} className="flex items-start gap-2">
-                  <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
+                  <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1" /></span>
                   <div className="grid w-full max-w-[88%] gap-2">
                     {m.jobs.map((job) => {
                       const isSel = selected.includes(job.role);
@@ -309,7 +317,7 @@ export default function LaunchJobsPage() {
             })}
             {loading ? (
               <div className="flex items-end gap-2">
-                <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
+                <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1" /></span>
                 <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.2s]" />
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.1s]" />
@@ -319,6 +327,7 @@ export default function LaunchJobsPage() {
             ) : null}
             <div ref={endRef} />
           </div>
+          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 진행 내용은 자동 저장돼요", "💬 Feel free to answer in your own language · 💾 Your progress saves automatically", "💬 可以用你的母语回答 · 💾 进度会自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 Tiến trình được lưu tự động", "💬 母国語で答えても大丈夫です · 💾 進行内容は自動保存されます", "💬 Boleh menjawab dalam bahasa ibumu · 💾 Progres tersimpan otomatis")}</p>
 
           {/* 저장 후엔 대화 종료 — 다시 선정 or 대시보드. 아니면 입력 + 선정 완료 */}
           {saved ? (
@@ -366,7 +375,7 @@ export default function LaunchJobsPage() {
                   send(input);
                 }}
               >
-                <textarea
+                <textarea ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {

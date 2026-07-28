@@ -235,20 +235,38 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
   },
   "w2-exp": {
     title: {
-      ko: "경력·경험",
-      en: "Work & experience",
-      "zh-CN": "经历·经验",
+      ko: "경력 (회사 경력)",
+      en: "Work experience",
+      "zh-CN": "工作经历",
       vi: "Kinh nghiệm làm việc",
-      ja: "経歴・経験",
-      id: "Karier & pengalaman"
+      ja: "職歴（会社経歴）",
+      id: "Pengalaman kerja"
     },
     desc: {
-      ko: "인턴·프로젝트·대외활동을 AI와 대화하며 풀어내요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
-      en: "Unpack your internships, projects, and activities by chatting with AI. Numbers make your results stand out much more.",
-      "zh-CN": "与AI对话展开实习、项目和对外活动。用数字表达成果会更加醒目。",
-      vi: "Khai thác thực tập, dự án và hoạt động ngoại khóa bằng cách trò chuyện với AI. Diễn đạt thành quả bằng con số sẽ nổi bật hơn nhiều.",
-      ja: "インターン・プロジェクト・課外活動をAIと対話しながら書き出します。成果を数字で表すとぐっと目立ちます。",
-      id: "Uraikan magang, proyek, dan kegiatan lewat obrolan dengan AI. Menyatakan hasil dengan angka membuatnya jauh lebih menonjol."
+      ko: "정규직·계약직·인턴 등 회사에 소속되어 일한 명확한 회사 경력을 AI와 대화하며 정리해요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
+      en: "Organize your clear company work experience — full-time, contract, or internship roles — by chatting with AI. Numbers make your results stand out much more.",
+      "zh-CN": "与AI对话整理你在公司任职的明确工作经历（正式、合同或实习）。用数字表达成果会更加醒目。",
+      vi: "Sắp xếp kinh nghiệm làm việc rõ ràng tại công ty — chính thức, hợp đồng hay thực tập — bằng cách trò chuyện với AI. Diễn đạt thành quả bằng con số sẽ nổi bật hơn.",
+      ja: "正社員・契約・インターンなど会社に所属して働いた明確な会社経歴をAIと対話しながら整理します。成果を数字で表すとぐっと目立ちます。",
+      id: "Rapikan pengalaman kerja perusahaan yang jelas — purnawaktu, kontrak, atau magang — lewat obrolan dengan AI. Menyatakan hasil dengan angka membuatnya jauh lebih menonjol."
+    }
+  },
+  "w2-exp-other": {
+    title: {
+      ko: "활동·프로젝트",
+      en: "Activities & projects",
+      "zh-CN": "活动·项目",
+      vi: "Hoạt động & dự án",
+      ja: "活動・プロジェクト",
+      id: "Aktivitas & proyek"
+    },
+    desc: {
+      ko: "아르바이트·프로젝트·동아리·대외활동·봉사 등 회사 경력 외의 경험을 대화로 풀어내요. 신입에게는 이 경험도 큰 강점이에요.",
+      en: "Unpack experiences beyond company work — part-time jobs, projects, clubs, activities, volunteering — by chatting. For new grads, these are a big strength too.",
+      "zh-CN": "通过对话展开公司经历以外的经验，如兼职、项目、社团、对外活动、志愿服务等。对应届生来说，这些经验也是很大的优势。",
+      vi: "Khai thác các trải nghiệm ngoài công việc công ty — làm thêm, dự án, câu lạc bộ, hoạt động, tình nguyện — bằng cách trò chuyện. Với tân cử nhân, đây cũng là lợi thế lớn.",
+      ja: "アルバイト・プロジェクト・サークル・課外活動・ボランティアなど会社経歴以外の経験を対話で書き出します。新卒にはこの経験も大きな強みです。",
+      id: "Uraikan pengalaman di luar kerja perusahaan — kerja paruh waktu, proyek, klub, kegiatan, sukarela — lewat obrolan. Bagi lulusan baru, ini juga kelebihan besar."
     }
   },
   "w2-skill": {

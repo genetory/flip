@@ -38,6 +38,13 @@ export default function InterviewPage() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  // 전송 완료(loading true→false) 시 입력창 포커스를 되돌려, 채팅 중 포커스가 풀리지 않게 한다.
+  const prevLoadingRef = useRef(false);
+  useEffect(() => {
+    if (prevLoadingRef.current && !loading) inputRef.current?.focus();
+    prevLoadingRef.current = loading;
+  }, [loading]);
   const [done, setDone] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -102,6 +109,7 @@ export default function InterviewPage() {
             <Link href="/career-launch/week/4" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               ← {t("4주차", "Week 4", "第4周", "Tuần 4", "4週目", "Minggu 4")}
             </Link>
+            <Link href="/career-launch/week/4" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
           </div>
           <div className="mt-3 flex items-center gap-2.5">
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🎤</span>
@@ -138,6 +146,7 @@ export default function InterviewPage() {
             ) : null}
             <div ref={endRef} />
           </div>
+          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 진행 내용은 자동 저장돼요", "💬 Feel free to answer in your own language · 💾 Your progress saves automatically", "💬 可以用你的母语回答 · 💾 进度会自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 Tiến trình được lưu tự động", "💬 母国語で答えても大丈夫です · 💾 進行内容は自動保存されます", "💬 Boleh menjawab dalam bahasa ibumu · 💾 Progres tersimpan otomatis")}</p>
 
           {done ? (
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -182,7 +191,7 @@ export default function InterviewPage() {
                   send(input);
                 }}
               >
-                <textarea
+                <textarea ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {

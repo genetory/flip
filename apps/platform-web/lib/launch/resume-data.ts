@@ -42,7 +42,8 @@ async function req(path: string, init: RequestInit): Promise<Record<string, unkn
 }
 
 // 채팅으로 이력서 데이터 수집 — 누적 data 를 함께 보내고, 갱신된 전체 data 를 받는다.
-export type ResumeSection = "basic" | "edu" | "exp" | "skill" | "lang";
+// exp = 경력(회사경험), expOther = 활동·프로젝트(나머지). 둘 다 experiences[] 에 kind 로 저장.
+export type ResumeSection = "basic" | "edu" | "exp" | "expOther" | "skill" | "lang";
 export async function requestResumeChat(messages: ResumeChatMsg[], data: ResumeData, focus?: ResumeSection): Promise<ResumeChatResult> {
   const d = await req("/career-launch/resume-chat", {
     method: "POST",

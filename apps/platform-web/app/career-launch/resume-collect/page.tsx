@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { RichText } from "../../../components/launch/rich-text";
+import { ResumeSectionPreview } from "../../../components/launch/resume-section-preview";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestResumeChat, fetchResumeData, resetResumeData, hasResumeContent, type ResumeChatMsg, type ResumeData, type ResumeSection } from "../../../lib/launch/resume-data";
 import { Header } from "../../../components/site/Header";
@@ -21,9 +22,19 @@ export default function ResumeCollectPage() {
   const SECTION_LABEL: Record<ResumeSection, string> = {
     basic: t("기본정보·한줄소개", "Basic info & one-line intro", "基本信息·一句话介绍", "Thông tin cơ bản & giới thiệu ngắn", "基本情報・一言紹介", "Info dasar & perkenalan singkat"),
     edu: t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan"),
-    exp: t("경력·경험", "Work & experience", "经历·经验", "Kinh nghiệm làm việc", "経歴・経験", "Pengalaman kerja"),
+    exp: t("경력 (회사 경력)", "Work experience", "工作经历", "Kinh nghiệm làm việc", "職歴（会社経歴）", "Pengalaman kerja"),
+    expOther: t("활동·프로젝트", "Activities & projects", "活动·项目", "Hoạt động·Dự án", "活動・プロジェクト", "Aktivitas·Proyek"),
     skill: t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian"),
     lang: t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")
+  };
+  // 스텝별 입력 예시 — 학생이 무엇을 어떻게 답할지 바로 감 잡도록 placeholder 로 보여준다.
+  const PLACEHOLDER: Record<ResumeSection, string> = {
+    basic: t("예: 응우옌 마이, 고려대 경영학과, 마케팅 직무 준비 중", "e.g., Nguyen Mai, Korea Univ. Business, aiming for marketing", "例：阮梅，高丽大学经营学，准备市场营销岗位", "VD: Nguyen Mai, ĐH Korea ngành Kinh doanh, hướng marketing", "例：グエン・マイ、高麗大経営学科、マーケティング志望", "Cth: Nguyen Mai, Korea Univ. Bisnis, incar marketing"),
+    edu: t("예: 고려대학교 경영학과 학사, 2021.03~2025.02", "e.g., Korea Univ., B.A. in Business, 2021.03–2025.02", "例：高丽大学经营学学士，2021.03~2025.02", "VD: ĐH Korea, Cử nhân Kinh doanh, 2021.03–2025.02", "例：高麗大学 経営学 学士、2021.03〜2025.02", "Cth: Korea Univ., S1 Bisnis, 2021.03–2025.02"),
+    exp: t("예: 스타트업 A에서 3개월 마케팅 인턴, SNS 캠페인 운영", "e.g., 3-month marketing intern at Startup A, ran SNS campaigns", "例：在初创A做3个月市场营销实习，运营社媒活动", "VD: Thực tập marketing 3 tháng tại Startup A, chạy chiến dịch SNS", "例：スタートアップAで3ヶ月マーケインターン、SNS運用", "Cth: Magang marketing 3 bln di Startup A, kelola kampanye SNS"),
+    expOther: t("예: 교내 창업동아리 팀장, 데모데이 발표·수상", "e.g., Led a startup club, presented & won at demo day", "例：校内创业社团组长，Demo Day发表并获奖", "VD: Trưởng nhóm CLB khởi nghiệp, thuyết trình & đoạt giải demo day", "例：学内起業サークル代表、デモデイ発表・受賞", "Cth: Ketua klub startup, presentasi & menang demo day"),
+    skill: t("예: Python, SQL, Figma, 포토샵", "e.g., Python, SQL, Figma, Photoshop", "例：Python、SQL、Figma、Photoshop", "VD: Python, SQL, Figma, Photoshop", "例：Python、SQL、Figma、Photoshop", "Cth: Python, SQL, Figma, Photoshop"),
+    lang: t("예: 한국어 TOPIK 5급, 영어 TOEIC 900", "e.g., Korean TOPIK 5, English TOEIC 900", "例：韩语TOPIK5级，英语TOEIC900", "VD: Tiếng Hàn TOPIK 5, Tiếng Anh TOEIC 900", "例：韓国語TOPIK5級、英語TOEIC900", "Cth: Korea TOPIK 5, Inggris TOEIC 900")
   };
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
@@ -32,6 +43,13 @@ export default function ResumeCollectPage() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  // 전송 완료(loading true→false) 시 입력창 포커스를 되돌려, 채팅 중 포커스가 풀리지 않게 한다.
+  const prevLoadingRef = useRef(false);
+  useEffect(() => {
+    if (prevLoadingRef.current && !loading) inputRef.current?.focus();
+    prevLoadingRef.current = loading;
+  }, [loading]);
   const [done, setDone] = useState(false);
   const [focus, setFocus] = useState<ResumeSection | undefined>(undefined); // 이 스텝이 집중할 섹션
   const endRef = useRef<HTMLDivElement>(null);
@@ -44,7 +62,7 @@ export default function ResumeCollectPage() {
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
     const restart = params.get("restart") === "1";
     const sectionRaw = params.get("section");
-    const section = (["basic", "edu", "exp", "skill", "lang"] as const).find((s) => s === sectionRaw);
+    const section = (["basic", "edu", "exp", "expOther", "skill", "lang"] as const).find((s) => s === sectionRaw);
     setFocus(section);
     void (async () => {
       let seed: ResumeData = {};
@@ -123,20 +141,24 @@ export default function ResumeCollectPage() {
             <Link href="/career-launch/week/2" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               ← {t("2주차", "Week 2", "第2周", "Tuần 2", "2週目", "Minggu 2")}
             </Link>
+            <Link href="/career-launch/week/2" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
           </div>
           <div className="mt-3 flex items-center gap-2.5">
-            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🤖</span>
+            <span className="flex h-9 w-9 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1.5" /></span>
             <div>
               <p className="text-[12px] font-bold text-[#0B46E8]">{t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}{focus ? t(" 작성 중", " in progress", " 编写中", " đang viết", " 作成中", " sedang dibuat") : ""}</p>
               <p className="text-[15px] font-black text-[#0B1227]">{focus ? SECTION_LABEL[focus] : t("대화로 이력서 채우기", "Build your resume through a chat", "边聊边填写简历", "Hoàn thiện CV qua trò chuyện", "会話で履歴書を埋める", "Isi resume lewat obrolan")}</p>
             </div>
           </div>
 
+          {/* 답변을 토대로 이력서에 담길 내용을 이력서답게 정리해 실시간으로 보여준다. */}
+          <ResumeSectionPreview data={data} focus={focus} />
+
           <div className="mt-4 flex-1 space-y-3 overflow-y-auto rounded-2xl border border-[#EEF1F5] bg-[#F8FAFC] p-4">
             {messages.map((m, i) =>
               m.role === "bot" ? (
                 <div key={i} className="flex items-end gap-2">
-                  <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
+                  <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1" /></span>
                   <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
                     <RichText text={m.text} />
                   </div>
@@ -149,7 +171,7 @@ export default function ResumeCollectPage() {
             )}
             {loading ? (
               <div className="flex items-end gap-2">
-                <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🤖</span>
+                <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1" /></span>
                 <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.2s]" />
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.1s]" />
@@ -159,9 +181,18 @@ export default function ResumeCollectPage() {
             ) : null}
             <div ref={endRef} />
           </div>
+          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 진행 내용은 자동 저장돼요", "💬 Feel free to answer in your own language · 💾 Your progress saves automatically", "💬 可以用你的母语回答 · 💾 进度会自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 Tiến trình được lưu tự động", "💬 母国語で答えても大丈夫です · 💾 進行内容は自動保存されます", "💬 Boleh menjawab dalam bahasa ibumu · 💾 Progres tersimpan otomatis")}</p>
 
           {done ? (
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <div className="mt-3">
+              <div className="mb-2 flex items-center gap-2.5 rounded-2xl border border-[#A6EF3F] bg-[#EAFFD1] px-4 py-3">
+                <span className="text-[22px]">🎉</span>
+                <div className="min-w-0">
+                  <p className="text-[13.5px] font-black text-[#0B1227]">{t(`${focus ? SECTION_LABEL[focus] : t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")} 정리 완료!`, `${focus ? SECTION_LABEL[focus] : "Resume"} done!`, `${focus ? SECTION_LABEL[focus] : "简历"} 整理完成！`, `Hoàn thành ${focus ? SECTION_LABEL[focus] : "CV"}!`, `${focus ? SECTION_LABEL[focus] : "履歴書"} 整理完了！`, `${focus ? SECTION_LABEL[focus] : "Resume"} selesai!`)}</p>
+                  <p className="mt-0.5 text-[12px] text-[#3A6B00]">{t("잘하고 있어요 — 다음 단계로 이어가 볼까요?", "Great work — ready for the next step?", "做得很好 — 继续下一步吧？", "Làm tốt lắm — sang bước tiếp theo nhé?", "その調子です — 次のステップに進みましょうか？", "Kerja bagus — lanjut ke langkah berikutnya?")}</p>
+                </div>
+              </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
                 onClick={() => setDone(false)}
@@ -175,6 +206,10 @@ export default function ResumeCollectPage() {
               >
                 {t("2주차 페이지로", "To Week 2 page", "前往第2周页面", "Đến trang Tuần 2", "2週目のページへ", "Ke halaman Minggu 2")} →
               </Link>
+            </div>
+            <Link href="/career-launch/resume-preview" target="_blank" rel="noopener noreferrer" className="mt-2.5 block text-center text-[12.5px] font-bold text-[#0B46E8] underline">
+              {t("완성된 이력서 전체 보기 · PDF ↗", "View & download full resume · PDF ↗", "查看完整简历 · PDF ↗", "Xem toàn bộ CV · PDF ↗", "完成した履歴書を全体表示 · PDF ↗", "Lihat resume lengkap · PDF ↗")}
+            </Link>
             </div>
           ) : (
             <div className="mt-3">
@@ -204,7 +239,7 @@ export default function ResumeCollectPage() {
                     send(input);
                   }}
                 >
-                  <textarea
+                  <textarea ref={inputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -214,7 +249,7 @@ export default function ResumeCollectPage() {
                       }
                     }}
                     rows={1}
-                    placeholder={t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
+                    placeholder={focus ? PLACEHOLDER[focus] : t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
                     disabled={loading}
                     className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
                   />
