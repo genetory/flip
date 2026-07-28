@@ -14868,7 +14868,9 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
     week: 2,
     step: "스텝 1 · 기본정보·한줄소개",
     default:
-      "[이번 스텝: 기본정보·한줄소개] 이번 대화는 이름·이메일·연락처와 나를 한 줄로 표현하는 소개(basic.summary)만 다룬다. 다른 섹션(학력·경력·스킬·어학)은 이번엔 묻지 마. 기본정보와 한줄소개가 채워지면 done=true 로 이 스텝을 마무리해."
+      "[이번 스텝: 기본정보·한줄소개] 이번 대화는 이름·이메일·연락처와 나를 한 줄로 표현하는 소개(basic.summary)만 다룬다. 다른 섹션(학력·경력·스킬·어학)은 이번엔 묻지 마.\n" +
+      "[이름은 반드시 실명 확인] 이력서에 들어갈 이름은 '실명'이어야 한다. 계정 표시명은 SNS 닉네임일 수 있으니 그대로 쓰지 말고, 첫 이름 질문에서 '이력서에 표기할 실명(여권/신분증과 동일한 이름)'을 반드시 한 번 더 확인해 물어봐라. (예: '이력서에 들어갈 실명을 알려주세요. 계정 닉네임과 다를 수 있어요.') 프로필에 실명이 있으면 '○○○ 실명이 맞을까요?'처럼 확인만 받고, 없으면 실명을 직접 물어봐. 확인된 실명만 basic.name 에 넣어라.\n" +
+      "기본정보(실명 확인 포함)와 한줄소개가 채워지면 done=true 로 이 스텝을 마무리해."
   },
   resume_edu: {
     label: "이력서 · 학력",
@@ -15044,11 +15046,14 @@ async function buildCandidateProfileSummary(userId: string): Promise<string> {
         where: { userId },
         include: { educations: { orderBy: { createdAt: "desc" }, take: 1 } }
       }),
-      prisma.user.findUnique({ where: { id: userId }, select: { name: true } })
+      prisma.user.findUnique({ where: { id: userId }, select: { name: true, realName: true } })
     ]);
     const edu = profile?.educations?.[0];
     const parts: string[] = [];
-    if (meUser?.name?.trim()) parts.push(`이름: ${meUser.name.trim()}`);
+    // 실명(realName)과 계정 표시명(name=SNS 닉네임일 수 있음)을 구분해 넘긴다 —
+    // 이력서 이름은 실명이어야 하므로 AI 가 닉네임을 그대로 쓰지 않게 한다.
+    if (meUser?.realName?.trim()) parts.push(`실명: ${meUser.realName.trim()}`);
+    if (meUser?.name?.trim()) parts.push(`계정 표시명(닉네임일 수 있음): ${meUser.name.trim()}`);
     if (edu?.schoolName) parts.push(`학교: ${edu.schoolName}`);
     if (edu?.major) parts.push(`전공: ${edu.major}`);
     if (profile?.skills?.length) parts.push(`보유 스킬: ${profile.skills.slice(0, 10).join(", ")}`);
