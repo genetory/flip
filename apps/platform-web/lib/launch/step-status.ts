@@ -48,8 +48,16 @@ export function isStepDone(id: string, d: LaunchData): boolean {
     case "materials": kd = (prog.materials?.length ?? 0) > 0; break;
     case "resume-basic": kd = Boolean(resume.basic?.name || resume.basic?.summary); break;
     case "resume-edu": kd = eduN > 0; break;
+    // 회사경험(work). 레거시(구 단일 스텝) 데이터는 kind 가 없어 !== "other" 로 회사경험에 잡힌다(현행 유지).
     case "resume-exp-work": kd = (resume.experiences ?? []).some((x) => x.kind !== "other"); break;
-    case "resume-exp-other": kd = (resume.experiences ?? []).some((x) => x.kind === "other"); break;
+    // 활동·프로젝트(other). 단, kind 표기가 전혀 없는 레거시 경험만 있는 경우엔 구 통합 스텝을 마친 것으로 보고
+    // 이 스텝도 완료로 간주(분리 배포 전에 이미 경력·경험을 채운 학생이 다시 막히지 않게).
+    case "resume-exp-other": {
+      const exps = resume.experiences ?? [];
+      const anyKind = exps.some((x) => x.kind === "work" || x.kind === "other");
+      kd = exps.some((x) => x.kind === "other") || (exps.length > 0 && !anyKind);
+      break;
+    }
     case "resume-skill": kd = skillN > 0; break;
     case "resume-lang": kd = langN > 0; break;
     case "cover1": kd = coverN >= 1; break;
