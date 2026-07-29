@@ -10,6 +10,7 @@ import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
 import { ResumeRender } from "../../../components/launch/resume-render";
 import { CoverRender } from "../../../components/launch/cover-render";
 import { fetchProgress, fetchWeekSchedule, type WeekScheduleEntry } from "../../../lib/launch/progress-client";
+import { fetchMySeminars, fetchMyEnrollment, type CohortSeminar } from "../../../lib/launch/enrollment-client";
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data";
 import { weekDoneCount, weekUnlocked, type LaunchData } from "../../../lib/launch/step-status";
@@ -17,7 +18,7 @@ import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
-import { useWeekText, useCompletionCriteria, useStudentCohort } from "../../../lib/launch/data-i18n";
+import { useWeekText, useCompletionCriteria } from "../../../lib/launch/data-i18n";
 import { trackCareerFunnel } from "../../../lib/analytics";
 import { CareerSurveyCta } from "../../../components/launch/survey-cta";
 
@@ -26,7 +27,6 @@ export default function LaunchDashboardPage() {
   const t = useLaunchT();
   const weekText = useWeekText();
   const completionCriteria = useCompletionCriteria();
-  const studentCohort = useStudentCohort();
   const router = useRouter();
   // 주차별 최종 결과물(이 주에 나오는 것).
   const WEEK_DELIVERABLE: Record<number, string> = {
@@ -49,21 +49,30 @@ export default function LaunchDashboardPage() {
   const [data, setData] = useState<LaunchData>({ progress: {}, resume: {}, cover: {} });
   const [schedule, setSchedule] = useState<WeekScheduleEntry[]>([]);
   const [serverNow, setServerNow] = useState<Date>(() => new Date(0)); // 스케줄 로드 전엔 과거로 둬서 날짜 오픈 미판정
+  const [seminars, setSeminars] = useState<CohortSeminar[]>([]);
+  const [cohortLabel, setCohortLabel] = useState<string>("");
   useEffect(() => {
     if (!isReady) return;
     let alive = true;
     void (async () => {
       try {
-        const [p, r, c, sched] = await Promise.all([
+        const [p, r, c, sched, sems, enr] = await Promise.all([
           fetchProgress(),
           fetchResumeData().catch(() => ({ data: {} })),
           fetchCoverData().catch(() => ({ data: {} })),
-          fetchWeekSchedule().catch(() => ({ weekSchedule: [] as WeekScheduleEntry[], serverNow: new Date().toISOString() }))
+          fetchWeekSchedule().catch(() => ({ weekSchedule: [] as WeekScheduleEntry[], serverNow: new Date().toISOString() })),
+          fetchMySeminars().catch(() => [] as CohortSeminar[]),
+          fetchMyEnrollment().catch(() => null)
         ]);
         if (alive) {
           setData({ progress: p, resume: r.data ?? {}, cover: c.data ?? {} });
           setSchedule(sched.weekSchedule);
           setServerNow(new Date(sched.serverNow));
+          setSeminars(sems);
+          // 실제 등록 기수명 표시(활성 우선). 목업 기수명 대체.
+          const cs = enr?.cohorts ?? [];
+          const c0 = cs.find((x) => x.status === "active") ?? cs[0];
+          setCohortLabel(c0 ? [c0.university, c0.name].filter(Boolean).join(" · ") : "");
         }
       } catch {
         // 조회 실패 시 빈 상태
@@ -134,7 +143,7 @@ export default function LaunchDashboardPage() {
             <Card className="md:!p-7">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[12.5px] font-semibold text-[#8B95A1]">{studentCohort()}</p>
+                  <p className="text-[12.5px] font-semibold text-[#8B95A1]">{cohortLabel || t("글로벌 커리어 런치", "Global Career Launch", "全球职业启航", "Global Career Launch", "グローバルキャリアローンチ", "Global Career Launch")}</p>
                   <h1 className="mt-1 text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[27px]">{t(`${displayName}님, 반가워요 👋`, `Welcome, ${displayName} 👋`, `${displayName}，欢迎你 👋`, `Chào mừng bạn, ${displayName} 👋`, `${displayName}さん、ようこそ 👋`, `Selamat datang, ${displayName} 👋`)}</h1>
                   <p className="mt-1.5 text-[14px] leading-relaxed text-[#4E5968]">{t("4주 동안 이력서·자기소개서를 완성하고 면접까지 준비해요.", "Over 4 weeks, you'll complete your resume and cover letter, and prepare for interviews.", "在4周内完成简历和求职信，并准备好面试。", "Trong 4 tuần, bạn sẽ hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị cho phỏng vấn.", "4週間で履歴書・自己紹介書を完成させ、面接まで準備します。", "Selama 4 minggu, kamu akan menyelesaikan resume dan cover letter, serta menyiapkan wawancara.")}</p>
                 </div>
@@ -321,18 +330,36 @@ export default function LaunchDashboardPage() {
               {/* 다가오는 세미나 */}
               <div>
                 <SectionTitle>{t("세미나 일정", "Seminar schedule", "研讨会日程", "Lịch hội thảo", "セミナー日程", "Jadwal seminar")}</SectionTitle>
-                <div className="space-y-2.5">
-                  {WEEKS.map((w) => (
-                    <Card key={w.week} className="flex items-start gap-3 !p-4">
-                      <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[18px]">{w.seminar.online ? "💻" : "📍"}</span>
-                      <div className="min-w-0">
-                        <p className="text-[13.5px] font-bold text-[#191F28]">{t(`Week ${w.week} 세미나`, `Week ${w.week} seminar`, `第${w.week}周研讨会`, `Hội thảo Tuần ${w.week}`, `Week ${w.week} セミナー`, `Seminar Minggu ${w.week}`)}</p>
-                        <p className="mt-0.5 text-[12.5px] text-[#4E5968]">{w.seminar.date} · {w.seminar.time}</p>
-                        <p className="text-[12px] text-[#8B95A1]">{w.seminar.place}</p>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
+                {seminars.length === 0 ? (
+                  <Card className="!p-5 text-center">
+                    <p className="text-[13px] text-[#8B95A1]">{t("아직 등록된 세미나가 없어요.", "No seminars scheduled yet.", "还没有安排研讨会。", "Chưa có hội thảo nào.", "まだ登録されたセミナーはありません。", "Belum ada seminar terjadwal.")}</p>
+                    <p className="mt-1 text-[12px] text-[#B0B8C1]">{t("일정이 정해지면 여기에 표시돼요.", "It'll appear here once scheduled.", "安排后将在此显示。", "Sẽ hiển thị ở đây khi có lịch.", "日程が決まるとここに表示されます。", "Akan tampil di sini setelah dijadwalkan.")}</p>
+                  </Card>
+                ) : (
+                  <div className="space-y-2.5">
+                    {[...seminars].sort((a, b) => a.week - b.week).map((s) => {
+                      const dt = new Date(s.startsAt);
+                      const valid = !Number.isNaN(dt.getTime());
+                      const date = valid ? dt.toLocaleDateString(undefined, { year: "numeric", month: "2-digit", day: "2-digit", weekday: "short", timeZone: "Asia/Seoul" }) : "";
+                      const time = valid ? dt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" }) : "";
+                      return (
+                        <Card key={s.week} className="flex items-start gap-3 !p-4">
+                          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[18px]">{s.online ? "💻" : "📍"}</span>
+                          <div className="min-w-0">
+                            <p className="text-[13.5px] font-bold text-[#191F28]">{s.title || t(`Week ${s.week} 세미나`, `Week ${s.week} seminar`, `第${s.week}周研讨会`, `Hội thảo Tuần ${s.week}`, `Week ${s.week} セミナー`, `Seminar Minggu ${s.week}`)}</p>
+                            <p className="mt-0.5 text-[12.5px] text-[#4E5968]">{[date, time].filter(Boolean).join(" · ")}</p>
+                            {s.location ? <p className="text-[12px] text-[#8B95A1]">{s.location}</p> : null}
+                            {s.online && s.url ? (
+                              <a href={s.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-[12px] font-semibold text-[#0B46E8] underline">
+                                {t("접속 링크 열기", "Open join link", "打开链接", "Mở liên kết tham gia", "参加リンクを開く", "Buka tautan")}
+                              </a>
+                            ) : null}
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* 내 결과물 — 이력서·자기소개서 미리보기(없으면 점선 placeholder) */}
