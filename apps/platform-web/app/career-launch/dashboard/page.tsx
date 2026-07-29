@@ -10,7 +10,7 @@ import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
 import { ResumeRender } from "../../../components/launch/resume-render";
 import { CoverRender } from "../../../components/launch/cover-render";
 import { fetchProgress, fetchWeekSchedule, type WeekScheduleEntry } from "../../../lib/launch/progress-client";
-import { fetchMySeminars, type CohortSeminar } from "../../../lib/launch/enrollment-client";
+import { fetchMySeminars, fetchMyEnrollment, type CohortSeminar } from "../../../lib/launch/enrollment-client";
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data";
 import { weekDoneCount, weekUnlocked, type LaunchData } from "../../../lib/launch/step-status";
@@ -18,7 +18,7 @@ import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
-import { useWeekText, useCompletionCriteria, useStudentCohort } from "../../../lib/launch/data-i18n";
+import { useWeekText, useCompletionCriteria } from "../../../lib/launch/data-i18n";
 import { trackCareerFunnel } from "../../../lib/analytics";
 import { CareerSurveyCta } from "../../../components/launch/survey-cta";
 
@@ -27,7 +27,6 @@ export default function LaunchDashboardPage() {
   const t = useLaunchT();
   const weekText = useWeekText();
   const completionCriteria = useCompletionCriteria();
-  const studentCohort = useStudentCohort();
   const router = useRouter();
   // 주차별 최종 결과물(이 주에 나오는 것).
   const WEEK_DELIVERABLE: Record<number, string> = {
@@ -51,23 +50,29 @@ export default function LaunchDashboardPage() {
   const [schedule, setSchedule] = useState<WeekScheduleEntry[]>([]);
   const [serverNow, setServerNow] = useState<Date>(() => new Date(0)); // 스케줄 로드 전엔 과거로 둬서 날짜 오픈 미판정
   const [seminars, setSeminars] = useState<CohortSeminar[]>([]);
+  const [cohortLabel, setCohortLabel] = useState<string>("");
   useEffect(() => {
     if (!isReady) return;
     let alive = true;
     void (async () => {
       try {
-        const [p, r, c, sched, sems] = await Promise.all([
+        const [p, r, c, sched, sems, enr] = await Promise.all([
           fetchProgress(),
           fetchResumeData().catch(() => ({ data: {} })),
           fetchCoverData().catch(() => ({ data: {} })),
           fetchWeekSchedule().catch(() => ({ weekSchedule: [] as WeekScheduleEntry[], serverNow: new Date().toISOString() })),
-          fetchMySeminars().catch(() => [] as CohortSeminar[])
+          fetchMySeminars().catch(() => [] as CohortSeminar[]),
+          fetchMyEnrollment().catch(() => null)
         ]);
         if (alive) {
           setData({ progress: p, resume: r.data ?? {}, cover: c.data ?? {} });
           setSchedule(sched.weekSchedule);
           setServerNow(new Date(sched.serverNow));
           setSeminars(sems);
+          // 실제 등록 기수명 표시(활성 우선). 목업 기수명 대체.
+          const cs = enr?.cohorts ?? [];
+          const c0 = cs.find((x) => x.status === "active") ?? cs[0];
+          setCohortLabel(c0 ? [c0.university, c0.name].filter(Boolean).join(" · ") : "");
         }
       } catch {
         // 조회 실패 시 빈 상태
@@ -138,7 +143,7 @@ export default function LaunchDashboardPage() {
             <Card className="md:!p-7">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[12.5px] font-semibold text-[#8B95A1]">{studentCohort()}</p>
+                  <p className="text-[12.5px] font-semibold text-[#8B95A1]">{cohortLabel || t("글로벌 커리어 런치", "Global Career Launch", "全球职业启航", "Global Career Launch", "グローバルキャリアローンチ", "Global Career Launch")}</p>
                   <h1 className="mt-1 text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[27px]">{t(`${displayName}님, 반가워요 👋`, `Welcome, ${displayName} 👋`, `${displayName}，欢迎你 👋`, `Chào mừng bạn, ${displayName} 👋`, `${displayName}さん、ようこそ 👋`, `Selamat datang, ${displayName} 👋`)}</h1>
                   <p className="mt-1.5 text-[14px] leading-relaxed text-[#4E5968]">{t("4주 동안 이력서·자기소개서를 완성하고 면접까지 준비해요.", "Over 4 weeks, you'll complete your resume and cover letter, and prepare for interviews.", "在4周内完成简历和求职信，并准备好面试。", "Trong 4 tuần, bạn sẽ hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị cho phỏng vấn.", "4週間で履歴書・自己紹介書を完成させ、面接まで準備します。", "Selama 4 minggu, kamu akan menyelesaikan resume dan cover letter, serta menyiapkan wawancara.")}</p>
                 </div>
