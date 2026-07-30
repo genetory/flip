@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { MagnifyingGlass, X, MapPin, GraduationCap, Briefcase, EnvelopeSimple, Phone } from "@phosphor-icons/react";
+import { Sparkle, X, MapPin, GraduationCap, Briefcase, EnvelopeSimple, Phone } from "@phosphor-icons/react";
 import { Header } from "../../../components/site/Header";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import {
   searchPartnerCandidates,
+  aiSearchCandidates,
   getPartnerCandidate,
   requestPartnerConnect,
   type PartnerCandidateCard,
@@ -83,20 +84,20 @@ function AccessNotice({ authenticated }: { authenticated: boolean }) {
 }
 
 function TalentSearch() {
-  const [q, setQ] = useState("");
-  const [skill, setSkill] = useState("");
-  const [jobRole, setJobRole] = useState("");
+  const [query, setQuery] = useState("");
   const [items, setItems] = useState<PartnerCandidateCard[]>([]);
   const [total, setTotal] = useState(0);
+  const [aiMode, setAiMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const loadAll = useCallback(async () => {
     setLoading(true);
     setError("");
+    setAiMode(false);
     try {
-      const r = await searchPartnerCandidates({ q, skill, jobRole });
+      const r = await searchPartnerCandidates({});
       setItems(r.items);
       setTotal(r.total);
     } catch (e) {
@@ -104,12 +105,26 @@ function TalentSearch() {
     } finally {
       setLoading(false);
     }
-  }, [q, skill, jobRole]);
+  }, []);
+
+  const runAi = useCallback(async (qStr: string) => {
+    setLoading(true);
+    setError("");
+    try {
+      const r = await aiSearchCandidates(qStr);
+      setItems(r.items);
+      setTotal(r.items.length);
+      setAiMode(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "AI 검색에 실패했어요.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void loadAll();
+  }, [loadAll]);
 
   const patchStatus = (candidateUserId: string, status: ConnectionStatus) => {
     setItems((prev) => prev.map((c) => (c.candidateUserId === candidateUserId ? { ...c, connectionStatus: status } : c)));
@@ -120,30 +135,38 @@ function TalentSearch() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void load();
+          if (query.trim()) void runAi(query.trim());
+          else void loadAll();
         }}
-        className="mb-5 grid grid-cols-1 gap-2 rounded-2xl border border-[#E5E8EB] bg-white p-3 md:grid-cols-[1.4fr_1fr_1fr_auto]"
+        className="mb-2 flex gap-2 rounded-2xl border border-[#E5E8EB] bg-white p-3"
       >
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름·학교·전공·키워드" className="rounded-xl border border-[#E5E8EB] px-3.5 py-2.5 text-[14px] outline-none focus:border-[#0B46E8]" />
-        <input value={skill} onChange={(e) => setSkill(e.target.value)} placeholder="스킬 (예: Python)" className="rounded-xl border border-[#E5E8EB] px-3.5 py-2.5 text-[14px] outline-none focus:border-[#0B46E8]" />
-        <input value={jobRole} onChange={(e) => setJobRole(e.target.value)} placeholder="희망 직무 (예: 마케팅)" className="rounded-xl border border-[#E5E8EB] px-3.5 py-2.5 text-[14px] outline-none focus:border-[#0B46E8]" />
-        <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">
-          <MagnifyingGlass className="h-4 w-4" weight="bold" /> 검색
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="원하는 인재상을 문장으로 (예: React 잘하고 스타트업 경험 있는 프론트엔드, 한국어 가능)"
+          className="min-w-0 flex-1 rounded-xl border border-[#E5E8EB] px-3.5 py-2.5 text-[14px] outline-none focus:border-[#0B46E8]"
+        />
+        <button type="submit" className="inline-flex flex-none items-center justify-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">
+          <Sparkle className="h-4 w-4" weight="fill" /> AI 검색
         </button>
       </form>
+      <p className="mb-4 px-1 text-[12px] text-[#8B95A1]">문장으로 검색하면 AI가 인재풀에서 적합도 순으로 찾아줘요. 비워두고 검색하면 전체 목록을 봅니다.</p>
 
       {loading ? (
-        <p className="py-16 text-center text-[13px] text-[#8B95A1]">불러오는 중…</p>
+        <p className="py-16 text-center text-[13px] text-[#8B95A1]">{aiMode ? "AI가 적합한 인재를 찾는 중…" : "불러오는 중…"}</p>
       ) : error ? (
         <p className="py-16 text-center text-[13px] text-rose-600">{error}</p>
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#D7DCE3] bg-[#FAFBFC] py-16 text-center">
           <p className="text-[14px] font-semibold text-[#4E5968]">조건에 맞는 인재가 없어요.</p>
-          <p className="mt-1 text-[12.5px] text-[#8B95A1]">인재풀 등록에 동의한 후보자만 표시됩니다. 검색어를 넓혀보세요.</p>
+          <p className="mt-1 text-[12.5px] text-[#8B95A1]">인재풀 등록에 동의한 후보자만 표시됩니다. 검색어를 바꿔보세요.</p>
         </div>
       ) : (
         <>
-          <p className="mb-3 text-[12.5px] text-[#8B95A1]">총 {total}명</p>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-[12.5px] font-semibold text-[#8B95A1]">{aiMode ? <span className="text-[#0B46E8]">✨ AI 매칭 {items.length}명 · 적합도 순</span> : `총 ${total}명`}</p>
+            {aiMode ? <button type="button" onClick={() => { setQuery(""); void loadAll(); }} className="text-[12px] text-[#8B95A1] underline hover:text-[#4E5968]">전체 보기</button> : null}
+          </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {items.map((c) => (
               <button
@@ -157,7 +180,10 @@ function TalentSearch() {
                     <p className="truncate text-[15.5px] font-black text-[#0B1227]">{c.name ?? "이름 비공개"}</p>
                     {c.nationality ? <p className="mt-0.5 flex items-center gap-1 truncate text-[12.5px] text-[#8B95A1]"><MapPin className="h-3.5 w-3.5" />{c.nationality}</p> : null}
                   </div>
-                  <StatusBadge status={c.connectionStatus} />
+                  <div className="flex flex-none flex-col items-end gap-1">
+                    {typeof c.score === "number" ? <span className="rounded-lg bg-[#0B46E8] px-2 py-0.5 text-[13px] font-black text-white">{c.score}</span> : null}
+                    <StatusBadge status={c.connectionStatus} />
+                  </div>
                 </div>
                 {c.school || c.major ? (
                   <p className="mt-2 flex items-center gap-1.5 text-[12.5px] text-[#4E5968]"><GraduationCap className="h-4 w-4 text-[#8B95A1]" />{[c.school, c.major].filter(Boolean).join(" · ")}</p>
@@ -172,7 +198,11 @@ function TalentSearch() {
                     ))}
                   </div>
                 ) : null}
-                {c.summary ? <p className="mt-2 line-clamp-2 break-keep text-[12px] leading-relaxed text-[#8B95A1]">{c.summary}</p> : null}
+                {c.reason ? (
+                  <p className="mt-2 rounded-lg bg-[#F6F8FB] px-2.5 py-1.5 text-[11.5px] leading-relaxed text-[#4E5968]">💡 {c.reason}</p>
+                ) : c.summary ? (
+                  <p className="mt-2 line-clamp-2 break-keep text-[12px] leading-relaxed text-[#8B95A1]">{c.summary}</p>
+                ) : null}
                 <p className="mt-2 text-[11.5px] text-[#B0B8C1]">경력 {c.careerCount} · 활동 {c.activityCount}{c.visa ? ` · ${c.visa}` : ""}</p>
               </button>
             ))}
@@ -200,6 +230,7 @@ function CandidateDetailModal({
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [connecting, setConnecting] = useState(false);
+  const [docTab, setDocTab] = useState<"resume" | "cover">("resume");
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
@@ -261,9 +292,30 @@ function CandidateDetailModal({
               ) : (
                 <div className="mb-3 rounded-xl bg-[#F8FAFC] p-3 text-[12px] text-[#8B95A1]">🔒 연락처는 후보자가 연결을 수락하면 공개됩니다.</div>
               )}
-              <div className="overflow-hidden rounded-xl border border-[#EEF1F5] [&_*]:!shadow-none">
-                <ResumePreview content={detail.content as ResumeContent} design={DEFAULT_DESIGN} />
+              {/* 이력서 / 자기소개서 탭 */}
+              <div className="mb-3 flex gap-1 rounded-xl bg-[#F2F4F6] p-1">
+                <button type="button" onClick={() => setDocTab("resume")} className={`flex-1 rounded-lg py-1.5 text-[12.5px] font-bold transition ${docTab === "resume" ? "bg-white text-[#0B1227] shadow-sm" : "text-[#8B95A1]"}`}>이력서</button>
+                <button type="button" onClick={() => setDocTab("cover")} className={`flex-1 rounded-lg py-1.5 text-[12.5px] font-bold transition ${docTab === "cover" ? "bg-white text-[#0B1227] shadow-sm" : "text-[#8B95A1]"}`}>자기소개서{detail.coverLetter ? "" : " (없음)"}</button>
               </div>
+              {docTab === "resume" ? (
+                <div className="overflow-hidden rounded-xl border border-[#EEF1F5] [&_*]:!shadow-none">
+                  <ResumePreview content={detail.content as ResumeContent} design={DEFAULT_DESIGN} />
+                </div>
+              ) : detail.coverLetter ? (
+                <div className="rounded-xl border border-[#EEF1F5] p-4">
+                  {detail.coverLetter.company ? <p className="mb-2 text-[12px] font-semibold text-[#0B46E8]">{detail.coverLetter.company}</p> : null}
+                  <div className="space-y-3.5">
+                    {detail.coverLetter.items.map((it, i) => (
+                      <div key={i}>
+                        {it.prompt ? <p className="text-[13px] font-bold text-[#191F28]">{it.prompt}</p> : null}
+                        <p className="mt-1 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#4E5968]">{it.answer}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-[#D7DCE3] bg-[#FAFBFC] py-10 text-center text-[13px] text-[#8B95A1]">아직 등록된 자기소개서가 없어요.</div>
+              )}
             </>
           ) : null}
         </div>

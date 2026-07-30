@@ -20991,6 +20991,34 @@ function maskResumeContentForPartner(raw: unknown, unlocked: boolean): Record<st
   return c;
 }
 
+// 인재풀 이력서 행 → 검색 카드(점수 없음). GET/AI 검색 공용.
+type PoolResumeRow = { userId: string; updatedAt: Date; content: unknown; user: { name: string | null; realName: string | null; nationality: string | null } | null };
+function buildCandidateCard(r: PoolResumeRow, status: string | null) {
+  const content = (r.content ?? {}) as Record<string, unknown>;
+  const edu = Array.isArray(content.educations) ? (content.educations[0] as Record<string, unknown> | undefined) : undefined;
+  const skills = Array.isArray(content.skills) ? (content.skills as unknown[]).filter((s): s is string => typeof s === "string") : [];
+  const careers = Array.isArray(content.careers) ? (content.careers as unknown[]) : [];
+  const activities = Array.isArray(content.activities) ? (content.activities as unknown[]) : [];
+  const summary = typeof content.summary === "string" ? content.summary : typeof content.selfIntroduction === "string" ? content.selfIntroduction : "";
+  return {
+    candidateUserId: r.userId,
+    name: r.user?.realName || r.user?.name || (content.basicName as string) || null,
+    nationality: r.user?.nationality ?? (content.nationality as string) ?? null,
+    school: (edu?.schoolName as string) ?? null,
+    major: (edu?.major as string) ?? null,
+    desiredJobRole: (content.desiredJobRole as string) ?? null,
+    workType: (content.workType as string) ?? null,
+    visa: (content.basicVisa as string) ?? null,
+    skills: skills.slice(0, 12),
+    careerCount: careers.length,
+    activityCount: activities.length,
+    summary: summary ? summary.slice(0, 180) : null,
+    updatedAt: r.updatedAt.toISOString(),
+    connectionStatus: status,
+    contactUnlocked: status === "ACCEPTED"
+  };
+}
+
 const partnerCandidatesQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   skill: z.string().trim().max(60).optional(),
@@ -21015,32 +21043,7 @@ app.get("/partner/candidates", authenticate, requireRoles([MemberRole.PARTNER]),
     const q = parsed.data.q?.toLowerCase();
     const skill = parsed.data.skill?.toLowerCase();
     const jobRole = parsed.data.jobRole?.toLowerCase();
-    const all = rows.map((r) => {
-      const content = (r.content ?? {}) as Record<string, unknown>;
-      const status = statusByCand.get(r.userId) ?? null;
-      const edu = Array.isArray(content.educations) ? (content.educations[0] as Record<string, unknown> | undefined) : undefined;
-      const skills = Array.isArray(content.skills) ? (content.skills as unknown[]).filter((s): s is string => typeof s === "string") : [];
-      const careers = Array.isArray(content.careers) ? (content.careers as unknown[]) : [];
-      const activities = Array.isArray(content.activities) ? (content.activities as unknown[]) : [];
-      const summary = typeof content.summary === "string" ? content.summary : typeof content.selfIntroduction === "string" ? content.selfIntroduction : "";
-      return {
-        candidateUserId: r.userId,
-        name: r.user?.realName || r.user?.name || (content.basicName as string) || null,
-        nationality: r.user?.nationality ?? (content.nationality as string) ?? null,
-        school: (edu?.schoolName as string) ?? null,
-        major: (edu?.major as string) ?? null,
-        desiredJobRole: (content.desiredJobRole as string) ?? null,
-        workType: (content.workType as string) ?? null,
-        visa: (content.basicVisa as string) ?? null,
-        skills: skills.slice(0, 12),
-        careerCount: careers.length,
-        activityCount: activities.length,
-        summary: summary ? summary.slice(0, 180) : null,
-        updatedAt: r.updatedAt.toISOString(),
-        connectionStatus: status,
-        contactUnlocked: status === "ACCEPTED"
-      };
-    }).filter((it) => {
+    const all = rows.map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null)).filter((it) => {
       if (skill && !it.skills.some((s) => s.toLowerCase().includes(skill))) return false;
       if (jobRole && !String(it.desiredJobRole ?? "").toLowerCase().includes(jobRole)) return false;
       if (q) {
@@ -21055,6 +21058,73 @@ app.get("/partner/candidates", authenticate, requireRoles([MemberRole.PARTNER]),
     return res.json({ ok: true, items: paged, total: all.length, page, pageSize });
   } catch (err) {
     console.error("[partner/candidates] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to search candidates" });
+  }
+});
+
+// 자연어 LLM 매칭 검색 — 파트너의 요구사항 문장으로 인재풀에서 적합 후보를 랭킹(적합도 0~100 + 이유).
+const partnerAiSearchSchema = z.object({ query: z.string().trim().min(1).max(500) });
+const CANDIDATE_MATCH_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["matches"],
+  properties: {
+    matches: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["index", "score", "reason"],
+        properties: { index: { type: "number" }, score: { type: "number" }, reason: { type: "string" } }
+      }
+    }
+  }
+} as const;
+
+app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const parsed = partnerAiSearchSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (req.auth!.role !== MemberRole.OPERATOR && !affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    const rows = await prisma.resume.findMany({
+      where: POOL_RESUME_WHERE,
+      orderBy: { updatedAt: "desc" },
+      take: 150,
+      select: { userId: true, updatedAt: true, content: true, user: { select: { name: true, realName: true, nationality: true } } }
+    });
+    const conns = await prisma.candidateConnectionRequest.findMany({ where: { partnerUserId: req.auth!.userId }, select: { candidateUserId: true, status: true } });
+    const statusByCand = new Map(conns.map((c) => [c.candidateUserId, c.status] as const));
+    const cards = rows.map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null));
+
+    // openai 없으면 키워드 폴백(단순 포함 검색).
+    if (!openai) {
+      const q = parsed.data.query.toLowerCase();
+      const items = cards
+        .filter((c) => [c.name, c.school, c.major, c.desiredJobRole, c.summary, c.skills.join(" "), c.nationality].map((x) => String(x ?? "").toLowerCase()).join(" ").includes(q))
+        .slice(0, 24);
+      return res.json({ ok: true, items, ai: false });
+    }
+
+    const poolText = cards
+      .map((c, i) => `[${i}] ${c.name ?? "이름없음"} · ${c.nationality ?? "-"} · ${[c.school, c.major].filter(Boolean).join(" ")} · 희망:${c.desiredJobRole ?? "-"} · 스킬:${c.skills.join(",") || "-"} · 경력${c.careerCount}/활동${c.activityCount} · ${c.summary ?? ""}`)
+      .join("\n");
+    const systemPrompt =
+      "너는 기업 채용을 돕는 인재 매칭 도우미다. 파트너의 인재 요구사항에 맞춰 아래 후보 풀에서 적합한 사람을 골라 0~100 적합도 점수와 한 줄 이유(한국어)를 매겨라. " +
+      "요구와 무관하면 낮은 점수를 주고 제외해도 된다. 상위 적합자 위주로 최대 30명. 존재하는 index 만 사용. " +
+      'JSON 한 개 객체로만: { "matches": [{ "index": number, "score": number(0~100), "reason": string }] }';
+    const userPrompt = `[파트너 인재 요구]\n${parsed.data.query}\n\n[후보 풀]\n${poolText}`;
+    const pj = (await careerChatComplete(systemPrompt, userPrompt, "candidate_match", CANDIDATE_MATCH_SCHEMA)) as { matches?: unknown };
+    const matches = Array.isArray(pj.matches) ? (pj.matches as Record<string, unknown>[]) : [];
+    const items = matches
+      .map((m) => ({ index: typeof m.index === "number" ? m.index : -1, score: typeof m.score === "number" ? Math.max(0, Math.min(100, Math.round(m.score))) : 0, reason: typeof m.reason === "string" ? m.reason : "" }))
+      .filter((m) => m.index >= 0 && m.index < cards.length && m.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 30)
+      .map((m) => ({ ...cards[m.index], score: m.score, reason: m.reason }));
+    return res.json({ ok: true, items, ai: true });
+  } catch (err) {
+    console.error("[partner/candidates/search] failed", err);
     return res.status(500).json({ ok: false, message: "failed to search candidates" });
   }
 });
@@ -21074,6 +21144,18 @@ app.get("/partner/candidates/:candidateUserId", authenticate, requireRoles([Memb
       select: { status: true, message: true, createdAt: true, respondedAt: true }
     });
     const unlocked = conn?.status === "ACCEPTED";
+    // 자기소개서 — 후보의 가장 최근 자소서(있으면). 연락처 PII 없음 → 연결 전에도 표시.
+    const cover = await prisma.coverLetter.findFirst({
+      where: { userId: candidateUserId },
+      orderBy: { updatedAt: "desc" },
+      select: { title: true, company: true, items: true }
+    });
+    const coverItems = cover && Array.isArray(cover.items)
+      ? (cover.items as unknown[])
+          .filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === "object")
+          .map((x) => ({ prompt: typeof x.prompt === "string" ? x.prompt : typeof x.question === "string" ? (x.question as string) : "", answer: typeof x.answer === "string" ? x.answer : "" }))
+          .filter((x) => x.answer.trim())
+      : [];
     return res.json({
       ok: true,
       item: {
@@ -21082,6 +21164,7 @@ app.get("/partner/candidates/:candidateUserId", authenticate, requireRoles([Memb
         nationality: resume.user?.nationality ?? null,
         contact: unlocked ? { email: resume.user?.email ?? null, phone: resume.user?.phoneNumber ?? null } : null,
         content: maskResumeContentForPartner(resume.content, unlocked),
+        coverLetter: cover && coverItems.length ? { title: cover.title, company: cover.company, items: coverItems } : null,
         updatedAt: resume.updatedAt.toISOString(),
         connectionStatus: conn?.status ?? null,
         contactUnlocked: unlocked

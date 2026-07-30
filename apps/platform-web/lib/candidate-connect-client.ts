@@ -19,7 +19,12 @@ export type PartnerCandidateCard = {
   updatedAt: string;
   connectionStatus: ConnectionStatus;
   contactUnlocked: boolean;
+  // AI 매칭 검색 결과에만 존재 — 적합도 점수(0~100) + 한 줄 이유.
+  score?: number;
+  reason?: string;
 };
+
+export type CandidateCoverLetter = { title: string; company: string | null; items: { prompt: string; answer: string }[] };
 
 export type PartnerCandidateDetail = {
   candidateUserId: string;
@@ -27,6 +32,7 @@ export type PartnerCandidateDetail = {
   nationality: string | null;
   contact: { email: string | null; phone: string | null } | null;
   content: Record<string, unknown>;
+  coverLetter: CandidateCoverLetter | null;
   updatedAt: string;
   connectionStatus: ConnectionStatus;
   contactUnlocked: boolean;
@@ -60,6 +66,15 @@ export async function searchPartnerCandidates(
     pageSize?: number;
   };
   return { items: r.items ?? [], total: r.total ?? 0, page: r.page ?? 1, pageSize: r.pageSize ?? 24 };
+}
+
+// 자연어 LLM 매칭 검색 — 적합도 점수 포함.
+export async function aiSearchCandidates(query: string): Promise<{ items: PartnerCandidateCard[]; ai: boolean }> {
+  const r = (await authedJsonFetch<PartnerCandidateCard>("/partner/candidates/search", { method: "POST", body: JSON.stringify({ query }) })) as {
+    items?: PartnerCandidateCard[];
+    ai?: boolean;
+  };
+  return { items: r.items ?? [], ai: r.ai ?? false };
 }
 
 export async function getPartnerCandidate(candidateUserId: string): Promise<PartnerCandidateDetail | null> {
