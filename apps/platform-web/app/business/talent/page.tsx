@@ -177,7 +177,7 @@ function TalentSearch() {
                 key={c.candidateUserId}
                 type="button"
                 onClick={() => setDetailId(c.candidateUserId)}
-                className="flex flex-col rounded-2xl border border-[#E5E8EB] bg-white p-4 text-left transition hover:border-[#0B46E8]/40 hover:shadow-sm"
+                className="group relative flex h-full flex-col rounded-xl border border-border/60 bg-card p-4 text-left transition hover:border-primary/40"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
