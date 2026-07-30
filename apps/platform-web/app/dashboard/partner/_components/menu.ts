@@ -17,7 +17,6 @@ export const partnerDashboardMenuGroups: MenuGroup[] = [
     title: "채용 관리",
     links: [
       { label: "포지션 관리", href: "/dashboard/partner/positions" },
-      { label: "인재 검색", href: "/dashboard/partner/candidates" },
       { label: "지원자 관리", href: "/dashboard/partner/applicants" },
       { label: "면접 일정", href: "/dashboard/partner/interviews" },
       { label: "과제 관리", href: "/dashboard/partner/assignments" },

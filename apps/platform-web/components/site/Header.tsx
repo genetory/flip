@@ -25,6 +25,7 @@ const HEADER_SQUIRCLE_STYLE = {
 // 비즈니스 GNB — /business 랜딩의 섹션 앵커. 순서는 페이지 섹션 등장 순서와
 // 동일하게 유지(도입 사례 → 서비스 → 검증 → 인재풀 → 요금).
 const BUSINESS_NAV: { key: keyof typeof BUSINESS_NAV_LABELS; href: string }[] = [
+  { key: "talentSearch", href: "/business/talent" },
   { key: "cases", href: "/business#trust" },
   { key: "service", href: "/business#problem" },
   { key: "verify", href: "/business#verify" },
@@ -32,6 +33,7 @@ const BUSINESS_NAV: { key: keyof typeof BUSINESS_NAV_LABELS; href: string }[] = 
   { key: "pricing", href: "/business#pricing" }
 ];
 const BUSINESS_NAV_LABELS: Record<string, Record<PlatformLocale, string>> = {
+  talentSearch: { ko: "인재 탐색", en: "Find talent", "zh-CN": "人才探索", vi: "Tìm nhân tài", ja: "人材探索", id: "Cari talenta" },
   cases: { ko: "도입 사례", en: "Customers", "zh-CN": "合作案例", vi: "Khách hàng", ja: "導入事例", id: "Studi Kasus" },
   service: { ko: "서비스", en: "Service", "zh-CN": "服务", vi: "Dịch vụ", ja: "サービス", id: "Layanan" },
   verify: { ko: "검증", en: "Verification", "zh-CN": "验证", vi: "Xác minh", ja: "検証", id: "Verifikasi" },
@@ -117,7 +119,9 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
       : [])
   ];
   // 비즈니스 변형 GNB — 페이지 섹션 순서대로, 로케일별 라벨 적용.
-  const businessNavItems: typeof defaultNavItems = BUSINESS_NAV.map((n) => ({
+  // '인재 탐색'은 파트너/운영자에게만 노출(그 외엔 숨김).
+  const canSeeTalentSearch = user?.role === "PARTNER" || user?.role === "OPERATOR";
+  const businessNavItems: typeof defaultNavItems = BUSINESS_NAV.filter((n) => n.key !== "talentSearch" || canSeeTalentSearch).map((n) => ({
     label: BUSINESS_NAV_LABELS[n.key][locale],
     href: n.href
   }));
