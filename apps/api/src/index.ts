@@ -21056,7 +21056,7 @@ app.get("/partner/candidates", authenticate, requireRoles([MemberRole.PARTNER]),
       }
       return true;
     });
-    const pageSize = 24;
+    const pageSize = 20;
     const page = parsed.data.page ?? 1;
     const paged = all.slice((page - 1) * pageSize, page * pageSize);
     return res.json({ ok: true, items: paged, total: all.length, page, pageSize });

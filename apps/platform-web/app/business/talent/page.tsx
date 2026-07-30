@@ -84,11 +84,16 @@ function AccessNotice({ authenticated }: { authenticated: boolean }) {
 }
 
 function TalentSearch() {
+  const PAGE_SIZE = 20;
   const [query, setQuery] = useState("");
-  const [items, setItems] = useState<PartnerCandidateCard[]>([]);
+  const [items, setItems] = useState<PartnerCandidateCard[]>([]); // 전체 목록(비-AI) 누적
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [aiMode, setAiMode] = useState(false);
+  const [aiAll, setAiAll] = useState<PartnerCandidateCard[]>([]); // AI 매칭 전체
+  const [visible, setVisible] = useState(PAGE_SIZE); // AI 결과 노출 개수
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
 
@@ -96,8 +101,9 @@ function TalentSearch() {
     setLoading(true);
     setError("");
     setAiMode(false);
+    setPage(1);
     try {
-      const r = await searchPartnerCandidates({});
+      const r = await searchPartnerCandidates({ page: 1 });
       setItems(r.items);
       setTotal(r.total);
     } catch (e) {
@@ -107,15 +113,29 @@ function TalentSearch() {
     }
   }, []);
 
+  const loadMoreBrowse = useCallback(async () => {
+    setLoadingMore(true);
+    try {
+      const next = page + 1;
+      const r = await searchPartnerCandidates({ page: next });
+      setItems((prev) => [...prev, ...r.items]);
+      setTotal(r.total);
+      setPage(next);
+    } catch {
+      // 무시 — 재시도 가능
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [page]);
+
   const runAi = useCallback(async (qStr: string) => {
     setLoading(true);
     setError("");
     setAiMode(true);
+    setVisible(PAGE_SIZE);
     try {
       const r = await aiSearchCandidates(qStr);
-      setItems(r.items);
-      setTotal(r.items.length);
-      setAiMode(true);
+      setAiAll(r.items);
     } catch (e) {
       setError(e instanceof Error ? e.message : "AI 검색에 실패했어요.");
     } finally {
@@ -128,7 +148,17 @@ function TalentSearch() {
   }, [loadAll]);
 
   const patchStatus = (candidateUserId: string, status: ConnectionStatus) => {
-    setItems((prev) => prev.map((c) => (c.candidateUserId === candidateUserId ? { ...c, connectionStatus: status } : c)));
+    const upd = (c: PartnerCandidateCard) => (c.candidateUserId === candidateUserId ? { ...c, connectionStatus: status } : c);
+    setItems((prev) => prev.map(upd));
+    setAiAll((prev) => prev.map(upd));
+  };
+
+  const list = aiMode ? aiAll.slice(0, visible) : items;
+  const shownTotal = aiMode ? aiAll.length : total;
+  const hasMore = aiMode ? visible < aiAll.length : items.length < total;
+  const onLoadMore = () => {
+    if (aiMode) setVisible((v) => v + PAGE_SIZE);
+    else void loadMoreBrowse();
   };
 
   return (
@@ -160,7 +190,7 @@ function TalentSearch() {
         </div>
       ) : error ? (
         <p className="py-16 text-center text-[13px] text-rose-600">{error}</p>
-      ) : items.length === 0 ? (
+      ) : list.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#D7DCE3] bg-[#FAFBFC] py-16 text-center">
           <p className="text-[14px] font-semibold text-[#4E5968]">조건에 맞는 인재가 없어요.</p>
           <p className="mt-1 text-[12.5px] text-[#8B95A1]">인재풀 등록에 동의한 후보자만 표시됩니다. 검색어를 바꿔보세요.</p>
@@ -168,11 +198,11 @@ function TalentSearch() {
       ) : (
         <>
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-[12.5px] font-semibold text-[#8B95A1]">{aiMode ? <span className="text-[#0B46E8]">✨ AI 매칭 {items.length}명 · 적합도 순</span> : `총 ${total}명`}</p>
+            <p className="text-[12.5px] font-semibold text-[#8B95A1]">{aiMode ? <span className="text-[#0B46E8]">✨ AI 매칭 {shownTotal}명 · 적합도 순</span> : `총 ${shownTotal}명`}</p>
             {aiMode ? <button type="button" onClick={() => { setQuery(""); void loadAll(); }} className="text-[12px] text-[#8B95A1] underline hover:text-[#4E5968]">전체 보기</button> : null}
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {items.map((c) => (
+            {list.map((c) => (
               <button
                 key={c.candidateUserId}
                 type="button"
@@ -212,6 +242,18 @@ function TalentSearch() {
               </button>
             ))}
           </div>
+          {hasMore ? (
+            <div className="mt-8 flex items-center justify-center">
+              <button
+                type="button"
+                onClick={onLoadMore}
+                disabled={loadingMore}
+                className="rounded-xl border border-border bg-white px-6 py-2.5 text-[14px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-50"
+              >
+                {loadingMore ? "불러오는 중…" : "더보기"}
+              </button>
+            </div>
+          ) : null}
         </>
       )}
 
