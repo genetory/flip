@@ -21097,12 +21097,19 @@ app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PA
     const statusByCand = new Map(conns.map((c) => [c.candidateUserId, c.status] as const));
     const cards = rows.map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null));
 
-    // openai 없으면 키워드 폴백(단순 포함 검색).
+    // openai 없으면 키워드 폴백 — 문장을 토큰으로 쪼개 '토큰 매칭 수' 많은 순으로.
     if (!openai) {
-      const q = parsed.data.query.toLowerCase();
+      const tokens = parsed.data.query.toLowerCase().split(/[\s,]+/).filter((t) => t.length >= 2);
       const items = cards
-        .filter((c) => [c.name, c.school, c.major, c.desiredJobRole, c.summary, c.skills.join(" "), c.nationality].map((x) => String(x ?? "").toLowerCase()).join(" ").includes(q))
-        .slice(0, 24);
+        .map((c) => {
+          const hay = [c.name, c.school, c.major, c.desiredJobRole, c.summary, c.skills.join(" "), c.nationality].map((x) => String(x ?? "").toLowerCase()).join(" ");
+          const n = tokens.length ? tokens.filter((t) => hay.includes(t)).length : 0;
+          return { c, n };
+        })
+        .filter((x) => x.n > 0)
+        .sort((a, b) => b.n - a.n)
+        .slice(0, 24)
+        .map((x) => x.c);
       return res.json({ ok: true, items, ai: false });
     }
 

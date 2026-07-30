@@ -110,6 +110,7 @@ function TalentSearch() {
   const runAi = useCallback(async (qStr: string) => {
     setLoading(true);
     setError("");
+    setAiMode(true);
     try {
       const r = await aiSearchCandidates(qStr);
       setItems(r.items);
@@ -153,7 +154,10 @@ function TalentSearch() {
       <p className="mb-4 px-1 text-[12px] text-[#8B95A1]">문장으로 검색하면 AI가 인재풀에서 적합도 순으로 찾아줘요. 비워두고 검색하면 전체 목록을 봅니다.</p>
 
       {loading ? (
-        <p className="py-16 text-center text-[13px] text-[#8B95A1]">{aiMode ? "AI가 적합한 인재를 찾는 중…" : "불러오는 중…"}</p>
+        <div className="flex flex-col items-center justify-center gap-3 py-20">
+          <span className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#E5E8EB] border-t-[#0B46E8]" />
+          <p className="text-[13px] font-medium text-[#8B95A1]">{aiMode ? "AI가 적합한 인재를 찾는 중…" : "불러오는 중…"}</p>
+        </div>
       ) : error ? (
         <p className="py-16 text-center text-[13px] text-rose-600">{error}</p>
       ) : items.length === 0 ? (
