@@ -20969,6 +20969,233 @@ app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDE
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────
+// 파트너 인재 검색 — 인재풀 동의(대표 이력서 poolOptIn) 학생을 검색하고 연결을 요청한다.
+// 개인정보: 연락처(이메일·전화·주소·사진)는 학생이 연결을 '수락'하기 전까지 마스킹.
+// ─────────────────────────────────────────────────────────────────────────
+
+// 인재풀 동의 대표 이력서 조회 조건 공통.
+const POOL_RESUME_WHERE = { isPrimary: true, content: { path: ["poolOptIn", "consentedAt"], not: Prisma.JsonNull } } as const;
+
+// 연결 전 노출 금지 PII 제거 + 내부 메타 제거.
+function maskResumeContentForPartner(raw: unknown, unlocked: boolean): Record<string, unknown> {
+  const c = { ...((raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>) };
+  delete c.poolOptIn;
+  if (!unlocked) {
+    delete c.basicEmail;
+    delete c.basicPhone;
+    delete c.basicResidence;
+    delete c.basicPhotoUrl;
+    delete c.links;
+  }
+  return c;
+}
+
+const partnerCandidatesQuerySchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  skill: z.string().trim().max(60).optional(),
+  jobRole: z.string().trim().max(60).optional(),
+  page: z.coerce.number().int().min(1).max(200).optional()
+});
+
+app.get("/partner/candidates", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const parsed = partnerCandidatesQuerySchema.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    const rows = await prisma.resume.findMany({
+      where: POOL_RESUME_WHERE,
+      orderBy: { updatedAt: "desc" },
+      take: 300,
+      select: { userId: true, updatedAt: true, content: true, user: { select: { name: true, realName: true, nationality: true } } }
+    });
+    const conns = await prisma.candidateConnectionRequest.findMany({ where: { partnerUserId: req.auth!.userId }, select: { candidateUserId: true, status: true } });
+    const statusByCand = new Map(conns.map((c) => [c.candidateUserId, c.status] as const));
+    const q = parsed.data.q?.toLowerCase();
+    const skill = parsed.data.skill?.toLowerCase();
+    const jobRole = parsed.data.jobRole?.toLowerCase();
+    const all = rows.map((r) => {
+      const content = (r.content ?? {}) as Record<string, unknown>;
+      const status = statusByCand.get(r.userId) ?? null;
+      const edu = Array.isArray(content.educations) ? (content.educations[0] as Record<string, unknown> | undefined) : undefined;
+      const skills = Array.isArray(content.skills) ? (content.skills as unknown[]).filter((s): s is string => typeof s === "string") : [];
+      const careers = Array.isArray(content.careers) ? (content.careers as unknown[]) : [];
+      const activities = Array.isArray(content.activities) ? (content.activities as unknown[]) : [];
+      const summary = typeof content.summary === "string" ? content.summary : typeof content.selfIntroduction === "string" ? content.selfIntroduction : "";
+      return {
+        candidateUserId: r.userId,
+        name: r.user?.realName || r.user?.name || (content.basicName as string) || null,
+        nationality: r.user?.nationality ?? (content.nationality as string) ?? null,
+        school: (edu?.schoolName as string) ?? null,
+        major: (edu?.major as string) ?? null,
+        desiredJobRole: (content.desiredJobRole as string) ?? null,
+        workType: (content.workType as string) ?? null,
+        visa: (content.basicVisa as string) ?? null,
+        skills: skills.slice(0, 12),
+        careerCount: careers.length,
+        activityCount: activities.length,
+        summary: summary ? summary.slice(0, 180) : null,
+        updatedAt: r.updatedAt.toISOString(),
+        connectionStatus: status,
+        contactUnlocked: status === "ACCEPTED"
+      };
+    }).filter((it) => {
+      if (skill && !it.skills.some((s) => s.toLowerCase().includes(skill))) return false;
+      if (jobRole && !String(it.desiredJobRole ?? "").toLowerCase().includes(jobRole)) return false;
+      if (q) {
+        const hay = [it.name, it.school, it.major, it.desiredJobRole, it.summary, it.skills.join(" "), it.nationality].map((x) => String(x ?? "").toLowerCase()).join(" ");
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    const pageSize = 24;
+    const page = parsed.data.page ?? 1;
+    const paged = all.slice((page - 1) * pageSize, page * pageSize);
+    return res.json({ ok: true, items: paged, total: all.length, page, pageSize });
+  } catch (err) {
+    console.error("[partner/candidates] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to search candidates" });
+  }
+});
+
+app.get("/partner/candidates/:candidateUserId", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const candidateUserId = String(req.params.candidateUserId ?? "");
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    const resume = await prisma.resume.findFirst({
+      where: { userId: candidateUserId, ...POOL_RESUME_WHERE },
+      select: { content: true, updatedAt: true, user: { select: { name: true, realName: true, nationality: true, email: true, phoneNumber: true } } }
+    });
+    if (!resume) return res.status(404).json({ ok: false, message: "candidate not found or not in pool" });
+    const conn = await prisma.candidateConnectionRequest.findUnique({
+      where: { partnerUserId_candidateUserId: { partnerUserId: req.auth!.userId, candidateUserId } },
+      select: { status: true, message: true, createdAt: true, respondedAt: true }
+    });
+    const unlocked = conn?.status === "ACCEPTED";
+    return res.json({
+      ok: true,
+      item: {
+        candidateUserId,
+        name: resume.user?.realName || resume.user?.name || null,
+        nationality: resume.user?.nationality ?? null,
+        contact: unlocked ? { email: resume.user?.email ?? null, phone: resume.user?.phoneNumber ?? null } : null,
+        content: maskResumeContentForPartner(resume.content, unlocked),
+        updatedAt: resume.updatedAt.toISOString(),
+        connectionStatus: conn?.status ?? null,
+        contactUnlocked: unlocked
+      }
+    });
+  } catch (err) {
+    console.error("[partner/candidates/:id] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load candidate" });
+  }
+});
+
+const partnerConnectBodySchema = z.object({ message: z.string().trim().max(1000).optional() });
+app.post("/partner/candidates/:candidateUserId/connect", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const candidateUserId = String(req.params.candidateUserId ?? "");
+  const parsed = partnerConnectBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    const inPool = await prisma.resume.findFirst({ where: { userId: candidateUserId, ...POOL_RESUME_WHERE }, select: { id: true } });
+    if (!inPool) return res.status(404).json({ ok: false, message: "candidate not in pool" });
+    const existing = await prisma.candidateConnectionRequest.findUnique({ where: { partnerUserId_candidateUserId: { partnerUserId: req.auth!.userId, candidateUserId } } });
+    if (existing) return res.json({ ok: true, item: existing, alreadyExists: true });
+    const created = await prisma.candidateConnectionRequest.create({
+      data: { partnerUserId: req.auth!.userId, partnerOrganizationId: affiliation.organization.id, candidateUserId, message: parsed.data.message ?? null, status: "PENDING" }
+    });
+    const orgName = affiliation.organization.name ?? "한 기업";
+    await createNotification({
+      userId: candidateUserId,
+      type: "CANDIDATE_CONNECTION_REQUEST",
+      title: `${orgName}에서 연결을 요청했어요`,
+      message: parsed.data.message ? parsed.data.message.slice(0, 120) : "프로필에서 요청을 확인하고 수락하면 연락처가 공유돼요.",
+      linkPath: "/profile?tab=connections"
+    });
+    return res.status(201).json({ ok: true, item: created });
+  } catch (err) {
+    console.error("[partner/candidates/:id/connect] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to request connection" });
+  }
+});
+
+// 학생: 나에게 온 연결 요청 목록 + 수락/거절
+app.get("/members/me/connections", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const rows = await prisma.candidateConnectionRequest.findMany({
+      where: { candidateUserId: req.auth!.userId },
+      orderBy: { createdAt: "desc" },
+      include: { partnerUser: { select: { partnerOrganizationName: true, name: true, email: true } } }
+    });
+    return res.json({
+      ok: true,
+      items: rows.map((r) => ({
+        id: r.id,
+        orgName: r.partnerUser?.partnerOrganizationName ?? r.partnerUser?.name ?? "기업",
+        message: r.message,
+        status: r.status,
+        // 수락한 경우에만 파트너 담당자 이메일 노출(상호 공개).
+        partnerEmail: r.status === "ACCEPTED" ? r.partnerUser?.email ?? null : null,
+        createdAt: r.createdAt.toISOString(),
+        respondedAt: r.respondedAt?.toISOString() ?? null
+      }))
+    });
+  } catch (err) {
+    console.error("[members/me/connections] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to list connections" });
+  }
+});
+
+const respondConnectionSchema = z.object({ action: z.enum(["accept", "decline"]) });
+app.post("/members/me/connections/:id/respond", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const parsed = respondConnectionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const conn = await prisma.candidateConnectionRequest.findFirst({ where: { id, candidateUserId: req.auth!.userId } });
+    if (!conn) return res.status(404).json({ ok: false, message: "connection not found" });
+    if (conn.status !== "PENDING") return res.json({ ok: true, item: conn });
+    const status = parsed.data.action === "accept" ? "ACCEPTED" : "DECLINED";
+    const updated = await prisma.candidateConnectionRequest.update({ where: { id }, data: { status, respondedAt: new Date() } });
+    const me = await prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { name: true, realName: true } });
+    const who = me?.realName || me?.name || "후보자";
+    await createNotification({
+      userId: conn.partnerUserId,
+      type: status === "ACCEPTED" ? "CANDIDATE_CONNECTION_ACCEPTED" : "CANDIDATE_CONNECTION_DECLINED",
+      title: status === "ACCEPTED" ? `${who}님이 연결을 수락했어요` : `${who}님이 연결 요청을 거절했어요`,
+      message: status === "ACCEPTED" ? "이제 후보자의 연락처를 확인하고 연락할 수 있어요." : null,
+      linkPath: "/dashboard/partner/candidates"
+    });
+    return res.json({ ok: true, item: updated });
+  } catch (err) {
+    console.error("[members/me/connections/:id/respond] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to respond" });
+  }
+});
+
+// 학생: 인재풀 등록(대표 이력서 poolOptIn) 토글
+const talentPoolSchema = z.object({ optIn: z.boolean() });
+app.post("/members/me/talent-pool", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const parsed = talentPoolSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const primary = await prisma.resume.findFirst({ where: { userId: req.auth!.userId, isPrimary: true }, select: { id: true, content: true } });
+    if (!primary) return res.status(400).json({ ok: false, code: "NO_PRIMARY_RESUME", message: "대표 이력서가 필요해요." });
+    const content = { ...((primary.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>) };
+    if (parsed.data.optIn) content.poolOptIn = { consentedAt: new Date().toISOString() };
+    else delete content.poolOptIn;
+    await prisma.resume.update({ where: { id: primary.id }, data: { content: content as Prisma.InputJsonValue } });
+    return res.json({ ok: true, optIn: parsed.data.optIn });
+  } catch (err) {
+    console.error("[members/me/talent-pool] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to update talent pool" });
+  }
+});
+
 app.get("/partner/applications", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   try {
     const affiliation = await resolvePartnerAffiliation(req.auth!.userId);

@@ -61,6 +61,8 @@ model User {
   communityPostComments                CommunityPostComment[]
   partnerApplicantWorkflowsAsPartner   PartnerApplicantWorkflow[]    @relation("PartnerApplicantWorkflowPartnerUser")
   partnerApplicantWorkflowsAsCandidate PartnerApplicantWorkflow[]    @relation("PartnerApplicantWorkflowCandidateUser")
+  candidateConnectionsAsPartner        CandidateConnectionRequest[]  @relation("CandidateConnPartner")
+  candidateConnectionsAsCandidate      CandidateConnectionRequest[]  @relation("CandidateConnCandidate")
   applications                         Application[]                 @relation("ApplicationCandidate")
   applicationStatusChanges             ApplicationStatusHistory[]    @relation("ApplicationStatusChangedBy")
   reportedIssues                       IssueReport[]                 @relation("IssueReportReporter")
@@ -664,6 +666,28 @@ model PartnerApplicantWorkflow {
   @@index([partnerUserId])
   @@index([candidateUserId])
   @@index([positionId])
+}
+
+// 파트너가 인재풀(대표 이력서 동의 학생)을 검색해 먼저 연결을 요청하는 흐름.
+// 포지션과 무관한 콜드 연결이라 PartnerApplicantWorkflow(포지션 필수)와 별도.
+// 학생이 수락(ACCEPTED)해야 파트너가 연락처를 볼 수 있고 메시지를 주고받는다(동의 기반).
+model CandidateConnectionRequest {
+  id                    String    @id @default(uuid())
+  partnerUserId         String
+  partnerOrganizationId String? // 요청 시점 파트너 소속(표시·검증용)
+  candidateUserId       String
+  status                String    @default("PENDING") // PENDING | ACCEPTED | DECLINED
+  message               String? // 파트너가 남긴 첫 메시지(선택)
+  respondedAt           DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  partnerUser   User @relation("CandidateConnPartner", fields: [partnerUserId], references: [id], onDelete: Cascade)
+  candidateUser User @relation("CandidateConnCandidate", fields: [candidateUserId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerUserId, candidateUserId])
+  @@index([candidateUserId, status])
+  @@index([partnerUserId])
 }
 
 model Application {
