@@ -21121,9 +21121,14 @@ app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PA
       .map((c, i) => `[${i}] ${c.name ?? "이름없음"} · ${c.nationality ?? "-"} · ${[c.school, c.major].filter(Boolean).join(" ")} · 희망:${c.desiredJobRole ?? "-"} · 스킬:${c.skills.join(",") || "-"} · 어학:${c.languages.join("/") || "-"} · 경력${c.careerCount}/활동${c.activityCount} · ${c.summary ?? ""}`)
       .join("\n");
     const systemPrompt =
-      "너는 기업 채용을 돕는 인재 매칭 도우미다. 파트너의 인재 요구사항에 맞춰 아래 후보 풀에서 적합한 사람을 골라 0~100 적합도 점수와 한 줄 이유(한국어)를 매겨라. " +
-      "어학 능력은 명시된 어학뿐 아니라 후보의 국적(모국어)도 참고하라 — 예: 일본 국적이면 일본어 원어민으로 간주. " +
-      "요구와 무관하면 낮은 점수를 주고 제외해도 된다. 상위 적합자 위주로 최대 30명. 존재하는 index 만 사용. " +
+      "너는 기업 채용을 돕는 인재 매칭 도우미다. 파트너의 인재 요구사항에 맞춰 아래 후보 풀에서 적합한 사람을 골라 0~100 적합도 점수와 한 줄 이유(한국어)를 매겨라.\n" +
+      "[가중치 규칙 — 매우 중요]\n" +
+      "1) 요구에서 '직무/역할'을 최우선 기준으로 삼아라. 예: '중국 디자이너'는 '디자이너 직무 + 중국(국적·어학)'이며 핵심은 디자이너다.\n" +
+      "2) 요구한 직무와 다른 직무의 후보는 국적·어학·스킬이 아무리 맞아도 크게 감점해 낮은 점수를 줘라(상위에 두지 마라). 예: '중국 디자이너' 검색에 '중국 백엔드 개발자'나 '중국어 가능 CX'는 직무 불일치이므로 디자이너보다 뒤에 와야 한다.\n" +
+      "3) 국적·어학·스킬은 '직무가 맞는 후보들 사이'의 보조 가점 기준이다. 여러 조건이 함께 있으면 모두 충족하는 후보가 가장 높다.\n" +
+      "4) 관련 직무는 인정하라 — 예: 디자이너 = UX·UI·그래픽·프로덕트 디자이너.\n" +
+      "어학 능력은 명시된 어학뿐 아니라 후보의 국적(모국어)도 참고하라 — 예: 중국 국적이면 중국어 원어민.\n" +
+      "요구와 무관하면 낮은 점수를 주고 제외해도 된다. 상위 적합자 위주로 최대 30명. 존재하는 index 만 사용.\n" +
       'JSON 한 개 객체로만: { "matches": [{ "index": number, "score": number(0~100), "reason": string }] }';
     const userPrompt = `[파트너 인재 요구]\n${parsed.data.query}\n\n[후보 풀]\n${poolText}`;
     const pj = (await careerChatComplete(systemPrompt, userPrompt, "candidate_match", CANDIDATE_MATCH_SCHEMA)) as { matches?: unknown };
