@@ -9,7 +9,8 @@ import { PartnerDashboardSidebar } from "./_components/DashboardSidebar";
 export default function PartnerDashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, isReady, isAuthenticated } = useAuthSession();
-  const allowed = user?.role === "PARTNER";
+  // 운영자는 슈퍼유저 — 파트너 콘솔(인재 검색 등)도 동일하게 접근 가능.
+  const allowed = user?.role === "PARTNER" || user?.role === "OPERATOR";
 
   useEffect(() => {
     if (!isReady) return;

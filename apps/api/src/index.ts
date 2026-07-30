@@ -21003,7 +21003,7 @@ app.get("/partner/candidates", authenticate, requireRoles([MemberRole.PARTNER]),
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
   try {
     const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
-    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    if (req.auth!.role !== MemberRole.OPERATOR && !affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
     const rows = await prisma.resume.findMany({
       where: POOL_RESUME_WHERE,
       orderBy: { updatedAt: "desc" },
@@ -21063,7 +21063,7 @@ app.get("/partner/candidates/:candidateUserId", authenticate, requireRoles([Memb
   const candidateUserId = String(req.params.candidateUserId ?? "");
   try {
     const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
-    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    if (req.auth!.role !== MemberRole.OPERATOR && !affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
     const resume = await prisma.resume.findFirst({
       where: { userId: candidateUserId, ...POOL_RESUME_WHERE },
       select: { content: true, updatedAt: true, user: { select: { name: true, realName: true, nationality: true, email: true, phoneNumber: true } } }
@@ -21100,15 +21100,15 @@ app.post("/partner/candidates/:candidateUserId/connect", authenticate, requireRo
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
     const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
-    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    if (req.auth!.role !== MemberRole.OPERATOR && !affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
     const inPool = await prisma.resume.findFirst({ where: { userId: candidateUserId, ...POOL_RESUME_WHERE }, select: { id: true } });
     if (!inPool) return res.status(404).json({ ok: false, message: "candidate not in pool" });
     const existing = await prisma.candidateConnectionRequest.findUnique({ where: { partnerUserId_candidateUserId: { partnerUserId: req.auth!.userId, candidateUserId } } });
     if (existing) return res.json({ ok: true, item: existing, alreadyExists: true });
     const created = await prisma.candidateConnectionRequest.create({
-      data: { partnerUserId: req.auth!.userId, partnerOrganizationId: affiliation.organization.id, candidateUserId, message: parsed.data.message ?? null, status: "PENDING" }
+      data: { partnerUserId: req.auth!.userId, partnerOrganizationId: affiliation?.organization?.id ?? null, candidateUserId, message: parsed.data.message ?? null, status: "PENDING" }
     });
-    const orgName = affiliation.organization.name ?? "한 기업";
+    const orgName = affiliation?.organization?.name ?? "운영팀";
     await createNotification({
       userId: candidateUserId,
       type: "CANDIDATE_CONNECTION_REQUEST",
