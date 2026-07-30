@@ -139,15 +139,15 @@ function TalentSearch() {
           if (query.trim()) void runAi(query.trim());
           else void loadAll();
         }}
-        className="mb-2 flex gap-2 rounded-2xl border border-[#E5E8EB] bg-white p-3"
+        className="mb-2 flex items-center gap-2 rounded-2xl border border-border/60 bg-white p-2 shadow-sm"
       >
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="원하는 인재상을 문장으로 (예: React 잘하고 스타트업 경험 있는 프론트엔드, 한국어 가능)"
-          className="min-w-0 flex-1 rounded-xl border border-[#E5E8EB] px-3.5 py-2.5 text-[14px] outline-none focus:border-[#0B46E8]"
+          className="h-11 min-w-0 flex-1 rounded-xl bg-transparent px-3 text-[14px] text-slate-800 outline-none placeholder:text-slate-400"
         />
-        <button type="submit" className="inline-flex flex-none items-center justify-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">
+        <button type="submit" className="inline-flex h-11 flex-none items-center justify-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">
           <Sparkle className="h-4 w-4" weight="fill" /> AI 검색
         </button>
       </form>
