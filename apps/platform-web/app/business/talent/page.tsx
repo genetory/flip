@@ -207,7 +207,8 @@ function TalentSearch() {
                 ) : c.summary ? (
                   <p className="mt-2 line-clamp-2 break-keep text-[12px] leading-relaxed text-[#8B95A1]">{c.summary}</p>
                 ) : null}
-                <p className="mt-2 text-[11.5px] text-[#B0B8C1]">경력 {c.careerCount} · 활동 {c.activityCount}{c.visa ? ` · ${c.visa}` : ""}</p>
+                {c.languages.length ? <p className="mt-1.5 truncate text-[11.5px] text-[#8B95A1]">🗣 {c.languages.join(" · ")}</p> : null}
+                <p className="mt-1 text-[11.5px] text-[#B0B8C1]">경력 {c.careerCount} · 활동 {c.activityCount}{c.visa ? ` · ${c.visa}` : ""}</p>
               </button>
             ))}
           </div>

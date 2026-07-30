@@ -21000,6 +21000,9 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
   const careers = Array.isArray(content.careers) ? (content.careers as unknown[]) : [];
   const activities = Array.isArray(content.activities) ? (content.activities as unknown[]) : [];
   const summary = typeof content.summary === "string" ? content.summary : typeof content.selfIntroduction === "string" ? content.selfIntroduction : "";
+  const languages = Array.isArray(content.languages)
+    ? (content.languages as Record<string, unknown>[]).map((l) => [l?.language, l?.level].filter((x) => typeof x === "string" && x).join(" ")).filter(Boolean)
+    : [];
   return {
     candidateUserId: r.userId,
     name: r.user?.realName || r.user?.name || (content.basicName as string) || null,
@@ -21010,6 +21013,7 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
     workType: (content.workType as string) ?? null,
     visa: (content.basicVisa as string) ?? null,
     skills: skills.slice(0, 12),
+    languages,
     careerCount: careers.length,
     activityCount: activities.length,
     summary: summary ? summary.slice(0, 180) : null,
@@ -21047,7 +21051,7 @@ app.get("/partner/candidates", authenticate, requireRoles([MemberRole.PARTNER]),
       if (skill && !it.skills.some((s) => s.toLowerCase().includes(skill))) return false;
       if (jobRole && !String(it.desiredJobRole ?? "").toLowerCase().includes(jobRole)) return false;
       if (q) {
-        const hay = [it.name, it.school, it.major, it.desiredJobRole, it.summary, it.skills.join(" "), it.nationality].map((x) => String(x ?? "").toLowerCase()).join(" ");
+        const hay = [it.name, it.school, it.major, it.desiredJobRole, it.summary, it.skills.join(" "), it.languages.join(" "), it.nationality].map((x) => String(x ?? "").toLowerCase()).join(" ");
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -21102,7 +21106,7 @@ app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PA
       const tokens = parsed.data.query.toLowerCase().split(/[\s,]+/).filter((t) => t.length >= 2);
       const items = cards
         .map((c) => {
-          const hay = [c.name, c.school, c.major, c.desiredJobRole, c.summary, c.skills.join(" "), c.nationality].map((x) => String(x ?? "").toLowerCase()).join(" ");
+          const hay = [c.name, c.school, c.major, c.desiredJobRole, c.summary, c.skills.join(" "), c.languages.join(" "), c.nationality].map((x) => String(x ?? "").toLowerCase()).join(" ");
           const n = tokens.length ? tokens.filter((t) => hay.includes(t)).length : 0;
           return { c, n };
         })
@@ -21114,10 +21118,11 @@ app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PA
     }
 
     const poolText = cards
-      .map((c, i) => `[${i}] ${c.name ?? "이름없음"} · ${c.nationality ?? "-"} · ${[c.school, c.major].filter(Boolean).join(" ")} · 희망:${c.desiredJobRole ?? "-"} · 스킬:${c.skills.join(",") || "-"} · 경력${c.careerCount}/활동${c.activityCount} · ${c.summary ?? ""}`)
+      .map((c, i) => `[${i}] ${c.name ?? "이름없음"} · ${c.nationality ?? "-"} · ${[c.school, c.major].filter(Boolean).join(" ")} · 희망:${c.desiredJobRole ?? "-"} · 스킬:${c.skills.join(",") || "-"} · 어학:${c.languages.join("/") || "-"} · 경력${c.careerCount}/활동${c.activityCount} · ${c.summary ?? ""}`)
       .join("\n");
     const systemPrompt =
       "너는 기업 채용을 돕는 인재 매칭 도우미다. 파트너의 인재 요구사항에 맞춰 아래 후보 풀에서 적합한 사람을 골라 0~100 적합도 점수와 한 줄 이유(한국어)를 매겨라. " +
+      "어학 능력은 명시된 어학뿐 아니라 후보의 국적(모국어)도 참고하라 — 예: 일본 국적이면 일본어 원어민으로 간주. " +
       "요구와 무관하면 낮은 점수를 주고 제외해도 된다. 상위 적합자 위주로 최대 30명. 존재하는 index 만 사용. " +
       'JSON 한 개 객체로만: { "matches": [{ "index": number, "score": number(0~100), "reason": string }] }';
     const userPrompt = `[파트너 인재 요구]\n${parsed.data.query}\n\n[후보 풀]\n${poolText}`;

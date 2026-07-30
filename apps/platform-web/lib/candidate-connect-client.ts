@@ -13,6 +13,7 @@ export type PartnerCandidateCard = {
   workType: string | null;
   visa: string | null;
   skills: string[];
+  languages: string[];
   careerCount: number;
   activityCount: number;
   summary: string | null;
