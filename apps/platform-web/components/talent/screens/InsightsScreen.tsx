@@ -121,10 +121,10 @@ function VisaModal({ code, onClose }: { code: string; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="flex max-h-[82vh] w-full max-w-[460px] flex-col overflow-hidden rounded-3xl bg-white" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3 px-7 pt-7">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3 px-7 pt-7">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <span className="flex h-11 shrink-0 items-center justify-center rounded-2xl bg-[#F5F8FF] px-3 text-[13px] font-black text-[#0B46E8]">{code}</span>
-            <h2 className="text-[17px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
+            <h2 className="min-w-0 truncate text-[17px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
           </div>
           <button type="button" aria-label="닫기" onClick={onClose} className="-mr-1.5 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
             <X className="h-5 w-5" />
