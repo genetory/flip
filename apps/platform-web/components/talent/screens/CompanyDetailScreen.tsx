@@ -21,6 +21,16 @@ import {
 } from "../../../lib/member-profile-client";
 import { toPositionView } from "../../../lib/talent/positions-adapter";
 
+// 구어체 섹션 헤더 — 제목 + 한 줄 설명으로 섹션을 부드럽게 구분.
+function SectionHead({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div>
+      <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
+      <p className="mt-1 text-[13px] text-[#8B95A1]">{desc}</p>
+    </div>
+  );
+}
+
 export function CompanyDetailScreen({ name }: { name: string }) {
   const { locale } = useLanguage();
   const allPosts = useSocialFeed();
@@ -98,7 +108,7 @@ export function CompanyDetailScreen({ name }: { name: string }) {
 
             {/* 회사가 올린 피드 */}
             <section className="flex flex-col gap-3">
-              <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">회사 소식</h2>
+              <SectionHead title="이 회사, 요즘 이런 이야기를 나눠요" desc="회사가 피드에 남긴 소식을 모았어요." />
               {companyPosts.length ? (
                 <FeedPostList posts={companyPosts} />
               ) : (
@@ -108,7 +118,7 @@ export function CompanyDetailScreen({ name }: { name: string }) {
 
             {/* 회사 포지션 */}
             <section className="flex flex-col gap-3">
-              <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">포지션 {positions.length ? positions.length : ""}</h2>
+              <SectionHead title={`지금 이런 사람을 찾고 있어요${positions.length ? ` · ${positions.length}` : ""}`} desc="이 회사가 열어둔 포지션이에요. 바로 지원해볼 수 있어요." />
               {positions.length ? (
                 <div className="flex flex-col gap-3">
                   {positions.map((item) => (
