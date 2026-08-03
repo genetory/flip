@@ -41,9 +41,11 @@ export function CoverA4Preview({ doc, info, maxWidth }: { doc: CoverDoc; info: B
 }
 
 function CoverA4Page({ doc, info }: { doc: CoverDoc; info: BasicInfo }) {
+  const contact = [info.email, info.phone, info.address].filter(Boolean);
   return (
     <div className="flex h-full w-full flex-col bg-white px-[56px] py-[52px] text-[#191F28]">
-      <header className="flex items-start gap-6 border-b border-[#E5E8EB] pb-5">
+      {/* 헤더 — 이력서와 동일 */}
+      <header className="flex items-start gap-6 border-b border-[#E5E8EB] pb-6">
         {info.photoUrl && doc.showPhoto === true ? (
           <span className="h-[104px] w-[84px] shrink-0 overflow-hidden rounded-[6px] border border-[#E5E8EB] bg-[#F2F4F6]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -51,8 +53,12 @@ function CoverA4Page({ doc, info }: { doc: CoverDoc; info: BasicInfo }) {
           </span>
         ) : null}
         <div className="min-w-0 flex-1">
-          <p className="text-[26px] font-black tracking-[-0.02em] text-[#0B1227]">자기소개서</p>
-          <p className="mt-2 text-[13px] text-[#4E5968]">{[info.realName, info.email].filter(Boolean).join("  ·  ")}</p>
+          <p className="text-[32px] font-black leading-tight tracking-[-0.02em] text-[#0B1227]">{info.realName || "이름"}</p>
+          <div className="mt-4 flex flex-col gap-1 text-[13px] leading-relaxed text-[#4E5968]">
+            {contact.map((c, i) => (
+              <span key={i}>{c}</span>
+            ))}
+          </div>
         </div>
       </header>
 
