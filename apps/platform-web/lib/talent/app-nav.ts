@@ -1,6 +1,6 @@
 // 로그인 후 Talent 앱의 내비게이션 구조.
 // 핵심 탭 4개(홈/내 커리어/채용공고/지원) + 계정 설정(프로필 메뉴).
-import { House, Compass, Briefcase, PaperPlaneTilt, ChatCircleText, type Icon } from "@phosphor-icons/react";
+import { House, Compass, Briefcase, PaperPlaneTilt, type Icon } from "@phosphor-icons/react";
 
 export const talentAppRoutes = {
   // 홈(GNB 대시보드)과 랜딩(공개)을 분리. /talent = 랜딩, /talent/home = 홈.
@@ -33,9 +33,10 @@ export interface TalentNavItem {
 }
 
 // 하단/상단 공용 메인 탭.
+// NOTE: 피드는 잠시 보류 — GNB에서 숨김(라우트·기능은 유지). 복구 시 아래 주석 해제.
 export const talentMainNav: TalentNavItem[] = [
   { key: "home", label: "홈", href: talentAppRoutes.home, icon: House },
-  { key: "feed", label: "피드", href: talentAppRoutes.feed, icon: ChatCircleText },
+  // { key: "feed", label: "피드", href: talentAppRoutes.feed, icon: ChatCircleText },
   { key: "career", label: "내 커리어", href: talentAppRoutes.career, icon: Compass },
   { key: "jobs", label: "포지션 탐색", href: talentAppRoutes.jobs, icon: Briefcase },
   { key: "applications", label: "지원", href: talentAppRoutes.applications, icon: PaperPlaneTilt }
