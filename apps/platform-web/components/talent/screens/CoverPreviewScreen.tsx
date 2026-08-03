@@ -5,6 +5,7 @@ import Link from "next/link";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TalentBackButton } from "../TalentBackButton";
 import { CoverA4Preview } from "../career/CoverA4";
+import { PrintStyles, PdfDownloadButton, PDF_PRINT_AREA } from "../career/pdf-print";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useCoverDoc } from "../../../lib/talent/cover-doc";
 import { useBasicInfo } from "../../../lib/talent/basic-info";
@@ -15,10 +16,14 @@ export function CoverPreviewScreen() {
 
   return (
     <TalentAppShell>
+      <PrintStyles />
       <div className="flex flex-col gap-5">
         <div>
           <TalentBackButton className="mb-3" />
-          <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">자기소개서 미리보기</h1>
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">자기소개서 미리보기</h1>
+            {doc !== null ? <PdfDownloadButton /> : null}
+          </div>
         </div>
 
         {doc === null ? (
@@ -30,7 +35,7 @@ export function CoverPreviewScreen() {
             </Link>
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-[794px]">
+          <div className={`mx-auto w-full max-w-[794px] ${PDF_PRINT_AREA}`}>
             <CoverA4Preview doc={doc} info={info} />
           </div>
         )}
