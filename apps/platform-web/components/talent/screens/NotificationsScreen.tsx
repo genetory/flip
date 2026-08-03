@@ -50,7 +50,7 @@ export function NotificationsScreen() {
 
   return (
     <TalentAppShell>
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-8">
         <div>
           <TalentBackButton className="mb-3" />
           <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">알림</h1>

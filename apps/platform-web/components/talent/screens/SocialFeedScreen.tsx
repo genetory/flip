@@ -44,7 +44,7 @@ export function SocialFeedScreen() {
 
   return (
     <TalentAppShell>
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-8">
         <TPageHeader title="피드" description="취업 준비생과 기업이 함께 이야기 나누는 공간이에요." />
 
         {/* 작성 */}

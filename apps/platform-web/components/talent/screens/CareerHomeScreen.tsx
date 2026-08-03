@@ -36,7 +36,7 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   // 기본 정보가 등록되지 않으면 무조건 그것부터.
   if (!ready) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-8">
         <TPageHeader title="내 커리어" description="편하게 남기면 이력서·자기소개서로 정리돼요." />
         <ProfileGate />
       </div>
@@ -44,7 +44,7 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <TPageHeader title="내 커리어" description="편하게 남기면 이력서·자기소개서로 정리돼요." />
 
       {/* AI 커리어 노트 — 커리어를 쌓는 기본 진입 */}

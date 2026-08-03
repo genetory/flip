@@ -8,7 +8,7 @@ import { TEmpty, TError, TLoading } from "../ui/primitives";
 import { FeedPostList } from "../feed/FeedPostList";
 import { PositionCard } from "../jobs/PositionCard";
 import { TalentCipModal } from "../jobs/TalentCipModal";
-import { CompanySection } from "./JobDetailScreen";
+import { CompanySection, CompanyHeader } from "./JobDetailScreen";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { useSocialFeed } from "../../../lib/talent/social-feed";
 import {
@@ -92,10 +92,15 @@ export function CompanyDetailScreen({ name }: { name: string }) {
 
   return (
     <TalentAppShell>
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-8">
         <div>
           <TalentBackButton className="mb-3" />
-          <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{name}</h1>
+          {/* 썸네일·회사명·관심 회사 — 맨 상단 헤더 */}
+          {companyItem ? (
+            <CompanyHeader item={companyItem} />
+          ) : (
+            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{name}</h1>
+          )}
         </div>
 
         {status === "loading" ? <TLoading /> : null}
@@ -103,7 +108,7 @@ export function CompanyDetailScreen({ name }: { name: string }) {
 
         {status === "ready" ? (
           <>
-            {/* 회사 정보 — 포지션 상세와 동일한 카드 */}
+            {/* 회사 정보 — 포지션 상세와 동일한 카드(헤더 제외) */}
             {companyItem ? <CompanySection item={companyItem} /> : null}
 
             {/* 회사가 올린 피드 */}

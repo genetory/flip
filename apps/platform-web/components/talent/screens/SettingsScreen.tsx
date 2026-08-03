@@ -80,7 +80,7 @@ export function SettingsScreen() {
     <TalentAppShell maxWidth="4xl">
       <TPageHeader title="계정 설정" />
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-8">
         {/* 프로필 요약 */}
         <TCard className="flex items-center gap-4 p-5">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">{name.slice(0, 1)}</span>

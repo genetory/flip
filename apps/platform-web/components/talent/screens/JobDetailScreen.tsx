@@ -144,7 +144,10 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
             </div>
           </TCard>
 
-          {/* 기업 정보 */}
+          {/* 기업 정보 — 헤더(썸네일·회사명·관심)는 카드 밖 상단 */}
+          <div className="mt-6">
+            <CompanyHeader item={item} />
+          </div>
           <CompanySection item={item} />
 
           {/* 데스크톱 액션 */}
@@ -254,66 +257,82 @@ function CompanyFollowButton({ name }: { name: string }) {
   );
 }
 
-export function CompanySection({ item }: { item: PublicPositionListItem }) {
+// 회사 헤더 — 썸네일 + 회사명 + 관심 회사. 카드 밖 맨 상단에 노출.
+export function CompanyHeader({ item }: { item: PublicPositionListItem }) {
   const org = item.partnerOrganization;
   if (!org) return null;
   const logo = org.companyLogoImageData || null;
+  return (
+    <div className="flex items-center gap-3">
+      {logo ? (
+        <span className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logo} alt="" className="h-full w-full object-contain" />
+        </span>
+      ) : (
+        // 로고 없으면 유저 프로필과 동일한 이니셜 플레이스홀더.
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">{org.name.slice(0, 1)}</span>
+      )}
+      <p className="min-w-0 truncate text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{org.name}</p>
+      <CompanyFollowButton name={org.name} />
+    </div>
+  );
+}
+
+export function CompanySection({ item }: { item: PublicPositionListItem }) {
+  const org = item.partnerOrganization;
+  if (!org) return null;
   const office = org.officePhotoImageData || null;
   return (
-    <TCard className="mt-4 p-6">
-      <div className="flex items-center gap-1.5">
-        <Buildings className="h-4 w-4 text-[#4E5968]" />
-        <h2 className="text-[15px] font-bold text-[#191F28]">기업 정보</h2>
-      </div>
-
-      <div className="mt-4 flex items-center gap-3">
-        {logo ? (
-          <span className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logo} alt="" className="h-full w-full object-contain" />
-          </span>
-        ) : (
-          // 로고 없으면 유저 프로필과 동일한 이니셜 플레이스홀더.
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[18px] font-black text-[#0B46E8]">{org.name.slice(0, 1)}</span>
-        )}
-        <p className="min-w-0 truncate text-[16px] font-bold text-[#191F28]">{org.name}</p>
-        <CompanyFollowButton name={org.name} />
-      </div>
-
-      <div className="mt-4 divide-y divide-[#F2F4F6]">
-        <InfoRow label="기업 규모" value={org.companySize ? companySizeLabels[org.companySize] ?? org.companySize : DASH} />
-        <InfoRow label="산업" value={org.industry ? partnerIndustryLabel(org.industry) : DASH} />
-        <InfoRow label="사무실 주소" value={orDash(org.officeAddress)} />
-        <InfoRow label="웹사이트" value={orDash(org.website)} href={toHref(org.website)} />
-        <InfoRow label="소셜 미디어" value={orDash(org.socialMedia)} href={toHref(org.socialMedia)} />
-      </div>
-
-      {office ? (
-        <div className="mt-4 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-[#F2F4F6]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={office} alt="사무실 사진" className="h-[180px] w-full object-cover" />
+    <div className="mt-4 flex flex-col gap-4">
+      {/* 기업 개요 */}
+      <TCard className="p-6">
+        <div className="flex items-center gap-1.5">
+          <Buildings className="h-4 w-4 text-[#4E5968]" />
+          <h2 className="text-[15px] font-bold text-[#191F28]">기업 정보</h2>
         </div>
+
+        <div className="mt-4 divide-y divide-[#F2F4F6]">
+          <InfoRow label="기업 규모" value={org.companySize ? companySizeLabels[org.companySize] ?? org.companySize : DASH} />
+          <InfoRow label="산업" value={org.industry ? partnerIndustryLabel(org.industry) : DASH} />
+          <InfoRow label="사무실 주소" value={orDash(org.officeAddress)} />
+          <InfoRow label="웹사이트" value={orDash(org.website)} href={toHref(org.website)} />
+          <InfoRow label="소셜 미디어" value={orDash(org.socialMedia)} href={toHref(org.socialMedia)} />
+        </div>
+
+        {org.website ? (
+          <a href={org.website} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0B46E8] hover:underline">
+            <LinkSimple className="h-4 w-4" /> 회사 홈페이지
+          </a>
+        ) : null}
+      </TCard>
+
+      {/* 사무실 */}
+      {office ? (
+        <TCard className="p-6">
+          <h2 className="text-[15px] font-bold text-[#191F28]">사무실</h2>
+          <div className="mt-4 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-[#F2F4F6]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={office} alt="사무실 사진" className="h-[180px] w-full object-cover" />
+          </div>
+        </TCard>
       ) : null}
 
+      {/* 기업 소개 */}
       {org.description?.trim() ? (
-        <section className="mt-5">
-          <h3 className="text-[13px] font-bold text-[#8B95A1]">기업 소개</h3>
-          <p className="mt-1.5 whitespace-pre-line break-keep text-[14px] leading-[1.75] text-[#4E5968]">{org.description}</p>
-        </section>
+        <TCard className="p-6">
+          <h2 className="text-[15px] font-bold text-[#191F28]">기업 소개</h2>
+          <p className="mt-3 whitespace-pre-line break-keep text-[14px] leading-[1.75] text-[#4E5968]">{org.description}</p>
+        </TCard>
       ) : null}
 
+      {/* 회사 자랑거리 */}
       {org.strengths?.trim() ? (
-        <section className="mt-5">
-          <h3 className="text-[13px] font-bold text-[#8B95A1]">회사 자랑거리</h3>
-          <p className="mt-1.5 whitespace-pre-line break-keep text-[14px] leading-[1.75] text-[#4E5968]">{org.strengths}</p>
-        </section>
+        <TCard className="p-6">
+          <h2 className="text-[15px] font-bold text-[#191F28]">회사 자랑거리</h2>
+          <p className="mt-3 whitespace-pre-line break-keep text-[14px] leading-[1.75] text-[#4E5968]">{org.strengths}</p>
+        </TCard>
       ) : null}
-
-      {org.website ? (
-        <a href={org.website} target="_blank" rel="noopener noreferrer" className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0B46E8] hover:underline">
-          <LinkSimple className="h-4 w-4" /> 회사 홈페이지
-        </a>
-      ) : null}
-    </TCard>
+    </div>
   );
 }
