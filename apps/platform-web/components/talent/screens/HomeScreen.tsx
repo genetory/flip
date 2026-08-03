@@ -171,7 +171,10 @@ function TodayTip() {
   }
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">오늘의 팁</h2>
+      <div>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">오늘은 이런 팁 어때요?</h2>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">매일 하나씩, 취업에 도움되는 이야기를 골라봤어요.</p>
+      </div>
       <div className="flex items-center gap-3 rounded-2xl bg-[#F5F6F8] px-4 py-4">
         <span className="text-[19px] leading-none" aria-hidden>💡</span>
         <p className="flex-1 break-keep text-[15px] font-bold leading-relaxed text-[#191F28]">{`"${tip}"`}</p>
@@ -195,7 +198,10 @@ function HomeCareerHistory() {
   const recent = feed.slice(0, 3);
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">내 커리어</h2>
+      <div>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">내 커리어가 쌓이고 있어요</h2>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">남긴 기록이 이력서·자기소개서로 정리돼요.</p>
+      </div>
 
       {/* 이력서 / 자기소개서 */}
       <CareerFunnelCards />
@@ -228,7 +234,10 @@ function GuideSection() {
   const [active, setActive] = useState<CareerGuide | null>(null);
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">취업 준비 가이드</h2>
+      <div>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">취업 준비, 이렇게 시작해봐요</h2>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">처음이라도 막막하지 않게 하나씩 알려드려요.</p>
+      </div>
       <div className="-mx-4 overflow-x-auto md:mx-0">
         <div className="flex gap-3 pb-1 pl-4 md:pl-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {careerGuides.map((g) => (
@@ -381,7 +390,10 @@ function RecommendedJobs() {
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">나에게 맞는 공고</h2>
+      <div>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">나에게 딱 맞는 공고예요</h2>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">관심 직무를 바탕으로 골라봤어요.</p>
+      </div>
 
       {/* 관심 직무 카드(공용) */}
       <JobInterestCard />
