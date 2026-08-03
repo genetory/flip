@@ -102,26 +102,25 @@ function HomeCompanies() {
         <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">이런 회사는 어때요?</h2>
         <p className="mt-1 text-[13px] text-[#8B95A1]">지금 채용 중인 회사를 만나보세요.</p>
       </div>
-      <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-3 gap-3">
         {companies.map((c) => (
           <Link
             key={c.name}
             href={`/talent/company/${encodeURIComponent(c.name)}`}
-            className="flex items-center gap-4 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:shadow-[0_6px_20px_rgba(11,18,39,0.05)]"
+            className="flex flex-col items-center gap-2.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 text-center transition hover:border-[#D7DCE3] hover:shadow-[0_6px_20px_rgba(11,18,39,0.05)]"
           >
             {c.logo ? (
-              <span className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+              <span className="h-[56px] w-[56px] shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={c.logo} alt="" className="h-full w-full object-contain" />
               </span>
             ) : (
-              <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[19px] font-black text-[#0B46E8]">{c.name.slice(0, 1)}</span>
+              <span className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">{c.name.slice(0, 1)}</span>
             )}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[15px] font-bold text-[#191F28]">{c.name}</p>
-              <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{[c.industry, `포지션 ${c.count}개`].filter(Boolean).join(" · ")}</p>
+            <div className="w-full min-w-0">
+              <p className="truncate text-[13.5px] font-bold text-[#191F28]">{c.name}</p>
+              <p className="mt-0.5 truncate text-[11.5px] text-[#8B95A1]">{[c.industry, `포지션 ${c.count}개`].filter(Boolean).join(" · ")}</p>
             </div>
-            <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
           </Link>
         ))}
       </div>
