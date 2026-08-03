@@ -123,7 +123,7 @@ function VisaModal({ code, onClose }: { code: string; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="flex max-h-[82vh] w-full max-w-[460px] flex-col overflow-hidden rounded-3xl bg-white" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between gap-3 px-7 pt-7">
+        <div className="flex items-center justify-between gap-3 border-b border-[#F2F4F6] px-7 pb-5 pt-7">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <span className="flex h-11 shrink-0 items-center justify-center rounded-2xl bg-[#F5F8FF] px-3 text-[13px] font-black text-[#0B46E8]">{code}</span>
             <h2 className="min-w-0 truncate text-[17px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
