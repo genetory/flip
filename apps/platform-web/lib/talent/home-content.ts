@@ -208,8 +208,8 @@ export const careerGuides: CareerGuide[] = [
     emoji: "🗂️",
     title: "경험이\n이력서가 되기까지",
     desc: "알바·프로젝트를 취업 언어로 바꾸는 법",
-    href: "/talent/career/chat",
-    ctaLabel: "커리어 노트에 남기기",
+    href: "/talent/career/resume",
+    ctaLabel: "이력서 만들기",
     body: [
       { heading: "1. 경험은 '결과'까지 적어요", text: "무엇을 했는지에서 멈추지 말고, 그래서 어떤 변화가 생겼는지까지 적어야 이력서 문장이 됩니다. 예: '주문을 받았다' → '주문 누락을 30% 줄였다'." },
       { heading: "2. 숫자로 구체화해요", text: "'많이', '자주' 대신 숫자를 넣어보세요. '하루 50건 응대', '방문자 2배' 처럼 수치가 있으면 훨씬 설득력 있어요." },

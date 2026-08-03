@@ -22,7 +22,7 @@ export function FeedCard({ entry, onDelete }: { entry: FeedEntry; onDelete?: (id
   const rawLabel = entry.label ?? meta.label;
   const base = rawLabel.includes("·") ? (rawLabel.split("·").pop() ?? rawLabel).trim() : rawLabel;
   const title = `${withObjectParticle(base)} 업데이트했어요!`;
-  const href = entry.href ?? talentAppRoutes.chat;
+  const href = entry.href ?? talentAppRoutes.career;
 
   return (
     <div className="relative">

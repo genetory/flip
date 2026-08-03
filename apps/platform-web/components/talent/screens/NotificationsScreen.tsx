@@ -24,7 +24,7 @@ interface Noti {
 const ONBOARDING_TIPS: Noti[] = [
   { id: "tip-resume", emoji: "📝", title: "이력서를 완성해보세요", body: "기본 정보를 등록하면 이력서를 만들 수 있어요.", time: "", href: talentAppRoutes.resumes, unread: false },
   { id: "tip-jobs", emoji: "💼", title: "새로운 추천 공고가 있어요", body: "관심 직무에 맞는 공고를 확인해보세요.", time: "", href: talentAppRoutes.jobs, unread: false },
-  { id: "tip-note", emoji: "✨", title: "AI 커리어 노트를 시작해보세요", body: "오늘 있었던 일을 남기면 이력서로 정리돼요.", time: "", href: talentAppRoutes.chat, unread: false }
+  { id: "tip-note", emoji: "✨", title: "이력서를 만들어보세요", body: "AI 챗으로 편하게 이력서를 채워보세요.", time: "", href: talentAppRoutes.resumes, unread: false }
 ];
 
 export function NotificationsScreen() {

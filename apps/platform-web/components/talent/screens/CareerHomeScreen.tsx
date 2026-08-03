@@ -3,7 +3,6 @@
 // 내 커리어 홈 — 커리어를 쌓는 허브.
 // AI 커리어 노트로 남기면 → 커리어 기록(피드)으로 쌓이고 → 이력서/자기소개서로 정리된다.
 import { CareerLayout } from "../career/CareerLayout";
-import { CareerChatEntry } from "../career/CareerChatEntry";
 import { ProfileGate } from "../career/ProfileGate";
 import { FeedCard } from "../career/FeedCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
@@ -45,12 +44,9 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <TPageHeader title="내 커리어" description="편하게 남기면 이력서·자기소개서로 정리돼요." />
+      <TPageHeader title="내 커리어" description="이력서·자기소개서를 만들면서 커리어를 정리해요." />
 
-      {/* AI 커리어 노트 — 커리어를 쌓는 기본 진입 */}
-      <CareerChatEntry />
-
-      {/* 결과물 퍼널 — 이력서 / 자기소개서 (각 1개) */}
+      {/* 결과물 퍼널 — 이력서 / 자기소개서 (각 1개, 각자 AI 챗으로 입력) */}
       <CareerFunnelCards />
 
       {/* 커리어 기록 — 남긴 것들이 피드로 */}

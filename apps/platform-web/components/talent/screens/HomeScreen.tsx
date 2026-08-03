@@ -10,7 +10,6 @@ import { TLoading, TError } from "../ui/primitives";
 import { PositionCard } from "../jobs/PositionCard";
 import { TalentCipModal } from "../jobs/TalentCipModal";
 import { JobInterestCard } from "../jobs/JobInterestCard";
-import { CareerChatEntry } from "../career/CareerChatEntry";
 import { FeedCard } from "../career/FeedCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
 import { useLanguage } from "../../i18n/LanguageProvider";
@@ -50,7 +49,6 @@ function HomeContent({ snapshot }: { snapshot: TalentSnapshot }) {
       <FeaturedBanners />
       <GreetingHeader snapshot={snapshot} />
       <TodayTip />
-      <CareerChatEntry />
       <HomeCareerHistory />
       <GuideSection />
       <RecommendedJobs />
@@ -301,11 +299,11 @@ function HomeCareerHistory() {
           ))}
         </div>
       ) : (
-        <Link href={talentAppRoutes.chat} className="flex items-center gap-3 rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] px-5 py-6 transition hover:border-[#0B46E8]/40">
+        <Link href={talentAppRoutes.career} className="flex items-center gap-3 rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] px-5 py-6 transition hover:border-[#0B46E8]/40">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[18px]" aria-hidden>📝</span>
           <div className="min-w-0">
             <p className="text-[14px] font-bold text-[#191F28]">아직 커리어 기록이 없어요</p>
-            <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">AI 커리어 노트에 한 줄 남기면 여기에 쌓여요.</p>
+            <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">이력서·자기소개서를 만들면 여기에 쌓여요.</p>
           </div>
         </Link>
       )}

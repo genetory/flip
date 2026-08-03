@@ -7,7 +7,6 @@ export const talentAppRoutes = {
   home: "/talent/home",
   onboarding: "/talent/onboarding",
   career: "/talent/career",
-  chat: "/talent/career/chat",
   experiences: "/talent/career/experiences",
   profile: "/talent/career/profile",
   resume: "/talent/career/resume",
