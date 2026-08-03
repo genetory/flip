@@ -245,7 +245,7 @@ function CompanyFollowButton({ name }: { name: string }) {
       type="button"
       onClick={() => toggleFollow(company)}
       aria-pressed={interested}
-      className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-[12.5px] font-bold transition ${
+      className={`inline-flex shrink-0 items-center gap-1 rounded-xl px-3 py-1.5 text-[12.5px] font-bold transition ${
         interested ? "bg-[#EDF1FD] text-[#0B46E8] hover:bg-[#E1E9FC]" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
       }`}
     >
