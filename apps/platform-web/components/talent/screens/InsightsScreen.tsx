@@ -1,21 +1,23 @@
 "use client";
 
-// 취업 소식 — 직무 인사이트 · 취업 노하우 · 취업 팁(교육형 콘텐츠 허브).
-import { useState } from "react";
-import { CaretRight } from "@phosphor-icons/react";
+// 취업 가이드 — 직무 인사이트 · 취업 노하우 · 외국인 비자 · 취업 팁(교육형 콘텐츠 허브).
+import { useEffect, useState } from "react";
+import { CaretRight, X } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TPageHeader } from "../ui/primitives";
 import { GuideModal } from "./HomeScreen";
-import { roleInsights, jobHunting } from "../../../lib/talent/insights-content";
+import { roleInsights, jobHunting, jobVisas } from "../../../lib/talent/insights-content";
 import { homeTips, type CareerGuide } from "../../../lib/talent/home-content";
+import { VISA_DETAILS, type VisaStructuredLine } from "../../../lib/visa-details";
 
 export function InsightsScreen() {
   const [active, setActive] = useState<CareerGuide | null>(null);
+  const [visa, setVisa] = useState<string | null>(null);
 
   return (
     <TalentAppShell>
       <div className="flex flex-col gap-8">
-        <TPageHeader title="취업 소식" description="직무 이야기부터 취업 노하우까지, 취업 준비에 도움되는 정보를 모았어요." />
+        <TPageHeader title="취업 가이드" description="직무 이야기부터 취업 노하우·비자까지, 취업 준비에 도움되는 정보를 모았어요." />
 
         <CardRow
           title="직무, 이런 일을 해요"
@@ -30,6 +32,32 @@ export function InsightsScreen() {
           items={jobHunting}
           onOpen={setActive}
         />
+
+        {/* 외국인 비자 안내 */}
+        <section className="flex flex-col gap-4">
+          <div>
+            <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">외국인을 위한 비자 안내</h2>
+            <p className="mt-1 text-[13px] text-[#8B95A1]">구직·취업에 관련된 비자를 쉽게 정리했어요.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {jobVisas.map((v) => (
+              <button
+                key={v.code}
+                type="button"
+                onClick={() => setVisa(v.code)}
+                className="flex items-center gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-4 text-left transition hover:border-[#D7DCE3] hover:shadow-[0_4px_16px_rgba(11,18,39,0.05)]"
+              >
+                <span className="flex h-11 shrink-0 items-center justify-center rounded-2xl bg-[#F5F8FF] px-3 text-[13px] font-black text-[#0B46E8]">{v.code}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[14px] font-bold text-[#191F28]">{v.label}</p>
+                  <p className="truncate text-[12.5px] text-[#8B95A1]">{v.desc}</p>
+                </div>
+                <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
+              </button>
+            ))}
+          </div>
+          <p className="text-[12px] leading-relaxed text-[#B0B8C1]">비자 요건은 개인 상황·정책에 따라 달라질 수 있어요. 정확한 내용은 하이코리아·출입국사무소에서 확인하세요.</p>
+        </section>
 
         {/* 취업 팁 — 짧은 한 줄 팁 */}
         <section className="flex flex-col gap-3">
@@ -49,7 +77,75 @@ export function InsightsScreen() {
       </div>
 
       {active ? <GuideModal guide={active} onClose={() => setActive(null)} /> : null}
+      {visa ? <VisaModal code={visa} onClose={() => setVisa(null)} /> : null}
     </TalentAppShell>
+  );
+}
+
+// 비자 상세 팝업 — VISA_DETAILS(공식 안내)의 한국어 구조화 내용을 그대로 보여준다.
+function VisaLines({ lines }: { lines: VisaStructuredLine[] }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {lines.map((l, i) =>
+        l.kind === "heading" ? (
+          <p key={i} className="mt-1.5 text-[13.5px] font-bold text-[#191F28]" style={{ paddingLeft: l.depth * 12 }}>{l.text}</p>
+        ) : (
+          <p key={i} className="flex gap-1.5 break-keep text-[13px] leading-[1.7] text-[#4E5968]" style={{ paddingLeft: l.depth * 12 }}>
+            <span className="shrink-0 text-[#B0B8C1]">•</span>
+            <span>{l.text}</span>
+          </p>
+        )
+      )}
+    </div>
+  );
+}
+
+function VisaModal({ code, onClose }: { code: string; onClose: () => void }) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const detail = VISA_DETAILS[code];
+  if (!detail) return null;
+  const title = detail.titleKo?.trim() || `${code} 비자`;
+  const sections: { heading: string; lines: VisaStructuredLine[] }[] = [
+    { heading: "안내", lines: detail.descriptionKo ?? [] },
+    { heading: "대상", lines: detail.candidatesKo ?? [] },
+    { heading: "요건", lines: detail.requirementsKo ?? [] }
+  ].filter((s) => s.lines.length > 0);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex max-h-[82vh] w-full max-w-[460px] flex-col overflow-hidden rounded-3xl bg-white" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 px-7 pt-7">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 shrink-0 items-center justify-center rounded-2xl bg-[#F5F8FF] px-3 text-[13px] font-black text-[#0B46E8]">{code}</span>
+            <h2 className="text-[17px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
+          </div>
+          <button type="button" aria-label="닫기" onClick={onClose} className="-mr-1.5 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-7 py-5">
+          <div className="flex flex-col gap-5">
+            {sections.map((s) => (
+              <div key={s.heading}>
+                <p className="text-[12px] font-bold text-[#8B95A1]">{s.heading}</p>
+                <div className="mt-1.5">
+                  <VisaLines lines={s.lines} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-[12px] leading-relaxed text-[#B0B8C1]">개인 상황·정책에 따라 달라질 수 있어요. 정확한 내용은 하이코리아·출입국사무소에서 확인하세요.</p>
+        </div>
+      </div>
+    </div>
   );
 }
 

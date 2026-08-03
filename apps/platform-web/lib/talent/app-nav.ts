@@ -40,8 +40,8 @@ export const talentMainNav: TalentNavItem[] = [
   // { key: "feed", label: "피드", href: talentAppRoutes.feed, icon: ChatCircleText },
   { key: "career", label: "내 커리어", href: talentAppRoutes.career, icon: Compass },
   { key: "jobs", label: "포지션 탐색", href: talentAppRoutes.jobs, icon: Briefcase },
-  // 지원 현황은 계정 설정으로 이동. 4번째 탭은 취업 소식(인사이트).
-  { key: "insights", label: "취업 소식", href: talentAppRoutes.insights, icon: Newspaper }
+  // 지원 현황은 계정 설정으로 이동. 4번째 탭은 취업 가이드(직무·노하우·비자).
+  { key: "insights", label: "취업 가이드", href: talentAppRoutes.insights, icon: Newspaper }
 ];
 
 // 현재 경로가 해당 탭에 속하는지 판단.

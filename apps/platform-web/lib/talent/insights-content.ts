@@ -1,6 +1,16 @@
-// 취업 소식/인사이트 콘텐츠 — 직무 인사이트 · 취업 노하우(교육형).
+// 취업 가이드 콘텐츠 — 직무 인사이트 · 취업 노하우 · 외국인 비자(교육형).
 // CareerGuide 형태를 재사용해 홈 가이드와 동일한 팝업으로 보여준다.
 import type { CareerGuide } from "./home-content";
+
+// 외국인 구직·취업 관련 비자 — 정확한 상세는 기존 비자 안내(/resources/visa/[code])로 연결.
+export const jobVisas: { code: string; label: string; desc: string }[] = [
+  { code: "D-2", label: "D-2 유학", desc: "한국 대학에 재학 중인 유학생" },
+  { code: "D-10", label: "D-10 구직", desc: "졸업 후 취업을 준비하는 구직 비자" },
+  { code: "E-7", label: "E-7 특정활동", desc: "전문 분야 취업 시 받는 대표 취업 비자" },
+  { code: "F-2", label: "F-2 거주", desc: "제한 없이 취업할 수 있는 거주 비자" },
+  { code: "F-4", label: "F-4 재외동포", desc: "폭넓게 취업 가능한 재외동포 비자" },
+  { code: "H-1", label: "H-1 워킹홀리데이", desc: "협정국 청년의 관광·취업 비자" }
+];
 
 // 직무 인사이트 — 각 직무가 실제로 무슨 일을 하고, 무엇을 준비하면 좋은지.
 export const roleInsights: CareerGuide[] = [
