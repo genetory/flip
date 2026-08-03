@@ -2,15 +2,17 @@
 
 // 계정 설정 — 프로필 요약, 알림(mock), 계정 관리, 로그아웃.
 import Link from "next/link";
-import { useState } from "react";
-import { CaretRight, SignOut } from "@phosphor-icons/react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { CaretRight, SignOut, Buildings } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { JobInterestCard } from "../jobs/JobInterestCard";
 import { TCard, TPageHeader } from "../ui/primitives";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useFollowing, parseAuthorKey, unfollowAuthor, type FeedAuthor } from "../../../lib/talent/social-graph";
-import { roleLabel } from "../../../lib/talent/social-feed";
+import { roleLabel, useSocialFeed } from "../../../lib/talent/social-feed";
+import { useFeedBookmarks, toggleFeedBookmark } from "../../../lib/talent/feed-bookmarks";
+import { getMyFavoritePositions, type PublicPositionListItem } from "../../../lib/member-profile-client";
 
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
@@ -20,29 +22,70 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
   );
 }
 
-function FollowList({ title, emptyText, authors }: { title: string; emptyText: string; authors: FeedAuthor[] }) {
+// 내 활동 공용 래퍼 — 라벨 + 큰 갯수(스탯). 항목이 있으면 아래에 리스트만.
+function ActivitySection({ title, count, children }: { title: string; count: number; children?: ReactNode }) {
   return (
-    <div>
-      <p className="mb-2.5 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}{authors.length ? <span className="ml-1.5 text-[13px] font-semibold text-[#8B95A1]">{authors.length}</span> : null}</p>
-      {authors.length === 0 ? (
-        <TCard className="px-5 py-6 text-center text-[13px] text-[#8B95A1]">{emptyText}</TCard>
-      ) : (
-        <TCard className="divide-y divide-[#F2F4F6]">
-          {authors.map((a) => (
-            <div key={`${a.role}::${a.name}`} className="flex items-center gap-3 px-5 py-3.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[13px] font-black text-[#0B46E8]">{a.name.slice(0, 1)}</span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[14px] font-bold text-[#191F28]">{a.name}</p>
-                <p className="text-[12px] text-[#8B95A1]">{roleLabel(a.role)}</p>
-              </div>
-              <button type="button" onClick={() => unfollowAuthor(a)} className="shrink-0 rounded-lg bg-[#F2F4F6] px-3 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
-                팔로잉
-              </button>
-            </div>
-          ))}
-        </TCard>
-      )}
-    </div>
+    <TCard className="overflow-hidden">
+      <div className="px-5 pb-4 pt-4">
+        <p className="text-[12.5px] font-normal text-[#8B95A1]">{title}</p>
+        <p className="mt-0.5 text-[24px] font-black tracking-[-0.02em] text-[#191F28]">{count}</p>
+      </div>
+      {count > 0 ? <div className="divide-y divide-[#F2F4F6]">{children}</div> : null}
+    </TCard>
+  );
+}
+
+function FollowList({ title, authors }: { title: string; authors: FeedAuthor[] }) {
+  return (
+    <ActivitySection title={title} count={authors.length}>
+      {authors.map((a) => (
+        <div key={`${a.role}::${a.name}`} className="flex items-center gap-3 px-5 py-3.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[13px] font-black text-[#0B46E8]">{a.name.slice(0, 1)}</span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[14px] font-bold text-[#191F28]">{a.name}</p>
+            <p className="text-[12px] text-[#8B95A1]">{roleLabel(a.role)}</p>
+          </div>
+          <button type="button" onClick={() => unfollowAuthor(a)} className="shrink-0 rounded-lg bg-[#F2F4F6] px-3 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
+            팔로잉
+          </button>
+        </div>
+      ))}
+    </ActivitySection>
+  );
+}
+
+function FavoritePositionsList({ positions }: { positions: PublicPositionListItem[] }) {
+  return (
+    <ActivitySection title="즐겨찾기한 포지션" count={positions.length}>
+      {positions.map((p) => (
+        <Link key={p.id} href={`${talentAppRoutes.jobs}/${p.id}`} className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-[#F6F8FB]">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#F2F4F6] text-[#B0B8C1]"><Buildings className="h-4.5 w-4.5" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[14px] font-bold text-[#191F28]">{p.title}</p>
+            {p.partnerOrganization?.name ? <p className="truncate text-[12px] text-[#8B95A1]">{p.partnerOrganization.name}</p> : null}
+          </div>
+          <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
+        </Link>
+      ))}
+    </ActivitySection>
+  );
+}
+
+function FavoriteFeedList({ posts }: { posts: { id: string; authorName: string; text: string }[] }) {
+  return (
+    <ActivitySection title="즐겨찾기한 피드" count={posts.length}>
+      {posts.map((p) => (
+        <div key={p.id} className="flex items-start gap-3 px-5 py-3.5">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[12px] font-bold text-[#8B95A1]">{p.authorName}</p>
+            <p className="mt-0.5 line-clamp-2 break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{p.text}</p>
+          </div>
+          <button type="button" onClick={() => toggleFeedBookmark(p.id)} className="shrink-0 rounded-lg bg-[#F2F4F6] px-3 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
+            저장됨
+          </button>
+        </div>
+      ))}
+    </ActivitySection>
   );
 }
 
@@ -63,6 +106,9 @@ export function SettingsScreen() {
   const [pushOn, setPushOn] = useState(true);
   const [emailOn, setEmailOn] = useState(true);
   const following = useFollowing();
+  const bookmarks = useFeedBookmarks();
+  const feedPosts = useSocialFeed();
+  const [favPositions, setFavPositions] = useState<PublicPositionListItem[]>([]);
 
   const name = user?.realName || user?.name || "나";
 
@@ -70,6 +116,19 @@ export function SettingsScreen() {
   const followedAuthors = following.map(parseAuthorKey).filter((a): a is FeedAuthor => a !== null);
   const followedCompanies = followedAuthors.filter((a) => a.role === "PARTNER");
   const followedUsers = followedAuthors.filter((a) => a.role !== "PARTNER");
+
+  // 즐겨찾기한 포지션(서버) 로드.
+  useEffect(() => {
+    void getMyFavoritePositions()
+      .then((list) => setFavPositions(list))
+      .catch(() => setFavPositions([]));
+  }, []);
+
+  // 즐겨찾기한 피드 = 북마크 id ∩ 현재 피드 글(최신순 유지).
+  const bookmarkedPosts = useMemo(() => {
+    const set = new Set(bookmarks);
+    return feedPosts.filter((p) => set.has(p.id));
+  }, [bookmarks, feedPosts]);
 
   return (
     <TalentAppShell maxWidth="4xl">
@@ -91,11 +150,16 @@ export function SettingsScreen() {
         {/* 관심 직무 */}
         <JobInterestCard variant="edit" />
 
-        {/* 팔로우한 사용자 */}
-        <FollowList title="팔로우한 사용자" emptyText="피드에서 관심 있는 사람을 팔로우해보세요." authors={followedUsers} />
-
-        {/* 관심 회사 */}
-        <FollowList title="관심 회사" emptyText="피드에서 관심 있는 회사를 팔로우해보세요." authors={followedCompanies} />
+        {/* 내 활동 — 팔로우/관심(SNS 스타일 묶음) */}
+        <section>
+          <p className="mb-2.5 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">내 활동</p>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <FollowList title="팔로우한 사용자" authors={followedUsers} />
+            <FollowList title="관심 회사" authors={followedCompanies} />
+            <FavoritePositionsList positions={favPositions} />
+            <FavoriteFeedList posts={bookmarkedPosts} />
+          </div>
+        </section>
 
         {/* 알림 */}
         <div>

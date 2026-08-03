@@ -2,7 +2,7 @@
 
 // 커뮤니티 피드 — 로그인 사용자가 글을 쓰고, 서로 팔로우해 팔로잉한 사람 소식을 모아본다.
 import { useMemo, useState } from "react";
-import { Trash } from "@phosphor-icons/react";
+import { Trash, BookmarkSimple } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TPageHeader } from "../ui/primitives";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
@@ -10,6 +10,7 @@ import { useSocialFeed, addFeedPost, removeFeedPost, roleLabel, type FeedAuthorR
 import { authorKey, isFollowing, toggleFollow, useFollowing, type FeedAuthor } from "../../../lib/talent/social-graph";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { extractFromFeedPost } from "../../../lib/talent/feed-extract-client";
+import { toggleFeedBookmark, useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
 import { ensureResumeItemByRef, useResumeDoc } from "../../../lib/talent/resume-doc";
 import { ensureCoverItemByRef, useCoverDoc } from "../../../lib/talent/cover-doc";
 import type { CareerSection } from "../../../lib/talent/career-chat";
@@ -18,6 +19,7 @@ export function SocialFeedScreen() {
   const { user } = useAuthSession();
   const posts = useSocialFeed();
   const following = useFollowing();
+  const bookmarks = useFeedBookmarks();
   const resumeDoc = useResumeDoc();
   const coverDoc = useCoverDoc();
   const [text, setText] = useState("");
@@ -50,6 +52,7 @@ export function SocialFeedScreen() {
   }
 
   const followSet = useMemo(() => new Set(following), [following]);
+  const bookmarkSet = useMemo(() => new Set(bookmarks), [bookmarks]);
   const visible = useMemo(
     () => (tab === "following" ? posts.filter((p) => followSet.has(authorKey({ name: p.authorName, role: p.authorRole }))) : posts),
     [tab, posts, followSet]
@@ -124,6 +127,7 @@ export function SocialFeedScreen() {
                 post={p}
                 meKey={meKey}
                 following={followSet.has(authorKey({ name: p.authorName, role: p.authorRole }))}
+                bookmarked={bookmarkSet.has(p.id)}
                 reflected={reflectedRefIds.has(`feed:${p.id}`)}
                 onOpenProfile={() => setProfile({ name: p.authorName, role: p.authorRole })}
                 onToggleFollow={() => toggleFollow({ name: p.authorName, role: p.authorRole })}
@@ -149,6 +153,7 @@ function PostCard({
   post,
   meKey,
   following,
+  bookmarked,
   reflected,
   onOpenProfile,
   onToggleFollow
@@ -156,6 +161,7 @@ function PostCard({
   post: FeedPost;
   meKey: string;
   following: boolean;
+  bookmarked: boolean;
   reflected: boolean;
   onOpenProfile: () => void;
   onToggleFollow: () => void;
@@ -176,6 +182,15 @@ function PostCard({
           </div>
           <p className="text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(post.createdAt)}</p>
         </div>
+        <button
+          type="button"
+          onClick={() => toggleFeedBookmark(post.id)}
+          aria-label={bookmarked ? "즐겨찾기 취소" : "즐겨찾기"}
+          aria-pressed={bookmarked}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition ${bookmarked ? "text-[#0B46E8]" : "text-[#B0B8C1] hover:bg-[#F2F4F6] hover:text-[#4E5968]"}`}
+        >
+          <BookmarkSimple className="h-4 w-4" weight={bookmarked ? "fill" : "regular"} />
+        </button>
         {mine ? (
           <button type="button" onClick={() => removeFeedPost(post.id)} aria-label="삭제" className="flex h-8 w-8 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]">
             <Trash className="h-4 w-4" />
