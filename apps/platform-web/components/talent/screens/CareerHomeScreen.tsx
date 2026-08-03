@@ -65,6 +65,7 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
 
   return (
     <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-4">
       <TPageHeader title="내 커리어" />
 
       {/* 취업 준비 로드맵 히어로 */}
@@ -79,6 +80,7 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
           {copy.cta} <ArrowRight className="h-4 w-4" weight="bold" />
         </Link>
       </section>
+      </div>
 
       {/* 이력서 · 자기소개서 */}
       <section className="flex flex-col gap-4">
