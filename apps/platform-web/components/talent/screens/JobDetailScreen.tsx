@@ -110,7 +110,13 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
 
           {/* 상단 액션 (데스크톱) */}
           <div className="mt-4 hidden justify-end gap-2 md:flex">
-            <TalentButton onClick={toggleSave} variant="secondary" size="lg" aria-label={saved ? "저장 취소" : "저장"}>
+            <TalentButton
+              onClick={toggleSave}
+              variant={saved ? "soft" : "secondary"}
+              size="lg"
+              aria-label={saved ? "저장 취소" : "저장"}
+              className={saved ? "" : "!border-0 !bg-[#F2F4F6] !text-[#4E5968] hover:!bg-[#E5E8EB]"}
+            >
               <BookmarkSimple className="h-4 w-4" weight={saved ? "fill" : "regular"} /> {saved ? "저장됨" : "저장"}
             </TalentButton>
             <ApplyButton view={view} />
@@ -143,7 +149,13 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
 
           {/* 데스크톱 액션 */}
           <div className="mt-6 hidden justify-end gap-2 md:flex">
-            <TalentButton onClick={toggleSave} variant="secondary" size="lg" aria-label={saved ? "저장 취소" : "저장"}>
+            <TalentButton
+              onClick={toggleSave}
+              variant={saved ? "soft" : "secondary"}
+              size="lg"
+              aria-label={saved ? "저장 취소" : "저장"}
+              className={saved ? "" : "!border-0 !bg-[#F2F4F6] !text-[#4E5968] hover:!bg-[#E5E8EB]"}
+            >
               <BookmarkSimple className="h-4 w-4" weight={saved ? "fill" : "regular"} /> {saved ? "저장됨" : "저장"}
             </TalentButton>
             <ApplyButton view={view} />
@@ -156,7 +168,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
                 type="button"
                 onClick={toggleSave}
                 aria-label={saved ? "저장 취소" : "저장"}
-                className={`flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-xl border ${saved ? "border-[#0B46E8] text-[#0B46E8]" : "border-[#E5E8EB] text-[#8B95A1]"}`}
+                className={`flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-xl ${saved ? "bg-[#EDF1FD] text-[#0B46E8]" : "bg-[#F2F4F6] text-[#8B95A1]"}`}
               >
                 <BookmarkSimple className="h-5 w-5" weight={saved ? "fill" : "regular"} />
               </button>
@@ -234,7 +246,7 @@ function CompanyFollowButton({ name }: { name: string }) {
       onClick={() => toggleFollow(company)}
       aria-pressed={interested}
       className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-[12.5px] font-bold transition ${
-        interested ? "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]" : "bg-[#EDF1FD] text-[#0B46E8] hover:bg-[#E1E9FC]"
+        interested ? "bg-[#EDF1FD] text-[#0B46E8] hover:bg-[#E1E9FC]" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
       }`}
     >
       <Star className="h-3.5 w-3.5" weight={interested ? "fill" : "regular"} /> {interested ? "관심 회사" : "관심 추가"}
@@ -256,12 +268,15 @@ function CompanySection({ item }: { item: PublicPositionListItem }) {
 
       <div className="mt-4 flex items-center gap-3">
         {logo ? (
-          <span className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-[#EEF1F5] bg-white">
+          <span className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={logo} alt="" className="h-full w-full object-contain" />
           </span>
-        ) : null}
-        <p className="min-w-0 flex-1 truncate text-[16px] font-bold text-[#191F28]">{org.name}</p>
+        ) : (
+          // 로고 없으면 유저 프로필과 동일한 이니셜 플레이스홀더.
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[18px] font-black text-[#0B46E8]">{org.name.slice(0, 1)}</span>
+        )}
+        <p className="min-w-0 truncate text-[16px] font-bold text-[#191F28]">{org.name}</p>
         <CompanyFollowButton name={org.name} />
       </div>
 

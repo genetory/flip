@@ -163,7 +163,7 @@ export function JobsScreen() {
 
   return (
     <TalentAppShell>
-      <TPageHeader title="채용공고" description="나에게 맞는 인턴·신입 공고를 찾아 지원을 시작해요." />
+      <TPageHeader title="포지션 탐색" description="나에게 맞는 인턴·신입 공고를 찾아 지원을 시작해요." />
 
       {/* 소스 탭 — 언더라인 탭 바 */}
       <div className="mb-5 flex gap-6">

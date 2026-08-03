@@ -27,7 +27,7 @@ const TITLES: Record<ActivityType, string> = {
 const EMPTY: Record<ActivityType, string> = {
   "following-users": "피드에서 관심 있는 사람을 팔로우해보세요.",
   "following-companies": "피드에서 관심 있는 회사를 팔로우해보세요.",
-  "favorite-positions": "채용공고에서 즐겨찾기한 공고가 여기 모여요.",
+  "favorite-positions": "포지션 탐색에서 즐겨찾기한 공고가 여기 모여요.",
   "favorite-feed": "피드에서 즐겨찾기한 글이 여기 모여요."
 };
 

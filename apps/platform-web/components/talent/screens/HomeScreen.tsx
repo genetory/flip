@@ -394,7 +394,7 @@ function RecommendedJobs() {
             ))}
           </div>
           <Link href={talentAppRoutes.jobs} className="mt-1 flex items-center justify-center gap-1 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB]">
-            채용공고 더 보기 <CaretRight className="h-4 w-4" weight="bold" />
+            포지션 탐색 더 보기 <CaretRight className="h-4 w-4" weight="bold" />
           </Link>
         </>
       ) : (

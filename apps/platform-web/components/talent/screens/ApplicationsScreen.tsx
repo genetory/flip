@@ -22,7 +22,7 @@ export function ApplicationsScreen() {
 
   return (
     <TalentAppShell>
-      <TPageHeader title="지원" description="지원 준비를 시작한 공고를 준비하고 관리해요. 관심 공고는 채용공고 > 저장에 있어요." />
+      <TPageHeader title="지원" description="지원 준비를 시작한 공고를 준비하고 관리해요. 관심 공고는 포지션 탐색 > 저장에 있어요." />
       {status === "loading" ? <TLoading /> : null}
       {status === "error" ? <TError onRetry={reload} /> : null}
       {status === "ready" && snapshot ? <Content snapshot={snapshot} tab={tab} setTab={setTab} /> : null}

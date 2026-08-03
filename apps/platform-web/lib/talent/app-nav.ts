@@ -38,7 +38,7 @@ export const talentMainNav: TalentNavItem[] = [
   { key: "home", label: "홈", href: talentAppRoutes.home, icon: House },
   { key: "feed", label: "피드", href: talentAppRoutes.feed, icon: ChatCircleText },
   { key: "career", label: "내 커리어", href: talentAppRoutes.career, icon: Compass },
-  { key: "jobs", label: "채용공고", href: talentAppRoutes.jobs, icon: Briefcase },
+  { key: "jobs", label: "포지션 탐색", href: talentAppRoutes.jobs, icon: Briefcase },
   { key: "applications", label: "지원", href: talentAppRoutes.applications, icon: PaperPlaneTilt }
 ];
 
