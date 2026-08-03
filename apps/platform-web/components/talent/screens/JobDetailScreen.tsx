@@ -254,7 +254,7 @@ function CompanyFollowButton({ name }: { name: string }) {
   );
 }
 
-function CompanySection({ item }: { item: PublicPositionListItem }) {
+export function CompanySection({ item }: { item: PublicPositionListItem }) {
   const org = item.partnerOrganization;
   if (!org) return null;
   const logo = org.companyLogoImageData || null;

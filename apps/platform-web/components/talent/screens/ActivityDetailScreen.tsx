@@ -2,6 +2,7 @@
 
 // 내 활동 상세 — 계정 설정의 스탯 카드에서 진입. 유형별 목록을 보여준다.
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TalentBackButton } from "../TalentBackButton";
 import { TCard } from "../ui/primitives";
@@ -108,9 +109,16 @@ export function ActivityDetailScreen({ type }: { type: string }) {
   );
 }
 
-// 포지션 카드와 비슷한 톤의 회사 카드 — 좌측 스퀘어클 아바타 + 이름 + 간단 정보(포지션 수·산업) + 관심 토글.
+// 포지션 카드와 비슷한 톤의 회사 카드 — 좌측 썸네일/아바타 + 이름 + 간단 정보(산업·규모·지역·포지션 수) + 관심 토글.
+const COMPANY_SIZE_LABELS: Record<string, string> = {
+  SIZE_1_10: "1~10인",
+  SIZE_UNDER_30: "30인 이하",
+  SIZE_UNDER_50: "50인 이하",
+  SIZE_OVER_100: "100인 이상"
+};
+
 function CompanyCard({ author }: { author: FeedAuthor }) {
-  const [info, setInfo] = useState<{ count: number; industry?: string; logo?: string } | null>(null);
+  const [info, setInfo] = useState<{ count: number; industry?: string; size?: string; location?: string; logo?: string } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -120,9 +128,12 @@ function CompanyCard({ author }: { author: FeedAuthor }) {
         // 검색은 제목/직무도 매칭하므로, 회사명이 정확히 일치하는 공고만 집계.
         const mine = page.items.filter((p) => (p.partnerOrganization?.name || p.sourceCompanyName) === author.name);
         const org = mine.find((p) => p.partnerOrganization)?.partnerOrganization;
+        const location = (org?.officeAddress || mine.find((p) => p.workLocation)?.workLocation || "").split(" ")[0] || undefined;
         setInfo({
           count: mine.length,
           industry: org?.industry ? partnerIndustryLabel(org.industry) : undefined,
+          size: org?.companySize ? COMPANY_SIZE_LABELS[org.companySize] ?? undefined : undefined,
+          location,
           logo: org?.companyLogoImageData || undefined
         });
       })
@@ -132,23 +143,25 @@ function CompanyCard({ author }: { author: FeedAuthor }) {
     };
   }, [author.name]);
 
-  const sub = info ? [info.industry, `포지션 ${info.count}개`].filter(Boolean).join(" · ") : "기업";
+  const sub = info ? [info.industry, info.size, info.location, `포지션 ${info.count}개`].filter(Boolean).join(" · ") : "기업";
 
   return (
     <div className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:shadow-[0_6px_20px_rgba(11,18,39,0.05)]">
       <div className="flex items-center gap-4">
-        {info?.logo ? (
-          <span className="h-[56px] w-[56px] shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={info.logo} alt="" className="h-full w-full object-contain" />
-          </span>
-        ) : (
-          <span className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">{author.name.slice(0, 1)}</span>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-bold text-[#191F28]">{author.name}</p>
-          <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{sub}</p>
-        </div>
+        <Link href={`/talent/company/${encodeURIComponent(author.name)}`} className="flex min-w-0 flex-1 items-center gap-4">
+          {info?.logo ? (
+            <span className="h-[56px] w-[56px] shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={info.logo} alt="" className="h-full w-full object-contain" />
+            </span>
+          ) : (
+            <span className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">{author.name.slice(0, 1)}</span>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-bold text-[#191F28]">{author.name}</p>
+            <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{sub}</p>
+          </div>
+        </Link>
         <button type="button" onClick={() => unfollowAuthor(author)} className="shrink-0 rounded-xl bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
           관심 회사
         </button>
