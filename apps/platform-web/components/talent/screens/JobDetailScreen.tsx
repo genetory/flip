@@ -3,8 +3,9 @@
 // 공고 상세 — 포지션 탐색 상세(PositionDetailPage)와 동일한 내용, UI 는 Talent 톤.
 // 핵심 정보 / 상세 안내 / 기업 정보 + 저장·지원.
 import { useEffect, useState } from "react";
-import { MapPin, BookmarkSimple, ArrowSquareOut, Buildings, LinkSimple } from "@phosphor-icons/react";
+import { MapPin, BookmarkSimple, ArrowSquareOut, Buildings, LinkSimple, Star } from "@phosphor-icons/react";
 import { TalentBackButton } from "../TalentBackButton";
+import { toggleFollow, isFollowing, useFollowing, type FeedAuthor } from "../../../lib/talent/social-graph";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TCard, TChip, TError, TLoading } from "../ui/primitives";
 import { TalentButton } from "../TalentButton";
@@ -188,11 +189,26 @@ function ApplyButton({ view, fullWidth }: { view: ReturnType<typeof toPositionVi
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+// 값이 링크(URL/도메인)면 새 탭으로 열 수 있게 href 반환, 아니면 undefined.
+function toHref(v: string | null | undefined): string | undefined {
+  const s = (v ?? "").trim();
+  if (!s) return undefined;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^[\w.-]+\.[a-z]{2,}(\/\S*)?$/i.test(s)) return `https://${s}`;
+  return undefined;
+}
+
+function InfoRow({ label, value, href }: { label: string; value: string; href?: string }) {
   return (
     <div className="flex items-start justify-between gap-4 py-2.5">
       <span className="shrink-0 text-[13px] text-[#8B95A1]">{label}</span>
-      <span className="break-keep text-right text-[13.5px] font-medium text-[#191F28]">{value}</span>
+      {href ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 break-all text-right text-[13.5px] font-medium text-[#0B46E8] hover:underline">
+          {value} <ArrowSquareOut className="h-3.5 w-3.5 shrink-0" />
+        </a>
+      ) : (
+        <span className="break-keep text-right text-[13.5px] font-medium text-[#191F28]">{value}</span>
+      )}
     </div>
   );
 }
@@ -203,6 +219,26 @@ function DetailBlock({ title, text }: { title: string; text: string }) {
       <h3 className="text-[13px] font-bold text-[#8B95A1]">{title}</h3>
       <p className="mt-1.5 whitespace-pre-line break-keep text-[14px] leading-[1.75] text-[#191F28]">{text}</p>
     </section>
+  );
+}
+
+// 관심 회사 토글 — 파트너(회사) 팔로우로 관리(계정 설정 '관심 회사'와 동일 스토어).
+function CompanyFollowButton({ name }: { name: string }) {
+  const company: FeedAuthor = { name, role: "PARTNER" };
+  const following = useFollowing();
+  void following; // 토글 시 리렌더 트리거용 구독
+  const interested = isFollowing(company);
+  return (
+    <button
+      type="button"
+      onClick={() => toggleFollow(company)}
+      aria-pressed={interested}
+      className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-[12.5px] font-bold transition ${
+        interested ? "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]" : "bg-[#EDF1FD] text-[#0B46E8] hover:bg-[#E1E9FC]"
+      }`}
+    >
+      <Star className="h-3.5 w-3.5" weight={interested ? "fill" : "regular"} /> {interested ? "관심 회사" : "관심 추가"}
+    </button>
   );
 }
 
@@ -225,15 +261,16 @@ function CompanySection({ item }: { item: PublicPositionListItem }) {
             <img src={logo} alt="" className="h-full w-full object-contain" />
           </span>
         ) : null}
-        <p className="text-[16px] font-bold text-[#191F28]">{org.name}</p>
+        <p className="min-w-0 flex-1 truncate text-[16px] font-bold text-[#191F28]">{org.name}</p>
+        <CompanyFollowButton name={org.name} />
       </div>
 
       <div className="mt-4 divide-y divide-[#F2F4F6]">
         <InfoRow label="기업 규모" value={org.companySize ? companySizeLabels[org.companySize] ?? org.companySize : DASH} />
         <InfoRow label="산업" value={org.industry ? partnerIndustryLabel(org.industry) : DASH} />
         <InfoRow label="사무실 주소" value={orDash(org.officeAddress)} />
-        <InfoRow label="웹사이트" value={orDash(org.website)} />
-        <InfoRow label="소셜 미디어" value={orDash(org.socialMedia)} />
+        <InfoRow label="웹사이트" value={orDash(org.website)} href={toHref(org.website)} />
+        <InfoRow label="소셜 미디어" value={orDash(org.socialMedia)} href={toHref(org.socialMedia)} />
       </div>
 
       {office ? (
