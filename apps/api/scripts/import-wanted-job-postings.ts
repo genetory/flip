@@ -46,6 +46,11 @@ const REQUEST_DELAY_MS_RAW = Number(process.env.WANTED_REQUEST_DELAY_MS ?? "1100
 
 const PAGE_SIZE = Number.isFinite(PAGE_SIZE_RAW) ? Math.min(Math.max(Math.trunc(PAGE_SIZE_RAW), 1), 50) : 20;
 const MAX_PAGES = Number.isFinite(MAX_PAGES_RAW) ? Math.min(Math.max(Math.trunc(MAX_PAGES_RAW), 1), 500) : 5;
+// 전체(한국인 포함) 크롤 페이지 수 — 이제 메인 소스라 외국인 필터보다 넓게 잡는다.
+const GENERAL_MAX_PAGES_RAW = Number(process.env.WANTED_GENERAL_MAX_PAGES ?? "25");
+const GENERAL_MAX_PAGES = Number.isFinite(GENERAL_MAX_PAGES_RAW)
+  ? Math.min(Math.max(Math.trunc(GENERAL_MAX_PAGES_RAW), 1), 500)
+  : 25;
 // Wanted policy: <=10 calls / 10s. Enforce a hard 1100ms floor between calls
 // regardless of env override to stay well below the threshold.
 const MIN_REQUEST_DELAY_MS = 1100;
@@ -123,13 +128,14 @@ const FOREIGNER_FILTERS: ForeignerFilter[] = [
   { kind: "tag", tagId: 10526, label: "foreigner_open_to_apply" }
 ];
 
-async function fetchJobs(offset: number, limit: number, filter: ForeignerFilter): Promise<WantedJobsResponse> {
+// filter === null → 전체 공고(한국인 포함) 조회. 필터가 있으면 외국인 신호별 조회.
+async function fetchJobs(offset: number, limit: number, filter: ForeignerFilter | null): Promise<WantedJobsResponse> {
   const params = new URLSearchParams();
   params.set("offset", String(offset));
   params.set("limit", String(limit));
-  if (filter.kind === "additional_apply_type") {
+  if (filter?.kind === "additional_apply_type") {
     params.append("additional_apply_types", "job.additional_apply_type.foreigner");
-  } else {
+  } else if (filter?.kind === "tag") {
     params.append("tags", String(filter.tagId));
   }
 
@@ -215,7 +221,9 @@ function pickSourceDeadlineDate(job: WantedJob): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function normalize(job: WantedJob): NormalizedExternalPosition | null {
+// foreignerEligible: 외국인 필터 조회에서 확인된 공고면 true. 태그 경로로만
+// 외국인 가능인 공고는 payload의 additional_apply_type엔 안 나오므로, 이 인자로 보강한다.
+function normalize(job: WantedJob, foreignerEligible: boolean): NormalizedExternalPosition | null {
   if (!isActiveJob(job)) return null;
 
   const externalIdRaw = job.id;
@@ -235,7 +243,7 @@ function normalize(job: WantedJob): NormalizedExternalPosition | null {
     : `https://www.wanted.co.kr/wd/${externalId}`;
 
   const eligibleVisas: string[] = [];
-  if (job.additional_apply_type?.includes("foreigner")) {
+  if (foreignerEligible || job.additional_apply_type?.includes("foreigner")) {
     eligibleVisas.push("FOREIGNER_FRIENDLY");
   }
 
@@ -270,26 +278,35 @@ async function main() {
   }
 
   console.info(
-    `[wanted-import] Starting · base=${BASE_URL} pageSize=${PAGE_SIZE} maxPages=${MAX_PAGES} delayMs=${REQUEST_DELAY_MS}`
+    `[wanted-import] Starting · base=${BASE_URL} pageSize=${PAGE_SIZE} ` +
+    `foreignerPages=${MAX_PAGES} generalPages=${GENERAL_MAX_PAGES} delayMs=${REQUEST_DELAY_MS}`
   );
 
-  let totalCreated = 0;
-  let totalUpdated = 0;
-  let totalSkipped = 0;
-  let totalSeen = 0;
+  const totals = { created: 0, updated: 0, skipped: 0, seen: 0 };
   let lastCallAt = 0;
   // Encode receive order into postedAt so that Wanted's latest_order survives
-  // through `ORDER BY createdAt DESC`. The first job we see (filter 0, page 0,
-  // index 0) gets the most recent timestamp; subsequent jobs are 1 second older.
+  // through `ORDER BY createdAt DESC`. The first job we see gets the most recent
+  // timestamp; subsequent jobs are 1 second older.
   const importStartedAt = Date.now();
   let globalOrder = 0;
-  // Dedup across both filters — partners can opt in via either, and the two
-  // result sets can overlap. We only upsert each job id once per run.
+  // Dedup across all phases — a job id is upserted at most once per run.
   const seenJobIds = new Set<string>();
+  // 외국인 필터로 확인된 job id 모음. 전체 크롤 단계에서 이 Set으로 외국인 여부를 보강한다.
+  const foreignerIds = new Set<string>();
 
-  for (const filter of FOREIGNER_FILTERS) {
-    console.info(`[wanted-import] Filter phase: ${filter.label}`);
-    for (let page = 0; page < MAX_PAGES; page += 1) {
+  const jobKey = (id: WantedJob["id"]): string =>
+    typeof id === "number" ? String(id) : typeof id === "string" ? id.trim() : "";
+
+  // 한 페이즈(필터 조회 또는 전체 조회)를 페이지 단위로 크롤·업서트한다.
+  // resolveForeigner: 해당 페이즈에서 각 공고를 외국인 가능으로 볼지 판정.
+  async function crawlPhase(
+    label: string,
+    filter: ForeignerFilter | null,
+    maxPages: number,
+    resolveForeigner: (key: string) => boolean
+  ) {
+    console.info(`[wanted-import] Phase: ${label}`);
+    for (let page = 0; page < maxPages; page += 1) {
       const offset = page * PAGE_SIZE;
       // Guarantee the minimum gap *before* each network call (not after), so
       // the limiter is robust to fast responses and unrelated work between pages.
@@ -302,20 +319,19 @@ async function main() {
       try {
         payload = await fetchJobs(offset, PAGE_SIZE, filter);
       } catch (error) {
-        console.error(`[wanted-import] Failed to fetch [${filter.label}] page ${page} (offset=${offset}):`, error);
+        console.error(`[wanted-import] Failed to fetch [${label}] page ${page} (offset=${offset}):`, error);
         break;
       }
       const items = Array.isArray(payload.data) ? payload.data : [];
       if (items.length === 0) {
-        console.info(`[wanted-import] [${filter.label}] empty page at offset=${offset}; advancing to next filter.`);
+        console.info(`[wanted-import] [${label}] empty page at offset=${offset}; advancing.`);
         break;
       }
-      totalSeen += items.length;
+      totals.seen += items.length;
 
       // Dedup before normalize so we don't waste DB write budget on already-imported ids.
       const fresh = items.filter((job) => {
-        const id = job.id;
-        const key = typeof id === "number" ? String(id) : typeof id === "string" ? id.trim() : "";
+        const key = jobKey(job.id);
         if (!key) return false;
         if (seenJobIds.has(key)) return false;
         seenJobIds.add(key);
@@ -323,7 +339,7 @@ async function main() {
       });
 
       const normalized = fresh
-        .map(normalize)
+        .map((job) => normalize(job, resolveForeigner(jobKey(job.id))))
         .filter((row): row is NormalizedExternalPosition => Boolean(row))
         .map((row) => {
           const stamped: NormalizedExternalPosition = {
@@ -335,18 +351,32 @@ async function main() {
         });
 
       const result = await upsertExternalPositions(prisma, "import-wanted-job-postings", normalized);
-      totalCreated += result.created;
-      totalUpdated += result.updated;
-      totalSkipped += result.skipped;
+      totals.created += result.created;
+      totals.updated += result.updated;
+      totals.skipped += result.skipped;
       console.info(
-        `[wanted-import] [${filter.label}] page=${page} offset=${offset} seen=${items.length} fresh=${fresh.length} ` +
+        `[wanted-import] [${label}] page=${page} offset=${offset} seen=${items.length} fresh=${fresh.length} ` +
         `normalized=${normalized.length} created=${result.created} updated=${result.updated} skipped=${result.skipped}`
       );
     }
   }
 
+  // 1단계: 외국인 필터 2개 → 외국인 공고를 먼저 수집(정확히 FOREIGNER_FRIENDLY 태깅)하고
+  //        id를 foreignerIds에 기록. (이 단계 공고는 전부 외국인 가능)
+  for (const filter of FOREIGNER_FILTERS) {
+    await crawlPhase(filter.label, filter, MAX_PAGES, (key) => {
+      if (key) foreignerIds.add(key);
+      return true;
+    });
+  }
+
+  // 2단계: 필터 없이 전체 공고(한국인 포함) → 1단계에서 본 id는 dedup으로 건너뛰고,
+  //        나머지는 payload의 additional_apply_type(normalize 내부)만으로 외국인 여부 판정.
+  await crawlPhase("all_jobs", null, GENERAL_MAX_PAGES, (key) => foreignerIds.has(key));
+
   console.info(
-    `[wanted-import] Done · seen=${totalSeen} created=${totalCreated} updated=${totalUpdated} skipped=${totalSkipped}`
+    `[wanted-import] Done · seen=${totals.seen} created=${totals.created} ` +
+    `updated=${totals.updated} skipped=${totals.skipped} foreignerTagged=${foreignerIds.size}`
   );
 }
 

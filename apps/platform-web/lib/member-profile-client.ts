@@ -693,6 +693,8 @@ export async function getPublicPositionsPage(input?: {
   sortOrder?: "asc" | "desc";
   sort?: "latest" | "deadline";
   sourceProviders?: Array<PublicPositionListItem["sourceProvider"]>;
+  // 외국인 지원 가능(eligibleVisas에 FOREIGNER_FRIENDLY 포함)만 필터링.
+  foreignerEligible?: boolean;
   // Forwards to the API so INTERNAL postings come back translated to English
   // for any non-Korean locale (Korean keeps the original copy).
   locale?: string;
@@ -713,6 +715,7 @@ export async function getPublicPositionsPage(input?: {
       params.append("sourceProvider", provider);
     }
   }
+  if (input?.foreignerEligible) params.set("foreignerEligible", "true");
   if (input?.locale) params.set("locale", input.locale);
   const query = params.toString();
 

@@ -358,6 +358,12 @@ const crawlSchedulerEnabled = String(process.env.CRAWL_SCHEDULER_ENABLED ?? "fal
 const crawlSchedulerHourKst = Math.max(0, Math.min(23, Number(process.env.CRAWL_SCHEDULER_HOUR_KST ?? 4)));
 const crawlSchedulerMinuteKst = Math.max(0, Math.min(59, Number(process.env.CRAWL_SCHEDULER_MINUTE_KST ?? 10)));
 const crawlSchedulerRunOnBoot = String(process.env.CRAWL_SCHEDULER_RUN_ON_BOOT ?? "false").toLowerCase() === "true";
+// 일일 스케줄러가 돌릴 소스. 기본 "wanted" — Buddies 사이트 구조 변경(404)으로 제외.
+// 복구 시 CRAWL_SCHEDULER_SOURCE=all 로 되돌린다.
+const crawlSchedulerSource = ((): "all" | "buddies" | "wanted" => {
+  const raw = String(process.env.CRAWL_SCHEDULER_SOURCE ?? "wanted").toLowerCase();
+  return raw === "all" || raw === "buddies" || raw === "wanted" ? raw : "wanted";
+})();
 const crawlerSummaryDiscordWebhookUrl =
   process.env.CRAWLER_SUMMARY_DISCORD_WEBHOOK_URL?.trim()
   || "https://discord.com/api/webhooks/1501899705385488455/27NCPq0khx4Cj8irz5s1VB0AWC7SKe5TzaI-C3oz78bWbic4zBplOx-vcul0UV_wyioR";
@@ -3269,6 +3275,10 @@ const listPublicPositionsCursorQuerySchema = z.object({
   jobRole: z.union([z.string().trim().min(1).max(120), z.array(z.string().trim().min(1).max(120))]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   sort: z.enum(["latest", "deadline"]).optional(),
+  // 외국인 지원 가능만 — eligibleVisas에 'FOREIGNER_FRIENDLY'가 있는 공고만.
+  foreignerEligible: z
+    .union([z.literal("true"), z.literal("false"), z.literal("1"), z.literal("0")])
+    .optional(),
   // Viewer locale — when non-Korean, INTERNAL postings are served in English
   // (cached per-position in Position.translations.en).
   locale: z.string().trim().min(2).max(8).optional()
@@ -4305,7 +4315,7 @@ async function runExternalCrawlers(
 }
 
 async function runDailyExternalCrawlers(): Promise<DailyCrawlerRunResult> {
-  return runExternalCrawlers("all", "scheduler");
+  return runExternalCrawlers(crawlSchedulerSource, "scheduler");
 }
 
 function startCrawlerScheduler() {
@@ -9088,6 +9098,7 @@ function positionsCacheKey(params: {
   sortOrder: string;
   jobRoles: string[];
   sourceProviders: string[];
+  foreignerEligible: boolean;
   // Korean vs. translated-English response must not share a cache slot.
   locale: string;
 }): string {
@@ -9099,6 +9110,7 @@ function positionsCacheKey(params: {
     so: params.sortOrder,
     j: [...params.jobRoles].sort(),
     p: [...params.sourceProviders].sort(),
+    fe: params.foreignerEligible,
     loc: params.locale
   });
 }
@@ -9119,6 +9131,8 @@ app.get("/positions", async (req, res) => {
     : [];
   const sortMode = parsedQuery.data.sort ?? "latest";
   const sortOrder = parsedQuery.data.sortOrder ?? "desc";
+  const foreignerEligible =
+    parsedQuery.data.foreignerEligible === "true" || parsedQuery.data.foreignerEligible === "1";
   // Non-Korean viewers get INTERNAL postings translated to English. Normalize
   // the locale dimension to "en" or "ko" so the response cache only forks two
   // ways regardless of how many BCP47 codes the caller sends.
@@ -9136,6 +9150,7 @@ app.get("/positions", async (req, res) => {
     sortOrder,
     jobRoles,
     sourceProviders: sourceProviders.map((p) => String(p)),
+    foreignerEligible,
     locale: localeKey
   });
 
@@ -9223,6 +9238,11 @@ app.get("/positions", async (req, res) => {
       const providerFilter = sourceProviders.length
         ? Prisma.sql`AND "sourceProvider"::text = ANY(${sourceProviders.map((p) => String(p))}::text[])`
         : Prisma.empty;
+      // 외국인 지원 가능 = 원티드 외국인 태그(FOREIGNER_FRIENDLY) OR APLY CIP(INTERNAL,
+      // 외국인 맞춤 프로그램이라 전부 외국인 대상).
+      const visaFilter = foreignerEligible
+        ? Prisma.sql`AND ("sourceProvider"::text = 'INTERNAL' OR 'FOREIGNER_FRIENDLY' = ANY("eligibleVisas"))`
+        : Prisma.empty;
 
       const annResults = await prisma.$queryRaw<Array<{ id: string; distance: number }>>`
         SELECT "id", "embedding" <=> ${vectorLiteral}::vector AS distance
@@ -9231,6 +9251,7 @@ app.get("/positions", async (req, res) => {
           AND "embedding" IS NOT NULL
           ${jobRoleFilter}
           ${providerFilter}
+          ${visaFilter}
         ORDER BY "embedding" <=> ${vectorLiteral}::vector
         LIMIT ${ANN_POOL_SIZE}
       `;
@@ -9255,6 +9276,9 @@ app.get("/positions", async (req, res) => {
         const qualifiedProviderFilter = sourceProviders.length
           ? Prisma.sql`AND p."sourceProvider"::text = ANY(${sourceProviders.map((p) => String(p))}::text[])`
           : Prisma.empty;
+        const qualifiedVisaFilter = foreignerEligible
+          ? Prisma.sql`AND (p."sourceProvider"::text = 'INTERNAL' OR 'FOREIGNER_FRIENDLY' = ANY(p."eligibleVisas"))`
+          : Prisma.empty;
         // ILIKE on title/workLocation/preferredJobRole + partner org name via join.
         // %candidate% built server-side to keep parameter list small.
         const likePatterns = queryCandidates.map((c) => `%${c}%`);
@@ -9266,6 +9290,7 @@ app.get("/positions", async (req, res) => {
             AND p."embedding" IS NOT NULL
             ${qualifiedJobRoleFilter}
             ${qualifiedProviderFilter}
+            ${qualifiedVisaFilter}
             ${annExclude}
             AND (
               p."title" ILIKE ANY(${likePatterns}::text[])
@@ -9365,7 +9390,21 @@ app.get("/positions", async (req, res) => {
         }
       : {}),
     ...(jobRoles.length ? { preferredJobRole: { in: jobRoles } } : {}),
-    ...(sourceProviders.length ? { sourceProvider: { in: sourceProviders } } : {})
+    ...(sourceProviders.length ? { sourceProvider: { in: sourceProviders } } : {}),
+    // 외국인 지원 가능 = FOREIGNER_FRIENDLY 태그 OR APLY CIP(INTERNAL). search가 이미
+    // 최상위 OR를 쓰므로 AND로 감싸 키 충돌을 피한다.
+    ...(foreignerEligible
+      ? {
+          AND: [
+            {
+              OR: [
+                { sourceProvider: PositionSourceProvider.INTERNAL },
+                { eligibleVisas: { has: "FOREIGNER_FRIENDLY" } }
+              ]
+            }
+          ]
+        }
+      : {})
   };
 
   const cursorWhere = sortMode === "deadline"

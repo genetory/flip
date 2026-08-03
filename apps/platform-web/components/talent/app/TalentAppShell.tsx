@@ -1,0 +1,35 @@
+"use client";
+
+// 로그인 후 Talent 앱 공용 셸 — 가드 + 헤더(GNB 4탭 · 모바일 햄버거) + 콘텐츠 + 개발 스위처.
+import { useEffect, type ReactNode } from "react";
+import { TalentGuard } from "./TalentGuard";
+import { TalentHeader } from "../TalentHeader";
+import { TalentFooter } from "../TalentFooter";
+import { DevPersonaSwitcher } from "./DevPersonaSwitcher";
+
+export function TalentAppShell({ children, maxWidth = "5xl", wide = false }: { children: ReactNode; maxWidth?: "4xl" | "5xl"; wide?: boolean }) {
+  // 모든 리뉴얼 앱 화면을 이력서 작성 페이지와 동일한 폭(max-w-5xl)으로 통일.
+  void maxWidth;
+  void wide;
+  const widthCls = "max-w-5xl";
+
+  // GNB 위(상단 오버스크롤) 영역이 회색으로 보이지 않게 최상단 배경을 흰색으로.
+  useEffect(() => {
+    const html = document.documentElement;
+    const prev = html.style.backgroundColor;
+    html.style.backgroundColor = "#ffffff";
+    return () => {
+      html.style.backgroundColor = prev;
+    };
+  }, []);
+  return (
+    <TalentGuard>
+      <div className="flex min-h-screen flex-col bg-[#FAFBFC]">
+        <TalentHeader />
+        <main className={`mx-auto w-full flex-1 px-4 pb-16 pt-5 md:px-6 md:pb-12 md:pt-7 ${widthCls}`}>{children}</main>
+        <TalentFooter />
+        <DevPersonaSwitcher />
+      </div>
+    </TalentGuard>
+  );
+}
