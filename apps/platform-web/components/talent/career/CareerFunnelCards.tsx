@@ -63,10 +63,10 @@ function FunnelCard({ label, pct, message, href, started, previewHref }: { label
         <ProgressRing pct={pct} muted={!started} />
         <p className="mt-3 text-[15px] font-bold text-[#191F28]">{label}</p>
       </Link>
-      <div className="mt-0.5 flex items-end justify-between gap-2">
+      <div className="mt-0.5 flex items-center justify-between gap-2">
         <p className="break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{message}</p>
         {previewHref ? (
-          <Link href={previewHref} className="shrink-0 text-[12px] font-bold text-[#0B46E8] transition hover:underline">미리보기</Link>
+          <Link href={previewHref} className="shrink-0 rounded-lg bg-[#F2F4F6] px-2.5 py-1 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">미리보기</Link>
         ) : null}
       </div>
     </div>
