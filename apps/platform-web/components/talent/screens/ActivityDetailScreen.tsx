@@ -12,8 +12,9 @@ import { useLanguage } from "../../i18n/LanguageProvider";
 import { useFollowing, parseAuthorKey, unfollowAuthor, type FeedAuthor } from "../../../lib/talent/social-graph";
 import { roleLabel, useSocialFeed } from "../../../lib/talent/social-feed";
 import { useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
-import { getMyFavoritePositions, removeMyFavoritePosition, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import { getMyFavoritePositions, getPublicPositionsPage, removeMyFavoritePosition, type PublicPositionListItem } from "../../../lib/member-profile-client";
 import { toPositionView } from "../../../lib/talent/positions-adapter";
+import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 
 export type ActivityType = "following-users" | "following-companies" | "favorite-positions" | "favorite-feed";
 
@@ -90,16 +91,69 @@ export function ActivityDetailScreen({ type }: { type: string }) {
               <PositionCard key={item.id} view={toPositionView(item)} saved onToggleSave={unsavePosition} onShowCip={() => setCipOpen(true)} />
             ))}
           </div>
+        ) : t === "following-companies" ? (
+          // 포지션 아이템과 비슷한 느낌의 회사 카드 리스트.
+          <div className="flex flex-col gap-3">
+            {followedCompanies.map((a) => <CompanyCard key={`${a.role}::${a.name}`} author={a} />)}
+          </div>
         ) : (
           <TCard className="divide-y divide-[#F2F4F6]">
-            {t === "following-users" && followedUsers.map((a) => <AuthorRow key={`${a.role}::${a.name}`} author={a} />)}
-            {t === "following-companies" && followedCompanies.map((a) => <AuthorRow key={`${a.role}::${a.name}`} author={a} />)}
+            {followedUsers.map((a) => <AuthorRow key={`${a.role}::${a.name}`} author={a} />)}
           </TCard>
         )}
       </div>
 
       {cipOpen ? <TalentCipModal locale={locale} onClose={() => setCipOpen(false)} /> : null}
     </TalentAppShell>
+  );
+}
+
+// 포지션 카드와 비슷한 톤의 회사 카드 — 좌측 스퀘어클 아바타 + 이름 + 간단 정보(포지션 수·산업) + 관심 토글.
+function CompanyCard({ author }: { author: FeedAuthor }) {
+  const [info, setInfo] = useState<{ count: number; industry?: string; logo?: string } | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void getPublicPositionsPage({ search: author.name, limit: 100 })
+      .then((page) => {
+        if (!alive) return;
+        // 검색은 제목/직무도 매칭하므로, 회사명이 정확히 일치하는 공고만 집계.
+        const mine = page.items.filter((p) => (p.partnerOrganization?.name || p.sourceCompanyName) === author.name);
+        const org = mine.find((p) => p.partnerOrganization)?.partnerOrganization;
+        setInfo({
+          count: mine.length,
+          industry: org?.industry ? partnerIndustryLabel(org.industry) : undefined,
+          logo: org?.companyLogoImageData || undefined
+        });
+      })
+      .catch(() => alive && setInfo({ count: 0 }));
+    return () => {
+      alive = false;
+    };
+  }, [author.name]);
+
+  const sub = info ? [info.industry, `포지션 ${info.count}개`].filter(Boolean).join(" · ") : "기업";
+
+  return (
+    <div className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:shadow-[0_6px_20px_rgba(11,18,39,0.05)]">
+      <div className="flex items-center gap-4">
+        {info?.logo ? (
+          <span className="h-[56px] w-[56px] shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={info.logo} alt="" className="h-full w-full object-contain" />
+          </span>
+        ) : (
+          <span className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">{author.name.slice(0, 1)}</span>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] font-bold text-[#191F28]">{author.name}</p>
+          <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{sub}</p>
+        </div>
+        <button type="button" onClick={() => unfollowAuthor(author)} className="shrink-0 rounded-xl bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
+          관심 회사
+        </button>
+      </div>
+    </div>
   );
 }
 
