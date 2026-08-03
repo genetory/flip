@@ -6,6 +6,7 @@ import { useSyncExternalStore } from "react";
 import { useSocialFeed, type FeedAuthorRole } from "./social-feed";
 import { addNotification } from "./notifications";
 import { talentAppRoutes } from "./app-nav";
+import { getPublicPositionsPage } from "../member-profile-client";
 
 export interface FeedAuthor {
   name: string;
@@ -136,4 +137,73 @@ export function useFollowFeedNotifications(me: FeedAuthor | null): void {
     }
     if (newMax > watermark) window.localStorage.setItem(WATERMARK_KEY, String(newMax));
   }, [posts, following, meKey]);
+}
+
+const COMPANY_POS_SEEN_KEY = "talent.notifications.companyPositionsSeen.v1";
+
+// 관심 회사(팔로우한 PARTNER)의 새 포지션을 알림으로 적재.
+// 회사별 기준선(본 포지션 id 집합)을 저장해, 새로 팔로우한 회사는 조용히 기준선만 잡고
+// 이미 추적 중인 회사에 새 공고가 뜨면 알림한다(팔로우 시 폭주 방지).
+export function useFollowCompanyPositionNotifications(): void {
+  const following = useFollowing();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const companies = Array.from(
+      new Set(
+        following
+          .map(parseAuthorKey)
+          .filter((a): a is FeedAuthor => a?.role === "PARTNER")
+          .map((a) => a.name.trim())
+          .filter(Boolean)
+      )
+    );
+    if (companies.length === 0) return;
+
+    let alive = true;
+    void (async () => {
+      let seen: Record<string, string[]>;
+      try {
+        seen = JSON.parse(window.localStorage.getItem(COMPANY_POS_SEEN_KEY) ?? "{}") as Record<string, string[]>;
+      } catch {
+        seen = {};
+      }
+      const next: Record<string, string[]> = {};
+
+      for (const name of companies) {
+        const page = await getPublicPositionsPage({ search: name, limit: 100 }).catch(() => null);
+        if (!alive) return;
+        // 검색은 제목/직무도 매칭하므로 회사명이 정확히 일치하는 공고만.
+        const ids = (page?.items ?? [])
+          .filter((p) => (p.partnerOrganization?.name || p.sourceCompanyName) === name)
+          .map((p) => ({ id: p.id, title: p.title }));
+
+        const prev = seen[name];
+        if (prev === undefined) {
+          // 새로 추적하는 회사 → 기준선만(알림 X).
+          next[name] = ids.map((i) => i.id);
+        } else {
+          const prevSet = new Set(prev);
+          for (const i of ids) {
+            if (prevSet.has(i.id)) continue;
+            addNotification({
+              emoji: "💼",
+              title: `${name}의 새 포지션`,
+              body: i.title,
+              href: `${talentAppRoutes.jobs}/${i.id}`,
+              dedupeKey: `companypos:${i.id}`
+            });
+          }
+          // 관심 유지 동안 계속 추적하도록 합집합 저장.
+          next[name] = Array.from(new Set([...prev, ...ids.map((i) => i.id)]));
+        }
+      }
+      if (!alive) return;
+      window.localStorage.setItem(COMPANY_POS_SEEN_KEY, JSON.stringify(next));
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [following]);
 }

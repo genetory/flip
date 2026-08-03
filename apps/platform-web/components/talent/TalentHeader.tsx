@@ -12,7 +12,7 @@ import { talentBrand, talentRoutes } from "../../lib/talent/landing-content";
 import { talentMainNav, isTabActive, talentAppRoutes } from "../../lib/talent/app-nav";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { TalentButton } from "./TalentButton";
-import { useFollowFeedNotifications, type FeedAuthor } from "../../lib/talent/social-graph";
+import { useFollowFeedNotifications, useFollowCompanyPositionNotifications, type FeedAuthor } from "../../lib/talent/social-graph";
 import { useUnreadNotificationCount } from "../../lib/talent/notifications";
 
 export function TalentHeader() {
@@ -44,6 +44,7 @@ export function TalentHeader() {
   // 팔로잉한 사람의 새 글을 알림으로 적재(백그라운드 감시) + 벨 배지 카운트.
   const meAuthor: FeedAuthor | null = isTalentUser ? { name, role: user?.role === "OPERATOR" ? "OPERATOR" : "STUDENT" } : null;
   useFollowFeedNotifications(meAuthor);
+  useFollowCompanyPositionNotifications();
   const unreadCount = useUnreadNotificationCount();
 
   return (
