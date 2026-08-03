@@ -96,6 +96,14 @@ export function SettingsScreen() {
         {/* 관심 직무 */}
         <JobInterestCard variant="edit" />
 
+        {/* 지원 현황 */}
+        <div>
+          <p className="mb-2.5 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">지원 현황</p>
+          <TCard className="divide-y divide-[#F2F4F6]">
+            <Item label="내 지원 현황 보기" href={talentAppRoutes.applications} />
+          </TCard>
+        </div>
+
         {/* 내 활동 — 팔로우/관심(SNS 스타일 묶음) */}
         <section>
           <p className="mb-2.5 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">내 활동</p>

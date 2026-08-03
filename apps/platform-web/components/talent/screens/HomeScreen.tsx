@@ -349,7 +349,7 @@ function GuideSection() {
 }
 
 /* 가이드 팝업 */
-function GuideModal({ guide, onClose }: { guide: CareerGuide; onClose: () => void }) {
+export function GuideModal({ guide, onClose }: { guide: CareerGuide; onClose: () => void }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();

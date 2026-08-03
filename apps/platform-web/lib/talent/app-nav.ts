@@ -1,6 +1,6 @@
 // 로그인 후 Talent 앱의 내비게이션 구조.
-// 핵심 탭 4개(홈/내 커리어/채용공고/지원) + 계정 설정(프로필 메뉴).
-import { House, Compass, Briefcase, PaperPlaneTilt, type Icon } from "@phosphor-icons/react";
+// 핵심 탭 4개(홈/내 커리어/포지션 탐색/취업 소식) + 계정 설정(프로필 메뉴).
+import { House, Compass, Briefcase, Newspaper, type Icon } from "@phosphor-icons/react";
 
 export const talentAppRoutes = {
   // 홈(GNB 대시보드)과 랜딩(공개)을 분리. /talent = 랜딩, /talent/home = 홈.
@@ -18,12 +18,13 @@ export const talentAppRoutes = {
   interviews: "/talent/career/interviews",
   feed: "/talent/feed",
   jobs: "/talent/jobs",
+  insights: "/talent/insights",
   applications: "/talent/applications",
   notifications: "/talent/notifications",
   settings: "/talent/settings"
 } as const;
 
-export type TalentTabKey = "feed" | "home" | "career" | "jobs" | "applications";
+export type TalentTabKey = "feed" | "home" | "career" | "jobs" | "insights" | "applications";
 
 export interface TalentNavItem {
   key: TalentTabKey;
@@ -39,7 +40,8 @@ export const talentMainNav: TalentNavItem[] = [
   // { key: "feed", label: "피드", href: talentAppRoutes.feed, icon: ChatCircleText },
   { key: "career", label: "내 커리어", href: talentAppRoutes.career, icon: Compass },
   { key: "jobs", label: "포지션 탐색", href: talentAppRoutes.jobs, icon: Briefcase },
-  { key: "applications", label: "지원", href: talentAppRoutes.applications, icon: PaperPlaneTilt }
+  // 지원 현황은 계정 설정으로 이동. 4번째 탭은 취업 소식(인사이트).
+  { key: "insights", label: "취업 소식", href: talentAppRoutes.insights, icon: Newspaper }
 ];
 
 // 현재 경로가 해당 탭에 속하는지 판단.
