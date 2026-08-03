@@ -11,6 +11,10 @@ import { VISA_DETAILS, type VisaStructuredLine } from "../../../lib/visa-details
 
 const oneLine = (t: string) => t.replace(/\n/g, " ");
 
+// 공식 비자·출입국 안내처.
+const HIKOREA_URL = "https://www.hikorea.go.kr";
+const IMMIGRATION_URL = "https://www.immigration.go.kr";
+
 export function InsightsScreen() {
   const [active, setActive] = useState<CareerGuide | null>(null);
   const [visa, setVisa] = useState<string | null>(null);
@@ -107,7 +111,11 @@ export function InsightsScreen() {
               </button>
             ))}
           </div>
-          <p className="mt-4 text-[12px] leading-relaxed text-[#8B95A1]">비자 요건은 개인 상황·정책에 따라 달라질 수 있어요. 정확한 내용은 하이코리아·출입국사무소에서 확인하세요.</p>
+          <p className="mt-4 text-[12px] leading-relaxed text-[#8B95A1]">
+            비자 요건은 개인 상황·정책에 따라 달라질 수 있어요. 정확한 내용은{" "}
+            <a href={HIKOREA_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0B46E8] hover:underline">하이코리아</a>·
+            <a href={IMMIGRATION_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0B46E8] hover:underline">출입국사무소</a>에서 확인하세요.
+          </p>
         </section>
 
         {/* 취업 팁 — 풀쿼트 */}
@@ -203,7 +211,11 @@ function VisaModal({ code, onClose }: { code: string; onClose: () => void }) {
               </div>
             ))}
           </div>
-          <p className="mt-6 text-[12px] leading-relaxed text-[#B0B8C1]">개인 상황·정책에 따라 달라질 수 있어요. 정확한 내용은 하이코리아·출입국사무소에서 확인하세요.</p>
+          <p className="mt-6 text-[12px] leading-relaxed text-[#B0B8C1]">
+            개인 상황·정책에 따라 달라질 수 있어요. 정확한 내용은{" "}
+            <a href={HIKOREA_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0B46E8] hover:underline">하이코리아</a>·
+            <a href={IMMIGRATION_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0B46E8] hover:underline">출입국사무소</a>에서 확인하세요.
+          </p>
         </div>
       </div>
     </div>
