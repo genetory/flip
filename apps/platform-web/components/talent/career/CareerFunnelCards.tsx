@@ -8,7 +8,7 @@ import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { useBasicInfo } from "../../../lib/talent/basic-info";
 
-export function CareerFunnelCards() {
+export function CareerFunnelCards({ showPreview = false }: { showPreview?: boolean }) {
   const resume = useResumeDoc();
   const cover = useCoverDoc();
   const name = useBasicInfo().realName?.trim() || "나";
@@ -17,8 +17,22 @@ export function CareerFunnelCards() {
 
   return (
     <div className="grid grid-cols-2 gap-3">
-      <FunnelCard label={`${name}님의 이력서`} pct={resumePct} message={resumeMessage(resumePct)} href={talentAppRoutes.resume} started={resume !== null} />
-      <FunnelCard label={`${name}님의 자기소개서`} pct={coverPct} message={coverMessage(coverPct)} href={talentAppRoutes.cover} started={cover !== null} />
+      <FunnelCard
+        label={`${name}님의 이력서`}
+        pct={resumePct}
+        message={resumeMessage(resumePct)}
+        href={talentAppRoutes.resume}
+        started={resume !== null}
+        previewHref={showPreview && resume ? talentAppRoutes.resumePreview : undefined}
+      />
+      <FunnelCard
+        label={`${name}님의 자기소개서`}
+        pct={coverPct}
+        message={coverMessage(coverPct)}
+        href={talentAppRoutes.cover}
+        started={cover !== null}
+        previewHref={showPreview && cover ? talentAppRoutes.coverPreview : undefined}
+      />
     </div>
   );
 }
@@ -39,18 +53,28 @@ function coverMessage(pct: number): string {
   return "자기소개서 완성!";
 }
 
-function FunnelCard({ label, pct, message, href, started }: { label: string; pct: number; message: string; href: string; started: boolean }) {
+function FunnelCard({ label, pct, message, href, started, previewHref }: { label: string; pct: number; message: string; href: string; started: boolean; previewHref?: string }) {
   const shell = started
     ? "border border-[#EEF1F5] bg-white hover:border-[#0B46E8]/40 hover:shadow-[0_4px_16px_rgba(11,18,39,0.05)]"
     : "border border-dashed border-[#DCE3F0] bg-transparent hover:border-[#0B46E8]/50";
   return (
-    <Link href={href} className={`flex flex-col gap-3 rounded-2xl p-5 transition ${shell}`}>
-      <ProgressRing pct={pct} muted={!started} />
-      <div>
-        <p className="text-[15px] font-bold text-[#191F28]">{label}</p>
-        <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{message}</p>
-      </div>
-    </Link>
+    <div className={`flex flex-col gap-3 rounded-2xl p-5 transition ${shell}`}>
+      <Link href={href} className="flex flex-col gap-3">
+        <ProgressRing pct={pct} muted={!started} />
+        <div>
+          <p className="text-[15px] font-bold text-[#191F28]">{label}</p>
+          <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{message}</p>
+        </div>
+      </Link>
+      {previewHref ? (
+        <Link
+          href={previewHref}
+          className="mt-1 flex items-center justify-center rounded-xl bg-[#F2F4F6] px-3 py-2 text-[12.5px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]"
+        >
+          미리보기
+        </Link>
+      ) : null}
+    </div>
   );
 }
 

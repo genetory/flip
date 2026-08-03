@@ -1,9 +1,9 @@
 "use client";
 
-// 내 커리어 홈 — 커리어를 쌓는 허브.
-// AI 커리어 노트로 남기면 → 커리어 기록(피드)으로 쌓이고 → 이력서/자기소개서로 정리된다.
+// 내 커리어 — 커리어 정리 허브. 프로필 요약 + 이력서/자기소개서 + 커리어 기록.
 import { CareerLayout } from "../career/CareerLayout";
 import { ProfileGate } from "../career/ProfileGate";
+import { ProfileCard } from "../career/ProfileCard";
 import { FeedCard } from "../career/FeedCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
 import { TLoading, TError, TPageHeader } from "../ui/primitives";
@@ -25,6 +25,7 @@ export function CareerHomeScreen() {
 }
 
 function Content({ snapshot }: { snapshot: TalentSnapshot }) {
+  void snapshot;
   const feed = useCareerFeed();
   const basicInfo = useBasicInfo();
   const ready = isBasicInfoComplete(basicInfo);
@@ -36,7 +37,7 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   if (!ready) {
     return (
       <div className="flex flex-col gap-8">
-        <TPageHeader title="내 커리어" description="편하게 남기면 이력서·자기소개서로 정리돼요." />
+        <TPageHeader title="내 커리어" description="이력서·자기소개서에 쓸 기본 정보부터 등록해요." />
         <ProfileGate />
       </div>
     );
@@ -46,14 +47,26 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
     <div className="flex flex-col gap-8">
       <TPageHeader title="내 커리어" description="이력서·자기소개서를 만들면서 커리어를 정리해요." />
 
-      {/* 결과물 퍼널 — 이력서 / 자기소개서 (각 1개, 각자 AI 챗으로 입력) */}
-      <CareerFunnelCards />
+      {/* 프로필 요약 */}
+      <ProfileCard info={basicInfo} />
 
-      {/* 커리어 기록 — 남긴 것들이 피드로 */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">커리어 기록</h2>
-          {feed.length ? <span className="text-[12.5px] font-semibold text-[#8B95A1]">{feed.length}개</span> : null}
+      {/* 이력서 · 자기소개서 */}
+      <section className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">이력서 · 자기소개서</h2>
+          <p className="mt-1 text-[13px] text-[#8B95A1]">AI 챗으로 편하게 채우고, 미리보기로 확인해요.</p>
+        </div>
+        <CareerFunnelCards showPreview />
+      </section>
+
+      {/* 커리어 기록 — 이력서/자소서에 남긴 내용이 자동으로 쌓임 */}
+      <section className="flex flex-col gap-4">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">커리어 기록</h2>
+            <p className="mt-1 text-[13px] text-[#8B95A1]">이력서·자기소개서에 남긴 내용이 자동으로 쌓여요.</p>
+          </div>
+          {feed.length ? <span className="shrink-0 text-[12.5px] font-semibold text-[#8B95A1]">{feed.length}개</span> : null}
         </div>
         {feed.length ? (
           <div className="flex flex-col gap-2.5">
@@ -75,7 +88,7 @@ function EmptyFeed() {
     <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-6 text-center">
       <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px]" aria-hidden>📝</span>
       <p className="mt-3 text-[14px] font-bold text-[#191F28]">아직 남긴 기록이 없어요</p>
-      <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">위 AI 커리어 노트에서 첫 한 줄을 남겨보세요. 자동으로 여기에 쌓여요.</p>
+      <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">위에서 이력서나 자기소개서를 만들면 자동으로 여기에 쌓여요.</p>
     </div>
   );
 }
