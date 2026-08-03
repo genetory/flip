@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { SECTION_META, type CareerSection } from "../../../lib/talent/career-chat";
 import { displayMonth, type ResumeDoc } from "../../../lib/talent/resume-doc";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
+import { PdfBrandFooter } from "./pdf-print";
 
 const PAGE_W = 794;
 const PAGE_H = 1123;
@@ -90,6 +91,8 @@ function ResumeA4Page({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
         })}
         {doc.items.length === 0 ? <p className="text-[13.5px] text-[#B0B8C1]">항목을 추가하면 여기에 이력서로 정리돼요.</p> : null}
       </div>
+
+      <PdfBrandFooter />
     </div>
   );
 }

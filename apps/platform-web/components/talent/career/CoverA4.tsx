@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { COVER_QUESTIONS, type CoverDoc } from "../../../lib/talent/cover-doc";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
+import { PdfBrandFooter } from "./pdf-print";
 
 const PAGE_W = 794;
 const PAGE_H = 1123;
@@ -74,6 +75,8 @@ function CoverA4Page({ doc, info }: { doc: CoverDoc; info: BasicInfo }) {
           );
         })}
       </div>
+
+      <PdfBrandFooter />
     </div>
   );
 }

@@ -26,6 +26,18 @@ export function PrintStyles() {
   );
 }
 
+// A4 문서 하단 브랜드 바닥글(로고 + 슬로건). flex-col A4 페이지의 마지막 자식으로 두면
+// mt-auto 로 페이지 맨 아래에 붙는다. 미리보기·PDF 공통 노출.
+export function PdfBrandFooter() {
+  return (
+    <footer className="mt-auto flex items-center justify-between gap-3 border-t border-[#E5E8EB] pt-4">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/img_logo.webp" alt="APLY" className="h-[14px] w-auto opacity-80" />
+      <p className="text-[10px] tracking-[-0.01em] text-[#B0B8C1]">첫 이력서부터 첫 지원까지</p>
+    </footer>
+  );
+}
+
 export function PdfDownloadButton() {
   return (
     <button
