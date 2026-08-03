@@ -153,7 +153,7 @@ function CompanyCard({ author }: { author: FeedAuthor }) {
           {info?.logo ? (
             <span className="h-[56px] w-[56px] shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={info.logo} alt="" className="h-full w-full object-contain" />
+              <img src={info.logo} alt="" className="h-full w-full object-cover" />
             </span>
           ) : (
             <span className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">{author.name.slice(0, 1)}</span>

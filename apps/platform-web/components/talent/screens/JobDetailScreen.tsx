@@ -272,7 +272,7 @@ export function CompanyHeader({ item }: { item: PublicPositionListItem }) {
       {logo ? (
         <span className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logo} alt="" className="h-full w-full object-contain" />
+          <img src={logo} alt="" className="h-full w-full object-cover" />
         </span>
       ) : (
         // 로고 없으면 유저 프로필과 동일한 이니셜 플레이스홀더.
