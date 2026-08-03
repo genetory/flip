@@ -7,10 +7,11 @@ import { CaretRight, Buildings } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TalentBackButton } from "../TalentBackButton";
 import { TCard } from "../ui/primitives";
+import { FeedPostList } from "../feed/FeedPostList";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useFollowing, parseAuthorKey, unfollowAuthor, type FeedAuthor } from "../../../lib/talent/social-graph";
 import { roleLabel, useSocialFeed } from "../../../lib/talent/social-feed";
-import { useFeedBookmarks, toggleFeedBookmark } from "../../../lib/talent/feed-bookmarks";
+import { useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
 import { getMyFavoritePositions, type PublicPositionListItem } from "../../../lib/member-profile-client";
 
 export type ActivityType = "following-users" | "following-companies" | "favorite-positions" | "favorite-feed";
@@ -70,12 +71,14 @@ export function ActivityDetailScreen({ type }: { type: string }) {
 
         {isEmpty ? (
           <TCard className="px-5 py-10 text-center text-[13.5px] text-[#8B95A1]">{EMPTY[t]}</TCard>
+        ) : t === "favorite-feed" ? (
+          // 피드와 동일한 UI/UX로 리스팅.
+          <FeedPostList posts={bookmarkedPosts} />
         ) : (
           <TCard className="divide-y divide-[#F2F4F6]">
             {t === "following-users" && followedUsers.map((a) => <AuthorRow key={`${a.role}::${a.name}`} author={a} />)}
             {t === "following-companies" && followedCompanies.map((a) => <AuthorRow key={`${a.role}::${a.name}`} author={a} />)}
             {t === "favorite-positions" && favPositions.map((p) => <PositionRow key={p.id} p={p} />)}
-            {t === "favorite-feed" && bookmarkedPosts.map((p) => <FeedRow key={p.id} id={p.id} authorName={p.authorName} text={p.text} />)}
           </TCard>
         )}
       </div>
@@ -118,16 +121,3 @@ function PositionRow({ p }: { p: PublicPositionListItem }) {
   );
 }
 
-function FeedRow({ id, authorName, text }: { id: string; authorName: string; text: string }) {
-  return (
-    <div className="flex items-start gap-3 px-5 py-3.5">
-      <Link href={talentAppRoutes.feed} className="min-w-0 flex-1">
-        <p className="truncate text-[12px] font-bold text-[#8B95A1]">{authorName}</p>
-        <p className="mt-0.5 line-clamp-2 break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{text}</p>
-      </Link>
-      <button type="button" onClick={() => toggleFeedBookmark(id)} className="shrink-0 rounded-lg bg-[#F2F4F6] px-3 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
-        저장됨
-      </button>
-    </div>
-  );
-}
