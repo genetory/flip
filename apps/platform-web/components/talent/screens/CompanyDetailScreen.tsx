@@ -1,7 +1,7 @@
 "use client";
 
 // 회사 상세 — 포지션 상세의 회사 정보 카드 + 그 회사가 올린 피드 + 포지션 리스트.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TalentBackButton } from "../TalentBackButton";
 import { TEmpty, TError, TLoading } from "../ui/primitives";
@@ -22,7 +22,7 @@ import {
 import { toPositionView } from "../../../lib/talent/positions-adapter";
 
 // 구어체 섹션 헤더 — 제목 + 한 줄 설명으로 섹션을 부드럽게 구분.
-function SectionHead({ title, desc }: { title: string; desc: string }) {
+function SectionHead({ title, desc }: { title: string; desc: ReactNode }) {
   return (
     <div>
       <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
@@ -123,7 +123,10 @@ export function CompanyDetailScreen({ name }: { name: string }) {
 
             {/* 회사 포지션 */}
             <section className="flex flex-col gap-3">
-              <SectionHead title={`지금 이런 사람을 찾고 있어요${positions.length ? ` · ${positions.length}` : ""}`} desc="이 회사가 열어둔 포지션이에요. 바로 지원해볼 수 있어요." />
+              <SectionHead
+                title="지금 이런 사람을 찾고 있어요"
+                desc={<>열어둔 포지션 <span className="font-bold text-[#191F28]">{positions.length}</span>개 · 바로 지원해볼 수 있어요.</>}
+              />
               {positions.length ? (
                 <div className="flex flex-col gap-3">
                   {positions.map((item) => (
