@@ -13,6 +13,7 @@ import { useLanguage } from "../../i18n/LanguageProvider";
 import { useSocialFeed } from "../../../lib/talent/social-feed";
 import {
   getPublicPositionsPage,
+  getPublicPositionById,
   getMyFavoritePositions,
   addMyFavoritePosition,
   removeMyFavoritePosition,
@@ -24,26 +25,37 @@ export function CompanyDetailScreen({ name }: { name: string }) {
   const { locale } = useLanguage();
   const allPosts = useSocialFeed();
   const [positions, setPositions] = useState<PublicPositionListItem[]>([]);
+  const [companyItem, setCompanyItem] = useState<PublicPositionListItem | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [cipOpen, setCipOpen] = useState(false);
 
   useEffect(() => {
+    let alive = true;
     setStatus("loading");
-    void getPublicPositionsPage({ search: name, limit: 100, locale })
-      .then((page) => {
-        // 검색은 제목/직무도 매칭하므로 회사명이 정확히 일치하는 공고만.
+    setCompanyItem(null);
+    void getPublicPositionsPage({ company: name, limit: 100, locale })
+      .then(async (page) => {
+        if (!alive) return;
+        // 서버가 company 필터를 적용(배포 후)하면 no-op, 미배포면 클라 안전 필터.
         const mine = page.items.filter((p) => (p.partnerOrganization?.name || p.sourceCompanyName) === name);
         setPositions(mine);
         setStatus("ready");
+        // 회사 정보 카드는 사무실 사진 등 완전한 org 위해 대표 공고 상세를 가져온다(목록엔 일부 필드 없음).
+        const rep = mine.find((p) => p.partnerOrganization) ?? mine[0];
+        if (rep) {
+          const full = await getPublicPositionById(rep.id, { locale }).catch(() => null);
+          if (alive) setCompanyItem(full ?? rep);
+        }
       })
-      .catch(() => setStatus("error"));
+      .catch(() => alive && setStatus("error"));
     void getMyFavoritePositions()
-      .then((list) => setSavedIds(new Set(list.map((p) => p.id))))
+      .then((list) => alive && setSavedIds(new Set(list.map((p) => p.id))))
       .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, [name, locale]);
-
-  const companyItem = useMemo(() => positions.find((p) => p.partnerOrganization) ?? positions[0], [positions]);
   const companyPosts = useMemo(
     () => allPosts.filter((p) => p.authorRole === "PARTNER" && p.authorName === name),
     [allPosts, name]

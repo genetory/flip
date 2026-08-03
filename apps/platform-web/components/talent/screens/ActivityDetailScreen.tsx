@@ -122,10 +122,10 @@ function CompanyCard({ author }: { author: FeedAuthor }) {
 
   useEffect(() => {
     let alive = true;
-    void getPublicPositionsPage({ search: author.name, limit: 100 })
+    void getPublicPositionsPage({ company: author.name, limit: 100 })
       .then((page) => {
         if (!alive) return;
-        // 검색은 제목/직무도 매칭하므로, 회사명이 정확히 일치하는 공고만 집계.
+        // 서버가 company 필터를 적용(배포 후)하면 no-op, 미배포면 클라 안전 필터.
         const mine = page.items.filter((p) => (p.partnerOrganization?.name || p.sourceCompanyName) === author.name);
         const org = mine.find((p) => p.partnerOrganization)?.partnerOrganization;
         const location = (org?.officeAddress || mine.find((p) => p.workLocation)?.workLocation || "").split(" ")[0] || undefined;

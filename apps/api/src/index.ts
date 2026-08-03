@@ -3279,6 +3279,9 @@ const listPublicPositionsCursorQuerySchema = z.object({
   foreignerEligible: z
     .union([z.literal("true"), z.literal("false"), z.literal("1"), z.literal("0")])
     .optional(),
+  // 특정 회사(파트너 조직명)의 공고만 — 회사 상세/관심 회사용. 정확 일치.
+  // search와 달리 임베딩 유무와 무관하게 keyset 브랜치로 조회된다.
+  company: z.string().trim().min(1).max(200).optional(),
   // Viewer locale — when non-Korean, INTERNAL postings are served in English
   // (cached per-position in Position.translations.en).
   locale: z.string().trim().min(2).max(8).optional()
@@ -9099,6 +9102,7 @@ function positionsCacheKey(params: {
   jobRoles: string[];
   sourceProviders: string[];
   foreignerEligible: boolean;
+  company: string;
   // Korean vs. translated-English response must not share a cache slot.
   locale: string;
 }): string {
@@ -9111,6 +9115,7 @@ function positionsCacheKey(params: {
     j: [...params.jobRoles].sort(),
     p: [...params.sourceProviders].sort(),
     fe: params.foreignerEligible,
+    co: params.company,
     loc: params.locale
   });
 }
@@ -9133,6 +9138,7 @@ app.get("/positions", async (req, res) => {
   const sortOrder = parsedQuery.data.sortOrder ?? "desc";
   const foreignerEligible =
     parsedQuery.data.foreignerEligible === "true" || parsedQuery.data.foreignerEligible === "1";
+  const company = parsedQuery.data.company?.trim() || undefined;
   // Non-Korean viewers get INTERNAL postings translated to English. Normalize
   // the locale dimension to "en" or "ko" so the response cache only forks two
   // ways regardless of how many BCP47 codes the caller sends.
@@ -9151,6 +9157,7 @@ app.get("/positions", async (req, res) => {
     jobRoles,
     sourceProviders: sourceProviders.map((p) => String(p)),
     foreignerEligible,
+    company: company ?? "",
     locale: localeKey
   });
 
@@ -9391,6 +9398,8 @@ app.get("/positions", async (req, res) => {
       : {}),
     ...(jobRoles.length ? { preferredJobRole: { in: jobRoles } } : {}),
     ...(sourceProviders.length ? { sourceProvider: { in: sourceProviders } } : {}),
+    // 특정 회사(파트너 조직명) 정확 일치 — 회사 상세/관심 회사용.
+    ...(company ? { partnerOrganization: { is: { name: company } } } : {}),
     // 외국인 지원 가능 = FOREIGNER_FRIENDLY 태그 OR APLY CIP(INTERNAL). search가 이미
     // 최상위 OR를 쓰므로 AND로 감싸 키 충돌을 피한다.
     ...(foreignerEligible
