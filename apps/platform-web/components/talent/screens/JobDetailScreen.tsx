@@ -62,12 +62,10 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
     const willSave = !saved;
     setSaved(willSave);
     const req = willSave ? addMyFavoritePosition(jobId) : removeMyFavoritePosition(jobId);
-    void req
-      .then(() => toast.success(willSave ? "공고를 저장했어요" : "저장을 취소했어요"))
-      .catch(() => {
-        setSaved(!willSave);
-        toast.error("저장에 실패했어요");
-      });
+    void req.catch(() => {
+      setSaved(!willSave);
+      toast.error("저장에 실패했어요");
+    });
   }
 
   const view = item ? toPositionView(item) : null;

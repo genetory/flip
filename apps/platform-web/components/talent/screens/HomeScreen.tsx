@@ -368,17 +368,15 @@ function RecommendedJobs() {
       return next;
     });
     const req = willSave ? addMyFavoritePosition(id) : removeMyFavoritePosition(id);
-    void req
-      .then(() => toast.success(willSave ? "공고를 저장했어요" : "저장을 취소했어요"))
-      .catch(() => {
-        setSavedIds((prev) => {
-          const next = new Set(prev);
-          if (willSave) next.delete(id);
-          else next.add(id);
-          return next;
-        });
-        toast.error("저장에 실패했어요");
+    void req.catch(() => {
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        if (willSave) next.delete(id);
+        else next.add(id);
+        return next;
       });
+      toast.error("저장에 실패했어요");
+    });
   }
 
   return (

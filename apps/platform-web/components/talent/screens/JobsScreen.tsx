@@ -138,7 +138,6 @@ export function JobsScreen() {
     const req = willSave ? addMyFavoritePosition(id) : removeMyFavoritePosition(id);
     void req
       .then(() => {
-        toast.success(willSave ? "공고를 저장했어요" : "저장을 취소했어요");
         if (!willSave) setSavedItems((prev) => prev.filter((p) => p.id !== id));
       })
       .catch(() => {
