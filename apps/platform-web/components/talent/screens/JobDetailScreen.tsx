@@ -3,6 +3,7 @@
 // 공고 상세 — 포지션 탐색 상세(PositionDetailPage)와 동일한 내용, UI 는 Talent 톤.
 // 핵심 정보 / 상세 안내 / 기업 정보 + 저장·지원.
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { MapPin, BookmarkSimple, ArrowSquareOut, Buildings, LinkSimple, Star } from "@phosphor-icons/react";
 import { TalentBackButton } from "../TalentBackButton";
 import { toggleFollow, isFollowing, useFollowing, type FeedAuthor } from "../../../lib/talent/social-graph";
@@ -96,7 +97,11 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
               </div>
               <h1 className="mt-3 text-[24px] font-black leading-[1.25] tracking-[-0.02em] text-[#0B1227]">{view.title}</h1>
               <p className="mt-2 text-[15px] font-semibold text-[#4E5968]">
-                {view.company}
+                {view.isInternal && view.company && view.company !== "비공개 기업" ? (
+                  <Link href={`/talent/company/${encodeURIComponent(view.company)}`} className="transition hover:text-[#0B46E8] hover:underline">{view.company}</Link>
+                ) : (
+                  view.company
+                )}
                 {item.partnerOrganization?.industry ? <span className="font-normal text-[#8B95A1]"> · {partnerIndustryLabel(item.partnerOrganization.industry)}</span> : null}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-[#8B95A1]">
@@ -273,7 +278,9 @@ export function CompanyHeader({ item }: { item: PublicPositionListItem }) {
         // 로고 없으면 유저 프로필과 동일한 이니셜 플레이스홀더.
         <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">{org.name.slice(0, 1)}</span>
       )}
-      <p className="min-w-0 truncate text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{org.name}</p>
+      <Link href={`/talent/company/${encodeURIComponent(org.name)}`} className="min-w-0 truncate text-[18px] font-black tracking-[-0.02em] text-[#0B1227] transition hover:text-[#0B46E8] hover:underline">
+        {org.name}
+      </Link>
       <CompanyFollowButton name={org.name} />
     </div>
   );

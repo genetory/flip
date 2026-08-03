@@ -54,22 +54,31 @@ export function PositionCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
-            <CardLink isExternal={isExternal} href={linkHref} className="min-w-0 flex-1">
-              {view.isInternal && onShowCip ? (
-                <div className="mb-1.5">
-                  <AplyCipBadgeButton onClick={onShowCip} size="sm" className="!py-1" />
-                </div>
-              ) : view.sourceLabel ? (
-                // 외부 출처(원티드 등) — CIP 배지와 동일 위치·크기의 뱃지로.
-                <div className="mb-1.5">
-                  <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-[#EEF1F5] px-2 py-1 text-[10px] font-bold leading-none text-[#4E5968]">
-                    {view.sourceLabel}
-                  </span>
-                </div>
-              ) : null}
-              <p className="truncate text-[15px] font-bold text-[#191F28]">{view.title}</p>
-              <p className="mt-0.5 truncate text-[13px] text-[#4E5968]">{view.company}</p>
-            </CardLink>
+            <div className="min-w-0 flex-1">
+              <CardLink isExternal={isExternal} href={linkHref} className="block">
+                {view.isInternal && onShowCip ? (
+                  <div className="mb-1.5">
+                    <AplyCipBadgeButton onClick={onShowCip} size="sm" className="!py-1" />
+                  </div>
+                ) : view.sourceLabel ? (
+                  // 외부 출처(원티드 등) — CIP 배지와 동일 위치·크기의 뱃지로.
+                  <div className="mb-1.5">
+                    <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-[#EEF1F5] px-2 py-1 text-[10px] font-bold leading-none text-[#4E5968]">
+                      {view.sourceLabel}
+                    </span>
+                  </div>
+                ) : null}
+                <p className="truncate text-[15px] font-bold text-[#191F28]">{view.title}</p>
+              </CardLink>
+              {/* 회사명 터치 → 회사 상세(내부 공고, 실명 회사만). */}
+              {view.isInternal && view.company && view.company !== "비공개 기업" ? (
+                <Link href={`/talent/company/${encodeURIComponent(view.company)}`} className="mt-0.5 block truncate text-[13px] text-[#4E5968] transition hover:text-[#0B46E8] hover:underline">
+                  {view.company}
+                </Link>
+              ) : (
+                <p className="mt-0.5 truncate text-[13px] text-[#4E5968]">{view.company}</p>
+              )}
+            </div>
             {onToggleSave ? (
               <button
                 type="button"
