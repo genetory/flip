@@ -29,6 +29,7 @@ import { toPositionView, type PositionView } from "../../../lib/talent/positions
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
+import { isFollowing, useFollowing } from "../../../lib/talent/social-graph";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import type { TalentSnapshot } from "../../../lib/talent/types";
 
@@ -58,22 +59,35 @@ function HomeContent({ snapshot }: { snapshot: TalentSnapshot }) {
   );
 }
 
+const COMPANY_SIZE_LABELS: Record<string, string> = {
+  SIZE_1_10: "1~10인",
+  SIZE_UNDER_30: "30인 이하",
+  SIZE_UNDER_50: "50인 이하",
+  SIZE_OVER_100: "100인 이상"
+};
+
+type HomeCompany = { name: string; industry?: string; size?: string; location?: string; logo?: string; count: number };
+
 /* 이런 회사는 어때요 — 채용 중인 회사 중 랜덤 3개 */
 function HomeCompanies() {
-  const [companies, setCompanies] = useState<{ name: string; industry?: string; logo?: string; count: number }[]>([]);
+  const following = useFollowing();
+  void following; // 관심 수 리렌더 트리거
+  const [companies, setCompanies] = useState<HomeCompany[]>([]);
 
   useEffect(() => {
     let alive = true;
     void getPublicPositionsPage({ limit: 100, sourceProviders: ["INTERNAL"] })
       .then((page) => {
         if (!alive) return;
-        const map = new Map<string, { name: string; industry?: string; logo?: string; count: number }>();
+        const map = new Map<string, HomeCompany>();
         for (const p of page.items) {
           const org = p.partnerOrganization;
           if (!org?.name) continue;
           const e = map.get(org.name) ?? {
             name: org.name,
             industry: org.industry ? partnerIndustryLabel(org.industry) : undefined,
+            size: org.companySize ? COMPANY_SIZE_LABELS[org.companySize] ?? undefined : undefined,
+            location: (org.officeAddress || p.workLocation || "").split(" ")[0] || undefined,
             logo: org.companyLogoImageData || undefined,
             count: 0
           };
@@ -119,7 +133,9 @@ function HomeCompanies() {
             )}
             <div className="w-full min-w-0">
               <p className="truncate text-[13.5px] font-bold text-[#191F28]">{c.name}</p>
-              <p className="mt-0.5 truncate text-[11.5px] text-[#8B95A1]">{[c.industry, `포지션 ${c.count}개`].filter(Boolean).join(" · ")}</p>
+              <p className="mt-0.5 truncate text-[11.5px] text-[#8B95A1]">{[c.industry, c.size, c.location].filter(Boolean).join(" · ") || "기업"}</p>
+              <p className="truncate text-[11.5px] text-[#8B95A1]">포지션 {c.count}개</p>
+              <p className="truncate text-[11.5px] text-[#8B95A1]">관심 {isFollowing({ name: c.name, role: "PARTNER" }) ? 1 : 0}명</p>
             </div>
           </Link>
         ))}

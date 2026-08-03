@@ -10,7 +10,7 @@ import { FeedPostList } from "../feed/FeedPostList";
 import { PositionCard } from "../jobs/PositionCard";
 import { TalentCipModal } from "../jobs/TalentCipModal";
 import { useLanguage } from "../../i18n/LanguageProvider";
-import { useFollowing, parseAuthorKey, unfollowAuthor, type FeedAuthor } from "../../../lib/talent/social-graph";
+import { useFollowing, parseAuthorKey, unfollowAuthor, isFollowing, type FeedAuthor } from "../../../lib/talent/social-graph";
 import { roleLabel, useSocialFeed } from "../../../lib/talent/social-feed";
 import { useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
 import { getMyFavoritePositions, getPublicPositionsPage, removeMyFavoritePosition, type PublicPositionListItem } from "../../../lib/member-profile-client";
@@ -143,7 +143,8 @@ function CompanyCard({ author }: { author: FeedAuthor }) {
     };
   }, [author.name]);
 
-  const sub = info ? [info.industry, info.size, info.location, `포지션 ${info.count}개`].filter(Boolean).join(" · ") : "기업";
+  const line1 = [info?.industry, info?.size, info?.location].filter(Boolean).join(" · ") || "기업";
+  const interested = isFollowing(author) ? 1 : 0; // mock: 이 기기가 아는 팔로워(=나). 서버 연동 시 전역 집계.
 
   return (
     <div className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:shadow-[0_6px_20px_rgba(11,18,39,0.05)]">
@@ -159,7 +160,9 @@ function CompanyCard({ author }: { author: FeedAuthor }) {
           )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-bold text-[#191F28]">{author.name}</p>
-            <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{sub}</p>
+            <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{line1}</p>
+            <p className="truncate text-[12.5px] text-[#8B95A1]">포지션 {info?.count ?? 0}개</p>
+            <p className="truncate text-[12.5px] text-[#8B95A1]">관심 {interested}명</p>
           </div>
         </Link>
         <button type="button" onClick={() => unfollowAuthor(author)} className="shrink-0 rounded-xl bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
