@@ -57,16 +57,26 @@ function FollowList({ title, authors }: { title: string; authors: FeedAuthor[] }
 function FavoritePositionsList({ positions }: { positions: PublicPositionListItem[] }) {
   return (
     <ActivitySection title="즐겨찾기한 포지션" count={positions.length}>
-      {positions.map((p) => (
-        <Link key={p.id} href={`${talentAppRoutes.jobs}/${p.id}`} className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-[#F6F8FB]">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#F2F4F6] text-[#B0B8C1]"><Buildings className="h-4.5 w-4.5" /></span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] font-bold text-[#191F28]">{p.title}</p>
-            {p.partnerOrganization?.name ? <p className="truncate text-[12px] text-[#8B95A1]">{p.partnerOrganization.name}</p> : null}
-          </div>
-          <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
-        </Link>
-      ))}
+      {positions.map((p) => {
+        // 자체(내부) 공고는 상세로, 외부는 원본 URL 새 창.
+        const isExternal = !(p.sourceProvider === "INTERNAL" && p.sourceKind !== "EXTERNAL") && !!p.sourceUrl;
+        const inner = (
+          <>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#F2F4F6] text-[#B0B8C1]"><Buildings className="h-4.5 w-4.5" /></span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] font-bold text-[#191F28]">{p.title}</p>
+              {p.partnerOrganization?.name ? <p className="truncate text-[12px] text-[#8B95A1]">{p.partnerOrganization.name}</p> : null}
+            </div>
+            <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
+          </>
+        );
+        const cls = "flex items-center gap-3 px-5 py-3.5 transition hover:bg-[#F6F8FB]";
+        return isExternal ? (
+          <a key={p.id} href={p.sourceUrl!} target="_blank" rel="noopener noreferrer" className={cls}>{inner}</a>
+        ) : (
+          <Link key={p.id} href={`${talentAppRoutes.jobs}/${p.id}`} className={cls}>{inner}</Link>
+        );
+      })}
     </ActivitySection>
   );
 }

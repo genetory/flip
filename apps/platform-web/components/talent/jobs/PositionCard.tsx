@@ -7,6 +7,22 @@ import { AplyCipBadgeButton } from "../../positions/AplyCipBadge";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import type { PositionView } from "../../../lib/talent/positions-adapter";
 
+// 자체(내부) 공고는 상세 페이지로, 외부 공고(원티드 등)는 원본 URL을 새 창으로 연다.
+function CardLink({ isExternal, href, className, children }: { isExternal: boolean; href: string; className?: string; children: React.ReactNode }) {
+  if (isExternal) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  );
+}
+
 export function PositionCard({
   view,
   saved,
@@ -18,11 +34,14 @@ export function PositionCard({
   onToggleSave?: (id: string) => void;
   onShowCip?: () => void;
 }) {
+  // 외부 공고 + 원본 URL이 있으면 새 창 연결, 아니면 내부 상세로.
+  const isExternal = view.external && !!view.externalUrl;
+  const linkHref = isExternal ? view.externalUrl! : `${talentAppRoutes.jobs}/${view.id}`;
   return (
     <div className="relative rounded-2xl border border-[#EEF1F5] bg-white p-5 transition hover:border-[#D7DCE3] hover:shadow-[0_6px_20px_rgba(11,18,39,0.05)]">
       <div className="flex gap-4">
         {/* 왼쪽 정방형 컬럼 — 썸네일 없으면 플레이스홀더 */}
-        <Link href={`${talentAppRoutes.jobs}/${view.id}`} className="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-[#F2F4F6]">
+        <CardLink isExternal={isExternal} href={linkHref} className="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-[#F2F4F6]">
           {view.thumbnail ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img src={view.thumbnail} alt="" className="h-full w-full object-cover" />
@@ -31,11 +50,11 @@ export function PositionCard({
               <Buildings className="h-7 w-7" />
             </span>
           )}
-        </Link>
+        </CardLink>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
-            <Link href={`${talentAppRoutes.jobs}/${view.id}`} className="min-w-0 flex-1">
+            <CardLink isExternal={isExternal} href={linkHref} className="min-w-0 flex-1">
               {view.isInternal && onShowCip ? (
                 <div className="mb-1.5">
                   <AplyCipBadgeButton onClick={onShowCip} size="sm" className="!py-1" />
@@ -50,7 +69,7 @@ export function PositionCard({
               ) : null}
               <p className="truncate text-[15px] font-bold text-[#191F28]">{view.title}</p>
               <p className="mt-0.5 truncate text-[13px] text-[#4E5968]">{view.company}</p>
-            </Link>
+            </CardLink>
             {onToggleSave ? (
               <button
                 type="button"
