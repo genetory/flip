@@ -1,8 +1,8 @@
 "use client";
 
-// 내 커리어 — 커리어 정리 허브. 다음 할 일 히어로 + 이력서/자기소개서 + 커리어 기록.
+// 내 커리어 — 취업 준비 로드맵 히어로 + 이력서/자기소개서 + 커리어 기록.
 import Link from "next/link";
-import { ArrowRight } from "@phosphor-icons/react";
+import { ArrowRight, Check } from "@phosphor-icons/react";
 import { CareerLayout } from "../career/CareerLayout";
 import { ProfileGate } from "../career/ProfileGate";
 import { FeedCard } from "../career/FeedCard";
@@ -29,7 +29,6 @@ export function CareerHomeScreen() {
 }
 
 function Content({ snapshot }: { snapshot: TalentSnapshot }) {
-  void snapshot;
   const feed = useCareerFeed();
   const basicInfo = useBasicInfo();
   const resume = useResumeDoc();
@@ -49,25 +48,35 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
     );
   }
 
-  const name = basicInfo.realName?.trim() || "";
-  const hero = nextStep(resume !== null, cover !== null, resumeCompleteness(resume), coverCompleteness(cover));
+  const hasResume = resume !== null;
+  const hasCover = cover !== null;
+  const rp = resumeCompleteness(resume);
+  const cp = coverCompleteness(cover);
+  const applied = snapshot.applications.length > 0;
+
+  const steps: RoadmapStep[] = [
+    { label: "기본정보", done: true },
+    { label: "이력서", done: rp >= 100 },
+    { label: "자기소개서", done: cp >= 100 },
+    { label: "첫 지원", done: applied }
+  ];
+  const currentIndex = steps.findIndex((s) => !s.done); // -1 = 전부 완료
+  const copy = heroCopy(currentIndex, hasResume, hasCover);
 
   return (
     <div className="flex flex-col gap-8">
       <TPageHeader title="내 커리어" />
 
-      {/* 다음 할 일 히어로 */}
+      {/* 취업 준비 로드맵 히어로 */}
       <section className="rounded-3xl bg-[#EDF1FD] p-7">
-        <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">MY CAREER</p>
-        <h2 className="mt-2 break-keep text-[22px] font-black leading-[1.3] tracking-[-0.02em] text-[#0B1227]">
-          {name ? `${name}님, ` : ""}{hero.headline}
-        </h2>
-        <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#4E5968]">{hero.sub}</p>
+        <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">취업 준비 로드맵</p>
+        <Roadmap steps={steps} currentIndex={currentIndex} />
+        <h2 className="mt-6 break-keep text-[19px] font-black leading-[1.35] tracking-[-0.02em] text-[#0B1227]">{copy.headline}</h2>
         <Link
-          href={hero.href}
-          className="mt-5 inline-flex h-[46px] items-center gap-1.5 rounded-2xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+          href={copy.href}
+          className="mt-4 inline-flex h-[46px] items-center gap-1.5 rounded-2xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
         >
-          {hero.cta} <ArrowRight className="h-4 w-4" weight="bold" />
+          {copy.cta} <ArrowRight className="h-4 w-4" weight="bold" />
         </Link>
       </section>
 
@@ -98,22 +107,61 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   );
 }
 
-// 완성도로 다음 할 일(히어로 메시지)을 결정.
-function nextStep(hasResume: boolean, hasCover: boolean, resumePct: number, coverPct: number): { headline: string; sub: string; cta: string; href: string } {
-  if (!hasResume && !hasCover) {
-    return { headline: "취업 준비, 첫걸음을 떼볼까요?", sub: "이력서부터 만들면 흩어진 경험이 하나로 정리돼요.", cta: "이력서 만들기", href: talentAppRoutes.resume };
+interface RoadmapStep {
+  label: string;
+  done: boolean;
+}
+
+function Roadmap({ steps, currentIndex }: { steps: RoadmapStep[]; currentIndex: number }) {
+  return (
+    <div className="mt-5 flex items-start">
+      {steps.map((s, i) => {
+        const state = s.done ? "done" : i === currentIndex ? "current" : "todo";
+        return (
+          <div key={s.label} className="flex flex-1 flex-col items-center">
+            <div className="flex w-full items-center">
+              <span className={`h-[3px] flex-1 rounded-full ${i === 0 ? "opacity-0" : steps[i - 1].done ? "bg-[#0B46E8]" : "bg-[#CDD8F0]"}`} />
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-black ${
+                  state === "done"
+                    ? "bg-[#0B46E8] text-white"
+                    : state === "current"
+                      ? "border-[2.5px] border-[#0B46E8] bg-white text-[#0B46E8]"
+                      : "bg-white text-[#B0B8C1]"
+                }`}
+              >
+                {s.done ? <Check className="h-4 w-4" weight="bold" /> : i + 1}
+              </span>
+              <span className={`h-[3px] flex-1 rounded-full ${i === steps.length - 1 ? "opacity-0" : s.done ? "bg-[#0B46E8]" : "bg-[#CDD8F0]"}`} />
+            </div>
+            <span className={`mt-2 text-[11.5px] ${state === "todo" ? "text-[#8B95A1]" : "font-bold text-[#0B1227]"}`}>{s.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// 현재 단계에 맞는 히어로 문구·CTA.
+function heroCopy(currentIndex: number, hasResume: boolean, hasCover: boolean): { headline: string; cta: string; href: string } {
+  if (currentIndex === -1) {
+    return { headline: "취업 준비 완주! 계속 도전해봐요.", cta: "포지션 탐색하기", href: talentAppRoutes.jobs };
   }
-  if (resumePct >= 100 && coverPct >= 100) {
-    return { headline: "서류가 준비됐어요!", sub: "이제 마음에 드는 곳에 지원해봐요.", cta: "포지션 탐색하기", href: talentAppRoutes.jobs };
+  if (currentIndex <= 1) {
+    return {
+      headline: hasResume ? "이력서를 마저 완성해볼까요?" : "이제 이력서를 만들 차례예요.",
+      cta: hasResume ? "이력서 이어서 쓰기" : "이력서 만들기",
+      href: talentAppRoutes.resume
+    };
   }
-  // 진행 중 → 완성도가 낮은(또는 아직 없는) 쪽을 다음 단계로.
-  const resumeNext = resumePct <= coverPct;
-  return {
-    headline: "조금만 더 하면 완성이에요",
-    sub: resumeNext ? "이력서를 마저 채워볼까요?" : "자기소개서를 마저 채워볼까요?",
-    cta: resumeNext ? "이력서 이어서 쓰기" : "자기소개서 이어서 쓰기",
-    href: resumeNext ? talentAppRoutes.resume : talentAppRoutes.cover
-  };
+  if (currentIndex === 2) {
+    return {
+      headline: "이력서까지 왔어요! 자기소개서만 더 하면 지원 준비 끝.",
+      cta: hasCover ? "자기소개서 이어서 쓰기" : "자기소개서 만들기",
+      href: talentAppRoutes.cover
+    };
+  }
+  return { headline: "서류가 준비됐어요! 이제 지원해봐요.", cta: "포지션 탐색하기", href: talentAppRoutes.jobs };
 }
 
 function SectionHead({ title, desc }: { title: string; desc: string }) {
