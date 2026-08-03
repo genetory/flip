@@ -20,7 +20,8 @@ export function TalentFooter() {
         <div className="mt-10 grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
             <Image src="/img_logo.webp" alt={talentBrand.name} width={84} height={28} className="h-6 w-auto" />
-            <p className="mt-3 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{talentBrand.subSlogan}</p>
+            <p className="mt-3 break-keep text-[14px] font-bold leading-snug text-[#191F28]">{talentBrand.slogan}</p>
+            <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{talentBrand.subSlogan}</p>
           </div>
           {footerContent.columns.map((col) => (
             <div key={col.title}>
