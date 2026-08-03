@@ -263,22 +263,25 @@ function CompanyFollowButton({ name }: { name: string }) {
 }
 
 // 회사 헤더 — 썸네일 + 회사명 + 관심 회사. 카드 밖 맨 상단에 노출.
-export function CompanyHeader({ item }: { item: PublicPositionListItem }) {
+// large: 회사 상세 화면용(회사명·썸네일 크게).
+export function CompanyHeader({ item, large = false }: { item: PublicPositionListItem; large?: boolean }) {
   const org = item.partnerOrganization;
   if (!org) return null;
   const logo = org.companyLogoImageData || null;
+  const box = large ? "h-16 w-16" : "h-14 w-14";
+  const nameCls = large ? "text-[24px]" : "text-[18px]";
   return (
     <div className="flex items-center gap-3">
       {logo ? (
-        <span className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+        <span className={`${box} shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logo} alt="" className="h-full w-full object-cover" />
         </span>
       ) : (
         // 로고 없으면 유저 프로필과 동일한 이니셜 플레이스홀더.
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">{org.name.slice(0, 1)}</span>
+        <span className={`flex ${box} shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] ${large ? "text-[24px]" : "text-[20px]"} font-black text-[#0B46E8]`}>{org.name.slice(0, 1)}</span>
       )}
-      <Link href={`/talent/company/${encodeURIComponent(org.name)}`} className="min-w-0 truncate text-[18px] font-black tracking-[-0.02em] text-[#0B1227] transition hover:text-[#0B46E8] hover:underline">
+      <Link href={`/talent/company/${encodeURIComponent(org.name)}`} className={`min-w-0 truncate ${nameCls} font-black tracking-[-0.02em] text-[#0B1227] transition hover:text-[#0B46E8] hover:underline`}>
         {org.name}
       </Link>
       <CompanyFollowButton name={org.name} />

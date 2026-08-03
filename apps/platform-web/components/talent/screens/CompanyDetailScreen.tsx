@@ -97,7 +97,7 @@ export function CompanyDetailScreen({ name }: { name: string }) {
           <TalentBackButton className="mb-3" />
           {/* 썸네일·회사명·관심 회사 — 맨 상단 헤더 */}
           {companyItem ? (
-            <CompanyHeader item={companyItem} />
+            <CompanyHeader item={companyItem} large />
           ) : (
             <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{name}</h1>
           )}
