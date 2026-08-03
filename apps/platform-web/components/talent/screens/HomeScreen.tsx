@@ -28,6 +28,7 @@ import {
 import { toPositionView, type PositionView } from "../../../lib/talent/positions-adapter";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
+import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import type { TalentSnapshot } from "../../../lib/talent/types";
 
@@ -52,7 +53,79 @@ function HomeContent({ snapshot }: { snapshot: TalentSnapshot }) {
       <HomeCareerHistory />
       <GuideSection />
       <RecommendedJobs />
+      <HomeCompanies />
     </div>
+  );
+}
+
+/* 이런 회사는 어때요 — 채용 중인 회사 중 랜덤 3개 */
+function HomeCompanies() {
+  const [companies, setCompanies] = useState<{ name: string; industry?: string; logo?: string; count: number }[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    void getPublicPositionsPage({ limit: 100, sourceProviders: ["INTERNAL"] })
+      .then((page) => {
+        if (!alive) return;
+        const map = new Map<string, { name: string; industry?: string; logo?: string; count: number }>();
+        for (const p of page.items) {
+          const org = p.partnerOrganization;
+          if (!org?.name) continue;
+          const e = map.get(org.name) ?? {
+            name: org.name,
+            industry: org.industry ? partnerIndustryLabel(org.industry) : undefined,
+            logo: org.companyLogoImageData || undefined,
+            count: 0
+          };
+          e.count += 1;
+          map.set(org.name, e);
+        }
+        const all = Array.from(map.values());
+        // 랜덤 셔플 후 3개.
+        for (let i = all.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [all[i], all[j]] = [all[j], all[i]];
+        }
+        setCompanies(all.slice(0, 3));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!companies.length) return null;
+
+  return (
+    <section className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">이런 회사는 어때요?</h2>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">지금 채용 중인 회사를 만나보세요.</p>
+      </div>
+      <div className="flex flex-col gap-3">
+        {companies.map((c) => (
+          <Link
+            key={c.name}
+            href={`/talent/company/${encodeURIComponent(c.name)}`}
+            className="flex items-center gap-4 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:shadow-[0_6px_20px_rgba(11,18,39,0.05)]"
+          >
+            {c.logo ? (
+              <span className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={c.logo} alt="" className="h-full w-full object-contain" />
+              </span>
+            ) : (
+              <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[19px] font-black text-[#0B46E8]">{c.name.slice(0, 1)}</span>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-bold text-[#191F28]">{c.name}</p>
+              <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{[c.industry, `포지션 ${c.count}개`].filter(Boolean).join(" · ")}</p>
+            </div>
+            <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }
 
