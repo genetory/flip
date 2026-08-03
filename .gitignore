@@ -12,3 +12,6 @@ apps/api/generated
 test-results
 playwright-report
 playwright/.cache
+
+# 로컬 전용 시드 스크립트 — 실데이터/PII 포함 가능, PUBLIC 레포에 커밋 금지
+apps/api/seed-*.mts
