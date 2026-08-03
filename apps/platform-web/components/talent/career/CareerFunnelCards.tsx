@@ -58,22 +58,17 @@ function FunnelCard({ label, pct, message, href, started, previewHref }: { label
     ? "border border-[#EEF1F5] bg-white hover:border-[#0B46E8]/40 hover:shadow-[0_4px_16px_rgba(11,18,39,0.05)]"
     : "border border-dashed border-[#DCE3F0] bg-transparent hover:border-[#0B46E8]/50";
   return (
-    <div className={`flex flex-col gap-3 rounded-2xl p-5 transition ${shell}`}>
-      <Link href={href} className="flex flex-col gap-3">
+    <div className={`flex flex-col rounded-2xl p-5 transition ${shell}`}>
+      <Link href={href} className="block">
         <ProgressRing pct={pct} muted={!started} />
-        <div>
-          <p className="text-[15px] font-bold text-[#191F28]">{label}</p>
-          <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{message}</p>
-        </div>
+        <p className="mt-3 text-[15px] font-bold text-[#191F28]">{label}</p>
       </Link>
-      {previewHref ? (
-        <Link
-          href={previewHref}
-          className="mt-1 flex items-center justify-center rounded-xl bg-[#F2F4F6] px-3 py-2 text-[12.5px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]"
-        >
-          미리보기
-        </Link>
-      ) : null}
+      <div className="mt-0.5 flex items-end justify-between gap-2">
+        <p className="break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{message}</p>
+        {previewHref ? (
+          <Link href={previewHref} className="shrink-0 text-[12px] font-bold text-[#0B46E8] transition hover:underline">미리보기</Link>
+        ) : null}
+      </div>
     </div>
   );
 }

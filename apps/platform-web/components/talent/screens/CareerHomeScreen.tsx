@@ -3,7 +3,6 @@
 // 내 커리어 — 커리어 정리 허브. 프로필 요약 + 이력서/자기소개서 + 커리어 기록.
 import { CareerLayout } from "../career/CareerLayout";
 import { ProfileGate } from "../career/ProfileGate";
-import { ProfileCard } from "../career/ProfileCard";
 import { FeedCard } from "../career/FeedCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
 import { TLoading, TError, TPageHeader } from "../ui/primitives";
@@ -46,9 +45,6 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   return (
     <div className="flex flex-col gap-8">
       <TPageHeader title="내 커리어" description="이력서·자기소개서를 만들면서 커리어를 정리해요." />
-
-      {/* 프로필 요약 */}
-      <ProfileCard info={basicInfo} />
 
       {/* 이력서 · 자기소개서 */}
       <section className="flex flex-col gap-4">
