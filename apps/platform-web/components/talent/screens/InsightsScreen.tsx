@@ -111,7 +111,9 @@ function VisaModal({ code, onClose }: { code: string; onClose: () => void }) {
 
   const detail = VISA_DETAILS[code];
   if (!detail) return null;
-  const title = detail.titleKo?.trim() || `${code} 비자`;
+  // 배지에 이미 코드가 있으니 제목의 코드 접두어는 제거.
+  const rawTitle = detail.titleKo?.trim() || `${code} 비자`;
+  const title = (rawTitle.startsWith(code) ? rawTitle.slice(code.length).trim() : rawTitle) || `${code} 비자`;
   const sections: { heading: string; lines: VisaStructuredLine[] }[] = [
     { heading: "안내", lines: detail.descriptionKo ?? [] },
     { heading: "대상", lines: detail.candidatesKo ?? [] },
