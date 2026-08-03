@@ -161,8 +161,8 @@ function CompanyCard({ author }: { author: FeedAuthor }) {
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-bold text-[#191F28]">{author.name}</p>
             <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{line1}</p>
-            <p className="truncate text-[12.5px] text-[#8B95A1]">포지션 {info?.count ?? 0}개</p>
-            <p className="truncate text-[12.5px] text-[#8B95A1]">관심 {interested}명</p>
+            <p className="truncate text-[12.5px] text-[#8B95A1]">포지션 <span className="font-bold text-[#191F28]">{info?.count ?? 0}</span>개</p>
+            <p className="truncate text-[12.5px] text-[#8B95A1]">관심 <span className="font-bold text-[#191F28]">{interested}</span>명</p>
           </div>
         </Link>
         <button type="button" onClick={() => unfollowAuthor(author)} className="shrink-0 rounded-xl bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">

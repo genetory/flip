@@ -134,8 +134,8 @@ function HomeCompanies() {
             <div className="w-full min-w-0">
               <p className="truncate text-[13.5px] font-bold text-[#191F28]">{c.name}</p>
               <p className="mt-0.5 truncate text-[11.5px] text-[#8B95A1]">{[c.industry, c.size, c.location].filter(Boolean).join(" · ") || "기업"}</p>
-              <p className="truncate text-[11.5px] text-[#8B95A1]">포지션 {c.count}개</p>
-              <p className="truncate text-[11.5px] text-[#8B95A1]">관심 {isFollowing({ name: c.name, role: "PARTNER" }) ? 1 : 0}명</p>
+              <p className="truncate text-[11.5px] text-[#8B95A1]">포지션 <span className="font-bold text-[#191F28]">{c.count}</span>개</p>
+              <p className="truncate text-[11.5px] text-[#8B95A1]">관심 <span className="font-bold text-[#191F28]">{isFollowing({ name: c.name, role: "PARTNER" }) ? 1 : 0}</span>명</p>
             </div>
           </Link>
         ))}
