@@ -32,6 +32,7 @@ import { isFollowing, useFollowing } from "../../../lib/talent/social-graph";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { useDailyStep } from "../../../lib/talent/daily-step";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
+import { notifySavedPosition } from "../../../lib/talent/activity-log";
 import type { TalentSnapshot } from "../../../lib/talent/types";
 
 export function HomeScreen() {
@@ -475,6 +476,7 @@ function RecommendedJobs() {
       else next.delete(id);
       return next;
     });
+    if (willSave) notifySavedPosition(id);
     const req = willSave ? addMyFavoritePosition(id) : removeMyFavoritePosition(id);
     void req.catch(() => {
       setSavedIds((prev) => {

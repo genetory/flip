@@ -1,6 +1,7 @@
 // 피드 즐겨찾기(북마크) — 공용 피드 글을 저장해 나중에 다시 본다.
 // 지금은 localStorage(mock). 저장하는 것은 글 id 목록.
 import { useSyncExternalStore } from "react";
+import { notifySavedFeed } from "./activity-log";
 
 const KEY = "talent.feedBookmarks.v1";
 const EMPTY: string[] = [];
@@ -36,8 +37,12 @@ export function isFeedBookmarked(postId: string): boolean {
 
 export function toggleFeedBookmark(postId: string): void {
   const list = read();
-  if (list.includes(postId)) write(list.filter((id) => id !== postId));
-  else write([postId, ...list]);
+  if (list.includes(postId)) {
+    write(list.filter((id) => id !== postId));
+  } else {
+    write([postId, ...list]);
+    notifySavedFeed(postId); // 내 활동 알림 — 저장할 때만.
+  }
 }
 
 function subscribe(cb: () => void): () => void {

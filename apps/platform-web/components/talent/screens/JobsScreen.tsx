@@ -27,6 +27,7 @@ import { toPositionView } from "../../../lib/talent/positions-adapter";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
+import { notifySavedPosition } from "../../../lib/talent/activity-log";
 
 const PAGE_SIZE = 20;
 type Tab = "all" | "aply" | "interest" | "saved";
@@ -135,6 +136,7 @@ export function JobsScreen() {
       else next.delete(id);
       return next;
     });
+    if (willSave) notifySavedPosition(id);
     const req = willSave ? addMyFavoritePosition(id) : removeMyFavoritePosition(id);
     void req
       .then(() => {

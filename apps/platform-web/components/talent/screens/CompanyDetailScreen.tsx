@@ -20,6 +20,7 @@ import {
   type PublicPositionListItem
 } from "../../../lib/member-profile-client";
 import { toPositionView } from "../../../lib/talent/positions-adapter";
+import { notifySavedPosition } from "../../../lib/talent/activity-log";
 
 // 구어체 섹션 헤더 — 제목 + 한 줄 설명으로 섹션을 부드럽게 구분.
 function SectionHead({ title, desc }: { title: string; desc: ReactNode }) {
@@ -79,6 +80,7 @@ export function CompanyDetailScreen({ name }: { name: string }) {
       else next.delete(id);
       return next;
     });
+    if (willSave) notifySavedPosition(id);
     const req = willSave ? addMyFavoritePosition(id) : removeMyFavoritePosition(id);
     void req.catch(() => {
       setSavedIds((prev) => {

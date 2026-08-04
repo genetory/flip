@@ -2,8 +2,12 @@
 // 현재는 "팔로잉한 사람의 새 피드 글" 알림을 여기에 적재한다.
 import { useSyncExternalStore } from "react";
 
+// 활동(내가 한 행동) vs 소식(팔로잉 새 글·회사 새 공고).
+export type NotificationKind = "activity" | "update";
+
 export interface Notification {
   id: string;
+  kind: NotificationKind;
   emoji: string;
   title: string;
   body: string;
@@ -43,6 +47,7 @@ function persist(next: Notification[]): void {
 
 // dedupeKey 로 같은 알림 중복 적재를 막는다(예: 같은 피드 글).
 export function addNotification(input: {
+  kind?: NotificationKind;
   emoji: string;
   title: string;
   body: string;
@@ -55,6 +60,7 @@ export function addNotification(input: {
   if (input.dedupeKey && list.some((n) => n.id === id)) return;
   const entry: Notification = {
     id,
+    kind: input.kind ?? "update",
     emoji: input.emoji,
     title: input.title,
     body: input.body,

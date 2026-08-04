@@ -8,6 +8,7 @@ import { MapPin, BookmarkSimple, ArrowSquareOut, Buildings, LinkSimple, Star, X,
 import { TalentBackButton } from "../TalentBackButton";
 import { toggleFollow, isFollowing, useFollowing, type FeedAuthor } from "../../../lib/talent/social-graph";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
+import { notifyApplied, notifySavedPosition } from "../../../lib/talent/activity-log";
 import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
@@ -75,6 +76,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   function toggleSave() {
     const willSave = !saved;
     setSaved(willSave);
+    if (willSave) notifySavedPosition(jobId, view?.title);
     const req = willSave ? addMyFavoritePosition(jobId) : removeMyFavoritePosition(jobId);
     void req.catch(() => {
       setSaved(!willSave);
@@ -90,6 +92,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
       .then(() => {
         setApplied(true);
         setApplyOpen(false);
+        notifyApplied(jobId, view?.title ?? "", view?.company ?? "");
         toast.success("지원이 접수됐어요");
       })
       .catch(() => toast.error("지원에 실패했어요. 잠시 후 다시 시도해주세요."))

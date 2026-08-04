@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useSyncExternalStore } from "react";
 import { useSocialFeed, type FeedAuthorRole } from "./social-feed";
 import { addNotification } from "./notifications";
+import { notifyFollowedCompany, notifyFollowedUser } from "./activity-log";
 import { talentAppRoutes } from "./app-nav";
 import { getPublicPositionsPage } from "../member-profile-client";
 
@@ -65,6 +66,9 @@ export function followAuthor(author: FeedAuthor): void {
   const list = read();
   if (list.includes(key)) return;
   write([key, ...list]);
+  // 내 활동 알림 — 회사(PARTNER)면 관심 회사, 아니면 사용자 팔로우.
+  if (author.role === "PARTNER") notifyFollowedCompany(author.name);
+  else notifyFollowedUser(author.name);
 }
 
 export function unfollowAuthor(author: FeedAuthor): void {
