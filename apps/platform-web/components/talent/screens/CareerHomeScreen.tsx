@@ -5,14 +5,15 @@ import Link from "next/link";
 import { ArrowRight } from "@phosphor-icons/react";
 import { CareerLayout } from "../career/CareerLayout";
 import { ProfileGate } from "../career/ProfileGate";
+import { FeedCard } from "../career/FeedCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
 import { TLoading, TError, TPageHeader } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useTalentSnapshot } from "../../../lib/talent/useTalentData";
+import { useCareerFeed, removeFeedEntry } from "../../../lib/talent/career-feed";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
-import { useResumeDoc, resumeCompleteness, displayMonth, type ResumeDoc } from "../../../lib/talent/resume-doc";
+import { useResumeDoc, resumeCompleteness, displayMonth, type ResumeItem } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
-import { SECTION_META, type CareerSection } from "../../../lib/talent/career-chat";
 import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
 import { useDailyStep, markStepDoneToday } from "../../../lib/talent/daily-step";
 import type { TalentSnapshot } from "../../../lib/talent/types";
@@ -29,6 +30,7 @@ export function CareerHomeScreen() {
 }
 
 function Content({ snapshot }: { snapshot: TalentSnapshot }) {
+  const feed = useCareerFeed();
   const basicInfo = useBasicInfo();
   const resume = useResumeDoc();
   const cover = useCoverDoc();
@@ -53,6 +55,7 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   const cp = coverCompleteness(cover);
   const applied = snapshot.applications.length > 0;
   const mission = todaysMission(hasResume, rp, hasCover, cp, applied);
+  const workItems = resume?.items.filter((i) => i.section === "experience") ?? [];
 
   return (
     <div className="flex flex-col gap-10">
@@ -71,15 +74,33 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
         <CareerFunnelCards showPreview />
       </section>
 
-      {/* 이력서에 담긴 내 커리어 — 섹션별 심플 요약 */}
+      {/* 이력서에 담긴 내 커리어 — 직장(경력)만 심플 요약 */}
       <section className="flex flex-col gap-4">
         <div className="flex items-end justify-between gap-3">
-          <SectionHead title="이력서에 담긴 내 커리어" desc="이력서에 적은 항목을 한눈에 볼 수 있어요." />
-          {resume && resume.items.length ? (
+          <SectionHead title="이력서에 담긴 내 커리어" desc="이력서에 적은 직장 경력을 한눈에 볼 수 있어요." />
+          {workItems.length ? (
             <Link href={talentAppRoutes.resume} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] transition hover:text-[#0A3ECB]">편집</Link>
           ) : null}
         </div>
-        {resume && resume.items.length ? <CareerSummary doc={resume} /> : <EmptyFeed />}
+        {workItems.length ? <CareerSummary items={workItems} /> : <EmptyWork />}
+      </section>
+
+      {/* 작성 히스토리 */}
+      <section className="flex flex-col gap-4">
+        <div className="flex items-end justify-between gap-3">
+          <SectionHead title="작성 히스토리" desc="이력서·자기소개서에 남긴 내용이 순서대로 쌓여요." />
+          {feed.length ? <span className="shrink-0 text-[12.5px] font-semibold text-[#8B95A1]">{feed.length}개</span> : null}
+        </div>
+        {feed.length ? (
+          <div className="flex flex-col gap-2.5">
+            {/* 최신 5개만 노출 */}
+            {feed.slice(0, 5).map((e) => (
+              <FeedCard key={e.id} entry={e} onDelete={removeFeedEntry} />
+            ))}
+          </div>
+        ) : (
+          <EmptyFeed />
+        )}
       </section>
     </div>
   );
@@ -140,32 +161,29 @@ function SectionHead({ title, desc }: { title: string; desc: string }) {
   );
 }
 
-// 이력서 항목을 섹션별로 묶어 심플하게 보여준다.
-const SUMMARY_ORDER: CareerSection[] = ["experience", "project", "education", "certificate", "skill", "award", "activity"];
-
-function CareerSummary({ doc }: { doc: ResumeDoc }) {
-  const groups = SUMMARY_ORDER.map((sec) => ({ sec, items: doc.items.filter((i) => i.section === sec) })).filter((g) => g.items.length > 0);
+// 이력서의 직장(경력) 항목만 심플하게 보여준다.
+function CareerSummary({ items }: { items: ResumeItem[] }) {
   return (
     <div className="divide-y divide-[#F2F4F6] overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
-      {groups.map((g) => (
-        <div key={g.sec} className="px-5 py-4">
-          <p className="text-[12px] font-bold text-[#0B46E8]">{SECTION_META[g.sec].label}</p>
-          <ul className="mt-2 flex flex-col gap-2">
-            {g.items.map((it) => {
-              const period = [displayMonth(it.startDate ?? ""), displayMonth(it.endDate ?? "")].filter(Boolean).join(" ~ ");
-              return (
-                <li key={it.id} className="flex gap-2">
-                  <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-[#C4CAD2]" aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <p className="break-keep text-[13.5px] leading-relaxed text-[#191F28]">{it.text}</p>
-                    {period ? <p className="mt-0.5 text-[11.5px] text-[#B0B8C1]">{period}</p> : null}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+      {items.map((it) => {
+        const period = [displayMonth(it.startDate ?? ""), displayMonth(it.endDate ?? "")].filter(Boolean).join(" ~ ");
+        return (
+          <div key={it.id} className="px-5 py-4">
+            <p className="break-keep text-[14px] font-semibold leading-relaxed text-[#191F28]">{it.text}</p>
+            {period ? <p className="mt-0.5 text-[12px] text-[#B0B8C1]">{period}</p> : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function EmptyWork() {
+  return (
+    <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-6 text-center">
+      <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px]" aria-hidden>💼</span>
+      <p className="mt-3 text-[14px] font-bold text-[#191F28]">아직 직장 경력이 없어요</p>
+      <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">이력서에 경력을 추가하면 여기에 보여요.</p>
     </div>
   );
 }
