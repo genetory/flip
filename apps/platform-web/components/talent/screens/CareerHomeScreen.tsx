@@ -1,8 +1,8 @@
 "use client";
 
-// 내 커리어 — 취업 준비 로드맵 히어로 + 이력서/자기소개서 + 커리어 기록.
+// 내 커리어 — 오늘의 한 걸음 히어로 + 이력서/자기소개서 + 커리어 기록.
 import Link from "next/link";
-import { ArrowRight, Check } from "@phosphor-icons/react";
+import { ArrowRight } from "@phosphor-icons/react";
 import { CareerLayout } from "../career/CareerLayout";
 import { ProfileGate } from "../career/ProfileGate";
 import { FeedCard } from "../career/FeedCard";
@@ -15,6 +15,7 @@ import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-inf
 import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
+import { useDailyStep, markStepDoneToday } from "../../../lib/talent/daily-step";
 import type { TalentSnapshot } from "../../../lib/talent/types";
 
 export function CareerHomeScreen() {
@@ -53,33 +54,15 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   const rp = resumeCompleteness(resume);
   const cp = coverCompleteness(cover);
   const applied = snapshot.applications.length > 0;
-
-  const steps: RoadmapStep[] = [
-    { label: "기본정보", done: true },
-    { label: "이력서", done: rp >= 100 },
-    { label: "자기소개서", done: cp >= 100 },
-    { label: "첫 지원", done: applied }
-  ];
-  const currentIndex = steps.findIndex((s) => !s.done); // -1 = 전부 완료
-  const copy = heroCopy(currentIndex, hasResume, hasCover);
+  const mission = todaysMission(hasResume, rp, hasCover, cp, applied);
 
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4">
       <TPageHeader title="내 커리어" />
 
-      {/* 취업 준비 로드맵 히어로 */}
-      <section className="rounded-3xl bg-[#EDF1FD] p-7">
-        <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">취업 준비 로드맵</p>
-        <Roadmap steps={steps} currentIndex={currentIndex} />
-        <h2 className="mt-6 break-keep text-[19px] font-black leading-[1.35] tracking-[-0.02em] text-[#0B1227]">{copy.headline}</h2>
-        <Link
-          href={copy.href}
-          className="mt-4 inline-flex h-[46px] items-center gap-1.5 rounded-2xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
-        >
-          {copy.cta} <ArrowRight className="h-4 w-4" weight="bold" />
-        </Link>
-      </section>
+      {/* 오늘의 한 걸음 히어로 */}
+      <DailyStepHero mission={mission} />
       </div>
 
       {/* 이력서 · 자기소개서 */}
@@ -109,61 +92,52 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   );
 }
 
-interface RoadmapStep {
-  label: string;
-  done: boolean;
+interface Mission {
+  text: string;
+  cta: string;
+  href: string;
 }
 
-function Roadmap({ steps, currentIndex }: { steps: RoadmapStep[]; currentIndex: number }) {
+// 현재 상태에 맞는 오늘의 미션(작은 한 걸음) 하나.
+function todaysMission(hasResume: boolean, rp: number, hasCover: boolean, cp: number, applied: boolean): Mission {
+  if (!hasResume) return { text: "오늘은 이력서를 만들어볼까요?", cta: "이력서 만들기", href: talentAppRoutes.resume };
+  if (rp < 100) return { text: "이력서에 경험 한 줄을 더 채워봐요.", cta: "이력서 이어서 쓰기", href: talentAppRoutes.resume };
+  if (!hasCover) return { text: "자기소개서 지원 동기를 써볼까요?", cta: "자기소개서 만들기", href: talentAppRoutes.cover };
+  if (cp < 100) return { text: "자기소개서 한 문항을 더 채워봐요.", cta: "자기소개서 이어서 쓰기", href: talentAppRoutes.cover };
+  if (!applied) return { text: "마음에 드는 공고 하나를 저장해봐요.", cta: "포지션 탐색하기", href: talentAppRoutes.jobs };
+  return { text: "오늘도 새 공고를 둘러볼까요?", cta: "포지션 탐색하기", href: talentAppRoutes.jobs };
+}
+
+function DailyStepHero({ mission }: { mission: Mission }) {
+  const { streak, doneToday } = useDailyStep();
   return (
-    <div className="mt-5 flex items-start">
-      {steps.map((s, i) => {
-        const state = s.done ? "done" : i === currentIndex ? "current" : "todo";
-        return (
-          <div key={s.label} className="flex flex-1 flex-col items-center">
-            <div className="flex w-full items-center">
-              <span className={`h-[3px] flex-1 rounded-full ${i === 0 ? "opacity-0" : steps[i - 1].done ? "bg-[#0B46E8]" : "bg-[#CDD8F0]"}`} />
-              <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-black ${
-                  state === "done"
-                    ? "bg-[#0B46E8] text-white"
-                    : state === "current"
-                      ? "border-[2.5px] border-[#0B46E8] bg-white text-[#0B46E8]"
-                      : "bg-white text-[#B0B8C1]"
-                }`}
-              >
-                {s.done ? <Check className="h-4 w-4" weight="bold" /> : i + 1}
-              </span>
-              <span className={`h-[3px] flex-1 rounded-full ${i === steps.length - 1 ? "opacity-0" : s.done ? "bg-[#0B46E8]" : "bg-[#CDD8F0]"}`} />
-            </div>
-            <span className={`mt-2 text-[11.5px] ${state === "todo" ? "text-[#8B95A1]" : "font-bold text-[#0B1227]"}`}>{s.label}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+    <section className="rounded-3xl bg-[#0B1227] p-7 text-white">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#8CA8FF]">오늘의 한 걸음</p>
+        {streak > 0 ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-bold text-white">🔥 {streak}일 연속</span>
+        ) : null}
+      </div>
 
-// 현재 단계에 맞는 히어로 문구·CTA.
-function heroCopy(currentIndex: number, hasResume: boolean, hasCover: boolean): { headline: string; cta: string; href: string } {
-  if (currentIndex === -1) {
-    return { headline: "취업 준비 완주! 계속 도전해봐요.", cta: "포지션 탐색하기", href: talentAppRoutes.jobs };
-  }
-  if (currentIndex <= 1) {
-    return {
-      headline: hasResume ? "이력서를 마저 완성해볼까요?" : "이제 이력서를 만들 차례예요.",
-      cta: hasResume ? "이력서 이어서 쓰기" : "이력서 만들기",
-      href: talentAppRoutes.resume
-    };
-  }
-  if (currentIndex === 2) {
-    return {
-      headline: "이력서까지 왔어요! 자기소개서만 더 하면 지원 준비 끝.",
-      cta: hasCover ? "자기소개서 이어서 쓰기" : "자기소개서 만들기",
-      href: talentAppRoutes.cover
-    };
-  }
-  return { headline: "서류가 준비됐어요! 이제 지원해봐요.", cta: "포지션 탐색하기", href: talentAppRoutes.jobs };
+      {doneToday ? (
+        <>
+          <h2 className="mt-3 break-keep text-[20px] font-black leading-[1.35] tracking-[-0.02em]">오늘의 한 걸음, 완료! 👏</h2>
+          <p className="mt-2 break-keep text-[14px] leading-relaxed text-white/65">내일 또 한 걸음 이어가면 연속 기록이 쌓여요.</p>
+        </>
+      ) : (
+        <>
+          <h2 className="mt-3 break-keep text-[20px] font-black leading-[1.35] tracking-[-0.02em]">{mission.text}</h2>
+          <Link
+            href={mission.href}
+            onClick={markStepDoneToday}
+            className="mt-5 inline-flex h-[46px] items-center gap-1.5 rounded-2xl bg-white px-5 text-[14px] font-bold text-[#0B1227] transition hover:bg-[#F2F4F6]"
+          >
+            {mission.cta} <ArrowRight className="h-4 w-4" weight="bold" />
+          </Link>
+        </>
+      )}
+    </section>
+  );
 }
 
 function SectionHead({ title, desc }: { title: string; desc: string }) {
