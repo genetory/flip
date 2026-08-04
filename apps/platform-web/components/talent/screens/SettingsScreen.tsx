@@ -74,7 +74,7 @@ export function SettingsScreen() {
   const [applications, setApplications] = useState<MyApplication[]>([]);
 
   const name = user?.realName || user?.name || "나";
-  const verified = user?.contactVerified || user?.emailVerified;
+  const emailVerified = Boolean(user?.emailVerified);
 
   // 팔로우 스토어를 역할로 분리: PARTNER = 관심 회사, 그 외 = 팔로우한 사용자.
   const followedAuthors = following.map(parseAuthorKey).filter((a): a is FeedAuthor => a !== null);
@@ -123,7 +123,11 @@ export function SettingsScreen() {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <p className="truncate text-[19px] font-black tracking-[-0.02em] text-[#0B1227]">{name}</p>
-                {verified ? <SealCheck className="h-[18px] w-[18px] shrink-0 text-[#0B46E8]" weight="fill" /> : null}
+                {emailVerified ? (
+                  <SealCheck className="h-[18px] w-[18px] shrink-0 text-[#0B46E8]" weight="fill" aria-label="이메일 인증됨" />
+                ) : (
+                  <span className="shrink-0 rounded-md bg-[#FFF3E6] px-1.5 py-0.5 text-[10.5px] font-bold text-[#E8890C]">인증 안됨</span>
+                )}
               </div>
               {user?.email ? <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{user.email}</p> : null}
             </div>
