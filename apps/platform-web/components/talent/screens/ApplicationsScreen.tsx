@@ -96,7 +96,14 @@ export function ApplicationsScreen() {
     } as Record<Tab, number>;
   }, [apps]);
 
-  const list = (apps ?? []).filter((a) => inTab(a, tab));
+  const list = useMemo(() => {
+    const filtered = (apps ?? []).filter((a) => inTab(a, tab));
+    // 결과 탭에서는 합격을 위로(그 외는 서버 순서=지원 최신순 유지).
+    if (tab === "result") {
+      return [...filtered].sort((a, b) => (a.status === "ACCEPTED" ? 0 : 1) - (b.status === "ACCEPTED" ? 0 : 1));
+    }
+    return filtered;
+  }, [apps, tab]);
 
   return (
     <TalentAppShell>
