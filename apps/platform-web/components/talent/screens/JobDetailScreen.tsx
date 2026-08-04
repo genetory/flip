@@ -4,9 +4,13 @@
 // 핵심 정보 / 상세 안내 / 기업 정보 + 저장·지원.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MapPin, BookmarkSimple, ArrowSquareOut, Buildings, LinkSimple, Star } from "@phosphor-icons/react";
+import { MapPin, BookmarkSimple, ArrowSquareOut, Buildings, LinkSimple, Star, X, Check } from "@phosphor-icons/react";
 import { TalentBackButton } from "../TalentBackButton";
 import { toggleFollow, isFollowing, useFollowing, type FeedAuthor } from "../../../lib/talent/social-graph";
+import { talentAppRoutes } from "../../../lib/talent/app-nav";
+import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc";
+import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
+import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TCard, TChip, TError, TLoading } from "../ui/primitives";
 import { TalentButton } from "../TalentButton";
@@ -44,6 +48,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   const [saved, setSaved] = useState(false);
   const [applied, setApplied] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [applyOpen, setApplyOpen] = useState(false);
   const [cipOpen, setCipOpen] = useState(false);
 
   function load() {
@@ -77,13 +82,14 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
     });
   }
 
-  // 내부(CIP) 공고 실제 지원.
-  function apply() {
+  // 내부(CIP) 공고 실제 지원 — 팝업에서 서류 완성 확인 후 호출.
+  function submitApply() {
     if (applied || applying) return;
     setApplying(true);
     applyMyPosition(jobId)
       .then(() => {
         setApplied(true);
+        setApplyOpen(false);
         toast.success("지원이 접수됐어요");
       })
       .catch(() => toast.error("지원에 실패했어요. 잠시 후 다시 시도해주세요."))
@@ -144,7 +150,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
             >
               <BookmarkSimple className="h-4 w-4" weight={saved ? "fill" : "regular"} /> {saved ? "저장됨" : "저장"}
             </TalentButton>
-            <ApplyButton view={view} applied={applied} applying={applying} onApply={apply} />
+            <ApplyButton view={view} applied={applied} applying={applying} onApply={() => setApplyOpen(true)} />
           </div>
 
           {/* 핵심 정보 */}
@@ -186,7 +192,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
             >
               <BookmarkSimple className="h-4 w-4" weight={saved ? "fill" : "regular"} /> {saved ? "저장됨" : "저장"}
             </TalentButton>
-            <ApplyButton view={view} applied={applied} applying={applying} onApply={apply} />
+            <ApplyButton view={view} applied={applied} applying={applying} onApply={() => setApplyOpen(true)} />
           </div>
 
           {/* 모바일 하단 고정 CTA */}
@@ -201,7 +207,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
                 <BookmarkSimple className="h-5 w-5" weight={saved ? "fill" : "regular"} />
               </button>
               <div className="flex-1">
-                <ApplyButton view={view} applied={applied} applying={applying} onApply={apply} fullWidth />
+                <ApplyButton view={view} applied={applied} applying={applying} onApply={() => setApplyOpen(true)} fullWidth />
               </div>
             </div>
           </div>
@@ -209,7 +215,84 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
       ) : null}
 
       {cipOpen ? <TalentCipModal locale={locale} onClose={() => setCipOpen(false)} /> : null}
+      {applyOpen ? <ApplyModal applying={applying} onClose={() => setApplyOpen(false)} onConfirm={submitApply} /> : null}
     </TalentAppShell>
+  );
+}
+
+// 지원 전 서류 완성도 확인 팝업 — 이력서·자기소개서가 모두 완성돼야 지원 가능.
+function ApplyModal({ applying, onClose, onConfirm }: { applying: boolean; onClose: () => void; onConfirm: () => void }) {
+  useLockBodyScroll();
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const resume = useResumeDoc();
+  const cover = useCoverDoc();
+  const rp = resumeCompleteness(resume);
+  const cp = coverCompleteness(cover);
+  const ready = rp >= 100 && cp >= 100;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="relative w-full max-w-[420px] overflow-hidden rounded-3xl bg-white shadow-[0_20px_60px_rgba(11,18,39,0.18)]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 px-7 pt-7">
+          <div>
+            <h2 className="text-[19px] font-black tracking-[-0.02em] text-[#0B1227]">이 공고에 지원할까요?</h2>
+            <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">지원 서류(이력서·자기소개서)가 준비됐는지 확인해요.</p>
+          </div>
+          <button type="button" aria-label="닫기" onClick={onClose} className="-mr-1.5 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-2.5 px-7">
+          <DocStatus label="이력서" pct={rp} href={talentAppRoutes.resume} />
+          <DocStatus label="자기소개서" pct={cp} href={talentAppRoutes.cover} />
+        </div>
+
+        {!ready ? (
+          <p className="mx-7 mt-4 rounded-xl bg-[#FDECEE] px-3.5 py-2.5 text-[12.5px] font-semibold leading-relaxed text-[#F04452]">
+            서류를 완성해야 지원할 수 있어요. 미완성 서류를 마저 채워주세요.
+          </p>
+        ) : null}
+
+        <div className="px-7 pb-7 pt-6">
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={!ready || applying}
+            className="inline-flex h-[52px] w-full items-center justify-center rounded-2xl bg-[#0B46E8] px-5 text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {applying ? "지원 중…" : "지원하기"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DocStatus({ label, pct, href }: { label: string; pct: number; href: string }) {
+  const done = pct >= 100;
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-4">
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[12px] font-black ${done ? "bg-[#EDF1FD] text-[#0B46E8]" : "bg-[#F2F4F6] text-[#B0B8C1]"}`}>
+        {done ? <Check className="h-4 w-4" weight="bold" /> : `${pct}%`}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-bold text-[#191F28]">{label}</p>
+        <p className="text-[12px] text-[#8B95A1]">{done ? "준비됐어요" : pct === 0 ? "아직 시작 전이에요" : "완성도를 채워주세요"}</p>
+      </div>
+      {!done ? (
+        <Link href={href} className="shrink-0 rounded-lg bg-[#F2F4F6] px-3 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
+          {pct === 0 ? "만들기" : "완성하기"}
+        </Link>
+      ) : null}
+    </div>
   );
 }
 
