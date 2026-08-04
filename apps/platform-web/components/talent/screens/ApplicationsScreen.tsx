@@ -4,7 +4,7 @@
 // 별도 상세 화면 없이 리스트 카드에서 바로 이벤트(공고 보기·지원 철회·면접 안내)를 처리한다.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { X, WarningCircle, ChatCircleDots, PaperPlaneTilt } from "@phosphor-icons/react";
+import { X, WarningCircle, ChatCircleDots, PaperPlaneTilt, CalendarCheck } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TEmpty, TError, TLoading } from "../ui/primitives";
 import { TalentButton } from "../TalentButton";
@@ -12,7 +12,12 @@ import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
-import { getMyApplications, withdrawMyApplication, getApplicationMessages, sendApplicationMessage, type MyApplication, type ApplicationMessage } from "../../../lib/member-profile-client";
+import { getMyApplications, withdrawMyApplication, getApplicationMessages, sendApplicationMessage, getInterviewSlotsForApplication, selectInterviewSlot, type MyApplication, type ApplicationMessage, type InterviewSlot } from "../../../lib/member-profile-client";
+
+// 면접 시간 표기 — 8월 12일 (화) 오후 2:00
+function formatWhen(iso: string): string {
+  return new Date(iso).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
+}
 
 type Tab = "all" | "submitted" | "interview" | "result";
 
@@ -45,6 +50,7 @@ export function ApplicationsScreen() {
   const [tab, setTab] = useState<Tab>("all");
   const [confirmApp, setConfirmApp] = useState<MyApplication | null>(null);
   const [messageApp, setMessageApp] = useState<MyApplication | null>(null);
+  const [slotApp, setSlotApp] = useState<MyApplication | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
 
   function load() {
@@ -135,7 +141,7 @@ export function ApplicationsScreen() {
             ) : (
               <div className="flex flex-col gap-3">
                 {list.map((a) => (
-                  <AppCard key={a.id} app={a} onWithdraw={() => setConfirmApp(a)} onMessage={() => setMessageApp(a)} />
+                  <AppCard key={a.id} app={a} onWithdraw={() => setConfirmApp(a)} onMessage={() => setMessageApp(a)} onSelectInterview={() => setSlotApp(a)} />
                 ))}
               </div>
             )}
@@ -153,6 +159,16 @@ export function ApplicationsScreen() {
           onClose={() => {
             setMessageApp(null);
             load(); // 안 읽음 카운트 갱신
+          }}
+        />
+      ) : null}
+
+      {slotApp ? (
+        <InterviewSlotModal
+          app={slotApp}
+          onClose={() => {
+            setSlotApp(null);
+            load(); // 확정 시 상태·면접 정보 갱신
           }}
         />
       ) : null}
@@ -321,19 +337,19 @@ function WithdrawModal({ app, withdrawing, onClose, onConfirm }: { app: MyApplic
   );
 }
 
-function AppCard({ app, onWithdraw, onMessage }: { app: MyApplication; onWithdraw: () => void; onMessage: () => void }) {
+function AppCard({ app, onWithdraw, onMessage, onSelectInterview }: { app: MyApplication; onWithdraw: () => void; onMessage: () => void; onSelectInterview: () => void }) {
   const s = APPLICATION_STATUS[app.status];
   const canWithdraw = app.status === "SUBMITTED" || app.status === "INTERVIEW";
   const canMessage = app.status !== "WITHDRAWN";
-  const showInterview = app.status === "INTERVIEW" || app.interviewSelectedAt || app.interviewPending;
+  const dimmed = app.status === "WITHDRAWN" || app.status === "REJECTED";
 
   return (
-    <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+    <div className={`rounded-2xl border border-[#EEF1F5] p-5 ${dimmed ? "bg-[#FAFBFC]" : "bg-white"}`}>
+      {/* 헤더 — 상태 + 문의 + 지원일 */}
       <div className="flex items-center gap-2">
         <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
-        {app.interviewPending ? <span className="rounded-md bg-[#FFF3E6] px-2.5 py-1 text-[11px] font-bold text-[#E8890C]">면접 일정 선택</span> : null}
-        {app.unreadMessages > 0 ? <span className="rounded-md bg-[#FDECEE] px-1.5 py-0.5 text-[11px] font-bold text-[#F04452]">문의 {app.unreadMessages}</span> : null}
-        <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(new Date(app.submittedAt).getTime())}</span>
+        {app.unreadMessages > 0 ? <span className="rounded-md bg-[#FDECEE] px-2 py-1 text-[11px] font-bold text-[#F04452]">문의 {app.unreadMessages}</span> : null}
+        <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">지원 · {formatRelativeTime(new Date(app.submittedAt).getTime())}</span>
       </div>
 
       <p className="mt-2 text-[15px] font-bold text-[#191F28]">{app.positionTitle}</p>
@@ -348,18 +364,8 @@ function AppCard({ app, onWithdraw, onMessage }: { app: MyApplication; onWithdra
         <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">비공개 기업</p>
       )}
 
-      {showInterview ? (
-        <div className="mt-3 rounded-xl bg-[#FBFAF5] px-3.5 py-3">
-          <p className="text-[12px] font-bold text-[#E8890C]">면접 안내</p>
-          <p className="mt-0.5 text-[12.5px] text-[#4E5968]">
-            {app.interviewSelectedAt
-              ? `${new Date(app.interviewSelectedAt).toLocaleString("ko-KR")}${app.interviewLocation ? ` · ${app.interviewLocation}` : ""}`
-              : app.interviewPending
-                ? "회사가 면접 일정을 제안했어요. 가능한 시간을 선택해주세요."
-                : "면접 일정이 확정되면 알려드릴게요."}
-          </p>
-        </div>
-      ) : null}
+      {/* 상태별 안내 + 다음 액션 */}
+      <StatusBlock app={app} onSelectInterview={onSelectInterview} />
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link
@@ -389,6 +395,153 @@ function AppCard({ app, onWithdraw, onMessage }: { app: MyApplication; onWithdra
             지원 철회
           </button>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+// 상태별 안내 블록 — 각 상황에서 무엇을 하면 되는지 알려준다.
+function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectInterview: () => void }) {
+  // 면접 확정
+  if (app.status === "INTERVIEW" && app.interviewSelectedAt) {
+    return (
+      <div className="mt-3 rounded-xl bg-[#EDF1FD] px-3.5 py-3">
+        <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#0B46E8]">
+          <CalendarCheck className="h-4 w-4" weight="bold" /> 면접 확정
+        </p>
+        <p className="mt-1 text-[13px] font-semibold text-[#191F28]">{formatWhen(app.interviewSelectedAt)}</p>
+        {app.interviewLocation ? <p className="mt-0.5 text-[12px] text-[#8B95A1]">{app.interviewLocation}</p> : null}
+      </div>
+    );
+  }
+  // 면접 일정 선택 대기 → 실제 선택 액션
+  if (app.status === "INTERVIEW" && app.interviewPending) {
+    return (
+      <div className="mt-3 rounded-xl bg-[#FFF3E6] px-3.5 py-3">
+        <p className="text-[12.5px] font-bold text-[#E8890C]">면접 일정을 선택해주세요</p>
+        <p className="mt-0.5 text-[12px] text-[#B07B33]">회사가 제안한 시간 중 편한 시간을 골라주세요.</p>
+        <button
+          type="button"
+          onClick={onSelectInterview}
+          className="mt-2.5 inline-flex items-center gap-1 rounded-lg bg-[#E8890C] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#D67D08]"
+        >
+          면접 시간 선택
+        </button>
+      </div>
+    );
+  }
+  // 면접 단계지만 아직 슬롯 제안 전
+  if (app.status === "INTERVIEW") {
+    return (
+      <div className="mt-3 rounded-xl bg-[#F5F8FF] px-3.5 py-3">
+        <p className="text-[12.5px] text-[#4E5968]">면접 단계로 진행됐어요. 일정이 잡히면 알려드릴게요.</p>
+      </div>
+    );
+  }
+  if (app.status === "SUBMITTED") {
+    return (
+      <div className="mt-3 rounded-xl bg-[#F5F8FF] px-3.5 py-3">
+        <p className="text-[12.5px] text-[#4E5968]">회사가 지원서를 검토하고 있어요. 결과가 나오면 알려드릴게요.</p>
+      </div>
+    );
+  }
+  if (app.status === "ACCEPTED") {
+    return (
+      <div className="mt-3 rounded-xl bg-[#E7F8EF] px-3.5 py-3">
+        <p className="text-[13px] font-bold text-[#0A9B59]">🎉 합격을 축하해요!</p>
+        <p className="mt-0.5 text-[12.5px] text-[#4E5968]">‘회사 문의’로 다음 절차(입사·서류 등)를 확인해보세요.</p>
+      </div>
+    );
+  }
+  if (app.status === "REJECTED") {
+    return (
+      <div className="mt-3 rounded-xl bg-[#F5F6F8] px-3.5 py-3">
+        <p className="text-[12.5px] text-[#8B95A1]">이번엔 인연이 닿지 않았어요. 잘 맞는 다른 공고도 둘러보세요.</p>
+      </div>
+    );
+  }
+  return null; // WITHDRAWN
+}
+
+// 면접 시간 선택 — 회사가 제안한 슬롯 중 하나를 골라 확정한다.
+function InterviewSlotModal({ app, onClose }: { app: MyApplication; onClose: () => void }) {
+  const toast = useTalentPopup();
+  useLockBodyScroll();
+  const [slots, setSlots] = useState<InterviewSlot[] | null>(null);
+  const [selecting, setSelecting] = useState<string | null>(null);
+
+  useEffect(() => {
+    getInterviewSlotsForApplication(app.id).then(setSlots).catch(() => setSlots([]));
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app.id]);
+
+  const proposed = (slots ?? []).filter((sl) => sl.status === "PROPOSED");
+  const selected = (slots ?? []).find((sl) => sl.status === "SELECTED") ?? null;
+
+  function choose(slotId: string) {
+    if (selecting) return;
+    setSelecting(slotId);
+    selectInterviewSlot(slotId)
+      .then(() => {
+        toast.success("면접 시간을 확정했어요");
+        onClose();
+      })
+      .catch(() => toast.error("확정에 실패했어요. 잠시 후 다시 시도해주세요."))
+      .finally(() => setSelecting(null));
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div className="flex max-h-[85vh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3 border-b border-[#F2F4F6] px-5 py-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-bold text-[#191F28]">면접 시간 선택</p>
+            <p className="truncate text-[12px] text-[#8B95A1]">{app.positionTitle}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="닫기" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto px-5 py-4">
+          {slots === null ? (
+            <p className="py-8 text-center text-[13px] text-[#B0B8C1]">불러오는 중…</p>
+          ) : selected ? (
+            <div className="rounded-2xl bg-[#EDF1FD] px-4 py-4 text-center">
+              <p className="flex items-center justify-center gap-1.5 text-[12.5px] font-bold text-[#0B46E8]">
+                <CalendarCheck className="h-4 w-4" weight="bold" /> 이미 면접 시간이 확정됐어요
+              </p>
+              <p className="mt-1.5 text-[14px] font-bold text-[#191F28]">{formatWhen(selected.startsAt)}</p>
+              {selected.location ? <p className="mt-0.5 text-[12px] text-[#8B95A1]">{selected.location}</p> : null}
+            </div>
+          ) : proposed.length === 0 ? (
+            <p className="py-8 text-center text-[13px] text-[#8B95A1]">아직 선택할 수 있는 면접 시간이 없어요.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <p className="mb-1 text-[12.5px] text-[#8B95A1]">아래 시간 중 편한 시간을 선택하면 확정돼요.</p>
+              {proposed.map((sl) => (
+                <button
+                  key={sl.id}
+                  type="button"
+                  onClick={() => choose(sl.id)}
+                  disabled={!!selecting}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-[#EEF1F5] px-4 py-3.5 text-left transition hover:border-[#0B46E8]/50 hover:bg-[#F5F8FF] disabled:opacity-50"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-bold text-[#191F28]">{formatWhen(sl.startsAt)}</p>
+                    {sl.location ? <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{sl.location}</p> : null}
+                  </div>
+                  <span className="shrink-0 text-[12.5px] font-bold text-[#0B46E8]">{selecting === sl.id ? "확정 중…" : "선택"}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
