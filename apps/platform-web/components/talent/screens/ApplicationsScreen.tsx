@@ -402,8 +402,8 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
   // 면접 확정
   if (app.status === "INTERVIEW" && app.interviewSelectedAt) {
     return (
-      <div className="mt-3.5 rounded-xl bg-[#EDF1FD] px-4 py-3.5">
-        <p className="text-[12px] font-bold text-[#0B46E8]">면접 확정</p>
+      <div className="mt-3.5 rounded-xl bg-[#FFF3E6] px-4 py-3.5">
+        <p className="text-[12px] font-bold text-[#E8890C]">면접 확정</p>
         <p className="mt-1 text-[13px] font-semibold text-[#191F28]">{formatWhen(app.interviewSelectedAt)}</p>
         {app.interviewLocation ? <p className="mt-0.5 text-[12px] text-[#8B95A1]">{app.interviewLocation}</p> : null}
       </div>
@@ -428,8 +428,8 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
   // 면접 단계지만 아직 슬롯 제안 전
   if (app.status === "INTERVIEW") {
     return (
-      <div className="mt-3.5 rounded-xl bg-[#F5F8FF] px-4 py-3.5">
-        <p className="text-[12.5px] text-[#4E5968]">면접 단계로 진행됐어요. 일정이 잡히면 알려드릴게요.</p>
+      <div className="mt-3.5 rounded-xl bg-[#FFF3E6] px-4 py-3.5">
+        <p className="text-[12.5px] text-[#B07B33]">면접 단계로 진행됐어요. 일정이 잡히면 알려드릴게요.</p>
       </div>
     );
   }
