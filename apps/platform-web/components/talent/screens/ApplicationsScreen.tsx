@@ -1,16 +1,16 @@
 "use client";
 
 // 지원 현황 — 실제 서버 지원 내역(getMyApplications). 상태 탭(전체/지원 완료/면접/결과).
-// mock persona 가 아니라 로그인 계정이 실제로 지원한 공고를 보여준다.
+// 별도 상세 화면 없이 리스트 카드에서 바로 이벤트(공고 보기·지원 철회·면접 안내)를 처리한다.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CaretRight } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TEmpty, TError, TLoading } from "../ui/primitives";
 import { TalentButton } from "../TalentButton";
+import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
-import { getMyApplications, type MyApplication } from "../../../lib/member-profile-client";
+import { getMyApplications, withdrawMyApplication, type MyApplication } from "../../../lib/member-profile-client";
 
 type Tab = "all" | "submitted" | "interview" | "result";
 
@@ -37,9 +37,11 @@ export const APPLICATION_STATUS: Record<MyApplication["status"], { label: string
 };
 
 export function ApplicationsScreen() {
+  const toast = useTalentPopup();
   const [apps, setApps] = useState<MyApplication[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [tab, setTab] = useState<Tab>("all");
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
 
   function load() {
     setStatus("loading");
@@ -53,6 +55,19 @@ export function ApplicationsScreen() {
   useEffect(() => {
     load();
   }, []);
+
+  function withdraw(app: MyApplication) {
+    if (withdrawingId) return;
+    if (!window.confirm("이 공고 지원을 철회할까요?")) return;
+    setWithdrawingId(app.id);
+    withdrawMyApplication(app.id)
+      .then(() => {
+        setApps((prev) => (prev ? prev.map((a) => (a.id === app.id ? { ...a, status: "WITHDRAWN" } : a)) : prev));
+        toast.success("지원을 철회했어요");
+      })
+      .catch(() => toast.error("철회에 실패했어요. 잠시 후 다시 시도해주세요."))
+      .finally(() => setWithdrawingId(null));
+  }
 
   const counts = useMemo(() => {
     const a = apps ?? [];
@@ -107,9 +122,9 @@ export function ApplicationsScreen() {
                 action={<TalentButton href={talentAppRoutes.jobs} variant="soft" size="md">공고 둘러보기</TalentButton>}
               />
             ) : (
-              <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
-                {list.map((a, i) => (
-                  <AppRow key={a.id} app={a} last={i === list.length - 1} />
+              <div className="flex flex-col gap-3">
+                {list.map((a) => (
+                  <AppCard key={a.id} app={a} onWithdraw={() => withdraw(a)} withdrawing={withdrawingId === a.id} />
                 ))}
               </div>
             )}
@@ -120,24 +135,54 @@ export function ApplicationsScreen() {
   );
 }
 
-function AppRow({ app, last }: { app: MyApplication; last: boolean }) {
+function AppCard({ app, onWithdraw, withdrawing }: { app: MyApplication; onWithdraw: () => void; withdrawing: boolean }) {
   const s = APPLICATION_STATUS[app.status];
+  const canWithdraw = app.status === "SUBMITTED" || app.status === "INTERVIEW";
+  const showInterview = app.status === "INTERVIEW" || app.interviewSelectedAt || app.interviewPending;
+
   return (
-    <Link
-      href={`${talentAppRoutes.applications}/${app.id}`}
-      className={`flex items-center gap-3.5 px-4 py-4 transition hover:bg-[#F6F8FB] ${last ? "" : "border-b border-[#F2F4F6]"}`}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
-          {app.interviewPending ? <span className="rounded-md bg-[#FFF3E6] px-1.5 py-0.5 text-[11px] font-bold text-[#E8890C]">면접 일정 선택</span> : null}
-          {app.unreadMessages > 0 ? <span className="rounded-md bg-[#FDECEE] px-1.5 py-0.5 text-[11px] font-bold text-[#F04452]">문의 {app.unreadMessages}</span> : null}
-          <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(new Date(app.submittedAt).getTime())}</span>
-        </div>
-        <p className="mt-1.5 truncate text-[15px] font-bold text-[#191F28]">{app.positionTitle}</p>
-        <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{app.partnerOrganizationName ?? "비공개 기업"}</p>
+    <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+      <div className="flex items-center gap-2">
+        <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
+        {app.interviewPending ? <span className="rounded-md bg-[#FFF3E6] px-1.5 py-0.5 text-[11px] font-bold text-[#E8890C]">면접 일정 선택</span> : null}
+        {app.unreadMessages > 0 ? <span className="rounded-md bg-[#FDECEE] px-1.5 py-0.5 text-[11px] font-bold text-[#F04452]">문의 {app.unreadMessages}</span> : null}
+        <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(new Date(app.submittedAt).getTime())}</span>
       </div>
-      <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
-    </Link>
+
+      <p className="mt-2 text-[15px] font-bold text-[#191F28]">{app.positionTitle}</p>
+      <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">{app.partnerOrganizationName ?? "비공개 기업"}</p>
+
+      {showInterview ? (
+        <div className="mt-3 rounded-xl bg-[#FBFAF5] px-3.5 py-3">
+          <p className="text-[12px] font-bold text-[#E8890C]">면접 안내</p>
+          <p className="mt-0.5 text-[12.5px] text-[#4E5968]">
+            {app.interviewSelectedAt
+              ? `${new Date(app.interviewSelectedAt).toLocaleString("ko-KR")}${app.interviewLocation ? ` · ${app.interviewLocation}` : ""}`
+              : app.interviewPending
+                ? "회사가 면접 일정을 제안했어요. 가능한 시간을 선택해주세요."
+                : "면접 일정이 확정되면 알려드릴게요."}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="mt-4 flex items-center gap-2">
+        <Link
+          href={`${talentAppRoutes.jobs}/${app.positionId}`}
+          className="inline-flex items-center rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
+        >
+          공고 보기
+        </Link>
+        {canWithdraw ? (
+          <button
+            type="button"
+            onClick={onWithdraw}
+            disabled={withdrawing}
+            className="inline-flex items-center rounded-xl px-3.5 py-2 text-[12.5px] font-bold text-[#F04452] transition hover:bg-[#FDECEE] disabled:opacity-50"
+          >
+            지원 철회
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }

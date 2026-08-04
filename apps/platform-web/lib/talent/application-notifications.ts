@@ -28,7 +28,7 @@ export function useApplicationStatusNotifications(): void {
             emoji: meta.emoji,
             title: meta.title,
             body: app.partnerOrganizationName ? `${app.partnerOrganizationName} · ${app.positionTitle}` : app.positionTitle,
-            href: `${talentAppRoutes.applications}/${app.id}`,
+            href: talentAppRoutes.applications,
             dedupeKey: `appstatus:${app.id}:${app.status}`
           });
         }
