@@ -18,8 +18,10 @@ import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 import {
   getPublicPositionById,
   getMyFavoritePositions,
+  getMyAppliedPositions,
   addMyFavoritePosition,
   removeMyFavoritePosition,
+  applyMyPosition,
   type PublicPositionListItem
 } from "../../../lib/member-profile-client";
 import { toPositionView } from "../../../lib/talent/positions-adapter";
@@ -40,6 +42,8 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   const [item, setItem] = useState<PublicPositionListItem | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [saved, setSaved] = useState(false);
+  const [applied, setApplied] = useState(false);
+  const [applying, setApplying] = useState(false);
   const [cipOpen, setCipOpen] = useState(false);
 
   function load() {
@@ -57,6 +61,9 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
     void getMyFavoritePositions()
       .then((list) => setSaved(list.some((p) => p.id === jobId)))
       .catch(() => setSaved(false));
+    void getMyAppliedPositions()
+      .then((list) => setApplied(list.some((p) => p.id === jobId)))
+      .catch(() => setApplied(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId, locale]);
 
@@ -68,6 +75,19 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
       setSaved(!willSave);
       toast.error("저장에 실패했어요");
     });
+  }
+
+  // 내부(CIP) 공고 실제 지원.
+  function apply() {
+    if (applied || applying) return;
+    setApplying(true);
+    applyMyPosition(jobId)
+      .then(() => {
+        setApplied(true);
+        toast.success("지원이 접수됐어요");
+      })
+      .catch(() => toast.error("지원에 실패했어요. 잠시 후 다시 시도해주세요."))
+      .finally(() => setApplying(false));
   }
 
   const view = item ? toPositionView(item) : null;
@@ -124,7 +144,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
             >
               <BookmarkSimple className="h-4 w-4" weight={saved ? "fill" : "regular"} /> {saved ? "저장됨" : "저장"}
             </TalentButton>
-            <ApplyButton view={view} />
+            <ApplyButton view={view} applied={applied} applying={applying} onApply={apply} />
           </div>
 
           {/* 핵심 정보 */}
@@ -166,7 +186,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
             >
               <BookmarkSimple className="h-4 w-4" weight={saved ? "fill" : "regular"} /> {saved ? "저장됨" : "저장"}
             </TalentButton>
-            <ApplyButton view={view} />
+            <ApplyButton view={view} applied={applied} applying={applying} onApply={apply} />
           </div>
 
           {/* 모바일 하단 고정 CTA */}
@@ -181,7 +201,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
                 <BookmarkSimple className="h-5 w-5" weight={saved ? "fill" : "regular"} />
               </button>
               <div className="flex-1">
-                <ApplyButton view={view} fullWidth />
+                <ApplyButton view={view} applied={applied} applying={applying} onApply={apply} fullWidth />
               </div>
             </div>
           </div>
@@ -193,8 +213,20 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   );
 }
 
-function ApplyButton({ view, fullWidth }: { view: ReturnType<typeof toPositionView>; fullWidth?: boolean }) {
-  // 외부 공고 → 외부 링크로, Aply(내부) 공고 → 실제 지원 페이지(/positions/[id])로.
+function ApplyButton({
+  view,
+  applied,
+  applying,
+  onApply,
+  fullWidth
+}: {
+  view: ReturnType<typeof toPositionView>;
+  applied: boolean;
+  applying: boolean;
+  onApply: () => void;
+  fullWidth?: boolean;
+}) {
+  // 외부 공고 → 외부 링크로.
   if (view.external && view.externalUrl) {
     return (
       <TalentButton href={view.externalUrl} external variant="primary" size="lg" fullWidth={fullWidth} aria-label="지원하기">
@@ -202,9 +234,17 @@ function ApplyButton({ view, fullWidth }: { view: ReturnType<typeof toPositionVi
       </TalentButton>
     );
   }
+  // 내부(CIP) 공고 → 실제 지원(applyMyPosition).
   return (
-    <TalentButton href={`/positions/${view.id}`} variant="primary" size="lg" fullWidth={fullWidth} aria-label="지원하기">
-      지원하기
+    <TalentButton
+      onClick={onApply}
+      disabled={applied || applying}
+      variant={applied ? "soft" : "primary"}
+      size="lg"
+      fullWidth={fullWidth}
+      aria-label={applied ? "지원 완료" : "지원하기"}
+    >
+      {applied ? "지원 완료" : applying ? "지원 중…" : "지원하기"}
     </TalentButton>
   );
 }
