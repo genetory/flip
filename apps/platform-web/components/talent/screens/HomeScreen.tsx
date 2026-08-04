@@ -477,7 +477,7 @@ function RecommendedJobs() {
   }
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-4 rounded-3xl bg-[#F5F8FF] p-6">
       <div>
         <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">나에게 딱 맞는 공고예요</h2>
         <p className="mt-1 text-[13px] text-[#8B95A1]">관심 직무를 바탕으로 골라봤어요.</p>
