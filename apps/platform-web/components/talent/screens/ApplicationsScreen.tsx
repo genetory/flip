@@ -4,10 +4,12 @@
 // 별도 상세 화면 없이 리스트 카드에서 바로 이벤트(공고 보기·지원 철회·면접 안내)를 처리한다.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { X, WarningCircle } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TEmpty, TError, TLoading } from "../ui/primitives";
 import { TalentButton } from "../TalentButton";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
+import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { getMyApplications, withdrawMyApplication, type MyApplication } from "../../../lib/member-profile-client";
@@ -41,7 +43,8 @@ export function ApplicationsScreen() {
   const [apps, setApps] = useState<MyApplication[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [tab, setTab] = useState<Tab>("all");
-  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+  const [confirmApp, setConfirmApp] = useState<MyApplication | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
 
   function load() {
     setStatus("loading");
@@ -56,17 +59,18 @@ export function ApplicationsScreen() {
     load();
   }, []);
 
-  function withdraw(app: MyApplication) {
-    if (withdrawingId) return;
-    if (!window.confirm("이 공고 지원을 철회할까요?")) return;
-    setWithdrawingId(app.id);
+  function confirmWithdraw() {
+    const app = confirmApp;
+    if (!app || withdrawing) return;
+    setWithdrawing(true);
     withdrawMyApplication(app.id)
       .then(() => {
         setApps((prev) => (prev ? prev.map((a) => (a.id === app.id ? { ...a, status: "WITHDRAWN" } : a)) : prev));
+        setConfirmApp(null);
         toast.success("지원을 철회했어요");
       })
       .catch(() => toast.error("철회에 실패했어요. 잠시 후 다시 시도해주세요."))
-      .finally(() => setWithdrawingId(null));
+      .finally(() => setWithdrawing(false));
   }
 
   const counts = useMemo(() => {
@@ -124,18 +128,84 @@ export function ApplicationsScreen() {
             ) : (
               <div className="flex flex-col gap-3">
                 {list.map((a) => (
-                  <AppCard key={a.id} app={a} onWithdraw={() => withdraw(a)} withdrawing={withdrawingId === a.id} />
+                  <AppCard key={a.id} app={a} onWithdraw={() => setConfirmApp(a)} />
                 ))}
               </div>
             )}
           </>
         ) : null}
       </div>
+
+      {confirmApp ? (
+        <WithdrawModal app={confirmApp} withdrawing={withdrawing} onClose={() => setConfirmApp(null)} onConfirm={confirmWithdraw} />
+      ) : null}
     </TalentAppShell>
   );
 }
 
-function AppCard({ app, onWithdraw, withdrawing }: { app: MyApplication; onWithdraw: () => void; withdrawing: boolean }) {
+function WithdrawModal({ app, withdrawing, onClose, onConfirm }: { app: MyApplication; withdrawing: boolean; onClose: () => void; onConfirm: () => void }) {
+  useLockBodyScroll();
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      role="alertdialog"
+      aria-modal="true"
+      aria-label="지원 철회 확인"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div className="relative w-full max-w-[440px] overflow-hidden rounded-3xl bg-white shadow-[0_20px_60px_rgba(11,18,39,0.18)]" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="닫기"
+          className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6] hover:text-[#4E5968]"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="px-7 pb-2 pt-9 text-center">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FDECEE]">
+            <WarningCircle className="h-7 w-7 text-[#F04452]" weight="bold" />
+          </span>
+          <h2 className="mt-5 break-keep text-[18px] font-black leading-[1.4] tracking-[-0.02em] text-[#0B1227]">지원을 철회할까요?</h2>
+          <p className="mt-2 break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">
+            {app.partnerOrganizationName ? `${app.partnerOrganizationName} · ` : ""}
+            {app.positionTitle}
+            <br />철회하면 되돌릴 수 없어요.
+          </p>
+        </div>
+
+        <div className="flex gap-2 px-7 pb-7 pt-6">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-[52px] flex-1 items-center justify-center rounded-2xl bg-[#F2F4F6] px-5 text-[15px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={withdrawing}
+            className="inline-flex h-[52px] flex-1 items-center justify-center rounded-2xl bg-[#F04452] px-5 text-[15px] font-bold text-white transition hover:bg-[#D93A46] disabled:opacity-50"
+          >
+            {withdrawing ? "철회 중…" : "지원 철회"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AppCard({ app, onWithdraw }: { app: MyApplication; onWithdraw: () => void }) {
   const s = APPLICATION_STATUS[app.status];
   const canWithdraw = app.status === "SUBMITTED" || app.status === "INTERVIEW";
   const showInterview = app.status === "INTERVIEW" || app.interviewSelectedAt || app.interviewPending;
@@ -185,8 +255,7 @@ function AppCard({ app, onWithdraw, withdrawing }: { app: MyApplication; onWithd
           <button
             type="button"
             onClick={onWithdraw}
-            disabled={withdrawing}
-            className="inline-flex items-center rounded-xl bg-[#FDECEE] px-3.5 py-2 text-[12.5px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1] disabled:opacity-50"
+            className="inline-flex items-center rounded-xl bg-[#FDECEE] px-3.5 py-2 text-[12.5px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1]"
           >
             지원 철회
           </button>
