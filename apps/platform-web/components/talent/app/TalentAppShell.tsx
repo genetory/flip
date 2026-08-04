@@ -6,12 +6,16 @@ import { TalentGuard } from "./TalentGuard";
 import { TalentHeader } from "../TalentHeader";
 import { TalentFooter } from "../TalentFooter";
 import { DevPersonaSwitcher } from "./DevPersonaSwitcher";
+import { useApplicationStatusNotifications } from "../../../lib/talent/application-notifications";
 
 export function TalentAppShell({ children, maxWidth = "5xl", wide = false }: { children: ReactNode; maxWidth?: "4xl" | "5xl"; wide?: boolean }) {
   // 모든 리뉴얼 앱 화면을 이력서 작성 페이지와 동일한 폭(max-w-5xl)으로 통일.
   void maxWidth;
   void wide;
   const widthCls = "max-w-5xl";
+
+  // 내 지원현황(면접·결과 등) 진행을 알림으로 적재.
+  useApplicationStatusNotifications();
 
   // GNB 위(상단 오버스크롤) 영역이 회색으로 보이지 않게 최상단 배경을 흰색으로.
   useEffect(() => {
