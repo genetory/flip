@@ -18,7 +18,7 @@ import { useBasicInfo, isBasicInfoComplete, type BasicInfo } from "../../../lib/
 import { useCareerFeed, ensureFeedEntry } from "../../../lib/talent/career-feed";
 import { classifyCareerNote, SECTION_META, type CareerSection } from "../../../lib/talent/career-chat";
 import { careerAssist } from "../../../lib/talent/career-assist-client";
-import { useResumeDoc, saveResumeDoc, generateResumeDoc, addResumeItem, refineText, SECTION_HAS_DATE, type ResumeDoc } from "../../../lib/talent/resume-doc";
+import { useResumeDoc, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, addResumeItem, refineText, SECTION_HAS_DATE, type ResumeDoc } from "../../../lib/talent/resume-doc";
 
 // 섹션 칩 · 편집 리스트 순서 — 학력은 맨 오른쪽/맨 아래.
 const CHIP_ORDER: CareerSection[] = ["experience", "project", "certificate", "skill", "award", "activity", "education"];
@@ -27,12 +27,15 @@ export function ResumeBuilderScreen() {
   const basicInfo = useBasicInfo();
   const feed = useCareerFeed();
   const stored = useResumeDoc();
+  const status = useRenewalDocsStatus();
   const [doc, setDoc] = useState<ResumeDoc | null>(stored);
   const ready = isBasicInfoComplete(basicInfo);
 
   // 문서가 없으면 바로 시작 — (커리어 노트로) 초안을 자동 생성하고 편집 화면으로.
+  // 단, 서버 로드가 끝나기 전에는 "문서 없음"으로 단정하지 않는다(조기 생성 방지).
   useEffect(() => {
     if (!ready || doc) return;
+    if (status !== "loaded") return;
     if (stored) {
       setDoc(stored);
       return;
@@ -40,7 +43,7 @@ export function ResumeBuilderScreen() {
     const d = generateResumeDoc(feed, "");
     saveResumeDoc(d);
     setDoc(d);
-  }, [ready, stored, doc, feed]);
+  }, [ready, stored, doc, feed, status]);
 
   function update(next: ResumeDoc) {
     setDoc(next);

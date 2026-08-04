@@ -1517,7 +1517,7 @@ export async function getMyResume(resumeId: string) {
   return result.item;
 }
 
-export async function createMyResume(input: { title: string; content?: ResumeContent }) {
+export async function createMyResume(input: { title: string; content?: ResumeContent | Record<string, unknown>; allowIncomplete?: boolean }) {
   const result = await authedJsonFetch<Resume>("/members/me/resumes", {
     method: "POST",
     body: JSON.stringify(input)
@@ -1526,7 +1526,7 @@ export async function createMyResume(input: { title: string; content?: ResumeCon
   return result.item;
 }
 
-export async function updateMyResume(resumeId: string, input: { title?: string; content?: ResumeContent }) {
+export async function updateMyResume(resumeId: string, input: { title?: string; content?: ResumeContent | Record<string, unknown>; allowIncomplete?: boolean }) {
   const result = await authedJsonFetch<Resume>(`/members/me/resumes/${encodeURIComponent(resumeId)}`, {
     method: "PATCH",
     body: JSON.stringify(input)

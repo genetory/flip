@@ -1,6 +1,8 @@
 // 이력서 문서(1개) — 기본 정보 + 커리어 피드로 만든 초안을 편집/저장.
-// 지금은 localStorage 기반(mock), AI 초안·다듬기는 규칙 기반. 추후 실제 LLM·서버 저장으로 교체.
-import { useSyncExternalStore } from "react";
+// 저장은 localStorage 가 아니라 로그인한 계정(서버 Resume)에 귀속된다(renewal-docs-store).
+import { useEffect, useSyncExternalStore } from "react";
+import { useAuthSession } from "../../components/auth/AuthSessionProvider";
+import { setResumeDoc as storeSetResume, snapshotResume, snapshotStatus, subscribeDocs, syncUser, type RenewalDocsStatus } from "./renewal-docs-store";
 import type { CareerSection } from "./career-chat";
 import type { FeedEntry } from "./career-feed";
 
@@ -52,48 +54,17 @@ export interface ResumeDoc {
   updatedAt: number;
 }
 
-const KEY = "talent.resumeDoc.v1";
-
-const listeners = new Set<() => void>();
-let cache: ResumeDoc | null | undefined; // undefined = 미로딩, null = 없음
-
-function read(): ResumeDoc | null {
-  if (cache !== undefined) return cache;
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    cache = raw ? (JSON.parse(raw) as ResumeDoc) : null;
-  } catch {
-    cache = null;
-  }
-  return cache;
-}
-
-function emit() {
-  cache = undefined;
-  listeners.forEach((l) => l());
-}
-
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+// 저장 — 계정(서버)에 반영. 실제 쓰기는 공유 스토어가 debounce 처리한다.
 export function saveResumeDoc(doc: ResumeDoc): void {
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify({ ...doc, updatedAt: Date.now() }));
-  } catch {
-    /* mock: 무시 */
-  }
-  emit();
+  storeSetResume({ ...doc, updatedAt: Date.now() });
 }
 
 export function clearResumeDoc(): void {
-  try {
-    window.localStorage.removeItem(KEY);
-  } catch {
-    /* noop */
-  }
-  emit();
+  storeSetResume(null);
 }
 
 // 커리어 피드 → 이력서 초안(오래된→최신 순으로 항목화).
@@ -130,7 +101,7 @@ export function ensureResumeItemByRef(refId: string, section: CareerSection, tex
   const t = text.trim();
   if (!t) return;
   const now = Date.now();
-  const doc = read() ?? { targetRole: "", items: [], showPhoto: false, createdAt: now, updatedAt: now };
+  const doc = snapshotResume() ?? { targetRole: "", items: [], showPhoto: false, createdAt: now, updatedAt: now };
   if (doc.items.some((i) => i.refId === refId)) return;
   const item: ResumeItem = { id: uid(), section, text: t, startDate: "", endDate: "", refId };
   saveResumeDoc({ ...doc, items: [...doc.items, item] });
@@ -138,35 +109,32 @@ export function ensureResumeItemByRef(refId: string, section: CareerSection, tex
 
 // 사후 수정 — 잘못 분류된 항목의 섹션을 변경.
 export function updateResumeItemSection(id: string, section: CareerSection): void {
-  const doc = read();
+  const doc = snapshotResume();
   if (!doc) return;
   saveResumeDoc({ ...doc, items: doc.items.map((i) => (i.id === id ? { ...i, section } : i)) });
 }
 
 // 항목 삭제(빌더에서 사용). 이미 있으면 재사용.
 export function removeResumeItem(id: string): void {
-  const doc = read();
+  const doc = snapshotResume();
   if (!doc) return;
   saveResumeDoc({ ...doc, items: doc.items.filter((i) => i.id !== id) });
 }
 
-function subscribe(cb: () => void): () => void {
-  listeners.add(cb);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === KEY) {
-      cache = undefined;
-      cb();
-    }
-  };
-  window.addEventListener("storage", onStorage);
-  return () => {
-    listeners.delete(cb);
-    window.removeEventListener("storage", onStorage);
-  };
+// 계정 귀속 — 로그인한 유저의 서버 이력서를 구독한다. 계정이 바뀌면 자동으로
+// 캐시를 비우고 새 계정의 문서를 로드한다.
+export function useResumeDoc(): ResumeDoc | null {
+  const { user } = useAuthSession();
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    syncUser(userId);
+  }, [userId]);
+  return useSyncExternalStore(subscribeDocs, snapshotResume, () => null);
 }
 
-export function useResumeDoc(): ResumeDoc | null {
-  return useSyncExternalStore(subscribe, read, () => null);
+// 서버 로드 상태 — 빌더가 "문서 없음"으로 판단해 자동 생성하기 전에 로드 완료를 기다린다.
+export function useRenewalDocsStatus(): RenewalDocsStatus {
+  return useSyncExternalStore(subscribeDocs, snapshotStatus, () => "idle" as RenewalDocsStatus);
 }
 
 // mock "AI로 다듬기" — 대화체를 이력서 개조식(명사형 종결)으로. 추후 LLM 교체.

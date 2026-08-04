@@ -14,7 +14,7 @@ import { CoverA4Preview } from "../career/CoverA4";
 import { TLoading } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useBasicInfo, isBasicInfoComplete, type BasicInfo } from "../../../lib/talent/basic-info";
-import { useResumeDoc } from "../../../lib/talent/resume-doc";
+import { useResumeDoc, useRenewalDocsStatus } from "../../../lib/talent/resume-doc";
 import { SECTION_META } from "../../../lib/talent/career-chat";
 import { useCoverDoc, saveCoverDoc, generateCoverDoc, addCoverItem, coverQuestionEmoji, COVER_QUESTIONS, type CoverDoc } from "../../../lib/talent/cover-doc";
 import { coverAssist, coverChat } from "../../../lib/talent/cover-assist-client";
@@ -24,12 +24,15 @@ export function CoverBuilderScreen() {
   const basicInfo = useBasicInfo();
   const resume = useResumeDoc();
   const stored = useCoverDoc();
+  const status = useRenewalDocsStatus();
   const [doc, setDoc] = useState<CoverDoc | null>(stored);
   const ready = isBasicInfoComplete(basicInfo);
 
   // 문서가 없으면 바로 시작 — 문항 문서를 자동 생성하고 편집 화면으로.
+  // 단, 서버 로드가 끝나기 전에는 "문서 없음"으로 단정하지 않는다(조기 생성 방지).
   useEffect(() => {
     if (!ready || doc) return;
+    if (status !== "loaded") return;
     if (stored) {
       setDoc(stored);
       return;
@@ -37,7 +40,7 @@ export function CoverBuilderScreen() {
     const d = generateCoverDoc();
     saveCoverDoc(d);
     setDoc(d);
-  }, [ready, stored, doc]);
+  }, [ready, stored, doc, status]);
 
   const resumeText = useMemo(
     () => (resume?.items ?? []).map((i) => `- [${SECTION_META[i.section].label}] ${i.text}`).join("\n"),

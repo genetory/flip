@@ -1,6 +1,8 @@
 // 자기소개서 문서(1개) — 문항별 답변. 직접 편집 + AI 다듬기.
-// 지금은 localStorage 기반(mock), AI 다듬기는 /api/cover-assist. 추후 서버 저장으로 교체.
-import { useSyncExternalStore } from "react";
+// 저장은 localStorage 가 아니라 로그인한 계정(서버 Resume.content)에 귀속된다(renewal-docs-store).
+import { useEffect, useSyncExternalStore } from "react";
+import { useAuthSession } from "../../components/auth/AuthSessionProvider";
+import { setCoverDoc as storeSetCover, snapshotCover, subscribeDocs, syncUser } from "./renewal-docs-store";
 
 export interface CoverItem {
   id: string;
@@ -32,58 +34,17 @@ export function coverQuestionEmoji(question: string): string {
   return COVER_QUESTION_EMOJI[question] ?? "📝";
 }
 
-const KEY = "talent.coverDoc.v1";
-
-const listeners = new Set<() => void>();
-let cache: CoverDoc | null | undefined;
-
-function read(): CoverDoc | null {
-  if (cache !== undefined) return cache;
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) {
-      cache = null;
-    } else {
-      const parsed = JSON.parse(raw) as CoverDoc;
-      // 구버전({question, answer}) → 항목 기반({id, question, text})으로 마이그레이션. 빈 항목은 제거.
-      const rawItems = (parsed.items ?? []) as Array<CoverItem & { answer?: string }>;
-      const items: CoverItem[] = rawItems
-        .map((it) => ({ id: it.id ?? uid(), question: it.question, text: (it.text ?? it.answer ?? "").trim(), ...(it.refId ? { refId: it.refId } : {}) }))
-        .filter((it) => it.text.length > 0);
-      cache = { ...parsed, items };
-    }
-  } catch {
-    cache = null;
-  }
-  return cache;
-}
-
-function emit() {
-  cache = undefined;
-  listeners.forEach((l) => l());
-}
-
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+// 저장 — 계정(서버)에 반영. 실제 쓰기는 공유 스토어가 debounce 처리한다.
 export function saveCoverDoc(doc: CoverDoc): void {
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify({ ...doc, updatedAt: Date.now() }));
-  } catch {
-    /* mock */
-  }
-  emit();
+  storeSetCover({ ...doc, updatedAt: Date.now() });
 }
 
 export function clearCoverDoc(): void {
-  try {
-    window.localStorage.removeItem(KEY);
-  } catch {
-    /* noop */
-  }
-  emit();
+  storeSetCover(null);
 }
 
 // 자기소개서 완성도(0~100) — 항목이 채워진 문항 비율.
@@ -109,28 +70,20 @@ export function ensureCoverItemByRef(refId: string, question: string, text: stri
   const t = text.trim();
   if (!t) return;
   const now = Date.now();
-  const doc = read() ?? { items: [], showPhoto: false, createdAt: now, updatedAt: now };
+  const doc = snapshotCover() ?? { items: [], showPhoto: false, createdAt: now, updatedAt: now };
   if (doc.items.some((i) => i.refId === refId)) return;
   const q = COVER_QUESTIONS.includes(question) ? question : COVER_QUESTIONS[0];
   const item: CoverItem = { id: uid(), question: q, text: t, refId };
   saveCoverDoc({ ...doc, items: [...doc.items, item] });
 }
 
-function subscribe(cb: () => void): () => void {
-  listeners.add(cb);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === KEY) {
-      cache = undefined;
-      cb();
-    }
-  };
-  window.addEventListener("storage", onStorage);
-  return () => {
-    listeners.delete(cb);
-    window.removeEventListener("storage", onStorage);
-  };
-}
-
+// 계정 귀속 — 로그인한 유저의 서버 자기소개서를 구독한다. 계정이 바뀌면 자동으로
+// 캐시를 비우고 새 계정의 문서를 로드한다.
 export function useCoverDoc(): CoverDoc | null {
-  return useSyncExternalStore(subscribe, read, () => null);
+  const { user } = useAuthSession();
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    syncUser(userId);
+  }, [userId]);
+  return useSyncExternalStore(subscribeDocs, snapshotCover, () => null);
 }
