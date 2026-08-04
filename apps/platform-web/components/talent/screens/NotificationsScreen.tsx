@@ -85,9 +85,9 @@ export function NotificationsScreen() {
   );
 }
 
-const KIND_STYLE: Record<NotificationKind, { dot: string; text: string; label: string; avatar: string }> = {
-  activity: { dot: "bg-[#0B46E8]", text: "text-[#8B95A1]", label: "내 활동", avatar: "bg-[#EDF1FD]" },
-  update: { dot: "bg-[#12B76A]", text: "text-[#8B95A1]", label: "소식", avatar: "bg-[#F2F4F6]" }
+const KIND_STYLE: Record<NotificationKind, { text: string; label: string; avatar: string }> = {
+  activity: { text: "text-[#8B95A1]", label: "내 활동", avatar: "bg-[#EDF1FD]" },
+  update: { text: "text-[#8B95A1]", label: "소식", avatar: "bg-[#F2F4F6]" }
 };
 
 function Row({ n, last }: { n: Notification; last: boolean }) {
@@ -103,10 +103,7 @@ function Row({ n, last }: { n: Notification; last: boolean }) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${s.text}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-            {s.label}
-          </span>
+          <span className={`text-[11px] font-bold ${s.text}`}>{s.label}</span>
           <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(n.createdAt)}</span>
         </div>
         <p className={`mt-1.5 truncate text-[14.5px] ${n.unread ? "font-bold text-[#191F28]" : "font-semibold text-[#4E5968]"}`}>{n.title}</p>
