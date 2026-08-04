@@ -5,15 +5,14 @@ import Link from "next/link";
 import { ArrowRight } from "@phosphor-icons/react";
 import { CareerLayout } from "../career/CareerLayout";
 import { ProfileGate } from "../career/ProfileGate";
-import { FeedCard } from "../career/FeedCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
 import { TLoading, TError, TPageHeader } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useTalentSnapshot } from "../../../lib/talent/useTalentData";
-import { useCareerFeed, removeFeedEntry } from "../../../lib/talent/career-feed";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
-import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc";
+import { useResumeDoc, resumeCompleteness, displayMonth, type ResumeDoc } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
+import { SECTION_META, type CareerSection } from "../../../lib/talent/career-chat";
 import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
 import { useDailyStep, markStepDoneToday } from "../../../lib/talent/daily-step";
 import type { TalentSnapshot } from "../../../lib/talent/types";
@@ -30,7 +29,6 @@ export function CareerHomeScreen() {
 }
 
 function Content({ snapshot }: { snapshot: TalentSnapshot }) {
-  const feed = useCareerFeed();
   const basicInfo = useBasicInfo();
   const resume = useResumeDoc();
   const cover = useCoverDoc();
@@ -73,22 +71,15 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
         <CareerFunnelCards showPreview />
       </section>
 
-      {/* 커리어 기록 */}
+      {/* 이력서에 담긴 내 커리어 — 섹션별 심플 요약 */}
       <section className="flex flex-col gap-4">
         <div className="flex items-end justify-between gap-3">
-          <SectionHead title="내 커리어가 이렇게 쌓이고 있어요" desc="이력서·자기소개서에 남긴 내용이 자동으로 기록돼요." />
-          {feed.length ? <span className="shrink-0 text-[12.5px] font-semibold text-[#8B95A1]">{feed.length}개</span> : null}
+          <SectionHead title="이력서에 담긴 내 커리어" desc="이력서에 적은 항목을 한눈에 볼 수 있어요." />
+          {resume && resume.items.length ? (
+            <Link href={talentAppRoutes.resume} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] transition hover:text-[#0A3ECB]">편집</Link>
+          ) : null}
         </div>
-        {feed.length ? (
-          <div className="flex flex-col gap-2.5">
-            {/* 최신 5개만 노출 */}
-            {feed.slice(0, 5).map((e) => (
-              <FeedCard key={e.id} entry={e} onDelete={removeFeedEntry} />
-            ))}
-          </div>
-        ) : (
-          <EmptyFeed />
-        )}
+        {resume && resume.items.length ? <CareerSummary doc={resume} /> : <EmptyFeed />}
       </section>
     </div>
   );
@@ -145,6 +136,36 @@ function SectionHead({ title, desc }: { title: string; desc: string }) {
     <div>
       <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
       <p className="mt-1 break-keep text-[13px] text-[#8B95A1]">{desc}</p>
+    </div>
+  );
+}
+
+// 이력서 항목을 섹션별로 묶어 심플하게 보여준다.
+const SUMMARY_ORDER: CareerSection[] = ["experience", "project", "education", "certificate", "skill", "award", "activity"];
+
+function CareerSummary({ doc }: { doc: ResumeDoc }) {
+  const groups = SUMMARY_ORDER.map((sec) => ({ sec, items: doc.items.filter((i) => i.section === sec) })).filter((g) => g.items.length > 0);
+  return (
+    <div className="divide-y divide-[#F2F4F6] overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+      {groups.map((g) => (
+        <div key={g.sec} className="px-5 py-4">
+          <p className="text-[12px] font-bold text-[#0B46E8]">{SECTION_META[g.sec].label}</p>
+          <ul className="mt-2 flex flex-col gap-2">
+            {g.items.map((it) => {
+              const period = [displayMonth(it.startDate ?? ""), displayMonth(it.endDate ?? "")].filter(Boolean).join(" ~ ");
+              return (
+                <li key={it.id} className="flex gap-2">
+                  <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-[#C4CAD2]" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="break-keep text-[13.5px] leading-relaxed text-[#191F28]">{it.text}</p>
+                    {period ? <p className="mt-0.5 text-[11.5px] text-[#B0B8C1]">{period}</p> : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }
