@@ -19,20 +19,21 @@ function formatWhen(iso: string): string {
   return new Date(iso).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-type Tab = "all" | "submitted" | "interview" | "result";
+type Tab = "all" | "submitted" | "interview_wait" | "interview_set" | "accepted" | "rejected" | "withdrawn";
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "all", label: "전체" },
-  { key: "submitted", label: "지원 완료" },
-  { key: "interview", label: "면접" },
-  { key: "result", label: "결과" }
+// 탭 = 상태 + (면접은 일정 확정 여부)로 세분화.
+const TABS: { key: Tab; label: string; match: (a: MyApplication) => boolean }[] = [
+  { key: "all", label: "전체", match: () => true },
+  { key: "submitted", label: "지원 완료", match: (a) => a.status === "SUBMITTED" },
+  { key: "interview_wait", label: "면접 대기", match: (a) => a.status === "INTERVIEW" && !a.interviewSelectedAt },
+  { key: "interview_set", label: "면접 확정", match: (a) => a.status === "INTERVIEW" && !!a.interviewSelectedAt },
+  { key: "accepted", label: "합격", match: (a) => a.status === "ACCEPTED" },
+  { key: "rejected", label: "불합격", match: (a) => a.status === "REJECTED" },
+  { key: "withdrawn", label: "철회", match: (a) => a.status === "WITHDRAWN" }
 ];
 
 function inTab(a: MyApplication, tab: Tab): boolean {
-  if (tab === "all") return true;
-  if (tab === "submitted") return a.status === "SUBMITTED";
-  if (tab === "interview") return a.status === "INTERVIEW";
-  return a.status === "ACCEPTED" || a.status === "REJECTED";
+  return (TABS.find((t) => t.key === tab) ?? TABS[0]).match(a);
 }
 
 export const APPLICATION_STATUS: Record<MyApplication["status"], { label: string; cls: string }> = {
@@ -69,7 +70,7 @@ export function ApplicationsScreen() {
   // 내 프로필 등에서 ?tab= 로 진입하면 해당 상태 탭으로 시작.
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t === "all" || t === "submitted" || t === "interview" || t === "result") setTab(t);
+    if (t && TABS.some((x) => x.key === t)) setTab(t as Tab);
   }, []);
 
   function confirmWithdraw() {
@@ -88,22 +89,12 @@ export function ApplicationsScreen() {
 
   const counts = useMemo(() => {
     const a = apps ?? [];
-    return {
-      all: a.length,
-      submitted: a.filter((x) => x.status === "SUBMITTED").length,
-      interview: a.filter((x) => x.status === "INTERVIEW").length,
-      result: a.filter((x) => x.status === "ACCEPTED" || x.status === "REJECTED").length
-    } as Record<Tab, number>;
+    const c = {} as Record<Tab, number>;
+    for (const t of TABS) c[t.key] = a.filter(t.match).length;
+    return c;
   }, [apps]);
 
-  const list = useMemo(() => {
-    const filtered = (apps ?? []).filter((a) => inTab(a, tab));
-    // 결과 탭에서는 합격을 위로(그 외는 서버 순서=지원 최신순 유지).
-    if (tab === "result") {
-      return [...filtered].sort((a, b) => (a.status === "ACCEPTED" ? 0 : 1) - (b.status === "ACCEPTED" ? 0 : 1));
-    }
-    return filtered;
-  }, [apps, tab]);
+  const list = useMemo(() => (apps ?? []).filter((a) => inTab(a, tab)), [apps, tab]);
 
   return (
     <TalentAppShell>
