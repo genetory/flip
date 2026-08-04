@@ -290,7 +290,7 @@ function HomeCareerHistory() {
       </div>
 
       {/* 이력서 / 자기소개서 */}
-      <CareerFunnelCards />
+      <CareerFunnelCards showPreview />
 
       {recent.length > 0 ? (
         <div className="flex flex-col gap-2.5">
