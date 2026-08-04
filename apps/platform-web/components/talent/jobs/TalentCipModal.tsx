@@ -6,8 +6,10 @@ import { useEffect } from "react";
 import { X, Star } from "@phosphor-icons/react";
 import { CIP_COPY } from "../../positions/AplyCipBadge";
 import type { PlatformLocale } from "../../../lib/auth-messages";
+import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 
 export function TalentCipModal({ locale, onClose }: { locale: PlatformLocale; onClose: () => void }) {
+  useLockBodyScroll();
   const copy = CIP_COPY[locale] ?? CIP_COPY.en;
 
   useEffect(() => {

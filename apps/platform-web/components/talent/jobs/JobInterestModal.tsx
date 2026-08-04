@@ -5,10 +5,12 @@ import { useMemo, useState } from "react";
 import { X, MagnifyingGlass } from "@phosphor-icons/react";
 import { saveJobInterests } from "../../../lib/talent/job-interest";
 import { JOB_TAXONOMY } from "../../../lib/talent/job-taxonomy";
+import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 
 const MAX = 3;
 
 export function JobInterestModal({ initial, onClose }: { initial: string[]; onClose: () => void }) {
+  useLockBodyScroll();
   const [major, setMajor] = useState(0);
   const [selected, setSelected] = useState<string[]>(initial);
   const [query, setQuery] = useState("");

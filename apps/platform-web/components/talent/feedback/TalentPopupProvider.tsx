@@ -5,6 +5,7 @@
 // API 는 토스트와 호환(success/error/info)해 기존 호출부를 그대로 옮길 수 있다.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { X, Check, WarningCircle, Info } from "@phosphor-icons/react";
+import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 
 type PopupKind = "success" | "error" | "info";
 
@@ -63,6 +64,7 @@ const ICON = {
 } as const;
 
 function PopupCard({ item, onClose }: { item: PopupItem; onClose: () => void }) {
+  useLockBodyScroll();
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();

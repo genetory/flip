@@ -29,6 +29,7 @@ import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 import { isFollowing, useFollowing } from "../../../lib/talent/social-graph";
+import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import type { TalentSnapshot } from "../../../lib/talent/types";
 
@@ -350,6 +351,7 @@ function GuideSection() {
 
 /* 가이드 팝업 */
 export function GuideModal({ guide, onClose }: { guide: CareerGuide; onClose: () => void }) {
+  useLockBodyScroll();
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();

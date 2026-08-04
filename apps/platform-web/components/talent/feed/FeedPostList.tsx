@@ -11,6 +11,7 @@ import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { toggleFeedBookmark, useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
 import { useResumeDoc } from "../../../lib/talent/resume-doc";
 import { useCoverDoc } from "../../../lib/talent/cover-doc";
+import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 
 export function FeedPostList({ posts }: { posts: FeedPost[] }) {
   const { user } = useAuthSession();
@@ -130,6 +131,7 @@ function FollowButton({ following, onClick }: { following: boolean; onClick: () 
 }
 
 function AuthorProfileModal({ author, posts, meKey, onClose }: { author: FeedAuthor; posts: FeedPost[]; meKey: string; onClose: () => void }) {
+  useLockBodyScroll();
   const following = useFollowing();
   const key = authorKey(author);
   const mine = key === meKey;

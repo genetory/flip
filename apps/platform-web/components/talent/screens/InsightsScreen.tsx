@@ -8,6 +8,7 @@ import { GuideModal } from "./HomeScreen";
 import { roleInsights, jobHunting, jobVisas } from "../../../lib/talent/insights-content";
 import { homeTips, type CareerGuide } from "../../../lib/talent/home-content";
 import { VISA_DETAILS, type VisaStructuredLine } from "../../../lib/visa-details";
+import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 
 const oneLine = (t: string) => t.replace(/\n/g, " ");
 
@@ -168,6 +169,7 @@ function VisaLines({ lines }: { lines: VisaStructuredLine[] }) {
 }
 
 function VisaModal({ code, onClose }: { code: string; onClose: () => void }) {
+  useLockBodyScroll();
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();

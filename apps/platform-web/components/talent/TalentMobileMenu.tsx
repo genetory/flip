@@ -6,12 +6,14 @@ import { talentNav, talentBrand, talentRoutes, footerContent } from "../../lib/t
 import { talentAppRoutes } from "../../lib/talent/app-nav";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { TalentButton } from "./TalentButton";
+import { useLockBodyScroll } from "../../lib/talent/useLockBodyScroll";
 
 // 모바일 내비 패널 — 햄버거로 열림. 메인 메뉴 + (비로그인)로그인·무료로 시작하기 / (로그인)내 홈으로 + (보조) Partner 링크.
 
 export function TalentMobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, isAuthenticated } = useAuthSession();
   const isTalentUser = isAuthenticated && (user?.role === "STUDENT" || user?.role === "OPERATOR");
+  useLockBodyScroll(open);
   if (!open) return null;
   return (
     <div className="lg:hidden">
