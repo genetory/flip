@@ -122,8 +122,7 @@ export function ApplicationsScreen() {
                     aria-current={active ? "page" : undefined}
                     className={`relative shrink-0 pb-1.5 text-[15px] font-bold transition ${active ? "text-[#191F28]" : "text-[#B0B8C1] hover:text-[#8B95A1]"}`}
                   >
-                    {t.label}
-                    {n ? ` ${n}` : ""}
+                    {t.label} ({n})
                     {active ? <span className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-[#0B46E8]" /> : null}
                   </button>
                 );
