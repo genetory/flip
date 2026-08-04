@@ -57,13 +57,15 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   const mission = todaysMission(hasResume, rp, hasCover, cp, applied);
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-4">
-      <TPageHeader title="내 커리어" />
+    <div className="flex flex-col gap-9">
+      <header>
+        <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-[#0B46E8]">MY CAREER</p>
+        <h1 className="mt-2 break-keep text-[26px] font-black leading-[1.2] tracking-[-0.02em] text-[#0B1227]">내 커리어를 하나씩 완성해요</h1>
+        <p className="mt-1.5 break-keep text-[14px] leading-relaxed text-[#8B95A1]">이력서·자기소개서를 만들고, 오늘 한 걸음씩 취업에 가까워져요.</p>
+      </header>
 
       {/* 오늘의 한 걸음 히어로 */}
       <DailyStepHero mission={mission} />
-      </div>
 
       {/* 이력서 · 자기소개서 */}
       <section className="flex flex-col gap-4">
@@ -94,18 +96,19 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
 
 interface Mission {
   text: string;
+  sub: string;
   cta: string;
   href: string;
 }
 
 // 현재 상태에 맞는 오늘의 미션(작은 한 걸음) 하나.
 function todaysMission(hasResume: boolean, rp: number, hasCover: boolean, cp: number, applied: boolean): Mission {
-  if (!hasResume) return { text: "오늘은 이력서를 만들어볼까요?", cta: "이력서 만들기", href: talentAppRoutes.resume };
-  if (rp < 100) return { text: "이력서에 경험 한 줄을 더 채워봐요.", cta: "이력서 이어서 쓰기", href: talentAppRoutes.resume };
-  if (!hasCover) return { text: "자기소개서 지원 동기를 써볼까요?", cta: "자기소개서 만들기", href: talentAppRoutes.cover };
-  if (cp < 100) return { text: "자기소개서 한 문항을 더 채워봐요.", cta: "자기소개서 이어서 쓰기", href: talentAppRoutes.cover };
-  if (!applied) return { text: "마음에 드는 공고 하나를 저장해봐요.", cta: "포지션 탐색하기", href: talentAppRoutes.jobs };
-  return { text: "오늘도 새 공고를 둘러볼까요?", cta: "포지션 탐색하기", href: talentAppRoutes.jobs };
+  if (!hasResume) return { text: "오늘은 이력서를 만들어볼까요?", sub: "5분이면 시작할 수 있어요. 완벽하지 않아도 괜찮아요.", cta: "이력서 만들기", href: talentAppRoutes.resume };
+  if (rp < 100) return { text: "이력서에 경험 한 줄을 더 채워봐요.", sub: "알바·프로젝트 무엇이든, 한 줄이면 충분해요.", cta: "이력서 이어서 쓰기", href: talentAppRoutes.resume };
+  if (!hasCover) return { text: "자기소개서 지원 동기를 써볼까요?", sub: "빈 화면 대신 문항 하나에 답하듯 시작해봐요.", cta: "자기소개서 만들기", href: talentAppRoutes.cover };
+  if (cp < 100) return { text: "자기소개서 한 문항을 더 채워봐요.", sub: "오늘은 한 문항만 채워도 좋아요.", cta: "자기소개서 이어서 쓰기", href: talentAppRoutes.cover };
+  if (!applied) return { text: "마음에 드는 공고 하나를 저장해봐요.", sub: "관심 직무에 맞는 공고부터 둘러보면 좋아요.", cta: "포지션 탐색하기", href: talentAppRoutes.jobs };
+  return { text: "오늘도 새 공고를 둘러볼까요?", sub: "새로 올라온 공고에서 기회를 찾아봐요.", cta: "포지션 탐색하기", href: talentAppRoutes.jobs };
 }
 
 function DailyStepHero({ mission }: { mission: Mission }) {
@@ -121,18 +124,15 @@ function DailyStepHero({ mission }: { mission: Mission }) {
 
       {doneToday ? (
         <>
-          <h2 className="mt-3 break-keep text-[20px] font-black leading-[1.35] tracking-[-0.02em]">오늘의 한 걸음, 완료! 👏</h2>
-          <p className="mt-2 break-keep text-[14px] leading-relaxed text-white/65">내일 또 한 걸음 이어가면 연속 기록이 쌓여요.</p>
+          <h2 className="mt-3 max-w-[85%] break-keep text-[22px] font-black leading-[1.3] tracking-[-0.02em]">오늘의 한 걸음, 완료! 👏</h2>
+          <p className="mt-2.5 max-w-[88%] break-keep text-[14px] leading-relaxed text-white/65">내일 또 한 걸음 이어가면 연속 기록이 쌓여요.</p>
         </>
       ) : (
         <>
-          <h2 className="mt-3 break-keep text-[20px] font-black leading-[1.35] tracking-[-0.02em]">{mission.text}</h2>
-          <Link
-            href={mission.href}
-            onClick={markStepDoneToday}
-            className="mt-5 inline-flex h-[46px] items-center gap-1.5 rounded-2xl bg-white px-5 text-[14px] font-bold text-[#0B1227] transition hover:bg-[#F2F4F6]"
-          >
-            {mission.cta} <ArrowRight className="h-4 w-4" weight="bold" />
+          <h2 className="mt-3 max-w-[85%] break-keep text-[22px] font-black leading-[1.3] tracking-[-0.02em]">{mission.text}</h2>
+          <p className="mt-2.5 max-w-[88%] break-keep text-[14px] leading-relaxed text-white/65">{mission.sub}</p>
+          <Link href={mission.href} onClick={markStepDoneToday} className="group mt-5 inline-flex items-center gap-1.5 text-[13.5px] font-bold text-white">
+            {mission.cta} <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" weight="bold" />
           </Link>
         </>
       )}
