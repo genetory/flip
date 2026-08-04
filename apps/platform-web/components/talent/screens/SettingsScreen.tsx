@@ -96,8 +96,10 @@ export function SettingsScreen() {
   return (
     <TalentAppShell maxWidth="4xl">
       <div className="flex flex-col gap-10">
-        {/* 프로필 히어로 */}
-        <div className="rounded-3xl bg-[#F5F8FF] p-6">
+        {/* 기본 정보 */}
+        <section>
+          <SectionHeader title="기본 정보" />
+          <div className="rounded-3xl bg-[#F5F8FF] p-6">
           <div className="flex items-center gap-4">
             <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[24px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">
               {name.slice(0, 1)}
@@ -120,7 +122,8 @@ export function SettingsScreen() {
               <PencilSimple className="h-4 w-4" /> 프로필 편집
             </Link>
           </div>
-        </div>
+          </div>
+        </section>
 
         {/* 내 활동 — 팔로우/관심(SNS 스타일 묶음). 프로필 카드 바로 아래. */}
         <section>
@@ -140,8 +143,11 @@ export function SettingsScreen() {
           <MoreLink label="내 커리어 더 보기" href={talentAppRoutes.career} />
         </section>
 
-        {/* 관심 직무 (자체 헤더) */}
-        <JobInterestCard variant="edit" />
+        {/* 관심 직무 */}
+        <section>
+          <SectionHeader title="관심 직무" />
+          <JobInterestCard variant="edit" />
+        </section>
 
         {/* 알림 */}
         <section>

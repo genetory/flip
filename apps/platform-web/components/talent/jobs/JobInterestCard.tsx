@@ -20,17 +20,8 @@ export function JobInterestCard({ variant = "link" }: { variant?: "link" | "edit
     return (
       <>
         <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-          {/* 헤더 — 아이콘 + 타이틀/서브 */}
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDF1FD] text-[18px]" aria-hidden>🎯</span>
-            <div className="min-w-0">
-              <h2 className="truncate text-[16px] font-black tracking-[-0.02em] text-[#0B1227]">나의 관심 직무</h2>
-              <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{has ? `${interests.length}개 · 맞춤 공고 추천의 기준` : "고르면 나에게 맞는 공고를 추천해드려요"}</p>
-            </div>
-          </div>
-
           {/* 인라인 편집 칩 — 각 칩 ×로 삭제, + 추가로 선택 팝업 */}
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             {interests.map((r) => (
               <span key={r} className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] py-1.5 pl-3.5 pr-2 text-[12.5px] font-bold text-[#0B46E8]">
                 {r}
