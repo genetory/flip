@@ -4,8 +4,10 @@
 //  - variant="link"(홈): 카드 전체 탭 → 선택 팝업.
 //  - variant="edit"(계정설정·프로필): 카드에서 바로 수정(칩 인라인 삭제 + 추가 버튼).
 import { useState } from "react";
-import { CaretRight } from "@phosphor-icons/react";
-import { useJobInterests } from "../../../lib/talent/job-interest";
+import Link from "next/link";
+import { CaretRight, Plus, X } from "@phosphor-icons/react";
+import { useJobInterests, saveJobInterests } from "../../../lib/talent/job-interest";
+import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { JobInterestModal } from "./JobInterestModal";
 
 export function JobInterestCard({ variant = "link" }: { variant?: "link" | "edit" }) {
@@ -14,45 +16,53 @@ export function JobInterestCard({ variant = "link" }: { variant?: "link" | "edit
   const has = interests.length > 0;
 
   if (variant === "edit") {
+    const remove = (r: string) => saveJobInterests(interests.filter((x) => x !== r));
     return (
       <>
-        <section className="overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
-          {/* 헤더 밴드 — 아이콘 + 타이틀/서브 + 편집 */}
-          <div className="flex items-center justify-between gap-3 border-b border-[#EAF0FE] bg-[#F5F8FF] px-5 py-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[18px] shadow-[0_2px_10px_rgba(11,70,232,0.1)]" aria-hidden>🎯</span>
-              <div className="min-w-0">
-                <h2 className="truncate text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">나의 관심 직무</h2>
-                <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{has ? `${interests.length}개 선택됨 · 맞춤 공고의 기준` : "맞춤 공고 추천의 기준이 돼요"}</p>
-              </div>
+        <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+          {/* 헤더 — 아이콘 + 타이틀/서브 */}
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDF1FD] text-[18px]" aria-hidden>🎯</span>
+            <div className="min-w-0">
+              <h2 className="truncate text-[16px] font-black tracking-[-0.02em] text-[#0B1227]">나의 관심 직무</h2>
+              <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{has ? `${interests.length}개 · 맞춤 공고 추천의 기준` : "고르면 나에게 맞는 공고를 추천해드려요"}</p>
             </div>
+          </div>
+
+          {/* 인라인 편집 칩 — 각 칩 ×로 삭제, + 추가로 선택 팝업 */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {interests.map((r) => (
+              <span key={r} className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] py-1.5 pl-3.5 pr-2 text-[12.5px] font-bold text-[#0B46E8]">
+                {r}
+                <button
+                  type="button"
+                  onClick={() => remove(r)}
+                  aria-label={`${r} 삭제`}
+                  className="flex h-4 w-4 items-center justify-center rounded-full text-[#8AA6EF] transition hover:bg-white/70 hover:text-[#0B46E8]"
+                >
+                  <X className="h-3 w-3" weight="bold" />
+                </button>
+              </span>
+            ))}
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="shrink-0 rounded-lg bg-[#EDF1FD] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#E0E9FC]"
+              className="inline-flex items-center gap-1 rounded-full border border-dashed border-[#C7D6F7] px-3.5 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#F0F5FF]"
             >
-              {has ? "편집" : "선택"}
+              <Plus className="h-3.5 w-3.5" weight="bold" /> 추가
             </button>
           </div>
 
-          {/* 본문 — 칩 또는 빈 상태 CTA */}
-          <div className="p-5">
-            {has ? (
-              <div className="flex flex-wrap gap-2">
-                {interests.map((r) => (
-                  <span key={r} className="rounded-full border border-[#DCE6FB] bg-[#EDF1FD] px-3.5 py-1.5 text-[12.5px] font-bold text-[#0B46E8]">{r}</span>
-                ))}
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setOpen(true)}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#C7D6F7] bg-[#FAFBFF] py-4 text-[13.5px] font-bold text-[#0B46E8] transition hover:bg-[#F0F5FF]"
-              >
-                관심 직무 고르기 <CaretRight className="h-4 w-4" weight="bold" />
-              </button>
-            )}
-          </div>
+          {/* 값 — 관심 직무 맞춤 공고로 연결 */}
+          {has ? (
+            <Link
+              href={talentAppRoutes.jobs}
+              className="mt-4 flex items-center justify-between gap-2 rounded-xl bg-[#F6F8FB] px-4 py-3 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#EEF1F5] hover:text-[#0B46E8]"
+            >
+              관심 직무 맞춤 공고 보기
+              <CaretRight className="h-4 w-4 shrink-0" weight="bold" />
+            </Link>
+          ) : null}
         </section>
         {open ? <JobInterestModal initial={interests} onClose={() => setOpen(false)} /> : null}
       </>
