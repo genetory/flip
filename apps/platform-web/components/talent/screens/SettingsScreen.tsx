@@ -24,18 +24,17 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
   );
 }
 
-// 섹션 헤더 — 타이틀 + (선택) 우측 액션 링크.
-function SectionHeader({ title, action }: { title: string; action?: { label: string; href: string } }) {
+// 섹션 헤더 — 타이틀.
+function SectionHeader({ title }: { title: string }) {
+  return <p className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</p>;
+}
+
+// 섹션 하단 더 보기 버튼 — 홈 포지션 리스트 하단 버튼과 동일한 스타일.
+function MoreLink({ label, href }: { label: string; href: string }) {
   return (
-    <div className="mb-3 flex items-end justify-between gap-3">
-      <p className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</p>
-      {action ? (
-        <Link href={action.href} className="inline-flex items-center gap-0.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:text-[#0A3ECB]">
-          {action.label}
-          <CaretRight className="h-3.5 w-3.5" weight="bold" />
-        </Link>
-      ) : null}
-    </div>
+    <Link href={href} className="mt-3 flex items-center justify-center gap-1 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB]">
+      {label} <CaretRight className="h-4 w-4" weight="bold" />
+    </Link>
   );
 }
 
@@ -139,8 +138,9 @@ export function SettingsScreen() {
 
         {/* 내 커리어 — 이력서/자기소개서 (커리어 상세로 연결) */}
         <section>
-          <SectionHeader title="내 커리어" action={{ label: "커리어 홈", href: talentAppRoutes.career }} />
+          <SectionHeader title="내 커리어" />
           <CareerFunnelCards showPreview />
+          <MoreLink label="내 커리어 더 보기" href={talentAppRoutes.career} />
         </section>
 
         {/* 관심 직무 (자체 헤더) */}
@@ -148,13 +148,14 @@ export function SettingsScreen() {
 
         {/* 지원 현황 — 지원 페이지와 동일한 실제 데이터. 카드 클릭 시 해당 탭으로 이동. */}
         <section>
-          <SectionHeader title="지원 현황" action={{ label: "전체 보기", href: talentAppRoutes.applications }} />
+          <SectionHeader title="지원 현황" />
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard title="전체 지원" count={appCounts.all} href={talentAppRoutes.applications} />
             <StatCard title="지원 완료" count={appCounts.submitted} href={`${talentAppRoutes.applications}?tab=submitted`} />
             <StatCard title="면접" count={appCounts.interview} href={`${talentAppRoutes.applications}?tab=interview`} />
             <StatCard title="결과" count={appCounts.result} href={`${talentAppRoutes.applications}?tab=result`} />
           </div>
+          <MoreLink label="지원 현황 전체 보기" href={talentAppRoutes.applications} />
         </section>
 
         {/* 내 활동 — 팔로우/관심(SNS 스타일 묶음) */}
@@ -170,7 +171,7 @@ export function SettingsScreen() {
 
         {/* 알림 */}
         <section>
-          <SectionHeader title="알림" action={{ label: "알림함", href: talentAppRoutes.notifications }} />
+          <SectionHeader title="알림" />
           <TCard className="divide-y divide-[#F2F4F6]">
             <div className="flex items-center gap-3 px-5 py-4">
               <span className="flex-1 text-[14.5px] text-[#191F28]">추천 공고 알림</span>
@@ -181,6 +182,7 @@ export function SettingsScreen() {
               <Toggle on={emailOn} onChange={setEmailOn} label="이메일 소식 받기" />
             </div>
           </TCard>
+          <MoreLink label="알림함 열기" href={talentAppRoutes.notifications} />
         </section>
 
         {/* 계정 */}
