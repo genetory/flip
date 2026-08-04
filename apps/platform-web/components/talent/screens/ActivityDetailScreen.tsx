@@ -74,7 +74,7 @@ export function ActivityDetailScreen({ type }: { type: string }) {
 
   return (
     <TalentAppShell maxWidth="4xl">
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-10">
         <div>
           <TalentBackButton className="mb-3" />
           <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{TITLES[t]}</h1>

@@ -24,7 +24,7 @@ export function InsightsScreen() {
 
   return (
     <TalentAppShell>
-      <div className="flex flex-col gap-9">
+      <div className="flex flex-col gap-10">
         {/* 매스트헤드 */}
         <header>
           <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-[#0B46E8]">APLY CAREER GUIDE</p>

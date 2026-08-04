@@ -92,7 +92,7 @@ export function CompanyDetailScreen({ name }: { name: string }) {
 
   return (
     <TalentAppShell>
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-10">
         <div>
           <TalentBackButton className="mb-3" />
           {/* 썸네일·회사명·관심 회사 — 맨 상단 헤더 */}

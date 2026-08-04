@@ -45,7 +45,7 @@ export function HomeScreen() {
 
 function HomeContent({ snapshot }: { snapshot: TalentSnapshot }) {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-10">
       <FeaturedBanners />
       <GreetingHeader snapshot={snapshot} />
       <TodayTip />
