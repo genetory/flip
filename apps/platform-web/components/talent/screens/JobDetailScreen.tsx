@@ -280,9 +280,13 @@ function DocStatus({ label, pct, href }: { label: string; pct: number; href: str
   const done = pct >= 100;
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-4">
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[12px] font-black ${done ? "bg-[#EDF1FD] text-[#0B46E8]" : "bg-[#F2F4F6] text-[#B0B8C1]"}`}>
-        {done ? <Check className="h-4 w-4" weight="bold" /> : `${pct}%`}
-      </span>
+      {done ? (
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[#0B46E8]">
+          <Check className="h-4 w-4" weight="bold" />
+        </span>
+      ) : (
+        <span className="w-9 shrink-0 text-center text-[14px] font-black text-[#B0B8C1]">{pct}%</span>
+      )}
       <div className="min-w-0 flex-1">
         <p className="text-[14px] font-bold text-[#191F28]">{label}</p>
         <p className="text-[12px] text-[#8B95A1]">{done ? "준비됐어요" : pct === 0 ? "아직 시작 전이에요" : "완성도를 채워주세요"}</p>
