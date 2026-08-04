@@ -50,9 +50,9 @@ function HomeContent({ snapshot }: { snapshot: TalentSnapshot }) {
     <div className="flex flex-col gap-10">
       <FeaturedBanners />
       <GreetingHeader snapshot={snapshot} />
-      <TodayTip />
       <HomeCareerHistory />
       <GuideSection />
+      <TodayTip />
       <RecommendedJobs />
       <HomeCompanies />
     </div>
