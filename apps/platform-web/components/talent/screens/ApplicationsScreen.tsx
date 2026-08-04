@@ -150,7 +150,16 @@ function AppCard({ app, onWithdraw, withdrawing }: { app: MyApplication; onWithd
       </div>
 
       <p className="mt-2 text-[15px] font-bold text-[#191F28]">{app.positionTitle}</p>
-      <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">{app.partnerOrganizationName ?? "비공개 기업"}</p>
+      {app.partnerOrganizationName ? (
+        <Link
+          href={`/talent/company/${encodeURIComponent(app.partnerOrganizationName)}`}
+          className="mt-0.5 inline-block max-w-full truncate align-top text-[12.5px] text-[#8B95A1] transition hover:text-[#0B46E8] hover:underline"
+        >
+          {app.partnerOrganizationName}
+        </Link>
+      ) : (
+        <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">비공개 기업</p>
+      )}
 
       {showInterview ? (
         <div className="mt-3 rounded-xl bg-[#FBFAF5] px-3.5 py-3">
