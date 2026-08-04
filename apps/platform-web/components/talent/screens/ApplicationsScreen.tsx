@@ -39,22 +39,23 @@ function Content({ snapshot, tab, setTab }: { snapshot: TalentSnapshot; tab: App
 
   return (
     <div>
-      {/* 탭 */}
-      <div className="-mx-4 mb-5 overflow-x-auto px-4 md:mx-0 md:px-0">
-        <div className="flex min-w-max gap-1.5">
-          {applyTabs.map((s) => (
+      {/* 탭 — 포지션 탐색과 동일한 언더라인 스타일 */}
+      <div className="mb-5 flex gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {applyTabs.map((s) => {
+          const active = tab === s;
+          return (
             <button
               key={s}
               type="button"
               onClick={() => setTab(s)}
-              aria-pressed={tab === s}
-              className={`rounded-full px-4 py-2 text-[13.5px] font-bold transition ${tab === s ? "bg-[#191F28] text-white" : "bg-white text-[#4E5968] ring-1 ring-inset ring-[#EEF1F5]"}`}
+              aria-current={active ? "page" : undefined}
+              className={`relative shrink-0 pb-1.5 text-[15px] font-bold transition ${active ? "text-[#191F28]" : "text-[#B0B8C1] hover:text-[#8B95A1]"}`}
             >
-              {applicationStatusLabels[s]}
-              {counts[s] ? <span className={`ml-1.5 ${tab === s ? "text-white/70" : "text-[#B0B8C1]"}`}>{counts[s]}</span> : null}
+              {applicationStatusLabels[s]}{counts[s] ? ` ${counts[s]}` : ""}
+              {active ? <span className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-[#0B46E8]" /> : null}
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       {list.length === 0 ? (
