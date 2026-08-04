@@ -384,7 +384,7 @@ function AppCard({ app, onWithdraw, onMessage }: { app: MyApplication; onWithdra
           <button
             type="button"
             onClick={onWithdraw}
-            className="inline-flex items-center rounded-xl bg-[#FDECEE] px-3.5 py-2 text-[12.5px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1]"
+            className="ml-auto inline-flex items-center rounded-xl bg-[#FDECEE] px-3.5 py-2 text-[12.5px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1]"
           >
             지원 철회
           </button>
