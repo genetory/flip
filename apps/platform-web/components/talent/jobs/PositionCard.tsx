@@ -72,7 +72,7 @@ export function PositionCard({
               </CardLink>
               {/* 회사명 터치 → 회사 상세(내부 공고, 실명 회사만). */}
               {view.isInternal && view.company && view.company !== "비공개 기업" ? (
-                <Link href={`/talent/company/${encodeURIComponent(view.company)}`} className="mt-0.5 block truncate text-[13px] text-[#4E5968] transition hover:text-[#0B46E8] hover:underline">
+                <Link href={`/talent/company/${encodeURIComponent(view.company)}`} className="mt-0.5 inline-block max-w-full truncate align-top text-[13px] text-[#4E5968] transition hover:text-[#0B46E8] hover:underline">
                   {view.company}
                 </Link>
               ) : (
