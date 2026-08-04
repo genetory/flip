@@ -22,10 +22,21 @@ export function ProfileScreen() {
 
 function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-8">
       <TPageHeader title="프로필" description="이력서·자기소개서에 쓰이는 기본 정보예요. 나머지는 나중에 채워져요." />
-      <BasicInfoForm defaultName={snapshot.profile.displayName} />
-      <JobInterestCard variant="edit" />
+      <section>
+        <SectionTitle>기본 정보</SectionTitle>
+        <BasicInfoForm defaultName={snapshot.profile.displayName} />
+      </section>
+      <section>
+        <SectionTitle>관심 직무</SectionTitle>
+        <JobInterestCard variant="edit" />
+      </section>
     </div>
   );
+}
+
+// 홈 화면과 동일한 섹션 타이틀.
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <p className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{children}</p>;
 }

@@ -51,8 +51,7 @@ export function BasicInfoForm({ defaultName }: { defaultName?: string }) {
 
   return (
     <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-[15px] font-bold text-[#191F28]">기본 정보</h2>
+      <div className="mb-4 flex items-center justify-end">
         {complete ? (
           <span className="inline-flex items-center gap-1 text-[12.5px] font-bold text-[#0B46E8]">
             <CheckCircle className="h-4 w-4" weight="fill" /> 등록 완료
