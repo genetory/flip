@@ -5,9 +5,9 @@
 // 비로그인(랜딩): 로그인 + 무료로 시작하기. Admin 링크는 노출하지 않는다.
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { GearSix, SignOut, Bell, List, X } from "@phosphor-icons/react";
+import { Bell, List, X } from "@phosphor-icons/react";
 import { talentBrand, talentRoutes } from "../../lib/talent/landing-content";
 import { talentMainNav, isTabActive, talentAppRoutes } from "../../lib/talent/app-nav";
 import { useAuthSession } from "../auth/AuthSessionProvider";
@@ -17,21 +17,10 @@ import { useUnreadNotificationCount } from "../../lib/talent/notifications";
 
 export function TalentHeader() {
   const pathname = usePathname() ?? "";
-  const { user, isAuthenticated, logout } = useAuthSession();
+  const { user, isAuthenticated } = useAuthSession();
   const isTalentUser = isAuthenticated && (user?.role === "STUDENT" || user?.role === "OPERATOR");
 
-  const [profileOpen, setProfileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!profileOpen) return;
-    function onClick(e: MouseEvent) {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
-    }
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [profileOpen]);
 
   // 경로가 바뀌면 모바일 메뉴 닫기.
   useEffect(() => {
@@ -106,40 +95,14 @@ export function TalentHeader() {
               ) : null}
             </Link>
 
-            {/* 프로필 */}
-            <div className="relative" ref={profileRef}>
-            <button
-              type="button"
-              aria-label="내 계정 메뉴"
-              aria-expanded={profileOpen}
-              onClick={() => setProfileOpen((v) => !v)}
+            {/* 프로필 — 클릭 시 팝업 없이 내 프로필(계정 설정)로 이동 */}
+            <Link
+              href={talentAppRoutes.settings}
+              aria-label="내 프로필"
               className="inline-flex max-w-[140px] items-center rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]"
             >
               <span className="truncate">{name}</span>
-            </button>
-            {profileOpen ? (
-              <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white p-1.5 shadow-[0_12px_32px_rgba(11,18,39,0.12)]">
-                <div className="px-3 py-2.5">
-                  <p className="truncate text-[13.5px] font-bold text-[#191F28]">{name}</p>
-                  {user?.email ? <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{user.email}</p> : null}
-                </div>
-                <div className="my-1 h-px bg-[#F2F4F6]" />
-                <Link href={talentAppRoutes.settings} onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold text-[#4E5968] transition hover:bg-[#F6F8FB]">
-                  <GearSix className="h-[18px] w-[18px]" /> 계정 설정
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProfileOpen(false);
-                    void logout();
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold text-[#4E5968] transition hover:bg-[#F6F8FB]"
-                >
-                  <SignOut className="h-[18px] w-[18px]" /> 로그아웃
-                </button>
-              </div>
-            ) : null}
-            </div>
+            </Link>
           </div>
         ) : (
           <div className="flex items-center gap-1.5">

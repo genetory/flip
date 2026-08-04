@@ -78,7 +78,7 @@ export function SettingsScreen() {
 
   return (
     <TalentAppShell maxWidth="4xl">
-      <TPageHeader title="계정 설정" />
+      <TPageHeader title="내 프로필" />
 
       <div className="flex flex-col gap-10">
         {/* 프로필 요약 */}
