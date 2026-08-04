@@ -139,7 +139,7 @@ export function ApplicationsScreen() {
                 action={<TalentButton href={talentAppRoutes.jobs} variant="soft" size="md">공고 둘러보기</TalentButton>}
               />
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3.5">
                 {list.map((a) => (
                   <AppCard key={a.id} app={a} onWithdraw={() => setConfirmApp(a)} onMessage={() => setMessageApp(a)} onSelectInterview={() => setSlotApp(a)} />
                 ))}
@@ -352,16 +352,16 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview }: { app: MyApp
         <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">지원 · {formatRelativeTime(new Date(app.submittedAt).getTime())}</span>
       </div>
 
-      <p className="mt-2 text-[15px] font-bold text-[#191F28]">{app.positionTitle}</p>
+      <p className="mt-3 text-[16px] font-bold leading-snug tracking-[-0.01em] text-[#191F28]">{app.positionTitle}</p>
       {app.partnerOrganizationName ? (
         <Link
           href={`/talent/company/${encodeURIComponent(app.partnerOrganizationName)}`}
-          className="mt-0.5 inline-block max-w-full truncate align-top text-[12.5px] text-[#8B95A1] transition hover:text-[#0B46E8] hover:underline"
+          className="mt-1 inline-block max-w-full truncate align-top text-[13px] text-[#8B95A1] transition hover:text-[#0B46E8] hover:underline"
         >
           {app.partnerOrganizationName}
         </Link>
       ) : (
-        <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">비공개 기업</p>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">비공개 기업</p>
       )}
 
       {/* 상태별 안내 + 다음 액션 */}
@@ -370,7 +370,7 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview }: { app: MyApp
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link
           href={`${talentAppRoutes.jobs}/${app.positionId}`}
-          className="inline-flex items-center rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
+          className="inline-flex items-center rounded-xl border border-[#E5E8EB] bg-white px-4 py-2.5 text-[13px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
         >
           공고 보기
         </Link>
@@ -378,7 +378,7 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview }: { app: MyApp
           <button
             type="button"
             onClick={onMessage}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white px-4 py-2.5 text-[13px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
           >
             <ChatCircleDots className="h-4 w-4" /> 회사 문의
             {app.unreadMessages > 0 ? (
@@ -390,7 +390,7 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview }: { app: MyApp
           <button
             type="button"
             onClick={onWithdraw}
-            className="ml-auto inline-flex items-center rounded-xl bg-[#FDECEE] px-3.5 py-2 text-[12.5px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1]"
+            className="ml-auto inline-flex items-center rounded-xl bg-[#FDECEE] px-4 py-2.5 text-[13px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1]"
           >
             지원 철회
           </button>
@@ -405,10 +405,8 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
   // 면접 확정
   if (app.status === "INTERVIEW" && app.interviewSelectedAt) {
     return (
-      <div className="mt-3 rounded-xl bg-[#EDF1FD] px-3.5 py-3">
-        <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#0B46E8]">
-          <CalendarCheck className="h-4 w-4" weight="bold" /> 면접 확정
-        </p>
+      <div className="mt-3.5 rounded-xl bg-[#EDF1FD] px-4 py-3.5">
+        <p className="text-[12px] font-bold text-[#0B46E8]">면접 확정</p>
         <p className="mt-1 text-[13px] font-semibold text-[#191F28]">{formatWhen(app.interviewSelectedAt)}</p>
         {app.interviewLocation ? <p className="mt-0.5 text-[12px] text-[#8B95A1]">{app.interviewLocation}</p> : null}
       </div>
@@ -417,7 +415,7 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
   // 면접 일정 선택 대기 → 실제 선택 액션
   if (app.status === "INTERVIEW" && app.interviewPending) {
     return (
-      <div className="mt-3 rounded-xl bg-[#FFF3E6] px-3.5 py-3">
+      <div className="mt-3.5 rounded-xl bg-[#FFF3E6] px-4 py-3.5">
         <p className="text-[12.5px] font-bold text-[#E8890C]">면접 일정을 선택해주세요</p>
         <p className="mt-0.5 text-[12px] text-[#B07B33]">회사가 제안한 시간 중 편한 시간을 골라주세요.</p>
         <button
@@ -433,21 +431,21 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
   // 면접 단계지만 아직 슬롯 제안 전
   if (app.status === "INTERVIEW") {
     return (
-      <div className="mt-3 rounded-xl bg-[#F5F8FF] px-3.5 py-3">
+      <div className="mt-3.5 rounded-xl bg-[#F5F8FF] px-4 py-3.5">
         <p className="text-[12.5px] text-[#4E5968]">면접 단계로 진행됐어요. 일정이 잡히면 알려드릴게요.</p>
       </div>
     );
   }
   if (app.status === "SUBMITTED") {
     return (
-      <div className="mt-3 rounded-xl bg-[#F5F8FF] px-3.5 py-3">
+      <div className="mt-3.5 rounded-xl bg-[#F5F8FF] px-4 py-3.5">
         <p className="text-[12.5px] text-[#4E5968]">회사가 지원서를 검토하고 있어요. 결과가 나오면 알려드릴게요.</p>
       </div>
     );
   }
   if (app.status === "ACCEPTED") {
     return (
-      <div className="mt-3 rounded-xl bg-[#E7F8EF] px-3.5 py-3">
+      <div className="mt-3.5 rounded-xl bg-[#E7F8EF] px-4 py-3.5">
         <p className="text-[13px] font-bold text-[#0A9B59]">🎉 합격을 축하해요!</p>
         <p className="mt-0.5 text-[12.5px] text-[#4E5968]">‘회사 문의’로 다음 절차(입사·서류 등)를 확인해보세요.</p>
       </div>
@@ -455,7 +453,7 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
   }
   if (app.status === "REJECTED") {
     return (
-      <div className="mt-3 rounded-xl bg-[#F5F6F8] px-3.5 py-3">
+      <div className="mt-3.5 rounded-xl bg-[#F5F6F8] px-4 py-3.5">
         <p className="text-[12.5px] text-[#8B95A1]">이번엔 인연이 닿지 않았어요. 잘 맞는 다른 공고도 둘러보세요.</p>
       </div>
     );
