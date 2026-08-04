@@ -93,9 +93,13 @@ function ProgressRing({ pct, muted }: { pct: number; muted?: boolean }) {
         strokeDashoffset={offset}
         transform="rotate(-90 26 26)"
       />
-      <text x="26" y="26" textAnchor="middle" dominantBaseline="central" fontSize="10.5" fontWeight="800" fill="#0B1227">
-        {pct}%
-      </text>
+      {pct >= 100 ? (
+        <path d="M18.5 26.5 l4.5 4.5 l10 -11" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <text x="26" y="26" textAnchor="middle" dominantBaseline="central" fontSize="10.5" fontWeight="800" fill="#0B1227">
+          {pct}%
+        </text>
+      )}
     </svg>
   );
 }
