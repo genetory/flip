@@ -236,19 +236,23 @@ function FeaturedBanners() {
 function GreetingHeader({ snapshot }: { snapshot: TalentSnapshot }) {
   const { streak } = useDailyStep();
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-3.5">
-        <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">
-          {snapshot.greetingName.slice(0, 1)}
-        </span>
-        <div className="min-w-0">
-          <h1 className="truncate text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[24px]">{snapshot.greetingName}님, 안녕하세요 👋</h1>
-          <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{snapshot.stageLabel} · 오늘도 한 걸음 나아가요</p>
+    <div className="relative overflow-hidden rounded-3xl bg-[#F5F8FF] p-7">
+      <span className="pointer-events-none absolute -right-1 -top-4 select-none text-[92px] leading-none opacity-[0.07]" aria-hidden>🌱</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] font-black text-[#0B46E8] shadow-[0_2px_8px_rgba(11,18,39,0.06)]">
+            {snapshot.greetingName.slice(0, 1)}
+          </span>
+          <div className="min-w-0">
+            <p className="text-[12px] font-bold text-[#0B46E8]">{snapshot.stageLabel}</p>
+            <h1 className="truncate text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[24px]">{snapshot.greetingName}님, 안녕하세요 👋</h1>
+          </div>
         </div>
+        {streak > 0 ? (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] shadow-[0_2px_8px_rgba(11,18,39,0.05)]">🔥 {streak}일 연속</span>
+        ) : null}
       </div>
-      {streak > 0 ? (
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968]">🔥 {streak}일 연속</span>
-      ) : null}
+      <p className="mt-4 break-keep text-[14px] leading-relaxed text-[#4E5968]">오늘도 한 걸음씩, 취업에 가까워지고 있어요.</p>
     </div>
   );
 }
