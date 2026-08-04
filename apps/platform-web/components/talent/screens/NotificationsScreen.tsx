@@ -74,7 +74,7 @@ export function NotificationsScreen() {
         {filtered.length === 0 ? (
           <EmptyState filter={filter} />
         ) : (
-          <div className="flex flex-col">
+          <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
             {filtered.map((n, i) => (
               <Row key={n.id} n={n} last={i === filtered.length - 1} />
             ))}
@@ -95,7 +95,7 @@ function Row({ n, last }: { n: Notification; last: boolean }) {
   return (
     <Link
       href={n.href}
-      className={`flex items-start gap-3.5 px-1 py-4 transition hover:bg-[#FAFBFC] ${last ? "" : "border-b border-[#F2F4F6]"}`}
+      className={`flex items-start gap-3.5 px-4 py-4 transition ${n.unread ? "bg-[#F5F8FF] hover:bg-[#EEF3FE]" : "hover:bg-[#F6F8FB]"} ${last ? "" : "border-b border-[#F2F4F6]"}`}
     >
       <span className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-[19px] ${s.avatar}`} aria-hidden>
         {n.emoji}
@@ -129,12 +129,12 @@ function EmptyState({ filter }: { filter: Filter }) {
         <p className="mt-1 text-[13px] text-[#8B95A1]">{msg}</p>
       </div>
       {filter !== "update" ? (
-        <div className="flex flex-col">
+        <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
           {SUGGESTIONS.map((sug, i) => (
             <Link
               key={sug.id}
               href={sug.href}
-              className={`flex items-start gap-3.5 px-1 py-4 transition hover:bg-[#FAFBFC] ${i === SUGGESTIONS.length - 1 ? "" : "border-b border-[#F2F4F6]"}`}
+              className={`flex items-start gap-3.5 px-4 py-4 transition hover:bg-[#F6F8FB] ${i === SUGGESTIONS.length - 1 ? "" : "border-b border-[#F2F4F6]"}`}
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F2F4F6] text-[19px]" aria-hidden>{sug.emoji}</span>
               <div className="min-w-0 flex-1">
