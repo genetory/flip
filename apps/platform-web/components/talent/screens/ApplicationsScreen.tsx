@@ -4,7 +4,7 @@
 // 별도 상세 화면 없이 리스트 카드에서 바로 이벤트(공고 보기·지원 철회·면접 안내)를 처리한다.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { X, WarningCircle } from "@phosphor-icons/react";
+import { X, WarningCircle, ChatCircleDots, PaperPlaneTilt } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TEmpty, TError, TLoading } from "../ui/primitives";
 import { TalentButton } from "../TalentButton";
@@ -12,7 +12,7 @@ import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
-import { getMyApplications, withdrawMyApplication, type MyApplication } from "../../../lib/member-profile-client";
+import { getMyApplications, withdrawMyApplication, getApplicationMessages, sendApplicationMessage, type MyApplication, type ApplicationMessage } from "../../../lib/member-profile-client";
 
 type Tab = "all" | "submitted" | "interview" | "result";
 
@@ -44,6 +44,7 @@ export function ApplicationsScreen() {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [tab, setTab] = useState<Tab>("all");
   const [confirmApp, setConfirmApp] = useState<MyApplication | null>(null);
+  const [messageApp, setMessageApp] = useState<MyApplication | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
 
   function load() {
@@ -134,7 +135,7 @@ export function ApplicationsScreen() {
             ) : (
               <div className="flex flex-col gap-3">
                 {list.map((a) => (
-                  <AppCard key={a.id} app={a} onWithdraw={() => setConfirmApp(a)} />
+                  <AppCard key={a.id} app={a} onWithdraw={() => setConfirmApp(a)} onMessage={() => setMessageApp(a)} />
                 ))}
               </div>
             )}
@@ -145,7 +146,116 @@ export function ApplicationsScreen() {
       {confirmApp ? (
         <WithdrawModal app={confirmApp} withdrawing={withdrawing} onClose={() => setConfirmApp(null)} onConfirm={confirmWithdraw} />
       ) : null}
+
+      {messageApp ? (
+        <MessageModal
+          app={messageApp}
+          onClose={() => {
+            setMessageApp(null);
+            load(); // 안 읽음 카운트 갱신
+          }}
+        />
+      ) : null}
     </TalentAppShell>
+  );
+}
+
+// 회사 문의 — 지원 건별 메시지 스레드(쪽지). 학생↔회사.
+function MessageModal({ app, onClose }: { app: MyApplication; onClose: () => void }) {
+  useLockBodyScroll();
+  const [messages, setMessages] = useState<ApplicationMessage[] | null>(null);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const reload = () => getApplicationMessages(app.id).then(setMessages).catch(() => setMessages([]));
+  useEffect(() => {
+    void reload();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app.id]);
+
+  function send() {
+    const t = text.trim();
+    if (!t || sending) return;
+    setSending(true);
+    sendApplicationMessage(app.id, t)
+      .then(() => {
+        setText("");
+        return reload();
+      })
+      .catch(() => {})
+      .finally(() => setSending(false));
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div className="flex h-[82vh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-3xl bg-white sm:h-[560px] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+        {/* 헤더 */}
+        <div className="flex items-center gap-3 border-b border-[#F2F4F6] px-5 py-4">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-bold text-[#191F28]">{app.partnerOrganizationName ?? "비공개 기업"}</p>
+            <p className="truncate text-[12px] text-[#8B95A1]">{app.positionTitle}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="닫기" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* 메시지 목록 */}
+        <div className="flex-1 space-y-3 overflow-y-auto bg-[#FAFBFC] px-5 py-4">
+          {messages === null ? (
+            <p className="py-10 text-center text-[13px] text-[#B0B8C1]">불러오는 중…</p>
+          ) : messages.length === 0 ? (
+            <div className="py-10 text-center">
+              <p className="text-[13.5px] font-bold text-[#4E5968]">아직 주고받은 메시지가 없어요</p>
+              <p className="mt-1 text-[12.5px] text-[#8B95A1]">궁금한 점을 회사에 남겨보세요.</p>
+            </div>
+          ) : (
+            messages.map((m) => {
+              const mine = m.authorRole !== "PARTNER";
+              return (
+                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 ${mine ? "bg-[#0B46E8] text-white" : "border border-[#EEF1F5] bg-white text-[#191F28]"}`}>
+                    <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed">{m.content}</p>
+                    <p className={`mt-1 text-[10.5px] ${mine ? "text-white/60" : "text-[#B0B8C1]"}`}>{formatRelativeTime(new Date(m.createdAt).getTime())}</p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* 입력 */}
+        <div className="flex items-end gap-2 border-t border-[#F2F4F6] px-4 py-3">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            rows={1}
+            placeholder="회사에 메시지 보내기…"
+            className="max-h-28 flex-1 resize-none rounded-2xl bg-[#F2F4F6] px-4 py-2.5 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-2 focus:ring-[#0B46E8]/30"
+          />
+          <button
+            type="button"
+            onClick={send}
+            disabled={!text.trim() || sending}
+            aria-label="보내기"
+            className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-2xl bg-[#0B46E8] text-white transition hover:bg-[#0A3ECB] disabled:opacity-40"
+          >
+            <PaperPlaneTilt className="h-5 w-5" weight="fill" />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -211,9 +321,10 @@ function WithdrawModal({ app, withdrawing, onClose, onConfirm }: { app: MyApplic
   );
 }
 
-function AppCard({ app, onWithdraw }: { app: MyApplication; onWithdraw: () => void }) {
+function AppCard({ app, onWithdraw, onMessage }: { app: MyApplication; onWithdraw: () => void; onMessage: () => void }) {
   const s = APPLICATION_STATUS[app.status];
   const canWithdraw = app.status === "SUBMITTED" || app.status === "INTERVIEW";
+  const canMessage = app.status !== "WITHDRAWN";
   const showInterview = app.status === "INTERVIEW" || app.interviewSelectedAt || app.interviewPending;
 
   return (
@@ -250,13 +361,25 @@ function AppCard({ app, onWithdraw }: { app: MyApplication; onWithdraw: () => vo
         </div>
       ) : null}
 
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link
           href={`${talentAppRoutes.jobs}/${app.positionId}`}
           className="inline-flex items-center rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
         >
           공고 보기
         </Link>
+        {canMessage ? (
+          <button
+            type="button"
+            onClick={onMessage}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
+          >
+            <ChatCircleDots className="h-4 w-4" /> 회사 문의
+            {app.unreadMessages > 0 ? (
+              <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#F04452] px-1 text-[10px] font-bold leading-none text-white">{app.unreadMessages}</span>
+            ) : null}
+          </button>
+        ) : null}
         {canWithdraw ? (
           <button
             type="button"
