@@ -177,7 +177,7 @@ function AppCard({ app, onWithdraw, withdrawing }: { app: MyApplication; onWithd
             type="button"
             onClick={onWithdraw}
             disabled={withdrawing}
-            className="inline-flex items-center rounded-xl px-3.5 py-2 text-[12.5px] font-bold text-[#F04452] transition hover:bg-[#FDECEE] disabled:opacity-50"
+            className="inline-flex items-center rounded-xl bg-[#FDECEE] px-3.5 py-2 text-[12.5px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1] disabled:opacity-50"
           >
             지원 철회
           </button>
