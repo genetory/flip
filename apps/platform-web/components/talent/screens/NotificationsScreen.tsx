@@ -86,8 +86,8 @@ export function NotificationsScreen() {
 }
 
 const KIND_STYLE: Record<NotificationKind, { dot: string; text: string; label: string; avatar: string }> = {
-  activity: { dot: "bg-[#0B46E8]", text: "text-[#0B46E8]", label: "내 활동", avatar: "bg-[#EDF1FD]" },
-  update: { dot: "bg-[#12B76A]", text: "text-[#12B76A]", label: "소식", avatar: "bg-[#F2F4F6]" }
+  activity: { dot: "bg-[#0B46E8]", text: "text-[#8B95A1]", label: "내 활동", avatar: "bg-[#EDF1FD]" },
+  update: { dot: "bg-[#12B76A]", text: "text-[#8B95A1]", label: "소식", avatar: "bg-[#F2F4F6]" }
 };
 
 function Row({ n, last }: { n: Notification; last: boolean }) {
