@@ -13035,19 +13035,9 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
     }
   }
 
-  // 지원 전제조건: 이력서와 자기소개서가 모두 작성되어 있어야 지원 가능.
-  const [resumeCount, coverLetterCount] = await Promise.all([
-    prisma.resume.count({ where: { userId } }),
-    prisma.coverLetter.count({ where: { userId } })
-  ]);
-  if (resumeCount === 0 || coverLetterCount === 0) {
-    return res.status(400).json({
-      ok: false,
-      code: "DOCUMENTS_REQUIRED",
-      missing: { resume: resumeCount === 0, coverLetter: coverLetterCount === 0 },
-      message: "지원하려면 이력서와 자기소개서를 먼저 작성해 주세요."
-    });
-  }
+  // 지원 전제조건(이력서·자기소개서 작성)은 리뉴얼에서 클라이언트(ApplyModal)가 완성도로
+  // 강제한다. 리뉴얼 문서는 서버 Resume/CoverLetter 테이블에 저장되지 않으므로(로컬 보관),
+  // 서버 측 문서 존재 검사는 제거했다. (레거시 흐름은 삭제 예정)
 
   try {
     const profile = await getOrCreateCandidateProfile(userId);
