@@ -330,8 +330,8 @@ function AppCard({ app, onWithdraw, onMessage }: { app: MyApplication; onWithdra
   return (
     <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
       <div className="flex items-center gap-2">
-        <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
-        {app.interviewPending ? <span className="rounded-md bg-[#FFF3E6] px-1.5 py-0.5 text-[11px] font-bold text-[#E8890C]">면접 일정 선택</span> : null}
+        <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
+        {app.interviewPending ? <span className="rounded-md bg-[#FFF3E6] px-2.5 py-1 text-[11px] font-bold text-[#E8890C]">면접 일정 선택</span> : null}
         {app.unreadMessages > 0 ? <span className="rounded-md bg-[#FDECEE] px-1.5 py-0.5 text-[11px] font-bold text-[#F04452]">문의 {app.unreadMessages}</span> : null}
         <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(new Date(app.submittedAt).getTime())}</span>
       </div>
