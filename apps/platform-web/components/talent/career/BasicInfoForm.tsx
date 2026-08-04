@@ -89,7 +89,7 @@ export function BasicInfoForm({ defaultName }: { defaultName?: string }) {
               <button type="button" onClick={() => fileRef.current?.click()} className="rounded-lg bg-[#F2F4F6] px-2.5 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]">
                 변경
               </button>
-              <button type="button" onClick={removePhoto} className="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-[#F04452] transition hover:bg-[#FDECEE]">
+              <button type="button" onClick={removePhoto} className="rounded-lg bg-[#FDECEE] px-2.5 py-1.5 text-[12px] font-semibold text-[#F04452] transition hover:bg-[#FBDDE1]">
                 삭제
               </button>
             </div>
