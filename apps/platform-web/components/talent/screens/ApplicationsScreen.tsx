@@ -59,6 +59,12 @@ export function ApplicationsScreen() {
     load();
   }, []);
 
+  // 내 프로필 등에서 ?tab= 로 진입하면 해당 상태 탭으로 시작.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t === "all" || t === "submitted" || t === "interview" || t === "result") setTab(t);
+  }, []);
+
   function confirmWithdraw() {
     const app = confirmApp;
     if (!app || withdrawing) return;

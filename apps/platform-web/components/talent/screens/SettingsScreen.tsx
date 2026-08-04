@@ -12,7 +12,7 @@ import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useFollowing, parseAuthorKey, type FeedAuthor } from "../../../lib/talent/social-graph";
 import { useSocialFeed } from "../../../lib/talent/social-feed";
 import { useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
-import { getMyFavoritePositions, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import { getMyFavoritePositions, getMyApplications, type PublicPositionListItem, type MyApplication } from "../../../lib/member-profile-client";
 
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
@@ -55,6 +55,7 @@ export function SettingsScreen() {
   const bookmarks = useFeedBookmarks();
   const feedPosts = useSocialFeed();
   const [favPositions, setFavPositions] = useState<PublicPositionListItem[]>([]);
+  const [applications, setApplications] = useState<MyApplication[]>([]);
 
   const name = user?.realName || user?.name || "나";
 
@@ -69,6 +70,23 @@ export function SettingsScreen() {
       .then((list) => setFavPositions(list))
       .catch(() => setFavPositions([]));
   }, []);
+
+  // 실제 지원 내역(서버) 로드 — 지원 페이지와 동일한 데이터.
+  useEffect(() => {
+    void getMyApplications()
+      .then((list) => setApplications(list))
+      .catch(() => setApplications([]));
+  }, []);
+
+  const appCounts = useMemo(
+    () => ({
+      all: applications.length,
+      submitted: applications.filter((a) => a.status === "SUBMITTED").length,
+      interview: applications.filter((a) => a.status === "INTERVIEW").length,
+      result: applications.filter((a) => a.status === "ACCEPTED" || a.status === "REJECTED").length
+    }),
+    [applications]
+  );
 
   // 즐겨찾기한 피드 = 북마크 id ∩ 현재 피드 글(최신순 유지).
   const bookmarkedPosts = useMemo(() => {
@@ -96,13 +114,16 @@ export function SettingsScreen() {
         {/* 관심 직무 */}
         <JobInterestCard variant="edit" />
 
-        {/* 지원 현황 */}
-        <div>
+        {/* 지원 현황 — 지원 페이지와 동일한 실제 데이터. 카드 클릭 시 해당 탭으로 이동. */}
+        <section>
           <p className="mb-2.5 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">지원 현황</p>
-          <TCard className="divide-y divide-[#F2F4F6]">
-            <Item label="내 지원 현황 보기" href={talentAppRoutes.applications} />
-          </TCard>
-        </div>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <ActivityStat title="전체 지원" count={appCounts.all} href={talentAppRoutes.applications} />
+            <ActivityStat title="지원 완료" count={appCounts.submitted} href={`${talentAppRoutes.applications}?tab=submitted`} />
+            <ActivityStat title="면접" count={appCounts.interview} href={`${talentAppRoutes.applications}?tab=interview`} />
+            <ActivityStat title="결과" count={appCounts.result} href={`${talentAppRoutes.applications}?tab=result`} />
+          </div>
+        </section>
 
         {/* 내 활동 — 팔로우/관심(SNS 스타일 묶음) */}
         <section>
