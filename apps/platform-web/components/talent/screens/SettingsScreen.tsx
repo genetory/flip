@@ -14,7 +14,7 @@ import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useFollowing, parseAuthorKey, type FeedAuthor } from "../../../lib/talent/social-graph";
 import { useSocialFeed } from "../../../lib/talent/social-feed";
 import { useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
-import { getMyFavoritePositions, getMyApplications, type PublicPositionListItem, type MyApplication } from "../../../lib/member-profile-client";
+import { getMyFavoritePositions, type PublicPositionListItem } from "../../../lib/member-profile-client";
 
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
@@ -71,7 +71,6 @@ export function SettingsScreen() {
   const bookmarks = useFeedBookmarks();
   const feedPosts = useSocialFeed();
   const [favPositions, setFavPositions] = useState<PublicPositionListItem[]>([]);
-  const [applications, setApplications] = useState<MyApplication[]>([]);
 
   const name = user?.realName || user?.name || "나";
   const emailVerified = Boolean(user?.emailVerified);
@@ -87,23 +86,6 @@ export function SettingsScreen() {
       .then((list) => setFavPositions(list))
       .catch(() => setFavPositions([]));
   }, []);
-
-  // 실제 지원 내역(서버) 로드 — 지원 페이지와 동일한 데이터.
-  useEffect(() => {
-    void getMyApplications()
-      .then((list) => setApplications(list))
-      .catch(() => setApplications([]));
-  }, []);
-
-  const appCounts = useMemo(
-    () => ({
-      all: applications.length,
-      submitted: applications.filter((a) => a.status === "SUBMITTED").length,
-      interview: applications.filter((a) => a.status === "INTERVIEW").length,
-      result: applications.filter((a) => a.status === "ACCEPTED" || a.status === "REJECTED").length
-    }),
-    [applications]
-  );
 
   // 즐겨찾기한 피드 = 북마크 id ∩ 현재 피드 글(최신순 유지).
   const bookmarkedPosts = useMemo(() => {
@@ -140,29 +122,7 @@ export function SettingsScreen() {
           </div>
         </div>
 
-        {/* 내 커리어 — 이력서/자기소개서 (커리어 상세로 연결) */}
-        <section>
-          <SectionHeader title="내 커리어" />
-          <CareerFunnelCards showPreview />
-          <MoreLink label="내 커리어 더 보기" href={talentAppRoutes.career} />
-        </section>
-
-        {/* 관심 직무 (자체 헤더) */}
-        <JobInterestCard variant="edit" />
-
-        {/* 지원 현황 — 지원 페이지와 동일한 실제 데이터. 카드 클릭 시 해당 탭으로 이동. */}
-        <section>
-          <SectionHeader title="지원 현황" />
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard title="전체 지원" count={appCounts.all} href={talentAppRoutes.applications} />
-            <StatCard title="지원 완료" count={appCounts.submitted} href={`${talentAppRoutes.applications}?tab=submitted`} />
-            <StatCard title="면접" count={appCounts.interview} href={`${talentAppRoutes.applications}?tab=interview`} />
-            <StatCard title="결과" count={appCounts.result} href={`${talentAppRoutes.applications}?tab=result`} />
-          </div>
-          <MoreLink label="지원 현황 전체 보기" href={talentAppRoutes.applications} />
-        </section>
-
-        {/* 내 활동 — 팔로우/관심(SNS 스타일 묶음) */}
+        {/* 내 활동 — 팔로우/관심(SNS 스타일 묶음). 프로필 카드 바로 아래. */}
         <section>
           <SectionHeader title="내 활동" />
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -172,6 +132,16 @@ export function SettingsScreen() {
             <StatCard title="즐겨찾기한 피드" count={bookmarkedPosts.length} href="/talent/activity/favorite-feed" />
           </div>
         </section>
+
+        {/* 내 커리어 — 이력서/자기소개서 (커리어 상세로 연결) */}
+        <section>
+          <SectionHeader title="내 커리어" />
+          <CareerFunnelCards showPreview />
+          <MoreLink label="내 커리어 더 보기" href={talentAppRoutes.career} />
+        </section>
+
+        {/* 관심 직무 (자체 헤더) */}
+        <JobInterestCard variant="edit" />
 
         {/* 알림 */}
         <section>
