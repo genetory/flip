@@ -30,6 +30,7 @@ import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 import { isFollowing, useFollowing } from "../../../lib/talent/social-graph";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
+import { useDailyStep } from "../../../lib/talent/daily-step";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import type { TalentSnapshot } from "../../../lib/talent/types";
 
@@ -233,15 +234,21 @@ function FeaturedBanners() {
 
 /* 인사 */
 function GreetingHeader({ snapshot }: { snapshot: TalentSnapshot }) {
+  const { streak } = useDailyStep();
   return (
-    <div className="flex items-center gap-3">
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[18px] font-black text-[#0B46E8]">
-        {snapshot.greetingName.slice(0, 1)}
-      </span>
-      <div className="min-w-0">
-        <p className="text-[13px] text-[#8B95A1]">{snapshot.stageLabel}</p>
-        <h1 className="text-[21px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[24px]">{snapshot.greetingName}님, 안녕하세요 👋</h1>
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-3.5">
+        <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">
+          {snapshot.greetingName.slice(0, 1)}
+        </span>
+        <div className="min-w-0">
+          <h1 className="truncate text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[24px]">{snapshot.greetingName}님, 안녕하세요 👋</h1>
+          <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{snapshot.stageLabel} · 오늘도 한 걸음 나아가요</p>
+        </div>
       </div>
+      {streak > 0 ? (
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968]">🔥 {streak}일 연속</span>
+      ) : null}
     </div>
   );
 }
