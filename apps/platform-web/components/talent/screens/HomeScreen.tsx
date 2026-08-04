@@ -49,11 +49,7 @@ function HomeContent({ snapshot }: { snapshot: TalentSnapshot }) {
   return (
     <div className="flex flex-col gap-10">
       <FeaturedBanners />
-      <div className="rounded-3xl border border-[#EEF1F5] bg-white p-6">
-        <GreetingHeader snapshot={snapshot} />
-        <div className="my-5 h-px bg-[#F2F4F6]" />
-        <HomeStats snapshot={snapshot} />
-      </div>
+      <GreetingHeader snapshot={snapshot} />
       <TodayTip />
       <HomeCareerHistory />
       <GuideSection />
@@ -253,40 +249,6 @@ function GreetingHeader({ snapshot }: { snapshot: TalentSnapshot }) {
       {streak > 0 ? (
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968]">🔥 {streak}일 연속</span>
       ) : null}
-    </div>
-  );
-}
-
-// 인사 카드 하단 활동 요약 — 저장 공고 · 지원 · 관심 회사(각 화면으로 연결).
-function HomeStats({ snapshot }: { snapshot: TalentSnapshot }) {
-  const following = useFollowing();
-  const [saved, setSaved] = useState<number | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    void getMyFavoritePositions()
-      .then((list) => alive && setSaved(list.length))
-      .catch(() => alive && setSaved(0));
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const companies = following.filter((k) => k.startsWith("PARTNER::")).length;
-  const stats: { label: string; value: number | string; href: string }[] = [
-    { label: "저장한 공고", value: saved ?? "–", href: talentAppRoutes.jobs },
-    { label: "지원", value: snapshot.applications.length, href: talentAppRoutes.applications },
-    { label: "관심 회사", value: companies, href: "/talent/activity/following-companies" }
-  ];
-
-  return (
-    <div className="grid grid-cols-3 divide-x divide-[#F2F4F6]">
-      {stats.map((s) => (
-        <Link key={s.label} href={s.href} className="flex flex-col items-center gap-0.5 px-2 py-1 text-center transition hover:opacity-70">
-          <p className="text-[22px] font-black tracking-[-0.02em] text-[#191F28]">{s.value}</p>
-          <p className="text-[12px] text-[#8B95A1]">{s.label}</p>
-        </Link>
-      ))}
     </div>
   );
 }
