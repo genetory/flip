@@ -51,9 +51,10 @@ const TIME_OPTIONS: string[] = (() => {
   out.push("24:00"); // 자정(다음 날 00:00)
   return out;
 })();
+// 날짜·시간·장소가 모두 채워진 행만 유효한 슬롯으로 인정.
 function slotsFromRows(rows: SlotRow[]): { startsAt: string; endsAt: string; location?: string }[] {
   return rows
-    .filter((r) => r.date && r.time)
+    .filter((r) => r.date && r.time && r.location.trim())
     .map((r) => {
       // 24:00 은 다음 날 00:00 으로 처리.
       const d = r.time === "24:00" ? new Date(`${r.date}T00:00`) : new Date(`${r.date}T${r.time}`);
@@ -86,7 +87,7 @@ function InterviewSlotRows({ rows, setRows, max = 3 }: { rows: SlotRow[]; setRow
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <input value={r.location} onChange={(e) => upd(i, { location: e.target.value })} placeholder="장소 (선택) · 예) 본사 3층 / 온라인" className="min-w-0 flex-1 rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]" />
+            <input value={r.location} onChange={(e) => upd(i, { location: e.target.value })} placeholder="장소 · 예) 본사 3층 / 온라인" className="min-w-0 flex-1 rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]" />
             {rows.length > 1 ? (
               <button type="button" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} aria-label="시간 삭제" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]"><X className="h-4 w-4" /></button>
             ) : null}
@@ -569,7 +570,7 @@ function ProposeModal({ applicationId, onClose, onDone }: { applicationId: strin
           <InterviewSlotRows rows={rows} setRows={setRows} />
         </div>
         <div className="px-5 pb-5">
-          <button type="button" onClick={submit} disabled={saving} className="inline-flex h-[52px] w-full items-center justify-center rounded-2xl bg-[#0B46E8] text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
+          <button type="button" onClick={submit} disabled={saving || slotsFromRows(rows).length === 0} className="inline-flex h-[52px] w-full items-center justify-center rounded-2xl bg-[#0B46E8] text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40">
             {saving ? "제안 중…" : "면접 시간 제안하기"}
           </button>
         </div>
