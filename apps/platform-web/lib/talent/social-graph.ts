@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useSyncExternalStore } from "react";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
 import { setFollows, snapshotFollows, subscribeDocs, syncUser } from "./renewal-docs-store";
+import { useFollowedCompanies } from "./company-follow";
 import { useSocialFeed, type FeedAuthorRole } from "./social-feed";
 import { addNotification } from "./notifications";
 import { notifyFollowedCompany, notifyFollowedUser } from "./activity-log";
@@ -124,19 +125,11 @@ const COMPANY_POS_SEEN_KEY = "talent.notifications.companyPositionsSeen.v1";
 // 회사별 기준선(본 포지션 id 집합)을 저장해, 새로 팔로우한 회사는 조용히 기준선만 잡고
 // 이미 추적 중인 회사에 새 공고가 뜨면 알림한다(팔로우 시 폭주 방지).
 export function useFollowCompanyPositionNotifications(): void {
-  const following = useFollowing();
+  const followedCompanies = useFollowedCompanies();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const companies = Array.from(
-      new Set(
-        following
-          .map(parseAuthorKey)
-          .filter((a): a is FeedAuthor => a?.role === "PARTNER")
-          .map((a) => a.name.trim())
-          .filter(Boolean)
-      )
-    );
+    const companies = Array.from(new Set(followedCompanies.map((n) => n.trim()).filter(Boolean)));
     if (companies.length === 0) return;
 
     let alive = true;
@@ -184,5 +177,5 @@ export function useFollowCompanyPositionNotifications(): void {
     return () => {
       alive = false;
     };
-  }, [following]);
+  }, [followedCompanies]);
 }

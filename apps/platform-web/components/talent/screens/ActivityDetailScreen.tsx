@@ -10,7 +10,8 @@ import { FeedPostList } from "../feed/FeedPostList";
 import { PositionCard } from "../jobs/PositionCard";
 import { TalentCipModal } from "../jobs/TalentCipModal";
 import { useLanguage } from "../../i18n/LanguageProvider";
-import { useFollowing, parseAuthorKey, unfollowAuthor, isFollowing, type FeedAuthor } from "../../../lib/talent/social-graph";
+import { useFollowing, parseAuthorKey, unfollowAuthor, type FeedAuthor } from "../../../lib/talent/social-graph";
+import { useFollowedCompanies, unfollowCompanyName } from "../../../lib/talent/company-follow";
 import { roleLabel, useSocialFeed } from "../../../lib/talent/social-feed";
 import { useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
 import { getMyFavoritePositions, getPublicPositionsPage, removeMyFavoritePosition, type PublicPositionListItem } from "../../../lib/member-profile-client";
@@ -60,7 +61,7 @@ export function ActivityDetailScreen({ type }: { type: string }) {
     [following]
   );
   const followedUsers = followedAuthors.filter((a) => a.role !== "PARTNER");
-  const followedCompanies = followedAuthors.filter((a) => a.role === "PARTNER");
+  const followedCompanies = useFollowedCompanies(); // 서버 관심 회사(이름)
   const bookmarkedPosts = useMemo(() => {
     const set = new Set(bookmarks);
     return feedPosts.filter((p) => set.has(p.id));
@@ -95,7 +96,7 @@ export function ActivityDetailScreen({ type }: { type: string }) {
         ) : t === "following-companies" ? (
           // 포지션 아이템과 비슷한 느낌의 회사 카드 리스트.
           <div className="flex flex-col gap-3">
-            {followedCompanies.map((a) => <CompanyCard key={`${a.role}::${a.name}`} author={a} />)}
+            {followedCompanies.map((name) => <CompanyCard key={name} name={name} />)}
           </div>
         ) : (
           <TCard className="divide-y divide-[#F2F4F6]">
@@ -117,16 +118,16 @@ const COMPANY_SIZE_LABELS: Record<string, string> = {
   SIZE_OVER_100: "100인 이상"
 };
 
-function CompanyCard({ author }: { author: FeedAuthor }) {
+function CompanyCard({ name }: { name: string }) {
   const [info, setInfo] = useState<{ count: number; industry?: string; size?: string; location?: string; logo?: string } | null>(null);
 
   useEffect(() => {
     let alive = true;
-    void getPublicPositionsPage({ company: author.name, limit: 100 })
+    void getPublicPositionsPage({ company: name, limit: 100 })
       .then((page) => {
         if (!alive) return;
         // 서버가 company 필터를 적용(배포 후)하면 no-op, 미배포면 클라 안전 필터.
-        const mine = page.items.filter((p) => (p.partnerOrganization?.name || p.sourceCompanyName) === author.name);
+        const mine = page.items.filter((p) => (p.partnerOrganization?.name || p.sourceCompanyName) === name);
         const org = mine.find((p) => p.partnerOrganization)?.partnerOrganization;
         const location = (org?.officeAddress || mine.find((p) => p.workLocation)?.workLocation || "").split(" ")[0] || undefined;
         setInfo({
@@ -141,31 +142,31 @@ function CompanyCard({ author }: { author: FeedAuthor }) {
     return () => {
       alive = false;
     };
-  }, [author.name]);
+  }, [name]);
 
   const line1 = [info?.industry, info?.size, info?.location].filter(Boolean).join(" · ") || "기업";
-  const interested = isFollowing(author) ? 1 : 0; // mock: 이 기기가 아는 팔로워(=나). 서버 연동 시 전역 집계.
+  const interested = 1; // 관심 목록에 있으므로 내가 팔로우 중. 서버 연동 시 전역 집계.
 
   return (
     <div className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:shadow-[0_6px_20px_rgba(11,18,39,0.05)]">
       <div className="flex items-center gap-4">
-        <Link href={`/talent/company/${encodeURIComponent(author.name)}`} className="flex min-w-0 flex-1 items-center gap-4">
+        <Link href={`/talent/company/${encodeURIComponent(name)}`} className="flex min-w-0 flex-1 items-center gap-4">
           {info?.logo ? (
             <span className="h-[56px] w-[56px] shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={info.logo} alt="" className="h-full w-full object-cover" />
             </span>
           ) : (
-            <span className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">{author.name.slice(0, 1)}</span>
+            <span className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">{name.slice(0, 1)}</span>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-bold text-[#191F28]">{author.name}</p>
+            <p className="truncate text-[15px] font-bold text-[#191F28]">{name}</p>
             <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{line1}</p>
             <p className="truncate text-[12.5px] text-[#8B95A1]">포지션 <span className="font-bold text-[#191F28]">{info?.count ?? 0}</span>개</p>
             <p className="truncate text-[12.5px] text-[#8B95A1]">관심 <span className="font-bold text-[#191F28]">{interested}</span>명</p>
           </div>
         </Link>
-        <button type="button" onClick={() => unfollowAuthor(author)} className="shrink-0 rounded-xl bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
+        <button type="button" onClick={() => unfollowCompanyName(name)} className="shrink-0 rounded-xl bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
           관심 회사
         </button>
       </div>

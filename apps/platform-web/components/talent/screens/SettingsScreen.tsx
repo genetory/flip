@@ -12,6 +12,7 @@ import { TCard } from "../ui/primitives";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useFollowing, parseAuthorKey, type FeedAuthor } from "../../../lib/talent/social-graph";
+import { useFollowedCompanies } from "../../../lib/talent/company-follow";
 import { useSocialFeed } from "../../../lib/talent/social-feed";
 import { useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
 import { getMyFavoritePositions, type PublicPositionListItem } from "../../../lib/member-profile-client";
@@ -75,10 +76,10 @@ export function SettingsScreen() {
   const name = user?.realName || user?.name || "나";
   const emailVerified = Boolean(user?.emailVerified);
 
-  // 팔로우 스토어를 역할로 분리: PARTNER = 관심 회사, 그 외 = 팔로우한 사용자.
+  // 사용자 팔로우는 social-graph(클라), 관심 회사는 서버(company-follow).
   const followedAuthors = following.map(parseAuthorKey).filter((a): a is FeedAuthor => a !== null);
-  const followedCompanies = followedAuthors.filter((a) => a.role === "PARTNER");
   const followedUsers = followedAuthors.filter((a) => a.role !== "PARTNER");
+  const followedCompanies = useFollowedCompanies();
 
   // 즐겨찾기한 포지션(서버) 로드.
   useEffect(() => {

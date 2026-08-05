@@ -856,6 +856,22 @@ export async function markAllServerNotificationsRead() {
   return authedJsonFetch<unknown>("/members/me/notifications/read-all", { method: "PATCH" });
 }
 
+// 관심 회사(팔로우) — 이름 기반. 서버 CandidateProfile.followedCompanyNames.
+export async function getMyFollowedCompanies(): Promise<string[]> {
+  const result = await authedJsonFetch<never>("/members/me/followed-companies", { method: "GET" });
+  return (result as { names?: string[] }).names ?? [];
+}
+
+export async function followCompany(name: string): Promise<string[]> {
+  const result = await authedJsonFetch<never>("/members/me/followed-companies", { method: "POST", body: JSON.stringify({ name }) });
+  return (result as { names?: string[] }).names ?? [];
+}
+
+export async function unfollowCompany(name: string): Promise<string[]> {
+  const result = await authedJsonFetch<never>(`/members/me/followed-companies?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+  return (result as { names?: string[] }).names ?? [];
+}
+
 // 지원자 ↔ 회사 메시지(쪽지) — 지원 건별 스레드. 백엔드는 ApplicationComment(visibility=CANDIDATE)를
 // 재사용하며, 학생은 CANDIDATE 메시지만 보고, 학생이 보내면 자동으로 CANDIDATE 로 저장된다.
 export type ApplicationMessage = {

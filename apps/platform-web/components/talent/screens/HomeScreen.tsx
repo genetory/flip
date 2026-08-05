@@ -28,7 +28,7 @@ import { toPositionView, type PositionView } from "../../../lib/talent/positions
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
-import { isFollowing, useFollowing } from "../../../lib/talent/social-graph";
+import { useFollowedCompanies } from "../../../lib/talent/company-follow";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { useDailyStep } from "../../../lib/talent/daily-step";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
@@ -71,8 +71,7 @@ type HomeCompany = { name: string; industry?: string; size?: string; location?: 
 
 /* 이런 회사는 어때요 — 채용 중인 회사 중 랜덤 3개 */
 function HomeCompanies() {
-  const following = useFollowing();
-  void following; // 관심 수 리렌더 트리거
+  const followed = useFollowedCompanies();
   const [companies, setCompanies] = useState<HomeCompany[]>([]);
 
   useEffect(() => {
@@ -136,7 +135,7 @@ function HomeCompanies() {
               <p className="truncate text-[13.5px] font-bold text-[#191F28]">{c.name}</p>
               <p className="mt-0.5 truncate text-[11.5px] text-[#8B95A1]">{[c.industry, c.size, c.location].filter(Boolean).join(" · ") || "기업"}</p>
               <p className="truncate text-[11.5px] text-[#8B95A1]">포지션 <span className="font-bold text-[#191F28]">{c.count}</span>개</p>
-              <p className="truncate text-[11.5px] text-[#8B95A1]">관심 <span className="font-bold text-[#191F28]">{isFollowing({ name: c.name, role: "PARTNER" }) ? 1 : 0}</span>명</p>
+              <p className="truncate text-[11.5px] text-[#8B95A1]">관심 <span className="font-bold text-[#191F28]">{followed.includes(c.name) ? 1 : 0}</span>명</p>
             </div>
           </Link>
         ))}

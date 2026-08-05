@@ -1251,6 +1251,8 @@ model CandidateProfile {
   preferredJobRoles        CandidatePreferredJobRole[]  @default([])
   favoritePositionIds      String[]                     @default([])
   appliedPositionIds       String[]                     @default([])
+  // 관심 회사(팔로우) — 리뉴얼은 회사를 이름으로 식별하므로 이름 목록으로 보관.
+  followedCompanyNames     String[]                     @default([])
   skills                   String[]                     @default([])
   selfIntroduction         String?
   programMotivation        String?

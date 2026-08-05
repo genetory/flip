@@ -12906,6 +12906,42 @@ app.delete("/members/me/positions/:positionId/favorite", authenticate, requireRo
   }
 });
 
+// 관심 회사(팔로우) — 리뉴얼은 회사를 이름으로 식별하므로 이름 기반으로 보관.
+app.get("/members/me/followed-companies", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const profile = await getOrCreateCandidateProfile(req.auth!.userId);
+    return res.json({ ok: true, names: profile.followedCompanyNames ?? [] });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load followed companies" });
+  }
+});
+
+app.post("/members/me/followed-companies", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+  if (!name) return res.status(400).json({ ok: false, message: "name is required" });
+  try {
+    const profile = await getOrCreateCandidateProfile(req.auth!.userId);
+    const next = Array.from(new Set([...(profile.followedCompanyNames ?? []), name]));
+    await prisma.candidateProfile.update({ where: { id: profile.id }, data: { followedCompanyNames: next } });
+    return res.json({ ok: true, names: next });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to follow company" });
+  }
+});
+
+app.delete("/members/me/followed-companies", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const name = typeof req.query.name === "string" ? req.query.name.trim() : typeof req.body?.name === "string" ? req.body.name.trim() : "";
+  if (!name) return res.status(400).json({ ok: false, message: "name is required" });
+  try {
+    const profile = await getOrCreateCandidateProfile(req.auth!.userId);
+    const next = (profile.followedCompanyNames ?? []).filter((n) => n !== name);
+    await prisma.candidateProfile.update({ where: { id: profile.id }, data: { followedCompanyNames: next } });
+    return res.json({ ok: true, names: next });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to unfollow company" });
+  }
+});
+
 // 지원 제출 시 첨부할 서류 + 제출 시점 스냅샷을 만든다.
 // - 이력서: 대표(isPrimary→최근본)를 연결하고 content 를 스냅샷으로 보존.
 // - 자소서: 지원 회사명과 일치하는 자소서만 자동 첨부(엉뚱한 회사 자소서 방지).

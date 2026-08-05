@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MapPin, BookmarkSimple, ArrowSquareOut, Buildings, LinkSimple, Star, X, Check } from "@phosphor-icons/react";
 import { TalentBackButton } from "../TalentBackButton";
-import { toggleFollow, isFollowing, useFollowing, type FeedAuthor } from "../../../lib/talent/social-graph";
+import { toggleCompanyFollow, useFollowedCompanies } from "../../../lib/talent/company-follow";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { notifyApplied, notifySavedPosition } from "../../../lib/talent/activity-log";
 import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc";
@@ -372,16 +372,13 @@ function DetailBlock({ title, text }: { title: string; text: string }) {
   );
 }
 
-// 관심 회사 토글 — 파트너(회사) 팔로우로 관리(계정 설정 '관심 회사'와 동일 스토어).
+// 관심 회사 토글 — 실제 서버(company-follow) 저장. 계정 설정 '관심 회사'와 동일 소스.
 function CompanyFollowButton({ name }: { name: string }) {
-  const company: FeedAuthor = { name, role: "PARTNER" };
-  const following = useFollowing();
-  void following; // 토글 시 리렌더 트리거용 구독
-  const interested = isFollowing(company);
+  const interested = useFollowedCompanies().includes(name);
   return (
     <button
       type="button"
-      onClick={() => toggleFollow(company)}
+      onClick={() => toggleCompanyFollow(name)}
       aria-pressed={interested}
       className={`inline-flex shrink-0 items-center gap-1 rounded-xl px-3 py-1.5 text-[12.5px] font-bold transition ${
         interested ? "bg-[#EDF1FD] text-[#0B46E8] hover:bg-[#E1E9FC]" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
