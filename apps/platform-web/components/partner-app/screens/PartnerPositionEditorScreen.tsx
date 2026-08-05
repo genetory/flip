@@ -35,7 +35,8 @@ const WORKTYPE_OPTS: { value: WorkType; label: string }[] = [
   { value: "Hybrid", label: "하이브리드" },
   { value: "Remote", label: "재택" }
 ];
-const STATUS_OPTS: PositionStatus[] = ["DRAFT", "PENDING_REVIEW", "OPEN", "PAUSED", "CLOSED"];
+// 파트너가 실제로 쓰는 핵심 상태만 노출. (현재 상태가 그 외면 렌더 시 추가로 보인다.)
+const STATUS_OPTS: PositionStatus[] = ["DRAFT", "OPEN", "CLOSED"];
 
 type Form = {
   title: string;
@@ -306,7 +307,7 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
               <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
                 <p className="mb-3 text-[12.5px] text-[#8B95A1]">상태를 선택하고 저장하면 반영돼요.</p>
                 <div className="flex flex-wrap gap-2">
-                  {STATUS_OPTS.map((s) => {
+                  {(STATUS_OPTS.includes(posStatus) ? STATUS_OPTS : [posStatus, ...STATUS_OPTS]).map((s) => {
                     const on = posStatus === s;
                     return (
                       <button key={s} type="button" onClick={() => setPosStatus(s)} className={`rounded-xl px-3.5 py-2 text-[12.5px] font-bold transition ${on ? "bg-[#0B46E8] text-white" : "bg-white text-[#4E5968] ring-1 ring-[#E4EAF2] hover:bg-[#EDF1FD]"}`}>
