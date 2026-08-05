@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CaretRight, ArrowClockwise, ArrowRight, X } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
-import { TLoading, TError } from "../ui/primitives";
 import { PositionCard } from "../jobs/PositionCard";
 import { TalentCipModal } from "../jobs/TalentCipModal";
 import { JobInterestCard } from "../jobs/JobInterestCard";
@@ -14,7 +13,9 @@ import { FeedCard } from "../career/FeedCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
-import { useTalentSnapshot } from "../../../lib/talent/useTalentData";
+import { useAuthSession } from "../../auth/AuthSessionProvider";
+import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc";
+import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { useCareerFeed } from "../../../lib/talent/career-feed";
 import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
 import { careerGuides, featuredBanners, pickRandomTip, type CareerGuide } from "../../../lib/talent/home-content";
@@ -33,24 +34,19 @@ import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { useDailyStep } from "../../../lib/talent/daily-step";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { notifySavedPosition } from "../../../lib/talent/activity-log";
-import type { TalentSnapshot } from "../../../lib/talent/types";
-
 export function HomeScreen() {
-  const { snapshot, status, reload } = useTalentSnapshot();
   return (
     <TalentAppShell>
-      {status === "loading" ? <TLoading /> : null}
-      {status === "error" ? <TError onRetry={reload} /> : null}
-      {status === "ready" && snapshot ? <HomeContent snapshot={snapshot} /> : null}
+      <HomeContent />
     </TalentAppShell>
   );
 }
 
-function HomeContent({ snapshot }: { snapshot: TalentSnapshot }) {
+function HomeContent() {
   return (
     <div className="flex flex-col gap-10">
       <FeaturedBanners />
-      <GreetingHeader snapshot={snapshot} />
+      <GreetingHeader />
       <HomeCareerHistory />
       <GuideSection />
       <TodayTip />
@@ -233,19 +229,31 @@ function FeaturedBanners() {
 }
 
 /* 인사 */
-function GreetingHeader({ snapshot }: { snapshot: TalentSnapshot }) {
+function GreetingHeader() {
+  const { user } = useAuthSession();
+  const name = user?.realName || user?.name || "나";
+  const resume = useResumeDoc();
+  const cover = useCoverDoc();
   const { streak } = useDailyStep();
+  // 실제 이력서·자소서 상태로 현재 단계를 도출.
+  const stageLabel = !resume
+    ? "커리어 시작 단계"
+    : resumeCompleteness(resume) < 100
+      ? "이력서 작성 단계"
+      : !cover || coverCompleteness(cover) < 100
+        ? "자기소개서 작성 단계"
+        : "지원 준비 완료";
   return (
     <div className="relative overflow-hidden rounded-3xl bg-[#F5F8FF] p-7">
       <span className="pointer-events-none absolute -right-1 -top-4 select-none text-[92px] leading-none opacity-[0.07]" aria-hidden>🌱</span>
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3.5">
           <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] font-black text-[#0B46E8] shadow-[0_2px_8px_rgba(11,18,39,0.06)]">
-            {snapshot.greetingName.slice(0, 1)}
+            {name.slice(0, 1)}
           </span>
           <div className="min-w-0">
-            <p className="text-[12px] font-bold text-[#0B46E8]">{snapshot.stageLabel}</p>
-            <h1 className="truncate text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[24px]">{snapshot.greetingName}님, 안녕하세요 👋</h1>
+            <p className="text-[12px] font-bold text-[#0B46E8]">{stageLabel}</p>
+            <h1 className="truncate text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[24px]">{name}님, 안녕하세요 👋</h1>
           </div>
         </div>
         {streak > 0 ? (

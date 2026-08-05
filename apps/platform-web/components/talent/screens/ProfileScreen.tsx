@@ -5,28 +5,26 @@
 import { CareerLayout } from "../career/CareerLayout";
 import { BasicInfoForm } from "../career/BasicInfoForm";
 import { JobInterestCard } from "../jobs/JobInterestCard";
-import { TLoading, TError, TPageHeader } from "../ui/primitives";
-import { useTalentSnapshot } from "../../../lib/talent/useTalentData";
-import type { TalentSnapshot } from "../../../lib/talent/types";
+import { TPageHeader } from "../ui/primitives";
+import { useAuthSession } from "../../auth/AuthSessionProvider";
 
 export function ProfileScreen() {
-  const { snapshot, status, reload } = useTalentSnapshot();
   return (
     <CareerLayout>
-      {status === "loading" ? <TLoading /> : null}
-      {status === "error" ? <TError onRetry={reload} /> : null}
-      {status === "ready" && snapshot ? <Content snapshot={snapshot} /> : null}
+      <Content />
     </CareerLayout>
   );
 }
 
-function Content({ snapshot }: { snapshot: TalentSnapshot }) {
+function Content() {
+  const { user } = useAuthSession();
+  const defaultName = user?.realName || user?.name || "";
   return (
     <div className="flex flex-col gap-12">
       <TPageHeader title="프로필" description="이력서·자기소개서에 쓰이는 기본 정보예요. 나머지는 나중에 채워져요." />
       <section>
         <SectionTitle>기본 정보</SectionTitle>
-        <BasicInfoForm defaultName={snapshot.profile.displayName} />
+        <BasicInfoForm defaultName={defaultName} />
       </section>
       <section>
         <SectionTitle>관심 직무</SectionTitle>

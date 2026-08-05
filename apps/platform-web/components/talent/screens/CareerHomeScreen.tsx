@@ -1,35 +1,31 @@
 "use client";
 
 // 내 커리어 — 오늘의 한 걸음 히어로 + 이력서/자기소개서 + 커리어 기록.
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "@phosphor-icons/react";
 import { CareerLayout } from "../career/CareerLayout";
 import { ProfileGate } from "../career/ProfileGate";
 import { FeedCard } from "../career/FeedCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
-import { TLoading, TError, TPageHeader } from "../ui/primitives";
+import { TLoading, TPageHeader } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
-import { useTalentSnapshot } from "../../../lib/talent/useTalentData";
+import { getMyApplications } from "../../../lib/member-profile-client";
 import { useCareerFeed, removeFeedEntry } from "../../../lib/talent/career-feed";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
 import { useResumeDoc, useRenewalDocsStatus, resumeCompleteness, displayMonth, type ResumeItem } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
 import { useDailyStep, markStepDoneToday } from "../../../lib/talent/daily-step";
-import type { TalentSnapshot } from "../../../lib/talent/types";
-
 export function CareerHomeScreen() {
-  const { snapshot, status, reload } = useTalentSnapshot();
   return (
     <CareerLayout>
-      {status === "loading" ? <TLoading /> : null}
-      {status === "error" ? <TError onRetry={reload} /> : null}
-      {status === "ready" && snapshot ? <Content snapshot={snapshot} /> : null}
+      <Content />
     </CareerLayout>
   );
 }
 
-function Content({ snapshot }: { snapshot: TalentSnapshot }) {
+function Content() {
   const feed = useCareerFeed();
   const basicInfo = useBasicInfo();
   const resume = useResumeDoc();
@@ -39,6 +35,14 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
 
   // 이미 입력된 이력서/자소서 항목도 커리어 기록으로 백필(멱등, refId 중복 방지).
   useCareerHistorySync();
+
+  // 실제 지원 여부 — 오늘의 미션 힌트에 사용.
+  const [applied, setApplied] = useState(false);
+  useEffect(() => {
+    void getMyApplications()
+      .then((l) => setApplied(l.length > 0))
+      .catch(() => {});
+  }, []);
 
   // 계정(서버) 기본 정보·문서 로드 완료 전에는 게이트를 판단하지 않는다(깜빡임 방지).
   if (docsStatus !== "loaded") {
@@ -64,7 +68,6 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   const hasCover = cover !== null;
   const rp = resumeCompleteness(resume);
   const cp = coverCompleteness(cover);
-  const applied = snapshot.applications.length > 0;
   const mission = todaysMission(hasResume, rp, hasCover, cp, applied);
   const workItems = resume?.items.filter((i) => i.section === "experience") ?? [];
 
