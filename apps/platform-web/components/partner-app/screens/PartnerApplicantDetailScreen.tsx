@@ -39,6 +39,17 @@ function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
 }
 
+// datetime-local 값 → 서버 규칙(30분 그리드)에 맞춘 슬롯. 분을 가장 가까운 30분으로 보정.
+function slotFromLocal(when: string, location?: string): { startsAt: string; endsAt: string; location?: string } {
+  const d = new Date(when);
+  d.setMinutes(Math.round(d.getMinutes() / 30) * 30, 0, 0);
+  return {
+    startsAt: d.toISOString(),
+    endsAt: new Date(d.getTime() + 60 * 60000).toISOString(),
+    location: location?.trim() || undefined
+  };
+}
+
 export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: string }) {
   const toast = useTalentPopup();
   const [app, setApp] = useState<PartnerApplicantDetail | null>(null);
@@ -84,14 +95,27 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
     setPending(next);
   }
   // 상태 변경 + (선택) 부가 작업: 면접→시간 제안, 불합격→사유 메시지 전송.
+  // 상태 변경과 부가 작업의 실패를 분리해 안내한다.
   async function confirmStatus(extra: { slots?: { startsAt: string; endsAt: string; location?: string }[]; reason?: string }) {
     const next = pending;
     if (updating || !app || !next) return;
     const appId = app.applicationId;
+    const label = PARTNER_APPLICANT_STATUS[next].label;
     setUpdating(true);
+
+    // 1) 상태 변경
+    let updated: PartnerApplicantDetail;
     try {
-      const d = await updateMyPartnerApplicantState(applicantId, { status: next });
-      setApp(d);
+      updated = await updateMyPartnerApplicantState(applicantId, { status: next });
+      setApp(updated);
+    } catch {
+      toast.error("상태 변경에 실패했어요.");
+      setUpdating(false);
+      return;
+    }
+
+    // 2) 부가 작업(선택) — 여기서 실패해도 상태 변경은 유지된다.
+    try {
       if (next === "INTERVIEW" && appId && extra.slots?.length) {
         await proposeInterviewSlots(appId, extra.slots);
         loadSlots(appId);
@@ -100,11 +124,11 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
         await sendPartnerApplicantMessage(appId, extra.reason.trim());
         loadMessages(appId);
       }
-      setPending(null);
-      toast.success(`상태를 '${PARTNER_APPLICANT_STATUS[next].label}'로 바꿨어요`);
+      toast.success(`상태를 '${label}'로 바꿨어요`);
     } catch {
-      toast.error("상태 변경에 실패했어요.");
+      toast.error(next === "INTERVIEW" ? "상태는 변경됐지만 면접 시간 제안에 실패했어요." : "상태는 변경됐지만 사유 전달에 실패했어요.");
     } finally {
+      setPending(null);
       setUpdating(false);
     }
   }
@@ -420,14 +444,7 @@ function ConfirmStatusModal({
   const [reason, setReason] = useState("");
 
   function confirm() {
-    const slots = isInterview
-      ? rows
-          .filter((r) => r.when)
-          .map((r) => {
-            const start = new Date(r.when);
-            return { startsAt: start.toISOString(), endsAt: new Date(start.getTime() + 60 * 60000).toISOString(), location: r.location.trim() || undefined };
-          })
-      : undefined;
+    const slots = isInterview ? rows.filter((r) => r.when).map((r) => slotFromLocal(r.when, r.location)) : undefined;
     onConfirm({ slots, reason: isReject ? reason : undefined });
   }
 
@@ -448,7 +465,7 @@ function ConfirmStatusModal({
               <div className="mt-3 flex flex-col gap-2">
                 {rows.map((r, i) => (
                   <div key={i} className="flex flex-col gap-1.5 rounded-xl bg-white p-2.5">
-                    <input type="datetime-local" value={r.when} onChange={(e) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, when: e.target.value } : x)))} className="rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none [color-scheme:light]" />
+                    <input type="datetime-local" step={1800} value={r.when} onChange={(e) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, when: e.target.value } : x)))} className="rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none [color-scheme:light]" />
                     <input value={r.location} onChange={(e) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, location: e.target.value } : x)))} placeholder="장소 (선택) · 예) 본사 3층 / 온라인" className="rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]" />
                   </div>
                 ))}
@@ -486,12 +503,7 @@ function ProposeModal({ applicationId, onClose, onDone }: { applicationId: strin
   const [saving, setSaving] = useState(false);
 
   function submit() {
-    const slots = rows
-      .filter((r) => r.when)
-      .map((r) => {
-        const start = new Date(r.when);
-        return { startsAt: start.toISOString(), endsAt: new Date(start.getTime() + 60 * 60000).toISOString(), location: r.location.trim() || undefined };
-      });
+    const slots = rows.filter((r) => r.when).map((r) => slotFromLocal(r.when, r.location));
     if (slots.length === 0 || saving) return;
     setSaving(true);
     proposeInterviewSlots(applicationId, slots)
@@ -516,6 +528,7 @@ function ProposeModal({ applicationId, onClose, onDone }: { applicationId: strin
             <div key={i} className="flex flex-col gap-2 rounded-xl bg-[#F5F6F8] p-3">
               <input
                 type="datetime-local"
+                step={1800}
                 value={r.when}
                 onChange={(e) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, when: e.target.value } : x)))}
                 className="rounded-lg bg-white px-3 py-2 text-[13px] text-[#191F28] outline-none [color-scheme:light]"
