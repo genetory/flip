@@ -867,6 +867,35 @@ export async function followCompany(name: string): Promise<string[]> {
   return (result as { names?: string[] }).names ?? [];
 }
 
+// 파트너 → 지원자 메시지(지원 건별 스레드). 지원자에게 보이는 CANDIDATE 공개로 저장한다.
+export type PartnerApplicantMessage = {
+  id: string;
+  content: string;
+  authorRole: "STUDENT" | "PARTNER" | "OPERATOR";
+  visibility: "INTERNAL" | "CANDIDATE";
+  createdAt: string;
+};
+
+export async function getPartnerApplicantMessages(applicationId: string): Promise<PartnerApplicantMessage[]> {
+  const result = await authedJsonFetch<PartnerApplicantMessage>(`/applications/${encodeURIComponent(applicationId)}/comments`, { method: "GET" });
+  return (result.items ?? []) as PartnerApplicantMessage[];
+}
+
+export async function sendPartnerApplicantMessage(applicationId: string, content: string) {
+  return authedJsonFetch<PartnerApplicantMessage>(`/applications/${encodeURIComponent(applicationId)}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ content: content.trim(), visibility: "CANDIDATE" })
+  });
+}
+
+// 파트너 → 면접 시간 제안(최대 5개 슬롯). 지원자가 그중 하나를 선택해 확정한다.
+export async function proposeInterviewSlots(applicationId: string, slots: { startsAt: string; endsAt: string; location?: string }[]) {
+  return authedJsonFetch<InterviewSlot>(`/applications/${encodeURIComponent(applicationId)}/interview-slots`, {
+    method: "POST",
+    body: JSON.stringify({ slots })
+  });
+}
+
 export async function unfollowCompany(name: string): Promise<string[]> {
   const result = await authedJsonFetch<never>(`/members/me/followed-companies?name=${encodeURIComponent(name)}`, { method: "DELETE" });
   return (result as { names?: string[] }).names ?? [];
