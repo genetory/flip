@@ -230,7 +230,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
       {status === "error" ? <TError onRetry={load} /> : null}
 
       {status === "ready" && app ? (
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-10">
           {/* 상단 전폭 — 프로필 + 단계 + 상태 변경 */}
           <section className="rounded-3xl bg-[#F5F8FF] p-6">
             <div className="flex items-center gap-4">
@@ -285,141 +285,150 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
           </section>
 
           {/* 2단 */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-10 lg:grid-cols-2">
             {/* 좌 — 정보/서류 */}
-            <div className="flex flex-col gap-5">
-              <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                <h2 className="text-[15px] font-bold text-[#191F28]">인적 사항</h2>
-                <dl className="mt-3 flex flex-col gap-2.5">
-                  <Row label="이메일" value={app.email} />
-                  <Row label="학교 · 전공" value={[app.school, app.major].filter(Boolean).join(" · ")} />
-                  <Row label="국적" value={app.nationality} />
-                  <Row label="언어" value={app.languages?.length ? app.languages.join(", ") : null} />
-                  <Row label="거주지" value={app.residence} />
-                  <Row label="입사 가능일" value={app.availableStartDate} />
-                </dl>
+            <div className="flex flex-col gap-10">
+              <section>
+                <SectionHeader title="인적 사항" />
+                <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+                  <dl className="flex flex-col gap-2.5">
+                    <Row label="이메일" value={app.email} />
+                    <Row label="학교 · 전공" value={[app.school, app.major].filter(Boolean).join(" · ")} />
+                    <Row label="국적" value={app.nationality} />
+                    <Row label="언어" value={app.languages?.length ? app.languages.join(", ") : null} />
+                    <Row label="거주지" value={app.residence} />
+                    <Row label="입사 가능일" value={app.availableStartDate} />
+                  </dl>
+                </div>
               </section>
 
-              <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                <h2 className="text-[15px] font-bold text-[#191F28]">지원 서류</h2>
-                <div className="mt-3 flex flex-col gap-4">
-                  {app.resumeDoc || app.resumeShareSlug ? (
-                    <DocItem
-                      href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/resume`}
-                      emoji="📄"
-                      title={app.resumeTitle || "이력서"}
-                      sub="이력서 보기"
-                      bullets={summary?.resumeBullets ?? []}
-                      loading={summaryLoading}
-                    />
-                  ) : null}
-                  {app.coverDoc || app.coverLetterShareSlug ? (
-                    <DocItem
-                      href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/cover`}
-                      emoji="✍️"
-                      title={app.coverLetterTitle || "자기소개서"}
-                      sub="자기소개서 보기"
-                      bullets={summary?.coverBullets ?? []}
-                      loading={summaryLoading}
-                    />
-                  ) : null}
-                  {!app.resumeDoc && !app.resumeShareSlug && !app.coverDoc && !app.coverLetterShareSlug ? (
-                    <p className="text-[13px] text-[#8B95A1]">제출된 서류가 없어요.</p>
-                  ) : null}
+              <section>
+                <SectionHeader title="지원 서류" />
+                <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+                  <div className="flex flex-col gap-4">
+                    {app.resumeDoc || app.resumeShareSlug ? (
+                      <DocItem
+                        href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/resume`}
+                        emoji="📄"
+                        title={app.resumeTitle || "이력서"}
+                        sub="이력서 보기"
+                        bullets={summary?.resumeBullets ?? []}
+                        loading={summaryLoading}
+                      />
+                    ) : null}
+                    {app.coverDoc || app.coverLetterShareSlug ? (
+                      <DocItem
+                        href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/cover`}
+                        emoji="✍️"
+                        title={app.coverLetterTitle || "자기소개서"}
+                        sub="자기소개서 보기"
+                        bullets={summary?.coverBullets ?? []}
+                        loading={summaryLoading}
+                      />
+                    ) : null}
+                    {!app.resumeDoc && !app.resumeShareSlug && !app.coverDoc && !app.coverLetterShareSlug ? (
+                      <p className="text-[13px] text-[#8B95A1]">제출된 서류가 없어요.</p>
+                    ) : null}
+                  </div>
                 </div>
               </section>
             </div>
 
             {/* 우 — 메모/면접/메시지 */}
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-10">
               {/* 내부 메모 */}
-              <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-[15px] font-bold text-[#191F28]">내부 메모</h2>
-                  <span className="rounded-md bg-[#F2F4F6] px-1.5 py-0.5 text-[10.5px] font-bold text-[#8B95A1]">지원자에게 안 보임</span>
+              <section>
+                <SectionHeader title="내부 메모" right={<span className="rounded-md bg-[#F2F4F6] px-1.5 py-0.5 text-[10.5px] font-bold text-[#8B95A1]">지원자에게 안 보임</span>} />
+                <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+                  <textarea
+                    value={memo}
+                    onChange={(e) => setMemo(e.target.value)}
+                    rows={3}
+                    placeholder="평가·다음 단계 등 팀 내부 메모를 남겨보세요."
+                    className="w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
+                  />
+                  <button type="button" onClick={saveMemo} disabled={savingMemo || memo === (app.memo ?? "")} className="mt-2 inline-flex items-center gap-1 rounded-lg bg-[#F2F4F6] px-3 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-40">
+                    {savingMemo ? "저장 중…" : "메모 저장"}
+                  </button>
                 </div>
-                <textarea
-                  value={memo}
-                  onChange={(e) => setMemo(e.target.value)}
-                  rows={3}
-                  placeholder="평가·다음 단계 등 팀 내부 메모를 남겨보세요."
-                  className="mt-3 w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
-                />
-                <button type="button" onClick={saveMemo} disabled={savingMemo || memo === (app.memo ?? "")} className="mt-2 inline-flex items-center gap-1 rounded-lg bg-[#F2F4F6] px-3 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-40">
-                  {savingMemo ? "저장 중…" : "메모 저장"}
-                </button>
               </section>
 
               {/* 면접 */}
-              <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-[15px] font-bold text-[#191F28]">면접</h2>
-                  {app.applicationId ? (
-                    <button type="button" onClick={() => setProposeOpen(true)} className="inline-flex items-center gap-1 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
-                      <Plus className="h-3.5 w-3.5" weight="bold" /> 면접 시간 제안
-                    </button>
-                  ) : null}
+              <section>
+                <SectionHeader
+                  title="면접"
+                  right={
+                    app.applicationId ? (
+                      <button type="button" onClick={() => setProposeOpen(true)} className="inline-flex items-center gap-1 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
+                        <Plus className="h-3.5 w-3.5" weight="bold" /> 면접 시간 제안
+                      </button>
+                    ) : null
+                  }
+                />
+                <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+                  {!app.applicationId ? (
+                    <p className="text-[13px] text-[#8B95A1]">지원 건이 연결되지 않아 면접 제안을 사용할 수 없어요.</p>
+                  ) : slots.length ? (
+                    <ul className="flex flex-col gap-2">
+                      {slots.map((s) => (
+                        <li key={s.id} className="flex items-center justify-between rounded-xl bg-[#F5F6F8] px-3.5 py-2.5">
+                          <span className="text-[13px] text-[#191F28]">{fmtWhen(s.startsAt)}{s.location ? ` · ${s.location}` : ""}</span>
+                          <span className={`text-[11.5px] font-bold ${s.status === "SELECTED" ? "text-[#12B76A]" : s.status === "CANCELLED" ? "text-[#B0B8C1]" : "text-[#E8890C]"}`}>
+                            {s.status === "SELECTED" ? "확정" : s.status === "CANCELLED" ? "취소" : "대기"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-[13px] text-[#8B95A1]">제안한 면접 시간이 없어요. 시간을 제안하면 지원자가 선택해요.</p>
+                  )}
                 </div>
-                {!app.applicationId ? (
-                  <p className="mt-3 text-[13px] text-[#8B95A1]">지원 건이 연결되지 않아 면접 제안을 사용할 수 없어요.</p>
-                ) : slots.length ? (
-                  <ul className="mt-3 flex flex-col gap-2">
-                    {slots.map((s) => (
-                      <li key={s.id} className="flex items-center justify-between rounded-xl bg-[#F5F6F8] px-3.5 py-2.5">
-                        <span className="text-[13px] text-[#191F28]">{fmtWhen(s.startsAt)}{s.location ? ` · ${s.location}` : ""}</span>
-                        <span className={`text-[11.5px] font-bold ${s.status === "SELECTED" ? "text-[#12B76A]" : s.status === "CANCELLED" ? "text-[#B0B8C1]" : "text-[#E8890C]"}`}>
-                          {s.status === "SELECTED" ? "확정" : s.status === "CANCELLED" ? "취소" : "대기"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-3 text-[13px] text-[#8B95A1]">제안한 면접 시간이 없어요. 시간을 제안하면 지원자가 선택해요.</p>
-                )}
               </section>
 
               {/* 메시지 */}
-              <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                <h2 className="text-[15px] font-bold text-[#191F28]">지원자와의 대화</h2>
-                <div className="mt-3 flex max-h-[380px] flex-col gap-2.5 overflow-y-auto">
-                  {chat.length === 0 ? (
-                    <p className="py-4 text-center text-[13px] text-[#B0B8C1]">아직 주고받은 메시지가 없어요.</p>
-                  ) : (
-                    chat.map((m) => {
-                      const mine = m.authorRole !== "STUDENT";
-                      return (
-                        <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                          <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 ${mine ? "bg-[#0B46E8] text-white" : "border border-[#EEF1F5] bg-white text-[#191F28]"}`}>
-                            <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed">{m.content}</p>
-                            <p className={`mt-1 text-[10.5px] ${mine ? "text-white/60" : "text-[#B0B8C1]"}`}>{formatRelativeTime(new Date(m.createdAt).getTime())}</p>
+              <section>
+                <SectionHeader title="지원자와의 대화" />
+                <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+                  <div className="flex max-h-[380px] flex-col gap-2.5 overflow-y-auto">
+                    {chat.length === 0 ? (
+                      <p className="py-4 text-center text-[13px] text-[#B0B8C1]">아직 주고받은 메시지가 없어요.</p>
+                    ) : (
+                      chat.map((m) => {
+                        const mine = m.authorRole !== "STUDENT";
+                        return (
+                          <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 ${mine ? "bg-[#0B46E8] text-white" : "border border-[#EEF1F5] bg-white text-[#191F28]"}`}>
+                              <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed">{m.content}</p>
+                              <p className={`mt-1 text-[10.5px] ${mine ? "text-white/60" : "text-[#B0B8C1]"}`}>{formatRelativeTime(new Date(m.createdAt).getTime())}</p>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })
+                        );
+                      })
+                    )}
+                  </div>
+                  {app.applicationId ? (
+                    <div className="mt-3 flex items-end gap-2">
+                      <textarea
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            send();
+                          }
+                        }}
+                        rows={1}
+                        placeholder="지원자에게 메시지 보내기…"
+                        className="max-h-28 flex-1 resize-none rounded-2xl bg-[#F2F4F6] px-4 py-2.5 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-2 focus:ring-[#0B46E8]/30"
+                      />
+                      <button type="button" onClick={send} disabled={!text.trim() || sending} aria-label="보내기" className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-2xl bg-[#0B46E8] text-white transition hover:bg-[#0A3ECB] disabled:opacity-40">
+                        <PaperPlaneTilt className="h-5 w-5" weight="fill" />
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-[13px] text-[#8B95A1]">지원 건이 연결되지 않아 메시지를 보낼 수 없어요.</p>
                   )}
                 </div>
-                {app.applicationId ? (
-                  <div className="mt-3 flex items-end gap-2">
-                    <textarea
-                      value={text}
-                      onChange={(e) => setText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          send();
-                        }
-                      }}
-                      rows={1}
-                      placeholder="지원자에게 메시지 보내기…"
-                      className="max-h-28 flex-1 resize-none rounded-2xl bg-[#F2F4F6] px-4 py-2.5 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-2 focus:ring-[#0B46E8]/30"
-                    />
-                    <button type="button" onClick={send} disabled={!text.trim() || sending} aria-label="보내기" className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-2xl bg-[#0B46E8] text-white transition hover:bg-[#0A3ECB] disabled:opacity-40">
-                      <PaperPlaneTilt className="h-5 w-5" weight="fill" />
-                    </button>
-                  </div>
-                ) : (
-                  <p className="mt-3 text-[13px] text-[#8B95A1]">지원 건이 연결되지 않아 메시지를 보낼 수 없어요.</p>
-                )}
               </section>
             </div>
           </div>
@@ -448,6 +457,16 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
         />
       ) : null}
     </PartnerAppShell>
+  );
+}
+
+// 섹션 타이틀 — 카드 밖. 다른 섹션 페이지와 동일한 스타일(18px font-black).
+function SectionHeader({ title, right }: { title: string; right?: React.ReactNode }) {
+  return (
+    <div className="mb-3 flex min-h-[30px] items-center justify-between gap-3">
+      <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
+      {right}
+    </div>
   );
 }
 
