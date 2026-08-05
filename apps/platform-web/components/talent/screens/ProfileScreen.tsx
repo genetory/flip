@@ -22,7 +22,7 @@ export function ProfileScreen() {
 
 function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-12">
       <TPageHeader title="프로필" description="이력서·자기소개서에 쓰이는 기본 정보예요. 나머지는 나중에 채워져요." />
       <section>
         <SectionTitle>기본 정보</SectionTitle>

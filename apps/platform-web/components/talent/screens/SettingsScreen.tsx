@@ -95,7 +95,7 @@ export function SettingsScreen() {
 
   return (
     <TalentAppShell maxWidth="4xl">
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         {/* 기본 정보 */}
         <section>
           <SectionHeader title="기본 정보" />

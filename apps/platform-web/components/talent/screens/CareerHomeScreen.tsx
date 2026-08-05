@@ -42,7 +42,7 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   // 기본 정보가 등록되지 않으면 무조건 그것부터.
   if (!ready) {
     return (
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         <TPageHeader title="내 커리어" description="이력서·자기소개서에 쓸 기본 정보부터 등록해요." />
         <ProfileGate />
       </div>
@@ -58,7 +58,7 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   const workItems = resume?.items.filter((i) => i.section === "experience") ?? [];
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <header>
         <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-[#0B46E8]">MY CAREER</p>
         <h1 className="mt-2 break-keep text-[26px] font-black leading-[1.2] tracking-[-0.02em] text-[#0B1227]">내 커리어를 하나씩 완성해요</h1>
