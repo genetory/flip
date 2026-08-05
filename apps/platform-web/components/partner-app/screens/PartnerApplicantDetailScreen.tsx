@@ -14,6 +14,8 @@ import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { PARTNER_APPLICANT_STATUS, PARTNER_RECOMMENDATION } from "../../../lib/partner/labels";
+import type { ResumeDoc } from "../../../lib/talent/resume-doc";
+import type { CoverDoc } from "../../../lib/talent/cover-doc";
 import {
   getMyPartnerApplicantById,
   updateMyPartnerApplicantState,
@@ -37,6 +39,41 @@ const STEPS: { label: string; reach: PartnerApplicantStatus[] }[] = [
 
 function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+function truncate(s: string, n: number): string {
+  const t = s.replace(/\s+/g, " ").trim();
+  return t.length > n ? `${t.slice(0, n).trim()}…` : t;
+}
+
+// 이력서 요약본 — 문서(ResumeDoc)에서 지원 직무·학력·핵심 역량을 뽑아 한 줄로.
+function summarizeResume(raw: unknown, fallback?: string | null): string {
+  const doc = raw as ResumeDoc | null;
+  if (doc && Array.isArray(doc.items) && doc.items.length) {
+    const parts: string[] = [];
+    if (doc.targetRole) parts.push(`${doc.targetRole} 지원`);
+    const edu = doc.items.find((i) => i.section === "education");
+    if (edu) {
+      const e = [edu.company, edu.text].filter(Boolean).join(" ");
+      if (e) parts.push(e);
+    }
+    const exp = doc.items.find((i) => i.section === "experience" || i.section === "project");
+    if (exp?.text) parts.push(truncate(exp.text, 40));
+    const skill = doc.items.find((i) => i.section === "skill");
+    if (skill?.text) parts.push(`역량: ${truncate(skill.text, 40)}`);
+    if (parts.length) return truncate(parts.join(" · "), 140);
+  }
+  return truncate(fallback ?? "", 140);
+}
+
+// 자기소개서 요약본 — 문항 답변을 이어 붙여 앞부분만.
+function summarizeCover(raw: unknown, fallback?: string | null): string {
+  const doc = raw as CoverDoc | null;
+  if (doc && Array.isArray(doc.items) && doc.items.length) {
+    const text = doc.items.map((i) => i.text).filter(Boolean).join(" ");
+    if (text.trim()) return truncate(text, 140);
+  }
+  return truncate(fallback ?? "", 140);
 }
 
 // 면접 시간 선택 — 날짜 + 30분 단위 시간 드롭다운(00:00 ~ 24:00).
@@ -292,19 +329,26 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
 
               <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
                 <h2 className="text-[15px] font-bold text-[#191F28]">지원 서류</h2>
-                <div className="mt-3 flex flex-col gap-3">
+                <div className="mt-3 flex flex-col gap-4">
                   {app.resumeDoc || app.resumeShareSlug ? (
-                    <DocLink href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/resume`} emoji="📄" title={app.resumeTitle || "이력서"} sub="이력서 보기" internal />
+                    <DocItem
+                      href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/resume`}
+                      emoji="📄"
+                      title={app.resumeTitle || "이력서"}
+                      sub="이력서 보기"
+                      summary={summarizeResume(app.resumeDoc, app.summary)}
+                    />
                   ) : null}
                   {app.coverDoc || app.coverLetterShareSlug ? (
-                    <DocLink href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/cover`} emoji="✍️" title={app.coverLetterTitle || "자기소개서"} sub="자기소개서 보기" internal />
+                    <DocItem
+                      href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/cover`}
+                      emoji="✍️"
+                      title={app.coverLetterTitle || "자기소개서"}
+                      sub="자기소개서 보기"
+                      summary={summarizeCover(app.coverDoc, app.motivation)}
+                    />
                   ) : null}
-                  {app.summary ? <Doc label="자기소개 요약" text={app.summary} /> : null}
-                  {app.motivation ? <Doc label="지원 동기" text={app.motivation} /> : null}
-                  {app.portfolioUrl ? (
-                    <a href={app.portfolioUrl} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8]">포트폴리오 열기 <ArrowSquareOut className="h-3.5 w-3.5" /></a>
-                  ) : null}
-                  {!app.resumeDoc && !app.resumeShareSlug && !app.coverDoc && !app.coverLetterShareSlug && !app.summary && !app.motivation && !app.portfolioUrl ? (
+                  {!app.resumeDoc && !app.resumeShareSlug && !app.coverDoc && !app.coverLetterShareSlug ? (
                     <p className="text-[13px] text-[#8B95A1]">제출된 서류가 없어요.</p>
                   ) : null}
                 </div>
@@ -461,11 +505,17 @@ function DocLink({ href, emoji, title, sub, internal }: { href: string; emoji: s
   );
 }
 
-function Doc({ label, text }: { label: string; text: string }) {
+// 서류 항목 — 열람 링크(DocLink) + 자동 생성 요약본.
+function DocItem({ href, emoji, title, sub, summary }: { href: string; emoji: string; title: string; sub: string; summary: string }) {
   return (
     <div>
-      <p className="text-[12px] font-bold text-[#0B46E8]">{label}</p>
-      <p className="mt-1 whitespace-pre-wrap break-keep text-[13.5px] leading-relaxed text-[#4E5968]">{text}</p>
+      <DocLink href={href} emoji={emoji} title={title} sub={sub} internal />
+      {summary ? (
+        <div className="mt-2 rounded-xl bg-[#F8FAFB] px-3.5 py-2.5">
+          <p className="text-[11px] font-bold text-[#8B95A1]">요약</p>
+          <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{summary}</p>
+        </div>
+      ) : null}
     </div>
   );
 }
