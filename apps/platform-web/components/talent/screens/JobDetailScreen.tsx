@@ -20,6 +20,7 @@ import { TalentCipModal } from "../jobs/TalentCipModal";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
+import { parseOfficePhotos } from "../../../lib/image-upload";
 import {
   getPublicPositionById,
   getMyFavoritePositions,
@@ -419,7 +420,7 @@ export function CompanyHeader({ item, large = false }: { item: PublicPositionLis
 export function CompanySection({ item }: { item: PublicPositionListItem }) {
   const org = item.partnerOrganization;
   if (!org) return null;
-  const office = org.officePhotoImageData || null;
+  const photos = parseOfficePhotos(org.officePhotoImageData);
   return (
     <div className="mt-4 flex flex-col gap-4">
       {/* 기업 개요 */}
@@ -444,14 +445,25 @@ export function CompanySection({ item }: { item: PublicPositionListItem }) {
         ) : null}
       </TCard>
 
-      {/* 사무실 */}
-      {office ? (
+      {/* 회사 사진 */}
+      {photos.length ? (
         <TCard className="p-6">
-          <h2 className="text-[15px] font-bold text-[#191F28]">사무실</h2>
-          <div className="mt-4 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-[#F2F4F6]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={office} alt="사무실 사진" className="h-[180px] w-full object-cover" />
-          </div>
+          <h2 className="text-[15px] font-bold text-[#191F28]">회사 사진</h2>
+          {photos.length === 1 ? (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-[#F2F4F6]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photos[0]} alt="회사 사진" className="h-[200px] w-full object-cover" />
+            </div>
+          ) : (
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {photos.map((src, i) => (
+                <div key={`${i}-${src.slice(0, 24)}`} className="aspect-[4/3] overflow-hidden rounded-xl border border-[#EEF1F5] bg-[#F2F4F6]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt={`회사 사진 ${i + 1}`} className="h-full w-full object-cover" />
+                </div>
+              ))}
+            </div>
+          )}
         </TCard>
       ) : null}
 
