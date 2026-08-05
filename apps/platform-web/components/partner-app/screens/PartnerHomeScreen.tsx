@@ -1,20 +1,21 @@
 "use client";
 
-// 파트너 홈 — 대시보드. 공고·지원자 요약 + 최근 지원자 + 빠른 작업.
+// 파트너 홈 — 대시보드. 처리 필요 + 채용 파이프라인 + 공고별 지원 현황 + 최근 지원자 + 빠른 작업.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CaretRight, Plus } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
-import { PARTNER_APPLICANT_STATUS } from "../../../lib/partner/labels";
+import { PARTNER_APPLICANT_STATUS, PARTNER_POSITION_STATUS, PARTNER_RECOMMENDATION } from "../../../lib/partner/labels";
 import {
   getMyPartnerOrganization,
   getMyPartnerPositions,
   getMyPartnerApplicants,
   type MyPartnerOrganization,
   type PartnerPosition,
-  type PartnerApplicantListItem
+  type PartnerApplicantListItem,
+  type PartnerApplicantStatus
 } from "../../../lib/member-profile-client";
 
 export function PartnerHomeScreen() {
@@ -42,15 +43,43 @@ export function PartnerHomeScreen() {
     load();
   }, []);
 
-  const stats = useMemo(
-    () => ({
-      open: positions.filter((p) => p.status === "OPEN").length,
-      total: applicants.length,
-      applied: applicants.filter((a) => a.status === "APPLIED").length,
-      interview: applicants.filter((a) => a.status === "INTERVIEW").length
-    }),
-    [positions, applicants]
+  const count = (s: PartnerApplicantStatus) => applicants.filter((a) => a.status === s).length;
+
+  // 처리 필요 — 지금 액션할 것들.
+  const actions = useMemo(() => {
+    const list: { emoji: string; title: string; desc: string; href: string }[] = [];
+    const newApplied = count("APPLIED");
+    if (newApplied > 0) list.push({ emoji: "🧑‍💼", title: `신규 지원자 ${newApplied}명`, desc: "새로 지원한 인재를 검토해보세요.", href: partnerRoutes.applicants });
+    const pending = positions.filter((p) => p.status === "PENDING_REVIEW").length;
+    if (pending > 0) list.push({ emoji: "📋", title: `검토 중 공고 ${pending}개`, desc: "게시 승인을 기다리는 공고가 있어요.", href: partnerRoutes.positions });
+    const draft = positions.filter((p) => p.status === "DRAFT").length;
+    if (draft > 0) list.push({ emoji: "✏️", title: `작성 중 공고 ${draft}개`, desc: "마무리하지 못한 공고가 있어요.", href: partnerRoutes.positions });
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applicants, positions]);
+
+  // 채용 파이프라인.
+  const pipeline = useMemo(
+    () => [
+      { label: "지원", count: count("APPLIED") },
+      { label: "검토", count: count("REVIEWING") },
+      { label: "면접", count: count("INTERVIEW") },
+      { label: "합격", count: count("ACCEPTED") + count("OFFERED") }
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [applicants]
   );
+
+  // 공고별 지원 현황(게시 중 공고).
+  const byPosition = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const a of applicants) counts.set(a.positionId, (counts.get(a.positionId) ?? 0) + 1);
+    return positions
+      .filter((p) => p.status === "OPEN")
+      .map((p) => ({ p, count: counts.get(p.id) ?? 0 }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [applicants, positions]);
 
   const recent = useMemo(
     () => [...applicants].sort((a, b) => (b.appliedAt ?? "").localeCompare(a.appliedAt ?? "")).slice(0, 5),
@@ -68,39 +97,70 @@ export function PartnerHomeScreen() {
           <div className="rounded-3xl bg-[#F5F8FF] p-7">
             <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-[#0B46E8]">PARTNER</p>
             <h1 className="mt-2 break-keep text-[24px] font-black leading-[1.2] tracking-[-0.02em] text-[#0B1227]">
-              {org?.name ? `${org.name}` : "우리 회사"}, 좋은 인재를 만나요
+              {org?.name ? org.name : "우리 회사"}, 좋은 인재를 만나요
             </h1>
-            <p className="mt-1.5 text-[14px] text-[#8B95A1]">공고를 올리고 지원자를 관리해요.</p>
+            <p className="mt-1.5 text-[14px] text-[#8B95A1]">게시 중 공고 {positions.filter((p) => p.status === "OPEN").length}개 · 전체 지원자 {applicants.length}명</p>
           </div>
 
-          {/* 요약 스탯 */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard title="진행 중 공고" count={stats.open} href={partnerRoutes.positions} />
-            <StatCard title="전체 지원자" count={stats.total} href={partnerRoutes.applicants} />
-            <StatCard title="신규 지원" count={stats.applied} href={partnerRoutes.applicants} highlight={stats.applied > 0} />
-            <StatCard title="면접 진행" count={stats.interview} href={partnerRoutes.applicants} />
-          </div>
+          {/* 처리 필요 */}
+          <section className="flex flex-col gap-4">
+            <SectionHead title="처리 필요" desc="지금 확인하면 좋은 일이에요." />
+            {actions.length ? (
+              <div className="flex flex-col gap-2.5">
+                {actions.map((a) => (
+                  <Link key={a.title} href={a.href} className="flex items-center gap-3.5 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4 transition hover:border-[#0B46E8]/40">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[19px]" aria-hidden>{a.emoji}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[14.5px] font-bold text-[#191F28]">{a.title}</p>
+                      <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{a.desc}</p>
+                    </div>
+                    <CaretRight className="h-4 w-4 shrink-0 text-[#0B46E8]" weight="bold" />
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-[#EEF1F5] bg-white p-6 text-center text-[13.5px] text-[#8B95A1]">지금 처리할 일이 없어요 👍</div>
+            )}
+          </section>
 
-          {/* 빠른 작업 */}
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Link href={partnerRoutes.positionNew} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-5 py-3.5 text-[14.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
-              <Plus className="h-4 w-4" weight="bold" /> 새 공고 작성
-            </Link>
-            <Link href={partnerRoutes.positions} className="inline-flex flex-1 items-center justify-center rounded-2xl border border-[#E5E8EB] bg-white px-5 py-3.5 text-[14.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">
-              공고 관리
-            </Link>
-          </div>
+          {/* 채용 파이프라인 */}
+          <section className="flex flex-col gap-4">
+            <SectionHead title="채용 파이프라인" desc="지원부터 합격까지 단계별 인원이에요." />
+            <div className="grid grid-cols-4 gap-2">
+              {pipeline.map((s) => (
+                <div key={s.label} className="rounded-2xl border border-[#EEF1F5] bg-white px-3 py-4 text-center">
+                  <p className="text-[22px] font-black tracking-[-0.02em] text-[#0B1227]">{s.count}</p>
+                  <p className="mt-0.5 text-[12px] font-semibold text-[#8B95A1]">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* 공고별 지원 현황 */}
+          {byPosition.length ? (
+            <section className="flex flex-col gap-4">
+              <div className="flex items-end justify-between gap-3">
+                <SectionHead title="공고별 지원 현황" desc="게시 중 공고에 얼마나 지원했는지 확인해요." />
+                <Link href={partnerRoutes.positions} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] transition hover:text-[#0A3ECB]">전체 보기</Link>
+              </div>
+              <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+                {byPosition.map(({ p, count: c }, i) => (
+                  <Link key={p.id} href={`${partnerRoutes.positions}/${p.id}`} className={`flex items-center gap-3 px-4 py-3.5 transition hover:bg-[#F6F8FB] ${i === byPosition.length - 1 ? "" : "border-b border-[#F2F4F6]"}`}>
+                    <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold ${PARTNER_POSITION_STATUS[p.status].cls}`}>{PARTNER_POSITION_STATUS[p.status].label}</span>
+                    <p className="min-w-0 flex-1 truncate text-[14px] font-bold text-[#191F28]">{p.title || "제목 없는 공고"}</p>
+                    <span className="shrink-0 text-[13px] font-bold text-[#0B46E8]">지원 {c}명</span>
+                    <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           {/* 최근 지원자 */}
           <section className="flex flex-col gap-4">
             <div className="flex items-end justify-between gap-3">
-              <div>
-                <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">최근 지원자</h2>
-                <p className="mt-1 text-[13px] text-[#8B95A1]">새로 지원한 인재를 확인해요.</p>
-              </div>
-              {applicants.length ? (
-                <Link href={partnerRoutes.applicants} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] transition hover:text-[#0A3ECB]">전체 보기</Link>
-              ) : null}
+              <SectionHead title="최근 지원자" desc="새로 지원한 인재를 확인해요." />
+              {applicants.length ? <Link href={partnerRoutes.applicants} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] transition hover:text-[#0A3ECB]">전체 보기</Link> : null}
             </div>
             {recent.length ? (
               <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
@@ -116,26 +176,34 @@ export function PartnerHomeScreen() {
               </div>
             )}
           </section>
+
+          {/* 빠른 작업 */}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link href={partnerRoutes.positionNew} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-5 py-3.5 text-[14.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
+              <Plus className="h-4 w-4" weight="bold" /> 새 공고 작성
+            </Link>
+            <Link href={partnerRoutes.positions} className="inline-flex flex-1 items-center justify-center rounded-2xl border border-[#E5E8EB] bg-white px-5 py-3.5 text-[14.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">
+              공고 관리
+            </Link>
+          </div>
         </div>
       ) : null}
     </PartnerAppShell>
   );
 }
 
-function StatCard({ title, count, href, highlight }: { title: string; count: number; href: string; highlight?: boolean }) {
+function SectionHead({ title, desc }: { title: string; desc: string }) {
   return (
-    <Link href={href} className={`block rounded-2xl border px-5 py-4 transition hover:bg-[#F6F8FB] ${highlight ? "border-[#E4EDFB] bg-[#F5F8FF]" : "border-[#EEF1F5] bg-white hover:border-[#D7DCE3]"}`}>
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[12.5px] font-normal text-[#8B95A1]">{title}</p>
-        <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
-      </div>
-      <p className={`mt-0.5 text-[24px] font-black tracking-[-0.02em] ${highlight && count > 0 ? "text-[#0B46E8]" : "text-[#191F28]"}`}>{count}</p>
-    </Link>
+    <div>
+      <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
+      <p className="mt-1 break-keep text-[13px] text-[#8B95A1]">{desc}</p>
+    </div>
   );
 }
 
 function ApplicantRow({ a, last }: { a: PartnerApplicantListItem; last: boolean }) {
   const s = PARTNER_APPLICANT_STATUS[a.status];
+  const rec = PARTNER_RECOMMENDATION[a.recommendation];
   return (
     <Link href={`${partnerRoutes.applicants}/${a.id}`} className={`flex items-center gap-3 px-4 py-4 transition hover:bg-[#F6F8FB] ${last ? "" : "border-b border-[#F2F4F6]"}`}>
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[15px] font-black text-[#0B46E8]">{a.name.slice(0, 1)}</span>
@@ -143,6 +211,7 @@ function ApplicantRow({ a, last }: { a: PartnerApplicantListItem; last: boolean 
         <div className="flex items-center gap-2">
           <p className="truncate text-[14.5px] font-bold text-[#191F28]">{a.name}</p>
           <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
+          {a.recommendation === "HIGH" ? <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold ${rec.cls}`}>{rec.label}</span> : null}
         </div>
         <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{a.positionTitle}</p>
       </div>
