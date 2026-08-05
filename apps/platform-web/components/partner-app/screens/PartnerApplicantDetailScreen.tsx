@@ -39,7 +39,7 @@ function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-// datetime-local 값 → 서버 규칙(30분 그리드)에 맞춘 슬롯. 분을 가장 가까운 30분으로 보정.
+// "YYYY-MM-DDTHH:mm"(로컬) → 서버 규칙(30분 그리드)에 맞춘 슬롯. 분을 가장 가까운 30분으로 보정.
 function slotFromLocal(when: string, location?: string): { startsAt: string; endsAt: string; location?: string } {
   const d = new Date(when);
   d.setMinutes(Math.round(d.getMinutes() / 30) * 30, 0, 0);
@@ -48,6 +48,51 @@ function slotFromLocal(when: string, location?: string): { startsAt: string; end
     endsAt: new Date(d.getTime() + 60 * 60000).toISOString(),
     location: location?.trim() || undefined
   };
+}
+
+// 면접 시간 선택 — 날짜 + 30분 단위 시간 드롭다운.
+type SlotRow = { date: string; time: string; location: string };
+const EMPTY_SLOT_ROW: SlotRow = { date: "", time: "", location: "" };
+const TIME_OPTIONS: string[] = (() => {
+  const out: string[] = [];
+  for (let h = 8; h <= 21; h += 1) {
+    out.push(`${String(h).padStart(2, "0")}:00`);
+    out.push(`${String(h).padStart(2, "0")}:30`);
+  }
+  return out;
+})();
+function slotsFromRows(rows: SlotRow[]): { startsAt: string; endsAt: string; location?: string }[] {
+  return rows.filter((r) => r.date && r.time).map((r) => slotFromLocal(`${r.date}T${r.time}`, r.location));
+}
+
+function InterviewSlotRows({ rows, setRows, max = 3 }: { rows: SlotRow[]; setRows: React.Dispatch<React.SetStateAction<SlotRow[]>>; max?: number }) {
+  const upd = (i: number, patch: Partial<SlotRow>) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  return (
+    <div className="flex flex-col gap-2">
+      {rows.map((r, i) => (
+        <div key={i} className="flex flex-col gap-1.5 rounded-xl bg-white p-2.5">
+          <div className="flex gap-1.5">
+            <input type="date" value={r.date} onChange={(e) => upd(i, { date: e.target.value })} className="min-w-0 flex-1 rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none [color-scheme:light]" />
+            <select value={r.time} onChange={(e) => upd(i, { time: e.target.value })} className="w-[104px] shrink-0 rounded-lg bg-[#F5F6F8] px-2.5 py-2 text-[13px] text-[#191F28] outline-none [color-scheme:light]">
+              <option value="">시간</option>
+              {TIME_OPTIONS.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <input value={r.location} onChange={(e) => upd(i, { location: e.target.value })} placeholder="장소 (선택) · 예) 본사 3층 / 온라인" className="min-w-0 flex-1 rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]" />
+            {rows.length > 1 ? (
+              <button type="button" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} aria-label="시간 삭제" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]"><X className="h-4 w-4" /></button>
+            ) : null}
+          </div>
+        </div>
+      ))}
+      {rows.length < max ? (
+        <button type="button" onClick={() => setRows((rs) => [...rs, { ...EMPTY_SLOT_ROW }])} className="inline-flex w-fit items-center gap-1 text-[12.5px] font-bold text-[#0B46E8]"><Plus className="h-3.5 w-3.5" weight="bold" /> 시간 추가</button>
+      ) : null}
+    </div>
+  );
 }
 
 export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: string }) {
@@ -440,11 +485,11 @@ function ConfirmStatusModal({
   const label = PARTNER_APPLICANT_STATUS[next].label;
   const isInterview = next === "INTERVIEW";
   const isReject = next === "REJECTED";
-  const [rows, setRows] = useState<{ when: string; location: string }[]>([{ when: "", location: "" }]);
+  const [rows, setRows] = useState<SlotRow[]>([{ ...EMPTY_SLOT_ROW }]);
   const [reason, setReason] = useState("");
 
   function confirm() {
-    const slots = isInterview ? rows.filter((r) => r.when).map((r) => slotFromLocal(r.when, r.location)) : undefined;
+    const slots = isInterview ? slotsFromRows(rows) : undefined;
     onConfirm({ slots, reason: isReject ? reason : undefined });
   }
 
@@ -462,16 +507,8 @@ function ConfirmStatusModal({
             <div className="mt-4 rounded-2xl bg-[#F5F8FF] p-4">
               <p className="text-[13px] font-bold text-[#191F28]">면접 시간 제안 <span className="font-normal text-[#8B95A1]">(선택)</span></p>
               <p className="mt-0.5 text-[12px] text-[#8B95A1]">시간을 넣으면 지원자가 그중 편한 시간을 선택해요.</p>
-              <div className="mt-3 flex flex-col gap-2">
-                {rows.map((r, i) => (
-                  <div key={i} className="flex flex-col gap-1.5 rounded-xl bg-white p-2.5">
-                    <input type="datetime-local" step={1800} value={r.when} onChange={(e) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, when: e.target.value } : x)))} className="rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none [color-scheme:light]" />
-                    <input value={r.location} onChange={(e) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, location: e.target.value } : x)))} placeholder="장소 (선택) · 예) 본사 3층 / 온라인" className="rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]" />
-                  </div>
-                ))}
-                {rows.length < 3 ? (
-                  <button type="button" onClick={() => setRows((rs) => [...rs, { when: "", location: "" }])} className="inline-flex w-fit items-center gap-1 text-[12.5px] font-bold text-[#0B46E8]"><Plus className="h-3.5 w-3.5" weight="bold" /> 시간 추가</button>
-                ) : null}
+              <div className="mt-3">
+                <InterviewSlotRows rows={rows} setRows={setRows} />
               </div>
             </div>
           ) : null}
@@ -499,11 +536,11 @@ function ConfirmStatusModal({
 function ProposeModal({ applicationId, onClose, onDone }: { applicationId: string; onClose: () => void; onDone: () => void }) {
   const toast = useTalentPopup();
   useLockBodyScroll();
-  const [rows, setRows] = useState<{ when: string; location: string }[]>([{ when: "", location: "" }]);
+  const [rows, setRows] = useState<SlotRow[]>([{ ...EMPTY_SLOT_ROW }]);
   const [saving, setSaving] = useState(false);
 
   function submit() {
-    const slots = rows.filter((r) => r.when).map((r) => slotFromLocal(r.when, r.location));
+    const slots = slotsFromRows(rows);
     if (slots.length === 0 || saving) return;
     setSaving(true);
     proposeInterviewSlots(applicationId, slots)
@@ -522,30 +559,9 @@ function ProposeModal({ applicationId, onClose, onDone }: { applicationId: strin
           <p className="text-[15px] font-bold text-[#191F28]">면접 시간 제안</p>
           <button type="button" onClick={onClose} aria-label="닫기" className="flex h-9 w-9 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
         </div>
-        <div className="flex flex-col gap-3 px-5 py-4">
+        <div className="flex flex-col gap-3 bg-[#F5F8FF] px-5 py-4">
           <p className="text-[12.5px] text-[#8B95A1]">지원자가 그중 편한 시간을 선택합니다. (최대 3개)</p>
-          {rows.map((r, i) => (
-            <div key={i} className="flex flex-col gap-2 rounded-xl bg-[#F5F6F8] p-3">
-              <input
-                type="datetime-local"
-                step={1800}
-                value={r.when}
-                onChange={(e) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, when: e.target.value } : x)))}
-                className="rounded-lg bg-white px-3 py-2 text-[13px] text-[#191F28] outline-none [color-scheme:light]"
-              />
-              <input
-                value={r.location}
-                onChange={(e) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, location: e.target.value } : x)))}
-                placeholder="장소 (선택) · 예) 본사 3층 / 온라인"
-                className="rounded-lg bg-white px-3 py-2 text-[13px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
-              />
-            </div>
-          ))}
-          {rows.length < 3 ? (
-            <button type="button" onClick={() => setRows((rs) => [...rs, { when: "", location: "" }])} className="inline-flex w-fit items-center gap-1 text-[12.5px] font-bold text-[#0B46E8]">
-              <Plus className="h-3.5 w-3.5" weight="bold" /> 시간 추가
-            </button>
-          ) : null}
+          <InterviewSlotRows rows={rows} setRows={setRows} />
         </div>
         <div className="px-5 pb-5">
           <button type="button" onClick={submit} disabled={saving} className="inline-flex h-[52px] w-full items-center justify-center rounded-2xl bg-[#0B46E8] text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
