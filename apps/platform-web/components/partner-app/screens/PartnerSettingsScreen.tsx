@@ -1,12 +1,15 @@
 "use client";
 
 // 파트너 내 프로필 — 파트너도 사용자. 개인 계정 요약 + 회사 프로필 바로가기 + 계정 + 로그아웃.
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { CaretRight, SealCheck, SignOut, Buildings } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { TCard } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
+import { getMyPartnerOrganization, type MyPartnerOrganization } from "../../../lib/member-profile-client";
 
 function SectionHeader({ title }: { title: string }) {
   return <p className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</p>;
@@ -30,6 +33,13 @@ export function PartnerSettingsScreen() {
   const { user, logout, getAccountUrl } = useAuthSession();
   const name = user?.realName || user?.name || "파트너";
   const emailVerified = Boolean(user?.emailVerified);
+  const [org, setOrg] = useState<MyPartnerOrganization | null>(null);
+
+  useEffect(() => {
+    void getMyPartnerOrganization()
+      .then(setOrg)
+      .catch(() => {});
+  }, []);
 
   return (
     <PartnerAppShell>
@@ -61,9 +71,15 @@ export function PartnerSettingsScreen() {
         <section>
           <SectionHeader title="회사" />
           <Link href={partnerRoutes.company} className="flex items-center gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-5 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[#0B46E8]"><Buildings className="h-5 w-5" weight="fill" /></span>
+            {org?.companyLogoImageData ? (
+              <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-[#F2F4F6]">
+                <Image src={org.companyLogoImageData} alt="" fill sizes="44px" className="object-cover" unoptimized />
+              </span>
+            ) : (
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[#0B46E8]"><Buildings className="h-5 w-5" weight="fill" /></span>
+            )}
             <div className="min-w-0 flex-1">
-              <p className="text-[14.5px] font-bold text-[#191F28]">회사 프로필</p>
+              <p className="truncate text-[14.5px] font-bold text-[#191F28]">{org?.name || "회사 프로필"}</p>
               <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">지원자에게 보이는 우리 회사 정보를 관리해요.</p>
             </div>
             <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />

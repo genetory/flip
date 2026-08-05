@@ -3,6 +3,7 @@
 // 파트너 홈 — 대시보드. 처리 필요 + 채용 파이프라인 + 공고별 지원 현황 + 최근 지원자 + 빠른 작업.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { CaretRight, Plus } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
@@ -95,8 +96,17 @@ export function PartnerHomeScreen() {
         <div className="flex flex-col gap-10">
           {/* 인사 */}
           <div className="rounded-3xl bg-[#F5F8FF] p-7">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-[#0B46E8]">PARTNER</p>
-            <h1 className="mt-2 break-keep text-[24px] font-black leading-[1.2] tracking-[-0.02em] text-[#0B1227]">
+            <div className="flex items-center gap-3">
+              {org?.companyLogoImageData ? (
+                <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-white bg-white shadow-[0_4px_16px_rgba(11,70,232,0.12)]">
+                  <Image src={org.companyLogoImageData} alt="" fill sizes="48px" className="object-cover" unoptimized />
+                </span>
+              ) : (
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">{(org?.name || "회").slice(0, 1)}</span>
+              )}
+              <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-[#0B46E8]">PARTNER</p>
+            </div>
+            <h1 className="mt-3 break-keep text-[24px] font-black leading-[1.2] tracking-[-0.02em] text-[#0B1227]">
               {org?.name ? org.name : "우리 회사"}, 좋은 인재를 만나요
             </h1>
             <p className="mt-1.5 text-[14px] text-[#8B95A1]">게시 중 공고 {positions.filter((p) => p.status === "OPEN").length}개 · 전체 지원자 {applicants.length}명</p>
