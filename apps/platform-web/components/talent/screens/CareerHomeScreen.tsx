@@ -76,13 +76,20 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
 
       {/* 이력서에 담긴 내 커리어 — 직장(경력)만 심플 요약 */}
       <section className="flex flex-col gap-4">
-        <div className="flex items-end justify-between gap-3">
-          <SectionHead title="이력서에 담긴 내 커리어" desc="소속했던 곳을 시간순으로 보여드려요." />
-          {workItems.length ? (
-            <Link href={talentAppRoutes.resume} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] transition hover:text-[#0A3ECB]">편집</Link>
-          ) : null}
-        </div>
-        {workItems.length ? <CareerSummary items={workItems} /> : <EmptyWork />}
+        <SectionHead title="이력서에 담긴 내 커리어" desc="소속했던 곳을 시간순으로 보여드려요." />
+        {workItems.length ? (
+          <>
+            <CareerSummary items={workItems} />
+            <Link
+              href={talentAppRoutes.resume}
+              className="flex items-center justify-center gap-1 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB]"
+            >
+              이력서 편집하러 가기 <ArrowRight className="h-4 w-4" weight="bold" />
+            </Link>
+          </>
+        ) : (
+          <EmptyWork />
+        )}
       </section>
 
       {/* 작성 히스토리 */}
