@@ -209,15 +209,15 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                   {app.resumeDoc || app.resumeShareSlug ? (
                     <DocLink href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/resume`} emoji="📄" title={app.resumeTitle || "이력서"} sub="이력서 보기" internal />
                   ) : null}
-                  {app.coverLetterShareSlug ? (
-                    <DocLink href={`/cover-letter/share/${app.coverLetterShareSlug}`} emoji="✍️" title={app.coverLetterTitle || "자기소개서"} sub="자기소개서 보기" />
+                  {app.coverDoc || app.coverLetterShareSlug ? (
+                    <DocLink href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/cover`} emoji="✍️" title={app.coverLetterTitle || "자기소개서"} sub="자기소개서 보기" internal />
                   ) : null}
                   {app.summary ? <Doc label="자기소개 요약" text={app.summary} /> : null}
                   {app.motivation ? <Doc label="지원 동기" text={app.motivation} /> : null}
                   {app.portfolioUrl ? (
                     <a href={app.portfolioUrl} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8]">포트폴리오 열기 <ArrowSquareOut className="h-3.5 w-3.5" /></a>
                   ) : null}
-                  {!app.resumeShareSlug && !app.coverLetterShareSlug && !app.summary && !app.motivation && !app.portfolioUrl ? (
+                  {!app.resumeDoc && !app.resumeShareSlug && !app.coverDoc && !app.coverLetterShareSlug && !app.summary && !app.motivation && !app.portfolioUrl ? (
                     <p className="text-[13px] text-[#8B95A1]">제출된 서류가 없어요.</p>
                   ) : null}
                 </div>
