@@ -3,7 +3,7 @@
 // 파트너 지원자 — 실서버 지원자 목록. 요약 + 검색 + 정렬 + 상태 탭 + 풍부한 카드.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CaretRight, MagnifyingGlass, X, GraduationCap, Globe, Translate, Clock } from "@phosphor-icons/react";
+import { MagnifyingGlass, X, GraduationCap, Globe, Translate, Clock } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
@@ -215,12 +215,9 @@ function ApplicantCard({ a }: { a: PartnerApplicantListItem }) {
             </div>
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
-          {a.appliedAt ? (
-            <span className="flex items-center gap-1 text-[11.5px] text-[#B0B8C1]"><Clock className="h-3.5 w-3.5" /> {formatRelativeTime(new Date(a.appliedAt).getTime())}</span>
-          ) : <span />}
-          <CaretRight className="h-4 w-4 text-[#C4CAD2]" />
-        </div>
+        {a.appliedAt ? (
+          <span className="flex shrink-0 items-center gap-1 text-[11.5px] text-[#B0B8C1]"><Clock className="h-3.5 w-3.5" /> {formatRelativeTime(new Date(a.appliedAt).getTime())}</span>
+        ) : null}
       </div>
     </Link>
   );
