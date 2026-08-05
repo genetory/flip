@@ -98,13 +98,18 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
       {status === "ready" && app ? (
         <div className="flex flex-col gap-5">
           {/* 프로필 */}
-          <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-            <div className="flex items-center gap-3">
+          <section className="rounded-3xl bg-[#F5F8FF] p-6">
+            <div className="flex items-center gap-4">
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[24px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">{app.name.slice(0, 1)}</span>
+              <div className="min-w-0 flex-1">
+                <h1 className="truncate text-[22px] font-black tracking-[-0.02em] text-[#0B1227]">{app.name}</h1>
+                <p className="mt-0.5 truncate text-[13.5px] text-[#8B95A1]">{app.positionTitle}{app.appliedAt ? ` · ${new Date(app.appliedAt).toLocaleDateString("ko-KR")} 지원` : ""}</p>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
               <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${PARTNER_APPLICANT_STATUS[app.status].cls}`}>{PARTNER_APPLICANT_STATUS[app.status].label}</span>
               <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${PARTNER_RECOMMENDATION[app.recommendation].cls}`}>{PARTNER_RECOMMENDATION[app.recommendation].label}</span>
             </div>
-            <h1 className="mt-3 text-[22px] font-black tracking-[-0.02em] text-[#0B1227]">{app.name}</h1>
-            <p className="mt-1 text-[13.5px] text-[#8B95A1]">{app.positionTitle}{app.appliedAt ? ` · ${new Date(app.appliedAt).toLocaleDateString("ko-KR")} 지원` : ""}</p>
           </section>
 
           {/* 상태 변경 */}
