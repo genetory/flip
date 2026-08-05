@@ -5,7 +5,7 @@
 // 좌: 인적사항 · 지원 서류 · 이력서 | 우: 내부 메모 · 면접 · 메시지.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, PaperPlaneTilt, Plus, ArrowSquareOut, Check, CaretRight, CaretDown, Sparkle } from "@phosphor-icons/react";
+import { X, PaperPlaneTilt, Plus, ArrowSquareOut, Check, CaretRight, CaretDown, Sparkle, Briefcase } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
@@ -237,10 +237,18 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
               <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[24px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">{app.name.slice(0, 1)}</span>
               <div className="min-w-0 flex-1">
                 <h1 className="truncate text-[22px] font-black tracking-[-0.02em] text-[#0B1227]">{app.name}</h1>
-                <p className="mt-0.5 truncate text-[13.5px] text-[#8B95A1]">{app.positionTitle}{app.appliedAt ? ` · ${new Date(app.appliedAt).toLocaleDateString("ko-KR")} 지원` : ""}</p>
+                {app.appliedAt ? <p className="mt-0.5 truncate text-[13.5px] text-[#8B95A1]">{new Date(app.appliedAt).toLocaleDateString("ko-KR")} 지원</p> : null}
               </div>
               <span className={`hidden shrink-0 rounded-md px-2 py-1 text-[11px] font-bold sm:inline ${PARTNER_RECOMMENDATION[app.recommendation].cls}`}>{PARTNER_RECOMMENDATION[app.recommendation].label}</span>
             </div>
+
+            {/* 지원 공고 */}
+            <Link href={`${partnerRoutes.positions}/${app.positionId}`} className="mt-4 flex items-center gap-2 rounded-xl bg-white px-3.5 py-2.5 transition hover:bg-[#EDF1FD]">
+              <Briefcase className="h-4 w-4 shrink-0 text-[#0B46E8]" weight="fill" />
+              <span className="text-[11.5px] font-bold text-[#8B95A1]">지원 공고</span>
+              <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-[#191F28]">{app.positionTitle}</span>
+              <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
+            </Link>
 
             {/* 채용 단계 스테퍼 */}
             <div className="mt-5">
