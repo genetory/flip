@@ -252,38 +252,37 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
               </div>
               <Field label="근무 시간"><Input value={form.workingHours} onChange={(v) => set("workingHours", v)} placeholder="예) 주 5일 · 09:00~18:00" /></Field>
               <Field label="선호 직무"><Input value={form.preferredJobRole} onChange={(v) => set("preferredJobRole", v)} placeholder="예) 서버 개발" /></Field>
-            </div>
-            </div>
-          </section>
 
-          {/* 사진 */}
-          <section>
-            <SectionHeader title="공고 사진" />
-            <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[12.5px] text-[#8B95A1]">근무 환경·팀·제품 등 · 최대 5장 · {form.thumbnailImages.length}장 등록됨</p>
-                <input ref={imgRef} type="file" accept="image/*" multiple className="hidden" onChange={onPickImages} />
-                <button type="button" onClick={() => imgRef.current?.click()} disabled={uploadingImg || form.thumbnailImages.length >= 5} className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#F2F4F6] px-3 py-2 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">
-                  <Plus className="h-4 w-4" weight="bold" /> {uploadingImg ? "처리 중…" : "사진 추가"}
-                </button>
-              </div>
-              {form.thumbnailImages.length ? (
-                <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
-                  {form.thumbnailImages.map((src, i) => (
-                    <div key={`${i}-${src.slice(0, 24)}`} className="relative aspect-square overflow-hidden rounded-2xl border border-[#E5E8EB] bg-[#F2F4F6]">
-                      <Image src={src} alt={`공고 사진 ${i + 1}`} fill sizes="90px" className="object-cover" unoptimized />
-                      <button type="button" onClick={() => set("thumbnailImages", form.thumbnailImages.filter((_, j) => j !== i))} aria-label="사진 삭제" className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#0B1227]/70 text-white">
-                        <X className="h-3 w-3" weight="bold" />
-                      </button>
-                    </div>
-                  ))}
+              {/* 공고 사진 */}
+              <div>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <span className="text-[12.5px] font-normal text-[#4E5968]">공고 사진 · 최대 5장 {form.thumbnailImages.length ? `· ${form.thumbnailImages.length}장` : ""}</span>
+                  <input ref={imgRef} type="file" accept="image/*" multiple className="hidden" onChange={onPickImages} />
+                  {form.thumbnailImages.length ? (
+                    <button type="button" onClick={() => imgRef.current?.click()} disabled={uploadingImg || form.thumbnailImages.length >= 5} className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#F2F4F6] px-2.5 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">
+                      <Plus className="h-3.5 w-3.5" weight="bold" /> {uploadingImg ? "처리 중…" : "추가"}
+                    </button>
+                  ) : null}
                 </div>
-              ) : (
-                <button type="button" onClick={() => imgRef.current?.click()} className="mt-3 flex w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] py-8 text-[#B0B8C1] transition hover:border-[#B0C4F5]">
-                  <ImageSquare className="h-7 w-7" />
-                  <span className="text-[13px] font-semibold">공고에 보여줄 사진을 올려보세요</span>
-                </button>
-              )}
+                {form.thumbnailImages.length ? (
+                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                    {form.thumbnailImages.map((src, i) => (
+                      <div key={`${i}-${src.slice(0, 24)}`} className="relative aspect-square overflow-hidden rounded-2xl border border-[#E5E8EB] bg-[#F2F4F6]">
+                        <Image src={src} alt={`공고 사진 ${i + 1}`} fill sizes="90px" className="object-cover" unoptimized />
+                        <button type="button" onClick={() => set("thumbnailImages", form.thumbnailImages.filter((_, j) => j !== i))} aria-label="사진 삭제" className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#0B1227]/70 text-white">
+                          <X className="h-3 w-3" weight="bold" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => imgRef.current?.click()} disabled={uploadingImg} className="flex w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] py-7 text-[#B0B8C1] transition hover:border-[#B0C4F5] disabled:opacity-50">
+                    <ImageSquare className="h-6 w-6" />
+                    <span className="text-[12.5px] font-semibold">{uploadingImg ? "처리 중…" : "공고에 보여줄 사진을 올려보세요"}</span>
+                  </button>
+                )}
+              </div>
+            </div>
             </div>
           </section>
 
