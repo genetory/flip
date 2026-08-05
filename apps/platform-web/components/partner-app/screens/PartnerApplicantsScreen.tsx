@@ -120,6 +120,24 @@ export function PartnerApplicantsScreen() {
               ) : null}
             </div>
 
+            {/* 공고별 보기 */}
+            {positionOptions.length > 1 ? (
+              <div className="relative">
+                <Briefcase className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#0B46E8]" weight="fill" />
+                <select
+                  value={posFilter ?? ""}
+                  onChange={(e) => setPosFilter(e.target.value || null)}
+                  className="h-[46px] w-full appearance-none truncate rounded-2xl border border-[#EEF1F5] bg-white pl-11 pr-10 text-[14px] font-bold text-[#4E5968] outline-none [color-scheme:light] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
+                >
+                  <option value="">전체 공고 지원자</option>
+                  {positionOptions.map((p) => (
+                    <option key={p.id} value={p.id}>{p.title} · {p.count}명</option>
+                  ))}
+                </select>
+                <CaretDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8B95A1]" weight="bold" />
+              </div>
+            ) : null}
+
             {/* 상태 탭 */}
             <div className="flex gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {TABS.map((t) => {
@@ -139,24 +157,8 @@ export function PartnerApplicantsScreen() {
               })}
             </div>
 
-            {/* 공고별 보기 + 정렬 */}
-            <div className="flex items-center justify-between gap-2">
-              {positionOptions.length > 1 ? (
-                <div className="relative">
-                  <select
-                    value={posFilter ?? ""}
-                    onChange={(e) => setPosFilter(e.target.value || null)}
-                    className="max-w-[190px] appearance-none rounded-full bg-[#F2F4F6] py-1.5 pl-8 pr-7 text-[12.5px] font-bold text-[#4E5968] outline-none [color-scheme:light]"
-                  >
-                    <option value="">전체 공고</option>
-                    {positionOptions.map((p) => (
-                      <option key={p.id} value={p.id}>{p.title} ({p.count})</option>
-                    ))}
-                  </select>
-                  <Briefcase className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#0B46E8]" weight="fill" />
-                  <CaretDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8B95A1]" weight="bold" />
-                </div>
-              ) : <span />}
+            {/* 정렬 */}
+            <div className="flex items-center justify-end">
               <div className="flex shrink-0 items-center gap-1 rounded-full bg-[#F2F4F6] p-0.5">
                 {([["latest", "최신순"], ["recommended", "추천순"]] as const).map(([key, label]) => (
                   <button
