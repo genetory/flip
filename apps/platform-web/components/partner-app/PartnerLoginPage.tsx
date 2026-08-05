@@ -12,6 +12,7 @@ import { AuthApiError, getPostLoginUrl, loginWithEmail } from "../../lib/auth-cl
 import { getAuthPageMessages } from "../../lib/auth-messages";
 import { TalentButton } from "../talent/TalentButton";
 import { TalentAuthLayout, TalentField, talentInputClass } from "../talent/auth/TalentAuthLayout";
+import { TalentSocialButtons, TalentOrDivider } from "../talent/auth/TalentSocialButtons";
 
 function sanitizeNextParam(raw: string | null): string | null {
   if (!raw) return null;
@@ -113,6 +114,9 @@ export function PartnerLoginPage() {
           {isSubmitting ? copy.submitPending : copy.submitIdle}
         </TalentButton>
       </form>
+
+      <TalentOrDivider />
+      <TalentSocialButtons />
     </TalentAuthLayout>
   );
 }
