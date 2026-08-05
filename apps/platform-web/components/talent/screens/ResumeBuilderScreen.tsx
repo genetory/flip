@@ -5,7 +5,7 @@
 // 1개 문서. 초안 생성/다듬기는 mock(규칙 기반), 추후 실제 LLM으로 교체.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Sparkle, PaperPlaneTilt, Trash, Eye, ArrowSquareOut } from "@phosphor-icons/react";
+import { Sparkle, PaperPlaneTilt, Trash, Eye, ArrowSquareOut, CaretDown } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TalentBackButton } from "../TalentBackButton";
 import { ProfileGate } from "../career/ProfileGate";
@@ -124,10 +124,7 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
           if (items.length === 0) return null;
           const meta = SECTION_META[section];
           return (
-            <section key={section} className="flex flex-col gap-2.5">
-              <h2 className="flex items-center gap-1.5 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">
-                <span aria-hidden>{meta.emoji}</span> {meta.label}
-              </h2>
+            <CollapsibleSection key={section} emoji={meta.emoji} label={meta.label} count={items.length}>
               {items.map((it) => (
                 <ItemRow
                   key={it.id}
@@ -146,7 +143,7 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
                   onRemove={() => remove(it.id)}
                 />
               ))}
-            </section>
+            </CollapsibleSection>
           );
         })}
       </div>
@@ -164,6 +161,22 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
   );
 }
 
+
+// 접을 수 있는 섹션 — 길어지면 헤더를 눌러 닫아둔다.
+function CollapsibleSection({ emoji, label, count, children }: { emoji: string; label: string; count: number; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <section className="flex flex-col gap-2.5">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-1.5 text-left">
+        <span aria-hidden>{emoji}</span>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{label}</h2>
+        <span className="text-[13px] font-bold text-[#B0B8C1]">{count}</span>
+        <CaretDown className={`ml-auto h-4 w-4 shrink-0 text-[#C4CAD2] transition-transform ${open ? "rotate-180" : ""}`} weight="bold" />
+      </button>
+      {open ? <div className="flex flex-col gap-2.5">{children}</div> : null}
+    </section>
+  );
+}
 
 function ItemRow({
   text,

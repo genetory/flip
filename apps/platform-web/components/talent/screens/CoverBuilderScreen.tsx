@@ -4,7 +4,7 @@
 // 1개 문서. 기본 정보 미등록 시 게이트. mock 저장 + /api/cover-assist.
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Sparkle, Eye, ArrowSquareOut, Trash, PaperPlaneTilt } from "@phosphor-icons/react";
+import { Sparkle, Eye, ArrowSquareOut, Trash, PaperPlaneTilt, CaretDown } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TalentBackButton } from "../TalentBackButton";
 import { ProfileGate } from "../career/ProfileGate";
@@ -112,10 +112,7 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
           const items = doc.items.filter((it) => it.question === q);
           if (items.length === 0) return null;
           return (
-            <section key={q} className="flex flex-col gap-2.5">
-              <h2 className="flex items-center gap-1.5 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">
-                <span aria-hidden>{coverQuestionEmoji(q)}</span> {q}
-              </h2>
+            <CollapsibleSection key={q} emoji={coverQuestionEmoji(q)} label={q} count={items.length}>
               {items.map((it) => (
                 <ItemRow
                   key={it.id}
@@ -127,7 +124,7 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
                   onRemove={() => remove(it.id)}
                 />
               ))}
-            </section>
+            </CollapsibleSection>
           );
         })}
       </div>
@@ -141,6 +138,22 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
         <CoverA4Preview doc={doc} info={basicInfo} />
       </aside>
     </div>
+  );
+}
+
+// 접을 수 있는 섹션(문항) — 길어지면 헤더를 눌러 닫아둔다.
+function CollapsibleSection({ emoji, label, count, children }: { emoji: string; label: string; count: number; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <section className="flex flex-col gap-2.5">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-1.5 text-left">
+        <span aria-hidden>{emoji}</span>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{label}</h2>
+        <span className="text-[13px] font-bold text-[#B0B8C1]">{count}</span>
+        <CaretDown className={`ml-auto h-4 w-4 shrink-0 text-[#C4CAD2] transition-transform ${open ? "rotate-180" : ""}`} weight="bold" />
+      </button>
+      {open ? <div className="flex flex-col gap-2.5">{children}</div> : null}
+    </section>
   );
 }
 
