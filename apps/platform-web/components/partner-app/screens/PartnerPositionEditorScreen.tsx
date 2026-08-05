@@ -10,7 +10,6 @@ import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
-import { PARTNER_POSITION_STATUS } from "../../../lib/partner/labels";
 import { convertImageFileToWebpDataUrl, estimateDataUrlBytes } from "../../../lib/image-upload";
 import {
   getMyPartnerPositionById,
@@ -35,8 +34,6 @@ const WORKTYPE_OPTS: { value: WorkType; label: string }[] = [
   { value: "Hybrid", label: "하이브리드" },
   { value: "Remote", label: "재택" }
 ];
-// 파트너가 실제로 쓰는 핵심 상태만 노출. (현재 상태가 그 외면 렌더 시 추가로 보인다.)
-const STATUS_OPTS: PositionStatus[] = ["DRAFT", "OPEN", "CLOSED"];
 
 type Form = {
   title: string;
@@ -201,6 +198,21 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
     }
   }
 
+  // 마감 — 상태만 CLOSED 로.
+  function closePosition() {
+    if (!positionId || saving) return;
+    if (!window.confirm("이 공고를 마감할까요? 지원자에게 더 이상 노출되지 않아요.")) return;
+    setSaving(true);
+    updateMyPartnerPosition(positionId, { status: "CLOSED" })
+      .then((p) => {
+        setPosStatus(p.status);
+        setInitialStatus(p.status);
+        toast.success("공고를 마감했어요");
+      })
+      .catch(() => toast.error("마감에 실패했어요. 잠시 후 다시 시도해주세요."))
+      .finally(() => setSaving(false));
+  }
+
   function remove() {
     if (!positionId || deleting) return;
     if (!window.confirm("이 공고를 삭제할까요? 되돌릴 수 없어요.")) return;
@@ -301,33 +313,19 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
             </div>
           </section>
 
-          {isEdit ? (
-            <section>
-              <SectionHeader title="게시 상태" />
-              <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                <p className="mb-3 text-[12.5px] text-[#8B95A1]">상태를 선택하고 저장하면 반영돼요.</p>
-                <div className="flex flex-wrap gap-2">
-                  {(STATUS_OPTS.includes(posStatus) ? STATUS_OPTS : [posStatus, ...STATUS_OPTS]).map((s) => {
-                    const on = posStatus === s;
-                    return (
-                      <button key={s} type="button" onClick={() => setPosStatus(s)} className={`rounded-xl px-3.5 py-2 text-[12.5px] font-bold transition ${on ? "bg-[#0B46E8] text-white" : "bg-white text-[#4E5968] ring-1 ring-[#E4EAF2] hover:bg-[#EDF1FD]"}`}>
-                        {PARTNER_POSITION_STATUS[s].label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
-          ) : null}
-
-          {/* 액션 — 우측 하단 2컬럼 */}
-          <div className="flex justify-end gap-2.5">
+          {/* 액션 — 우측 하단 */}
+          <div className="flex flex-wrap justify-end gap-2.5">
             {isEdit ? (
               <>
-                <button type="button" onClick={remove} disabled={deleting || saving} className="inline-flex h-[46px] min-w-[110px] items-center justify-center rounded-2xl bg-[#FDECEE] px-5 text-[14px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1] disabled:opacity-50">
-                  {deleting ? "삭제 중…" : "공고 삭제"}
+                <button type="button" onClick={remove} disabled={deleting || saving} className="inline-flex h-[46px] min-w-[100px] items-center justify-center rounded-2xl bg-[#FDECEE] px-5 text-[14px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1] disabled:opacity-50">
+                  {deleting ? "삭제 중…" : "삭제"}
                 </button>
-                <button type="button" onClick={() => save()} disabled={saving} className="inline-flex h-[46px] min-w-[120px] items-center justify-center rounded-2xl bg-[#0B46E8] px-6 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
+                {posStatus !== "CLOSED" ? (
+                  <button type="button" onClick={closePosition} disabled={saving || deleting} className="inline-flex h-[46px] min-w-[100px] items-center justify-center rounded-2xl bg-[#F2F4F6] px-5 text-[14px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">
+                    마감
+                  </button>
+                ) : null}
+                <button type="button" onClick={() => save()} disabled={saving || deleting} className="inline-flex h-[46px] min-w-[120px] items-center justify-center rounded-2xl bg-[#0B46E8] px-6 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
                   {saving ? "저장 중…" : "저장하기"}
                 </button>
               </>
