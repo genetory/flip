@@ -19,7 +19,7 @@ export function TalentGuard({ children }: { children: ReactNode }) {
     if (!isAuthenticated) {
       // 로그인 페이지는 ?next= 만 신뢰(same-origin 내부 경로). 로그인 후 원래 화면으로 복귀.
       const here = window.location.pathname + window.location.search;
-      router.replace(`/talent/login?next=${encodeURIComponent(here)}`);
+      router.replace(`/login?next=${encodeURIComponent(here)}`);
       return;
     }
     if (user?.role === "PARTNER") {
