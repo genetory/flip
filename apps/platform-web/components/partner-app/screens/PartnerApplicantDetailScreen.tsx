@@ -5,7 +5,7 @@
 // 좌: 인적사항 · 지원 서류 · 이력서 | 우: 내부 메모 · 면접 · 메시지.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, PaperPlaneTilt, Plus, ArrowSquareOut, Check, CaretRight } from "@phosphor-icons/react";
+import { X, PaperPlaneTilt, Plus, ArrowSquareOut, Check, CaretRight, CaretDown } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
@@ -39,30 +39,32 @@ function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-// "YYYY-MM-DDTHH:mm"(로컬) → 서버 규칙(30분 그리드)에 맞춘 슬롯. 분을 가장 가까운 30분으로 보정.
-function slotFromLocal(when: string, location?: string): { startsAt: string; endsAt: string; location?: string } {
-  const d = new Date(when);
-  d.setMinutes(Math.round(d.getMinutes() / 30) * 30, 0, 0);
-  return {
-    startsAt: d.toISOString(),
-    endsAt: new Date(d.getTime() + 60 * 60000).toISOString(),
-    location: location?.trim() || undefined
-  };
-}
-
-// 면접 시간 선택 — 날짜 + 30분 단위 시간 드롭다운.
+// 면접 시간 선택 — 날짜 + 30분 단위 시간 드롭다운(00:00 ~ 24:00).
 type SlotRow = { date: string; time: string; location: string };
 const EMPTY_SLOT_ROW: SlotRow = { date: "", time: "", location: "" };
 const TIME_OPTIONS: string[] = (() => {
   const out: string[] = [];
-  for (let h = 8; h <= 21; h += 1) {
+  for (let h = 0; h <= 23; h += 1) {
     out.push(`${String(h).padStart(2, "0")}:00`);
     out.push(`${String(h).padStart(2, "0")}:30`);
   }
+  out.push("24:00"); // 자정(다음 날 00:00)
   return out;
 })();
 function slotsFromRows(rows: SlotRow[]): { startsAt: string; endsAt: string; location?: string }[] {
-  return rows.filter((r) => r.date && r.time).map((r) => slotFromLocal(`${r.date}T${r.time}`, r.location));
+  return rows
+    .filter((r) => r.date && r.time)
+    .map((r) => {
+      // 24:00 은 다음 날 00:00 으로 처리.
+      const d = r.time === "24:00" ? new Date(`${r.date}T00:00`) : new Date(`${r.date}T${r.time}`);
+      if (r.time === "24:00") d.setDate(d.getDate() + 1);
+      d.setMinutes(Math.round(d.getMinutes() / 30) * 30, 0, 0);
+      return {
+        startsAt: d.toISOString(),
+        endsAt: new Date(d.getTime() + 60 * 60000).toISOString(),
+        location: r.location.trim() || undefined
+      };
+    });
 }
 
 function InterviewSlotRows({ rows, setRows, max = 3 }: { rows: SlotRow[]; setRows: React.Dispatch<React.SetStateAction<SlotRow[]>>; max?: number }) {
@@ -73,12 +75,15 @@ function InterviewSlotRows({ rows, setRows, max = 3 }: { rows: SlotRow[]; setRow
         <div key={i} className="flex flex-col gap-1.5 rounded-xl bg-white p-2.5">
           <div className="flex gap-1.5">
             <input type="date" value={r.date} onChange={(e) => upd(i, { date: e.target.value })} className="min-w-0 flex-1 rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none [color-scheme:light]" />
-            <select value={r.time} onChange={(e) => upd(i, { time: e.target.value })} className="w-[104px] shrink-0 rounded-lg bg-[#F5F6F8] px-2.5 py-2 text-[13px] text-[#191F28] outline-none [color-scheme:light]">
-              <option value="">시간</option>
-              {TIME_OPTIONS.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+            <div className="relative w-[104px] shrink-0">
+              <select value={r.time} onChange={(e) => upd(i, { time: e.target.value })} className="w-full appearance-none rounded-lg bg-[#F5F6F8] py-2 pl-2.5 pr-7 text-[13px] text-[#191F28] outline-none [color-scheme:light]">
+                <option value="">시간</option>
+                {TIME_OPTIONS.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <CaretDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8B95A1]" weight="bold" />
+            </div>
           </div>
           <div className="flex items-center gap-1.5">
             <input value={r.location} onChange={(e) => upd(i, { location: e.target.value })} placeholder="장소 (선택) · 예) 본사 3층 / 온라인" className="min-w-0 flex-1 rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]" />
