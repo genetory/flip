@@ -1161,6 +1161,8 @@ export type PartnerApplicantListItem = {
   appliedAt: string | null;
   recommendation: "HIGH" | "NORMAL" | "CHECK";
   status: PartnerApplicantStatus;
+  resumeTitle?: string | null;
+  resumeShareSlug?: string | null;
 };
 
 export type PartnerApplicantDetail = PartnerApplicantListItem & {
