@@ -1414,6 +1414,18 @@ model CoverLetter {
   @@index([userId])
 }
 
+// 파트너용 지원 서류 LLM 불렛 요약 캐시.
+// version = 대표 이력서 updatedAt(ms). 이력서/자소서가 바뀌면 version 이 달라져 재생성한다.
+model ApplicantDocSummary {
+  id              String   @id @default(uuid())
+  candidateUserId String   @unique
+  version         String
+  resumeBullets   String[] @default([])
+  coverBullets    String[] @default([])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 // 프리미엄 한도 — 비싼/반복형 AI 기능(공고 맞춤 분석, 모의 면접 평가)의 월 사용량.
 // periodKey 는 KST 기준 "YYYY-MM". (userId, feature, periodKey) 당 한 행으로 카운트.
 // 공용 AI 티켓 지갑(잔액) — 가입 시 1회 보너스 + 매일 일정량 적립(상한). 사용 시 차감.

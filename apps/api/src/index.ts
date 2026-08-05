@@ -25184,9 +25184,21 @@ app.get("/partner/applicants/:id/document-summary", authenticate, requireRoles([
       return res.json({ ok: true, resumeBullets: [], coverBullets: [] });
     }
 
-    const cacheKey = `${found.candidateUserId}:${primary?.updatedAt?.getTime() ?? 0}`;
+    // 버전 = 대표 이력서 updatedAt. 문서가 바뀌면 version 이 달라져 재생성한다.
+    const version = String(primary?.updatedAt?.getTime() ?? 0);
+    const cacheKey = `${found.candidateUserId}:${version}`;
+
+    // 1) 인메모리 캐시
     const cached = partnerDocSummaryCache.get(cacheKey);
     if (cached) return res.json({ ok: true, ...cached, cached: true });
+
+    // 2) DB 영속 캐시(동일 version 이면 재사용)
+    const dbRow = await prisma.applicantDocSummary.findUnique({ where: { candidateUserId: found.candidateUserId } });
+    if (dbRow && dbRow.version === version) {
+      const out = { resumeBullets: dbRow.resumeBullets, coverBullets: dbRow.coverBullets };
+      partnerDocSummaryCache.set(cacheKey, out);
+      return res.json({ ok: true, ...out, cached: true });
+    }
 
     if (!openai) return res.json({ ok: true, resumeBullets: [], coverBullets: [], disabled: true });
 
@@ -25224,6 +25236,14 @@ app.get("/partner/applicants/:id/document-summary", authenticate, requireRoles([
       Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 5) : [];
     const out = { resumeBullets: clean(parsed.resumeBullets), coverBullets: clean(parsed.coverBullets) };
     partnerDocSummaryCache.set(cacheKey, out);
+    // DB 영속 캐시 저장(다음 서버 재시작 후에도 재사용).
+    await prisma.applicantDocSummary
+      .upsert({
+        where: { candidateUserId: found.candidateUserId },
+        update: { version, resumeBullets: out.resumeBullets, coverBullets: out.coverBullets },
+        create: { candidateUserId: found.candidateUserId, version, resumeBullets: out.resumeBullets, coverBullets: out.coverBullets }
+      })
+      .catch(() => {});
     return res.json({ ok: true, ...out });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
