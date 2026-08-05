@@ -33,7 +33,6 @@ const WORKTYPE_OPTS: { value: WorkType; label: string }[] = [
   { value: "Hybrid", label: "하이브리드" },
   { value: "Remote", label: "재택" }
 ];
-const STATUS_OPTS: PositionStatus[] = ["DRAFT", "PENDING_REVIEW", "OPEN", "PAUSED", "CLOSED"];
 
 type Form = {
   title: string;
@@ -134,7 +133,9 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function save(nextStatus?: PositionStatus) {
+  // 저장 — 내용만. (백엔드는 파트너의 상태 변경과 내용 수정을 동시에 허용하지 않는다.)
+  // 신규는 등록 시점 상태(임시저장/검토요청)를 함께 지정한다.
+  function save(newStatus?: PositionStatus) {
     if (saving) return;
     if (!form.title.trim()) {
       toast.error("공고 제목을 입력해주세요.");
@@ -143,14 +144,27 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
     setSaving(true);
     const body = toInput(form);
     const run = isEdit
-      ? updateMyPartnerPosition(positionId as string, { ...body, status: nextStatus })
-      : createMyPartnerPosition({ ...body, status: nextStatus ?? "DRAFT" });
+      ? updateMyPartnerPosition(positionId as string, body)
+      : createMyPartnerPosition({ ...body, status: newStatus ?? "DRAFT" });
     run
       .then(() => {
         toast.success(isEdit ? "공고를 저장했어요" : "공고를 등록했어요");
         router.push(partnerRoutes.positions);
       })
       .catch(() => toast.error("저장에 실패했어요. 잠시 후 다시 시도해주세요."))
+      .finally(() => setSaving(false));
+  }
+
+  // 게시 상태만 변경(내용과 분리). 파트너는 공개/정지/마감만 가능.
+  function changePositionStatus(next: "OPEN" | "PAUSED" | "CLOSED") {
+    if (!positionId || saving) return;
+    setSaving(true);
+    updateMyPartnerPosition(positionId, { status: next })
+      .then((p) => {
+        setPosStatus(p.status);
+        toast.success("게시 상태를 변경했어요");
+      })
+      .catch(() => toast.error("상태 변경에 실패했어요. 잠시 후 다시 시도해주세요."))
       .finally(() => setSaving(false));
   }
 
@@ -228,9 +242,32 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
             <section>
               <SectionHeader title="게시 상태" />
               <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                <Select value={posStatus} onChange={(v) => setPosStatus(v as PositionStatus)}>
-                  {STATUS_OPTS.map((s) => <option key={s} value={s}>{PARTNER_POSITION_STATUS[s].label}</option>)}
-                </Select>
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-md px-2 py-1 text-[11.5px] font-bold ${PARTNER_POSITION_STATUS[posStatus].cls}`}>{PARTNER_POSITION_STATUS[posStatus].label}</span>
+                  <span className="text-[12.5px] text-[#8B95A1]">
+                    {posStatus === "PENDING_REVIEW"
+                      ? "관리자 승인을 기다리는 중이에요."
+                      : posStatus === "DRAFT" || posStatus === "REJECTED"
+                        ? "게시하려면 관리자 검토가 필요해요."
+                        : posStatus === "OPEN"
+                          ? "지원자에게 공개되어 있어요."
+                          : posStatus === "PAUSED"
+                            ? "일시적으로 노출이 중지된 상태예요."
+                            : "마감된 공고예요."}
+                  </span>
+                </div>
+                {["OPEN", "PAUSED", "CLOSED"].includes(posStatus) ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {posStatus !== "OPEN" ? (
+                      <button type="button" onClick={() => changePositionStatus("OPEN")} disabled={saving} className="rounded-xl bg-[#EDF1FD] px-3.5 py-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#DCE6FC] disabled:opacity-50">다시 게시</button>
+                    ) : (
+                      <button type="button" onClick={() => changePositionStatus("PAUSED")} disabled={saving} className="rounded-xl bg-[#F2F4F6] px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">게시 일시중지</button>
+                    )}
+                    {posStatus !== "CLOSED" ? (
+                      <button type="button" onClick={() => changePositionStatus("CLOSED")} disabled={saving} className="rounded-xl bg-[#F2F4F6] px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">마감</button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </section>
           ) : null}
