@@ -3,8 +3,9 @@
 // 파트너 공고 관리 — 요약 + 검색 + 정렬 + 상태 탭 + 공고별 지원자 수 카드.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { CaretRight, Plus, MagnifyingGlass, X, Users, Briefcase } from "@phosphor-icons/react";
+import { CaretRight, Plus, MagnifyingGlass, X, Users, Briefcase, ImageSquare } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
@@ -180,29 +181,40 @@ function PositionCard({ p, applicants }: { p: PartnerPosition; applicants: numbe
   const router = useRouter();
   const s = PARTNER_POSITION_STATUS[p.status];
   const meta = [EMPLOYMENT_LABEL[p.employmentType], p.workType, p.workLocation].filter(Boolean).join(" · ");
+  const thumb = Array.isArray(p.thumbnailImages) ? p.thumbnailImages[0] : undefined;
   return (
-    <Link href={`${partnerRoutes.positions}/${p.id}`} className="rounded-2xl border border-[#EEF1F5] bg-white p-5 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
-      <div className="flex items-center gap-2">
-        <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
-        <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{new Date(p.createdAt).toLocaleDateString("ko-KR")} 작성</span>
-      </div>
-      <p className="mt-2.5 text-[15.5px] font-bold text-[#191F28]">{p.title || "제목 없는 공고"}</p>
-      {meta ? <p className="mt-1 text-[12.5px] text-[#8B95A1]">{meta}</p> : null}
-      <div className="mt-3 flex items-center gap-4 border-t border-[#F5F6F8] pt-3">
-        <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><Briefcase className="h-4 w-4 text-[#B0B8C1]" /> 채용 {p.hiringCount ?? "-"}명</span>
-        {/* 지원자 수 — 클릭 시 해당 공고 지원자 목록으로(카드 링크와 분리) */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            router.push(`${partnerRoutes.applicants}?position=${encodeURIComponent(p.id)}`);
-          }}
-          className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
-        >
-          <Users className="h-4 w-4" weight="fill" /> 지원 {applicants}명
-        </button>
-        <span className="ml-auto inline-flex items-center gap-0.5 text-[12.5px] font-bold text-[#0B46E8]">관리 <CaretRight className="h-3.5 w-3.5" weight="bold" /></span>
+    <Link href={`${partnerRoutes.positions}/${p.id}`} className="flex gap-4 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
+      {/* 썸네일 — 없어도 뷰 표시 */}
+      <span className="relative flex h-[76px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#EEF1F5] bg-[#F2F4F6]">
+        {thumb ? (
+          <Image src={thumb} alt="" fill sizes="76px" className="object-cover" unoptimized />
+        ) : (
+          <ImageSquare className="h-7 w-7 text-[#C4CAD2]" />
+        )}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
+          <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{new Date(p.createdAt).toLocaleDateString("ko-KR")} 작성</span>
+        </div>
+        <p className="mt-2 truncate text-[15.5px] font-bold text-[#191F28]">{p.title || "제목 없는 공고"}</p>
+        {meta ? <p className="mt-1 truncate text-[12.5px] text-[#8B95A1]">{meta}</p> : null}
+        <div className="mt-3 flex items-center gap-4 border-t border-[#F5F6F8] pt-3">
+          <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><Briefcase className="h-4 w-4 text-[#B0B8C1]" /> 채용 {p.hiringCount ?? "-"}명</span>
+          {/* 지원자 수 — 클릭 시 해당 공고 지원자 목록으로(카드 링크와 분리) */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              router.push(`${partnerRoutes.applicants}?position=${encodeURIComponent(p.id)}`);
+            }}
+            className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
+          >
+            <Users className="h-4 w-4" weight="fill" /> 지원 {applicants}명
+          </button>
+          <span className="ml-auto inline-flex items-center gap-0.5 text-[12.5px] font-bold text-[#0B46E8]">관리 <CaretRight className="h-3.5 w-3.5" weight="bold" /></span>
+        </div>
       </div>
     </Link>
   );
