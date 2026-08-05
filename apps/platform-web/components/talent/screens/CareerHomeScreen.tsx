@@ -12,7 +12,7 @@ import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useTalentSnapshot } from "../../../lib/talent/useTalentData";
 import { useCareerFeed, removeFeedEntry } from "../../../lib/talent/career-feed";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
-import { useResumeDoc, resumeCompleteness, displayMonth, type ResumeItem } from "../../../lib/talent/resume-doc";
+import { useResumeDoc, useRenewalDocsStatus, resumeCompleteness, displayMonth, type ResumeItem } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
 import { useDailyStep, markStepDoneToday } from "../../../lib/talent/daily-step";
@@ -34,10 +34,21 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   const basicInfo = useBasicInfo();
   const resume = useResumeDoc();
   const cover = useCoverDoc();
+  const docsStatus = useRenewalDocsStatus();
   const ready = isBasicInfoComplete(basicInfo);
 
   // 이미 입력된 이력서/자소서 항목도 커리어 기록으로 백필(멱등, refId 중복 방지).
   useCareerHistorySync();
+
+  // 계정(서버) 기본 정보·문서 로드 완료 전에는 게이트를 판단하지 않는다(깜빡임 방지).
+  if (docsStatus !== "loaded") {
+    return (
+      <div className="flex flex-col gap-12">
+        <TPageHeader title="내 커리어" description="이력서·자기소개서에 쓸 기본 정보부터 등록해요." />
+        <TLoading />
+      </div>
+    );
+  }
 
   // 기본 정보가 등록되지 않으면 무조건 그것부터.
   if (!ready) {
