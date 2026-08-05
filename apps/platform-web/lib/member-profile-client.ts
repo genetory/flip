@@ -1069,6 +1069,21 @@ export async function createMyPartnerOrganizationJoinCode(expiresInMinutes?: num
   return result.item;
 }
 
+export type PartnerOrgMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: "OWNER" | "ADMIN" | "MEMBER";
+  emailVerified: boolean;
+  isActive: boolean;
+  isMe: boolean;
+};
+
+export async function getMyPartnerOrganizationMembers(): Promise<PartnerOrgMember[]> {
+  const result = await authedJsonFetch<PartnerOrgMember>("/members/me/partner-organization/members", { method: "GET" });
+  return (result.items ?? []) as PartnerOrgMember[];
+}
+
 export async function joinMyPartnerOrganizationByCode(code: string) {
   const result = await authedJsonFetch<MyPartnerOrganization | null>("/members/me/partner-organization/join", {
     method: "POST",

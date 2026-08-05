@@ -12300,6 +12300,29 @@ app.get("/members/me/partner-organization", authenticate, requireRoles([MemberRo
   return res.json({ ok: true, item: toPartnerOrganization({ ...item, memberCount }, { includeVerificationAssets: true }) });
 });
 
+// 현재 회사에 소속된 파트너(팀원) 목록.
+app.get("/members/me/partner-organization/members", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const me = await prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { partnerOrganizationId: true } });
+  if (!me?.partnerOrganizationId) return res.json({ ok: true, items: [] });
+  const members = await prisma.user.findMany({
+    where: { partnerOrganizationId: me.partnerOrganizationId, role: MemberRole.PARTNER },
+    select: { id: true, name: true, realName: true, email: true, partnerOrgRole: true, emailVerified: true, isActive: true, createdAt: true },
+    orderBy: [{ createdAt: "asc" }]
+  });
+  return res.json({
+    ok: true,
+    items: members.map((m) => ({
+      id: m.id,
+      name: m.realName?.trim() || m.name?.trim() || m.email,
+      email: m.email,
+      role: m.partnerOrgRole ?? "MEMBER",
+      emailVerified: m.emailVerified,
+      isActive: m.isActive,
+      isMe: m.id === req.auth!.userId
+    }))
+  });
+});
+
 app.patch("/members/me/partner-organization", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   const parsed = updateMyPartnerOrganizationBasicSchema.safeParse(req.body);
   if (!parsed.success) {

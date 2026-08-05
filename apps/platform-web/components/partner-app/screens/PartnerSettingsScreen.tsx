@@ -5,19 +5,29 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { CaretRight, SealCheck, SignOut, PencilSimple, Buildings } from "@phosphor-icons/react";
+import { CaretRight, SealCheck, SignOut, PencilSimple, Buildings, UserPlus } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { TCard } from "../../talent/ui/primitives";
+import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import {
   getMyPartnerOrganization,
   getMyPartnerPositions,
   getMyPartnerApplicants,
+  getMyPartnerOrganizationMembers,
+  createMyPartnerOrganizationJoinCode,
   type MyPartnerOrganization,
   type PartnerPosition,
-  type PartnerApplicantListItem
+  type PartnerApplicantListItem,
+  type PartnerOrgMember
 } from "../../../lib/member-profile-client";
+
+const ORG_ROLE_LABEL: Record<PartnerOrgMember["role"], { label: string; cls: string }> = {
+  OWNER: { label: "소유자", cls: "bg-[#EDF1FD] text-[#0B46E8]" },
+  ADMIN: { label: "관리자", cls: "bg-[#E7F8EF] text-[#0A9B59]" },
+  MEMBER: { label: "멤버", cls: "bg-[#F2F4F6] text-[#8B95A1]" }
+};
 
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
@@ -60,11 +70,15 @@ function Item({ label, href, external }: { label: string; href: string; external
 
 export function PartnerSettingsScreen() {
   const { user, logout, getAccountUrl } = useAuthSession();
+  const toast = useTalentPopup();
   const [pushOn, setPushOn] = useState(true);
   const [emailOn, setEmailOn] = useState(true);
   const [org, setOrg] = useState<MyPartnerOrganization | null>(null);
   const [positions, setPositions] = useState<PartnerPosition[]>([]);
   const [applicants, setApplicants] = useState<PartnerApplicantListItem[]>([]);
+  const [members, setMembers] = useState<PartnerOrgMember[]>([]);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
 
   const name = user?.realName || user?.name || "파트너";
   const emailVerified = Boolean(user?.emailVerified);
@@ -73,7 +87,21 @@ export function PartnerSettingsScreen() {
     void getMyPartnerOrganization().then(setOrg).catch(() => {});
     void getMyPartnerPositions().then(setPositions).catch(() => {});
     void getMyPartnerApplicants().then(setApplicants).catch(() => {});
+    void getMyPartnerOrganizationMembers().then(setMembers).catch(() => {});
   }, []);
+
+  function makeInvite() {
+    if (inviting) return;
+    setInviting(true);
+    createMyPartnerOrganizationJoinCode()
+      .then((r) => setInviteCode(r.code))
+      .catch(() => toast.error("초대 코드 생성에 실패했어요."))
+      .finally(() => setInviting(false));
+  }
+  function copyInvite() {
+    if (!inviteCode) return;
+    void navigator.clipboard?.writeText(inviteCode).then(() => toast.success("초대 코드를 복사했어요")).catch(() => {});
+  }
 
   const openCount = positions.filter((p) => p.status === "OPEN").length;
   const appliedCount = applicants.filter((a) => a.status === "APPLIED").length;
@@ -145,6 +173,54 @@ export function PartnerSettingsScreen() {
             </div>
             <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
           </Link>
+        </section>
+
+        {/* 회사 팀원 */}
+        <section>
+          <SectionHeader title="회사 팀원" />
+          <TCard className="divide-y divide-[#F2F4F6]">
+            {members.length === 0 ? (
+              <p className="px-5 py-4 text-[13px] text-[#8B95A1]">소속된 팀원 정보를 불러오는 중이에요.</p>
+            ) : (
+              members.map((m) => {
+                const r = ORG_ROLE_LABEL[m.role];
+                return (
+                  <div key={m.id} className="flex items-center gap-3 px-5 py-4">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[15px] font-black text-[#0B46E8]">{m.name.slice(0, 1)}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-[14.5px] font-bold text-[#191F28]">{m.name}</p>
+                        {m.isMe ? <span className="shrink-0 rounded-md bg-[#F2F4F6] px-1.5 py-0.5 text-[10.5px] font-bold text-[#4E5968]">나</span> : null}
+                        {!m.emailVerified ? <span className="shrink-0 rounded-md bg-[#FFF3E6] px-1.5 py-0.5 text-[10.5px] font-bold text-[#E8890C]">인증 안됨</span> : null}
+                      </div>
+                      <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{m.email}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold ${r.cls}`}>{r.label}</span>
+                  </div>
+                );
+              })
+            )}
+          </TCard>
+
+          {/* 팀원 초대 */}
+          <div className="mt-3">
+            {inviteCode ? (
+              <>
+                <div className="flex items-center gap-3 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-bold text-[#8B95A1]">초대 코드</p>
+                    <p className="truncate text-[16px] font-black tracking-[0.04em] text-[#0B1227]">{inviteCode}</p>
+                  </div>
+                  <button type="button" onClick={copyInvite} className="shrink-0 rounded-lg bg-white px-3 py-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]">복사</button>
+                </div>
+                <p className="mt-1.5 text-[12px] text-[#8B95A1]">이 코드를 팀원에게 공유하세요. 가입 후 코드를 입력하면 우리 회사로 합류해요.</p>
+              </>
+            ) : (
+              <button type="button" onClick={makeInvite} disabled={inviting} className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB] disabled:opacity-50">
+                <UserPlus className="h-4 w-4" weight="bold" /> {inviting ? "생성 중…" : "팀원 초대 코드 만들기"}
+              </button>
+            )}
+          </div>
         </section>
 
         {/* 알림 */}
