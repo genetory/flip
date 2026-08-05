@@ -26,7 +26,7 @@ export function PartnerLandingPage() {
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
           <div className="flex items-center gap-2">
             <Link href="/" aria-label="APLY 홈" className="flex items-center">
-              <Image src="/img_logo.webp" alt="APLY" width={78} height={26} className="h-[22px] w-auto" priority />
+              <Image src="/img_logo.webp" alt="APLY" width={72} height={24} className="h-5 w-auto" priority />
             </Link>
             <span className="rounded-md bg-[#EDF1FD] px-1.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">파트너</span>
           </div>

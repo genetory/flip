@@ -23,7 +23,7 @@ export function CommonLanding() {
       <header className="sticky top-0 z-40 border-b border-[#EEF1F5] bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
           <Link href="/" aria-label="APLY 홈" className="flex items-center">
-            <Image src="/img_logo.webp" alt="APLY" width={78} height={26} className="h-[22px] w-auto" priority />
+            <Image src="/img_logo.webp" alt="APLY" width={72} height={24} className="h-5 w-auto" priority />
           </Link>
         </div>
       </header>
