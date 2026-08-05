@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { MagnifyingGlass, X, GraduationCap, Globe, Translate, Clock, Briefcase } from "@phosphor-icons/react";
+import { MagnifyingGlass, X, GraduationCap, Globe, Translate, Clock, Briefcase, CaretDown } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
@@ -28,12 +28,13 @@ const REC_ORDER: Record<PartnerApplicantListItem["recommendation"], number> = { 
 
 export function PartnerApplicantsScreen() {
   const searchParams = useSearchParams();
-  const positionFilter = searchParams.get("position");
   const [items, setItems] = useState<PartnerApplicantListItem[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("latest");
+  // 공고별 보기 — URL(?position=) 로 진입 시 초기값, 이후 드롭다운으로 변경.
+  const [posFilter, setPosFilter] = useState<string | null>(searchParams.get("position"));
 
   function load() {
     setStatus("loading");
@@ -49,9 +50,19 @@ export function PartnerApplicantsScreen() {
   }, []);
 
   const all = useMemo(() => items ?? [], [items]);
-  // 공고별 필터(?position=<id>)가 있으면 그 공고 지원자로 범위를 좁힌다.
-  const scoped = useMemo(() => (positionFilter ? all.filter((a) => a.positionId === positionFilter) : all), [all, positionFilter]);
-  const filterTitle = positionFilter ? scoped[0]?.positionTitle ?? null : null;
+  // 공고별 필터가 있으면 그 공고 지원자로 범위를 좁힌다.
+  const scoped = useMemo(() => (posFilter ? all.filter((a) => a.positionId === posFilter) : all), [all, posFilter]);
+
+  // 공고별 보기 옵션 — 지원자가 있는 공고 목록(지원자 많은 순).
+  const positionOptions = useMemo(() => {
+    const m = new Map<string, { id: string; title: string; count: number }>();
+    for (const a of all) {
+      const cur = m.get(a.positionId);
+      if (cur) cur.count += 1;
+      else m.set(a.positionId, { id: a.positionId, title: a.positionTitle, count: 1 });
+    }
+    return [...m.values()].sort((x, y) => y.count - x.count);
+  }, [all]);
 
   const counts = useMemo(() => {
     const c = {} as Record<Tab, number>;
@@ -87,17 +98,6 @@ export function PartnerApplicantsScreen() {
           <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">지원자</h1>
           <p className="mt-1 text-[13.5px] text-[#8B95A1]">우리 공고에 지원한 인재를 확인하고 관리해요.</p>
         </div>
-
-        {/* 공고별 필터 배너 */}
-        {positionFilter ? (
-          <div className="flex items-center gap-2.5 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] px-4 py-3">
-            <Briefcase className="h-4 w-4 shrink-0 text-[#0B46E8]" weight="fill" />
-            <p className="min-w-0 flex-1 truncate text-[13px] text-[#4E5968]">
-              <span className="font-bold text-[#191F28]">{filterTitle || "선택한 공고"}</span> 지원자만 보는 중
-            </p>
-            <Link href={partnerRoutes.applicants} className="shrink-0 rounded-lg bg-white px-2.5 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]">전체 보기</Link>
-          </div>
-        ) : null}
 
         {status === "loading" ? <TLoading /> : null}
         {status === "error" ? <TError onRetry={load} /> : null}
@@ -139,9 +139,25 @@ export function PartnerApplicantsScreen() {
               })}
             </div>
 
-            {/* 정렬 */}
-            <div className="flex items-center justify-end">
-              <div className="flex items-center gap-1 rounded-full bg-[#F2F4F6] p-0.5">
+            {/* 공고별 보기 + 정렬 */}
+            <div className="flex items-center justify-between gap-2">
+              {positionOptions.length > 1 ? (
+                <div className="relative">
+                  <select
+                    value={posFilter ?? ""}
+                    onChange={(e) => setPosFilter(e.target.value || null)}
+                    className="max-w-[190px] appearance-none rounded-full bg-[#F2F4F6] py-1.5 pl-8 pr-7 text-[12.5px] font-bold text-[#4E5968] outline-none [color-scheme:light]"
+                  >
+                    <option value="">전체 공고</option>
+                    {positionOptions.map((p) => (
+                      <option key={p.id} value={p.id}>{p.title} ({p.count})</option>
+                    ))}
+                  </select>
+                  <Briefcase className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#0B46E8]" weight="fill" />
+                  <CaretDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8B95A1]" weight="bold" />
+                </div>
+              ) : <span />}
+              <div className="flex shrink-0 items-center gap-1 rounded-full bg-[#F2F4F6] p-0.5">
                 {([["latest", "최신순"], ["recommended", "추천순"]] as const).map(([key, label]) => (
                   <button
                     key={key}
