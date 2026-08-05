@@ -75,7 +75,7 @@ export function PartnerHeader() {
               </span>
             ) : null}
           </Link>
-          <Link href={partnerRoutes.company} aria-label="회사 프로필" className="inline-flex max-w-[140px] items-center rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
+          <Link href={partnerRoutes.settings} aria-label="내 프로필" className="inline-flex max-w-[140px] items-center rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
             <span className="truncate">{name}</span>
           </Link>
         </div>
