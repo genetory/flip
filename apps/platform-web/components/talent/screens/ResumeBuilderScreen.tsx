@@ -94,6 +94,10 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
   function setSection(id: string, section: CareerSection) {
     onChange({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, section } : it)) });
   }
+  // 경력 — 소속(회사/기관).
+  function setCompany(id: string, company: string) {
+    onChange({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, company } : it)) });
+  }
   function add(text: string, section?: CareerSection, refined?: string, startDate?: string, endDate?: string): string {
     const trimmed = text.trim();
     if (!trimmed) return "";
@@ -129,10 +133,12 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
                   key={it.id}
                   text={it.text}
                   section={section}
+                  company={it.company ?? ""}
                   startDate={it.startDate ?? ""}
                   endDate={it.endDate ?? ""}
                   showDate={SECTION_HAS_DATE[section]}
                   onChange={(v) => setText(it.id, v)}
+                  onCompanyChange={(v) => setCompany(it.id, v)}
                   onSectionChange={(s) => setSection(it.id, s)}
                   onStartChange={(v) => setDate(it.id, "startDate", v)}
                   onEndChange={(v) => setDate(it.id, "endDate", v)}
@@ -162,10 +168,12 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
 function ItemRow({
   text,
   section,
+  company,
   startDate,
   endDate,
   showDate,
   onChange,
+  onCompanyChange,
   onSectionChange,
   onStartChange,
   onEndChange,
@@ -174,18 +182,29 @@ function ItemRow({
 }: {
   text: string;
   section: CareerSection;
+  company: string;
   startDate: string;
   endDate: string;
   showDate: boolean;
   onChange: (v: string) => void;
+  onCompanyChange: (v: string) => void;
   onSectionChange: (s: CareerSection) => void;
   onStartChange: (v: string) => void;
   onEndChange: (v: string) => void;
   onRefine: () => void;
   onRemove: () => void;
 }) {
+  const isExperience = section === "experience";
   return (
     <div className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
+      {isExperience ? (
+        <input
+          value={company}
+          onChange={(e) => onCompanyChange(e.target.value)}
+          placeholder="소속 (회사·기관)"
+          className="mb-2.5 w-full rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] font-bold text-[#191F28] outline-none placeholder:font-normal placeholder:text-[#B0B8C1]"
+        />
+      ) : null}
       {showDate ? (
         <div className="mb-2.5 flex flex-col gap-2">
           <div className="flex items-center gap-2">
@@ -221,7 +240,8 @@ function ItemRow({
         value={text}
         onChange={(e) => onChange(e.target.value)}
         rows={2}
-        className="w-full resize-none break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none"
+        placeholder={isExperience ? "한 일·성과 (선택)" : undefined}
+        className="w-full resize-none break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
       />
       <div className="mt-2 flex items-center justify-between gap-1.5">
         {/* 사후 수정 — 섹션 이동(자동 분류 교정) */}

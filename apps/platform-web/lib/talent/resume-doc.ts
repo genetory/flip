@@ -12,6 +12,7 @@ export interface ResumeItem {
   text: string;
   startDate?: string; // 시작 날짜 (예: "2023.03")
   endDate?: string; // 종료 날짜 (예: "2024.02" / "현재")
+  company?: string; // 경력: 소속(회사/기관). 타임라인은 이 값을 우선 표시한다.
   refId?: string; // 피드 글 등 출처와 매핑(중복 삽입 방지)
 }
 

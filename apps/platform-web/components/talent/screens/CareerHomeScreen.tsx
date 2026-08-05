@@ -205,7 +205,8 @@ function CareerSummary({ items }: { items: ResumeItem[] }) {
               </div>
               <div className={`min-w-0 flex-1 ${last ? "" : "pb-5"}`}>
                 {period ? <p className="text-[11.5px] font-normal text-[#8B95A1]">{period}</p> : null}
-                <p className="mt-0.5 break-keep text-[14.5px] font-bold text-[#191F28]">{it.text}</p>
+                <p className="mt-0.5 break-keep text-[14.5px] font-bold text-[#191F28]">{it.company || it.text}</p>
+                {it.company && it.text ? <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{it.text}</p> : null}
               </div>
             </li>
           );
