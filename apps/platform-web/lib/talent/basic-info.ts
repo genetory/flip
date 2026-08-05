@@ -1,6 +1,8 @@
 // 기본 인적 정보 — 이력서·자기소개서에 쓰이는 실명·이메일·연락처·주소·프로필 사진.
-// 이력서/자기소개서 생성의 선행 조건. 지금은 localStorage 기반(mock), 추후 서버 저장으로 교체.
-import { useSyncExternalStore } from "react";
+// 저장은 localStorage 가 아니라 로그인 계정(서버 Resume.content.renewalBasicInfo)에 귀속된다.
+import { useEffect, useSyncExternalStore } from "react";
+import { useAuthSession } from "../../components/auth/AuthSessionProvider";
+import { setBasicInfo as storeSetBasicInfo, snapshotBasicInfo, subscribeDocs, syncUser } from "./renewal-docs-store";
 
 export interface BasicInfo {
   realName: string;
@@ -26,54 +28,21 @@ export const basicInfoFields: { key: keyof BasicInfo; label: string; optional?: 
   { key: "address", label: "주소" }
 ];
 
-const KEY = "talent.basicInfo.v1";
-
-const listeners = new Set<() => void>();
-let cache: BasicInfo | null = null;
-
-function read(): BasicInfo {
-  if (cache) return cache;
-  if (typeof window === "undefined") return EMPTY_BASIC_INFO;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    cache = raw ? { ...EMPTY_BASIC_INFO, ...(JSON.parse(raw) as Partial<BasicInfo>) } : EMPTY_BASIC_INFO;
-  } catch {
-    cache = EMPTY_BASIC_INFO;
-  }
-  return cache;
-}
-
-function emit() {
-  cache = null;
-  listeners.forEach((l) => l());
-}
-
+// 저장 — 계정(서버)에 반영. 실제 쓰기는 공유 스토어가 debounce 처리한다.
 export function saveBasicInfo(info: BasicInfo): void {
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(info));
-  } catch {
-    /* mock: 저장 실패 무시 */
-  }
-  emit();
+  storeSetBasicInfo(info);
 }
 
-function subscribe(cb: () => void): () => void {
-  listeners.add(cb);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === KEY) {
-      cache = null;
-      cb();
-    }
-  };
-  window.addEventListener("storage", onStorage);
-  return () => {
-    listeners.delete(cb);
-    window.removeEventListener("storage", onStorage);
-  };
-}
-
+// 계정 귀속 — 로그인한 유저의 서버 기본 정보를 구독한다. 계정이 바뀌면 자동으로
+// 캐시를 비우고 새 계정의 정보를 로드한다.
 export function useBasicInfo(): BasicInfo {
-  return useSyncExternalStore(subscribe, read, () => EMPTY_BASIC_INFO);
+  const { user } = useAuthSession();
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    syncUser(userId);
+  }, [userId]);
+  const info = useSyncExternalStore(subscribeDocs, snapshotBasicInfo, () => null);
+  return info ?? EMPTY_BASIC_INFO;
 }
 
 // 필수 항목이 모두 채워졌는지(= 프로필 등록 완료).

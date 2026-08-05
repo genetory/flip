@@ -9,6 +9,7 @@
 import { createMyResume, getMyResumes, updateMyResume } from "../member-profile-client";
 import type { ResumeDoc } from "./resume-doc";
 import type { CoverDoc } from "./cover-doc";
+import type { BasicInfo } from "./basic-info";
 
 export type RenewalDocsStatus = "idle" | "loading" | "loaded";
 
@@ -18,6 +19,8 @@ let loadedForUser: string | null = null;
 let resumeRowId: string | null = null;
 let resumeDoc: ResumeDoc | null = null;
 let coverDoc: CoverDoc | null = null;
+let basicInfo: BasicInfo | null = null;
+let jobInterests: string[] | null = null;
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let saving = false;
@@ -43,6 +46,12 @@ export function snapshotCover(): CoverDoc | null {
 export function snapshotStatus(): RenewalDocsStatus {
   return status;
 }
+export function snapshotBasicInfo(): BasicInfo | null {
+  return basicInfo;
+}
+export function snapshotJobInterests(): string[] | null {
+  return jobInterests;
+}
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -59,10 +68,17 @@ function buildContent(): Record<string, unknown> {
     content.renewalCover = coverDoc;
     content.coverLetterItems = coverDoc.items.map((c) => ({ id: c.id, prompt: c.question, answer: c.text }));
   }
+  if (basicInfo) content.renewalBasicInfo = basicInfo;
+  if (jobInterests) content.renewalJobInterests = jobInterests;
   return content;
 }
 
-function parseContent(content: Record<string, unknown> | null | undefined): { resume: ResumeDoc | null; cover: CoverDoc | null } {
+function parseContent(content: Record<string, unknown> | null | undefined): {
+  resume: ResumeDoc | null;
+  cover: CoverDoc | null;
+  basic: BasicInfo | null;
+  interests: string[] | null;
+} {
   const c = content ?? {};
   const resume = (c.renewalResume as ResumeDoc | undefined) ?? null;
   let cover = (c.renewalCover as CoverDoc | undefined) ?? null;
@@ -76,7 +92,9 @@ function parseContent(content: Record<string, unknown> | null | undefined): { re
       cover = { items, showPhoto: false, createdAt: now, updatedAt: now };
     }
   }
-  return { resume, cover };
+  const basic = (c.renewalBasicInfo as BasicInfo | undefined) ?? null;
+  const interests = Array.isArray(c.renewalJobInterests) ? (c.renewalJobInterests as string[]) : null;
+  return { resume, cover, basic, interests };
 }
 
 // 로드 ----------------------------------------------------------------------
@@ -91,18 +109,22 @@ async function load(userId: string) {
     const renewal = resumes
       .filter((r) => {
         const rc = r.content as unknown as Record<string, unknown> | null;
-        return rc != null && ("renewalResume" in rc || "renewalCover" in rc);
+        return rc != null && ("renewalResume" in rc || "renewalCover" in rc || "renewalBasicInfo" in rc || "renewalJobInterests" in rc);
       })
       .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))[0];
     if (renewal) {
       resumeRowId = renewal.id;
-      const { resume, cover } = parseContent(renewal.content as unknown as Record<string, unknown>);
-      resumeDoc = resume;
-      coverDoc = cover;
+      const parsed = parseContent(renewal.content as unknown as Record<string, unknown>);
+      resumeDoc = parsed.resume;
+      coverDoc = parsed.cover;
+      basicInfo = parsed.basic;
+      jobInterests = parsed.interests;
     } else {
       resumeRowId = null;
       resumeDoc = null;
       coverDoc = null;
+      basicInfo = null;
+      jobInterests = null;
     }
     status = "loaded";
     emit();
@@ -112,6 +134,8 @@ async function load(userId: string) {
     resumeRowId = null;
     resumeDoc = null;
     coverDoc = null;
+    basicInfo = null;
+    jobInterests = null;
     status = "loaded";
     emit();
   }
@@ -125,6 +149,8 @@ export function syncUser(userId: string | null): void {
     resumeRowId = null;
     resumeDoc = null;
     coverDoc = null;
+    basicInfo = null;
+    jobInterests = null;
     status = "idle";
     if (saveTimer) {
       clearTimeout(saveTimer);
@@ -178,6 +204,18 @@ export function setResumeDoc(doc: ResumeDoc | null): void {
 
 export function setCoverDoc(doc: CoverDoc | null): void {
   coverDoc = doc;
+  emit();
+  scheduleSave();
+}
+
+export function setBasicInfo(info: BasicInfo | null): void {
+  basicInfo = info;
+  emit();
+  scheduleSave();
+}
+
+export function setJobInterests(roles: string[]): void {
+  jobInterests = roles;
   emit();
   scheduleSave();
 }

@@ -1,54 +1,23 @@
 // 관심 직무 — 프로필 정보의 일부. '나에게 맞는 공고' 매칭에 사용.
-// 지금은 localStorage(mock). 추후 서버 프로필(preferredJobRoles)로 저장·동기화한다.
-import { useSyncExternalStore } from "react";
+// 저장은 localStorage 가 아니라 로그인 계정(서버 Resume.content.renewalJobInterests)에 귀속된다.
+import { useEffect, useSyncExternalStore } from "react";
+import { useAuthSession } from "../../components/auth/AuthSessionProvider";
+import { setJobInterests as storeSetJobInterests, snapshotJobInterests, subscribeDocs, syncUser } from "./renewal-docs-store";
 
-const KEY = "talent.jobInterests.v1";
 const EMPTY: string[] = [];
 
-const listeners = new Set<() => void>();
-let cache: string[] | null = null;
-
-function read(): string[] {
-  if (cache) return cache;
-  if (typeof window === "undefined") return EMPTY;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    cache = raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    cache = [];
-  }
-  return cache;
-}
-
-function emit() {
-  cache = null;
-  listeners.forEach((l) => l());
-}
-
+// 저장 — 계정(서버)에 반영. 실제 쓰기는 공유 스토어가 debounce 처리한다.
 export function saveJobInterests(roles: string[]): void {
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(roles));
-  } catch {
-    /* noop */
-  }
-  emit();
+  storeSetJobInterests(roles);
 }
 
-function subscribe(cb: () => void): () => void {
-  listeners.add(cb);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === KEY) {
-      cache = null;
-      cb();
-    }
-  };
-  window.addEventListener("storage", onStorage);
-  return () => {
-    listeners.delete(cb);
-    window.removeEventListener("storage", onStorage);
-  };
-}
-
+// 계정 귀속 — 로그인한 유저의 서버 관심 직무를 구독한다.
 export function useJobInterests(): string[] {
-  return useSyncExternalStore(subscribe, read, () => EMPTY);
+  const { user } = useAuthSession();
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    syncUser(userId);
+  }, [userId]);
+  const roles = useSyncExternalStore(subscribeDocs, snapshotJobInterests, () => null);
+  return roles ?? EMPTY;
 }
