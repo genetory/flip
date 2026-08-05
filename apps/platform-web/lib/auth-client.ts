@@ -384,7 +384,7 @@ export async function logoutPlatformSession() {
 }
 
 export function getPostLoginUrl(role: AuthUser["role"]) {
-  if (role === "PARTNER") return "/partner"; // 파트너 앱
+  if (role === "PARTNER") return "/partner/home"; // 파트너 앱 홈
   return "/talent/home"; // 학생·운영자 → 탤런트 앱
 }
 

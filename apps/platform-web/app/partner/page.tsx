@@ -1,5 +1,5 @@
-import { PartnerHomeScreen } from "../../components/partner-app/screens/PartnerHomeScreen";
+import { PartnerLandingPage } from "../../components/partner-app/PartnerLandingPage";
 
-export default function PartnerHomeRoute() {
-  return <PartnerHomeScreen />;
+export default function PartnerRoute() {
+  return <PartnerLandingPage />;
 }

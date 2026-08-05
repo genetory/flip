@@ -23,7 +23,7 @@ export function TalentGuard({ children }: { children: ReactNode }) {
       return;
     }
     if (user?.role === "PARTNER") {
-      router.replace("/partner");
+      router.replace("/partner/home");
     }
   }, [isReady, isAuthenticated, user?.role, router]);
 

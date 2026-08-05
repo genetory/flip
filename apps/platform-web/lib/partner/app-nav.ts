@@ -1,6 +1,7 @@
 // 파트너(기업) 모던 서비스 라우트/내비 — 탤런트(/talent/*)와 같은 결의 파트너 앱(/partner/*).
 export const partnerRoutes = {
-  home: "/partner",
+  landing: "/partner", // 공개 파트너 랜딩(로그인 전)
+  home: "/partner/home", // 앱 홈(로그인 후)
   positions: "/partner/positions",
   positionNew: "/partner/positions/new",
   applicants: "/partner/applicants",

@@ -56,7 +56,7 @@ export function CommonLanding() {
             title="좋은 인재를 만나는 채용"
             desc="공고를 올리고 지원자를 관리하고, 면접까지 한 곳에서 진행해요."
             ctaLabel="채용 시작하기"
-            href="/login"
+            href="/partner"
           />
         </section>
       </main>
