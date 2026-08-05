@@ -83,18 +83,30 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
     if (updating || !app || app.status === next) return;
     setPending(next);
   }
-  function confirmStatus() {
+  // 상태 변경 + (선택) 부가 작업: 면접→시간 제안, 불합격→사유 메시지 전송.
+  async function confirmStatus(extra: { slots?: { startsAt: string; endsAt: string; location?: string }[]; reason?: string }) {
     const next = pending;
     if (updating || !app || !next) return;
+    const appId = app.applicationId;
     setUpdating(true);
-    updateMyPartnerApplicantState(applicantId, { status: next })
-      .then((d) => {
-        setApp(d);
-        setPending(null);
-        toast.success(`상태를 '${PARTNER_APPLICANT_STATUS[next].label}'로 바꿨어요`);
-      })
-      .catch(() => toast.error("상태 변경에 실패했어요."))
-      .finally(() => setUpdating(false));
+    try {
+      const d = await updateMyPartnerApplicantState(applicantId, { status: next });
+      setApp(d);
+      if (next === "INTERVIEW" && appId && extra.slots?.length) {
+        await proposeInterviewSlots(appId, extra.slots);
+        loadSlots(appId);
+      }
+      if (next === "REJECTED" && appId && extra.reason?.trim()) {
+        await sendPartnerApplicantMessage(appId, extra.reason.trim());
+        loadMessages(appId);
+      }
+      setPending(null);
+      toast.success(`상태를 '${PARTNER_APPLICANT_STATUS[next].label}'로 바꿨어요`);
+    } catch {
+      toast.error("상태 변경에 실패했어요.");
+    } finally {
+      setUpdating(false);
+    }
   }
 
   function saveMemo() {
@@ -336,6 +348,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
           name={app.name}
           next={pending}
           busy={updating}
+          hasApplication={Boolean(app.applicationId)}
           onClose={() => (updating ? null : setPending(null))}
           onConfirm={confirmStatus}
         />
@@ -383,21 +396,82 @@ function Doc({ label, text }: { label: string; text: string }) {
 }
 
 // 상태 변경 확인 — 지원자에게 알림이 발송되므로 동의 후 진행.
-function ConfirmStatusModal({ name, next, busy, onClose, onConfirm }: { name: string; next: PartnerApplicantStatus; busy: boolean; onClose: () => void; onConfirm: () => void }) {
+// 면접: 면접 시간 제안(선택) / 불합격: 불합격 사유 지원자 전달(선택) 을 같은 팝업에서 처리.
+function ConfirmStatusModal({
+  name,
+  next,
+  busy,
+  hasApplication,
+  onClose,
+  onConfirm
+}: {
+  name: string;
+  next: PartnerApplicantStatus;
+  busy: boolean;
+  hasApplication: boolean;
+  onClose: () => void;
+  onConfirm: (extra: { slots?: { startsAt: string; endsAt: string; location?: string }[]; reason?: string }) => void;
+}) {
   useLockBodyScroll();
   const label = PARTNER_APPLICANT_STATUS[next].label;
+  const isInterview = next === "INTERVIEW";
+  const isReject = next === "REJECTED";
+  const [rows, setRows] = useState<{ when: string; location: string }[]>([{ when: "", location: "" }]);
+  const [reason, setReason] = useState("");
+
+  function confirm() {
+    const slots = isInterview
+      ? rows
+          .filter((r) => r.when)
+          .map((r) => {
+            const start = new Date(r.when);
+            return { startsAt: start.toISOString(), endsAt: new Date(start.getTime() + 60 * 60000).toISOString(), location: r.location.trim() || undefined };
+          })
+      : undefined;
+    onConfirm({ slots, reason: isReject ? reason : undefined });
+  }
+
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div className="w-full max-w-[400px] overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+      <div className="max-h-[88vh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 pt-6">
           <p className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">상태를 ‘{label}’로 변경할까요?</p>
           <p className="mt-2 text-[13.5px] leading-relaxed text-[#4E5968]">
-            <span className="font-bold text-[#191F28]">{name}</span> 님에게 상태 변경 <span className="font-bold text-[#0B46E8]">알림이 발송</span>됩니다. 진행하시겠어요?
+            <span className="font-bold text-[#191F28]">{name}</span> 님에게 상태 변경 <span className="font-bold text-[#0B46E8]">알림이 발송</span>됩니다.
           </p>
+
+          {/* 면접: 시간 제안(선택) */}
+          {isInterview && hasApplication ? (
+            <div className="mt-4 rounded-2xl bg-[#F5F8FF] p-4">
+              <p className="text-[13px] font-bold text-[#191F28]">면접 시간 제안 <span className="font-normal text-[#8B95A1]">(선택)</span></p>
+              <p className="mt-0.5 text-[12px] text-[#8B95A1]">시간을 넣으면 지원자가 그중 편한 시간을 선택해요.</p>
+              <div className="mt-3 flex flex-col gap-2">
+                {rows.map((r, i) => (
+                  <div key={i} className="flex flex-col gap-1.5 rounded-xl bg-white p-2.5">
+                    <input type="datetime-local" value={r.when} onChange={(e) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, when: e.target.value } : x)))} className="rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none [color-scheme:light]" />
+                    <input value={r.location} onChange={(e) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, location: e.target.value } : x)))} placeholder="장소 (선택) · 예) 본사 3층 / 온라인" className="rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]" />
+                  </div>
+                ))}
+                {rows.length < 3 ? (
+                  <button type="button" onClick={() => setRows((rs) => [...rs, { when: "", location: "" }])} className="inline-flex w-fit items-center gap-1 text-[12.5px] font-bold text-[#0B46E8]"><Plus className="h-3.5 w-3.5" weight="bold" /> 시간 추가</button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {/* 불합격: 사유(선택, 지원자에게 메시지로 전달) */}
+          {isReject && hasApplication ? (
+            <div className="mt-4 rounded-2xl bg-[#FDF2F3] p-4">
+              <p className="text-[13px] font-bold text-[#191F28]">불합격 사유 <span className="font-normal text-[#8B95A1]">(선택)</span></p>
+              <p className="mt-0.5 text-[12px] text-[#8B95A1]">입력하면 지원자에게 메시지로 전달돼요.</p>
+              <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} placeholder="예) 이번 포지션의 요구 경력과 차이가 있어 아쉽게 전달드립니다." className="mt-2 w-full resize-none rounded-xl border border-[#F3D0D4] bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#C9AEB1] focus:ring-2 focus:ring-[#F04452]/20" />
+            </div>
+          ) : null}
         </div>
+
         <div className="mt-6 flex gap-2 px-6 pb-6">
           <button type="button" onClick={onClose} disabled={busy} className="h-[50px] flex-1 rounded-2xl bg-[#F2F4F6] text-[14.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">취소</button>
-          <button type="button" onClick={onConfirm} disabled={busy} className="h-[50px] flex-1 rounded-2xl bg-[#0B46E8] text-[14.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">{busy ? "변경 중…" : `‘${label}’로 변경`}</button>
+          <button type="button" onClick={confirm} disabled={busy} className={`h-[50px] flex-1 rounded-2xl text-[14.5px] font-bold text-white transition disabled:opacity-50 ${isReject ? "bg-[#F04452] hover:bg-[#DA3B48]" : "bg-[#0B46E8] hover:bg-[#0A3ECB]"}`}>{busy ? "변경 중…" : `‘${label}’로 변경`}</button>
         </div>
       </div>
     </div>
