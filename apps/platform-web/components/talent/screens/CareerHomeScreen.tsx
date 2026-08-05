@@ -77,7 +77,7 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
       {/* 이력서에 담긴 내 커리어 — 직장(경력)만 심플 요약 */}
       <section className="flex flex-col gap-4">
         <div className="flex items-end justify-between gap-3">
-          <SectionHead title="이력서에 담긴 내 커리어" desc="이력서에 적은 직장 경력을 한눈에 볼 수 있어요." />
+          <SectionHead title="이력서에 담긴 내 커리어" desc="소속했던 곳을 시간순으로 보여드려요." />
           {workItems.length ? (
             <Link href={talentAppRoutes.resume} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] transition hover:text-[#0A3ECB]">편집</Link>
           ) : null}
@@ -170,19 +170,29 @@ function SectionHead({ title, desc }: { title: string; desc: string }) {
   );
 }
 
-// 이력서의 직장(경력) 항목만 심플하게 보여준다.
+// 소속했던 회사(경력)를 시간순 타임라인으로 보여준다.
 function CareerSummary({ items }: { items: ResumeItem[] }) {
   return (
-    <div className="divide-y divide-[#F2F4F6] overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
-      {items.map((it) => {
-        const period = [displayMonth(it.startDate ?? ""), displayMonth(it.endDate ?? "")].filter(Boolean).join(" ~ ");
-        return (
-          <div key={it.id} className="px-5 py-4">
-            <p className="break-keep text-[14px] font-semibold leading-relaxed text-[#191F28]">{it.text}</p>
-            {period ? <p className="mt-0.5 text-[12px] text-[#B0B8C1]">{period}</p> : null}
-          </div>
-        );
-      })}
+    <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+      <ol className="flex flex-col">
+        {items.map((it, i) => {
+          const period = [displayMonth(it.startDate ?? ""), displayMonth(it.endDate ?? "")].filter(Boolean).join(" ~ ");
+          const last = i === items.length - 1;
+          return (
+            <li key={it.id} className="flex gap-3">
+              {/* 타임라인 점 + 연결선 */}
+              <div className="flex flex-col items-center">
+                <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-[#0B46E8] ring-4 ring-[#EDF1FD]" />
+                {!last ? <span className="w-px flex-1 bg-[#E5E8EB]" /> : null}
+              </div>
+              <div className={`min-w-0 flex-1 ${last ? "" : "pb-5"}`}>
+                {period ? <p className="text-[11.5px] font-semibold text-[#8B95A1]">{period}</p> : null}
+                <p className="mt-0.5 break-keep text-[14.5px] font-bold text-[#191F28]">{it.text}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
