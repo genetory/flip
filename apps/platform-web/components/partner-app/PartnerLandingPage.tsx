@@ -30,7 +30,7 @@ export function PartnerLandingPage() {
             </Link>
             <span className="rounded-md bg-[#EDF1FD] px-1.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">파트너</span>
           </div>
-          <Link href="/login" className="rounded-lg px-3 py-2 text-[13.5px] font-semibold text-[#4E5968] transition hover:text-[#191F28]">로그인</Link>
+          <Link href="/partner/login" className="rounded-lg px-3 py-2 text-[13.5px] font-semibold text-[#4E5968] transition hover:text-[#191F28]">로그인</Link>
         </div>
       </header>
 
@@ -44,10 +44,10 @@ export function PartnerLandingPage() {
             공고 등록부터 지원자 관리, 면접까지 — 채용의 모든 과정을 한 곳에서.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-2.5 sm:flex-row">
-            <Link href="/login" className="inline-flex h-[52px] items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-6 text-[15px] font-bold text-white transition hover:bg-[#0A3ECB]">
+            <Link href="/partner/login" className="inline-flex h-[52px] items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-6 text-[15px] font-bold text-white transition hover:bg-[#0A3ECB]">
               채용 시작하기 <ArrowRight className="h-4 w-4" weight="bold" />
             </Link>
-            <Link href="/login" className="inline-flex h-[52px] items-center justify-center rounded-2xl border border-[#E5E8EB] bg-white px-6 text-[15px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">
+            <Link href="/partner/login" className="inline-flex h-[52px] items-center justify-center rounded-2xl border border-[#E5E8EB] bg-white px-6 text-[15px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">
               이미 계정이 있어요 · 로그인
             </Link>
           </div>

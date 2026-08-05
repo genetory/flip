@@ -18,7 +18,7 @@ export function PartnerGuard({ children }: { children: ReactNode }) {
     if (!isReady) return;
     if (!isAuthenticated) {
       const here = window.location.pathname + window.location.search;
-      router.replace(`/login?next=${encodeURIComponent(here)}`);
+      router.replace(`/partner/login?next=${encodeURIComponent(here)}`);
       return;
     }
     if (user?.role === "STUDENT") {

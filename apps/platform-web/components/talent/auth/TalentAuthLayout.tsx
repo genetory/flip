@@ -12,21 +12,28 @@ export function TalentAuthLayout({
   title,
   subtitle,
   children,
-  footer
+  footer,
+  backHref = "/talent",
+  badge
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
+  backHref?: string;
+  badge?: string;
 }) {
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <header className="h-14 border-b border-[#EEF1F5]">
         <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-5">
-          <Link href="/talent" aria-label={`${talentBrand.name} 홈으로`} className="flex items-center">
-            <Image src="/img_logo.webp" alt={talentBrand.name} width={72} height={24} className="h-5 w-auto" priority />
-          </Link>
-          <Link href="/talent" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">
+          <div className="flex items-center gap-2">
+            <Link href={backHref} aria-label={`${talentBrand.name} 홈으로`} className="flex items-center">
+              <Image src="/img_logo.webp" alt={talentBrand.name} width={72} height={24} className="h-5 w-auto" priority />
+            </Link>
+            {badge ? <span className="rounded-md bg-[#EDF1FD] px-1.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{badge}</span> : null}
+          </div>
+          <Link href={backHref} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">
             <ArrowLeft className="h-4 w-4" /> 랜딩으로
           </Link>
         </div>
