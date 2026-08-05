@@ -9,6 +9,7 @@ export const talentAppRoutes = {
   career: "/talent/career",
   experiences: "/talent/career/experiences",
   profile: "/talent/career/profile",
+  history: "/talent/career/history",
   resume: "/talent/career/resume",
   resumePreview: "/talent/career/resume/preview",
   resumes: "/talent/career/resumes",
