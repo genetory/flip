@@ -2,8 +2,10 @@
 
 // 파트너 회사 프로필 — 실서버 회사 정보 편집(기본 정보 + 소개).
 import { useEffect, useState } from "react";
+import { SignOut } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
+import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { getMyPartnerOrganization, updateMyPartnerOrganizationBasic, getMembersMeta, type MyPartnerOrganization } from "../../../lib/member-profile-client";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
@@ -27,6 +29,7 @@ type Form = {
 
 export function PartnerCompanyScreen() {
   const toast = useTalentPopup();
+  const { logout } = useAuthSession();
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [industries, setIndustries] = useState<string[]>([]);
   const [form, setForm] = useState<Form | null>(null);
@@ -129,6 +132,14 @@ export function PartnerCompanyScreen() {
               className="inline-flex h-[52px] items-center justify-center rounded-2xl bg-[#0B46E8] px-5 text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
             >
               {saving ? "저장 중…" : "저장하기"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="mt-2 flex items-center justify-center gap-2 rounded-2xl border border-[#EEF1F5] bg-white py-4 text-[14px] font-semibold text-[#F04452] transition hover:bg-[#FFF5F5]"
+            >
+              <SignOut className="h-[18px] w-[18px]" /> 로그아웃
             </button>
           </>
         ) : null}

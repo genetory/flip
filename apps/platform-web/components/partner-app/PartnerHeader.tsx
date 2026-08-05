@@ -5,18 +5,24 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { List, X, SignOut } from "@phosphor-icons/react";
+import { List, X, Bell } from "@phosphor-icons/react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { partnerMainNav, partnerRoutes, isPartnerTabActive } from "../../lib/partner/app-nav";
+import { getMyNotifications } from "../../lib/member-profile-client";
 
 export function PartnerHeader() {
   const pathname = usePathname() ?? "";
-  const { user, logout } = useAuthSession();
+  const { user } = useAuthSession();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
   const name = user?.realName || user?.name || "파트너";
 
   useEffect(() => {
     setMenuOpen(false);
+    // 경로가 바뀔 때마다 안 읽음 카운트 갱신(알림함 방문 후 읽음 반영).
+    void getMyNotifications(1)
+      .then(({ unreadCount }) => setUnread(unreadCount))
+      .catch(() => {});
   }, [pathname]);
 
   return (
@@ -57,17 +63,21 @@ export function PartnerHeader() {
         </nav>
 
         <div className="flex items-center gap-1.5">
-          <Link href={partnerRoutes.company} className="hidden max-w-[160px] items-center rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] sm:inline-flex">
+          <Link
+            href={partnerRoutes.notifications}
+            aria-label={unread > 0 ? `알림 ${unread}개` : "알림"}
+            className="relative flex h-9 w-9 items-center justify-center rounded-2xl text-[#4E5968] transition hover:bg-[#F6F8FB]"
+          >
+            <Bell className="h-[22px] w-[22px]" weight="regular" />
+            {unread > 0 ? (
+              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#F04452] px-1 text-[10px] font-bold leading-none text-white">
+                {unread > 9 ? "9+" : unread}
+              </span>
+            ) : null}
+          </Link>
+          <Link href={partnerRoutes.company} aria-label="회사 프로필" className="inline-flex max-w-[140px] items-center rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
             <span className="truncate">{name}</span>
           </Link>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            aria-label="로그아웃"
-            className="flex h-9 w-9 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F6F8FB] hover:text-[#F04452]"
-          >
-            <SignOut className="h-[18px] w-[18px]" />
-          </button>
         </div>
       </div>
 

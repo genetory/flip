@@ -5,7 +5,8 @@ export const partnerRoutes = {
   positions: "/partner/positions",
   positionNew: "/partner/positions/new",
   applicants: "/partner/applicants",
-  company: "/partner/company"
+  company: "/partner/company",
+  notifications: "/partner/notifications"
 } as const;
 
 export interface PartnerNavItem {
