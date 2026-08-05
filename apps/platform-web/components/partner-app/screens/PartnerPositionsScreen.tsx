@@ -59,16 +59,6 @@ export function PartnerPositionsScreen() {
     return m;
   }, [applicants]);
 
-  const summary = useMemo(
-    () => [
-      { key: "OPEN" as const, label: "게시 중", count: all.filter((p) => p.status === "OPEN").length, cls: "text-[#12B76A]" },
-      { key: "DRAFT" as const, label: "작성 중", count: all.filter((p) => p.status === "DRAFT" || p.status === "PENDING_REVIEW").length, cls: "text-[#E8890C]" },
-      { key: "CLOSED" as const, label: "마감", count: all.filter((p) => p.status === "CLOSED" || p.status === "PAUSED" || p.status === "REJECTED").length, cls: "text-[#8B95A1]" },
-      { key: "applicants" as const, label: "전체 지원자", count: applicants.length, cls: "text-[#0B46E8]" }
-    ],
-    [all, applicants]
-  );
-
   const counts = useMemo(() => {
     const c = {} as Record<Tab, number>;
     for (const t of TABS) c[t.key] = all.filter(t.match).length;
@@ -114,28 +104,6 @@ export function PartnerPositionsScreen() {
 
         {status === "ready" ? (
           <>
-            {/* 요약 */}
-            <div className="grid grid-cols-4 gap-2">
-              {summary.map((s) => {
-                const activeCard = s.key !== "applicants" && tab === s.key;
-                return (
-                  <button
-                    key={s.key}
-                    type="button"
-                    onClick={() => {
-                      if (s.key === "applicants") return;
-                      setTab(s.key);
-                      setQuery("");
-                    }}
-                    className={`rounded-2xl border bg-white px-2 py-3 text-center transition ${s.key === "applicants" ? "cursor-default border-[#EEF1F5]" : `hover:border-[#D7DCE3] ${activeCard ? "border-[#0B46E8]" : "border-[#EEF1F5]"}`}`}
-                  >
-                    <p className={`text-[22px] font-black tracking-[-0.02em] ${s.cls}`}>{s.count}</p>
-                    <p className="mt-0.5 text-[11.5px] font-semibold text-[#8B95A1]">{s.label}</p>
-                  </button>
-                );
-              })}
-            </div>
-
             {/* 검색 */}
             <div className="relative">
               <MagnifyingGlass className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#B0B8C1]" />
