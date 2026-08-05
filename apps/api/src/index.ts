@@ -19693,6 +19693,8 @@ async function listPartnerApplicantsForUser(userId: string) {
     memo: string | null;
     resumeTitle: string | null;
     resumeShareSlug: string | null;
+    coverLetterTitle: string | null;
+    coverLetterShareSlug: string | null;
     applicationId: string | null;
   }> = [];
 
@@ -19714,12 +19716,16 @@ async function listPartnerApplicantsForUser(userId: string) {
           id: true,
           positionId: true,
           candidateUserId: true,
-          resume: { select: { title: true, shareSlug: true } }
+          resume: { select: { title: true, shareSlug: true } },
+          coverLetter: { select: { title: true, shareSlug: true } }
         }
       })
     : [];
   const applicationResumeMap = new Map(
     applications.map((a) => [`${a.candidateUserId}:${a.positionId}`, a.resume])
+  );
+  const applicationCoverMap = new Map(
+    applications.map((a) => [`${a.candidateUserId}:${a.positionId}`, a.coverLetter])
   );
   // 지원 건별 실제 Application.id — 메시지/면접 슬롯 API(/applications/:id/...)에서 사용.
   const applicationIdMap = new Map(
@@ -19738,6 +19744,18 @@ async function listPartnerApplicantsForUser(userId: string) {
     const cur = primaryResumeByUser.get(r.userId);
     if (!cur || r.isPrimary) primaryResumeByUser.set(r.userId, { title: r.title, shareSlug: r.shareSlug });
   }
+  // 사용자별 대표 자기소개서(최근 수정본) — 지원에 붙은 자소서가 없을 때 폴백.
+  const coverRows = candidateUserIds.length
+    ? await prisma.coverLetter.findMany({
+        where: { userId: { in: candidateUserIds } },
+        select: { userId: true, title: true, shareSlug: true },
+        orderBy: { updatedAt: "desc" }
+      })
+    : [];
+  const primaryCoverByUser = new Map<string, { title: string; shareSlug: string }>();
+  for (const c of coverRows) {
+    if (!primaryCoverByUser.has(c.userId)) primaryCoverByUser.set(c.userId, { title: c.title, shareSlug: c.shareSlug });
+  }
 
   for (const profile of profiles) {
     const appliedPositionId = profile.appliedPositionIds.find((id) => positionMap.has(id));
@@ -19749,6 +19767,11 @@ async function listPartnerApplicantsForUser(userId: string) {
     const linkedResume =
       applicationResumeMap.get(`${profile.userId}:${appliedPositionId}`) ??
       primaryResumeByUser.get(profile.userId) ??
+      null;
+    // 자기소개서도 동일하게: 지원 연결 우선, 없으면 대표 자소서.
+    const linkedCover =
+      applicationCoverMap.get(`${profile.userId}:${appliedPositionId}`) ??
+      primaryCoverByUser.get(profile.userId) ??
       null;
     const latestEducation = profile.educations[0];
     const displayName = profile.user.realName?.trim() || profile.user.name?.trim() || "Unknown";
@@ -19776,6 +19799,8 @@ async function listPartnerApplicantsForUser(userId: string) {
       memo: state?.memo ?? null,
       resumeTitle: linkedResume?.title ?? null,
       resumeShareSlug: linkedResume?.shareSlug ?? null,
+      coverLetterTitle: linkedCover?.title ?? null,
+      coverLetterShareSlug: linkedCover?.shareSlug ?? null,
       applicationId: applicationIdMap.get(`${profile.userId}:${appliedPositionId}`) ?? null
     });
   }
@@ -20979,7 +21004,9 @@ app.get("/partner/applicants", authenticate, requireRoles([MemberRole.PARTNER]),
         recommendation: item.recommendation,
         status: item.status,
         resumeTitle: item.resumeTitle,
-        resumeShareSlug: item.resumeShareSlug
+        resumeShareSlug: item.resumeShareSlug,
+        coverLetterTitle: item.coverLetterTitle,
+        coverLetterShareSlug: item.coverLetterShareSlug
       }))
     });
   } catch (error) {
@@ -25078,6 +25105,8 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
         memo: found.memo,
         resumeTitle: found.resumeTitle,
         resumeShareSlug: found.resumeShareSlug,
+        coverLetterTitle: found.coverLetterTitle,
+        coverLetterShareSlug: found.coverLetterShareSlug,
         applicationId: found.applicationId
       }
     });

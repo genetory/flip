@@ -1163,6 +1163,8 @@ export type PartnerApplicantListItem = {
   status: PartnerApplicantStatus;
   resumeTitle?: string | null;
   resumeShareSlug?: string | null;
+  coverLetterTitle?: string | null;
+  coverLetterShareSlug?: string | null;
 };
 
 export type PartnerApplicantDetail = PartnerApplicantListItem & {

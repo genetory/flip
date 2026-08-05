@@ -205,21 +205,17 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                 <h2 className="text-[15px] font-bold text-[#191F28]">지원 서류</h2>
                 <div className="mt-3 flex flex-col gap-3">
                   {app.resumeShareSlug ? (
-                    <a href={`/resume/share/${app.resumeShareSlug}?view=preview`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-[#E4EAF2] bg-[#F8FAFF] px-3.5 py-3 transition hover:border-[#0B46E8]/40">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EDF1FD] text-[16px]" aria-hidden>📄</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13.5px] font-bold text-[#191F28]">{app.resumeTitle || "이력서"}</span>
-                        <span className="block text-[11.5px] text-[#8B95A1]">이력서 보기</span>
-                      </span>
-                      <ArrowSquareOut className="h-4 w-4 shrink-0 text-[#0B46E8]" />
-                    </a>
+                    <DocLink href={`/resume/share/${app.resumeShareSlug}?view=preview`} emoji="📄" title={app.resumeTitle || "이력서"} sub="이력서 보기" />
+                  ) : null}
+                  {app.coverLetterShareSlug ? (
+                    <DocLink href={`/cover-letter/share/${app.coverLetterShareSlug}`} emoji="✍️" title={app.coverLetterTitle || "자기소개서"} sub="자기소개서 보기" />
                   ) : null}
                   {app.summary ? <Doc label="자기소개 요약" text={app.summary} /> : null}
                   {app.motivation ? <Doc label="지원 동기" text={app.motivation} /> : null}
                   {app.portfolioUrl ? (
                     <a href={app.portfolioUrl} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8]">포트폴리오 열기 <ArrowSquareOut className="h-3.5 w-3.5" /></a>
                   ) : null}
-                  {!app.resumeShareSlug && !app.summary && !app.motivation && !app.portfolioUrl ? (
+                  {!app.resumeShareSlug && !app.coverLetterShareSlug && !app.summary && !app.motivation && !app.portfolioUrl ? (
                     <p className="text-[13px] text-[#8B95A1]">제출된 서류가 없어요.</p>
                   ) : null}
                 </div>
@@ -352,6 +348,20 @@ function Row({ label, value }: { label: string; value: string | null | undefined
       <dt className="w-[80px] shrink-0 text-[12.5px] text-[#8B95A1]">{label}</dt>
       <dd className="min-w-0 flex-1 break-keep text-[13.5px] text-[#191F28]">{value || "-"}</dd>
     </div>
+  );
+}
+
+// 서류 열람 링크(이력서·자기소개서) — 공개 공유 페이지를 새 탭으로.
+function DocLink({ href, emoji, title, sub }: { href: string; emoji: string; title: string; sub: string }) {
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-[#E4EAF2] bg-[#F8FAFF] px-3.5 py-3 transition hover:border-[#0B46E8]/40">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EDF1FD] text-[16px]" aria-hidden>{emoji}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13.5px] font-bold text-[#191F28]">{title}</span>
+        <span className="block text-[11.5px] text-[#8B95A1]">{sub}</span>
+      </span>
+      <ArrowSquareOut className="h-4 w-4 shrink-0 text-[#0B46E8]" />
+    </a>
   );
 }
 
