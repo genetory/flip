@@ -25,10 +25,6 @@ export function CommonLanding() {
           <Link href="/" aria-label="APLY 홈" className="flex items-center">
             <Image src="/img_logo.webp" alt="APLY" width={78} height={26} className="h-[22px] w-auto" priority />
           </Link>
-          <div className="flex items-center gap-1.5">
-            <Link href="/login" className="rounded-lg px-3 py-2 text-[13.5px] font-semibold text-[#4E5968] transition hover:text-[#191F28]">로그인</Link>
-            <Link href="/talent/signup" className="rounded-xl bg-[#0B46E8] px-4 py-2 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]">무료로 시작하기</Link>
-          </div>
         </div>
       </header>
 
@@ -40,16 +36,8 @@ export function CommonLanding() {
             구직자와 기업을 잇는<br />첫 취업 플랫폼
           </h1>
           <p className="mx-auto mt-5 max-w-[560px] break-keep text-[15px] leading-relaxed text-[#8B95A1] md:text-[16px]">
-            처음이라 막막한 취업 준비도, 좋은 인재를 찾는 채용도 — APLY에서 하나씩.
+            처음이라 막막한 취업 준비도, 좋은 인재를 찾는 채용도 — APLY에서 하나씩.<br />어느 쪽이신지 골라 시작해보세요.
           </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-2.5 sm:flex-row">
-            <Link href="/talent/signup" className="inline-flex h-[52px] items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-6 text-[15px] font-bold text-white transition hover:bg-[#0A3ECB]">
-              무료로 시작하기 <ArrowRight className="h-4 w-4" weight="bold" />
-            </Link>
-            <Link href="/login" className="inline-flex h-[52px] items-center justify-center rounded-2xl border border-[#E5E8EB] bg-white px-6 text-[15px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">
-              로그인
-            </Link>
-          </div>
         </section>
 
         {/* 대상별 진입 */}
@@ -60,7 +48,7 @@ export function CommonLanding() {
             title="첫 이력서부터 첫 지원까지"
             desc="경험을 함께 정리해 이력서·자기소개서를 만들고, 나에게 맞는 공고에 지원해요."
             ctaLabel="취업 준비 시작하기"
-            href="/talent/signup"
+            href="/talent"
           />
           <AudienceCard
             icon={<Buildings className="h-6 w-6" weight="fill" />}
