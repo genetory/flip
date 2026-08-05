@@ -5,9 +5,10 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Camera, SealCheck, Buildings, CaretRight, CheckCircle } from "@phosphor-icons/react";
+import { Camera, UserCircle, CheckCircle, Buildings, CaretRight } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TalentBackButton } from "../../talent/TalentBackButton";
+import { TalentButton } from "../../talent/TalentButton";
 import { TPageHeader } from "../../talent/ui/primitives";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
@@ -36,8 +37,7 @@ export function PartnerProfileScreen() {
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const emailVerified = Boolean(user?.emailVerified);
-  const displayName = realName || user?.name || "파트너";
+  const complete = Boolean(realName.trim() && phoneNumber.trim());
 
   // 세션 로드되면 폼 초기화.
   useEffect(() => {
@@ -111,66 +111,92 @@ export function PartnerProfileScreen() {
         <section>
           <SectionTitle>기본 정보</SectionTitle>
           <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+            <div className="mb-4 flex items-center justify-end">
+              {complete ? (
+                <span className="inline-flex items-center gap-1 text-[12.5px] font-bold text-[#0B46E8]">
+                  <CheckCircle className="h-4 w-4" weight="fill" /> 등록 완료
+                </span>
+              ) : (
+                <span className="text-[12.5px] font-semibold text-[#F04452]">미완료</span>
+              )}
+            </div>
+
             {/* 프로필 사진 */}
             <div className="mb-5 flex items-center gap-4">
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickPhoto} />
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                disabled={uploading}
+                className="relative h-[92px] w-[72px] shrink-0"
                 aria-label="프로필 사진 업로드"
-                className="relative h-[76px] w-[76px] shrink-0 overflow-hidden rounded-2xl border border-[#E5E8EB] bg-[#F2F4F6]"
               >
-                {photo ? (
-                  <Image src={photo} alt="" fill sizes="76px" className="object-cover" unoptimized />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center text-[26px] font-black text-[#0B46E8]">{displayName.slice(0, 1)}</span>
-                )}
-                <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-[#0B1227]/55 py-1 text-[10px] font-bold text-white">
-                  <Camera className="h-3 w-3" weight="fill" /> {uploading ? "처리 중" : "변경"}
+                <span className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-[#E5E8EB] bg-[#F2F4F6]">
+                  {photo ? (
+                    <Image src={photo} alt="" width={72} height={92} className="h-full w-full object-cover" unoptimized />
+                  ) : (
+                    <UserCircle className="h-9 w-9 text-[#C4CAD2]" weight="fill" />
+                  )}
+                </span>
+                <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-2xl border-2 border-white bg-[#0B46E8] text-white shadow-sm">
+                  <Camera className="h-3.5 w-3.5" weight="fill" />
                 </span>
               </button>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <p className="truncate text-[16px] font-black text-[#0B1227]">{displayName}</p>
-                  {emailVerified ? (
-                    <SealCheck className="h-[16px] w-[16px] shrink-0 text-[#0B46E8]" weight="fill" aria-label="이메일 인증됨" />
-                  ) : (
-                    <span className="shrink-0 rounded-md bg-[#FFF3E6] px-1.5 py-0.5 text-[10.5px] font-bold text-[#E8890C]">인증 안됨</span>
-                  )}
-                </div>
+              <div className="min-w-0">
+                <p className="text-[13.5px] font-semibold text-[#191F28]">프로필 사진</p>
+                <p className="mt-0.5 text-[12px] text-[#8B95A1]">선택 · 프로필에 보이는 사진이에요</p>
                 {photo ? (
-                  <button type="button" onClick={removePhoto} className="mt-1 text-[12px] font-semibold text-[#8B95A1] transition hover:text-[#F04452]">사진 삭제</button>
-                ) : (
-                  <p className="mt-1 text-[12px] text-[#8B95A1]">사진을 등록해보세요</p>
-                )}
+                  <div className="mt-2 flex items-center gap-2">
+                    <button type="button" onClick={() => fileRef.current?.click()} className="rounded-lg bg-[#F2F4F6] px-2.5 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]">
+                      {uploading ? "처리 중…" : "변경"}
+                    </button>
+                    <button type="button" onClick={removePhoto} className="rounded-lg bg-[#FDECEE] px-2.5 py-1.5 text-[12px] font-semibold text-[#F04452] transition hover:bg-[#FBDDE1]">
+                      삭제
+                    </button>
+                  </div>
+                ) : null}
               </div>
+              <input ref={fileRef} type="file" accept="image/*" onChange={onPickPhoto} className="hidden" />
             </div>
 
-            {/* 필드 */}
+            {/* 입력 필드 */}
             <div className="flex flex-col gap-3.5">
-              <Field label="이름">
-                <Input value={realName} onChange={setRealName} placeholder="예) 김지훈" />
-              </Field>
-              <Field label="이메일">
-                <div className="flex items-center gap-2 rounded-lg bg-[#F5F6F8] px-3.5 py-2.5">
-                  <span className="min-w-0 flex-1 truncate text-[14px] text-[#8B95A1]">{user?.email || "-"}</span>
-                  <span className="shrink-0 text-[11.5px] text-[#B0B8C1]">계정에서 변경</span>
-                </div>
-              </Field>
-              <Field label="연락처">
-                <Input value={phoneNumber} onChange={setPhoneNumber} placeholder="예) 010-1234-5678" type="tel" inputMode="tel" />
-              </Field>
+              <label className="block">
+                <span className="mb-1.5 block text-[12.5px] font-semibold text-[#4E5968]">이름</span>
+                <input
+                  value={realName}
+                  onChange={(e) => setRealName(e.target.value)}
+                  placeholder="예) 김지훈"
+                  className="w-full rounded-xl border border-[#E5E8EB] bg-white px-4 py-3 text-[14.5px] text-[#191F28] outline-none focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-[12.5px] font-semibold text-[#4E5968]">이메일</span>
+                <input
+                  value={user?.email || ""}
+                  readOnly
+                  aria-readonly
+                  placeholder="-"
+                  className="w-full cursor-not-allowed rounded-xl border border-[#EEF1F5] bg-[#F9FAFB] px-4 py-3 text-[14.5px] text-[#8B95A1] outline-none"
+                />
+                <span className="mt-1 block text-[11.5px] text-[#B0B8C1]">이메일은 계정에서만 변경할 수 있어요.</span>
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-[12.5px] font-semibold text-[#4E5968]">연락처</span>
+                <input
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="예) 010-1234-5678"
+                  type="tel"
+                  inputMode="tel"
+                  className="w-full rounded-xl border border-[#E5E8EB] bg-white px-4 py-3 text-[14.5px] text-[#191F28] outline-none focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
+                />
+              </label>
             </div>
 
-            <button
-              type="button"
-              onClick={save}
-              disabled={saving || uploading}
-              className="mt-5 inline-flex h-[48px] w-full items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] text-[14.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
-            >
-              {saving ? "저장 중…" : (<><CheckCircle className="h-4 w-4" weight="fill" /> 저장하기</>)}
-            </button>
+            <div className="mt-5">
+              <TalentButton onClick={save} variant="primary" size="lg" fullWidth disabled={saving || uploading} aria-label="기본 정보 저장">
+                {saving ? "저장 중…" : "저장하기"}
+              </TalentButton>
+            </div>
           </div>
         </section>
 
@@ -194,19 +220,5 @@ export function PartnerProfileScreen() {
         </section>
       </div>
     </PartnerAppShell>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-[12.5px] font-semibold text-[#4E5968]">{label}</span>
-      {children}
-    </label>
-  );
-}
-function Input({ value, onChange, placeholder, type, inputMode }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string; inputMode?: "tel" }) {
-  return (
-    <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} type={type} inputMode={inputMode} className="w-full rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:ring-2 focus:ring-[#0B46E8]/30" />
   );
 }
