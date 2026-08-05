@@ -40,11 +40,14 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
 
-  function loadSlots() {
-    void getInterviewSlotsForApplication(applicantId).then(setSlots).catch(() => {});
+  // 메시지·면접 슬롯 API 는 지원 건별 실제 Application.id 를 쓴다(지원자 id 는 조합키라 안 됨).
+  function loadSlots(appId: string | null) {
+    if (!appId) return;
+    void getInterviewSlotsForApplication(appId).then(setSlots).catch(() => {});
   }
-  function loadMessages() {
-    void getPartnerApplicantMessages(applicantId).then(setMessages).catch(() => {});
+  function loadMessages(appId: string | null) {
+    if (!appId) return;
+    void getPartnerApplicantMessages(appId).then(setMessages).catch(() => {});
   }
   function load() {
     setStatus("loading");
@@ -52,8 +55,8 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
       .then((d) => {
         setApp(d);
         setStatus("ready");
-        loadSlots();
-        loadMessages();
+        loadSlots(d.applicationId);
+        loadMessages(d.applicationId);
       })
       .catch(() => setStatus("error"));
   }
@@ -76,12 +79,13 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
 
   function send() {
     const t = text.trim();
-    if (!t || sending) return;
+    const appId = app?.applicationId;
+    if (!t || sending || !appId) return;
     setSending(true);
-    sendPartnerApplicantMessage(applicantId, t)
+    sendPartnerApplicantMessage(appId, t)
       .then(() => {
         setText("");
-        loadMessages();
+        loadMessages(appId);
       })
       .catch(() => toast.error("메시지 전송에 실패했어요."))
       .finally(() => setSending(false));
@@ -164,11 +168,15 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
           <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-[15px] font-bold text-[#191F28]">면접</h2>
-              <button type="button" onClick={() => setProposeOpen(true)} className="inline-flex items-center gap-1 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
-                <Plus className="h-3.5 w-3.5" weight="bold" /> 면접 시간 제안
-              </button>
+              {app.applicationId ? (
+                <button type="button" onClick={() => setProposeOpen(true)} className="inline-flex items-center gap-1 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
+                  <Plus className="h-3.5 w-3.5" weight="bold" /> 면접 시간 제안
+                </button>
+              ) : null}
             </div>
-            {slots.length ? (
+            {!app.applicationId ? (
+              <p className="mt-3 text-[13px] text-[#8B95A1]">지원 건이 연결되지 않아 면접 제안을 사용할 수 없어요.</p>
+            ) : slots.length ? (
               <ul className="mt-3 flex flex-col gap-2">
                 {slots.map((s) => (
                   <li key={s.id} className="flex items-center justify-between rounded-xl bg-[#F5F6F8] px-3.5 py-2.5">
@@ -204,35 +212,39 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                 })
               )}
             </div>
-            <div className="mt-3 flex items-end gap-2">
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    send();
-                  }
-                }}
-                rows={1}
-                placeholder="지원자에게 메시지 보내기…"
-                className="max-h-28 flex-1 resize-none rounded-2xl bg-[#F2F4F6] px-4 py-2.5 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-2 focus:ring-[#0B46E8]/30"
-              />
-              <button type="button" onClick={send} disabled={!text.trim() || sending} aria-label="보내기" className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-2xl bg-[#0B46E8] text-white transition hover:bg-[#0A3ECB] disabled:opacity-40">
-                <PaperPlaneTilt className="h-5 w-5" weight="fill" />
-              </button>
-            </div>
+            {app.applicationId ? (
+              <div className="mt-3 flex items-end gap-2">
+                <textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      send();
+                    }
+                  }}
+                  rows={1}
+                  placeholder="지원자에게 메시지 보내기…"
+                  className="max-h-28 flex-1 resize-none rounded-2xl bg-[#F2F4F6] px-4 py-2.5 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-2 focus:ring-[#0B46E8]/30"
+                />
+                <button type="button" onClick={send} disabled={!text.trim() || sending} aria-label="보내기" className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-2xl bg-[#0B46E8] text-white transition hover:bg-[#0A3ECB] disabled:opacity-40">
+                  <PaperPlaneTilt className="h-5 w-5" weight="fill" />
+                </button>
+              </div>
+            ) : (
+              <p className="mt-3 text-[13px] text-[#8B95A1]">지원 건이 연결되지 않아 메시지를 보낼 수 없어요.</p>
+            )}
           </section>
         </div>
       ) : null}
 
-      {proposeOpen ? (
+      {proposeOpen && app?.applicationId ? (
         <ProposeModal
-          applicantId={applicantId}
+          applicationId={app.applicationId}
           onClose={() => setProposeOpen(false)}
           onDone={() => {
             setProposeOpen(false);
-            loadSlots();
+            loadSlots(app.applicationId);
           }}
         />
       ) : null}
@@ -259,7 +271,7 @@ function Doc({ label, text }: { label: string; text: string }) {
 }
 
 // 면접 시간 제안 — 최대 3개 슬롯(시작 시각 + 장소).
-function ProposeModal({ applicantId, onClose, onDone }: { applicantId: string; onClose: () => void; onDone: () => void }) {
+function ProposeModal({ applicationId, onClose, onDone }: { applicationId: string; onClose: () => void; onDone: () => void }) {
   const toast = useTalentPopup();
   useLockBodyScroll();
   const [rows, setRows] = useState<{ when: string; location: string }[]>([{ when: "", location: "" }]);
@@ -274,7 +286,7 @@ function ProposeModal({ applicantId, onClose, onDone }: { applicantId: string; o
       });
     if (slots.length === 0 || saving) return;
     setSaving(true);
-    proposeInterviewSlots(applicantId, slots)
+    proposeInterviewSlots(applicationId, slots)
       .then(() => {
         toast.success("면접 시간을 제안했어요");
         onDone();

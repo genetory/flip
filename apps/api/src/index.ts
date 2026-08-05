@@ -19693,6 +19693,7 @@ async function listPartnerApplicantsForUser(userId: string) {
     memo: string | null;
     resumeTitle: string | null;
     resumeShareSlug: string | null;
+    applicationId: string | null;
   }> = [];
 
   const workflows = await prisma.partnerApplicantWorkflow.findMany({
@@ -19710,6 +19711,7 @@ async function listPartnerApplicantsForUser(userId: string) {
     ? await prisma.application.findMany({
         where: { positionId: { in: positionIds }, candidateUserId: { in: candidateUserIds } },
         select: {
+          id: true,
           positionId: true,
           candidateUserId: true,
           resume: { select: { title: true, shareSlug: true } }
@@ -19718,6 +19720,10 @@ async function listPartnerApplicantsForUser(userId: string) {
     : [];
   const applicationResumeMap = new Map(
     applications.map((a) => [`${a.candidateUserId}:${a.positionId}`, a.resume])
+  );
+  // 지원 건별 실제 Application.id — 메시지/면접 슬롯 API(/applications/:id/...)에서 사용.
+  const applicationIdMap = new Map(
+    applications.map((a) => [`${a.candidateUserId}:${a.positionId}`, a.id])
   );
   const resumeRows = candidateUserIds.length
     ? await prisma.resume.findMany({
@@ -19769,7 +19775,8 @@ async function listPartnerApplicantsForUser(userId: string) {
       availableStartDate: profile.programStartDate ? profile.programStartDate.toISOString().slice(0, 10) : null,
       memo: state?.memo ?? null,
       resumeTitle: linkedResume?.title ?? null,
-      resumeShareSlug: linkedResume?.shareSlug ?? null
+      resumeShareSlug: linkedResume?.shareSlug ?? null,
+      applicationId: applicationIdMap.get(`${profile.userId}:${appliedPositionId}`) ?? null
     });
   }
 
@@ -25070,7 +25077,8 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
         availableStartDate: found.availableStartDate,
         memo: found.memo,
         resumeTitle: found.resumeTitle,
-        resumeShareSlug: found.resumeShareSlug
+        resumeShareSlug: found.resumeShareSlug,
+        applicationId: found.applicationId
       }
     });
   } catch (error) {

@@ -1169,6 +1169,8 @@ export type PartnerApplicantDetail = PartnerApplicantListItem & {
   portfolioUrl: string | null;
   availableStartDate: string | null;
   memo: string | null;
+  // 지원 건별 실제 Application.id — 메시지·면접 슬롯 API에서 사용(없을 수 있음).
+  applicationId: string | null;
 };
 
 export async function getMyPartnerApplicants() {
