@@ -384,8 +384,8 @@ export async function logoutPlatformSession() {
 }
 
 export function getPostLoginUrl(role: AuthUser["role"]) {
-  if (role === "PARTNER") return "/profile";
-  return "/positions";
+  if (role === "PARTNER") return "/partner"; // 파트너 앱
+  return "/talent/home"; // 학생·운영자 → 탤런트 앱
 }
 
 export async function reauthWithPassword(password: string) {

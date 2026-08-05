@@ -26,7 +26,6 @@ export function TalentLoginPage() {
   const searchParams = useSearchParams();
   const nextParam = sanitizeNextParam(searchParams.get("next"));
   // 기본 복귀 경로는 Talent 홈.
-  const effectiveNext = nextParam ?? "/talent";
   const { setAuthenticatedUser } = useAuthSession();
   const { locale } = useLanguage();
   const copy = useMemo(() => getAuthPageMessages(locale).login, [locale]);
@@ -47,8 +46,9 @@ export function TalentLoginPage() {
       const { user } = await loginWithEmail({ email, password });
       setAuthenticatedUser(user);
 
-      if (effectiveNext) {
-        router.push(effectiveNext);
+      // 명시적 next 가 있으면 그곳으로, 없으면 역할별 기본(학생→탤런트, 파트너→파트너).
+      if (nextParam) {
+        router.push(nextParam);
         router.refresh();
         return;
       }

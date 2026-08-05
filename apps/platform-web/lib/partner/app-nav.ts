@@ -1,0 +1,26 @@
+// 파트너(기업) 모던 서비스 라우트/내비 — 탤런트(/talent/*)와 같은 결의 파트너 앱(/partner/*).
+export const partnerRoutes = {
+  home: "/partner",
+  positions: "/partner/positions",
+  positionNew: "/partner/positions/new",
+  applicants: "/partner/applicants",
+  company: "/partner/company"
+} as const;
+
+export interface PartnerNavItem {
+  key: string;
+  label: string;
+  href: string;
+}
+
+export const partnerMainNav: PartnerNavItem[] = [
+  { key: "home", label: "홈", href: partnerRoutes.home },
+  { key: "positions", label: "공고 관리", href: partnerRoutes.positions },
+  { key: "applicants", label: "지원자", href: partnerRoutes.applicants },
+  { key: "company", label: "회사 프로필", href: partnerRoutes.company }
+];
+
+export function isPartnerTabActive(pathname: string, href: string): boolean {
+  if (href === partnerRoutes.home) return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
