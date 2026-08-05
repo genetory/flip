@@ -107,12 +107,12 @@ export function PartnerSettingsScreen() {
                 </div>
                 {user?.email ? <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{user.email}</p> : null}
               </div>
-              <a
-                href={getAccountUrl()}
+              <Link
+                href={partnerRoutes.profile}
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3.5 py-2.5 text-[13px] font-bold text-[#4E5968] shadow-[0_2px_10px_rgba(11,18,39,0.06)] transition hover:text-[#0B46E8]"
               >
-                <PencilSimple className="h-4 w-4" /> 계정 관리
-              </a>
+                <PencilSimple className="h-4 w-4" /> 프로필 편집
+              </Link>
             </div>
           </div>
         </section>

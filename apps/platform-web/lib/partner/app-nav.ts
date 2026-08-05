@@ -7,7 +7,8 @@ export const partnerRoutes = {
   applicants: "/partner/applicants",
   company: "/partner/company",
   notifications: "/partner/notifications",
-  settings: "/partner/settings" // 내 프로필(개인 계정)
+  settings: "/partner/settings", // 내 프로필(개인 계정)
+  profile: "/partner/profile" // 개인 프로필 상세(계정 기본 정보)
 } as const;
 
 export interface PartnerNavItem {
