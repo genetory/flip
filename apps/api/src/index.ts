@@ -3218,7 +3218,8 @@ const createPartnerPositionSchema = createPositionSchema
     employmentClassification: employmentClassificationSchema.optional()
   });
 const updatePartnerPositionSchema = createPartnerPositionSchema.partial().extend({
-  status: z.enum(["OPEN", "PAUSED", "CLOSED"]).optional()
+  // 인증 파트너는 자기 회사 공고의 상태를 자유롭게 변경할 수 있다.
+  status: z.enum(["DRAFT", "PENDING_REVIEW", "OPEN", "PAUSED", "CLOSED"]).optional()
 });
 
 const updatePositionSchema = createPositionSchema.partial();
@@ -20664,21 +20665,8 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
         });
       }
 
-      if (current.status === PositionStatus.PENDING_REVIEW) {
-        return res.status(403).json({
-          ok: false,
-          message: "승인 대기 상태에서는 파트너가 상태를 변경할 수 없습니다. 어드민 승인 후 변경 가능합니다."
-        });
-      }
-
+      // 인증 파트너는 자기 회사 공고의 상태를 자유롭게 변경한다(승인 라운드트립 없이 즉시 반영).
       const nextStatus = parsed.data.status!;
-      const partnerAllowedStatuses: PositionStatus[] = [PositionStatus.OPEN, PositionStatus.PAUSED, PositionStatus.CLOSED];
-      if (!partnerAllowedStatuses.includes(nextStatus)) {
-        return res.status(403).json({
-          ok: false,
-          message: "파트너는 공개/정지/마감 상태만 변경할 수 있습니다."
-        });
-      }
 
       if (nextStatus === current.status) {
         const same = await prisma.position.findUnique({
