@@ -1,6 +1,8 @@
-// 알림 스토어 — 활동 알림을 쌓아둔다(지금은 localStorage mock, 추후 서버 푸시).
-// 현재는 "팔로잉한 사람의 새 피드 글" 알림을 여기에 적재한다.
+// 알림 스토어 — 알림함(벨) 표시용. 서버 알림(지원상태·면접·메시지·새 포지션)을
+// 앱 진입 시 하이드레이트하고(useServerNotificationSync), 팔로우·내 활동 등 클라이언트
+// 유래 알림도 함께 적재한다. localStorage 는 표시 캐시로만 쓴다.
 import { useSyncExternalStore } from "react";
+import { markAllServerNotificationsRead } from "../member-profile-client";
 
 // 활동(내가 한 행동) vs 소식(팔로잉 새 글·회사 새 공고).
 export type NotificationKind = "activity" | "update";
@@ -54,6 +56,7 @@ export function addNotification(input: {
   href: string;
   createdAt?: number;
   dedupeKey?: string;
+  unread?: boolean;
 }): void {
   const list = read();
   const id = input.dedupeKey ?? `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -66,12 +69,19 @@ export function addNotification(input: {
     body: input.body,
     href: input.href,
     createdAt: input.createdAt ?? Date.now(),
-    unread: true
+    unread: input.unread ?? true
   };
   persist([entry, ...list].sort((a, b) => b.createdAt - a.createdAt));
 }
 
+// 계정 전환 시 알림함 비우기(다른 계정 알림 잔존 방지).
+export function resetNotifications(): void {
+  persist([]);
+}
+
 export function markAllNotificationsRead(): void {
+  // 서버 알림도 읽음 처리(벨 카운트 동기화).
+  void markAllServerNotificationsRead().catch(() => {});
   const list = read();
   if (!list.some((n) => n.unread)) return;
   persist(list.map((n) => ({ ...n, unread: false })));

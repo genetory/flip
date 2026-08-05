@@ -835,6 +835,27 @@ export async function withdrawMyApplication(applicationId: string) {
   });
 }
 
+// 서버 알림 — 지원 상태·면접·회사 메시지·새 포지션 등 실제 알림.
+export type ServerNotification = {
+  id: string;
+  type: string;
+  title: string;
+  message: string | null;
+  linkPath: string | null;
+  applicationId: string | null;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export async function getMyNotifications(limit = 30): Promise<{ items: ServerNotification[]; unreadCount: number }> {
+  const result = await authedJsonFetch<ServerNotification>(`/members/me/notifications?limit=${limit}`, { method: "GET" });
+  return { items: (result.items ?? []) as ServerNotification[], unreadCount: (result as { unreadCount?: number }).unreadCount ?? 0 };
+}
+
+export async function markAllServerNotificationsRead() {
+  return authedJsonFetch<unknown>("/members/me/notifications/read-all", { method: "PATCH" });
+}
+
 // 지원자 ↔ 회사 메시지(쪽지) — 지원 건별 스레드. 백엔드는 ApplicationComment(visibility=CANDIDATE)를
 // 재사용하며, 학생은 CANDIDATE 메시지만 보고, 학생이 보내면 자동으로 CANDIDATE 로 저장된다.
 export type ApplicationMessage = {
