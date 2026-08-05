@@ -1,8 +1,9 @@
 "use client";
 
 // 내 커리어 — 오늘의 한 걸음 히어로 + 이력서/자기소개서 + 커리어 기록.
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "@phosphor-icons/react";
+import { ArrowRight, CaretDown } from "@phosphor-icons/react";
 import { CareerLayout } from "../career/CareerLayout";
 import { ProfileGate } from "../career/ProfileGate";
 import { FeedCard } from "../career/FeedCard";
@@ -31,6 +32,7 @@ export function CareerHomeScreen() {
 
 function Content({ snapshot }: { snapshot: TalentSnapshot }) {
   const feed = useCareerFeed();
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const basicInfo = useBasicInfo();
   const resume = useResumeDoc();
   const cover = useCoverDoc();
@@ -92,12 +94,23 @@ function Content({ snapshot }: { snapshot: TalentSnapshot }) {
           {feed.length ? <span className="shrink-0 text-[12.5px] font-semibold text-[#8B95A1]">{feed.length}개</span> : null}
         </div>
         {feed.length ? (
-          <div className="flex flex-col gap-2.5">
-            {/* 최신 5개만 노출 */}
-            {feed.slice(0, 5).map((e) => (
-              <FeedCard key={e.id} entry={e} onDelete={removeFeedEntry} />
-            ))}
-          </div>
+          <>
+            <div className="flex flex-col gap-2.5">
+              {(showAllHistory ? feed : feed.slice(0, 5)).map((e) => (
+                <FeedCard key={e.id} entry={e} onDelete={removeFeedEntry} />
+              ))}
+            </div>
+            {feed.length > 5 ? (
+              <button
+                type="button"
+                onClick={() => setShowAllHistory((v) => !v)}
+                className="flex items-center justify-center gap-1 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB]"
+              >
+                {showAllHistory ? "접기" : `전체 히스토리 보기 (${feed.length})`}
+                <CaretDown className={`h-4 w-4 transition-transform ${showAllHistory ? "rotate-180" : ""}`} weight="bold" />
+              </button>
+            ) : null}
+          </>
         ) : (
           <EmptyFeed />
         )}
