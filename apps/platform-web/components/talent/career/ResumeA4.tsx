@@ -81,8 +81,8 @@ function ResumeA4Page({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
                     <li key={it.id} className="flex items-start gap-3 break-keep text-[13.5px] leading-relaxed text-[#333D4B]">
                       <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
                       <span className="min-w-0 flex-1">
-                        {it.company ? <span className="font-bold text-[#191F28]">{it.company}{it.text ? " · " : ""}</span> : null}
-                        {it.text}
+                        {it.company ? <span className="block font-bold text-[#191F28]">{it.company}</span> : null}
+                        {it.text ? <span className={it.company ? "mt-0.5 block text-[#4E5968]" : ""}>{it.text}</span> : null}
                       </span>
                       {range ? <span className="shrink-0 text-[12px] font-medium text-[#8B95A1]">{range}</span> : null}
                     </li>
