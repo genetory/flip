@@ -13,9 +13,10 @@ import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
-import { PARTNER_APPLICANT_STATUS, PARTNER_RECOMMENDATION } from "../../../lib/partner/labels";
+import { PARTNER_APPLICANT_STATUS, PARTNER_RECOMMENDATION, PARTNER_POSITION_STATUS } from "../../../lib/partner/labels";
 import {
   getMyPartnerApplicantById,
+  getMyPartnerPositionById,
   getPartnerApplicantDocumentSummary,
   updateMyPartnerApplicantState,
   getInterviewSlotsForApplication,
@@ -25,8 +26,16 @@ import {
   type PartnerApplicantDetail,
   type PartnerApplicantStatus,
   type InterviewSlot,
-  type PartnerApplicantMessage
+  type PartnerApplicantMessage,
+  type PartnerPosition
 } from "../../../lib/member-profile-client";
+
+const EMPLOYMENT_LABEL: Record<PartnerPosition["employmentType"], string> = {
+  FULL_TIME: "정규직",
+  INTERN: "인턴",
+  PART_TIME: "파트타임",
+  UNPAID_INTERN: "무급 인턴"
+};
 
 const STATUS_ACTIONS: PartnerApplicantStatus[] = ["REVIEWING", "INTERVIEW", "OFFERED", "ACCEPTED", "REJECTED"];
 const STEPS: { label: string; reach: PartnerApplicantStatus[] }[] = [
@@ -118,6 +127,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
   const [pending, setPending] = useState<PartnerApplicantStatus | null>(null); // 변경 확인 대기 상태
   const [summary, setSummary] = useState<{ resumeBullets: string[]; coverBullets: string[] } | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [position, setPosition] = useState<PartnerPosition | null>(null);
 
   function loadSlots(appId: string | null) {
     if (!appId) return;
@@ -136,6 +146,8 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
         setStatus("ready");
         loadSlots(d.applicationId);
         loadMessages(d.applicationId);
+        // 지원 공고 정보(고용형태·근무지·상태) — 별도 로드.
+        void getMyPartnerPositionById(d.positionId).then(setPosition).catch(() => setPosition(null));
         // LLM 문서 요약(불렛) — 별도 로드.
         setSummaryLoading(true);
         getPartnerApplicantDocumentSummary(applicantId)
@@ -243,11 +255,19 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
             </div>
 
             {/* 지원 공고 */}
-            <Link href={`${partnerRoutes.positions}/${app.positionId}`} className="mt-4 flex items-center gap-2 rounded-xl bg-white px-3.5 py-2.5 transition hover:bg-[#EDF1FD]">
-              <Briefcase className="h-4 w-4 shrink-0 text-[#0B46E8]" weight="fill" />
-              <span className="text-[11.5px] font-bold text-[#8B95A1]">지원 공고</span>
-              <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-[#191F28]">{app.positionTitle}</span>
-              <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
+            <Link href={`${partnerRoutes.positions}/${app.positionId}`} className="mt-4 block rounded-xl bg-white px-3.5 py-3 transition hover:bg-[#EDF1FD]">
+              <div className="flex items-center gap-1.5">
+                <Briefcase className="h-3.5 w-3.5 shrink-0 text-[#0B46E8]" weight="fill" />
+                <span className="text-[11px] font-bold text-[#8B95A1]">지원 공고</span>
+                {position ? <span className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-bold ${PARTNER_POSITION_STATUS[position.status].cls}`}>{PARTNER_POSITION_STATUS[position.status].label}</span> : null}
+                <CaretRight className="ml-auto h-4 w-4 shrink-0 text-[#C4CAD2]" />
+              </div>
+              <p className="mt-1 truncate text-[14px] font-bold text-[#191F28]">{app.positionTitle}</p>
+              {position ? (
+                <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">
+                  {[EMPLOYMENT_LABEL[position.employmentType], position.workType, position.workLocation, position.hiringCount != null ? `채용 ${position.hiringCount}명` : ""].filter(Boolean).join(" · ")}
+                </p>
+              ) : null}
             </Link>
 
             {/* 채용 단계 스테퍼 */}
