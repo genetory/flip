@@ -49,6 +49,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
   const [sending, setSending] = useState(false);
   const [memo, setMemo] = useState("");
   const [savingMemo, setSavingMemo] = useState(false);
+  const [pending, setPending] = useState<PartnerApplicantStatus | null>(null); // 변경 확인 대기 상태
 
   function loadSlots(appId: string | null) {
     if (!appId) return;
@@ -75,12 +76,19 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applicantId]);
 
-  function changeStatus(next: PartnerApplicantStatus) {
+  // 상태 변경은 지원자에게 알림이 발송되므로 확인 팝업 후 실행한다.
+  function requestStatus(next: PartnerApplicantStatus) {
     if (updating || !app || app.status === next) return;
+    setPending(next);
+  }
+  function confirmStatus() {
+    const next = pending;
+    if (updating || !app || !next) return;
     setUpdating(true);
     updateMyPartnerApplicantState(applicantId, { status: next })
       .then((d) => {
         setApp(d);
+        setPending(null);
         toast.success(`상태를 '${PARTNER_APPLICANT_STATUS[next].label}'로 바꿨어요`);
       })
       .catch(() => toast.error("상태 변경에 실패했어요."))
@@ -168,7 +176,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                 {STATUS_ACTIONS.map((s) => {
                   const active = app.status === s;
                   return (
-                    <button key={s} type="button" onClick={() => changeStatus(s)} disabled={updating} className={`rounded-xl px-3.5 py-2 text-[12.5px] font-bold transition disabled:opacity-50 ${active ? "bg-[#0B46E8] text-white" : "bg-white text-[#4E5968] ring-1 ring-[#E4EAF2] hover:bg-[#EDF1FD]"}`}>
+                    <button key={s} type="button" onClick={() => requestStatus(s)} disabled={updating || active} className={`rounded-xl px-3.5 py-2 text-[12.5px] font-bold transition disabled:opacity-50 ${active ? "bg-[#0B46E8] text-white" : "bg-white text-[#4E5968] ring-1 ring-[#E4EAF2] hover:bg-[#EDF1FD]"}`}>
                       {PARTNER_APPLICANT_STATUS[s].label}
                     </button>
                   );
@@ -324,6 +332,16 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
           }}
         />
       ) : null}
+
+      {pending && app ? (
+        <ConfirmStatusModal
+          name={app.name}
+          next={pending}
+          busy={updating}
+          onClose={() => (updating ? null : setPending(null))}
+          onConfirm={confirmStatus}
+        />
+      ) : null}
     </PartnerAppShell>
   );
 }
@@ -342,6 +360,28 @@ function Doc({ label, text }: { label: string; text: string }) {
     <div>
       <p className="text-[12px] font-bold text-[#0B46E8]">{label}</p>
       <p className="mt-1 whitespace-pre-wrap break-keep text-[13.5px] leading-relaxed text-[#4E5968]">{text}</p>
+    </div>
+  );
+}
+
+// 상태 변경 확인 — 지원자에게 알림이 발송되므로 동의 후 진행.
+function ConfirmStatusModal({ name, next, busy, onClose, onConfirm }: { name: string; next: PartnerApplicantStatus; busy: boolean; onClose: () => void; onConfirm: () => void }) {
+  useLockBodyScroll();
+  const label = PARTNER_APPLICANT_STATUS[next].label;
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div className="w-full max-w-[400px] overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 pt-6">
+          <p className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">상태를 ‘{label}’로 변경할까요?</p>
+          <p className="mt-2 text-[13.5px] leading-relaxed text-[#4E5968]">
+            <span className="font-bold text-[#191F28]">{name}</span> 님에게 상태 변경 <span className="font-bold text-[#0B46E8]">알림이 발송</span>됩니다. 진행하시겠어요?
+          </p>
+        </div>
+        <div className="mt-6 flex gap-2 px-6 pb-6">
+          <button type="button" onClick={onClose} disabled={busy} className="h-[50px] flex-1 rounded-2xl bg-[#F2F4F6] text-[14.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">취소</button>
+          <button type="button" onClick={onConfirm} disabled={busy} className="h-[50px] flex-1 rounded-2xl bg-[#0B46E8] text-[14.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">{busy ? "변경 중…" : `‘${label}’로 변경`}</button>
+        </div>
+      </div>
     </div>
   );
 }
