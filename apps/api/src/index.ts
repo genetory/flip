@@ -25136,6 +25136,100 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
   }
 });
 
+// 리뉴얼 이력서(ResumeDoc) → LLM 입력용 텍스트.
+function resumeDocToText(doc: unknown): string {
+  const d = doc as { targetRole?: string; items?: Array<{ section?: string; company?: string; text?: string; startDate?: string; endDate?: string }> } | null;
+  if (!d || !Array.isArray(d.items)) return "";
+  const labels: Record<string, string> = { education: "학력", experience: "경력", project: "프로젝트", skill: "역량", certificate: "자격", award: "수상", activity: "활동" };
+  const lines: string[] = [];
+  if (d.targetRole) lines.push(`지원 직무: ${d.targetRole}`);
+  for (const it of d.items) {
+    const label = labels[it.section ?? ""] ?? it.section ?? "";
+    const range = [it.startDate, it.endDate].filter(Boolean).join("~");
+    const body = [it.company, it.text, range].filter(Boolean).join(" ");
+    if (body) lines.push(`- [${label}] ${body}`);
+  }
+  return lines.join("\n");
+}
+// 리뉴얼 자소서(CoverDoc) → LLM 입력용 텍스트.
+function coverDocToText(doc: unknown): string {
+  const d = doc as { items?: Array<{ question?: string; text?: string }> } | null;
+  if (!d || !Array.isArray(d.items)) return "";
+  return d.items.map((it) => `Q. ${it.question ?? ""}\nA. ${it.text ?? ""}`.trim()).filter(Boolean).join("\n\n");
+}
+// LLM 요약 캐시(대표 이력서 updatedAt 기준). 서버 재시작 시 초기화.
+const partnerDocSummaryCache = new Map<string, { resumeBullets: string[]; coverBullets: string[] }>();
+
+app.get("/partner/applicants/:id/document-summary", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid applicant id" });
+  try {
+    const result = await listPartnerApplicantsForUser(req.auth!.userId);
+    if (!result.affiliation?.organization) {
+      return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required. request organization assignment.");
+    }
+    const found = result.items.find((item) => item.id === id);
+    if (!found) return res.status(404).json({ ok: false, message: "applicant not found" });
+
+    const primary = await prisma.resume.findFirst({
+      where: { userId: found.candidateUserId },
+      orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+      select: { content: true, updatedAt: true }
+    });
+    const c = (primary?.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>;
+    const resumeText = resumeDocToText(c.renewalResume) || (found.summary ?? "");
+    const coverText = coverDocToText(c.renewalCover) || (found.motivation ?? "");
+
+    if (!resumeText.trim() && !coverText.trim()) {
+      return res.json({ ok: true, resumeBullets: [], coverBullets: [] });
+    }
+
+    const cacheKey = `${found.candidateUserId}:${primary?.updatedAt?.getTime() ?? 0}`;
+    const cached = partnerDocSummaryCache.get(cacheKey);
+    if (cached) return res.json({ ok: true, ...cached, cached: true });
+
+    if (!openai) return res.json({ ok: true, resumeBullets: [], coverBullets: [], disabled: true });
+
+    const response = await openai.responses.create({
+      model: openaiTranslationModel,
+      input: [
+        {
+          role: "system",
+          content:
+            "너는 채용 담당자를 돕는 어시스턴트다. 지원자의 이력서와 자기소개서를 각각 3~5개의 간결한 한국어 불렛으로 요약한다. 사실에 근거해서만 작성하고(추측 금지), 핵심 역량·경험·강점 위주로 한 불렛은 한 문장(40자 내외)으로 만든다. 내용이 없으면 빈 배열을 반환한다."
+        },
+        { role: "user", content: JSON.stringify({ resume: resumeText, coverLetter: coverText }) }
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "applicant_doc_summary",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              resumeBullets: { type: "array", items: { type: "string" } },
+              coverBullets: { type: "array", items: { type: "string" } }
+            },
+            required: ["resumeBullets", "coverBullets"]
+          }
+        }
+      }
+    });
+
+    const outputText = (response as { output_text?: string }).output_text;
+    const parsed = outputText ? (JSON.parse(outputText) as { resumeBullets?: unknown; coverBullets?: unknown }) : {};
+    const clean = (arr: unknown): string[] =>
+      Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 5) : [];
+    const out = { resumeBullets: clean(parsed.resumeBullets), coverBullets: clean(parsed.coverBullets) };
+    partnerDocSummaryCache.set(cacheKey, out);
+    return res.json({ ok: true, ...out });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.patch("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   if (!id) return res.status(400).json({ ok: false, message: "invalid applicant id" });

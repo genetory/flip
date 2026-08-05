@@ -1188,6 +1188,13 @@ export async function getMyPartnerApplicants() {
   return result.items ?? [];
 }
 
+// 지원자 이력서·자소서의 LLM 불렛 요약(서버 캐시).
+export async function getPartnerApplicantDocumentSummary(id: string): Promise<{ resumeBullets: string[]; coverBullets: string[] }> {
+  const result = await authedJsonFetch<never>(`/partner/applicants/${encodeURIComponent(id)}/document-summary`, { method: "GET" });
+  const r = result as unknown as { resumeBullets?: string[]; coverBullets?: string[] };
+  return { resumeBullets: r.resumeBullets ?? [], coverBullets: r.coverBullets ?? [] };
+}
+
 export async function getMyPartnerApplicantById(id: string) {
   const result = await authedJsonFetch<PartnerApplicantDetail>(`/partner/applicants/${encodeURIComponent(id)}`, {
     method: "GET"

@@ -5,7 +5,7 @@
 // 좌: 인적사항 · 지원 서류 · 이력서 | 우: 내부 메모 · 면접 · 메시지.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, PaperPlaneTilt, Plus, ArrowSquareOut, Check, CaretRight, CaretDown } from "@phosphor-icons/react";
+import { X, PaperPlaneTilt, Plus, ArrowSquareOut, Check, CaretRight, CaretDown, Sparkle } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
@@ -14,10 +14,9 @@ import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { PARTNER_APPLICANT_STATUS, PARTNER_RECOMMENDATION } from "../../../lib/partner/labels";
-import type { ResumeDoc } from "../../../lib/talent/resume-doc";
-import type { CoverDoc } from "../../../lib/talent/cover-doc";
 import {
   getMyPartnerApplicantById,
+  getPartnerApplicantDocumentSummary,
   updateMyPartnerApplicantState,
   getInterviewSlotsForApplication,
   proposeInterviewSlots,
@@ -41,40 +40,6 @@ function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-function truncate(s: string, n: number): string {
-  const t = s.replace(/\s+/g, " ").trim();
-  return t.length > n ? `${t.slice(0, n).trim()}…` : t;
-}
-
-// 이력서 요약본 — 문서(ResumeDoc)에서 지원 직무·학력·핵심 역량을 뽑아 한 줄로.
-function summarizeResume(raw: unknown, fallback?: string | null): string {
-  const doc = raw as ResumeDoc | null;
-  if (doc && Array.isArray(doc.items) && doc.items.length) {
-    const parts: string[] = [];
-    if (doc.targetRole) parts.push(`${doc.targetRole} 지원`);
-    const edu = doc.items.find((i) => i.section === "education");
-    if (edu) {
-      const e = [edu.company, edu.text].filter(Boolean).join(" ");
-      if (e) parts.push(e);
-    }
-    const exp = doc.items.find((i) => i.section === "experience" || i.section === "project");
-    if (exp?.text) parts.push(truncate(exp.text, 40));
-    const skill = doc.items.find((i) => i.section === "skill");
-    if (skill?.text) parts.push(`역량: ${truncate(skill.text, 40)}`);
-    if (parts.length) return truncate(parts.join(" · "), 140);
-  }
-  return truncate(fallback ?? "", 140);
-}
-
-// 자기소개서 요약본 — 문항 답변을 이어 붙여 앞부분만.
-function summarizeCover(raw: unknown, fallback?: string | null): string {
-  const doc = raw as CoverDoc | null;
-  if (doc && Array.isArray(doc.items) && doc.items.length) {
-    const text = doc.items.map((i) => i.text).filter(Boolean).join(" ");
-    if (text.trim()) return truncate(text, 140);
-  }
-  return truncate(fallback ?? "", 140);
-}
 
 // 면접 시간 선택 — 날짜 + 30분 단위 시간 드롭다운(00:00 ~ 24:00).
 type SlotRow = { date: string; time: string; location: string };
@@ -151,6 +116,8 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
   const [memo, setMemo] = useState("");
   const [savingMemo, setSavingMemo] = useState(false);
   const [pending, setPending] = useState<PartnerApplicantStatus | null>(null); // 변경 확인 대기 상태
+  const [summary, setSummary] = useState<{ resumeBullets: string[]; coverBullets: string[] } | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   function loadSlots(appId: string | null) {
     if (!appId) return;
@@ -169,6 +136,12 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
         setStatus("ready");
         loadSlots(d.applicationId);
         loadMessages(d.applicationId);
+        // LLM 문서 요약(불렛) — 별도 로드.
+        setSummaryLoading(true);
+        getPartnerApplicantDocumentSummary(applicantId)
+          .then(setSummary)
+          .catch(() => setSummary({ resumeBullets: [], coverBullets: [] }))
+          .finally(() => setSummaryLoading(false));
       })
       .catch(() => setStatus("error"));
   }
@@ -336,7 +309,8 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                       emoji="📄"
                       title={app.resumeTitle || "이력서"}
                       sub="이력서 보기"
-                      summary={summarizeResume(app.resumeDoc, app.summary)}
+                      bullets={summary?.resumeBullets ?? []}
+                      loading={summaryLoading}
                     />
                   ) : null}
                   {app.coverDoc || app.coverLetterShareSlug ? (
@@ -345,7 +319,8 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                       emoji="✍️"
                       title={app.coverLetterTitle || "자기소개서"}
                       sub="자기소개서 보기"
-                      summary={summarizeCover(app.coverDoc, app.motivation)}
+                      bullets={summary?.coverBullets ?? []}
+                      loading={summaryLoading}
                     />
                   ) : null}
                   {!app.resumeDoc && !app.resumeShareSlug && !app.coverDoc && !app.coverLetterShareSlug ? (
@@ -505,17 +480,28 @@ function DocLink({ href, emoji, title, sub, internal }: { href: string; emoji: s
   );
 }
 
-// 서류 항목 — 열람 링크(DocLink) + 자동 생성 요약본.
-function DocItem({ href, emoji, title, sub, summary }: { href: string; emoji: string; title: string; sub: string; summary: string }) {
+// 서류 항목 — 열람 링크(DocLink) + LLM 불렛 요약.
+function DocItem({ href, emoji, title, sub, bullets, loading }: { href: string; emoji: string; title: string; sub: string; bullets: string[]; loading: boolean }) {
   return (
     <div>
       <DocLink href={href} emoji={emoji} title={title} sub={sub} internal />
-      {summary ? (
-        <div className="mt-2 rounded-xl bg-[#F8FAFB] px-3.5 py-2.5">
-          <p className="text-[11px] font-bold text-[#8B95A1]">요약</p>
-          <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{summary}</p>
-        </div>
-      ) : null}
+      <div className="mt-2 rounded-xl bg-[#F8FAFB] px-3.5 py-2.5">
+        <p className="flex items-center gap-1 text-[11px] font-bold text-[#8B95A1]"><Sparkle className="h-3 w-3 text-[#0B46E8]" weight="fill" /> AI 요약</p>
+        {loading ? (
+          <p className="mt-1 text-[12.5px] text-[#B0B8C1]">요약 생성 중…</p>
+        ) : bullets.length ? (
+          <ul className="mt-1.5 flex flex-col gap-1">
+            {bullets.map((b, i) => (
+              <li key={i} className="flex gap-1.5 text-[12.5px] leading-relaxed text-[#4E5968]">
+                <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
+                <span className="min-w-0 flex-1 break-keep">{b}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-[12.5px] text-[#B0B8C1]">요약할 내용이 없어요.</p>
+        )}
+      </div>
     </div>
   );
 }
