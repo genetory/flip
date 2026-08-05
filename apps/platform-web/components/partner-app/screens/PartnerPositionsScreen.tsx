@@ -3,6 +3,7 @@
 // 파트너 공고 관리 — 요약 + 검색 + 정렬 + 상태 탭 + 공고별 지원자 수 카드.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CaretRight, Plus, MagnifyingGlass, X, Users, Briefcase } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
@@ -208,6 +209,7 @@ export function PartnerPositionsScreen() {
 }
 
 function PositionCard({ p, applicants }: { p: PartnerPosition; applicants: number }) {
+  const router = useRouter();
   const s = PARTNER_POSITION_STATUS[p.status];
   const meta = [EMPLOYMENT_LABEL[p.employmentType], p.workType, p.workLocation].filter(Boolean).join(" · ");
   return (
@@ -220,7 +222,18 @@ function PositionCard({ p, applicants }: { p: PartnerPosition; applicants: numbe
       {meta ? <p className="mt-1 text-[12.5px] text-[#8B95A1]">{meta}</p> : null}
       <div className="mt-3 flex items-center gap-4 border-t border-[#F5F6F8] pt-3">
         <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><Briefcase className="h-4 w-4 text-[#B0B8C1]" /> 채용 {p.hiringCount ?? "-"}명</span>
-        <span className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#0B46E8]"><Users className="h-4 w-4" weight="fill" /> 지원 {applicants}명</span>
+        {/* 지원자 수 — 클릭 시 해당 공고 지원자 목록으로(카드 링크와 분리) */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            router.push(`${partnerRoutes.applicants}?position=${encodeURIComponent(p.id)}`);
+          }}
+          className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
+        >
+          <Users className="h-4 w-4" weight="fill" /> 지원 {applicants}명
+        </button>
         <span className="ml-auto inline-flex items-center gap-0.5 text-[12.5px] font-bold text-[#0B46E8]">관리 <CaretRight className="h-3.5 w-3.5" weight="bold" /></span>
       </div>
     </Link>

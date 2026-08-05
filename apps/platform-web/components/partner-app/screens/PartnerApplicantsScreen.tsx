@@ -3,7 +3,8 @@
 // 파트너 지원자 — 실서버 지원자 목록. 요약 + 검색 + 정렬 + 상태 탭 + 풍부한 카드.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { MagnifyingGlass, X, GraduationCap, Globe, Translate, Clock } from "@phosphor-icons/react";
+import { useSearchParams } from "next/navigation";
+import { MagnifyingGlass, X, GraduationCap, Globe, Translate, Clock, Briefcase } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
@@ -26,6 +27,8 @@ const TABS: { key: Tab; label: string; match: (s: PartnerApplicantStatus) => boo
 const REC_ORDER: Record<PartnerApplicantListItem["recommendation"], number> = { HIGH: 0, NORMAL: 1, CHECK: 2 };
 
 export function PartnerApplicantsScreen() {
+  const searchParams = useSearchParams();
+  const positionFilter = searchParams.get("position");
   const [items, setItems] = useState<PartnerApplicantListItem[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [tab, setTab] = useState<Tab>("all");
@@ -46,29 +49,32 @@ export function PartnerApplicantsScreen() {
   }, []);
 
   const all = useMemo(() => items ?? [], [items]);
+  // 공고별 필터(?position=<id>)가 있으면 그 공고 지원자로 범위를 좁힌다.
+  const scoped = useMemo(() => (positionFilter ? all.filter((a) => a.positionId === positionFilter) : all), [all, positionFilter]);
+  const filterTitle = positionFilter ? scoped[0]?.positionTitle ?? null : null;
 
   // 상단 요약 — 액션이 필요한 상태 위주.
   const summary = useMemo(
     () => [
-      { key: "APPLIED" as const, label: "신규 지원", count: all.filter((a) => a.status === "APPLIED").length, cls: "text-[#0B46E8]" },
-      { key: "REVIEWING" as const, label: "검토 중", count: all.filter((a) => a.status === "REVIEWING").length, cls: "text-[#E8890C]" },
-      { key: "INTERVIEW" as const, label: "면접", count: all.filter((a) => a.status === "INTERVIEW").length, cls: "text-[#E8890C]" },
-      { key: "ACCEPTED" as const, label: "합격", count: all.filter((a) => a.status === "ACCEPTED" || a.status === "OFFERED").length, cls: "text-[#12B76A]" }
+      { key: "APPLIED" as const, label: "신규 지원", count: scoped.filter((a) => a.status === "APPLIED").length, cls: "text-[#0B46E8]" },
+      { key: "REVIEWING" as const, label: "검토 중", count: scoped.filter((a) => a.status === "REVIEWING").length, cls: "text-[#E8890C]" },
+      { key: "INTERVIEW" as const, label: "면접", count: scoped.filter((a) => a.status === "INTERVIEW").length, cls: "text-[#E8890C]" },
+      { key: "ACCEPTED" as const, label: "합격", count: scoped.filter((a) => a.status === "ACCEPTED" || a.status === "OFFERED").length, cls: "text-[#12B76A]" }
     ],
-    [all]
+    [scoped]
   );
 
   const counts = useMemo(() => {
     const c = {} as Record<Tab, number>;
-    for (const t of TABS) c[t.key] = all.filter((x) => t.match(x.status)).length;
+    for (const t of TABS) c[t.key] = scoped.filter((x) => t.match(x.status)).length;
     return c;
-  }, [all]);
+  }, [scoped]);
 
   const active = TABS.find((t) => t.key === tab) ?? TABS[0];
   const q = query.trim().toLowerCase();
 
   const list = useMemo(() => {
-    const filtered = all
+    const filtered = scoped
       .filter((a) => active.match(a.status))
       .filter((a) => {
         if (!q) return true;
@@ -83,7 +89,7 @@ export function PartnerApplicantsScreen() {
     });
     return sorted;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [all, tab, q, sort]);
+  }, [scoped, tab, q, sort]);
 
   return (
     <PartnerAppShell>
@@ -92,6 +98,17 @@ export function PartnerApplicantsScreen() {
           <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">지원자</h1>
           <p className="mt-1 text-[13.5px] text-[#8B95A1]">우리 공고에 지원한 인재를 확인하고 관리해요.</p>
         </div>
+
+        {/* 공고별 필터 배너 */}
+        {positionFilter ? (
+          <div className="flex items-center gap-2.5 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] px-4 py-3">
+            <Briefcase className="h-4 w-4 shrink-0 text-[#0B46E8]" weight="fill" />
+            <p className="min-w-0 flex-1 truncate text-[13px] text-[#4E5968]">
+              <span className="font-bold text-[#191F28]">{filterTitle || "선택한 공고"}</span> 지원자만 보는 중
+            </p>
+            <Link href={partnerRoutes.applicants} className="shrink-0 rounded-lg bg-white px-2.5 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]">전체 보기</Link>
+          </div>
+        ) : null}
 
         {status === "loading" ? <TLoading /> : null}
         {status === "error" ? <TError onRetry={load} /> : null}

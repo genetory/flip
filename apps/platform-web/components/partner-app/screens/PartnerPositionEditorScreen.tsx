@@ -173,16 +173,17 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
       {status === "error" ? <TError onRetry={load} /> : null}
 
       {status === "ready" ? (
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-10">
           <div>
             <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{isEdit ? "공고 수정" : "새 공고 등록"}</h1>
             <p className="mt-1 text-[13.5px] text-[#8B95A1]">채용하려는 포지션 정보를 작성해요.</p>
           </div>
 
           {/* 기본 정보 */}
-          <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-            <h2 className="text-[15px] font-bold text-[#191F28]">기본 정보</h2>
-            <div className="mt-4 flex flex-col gap-3.5">
+          <section>
+            <SectionHeader title="기본 정보" />
+            <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+            <div className="flex flex-col gap-3.5">
               <Field label="공고 제목"><Input value={form.title} onChange={(v) => set("title", v)} placeholder="예) 백엔드 엔지니어 (신입/경력)" /></Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="고용 형태">
@@ -205,24 +206,27 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
               <Field label="근무 시간"><Input value={form.workingHours} onChange={(v) => set("workingHours", v)} placeholder="예) 주 5일 · 09:00~18:00" /></Field>
               <Field label="선호 직무"><Input value={form.preferredJobRole} onChange={(v) => set("preferredJobRole", v)} placeholder="예) 서버 개발" /></Field>
             </div>
+            </div>
           </section>
 
           {/* 상세 내용 */}
-          <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-            <h2 className="text-[15px] font-bold text-[#191F28]">상세 내용</h2>
-            <div className="mt-4 flex flex-col gap-3.5">
+          <section>
+            <SectionHeader title="상세 내용" />
+            <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+            <div className="flex flex-col gap-3.5">
               <Field label="주요 업무"><Textarea value={form.mainResponsibilities} onChange={(v) => set("mainResponsibilities", v)} placeholder="담당하게 될 주요 업무를 적어주세요." /></Field>
               <Field label="자격 요건"><Textarea value={form.requiredQualifications} onChange={(v) => set("requiredQualifications", v)} placeholder="필수 자격 요건을 적어주세요." /></Field>
               <Field label="우대 사항"><Textarea value={form.preferredQualifications} onChange={(v) => set("preferredQualifications", v)} placeholder="있으면 좋은 경험/역량을 적어주세요." /></Field>
               <Field label="채용 절차"><Textarea value={form.hiringProcess} onChange={(v) => set("hiringProcess", v)} placeholder="예) 서류 → 1차 면접 → 최종 면접" /></Field>
               <Field label="추가 안내"><Textarea value={form.additionalNotes} onChange={(v) => set("additionalNotes", v)} placeholder="복지, 근무 환경 등 추가로 알리고 싶은 내용" /></Field>
             </div>
+            </div>
           </section>
 
           {isEdit ? (
-            <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-              <h2 className="text-[15px] font-bold text-[#191F28]">게시 상태</h2>
-              <div className="mt-3">
+            <section>
+              <SectionHeader title="게시 상태" />
+              <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
                 <Select value={posStatus} onChange={(v) => setPosStatus(v as PositionStatus)}>
                   {STATUS_OPTS.map((s) => <option key={s} value={s}>{PARTNER_POSITION_STATUS[s].label}</option>)}
                 </Select>
@@ -256,6 +260,11 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
       ) : null}
     </PartnerAppShell>
   );
+}
+
+// 섹션 타이틀 — 카드 밖. 다른 섹션 페이지와 동일한 스타일.
+function SectionHeader({ title }: { title: string }) {
+  return <h2 className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
