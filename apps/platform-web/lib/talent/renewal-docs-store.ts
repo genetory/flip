@@ -10,6 +10,7 @@ import { createMyResume, getMyResumes, updateMyResume } from "../member-profile-
 import type { ResumeDoc } from "./resume-doc";
 import type { CoverDoc } from "./cover-doc";
 import type { BasicInfo } from "./basic-info";
+import type { FeedEntry } from "./career-feed";
 
 export type RenewalDocsStatus = "idle" | "loading" | "loaded";
 
@@ -21,6 +22,11 @@ let resumeDoc: ResumeDoc | null = null;
 let coverDoc: CoverDoc | null = null;
 let basicInfo: BasicInfo | null = null;
 let jobInterests: string[] | null = null;
+// 계정 귀속 소셜/활동 데이터(같은 Resume.content 에 함께 보관).
+let follows: string[] | null = null;
+let bookmarks: string[] | null = null;
+let dailySteps: string[] | null = null;
+let careerFeed: FeedEntry[] | null = null;
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let saving = false;
@@ -52,6 +58,18 @@ export function snapshotBasicInfo(): BasicInfo | null {
 export function snapshotJobInterests(): string[] | null {
   return jobInterests;
 }
+export function snapshotFollows(): string[] | null {
+  return follows;
+}
+export function snapshotBookmarks(): string[] | null {
+  return bookmarks;
+}
+export function snapshotDailySteps(): string[] | null {
+  return dailySteps;
+}
+export function snapshotCareerFeed(): FeedEntry[] | null {
+  return careerFeed;
+}
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -70,6 +88,10 @@ function buildContent(): Record<string, unknown> {
   }
   if (basicInfo) content.renewalBasicInfo = basicInfo;
   if (jobInterests) content.renewalJobInterests = jobInterests;
+  if (follows) content.renewalFollows = follows;
+  if (bookmarks) content.renewalBookmarks = bookmarks;
+  if (dailySteps) content.renewalDailySteps = dailySteps;
+  if (careerFeed) content.renewalCareerFeed = careerFeed;
   return content;
 }
 
@@ -78,6 +100,10 @@ function parseContent(content: Record<string, unknown> | null | undefined): {
   cover: CoverDoc | null;
   basic: BasicInfo | null;
   interests: string[] | null;
+  follows: string[] | null;
+  bookmarks: string[] | null;
+  dailySteps: string[] | null;
+  careerFeed: FeedEntry[] | null;
 } {
   const c = content ?? {};
   const resume = (c.renewalResume as ResumeDoc | undefined) ?? null;
@@ -94,7 +120,11 @@ function parseContent(content: Record<string, unknown> | null | undefined): {
   }
   const basic = (c.renewalBasicInfo as BasicInfo | undefined) ?? null;
   const interests = Array.isArray(c.renewalJobInterests) ? (c.renewalJobInterests as string[]) : null;
-  return { resume, cover, basic, interests };
+  const follows = Array.isArray(c.renewalFollows) ? (c.renewalFollows as string[]) : null;
+  const bookmarks = Array.isArray(c.renewalBookmarks) ? (c.renewalBookmarks as string[]) : null;
+  const dailySteps = Array.isArray(c.renewalDailySteps) ? (c.renewalDailySteps as string[]) : null;
+  const careerFeed = Array.isArray(c.renewalCareerFeed) ? (c.renewalCareerFeed as FeedEntry[]) : null;
+  return { resume, cover, basic, interests, follows, bookmarks, dailySteps, careerFeed };
 }
 
 // 로드 ----------------------------------------------------------------------
@@ -109,7 +139,7 @@ async function load(userId: string) {
     const renewal = resumes
       .filter((r) => {
         const rc = r.content as unknown as Record<string, unknown> | null;
-        return rc != null && ("renewalResume" in rc || "renewalCover" in rc || "renewalBasicInfo" in rc || "renewalJobInterests" in rc);
+        return rc != null && Object.keys(rc).some((k) => k.startsWith("renewal"));
       })
       .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))[0];
     if (renewal) {
@@ -119,12 +149,20 @@ async function load(userId: string) {
       coverDoc = parsed.cover;
       basicInfo = parsed.basic;
       jobInterests = parsed.interests;
+      follows = parsed.follows;
+      bookmarks = parsed.bookmarks;
+      dailySteps = parsed.dailySteps;
+      careerFeed = parsed.careerFeed;
     } else {
       resumeRowId = null;
       resumeDoc = null;
       coverDoc = null;
       basicInfo = null;
       jobInterests = null;
+      follows = null;
+      bookmarks = null;
+      dailySteps = null;
+      careerFeed = null;
     }
     status = "loaded";
     emit();
@@ -136,6 +174,10 @@ async function load(userId: string) {
     coverDoc = null;
     basicInfo = null;
     jobInterests = null;
+    follows = null;
+    bookmarks = null;
+    dailySteps = null;
+    careerFeed = null;
     status = "loaded";
     emit();
   }
@@ -151,6 +193,10 @@ export function syncUser(userId: string | null): void {
     coverDoc = null;
     basicInfo = null;
     jobInterests = null;
+    follows = null;
+    bookmarks = null;
+    dailySteps = null;
+    careerFeed = null;
     status = "idle";
     if (saveTimer) {
       clearTimeout(saveTimer);
@@ -216,6 +262,30 @@ export function setBasicInfo(info: BasicInfo | null): void {
 
 export function setJobInterests(roles: string[]): void {
   jobInterests = roles;
+  emit();
+  scheduleSave();
+}
+
+export function setFollows(list: string[]): void {
+  follows = list;
+  emit();
+  scheduleSave();
+}
+
+export function setBookmarks(list: string[]): void {
+  bookmarks = list;
+  emit();
+  scheduleSave();
+}
+
+export function setDailySteps(list: string[]): void {
+  dailySteps = list;
+  emit();
+  scheduleSave();
+}
+
+export function setCareerFeed(list: FeedEntry[]): void {
+  careerFeed = list;
   emit();
   scheduleSave();
 }

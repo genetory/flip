@@ -3,6 +3,8 @@
 // 추후 서버(팔로우 관계 테이블)로 교체하면 팔로워 수 등이 전역으로 집계된다.
 import { useEffect } from "react";
 import { useSyncExternalStore } from "react";
+import { useAuthSession } from "../../components/auth/AuthSessionProvider";
+import { setFollows, snapshotFollows, subscribeDocs, syncUser } from "./renewal-docs-store";
 import { useSocialFeed, type FeedAuthorRole } from "./social-feed";
 import { addNotification } from "./notifications";
 import { notifyFollowedCompany, notifyFollowedUser } from "./activity-log";
@@ -29,32 +31,15 @@ export function parseAuthorKey(key: string): FeedAuthor | null {
   return { name, role };
 }
 
-const KEY = "talent.following.v1";
 const EMPTY: string[] = [];
 
-const listeners = new Set<() => void>();
-let cache: string[] | null = null;
-
+// 팔로우 목록 = 계정(서버 Resume.content.renewalFollows) 귀속.
 function read(): string[] {
-  if (cache) return cache;
-  if (typeof window === "undefined") return EMPTY;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    cache = raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    cache = [];
-  }
-  return cache;
+  return snapshotFollows() ?? EMPTY;
 }
 
 function write(next: string[]): void {
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    /* noop */
-  }
-  cache = null;
-  listeners.forEach((l) => l());
+  setFollows(next);
 }
 
 export function isFollowing(author: FeedAuthor): boolean {
@@ -81,24 +66,14 @@ export function toggleFollow(author: FeedAuthor): void {
   else followAuthor(author);
 }
 
-function subscribe(cb: () => void): () => void {
-  listeners.add(cb);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === KEY) {
-      cache = null;
-      cb();
-    }
-  };
-  window.addEventListener("storage", onStorage);
-  return () => {
-    listeners.delete(cb);
-    window.removeEventListener("storage", onStorage);
-  };
-}
-
-// 내가 팔로잉하는 사람 키 목록(useSyncExternalStore로 화면 간 동기화).
+// 내가 팔로잉하는 사람 키 목록(계정 귀속, useSyncExternalStore로 화면 간 동기화).
 export function useFollowing(): string[] {
-  return useSyncExternalStore(subscribe, read, () => EMPTY);
+  const { user } = useAuthSession();
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    syncUser(userId);
+  }, [userId]);
+  return useSyncExternalStore(subscribeDocs, snapshotFollows, () => null) ?? EMPTY;
 }
 
 const WATERMARK_KEY = "talent.notifications.feedWatermark.v1";
