@@ -1,15 +1,17 @@
 "use client";
 
 // 파트너 공고 작성/수정 — 신규(new) & 기존(id) 공용 폼. 서버 create/update/delete 연동.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { CaretDown } from "@phosphor-icons/react";
+import Image from "next/image";
+import { CaretDown, Plus, X, ImageSquare } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { PARTNER_POSITION_STATUS } from "../../../lib/partner/labels";
+import { convertImageFileToWebpDataUrl, estimateDataUrlBytes } from "../../../lib/image-upload";
 import {
   getMyPartnerPositionById,
   createMyPartnerPosition,
@@ -49,6 +51,7 @@ type Form = {
   preferredQualifications: string;
   hiringProcess: string;
   additionalNotes: string;
+  thumbnailImages: string[];
 };
 
 const EMPTY: Form = {
@@ -64,7 +67,8 @@ const EMPTY: Form = {
   requiredQualifications: "",
   preferredQualifications: "",
   hiringProcess: "",
-  additionalNotes: ""
+  additionalNotes: "",
+  thumbnailImages: []
 };
 
 function fromPosition(p: PartnerPosition): Form {
@@ -81,7 +85,8 @@ function fromPosition(p: PartnerPosition): Form {
     requiredQualifications: p.requiredQualifications ?? "",
     preferredQualifications: p.preferredQualifications ?? "",
     hiringProcess: p.hiringProcess ?? "",
-    additionalNotes: p.additionalNotes ?? ""
+    additionalNotes: p.additionalNotes ?? "",
+    thumbnailImages: Array.isArray(p.thumbnailImages) ? p.thumbnailImages : []
   };
 }
 
@@ -100,7 +105,8 @@ function toInput(f: Form) {
     requiredQualifications: f.requiredQualifications.trim() || undefined,
     preferredQualifications: f.preferredQualifications.trim() || undefined,
     hiringProcess: f.hiringProcess.trim() || undefined,
-    additionalNotes: f.additionalNotes.trim() || undefined
+    additionalNotes: f.additionalNotes.trim() || undefined,
+    thumbnailImages: f.thumbnailImages
   };
 }
 
@@ -114,6 +120,8 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
   const [initialStatus, setInitialStatus] = useState<PositionStatus>("DRAFT");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const imgRef = useRef<HTMLInputElement>(null);
 
   function load() {
     if (!positionId) return;
@@ -134,6 +142,33 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
 
   function set<K extends keyof Form>(key: K, value: Form[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  // 공고 사진 업로드 — WebP 압축 후 data URL(서버가 업로드 처리). 최대 5장.
+  async function onPickImages(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.currentTarget.files ?? []);
+    e.currentTarget.value = "";
+    if (files.length === 0) return;
+    if (files.some((f) => f.size > 20 * 1024 * 1024)) {
+      toast.error("원본 파일은 20MB 이하만 올릴 수 있어요.");
+      return;
+    }
+    const room = 5 - form.thumbnailImages.length;
+    if (room <= 0) {
+      toast.error("사진은 최대 5장까지 올릴 수 있어요.");
+      return;
+    }
+    setUploadingImg(true);
+    try {
+      const images = await Promise.all(files.slice(0, room).map((f) => convertImageFileToWebpDataUrl(f)));
+      const ok = images.filter((d) => estimateDataUrlBytes(d) <= 5 * 1024 * 1024);
+      if (ok.length < images.length) toast.error("일부 이미지는 용량이 커서 제외했어요.");
+      if (ok.length) set("thumbnailImages", [...form.thumbnailImages, ...ok].slice(0, 5));
+    } catch {
+      toast.error("이미지를 처리하지 못했어요.");
+    } finally {
+      setUploadingImg(false);
+    }
   }
 
   // 저장 — 편집: 내용 저장 후 게시 상태가 바뀌었으면 상태도 반영(백엔드는 둘을 동시에
@@ -221,6 +256,37 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
             </div>
           </section>
 
+          {/* 사진 */}
+          <section>
+            <SectionHeader title="공고 사진" />
+            <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[12.5px] text-[#8B95A1]">근무 환경·팀·제품 등 · 최대 5장 · {form.thumbnailImages.length}장 등록됨</p>
+                <input ref={imgRef} type="file" accept="image/*" multiple className="hidden" onChange={onPickImages} />
+                <button type="button" onClick={() => imgRef.current?.click()} disabled={uploadingImg || form.thumbnailImages.length >= 5} className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#F2F4F6] px-3 py-2 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">
+                  <Plus className="h-4 w-4" weight="bold" /> {uploadingImg ? "처리 중…" : "사진 추가"}
+                </button>
+              </div>
+              {form.thumbnailImages.length ? (
+                <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
+                  {form.thumbnailImages.map((src, i) => (
+                    <div key={`${i}-${src.slice(0, 24)}`} className="relative aspect-square overflow-hidden rounded-2xl border border-[#E5E8EB] bg-[#F2F4F6]">
+                      <Image src={src} alt={`공고 사진 ${i + 1}`} fill sizes="90px" className="object-cover" unoptimized />
+                      <button type="button" onClick={() => set("thumbnailImages", form.thumbnailImages.filter((_, j) => j !== i))} aria-label="사진 삭제" className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#0B1227]/70 text-white">
+                        <X className="h-3 w-3" weight="bold" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <button type="button" onClick={() => imgRef.current?.click()} className="mt-3 flex w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] py-8 text-[#B0B8C1] transition hover:border-[#B0C4F5]">
+                  <ImageSquare className="h-7 w-7" />
+                  <span className="text-[13px] font-semibold">공고에 보여줄 사진을 올려보세요</span>
+                </button>
+              )}
+            </div>
+          </section>
+
           {/* 상세 내용 */}
           <section>
             <SectionHeader title="상세 내용" />
@@ -239,33 +305,39 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
             <section>
               <SectionHeader title="게시 상태" />
               <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                <Field label="상태를 선택하고 저장하면 반영돼요">
-                  <Select value={posStatus} onChange={(v) => setPosStatus(v as PositionStatus)}>
-                    {STATUS_OPTS.map((s) => <option key={s} value={s}>{PARTNER_POSITION_STATUS[s].label}</option>)}
-                  </Select>
-                </Field>
+                <p className="mb-3 text-[12.5px] text-[#8B95A1]">상태를 선택하고 저장하면 반영돼요.</p>
+                <div className="flex flex-wrap gap-2">
+                  {STATUS_OPTS.map((s) => {
+                    const on = posStatus === s;
+                    return (
+                      <button key={s} type="button" onClick={() => setPosStatus(s)} className={`rounded-xl px-3.5 py-2 text-[12.5px] font-bold transition ${on ? "bg-[#0B46E8] text-white" : "bg-white text-[#4E5968] ring-1 ring-[#E4EAF2] hover:bg-[#EDF1FD]"}`}>
+                        {PARTNER_POSITION_STATUS[s].label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </section>
           ) : null}
 
-          {/* 액션 */}
-          <div className="flex flex-col gap-2.5">
+          {/* 액션 — 우측 하단 2컬럼 */}
+          <div className="flex justify-end gap-2.5">
             {isEdit ? (
               <>
-                <button type="button" onClick={() => save(posStatus)} disabled={saving} className="inline-flex h-[52px] items-center justify-center rounded-2xl bg-[#0B46E8] text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
-                  {saving ? "저장 중…" : "저장하기"}
-                </button>
-                <button type="button" onClick={remove} disabled={deleting} className="inline-flex h-[48px] items-center justify-center rounded-2xl bg-[#FDECEE] text-[14px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1] disabled:opacity-50">
+                <button type="button" onClick={remove} disabled={deleting || saving} className="inline-flex h-[46px] min-w-[110px] items-center justify-center rounded-2xl bg-[#FDECEE] px-5 text-[14px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1] disabled:opacity-50">
                   {deleting ? "삭제 중…" : "공고 삭제"}
+                </button>
+                <button type="button" onClick={() => save()} disabled={saving} className="inline-flex h-[46px] min-w-[120px] items-center justify-center rounded-2xl bg-[#0B46E8] px-6 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
+                  {saving ? "저장 중…" : "저장하기"}
                 </button>
               </>
             ) : (
               <>
-                <button type="button" onClick={() => save("PENDING_REVIEW")} disabled={saving} className="inline-flex h-[52px] items-center justify-center rounded-2xl bg-[#0B46E8] text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
-                  {saving ? "등록 중…" : "검토 요청하기"}
-                </button>
-                <button type="button" onClick={() => save("DRAFT")} disabled={saving} className="inline-flex h-[48px] items-center justify-center rounded-2xl bg-[#F2F4F6] text-[14px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">
+                <button type="button" onClick={() => save("DRAFT")} disabled={saving} className="inline-flex h-[46px] min-w-[110px] items-center justify-center rounded-2xl bg-[#F2F4F6] px-5 text-[14px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">
                   임시저장
+                </button>
+                <button type="button" onClick={() => save("PENDING_REVIEW")} disabled={saving} className="inline-flex h-[46px] min-w-[120px] items-center justify-center rounded-2xl bg-[#0B46E8] px-6 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
+                  {saving ? "등록 중…" : "검토 요청하기"}
                 </button>
               </>
             )}
