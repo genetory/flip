@@ -186,7 +186,7 @@ function CareerSummary({ items }: { items: ResumeItem[] }) {
                 {!last ? <span className="w-px flex-1 bg-[#E5E8EB]" /> : null}
               </div>
               <div className={`min-w-0 flex-1 ${last ? "" : "pb-5"}`}>
-                {period ? <p className="text-[11.5px] font-semibold text-[#8B95A1]">{period}</p> : null}
+                {period ? <p className="text-[11.5px] font-normal text-[#8B95A1]">{period}</p> : null}
                 <p className="mt-0.5 break-keep text-[14.5px] font-bold text-[#191F28]">{it.text}</p>
               </div>
             </li>
