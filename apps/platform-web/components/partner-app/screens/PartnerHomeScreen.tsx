@@ -7,26 +7,15 @@ import { CaretRight, Plus } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
+import { PARTNER_APPLICANT_STATUS } from "../../../lib/partner/labels";
 import {
   getMyPartnerOrganization,
   getMyPartnerPositions,
   getMyPartnerApplicants,
   type MyPartnerOrganization,
   type PartnerPosition,
-  type PartnerApplicantListItem,
-  type PartnerApplicantStatus
+  type PartnerApplicantListItem
 } from "../../../lib/member-profile-client";
-
-export const PARTNER_APPLICANT_STATUS: Record<PartnerApplicantStatus, { label: string; cls: string }> = {
-  APPLIED: { label: "신규 지원", cls: "bg-[#EDF1FD] text-[#0B46E8]" },
-  REVIEWING: { label: "검토 중", cls: "bg-[#FFF3E6] text-[#E8890C]" },
-  INTERVIEW: { label: "면접", cls: "bg-[#FFF3E6] text-[#E8890C]" },
-  OFFERED: { label: "제안", cls: "bg-[#EDF1FD] text-[#0B46E8]" },
-  ACCEPTED: { label: "합격", cls: "bg-[#E7F8EF] text-[#12B76A]" },
-  REJECTED: { label: "불합격", cls: "bg-[#FDECEE] text-[#F04452]" },
-  WITHDRAWN: { label: "철회", cls: "bg-[#F2F4F6] text-[#8B95A1]" },
-  COMPLETED: { label: "완료", cls: "bg-[#F2F4F6] text-[#8B95A1]" }
-};
 
 export function PartnerHomeScreen() {
   const [org, setOrg] = useState<MyPartnerOrganization | null>(null);
