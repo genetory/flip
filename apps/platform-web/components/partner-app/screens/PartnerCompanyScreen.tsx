@@ -155,9 +155,6 @@ export function PartnerCompanyScreen() {
 
         {status === "ready" && form ? (
           <>
-            {/* 회사 프로필 카드 — 지원자에게 보이는 모습 미리보기 */}
-            <CompanyProfileCard name={form.name} industry={form.industry} companySize={form.companySize} officeAddress={form.officeAddress} logo={logo} />
-
             {/* 로고 · 사무실 사진 */}
             <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
               <h2 className="text-[15px] font-bold text-[#191F28]">회사 로고</h2>
@@ -194,12 +191,12 @@ export function PartnerCompanyScreen() {
                 </button>
               </div>
               {officePhotos.length ? (
-                <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
                   {officePhotos.map((src, i) => (
-                    <div key={`${i}-${src.slice(0, 24)}`} className="relative aspect-square overflow-hidden rounded-xl border border-[#EEF1F5] bg-[#F5F6F8]">
-                      <Image src={src} alt={`관련 사진 ${i + 1}`} fill sizes="120px" className="object-cover" unoptimized />
-                      <button type="button" onClick={() => setOfficePhotos((prev) => prev.filter((_, j) => j !== i))} aria-label="사진 삭제" className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#0B1227]/70 text-white">
-                        <X className="h-3.5 w-3.5" weight="bold" />
+                    <div key={`${i}-${src.slice(0, 24)}`} className="relative aspect-square overflow-hidden rounded-2xl border border-[#E5E8EB] bg-[#F2F4F6]">
+                      <Image src={src} alt={`관련 사진 ${i + 1}`} fill sizes="90px" className="object-cover" unoptimized />
+                      <button type="button" onClick={() => setOfficePhotos((prev) => prev.filter((_, j) => j !== i))} aria-label="사진 삭제" className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#0B1227]/70 text-white">
+                        <X className="h-3 w-3" weight="bold" />
                       </button>
                     </div>
                   ))}
@@ -257,29 +254,6 @@ export function PartnerCompanyScreen() {
         ) : null}
       </div>
     </PartnerAppShell>
-  );
-}
-
-// 지원자에게 보이는 회사 프로필 카드 — 탤런트 ProfileCard 와 동일한 결(로고·이름·요약).
-function CompanyProfileCard({ name, industry, companySize, officeAddress, logo }: { name: string; industry: string; companySize: string; officeAddress: string; logo: string | null }) {
-  const sizeLabel = SIZE_OPTIONS.find((o) => o.value === companySize)?.label ?? "";
-  const meta = [industry ? partnerIndustryLabel(industry) : "", sizeLabel, officeAddress].filter(Boolean).join(" · ");
-  return (
-    <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-      <div className="flex items-center gap-4">
-        {logo ? (
-          <span className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-2xl border border-[#E5E8EB] bg-[#F2F4F6]">
-            <Image src={logo} alt="" fill sizes="72px" className="object-cover" unoptimized />
-          </span>
-        ) : (
-          <span className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[26px] font-black text-[#0B46E8]">{(name || "회").slice(0, 1)}</span>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[17px] font-black text-[#0B1227]">{name || "회사명"}</p>
-          {meta ? <p className="mt-1 truncate text-[12.5px] text-[#8B95A1]">{meta}</p> : <p className="mt-1 truncate text-[12.5px] text-[#B0B8C1]">업종·규모·주소를 채워보세요</p>}
-        </div>
-      </div>
-    </div>
   );
 }
 
