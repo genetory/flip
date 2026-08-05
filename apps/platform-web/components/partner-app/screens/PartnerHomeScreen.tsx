@@ -215,7 +215,7 @@ function ApplicantRow({ a, last }: { a: PartnerApplicantListItem; last: boolean 
   const s = PARTNER_APPLICANT_STATUS[a.status];
   const rec = PARTNER_RECOMMENDATION[a.recommendation];
   return (
-    <Link href={`${partnerRoutes.applicants}/${a.id}`} className={`flex items-center gap-3 px-4 py-4 transition hover:bg-[#F6F8FB] ${last ? "" : "border-b border-[#F2F4F6]"}`}>
+    <Link href={`${partnerRoutes.applicants}/${encodeURIComponent(a.id)}`} className={`flex items-center gap-3 px-4 py-4 transition hover:bg-[#F6F8FB] ${last ? "" : "border-b border-[#F2F4F6]"}`}>
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[15px] font-black text-[#0B46E8]">{a.name.slice(0, 1)}</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">

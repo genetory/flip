@@ -151,11 +151,8 @@ export function PartnerApplicantsScreen() {
               })}
             </div>
 
-            {/* 결과 수 + 정렬 */}
-            <div className="flex items-center justify-between">
-              <p className="text-[12.5px] text-[#8B95A1]">
-                {q ? <><span className="font-bold text-[#191F28]">{list.length}</span>명 검색됨</> : <><span className="font-bold text-[#191F28]">{list.length}</span>명</>}
-              </p>
+            {/* 정렬 */}
+            <div className="flex items-center justify-end">
               <div className="flex items-center gap-1 rounded-full bg-[#F2F4F6] p-0.5">
                 {([["latest", "최신순"], ["recommended", "추천순"]] as const).map(([key, label]) => (
                   <button
@@ -197,7 +194,7 @@ function ApplicantCard({ a }: { a: PartnerApplicantListItem }) {
   const edu = [a.school, a.major].filter(Boolean).join(" · ");
   const langs = a.languages?.length ? a.languages.join(", ") : "";
   return (
-    <Link href={`${partnerRoutes.applicants}/${a.id}`} className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
+    <Link href={`${partnerRoutes.applicants}/${encodeURIComponent(a.id)}`} className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
       <div className="flex items-start gap-3.5">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[17px] font-black text-[#0B46E8]">{a.name.slice(0, 1)}</span>
         <div className="min-w-0 flex-1">
