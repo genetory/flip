@@ -18,7 +18,7 @@ export function PartnerAppShell({ children }: { children: ReactNode }) {
     <PartnerGuard>
       <div className="flex min-h-screen flex-col bg-[#FAFBFC]">
         <PartnerHeader />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 pt-5 md:px-6 md:pb-12 md:pt-7">{children}</main>
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 pt-5 md:px-6 md:pb-12 md:pt-7">{children}</main>
       </div>
     </PartnerGuard>
   );

@@ -27,7 +27,7 @@ export function PartnerHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-[#EEF1F5] bg-white">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -75,14 +75,7 @@ export function PartnerHeader() {
               </span>
             ) : null}
           </Link>
-          <Link href={partnerRoutes.settings} aria-label="내 프로필" className="inline-flex max-w-[160px] items-center gap-1.5 rounded-full bg-[#F2F4F6] py-1 pl-1 pr-3 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
-            {user?.profileImageUrl ? (
-              <span className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full bg-white">
-                <Image src={user.profileImageUrl} alt="" fill sizes="24px" className="object-cover" unoptimized />
-              </span>
-            ) : (
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#0B46E8] text-[11px] font-black text-white">{name.slice(0, 1)}</span>
-            )}
+          <Link href={partnerRoutes.settings} aria-label="내 프로필" className="inline-flex max-w-[140px] items-center rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
             <span className="truncate">{name}</span>
           </Link>
         </div>
