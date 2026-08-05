@@ -25082,6 +25082,24 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
     const found = result.items.find((item) => item.id === id);
     if (!found) return res.status(404).json({ ok: false, message: "applicant not found" });
 
+    // 리뉴얼 이력서/자소서 미리보기용 — 대표 이력서 content 의 renewal* 키를 그대로 전달.
+    let resumeDoc: unknown = null;
+    let resumeBasicInfo: unknown = null;
+    let coverDoc: unknown = null;
+    try {
+      const primary = await prisma.resume.findFirst({
+        where: { userId: found.candidateUserId },
+        orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+        select: { content: true }
+      });
+      const c = (primary?.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>;
+      resumeDoc = c.renewalResume ?? null;
+      resumeBasicInfo = c.renewalBasicInfo ?? null;
+      coverDoc = c.renewalCover ?? null;
+    } catch {
+      // 미리보기 데이터는 실패해도 상세 응답은 정상 반환.
+    }
+
     return res.json({
       ok: true,
       item: {
@@ -25107,7 +25125,10 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
         resumeShareSlug: found.resumeShareSlug,
         coverLetterTitle: found.coverLetterTitle,
         coverLetterShareSlug: found.coverLetterShareSlug,
-        applicationId: found.applicationId
+        applicationId: found.applicationId,
+        resumeDoc,
+        resumeBasicInfo,
+        coverDoc
       }
     });
   } catch (error) {

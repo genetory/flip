@@ -4,13 +4,15 @@
 // 상단(전폭): 프로필 + 채용 단계 스테퍼 + 상태 변경.
 // 좌: 인적사항 · 지원 서류 · 이력서 | 우: 내부 메모 · 면접 · 메시지.
 import { useEffect, useState } from "react";
-import { X, PaperPlaneTilt, Plus, ArrowSquareOut, Check } from "@phosphor-icons/react";
+import Link from "next/link";
+import { X, PaperPlaneTilt, Plus, ArrowSquareOut, Check, CaretRight } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
+import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { PARTNER_APPLICANT_STATUS, PARTNER_RECOMMENDATION } from "../../../lib/partner/labels";
 import {
   getMyPartnerApplicantById,
@@ -204,8 +206,8 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
               <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
                 <h2 className="text-[15px] font-bold text-[#191F28]">지원 서류</h2>
                 <div className="mt-3 flex flex-col gap-3">
-                  {app.resumeShareSlug ? (
-                    <DocLink href={`/resume/share/${app.resumeShareSlug}?view=preview`} emoji="📄" title={app.resumeTitle || "이력서"} sub="이력서 보기" />
+                  {app.resumeDoc || app.resumeShareSlug ? (
+                    <DocLink href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/resume`} emoji="📄" title={app.resumeTitle || "이력서"} sub="이력서 보기" internal />
                   ) : null}
                   {app.coverLetterShareSlug ? (
                     <DocLink href={`/cover-letter/share/${app.coverLetterShareSlug}`} emoji="✍️" title={app.coverLetterTitle || "자기소개서"} sub="자기소개서 보기" />
@@ -351,17 +353,23 @@ function Row({ label, value }: { label: string; value: string | null | undefined
   );
 }
 
-// 서류 열람 링크(이력서·자기소개서) — 공개 공유 페이지를 새 탭으로.
-function DocLink({ href, emoji, title, sub }: { href: string; emoji: string; title: string; sub: string }) {
-  return (
-    <a href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-[#E4EAF2] bg-[#F8FAFF] px-3.5 py-3 transition hover:border-[#0B46E8]/40">
+// 서류 열람 링크(이력서·자기소개서). internal=앱 내 이동(이력서 프리뷰), 아니면 공유 페이지 새 탭.
+function DocLink({ href, emoji, title, sub, internal }: { href: string; emoji: string; title: string; sub: string; internal?: boolean }) {
+  const inner = (
+    <>
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EDF1FD] text-[16px]" aria-hidden>{emoji}</span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13.5px] font-bold text-[#191F28]">{title}</span>
         <span className="block text-[11.5px] text-[#8B95A1]">{sub}</span>
       </span>
-      <ArrowSquareOut className="h-4 w-4 shrink-0 text-[#0B46E8]" />
-    </a>
+      {internal ? <CaretRight className="h-4 w-4 shrink-0 text-[#0B46E8]" /> : <ArrowSquareOut className="h-4 w-4 shrink-0 text-[#0B46E8]" />}
+    </>
+  );
+  const cls = "flex items-center gap-2 rounded-xl border border-[#E4EAF2] bg-[#F8FAFF] px-3.5 py-3 transition hover:border-[#0B46E8]/40";
+  return internal ? (
+    <Link href={href} className={cls}>{inner}</Link>
+  ) : (
+    <a href={href} target="_blank" rel="noreferrer" className={cls}>{inner}</a>
   );
 }
 

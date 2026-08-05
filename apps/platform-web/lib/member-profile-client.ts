@@ -1175,6 +1175,10 @@ export type PartnerApplicantDetail = PartnerApplicantListItem & {
   memo: string | null;
   // 지원 건별 실제 Application.id — 메시지·면접 슬롯 API에서 사용(없을 수 있음).
   applicationId: string | null;
+  // 리뉴얼 이력서/자소서 미리보기용(대표 이력서 content 의 renewal* 키). 없으면 null.
+  resumeDoc?: unknown;
+  resumeBasicInfo?: unknown;
+  coverDoc?: unknown;
 };
 
 export async function getMyPartnerApplicants() {
