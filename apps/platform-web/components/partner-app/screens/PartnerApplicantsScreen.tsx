@@ -1,16 +1,18 @@
 "use client";
 
-// 파트너 지원자 — 실서버 지원자 목록. 상태 탭 + 리스트.
+// 파트너 지원자 — 실서버 지원자 목록. 요약 + 검색 + 정렬 + 상태 탭 + 풍부한 카드.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CaretRight } from "@phosphor-icons/react";
+import { CaretRight, MagnifyingGlass, X, GraduationCap, Globe, Translate, Clock } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { PARTNER_APPLICANT_STATUS, PARTNER_RECOMMENDATION } from "../../../lib/partner/labels";
+import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { getMyPartnerApplicants, type PartnerApplicantListItem, type PartnerApplicantStatus } from "../../../lib/member-profile-client";
 
 type Tab = "all" | PartnerApplicantStatus;
+type Sort = "latest" | "recommended";
 
 const TABS: { key: Tab; label: string; match: (s: PartnerApplicantStatus) => boolean }[] = [
   { key: "all", label: "전체", match: () => true },
@@ -21,10 +23,14 @@ const TABS: { key: Tab; label: string; match: (s: PartnerApplicantStatus) => boo
   { key: "REJECTED", label: "불합격", match: (s) => s === "REJECTED" }
 ];
 
+const REC_ORDER: Record<PartnerApplicantListItem["recommendation"], number> = { HIGH: 0, NORMAL: 1, CHECK: 2 };
+
 export function PartnerApplicantsScreen() {
   const [items, setItems] = useState<PartnerApplicantListItem[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [tab, setTab] = useState<Tab>("all");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<Sort>("latest");
 
   function load() {
     setStatus("loading");
@@ -39,15 +45,45 @@ export function PartnerApplicantsScreen() {
     load();
   }, []);
 
+  const all = useMemo(() => items ?? [], [items]);
+
+  // 상단 요약 — 액션이 필요한 상태 위주.
+  const summary = useMemo(
+    () => [
+      { key: "APPLIED" as const, label: "신규 지원", count: all.filter((a) => a.status === "APPLIED").length, cls: "text-[#0B46E8]" },
+      { key: "REVIEWING" as const, label: "검토 중", count: all.filter((a) => a.status === "REVIEWING").length, cls: "text-[#E8890C]" },
+      { key: "INTERVIEW" as const, label: "면접", count: all.filter((a) => a.status === "INTERVIEW").length, cls: "text-[#E8890C]" },
+      { key: "ACCEPTED" as const, label: "합격", count: all.filter((a) => a.status === "ACCEPTED" || a.status === "OFFERED").length, cls: "text-[#12B76A]" }
+    ],
+    [all]
+  );
+
   const counts = useMemo(() => {
-    const a = items ?? [];
     const c = {} as Record<Tab, number>;
-    for (const t of TABS) c[t.key] = a.filter((x) => t.match(x.status)).length;
+    for (const t of TABS) c[t.key] = all.filter((x) => t.match(x.status)).length;
     return c;
-  }, [items]);
+  }, [all]);
 
   const active = TABS.find((t) => t.key === tab) ?? TABS[0];
-  const list = (items ?? []).filter((a) => active.match(a.status));
+  const q = query.trim().toLowerCase();
+
+  const list = useMemo(() => {
+    const filtered = all
+      .filter((a) => active.match(a.status))
+      .filter((a) => {
+        if (!q) return true;
+        return [a.name, a.positionTitle, a.school, a.major, a.nationality].some((v) => (v ?? "").toLowerCase().includes(q));
+      });
+    const sorted = [...filtered].sort((a, b) => {
+      if (sort === "recommended") {
+        const r = REC_ORDER[a.recommendation] - REC_ORDER[b.recommendation];
+        if (r !== 0) return r;
+      }
+      return (b.appliedAt ?? "").localeCompare(a.appliedAt ?? "");
+    });
+    return sorted;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, tab, q, sort]);
 
   return (
     <PartnerAppShell>
@@ -62,6 +98,41 @@ export function PartnerApplicantsScreen() {
 
         {status === "ready" ? (
           <>
+            {/* 요약 */}
+            <div className="grid grid-cols-4 gap-2">
+              {summary.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => {
+                    setTab(s.key);
+                    setQuery("");
+                  }}
+                  className={`rounded-2xl border bg-white px-2 py-3 text-center transition hover:border-[#D7DCE3] ${tab === s.key ? "border-[#0B46E8]" : "border-[#EEF1F5]"}`}
+                >
+                  <p className={`text-[22px] font-black tracking-[-0.02em] ${s.cls}`}>{s.count}</p>
+                  <p className="mt-0.5 text-[11.5px] font-semibold text-[#8B95A1]">{s.label}</p>
+                </button>
+              ))}
+            </div>
+
+            {/* 검색 */}
+            <div className="relative">
+              <MagnifyingGlass className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#B0B8C1]" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="이름·공고·학교·전공·국적 검색"
+                className="w-full rounded-2xl border border-[#EEF1F5] bg-white py-3 pl-11 pr-10 text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
+              />
+              {query ? (
+                <button type="button" onClick={() => setQuery("")} aria-label="검색어 지우기" className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#B0B8C1] transition hover:bg-[#F2F4F6]">
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+
+            {/* 상태 탭 */}
             <div className="flex gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {TABS.map((t) => {
                 const on = tab === t.key;
@@ -80,15 +151,36 @@ export function PartnerApplicantsScreen() {
               })}
             </div>
 
+            {/* 결과 수 + 정렬 */}
+            <div className="flex items-center justify-between">
+              <p className="text-[12.5px] text-[#8B95A1]">
+                {q ? <><span className="font-bold text-[#191F28]">{list.length}</span>명 검색됨</> : <><span className="font-bold text-[#191F28]">{list.length}</span>명</>}
+              </p>
+              <div className="flex items-center gap-1 rounded-full bg-[#F2F4F6] p-0.5">
+                {([["latest", "최신순"], ["recommended", "추천순"]] as const).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSort(key)}
+                    className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${sort === key ? "bg-white text-[#191F28] shadow-[0_1px_4px_rgba(11,18,39,0.08)]" : "text-[#8B95A1]"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 리스트 */}
             {list.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-8 text-center">
                 <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[22px]" aria-hidden>🧑‍💼</span>
-                <p className="mt-3 text-[15px] font-bold text-[#191F28]">해당 상태의 지원자가 없어요</p>
+                <p className="mt-3 text-[15px] font-bold text-[#191F28]">{q ? "검색 결과가 없어요" : "해당 상태의 지원자가 없어요"}</p>
+                {q ? <p className="mt-1 text-[13px] text-[#8B95A1]">다른 검색어로 다시 시도해보세요.</p> : null}
               </div>
             ) : (
-              <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
-                {list.map((a, i) => (
-                  <ApplicantRow key={a.id} a={a} last={i === list.length - 1} />
+              <div className="flex flex-col gap-2.5">
+                {list.map((a) => (
+                  <ApplicantCard key={a.id} a={a} />
                 ))}
               </div>
             )}
@@ -99,23 +191,40 @@ export function PartnerApplicantsScreen() {
   );
 }
 
-function ApplicantRow({ a, last }: { a: PartnerApplicantListItem; last: boolean }) {
+function ApplicantCard({ a }: { a: PartnerApplicantListItem }) {
   const s = PARTNER_APPLICANT_STATUS[a.status];
   const rec = PARTNER_RECOMMENDATION[a.recommendation];
-  const sub = [a.school, a.major].filter(Boolean).join(" · ");
+  const edu = [a.school, a.major].filter(Boolean).join(" · ");
+  const langs = a.languages?.length ? a.languages.join(", ") : "";
   return (
-    <Link href={`${partnerRoutes.applicants}/${a.id}`} className={`flex items-center gap-3.5 px-4 py-4 transition hover:bg-[#F6F8FB] ${last ? "" : "border-b border-[#F2F4F6]"}`}>
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[16px] font-black text-[#0B46E8]">{a.name.slice(0, 1)}</span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-[14.5px] font-bold text-[#191F28]">{a.name}</p>
-          <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
-          {a.recommendation === "HIGH" ? <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold ${rec.cls}`}>{rec.label}</span> : null}
+    <Link href={`${partnerRoutes.applicants}/${a.id}`} className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
+      <div className="flex items-start gap-3.5">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[17px] font-black text-[#0B46E8]">{a.name.slice(0, 1)}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="text-[15px] font-bold text-[#191F28]">{a.name}</p>
+            <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
+            {a.recommendation === "HIGH" ? <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${rec.cls}`}>{rec.label}</span> : null}
+          </div>
+          <p className="mt-1 truncate text-[13px] font-semibold text-[#4E5968]">{a.positionTitle}</p>
+
+          <div className="mt-2 flex flex-col gap-1">
+            {edu ? (
+              <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><GraduationCap className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> <span className="truncate">{edu}</span></span>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {a.nationality ? <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><Globe className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> {a.nationality}</span> : null}
+              {langs ? <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><Translate className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> <span className="truncate">{langs}</span></span> : null}
+            </div>
+          </div>
         </div>
-        <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{a.positionTitle}</p>
-        {sub ? <p className="truncate text-[12px] text-[#B0B8C1]">{sub}{a.nationality ? ` · ${a.nationality}` : ""}</p> : null}
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          {a.appliedAt ? (
+            <span className="flex items-center gap-1 text-[11.5px] text-[#B0B8C1]"><Clock className="h-3.5 w-3.5" /> {formatRelativeTime(new Date(a.appliedAt).getTime())}</span>
+          ) : <span />}
+          <CaretRight className="h-4 w-4 text-[#C4CAD2]" />
+        </div>
       </div>
-      <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
     </Link>
   );
 }
