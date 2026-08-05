@@ -166,7 +166,7 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
 function CollapsibleSection({ emoji, label, count, children }: { emoji: string; label: string; count: number; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
-    <section className="flex flex-col gap-2.5">
+    <section className="flex flex-col gap-2.5 border-t border-[#EEF1F5] pt-5">
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-1.5 text-left">
         <span aria-hidden>{emoji}</span>
         <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{label}</h2>
