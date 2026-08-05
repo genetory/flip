@@ -49,9 +49,15 @@ export function PartnerSettingsScreen() {
           <SectionHeader title="내 프로필" />
           <div className="rounded-3xl bg-[#F5F8FF] p-6">
             <div className="flex items-center gap-4">
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[24px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">
-                {name.slice(0, 1)}
-              </span>
+              {user?.profileImageUrl ? (
+                <span className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white shadow-[0_4px_16px_rgba(11,70,232,0.12)]">
+                  <Image src={user.profileImageUrl} alt="" fill sizes="64px" className="object-cover" unoptimized />
+                </span>
+              ) : (
+                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[24px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">
+                  {name.slice(0, 1)}
+                </span>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <p className="truncate text-[19px] font-black tracking-[-0.02em] text-[#0B1227]">{name}</p>
