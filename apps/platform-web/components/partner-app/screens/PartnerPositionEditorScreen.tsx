@@ -231,29 +231,7 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
             <SectionHeader title="기본 정보" />
             <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
             <div className="flex flex-col gap-3.5">
-              <Field label="공고 제목"><Input value={form.title} onChange={(v) => set("title", v)} placeholder="예) 백엔드 엔지니어 (신입/경력)" /></Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="고용 형태">
-                  <Select value={form.employmentType} onChange={(v) => set("employmentType", v as EmploymentType)}>
-                    {EMPLOYMENT_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </Select>
-                </Field>
-                <Field label="근무 형태">
-                  <Select value={form.workType} onChange={(v) => set("workType", v as "" | WorkType)}>
-                    <option value="">선택 안 함</option>
-                    {WORKTYPE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </Select>
-                </Field>
-              </div>
-              <Field label="근무지"><Input value={form.workLocation} onChange={(v) => set("workLocation", v)} placeholder="예) 서울 강남구" /></Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="채용 인원"><Input value={form.hiringCount} onChange={(v) => set("hiringCount", v.replace(/[^0-9]/g, ""))} placeholder="예) 2" inputMode="numeric" /></Field>
-                <Field label="입사 예정일"><Input value={form.startDate} onChange={(v) => set("startDate", v)} type="date" /></Field>
-              </div>
-              <Field label="근무 시간"><Input value={form.workingHours} onChange={(v) => set("workingHours", v)} placeholder="예) 주 5일 · 09:00~18:00" /></Field>
-              <Field label="선호 직무"><Input value={form.preferredJobRole} onChange={(v) => set("preferredJobRole", v)} placeholder="예) 서버 개발" /></Field>
-
-              {/* 공고 사진 */}
+              {/* 공고 사진 — 맨 위 */}
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-2">
                   <span className="text-[12.5px] font-normal text-[#4E5968]">공고 사진 · 최대 5장 {form.thumbnailImages.length ? `· ${form.thumbnailImages.length}장` : ""}</span>
@@ -282,6 +260,28 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
                   </button>
                 )}
               </div>
+
+              <Field label="공고 제목"><Input value={form.title} onChange={(v) => set("title", v)} placeholder="예) 백엔드 엔지니어 (신입/경력)" /></Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="고용 형태">
+                  <Select value={form.employmentType} onChange={(v) => set("employmentType", v as EmploymentType)}>
+                    {EMPLOYMENT_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </Select>
+                </Field>
+                <Field label="근무 형태">
+                  <Select value={form.workType} onChange={(v) => set("workType", v as "" | WorkType)}>
+                    <option value="">선택 안 함</option>
+                    {WORKTYPE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </Select>
+                </Field>
+              </div>
+              <Field label="근무지"><Input value={form.workLocation} onChange={(v) => set("workLocation", v)} placeholder="예) 서울 강남구" /></Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="채용 인원"><Input value={form.hiringCount} onChange={(v) => set("hiringCount", v.replace(/[^0-9]/g, ""))} placeholder="예) 2" inputMode="numeric" /></Field>
+                <Field label="입사 예정일"><Input value={form.startDate} onChange={(v) => set("startDate", v)} type="date" /></Field>
+              </div>
+              <Field label="근무 시간"><Input value={form.workingHours} onChange={(v) => set("workingHours", v)} placeholder="예) 주 5일 · 09:00~18:00" /></Field>
+              <Field label="선호 직무"><Input value={form.preferredJobRole} onChange={(v) => set("preferredJobRole", v)} placeholder="예) 서버 개발" /></Field>
             </div>
             </div>
           </section>
