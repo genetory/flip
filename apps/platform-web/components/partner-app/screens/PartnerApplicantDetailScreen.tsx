@@ -310,7 +310,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                       <DocItem
                         href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/resume`}
                         emoji="📄"
-                        title={app.resumeTitle || "이력서"}
+                        title={`${app.name} 이력서`}
                         sub="이력서 보기"
                         bullets={summary?.resumeBullets ?? []}
                         loading={summaryLoading}
@@ -320,7 +320,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                       <DocItem
                         href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/cover`}
                         emoji="✍️"
-                        title={app.coverLetterTitle || "자기소개서"}
+                        title={`${app.name} 자기소개서`}
                         sub="자기소개서 보기"
                         bullets={summary?.coverBullets ?? []}
                         loading={summaryLoading}
