@@ -197,6 +197,9 @@ function PositionCard({ p, applicants }: { p: PartnerPosition; applicants: numbe
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
+          {p.mockInterviewIntent || (p.mockInterviewQuestions?.length ?? 0) > 0 ? (
+            <span className="rounded-md bg-[#EDF1FD] px-1.5 py-1 text-[11px] font-bold text-[#0B46E8]">🎤 모의 면접</span>
+          ) : null}
           <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{new Date(p.createdAt).toLocaleDateString("ko-KR")} 작성</span>
         </div>
         <p className="mt-2 truncate text-[15.5px] font-bold text-[#191F28]">{p.title || "제목 없는 공고"}</p>

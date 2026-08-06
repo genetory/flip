@@ -125,6 +125,26 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
             </div>
           </div>
 
+          {/* 모의 면접 관리 */}
+          {(() => {
+            const configured = Boolean(p.mockInterviewIntent || (p.mockInterviewQuestions?.length ?? 0) > 0);
+            return (
+              <div className="mb-6 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[17px]" aria-hidden>🎤</span>
+                  <p className="text-[14.5px] font-bold text-[#191F28]">모의 면접</p>
+                  <span className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-bold ${configured ? "bg-[#E7F8EF] text-[#0A9B59]" : "bg-[#FFF3E6] text-[#E8890C]"}`}>{configured ? "설정됨" : "미설정"}</span>
+                  <Link href={`${partnerRoutes.positions}/${p.id}/edit`} className="ml-auto shrink-0 rounded-lg bg-white px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]">{configured ? "수정" : "추가하기"}</Link>
+                </div>
+                <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">
+                  {configured
+                    ? `${p.mockInterviewIntent ? `${p.mockInterviewIntent} ` : ""}${(p.mockInterviewQuestions?.length ?? 0) > 0 ? `· 대표 질문 ${p.mockInterviewQuestions!.length}개` : ""}`
+                    : "지원자가 지원 전에 이 포지션 모의 면접을 연습하고 AI 피드백을 받을 수 있어요. 준비 잘 된 지원자가 모입니다."}
+                </p>
+              </div>
+            );
+          })()}
+
           {/* 지원자에게 보이는 화면과 동일 */}
           <PositionDetailHeaderCard item={item} />
           <PositionDetailSections item={item} />
