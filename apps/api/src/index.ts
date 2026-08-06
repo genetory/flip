@@ -19831,6 +19831,7 @@ async function listPartnerApplicantsForUser(userId: string) {
     coverLetterShareSlug: string | null;
     applicationId: string | null;
     mockInterviewPracticed: boolean;
+    mockInterviewScore: number | null;
   }> = [];
 
   const workflows = await prisma.partnerApplicantWorkflow.findMany({
@@ -19891,11 +19892,12 @@ async function listPartnerApplicantsForUser(userId: string) {
   for (const c of coverRows) {
     if (!primaryCoverByUser.has(c.userId)) primaryCoverByUser.set(c.userId, { title: c.title, shareSlug: c.shareSlug });
   }
-  // 공고별 모의 면접 연습 완료 여부(회사엔 완료 신호만).
+  // 공고별 모의 면접 연습 — 완료 여부 + 최고 점수(자동 공유).
   const practicedRows = candidateUserIds.length
-    ? await prisma.mockInterviewSession.findMany({ where: { userId: { in: candidateUserIds }, positionId: { in: positionIds } }, select: { userId: true, positionId: true } })
+    ? await prisma.mockInterviewSession.findMany({ where: { userId: { in: candidateUserIds }, positionId: { in: positionIds } }, select: { userId: true, positionId: true, bestScore: true } })
     : [];
   const practicedSet = new Set(practicedRows.map((s) => `${s.userId}:${s.positionId}`));
+  const mockScoreMap = new Map(practicedRows.map((s) => [`${s.userId}:${s.positionId}`, s.bestScore]));
 
   for (const profile of profiles) {
     const appliedPositionId = profile.appliedPositionIds.find((id) => positionMap.has(id));
@@ -19942,7 +19944,8 @@ async function listPartnerApplicantsForUser(userId: string) {
       coverLetterTitle: linkedCover?.title ?? null,
       coverLetterShareSlug: linkedCover?.shareSlug ?? null,
       applicationId: applicationIdMap.get(`${profile.userId}:${appliedPositionId}`) ?? null,
-      mockInterviewPracticed: practicedSet.has(`${profile.userId}:${appliedPositionId}`)
+      mockInterviewPracticed: practicedSet.has(`${profile.userId}:${appliedPositionId}`),
+      mockInterviewScore: mockScoreMap.get(`${profile.userId}:${appliedPositionId}`) ?? null
     });
   }
 
@@ -21189,7 +21192,8 @@ app.get("/partner/applicants", authenticate, requireRoles([MemberRole.PARTNER]),
         resumeShareSlug: item.resumeShareSlug,
         coverLetterTitle: item.coverLetterTitle,
         coverLetterShareSlug: item.coverLetterShareSlug,
-        mockInterviewPracticed: item.mockInterviewPracticed
+        mockInterviewPracticed: item.mockInterviewPracticed,
+        mockInterviewScore: item.mockInterviewScore
       }))
     });
   } catch (error) {
@@ -25309,6 +25313,7 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
         coverLetterTitle: found.coverLetterTitle,
         coverLetterShareSlug: found.coverLetterShareSlug,
         mockInterviewPracticed: found.mockInterviewPracticed,
+        mockInterviewScore: found.mockInterviewScore,
         applicationId: found.applicationId,
         resumeDoc,
         resumeBasicInfo,

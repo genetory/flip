@@ -1200,6 +1200,7 @@ export type PartnerApplicantListItem = {
   coverLetterTitle?: string | null;
   coverLetterShareSlug?: string | null;
   mockInterviewPracticed?: boolean;
+  mockInterviewScore?: number | null;
 };
 
 export type PartnerApplicantDetail = PartnerApplicantListItem & {

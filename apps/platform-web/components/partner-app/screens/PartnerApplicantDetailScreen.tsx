@@ -253,7 +253,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
               </div>
               <div className="hidden shrink-0 flex-col items-end gap-1 sm:flex">
                 <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${PARTNER_RECOMMENDATION[app.recommendation].cls}`}>{PARTNER_RECOMMENDATION[app.recommendation].label}</span>
-                {app.mockInterviewPracticed ? <span className="rounded-md bg-[#EDF1FD] px-2 py-1 text-[11px] font-bold text-[#0B46E8]">🎤 모의 면접 완료</span> : null}
+                {app.mockInterviewPracticed ? <span className="rounded-md bg-[#EDF1FD] px-2 py-1 text-[11px] font-bold text-[#0B46E8]">🎤 모의 면접 완료{app.mockInterviewScore != null ? ` · ${app.mockInterviewScore}점` : ""}</span> : null}
               </div>
             </div>
 
