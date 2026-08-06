@@ -21033,6 +21033,53 @@ app.post("/ops/position-revisions/:id/reject", authenticate, requireRoles([Membe
   }
 });
 
+// 답장을 기다리는 지원자 메시지 — 스레드의 마지막 CANDIDATE 메시지가 지원자(STUDENT)면 미답장.
+app.get("/partner/pending-messages", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) return res.json({ ok: true, items: [] });
+    const positions = await prisma.position.findMany({ where: { partnerOrganizationId: affiliation.organization.id }, select: { id: true, title: true } });
+    const titleMap = new Map(positions.map((p) => [p.id, p.title]));
+    const posIds = positions.map((p) => p.id);
+    if (posIds.length === 0) return res.json({ ok: true, items: [] });
+
+    const apps = await prisma.application.findMany({
+      where: { positionId: { in: posIds } },
+      select: { id: true, positionId: true, candidateUserId: true, candidateUser: { select: { name: true, realName: true } } }
+    });
+    const appIds = apps.map((a) => a.id);
+    if (appIds.length === 0) return res.json({ ok: true, items: [] });
+
+    const comments = await prisma.applicationComment.findMany({
+      where: { applicationId: { in: appIds }, visibility: "CANDIDATE" },
+      orderBy: { createdAt: "desc" },
+      select: { applicationId: true, authorRole: true, content: true, createdAt: true }
+    });
+    // desc 정렬이라 각 application 의 첫 등장이 최신.
+    const latestByApp = new Map<string, (typeof comments)[number]>();
+    for (const c of comments) if (!latestByApp.has(c.applicationId)) latestByApp.set(c.applicationId, c);
+
+    const items = apps
+      .map((a) => {
+        const last = latestByApp.get(a.id);
+        if (!last || last.authorRole !== MemberRole.STUDENT) return null;
+        return {
+          applicantId: `${a.candidateUserId}:${a.positionId}`,
+          name: a.candidateUser.realName?.trim() || a.candidateUser.name?.trim() || "지원자",
+          positionTitle: titleMap.get(a.positionId) ?? "-",
+          lastMessage: last.content,
+          lastMessageAt: last.createdAt.toISOString()
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt));
+
+    return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.get("/partner/applicants", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   try {
     const result = await listPartnerApplicantsForUser(req.auth!.userId);

@@ -1209,6 +1209,20 @@ export type PartnerApplicantDetail = PartnerApplicantListItem & {
   coverDoc?: unknown;
 };
 
+export type PartnerPendingMessage = {
+  applicantId: string;
+  name: string;
+  positionTitle: string;
+  lastMessage: string;
+  lastMessageAt: string;
+};
+
+// 답장을 기다리는 지원자 메시지(스레드 마지막이 지원자 발신).
+export async function getPartnerPendingMessages(): Promise<PartnerPendingMessage[]> {
+  const result = await authedJsonFetch<PartnerPendingMessage>("/partner/pending-messages", { method: "GET" });
+  return (result.items ?? []) as PartnerPendingMessage[];
+}
+
 export async function getMyPartnerApplicants() {
   const result = await authedJsonFetch<PartnerApplicantListItem>("/partner/applicants", {
     method: "GET"

@@ -182,7 +182,7 @@ export function PartnerSettingsScreen() {
         <section>
           <SectionHeader title="채용 현황" />
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard title="게시 중 공고" count={openCount} href={partnerRoutes.positions} />
+            <StatCard title="게시 중 공고" count={openCount} href={`${partnerRoutes.positions}?tab=OPEN`} />
             <StatCard title="전체 지원자" count={applicants.length} href={partnerRoutes.applicants} />
             <StatCard title="신규 지원자" count={appliedCount} href={`${partnerRoutes.applicants}?tab=APPLIED`} />
             <StatCard title="면접 진행" count={interviewCount} href={`${partnerRoutes.applicants}?tab=INTERVIEW`} />

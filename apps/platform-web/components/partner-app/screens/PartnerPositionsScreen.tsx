@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CaretRight, Plus, MagnifyingGlass, X, Users, Briefcase, ImageSquare } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
@@ -30,10 +30,12 @@ const TABS: { key: Tab; label: string; match: (p: PartnerPosition) => boolean }[
 ];
 
 export function PartnerPositionsScreen() {
+  const searchParams = useSearchParams();
+  const initTab = searchParams.get("tab");
   const [items, setItems] = useState<PartnerPosition[] | null>(null);
   const [applicants, setApplicants] = useState<PartnerApplicantListItem[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [tab, setTab] = useState<Tab>("all");
+  const [tab, setTab] = useState<Tab>(TABS.some((t) => t.key === initTab) ? (initTab as Tab) : "all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("latest");
 

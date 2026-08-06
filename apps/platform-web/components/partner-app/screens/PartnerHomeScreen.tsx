@@ -4,25 +4,29 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { CaretRight, Plus } from "@phosphor-icons/react";
+import { CaretRight, Plus, ChatCircleDots } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
+import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { PARTNER_APPLICANT_STATUS, PARTNER_POSITION_STATUS, PARTNER_RECOMMENDATION } from "../../../lib/partner/labels";
 import {
   getMyPartnerOrganization,
   getMyPartnerPositions,
   getMyPartnerApplicants,
+  getPartnerPendingMessages,
   type MyPartnerOrganization,
   type PartnerPosition,
   type PartnerApplicantListItem,
-  type PartnerApplicantStatus
+  type PartnerApplicantStatus,
+  type PartnerPendingMessage
 } from "../../../lib/member-profile-client";
 
 export function PartnerHomeScreen() {
   const [org, setOrg] = useState<MyPartnerOrganization | null>(null);
   const [positions, setPositions] = useState<PartnerPosition[]>([]);
   const [applicants, setApplicants] = useState<PartnerApplicantListItem[]>([]);
+  const [pending, setPending] = useState<PartnerPendingMessage[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
   function load() {
@@ -39,6 +43,7 @@ export function PartnerHomeScreen() {
         setStatus("ready");
       })
       .catch(() => setStatus("error"));
+    void getPartnerPendingMessages().then(setPending).catch(() => setPending([]));
   }
   useEffect(() => {
     load();
@@ -132,6 +137,28 @@ export function PartnerHomeScreen() {
               <div className="rounded-2xl border border-[#EEF1F5] bg-white p-6 text-center text-[13.5px] text-[#8B95A1]">지금 처리할 일이 없어요 👍</div>
             )}
           </section>
+
+          {/* 답장을 기다리는 메시지 */}
+          {pending.length ? (
+            <section className="flex flex-col gap-4">
+              <SectionHead title={`답장을 기다리는 메시지 ${pending.length}`} desc="지원자가 보낸 메시지에 아직 답하지 않았어요." />
+              <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+                {pending.slice(0, 6).map((m, i) => (
+                  <Link key={m.applicantId} href={`${partnerRoutes.applicants}/${encodeURIComponent(m.applicantId)}`} className={`flex items-center gap-3 px-4 py-3.5 transition hover:bg-[#F6F8FB] ${i === Math.min(pending.length, 6) - 1 ? "" : "border-b border-[#F2F4F6]"}`}>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FFF3E6] text-[#E8890C]"><ChatCircleDots className="h-5 w-5" weight="fill" /></span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-[14px] font-bold text-[#191F28]">{m.name}</p>
+                        <span className="shrink-0 text-[11px] text-[#B0B8C1]">{formatRelativeTime(new Date(m.lastMessageAt).getTime())}</span>
+                      </div>
+                      <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{m.lastMessage}</p>
+                    </div>
+                    <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           {/* 채용 파이프라인 */}
           <section className="flex flex-col gap-4">
