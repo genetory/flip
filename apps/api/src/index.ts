@@ -18034,6 +18034,60 @@ app.post(
   }
 );
 
+// 모의 면접 연습 기록 — 지원자가 문항에 답하고 피드백을 받으면 호출. (점수/답변은 비공개, 회사엔 완료 신호만)
+const mockPracticeSchema = z.object({ score: z.number().int().min(0).max(100).optional() });
+app.post("/members/me/mock-interviews/:positionId/practice", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const positionId = Array.isArray(req.params.positionId) ? req.params.positionId[0] : req.params.positionId;
+  if (!positionId) return res.status(400).json({ ok: false, message: "invalid position id" });
+  const parsed = mockPracticeSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const score = parsed.data.score;
+  try {
+    const existing = await prisma.mockInterviewSession.findUnique({ where: { userId_positionId: { userId: req.auth!.userId, positionId } } });
+    const bestScore = score != null ? Math.max(existing?.bestScore ?? 0, score) : existing?.bestScore ?? null;
+    const row = await prisma.mockInterviewSession.upsert({
+      where: { userId_positionId: { userId: req.auth!.userId, positionId } },
+      update: { answeredCount: { increment: 1 }, bestScore, lastPracticedAt: new Date() },
+      create: { userId: req.auth!.userId, positionId, answeredCount: 1, bestScore: score ?? null }
+    });
+    return res.json({ ok: true, item: { answeredCount: row.answeredCount, bestScore: row.bestScore } });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to record practice" });
+  }
+});
+
+// 내 모의 면접 연습 기록(대시보드).
+app.get("/members/me/mock-interviews", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const sessions = await prisma.mockInterviewSession.findMany({
+      where: { userId: req.auth!.userId },
+      orderBy: { lastPracticedAt: "desc" },
+      take: 50
+    });
+    const posMap = new Map(
+      sessions.length
+        ? (await prisma.position.findMany({ where: { id: { in: sessions.map((s) => s.positionId) } }, select: { id: true, title: true, partnerOrganization: { select: { name: true } } } })).map((p) => [p.id, p])
+        : []
+    );
+    return res.json({
+      ok: true,
+      items: sessions.map((s) => {
+        const p = posMap.get(s.positionId);
+        return {
+          positionId: s.positionId,
+          positionTitle: p?.title ?? "삭제된 공고",
+          companyName: p?.partnerOrganization?.name ?? null,
+          answeredCount: s.answeredCount,
+          bestScore: s.bestScore,
+          lastPracticedAt: s.lastPracticedAt.toISOString()
+        };
+      })
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // POST /members/me/ai/suggest-skills — 희망직무·전공·경험을 바탕으로 이력서에 넣을
 // 만한 스킬(기술·툴·역량) 후보를 추천한다. 사용자는 칩을 눌러 추가만 하면 된다.
 const suggestSkillsSchema = z.object({
@@ -19776,6 +19830,7 @@ async function listPartnerApplicantsForUser(userId: string) {
     coverLetterTitle: string | null;
     coverLetterShareSlug: string | null;
     applicationId: string | null;
+    mockInterviewPracticed: boolean;
   }> = [];
 
   const workflows = await prisma.partnerApplicantWorkflow.findMany({
@@ -19836,6 +19891,11 @@ async function listPartnerApplicantsForUser(userId: string) {
   for (const c of coverRows) {
     if (!primaryCoverByUser.has(c.userId)) primaryCoverByUser.set(c.userId, { title: c.title, shareSlug: c.shareSlug });
   }
+  // 공고별 모의 면접 연습 완료 여부(회사엔 완료 신호만).
+  const practicedRows = candidateUserIds.length
+    ? await prisma.mockInterviewSession.findMany({ where: { userId: { in: candidateUserIds }, positionId: { in: positionIds } }, select: { userId: true, positionId: true } })
+    : [];
+  const practicedSet = new Set(practicedRows.map((s) => `${s.userId}:${s.positionId}`));
 
   for (const profile of profiles) {
     const appliedPositionId = profile.appliedPositionIds.find((id) => positionMap.has(id));
@@ -19881,7 +19941,8 @@ async function listPartnerApplicantsForUser(userId: string) {
       resumeShareSlug: linkedResume?.shareSlug ?? null,
       coverLetterTitle: linkedCover?.title ?? null,
       coverLetterShareSlug: linkedCover?.shareSlug ?? null,
-      applicationId: applicationIdMap.get(`${profile.userId}:${appliedPositionId}`) ?? null
+      applicationId: applicationIdMap.get(`${profile.userId}:${appliedPositionId}`) ?? null,
+      mockInterviewPracticed: practicedSet.has(`${profile.userId}:${appliedPositionId}`)
     });
   }
 
@@ -21127,7 +21188,8 @@ app.get("/partner/applicants", authenticate, requireRoles([MemberRole.PARTNER]),
         resumeTitle: item.resumeTitle,
         resumeShareSlug: item.resumeShareSlug,
         coverLetterTitle: item.coverLetterTitle,
-        coverLetterShareSlug: item.coverLetterShareSlug
+        coverLetterShareSlug: item.coverLetterShareSlug,
+        mockInterviewPracticed: item.mockInterviewPracticed
       }))
     });
   } catch (error) {
@@ -25246,6 +25308,7 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
         resumeShareSlug: found.resumeShareSlug,
         coverLetterTitle: found.coverLetterTitle,
         coverLetterShareSlug: found.coverLetterShareSlug,
+        mockInterviewPracticed: found.mockInterviewPracticed,
         applicationId: found.applicationId,
         resumeDoc,
         resumeBasicInfo,

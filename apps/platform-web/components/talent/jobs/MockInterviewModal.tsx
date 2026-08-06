@@ -8,7 +8,7 @@ import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { useResumeDoc } from "../../../lib/talent/resume-doc";
 import { useBasicInfo } from "../../../lib/talent/basic-info";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
-import { aiInterviewQuestions, aiInterviewFeedback, type PublicPositionListItem, type InterviewQuestion, type InterviewFeedback } from "../../../lib/member-profile-client";
+import { aiInterviewQuestions, aiInterviewFeedback, recordMockInterviewPractice, type PublicPositionListItem, type InterviewQuestion, type InterviewFeedback } from "../../../lib/member-profile-client";
 import type { ResumeDoc } from "../../../lib/talent/resume-doc";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
 
@@ -98,7 +98,7 @@ export function MockInterviewModal({ item, onClose }: { item: PublicPositionList
                 </div>
               ) : null}
               {questions.map((q, i) => (
-                <QuestionCard key={i} index={i} q={q} resumeText={resumeText} desiredJobRole={item.preferredJobRole ?? undefined} />
+                <QuestionCard key={i} index={i} q={q} resumeText={resumeText} desiredJobRole={item.preferredJobRole ?? undefined} positionId={item.id} />
               ))}
             </div>
           ) : (
@@ -110,7 +110,7 @@ export function MockInterviewModal({ item, onClose }: { item: PublicPositionList
   );
 }
 
-function QuestionCard({ index, q, resumeText, desiredJobRole }: { index: number; q: InterviewQuestion; resumeText: string; desiredJobRole?: string }) {
+function QuestionCard({ index, q, resumeText, desiredJobRole, positionId }: { index: number; q: InterviewQuestion; resumeText: string; desiredJobRole?: string; positionId: string }) {
   const [open, setOpen] = useState(index === 0);
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
@@ -121,7 +121,11 @@ function QuestionCard({ index, q, resumeText, desiredJobRole }: { index: number;
     if (!a || busy) return;
     setBusy(true);
     aiInterviewFeedback({ question: q.question, answer: a, resumeText: resumeText || undefined, desiredJobRole })
-      .then(setFb)
+      .then((f) => {
+        setFb(f);
+        // 연습 기록(회사엔 완료 신호만).
+        void recordMockInterviewPractice(positionId, f.score).catch(() => {});
+      })
       .catch(() => setFb(null))
       .finally(() => setBusy(false));
   }

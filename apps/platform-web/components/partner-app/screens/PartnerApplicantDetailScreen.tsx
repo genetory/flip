@@ -251,7 +251,10 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                 <h1 className="truncate text-[22px] font-black tracking-[-0.02em] text-[#0B1227]">{app.name}</h1>
                 {app.appliedAt ? <p className="mt-0.5 truncate text-[13.5px] text-[#8B95A1]">{new Date(app.appliedAt).toLocaleDateString("ko-KR")} 지원</p> : null}
               </div>
-              <span className={`hidden shrink-0 rounded-md px-2 py-1 text-[11px] font-bold sm:inline ${PARTNER_RECOMMENDATION[app.recommendation].cls}`}>{PARTNER_RECOMMENDATION[app.recommendation].label}</span>
+              <div className="hidden shrink-0 flex-col items-end gap-1 sm:flex">
+                <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${PARTNER_RECOMMENDATION[app.recommendation].cls}`}>{PARTNER_RECOMMENDATION[app.recommendation].label}</span>
+                {app.mockInterviewPracticed ? <span className="rounded-md bg-[#EDF1FD] px-2 py-1 text-[11px] font-bold text-[#0B46E8]">🎤 모의 면접 완료</span> : null}
+              </div>
             </div>
 
             {/* 지원 공고 */}

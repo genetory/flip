@@ -1418,6 +1418,22 @@ model CoverLetter {
   @@index([userId])
 }
 
+// 공고별 모의 면접 연습 기록 — (userId, positionId) 당 한 행. 회사엔 "완료" 신호만,
+// 점수/답변은 지원자 전용(비공개).
+model MockInterviewSession {
+  id              String   @id @default(uuid())
+  userId          String
+  positionId      String
+  answeredCount   Int      @default(0)
+  bestScore       Int?
+  lastPracticedAt DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, positionId])
+  @@index([positionId])
+}
+
 // 파트너용 지원 서류 LLM 불렛 요약 캐시.
 // version = 대표 이력서 updatedAt(ms). 이력서/자소서가 바뀌면 version 이 달라져 재생성한다.
 model ApplicantDocSummary {

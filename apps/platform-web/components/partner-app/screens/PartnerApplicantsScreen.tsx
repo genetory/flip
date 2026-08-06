@@ -210,6 +210,7 @@ function ApplicantCard({ a }: { a: PartnerApplicantListItem }) {
             <p className="text-[15px] font-bold text-[#191F28]">{a.name}</p>
             <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
             {a.recommendation === "HIGH" ? <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${rec.cls}`}>{rec.label}</span> : null}
+            {a.mockInterviewPracticed ? <span className="rounded-md bg-[#EDF1FD] px-1.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">🎤 모의 면접</span> : null}
           </div>
           <p className="mt-1 truncate text-[13px] font-semibold text-[#4E5968]">{a.positionTitle}</p>
 

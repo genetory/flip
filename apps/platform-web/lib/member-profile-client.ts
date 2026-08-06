@@ -1199,6 +1199,7 @@ export type PartnerApplicantListItem = {
   resumeShareSlug?: string | null;
   coverLetterTitle?: string | null;
   coverLetterShareSlug?: string | null;
+  mockInterviewPracticed?: boolean;
 };
 
 export type PartnerApplicantDetail = PartnerApplicantListItem & {
@@ -1243,6 +1244,27 @@ export async function aiInterviewFeedback(input: { question: string; answer: str
   const result = await authedJsonFetch<never>("/members/me/ai/interview-feedback", { method: "POST", body: JSON.stringify(input) });
   const r = result as unknown as { feedback?: InterviewFeedback };
   return r.feedback ?? { score: 0, strengths: [], improvements: [], sampleAnswer: "" };
+}
+
+// 모의 면접 연습 기록(회사엔 완료 신호만, 점수는 비공개).
+export async function recordMockInterviewPractice(positionId: string, score?: number): Promise<void> {
+  await authedJsonFetch<never>(`/members/me/mock-interviews/${encodeURIComponent(positionId)}/practice`, {
+    method: "POST",
+    body: JSON.stringify(score != null ? { score } : {})
+  });
+}
+
+export type MockInterviewRecord = {
+  positionId: string;
+  positionTitle: string;
+  companyName: string | null;
+  answeredCount: number;
+  bestScore: number | null;
+  lastPracticedAt: string;
+};
+export async function getMyMockInterviews(): Promise<MockInterviewRecord[]> {
+  const result = await authedJsonFetch<MockInterviewRecord>("/members/me/mock-interviews", { method: "GET" });
+  return (result.items ?? []) as MockInterviewRecord[];
 }
 
 export async function getMyPartnerApplicants() {
