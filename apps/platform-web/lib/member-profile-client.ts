@@ -1275,10 +1275,10 @@ export async function getPositionMockInterviewParticipants(positionId: string): 
   const result = await authedJsonFetch<MockInterviewParticipant>(`/partner/positions/${encodeURIComponent(positionId)}/mock-interview-participants`, { method: "GET" });
   return (result.items ?? []) as MockInterviewParticipant[];
 }
-export async function proposeToMockInterviewCandidate(positionId: string, userId: string, message?: string): Promise<void> {
+export async function proposeToMockInterviewCandidate(positionId: string, userId: string, input: { message?: string; interviewAt?: string }): Promise<void> {
   await authedJsonFetch<never>(`/partner/positions/${encodeURIComponent(positionId)}/mock-interview-candidates/${encodeURIComponent(userId)}/propose`, {
     method: "POST",
-    body: JSON.stringify(message ? { message } : {})
+    body: JSON.stringify(input)
   });
 }
 

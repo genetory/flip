@@ -18063,6 +18063,26 @@ app.post("/members/me/mock-interviews/:positionId/practice", authenticate, requi
       update: { answeredCount: answers.length || (existing?.answeredCount ?? 0) + 1, bestScore, answers: answers as object, lastPracticedAt: new Date() },
       create: { userId: req.auth!.userId, positionId, answeredCount: answers.length || 1, bestScore: score ?? null, answers: answers as object }
     });
+
+    // 새 참여자(첫 연습)면 공고 소속 파트너들에게 알림.
+    if (!existing) {
+      const pos = await prisma.position.findUnique({ where: { id: positionId }, select: { title: true, partnerOrganizationId: true } });
+      if (pos?.partnerOrganizationId) {
+        const partners = await prisma.user.findMany({ where: { partnerOrganizationId: pos.partnerOrganizationId, role: MemberRole.PARTNER }, select: { id: true } });
+        await Promise.all(
+          partners.map((pu) =>
+            createNotification({
+              userId: pu.id,
+              type: "MOCK_INTERVIEW_PARTICIPANT",
+              title: "새 모의 면접 참여자",
+              message: `‘${pos.title}’ 모의 면접을 푼 지원자가 있어요. 결과를 보고 제안해보세요.`,
+              linkPath: `/partner/positions/${positionId}`
+            }).catch(() => {})
+          )
+        );
+      }
+    }
+
     return res.json({ ok: true, item: { answeredCount: row.answeredCount, bestScore: row.bestScore } });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to record practice" });
@@ -21580,7 +21600,8 @@ app.post("/partner/positions/:id/mock-interview-candidates/:userId/propose", aut
   const positionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const candidateUserId = String(req.params.userId ?? "");
   if (!positionId || !candidateUserId) return res.status(400).json({ ok: false, message: "invalid request" });
-  const parsed = partnerConnectBodySchema.safeParse(req.body ?? {});
+  const proposeSchema = z.object({ message: z.string().trim().max(1000).optional(), interviewAt: z.string().datetime().optional() });
+  const parsed = proposeSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
     const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
@@ -21594,15 +21615,21 @@ app.post("/partner/positions/:id/mock-interview-candidates/:userId/propose", aut
     const existing = await prisma.candidateConnectionRequest.findUnique({ where: { partnerUserId_candidateUserId: { partnerUserId: req.auth!.userId, candidateUserId } } });
     if (existing) return res.json({ ok: true, item: existing, alreadyExists: true });
 
+    // 제안 면접 시간(선택)을 메시지에 포함.
+    const timeText = parsed.data.interviewAt
+      ? new Date(parsed.data.interviewAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" })
+      : null;
+    const fullMessage = [parsed.data.message?.trim() || null, timeText ? `제안 면접 시간: ${timeText}` : null].filter(Boolean).join("\n") || null;
+
     const created = await prisma.candidateConnectionRequest.create({
-      data: { partnerUserId: req.auth!.userId, partnerOrganizationId: affiliation.organization.id, candidateUserId, message: parsed.data.message ?? null, status: "PENDING" }
+      data: { partnerUserId: req.auth!.userId, partnerOrganizationId: affiliation.organization.id, candidateUserId, message: fullMessage, status: "PENDING" }
     });
     const orgName = affiliation.organization.name ?? "회사";
     await createNotification({
       userId: candidateUserId,
       type: "CANDIDATE_CONNECTION_REQUEST",
       title: `${orgName}에서 '${position.title}' 관련 제안을 보냈어요`,
-      message: parsed.data.message ? parsed.data.message.slice(0, 120) : "모의 면접 결과를 보고 연락드렸어요. 수락하면 연락처가 공유돼요.",
+      message: (fullMessage ? fullMessage : "모의 면접 결과를 보고 연락드렸어요. 수락하면 연락처가 공유돼요.").slice(0, 160),
       linkPath: "/profile?tab=connections"
     });
     return res.status(201).json({ ok: true, item: created });

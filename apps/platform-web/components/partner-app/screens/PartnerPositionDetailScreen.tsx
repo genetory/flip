@@ -9,6 +9,7 @@ import { PartnerAppShell } from "../PartnerAppShell";
 import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
+import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { PositionDetailHeaderCard, PositionDetailSections } from "../../talent/screens/JobDetailScreen";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { PARTNER_POSITION_STATUS } from "../../../lib/partner/labels";
@@ -64,7 +65,7 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [busy, setBusy] = useState(false);
   const [participants, setParticipants] = useState<MockInterviewParticipant[]>([]);
-  const [proposingId, setProposingId] = useState<string | null>(null);
+  const [proposeTarget, setProposeTarget] = useState<MockInterviewParticipant | null>(null);
 
   function load() {
     setStatus("loading");
@@ -78,18 +79,8 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
     void getPositionMockInterviewParticipants(positionId).then(setParticipants).catch(() => setParticipants([]));
   }
 
-  function propose(userId: string, name: string) {
-    if (proposingId) return;
-    const message = window.prompt(`${name} 님에게 보낼 제안 메시지 (선택)`, "모의 면접 결과가 인상적이에요. 함께 이야기 나눠보고 싶습니다.");
-    if (message === null) return; // 취소
-    setProposingId(userId);
-    proposeToMockInterviewCandidate(positionId, userId, message.trim() || undefined)
-      .then(() => {
-        setParticipants((prev) => prev.map((x) => (x.userId === userId ? { ...x, connectionStatus: "PENDING" } : x)));
-        toast.success("제안을 보냈어요");
-      })
-      .catch(() => toast.error("제안에 실패했어요."))
-      .finally(() => setProposingId(null));
+  function markProposed(userId: string) {
+    setParticipants((prev) => prev.map((x) => (x.userId === userId ? { ...x, connectionStatus: "PENDING" } : x)));
   }
   useEffect(() => {
     load();
@@ -186,7 +177,7 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
                     ) : m.connectionStatus === "PENDING" ? (
                       <span className="shrink-0 rounded-lg bg-[#F2F4F6] px-3 py-1.5 text-[12px] font-bold text-[#8B95A1]">제안 보냄</span>
                     ) : (
-                      <button type="button" onClick={() => propose(m.userId, m.name)} disabled={proposingId === m.userId} className="shrink-0 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">{proposingId === m.userId ? "…" : "제안하기"}</button>
+                      <button type="button" onClick={() => setProposeTarget(m)} className="shrink-0 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12px] font-bold text-white transition hover:bg-[#0A3ECB]">제안하기</button>
                     )}
                   </div>
                 ))}
@@ -200,6 +191,86 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
           <PositionDetailSections item={item} />
         </div>
       ) : null}
+
+      {proposeTarget ? (
+        <ProposeCandidateModal
+          positionId={positionId}
+          participant={proposeTarget}
+          onClose={() => setProposeTarget(null)}
+          onDone={() => {
+            markProposed(proposeTarget.userId);
+            setProposeTarget(null);
+          }}
+        />
+      ) : null}
     </PartnerAppShell>
+  );
+}
+
+const TIME_OPTIONS: string[] = (() => {
+  const out: string[] = [];
+  for (let h = 8; h <= 23; h += 1) {
+    out.push(`${String(h).padStart(2, "0")}:00`);
+    out.push(`${String(h).padStart(2, "0")}:30`);
+  }
+  return out;
+})();
+
+// 제안 모달 — 메시지 + (선택) 면접 시간.
+function ProposeCandidateModal({ positionId, participant, onClose, onDone }: { positionId: string; participant: MockInterviewParticipant; onClose: () => void; onDone: () => void }) {
+  const toast = useTalentPopup();
+  useLockBodyScroll();
+  const [message, setMessage] = useState("모의 면접 결과가 인상적이에요. 함께 이야기 나눠보고 싶습니다.");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  function submit() {
+    if (saving) return;
+    let interviewAt: string | undefined;
+    if (date && time) {
+      const d = new Date(`${date}T${time}`);
+      d.setMinutes(Math.round(d.getMinutes() / 30) * 30, 0, 0);
+      interviewAt = d.toISOString();
+    }
+    setSaving(true);
+    proposeToMockInterviewCandidate(positionId, participant.userId, { message: message.trim() || undefined, interviewAt })
+      .then(() => {
+        toast.success("제안을 보냈어요");
+        onDone();
+      })
+      .catch(() => toast.error("제안에 실패했어요."))
+      .finally(() => setSaving(false));
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div className="w-full max-w-[440px] overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 pt-6">
+          <p className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{participant.name} 님에게 제안</p>
+          <p className="mt-1 text-[12.5px] text-[#8B95A1]">수락하면 연락처가 공유돼요. 면접 시간을 함께 제안할 수 있어요.</p>
+        </div>
+        <div className="flex flex-col gap-3.5 px-6 py-4">
+          <label className="block">
+            <span className="mb-1.5 block text-[12.5px] font-semibold text-[#4E5968]">메시지</span>
+            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3} className="w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] outline-none focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]" />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-[12.5px] font-semibold text-[#4E5968]">면접 시간 제안 <span className="font-normal text-[#B0B8C1]">(선택)</span></span>
+            <div className="flex gap-1.5">
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="min-w-0 flex-1 rounded-lg bg-[#F5F6F8] px-3 py-2.5 text-[13px] text-[#191F28] outline-none [color-scheme:light]" />
+              <select value={time} onChange={(e) => setTime(e.target.value)} className="w-[110px] shrink-0 rounded-lg bg-[#F5F6F8] px-2.5 py-2.5 text-[13px] text-[#191F28] outline-none [color-scheme:light]">
+                <option value="">시간</option>
+                {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </label>
+        </div>
+        <div className="flex gap-2 px-6 pb-6">
+          <button type="button" onClick={onClose} disabled={saving} className="h-[50px] flex-1 rounded-2xl bg-[#F2F4F6] text-[14.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">취소</button>
+          <button type="button" onClick={submit} disabled={saving} className="h-[50px] flex-1 rounded-2xl bg-[#0B46E8] text-[14.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">{saving ? "보내는 중…" : "제안 보내기"}</button>
+        </div>
+      </div>
+    </div>
   );
 }

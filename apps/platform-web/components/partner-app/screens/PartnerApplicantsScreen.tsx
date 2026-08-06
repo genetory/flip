@@ -8,7 +8,7 @@ import { MagnifyingGlass, X, GraduationCap, Globe, Translate, Clock, Briefcase, 
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
-import { PARTNER_APPLICANT_STATUS, PARTNER_RECOMMENDATION } from "../../../lib/partner/labels";
+import { PARTNER_APPLICANT_STATUS } from "../../../lib/partner/labels";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { getMyPartnerApplicants, type PartnerApplicantListItem, type PartnerApplicantStatus } from "../../../lib/member-profile-client";
 
@@ -198,7 +198,6 @@ export function PartnerApplicantsScreen() {
 
 function ApplicantCard({ a }: { a: PartnerApplicantListItem }) {
   const s = PARTNER_APPLICANT_STATUS[a.status];
-  const rec = PARTNER_RECOMMENDATION[a.recommendation];
   const edu = [a.school, a.major].filter(Boolean).join(" · ");
   const langs = a.languages?.length ? a.languages.join(", ") : "";
   return (
@@ -209,7 +208,6 @@ function ApplicantCard({ a }: { a: PartnerApplicantListItem }) {
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <p className="text-[15px] font-bold text-[#191F28]">{a.name}</p>
             <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
-            {a.recommendation === "HIGH" ? <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${rec.cls}`}>{rec.label}</span> : null}
             {a.mockInterviewPracticed ? <span className="rounded-md bg-[#EDF1FD] px-1.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">🎤 모의 면접{a.mockInterviewScore != null ? ` ${a.mockInterviewScore}점` : ""}</span> : null}
           </div>
           <p className="mt-1 truncate text-[13px] font-semibold text-[#4E5968]">{a.positionTitle}</p>
