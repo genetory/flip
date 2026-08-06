@@ -28,9 +28,11 @@ const REC_ORDER: Record<PartnerApplicantListItem["recommendation"], number> = { 
 
 export function PartnerApplicantsScreen() {
   const searchParams = useSearchParams();
+  const initTab = searchParams.get("tab");
   const [items, setItems] = useState<PartnerApplicantListItem[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [tab, setTab] = useState<Tab>("all");
+  // URL(?tab=) 로 진입 시 해당 탭 선택.
+  const [tab, setTab] = useState<Tab>(TABS.some((t) => t.key === initTab) ? (initTab as Tab) : "all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("latest");
   // 공고별 보기 — URL(?position=) 로 진입 시 초기값, 이후 드롭다운으로 변경.
