@@ -15,7 +15,6 @@ import {
   getMyPartnerPositionById,
   createMyPartnerPosition,
   updateMyPartnerPosition,
-  deleteMyPartnerPosition,
   type PartnerPosition
 } from "../../../lib/member-profile-client";
 
@@ -117,7 +116,6 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
   const [posStatus, setPosStatus] = useState<PositionStatus>("DRAFT");
   const [initialStatus, setInitialStatus] = useState<PositionStatus>("DRAFT");
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
   const imgRef = useRef<HTMLInputElement>(null);
 
@@ -190,40 +188,12 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
         await createMyPartnerPosition({ ...body, status: newStatus ?? "DRAFT" });
         toast.success("공고를 등록했어요");
       }
-      router.push(partnerRoutes.positions);
+      router.push(isEdit ? `${partnerRoutes.positions}/${positionId}` : partnerRoutes.positions);
     } catch {
       toast.error("저장에 실패했어요. 잠시 후 다시 시도해주세요.");
     } finally {
       setSaving(false);
     }
-  }
-
-  // 마감 — 상태만 CLOSED 로.
-  function closePosition() {
-    if (!positionId || saving) return;
-    if (!window.confirm("이 공고를 마감할까요? 지원자에게 더 이상 노출되지 않아요.")) return;
-    setSaving(true);
-    updateMyPartnerPosition(positionId, { status: "CLOSED" })
-      .then((p) => {
-        setPosStatus(p.status);
-        setInitialStatus(p.status);
-        toast.success("공고를 마감했어요");
-      })
-      .catch(() => toast.error("마감에 실패했어요. 잠시 후 다시 시도해주세요."))
-      .finally(() => setSaving(false));
-  }
-
-  function remove() {
-    if (!positionId || deleting) return;
-    if (!window.confirm("이 공고를 삭제할까요? 되돌릴 수 없어요.")) return;
-    setDeleting(true);
-    deleteMyPartnerPosition(positionId)
-      .then(() => {
-        toast.success("공고를 삭제했어요");
-        router.push(partnerRoutes.positions);
-      })
-      .catch(() => toast.error("삭제에 실패했어요."))
-      .finally(() => setDeleting(false));
   }
 
   return (
@@ -316,19 +286,9 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
           {/* 액션 — 우측 하단 */}
           <div className="flex flex-wrap justify-end gap-2.5">
             {isEdit ? (
-              <>
-                <button type="button" onClick={remove} disabled={deleting || saving} className="inline-flex h-[46px] min-w-[100px] items-center justify-center rounded-2xl bg-[#FDECEE] px-5 text-[14px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1] disabled:opacity-50">
-                  {deleting ? "삭제 중…" : "삭제"}
-                </button>
-                {posStatus !== "CLOSED" ? (
-                  <button type="button" onClick={closePosition} disabled={saving || deleting} className="inline-flex h-[46px] min-w-[100px] items-center justify-center rounded-2xl bg-[#F2F4F6] px-5 text-[14px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">
-                    마감
-                  </button>
-                ) : null}
-                <button type="button" onClick={() => save()} disabled={saving || deleting} className="inline-flex h-[46px] min-w-[120px] items-center justify-center rounded-2xl bg-[#0B46E8] px-6 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
-                  {saving ? "저장 중…" : "저장하기"}
-                </button>
-              </>
+              <button type="button" onClick={() => save()} disabled={saving} className="inline-flex h-[46px] min-w-[120px] items-center justify-center rounded-2xl bg-[#0B46E8] px-6 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
+                {saving ? "저장 중…" : "저장하기"}
+              </button>
             ) : (
               <>
                 <button type="button" onClick={() => save("DRAFT")} disabled={saving} className="inline-flex h-[46px] min-w-[110px] items-center justify-center rounded-2xl bg-[#F2F4F6] px-5 text-[14px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">

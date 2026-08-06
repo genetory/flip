@@ -1,6 +1,6 @@
-import { PartnerPositionEditorScreen } from "../../../../components/partner-app/screens/PartnerPositionEditorScreen";
+import { PartnerPositionDetailScreen } from "../../../../components/partner-app/screens/PartnerPositionDetailScreen";
 
-export default async function PartnerPositionEditRoute({ params }: { params: Promise<{ id: string }> }) {
+export default async function PartnerPositionDetailRoute({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <PartnerPositionEditorScreen positionId={id} />;
+  return <PartnerPositionDetailScreen positionId={id} />;
 }

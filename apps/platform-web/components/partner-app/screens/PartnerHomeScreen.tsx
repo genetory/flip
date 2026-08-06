@@ -238,9 +238,9 @@ export function PartnerHomeScreen() {
           applicantId={chat.applicantId}
           name={chat.name}
           positionTitle={chat.positionTitle}
+          onReplied={() => setPending((prev) => prev.filter((x) => x.applicationId !== chat.applicationId))}
           onClose={() => {
             setChat(null);
-            // 답장했으면 미답장 목록에서 사라지도록 갱신.
             void getPartnerPendingMessages().then(setPending).catch(() => {});
           }}
         />
@@ -250,7 +250,7 @@ export function PartnerHomeScreen() {
 }
 
 // 지원자와의 대화 팝업 — 스레드 + 답장.
-function ChatModal({ applicationId, applicantId, name, positionTitle, onClose }: { applicationId: string; applicantId: string; name: string; positionTitle: string; onClose: () => void }) {
+function ChatModal({ applicationId, applicantId, name, positionTitle, onClose, onReplied }: { applicationId: string; applicantId: string; name: string; positionTitle: string; onClose: () => void; onReplied: () => void }) {
   const toast = useTalentPopup();
   useLockBodyScroll();
   const [messages, setMessages] = useState<PartnerApplicantMessage[]>([]);
@@ -273,6 +273,7 @@ function ChatModal({ applicationId, applicantId, name, positionTitle, onClose }:
       .then(() => {
         setText("");
         loadMessages();
+        onReplied(); // 답장했으니 미답장 목록에서 즉시 제거.
       })
       .catch(() => toast.error("메시지 전송에 실패했어요."))
       .finally(() => setSending(false));

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CaretRight, Plus, MagnifyingGlass, X, Users, Briefcase, ImageSquare } from "@phosphor-icons/react";
+import { Plus, MagnifyingGlass, X, Users, Briefcase, ImageSquare } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
@@ -215,7 +215,6 @@ function PositionCard({ p, applicants }: { p: PartnerPosition; applicants: numbe
           >
             <Users className="h-4 w-4" weight="fill" /> 지원 {applicants}명
           </button>
-          <span className="ml-auto inline-flex items-center gap-0.5 text-[12.5px] font-bold text-[#0B46E8]">관리 <CaretRight className="h-3.5 w-3.5" weight="bold" /></span>
         </div>
       </div>
     </Link>
