@@ -1215,6 +1215,8 @@ export type PartnerApplicantDetail = PartnerApplicantListItem & {
   resumeDoc?: unknown;
   resumeBasicInfo?: unknown;
   coverDoc?: unknown;
+  // 모의 면접 결과·답변(연습했으면).
+  mockInterview?: MockInterviewResult | null;
 };
 
 export type PartnerPendingMessage = {
@@ -1247,13 +1249,16 @@ export async function aiInterviewFeedback(input: { question: string; answer: str
   return r.feedback ?? { score: 0, strengths: [], improvements: [], sampleAnswer: "" };
 }
 
-// 모의 면접 연습 기록(회사엔 완료 신호만, 점수는 비공개).
-export async function recordMockInterviewPractice(positionId: string, score?: number): Promise<void> {
+// 모의 면접 연습 기록(문항별 답변·점수 저장 → 회사에 결과 노출).
+export async function recordMockInterviewPractice(positionId: string, data: { question?: string; answer?: string; score?: number }): Promise<void> {
   await authedJsonFetch<never>(`/members/me/mock-interviews/${encodeURIComponent(positionId)}/practice`, {
     method: "POST",
-    body: JSON.stringify(score != null ? { score } : {})
+    body: JSON.stringify(data)
   });
 }
+
+export type MockInterviewAnswer = { question: string; answer: string; score: number | null };
+export type MockInterviewResult = { score: number | null; answeredCount: number; answers: MockInterviewAnswer[] };
 
 export type MockInterviewRecord = {
   positionId: string;

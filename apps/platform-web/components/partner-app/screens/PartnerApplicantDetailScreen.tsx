@@ -363,6 +363,30 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                   </div>
                 </div>
               </section>
+
+              {/* 모의 면접 결과 */}
+              {app.mockInterview && app.mockInterview.answers.length ? (
+                <section>
+                  <SectionHeader
+                    title="모의 면접 결과"
+                    right={app.mockInterview.score != null ? <span className="rounded-md bg-[#EDF1FD] px-2 py-1 text-[11.5px] font-bold text-[#0B46E8]">최고 {app.mockInterview.score}점</span> : undefined}
+                  />
+                  <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+                    <p className="mb-3 text-[12px] text-[#8B95A1]">지원자가 이 공고 모의 면접에 답한 내용이에요. (답변 {app.mockInterview.answeredCount}개)</p>
+                    <div className="flex flex-col gap-3.5">
+                      {app.mockInterview.answers.map((a, i) => (
+                        <div key={i} className="rounded-xl bg-[#F8FAFB] p-3.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="min-w-0 flex-1 break-keep text-[13px] font-bold text-[#191F28]">Q{i + 1}. {a.question}</p>
+                            {a.score != null ? <span className="shrink-0 rounded-md bg-white px-1.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{a.score}점</span> : null}
+                          </div>
+                          <p className="mt-1.5 whitespace-pre-wrap break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{a.answer}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              ) : null}
             </div>
 
             {/* 우 — 메모/면접/메시지 */}

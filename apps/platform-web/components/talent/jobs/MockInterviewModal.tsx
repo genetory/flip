@@ -123,8 +123,8 @@ function QuestionCard({ index, q, resumeText, desiredJobRole, positionId }: { in
     aiInterviewFeedback({ question: q.question, answer: a, resumeText: resumeText || undefined, desiredJobRole })
       .then((f) => {
         setFb(f);
-        // 연습 기록(회사엔 완료 신호만).
-        void recordMockInterviewPractice(positionId, f.score).catch(() => {});
+        // 연습 기록(문항·답변·점수).
+        void recordMockInterviewPractice(positionId, { question: q.question, answer: a, score: f.score }).catch(() => {});
       })
       .catch(() => setFb(null))
       .finally(() => setBusy(false));

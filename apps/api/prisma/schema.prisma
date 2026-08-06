@@ -1426,6 +1426,8 @@ model MockInterviewSession {
   positionId      String
   answeredCount   Int      @default(0)
   bestScore       Int?
+  // 문항별 답변·점수 — [{ question, answer, score }]. 회사에 결과·답변 노출.
+  answers         Json     @default("[]")
   lastPracticedAt DateTime @default(now())
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

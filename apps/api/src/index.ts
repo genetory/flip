@@ -18034,21 +18034,34 @@ app.post(
   }
 );
 
-// 모의 면접 연습 기록 — 지원자가 문항에 답하고 피드백을 받으면 호출. (점수/답변은 비공개, 회사엔 완료 신호만)
-const mockPracticeSchema = z.object({ score: z.number().int().min(0).max(100).optional() });
+// 모의 면접 연습 기록 — 지원자가 문항에 답하고 피드백을 받으면 호출. 문항별 답변·점수를 저장(회사에 결과 노출).
+type MockAnswer = { question: string; answer: string; score: number | null };
+const mockPracticeSchema = z.object({
+  question: z.string().trim().max(600).optional(),
+  answer: z.string().trim().max(4000).optional(),
+  score: z.number().int().min(0).max(100).optional()
+});
 app.post("/members/me/mock-interviews/:positionId/practice", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const positionId = Array.isArray(req.params.positionId) ? req.params.positionId[0] : req.params.positionId;
   if (!positionId) return res.status(400).json({ ok: false, message: "invalid position id" });
   const parsed = mockPracticeSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  const score = parsed.data.score;
+  const { question, answer, score } = parsed.data;
   try {
     const existing = await prisma.mockInterviewSession.findUnique({ where: { userId_positionId: { userId: req.auth!.userId, positionId } } });
-    const bestScore = score != null ? Math.max(existing?.bestScore ?? 0, score) : existing?.bestScore ?? null;
+    const prevAnswers: MockAnswer[] = Array.isArray(existing?.answers) ? (existing!.answers as unknown as MockAnswer[]) : [];
+    const answers = [...prevAnswers];
+    if (question && answer) {
+      const idx = answers.findIndex((a) => a.question === question);
+      const entry: MockAnswer = { question, answer, score: score ?? null };
+      if (idx >= 0) answers[idx] = entry;
+      else answers.push(entry);
+    }
+    const bestScore = Math.max(existing?.bestScore ?? 0, score ?? 0) || (existing?.bestScore ?? null);
     const row = await prisma.mockInterviewSession.upsert({
       where: { userId_positionId: { userId: req.auth!.userId, positionId } },
-      update: { answeredCount: { increment: 1 }, bestScore, lastPracticedAt: new Date() },
-      create: { userId: req.auth!.userId, positionId, answeredCount: 1, bestScore: score ?? null }
+      update: { answeredCount: answers.length || (existing?.answeredCount ?? 0) + 1, bestScore, answers: answers as object, lastPracticedAt: new Date() },
+      create: { userId: req.auth!.userId, positionId, answeredCount: answers.length || 1, bestScore: score ?? null, answers: answers as object }
     });
     return res.json({ ok: true, item: { answeredCount: row.answeredCount, bestScore: row.bestScore } });
   } catch {
@@ -25287,6 +25300,15 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
       // 미리보기 데이터는 실패해도 상세 응답은 정상 반환.
     }
 
+    // 모의 면접 결과·답변(자동 공유).
+    let mockInterview: { score: number | null; answeredCount: number; answers: MockAnswer[] } | null = null;
+    try {
+      const s = await prisma.mockInterviewSession.findUnique({ where: { userId_positionId: { userId: found.candidateUserId, positionId: found.positionId } } });
+      if (s) mockInterview = { score: s.bestScore, answeredCount: s.answeredCount, answers: Array.isArray(s.answers) ? (s.answers as unknown as MockAnswer[]) : [] };
+    } catch {
+      // ignore
+    }
+
     return res.json({
       ok: true,
       item: {
@@ -25317,7 +25339,8 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
         applicationId: found.applicationId,
         resumeDoc,
         resumeBasicInfo,
-        coverDoc
+        coverDoc,
+        mockInterview
       }
     });
   } catch (error) {
