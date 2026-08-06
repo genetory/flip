@@ -26,7 +26,7 @@ const TABS: { key: Tab; label: string; match: (p: PartnerPosition) => boolean }[
   { key: "all", label: "전체", match: () => true },
   { key: "OPEN", label: "게시 중", match: (p) => p.status === "OPEN" },
   { key: "DRAFT", label: "작성 중", match: (p) => p.status === "DRAFT" || p.status === "PENDING_REVIEW" },
-  { key: "CLOSED", label: "마감", match: (p) => p.status === "CLOSED" || p.status === "PAUSED" || p.status === "REJECTED" }
+  { key: "CLOSED", label: "마감", match: (p) => p.status === "CLOSED" || p.status === "REJECTED" }
 ];
 
 export function PartnerPositionsScreen() {

@@ -101,7 +101,6 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   }
 
   const view = item ? toPositionView(item) : null;
-  const heroImage = item?.thumbnailImages?.[0] || null;
 
   return (
     <TalentAppShell maxWidth="4xl">
@@ -113,35 +112,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
       {status === "ready" && item && view ? (
         <div className="pb-24 md:pb-0">
           {/* 헤더 */}
-          <TCard className="overflow-hidden p-0">
-            {heroImage ? (
-              <div className="h-[240px] w-full overflow-hidden bg-[#F2F4F6] md:h-[340px]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={heroImage} alt="" className="h-full w-full object-cover" />
-              </div>
-            ) : null}
-            <div className="p-6">
-              <div className="flex flex-wrap items-center gap-1.5">
-                {view.isInternal ? <AplyCipBadgeButton onClick={() => setCipOpen(true)} size="md" className="!py-1.5" /> : null}
-                {view.sourceLabel ? <TChip>{view.sourceLabel}</TChip> : null}
-              </div>
-              <h1 className="mt-3 text-[24px] font-black leading-[1.25] tracking-[-0.02em] text-[#0B1227]">{view.title}</h1>
-              <p className="mt-2 text-[15px] font-semibold text-[#4E5968]">
-                {view.isInternal && view.company && view.company !== "비공개 기업" ? (
-                  <Link href={`/talent/company/${encodeURIComponent(view.company)}`} className="transition hover:text-[#0B46E8] hover:underline">{view.company}</Link>
-                ) : (
-                  view.company
-                )}
-                {item.partnerOrganization?.industry ? <span className="font-normal text-[#8B95A1]"> · {partnerIndustryLabel(item.partnerOrganization.industry)}</span> : null}
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-[#8B95A1]">
-                <span className="inline-flex items-center gap-1"><MapPin className="h-4 w-4" /> {view.location}</span>
-                <span>{view.employmentLabel}</span>
-                {view.workTypeLabel ? <span>{view.workTypeLabel}</span> : null}
-                {view.deadlineText ? <span>마감 {view.deadlineText}</span> : null}
-              </div>
-            </div>
-          </TCard>
+          <PositionDetailHeaderCard item={item} onShowCip={() => setCipOpen(true)} />
 
           {/* 상단 액션 (데스크톱) */}
           <div className="mt-4 hidden justify-end gap-2 md:flex">
@@ -157,33 +128,8 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
             <ApplyButton view={view} applied={applied} applying={applying} onApply={() => setApplyOpen(true)} />
           </div>
 
-          {/* 핵심 정보 */}
-          <TCard className="mt-4 p-6">
-            <h2 className="text-[15px] font-bold text-[#191F28]">핵심 정보</h2>
-            <div className="mt-3 divide-y divide-[#F2F4F6]">
-              <InfoRow label="희망 직무" value={orDash(item.preferredJobRole)} />
-              <InfoRow label="희망 인원" value={item.hiringCount ? `${item.hiringCount}명` : DASH} />
-              <InfoRow label="근무 시간" value={orDash(item.workingHours)} />
-              <InfoRow label="근무 복장" value={orDash(item.dressCode)} />
-              <InfoRow label="등록일" value={item.createdAt ? item.createdAt.slice(0, 10) : DASH} />
-            </div>
-          </TCard>
-
-          {/* 상세 안내 */}
-          <TCard className="mt-4 p-6">
-            <h2 className="text-[15px] font-bold text-[#191F28]">상세 안내</h2>
-            <div className="mt-4 flex flex-col gap-5">
-              <DetailBlock title="주요 업무" text={orDash(item.mainResponsibilities)} />
-              <DetailBlock title="필수 자격 요건" text={orDash(item.requiredQualifications)} />
-              <DetailBlock title="채용 프로세스" text={orDash(item.hiringProcess)} />
-            </div>
-          </TCard>
-
-          {/* 기업 정보 — 헤더(썸네일·회사명·관심)는 카드 밖 상단 */}
-          <div className="mt-6">
-            <CompanyHeader item={item} />
-          </div>
-          <CompanySection item={item} />
+          {/* 핵심 정보 · 상세 안내 · 기업 정보 */}
+          <PositionDetailSections item={item} />
 
           {/* 데스크톱 액션 */}
           <div className="mt-6 hidden justify-end gap-2 md:flex">
@@ -392,6 +338,75 @@ function CompanyFollowButton({ name }: { name: string }) {
 
 // 회사 헤더 — 썸네일 + 회사명 + 관심 회사. 카드 밖 맨 상단에 노출.
 // large: 회사 상세 화면용(회사명·썸네일 크게).
+// 공고 상세 헤더 카드 — 지원자·파트너 공용. onShowCip 있으면 CIP 뱃지 노출.
+export function PositionDetailHeaderCard({ item, onShowCip }: { item: PublicPositionListItem; onShowCip?: () => void }) {
+  const view = toPositionView(item);
+  const heroImage = item.thumbnailImages?.[0] || null;
+  return (
+    <TCard className="overflow-hidden p-0">
+      {heroImage ? (
+        <div className="h-[240px] w-full overflow-hidden bg-[#F2F4F6] md:h-[340px]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={heroImage} alt="" className="h-full w-full object-cover" />
+        </div>
+      ) : null}
+      <div className="p-6">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {view.isInternal && onShowCip ? <AplyCipBadgeButton onClick={onShowCip} size="md" className="!py-1.5" /> : null}
+          {view.sourceLabel ? <TChip>{view.sourceLabel}</TChip> : null}
+        </div>
+        <h1 className="mt-3 text-[24px] font-black leading-[1.25] tracking-[-0.02em] text-[#0B1227]">{view.title}</h1>
+        <p className="mt-2 text-[15px] font-semibold text-[#4E5968]">
+          {view.isInternal && view.company && view.company !== "비공개 기업" ? (
+            <Link href={`/talent/company/${encodeURIComponent(view.company)}`} className="transition hover:text-[#0B46E8] hover:underline">{view.company}</Link>
+          ) : (
+            view.company
+          )}
+          {item.partnerOrganization?.industry ? <span className="font-normal text-[#8B95A1]"> · {partnerIndustryLabel(item.partnerOrganization.industry)}</span> : null}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-[#8B95A1]">
+          <span className="inline-flex items-center gap-1"><MapPin className="h-4 w-4" /> {view.location}</span>
+          <span>{view.employmentLabel}</span>
+          {view.workTypeLabel ? <span>{view.workTypeLabel}</span> : null}
+          {view.deadlineText ? <span>마감 {view.deadlineText}</span> : null}
+        </div>
+      </div>
+    </TCard>
+  );
+}
+
+// 공고 상세 본문 — 핵심 정보 · 상세 안내 · 기업 정보. 지원자·파트너 공용.
+export function PositionDetailSections({ item }: { item: PublicPositionListItem }) {
+  return (
+    <>
+      <TCard className="mt-4 p-6">
+        <h2 className="text-[15px] font-bold text-[#191F28]">핵심 정보</h2>
+        <div className="mt-3 divide-y divide-[#F2F4F6]">
+          <InfoRow label="희망 직무" value={orDash(item.preferredJobRole)} />
+          <InfoRow label="희망 인원" value={item.hiringCount ? `${item.hiringCount}명` : DASH} />
+          <InfoRow label="근무 시간" value={orDash(item.workingHours)} />
+          <InfoRow label="근무 복장" value={orDash(item.dressCode)} />
+          <InfoRow label="등록일" value={item.createdAt ? item.createdAt.slice(0, 10) : DASH} />
+        </div>
+      </TCard>
+
+      <TCard className="mt-4 p-6">
+        <h2 className="text-[15px] font-bold text-[#191F28]">상세 안내</h2>
+        <div className="mt-4 flex flex-col gap-5">
+          <DetailBlock title="주요 업무" text={orDash(item.mainResponsibilities)} />
+          <DetailBlock title="필수 자격 요건" text={orDash(item.requiredQualifications)} />
+          <DetailBlock title="채용 프로세스" text={orDash(item.hiringProcess)} />
+        </div>
+      </TCard>
+
+      <div className="mt-6">
+        <CompanyHeader item={item} />
+      </div>
+      <CompanySection item={item} />
+    </>
+  );
+}
+
 export function CompanyHeader({ item, large = false }: { item: PublicPositionListItem; large?: boolean }) {
   const org = item.partnerOrganization;
   if (!org) return null;
