@@ -4,9 +4,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { CaretRight, Plus, ChatCircleDots } from "@phosphor-icons/react";
+import { CaretRight, Plus, ChatCircleDots, X, PaperPlaneTilt, ArrowUpRight } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
+import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
+import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { PARTNER_APPLICANT_STATUS, PARTNER_POSITION_STATUS, PARTNER_RECOMMENDATION } from "../../../lib/partner/labels";
@@ -15,11 +17,14 @@ import {
   getMyPartnerPositions,
   getMyPartnerApplicants,
   getPartnerPendingMessages,
+  getPartnerApplicantMessages,
+  sendPartnerApplicantMessage,
   type MyPartnerOrganization,
   type PartnerPosition,
   type PartnerApplicantListItem,
   type PartnerApplicantStatus,
-  type PartnerPendingMessage
+  type PartnerPendingMessage,
+  type PartnerApplicantMessage
 } from "../../../lib/member-profile-client";
 
 export function PartnerHomeScreen() {
@@ -27,6 +32,7 @@ export function PartnerHomeScreen() {
   const [positions, setPositions] = useState<PartnerPosition[]>([]);
   const [applicants, setApplicants] = useState<PartnerApplicantListItem[]>([]);
   const [pending, setPending] = useState<PartnerPendingMessage[]>([]);
+  const [chat, setChat] = useState<{ applicationId: string; applicantId: string; name: string; positionTitle: string } | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
   function load() {
@@ -144,7 +150,7 @@ export function PartnerHomeScreen() {
               <SectionHead title={`답장을 기다리는 메시지 ${pending.length}`} desc="지원자가 보낸 메시지에 아직 답하지 않았어요." />
               <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
                 {pending.slice(0, 6).map((m, i) => (
-                  <Link key={m.applicantId} href={`${partnerRoutes.applicants}/${encodeURIComponent(m.applicantId)}`} className={`flex items-center gap-3 px-4 py-3.5 transition hover:bg-[#F6F8FB] ${i === Math.min(pending.length, 6) - 1 ? "" : "border-b border-[#F2F4F6]"}`}>
+                  <button key={m.applicantId} type="button" onClick={() => setChat({ applicationId: m.applicationId, applicantId: m.applicantId, name: m.name, positionTitle: m.positionTitle })} className={`flex items-center gap-3 px-4 py-3.5 text-left transition hover:bg-[#F6F8FB] ${i === Math.min(pending.length, 6) - 1 ? "" : "border-b border-[#F2F4F6]"}`}>
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FFF3E6] text-[#E8890C]"><ChatCircleDots className="h-5 w-5" weight="fill" /></span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -154,7 +160,7 @@ export function PartnerHomeScreen() {
                       <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{m.lastMessage}</p>
                     </div>
                     <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
-                  </Link>
+                  </button>
                 ))}
               </div>
             </section>
@@ -225,7 +231,107 @@ export function PartnerHomeScreen() {
           </div>
         </div>
       ) : null}
+
+      {chat ? (
+        <ChatModal
+          applicationId={chat.applicationId}
+          applicantId={chat.applicantId}
+          name={chat.name}
+          positionTitle={chat.positionTitle}
+          onClose={() => {
+            setChat(null);
+            // 답장했으면 미답장 목록에서 사라지도록 갱신.
+            void getPartnerPendingMessages().then(setPending).catch(() => {});
+          }}
+        />
+      ) : null}
     </PartnerAppShell>
+  );
+}
+
+// 지원자와의 대화 팝업 — 스레드 + 답장.
+function ChatModal({ applicationId, applicantId, name, positionTitle, onClose }: { applicationId: string; applicantId: string; name: string; positionTitle: string; onClose: () => void }) {
+  const toast = useTalentPopup();
+  useLockBodyScroll();
+  const [messages, setMessages] = useState<PartnerApplicantMessage[]>([]);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+
+  function loadMessages() {
+    void getPartnerApplicantMessages(applicationId).then(setMessages).catch(() => {});
+  }
+  useEffect(() => {
+    loadMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applicationId]);
+
+  function send() {
+    const t = text.trim();
+    if (!t || sending) return;
+    setSending(true);
+    sendPartnerApplicantMessage(applicationId, t)
+      .then(() => {
+        setText("");
+        loadMessages();
+      })
+      .catch(() => toast.error("메시지 전송에 실패했어요."))
+      .finally(() => setSending(false));
+  }
+
+  const chat = messages.filter((m) => m.visibility === "CANDIDATE");
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div className="flex h-[80vh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-3xl bg-white sm:h-[560px] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-[#F2F4F6] px-5 py-4">
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-bold text-[#191F28]">{name}</p>
+            <p className="truncate text-[12px] text-[#8B95A1]">{positionTitle}</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <Link href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}`} className="inline-flex items-center gap-1 rounded-lg bg-[#F2F4F6] px-2.5 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
+              지원자 상세 <ArrowUpRight className="h-3.5 w-3.5" weight="bold" />
+            </Link>
+            <button type="button" onClick={onClose} aria-label="닫기" className="flex h-9 w-9 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
+          </div>
+        </div>
+        <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto px-5 py-4">
+          {chat.length === 0 ? (
+            <p className="py-6 text-center text-[13px] text-[#B0B8C1]">아직 주고받은 메시지가 없어요.</p>
+          ) : (
+            chat.map((m) => {
+              const mine = m.authorRole !== "STUDENT";
+              return (
+                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 ${mine ? "bg-[#0B46E8] text-white" : "border border-[#EEF1F5] bg-white text-[#191F28]"}`}>
+                    <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed">{m.content}</p>
+                    <p className={`mt-1 text-[10.5px] ${mine ? "text-white/60" : "text-[#B0B8C1]"}`}>{formatRelativeTime(new Date(m.createdAt).getTime())}</p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+        <div className="flex items-end gap-2 border-t border-[#F2F4F6] px-4 py-3">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            rows={1}
+            placeholder="답장 보내기…"
+            className="max-h-28 flex-1 resize-none rounded-2xl bg-[#F2F4F6] px-4 py-2.5 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-2 focus:ring-[#0B46E8]/30"
+          />
+          <button type="button" onClick={send} disabled={!text.trim() || sending} aria-label="보내기" className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-2xl bg-[#0B46E8] text-white transition hover:bg-[#0A3ECB] disabled:opacity-40">
+            <PaperPlaneTilt className="h-5 w-5" weight="fill" />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

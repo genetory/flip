@@ -21065,6 +21065,7 @@ app.get("/partner/pending-messages", authenticate, requireRoles([MemberRole.PART
         if (!last || last.authorRole !== MemberRole.STUDENT) return null;
         return {
           applicantId: `${a.candidateUserId}:${a.positionId}`,
+          applicationId: a.id,
           name: a.candidateUser.realName?.trim() || a.candidateUser.name?.trim() || "지원자",
           positionTitle: titleMap.get(a.positionId) ?? "-",
           lastMessage: last.content,

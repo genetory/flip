@@ -1211,6 +1211,7 @@ export type PartnerApplicantDetail = PartnerApplicantListItem & {
 
 export type PartnerPendingMessage = {
   applicantId: string;
+  applicationId: string;
   name: string;
   positionTitle: string;
   lastMessage: string;
