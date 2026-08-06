@@ -509,6 +509,8 @@ export type PublicPositionListItem = {
   dressCode: string | null;
   wantsPreTraining: boolean | null;
   additionalNotes: string | null;
+  mockInterviewIntent?: string | null;
+  mockInterviewQuestions?: string[];
   createdAt: string;
   updatedAt: string;
   matchingParticipantsCount: number;
@@ -573,6 +575,8 @@ export type PartnerPosition = {
   dressCode: string | null;
   wantsPreTraining: boolean | null;
   additionalNotes: string | null;
+  mockInterviewIntent?: string | null;
+  mockInterviewQuestions?: string[];
   adminMemo: string | null;
   postingProgressLogs?: Array<{
     id: string;
@@ -1146,6 +1150,8 @@ export async function updateMyPartnerPosition(
     dressCode?: string;
     wantsPreTraining?: boolean;
     additionalNotes?: string;
+    mockInterviewIntent?: string | null;
+    mockInterviewQuestions?: string[];
   }
 ) {
   const result = await authedJsonFetch<PartnerPosition>(`/partner/positions/${encodeURIComponent(id)}`, {
@@ -1222,6 +1228,21 @@ export type PartnerPendingMessage = {
 export async function getPartnerPendingMessages(): Promise<PartnerPendingMessage[]> {
   const result = await authedJsonFetch<PartnerPendingMessage>("/partner/pending-messages", { method: "GET" });
   return (result.items ?? []) as PartnerPendingMessage[];
+}
+
+// AI 모의 면접 — 질문 생성 / 답변 피드백(둘 다 STUDENT + AI 지갑).
+export type InterviewQuestion = { question: string; intent: string; category: string };
+export async function aiInterviewQuestions(input: { resumeText: string; jobText?: string; coverLetterText?: string; desiredJobRole?: string; locale?: string }): Promise<InterviewQuestion[]> {
+  const result = await authedJsonFetch<never>("/members/me/ai/interview-questions", { method: "POST", body: JSON.stringify(input) });
+  const r = result as unknown as { questions?: InterviewQuestion[] };
+  return Array.isArray(r.questions) ? r.questions : [];
+}
+
+export type InterviewFeedback = { score: number; strengths: string[]; improvements: string[]; sampleAnswer: string };
+export async function aiInterviewFeedback(input: { question: string; answer: string; resumeText?: string; desiredJobRole?: string; locale?: string }): Promise<InterviewFeedback> {
+  const result = await authedJsonFetch<never>("/members/me/ai/interview-feedback", { method: "POST", body: JSON.stringify(input) });
+  const r = result as unknown as { feedback?: InterviewFeedback };
+  return r.feedback ?? { score: 0, strengths: [], improvements: [], sampleAnswer: "" };
 }
 
 export async function getMyPartnerApplicants() {

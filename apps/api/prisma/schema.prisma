@@ -541,6 +541,10 @@ model Position {
   wantsPreTraining        Boolean?
   additionalNotes         String?
   adminMemo               String?
+  // 모의 면접(회사 저작) — intent: 면접에서 보려는 포인트, questions: 대표 질문(선택).
+  // 지원자는 지원 여부와 무관하게 이걸로 연습+AI 피드백을 받는다.
+  mockInterviewIntent     String?
+  mockInterviewQuestions  String[]                    @default([])
   viewCount               Int                         @default(0)
   externalClickCount      Int                         @default(0)
   embedding               Unsupported("vector(768)")?

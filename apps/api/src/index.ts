@@ -3203,7 +3203,9 @@ const createPositionSchema = z.object({
   dressCode: z.string().trim().max(240).optional(),
   wantsPreTraining: z.boolean().optional(),
   additionalNotes: z.string().trim().max(20_000).optional(),
-  adminMemo: z.string().trim().max(10_000).optional()
+  adminMemo: z.string().trim().max(10_000).optional(),
+  mockInterviewIntent: z.string().trim().max(2_000).optional().nullable(),
+  mockInterviewQuestions: z.array(z.string().trim().max(500)).max(10).optional()
 });
 
 const createPartnerPositionSchema = createPositionSchema
@@ -4487,6 +4489,8 @@ function toPosition(item: {
   wantsPreTraining: boolean | null;
   additionalNotes: string | null;
   adminMemo: string | null;
+  mockInterviewIntent?: string | null;
+  mockInterviewQuestions?: string[];
   viewCount?: number;
   externalClickCount?: number;
   createdAt: Date;
@@ -4548,6 +4552,8 @@ function toPosition(item: {
     dressCode: item.dressCode,
     wantsPreTraining: item.wantsPreTraining,
     additionalNotes: item.additionalNotes,
+    mockInterviewIntent: item.mockInterviewIntent ?? null,
+    mockInterviewQuestions: Array.isArray(item.mockInterviewQuestions) ? item.mockInterviewQuestions : [],
     employmentClassification: extractEmploymentClassificationMeta(item.adminMemo),
     adminMemo: stripEmploymentClassificationMeta(stripPremiumBannerMeta(item.adminMemo)),
     premiumBanner: extractPremiumBannerMeta(item.adminMemo),
@@ -4685,6 +4691,8 @@ function toPublicPositionItem(
     dressCode: string | null;
     wantsPreTraining: boolean | null;
     additionalNotes: string | null;
+    mockInterviewIntent?: string | null;
+    mockInterviewQuestions?: string[];
     adminMemo: string | null;
     sourceDeadlineDate?: Date | null;
     createdAt: Date;
@@ -4752,6 +4760,8 @@ function toPublicPositionItem(
     dressCode: t?.dressCode ?? item.dressCode,
     wantsPreTraining: item.wantsPreTraining,
     additionalNotes: additionalNotesOut,
+    mockInterviewIntent: item.mockInterviewIntent ?? null,
+    mockInterviewQuestions: Array.isArray(item.mockInterviewQuestions) ? item.mockInterviewQuestions : [],
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     matchingParticipantsCount: item.matchingParticipants.length,
@@ -20435,6 +20445,8 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER, M
         dressCode: parsed.data.dressCode,
         wantsPreTraining: parsed.data.wantsPreTraining,
         additionalNotes: parsed.data.additionalNotes,
+        mockInterviewIntent: parsed.data.mockInterviewIntent ?? null,
+        mockInterviewQuestions: parsed.data.mockInterviewQuestions ?? [],
         adminMemo: mergeEmploymentClassificationMeta(null, parsed.data.employmentClassification ?? null),
         statusHistories: {
           create: {
@@ -20663,6 +20675,8 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
           ...(parsed.data.dressCode !== undefined ? { dressCode: parsed.data.dressCode } : {}),
           ...(parsed.data.wantsPreTraining !== undefined ? { wantsPreTraining: parsed.data.wantsPreTraining } : {}),
           ...(parsed.data.additionalNotes !== undefined ? { additionalNotes: parsed.data.additionalNotes } : {}),
+          ...(parsed.data.mockInterviewIntent !== undefined ? { mockInterviewIntent: parsed.data.mockInterviewIntent } : {}),
+          ...(parsed.data.mockInterviewQuestions !== undefined ? { mockInterviewQuestions: parsed.data.mockInterviewQuestions } : {}),
           // employmentClassification 은 adminMemo 안에 prefix 라인으로 저장 — 파트너
           // 승인-반영 경로(아래)와 동일한 머지 함수로 처리해 한 환경만 누락되는 일이 없게.
           ...(parsed.data.employmentClassification !== undefined
@@ -20807,6 +20821,8 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
         ...(parsed.data.dressCode !== undefined ? { dressCode: parsed.data.dressCode } : {}),
         ...(parsed.data.wantsPreTraining !== undefined ? { wantsPreTraining: parsed.data.wantsPreTraining } : {}),
         ...(parsed.data.additionalNotes !== undefined ? { additionalNotes: parsed.data.additionalNotes } : {}),
+        ...(parsed.data.mockInterviewIntent !== undefined ? { mockInterviewIntent: parsed.data.mockInterviewIntent } : {}),
+        ...(parsed.data.mockInterviewQuestions !== undefined ? { mockInterviewQuestions: parsed.data.mockInterviewQuestions } : {}),
         ...(parsed.data.employmentClassification !== undefined
           ? { adminMemo: mergeEmploymentClassificationMeta(current.adminMemo, parsed.data.employmentClassification ?? null) }
           : {}),

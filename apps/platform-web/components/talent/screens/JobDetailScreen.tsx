@@ -4,7 +4,7 @@
 // 핵심 정보 / 상세 안내 / 기업 정보 + 저장·지원.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MapPin, BookmarkSimple, ArrowSquareOut, Buildings, LinkSimple, Star, X, Check } from "@phosphor-icons/react";
+import { MapPin, BookmarkSimple, ArrowSquareOut, Buildings, LinkSimple, Star, X, Check, Sparkle } from "@phosphor-icons/react";
 import { TalentBackButton } from "../TalentBackButton";
 import { toggleCompanyFollow, useFollowedCompanies } from "../../../lib/talent/company-follow";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
@@ -17,6 +17,7 @@ import { TCard, TChip, TError, TLoading } from "../ui/primitives";
 import { TalentButton } from "../TalentButton";
 import { AplyCipBadgeButton } from "../../positions/AplyCipBadge";
 import { TalentCipModal } from "../jobs/TalentCipModal";
+import { MockInterviewModal } from "../jobs/MockInterviewModal";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
@@ -52,6 +53,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   const [applying, setApplying] = useState(false);
   const [applyOpen, setApplyOpen] = useState(false);
   const [cipOpen, setCipOpen] = useState(false);
+  const [mockOpen, setMockOpen] = useState(false);
 
   function load() {
     setStatus("loading");
@@ -114,6 +116,18 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
           {/* 헤더 */}
           <PositionDetailHeaderCard item={item} onShowCip={() => setCipOpen(true)} />
 
+          {/* 모의 면접 — 회사가 준비했으면 노출 */}
+          {item.mockInterviewIntent || (item.mockInterviewQuestions?.length ?? 0) > 0 ? (
+            <button type="button" onClick={() => setMockOpen(true)} className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4 text-left transition hover:border-[#0B46E8]/40">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] shadow-[0_2px_10px_rgba(11,70,232,0.1)]" aria-hidden>🎤</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14.5px] font-bold text-[#191F28]">이 회사 모의 면접 미리 풀기</span>
+                <span className="mt-0.5 block text-[12.5px] text-[#8B95A1]">지원 전에 예상 질문을 풀고 AI 피드백을 받아보세요.</span>
+              </span>
+              <Sparkle className="h-5 w-5 shrink-0 text-[#0B46E8]" weight="fill" />
+            </button>
+          ) : null}
+
           {/* 상단 액션 (데스크톱) */}
           <div className="mt-4 hidden justify-end gap-2 md:flex">
             <TalentButton
@@ -165,6 +179,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
       ) : null}
 
       {cipOpen ? <TalentCipModal locale={locale} onClose={() => setCipOpen(false)} /> : null}
+      {mockOpen && item ? <MockInterviewModal item={item} onClose={() => setMockOpen(false)} /> : null}
       {applyOpen ? <ApplyModal applying={applying} onClose={() => setApplyOpen(false)} onConfirm={submitApply} /> : null}
     </TalentAppShell>
   );

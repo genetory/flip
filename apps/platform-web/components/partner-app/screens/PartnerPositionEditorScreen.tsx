@@ -49,6 +49,8 @@ type Form = {
   hiringProcess: string;
   additionalNotes: string;
   thumbnailImages: string[];
+  mockInterviewIntent: string;
+  mockInterviewQuestions: string[];
 };
 
 const EMPTY: Form = {
@@ -65,7 +67,9 @@ const EMPTY: Form = {
   preferredQualifications: "",
   hiringProcess: "",
   additionalNotes: "",
-  thumbnailImages: []
+  thumbnailImages: [],
+  mockInterviewIntent: "",
+  mockInterviewQuestions: []
 };
 
 function fromPosition(p: PartnerPosition): Form {
@@ -83,7 +87,9 @@ function fromPosition(p: PartnerPosition): Form {
     preferredQualifications: p.preferredQualifications ?? "",
     hiringProcess: p.hiringProcess ?? "",
     additionalNotes: p.additionalNotes ?? "",
-    thumbnailImages: Array.isArray(p.thumbnailImages) ? p.thumbnailImages : []
+    thumbnailImages: Array.isArray(p.thumbnailImages) ? p.thumbnailImages : [],
+    mockInterviewIntent: p.mockInterviewIntent ?? "",
+    mockInterviewQuestions: Array.isArray(p.mockInterviewQuestions) ? p.mockInterviewQuestions : []
   };
 }
 
@@ -103,7 +109,9 @@ function toInput(f: Form) {
     preferredQualifications: f.preferredQualifications.trim() || undefined,
     hiringProcess: f.hiringProcess.trim() || undefined,
     additionalNotes: f.additionalNotes.trim() || undefined,
-    thumbnailImages: f.thumbnailImages
+    thumbnailImages: f.thumbnailImages,
+    mockInterviewIntent: f.mockInterviewIntent.trim() || null,
+    mockInterviewQuestions: f.mockInterviewQuestions.map((q) => q.trim()).filter(Boolean)
   };
 }
 
@@ -280,6 +288,33 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
               <Field label="채용 절차"><Textarea value={form.hiringProcess} onChange={(v) => set("hiringProcess", v)} placeholder="예) 서류 → 1차 면접 → 최종 면접" /></Field>
               <Field label="추가 안내"><Textarea value={form.additionalNotes} onChange={(v) => set("additionalNotes", v)} placeholder="복지, 근무 환경 등 추가로 알리고 싶은 내용" /></Field>
             </div>
+            </div>
+          </section>
+
+          {/* 모의 면접 */}
+          <section>
+            <SectionHeader title="모의 면접" />
+            <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+              <p className="mb-3 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">지원자가 지원 전에 이 포지션 모의 면접을 연습하고 AI 피드백을 받을 수 있어요. 면접에서 보려는 포인트만 적으면 AI가 질문을 만들고, 대표 질문을 직접 넣어도 됩니다.</p>
+              <div className="flex flex-col gap-3.5">
+                <Field label="면접에서 보려는 포인트">
+                  <Textarea value={form.mockInterviewIntent} onChange={(v) => set("mockInterviewIntent", v)} placeholder="예) 문제를 정의하고 우선순위를 정하는 방식, 협업 경험, 고객 관점 사고" />
+                </Field>
+                <div>
+                  <span className="mb-1.5 block text-[12.5px] font-normal text-[#4E5968]">대표 질문 <span className="text-[#B0B8C1]">(선택 · 없으면 AI가 생성)</span></span>
+                  <div className="flex flex-col gap-2">
+                    {form.mockInterviewQuestions.map((q, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <input value={q} onChange={(e) => set("mockInterviewQuestions", form.mockInterviewQuestions.map((x, j) => (j === i ? e.target.value : x)))} placeholder={`질문 ${i + 1}`} className="min-w-0 flex-1 rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:ring-2 focus:ring-[#0B46E8]/30" />
+                        <button type="button" onClick={() => set("mockInterviewQuestions", form.mockInterviewQuestions.filter((_, j) => j !== i))} aria-label="질문 삭제" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]"><X className="h-4 w-4" /></button>
+                      </div>
+                    ))}
+                    {form.mockInterviewQuestions.length < 10 ? (
+                      <button type="button" onClick={() => set("mockInterviewQuestions", [...form.mockInterviewQuestions, ""])} className="inline-flex w-fit items-center gap-1 text-[12.5px] font-bold text-[#0B46E8]"><Plus className="h-3.5 w-3.5" weight="bold" /> 질문 추가</button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 
