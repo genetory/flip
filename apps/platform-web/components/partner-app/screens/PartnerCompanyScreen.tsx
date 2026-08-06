@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ImageSquare, Plus, X } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
+import { TalentBackButton } from "../../talent/TalentBackButton";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { getMyPartnerOrganization, updateMyPartnerOrganizationBasic, getMembersMeta, type MyPartnerOrganization } from "../../../lib/member-profile-client";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
@@ -144,6 +145,7 @@ export function PartnerCompanyScreen() {
 
   return (
     <PartnerAppShell>
+      <TalentBackButton className="mb-4" />
       <div className="flex flex-col gap-5">
         <div>
           <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">회사 프로필</h1>
