@@ -17,9 +17,12 @@ import {
   getMyPartnerOrganization,
   updateMyPartnerPosition,
   deleteMyPartnerPosition,
+  getPositionMockInterviewParticipants,
+  proposeToMockInterviewCandidate,
   type PartnerPosition,
   type MyPartnerOrganization,
-  type PublicPositionListItem
+  type PublicPositionListItem,
+  type MockInterviewParticipant
 } from "../../../lib/member-profile-client";
 
 // 파트너 공고(+조직) → 지원자 상세 렌더용 PublicPositionListItem.
@@ -60,6 +63,8 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
   const [org, setOrg] = useState<MyPartnerOrganization | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [busy, setBusy] = useState(false);
+  const [participants, setParticipants] = useState<MockInterviewParticipant[]>([]);
+  const [proposingId, setProposingId] = useState<string | null>(null);
 
   function load() {
     setStatus("loading");
@@ -70,6 +75,21 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
         setStatus("ready");
       })
       .catch(() => setStatus("error"));
+    void getPositionMockInterviewParticipants(positionId).then(setParticipants).catch(() => setParticipants([]));
+  }
+
+  function propose(userId: string, name: string) {
+    if (proposingId) return;
+    const message = window.prompt(`${name} 님에게 보낼 제안 메시지 (선택)`, "모의 면접 결과가 인상적이에요. 함께 이야기 나눠보고 싶습니다.");
+    if (message === null) return; // 취소
+    setProposingId(userId);
+    proposeToMockInterviewCandidate(positionId, userId, message.trim() || undefined)
+      .then(() => {
+        setParticipants((prev) => prev.map((x) => (x.userId === userId ? { ...x, connectionStatus: "PENDING" } : x)));
+        toast.success("제안을 보냈어요");
+      })
+      .catch(() => toast.error("제안에 실패했어요."))
+      .finally(() => setProposingId(null));
   }
   useEffect(() => {
     load();
@@ -144,6 +164,36 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
               </div>
             );
           })()}
+
+          {/* 모의 면접 참여자 — 지원 안 해도 표시, 제안 가능 */}
+          {participants.length ? (
+            <div className="mb-6">
+              <h2 className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">모의 면접 참여자 <span className="text-[#8B95A1]">{participants.length}</span></h2>
+              <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+                {participants.map((m, i) => (
+                  <div key={m.userId} className={`flex items-center gap-3 px-4 py-3.5 ${i === participants.length - 1 ? "" : "border-b border-[#F2F4F6]"}`}>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[15px] font-black text-[#0B46E8]">{m.name.slice(0, 1)}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-[14px] font-bold text-[#191F28]">{m.name}</p>
+                        {m.bestScore != null ? <span className="shrink-0 rounded-md bg-[#EDF1FD] px-1.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{m.bestScore}점</span> : null}
+                        {m.applied ? <span className="shrink-0 rounded-md bg-[#E7F8EF] px-1.5 py-0.5 text-[10.5px] font-bold text-[#0A9B59]">지원함</span> : null}
+                      </div>
+                      <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">답변 {m.answeredCount}개{m.nationality ? ` · ${m.nationality}` : ""}</p>
+                    </div>
+                    {m.connectionStatus === "ACCEPTED" ? (
+                      <span className="shrink-0 rounded-lg bg-[#E7F8EF] px-3 py-1.5 text-[12px] font-bold text-[#0A9B59]">수락됨</span>
+                    ) : m.connectionStatus === "PENDING" ? (
+                      <span className="shrink-0 rounded-lg bg-[#F2F4F6] px-3 py-1.5 text-[12px] font-bold text-[#8B95A1]">제안 보냄</span>
+                    ) : (
+                      <button type="button" onClick={() => propose(m.userId, m.name)} disabled={proposingId === m.userId} className="shrink-0 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">{proposingId === m.userId ? "…" : "제안하기"}</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-[12px] text-[#8B95A1]">지원하지 않았어도 이 공고 모의 면접을 푼 사람이에요. 제안을 보내 먼저 연결할 수 있어요.</p>
+            </div>
+          ) : null}
 
           {/* 지원자에게 보이는 화면과 동일 */}
           <PositionDetailHeaderCard item={item} />

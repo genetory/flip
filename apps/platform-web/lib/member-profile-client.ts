@@ -1260,6 +1260,28 @@ export async function recordMockInterviewPractice(positionId: string, data: { qu
 export type MockInterviewAnswer = { question: string; answer: string; score: number | null };
 export type MockInterviewResult = { score: number | null; answeredCount: number; answers: MockInterviewAnswer[] };
 
+// 공고 모의 면접 참여자(회사용) + 제안.
+export type MockInterviewParticipant = {
+  userId: string;
+  name: string;
+  nationality: string | null;
+  bestScore: number | null;
+  answeredCount: number;
+  lastPracticedAt: string;
+  applied: boolean;
+  connectionStatus: "PENDING" | "ACCEPTED" | "DECLINED" | null;
+};
+export async function getPositionMockInterviewParticipants(positionId: string): Promise<MockInterviewParticipant[]> {
+  const result = await authedJsonFetch<MockInterviewParticipant>(`/partner/positions/${encodeURIComponent(positionId)}/mock-interview-participants`, { method: "GET" });
+  return (result.items ?? []) as MockInterviewParticipant[];
+}
+export async function proposeToMockInterviewCandidate(positionId: string, userId: string, message?: string): Promise<void> {
+  await authedJsonFetch<never>(`/partner/positions/${encodeURIComponent(positionId)}/mock-interview-candidates/${encodeURIComponent(userId)}/propose`, {
+    method: "POST",
+    body: JSON.stringify(message ? { message } : {})
+  });
+}
+
 export type MockInterviewRecord = {
   positionId: string;
   positionTitle: string;

@@ -21531,6 +21531,86 @@ app.post("/partner/candidates/:candidateUserId/connect", authenticate, requireRo
   }
 });
 
+// 공고 모의 면접 참여자 — 지원 여부와 무관. 회사가 결과를 보고 제안할 수 있다.
+app.get("/partner/positions/:id/mock-interview-participants", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const positionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!positionId) return res.status(400).json({ ok: false, message: "invalid position id" });
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    const position = await prisma.position.findFirst({ where: { id: positionId, partnerOrganizationId: affiliation.organization.id }, select: { id: true } });
+    if (!position) return res.status(404).json({ ok: false, message: "position not found" });
+
+    const sessions = await prisma.mockInterviewSession.findMany({ where: { positionId }, orderBy: [{ bestScore: "desc" }, { lastPracticedAt: "desc" }] });
+    const userIds = sessions.map((s) => s.userId);
+    if (userIds.length === 0) return res.json({ ok: true, items: [] });
+
+    const [users, applied, connections] = await Promise.all([
+      prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, realName: true, nationality: true } }),
+      prisma.application.findMany({ where: { positionId, candidateUserId: { in: userIds } }, select: { candidateUserId: true } }),
+      prisma.candidateConnectionRequest.findMany({ where: { partnerUserId: req.auth!.userId, candidateUserId: { in: userIds } }, select: { candidateUserId: true, status: true } })
+    ]);
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const appliedSet = new Set(applied.map((a) => a.candidateUserId));
+    const connMap = new Map(connections.map((c) => [c.candidateUserId, c.status]));
+
+    return res.json({
+      ok: true,
+      items: sessions.map((s) => {
+        const u = userMap.get(s.userId);
+        return {
+          userId: s.userId,
+          name: u?.realName?.trim() || u?.name?.trim() || "지원자",
+          nationality: u?.nationality ?? null,
+          bestScore: s.bestScore,
+          answeredCount: s.answeredCount,
+          lastPracticedAt: s.lastPracticedAt.toISOString(),
+          applied: appliedSet.has(s.userId),
+          connectionStatus: connMap.get(s.userId) ?? null
+        };
+      })
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 회사 → 모의 면접 참여자에게 제안(연결 요청). 이 공고 모의 면접에 참여한 사람만 대상(암묵적 관심).
+app.post("/partner/positions/:id/mock-interview-candidates/:userId/propose", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const positionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const candidateUserId = String(req.params.userId ?? "");
+  if (!positionId || !candidateUserId) return res.status(400).json({ ok: false, message: "invalid request" });
+  const parsed = partnerConnectBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    const position = await prisma.position.findFirst({ where: { id: positionId, partnerOrganizationId: affiliation.organization.id }, select: { id: true, title: true } });
+    if (!position) return res.status(404).json({ ok: false, message: "position not found" });
+    // 이 공고 모의 면접에 참여한 사람만 제안 대상.
+    const practiced = await prisma.mockInterviewSession.findUnique({ where: { userId_positionId: { userId: candidateUserId, positionId } }, select: { id: true } });
+    if (!practiced) return res.status(400).json({ ok: false, message: "candidate has not practiced this mock interview" });
+
+    const existing = await prisma.candidateConnectionRequest.findUnique({ where: { partnerUserId_candidateUserId: { partnerUserId: req.auth!.userId, candidateUserId } } });
+    if (existing) return res.json({ ok: true, item: existing, alreadyExists: true });
+
+    const created = await prisma.candidateConnectionRequest.create({
+      data: { partnerUserId: req.auth!.userId, partnerOrganizationId: affiliation.organization.id, candidateUserId, message: parsed.data.message ?? null, status: "PENDING" }
+    });
+    const orgName = affiliation.organization.name ?? "회사";
+    await createNotification({
+      userId: candidateUserId,
+      type: "CANDIDATE_CONNECTION_REQUEST",
+      title: `${orgName}에서 '${position.title}' 관련 제안을 보냈어요`,
+      message: parsed.data.message ? parsed.data.message.slice(0, 120) : "모의 면접 결과를 보고 연락드렸어요. 수락하면 연락처가 공유돼요.",
+      linkPath: "/profile?tab=connections"
+    });
+    return res.status(201).json({ ok: true, item: created });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // 학생: 나에게 온 연결 요청 목록 + 수락/거절
 app.get("/members/me/connections", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   try {
