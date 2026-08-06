@@ -1084,6 +1084,19 @@ export async function getMyPartnerOrganizationMembers(): Promise<PartnerOrgMembe
   return (result.items ?? []) as PartnerOrgMember[];
 }
 
+export async function updatePartnerOrgMemberRole(userId: string, role: "ADMIN" | "MEMBER") {
+  await authedJsonFetch<never>(`/members/me/partner-organization/members/${encodeURIComponent(userId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ role })
+  });
+}
+
+export async function removePartnerOrgMember(userId: string) {
+  await authedJsonFetch<never>(`/members/me/partner-organization/members/${encodeURIComponent(userId)}`, {
+    method: "DELETE"
+  });
+}
+
 export async function joinMyPartnerOrganizationByCode(code: string) {
   const result = await authedJsonFetch<MyPartnerOrganization | null>("/members/me/partner-organization/join", {
     method: "POST",

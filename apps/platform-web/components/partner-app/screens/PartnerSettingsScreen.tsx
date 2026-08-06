@@ -17,6 +17,8 @@ import {
   getMyPartnerApplicants,
   getMyPartnerOrganizationMembers,
   createMyPartnerOrganizationJoinCode,
+  updatePartnerOrgMemberRole,
+  removePartnerOrgMember,
   type MyPartnerOrganization,
   type PartnerPosition,
   type PartnerApplicantListItem,
@@ -79,16 +81,47 @@ export function PartnerSettingsScreen() {
   const [members, setMembers] = useState<PartnerOrgMember[]>([]);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
+  const [memberBusy, setMemberBusy] = useState<string | null>(null); // 작업 중인 멤버 id
 
   const name = user?.realName || user?.name || "파트너";
   const emailVerified = Boolean(user?.emailVerified);
 
+  function reloadMembers() {
+    void getMyPartnerOrganizationMembers().then(setMembers).catch(() => {});
+  }
   useEffect(() => {
     void getMyPartnerOrganization().then(setOrg).catch(() => {});
     void getMyPartnerPositions().then(setPositions).catch(() => {});
     void getMyPartnerApplicants().then(setApplicants).catch(() => {});
-    void getMyPartnerOrganizationMembers().then(setMembers).catch(() => {});
+    reloadMembers();
   }, []);
+
+  const myRole = members.find((m) => m.isMe)?.role;
+  const canManage = myRole === "OWNER" || myRole === "ADMIN";
+
+  function changeRole(userId: string, role: "ADMIN" | "MEMBER") {
+    if (memberBusy) return;
+    setMemberBusy(userId);
+    updatePartnerOrgMemberRole(userId, role)
+      .then(() => {
+        toast.success("역할을 변경했어요");
+        reloadMembers();
+      })
+      .catch(() => toast.error("역할 변경에 실패했어요."))
+      .finally(() => setMemberBusy(null));
+  }
+  function removeMember(userId: string, memberName: string) {
+    if (memberBusy) return;
+    if (!window.confirm(`${memberName} 님을 회사에서 내보낼까요?`)) return;
+    setMemberBusy(userId);
+    removePartnerOrgMember(userId)
+      .then(() => {
+        toast.success("팀원을 내보냈어요");
+        reloadMembers();
+      })
+      .catch(() => toast.error("내보내기에 실패했어요."))
+      .finally(() => setMemberBusy(null));
+  }
 
   function makeInvite() {
     if (inviting) return;
@@ -184,6 +217,7 @@ export function PartnerSettingsScreen() {
             ) : (
               members.map((m) => {
                 const r = ORG_ROLE_LABEL[m.role];
+                const manageable = canManage && !m.isMe && m.role !== "OWNER";
                 return (
                   <div key={m.id} className="flex items-center gap-3 px-5 py-4">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[15px] font-black text-[#0B46E8]">{m.name.slice(0, 1)}</span>
@@ -195,7 +229,20 @@ export function PartnerSettingsScreen() {
                       </div>
                       <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{m.email}</p>
                     </div>
-                    <span className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold ${r.cls}`}>{r.label}</span>
+                    {manageable ? (
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <div className="flex items-center gap-0.5 rounded-full bg-[#F2F4F6] p-0.5">
+                          {(["MEMBER", "ADMIN"] as const).map((role) => (
+                            <button key={role} type="button" disabled={memberBusy === m.id} onClick={() => m.role !== role && changeRole(m.id, role)} className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition disabled:opacity-50 ${m.role === role ? "bg-white text-[#191F28] shadow-[0_1px_3px_rgba(11,18,39,0.1)]" : "text-[#8B95A1]"}`}>
+                              {ORG_ROLE_LABEL[role].label}
+                            </button>
+                          ))}
+                        </div>
+                        <button type="button" disabled={memberBusy === m.id} onClick={() => removeMember(m.id, m.name)} className="rounded-lg px-2 py-1.5 text-[11.5px] font-bold text-[#F04452] transition hover:bg-[#FDECEE] disabled:opacity-50">내보내기</button>
+                      </div>
+                    ) : (
+                      <span className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold ${r.cls}`}>{r.label}</span>
+                    )}
                   </div>
                 );
               })

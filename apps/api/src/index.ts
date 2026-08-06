@@ -12323,6 +12323,52 @@ app.get("/members/me/partner-organization/members", authenticate, requireRoles([
   });
 });
 
+const updateOrgMemberRoleSchema = z.object({ role: z.enum(["ADMIN", "MEMBER"]) });
+
+// 팀원 역할 변경 — 소유자/관리자만. 소유자·본인은 대상 불가.
+app.patch("/members/me/partner-organization/members/:userId", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const targetId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  if (!targetId) return res.status(400).json({ ok: false, message: "invalid user id" });
+  const parsed = updateOrgMemberRoleSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+
+  const me = await prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { partnerOrganizationId: true, partnerOrgRole: true } });
+  if (!me?.partnerOrganizationId) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+  if (me.partnerOrgRole !== "OWNER" && me.partnerOrgRole !== "ADMIN") return res.status(403).json({ ok: false, message: "팀원을 관리할 권한이 없습니다." });
+  if (targetId === req.auth!.userId) return res.status(400).json({ ok: false, message: "본인 역할은 변경할 수 없습니다." });
+
+  const target = await prisma.user.findFirst({
+    where: { id: targetId, partnerOrganizationId: me.partnerOrganizationId, role: MemberRole.PARTNER },
+    select: { id: true, partnerOrgRole: true }
+  });
+  if (!target) return res.status(404).json({ ok: false, message: "member not found" });
+  if (target.partnerOrgRole === "OWNER") return res.status(400).json({ ok: false, message: "소유자 역할은 변경할 수 없습니다." });
+
+  await prisma.user.update({ where: { id: targetId }, data: { partnerOrgRole: parsed.data.role } });
+  return res.json({ ok: true });
+});
+
+// 팀원 내보내기 — 소유자/관리자만. 소유자·본인은 대상 불가.
+app.delete("/members/me/partner-organization/members/:userId", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const targetId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  if (!targetId) return res.status(400).json({ ok: false, message: "invalid user id" });
+
+  const me = await prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { partnerOrganizationId: true, partnerOrgRole: true } });
+  if (!me?.partnerOrganizationId) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+  if (me.partnerOrgRole !== "OWNER" && me.partnerOrgRole !== "ADMIN") return res.status(403).json({ ok: false, message: "팀원을 관리할 권한이 없습니다." });
+  if (targetId === req.auth!.userId) return res.status(400).json({ ok: false, message: "본인은 내보낼 수 없습니다." });
+
+  const target = await prisma.user.findFirst({
+    where: { id: targetId, partnerOrganizationId: me.partnerOrganizationId, role: MemberRole.PARTNER },
+    select: { id: true, partnerOrgRole: true }
+  });
+  if (!target) return res.status(404).json({ ok: false, message: "member not found" });
+  if (target.partnerOrgRole === "OWNER") return res.status(400).json({ ok: false, message: "소유자는 내보낼 수 없습니다." });
+
+  await prisma.user.update({ where: { id: targetId }, data: { partnerOrganizationId: null, partnerOrganizationName: null, partnerOrgRole: null } });
+  return res.json({ ok: true });
+});
+
 app.patch("/members/me/partner-organization", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   const parsed = updateMyPartnerOrganizationBasicSchema.safeParse(req.body);
   if (!parsed.success) {
