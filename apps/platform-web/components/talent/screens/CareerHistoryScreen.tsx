@@ -10,12 +10,9 @@ export function CareerHistoryScreen() {
   return (
     <CareerLayout>
       <div className="flex flex-col gap-5">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">작성 히스토리</h1>
-            <p className="mt-1 text-[13.5px] text-[#8B95A1]">이력서·자기소개서에 남긴 내용이 순서대로 쌓여요.</p>
-          </div>
-          {feed.length ? <span className="shrink-0 text-[12.5px] font-semibold text-[#8B95A1]">{feed.length}개</span> : null}
+        <div>
+          <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">작성 히스토리{feed.length ? ` (${feed.length})` : ""}</h1>
+          <p className="mt-1 text-[13.5px] text-[#8B95A1]">이력서·자기소개서에 남긴 내용이 순서대로 쌓여요.</p>
         </div>
 
         {feed.length ? (

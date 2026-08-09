@@ -10,6 +10,9 @@ import { JobInterestCard } from "../jobs/JobInterestCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
 import { TCard } from "../ui/primitives";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
+import { useLanguage } from "../../i18n/LanguageProvider";
+import { PLATFORM_LOCALES, type PlatformLocale } from "../../../lib/auth-messages";
+import { useNotifPrefs } from "../../../lib/talent/notif-prefs";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useFollowing, parseAuthorKey, type FeedAuthor } from "../../../lib/talent/social-graph";
 import { useFollowedCompanies } from "../../../lib/talent/company-follow";
@@ -64,10 +67,19 @@ function Item({ label, href, value }: { label: string; href?: string; value?: st
   return inner;
 }
 
+const LOCALE_LABELS: Record<PlatformLocale, string> = {
+  ko: "한국어",
+  en: "English",
+  "zh-CN": "中文",
+  vi: "Tiếng Việt",
+  ja: "日本語",
+  id: "Bahasa Indonesia"
+};
+
 export function SettingsScreen() {
   const { user, logout, getAccountUrl } = useAuthSession();
-  const [pushOn, setPushOn] = useState(true);
-  const [emailOn, setEmailOn] = useState(true);
+  const { locale, setLocale } = useLanguage();
+  const { pushOn, emailOn, setPushOn, setEmailOn } = useNotifPrefs();
   const following = useFollowing();
   const bookmarks = useFeedBookmarks();
   const feedPosts = useSocialFeed();
@@ -111,7 +123,7 @@ export function SettingsScreen() {
                 {emailVerified ? (
                   <SealCheck className="h-[18px] w-[18px] shrink-0 text-[#0B46E8]" weight="fill" aria-label="이메일 인증됨" />
                 ) : (
-                  <span className="shrink-0 rounded-md bg-[#FFF3E6] px-1.5 py-0.5 text-[10.5px] font-bold text-[#E8890C]">인증 안됨</span>
+                  <span className="shrink-0 rounded-md bg-[#FFF3E6] px-2.5 py-0.5 text-[10.5px] font-bold text-[#E8890C]">인증 안됨</span>
                 )}
               </div>
               {user?.email ? <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{user.email}</p> : null}
@@ -150,6 +162,26 @@ export function SettingsScreen() {
           <JobInterestCard variant="edit" />
         </section>
 
+        {/* 언어 */}
+        <section>
+          <SectionHeader title="언어" />
+          <TCard>
+            <div className="flex items-center gap-3 px-5 py-4">
+              <span className="flex-1 text-[14.5px] text-[#191F28]">표시 언어</span>
+              <select
+                value={locale}
+                onChange={(e) => setLocale(e.target.value as PlatformLocale)}
+                aria-label="표시 언어"
+                className="rounded-xl border border-[#E5E8EB] bg-white px-3 py-2 text-[13.5px] font-semibold text-[#191F28] outline-none focus:border-[#0B46E8]"
+              >
+                {PLATFORM_LOCALES.map((l) => (
+                  <option key={l} value={l}>{LOCALE_LABELS[l]}</option>
+                ))}
+              </select>
+            </div>
+          </TCard>
+        </section>
+
         {/* 알림 */}
         <section>
           <SectionHeader title="알림" />
@@ -171,8 +203,15 @@ export function SettingsScreen() {
           <SectionHeader title="계정" />
           <TCard className="divide-y divide-[#F2F4F6]">
             <Item label="계정 정보 관리" href={getAccountUrl()} />
+            <a href="mailto:info@flip-ers.com" className="block transition hover:bg-[#F6F8FB]">
+              <div className="flex items-center gap-3 px-5 py-4">
+                <span className="flex-1 text-[14.5px] text-[#191F28]">고객센터 · 문의</span>
+                <CaretRight className="h-4 w-4 text-[#C4CAD2]" />
+              </div>
+            </a>
             <Item label="개인정보처리방침" href="/legal/privacy" />
             <Item label="이용약관" href="/legal/terms" />
+            <Item label="회원 탈퇴" href="/account/delete" />
           </TCard>
         </section>
 

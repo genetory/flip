@@ -12,8 +12,10 @@ import { talentBrand, talentRoutes } from "../../lib/talent/landing-content";
 import { talentMainNav, isTabActive, talentAppRoutes } from "../../lib/talent/app-nav";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { TalentButton } from "./TalentButton";
+import { TalentTicketBadge } from "./TalentTicketBadge";
 import { useFollowFeedNotifications, useFollowCompanyPositionNotifications, type FeedAuthor } from "../../lib/talent/social-graph";
 import { useUnreadNotificationCount } from "../../lib/talent/notifications";
+import { useSavedDeadlineNotifications } from "../../lib/talent/deadline-notify";
 
 export function TalentHeader() {
   const pathname = usePathname() ?? "";
@@ -34,6 +36,7 @@ export function TalentHeader() {
   const meAuthor: FeedAuthor | null = isTalentUser ? { name, role: user?.role === "OPERATOR" ? "OPERATOR" : "STUDENT" } : null;
   useFollowFeedNotifications(meAuthor);
   useFollowCompanyPositionNotifications();
+  useSavedDeadlineNotifications();
   const unreadCount = useUnreadNotificationCount();
 
   return (
@@ -81,6 +84,8 @@ export function TalentHeader() {
         {/* 우측 */}
         {isTalentUser ? (
           <div className="flex items-center gap-1.5">
+            {/* AI 티켓 잔액 — 학생만(포인트는 탤런트 전용) */}
+            {user?.role === "STUDENT" ? <TalentTicketBadge /> : null}
             {/* 알림 */}
             <Link
               href={talentAppRoutes.notifications}

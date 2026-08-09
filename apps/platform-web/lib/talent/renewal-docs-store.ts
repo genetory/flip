@@ -11,6 +11,7 @@ import type { ResumeDoc } from "./resume-doc";
 import type { CoverDoc } from "./cover-doc";
 import type { BasicInfo } from "./basic-info";
 import type { FeedEntry } from "./career-feed";
+import type { SelfMockRecord } from "./self-mock";
 
 export type RenewalDocsStatus = "idle" | "loading" | "loaded";
 
@@ -27,6 +28,17 @@ let follows: string[] | null = null;
 let bookmarks: string[] | null = null;
 let dailySteps: string[] | null = null;
 let careerFeed: FeedEntry[] | null = null;
+// 내 서류 기반 self 모의 면접 기록(문항별 답변·점수·피드백).
+let selfMock: SelfMockRecord | null = null;
+// 첫 실행 온보딩을 마쳤(또는 웰컴 카드를 닫았)는지.
+let onboardingSeen = false;
+// 커리어 피드에서 사용자가 지운 refId(이력서/자소서 유래 항목이 sync로 되살아나지 않게).
+let careerFeedDismissed: string[] | null = null;
+// 지원 준비 100% 축하 배너를 닫았는지.
+let applyCelebrated = false;
+// 알림 설정(opt-out; 기본 false = 켜짐). push=공고/추천 알림, email=이메일 소식.
+let notifPushOptOut = false;
+let notifEmailOptOut = false;
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let saving = false;
@@ -70,6 +82,24 @@ export function snapshotDailySteps(): string[] | null {
 export function snapshotCareerFeed(): FeedEntry[] | null {
   return careerFeed;
 }
+export function snapshotSelfMock(): SelfMockRecord | null {
+  return selfMock;
+}
+export function snapshotOnboardingSeen(): boolean {
+  return onboardingSeen;
+}
+export function snapshotCareerFeedDismissed(): string[] | null {
+  return careerFeedDismissed;
+}
+export function snapshotApplyCelebrated(): boolean {
+  return applyCelebrated;
+}
+export function snapshotNotifPushOptOut(): boolean {
+  return notifPushOptOut;
+}
+export function snapshotNotifEmailOptOut(): boolean {
+  return notifEmailOptOut;
+}
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -92,6 +122,12 @@ function buildContent(): Record<string, unknown> {
   if (bookmarks) content.renewalBookmarks = bookmarks;
   if (dailySteps) content.renewalDailySteps = dailySteps;
   if (careerFeed) content.renewalCareerFeed = careerFeed;
+  if (selfMock) content.renewalMockInterview = selfMock;
+  if (onboardingSeen) content.renewalOnboardingSeen = true;
+  if (careerFeedDismissed) content.renewalCareerFeedDismissed = careerFeedDismissed;
+  if (applyCelebrated) content.renewalApplyCelebrated = true;
+  if (notifPushOptOut) content.renewalNotifPushOptOut = true;
+  if (notifEmailOptOut) content.renewalNotifEmailOptOut = true;
   return content;
 }
 
@@ -104,6 +140,12 @@ function parseContent(content: Record<string, unknown> | null | undefined): {
   bookmarks: string[] | null;
   dailySteps: string[] | null;
   careerFeed: FeedEntry[] | null;
+  selfMock: SelfMockRecord | null;
+  onboardingSeen: boolean;
+  careerFeedDismissed: string[] | null;
+  applyCelebrated: boolean;
+  notifPushOptOut: boolean;
+  notifEmailOptOut: boolean;
 } {
   const c = content ?? {};
   const resume = (c.renewalResume as ResumeDoc | undefined) ?? null;
@@ -124,7 +166,14 @@ function parseContent(content: Record<string, unknown> | null | undefined): {
   const bookmarks = Array.isArray(c.renewalBookmarks) ? (c.renewalBookmarks as string[]) : null;
   const dailySteps = Array.isArray(c.renewalDailySteps) ? (c.renewalDailySteps as string[]) : null;
   const careerFeed = Array.isArray(c.renewalCareerFeed) ? (c.renewalCareerFeed as FeedEntry[]) : null;
-  return { resume, cover, basic, interests, follows, bookmarks, dailySteps, careerFeed };
+  const sm = c.renewalMockInterview as SelfMockRecord | undefined;
+  const selfMock = sm && Array.isArray(sm.answers) ? sm : null;
+  const onboardingSeen = c.renewalOnboardingSeen === true;
+  const careerFeedDismissed = Array.isArray(c.renewalCareerFeedDismissed) ? (c.renewalCareerFeedDismissed as string[]) : null;
+  const applyCelebrated = c.renewalApplyCelebrated === true;
+  const notifPushOptOut = c.renewalNotifPushOptOut === true;
+  const notifEmailOptOut = c.renewalNotifEmailOptOut === true;
+  return { resume, cover, basic, interests, follows, bookmarks, dailySteps, careerFeed, selfMock, onboardingSeen, careerFeedDismissed, applyCelebrated, notifPushOptOut, notifEmailOptOut };
 }
 
 // 로드 ----------------------------------------------------------------------
@@ -153,6 +202,12 @@ async function load(userId: string) {
       bookmarks = parsed.bookmarks;
       dailySteps = parsed.dailySteps;
       careerFeed = parsed.careerFeed;
+      selfMock = parsed.selfMock;
+      onboardingSeen = parsed.onboardingSeen;
+      careerFeedDismissed = parsed.careerFeedDismissed;
+      applyCelebrated = parsed.applyCelebrated;
+      notifPushOptOut = parsed.notifPushOptOut;
+      notifEmailOptOut = parsed.notifEmailOptOut;
     } else {
       resumeRowId = null;
       resumeDoc = null;
@@ -163,6 +218,12 @@ async function load(userId: string) {
       bookmarks = null;
       dailySteps = null;
       careerFeed = null;
+      selfMock = null;
+      onboardingSeen = false;
+      careerFeedDismissed = null;
+      applyCelebrated = false;
+      notifPushOptOut = false;
+      notifEmailOptOut = false;
     }
     status = "loaded";
     emit();
@@ -178,6 +239,12 @@ async function load(userId: string) {
     bookmarks = null;
     dailySteps = null;
     careerFeed = null;
+    selfMock = null;
+    onboardingSeen = false;
+    careerFeedDismissed = null;
+    applyCelebrated = false;
+    notifPushOptOut = false;
+    notifEmailOptOut = false;
     status = "loaded";
     emit();
   }
@@ -197,6 +264,12 @@ export function syncUser(userId: string | null): void {
     bookmarks = null;
     dailySteps = null;
     careerFeed = null;
+    selfMock = null;
+    onboardingSeen = false;
+    careerFeedDismissed = null;
+    applyCelebrated = false;
+    notifPushOptOut = false;
+    notifEmailOptOut = false;
     status = "idle";
     if (saveTimer) {
       clearTimeout(saveTimer);
@@ -286,6 +359,42 @@ export function setDailySteps(list: string[]): void {
 
 export function setCareerFeed(list: FeedEntry[]): void {
   careerFeed = list;
+  emit();
+  scheduleSave();
+}
+
+export function setSelfMock(record: SelfMockRecord | null): void {
+  selfMock = record;
+  emit();
+  scheduleSave();
+}
+
+export function setOnboardingSeen(v: boolean): void {
+  onboardingSeen = v;
+  emit();
+  scheduleSave();
+}
+
+export function setCareerFeedDismissed(list: string[]): void {
+  careerFeedDismissed = list;
+  emit();
+  scheduleSave();
+}
+
+export function setApplyCelebrated(v: boolean): void {
+  applyCelebrated = v;
+  emit();
+  scheduleSave();
+}
+
+export function setNotifPushOptOut(v: boolean): void {
+  notifPushOptOut = v;
+  emit();
+  scheduleSave();
+}
+
+export function setNotifEmailOptOut(v: boolean): void {
+  notifEmailOptOut = v;
   emit();
   scheduleSave();
 }

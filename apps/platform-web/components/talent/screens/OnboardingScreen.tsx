@@ -1,8 +1,9 @@
 "use client";
 
 // Talent 온보딩 — 한 번에 하나의 질문만. 끝나면 결과가 아니라 첫 작업으로 연결한다.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { markOnboardingSeen } from "../../../lib/talent/onboarding-state";
 import { X, ArrowLeft, Check } from "@phosphor-icons/react";
 import { TalentGuard } from "../app/TalentGuard";
 import { TProgressBar } from "../ui/primitives";
@@ -41,6 +42,11 @@ function OnboardingFlow() {
   const progress = useMemo(() => Math.round((Math.min(step, totalSteps) / totalSteps) * 100), [step, totalSteps]);
 
   const dest = goal ? goalDestination[goal] : goalDestination.explore;
+
+  // 완료 화면에 도달하면 온보딩을 봤다고 계정에 기록(웰컴 카드 다시 안 뜸).
+  useEffect(() => {
+    if (isDone) markOnboardingSeen();
+  }, [isDone]);
 
   function next() {
     setStep((s) => s + 1);

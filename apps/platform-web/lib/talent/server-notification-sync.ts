@@ -26,7 +26,20 @@ function mapEmoji(type: string): string {
 
 function mapHref(n: ServerNotification): string {
   if (n.applicationId) return talentAppRoutes.applications;
-  if (n.linkPath && n.linkPath.startsWith("/talent")) return n.linkPath;
+  const lp = n.linkPath ?? "";
+  if (lp.startsWith("/talent")) return lp;
+  // 레거시 프로필(/profile*) 은 절대 그대로 두지 않고 모던 화면으로 매핑한다.
+  if (lp.startsWith("/profile?tab=applied")) return talentAppRoutes.applications;
+  if (lp.startsWith("/profile?tab=connections")) return talentAppRoutes.connections;
+  if (lp.startsWith("/profile/assignments")) return talentAppRoutes.assignments;
+  if (lp.startsWith("/profile/programs")) return talentAppRoutes.programs;
+  if (lp.startsWith("/profile")) return talentAppRoutes.notifications; // 그 외 레거시 프로필 탭(sgc 등, 폐기) → 모던 알림함
+  // 레거시 공개 포지션 → 모던 잡 상세.
+  const pos = lp.match(/^\/positions\/([^/?#]+)/);
+  if (pos) return `/talent/jobs/${pos[1]}`;
+  // Career Launch 등 별도 활성 제품 영역은 그대로. 그 외 비경로는 알림함으로.
+  if (lp.startsWith("/career-launch")) return lp;
+  if (lp.startsWith("/")) return lp;
   return talentAppRoutes.notifications;
 }
 

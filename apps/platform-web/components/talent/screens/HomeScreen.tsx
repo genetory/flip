@@ -4,9 +4,13 @@
 // 실제 관리(이력서/자소서 등)는 내 커리어에서. 디자인은 Toss 톤(흰 배경·소프트 카드·블루 액센트·여백).
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CaretRight, ArrowClockwise, ArrowRight, X } from "@phosphor-icons/react";
+import Image from "next/image";
+import { CaretRight, ArrowClockwise, ArrowRight, X, Buildings } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { PositionCard } from "../jobs/PositionCard";
+import { ApplyReadinessBanner } from "../ApplyReadinessBanner";
+import { useApplyReadiness } from "../../../lib/talent/apply-readiness";
+import { useOnboardingSeen, markOnboardingSeen } from "../../../lib/talent/onboarding-state";
 import { TalentCipModal } from "../jobs/TalentCipModal";
 import { JobInterestCard } from "../jobs/JobInterestCard";
 import { FeedCard } from "../career/FeedCard";
@@ -23,16 +27,17 @@ import {
   getPublicPositionsPage,
   getMyFavoritePositions,
   addMyFavoritePosition,
-  removeMyFavoritePosition
+  removeMyFavoritePosition,
+  getCompanySummaries
 } from "../../../lib/member-profile-client";
 import { toPositionView, type PositionView } from "../../../lib/talent/positions-adapter";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
-import { useFollowedCompanies } from "../../../lib/talent/company-follow";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { useDailyStep } from "../../../lib/talent/daily-step";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
+import { useTimeGreeting } from "../../../lib/time-greeting";
 import { notifySavedPosition } from "../../../lib/talent/activity-log";
 export function HomeScreen() {
   return (
@@ -47,12 +52,121 @@ function HomeContent() {
     <div className="flex flex-col gap-10">
       <FeaturedBanners />
       <GreetingHeader />
+      <WelcomeOnboardingCard />
+      <ApplyReadinessBanner variant="card" />
+      <DeadlineReminder />
       <HomeCareerHistory />
       <GuideSection />
       <TodayTip />
       <RecommendedJobs />
       <HomeCompanies />
     </div>
+  );
+}
+
+/* 첫 실행 웰컴 — 아직 아무것도 시작 안 한 신규 유저에게 온보딩을 안내(계정에 저장) */
+function WelcomeOnboardingCard() {
+  const seen = useOnboardingSeen();
+  const { loaded, pct } = useApplyReadiness();
+  const [hidden, setHidden] = useState(false);
+  // 로드 완료 + 아직 안 봄 + 시작 전(준비도 0%) 신규 유저에게만.
+  if (!loaded || seen || hidden || pct > 0) return null;
+  return (
+    <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0B46E8] to-[#3A6BF0] p-5 text-white">
+      <button
+        type="button"
+        aria-label="닫기"
+        onClick={() => {
+          markOnboardingSeen();
+          setHidden(true);
+        }}
+        className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full text-white/70 transition hover:bg-white/15"
+      >
+        <X className="h-4 w-4" />
+      </button>
+      <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-white/80">WELCOME</p>
+      <h2 className="mt-1.5 break-keep text-[19px] font-black leading-[1.3] tracking-[-0.02em]">3분이면 취업 준비를 시작할 수 있어요</h2>
+      <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-white/85">몇 가지만 알려주시면 나에게 딱 맞는 첫 단계로 안내해드릴게요.</p>
+      <Link
+        href={talentAppRoutes.onboarding}
+        className="mt-4 inline-flex items-center gap-1 rounded-xl bg-white px-4 py-2.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F5F8FF]"
+      >
+        시작하기 <ArrowRight className="h-4 w-4" weight="bold" />
+      </Link>
+    </section>
+  );
+}
+
+/* 마감 임박 — 저장(즐겨찾기)한 공고 중 7일 내 마감되는 공고 리마인드 */
+type DeadlineItem = { id: string; title: string; company: string; thumb: string | null; days: number };
+function DeadlineReminder() {
+  const [items, setItems] = useState<DeadlineItem[]>([]);
+  useEffect(() => {
+    void getMyFavoritePositions()
+      .then((list) => {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const soon = list
+          .map((p): DeadlineItem | null => {
+            if (p.sourceDeadlineRolling || !p.sourceDeadlineDate) return null;
+            const d = new Date(p.sourceDeadlineDate.slice(0, 10));
+            if (Number.isNaN(d.getTime())) return null;
+            const days = Math.ceil((d.getTime() - today) / 86_400_000);
+            if (days < 0 || days > 7) return null;
+            return {
+              id: p.id,
+              title: p.title,
+              company: p.partnerOrganization?.name || p.sourceCompanyName || "비공개 기업",
+              thumb: p.thumbnailImages?.[0] ?? null,
+              days
+            };
+          })
+          .filter((x): x is DeadlineItem => x !== null)
+          .sort((a, b) => a.days - b.days)
+          .slice(0, 3);
+        setItems(soon);
+      })
+      .catch(() => {});
+  }, []);
+
+  if (items.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">마감이 다가와요</h2>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">저장한 공고 중 곧 마감되는 공고예요. 놓치지 마세요.</p>
+      </div>
+      <div className="flex flex-col gap-2.5">
+        {items.map((it) => {
+          const urgent = it.days <= 2;
+          return (
+            <Link
+              key={it.id}
+              href={`${talentAppRoutes.jobs}/${it.id}`}
+              className="flex items-center gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-3.5 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]"
+            >
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F2F4F6]">
+                {it.thumb ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={it.thumb} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <Buildings className="h-6 w-6 text-[#C4CAD2]" />
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[14.5px] font-bold text-[#191F28]">{it.title}</p>
+                <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{it.company}</p>
+              </div>
+              <span
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold ${urgent ? "bg-[#FDECEE] text-[#F04452]" : "bg-[#FFF3E6] text-[#E8890C]"}`}
+              >
+                {it.days === 0 ? "오늘 마감" : `D-${it.days}`}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -63,12 +177,12 @@ const COMPANY_SIZE_LABELS: Record<string, string> = {
   SIZE_OVER_100: "100인 이상"
 };
 
-type HomeCompany = { name: string; industry?: string; size?: string; location?: string; logo?: string; count: number };
+type HomeCompany = { id: string; name: string; industry?: string; size?: string; location?: string; logo?: string; count: number };
 
 /* 이런 회사는 어때요 — 채용 중인 회사 중 랜덤 3개 */
 function HomeCompanies() {
-  const followed = useFollowedCompanies();
   const [companies, setCompanies] = useState<HomeCompany[]>([]);
+  const [summaries, setSummaries] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let alive = true;
@@ -78,8 +192,9 @@ function HomeCompanies() {
         const map = new Map<string, HomeCompany>();
         for (const p of page.items) {
           const org = p.partnerOrganization;
-          if (!org?.name) continue;
+          if (!org?.name || !org.id) continue;
           const e = map.get(org.name) ?? {
+            id: org.id,
             name: org.name,
             industry: org.industry ? partnerIndustryLabel(org.industry) : undefined,
             size: org.companySize ? COMPANY_SIZE_LABELS[org.companySize] ?? undefined : undefined,
@@ -96,7 +211,14 @@ function HomeCompanies() {
           const j = Math.floor(Math.random() * (i + 1));
           [all[i], all[j]] = [all[j], all[i]];
         }
-        setCompanies(all.slice(0, 3));
+        const picked = all.slice(0, 3);
+        setCompanies(picked);
+        // 회사 소개 LLM 요약(캐시) 로드.
+        void getCompanySummaries(picked.map((c) => c.id))
+          .then((s) => {
+            if (alive) setSummaries(s);
+          })
+          .catch(() => {});
       })
       .catch(() => {});
     return () => {
@@ -112,26 +234,30 @@ function HomeCompanies() {
         <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">이런 회사는 어때요?</h2>
         <p className="mt-1 text-[13px] text-[#8B95A1]">지금 채용 중인 회사를 만나보세요.</p>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="flex flex-col gap-2.5">
         {companies.map((c) => (
           <Link
             key={c.name}
             href={`/talent/company/${encodeURIComponent(c.name)}`}
-            className="flex flex-col items-center gap-2.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 text-center transition hover:border-[#D7DCE3] hover:shadow-[0_6px_20px_rgba(11,18,39,0.05)]"
+            className="flex items-start gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]"
           >
             {c.logo ? (
-              <span className="h-[56px] w-[56px] shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+              <span className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={c.logo} alt="" className="h-full w-full object-cover" />
               </span>
             ) : (
-              <span className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">{c.name.slice(0, 1)}</span>
+              <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[19px] font-black text-[#0B46E8]">{c.name.slice(0, 1)}</span>
             )}
-            <div className="w-full min-w-0">
-              <p className="truncate text-[13.5px] font-bold text-[#191F28]">{c.name}</p>
-              <p className="mt-0.5 truncate text-[11.5px] text-[#8B95A1]">{[c.industry, c.size, c.location].filter(Boolean).join(" · ") || "기업"}</p>
-              <p className="truncate text-[11.5px] text-[#8B95A1]">포지션 <span className="font-bold text-[#191F28]">{c.count}</span>개</p>
-              <p className="truncate text-[11.5px] text-[#8B95A1]">관심 <span className="font-bold text-[#191F28]">{followed.includes(c.name) ? 1 : 0}</span>명</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="truncate text-[14.5px] font-bold text-[#191F28]">{c.name}</p>
+                <span className="shrink-0 text-[11.5px] font-bold text-[#0B46E8]">포지션 {c.count}</span>
+              </div>
+              <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{[c.industry, c.size, c.location].filter(Boolean).join(" · ") || "기업"}</p>
+              {summaries[c.id] ? (
+                <p className="mt-1.5 line-clamp-2 break-keep text-[12.5px] leading-relaxed text-[#5A6473]">{summaries[c.id]}</p>
+              ) : null}
             </div>
           </Link>
         ))}
@@ -231,6 +357,7 @@ function FeaturedBanners() {
 /* 인사 */
 function GreetingHeader() {
   const { user } = useAuthSession();
+  const greeting = useTimeGreeting();
   const name = user?.realName || user?.name || "나";
   const resume = useResumeDoc();
   const cover = useCoverDoc();
@@ -243,24 +370,34 @@ function GreetingHeader() {
       : !cover || coverCompleteness(cover) < 100
         ? "자기소개서 작성 단계"
         : "지원 준비 완료";
+  const rp = resume ? resumeCompleteness(resume) : 0;
+  const cp = cover ? coverCompleteness(cover) : 0;
+  const cta = !resume
+    ? { label: "이력서 만들기", href: talentAppRoutes.resume }
+    : rp < 100
+      ? { label: "이력서 이어쓰기", href: talentAppRoutes.resume }
+      : !cover || cp < 100
+        ? { label: "자기소개서 쓰기", href: talentAppRoutes.cover }
+        : { label: "공고 둘러보기", href: talentAppRoutes.jobs };
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-[#F5F8FF] p-7">
-      <span className="pointer-events-none absolute -right-1 -top-4 select-none text-[92px] leading-none opacity-[0.07]" aria-hidden>🌱</span>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3.5">
-          <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] font-black text-[#0B46E8] shadow-[0_2px_8px_rgba(11,18,39,0.06)]">
-            {name.slice(0, 1)}
-          </span>
-          <div className="min-w-0">
-            <p className="text-[12px] font-bold text-[#0B46E8]">{stageLabel}</p>
-            <h1 className="truncate text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[24px]">{name}님, 안녕하세요 👋</h1>
-          </div>
+    <div className="flex items-center gap-4">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#0B46E8]">{stageLabel}</p>
+          {streak > 0 ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11.5px] font-bold text-[#4E5968] shadow-[0_1px_4px_rgba(11,18,39,0.05)]">🔥 {streak}일 연속</span>
+          ) : null}
         </div>
-        {streak > 0 ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] shadow-[0_2px_8px_rgba(11,18,39,0.05)]">🔥 {streak}일 연속</span>
-        ) : null}
+        <p className="mt-2 text-[13px] font-bold text-[#4E5968]">{greeting} 👋</p>
+        <h1 className="mt-1 break-keep text-[22px] font-black leading-[1.2] tracking-[-0.02em] text-[#0B1227] md:text-[26px]">{name}님, 오늘도 한 걸음 나아가요</h1>
+        <p className="mt-1.5 break-keep text-[13.5px] text-[#8B95A1]">오늘도 한 걸음씩, 취업에 가까워지고 있어요.</p>
+        <Link href={cta.href} className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">
+          {cta.label} <ArrowRight className="h-4 w-4" weight="bold" />
+        </Link>
       </div>
-      <p className="mt-4 break-keep text-[14px] leading-relaxed text-[#4E5968]">오늘도 한 걸음씩, 취업에 가까워지고 있어요.</p>
+      <div className="relative hidden aspect-square w-[140px] shrink-0 self-center sm:block md:w-[190px]" aria-hidden>
+        <Image src="/img_home_hero.webp" alt="" fill sizes="190px" className="object-contain" />
+      </div>
     </div>
   );
 }
@@ -427,7 +564,7 @@ function RecommendedJobs() {
   const { locale } = useLanguage();
   const toast = useTalentPopup();
   const interests = useJobInterests();
-  const [jobs, setJobs] = useState<PositionView[]>([]);
+  const [jobs, setJobs] = useState<{ view: PositionView; matched: boolean }[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [cipOpen, setCipOpen] = useState(false);
 
@@ -441,29 +578,25 @@ function RecommendedJobs() {
       const load = (opts: { jobRoles?: string[]; internalOnly?: boolean }) =>
         getPublicPositionsPage({ limit: 5, jobRoles: opts.jobRoles, sourceProviders: opts.internalOnly ? ["INTERNAL"] : undefined, locale }).catch(() => null);
 
-      const pages = [
-        await load({ jobRoles, internalOnly: true }), // 매칭 CIP
-        await load({ jobRoles }) // 매칭 전체
-      ];
-      // 직무가 선택됐는데 5개를 못 채우면 최신 공고로 보충.
-      if (jobRoles) {
-        pages.push(await load({ internalOnly: true })); // 최신 CIP
-        pages.push(await load({})); // 최신 전체
-      }
+      // 관심 직무가 있으면 '매칭' 페이지(맞춤)와 '최신' 페이지(보충)를 구분해 근거를 태깅한다.
+      const matchedPages = jobRoles ? [await load({ jobRoles, internalOnly: true }), await load({ jobRoles })] : [];
+      const fillerPages = [await load({ internalOnly: true }), await load({})];
       if (!alive) return;
 
       const seen = new Set<string>();
-      const merged: PositionView[] = [];
-      for (const page of pages) {
-        for (const it of page?.items ?? []) {
-          if (seen.has(it.id)) continue;
-          seen.add(it.id);
-          merged.push(toPositionView(it));
-          if (merged.length >= 5) break;
+      const merged: { view: PositionView; matched: boolean }[] = [];
+      const collect = (pages: (Awaited<ReturnType<typeof load>>)[], matched: boolean) => {
+        for (const page of pages) {
+          for (const it of page?.items ?? []) {
+            if (seen.has(it.id) || merged.length >= 5) continue;
+            seen.add(it.id);
+            merged.push({ view: toPositionView(it), matched });
+          }
         }
-        if (merged.length >= 5) break;
-      }
-      setJobs(merged);
+      };
+      collect(matchedPages, true);
+      collect(fillerPages, false);
+      setJobs(merged.slice(0, 5));
     })();
     void getMyFavoritePositions()
       .then((list) => {
@@ -500,7 +633,7 @@ function RecommendedJobs() {
     <section className="flex flex-col gap-4 rounded-3xl bg-[#F5F8FF] p-6">
       <div>
         <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">나에게 딱 맞는 공고예요</h2>
-        <p className="mt-1 text-[13px] text-[#8B95A1]">관심 직무를 바탕으로 골라봤어요.</p>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">{jobs.some((j) => j.matched) ? "관심 직무를 바탕으로 골라봤어요." : "지금 올라온 공고를 골라봤어요. 관심 직무를 설정하면 더 잘 맞춰드려요."}</p>
       </div>
 
       {/* 관심 직무 카드(공용) */}
@@ -509,8 +642,13 @@ function RecommendedJobs() {
       {jobs.length > 0 ? (
         <>
           <div className="flex flex-col gap-3">
-            {jobs.map((view) => (
-              <PositionCard key={view.id} view={view} saved={savedIds.has(view.id)} onToggleSave={toggleSave} onShowCip={() => setCipOpen(true)} />
+            {jobs.map(({ view, matched }) => (
+              <div key={view.id} className="flex flex-col gap-1.5">
+                {matched ? (
+                  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[#EDF1FD] px-2 py-1 text-[10.5px] font-bold text-[#0B46E8]">✨ 관심 직무 맞춤</span>
+                ) : null}
+                <PositionCard view={view} saved={savedIds.has(view.id)} onToggleSave={toggleSave} onShowCip={() => setCipOpen(true)} />
+              </div>
             ))}
           </div>
           <Link href={talentAppRoutes.jobs} className="mt-1 flex items-center justify-center gap-1 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB]">

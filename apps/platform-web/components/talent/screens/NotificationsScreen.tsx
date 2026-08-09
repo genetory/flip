@@ -2,13 +2,13 @@
 
 // 알림 — 내 활동(지원·팔로우·저장)과 소식(팔로잉 새 글·회사 새 공고)을 함께 모아본다.
 // 언더라인 탭(포지션 탐색과 동일) + 리스트 형식. 동적 스토어(mock).
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CaretRight } from "@phosphor-icons/react";
+import { CaretRight, Checks } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TalentBackButton } from "../TalentBackButton";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
-import { useNotifications, markAllNotificationsRead, type Notification, type NotificationKind } from "../../../lib/talent/notifications";
+import { useNotifications, markAllNotificationsRead, markNotificationRead, type Notification, type NotificationKind } from "../../../lib/talent/notifications";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 
 type Filter = "all" | "activity" | "update";
@@ -29,11 +29,6 @@ export function NotificationsScreen() {
   const dynamic = useNotifications();
   const [filter, setFilter] = useState<Filter>("all");
 
-  // 화면을 열면 모두 읽음 처리(벨 배지 클리어).
-  useEffect(() => {
-    markAllNotificationsRead();
-  }, []);
-
   const unread = useMemo(() => dynamic.filter((n) => n.unread).length, [dynamic]);
 
   const filtered = useMemo(
@@ -47,8 +42,16 @@ export function NotificationsScreen() {
         <div>
           <TalentBackButton className="mb-3" />
           <div className="flex items-end justify-between gap-3">
-            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">알림</h1>
-            {unread > 0 ? <span className="text-[12.5px] font-bold text-[#0B46E8]">안 읽음 {unread}</span> : null}
+            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">알림{unread > 0 ? <span className="ml-1.5 align-middle text-[15px] font-black text-[#0B46E8]">{unread}</span> : null}</h1>
+            {unread > 0 ? (
+              <button
+                type="button"
+                onClick={() => markAllNotificationsRead()}
+                className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
+              >
+                <Checks className="h-4 w-4" weight="bold" /> 모두 읽음
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -95,6 +98,7 @@ function Row({ n, last }: { n: Notification; last: boolean }) {
   return (
     <Link
       href={n.href}
+      onClick={() => markNotificationRead(n.id)}
       className={`flex items-start gap-3.5 px-4 py-4 transition ${n.unread ? "bg-[#F5F8FF] hover:bg-[#EEF3FE]" : "hover:bg-[#F6F8FB]"} ${last ? "" : "border-b border-[#F2F4F6]"}`}
     >
       <span className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-[19px] ${s.avatar}`} aria-hidden>

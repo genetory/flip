@@ -2,17 +2,17 @@
 
 // 지원 현황 — 실제 서버 지원 내역(getMyApplications). 상태 탭(전체/지원 완료/면접/결과).
 // 별도 상세 화면 없이 리스트 카드에서 바로 이벤트(공고 보기·지원 철회·면접 안내)를 처리한다.
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { X, WarningCircle, ChatCircleDots, PaperPlaneTilt, CalendarCheck } from "@phosphor-icons/react";
+import { X, WarningCircle, ChatCircleDots, PaperPlaneTilt, CalendarCheck, CalendarPlus, Check, CaretRight } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
-import { TEmpty, TError, TLoading } from "../ui/primitives";
+import { TEmpty, TError, TListSkeleton } from "../ui/primitives";
 import { TalentButton } from "../TalentButton";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
-import { getMyApplications, withdrawMyApplication, getApplicationMessages, sendApplicationMessage, getInterviewSlotsForApplication, selectInterviewSlot, type MyApplication, type ApplicationMessage, type InterviewSlot } from "../../../lib/member-profile-client";
+import { getMyApplications, withdrawMyApplication, getApplicationMessages, sendApplicationMessage, getInterviewSlotsForApplication, selectInterviewSlot, getApplicationTimeline, type MyApplication, type ApplicationMessage, type InterviewSlot, type ApplicationTimelineEvent } from "../../../lib/member-profile-client";
 
 // 면접 시간 표기 — 8월 12일 (화) 오후 2:00
 function formatWhen(iso: string): string {
@@ -52,6 +52,7 @@ export function ApplicationsScreen() {
   const [confirmApp, setConfirmApp] = useState<MyApplication | null>(null);
   const [messageApp, setMessageApp] = useState<MyApplication | null>(null);
   const [slotApp, setSlotApp] = useState<MyApplication | null>(null);
+  const [timelineApp, setTimelineApp] = useState<MyApplication | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
 
   function load() {
@@ -104,7 +105,7 @@ export function ApplicationsScreen() {
           <p className="mt-1 text-[13.5px] text-[#8B95A1]">지원한 공고의 진행 상태를 확인해요.</p>
         </div>
 
-        {status === "loading" ? <TLoading /> : null}
+        {status === "loading" ? <TListSkeleton /> : null}
         {status === "error" ? <TError onRetry={load} /> : null}
 
         {status === "ready" ? (
@@ -138,7 +139,7 @@ export function ApplicationsScreen() {
             ) : (
               <div className="flex flex-col gap-3.5">
                 {list.map((a) => (
-                  <AppCard key={a.id} app={a} onWithdraw={() => setConfirmApp(a)} onMessage={() => setMessageApp(a)} onSelectInterview={() => setSlotApp(a)} />
+                  <AppCard key={a.id} app={a} onWithdraw={() => setConfirmApp(a)} onMessage={() => setMessageApp(a)} onSelectInterview={() => setSlotApp(a)} onTimeline={() => setTimelineApp(a)} />
                 ))}
               </div>
             )}
@@ -169,6 +170,8 @@ export function ApplicationsScreen() {
           }}
         />
       ) : null}
+
+      {timelineApp ? <ProgressModal app={timelineApp} onClose={() => setTimelineApp(null)} /> : null}
     </TalentAppShell>
   );
 }
@@ -334,7 +337,166 @@ function WithdrawModal({ app, withdrawing, onClose, onConfirm }: { app: MyApplic
   );
 }
 
-function AppCard({ app, onWithdraw, onMessage, onSelectInterview }: { app: MyApplication; onWithdraw: () => void; onMessage: () => void; onSelectInterview: () => void }) {
+// 지원 이후 여정 타임라인 — 지원 완료 → 면접 → 결과 3단계 스텝퍼.
+type StageState = "done" | "current" | "upcoming" | "good" | "bad";
+type Stage = { key: string; label: string; state: StageState };
+
+function stagesFor(app: MyApplication): Stage[] {
+  const s = app.status;
+  // 면접: 진행 중이면 current, 합격이면 done, 불합격은 실제 확정 면접이 있었을 때만 done(서류 탈락은 건너뜀).
+  const interview: StageState =
+    s === "INTERVIEW" ? "current" : s === "ACCEPTED" ? "done" : s === "REJECTED" ? (app.interviewSelectedAt ? "done" : "upcoming") : "upcoming";
+  const result: StageState = s === "ACCEPTED" ? "good" : s === "REJECTED" ? "bad" : "upcoming";
+  const resultLabel = s === "ACCEPTED" ? "합격" : s === "REJECTED" ? "불합격" : "결과";
+  return [
+    { key: "applied", label: "지원 완료", state: "done" },
+    { key: "interview", label: "면접", state: interview },
+    { key: "result", label: resultLabel, state: result }
+  ];
+}
+
+const NODE_BG: Record<StageState, string> = {
+  done: "bg-[#0B46E8]",
+  current: "bg-[#0B46E8] ring-4 ring-[#0B46E8]/15",
+  good: "bg-[#0A9B59]",
+  bad: "bg-[#F04452]",
+  upcoming: "bg-[#E5E8EB]"
+};
+const LABEL_COLOR: Record<StageState, string> = {
+  done: "text-[#191F28]",
+  current: "text-[#0B46E8]",
+  good: "text-[#0A9B59]",
+  bad: "text-[#F04452]",
+  upcoming: "text-[#B0B8C1]"
+};
+function lineColor(right: StageState): string {
+  if (right === "upcoming") return "bg-[#E5E8EB]";
+  if (right === "good") return "bg-[#0A9B59]";
+  if (right === "bad") return "bg-[#F04452]";
+  return "bg-[#0B46E8]";
+}
+
+function ApplicationTimeline({ app }: { app: MyApplication }) {
+  if (app.status === "WITHDRAWN") return null;
+  const stages = stagesFor(app);
+  return (
+    <div>
+      <div className="flex items-center">
+        {stages.map((st, i) => (
+          <Fragment key={st.key}>
+            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${NODE_BG[st.state]}`}>
+              {st.state === "done" || st.state === "good" ? (
+                <Check className="h-3.5 w-3.5 text-white" weight="bold" />
+              ) : st.state === "bad" ? (
+                <X className="h-3 w-3 text-white" weight="bold" />
+              ) : st.state === "current" ? (
+                <span className="h-2 w-2 rounded-full bg-white" />
+              ) : null}
+            </span>
+            {i < stages.length - 1 ? <span className={`mx-1 h-[3px] flex-1 rounded-full ${lineColor(stages[i + 1].state)}`} /> : null}
+          </Fragment>
+        ))}
+      </div>
+      <div className="mt-1.5 flex justify-between">
+        {stages.map((st) => (
+          <span key={st.key} className={`w-1/3 text-[11px] font-bold ${st.key === "applied" ? "text-left" : st.key === "result" ? "text-right" : "text-center"} ${LABEL_COLOR[st.state]}`}>
+            {st.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 확정된 면접 일정을 구글 캘린더에 추가하는 링크.
+function gcalUrl(app: MyApplication): string {
+  const startIso = app.interviewSelectedAt ?? "";
+  const start = new Date(startIso);
+  const end = app.interviewSelectedEndsAt ? new Date(app.interviewSelectedEndsAt) : new Date(start.getTime() + 60 * 60 * 1000);
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const text = `${app.positionTitle} 면접${app.partnerOrganizationName ? ` · ${app.partnerOrganizationName}` : ""}`;
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text,
+    dates: `${fmt(start)}/${fmt(end)}`,
+    details: "Aply를 통해 지원한 공고의 면접 일정입니다."
+  });
+  if (app.interviewLocation) params.set("location", app.interviewLocation);
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+const TIMELINE_EVENT_META: Record<string, { emoji: string; label: string }> = {
+  applied: { emoji: "📮", label: "지원 완료" },
+  interview_proposed: { emoji: "📅", label: "회사가 면접 시간을 제안했어요" },
+  interview_confirmed: { emoji: "✅", label: "면접 시간을 확정했어요" },
+  accepted: { emoji: "🎉", label: "합격했어요" },
+  rejected: { emoji: "🙏", label: "불합격했어요" },
+  withdrawn: { emoji: "↩️", label: "지원을 철회했어요" }
+};
+
+// 진행 내역 — 상태 변경·면접 이벤트를 시간순으로 보여주는 활동 타임라인.
+function ProgressModal({ app, onClose }: { app: MyApplication; onClose: () => void }) {
+  useLockBodyScroll();
+  const [events, setEvents] = useState<ApplicationTimelineEvent[] | null>(null);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    getApplicationTimeline(app.id)
+      .then((e) => {
+        if (!cancelled) setEvents(e);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [app.id]);
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div className="flex max-h-[85vh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
+          <div className="min-w-0">
+            <p className="text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">진행 내역</p>
+            <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{app.positionTitle}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="닫기" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-5">
+          {error ? (
+            <p className="py-10 text-center text-[13.5px] text-[#F04452]">진행 내역을 불러오지 못했어요.</p>
+          ) : !events ? (
+            <p className="py-10 text-center text-[13.5px] text-[#8B95A1]">불러오는 중…</p>
+          ) : events.length === 0 ? (
+            <p className="py-10 text-center text-[13.5px] text-[#8B95A1]">아직 진행 내역이 없어요.</p>
+          ) : (
+            <ol className="flex flex-col">
+              {events.map((ev, i) => {
+                const m = TIMELINE_EVENT_META[ev.code] ?? { emoji: "•", label: ev.code };
+                const last = i === events.length - 1;
+                return (
+                  <li key={i} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EDF1FD] text-[15px]">{m.emoji}</span>
+                      {!last ? <span className="my-1 w-0.5 flex-1 rounded-full bg-[#EAECEF]" /> : null}
+                    </div>
+                    <div className={`min-w-0 flex-1 ${last ? "" : "pb-5"}`}>
+                      <p className="text-[13.5px] font-bold text-[#191F28]">{m.label}</p>
+                      <p className="mt-0.5 text-[12px] text-[#8B95A1]">{formatWhen(ev.at)}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AppCard({ app, onWithdraw, onMessage, onSelectInterview, onTimeline }: { app: MyApplication; onWithdraw: () => void; onMessage: () => void; onSelectInterview: () => void; onTimeline: () => void }) {
   const s = APPLICATION_STATUS[app.status];
   const canWithdraw = app.status === "SUBMITTED" || app.status === "INTERVIEW";
   const canMessage = app.status !== "WITHDRAWN";
@@ -360,6 +522,16 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview }: { app: MyApp
       ) : (
         <p className="mt-1 text-[13px] text-[#8B95A1]">비공개 기업</p>
       )}
+
+      {/* 지원 이후 여정 타임라인 */}
+      {app.status !== "WITHDRAWN" ? (
+        <div className="mt-4">
+          <ApplicationTimeline app={app} />
+          <button type="button" onClick={onTimeline} className="mt-2.5 inline-flex items-center gap-0.5 text-[12px] font-bold text-[#8B95A1] transition hover:text-[#4E5968]">
+            진행 내역 보기 <CaretRight className="h-3.5 w-3.5" weight="bold" />
+          </button>
+        </div>
+      ) : null}
 
       {/* 상태별 안내 + 다음 액션 */}
       <StatusBlock app={app} onSelectInterview={onSelectInterview} />
@@ -403,9 +575,25 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
   if (app.status === "INTERVIEW" && app.interviewSelectedAt) {
     return (
       <div className="mt-3.5 rounded-xl bg-[#FFF3E6] px-4 py-3.5">
-        <p className="text-[12px] font-bold text-[#E8890C]">면접 확정</p>
+        <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#E8890C]"><CalendarCheck className="h-4 w-4" weight="fill" /> 면접 확정</p>
         <p className="mt-1 text-[13px] font-semibold text-[#191F28]">{formatWhen(app.interviewSelectedAt)}</p>
         {app.interviewLocation ? <p className="mt-0.5 text-[12px] text-[#8B95A1]">{app.interviewLocation}</p> : null}
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          <a
+            href={gcalUrl(app)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#E8890C] shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition hover:bg-[#FFF9F0]"
+          >
+            <CalendarPlus className="h-4 w-4" weight="bold" /> 캘린더에 추가
+          </a>
+          <Link
+            href={`${talentAppRoutes.jobs}/${app.positionId}`}
+            className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition hover:bg-[#F5F8FF]"
+          >
+            🎤 모의 면접으로 준비하기
+          </Link>
+        </div>
       </div>
     );
   }
@@ -430,6 +618,12 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
     return (
       <div className="mt-3.5 rounded-xl bg-[#FFF3E6] px-4 py-3.5">
         <p className="text-[12.5px] text-[#B07B33]">면접 단계로 진행됐어요. 일정이 잡히면 알려드릴게요.</p>
+        <Link
+          href={`${talentAppRoutes.jobs}/${app.positionId}`}
+          className="mt-2.5 inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition hover:bg-[#F5F8FF]"
+        >
+          🎤 모의 면접으로 준비하기
+        </Link>
       </div>
     );
   }

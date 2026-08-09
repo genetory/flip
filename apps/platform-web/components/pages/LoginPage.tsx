@@ -120,7 +120,7 @@ export function LoginPage({
             <div className="mx-auto mb-8 text-center">
               <Image
                 src="/img_logo.webp"
-                alt="aply logo"
+                alt="Aply logo"
                 width={180}
                 height={48}
                 className="mx-auto mb-5 h-8 w-auto md:h-9"

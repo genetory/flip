@@ -157,7 +157,7 @@ export function ResumeMakerShell({
               </Link>
             ) : (
               <Link href="/" className="flex shrink-0 items-center" title="aply.global 홈으로">
-                <Image src="/img_logo.webp" alt="aply logo" width={180} height={48} className="h-6 w-auto md:h-7" priority />
+                <Image src="/img_logo.webp" alt="Aply logo" width={180} height={48} className="h-6 w-auto md:h-7" priority />
               </Link>
             )}
             {left ? <div className="flex shrink-0 items-center">{left}</div> : null}

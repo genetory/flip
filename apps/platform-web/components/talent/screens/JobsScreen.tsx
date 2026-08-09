@@ -6,8 +6,9 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { MagnifyingGlass, CircleNotch } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
-import { TEmpty, TError, TLoading, TPageHeader } from "../ui/primitives";
+import { TEmpty, TError, TListSkeleton, TPageHeader } from "../ui/primitives";
 import { PositionCard } from "../jobs/PositionCard";
+import { ApplyReadinessBanner } from "../ApplyReadinessBanner";
 import { InFeedAd } from "../../ads/InFeedAd";
 import { TalentCipModal } from "../jobs/TalentCipModal";
 import { JobInterestModal } from "../jobs/JobInterestModal";
@@ -167,8 +168,10 @@ export function JobsScreen() {
     <TalentAppShell>
       <TPageHeader title="포지션 탐색" description="나에게 맞는 인턴·신입 공고를 찾아 지원을 시작해요." />
 
-      {/* 소스 탭 — 언더라인 탭 바 */}
-      <div className="mb-5 flex gap-6">
+      <ApplyReadinessBanner variant="compact" className="mb-5" />
+
+      {/* 소스 탭 — 언더라인 탭 바(모바일 가로 스크롤) */}
+      <div className="mb-5 flex gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {([
           { key: "all", label: "전체 공고" },
           { key: "aply", label: "APLY CIP" },
@@ -182,7 +185,7 @@ export function JobsScreen() {
               type="button"
               onClick={() => setTab(t.key)}
               aria-current={active ? "page" : undefined}
-              className={`relative pb-1.5 text-[15px] font-bold transition ${active ? "text-[#191F28]" : "text-[#B0B8C1] hover:text-[#8B95A1]"}`}
+              className={`relative shrink-0 pb-1.5 text-[15px] font-bold transition ${active ? "text-[#191F28]" : "text-[#B0B8C1] hover:text-[#8B95A1]"}`}
             >
               {t.label}
               {active ? <span className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-[#0B46E8]" /> : null}
@@ -258,7 +261,7 @@ export function JobsScreen() {
             </div>
           </div>
 
-          {status === "loading" ? <TLoading /> : null}
+          {status === "loading" ? <TListSkeleton /> : null}
           {status === "error" ? <TError onRetry={loadFirst} /> : null}
           {status === "ready" ? (
             views.length === 0 ? (
@@ -301,7 +304,7 @@ export function JobsScreen() {
         </>
       ) : (
         <>
-          {savedStatus === "loading" || savedStatus === "idle" ? <TLoading /> : null}
+          {savedStatus === "loading" || savedStatus === "idle" ? <TListSkeleton /> : null}
           {savedStatus === "error" ? <TError onRetry={() => setSavedStatus("idle")} /> : null}
           {savedStatus === "ready" ? (
             views.length === 0 ? (

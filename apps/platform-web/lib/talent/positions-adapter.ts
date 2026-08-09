@@ -18,6 +18,7 @@ export interface PositionView {
   sourceProvider: PublicPositionListItem["sourceProvider"]; // INTERNAL / WANTED / BUDDIES / OTHER
   sourceLabel: string | null; // 외부 출처 표시(원티드 등)
   thumbnail: string | null;
+  hasMockInterview: boolean; // 회사가 모의 면접(의도/대표질문)을 등록한 내부 공고
 }
 
 const sourceLabels: Record<PublicPositionListItem["sourceProvider"], string | null> = {
@@ -51,6 +52,7 @@ export function toPositionView(item: PublicPositionListItem): PositionView {
 
   // Aply 내부 = sourceProvider INTERNAL. 원티드/버디스/기타는 외부 → 원본 링크로 지원.
   const isInternal = item.sourceProvider === "INTERNAL" && item.sourceKind !== "EXTERNAL";
+  const hasMockInterview = isInternal && (!!item.mockInterviewIntent?.trim() || (item.mockInterviewQuestions?.length ?? 0) > 0);
 
   return {
     id: item.id,
@@ -67,6 +69,7 @@ export function toPositionView(item: PublicPositionListItem): PositionView {
     isInternal,
     sourceProvider: item.sourceProvider,
     sourceLabel: sourceLabels[item.sourceProvider] ?? null,
-    thumbnail: item.thumbnailImages?.[0] ?? null
+    thumbnail: item.thumbnailImages?.[0] ?? null,
+    hasMockInterview
   };
 }

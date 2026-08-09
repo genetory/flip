@@ -106,6 +106,24 @@ export function TLoading({ label = "불러오는 중…" }: { label?: string }) 
   );
 }
 
+/* 리스트 스켈레톤 — 목록 화면 로딩 시 카드형 자리표시(체감 속도↑). */
+export function TListSkeleton({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="flex animate-pulse flex-col gap-3" aria-hidden>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-start gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-4">
+          <div className="h-12 w-12 shrink-0 rounded-2xl bg-[#EEF1F5]" />
+          <div className="min-w-0 flex-1">
+            <div className="h-3.5 w-2/5 rounded bg-[#EEF1F5]" />
+            <div className="mt-2 h-3 w-3/5 rounded bg-[#F2F4F6]" />
+            <div className="mt-2.5 h-3 w-1/3 rounded bg-[#F2F4F6]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* 오류 */
 export function TError({ onRetry }: { onRetry?: () => void }) {
   return (

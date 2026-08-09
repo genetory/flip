@@ -577,6 +577,8 @@ export type PartnerPosition = {
   additionalNotes: string | null;
   mockInterviewIntent?: string | null;
   mockInterviewQuestions?: string[];
+  mockInterviewParticipantCount?: number;
+  viewCount?: number;
   adminMemo: string | null;
   postingProgressLogs?: Array<{
     id: string;
@@ -793,6 +795,16 @@ export async function getPublicPremiumPositionBanners() {
   return payload.items ?? [];
 }
 
+// 홈 "이런 회사는 어때요" — 회사 id 목록의 소개 LLM 요약(공개, 캐시). { [orgId]: summary }.
+export async function getCompanySummaries(ids: string[]): Promise<Record<string, string>> {
+  const clean = ids.filter(Boolean);
+  if (clean.length === 0) return {};
+  const response = await fetch(`${getApiBaseUrl()}/public/company-summaries?ids=${encodeURIComponent(clean.join(","))}`, { method: "GET" });
+  const payload = (await readApiPayload(response)) as { ok?: boolean; summaries?: Record<string, string> };
+  if (!response.ok || payload.ok !== true) return {};
+  return payload.summaries ?? {};
+}
+
 export async function getMyFavoritePositions() {
   const result = await authedJsonFetch<PublicPositionListItem>("/members/me/positions/favorites", {
     method: "GET"
@@ -833,6 +845,15 @@ export async function getMyApplications() {
   return (result.items ?? []) as MyApplication[];
 }
 
+// 지원 이후 여정 — 진행 내역(상태 변경 + 면접 슬롯 이벤트) 시간순.
+export type ApplicationTimelineEvent = { at: string; code: string };
+export async function getApplicationTimeline(applicationId: string): Promise<ApplicationTimelineEvent[]> {
+  const result = await authedJsonFetch<ApplicationTimelineEvent>(`/members/me/applications/${encodeURIComponent(applicationId)}/timeline`, {
+    method: "GET"
+  });
+  return (result.items ?? []) as ApplicationTimelineEvent[];
+}
+
 export async function withdrawMyApplication(applicationId: string) {
   return authedJsonFetch<{ id: string; status: string }>(`/members/me/applications/${encodeURIComponent(applicationId)}/withdraw`, {
     method: "POST"
@@ -856,6 +877,9 @@ export async function getMyNotifications(limit = 30): Promise<{ items: ServerNot
   return { items: (result.items ?? []) as ServerNotification[], unreadCount: (result as { unreadCount?: number }).unreadCount ?? 0 };
 }
 
+export async function markServerNotificationRead(id: string) {
+  return authedJsonFetch<unknown>(`/members/me/notifications/${encodeURIComponent(id)}/read`, { method: "PATCH" });
+}
 export async function markAllServerNotificationsRead() {
   return authedJsonFetch<unknown>("/members/me/notifications/read-all", { method: "PATCH" });
 }
@@ -989,6 +1013,23 @@ export async function submitAssignment(assignmentId: string, payload: { submissi
   });
 }
 
+export type MyProgram = {
+  id: string;
+  applicationId: string;
+  status: "ACTIVE" | "COMPLETED" | "CANCELLED";
+  startsAt: string;
+  endsAt: string | null;
+  application: { id: string; position: { id: string; title: string; partnerOrganization: { id: string; name: string } | null } };
+  meetings: Array<{ id: string; scheduledAt: string; status: string }>;
+  certificate: { id: string } | null;
+  recommendation: { id: string } | null;
+  schoolCreditRequest: { id: string; status: string } | null;
+};
+export async function getMyPrograms(): Promise<MyProgram[]> {
+  const result = await authedJsonFetch<MyProgram>("/members/me/programs", { method: "GET" });
+  return (result.items ?? []) as MyProgram[];
+}
+
 export async function addMyFavoritePosition(positionId: string) {
   const result = await authedJsonFetch<unknown>(`/members/me/positions/${encodeURIComponent(positionId)}/favorite`, {
     method: "POST"
@@ -1015,6 +1056,25 @@ export async function applyMyPosition(positionId: string, resumeId?: string, cov
   });
   trackPositionApply(positionId, "unknown");
   return result;
+}
+
+// 회사 소개 AI 다듬기 — 초안을 매끄러운 소개문으로(없는 사실은 지어내지 않음).
+export async function aiPolishCompanyDescription(input: { text: string; name?: string; industry?: string; locale?: string }): Promise<string> {
+  const result = await authedJsonFetch<never>("/partner/company/ai-polish-description", { method: "POST", body: JSON.stringify(input) });
+  const r = result as unknown as { description?: string };
+  return r.description ?? "";
+}
+
+// 채용 공고 AI 초안 — 제목·직무로 주요 업무/자격 요건/우대 사항 초안 생성.
+export type PositionDraft = { mainResponsibilities: string; requiredQualifications: string; preferredQualifications: string };
+export async function aiDraftPositionContent(input: { title: string; jobRole?: string; employmentType?: string; companyName?: string; locale?: string }): Promise<PositionDraft> {
+  const result = await authedJsonFetch<never>("/partner/positions/ai-draft", { method: "POST", body: JSON.stringify(input) });
+  const r = result as unknown as { draft?: Partial<PositionDraft> };
+  return {
+    mainResponsibilities: r.draft?.mainResponsibilities ?? "",
+    requiredQualifications: r.draft?.requiredQualifications ?? "",
+    preferredQualifications: r.draft?.preferredQualifications ?? ""
+  };
 }
 
 export async function getMyPartnerPositions() {
@@ -1185,7 +1245,8 @@ export type PartnerApplicantListItem = {
   id: string;
   name: string;
   nationality: string | null;
-  email: string;
+  email: string | null;
+  contactUnlocked?: boolean;
   positionId: string;
   positionTitle: string;
   languages: string[];
@@ -1201,6 +1262,8 @@ export type PartnerApplicantListItem = {
   coverLetterShareSlug?: string | null;
   mockInterviewPracticed?: boolean;
   mockInterviewScore?: number | null;
+  interviewSlotSelected?: boolean;
+  applicationId?: string | null;
 };
 
 export type PartnerApplicantDetail = PartnerApplicantListItem & {
@@ -1236,7 +1299,7 @@ export async function getPartnerPendingMessages(): Promise<PartnerPendingMessage
 
 // AI 모의 면접 — 질문 생성 / 답변 피드백(둘 다 STUDENT + AI 지갑).
 export type InterviewQuestion = { question: string; intent: string; category: string };
-export async function aiInterviewQuestions(input: { resumeText: string; jobText?: string; coverLetterText?: string; desiredJobRole?: string; locale?: string }): Promise<InterviewQuestion[]> {
+export async function aiInterviewQuestions(input: { resumeText: string; jobText?: string; coverLetterText?: string; desiredJobRole?: string; askedQuestions?: string[]; count?: number; category?: string; locale?: string }): Promise<InterviewQuestion[]> {
   const result = await authedJsonFetch<never>("/members/me/ai/interview-questions", { method: "POST", body: JSON.stringify(input) });
   const r = result as unknown as { questions?: InterviewQuestion[] };
   return Array.isArray(r.questions) ? r.questions : [];
@@ -1274,6 +1337,116 @@ export type MockInterviewParticipant = {
 export async function getPositionMockInterviewParticipants(positionId: string): Promise<MockInterviewParticipant[]> {
   const result = await authedJsonFetch<MockInterviewParticipant>(`/partner/positions/${encodeURIComponent(positionId)}/mock-interview-participants`, { method: "GET" });
   return (result.items ?? []) as MockInterviewParticipant[];
+}
+// 조직 전체 모의 면접 참여자(인재별 최고 점수 공고). positionId/positionTitle 포함 → 바로 제안 가능.
+export type OrgMockInterviewParticipant = MockInterviewParticipant & { positionId: string; positionTitle: string };
+export async function getOrgMockInterviewParticipants(): Promise<OrgMockInterviewParticipant[]> {
+  const result = await authedJsonFetch<OrgMockInterviewParticipant>(`/partner/mock-interview-participants`, { method: "GET" });
+  return (result.items ?? []) as OrgMockInterviewParticipant[];
+}
+export type MockInterviewParticipantDetail = {
+  userId: string;
+  name: string;
+  nationality: string | null;
+  positionId: string;
+  positionTitle: string;
+  bestScore: number | null;
+  answeredCount: number;
+  lastPracticedAt: string;
+  applied: boolean;
+  connectionStatus: "PENDING" | "ACCEPTED" | "DECLINED" | null;
+  answers: Array<{ question: string; answer: string; score: number | null }>;
+  resumeDoc: unknown;
+  resumeBasicInfo: unknown;
+  coverDoc: unknown;
+  resumeTitle: string | null;
+  resumeShareSlug: string | null;
+  coverLetterTitle: string | null;
+  coverLetterShareSlug: string | null;
+};
+export async function getMockInterviewParticipantDetail(positionId: string, userId: string): Promise<MockInterviewParticipantDetail> {
+  const result = await authedJsonFetch<MockInterviewParticipantDetail>(`/partner/positions/${encodeURIComponent(positionId)}/mock-interview-participants/${encodeURIComponent(userId)}`, { method: "GET" });
+  if (!result.item) throw new Error("응답에 참여자 정보가 없습니다.");
+  return result.item;
+}
+
+// 인재 검색(인재풀) — aply에 이력서를 등록하고 인재풀 공개에 동의한 사람.
+export type PartnerCandidateCard = {
+  candidateUserId: string;
+  name: string | null;
+  nationality: string | null;
+  school: string | null;
+  major: string | null;
+  desiredJobRole: string | null;
+  workType: string | null;
+  visa: string | null;
+  skills: string[];
+  languages: string[];
+  careerCount: number;
+  activityCount: number;
+  summary: string | null;
+  updatedAt: string;
+  connectionStatus: "PENDING" | "ACCEPTED" | "DECLINED" | null;
+  contactUnlocked: boolean;
+  resumeBullets?: string[];
+  coverBullets?: string[];
+  score?: number;
+  reason?: string;
+};
+export async function getPartnerCandidates(params: { q?: string; skill?: string; jobRole?: string; page?: number } = {}): Promise<{ items: PartnerCandidateCard[]; total: number; page: number; pageSize: number }> {
+  const qs = new URLSearchParams();
+  if (params.q) qs.set("q", params.q);
+  if (params.skill) qs.set("skill", params.skill);
+  if (params.jobRole) qs.set("jobRole", params.jobRole);
+  if (params.page) qs.set("page", String(params.page));
+  const result = await authedJsonFetch<PartnerCandidateCard>(`/partner/candidates${qs.toString() ? `?${qs.toString()}` : ""}`, { method: "GET" });
+  const r = result as { items?: PartnerCandidateCard[]; total?: number; page?: number; pageSize?: number };
+  return { items: (r.items ?? []) as PartnerCandidateCard[], total: r.total ?? 0, page: r.page ?? 1, pageSize: r.pageSize ?? 20 };
+}
+// 관심 인재 shortlist — 저장/해제/목록.
+export async function getSavedCandidates(): Promise<PartnerCandidateCard[]> {
+  const result = await authedJsonFetch<PartnerCandidateCard>("/partner/saved-candidates", { method: "GET" });
+  return ((result as { items?: PartnerCandidateCard[] }).items ?? []) as PartnerCandidateCard[];
+}
+export async function saveCandidate(candidateUserId: string) {
+  return authedJsonFetch<unknown>(`/partner/saved-candidates/${encodeURIComponent(candidateUserId)}`, { method: "POST" });
+}
+export async function unsaveCandidate(candidateUserId: string) {
+  return authedJsonFetch<unknown>(`/partner/saved-candidates/${encodeURIComponent(candidateUserId)}`, { method: "DELETE" });
+}
+
+export async function searchPartnerCandidatesAI(query: string): Promise<{ items: PartnerCandidateCard[]; ai: boolean }> {
+  const result = await authedJsonFetch<PartnerCandidateCard>(`/partner/candidates/search`, { method: "POST", body: JSON.stringify({ query }) });
+  const r = result as { items?: PartnerCandidateCard[]; ai?: boolean };
+  return { items: (r.items ?? []) as PartnerCandidateCard[], ai: Boolean(r.ai) };
+}
+
+export type PartnerCandidateDetail = {
+  candidateUserId: string;
+  name: string | null;
+  nationality: string | null;
+  contact: { email: string | null; phone: string | null } | null;
+  content: Record<string, unknown>;
+  coverLetter: { title: string | null; company: string | null; items: Array<{ prompt: string; answer: string }> } | null;
+  updatedAt: string;
+  connectionStatus: "PENDING" | "ACCEPTED" | "DECLINED" | null;
+  contactUnlocked: boolean;
+};
+export async function getPartnerCandidate(candidateUserId: string): Promise<PartnerCandidateDetail> {
+  const result = await authedJsonFetch<PartnerCandidateDetail>(`/partner/candidates/${encodeURIComponent(candidateUserId)}`, { method: "GET" });
+  if (!result.item) throw new Error("후보 정보를 불러오지 못했어요.");
+  return result.item;
+}
+export async function connectPartnerCandidate(candidateUserId: string, message?: string): Promise<void> {
+  await authedJsonFetch<never>(`/partner/candidates/${encodeURIComponent(candidateUserId)}/connect`, {
+    method: "POST",
+    body: JSON.stringify(message ? { message } : {})
+  });
+}
+export async function getPartnerCandidateDocumentSummary(candidateUserId: string): Promise<{ resumeBullets: string[]; coverBullets: string[] }> {
+  const result = await authedJsonFetch<never>(`/partner/candidates/${encodeURIComponent(candidateUserId)}/document-summary`, { method: "GET" });
+  const r = result as unknown as { resumeBullets?: string[]; coverBullets?: string[] };
+  return { resumeBullets: r.resumeBullets ?? [], coverBullets: r.coverBullets ?? [] };
 }
 export async function proposeToMockInterviewCandidate(positionId: string, userId: string, input: { message?: string; interviewAt?: string }): Promise<void> {
   await authedJsonFetch<never>(`/partner/positions/${encodeURIComponent(positionId)}/mock-interview-candidates/${encodeURIComponent(userId)}/propose`, {

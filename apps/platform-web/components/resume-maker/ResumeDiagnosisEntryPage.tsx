@@ -19,6 +19,8 @@ import {
   type ResumeContent
 } from "../../lib/member-profile-client";
 import { getBuilderState, getDraftResume, saveResumeContent } from "../../lib/resume-maker-client";
+import { setMyPrimaryResume } from "../../lib/member-profile-client";
+import { setTalentPool } from "../../lib/candidate-connect-client";
 import { compileResumeContent } from "../../lib/resume-maker-compile";
 import { computeResumeProgress } from "../../lib/resume-maker-progress";
 import { DEFAULT_DESIGN, type ResumeDesignSettings } from "../../lib/resume-maker-types";
@@ -130,6 +132,10 @@ export function ResumeDiagnosisEntryPage() {
     setRegistering(true);
     try {
       await saveResumeContent(selected.id, { ...previewContent, poolOptIn: { consentedAt: new Date().toISOString() } });
+      // 파트너 인재 검색은 '대표(primary) 이력서' 의 poolOptIn 만 읽으므로, 이 이력서를 대표로 승격시킨다.
+      await setMyPrimaryResume(selected.id).catch(() => {});
+      // 대표 이력서 기준으로 인재풀 등록 확정 + 요약 선생성(파트너가 열기 전에 준비).
+      await setTalentPool(true).catch(() => {});
       setJustRegistered(true);
       toast.success(t.registerSuccess);
     } catch (err) {

@@ -1862,6 +1862,16 @@ function StudentConnectionsTab({
                 "Saat aktif, resume utama Anda muncul di pencarian kandidat perusahaan. Kontak hanya dibagikan saat Anda menerima koneksi, dan bisa dimatikan kapan saja."
               )}
             </p>
+            <p className="mt-1.5 text-[12px] text-muted-foreground">
+              {tr(
+                "이력서와 자기소개서가 어느정도 채워져 있어야 검색 결과에 노출돼요.",
+                "Your resume and cover letter need to be reasonably complete to appear in search results.",
+                "简历和自我介绍需要填写得较为完整，才会出现在搜索结果中。",
+                "Hồ sơ và thư giới thiệu cần được điền tương đối đầy đủ mới xuất hiện trong kết quả tìm kiếm.",
+                "検索結果に表示されるには、履歴書と自己紹介書がある程度埋まっている必要があります。",
+                "Resume dan surat pengantar perlu cukup lengkap agar muncul di hasil pencarian."
+              )}
+            </p>
             {!primary ? <p className="mt-1.5 text-[12px] font-medium text-amber-600">{tr("대표 이력서가 있어야 등록할 수 있어요.", "You need a primary resume to join.", "需要有代表简历才能加入。", "Bạn cần hồ sơ đại diện để tham gia.", "登録には代表履歴書が必要です。", "Perlu resume utama untuk bergabung.")}</p> : null}
             {err ? <p className="mt-1.5 text-[12px] text-rose-600">{err}</p> : null}
           </div>

@@ -3,7 +3,10 @@
 // 내 커리어 — 오늘의 한 걸음 히어로 + 이력서/자기소개서 + 커리어 기록.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "@phosphor-icons/react";
+import { ArrowRight, Sparkle } from "@phosphor-icons/react";
+import { MockInterviewModal } from "../jobs/MockInterviewModal";
+import { MockGateModal } from "../jobs/MockGateModal";
+import { SelfMockResultModal } from "../jobs/SelfMockResultModal";
 import { CareerLayout } from "../career/CareerLayout";
 import { ProfileGate } from "../career/ProfileGate";
 import { FeedCard } from "../career/FeedCard";
@@ -15,6 +18,7 @@ import { useCareerFeed, removeFeedEntry } from "../../../lib/talent/career-feed"
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
 import { useResumeDoc, useRenewalDocsStatus, resumeCompleteness, displayMonth, type ResumeItem } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
+import { useSelfMock } from "../../../lib/talent/self-mock";
 import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
 import { useDailyStep, markStepDoneToday } from "../../../lib/talent/daily-step";
 export function CareerHomeScreen() {
@@ -35,6 +39,13 @@ function Content() {
 
   // 이미 입력된 이력서/자소서 항목도 커리어 기록으로 백필(멱등, refId 중복 방지).
   useCareerHistorySync();
+
+  // 내 서류(이력서·자기소개서) 기반 self 모의 면접 — 시작 전 서류 완성 게이트 + 지난 결과.
+  const [mockGateOpen, setMockGateOpen] = useState(false);
+  const [mockOpen, setMockOpen] = useState(false);
+  const [mockResultOpen, setMockResultOpen] = useState(false);
+  const selfMock = useSelfMock();
+  const mockAnsweredCount = selfMock?.answers?.length ?? 0;
 
   // 실제 지원 여부 — 오늘의 미션 힌트에 사용.
   const [applied, setApplied] = useState(false);
@@ -88,6 +99,37 @@ function Content() {
         <CareerFunnelCards showPreview />
       </section>
 
+      {/* 모의 면접 — 내 이력서·자기소개서 기반 self 연습 */}
+      <section className="flex flex-col gap-4">
+        <SectionHead title="모의 면접으로 연습해요" desc="내 이력서·자기소개서를 바탕으로 예상 질문을 풀고 AI 피드백을 받아요." />
+        <button
+          type="button"
+          onClick={() => setMockGateOpen(true)}
+          className="flex items-center gap-3.5 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4 text-left transition hover:border-[#0B46E8]/40"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] shadow-[0_2px_10px_rgba(11,70,232,0.1)]" aria-hidden>🎤</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[14.5px] font-bold text-[#191F28]">내 서류로 모의 면접 보기</p>
+            <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">이력서·자기소개서에서 예상 질문을 뽑아 연습하고 AI 피드백을 받아요.</p>
+          </div>
+          <Sparkle className="h-5 w-5 shrink-0 text-[#0B46E8]" weight="fill" />
+        </button>
+        {mockAnsweredCount ? (
+          <button
+            type="button"
+            onClick={() => setMockResultOpen(true)}
+            className="flex items-center gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 text-left transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]"
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px]" aria-hidden>🗂️</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[14.5px] font-bold text-[#191F28]">내 모의 면접 연습 결과</p>
+              <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">답변한 {mockAnsweredCount}문항의 답변·AI 피드백을 다시 확인해요.</p>
+            </div>
+            <ArrowRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" weight="bold" />
+          </button>
+        ) : null}
+      </section>
+
       {/* 이력서에 담긴 내 커리어 — 직장(경력)만 심플 요약 */}
       <section className="flex flex-col gap-4">
         <SectionHead title="이력서에 담긴 내 커리어" desc="소속했던 곳을 시간순으로 보여드려요." />
@@ -108,10 +150,7 @@ function Content() {
 
       {/* 작성 히스토리 */}
       <section className="flex flex-col gap-4">
-        <div className="flex items-end justify-between gap-3">
-          <SectionHead title="작성 히스토리" desc="이력서·자기소개서에 남긴 내용이 순서대로 쌓여요." />
-          {feed.length ? <span className="shrink-0 text-[12.5px] font-semibold text-[#8B95A1]">{feed.length}개</span> : null}
-        </div>
+        <SectionHead title={`작성 히스토리${feed.length ? ` (${feed.length})` : ""}`} desc="이력서·자기소개서에 남긴 내용이 순서대로 쌓여요." />
         {feed.length ? (
           <>
             <div className="flex flex-col gap-2.5">
@@ -132,6 +171,18 @@ function Content() {
           <EmptyFeed />
         )}
       </section>
+
+      {mockGateOpen ? (
+        <MockGateModal
+          onClose={() => setMockGateOpen(false)}
+          onConfirm={() => {
+            setMockGateOpen(false);
+            setMockOpen(true);
+          }}
+        />
+      ) : null}
+      {mockOpen ? <MockInterviewModal onClose={() => setMockOpen(false)} /> : null}
+      {mockResultOpen ? <SelfMockResultModal onClose={() => setMockResultOpen(false)} /> : null}
     </div>
   );
 }

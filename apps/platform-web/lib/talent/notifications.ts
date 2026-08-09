@@ -79,6 +79,13 @@ export function resetNotifications(): void {
   persist([]);
 }
 
+// 개별 알림 읽음 — 행 클릭 시. 서버 알림도 로컬 unread만 끄면 dedupeKey(srv:id)로 재적재되지 않아 유지된다.
+export function markNotificationRead(id: string): void {
+  const list = read();
+  if (!list.some((n) => n.id === id && n.unread)) return;
+  persist(list.map((n) => (n.id === id ? { ...n, unread: false } : n)));
+}
+
 export function markAllNotificationsRead(): void {
   // 서버 알림도 읽음 처리(벨 카운트 동기화).
   void markAllServerNotificationsRead().catch(() => {});

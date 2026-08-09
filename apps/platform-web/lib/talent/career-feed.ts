@@ -1,9 +1,8 @@
 // 내 커리어 피드 — 사용자가 채팅으로 남긴 한 줄들을 히스토리로 보관.
-// 항목은 계정(서버 Resume.content.renewalCareerFeed)에 귀속된다.
-// 단, "삭제한 refId"(dismissed)는 재생성 방지용 기기 로컬 플래그로만 둔다.
+// 항목·삭제한 refId(dismissed) 모두 계정(서버 Resume.content)에 귀속된다.
 import { useEffect, useSyncExternalStore } from "react";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
-import { setCareerFeed, snapshotCareerFeed, subscribeDocs, syncUser } from "./renewal-docs-store";
+import { setCareerFeed, snapshotCareerFeed, setCareerFeedDismissed, snapshotCareerFeedDismissed, subscribeDocs, syncUser } from "./renewal-docs-store";
 import type { CareerSection } from "./career-chat";
 
 export interface FeedEntry {
@@ -27,31 +26,16 @@ export interface FeedEntryOptions {
 }
 
 const EMPTY: FeedEntry[] = [];
-// 사용자가 삭제한 refId 모음 — 이력서/자소서 유래 항목을 지워도 sync가 되살리지 않게 한다(기기 로컬).
-const DISMISS_KEY = "talent.careerFeed.dismissed.v1";
-let dismissedCache: Set<string> | null = null;
 
+// 사용자가 삭제한 refId 모음 — 이력서/자소서 유래 항목을 지워도 sync가 되살리지 않게 한다(계정 귀속).
 function readDismissed(): Set<string> {
-  if (dismissedCache) return dismissedCache;
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = window.localStorage.getItem(DISMISS_KEY);
-    dismissedCache = new Set(raw ? (JSON.parse(raw) as string[]) : []);
-  } catch {
-    dismissedCache = new Set();
-  }
-  return dismissedCache;
+  return new Set(snapshotCareerFeedDismissed() ?? []);
 }
 
 function addDismissed(refId: string): void {
-  const set = readDismissed();
-  if (set.has(refId)) return;
-  set.add(refId);
-  try {
-    window.localStorage.setItem(DISMISS_KEY, JSON.stringify(Array.from(set)));
-  } catch {
-    /* noop */
-  }
+  const cur = snapshotCareerFeedDismissed() ?? [];
+  if (cur.includes(refId)) return;
+  setCareerFeedDismissed([...cur, refId]);
 }
 
 function read(): FeedEntry[] {

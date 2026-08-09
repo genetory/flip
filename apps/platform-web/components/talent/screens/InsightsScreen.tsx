@@ -41,7 +41,7 @@ export function InsightsScreen() {
             className="group relative overflow-hidden rounded-3xl bg-[#0B1227] p-7 text-left transition hover:bg-[#111a33]"
           >
             <span className="pointer-events-none absolute -right-3 -top-8 select-none text-[130px] leading-none opacity-[0.08]" aria-hidden>{feature.emoji}</span>
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#8CA8FF]">이번 주 추천</p>
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#8CA8FF]">에디터 추천</p>
             <h2 className="mt-3 max-w-[85%] break-keep text-[22px] font-black leading-[1.3] tracking-[-0.02em] text-white">{oneLine(feature.title)}</h2>
             <p className="mt-2.5 max-w-[88%] break-keep text-[14px] leading-relaxed text-white/65">{feature.desc}</p>
             <span className="mt-5 inline-flex items-center gap-1.5 text-[13.5px] font-bold text-white">

@@ -31,7 +31,7 @@ export function TalentAuthLayout({
             <Link href={backHref} aria-label={`${talentBrand.name} 홈으로`} className="flex items-center">
               <Image src="/img_logo.webp" alt={talentBrand.name} width={72} height={24} className="h-5 w-auto" priority />
             </Link>
-            {badge ? <span className="rounded-md bg-[#EDF1FD] px-1.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{badge}</span> : null}
+            {badge ? <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{badge}</span> : null}
           </div>
           <Link href={backHref} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">
             <ArrowLeft className="h-4 w-4" /> 랜딩으로

@@ -162,7 +162,7 @@ export default function LaunchMaterialsPage() {
             </div>
           </div>
           <div className="mt-3 flex items-center gap-2.5">
-            <span className="flex h-9 w-9 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1.5" /></span>
+            <span className="flex h-9 w-9 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1.5" /></span>
             <div>
               <p className="text-[15px] font-black text-[#0B1227]">{t("선정 직무 깊이 알기", "Get to Know Your Selected Jobs", "深入了解选定的职务", "Hiểu sâu công việc đã chọn", "選定した職務を深く知る", "Kenali Pekerjaan Pilihanmu Lebih Dalam")}</p>
               <p className="text-[12px] text-[#8B95A1]">{t("AI 코치와 대화하며 선정 직무를 깊이 이해해요", "Chat with the AI coach to deeply understand your selected jobs", "与 AI 教练对话，深入了解选定的职务", "Trò chuyện với huấn luyện viên AI để hiểu sâu công việc đã chọn", "AIコーチと話しながら選定した職務を深く理解します", "Mengobrol dengan pelatih AI untuk memahami pekerjaan pilihanmu lebih dalam")} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
@@ -174,7 +174,7 @@ export default function LaunchMaterialsPage() {
             {messages.map((m, i) =>
               m.role === "bot" ? (
                 <div key={i} className="flex items-end gap-2">
-                  <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1" /></span>
+                  <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
                   <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
                     <RichText text={m.text} />
                   </div>
@@ -204,7 +204,7 @@ export default function LaunchMaterialsPage() {
             ) : null}
             {loading ? (
               <div className="flex items-end gap-2">
-                <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1" /></span>
+                <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
                 <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.2s]" />
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.1s]" />

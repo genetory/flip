@@ -21,6 +21,9 @@ export const talentAppRoutes = {
   jobs: "/talent/jobs",
   insights: "/talent/insights",
   applications: "/talent/applications",
+  connections: "/talent/connections",
+  assignments: "/talent/assignments",
+  programs: "/talent/programs",
   notifications: "/talent/notifications",
   settings: "/talent/settings"
 } as const;

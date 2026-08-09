@@ -232,3 +232,16 @@ All colors MUST be HSL.
 .group:hover .card-hover-drift-c {
   animation: card-hover-drift-c 1.55s ease-in-out infinite;
 }
+
+/* 접근성 — 키보드 탐색 시 포커스 가시화(마우스 클릭에는 표시되지 않음). */
+:focus-visible {
+  outline: 2px solid #0B46E8;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* 자체 focus 링(ring)을 이미 쓰는 입력 요소는 이중 표시 방지. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}

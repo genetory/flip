@@ -4,7 +4,7 @@
 // 핵심 정보 / 상세 안내 / 기업 정보 + 저장·지원.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MapPin, BookmarkSimple, ArrowSquareOut, Buildings, LinkSimple, Star, X, Check, Sparkle } from "@phosphor-icons/react";
+import { MapPin, BookmarkSimple, ArrowSquareOut, Buildings, LinkSimple, Star, X, Sparkle } from "@phosphor-icons/react";
 import { TalentBackButton } from "../TalentBackButton";
 import { toggleCompanyFollow, useFollowedCompanies } from "../../../lib/talent/company-follow";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
@@ -18,6 +18,8 @@ import { TalentButton } from "../TalentButton";
 import { AplyCipBadgeButton } from "../../positions/AplyCipBadge";
 import { TalentCipModal } from "../jobs/TalentCipModal";
 import { MockInterviewModal } from "../jobs/MockInterviewModal";
+import { MockGateModal, DocStatus } from "../jobs/MockGateModal";
+import { ApplyReadinessBanner } from "../ApplyReadinessBanner";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
@@ -54,6 +56,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   const [applyOpen, setApplyOpen] = useState(false);
   const [cipOpen, setCipOpen] = useState(false);
   const [mockOpen, setMockOpen] = useState(false);
+  const [mockGateOpen, setMockGateOpen] = useState(false);
 
   function load() {
     setStatus("loading");
@@ -116,9 +119,12 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
           {/* 헤더 */}
           <PositionDetailHeaderCard item={item} onShowCip={() => setCipOpen(true)} />
 
+          {/* 지원 준비도 넛지 — 미완성 시 상시 노출 */}
+          <ApplyReadinessBanner variant="compact" className="mt-4" />
+
           {/* 모의 면접 — 회사가 준비했으면 노출 */}
           {item.mockInterviewIntent || (item.mockInterviewQuestions?.length ?? 0) > 0 ? (
-            <button type="button" onClick={() => setMockOpen(true)} className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4 text-left transition hover:border-[#0B46E8]/40">
+            <button type="button" onClick={() => setMockGateOpen(true)} className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4 text-left transition hover:border-[#0B46E8]/40">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] shadow-[0_2px_10px_rgba(11,70,232,0.1)]" aria-hidden>🎤</span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[14.5px] font-bold text-[#191F28]">이 회사 모의 면접 미리 풀기</span>
@@ -180,6 +186,15 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
 
       {cipOpen ? <TalentCipModal locale={locale} onClose={() => setCipOpen(false)} /> : null}
       {mockOpen && item ? <MockInterviewModal item={item} onClose={() => setMockOpen(false)} /> : null}
+      {mockGateOpen ? (
+        <MockGateModal
+          onClose={() => setMockGateOpen(false)}
+          onConfirm={() => {
+            setMockGateOpen(false);
+            setMockOpen(true);
+          }}
+        />
+      ) : null}
       {applyOpen ? <ApplyModal applying={applying} onClose={() => setApplyOpen(false)} onConfirm={submitApply} /> : null}
     </TalentAppShell>
   );
@@ -204,7 +219,7 @@ function ApplyModal({ applying, onClose, onConfirm }: { applying: boolean; onClo
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative w-full max-w-[420px] overflow-hidden rounded-3xl bg-white shadow-[0_20px_60px_rgba(11,18,39,0.18)]" onClick={(e) => e.stopPropagation()}>
+      <div className="relative max-h-[90vh] w-full max-w-[420px] overflow-y-auto rounded-3xl bg-white shadow-[0_20px_60px_rgba(11,18,39,0.18)]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 px-7 pt-7">
           <div>
             <h2 className="text-[19px] font-black tracking-[-0.02em] text-[#0B1227]">이 공고에 지원할까요?</h2>
@@ -237,30 +252,6 @@ function ApplyModal({ applying, onClose, onConfirm }: { applying: boolean; onClo
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function DocStatus({ label, pct, href }: { label: string; pct: number; href: string }) {
-  const done = pct >= 100;
-  return (
-    <div className="flex items-center gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-4">
-      {done ? (
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[#0B46E8]">
-          <Check className="h-4 w-4" weight="bold" />
-        </span>
-      ) : (
-        <span className="w-9 shrink-0 text-center text-[14px] font-black text-[#B0B8C1]">{pct}%</span>
-      )}
-      <div className="min-w-0 flex-1">
-        <p className="text-[14px] font-bold text-[#191F28]">{label}</p>
-        <p className="text-[12px] text-[#8B95A1]">{done ? "준비됐어요" : pct === 0 ? "아직 시작 전이에요" : "완성도를 채워주세요"}</p>
-      </div>
-      {!done ? (
-        <Link href={href} className="shrink-0 rounded-lg bg-[#F2F4F6] px-3 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
-          {pct === 0 ? "만들기" : "완성하기"}
-        </Link>
-      ) : null}
     </div>
   );
 }
