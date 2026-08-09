@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { CaretDown, Plus, X, ImageSquare } from "@phosphor-icons/react";
+import { CaretDown, Plus, X, ImageSquare, Sparkle, CircleNotch } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
@@ -15,6 +15,7 @@ import {
   getMyPartnerPositionById,
   createMyPartnerPosition,
   updateMyPartnerPosition,
+  aiDraftPositionContent,
   type PartnerPosition
 } from "../../../lib/member-profile-client";
 
@@ -125,6 +126,7 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
   const [initialStatus, setInitialStatus] = useState<PositionStatus>("DRAFT");
   const [saving, setSaving] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const imgRef = useRef<HTMLInputElement>(null);
 
   function load() {
@@ -146,6 +148,31 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
 
   function set<K extends keyof Form>(key: K, value: Form[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  // AI 초안 — 제목·직무로 주요 업무/자격 요건/우대 사항을 생성해 채운다.
+  function aiDraft() {
+    if (drafting) return;
+    if (!form.title.trim()) {
+      toast.error("공고 제목을 먼저 입력해주세요.");
+      return;
+    }
+    const hasContent = form.mainResponsibilities.trim() || form.requiredQualifications.trim() || form.preferredQualifications.trim();
+    if (hasContent && typeof window !== "undefined" && !window.confirm("주요 업무·자격 요건·우대 사항을 AI 초안으로 덮어쓸까요?")) return;
+    setDrafting(true);
+    const empLabel = EMPLOYMENT_OPTS.find((o) => o.value === form.employmentType)?.label;
+    aiDraftPositionContent({ title: form.title.trim(), jobRole: form.preferredJobRole.trim() || undefined, employmentType: empLabel })
+      .then((d) => {
+        setForm((f) => ({
+          ...f,
+          mainResponsibilities: d.mainResponsibilities || f.mainResponsibilities,
+          requiredQualifications: d.requiredQualifications || f.requiredQualifications,
+          preferredQualifications: d.preferredQualifications || f.preferredQualifications
+        }));
+        toast.success("AI 초안을 채웠어요. 검토 후 수정하세요.");
+      })
+      .catch(() => toast.error("초안 생성에 실패했어요. 잠시 후 다시 시도해주세요."))
+      .finally(() => setDrafting(false));
   }
 
   // 공고 사진 업로드 — WebP 압축 후 data URL(서버가 업로드 처리). 최대 5장.
@@ -281,6 +308,18 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
           <section>
             <SectionHeader title="상세 내용" />
             <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+            <div className="mb-3.5 flex items-center justify-between gap-3 rounded-xl bg-[#F5F8FF] px-3.5 py-3">
+              <p className="min-w-0 flex-1 break-keep text-[12.5px] text-[#4E5968]">제목·직무만 있으면 AI가 주요 업무·자격 요건·우대 사항 초안을 만들어드려요.</p>
+              <button
+                type="button"
+                onClick={aiDraft}
+                disabled={drafting}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#0B46E8] px-3 py-2 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
+              >
+                {drafting ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : <Sparkle className="h-3.5 w-3.5" weight="fill" />}
+                {drafting ? "생성 중…" : "AI로 초안 작성"}
+              </button>
+            </div>
             <div className="flex flex-col gap-3.5">
               <Field label="주요 업무"><Textarea value={form.mainResponsibilities} onChange={(v) => set("mainResponsibilities", v)} placeholder="담당하게 될 주요 업무를 적어주세요." /></Field>
               <Field label="자격 요건"><Textarea value={form.requiredQualifications} onChange={(v) => set("requiredQualifications", v)} placeholder="필수 자격 요건을 적어주세요." /></Field>

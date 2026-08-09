@@ -5,7 +5,7 @@
 // 좌: 인적사항 · 지원 서류 · 이력서 | 우: 내부 메모 · 면접 · 메시지.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, PaperPlaneTilt, Plus, ArrowSquareOut, Check, CaretRight, CaretDown, Sparkle, Briefcase } from "@phosphor-icons/react";
+import { X, PaperPlaneTilt, Plus, ArrowSquareOut, Check, CaretRight, CaretDown, Sparkle, Briefcase, CalendarCheck, CalendarPlus } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
@@ -47,6 +47,21 @@ const STEPS: { label: string; reach: PartnerApplicantStatus[] }[] = [
 
 function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+// 확정된 면접을 면접관 캘린더에 추가하는 구글 캘린더 링크.
+function partnerGcalUrl(slot: InterviewSlot, candidate: string, positionTitle: string): string {
+  const start = new Date(slot.startsAt);
+  const end = slot.endsAt ? new Date(slot.endsAt) : new Date(start.getTime() + 60 * 60 * 1000);
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `${candidate} 면접 · ${positionTitle}`,
+    dates: `${fmt(start)}/${fmt(end)}`,
+    details: "Aply 지원자 면접 일정입니다."
+  });
+  if (slot.location) params.set("location", slot.location);
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
 
@@ -261,7 +276,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
               <div className="flex items-center gap-1.5">
                 <Briefcase className="h-3.5 w-3.5 shrink-0 text-[#0B46E8]" weight="fill" />
                 <span className="text-[11px] font-bold text-[#8B95A1]">지원 공고</span>
-                {position ? <span className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-bold ${PARTNER_POSITION_STATUS[position.status].cls}`}>{PARTNER_POSITION_STATUS[position.status].label}</span> : null}
+                {position ? <span className={`rounded-md px-2.5 py-0.5 text-[10.5px] font-bold ${PARTNER_POSITION_STATUS[position.status].cls}`}>{PARTNER_POSITION_STATUS[position.status].label}</span> : null}
                 <CaretRight className="ml-auto h-4 w-4 shrink-0 text-[#C4CAD2]" />
               </div>
               <p className="mt-1 truncate text-[14px] font-bold text-[#191F28]">{app.positionTitle}</p>
@@ -298,20 +313,47 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
               )}
             </div>
 
-            {/* 상태 변경 */}
-            <div className="mt-5">
-              <p className="mb-2 text-[12px] font-bold text-[#8B95A1]">상태 변경</p>
-              <div className="flex flex-wrap gap-2">
-                {STATUS_ACTIONS.map((s) => {
-                  const active = app.status === s;
-                  return (
-                    <button key={s} type="button" onClick={() => requestStatus(s)} disabled={updating || active} className={`rounded-xl px-3.5 py-2 text-[12.5px] font-bold transition disabled:opacity-50 ${active ? "bg-[#0B46E8] text-white" : "bg-white text-[#4E5968] ring-1 ring-[#E4EAF2] hover:bg-[#EDF1FD]"}`}>
-                      {PARTNER_APPLICANT_STATUS[s].label}
-                    </button>
-                  );
-                })}
+            {/* 면접 확정 — 지원자가 슬롯을 선택하면 확정 시간을 크게 보여주고 캘린더 추가 제공 */}
+            {(() => {
+              const selected = slots.find((s) => s.status === "SELECTED");
+              if (!selected) return null;
+              return (
+                <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-[#E7F8EF] px-4 py-3.5">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#0A9B59]"><CalendarCheck className="h-4 w-4" weight="fill" /> 면접 확정 — 지원자가 시간을 선택했어요</p>
+                    <p className="mt-1 text-[13px] font-semibold text-[#191F28]">{fmtWhen(selected.startsAt)}</p>
+                    {selected.location ? <p className="mt-0.5 text-[12px] text-[#8B95A1]">{selected.location}</p> : null}
+                  </div>
+                  <a
+                    href={partnerGcalUrl(selected, app.name, app.positionTitle)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-auto inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#0A9B59] shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition hover:bg-[#F0FBF5]"
+                  >
+                    <CalendarPlus className="h-4 w-4" weight="bold" /> 캘린더에 추가
+                  </a>
+                </div>
+              );
+            })()}
+
+            {/* 상태 변경 — 지원자가 철회한 건은 더 이상 진행할 수 없어 숨긴다. */}
+            {app.status === "WITHDRAWN" ? (
+              <p className="mt-5 rounded-xl bg-[#F2F4F6] px-3.5 py-2.5 text-[12.5px] font-semibold text-[#8B95A1]">지원자가 철회한 지원이에요. 상태를 변경할 수 없어요.</p>
+            ) : (
+              <div className="mt-5">
+                <p className="mb-2 text-[12px] font-bold text-[#8B95A1]">상태 변경</p>
+                <div className="flex flex-wrap gap-2">
+                  {STATUS_ACTIONS.map((s) => {
+                    const active = app.status === s;
+                    return (
+                      <button key={s} type="button" onClick={() => requestStatus(s)} disabled={updating || active} className={`rounded-xl px-3.5 py-2 text-[12.5px] font-bold transition disabled:opacity-50 ${active ? "bg-[#0B46E8] text-white" : "bg-white text-[#4E5968] ring-1 ring-[#E4EAF2] hover:bg-[#EDF1FD]"}`}>
+                        {PARTNER_APPLICANT_STATUS[s].label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </section>
 
           {/* 2단 */}
@@ -322,7 +364,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                 <SectionHeader title="인적 사항" />
                 <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
                   <dl className="flex flex-col gap-2.5">
-                    <Row label="이메일" value={app.email} />
+                    <Row label="이메일" value={app.email ?? (app.contactUnlocked ? null : "면접 확정 후 공개")} />
                     <Row label="학교 · 전공" value={[app.school, app.major].filter(Boolean).join(" · ")} />
                     <Row label="국적" value={app.nationality} />
                     <Row label="언어" value={app.languages?.length ? app.languages.join(", ") : null} />
@@ -377,7 +419,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                         <div key={i} className="rounded-xl bg-[#F8FAFB] p-3.5">
                           <div className="flex items-start justify-between gap-2">
                             <p className="min-w-0 flex-1 break-keep text-[13px] font-bold text-[#191F28]">Q{i + 1}. {a.question}</p>
-                            {a.score != null ? <span className="shrink-0 rounded-md bg-white px-1.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{a.score}점</span> : null}
+                            {a.score != null ? <span className="shrink-0 rounded-md bg-white px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{a.score}점</span> : null}
                           </div>
                           <p className="mt-1.5 whitespace-pre-wrap break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{a.answer}</p>
                         </div>
@@ -392,7 +434,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
             <div className="flex flex-col gap-10">
               {/* 내부 메모 */}
               <section>
-                <SectionHeader title="내부 메모" right={<span className="rounded-md bg-[#F2F4F6] px-1.5 py-0.5 text-[10.5px] font-bold text-[#8B95A1]">지원자에게 안 보임</span>} />
+                <SectionHeader title="내부 메모" right={<span className="rounded-md bg-[#F2F4F6] px-2.5 py-0.5 text-[10.5px] font-bold text-[#8B95A1]">지원자에게 안 보임</span>} />
                 <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
                   <textarea
                     value={memo}

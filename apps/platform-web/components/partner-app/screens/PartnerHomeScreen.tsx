@@ -4,14 +4,18 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { CaretRight, Plus, ChatCircleDots, X, PaperPlaneTilt, ArrowUpRight } from "@phosphor-icons/react";
+import { CaretRight, Plus, ChatCircleDots, X, PaperPlaneTilt, ArrowUpRight, CheckCircle, Circle } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
+import { PartnerMoreLink, PartnerEmptyCard } from "../ui/cards";
+import { PartnerApplicantCard, PartnerParticipantCard } from "../ListCards";
+import { ProposeCandidateModal } from "../ProposeCandidateModal";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
+import { useTimeGreeting } from "../../../lib/time-greeting";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
-import { PARTNER_APPLICANT_STATUS, PARTNER_POSITION_STATUS, PARTNER_RECOMMENDATION } from "../../../lib/partner/labels";
+import { PARTNER_POSITION_STATUS } from "../../../lib/partner/labels";
 import {
   getMyPartnerOrganization,
   getMyPartnerPositions,
@@ -19,12 +23,14 @@ import {
   getPartnerPendingMessages,
   getPartnerApplicantMessages,
   sendPartnerApplicantMessage,
+  getOrgMockInterviewParticipants,
   type MyPartnerOrganization,
   type PartnerPosition,
   type PartnerApplicantListItem,
   type PartnerApplicantStatus,
   type PartnerPendingMessage,
-  type PartnerApplicantMessage
+  type PartnerApplicantMessage,
+  type OrgMockInterviewParticipant
 } from "../../../lib/member-profile-client";
 
 export function PartnerHomeScreen() {
@@ -32,8 +38,11 @@ export function PartnerHomeScreen() {
   const [positions, setPositions] = useState<PartnerPosition[]>([]);
   const [applicants, setApplicants] = useState<PartnerApplicantListItem[]>([]);
   const [pending, setPending] = useState<PartnerPendingMessage[]>([]);
+  const [participants, setParticipants] = useState<OrgMockInterviewParticipant[]>([]);
   const [chat, setChat] = useState<{ applicationId: string; applicantId: string; name: string; positionTitle: string } | null>(null);
+  const [proposeTarget, setProposeTarget] = useState<OrgMockInterviewParticipant | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const greeting = useTimeGreeting();
 
   function load() {
     setStatus("loading");
@@ -50,6 +59,7 @@ export function PartnerHomeScreen() {
       })
       .catch(() => setStatus("error"));
     void getPartnerPendingMessages().then(setPending).catch(() => setPending([]));
+    void getOrgMockInterviewParticipants().then(setParticipants).catch(() => setParticipants([]));
   }
   useEffect(() => {
     load();
@@ -62,6 +72,9 @@ export function PartnerHomeScreen() {
     const list: { emoji: string; title: string; desc: string; href: string }[] = [];
     const newApplied = count("APPLIED");
     if (newApplied > 0) list.push({ emoji: "🧑‍💼", title: `신규 지원자 ${newApplied}명`, desc: "새로 지원한 인재를 검토해보세요.", href: partnerRoutes.applicants });
+    // 후보자가 제안한 면접 시간을 선택함 → 파트너가 확인/준비할 차례.
+    const slotPicked = applicants.filter((a) => a.interviewSlotSelected).length;
+    if (slotPicked > 0) list.push({ emoji: "🗓️", title: `면접 시간 확정 ${slotPicked}명`, desc: "지원자가 면접 시간을 선택했어요. 일정을 확인하세요.", href: partnerRoutes.applicants });
     const pending = positions.filter((p) => p.status === "PENDING_REVIEW").length;
     if (pending > 0) list.push({ emoji: "📋", title: `검토 중 공고 ${pending}개`, desc: "게시 승인을 기다리는 공고가 있어요.", href: partnerRoutes.positions });
     const draft = positions.filter((p) => p.status === "DRAFT").length;
@@ -98,6 +111,20 @@ export function PartnerHomeScreen() {
     [applicants]
   );
 
+  // 모의 면접으로 발굴 — 지원 안 한 사람 우선, 점수순 상위 4(인재 중복 제거).
+  const discovered = useMemo(() => {
+    const sorted = [...participants].sort((a, b) => Number(a.applied) - Number(b.applied) || (b.bestScore ?? -1) - (a.bestScore ?? -1));
+    const seen = new Set<string>();
+    const out: OrgMockInterviewParticipant[] = [];
+    for (const m of sorted) {
+      if (seen.has(m.userId)) continue;
+      seen.add(m.userId);
+      out.push(m);
+      if (out.length >= 4) break;
+    }
+    return out;
+  }, [participants]);
+
   return (
     <PartnerAppShell>
       {status === "loading" ? <TLoading /> : null}
@@ -105,23 +132,40 @@ export function PartnerHomeScreen() {
 
       {status === "ready" ? (
         <div className="flex flex-col gap-10">
-          {/* 인사 */}
-          <div className="rounded-3xl bg-[#F5F8FF] p-7">
-            <div className="flex items-center gap-3">
-              {org?.companyLogoImageData ? (
-                <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-white bg-white shadow-[0_4px_16px_rgba(11,70,232,0.12)]">
-                  <Image src={org.companyLogoImageData} alt="" fill sizes="48px" className="object-cover" unoptimized />
-                </span>
-              ) : (
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">{(org?.name || "회").slice(0, 1)}</span>
-              )}
+          {/* 인사 히어로 — 배경 카드 없이 일러스트가 페이지에 녹아들게 */}
+          <div className="flex items-center gap-4">
+            <div className="min-w-0 flex-1">
               <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-[#0B46E8]">PARTNER</p>
+              <p className="mt-2 text-[13px] font-bold text-[#4E5968]">{greeting} 👋</p>
+              <h1 className="mt-1 break-keep text-[22px] font-black leading-[1.2] tracking-[-0.02em] text-[#0B1227] md:text-[26px]">
+                {org?.name ? org.name : "우리 회사"}, 좋은 인재를 만나요
+              </h1>
+              <p className="mt-1.5 text-[13.5px] text-[#8B95A1]">게시 중 공고 {positions.filter((p) => p.status === "OPEN").length}개 · 전체 지원자 {applicants.length}명{(() => {
+                const weekAgo = Date.now() - 7 * 86_400_000;
+                const wk = applicants.filter((a) => a.appliedAt && new Date(a.appliedAt).getTime() >= weekAgo).length;
+                return wk > 0 ? ` · 이번 주 신규 ${wk}명` : "";
+              })()}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link href={partnerRoutes.positionNew} className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-3.5 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]"><Plus className="h-4 w-4" weight="bold" /> 새 공고 작성</Link>
+                <Link href={partnerRoutes.talent} className="inline-flex items-center rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[13px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">인재 검색</Link>
+              </div>
             </div>
-            <h1 className="mt-3 break-keep text-[24px] font-black leading-[1.2] tracking-[-0.02em] text-[#0B1227]">
-              {org?.name ? org.name : "우리 회사"}, 좋은 인재를 만나요
-            </h1>
-            <p className="mt-1.5 text-[14px] text-[#8B95A1]">게시 중 공고 {positions.filter((p) => p.status === "OPEN").length}개 · 전체 지원자 {applicants.length}명</p>
+            <div className="relative hidden aspect-square w-[140px] shrink-0 self-center sm:block md:w-[190px]" aria-hidden>
+              <Image src="/img_partner_recruit.webp" alt="" fill sizes="190px" className="object-contain" />
+            </div>
           </div>
+
+          {/* 새 파트너 온보딩 — 공고가 아직 없으면 시작 가이드 */}
+          {positions.length === 0 ? (
+            <section className="rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-5">
+              <p className="text-[14.5px] font-bold text-[#191F28]">채용을 시작해볼까요?</p>
+              <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">두 가지만 완성하면 인재들에게 우리 회사가 보여요.</p>
+              <div className="mt-3 flex flex-col gap-2">
+                <OnboardStep done={!!(org?.description && org.description.trim())} label="회사 프로필 채우기" desc="소개·로고를 등록하면 지원자에게 신뢰를 줘요." href={partnerRoutes.company} />
+                <OnboardStep done={false} label="첫 공고 올리기" desc="공고를 게시하고 지원을 받아보세요." href={partnerRoutes.positionNew} />
+              </div>
+            </section>
+          ) : null}
 
           {/* 처리 필요 */}
           <section className="flex flex-col gap-4">
@@ -147,7 +191,7 @@ export function PartnerHomeScreen() {
           {/* 답장을 기다리는 메시지 */}
           {pending.length ? (
             <section className="flex flex-col gap-4">
-              <SectionHead title={`답장을 기다리는 메시지 ${pending.length}`} desc="지원자가 보낸 메시지에 아직 답하지 않았어요." />
+              <SectionHead title={`답장을 기다리는 메시지 (${pending.length})`} desc="지원자가 보낸 메시지에 아직 답하지 않았어요." />
               <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
                 {pending.slice(0, 6).map((m, i) => (
                   <button key={m.applicantId} type="button" onClick={() => setChat({ applicationId: m.applicationId, applicantId: m.applicantId, name: m.name, positionTitle: m.positionTitle })} className={`flex items-center gap-3 px-4 py-3.5 text-left transition hover:bg-[#F6F8FB] ${i === Math.min(pending.length, 6) - 1 ? "" : "border-b border-[#F2F4F6]"}`}>
@@ -169,7 +213,7 @@ export function PartnerHomeScreen() {
           {/* 채용 파이프라인 */}
           <section className="flex flex-col gap-4">
             <SectionHead title="채용 파이프라인" desc="지원부터 합격까지 단계별 인원이에요." />
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {pipeline.map((s) => (
                 <div key={s.label} className="rounded-2xl border border-[#EEF1F5] bg-white px-3 py-4 text-center">
                   <p className="text-[22px] font-black tracking-[-0.02em] text-[#0B1227]">{s.count}</p>
@@ -182,43 +226,50 @@ export function PartnerHomeScreen() {
           {/* 공고별 지원 현황 */}
           {byPosition.length ? (
             <section className="flex flex-col gap-4">
-              <div className="flex items-end justify-between gap-3">
-                <SectionHead title="공고별 지원 현황" desc="게시 중 공고에 얼마나 지원했는지 확인해요." />
-                <Link href={partnerRoutes.positions} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] transition hover:text-[#0A3ECB]">전체 보기</Link>
-              </div>
+              <SectionHead title="공고별 지원 현황" desc="게시 중 공고에 얼마나 지원했는지 확인해요." />
               <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
                 {byPosition.map(({ p, count: c }, i) => (
                   <Link key={p.id} href={`${partnerRoutes.positions}/${p.id}`} className={`flex items-center gap-3 px-4 py-3.5 transition hover:bg-[#F6F8FB] ${i === byPosition.length - 1 ? "" : "border-b border-[#F2F4F6]"}`}>
-                    <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold ${PARTNER_POSITION_STATUS[p.status].cls}`}>{PARTNER_POSITION_STATUS[p.status].label}</span>
+                    <span className={`shrink-0 rounded-md px-2.5 py-0.5 text-[11px] font-bold ${PARTNER_POSITION_STATUS[p.status].cls}`}>{PARTNER_POSITION_STATUS[p.status].label}</span>
                     <p className="min-w-0 flex-1 truncate text-[14px] font-bold text-[#191F28]">{p.title || "제목 없는 공고"}</p>
                     <span className="shrink-0 text-[13px] font-bold text-[#0B46E8]">지원 {c}명</span>
                     <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
                   </Link>
                 ))}
               </div>
+              <PartnerMoreLink href={partnerRoutes.positions}>공고 전체 보기</PartnerMoreLink>
             </section>
           ) : null}
 
           {/* 최근 지원자 */}
           <section className="flex flex-col gap-4">
-            <div className="flex items-end justify-between gap-3">
-              <SectionHead title="최근 지원자" desc="새로 지원한 인재를 확인해요." />
-              {applicants.length ? <Link href={partnerRoutes.applicants} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] transition hover:text-[#0A3ECB]">전체 보기</Link> : null}
-            </div>
+            <SectionHead title="최근 지원자" desc="새로 지원한 인재를 확인해요." />
             {recent.length ? (
-              <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
-                {recent.map((a, i) => (
-                  <ApplicantRow key={a.id} a={a} last={i === recent.length - 1} />
-                ))}
-              </div>
+              <>
+                <div className="flex flex-col gap-2.5">
+                  {recent.map((a) => (
+                    <PartnerApplicantCard key={a.id} a={a} />
+                  ))}
+                </div>
+                <PartnerMoreLink href={partnerRoutes.applicants}>지원자 전체 보기</PartnerMoreLink>
+              </>
             ) : (
-              <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-8 text-center">
-                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[22px]" aria-hidden>🧑‍💼</span>
-                <p className="mt-3 text-[15px] font-bold text-[#191F28]">아직 지원자가 없어요</p>
-                <p className="mt-1 text-[13px] text-[#8B95A1]">공고를 올리면 지원자가 여기에 모여요.</p>
-              </div>
+              <PartnerEmptyCard emoji="🧑‍💼" title="아직 지원자가 없어요" desc="공고를 올리면 지원자가 여기에 모여요." />
             )}
           </section>
+
+          {/* 모의 면접으로 발굴한 인재 — 지원 안 해도 모의 면접 본 사람 우선 노출 */}
+          {discovered.length ? (
+            <section className="flex flex-col gap-4">
+              <SectionHead title="모의 면접으로 발굴한 인재" desc="지원 전이라도 우리 공고 모의 면접을 풀어본 인재예요." />
+              <div className="flex flex-col gap-2.5">
+                {discovered.map((m) => (
+                  <PartnerParticipantCard key={`${m.userId}:${m.positionId}`} m={m} onPropose={() => setProposeTarget(m)} />
+                ))}
+              </div>
+              <PartnerMoreLink href={`${partnerRoutes.applicants}?tab=mock`}>모의 면접 참여자 전체 보기</PartnerMoreLink>
+            </section>
+          ) : null}
 
           {/* 빠른 작업 */}
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -242,6 +293,19 @@ export function PartnerHomeScreen() {
           onClose={() => {
             setChat(null);
             void getPartnerPendingMessages().then(setPending).catch(() => {});
+          }}
+        />
+      ) : null}
+
+      {proposeTarget ? (
+        <ProposeCandidateModal
+          positionId={proposeTarget.positionId}
+          userId={proposeTarget.userId}
+          name={proposeTarget.name}
+          onClose={() => setProposeTarget(null)}
+          onDone={() => {
+            setParticipants((prev) => prev.map((x) => (x.userId === proposeTarget.userId ? { ...x, connectionStatus: "PENDING" } : x)));
+            setProposeTarget(null);
           }}
         />
       ) : null}
@@ -345,21 +409,16 @@ function SectionHead({ title, desc }: { title: string; desc: string }) {
   );
 }
 
-function ApplicantRow({ a, last }: { a: PartnerApplicantListItem; last: boolean }) {
-  const s = PARTNER_APPLICANT_STATUS[a.status];
-  const rec = PARTNER_RECOMMENDATION[a.recommendation];
+function OnboardStep({ done, label, desc, href }: { done: boolean; label: string; desc: string; href: string }) {
   return (
-    <Link href={`${partnerRoutes.applicants}/${encodeURIComponent(a.id)}`} className={`flex items-center gap-3 px-4 py-4 transition hover:bg-[#F6F8FB] ${last ? "" : "border-b border-[#F2F4F6]"}`}>
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[15px] font-black text-[#0B46E8]">{a.name.slice(0, 1)}</span>
+    <Link href={href} className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 transition hover:bg-[#EEF3FF]">
+      {done ? <CheckCircle className="h-5 w-5 shrink-0 text-[#0A9B59]" weight="fill" /> : <Circle className="h-5 w-5 shrink-0 text-[#B0B8C1]" />}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-[14.5px] font-bold text-[#191F28]">{a.name}</p>
-          <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
-          {a.recommendation === "HIGH" ? <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold ${rec.cls}`}>{rec.label}</span> : null}
-        </div>
-        <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{a.positionTitle}</p>
+        <p className={`text-[13.5px] font-bold ${done ? "text-[#8B95A1] line-through" : "text-[#191F28]"}`}>{label}</p>
+        <p className="mt-0.5 break-keep text-[12px] text-[#8B95A1]">{desc}</p>
       </div>
-      <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
+      <CaretRight className="h-4 w-4 shrink-0 text-[#0B46E8]" weight="bold" />
     </Link>
   );
 }
+

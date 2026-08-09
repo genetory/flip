@@ -1,14 +1,14 @@
 "use client";
 
 // 파트너 회사 프로필 — 실서버 회사 정보 편집(로고·사무실 사진 + 기본 정보 + 소개).
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
-import { ImageSquare, Plus, X } from "@phosphor-icons/react";
+import { ImageSquare, Plus, X, Sparkle, CircleNotch } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { TalentBackButton } from "../../talent/TalentBackButton";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
-import { getMyPartnerOrganization, updateMyPartnerOrganizationBasic, getMembersMeta, type MyPartnerOrganization } from "../../../lib/member-profile-client";
+import { getMyPartnerOrganization, updateMyPartnerOrganizationBasic, getMembersMeta, aiPolishCompanyDescription, type MyPartnerOrganization } from "../../../lib/member-profile-client";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 import { convertImageFileToWebpDataUrl, estimateDataUrlBytes, parseOfficePhotos } from "../../../lib/image-upload";
 
@@ -42,6 +42,7 @@ export function PartnerCompanyScreen() {
   const [officePhotos, setOfficePhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState<"logo" | "office" | null>(null);
   const [saving, setSaving] = useState(false);
+  const [polishing, setPolishing] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const officeInputRef = useRef<HTMLInputElement>(null);
 
@@ -124,8 +125,39 @@ export function PartnerCompanyScreen() {
     }
   }
 
+  // 지원자에게 보이는 핵심 항목 기준 완성도(6개).
+  const completeness = useMemo(() => {
+    if (!form) return 0;
+    const checks = [!!form.name.trim(), !!form.description.trim(), !!logo, !!form.industry, !!form.companySize, !!form.officeAddress.trim()];
+    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  }, [form, logo]);
+
+  // AI로 회사 소개 다듬기 — 초안(현재 입력값)을 매끄럽게. 없는 사실은 지어내지 않음.
+  function polishDescription() {
+    if (!form || polishing) return;
+    const seed = form.description.trim();
+    if (!seed) {
+      toast.error("먼저 소개를 간단히 적어주세요. AI가 다듬어드려요.");
+      return;
+    }
+    setPolishing(true);
+    aiPolishCompanyDescription({ text: seed, name: form.name.trim() || undefined, industry: form.industry ? partnerIndustryLabel(form.industry) : undefined })
+      .then((d) => {
+        if (d) {
+          setForm((f) => (f ? { ...f, description: d } : f));
+          toast.success("소개를 다듬었어요. 확인 후 저장하세요.");
+        }
+      })
+      .catch(() => toast.error("다듬기에 실패했어요. 잠시 후 다시 시도해주세요."))
+      .finally(() => setPolishing(false));
+  }
+
   function save() {
     if (!form || saving) return;
+    if (!form.name.trim()) {
+      toast.error("회사명을 입력해주세요.");
+      return;
+    }
     setSaving(true);
     updateMyPartnerOrganizationBasic({
       name: form.name.trim(),
@@ -157,6 +189,20 @@ export function PartnerCompanyScreen() {
 
         {status === "ready" && form ? (
           <>
+            {/* 프로필 완성도 — 미완성일 때만 */}
+            {completeness < 100 ? (
+              <div className="rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[13.5px] font-bold text-[#191F28]">프로필 완성도</p>
+                  <span className="text-[18px] font-black tabular-nums text-[#0B46E8]">{completeness}%</span>
+                </div>
+                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white">
+                  <div className="h-full rounded-full bg-[#0B46E8] transition-[width]" style={{ width: `${completeness}%` }} />
+                </div>
+                <p className="mt-2 break-keep text-[12px] text-[#8B95A1]">로고·소개·업종·규모·주소를 채우면 지원자에게 더 신뢰를 줘요.</p>
+              </div>
+            ) : null}
+
             {/* 로고 · 사무실 사진 */}
             <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
               <h2 className="text-[15px] font-bold text-[#191F28]">회사 로고</h2>
@@ -237,9 +283,20 @@ export function PartnerCompanyScreen() {
             </section>
 
             <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-              <h2 className="text-[15px] font-bold text-[#191F28]">회사 소개</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-[15px] font-bold text-[#191F28]">회사 소개</h2>
+                <button
+                  type="button"
+                  onClick={polishDescription}
+                  disabled={polishing}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#EDF1FD] px-3 py-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#DFE7FB] disabled:opacity-50"
+                >
+                  {polishing ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : <Sparkle className="h-3.5 w-3.5" weight="fill" />}
+                  {polishing ? "다듬는 중…" : "AI로 다듬기"}
+                </button>
+              </div>
               <div className="mt-4 flex flex-col gap-3.5">
-                <Field label="한 줄 소개 · 설명"><Textarea value={form.description} onChange={(v) => set("description", v)} placeholder="우리 회사를 소개해주세요." /></Field>
+                <Field label="한 줄 소개 · 설명"><Textarea value={form.description} onChange={(v) => set("description", v)} placeholder="우리 회사를 소개해주세요. (간단히 적으면 AI가 다듬어드려요)" /></Field>
                 <Field label="회사 자랑거리"><Textarea value={form.strengths} onChange={(v) => set("strengths", v)} placeholder="복지·문화·성장 등 강점을 적어주세요." /></Field>
               </div>
             </section>

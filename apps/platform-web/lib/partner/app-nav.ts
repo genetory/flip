@@ -2,6 +2,7 @@
 export const partnerRoutes = {
   landing: "/partner", // 공개 파트너 랜딩(로그인 전)
   home: "/partner/home", // 앱 홈(로그인 후)
+  talent: "/partner/talent", // 인재 검색(인재풀)
   positions: "/partner/positions",
   positionNew: "/partner/positions/new",
   applicants: "/partner/applicants",
@@ -19,8 +20,9 @@ export interface PartnerNavItem {
 
 export const partnerMainNav: PartnerNavItem[] = [
   { key: "home", label: "홈", href: partnerRoutes.home },
+  { key: "talent", label: "인재 검색", href: partnerRoutes.talent },
   { key: "positions", label: "공고 관리", href: partnerRoutes.positions },
-  { key: "applicants", label: "지원자", href: partnerRoutes.applicants },
+  { key: "applicants", label: "지원자 관리", href: partnerRoutes.applicants },
   { key: "company", label: "회사 프로필", href: partnerRoutes.company }
 ];
 
