@@ -67,8 +67,13 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     // in the background; even if it fails, the access token is already cleared
     // on the next request via the fire-and-forget call inside logoutPlatformSession.
     setUser(null);
+    // 액세스 토큰을 *동기적으로* 먼저 지운다. logoutPlatformSession 은 서버 왕복이
+    // 끝난 뒤에야 토큰을 지우는데, 아래 전체 새로고침이 그보다 먼저 일어나면 리로드된
+    // 메인 랜딩(CommonLanding)이 아직 남은 토큰으로 세션을 복구해 다시 앱으로 튕겨낸다.
+    clearAccessToken();
     void logoutPlatformSession();
-    window.location.href = "/";
+    // replace 로 이동해 로그아웃 후 뒤로가기가 인증된 앱 화면으로 돌아가지 않게 한다.
+    window.location.replace("/");
   }, []);
 
   const setAuthenticatedUser = useCallback((nextUser: SessionUser) => {
