@@ -127,6 +127,7 @@ async function createNotification(input: {
   message?: string | null;
   linkPath?: string | null;
   applicationId?: string | null;
+  email?: boolean; // 인앱 알림에 더해 이메일로도 발송(수신 설정 ON + SMTP 구성 시). 기본 false.
 }) {
   try {
     await prisma.notification.create({
@@ -142,6 +143,33 @@ async function createNotification(input: {
   } catch (error) {
     console.error("[notification][create] failed", error);
   }
+  if (input.email) {
+    void emailNotificationToUser(input).catch((e) => console.error("[notification][email] failed", e));
+  }
+}
+
+// createNotification 의 email:true 를 기존 이메일 발송기(sendNotificationEmail)로 연결.
+// 수신 설정(emailNotifications) 존중·SMTP 미설정 시 스킵은 sendNotificationEmail 내부에서 처리.
+async function emailNotificationToUser(input: { userId: string; type: string; title: string; message?: string | null; linkPath?: string | null }) {
+  const user = await prisma.user.findUnique({ where: { id: input.userId }, select: { id: true, email: true } });
+  if (!user?.email) return;
+  // 설정 > 알림에서 이메일 알림을 끈 사용자는 발송하지 않는다(계정 Resume.content에 저장된 opt-out).
+  const resumes = await prisma.resume.findMany({ where: { userId: input.userId }, select: { content: true } });
+  const emailOptOut = resumes.some((r) => (r.content as Record<string, unknown> | null)?.renewalNotifEmailOptOut === true);
+  if (emailOptOut) return;
+  await sendNotificationEmail({
+    toUser: { id: user.id, email: user.email },
+    subject: `[Aply] ${input.title}`,
+    previewText: input.title,
+    title: "새 알림이 도착했어요",
+    headerLabel: "알림",
+    headline: input.title,
+    bodyText: input.message ?? "",
+    ctaLabel: "확인하기",
+    ctaPath: input.linkPath ?? "/",
+    footerNote: "Aply 알림 메일입니다. 원치 않으시면 설정 > 알림에서 이메일 알림을 끌 수 있어요.",
+    logKey: `notification_${input.type}`
+  });
 }
 
 async function notifyOperators(input: { type: string; title: string; message?: string | null; linkPath?: string | null }) {
@@ -13226,6 +13254,13 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
         }
       });
     }
+    // 새 지원(최초 또는 철회 후 재지원)이면 파트너 워크플로 상태도 새 지원(APPLIED)으로 맞춘다.
+    // (이전에 불합격 처리됐던 사람이 재지원하면 파트너 화면이 REJECTED 로 남지 않게 — 상태 일원화)
+    if (isNewSubmission) {
+      await prisma.partnerApplicantWorkflow
+        .updateMany({ where: { candidateUserId: userId, positionId: parsed.data.positionId }, data: { status: "APPLIED" } })
+        .catch(() => {});
+    }
     const applicant = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, name: true, email: true }
@@ -13269,6 +13304,15 @@ app.delete("/members/me/positions/:positionId/apply", authenticate, requireRoles
       where: { id: profile.id },
       data: { appliedPositionIds: next }
     });
+    // 실제 Application 도 철회 처리 — 파트너 지원자 목록/지원 현황이 어긋나지 않게.
+    const app = await prisma.application.findUnique({
+      where: { positionId_candidateUserId: { positionId: parsed.data.positionId, candidateUserId: userId } },
+      select: { id: true, status: true }
+    });
+    if (app && app.status !== "WITHDRAWN") {
+      await prisma.application.update({ where: { id: app.id }, data: { status: "WITHDRAWN", withdrawnAt: new Date() } });
+      await prisma.applicationStatusHistory.create({ data: { applicationId: app.id, status: "WITHDRAWN", changedByUserId: userId, memo: null } }).catch(() => {});
+    }
     return res.json({ ok: true, ids: next });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to cancel applied position" });
@@ -13817,11 +13861,20 @@ app.post("/members/me/resumes/:resumeId/primary", authenticate, requireRoles([Me
   const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
   if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
-    const existing = await prisma.resume.findFirst({ where: { id: resumeId, userId }, select: { id: true } });
-    if (!existing) return res.status(404).json({ ok: false, message: "resume not found" });
+    const target = await prisma.resume.findFirst({ where: { id: resumeId, userId }, select: { id: true, content: true } });
+    if (!target) return res.status(404).json({ ok: false, message: "resume not found" });
+    // 인재풀 동의(poolOptIn)는 '대표 이력서'에만 유효하므로, 대표를 바꿀 때 이전 대표의 동의를 새 대표로 승계한다.
+    // (안 하면 대표 교체 순간 인재 검색에서 조용히 사라진다)
+    const oldPrimary = await prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { content: true } });
+    const oldOptIn = (oldPrimary?.content && typeof oldPrimary.content === "object" ? (oldPrimary.content as Record<string, unknown>).poolOptIn : undefined);
+    const targetContentObj = (target.content && typeof target.content === "object" ? (target.content as Record<string, unknown>) : {}) as Record<string, unknown>;
+    const carryOptIn = oldOptIn && !targetContentObj.poolOptIn;
     const [, item] = await prisma.$transaction([
       prisma.resume.updateMany({ where: { userId, isPrimary: true }, data: { isPrimary: false } }),
-      prisma.resume.update({ where: { id: resumeId }, data: { isPrimary: true } })
+      prisma.resume.update({
+        where: { id: resumeId },
+        data: { isPrimary: true, ...(carryOptIn ? { content: { ...targetContentObj, poolOptIn: oldOptIn } as Prisma.InputJsonValue } : {}) }
+      })
     ]);
     return res.json({ ok: true, item });
   } catch {
@@ -17903,6 +17956,11 @@ const interviewQuestionsSchema = z.object({
   jobText: z.string().trim().max(6000).optional(),
   coverLetterText: z.string().trim().max(8000).optional(),
   desiredJobRole: z.string().trim().max(120).optional(),
+  // 이미 물어본 질문(중복 회피용) + 이번에 생성할 개수(무한 진행 지원).
+  askedQuestions: z.array(z.string().trim().max(400)).max(60).optional(),
+  count: z.number().int().min(1).max(8).optional(),
+  // 특정 카테고리로만 생성(사용자가 유형 선택). 미지정이면 유형을 골고루.
+  category: z.enum(["intro", "competency", "experience", "weakness"]).optional(),
   locale: z.string().max(10).optional()
 });
 app.post(
@@ -17916,22 +17974,37 @@ app.post(
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
-      const { resumeText, jobText, coverLetterText, desiredJobRole, locale } = parsed.data;
+      const { resumeText, jobText, coverLetterText, desiredJobRole, askedQuestions, count, category, locale } = parsed.data;
+      const n = count ?? 6;
+      const asked = (askedQuestions ?? []).map((q) => q.trim()).filter(Boolean).slice(0, 60);
+      const catLabel: Record<string, string> = {
+        intro: "자기소개·지원동기",
+        competency: "직무 역량·문제해결",
+        experience: "경험 심층",
+        weakness: "인성·상황·약점"
+      };
+      const rule1 = category
+        ? `1. 질문 ${n}개. 모든 질문을 오직 '${catLabel[category]}' 유형으로만 만드세요(다른 유형 섞지 말 것).\n`
+        : `1. 질문 ${n}개. 자기소개/지원동기, 경험 심층, 직무 역량/문제해결, 상황/약점 유형을 골고루 섞으세요.\n`;
       const systemPrompt =
         "당신은 한국 기업 채용 면접을 돕는 면접 코치입니다. 지원자의 이력서·자기소개서(와 있다면 채용 공고)를 보고, 실제로 나올 법한 면접 질문을 만듭니다.\n\n" +
         "규칙:\n" +
-        "1. 질문 6개. 구성: ① 자기소개/지원동기형 1개, ② 이력서·자기소개서의 구체적 경험·일화를 파고드는 질문 2~3개, ③ 직무 역량/문제해결형 1~2개, ④ 상황/약점형 1개.\n" +
+        rule1 +
         "2. 이력서·자기소개서에 적힌 실제 경험·동기를 근거로 개인화된 질문을 만드세요(일반론 X). 자기소개서가 있으면 거기 담긴 지원동기·가치관·일화도 적극 활용하세요. 없는 사실을 단정하지 마세요.\n" +
-        "3. intent: 그 질문으로 면접관이 무엇을 보려는지 한 문장으로(지원자에게 도움이 되도록).\n" +
-        "4. category: 질문 분류. 반드시 다음 영문 키 중 하나만(번역하지 말 것): \"intro\"(자기소개·지원동기), \"experience\"(경험 심층), \"competency\"(직무 역량·문제해결), \"weakness\"(상황·약점).\n" +
-        "5. 정중한 존댓말.\n\n" +
+        "3. 각 항목의 question 에는 물음을 하나만 담으세요. 여러 질문을 '그리고/또한'으로 한 문장에 합치지 마세요(한 번에 하나씩 묻습니다).\n" +
+        "4. intent: 그 질문으로 면접관이 무엇을 보려는지 한 문장으로(지원자에게 도움이 되도록).\n" +
+        "5. category: 질문 분류. 반드시 다음 영문 키 중 하나만(번역하지 말 것): \"intro\"(자기소개·지원동기), \"experience\"(경험 심층), \"competency\"(직무 역량·문제해결), \"weakness\"(상황·약점).\n" +
+        "6. 정중한 존댓말.\n" +
+        (asked.length ? "7. [이미 물어본 질문]에 있는 질문과 의미가 겹치지 않는, 완전히 새로운 질문만 만드세요. 새로운 경험·관점을 파고드세요.\n" : "") +
+        "\n" +
         'JSON 한 개 객체로만 응답: { "questions": [{ "question": string, "intent": string, "category": string }] }' +
         aiLangDirective(locale);
       const userPrompt =
         `${desiredJobRole ? `희망 직무: ${desiredJobRole}\n` : ""}` +
         `${jobText ? `\n[채용 공고]\n${jobText}\n` : ""}` +
         `\n[이력서]\n${resumeText}` +
-        `${coverLetterText ? `\n\n[자기소개서]\n${coverLetterText}` : ""}`;
+        `${coverLetterText ? `\n\n[자기소개서]\n${coverLetterText}` : ""}` +
+        `${asked.length ? `\n\n[이미 물어본 질문 — 겹치지 않게]\n${asked.map((q) => `- ${q}`).join("\n")}` : ""}`;
       const completion = await openai.chat.completions.create({
         model: openaiTranslationModel,
         temperature: 0.6,
@@ -17953,7 +18026,8 @@ app.post(
               return {
                 question: typeof q.question === "string" ? q.question.trim().slice(0, 400) : "",
                 intent: typeof q.intent === "string" ? q.intent.trim().slice(0, 200) : "",
-                category: allowedCats.has(cat) ? cat : "other"
+                // 카테고리를 지정했으면 그 값으로 고정(모델 오분류 방지).
+                category: category ?? (allowedCats.has(cat) ? cat : "other")
               };
             })
             .filter((q) => q.question)
@@ -17977,6 +18051,116 @@ const interviewFeedbackSchema = z.object({
   desiredJobRole: z.string().trim().max(120).optional(),
   locale: z.string().max(10).optional()
 });
+// 파트너 채용 공고 AI 초안 — 제목·직무로 주요 업무/자격 요건/우대 사항 초안 생성(파트너 생산성, 티켓 미차감).
+const positionDraftSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  jobRole: z.string().trim().max(120).optional(),
+  employmentType: z.string().trim().max(40).optional(),
+  companyName: z.string().trim().max(200).optional(),
+  locale: z.string().max(10).optional()
+});
+app.post(
+  "/partner/positions/ai-draft",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ai-position-draft", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = positionDraftSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { title, jobRole, employmentType, companyName, locale } = parsed.data;
+      const systemPrompt =
+        "당신은 한국 채용 공고 작성 전문가입니다. 주어진 정보로 지원자가 읽기 좋은 채용 공고 초안을 만듭니다.\n\n" +
+        "규칙:\n" +
+        "1. mainResponsibilities(주요 업무), requiredQualifications(자격 요건), preferredQualifications(우대 사항)를 각각 3~5개 항목으로 작성. 각 줄은 '- '로 시작하는 불릿.\n" +
+        "2. 직무·고용 형태에 맞게 구체적이고 현실적으로. 과장·차별적(성별·나이·외모 등) 표현 금지.\n" +
+        "3. 정중하고 명확한 한국어. 회사가 그대로 게시해도 될 완성도로.\n" +
+        '4. JSON 한 개 객체로만 응답: { "mainResponsibilities": string, "requiredQualifications": string, "preferredQualifications": string }' +
+        aiLangDirective(locale);
+      const userPrompt =
+        `[공고 제목] ${title}\n` +
+        `${jobRole ? `[직무] ${jobRole}\n` : ""}` +
+        `${employmentType ? `[고용 형태] ${employmentType}\n` : ""}` +
+        `${companyName ? `[회사] ${companyName}\n` : ""}`;
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.6,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let j: { mainResponsibilities?: unknown; requiredQualifications?: unknown; preferredQualifications?: unknown } = {};
+      try { j = JSON.parse(raw); } catch { /* fall through */ }
+      const clean = (v: unknown) => (typeof v === "string" ? v.trim().slice(0, 2000) : "");
+      const draft = {
+        mainResponsibilities: clean(j.mainResponsibilities),
+        requiredQualifications: clean(j.requiredQualifications),
+        preferredQualifications: clean(j.preferredQualifications)
+      };
+      if (!draft.mainResponsibilities && !draft.requiredQualifications) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, draft });
+    } catch (err) {
+      console.error("[partner/positions/ai-draft] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to draft position" });
+    }
+  }
+);
+
+// 파트너 회사 소개 AI 다듬기 — 회사가 적은 초안을 매끄러운 소개문으로. 없는 사실은 지어내지 않음.
+const companyPolishSchema = z.object({
+  text: z.string().trim().min(1).max(3000),
+  name: z.string().trim().max(200).optional(),
+  industry: z.string().trim().max(120).optional(),
+  locale: z.string().max(10).optional()
+});
+app.post(
+  "/partner/company/ai-polish-description",
+  authenticate,
+  requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]),
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ai-company-polish", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = companyPolishSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { text, name, industry, locale } = parsed.data;
+      const systemPrompt =
+        "당신은 채용 브랜딩 카피라이터입니다. 회사가 적은 소개 초안을 지원자가 읽기 좋은 자연스러운 소개문으로 다듬습니다.\n\n" +
+        "규칙:\n" +
+        "1. 초안에 담긴 사실만 사용하세요. 없는 수치·연혁·규모·수상 등을 절대 지어내지 마세요.\n" +
+        "2. 2~4문장으로 간결하게. 신뢰감 있고 명확한 한국어. 과장·차별적 표현 금지.\n" +
+        '3. JSON 한 개 객체로만 응답: { "description": string }' +
+        aiLangDirective(locale);
+      const userPrompt =
+        `${name ? `[회사명] ${name}\n` : ""}` +
+        `${industry ? `[업종] ${industry}\n` : ""}` +
+        `[소개 초안]\n${text}`;
+      const completion = await openai.chat.completions.create({
+        model: openaiTranslationModel,
+        temperature: 0.5,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      });
+      const raw = completion.choices?.[0]?.message?.content ?? "";
+      let j: { description?: unknown } = {};
+      try { j = JSON.parse(raw); } catch { /* fall through */ }
+      const description = typeof j.description === "string" ? j.description.trim().slice(0, 2000) : "";
+      if (!description) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, description });
+    } catch (err) {
+      console.error("[partner/company/ai-polish-description] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to polish description" });
+    }
+  }
+);
+
 app.post(
   "/members/me/ai/interview-feedback",
   authenticate,
@@ -18076,7 +18260,8 @@ app.post("/members/me/mock-interviews/:positionId/practice", authenticate, requi
               type: "MOCK_INTERVIEW_PARTICIPANT",
               title: "새 모의 면접 참여자",
               message: `‘${pos.title}’ 모의 면접을 푼 지원자가 있어요. 결과를 보고 제안해보세요.`,
-              linkPath: `/partner/positions/${positionId}`
+              linkPath: `/partner/positions/${positionId}`,
+              email: true
             }).catch(() => {})
           )
         );
@@ -19809,7 +19994,18 @@ function languageLabel(language: CandidateLanguageType, level: CandidateLanguage
   return `${language} (${level})`;
 }
 
-async function listPartnerApplicantsForUser(userId: string) {
+// Application.status → 파트너 워크플로 기본 상태(워크플로 행이 없을 때).
+function applicationStatusToWorkflow(s: "WITHDRAWN" | "SUBMITTED" | "INTERVIEW" | "ACCEPTED" | "REJECTED"): PartnerApplicantWorkflowStatus {
+  if (s === "INTERVIEW") return "INTERVIEW";
+  if (s === "ACCEPTED") return "ACCEPTED";
+  if (s === "REJECTED") return "REJECTED";
+  if (s === "WITHDRAWN") return "WITHDRAWN";
+  return "APPLIED";
+}
+
+// 목록(GET /partner/applicants)은 철회 제외. 단, 상세/요약/상태변경 조회는 알림·히스토리에서
+// 철회 지원 건도 열 수 있어야 하므로 includeWithdrawn 로 포함시킨다.
+async function listPartnerApplicantsForUser(userId: string, opts: { includeWithdrawn?: boolean } = {}) {
   const affiliation = await resolvePartnerAffiliation(userId);
   if (!affiliation?.organization) return { affiliation: null, items: [] as any[] };
 
@@ -19821,8 +20017,26 @@ async function listPartnerApplicantsForUser(userId: string) {
   const positionIds = positions.map((item) => item.id);
   if (positionIds.length === 0) return { affiliation, items: [] as any[] };
 
+  // 지원(Application) 행이 원천. 한 후보가 여러 공고에 지원하면 각각 1건씩.
+  const applications = await prisma.application.findMany({
+    where: { positionId: { in: positionIds }, ...(opts.includeWithdrawn ? {} : { status: { not: "WITHDRAWN" } }) },
+    orderBy: { submittedAt: "desc" },
+    select: {
+      id: true,
+      positionId: true,
+      candidateUserId: true,
+      status: true,
+      submittedAt: true,
+      resume: { select: { title: true, shareSlug: true } },
+      coverLetter: { select: { title: true, shareSlug: true } },
+      interviewSlots: { select: { status: true } }
+    }
+  });
+  if (applications.length === 0) return { affiliation, items: [] as any[] };
+  const candidateUserIds = Array.from(new Set(applications.map((a) => a.candidateUserId)));
+
   const profiles = await prisma.candidateProfile.findMany({
-    where: { appliedPositionIds: { hasSome: positionIds } },
+    where: { userId: { in: candidateUserIds } },
     include: {
       user: {
         select: { id: true, name: true, realName: true, email: true, nationality: true }
@@ -19837,6 +20051,10 @@ async function listPartnerApplicantsForUser(userId: string) {
       }
     }
   });
+  const profileByUser = new Map(profiles.map((p) => [p.userId, p]));
+  // 프로필이 없을 수도 있어 유저 표시 정보는 별도로도 확보.
+  const usersForDisplay = await prisma.user.findMany({ where: { id: { in: candidateUserIds } }, select: { id: true, name: true, realName: true, email: true, nationality: true } });
+  const userByUser = new Map(usersForDisplay.map((u) => [u.id, u]));
 
   const items: Array<{
     id: string;
@@ -19845,7 +20063,8 @@ async function listPartnerApplicantsForUser(userId: string) {
     positionTitle: string;
     name: string;
     nationality: string | null;
-    email: string;
+    email: string | null;
+    contactUnlocked: boolean;
     languages: string[];
     school: string | null;
     major: string | null;
@@ -19865,6 +20084,7 @@ async function listPartnerApplicantsForUser(userId: string) {
     applicationId: string | null;
     mockInterviewPracticed: boolean;
     mockInterviewScore: number | null;
+    interviewSlotSelected: boolean;
   }> = [];
 
   const workflows = await prisma.partnerApplicantWorkflow.findMany({
@@ -19877,29 +20097,6 @@ async function listPartnerApplicantsForUser(userId: string) {
 
   // 지원에 연결된 이력서(대표) — 지원 시점에 붙인 Application.resume 우선, 없으면
   // (과거 지원건) 지원자의 현재 대표 이력서로 폴백해 파트너가 볼 수 있게 한다.
-  const candidateUserIds = Array.from(new Set(profiles.map((p) => p.userId)));
-  const applications = candidateUserIds.length
-    ? await prisma.application.findMany({
-        where: { positionId: { in: positionIds }, candidateUserId: { in: candidateUserIds } },
-        select: {
-          id: true,
-          positionId: true,
-          candidateUserId: true,
-          resume: { select: { title: true, shareSlug: true } },
-          coverLetter: { select: { title: true, shareSlug: true } }
-        }
-      })
-    : [];
-  const applicationResumeMap = new Map(
-    applications.map((a) => [`${a.candidateUserId}:${a.positionId}`, a.resume])
-  );
-  const applicationCoverMap = new Map(
-    applications.map((a) => [`${a.candidateUserId}:${a.positionId}`, a.coverLetter])
-  );
-  // 지원 건별 실제 Application.id — 메시지/면접 슬롯 API(/applications/:id/...)에서 사용.
-  const applicationIdMap = new Map(
-    applications.map((a) => [`${a.candidateUserId}:${a.positionId}`, a.id])
-  );
   const resumeRows = candidateUserIds.length
     ? await prisma.resume.findMany({
         where: { userId: { in: candidateUserIds } },
@@ -19932,53 +20129,57 @@ async function listPartnerApplicantsForUser(userId: string) {
   const practicedSet = new Set(practicedRows.map((s) => `${s.userId}:${s.positionId}`));
   const mockScoreMap = new Map(practicedRows.map((s) => [`${s.userId}:${s.positionId}`, s.bestScore]));
 
-  for (const profile of profiles) {
-    const appliedPositionId = profile.appliedPositionIds.find((id) => positionMap.has(id));
-    if (!appliedPositionId) continue;
+  for (const app of applications) {
+    const candidateUserId = app.candidateUserId;
+    const positionId = app.positionId;
+    const profile = profileByUser.get(candidateUserId);
+    const user = userByUser.get(candidateUserId) ?? profile?.user ?? null;
 
-    const stateKey = buildPartnerApplicantCompositeId(profile.userId, appliedPositionId);
+    const stateKey = buildPartnerApplicantCompositeId(candidateUserId, positionId);
     const state = workflowMap.get(stateKey);
     // 지원에 붙은 이력서 우선, 없으면 대표 이력서로 폴백.
-    const linkedResume =
-      applicationResumeMap.get(`${profile.userId}:${appliedPositionId}`) ??
-      primaryResumeByUser.get(profile.userId) ??
-      null;
+    const linkedResume = app.resume ?? primaryResumeByUser.get(candidateUserId) ?? null;
     // 자기소개서도 동일하게: 지원 연결 우선, 없으면 대표 자소서.
-    const linkedCover =
-      applicationCoverMap.get(`${profile.userId}:${appliedPositionId}`) ??
-      primaryCoverByUser.get(profile.userId) ??
-      null;
-    const latestEducation = profile.educations[0];
-    const displayName = profile.user.realName?.trim() || profile.user.name?.trim() || "Unknown";
-    const languages = profile.languageSkills.map((item) => languageLabel(item.language, item.level));
+    const linkedCover = app.coverLetter ?? primaryCoverByUser.get(candidateUserId) ?? null;
+    const latestEducation = profile?.educations[0];
+    const displayName = user?.realName?.trim() || user?.name?.trim() || "Unknown";
+    const languages = profile ? profile.languageSkills.map((item) => languageLabel(item.language, item.level)) : [];
 
+    // 파트너 표시 상태 — 워크플로 행 우선, 없으면 Application.status 로부터.
+    // 철회 지원은 워크플로 행이 남아있어도 항상 WITHDRAWN 로 표시(상세 조회 시).
+    const applicantStatus: PartnerApplicantWorkflowStatus =
+      app.status === "WITHDRAWN" ? "WITHDRAWN" : ((state?.status as PartnerApplicantWorkflowStatus | undefined) ?? applicationStatusToWorkflow(app.status));
+    // 연락처(이메일)는 면접 단계 이후에만 공개 — 공용 헬퍼로 통합.
+    const contactUnlocked = isContactUnlockedForWorkflowStatus(applicantStatus);
     items.push({
       id: stateKey,
-      candidateUserId: profile.userId,
-      positionId: appliedPositionId,
-      positionTitle: positionMap.get(appliedPositionId) ?? "-",
+      candidateUserId,
+      positionId,
+      positionTitle: positionMap.get(positionId) ?? "-",
       name: displayName,
-      nationality: profile.user.nationality ?? null,
-      email: profile.user.email,
+      nationality: user?.nationality ?? null,
+      email: contactUnlocked ? user?.email ?? null : null,
+      contactUnlocked,
       languages,
       school: latestEducation?.schoolName ?? null,
       major: latestEducation?.major ?? null,
-      residence: profile.residenceProvince ?? null,
-      appliedAt: profile.updatedAt?.toISOString?.() ?? null,
+      residence: profile?.residenceProvince ?? null,
+      appliedAt: app.submittedAt?.toISOString?.() ?? null,
       recommendation: languages.length >= 2 ? "HIGH" : "NORMAL",
-      status: (state?.status as PartnerApplicantWorkflowStatus | undefined) ?? "APPLIED",
-      summary: profile.selfIntroduction ?? null,
-      motivation: profile.programMotivation ?? null,
+      status: applicantStatus,
+      summary: profile?.selfIntroduction ?? null,
+      motivation: profile?.programMotivation ?? null,
       portfolioUrl: null,
-      availableStartDate: profile.programStartDate ? profile.programStartDate.toISOString().slice(0, 10) : null,
+      availableStartDate: profile?.programStartDate ? profile.programStartDate.toISOString().slice(0, 10) : null,
       memo: state?.memo ?? null,
       resumeTitle: linkedResume?.title ?? null,
       resumeShareSlug: linkedResume?.shareSlug ?? null,
       coverLetterTitle: linkedCover?.title ?? null,
       coverLetterShareSlug: linkedCover?.shareSlug ?? null,
-      applicationId: applicationIdMap.get(`${profile.userId}:${appliedPositionId}`) ?? null,
-      mockInterviewPracticed: practicedSet.has(`${profile.userId}:${appliedPositionId}`),
-      mockInterviewScore: mockScoreMap.get(`${profile.userId}:${appliedPositionId}`) ?? null
+      applicationId: app.id,
+      mockInterviewPracticed: practicedSet.has(`${candidateUserId}:${positionId}`),
+      mockInterviewScore: mockScoreMap.get(`${candidateUserId}:${positionId}`) ?? null,
+      interviewSlotSelected: app.interviewSlots.some((s) => s.status === "SELECTED")
     });
   }
 
@@ -20412,9 +20613,15 @@ app.get("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]), 
       }
     });
 
+    // 공고별 모의 면접 참여자 수 — 카드 지표 칩용.
+    const mockCounts = items.length
+      ? await prisma.mockInterviewSession.groupBy({ by: ["positionId"], where: { positionId: { in: items.map((i) => i.id) } }, _count: { _all: true } })
+      : [];
+    const mockCountMap = new Map(mockCounts.map((m) => [m.positionId, m._count._all]));
+
     return res.json({
       ok: true,
-      items: items.map((item) => toPosition(item))
+      items: items.map((item) => ({ ...toPosition(item), mockInterviewParticipantCount: mockCountMap.get(item.id) ?? 0 }))
     });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -20982,6 +21189,7 @@ app.delete("/partner/positions/:id", authenticate, requireRoles([MemberRole.PART
   }
 
   try {
+    // MockInterviewSession 은 Position FK(onDelete: Cascade)로 함께 삭제된다.
     await prisma.position.delete({ where: { id } });
     void writeAuditLog(req, {
       action: isOperator ? "OPS_POSITION_DELETED" : "PARTNER_POSITION_DELETED",
@@ -21303,9 +21511,27 @@ app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDE
 // ─────────────────────────────────────────────────────────────────────────
 
 // 인재풀 동의 대표 이력서 조회 조건 공통.
-const POOL_RESUME_WHERE = { isPrimary: true, content: { path: ["poolOptIn", "consentedAt"], not: Prisma.JsonNull } } as const;
+// 인재풀 노출 = 대표 이력서 + 유저 레벨 동의(talentPoolConsentedAt). 대표 이력서 교체와 무관하게 유지.
+const POOL_RESUME_WHERE = { isPrimary: true, user: { talentPoolConsentedAt: { not: null } } } as const;
 
 // 연결 전 노출 금지 PII 제거 + 내부 메타 제거.
+// 리뉴얼 기본정보(renewalBasicInfo = {realName,email,phone,address,photoUrl})에서 연락 PII 제거.
+// 이름은 이력서 헤더 렌더에 필요하므로 유지, 연결 수락(unlocked) 전까지 연락처는 가린다.
+// 연락처(이메일·전화 등) 공개 기준 — 단일 소스로 통합해 경로별 정책이 어긋나지 않게 한다.
+// 지원 건: 면접 단계(INTERVIEW) 이후 또는 합격. 파트너 워크플로 상태는 OFFERED/COMPLETED 도 면접 이후이므로 포함.
+// (인재풀 연결 흐름은 '연결 수락(ACCEPTED)' 기준으로 별도이며 그대로 유지.)
+function isContactUnlockedForWorkflowStatus(status: string): boolean {
+  return status === "INTERVIEW" || status === "OFFERED" || status === "ACCEPTED" || status === "COMPLETED";
+}
+function isContactUnlockedForApplication(applicationStatus: string, hasInterviewSlot: boolean): boolean {
+  return applicationStatus === "INTERVIEW" || applicationStatus === "ACCEPTED" || hasInterviewSlot;
+}
+
+function maskRenewalBasicInfo(raw: unknown, unlocked: boolean): unknown {
+  if (unlocked || !raw || typeof raw !== "object") return raw ?? null;
+  return { ...(raw as Record<string, unknown>), email: "", phone: "", address: "", photoUrl: "" };
+}
+
 function maskResumeContentForPartner(raw: unknown, unlocked: boolean): Record<string, unknown> {
   const c = { ...((raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>) };
   delete c.poolOptIn;
@@ -21315,6 +21541,8 @@ function maskResumeContentForPartner(raw: unknown, unlocked: boolean): Record<st
     delete c.basicResidence;
     delete c.basicPhotoUrl;
     delete c.links;
+    // 리뉴얼 이력서의 기본정보에 담긴 연락처도 가린다(이름만 유지).
+    if (c.renewalBasicInfo) c.renewalBasicInfo = maskRenewalBasicInfo(c.renewalBasicInfo, false);
   }
   return c;
 }
@@ -21347,8 +21575,52 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
     summary: summary ? summary.slice(0, 180) : null,
     updatedAt: r.updatedAt.toISOString(),
     connectionStatus: status,
-    contactUnlocked: status === "ACCEPTED"
+    contactUnlocked: status === "ACCEPTED",
+    resumeBullets: [] as string[],
+    coverBullets: [] as string[]
   };
+}
+
+// 카드 목록에 캐시된 AI 요약(ApplicantDocSummary)을 붙인다 — version(이력서 updatedAt)이 일치할 때만.
+// 리스트에서 대량 LLM 생성은 하지 않고, 이미 캐시된(열람했거나 인재풀 등록 시 선생성된) 요약만 노출.
+async function attachCachedDocSummaries<T extends { candidateUserId: string; updatedAt: string; resumeBullets: string[]; coverBullets: string[] }>(cards: T[]): Promise<void> {
+  if (cards.length === 0) return;
+  const rows = await prisma.applicantDocSummary.findMany({ where: { candidateUserId: { in: cards.map((c) => c.candidateUserId) } } });
+  const byUser = new Map(rows.map((r) => [r.candidateUserId, r]));
+  for (const c of cards) {
+    const row = byUser.get(c.candidateUserId);
+    // version = `${updatedAtMs}:${contentSig}` (구버전은 접두 ms 만) — 대표 이력서 updatedAt 이 일치하면 사용.
+    const ms = String(new Date(c.updatedAt).getTime());
+    if (row && (row.version === ms || row.version.startsWith(`${ms}:`))) {
+      c.resumeBullets = row.resumeBullets;
+      c.coverBullets = row.coverBullets;
+    }
+  }
+}
+
+// 자기소개서에 실제 답변이 있는 유저 집합.
+async function usersWithCoverLetter(userIds: string[]): Promise<Set<string>> {
+  if (userIds.length === 0) return new Set();
+  const rows = await prisma.coverLetter.findMany({ where: { userId: { in: userIds } }, select: { userId: true, items: true } });
+  const set = new Set<string>();
+  for (const r of rows) {
+    const has = Array.isArray(r.items) && (r.items as unknown[]).some((x) => x && typeof x === "object" && typeof (x as Record<string, unknown>).answer === "string" && ((x as Record<string, unknown>).answer as string).trim());
+    if (has) set.add(r.userId);
+  }
+  return set;
+}
+
+// 이력서가 "어느정도 완성" 됐는지 — 핵심 신호 2개 이상.
+type CandidateCardShape = ReturnType<typeof buildCandidateCard>;
+function isResumeReasonablyComplete(c: CandidateCardShape): boolean {
+  let n = 0;
+  if (c.summary && c.summary.trim().length >= 20) n += 1;
+  if (c.skills.length >= 2) n += 1;
+  if (c.school) n += 1;
+  if (c.careerCount > 0) n += 1;
+  if (c.activityCount > 0) n += 1;
+  if (c.desiredJobRole) n += 1;
+  return n >= 2;
 }
 
 const partnerCandidatesQuerySchema = z.object({
@@ -21375,7 +21647,10 @@ app.get("/partner/candidates", authenticate, requireRoles([MemberRole.PARTNER]),
     const q = parsed.data.q?.toLowerCase();
     const skill = parsed.data.skill?.toLowerCase();
     const jobRole = parsed.data.jobRole?.toLowerCase();
+    // 이력서·자기소개서가 어느정도 완성된 인재만 노출.
+    const coverSet = await usersWithCoverLetter(rows.map((r) => r.userId));
     const all = rows.map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null)).filter((it) => {
+      if (!isResumeReasonablyComplete(it) || !coverSet.has(it.candidateUserId)) return false;
       if (skill && !it.skills.some((s) => s.toLowerCase().includes(skill))) return false;
       if (jobRole && !String(it.desiredJobRole ?? "").toLowerCase().includes(jobRole)) return false;
       if (q) {
@@ -21387,10 +21662,74 @@ app.get("/partner/candidates", authenticate, requireRoles([MemberRole.PARTNER]),
     const pageSize = 20;
     const page = parsed.data.page ?? 1;
     const paged = all.slice((page - 1) * pageSize, page * pageSize);
+    await attachCachedDocSummaries(paged);
     return res.json({ ok: true, items: paged, total: all.length, page, pageSize });
   } catch (err) {
     console.error("[partner/candidates] failed", err);
     return res.status(500).json({ ok: false, message: "failed to search candidates" });
+  }
+});
+
+// 관심 인재 shortlist — 저장/해제/목록(조직 공용).
+app.get("/partner/saved-candidates", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    const saved = await prisma.partnerSavedCandidate.findMany({
+      where: { organizationId: affiliation.organization.id },
+      orderBy: { createdAt: "desc" },
+      select: { candidateUserId: true }
+    });
+    const ids = saved.map((s) => s.candidateUserId);
+    if (ids.length === 0) return res.json({ ok: true, items: [] });
+    // 인재풀에 남아있는(공개 동의 유지) 저장 후보만 노출 — 옵트아웃 시 자동 제외(프라이버시).
+    const rows = await prisma.resume.findMany({
+      where: { ...POOL_RESUME_WHERE, userId: { in: ids } },
+      select: { userId: true, updatedAt: true, content: true, user: { select: { name: true, realName: true, nationality: true } } }
+    });
+    const conns = await prisma.candidateConnectionRequest.findMany({ where: { partnerUserId: req.auth!.userId }, select: { candidateUserId: true, status: true } });
+    const statusByCand = new Map(conns.map((c) => [c.candidateUserId, c.status] as const));
+    const order = new Map(ids.map((id, i) => [id, i] as const));
+    const items = rows
+      .map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null))
+      .sort((a, b) => (order.get(a.candidateUserId) ?? 0) - (order.get(b.candidateUserId) ?? 0));
+    await attachCachedDocSummaries(items);
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error("[partner/saved-candidates] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to list saved candidates" });
+  }
+});
+
+app.post("/partner/saved-candidates/:candidateUserId", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const candidateUserId = typeof req.params.candidateUserId === "string" ? req.params.candidateUserId : "";
+  if (!candidateUserId) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    await prisma.partnerSavedCandidate.upsert({
+      where: { organizationId_candidateUserId: { organizationId: affiliation.organization.id, candidateUserId } },
+      create: { organizationId: affiliation.organization.id, candidateUserId, savedByUserId: req.auth!.userId },
+      update: {}
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("[partner/saved-candidates POST] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to save candidate" });
+  }
+});
+
+app.delete("/partner/saved-candidates/:candidateUserId", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const candidateUserId = typeof req.params.candidateUserId === "string" ? req.params.candidateUserId : "";
+  if (!candidateUserId) return res.status(400).json({ ok: false, message: "invalid id" });
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    await prisma.partnerSavedCandidate.deleteMany({ where: { organizationId: affiliation.organization.id, candidateUserId } });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("[partner/saved-candidates DELETE] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to remove saved candidate" });
   }
 });
 
@@ -21427,7 +21766,11 @@ app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PA
     });
     const conns = await prisma.candidateConnectionRequest.findMany({ where: { partnerUserId: req.auth!.userId }, select: { candidateUserId: true, status: true } });
     const statusByCand = new Map(conns.map((c) => [c.candidateUserId, c.status] as const));
-    const cards = rows.map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null));
+    // 이력서·자기소개서가 어느정도 완성된 인재만.
+    const coverSet = await usersWithCoverLetter(rows.map((r) => r.userId));
+    const cards = rows
+      .map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null))
+      .filter((c) => isResumeReasonablyComplete(c) && coverSet.has(c.candidateUserId));
 
     // openai 없으면 키워드 폴백 — 문장을 토큰으로 쪼개 '토큰 매칭 수' 많은 순으로.
     if (!openai) {
@@ -21442,6 +21785,7 @@ app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PA
         .sort((a, b) => b.n - a.n)
         .slice(0, 24)
         .map((x) => x.c);
+      await attachCachedDocSummaries(items);
       return res.json({ ok: true, items, ai: false });
     }
 
@@ -21467,6 +21811,7 @@ app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PA
       .sort((a, b) => b.score - a.score)
       .slice(0, 30)
       .map((m) => ({ ...cards[m.index], score: m.score, reason: m.reason }));
+    await attachCachedDocSummaries(items);
     return res.json({ ok: true, items, ai: true });
   } catch (err) {
     console.error("[partner/candidates/search] failed", err);
@@ -21479,15 +21824,16 @@ app.get("/partner/candidates/:candidateUserId", authenticate, requireRoles([Memb
   try {
     const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
     if (req.auth!.role !== MemberRole.OPERATOR && !affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
-    const resume = await prisma.resume.findFirst({
-      where: { userId: candidateUserId, ...POOL_RESUME_WHERE },
-      select: { content: true, updatedAt: true, user: { select: { name: true, realName: true, nationality: true, email: true, phoneNumber: true } } }
-    });
-    if (!resume) return res.status(404).json({ ok: false, message: "candidate not found or not in pool" });
     const conn = await prisma.candidateConnectionRequest.findUnique({
       where: { partnerUserId_candidateUserId: { partnerUserId: req.auth!.userId, candidateUserId } },
       select: { status: true, message: true, createdAt: true, respondedAt: true }
     });
+    const resumeSelect = { content: true, updatedAt: true, user: { select: { name: true, realName: true, nationality: true, email: true, phoneNumber: true } } } as const;
+    // 인재풀 후보이거나, 이 파트너가 연결/제안을 보낸 후보(모의 면접 제안 포함)면 열람 가능.
+    const resume =
+      (await prisma.resume.findFirst({ where: { userId: candidateUserId, ...POOL_RESUME_WHERE }, select: resumeSelect })) ??
+      (conn ? await prisma.resume.findFirst({ where: { userId: candidateUserId }, orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }], select: resumeSelect }) : null);
+    if (!resume) return res.status(404).json({ ok: false, message: "candidate not found or not accessible" });
     const unlocked = conn?.status === "ACCEPTED";
     // 자기소개서 — 후보의 가장 최근 자소서(있으면). 연락처 PII 없음 → 연결 전에도 표시.
     const cover = await prisma.coverLetter.findFirst({
@@ -21542,7 +21888,8 @@ app.post("/partner/candidates/:candidateUserId/connect", authenticate, requireRo
       type: "CANDIDATE_CONNECTION_REQUEST",
       title: `${orgName}에서 연결을 요청했어요`,
       message: parsed.data.message ? parsed.data.message.slice(0, 120) : "프로필에서 요청을 확인하고 수락하면 연락처가 공유돼요.",
-      linkPath: "/profile?tab=connections"
+      linkPath: "/profile?tab=connections",
+      email: true
     });
     return res.status(201).json({ ok: true, item: created });
   } catch (err) {
@@ -21552,6 +21899,56 @@ app.post("/partner/candidates/:candidateUserId/connect", authenticate, requireRo
 });
 
 // 공고 모의 면접 참여자 — 지원 여부와 무관. 회사가 결과를 보고 제안할 수 있다.
+// 조직 전체 모의 면접 참여자 — 모든 공고의 세션(공고×인재 1행)을 점수순으로.
+// 공고별 필터가 공고 관리 카드의 참여자 수와 정확히 일치하도록 세션을 합치지 않는다.
+// 지원자 리스트 탭 / 홈 섹션에서 사용. 지원 안 하고 모의 면접만 본 사람도 포함.
+app.get("/partner/mock-interview-participants", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+
+    const positions = await prisma.position.findMany({ where: { partnerOrganizationId: affiliation.organization.id }, select: { id: true, title: true } });
+    const positionIds = positions.map((p) => p.id);
+    if (positionIds.length === 0) return res.json({ ok: true, items: [] });
+    const positionMap = new Map(positions.map((p) => [p.id, p.title]));
+
+    const sessions = await prisma.mockInterviewSession.findMany({ where: { positionId: { in: positionIds } }, orderBy: [{ bestScore: "desc" }, { lastPracticedAt: "desc" }] });
+    if (sessions.length === 0) return res.json({ ok: true, items: [] });
+    const userIds = Array.from(new Set(sessions.map((s) => s.userId)));
+
+    const [users, applied, connections] = await Promise.all([
+      prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, realName: true, nationality: true } }),
+      prisma.application.findMany({ where: { positionId: { in: positionIds }, candidateUserId: { in: userIds } }, select: { candidateUserId: true, positionId: true } }),
+      prisma.candidateConnectionRequest.findMany({ where: { partnerUserId: req.auth!.userId, candidateUserId: { in: userIds } }, select: { candidateUserId: true, status: true } })
+    ]);
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    // 이 공고에 지원했는지 — (userId:positionId) 단위로 판정.
+    const appliedSet = new Set(applied.map((a) => `${a.candidateUserId}:${a.positionId}`));
+    const connMap = new Map(connections.map((c) => [c.candidateUserId, c.status]));
+
+    return res.json({
+      ok: true,
+      items: sessions.map((s) => {
+        const u = userMap.get(s.userId);
+        return {
+          userId: s.userId,
+          name: u?.realName?.trim() || u?.name?.trim() || "지원자",
+          nationality: u?.nationality ?? null,
+          bestScore: s.bestScore,
+          answeredCount: s.answeredCount,
+          lastPracticedAt: s.lastPracticedAt.toISOString(),
+          applied: appliedSet.has(`${s.userId}:${s.positionId}`),
+          connectionStatus: connMap.get(s.userId) ?? null,
+          positionId: s.positionId,
+          positionTitle: positionMap.get(s.positionId) ?? ""
+        };
+      })
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.get("/partner/positions/:id/mock-interview-participants", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   const positionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   if (!positionId) return res.status(400).json({ ok: false, message: "invalid position id" });
@@ -21595,6 +21992,67 @@ app.get("/partner/positions/:id/mock-interview-participants", authenticate, requ
   }
 });
 
+// 모의 면접 참여자 1명 상세 — 답변 전문 + 프로필 + 지원/연결 상태.
+app.get("/partner/positions/:id/mock-interview-participants/:userId", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const positionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const candidateUserId = String(req.params.userId ?? "");
+  if (!positionId || !candidateUserId) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    const position = await prisma.position.findFirst({ where: { id: positionId, partnerOrganizationId: affiliation.organization.id }, select: { id: true, title: true } });
+    if (!position) return res.status(404).json({ ok: false, message: "position not found" });
+
+    const session = await prisma.mockInterviewSession.findUnique({ where: { userId_positionId: { userId: candidateUserId, positionId } } });
+    if (!session) return res.status(404).json({ ok: false, message: "participant not found" });
+
+    const [user, application, connection, primaryResume, primaryCover] = await Promise.all([
+      prisma.user.findUnique({ where: { id: candidateUserId }, select: { id: true, name: true, realName: true, nationality: true } }),
+      prisma.application.findFirst({ where: { positionId, candidateUserId }, select: { id: true } }),
+      prisma.candidateConnectionRequest.findUnique({ where: { partnerUserId_candidateUserId: { partnerUserId: req.auth!.userId, candidateUserId } }, select: { status: true } }),
+      prisma.resume.findFirst({ where: { userId: candidateUserId }, orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }], select: { content: true, title: true, shareSlug: true } }),
+      prisma.coverLetter.findFirst({ where: { userId: candidateUserId }, orderBy: { updatedAt: "desc" }, select: { title: true, shareSlug: true } })
+    ]);
+
+    // 리뉴얼 이력서/자소서 미리보기용 — 대표 이력서 content 의 renewal* 키.
+    const resumeContent = (primaryResume?.content && typeof primaryResume.content === "object" ? primaryResume.content : {}) as Record<string, unknown>;
+
+    const rawAnswers = Array.isArray(session.answers) ? (session.answers as Array<{ question?: unknown; answer?: unknown; score?: unknown }>) : [];
+    const answers = rawAnswers.map((a) => ({
+      question: typeof a?.question === "string" ? a.question : "",
+      answer: typeof a?.answer === "string" ? a.answer : "",
+      score: typeof a?.score === "number" ? a.score : null
+    }));
+
+    return res.json({
+      ok: true,
+      item: {
+        userId: candidateUserId,
+        name: user?.realName?.trim() || user?.name?.trim() || "지원자",
+        nationality: user?.nationality ?? null,
+        positionId,
+        positionTitle: position.title,
+        bestScore: session.bestScore,
+        answeredCount: session.answeredCount,
+        lastPracticedAt: session.lastPracticedAt.toISOString(),
+        applied: Boolean(application),
+        connectionStatus: connection?.status ?? null,
+        answers,
+        resumeDoc: resumeContent.renewalResume ?? null,
+        // 연락처는 제안 수락(연결) 후에만 공개 — 그 전에는 이름만.
+        resumeBasicInfo: maskRenewalBasicInfo(resumeContent.renewalBasicInfo, connection?.status === "ACCEPTED"),
+        coverDoc: resumeContent.renewalCover ?? null,
+        resumeTitle: primaryResume?.title ?? null,
+        resumeShareSlug: primaryResume?.shareSlug ?? null,
+        coverLetterTitle: primaryCover?.title ?? null,
+        coverLetterShareSlug: primaryCover?.shareSlug ?? null
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // 회사 → 모의 면접 참여자에게 제안(연결 요청). 이 공고 모의 면접에 참여한 사람만 대상(암묵적 관심).
 app.post("/partner/positions/:id/mock-interview-candidates/:userId/propose", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   const positionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -21630,7 +22088,8 @@ app.post("/partner/positions/:id/mock-interview-candidates/:userId/propose", aut
       type: "CANDIDATE_CONNECTION_REQUEST",
       title: `${orgName}에서 '${position.title}' 관련 제안을 보냈어요`,
       message: (fullMessage ? fullMessage : "모의 면접 결과를 보고 연락드렸어요. 수락하면 연락처가 공유돼요.").slice(0, 160),
-      linkPath: "/profile?tab=connections"
+      linkPath: "/profile?tab=connections",
+      email: true
     });
     return res.status(201).json({ ok: true, item: created });
   } catch (error) {
@@ -21683,7 +22142,8 @@ app.post("/members/me/connections/:id/respond", authenticate, requireRoles([Memb
       type: status === "ACCEPTED" ? "CANDIDATE_CONNECTION_ACCEPTED" : "CANDIDATE_CONNECTION_DECLINED",
       title: status === "ACCEPTED" ? `${who}님이 연결을 수락했어요` : `${who}님이 연결 요청을 거절했어요`,
       message: status === "ACCEPTED" ? "이제 후보자의 연락처를 확인하고 연락할 수 있어요." : null,
-      linkPath: "/dashboard/partner/candidates"
+      linkPath: `/partner/talent/${conn.candidateUserId}`,
+      email: true
     });
     return res.json({ ok: true, item: updated });
   } catch (err) {
@@ -21700,10 +22160,29 @@ app.post("/members/me/talent-pool", authenticate, requireRoles([MemberRole.STUDE
   try {
     const primary = await prisma.resume.findFirst({ where: { userId: req.auth!.userId, isPrimary: true }, select: { id: true, content: true } });
     if (!primary) return res.status(400).json({ ok: false, code: "NO_PRIMARY_RESUME", message: "대표 이력서가 필요해요." });
+    // 동의는 유저 레벨(talentPoolConsentedAt)이 원천. content.poolOptIn 은 프론트 표시·레거시 호환용 미러.
+    await prisma.user.update({ where: { id: req.auth!.userId }, data: { talentPoolConsentedAt: parsed.data.optIn ? new Date() : null } });
     const content = { ...((primary.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>) };
     if (parsed.data.optIn) content.poolOptIn = { consentedAt: new Date().toISOString() };
     else delete content.poolOptIn;
     await prisma.resume.update({ where: { id: primary.id }, data: { content: content as Prisma.InputJsonValue } });
+
+    // 인재풀 등록을 켜는 순간, 이력서·자소서 요약을 백그라운드로 미리 생성·캐싱(파트너가 열기 전에 준비).
+    if (parsed.data.optIn) {
+      const userId = req.auth!.userId;
+      void (async () => {
+        const cover = await prisma.coverLetter.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" }, select: { items: true } });
+        const coverText = Array.isArray(cover?.items)
+          ? (cover!.items as unknown[])
+              .filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === "object")
+              .map((x) => (typeof x.answer === "string" ? x.answer : ""))
+              .filter((t) => t.trim())
+              .join("\n")
+          : "";
+        await getOrCreateDocSummary(userId, poolResumeContentToText(content), coverText);
+      })().catch((err) => console.error("[talent-pool summary pregen] failed", err));
+    }
+
     return res.json({ ok: true, optIn: parsed.data.optIn });
   } catch (err) {
     console.error("[members/me/talent-pool] failed", err);
@@ -21739,8 +22218,8 @@ app.get("/partner/applications", authenticate, requireRoles([MemberRole.PARTNER]
     return res.json({
       ok: true,
       items: items.map((a) => {
-        // 연락처는 면접 요청(슬롯 제안) 후에만 공개.
-        const contactUnlocked = a.status === "INTERVIEW" || a.status === "ACCEPTED" || a.interviewSlots.length > 0;
+        // 연락처는 면접 요청(슬롯 제안) 후에만 공개 — 공용 헬퍼로 통합.
+        const contactUnlocked = isContactUnlockedForApplication(a.status, a.interviewSlots.length > 0);
         return {
           id: a.id,
           positionId: a.positionId,
@@ -21968,11 +22447,8 @@ app.get("/partner/applications/:id", authenticate, requireRoles([MemberRole.PART
     });
     const resume = await resolveApplicationResumeBrief(application.resume, application.candidateUserId);
     // 개인정보 보호 — 회사(파트너)는 면접을 요청(슬롯 제안)했거나 면접/합격 단계에 이르러야
-    // 지원자의 직접 연락처(이메일·전화)를 볼 수 있다. 그전엔 마스킹하고 플랫폼 메시지로만 소통.
-    const contactUnlocked =
-      application.status === "INTERVIEW" ||
-      application.status === "ACCEPTED" ||
-      (application.interviewSlots?.length ?? 0) > 0;
+    // 지원자의 직접 연락처(이메일·전화)를 볼 수 있다. 그전엔 마스킹하고 플랫폼 메시지로만 소통 — 공용 헬퍼로 통합.
+    const contactUnlocked = isContactUnlockedForApplication(application.status, (application.interviewSlots?.length ?? 0) > 0);
     const safeCandidate = contactUnlocked
       ? application.candidateUser
       : { ...application.candidateUser, email: null, phoneNumber: null };
@@ -22330,6 +22806,64 @@ const PARTNER_STATUS_TRANSITIONS: Record<string, string[]> = {
   WITHDRAWN: []
 };
 
+// 파트너 지원자 워크플로 상태 → 실제 Application.status 동기화.
+// 파트너 앱은 partnerApplicantWorkflow 에만 쓰는데 지원자 화면은 Application.status 를 읽으므로
+// 여기서 반드시 함께 반영하고 지원자에게 알림/이메일을 보낸다(합격 시 온보딩 Program 생성).
+const WORKFLOW_TO_APPLICATION_STATUS: Record<PartnerApplicantWorkflowStatus, "SUBMITTED" | "INTERVIEW" | "ACCEPTED" | "REJECTED" | "WITHDRAWN"> = {
+  APPLIED: "SUBMITTED",
+  REVIEWING: "SUBMITTED",
+  INTERVIEW: "INTERVIEW",
+  OFFERED: "ACCEPTED",
+  ACCEPTED: "ACCEPTED",
+  COMPLETED: "ACCEPTED",
+  REJECTED: "REJECTED",
+  WITHDRAWN: "WITHDRAWN"
+};
+async function syncApplicationFromWorkflow(applicationId: string, workflowStatus: PartnerApplicantWorkflowStatus, memo: string | null, actorUserId: string): Promise<void> {
+  const appStatus = WORKFLOW_TO_APPLICATION_STATUS[workflowStatus];
+  if (appStatus === "WITHDRAWN") return; // 철회는 지원자만.
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    include: {
+      candidateUser: { select: { email: true, name: true } },
+      position: { select: { title: true, partnerOrganization: { select: { name: true } } } }
+    }
+  });
+  if (!application || application.status === appStatus) return;
+  await prisma.application.update({ where: { id: applicationId }, data: { status: appStatus } });
+  await prisma.applicationStatusHistory.create({ data: { applicationId, status: appStatus, changedByUserId: actorUserId, memo: memo ?? null } });
+  // 같은 조직 다른 파트너 사용자의 워크플로 행도 정렬(요청자 본인 행은 이미 세밀한 상태로 저장돼 있어 제외).
+  await prisma.partnerApplicantWorkflow
+    .updateMany({
+      where: { candidateUserId: application.candidateUserId, positionId: application.positionId, partnerUserId: { not: actorUserId } },
+      data: { status: applicationStatusToWorkflow(appStatus) }
+    })
+    .catch(() => {});
+  if (appStatus === "ACCEPTED") {
+    await prisma.program.upsert({ where: { applicationId }, update: {}, create: { applicationId } });
+  }
+  const statusKo: Record<string, string> = { SUBMITTED: "검토 중", INTERVIEW: "면접 예정", ACCEPTED: "합격", REJECTED: "불합격" };
+  void createNotification({
+    userId: application.candidateUserId,
+    type: "APPLICATION_STATUS_CHANGED",
+    title: `지원 상태가 '${statusKo[appStatus] ?? appStatus}'(으)로 변경되었습니다`,
+    message: memo ?? null,
+    linkPath: "/talent/applications",
+    applicationId
+  });
+  if (appStatus === "INTERVIEW" || appStatus === "ACCEPTED" || appStatus === "REJECTED") {
+    void sendApplicationStatusEmailToApplicant({
+      applicantUserId: application.candidateUserId,
+      applicantEmail: application.candidateUser?.email ?? null,
+      applicantName: application.candidateUser?.name ?? null,
+      positionTitle: application.position.title,
+      partnerName: application.position.partnerOrganization?.name ?? null,
+      status: appStatus,
+      memo: memo ?? null
+    });
+  }
+}
+
 app.patch("/applications/:id/status", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
   const parsed = applicationStatusUpdateSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -22381,6 +22915,27 @@ app.patch("/applications/:id/status", authenticate, requireRoles([MemberRole.PAR
         memo: parsed.data.memo ?? null
       }
     });
+    // 역방향 동기화 — 파트너 워크플로도 맞추되, 같은 코스 상태로 매핑되는 더 세밀한 상태(REVIEWING/OFFERED/COMPLETED)는
+    // 이미 호환되므로 덮어쓰지 않는다(정보 손실 방지).
+    {
+      const compatibleFiner: Record<string, PartnerApplicantWorkflowStatus[]> = {
+        SUBMITTED: ["APPLIED", "REVIEWING"],
+        INTERVIEW: ["INTERVIEW"],
+        ACCEPTED: ["OFFERED", "ACCEPTED", "COMPLETED"],
+        REJECTED: ["REJECTED"],
+        WITHDRAWN: ["WITHDRAWN"]
+      };
+      await prisma.partnerApplicantWorkflow
+        .updateMany({
+          where: {
+            candidateUserId: application.candidateUserId,
+            positionId: application.positionId,
+            status: { notIn: compatibleFiner[parsed.data.status] ?? [] }
+          },
+          data: { status: applicationStatusToWorkflow(parsed.data.status) }
+        })
+        .catch(() => {});
+    }
 
     if (parsed.data.status === "ACCEPTED") {
       await prisma.program.upsert({
@@ -22673,6 +23228,16 @@ app.post(
           memo: "지원자 본인 철회"
         }
       });
+      // 학생 지원 배열(appliedPositionIds)도 정리 — 안 지우면 지원 버튼이 '지원완료'로 남아 재지원이 막힌다.
+      {
+        const profile = await prisma.candidateProfile.findUnique({ where: { userId: req.auth!.userId }, select: { id: true, appliedPositionIds: true } });
+        if (profile) {
+          const next = (profile.appliedPositionIds ?? []).filter((pid) => pid !== application.positionId);
+          if (next.length !== (profile.appliedPositionIds ?? []).length) {
+            await prisma.candidateProfile.update({ where: { id: profile.id }, data: { appliedPositionIds: next } });
+          }
+        }
+      }
       const partnerUsers = application.position.partnerOrganization?.users ?? [];
       await Promise.all(partnerUsers.map((u) => createNotification({
         userId: u.id,
@@ -22793,6 +23358,15 @@ app.post(
         return records;
       });
 
+      // 파트너 워크플로도 면접 단계로 — 지원 전 단계(APPLIED/REVIEWING)만 올리고 이후 단계는 강등하지 않음.
+      // (안 맞추면 파트너 목록 상태가 옛 상태로 남고 연락처도 안 열림)
+      await prisma.partnerApplicantWorkflow
+        .updateMany({
+          where: { candidateUserId: application.candidateUserId, positionId: application.positionId, status: { in: ["APPLIED", "REVIEWING"] } },
+          data: { status: "INTERVIEW" }
+        })
+        .catch(() => {});
+
       void createNotification({
         userId: application.candidateUserId,
         type: "INTERVIEW_SLOTS_PROPOSED",
@@ -22846,6 +23420,57 @@ app.get(
         orderBy: { startsAt: "asc" }
       });
       return res.json({ ok: true, items: slots });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+// 지원 이후 여정 — talent가 자기 지원의 진행 내역(상태 변경 + 면접 슬롯 이벤트)을 시간순으로 본다.
+app.get(
+  "/members/me/applications/:id/timeline",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    const applicationId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!applicationId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+        select: {
+          candidateUserId: true,
+          submittedAt: true,
+          statusHistories: { select: { status: true, changedAt: true }, orderBy: { changedAt: "asc" } },
+          interviewSlots: { select: { proposedAt: true, selectedAt: true, status: true } }
+        }
+      });
+      if (!application) return res.status(404).json({ ok: false, message: "application not found" });
+      if (application.candidateUserId !== req.auth!.userId) return res.status(403).json({ ok: false, message: "forbidden" });
+
+      const events: { at: string; code: string }[] = [];
+      events.push({ at: application.submittedAt.toISOString(), code: "applied" });
+
+      const slots = application.interviewSlots;
+      if (slots.length) {
+        const firstProposed = slots.reduce((min, s) => (s.proposedAt < min ? s.proposedAt : min), slots[0].proposedAt);
+        events.push({ at: firstProposed.toISOString(), code: "interview_proposed" });
+        const selected = slots.find((s) => s.status === "SELECTED" && s.selectedAt);
+        if (selected?.selectedAt) events.push({ at: selected.selectedAt.toISOString(), code: "interview_confirmed" });
+      }
+
+      const lastOf = (st: string): Date | null => {
+        const rows = application.statusHistories.filter((h) => h.status === st);
+        return rows.length ? rows[rows.length - 1].changedAt : null;
+      };
+      const acc = lastOf("ACCEPTED");
+      if (acc) events.push({ at: acc.toISOString(), code: "accepted" });
+      const rej = lastOf("REJECTED");
+      if (rej) events.push({ at: rej.toISOString(), code: "rejected" });
+      const wd = lastOf("WITHDRAWN");
+      if (wd) events.push({ at: wd.toISOString(), code: "withdrawn" });
+
+      events.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+      return res.json({ ok: true, items: events });
     } catch (error) {
       return res.status(500).json({ ok: false, message: getErrorMessage(error) });
     }
@@ -25376,7 +26001,7 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
   if (!id) return res.status(400).json({ ok: false, message: "invalid applicant id" });
 
   try {
-    const result = await listPartnerApplicantsForUser(req.auth!.userId);
+    const result = await listPartnerApplicantsForUser(req.auth!.userId, { includeWithdrawn: true });
     if (!result.affiliation?.organization) {
       return sendAuthError(
         res,
@@ -25386,7 +26011,7 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
       );
     }
 
-    const found = result.items.find((item) => item.id === id);
+    const found = result.items.find((item) => item.id === id) ?? result.items.find((item) => item.applicationId === id);
     if (!found) return res.status(404).json({ ok: false, message: "applicant not found" });
 
     // 리뉴얼 이력서/자소서 미리보기용 — 대표 이력서 content 의 renewal* 키를 그대로 전달.
@@ -25401,7 +26026,8 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
       });
       const c = (primary?.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>;
       resumeDoc = c.renewalResume ?? null;
-      resumeBasicInfo = c.renewalBasicInfo ?? null;
+      // 연락처는 면접 단계 이후에만 공개 — 그 전에는 이름만.
+      resumeBasicInfo = maskRenewalBasicInfo(c.renewalBasicInfo, found.contactUnlocked);
       coverDoc = c.renewalCover ?? null;
     } catch {
       // 미리보기 데이터는 실패해도 상세 응답은 정상 반환.
@@ -25423,6 +26049,7 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
         name: found.name,
         nationality: found.nationality,
         email: found.email,
+        contactUnlocked: found.contactUnlocked,
         positionId: found.positionId,
         positionTitle: found.positionTitle,
         languages: found.languages,
@@ -25479,91 +26106,200 @@ function coverDocToText(doc: unknown): string {
 // LLM 요약 캐시(대표 이력서 updatedAt 기준). 서버 재시작 시 초기화.
 const partnerDocSummaryCache = new Map<string, { resumeBullets: string[]; coverBullets: string[] }>();
 
+// 지원자/인재 공용 — 대표 이력서·자소서를 불렛으로 요약(candidateUserId 기준, version=updatedAt 로 캐싱).
+// 인메모리 + ApplicantDocSummary(DB) 영속 캐시. 문서가 바뀌면 version 이 달라져 재생성한다.
+type DocSummary = { resumeBullets: string[]; coverBullets: string[]; disabled?: boolean };
+async function getOrCreateDocSummary(candidateUserId: string, fallbackResume = "", fallbackCover = ""): Promise<DocSummary> {
+  const primary = await prisma.resume.findFirst({
+    where: { userId: candidateUserId },
+    orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+    select: { content: true, updatedAt: true }
+  });
+  const c = (primary?.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>;
+  const resumeText = resumeDocToText(c.renewalResume) || fallbackResume;
+  const coverText = coverDocToText(c.renewalCover) || fallbackCover;
+  if (!resumeText.trim() && !coverText.trim()) return { resumeBullets: [], coverBullets: [] };
+
+  // 버전에 실제 요약 입력 텍스트의 서명을 포함 — 같은 유저라도 소스(지원자 selfIntro vs 인재풀 구조화 content)가
+  // 다르면 다른 버전이 되어 서로의 캐시를 오염시키지 않는다(renewalResume 부재 시 폴백이 갈리는 케이스).
+  let sig = 5381;
+  const sigInput = `${resumeText} ${coverText}`;
+  for (let i = 0; i < sigInput.length; i += 1) sig = ((sig << 5) + sig + sigInput.charCodeAt(i)) | 0;
+  const version = `${primary?.updatedAt?.getTime() ?? 0}:${(sig >>> 0).toString(36)}`;
+  const cacheKey = `${candidateUserId}:${version}`;
+
+  const cached = partnerDocSummaryCache.get(cacheKey);
+  if (cached) return cached;
+
+  const dbRow = await prisma.applicantDocSummary.findUnique({ where: { candidateUserId } });
+  if (dbRow && dbRow.version === version) {
+    const out = { resumeBullets: dbRow.resumeBullets, coverBullets: dbRow.coverBullets };
+    partnerDocSummaryCache.set(cacheKey, out);
+    return out;
+  }
+
+  if (!openai) return { resumeBullets: [], coverBullets: [], disabled: true };
+
+  const response = await openai.responses.create({
+    model: openaiTranslationModel,
+    input: [
+      {
+        role: "system",
+        content:
+          "너는 채용 담당자를 돕는 어시스턴트다. 지원자의 이력서와 자기소개서를 각각 3~5개의 간결한 한국어 불렛으로 요약한다. 사실에 근거해서만 작성하고(추측 금지), 핵심 역량·경험·강점 위주로 한 불렛은 한 문장(40자 내외)으로 만든다. 내용이 없으면 빈 배열을 반환한다."
+      },
+      { role: "user", content: JSON.stringify({ resume: resumeText, coverLetter: coverText }) }
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "applicant_doc_summary",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            resumeBullets: { type: "array", items: { type: "string" } },
+            coverBullets: { type: "array", items: { type: "string" } }
+          },
+          required: ["resumeBullets", "coverBullets"]
+        }
+      }
+    }
+  });
+
+  const outputText = (response as { output_text?: string }).output_text;
+  const parsed = outputText ? (JSON.parse(outputText) as { resumeBullets?: unknown; coverBullets?: unknown }) : {};
+  const clean = (arr: unknown): string[] =>
+    Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 5) : [];
+  const out = { resumeBullets: clean(parsed.resumeBullets), coverBullets: clean(parsed.coverBullets) };
+  partnerDocSummaryCache.set(cacheKey, out);
+  await prisma.applicantDocSummary
+    .upsert({
+      where: { candidateUserId },
+      update: { version, resumeBullets: out.resumeBullets, coverBullets: out.coverBullets },
+      create: { candidateUserId, version, resumeBullets: out.resumeBullets, coverBullets: out.coverBullets }
+    })
+    .catch(() => {});
+  return out;
+}
+
 app.get("/partner/applicants/:id/document-summary", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   if (!id) return res.status(400).json({ ok: false, message: "invalid applicant id" });
   try {
-    const result = await listPartnerApplicantsForUser(req.auth!.userId);
+    const result = await listPartnerApplicantsForUser(req.auth!.userId, { includeWithdrawn: true });
     if (!result.affiliation?.organization) {
       return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required. request organization assignment.");
     }
-    const found = result.items.find((item) => item.id === id);
+    const found = result.items.find((item) => item.id === id) ?? result.items.find((item) => item.applicationId === id);
     if (!found) return res.status(404).json({ ok: false, message: "applicant not found" });
-
-    const primary = await prisma.resume.findFirst({
-      where: { userId: found.candidateUserId },
-      orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
-      select: { content: true, updatedAt: true }
-    });
-    const c = (primary?.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>;
-    const resumeText = resumeDocToText(c.renewalResume) || (found.summary ?? "");
-    const coverText = coverDocToText(c.renewalCover) || (found.motivation ?? "");
-
-    if (!resumeText.trim() && !coverText.trim()) {
-      return res.json({ ok: true, resumeBullets: [], coverBullets: [] });
-    }
-
-    // 버전 = 대표 이력서 updatedAt. 문서가 바뀌면 version 이 달라져 재생성한다.
-    const version = String(primary?.updatedAt?.getTime() ?? 0);
-    const cacheKey = `${found.candidateUserId}:${version}`;
-
-    // 1) 인메모리 캐시
-    const cached = partnerDocSummaryCache.get(cacheKey);
-    if (cached) return res.json({ ok: true, ...cached, cached: true });
-
-    // 2) DB 영속 캐시(동일 version 이면 재사용)
-    const dbRow = await prisma.applicantDocSummary.findUnique({ where: { candidateUserId: found.candidateUserId } });
-    if (dbRow && dbRow.version === version) {
-      const out = { resumeBullets: dbRow.resumeBullets, coverBullets: dbRow.coverBullets };
-      partnerDocSummaryCache.set(cacheKey, out);
-      return res.json({ ok: true, ...out, cached: true });
-    }
-
-    if (!openai) return res.json({ ok: true, resumeBullets: [], coverBullets: [], disabled: true });
-
-    const response = await openai.responses.create({
-      model: openaiTranslationModel,
-      input: [
-        {
-          role: "system",
-          content:
-            "너는 채용 담당자를 돕는 어시스턴트다. 지원자의 이력서와 자기소개서를 각각 3~5개의 간결한 한국어 불렛으로 요약한다. 사실에 근거해서만 작성하고(추측 금지), 핵심 역량·경험·강점 위주로 한 불렛은 한 문장(40자 내외)으로 만든다. 내용이 없으면 빈 배열을 반환한다."
-        },
-        { role: "user", content: JSON.stringify({ resume: resumeText, coverLetter: coverText }) }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "applicant_doc_summary",
-          strict: true,
-          schema: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              resumeBullets: { type: "array", items: { type: "string" } },
-              coverBullets: { type: "array", items: { type: "string" } }
-            },
-            required: ["resumeBullets", "coverBullets"]
-          }
-        }
-      }
-    });
-
-    const outputText = (response as { output_text?: string }).output_text;
-    const parsed = outputText ? (JSON.parse(outputText) as { resumeBullets?: unknown; coverBullets?: unknown }) : {};
-    const clean = (arr: unknown): string[] =>
-      Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 5) : [];
-    const out = { resumeBullets: clean(parsed.resumeBullets), coverBullets: clean(parsed.coverBullets) };
-    partnerDocSummaryCache.set(cacheKey, out);
-    // DB 영속 캐시 저장(다음 서버 재시작 후에도 재사용).
-    await prisma.applicantDocSummary
-      .upsert({
-        where: { candidateUserId: found.candidateUserId },
-        update: { version, resumeBullets: out.resumeBullets, coverBullets: out.coverBullets },
-        create: { candidateUserId: found.candidateUserId, version, resumeBullets: out.resumeBullets, coverBullets: out.coverBullets }
-      })
-      .catch(() => {});
+    const out = await getOrCreateDocSummary(found.candidateUserId, found.summary ?? "", found.motivation ?? "");
     return res.json({ ok: true, ...out });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 인재풀 이력서(구조화 content)를 요약용 텍스트로. renewal 이력서가 없을 때의 폴백.
+function poolResumeContentToText(content: unknown): string {
+  const c = (content && typeof content === "object" ? content : {}) as Record<string, unknown>;
+  const arr = (v: unknown) => (Array.isArray(v) ? (v.filter((x) => x && typeof x === "object") as Record<string, unknown>[]) : []);
+  const s = (v: unknown) => (typeof v === "string" ? v : "");
+  const parts: string[] = [];
+  const intro = s(c.summary) || s(c.selfIntroduction);
+  if (intro) parts.push(`소개: ${intro}`);
+  const edu = arr(c.educations).map((e) => [s(e.schoolName), s(e.major), s(e.degree)].filter(Boolean).join(" ")).filter(Boolean);
+  if (edu.length) parts.push(`학력: ${edu.join(" / ")}`);
+  const careers = arr(c.careers).map((w) => [s(w.company), s(w.role) || s(w.position), s(w.description)].filter(Boolean).join(" ")).filter(Boolean);
+  if (careers.length) parts.push(`경력: ${careers.join(" / ")}`);
+  const acts = arr(c.activities).map((a) => [s(a.title) || s(a.name), s(a.description)].filter(Boolean).join(" ")).filter(Boolean);
+  if (acts.length) parts.push(`활동: ${acts.join(" / ")}`);
+  const skills = Array.isArray(c.skills) ? (c.skills as unknown[]).filter((x): x is string => typeof x === "string") : [];
+  if (skills.length) parts.push(`스킬: ${skills.join(", ")}`);
+  const langs = arr(c.languages).map((l) => [s(l.language), s(l.level)].filter(Boolean).join(" ")).filter(Boolean);
+  if (langs.length) parts.push(`어학: ${langs.join(", ")}`);
+  return parts.join("\n");
+}
+
+// 인재풀 후보 이력서·자소서 요약 — 지원자 상세와 동일한 불렛 요약(공개 동의 후보만).
+app.get("/partner/candidates/:candidateUserId/document-summary", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const candidateUserId = String(req.params.candidateUserId ?? "");
+  if (!candidateUserId) return res.status(400).json({ ok: false, message: "invalid candidate id" });
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (req.auth!.role !== MemberRole.OPERATOR && !affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    const poolResume = await prisma.resume.findFirst({ where: { userId: candidateUserId, ...POOL_RESUME_WHERE }, select: { content: true } });
+    if (!poolResume) return res.status(404).json({ ok: false, message: "candidate not in pool" });
+
+    // renewal 이력서가 없으면 구조화 content / 자소서 본문을 폴백 텍스트로 요약.
+    const cover = await prisma.coverLetter.findFirst({ where: { userId: candidateUserId }, orderBy: { updatedAt: "desc" }, select: { items: true } });
+    const coverText = Array.isArray(cover?.items)
+      ? (cover!.items as unknown[])
+          .filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === "object")
+          .map((x) => (typeof x.answer === "string" ? x.answer : ""))
+          .filter((t) => t.trim())
+          .join("\n")
+      : "";
+
+    const out = await getOrCreateDocSummary(candidateUserId, poolResumeContentToText(poolResume.content), coverText);
+    return res.json({ ok: true, ...out });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 회사 소개(description+strengths) → 한 줄 LLM 요약. version(입력 해시)로 org 에 캐싱.
+async function getOrCreateCompanySummary(org: { id: string; description: string | null; strengths: string | null; descriptionSummary: string | null; descriptionSummaryVersion: string | null }): Promise<string | null> {
+  const text = [(org.description ?? "").trim(), (org.strengths ?? "").trim()].filter(Boolean).join("\n");
+  if (!text) return null;
+  let sig = 5381;
+  for (let i = 0; i < text.length; i += 1) sig = ((sig << 5) + sig + text.charCodeAt(i)) | 0;
+  const version = (sig >>> 0).toString(36);
+  if (org.descriptionSummary && org.descriptionSummaryVersion === version) return org.descriptionSummary;
+  if (!openai) return null;
+  const response = await openai.responses.create({
+    model: openaiTranslationModel,
+    input: [
+      { role: "system", content: "회사 소개를 구직자가 한눈에 파악할 수 있게 한국어 한 문장(45자 내외)으로 요약해라. 과장·홍보 문구 없이 사실 기반으로, 무슨 회사인지·강점 위주로." },
+      { role: "user", content: text }
+    ],
+    text: { format: { type: "json_schema", name: "company_summary", strict: true, schema: { type: "object", additionalProperties: false, properties: { summary: { type: "string" } }, required: ["summary"] } } }
+  });
+  const parsed = (() => {
+    try {
+      return JSON.parse((response as { output_text?: string }).output_text ?? "{}") as { summary?: unknown };
+    } catch {
+      return {};
+    }
+  })();
+  const summary = typeof parsed.summary === "string" ? parsed.summary.trim().slice(0, 120) : "";
+  if (!summary) return null;
+  await prisma.partnerOrganization.update({ where: { id: org.id }, data: { descriptionSummary: summary, descriptionSummaryVersion: version } }).catch(() => {});
+  return summary;
+}
+
+// 홈 "이런 회사는 어때요" — 회사 id 들의 소개 LLM 요약(공개, 캐시).
+app.get("/public/company-summaries", async (req, res) => {
+  try {
+    const ids = String(req.query.ids ?? "").split(",").map((s) => s.trim()).filter(Boolean).slice(0, 12);
+    if (ids.length === 0) return res.json({ ok: true, summaries: {} });
+    const orgs = await prisma.partnerOrganization.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, description: true, strengths: true, descriptionSummary: true, descriptionSummaryVersion: true }
+    });
+    const summaries: Record<string, string> = {};
+    await Promise.all(
+      orgs.map(async (o) => {
+        try {
+          const s = await getOrCreateCompanySummary(o);
+          if (s) summaries[o.id] = s;
+        } catch {
+          // 개별 실패는 무시
+        }
+      })
+    );
+    return res.json({ ok: true, summaries });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -25586,7 +26322,7 @@ app.patch("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PART
   if (!parsePartnerApplicantCompositeId(id)) return res.status(400).json({ ok: false, message: "invalid applicant id" });
 
   try {
-    const result = await listPartnerApplicantsForUser(req.auth!.userId);
+    const result = await listPartnerApplicantsForUser(req.auth!.userId, { includeWithdrawn: true });
     if (!result.affiliation?.organization) {
       return sendAuthError(
         res,
@@ -25596,8 +26332,18 @@ app.patch("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PART
       );
     }
 
-    const found = result.items.find((item) => item.id === id);
+    const found = result.items.find((item) => item.id === id) ?? result.items.find((item) => item.applicationId === id);
     if (!found) return res.status(404).json({ ok: false, message: "applicant not found" });
+
+    // 안전 가드 — 철회는 지원자만 가능하고, 철회된 지원은 파트너가 상태를 되돌릴 수 없다.
+    if (parsedBody.data.status) {
+      if (parsedBody.data.status === "WITHDRAWN") {
+        return res.status(403).json({ ok: false, message: "철회는 지원자만 설정할 수 있습니다." });
+      }
+      if (found.status === "WITHDRAWN") {
+        return res.status(409).json({ ok: false, message: "철회된 지원은 상태를 변경할 수 없습니다." });
+      }
+    }
 
     const parsedId = parsePartnerApplicantCompositeId(id);
     if (!parsedId) return res.status(400).json({ ok: false, message: "invalid applicant id" });
@@ -25636,6 +26382,12 @@ app.patch("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PART
         memo: nextMemo
       }
     });
+
+    // 지원자 화면(Application.status)과 동기화 + 지원자 알림/이메일. 실제 지원건이 있을 때만.
+    // memo 는 "내부 메모"(지원자 비공개)이므로 지원자 알림/이메일로 절대 전달하지 않는다(null 고정).
+    if (found.applicationId) {
+      await syncApplicationFromWorkflow(found.applicationId, nextStatus, null, req.auth!.userId).catch((e) => console.error("[partner applicant status sync] failed", e));
+    }
 
     return res.json({
       ok: true,
@@ -27354,6 +28106,7 @@ app.delete("/ops/users/:id", authenticate, requireRoles([MemberRole.OPERATOR]), 
       return res.status(404).json({ ok: false, message: "user not found" });
     }
 
+    // MockInterviewSession·ApplicantDocSummary 는 User FK(onDelete: Cascade)로 함께 삭제된다(PII 잔존 방지).
     await prisma.user.delete({ where: { id } });
 
     void writeAuditLog(req, {

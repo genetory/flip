@@ -16,6 +16,8 @@ model User {
   isActive                             Boolean                       @default(true)
   // 이메일 알림 수신 여부(인앱 알림은 항상 유지). 사용자가 설정에서 끌 수 있다.
   emailNotifications                   Boolean                       @default(true)
+  // 기업 인재풀 공개 동의 시각(유저 레벨 원천). 대표 이력서 교체와 무관하게 노출 유지.
+  talentPoolConsentedAt                DateTime?
   suspendedAt                          DateTime?
   suspendedReason                      String?
   realName                             String?
@@ -90,6 +92,8 @@ model User {
   createdPartnerJoinCodes              PartnerOrganizationJoinCode[]
   requestedPositionRevisions           PositionRevision[]            @relation("PositionRevisionRequester")
   reviewedPositionRevisions            PositionRevision[]            @relation("PositionRevisionReviewer")
+  mockInterviewSessions                MockInterviewSession[]
+  applicantDocSummary                  ApplicantDocSummary?
 
   @@unique([email, authProvider])
   @@unique([authProvider, providerId])
@@ -471,6 +475,9 @@ model PartnerOrganization {
   industry                         PartnerIndustry
   description                      String?
   strengths                        String?
+  // 회사 소개 LLM 요약(홈 "이런 회사는 어때요" 카드용). version = 소개+강점 해시로 캐싱.
+  descriptionSummary               String?
+  descriptionSummaryVersion        String?
   adminMemo                        String?
   businessRegistrationDocumentData String?
   fourInsuranceSubscriberListData  String?
@@ -563,6 +570,7 @@ model Position {
   applicantWorkflows   PartnerApplicantWorkflow[]
   applications         Application[]
   revisions            PositionRevision[]
+  mockInterviewSessions MockInterviewSession[]
 
   @@unique([sourceProvider, sourceExternalId])
   @@index([partnerOrganizationId])
@@ -670,6 +678,19 @@ model PartnerApplicantWorkflow {
   @@index([partnerUserId])
   @@index([candidateUserId])
   @@index([positionId])
+}
+
+// 관심 인재 shortlist — 파트너(조직)가 저장해 모아보는 후보. 관계 없이 인덱스 필드로 관리.
+model PartnerSavedCandidate {
+  id              String   @id @default(uuid())
+  organizationId  String
+  candidateUserId String
+  savedByUserId   String
+  note            String?
+  createdAt       DateTime @default(now())
+
+  @@unique([organizationId, candidateUserId])
+  @@index([organizationId])
 }
 
 // 파트너가 인재풀(대표 이력서 동의 학생)을 검색해 먼저 연결을 요청하는 흐름.
@@ -1432,6 +1453,9 @@ model MockInterviewSession {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
   @@unique([userId, positionId])
   @@index([positionId])
 }
@@ -1446,6 +1470,8 @@ model ApplicantDocSummary {
   coverBullets    String[] @default([])
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  candidateUser User @relation(fields: [candidateUserId], references: [id], onDelete: Cascade)
 }
 
 // 프리미엄 한도 — 비싼/반복형 AI 기능(공고 맞춤 분석, 모의 면접 평가)의 월 사용량.

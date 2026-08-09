@@ -12,7 +12,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "node --import tsx scripts/seed-dev-users.ts",
-    "db:seed:community": "node --import tsx scripts/seed-community-posts.ts"
+    "db:seed:community": "node --import tsx scripts/seed-community-posts.ts",
+    "smoke:talent-partner": "tsx scripts/smoke-talent-partner.mts"
   },
   "dependencies": {
     "@azure/storage-blob": "^12.29.1",
