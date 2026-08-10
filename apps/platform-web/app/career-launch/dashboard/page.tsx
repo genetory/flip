@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { STUDENT, WEEKS } from "../../../lib/launch/data";
-import { Card, Pill, SectionTitle } from "../../../components/launch/ui";
+import { Card, SectionTitle } from "../../../components/launch/ui";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
 import { ResumeRender } from "../../../components/launch/resume-render";
@@ -113,7 +113,7 @@ export default function LaunchDashboardPage() {
 
   return (
     <EnrollmentGate>
-    <div className="flex min-h-screen flex-col bg-[#F6F8FB]">
+    <div className="flex min-h-screen flex-col bg-white">
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
@@ -126,40 +126,27 @@ export default function LaunchDashboardPage() {
           {/* 인사 + 전체 진행률 (완주 시 축하 히어로로 전환) */}
           <Reveal>
           {overall === 100 ? (
-            <section className="rounded-3xl bg-[#0B1227] p-7 text-white md:p-8">
-              <div className="flex items-center justify-between gap-3">
-                <p className="min-w-0 truncate text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#A6EF3F]">{t("🎉 4주 프로그램 완주", "🎉 4-week program complete", "🎉 完成4周项目", "🎉 Hoàn thành chương trình 4 tuần", "🎉 4週間プログラム完走", "🎉 Menyelesaikan program 4 minggu")}</p>
-                <span className="inline-flex shrink-0 items-center rounded-full bg-[#A6EF3F]/20 px-2.5 py-1 text-[12px] font-bold text-[#A6EF3F]">{t("수료 완료", "Completed", "已结业", "Đã hoàn thành", "修了", "Selesai")}</span>
+            <div className="pt-2 md:pt-4">
+              <p className="text-[13px] font-medium text-[#8B95A1]">{t("수료 완료", "Completed", "已结业", "Đã hoàn thành", "修了", "Selesai")}</p>
+              <h1 className="mt-2 break-keep text-[27px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[34px]">{t(`${displayName}님, 완주를 축하해요`, `Congrats on finishing, ${displayName}`, `${displayName}，恭喜你顺利完成`, `Chúc mừng bạn đã hoàn thành, ${displayName}`, `${displayName}さん、完走おめでとうございます`, `Selamat telah menyelesaikan, ${displayName}`)}</h1>
+              <p className="mt-3 max-w-[520px] break-keep text-[14.5px] leading-relaxed text-[#4E5968] md:text-[15.5px]">{t("이력서·자기소개서를 완성하고 면접 준비까지 마쳤어요. 이제 자신 있게 지원해봐요.", "You've finished your resume and cover letter, and prepped for interviews. Now apply with confidence.", "你已完成简历和求职信，也做好了面试准备。现在充满信心地去投递吧。", "Bạn đã hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị xong cho phỏng vấn. Giờ hãy tự tin ứng tuyển nhé.", "履歴書・自己紹介書を完成させ、面接準備まで終えました。これからは自信を持って応募しましょう。", "Kamu sudah menyelesaikan resume dan cover letter, serta menyiapkan wawancara. Sekarang lamar dengan percaya diri.")}</p>
+              <div className="mt-7 flex items-center gap-4">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EEF1F5]"><div className="h-full rounded-full bg-[#191F28]" style={{ width: "100%" }} /></div>
+                <span className="shrink-0 text-[13px] font-bold tabular-nums text-[#191F28]">{doneSteps}<span className="text-[#B0B8C1]">/{totalSteps}</span></span>
               </div>
-              <h1 className="mt-3 break-keep text-[24px] font-black leading-[1.3] tracking-[-0.02em] md:text-[28px]">{t(`${displayName}님, 완주를 축하해요! 🎉`, `Congrats on finishing, ${displayName}! 🎉`, `${displayName}，恭喜你顺利完成！🎉`, `Chúc mừng bạn đã hoàn thành, ${displayName}! 🎉`, `${displayName}さん、完走おめでとうございます！🎉`, `Selamat telah menyelesaikan, ${displayName}! 🎉`)}</h1>
-              <p className="mt-2.5 max-w-[92%] break-keep text-[14px] leading-relaxed text-white/65">{t("이력서·자기소개서를 완성하고 면접 준비까지 마쳤어요. 이제 자신 있게 지원해봐요!", "You've finished your resume and cover letter, and prepped for interviews. Now apply with confidence!", "你已完成简历和求职信，也做好了面试准备。现在充满信心地去投递吧！", "Bạn đã hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị xong cho phỏng vấn. Giờ hãy tự tin ứng tuyển nhé!", "履歴書・自己紹介書を完成させ、面接準備まで終えました。これからは自信を持って応募しましょう！", "Kamu sudah menyelesaikan resume dan cover letter, serta menyiapkan wawancara. Sekarang lamar dengan percaya diri!")}</p>
-              <div className="mt-6 flex items-center gap-3 rounded-2xl bg-white/10 p-4">
-                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-white/10 text-[22px]">🏁</span>
-                <div>
-                  <p className="text-[14px] font-black text-white">{t("전체 진행률 100% · 모든 스텝 완료", "Overall progress 100% · All steps complete", "总进度100% · 所有步骤完成", "Tiến độ tổng thể 100% · Hoàn thành mọi bước", "全体進捗100% · すべてのステップ完了", "Progres keseluruhan 100% · Semua langkah selesai")}</p>
-                  <p className="mt-0.5 text-[12px] text-white/55">{t(`완료한 스텝 ${doneSteps}/${totalSteps}`, `Steps completed ${doneSteps}/${totalSteps}`, `已完成步骤 ${doneSteps}/${totalSteps}`, `Bước đã hoàn thành ${doneSteps}/${totalSteps}`, `完了したステップ ${doneSteps}/${totalSteps}`, `Langkah selesai ${doneSteps}/${totalSteps}`)}</p>
-                </div>
-              </div>
-            </section>
+            </div>
           ) : (
-            <section className="rounded-3xl bg-[#0B1227] p-7 text-white md:p-8">
-              <div className="flex items-center justify-between gap-3">
-                <p className="min-w-0 truncate text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#8CA8FF]">{cohortLabel || t("글로벌 커리어 런치", "Global Career Launch", "全球职业启航", "Global Career Launch", "グローバルキャリアローンチ", "Global Career Launch")}</p>
-                <span className="inline-flex shrink-0 items-center rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-bold text-white">{t(`${doneSteps}/${totalSteps} 스텝`, `${doneSteps}/${totalSteps} steps`, `${doneSteps}/${totalSteps} 步骤`, `${doneSteps}/${totalSteps} bước`, `${doneSteps}/${totalSteps} ステップ`, `${doneSteps}/${totalSteps} langkah`)}</span>
-              </div>
-              <h1 className="mt-3 break-keep text-[24px] font-black leading-[1.3] tracking-[-0.02em] md:text-[28px]">{t(`${displayName}님, 반가워요 👋`, `Welcome, ${displayName} 👋`, `${displayName}，欢迎你 👋`, `Chào mừng bạn, ${displayName} 👋`, `${displayName}さん、ようこそ 👋`, `Selamat datang, ${displayName} 👋`)}</h1>
-              <p className="mt-2.5 max-w-[92%] break-keep text-[14px] leading-relaxed text-white/65">{t("4주 동안 이력서·자기소개서를 완성하고 면접까지 준비해요.", "Over 4 weeks, you'll complete your resume and cover letter, and prepare for interviews.", "在4周内完成简历和求职信，并准备好面试。", "Trong 4 tuần, bạn sẽ hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị cho phỏng vấn.", "4週間で履歴書・自己紹介書を完成させ、面接まで準備します。", "Selama 4 minggu, kamu akan menyelesaikan resume dan cover letter, serta menyiapkan wawancara.")}</p>
-              <div className="mt-6">
-                <div className="mb-2 flex items-end justify-between">
-                  <p className="text-[12.5px] font-bold text-white/70">{t("전체 진행률", "Overall progress", "总进度", "Tiến độ tổng thể", "全体進捗", "Progres keseluruhan")}</p>
-                  <span className="text-[26px] font-black leading-none text-white md:text-[30px]">{overall}<span className="text-[15px] text-white/55">%</span></span>
+            <div className="pt-2 md:pt-4">
+              <p className="text-[13px] font-medium text-[#8B95A1]">{cohortLabel || t("글로벌 커리어 런치", "Global Career Launch", "全球职业启航", "Global Career Launch", "グローバルキャリアローンチ", "Global Career Launch")}</p>
+              <h1 className="mt-2 break-keep text-[27px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[34px]">{t(`${displayName}님, 반가워요`, `Welcome, ${displayName}`, `${displayName}，欢迎你`, `Chào mừng bạn, ${displayName}`, `${displayName}さん、ようこそ`, `Selamat datang, ${displayName}`)}</h1>
+              <p className="mt-3 max-w-[520px] break-keep text-[14.5px] leading-relaxed text-[#4E5968] md:text-[15.5px]">{t("4주 동안 이력서·자기소개서를 완성하고 면접까지 준비해요.", "Over 4 weeks, you'll complete your resume and cover letter, and prepare for interviews.", "在4周内完成简历和求职信，并准备好面试。", "Trong 4 tuần, bạn sẽ hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị cho phỏng vấn.", "4週間で履歴書・自己紹介書を完成させ、面接まで準備します。", "Selama 4 minggu, kamu akan menyelesaikan resume dan cover letter, serta menyiapkan wawancara.")}</p>
+              <div className="mt-7 flex items-center gap-4">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EEF1F5]">
+                  <div className="h-full rounded-full bg-[#191F28] transition-[width] duration-500" style={{ width: `${overall}%` }} />
                 </div>
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/15">
-                  <div className="h-full rounded-full bg-[#5B86F5] transition-[width] duration-500" style={{ width: `${overall}%` }} />
-                </div>
-                <p className="mt-2 text-[12px] text-white/50">{t(`완료한 스텝 ${doneSteps}/${totalSteps}`, `Steps completed ${doneSteps}/${totalSteps}`, `已完成步骤 ${doneSteps}/${totalSteps}`, `Bước đã hoàn thành ${doneSteps}/${totalSteps}`, `完了したステップ ${doneSteps}/${totalSteps}`, `Langkah selesai ${doneSteps}/${totalSteps}`)}</p>
+                <span className="shrink-0 text-[13px] font-bold tabular-nums text-[#191F28]">{doneSteps}<span className="text-[#B0B8C1]">/{totalSteps}</span></span>
               </div>
-            </section>
+            </div>
           )}
           </Reveal>
 
@@ -168,18 +155,15 @@ export default function LaunchDashboardPage() {
             <Reveal delayMs={80}>
             <Link
               href={`/career-launch/week/${nextWeek.week}`}
-              className="group mt-4 flex items-center gap-4 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4 transition hover:border-[#0B46E8]/40 hover:bg-[#EDF1FD]"
+              className="group mt-8 flex items-center justify-between gap-4 rounded-2xl border border-[#E5E8EB] p-5 transition hover:border-[#191F28]/30"
             >
-              <span className="flex h-12 w-12 flex-none items-center justify-center rounded-2xl bg-[#EDF1FD] text-[22px]">🚀</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#0B46E8]">{t("다음 할 일", "Your next step", "下一步", "Việc tiếp theo", "次にやること", "Langkah berikutnya")}</p>
-                <p className="mt-0.5 truncate text-[15.5px] font-black text-[#0B1227]">
+              <div className="min-w-0">
+                <p className="text-[12px] font-medium text-[#8B95A1]">{t("다음 할 일", "Your next step", "下一步", "Việc tiếp theo", "次にやること", "Langkah berikutnya")}</p>
+                <p className="mt-1 truncate text-[16px] font-bold text-[#191F28]">
                   Week {nextWeek.week} · {WEEK_DELIVERABLE[nextWeek.week]}
                 </p>
               </div>
-              <span className="shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition group-hover:bg-[#0A3ECB]">
-                {t("이어서 하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjut")} →
-              </span>
+              <span className="shrink-0 text-[18px] text-[#191F28] transition group-hover:translate-x-0.5">→</span>
             </Link>
             </Reveal>
           ) : null}
@@ -289,7 +273,7 @@ export default function LaunchDashboardPage() {
 
               <div>
                 <SectionTitle sub={t("각 주차를 눌러 진행하세요 · 완료할수록 결과물이 완성돼요", "Tap each week to get started · Your deliverables come together as you finish", "点击每一周开始 · 完成越多，成果越完整", "Nhấn vào từng tuần để bắt đầu · Hoàn thành càng nhiều, kết quả càng đầy đủ", "各週をタップして進めましょう · 完了するほど成果物が仕上がります", "Ketuk tiap minggu untuk mulai · Semakin selesai, hasilnya makin lengkap")}>{t("4주 여정", "4-week journey", "4周旅程", "Hành trình 4 tuần", "4週間のジャーニー", "Perjalanan 4 minggu")}</SectionTitle>
-                <ol className="space-y-3">
+                <ol className="divide-y divide-[#EEF1F5] border-y border-[#EEF1F5]">
                   {WEEKS.map((w) => {
                     const done = weekDoneCount(w.steps, data);
                     const total = w.steps.length;
@@ -301,41 +285,20 @@ export default function LaunchDashboardPage() {
                       : done > 0
                       ? t("진행 중", "In progress", "进行中", "Đang tiến hành", "進行中", "Sedang berjalan")
                       : t("시작 전", "Not started", "未开始", "Chưa bắt đầu", "未開始", "Belum mulai");
-                    const tone = !unlocked ? "grey" : done === total ? "green" : done > 0 ? "blue" : "grey";
-                    const card = (
-                      <Card className={`!p-4 md:!p-5 ${unlocked ? "transition hover:border-[#0B46E8]/40" : "opacity-60"}`}>
-                        <div className="flex items-start gap-3.5">
-                          <span
-                            className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12.5px] font-black leading-none ${
-                              !unlocked ? "bg-[#F2F4F6] text-[#B0B8C1]" : done === total ? "bg-emerald-500 text-white" : done > 0 ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#8B95A1]"
-                            }`}
-                          >
-                            {unlocked ? `W${w.week}` : "🔒"}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                              <p className={`text-[15.5px] font-black tracking-[-0.01em] md:text-[16.5px] ${unlocked ? "text-[#191F28]" : "text-[#8B95A1]"}`}>{weekText(w.week, "title")}</p>
-                              <Pill tone={tone}>{status}</Pill>
-                            </div>
-                            <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">{weekText(w.week, "subtitle")}</p>
-                            {unlocked ? (
-                              <>
-                                <div className="mt-2 flex flex-wrap items-center gap-2">
-                                  <span className="rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[11px] font-bold text-[#0B46E8]">📦 {WEEK_DELIVERABLE[w.week]}</span>
-                                  <span className="text-[11.5px] font-semibold text-[#8B95A1]">{t(`스텝 ${done}/${total}`, `Steps ${done}/${total}`, `步骤 ${done}/${total}`, `Bước ${done}/${total}`, `ステップ ${done}/${total}`, `Langkah ${done}/${total}`)}</span>
-                                </div>
-                                <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[#F2F4F6]">
-                                  <div className={`h-full rounded-full transition-[width] duration-500 ${done === total ? "bg-emerald-500" : "bg-[#0B46E8]"}`} style={{ width: `${total ? Math.round((done / total) * 100) : 0}%` }} />
-                                </div>
-                              </>
-                            ) : (
-                              <p className="mt-2 text-[11.5px] font-medium text-[#B0B8C1]">{t(`🔒 Week ${w.week - 1}를 완료하면 열려요`, `🔒 Unlocks after you finish Week ${w.week - 1}`, `🔒 完成第${w.week - 1}周后解锁`, `🔒 Mở khóa sau khi hoàn thành Tuần ${w.week - 1}`, `🔒 Week ${w.week - 1}を完了すると開きます`, `🔒 Terbuka setelah menyelesaikan Minggu ${w.week - 1}`)}</p>
-                            )}
-                          </div>
+                    const inner = (
+                      <div className="flex items-center gap-4 py-5">
+                        <span className={`w-9 shrink-0 text-[13px] font-black ${unlocked ? "text-[#191F28]" : "text-[#D7DCE3]"}`}>{unlocked ? `W${w.week}` : "🔒"}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className={`truncate text-[15.5px] font-bold tracking-[-0.01em] ${unlocked ? "text-[#191F28]" : "text-[#B0B8C1]"}`}>{weekText(w.week, "title")}</p>
+                          <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">
+                            {unlocked ? `${WEEK_DELIVERABLE[w.week]} · ${t(`스텝 ${done}/${total}`, `Steps ${done}/${total}`, `步骤 ${done}/${total}`, `Bước ${done}/${total}`, `ステップ ${done}/${total}`, `Langkah ${done}/${total}`)}` : weekText(w.week, "subtitle")}
+                          </p>
                         </div>
-                      </Card>
+                        <span className={`shrink-0 text-[12.5px] font-medium ${unlocked && done === total ? "text-[#191F28]" : "text-[#B0B8C1]"}`}>{status}</span>
+                        {unlocked ? <span className="shrink-0 text-[15px] text-[#C4CAD2] transition group-hover:translate-x-0.5">→</span> : null}
+                      </div>
                     );
-                    return <li key={w.week}>{unlocked ? <Link href={`/career-launch/week/${w.week}`} className="block">{card}</Link> : card}</li>;
+                    return <li key={w.week}>{unlocked ? <Link href={`/career-launch/week/${w.week}`} className="group -mx-2 block rounded-xl px-2 transition hover:bg-[#FAFBFC]">{inner}</Link> : inner}</li>;
                   })}
                 </ol>
               </div>
