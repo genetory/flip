@@ -8,7 +8,7 @@ import { requestJobChat, type JobChatMsg } from "../../../lib/launch/job-chat-cl
 import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
 import { trackCareerStepComplete } from "../../../lib/analytics";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
-import { Footer } from "../../../components/site/Footer";
+import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 import { useJobReason, useJobName } from "../../../lib/launch/data-i18n";
@@ -414,7 +414,7 @@ export default function LaunchJobsPage() {
           )}
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }

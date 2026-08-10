@@ -11,7 +11,7 @@ import { WeekGate } from "../../../../components/launch/week-gate";
 import { WeekAutoFeedback } from "../../../../components/launch/week-auto-feedback";
 import { WeekSeminar } from "../../../../components/launch/week-seminar";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
-import { Footer } from "../../../../components/site/Footer";
+import { AplyFooter } from "../../../../components/AplyFooter";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 import { useWeekText } from "../../../../lib/launch/data-i18n";
 
@@ -124,7 +124,7 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
           ) : null}
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }

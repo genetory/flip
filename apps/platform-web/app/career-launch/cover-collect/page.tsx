@@ -6,7 +6,7 @@ import { RichText } from "../../../components/launch/rich-text";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestCoverChat, fetchCoverData, resetCoverData, hasCoverContent, type CoverChatMsg, type CoverData, type CoverSection } from "../../../lib/launch/cover-data";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
-import { Footer } from "../../../components/site/Footer";
+import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { trackCareerStepComplete } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -253,7 +253,7 @@ export default function CoverCollectPage() {
           )}
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { fetchProgress, patchProgress } from "../../../../lib/launch/progress-cl
 import { useLocalizedCulture } from "../../../../lib/launch/culture-i18n";
 import { Card } from "../../../../components/launch/ui";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
-import { Footer } from "../../../../components/site/Footer";
+import { AplyFooter } from "../../../../components/AplyFooter";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 
 // Week 별 '한국 기업문화·예절' 학습 카드. 핵심 포인트를 읽고 '학습 완료'로 체크하면
@@ -268,7 +268,7 @@ export default function CultureLessonPage() {
           )}
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }

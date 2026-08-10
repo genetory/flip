@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { GraduationCap } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
-import { Footer } from "../../../components/site/Footer";
+import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { readAccessToken } from "../../../lib/auth-client";
 
@@ -160,7 +160,7 @@ export default function CareerSurveyPage() {
           )}
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }

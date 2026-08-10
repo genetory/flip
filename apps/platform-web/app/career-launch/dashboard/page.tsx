@@ -15,7 +15,7 @@ import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-da
 import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data";
 import { weekDoneCount, weekUnlocked, type LaunchData } from "../../../lib/launch/step-status";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
-import { Footer } from "../../../components/site/Footer";
+import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 import { useWeekText, useCompletionCriteria } from "../../../lib/launch/data-i18n";
@@ -386,7 +386,7 @@ export default function LaunchDashboardPage() {
           </div>
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
     </EnrollmentGate>
   );

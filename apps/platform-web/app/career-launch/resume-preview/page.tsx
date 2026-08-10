@@ -7,7 +7,7 @@ import { toResumeContent } from "../../../components/launch/resume-render";
 import type { ResumeContent } from "../../../lib/member-profile-client";
 import { ResumeBuilderPreviewPage } from "../../../components/resume-maker/ResumeBuilderPreviewPage";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
-import { Footer } from "../../../components/site/Footer";
+import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { trackCareerPdfDownload } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -73,7 +73,7 @@ export default function ResumePreviewPage() {
           </div>
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }

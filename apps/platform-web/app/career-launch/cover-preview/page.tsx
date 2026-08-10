@@ -6,7 +6,7 @@ import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data"
 import type { ResumeCoverLetterItem } from "../../../lib/member-profile-client";
 import { CoverLetterPreviewPage } from "../../../components/resume-maker/CoverLetterPreviewPage";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
-import { Footer } from "../../../components/site/Footer";
+import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { trackCareerPdfDownload } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -77,7 +77,7 @@ export default function CoverPreviewPage() {
           </div>
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }

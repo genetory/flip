@@ -6,7 +6,7 @@ import { RichText } from "../../../components/launch/rich-text";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestInterviewChat, type InterviewChatMsg, type InterviewFocus } from "../../../lib/launch/interview";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
-import { Footer } from "../../../components/site/Footer";
+import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { trackCareerStepComplete, trackCareerFunnel } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -219,7 +219,7 @@ export default function InterviewPage() {
           )}
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }

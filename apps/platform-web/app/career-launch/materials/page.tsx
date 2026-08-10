@@ -8,7 +8,7 @@ import { requestMaterialChat, type JobChatMsg } from "../../../lib/launch/job-ch
 import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
 import { trackCareerStepComplete } from "../../../lib/analytics";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
-import { Footer } from "../../../components/site/Footer";
+import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
@@ -300,7 +300,7 @@ export default function LaunchMaterialsPage() {
           )}
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }

@@ -10,7 +10,7 @@ import { fetchProgress, patchProgress } from "../../../lib/launch/progress-clien
 import { trackCareerStepComplete, trackCareerFunnel } from "../../../lib/analytics";
 import { Card } from "../../../components/launch/ui";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
-import { Footer } from "../../../components/site/Footer";
+import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
@@ -293,7 +293,7 @@ export default function LaunchDiagnosisPage() {
           )}
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }

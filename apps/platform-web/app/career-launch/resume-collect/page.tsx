@@ -7,7 +7,7 @@ import { ResumeSectionPreview } from "../../../components/launch/resume-section-
 import { STUDENT } from "../../../lib/launch/data";
 import { requestResumeChat, fetchResumeData, resetResumeData, hasResumeContent, type ResumeChatMsg, type ResumeData, type ResumeSection } from "../../../lib/launch/resume-data";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
-import { Footer } from "../../../components/site/Footer";
+import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { trackCareerStepComplete } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -268,7 +268,7 @@ export default function ResumeCollectPage() {
           )}
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }
