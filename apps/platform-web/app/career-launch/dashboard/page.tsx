@@ -16,6 +16,7 @@ import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data"
 import { weekDoneCount, weekUnlocked, type LaunchData } from "../../../lib/launch/step-status";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../components/AplyFooter";
+import { Reveal } from "../../../components/site/Reveal";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 import { useWeekText, useCompletionCriteria } from "../../../lib/launch/data-i18n";
@@ -112,7 +113,7 @@ export default function LaunchDashboardPage() {
 
   return (
     <EnrollmentGate>
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-[#F6F8FB]">
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
@@ -123,6 +124,7 @@ export default function LaunchDashboardPage() {
             </Link>
           ) : null}
           {/* 인사 + 전체 진행률 (완주 시 축하 히어로로 전환) */}
+          <Reveal>
           {overall === 100 ? (
             <Card className="!border-[#A6EF3F] !bg-[#B7FF5A] md:!p-7">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -165,9 +167,11 @@ export default function LaunchDashboardPage() {
               </div>
             </Card>
           )}
+          </Reveal>
 
           {/* 다음 할 일 — 열려 있고 미완료인 첫 주차로 바로 이동 */}
           {overall < 100 && nextWeek ? (
+            <Reveal delayMs={80}>
             <Link
               href={`/career-launch/week/${nextWeek.week}`}
               className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#0B46E8]/20 bg-[#EDF1FD] px-5 py-4 transition hover:bg-[#E3EAFD]"
@@ -182,6 +186,7 @@ export default function LaunchDashboardPage() {
                 {t("이어서 하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjut")} →
               </span>
             </Link>
+            </Reveal>
           ) : null}
 
           {/* 베타 설문 CTA — 1·2주차 완료 / 전체 완료 시점에 자동 노출(링크는 env 주입) */}
@@ -219,6 +224,7 @@ export default function LaunchDashboardPage() {
             </div>
           ) : null}
 
+          <Reveal delayMs={120}>
           <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
             {/* ── 메인: 4주 여정(액션 우선) + 프로그램 소개(접기) ── */}
             <div className="flex min-w-0 flex-col gap-7 md:gap-8">
@@ -384,6 +390,7 @@ export default function LaunchDashboardPage() {
               </div>
             </div>
           </div>
+          </Reveal>
         </div>
       </main>
       <AplyFooter />
