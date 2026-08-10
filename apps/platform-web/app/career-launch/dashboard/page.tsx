@@ -20,6 +20,7 @@ import { useLaunchT } from "../../../lib/launch/i18n";
 import { useWeekText, useCompletionCriteria } from "../../../lib/launch/data-i18n";
 import { trackCareerFunnel } from "../../../lib/analytics";
 import { CareerSurveyCta } from "../../../components/launch/survey-cta";
+import { addLaunchNotification, ensureLaunchNotificationsOwner } from "../../../lib/launch/notifications";
 
 // 4. 학생 로그인 후 대시보드 — 4주 여정 퍼널 + 진행 + 결과물 + 피드백 개요.
 export default function LaunchDashboardPage() {
@@ -98,6 +99,67 @@ export default function LaunchDashboardPage() {
       trackCareerFunnel("career_launch_completed");
     }
   }, [overall]);
+
+  // Career Launch 전용 알림 생성 — 주차 열림·세미나·결과물·완주. 멱등(dedupeKey)이라 중복 없이 쌓인다.
+  useEffect(() => {
+    if (!isReady || !isAuthenticated) return;
+    ensureLaunchNotificationsOwner(user?.id ?? null); // 계정 바뀌면 이전 알림 제거
+    // 주차 열림
+    WEEKS.forEach((w) => {
+      if (!weekUnlocked(w.week, data, schedule, serverNow)) return;
+      addLaunchNotification({
+        dedupeKey: `week-open-${w.week}`,
+        emoji: "🔓",
+        title: t(`${w.week}주차 미션이 열렸어요`, `Week ${w.week} is now open`, `第${w.week}周任务已开放`, `Tuần ${w.week} đã mở`, `Week ${w.week}のミッションが開きました`, `Minggu ${w.week} telah dibuka`),
+        body: `${weekText(w.week, "title")} · ${WEEK_DELIVERABLE[w.week]}`,
+        href: `/career-launch/week/${w.week}`
+      });
+    });
+    // 예정된 세미나
+    seminars.forEach((s) => {
+      const dt = new Date(s.startsAt);
+      if (Number.isNaN(dt.getTime()) || dt.getTime() < Date.now()) return;
+      const when = dt.toLocaleString(undefined, { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" });
+      const title = s.title || t(`Week ${s.week} 세미나`, `Week ${s.week} seminar`, `第${s.week}周研讨会`, `Hội thảo Tuần ${s.week}`, `Week ${s.week} セミナー`, `Seminar Minggu ${s.week}`);
+      addLaunchNotification({
+        dedupeKey: `seminar-${s.week}-${s.startsAt}`,
+        emoji: "🎓",
+        title: t("세미나 일정이 잡혔어요", "A seminar is scheduled", "研讨会已安排", "Đã có lịch hội thảo", "セミナーが予定されました", "Seminar telah dijadwalkan"),
+        body: `${title} · ${when}`,
+        href: "/career-launch/dashboard"
+      });
+    });
+    // 결과물 완성
+    if (resumeReady) {
+      addLaunchNotification({
+        dedupeKey: "resume-ready",
+        emoji: "📄",
+        title: t("이력서가 완성됐어요", "Your resume is ready", "简历已完成", "Hồ sơ đã hoàn thành", "履歴書が完成しました", "Resume sudah siap"),
+        body: t("미리보기에서 확인해보세요.", "Check it in the preview.", "在预览中查看吧。", "Xem trong bản xem trước nhé.", "プレビューで確認しましょう。", "Cek di pratinjau."),
+        href: "/career-launch/resume-preview"
+      });
+    }
+    if (coverReady) {
+      addLaunchNotification({
+        dedupeKey: "cover-ready",
+        emoji: "📝",
+        title: t("자기소개서가 완성됐어요", "Your cover letter is ready", "求职信已完成", "Thư tự giới thiệu đã hoàn thành", "自己紹介書が完成しました", "Cover letter sudah siap"),
+        body: t("미리보기에서 확인해보세요.", "Check it in the preview.", "在预览中查看吧。", "Xem trong bản xem trước nhé.", "プレビューで確認しましょう。", "Cek di pratinjau."),
+        href: "/career-launch/cover-preview"
+      });
+    }
+    // 완주 → talent(APLY) 서비스로 이어가기
+    if (overall === 100) {
+      addLaunchNotification({
+        dedupeKey: "completed",
+        emoji: "🎉",
+        title: t("4주 프로그램을 완주했어요!", "You finished the 4-week program!", "你完成了4周项目！", "Bạn đã hoàn thành chương trình 4 tuần!", "4週間プログラムを完走しました！", "Kamu menyelesaikan program 4 minggu!"),
+        body: t("이제 실제 공고에 지원해볼까요? APLY에서 이어가요.", "Ready to apply to real jobs? Continue on APLY.", "现在去投递真实职位吧，在 APLY 继续。", "Sẵn sàng ứng tuyển việc thật? Tiếp tục trên APLY.", "実際の求人に応募してみましょう。APLYで続けます。", "Siap melamar pekerjaan nyata? Lanjutkan di APLY."),
+        href: "/positions"
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, isAuthenticated, data, schedule, serverNow, seminars, resumeReady, coverReady, overall]);
 
   if (!isReady || !isAuthenticated) {
     return (
