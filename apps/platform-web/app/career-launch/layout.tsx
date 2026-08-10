@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CareerContentProvider } from "../../components/launch/content-provider";
 import { ProgramGate } from "../../components/launch/program-gate";
+import { LaunchHtmlBg } from "../../components/launch/LaunchHtmlBg";
 
 export const metadata: Metadata = {
   title: "APLY Global Career Launch — 4주 취업 준비 프로그램",
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
 export default function LaunchLayout({ children }: { children: React.ReactNode }) {
   return (
     <CareerContentProvider>
+      <LaunchHtmlBg />
       <div className="min-h-screen bg-[#F6F8FB] text-[#191F28]">
         <ProgramGate>{children}</ProgramGate>
       </div>
