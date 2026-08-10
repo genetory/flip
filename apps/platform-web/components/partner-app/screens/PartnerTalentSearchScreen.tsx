@@ -1,7 +1,7 @@
 "use client";
 
 // 파트너 인재 검색 — aply 인재풀(이력서 등록 + 공개 동의)에서 키워드/AI로 후보를 찾는다.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MagnifyingGlass, X, Sparkle, GraduationCap, Globe, Translate, Briefcase, BookmarkSimple } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
@@ -22,26 +22,6 @@ export function PartnerTalentSearchScreen() {
   const [total, setTotal] = useState(0);
   const [aiUsed, setAiUsed] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  // 빠른 필터(결과에서 뽑은 패싯) — 비자·국적.
-  const [fVisa, setFVisa] = useState<string | null>(null);
-  const [fNat, setFNat] = useState<string | null>(null);
-
-  const facets = useMemo(() => {
-    const tally = (pick: (c: PartnerCandidateCard) => string | null) => {
-      const m = new Map<string, number>();
-      for (const c of items) {
-        const v = pick(c);
-        if (v) m.set(v, (m.get(v) ?? 0) + 1);
-      }
-      return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([v]) => v);
-    };
-    return { visas: tally((c) => c.visa), nats: tally((c) => c.nationality) };
-  }, [items]);
-
-  const shown = useMemo(
-    () => items.filter((c) => (!fVisa || c.visa === fVisa) && (!fNat || c.nationality === fNat)),
-    [items, fVisa, fNat]
-  );
 
   // 처음 진입 시 최신 인재풀 + 관심 인재 목록 로드.
   useEffect(() => {
@@ -52,8 +32,6 @@ export function PartnerTalentSearchScreen() {
 
   function run(m: Mode, q: string) {
     setStatus("loading");
-    setFVisa(null);
-    setFNat(null);
     const p =
       m === "ai"
         ? searchPartnerCandidatesAI(q).then((r) => {
@@ -166,25 +144,11 @@ export function PartnerTalentSearchScreen() {
             )
           ) : (
             <>
-              {/* 빠른 필터 — 결과에 있는 비자·국적 */}
-              {facets.visas.length + facets.nats.length > 1 ? (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {facets.visas.map((v) => (
-                    <button key={`v-${v}`} type="button" onClick={() => setFVisa(fVisa === v ? null : v)} className={`rounded-full border px-2.5 py-1.5 text-[12px] font-bold transition ${fVisa === v ? "border-[#0B46E8] bg-[#EDF1FD] text-[#0B46E8]" : "border-[#E5E8EB] bg-white text-[#4E5968] hover:border-[#0B46E8]/40"}`}>{v}</button>
-                  ))}
-                  {facets.nats.map((n) => (
-                    <button key={`n-${n}`} type="button" onClick={() => setFNat(fNat === n ? null : n)} className={`rounded-full border px-2.5 py-1.5 text-[12px] font-bold transition ${fNat === n ? "border-[#0B46E8] bg-[#EDF1FD] text-[#0B46E8]" : "border-[#E5E8EB] bg-white text-[#4E5968] hover:border-[#0B46E8]/40"}`}>{n}</button>
-                  ))}
-                  {fVisa || fNat ? (
-                    <button type="button" onClick={() => { setFVisa(null); setFNat(null); }} className="rounded-full px-2 py-1.5 text-[12px] font-bold text-[#8B95A1] transition hover:text-[#4E5968]">필터 해제</button>
-                  ) : null}
-                </div>
-              ) : null}
               <p className="text-[12.5px] text-[#8B95A1]">
-                {aiUsed ? "AI가 적합도 순으로 정렬했어요 · " : ""}인재 {shown.length}명{shown.length !== total ? ` (전체 ${total})` : ""}
+                {aiUsed ? "AI가 적합도 순으로 정렬했어요 · " : ""}인재 {items.length}명{items.length !== total ? ` (전체 ${total})` : ""}
               </p>
               <div className="flex flex-col gap-2.5">
-                {shown.map((c) => (
+                {items.map((c) => (
                   <CandidateCard key={c.candidateUserId} c={c} saved={savedIds.has(c.candidateUserId)} onToggleSave={() => toggleSave(c.candidateUserId)} />
                 ))}
               </div>
