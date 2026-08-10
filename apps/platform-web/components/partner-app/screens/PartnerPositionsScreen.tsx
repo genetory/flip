@@ -1,11 +1,11 @@
 "use client";
 
 // 파트너 공고 관리 — 요약 + 검색 + 정렬 + 상태 탭 + 공고별 지원자 수 카드.
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, MagnifyingGlass, X, Users, Briefcase, ImageSquare, MapPin, CalendarBlank, Translate, IdentificationCard, Microphone, Eye } from "@phosphor-icons/react";
+import { Plus, MagnifyingGlass, X, ImageSquare, Microphone } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TListSkeleton, TError } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
@@ -81,13 +81,6 @@ export function PartnerPositionsScreen() {
   const applicantCount = useMemo(() => {
     const m = new Map<string, number>();
     for (const a of applicants) m.set(a.positionId, (m.get(a.positionId) ?? 0) + 1);
-    return m;
-  }, [applicants]);
-
-  // 공고별 신규(미열람) 지원자 수 — 카드에서 강조.
-  const newApplicantCount = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const a of applicants) if (a.status === "APPLIED") m.set(a.positionId, (m.get(a.positionId) ?? 0) + 1);
     return m;
   }, [applicants]);
 
@@ -197,7 +190,7 @@ export function PartnerPositionsScreen() {
             ) : (
               <div className="flex flex-col gap-3">
                 {list.map((p) => (
-                  <PositionCard key={p.id} p={p} applicants={applicantCount.get(p.id) ?? 0} newApplicants={newApplicantCount.get(p.id) ?? 0} mockCount={p.mockInterviewParticipantCount ?? 0} onSetStatus={setPositionStatus} />
+                  <PositionCard key={p.id} p={p} applicants={applicantCount.get(p.id) ?? 0} mockCount={p.mockInterviewParticipantCount ?? 0} onSetStatus={setPositionStatus} />
                 ))}
               </div>
             )}
@@ -215,7 +208,7 @@ function fmtDate(d: string | null): string | null {
   return `${t.getMonth() + 1}월 ${t.getDate()}일`;
 }
 
-function PositionCard({ p, applicants, newApplicants, mockCount, onSetStatus }: { p: PartnerPosition; applicants: number; newApplicants: number; mockCount: number; onSetStatus: (id: string, next: PositionQuickStatus) => void }) {
+function PositionCard({ p, applicants, mockCount, onSetStatus }: { p: PartnerPosition; applicants: number; mockCount: number; onSetStatus: (id: string, next: PositionQuickStatus) => void }) {
   const router = useRouter();
   // 이미 승인·게시 이력이 있는 상태(OPEN/PAUSED/CLOSED) 사이의 빠른 전환만 노출(신규 검토는 에디터에서).
   const quickActions: { label: string; next: PositionQuickStatus }[] =
@@ -233,13 +226,11 @@ function PositionCard({ p, applicants, newApplicants, mockCount, onSetStatus }: 
   const visas = (p.eligibleVisas ?? []).filter(Boolean);
   const langs = (p.communicationLanguages ?? []).filter(Boolean);
 
-  // 정보 칩 — 있는 것만.
-  const chips: { icon: ReactNode; text: string }[] = [];
-  chips.push({ icon: <Briefcase className="h-3.5 w-3.5" />, text: [EMPLOYMENT_LABEL[p.employmentType], p.workType ? WORKTYPE_LABEL[p.workType] : null].filter(Boolean).join(" · ") });
-  if (p.workLocation) chips.push({ icon: <MapPin className="h-3.5 w-3.5" />, text: p.workLocation });
-  if (start) chips.push({ icon: <CalendarBlank className="h-3.5 w-3.5" />, text: `${start} 시작` });
-  if (visas.length) chips.push({ icon: <IdentificationCard className="h-3.5 w-3.5" />, text: visas.slice(0, 2).join("·") + (visas.length > 2 ? ` +${visas.length - 2}` : "") });
-  if (langs.length) chips.push({ icon: <Translate className="h-3.5 w-3.5" />, text: langs.slice(0, 2).join("·") + (langs.length > 2 ? ` +${langs.length - 2}` : "") });
+  // 핵심 메타 — 칩 나열 대신 · 구분 텍스트 한두 줄로 담백하게.
+  const metaPrimary = [EMPLOYMENT_LABEL[p.employmentType], p.workType ? WORKTYPE_LABEL[p.workType] : null, p.workLocation || null, start ? `${start} 시작` : null].filter(Boolean).join(" · ");
+  const metaVisa = visas.length ? `비자 ${visas.slice(0, 3).join("·")}${visas.length > 3 ? ` +${visas.length - 3}` : ""}` : "";
+  const metaLang = langs.length ? `언어 ${langs.slice(0, 3).join("·")}${langs.length > 3 ? ` +${langs.length - 3}` : ""}` : "";
+  const metaSub = [metaVisa, metaLang].filter(Boolean).join("   ·   ");
 
   return (
     <Link href={`${partnerRoutes.positions}/${p.id}`} className="flex gap-4 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
@@ -263,60 +254,37 @@ function PositionCard({ p, applicants, newApplicants, mockCount, onSetStatus }: 
         <p className="mt-2 truncate text-[15.5px] font-bold text-[#191F28]">{p.title || "제목 없는 공고"}</p>
         {role ? <p className="mt-0.5 truncate text-[12.5px] font-semibold text-[#0B46E8]">{role}</p> : null}
 
-        {/* 정보 칩 */}
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
-          {chips.map((c, i) => (
-            <span key={i} className="inline-flex items-center gap-1 rounded-lg bg-[#F5F7FA] px-2 py-1 text-[12px] font-medium text-[#4E5968]">
-              <span className="text-[#8B95A1]">{c.icon}</span>
-              <span className="max-w-[160px] truncate">{c.text}</span>
-            </span>
-          ))}
-        </div>
+        {/* 핵심 메타 — 담백한 텍스트 라인 */}
+        <p className="mt-1.5 truncate text-[12.5px] text-[#8B95A1]">{metaPrimary}</p>
+        {metaSub ? <p className="mt-0.5 truncate text-[12px] text-[#B0B8C1]">{metaSub}</p> : null}
 
-        {/* 현황 지표 */}
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-[#F5F6F8] pt-3">
-          <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-[#4E5968]"><Users className="h-4 w-4 text-[#B0B8C1]" /> 채용 {p.hiringCount ?? "-"}명</span>
-          <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><Eye className="h-4 w-4 text-[#B0B8C1]" /> 조회 {p.viewCount ?? 0}</span>
-          {(p.viewCount ?? 0) > 0 ? <span className="text-[12.5px] text-[#8B95A1]">지원 전환 {Math.round((applicants / (p.viewCount ?? 1)) * 100)}%</span> : null}
-          {/* 지원자 수 — 클릭 시 해당 공고 지원자 목록으로(카드 링크와 분리) */}
+        {/* 지표 + 빠른 상태 변경 — 읽기전용 수치(회색)와 이동 링크(파랑)를 명확히 구분 */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-[#F5F6F8] pt-2.5">
+          <span className="text-[12.5px] text-[#8B95A1]">채용 <b className="font-bold text-[#4E5968]">{p.hiringCount ?? "-"}</b></span>
+          <span className="text-[12.5px] text-[#8B95A1]">조회 <b className="font-bold text-[#4E5968]">{p.viewCount ?? 0}</b></span>
           <button
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              router.push(`${partnerRoutes.applicants}?position=${encodeURIComponent(p.id)}`);
-            }}
-            className="-mx-2.5 flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`${partnerRoutes.applicants}?position=${encodeURIComponent(p.id)}`); }}
+            className="text-[12.5px] font-semibold text-[#0B46E8] transition hover:underline"
           >
             지원 {applicants}명
-            {newApplicants > 0 ? <span className="rounded-full bg-[#F04452] px-1.5 py-px text-[10.5px] font-bold text-white">신규 {newApplicants}</span> : null}
           </button>
-          {/* 모의 면접 참여자 수 — 클릭 시 해당 공고 모의 면접 탭으로 */}
           {mockCount > 0 ? (
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                router.push(`${partnerRoutes.applicants}?position=${encodeURIComponent(p.id)}&tab=mock`);
-              }}
-              className="-mx-2.5 flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`${partnerRoutes.applicants}?position=${encodeURIComponent(p.id)}&tab=mock`); }}
+              className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#0B46E8] transition hover:underline"
             >
-              <Microphone className="h-4 w-4" weight="fill" /> 모의 {mockCount}명
+              <Microphone className="h-3.5 w-3.5" weight="fill" /> 모의 {mockCount}명
             </button>
           ) : null}
-          {/* 빠른 상태 변경 — 카드 링크와 분리(에디터 안 열고 게시/중지/마감) */}
           {quickActions.length ? (
             <div className="ml-auto flex shrink-0 items-center gap-1.5">
               {quickActions.map((a) => (
                 <button
                   key={a.next}
                   type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onSetStatus(p.id, a.next);
-                  }}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSetStatus(p.id, a.next); }}
                   className="rounded-lg border border-[#E5E8EB] bg-white px-2.5 py-1 text-[12px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
                 >
                   {a.label}
