@@ -34,7 +34,7 @@ export function PartnerLoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const signupHref = nextParam ? `/signup?type=business&next=${encodeURIComponent(nextParam)}` : "/signup?type=business";
+  const signupHref = nextParam ? `/partner/signup?next=${encodeURIComponent(nextParam)}` : "/partner/signup";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
