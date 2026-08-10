@@ -4,7 +4,7 @@ import type { Application, JourneyStepKey, StepState, TalentSnapshot } from "./t
 
 // 여정 각 단계의 설명 + 행동(홈의 "하나씩 만들어가는" 타임라인에서 사용).
 export const journeyStepMeta: Record<JourneyStepKey, { desc: string; ctaLabel: string; href: string }> = {
-  interest: { desc: "관심 있는 직무 방향을 정해요.", ctaLabel: "관심 직무 찾기", href: "/talent/discovery" },
+  interest: { desc: "관심 있는 직무 방향을 정해요.", ctaLabel: "관심 직무 찾기", href: talentAppRoutes.profile },
   experiences: { desc: "해본 일을 취업에 쓸 이야기로 정리해요.", ctaLabel: "경험 정리하기", href: talentAppRoutes.experiences },
   profile: { desc: "나를 소개하는 커리어 프로필을 만들어요.", ctaLabel: "프로필 만들기", href: talentAppRoutes.profile },
   resume: { desc: "정리한 경험으로 첫 이력서를 완성해요.", ctaLabel: "이력서 만들기", href: talentAppRoutes.resumes },

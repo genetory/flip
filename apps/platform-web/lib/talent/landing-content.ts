@@ -5,7 +5,7 @@
 // Talent 영역에서 연결하는 라우트. 리뉴얼된 이력서/자소서/공고는 /talent/* 로 연결한다.
 // positions 는 로그인 없이 둘러볼 수 있는 공개 공고(히어로/푸터의 "둘러보기"용)로만 남긴다.
 export const talentRoutes = {
-  start: "/talent/discovery", // 시작 = 공개 자기 발견(로그인 없이)
+  start: "/talent/login", // 시작 = 로그인(가입 링크 포함) → 이후 홈으로
   login: "/talent/login",
   signup: "/talent/signup",
   positions: "/positions", // 공개 둘러보기

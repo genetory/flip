@@ -13,7 +13,7 @@ import { Reveal } from "../site/Reveal";
 import { TalentSectionHeader } from "../talent/TalentSectionHeader";
 import { TalentButton } from "../talent/TalentButton";
 
-const SIGNUP_HREF = "/partner/signup";
+const SIGNUP_HREF = "/partner/login"; // 랜딩 CTA는 로그인으로(가입 링크 포함) → 이후 홈으로
 const LOGIN_HREF = "/partner/login";
 
 // 히어로 미리보기 — 채용 파이프라인.
