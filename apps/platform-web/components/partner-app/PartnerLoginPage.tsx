@@ -75,8 +75,8 @@ export function PartnerLoginPage() {
     <TalentAuthLayout
       badge="파트너"
       backHref="/partner"
-      title="다시 오셨네요"
-      subtitle="로그인하고 채용을 이어가요."
+      title="채용을 시작해요"
+      subtitle="로그인하거나, 처음이라면 가입해서 시작하세요."
       footer={
         <p className="text-[14px] text-[#8B95A1]">
           {copy.signupPrompt}{" "}

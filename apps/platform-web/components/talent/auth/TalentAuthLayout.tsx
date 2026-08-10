@@ -41,6 +41,7 @@ export function TalentAuthLayout({
 
       <main className="flex flex-1 items-start justify-center px-5 py-14 md:py-20">
         <div className="w-full max-w-[400px]">
+          <Image src="/img_logo.webp" alt={talentBrand.name} width={96} height={32} className="mb-6 h-7 w-auto" priority />
           <h1 className="text-[28px] font-black leading-[1.2] tracking-[-0.03em] text-[#0B1227] md:text-[32px]">{title}</h1>
           {subtitle ? <p className="mt-3 break-keep text-[15px] leading-[1.6] text-[#4E5968]">{subtitle}</p> : null}
           <div className="mt-9">{children}</div>
