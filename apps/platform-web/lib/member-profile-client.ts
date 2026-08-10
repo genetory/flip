@@ -1174,6 +1174,7 @@ export async function submitContactInquiry(input: {
   type: "general" | "business";
   name: string;
   email: string;
+  phone?: string;
   company?: string;
   message: string;
 }): Promise<{ ok: true } | { ok: false; message: string }> {
@@ -1182,6 +1183,7 @@ export async function submitContactInquiry(input: {
     input.type === "business"
       ? input.company?.trim() || "-"
       : input.company?.trim() || "개인 문의";
+  const phone = input.phone?.trim();
   const response = await fetch(`${getApiBaseUrl()}/company-consultations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1189,6 +1191,7 @@ export async function submitContactInquiry(input: {
       companyName,
       contactName: input.name.trim(),
       email: input.email.trim(),
+      ...(phone ? { phone } : {}),
       message: `[${typeLabel}]\n${input.message.trim()}`,
       source: "footer-contact"
     })

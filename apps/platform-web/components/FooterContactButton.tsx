@@ -13,6 +13,7 @@ export function FooterContactButton() {
   const [type, setType] = useState<InquiryType>("general");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [company, setCompany] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -49,12 +50,13 @@ export function FooterContactButton() {
     }
     setBusy(true);
     setErr(null);
-    submitContactInquiry({ type, name, email, company, message })
+    submitContactInquiry({ type, name, email, phone, company, message })
       .then((r) => {
         if (r.ok) {
           setDone(true);
           setName("");
           setEmail("");
+          setPhone("");
           setCompany("");
           setMessage("");
         } else {
@@ -68,7 +70,7 @@ export function FooterContactButton() {
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="transition hover:text-[#4E5968]">
-        고객센터
+        문의하기
       </button>
 
       {open ? (
@@ -106,6 +108,9 @@ export function FooterContactButton() {
                   </Field>
                   <Field label="이메일" required>
                     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="답변받을 이메일" className={inputCls} />
+                  </Field>
+                  <Field label="휴대폰 번호">
+                    <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="휴대폰 번호 (선택)" className={inputCls} />
                   </Field>
                   <Field label="회사명" required={type === "business"}>
                     <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder={type === "business" ? "회사명" : "회사명 (선택)"} className={inputCls} />
