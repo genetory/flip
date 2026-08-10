@@ -13,7 +13,7 @@ export const talentRoutes = {
   resume: "/talent/career/resumes",
   coverLetter: "/talent/career/cover-letters",
   careerLaunch: "/career-launch",
-  partner: "/business"
+  partner: "/partner" // 리뉴얼 파트너 랜딩(레거시 /business 아님)
 } as const;
 
 // 상단 내비게이션(데스크톱). 리뉴얼된 Talent 경로로 연결.
@@ -21,8 +21,7 @@ export const talentNav: { label: string; href: string; external?: boolean }[] = 
   { label: "처음 시작하기", href: talentRoutes.start },
   { label: "이력서", href: talentRoutes.resume },
   { label: "자기소개서", href: talentRoutes.coverLetter },
-  { label: "채용공고", href: talentRoutes.jobs },
-  { label: "Career Launch", href: talentRoutes.careerLaunch }
+  { label: "채용공고", href: talentRoutes.jobs }
 ];
 
 export const talentBrand = {
@@ -146,8 +145,7 @@ export const footerContent = {
       title: "처음이라면",
       links: [
         { label: "처음 시작하기", href: talentRoutes.start },
-        { label: "채용공고", href: talentRoutes.positions },
-        { label: "Career Launch", href: talentRoutes.careerLaunch }
+        { label: "채용공고", href: talentRoutes.positions }
       ]
     },
     {

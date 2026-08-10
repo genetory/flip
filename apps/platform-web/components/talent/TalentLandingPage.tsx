@@ -8,7 +8,6 @@ import {
   beforeAfterSection,
   resultPreviewSection,
   jobsCtaSection,
-  careerLaunchCtaSection,
   finalCtaSection
 } from "../../lib/talent/landing-content";
 import { Reveal } from "../site/Reveal";
@@ -39,7 +38,6 @@ export function TalentLandingPage() {
         <BeforeAfterSection />
         <ResultPreviewSection />
         <JobsSection />
-        <CareerLaunchSection />
         <FinalCta />
       </main>
       <TalentFooter />
@@ -257,12 +255,9 @@ function ResultPreviewSection() {
   );
 }
 
-/* 7 · 8. 공고 / Career Launch */
+/* 7. 공고 */
 function JobsSection() {
   return <SplitCta data={jobsCtaSection} tone="blue" />;
-}
-function CareerLaunchSection() {
-  return <SplitCta data={careerLaunchCtaSection} tone="lime" />;
 }
 function SplitCta({ data, tone }: { data: { message: string; desc: string; cta: { label: string; href: string } }; tone: "blue" | "lime" }) {
   return (

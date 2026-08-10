@@ -127,7 +127,7 @@ export function TalentSignupPage() {
           {/* 회원가입은 유형별로 구분 — 기업·대학·기관은 별도 파트너 가입 경로. */}
           <p className="text-[13px] text-[#B0B8C1]">
             기업·대학·기관이신가요?{" "}
-            <Link href="/signup?type=business" className="font-semibold text-[#8B95A1] underline underline-offset-2 hover:text-[#4E5968]">
+            <Link href="/partner/signup" className="font-semibold text-[#8B95A1] underline underline-offset-2 hover:text-[#4E5968]">
               파트너로 가입하기
             </Link>
           </p>
