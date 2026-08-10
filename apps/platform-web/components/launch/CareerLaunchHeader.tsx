@@ -25,13 +25,13 @@ export function CareerLaunchHeader() {
   const isOperator = user?.role === "OPERATOR";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[#EEF1F5] bg-white/90 backdrop-blur-sm">
+    <header className="sticky top-0 z-40 border-b border-[#EEF1F5] bg-white">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
-        <div className="flex items-center gap-2">
-          <Link href="/career-launch/dashboard" aria-label="Career Launch" className="flex items-center">
-            <Image src="/img_logo.webp" alt="APLY" width={72} height={24} className="h-5 w-auto" priority />
+        <div className="flex items-center gap-1.5">
+          <Link href="/career-launch/dashboard" aria-label="Career Launch" className="flex items-center gap-2">
+            <Image src="/img_logo.webp" alt="" width={72} height={24} className="h-5 w-auto" priority />
+            <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">Career Launch</span>
           </Link>
-          <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">Career Launch</span>
         </div>
         <div className="flex items-center gap-1.5">
           {isOperator ? (
