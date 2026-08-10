@@ -1169,6 +1169,35 @@ export async function joinMyPartnerOrganizationByCode(code: string) {
   return result.item ?? null;
 }
 
+// ─── 고객센터 문의 (푸터) — 기업 상담 엔드포인트 재사용 → Discord 웹훅 알림 ─────
+export async function submitContactInquiry(input: {
+  type: "general" | "business";
+  name: string;
+  email: string;
+  company?: string;
+  message: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const typeLabel = input.type === "business" ? "기업 문의" : "일반 문의";
+  const companyName =
+    input.type === "business"
+      ? input.company?.trim() || "-"
+      : input.company?.trim() || "개인 문의";
+  const response = await fetch(`${getApiBaseUrl()}/company-consultations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      companyName,
+      contactName: input.name.trim(),
+      email: input.email.trim(),
+      message: `[${typeLabel}]\n${input.message.trim()}`,
+      source: "footer-contact"
+    })
+  });
+  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (response.ok && payload?.ok === true) return { ok: true };
+  return { ok: false, message: typeof payload?.message === "string" ? payload.message : "문의 전송에 실패했어요. 잠시 후 다시 시도해 주세요." };
+}
+
 // ─── 이메일 팀원 초대 ───────────────────────────────────────────────
 export type PartnerTeamInvite = {
   id: string;

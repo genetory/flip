@@ -7088,7 +7088,7 @@ const hanpassSurveyCreateSchema = z.object({
   source: z.string().trim().max(80).optional()
 });
 
-app.post("/company-consultations", async (req, res) => {
+app.post("/company-consultations", rateLimit({ windowMs: 60_000, max: 6, keyPrefix: "company-consultation", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = companyConsultationCreateSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({

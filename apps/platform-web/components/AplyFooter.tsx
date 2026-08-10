@@ -2,6 +2,7 @@
 // 모든 리뉴얼 화면(랜딩·앱·로그인/가입)에서 동일하게 사용한다.
 import Link from "next/link";
 import Image from "next/image";
+import { FooterContactButton } from "./FooterContactButton";
 
 export function AplyFooter() {
   return (
@@ -15,7 +16,7 @@ export function AplyFooter() {
           <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] font-semibold text-[#8B95A1]">
             <Link href="/legal/terms" className="transition hover:text-[#4E5968]">이용약관</Link>
             <Link href="/legal/privacy" className="transition hover:text-[#4E5968]">개인정보처리방침</Link>
-            <a href="mailto:info@flip-ers.com" className="transition hover:text-[#4E5968]">고객센터</a>
+            <FooterContactButton />
           </nav>
         </div>
         {/* 회사 법적 정보 */}
