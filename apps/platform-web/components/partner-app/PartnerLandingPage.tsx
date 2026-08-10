@@ -12,6 +12,7 @@ import { partnerRoutes } from "../../lib/partner/app-nav";
 import { Reveal } from "../site/Reveal";
 import { TalentSectionHeader } from "../talent/TalentSectionHeader";
 import { TalentButton } from "../talent/TalentButton";
+import { AplyFooter } from "../AplyFooter";
 
 const SIGNUP_HREF = "/partner/login"; // 랜딩 CTA는 로그인으로(가입 링크 포함) → 이후 홈으로
 const LOGIN_HREF = "/partner/login";
@@ -80,7 +81,7 @@ export function PartnerLandingPage() {
         <FinalCta />
       </main>
 
-      <footer className="border-t border-[#EEF1F5] py-8 text-center text-[12.5px] text-[#B0B8C1]">© 2026 APLY</footer>
+      <AplyFooter />
     </div>
   );
 }

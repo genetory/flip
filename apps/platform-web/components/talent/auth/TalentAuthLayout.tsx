@@ -7,6 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { talentBrand } from "../../../lib/talent/landing-content";
+import { AplyFooter } from "../../AplyFooter";
 
 export function TalentAuthLayout({
   title,
@@ -48,6 +49,7 @@ export function TalentAuthLayout({
           {footer ? <div className="mt-7 text-center">{footer}</div> : null}
         </div>
       </main>
+      <AplyFooter />
     </div>
   );
 }

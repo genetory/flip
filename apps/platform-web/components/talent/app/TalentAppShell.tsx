@@ -4,7 +4,7 @@
 import { useEffect, type ReactNode } from "react";
 import { TalentGuard } from "./TalentGuard";
 import { TalentHeader } from "../TalentHeader";
-import { TalentFooter } from "../TalentFooter";
+import { AplyFooter } from "../../AplyFooter";
 import { DevPersonaSwitcher } from "./DevPersonaSwitcher";
 import { useServerNotificationSync } from "../../../lib/talent/server-notification-sync";
 
@@ -31,7 +31,7 @@ export function TalentAppShell({ children, maxWidth = "5xl", wide = false }: { c
       <div className="flex min-h-screen flex-col bg-[#FAFBFC]">
         <TalentHeader />
         <main className={`mx-auto w-full flex-1 px-4 pb-16 pt-5 md:px-6 md:pb-12 md:pt-7 ${widthCls}`}>{children}</main>
-        <TalentFooter />
+        <AplyFooter />
         <DevPersonaSwitcher />
       </div>
     </TalentGuard>

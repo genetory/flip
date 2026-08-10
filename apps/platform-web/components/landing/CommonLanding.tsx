@@ -9,6 +9,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowRight, GraduationCap, Buildings, Sparkle, Globe, IdentificationCard, type Icon } from "@phosphor-icons/react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
+import { AplyFooter } from "../AplyFooter";
 
 // 진입 애니메이션 래퍼 — 마운트 시 한 번 리빌(단일 화면이라 전부 초기 노출).
 function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; delay?: number; className?: string }) {
@@ -129,17 +130,7 @@ export function CommonLanding() {
         </div>
       </main>
 
-      {/* 푸터 — 한 줄 */}
-      <footer className="shrink-0 border-t border-[#EEF1F5]">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 px-5 py-4 text-[12px] text-[#B0B8C1] sm:flex-row">
-          <span>© 2026 APLY</span>
-          <nav className="flex items-center gap-4 font-semibold text-[#8B95A1]">
-            <Link href="/legal/terms" className="transition hover:text-[#4E5968]">이용약관</Link>
-            <Link href="/legal/privacy" className="transition hover:text-[#4E5968]">개인정보처리방침</Link>
-            <a href="mailto:info@flip-ers.com" className="transition hover:text-[#4E5968]">고객센터</a>
-          </nav>
-        </div>
-      </footer>
+      <AplyFooter />
     </div>
   );
 }

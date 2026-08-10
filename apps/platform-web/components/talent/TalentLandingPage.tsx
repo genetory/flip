@@ -14,7 +14,7 @@ import { Reveal } from "../site/Reveal";
 import { TalentButton } from "./TalentButton";
 import { TalentSectionHeader } from "./TalentSectionHeader";
 import { TalentHeader } from "./TalentHeader";
-import { TalentFooter } from "./TalentFooter";
+import { AplyFooter } from "../AplyFooter";
 
 // Talent 랜딩(= 홈) — 공개. 로그인/역할 가드 없음.
 // 디자인: toss.im 계열. 거대한 타이포 + 넉넉한 여백 + 한 섹션 한 메시지 + 솔리드 블루 풀블리드.
@@ -40,7 +40,7 @@ export function TalentLandingPage() {
         <JobsSection />
         <FinalCta />
       </main>
-      <TalentFooter />
+      <AplyFooter />
     </div>
   );
 }
