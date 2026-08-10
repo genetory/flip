@@ -156,6 +156,16 @@ export function SettingsScreen() {
           <MoreLink label="내 커리어 더 보기" href={talentAppRoutes.career} />
         </section>
 
+        {/* 프로그램 · 활동 — 참여 프로그램/과제/파트너 연결 진입 (알림 딥링크 외 안정적 진입점) */}
+        <section>
+          <SectionHeader title="프로그램 · 활동" />
+          <TCard className="divide-y divide-[#F2F4F6]">
+            <Item label="내 프로그램" href={talentAppRoutes.programs} />
+            <Item label="과제" href={talentAppRoutes.assignments} />
+            <Item label="파트너 연결" href={talentAppRoutes.connections} />
+          </TCard>
+        </section>
+
         {/* 관심 직무 */}
         <section>
           <SectionHeader title="관심 직무" />
