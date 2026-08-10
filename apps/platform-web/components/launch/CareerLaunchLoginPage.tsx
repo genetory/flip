@@ -11,6 +11,7 @@ import { AuthApiError, loginWithEmail, clearAccessToken } from "../../lib/auth-c
 import { useLaunchT } from "../../lib/launch/i18n";
 import { TalentButton } from "../talent/TalentButton";
 import { TalentAuthLayout, TalentField, talentInputClass } from "../talent/auth/TalentAuthLayout";
+import { TalentSocialButtons, TalentOrDivider } from "../talent/auth/TalentSocialButtons";
 
 export function CareerLaunchLoginPage() {
   const t = useLaunchT();
@@ -114,6 +115,9 @@ export function CareerLaunchLoginPage() {
           {isSubmitting ? t("로그인 중…", "Logging in…", "登录中…", "Đang đăng nhập…", "ログイン中…", "Sedang masuk…") : t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}
         </TalentButton>
       </form>
+
+      <TalentOrDivider />
+      <TalentSocialButtons />
     </TalentAuthLayout>
   );
 }
