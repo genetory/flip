@@ -241,11 +241,8 @@ export function AutoSubmitStatus({ label, status, source }: { label: string; sta
 export function SectionTitle({ children, sub }: { children: React.ReactNode; sub?: string }) {
   return (
     <div className="mb-4">
-      <div className="flex items-center gap-2">
-        <span className="h-[15px] w-[3px] flex-none rounded-full bg-[#0B46E8]" />
-        <h2 className="text-[17px] font-extrabold tracking-[-0.01em] text-[#0B1227] md:text-[18.5px]">{children}</h2>
-      </div>
-      {sub ? <p className="mt-1.5 pl-[11px] text-[13px] leading-relaxed text-[#8B95A1]">{sub}</p> : null}
+      <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{children}</h2>
+      {sub ? <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">{sub}</p> : null}
     </div>
   );
 }

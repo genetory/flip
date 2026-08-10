@@ -168,15 +168,16 @@ export default function LaunchDashboardPage() {
             <Reveal delayMs={80}>
             <Link
               href={`/career-launch/week/${nextWeek.week}`}
-              className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#0B46E8]/20 bg-[#EDF1FD] px-5 py-4 transition hover:bg-[#E3EAFD]"
+              className="group mt-4 flex items-center gap-4 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4 transition hover:border-[#0B46E8]/40 hover:bg-[#EDF1FD]"
             >
-              <div className="min-w-0">
-                <p className="text-[12px] font-bold text-[#0B46E8]">{t("다음 할 일", "Your next step", "下一步", "Việc tiếp theo", "次にやること", "Langkah berikutnya")}</p>
-                <p className="mt-0.5 truncate text-[15px] font-black text-[#0B1227]">
+              <span className="flex h-12 w-12 flex-none items-center justify-center rounded-2xl bg-[#EDF1FD] text-[22px]">🚀</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#0B46E8]">{t("다음 할 일", "Your next step", "下一步", "Việc tiếp theo", "次にやること", "Langkah berikutnya")}</p>
+                <p className="mt-0.5 truncate text-[15.5px] font-black text-[#0B1227]">
                   Week {nextWeek.week} · {WEEK_DELIVERABLE[nextWeek.week]}
                 </p>
               </div>
-              <span className="shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2 text-[13.5px] font-bold text-white">
+              <span className="shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition group-hover:bg-[#0A3ECB]">
                 {t("이어서 하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjut")} →
               </span>
             </Link>
@@ -318,10 +319,15 @@ export default function LaunchDashboardPage() {
                             </div>
                             <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">{weekText(w.week, "subtitle")}</p>
                             {unlocked ? (
-                              <div className="mt-2 flex items-center gap-2">
-                                <span className="rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[11px] font-bold text-[#0B46E8]">📦 {WEEK_DELIVERABLE[w.week]}</span>
-                                <span className="text-[11.5px] font-semibold text-[#8B95A1]">{t(`스텝 ${done}/${total}`, `Steps ${done}/${total}`, `步骤 ${done}/${total}`, `Bước ${done}/${total}`, `ステップ ${done}/${total}`, `Langkah ${done}/${total}`)}</span>
-                              </div>
+                              <>
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                  <span className="rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[11px] font-bold text-[#0B46E8]">📦 {WEEK_DELIVERABLE[w.week]}</span>
+                                  <span className="text-[11.5px] font-semibold text-[#8B95A1]">{t(`스텝 ${done}/${total}`, `Steps ${done}/${total}`, `步骤 ${done}/${total}`, `Bước ${done}/${total}`, `ステップ ${done}/${total}`, `Langkah ${done}/${total}`)}</span>
+                                </div>
+                                <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[#F2F4F6]">
+                                  <div className={`h-full rounded-full transition-[width] duration-500 ${done === total ? "bg-emerald-500" : "bg-[#0B46E8]"}`} style={{ width: `${total ? Math.round((done / total) * 100) : 0}%` }} />
+                                </div>
+                              </>
                             ) : (
                               <p className="mt-2 text-[11.5px] font-medium text-[#B0B8C1]">{t(`🔒 Week ${w.week - 1}를 완료하면 열려요`, `🔒 Unlocks after you finish Week ${w.week - 1}`, `🔒 完成第${w.week - 1}周后解锁`, `🔒 Mở khóa sau khi hoàn thành Tuần ${w.week - 1}`, `🔒 Week ${w.week - 1}を完了すると開きます`, `🔒 Terbuka setelah menyelesaikan Minggu ${w.week - 1}`)}</p>
                             )}
