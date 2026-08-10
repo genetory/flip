@@ -136,7 +136,7 @@ export default function ResumeCollectPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <CareerLaunchHeader />
       <main className="flex-1">
-        <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-3xl flex-col px-5 pb-4 pt-4 md:pt-6">
+        <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-5xl flex-col px-5 pb-4 pt-4 md:pt-6">
           <div className="flex items-center justify-between gap-3">
             <Link href="/career-launch/week/2" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               ← {t("2주차", "Week 2", "第2周", "Tuần 2", "2週目", "Minggu 2")}

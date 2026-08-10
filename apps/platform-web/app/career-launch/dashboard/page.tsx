@@ -115,7 +115,7 @@ export default function LaunchDashboardPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
-        <div className="mx-auto w-full max-w-6xl px-5 pt-6 md:pt-10">
+        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
           {/* 운영자는 학생 화면을 본인 계정으로 전부 체험할 수 있음 — 콘솔 복귀 링크 */}
           {user?.role === "OPERATOR" ? (
             <Link href="/career-launch/ops/students" className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-[#F0B429]/40 bg-[#FFF9EC] px-3 py-1.5 text-[12.5px] font-bold text-[#B7791F] transition hover:bg-[#FEF3D6]">

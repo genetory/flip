@@ -99,7 +99,7 @@ export default function CareerSurveyPage() {
     <div className="flex min-h-screen flex-col bg-[#F2F4F6]">
       <CareerLaunchHeader />
       <main className="flex-1">
-        <div className="mx-auto w-full max-w-2xl px-5 py-10 md:py-14">
+        <div className="mx-auto w-full max-w-5xl px-5 py-10 md:py-14">
           <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">← 대시보드</Link>
           <h1 className="mt-4 text-[26px] font-extrabold tracking-tight text-[#191F28]">취업 성과 설문</h1>
           <p className="mt-2 text-[14px] leading-relaxed text-[#4E5968]">

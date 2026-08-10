@@ -26,7 +26,7 @@ export function CareerLaunchHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-[#EEF1F5] bg-white/90 backdrop-blur-sm">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
         <div className="flex items-center gap-2">
           <Link href="/career-launch/dashboard" aria-label="Career Launch" className="flex items-center">
             <Image src="/img_logo.webp" alt="APLY" width={72} height={24} className="h-5 w-auto" priority />
