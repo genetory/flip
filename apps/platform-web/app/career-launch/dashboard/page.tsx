@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { STUDENT, WEEKS } from "../../../lib/launch/data";
-import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
+import { Card, Pill, SectionTitle } from "../../../components/launch/ui";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
 import { ResumeRender } from "../../../components/launch/resume-render";
@@ -126,46 +126,40 @@ export default function LaunchDashboardPage() {
           {/* 인사 + 전체 진행률 (완주 시 축하 히어로로 전환) */}
           <Reveal>
           {overall === 100 ? (
-            <Card className="!border-[#A6EF3F] !bg-[#B7FF5A] md:!p-7">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[12.5px] font-bold text-[#3A6B00]">{t("🎉 4주 프로그램 완주", "🎉 4-week program complete", "🎉 完成4周项目", "🎉 Hoàn thành chương trình 4 tuần", "🎉 4週間プログラム完走", "🎉 Menyelesaikan program 4 minggu")}</p>
-                  <h1 className="mt-1 text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[27px]">{t(`${displayName}님, 완주를 축하해요! 🎉`, `Congrats on finishing, ${displayName}! 🎉`, `${displayName}，恭喜你顺利完成！🎉`, `Chúc mừng bạn đã hoàn thành, ${displayName}! 🎉`, `${displayName}さん、完走おめでとうございます！🎉`, `Selamat telah menyelesaikan, ${displayName}! 🎉`)}</h1>
-                  <p className="mt-1.5 break-keep text-[14px] leading-relaxed text-[#4E5968]">{t("이력서·자기소개서를 완성하고 면접 준비까지 마쳤어요. 이제 자신 있게 지원해봐요!", "You've finished your resume and cover letter, and prepped for interviews. Now apply with confidence!", "你已完成简历和求职信，也做好了面试准备。现在充满信心地去投递吧！", "Bạn đã hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị xong cho phỏng vấn. Giờ hãy tự tin ứng tuyển nhé!", "履歴書・自己紹介書を完成させ、面接準備まで終えました。これからは自信を持って応募しましょう！", "Kamu sudah menyelesaikan resume dan cover letter, serta menyiapkan wawancara. Sekarang lamar dengan percaya diri!")}</p>
-                </div>
-                <Pill tone="green">{t("수료 완료", "Completed", "已结业", "Đã hoàn thành", "修了", "Selesai")}</Pill>
+            <section className="rounded-3xl bg-[#0B1227] p-7 text-white md:p-8">
+              <div className="flex items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#A6EF3F]">{t("🎉 4주 프로그램 완주", "🎉 4-week program complete", "🎉 完成4周项目", "🎉 Hoàn thành chương trình 4 tuần", "🎉 4週間プログラム完走", "🎉 Menyelesaikan program 4 minggu")}</p>
+                <span className="inline-flex shrink-0 items-center rounded-full bg-[#A6EF3F]/20 px-2.5 py-1 text-[12px] font-bold text-[#A6EF3F]">{t("수료 완료", "Completed", "已结业", "Đã hoàn thành", "修了", "Selesai")}</span>
               </div>
-              <div className="mt-5 flex items-center gap-3 rounded-2xl bg-white p-4 md:mt-6 md:p-5">
-                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-[#EAFFD1] text-[22px]">🏁</span>
+              <h1 className="mt-3 break-keep text-[24px] font-black leading-[1.3] tracking-[-0.02em] md:text-[28px]">{t(`${displayName}님, 완주를 축하해요! 🎉`, `Congrats on finishing, ${displayName}! 🎉`, `${displayName}，恭喜你顺利完成！🎉`, `Chúc mừng bạn đã hoàn thành, ${displayName}! 🎉`, `${displayName}さん、完走おめでとうございます！🎉`, `Selamat telah menyelesaikan, ${displayName}! 🎉`)}</h1>
+              <p className="mt-2.5 max-w-[92%] break-keep text-[14px] leading-relaxed text-white/65">{t("이력서·자기소개서를 완성하고 면접 준비까지 마쳤어요. 이제 자신 있게 지원해봐요!", "You've finished your resume and cover letter, and prepped for interviews. Now apply with confidence!", "你已完成简历和求职信，也做好了面试准备。现在充满信心地去投递吧！", "Bạn đã hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị xong cho phỏng vấn. Giờ hãy tự tin ứng tuyển nhé!", "履歴書・自己紹介書を完成させ、面接準備まで終えました。これからは自信を持って応募しましょう！", "Kamu sudah menyelesaikan resume dan cover letter, serta menyiapkan wawancara. Sekarang lamar dengan percaya diri!")}</p>
+              <div className="mt-6 flex items-center gap-3 rounded-2xl bg-white/10 p-4">
+                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-white/10 text-[22px]">🏁</span>
                 <div>
-                  <p className="text-[14px] font-black text-[#0B1227]">{t("전체 진행률 100% · 모든 스텝 완료", "Overall progress 100% · All steps complete", "总进度100% · 所有步骤完成", "Tiến độ tổng thể 100% · Hoàn thành mọi bước", "全体進捗100% · すべてのステップ完了", "Progres keseluruhan 100% · Semua langkah selesai")}</p>
-                  <p className="mt-0.5 text-[12px] text-[#8B95A1]">{t(`완료한 스텝 ${doneSteps}/${totalSteps}`, `Steps completed ${doneSteps}/${totalSteps}`, `已完成步骤 ${doneSteps}/${totalSteps}`, `Bước đã hoàn thành ${doneSteps}/${totalSteps}`, `完了したステップ ${doneSteps}/${totalSteps}`, `Langkah selesai ${doneSteps}/${totalSteps}`)}</p>
+                  <p className="text-[14px] font-black text-white">{t("전체 진행률 100% · 모든 스텝 완료", "Overall progress 100% · All steps complete", "总进度100% · 所有步骤完成", "Tiến độ tổng thể 100% · Hoàn thành mọi bước", "全体進捗100% · すべてのステップ完了", "Progres keseluruhan 100% · Semua langkah selesai")}</p>
+                  <p className="mt-0.5 text-[12px] text-white/55">{t(`완료한 스텝 ${doneSteps}/${totalSteps}`, `Steps completed ${doneSteps}/${totalSteps}`, `已完成步骤 ${doneSteps}/${totalSteps}`, `Bước đã hoàn thành ${doneSteps}/${totalSteps}`, `完了したステップ ${doneSteps}/${totalSteps}`, `Langkah selesai ${doneSteps}/${totalSteps}`)}</p>
                 </div>
               </div>
-            </Card>
+            </section>
           ) : (
-            <Card className="md:!p-7">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[12.5px] font-semibold text-[#8B95A1]">{cohortLabel || t("글로벌 커리어 런치", "Global Career Launch", "全球职业启航", "Global Career Launch", "グローバルキャリアローンチ", "Global Career Launch")}</p>
-                  <h1 className="mt-1 text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[27px]">{t(`${displayName}님, 반가워요 👋`, `Welcome, ${displayName} 👋`, `${displayName}，欢迎你 👋`, `Chào mừng bạn, ${displayName} 👋`, `${displayName}さん、ようこそ 👋`, `Selamat datang, ${displayName} 👋`)}</h1>
-                  <p className="mt-1.5 text-[14px] leading-relaxed text-[#4E5968]">{t("4주 동안 이력서·자기소개서를 완성하고 면접까지 준비해요.", "Over 4 weeks, you'll complete your resume and cover letter, and prepare for interviews.", "在4周内完成简历和求职信，并准备好面试。", "Trong 4 tuần, bạn sẽ hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị cho phỏng vấn.", "4週間で履歴書・自己紹介書を完成させ、面接まで準備します。", "Selama 4 minggu, kamu akan menyelesaikan resume dan cover letter, serta menyiapkan wawancara.")}</p>
-                </div>
-                <Pill tone="blue">{t(`${doneSteps}/${totalSteps} 스텝`, `${doneSteps}/${totalSteps} steps`, `${doneSteps}/${totalSteps} 步骤`, `${doneSteps}/${totalSteps} bước`, `${doneSteps}/${totalSteps} ステップ`, `${doneSteps}/${totalSteps} langkah`)}</Pill>
+            <section className="rounded-3xl bg-[#0B1227] p-7 text-white md:p-8">
+              <div className="flex items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#8CA8FF]">{cohortLabel || t("글로벌 커리어 런치", "Global Career Launch", "全球职业启航", "Global Career Launch", "グローバルキャリアローンチ", "Global Career Launch")}</p>
+                <span className="inline-flex shrink-0 items-center rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-bold text-white">{t(`${doneSteps}/${totalSteps} 스텝`, `${doneSteps}/${totalSteps} steps`, `${doneSteps}/${totalSteps} 步骤`, `${doneSteps}/${totalSteps} bước`, `${doneSteps}/${totalSteps} ステップ`, `${doneSteps}/${totalSteps} langkah`)}</span>
               </div>
-              <div className="mt-5 rounded-2xl bg-[#F6F8FB] p-4 md:mt-6 md:p-5">
-                <div className="mb-2.5 flex items-end justify-between">
-                  <div>
-                    <p className="text-[13px] font-bold text-[#333D4B]">{t("전체 진행률", "Overall progress", "总进度", "Tiến độ tổng thể", "全体進捗", "Progres keseluruhan")}</p>
-                    <p className="mt-0.5 text-[12px] text-[#8B95A1]">{t(`완료한 스텝 ${doneSteps}/${totalSteps}`, `Steps completed ${doneSteps}/${totalSteps}`, `已完成步骤 ${doneSteps}/${totalSteps}`, `Bước đã hoàn thành ${doneSteps}/${totalSteps}`, `完了したステップ ${doneSteps}/${totalSteps}`, `Langkah selesai ${doneSteps}/${totalSteps}`)}</p>
-                  </div>
-                  <span className="text-[26px] font-black leading-none text-[#0B46E8] md:text-[30px]">
-                    {overall}<span className="text-[16px]">%</span>
-                  </span>
+              <h1 className="mt-3 break-keep text-[24px] font-black leading-[1.3] tracking-[-0.02em] md:text-[28px]">{t(`${displayName}님, 반가워요 👋`, `Welcome, ${displayName} 👋`, `${displayName}，欢迎你 👋`, `Chào mừng bạn, ${displayName} 👋`, `${displayName}さん、ようこそ 👋`, `Selamat datang, ${displayName} 👋`)}</h1>
+              <p className="mt-2.5 max-w-[92%] break-keep text-[14px] leading-relaxed text-white/65">{t("4주 동안 이력서·자기소개서를 완성하고 면접까지 준비해요.", "Over 4 weeks, you'll complete your resume and cover letter, and prepare for interviews.", "在4周内完成简历和求职信，并准备好面试。", "Trong 4 tuần, bạn sẽ hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị cho phỏng vấn.", "4週間で履歴書・自己紹介書を完成させ、面接まで準備します。", "Selama 4 minggu, kamu akan menyelesaikan resume dan cover letter, serta menyiapkan wawancara.")}</p>
+              <div className="mt-6">
+                <div className="mb-2 flex items-end justify-between">
+                  <p className="text-[12.5px] font-bold text-white/70">{t("전체 진행률", "Overall progress", "总进度", "Tiến độ tổng thể", "全体進捗", "Progres keseluruhan")}</p>
+                  <span className="text-[26px] font-black leading-none text-white md:text-[30px]">{overall}<span className="text-[15px] text-white/55">%</span></span>
                 </div>
-                <ProgressBar value={overall} height={12} />
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/15">
+                  <div className="h-full rounded-full bg-[#5B86F5] transition-[width] duration-500" style={{ width: `${overall}%` }} />
+                </div>
+                <p className="mt-2 text-[12px] text-white/50">{t(`완료한 스텝 ${doneSteps}/${totalSteps}`, `Steps completed ${doneSteps}/${totalSteps}`, `已完成步骤 ${doneSteps}/${totalSteps}`, `Bước đã hoàn thành ${doneSteps}/${totalSteps}`, `完了したステップ ${doneSteps}/${totalSteps}`, `Langkah selesai ${doneSteps}/${totalSteps}`)}</p>
               </div>
-            </Card>
+            </section>
           )}
           </Reveal>
 
