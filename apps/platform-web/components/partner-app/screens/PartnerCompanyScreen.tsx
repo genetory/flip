@@ -3,7 +3,7 @@
 // 파트너 회사 프로필 — 실서버 회사 정보 편집(로고·사무실 사진 + 기본 정보 + 소개).
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
-import { ImageSquare, Plus, X, Sparkle, CircleNotch } from "@phosphor-icons/react";
+import { ImageSquare, Plus, X, Sparkle, CircleNotch, SealCheck, FileArrowUp, Buildings } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { TalentBackButton } from "../../talent/TalentBackButton";
@@ -43,26 +43,39 @@ export function PartnerCompanyScreen() {
   const [uploading, setUploading] = useState<"logo" | "office" | null>(null);
   const [saving, setSaving] = useState(false);
   const [polishing, setPolishing] = useState(false);
+  // org 가 아직 없는(갓 가입한) 파트너면 생성 모드 — throw 하지 않고 빈 폼을 띄운다.
+  const [isCreate, setIsCreate] = useState(false);
+  // 인증 서류(사업자등록증·4대보험) + 서버가 계산한 인증 요약.
+  const [bizDoc, setBizDoc] = useState<string | null>(null);
+  const [insDoc, setInsDoc] = useState<string | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState<"biz" | "ins" | null>(null);
+  const [verification, setVerification] = useState<MyPartnerOrganization["verification"] | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const officeInputRef = useRef<HTMLInputElement>(null);
+  const bizInputRef = useRef<HTMLInputElement>(null);
+  const insInputRef = useRef<HTMLInputElement>(null);
 
   function load() {
     setStatus("loading");
     Promise.all([getMyPartnerOrganization(), getMembersMeta().catch(() => ({ partnerIndustries: [] as string[] }))])
       .then(([org, meta]) => {
-        if (!org) throw new Error("no org");
         setIndustries((meta as { partnerIndustries?: string[] }).partnerIndustries ?? []);
+        // org 가 없으면(갓 가입) 빈 폼으로 회사 등록을 유도한다.
+        setIsCreate(!org);
         setForm({
-          name: org.name ?? "",
-          industry: org.industry ?? "",
-          companySize: org.companySize ?? "",
-          officeAddress: org.officeAddress ?? "",
-          website: org.website ?? "",
-          description: org.description ?? "",
-          strengths: org.strengths ?? ""
+          name: org?.name ?? "",
+          industry: org?.industry ?? "",
+          companySize: org?.companySize ?? "",
+          officeAddress: org?.officeAddress ?? "",
+          website: org?.website ?? "",
+          description: org?.description ?? "",
+          strengths: org?.strengths ?? ""
         });
-        setLogo(org.companyLogoImageData ?? null);
-        setOfficePhotos(parseOfficePhotos(org.officePhotoImageData));
+        setLogo(org?.companyLogoImageData ?? null);
+        setOfficePhotos(parseOfficePhotos(org?.officePhotoImageData));
+        setBizDoc(org?.businessRegistrationDocumentData ?? null);
+        setInsDoc(org?.fourInsuranceSubscriberListData ?? null);
+        setVerification(org?.verification ?? null);
         setStatus("ready");
       })
       .catch(() => setStatus("error"));
@@ -125,6 +138,30 @@ export function PartnerCompanyScreen() {
     }
   }
 
+  async function onPickDoc(kind: "biz" | "ins", e: ChangeEvent<HTMLInputElement>) {
+    const file = e.currentTarget.files?.[0];
+    e.currentTarget.value = "";
+    if (!file) return;
+    if (file.size > MAX_RAW_BYTES) {
+      toast.error("원본 파일은 20MB 이하만 올릴 수 있어요.");
+      return;
+    }
+    setUploadingDoc(kind);
+    try {
+      const data = await convertImageFileToWebpDataUrl(file);
+      if (estimateDataUrlBytes(data) > MAX_OUT_BYTES) {
+        toast.error("변환 후에도 용량이 커요. 더 작은 이미지를 선택해주세요.");
+        return;
+      }
+      if (kind === "biz") setBizDoc(data);
+      else setInsDoc(data);
+    } catch {
+      toast.error("이미지를 처리하지 못했어요.");
+    } finally {
+      setUploadingDoc(null);
+    }
+  }
+
   // 지원자에게 보이는 핵심 항목 기준 완성도(6개).
   const completeness = useMemo(() => {
     if (!form) return 0;
@@ -158,6 +195,12 @@ export function PartnerCompanyScreen() {
       toast.error("회사명을 입력해주세요.");
       return;
     }
+    // 신규 등록은 백엔드에서 회사명+업종이 필수다(생성 조건).
+    if (isCreate && !form.industry) {
+      toast.error("업종을 선택해주세요. 회사 등록에 필요해요.");
+      return;
+    }
+    const creating = isCreate;
     setSaving(true);
     updateMyPartnerOrganizationBasic({
       name: form.name.trim(),
@@ -168,10 +211,16 @@ export function PartnerCompanyScreen() {
       description: form.description.trim() || null,
       strengths: form.strengths.trim() || null,
       companyLogoImageData: logo,
-      officePhotoImageData: officePhotos.length > 0 ? JSON.stringify(officePhotos) : null
+      officePhotoImageData: officePhotos.length > 0 ? JSON.stringify(officePhotos) : null,
+      businessRegistrationDocumentData: bizDoc,
+      fourInsuranceSubscriberListData: insDoc
     })
-      .then(() => toast.success("회사 정보를 저장했어요"))
-      .catch(() => toast.error("저장에 실패했어요. 잠시 후 다시 시도해주세요."))
+      .then(() => {
+        toast.success(creating ? "회사를 등록했어요" : "회사 정보를 저장했어요");
+        // 생성 직후에는 org id·인증 요약·소유자 권한이 새로 생기므로 다시 불러온다.
+        if (creating) load();
+      })
+      .catch(() => toast.error(creating ? "회사 등록에 실패했어요. 잠시 후 다시 시도해주세요." : "저장에 실패했어요. 잠시 후 다시 시도해주세요."))
       .finally(() => setSaving(false));
   }
 
@@ -180,12 +229,22 @@ export function PartnerCompanyScreen() {
       <TalentBackButton className="mb-4" />
       <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">회사 프로필</h1>
-          <p className="mt-1 text-[13.5px] text-[#8B95A1]">지원자에게 보이는 우리 회사 정보예요.</p>
+          <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{isCreate ? "회사 등록" : "회사 프로필"}</h1>
+          <p className="mt-1 text-[13.5px] text-[#8B95A1]">{isCreate ? "회사를 먼저 등록하면 공고 등록·지원자 관리를 시작할 수 있어요." : "지원자에게 보이는 우리 회사 정보예요."}</p>
         </div>
 
         {status === "loading" ? <TLoading /> : null}
         {status === "error" ? <TError onRetry={load} /> : null}
+
+        {status === "ready" && isCreate ? (
+          <div className="flex items-start gap-3 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0B46E8] text-white"><Buildings className="h-5 w-5" weight="fill" /></span>
+            <div className="min-w-0">
+              <p className="text-[13.5px] font-bold text-[#191F28]">아직 소속된 회사가 없어요</p>
+              <p className="mt-0.5 break-keep text-[12.5px] text-[#4E5968]">회사명과 업종만 입력하면 바로 등록돼요. 등록하면 이 회사의 관리자(OWNER)가 됩니다.</p>
+            </div>
+          </div>
+        ) : null}
 
         {status === "ready" && form ? (
           <>
@@ -301,18 +360,68 @@ export function PartnerCompanyScreen() {
               </div>
             </section>
 
+            {/* 회사 인증 — 서류 제출(사업자등록증·4대보험). 생성 직후엔 저장 후 노출 */}
+            {!isCreate ? (
+              <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="text-[15px] font-bold text-[#191F28]">회사 인증</h2>
+                    <p className="mt-1 text-[12.5px] text-[#8B95A1]">서류를 제출하면 인증 배지가 부여돼요. 지원자에게 신뢰를 줍니다.</p>
+                  </div>
+                  {verification?.isApproved ? (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#E7F8EF] px-2.5 py-1 text-[12px] font-bold text-[#0A9B59]"><SealCheck className="h-4 w-4" weight="fill" /> 인증 완료</span>
+                  ) : verification?.hasRequiredDocuments ? (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#FFF3E6] px-2.5 py-1 text-[12px] font-bold text-[#E8890C]">심사 중</span>
+                  ) : (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#F2F4F6] px-2.5 py-1 text-[12px] font-bold text-[#8B95A1]">미인증</span>
+                  )}
+                </div>
+                <input ref={bizInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onPickDoc("biz", e)} />
+                <input ref={insInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onPickDoc("ins", e)} />
+                <div className="mt-4 flex flex-col gap-2.5">
+                  <DocRow label="사업자등록증" value={bizDoc} busy={uploadingDoc === "biz"} onPick={() => bizInputRef.current?.click()} onRemove={() => setBizDoc(null)} />
+                  <DocRow label="4대보험 가입자 명부" value={insDoc} busy={uploadingDoc === "ins"} onPick={() => insInputRef.current?.click()} onRemove={() => setInsDoc(null)} />
+                </div>
+                {!verification?.isApproved ? (
+                  <p className="mt-3 break-keep text-[12px] text-[#8B95A1]">두 서류를 올리고 아래 <b className="font-bold text-[#4E5968]">저장하기</b>를 누르면 심사가 진행돼요. 서류는 이미지(사진·캡처)로 올려주세요.</p>
+                ) : null}
+              </section>
+            ) : null}
+
             <button
               type="button"
               onClick={save}
-              disabled={saving || uploading !== null}
+              disabled={saving || uploading !== null || uploadingDoc !== null}
               className="inline-flex h-[52px] items-center justify-center rounded-2xl bg-[#0B46E8] px-5 text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
             >
-              {saving ? "저장 중…" : "저장하기"}
+              {saving ? (isCreate ? "등록 중…" : "저장 중…") : isCreate ? "회사 등록하기" : "저장하기"}
             </button>
           </>
         ) : null}
       </div>
     </PartnerAppShell>
+  );
+}
+
+function DocRow({ label, value, busy, onPick, onRemove }: { label: string; value: string | null; busy: boolean; onPick: () => void; onRemove: () => void }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-[#EEF1F5] bg-[#FAFBFC] p-3">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${value ? "bg-[#E7F8EF] text-[#0A9B59]" : "bg-[#F2F4F6] text-[#B0B8C1]"}`}>
+        {value ? <SealCheck className="h-5 w-5" weight="fill" /> : <FileArrowUp className="h-5 w-5" />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13.5px] font-bold text-[#191F28]">{label}</p>
+        <p className={`mt-0.5 text-[12px] ${value ? "text-[#0A9B59]" : "text-[#8B95A1]"}`}>{busy ? "처리 중…" : value ? "제출됨" : "미제출"}</p>
+      </div>
+      {value ? (
+        <div className="flex shrink-0 items-center gap-1">
+          <button type="button" onClick={onPick} disabled={busy} className="rounded-lg bg-[#F2F4F6] px-2.5 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">변경</button>
+          <button type="button" onClick={onRemove} disabled={busy} className="rounded-lg px-2 py-1.5 text-[12px] font-bold text-[#F04452] transition hover:bg-[#FDECEE] disabled:opacity-50">삭제</button>
+        </div>
+      ) : (
+        <button type="button" onClick={onPick} disabled={busy} className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DFE7FB] disabled:opacity-50">올리기</button>
+      )}
+    </div>
   );
 }
 
