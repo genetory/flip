@@ -5,7 +5,7 @@ import Link from "next/link";
 import { RichText } from "../../../components/launch/rich-text";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestInterviewChat, type InterviewChatMsg, type InterviewFocus } from "../../../lib/launch/interview";
-import { Header } from "../../../components/site/Header";
+import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { trackCareerStepComplete, trackCareerFunnel } from "../../../lib/analytics";
@@ -102,7 +102,7 @@ export default function InterviewPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+      <CareerLaunchHeader />
       <main className="flex-1">
         <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-3xl flex-col px-5 pb-4 pt-4 md:pt-6">
           <div className="flex items-center justify-between gap-3">

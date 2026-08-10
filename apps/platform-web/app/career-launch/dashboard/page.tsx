@@ -14,7 +14,7 @@ import { fetchMySeminars, fetchMyEnrollment, type CohortSeminar } from "../../..
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data";
 import { weekDoneCount, weekUnlocked, type LaunchData } from "../../../lib/launch/step-status";
-import { Header } from "../../../components/site/Header";
+import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -113,7 +113,7 @@ export default function LaunchDashboardPage() {
   return (
     <EnrollmentGate>
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+      <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-6xl px-5 pt-6 md:pt-10">
           {/* 운영자는 학생 화면을 본인 계정으로 전부 체험할 수 있음 — 콘솔 복귀 링크 */}

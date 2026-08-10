@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { GraduationCap } from "@phosphor-icons/react";
-import { Header } from "../../../components/site/Header";
+import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { readAccessToken } from "../../../lib/auth-client";
@@ -97,7 +97,7 @@ export default function CareerSurveyPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2F4F6]">
-      <Header />
+      <CareerLaunchHeader />
       <main className="flex-1">
         <div className="mx-auto w-full max-w-2xl px-5 py-10 md:py-14">
           <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">← 대시보드</Link>

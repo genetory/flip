@@ -6,7 +6,7 @@ import { RichText } from "../../../components/launch/rich-text";
 import { ResumeSectionPreview } from "../../../components/launch/resume-section-preview";
 import { STUDENT } from "../../../lib/launch/data";
 import { requestResumeChat, fetchResumeData, resetResumeData, hasResumeContent, type ResumeChatMsg, type ResumeData, type ResumeSection } from "../../../lib/launch/resume-data";
-import { Header } from "../../../components/site/Header";
+import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { Footer } from "../../../components/site/Footer";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { trackCareerStepComplete } from "../../../lib/analytics";
@@ -134,7 +134,7 @@ export default function ResumeCollectPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+      <CareerLaunchHeader />
       <main className="flex-1">
         <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-3xl flex-col px-5 pb-4 pt-4 md:pt-6">
           <div className="flex items-center justify-between gap-3">

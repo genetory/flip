@@ -10,7 +10,7 @@ import { WeekDocs } from "../../../../components/launch/week-docs";
 import { WeekGate } from "../../../../components/launch/week-gate";
 import { WeekAutoFeedback } from "../../../../components/launch/week-auto-feedback";
 import { WeekSeminar } from "../../../../components/launch/week-seminar";
-import { Header } from "../../../../components/site/Header";
+import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
 import { Footer } from "../../../../components/site/Footer";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 import { useWeekText } from "../../../../lib/launch/data-i18n";
@@ -26,7 +26,7 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+      <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         {/* 포지션 탐색 페이지와 동일한 컨텐츠 폭(max-w-6xl). 모바일 1단 / 데스크탑 좌 스텝 + 우 사이드바 2단 */}
         <div className="mx-auto w-full max-w-6xl px-5 pt-6 md:pt-10">

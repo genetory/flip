@@ -6,7 +6,7 @@ import Link from "next/link";
 import { fetchProgress, patchProgress } from "../../../../lib/launch/progress-client";
 import { useLocalizedCulture } from "../../../../lib/launch/culture-i18n";
 import { Card } from "../../../../components/launch/ui";
-import { Header } from "../../../../components/site/Header";
+import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
 import { Footer } from "../../../../components/site/Footer";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 
@@ -55,7 +55,7 @@ export default function CultureLessonPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+      <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-3xl px-5 pt-6 md:pt-10">
           <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
