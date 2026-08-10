@@ -51,6 +51,8 @@ export default function LaunchDashboardPage() {
   const [serverNow, setServerNow] = useState<Date>(() => new Date(0)); // 스케줄 로드 전엔 과거로 둬서 날짜 오픈 미판정
   const [seminars, setSeminars] = useState<CohortSeminar[]>([]);
   const [cohortLabel, setCohortLabel] = useState<string>("");
+  // 프로그램 소개는 기본 접힘 — 재방문 시 실제 진행(4주 여정)이 먼저 보이게.
+  const [introOpen, setIntroOpen] = useState(false);
   useEffect(() => {
     if (!isReady) return;
     let alive = true;
@@ -218,11 +220,18 @@ export default function LaunchDashboardPage() {
           ) : null}
 
           <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
-            {/* ── 메인: 프로그램 소개 + 4주 여정 퍼널 ── */}
-            <div className="min-w-0 space-y-7 md:space-y-8">
-              {/* 프로그램 소개 */}
-              <div>
-                <SectionTitle>{t("프로그램 소개", "About the program", "项目介绍", "Giới thiệu chương trình", "プログラム紹介", "Tentang program")}</SectionTitle>
+            {/* ── 메인: 4주 여정(액션 우선) + 프로그램 소개(접기) ── */}
+            <div className="flex min-w-0 flex-col gap-7 md:gap-8">
+              {/* 프로그램 소개 — order-last 로 4주 여정 뒤에, 기본 접힘 */}
+              <div className="order-last">
+                <button type="button" onClick={() => setIntroOpen((v) => !v)} className="mb-3 flex w-full items-center justify-between gap-2 text-left">
+                  <span className="flex items-center gap-2">
+                    <span className="h-[15px] w-[3px] flex-none rounded-full bg-[#0B46E8]" />
+                    <span className="text-[17px] font-extrabold tracking-[-0.01em] text-[#0B1227] md:text-[18.5px]">{t("프로그램 소개", "About the program", "项目介绍", "Giới thiệu chương trình", "プログラム紹介", "Tentang program")}</span>
+                  </span>
+                  <span className="text-[12.5px] font-bold text-[#8B95A1]">{introOpen ? t("접기 ▴", "Hide ▴", "收起 ▴", "Thu gọn ▴", "閉じる ▴", "Tutup ▴") : t("자세히 ▾", "Details ▾", "详情 ▾", "Chi tiết ▾", "詳細 ▾", "Detail ▾")}</span>
+                </button>
+                {introOpen ? (
                 <Card className="md:!p-6">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/img_global_career_launch.webp" alt="Global Career Launch" className="mb-4 h-auto w-full rounded-xl" />
@@ -274,6 +283,7 @@ export default function LaunchDashboardPage() {
                     </ul>
                   </div>
                 </Card>
+                ) : null}
               </div>
 
               <div>
