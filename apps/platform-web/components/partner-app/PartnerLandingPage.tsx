@@ -111,11 +111,8 @@ function Hero() {
             <TalentButton href={SIGNUP_HREF} variant="primary" size="lg" aria-label="채용 시작하기">
               채용 시작하기
             </TalentButton>
-            <TalentButton href={LOGIN_HREF} variant="secondary" size="lg" aria-label="로그인">
-              이미 계정이 있어요 · 로그인
-            </TalentButton>
           </div>
-          <p className="mt-5 text-[14px] text-[#8B95A1]">가입은 무료 · 몇 분이면 첫 공고를 올릴 수 있어요.</p>
+          <p className="mt-5 text-[14px] text-[#8B95A1]">몇 분이면 첫 공고를 올릴 수 있어요.</p>
         </Reveal>
       </div>
 

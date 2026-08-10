@@ -11,7 +11,6 @@ import { Bell, List, X } from "@phosphor-icons/react";
 import { talentBrand, talentRoutes } from "../../lib/talent/landing-content";
 import { talentMainNav, isTabActive, talentAppRoutes } from "../../lib/talent/app-nav";
 import { useAuthSession } from "../auth/AuthSessionProvider";
-import { TalentButton } from "./TalentButton";
 import { TalentTicketBadge } from "./TalentTicketBadge";
 import { useFollowFeedNotifications, useFollowCompanyPositionNotifications, type FeedAuthor } from "../../lib/talent/social-graph";
 import { useUnreadNotificationCount } from "../../lib/talent/notifications";
@@ -114,9 +113,6 @@ export function TalentHeader() {
             <Link href={talentRoutes.login} className="rounded-lg px-3 py-2 text-[13.5px] font-semibold text-[#4E5968] transition hover:text-[#191F28]">
               {talentBrand.cta.login}
             </Link>
-            <TalentButton href={talentRoutes.signup} variant="primary" size="md" aria-label={talentBrand.cta.start}>
-              {talentBrand.cta.start}
-            </TalentButton>
           </div>
         )}
       </div>

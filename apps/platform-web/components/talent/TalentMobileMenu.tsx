@@ -41,14 +41,9 @@ export function TalentMobileMenu({ open, onClose }: { open: boolean; onClose: ()
               내 커리어
             </TalentButton>
           ) : (
-            <>
-              <TalentButton href={talentRoutes.login} variant="secondary" size="md" fullWidth aria-label={talentBrand.cta.login}>
-                {talentBrand.cta.login}
-              </TalentButton>
-              <TalentButton href={talentRoutes.start} variant="primary" size="md" fullWidth aria-label={talentBrand.cta.start}>
-                {talentBrand.cta.start}
-              </TalentButton>
-            </>
+            <TalentButton href={talentRoutes.login} variant="primary" size="md" fullWidth aria-label={talentBrand.cta.login}>
+              {talentBrand.cta.login}
+            </TalentButton>
           )}
         </div>
         <Link href={footerContent.partnerLink.href} onClick={onClose} className="mt-4 block text-center text-[12.5px] text-[#8B95A1] underline hover:text-[#4E5968]">

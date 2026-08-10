@@ -72,9 +72,6 @@ function Hero() {
             <TalentButton href={heroContent.primaryCta.href} variant="primary" size="lg" aria-label={heroContent.primaryCta.label}>
               {heroContent.primaryCta.label}
             </TalentButton>
-            <TalentButton href={heroContent.secondaryCta.href} variant="secondary" size="lg" aria-label={heroContent.secondaryCta.label}>
-              {heroContent.secondaryCta.label}
-            </TalentButton>
           </div>
           <p className="mt-5 text-[14px] text-[#8B95A1]">{heroContent.subInfo}</p>
         </Reveal>

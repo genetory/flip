@@ -31,7 +31,7 @@ export const talentBrand = {
   subSlogan: "처음이라 막막한 취업 준비, APLY와 하나씩",
   cta: {
     login: "로그인",
-    start: "무료로 시작하기"
+    start: "지금 시작하기"
   }
 } as const;
 
@@ -41,7 +41,7 @@ export const heroContent = {
   description: "처음이라 막막한 취업 준비,\nAPLY가 나의 경험을 함께 찾고 하나씩 완성해드려요.",
   primaryCta: { label: "내 첫 취업 준비 시작하기", href: talentRoutes.start },
   secondaryCta: { label: "채용공고 먼저 둘러보기", href: talentRoutes.positions },
-  subInfo: "5분이면 시작할 수 있어요 · 무료로 이용 가능"
+  subInfo: "5분이면 시작할 수 있어요"
 } as const;
 
 // 히어로 우측 — 로그인 후 Talent 홈 미리보기(mock).
@@ -134,7 +134,7 @@ export const careerLaunchCtaSection = {
 export const finalCtaSection = {
   message: "처음부터 잘할 필요는 없어요.",
   desc: "APLY와 함께 첫 취업 준비를 하나씩 시작해보세요.",
-  cta: { label: "무료로 시작하기", href: talentRoutes.start }
+  cta: { label: "지금 시작하기", href: talentRoutes.start }
 } as const;
 
 // 푸터 — Partner 는 보조 링크로만, Admin 은 노출하지 않는다.
@@ -172,7 +172,7 @@ export const startContent = {
   title: "내 이야기부터 시작해요",
   desc: "간단한 질문에 답하다 보면 나에게 맞는 직무와 첫 이력서가 만들어져요.\n지금은 준비 화면이에요 — 로그인하면 바로 시작할 수 있어요.",
   steps: stepSection.steps,
-  primaryCta: { label: "무료로 시작하기", href: talentRoutes.signup },
+  primaryCta: { label: "지금 시작하기", href: talentRoutes.signup },
   secondaryCta: { label: "이미 계정이 있어요 · 로그인", href: talentRoutes.login },
   backCta: { label: "← 랜딩으로", href: "/talent" }
 } as const;

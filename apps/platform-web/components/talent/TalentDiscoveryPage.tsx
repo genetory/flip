@@ -276,8 +276,8 @@ export function TalentDiscoveryPage() {
                 </>
               ) : (
                 <>
-                  <TalentButton href="/talent/signup" variant="primary" size="lg" fullWidth aria-label="무료로 가입하고 저장하기">
-                    무료로 가입하고 저장하기
+                  <TalentButton href="/talent/signup" variant="primary" size="lg" fullWidth aria-label="가입하고 저장하기">
+                    가입하고 저장하기
                   </TalentButton>
                   <TalentButton href="/positions" variant="secondary" size="lg" fullWidth aria-label="채용공고 먼저 둘러보기">
                     채용공고 먼저 둘러보기
