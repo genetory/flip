@@ -3,7 +3,7 @@
 // 파트너 인재 검색 — aply 인재풀(이력서 등록 + 공개 동의)에서 키워드/AI로 후보를 찾는다.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { MagnifyingGlass, X, Sparkle, GraduationCap, Globe, Translate, Briefcase, CaretRight, BookmarkSimple } from "@phosphor-icons/react";
+import { MagnifyingGlass, X, Sparkle, GraduationCap, Globe, Translate, Briefcase, BookmarkSimple } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TListSkeleton, TError } from "../../talent/ui/primitives";
 import { PartnerEmptyCard } from "../ui/cards";
@@ -260,7 +260,6 @@ function CandidateCard({ c, saved, onToggleSave }: { c: PartnerCandidateCard; sa
 
           {c.reason ? <p className="mt-2 break-keep rounded-lg bg-[#F5F8FF] px-2.5 py-1.5 text-[12px] leading-relaxed text-[#0B46E8]">{c.reason}</p> : null}
         </div>
-        <CaretRight className="mt-1 h-4 w-4 shrink-0 text-[#C4CAD2]" />
       </div>
     </Link>
   );
