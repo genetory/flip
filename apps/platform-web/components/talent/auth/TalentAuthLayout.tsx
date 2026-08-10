@@ -27,7 +27,7 @@ export function TalentAuthLayout({
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <header className="h-14 border-b border-[#EEF1F5]">
-        <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-5">
+        <div className="mx-auto flex h-full max-w-5xl items-center justify-between px-5">
           <div className="flex items-center gap-2">
             <Link href={backHref} aria-label={`${talentBrand.name} 홈으로`} className="flex items-center">
               <Image src="/img_logo.webp" alt={talentBrand.name} width={72} height={24} className="h-5 w-auto" priority />

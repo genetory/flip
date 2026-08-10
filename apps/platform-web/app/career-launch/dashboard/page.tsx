@@ -7,8 +7,6 @@ import { STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, SectionTitle } from "../../../components/launch/ui";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
-import { ResumeRender } from "../../../components/launch/resume-render";
-import { CoverRender } from "../../../components/launch/cover-render";
 import { fetchProgress, fetchWeekSchedule, type WeekScheduleEntry } from "../../../lib/launch/progress-client";
 import { fetchMySeminars, fetchMyEnrollment, type CohortSeminar } from "../../../lib/launch/enrollment-client";
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
@@ -52,8 +50,6 @@ export default function LaunchDashboardPage() {
   const [serverNow, setServerNow] = useState<Date>(() => new Date(0)); // 스케줄 로드 전엔 과거로 둬서 날짜 오픈 미판정
   const [seminars, setSeminars] = useState<CohortSeminar[]>([]);
   const [cohortLabel, setCohortLabel] = useState<string>("");
-  // 프로그램 소개는 기본 접힘 — 재방문 시 실제 진행(4주 여정)이 먼저 보이게.
-  const [introOpen, setIntroOpen] = useState(false);
   useEffect(() => {
     if (!isReady) return;
     let alive = true;
@@ -204,19 +200,10 @@ export default function LaunchDashboardPage() {
           ) : null}
 
           <Reveal delayMs={120}>
-          <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
-            {/* ── 메인: 4주 여정(액션 우선) + 프로그램 소개(접기) ── */}
-            <div className="flex min-w-0 flex-col gap-7 md:gap-8">
-              {/* 프로그램 소개 — order-last 로 4주 여정 뒤에, 기본 접힘 */}
-              <div className="order-last">
-                <button type="button" onClick={() => setIntroOpen((v) => !v)} className="mb-3 flex w-full items-center justify-between gap-2 text-left">
-                  <span className="flex items-center gap-2">
-                    <span className="h-[15px] w-[3px] flex-none rounded-full bg-[#0B46E8]" />
-                    <span className="text-[17px] font-extrabold tracking-[-0.01em] text-[#0B1227] md:text-[18.5px]">{t("프로그램 소개", "About the program", "项目介绍", "Giới thiệu chương trình", "プログラム紹介", "Tentang program")}</span>
-                  </span>
-                  <span className="text-[12.5px] font-bold text-[#8B95A1]">{introOpen ? t("접기 ▴", "Hide ▴", "收起 ▴", "Thu gọn ▴", "閉じる ▴", "Tutup ▴") : t("자세히 ▾", "Details ▾", "详情 ▾", "Chi tiết ▾", "詳細 ▾", "Detail ▾")}</span>
-                </button>
-                {introOpen ? (
+          <div className="mt-8 flex flex-col gap-10 md:mt-10">
+            {/* ── 프로그램 소개 (맨 위, 펼침) ── */}
+            <div>
+                <SectionTitle>{t("프로그램 소개", "About the program", "项目介绍", "Giới thiệu chương trình", "プログラム紹介", "Tentang program")}</SectionTitle>
                 <Card className="md:!p-6">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/img_global_career_launch.webp" alt="Global Career Launch" className="mb-4 h-auto w-full rounded-xl" />
@@ -239,7 +226,7 @@ export default function LaunchDashboardPage() {
 
                   {/* 4주 후 얻는 것 */}
                   <div className="mt-5 border-t border-[#EEF1F5] pt-5">
-                    <p className="text-[12.5px] font-bold text-[#0B46E8]">{t("🎯 4주 후, 이런 걸 완성해요", "🎯 After 4 weeks, here's what you'll have", "🎯 4周后，你将完成这些", "🎯 Sau 4 tuần, đây là những gì bạn có", "🎯 4週間後、こんなものが完成します", "🎯 Setelah 4 minggu, inilah yang kamu miliki")}</p>
+                    <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("4주 후, 이런 걸 완성해요", "After 4 weeks, here's what you'll have", "4周后，你将完成这些", "Sau 4 tuần, đây là những gì bạn có", "4週間後、こんなものが完成します", "Setelah 4 minggu, inilah yang kamu miliki")}</p>
                     <div className="mt-2.5 grid grid-cols-2 gap-2">
                       {[
                         { e: "🧭", t: t("취업 준비도 진단 · 직무 방향", "Job-readiness diagnosis · Career direction", "求职准备度诊断 · 职业方向", "Chẩn đoán mức độ sẵn sàng · Định hướng nghề nghiệp", "就職準備度診断・職務の方向性", "Diagnosis kesiapan kerja · Arah karier") },
@@ -247,8 +234,7 @@ export default function LaunchDashboardPage() {
                         { e: "📝", t: t("회사 맞춤 자기소개서", "A cover letter tailored to each company", "针对公司量身定制的求职信", "Thư tự giới thiệu phù hợp từng công ty", "会社に合わせた自己紹介書", "Cover letter yang disesuaikan tiap perusahaan") },
                         { e: "🎤", t: t("유형별 모의면접 · 실전 준비", "Mock interviews by type · Real-world prep", "分类型模拟面试 · 实战准备", "Phỏng vấn thử theo loại · Chuẩn bị thực chiến", "タイプ別模擬面接・実践準備", "Simulasi wawancara per jenis · Persiapan nyata") }
                       ].map((o) => (
-                        <div key={o.t} className="flex items-center gap-2 rounded-xl bg-[#F8FAFC] px-3 py-2.5">
-                          <span className="text-[16px]">{o.e}</span>
+                        <div key={o.t} className="flex items-center gap-2 rounded-xl bg-[#F7F8FA] px-3 py-2.5">
                           <span className="break-keep text-[12.5px] font-semibold text-[#333D4B]">{o.t}</span>
                         </div>
                       ))}
@@ -257,21 +243,20 @@ export default function LaunchDashboardPage() {
 
                   {/* 수료 조건 */}
                   <div className="mt-5 border-t border-[#EEF1F5] pt-5">
-                    <p className="text-[12.5px] font-bold text-[#3A6B00]">{t("✅ 수료 조건", "✅ Completion requirements", "✅ 结业条件", "✅ Điều kiện hoàn thành", "✅ 修了条件", "✅ Syarat kelulusan")}</p>
-                    <ul className="mt-2 space-y-1.5 text-[13px] text-[#333D4B]">
+                    <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("수료 조건", "Completion requirements", "结业条件", "Điều kiện hoàn thành", "修了条件", "Syarat kelulusan")}</p>
+                    <ul className="mt-2.5 space-y-1.5 text-[13px] text-[#333D4B]">
                       {completionCriteria().map((c, i) => (
                         <li key={i} className="flex gap-2">
-                          <span className="mt-0.5 flex h-4 w-4 flex-none items-center justify-center rounded-full bg-[#B7FF5A] text-[10px] font-black text-[#111]">{i + 1}</span>
+                          <span className="mt-0.5 flex h-4 w-4 flex-none items-center justify-center rounded-full bg-[#F2F4F6] text-[10px] font-black text-[#4E5968]">{i + 1}</span>
                           <span className="break-keep">{c}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 </Card>
-                ) : null}
-              </div>
+            </div>
 
-              <div>
+            <div>
                 <SectionTitle sub={t("각 주차를 눌러 진행하세요 · 완료할수록 결과물이 완성돼요", "Tap each week to get started · Your deliverables come together as you finish", "点击每一周开始 · 完成越多，成果越完整", "Nhấn vào từng tuần để bắt đầu · Hoàn thành càng nhiều, kết quả càng đầy đủ", "各週をタップして進めましょう · 完了するほど成果物が仕上がります", "Ketuk tiap minggu untuk mulai · Semakin selesai, hasilnya makin lengkap")}>{t("4주 여정", "4-week journey", "4周旅程", "Hành trình 4 tuần", "4週間のジャーニー", "Perjalanan 4 minggu")}</SectionTitle>
                 <ol className="divide-y divide-[#EEF1F5] border-y border-[#EEF1F5]">
                   {WEEKS.map((w) => {
@@ -301,13 +286,10 @@ export default function LaunchDashboardPage() {
                     return <li key={w.week}>{unlocked ? <Link href={`/career-launch/week/${w.week}`} className="group -mx-2 block rounded-xl px-2 transition hover:bg-[#FAFBFC]">{inner}</Link> : inner}</li>;
                   })}
                 </ol>
-              </div>
             </div>
 
-            {/* ── 사이드바 ── */}
-            <div className="min-w-0 space-y-7 md:space-y-8">
-              {/* 다가오는 세미나 */}
-              <div>
+            {/* ── 다가오는 세미나 ── */}
+            <div>
                 <SectionTitle>{t("세미나 일정", "Seminar schedule", "研讨会日程", "Lịch hội thảo", "セミナー日程", "Jadwal seminar")}</SectionTitle>
                 {seminars.length === 0 ? (
                   <Card className="!p-5 text-center">
@@ -323,7 +305,7 @@ export default function LaunchDashboardPage() {
                       const time = valid ? dt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" }) : "";
                       return (
                         <Card key={s.week} className="flex items-start gap-3 !p-4">
-                          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[18px]">{s.online ? "💻" : "📍"}</span>
+                          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-[#F2F4F6] text-[18px]">{s.online ? "💻" : "📍"}</span>
                           <div className="min-w-0">
                             <p className="text-[13.5px] font-bold text-[#191F28]">{s.title || t(`Week ${s.week} 세미나`, `Week ${s.week} seminar`, `第${s.week}周研讨会`, `Hội thảo Tuần ${s.week}`, `Week ${s.week} セミナー`, `Seminar Minggu ${s.week}`)}</p>
                             <p className="mt-0.5 text-[12.5px] text-[#4E5968]">{[date, time].filter(Boolean).join(" · ")}</p>
@@ -344,14 +326,23 @@ export default function LaunchDashboardPage() {
               {/* 내 결과물 — 이력서·자기소개서 미리보기(없으면 점선 placeholder) */}
               <div className="space-y-4">
                 <SectionTitle sub={t("대화로 만드는 이력서와 자기소개서", "A resume and cover letter built through conversation", "对话即可完成的简历与求职信", "Hồ sơ và thư tự giới thiệu tạo qua trò chuyện", "会話で作る履歴書と自己紹介書", "Resume dan cover letter dari percakapan")}>{t("내 결과물", "My deliverables", "我的成果", "Kết quả của tôi", "私の成果物", "Hasil saya")}</SectionTitle>
-                <DocPreview title={t("내 이력서", "My resume", "我的简历", "Hồ sơ của tôi", "私の履歴書", "Resume saya")} ready={resumeReady} previewHref="/career-launch/resume-preview" emptyTitle={t("아직 이력서가 없어요", "You don't have a resume yet", "还没有简历", "Bạn chưa có hồ sơ", "まだ履歴書がありません", "Belum ada resume")} emptySub={t("2주차에 대화로 만들어요", "You'll build it through conversation in Week 2", "第2周通过对话完成", "Bạn sẽ tạo qua trò chuyện ở Tuần 2", "Week 2に会話で作ります", "Kamu membuatnya lewat percakapan di Minggu 2")}>
-                  {resumeReady ? <ResumeRender data={data.resume} /> : null}
-                </DocPreview>
-                <DocPreview title={t("내 자기소개서", "My cover letter", "我的求职信", "Thư tự giới thiệu của tôi", "私の自己紹介書", "Cover letter saya")} ready={coverReady} previewHref="/career-launch/cover-preview" emptyTitle={t("아직 자기소개서가 없어요", "You don't have a cover letter yet", "还没有求职信", "Bạn chưa có thư tự giới thiệu", "まだ自己紹介書がありません", "Belum ada cover letter")} emptySub={t("3주차에 대화로 만들어요", "You'll build it through conversation in Week 3", "第3周通过对话完成", "Bạn sẽ tạo qua trò chuyện ở Tuần 3", "Week 3に会話で作ります", "Kamu membuatnya lewat percakapan di Minggu 3")}>
-                  {coverReady ? <CoverRender data={data.cover} /> : null}
-                </DocPreview>
+                <div className="grid grid-cols-2 gap-3">
+                  <DeliverableCard
+                    title={t("내 이력서", "My resume", "我的简历", "Hồ sơ của tôi", "私の履歴書", "Resume saya")}
+                    ready={resumeReady}
+                    previewHref="/career-launch/resume-preview"
+                    doneMsg={t("이력서가 완성됐어요", "Your resume is ready", "简历已完成", "Hồ sơ đã hoàn thành", "履歴書が完成しました", "Resume sudah siap")}
+                    emptyMsg={t("2주차에 대화로 만들어요", "Built through conversation in Week 2", "第2周通过对话完成", "Tạo qua trò chuyện ở Tuần 2", "Week 2に会話で作ります", "Dibuat lewat percakapan di Minggu 2")}
+                  />
+                  <DeliverableCard
+                    title={t("내 자기소개서", "My cover letter", "我的求职信", "Thư tự giới thiệu của tôi", "私の自己紹介書", "Cover letter saya")}
+                    ready={coverReady}
+                    previewHref="/career-launch/cover-preview"
+                    doneMsg={t("자기소개서가 완성됐어요", "Your cover letter is ready", "求职信已完成", "Thư tự giới thiệu đã hoàn thành", "自己紹介書が完成しました", "Cover letter sudah siap")}
+                    emptyMsg={t("3주차에 대화로 만들어요", "Built through conversation in Week 3", "第3周通过对话完成", "Tạo qua trò chuyện ở Tuần 3", "Week 3に会話で作ります", "Dibuat lewat percakapan di Minggu 3")}
+                  />
+                </div>
               </div>
-            </div>
           </div>
           </Reveal>
         </div>
@@ -362,42 +353,41 @@ export default function LaunchDashboardPage() {
   );
 }
 
-// 결과물 미리보기 — 있으면 실제 문서 렌더 + 크게보기, 없으면 점선 placeholder(안내만, 버튼 없음).
-function DocPreview({
-  title,
-  ready,
-  previewHref,
-  emptyTitle,
-  emptySub,
-  children
-}: {
-  title: string;
-  ready: boolean;
-  previewHref: string;
-  emptyTitle: string;
-  emptySub: string;
-  children?: React.ReactNode;
-}) {
+// 결과물 카드 — talent '내 커리어'와 동일한 형태. 문서를 인라인으로 펼치지 않고,
+// 완성 링 + 상태 메시지 + '미리보기'(새 탭) 링크만 노출.
+function DeliverableCard({ title, ready, previewHref, doneMsg, emptyMsg }: { title: string; ready: boolean; previewHref: string; doneMsg: string; emptyMsg: string }) {
   const t = useLaunchT();
+  const shell = ready
+    ? "border border-[#EEF1F5] bg-white hover:border-[#0B46E8]/40 hover:shadow-[0_4px_16px_rgba(11,18,39,0.05)]"
+    : "border border-dashed border-[#DCE3F0] bg-transparent";
   return (
-    <div>
-      <div className="mb-1.5 flex items-center justify-between">
-        <p className="text-[13.5px] font-bold text-[#191F28]">{title}</p>
+    <div className={`flex flex-col rounded-2xl p-5 transition ${shell}`}>
+      <DocRing ready={ready} />
+      <p className="mt-3 text-[15px] font-bold text-[#191F28]">{title}</p>
+      <div className="mt-0.5 flex items-center justify-between gap-2">
+        <p className="break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{ready ? doneMsg : emptyMsg}</p>
         {ready ? (
-          <Link href={previewHref} target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-[#0B46E8] transition hover:underline">
-            {t("열기 · PDF ↗", "Open · PDF ↗", "打开 · PDF ↗", "Mở · PDF ↗", "開く · PDF ↗", "Buka · PDF ↗")}
+          <Link href={previewHref} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-lg bg-[#F2F4F6] px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
+            {t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
           </Link>
         ) : null}
       </div>
-      {ready ? (
-        children
-      ) : (
-        <div className="flex min-h-[200px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#D7DCE3] bg-[#FAFBFC] p-6 text-center">
-          <span className="text-[22px] opacity-40">📄</span>
-          <p className="mt-2 text-[13px] font-semibold text-[#8B95A1]">{emptyTitle}</p>
-          <p className="mt-0.5 text-[12px] text-[#B0B8C1]">{emptySub}</p>
-        </div>
-      )}
     </div>
+  );
+}
+
+// 완성 상태 링 — 완료 시 파란 링 + 체크, 미완성은 빈 트랙.
+function DocRing({ ready }: { ready: boolean }) {
+  const color = "#0B46E8";
+  return (
+    <svg width="52" height="52" viewBox="0 0 52 52" className="shrink-0" aria-hidden>
+      <circle cx="26" cy="26" r="20" fill="none" stroke="#EDF1FD" strokeWidth="5" />
+      {ready ? (
+        <>
+          <circle cx="26" cy="26" r="20" fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" transform="rotate(-90 26 26)" />
+          <path d="M18.5 26.5 l4.5 4.5 l10 -11" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      ) : null}
+    </svg>
   );
 }
