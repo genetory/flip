@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { fetchMyEnrollment, enrollByCode } from "../../lib/launch/enrollment-client";
 import { trackCareerEnroll } from "../../lib/analytics";
-import { Header } from "../site/Header";
-import { Footer } from "../site/Footer";
+import { CareerLaunchHeader } from "./CareerLaunchHeader";
+import { AplyFooter } from "../AplyFooter";
 import { Card } from "./ui";
 import { useLaunchT } from "../../lib/launch/i18n";
 
@@ -57,7 +57,7 @@ export function EnrollmentGate({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+      <CareerLaunchHeader />
       <main className="flex-1">
         <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col justify-center px-5 py-16">
           <Card className="text-center md:!p-7">
@@ -96,7 +96,7 @@ export function EnrollmentGate({ children }: { children: React.ReactNode }) {
           </Card>
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }
