@@ -31,6 +31,7 @@ import {
   PartnerCompanySize,
   PartnerIndustry,
   PartnerOrgUserRole,
+  PartnerInviteStatus,
   PartnerType,
   PrismaClient
 } from "@prisma/client";
@@ -24354,6 +24355,345 @@ app.delete(
     }
   }
 );
+
+// ─── 이메일 팀원 초대 ──────────────────────────────────────────────
+// 관리자(OWNER/ADMIN)가 이메일로 팀원을 초대 → 토큰 링크 발송 → 초대받은 사람이
+// 링크에서 계정을 만들거나(register) 로그인 후 수락(accept)하면 회사에 합류한다.
+const partnerInviteTtlMs = 7 * 24 * 60 * 60 * 1000;
+
+function partnerOrgRoleLabelKo(role: PartnerOrgUserRole) {
+  if (role === PartnerOrgUserRole.OWNER) return "소유자";
+  if (role === PartnerOrgUserRole.ADMIN) return "관리자";
+  return "팀원";
+}
+
+function buildPartnerInviteAcceptUrl(rawToken: string) {
+  return `${platformWebUrl}/partner/invite?token=${encodeURIComponent(rawToken)}`;
+}
+
+async function sendPartnerInviteEmail(input: { email: string; orgName: string; inviterName?: string | null; acceptUrl: string; roleLabel: string }) {
+  const { email, orgName, inviterName, acceptUrl, roleLabel } = input;
+  const transporter = getSmtpTransporter();
+  const subject = `[Aply] ${orgName} 팀 합류 초대`;
+  const inviterLine = inviterName ? `${inviterName}님이 ` : "";
+  const text = [
+    `${inviterLine}${orgName} 팀에 합류하도록 초대했어요.`,
+    "",
+    `아래 링크를 열어 이메일을 확인하면 팀에 합류합니다 (권한: ${roleLabel}).`,
+    acceptUrl,
+    "",
+    "이 초대는 7일 후 만료돼요. 본인이 요청한 것이 아니라면 무시하셔도 됩니다."
+  ].join("\n");
+  const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:480px;margin:0 auto;padding:8px 4px;color:#191F28">
+    <p style="font-size:15px;line-height:1.6;margin:0 0 8px">${inviterLine}<b>${orgName}</b> 팀에 합류하도록 초대했어요.</p>
+    <p style="font-size:13.5px;line-height:1.6;color:#4E5968;margin:0 0 20px">아래 버튼을 눌러 이메일을 확인하면 팀에 합류합니다. (권한: ${roleLabel})</p>
+    <a href="${acceptUrl}" style="display:inline-block;background:#0B46E8;color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:12px 22px;border-radius:12px">초대 수락하고 합류하기</a>
+    <p style="font-size:12px;line-height:1.6;color:#8B95A1;margin:22px 0 0">이 초대는 7일 후 만료돼요. 본인이 요청한 것이 아니라면 무시하셔도 됩니다.</p>
+  </div>`;
+
+  if (transporter) {
+    await transporter.sendMail({
+      from: emailFromAddress,
+      to: email,
+      replyTo: emailReplyToAddress,
+      subject,
+      text,
+      html,
+      envelope: emailEnvelopeFrom ? { from: emailEnvelopeFrom, to: email } : undefined,
+      headers: {
+        "X-Mailer": "Aply Mailer",
+        "X-Auto-Response-Suppress": "OOF, AutoReply",
+        "Auto-Submitted": "auto-generated"
+      }
+    });
+    return { delivery: "smtp" as const };
+  }
+  console.info(`[partner][team-invite] ${email} -> ${acceptUrl}`);
+  return { delivery: "log" as const };
+}
+
+const createTeamInviteSchema = z.object({
+  email: z.string().trim().email().max(200),
+  partnerOrgRole: z.enum(["ADMIN", "MEMBER"]).optional()
+});
+const teamInviteTokenSchema = z.object({ token: z.string().min(1).max(256) });
+const registerFromInviteSchema = z.object({
+  token: z.string().min(1).max(256),
+  name: z.string().trim().min(1).max(60).optional(),
+  password: z.string().min(8).max(72)
+});
+
+// 초대 목록 (PENDING) — 관리자만.
+app.get(
+  "/partner/team/invites",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      if (affiliation.user.partnerOrgRole !== "OWNER" && affiliation.user.partnerOrgRole !== "ADMIN") {
+        return res.status(403).json({ ok: false, message: "only OWNER or ADMIN can view invites" });
+      }
+      const invites = await prisma.partnerOrganizationInvite.findMany({
+        where: { partnerOrganizationId: affiliation.organization.id, status: PartnerInviteStatus.PENDING },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, email: true, partnerOrgRole: true, status: true, expiresAt: true, createdAt: true }
+      });
+      const now = Date.now();
+      return res.json({
+        ok: true,
+        items: invites.map((i) => ({ ...i, expired: i.expiresAt.getTime() <= now }))
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+// 이메일로 초대 생성 + 메일 발송 — 관리자만.
+app.post(
+  "/partner/team/invites",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    const parsed = createTeamInviteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    }
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      if (affiliation.user.partnerOrgRole !== "OWNER" && affiliation.user.partnerOrgRole !== "ADMIN") {
+        return res.status(403).json({ ok: false, message: "only OWNER or ADMIN can invite members" });
+      }
+      const email = parsed.data.email.trim().toLowerCase();
+      if (email === affiliation.user.email.toLowerCase()) {
+        return res.status(400).json({ ok: false, message: "본인은 초대할 수 없어요." });
+      }
+      const role = parsed.data.partnerOrgRole === "ADMIN" ? PartnerOrgUserRole.ADMIN : PartnerOrgUserRole.MEMBER;
+
+      // 이미 소속이 있는 계정인지 검사.
+      const existingUser = await prisma.user.findFirst({
+        where: { email },
+        select: { id: true, partnerOrganizationId: true }
+      });
+      if (existingUser?.partnerOrganizationId === affiliation.organization.id) {
+        return res.status(409).json({ ok: false, message: "이미 이 회사의 팀원이에요." });
+      }
+      if (existingUser?.partnerOrganizationId) {
+        return res.status(409).json({ ok: false, message: "이미 다른 회사에 소속된 계정이에요." });
+      }
+
+      // 같은 이메일의 기존 PENDING 초대는 무효화하고 새로 발급(재초대 = 새 링크).
+      await prisma.partnerOrganizationInvite.updateMany({
+        where: { partnerOrganizationId: affiliation.organization.id, email, status: PartnerInviteStatus.PENDING },
+        data: { status: PartnerInviteStatus.REVOKED }
+      });
+
+      const rawToken = randomBytes(32).toString("hex");
+      const invite = await prisma.partnerOrganizationInvite.create({
+        data: {
+          partnerOrganizationId: affiliation.organization.id,
+          email,
+          partnerOrgRole: role,
+          invitedByUserId: affiliation.user.id,
+          tokenHash: hashToken(rawToken),
+          status: PartnerInviteStatus.PENDING,
+          expiresAt: new Date(Date.now() + partnerInviteTtlMs)
+        },
+        select: { id: true, email: true, partnerOrgRole: true, status: true, expiresAt: true, createdAt: true }
+      });
+
+      const inviter = await prisma.user.findUnique({ where: { id: affiliation.user.id }, select: { name: true } });
+      const acceptUrl = buildPartnerInviteAcceptUrl(rawToken);
+      let delivery: "smtp" | "log" = "log";
+      try {
+        const r = await sendPartnerInviteEmail({
+          email,
+          orgName: affiliation.organization.name,
+          inviterName: inviter?.name ?? null,
+          acceptUrl,
+          roleLabel: partnerOrgRoleLabelKo(role)
+        });
+        delivery = r.delivery;
+      } catch (e) {
+        console.error("[partner][team-invite][email] failed", e);
+      }
+
+      return res.status(201).json({
+        ok: true,
+        item: { ...invite, expired: false },
+        delivery,
+        ...(isProduction ? {} : { acceptUrl })
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+// 초대 취소 — 관리자만.
+app.delete(
+  "/partner/team/invites/:id",
+  authenticate,
+  requireRoles([MemberRole.PARTNER]),
+  async (req, res) => {
+    const inviteId = typeof req.params.id === "string" ? req.params.id : "";
+    if (!inviteId) return res.status(400).json({ ok: false, message: "invalid id" });
+    try {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) {
+        return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+      }
+      if (affiliation.user.partnerOrgRole !== "OWNER" && affiliation.user.partnerOrgRole !== "ADMIN") {
+        return res.status(403).json({ ok: false, message: "only OWNER or ADMIN can revoke invites" });
+      }
+      const result = await prisma.partnerOrganizationInvite.updateMany({
+        where: { id: inviteId, partnerOrganizationId: affiliation.organization.id, status: PartnerInviteStatus.PENDING },
+        data: { status: PartnerInviteStatus.REVOKED }
+      });
+      if (result.count === 0) {
+        return res.status(404).json({ ok: false, message: "invite not found" });
+      }
+      return res.json({ ok: true });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+// 초대 미리보기 (공개) — 수락 페이지에서 회사명·이메일·계정존재 여부 확인.
+app.get("/partner/team/invites/lookup", async (req, res) => {
+  const rawToken = typeof req.query.token === "string" ? req.query.token : "";
+  if (!rawToken) return res.status(400).json({ ok: false, reason: "invalid" });
+  try {
+    const invite = await prisma.partnerOrganizationInvite.findUnique({
+      where: { tokenHash: hashToken(rawToken) },
+      select: { email: true, partnerOrgRole: true, status: true, expiresAt: true, partnerOrganizationId: true, invitedByUserId: true }
+    });
+    if (!invite) return res.status(404).json({ ok: false, reason: "invalid" });
+    if (invite.status !== PartnerInviteStatus.PENDING) return res.status(410).json({ ok: false, reason: invite.status === PartnerInviteStatus.ACCEPTED ? "accepted" : "revoked" });
+    if (invite.expiresAt.getTime() <= Date.now()) return res.status(410).json({ ok: false, reason: "expired" });
+
+    const [org, inviter, existingUser] = await Promise.all([
+      prisma.partnerOrganization.findUnique({ where: { id: invite.partnerOrganizationId }, select: { name: true } }),
+      prisma.user.findUnique({ where: { id: invite.invitedByUserId }, select: { name: true } }),
+      prisma.user.findFirst({ where: { email: invite.email }, select: { id: true } })
+    ]);
+    return res.json({
+      ok: true,
+      email: invite.email,
+      orgName: org?.name ?? "회사",
+      inviterName: inviter?.name ?? null,
+      partnerOrgRole: invite.partnerOrgRole,
+      accountExists: Boolean(existingUser)
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 초대 수락 (로그인한 기존 계정) — 로그인 이메일이 초대 이메일과 일치해야 합류.
+app.post("/partner/team/invites/accept", authenticate, async (req, res) => {
+  const parsed = teamInviteTokenSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const invite = await prisma.partnerOrganizationInvite.findUnique({
+      where: { tokenHash: hashToken(parsed.data.token) }
+    });
+    if (!invite || invite.status !== PartnerInviteStatus.PENDING || invite.expiresAt.getTime() <= Date.now()) {
+      return res.status(410).json({ ok: false, message: "만료되었거나 유효하지 않은 초대예요." });
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: req.auth!.userId },
+      select: { id: true, email: true, role: true, partnerType: true, partnerOrganizationId: true }
+    });
+    if (!user) return res.status(404).json({ ok: false, message: "user not found" });
+    if (user.email.toLowerCase() !== invite.email.toLowerCase()) {
+      return res.status(403).json({ ok: false, message: "초대받은 이메일 계정으로 로그인해주세요.", code: "EMAIL_MISMATCH", invitedEmail: invite.email });
+    }
+    if (user.partnerOrganizationId && user.partnerOrganizationId !== invite.partnerOrganizationId) {
+      return res.status(409).json({ ok: false, message: "이미 다른 회사에 소속되어 있어요." });
+    }
+
+    if (user.partnerOrganizationId !== invite.partnerOrganizationId) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          partnerOrganizationId: invite.partnerOrganizationId,
+          partnerOrgRole: invite.partnerOrgRole,
+          // 회사 팀원 = 파트너 계정. 운영자는 강등하지 않는다.
+          ...(user.role === MemberRole.OPERATOR ? {} : { role: MemberRole.PARTNER }),
+          ...(user.partnerType ? {} : { partnerType: PartnerType.COMPANY }),
+          emailVerified: true
+        }
+      });
+    }
+    await prisma.partnerOrganizationInvite.update({
+      where: { id: invite.id },
+      data: { status: PartnerInviteStatus.ACCEPTED, acceptedAt: new Date(), acceptedByUserId: user.id }
+    });
+    return res.json({ ok: true, organizationId: invite.partnerOrganizationId });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 초대 링크에서 신규 계정 생성 후 합류 (공개) — 계정 없는 초대자용.
+app.post("/partner/team/invites/register", async (req, res) => {
+  const parsed = registerFromInviteSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    const invite = await prisma.partnerOrganizationInvite.findUnique({
+      where: { tokenHash: hashToken(parsed.data.token) }
+    });
+    if (!invite || invite.status !== PartnerInviteStatus.PENDING || invite.expiresAt.getTime() <= Date.now()) {
+      return res.status(410).json({ ok: false, message: "만료되었거나 유효하지 않은 초대예요." });
+    }
+    const email = invite.email.toLowerCase();
+    const existingUser = await prisma.user.findFirst({ where: { email }, select: { id: true } });
+    if (existingUser) {
+      return res.status(409).json({ ok: false, message: "이미 가입된 이메일이에요. 로그인 후 초대를 수락해주세요.", code: "ACCOUNT_EXISTS" });
+    }
+    const passwordHash = await hashPassword(parsed.data.password);
+    const created = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          emailVerified: true, // 초대 이메일 링크 도달 = 이메일 소유 확인
+          name: parsed.data.name?.trim() || generateNicknameFromEmail(email),
+          passwordHash,
+          role: MemberRole.PARTNER,
+          partnerType: PartnerType.COMPANY,
+          partnerOrgRole: invite.partnerOrgRole,
+          partnerOrganizationId: invite.partnerOrganizationId
+        }
+      });
+      await tx.partnerOrganizationInvite.update({
+        where: { id: invite.id },
+        data: { status: PartnerInviteStatus.ACCEPTED, acceptedAt: new Date(), acceptedByUserId: user.id }
+      });
+      return user;
+    });
+
+    const { accessToken, refreshToken } = await issueAuthTokens(created);
+    setRefreshTokenCookie(res, refreshToken);
+    return res.status(201).json({
+      ok: true,
+      token: accessToken,
+      accessToken,
+      user: toSafeUser(created),
+      organizationId: invite.partnerOrganizationId
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
 
 app.get(
   "/partner/reports",

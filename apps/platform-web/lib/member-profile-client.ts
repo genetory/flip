@@ -1,4 +1,4 @@
-import { readAccessToken, refreshPlatformSession } from "./auth-client";
+import { readAccessToken, refreshPlatformSession, storeAccessToken } from "./auth-client";
 import { getBrowserLocale } from "./auth-messages";
 import {
   trackAiAnalysisCompleted,
@@ -1167,6 +1167,95 @@ export async function joinMyPartnerOrganizationByCode(code: string) {
     body: JSON.stringify({ code })
   });
   return result.item ?? null;
+}
+
+// ─── 이메일 팀원 초대 ───────────────────────────────────────────────
+export type PartnerTeamInvite = {
+  id: string;
+  email: string;
+  partnerOrgRole: "OWNER" | "ADMIN" | "MEMBER";
+  status: "PENDING" | "ACCEPTED" | "REVOKED";
+  expiresAt: string;
+  createdAt: string;
+  expired: boolean;
+};
+
+export type PartnerTeamInviteLookup = {
+  email: string;
+  orgName: string;
+  inviterName: string | null;
+  partnerOrgRole: "OWNER" | "ADMIN" | "MEMBER";
+  accountExists: boolean;
+};
+
+export async function getPartnerTeamInvites(): Promise<PartnerTeamInvite[]> {
+  const result = await authedJsonFetch<PartnerTeamInvite>("/partner/team/invites", { method: "GET" });
+  return (result.items ?? []) as PartnerTeamInvite[];
+}
+
+export async function invitePartnerTeamMember(email: string, partnerOrgRole: "ADMIN" | "MEMBER") {
+  const result = await authedJsonFetch<PartnerTeamInvite>("/partner/team/invites", {
+    method: "POST",
+    body: JSON.stringify({ email, partnerOrgRole })
+  });
+  return (result.item ?? null) as PartnerTeamInvite | null;
+}
+
+export async function revokePartnerTeamInvite(id: string) {
+  await authedJsonFetch<never>(`/partner/team/invites/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+// 초대 수락(로그인한 기존 계정). 실패 시 MemberProfileApiError(.code: EMAIL_MISMATCH 등)를 던진다.
+export async function acceptPartnerTeamInvite(token: string) {
+  return authedJsonFetch<never>("/partner/team/invites/accept", {
+    method: "POST",
+    body: JSON.stringify({ token })
+  });
+}
+
+// 초대 미리보기 (공개) — 수락 페이지 진입 시 회사·이메일·계정 존재 여부 조회.
+export async function lookupPartnerTeamInvite(
+  token: string
+): Promise<{ ok: true; data: PartnerTeamInviteLookup } | { ok: false; reason: string }> {
+  const response = await fetch(`${getApiBaseUrl()}/partner/team/invites/lookup?token=${encodeURIComponent(token)}`, { method: "GET" });
+  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (response.ok && payload?.ok === true) {
+    return {
+      ok: true,
+      data: {
+        email: String(payload.email ?? ""),
+        orgName: String(payload.orgName ?? "회사"),
+        inviterName: (payload.inviterName as string | null) ?? null,
+        partnerOrgRole: (payload.partnerOrgRole as PartnerTeamInviteLookup["partnerOrgRole"]) ?? "MEMBER",
+        accountExists: Boolean(payload.accountExists)
+      }
+    };
+  }
+  return { ok: false, reason: typeof payload?.reason === "string" ? payload.reason : "invalid" };
+}
+
+// 초대 링크에서 신규 계정 생성 후 합류 (공개) — 성공 시 액세스 토큰을 저장한다.
+export async function registerFromPartnerTeamInvite(
+  token: string,
+  name: string,
+  password: string
+): Promise<{ ok: true } | { ok: false; message: string; code?: string }> {
+  const response = await fetch(`${getApiBaseUrl()}/partner/team/invites/register`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, name: name.trim() || undefined, password })
+  });
+  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (response.ok && payload?.ok === true && typeof payload.token === "string") {
+    storeAccessToken(payload.token);
+    return { ok: true };
+  }
+  return {
+    ok: false,
+    message: typeof payload?.message === "string" ? payload.message : "가입에 실패했어요.",
+    code: typeof payload?.code === "string" ? payload.code : undefined
+  };
 }
 
 export async function getMyPartnerPositionById(id: string) {

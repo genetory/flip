@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { CaretRight, SealCheck, SignOut, PencilSimple, Buildings, UserPlus } from "@phosphor-icons/react";
+import { CaretRight, SealCheck, SignOut, PencilSimple, Buildings, UserPlus, EnvelopeSimple, X } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { useLanguage } from "../../i18n/LanguageProvider";
@@ -21,10 +21,14 @@ import {
   createMyPartnerOrganizationJoinCode,
   updatePartnerOrgMemberRole,
   removePartnerOrgMember,
+  getPartnerTeamInvites,
+  invitePartnerTeamMember,
+  revokePartnerTeamInvite,
   type MyPartnerOrganization,
   type PartnerPosition,
   type PartnerApplicantListItem,
-  type PartnerOrgMember
+  type PartnerOrgMember,
+  type PartnerTeamInvite
 } from "../../../lib/member-profile-client";
 
 const ORG_ROLE_LABEL: Record<PartnerOrgMember["role"], { label: string; cls: string }> = {
@@ -84,6 +88,10 @@ export function PartnerSettingsScreen() {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
   const [memberBusy, setMemberBusy] = useState<string | null>(null); // 작업 중인 멤버 id
+  const [invites, setInvites] = useState<PartnerTeamInvite[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
+  const [sendingInvite, setSendingInvite] = useState(false);
 
   const name = user?.realName || user?.name || "파트너";
   const emailVerified = Boolean(user?.emailVerified);
@@ -91,15 +99,46 @@ export function PartnerSettingsScreen() {
   function reloadMembers() {
     void getMyPartnerOrganizationMembers().then(setMembers).catch(() => {});
   }
+  function reloadInvites() {
+    void getPartnerTeamInvites().then(setInvites).catch(() => {});
+  }
   useEffect(() => {
     void getMyPartnerOrganization().then(setOrg).catch(() => {});
     void getMyPartnerPositions().then(setPositions).catch(() => {});
     void getMyPartnerApplicants().then(setApplicants).catch(() => {});
     reloadMembers();
+    reloadInvites();
   }, []);
 
   const myRole = members.find((m) => m.isMe)?.role;
   const canManage = myRole === "OWNER" || myRole === "ADMIN";
+
+  function sendInvite() {
+    const email = inviteEmail.trim();
+    if (!email || sendingInvite) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("올바른 이메일 주소를 입력해주세요.");
+      return;
+    }
+    setSendingInvite(true);
+    invitePartnerTeamMember(email, inviteRole)
+      .then(() => {
+        toast.success("초대 메일을 보냈어요");
+        setInviteEmail("");
+        setInviteRole("MEMBER");
+        reloadInvites();
+      })
+      .catch((e) => toast.error(e?.message || "초대에 실패했어요."))
+      .finally(() => setSendingInvite(false));
+  }
+  function revokeInvite(id: string) {
+    revokePartnerTeamInvite(id)
+      .then(() => {
+        toast.success("초대를 취소했어요");
+        reloadInvites();
+      })
+      .catch(() => toast.error("초대 취소에 실패했어요."));
+  }
 
   function changeRole(userId: string, role: "ADMIN" | "MEMBER") {
     if (memberBusy) return;
@@ -251,25 +290,76 @@ export function PartnerSettingsScreen() {
             )}
           </TCard>
 
-          {/* 팀원 초대 */}
-          <div className="mt-3">
-            {inviteCode ? (
-              <>
-                <div className="flex items-center gap-3 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold text-[#8B95A1]">초대 코드</p>
-                    <p className="truncate text-[16px] font-black tracking-[0.04em] text-[#0B1227]">{inviteCode}</p>
-                  </div>
-                  <button type="button" onClick={copyInvite} className="shrink-0 rounded-lg bg-white px-3 py-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]">복사</button>
+          {canManage ? (
+            <>
+              {/* 이메일로 팀원 초대 */}
+              <div className="mt-3 rounded-2xl border border-[#EEF1F5] bg-white p-4">
+                <div className="flex items-center gap-1.5">
+                  <EnvelopeSimple className="h-4 w-4 text-[#0B46E8]" weight="fill" />
+                  <p className="text-[13.5px] font-bold text-[#191F28]">이메일로 팀원 초대</p>
                 </div>
-                <p className="mt-1.5 text-[12px] text-[#8B95A1]">이 코드를 팀원에게 공유하세요. 가입 후 코드를 입력하면 우리 회사로 합류해요.</p>
-              </>
-            ) : (
-              <button type="button" onClick={makeInvite} disabled={inviting} className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB] disabled:opacity-50">
-                <UserPlus className="h-4 w-4" weight="bold" /> {inviting ? "생성 중…" : "팀원 초대 코드 만들기"}
-              </button>
-            )}
-          </div>
+                <p className="mt-0.5 text-[12px] text-[#8B95A1]">초대 메일의 링크에서 이메일을 확인하면 자동으로 우리 회사에 합류해요.</p>
+                <div className="mt-3 flex flex-col gap-2">
+                  <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") sendInvite(); }}
+                    placeholder="초대할 이메일 주소"
+                    className="w-full rounded-xl bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:ring-2 focus:ring-[#0B46E8]/30"
+                  />
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-0.5 rounded-full bg-[#F2F4F6] p-0.5">
+                      {(["MEMBER", "ADMIN"] as const).map((role) => (
+                        <button key={role} type="button" onClick={() => setInviteRole(role)} className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${inviteRole === role ? "bg-white text-[#191F28] shadow-[0_1px_3px_rgba(11,18,39,0.1)]" : "text-[#8B95A1]"}`}>
+                          {ORG_ROLE_LABEL[role].label}
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" onClick={sendInvite} disabled={sendingInvite || !inviteEmail.trim()} className="ml-auto shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
+                      {sendingInvite ? "보내는 중…" : "초대 보내기"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 대기 중 초대 */}
+              {invites.length ? (
+                <TCard className="mt-3 divide-y divide-[#F2F4F6]">
+                  {invites.map((inv) => (
+                    <div key={inv.id} className="flex items-center gap-3 px-5 py-3.5">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F2F4F6] text-[#8B95A1]"><EnvelopeSimple className="h-4 w-4" /></span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13.5px] font-bold text-[#191F28]">{inv.email}</p>
+                        <p className="mt-0.5 text-[12px] text-[#8B95A1]">{inv.expired ? "만료됨" : "초대 대기 중"} · {ORG_ROLE_LABEL[inv.partnerOrgRole].label}</p>
+                      </div>
+                      <button type="button" onClick={() => revokeInvite(inv.id)} aria-label="초대 취소" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#8B95A1] transition hover:bg-[#FDECEE] hover:text-[#F04452]"><X className="h-4 w-4" weight="bold" /></button>
+                    </div>
+                  ))}
+                </TCard>
+              ) : null}
+
+              {/* 또는 초대 코드 (보조) */}
+              <div className="mt-3">
+                {inviteCode ? (
+                  <>
+                    <div className="flex items-center gap-3 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] px-4 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-bold text-[#8B95A1]">초대 코드</p>
+                        <p className="truncate text-[16px] font-black tracking-[0.04em] text-[#0B1227]">{inviteCode}</p>
+                      </div>
+                      <button type="button" onClick={copyInvite} className="shrink-0 rounded-lg bg-white px-3 py-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]">복사</button>
+                    </div>
+                    <p className="mt-1.5 text-[12px] text-[#8B95A1]">가입 후 코드를 입력하면 합류해요. 이메일 초대가 더 간편해요.</p>
+                  </>
+                ) : (
+                  <button type="button" onClick={makeInvite} disabled={inviting} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#EEF1F5] bg-white py-3 text-[13px] font-bold text-[#8B95A1] transition hover:bg-[#F6F8FB] disabled:opacity-50">
+                    <UserPlus className="h-4 w-4" weight="bold" /> {inviting ? "생성 중…" : "또는 초대 코드로 공유"}
+                  </button>
+                )}
+              </div>
+            </>
+          ) : null}
         </section>
 
         {/* 언어 */}
