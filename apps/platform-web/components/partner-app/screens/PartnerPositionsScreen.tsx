@@ -208,6 +208,14 @@ function fmtDate(d: string | null): string | null {
   return `${t.getMonth() + 1}월 ${t.getDate()}일`;
 }
 
+// 비자 값 → 사람이 읽는 라벨. 저장된 원시 코드/센티넬(NO_VISA_REQUIRED 등)을 한글로.
+function visaLabel(v: string): string {
+  const c = v.trim().toUpperCase().replace(/_/g, "-");
+  if (c === "NO-VISA-REQUIRED") return "무관";
+  if (c === "FOREIGNER-FRIENDLY") return "외국인 환영";
+  return c; // 비자 코드(D-2, E-7 등)는 그대로
+}
+
 function PositionCard({ p, applicants, mockCount, onSetStatus }: { p: PartnerPosition; applicants: number; mockCount: number; onSetStatus: (id: string, next: PositionQuickStatus) => void }) {
   const router = useRouter();
   // 이미 승인·게시 이력이 있는 상태(OPEN/PAUSED/CLOSED) 사이의 빠른 전환만 노출(신규 검토는 에디터에서).
@@ -228,7 +236,8 @@ function PositionCard({ p, applicants, mockCount, onSetStatus }: { p: PartnerPos
 
   // 핵심 메타 — 칩 나열 대신 · 구분 텍스트 한두 줄로 담백하게.
   const metaPrimary = [EMPLOYMENT_LABEL[p.employmentType], p.workType ? WORKTYPE_LABEL[p.workType] : null, p.workLocation || null, start ? `${start} 시작` : null].filter(Boolean).join(" · ");
-  const metaVisa = visas.length ? `비자 ${visas.slice(0, 3).join("·")}${visas.length > 3 ? ` +${visas.length - 3}` : ""}` : "";
+  const visaLabels = visas.map(visaLabel);
+  const metaVisa = visaLabels.length ? `비자 ${visaLabels.slice(0, 3).join("·")}${visaLabels.length > 3 ? ` +${visaLabels.length - 3}` : ""}` : "";
   const metaLang = langs.length ? `언어 ${langs.slice(0, 3).join("·")}${langs.length > 3 ? ` +${langs.length - 3}` : ""}` : "";
   const metaSub = [metaVisa, metaLang].filter(Boolean).join("   ·   ");
 

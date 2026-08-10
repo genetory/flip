@@ -87,9 +87,13 @@ function formatEligibleVisasForList(codes: string[], locale: PlatformLocale) {
     locale === "ko" ? "무관" : locale === "zh-CN" ? "不限" : locale === "vi" ? "Không giới hạn" : locale === "ja" ? "制限なし" : locale === "id" ? "Tidak ada batasan" : "No restriction";
   if (codes.length === 0) return noRestriction;
   const set = new Set(codes);
+  // NO_VISA_REQUIRED 센티넬은 '무관'으로(원시 코드 노출 방지).
+  if (set.has("NO_VISA_REQUIRED")) return noRestriction;
   const isAllSelected = ALL_VISA_CODES.every((code) => set.has(code));
   if (isAllSelected) return noRestriction;
-  return codes.join(", ");
+  // FOREIGNER_FRIENDLY 는 비자 종류가 아니므로 목록에서 제외.
+  const shown = codes.filter((c) => c !== "FOREIGNER_FRIENDLY");
+  return shown.length ? shown.join(", ") : noRestriction;
 }
 
 function mapVisaTypeToCode(visaType: string | null | undefined) {
