@@ -286,7 +286,7 @@ function PositionCard({ p, applicants, newApplicants, mockCount, onSetStatus }: 
               e.stopPropagation();
               router.push(`${partnerRoutes.applicants}?position=${encodeURIComponent(p.id)}`);
             }}
-            className="flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
+            className="-mx-2.5 flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
           >
             지원 {applicants}명
             {newApplicants > 0 ? <span className="rounded-full bg-[#F04452] px-1.5 py-px text-[10.5px] font-bold text-white">신규 {newApplicants}</span> : null}
@@ -300,7 +300,7 @@ function PositionCard({ p, applicants, newApplicants, mockCount, onSetStatus }: 
                 e.stopPropagation();
                 router.push(`${partnerRoutes.applicants}?position=${encodeURIComponent(p.id)}&tab=mock`);
               }}
-              className="flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
+              className="-mx-2.5 flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
             >
               <Microphone className="h-4 w-4" weight="fill" /> 모의 {mockCount}명
             </button>
