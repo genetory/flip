@@ -122,7 +122,7 @@ export default function LaunchDiagnosisPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-white">
       <CareerLaunchHeader />
       <main className="flex-1">
         <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-5xl flex-col px-5 pb-4 pt-4 md:pt-6">
@@ -142,12 +142,10 @@ export default function LaunchDiagnosisPage() {
               </button>
             ) : null}
           </div>
-          <div className="mt-3 flex items-center gap-2.5">
-            <span className="flex h-9 w-9 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1.5" /></span>
-            <div>
-              <p className="text-[15px] font-black text-[#0B1227]">{t("취업 준비 상태 자가진단", "Job-Readiness Self-Diagnosis", "求职准备状态自我诊断", "Tự chẩn đoán mức độ sẵn sàng xin việc", "就職準備状態のセルフ診断", "Diagnosis Mandiri Kesiapan Karier")}</p>
-              <p className="text-[12px] text-[#8B95A1]">{t("AI 코치와 대화하면 준비도를 알려드려요", "Chat with the AI coach and we'll tell you your readiness", "与 AI 教练对话，我们会告诉你准备程度", "Trò chuyện với huấn luyện viên AI và chúng tôi sẽ cho bạn biết mức độ sẵn sàng", "AIコーチと話すと準備度をお伝えします", "Mengobrol dengan pelatih AI dan kami akan memberi tahu tingkat kesiapanmu")} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
-            </div>
+          <div className="mt-3.5">
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("1주차 · 진단", "Week 1 · Diagnosis", "第1周 · 诊断", "Tuần 1 · Chẩn đoán", "Week 1 · 診断", "Minggu 1 · Diagnosis")}</p>
+            <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("취업 준비 상태 자가진단", "Job-Readiness Self-Diagnosis", "求职准备状态自我诊断", "Tự chẩn đoán mức độ sẵn sàng xin việc", "就職準備状態のセルフ診断", "Diagnosis Mandiri Kesiapan Karier")}</h1>
+            <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("AI 코치와 대화하면 준비도를 알려드려요", "Chat with the AI coach and we'll tell you your readiness", "与 AI 教练对话，我们会告诉你准备程度", "Trò chuyện với huấn luyện viên AI và chúng tôi sẽ cho bạn biết mức độ sẵn sàng", "AIコーチと話すと準備度をお伝えします", "Mengobrol dengan pelatih AI dan kami akan memberi tahu tingkat kesiapanmu")} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
           </div>
 
           {/* 대화 */}
@@ -179,22 +177,25 @@ export default function LaunchDiagnosisPage() {
 
             {/* 진단 결과 카드 */}
             {result ? (
-              <Card className="md:!p-5">
+              <Card className="md:!p-6">
                 <div className="text-center">
-                  <p className="text-[12.5px] font-semibold text-[#8B95A1]">{t("나의 취업 준비도", "My Job-Readiness", "我的求职准备度", "Mức sẵn sàng xin việc của tôi", "私の就職準備度", "Tingkat Kesiapan Karierku")}</p>
-                  <p className="mt-0.5 text-[38px] font-black leading-none text-[#0B46E8]">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("나의 취업 준비도", "My Job-Readiness", "我的求职准备度", "Mức sẵn sàng xin việc của tôi", "私の就職準備度", "Tingkat Kesiapan Karierku")}</p>
+                  <p className="mt-1.5 text-[42px] font-black leading-none tracking-[-0.02em] text-[#0B46E8]">
                     {result.percent}
                     <span className="text-[20px]">%</span>
                   </p>
                   {result.level ? <p className="mt-2 text-[13.5px] font-bold text-[#191F28]">{result.level}</p> : null}
+                  <div className="mx-auto mt-4 h-1.5 max-w-[280px] overflow-hidden rounded-full bg-[#EEF1F5]">
+                    <div className="h-full rounded-full bg-[#0B46E8] transition-[width] duration-700" style={{ width: `${Math.max(0, Math.min(100, result.percent))}%` }} />
+                  </div>
                 </div>
                 {result.strengths.length > 0 ? (
-                  <div className="mt-4">
-                    <p className="text-[12px] font-bold text-[#3A6B00]">{t("강점", "Strengths", "优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
+                  <div className="mt-6 border-t border-[#F2F4F6] pt-5">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#0A9B59]">{t("강점", "Strengths", "优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
                     <ul className="mt-1.5 space-y-1">
                       {result.strengths.map((s, i) => (
                         <li key={i} className="flex gap-1.5 text-[13px] leading-relaxed text-[#333D4B]">
-                          <span className="text-[#3A6B00]">✓</span>
+                          <span className="text-[#0A9B59]">✓</span>
                           {s}
                         </li>
                       ))}
@@ -202,8 +203,8 @@ export default function LaunchDiagnosisPage() {
                   </div>
                 ) : null}
                 {result.improvements.length > 0 ? (
-                  <div className="mt-3">
-                    <p className="text-[12px] font-bold text-[#0B46E8]">{t("이번 4주에 집중하면 좋은 점", "Worth focusing on over these 4 weeks", "接下来 4 周值得重点关注的地方", "Điều nên tập trung trong 4 tuần này", "この4週間で集中すると良い点", "Hal yang baik difokuskan selama 4 minggu ini")}</p>
+                  <div className="mt-5 border-t border-[#F2F4F6] pt-5">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#0B46E8]">{t("이번 4주에 집중하면 좋은 점", "Worth focusing on over these 4 weeks", "接下来 4 周值得重点关注的地方", "Điều nên tập trung trong 4 tuần này", "この4週間で集中すると良い点", "Hal yang baik difokuskan selama 4 minggu ini")}</p>
                     <ul className="mt-1.5 space-y-1">
                       {result.improvements.map((s, i) => (
                         <li key={i} className="flex gap-1.5 text-[13px] leading-relaxed text-[#333D4B]">
