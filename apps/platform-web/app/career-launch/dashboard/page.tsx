@@ -205,7 +205,7 @@ export default function LaunchDashboardPage() {
               <div className="min-w-0">
                 <p className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("다음 할 일", "Your next step", "下一步", "Việc tiếp theo", "次にやること", "Langkah berikutnya")}</p>
                 <p className="mt-1.5 truncate text-[16.5px] font-bold text-white md:text-[18px]">
-                  Week {nextWeek.week} · {WEEK_DELIVERABLE[nextWeek.week]}
+                  {t(`${nextWeek.week}주차`, `Week ${nextWeek.week}`, `第${nextWeek.week}周`, `Tuần ${nextWeek.week}`, `${nextWeek.week}週目`, `Minggu ${nextWeek.week}`)} · {WEEK_DELIVERABLE[nextWeek.week]}
                 </p>
               </div>
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-[17px] text-white transition group-hover:bg-white/20 group-hover:translate-x-0.5">→</span>
@@ -324,7 +324,7 @@ export default function LaunchDashboardPage() {
                       : t("시작 전", "Not started", "未开始", "Chưa bắt đầu", "未開始", "Belum mulai");
                     const inner = (
                       <div className="flex items-center gap-4 py-5">
-                        <span className={`w-9 shrink-0 text-[13px] font-black ${unlocked ? "text-[#191F28]" : "text-[#D7DCE3]"}`}>{unlocked ? `W${w.week}` : "🔒"}</span>
+                        <span className={`w-14 shrink-0 text-[13px] font-black ${unlocked ? "text-[#191F28]" : "text-[#D7DCE3]"}`}>{unlocked ? t(`${w.week}주차`, `Week ${w.week}`, `第${w.week}周`, `Tuần ${w.week}`, `${w.week}週目`, `Minggu ${w.week}`) : "🔒"}</span>
                         <div className="min-w-0 flex-1">
                           <p className={`truncate text-[15.5px] font-bold tracking-[-0.01em] ${unlocked ? "text-[#191F28]" : "text-[#B0B8C1]"}`}>{weekText(w.week, "title")}</p>
                           <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">
