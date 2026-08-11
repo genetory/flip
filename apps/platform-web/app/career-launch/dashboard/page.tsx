@@ -206,9 +206,9 @@ export default function LaunchDashboardPage() {
               {t("← 운영자 콘솔 · 지금은 학생 화면 체험 중", "← Operator console · Now previewing the student view", "← 运营者控制台 · 当前正在预览学生页面", "← Bảng điều khiển quản trị · Đang xem thử giao diện học viên", "← 運営者コンソール · 現在は学生画面をプレビュー中", "← Konsol operator · Sedang melihat tampilan siswa")}
             </Link>
           ) : null}
-          {/* 인사 히어로 — 뉴트럴 패널 + 원형 진행 링(완주 시 문구만 전환) */}
+          {/* 인사 히어로 — 카드 없이, 원형 진행 링(완주 시 문구만 전환) */}
           <Reveal>
-          <div className="mt-1 rounded-3xl border border-[#EEF1F5] bg-[#FAFBFC] p-6 md:p-8">
+          <div className="pt-2 md:pt-4">
             <div className="flex items-center gap-4 md:gap-6">
               <div className="min-w-0 flex-1">
                 <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{overall === 100 ? t("수료 완료", "Completed", "已结业", "Đã hoàn thành", "修了", "Selesai") : (cohortLabel || t("글로벌 커리어 런치", "Global Career Launch", "全球职业启航", "Global Career Launch", "グローバルキャリアローンチ", "Global Career Launch"))}</p>
