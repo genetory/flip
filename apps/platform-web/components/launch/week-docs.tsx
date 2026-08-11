@@ -79,7 +79,7 @@ function DocThumb({ children, href, moreLabel }: { children: ReactNode; href: st
   return (
     <div className="mt-1 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
       <div className="relative mx-auto w-full max-w-[340px]">
-        <div className="relative max-h-[430px] overflow-hidden rounded-lg border border-[#E5E8EB] bg-white shadow-[0_2px_14px_rgba(11,18,39,0.06)]">
+        <div className="relative aspect-[210/297] overflow-hidden rounded-lg border border-[#E5E8EB] bg-white shadow-[0_2px_14px_rgba(11,18,39,0.06)]">
           {children}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white via-white/85 to-transparent" />
         </div>
