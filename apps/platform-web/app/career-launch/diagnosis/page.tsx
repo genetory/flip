@@ -195,7 +195,7 @@ export default function LaunchDiagnosisPage() {
                 <div className="mt-3">
                   {/* 막힐 때 빠른 응답 + 넘어가기 */}
                   {messages.length > 0 && !loading ? (
-                    <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
                       {[
                         { label: t("잘 모르겠어요", "I'm not sure", "我不太清楚", "Tôi không chắc", "よく分かりません", "Saya kurang yakin"), send: "잘 모르겠어요" },
                         { label: t("아직 준비 안 됐어요", "I'm not ready yet", "我还没准备好", "Tôi chưa sẵn sàng", "まだ準備できていません", "Saya belum siap"), send: "아직 준비 안 됐어요" },
