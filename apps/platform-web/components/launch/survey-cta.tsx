@@ -108,14 +108,17 @@ export function CareerSurveyCta({ data }: { data: LaunchData }) {
         };
 
   return (
-    <div className="mt-4 rounded-2xl border border-[#F0B429]/40 bg-[#FFF9EC] px-5 py-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[12px] font-bold text-[#B7791F]">📋 {copy.tag}</p>
-          <p className="mt-0.5 text-[15px] font-black text-[#0B1227]">{copy.title}</p>
-          <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#8A6D1F]">{copy.desc}</p>
+    <div className="mt-4 rounded-2xl border border-[#F1E3B5] bg-[#FEFBF1] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3.5">
+          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-[#F0B429]/15 text-[20px]" aria-hidden>📋</span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#B7791F]">{copy.tag}</p>
+            <p className="mt-1 text-[15px] font-black text-[#0B1227]">{copy.title}</p>
+            <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#8A6D1F]">{copy.desc}</p>
+          </div>
         </div>
-        <div className="flex flex-none items-center gap-2">
+        <div className="ml-auto flex flex-none items-center gap-1.5">
           <a
             href={url}
             target="_blank"
@@ -124,14 +127,14 @@ export function CareerSurveyCta({ data }: { data: LaunchData }) {
               trackCareerFunnel(kind === "final" ? "survey_final_clicked" : "survey_mid_clicked");
               dismiss(kind!);
             }}
-            className="rounded-xl bg-[#F0B429] px-4 py-2 text-[13.5px] font-bold text-white transition hover:bg-[#E0A420]"
+            className="inline-flex items-center gap-1 rounded-xl bg-[#F0B429] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#E0A420]"
           >
             {t("설문 참여하기", "Take the survey", "参与问卷", "Tham gia khảo sát", "アンケートに回答", "Ikuti survei")} ↗
           </a>
           <button
             type="button"
             onClick={() => dismiss(kind!)}
-            className="rounded-xl px-2 py-2 text-[12.5px] font-semibold text-[#B7791F]/70 transition hover:text-[#B7791F]"
+            className="rounded-xl px-2.5 py-2.5 text-[12.5px] font-semibold text-[#B7791F]/70 transition hover:text-[#B7791F]"
           >
             {t("나중에", "Later", "稍后", "Để sau", "後で", "Nanti")}
           </button>

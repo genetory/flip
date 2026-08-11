@@ -181,47 +181,34 @@ export default function LaunchDashboardPage() {
               {t("← 운영자 콘솔 · 지금은 학생 화면 체험 중", "← Operator console · Now previewing the student view", "← 运营者控制台 · 当前正在预览学生页面", "← Bảng điều khiển quản trị · Đang xem thử giao diện học viên", "← 運営者コンソール · 現在は学生画面をプレビュー中", "← Konsol operator · Sedang melihat tampilan siswa")}
             </Link>
           ) : null}
-          {/* 인사 + 전체 진행률 (완주 시 축하 히어로로 전환) */}
+          {/* 인사 히어로 — 뉴트럴 패널 + 원형 진행 링(완주 시 문구만 전환) */}
           <Reveal>
-          {overall === 100 ? (
-            <div className="pt-2 md:pt-4">
-              <p className="text-[13px] font-medium text-[#8B95A1]">{t("수료 완료", "Completed", "已结业", "Đã hoàn thành", "修了", "Selesai")}</p>
-              <h1 className="mt-2 break-keep text-[27px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[34px]">{t(`${displayName}님, 완주를 축하해요`, `Congrats on finishing, ${displayName}`, `${displayName}，恭喜你顺利完成`, `Chúc mừng bạn đã hoàn thành, ${displayName}`, `${displayName}さん、完走おめでとうございます`, `Selamat telah menyelesaikan, ${displayName}`)}</h1>
-              <p className="mt-3 max-w-[520px] break-keep text-[14.5px] leading-relaxed text-[#4E5968] md:text-[15.5px]">{t("이력서·자기소개서를 완성하고 면접 준비까지 마쳤어요. 이제 자신 있게 지원해봐요.", "You've finished your resume and cover letter, and prepped for interviews. Now apply with confidence.", "你已完成简历和求职信，也做好了面试准备。现在充满信心地去投递吧。", "Bạn đã hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị xong cho phỏng vấn. Giờ hãy tự tin ứng tuyển nhé.", "履歴書・自己紹介書を完成させ、面接準備まで終えました。これからは自信を持って応募しましょう。", "Kamu sudah menyelesaikan resume dan cover letter, serta menyiapkan wawancara. Sekarang lamar dengan percaya diri.")}</p>
-              <div className="mt-7 flex items-center gap-4">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EEF1F5]"><div className="h-full rounded-full bg-[#191F28]" style={{ width: "100%" }} /></div>
-                <span className="shrink-0 text-[13px] font-bold tabular-nums text-[#191F28]">{doneSteps}<span className="text-[#B0B8C1]">/{totalSteps}</span></span>
+          <div className="mt-1 rounded-3xl border border-[#EEF1F5] bg-[#FAFBFC] p-6 md:p-8">
+            <div className="flex items-center gap-4 md:gap-6">
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{overall === 100 ? t("수료 완료", "Completed", "已结业", "Đã hoàn thành", "修了", "Selesai") : (cohortLabel || t("글로벌 커리어 런치", "Global Career Launch", "全球职业启航", "Global Career Launch", "グローバルキャリアローンチ", "Global Career Launch"))}</p>
+                <h1 className="mt-2 break-keep text-[23px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[30px]">{overall === 100 ? t(`${displayName}님, 완주를 축하해요`, `Congrats on finishing, ${displayName}`, `${displayName}，恭喜你顺利完成`, `Chúc mừng bạn đã hoàn thành, ${displayName}`, `${displayName}さん、完走おめでとうございます`, `Selamat telah menyelesaikan, ${displayName}`) : t(`${displayName}님, 반가워요`, `Welcome, ${displayName}`, `${displayName}，欢迎你`, `Chào mừng bạn, ${displayName}`, `${displayName}さん、ようこそ`, `Selamat datang, ${displayName}`)}</h1>
+                <p className="mt-2.5 break-keep text-[14px] leading-relaxed text-[#4E5968] md:text-[15px]">{overall === 100 ? t("이력서·자기소개서를 완성하고 면접 준비까지 마쳤어요. 이제 자신 있게 지원해봐요.", "You've finished your resume and cover letter, and prepped for interviews. Now apply with confidence.", "你已完成简历和求职信，也做好了面试准备。现在充满信心地去投递吧。", "Bạn đã hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị xong cho phỏng vấn. Giờ hãy tự tin ứng tuyển nhé.", "履歴書・自己紹介書を完成させ、面接準備まで終えました。これからは自信を持って応募しましょう。", "Kamu sudah menyelesaikan resume dan cover letter, serta menyiapkan wawancara. Sekarang lamar dengan percaya diri.") : t("4주 동안 이력서·자기소개서를 완성하고 면접까지 준비해요.", "Over 4 weeks, you'll complete your resume and cover letter, and prepare for interviews.", "在4周内完成简历和求职信，并准备好面试。", "Trong 4 tuần, bạn sẽ hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị cho phỏng vấn.", "4週間で履歴書・自己紹介書を完成させ、面接まで準備します。", "Selama 4 minggu, kamu akan menyelesaikan resume dan cover letter, serta menyiapkan wawancara.")}</p>
               </div>
+              <HeroProgress pct={overall} done={doneSteps} total={totalSteps} />
             </div>
-          ) : (
-            <div className="pt-2 md:pt-4">
-              <p className="text-[13px] font-medium text-[#8B95A1]">{cohortLabel || t("글로벌 커리어 런치", "Global Career Launch", "全球职业启航", "Global Career Launch", "グローバルキャリアローンチ", "Global Career Launch")}</p>
-              <h1 className="mt-2 break-keep text-[27px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[34px]">{t(`${displayName}님, 반가워요`, `Welcome, ${displayName}`, `${displayName}，欢迎你`, `Chào mừng bạn, ${displayName}`, `${displayName}さん、ようこそ`, `Selamat datang, ${displayName}`)}</h1>
-              <p className="mt-3 max-w-[520px] break-keep text-[14.5px] leading-relaxed text-[#4E5968] md:text-[15.5px]">{t("4주 동안 이력서·자기소개서를 완성하고 면접까지 준비해요.", "Over 4 weeks, you'll complete your resume and cover letter, and prepare for interviews.", "在4周内完成简历和求职信，并准备好面试。", "Trong 4 tuần, bạn sẽ hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị cho phỏng vấn.", "4週間で履歴書・自己紹介書を完成させ、面接まで準備します。", "Selama 4 minggu, kamu akan menyelesaikan resume dan cover letter, serta menyiapkan wawancara.")}</p>
-              <div className="mt-7 flex items-center gap-4">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EEF1F5]">
-                  <div className="h-full rounded-full bg-[#191F28] transition-[width] duration-500" style={{ width: `${overall}%` }} />
-                </div>
-                <span className="shrink-0 text-[13px] font-bold tabular-nums text-[#191F28]">{doneSteps}<span className="text-[#B0B8C1]">/{totalSteps}</span></span>
-              </div>
-            </div>
-          )}
+          </div>
           </Reveal>
 
-          {/* 다음 할 일 — 열려 있고 미완료인 첫 주차로 바로 이동 */}
+          {/* 다음 할 일 — 흑백 다크 CTA(주 액션 강조), 미완료 첫 주차로 이동 */}
           {overall < 100 && nextWeek ? (
             <Reveal delayMs={80}>
             <Link
               href={`/career-launch/week/${nextWeek.week}`}
-              className="group mt-8 flex items-center justify-between gap-4 rounded-2xl border border-[#E5E8EB] p-5 transition hover:border-[#191F28]/30"
+              className="group mt-3 flex items-center justify-between gap-4 rounded-2xl bg-[#191F28] p-5 transition hover:bg-[#0B1227] md:p-6"
             >
               <div className="min-w-0">
-                <p className="text-[12px] font-medium text-[#8B95A1]">{t("다음 할 일", "Your next step", "下一步", "Việc tiếp theo", "次にやること", "Langkah berikutnya")}</p>
-                <p className="mt-1 truncate text-[16px] font-bold text-[#191F28]">
+                <p className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("다음 할 일", "Your next step", "下一步", "Việc tiếp theo", "次にやること", "Langkah berikutnya")}</p>
+                <p className="mt-1.5 truncate text-[16.5px] font-bold text-white md:text-[18px]">
                   Week {nextWeek.week} · {WEEK_DELIVERABLE[nextWeek.week]}
                 </p>
               </div>
-              <span className="shrink-0 text-[18px] text-[#191F28] transition group-hover:translate-x-0.5">→</span>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-[17px] text-white transition group-hover:bg-white/20 group-hover:translate-x-0.5">→</span>
             </Link>
             </Reveal>
           ) : null}
@@ -436,6 +423,36 @@ function DeliverableCard({ title, ready, previewHref, doneMsg, emptyMsg }: { tit
             {t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
           </Link>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+// 히어로 원형 진행 링 — 흑백, 중앙에 전체 % + 스텝 수.
+function HeroProgress({ pct, done, total }: { pct: number; done: number; total: number }) {
+  const r = 30;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - Math.max(0, Math.min(100, pct)) / 100);
+  return (
+    <div className="relative flex h-[76px] w-[76px] shrink-0 items-center justify-center md:h-[88px] md:w-[88px]">
+      <svg viewBox="0 0 72 72" className="h-full w-full -rotate-90" aria-hidden>
+        <circle cx="36" cy="36" r={r} fill="none" stroke="#E5E8EB" strokeWidth="6" />
+        <circle
+          cx="36"
+          cy="36"
+          r={r}
+          fill="none"
+          stroke="#191F28"
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          className="transition-[stroke-dashoffset] duration-700"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center leading-none">
+        <span className="text-[16px] font-black tabular-nums text-[#191F28] md:text-[18px]">{pct}%</span>
+        <span className="mt-1 text-[10px] font-semibold tabular-nums text-[#B0B8C1]">{done}/{total}</span>
       </div>
     </div>
   );
