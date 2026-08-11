@@ -266,14 +266,20 @@ export default function LaunchDashboardPage() {
             {/* ── 프로그램 소개 (맨 위, 펼침) ── */}
             <div>
                 <SectionTitle>{t("프로그램 소개", "About the program", "项目介绍", "Giới thiệu chương trình", "プログラム紹介", "Tentang program")}</SectionTitle>
-                <Card className="md:!p-6">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/img_global_career_launch.webp" alt="Global Career Launch" className="mb-4 h-auto w-full rounded-xl" />
-                  <p className="text-[15px] font-black text-[#0B1227] md:text-[16px]">{t("AI 코치와 함께하는 4주 취업 완성 부트캠프", "A 4-week job-prep bootcamp with your AI coach", "与AI教练一起完成的4周求职训练营", "Bootcamp chuẩn bị việc làm 4 tuần cùng AI coach", "AIコーチと一緒に取り組む4週間就職完成ブートキャンプ", "Bootcamp persiapan kerja 4 minggu bersama AI coach")}</p>
-                  <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">
+                <article className="overflow-hidden rounded-3xl border border-[#EEF1F5] bg-white">
+                  {/* 커버 — 매거진 배너(높이 고정으로 과대 노출 방지) */}
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/img_global_career_launch.webp" alt="Global Career Launch" className="h-[176px] w-full object-cover sm:h-[220px] md:h-[264px]" />
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" />
+                    <p className="absolute bottom-4 left-5 text-[11px] font-bold uppercase tracking-[0.16em] text-white/90 md:left-7">Global Career Launch</p>
+                  </div>
+                  <div className="p-5 md:p-7">
+                  <h3 className="break-keep text-[20px] font-black leading-[1.32] tracking-[-0.02em] text-[#0B1227] md:text-[23px]">{t("AI 코치와 함께하는 4주 취업 완성 부트캠프", "A 4-week job-prep bootcamp with your AI coach", "与AI教练一起完成的4周求职训练营", "Bootcamp chuẩn bị việc làm 4 tuần cùng AI coach", "AIコーチと一緒に取り組む4週間就職完成ブートキャンプ", "Bootcamp persiapan kerja 4 minggu bersama AI coach")}</h3>
+                  <p className="mt-3 break-keep text-[14px] leading-[1.75] text-[#4E5968] md:text-[14.5px]">
                     {t("한국 취업을 준비하는 외국인 유학생을 위한 프로그램이에요. 혼자서는 막막한 취업 준비를 AI 코치가 옆에서 이끌어줘요. 취업 준비 상태 진단부터 직무 방향 설정, 대화만으로 완성하는 이력서·자기소개서, 그리고 유형별 모의면접까지 — 4주 동안 하나씩 밟아가며 완주해요.", "This program is for international students preparing to work in Korea. Job prep can feel overwhelming on your own, so an AI coach guides you every step of the way. From diagnosing where you stand and setting your career direction, to building your resume and cover letter just by chatting, to mock interviews by type — you'll complete it step by step over 4 weeks.", "这是为准备在韩国就业的外国留学生打造的项目。独自准备求职难免感到迷茫，AI教练会一路陪伴引导你。从诊断你的求职准备状态、确定职业方向，到只需对话就能完成的简历与求职信，再到分类型的模拟面试——4周内一步步完成。", "Đây là chương trình dành cho du học sinh nước ngoài chuẩn bị làm việc tại Hàn Quốc. Chuẩn bị việc làm một mình có thể rất mông lung, nên AI coach sẽ đồng hành và dẫn dắt bạn từng bước. Từ chẩn đoán tình trạng chuẩn bị, định hướng nghề nghiệp, hoàn thành hồ sơ và thư tự giới thiệu chỉ bằng trò chuyện, đến phỏng vấn thử theo từng loại — bạn sẽ hoàn thành từng bước trong 4 tuần.", "韓国での就職を目指す外国人留学生のためのプログラムです。一人では途方に暮れがちな就職準備を、AIコーチが隣で導いてくれます。就職準備状況の診断から職務の方向性設定、会話だけで完成する履歴書・自己紹介書、そしてタイプ別の模擬面接まで — 4週間で一つずつ進めて完走します。", "Program ini untuk mahasiswa asing yang bersiap bekerja di Korea. Persiapan kerja bisa terasa membingungkan jika sendirian, jadi AI coach akan membimbingmu di setiap langkah. Mulai dari diagnosis kesiapan, menentukan arah karier, menyusun resume dan cover letter hanya lewat percakapan, hingga simulasi wawancara per jenis — kamu akan menyelesaikannya langkah demi langkah selama 4 minggu.")}
                   </p>
-                  <div className="mt-3.5 flex flex-wrap gap-2">
+                  <div className="mt-5 flex flex-wrap gap-2">
                     {[
                       { e: "💬", t: t("대화로 만드는 이력서·자기소개서", "Resume & cover letter built through conversation", "对话即可完成简历与求职信", "Hồ sơ & thư tự giới thiệu tạo qua trò chuyện", "会話で作る履歴書・自己紹介書", "Resume & cover letter dari percakapan") },
                       { e: "🎓", t: t("주간 세미나", "Weekly seminar", "每周研讨会", "Hội thảo hằng tuần", "週間セミナー", "Seminar mingguan") },
@@ -286,36 +292,38 @@ export default function LaunchDashboardPage() {
                     ))}
                   </div>
 
-                  {/* 4주 후 얻는 것 */}
-                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
-                    <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("4주 후, 이런 걸 완성해요", "After 4 weeks, here's what you'll have", "4周后，你将完成这些", "Sau 4 tuần, đây là những gì bạn có", "4週間後、こんなものが完成します", "Setelah 4 minggu, inilah yang kamu miliki")}</p>
-                    <div className="mt-2.5 grid grid-cols-2 gap-2">
+                  {/* 4주 후 얻는 것 — 넘버드 매거진 리스트 */}
+                  <div className="mt-7 border-t border-[#F2F4F6] pt-6">
+                    <p className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("4주 후, 이런 걸 완성해요", "After 4 weeks, here's what you'll have", "4周后，你将完成这些", "Sau 4 tuần, đây là những gì bạn có", "4週間後、こんなものが完成します", "Setelah 4 minggu, inilah yang kamu miliki")}</p>
+                    <ol className="mt-3.5 space-y-3.5">
                       {[
-                        { e: "🧭", t: t("취업 준비도 진단 · 직무 방향", "Job-readiness diagnosis · Career direction", "求职准备度诊断 · 职业方向", "Chẩn đoán mức độ sẵn sàng · Định hướng nghề nghiệp", "就職準備度診断・職務の方向性", "Diagnosis kesiapan kerja · Arah karier") },
-                        { e: "📄", t: t("기업에 낼 대표 이력서", "A master resume to send to companies", "可投递企业的标准简历", "Hồ sơ chính để gửi cho công ty", "企業に提出するメイン履歴書", "Resume utama untuk dikirim ke perusahaan") },
-                        { e: "📝", t: t("회사 맞춤 자기소개서", "A cover letter tailored to each company", "针对公司量身定制的求职信", "Thư tự giới thiệu phù hợp từng công ty", "会社に合わせた自己紹介書", "Cover letter yang disesuaikan tiap perusahaan") },
-                        { e: "🎤", t: t("유형별 모의면접 · 실전 준비", "Mock interviews by type · Real-world prep", "分类型模拟面试 · 实战准备", "Phỏng vấn thử theo loại · Chuẩn bị thực chiến", "タイプ別模擬面接・実践準備", "Simulasi wawancara per jenis · Persiapan nyata") }
-                      ].map((o) => (
-                        <div key={o.t} className="flex items-center gap-2 rounded-xl bg-[#F7F8FA] px-3 py-2.5">
-                          <span className="break-keep text-[12.5px] font-semibold text-[#333D4B]">{o.t}</span>
-                        </div>
+                        t("취업 준비도 진단 · 직무 방향", "Job-readiness diagnosis · Career direction", "求职准备度诊断 · 职业方向", "Chẩn đoán mức độ sẵn sàng · Định hướng nghề nghiệp", "就職準備度診断・職務の方向性", "Diagnosis kesiapan kerja · Arah karier"),
+                        t("기업에 낼 대표 이력서", "A master resume to send to companies", "可投递企业的标准简历", "Hồ sơ chính để gửi cho công ty", "企業に提出するメイン履歴書", "Resume utama untuk dikirim ke perusahaan"),
+                        t("회사 맞춤 자기소개서", "A cover letter tailored to each company", "针对公司量身定制的求职信", "Thư tự giới thiệu phù hợp từng công ty", "会社に合わせた自己紹介書", "Cover letter yang disesuaikan tiap perusahaan"),
+                        t("유형별 모의면접 · 실전 준비", "Mock interviews by type · Real-world prep", "分类型模拟面试 · 实战准备", "Phỏng vấn thử theo loại · Chuẩn bị thực chiến", "タイプ別模擬面接・実践準備", "Simulasi wawancara per jenis · Persiapan nyata")
+                      ].map((label, i) => (
+                        <li key={label} className="flex gap-4">
+                          <span className="mt-px w-6 shrink-0 text-[13px] font-black tabular-nums text-[#0B46E8]">{String(i + 1).padStart(2, "0")}</span>
+                          <span className="break-keep text-[13.5px] leading-relaxed text-[#333D4B] md:text-[14px]">{label}</span>
+                        </li>
                       ))}
-                    </div>
+                    </ol>
                   </div>
 
                   {/* 수료 조건 */}
-                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
-                    <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("수료 조건", "Completion requirements", "结业条件", "Điều kiện hoàn thành", "修了条件", "Syarat kelulusan")}</p>
-                    <ul className="mt-2.5 space-y-1.5 text-[13px] text-[#333D4B]">
+                  <div className="mt-6 border-t border-[#F2F4F6] pt-6">
+                    <p className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("수료 조건", "Completion requirements", "结业条件", "Điều kiện hoàn thành", "修了条件", "Syarat kelulusan")}</p>
+                    <ul className="mt-3 space-y-2 text-[13px] text-[#333D4B]">
                       {completionCriteria().map((c, i) => (
-                        <li key={i} className="flex gap-2">
-                          <span className="mt-0.5 flex h-4 w-4 flex-none items-center justify-center rounded-full bg-[#F2F4F6] text-[10px] font-black text-[#4E5968]">{i + 1}</span>
-                          <span className="break-keep">{c}</span>
+                        <li key={i} className="flex gap-2.5">
+                          <span className="mt-0.5 flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full bg-[#F2F4F6] text-[10px] font-black text-[#4E5968]">{i + 1}</span>
+                          <span className="break-keep leading-relaxed">{c}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
-                </Card>
+                  </div>
+                </article>
             </div>
 
             <div>
