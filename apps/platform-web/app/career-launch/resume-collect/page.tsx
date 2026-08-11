@@ -5,14 +5,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Plus, Trash, Check, CircleNotch, Eye } from "@phosphor-icons/react";
+import { Plus, Trash, Check, CircleNotch, Eye, Sparkle } from "@phosphor-icons/react";
 import { toResumeContent } from "../../../components/launch/resume-render";
 import { ResumePreview } from "../../../components/resume-maker/ResumePreview";
 import { DEFAULT_DESIGN } from "../../../lib/resume-maker-types";
 import { SectionTitle } from "../../../components/launch/ui";
+import { SectionChatModal } from "../../../components/launch/SectionChatModal";
 import {
   fetchResumeData,
   saveResumeData,
+  requestResumeChat,
   type ResumeData,
   type ResumeExperience,
   type ResumeSection
@@ -36,6 +38,9 @@ export default function ResumeCollectPage() {
   const [noExp, setNoExp] = useState(false);
   const [noOther, setNoOther] = useState(false);
   const [showPreview, setShowPreview] = useState(false); // 모바일 미리보기 토글
+  const [chatFocus, setChatFocus] = useState<ResumeSection | null>(null); // AI 대화 중인 섹션
+  const dataRef = useRef<ResumeData>(data);
+  dataRef.current = data;
 
   // 최초 로드
   useEffect(() => {
@@ -111,6 +116,28 @@ export default function ResumeCollectPage() {
   const recombineExp = (work: ResumeExperience[], other: ResumeExperience[]) =>
     commit({ ...data, experiences: [...work.map((e) => ({ ...e, kind: "work" as const })), ...other.map((e) => ({ ...e, kind: "other" as const }))] });
 
+  const aiLabel = t("AI로 채우기", "Fill with AI", "用AI填写", "Điền bằng AI", "AIで埋める", "Isi dengan AI");
+  const chatTitle: Record<ResumeSection, string> = {
+    basic: t("기본정보 대화로 채우기", "Fill basic info by chat", "对话填写基本信息", "Điền thông tin cơ bản qua chat", "会話で基本情報を入力", "Isi info dasar via chat"),
+    edu: t("학력 대화로 채우기", "Fill education by chat", "对话填写学历", "Điền học vấn qua chat", "会話で学歴を入力", "Isi pendidikan via chat"),
+    exp: t("경력 대화로 채우기", "Fill work experience by chat", "对话填写工作经历", "Điền kinh nghiệm qua chat", "会話で職歴を入力", "Isi pengalaman via chat"),
+    expOther: t("활동·프로젝트 대화로 채우기", "Fill activities by chat", "对话填写活动·项目", "Điền hoạt động qua chat", "会話で活動を入力", "Isi aktivitas via chat"),
+    skill: t("스킬 대화로 채우기", "Fill skills by chat", "对话填写技能", "Điền kỹ năng qua chat", "会話でスキルを入力", "Isi keahlian via chat"),
+    lang: t("어학 대화로 채우기", "Fill languages by chat", "对话填写语言", "Điền ngoại ngữ qua chat", "会話で語学を入力", "Isi bahasa via chat")
+  };
+  // AI 챗 호출 — 해당 섹션 focus 로 대화하고, 갱신된 전체 데이터를 빌더에 반영.
+  const chatRequest = async (history: { role: "bot" | "user"; text: string }[]) => {
+    const focus = chatFocus ?? "basic";
+    const { reply, data: d, done } = await requestResumeChat(history, dataRef.current, focus);
+    const next: ResumeData = { basic: d.basic ?? {}, educations: d.educations ?? [], experiences: d.experiences ?? [], skills: d.skills ?? [], languages: d.languages ?? [] };
+    setData(next);
+    if (focus === "exp" && (next.experiences ?? []).some((e) => (e.kind ?? "work") === "work")) setNoExp(false);
+    if (focus === "expOther" && (next.experiences ?? []).some((e) => e.kind === "other")) setNoOther(false);
+    // 섹션 스텝 완료 반영(챗 POST는 exp/expOther 외 스텝을 표시하지 않으므로 PUT 저장).
+    void saveResumeData(next, emptyDone).catch(() => {});
+    return { reply, done };
+  };
+
   if (!isReady || !loaded) {
     return (
       <div className="flex min-h-screen flex-col bg-white">
@@ -153,7 +180,10 @@ export default function ResumeCollectPage() {
             <div className="flex flex-col gap-9">
               {/* 기본정보 */}
               <section id="sec-basic">
-                <SectionTitle>{t("기본정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")}</SectionTitle>
+                <div className="mb-4 flex items-center justify-between gap-2">
+                  <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{t("기본정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")}</h2>
+                  <AiBtn onClick={() => setChatFocus("basic")} label={aiLabel} />
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label={t("이름", "Name", "姓名", "Họ tên", "氏名", "Nama")} value={data.basic?.name ?? ""} onChange={(v) => setBasic("name", v)} placeholder={t("예: 응우옌 마이", "e.g., Nguyen Mai", "例：阮梅", "VD: Nguyen Mai", "例：グエン・マイ", "Cth: Nguyen Mai")} />
                   <Field label={t("이메일", "Email", "邮箱", "Email", "メール", "Email")} value={data.basic?.email ?? ""} onChange={(v) => setBasic("email", v)} placeholder="name@email.com" />
@@ -167,7 +197,7 @@ export default function ResumeCollectPage() {
 
               {/* 학력 */}
               <section id="sec-edu">
-                <RowSectionTitle title={t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")} onAdd={() => commit({ ...data, educations: [...(data.educations ?? []), {}] })} addLabel={t("추가", "Add", "添加", "Thêm", "追加", "Tambah")} />
+                <RowSectionTitle title={t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")} onAdd={() => commit({ ...data, educations: [...(data.educations ?? []), {}] })} addLabel={t("추가", "Add", "添加", "Thêm", "追加", "Tambah")} onAi={() => setChatFocus("edu")} aiLabel={aiLabel} />
                 {(data.educations ?? []).length === 0 ? <Empty t={t} /> : null}
                 <div className="flex flex-col gap-3">
                   {(data.educations ?? []).map((edu, i) => (
@@ -192,6 +222,7 @@ export default function ResumeCollectPage() {
                 noneLabel={t("경력 없음", "No work experience", "无工作经历", "Chưa có kinh nghiệm", "職歴なし", "Belum ada pengalaman")}
                 list={workList}
                 onChange={(next) => recombineExp(next, otherList)}
+                onAi={() => setChatFocus("exp")}
                 t={t}
               />
 
@@ -204,18 +235,22 @@ export default function ResumeCollectPage() {
                 noneLabel={t("활동 없음", "No activities", "无活动", "Chưa có hoạt động", "活動なし", "Belum ada aktivitas")}
                 list={otherList}
                 onChange={(next) => recombineExp(workList, next)}
+                onAi={() => setChatFocus("expOther")}
                 t={t}
               />
 
               {/* 스킬 */}
               <section id="sec-skill">
-                <SectionTitle>{t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian")}</SectionTitle>
+                <div className="mb-4 flex items-center justify-between gap-2">
+                  <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian")}</h2>
+                  <AiBtn onClick={() => setChatFocus("skill")} label={aiLabel} />
+                </div>
                 <TagInput values={data.skills ?? []} onChange={(vals) => commit({ ...data, skills: vals })} placeholder={t("예: Python (엔터로 추가)", "e.g., Python (Enter to add)", "例：Python（回车添加）", "VD: Python (Enter để thêm)", "例：Python（Enterで追加）", "Cth: Python (Enter untuk menambah)")} />
               </section>
 
               {/* 어학 */}
               <section id="sec-lang">
-                <RowSectionTitle title={t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")} onAdd={() => commit({ ...data, languages: [...(data.languages ?? []), {}] })} addLabel={t("추가", "Add", "添加", "Thêm", "追加", "Tambah")} />
+                <RowSectionTitle title={t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")} onAdd={() => commit({ ...data, languages: [...(data.languages ?? []), {}] })} addLabel={t("추가", "Add", "添加", "Thêm", "追加", "Tambah")} onAi={() => setChatFocus("lang")} aiLabel={aiLabel} />
                 {(data.languages ?? []).length === 0 ? <Empty t={t} /> : null}
                 <div className="flex flex-col gap-3">
                   {(data.languages ?? []).map((lang, i) => (
@@ -252,6 +287,7 @@ export default function ResumeCollectPage() {
         </div>
       </main>
       <AplyFooter />
+      {chatFocus ? <SectionChatModal title={chatTitle[chatFocus]} request={chatRequest} onClose={() => setChatFocus(null)} /> : null}
     </div>
   );
 }
@@ -271,13 +307,28 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
     </div>
   );
 }
-function RowSectionTitle({ title, onAdd, addLabel }: { title: string; onAdd: () => void; addLabel: string }) {
+function AiBtn({ onClick, label }: { onClick: () => void; label: string }) {
   return (
-    <div className="mb-4 flex items-center justify-between">
+    <button type="button" onClick={onClick} className="inline-flex items-center gap-1 rounded-lg bg-[#191F28] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0B1227]">
+      <Sparkle className="h-3.5 w-3.5" weight="fill" /> {label}
+    </button>
+  );
+}
+function AddBtn({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button type="button" onClick={onClick} className="inline-flex items-center gap-1 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
+      <Plus className="h-3.5 w-3.5" weight="bold" /> {label}
+    </button>
+  );
+}
+function RowSectionTitle({ title, onAdd, addLabel, onAi, aiLabel }: { title: string; onAdd: () => void; addLabel: string; onAi?: () => void; aiLabel?: string }) {
+  return (
+    <div className="mb-4 flex items-center justify-between gap-2">
       <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{title}</h2>
-      <button type="button" onClick={onAdd} className="inline-flex items-center gap-1 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
-        <Plus className="h-3.5 w-3.5" weight="bold" /> {addLabel}
-      </button>
+      <div className="flex items-center gap-1.5">
+        {onAi ? <AiBtn onClick={onAi} label={aiLabel ?? "AI"} /> : null}
+        <AddBtn onClick={onAdd} label={addLabel} />
+      </div>
     </div>
   );
 }
@@ -295,15 +346,16 @@ function Empty({ t }: { t: ReturnType<typeof useLaunchT> }) {
   return <p className="mb-3 rounded-xl border border-dashed border-[#E5E8EB] bg-[#FAFBFC] px-4 py-3 text-[12.5px] text-[#B0B8C1]">{t("‘추가’를 눌러 항목을 채워보세요.", "Tap 'Add' to fill this in.", "点击“添加”来填写。", "Nhấn 'Thêm' để điền.", "「追加」を押して入力しましょう。", "Ketuk 'Tambah' untuk mengisi.")}</p>;
 }
 
-function ExpSection({ id, title, none, onNone, noneLabel, list, onChange, t }: { id: string; title: string; none: boolean; onNone: (v: boolean) => void; noneLabel: string; list: ResumeExperience[]; onChange: (next: ResumeExperience[]) => void; t: ReturnType<typeof useLaunchT> }) {
+function ExpSection({ id, title, none, onNone, noneLabel, list, onChange, onAi, t }: { id: string; title: string; none: boolean; onNone: (v: boolean) => void; noneLabel: string; list: ResumeExperience[]; onChange: (next: ResumeExperience[]) => void; onAi?: () => void; t: ReturnType<typeof useLaunchT> }) {
   return (
     <section id={id}>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-2">
         <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{title}</h2>
         {!none ? (
-          <button type="button" onClick={() => onChange([...list, {}])} className="inline-flex items-center gap-1 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
-            <Plus className="h-3.5 w-3.5" weight="bold" /> {t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onAi ? <AiBtn onClick={onAi} label={t("AI로 채우기", "Fill with AI", "用AI填写", "Điền bằng AI", "AIで埋める", "Isi dengan AI")} /> : null}
+            <AddBtn onClick={() => onChange([...list, {}])} label={t("추가", "Add", "添加", "Thêm", "追加", "Tambah")} />
+          </div>
         ) : null}
       </div>
       <label className="mb-3 inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-[#4E5968]">

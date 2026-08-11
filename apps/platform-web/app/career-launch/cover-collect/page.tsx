@@ -6,10 +6,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Check, CircleNotch, Eye } from "@phosphor-icons/react";
+import { Check, CircleNotch, Eye, Sparkle } from "@phosphor-icons/react";
 import { CoverRender } from "../../../components/launch/cover-render";
 import { SectionTitle } from "../../../components/launch/ui";
-import { fetchCoverData, saveCoverData, type CoverData, type CoverSection } from "../../../lib/launch/cover-data";
+import { SectionChatModal } from "../../../components/launch/SectionChatModal";
+import { fetchCoverData, saveCoverData, requestCoverChat, type CoverData, type CoverSection } from "../../../lib/launch/cover-data";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -49,6 +50,7 @@ export default function CoverCollectPage() {
   const [loaded, setLoaded] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [showPreview, setShowPreview] = useState(false);
+  const [chatFocus, setChatFocus] = useState<CoverSection | null>(null);
 
   useEffect(() => {
     if (!isReady) return;
@@ -114,6 +116,24 @@ export default function CoverCollectPage() {
     scheduleSave(v, answers);
   };
 
+  const aiLabel = t("AI로 채우기", "Fill with AI", "用AI填写", "Điền bằng AI", "AIで埋める", "Isi dengan AI");
+  // AI 챗 — 해당 문항 focus 로 대화하고, 갱신된 답변을 반영 + 저장(스텝 완료).
+  const chatRequest = async (history: { role: "bot" | "user"; text: string }[]) => {
+    const focus = chatFocus ?? "motive";
+    const { reply, data: d, done } = await requestCoverChat(history, buildData(company, answers), focus);
+    const items = d.items ?? [];
+    const nextAnswers = { ...answers };
+    SECTIONS.forEach((s, idx) => {
+      const match = items.find((it) => (it.question ?? "").trim() === s.ko) ?? items[idx];
+      if (match && typeof match.answer === "string") nextAnswers[s.key] = match.answer;
+    });
+    const nextCompany = d.company ?? company;
+    setCompany(nextCompany);
+    setAnswers(nextAnswers);
+    void saveCoverData(buildData(nextCompany, nextAnswers)).catch(() => {});
+    return { reply, done };
+  };
+
   if (!isReady || !loaded) {
     return (
       <div className="flex min-h-screen flex-col bg-white">
@@ -161,9 +181,14 @@ export default function CoverCollectPage() {
 
               {SECTIONS.map((s, i) => (
                 <section key={s.key} id={`sec-${s.key}`}>
-                  <div className="mb-2 flex items-baseline gap-2.5">
-                    <span className="text-[13px] font-black tabular-nums text-[#0B46E8]">{String(i + 1).padStart(2, "0")}</span>
-                    <h2 className="text-[17px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[18px]">{label[s.key]}</h2>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="text-[13px] font-black tabular-nums text-[#0B46E8]">{String(i + 1).padStart(2, "0")}</span>
+                      <h2 className="text-[17px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[18px]">{label[s.key]}</h2>
+                    </div>
+                    <button type="button" onClick={() => setChatFocus(s.key)} className="inline-flex items-center gap-1 rounded-lg bg-[#191F28] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0B1227]">
+                      <Sparkle className="h-3.5 w-3.5" weight="fill" /> {aiLabel}
+                    </button>
                   </div>
                   <p className="mb-2.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{hint[s.key]}</p>
                   <textarea value={answers[s.key]} onChange={(e) => setAnswer(s.key, e.target.value)} rows={5} placeholder={hint[s.key]} className={taClass} />
@@ -192,6 +217,13 @@ export default function CoverCollectPage() {
         </div>
       </main>
       <AplyFooter />
+      {chatFocus ? (
+        <SectionChatModal
+          title={`${label[chatFocus]} · ${t("대화로 채우기", "Fill by chat", "对话填写", "Điền qua chat", "会話で入力", "Isi via chat")}`}
+          request={chatRequest}
+          onClose={() => setChatFocus(null)}
+        />
+      ) : null}
     </div>
   );
 }
