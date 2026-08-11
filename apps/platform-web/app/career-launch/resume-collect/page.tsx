@@ -6,7 +6,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Plus, Trash, Check, CircleNotch, Eye } from "@phosphor-icons/react";
-import { ResumeRender } from "../../../components/launch/resume-render";
+import { toResumeContent } from "../../../components/launch/resume-render";
+import { ResumePreview } from "../../../components/resume-maker/ResumePreview";
+import { DEFAULT_DESIGN } from "../../../lib/resume-maker-types";
 import { SectionTitle } from "../../../components/launch/ui";
 import {
   fetchResumeData,
@@ -146,7 +148,7 @@ export default function ResumeCollectPage() {
             <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#8B95A1] md:text-[14.5px]">{t("항목을 직접 채우면 오른쪽 미리보기에 바로 반영돼요. 내용은 자동 저장됩니다.", "Fill in each item and it updates the preview instantly. Everything saves automatically.", "直接填写各项，右侧预览会即时更新。内容自动保存。", "Điền từng mục và bản xem trước cập nhật ngay. Mọi thứ được lưu tự động.", "各項目を入力すると右のプレビューに即反映。内容は自動保存されます。", "Isi tiap item dan pratinjau langsung diperbarui. Semua tersimpan otomatis.")}</p>
           </div>
 
-          <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_0.85fr]">
+          <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
             {/* ── 편집 폼 ── */}
             <div className="flex flex-col gap-9">
               {/* 기본정보 */}
@@ -237,8 +239,9 @@ export default function ResumeCollectPage() {
             <div className={`${showPreview ? "block" : "hidden"} lg:block`}>
               <div className="lg:sticky lg:top-20">
                 <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("실시간 미리보기", "Live preview", "实时预览", "Xem trước trực tiếp", "リアルタイムプレビュー", "Pratinjau langsung")}</p>
-                <div className="overflow-hidden rounded-2xl border border-[#E5E8EB] bg-white shadow-[0_2px_16px_rgba(11,18,39,0.06)]">
-                  <ResumeRender data={data} />
+                {/* 회색 트레이 위에 A4 시트가 쌓임 — 1장을 넘기면 다음 장이 아래로 이어짐 */}
+                <div className="max-h-[calc(100vh-9rem)] overflow-y-auto rounded-2xl bg-[#F2F4F6] p-3">
+                  <ResumePreview content={toResumeContent(data)} design={DEFAULT_DESIGN} />
                 </div>
                 <Link href="/career-launch/resume-preview" target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">
                   {t("전체 화면으로 보기", "Open full screen", "全屏查看", "Xem toàn màn hình", "全画面で見る", "Lihat layar penuh")} ↗
@@ -255,7 +258,7 @@ export default function ResumeCollectPage() {
 
 // ── 하위 UI ──
 const inputClass = "w-full rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]";
-const taClass = `${inputClass} resize-none leading-relaxed`;
+const taClass = `${inputClass} min-h-[64px] resize-y leading-relaxed`;
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label className="mb-1.5 block text-[12px] font-bold text-[#4E5968]">{children}</label>;

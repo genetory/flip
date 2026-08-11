@@ -126,7 +126,7 @@ export default function CoverCollectPage() {
     );
   }
 
-  const taClass = "w-full rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] leading-relaxed text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]";
+  const taClass = "min-h-[120px] w-full resize-y rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] leading-relaxed text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]";
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -151,7 +151,7 @@ export default function CoverCollectPage() {
             <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#8B95A1] md:text-[14.5px]">{t("네 문항을 직접 작성하면 오른쪽 미리보기에 바로 반영돼요. 내용은 자동 저장됩니다.", "Write the four sections and they update the preview instantly. Everything saves automatically.", "撰写四个部分，右侧预览即时更新。内容自动保存。", "Viết bốn mục và bản xem trước cập nhật ngay. Mọi thứ được lưu tự động.", "4つの項目を書くと右のプレビューに即反映。内容は自動保存されます。", "Tulis empat bagian dan pratinjau langsung diperbarui. Semua tersimpan otomatis.")}</p>
           </div>
 
-          <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_0.85fr]">
+          <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
             <div className="flex flex-col gap-8">
               {/* 지원 회사(선택) */}
               <div>
@@ -180,7 +180,7 @@ export default function CoverCollectPage() {
             <div className={`${showPreview ? "block" : "hidden"} lg:block`}>
               <div className="lg:sticky lg:top-20">
                 <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("실시간 미리보기", "Live preview", "实时预览", "Xem trước trực tiếp", "リアルタイムプレビュー", "Pratinjau langsung")}</p>
-                <div className="overflow-hidden rounded-2xl border border-[#E5E8EB] bg-white shadow-[0_2px_16px_rgba(11,18,39,0.06)]">
+                <div className="max-h-[calc(100vh-9rem)] overflow-y-auto rounded-2xl bg-[#F2F4F6] p-3">
                   <CoverRender data={preview} />
                 </div>
                 <Link href="/career-launch/cover-preview" target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">
