@@ -9,6 +9,7 @@ export interface LaunchNotification {
   title: string;
   body: string;
   href: string;
+  external?: boolean; // 외부 링크(설문 폼 등) — 새 탭으로 열기
   createdAt: number;
   unread: boolean;
 }
@@ -48,22 +49,25 @@ export function addLaunchNotification(input: {
   title: string;
   body: string;
   href: string;
+  external?: boolean;
   createdAt?: number;
   dedupeKey: string;
   unread?: boolean;
-}): void {
+}): boolean {
   const list = read();
-  if (list.some((n) => n.id === input.dedupeKey)) return;
+  if (list.some((n) => n.id === input.dedupeKey)) return false;
   const entry: LaunchNotification = {
     id: input.dedupeKey,
     emoji: input.emoji,
     title: input.title,
     body: input.body,
     href: input.href,
+    external: input.external,
     createdAt: input.createdAt ?? Date.now(),
     unread: input.unread ?? true
   };
   persist([entry, ...list].sort((a, b) => b.createdAt - a.createdAt));
+  return true;
 }
 
 // 계정 전환 시 비우기(다른 학생 알림 잔존 방지).

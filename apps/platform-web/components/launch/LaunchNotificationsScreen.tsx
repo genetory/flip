@@ -70,12 +70,9 @@ export function LaunchNotificationsScreen() {
 }
 
 function Row({ n, last, rel }: { n: LaunchNotification; last: boolean; rel: string }) {
-  return (
-    <Link
-      href={n.href}
-      onClick={() => markLaunchNotificationRead(n.id)}
-      className={`flex items-start gap-3.5 px-4 py-4 transition ${n.unread ? "bg-[#F5F8FF] hover:bg-[#EEF3FE]" : "hover:bg-[#F6F8FB]"} ${last ? "" : "border-b border-[#F2F4F6]"}`}
-    >
+  const cls = `flex items-start gap-3.5 px-4 py-4 transition ${n.unread ? "bg-[#F5F8FF] hover:bg-[#EEF3FE]" : "hover:bg-[#F6F8FB]"} ${last ? "" : "border-b border-[#F2F4F6]"}`;
+  const inner = (
+    <>
       <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F2F4F6] text-[19px]" aria-hidden>
         {n.emoji}
         {n.unread ? <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#0B46E8]" /> : null}
@@ -88,6 +85,19 @@ function Row({ n, last, rel }: { n: LaunchNotification; last: boolean; rel: stri
         <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{n.body}</p>
       </div>
       <CaretRight className="mt-1 h-4 w-4 shrink-0 text-[#C4CAD2]" />
+    </>
+  );
+  // 외부 링크(설문 폼 등)는 새 탭으로.
+  if (n.external) {
+    return (
+      <a href={n.href} target="_blank" rel="noopener noreferrer" onClick={() => markLaunchNotificationRead(n.id)} className={cls}>
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <Link href={n.href} onClick={() => markLaunchNotificationRead(n.id)} className={cls}>
+      {inner}
     </Link>
   );
 }

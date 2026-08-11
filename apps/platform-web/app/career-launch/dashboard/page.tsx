@@ -11,7 +11,7 @@ import { fetchProgress, fetchWeekSchedule, type WeekScheduleEntry } from "../../
 import { fetchMySeminars, fetchMyEnrollment, type CohortSeminar } from "../../../lib/launch/enrollment-client";
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data";
-import { weekDoneCount, weekUnlocked, type LaunchData } from "../../../lib/launch/step-status";
+import { weekDoneCount, weekUnlocked, isWeekComplete, type LaunchData } from "../../../lib/launch/step-status";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { Reveal } from "../../../components/site/Reveal";
@@ -19,8 +19,11 @@ import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 import { useWeekText, useCompletionCriteria } from "../../../lib/launch/data-i18n";
 import { trackCareerFunnel } from "../../../lib/analytics";
-import { CareerSurveyCta } from "../../../components/launch/survey-cta";
 import { addLaunchNotification, ensureLaunchNotificationsOwner } from "../../../lib/launch/notifications";
+
+// 베타 설문 링크(env 주입) — 설문 CTA 카드 대신 알림으로 발송.
+const SURVEY_MID_URL = process.env.NEXT_PUBLIC_CAREER_SURVEY_MID_URL?.trim() || "";
+const SURVEY_FINAL_URL = process.env.NEXT_PUBLIC_CAREER_SURVEY_FINAL_URL?.trim() || "";
 
 // 4. 학생 로그인 후 대시보드 — 4주 여정 퍼널 + 진행 + 결과물 + 피드백 개요.
 export default function LaunchDashboardPage() {
@@ -158,6 +161,28 @@ export default function LaunchDashboardPage() {
         href: "/positions"
       });
     }
+    // 베타 설문 — 주차 완료 시점에 알림으로(카드 대신). W4 완료 시 전체 설문, 아니면 W2 완료 시 중간 설문.
+    if (isWeekComplete(4, data) && SURVEY_FINAL_URL) {
+      const added = addLaunchNotification({
+        dedupeKey: "survey-final",
+        emoji: "📋",
+        external: true,
+        href: SURVEY_FINAL_URL,
+        title: t("전체 설문에 참여해주세요", "Please take the full program survey", "请参与整体问卷", "Vui lòng tham gia khảo sát tổng thể", "全体アンケートにご協力ください", "Mohon ikuti survei keseluruhan"),
+        body: t("4주 프로그램 피드백으로 바로 개선돼요. 3분이면 충분해요.", "Your feedback improves the program right away. About 3 minutes.", "你的反馈将即刻改进项目。约3分钟。", "Phản hồi giúp cải thiện chương trình ngay. Khoảng 3 phút.", "フィードバックですぐ改善します。3分ほどです。", "Masukanmu langsung memperbaiki program. Sekitar 3 menit.")
+      });
+      if (added) trackCareerFunnel("survey_final_prompted");
+    } else if (isWeekComplete(2, data) && SURVEY_MID_URL) {
+      const added = addLaunchNotification({
+        dedupeKey: "survey-mid",
+        emoji: "📋",
+        external: true,
+        href: SURVEY_MID_URL,
+        title: t("1·2주차 설문에 참여해주세요", "Please take the Week 1–2 survey", "请参与第1·2周问卷", "Vui lòng tham gia khảo sát Tuần 1–2", "1・2週目アンケートにご協力ください", "Mohon ikuti survei Minggu 1–2"),
+        body: t("진단·이력서 경험 피드백을 남겨주세요. 3분이면 충분해요.", "Share feedback on the diagnosis and resume. About 3 minutes.", "请留下诊断和简历体验反馈。约3分钟。", "Chia sẻ phản hồi về chẩn đoán và hồ sơ. Khoảng 3 phút.", "診断・履歴書の体験フィードバックをお願いします。3分ほどです。", "Beri masukan soal diagnosis dan resume. Sekitar 3 menit.")
+      });
+      if (added) trackCareerFunnel("survey_mid_prompted");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady, isAuthenticated, data, schedule, serverNow, seminars, resumeReady, coverReady, overall]);
 
@@ -212,9 +237,6 @@ export default function LaunchDashboardPage() {
             </Link>
             </Reveal>
           ) : null}
-
-          {/* 베타 설문 CTA — 1·2주차 완료 / 전체 완료 시점에 자동 노출(링크는 env 주입) */}
-          <CareerSurveyCta data={data} />
 
           {/* 완주 시 — 이력서·자소서·면접 종합 최종 피드백(프로그램 소개처럼 섹션) */}
           {overall === 100 ? (
