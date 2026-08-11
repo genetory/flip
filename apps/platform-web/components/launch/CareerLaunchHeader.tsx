@@ -25,6 +25,7 @@ export function CareerLaunchHeader() {
   const name = user?.name?.trim() || user?.email || t("학생", "Student", "学生", "Sinh viên", "学生", "Siswa");
 
   const nav = [
+    { key: "home", href: "/career-launch/dashboard", label: t("홈", "Home", "首页", "Trang chủ", "ホーム", "Beranda") },
     { key: "w1", href: "/career-launch/week/1", label: t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1") },
     { key: "w2", href: "/career-launch/week/2", label: t("2주차", "Week 2", "第2周", "Tuần 2", "2週目", "Minggu 2") },
     { key: "w3", href: "/career-launch/week/3", label: t("3주차", "Week 3", "第3周", "Tuần 3", "3週目", "Minggu 3") },

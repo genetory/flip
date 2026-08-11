@@ -40,6 +40,16 @@ export async function requestCoverChat(messages: CoverChatMsg[], data: CoverData
   return { reply: typeof d.reply === "string" ? d.reply : "", data: (d.data as CoverData) ?? {}, done: d.done === true };
 }
 
+// 편집형 빌더 — 자소서 데이터를 직접 저장(교체). 문항 답변이 있으면 해당 스텝 완료 반영.
+export async function saveCoverData(data: CoverData): Promise<CoverData> {
+  const d = await req("/career-launch/cover-data", {
+    method: "PUT",
+    headers: authHeaders(true),
+    body: JSON.stringify({ data })
+  });
+  return (d.data as CoverData) ?? {};
+}
+
 export async function fetchCoverData(): Promise<{ data: CoverData; updatedAt: string | null }> {
   const d = await req("/career-launch/cover-data", { headers: authHeaders() });
   return { data: (d.data as CoverData) ?? {}, updatedAt: (d.updatedAt as string) ?? null };

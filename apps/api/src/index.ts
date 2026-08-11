@@ -15968,6 +15968,71 @@ app.get("/career-launch/resume-data", authenticate, requireCareerEnrollment, asy
   }
 });
 
+// 진행 스텝(doneSteps)에 여러 스텝을 멱등 추가/제거. 편집형 빌더 저장 시 섹션 완료 반영.
+async function setCareerStepsDone(userId: string, add: string[], remove: string[] = []): Promise<void> {
+  try {
+    const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: userId }, select: { state: true } });
+    const st = (prog?.state && typeof prog.state === "object" ? { ...(prog.state as Record<string, unknown>) } : {}) as Record<string, unknown>;
+    const cur = Array.isArray(st.doneSteps) ? (st.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
+    const set = new Set(cur);
+    for (const s of add) set.add(s);
+    for (const s of remove) set.delete(s);
+    const next = [...set];
+    if (next.length === cur.length && next.every((s) => cur.includes(s))) return; // 변경 없음
+    st.doneSteps = next;
+    await prisma.careerLaunchProgress.upsert({
+      where: { studentUserId: userId },
+      create: { studentUserId: userId, state: st as object },
+      update: { state: st as object }
+    });
+  } catch (e) {
+    console.error("[career-launch] setCareerStepsDone failed", e);
+  }
+}
+
+// PUT /career-launch/resume-data — 편집형 빌더에서 구조화 이력서 데이터를 직접 저장(교체).
+// body: { data: ResumeData, emptyDone?: string[] } — emptyDone 은 내용이 없어도 완료로 표시할 섹션(예: 경력 없음).
+app.put("/career-launch/resume-data", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const body = (req.body && typeof req.body === "object" ? req.body : {}) as Record<string, unknown>;
+    const normalized = normalizeResumeData(body.data ?? body);
+    await prisma.careerResumeData.upsert({
+      where: { studentUserId: req.auth!.userId },
+      create: { studentUserId: req.auth!.userId, content: normalized as object },
+      update: { content: normalized as object }
+    });
+    await syncCareerResumeToResume(req.auth!.userId);
+    // 섹션별 스텝 완료 반영 — 내용이 있으면 완료, 비면 미완료(단, emptyDone 명시 섹션은 완료).
+    const emptyDone = Array.isArray(body.emptyDone) ? (body.emptyDone as unknown[]).filter((x): x is string => typeof x === "string") : [];
+    const b = normalized.basic as Record<string, unknown>;
+    const edu = normalized.educations as unknown[];
+    const exps = (normalized.experiences as Record<string, unknown>[]) ?? [];
+    const skills = normalized.skills as unknown[];
+    const langs = normalized.languages as unknown[];
+    const has = {
+      basic: Boolean(b && (b.name || b.email || b.phone || b.summary)),
+      edu: Array.isArray(edu) && edu.length > 0,
+      exp: exps.some((x) => x.kind === "work"),
+      expOther: exps.some((x) => x.kind === "other"),
+      skill: Array.isArray(skills) && skills.length > 0,
+      lang: Array.isArray(langs) && langs.length > 0
+    };
+    const STEP: Record<string, string> = { basic: "w2-basic", edu: "w2-edu", exp: "w2-exp", expOther: "w2-exp-other", skill: "w2-skill", lang: "w2-lang" };
+    const add: string[] = [];
+    const remove: string[] = [];
+    (Object.keys(STEP) as (keyof typeof has)[]).forEach((sec) => {
+      const done = has[sec] || emptyDone.includes(sec);
+      if (done) add.push(STEP[sec]);
+      else remove.push(STEP[sec]);
+    });
+    await setCareerStepsDone(req.auth!.userId, add, remove);
+    return res.json({ ok: true, data: normalized });
+  } catch (error) {
+    console.error("[career-launch/resume-data PUT] failed", error);
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // DELETE /career-launch/resume-data — '다시하기'용 초기화. 병합이 축소하지 않으므로 여기서 비운다.
 // ?scope=basic|exp|skills 면 해당 스텝 섹션만 초기화(부분), 없으면 전체 초기화.
 // exp/expOther 는 experiences[] 를 kind 로 부분 정리(아래 특수 처리). 나머지는 키 삭제.
@@ -16206,6 +16271,37 @@ app.get("/career-launch/cover-data", authenticate, requireCareerEnrollment, asyn
     const row = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: req.auth!.userId } });
     return res.json({ ok: true, data: row?.content ?? {}, updatedAt: row?.updatedAt ?? null });
   } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// PUT /career-launch/cover-data — 편집형 빌더에서 자소서 데이터를 직접 저장(교체).
+// body: { data: { company, items:[{question,answer}] } }. 문항(question)이 COVER_LABELS 와 매칭되고
+// 답변이 있으면 해당 스텝(w3-*)을 완료로 반영.
+app.put("/career-launch/cover-data", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const body = (req.body && typeof req.body === "object" ? req.body : {}) as Record<string, unknown>;
+    const normalized = normalizeCoverData(body.data ?? body);
+    await prisma.careerCoverLetterData.upsert({
+      where: { studentUserId: req.auth!.userId },
+      create: { studentUserId: req.auth!.userId, content: normalized as object },
+      update: { content: normalized as object }
+    });
+    await syncCareerCoverToCoverLetter(req.auth!.userId);
+    // 문항별 스텝 완료 반영 — 해당 섹션 질문의 답변이 있으면 완료, 없으면 미완료.
+    const items = (normalized.items as { question?: string; answer?: string }[]) ?? [];
+    const answered = (label: string) => items.some((it) => (it.question ?? "").trim() === label && (it.answer ?? "").trim().length > 0);
+    const STEP: Record<string, string> = { motive: "w3-motive", growth: "w3-growth", strength: "w3-strength", aspiration: "w3-aspiration" };
+    const add: string[] = [];
+    const remove: string[] = [];
+    (Object.keys(STEP) as (keyof typeof COVER_LABELS)[]).forEach((sec) => {
+      if (answered(COVER_LABELS[sec])) add.push(STEP[sec]);
+      else remove.push(STEP[sec]);
+    });
+    await setCareerStepsDone(req.auth!.userId, add, remove);
+    return res.json({ ok: true, data: normalized });
+  } catch (error) {
+    console.error("[career-launch/cover-data PUT] failed", error);
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
 });
