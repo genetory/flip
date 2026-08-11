@@ -30,7 +30,7 @@ export function CareerLaunchHeader() {
     { key: "w2", href: "/career-launch/week/2", label: t("2주차", "Week 2", "第2周", "Tuần 2", "2週目", "Minggu 2") },
     { key: "w3", href: "/career-launch/week/3", label: t("3주차", "Week 3", "第3周", "Tuần 3", "3週目", "Minggu 3") },
     { key: "w4", href: "/career-launch/week/4", label: t("4주차", "Week 4", "第4周", "Tuần 4", "4週目", "Minggu 4") },
-    { key: "deliverables", href: "/career-launch/dashboard#deliverables", label: t("결과물", "Deliverables", "成果", "Kết quả", "成果物", "Hasil") }
+    { key: "deliverables", href: "/career-launch/deliverables", label: t("결과물", "Deliverables", "成果", "Kết quả", "成果物", "Hasil") }
   ];
   const isActive = (href: string) => !href.includes("#") && pathname === href;
 
