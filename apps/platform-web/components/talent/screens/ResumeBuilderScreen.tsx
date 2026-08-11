@@ -254,7 +254,7 @@ function ItemRow({
         onChange={(e) => onChange(e.target.value)}
         rows={2}
         placeholder={isExperience ? "한 일·성과 (선택)" : undefined}
-        className="w-full resize-none break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
+        className="min-h-[52px] w-full resize-y break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
       />
       <div className="mt-2 flex items-center justify-between gap-1.5">
         {/* 사후 수정 — 섹션 이동(자동 분류 교정) */}

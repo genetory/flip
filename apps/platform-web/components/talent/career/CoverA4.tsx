@@ -1,49 +1,81 @@
 "use client";
 
 // 자기소개서 A4 미리보기 — 실제 문서 형태(문항 + 답변)를 고정 A4로 렌더하고 축소.
-import { useEffect, useRef, useState } from "react";
+// 내용이 한 장을 넘으면 블록 인지 페이지 분할(computePageBreaks)로 다음 장을 아래로 잇는다.
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { COVER_QUESTIONS, type CoverDoc } from "../../../lib/talent/cover-doc";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
+import { computePageBreaks } from "../../resume-maker/ResumePreview";
 import { PdfBrandFooter } from "./pdf-print";
 
 const PAGE_W = 794;
 const PAGE_H = 1123;
+const PAGE_PAD = 52;
+const CONTENT_H = PAGE_H - PAGE_PAD * 2;
 
 export function CoverA4Preview({ doc, info, maxWidth }: { doc: CoverDoc; info: BasicInfo; maxWidth?: number }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
+  const [starts, setStarts] = useState<number[]>([0]);
+  const [total, setTotal] = useState(CONTENT_H);
 
   useEffect(() => {
-    const el = ref.current;
+    const el = wrapRef.current;
     if (!el) return;
     const ro = new ResizeObserver((entries) => setW(entries[0].contentRect.width));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
+  useLayoutEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return;
+    const { starts: s, total: tt } = computePageBreaks(el, CONTENT_H);
+    setStarts((prev) => (prev.length === s.length && prev.every((v, i) => v === s[i]) ? prev : s));
+    setTotal(tt);
+  });
+
   const target = maxWidth ? Math.min(w, maxWidth) : w;
   const scale = target > 0 ? target / PAGE_W : 0;
 
   return (
-    <div ref={ref} className="w-full">
-      <div
-        className="mx-auto overflow-hidden rounded-[8px] border border-[#E5E8EB] bg-white shadow-[0_8px_28px_rgba(11,18,39,0.10)]"
-        style={{ width: target || undefined, height: scale ? PAGE_H * scale : undefined }}
-      >
-        {scale ? (
-          <div style={{ width: PAGE_W, height: PAGE_H, transform: `scale(${scale})`, transformOrigin: "top left" }}>
-            <CoverA4Page doc={doc} info={info} />
-          </div>
-        ) : null}
+    <div ref={wrapRef} className="w-full">
+      <div aria-hidden className="pointer-events-none absolute -left-[99999px] top-0" style={{ width: PAGE_W, visibility: "hidden" }}>
+        <div ref={sheetRef}>
+          <CoverA4Body doc={doc} info={info} />
+        </div>
       </div>
+
+      {scale ? (
+        <div className="flex flex-col gap-3">
+          {starts.map((startPx, i) => {
+            const endPx = i < starts.length - 1 ? starts[i + 1] : total;
+            const windowH = Math.min(endPx - startPx, CONTENT_H);
+            return (
+              <div
+                key={i}
+                className="relative mx-auto overflow-hidden rounded-[8px] border border-[#E5E8EB] bg-white shadow-[0_8px_28px_rgba(11,18,39,0.10)]"
+                style={{ width: PAGE_W * scale, height: PAGE_H * scale }}
+              >
+                <div className="absolute left-0 overflow-hidden" style={{ top: PAGE_PAD * scale, width: PAGE_W * scale, height: windowH * scale }}>
+                  <div style={{ position: "absolute", top: -(startPx * scale), width: PAGE_W, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+                    <CoverA4Body doc={doc} info={info} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function CoverA4Page({ doc, info }: { doc: CoverDoc; info: BasicInfo }) {
+function CoverA4Body({ doc, info }: { doc: CoverDoc; info: BasicInfo }) {
   const contact = [info.email, info.phone, info.address].filter(Boolean);
   return (
-    <div className="flex h-full w-full flex-col bg-white px-[56px] py-[52px] text-[#191F28]">
+    <div className="w-full bg-white px-[56px] text-[#191F28]">
       {/* 헤더 — 이력서와 동일 */}
       <header className="flex items-start gap-6 border-b border-[#E5E8EB] pb-6">
         {info.photoUrl && doc.showPhoto === true ? (
@@ -74,7 +106,7 @@ function CoverA4Page({ doc, info }: { doc: CoverDoc; info: BasicInfo }) {
               <h2 className="border-l-[3px] border-[#0B46E8] pl-2.5 text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{q}</h2>
               <div className="mt-3 flex flex-col gap-2.5">
                 {items.map((it) => (
-                  <p key={it.id} className="whitespace-pre-line break-keep text-[13.5px] leading-[1.9] text-[#333D4B]">{it.text}</p>
+                  <p key={it.id} data-break className="whitespace-pre-line break-keep text-[13.5px] leading-[1.9] text-[#333D4B]">{it.text}</p>
                 ))}
               </div>
             </section>

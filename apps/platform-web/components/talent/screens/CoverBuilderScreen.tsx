@@ -301,7 +301,7 @@ function ItemRow({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={4}
-        className="w-full resize-none break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-3 text-[14px] leading-[1.8] text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
+        className="min-h-[96px] w-full resize-y break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-3 text-[14px] leading-[1.8] text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
       />
       <div className="mt-2.5 flex items-center justify-end gap-1.5">
         <button
