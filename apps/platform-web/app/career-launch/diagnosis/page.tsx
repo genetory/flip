@@ -192,7 +192,7 @@ export default function LaunchDiagnosisPage() {
                   </Link>
                 </div>
               ) : (
-                <div className="mt-3">
+                <div className="mt-5">
                   {/* 막힐 때 빠른 응답 + 넘어가기 */}
                   {messages.length > 0 && !loading ? (
                     <div className="mb-4 flex flex-wrap items-center gap-2">
