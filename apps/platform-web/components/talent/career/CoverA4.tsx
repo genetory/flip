@@ -1,17 +1,18 @@
 "use client";
 
-// 자기소개서 A4 미리보기 — 실제 문서 형태(문항 + 답변)를 고정 A4로 렌더하고 축소.
-// 내용이 한 장을 넘으면 블록 인지 페이지 분할(computePageBreaks)로 다음 장을 아래로 잇는다.
+// 자기소개서 A4 미리보기 — 문항+답변을 고정 A4로 렌더하고 축소. 문항(섹션)은 통째로 다음 장으로
+// 내려 잘리지 않게, 긴 답변만 문단 단위로 이어진다. 로고·슬로건 바닥글은 매 장 맨 아래 고정.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { COVER_QUESTIONS, type CoverDoc } from "../../../lib/talent/cover-doc";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
-import { computePageBreaks } from "../../resume-maker/ResumePreview";
+import { packBlocks } from "./ResumeA4";
 import { PdfBrandFooter } from "./pdf-print";
 
 const PAGE_W = 794;
 const PAGE_H = 1123;
 const PAGE_PAD = 52;
-const CONTENT_H = PAGE_H - PAGE_PAD * 2;
+const FOOTER_H = 44;
+const CONTENT_H = PAGE_H - PAGE_PAD * 2 - FOOTER_H;
 
 export function CoverA4Preview({ doc, info, maxWidth }: { doc: CoverDoc; info: BasicInfo; maxWidth?: number }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -31,7 +32,7 @@ export function CoverA4Preview({ doc, info, maxWidth }: { doc: CoverDoc; info: B
   useLayoutEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
-    const { starts: s, total: tt } = computePageBreaks(el, CONTENT_H);
+    const { starts: s, total: tt } = packBlocks(el, CONTENT_H);
     setStarts((prev) => (prev.length === s.length && prev.every((v, i) => v === s[i]) ? prev : s));
     setTotal(tt);
   });
@@ -41,6 +42,7 @@ export function CoverA4Preview({ doc, info, maxWidth }: { doc: CoverDoc; info: B
 
   return (
     <div ref={wrapRef} className="w-full">
+      {/* 높이 측정용 숨김 시트(바닥글 제외) */}
       <div aria-hidden className="pointer-events-none absolute -left-[99999px] top-0" style={{ width: PAGE_W, visibility: "hidden" }}>
         <div ref={sheetRef}>
           <CoverA4Body doc={doc} info={info} />
@@ -63,6 +65,12 @@ export function CoverA4Preview({ doc, info, maxWidth }: { doc: CoverDoc; info: B
                     <CoverA4Body doc={doc} info={info} />
                   </div>
                 </div>
+                {/* 로고·슬로건 — 매 장 맨 아래 고정 */}
+                <div className="absolute inset-x-0" style={{ bottom: PAGE_PAD * scale }}>
+                  <div className="px-[56px]" style={{ width: PAGE_W, transform: `scale(${scale})`, transformOrigin: "bottom left" }}>
+                    <PdfBrandFooter />
+                  </div>
+                </div>
               </div>
             );
           })}
@@ -72,6 +80,7 @@ export function CoverA4Preview({ doc, info, maxWidth }: { doc: CoverDoc; info: B
   );
 }
 
+// A4 본문(고정 폭, 자연 높이). 세로 패딩·바닥글 없음.
 function CoverA4Body({ doc, info }: { doc: CoverDoc; info: BasicInfo }) {
   const contact = [info.email, info.phone, info.address].filter(Boolean);
   return (
@@ -94,7 +103,7 @@ function CoverA4Body({ doc, info }: { doc: CoverDoc; info: BasicInfo }) {
         </div>
       </header>
 
-      <div className="mt-8 flex flex-col gap-7">
+      <div className="mt-8 flex flex-col gap-7 pb-2">
         {doc.items.length === 0 ? (
           <p className="text-[13.5px] text-[#B0B8C1]">문항에 답을 채우면 여기에 자기소개서로 정리돼요.</p>
         ) : null}
@@ -106,15 +115,13 @@ function CoverA4Body({ doc, info }: { doc: CoverDoc; info: BasicInfo }) {
               <h2 className="border-l-[3px] border-[#0B46E8] pl-2.5 text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{q}</h2>
               <div className="mt-3 flex flex-col gap-2.5">
                 {items.map((it) => (
-                  <p key={it.id} data-break className="whitespace-pre-line break-keep text-[13.5px] leading-[1.9] text-[#333D4B]">{it.text}</p>
+                  <p key={it.id} className="whitespace-pre-line break-keep text-[13.5px] leading-[1.9] text-[#333D4B]">{it.text}</p>
                 ))}
               </div>
             </section>
           );
         })}
       </div>
-
-      <PdfBrandFooter />
     </div>
   );
 }
