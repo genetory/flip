@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { useTalentLanding } from "../../lib/talent/landing-content";
 import { Reveal } from "../site/Reveal";

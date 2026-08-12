@@ -1,3 +1,5 @@
+"use client";
+
 // 파트너 앱 공통 카드 프리미티브 — 화면 간 카드 스타일(테두리·패딩·라운드·호버)을 한 곳에서 통일.
 import type { ReactNode } from "react";
 import Link from "next/link";
