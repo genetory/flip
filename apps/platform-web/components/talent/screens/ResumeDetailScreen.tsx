@@ -9,7 +9,7 @@ import { TCard, TChip, TProgressBar, TLoading, TError, TEmpty } from "../ui/prim
 import { TalentButton } from "../TalentButton";
 import { useTalentSnapshot } from "../../../lib/talent/useTalentData";
 import { buildResumePreview, resumeTemplates } from "../../../lib/talent/resume-preview";
-import { resumeStatusLabels } from "../../../lib/talent/labels";
+import { useResumeStatusLabel } from "../../../lib/talent/labels";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import type { TalentSnapshot } from "../../../lib/talent/types";
@@ -28,6 +28,7 @@ export function ResumeDetailScreen({ resumeId }: { resumeId: string }) {
 
 function Content({ snapshot, resumeId }: { snapshot: TalentSnapshot; resumeId: string }) {
   const t = usePlatformT();
+  const resumeStatusLabel = useResumeStatusLabel();
   const toast = useTalentPopup();
   const resume = snapshot.resumes.find((r) => r.id === resumeId) ?? snapshot.resumes[0];
   const [templateKey, setTemplateKey] = useState(resumeTemplates[0].key);
@@ -50,7 +51,7 @@ function Content({ snapshot, resumeId }: { snapshot: TalentSnapshot; resumeId: s
       <div>
         <div className="flex items-center gap-2">
           <h1 className="text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[26px]">{resume.title}</h1>
-          <TChip tone={resume.status === "ready" ? "lime" : "blue"}>{resumeStatusLabels[resume.status]}</TChip>
+          <TChip tone={resume.status === "ready" ? "lime" : "blue"}>{resumeStatusLabel(resume.status)}</TChip>
         </div>
         {resume.targetRole ? <p className="mt-1 text-[14px] text-[#4E5968]">{t(`${resume.targetRole} 지원용`, `For ${resume.targetRole}`, `${resume.targetRole} 申请用`, `Ứng tuyển ${resume.targetRole}`, `${resume.targetRole} 応募用`, `Untuk ${resume.targetRole}`)}</p> : null}
       </div>

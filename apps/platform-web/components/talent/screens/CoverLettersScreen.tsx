@@ -9,7 +9,7 @@ import { TCard, TChip, TEmpty, TLoading, TError, TPageHeader } from "../ui/primi
 import { TalentButton } from "../TalentButton";
 import { useTalentSnapshot } from "../../../lib/talent/useTalentData";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
-import { tailoredCoverQuestions } from "../../../lib/talent/labels";
+import { useTailoredCoverQuestions } from "../../../lib/talent/labels";
 import type { CoverLetter, CoverLetterType, TalentSnapshot } from "../../../lib/talent/types";
 import { usePlatformT } from "../../../lib/i18n";
 
@@ -121,6 +121,7 @@ function TypeChooser({ onClose, onPick }: { onClose: () => void; onPick: (type: 
 
 function CoverFlow({ type, snapshot, onClose }: { type: CoverLetterType; snapshot: TalentSnapshot; onClose: () => void }) {
   const t = usePlatformT();
+  const tailoredCoverQuestions = useTailoredCoverQuestions();
   const questions = type === "tailored" ? tailoredCoverQuestions : basicQuestions;
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<string[]>(questions.map(() => ""));

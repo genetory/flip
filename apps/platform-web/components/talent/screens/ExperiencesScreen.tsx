@@ -9,7 +9,7 @@ import { TCard, TChip, TEmpty, TLoading, TError, TPageHeader } from "../ui/primi
 import { TalentButton } from "../TalentButton";
 import { useTalentSnapshot } from "../../../lib/talent/useTalentData";
 import { getTalentRepository } from "../../../lib/talent/repository";
-import { experienceQuestions, experienceTypeLabels, experienceTypeOptions } from "../../../lib/talent/labels";
+import { useExperienceQuestions, useExperienceTypeLabel, useExperienceTypeOptions } from "../../../lib/talent/labels";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import type { Experience, ExperienceQuestionKey, ExperienceType } from "../../../lib/talent/types";
@@ -17,6 +17,7 @@ import { usePlatformT } from "../../../lib/i18n";
 
 export function ExperiencesScreen() {
   const t = usePlatformT();
+  const experienceTypeLabel = useExperienceTypeLabel();
   const { snapshot, status, reload } = useTalentSnapshot();
   const [added, setAdded] = useState<Experience[]>([]);
   const [adding, setAdding] = useState(false);
@@ -48,7 +49,7 @@ export function ExperiencesScreen() {
               {experiences.map((exp) => (
                 <TCard key={exp.id} className="p-5">
                   <div className="flex items-center gap-2">
-                    <TChip tone="blue">{experienceTypeLabels[exp.type]}</TChip>
+                    <TChip tone="blue">{experienceTypeLabel(exp.type)}</TChip>
                     {exp.period ? <span className="text-[12.5px] text-[#8B95A1]">{exp.period}</span> : null}
                     <span className="ml-auto">
                       <TChip tone={exp.summary ? "lime" : "gray"}>{exp.summary ? t("정리 완료","Organized","已整理","Đã sắp xếp","整理済み","Tersusun") : t("작성 중","In progress","撰写中","Đang viết","作成中","Sedang dibuat")}</TChip>
@@ -93,6 +94,9 @@ export function ExperiencesScreen() {
 /* 단계형 경험 추가 흐름 (오버레이) */
 function AddExperienceFlow({ onClose, onSaved }: { onClose: () => void; onSaved: (exp: Experience) => void }) {
   const t = usePlatformT();
+  const experienceTypeLabel = useExperienceTypeLabel();
+  const experienceQuestions = useExperienceQuestions();
+  const experienceTypeOptions = useExperienceTypeOptions();
   const toast = useTalentPopup();
   const router = useRouter();
   // step: -1 유형선택, 0..7 질문(8개), 8 검토
@@ -110,7 +114,7 @@ function AddExperienceFlow({ onClose, onSaved }: { onClose: () => void; onSaved:
   async function goReview() {
     if (!type) return;
     setSaving(true);
-    const title = answers.what?.slice(0, 24) || experienceTypeLabels[type];
+    const title = answers.what?.slice(0, 24) || experienceTypeLabel(type);
     const result = await getTalentRepository().draftExperience({ type, title, answers });
     setDraft(result);
     setSummaryText(result.summary ?? "");

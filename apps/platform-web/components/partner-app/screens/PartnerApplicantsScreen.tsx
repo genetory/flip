@@ -11,7 +11,7 @@ import { PartnerEmptyCard } from "../ui/cards";
 import { PartnerApplicantCard, PartnerParticipantCard } from "../ListCards";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
-import { PARTNER_APPLICANT_STATUS } from "../../../lib/partner/labels";
+import { PARTNER_APPLICANT_STATUS, usePartnerApplicantStatusLabel } from "../../../lib/partner/labels";
 import { usePlatformT } from "../../../lib/i18n";
 import { getMyPartnerApplicants, getOrgMockInterviewParticipants, updateMyPartnerApplicantState, sendPartnerApplicantMessage, type PartnerApplicantListItem, type PartnerApplicantStatus, type OrgMockInterviewParticipant } from "../../../lib/member-profile-client";
 
@@ -347,10 +347,11 @@ export function PartnerApplicantsScreen() {
 // 지원자 비교 — 선택한 2~3명을 나란히 비교(표).
 function CompareModal({ applicants, onClose }: { applicants: PartnerApplicantListItem[]; onClose: () => void }) {
   const t = usePlatformT();
+  const applicantLabel = usePartnerApplicantStatusLabel();
   useLockBodyScroll();
   const rec: Record<PartnerApplicantListItem["recommendation"], string> = { HIGH: t("적극 추천", "Highly recommended", "强烈推荐", "Rất khuyến nghị", "強く推薦", "Sangat direkomendasikan"), NORMAL: t("보통", "Normal", "一般", "Bình thường", "普通", "Biasa"), CHECK: t("확인 필요", "Needs review", "需确认", "Cần kiểm tra", "要確認", "Perlu dicek") };
   const rows: { label: string; get: (a: PartnerApplicantListItem) => string }[] = [
-    { label: t("상태", "Status", "状态", "Trạng thái", "ステータス", "Status"), get: (a) => PARTNER_APPLICANT_STATUS[a.status]?.label ?? a.status },
+    { label: t("상태", "Status", "状态", "Trạng thái", "ステータス", "Status"), get: (a) => (PARTNER_APPLICANT_STATUS[a.status] ? applicantLabel(a.status) : a.status) },
     { label: t("공고", "Posting", "职位", "Tin tuyển dụng", "求人", "Lowongan"), get: (a) => a.positionTitle },
     { label: t("학교·전공", "School·Major", "学校·专业", "Trường·Ngành", "学校・専攻", "Sekolah·Jurusan"), get: (a) => [a.school, a.major].filter(Boolean).join(" · ") || "-" },
     { label: t("국적", "Nationality", "国籍", "Quốc tịch", "国籍", "Kebangsaan"), get: (a) => a.nationality ?? "-" },

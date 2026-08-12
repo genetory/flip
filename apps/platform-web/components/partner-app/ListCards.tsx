@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { GraduationCap, Globe, Translate, Clock, Check } from "@phosphor-icons/react";
 import { partnerRoutes } from "../../lib/partner/app-nav";
-import { PARTNER_APPLICANT_STATUS } from "../../lib/partner/labels";
+import { PARTNER_APPLICANT_STATUS, usePartnerApplicantStatusLabel } from "../../lib/partner/labels";
 import { formatRelativeTime } from "../../lib/talent/career-feed";
 import { usePlatformT } from "../../lib/i18n";
 import type { PartnerApplicantListItem, OrgMockInterviewParticipant, PartnerApplicantStatus } from "../../lib/member-profile-client";
@@ -14,6 +14,7 @@ import type { PartnerApplicantListItem, OrgMockInterviewParticipant, PartnerAppl
 // selectable 이면 비교 선택용 체크박스를 앞에 붙인다(카드 링크와 분리).
 export function PartnerApplicantCard({ a, onSetStatus, selectable, selected, onToggleSelect }: { a: PartnerApplicantListItem; onSetStatus?: (id: string, next: PartnerApplicantStatus) => void; selectable?: boolean; selected?: boolean; onToggleSelect?: () => void }) {
   const t = usePlatformT();
+  const applicantLabel = usePartnerApplicantStatusLabel();
   const s = PARTNER_APPLICANT_STATUS[a.status];
   const edu = [a.school, a.major].filter(Boolean).join(" · ");
   const langs = a.languages?.length ? a.languages.join(", ") : "";
@@ -46,7 +47,7 @@ export function PartnerApplicantCard({ a, onSetStatus, selectable, selected, onT
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="min-w-0 truncate text-[15px] font-bold text-[#191F28]">{a.name}</p>
-            <span className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
+            <span className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{applicantLabel(a.status)}</span>
             {waitingDays >= 3 ? <span className="shrink-0 whitespace-nowrap rounded-md bg-[#FDECEE] px-2.5 py-0.5 text-[11px] font-bold text-[#F04452]">🕒 {t(`${waitingDays}일 대기`, `${waitingDays}d waiting`, `等待 ${waitingDays} 天`, `chờ ${waitingDays} ngày`, `${waitingDays}日待機`, `menunggu ${waitingDays} hari`)}</span> : null}
             {a.mockInterviewPracticed ? <span className="shrink-0 whitespace-nowrap rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">🎤 {t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}{a.mockInterviewScore != null ? ` ${a.mockInterviewScore}${t("점", "pts", "分", "đ", "点", "poin")}` : ""}</span> : null}
           </div>

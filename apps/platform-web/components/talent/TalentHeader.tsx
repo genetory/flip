@@ -8,7 +8,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Bell, List, X } from "@phosphor-icons/react";
-import { talentBrand, talentRoutes } from "../../lib/talent/landing-content";
+import { talentBrand, talentRoutes, useTalentBrandCta } from "../../lib/talent/landing-content";
 import { talentMainNav, isTabActive, talentAppRoutes, useTalentNavLabel } from "../../lib/talent/app-nav";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { TalentTicketBadge } from "./TalentTicketBadge";
@@ -24,6 +24,7 @@ export function TalentHeader() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const navLabel = useTalentNavLabel();
+  const brandCta = useTalentBrandCta();
 
   // 경로가 바뀌면 모바일 메뉴 닫기.
   useEffect(() => {
@@ -114,7 +115,7 @@ export function TalentHeader() {
         ) : (
           <div className="flex items-center gap-1.5">
             <Link href={talentRoutes.login} className="rounded-lg px-3 py-2 text-[13.5px] font-semibold text-[#4E5968] transition hover:text-[#191F28]">
-              {talentBrand.cta.login}
+              {brandCta.login}
             </Link>
             <LanguageSwitcher />
           </div>

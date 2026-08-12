@@ -10,9 +10,9 @@ import { TCard, TChip, TEmpty, TLoading, TError, TPageHeader } from "../ui/primi
 import { TalentButton } from "../TalentButton";
 import { useTalentSnapshot } from "../../../lib/talent/useTalentData";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
-import { resumeFlowSteps, resumeStatusLabels } from "../../../lib/talent/labels";
+import { useResumeFlowSteps, useResumeStatusLabel } from "../../../lib/talent/labels";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
-import { beforeAfterSection } from "../../../lib/talent/landing-content";
+import { useTalentLanding } from "../../../lib/talent/landing-content";
 import type { Resume, ResumeStatus, TalentSnapshot } from "../../../lib/talent/types";
 import { usePlatformT } from "../../../lib/i18n";
 
@@ -25,6 +25,7 @@ const statusTone: Record<ResumeStatus, "gray" | "blue" | "lime"> = {
 
 export function ResumesScreen() {
   const t = usePlatformT();
+  const { beforeAfter: beforeAfterSection } = useTalentLanding();
   const { snapshot, status, reload } = useTalentSnapshot();
   const ready = isBasicInfoComplete(useBasicInfo());
   const [flowOpen, setFlowOpen] = useState(false);
@@ -95,6 +96,7 @@ export function ResumesScreen() {
 
 function ResumeRow({ resume }: { resume: Resume }) {
   const t = usePlatformT();
+  const resumeStatusLabel = useResumeStatusLabel();
   return (
     <TCard className="flex items-center gap-4 p-5">
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD]">
@@ -105,7 +107,7 @@ function ResumeRow({ resume }: { resume: Resume }) {
         <p className="mt-1 text-[12.5px] text-[#8B95A1]">{resume.targetRole ? `${resume.targetRole} · ` : ""}{t("수정","Edited","修改","Sửa","更新","Diedit")} {resume.updatedAt}</p>
       </div>
       <div className="flex flex-col items-end gap-2">
-        <TChip tone={statusTone[resume.status]}>{resumeStatusLabels[resume.status]}</TChip>
+        <TChip tone={statusTone[resume.status]}>{resumeStatusLabel(resume.status)}</TChip>
         <TalentButton href={`${talentAppRoutes.resumes}/${resume.id}`} variant="secondary" size="md" aria-label={t("이어서 다듬기","Keep refining","继续完善","Tiếp tục hoàn thiện","続けて整える","Lanjut perbaiki")}>{t("이어서 다듬기","Keep refining","继续完善","Tiếp tục hoàn thiện","続けて整える","Lanjut perbaiki")}</TalentButton>
       </div>
     </TCard>
@@ -115,6 +117,8 @@ function ResumeRow({ resume }: { resume: Resume }) {
 /* 생성 흐름 오버레이 */
 function ResumeFlow({ snapshot, onClose }: { snapshot: TalentSnapshot; onClose: () => void }) {
   const t = usePlatformT();
+  const resumeStatusLabel = useResumeStatusLabel();
+  const resumeFlowSteps = useResumeFlowSteps();
   const [step, setStep] = useState(0);
   const [selectedExp, setSelectedExp] = useState<string[]>(snapshot.experiences.map((e) => e.id));
   const [role, setRole] = useState(snapshot.profile.interests[0] ?? "");
@@ -239,7 +243,7 @@ function ResumeFlow({ snapshot, onClose }: { snapshot: TalentSnapshot; onClose: 
                 <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EAFFD1]">
                   <CheckCircle className="h-8 w-8 text-[#3A6B00]" weight="fill" />
                 </span>
-                <h2 className="mt-5 text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{resumeStatusLabels.draft}</h2>
+                <h2 className="mt-5 text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{resumeStatusLabel("draft")}</h2>
                 <p className="mt-2 text-[14px] text-[#4E5968]">{t(`${role || "지원 직무"} 이력서 초안이 준비됐어요.`, `Your ${role || "target role"} resume draft is ready.`, `你的${role || "目标职位"}简历初稿已准备好。`, `Bản nháp CV ${role || "vị trí ứng tuyển"} đã sẵn sàng.`, `${role || "応募職種"}の履歴書ドラフトが完成しました。`, `Draf CV ${role || "posisi dilamar"} sudah siap.`)}</p>
                 <TCard className="mt-6 w-full p-5 text-left">
                   <p className="text-[13px] font-bold text-[#8B95A1]">{t("미리보기","Preview","预览","Xem trước","プレビュー","Pratinjau")}</p>

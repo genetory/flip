@@ -14,7 +14,7 @@ import { ProposeCandidateModal } from "../ProposeCandidateModal";
 import { PartnerMoreLink, PartnerEmptyCard } from "../ui/cards";
 import { PartnerApplicantCard, PartnerParticipantCard } from "../ListCards";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
-import { PARTNER_POSITION_STATUS } from "../../../lib/partner/labels";
+import { PARTNER_POSITION_STATUS, usePartnerPositionStatusLabel } from "../../../lib/partner/labels";
 import { usePlatformT } from "../../../lib/i18n";
 import {
   getMyPartnerPositionById,
@@ -66,6 +66,7 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
   const router = useRouter();
   const toast = useTalentPopup();
   const t = usePlatformT();
+  const positionLabel = usePartnerPositionStatusLabel();
   const [p, setP] = useState<PartnerPosition | null>(null);
   const [org, setOrg] = useState<MyPartnerOrganization | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -172,7 +173,7 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
         <div className="flex flex-col">
           {/* 관리 액션 바 */}
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className={`rounded-md px-2 py-1 text-[11.5px] font-bold ${PARTNER_POSITION_STATUS[p.status].cls}`}>{PARTNER_POSITION_STATUS[p.status].label}</span>
+            <span className={`rounded-md px-2 py-1 text-[11.5px] font-bold ${PARTNER_POSITION_STATUS[p.status].cls}`}>{positionLabel(p.status)}</span>
             <div className="ml-auto flex flex-wrap gap-2">
               <button type="button" onClick={remove} disabled={busy} className="inline-flex h-[40px] items-center justify-center rounded-xl bg-[#FDECEE] px-4 text-[13px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1] disabled:opacity-50">{t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}</button>
               {p.status !== "CLOSED" ? (

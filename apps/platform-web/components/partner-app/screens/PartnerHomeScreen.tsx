@@ -15,7 +15,7 @@ import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { useTimeGreeting } from "../../../lib/time-greeting";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
-import { PARTNER_POSITION_STATUS } from "../../../lib/partner/labels";
+import { PARTNER_POSITION_STATUS, usePartnerPositionStatusLabel } from "../../../lib/partner/labels";
 import { usePlatformT } from "../../../lib/i18n";
 import {
   getMyPartnerOrganization,
@@ -45,6 +45,7 @@ export function PartnerHomeScreen() {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const greeting = useTimeGreeting();
   const t = usePlatformT();
+  const positionLabel = usePartnerPositionStatusLabel();
 
   function load() {
     setStatus("loading");
@@ -232,7 +233,7 @@ export function PartnerHomeScreen() {
               <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
                 {byPosition.map(({ p, count: c }, i) => (
                   <Link key={p.id} href={`${partnerRoutes.positions}/${p.id}`} className={`flex items-center gap-3 px-4 py-3.5 transition hover:bg-[#F6F8FB] ${i === byPosition.length - 1 ? "" : "border-b border-[#F2F4F6]"}`}>
-                    <span className={`shrink-0 rounded-md px-2.5 py-0.5 text-[11px] font-bold ${PARTNER_POSITION_STATUS[p.status].cls}`}>{PARTNER_POSITION_STATUS[p.status].label}</span>
+                    <span className={`shrink-0 rounded-md px-2.5 py-0.5 text-[11px] font-bold ${PARTNER_POSITION_STATUS[p.status].cls}`}>{positionLabel(p.status)}</span>
                     <p className="min-w-0 flex-1 truncate text-[14px] font-bold text-[#191F28]">{p.title || t("제목 없는 공고", "Untitled posting", "无标题职位", "Tin chưa có tiêu đề", "無題の求人", "Lowongan tanpa judul")}</p>
                     <span className="shrink-0 text-[13px] font-bold text-[#0B46E8]">{t(`지원 ${c}명`, `${c} applied`, `${c}人申请`, `${c} ứng tuyển`, `${c}名応募`, `${c} melamar`)}</span>
                     <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />

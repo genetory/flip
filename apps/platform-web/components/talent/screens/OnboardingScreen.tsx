@@ -8,7 +8,7 @@ import { X, ArrowLeft, Check } from "@phosphor-icons/react";
 import { TalentGuard } from "../app/TalentGuard";
 import { TProgressBar } from "../ui/primitives";
 import { TalentButton } from "../TalentButton";
-import { onboardingGoals, onboardingSteps } from "../../../lib/talent/labels";
+import { useOnboardingGoals, useOnboardingSteps } from "../../../lib/talent/labels";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import type { OnboardingGoal } from "../../../lib/talent/types";
 import { usePlatformT } from "../../../lib/i18n";
@@ -32,6 +32,8 @@ export function OnboardingScreen() {
 
 function OnboardingFlow() {
   const t = usePlatformT();
+  const onboardingGoals = useOnboardingGoals();
+  const onboardingSteps = useOnboardingSteps();
   const router = useRouter();
   const [goal, setGoal] = useState<OnboardingGoal | null>(null);
   const [step, setStep] = useState(0); // 0 = 목표 질문, 1..N = 최소 질문, N+1 = 완료

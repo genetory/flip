@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { X } from "@phosphor-icons/react";
-import { talentNav, talentBrand, talentRoutes, footerContent } from "../../lib/talent/landing-content";
+import { talentRoutes, useTalentNav, useTalentBrandCta, useTalentLanding } from "../../lib/talent/landing-content";
 import { talentAppRoutes } from "../../lib/talent/app-nav";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { TalentButton } from "./TalentButton";
@@ -15,6 +15,9 @@ export function TalentMobileMenu({ open, onClose }: { open: boolean; onClose: ()
   const { user, isAuthenticated } = useAuthSession();
   const isTalentUser = isAuthenticated && (user?.role === "STUDENT" || user?.role === "OPERATOR");
   const t = usePlatformT();
+  const talentNav = useTalentNav();
+  const brandCta = useTalentBrandCta();
+  const { footer } = useTalentLanding();
   useLockBodyScroll(open);
   if (!open) return null;
   return (
@@ -43,13 +46,13 @@ export function TalentMobileMenu({ open, onClose }: { open: boolean; onClose: ()
               {t("내 커리어", "My Career", "我的职业", "Sự nghiệp", "マイキャリア", "Karier Saya")}
             </TalentButton>
           ) : (
-            <TalentButton href={talentRoutes.login} variant="primary" size="md" fullWidth aria-label={talentBrand.cta.login}>
-              {talentBrand.cta.login}
+            <TalentButton href={talentRoutes.login} variant="primary" size="md" fullWidth aria-label={brandCta.login}>
+              {brandCta.login}
             </TalentButton>
           )}
         </div>
-        <Link href={footerContent.partnerLink.href} onClick={onClose} className="mt-4 block text-center text-[12.5px] text-[#8B95A1] underline hover:text-[#4E5968]">
-          {footerContent.partnerLink.label}
+        <Link href={footer.partnerLink.href} onClick={onClose} className="mt-4 block text-center text-[12.5px] text-[#8B95A1] underline hover:text-[#4E5968]">
+          {footer.partnerLink.label}
         </Link>
       </nav>
     </div>

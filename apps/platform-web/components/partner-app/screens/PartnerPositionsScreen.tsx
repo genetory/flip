@@ -9,7 +9,7 @@ import { Plus, MagnifyingGlass, X, ImageSquare, Microphone } from "@phosphor-ico
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TListSkeleton, TError } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
-import { PARTNER_POSITION_STATUS } from "../../../lib/partner/labels";
+import { PARTNER_POSITION_STATUS, usePartnerPositionStatusLabel } from "../../../lib/partner/labels";
 import { usePlatformT } from "../../../lib/i18n";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { getMyPartnerPositions, getMyPartnerApplicants, updateMyPartnerPosition, type PartnerPosition, type PartnerApplicantListItem } from "../../../lib/member-profile-client";
@@ -238,6 +238,7 @@ function PositionCard({ p, applicants, mockCount, onSetStatus }: { p: PartnerPos
         : p.status === "CLOSED"
           ? [{ label: t("다시 게시", "Reopen", "重新发布", "Đăng lại", "再掲載", "Buka lagi"), next: "OPEN" }]
           : [];
+  const positionLabel = usePartnerPositionStatusLabel();
   const s = PARTNER_POSITION_STATUS[p.status];
   const thumb = Array.isArray(p.thumbnailImages) ? p.thumbnailImages[0] : undefined;
   const role = p.preferredJobRole?.trim();
@@ -266,7 +267,7 @@ function PositionCard({ p, applicants, mockCount, onSetStatus }: { p: PartnerPos
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
+          <span className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-bold ${s.cls}`}>{positionLabel(p.status)}</span>
           {p.mockInterviewIntent || (p.mockInterviewQuestions?.length ?? 0) > 0 ? (
             <span className="shrink-0 whitespace-nowrap rounded-md bg-[#EDF1FD] px-2.5 py-1 text-[11px] font-bold text-[#0B46E8]">🎤 {t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Simulasi")}</span>
           ) : null}

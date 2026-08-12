@@ -1,15 +1,5 @@
 import Link from "next/link";
-import {
-  heroContent,
-  heroPreview,
-  concernSection,
-  outcomeSection,
-  stepSection,
-  beforeAfterSection,
-  resultPreviewSection,
-  jobsCtaSection,
-  finalCtaSection
-} from "../../lib/talent/landing-content";
+import { useTalentLanding } from "../../lib/talent/landing-content";
 import { Reveal } from "../site/Reveal";
 import { TalentButton } from "./TalentButton";
 import { TalentSectionHeader } from "./TalentSectionHeader";
@@ -49,6 +39,7 @@ export function TalentLandingPage() {
 /* 1. 히어로 — 중앙 정렬, 거대한 타이포 */
 function Hero() {
   const t = usePlatformT();
+  const { hero } = useTalentLanding();
   return (
     <section className="bg-white">
       <div className="mx-auto w-full max-w-3xl px-5 pb-4 pt-14 text-center md:pt-20">
@@ -59,23 +50,23 @@ function Hero() {
         </Reveal>
         <Reveal delayMs={80}>
           <h1 className="mt-8 text-[34px] font-black leading-[1.12] tracking-[-0.04em] text-[#0B1227] md:text-[52px]">
-            {heroContent.titleLines.map((line) => (
+            {hero.titleLines.map((line) => (
               <span key={line} className="block">{line}</span>
             ))}
           </h1>
         </Reveal>
         <Reveal delayMs={160}>
           <p className="mx-auto mt-7 max-w-lg whitespace-pre-line break-keep text-[17px] leading-[1.6] text-[#4E5968] md:text-[20px]">
-            {heroContent.description}
+            {hero.description}
           </p>
         </Reveal>
         <Reveal delayMs={240}>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <TalentButton href={heroContent.primaryCta.href} variant="primary" size="lg" aria-label={heroContent.primaryCta.label}>
-              {heroContent.primaryCta.label}
+            <TalentButton href={hero.primaryCta.href} variant="primary" size="lg" aria-label={hero.primaryCta.label}>
+              {hero.primaryCta.label}
             </TalentButton>
           </div>
-          <p className="mt-5 text-[14px] text-[#8B95A1]">{heroContent.subInfo}</p>
+          <p className="mt-5 text-[14px] text-[#8B95A1]">{hero.subInfo}</p>
         </Reveal>
       </div>
 
@@ -91,6 +82,7 @@ function Hero() {
 
 function ProgressPreview() {
   const t = usePlatformT();
+  const { heroPreview } = useTalentLanding();
   return (
     <div className="rounded-3xl border border-[#EEF1F5] bg-white p-6 shadow-[0_10px_32px_rgba(11,18,39,0.07)]">
       <div className="flex items-center justify-between">
@@ -119,6 +111,7 @@ function ProgressPreview() {
 
 /* 2. 학생의 고민 */
 function ConcernSection() {
+  const { concern: concernSection } = useTalentLanding();
   return (
     <section className="bg-[#FAFBFC]">
       <div className="mx-auto w-full max-w-5xl px-5 py-14 md:py-20">
@@ -149,6 +142,7 @@ function ConcernSection() {
 
 /* 3. 완성할 수 있는 것 */
 function OutcomeSection() {
+  const { outcome: outcomeSection } = useTalentLanding();
   return (
     <section className="bg-white">
       <div className="mx-auto w-full max-w-5xl px-5 py-14 md:py-20">
@@ -175,6 +169,7 @@ function OutcomeSection() {
 
 /* 4. 이용 방법 */
 function StepSection() {
+  const { step: stepSection } = useTalentLanding();
   return (
     <section className="bg-[#FAFBFC]">
       <div className="mx-auto w-full max-w-5xl px-5 py-14 md:py-20">
@@ -201,6 +196,7 @@ function StepSection() {
 
 /* 5. 경험 변환 Before / After — 핵심 차별점 */
 function BeforeAfterSection() {
+  const { beforeAfter: beforeAfterSection } = useTalentLanding();
   return (
     <section className="bg-white">
       <div className="mx-auto w-full max-w-4xl px-5 py-14 md:py-20">
@@ -233,6 +229,7 @@ function BeforeAfterSection() {
 
 /* 6. 결과 미리보기 */
 function ResultPreviewSection() {
+  const { resultPreview: resultPreviewSection } = useTalentLanding();
   return (
     <section className="bg-[#FAFBFC]">
       <div className="mx-auto w-full max-w-3xl px-5 py-14 md:py-20">
@@ -257,7 +254,8 @@ function ResultPreviewSection() {
 
 /* 7. 공고 */
 function JobsSection() {
-  return <SplitCta data={jobsCtaSection} tone="blue" />;
+  const { jobsCta } = useTalentLanding();
+  return <SplitCta data={jobsCta} tone="blue" />;
 }
 function SplitCta({ data, tone }: { data: { message: string; desc: string; cta: { label: string; href: string } }; tone: "blue" | "lime" }) {
   return (
@@ -281,6 +279,7 @@ function SplitCta({ data, tone }: { data: { message: string; desc: string; cta: 
 
 /* 9. 마지막 CTA — 솔리드 블루 풀블리드 */
 function FinalCta() {
+  const { finalCta: finalCtaSection } = useTalentLanding();
   return (
     <section className="bg-[#0B46E8]">
       <div className="mx-auto w-full max-w-3xl px-5 py-16 text-center md:py-24">

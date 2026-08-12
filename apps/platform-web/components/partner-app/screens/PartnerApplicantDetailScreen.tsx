@@ -14,7 +14,7 @@ import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { usePlatformT } from "../../../lib/i18n";
-import { PARTNER_APPLICANT_STATUS, PARTNER_POSITION_STATUS } from "../../../lib/partner/labels";
+import { PARTNER_APPLICANT_STATUS, PARTNER_POSITION_STATUS, usePartnerApplicantStatusLabel, usePartnerPositionStatusLabel } from "../../../lib/partner/labels";
 import {
   getMyPartnerApplicantById,
   getMyPartnerPositionById,
@@ -131,6 +131,8 @@ function InterviewSlotRows({ rows, setRows, max = 3 }: { rows: SlotRow[]; setRow
 
 export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: string }) {
   const t = usePlatformT();
+  const applicantLabel = usePartnerApplicantStatusLabel();
+  const positionLabel = usePartnerPositionStatusLabel();
   const toast = useTalentPopup();
   const [app, setApp] = useState<PartnerApplicantDetail | null>(null);
   const [slots, setSlots] = useState<InterviewSlot[]>([]);
@@ -191,7 +193,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
     const next = pending;
     if (updating || !app || !next) return;
     const appId = app.applicationId;
-    const label = PARTNER_APPLICANT_STATUS[next].label;
+    const label = applicantLabel(next);
     setUpdating(true);
 
     // 1) 상태 변경
@@ -281,7 +283,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
               <div className="flex items-center gap-1.5">
                 <Briefcase className="h-3.5 w-3.5 shrink-0 text-[#0B46E8]" weight="fill" />
                 <span className="text-[11px] font-bold text-[#8B95A1]">{t("지원 공고", "Posting", "职位", "Tin tuyển dụng", "求人", "Lowongan")}</span>
-                {position ? <span className={`rounded-md px-2.5 py-0.5 text-[10.5px] font-bold ${PARTNER_POSITION_STATUS[position.status].cls}`}>{PARTNER_POSITION_STATUS[position.status].label}</span> : null}
+                {position ? <span className={`rounded-md px-2.5 py-0.5 text-[10.5px] font-bold ${PARTNER_POSITION_STATUS[position.status].cls}`}>{positionLabel(position.status)}</span> : null}
                 <CaretRight className="ml-auto h-4 w-4 shrink-0 text-[#C4CAD2]" />
               </div>
               <p className="mt-1 truncate text-[14px] font-bold text-[#191F28]">{app.positionTitle}</p>
@@ -296,7 +298,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
             <div className="mt-5">
               {rejected ? (
                 <div className={`rounded-xl px-3.5 py-2.5 text-[13px] font-bold ${PARTNER_APPLICANT_STATUS[app.status].cls}`}>
-                  {PARTNER_APPLICANT_STATUS[app.status].label} {t("처리됨", "processed", "已处理", "đã xử lý", "処理済み", "diproses")}
+                  {applicantLabel(app.status)} {t("처리됨", "processed", "已处理", "đã xử lý", "処理済み", "diproses")}
                 </div>
               ) : (
                 <div className="flex items-center">
@@ -352,7 +354,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                     const active = app.status === s;
                     return (
                       <button key={s} type="button" onClick={() => requestStatus(s)} disabled={updating || active} className={`rounded-xl px-3.5 py-2 text-[12.5px] font-bold transition disabled:opacity-50 ${active ? "bg-[#0B46E8] text-white" : "bg-white text-[#4E5968] ring-1 ring-[#E4EAF2] hover:bg-[#EDF1FD]"}`}>
-                        {PARTNER_APPLICANT_STATUS[s].label}
+                        {applicantLabel(s)}
                       </button>
                     );
                   })}
@@ -645,8 +647,9 @@ function ConfirmStatusModal({
   onConfirm: (extra: { slots?: { startsAt: string; endsAt: string; location?: string }[]; reason?: string }) => void;
 }) {
   const t = usePlatformT();
+  const applicantLabel = usePartnerApplicantStatusLabel();
   useLockBodyScroll();
-  const label = PARTNER_APPLICANT_STATUS[next].label;
+  const label = applicantLabel(next);
   const isInterview = next === "INTERVIEW";
   const isReject = next === "REJECTED";
   const [rows, setRows] = useState<SlotRow[]>([{ ...EMPTY_SLOT_ROW }]);
