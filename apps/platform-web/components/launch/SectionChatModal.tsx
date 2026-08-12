@@ -4,7 +4,7 @@
 // request(history) 가 해당 섹션 focus 로 백엔드 챗을 호출하고, 갱신된 데이터를
 // 부모(빌더)에 반영한 뒤 {reply, done} 을 돌려준다. 편집 필드·A4 미리보기는 부모가 갱신.
 import { useEffect, useRef, useState } from "react";
-import { X, PaperPlaneTilt, CircleNotch } from "@phosphor-icons/react";
+import { X, PaperPlaneTilt, CircleNotch, Sparkle } from "@phosphor-icons/react";
 import { RichText } from "./rich-text";
 import { useLaunchT } from "../../lib/launch/i18n";
 
@@ -142,7 +142,10 @@ export function SectionChatModal({
 
         {/* 입력 */}
         <div className="border-t border-[#EEF1F5] p-3">
-          <p className="mb-2 px-1 text-[11px] text-[#B0B8C1]">{t("💬 모국어로 답해도 돼요 · 내용은 자동 저장돼요", "💬 Answer in your own language · saved automatically", "💬 可以用母语回答 · 自动保存", "💬 Trả lời bằng tiếng mẹ đẻ · tự động lưu", "💬 母国語で答えてOK · 自動保存", "💬 Jawab dengan bahasa ibu · tersimpan otomatis")}</p>
+          <p className="mb-2 flex flex-wrap items-center gap-x-1.5 px-1 text-[11px] text-[#B0B8C1]">
+            <span>{t("💬 모국어로 답해도 돼요 · 자동 저장", "💬 Answer in your own language · auto-saved", "💬 可以用母语回答 · 自动保存", "💬 Trả lời bằng tiếng mẹ đẻ · tự động lưu", "💬 母国語で答えてOK · 自動保存", "💬 Jawab dengan bahasa ibu · tersimpan otomatis")}</span>
+            <span className="inline-flex items-center gap-0.5 font-semibold text-[#8B95A1]"><Sparkle className="h-3 w-3" weight="fill" />{t("메시지당 AI 포인트 1개 소모", "1 AI point per message", "每条消息消耗1个AI积分", "1 điểm AI mỗi tin nhắn", "メッセージごとにAIポイント1", "1 poin AI per pesan")}</span>
+          </p>
           <form
             className="flex items-end gap-2"
             onSubmit={(e) => {

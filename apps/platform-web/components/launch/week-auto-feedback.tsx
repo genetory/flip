@@ -51,7 +51,7 @@ export function WeekAutoFeedback({ week }: { week: number }) {
       ) : state === "done" ? (
         <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]"><RichText text={text} /></p>
       ) : state === "none" ? (
-        <p className="mt-3 text-[13px] leading-relaxed text-[#8B95A1]">{t("이번 주 활동을 시작하면 코치가 자동으로 피드백을 드려요.", "Once you start this week's activities, your coach will automatically give you feedback.", "开始本周的活动后，教练会自动给你反馈。", "Khi bạn bắt đầu hoạt động tuần này, huấn luyện viên sẽ tự động gửi phản hồi.", "今週のアクティビティを始めると、コーチが自動でフィードバックをお届けします。", "Setelah Anda memulai aktivitas minggu ini, pelatih akan otomatis memberi umpan balik.")}</p>
+        <p className="mt-3 text-[13px] leading-relaxed text-[#8B95A1]">{t("이번 주 활동을 시작하면 코치가 자동으로 피드백을 드려요. (AI 포인트 1개 소모)", "Once you start this week's activities, your coach will automatically give you feedback. (uses 1 AI point)", "开始本周的活动后，教练会自动给你反馈。（消耗1个AI积分）", "Khi bạn bắt đầu hoạt động tuần này, huấn luyện viên sẽ tự động gửi phản hồi. (dùng 1 điểm AI)", "今週のアクティビティを始めると、コーチが自動でフィードバックをお届けします。（AIポイント1消費）", "Setelah Anda memulai aktivitas minggu ini, pelatih akan otomatis memberi umpan balik. (memakai 1 poin AI)")}</p>
       ) : (
         <p className="mt-3 text-[13px] text-[#8B95A1]">{t("피드백을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't load the feedback. Please try again in a moment.", "无法加载反馈。请稍后再试。", "Không thể tải phản hồi. Vui lòng thử lại sau giây lát.", "フィードバックを読み込めませんでした。少し後にもう一度お試しください。", "Tidak dapat memuat umpan balik. Silakan coba lagi sebentar lagi.")}</p>
       )}

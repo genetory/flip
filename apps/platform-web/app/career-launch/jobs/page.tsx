@@ -327,7 +327,7 @@ export default function LaunchJobsPage() {
             ) : null}
             <div ref={endRef} />
           </div>
-          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 진행 내용은 자동 저장돼요", "💬 Feel free to answer in your own language · 💾 Your progress saves automatically", "💬 可以用你的母语回答 · 💾 进度会自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 Tiến trình được lưu tự động", "💬 母国語で答えても大丈夫です · 💾 進行内容は自動保存されます", "💬 Boleh menjawab dalam bahasa ibumu · 💾 Progres tersimpan otomatis")}</p>
+          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 자동 저장 · ⚡ 메시지당 AI 포인트 1개 소모", "💬 Feel free to answer in your own language · 💾 auto-saved · ⚡ 1 AI point per message", "💬 可以用你的母语回答 · 💾 自动保存 · ⚡ 每条消息消耗1个AI积分", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 tự động lưu · ⚡ 1 điểm AI mỗi tin nhắn", "💬 母国語で答えてOK · 💾 自動保存 · ⚡ メッセージごとにAIポイント1", "💬 Boleh menjawab dalam bahasa ibumu · 💾 tersimpan otomatis · ⚡ 1 poin AI per pesan")}</p>
 
           {/* 저장 후엔 대화 종료 — 다시 선정 or 대시보드. 아니면 입력 + 선정 완료 */}
           {saved ? (
