@@ -37,6 +37,14 @@ export async function fetchWeekFeedback(week: number, generate = false): Promise
   return { text: typeof data.feedback === "string" ? data.feedback : null, needsGenerate: data.needsGenerate === true };
 }
 
+// 학생: 이력서+자소서 '내용' AI 요약(최종 점검 섹션). generate=false 면 캐시만.
+export async function fetchDocsSummary(opts: { force?: boolean; generate?: boolean; locale?: string } = {}): Promise<{ text: string | null; stale: boolean; needsGenerate: boolean }> {
+  const generate = opts.generate ?? true;
+  const data = await req("/career-launch/docs-summary", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force: opts.force ?? false, generate, locale: opts.locale }) });
+  if (generate && typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
+  return { text: typeof data.summary === "string" ? data.summary : null, stale: data.stale === true, needsGenerate: data.needsGenerate === true };
+}
+
 // 학생: 완주 최종 피드백 — 이력서+자소서+면접 종합. generate=false 면 캐시만(없으면 needsGenerate).
 // generate=true 면 생성(AI 포인트 차감). 결과물이 바뀌면 stale=true. force=true면 강제 재생성.
 export async function fetchFinalFeedback(opts: { force?: boolean; generate?: boolean } = {}): Promise<{ text: string | null; stale: boolean; needsGenerate: boolean }> {

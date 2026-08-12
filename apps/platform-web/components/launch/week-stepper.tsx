@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Sparkle, CircleNotch } from "@phosphor-icons/react";
 import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
+import { fetchDocsSummary } from "../../lib/launch/feedback-client";
+import { useLanguage } from "../i18n/LanguageProvider";
 import { fetchProgress, patchProgress, type CareerProgress } from "../../lib/launch/progress-client";
 import { fetchResumeData, hasResumeContent, type ResumeData, type ResumeExperience } from "../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
@@ -246,41 +249,9 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
         </div>
       );
     }
-    // 이력서 + 자기소개서 최종 점검 — 요약을 보여주고, 고칠 곳은 각각 week2/week3 로 이동해 수정.
+    // 이력서 + 자기소개서 최종 점검 — 내용을 AI로 요약해 보여주고, 고칠 곳은 week2/week3 에서 수정.
     if (kind === "both" && (resumeReady || coverReady)) {
-      const filledCover = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
-      return (
-        <div className="mt-3 space-y-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
-          {resumeReady ? (
-            <div>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[13px] font-bold text-[#191F28]">📄 {t(`이력서 — 경력 ${expN} · 스킬 ${skillN}`, `Resume — Experience ${expN} · Skills ${skillN}`, `简历 — 经历 ${expN} · 技能 ${skillN}`, `CV — Kinh nghiệm ${expN} · Kỹ năng ${skillN}`, `履歴書 — 職歴 ${expN} · スキル ${skillN}`, `Resume — Pengalaman ${expN} · Keterampilan ${skillN}`)}</p>
-                <Link href="/career-launch/week/2" className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("이력서 수정하기", "Edit resume", "编辑简历", "Chỉnh sửa CV", "履歴書を修正", "Edit resume")}</Link>
-              </div>
-              {expN > 0 ? (
-                <ul className="mt-1.5 space-y-1">
-                  {resume.experiences!.map((x, i) => (
-                    <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#4E5968]"><span className="text-[#3A6B00]">•</span>{[x.title, x.org].filter(Boolean).join(" · ")}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          ) : null}
-          {coverReady ? (
-            <div>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[13px] font-bold text-[#191F28]">📝 {t(`자기소개서 — 문항 ${coverN}개`, `Cover letter — ${coverN} questions`, `自我介绍书 — ${coverN} 道题`, `Thư giới thiệu bản thân — ${coverN} câu hỏi`, `自己紹介書 — 設問 ${coverN}件`, `Surat lamaran — ${coverN} pertanyaan`)}{cover.company ? ` · ${cover.company}` : ""}</p>
-                <Link href="/career-launch/week/3" className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("자기소개서 수정하기", "Edit cover letter", "编辑自我介绍书", "Chỉnh sửa thư giới thiệu", "自己紹介書を修正", "Edit surat lamaran")}</Link>
-              </div>
-              <ul className="mt-1.5 space-y-1">
-                {filledCover.map((it, i) => (
-                  <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#4E5968]"><span className="text-[#3A6B00]">•</span>{it.question}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      );
+      return <FinalDocsSummary resumeReady={resumeReady} coverReady={coverReady} />;
     }
     return null;
   };
@@ -374,6 +345,94 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
       })}
     </ol>
     </>
+  );
+}
+
+// 최종 점검 — 이력서+자소서 내용을 AI로 요약해 보여준다(버튼식 생성·캐시·포인트 1).
+function FinalDocsSummary({ resumeReady, coverReady }: { resumeReady: boolean; coverReady: boolean }) {
+  const t = useLaunchT();
+  const { locale } = useLanguage();
+  const [state, setState] = useState<"loading" | "ready" | "done" | "error">("loading");
+  const [text, setText] = useState("");
+  const [stale, setStale] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [quota, setQuota] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const r = await fetchDocsSummary({ generate: false });
+        if (!alive) return;
+        if (r.text && r.text.trim()) {
+          setText(r.text);
+          setStale(r.stale);
+          setState("done");
+        } else {
+          setState("ready");
+        }
+      } catch {
+        if (alive) setState("error");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const run = async (force: boolean) => {
+    if (busy) return;
+    setBusy(true);
+    setQuota(false);
+    try {
+      const r = await fetchDocsSummary({ force, generate: true, locale });
+      if (r.text && r.text.trim()) {
+        setText(r.text);
+        setStale(false);
+        setState("done");
+      }
+    } catch (e) {
+      if (e instanceof Error && /quota|402|포인트|ticket/i.test(e.message)) setQuota(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
+      {state === "loading" ? (
+        <p className="text-[12.5px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
+      ) : state === "done" ? (
+        <>
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#0B46E8]">{t("AI 요약", "AI summary", "AI 摘要", "Tóm tắt AI", "AI要約", "Ringkasan AI")}</p>
+          <p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-[1.75] text-[#333D4B]">{text}</p>
+          {stale ? (
+            <button type="button" onClick={() => run(true)} disabled={busy} className="mt-2.5 inline-flex items-center gap-1 rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 disabled:opacity-60">
+              {busy ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : null}
+              {t("최신 내용으로 다시 요약", "Re-summarize latest", "按最新内容重新摘要", "Tóm tắt lại", "最新内容で再要約", "Ringkas ulang")} <span className="opacity-70">· ⚡1</span>
+            </button>
+          ) : null}
+        </>
+      ) : state === "ready" ? (
+        <div>
+          <p className="break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("AI가 이력서·자기소개서 내용을 짧게 요약해드려요.", "AI briefly summarizes your resume & cover letter.", "AI 会简要总结你的简历与自我介绍书。", "AI tóm tắt ngắn gọn CV & thư giới thiệu của bạn.", "AIが履歴書・自己紹介書の内容を短く要約します。", "AI meringkas resume & surat lamaranmu.")}</p>
+          <button type="button" onClick={() => run(false)} disabled={busy} className="mt-2.5 inline-flex items-center gap-1.5 rounded-xl bg-[#191F28] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0B1227] disabled:opacity-60">
+            {busy ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <Sparkle className="h-4 w-4" weight="fill" />}
+            {busy ? t("요약 중…", "Summarizing…", "摘要中…", "Đang tóm tắt…", "要約中…", "Meringkas…") : t("AI 요약 받기", "Get AI summary", "获取AI摘要", "Nhận tóm tắt AI", "AI要約を受け取る", "Dapatkan ringkasan AI")}
+            <span className="font-semibold opacity-70">· ⚡1</span>
+          </button>
+          {quota ? <p className="mt-2 text-[12px] font-semibold text-[#F04452]">{t("AI 포인트가 부족해요. 충전 후 다시 시도해 주세요.", "Not enough AI points. Please recharge and try again.", "AI 积分不足，请充值后再试。", "Không đủ điểm AI. Vui lòng nạp thêm và thử lại.", "AIポイントが不足しています。チャージ後にお試しください。", "Poin AI tidak cukup. Isi ulang lalu coba lagi.")}</p> : null}
+        </div>
+      ) : (
+        <p className="text-[12.5px] text-[#8B95A1]">{t("요약을 불러오지 못했어요.", "Couldn't load the summary.", "无法加载摘要。", "Không thể tải tóm tắt.", "要約を読み込めませんでした。", "Tidak dapat memuat ringkasan.")}</p>
+      )}
+
+      {/* 고칠 곳 — 각 주차에서 수정 */}
+      <div className="mt-3 flex flex-wrap gap-1.5 border-t border-[#EEF1F5] pt-3">
+        {resumeReady ? <Link href="/career-launch/week/2" className="rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("이력서 수정", "Edit resume", "编辑简历", "Sửa CV", "履歴書を修正", "Edit resume")}</Link> : null}
+        {coverReady ? <Link href="/career-launch/week/3" className="rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("자기소개서 수정", "Edit cover letter", "编辑自我介绍书", "Sửa thư giới thiệu", "自己紹介書を修正", "Edit surat lamaran")}</Link> : null}
+      </div>
+    </div>
   );
 }
 

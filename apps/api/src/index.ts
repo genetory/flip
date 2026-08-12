@@ -14617,7 +14617,8 @@ const AI_FEATURE_COST: Record<string, number> = {
   career_diagnosis_chat: 1,
   career_interview_chat: 1,
   career_week_feedback: 1,
-  career_final_feedback: 2
+  career_final_feedback: 2,
+  career_docs_summary: 1
 };
 function aiFeatureCost(feature: string): number {
   return AI_FEATURE_COST[feature] ?? 0;
@@ -16810,6 +16811,71 @@ app.post(
     } catch (err) {
       console.error("[career-launch/final-feedback] failed", err);
       return res.status(500).json({ ok: false, message: "failed to generate feedback" });
+    }
+  }
+);
+
+// POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
+// 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
+const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["summary"], properties: { summary: { type: "string" } } };
+const DOCS_SUMMARY_VERSION = 1;
+app.post(
+  "/career-launch/docs-summary",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-docs-summary", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      const hasResume = hasResumeDataContent(normalizeResumeData(resumeContent));
+      const hasCover = hasCoverContent(normalizeCoverData(coverContent));
+      if (!hasResume && !hasCover) return res.json({ ok: true, summary: null });
+
+      const currentSig = simpleHash(JSON.stringify({ resume: resumeContent, cover: coverContent }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const locale = typeof (req.body as { locale?: unknown })?.locale === "string" ? (req.body as { locale: string }).locale : "ko";
+      const cached = (progState.docsSummary && typeof progState.docsSummary === "object" ? progState.docsSummary : {}) as { v?: number; sig?: string; text?: string };
+      if (!force && cached.v === DOCS_SUMMARY_VERSION && typeof cached.text === "string" && cached.text.trim()) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, summary: cached.text, stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, summary: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      const cost = aiFeatureCost("career_docs_summary");
+      if (cost > 0) {
+        const st = await aiCreditStatus(uid).catch(() => null);
+        if (st && st.remaining < cost) return res.status(402).json({ ok: false, message: "ai quota exceeded", quota: st });
+      }
+
+      const systemPrompt =
+        "너는 취업 코치야. 학생의 이력서와 자기소개서에 담긴 '내용'을 3~5문장으로 간결하게 요약해줘. 핵심 경력·강점·지원 방향이 자연스럽게 드러나게, 담백하고 읽기 쉽게 써줘. 평가나 조언이 아니라 '무엇이 담겼는지'를 정리하는 요약이야. " +
+        'JSON 한 개 객체로만 응답: { "summary": string }' +
+        aiLangDirective(locale);
+      const userPrompt = `[이력서]\n${JSON.stringify(resumeContent)}\n\n[자기소개서]\n${JSON.stringify(coverContent)}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "docs_summary", DOCS_SUMMARY_SCHEMA)) as { summary?: unknown };
+      const summary = typeof pj.summary === "string" ? pj.summary.trim() : "";
+      if (!summary) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, docsSummary: { v: DOCS_SUMMARY_VERSION, sig: currentSig, text: summary } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      void aiQuotaConsume(uid, "career_docs_summary");
+      return res.json({ ok: true, summary, stale: false });
+    } catch (err) {
+      console.error("[career-launch/docs-summary] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to summarize" });
     }
   }
 );
