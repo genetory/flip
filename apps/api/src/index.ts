@@ -15893,8 +15893,21 @@ app.post(
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const focusDirective = focus && (RESUME_SECTIONS as readonly string[]).includes(focus) ? (await getCareerPrompt(`resume_${focus}`)) + "\n\n" : "";
+      // 섹션 편집 빌더에서 온 focus — 해당 섹션만 엄격히 다루도록 강한 제약을 건다.
+      const RESUME_FOCUS_LABEL: Record<string, string> = {
+        basic: "기본정보(이름·이메일·연락처·한줄 소개)",
+        edu: "학력",
+        exp: "경력(회사에서 일한 경험)",
+        expOther: "활동·프로젝트(대외활동·동아리·공모전 등)",
+        skill: "스킬(보유 역량·툴)",
+        lang: "어학(언어·시험 점수)"
+      };
+      const focusHardScope =
+        focus && RESUME_FOCUS_LABEL[focus]
+          ? `\n\n[가장 중요한 규칙] 지금 이 대화는 오직 '${RESUME_FOCUS_LABEL[focus]}' 항목만 다룬다. 이 항목에 대해서만 질문하고 답을 받는다. 다른 섹션(그 외 이력서 항목)은 절대 묻지도, 채우지도, 언급하지도 마라. 이 항목을 충분히 채웠으면 done:true 로 마무리하고 다른 섹션으로 넘어가지 마라. data 에는 이 섹션에 해당하는 필드만 채우고 나머지 필드는 비워 둔다.`
+          : "";
       const systemPrompt =
-        (await getCareerPrompt("resume")) + "\n\n" + CAREER_SCOPE + "\n\n" + focusDirective +
+        (await getCareerPrompt("resume")) + "\n\n" + CAREER_SCOPE + "\n\n" + focusDirective + focusHardScope + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": {basic,educations,experiences,skills,languages}, "done": boolean }' +
         aiLangDirective(locale);
       // 저장된 데이터가 이미 있는지 — kickoff 시 재질문 방지용.
@@ -16224,8 +16237,12 @@ app.post(
       const hasSaved = hasCoverContent(savedNorm);
       const focusLabel = focus ? COVER_LABELS[focus] : undefined;
       const focusDirective = focus && focusLabel ? (await getCareerPrompt(`cover_${focus}`)) + "\n\n" : "";
+      // 문항 편집 빌더에서 온 focus — 해당 문항만 엄격히 다루도록 강한 제약.
+      const focusHardScope = focusLabel
+        ? `\n\n[가장 중요한 규칙] 지금 이 대화는 오직 '${focusLabel}' 문항만 다룬다. 이 문항에 대해서만 질문하고 답을 받아 완성한다. 다른 문항(지원 동기·성장 과정·성격의 장단점·입사 후 포부 중 이 문항 외)은 절대 묻지도, 작성하지도, 언급하지도 마라. 이 문항을 충분히 채웠으면 done:true 로 마무리한다. data.items 에는 question 이 '${focusLabel}' 인 항목만 채운다.`
+        : "";
       const systemPrompt =
-        (await getCareerPrompt("cover")) + "\n\n" + CAREER_SCOPE + "\n\n" + focusDirective +
+        (await getCareerPrompt("cover")) + "\n\n" + CAREER_SCOPE + "\n\n" + focusDirective + focusHardScope + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": { "company": string|null, "items": [{ "question": string, "answer": string }] }, "done": boolean }' +
         aiLangDirective(locale);
       const convo = messages.length

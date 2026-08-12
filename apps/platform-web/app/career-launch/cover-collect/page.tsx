@@ -123,8 +123,9 @@ export default function CoverCollectPage() {
     const { reply, data: d, done } = await requestCoverChat(history, buildData(company, answers), focus);
     const items = d.items ?? [];
     const nextAnswers = { ...answers };
-    SECTIONS.forEach((s, idx) => {
-      const match = items.find((it) => (it.question ?? "").trim() === s.ko) ?? items[idx];
+    // 정식 질문(question === s.ko) 매칭만 — 포커스 문항만 온 경우 다른 문항 오염 방지.
+    SECTIONS.forEach((s) => {
+      const match = items.find((it) => (it.question ?? "").trim() === s.ko);
       if (match && typeof match.answer === "string") nextAnswers[s.key] = match.answer;
     });
     const nextCompany = d.company ?? company;
