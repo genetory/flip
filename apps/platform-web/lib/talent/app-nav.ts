@@ -53,3 +53,27 @@ export function isTabActive(pathname: string, href: string): boolean {
   if (href === talentAppRoutes.home) return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
+
+// GNB 네비 라벨 다국어 — 데이터의 한국어 label 대신 화면에서 이 훅으로 번역해 노출.
+import { usePlatformT } from "../i18n";
+export function useTalentNavLabel(): (key: TalentTabKey) => string {
+  const t = usePlatformT();
+  return (key) => {
+    switch (key) {
+      case "home":
+        return t("홈", "Home", "首页", "Trang chủ", "ホーム", "Beranda");
+      case "career":
+        return t("내 커리어", "Career", "我的职业", "Sự nghiệp", "キャリア", "Karier");
+      case "jobs":
+        return t("포지션 탐색", "Jobs", "职位", "Việc làm", "求人", "Lowongan");
+      case "applications":
+        return t("지원 현황", "Applied", "申请", "Ứng tuyển", "応募", "Lamaran");
+      case "insights":
+        return t("취업 가이드", "Guide", "指南", "Hướng dẫn", "ガイド", "Panduan");
+      case "feed":
+        return t("피드", "Feed", "动态", "Bảng tin", "フィード", "Umpan");
+      default:
+        return key;
+    }
+  };
+}

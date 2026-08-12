@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Bell, List, X } from "@phosphor-icons/react";
 import { talentBrand, talentRoutes } from "../../lib/talent/landing-content";
-import { talentMainNav, isTabActive, talentAppRoutes } from "../../lib/talent/app-nav";
+import { talentMainNav, isTabActive, talentAppRoutes, useTalentNavLabel } from "../../lib/talent/app-nav";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { TalentTicketBadge } from "./TalentTicketBadge";
 import { useFollowFeedNotifications, useFollowCompanyPositionNotifications, type FeedAuthor } from "../../lib/talent/social-graph";
@@ -23,6 +23,7 @@ export function TalentHeader() {
   const isTalentUser = isAuthenticated && (user?.role === "STUDENT" || user?.role === "OPERATOR");
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const navLabel = useTalentNavLabel();
 
   // 경로가 바뀌면 모바일 메뉴 닫기.
   useEffect(() => {
@@ -74,7 +75,7 @@ export function TalentHeader() {
                     active ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-[#4E5968] hover:bg-[#F6F8FB] hover:text-[#191F28]"
                   }`}
                 >
-                  {item.label}
+                  {navLabel(item.key)}
                 </Link>
               );
             })}
@@ -138,7 +139,7 @@ export function TalentHeader() {
                     }`}
                   >
                     <Icon className="h-5 w-5" weight={active ? "fill" : "regular"} />
-                    {item.label}
+                    {navLabel(item.key)}
                   </Link>
                 </li>
               );
