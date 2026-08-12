@@ -121,7 +121,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
             {prog.selectedJobs!.map((role) => {
               const job = RECOMMENDED_JOBS.find((x) => x.role === role);
               return (
-                <li key={role} className="rounded-lg bg-white/70 p-2.5">
+                <li key={role} className="rounded-xl border border-[#EEF1F5] bg-white p-3">
                   <p className="text-[13px] font-bold text-[#191F28]">{jobName(role)}</p>
                   {job?.reason ? <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p> : null}
                 </li>
@@ -137,7 +137,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
           <p className="text-[13.5px] font-bold text-[#191F28]">{t("선정 직무 정보", "Selected job info", "所选职位信息", "Thông tin công việc đã chọn", "選んだ職務の情報", "Info pekerjaan yang dipilih")} <span className="text-[#0B46E8]">{t(`${prog.materials!.length}개`, `${prog.materials!.length}`, `${prog.materials!.length} 条`, `${prog.materials!.length}`, `${prog.materials!.length}件`, `${prog.materials!.length}`)}</span> {t("정리", "organized", "整理", "đã sắp xếp", "整理", "dirapikan")}</p>
           <ul className="mt-2 space-y-1.5">
             {prog.materials!.map((m, i) => (
-              <li key={i} className="flex gap-1.5 break-keep rounded-lg bg-white/70 px-2.5 py-2 text-[12.5px] text-[#333D4B]"><span className="text-[#3A6B00]">•</span>{m}</li>
+              <li key={i} className="flex gap-1.5 break-keep rounded-xl border border-[#EEF1F5] bg-white px-3 py-2 text-[12.5px] text-[#333D4B]"><span className="text-[#3A6B00]">•</span>{m}</li>
             ))}
           </ul>
         </ResultCard>
@@ -197,7 +197,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
           <p className="text-[13.5px] font-bold text-[#191F28]">📄 {t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keterampilan")} <span className="text-[#0B46E8]">{t(`${skillN}개`, `${skillN}`, `${skillN} 项`, `${skillN}`, `${skillN}件`, `${skillN}`)}</span></p>
           <div className="mt-1.5 flex flex-wrap gap-1">
             {resume.skills!.map((s, i) => (
-              <span key={i} className="rounded-full bg-white/70 px-2 py-0.5 text-[11.5px] font-semibold text-[#0B46E8]">{s}</span>
+              <span key={i} className="rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[11.5px] font-semibold text-[#0B46E8]">{s}</span>
             ))}
           </div>
         </ResultCard>
@@ -237,10 +237,10 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
             ? t("직무 면접", "Job interview", "职务面试", "Phỏng vấn công việc", "職務面接", "Wawancara pekerjaan")
             : t("인성·컬처핏 면접", "Personality & culture-fit interview", "人品·文化契合面试", "Phỏng vấn tính cách · phù hợp văn hóa", "人柄·カルチャーフィット面接", "Wawancara kepribadian & kecocokan budaya");
       return (
-        <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
+        <div className="mt-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
           <div className="flex items-start justify-between gap-2">
             <p className="text-[13px] font-bold text-[#191F28]">🎤 {t(`${label} 연습 완료`, `${label} practice done`, `${label} 练习完成`, `Đã luyện tập ${label}`, `${label} 練習完了`, `Latihan ${label} selesai`)}</p>
-            <Link href={`/career-launch/interview?section=${type}`} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">{t("다시 연습", "Practice again", "再练习", "Luyện lại", "もう一度練習", "Latihan lagi")}</Link>
+            <Link href={`/career-launch/interview?section=${type}`} className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("다시 연습", "Practice again", "再练习", "Luyện lại", "もう一度練習", "Latihan lagi")}</Link>
           </div>
           <p className="mt-1 break-keep text-[12.5px] text-[#4E5968]">{t("면접관과 실전처럼 주고받으며 연습을 마쳤어요. 필요하면 다시 연습해봐요.", "You practiced a realistic back-and-forth with the interviewer. Practice again anytime you need.", "你与面试官进行了实战般的问答练习。需要的话可以再练习。", "Bạn đã luyện tập hỏi đáp thực tế với người phỏng vấn. Cần thì hãy luyện lại nhé.", "面接官と実践のようにやり取りしながら練習を終えました。必要ならまた練習してみましょう。", "Anda berlatih tanya-jawab layaknya nyata dengan pewawancara. Latih lagi kapan pun perlu.")}</p>
         </div>
