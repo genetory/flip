@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Plus, Trash, Check, CircleNotch, Eye, Sparkle } from "@phosphor-icons/react";
+import { Plus, Trash, Check, CircleNotch, Eye, Sparkle, CaretUp, CaretDown, SortAscending } from "@phosphor-icons/react";
 import { toResumeContent } from "../../../components/launch/resume-render";
 import { ResumePreview } from "../../../components/resume-maker/ResumePreview";
 import { DEFAULT_DESIGN } from "../../../lib/resume-maker-types";
@@ -119,6 +119,7 @@ export default function ResumeCollectPage() {
     commit({ ...data, experiences: [...work.map((e) => ({ ...e, kind: "work" as const })), ...other.map((e) => ({ ...e, kind: "other" as const }))] });
 
   const aiLabel = t("AI로 채우기", "Fill with AI", "用AI填写", "Điền bằng AI", "AIで埋める", "Isi dengan AI");
+  const dateLabel = t("날짜순", "By date", "按日期", "Theo ngày", "日付順", "Urut tanggal");
   const sectionLabel: Record<ResumeSection, string> = {
     basic: t("기본정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar"),
     edu: t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan"),
@@ -207,11 +208,18 @@ export default function ResumeCollectPage() {
 
               {/* 학력 */}
               <section id="sec-edu" className={show("edu") ? undefined : "hidden"}>
-                <RowSectionTitle title={t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")} onAdd={() => commit({ ...data, educations: [...(data.educations ?? []), {}] })} addLabel={t("추가", "Add", "添加", "Thêm", "追加", "Tambah")} onAi={() => setChatFocus("edu")} aiLabel={aiLabel} />
+                <RowSectionTitle title={t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")} onAdd={() => commit({ ...data, educations: [...(data.educations ?? []), {}] })} addLabel={t("추가", "Add", "添加", "Thêm", "追加", "Tambah")} onAi={() => setChatFocus("edu")} aiLabel={aiLabel} onSort={(data.educations ?? []).length > 1 ? () => commit({ ...data, educations: sortByDateDesc(data.educations ?? []) }) : undefined} sortLabel={dateLabel} />
                 {(data.educations ?? []).length === 0 ? <Empty t={t} /> : null}
                 <div className="flex flex-col gap-3">
                   {(data.educations ?? []).map((edu, i) => (
-                    <RowCard key={i} onRemove={() => commit({ ...data, educations: (data.educations ?? []).filter((_, j) => j !== i) })}>
+                    <RowCard
+                      key={i}
+                      onRemove={() => commit({ ...data, educations: (data.educations ?? []).filter((_, j) => j !== i) })}
+                      onUp={() => commit({ ...data, educations: moveIn(data.educations ?? [], i, -1) })}
+                      onDown={() => commit({ ...data, educations: moveIn(data.educations ?? [], i, 1) })}
+                      first={i === 0}
+                      last={i === (data.educations ?? []).length - 1}
+                    >
                       <div className="grid gap-2.5 sm:grid-cols-2">
                         <Field label={t("학교", "School", "学校", "Trường", "学校", "Sekolah")} value={edu.school ?? ""} onChange={(v) => updRow(data.educations!, i, { school: v }, (arr) => commit({ ...data, educations: arr }))} placeholder={t("예: 고려대학교", "e.g., Korea University", "例：高丽大学", "VD: ĐH Korea", "例：高麗大学", "Cth: Korea University")} />
                         <Field label={t("전공", "Major", "专业", "Chuyên ngành", "専攻", "Jurusan")} value={edu.major ?? ""} onChange={(v) => updRow(data.educations!, i, { major: v }, (arr) => commit({ ...data, educations: arr }))} placeholder={t("예: 경영학", "e.g., Business", "例：经营学", "VD: Kinh doanh", "例：経営学", "Cth: Bisnis")} />
@@ -266,7 +274,14 @@ export default function ResumeCollectPage() {
                 {(data.languages ?? []).length === 0 ? <Empty t={t} /> : null}
                 <div className="flex flex-col gap-3">
                   {(data.languages ?? []).map((lang, i) => (
-                    <RowCard key={i} onRemove={() => commit({ ...data, languages: (data.languages ?? []).filter((_, j) => j !== i) })}>
+                    <RowCard
+                      key={i}
+                      onRemove={() => commit({ ...data, languages: (data.languages ?? []).filter((_, j) => j !== i) })}
+                      onUp={() => commit({ ...data, languages: moveIn(data.languages ?? [], i, -1) })}
+                      onDown={() => commit({ ...data, languages: moveIn(data.languages ?? [], i, 1) })}
+                      first={i === 0}
+                      last={i === (data.languages ?? []).length - 1}
+                    >
                       <div className="grid gap-2.5 sm:grid-cols-2">
                         <Field label={t("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa")} value={lang.language ?? ""} onChange={(v) => updRow(data.languages!, i, { language: v }, (arr) => commit({ ...data, languages: arr }))} placeholder={t("예: 한국어", "e.g., Korean", "例：韩语", "VD: Tiếng Hàn", "例：韓国語", "Cth: Korea")} />
                         <Field label={t("수준", "Level", "水平", "Trình độ", "レベル", "Level")} value={lang.level ?? ""} onChange={(v) => updRow(data.languages!, i, { level: v }, (arr) => commit({ ...data, languages: arr }))} placeholder="TOPIK 5" />
@@ -284,7 +299,7 @@ export default function ResumeCollectPage() {
                 <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("실시간 미리보기", "Live preview", "实时预览", "Xem trước trực tiếp", "リアルタイムプレビュー", "Pratinjau langsung")}</p>
                 {/* 회색 트레이 위에 A4 시트가 쌓임 — 1장을 넘기면 다음 장이 아래로 이어짐 */}
                 <div className="max-h-[calc(100vh-9rem)] overflow-y-auto rounded-2xl bg-[#F2F4F6] p-3">
-                  <ResumePreview content={toResumeContent(data)} design={DEFAULT_DESIGN} />
+                  <ResumePreview content={toResumeContent(data)} design={DEFAULT_DESIGN} preserveOrder />
                 </div>
                 <Link href="/career-launch/resume-preview" target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">
                   {t("전체 화면으로 보기", "Open full screen", "全屏查看", "Xem toàn màn hình", "全画面で見る", "Lihat layar penuh")} ↗
@@ -329,24 +344,44 @@ function AddBtn({ onClick, label }: { onClick: () => void; label: string }) {
     </button>
   );
 }
-function RowSectionTitle({ title, onAdd, addLabel, onAi, aiLabel }: { title: string; onAdd: () => void; addLabel: string; onAi?: () => void; aiLabel?: string }) {
+function SortBtn({ onClick, label }: { onClick: () => void; label: string }) {
   return (
-    <div className="mb-4 flex items-center justify-between gap-2">
+    <button type="button" onClick={onClick} className="inline-flex items-center gap-1 rounded-lg border border-[#E5E8EB] bg-white px-2.5 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">
+      <SortAscending className="h-3.5 w-3.5" weight="bold" /> {label}
+    </button>
+  );
+}
+function RowSectionTitle({ title, onAdd, addLabel, onAi, aiLabel, onSort, sortLabel }: { title: string; onAdd: () => void; addLabel: string; onAi?: () => void; aiLabel?: string; onSort?: () => void; sortLabel?: string }) {
+  return (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
       <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{title}</h2>
       <div className="flex items-center gap-1.5">
+        {onSort ? <SortBtn onClick={onSort} label={sortLabel ?? ""} /> : null}
         {onAi ? <AiBtn onClick={onAi} label={aiLabel ?? "AI"} /> : null}
         <AddBtn onClick={onAdd} label={addLabel} />
       </div>
     </div>
   );
 }
-function RowCard({ children, onRemove }: { children: React.ReactNode; onRemove: () => void }) {
+function RowCard({ children, onRemove, onUp, onDown, first, last }: { children: React.ReactNode; onRemove: () => void; onUp?: () => void; onDown?: () => void; first?: boolean; last?: boolean }) {
   return (
-    <div className="relative rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4 pr-11">
+    <div className="relative rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4 pr-12">
       {children}
-      <button type="button" onClick={onRemove} aria-label="remove" className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]">
-        <Trash className="h-4 w-4" />
-      </button>
+      <div className="absolute right-2.5 top-2.5 flex flex-col items-center">
+        {onUp ? (
+          <button type="button" onClick={onUp} disabled={first} aria-label="move up" className="flex h-6 w-7 items-center justify-center rounded text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#4E5968] disabled:opacity-30">
+            <CaretUp className="h-3.5 w-3.5" weight="bold" />
+          </button>
+        ) : null}
+        {onDown ? (
+          <button type="button" onClick={onDown} disabled={last} aria-label="move down" className="flex h-6 w-7 items-center justify-center rounded text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#4E5968] disabled:opacity-30">
+            <CaretDown className="h-3.5 w-3.5" weight="bold" />
+          </button>
+        ) : null}
+        <button type="button" onClick={onRemove} aria-label="remove" className="mt-0.5 flex h-6 w-7 items-center justify-center rounded text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]">
+          <Trash className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -357,10 +392,11 @@ function Empty({ t }: { t: ReturnType<typeof useLaunchT> }) {
 function ExpSection({ id, title, none, onNone, noneLabel, list, onChange, onAi, hidden, t }: { id: string; title: string; none: boolean; onNone: (v: boolean) => void; noneLabel: string; list: ResumeExperience[]; onChange: (next: ResumeExperience[]) => void; onAi?: () => void; hidden?: boolean; t: ReturnType<typeof useLaunchT> }) {
   return (
     <section id={id} className={hidden ? "hidden" : undefined}>
-      <div className="mb-4 flex items-center justify-between gap-2">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{title}</h2>
         {!none ? (
           <div className="flex items-center gap-1.5">
+            {list.length > 1 ? <SortBtn onClick={() => onChange(sortByDateDesc(list))} label={t("날짜순", "By date", "按日期", "Theo ngày", "日付順", "Urut tanggal")} /> : null}
             {onAi ? <AiBtn onClick={onAi} label={t("AI로 채우기", "Fill with AI", "用AI填写", "Điền bằng AI", "AIで埋める", "Isi dengan AI")} /> : null}
             <AddBtn onClick={() => onChange([...list, {}])} label={t("추가", "Add", "添加", "Thêm", "追加", "Tambah")} />
           </div>
@@ -375,7 +411,14 @@ function ExpSection({ id, title, none, onNone, noneLabel, list, onChange, onAi, 
           {list.length === 0 ? <Empty t={t} /> : null}
           <div className="flex flex-col gap-3">
             {list.map((exp, i) => (
-              <RowCard key={i} onRemove={() => onChange(list.filter((_, j) => j !== i))}>
+              <RowCard
+                key={i}
+                onRemove={() => onChange(list.filter((_, j) => j !== i))}
+                onUp={() => onChange(moveIn(list, i, -1))}
+                onDown={() => onChange(moveIn(list, i, 1))}
+                first={i === 0}
+                last={i === list.length - 1}
+              >
                 <div className="grid gap-2.5 sm:grid-cols-2">
                   <Field label={t("소속", "Organization", "所属", "Tổ chức", "所属", "Organisasi")} value={exp.org ?? ""} onChange={(v) => onChange(list.map((e, j) => (j === i ? { ...e, org: v } : e)))} placeholder={t("예: 스타트업 A", "e.g., Startup A", "例：初创A", "VD: Startup A", "例：スタートアップA", "Cth: Startup A")} />
                   <Field label={t("역할·직무", "Role", "角色·职务", "Vai trò", "役割・職務", "Peran")} value={exp.title ?? ""} onChange={(v) => onChange(list.map((e, j) => (j === i ? { ...e, title: v } : e)))} placeholder={t("예: 마케팅 인턴", "e.g., Marketing intern", "例：市场营销实习", "VD: Thực tập marketing", "例：マーケインターン", "Cth: Magang marketing")} />
@@ -454,4 +497,21 @@ function SaveIndicator({ state, t }: { state: SaveState; t: ReturnType<typeof us
 // 배열 행 부분 업데이트 헬퍼(학력·어학).
 function updRow<T>(arr: T[], i: number, patch: Partial<T>, done: (next: T[]) => void) {
   done(arr.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+}
+
+// 항목 순서 이동(위/아래).
+function moveIn<T>(arr: T[], i: number, dir: number): T[] {
+  const j = i + dir;
+  if (j < 0 || j >= arr.length) return arr;
+  const next = [...arr];
+  [next[i], next[j]] = [next[j], next[i]];
+  return next;
+}
+// 기간 문자열에서 가장 마지막 숫자(종료 시점)를 뽑아 최신순 정렬 키로.
+function recencyKey(period?: string | null): string {
+  const nums = (period ?? "").replace(/[^0-9]/g, " ").trim().split(/\s+/).filter(Boolean);
+  return nums.length ? nums[nums.length - 1].padStart(8, "0") : "00000000";
+}
+function sortByDateDesc<T extends { period?: string | null }>(arr: T[]): T[] {
+  return [...arr].sort((a, b) => recencyKey(b.period).localeCompare(recencyKey(a.period)));
 }
