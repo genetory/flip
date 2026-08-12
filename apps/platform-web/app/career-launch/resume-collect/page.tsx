@@ -31,6 +31,8 @@ export default function ResumeCollectPage() {
   const { isReady } = useAuthSession();
   const params = useSearchParams();
   const focus = (params.get("section") as ResumeSection | null) ?? null;
+  // 주차 스텝에서 특정 섹션으로 진입하면 그 섹션만 노출(전체 진입 시 모두 노출).
+  const show = (s: ResumeSection) => !focus || focus === s;
 
   const [data, setData] = useState<ResumeData>({ basic: {}, educations: [], experiences: [], skills: [], languages: [] });
   const [loaded, setLoaded] = useState(false);
@@ -117,6 +119,14 @@ export default function ResumeCollectPage() {
     commit({ ...data, experiences: [...work.map((e) => ({ ...e, kind: "work" as const })), ...other.map((e) => ({ ...e, kind: "other" as const }))] });
 
   const aiLabel = t("AI로 채우기", "Fill with AI", "用AI填写", "Điền bằng AI", "AIで埋める", "Isi dengan AI");
+  const sectionLabel: Record<ResumeSection, string> = {
+    basic: t("기본정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar"),
+    edu: t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan"),
+    exp: t("경력", "Work experience", "工作经历", "Kinh nghiệm làm việc", "職歴", "Pengalaman kerja"),
+    expOther: t("활동·프로젝트", "Activities & projects", "活动·项目", "Hoạt động & dự án", "活動・プロジェクト", "Aktivitas & proyek"),
+    skill: t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian"),
+    lang: t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")
+  };
   const chatTitle: Record<ResumeSection, string> = {
     basic: t("기본정보 대화로 채우기", "Fill basic info by chat", "对话填写基本信息", "Điền thông tin cơ bản qua chat", "会話で基本情報を入力", "Isi info dasar via chat"),
     edu: t("학력 대화로 채우기", "Fill education by chat", "对话填写学历", "Điền học vấn qua chat", "会話で学歴を入力", "Isi pendidikan via chat"),
@@ -171,15 +181,15 @@ export default function ResumeCollectPage() {
           {/* 마스트헤드 */}
           <div className="mt-3.5">
             <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</p>
-            <h1 className="mt-2 break-keep text-[24px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[30px]">{t("내 이력서 작성", "Build your resume", "撰写我的简历", "Viết CV của tôi", "履歴書を作成", "Susun resume saya")}</h1>
-            <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#8B95A1] md:text-[14.5px]">{t("항목을 직접 채우면 오른쪽 미리보기에 바로 반영돼요. 내용은 자동 저장됩니다.", "Fill in each item and it updates the preview instantly. Everything saves automatically.", "直接填写各项，右侧预览会即时更新。内容自动保存。", "Điền từng mục và bản xem trước cập nhật ngay. Mọi thứ được lưu tự động.", "各項目を入力すると右のプレビューに即反映。内容は自動保存されます。", "Isi tiap item dan pratinjau langsung diperbarui. Semua tersimpan otomatis.")}</p>
+            <h1 className="mt-2 break-keep text-[24px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[30px]">{focus ? sectionLabel[focus] : t("내 이력서 작성", "Build your resume", "撰写我的简历", "Viết CV của tôi", "履歴書を作成", "Susun resume saya")}</h1>
+            <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#8B95A1] md:text-[14.5px]">{focus ? t("이 항목만 채우면 돼요. 직접 입력하거나 'AI로 채우기'로 대화하며 완성하세요.", "Just fill in this section — type it in or use 'Fill with AI' to complete it by chatting.", "只需填写此项。可直接输入，或用“用AI填写”对话完成。", "Chỉ cần điền mục này — tự nhập hoặc dùng 'Điền bằng AI' để hoàn thành qua trò chuyện.", "この項目だけ入力すればOK。直接入力するか『AIで埋める』で会話しながら完成させましょう。", "Cukup isi bagian ini — ketik langsung atau pakai 'Isi dengan AI' lewat percakapan.") : t("항목을 직접 채우면 오른쪽 미리보기에 바로 반영돼요. 내용은 자동 저장됩니다.", "Fill in each item and it updates the preview instantly. Everything saves automatically.", "直接填写各项，右侧预览会即时更新。内容自动保存。", "Điền từng mục và bản xem trước cập nhật ngay. Mọi thứ được lưu tự động.", "各項目を入力すると右のプレビューに即反映。内容は自動保存されます。", "Isi tiap item dan pratinjau langsung diperbarui. Semua tersimpan otomatis.")}</p>
           </div>
 
           <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
             {/* ── 편집 폼 ── */}
             <div className="flex flex-col gap-9">
               {/* 기본정보 */}
-              <section id="sec-basic">
+              <section id="sec-basic" className={show("basic") ? undefined : "hidden"}>
                 <div className="mb-4 flex items-center justify-between gap-2">
                   <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{t("기본정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")}</h2>
                   <AiBtn onClick={() => setChatFocus("basic")} label={aiLabel} />
@@ -196,7 +206,7 @@ export default function ResumeCollectPage() {
               </section>
 
               {/* 학력 */}
-              <section id="sec-edu">
+              <section id="sec-edu" className={show("edu") ? undefined : "hidden"}>
                 <RowSectionTitle title={t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")} onAdd={() => commit({ ...data, educations: [...(data.educations ?? []), {}] })} addLabel={t("추가", "Add", "添加", "Thêm", "追加", "Tambah")} onAi={() => setChatFocus("edu")} aiLabel={aiLabel} />
                 {(data.educations ?? []).length === 0 ? <Empty t={t} /> : null}
                 <div className="flex flex-col gap-3">
@@ -223,6 +233,7 @@ export default function ResumeCollectPage() {
                 list={workList}
                 onChange={(next) => recombineExp(next, otherList)}
                 onAi={() => setChatFocus("exp")}
+                hidden={!show("exp")}
                 t={t}
               />
 
@@ -236,11 +247,12 @@ export default function ResumeCollectPage() {
                 list={otherList}
                 onChange={(next) => recombineExp(workList, next)}
                 onAi={() => setChatFocus("expOther")}
+                hidden={!show("expOther")}
                 t={t}
               />
 
               {/* 스킬 */}
-              <section id="sec-skill">
+              <section id="sec-skill" className={show("skill") ? undefined : "hidden"}>
                 <div className="mb-4 flex items-center justify-between gap-2">
                   <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian")}</h2>
                   <AiBtn onClick={() => setChatFocus("skill")} label={aiLabel} />
@@ -249,7 +261,7 @@ export default function ResumeCollectPage() {
               </section>
 
               {/* 어학 */}
-              <section id="sec-lang">
+              <section id="sec-lang" className={show("lang") ? undefined : "hidden"}>
                 <RowSectionTitle title={t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")} onAdd={() => commit({ ...data, languages: [...(data.languages ?? []), {}] })} addLabel={t("추가", "Add", "添加", "Thêm", "追加", "Tambah")} onAi={() => setChatFocus("lang")} aiLabel={aiLabel} />
                 {(data.languages ?? []).length === 0 ? <Empty t={t} /> : null}
                 <div className="flex flex-col gap-3">
@@ -346,9 +358,9 @@ function Empty({ t }: { t: ReturnType<typeof useLaunchT> }) {
   return <p className="mb-3 rounded-xl border border-dashed border-[#E5E8EB] bg-[#FAFBFC] px-4 py-3 text-[12.5px] text-[#B0B8C1]">{t("‘추가’를 눌러 항목을 채워보세요.", "Tap 'Add' to fill this in.", "点击“添加”来填写。", "Nhấn 'Thêm' để điền.", "「追加」を押して入力しましょう。", "Ketuk 'Tambah' untuk mengisi.")}</p>;
 }
 
-function ExpSection({ id, title, none, onNone, noneLabel, list, onChange, onAi, t }: { id: string; title: string; none: boolean; onNone: (v: boolean) => void; noneLabel: string; list: ResumeExperience[]; onChange: (next: ResumeExperience[]) => void; onAi?: () => void; t: ReturnType<typeof useLaunchT> }) {
+function ExpSection({ id, title, none, onNone, noneLabel, list, onChange, onAi, hidden, t }: { id: string; title: string; none: boolean; onNone: (v: boolean) => void; noneLabel: string; list: ResumeExperience[]; onChange: (next: ResumeExperience[]) => void; onAi?: () => void; hidden?: boolean; t: ReturnType<typeof useLaunchT> }) {
   return (
-    <section id={id}>
+    <section id={id} className={hidden ? "hidden" : undefined}>
       <div className="mb-4 flex items-center justify-between gap-2">
         <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{title}</h2>
         {!none ? (

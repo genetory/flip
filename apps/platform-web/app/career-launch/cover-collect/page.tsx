@@ -168,19 +168,21 @@ export default function CoverCollectPage() {
 
           <div className="mt-3.5">
             <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
-            <h1 className="mt-2 break-keep text-[24px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[30px]">{t("내 자기소개서 작성", "Write your cover letter", "撰写我的自我介绍书", "Viết thư giới thiệu", "自己紹介書を作成", "Tulis surat lamaran")}</h1>
-            <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#8B95A1] md:text-[14.5px]">{t("네 문항을 직접 작성하면 오른쪽 미리보기에 바로 반영돼요. 내용은 자동 저장됩니다.", "Write the four sections and they update the preview instantly. Everything saves automatically.", "撰写四个部分，右侧预览即时更新。内容自动保存。", "Viết bốn mục và bản xem trước cập nhật ngay. Mọi thứ được lưu tự động.", "4つの項目を書くと右のプレビューに即反映。内容は自動保存されます。", "Tulis empat bagian dan pratinjau langsung diperbarui. Semua tersimpan otomatis.")}</p>
+            <h1 className="mt-2 break-keep text-[24px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[30px]">{focus ? label[focus] : t("내 자기소개서 작성", "Write your cover letter", "撰写我的自我介绍书", "Viết thư giới thiệu", "自己紹介書を作成", "Tulis surat lamaran")}</h1>
+            <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#8B95A1] md:text-[14.5px]">{focus ? t("이 문항만 작성하면 돼요. 직접 쓰거나 'AI로 채우기'로 대화하며 완성하세요.", "Just write this section — type it or use 'Fill with AI' to complete it by chatting.", "只需撰写此文项。可直接输入，或用“用AI填写”对话完成。", "Chỉ cần viết mục này — tự viết hoặc dùng 'Điền bằng AI' để hoàn thành qua trò chuyện.", "この項目だけ書けばOK。直接書くか『AIで埋める』で会話しながら完成させましょう。", "Cukup tulis bagian ini — ketik langsung atau pakai 'Isi dengan AI' lewat percakapan.") : t("네 문항을 직접 작성하면 오른쪽 미리보기에 바로 반영돼요. 내용은 자동 저장됩니다.", "Write the four sections and they update the preview instantly. Everything saves automatically.", "撰写四个部分，右侧预览即时更新。内容自动保存。", "Viết bốn mục và bản xem trước cập nhật ngay. Mọi thứ được lưu tự động.", "4つの項目を書くと右のプレビューに即反映。内容は自動保存されます。", "Tulis empat bagian dan pratinjau langsung diperbarui. Semua tersimpan otomatis.")}</p>
           </div>
 
           <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
             <div className="flex flex-col gap-8">
-              {/* 지원 회사(선택) */}
-              <div>
-                <SectionTitle>{t("지원 회사", "Target company", "目标公司", "Công ty ứng tuyển", "応募先", "Perusahaan tujuan")}</SectionTitle>
-                <input value={company} onChange={(e) => setCompanyVal(e.target.value)} placeholder={t("예: OO전자 (선택)", "e.g., OO Corp (optional)", "例：OO电子（可选）", "VD: Công ty OO (tùy chọn)", "例：OO電子（任意）", "Cth: OO Corp (opsional)")} className="w-full rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]" />
-              </div>
+              {/* 지원 회사(선택) — 특정 문항으로 진입 시엔 숨김 */}
+              {!focus ? (
+                <div>
+                  <SectionTitle>{t("지원 회사", "Target company", "目标公司", "Công ty ứng tuyển", "応募先", "Perusahaan tujuan")}</SectionTitle>
+                  <input value={company} onChange={(e) => setCompanyVal(e.target.value)} placeholder={t("예: OO전자 (선택)", "e.g., OO Corp (optional)", "例：OO电子（可选）", "VD: Công ty OO (tùy chọn)", "例：OO電子（任意）", "Cth: OO Corp (opsional)")} className="w-full rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]" />
+                </div>
+              ) : null}
 
-              {SECTIONS.map((s, i) => (
+              {SECTIONS.map((s, i) => ({ s, i })).filter(({ s }) => !focus || focus === s.key).map(({ s, i }) => (
                 <section key={s.key} id={`sec-${s.key}`}>
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <div className="flex items-baseline gap-2.5">
