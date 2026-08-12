@@ -16,18 +16,22 @@ import {
   type PartnerTeamInviteLookup
 } from "../../../lib/member-profile-client";
 
-const ROLE_LABEL: Record<PartnerTeamInviteLookup["partnerOrgRole"], string> = {
-  OWNER: "소유자",
-  ADMIN: "관리자",
-  MEMBER: "팀원"
+type PlatformT = ReturnType<typeof usePlatformT>;
+const roleLabelOf = (t: PlatformT, role: PartnerTeamInviteLookup["partnerOrgRole"]): string => {
+  const map: Record<PartnerTeamInviteLookup["partnerOrgRole"], string> = {
+    OWNER: t("소유자", "Owner", "所有者", "Chủ sở hữu", "オーナー", "Pemilik"),
+    ADMIN: t("관리자", "Admin", "管理员", "Quản trị", "管理者", "Admin"),
+    MEMBER: t("팀원", "Member", "成员", "Thành viên", "メンバー", "Anggota")
+  };
+  return map[role];
 };
 
-const REASON_COPY: Record<string, { title: string; desc: string }> = {
-  invalid: { title: "유효하지 않은 초대예요", desc: "링크가 올바르지 않아요. 초대한 분께 다시 요청해주세요." },
-  expired: { title: "초대가 만료됐어요", desc: "초대 링크는 7일간 유효해요. 새 초대를 요청해주세요." },
-  accepted: { title: "이미 수락된 초대예요", desc: "이 초대는 이미 사용됐어요. 로그인해서 확인해보세요." },
-  revoked: { title: "취소된 초대예요", desc: "초대가 취소됐어요. 초대한 분께 다시 요청해주세요." }
-};
+const reasonCopy = (t: PlatformT): Record<string, { title: string; desc: string }> => ({
+  invalid: { title: t("유효하지 않은 초대예요", "This invitation isn't valid", "邀请无效", "Lời mời không hợp lệ", "無効な招待です", "Undangan tidak valid"), desc: t("링크가 올바르지 않아요. 초대한 분께 다시 요청해주세요.", "The link is incorrect. Please ask the inviter to send it again.", "链接不正确，请让邀请人重新发送。", "Liên kết không đúng. Hãy nhờ người mời gửi lại.", "リンクが正しくありません。招待した方に再送を依頼してください。", "Tautan salah. Minta pengundang mengirim ulang.") },
+  expired: { title: t("초대가 만료됐어요", "This invitation has expired", "邀请已过期", "Lời mời đã hết hạn", "招待の有効期限が切れました", "Undangan kedaluwarsa"), desc: t("초대 링크는 7일간 유효해요. 새 초대를 요청해주세요.", "Invitation links are valid for 7 days. Please request a new one.", "邀请链接有效期为 7 天，请重新申请。", "Liên kết mời có hiệu lực 7 ngày. Hãy yêu cầu lời mời mới.", "招待リンクは7日間有効です。新しい招待を依頼してください。", "Tautan undangan berlaku 7 hari. Mohon minta undangan baru.") },
+  accepted: { title: t("이미 수락된 초대예요", "This invitation was already accepted", "邀请已被接受", "Lời mời đã được chấp nhận", "すでに承認された招待です", "Undangan sudah diterima"), desc: t("이 초대는 이미 사용됐어요. 로그인해서 확인해보세요.", "This invitation has already been used. Please sign in to check.", "此邀请已被使用，请登录查看。", "Lời mời này đã được dùng. Hãy đăng nhập để kiểm tra.", "この招待はすでに使用されています。ログインして確認してください。", "Undangan ini sudah dipakai. Masuk untuk mengecek.") },
+  revoked: { title: t("취소된 초대예요", "This invitation was revoked", "邀请已取消", "Lời mời đã bị hủy", "取り消された招待です", "Undangan dibatalkan"), desc: t("초대가 취소됐어요. 초대한 분께 다시 요청해주세요.", "The invitation was revoked. Please ask the inviter to send it again.", "邀请已被取消，请让邀请人重新发送。", "Lời mời đã bị hủy. Hãy nhờ người mời gửi lại.", "招待が取り消されました。招待した方に再送を依頼してください。", "Undangan dibatalkan. Minta pengundang mengirim ulang.") }
+});
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -131,7 +135,8 @@ function InviteInner() {
   }
 
   if (status === "invalid" || !invite) {
-    const copy = REASON_COPY[reason] ?? REASON_COPY.invalid;
+    const copies = reasonCopy(t);
+    const copy = copies[reason] ?? copies.invalid;
     return (
       <Shell>
         <div className="flex flex-col items-center gap-3 text-center">
@@ -144,7 +149,7 @@ function InviteInner() {
     );
   }
 
-  const roleLabel = ROLE_LABEL[invite.partnerOrgRole];
+  const roleLabel = roleLabelOf(t, invite.partnerOrgRole);
   const loggedInMatches = isAuthenticated && (user?.email ?? "").toLowerCase() === invite.email.toLowerCase();
   const loggedInDifferent = isAuthenticated && !loggedInMatches;
 

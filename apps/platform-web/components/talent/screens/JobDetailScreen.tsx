@@ -21,7 +21,7 @@ import { MockInterviewModal } from "../jobs/MockInterviewModal";
 import { MockGateModal, DocStatus } from "../jobs/MockGateModal";
 import { ApplyReadinessBanner } from "../ApplyReadinessBanner";
 import { useLanguage } from "../../i18n/LanguageProvider";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 import { parseOfficePhotos } from "../../../lib/image-upload";
@@ -36,15 +36,23 @@ import {
 } from "../../../lib/member-profile-client";
 import { toPositionView } from "../../../lib/talent/positions-adapter";
 
-const companySizeLabels: Record<string, string> = {
-  SIZE_1_10: "10인 이하",
-  SIZE_UNDER_30: "30인 이하",
-  SIZE_UNDER_50: "50인 이하",
-  SIZE_OVER_100: "100인 이상"
-};
+function companySizeLabel(t: PlatformT, size: string): string | undefined {
+  switch (size) {
+    case "SIZE_1_10":
+      return t("10인 이하", "≤10", "10人以下", "≤10 người", "10人以下", "≤10 orang");
+    case "SIZE_UNDER_30":
+      return t("30인 이하", "≤30", "30人以下", "≤30 người", "30人以下", "≤30 orang");
+    case "SIZE_UNDER_50":
+      return t("50인 이하", "≤50", "50人以下", "≤50 người", "50人以下", "≤50 orang");
+    case "SIZE_OVER_100":
+      return t("100인 이상", "100+", "100人以上", "100+ người", "100人以上", "100+ orang");
+    default:
+      return undefined;
+  }
+}
 
-const DASH = "정보 없음";
-const orDash = (v: string | null | undefined) => (v && v.trim() ? v : DASH);
+const dashText = (t: PlatformT) => t("정보 없음", "N/A", "暂无信息", "Chưa có", "情報なし", "Tidak ada");
+const orDash = (t: PlatformT, v: string | null | undefined) => (v && v.trim() ? v : dashText(t));
 
 export function JobDetailScreen({ jobId }: { jobId: string }) {
   const t = usePlatformT();
@@ -395,20 +403,20 @@ export function PositionDetailSections({ item }: { item: PublicPositionListItem 
       <TCard className="mt-4 p-6">
         <h2 className="text-[15px] font-bold text-[#191F28]">{t("핵심 정보", "Key info", "关键信息", "Thông tin chính", "主要情報", "Info utama")}</h2>
         <div className="mt-3 divide-y divide-[#F2F4F6]">
-          <InfoRow label={t("희망 직무", "Role", "期望职位", "Vị trí mong muốn", "希望職種", "Peran")} value={orDash(item.preferredJobRole)} />
-          <InfoRow label={t("희망 인원", "Openings", "招聘人数", "Số lượng tuyển", "募集人数", "Jumlah lowongan")} value={item.hiringCount ? t(`${item.hiringCount}명`, `${item.hiringCount}`, `${item.hiringCount}人`, `${item.hiringCount} người`, `${item.hiringCount}名`, `${item.hiringCount} orang`) : DASH} />
-          <InfoRow label={t("근무 시간", "Working hours", "工作时间", "Giờ làm việc", "勤務時間", "Jam kerja")} value={orDash(item.workingHours)} />
-          <InfoRow label={t("근무 복장", "Dress code", "着装要求", "Trang phục", "服装", "Aturan busana")} value={orDash(item.dressCode)} />
-          <InfoRow label={t("등록일", "Posted", "发布日期", "Ngày đăng", "登録日", "Tanggal posting")} value={item.createdAt ? item.createdAt.slice(0, 10) : DASH} />
+          <InfoRow label={t("희망 직무", "Role", "期望职位", "Vị trí mong muốn", "希望職種", "Peran")} value={orDash(t, item.preferredJobRole)} />
+          <InfoRow label={t("희망 인원", "Openings", "招聘人数", "Số lượng tuyển", "募集人数", "Jumlah lowongan")} value={item.hiringCount ? t(`${item.hiringCount}명`, `${item.hiringCount}`, `${item.hiringCount}人`, `${item.hiringCount} người`, `${item.hiringCount}名`, `${item.hiringCount} orang`) : dashText(t)} />
+          <InfoRow label={t("근무 시간", "Working hours", "工作时间", "Giờ làm việc", "勤務時間", "Jam kerja")} value={orDash(t, item.workingHours)} />
+          <InfoRow label={t("근무 복장", "Dress code", "着装要求", "Trang phục", "服装", "Aturan busana")} value={orDash(t, item.dressCode)} />
+          <InfoRow label={t("등록일", "Posted", "发布日期", "Ngày đăng", "登録日", "Tanggal posting")} value={item.createdAt ? item.createdAt.slice(0, 10) : dashText(t)} />
         </div>
       </TCard>
 
       <TCard className="mt-4 p-6">
         <h2 className="text-[15px] font-bold text-[#191F28]">{t("상세 안내", "Details", "详细说明", "Chi tiết", "詳細案内", "Detail")}</h2>
         <div className="mt-4 flex flex-col gap-5">
-          <DetailBlock title={t("주요 업무", "Responsibilities", "主要职责", "Nhiệm vụ chính", "主な業務", "Tanggung jawab")} text={orDash(item.mainResponsibilities)} />
-          <DetailBlock title={t("필수 자격 요건", "Requirements", "任职要求", "Yêu cầu bắt buộc", "必須要件", "Persyaratan")} text={orDash(item.requiredQualifications)} />
-          <DetailBlock title={t("채용 프로세스", "Hiring process", "招聘流程", "Quy trình tuyển dụng", "採用プロセス", "Proses rekrutmen")} text={orDash(item.hiringProcess)} />
+          <DetailBlock title={t("주요 업무", "Responsibilities", "主要职责", "Nhiệm vụ chính", "主な業務", "Tanggung jawab")} text={orDash(t, item.mainResponsibilities)} />
+          <DetailBlock title={t("필수 자격 요건", "Requirements", "任职要求", "Yêu cầu bắt buộc", "必須要件", "Persyaratan")} text={orDash(t, item.requiredQualifications)} />
+          <DetailBlock title={t("채용 프로세스", "Hiring process", "招聘流程", "Quy trình tuyển dụng", "採用プロセス", "Proses rekrutmen")} text={orDash(t, item.hiringProcess)} />
         </div>
       </TCard>
 
@@ -460,11 +468,11 @@ export function CompanySection({ item }: { item: PublicPositionListItem }) {
         </div>
 
         <div className="mt-4 divide-y divide-[#F2F4F6]">
-          <InfoRow label={t("기업 규모", "Company size", "企业规模", "Quy mô công ty", "企業規模", "Ukuran perusahaan")} value={org.companySize ? companySizeLabels[org.companySize] ?? org.companySize : DASH} />
-          <InfoRow label={t("산업", "Industry", "行业", "Ngành", "業界", "Industri")} value={org.industry ? partnerIndustryLabel(org.industry) : DASH} />
-          <InfoRow label={t("사무실 주소", "Office address", "办公地址", "Địa chỉ văn phòng", "オフィス住所", "Alamat kantor")} value={orDash(org.officeAddress)} />
-          <InfoRow label={t("웹사이트", "Website", "网站", "Website", "ウェブサイト", "Situs web")} value={orDash(org.website)} href={toHref(org.website)} />
-          <InfoRow label={t("소셜 미디어", "Social media", "社交媒体", "Mạng xã hội", "SNS", "Media sosial")} value={orDash(org.socialMedia)} href={toHref(org.socialMedia)} />
+          <InfoRow label={t("기업 규모", "Company size", "企业规模", "Quy mô công ty", "企業規模", "Ukuran perusahaan")} value={org.companySize ? companySizeLabel(t, org.companySize) ?? org.companySize : dashText(t)} />
+          <InfoRow label={t("산업", "Industry", "行业", "Ngành", "業界", "Industri")} value={org.industry ? partnerIndustryLabel(org.industry) : dashText(t)} />
+          <InfoRow label={t("사무실 주소", "Office address", "办公地址", "Địa chỉ văn phòng", "オフィス住所", "Alamat kantor")} value={orDash(t, org.officeAddress)} />
+          <InfoRow label={t("웹사이트", "Website", "网站", "Website", "ウェブサイト", "Situs web")} value={orDash(t, org.website)} href={toHref(org.website)} />
+          <InfoRow label={t("소셜 미디어", "Social media", "社交媒体", "Mạng xã hội", "SNS", "Media sosial")} value={orDash(t, org.socialMedia)} href={toHref(org.socialMedia)} />
         </div>
 
         {org.website ? (

@@ -10,7 +10,7 @@ import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { convertImageFileToWebpDataUrl, estimateDataUrlBytes } from "../../../lib/image-upload";
 import {
   getMyPartnerPositionById,
@@ -35,6 +35,30 @@ const WORKTYPE_OPTS: { value: WorkType; label: string }[] = [
   { value: "Hybrid", label: "하이브리드" },
   { value: "Remote", label: "재택" }
 ];
+
+// EMPLOYMENT_OPTS의 한국어 label은 AI 초안 API로 전달되므로 값으로 유지하고, 화면 표기만 아래 헬퍼로 다국어화.
+function employmentOptLabel(t: PlatformT, v: EmploymentType): string {
+  switch (v) {
+    case "FULL_TIME":
+      return t("정규직", "Full-time", "全职", "Toàn thời gian", "正社員", "Penuh waktu");
+    case "INTERN":
+      return t("인턴", "Intern", "实习", "Thực tập", "インターン", "Magang");
+    case "PART_TIME":
+      return t("파트타임", "Part-time", "兼职", "Bán thời gian", "パート", "Paruh waktu");
+    case "UNPAID_INTERN":
+      return t("무급 인턴", "Unpaid intern", "无薪实习", "Thực tập không lương", "無給インターン", "Magang tanpa gaji");
+  }
+}
+function workTypeOptLabel(t: PlatformT, v: WorkType): string {
+  switch (v) {
+    case "On-site":
+      return t("출근", "On-site", "现场", "Tại chỗ", "出勤", "Di kantor");
+    case "Hybrid":
+      return t("하이브리드", "Hybrid", "混合", "Kết hợp", "ハイブリッド", "Hibrida");
+    case "Remote":
+      return t("재택", "Remote", "远程", "Từ xa", "リモート", "Jarak jauh");
+  }
+}
 
 type Form = {
   title: string;
@@ -285,13 +309,13 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
               <div className="grid grid-cols-2 gap-3">
                 <Field label={t("고용 형태", "Employment type", "雇佣类型", "Loại hình", "雇用形態", "Jenis kerja")}>
                   <Select value={form.employmentType} onChange={(v) => set("employmentType", v as EmploymentType)}>
-                    {EMPLOYMENT_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {EMPLOYMENT_OPTS.map((o) => <option key={o.value} value={o.value}>{employmentOptLabel(t, o.value)}</option>)}
                   </Select>
                 </Field>
                 <Field label={t("근무 형태", "Work type", "工作方式", "Hình thức", "勤務形態", "Cara kerja")}>
                   <Select value={form.workType} onChange={(v) => set("workType", v as "" | WorkType)}>
                     <option value="">{t("선택 안 함", "Not set", "不选择", "Không chọn", "選択なし", "Tidak dipilih")}</option>
-                    {WORKTYPE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {WORKTYPE_OPTS.map((o) => <option key={o.value} value={o.value}>{workTypeOptLabel(t, o.value)}</option>)}
                   </Select>
                 </Field>
               </div>

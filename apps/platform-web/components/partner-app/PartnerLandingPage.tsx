@@ -18,34 +18,35 @@ import { AplyFooter } from "../AplyFooter";
 const SIGNUP_HREF = "/partner/login"; // 랜딩 CTA는 로그인으로(가입 링크 포함) → 이후 홈으로
 const LOGIN_HREF = "/partner/login";
 
-// 히어로 미리보기 — 채용 파이프라인.
-const PIPELINE: { label: string; count: number; state: "done" | "doing" | "todo" }[] = [
-  { label: "지원 완료", count: 12, state: "done" },
-  { label: "서류 검토", count: 5, state: "doing" },
-  { label: "면접 진행", count: 3, state: "doing" },
-  { label: "최종 합격", count: 1, state: "todo" }
+// 히어로 미리보기 — 채용 파이프라인. (라벨은 화면에서 t로 번역)
+type PlatformT = ReturnType<typeof usePlatformT>;
+const pipeline = (t: PlatformT): { label: string; count: number; state: "done" | "doing" | "todo" }[] => [
+  { label: t("지원 완료", "Applied", "已申请", "Đã ứng tuyển", "応募完了", "Terkirim"), count: 12, state: "done" },
+  { label: t("서류 검토", "Screening", "简历筛选", "Xét hồ sơ", "書類選考", "Seleksi"), count: 5, state: "doing" },
+  { label: t("면접 진행", "Interview", "面试中", "Phỏng vấn", "面接中", "Wawancara"), count: 3, state: "doing" },
+  { label: t("최종 합격", "Hired", "最终录用", "Trúng tuyển", "最終合格", "Diterima"), count: 1, state: "todo" }
 ];
 
-const CONCERNS = [
-  "공고를 올려도 지원자가 잘 안 와요.",
-  "지원자 이력서를 일일이 정리하기 번거로워요.",
-  "외국인 채용은 비자부터 막막해요.",
-  "면접 조율이 메일·전화로 흩어져요."
+const concerns = (t: PlatformT): string[] => [
+  t("공고를 올려도 지원자가 잘 안 와요.", "Even after posting, few applicants come.", "发布职位后应聘者却很少。", "Đăng tin rồi mà ít ứng viên.", "求人を出しても応募が少ないです。", "Sudah pasang lowongan tapi pelamar sedikit."),
+  t("지원자 이력서를 일일이 정리하기 번거로워요.", "Sorting through resumes one by one is tedious.", "逐一整理应聘者简历很繁琐。", "Sắp xếp từng hồ sơ ứng viên rất mất công.", "応募者の履歴書を一つずつ整理するのが大変です。", "Merapikan resume pelamar satu per satu merepotkan."),
+  t("외국인 채용은 비자부터 막막해요.", "Hiring foreigners is daunting from visas on.", "招聘外国人从签证开始就很头疼。", "Tuyển người nước ngoài rối từ khâu visa.", "外国人採用はビザからつまずきます。", "Rekrut orang asing bingung dari soal visa."),
+  t("면접 조율이 메일·전화로 흩어져요.", "Scheduling interviews scatters across email and calls.", "面试安排散落在邮件和电话里。", "Sắp lịch phỏng vấn tản mát qua email, điện thoại.", "面接調整がメール・電話に散らばります。", "Atur wawancara berserakan di email dan telepon.")
 ];
 
-const VALUES: { icon: string; title: string; desc: string }[] = [
-  { icon: "📝", title: "AI 공고 작성", desc: "핵심만 입력하면 AI가 매력적인 공고 초안을 만들어요." },
-  { icon: "👥", title: "지원자 관리", desc: "지원자를 단계별로 관리하고 메시지·면접 제안까지 한 곳에서." },
-  { icon: "🔍", title: "인재 검색", desc: "자연어로 원하는 인재를 찾고 먼저 연결을 제안해요." },
-  { icon: "🎤", title: "모의 면접 결과", desc: "지원자의 모의 면접 연습 결과까지 참고해 판단해요." },
-  { icon: "🪪", title: "외국인 채용", desc: "비자 유형별 공고와 안내로 글로벌 인재를 만나요." },
-  { icon: "📅", title: "면접 진행", desc: "메시지와 면접 일정을 한 곳에서 조율해요." }
+const values = (t: PlatformT): { icon: string; title: string; desc: string }[] => [
+  { icon: "📝", title: t("AI 공고 작성", "AI job posts", "AI 写职位", "AI viết tin", "AI求人作成", "Lowongan AI"), desc: t("핵심만 입력하면 AI가 매력적인 공고 초안을 만들어요.", "Enter the essentials and AI drafts an appealing post.", "只需输入要点，AI 就能生成吸引人的职位草稿。", "Nhập ý chính, AI soạn tin hấp dẫn.", "要点を入れるだけでAIが魅力的な求人案を作ります。", "Masukkan poin utama, AI membuat draf lowongan menarik.") },
+  { icon: "👥", title: t("지원자 관리", "Applicant management", "应聘者管理", "Quản lý ứng viên", "応募者管理", "Kelola pelamar"), desc: t("지원자를 단계별로 관리하고 메시지·면접 제안까지 한 곳에서.", "Manage applicants by stage, with messaging and interview offers in one place.", "按阶段管理应聘者，消息与面试邀约集于一处。", "Quản lý ứng viên theo giai đoạn, nhắn tin và mời phỏng vấn ở một nơi.", "応募者を段階別に管理し、メッセージや面接提案まで一箇所で。", "Kelola pelamar per tahap, pesan dan undangan wawancara di satu tempat.") },
+  { icon: "🔍", title: t("인재 검색", "Talent search", "人才搜索", "Tìm nhân tài", "人材検索", "Cari talenta"), desc: t("자연어로 원하는 인재를 찾고 먼저 연결을 제안해요.", "Find talent in natural language and reach out first.", "用自然语言找到理想人才并主动联系。", "Tìm nhân tài bằng ngôn ngữ tự nhiên và chủ động kết nối.", "自然言語で人材を探し、先に連絡を提案します。", "Temukan talenta lewat bahasa alami dan hubungi lebih dulu.") },
+  { icon: "🎤", title: t("모의 면접 결과", "Mock interview results", "模拟面试结果", "Kết quả phỏng vấn thử", "模擬面接結果", "Hasil wawancara latihan"), desc: t("지원자의 모의 면접 연습 결과까지 참고해 판단해요.", "Factor in applicants' mock interview practice results.", "参考应聘者的模拟面试练习结果来判断。", "Tham khảo cả kết quả luyện phỏng vấn thử của ứng viên.", "応募者の模擬面接の練習結果まで参考に判断します。", "Pertimbangkan juga hasil latihan wawancara pelamar.") },
+  { icon: "🪪", title: t("외국인 채용", "Global hiring", "外籍招聘", "Tuyển người nước ngoài", "外国人採用", "Rekrut asing"), desc: t("비자 유형별 공고와 안내로 글로벌 인재를 만나요.", "Meet global talent with visa-type posts and guidance.", "按签证类型发布与指引，遇见全球人才。", "Gặp nhân tài toàn cầu với tin và hướng dẫn theo loại visa.", "ビザ種類別の求人と案内でグローバル人材に出会います。", "Temui talenta global lewat lowongan dan panduan per jenis visa.") },
+  { icon: "📅", title: t("면접 진행", "Interviews", "面试安排", "Phỏng vấn", "面接進行", "Wawancara"), desc: t("메시지와 면접 일정을 한 곳에서 조율해요.", "Coordinate messages and interview schedules in one place.", "在一处协调消息与面试日程。", "Điều phối tin nhắn và lịch phỏng vấn ở một nơi.", "メッセージと面接日程を一箇所で調整します。", "Koordinasikan pesan dan jadwal wawancara di satu tempat.") }
 ];
 
-const STEPS: { no: string; title: string; desc: string }[] = [
-  { no: "01", title: "회사·공고 등록", desc: "회사 정보와 채용 공고를 올려요. AI가 초안을 도와줘요." },
-  { no: "02", title: "지원자 관리", desc: "지원자를 검토하고 단계별로 관리해요." },
-  { no: "03", title: "면접·채용", desc: "면접을 제안하고 좋은 인재를 채용해요." }
+const steps = (t: PlatformT): { no: string; title: string; desc: string }[] => [
+  { no: "01", title: t("회사·공고 등록", "Register company & job", "登记公司与职位", "Đăng công ty & tin", "会社・求人登録", "Daftar perusahaan & lowongan"), desc: t("회사 정보와 채용 공고를 올려요. AI가 초안을 도와줘요.", "Post your company info and job. AI helps draft it.", "上传公司信息和招聘职位，AI 帮您起草。", "Đăng thông tin công ty và tin tuyển dụng. AI hỗ trợ soạn.", "会社情報と求人を登録します。AIが下書きを手伝います。", "Unggah info perusahaan dan lowongan. AI bantu draf.") },
+  { no: "02", title: t("지원자 관리", "Manage applicants", "管理应聘者", "Quản lý ứng viên", "応募者管理", "Kelola pelamar"), desc: t("지원자를 검토하고 단계별로 관리해요.", "Review applicants and manage them by stage.", "审核应聘者并按阶段管理。", "Xem xét ứng viên và quản lý theo giai đoạn.", "応募者を確認し、段階別に管理します。", "Tinjau pelamar dan kelola per tahap.") },
+  { no: "03", title: t("면접·채용", "Interview & hire", "面试与录用", "Phỏng vấn & tuyển", "面接・採用", "Wawancara & rekrut"), desc: t("면접을 제안하고 좋은 인재를 채용해요.", "Offer interviews and hire great talent.", "邀约面试并录用优秀人才。", "Mời phỏng vấn và tuyển nhân tài giỏi.", "面接を提案し、良い人材を採用します。", "Tawarkan wawancara dan rekrut talenta hebat.") }
 ];
 
 export function PartnerLandingPage() {
@@ -132,6 +133,7 @@ function Hero() {
 
 function PipelinePreview() {
   const t = usePlatformT();
+  const PIPELINE = pipeline(t);
   const total = PIPELINE[0]?.count ?? 0;
   return (
     <div className="rounded-3xl border border-[#EEF1F5] bg-white p-6 shadow-[0_10px_32px_rgba(11,18,39,0.07)]">
@@ -159,6 +161,7 @@ function PipelinePreview() {
 /* 2. 기업의 고민 */
 function ConcernSection() {
   const t = usePlatformT();
+  const CONCERNS = concerns(t);
   return (
     <section className="bg-[#FAFBFC]">
       <div className="mx-auto w-full max-w-5xl px-5 py-14 md:py-20">
@@ -190,6 +193,7 @@ function ConcernSection() {
 /* 3. 제공하는 가치 */
 function ValueSection() {
   const t = usePlatformT();
+  const VALUES = values(t);
   return (
     <section className="bg-white">
       <div className="mx-auto w-full max-w-5xl px-5 py-14 md:py-20">
@@ -217,6 +221,7 @@ function ValueSection() {
 /* 4. 이용 방법 */
 function StepSection() {
   const t = usePlatformT();
+  const STEPS = steps(t);
   return (
     <section className="bg-[#FAFBFC]">
       <div className="mx-auto w-full max-w-5xl px-5 py-14 md:py-20">

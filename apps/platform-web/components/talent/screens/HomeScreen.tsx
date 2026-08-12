@@ -16,7 +16,7 @@ import { JobInterestCard } from "../jobs/JobInterestCard";
 import { FeedCard } from "../career/FeedCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
 import { useLanguage } from "../../i18n/LanguageProvider";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc";
@@ -173,12 +173,20 @@ function DeadlineReminder() {
   );
 }
 
-const COMPANY_SIZE_LABELS: Record<string, string> = {
-  SIZE_1_10: "1~10인",
-  SIZE_UNDER_30: "30인 이하",
-  SIZE_UNDER_50: "50인 이하",
-  SIZE_OVER_100: "100인 이상"
-};
+function companySizeLabel(t: PlatformT, size: string): string | undefined {
+  switch (size) {
+    case "SIZE_1_10":
+      return t("1~10인", "1–10", "1~10人", "1–10 người", "1~10人", "1–10 orang");
+    case "SIZE_UNDER_30":
+      return t("30인 이하", "≤30", "30人以下", "≤30 người", "30人以下", "≤30 orang");
+    case "SIZE_UNDER_50":
+      return t("50인 이하", "≤50", "50人以下", "≤50 người", "50人以下", "≤50 orang");
+    case "SIZE_OVER_100":
+      return t("100인 이상", "100+", "100人以上", "100+ người", "100人以上", "100+ orang");
+    default:
+      return undefined;
+  }
+}
 
 type HomeCompany = { id: string; name: string; industry?: string; size?: string; location?: string; logo?: string; count: number };
 
@@ -201,7 +209,7 @@ function HomeCompanies() {
             id: org.id,
             name: org.name,
             industry: org.industry ? partnerIndustryLabel(org.industry) : undefined,
-            size: org.companySize ? COMPANY_SIZE_LABELS[org.companySize] ?? undefined : undefined,
+            size: org.companySize ? companySizeLabel(t, org.companySize) : undefined,
             location: (org.officeAddress || p.workLocation || "").split(" ")[0] || undefined,
             logo: org.companyLogoImageData || undefined,
             count: 0

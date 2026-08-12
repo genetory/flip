@@ -7,7 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { CaretRight, SealCheck, SignOut, PencilSimple, Buildings, UserPlus, EnvelopeSimple, X } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { PLATFORM_LOCALES, type PlatformLocale } from "../../../lib/auth-messages";
@@ -32,11 +32,21 @@ import {
   type PartnerTeamInvite
 } from "../../../lib/member-profile-client";
 
-const ORG_ROLE_LABEL: Record<PartnerOrgMember["role"], { label: string; cls: string }> = {
-  OWNER: { label: "소유자", cls: "bg-[#EDF1FD] text-[#0B46E8]" },
-  ADMIN: { label: "관리자", cls: "bg-[#E7F8EF] text-[#0A9B59]" },
-  MEMBER: { label: "멤버", cls: "bg-[#F2F4F6] text-[#8B95A1]" }
+const ORG_ROLE_CLS: Record<PartnerOrgMember["role"], string> = {
+  OWNER: "bg-[#EDF1FD] text-[#0B46E8]",
+  ADMIN: "bg-[#E7F8EF] text-[#0A9B59]",
+  MEMBER: "bg-[#F2F4F6] text-[#8B95A1]"
 };
+function orgRoleLabel(t: PlatformT, role: PartnerOrgMember["role"]): string {
+  switch (role) {
+    case "OWNER":
+      return t("소유자", "Owner", "所有者", "Chủ sở hữu", "オーナー", "Pemilik");
+    case "ADMIN":
+      return t("관리자", "Admin", "管理员", "Quản trị", "管理者", "Admin");
+    case "MEMBER":
+      return t("멤버", "Member", "成员", "Thành viên", "メンバー", "Anggota");
+  }
+}
 
 function SectionHeader({ title }: { title: string }) {
   return <p className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</p>;
@@ -259,7 +269,7 @@ export function PartnerSettingsScreen() {
               <p className="px-5 py-4 text-[13px] text-[#8B95A1]">{t("소속된 팀원 정보를 불러오는 중이에요.", "Loading team members.", "正在加载团队成员信息。", "Đang tải thành viên.", "メンバー情報を読み込み中です。", "Memuat anggota tim.")}</p>
             ) : (
               members.map((m) => {
-                const r = ORG_ROLE_LABEL[m.role];
+                const rCls = ORG_ROLE_CLS[m.role];
                 const manageable = canManage && !m.isMe && m.role !== "OWNER";
                 return (
                   <div key={m.id} className="flex items-center gap-3 px-5 py-4">
@@ -277,14 +287,14 @@ export function PartnerSettingsScreen() {
                         <div className="flex items-center gap-0.5 rounded-full bg-[#F2F4F6] p-0.5">
                           {(["MEMBER", "ADMIN"] as const).map((role) => (
                             <button key={role} type="button" disabled={memberBusy === m.id} onClick={() => m.role !== role && changeRole(m.id, role)} className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition disabled:opacity-50 ${m.role === role ? "bg-white text-[#191F28] shadow-[0_1px_3px_rgba(11,18,39,0.1)]" : "text-[#8B95A1]"}`}>
-                              {ORG_ROLE_LABEL[role].label}
+                              {orgRoleLabel(t, role)}
                             </button>
                           ))}
                         </div>
                         <button type="button" disabled={memberBusy === m.id} onClick={() => removeMember(m.id, m.name)} className="rounded-lg px-2 py-1.5 text-[11.5px] font-bold text-[#F04452] transition hover:bg-[#FDECEE] disabled:opacity-50">{t("내보내기", "Remove", "移除", "Xóa", "削除", "Keluarkan")}</button>
                       </div>
                     ) : (
-                      <span className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold ${r.cls}`}>{r.label}</span>
+                      <span className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold ${rCls}`}>{orgRoleLabel(t, m.role)}</span>
                     )}
                   </div>
                 );
@@ -314,7 +324,7 @@ export function PartnerSettingsScreen() {
                     <div className="flex items-center gap-0.5 rounded-full bg-[#F2F4F6] p-0.5">
                       {(["MEMBER", "ADMIN"] as const).map((role) => (
                         <button key={role} type="button" onClick={() => setInviteRole(role)} className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${inviteRole === role ? "bg-white text-[#191F28] shadow-[0_1px_3px_rgba(11,18,39,0.1)]" : "text-[#8B95A1]"}`}>
-                          {ORG_ROLE_LABEL[role].label}
+                          {orgRoleLabel(t, role)}
                         </button>
                       ))}
                     </div>
@@ -333,7 +343,7 @@ export function PartnerSettingsScreen() {
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F2F4F6] text-[#8B95A1]"><EnvelopeSimple className="h-4 w-4" /></span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[13.5px] font-bold text-[#191F28]">{inv.email}</p>
-                        <p className="mt-0.5 text-[12px] text-[#8B95A1]">{inv.expired ? t("만료됨", "Expired", "已过期", "Hết hạn", "期限切れ", "Kedaluwarsa") : t("초대 대기 중", "Pending", "待接受", "Đang chờ", "招待待ち", "Menunggu")} · {ORG_ROLE_LABEL[inv.partnerOrgRole].label}</p>
+                        <p className="mt-0.5 text-[12px] text-[#8B95A1]">{inv.expired ? t("만료됨", "Expired", "已过期", "Hết hạn", "期限切れ", "Kedaluwarsa") : t("초대 대기 중", "Pending", "待接受", "Đang chờ", "招待待ち", "Menunggu")} · {orgRoleLabel(t, inv.partnerOrgRole)}</p>
                       </div>
                       <button type="button" onClick={() => revokeInvite(inv.id)} aria-label={t("초대 취소", "Cancel invite", "取消邀请", "Hủy lời mời", "招待取消", "Batal undang")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#8B95A1] transition hover:bg-[#FDECEE] hover:text-[#F04452]"><X className="h-4 w-4" weight="bold" /></button>
                     </div>

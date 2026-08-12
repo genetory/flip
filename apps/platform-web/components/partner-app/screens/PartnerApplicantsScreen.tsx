@@ -12,20 +12,39 @@ import { PartnerApplicantCard, PartnerParticipantCard } from "../ListCards";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { PARTNER_APPLICANT_STATUS, usePartnerApplicantStatusLabel } from "../../../lib/partner/labels";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { getMyPartnerApplicants, getOrgMockInterviewParticipants, updateMyPartnerApplicantState, sendPartnerApplicantMessage, type PartnerApplicantListItem, type PartnerApplicantStatus, type OrgMockInterviewParticipant } from "../../../lib/member-profile-client";
 
 type Tab = "all" | PartnerApplicantStatus | "mock";
 type Sort = "latest" | "recommended";
 
-const TABS: { key: Tab; label: string; match: (s: PartnerApplicantStatus) => boolean }[] = [
-  { key: "all", label: "전체", match: () => true },
-  { key: "APPLIED", label: "신규", match: (s) => s === "APPLIED" },
-  { key: "REVIEWING", label: "검토 중", match: (s) => s === "REVIEWING" },
-  { key: "INTERVIEW", label: "면접", match: (s) => s === "INTERVIEW" },
-  { key: "ACCEPTED", label: "합격", match: (s) => s === "ACCEPTED" || s === "OFFERED" },
-  { key: "REJECTED", label: "불합격", match: (s) => s === "REJECTED" }
+const TABS: { key: Tab; match: (s: PartnerApplicantStatus) => boolean }[] = [
+  { key: "all", match: () => true },
+  { key: "APPLIED", match: (s) => s === "APPLIED" },
+  { key: "REVIEWING", match: (s) => s === "REVIEWING" },
+  { key: "INTERVIEW", match: (s) => s === "INTERVIEW" },
+  { key: "ACCEPTED", match: (s) => s === "ACCEPTED" || s === "OFFERED" },
+  { key: "REJECTED", match: (s) => s === "REJECTED" }
 ];
+
+function tabLabel(t: PlatformT, key: Tab): string {
+  switch (key) {
+    case "all":
+      return t("전체", "All", "全部", "Tất cả", "すべて", "Semua");
+    case "APPLIED":
+      return t("신규", "New", "新申请", "Mới", "新規", "Baru");
+    case "REVIEWING":
+      return t("검토 중", "Reviewing", "审核中", "Đang xem", "選考中", "Ditinjau");
+    case "INTERVIEW":
+      return t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara");
+    case "ACCEPTED":
+      return t("합격", "Passed", "已录用", "Đạt", "合格", "Lolos");
+    case "REJECTED":
+      return t("불합격", "Rejected", "未录用", "Không đạt", "不合格", "Ditolak");
+    default:
+      return "";
+  }
+}
 
 const REC_ORDER: Record<PartnerApplicantListItem["recommendation"], number> = { HIGH: 0, NORMAL: 1, CHECK: 2 };
 
@@ -227,17 +246,17 @@ export function PartnerApplicantsScreen() {
 
             {/* 상태 탭 + 모의 면접 참여자 탭 */}
             <div className="flex gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {TABS.map((t) => {
-                const on = tab === t.key;
+              {TABS.map((tb) => {
+                const on = tab === tb.key;
                 return (
                   <button
-                    key={t.key}
+                    key={tb.key}
                     type="button"
-                    onClick={() => setTab(t.key)}
+                    onClick={() => setTab(tb.key)}
                     aria-current={on ? "page" : undefined}
                     className={`relative shrink-0 pb-1.5 text-[15px] font-bold transition ${on ? "text-[#191F28]" : "text-[#B0B8C1] hover:text-[#8B95A1]"}`}
                   >
-                    {t.label} ({counts[t.key]})
+                    {tabLabel(t, tb.key)} ({counts[tb.key]})
                     {on ? <span className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-[#0B46E8]" /> : null}
                   </button>
                 );
@@ -390,12 +409,54 @@ function CompareModal({ applicants, onClose }: { applicants: PartnerApplicantLis
   );
 }
 
-const REJECT_TEMPLATES: { label: string; text: string }[] = [
-  { label: "정중한 마무리", text: "소중한 시간 내어 지원해 주셔서 진심으로 감사합니다. 아쉽게도 이번 채용에서는 함께하지 못하게 되었습니다. 지원자님의 앞날을 진심으로 응원합니다." },
-  { label: "직무 적합도", text: "지원해 주셔서 감사합니다. 이번 포지션이 요구하는 경험과는 다소 차이가 있어 아쉽게도 함께하기 어렵게 되었습니다. 더 잘 맞는 기회로 다시 뵙기를 바랍니다." },
-  { label: "다른 후보 선정", text: "관심 가져주셔서 감사합니다. 여러 훌륭한 지원자분들 중 이번에는 다른 분과 함께하게 되었습니다. 앞으로의 여정을 응원하겠습니다." },
-  { label: "채용 마감", text: "지원해 주셔서 감사합니다. 사정상 이번 채용이 마감되어 아쉽게 안내드립니다. 다음 기회에 다시 만나 뵐 수 있기를 바랍니다." }
-];
+function rejectTemplates(t: PlatformT): { label: string; text: string }[] {
+  return [
+    {
+      label: t("정중한 마무리", "Courteous close", "礼貌收尾", "Kết thúc lịch sự", "丁寧な結び", "Penutup sopan"),
+      text: t(
+        "소중한 시간 내어 지원해 주셔서 진심으로 감사합니다. 아쉽게도 이번 채용에서는 함께하지 못하게 되었습니다. 지원자님의 앞날을 진심으로 응원합니다.",
+        "Thank you sincerely for taking the time to apply. Unfortunately, we won't be moving forward together this time. We truly wish you all the best in your journey.",
+        "衷心感谢您抽出宝贵时间应聘。很遗憾这次未能与您携手，真诚祝愿您前程似锦。",
+        "Chân thành cảm ơn bạn đã dành thời gian ứng tuyển. Rất tiếc lần này chúng tôi chưa thể đồng hành cùng bạn. Chúc bạn thành công trên chặng đường phía trước.",
+        "貴重なお時間を割いてご応募いただき誠にありがとうございます。残念ながら今回はご一緒できませんでした。今後のご活躍を心よりお祈りいたします。",
+        "Terima kasih tulus telah meluangkan waktu untuk melamar. Sayangnya kali ini kami belum dapat melanjutkan bersama. Kami mendoakan yang terbaik untuk perjalanan Anda."
+      )
+    },
+    {
+      label: t("직무 적합도", "Role fit", "岗位匹配", "Mức phù hợp", "職務適合", "Kecocokan peran"),
+      text: t(
+        "지원해 주셔서 감사합니다. 이번 포지션이 요구하는 경험과는 다소 차이가 있어 아쉽게도 함께하기 어렵게 되었습니다. 더 잘 맞는 기회로 다시 뵙기를 바랍니다.",
+        "Thank you for applying. Your experience differs somewhat from what this position requires, so unfortunately we're unable to proceed. We hope to meet again for a better-fitting opportunity.",
+        "感谢您的应聘。您的经验与本职位的要求略有差异，很遗憾此次未能合作，期待在更契合的机会中再会。",
+        "Cảm ơn bạn đã ứng tuyển. Kinh nghiệm của bạn có phần khác với yêu cầu của vị trí này nên rất tiếc chúng tôi chưa thể hợp tác. Mong gặp lại ở cơ hội phù hợp hơn.",
+        "ご応募ありがとうございます。今回のポジションが求める経験とはやや異なるため、残念ながらご一緒するのが難しくなりました。より適した機会で再びお会いできれば幸いです。",
+        "Terima kasih telah melamar. Pengalaman Anda sedikit berbeda dari yang dibutuhkan posisi ini, jadi sayangnya kami belum bisa melanjutkan. Semoga bertemu lagi pada peluang yang lebih cocok."
+      )
+    },
+    {
+      label: t("다른 후보 선정", "Other candidate", "选择他人", "Chọn ứng viên khác", "他候補選定", "Kandidat lain"),
+      text: t(
+        "관심 가져주셔서 감사합니다. 여러 훌륭한 지원자분들 중 이번에는 다른 분과 함께하게 되었습니다. 앞으로의 여정을 응원하겠습니다.",
+        "Thank you for your interest. Among many excellent applicants, we've decided to move forward with someone else this time. We'll be cheering you on in your journey ahead.",
+        "感谢您的关注。在众多优秀应聘者中，我们这次选择了其他人选。祝您未来的旅程一切顺利。",
+        "Cảm ơn bạn đã quan tâm. Trong số nhiều ứng viên xuất sắc, lần này chúng tôi chọn một người khác. Chúc bạn thuận lợi trên chặng đường phía trước.",
+        "ご関心をお寄せいただきありがとうございます。多くの優れた応募者の中から、今回は他の方とご一緒することになりました。今後のご活躍を応援しております。",
+        "Terima kasih atas minat Anda. Di antara banyak pelamar hebat, kali ini kami memilih kandidat lain. Kami mendukung perjalanan Anda ke depan."
+      )
+    },
+    {
+      label: t("채용 마감", "Position closed", "招聘结束", "Đã đóng tuyển", "募集終了", "Lowongan ditutup"),
+      text: t(
+        "지원해 주셔서 감사합니다. 사정상 이번 채용이 마감되어 아쉽게 안내드립니다. 다음 기회에 다시 만나 뵐 수 있기를 바랍니다.",
+        "Thank you for applying. Due to circumstances, this posting has now closed, which we regret to share. We hope to meet you again at a future opportunity.",
+        "感谢您的应聘。因故本次招聘已结束，特此告知，深表歉意。期待未来有机会再次相见。",
+        "Cảm ơn bạn đã ứng tuyển. Vì lý do nội bộ, đợt tuyển này đã kết thúc, chúng tôi rất tiếc phải thông báo. Mong gặp lại bạn ở cơ hội sau.",
+        "ご応募ありがとうございます。事情により今回の募集は終了となり、残念ながらご案内いたします。次の機会に再びお会いできれば幸いです。",
+        "Terima kasih telah melamar. Karena satu dan lain hal, lowongan ini telah ditutup, dan kami menyampaikannya dengan menyesal. Semoga bertemu lagi di kesempatan berikutnya."
+      )
+    }
+  ];
+}
 
 // 불합격 처리 — 사유 템플릿 선택 + 지원자에게 보낼 정중한 안내 메시지(선택).
 function RejectModal({ target, onClose, onConfirm }: { target: PartnerApplicantListItem; onClose: () => void; onConfirm: (t: PartnerApplicantListItem, message: string) => void }) {
@@ -425,8 +486,8 @@ function RejectModal({ target, onClose, onConfirm }: { target: PartnerApplicantL
               {send ? (
                 <>
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {REJECT_TEMPLATES.map((t) => (
-                      <button key={t.label} type="button" onClick={() => setMessage(t.text)} className="rounded-full border border-[#E5E8EB] bg-white px-2.5 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t.label}</button>
+                    {rejectTemplates(t).map((tpl) => (
+                      <button key={tpl.label} type="button" onClick={() => setMessage(tpl.text)} className="rounded-full border border-[#E5E8EB] bg-white px-2.5 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{tpl.label}</button>
                     ))}
                   </div>
                   <textarea

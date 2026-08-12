@@ -13,7 +13,7 @@ import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { PARTNER_APPLICANT_STATUS, PARTNER_POSITION_STATUS, usePartnerApplicantStatusLabel, usePartnerPositionStatusLabel } from "../../../lib/partner/labels";
 import {
   getMyPartnerApplicantById,
@@ -31,20 +31,38 @@ import {
   type PartnerPosition
 } from "../../../lib/member-profile-client";
 
-const EMPLOYMENT_LABEL: Record<PartnerPosition["employmentType"], string> = {
-  FULL_TIME: "정규직",
-  INTERN: "인턴",
-  PART_TIME: "파트타임",
-  UNPAID_INTERN: "무급 인턴"
-};
+function employmentLabel(t: PlatformT, type: PartnerPosition["employmentType"]): string {
+  switch (type) {
+    case "FULL_TIME":
+      return t("정규직", "Full-time", "全职", "Toàn thời gian", "正社員", "Penuh waktu");
+    case "INTERN":
+      return t("인턴", "Intern", "实习", "Thực tập", "インターン", "Magang");
+    case "PART_TIME":
+      return t("파트타임", "Part-time", "兼职", "Bán thời gian", "パート", "Paruh waktu");
+    case "UNPAID_INTERN":
+      return t("무급 인턴", "Unpaid intern", "无薪实习", "Thực tập không lương", "無給インターン", "Magang tanpa gaji");
+  }
+}
 
 const STATUS_ACTIONS: PartnerApplicantStatus[] = ["REVIEWING", "INTERVIEW", "OFFERED", "ACCEPTED", "REJECTED"];
-const STEPS: { label: string; reach: PartnerApplicantStatus[] }[] = [
-  { label: "지원", reach: ["APPLIED", "REVIEWING", "INTERVIEW", "OFFERED", "ACCEPTED", "COMPLETED"] },
-  { label: "검토", reach: ["REVIEWING", "INTERVIEW", "OFFERED", "ACCEPTED", "COMPLETED"] },
-  { label: "면접", reach: ["INTERVIEW", "OFFERED", "ACCEPTED", "COMPLETED"] },
-  { label: "합격", reach: ["OFFERED", "ACCEPTED", "COMPLETED"] }
+const STEPS: { reach: PartnerApplicantStatus[] }[] = [
+  { reach: ["APPLIED", "REVIEWING", "INTERVIEW", "OFFERED", "ACCEPTED", "COMPLETED"] },
+  { reach: ["REVIEWING", "INTERVIEW", "OFFERED", "ACCEPTED", "COMPLETED"] },
+  { reach: ["INTERVIEW", "OFFERED", "ACCEPTED", "COMPLETED"] },
+  { reach: ["OFFERED", "ACCEPTED", "COMPLETED"] }
 ];
+function stepLabel(t: PlatformT, i: number): string {
+  switch (i) {
+    case 0:
+      return t("지원", "Applied", "已申请", "Đã nộp", "応募", "Melamar");
+    case 1:
+      return t("검토", "Review", "审核", "Xem xét", "選考", "Tinjau");
+    case 2:
+      return t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara");
+    default:
+      return t("합격", "Passed", "录用", "Đạt", "合格", "Lolos");
+  }
+}
 
 function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
@@ -289,7 +307,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
               <p className="mt-1 truncate text-[14px] font-bold text-[#191F28]">{app.positionTitle}</p>
               {position ? (
                 <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">
-                  {[EMPLOYMENT_LABEL[position.employmentType], position.workType, position.workLocation, position.hiringCount != null ? t(`채용 ${position.hiringCount}명`, `Hiring ${position.hiringCount}`, `招聘${position.hiringCount}人`, `Tuyển ${position.hiringCount}`, `採用${position.hiringCount}名`, `Rekrut ${position.hiringCount}`) : ""].filter(Boolean).join(" · ")}
+                  {[employmentLabel(t, position.employmentType), position.workType, position.workLocation, position.hiringCount != null ? t(`채용 ${position.hiringCount}명`, `Hiring ${position.hiringCount}`, `招聘${position.hiringCount}人`, `Tuyển ${position.hiringCount}`, `採用${position.hiringCount}名`, `Rekrut ${position.hiringCount}`) : ""].filter(Boolean).join(" · ")}
                 </p>
               ) : null}
             </Link>
@@ -305,12 +323,12 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                   {STEPS.map((step, i) => {
                     const on = step.reach.includes(app.status);
                     return (
-                      <div key={step.label} className="flex flex-1 items-center last:flex-none">
+                      <div key={i} className="flex flex-1 items-center last:flex-none">
                         <div className="flex flex-col items-center gap-1">
                           <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-black ${on ? "bg-[#0B46E8] text-white" : "bg-white text-[#B0B8C1] ring-1 ring-[#DCE3F0]"}`}>
                             {on ? <Check className="h-4 w-4" weight="bold" /> : i + 1}
                           </span>
-                          <span className={`text-[11px] font-bold ${on ? "text-[#0B46E8]" : "text-[#B0B8C1]"}`}>{step.label}</span>
+                          <span className={`text-[11px] font-bold ${on ? "text-[#0B46E8]" : "text-[#B0B8C1]"}`}>{stepLabel(t, i)}</span>
                         </div>
                         {i < STEPS.length - 1 ? <span className={`mx-1 h-[2px] flex-1 rounded-full ${STEPS[i + 1].reach.includes(app.status) ? "bg-[#0B46E8]" : "bg-[#DCE3F0]"}`} /> : null}
                       </div>

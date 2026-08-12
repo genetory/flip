@@ -11,14 +11,26 @@ import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { getMyPartnerOrganization, updateMyPartnerOrganizationBasic, getMembersMeta, aiPolishCompanyDescription, type MyPartnerOrganization } from "../../../lib/member-profile-client";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 import { convertImageFileToWebpDataUrl, estimateDataUrlBytes, parseOfficePhotos } from "../../../lib/image-upload";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 
-const SIZE_OPTIONS: { value: NonNullable<MyPartnerOrganization["companySize"]>; label: string }[] = [
-  { value: "SIZE_1_10", label: "1~10인" },
-  { value: "SIZE_UNDER_30", label: "30인 이하" },
-  { value: "SIZE_UNDER_50", label: "50인 이하" },
-  { value: "SIZE_OVER_100", label: "100인 이상" }
+const SIZE_OPTIONS: { value: NonNullable<MyPartnerOrganization["companySize"]> }[] = [
+  { value: "SIZE_1_10" },
+  { value: "SIZE_UNDER_30" },
+  { value: "SIZE_UNDER_50" },
+  { value: "SIZE_OVER_100" }
 ];
+function sizeOptLabel(t: PlatformT, v: NonNullable<MyPartnerOrganization["companySize"]>): string {
+  switch (v) {
+    case "SIZE_1_10":
+      return t("1~10인", "1–10", "1~10人", "1–10 người", "1~10人", "1–10 orang");
+    case "SIZE_UNDER_30":
+      return t("30인 이하", "≤30", "30人以下", "≤30 người", "30人以下", "≤30 orang");
+    case "SIZE_UNDER_50":
+      return t("50인 이하", "≤50", "50人以下", "≤50 người", "50人以下", "≤50 orang");
+    case "SIZE_OVER_100":
+      return t("100인 이상", "100+", "100人以上", "100+ người", "100人以上", "100+ orang");
+  }
+}
 
 const MAX_RAW_BYTES = 20 * 1024 * 1024;
 const MAX_OUT_BYTES = 5 * 1024 * 1024;
@@ -334,7 +346,7 @@ export function PartnerCompanyScreen() {
                   <Select value={form.companySize} onChange={(v) => set("companySize", v)}>
                     <option value="">{t("선택 안 함", "Not selected", "未选择", "Chưa chọn", "選択なし", "Tidak dipilih")}</option>
                     {SIZE_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>{sizeOptLabel(t, o.value)}</option>
                     ))}
                   </Select>
                 </Field>

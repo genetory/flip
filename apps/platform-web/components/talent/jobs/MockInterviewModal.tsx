@@ -12,7 +12,7 @@ import { useBasicInfo } from "../../../lib/talent/basic-info";
 import { useSelfMock, saveSelfMockAnswer } from "../../../lib/talent/self-mock";
 import { catMeta, CATEGORY_ORDER } from "../../../lib/talent/mock-interview-categories";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { aiInterviewQuestions, aiInterviewFeedback, recordMockInterviewPractice, type PublicPositionListItem, type InterviewQuestion, type InterviewFeedback } from "../../../lib/member-profile-client";
 import { getAiUsage, type AiUsage } from "../../../lib/resume-maker-client";
 import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
@@ -443,12 +443,20 @@ function FeedbackCard({ fb }: { fb: InterviewFeedback }) {
   );
 }
 
-const CATEGORY_DESC: Record<string, string> = {
-  intro: "자기소개와 지원 동기를 다듬어요",
-  competency: "직무 역량·문제 해결을 점검해요",
-  experience: "구체적 경험을 깊이 파고들어요",
-  weakness: "약점·상황 대처를 연습해요"
-};
+function categoryDesc(t: PlatformT, c: string): string {
+  switch (c) {
+    case "intro":
+      return t("자기소개와 지원 동기를 다듬어요", "Refine your intro and motivation", "打磨自我介绍与应聘动机", "Trau chuốt giới thiệu và động lực", "自己紹介と志望動機を磨きます", "Poles perkenalan dan motivasi");
+    case "competency":
+      return t("직무 역량·문제 해결을 점검해요", "Check job skills and problem-solving", "检验岗位能力与问题解决", "Kiểm tra năng lực và giải quyết vấn đề", "職務能力・問題解決を確認します", "Cek kompetensi dan pemecahan masalah");
+    case "experience":
+      return t("구체적 경험을 깊이 파고들어요", "Dig deep into specific experiences", "深入挖掘具体经历", "Đào sâu kinh nghiệm cụ thể", "具体的な経験を深掘りします", "Gali pengalaman spesifik");
+    case "weakness":
+      return t("약점·상황 대처를 연습해요", "Practice weaknesses and handling situations", "练习弱点与情境应对", "Luyện điểm yếu và xử lý tình huống", "弱点・状況対応を練習します", "Latih kelemahan dan penanganan situasi");
+    default:
+      return "";
+  }
+}
 
 // 유형 선택 화면 — 고른 유형에 맞춰 질문을 생성한다(생성 시 티켓 사용).
 function CategoryChooser({ authored, onPick }: { authored: boolean; onPick: (cat: string) => void }) {
@@ -477,7 +485,7 @@ function CategoryChooser({ authored, onPick }: { authored: boolean; onPick: (cat
             <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-[20px] ${m.badge}`} aria-hidden>{m.emoji}</span>
             <div className="min-w-0 flex-1">
               <p className="text-[14.5px] font-bold text-[#191F28]">{m.label}</p>
-              <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{CATEGORY_DESC[c]}</p>
+              <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{categoryDesc(t, c)}</p>
             </div>
             <AiTicketCost feature="interview_questions" tone="muted" size="md" />
           </button>

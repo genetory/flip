@@ -10,24 +10,35 @@ import { PartnerAppShell } from "../PartnerAppShell";
 import { TListSkeleton, TError } from "../../talent/ui/primitives";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { PARTNER_POSITION_STATUS, usePartnerPositionStatusLabel } from "../../../lib/partner/labels";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { getMyPartnerPositions, getMyPartnerApplicants, updateMyPartnerPosition, type PartnerPosition, type PartnerApplicantListItem } from "../../../lib/member-profile-client";
 
 type PositionQuickStatus = "OPEN" | "PAUSED" | "CLOSED";
 
-const EMPLOYMENT_LABEL: Record<PartnerPosition["employmentType"], string> = {
-  FULL_TIME: "정규직",
-  INTERN: "인턴",
-  PART_TIME: "파트타임",
-  UNPAID_INTERN: "무급 인턴"
-};
+function employmentLabel(t: PlatformT, type: PartnerPosition["employmentType"]): string {
+  switch (type) {
+    case "FULL_TIME":
+      return t("정규직", "Full-time", "全职", "Toàn thời gian", "正社員", "Penuh waktu");
+    case "INTERN":
+      return t("인턴", "Intern", "实习", "Thực tập", "インターン", "Magang");
+    case "PART_TIME":
+      return t("파트타임", "Part-time", "兼职", "Bán thời gian", "パート", "Paruh waktu");
+    case "UNPAID_INTERN":
+      return t("무급 인턴", "Unpaid intern", "无薪实习", "Thực tập không lương", "無給インターン", "Magang tanpa gaji");
+  }
+}
 
-const WORKTYPE_LABEL: Record<NonNullable<PartnerPosition["workType"]>, string> = {
-  "On-site": "출근",
-  Hybrid: "하이브리드",
-  Remote: "재택"
-};
+function workTypeLabel(t: PlatformT, wt: NonNullable<PartnerPosition["workType"]>): string {
+  switch (wt) {
+    case "On-site":
+      return t("출근", "On-site", "现场", "Tại chỗ", "出勤", "Di kantor");
+    case "Hybrid":
+      return t("하이브리드", "Hybrid", "混合", "Kết hợp", "ハイブリッド", "Hibrida");
+    case "Remote":
+      return t("재택", "Remote", "远程", "Từ xa", "リモート", "Jarak jauh");
+  }
+}
 
 type Tab = "all" | "OPEN" | "DRAFT" | "CLOSED";
 type Sort = "latest" | "applicants";
@@ -211,18 +222,20 @@ export function PartnerPositionsScreen() {
   );
 }
 
-function fmtDate(d: string | null): string | null {
+function fmtDate(t: PlatformT, d: string | null): string | null {
   if (!d) return null;
-  const t = new Date(d);
-  if (Number.isNaN(t.getTime())) return null;
-  return `${t.getMonth() + 1}월 ${t.getDate()}일`;
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return null;
+  const m = dt.getMonth() + 1;
+  const day = dt.getDate();
+  return t(`${m}월 ${day}일`, `${m}/${day}`, `${m}月${day}日`, `${day}/${m}`, `${m}月${day}日`, `${day}/${m}`);
 }
 
-// 비자 값 → 사람이 읽는 라벨. 저장된 원시 코드/센티넬(NO_VISA_REQUIRED 등)을 한글로.
-function visaLabel(v: string): string {
+// 비자 값 → 사람이 읽는 라벨. 저장된 원시 코드/센티넬(NO_VISA_REQUIRED 등)을 표시 언어로.
+function visaLabel(t: PlatformT, v: string): string {
   const c = v.trim().toUpperCase().replace(/_/g, "-");
-  if (c === "NO-VISA-REQUIRED") return "무관";
-  if (c === "FOREIGNER-FRIENDLY") return "외국인 환영";
+  if (c === "NO-VISA-REQUIRED") return t("무관", "Any", "不限", "Không yêu cầu", "不問", "Bebas");
+  if (c === "FOREIGNER-FRIENDLY") return t("외국인 환영", "Foreigners welcome", "欢迎外籍", "Chào đón người nước ngoài", "外国人歓迎", "Terbuka untuk WNA");
   return c; // 비자 코드(D-2, E-7 등)는 그대로
 }
 
@@ -242,13 +255,13 @@ function PositionCard({ p, applicants, mockCount, onSetStatus }: { p: PartnerPos
   const s = PARTNER_POSITION_STATUS[p.status];
   const thumb = Array.isArray(p.thumbnailImages) ? p.thumbnailImages[0] : undefined;
   const role = p.preferredJobRole?.trim();
-  const start = fmtDate(p.startDate);
+  const start = fmtDate(t, p.startDate);
   const visas = (p.eligibleVisas ?? []).filter(Boolean);
   const langs = (p.communicationLanguages ?? []).filter(Boolean);
 
   // 핵심 메타 — 칩 나열 대신 · 구분 텍스트 한두 줄로 담백하게.
-  const metaPrimary = [EMPLOYMENT_LABEL[p.employmentType], p.workType ? WORKTYPE_LABEL[p.workType] : null, p.workLocation || null, start ? t(`${start} 시작`, `Starts ${start}`, `${start} 开始`, `Bắt đầu ${start}`, `${start} 開始`, `Mulai ${start}`) : null].filter(Boolean).join(" · ");
-  const visaLabels = visas.map(visaLabel);
+  const metaPrimary = [employmentLabel(t, p.employmentType), p.workType ? workTypeLabel(t, p.workType) : null, p.workLocation || null, start ? t(`${start} 시작`, `Starts ${start}`, `${start} 开始`, `Bắt đầu ${start}`, `${start} 開始`, `Mulai ${start}`) : null].filter(Boolean).join(" · ");
+  const visaLabels = visas.map((v) => visaLabel(t, v));
   const visaJoined = visaLabels.length ? `${visaLabels.slice(0, 3).join("·")}${visaLabels.length > 3 ? ` +${visaLabels.length - 3}` : ""}` : "";
   const metaVisa = visaJoined ? t(`비자 ${visaJoined}`, `Visa ${visaJoined}`, `签证 ${visaJoined}`, `Visa ${visaJoined}`, `ビザ ${visaJoined}`, `Visa ${visaJoined}`) : "";
   const langJoined = langs.length ? `${langs.slice(0, 3).join("·")}${langs.length > 3 ? ` +${langs.length - 3}` : ""}` : "";
