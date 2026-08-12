@@ -11,6 +11,7 @@ import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { LaunchNotificationBell } from "./LaunchNotificationBell";
 import { TalentTicketBadge } from "../talent/TalentTicketBadge";
+import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 
 export function CareerLaunchHeader() {
   const t = useLaunchT();
@@ -89,8 +90,11 @@ export function CareerLaunchHeader() {
             >
               <span className="truncate">{name}</span>
             </Link>
+            <LanguageSwitcher />
           </div>
-        ) : null}
+        ) : (
+          <LanguageSwitcher />
+        )}
       </div>
 
       {/* 모바일 메뉴(햄버거) */}

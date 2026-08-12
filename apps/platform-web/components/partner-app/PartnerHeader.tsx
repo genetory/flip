@@ -9,6 +9,7 @@ import { List, X, Bell } from "@phosphor-icons/react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { partnerMainNav, partnerRoutes, isPartnerTabActive } from "../../lib/partner/app-nav";
 import { getMyNotifications } from "../../lib/member-profile-client";
+import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 
 export function PartnerHeader() {
   const pathname = usePathname() ?? "";
@@ -78,6 +79,7 @@ export function PartnerHeader() {
           <Link href={partnerRoutes.settings} aria-label="내 프로필" className="inline-flex max-w-[140px] items-center rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
             <span className="truncate">{name}</span>
           </Link>
+          <LanguageSwitcher />
         </div>
       </div>
 

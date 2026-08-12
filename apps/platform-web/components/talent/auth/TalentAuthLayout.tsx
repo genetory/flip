@@ -8,6 +8,7 @@ import Image from "next/image";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { talentBrand } from "../../../lib/talent/landing-content";
 import { AplyFooter } from "../../AplyFooter";
+import { LanguageSwitcher } from "../../i18n/LanguageSwitcher";
 
 export function TalentAuthLayout({
   title,
@@ -34,9 +35,12 @@ export function TalentAuthLayout({
             </Link>
             {badge ? <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{badge}</span> : null}
           </div>
-          <Link href={backHref} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">
-            <ArrowLeft className="h-4 w-4" /> 랜딩으로
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link href={backHref} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">
+              <ArrowLeft className="h-4 w-4" /> 랜딩으로
+            </Link>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 

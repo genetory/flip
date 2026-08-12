@@ -15,6 +15,7 @@ import { TalentTicketBadge } from "./TalentTicketBadge";
 import { useFollowFeedNotifications, useFollowCompanyPositionNotifications, type FeedAuthor } from "../../lib/talent/social-graph";
 import { useUnreadNotificationCount } from "../../lib/talent/notifications";
 import { useSavedDeadlineNotifications } from "../../lib/talent/deadline-notify";
+import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 
 export function TalentHeader() {
   const pathname = usePathname() ?? "";
@@ -107,12 +108,14 @@ export function TalentHeader() {
             >
               <span className="truncate">{name}</span>
             </Link>
+            <LanguageSwitcher />
           </div>
         ) : (
           <div className="flex items-center gap-1.5">
             <Link href={talentRoutes.login} className="rounded-lg px-3 py-2 text-[13.5px] font-semibold text-[#4E5968] transition hover:text-[#191F28]">
               {talentBrand.cta.login}
             </Link>
+            <LanguageSwitcher />
           </div>
         )}
       </div>
