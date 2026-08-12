@@ -72,7 +72,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
 
     // 경력/활동 결과 아이템 공통 렌더러.
     const renderExpItem = (x: ResumeExperience, i: number) => (
-      <li key={i} className="rounded-lg bg-white/70 p-2.5">
+      <li key={i} className="rounded-xl border border-[#EEF1F5] bg-white p-3">
         <p className="text-[13px] font-bold text-[#191F28]">{[x.title, x.org].filter(Boolean).join(" · ")}{x.period ? <span className="font-normal text-[#8B95A1]"> ({x.period})</span> : null}</p>
         {x.bullets?.length ? (
           <ul className="mt-1 space-y-0.5">
@@ -250,7 +250,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
     if (kind === "both" && (resumeReady || coverReady)) {
       const filledCover = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
       return (
-        <div className="mt-3 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
+        <div className="mt-3 space-y-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
           {resumeReady ? (
             <div>
               <div className="flex items-center justify-between gap-2">
@@ -324,16 +324,16 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
               </button>
               {!last ? <span className="mt-1.5 w-[2px] flex-1 rounded bg-[#E5E8EB]" /> : null}
             </div>
-            <div className={`min-w-0 flex-1 ${last ? "pb-0.5" : "pb-7"}`}>
+            <div className={`min-w-0 flex-1 ${last ? "pb-0.5" : "pb-9"}`}>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <p className={`text-[15.5px] font-bold leading-snug tracking-[-0.01em] md:text-[16px] ${done ? "text-[#8B95A1]" : locked ? "text-[#B0B8C1]" : "text-[#191F28]"}`}>
+                <p className={`break-keep text-[17px] font-black leading-[1.25] tracking-[-0.02em] md:text-[18.5px] ${done ? "text-[#8B95A1]" : locked ? "text-[#B0B8C1]" : "text-[#0B1227]"}`}>
                   {stepText(s.id, "title")}
                 </p>
                 {!done && !locked && s.minutes ? (
                   <span className="rounded-full bg-[#F2F4F6] px-2 py-0.5 text-[11px] font-semibold text-[#8B95A1]">⏱ {t(`약 ${s.minutes}분`, `about ${s.minutes} min`, `约 ${s.minutes} 分钟`, `khoảng ${s.minutes} phút`, `約 ${s.minutes}分`, `sekitar ${s.minutes} mnt`)}</span>
                 ) : null}
               </div>
-              <p className={`mt-1.5 break-keep text-[13.5px] leading-[1.7] ${done ? "text-[#B0B8C1]" : locked ? "text-[#C9CDD2]" : "text-[#4E5968]"}`}>
+              <p className={`mt-2 max-w-[560px] break-keep text-[14px] leading-[1.8] ${done ? "text-[#B0B8C1]" : locked ? "text-[#C9CDD2]" : "text-[#4E5968]"}`}>
                 {stepText(s.id, "desc")
                   .split(/(?<=\.)\s+/)
                   .filter(Boolean)
@@ -363,9 +363,9 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
               ) : s.action ? (
                 <Link
                   href={s.action.href}
-                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#EDF1FD] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]"
+                  className="group mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
                 >
-                  {actionLabel(s.action.label)} <span aria-hidden>→</span>
+                  {actionLabel(s.action.label)} <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
                 </Link>
               ) : null}
             </div>
@@ -381,12 +381,12 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
 function ResultCard({ continueHref, continueLabel, restartHref, children }: { continueHref: string; continueLabel: string; restartHref: string; children: React.ReactNode }) {
   const t = useLaunchT();
   return (
-    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
+    <div className="mt-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">{children}</div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Link href={continueHref} className="text-[12.5px] font-bold text-[#0B46E8] underline">{continueLabel}</Link>
-          <Link href={restartHref} className="text-[12px] font-semibold text-[#8B95A1] underline hover:text-[#4E5968]">{t("다시하기", "Start over", "重新开始", "Làm lại", "やり直す", "Mulai ulang")}</Link>
+          <Link href={continueHref} className="text-[12.5px] font-bold text-[#0B46E8] hover:underline">{continueLabel}</Link>
+          <Link href={restartHref} className="text-[12px] font-semibold text-[#8B95A1] hover:text-[#4E5968] hover:underline">{t("다시하기", "Start over", "重新开始", "Làm lại", "やり直す", "Mulai ulang")}</Link>
         </div>
       </div>
     </div>
