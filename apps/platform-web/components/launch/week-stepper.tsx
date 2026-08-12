@@ -255,7 +255,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
             <div>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[13px] font-bold text-[#191F28]">📄 {t(`이력서 — 경력 ${expN} · 스킬 ${skillN}`, `Resume — Experience ${expN} · Skills ${skillN}`, `简历 — 经历 ${expN} · 技能 ${skillN}`, `CV — Kinh nghiệm ${expN} · Kỹ năng ${skillN}`, `履歴書 — 職歴 ${expN} · スキル ${skillN}`, `Resume — Pengalaman ${expN} · Keterampilan ${skillN}`)}</p>
-                <Link href="/career-launch/week/2" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">{t("이력서 수정하기", "Edit resume", "编辑简历", "Chỉnh sửa CV", "履歴書を修正", "Edit resume")}</Link>
+                <Link href="/career-launch/week/2" className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("이력서 수정하기", "Edit resume", "编辑简历", "Chỉnh sửa CV", "履歴書を修正", "Edit resume")}</Link>
               </div>
               {expN > 0 ? (
                 <ul className="mt-1.5 space-y-1">
@@ -270,7 +270,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
             <div>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[13px] font-bold text-[#191F28]">📝 {t(`자기소개서 — 문항 ${coverN}개`, `Cover letter — ${coverN} questions`, `自我介绍书 — ${coverN} 道题`, `Thư giới thiệu bản thân — ${coverN} câu hỏi`, `自己紹介書 — 設問 ${coverN}件`, `Surat lamaran — ${coverN} pertanyaan`)}{cover.company ? ` · ${cover.company}` : ""}</p>
-                <Link href="/career-launch/week/3" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">{t("자기소개서 수정하기", "Edit cover letter", "编辑自我介绍书", "Chỉnh sửa thư giới thiệu", "自己紹介書を修正", "Edit surat lamaran")}</Link>
+                <Link href="/career-launch/week/3" className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("자기소개서 수정하기", "Edit cover letter", "编辑自我介绍书", "Chỉnh sửa thư giới thiệu", "自己紹介書を修正", "Edit surat lamaran")}</Link>
               </div>
               <ul className="mt-1.5 space-y-1">
                 {filledCover.map((it, i) => (
@@ -348,14 +348,14 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
               ) : panel ? (
                 panel
               ) : done ? (
-                <div className="mt-2 flex items-center gap-2 text-[12.5px]">
-                  <span className="font-bold text-emerald-600">✓ {t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")}</span>
+                <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-[#E7F7EF] px-2.5 py-1.5 text-[12px] font-bold text-[#0A9B59]">✓ {t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")}</span>
                   {toggleable ? (
-                    <button type="button" onClick={() => toggle(s.id)} className="font-semibold text-[#8B95A1] underline hover:text-[#4E5968]">
+                    <button type="button" onClick={() => toggle(s.id)} className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#8B95A1] transition hover:border-[#0B46E8]/40 hover:text-[#4E5968]">
                       {t("완료 취소", "Undo complete", "取消完成", "Hủy hoàn thành", "完了を取り消す", "Batalkan selesai")}
                     </button>
                   ) : s.action ? (
-                    <Link href={s.action.href} className="font-semibold text-[#0B46E8] underline">
+                    <Link href={s.action.href} className="rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">
                       {t("다시 하기", "Do again", "重新做", "Làm lại", "もう一度する", "Ulangi")}
                     </Link>
                   ) : null}
@@ -384,9 +384,9 @@ function ResultCard({ continueHref, continueLabel, restartHref, children }: { co
     <div className="mt-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">{children}</div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Link href={continueHref} className="text-[12.5px] font-bold text-[#0B46E8] hover:underline">{continueLabel}</Link>
-          <Link href={restartHref} className="text-[12px] font-semibold text-[#8B95A1] hover:text-[#4E5968] hover:underline">{t("다시하기", "Start over", "重新开始", "Làm lại", "やり直す", "Mulai ulang")}</Link>
+        <div className="flex shrink-0 flex-col items-stretch gap-1.5">
+          <Link href={continueHref} className="rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-center text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{continueLabel}</Link>
+          <Link href={restartHref} className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-center text-[12px] font-semibold text-[#8B95A1] transition hover:border-[#0B46E8]/40 hover:text-[#4E5968]">{t("다시하기", "Start over", "重新开始", "Làm lại", "やり直す", "Mulai ulang")}</Link>
         </div>
       </div>
     </div>
