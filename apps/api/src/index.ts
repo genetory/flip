@@ -14695,10 +14695,18 @@ async function aiQuotaConsume(userId: string, feature: string): Promise<void> {
 
 // 라우트 미들웨어 — 호출 전 잔량 확인(부족하면 402), 성공 응답(ok:true) 시 비용 차감.
 // 차감은 fire-and-forget 이라 응답을 지연시키지 않는다(클라이언트는 이벤트로 잔량 갱신).
-function aiCharge(feature: string): import("express").RequestHandler {
+// 챗 kickoff(사용자 메시지 없음)인지 — kickoff 자동 인사는 과금/게이트 대상에서 제외한다.
+function hasChatUserTurn(req: import("express").Request): boolean {
+  const m = (req.body as { messages?: unknown } | undefined)?.messages;
+  return Array.isArray(m) && m.length > 0;
+}
+
+// when 이 주어지면 그 조건이 참일 때만 과금·게이트(예: 실제 사용자 메시지 턴).
+function aiCharge(feature: string, when?: (req: import("express").Request) => boolean): import("express").RequestHandler {
   return async (req, res, next) => {
     const cost = aiFeatureCost(feature);
     if (cost <= 0) return next();
+    if (when && !when(req)) return next();
     const userId = req.auth?.userId;
     if (!userId) return next();
     let status: AiCreditStatus;
@@ -15393,7 +15401,7 @@ app.post(
   "/career-launch/job-chat",
   authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-job-chat", message: "잠시 후 다시 시도해 주세요." }),
-  aiCharge("career_job_chat"),
+  aiCharge("career_job_chat", hasChatUserTurn),
   async (req, res) => {
     const parsed = jobChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -15505,7 +15513,7 @@ app.post(
   "/career-launch/material-chat",
   authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-material-chat", message: "잠시 후 다시 시도해 주세요." }),
-  aiCharge("career_material_chat"),
+  aiCharge("career_material_chat", hasChatUserTurn),
   async (req, res) => {
     const parsed = materialChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -15558,7 +15566,7 @@ app.post(
   "/career-launch/diagnosis-chat",
   authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-diagnosis-chat", message: "잠시 후 다시 시도해 주세요." }),
-  aiCharge("career_diagnosis_chat"),
+  aiCharge("career_diagnosis_chat", hasChatUserTurn),
   async (req, res) => {
     const parsed = diagnosisChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -15897,7 +15905,7 @@ app.post(
   "/career-launch/resume-chat",
   authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-resume-chat", message: "잠시 후 다시 시도해 주세요." }),
-  aiCharge("career_resume_chat"),
+  aiCharge("career_resume_chat", hasChatUserTurn),
   async (req, res) => {
     const parsed = resumeChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -16239,7 +16247,7 @@ app.post(
   "/career-launch/cover-chat",
   authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-cover-chat", message: "잠시 후 다시 시도해 주세요." }),
-  aiCharge("career_cover_chat"),
+  aiCharge("career_cover_chat", hasChatUserTurn),
   async (req, res) => {
     const parsed = coverChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -16562,7 +16570,7 @@ app.post(
   "/career-launch/interview-chat",
   authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-interview-chat", message: "잠시 후 다시 시도해 주세요." }),
-  aiCharge("career_interview_chat"),
+  aiCharge("career_interview_chat", hasChatUserTurn),
   async (req, res) => {
     const parsed = interviewChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
