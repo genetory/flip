@@ -12,6 +12,7 @@ import { useBasicInfo } from "../../../lib/talent/basic-info";
 import { useSelfMock, saveSelfMockAnswer } from "../../../lib/talent/self-mock";
 import { catMeta, CATEGORY_ORDER } from "../../../lib/talent/mock-interview-categories";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
+import { usePlatformT } from "../../../lib/i18n";
 import { aiInterviewQuestions, aiInterviewFeedback, recordMockInterviewPractice, type PublicPositionListItem, type InterviewQuestion, type InterviewFeedback } from "../../../lib/member-profile-client";
 import { getAiUsage, type AiUsage } from "../../../lib/resume-maker-client";
 import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
@@ -63,6 +64,7 @@ function isQuota(err: unknown): boolean {
 }
 
 export function MockInterviewModal({ item, onClose }: { item?: PublicPositionListItem; onClose: () => void }) {
+  const t = usePlatformT();
   useLockBodyScroll();
   const doc = useResumeDoc();
   const coverDoc = useCoverDoc();
@@ -158,7 +160,7 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
           setTicketOpen(true);
           refreshUsage();
         } else {
-          setError("질문을 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
+          setError(t("질문을 불러오지 못했어요. 잠시 후 다시 시도해주세요.", "Couldn't load questions. Please try again shortly.", "无法加载问题，请稍后重试。", "Không thể tải câu hỏi. Vui lòng thử lại sau.", "質問を読み込めませんでした。しばらくして再試行してください。", "Gagal memuat pertanyaan. Coba lagi sebentar."));
         }
       })
       .finally(() => setLoading(false));
@@ -253,44 +255,44 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-[15px] font-black tracking-[-0.02em] text-[#0B1227]"><Sparkle className="h-4 w-4 text-[#0B46E8]" weight="fill" /> 모의 면접</p>
-            <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{item ? item.title : "내 이력서·자기소개서 기반"}</p>
+            <p className="flex items-center gap-1.5 text-[15px] font-black tracking-[-0.02em] text-[#0B1227]"><Sparkle className="h-4 w-4 text-[#0B46E8]" weight="fill" /> {t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}</p>
+            <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{item ? item.title : t("내 이력서·자기소개서 기반", "Based on my resume & cover letter", "基于我的简历和自我介绍", "Dựa trên CV và thư xin việc của tôi", "私の履歴書・自己PRに基づく", "Berdasarkan resume & surat lamaran saya")}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="닫기" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
+          <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
         </div>
 
         {/* 본문 */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {noSource ? (
             <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-8 text-center">
-              <p className="text-[15px] font-bold text-[#191F28]">이력서가 필요해요</p>
-              <p className="mt-1 text-[13px] text-[#8B95A1]">이력서를 만들면 그 내용에 맞춰 예상 질문을 만들어드려요.</p>
-              <Link href={talentAppRoutes.resume} className="mt-4 inline-flex h-[44px] items-center justify-center rounded-xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">이력서 만들기</Link>
+              <p className="text-[15px] font-bold text-[#191F28]">{t("이력서가 필요해요", "You need a resume", "需要简历", "Bạn cần một CV", "履歴書が必要です", "Anda perlu resume")}</p>
+              <p className="mt-1 text-[13px] text-[#8B95A1]">{t("이력서를 만들면 그 내용에 맞춰 예상 질문을 만들어드려요.", "Create a resume and we'll generate questions based on it.", "创建简历后，我们会据此生成预测问题。", "Tạo CV và chúng tôi sẽ tạo câu hỏi dựa trên đó.", "履歴書を作ると、その内容に合わせて予想質問を作ります。", "Buat resume dan kami buat pertanyaan berdasarkan itu.")}</p>
+              <Link href={talentAppRoutes.resume} className="mt-4 inline-flex h-[44px] items-center justify-center rounded-xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("이력서 만들기", "Create resume", "创建简历", "Tạo CV", "履歴書を作成", "Buat resume")}</Link>
             </div>
           ) : category === null ? (
             <CategoryChooser authored={authoredQuestions.length > 0} onPick={startCategory} />
           ) : loading ? (
             <div className="flex flex-col items-center justify-center gap-3 py-14">
               <CircleNotch className="h-7 w-7 animate-spin text-[#0B46E8]" weight="bold" />
-              <p className="text-[13.5px] text-[#8B95A1]">예상 면접 질문을 준비하고 있어요…</p>
+              <p className="text-[13.5px] text-[#8B95A1]">{t("예상 면접 질문을 준비하고 있어요…", "Preparing your interview questions…", "正在准备预测面试问题…", "Đang chuẩn bị câu hỏi phỏng vấn…", "予想面接質問を準備しています…", "Menyiapkan pertanyaan wawancara…")}</p>
             </div>
           ) : error ? (
             <p className="py-10 text-center text-[13.5px] text-[#F04452]">{error}</p>
           ) : quotaBlocked && (!questions || total === 0) ? (
             <div className="rounded-2xl border border-dashed border-[#F3D9A9] bg-[#FFFBF3] p-8 text-center">
-              <p className="text-[15px] font-bold text-[#191F28]">AI 티켓이 부족해요</p>
-              <p className="mt-1 break-keep text-[13px] text-[#8B95A1]">모의 면접 질문 생성에는 AI 티켓이 필요해요. 코드로 충전하거나 매일 자동 충전을 기다려 주세요.</p>
+              <p className="text-[15px] font-bold text-[#191F28]">{t("AI 티켓이 부족해요", "Not enough AI tickets", "AI 券不足", "Không đủ vé AI", "AIチケットが不足しています", "Tiket AI tidak cukup")}</p>
+              <p className="mt-1 break-keep text-[13px] text-[#8B95A1]">{t("모의 면접 질문 생성에는 AI 티켓이 필요해요. 코드로 충전하거나 매일 자동 충전을 기다려 주세요.", "Generating mock interview questions needs AI tickets. Recharge with a code or wait for the daily refill.", "生成模拟面试问题需要 AI 券。请用兑换码充值或等待每日自动补充。", "Tạo câu hỏi cần vé AI. Nạp bằng mã hoặc chờ nạp tự động mỗi ngày.", "模擬面接質問の生成にはAIチケットが必要です。コードでチャージするか毎日の自動チャージをお待ちください。", "Membuat pertanyaan butuh tiket AI. Isi ulang dengan kode atau tunggu isi ulang harian.")}</p>
               <div className="mt-4 flex items-center justify-center gap-2">
-                <button type="button" onClick={backToChooser} className="inline-flex h-[44px] items-center justify-center rounded-xl bg-[#F2F4F6] px-4 text-[14px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">유형 다시 고르기</button>
-                <button type="button" onClick={() => setTicketOpen(true)} className="inline-flex h-[44px] items-center justify-center rounded-xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">티켓 충전하기</button>
+                <button type="button" onClick={backToChooser} className="inline-flex h-[44px] items-center justify-center rounded-xl bg-[#F2F4F6] px-4 text-[14px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">{t("유형 다시 고르기", "Choose type again", "重新选择类型", "Chọn lại loại", "タイプを選び直す", "Pilih tipe lagi")}</button>
+                <button type="button" onClick={() => setTicketOpen(true)} className="inline-flex h-[44px] items-center justify-center rounded-xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("티켓 충전하기", "Recharge tickets", "充值券", "Nạp vé", "チケットをチャージ", "Isi ulang tiket")}</button>
               </div>
             </div>
           ) : !questions || total === 0 ? (
-            <p className="py-10 text-center text-[13.5px] text-[#8B95A1]">준비된 질문이 없어요.</p>
+            <p className="py-10 text-center text-[13.5px] text-[#8B95A1]">{t("준비된 질문이 없어요.", "No questions available.", "没有可用的问题。", "Không có câu hỏi nào.", "準備された質問がありません。", "Tidak ada pertanyaan.")}</p>
           ) : (
             <>
               <button type="button" onClick={backToChooser} className="mb-3 -mt-1 inline-flex items-center gap-1 text-[12.5px] font-bold text-[#8B95A1] transition hover:text-[#4E5968]">
-                <CaretLeft className="h-3.5 w-3.5" weight="bold" /> 유형 다시 고르기
+                <CaretLeft className="h-3.5 w-3.5" weight="bold" /> {t("유형 다시 고르기", "Choose type again", "重新选择类型", "Chọn lại loại", "タイプを選び直す", "Pilih tipe lagi")}
               </button>
               <QuestionStep
                 index={idx}
@@ -314,7 +316,7 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
               disabled={idx === 0}
               className="flex h-[46px] items-center justify-center gap-1 rounded-2xl bg-[#F2F4F6] px-4 text-[14px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-40"
             >
-              <CaretLeft className="h-4 w-4" weight="bold" /> 이전
+              <CaretLeft className="h-4 w-4" weight="bold" /> {t("이전", "Prev", "上一个", "Trước", "前へ", "Sebelum")}
             </button>
             <button
               type="button"
@@ -323,11 +325,11 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
               className="flex h-[46px] flex-1 items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
             >
               {loadingMore ? (
-                <><CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> 새 질문 생성 중…</>
+                <><CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> {t("새 질문 생성 중…", "Generating…", "生成中…", "Đang tạo…", "生成中…", "Membuat…")}</>
               ) : atLast && canGenerate ? (
-                <><Sparkle className="h-4 w-4" weight="fill" /> 새로운 질문 생성 <AiTicketCost feature="interview_questions" size="md" /></>
+                <><Sparkle className="h-4 w-4" weight="fill" /> {t("새로운 질문 생성", "New question", "生成新问题", "Câu hỏi mới", "新しい質問を生成", "Pertanyaan baru")} <AiTicketCost feature="interview_questions" size="md" /></>
               ) : (
-                <>다음 질문 <CaretRight className="h-4 w-4" weight="bold" /></>
+                <>{t("다음 질문", "Next", "下一题", "Tiếp", "次の質問", "Berikutnya")} <CaretRight className="h-4 w-4" weight="bold" /></>
               )}
             </button>
           </div>
@@ -364,6 +366,7 @@ function QuestionStep({
   onChange: (v: string) => void;
   onFeedback: () => void;
 }) {
+  const t = usePlatformT();
   const meta = catMeta(q.category);
   const fb = slot?.fb ?? null;
   const answer = slot?.answer ?? "";
@@ -371,7 +374,7 @@ function QuestionStep({
     <div className="flex flex-col gap-3">
       {intentHint ? (
         <div className="rounded-2xl bg-[#F5F8FF] px-4 py-3">
-          <p className="text-[11.5px] font-bold text-[#0B46E8]">이 회사가 보려는 포인트</p>
+          <p className="text-[11.5px] font-bold text-[#0B46E8]">{t("이 회사가 보려는 포인트", "What this company looks for", "该公司关注的重点", "Điều công ty này tìm kiếm", "この会社が見たいポイント", "Yang dicari perusahaan ini")}</p>
           <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#4E5968]">{intentHint}</p>
         </div>
       ) : null}
@@ -387,7 +390,7 @@ function QuestionStep({
         </p>
         {q.intent ? (
           <p className="mt-2 rounded-lg bg-[#F8FAFB] px-3 py-2 text-[12px] leading-relaxed text-[#8B95A1]">
-            <span className="font-bold text-[#0B46E8]">💡 이 질문의 의도 · </span>{q.intent}
+            <span className="font-bold text-[#0B46E8]">💡 {t("이 질문의 의도 · ", "Why this question · ", "此问题的意图 · ", "Ý đồ câu hỏi · ", "この質問の意図 · ", "Maksud pertanyaan · ")}</span>{q.intent}
           </p>
         ) : null}
       </div>
@@ -396,7 +399,7 @@ function QuestionStep({
         value={answer}
         onChange={(e) => onChange(e.target.value)}
         rows={5}
-        placeholder="답변을 적어보세요. (STAR: 상황·과제·행동·결과)"
+        placeholder={t("답변을 적어보세요. (STAR: 상황·과제·행동·결과)", "Write your answer. (STAR: Situation, Task, Action, Result)", "写下你的回答。（STAR：情境·任务·行动·结果）", "Viết câu trả lời. (STAR: Tình huống·Nhiệm vụ·Hành động·Kết quả)", "回答を書いてください。（STAR：状況・課題・行動・結果）", "Tulis jawaban Anda. (STAR: Situasi·Tugas·Aksi·Hasil)")}
         className="w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[13.5px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
       />
       <button
@@ -405,7 +408,7 @@ function QuestionStep({
         disabled={!answer.trim() || busy}
         className="inline-flex items-center justify-center gap-1.5 self-start rounded-xl bg-[#0B46E8] px-3.5 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40"
       >
-        <Sparkle className="h-3.5 w-3.5" weight="fill" /> {busy ? "평가 중…" : fb ? "다시 평가받기" : "AI 피드백 받기"}
+        <Sparkle className="h-3.5 w-3.5" weight="fill" /> {busy ? t("평가 중…", "Evaluating…", "评估中…", "Đang đánh giá…", "評価中…", "Menilai…") : fb ? t("다시 평가받기", "Re-evaluate", "重新评估", "Đánh giá lại", "再評価する", "Nilai ulang") : t("AI 피드백 받기", "Get AI feedback", "获取 AI 反馈", "Nhận phản hồi AI", "AIフィードバックを受ける", "Dapatkan umpan balik AI")}
         {!busy ? <AiTicketCost feature="interview_feedback" size="md" /> : null}
       </button>
 
@@ -415,23 +418,24 @@ function QuestionStep({
 }
 
 function FeedbackCard({ fb }: { fb: InterviewFeedback }) {
+  const t = usePlatformT();
   return (
     <div className="mt-1 flex flex-col gap-2.5 rounded-2xl bg-[#F8FAFB] p-4">
       {fb.strengths.length ? (
         <div>
-          <p className="text-[11.5px] font-bold text-[#0A9B59]">잘한 점</p>
+          <p className="text-[11.5px] font-bold text-[#0A9B59]">{t("잘한 점", "Strengths", "亮点", "Điểm mạnh", "良かった点", "Kelebihan")}</p>
           <ul className="mt-1 flex flex-col gap-0.5">{fb.strengths.map((s, i) => <li key={i} className="break-keep text-[12.5px] text-[#4E5968]">· {s}</li>)}</ul>
         </div>
       ) : null}
       {fb.improvements.length ? (
         <div>
-          <p className="text-[11.5px] font-bold text-[#E8890C]">개선하면 좋아요</p>
+          <p className="text-[11.5px] font-bold text-[#E8890C]">{t("개선하면 좋아요", "Areas to improve", "可改进之处", "Cần cải thiện", "改善するとよい点", "Perlu diperbaiki")}</p>
           <ul className="mt-1 flex flex-col gap-0.5">{fb.improvements.map((s, i) => <li key={i} className="break-keep text-[12.5px] text-[#4E5968]">· {s}</li>)}</ul>
         </div>
       ) : null}
       {fb.sampleAnswer ? (
         <div>
-          <p className="text-[11.5px] font-bold text-[#0B46E8]">모범답안(내 이력서 기반)</p>
+          <p className="text-[11.5px] font-bold text-[#0B46E8]">{t("모범답안(내 이력서 기반)", "Model answer (based on my resume)", "范例答案（基于我的简历）", "Câu trả lời mẫu (dựa trên CV của tôi)", "模範回答（私の履歴書に基づく）", "Jawaban model (berdasarkan resume saya)")}</p>
           <p className="mt-1 whitespace-pre-wrap break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{fb.sampleAnswer}</p>
         </div>
       ) : null}
@@ -448,21 +452,22 @@ const CATEGORY_DESC: Record<string, string> = {
 
 // 유형 선택 화면 — 고른 유형에 맞춰 질문을 생성한다(생성 시 티켓 사용).
 function CategoryChooser({ authored, onPick }: { authored: boolean; onPick: (cat: string) => void }) {
+  const t = usePlatformT();
   const cats = CATEGORY_ORDER.filter((c) => c !== "other");
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="text-[16px] font-black tracking-[-0.02em] text-[#0B1227]">어떤 유형으로 연습할까요?</p>
-        <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#8B95A1]">고른 유형에 맞는 질문을 내 이력서·자기소개서 기반으로 만들어드려요. 유형은 언제든 다시 고를 수 있어요.</p>
+        <p className="text-[16px] font-black tracking-[-0.02em] text-[#0B1227]">{t("어떤 유형으로 연습할까요?", "Which type would you like to practice?", "想练习哪种类型？", "Bạn muốn luyện loại nào?", "どのタイプで練習しますか？", "Tipe apa yang ingin dilatih?")}</p>
+        <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("고른 유형에 맞는 질문을 내 이력서·자기소개서 기반으로 만들어드려요. 유형은 언제든 다시 고를 수 있어요.", "We'll create questions for your chosen type based on your resume and cover letter. You can switch types anytime.", "我们会根据你的简历和自我介绍，为所选类型生成问题。类型可随时更换。", "Chúng tôi tạo câu hỏi theo loại bạn chọn, dựa trên CV và thư xin việc. Có thể đổi loại bất cứ lúc nào.", "選んだタイプに合う質問を履歴書・自己PRに基づいて作ります。タイプはいつでも変更できます。", "Kami buat pertanyaan sesuai tipe pilihan, berdasarkan resume dan surat lamaran. Ganti tipe kapan saja.")}</p>
       </div>
       {authored ? (
         <button type="button" onClick={() => onPick("authored")} className="flex items-center gap-3.5 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4 text-left transition hover:border-[#0B46E8]/40">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] shadow-[0_2px_10px_rgba(11,70,232,0.1)]" aria-hidden>🏢</span>
           <div className="min-w-0 flex-1">
-            <p className="text-[14.5px] font-bold text-[#191F28]">이 회사 대표 질문</p>
-            <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">회사가 준비한 질문으로 연습해요.</p>
+            <p className="text-[14.5px] font-bold text-[#191F28]">{t("이 회사 대표 질문", "This company's key questions", "该公司代表性问题", "Câu hỏi tiêu biểu của công ty", "この会社の代表質問", "Pertanyaan utama perusahaan ini")}</p>
+            <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("회사가 준비한 질문으로 연습해요.", "Practice with questions the company prepared.", "用公司准备的问题练习。", "Luyện với câu hỏi công ty chuẩn bị.", "会社が用意した質問で練習します。", "Latihan dengan pertanyaan dari perusahaan.")}</p>
           </div>
-          <span className="shrink-0 rounded-full bg-[#E7F8EF] px-2 py-1 text-[11px] font-bold text-[#0A9B59]">무료</span>
+          <span className="shrink-0 rounded-full bg-[#E7F8EF] px-2 py-1 text-[11px] font-bold text-[#0A9B59]">{t("무료", "Free", "免费", "Miễn phí", "無料", "Gratis")}</span>
         </button>
       ) : null}
       {cats.map((c) => {

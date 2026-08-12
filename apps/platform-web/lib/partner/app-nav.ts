@@ -30,3 +30,25 @@ export function isPartnerTabActive(pathname: string, href: string): boolean {
   if (href === partnerRoutes.home) return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
+
+// 파트너 GNB 네비 라벨 다국어(공간 고려 짧게).
+import { usePlatformT } from "../i18n";
+export function usePartnerNavLabel(): (key: string) => string {
+  const t = usePlatformT();
+  return (key) => {
+    switch (key) {
+      case "home":
+        return t("홈", "Home", "首页", "Trang chủ", "ホーム", "Beranda");
+      case "talent":
+        return t("인재 검색", "Talent", "人才搜索", "Nhân tài", "人材検索", "Talenta");
+      case "positions":
+        return t("공고 관리", "Jobs", "职位管理", "Tin đăng", "求人管理", "Lowongan");
+      case "applicants":
+        return t("지원자 관리", "Applicants", "申请人", "Ứng viên", "応募者", "Pelamar");
+      case "company":
+        return t("회사 프로필", "Company", "公司资料", "Công ty", "会社情報", "Perusahaan");
+      default:
+        return key;
+    }
+  };
+}

@@ -15,6 +15,7 @@ import { TalentButton } from "./TalentButton";
 import { TalentSectionHeader } from "./TalentSectionHeader";
 import { TalentHeader } from "./TalentHeader";
 import { AplyFooter } from "../AplyFooter";
+import { usePlatformT } from "../../lib/i18n";
 
 // Talent 랜딩(= 홈) — 공개. 로그인/역할 가드 없음.
 // 디자인: toss.im 계열. 거대한 타이포 + 넉넉한 여백 + 한 섹션 한 메시지 + 솔리드 블루 풀블리드.
@@ -47,12 +48,13 @@ export function TalentLandingPage() {
 
 /* 1. 히어로 — 중앙 정렬, 거대한 타이포 */
 function Hero() {
+  const t = usePlatformT();
   return (
     <section className="bg-white">
       <div className="mx-auto w-full max-w-3xl px-5 pb-4 pt-14 text-center md:pt-20">
         <Reveal>
           <span className="inline-flex items-center rounded-full bg-[#F2F4F6] px-4 py-2 text-[13.5px] font-bold text-[#4E5968]">
-            첫 취업을 준비하는 나를 위한 서비스
+            {t("첫 취업을 준비하는 나를 위한 서비스", "A service for your first job search", "为你的第一份工作而生的服务", "Dịch vụ cho lần xin việc đầu tiên", "初めての就活のためのサービス", "Layanan untuk pencarian kerja pertama Anda")}
           </span>
         </Reveal>
         <Reveal delayMs={80}>
@@ -88,6 +90,7 @@ function Hero() {
 }
 
 function ProgressPreview() {
+  const t = usePlatformT();
   return (
     <div className="rounded-3xl border border-[#EEF1F5] bg-white p-6 shadow-[0_10px_32px_rgba(11,18,39,0.07)]">
       <div className="flex items-center justify-between">
@@ -104,8 +107,8 @@ function ProgressPreview() {
             <li key={s.label} className="flex items-center gap-3.5">
               <span className={`h-3 w-3 rounded-full ${st.dot}`} />
               <span className={`text-[15px] ${st.text}`}>{s.label}</span>
-              {s.state === "doing" ? <span className="ml-auto text-[12.5px] font-bold text-[#0B46E8]">진행 중</span> : null}
-              {s.state === "done" ? <span className="ml-auto text-[12.5px] font-bold text-[#3A6B00]">완료</span> : null}
+              {s.state === "doing" ? <span className="ml-auto text-[12.5px] font-bold text-[#0B46E8]">{t("진행 중", "In progress", "进行中", "Đang làm", "進行中", "Berlangsung")}</span> : null}
+              {s.state === "done" ? <span className="ml-auto text-[12.5px] font-bold text-[#3A6B00]">{t("완료", "Done", "完成", "Hoàn tất", "完了", "Selesai")}</span> : null}
             </li>
           );
         })}

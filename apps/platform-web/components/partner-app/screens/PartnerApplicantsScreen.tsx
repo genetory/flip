@@ -12,6 +12,7 @@ import { PartnerApplicantCard, PartnerParticipantCard } from "../ListCards";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { PARTNER_APPLICANT_STATUS } from "../../../lib/partner/labels";
+import { usePlatformT } from "../../../lib/i18n";
 import { getMyPartnerApplicants, getOrgMockInterviewParticipants, updateMyPartnerApplicantState, sendPartnerApplicantMessage, type PartnerApplicantListItem, type PartnerApplicantStatus, type OrgMockInterviewParticipant } from "../../../lib/member-profile-client";
 
 type Tab = "all" | PartnerApplicantStatus | "mock";
@@ -29,6 +30,7 @@ const TABS: { key: Tab; label: string; match: (s: PartnerApplicantStatus) => boo
 const REC_ORDER: Record<PartnerApplicantListItem["recommendation"], number> = { HIGH: 0, NORMAL: 1, CHECK: 2 };
 
 export function PartnerApplicantsScreen() {
+  const t = usePlatformT();
   const searchParams = useSearchParams();
   const toast = useTalentPopup();
   const initTab = searchParams.get("tab");
@@ -72,9 +74,9 @@ export function PartnerApplicantsScreen() {
     const prev = items?.find((a) => a.id === id)?.status;
     setItems((list) => (list ? list.map((a) => (a.id === id ? { ...a, status: next } : a)) : list));
     updateMyPartnerApplicantState(id, { status: next })
-      .then(() => toast.success(next === "REVIEWING" ? "검토를 시작했어요" : "상태를 변경했어요"))
+      .then(() => toast.success(next === "REVIEWING" ? t("검토를 시작했어요", "Started reviewing", "已开始审核", "Đã bắt đầu xem xét", "審査を開始しました", "Mulai ditinjau") : t("상태를 변경했어요", "Status updated", "状态已更新", "Đã đổi trạng thái", "ステータスを変更しました", "Status diperbarui")))
       .catch(() => {
-        toast.error("상태 변경에 실패했어요");
+        toast.error(t("상태 변경에 실패했어요", "Couldn't update status", "状态更新失败", "Không đổi được trạng thái", "ステータスを変更できませんでした", "Gagal memperbarui status"));
         if (prev) setItems((list) => (list ? list.map((a) => (a.id === id ? { ...a, status: prev } : a)) : list));
       });
   }
@@ -86,12 +88,12 @@ export function PartnerApplicantsScreen() {
     setItems((list) => (list ? list.map((a) => (a.id === target.id ? { ...a, status: "REJECTED" as PartnerApplicantStatus } : a)) : list));
     updateMyPartnerApplicantState(target.id, { status: "REJECTED" })
       .then(() => {
-        toast.success("불합격 처리했어요");
+        toast.success(t("불합격 처리했어요", "Marked as rejected", "已标记为未录用", "Đã đánh dấu không đạt", "不合格にしました", "Ditandai ditolak"));
         const msg = message.trim();
         if (msg && target.applicationId) void sendPartnerApplicantMessage(target.applicationId, msg).catch(() => {});
       })
       .catch(() => {
-        toast.error("상태 변경에 실패했어요");
+        toast.error(t("상태 변경에 실패했어요", "Couldn't update status", "状态更新失败", "Không đổi được trạng thái", "ステータスを変更できませんでした", "Gagal memperbarui status"));
         setItems((list) => (list ? list.map((a) => (a.id === target.id ? { ...a, status: prev } : a)) : list));
       });
   }
@@ -100,7 +102,7 @@ export function PartnerApplicantsScreen() {
     setCompareIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
       if (prev.length >= 3) {
-        toast.error("최대 3명까지 비교할 수 있어요");
+        toast.error(t("최대 3명까지 비교할 수 있어요", "You can compare up to 3", "最多可比较3人", "So sánh tối đa 3 người", "最大3名まで比較できます", "Bandingkan maksimal 3"));
         return prev;
       }
       return [...prev, id];
@@ -176,8 +178,8 @@ export function PartnerApplicantsScreen() {
     <PartnerAppShell>
       <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">지원자 관리</h1>
-          <p className="mt-1 text-[13.5px] text-[#8B95A1]">우리 공고에 지원한 인재를 확인하고 관리해요.</p>
+          <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("지원자 관리", "Applicants", "申请者管理", "Quản lý ứng viên", "応募者管理", "Kelola pelamar")}</h1>
+          <p className="mt-1 text-[13.5px] text-[#8B95A1]">{t("우리 공고에 지원한 인재를 확인하고 관리해요.", "Review and manage talent who applied to your postings.", "查看并管理申请我方职位的人才。", "Xem và quản lý nhân tài đã ứng tuyển vào tin của bạn.", "自社の求人に応募した人材を確認・管理します。", "Tinjau dan kelola talenta yang melamar lowongan Anda.")}</p>
         </div>
 
         {status === "loading" ? <TListSkeleton /> : null}
@@ -191,11 +193,11 @@ export function PartnerApplicantsScreen() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="이름·공고·학교·전공·국적 검색"
+                placeholder={t("이름·공고·학교·전공·국적 검색", "Search name, posting, school, major, nationality", "搜索姓名·职位·学校·专业·国籍", "Tìm tên, tin, trường, ngành, quốc tịch", "名前・求人・学校・専攻・国籍で検索", "Cari nama, lowongan, sekolah, jurusan, kebangsaan")}
                 className="w-full rounded-2xl border border-[#EEF1F5] bg-white py-3 pl-11 pr-10 text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
               />
               {query ? (
-                <button type="button" onClick={() => setQuery("")} aria-label="검색어 지우기" className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#B0B8C1] transition hover:bg-[#F2F4F6]">
+                <button type="button" onClick={() => setQuery("")} aria-label={t("검색어 지우기", "Clear search", "清除搜索", "Xóa tìm kiếm", "検索をクリア", "Hapus pencarian")} className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#B0B8C1] transition hover:bg-[#F2F4F6]">
                   <X className="h-4 w-4" />
                 </button>
               ) : null}
@@ -213,9 +215,9 @@ export function PartnerApplicantsScreen() {
                     onChange={(e) => setPosFilter(e.target.value || null)}
                     className="h-[46px] w-full appearance-none truncate rounded-2xl border border-[#EEF1F5] bg-white pl-11 pr-10 text-[14px] font-bold text-[#4E5968] outline-none [color-scheme:light] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
                   >
-                    <option value="">{tab === "mock" ? "전체 공고 참여자" : "전체 공고 지원자"}</option>
+                    <option value="">{tab === "mock" ? t("전체 공고 참여자", "All posting participants", "全部职位参与者", "Tất cả người tham gia", "全求人の参加者", "Semua peserta lowongan") : t("전체 공고 지원자", "All posting applicants", "全部职位申请者", "Tất cả ứng viên", "全求人の応募者", "Semua pelamar lowongan")}</option>
                     {opts.map((p) => (
-                      <option key={p.id} value={p.id}>{p.title} · {p.count}명</option>
+                      <option key={p.id} value={p.id}>{p.title} · {t(`${p.count}명`, `${p.count}`, `${p.count}人`, `${p.count} người`, `${p.count}名`, `${p.count} orang`)}</option>
                     ))}
                   </select>
                   <CaretDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8B95A1]" weight="bold" />
@@ -246,7 +248,7 @@ export function PartnerApplicantsScreen() {
                 aria-current={tab === "mock" ? "page" : undefined}
                 className={`relative shrink-0 pb-1.5 text-[15px] font-bold transition ${tab === "mock" ? "text-[#191F28]" : "text-[#B0B8C1] hover:text-[#8B95A1]"}`}
               >
-                🎤 모의 면접 ({participants.length})
+                🎤 {t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")} ({participants.length})
                 {tab === "mock" ? <span className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-[#0B46E8]" /> : null}
               </button>
             </div>
@@ -259,10 +261,10 @@ export function PartnerApplicantsScreen() {
                   onClick={() => (compareMode ? exitCompare() : setCompareMode(true))}
                   className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${compareMode ? "bg-[#EDF1FD] text-[#0B46E8]" : "bg-[#F2F4F6] text-[#8B95A1] hover:text-[#4E5968]"}`}
                 >
-                  {compareMode ? "비교 취소" : "⚖️ 비교"}
+                  {compareMode ? t("비교 취소", "Cancel", "取消比较", "Hủy so sánh", "比較を取消", "Batal") : t("⚖️ 비교", "⚖️ Compare", "⚖️ 比较", "⚖️ So sánh", "⚖️ 比較", "⚖️ Banding")}
                 </button>
                 <div className="flex shrink-0 items-center gap-1 rounded-full bg-[#F2F4F6] p-0.5">
-                  {([["latest", "최신순"], ["recommended", "추천순"]] as const).map(([key, label]) => (
+                  {([["latest", t("최신순", "Latest", "最新", "Mới nhất", "最新順", "Terbaru")], ["recommended", t("추천순", "Recommended", "推荐", "Đề xuất", "推薦順", "Rekomendasi")]] as const).map(([key, label]) => (
                     <button
                       key={key}
                       type="button"
@@ -279,9 +281,9 @@ export function PartnerApplicantsScreen() {
             {/* 리스트 */}
             {tab === "mock" ? (
               <>
-                <p className="-mt-1 break-keep text-[13px] text-[#8B95A1]">지원하지 않았어도 우리 공고 모의 면접을 풀어본 인재예요. 제안을 보내 먼저 연결할 수 있어요.</p>
+                <p className="-mt-1 break-keep text-[13px] text-[#8B95A1]">{t("지원하지 않았어도 우리 공고 모의 면접을 풀어본 인재예요. 제안을 보내 먼저 연결할 수 있어요.", "Talent who took your posting's mock interview even without applying. Send a proposal to connect first.", "即使未申请，也做过我方职位模拟面试的人才。可先发送提案建立联系。", "Nhân tài đã làm phỏng vấn thử của tin dù chưa ứng tuyển. Gửi đề xuất để kết nối trước.", "応募していなくても自社求人の模擬面接を受けた人材です。提案を送って先に繋がれます。", "Talenta yang mengikuti wawancara simulasi lowongan Anda meski belum melamar. Kirim proposal untuk terhubung lebih dulu.")}</p>
                 {mockList.length === 0 ? (
-                  <PartnerEmptyCard emoji="🎤" title={q ? "검색 결과가 없어요" : "아직 모의 면접 참여자가 없어요"} desc={q ? "다른 검색어로 다시 시도해보세요." : "공고에 모의 면접을 등록하면 참여자가 모여요."} />
+                  <PartnerEmptyCard emoji="🎤" title={q ? t("검색 결과가 없어요", "No results found", "没有搜索结果", "Không có kết quả", "検索結果がありません", "Tidak ada hasil") : t("아직 모의 면접 참여자가 없어요", "No mock interview participants yet", "还没有模拟面试参与者", "Chưa có người tham gia phỏng vấn thử", "まだ模擬面接の参加者がいません", "Belum ada peserta wawancara simulasi")} desc={q ? t("다른 검색어로 다시 시도해보세요.", "Try a different search term.", "请尝试其他搜索词。", "Thử từ khóa khác.", "別のキーワードで試してください。", "Coba kata kunci lain.") : t("공고에 모의 면접을 등록하면 참여자가 모여요.", "Add a mock interview to your posting to gather participants.", "为职位添加模拟面试即可聚集参与者。", "Thêm phỏng vấn thử vào tin để thu hút người tham gia.", "求人に模擬面接を登録すると参加者が集まります。", "Tambahkan wawancara simulasi ke lowongan untuk menarik peserta.")} />
                 ) : (
                   <div className="flex flex-col gap-2.5">
                     {mockList.map((m) => (
@@ -291,7 +293,7 @@ export function PartnerApplicantsScreen() {
                 )}
               </>
             ) : list.length === 0 ? (
-              <PartnerEmptyCard emoji="🧑‍💼" title={q ? "검색 결과가 없어요" : "해당 상태의 지원자가 없어요"} desc={q ? "다른 검색어로 다시 시도해보세요." : undefined} />
+              <PartnerEmptyCard emoji="🧑‍💼" title={q ? t("검색 결과가 없어요", "No results found", "没有搜索结果", "Không có kết quả", "検索結果がありません", "Tidak ada hasil") : t("해당 상태의 지원자가 없어요", "No applicants in this status", "没有该状态的申请者", "Không có ứng viên ở trạng thái này", "この状態の応募者がいません", "Tidak ada pelamar di status ini")} desc={q ? t("다른 검색어로 다시 시도해보세요.", "Try a different search term.", "请尝试其他搜索词。", "Thử từ khóa khác.", "別のキーワードで試してください。", "Coba kata kunci lain.") : undefined} />
             ) : (
               <div className={`flex flex-col gap-2.5 ${compareMode && compareIds.length ? "pb-20" : ""}`}>
                 {list.map((a) => (
@@ -330,9 +332,9 @@ export function PartnerApplicantsScreen() {
       {compareMode && compareIds.length > 0 ? (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#EEF1F5] bg-white/95 p-3 backdrop-blur" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}>
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-2">
-            <p className="text-[13px] font-bold text-[#191F28]">{compareIds.length}명 선택{compareIds.length < 2 ? " · 2명 이상 선택" : ""}</p>
-            <button type="button" onClick={exitCompare} className="ml-auto rounded-xl bg-[#F2F4F6] px-3.5 py-2.5 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">취소</button>
-            <button type="button" onClick={() => setCompareOpen(true)} disabled={compareIds.length < 2} className="rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">비교하기</button>
+            <p className="text-[13px] font-bold text-[#191F28]">{t(`${compareIds.length}명 선택`, `${compareIds.length} selected`, `已选 ${compareIds.length}`, `Đã chọn ${compareIds.length}`, `${compareIds.length}名選択`, `${compareIds.length} dipilih`)}{compareIds.length < 2 ? t(" · 2명 이상 선택", " · Select 2+", " · 请选2人以上", " · Chọn từ 2 người", " · 2名以上選択", " · Pilih 2+") : ""}</p>
+            <button type="button" onClick={exitCompare} className="ml-auto rounded-xl bg-[#F2F4F6] px-3.5 py-2.5 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</button>
+            <button type="button" onClick={() => setCompareOpen(true)} disabled={compareIds.length < 2} className="rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">{t("비교하기", "Compare", "比较", "So sánh", "比較する", "Bandingkan")}</button>
           </div>
         </div>
       ) : null}
@@ -344,24 +346,25 @@ export function PartnerApplicantsScreen() {
 
 // 지원자 비교 — 선택한 2~3명을 나란히 비교(표).
 function CompareModal({ applicants, onClose }: { applicants: PartnerApplicantListItem[]; onClose: () => void }) {
+  const t = usePlatformT();
   useLockBodyScroll();
-  const rec: Record<PartnerApplicantListItem["recommendation"], string> = { HIGH: "적극 추천", NORMAL: "보통", CHECK: "확인 필요" };
+  const rec: Record<PartnerApplicantListItem["recommendation"], string> = { HIGH: t("적극 추천", "Highly recommended", "强烈推荐", "Rất khuyến nghị", "強く推薦", "Sangat direkomendasikan"), NORMAL: t("보통", "Normal", "一般", "Bình thường", "普通", "Biasa"), CHECK: t("확인 필요", "Needs review", "需确认", "Cần kiểm tra", "要確認", "Perlu dicek") };
   const rows: { label: string; get: (a: PartnerApplicantListItem) => string }[] = [
-    { label: "상태", get: (a) => PARTNER_APPLICANT_STATUS[a.status]?.label ?? a.status },
-    { label: "공고", get: (a) => a.positionTitle },
-    { label: "학교·전공", get: (a) => [a.school, a.major].filter(Boolean).join(" · ") || "-" },
-    { label: "국적", get: (a) => a.nationality ?? "-" },
-    { label: "언어", get: (a) => (a.languages?.length ? a.languages.join(", ") : "-") },
-    { label: "추천", get: (a) => rec[a.recommendation] },
-    { label: "모의 면접", get: (a) => (a.mockInterviewPracticed ? (a.mockInterviewScore != null ? `${a.mockInterviewScore}점` : "응시") : "-") },
-    { label: "지원일", get: (a) => (a.appliedAt ? new Date(a.appliedAt).toLocaleDateString("ko-KR") : "-") }
+    { label: t("상태", "Status", "状态", "Trạng thái", "ステータス", "Status"), get: (a) => PARTNER_APPLICANT_STATUS[a.status]?.label ?? a.status },
+    { label: t("공고", "Posting", "职位", "Tin tuyển dụng", "求人", "Lowongan"), get: (a) => a.positionTitle },
+    { label: t("학교·전공", "School·Major", "学校·专业", "Trường·Ngành", "学校・専攻", "Sekolah·Jurusan"), get: (a) => [a.school, a.major].filter(Boolean).join(" · ") || "-" },
+    { label: t("국적", "Nationality", "国籍", "Quốc tịch", "国籍", "Kebangsaan"), get: (a) => a.nationality ?? "-" },
+    { label: t("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa"), get: (a) => (a.languages?.length ? a.languages.join(", ") : "-") },
+    { label: t("추천", "Recommend", "推荐", "Đề xuất", "推薦", "Rekomendasi"), get: (a) => rec[a.recommendation] },
+    { label: t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi"), get: (a) => (a.mockInterviewPracticed ? (a.mockInterviewScore != null ? t(`${a.mockInterviewScore}점`, `${a.mockInterviewScore} pts`, `${a.mockInterviewScore}分`, `${a.mockInterviewScore} điểm`, `${a.mockInterviewScore}点`, `${a.mockInterviewScore} poin`) : t("응시", "Taken", "已参加", "Đã làm", "受験", "Ikut")) : "-") },
+    { label: t("지원일", "Applied date", "申请日期", "Ngày ứng tuyển", "応募日", "Tanggal melamar"), get: (a) => (a.appliedAt ? new Date(a.appliedAt).toLocaleDateString("ko-KR") : "-") }
   ];
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div className="flex max-h-[90vh] w-full max-w-[640px] flex-col overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
-          <p className="text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">지원자 비교 ({applicants.length})</p>
-          <button type="button" onClick={onClose} aria-label="닫기" className="flex h-9 w-9 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
+          <p className="text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">{t("지원자 비교", "Compare applicants", "申请者比较", "So sánh ứng viên", "応募者比較", "Bandingkan pelamar")} ({applicants.length})</p>
+          <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
         </div>
         <div className="flex-1 overflow-auto p-4">
           <table className="w-full border-collapse text-left">
@@ -395,6 +398,7 @@ const REJECT_TEMPLATES: { label: string; text: string }[] = [
 
 // 불합격 처리 — 사유 템플릿 선택 + 지원자에게 보낼 정중한 안내 메시지(선택).
 function RejectModal({ target, onClose, onConfirm }: { target: PartnerApplicantListItem; onClose: () => void; onConfirm: (t: PartnerApplicantListItem, message: string) => void }) {
+  const t = usePlatformT();
   useLockBodyScroll();
   const [message, setMessage] = useState("");
   const [send, setSend] = useState(true);
@@ -404,10 +408,10 @@ function RejectModal({ target, onClose, onConfirm }: { target: PartnerApplicantL
       <div className="flex max-h-[90vh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0">
-            <p className="text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">불합격 처리</p>
+            <p className="text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">{t("불합격 처리", "Reject applicant", "标记未录用", "Đánh dấu không đạt", "不合格にする", "Tolak pelamar")}</p>
             <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{target.name} · {target.positionTitle}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="닫기" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
+          <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
@@ -415,7 +419,7 @@ function RejectModal({ target, onClose, onConfirm }: { target: PartnerApplicantL
             <>
               <label className="flex items-center gap-2.5">
                 <input type="checkbox" checked={send} onChange={(e) => setSend(e.target.checked)} className="h-4 w-4 accent-[#0B46E8]" />
-                <span className="text-[13.5px] font-bold text-[#191F28]">지원자에게 정중한 안내 메시지 보내기</span>
+                <span className="text-[13.5px] font-bold text-[#191F28]">{t("지원자에게 정중한 안내 메시지 보내기", "Send a courteous message to the applicant", "向申请者发送礼貌的通知消息", "Gửi tin nhắn lịch sự cho ứng viên", "応募者に丁寧な案内メッセージを送る", "Kirim pesan sopan ke pelamar")}</span>
               </label>
               {send ? (
                 <>
@@ -428,20 +432,20 @@ function RejectModal({ target, onClose, onConfirm }: { target: PartnerApplicantL
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     rows={5}
-                    placeholder="템플릿을 고르거나 직접 안내 메시지를 작성하세요."
+                    placeholder={t("템플릿을 고르거나 직접 안내 메시지를 작성하세요.", "Pick a template or write your own message.", "选择模板或自行撰写消息。", "Chọn mẫu hoặc tự viết tin nhắn.", "テンプレートを選ぶか、案内メッセージを直接入力してください。", "Pilih templat atau tulis pesan sendiri.")}
                     className="mt-2.5 w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[13.5px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
                   />
                 </>
               ) : null}
             </>
           ) : (
-            <p className="rounded-xl bg-[#F5F6F8] px-3.5 py-3 text-[12.5px] text-[#8B95A1]">이 지원 건은 안내 메시지를 보낼 수 없어 상태만 변경돼요.</p>
+            <p className="rounded-xl bg-[#F5F6F8] px-3.5 py-3 text-[12.5px] text-[#8B95A1]">{t("이 지원 건은 안내 메시지를 보낼 수 없어 상태만 변경돼요.", "This application can't receive a message, so only the status changes.", "该申请无法发送消息，仅更改状态。", "Đơn này không thể gửi tin nhắn nên chỉ đổi trạng thái.", "この応募には案内メッセージを送れないため、状態のみ変更されます。", "Lamaran ini tidak bisa dikirimi pesan, jadi hanya status yang berubah.")}</p>
           )}
         </div>
 
         <div className="flex items-center gap-2 border-t border-[#F2F4F6] px-5 py-3">
-          <button type="button" onClick={onClose} className="h-[46px] flex-1 rounded-2xl bg-[#F2F4F6] text-[14px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">취소</button>
-          <button type="button" onClick={() => onConfirm(target, canMessage && send ? message : "")} className="h-[46px] flex-1 rounded-2xl bg-[#F04452] text-[14px] font-bold text-white transition hover:bg-[#E0323F]">불합격 처리</button>
+          <button type="button" onClick={onClose} className="h-[46px] flex-1 rounded-2xl bg-[#F2F4F6] text-[14px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</button>
+          <button type="button" onClick={() => onConfirm(target, canMessage && send ? message : "")} className="h-[46px] flex-1 rounded-2xl bg-[#F04452] text-[14px] font-bold text-white transition hover:bg-[#E0323F]">{t("불합격 처리", "Reject", "标记未录用", "Không đạt", "不合格にする", "Tolak")}</button>
         </div>
       </div>
     </div>

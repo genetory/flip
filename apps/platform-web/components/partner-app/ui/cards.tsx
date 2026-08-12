@@ -2,6 +2,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { CaretRight } from "@phosphor-icons/react";
+import { usePlatformT } from "../../../lib/i18n";
 
 // 콘텐츠(섹션) 카드 — 정적. 기본 패딩 p-5.
 export const partnerCard = "rounded-2xl border border-[#EEF1F5] bg-white p-5";
@@ -15,13 +16,14 @@ export function PartnerCard({ children, className }: { children: ReactNode; clas
 }
 
 // 리스트 하단 "더 보기" 버튼 — 모든 파트너 리스트에서 동일한 형태.
-export function PartnerMoreLink({ href, children = "더 보기", className }: { href: string; children?: ReactNode; className?: string }) {
+export function PartnerMoreLink({ href, children, className }: { href: string; children?: ReactNode; className?: string }) {
+  const t = usePlatformT();
   return (
     <Link
       href={href}
       className={`flex items-center justify-center gap-1 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB]${className ? ` ${className}` : ""}`}
     >
-      {children} <CaretRight className="h-4 w-4" weight="bold" />
+      {children ?? t("더 보기", "See more", "查看更多", "Xem thêm", "もっと見る", "Lihat lainnya")} <CaretRight className="h-4 w-4" weight="bold" />
     </Link>
   );
 }

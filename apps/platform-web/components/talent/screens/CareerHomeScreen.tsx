@@ -21,6 +21,7 @@ import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { useSelfMock } from "../../../lib/talent/self-mock";
 import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
 import { useDailyStep, markStepDoneToday } from "../../../lib/talent/daily-step";
+import { usePlatformT } from "../../../lib/i18n";
 export function CareerHomeScreen() {
   return (
     <CareerLayout>
@@ -30,6 +31,7 @@ export function CareerHomeScreen() {
 }
 
 function Content() {
+  const t = usePlatformT();
   const feed = useCareerFeed();
   const basicInfo = useBasicInfo();
   const resume = useResumeDoc();
@@ -59,7 +61,7 @@ function Content() {
   if (docsStatus !== "loaded") {
     return (
       <div className="flex flex-col gap-12">
-        <TPageHeader title="내 커리어" description="이력서·자기소개서에 쓸 기본 정보부터 등록해요." />
+        <TPageHeader title={t("내 커리어","My Career","我的职业","Sự nghiệp của tôi","マイキャリア","Karier Saya")} description={t("이력서·자기소개서에 쓸 기본 정보부터 등록해요.","Start by adding the basic info for your resume and cover letter.","先填写用于简历和求职信的基本信息。","Bắt đầu bằng thông tin cơ bản cho CV và thư xin việc.","履歴書・自己PRに使う基本情報から登録しましょう。","Mulai dengan info dasar untuk CV dan surat lamaran.")} />
         <TLoading />
       </div>
     );
@@ -69,7 +71,7 @@ function Content() {
   if (!ready) {
     return (
       <div className="flex flex-col gap-12">
-        <TPageHeader title="내 커리어" description="이력서·자기소개서에 쓸 기본 정보부터 등록해요." />
+        <TPageHeader title={t("내 커리어","My Career","我的职业","Sự nghiệp của tôi","マイキャリア","Karier Saya")} description={t("이력서·자기소개서에 쓸 기본 정보부터 등록해요.","Start by adding the basic info for your resume and cover letter.","先填写用于简历和求职信的基本信息。","Bắt đầu bằng thông tin cơ bản cho CV và thư xin việc.","履歴書・自己PRに使う基本情報から登録しましょう。","Mulai dengan info dasar untuk CV dan surat lamaran.")} />
         <ProfileGate />
       </div>
     );
@@ -86,8 +88,8 @@ function Content() {
     <div className="flex flex-col gap-12">
       <header>
         <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-[#0B46E8]">MY CAREER</p>
-        <h1 className="mt-2 break-keep text-[26px] font-black leading-[1.2] tracking-[-0.02em] text-[#0B1227]">내 커리어를 하나씩 완성해요</h1>
-        <p className="mt-1.5 break-keep text-[14px] leading-relaxed text-[#8B95A1]">이력서·자기소개서를 만들고, 오늘 한 걸음씩 취업에 가까워져요.</p>
+        <h1 className="mt-2 break-keep text-[26px] font-black leading-[1.2] tracking-[-0.02em] text-[#0B1227]">{t("내 커리어를 하나씩 완성해요","Build your career step by step","一步步完善我的职业","Hoàn thiện sự nghiệp từng bước","キャリアを一つずつ完成させよう","Bangun karier langkah demi langkah")}</h1>
+        <p className="mt-1.5 break-keep text-[14px] leading-relaxed text-[#8B95A1]">{t("이력서·자기소개서를 만들고, 오늘 한 걸음씩 취업에 가까워져요.","Create your resume and cover letter, and get one step closer to a job each day.","制作简历和求职信，每天离就业更近一步。","Tạo CV và thư xin việc, mỗi ngày tiến gần hơn tới việc làm.","履歴書・自己PRを作り、今日も一歩ずつ就職に近づこう。","Buat CV dan surat lamaran, makin dekat ke pekerjaan tiap hari.")}</p>
       </header>
 
       {/* 오늘의 한 걸음 히어로 */}
@@ -95,13 +97,13 @@ function Content() {
 
       {/* 이력서 · 자기소개서 */}
       <section className="flex flex-col gap-4">
-        <SectionHead title="지원 서류를 만들어요" desc="AI 챗으로 편하게 채우고, 미리보기로 확인해요." />
+        <SectionHead title={t("지원 서류를 만들어요","Create your documents","制作申请材料","Tạo hồ sơ ứng tuyển","応募書類を作る","Buat dokumen lamaran")} desc={t("AI 챗으로 편하게 채우고, 미리보기로 확인해요.","Fill it in easily with AI chat and check the preview.","用 AI 聊天轻松填写，并通过预览查看。","Điền dễ dàng bằng AI chat và xem trước.","AIチャットで手軽に入力し、プレビューで確認。","Isi mudah dengan AI chat dan cek pratinjau.")} />
         <CareerFunnelCards showPreview />
       </section>
 
       {/* 모의 면접 — 내 이력서·자기소개서 기반 self 연습 */}
       <section className="flex flex-col gap-4">
-        <SectionHead title="모의 면접으로 연습해요" desc="내 이력서·자기소개서를 바탕으로 예상 질문을 풀고 AI 피드백을 받아요." />
+        <SectionHead title={t("모의 면접으로 연습해요","Practice with mock interviews","用模拟面试练习","Luyện tập với phỏng vấn thử","模擬面接で練習する","Latihan wawancara simulasi")} desc={t("내 이력서·자기소개서를 바탕으로 예상 질문을 풀고 AI 피드백을 받아요.","Answer likely questions based on your resume and cover letter, and get AI feedback.","根据你的简历和求职信回答预测问题，并获得 AI 反馈。","Trả lời câu hỏi dự kiến dựa trên CV và thư xin việc, nhận phản hồi AI.","履歴書・自己PRをもとに予想質問に答え、AIフィードバックを受けよう。","Jawab pertanyaan berdasarkan CV dan surat lamaranmu, dapat masukan AI.")} />
         <button
           type="button"
           onClick={() => setMockGateOpen(true)}
@@ -109,8 +111,8 @@ function Content() {
         >
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] shadow-[0_2px_10px_rgba(11,70,232,0.1)]" aria-hidden>🎤</span>
           <div className="min-w-0 flex-1">
-            <p className="text-[14.5px] font-bold text-[#191F28]">내 서류로 모의 면접 보기</p>
-            <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">이력서·자기소개서에서 예상 질문을 뽑아 연습하고 AI 피드백을 받아요.</p>
+            <p className="text-[14.5px] font-bold text-[#191F28]">{t("내 서류로 모의 면접 보기","Mock interview from my docs","用我的材料模拟面试","Phỏng vấn thử từ hồ sơ","自分の書類で模擬面接","Wawancara simulasi dari dokumenku")}</p>
+            <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("이력서·자기소개서에서 예상 질문을 뽑아 연습하고 AI 피드백을 받아요.","Practice likely questions drawn from your resume and cover letter, with AI feedback.","从简历和求职信中提取预测问题练习并获得 AI 反馈。","Luyện các câu hỏi rút từ CV và thư xin việc kèm phản hồi AI.","履歴書・自己PRから予想質問を出して練習し、AIフィードバックを受けよう。","Latih pertanyaan dari CV dan surat lamaranmu dengan masukan AI.")}</p>
           </div>
           <Sparkle className="h-5 w-5 shrink-0 text-[#0B46E8]" weight="fill" />
         </button>
@@ -122,8 +124,8 @@ function Content() {
           >
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px]" aria-hidden>🗂️</span>
             <div className="min-w-0 flex-1">
-              <p className="text-[14.5px] font-bold text-[#191F28]">내 모의 면접 연습 결과</p>
-              <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">답변한 {mockAnsweredCount}문항의 답변·AI 피드백을 다시 확인해요.</p>
+              <p className="text-[14.5px] font-bold text-[#191F28]">{t("내 모의 면접 연습 결과","My mock interview results","我的模拟面试结果","Kết quả phỏng vấn thử","模擬面接の練習結果","Hasil wawancara simulasiku")}</p>
+              <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t(`답변한 ${mockAnsweredCount}문항의 답변·AI 피드백을 다시 확인해요.`, `Review answers and AI feedback for ${mockAnsweredCount} question(s).`, `重新查看已回答的 ${mockAnsweredCount} 道题的答案和 AI 反馈。`, `Xem lại câu trả lời và phản hồi AI cho ${mockAnsweredCount} câu hỏi.`, `回答した${mockAnsweredCount}問の回答・AIフィードバックを再確認。`, `Tinjau jawaban dan masukan AI untuk ${mockAnsweredCount} soal.`)}</p>
             </div>
             <ArrowRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" weight="bold" />
           </button>
@@ -132,7 +134,7 @@ function Content() {
 
       {/* 이력서에 담긴 내 커리어 — 직장(경력)만 심플 요약 */}
       <section className="flex flex-col gap-4">
-        <SectionHead title="이력서에 담긴 내 커리어" desc="소속했던 곳을 시간순으로 보여드려요." />
+        <SectionHead title={t("이력서에 담긴 내 커리어","My career in my resume","简历中的我的职业","Sự nghiệp trong CV","履歴書に載る私のキャリア","Karier dalam CV-ku")} desc={t("소속했던 곳을 시간순으로 보여드려요.","Places you've worked, in order of time.","按时间顺序展示你所在过的地方。","Những nơi bạn từng làm, theo trình tự thời gian.","所属した場所を時系列で表示します。","Tempat kamu pernah bekerja, urut waktu.")} />
         {workItems.length ? (
           <>
             <CareerSummary items={workItems} />
@@ -140,7 +142,7 @@ function Content() {
               href={talentAppRoutes.resume}
               className="flex items-center justify-center gap-1 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB]"
             >
-              이력서 편집하러 가기 <ArrowRight className="h-4 w-4" weight="bold" />
+              {t("이력서 편집하러 가기","Edit resume","去编辑简历","Chỉnh sửa CV","履歴書を編集","Edit CV")} <ArrowRight className="h-4 w-4" weight="bold" />
             </Link>
           </>
         ) : (
@@ -150,7 +152,7 @@ function Content() {
 
       {/* 작성 히스토리 */}
       <section className="flex flex-col gap-4">
-        <SectionHead title={`작성 히스토리${feed.length ? ` (${feed.length})` : ""}`} desc="이력서·자기소개서에 남긴 내용이 순서대로 쌓여요." />
+        <SectionHead title={`${t("작성 히스토리","Writing history","编写记录","Lịch sử viết","作成履歴","Riwayat penulisan")}${feed.length ? ` (${feed.length})` : ""}`} desc={t("이력서·자기소개서에 남긴 내용이 순서대로 쌓여요.","What you add to your resume and cover letter piles up in order.","你在简历和求职信中留下的内容会按顺序累积。","Nội dung bạn thêm vào CV và thư xin việc được lưu theo thứ tự.","履歴書・自己PRに残した内容が順に積み重なります。","Isian di CV dan surat lamaranmu tersimpan berurutan.")} />
         {feed.length ? (
           <>
             <div className="flex flex-col gap-2.5">
@@ -163,7 +165,7 @@ function Content() {
                 href={talentAppRoutes.history}
                 className="flex items-center justify-center gap-1 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB]"
               >
-                전체 히스토리 보기 ({feed.length}) <ArrowRight className="h-4 w-4" weight="bold" />
+                {t("전체 히스토리 보기","View all history","查看全部记录","Xem toàn bộ","全履歴を見る","Lihat semua")} ({feed.length}) <ArrowRight className="h-4 w-4" weight="bold" />
               </Link>
             ) : null}
           </>
@@ -205,20 +207,21 @@ function todaysMission(hasResume: boolean, rp: number, hasCover: boolean, cp: nu
 }
 
 function DailyStepHero({ mission }: { mission: Mission }) {
+  const t = usePlatformT();
   const { streak, doneToday } = useDailyStep();
   return (
     <section className="rounded-3xl bg-[#0B1227] p-7 text-white">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#8CA8FF]">오늘의 한 걸음</p>
+        <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#8CA8FF]">{t("오늘의 한 걸음","TODAY'S STEP","今日的一步","BƯỚC HÔM NAY","今日の一歩","LANGKAH HARI INI")}</p>
         {streak > 0 ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-bold text-white">🔥 {streak}일 연속</span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-bold text-white">🔥 {t(`${streak}일 연속`, `${streak}-day streak`, `连续 ${streak} 天`, `${streak} ngày liên tục`, `${streak}日連続`, `${streak} hari beruntun`)}</span>
         ) : null}
       </div>
 
       {doneToday ? (
         <>
-          <h2 className="mt-3 max-w-[85%] break-keep text-[22px] font-black leading-[1.3] tracking-[-0.02em]">오늘의 한 걸음, 완료! 👏</h2>
-          <p className="mt-2.5 max-w-[88%] break-keep text-[14px] leading-relaxed text-white/65">내일 또 한 걸음 이어가면 연속 기록이 쌓여요.</p>
+          <h2 className="mt-3 max-w-[85%] break-keep text-[22px] font-black leading-[1.3] tracking-[-0.02em]">{t("오늘의 한 걸음, 완료! 👏","Today's step, done! 👏","今日的一步，完成！👏","Bước hôm nay, xong! 👏","今日の一歩、完了！👏","Langkah hari ini, selesai! 👏")}</h2>
+          <p className="mt-2.5 max-w-[88%] break-keep text-[14px] leading-relaxed text-white/65">{t("내일 또 한 걸음 이어가면 연속 기록이 쌓여요.","Keep it up tomorrow to build your streak.","明天继续一步，连续记录就会累积。","Tiếp tục ngày mai để tăng chuỗi.","明日も一歩続ければ連続記録が伸びます。","Lanjutkan besok untuk menambah streak.")}</p>
         </>
       ) : (
         <>
@@ -271,21 +274,23 @@ function CareerSummary({ items }: { items: ResumeItem[] }) {
 }
 
 function EmptyWork() {
+  const t = usePlatformT();
   return (
     <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-6 text-center">
       <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px]" aria-hidden>💼</span>
-      <p className="mt-3 text-[14px] font-bold text-[#191F28]">아직 직장 경력이 없어요</p>
-      <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">이력서에 경력을 추가하면 여기에 보여요.</p>
+      <p className="mt-3 text-[14px] font-bold text-[#191F28]">{t("아직 직장 경력이 없어요","No work experience yet","还没有工作经历","Chưa có kinh nghiệm làm việc","まだ職歴がありません","Belum ada pengalaman kerja")}</p>
+      <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("이력서에 경력을 추가하면 여기에 보여요.","Add work experience to your resume to see it here.","在简历中添加经历后会显示在这里。","Thêm kinh nghiệm vào CV để hiển thị ở đây.","履歴書に職歴を追加すると表示されます。","Tambahkan pengalaman di CV agar muncul di sini.")}</p>
     </div>
   );
 }
 
 function EmptyFeed() {
+  const t = usePlatformT();
   return (
     <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-6 text-center">
       <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px]" aria-hidden>📝</span>
-      <p className="mt-3 text-[14px] font-bold text-[#191F28]">아직 남긴 기록이 없어요</p>
-      <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">위에서 이력서나 자기소개서를 만들면 자동으로 여기에 쌓여요.</p>
+      <p className="mt-3 text-[14px] font-bold text-[#191F28]">{t("아직 남긴 기록이 없어요","No records yet","还没有记录","Chưa có ghi chép","まだ記録がありません","Belum ada catatan")}</p>
+      <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("위에서 이력서나 자기소개서를 만들면 자동으로 여기에 쌓여요.","Create a resume or cover letter above and it piles up here automatically.","在上方制作简历或求职信后会自动累积在这里。","Tạo CV hoặc thư xin việc ở trên để tự động lưu tại đây.","上で履歴書や自己PRを作ると自動でここに溜まります。","Buat CV atau surat lamaran di atas, otomatis tersimpan di sini.")}</p>
     </div>
   );
 }

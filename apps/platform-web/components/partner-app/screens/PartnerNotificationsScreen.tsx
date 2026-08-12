@@ -9,6 +9,7 @@ import { TLoading, TError } from "../../talent/ui/primitives";
 import { getMyNotifications, markAllServerNotificationsRead, markServerNotificationRead, type ServerNotification } from "../../../lib/member-profile-client";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
+import { usePlatformT } from "../../../lib/i18n";
 
 function emojiForType(type: string): string {
   if (type.startsWith("INTERVIEW")) return "🗓️";
@@ -34,6 +35,7 @@ function resolveNotifLink(n: ServerNotification): string | null {
 }
 
 export function PartnerNotificationsScreen() {
+  const t = usePlatformT();
   const [items, setItems] = useState<ServerNotification[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
@@ -68,12 +70,12 @@ export function PartnerNotificationsScreen() {
       <div className="flex flex-col gap-5">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">알림{unread > 0 ? <span className="ml-1.5 align-middle text-[15px] font-black text-[#0B46E8]">{unread}</span> : null}</h1>
-            <p className="mt-1 text-[13.5px] text-[#8B95A1]">지원·메시지·면접 등 소식을 확인해요.</p>
+            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("알림", "Notifications", "通知", "Thông báo", "通知", "Notifikasi")}{unread > 0 ? <span className="ml-1.5 align-middle text-[15px] font-black text-[#0B46E8]">{unread}</span> : null}</h1>
+            <p className="mt-1 text-[13.5px] text-[#8B95A1]">{t("지원·메시지·면접 등 소식을 확인해요.", "Check updates like applications, messages, and interviews.", "查看申请、消息、面试等动态。", "Xem cập nhật về ứng tuyển, tin nhắn, phỏng vấn.", "応募・メッセージ・面接などのお知らせを確認します。", "Lihat kabar seperti lamaran, pesan, dan wawancara.")}</p>
           </div>
           {unread > 0 ? (
             <button type="button" onClick={readAll} className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]">
-              <Checks className="h-4 w-4" weight="bold" /> 모두 읽음
+              <Checks className="h-4 w-4" weight="bold" /> {t("모두 읽음", "Read all", "全部已读", "Đọc tất cả", "すべて既読", "Baca semua")}
             </button>
           ) : null}
         </div>
@@ -85,8 +87,8 @@ export function PartnerNotificationsScreen() {
           (items ?? []).length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-8 text-center">
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[22px]" aria-hidden>🔔</span>
-              <p className="mt-3 text-[15px] font-bold text-[#191F28]">새로운 알림이 없어요</p>
-              <p className="mt-1 text-[13px] text-[#8B95A1]">지원·메시지가 오면 여기에서 알려드릴게요.</p>
+              <p className="mt-3 text-[15px] font-bold text-[#191F28]">{t("새로운 알림이 없어요", "No new notifications", "没有新通知", "Không có thông báo mới", "新しい通知はありません", "Tidak ada notifikasi baru")}</p>
+              <p className="mt-1 text-[13px] text-[#8B95A1]">{t("지원·메시지가 오면 여기에서 알려드릴게요.", "We'll let you know here when applications or messages arrive.", "有申请或消息时会在这里通知您。", "Chúng tôi sẽ báo tại đây khi có ứng tuyển hoặc tin nhắn.", "応募やメッセージが届くとここでお知らせします。", "Kami beri tahu di sini saat ada lamaran atau pesan.")}</p>
             </div>
           ) : (
             <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">

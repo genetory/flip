@@ -1,14 +1,12 @@
 "use client";
 
 // 소셜 로그인 버튼 — 기존 로그인과 동일한 백엔드 시작 엔드포인트를 사용(로직 동일).
-import { useLanguage } from "../../i18n/LanguageProvider";
+import { usePlatformT } from "../../../lib/i18n";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export function TalentSocialButtons() {
-  const { locale } = useLanguage();
-  const t = (ko: string, en: string, zh: string, vi: string, ja: string, id: string) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  const t = usePlatformT();
 
   return (
     <div className="space-y-2.5">
@@ -45,8 +43,8 @@ export function TalentSocialButtons() {
 }
 
 export function TalentOrDivider() {
-  const { locale } = useLanguage();
-  const label = locale === "ko" ? "또는" : locale === "zh-CN" ? "或" : locale === "vi" ? "hoặc" : locale === "ja" ? "または" : locale === "id" ? "atau" : "or";
+  const t = usePlatformT();
+  const label = t("또는", "or", "或", "hoặc", "または", "atau");
   return (
     <div className="my-6 flex items-center gap-3">
       <span className="h-px flex-1 bg-[#EEF1F5]" />

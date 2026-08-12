@@ -6,10 +6,12 @@ import { X, MagnifyingGlass } from "@phosphor-icons/react";
 import { saveJobInterests } from "../../../lib/talent/job-interest";
 import { JOB_TAXONOMY } from "../../../lib/talent/job-taxonomy";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
+import { usePlatformT } from "../../../lib/i18n";
 
 const MAX = 3;
 
 export function JobInterestModal({ initial, onClose }: { initial: string[]; onClose: () => void }) {
+  const t = usePlatformT();
   useLockBodyScroll();
   const [major, setMajor] = useState(0);
   const [selected, setSelected] = useState<string[]>(initial);
@@ -56,10 +58,10 @@ export function JobInterestModal({ initial, onClose }: { initial: string[]; onCl
         {/* 헤더 */}
         <div className="flex items-center justify-between gap-3 px-5 py-4">
           <div className="min-w-0">
-            <h2 className="text-[17px] font-black text-[#0B1227]">관심 직무 선택</h2>
-            <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">최대 {MAX}개 · {selected.length}개 선택됨</p>
+            <h2 className="text-[17px] font-black text-[#0B1227]">{t("관심 직무 선택", "Choose interests", "选择兴趣职位", "Chọn sở thích", "関心職種を選ぶ", "Pilih minat")}</h2>
+            <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">{t(`최대 ${MAX}개 · ${selected.length}개 선택됨`, `Up to ${MAX} · ${selected.length} selected`, `最多 ${MAX} 个 · 已选 ${selected.length} 个`, `Tối đa ${MAX} · Đã chọn ${selected.length}`, `最大${MAX}件 · ${selected.length}件選択済み`, `Maks ${MAX} · ${selected.length} dipilih`)}</p>
           </div>
-          <button type="button" aria-label="닫기" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
+          <button type="button" aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -71,11 +73,11 @@ export function JobInterestModal({ initial, onClose }: { initial: string[]; onCl
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="직무 검색 (예: 마케팅, 백엔드)"
+              placeholder={t("직무 검색 (예: 마케팅, 백엔드)", "Search roles (e.g. Marketing, Backend)", "搜索职位（如：市场、后端）", "Tìm nghề (vd: Marketing, Backend)", "職種を検索（例：マーケ、バックエンド）", "Cari peran (mis. Marketing, Backend)")}
               className="min-w-0 flex-1 bg-transparent text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
             />
             {query ? (
-              <button type="button" aria-label="지우기" onClick={() => setQuery("")} className="shrink-0 text-[#B0B8C1] transition hover:text-[#4E5968]">
+              <button type="button" aria-label={t("지우기", "Clear", "清除", "Xóa", "クリア", "Hapus")} onClick={() => setQuery("")} className="shrink-0 text-[#B0B8C1] transition hover:text-[#4E5968]">
                 <X className="h-4 w-4" />
               </button>
             ) : null}
@@ -119,14 +121,14 @@ export function JobInterestModal({ initial, onClose }: { initial: string[]; onCl
                 >
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#EDF1FD] text-[15px] font-black text-[#0B46E8]">+</span>
                   <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#4E5968]">
-                    <span className="font-bold text-[#191F28]">&lsquo;{v}&rsquo;</span> {already ? "이미 추가됨" : "직접 추가하기"}
+                    <span className="font-bold text-[#191F28]">&lsquo;{v}&rsquo;</span> {already ? t("이미 추가됨", "Already added", "已添加", "Đã thêm", "追加済み", "Sudah ditambah") : t("직접 추가하기", "Add it", "直接添加", "Thêm mới", "直接追加する", "Tambahkan")}
                   </span>
                 </button>
               );
             })()}
 
             {results.length === 0 ? (
-              <p className="py-6 text-center text-[13.5px] text-[#B0B8C1]">목록에 없으면 위에서 직접 추가할 수 있어요.</p>
+              <p className="py-6 text-center text-[13.5px] text-[#B0B8C1]">{t("목록에 없으면 위에서 직접 추가할 수 있어요.", "Not in the list? Add it manually above.", "列表中没有？可在上方直接添加。", "Không có trong danh sách? Thêm thủ công ở trên.", "リストにない場合は上で直接追加できます。", "Tidak ada di daftar? Tambah manual di atas.")}</p>
             ) : (
               <div className="flex flex-col gap-5">
                 {results.map((g) => (
@@ -223,7 +225,7 @@ export function JobInterestModal({ initial, onClose }: { initial: string[]; onCl
             disabled={selected.length === 0}
             className="flex h-[48px] w-full items-center justify-center rounded-2xl bg-[#0B46E8] text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40"
           >
-            {selected.length ? `${selected.length}개 직무로 저장` : "직무를 선택해주세요"}
+            {selected.length ? t(`${selected.length}개 직무로 저장`, `Save ${selected.length} interest${selected.length > 1 ? "s" : ""}`, `保存 ${selected.length} 个职位`, `Lưu ${selected.length} nghề`, `${selected.length}件の職種を保存`, `Simpan ${selected.length} minat`) : t("직무를 선택해주세요", "Select a role", "请选择职位", "Hãy chọn nghề", "職種を選んでください", "Pilih peran")}
           </button>
         </div>
       </div>

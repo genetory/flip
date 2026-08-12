@@ -6,6 +6,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { X, Check, WarningCircle, Info } from "@phosphor-icons/react";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
+import { usePlatformT } from "../../../lib/i18n";
 
 type PopupKind = "success" | "error" | "info";
 
@@ -64,6 +65,7 @@ const ICON = {
 } as const;
 
 function PopupCard({ item, onClose }: { item: PopupItem; onClose: () => void }) {
+  const t = usePlatformT();
   useLockBodyScroll();
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -90,7 +92,7 @@ function PopupCard({ item, onClose }: { item: PopupItem; onClose: () => void }) 
         <button
           type="button"
           onClick={onClose}
-          aria-label="닫기"
+          aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
           className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6] hover:text-[#4E5968]"
         >
           <X className="h-5 w-5" />
@@ -111,7 +113,7 @@ function PopupCard({ item, onClose }: { item: PopupItem; onClose: () => void }) 
             onClick={onClose}
             className="inline-flex h-[52px] w-full items-center justify-center rounded-2xl bg-[#0B46E8] px-5 text-[15px] font-bold text-white transition hover:bg-[#0A3ECB]"
           >
-            확인
+            {t("확인", "OK", "确定", "Xác nhận", "確認", "OK")}
           </button>
         </div>
       </div>

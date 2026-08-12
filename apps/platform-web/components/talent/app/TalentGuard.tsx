@@ -8,9 +8,11 @@ import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { TLoading } from "../ui/primitives";
+import { usePlatformT } from "../../../lib/i18n";
 
 export function TalentGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const t = usePlatformT();
   const { user, isReady, isAuthenticated } = useAuthSession();
   const allowed = isAuthenticated && (user?.role === "STUDENT" || user?.role === "OPERATOR");
 
@@ -27,7 +29,7 @@ export function TalentGuard({ children }: { children: ReactNode }) {
     }
   }, [isReady, isAuthenticated, user?.role, router]);
 
-  if (!isReady) return <TLoading label="확인하는 중…" />;
-  if (!allowed) return <TLoading label="이동하는 중…" />;
+  if (!isReady) return <TLoading label={t("확인하는 중…", "Checking…", "确认中…", "Đang kiểm tra…", "確認中…", "Memeriksa…")} />;
+  if (!allowed) return <TLoading label={t("이동하는 중…", "Redirecting…", "跳转中…", "Đang chuyển…", "移動中…", "Mengalihkan…")} />;
   return <>{children}</>;
 }

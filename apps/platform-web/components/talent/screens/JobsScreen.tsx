@@ -13,6 +13,7 @@ import { InFeedAd } from "../../ads/InFeedAd";
 import { TalentCipModal } from "../jobs/TalentCipModal";
 import { JobInterestModal } from "../jobs/JobInterestModal";
 import { useLanguage } from "../../i18n/LanguageProvider";
+import { usePlatformT } from "../../../lib/i18n";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { trackPositionSearch } from "../../../lib/analytics";
 import {
@@ -35,6 +36,7 @@ type Tab = "all" | "aply" | "interest" | "saved";
 type Sort = "latest" | "deadline";
 
 export function JobsScreen() {
+  const t = usePlatformT();
   const { locale } = useLanguage();
   const toast = useTalentPopup();
   const interests = useJobInterests();
@@ -110,7 +112,7 @@ export function JobsScreen() {
       setItems((prev) => [...prev, ...page.items]);
       setCursor(page.nextCursor);
     } catch {
-      toast.error("공고를 더 불러오지 못했어요");
+      toast.error(t("공고를 더 불러오지 못했어요", "Couldn't load more jobs", "无法加载更多职位", "Không thể tải thêm tin", "求人を追加で読み込めませんでした", "Gagal memuat lowongan lain"));
     } finally {
       setLoadingMore(false);
     }
@@ -151,7 +153,7 @@ export function JobsScreen() {
           else next.add(id);
           return next;
         });
-        toast.error("저장에 실패했어요");
+        toast.error(t("저장에 실패했어요", "Failed to save", "保存失败", "Lưu thất bại", "保存に失敗しました", "Gagal menyimpan"));
       });
   }
 
@@ -166,17 +168,17 @@ export function JobsScreen() {
 
   return (
     <TalentAppShell>
-      <TPageHeader title="포지션 탐색" description="나에게 맞는 인턴·신입 공고를 찾아 지원을 시작해요." />
+      <TPageHeader title={t("포지션 탐색", "Explore jobs", "职位探索", "Khám phá việc làm", "求人を探す", "Jelajahi lowongan")} description={t("나에게 맞는 인턴·신입 공고를 찾아 지원을 시작해요.", "Find intern and entry-level jobs that fit you and start applying.", "找到适合你的实习和应届职位并开始申请。", "Tìm việc thực tập, mới ra trường phù hợp và bắt đầu ứng tuyển.", "自分に合うインターン・新卒求人を見つけて応募を始めましょう。", "Temukan lowongan magang dan pemula yang cocok, lalu mulai melamar.")} />
 
       <ApplyReadinessBanner variant="compact" className="mb-5" />
 
       {/* 소스 탭 — 언더라인 탭 바(모바일 가로 스크롤) */}
       <div className="mb-5 flex gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {([
-          { key: "all", label: "전체 공고" },
+          { key: "all", label: t("전체 공고", "All jobs", "全部职位", "Tất cả", "すべて", "Semua") },
           { key: "aply", label: "APLY CIP" },
-          { key: "interest", label: "나의 관심 직무만" },
-          { key: "saved", label: "즐겨찾기" }
+          { key: "interest", label: t("나의 관심 직무만", "My interests", "我的兴趣", "Sở thích của tôi", "関心職種", "Minat saya") },
+          { key: "saved", label: t("즐겨찾기", "Saved", "收藏", "Đã lưu", "保存済み", "Tersimpan") }
         ] as { key: Tab; label: string }[]).map((t) => {
           const active = tab === t.key;
           return (
@@ -205,7 +207,7 @@ export function JobsScreen() {
                 ))}
               </div>
               <button type="button" onClick={() => setPickerOpen(true)} className="shrink-0 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">
-                수정
+                {t("수정", "Edit", "编辑", "Sửa", "編集", "Ubah")}
               </button>
             </div>
           ) : null}
@@ -213,7 +215,7 @@ export function JobsScreen() {
           {/* 프리미엄 배너 */}
           {banners.length ? (
             <section className="mb-5">
-              <h2 className="mb-2.5 text-[15px] font-bold text-[#191F28]">추천 기업</h2>
+              <h2 className="mb-2.5 text-[15px] font-bold text-[#191F28]">{t("추천 기업", "Featured companies", "推荐企业", "Công ty nổi bật", "おすすめ企業", "Perusahaan unggulan")}</h2>
               <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
                 <div className="flex gap-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {banners.map((b) => (
@@ -244,20 +246,20 @@ export function JobsScreen() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submitSearch()}
-              placeholder="직무, 회사 또는 역량 검색"
+              placeholder={t("직무, 회사 또는 역량 검색", "Search role, company, or skill", "搜索职位、公司或技能", "Tìm nghề, công ty hoặc kỹ năng", "職種・企業・スキルで検索", "Cari peran, perusahaan, atau keahlian")}
               className="min-w-0 flex-1 bg-transparent text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
             />
             <button type="button" onClick={submitSearch} className="rounded-xl bg-[#0B46E8] px-4 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">
-              검색
+              {t("검색", "Search", "搜索", "Tìm", "検索", "Cari")}
             </button>
           </div>
 
           {/* 외국인 필터(좌) · 정렬(우) */}
           <div className="mb-5 flex items-center justify-between gap-3">
-            <ToggleSwitch on={foreignerOnly} onChange={setForeignerOnly} label="외국인도 지원 가능" />
+            <ToggleSwitch on={foreignerOnly} onChange={setForeignerOnly} label={t("외국인도 지원 가능", "Open to foreigners", "外国人可申请", "Người nước ngoài có thể ứng tuyển", "外国人も応募可", "Terbuka untuk WNA")} />
             <div className="flex items-center gap-3.5">
-              <SortText on={sort === "latest"} onClick={() => setSort("latest")}>최신순</SortText>
-              <SortText on={sort === "deadline"} onClick={() => setSort("deadline")}>마감 임박순</SortText>
+              <SortText on={sort === "latest"} onClick={() => setSort("latest")}>{t("최신순", "Latest", "最新", "Mới nhất", "新着順", "Terbaru")}</SortText>
+              <SortText on={sort === "deadline"} onClick={() => setSort("deadline")}>{t("마감 임박순", "Deadline", "临近截止", "Sắp hết hạn", "締切間近", "Tenggat")}</SortText>
             </div>
           </div>
 
@@ -268,16 +270,16 @@ export function JobsScreen() {
               tab === "interest" && interests.length === 0 ? (
                 <TEmpty
                   icon="🎯"
-                  title="관심 직무를 먼저 설정해주세요"
-                  description="관심 직무를 고르면 맞는 공고만 모아서 보여드려요."
+                  title={t("관심 직무를 먼저 설정해주세요", "Set your job interests first", "请先设置兴趣职位", "Hãy đặt sở thích nghề trước", "まず関心職種を設定してください", "Atur minat pekerjaan Anda dulu")}
+                  description={t("관심 직무를 고르면 맞는 공고만 모아서 보여드려요.", "Pick your interests and we'll show only matching jobs.", "选择兴趣职位后，只显示匹配的职位。", "Chọn sở thích để chỉ xem việc phù hợp.", "関心職種を選ぶと合う求人だけ表示します。", "Pilih minat, kami tampilkan lowongan yang cocok saja.")}
                   action={
                     <button type="button" onClick={() => setPickerOpen(true)} className="rounded-xl bg-[#0B46E8] px-5 py-2.5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">
-                      관심 직무 선택
+                      {t("관심 직무 선택", "Choose interests", "选择兴趣职位", "Chọn sở thích", "関心職種を選ぶ", "Pilih minat")}
                     </button>
                   }
                 />
               ) : (
-                <TEmpty title="조건에 맞는 공고가 없어요" description="다른 검색어로 찾아보세요." />
+                <TEmpty title={t("조건에 맞는 공고가 없어요", "No matching jobs", "没有符合条件的职位", "Không có việc phù hợp", "条件に合う求人がありません", "Tidak ada lowongan cocok")} description={t("다른 검색어로 찾아보세요.", "Try a different search.", "换个关键词试试。", "Thử từ khóa khác.", "別のキーワードで探してみてください。", "Coba kata kunci lain.")} />
               )
             ) : (
               <div className="flex flex-col gap-3">
@@ -295,7 +297,7 @@ export function JobsScreen() {
                     className="mt-1 flex items-center justify-center gap-2 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB] disabled:opacity-60"
                   >
                     {loadingMore ? <CircleNotch className="h-4 w-4 animate-spin" /> : null}
-                    {loadingMore ? "불러오는 중…" : "더 보기"}
+                    {loadingMore ? t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…") : t("더 보기", "Load more", "加载更多", "Xem thêm", "もっと見る", "Muat lagi")}
                   </button>
                 ) : null}
               </div>
@@ -308,7 +310,7 @@ export function JobsScreen() {
           {savedStatus === "error" ? <TError onRetry={() => setSavedStatus("idle")} /> : null}
           {savedStatus === "ready" ? (
             views.length === 0 ? (
-              <TEmpty title="즐겨찾기한 공고가 없어요" description="관심 있는 공고를 즐겨찾기하면 여기에 모여요." />
+              <TEmpty title={t("즐겨찾기한 공고가 없어요", "No saved jobs", "没有收藏的职位", "Chưa có tin đã lưu", "保存した求人がありません", "Belum ada lowongan tersimpan")} description={t("관심 있는 공고를 즐겨찾기하면 여기에 모여요.", "Save jobs you like and they'll appear here.", "收藏感兴趣的职位后会显示在这里。", "Lưu tin bạn thích, chúng sẽ hiện ở đây.", "気になる求人を保存するとここに集まります。", "Simpan lowongan yang Anda suka, akan muncul di sini.")} />
             ) : (
               <div className="flex flex-col gap-3">
                 {views.map((v) => (

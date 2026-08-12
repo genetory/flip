@@ -10,6 +10,7 @@ import { PositionCard } from "../jobs/PositionCard";
 import { TalentCipModal } from "../jobs/TalentCipModal";
 import { CompanySection, CompanyHeader } from "./JobDetailScreen";
 import { useLanguage } from "../../i18n/LanguageProvider";
+import { usePlatformT } from "../../../lib/i18n";
 import { useSocialFeed } from "../../../lib/talent/social-feed";
 import {
   getPublicPositionsPage,
@@ -33,6 +34,7 @@ function SectionHead({ title, desc }: { title: string; desc: ReactNode }) {
 }
 
 export function CompanyDetailScreen({ name }: { name: string }) {
+  const t = usePlatformT();
   const { locale } = useLanguage();
   const allPosts = useSocialFeed();
   const [positions, setPositions] = useState<PublicPositionListItem[]>([]);
@@ -115,19 +117,19 @@ export function CompanyDetailScreen({ name }: { name: string }) {
 
             {/* 회사가 올린 피드 */}
             <section className="flex flex-col gap-3">
-              <SectionHead title="이 회사, 요즘 이런 이야기를 나눠요" desc="회사가 피드에 남긴 소식을 모았어요." />
+              <SectionHead title={t("이 회사, 요즘 이런 이야기를 나눠요", "What this company is talking about", "这家公司最近在聊什么", "Công ty này đang chia sẻ điều gì", "この会社の最近の話題", "Apa yang dibicarakan perusahaan ini")} desc={t("회사가 피드에 남긴 소식을 모았어요.", "News the company shared on its feed.", "汇集了公司在动态中分享的消息。", "Tin công ty đăng trên feed.", "会社がフィードに残した最新情報です。", "Kabar yang dibagikan perusahaan di feed.")} />
               {companyPosts.length ? (
                 <FeedPostList posts={companyPosts} />
               ) : (
-                <TEmpty title="아직 올라온 소식이 없어요" description="이 회사가 피드에 글을 남기면 여기에 보여드릴게요." />
+                <TEmpty title={t("아직 올라온 소식이 없어요", "No news yet", "还没有消息", "Chưa có tin nào", "まだ投稿がありません", "Belum ada kabar")} description={t("이 회사가 피드에 글을 남기면 여기에 보여드릴게요.", "When this company posts, it'll show here.", "这家公司发布动态后会显示在这里。", "Khi công ty này đăng bài, sẽ hiện ở đây.", "この会社が投稿するとここに表示されます。", "Saat perusahaan ini memposting, akan muncul di sini.")} />
               )}
             </section>
 
             {/* 회사 포지션 */}
             <section className="flex flex-col gap-3">
               <SectionHead
-                title="지금 이런 사람을 찾고 있어요"
-                desc={<>열어둔 포지션 <span className="font-bold text-[#191F28]">{positions.length}</span>개 · 바로 지원해볼 수 있어요.</>}
+                title={t("지금 이런 사람을 찾고 있어요", "Who they're hiring now", "他们正在招聘这样的人", "Họ đang tìm người như bạn", "今こんな人を探しています", "Siapa yang mereka cari sekarang")}
+                desc={<>{t("열어둔 포지션", "Open positions", "开放职位", "Vị trí đang tuyển", "募集中のポジション", "Posisi terbuka")} <span className="font-bold text-[#191F28]">{positions.length}</span>{t("개 · 바로 지원해볼 수 있어요.", " · Apply right away.", " 个 · 可立即申请。", " · Ứng tuyển ngay.", "件 · すぐ応募できます。", " · Lamar sekarang.")}</>}
               />
               {positions.length ? (
                 <div className="flex flex-col gap-3">
@@ -136,7 +138,7 @@ export function CompanyDetailScreen({ name }: { name: string }) {
                   ))}
                 </div>
               ) : (
-                <TEmpty title="진행 중인 포지션이 없어요" description="새 포지션이 열리면 알림으로 알려드릴게요." />
+                <TEmpty title={t("진행 중인 포지션이 없어요", "No open positions", "没有进行中的职位", "Không có vị trí đang tuyển", "進行中のポジションはありません", "Tidak ada posisi terbuka")} description={t("새 포지션이 열리면 알림으로 알려드릴게요.", "We'll notify you when a new position opens.", "有新职位开放时会通知你。", "Chúng tôi sẽ báo khi có vị trí mới.", "新しいポジションが開いたらお知らせします。", "Kami beri tahu saat ada posisi baru.")} />
               )}
             </section>
           </>

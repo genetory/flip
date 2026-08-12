@@ -5,6 +5,7 @@ import Link from "next/link";
 import { MapPin, BookmarkSimple, Buildings } from "@phosphor-icons/react";
 import { AplyCipBadgeButton } from "../../positions/AplyCipBadge";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
+import { usePlatformT } from "../../../lib/i18n";
 import type { PositionView } from "../../../lib/talent/positions-adapter";
 
 // 자체(내부) 공고는 상세 페이지로, 외부 공고(원티드 등)는 원본 URL을 새 창으로 연다.
@@ -34,6 +35,7 @@ export function PositionCard({
   onToggleSave?: (id: string) => void;
   onShowCip?: () => void;
 }) {
+  const t = usePlatformT();
   // 외부 공고 + 원본 URL이 있으면 새 창 연결, 아니면 내부 상세로.
   const isExternal = view.external && !!view.externalUrl;
   const linkHref = isExternal ? view.externalUrl! : `${talentAppRoutes.jobs}/${view.id}`;
@@ -74,7 +76,7 @@ export function PositionCard({
                   {/* 회사가 모의 면접을 등록한 공고 — 카드 탭 시 상세에서 시작. */}
                   {view.hasMockInterview ? (
                     <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[#EDF1FD] px-2 py-1 text-[10px] font-bold leading-none text-[#0B46E8]">
-                      🎤 모의면접
+                      🎤 {t("모의면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Simulasi")}
                     </span>
                   ) : null}
                 </div>
@@ -92,7 +94,7 @@ export function PositionCard({
             {onToggleSave ? (
               <button
                 type="button"
-                aria-label={saved ? "저장 취소" : "저장"}
+                aria-label={saved ? t("저장 취소", "Unsave", "取消收藏", "Bỏ lưu", "保存を解除", "Batal simpan") : t("저장", "Save", "收藏", "Lưu", "保存", "Simpan")}
                 aria-pressed={saved}
                 onClick={() => onToggleSave(view.id)}
                 className={`pointer-events-auto relative z-10 rounded-full p-1.5 transition ${saved ? "text-[#0B46E8]" : "text-[#B0B8C1] hover:text-[#4E5968]"}`}

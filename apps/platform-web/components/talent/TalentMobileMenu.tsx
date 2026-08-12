@@ -7,22 +7,24 @@ import { talentAppRoutes } from "../../lib/talent/app-nav";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { TalentButton } from "./TalentButton";
 import { useLockBodyScroll } from "../../lib/talent/useLockBodyScroll";
+import { usePlatformT } from "../../lib/i18n";
 
 // 모바일 내비 패널 — 햄버거로 열림. 메인 메뉴 + (비로그인)로그인·무료로 시작하기 / (로그인)내 홈으로 + (보조) Partner 링크.
 
 export function TalentMobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, isAuthenticated } = useAuthSession();
   const isTalentUser = isAuthenticated && (user?.role === "STUDENT" || user?.role === "OPERATOR");
+  const t = usePlatformT();
   useLockBodyScroll(open);
   if (!open) return null;
   return (
     <div className="lg:hidden">
       {/* 배경 딤 */}
-      <button type="button" aria-label="메뉴 닫기" onClick={onClose} className="fixed inset-0 top-14 z-40 bg-black/20" />
-      <nav aria-label="모바일 메뉴" className="fixed inset-x-0 top-14 z-50 border-b border-[#EEF1F5] bg-white p-4 shadow-sm">
+      <button type="button" aria-label={t("메뉴 닫기", "Close menu", "关闭菜单", "Đóng menu", "メニューを閉じる", "Tutup menu")} onClick={onClose} className="fixed inset-0 top-14 z-40 bg-black/20" />
+      <nav aria-label={t("모바일 메뉴", "Mobile menu", "移动菜单", "Menu di động", "モバイルメニュー", "Menu seluler")} className="fixed inset-x-0 top-14 z-50 border-b border-[#EEF1F5] bg-white p-4 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-[12px] font-bold text-[#8B95A1]">메뉴</span>
-          <button type="button" aria-label="메뉴 닫기" onClick={onClose} className="rounded-lg p-1.5 text-[#8B95A1] hover:bg-[#F2F4F6]">
+          <span className="text-[12px] font-bold text-[#8B95A1]">{t("메뉴", "Menu", "菜单", "Menu", "メニュー", "Menu")}</span>
+          <button type="button" aria-label={t("메뉴 닫기", "Close menu", "关闭菜单", "Đóng menu", "メニューを閉じる", "Tutup menu")} onClick={onClose} className="rounded-lg p-1.5 text-[#8B95A1] hover:bg-[#F2F4F6]">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -37,8 +39,8 @@ export function TalentMobileMenu({ open, onClose }: { open: boolean; onClose: ()
         </ul>
         <div className="mt-3 flex flex-col gap-2">
           {isTalentUser ? (
-            <TalentButton href={talentAppRoutes.career} variant="primary" size="md" fullWidth aria-label="내 커리어">
-              내 커리어
+            <TalentButton href={talentAppRoutes.career} variant="primary" size="md" fullWidth aria-label={t("내 커리어", "My Career", "我的职业", "Sự nghiệp", "マイキャリア", "Karier Saya")}>
+              {t("내 커리어", "My Career", "我的职业", "Sự nghiệp", "マイキャリア", "Karier Saya")}
             </TalentButton>
           ) : (
             <TalentButton href={talentRoutes.login} variant="primary" size="md" fullWidth aria-label={talentBrand.cta.login}>

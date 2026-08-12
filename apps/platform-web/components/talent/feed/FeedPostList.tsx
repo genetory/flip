@@ -12,6 +12,7 @@ import { toggleFeedBookmark, useFeedBookmarks } from "../../../lib/talent/feed-b
 import { useResumeDoc } from "../../../lib/talent/resume-doc";
 import { useCoverDoc } from "../../../lib/talent/cover-doc";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
+import { usePlatformT } from "../../../lib/i18n";
 
 export function FeedPostList({ posts }: { posts: FeedPost[] }) {
   const { user } = useAuthSession();

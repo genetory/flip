@@ -9,6 +9,7 @@ import { ArrowLeft } from "@phosphor-icons/react";
 import { talentBrand } from "../../../lib/talent/landing-content";
 import { AplyFooter } from "../../AplyFooter";
 import { LanguageSwitcher } from "../../i18n/LanguageSwitcher";
+import { usePlatformT } from "../../../lib/i18n";
 
 export function TalentAuthLayout({
   title,
@@ -25,19 +26,20 @@ export function TalentAuthLayout({
   backHref?: string;
   badge?: string;
 }) {
+  const t = usePlatformT();
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <header className="h-14 border-b border-[#EEF1F5]">
         <div className="mx-auto flex h-full max-w-5xl items-center justify-between px-5">
           <div className="flex items-center gap-2">
-            <Link href={backHref} aria-label={`${talentBrand.name} 홈으로`} className="flex items-center">
+            <Link href={backHref} aria-label={t(`${talentBrand.name} 홈으로`, `Go to ${talentBrand.name} home`, `前往 ${talentBrand.name} 首页`, `Về trang chủ ${talentBrand.name}`, `${talentBrand.name} ホームへ`, `Ke beranda ${talentBrand.name}`)} className="flex items-center">
               <Image src="/img_logo.webp" alt={talentBrand.name} width={72} height={24} className="h-5 w-auto" priority />
             </Link>
             {badge ? <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{badge}</span> : null}
           </div>
           <div className="flex items-center gap-1">
             <Link href={backHref} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">
-              <ArrowLeft className="h-4 w-4" /> 랜딩으로
+              <ArrowLeft className="h-4 w-4" /> {t("랜딩으로", "Home", "首页", "Trang chủ", "トップへ", "Beranda")}
             </Link>
             <LanguageSwitcher />
           </div>

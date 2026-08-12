@@ -13,6 +13,7 @@ import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { getMyApplications, withdrawMyApplication, getApplicationMessages, sendApplicationMessage, getInterviewSlotsForApplication, selectInterviewSlot, getApplicationTimeline, type MyApplication, type ApplicationMessage, type InterviewSlot, type ApplicationTimelineEvent } from "../../../lib/member-profile-client";
+import { usePlatformT } from "../../../lib/i18n";
 
 // 면접 시간 표기 — 8월 12일 (화) 오후 2:00
 function formatWhen(iso: string): string {
@@ -45,6 +46,7 @@ export const APPLICATION_STATUS: Record<MyApplication["status"], { label: string
 };
 
 export function ApplicationsScreen() {
+  const tr = usePlatformT();
   const toast = useTalentPopup();
   const [apps, setApps] = useState<MyApplication[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -82,9 +84,9 @@ export function ApplicationsScreen() {
       .then(() => {
         setApps((prev) => (prev ? prev.map((a) => (a.id === app.id ? { ...a, status: "WITHDRAWN" } : a)) : prev));
         setConfirmApp(null);
-        toast.success("지원을 철회했어요");
+        toast.success(tr("지원을 철회했어요", "Application withdrawn", "已撤回申请", "Đã rút đơn", "応募を取り消しました", "Lamaran ditarik"));
       })
-      .catch(() => toast.error("철회에 실패했어요. 잠시 후 다시 시도해주세요."))
+      .catch(() => toast.error(tr("철회에 실패했어요. 잠시 후 다시 시도해주세요.", "Failed to withdraw. Please try again shortly.", "撤回失败，请稍后再试。", "Rút đơn thất bại. Vui lòng thử lại sau.", "取り消しに失敗しました。しばらくして再度お試しください。", "Gagal menarik. Coba lagi nanti.")))
       .finally(() => setWithdrawing(false));
   }
 
@@ -101,8 +103,8 @@ export function ApplicationsScreen() {
     <TalentAppShell>
       <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">지원 현황</h1>
-          <p className="mt-1 text-[13.5px] text-[#8B95A1]">지원한 공고의 진행 상태를 확인해요.</p>
+          <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{tr("지원 현황", "Applications", "申请状态", "Trạng thái ứng tuyển", "応募状況", "Status Lamaran")}</h1>
+          <p className="mt-1 text-[13.5px] text-[#8B95A1]">{tr("지원한 공고의 진행 상태를 확인해요.", "Check the status of jobs you've applied to.", "查看已申请职位的进展。", "Xem tiến trình các vị trí bạn đã ứng tuyển.", "応募した求人の進捗を確認しましょう。", "Lihat status lowongan yang kamu lamar.")}</p>
         </div>
 
         {status === "loading" ? <TListSkeleton /> : null}
@@ -132,9 +134,9 @@ export function ApplicationsScreen() {
 
             {list.length === 0 ? (
               <TEmpty
-                title={tab === "all" ? "아직 지원한 공고가 없어요" : "해당 상태의 지원이 없어요"}
-                description="공고를 둘러보고 관심 있는 곳에 지원해보세요."
-                action={<TalentButton href={talentAppRoutes.jobs} variant="soft" size="md">공고 둘러보기</TalentButton>}
+                title={tab === "all" ? tr("아직 지원한 공고가 없어요", "No applications yet", "还没有申请记录", "Chưa có đơn ứng tuyển", "まだ応募がありません", "Belum ada lamaran") : tr("해당 상태의 지원이 없어요", "No applications in this status", "没有该状态的申请", "Không có đơn ở trạng thái này", "この状態の応募はありません", "Tidak ada lamaran di status ini")}
+                description={tr("공고를 둘러보고 관심 있는 곳에 지원해보세요.", "Browse jobs and apply to ones you like.", "浏览职位并申请感兴趣的。", "Khám phá tin tuyển dụng và ứng tuyển nơi bạn thích.", "求人を見て、気になるところに応募してみましょう。", "Jelajahi lowongan dan lamar yang kamu minati.")}
+                action={<TalentButton href={talentAppRoutes.jobs} variant="soft" size="md">{tr("공고 둘러보기", "Browse jobs", "浏览职位", "Xem tin tuyển dụng", "求人を見る", "Lihat lowongan")}</TalentButton>}
               />
             ) : (
               <div className="flex flex-col gap-3.5">
@@ -178,6 +180,7 @@ export function ApplicationsScreen() {
 
 // 회사 문의 — 지원 건별 메시지 스레드(쪽지). 학생↔회사.
 function MessageModal({ app, onClose }: { app: MyApplication; onClose: () => void }) {
+  const tr = usePlatformT();
   useLockBodyScroll();
   const [messages, setMessages] = useState<ApplicationMessage[] | null>(null);
   const [text, setText] = useState("");
@@ -213,10 +216,10 @@ function MessageModal({ app, onClose }: { app: MyApplication; onClose: () => voi
         {/* 헤더 */}
         <div className="flex items-center gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-bold text-[#191F28]">{app.partnerOrganizationName ?? "비공개 기업"}</p>
+            <p className="truncate text-[15px] font-bold text-[#191F28]">{app.partnerOrganizationName ?? tr("비공개 기업", "Private company", "未公开企业", "Công ty ẩn danh", "非公開企業", "Perusahaan anonim")}</p>
             <p className="truncate text-[12px] text-[#8B95A1]">{app.positionTitle}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="닫기" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
+          <button type="button" onClick={onClose} aria-label={tr("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -224,11 +227,11 @@ function MessageModal({ app, onClose }: { app: MyApplication; onClose: () => voi
         {/* 메시지 목록 */}
         <div className="flex-1 space-y-3 overflow-y-auto bg-[#FAFBFC] px-5 py-4">
           {messages === null ? (
-            <p className="py-10 text-center text-[13px] text-[#B0B8C1]">불러오는 중…</p>
+            <p className="py-10 text-center text-[13px] text-[#B0B8C1]">{tr("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
           ) : messages.length === 0 ? (
             <div className="py-10 text-center">
-              <p className="text-[13.5px] font-bold text-[#4E5968]">아직 주고받은 메시지가 없어요</p>
-              <p className="mt-1 text-[12.5px] text-[#8B95A1]">궁금한 점을 회사에 남겨보세요.</p>
+              <p className="text-[13.5px] font-bold text-[#4E5968]">{tr("아직 주고받은 메시지가 없어요", "No messages yet", "还没有消息", "Chưa có tin nhắn", "まだメッセージがありません", "Belum ada pesan")}</p>
+              <p className="mt-1 text-[12.5px] text-[#8B95A1]">{tr("궁금한 점을 회사에 남겨보세요.", "Ask the company anything.", "有疑问就向公司留言吧。", "Để lại câu hỏi cho công ty.", "気になることを会社に聞いてみましょう。", "Tanyakan apa saja ke perusahaan.")}</p>
             </div>
           ) : (
             messages.map((m) => {
@@ -257,14 +260,14 @@ function MessageModal({ app, onClose }: { app: MyApplication; onClose: () => voi
               }
             }}
             rows={1}
-            placeholder="회사에 메시지 보내기…"
+            placeholder={tr("회사에 메시지 보내기…", "Message the company…", "给公司发消息…", "Nhắn tin cho công ty…", "会社にメッセージを送る…", "Kirim pesan ke perusahaan…")}
             className="max-h-28 flex-1 resize-none rounded-2xl bg-[#F2F4F6] px-4 py-2.5 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-2 focus:ring-[#0B46E8]/30"
           />
           <button
             type="button"
             onClick={send}
             disabled={!text.trim() || sending}
-            aria-label="보내기"
+            aria-label={tr("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
             className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-2xl bg-[#0B46E8] text-white transition hover:bg-[#0A3ECB] disabled:opacity-40"
           >
             <PaperPlaneTilt className="h-5 w-5" weight="fill" />
@@ -276,6 +279,7 @@ function MessageModal({ app, onClose }: { app: MyApplication; onClose: () => voi
 }
 
 function WithdrawModal({ app, withdrawing, onClose, onConfirm }: { app: MyApplication; withdrawing: boolean; onClose: () => void; onConfirm: () => void }) {
+  const tr = usePlatformT();
   useLockBodyScroll();
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -289,7 +293,7 @@ function WithdrawModal({ app, withdrawing, onClose, onConfirm }: { app: MyApplic
     <div
       role="alertdialog"
       aria-modal="true"
-      aria-label="지원 철회 확인"
+      aria-label={tr("지원 철회 확인", "Confirm withdrawal", "确认撤回", "Xác nhận rút đơn", "応募取り消しの確認", "Konfirmasi penarikan")}
       className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
@@ -297,7 +301,7 @@ function WithdrawModal({ app, withdrawing, onClose, onConfirm }: { app: MyApplic
         <button
           type="button"
           onClick={onClose}
-          aria-label="닫기"
+          aria-label={tr("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
           className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6] hover:text-[#4E5968]"
         >
           <X className="h-5 w-5" />
@@ -307,11 +311,11 @@ function WithdrawModal({ app, withdrawing, onClose, onConfirm }: { app: MyApplic
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FDECEE]">
             <WarningCircle className="h-7 w-7 text-[#F04452]" weight="bold" />
           </span>
-          <h2 className="mt-5 break-keep text-[18px] font-black leading-[1.4] tracking-[-0.02em] text-[#0B1227]">지원을 철회할까요?</h2>
+          <h2 className="mt-5 break-keep text-[18px] font-black leading-[1.4] tracking-[-0.02em] text-[#0B1227]">{tr("지원을 철회할까요?", "Withdraw application?", "撤回申请？", "Rút đơn ứng tuyển?", "応募を取り消しますか？", "Tarik lamaran?")}</h2>
           <p className="mt-2 break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">
             {app.partnerOrganizationName ? `${app.partnerOrganizationName} · ` : ""}
             {app.positionTitle}
-            <br />철회하면 되돌릴 수 없어요.
+            <br />{tr("철회하면 되돌릴 수 없어요.", "This can't be undone.", "撤回后无法恢复。", "Không thể hoàn tác.", "取り消すと元に戻せません。", "Tidak bisa dibatalkan.")}
           </p>
         </div>
 
@@ -321,7 +325,7 @@ function WithdrawModal({ app, withdrawing, onClose, onConfirm }: { app: MyApplic
             onClick={onClose}
             className="inline-flex h-[52px] flex-1 items-center justify-center rounded-2xl bg-[#F2F4F6] px-5 text-[15px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]"
           >
-            취소
+            {tr("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
           </button>
           <button
             type="button"
@@ -329,7 +333,7 @@ function WithdrawModal({ app, withdrawing, onClose, onConfirm }: { app: MyApplic
             disabled={withdrawing}
             className="inline-flex h-[52px] flex-1 items-center justify-center rounded-2xl bg-[#F04452] px-5 text-[15px] font-bold text-white transition hover:bg-[#D93A46] disabled:opacity-50"
           >
-            {withdrawing ? "철회 중…" : "지원 철회"}
+            {withdrawing ? tr("철회 중…", "Withdrawing…", "撤回中…", "Đang rút…", "取り消し中…", "Menarik…") : tr("지원 철회", "Withdraw", "撤回申请", "Rút đơn", "応募取り消し", "Tarik lamaran")}
           </button>
         </div>
       </div>
@@ -436,6 +440,7 @@ const TIMELINE_EVENT_META: Record<string, { emoji: string; label: string }> = {
 
 // 진행 내역 — 상태 변경·면접 이벤트를 시간순으로 보여주는 활동 타임라인.
 function ProgressModal({ app, onClose }: { app: MyApplication; onClose: () => void }) {
+  const tr = usePlatformT();
   useLockBodyScroll();
   const [events, setEvents] = useState<ApplicationTimelineEvent[] | null>(null);
   const [error, setError] = useState(false);
@@ -458,18 +463,18 @@ function ProgressModal({ app, onClose }: { app: MyApplication; onClose: () => vo
       <div className="flex max-h-[85vh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0">
-            <p className="text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">진행 내역</p>
+            <p className="text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">{tr("진행 내역", "Progress", "进度记录", "Tiến trình", "進捗履歴", "Progres")}</p>
             <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{app.positionTitle}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="닫기" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
+          <button type="button" onClick={onClose} aria-label={tr("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-5">
           {error ? (
-            <p className="py-10 text-center text-[13.5px] text-[#F04452]">진행 내역을 불러오지 못했어요.</p>
+            <p className="py-10 text-center text-[13.5px] text-[#F04452]">{tr("진행 내역을 불러오지 못했어요.", "Couldn't load progress.", "无法加载进度。", "Không tải được tiến trình.", "進捗を読み込めませんでした。", "Gagal memuat progres.")}</p>
           ) : !events ? (
-            <p className="py-10 text-center text-[13.5px] text-[#8B95A1]">불러오는 중…</p>
+            <p className="py-10 text-center text-[13.5px] text-[#8B95A1]">{tr("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
           ) : events.length === 0 ? (
-            <p className="py-10 text-center text-[13.5px] text-[#8B95A1]">아직 진행 내역이 없어요.</p>
+            <p className="py-10 text-center text-[13.5px] text-[#8B95A1]">{tr("아직 진행 내역이 없어요.", "No progress yet.", "暂无进度。", "Chưa có tiến trình.", "まだ進捗がありません。", "Belum ada progres.")}</p>
           ) : (
             <ol className="flex flex-col">
               {events.map((ev, i) => {
@@ -497,6 +502,7 @@ function ProgressModal({ app, onClose }: { app: MyApplication; onClose: () => vo
 }
 
 function AppCard({ app, onWithdraw, onMessage, onSelectInterview, onTimeline }: { app: MyApplication; onWithdraw: () => void; onMessage: () => void; onSelectInterview: () => void; onTimeline: () => void }) {
+  const tr = usePlatformT();
   const s = APPLICATION_STATUS[app.status];
   const canWithdraw = app.status === "SUBMITTED" || app.status === "INTERVIEW";
   const canMessage = app.status !== "WITHDRAWN";
@@ -507,8 +513,8 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview, onTimeline }: 
       {/* 헤더 — 상태 + 문의 + 지원일 */}
       <div className="flex items-center gap-2">
         <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
-        {app.unreadMessages > 0 ? <span className="rounded-md bg-[#FDECEE] px-2 py-1 text-[11px] font-bold text-[#F04452]">문의 {app.unreadMessages}</span> : null}
-        <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">지원 · {formatRelativeTime(new Date(app.submittedAt).getTime())}</span>
+        {app.unreadMessages > 0 ? <span className="rounded-md bg-[#FDECEE] px-2 py-1 text-[11px] font-bold text-[#F04452]">{tr("문의", "Msg", "消息", "Tin", "連絡", "Pesan")} {app.unreadMessages}</span> : null}
+        <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{tr("지원", "Applied", "申请", "Ứng tuyển", "応募", "Dilamar")} · {formatRelativeTime(new Date(app.submittedAt).getTime())}</span>
       </div>
 
       <p className="mt-3 text-[16px] font-bold leading-snug tracking-[-0.01em] text-[#191F28]">{app.positionTitle}</p>
@@ -520,7 +526,7 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview, onTimeline }: 
           {app.partnerOrganizationName}
         </Link>
       ) : (
-        <p className="mt-1 text-[13px] text-[#8B95A1]">비공개 기업</p>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">{tr("비공개 기업", "Private company", "未公开企业", "Công ty ẩn danh", "非公開企業", "Perusahaan anonim")}</p>
       )}
 
       {/* 지원 이후 여정 타임라인 */}
@@ -528,7 +534,7 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview, onTimeline }: 
         <div className="mt-4">
           <ApplicationTimeline app={app} />
           <button type="button" onClick={onTimeline} className="mt-2.5 inline-flex items-center gap-0.5 text-[12px] font-bold text-[#8B95A1] transition hover:text-[#4E5968]">
-            진행 내역 보기 <CaretRight className="h-3.5 w-3.5" weight="bold" />
+            {tr("진행 내역 보기", "View progress", "查看进度", "Xem tiến trình", "進捗を見る", "Lihat progres")} <CaretRight className="h-3.5 w-3.5" weight="bold" />
           </button>
         </div>
       ) : null}
@@ -541,7 +547,7 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview, onTimeline }: 
           href={`${talentAppRoutes.jobs}/${app.positionId}`}
           className="inline-flex items-center rounded-xl border border-[#E5E8EB] bg-white px-4 py-2.5 text-[13px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
         >
-          공고 보기
+          {tr("공고 보기", "View job", "查看职位", "Xem tin", "求人を見る", "Lihat lowongan")}
         </Link>
         {canMessage ? (
           <button
@@ -549,7 +555,7 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview, onTimeline }: 
             onClick={onMessage}
             className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white px-4 py-2.5 text-[13px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
           >
-            <ChatCircleDots className="h-4 w-4" /> 회사 문의
+            <ChatCircleDots className="h-4 w-4" /> {tr("회사 문의", "Contact", "联系公司", "Liên hệ", "問い合わせ", "Hubungi")}
             {app.unreadMessages > 0 ? (
               <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#F04452] px-1 text-[10px] font-bold leading-none text-white">{app.unreadMessages}</span>
             ) : null}
@@ -561,7 +567,7 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview, onTimeline }: 
             onClick={onWithdraw}
             className="ml-auto inline-flex items-center rounded-xl bg-[#FDECEE] px-4 py-2.5 text-[13px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1]"
           >
-            지원 철회
+            {tr("지원 철회", "Withdraw", "撤回申请", "Rút đơn", "応募取り消し", "Tarik lamaran")}
           </button>
         ) : null}
       </div>
@@ -571,11 +577,12 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview, onTimeline }: 
 
 // 상태별 안내 블록 — 각 상황에서 무엇을 하면 되는지 알려준다.
 function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectInterview: () => void }) {
+  const tr = usePlatformT();
   // 면접 확정
   if (app.status === "INTERVIEW" && app.interviewSelectedAt) {
     return (
       <div className="mt-3.5 rounded-xl bg-[#FFF3E6] px-4 py-3.5">
-        <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#E8890C]"><CalendarCheck className="h-4 w-4" weight="fill" /> 면접 확정</p>
+        <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#E8890C]"><CalendarCheck className="h-4 w-4" weight="fill" /> {tr("면접 확정", "Interview set", "面试已确定", "Đã chốt phỏng vấn", "面接確定", "Wawancara terjadwal")}</p>
         <p className="mt-1 text-[13px] font-semibold text-[#191F28]">{formatWhen(app.interviewSelectedAt)}</p>
         {app.interviewLocation ? <p className="mt-0.5 text-[12px] text-[#8B95A1]">{app.interviewLocation}</p> : null}
         <div className="mt-2.5 flex flex-wrap gap-2">
@@ -591,7 +598,7 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
             href={`${talentAppRoutes.jobs}/${app.positionId}`}
             className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition hover:bg-[#F5F8FF]"
           >
-            🎤 모의 면접으로 준비하기
+            {tr("🎤 모의 면접으로 준비하기", "🎤 Prep with a mock interview", "🎤 用模拟面试准备", "🎤 Luyện với phỏng vấn thử", "🎤 模擬面接で準備する", "🎤 Latihan wawancara simulasi")}
           </Link>
         </div>
       </div>
@@ -601,14 +608,14 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
   if (app.status === "INTERVIEW" && app.interviewPending) {
     return (
       <div className="mt-3.5 rounded-xl bg-[#FFF3E6] px-4 py-3.5">
-        <p className="text-[12.5px] font-bold text-[#E8890C]">면접 일정을 선택해주세요</p>
-        <p className="mt-0.5 text-[12px] text-[#B07B33]">회사가 제안한 시간 중 편한 시간을 골라주세요.</p>
+        <p className="text-[12.5px] font-bold text-[#E8890C]">{tr("면접 일정을 선택해주세요", "Please choose an interview time", "请选择面试时间", "Hãy chọn lịch phỏng vấn", "面接日程を選んでください", "Pilih jadwal wawancara")}</p>
+        <p className="mt-0.5 text-[12px] text-[#B07B33]">{tr("회사가 제안한 시간 중 편한 시간을 골라주세요.", "Pick a time that suits you from the company's options.", "从公司提议的时间中选择方便的。", "Chọn thời gian phù hợp trong các đề xuất của công ty.", "会社が提案した時間から都合のよい時間を選んでください。", "Pilih waktu yang cocok dari opsi perusahaan.")}</p>
         <button
           type="button"
           onClick={onSelectInterview}
           className="mt-2.5 inline-flex items-center gap-1 rounded-lg bg-[#E8890C] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#D67D08]"
         >
-          면접 시간 선택
+          {tr("면접 시간 선택", "Choose time", "选择面试时间", "Chọn giờ", "面接時間を選ぶ", "Pilih waktu")}
         </button>
       </div>
     );
@@ -617,7 +624,7 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
   if (app.status === "INTERVIEW") {
     return (
       <div className="mt-3.5 rounded-xl bg-[#FFF3E6] px-4 py-3.5">
-        <p className="text-[12.5px] text-[#B07B33]">면접 단계로 진행됐어요. 일정이 잡히면 알려드릴게요.</p>
+        <p className="text-[12.5px] text-[#B07B33]">{tr("면접 단계로 진행됐어요. 일정이 잡히면 알려드릴게요.", "You've advanced to the interview stage. We'll notify you when it's scheduled.", "已进入面试阶段。安排好后会通知你。", "Bạn đã vào vòng phỏng vấn. Chúng tôi sẽ báo khi có lịch.", "面接段階に進みました。日程が決まりましたらお知らせします。", "Kamu masuk tahap wawancara. Kami beri tahu saat terjadwal.")}</p>
         <Link
           href={`${talentAppRoutes.jobs}/${app.positionId}`}
           className="mt-2.5 inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition hover:bg-[#F5F8FF]"
@@ -630,22 +637,22 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
   if (app.status === "SUBMITTED") {
     return (
       <div className="mt-3.5 rounded-xl bg-[#F5F8FF] px-4 py-3.5">
-        <p className="text-[12.5px] text-[#4E5968]">회사가 지원서를 검토하고 있어요. 결과가 나오면 알려드릴게요.</p>
+        <p className="text-[12.5px] text-[#4E5968]">{tr("회사가 지원서를 검토하고 있어요. 결과가 나오면 알려드릴게요.", "The company is reviewing your application. We'll notify you of the result.", "公司正在审阅你的申请，有结果会通知你。", "Công ty đang xem xét hồ sơ của bạn. Chúng tôi sẽ báo kết quả.", "会社が応募書類を確認しています。結果が出たらお知らせします。", "Perusahaan sedang meninjau lamaranmu. Kami beri tahu hasilnya.")}</p>
       </div>
     );
   }
   if (app.status === "ACCEPTED") {
     return (
       <div className="mt-3.5 rounded-xl bg-[#E7F8EF] px-4 py-3.5">
-        <p className="text-[13px] font-bold text-[#0A9B59]">🎉 합격을 축하해요!</p>
-        <p className="mt-0.5 text-[12.5px] text-[#4E5968]">‘회사 문의’로 다음 절차(입사·서류 등)를 확인해보세요.</p>
+        <p className="text-[13px] font-bold text-[#0A9B59]">{tr("🎉 합격을 축하해요!", "🎉 Congrats on your offer!", "🎉 恭喜你被录取！", "🎉 Chúc mừng bạn trúng tuyển!", "🎉 合格おめでとうございます！", "🎉 Selamat, kamu diterima!")}</p>
+        <p className="mt-0.5 text-[12.5px] text-[#4E5968]">{tr("‘회사 문의’로 다음 절차(입사·서류 등)를 확인해보세요.", "Use 'Contact' to check the next steps (onboarding, documents, etc.).", "用“联系公司”确认后续流程（入职、材料等）。", "Dùng 'Liên hệ' để xem các bước tiếp theo (nhập việc, hồ sơ...).", "「問い合わせ」で次の手続き（入社・書類など）を確認しましょう。", "Gunakan 'Hubungi' untuk cek langkah berikutnya (onboarding, dokumen, dll).")}</p>
       </div>
     );
   }
   if (app.status === "REJECTED") {
     return (
       <div className="mt-3.5 rounded-xl bg-[#F5F6F8] px-4 py-3.5">
-        <p className="text-[12.5px] text-[#8B95A1]">이번엔 인연이 닿지 않았어요. 잘 맞는 다른 공고도 둘러보세요.</p>
+        <p className="text-[12.5px] text-[#8B95A1]">{tr("이번엔 인연이 닿지 않았어요. 잘 맞는 다른 공고도 둘러보세요.", "It didn't work out this time. Explore other jobs that fit you.", "这次没能成功，看看其他适合的职位吧。", "Lần này chưa thành. Hãy xem các vị trí phù hợp khác.", "今回はご縁がありませんでした。ほかに合う求人も見てみましょう。", "Belum berhasil kali ini. Jelajahi lowongan lain yang cocok.")}</p>
       </div>
     );
   }
@@ -654,6 +661,7 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
 
 // 면접 시간 선택 — 회사가 제안한 슬롯 중 하나를 골라 확정한다.
 function InterviewSlotModal({ app, onClose }: { app: MyApplication; onClose: () => void }) {
+  const tr = usePlatformT();
   const toast = useTalentPopup();
   useLockBodyScroll();
   const [slots, setSlots] = useState<InterviewSlot[] | null>(null);
@@ -677,10 +685,10 @@ function InterviewSlotModal({ app, onClose }: { app: MyApplication; onClose: () 
     setSelecting(slotId);
     selectInterviewSlot(slotId)
       .then(() => {
-        toast.success("면접 시간을 확정했어요");
+        toast.success(tr("면접 시간을 확정했어요", "Interview time confirmed", "已确定面试时间", "Đã chốt giờ phỏng vấn", "面接時間を確定しました", "Waktu wawancara dikonfirmasi"));
         onClose();
       })
-      .catch(() => toast.error("확정에 실패했어요. 잠시 후 다시 시도해주세요."))
+      .catch(() => toast.error(tr("확정에 실패했어요. 잠시 후 다시 시도해주세요.", "Failed to confirm. Please try again shortly.", "确定失败，请稍后再试。", "Không thể xác nhận. Vui lòng thử lại sau.", "確定に失敗しました。しばらくして再度お試しください。", "Gagal mengonfirmasi. Coba lagi nanti.")))
       .finally(() => setSelecting(null));
   }
 
@@ -689,30 +697,30 @@ function InterviewSlotModal({ app, onClose }: { app: MyApplication; onClose: () 
       <div className="flex max-h-[85vh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-bold text-[#191F28]">면접 시간 선택</p>
+            <p className="text-[15px] font-bold text-[#191F28]">{tr("면접 시간 선택", "Choose interview time", "选择面试时间", "Chọn giờ phỏng vấn", "面接時間の選択", "Pilih waktu wawancara")}</p>
             <p className="truncate text-[12px] text-[#8B95A1]">{app.positionTitle}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="닫기" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
+          <button type="button" onClick={onClose} aria-label={tr("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="overflow-y-auto px-5 py-4">
           {slots === null ? (
-            <p className="py-8 text-center text-[13px] text-[#B0B8C1]">불러오는 중…</p>
+            <p className="py-8 text-center text-[13px] text-[#B0B8C1]">{tr("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
           ) : selected ? (
             <div className="rounded-2xl bg-[#EDF1FD] px-4 py-4 text-center">
               <p className="flex items-center justify-center gap-1.5 text-[12.5px] font-bold text-[#0B46E8]">
-                <CalendarCheck className="h-4 w-4" weight="bold" /> 이미 면접 시간이 확정됐어요
+                <CalendarCheck className="h-4 w-4" weight="bold" /> {tr("이미 면접 시간이 확정됐어요", "Interview time already set", "面试时间已确定", "Đã chốt giờ phỏng vấn", "面接時間は確定済みです", "Waktu wawancara sudah diatur")}
               </p>
               <p className="mt-1.5 text-[14px] font-bold text-[#191F28]">{formatWhen(selected.startsAt)}</p>
               {selected.location ? <p className="mt-0.5 text-[12px] text-[#8B95A1]">{selected.location}</p> : null}
             </div>
           ) : proposed.length === 0 ? (
-            <p className="py-8 text-center text-[13px] text-[#8B95A1]">아직 선택할 수 있는 면접 시간이 없어요.</p>
+            <p className="py-8 text-center text-[13px] text-[#8B95A1]">{tr("아직 선택할 수 있는 면접 시간이 없어요.", "No interview times to choose yet.", "暂无可选的面试时间。", "Chưa có giờ phỏng vấn để chọn.", "まだ選べる面接時間がありません。", "Belum ada waktu wawancara untuk dipilih.")}</p>
           ) : (
             <div className="flex flex-col gap-2">
-              <p className="mb-1 text-[12.5px] text-[#8B95A1]">아래 시간 중 편한 시간을 선택하면 확정돼요.</p>
+              <p className="mb-1 text-[12.5px] text-[#8B95A1]">{tr("아래 시간 중 편한 시간을 선택하면 확정돼요.", "Pick a time below to confirm it.", "从下列时间中选择即可确定。", "Chọn một giờ bên dưới để xác nhận.", "下の時間から選ぶと確定します。", "Pilih waktu di bawah untuk mengonfirmasi.")}</p>
               {proposed.map((sl) => (
                 <button
                   key={sl.id}
@@ -725,7 +733,7 @@ function InterviewSlotModal({ app, onClose }: { app: MyApplication; onClose: () 
                     <p className="text-[14px] font-bold text-[#191F28]">{formatWhen(sl.startsAt)}</p>
                     {sl.location ? <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{sl.location}</p> : null}
                   </div>
-                  <span className="shrink-0 text-[12.5px] font-bold text-[#0B46E8]">{selecting === sl.id ? "확정 중…" : "선택"}</span>
+                  <span className="shrink-0 text-[12.5px] font-bold text-[#0B46E8]">{selecting === sl.id ? tr("확정 중…", "Confirming…", "确定中…", "Đang xác nhận…", "確定中…", "Mengonfirmasi…") : tr("선택", "Select", "选择", "Chọn", "選択", "Pilih")}</span>
                 </button>
               ))}
             </div>

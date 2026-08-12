@@ -19,8 +19,10 @@ import { SECTION_META } from "../../../lib/talent/career-chat";
 import { useCoverDoc, saveCoverDoc, generateCoverDoc, addCoverItem, coverQuestionEmoji, COVER_QUESTIONS, type CoverDoc } from "../../../lib/talent/cover-doc";
 import { coverAssist, coverChat } from "../../../lib/talent/cover-assist-client";
 import { ensureFeedEntry } from "../../../lib/talent/career-feed";
+import { usePlatformT } from "../../../lib/i18n";
 
 export function CoverBuilderScreen() {
+  const t = usePlatformT();
   const basicInfo = useBasicInfo();
   const resume = useResumeDoc();
   const stored = useCoverDoc();
@@ -60,13 +62,13 @@ export function CoverBuilderScreen() {
         <div>
           <TalentBackButton className="mb-3" />
           <div className="flex items-center justify-between gap-3">
-            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">자기소개서</h1>
+            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("자기소개서","Cover letter","求职信","Thư xin việc","自己PR","Surat lamaran")}</h1>
             {showEditor ? (
               <Link
                 href={talentAppRoutes.coverPreview}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white px-3 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 lg:hidden"
               >
-                <Eye className="h-4 w-4" /> 미리보기
+                <Eye className="h-4 w-4" /> {t("미리보기","Preview","预览","Xem trước","プレビュー","Pratinjau")}
               </Link>
             ) : null}
           </div>
@@ -79,6 +81,7 @@ export function CoverBuilderScreen() {
 }
 
 function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basicInfo: BasicInfo; resumeText: string; onChange: (d: CoverDoc) => void }) {
+  const t = usePlatformT();
   function setText(id: string, text: string) {
     onChange({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, text } : it)) });
   }
@@ -86,7 +89,7 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
     onChange({ ...doc, items: doc.items.filter((it) => it.id !== id) });
   }
   function logCover(id: string, question: string, text: string) {
-    ensureFeedEntry(`cover:${id}`, text.trim(), "experience", { emoji: "📝", label: `자기소개서 · ${question}`, href: talentAppRoutes.cover });
+    ensureFeedEntry(`cover:${id}`, text.trim(), "experience", { emoji: "📝", label: `${t("자기소개서","Cover letter","求职信","Thư xin việc","自己PR","Surat lamaran")} · ${question}`, href: talentAppRoutes.cover });
   }
   // 대화로 선택 문항에 새 항목 추가.
   function add(question: string, text: string) {
@@ -103,7 +106,7 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
         <ProfileCard info={basicInfo} showPhoto={doc.showPhoto === true} />
 
         {basicInfo.photoUrl ? (
-          <PhotoToggleRow label="자기소개서에 프로필 사진 표시" on={doc.showPhoto === true} onChange={(v) => onChange({ ...doc, showPhoto: v })} />
+          <PhotoToggleRow label={t("자기소개서에 프로필 사진 표시","Show profile photo on cover letter","在求职信上显示头像","Hiển thị ảnh trên thư xin việc","自己PRに証明写真を表示","Tampilkan foto di surat lamaran")} on={doc.showPhoto === true} onChange={(v) => onChange({ ...doc, showPhoto: v })} />
         ) : null}
 
         <ChatPanel name={basicInfo.realName} resumeText={resumeText} onAdd={add} />
@@ -132,7 +135,7 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
       <aside className="hidden lg:sticky lg:top-24 lg:block">
         <div className="mb-2 flex items-center justify-end">
           <Link href={talentAppRoutes.coverPreview} className="inline-flex items-center gap-1 text-[12px] font-bold text-[#0B46E8] hover:underline">
-            전체 보기 <ArrowSquareOut className="h-3.5 w-3.5" />
+            {t("전체 보기","View full","查看全部","Xem đầy đủ","全体を見る","Lihat penuh")} <ArrowSquareOut className="h-3.5 w-3.5" />
           </Link>
         </div>
         <CoverA4Preview doc={doc} info={basicInfo} />
@@ -164,6 +167,7 @@ interface ChatMsg {
 }
 
 function ChatPanel({ name, resumeText, onAdd }: { name: string; resumeText: string; onAdd: (question: string, text: string) => void }) {
+  const t = usePlatformT();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [value, setValue] = useState("");
   const [choice, setChoice] = useState(0);
@@ -177,15 +181,15 @@ function ChatPanel({ name, resumeText, onAdd }: { name: string; resumeText: stri
   }, [messages, pending]);
 
   async function send() {
-    const t = value.trim();
-    if (!t || pending) return;
+    const trimmed = value.trim();
+    if (!trimmed || pending) return;
     const question = COVER_QUESTIONS[choice] ?? COVER_QUESTIONS[0];
     setValue("");
-    setMessages((m) => [...m, { id: ++seq.current, role: "user", text: t }]);
+    setMessages((m) => [...m, { id: ++seq.current, role: "user", text: trimmed }]);
     setPending(true);
-    const text = await coverChat({ note: t, question, name, resumeText });
+    const text = await coverChat({ note: trimmed, question, name, resumeText });
     onAdd(question, text);
-    setMessages((m) => [...m, { id: ++seq.current, role: "ai", text: `${coverQuestionEmoji(question)} '${question}'에 항목을 추가했어요. 미리보기에서 확인해보세요.` }]);
+    setMessages((m) => [...m, { id: ++seq.current, role: "ai", text: `${coverQuestionEmoji(question)} ${t(`'${question}'에 항목을 추가했어요. 미리보기에서 확인해보세요.`, `Added an item to '${question}'. Check it in the preview.`, `已向「${question}」添加条目。请在预览中查看。`, `Đã thêm mục vào '${question}'. Xem trong bản xem trước.`, `「${question}」に項目を追加しました。プレビューで確認してください。`, `Menambahkan item ke '${question}'. Cek di pratinjau.`)}` }]);
     setPending(false);
   }
 
@@ -193,8 +197,8 @@ function ChatPanel({ name, resumeText, onAdd }: { name: string; resumeText: stri
     <div className="rounded-2xl border border-[#EEF1F5] bg-white">
       <div className="flex items-center gap-1.5 px-4 pt-3">
         <Sparkle className="h-[16px] w-[16px] text-[#0B46E8]" weight="fill" />
-        <p className="text-[13.5px] font-bold text-[#191F28]">AI로 편집</p>
-        <span className="text-[12px] text-[#8B95A1]">— 적으면 알맞은 문항에 반영돼요</span>
+        <p className="text-[13.5px] font-bold text-[#191F28]">{t("AI로 편집","Edit with AI","用 AI 编辑","Sửa bằng AI","AIで編集","Edit dengan AI")}</p>
+        <span className="text-[12px] text-[#8B95A1]">{t("— 적으면 알맞은 문항에 반영돼요","— write and it goes to the right question","— 输入后会反映到相应问题","— viết vào sẽ vào đúng câu hỏi","— 書けば適切な設問に反映されます","— tulis, masuk ke pertanyaan yang tepat")}</span>
       </div>
 
       {messages.length || pending ? (
@@ -212,7 +216,7 @@ function ChatPanel({ name, resumeText, onAdd }: { name: string; resumeText: stri
           )}
           {pending ? (
             <div className="flex justify-start">
-              <p className="rounded-2xl rounded-tl-md border border-[#EEF1F5] bg-[#F5F8FF] px-3.5 py-2 text-[13.5px] text-[#8B95A1]">AI가 정리 중…</p>
+              <p className="rounded-2xl rounded-tl-md border border-[#EEF1F5] bg-[#F5F8FF] px-3.5 py-2 text-[13.5px] text-[#8B95A1]">{t("AI가 정리 중…","AI is organizing…","AI 正在整理…","AI đang sắp xếp…","AIが整理中…","AI sedang menyusun…")}</p>
             </div>
           ) : null}
         </div>
@@ -237,14 +241,14 @@ function ChatPanel({ name, resumeText, onAdd }: { name: string; resumeText: stri
               }
             }}
             rows={1}
-            placeholder="예) 카페 알바에서 배운 책임감을 지원 동기에 녹여줘"
+            placeholder={t("예) 카페 알바에서 배운 책임감을 지원 동기에 녹여줘","e.g. Weave the responsibility I learned at a cafe job into my motivation","例）把在咖啡店打工学到的责任感融入应聘动机","VD) Lồng tinh thần trách nhiệm học được khi làm quán cà phê vào động cơ ứng tuyển","例）カフェバイトで学んだ責任感を志望動機に盛り込んで","Cth) Masukkan rasa tanggung jawab dari kerja kafe ke motivasi")}
             className="max-h-32 flex-1 resize-none bg-transparent px-3 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
           />
           <button
             type="button"
             onClick={send}
             disabled={!value.trim() || pending}
-            aria-label="보내기"
+            aria-label={t("보내기","Send","发送","Gửi","送信","Kirim")}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#0B46E8] text-white transition enabled:hover:bg-[#0A3ECB] disabled:opacity-40"
           >
             <PaperPlaneTilt className="h-[18px] w-[18px]" weight="fill" />
@@ -283,6 +287,7 @@ function ItemRow({
   onChange: (v: string) => void;
   onRemove: () => void;
 }) {
+  const t = usePlatformT();
   const [busy, setBusy] = useState(false);
 
   const value = text ?? "";
@@ -310,9 +315,9 @@ function ItemRow({
           disabled={busy || !value.trim()}
           className="inline-flex items-center gap-1 rounded-lg bg-[#EDF1FD] px-2.5 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC] disabled:opacity-40"
         >
-          <Sparkle className="h-3.5 w-3.5" weight="fill" /> {busy ? "다듬는 중…" : "AI로 다듬기"}
+          <Sparkle className="h-3.5 w-3.5" weight="fill" /> {busy ? t("다듬는 중…","Polishing…","润色中…","Đang chỉnh…","整えています…","Memoles…") : t("AI로 다듬기","Polish with AI","用 AI 润色","Chỉnh bằng AI","AIで整える","Poles dengan AI")}
         </button>
-        <button type="button" onClick={onRemove} aria-label="삭제" className="flex h-8 w-8 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]">
+        <button type="button" onClick={onRemove} aria-label={t("삭제","Delete","删除","Xóa","削除","Hapus")} className="flex h-8 w-8 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]">
           <Trash className="h-4 w-4" />
         </button>
       </div>

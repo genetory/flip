@@ -5,10 +5,12 @@
 // 폴백으로 이동한다. 폴백: 명시 prop > 현재 경로의 부모(상세→목록) > 앱 홈.
 import { useRouter, usePathname } from "next/navigation";
 import { ArrowLeft } from "@phosphor-icons/react";
+import { usePlatformT } from "../../lib/i18n";
 
 export function TalentBackButton({ className = "", fallback }: { className?: string; fallback?: string }) {
   const router = useRouter();
   const pathname = usePathname() ?? "";
+  const t = usePlatformT();
 
   function resolveFallback(): string {
     if (fallback) return fallback;
@@ -31,10 +33,10 @@ export function TalentBackButton({ className = "", fallback }: { className?: str
     <button
       type="button"
       onClick={goBack}
-      aria-label="뒤로가기"
+      aria-label={t("뒤로가기", "Go back", "返回", "Quay lại", "戻る", "Kembali")}
       className={`inline-flex items-center gap-1 text-[13.5px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968] ${className}`}
     >
-      <ArrowLeft className="h-4 w-4" /> 뒤로
+      <ArrowLeft className="h-4 w-4" /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
     </button>
   );
 }

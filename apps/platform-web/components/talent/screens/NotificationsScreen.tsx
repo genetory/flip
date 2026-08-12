@@ -10,6 +10,7 @@ import { TalentBackButton } from "../TalentBackButton";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useNotifications, markAllNotificationsRead, markNotificationRead, type Notification, type NotificationKind } from "../../../lib/talent/notifications";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
+import { usePlatformT } from "../../../lib/i18n";
 
 type Filter = "all" | "activity" | "update";
 
@@ -26,6 +27,7 @@ const SUGGESTIONS = [
 ];
 
 export function NotificationsScreen() {
+  const t = usePlatformT();
   const dynamic = useNotifications();
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -42,14 +44,14 @@ export function NotificationsScreen() {
         <div>
           <TalentBackButton className="mb-3" />
           <div className="flex items-end justify-between gap-3">
-            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">알림{unread > 0 ? <span className="ml-1.5 align-middle text-[15px] font-black text-[#0B46E8]">{unread}</span> : null}</h1>
+            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("알림", "Notifications", "通知", "Thông báo", "お知らせ", "Notifikasi")}{unread > 0 ? <span className="ml-1.5 align-middle text-[15px] font-black text-[#0B46E8]">{unread}</span> : null}</h1>
             {unread > 0 ? (
               <button
                 type="button"
                 onClick={() => markAllNotificationsRead()}
                 className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"
               >
-                <Checks className="h-4 w-4" weight="bold" /> 모두 읽음
+                <Checks className="h-4 w-4" weight="bold" /> {t("모두 읽음", "Mark all read", "全部已读", "Đọc hết", "すべて既読", "Tandai dibaca")}
               </button>
             ) : null}
           </div>
@@ -94,6 +96,7 @@ const KIND_STYLE: Record<NotificationKind, { text: string; label: string; avatar
 };
 
 function Row({ n, last }: { n: Notification; last: boolean }) {
+  const t = usePlatformT();
   const s = KIND_STYLE[n.kind] ?? KIND_STYLE.update;
   return (
     <Link
@@ -103,7 +106,7 @@ function Row({ n, last }: { n: Notification; last: boolean }) {
     >
       <span className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-[19px] ${s.avatar}`} aria-hidden>
         {n.emoji}
-        {n.unread ? <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#0B46E8]" aria-label="안 읽음" /> : null}
+        {n.unread ? <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#0B46E8]" aria-label={t("안 읽음", "Unread", "未读", "Chưa đọc", "未読", "Belum dibaca")} /> : null}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -119,17 +122,18 @@ function Row({ n, last }: { n: Notification; last: boolean }) {
 }
 
 function EmptyState({ filter }: { filter: Filter }) {
+  const t = usePlatformT();
   const msg =
     filter === "activity"
-      ? "지원·팔로우·저장 같은 활동이 여기 쌓여요."
+      ? t("지원·팔로우·저장 같은 활동이 여기 쌓여요.", "Activity like applications, follows, and saves collects here.", "申请、关注、收藏等活动会汇集在这里。", "Các hoạt động như ứng tuyển, theo dõi, lưu sẽ tập hợp ở đây.", "応募・フォロー・保存などの活動がここに集まります。", "Aktivitas seperti lamaran, follow, dan simpan terkumpul di sini.")
       : filter === "update"
-        ? "팔로우한 사람·회사의 새 소식이 여기 도착해요."
-        : "활동이 생기면 여기에서 알려드릴게요.";
+        ? t("팔로우한 사람·회사의 새 소식이 여기 도착해요.", "New updates from people and companies you follow arrive here.", "你关注的人和公司的新动态会到达这里。", "Tin mới từ người và công ty bạn theo dõi sẽ đến đây.", "フォローした人・会社の新しいお知らせがここに届きます。", "Kabar baru dari orang dan perusahaan yang kamu ikuti muncul di sini.")
+        : t("활동이 생기면 여기에서 알려드릴게요.", "We'll let you know here when something happens.", "有动态时会在这里通知你。", "Khi có hoạt động, chúng tôi sẽ báo tại đây.", "動きがあればここでお知らせします。", "Kami beri tahu di sini saat ada aktivitas.");
   return (
     <div className="flex flex-col gap-6">
       <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-8 text-center">
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[22px]" aria-hidden>🔔</span>
-        <p className="mt-3 text-[15px] font-bold text-[#191F28]">새로운 알림이 없어요</p>
+        <p className="mt-3 text-[15px] font-bold text-[#191F28]">{t("새로운 알림이 없어요", "No new notifications", "没有新通知", "Chưa có thông báo mới", "新しいお知らせはありません", "Tidak ada notifikasi baru")}</p>
         <p className="mt-1 text-[13px] text-[#8B95A1]">{msg}</p>
       </div>
       {filter !== "update" ? (

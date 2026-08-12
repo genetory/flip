@@ -11,6 +11,7 @@ import { TalentButton } from "../TalentButton";
 import { onboardingGoals, onboardingSteps } from "../../../lib/talent/labels";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import type { OnboardingGoal } from "../../../lib/talent/types";
+import { usePlatformT } from "../../../lib/i18n";
 
 // 목표별 첫 작업 연결.
 const goalDestination: Record<OnboardingGoal, { href: string; label: string }> = {
@@ -30,6 +31,7 @@ export function OnboardingScreen() {
 }
 
 function OnboardingFlow() {
+  const t = usePlatformT();
   const router = useRouter();
   const [goal, setGoal] = useState<OnboardingGoal | null>(null);
   const [step, setStep] = useState(0); // 0 = 목표 질문, 1..N = 최소 질문, N+1 = 완료
@@ -61,7 +63,7 @@ function OnboardingFlow() {
       <header className="sticky top-0 z-10 border-b border-[#EEF1F5] bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-xl items-center gap-3 px-4 py-3">
           {step > 0 && !isDone ? (
-            <button type="button" aria-label="이전" onClick={back} className="rounded-lg p-1.5 text-[#8B95A1] hover:bg-[#F2F4F6]">
+            <button type="button" aria-label={t("이전", "Back", "上一步", "Quay lại", "戻る", "Kembali")} onClick={back} className="rounded-lg p-1.5 text-[#8B95A1] hover:bg-[#F2F4F6]">
               <ArrowLeft className="h-5 w-5" />
             </button>
           ) : (
@@ -72,7 +74,7 @@ function OnboardingFlow() {
           </div>
           <button
             type="button"
-            aria-label="나가기"
+            aria-label={t("나가기", "Exit", "退出", "Thoát", "終了", "Keluar")}
             onClick={() => router.push(talentAppRoutes.home)}
             className="rounded-lg p-1.5 text-[#8B95A1] hover:bg-[#F2F4F6]"
           >
@@ -84,7 +86,7 @@ function OnboardingFlow() {
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-5 py-10">
         {isGoalStep ? (
           <Question
-            title="지금 취업 준비에서 가장 필요한 것은 무엇인가요?"
+            title={t("지금 취업 준비에서 가장 필요한 것은 무엇인가요?", "What do you need most in your job search right now?", "现在求职中你最需要什么？", "Bạn cần gì nhất khi tìm việc lúc này?", "いま就職準備で最も必要なことは何ですか？", "Apa yang paling kamu butuhkan dalam mencari kerja sekarang?")}
             options={onboardingGoals.map((g) => g.label)}
             selected={goal ? onboardingGoals.find((g) => g.value === goal)?.label ?? null : null}
             onSelect={(label) => {
@@ -113,10 +115,10 @@ function OnboardingFlow() {
             <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EAFFD1]">
               <Check className="h-8 w-8 text-[#3A6B00]" weight="bold" />
             </span>
-            <h1 className="mt-6 text-[24px] font-black tracking-[-0.02em] text-[#0B1227]">준비됐어요!</h1>
+            <h1 className="mt-6 text-[24px] font-black tracking-[-0.02em] text-[#0B1227]">{t("준비됐어요!", "You're all set!", "准备就绪！", "Sẵn sàng rồi!", "準備完了！", "Siap!")}</h1>
             <p className="mt-3 break-keep text-[15px] leading-relaxed text-[#4E5968]">
-              이제 첫 작업을 시작해볼까요?
-              <br />답변을 바탕으로 딱 맞는 단계로 안내할게요.
+              {t("이제 첫 작업을 시작해볼까요?", "Ready to start your first task?", "现在开始第一项任务吧？", "Bắt đầu công việc đầu tiên nhé?", "さっそく最初のステップを始めましょう？", "Mulai tugas pertamamu?")}
+              <br />{t("답변을 바탕으로 딱 맞는 단계로 안내할게요.", "We'll guide you to the right step based on your answers.", "我们会根据你的回答引导到最合适的步骤。", "Chúng tôi sẽ hướng bạn đến bước phù hợp dựa trên câu trả lời.", "回答をもとにぴったりのステップへご案内します。", "Kami akan mengarahkanmu ke langkah yang tepat berdasarkan jawabanmu.")}
             </p>
             <div className="mt-8 w-full max-w-xs">
               <TalentButton href={dest.href} variant="primary" size="lg" fullWidth aria-label={dest.label}>
@@ -147,6 +149,7 @@ function Question({
   onNext?: () => void;
   onSkip?: () => void;
 }) {
+  const t = usePlatformT();
   return (
     <div className="flex flex-1 flex-col">
       <h1 className="text-[22px] font-black leading-[1.35] tracking-[-0.02em] text-[#0B1227] md:text-[26px]">{title}</h1>
@@ -173,12 +176,12 @@ function Question({
       </div>
 
       <div className="mt-auto flex flex-col gap-2 pt-8">
-        <TalentButton onClick={onNext} disabled={!onNext} variant="primary" size="lg" fullWidth aria-label="다음">
-          다음
+        <TalentButton onClick={onNext} disabled={!onNext} variant="primary" size="lg" fullWidth aria-label={t("다음", "Next", "下一步", "Tiếp", "次へ", "Lanjut")}>
+          {t("다음", "Next", "下一步", "Tiếp", "次へ", "Lanjut")}
         </TalentButton>
         {onSkip ? (
           <button type="button" onClick={onSkip} className="py-2 text-[13.5px] font-semibold text-[#8B95A1] hover:text-[#4E5968]">
-            건너뛰기
+            {t("건너뛰기", "Skip", "跳过", "Bỏ qua", "スキップ", "Lewati")}
           </button>
         ) : null}
       </div>

@@ -21,6 +21,7 @@ import { MockInterviewModal } from "../jobs/MockInterviewModal";
 import { MockGateModal, DocStatus } from "../jobs/MockGateModal";
 import { ApplyReadinessBanner } from "../ApplyReadinessBanner";
 import { useLanguage } from "../../i18n/LanguageProvider";
+import { usePlatformT } from "../../../lib/i18n";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 import { parseOfficePhotos } from "../../../lib/image-upload";
@@ -46,6 +47,7 @@ const DASH = "정보 없음";
 const orDash = (v: string | null | undefined) => (v && v.trim() ? v : DASH);
 
 export function JobDetailScreen({ jobId }: { jobId: string }) {
+  const t = usePlatformT();
   const toast = useTalentPopup();
   const { locale } = useLanguage();
   const [item, setItem] = useState<PublicPositionListItem | null>(null);
@@ -86,7 +88,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
     const req = willSave ? addMyFavoritePosition(jobId) : removeMyFavoritePosition(jobId);
     void req.catch(() => {
       setSaved(!willSave);
-      toast.error("저장에 실패했어요");
+      toast.error(t("저장에 실패했어요", "Failed to save", "保存失败", "Lưu thất bại", "保存に失敗しました", "Gagal menyimpan"));
     });
   }
 
@@ -99,9 +101,9 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
         setApplied(true);
         setApplyOpen(false);
         notifyApplied(jobId, view?.title ?? "", view?.company ?? "");
-        toast.success("지원이 접수됐어요");
+        toast.success(t("지원이 접수됐어요", "Your application was received", "已收到您的申请", "Đã nhận đơn ứng tuyển của bạn", "応募を受け付けました", "Lamaran Anda telah diterima"));
       })
-      .catch(() => toast.error("지원에 실패했어요. 잠시 후 다시 시도해주세요."))
+      .catch(() => toast.error(t("지원에 실패했어요. 잠시 후 다시 시도해주세요.", "Application failed. Please try again shortly.", "申请失败，请稍后重试。", "Ứng tuyển thất bại. Vui lòng thử lại sau.", "応募に失敗しました。しばらくして再試行してください。", "Lamaran gagal. Coba lagi sebentar.")))
       .finally(() => setApplying(false));
   }
 
@@ -127,8 +129,8 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
             <button type="button" onClick={() => setMockGateOpen(true)} className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4 text-left transition hover:border-[#0B46E8]/40">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] shadow-[0_2px_10px_rgba(11,70,232,0.1)]" aria-hidden>🎤</span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[14.5px] font-bold text-[#191F28]">이 회사 모의 면접 미리 풀기</span>
-                <span className="mt-0.5 block text-[12.5px] text-[#8B95A1]">지원 전에 예상 질문을 풀고 AI 피드백을 받아보세요.</span>
+                <span className="block text-[14.5px] font-bold text-[#191F28]">{t("이 회사 모의 면접 미리 풀기", "Try this company's mock interview", "提前练习该公司模拟面试", "Thử phỏng vấn thử của công ty này", "この会社の模擬面接を先に解く", "Coba wawancara simulasi perusahaan ini")}</span>
+                <span className="mt-0.5 block text-[12.5px] text-[#8B95A1]">{t("지원 전에 예상 질문을 풀고 AI 피드백을 받아보세요.", "Practice likely questions and get AI feedback before applying.", "申请前练习可能的问题并获得 AI 反馈。", "Luyện câu hỏi dự kiến và nhận phản hồi AI trước khi ứng tuyển.", "応募前に予想質問を解いてAIフィードバックを受けましょう。", "Latih pertanyaan dan dapat umpan balik AI sebelum melamar.")}</span>
               </span>
               <Sparkle className="h-5 w-5 shrink-0 text-[#0B46E8]" weight="fill" />
             </button>
@@ -140,10 +142,10 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
               onClick={toggleSave}
               variant={saved ? "soft" : "secondary"}
               size="lg"
-              aria-label={saved ? "저장 취소" : "저장"}
+              aria-label={saved ? t("저장 취소", "Unsave", "取消收藏", "Bỏ lưu", "保存を解除", "Batal simpan") : t("저장", "Save", "收藏", "Lưu", "保存", "Simpan")}
               className={saved ? "" : "!border-0 !bg-[#F2F4F6] !text-[#4E5968] hover:!bg-[#E5E8EB]"}
             >
-              <BookmarkSimple className="h-4 w-4" weight={saved ? "fill" : "regular"} /> {saved ? "저장됨" : "저장"}
+              <BookmarkSimple className="h-4 w-4" weight={saved ? "fill" : "regular"} /> {saved ? t("저장됨", "Saved", "已收藏", "Đã lưu", "保存済み", "Tersimpan") : t("저장", "Save", "收藏", "Lưu", "保存", "Simpan")}
             </TalentButton>
             <ApplyButton view={view} applied={applied} applying={applying} onApply={() => setApplyOpen(true)} />
           </div>
@@ -157,10 +159,10 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
               onClick={toggleSave}
               variant={saved ? "soft" : "secondary"}
               size="lg"
-              aria-label={saved ? "저장 취소" : "저장"}
+              aria-label={saved ? t("저장 취소", "Unsave", "取消收藏", "Bỏ lưu", "保存を解除", "Batal simpan") : t("저장", "Save", "收藏", "Lưu", "保存", "Simpan")}
               className={saved ? "" : "!border-0 !bg-[#F2F4F6] !text-[#4E5968] hover:!bg-[#E5E8EB]"}
             >
-              <BookmarkSimple className="h-4 w-4" weight={saved ? "fill" : "regular"} /> {saved ? "저장됨" : "저장"}
+              <BookmarkSimple className="h-4 w-4" weight={saved ? "fill" : "regular"} /> {saved ? t("저장됨", "Saved", "已收藏", "Đã lưu", "保存済み", "Tersimpan") : t("저장", "Save", "收藏", "Lưu", "保存", "Simpan")}
             </TalentButton>
             <ApplyButton view={view} applied={applied} applying={applying} onApply={() => setApplyOpen(true)} />
           </div>
@@ -171,7 +173,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
               <button
                 type="button"
                 onClick={toggleSave}
-                aria-label={saved ? "저장 취소" : "저장"}
+                aria-label={saved ? t("저장 취소", "Unsave", "取消收藏", "Bỏ lưu", "保存を解除", "Batal simpan") : t("저장", "Save", "收藏", "Lưu", "保存", "Simpan")}
                 className={`flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-xl ${saved ? "bg-[#EDF1FD] text-[#0B46E8]" : "bg-[#F2F4F6] text-[#8B95A1]"}`}
               >
                 <BookmarkSimple className="h-5 w-5" weight={saved ? "fill" : "regular"} />
@@ -202,6 +204,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
 
 // 지원 전 서류 완성도 확인 팝업 — 이력서·자기소개서가 모두 완성돼야 지원 가능.
 function ApplyModal({ applying, onClose, onConfirm }: { applying: boolean; onClose: () => void; onConfirm: () => void }) {
+  const t = usePlatformT();
   useLockBodyScroll();
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -222,22 +225,22 @@ function ApplyModal({ applying, onClose, onConfirm }: { applying: boolean; onClo
       <div className="relative max-h-[90vh] w-full max-w-[420px] overflow-y-auto rounded-3xl bg-white shadow-[0_20px_60px_rgba(11,18,39,0.18)]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 px-7 pt-7">
           <div>
-            <h2 className="text-[19px] font-black tracking-[-0.02em] text-[#0B1227]">이 공고에 지원할까요?</h2>
-            <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">지원 서류(이력서·자기소개서)가 준비됐는지 확인해요.</p>
+            <h2 className="text-[19px] font-black tracking-[-0.02em] text-[#0B1227]">{t("이 공고에 지원할까요?", "Apply to this job?", "申请该职位？", "Ứng tuyển việc này?", "この求人に応募しますか？", "Lamar lowongan ini?")}</h2>
+            <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">{t("지원 서류(이력서·자기소개서)가 준비됐는지 확인해요.", "Let's check your resume and cover letter are ready.", "确认你的简历和自我介绍是否已准备好。", "Kiểm tra CV và thư xin việc đã sẵn sàng chưa.", "応募書類（履歴書・自己PR）が準備できているか確認します。", "Pastikan resume dan surat lamaran Anda siap.")}</p>
           </div>
-          <button type="button" aria-label="닫기" onClick={onClose} className="-mr-1.5 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
+          <button type="button" aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} onClick={onClose} className="-mr-1.5 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="mt-5 flex flex-col gap-2.5 px-7">
-          <DocStatus label="이력서" pct={rp} href={talentAppRoutes.resume} />
-          <DocStatus label="자기소개서" pct={cp} href={talentAppRoutes.cover} />
+          <DocStatus label={t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")} pct={rp} href={talentAppRoutes.resume} />
+          <DocStatus label={t("자기소개서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Surat lamaran")} pct={cp} href={talentAppRoutes.cover} />
         </div>
 
         {!ready ? (
           <p className="mx-7 mt-4 rounded-xl bg-[#FDECEE] px-3.5 py-2.5 text-[12.5px] font-semibold leading-relaxed text-[#F04452]">
-            서류를 완성해야 지원할 수 있어요. 미완성 서류를 마저 채워주세요.
+            {t("서류를 완성해야 지원할 수 있어요. 미완성 서류를 마저 채워주세요.", "Complete your documents before applying. Please finish the unfinished ones.", "完成材料后才能申请。请补全未完成的材料。", "Hoàn tất hồ sơ trước khi ứng tuyển. Hãy hoàn thiện phần còn thiếu.", "書類を完成させると応募できます。未完成の書類を仕上げてください。", "Lengkapi dokumen sebelum melamar. Selesaikan yang belum selesai.")}
           </p>
         ) : null}
 
@@ -248,7 +251,7 @@ function ApplyModal({ applying, onClose, onConfirm }: { applying: boolean; onClo
             disabled={!ready || applying}
             className="inline-flex h-[52px] w-full items-center justify-center rounded-2xl bg-[#0B46E8] px-5 text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {applying ? "지원 중…" : "지원하기"}
+            {applying ? t("지원 중…", "Applying…", "申请中…", "Đang ứng tuyển…", "応募中…", "Melamar…") : t("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar")}
           </button>
         </div>
       </div>
@@ -269,11 +272,12 @@ function ApplyButton({
   onApply: () => void;
   fullWidth?: boolean;
 }) {
+  const t = usePlatformT();
   // 외부 공고 → 외부 링크로.
   if (view.external && view.externalUrl) {
     return (
-      <TalentButton href={view.externalUrl} external variant="primary" size="lg" fullWidth={fullWidth} aria-label="지원하기">
-        지원하기 <ArrowSquareOut className="h-4 w-4" />
+      <TalentButton href={view.externalUrl} external variant="primary" size="lg" fullWidth={fullWidth} aria-label={t("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar")}>
+        {t("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar")} <ArrowSquareOut className="h-4 w-4" />
       </TalentButton>
     );
   }
@@ -285,9 +289,9 @@ function ApplyButton({
       variant={applied ? "soft" : "primary"}
       size="lg"
       fullWidth={fullWidth}
-      aria-label={applied ? "지원 완료" : "지원하기"}
+      aria-label={applied ? t("지원 완료", "Applied", "已申请", "Đã ứng tuyển", "応募済み", "Terlamar") : t("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar")}
     >
-      {applied ? "지원 완료" : applying ? "지원 중…" : "지원하기"}
+      {applied ? t("지원 완료", "Applied", "已申请", "Đã ứng tuyển", "応募済み", "Terlamar") : applying ? t("지원 중…", "Applying…", "申请中…", "Đang ứng tuyển…", "応募中…", "Melamar…") : t("지원하기", "Apply", "申请", "Ứng tuyển", "応募する", "Lamar")}
     </TalentButton>
   );
 }
@@ -327,6 +331,7 @@ function DetailBlock({ title, text }: { title: string; text: string }) {
 
 // 관심 회사 토글 — 실제 서버(company-follow) 저장. 계정 설정 '관심 회사'와 동일 소스.
 function CompanyFollowButton({ name }: { name: string }) {
+  const t = usePlatformT();
   const interested = useFollowedCompanies().includes(name);
   return (
     <button
@@ -337,7 +342,7 @@ function CompanyFollowButton({ name }: { name: string }) {
         interested ? "bg-[#EDF1FD] text-[#0B46E8] hover:bg-[#E1E9FC]" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
       }`}
     >
-      <Star className="h-3.5 w-3.5" weight={interested ? "fill" : "regular"} /> {interested ? "관심 회사" : "관심 추가"}
+      <Star className="h-3.5 w-3.5" weight={interested ? "fill" : "regular"} /> {interested ? t("관심 회사", "Following", "已关注", "Đang theo dõi", "関心企業", "Diikuti") : t("관심 추가", "Follow", "关注", "Theo dõi", "関心追加", "Ikuti")}
     </button>
   );
 }
@@ -346,6 +351,7 @@ function CompanyFollowButton({ name }: { name: string }) {
 // large: 회사 상세 화면용(회사명·썸네일 크게).
 // 공고 상세 헤더 카드 — 지원자·파트너 공용. onShowCip 있으면 CIP 뱃지 노출.
 export function PositionDetailHeaderCard({ item, onShowCip }: { item: PublicPositionListItem; onShowCip?: () => void }) {
+  const t = usePlatformT();
   const view = toPositionView(item);
   const heroImage = item.thumbnailImages?.[0] || null;
   return (
@@ -374,7 +380,7 @@ export function PositionDetailHeaderCard({ item, onShowCip }: { item: PublicPosi
           <span className="inline-flex items-center gap-1"><MapPin className="h-4 w-4" /> {view.location}</span>
           <span>{view.employmentLabel}</span>
           {view.workTypeLabel ? <span>{view.workTypeLabel}</span> : null}
-          {view.deadlineText ? <span>마감 {view.deadlineText}</span> : null}
+          {view.deadlineText ? <span>{t("마감", "Deadline", "截止", "Hạn chót", "締切", "Tenggat")} {view.deadlineText}</span> : null}
         </div>
       </div>
     </TCard>
@@ -383,25 +389,26 @@ export function PositionDetailHeaderCard({ item, onShowCip }: { item: PublicPosi
 
 // 공고 상세 본문 — 핵심 정보 · 상세 안내 · 기업 정보. 지원자·파트너 공용.
 export function PositionDetailSections({ item }: { item: PublicPositionListItem }) {
+  const t = usePlatformT();
   return (
     <>
       <TCard className="mt-4 p-6">
-        <h2 className="text-[15px] font-bold text-[#191F28]">핵심 정보</h2>
+        <h2 className="text-[15px] font-bold text-[#191F28]">{t("핵심 정보", "Key info", "关键信息", "Thông tin chính", "主要情報", "Info utama")}</h2>
         <div className="mt-3 divide-y divide-[#F2F4F6]">
-          <InfoRow label="희망 직무" value={orDash(item.preferredJobRole)} />
-          <InfoRow label="희망 인원" value={item.hiringCount ? `${item.hiringCount}명` : DASH} />
-          <InfoRow label="근무 시간" value={orDash(item.workingHours)} />
-          <InfoRow label="근무 복장" value={orDash(item.dressCode)} />
-          <InfoRow label="등록일" value={item.createdAt ? item.createdAt.slice(0, 10) : DASH} />
+          <InfoRow label={t("희망 직무", "Role", "期望职位", "Vị trí mong muốn", "希望職種", "Peran")} value={orDash(item.preferredJobRole)} />
+          <InfoRow label={t("희망 인원", "Openings", "招聘人数", "Số lượng tuyển", "募集人数", "Jumlah lowongan")} value={item.hiringCount ? t(`${item.hiringCount}명`, `${item.hiringCount}`, `${item.hiringCount}人`, `${item.hiringCount} người`, `${item.hiringCount}名`, `${item.hiringCount} orang`) : DASH} />
+          <InfoRow label={t("근무 시간", "Working hours", "工作时间", "Giờ làm việc", "勤務時間", "Jam kerja")} value={orDash(item.workingHours)} />
+          <InfoRow label={t("근무 복장", "Dress code", "着装要求", "Trang phục", "服装", "Aturan busana")} value={orDash(item.dressCode)} />
+          <InfoRow label={t("등록일", "Posted", "发布日期", "Ngày đăng", "登録日", "Tanggal posting")} value={item.createdAt ? item.createdAt.slice(0, 10) : DASH} />
         </div>
       </TCard>
 
       <TCard className="mt-4 p-6">
-        <h2 className="text-[15px] font-bold text-[#191F28]">상세 안내</h2>
+        <h2 className="text-[15px] font-bold text-[#191F28]">{t("상세 안내", "Details", "详细说明", "Chi tiết", "詳細案内", "Detail")}</h2>
         <div className="mt-4 flex flex-col gap-5">
-          <DetailBlock title="주요 업무" text={orDash(item.mainResponsibilities)} />
-          <DetailBlock title="필수 자격 요건" text={orDash(item.requiredQualifications)} />
-          <DetailBlock title="채용 프로세스" text={orDash(item.hiringProcess)} />
+          <DetailBlock title={t("주요 업무", "Responsibilities", "主要职责", "Nhiệm vụ chính", "主な業務", "Tanggung jawab")} text={orDash(item.mainResponsibilities)} />
+          <DetailBlock title={t("필수 자격 요건", "Requirements", "任职要求", "Yêu cầu bắt buộc", "必須要件", "Persyaratan")} text={orDash(item.requiredQualifications)} />
+          <DetailBlock title={t("채용 프로세스", "Hiring process", "招聘流程", "Quy trình tuyển dụng", "採用プロセス", "Proses rekrutmen")} text={orDash(item.hiringProcess)} />
         </div>
       </TCard>
 
@@ -439,6 +446,7 @@ export function CompanyHeader({ item, large = false }: { item: PublicPositionLis
 }
 
 export function CompanySection({ item }: { item: PublicPositionListItem }) {
+  const t = usePlatformT();
   const org = item.partnerOrganization;
   if (!org) return null;
   const photos = parseOfficePhotos(org.officePhotoImageData);
@@ -448,20 +456,20 @@ export function CompanySection({ item }: { item: PublicPositionListItem }) {
       <TCard className="p-6">
         <div className="flex items-center gap-1.5">
           <Buildings className="h-4 w-4 text-[#4E5968]" />
-          <h2 className="text-[15px] font-bold text-[#191F28]">기업 정보</h2>
+          <h2 className="text-[15px] font-bold text-[#191F28]">{t("기업 정보", "Company info", "企业信息", "Thông tin công ty", "企業情報", "Info perusahaan")}</h2>
         </div>
 
         <div className="mt-4 divide-y divide-[#F2F4F6]">
-          <InfoRow label="기업 규모" value={org.companySize ? companySizeLabels[org.companySize] ?? org.companySize : DASH} />
-          <InfoRow label="산업" value={org.industry ? partnerIndustryLabel(org.industry) : DASH} />
-          <InfoRow label="사무실 주소" value={orDash(org.officeAddress)} />
-          <InfoRow label="웹사이트" value={orDash(org.website)} href={toHref(org.website)} />
-          <InfoRow label="소셜 미디어" value={orDash(org.socialMedia)} href={toHref(org.socialMedia)} />
+          <InfoRow label={t("기업 규모", "Company size", "企业规模", "Quy mô công ty", "企業規模", "Ukuran perusahaan")} value={org.companySize ? companySizeLabels[org.companySize] ?? org.companySize : DASH} />
+          <InfoRow label={t("산업", "Industry", "行业", "Ngành", "業界", "Industri")} value={org.industry ? partnerIndustryLabel(org.industry) : DASH} />
+          <InfoRow label={t("사무실 주소", "Office address", "办公地址", "Địa chỉ văn phòng", "オフィス住所", "Alamat kantor")} value={orDash(org.officeAddress)} />
+          <InfoRow label={t("웹사이트", "Website", "网站", "Website", "ウェブサイト", "Situs web")} value={orDash(org.website)} href={toHref(org.website)} />
+          <InfoRow label={t("소셜 미디어", "Social media", "社交媒体", "Mạng xã hội", "SNS", "Media sosial")} value={orDash(org.socialMedia)} href={toHref(org.socialMedia)} />
         </div>
 
         {org.website ? (
           <a href={org.website} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0B46E8] hover:underline">
-            <LinkSimple className="h-4 w-4" /> 회사 홈페이지
+            <LinkSimple className="h-4 w-4" /> {t("회사 홈페이지", "Company website", "公司主页", "Trang web công ty", "会社ホームページ", "Situs perusahaan")}
           </a>
         ) : null}
       </TCard>
@@ -469,18 +477,18 @@ export function CompanySection({ item }: { item: PublicPositionListItem }) {
       {/* 회사 사진 */}
       {photos.length ? (
         <TCard className="p-6">
-          <h2 className="text-[15px] font-bold text-[#191F28]">회사 사진</h2>
+          <h2 className="text-[15px] font-bold text-[#191F28]">{t("회사 사진", "Office photos", "公司照片", "Ảnh công ty", "会社の写真", "Foto kantor")}</h2>
           {photos.length === 1 ? (
             <div className="mt-4 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-[#F2F4F6]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photos[0]} alt="회사 사진" className="h-[200px] w-full object-cover" />
+              <img src={photos[0]} alt={t("회사 사진", "Office photo", "公司照片", "Ảnh công ty", "会社の写真", "Foto kantor")} className="h-[200px] w-full object-cover" />
             </div>
           ) : (
             <div className="mt-4 grid grid-cols-2 gap-2">
               {photos.map((src, i) => (
                 <div key={`${i}-${src.slice(0, 24)}`} className="aspect-[4/3] overflow-hidden rounded-xl border border-[#EEF1F5] bg-[#F2F4F6]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt={`회사 사진 ${i + 1}`} className="h-full w-full object-cover" />
+                  <img src={src} alt={t(`회사 사진 ${i + 1}`, `Office photo ${i + 1}`, `公司照片 ${i + 1}`, `Ảnh công ty ${i + 1}`, `会社の写真 ${i + 1}`, `Foto kantor ${i + 1}`)} className="h-full w-full object-cover" />
                 </div>
               ))}
             </div>
@@ -491,7 +499,7 @@ export function CompanySection({ item }: { item: PublicPositionListItem }) {
       {/* 기업 소개 */}
       {org.description?.trim() ? (
         <TCard className="p-6">
-          <h2 className="text-[15px] font-bold text-[#191F28]">기업 소개</h2>
+          <h2 className="text-[15px] font-bold text-[#191F28]">{t("기업 소개", "About the company", "企业简介", "Giới thiệu công ty", "企業紹介", "Tentang perusahaan")}</h2>
           <p className="mt-3 whitespace-pre-line break-keep text-[14px] leading-[1.75] text-[#4E5968]">{org.description}</p>
         </TCard>
       ) : null}
@@ -499,7 +507,7 @@ export function CompanySection({ item }: { item: PublicPositionListItem }) {
       {/* 회사 자랑거리 */}
       {org.strengths?.trim() ? (
         <TCard className="p-6">
-          <h2 className="text-[15px] font-bold text-[#191F28]">회사 자랑거리</h2>
+          <h2 className="text-[15px] font-bold text-[#191F28]">{t("회사 자랑거리", "Company highlights", "公司亮点", "Điểm nổi bật", "会社の自慢", "Keunggulan perusahaan")}</h2>
           <p className="mt-3 whitespace-pre-line break-keep text-[14px] leading-[1.75] text-[#4E5968]">{org.strengths}</p>
         </TCard>
       ) : null}

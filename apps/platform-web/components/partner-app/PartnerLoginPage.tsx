@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { usePlatformT } from "../../lib/i18n";
 import { AuthApiError, getPostLoginUrl, loginWithEmail } from "../../lib/auth-client";
 import { getAuthPageMessages } from "../../lib/auth-messages";
 import { TalentButton } from "../talent/TalentButton";
@@ -27,6 +28,7 @@ export function PartnerLoginPage() {
   const nextParam = sanitizeNextParam(searchParams.get("next"));
   const { setAuthenticatedUser } = useAuthSession();
   const { locale } = useLanguage();
+  const t = usePlatformT();
   const copy = useMemo(() => getAuthPageMessages(locale).login, [locale]);
 
   const [email, setEmail] = useState("");
@@ -73,15 +75,15 @@ export function PartnerLoginPage() {
 
   return (
     <TalentAuthLayout
-      badge="파트너"
+      badge={t("파트너", "Partner", "合作伙伴", "Đối tác", "パートナー", "Partner")}
       backHref="/partner"
-      title="채용을 시작해요"
-      subtitle="로그인하거나, 처음이라면 가입해서 시작하세요."
+      title={t("채용을 시작해요", "Start hiring", "开始招聘", "Bắt đầu tuyển dụng", "採用を始めましょう", "Mulai merekrut")}
+      subtitle={t("로그인하거나, 처음이라면 가입해서 시작하세요.", "Sign in, or sign up if it's your first time.", "登录，或首次使用请注册开始。", "Đăng nhập, hoặc đăng ký nếu lần đầu.", "ログイン、初めての方は登録して始めましょう。", "Masuk, atau daftar jika baru pertama kali.")}
       footer={
         <p className="text-[14px] text-[#8B95A1]">
           {copy.signupPrompt}{" "}
           <Link href={signupHref} className="font-bold text-[#0B46E8]">
-            기업 계정 만들기
+            {t("기업 계정 만들기", "Create a company account", "创建企业账户", "Tạo tài khoản công ty", "企業アカウントを作成", "Buat akun perusahaan")}
           </Link>
         </p>
       }

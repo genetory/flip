@@ -12,6 +12,7 @@ import { getAuthPageMessages } from "../../../lib/auth-messages";
 import { TalentButton } from "../TalentButton";
 import { TalentAuthLayout, TalentField, talentInputClass } from "./TalentAuthLayout";
 import { TalentSocialButtons, TalentOrDivider } from "./TalentSocialButtons";
+import { usePlatformT } from "../../../lib/i18n";
 
 // `?next=` 만 신뢰(open-redirect 방지). same-origin 내부 경로만 허용.
 function sanitizeNextParam(raw: string | null): string | null {
@@ -28,6 +29,7 @@ export function TalentLoginPage() {
   // 기본 복귀 경로는 Talent 홈.
   const { setAuthenticatedUser } = useAuthSession();
   const { locale } = useLanguage();
+  const t = usePlatformT();
   const copy = useMemo(() => getAuthPageMessages(locale).login, [locale]);
 
   const [email, setEmail] = useState("");
@@ -75,8 +77,8 @@ export function TalentLoginPage() {
 
   return (
     <TalentAuthLayout
-      title="취업 준비를 시작해요"
-      subtitle="로그인하거나, 처음이라면 가입해서 시작하세요."
+      title={t("취업 준비를 시작해요", "Start preparing for your career", "开始你的求职准备", "Bắt đầu chuẩn bị xin việc", "就活準備を始めましょう", "Mulai persiapan karier Anda")}
+      subtitle={t("로그인하거나, 처음이라면 가입해서 시작하세요.", "Log in, or sign up if you're new.", "登录，或首次使用请注册开始。", "Đăng nhập, hoặc đăng ký nếu bạn mới.", "ログイン、または初めての方は登録して始めましょう。", "Masuk, atau daftar jika Anda baru.")}
       footer={
         <p className="text-[14px] text-[#8B95A1]">
           {copy.signupPrompt}{" "}

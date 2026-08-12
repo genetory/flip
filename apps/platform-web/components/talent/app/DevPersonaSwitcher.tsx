@@ -7,8 +7,10 @@ import { Flask, CaretUp } from "@phosphor-icons/react";
 import { personaOptions } from "../../../lib/talent/mock/personas";
 import { readPersona, writePersona, showPersonaSwitcher } from "../../../lib/talent/persona-state";
 import type { TalentPersonaId } from "../../../lib/talent/types";
+import { usePlatformT } from "../../../lib/i18n";
 
 export function DevPersonaSwitcher() {
+  const t = usePlatformT();
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState<TalentPersonaId>("experiences");
@@ -30,7 +32,7 @@ export function DevPersonaSwitcher() {
     <div className="fixed bottom-20 right-4 z-50 md:bottom-6">
       {open ? (
         <div className="mb-2 w-52 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white p-1.5 shadow-[0_12px_32px_rgba(11,18,39,0.16)]">
-          <p className="px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-[#B0B8C1]">DEV · 상태 전환</p>
+          <p className="px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-[#B0B8C1]">{t("DEV · 상태 전환", "DEV · Switch state", "DEV · 切换状态", "DEV · Đổi trạng thái", "DEV · 状態切替", "DEV · Ganti status")}</p>
           {personaOptions.map((p) => (
             <button
               key={p.id}
@@ -48,12 +50,12 @@ export function DevPersonaSwitcher() {
       ) : null}
       <button
         type="button"
-        aria-label="개발용 상태 전환"
+        aria-label={t("개발용 상태 전환", "Dev state switch", "开发状态切换", "Đổi trạng thái dev", "開発用状態切替", "Ganti status dev")}
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1.5 rounded-full border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[12px] font-bold text-[#4E5968] shadow-[0_6px_20px_rgba(11,18,39,0.1)]"
       >
         <Flask className="h-4 w-4 text-[#0B46E8]" />
-        {personaOptions.find((p) => p.id === current)?.label ?? "상태"}
+        {personaOptions.find((p) => p.id === current)?.label ?? t("상태", "State", "状态", "Trạng thái", "状態", "Status")}
         <CaretUp className={`h-3 w-3 transition ${open ? "" : "rotate-180"}`} />
       </button>
     </div>

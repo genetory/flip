@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeSlash } from "@phosphor-icons/react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { usePlatformT } from "../../lib/i18n";
 import { AuthApiError, signupWithEmail } from "../../lib/auth-client";
 import { getAuthPageMessages } from "../../lib/auth-messages";
 import { TalentButton } from "../talent/TalentButton";
@@ -47,6 +48,7 @@ export function PartnerSignupPage() {
   const nextParam = sanitizeNextParam(searchParams.get("next"));
   const { locale } = useLanguage();
   const { setAuthenticatedUser } = useAuthSession();
+  const t = usePlatformT();
   const copy = getAuthPageMessages(locale).signup;
 
   const [name, setName] = useState("");
@@ -114,20 +116,20 @@ export function PartnerSignupPage() {
 
   return (
     <TalentAuthLayout
-      title="APLY에서 채용을 시작하세요"
-      subtitle="이메일로 간단히 가입하고, 공고 등록·지원자 관리를 시작해보세요. 회사 정보는 가입 후 등록해요."
+      title={t("APLY에서 채용을 시작하세요", "Start hiring on APLY", "在 APLY 上开始招聘", "Bắt đầu tuyển dụng trên APLY", "APLYで採用を始めましょう", "Mulai merekrut di APLY")}
+      subtitle={t("이메일로 간단히 가입하고, 공고 등록·지원자 관리를 시작해보세요. 회사 정보는 가입 후 등록해요.", "Sign up quickly with your email and start posting jobs and managing applicants. Add company details after signing up.", "用邮箱快速注册，即可发布职位、管理应聘者。公司信息注册后再填写。", "Đăng ký nhanh bằng email và bắt đầu đăng tin, quản lý ứng viên. Thông tin công ty điền sau khi đăng ký.", "メールで簡単に登録し、求人掲載や応募者管理を始めましょう。会社情報は登録後に入力します。", "Daftar cepat dengan email dan mulai pasang lowongan serta kelola pelamar. Data perusahaan diisi setelah daftar.")}
       footer={
         <div className="space-y-3">
           <p className="text-[14px] text-[#8B95A1]">
-            이미 계정이 있으신가요?{" "}
+            {t("이미 계정이 있으신가요?", "Already have an account?", "已有账户？", "Đã có tài khoản?", "すでにアカウントをお持ちですか？", "Sudah punya akun?")}{" "}
             <Link href={loginHref} className="font-bold text-[#0B46E8]">
-              로그인
+              {t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}
             </Link>
           </p>
           <p className="text-[13px] text-[#B0B8C1]">
-            구직자이신가요?{" "}
+            {t("구직자이신가요?", "Are you a job seeker?", "您是求职者？", "Bạn là người tìm việc?", "求職者の方ですか？", "Pencari kerja?")}{" "}
             <Link href="/talent/signup" className="font-semibold text-[#8B95A1] underline underline-offset-2 hover:text-[#4E5968]">
-              구직자로 가입하기
+              {t("구직자로 가입하기", "Sign up as a job seeker", "以求职者身份注册", "Đăng ký với tư cách người tìm việc", "求職者として登録", "Daftar sebagai pencari kerja")}
             </Link>
           </p>
         </div>

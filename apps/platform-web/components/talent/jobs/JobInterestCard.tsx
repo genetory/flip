@@ -8,9 +8,11 @@ import Link from "next/link";
 import { CaretRight, Plus, X } from "@phosphor-icons/react";
 import { useJobInterests, saveJobInterests } from "../../../lib/talent/job-interest";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
+import { usePlatformT } from "../../../lib/i18n";
 import { JobInterestModal } from "./JobInterestModal";
 
 export function JobInterestCard({ variant = "link" }: { variant?: "link" | "edit" }) {
+  const t = usePlatformT();
   const interests = useJobInterests();
   const [open, setOpen] = useState(false);
   const has = interests.length > 0;
@@ -28,7 +30,7 @@ export function JobInterestCard({ variant = "link" }: { variant?: "link" | "edit
                 <button
                   type="button"
                   onClick={() => remove(r)}
-                  aria-label={`${r} 삭제`}
+                  aria-label={t(`${r} 삭제`, `Remove ${r}`, `删除 ${r}`, `Xóa ${r}`, `${r} を削除`, `Hapus ${r}`)}
                   className="flex h-4 w-4 items-center justify-center rounded-full text-[#8AA6EF] transition hover:bg-white/70 hover:text-[#0B46E8]"
                 >
                   <X className="h-3 w-3" weight="bold" />
@@ -40,7 +42,7 @@ export function JobInterestCard({ variant = "link" }: { variant?: "link" | "edit
               onClick={() => setOpen(true)}
               className="inline-flex items-center gap-1 rounded-full border border-dashed border-[#C7D6F7] px-3.5 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#F0F5FF]"
             >
-              <Plus className="h-3.5 w-3.5" weight="bold" /> 추가
+              <Plus className="h-3.5 w-3.5" weight="bold" /> {t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}
             </button>
           </div>
 
@@ -50,7 +52,7 @@ export function JobInterestCard({ variant = "link" }: { variant?: "link" | "edit
               href={talentAppRoutes.jobs}
               className="mt-4 flex items-center justify-between gap-2 rounded-xl bg-[#F6F8FB] px-4 py-3 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#EEF1F5] hover:text-[#0B46E8]"
             >
-              관심 직무 맞춤 공고 보기
+              {t("관심 직무 맞춤 공고 보기", "See jobs matched to your interests", "查看兴趣匹配职位", "Xem việc khớp sở thích", "関心職種に合う求人を見る", "Lihat lowongan sesuai minat")}
               <CaretRight className="h-4 w-4 shrink-0" weight="bold" />
             </Link>
           ) : null}
@@ -73,7 +75,7 @@ export function JobInterestCard({ variant = "link" }: { variant?: "link" | "edit
         <div className="min-w-0 flex-1">
           {has ? (
             <>
-              <p className="text-[15px] font-bold text-[#191F28]">나의 관심 직무</p>
+              <p className="text-[15px] font-bold text-[#191F28]">{t("나의 관심 직무", "My job interests", "我的兴趣职位", "Nghề tôi quan tâm", "私の関心職種", "Minat pekerjaan saya")}</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {interests.map((r) => (
                   <span key={r} className="rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[12px] font-bold text-[#0B46E8]">{r}</span>
@@ -82,8 +84,8 @@ export function JobInterestCard({ variant = "link" }: { variant?: "link" | "edit
             </>
           ) : (
             <>
-              <p className="text-[14px] font-bold text-[#191F28]">관심 직무를 골라주세요</p>
-              <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">고르면 나에게 맞는 공고를 추천해드려요.</p>
+              <p className="text-[14px] font-bold text-[#191F28]">{t("관심 직무를 골라주세요", "Pick your job interests", "请选择兴趣职位", "Chọn nghề bạn quan tâm", "関心職種を選んでください", "Pilih minat pekerjaan Anda")}</p>
+              <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("고르면 나에게 맞는 공고를 추천해드려요.", "Pick some and we'll recommend matching jobs.", "选择后我们会推荐匹配的职位。", "Chọn xong chúng tôi sẽ gợi ý việc phù hợp.", "選ぶと自分に合う求人をおすすめします。", "Pilih dan kami rekomendasikan lowongan yang cocok.")}</p>
             </>
           )}
         </div>

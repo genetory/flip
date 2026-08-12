@@ -17,6 +17,7 @@ import { useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
 import { getMyFavoritePositions, getPublicPositionsPage, removeMyFavoritePosition, type PublicPositionListItem } from "../../../lib/member-profile-client";
 import { toPositionView } from "../../../lib/talent/positions-adapter";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
+import { usePlatformT } from "../../../lib/i18n";
 
 export type ActivityType = "following-users" | "following-companies" | "favorite-positions" | "favorite-feed";
 
@@ -119,6 +120,7 @@ const COMPANY_SIZE_LABELS: Record<string, string> = {
 };
 
 function CompanyCard({ name }: { name: string }) {
+  const t = usePlatformT();
   const [info, setInfo] = useState<{ count: number; industry?: string; size?: string; location?: string; logo?: string } | null>(null);
 
   useEffect(() => {
@@ -144,7 +146,7 @@ function CompanyCard({ name }: { name: string }) {
     };
   }, [name]);
 
-  const line1 = [info?.industry, info?.size, info?.location].filter(Boolean).join(" · ") || "기업";
+  const line1 = [info?.industry, info?.size, info?.location].filter(Boolean).join(" · ") || t("기업", "Company", "企业", "Công ty", "企業", "Perusahaan");
   const interested = 1; // 관심 목록에 있으므로 내가 팔로우 중. 서버 연동 시 전역 집계.
 
   return (
@@ -162,12 +164,12 @@ function CompanyCard({ name }: { name: string }) {
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-bold text-[#191F28]">{name}</p>
             <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{line1}</p>
-            <p className="truncate text-[12.5px] text-[#8B95A1]">포지션 <span className="font-bold text-[#191F28]">{info?.count ?? 0}</span>개</p>
-            <p className="truncate text-[12.5px] text-[#8B95A1]">관심 <span className="font-bold text-[#191F28]">{interested}</span>명</p>
+            <p className="truncate text-[12.5px] text-[#8B95A1]">{t("포지션", "Positions", "职位", "Vị trí", "ポジション", "Posisi")} <span className="font-bold text-[#191F28]">{info?.count ?? 0}</span></p>
+            <p className="truncate text-[12.5px] text-[#8B95A1]">{t("관심", "Interested", "关注", "Quan tâm", "関心", "Diminati")} <span className="font-bold text-[#191F28]">{interested}</span></p>
           </div>
         </Link>
         <button type="button" onClick={() => unfollowCompanyName(name)} className="shrink-0 rounded-xl bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
-          관심 회사
+          {t("관심 회사", "Following", "已关注", "Đang theo dõi", "フォロー中", "Diikuti")}
         </button>
       </div>
     </div>
@@ -175,6 +177,7 @@ function CompanyCard({ name }: { name: string }) {
 }
 
 function AuthorRow({ author }: { author: FeedAuthor }) {
+  const t = usePlatformT();
   return (
     <div className="flex items-center gap-3 px-5 py-3.5">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[13px] font-black text-[#0B46E8]">{author.name.slice(0, 1)}</span>
@@ -183,7 +186,7 @@ function AuthorRow({ author }: { author: FeedAuthor }) {
         <p className="text-[12px] text-[#8B95A1]">{roleLabel(author.role)}</p>
       </div>
       <button type="button" onClick={() => unfollowAuthor(author)} className="shrink-0 rounded-lg bg-[#F2F4F6] px-3 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
-        팔로잉
+        {t("팔로잉", "Following", "已关注", "Đang theo dõi", "フォロー中", "Diikuti")}
       </button>
     </div>
   );

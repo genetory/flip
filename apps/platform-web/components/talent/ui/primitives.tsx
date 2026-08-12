@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { CircleNotch, WarningCircle, Check } from "@phosphor-icons/react";
 import type { StepState } from "../../../lib/talent/types";
+import { usePlatformT } from "../../../lib/i18n";
 
 /* 카드 */
 export function TCard({
@@ -63,20 +64,21 @@ export function TChip({ children, tone = "gray" }: { children: ReactNode; tone?:
 
 /* 단계 상태 점 */
 export function TStepDot({ state }: { state: StepState }) {
+  const t = usePlatformT();
   if (state === "done") {
     return (
-      <span className="flex h-6 w-6 items-center justify-center rounded-2xl bg-[#B7FF5A]" aria-label="완료">
+      <span className="flex h-6 w-6 items-center justify-center rounded-2xl bg-[#B7FF5A]" aria-label={t("완료", "Done", "完成", "Hoàn tất", "完了", "Selesai")}>
         <Check className="h-3.5 w-3.5 text-[#1F3D00]" weight="bold" />
       </span>
     );
   }
   if (state === "doing") {
-    return <span className="flex h-6 w-6 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[11px] font-black text-[#0B46E8]" aria-label="진행 중">●</span>;
+    return <span className="flex h-6 w-6 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[11px] font-black text-[#0B46E8]" aria-label={t("진행 중", "In progress", "进行中", "Đang làm", "進行中", "Berlangsung")}>●</span>;
   }
   if (state === "locked") {
-    return <span className="h-6 w-6 rounded-full bg-[#F2F4F6]" aria-label="잠김" />;
+    return <span className="h-6 w-6 rounded-full bg-[#F2F4F6]" aria-label={t("잠김", "Locked", "已锁定", "Đã khóa", "ロック", "Terkunci")} />;
   }
-  return <span className="h-6 w-6 rounded-full border-2 border-[#E5E8EB] bg-white" aria-label="예정" />;
+  return <span className="h-6 w-6 rounded-full border-2 border-[#E5E8EB] bg-white" aria-label={t("예정", "Upcoming", "待完成", "Sắp tới", "予定", "Akan datang")} />;
 }
 
 /* 단계 목록(세로) */
@@ -97,11 +99,12 @@ export function TStepList({ steps }: { steps: { label: string; state: StepState;
 }
 
 /* 로딩 */
-export function TLoading({ label = "불러오는 중…" }: { label?: string }) {
+export function TLoading({ label }: { label?: string }) {
+  const t = usePlatformT();
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-20 text-[#8B95A1]">
       <CircleNotch className="h-6 w-6 animate-spin" />
-      <p className="text-[13px]">{label}</p>
+      <p className="text-[13px]">{label ?? t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
     </div>
   );
 }
@@ -126,13 +129,14 @@ export function TListSkeleton({ rows = 4 }: { rows?: number }) {
 
 /* 오류 */
 export function TError({ onRetry }: { onRetry?: () => void }) {
+  const t = usePlatformT();
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
       <WarningCircle className="h-7 w-7 text-[#F04452]" />
-      <p className="text-[14px] text-[#4E5968]">정보를 불러오지 못했어요.</p>
+      <p className="text-[14px] text-[#4E5968]">{t("정보를 불러오지 못했어요.", "Couldn't load the information.", "无法加载信息。", "Không thể tải thông tin.", "情報を読み込めませんでした。", "Tidak dapat memuat informasi.")}</p>
       {onRetry ? (
         <button type="button" onClick={onRetry} className="rounded-lg bg-[#F2F4F6] px-4 py-2 text-[13px] font-semibold text-[#4E5968] hover:bg-[#E5E8EB]">
-          다시 시도
+          {t("다시 시도", "Retry", "重试", "Thử lại", "再試行", "Coba lagi")}
         </button>
       ) : null}
     </div>

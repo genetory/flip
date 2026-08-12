@@ -16,6 +16,7 @@ import { JobInterestCard } from "../jobs/JobInterestCard";
 import { FeedCard } from "../career/FeedCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
 import { useLanguage } from "../../i18n/LanguageProvider";
+import { usePlatformT } from "../../../lib/i18n";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc";
@@ -66,6 +67,7 @@ function HomeContent() {
 
 /* 첫 실행 웰컴 — 아직 아무것도 시작 안 한 신규 유저에게 온보딩을 안내(계정에 저장) */
 function WelcomeOnboardingCard() {
+  const t = usePlatformT();
   const seen = useOnboardingSeen();
   const { loaded, pct } = useApplyReadiness();
   const [hidden, setHidden] = useState(false);
@@ -75,7 +77,7 @@ function WelcomeOnboardingCard() {
     <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0B46E8] to-[#3A6BF0] p-5 text-white">
       <button
         type="button"
-        aria-label="닫기"
+        aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
         onClick={() => {
           markOnboardingSeen();
           setHidden(true);
@@ -85,13 +87,13 @@ function WelcomeOnboardingCard() {
         <X className="h-4 w-4" />
       </button>
       <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-white/80">WELCOME</p>
-      <h2 className="mt-1.5 break-keep text-[19px] font-black leading-[1.3] tracking-[-0.02em]">3분이면 취업 준비를 시작할 수 있어요</h2>
-      <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-white/85">몇 가지만 알려주시면 나에게 딱 맞는 첫 단계로 안내해드릴게요.</p>
+      <h2 className="mt-1.5 break-keep text-[19px] font-black leading-[1.3] tracking-[-0.02em]">{t("3분이면 취업 준비를 시작할 수 있어요", "Start your job prep in just 3 minutes", "3分钟即可开始求职准备", "Bắt đầu chuẩn bị xin việc chỉ trong 3 phút", "3分で就活準備を始められます", "Mulai persiapan kerja hanya dalam 3 menit")}</h2>
+      <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-white/85">{t("몇 가지만 알려주시면 나에게 딱 맞는 첫 단계로 안내해드릴게요.", "Tell us a few things and we'll guide you to the perfect first step.", "只需告诉我们几件事，我们就会为您指引最合适的第一步。", "Chỉ cần cho chúng tôi biết vài điều, chúng tôi sẽ hướng dẫn bạn bước đầu tiên phù hợp nhất.", "いくつか教えていただければ、あなたにぴったりの第一歩をご案内します。", "Beri tahu kami beberapa hal dan kami akan memandu Anda ke langkah pertama yang tepat.")}</p>
       <Link
         href={talentAppRoutes.onboarding}
         className="mt-4 inline-flex items-center gap-1 rounded-xl bg-white px-4 py-2.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F5F8FF]"
       >
-        시작하기 <ArrowRight className="h-4 w-4" weight="bold" />
+        {t("시작하기", "Get started", "开始", "Bắt đầu", "始める", "Mulai")} <ArrowRight className="h-4 w-4" weight="bold" />
       </Link>
     </section>
   );
@@ -100,6 +102,7 @@ function WelcomeOnboardingCard() {
 /* 마감 임박 — 저장(즐겨찾기)한 공고 중 7일 내 마감되는 공고 리마인드 */
 type DeadlineItem = { id: string; title: string; company: string; thumb: string | null; days: number };
 function DeadlineReminder() {
+  const t = usePlatformT();
   const [items, setItems] = useState<DeadlineItem[]>([]);
   useEffect(() => {
     void getMyFavoritePositions()
@@ -116,7 +119,7 @@ function DeadlineReminder() {
             return {
               id: p.id,
               title: p.title,
-              company: p.partnerOrganization?.name || p.sourceCompanyName || "비공개 기업",
+              company: p.partnerOrganization?.name || p.sourceCompanyName || t("비공개 기업", "Undisclosed company", "未公开企业", "Công ty ẩn danh", "非公開企業", "Perusahaan dirahasiakan"),
               thumb: p.thumbnailImages?.[0] ?? null,
               days
             };
@@ -133,8 +136,8 @@ function DeadlineReminder() {
   return (
     <section className="flex flex-col gap-4">
       <div>
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">마감이 다가와요</h2>
-        <p className="mt-1 text-[13px] text-[#8B95A1]">저장한 공고 중 곧 마감되는 공고예요. 놓치지 마세요.</p>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("마감이 다가와요", "Deadlines are near", "截止日期临近", "Hạn chót đang đến gần", "締め切りが近づいています", "Tenggat sudah dekat")}</h2>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">{t("저장한 공고 중 곧 마감되는 공고예요. 놓치지 마세요.", "These saved jobs are closing soon. Don't miss out.", "这些收藏的职位即将截止，别错过。", "Những tin đã lưu này sắp hết hạn. Đừng bỏ lỡ.", "保存した求人がまもなく締め切りです。お見逃しなく。", "Lowongan tersimpan ini segera ditutup. Jangan lewatkan.")}</p>
       </div>
       <div className="flex flex-col gap-2.5">
         {items.map((it) => {
@@ -160,7 +163,7 @@ function DeadlineReminder() {
               <span
                 className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold ${urgent ? "bg-[#FDECEE] text-[#F04452]" : "bg-[#FFF3E6] text-[#E8890C]"}`}
               >
-                {it.days === 0 ? "오늘 마감" : `D-${it.days}`}
+                {it.days === 0 ? t("오늘 마감", "Due today", "今天截止", "Hết hạn hôm nay", "本日締切", "Tutup hari ini") : `D-${it.days}`}
               </span>
             </Link>
           );
@@ -181,6 +184,7 @@ type HomeCompany = { id: string; name: string; industry?: string; size?: string;
 
 /* 이런 회사는 어때요 — 채용 중인 회사 중 랜덤 3개 */
 function HomeCompanies() {
+  const t = usePlatformT();
   const [companies, setCompanies] = useState<HomeCompany[]>([]);
   const [summaries, setSummaries] = useState<Record<string, string>>({});
 
@@ -231,8 +235,8 @@ function HomeCompanies() {
   return (
     <section className="flex flex-col gap-4">
       <div>
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">이런 회사는 어때요?</h2>
-        <p className="mt-1 text-[13px] text-[#8B95A1]">지금 채용 중인 회사를 만나보세요.</p>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("이런 회사는 어때요?", "How about these companies?", "看看这些公司如何？", "Còn những công ty này thì sao?", "こんな会社はいかがですか？", "Bagaimana dengan perusahaan ini?")}</h2>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">{t("지금 채용 중인 회사를 만나보세요.", "Meet companies hiring right now.", "认识正在招聘的公司。", "Gặp gỡ các công ty đang tuyển dụng.", "今採用中の会社に出会いましょう。", "Temui perusahaan yang sedang merekrut.")}</p>
       </div>
       <div className="flex flex-col gap-2.5">
         {companies.map((c) => (
@@ -252,9 +256,9 @@ function HomeCompanies() {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <p className="truncate text-[14.5px] font-bold text-[#191F28]">{c.name}</p>
-                <span className="shrink-0 text-[11.5px] font-bold text-[#0B46E8]">포지션 {c.count}</span>
+                <span className="shrink-0 text-[11.5px] font-bold text-[#0B46E8]">{t("포지션", "Positions", "职位", "Vị trí", "ポジション", "Posisi")} {c.count}</span>
               </div>
-              <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{[c.industry, c.size, c.location].filter(Boolean).join(" · ") || "기업"}</p>
+              <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{[c.industry, c.size, c.location].filter(Boolean).join(" · ") || t("기업", "Company", "企业", "Công ty", "企業", "Perusahaan")}</p>
               {summaries[c.id] ? (
                 <p className="mt-1.5 line-clamp-2 break-keep text-[12.5px] leading-relaxed text-[#5A6473]">{summaries[c.id]}</p>
               ) : null}
@@ -268,6 +272,7 @@ function HomeCompanies() {
 
 /* 최상단 피처드 배너 — 광고·이벤트 (무한 루프 캐러셀 + 페이지 도트 + 자동 넘김) */
 function FeaturedBanners() {
+  const t = usePlatformT();
   const ref = useRef<HTMLDivElement>(null);
   const settleRef = useRef<number | null>(null);
   const [active, setActive] = useState(0);
@@ -343,7 +348,7 @@ function FeaturedBanners() {
             <button
               key={b.id}
               type="button"
-              aria-label={`${i + 1}번째 배너로`}
+              aria-label={t(`${i + 1}번째 배너로`, `Go to banner ${i + 1}`, `跳转到第 ${i + 1} 个横幅`, `Đến banner ${i + 1}`, `${i + 1}番目のバナーへ`, `Ke banner ke-${i + 1}`)}
               onClick={() => goTo(i)}
               className={`h-1.5 rounded-full transition-all ${active === i ? "w-5 bg-[#0B46E8]" : "w-1.5 bg-[#D7DCE3]"}`}
             />
@@ -356,41 +361,42 @@ function FeaturedBanners() {
 
 /* 인사 */
 function GreetingHeader() {
+  const t = usePlatformT();
   const { user } = useAuthSession();
   const greeting = useTimeGreeting();
-  const name = user?.realName || user?.name || "나";
+  const name = user?.realName || user?.name || t("나", "me", "我", "tôi", "私", "saya");
   const resume = useResumeDoc();
   const cover = useCoverDoc();
   const { streak } = useDailyStep();
   // 실제 이력서·자소서 상태로 현재 단계를 도출.
   const stageLabel = !resume
-    ? "커리어 시작 단계"
+    ? t("커리어 시작 단계", "Getting started", "起步阶段", "Bắt đầu sự nghiệp", "キャリア開始", "Tahap awal")
     : resumeCompleteness(resume) < 100
-      ? "이력서 작성 단계"
+      ? t("이력서 작성 단계", "Writing your resume", "撰写简历中", "Đang viết CV", "履歴書作成中", "Menulis resume")
       : !cover || coverCompleteness(cover) < 100
-        ? "자기소개서 작성 단계"
-        : "지원 준비 완료";
+        ? t("자기소개서 작성 단계", "Writing your cover letter", "撰写自我介绍中", "Đang viết thư xin việc", "自己PR作成中", "Menulis surat lamaran")
+        : t("지원 준비 완료", "Ready to apply", "准备就绪", "Sẵn sàng ứng tuyển", "応募準備完了", "Siap melamar");
   const rp = resume ? resumeCompleteness(resume) : 0;
   const cp = cover ? coverCompleteness(cover) : 0;
   const cta = !resume
-    ? { label: "이력서 만들기", href: talentAppRoutes.resume }
+    ? { label: t("이력서 만들기", "Create resume", "创建简历", "Tạo CV", "履歴書を作成", "Buat resume"), href: talentAppRoutes.resume }
     : rp < 100
-      ? { label: "이력서 이어쓰기", href: talentAppRoutes.resume }
+      ? { label: t("이력서 이어쓰기", "Continue resume", "继续写简历", "Viết tiếp CV", "履歴書を続ける", "Lanjutkan resume"), href: talentAppRoutes.resume }
       : !cover || cp < 100
-        ? { label: "자기소개서 쓰기", href: talentAppRoutes.cover }
-        : { label: "공고 둘러보기", href: talentAppRoutes.jobs };
+        ? { label: t("자기소개서 쓰기", "Write cover letter", "写自我介绍", "Viết thư xin việc", "自己PRを書く", "Tulis surat lamaran"), href: talentAppRoutes.cover }
+        : { label: t("공고 둘러보기", "Browse jobs", "浏览职位", "Xem tin tuyển dụng", "求人を見る", "Jelajahi lowongan"), href: talentAppRoutes.jobs };
   return (
     <div className="flex items-center gap-4">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#0B46E8]">{stageLabel}</p>
           {streak > 0 ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11.5px] font-bold text-[#4E5968] shadow-[0_1px_4px_rgba(11,18,39,0.05)]">🔥 {streak}일 연속</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11.5px] font-bold text-[#4E5968] shadow-[0_1px_4px_rgba(11,18,39,0.05)]">🔥 {t(`${streak}일 연속`, `${streak}-day streak`, `连续 ${streak} 天`, `${streak} ngày liên tục`, `${streak}日連続`, `${streak} hari beruntun`)}</span>
           ) : null}
         </div>
         <p className="mt-2 text-[13px] font-bold text-[#4E5968]">{greeting} 👋</p>
-        <h1 className="mt-1 break-keep text-[22px] font-black leading-[1.2] tracking-[-0.02em] text-[#0B1227] md:text-[26px]">{name}님, 오늘도 한 걸음 나아가요</h1>
-        <p className="mt-1.5 break-keep text-[13.5px] text-[#8B95A1]">오늘도 한 걸음씩, 취업에 가까워지고 있어요.</p>
+        <h1 className="mt-1 break-keep text-[22px] font-black leading-[1.2] tracking-[-0.02em] text-[#0B1227] md:text-[26px]">{t(`${name}님, 오늘도 한 걸음 나아가요`, `${name}, take another step forward today`, `${name}，今天也向前迈进一步`, `${name}, hôm nay hãy tiến thêm một bước`, `${name}さん、今日も一歩前進しましょう`, `${name}, ambil satu langkah maju lagi hari ini`)}</h1>
+        <p className="mt-1.5 break-keep text-[13.5px] text-[#8B95A1]">{t("오늘도 한 걸음씩, 취업에 가까워지고 있어요.", "Step by step, you're getting closer to your job.", "一步一步，你正离理想工作越来越近。", "Từng bước một, bạn đang tiến gần hơn đến công việc.", "一歩ずつ、就職に近づいています。", "Selangkah demi selangkah, Anda makin dekat dengan pekerjaan.")}</p>
         <Link href={cta.href} className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">
           {cta.label} <ArrowRight className="h-4 w-4" weight="bold" />
         </Link>
@@ -404,6 +410,7 @@ function GreetingHeader() {
 
 /* 오늘의 팁 — 랜덤, 우측 새로고침으로 다른 팁 */
 function TodayTip() {
+  const t = usePlatformT();
   const [tip, setTip] = useState(() => pickRandomTip());
   function refresh() {
     setTip((prev) => {
@@ -415,8 +422,8 @@ function TodayTip() {
   return (
     <section className="flex flex-col gap-3">
       <div>
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">오늘은 이런 팁 어때요?</h2>
-        <p className="mt-1 text-[13px] text-[#8B95A1]">매일 하나씩, 취업에 도움되는 이야기를 골라봤어요.</p>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("오늘은 이런 팁 어때요?", "How about today's tip?", "今天来看看这个建议？", "Mẹo hôm nay thì sao?", "今日はこんなヒントはいかが？", "Bagaimana dengan tips hari ini?")}</h2>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">{t("매일 하나씩, 취업에 도움되는 이야기를 골라봤어요.", "One a day — handy tips for your job search.", "每天一条，为你精选求职小贴士。", "Mỗi ngày một mẹo hữu ích cho việc tìm việc.", "毎日ひとつ、就活に役立つ話を選びました。", "Satu per hari, tips berguna untuk pencarian kerja Anda.")}</p>
       </div>
       <div className="flex items-center gap-3 rounded-2xl bg-[#F5F6F8] px-4 py-4">
         <span className="text-[19px] leading-none" aria-hidden>💡</span>
@@ -424,7 +431,7 @@ function TodayTip() {
         <button
           type="button"
           onClick={refresh}
-          aria-label="다른 팁 보기"
+          aria-label={t("다른 팁 보기", "See another tip", "看其他建议", "Xem mẹo khác", "別のヒントを見る", "Lihat tips lain")}
           className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[#8B95A1] transition hover:bg-white hover:text-[#4E5968]"
         >
           <ArrowClockwise className="h-[19px] w-[19px]" />
@@ -436,14 +443,15 @@ function TodayTip() {
 
 /* 내 커리어 — 최근 커리어 기록 3개 */
 function HomeCareerHistory() {
+  const t = usePlatformT();
   useCareerHistorySync();
   const feed = useCareerFeed();
   const recent = feed.slice(0, 3);
   return (
     <section className="flex flex-col gap-4">
       <div>
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">내 커리어가 쌓이고 있어요</h2>
-        <p className="mt-1 text-[13px] text-[#8B95A1]">남긴 기록이 이력서·자기소개서로 정리돼요.</p>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("내 커리어가 쌓이고 있어요", "Your career is building up", "你的职业经历正在积累", "Sự nghiệp của bạn đang tích lũy", "あなたのキャリアが積み上がっています", "Karier Anda sedang terbangun")}</h2>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">{t("남긴 기록이 이력서·자기소개서로 정리돼요.", "Your notes become your resume and cover letter.", "你的记录会整理成简历和自我介绍。", "Ghi chú của bạn trở thành CV và thư xin việc.", "残した記録が履歴書・自己PRにまとまります。", "Catatan Anda menjadi resume dan surat lamaran.")}</p>
       </div>
 
       {/* 이력서 / 자기소개서 */}
@@ -459,14 +467,14 @@ function HomeCareerHistory() {
         <Link href={talentAppRoutes.career} className="flex items-center gap-3 rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] px-5 py-6 transition hover:border-[#0B46E8]/40">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[18px]" aria-hidden>📝</span>
           <div className="min-w-0">
-            <p className="text-[14px] font-bold text-[#191F28]">아직 커리어 기록이 없어요</p>
-            <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">이력서·자기소개서를 만들면 여기에 쌓여요.</p>
+            <p className="text-[14px] font-bold text-[#191F28]">{t("아직 커리어 기록이 없어요", "No career records yet", "还没有职业记录", "Chưa có ghi chép sự nghiệp", "まだキャリア記録がありません", "Belum ada catatan karier")}</p>
+            <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("이력서·자기소개서를 만들면 여기에 쌓여요.", "Create a resume or cover letter and it'll show up here.", "创建简历或自我介绍后会显示在这里。", "Tạo CV hoặc thư xin việc và nó sẽ hiện ở đây.", "履歴書・自己PRを作るとここに溜まります。", "Buat resume atau surat lamaran, akan muncul di sini.")}</p>
           </div>
         </Link>
       )}
 
       <Link href={talentAppRoutes.career} className="mt-1 flex items-center justify-center gap-1 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB]">
-        내 커리어 더 보기 <CaretRight className="h-4 w-4" weight="bold" />
+        {t("내 커리어 더 보기", "See more of my career", "查看更多我的职业记录", "Xem thêm sự nghiệp của tôi", "マイキャリアをもっと見る", "Lihat karier saya lainnya")} <CaretRight className="h-4 w-4" weight="bold" />
       </Link>
     </section>
   );
@@ -474,12 +482,13 @@ function HomeCareerHistory() {
 
 /* 취업 준비 가이드 — 카드 누르면 가이드 팝업 */
 function GuideSection() {
+  const t = usePlatformT();
   const [active, setActive] = useState<CareerGuide | null>(null);
   return (
     <section className="flex flex-col gap-4">
       <div>
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">취업 준비, 이렇게 시작해봐요</h2>
-        <p className="mt-1 text-[13px] text-[#8B95A1]">처음이라도 막막하지 않게 하나씩 알려드려요.</p>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("취업 준비, 이렇게 시작해봐요", "Start your job prep like this", "求职准备，这样开始吧", "Chuẩn bị xin việc, hãy bắt đầu thế này", "就活準備、こう始めましょう", "Mulai persiapan kerja seperti ini")}</h2>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">{t("처음이라도 막막하지 않게 하나씩 알려드려요.", "New to this? We'll walk you through it step by step.", "即使是新手也不迷茫，我们一步步教你。", "Người mới cũng không lo, chúng tôi hướng dẫn từng bước.", "初めてでも迷わないよう、ひとつずつご案内します。", "Baru pertama kali? Kami pandu langkah demi langkah.")}</p>
       </div>
       <div className="-mx-4 overflow-x-auto md:mx-0">
         <div className="flex gap-3 pb-1 pl-4 md:pl-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -493,7 +502,7 @@ function GuideSection() {
               <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F5F8FF] text-[22px]" aria-hidden>{g.emoji}</span>
               <p className="mt-4 min-h-[40px] whitespace-pre-line break-keep text-[14.5px] font-bold leading-snug text-[#191F28]">{g.title}</p>
               <p className="mt-1.5 line-clamp-2 min-h-[40px] break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{g.desc}</p>
-              <span className="mt-3 inline-flex items-center gap-0.5 text-[12.5px] font-bold text-[#0B46E8]">자세히 <CaretRight className="h-3.5 w-3.5" /></span>
+              <span className="mt-3 inline-flex items-center gap-0.5 text-[12.5px] font-bold text-[#0B46E8]">{t("자세히", "Details", "详情", "Chi tiết", "詳しく", "Detail")} <CaretRight className="h-3.5 w-3.5" /></span>
             </button>
           ))}
           {/* 우측 패딩용 트레일링 스페이서(gap 상쇄) */}
@@ -507,6 +516,7 @@ function GuideSection() {
 
 /* 가이드 팝업 */
 export function GuideModal({ guide, onClose }: { guide: CareerGuide; onClose: () => void }) {
+  const t = usePlatformT();
   useLockBodyScroll();
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -525,7 +535,7 @@ export function GuideModal({ guide, onClose }: { guide: CareerGuide; onClose: ()
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F5F8FF] text-[22px]" aria-hidden>{guide.emoji}</span>
             <h2 className="text-[19px] font-black tracking-[-0.02em] text-[#0B1227]">{guide.title.replace(/\n/g, " ")}</h2>
           </div>
-          <button type="button" aria-label="닫기" onClick={onClose} className="-mr-1.5 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
+          <button type="button" aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} onClick={onClose} className="-mr-1.5 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -550,7 +560,7 @@ export function GuideModal({ guide, onClose }: { guide: CareerGuide; onClose: ()
               onClick={onClose}
               className="flex h-[48px] w-full items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] text-[15px] font-bold text-white transition hover:bg-[#0A3ECB]"
             >
-              {guide.ctaLabel ?? "바로 시작하기"} <ArrowRight className="h-4 w-4" weight="bold" />
+              {guide.ctaLabel ?? t("바로 시작하기", "Start now", "立即开始", "Bắt đầu ngay", "今すぐ始める", "Mulai sekarang")} <ArrowRight className="h-4 w-4" weight="bold" />
             </Link>
           </div>
         ) : null}
@@ -561,6 +571,7 @@ export function GuideModal({ guide, onClose }: { guide: CareerGuide; onClose: ()
 
 /* 나에게 맞는 공고 — 채용공고와 동일한 카드(저장·CIP) 5개 + 더 보기 → 채용공고 */
 function RecommendedJobs() {
+  const t = usePlatformT();
   const { locale } = useLanguage();
   const toast = useTalentPopup();
   const interests = useJobInterests();
@@ -625,15 +636,15 @@ function RecommendedJobs() {
         else next.add(id);
         return next;
       });
-      toast.error("저장에 실패했어요");
+      toast.error(t("저장에 실패했어요", "Failed to save", "保存失败", "Lưu thất bại", "保存に失敗しました", "Gagal menyimpan"));
     });
   }
 
   return (
     <section className="flex flex-col gap-4 rounded-3xl bg-[#F5F8FF] p-6">
       <div>
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">나에게 딱 맞는 공고예요</h2>
-        <p className="mt-1 text-[13px] text-[#8B95A1]">{jobs.some((j) => j.matched) ? "관심 직무를 바탕으로 골라봤어요." : "지금 올라온 공고를 골라봤어요. 관심 직무를 설정하면 더 잘 맞춰드려요."}</p>
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("나에게 딱 맞는 공고예요", "Jobs that fit you", "最适合你的职位", "Việc làm phù hợp với bạn", "あなたにぴったりの求人", "Lowongan yang cocok untuk Anda")}</h2>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">{jobs.some((j) => j.matched) ? t("관심 직무를 바탕으로 골라봤어요.", "Picked based on your job interests.", "根据你的兴趣职位为你精选。", "Chọn dựa trên nghề bạn quan tâm.", "関心のある職種をもとに選びました。", "Dipilih berdasarkan minat pekerjaan Anda.") : t("지금 올라온 공고를 골라봤어요. 관심 직무를 설정하면 더 잘 맞춰드려요.", "Here are the latest jobs. Set your interests for better matches.", "为你精选了最新职位。设置兴趣职位可获得更精准推荐。", "Đây là các tin mới nhất. Đặt sở thích để khớp tốt hơn.", "最新の求人を選びました。関心職種を設定するとより合います。", "Ini lowongan terbaru. Atur minat untuk hasil lebih cocok.")}</p>
       </div>
 
       {/* 관심 직무 카드(공용) */}
@@ -645,19 +656,19 @@ function RecommendedJobs() {
             {jobs.map(({ view, matched }) => (
               <div key={view.id} className="flex flex-col gap-1.5">
                 {matched ? (
-                  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[#EDF1FD] px-2 py-1 text-[10.5px] font-bold text-[#0B46E8]">✨ 관심 직무 맞춤</span>
+                  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[#EDF1FD] px-2 py-1 text-[10.5px] font-bold text-[#0B46E8]">✨ {t("관심 직무 맞춤", "Interest match", "兴趣匹配", "Khớp sở thích", "関心マッチ", "Cocok minat")}</span>
                 ) : null}
                 <PositionCard view={view} saved={savedIds.has(view.id)} onToggleSave={toggleSave} onShowCip={() => setCipOpen(true)} />
               </div>
             ))}
           </div>
           <Link href={talentAppRoutes.jobs} className="mt-1 flex items-center justify-center gap-1 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB]">
-            포지션 탐색 더 보기 <CaretRight className="h-4 w-4" weight="bold" />
+            {t("포지션 탐색 더 보기", "Explore more jobs", "浏览更多职位", "Xem thêm việc làm", "求人をもっと見る", "Jelajahi lebih banyak")} <CaretRight className="h-4 w-4" weight="bold" />
           </Link>
         </>
       ) : (
         <div className="rounded-2xl border border-[#EEF1F5] bg-white px-5 py-6 text-center">
-          <p className="text-[13.5px] text-[#8B95A1]">표시할 공고가 없어요.</p>
+          <p className="text-[13.5px] text-[#8B95A1]">{t("표시할 공고가 없어요.", "No jobs to show.", "没有可显示的职位。", "Không có tin nào để hiển thị.", "表示する求人がありません。", "Tidak ada lowongan untuk ditampilkan.")}</p>
         </div>
       )}
 
