@@ -16634,7 +16634,7 @@ app.post(
 );
 
 // ── 주차 자동 피드백(1~3주차) — 그 주차 결과물을 근거로 AI가 자동 생성, 입력이 바뀌면 갱신 ──
-const weekFeedbackSchema = z.object({ week: z.number().int().min(1).max(3) });
+const weekFeedbackSchema = z.object({ week: z.number().int().min(1).max(3), generate: z.boolean().optional() });
 const WEEK_FEEDBACK_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -16693,6 +16693,8 @@ app.post(
       if (cached && cached.sig === sig && typeof cached.text === "string" && cached.text.trim()) {
         return res.json({ ok: true, feedback: cached.text, cached: true });
       }
+      // 캐시 미스 — 생성은 사용자 명시 요청(generate 기본 true; false면 생성·과금 없이 안내).
+      if (parsed.data.generate === false) return res.json({ ok: true, feedback: null, needsGenerate: true });
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
       // 캐시 미스 → 실제 생성이므로 포인트 차감(사전 게이트).
       const weekFbCost = aiFeatureCost("career_week_feedback");
@@ -16762,11 +16764,14 @@ app.post(
       // 한 번 생성하면 저장해두고 그대로 재사용(LLM 토큰 절약). force=true(다시 받기)면 재생성.
       // 저장 당시 입력 서명과 현재가 다르면 stale=true 로 알려 프론트에서 '다시 받기' 버튼을 띄운다.
       const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
       const cached = (progState.finalFeedback && typeof progState.finalFeedback === "object" ? progState.finalFeedback : {}) as { v?: number; sig?: string; text?: string };
       if (!force && cached.v === FINAL_FEEDBACK_VERSION && typeof cached.text === "string" && cached.text.trim()) {
         const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
         return res.json({ ok: true, feedback: cached.text, stale, cached: true });
       }
+      // 캐시 미스/재생성 — 사용자 명시 요청일 때만 생성(generate 기본 true; false면 안내만).
+      if (!generate) return res.json({ ok: true, feedback: null, needsGenerate: true, stale: false });
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
       // 캐시 미스/재생성 → 실제 생성이므로 포인트 차감(사전 게이트).
       const finalFbCost = aiFeatureCost("career_final_feedback");
