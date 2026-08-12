@@ -6,8 +6,11 @@ import { useEffect, useState } from "react";
 import { Sparkle } from "@phosphor-icons/react";
 import { getAiUsage, type AiUsage } from "../../lib/resume-maker-client";
 import { AiTicketStatusModal } from "../resume-maker/AiTicketStatusModal";
+import { useLanguage } from "../i18n/LanguageProvider";
+import type { PlatformLocale } from "../../lib/auth-messages";
 
 export function TalentTicketBadge() {
+  const { locale } = useLanguage();
   const [usage, setUsage] = useState<AiUsage | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -30,7 +33,7 @@ export function TalentTicketBadge() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label={`AI 티켓 ${usage.remaining}개`}
+        aria-label={aiTicketLabel(locale, usage.remaining)}
         className="flex items-center gap-1 rounded-full bg-[#EDF1FD] px-2.5 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#DFE7FB]"
       >
         <Sparkle className="h-3.5 w-3.5" weight="fill" />
@@ -46,4 +49,17 @@ export function TalentTicketBadge() {
       ) : null}
     </>
   );
+}
+
+// AI 티켓 잔량 aria-label(스크린리더) — 언어별.
+function aiTicketLabel(locale: PlatformLocale, n: number): string {
+  const map: Record<PlatformLocale, string> = {
+    ko: `AI 티켓 ${n}개`,
+    en: `${n} AI tickets`,
+    "zh-CN": `AI 券 ${n} 张`,
+    vi: `${n} vé AI`,
+    ja: `AIチケット ${n}枚`,
+    id: `${n} tiket AI`
+  };
+  return map[locale] ?? `${n} AI tickets`;
 }
