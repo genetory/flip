@@ -184,12 +184,6 @@ export default function LaunchDiagnosisPage() {
                   >
                     {t("다시 진단하기", "Diagnose again", "重新诊断", "Chẩn đoán lại", "もう一度診断する", "Diagnosis ulang")}
                   </button>
-                  <Link
-                    href="/career-launch/week/1"
-                    className="group flex h-[46px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#191F28] text-[14px] font-bold text-white transition hover:bg-[#0B1227]"
-                  >
-                    {t("1주차 페이지로", "To Week 1 page", "前往第1周页面", "Đến trang Tuần 1", "1週目のページへ", "Ke halaman Minggu 1")} →
-                  </Link>
                 </div>
               ) : (
                 <div className="mt-5">

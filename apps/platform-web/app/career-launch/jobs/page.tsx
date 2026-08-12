@@ -339,12 +339,6 @@ export default function LaunchJobsPage() {
               >
                 {t("처음부터 다시 선정", "Select again from scratch", "从头重新选择", "Chọn lại từ đầu", "最初から選び直す", "Pilih ulang dari awal")}
               </button>
-              <Link
-                href="/career-launch/week/1"
-                className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
-              >
-                {t("1주차 페이지로", "To Week 1 page", "前往第1周页面", "Đến trang Tuần 1", "1週目のページへ", "Ke halaman Minggu 1")} →
-              </Link>
             </div>
           ) : (
             <div className="mt-3">

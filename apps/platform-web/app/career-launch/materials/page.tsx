@@ -226,12 +226,6 @@ export default function LaunchMaterialsPage() {
               >
                 {t("계속 정리하기", "Keep gathering", "继续整理", "Tiếp tục tổng hợp", "続けて整理する", "Lanjut mengumpulkan")}
               </button>
-              <Link
-                href="/career-launch/week/1"
-                className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
-              >
-                {t("1주차 페이지로", "To Week 1 page", "前往第1周页面", "Đến trang Tuần 1", "1週目のページへ", "Ke halaman Minggu 1")} →
-              </Link>
             </div>
           ) : (
             <div className="mt-3">

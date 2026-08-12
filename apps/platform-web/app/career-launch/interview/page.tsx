@@ -157,12 +157,6 @@ export default function InterviewPage() {
               >
                 {t("더 연습하기", "Practice more", "继续练习", "Luyện tập thêm", "もっと練習する", "Latihan lagi")}
               </button>
-              <Link
-                href="/career-launch/week/4"
-                className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
-              >
-                {t("4주차 페이지로", "To Week 4 page", "前往第4周页面", "Đến trang Tuần 4", "4週目のページへ", "Ke halaman Minggu 4")} →
-              </Link>
             </div>
           ) : (
             <div className="mt-3">
