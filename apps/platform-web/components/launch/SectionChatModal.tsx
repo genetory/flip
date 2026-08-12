@@ -20,6 +20,19 @@ export function SectionChatModal({
   onClose: () => void;
 }) {
   const t = useLaunchT();
+  // AI 포인트 소진(402) 감지 → 안내 메시지.
+  const isQuota = (e: unknown) => e instanceof Error && /quota|402|포인트|ticket/i.test(e.message);
+  const quotaText = t(
+    "AI 포인트를 모두 사용했어요. 충전 후 다시 시도해 주세요.",
+    "You've used all your AI points. Please recharge and try again.",
+    "AI 积分已用完，请充值后再试。",
+    "Bạn đã dùng hết điểm AI. Vui lòng nạp thêm và thử lại.",
+    "AIポイントを使い切りました。チャージ後にもう一度お試しください。",
+    "Poin AI habis. Silakan isi ulang lalu coba lagi."
+  );
+  const notifyUsage = () => {
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
+  };
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,9 +47,10 @@ export function SectionChatModal({
       setLoading(true);
       try {
         const { reply } = await request([]);
+        notifyUsage();
         setMessages([{ role: "bot", text: reply || t("무엇부터 채워볼까요?", "What should we fill in first?", "先填哪一项？", "Bắt đầu từ đâu nhé?", "何から埋めましょうか？", "Mulai dari mana?") }]);
-      } catch {
-        setMessages([{ role: "bot", text: t("지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 시도해줄래요?", "Can't start the chat right now 😥 Please try again in a moment.", "现在无法开始对话 😥 请稍后再试。", "Hiện chưa thể bắt đầu 😥 Vui lòng thử lại sau.", "今は会話を開始できません 😥 少し後にもう一度お試しください。", "Belum bisa memulai 😥 Coba lagi sebentar.") }]);
+      } catch (e) {
+        setMessages([{ role: "bot", text: isQuota(e) ? quotaText : t("지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 시도해줄래요?", "Can't start the chat right now 😥 Please try again in a moment.", "现在无法开始对话 😥 请稍后再试。", "Hiện chưa thể bắt đầu 😥 Vui lòng thử lại sau.", "今は会話を開始できません 😥 少し後にもう一度お試しください。", "Belum bisa memulai 😥 Coba lagi sebentar.") }]);
       } finally {
         setLoading(false);
       }
@@ -58,9 +72,10 @@ export function SectionChatModal({
     void (async () => {
       try {
         const { reply } = await request(next);
+        notifyUsage();
         setMessages((m) => [...m, { role: "bot", text: reply }]);
-      } catch {
-        setMessages((m) => [...m, { role: "bot", text: t("잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?", "Something went wrong 😥 Could you say that once more?", "出了点问题 😥 可以再说一次吗？", "Có chút trục trặc 😥 Bạn nói lại nhé?", "少し問題が発生しました 😥 もう一度お願いします。", "Ada masalah 😥 Bisa ulangi?") }]);
+      } catch (e) {
+        setMessages((m) => [...m, { role: "bot", text: isQuota(e) ? quotaText : t("잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?", "Something went wrong 😥 Could you say that once more?", "出了点问题 😥 可以再说一次吗？", "Có chút trục trặc 😥 Bạn nói lại nhé?", "少し問題が発生しました 😥 もう一度お願いします。", "Ada masalah 😥 Bisa ulangi?") }]);
       } finally {
         setLoading(false);
         inputRef.current?.focus();

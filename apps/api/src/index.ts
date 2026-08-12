@@ -14608,7 +14608,10 @@ const AI_FEATURE_COST: Record<string, number> = {
   summarize_intro: 1,
   suggest_skills: 1,
   translate_texts: 1,
-  interview_feedback: 1
+  interview_feedback: 1,
+  // Career Launch — 섹션별 AI 대화로 이력서·자소서 채우기(대화 1턴당 1)
+  career_resume_chat: 1,
+  career_cover_chat: 1
 };
 function aiFeatureCost(feature: string): number {
   return AI_FEATURE_COST[feature] ?? 0;
@@ -15885,6 +15888,7 @@ app.post(
   "/career-launch/resume-chat",
   authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-resume-chat", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_resume_chat"),
   async (req, res) => {
     const parsed = resumeChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -16226,6 +16230,7 @@ app.post(
   "/career-launch/cover-chat",
   authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-cover-chat", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_cover_chat"),
   async (req, res) => {
     const parsed = coverChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });

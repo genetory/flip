@@ -10,6 +10,7 @@ import { List, X } from "@phosphor-icons/react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { LaunchNotificationBell } from "./LaunchNotificationBell";
+import { TalentTicketBadge } from "../talent/TalentTicketBadge";
 
 export function CareerLaunchHeader() {
   const t = useLaunchT();
@@ -79,6 +80,7 @@ export function CareerLaunchHeader() {
 
         {user ? (
           <div className="flex items-center gap-1.5">
+            <TalentTicketBadge />
             <LaunchNotificationBell />
             <Link
               href="/career-launch/settings"
