@@ -384,7 +384,7 @@ function ResultCard({ continueHref, continueLabel, restartHref, children }: { co
     <div className="mt-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">{children}</div>
-        <div className="flex shrink-0 flex-col items-stretch gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <Link href={continueHref} className="rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-center text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{continueLabel}</Link>
           <Link href={restartHref} className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-center text-[12px] font-semibold text-[#8B95A1] transition hover:border-[#0B46E8]/40 hover:text-[#4E5968]">{t("다시하기", "Start over", "重新开始", "Làm lại", "やり直す", "Mulai ulang")}</Link>
         </div>
