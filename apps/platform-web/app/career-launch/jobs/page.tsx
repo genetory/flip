@@ -179,7 +179,7 @@ export default function LaunchJobsPage() {
   const lastJobsIdx = messages.reduce((acc, m, i) => (m.kind === "jobs" ? i : acc), -1);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-white">
       <CareerLaunchHeader />
       <main className="flex-1">
         <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-5xl flex-col px-5 pb-4 pt-4 md:pt-6">
@@ -203,12 +203,10 @@ export default function LaunchJobsPage() {
               ) : null}
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2.5">
-            <span className="flex h-9 w-9 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1.5" /></span>
-            <div>
-              <p className="text-[15px] font-black text-[#0B1227]">{t("관심 직무 찾기", "Find Your Jobs of Interest", "寻找感兴趣的职务", "Tìm công việc bạn quan tâm", "興味のある職務を探す", "Temukan Pekerjaan yang Kamu Minati")}</p>
-              <p className="text-[12px] text-[#8B95A1]">{t(`AI와 대화하며 마음에 드는 직무 ${MAX_PICK}개를 골라요`, `Chat with AI and pick your ${MAX_PICK} favorite jobs`, `与 AI 对话，挑选 ${MAX_PICK} 个你喜欢的职务`, `Trò chuyện với AI và chọn ${MAX_PICK} công việc bạn thích`, `AIと話しながらお気に入りの職務を${MAX_PICK}つ選びます`, `Mengobrol dengan AI dan pilih ${MAX_PICK} pekerjaan favoritmu`)} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
-            </div>
+          <div className="mt-3.5">
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("1주차 · 관심 직무", "Week 1 · Jobs", "第1周 · 职务", "Tuần 1 · Công việc", "Week 1 · 職務", "Minggu 1 · Pekerjaan")}</p>
+            <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("관심 직무 찾기", "Find Your Jobs of Interest", "寻找感兴趣的职务", "Tìm công việc bạn quan tâm", "興味のある職務を探す", "Temukan Pekerjaan yang Kamu Minati")}</h1>
+            <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t(`AI와 대화하며 마음에 드는 직무 ${MAX_PICK}개를 골라요`, `Chat with AI and pick your ${MAX_PICK} favorite jobs`, `与 AI 对话，挑选 ${MAX_PICK} 个你喜欢的职务`, `Trò chuyện với AI và chọn ${MAX_PICK} công việc bạn thích`, `AIと話しながらお気に入りの職務を${MAX_PICK}つ選びます`, `Mengobrol dengan AI dan pilih ${MAX_PICK} pekerjaan favoritmu`)} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
           </div>
 
           {/* 대화 */}

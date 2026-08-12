@@ -139,7 +139,7 @@ export default function LaunchMaterialsPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-white">
       <CareerLaunchHeader />
       <main className="flex-1">
         <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-5xl flex-col px-5 pb-4 pt-4 md:pt-6">
@@ -162,12 +162,10 @@ export default function LaunchMaterialsPage() {
               ) : null}
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2.5">
-            <span className="flex h-9 w-9 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1.5" /></span>
-            <div>
-              <p className="text-[15px] font-black text-[#0B1227]">{t("선정 직무 깊이 알기", "Get to Know Your Selected Jobs", "深入了解选定的职务", "Hiểu sâu công việc đã chọn", "選定した職務を深く知る", "Kenali Pekerjaan Pilihanmu Lebih Dalam")}</p>
-              <p className="text-[12px] text-[#8B95A1]">{t("AI 코치와 대화하며 선정 직무를 깊이 이해해요", "Chat with the AI coach to deeply understand your selected jobs", "与 AI 教练对话，深入了解选定的职务", "Trò chuyện với huấn luyện viên AI để hiểu sâu công việc đã chọn", "AIコーチと話しながら選定した職務を深く理解します", "Mengobrol dengan pelatih AI untuk memahami pekerjaan pilihanmu lebih dalam")} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
-            </div>
+          <div className="mt-3.5">
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("1주차 · 자료", "Week 1 · Research", "第1周 · 资料", "Tuần 1 · Tư liệu", "Week 1 · 資料", "Minggu 1 · Riset")}</p>
+            <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("선정 직무 깊이 알기", "Get to Know Your Selected Jobs", "深入了解选定的职务", "Hiểu sâu công việc đã chọn", "選定した職務を深く知る", "Kenali Pekerjaan Pilihanmu Lebih Dalam")}</h1>
+            <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("AI 코치와 대화하며 선정 직무를 깊이 이해해요", "Chat with the AI coach to deeply understand your selected jobs", "与 AI 教练对话，深入了解选定的职务", "Trò chuyện với huấn luyện viên AI để hiểu sâu công việc đã chọn", "AIコーチと話しながら選定した職務を深く理解します", "Mengobrol dengan pelatih AI untuk memahami pekerjaan pilihanmu lebih dalam")} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
           </div>
 
           {/* 대화 */}

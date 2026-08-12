@@ -102,7 +102,7 @@ export default function InterviewPage() {
   const h = HEADER[focus];
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-white">
       <CareerLaunchHeader />
       <main className="flex-1">
         <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-5xl flex-col px-5 pb-4 pt-4 md:pt-6">
@@ -112,12 +112,10 @@ export default function InterviewPage() {
             </Link>
             <Link href="/career-launch/week/4" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
           </div>
-          <div className="mt-3 flex items-center gap-2.5">
-            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[16px]">🎤</span>
-            <div>
-              <p className="text-[12px] font-bold text-[#0B46E8]">{t("모의면접", "Mock Interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara Simulasi")}</p>
-              <p className="text-[15px] font-black text-[#0B1227]">{h.title}</p>
-            </div>
+          <div className="mt-3.5">
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("4주차 · 모의면접", "Week 4 · Mock Interview", "第4周 · 模拟面试", "Tuần 4 · Phỏng vấn thử", "Week 4 · 模擬面接", "Minggu 4 · Wawancara")}</p>
+            <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{h.title}</h1>
+            <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{h.sub}</p>
           </div>
 
           <div className="mt-4 flex-1 space-y-3 overflow-y-auto rounded-2xl border border-[#EEF1F5] bg-[#F8FAFC] p-4">
