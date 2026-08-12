@@ -14609,9 +14609,15 @@ const AI_FEATURE_COST: Record<string, number> = {
   suggest_skills: 1,
   translate_texts: 1,
   interview_feedback: 1,
-  // Career Launch — 섹션별 AI 대화로 이력서·자소서 채우기(대화 1턴당 1)
+  // Career Launch — 모든 AI 사용처(대화 1턴당 1, 최종 리포트 2)
   career_resume_chat: 1,
-  career_cover_chat: 1
+  career_cover_chat: 1,
+  career_job_chat: 1,
+  career_material_chat: 1,
+  career_diagnosis_chat: 1,
+  career_interview_chat: 1,
+  career_week_feedback: 1,
+  career_final_feedback: 2
 };
 function aiFeatureCost(feature: string): number {
   return AI_FEATURE_COST[feature] ?? 0;
@@ -15387,6 +15393,7 @@ app.post(
   "/career-launch/job-chat",
   authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-job-chat", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_job_chat"),
   async (req, res) => {
     const parsed = jobChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -15498,6 +15505,7 @@ app.post(
   "/career-launch/material-chat",
   authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-material-chat", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_material_chat"),
   async (req, res) => {
     const parsed = materialChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -15550,6 +15558,7 @@ app.post(
   "/career-launch/diagnosis-chat",
   authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-diagnosis-chat", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_diagnosis_chat"),
   async (req, res) => {
     const parsed = diagnosisChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -16553,6 +16562,7 @@ app.post(
   "/career-launch/interview-chat",
   authenticate, requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-interview-chat", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_interview_chat"),
   async (req, res) => {
     const parsed = interviewChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -16676,6 +16686,12 @@ app.post(
         return res.json({ ok: true, feedback: cached.text, cached: true });
       }
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      // 캐시 미스 → 실제 생성이므로 포인트 차감(사전 게이트).
+      const weekFbCost = aiFeatureCost("career_week_feedback");
+      if (weekFbCost > 0) {
+        const st = await aiCreditStatus(uid).catch(() => null);
+        if (st && st.remaining < weekFbCost) return res.status(402).json({ ok: false, message: "ai quota exceeded", quota: st });
+      }
 
       const profileSummary = await buildCandidateProfileSummary(uid);
       const systemPrompt =
@@ -16695,6 +16711,7 @@ app.post(
         create: { studentUserId: uid, state: mergedState as object },
         update: { state: mergedState as object }
       });
+      void aiQuotaConsume(uid, "career_week_feedback"); // 실제 생성분 차감
       return res.json({ ok: true, feedback });
     } catch (err) {
       console.error("[career-launch/week-feedback] failed", err);
@@ -16743,6 +16760,12 @@ app.post(
         return res.json({ ok: true, feedback: cached.text, stale, cached: true });
       }
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      // 캐시 미스/재생성 → 실제 생성이므로 포인트 차감(사전 게이트).
+      const finalFbCost = aiFeatureCost("career_final_feedback");
+      if (finalFbCost > 0) {
+        const st = await aiCreditStatus(uid).catch(() => null);
+        if (st && st.remaining < finalFbCost) return res.status(402).json({ ok: false, message: "ai quota exceeded", quota: st });
+      }
 
       const studentName = (user?.realName?.trim() || user?.name?.trim() || ((resumeContent.basic as { name?: string } | undefined)?.name ?? "").trim() || "").trim();
       const profileSummary = await buildCandidateProfileSummary(uid);
@@ -16769,6 +16792,7 @@ app.post(
         create: { studentUserId: uid, state: mergedState as object },
         update: { state: mergedState as object }
       });
+      void aiQuotaConsume(uid, "career_final_feedback"); // 실제 생성분 차감
       return res.json({ ok: true, feedback, stale: false });
     } catch (err) {
       console.error("[career-launch/final-feedback] failed", err);
