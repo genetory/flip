@@ -114,7 +114,7 @@ function mapVisaTypeToCode(visaType: string | null | undefined) {
 function companySizeLabel(value: string, locale: PlatformLocale) {
   const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
     locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
-  if (value === "SIZE_1_10") return pick("10인 이하", "Up to 10", "10人以下", "Tối đa 10", "10名以下", "Maksimal 10");
+  if (value === "SIZE_1_10") return pick("1~10인", "1–10", "1~10人", "1–10", "1~10名", "1–10");
   if (value === "SIZE_UNDER_30") return pick("30인 이하", "Up to 30", "30人以下", "Tối đa 30", "30名以下", "Maksimal 30");
   if (value === "SIZE_UNDER_50") return pick("50인 이하", "Up to 50", "50人以下", "Tối đa 50", "50名以下", "Maksimal 50");
   if (value === "SIZE_OVER_100") return pick("100인 이상", "100+", "100人以上", "Trên 100", "100名以上", "100+");

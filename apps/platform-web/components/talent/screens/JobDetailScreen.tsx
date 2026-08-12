@@ -39,7 +39,7 @@ import { toPositionView } from "../../../lib/talent/positions-adapter";
 function companySizeLabel(t: PlatformT, size: string): string | undefined {
   switch (size) {
     case "SIZE_1_10":
-      return t("10인 이하", "≤10", "10人以下", "≤10 người", "10人以下", "≤10 orang");
+      return t("1~10인", "1–10", "1~10人", "1–10 người", "1~10人", "1–10 orang");
     case "SIZE_UNDER_30":
       return t("30인 이하", "≤30", "30人以下", "≤30 người", "30人以下", "≤30 orang");
     case "SIZE_UNDER_50":
