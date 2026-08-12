@@ -276,10 +276,6 @@ export default function ResumeCollectPage() {
                 </div>
               </section>
 
-              <Link href="/career-launch/week/2" className="group mt-2 flex items-center justify-between gap-4 rounded-2xl bg-[#191F28] p-5 transition hover:bg-[#0B1227]">
-                <span className="text-[15px] font-bold text-white">{t("2주차로 돌아가기", "Back to Week 2", "返回第2周", "Quay lại Tuần 2", "Week 2に戻る", "Kembali ke Minggu 2")}</span>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition group-hover:bg-white/20">→</span>
-              </Link>
             </div>
 
             {/* ── 실시간 A4 미리보기 ── */}
