@@ -4,10 +4,33 @@
 // 컨테이너 폭에 맞춰 축소(transform scale). 내용이 한 장을 넘으면 '섹션 단위'로 다음 장에
 // 통째로 내려 붙인다(섹션은 중간에서 잘리지 않음). 로고·슬로건 바닥글은 마지막 장 맨 아래 고정.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { SECTION_META, type CareerSection } from "../../../lib/talent/career-chat";
+import { type CareerSection } from "../../../lib/talent/career-chat";
 import { displayMonth, type ResumeDoc } from "../../../lib/talent/resume-doc";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
 import { PdfBrandFooter } from "./pdf-print";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
+
+// 이력서 섹션 헤더 표시용 라벨(키는 그대로, 화면 표기만 번역).
+function sectionLabel(t: PlatformT, section: CareerSection): string {
+  switch (section) {
+    case "education":
+      return t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan");
+    case "certificate":
+      return t("자격증", "Certificates", "证书", "Chứng chỉ", "資格", "Sertifikat");
+    case "experience":
+      return t("경험", "Experience", "经历", "Kinh nghiệm", "経験", "Pengalaman");
+    case "project":
+      return t("프로젝트", "Projects", "项目", "Dự án", "プロジェクト", "Proyek");
+    case "skill":
+      return t("역량·스킬", "Skills", "能力·技能", "Kỹ năng", "スキル", "Keahlian");
+    case "award":
+      return t("수상", "Awards", "获奖", "Giải thưởng", "受賞", "Penghargaan");
+    case "activity":
+      return t("대외활동", "Activities", "课外活动", "Hoạt động", "課外活動", "Aktivitas");
+    default:
+      return section;
+  }
+}
 
 const PAGE_W = 794;
 const PAGE_H = 1123;
@@ -115,6 +138,7 @@ export function ResumeA4Preview({ doc, info, maxWidth }: { doc: ResumeDoc; info:
 
 // A4 본문(고정 폭, 자연 높이). 세로 패딩·바닥글 없음 — 여백과 바닥글은 각 페이지가 준다.
 function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
+  const t = usePlatformT();
   const contact = [info.email, info.phone, info.address].filter(Boolean);
   return (
     <div className="w-full bg-white px-[56px] text-[#191F28]">
@@ -127,8 +151,8 @@ function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           </span>
         ) : null}
         <div className="min-w-0 flex-1">
-          <p className="text-[32px] font-black leading-tight tracking-[-0.02em] text-[#0B1227]">{info.realName || "이름"}</p>
-          {doc.targetRole ? <p className="mt-1.5 text-[16px] font-bold text-[#0B46E8]">{doc.targetRole} 지원</p> : null}
+          <p className="text-[32px] font-black leading-tight tracking-[-0.02em] text-[#0B1227]">{info.realName || t("이름", "Name", "姓名", "Họ tên", "氏名", "Nama")}</p>
+          {doc.targetRole ? <p className="mt-1.5 text-[16px] font-bold text-[#0B46E8]">{t(`${doc.targetRole} 지원`, `Applying for ${doc.targetRole}`, `应聘 ${doc.targetRole}`, `Ứng tuyển ${doc.targetRole}`, `${doc.targetRole} 応募`, `Melamar ${doc.targetRole}`)}</p> : null}
           <div className="mt-4 flex flex-col gap-1 text-[13px] leading-relaxed text-[#4E5968]">
             {contact.map((c, i) => (
               <span key={i}>{c}</span>
@@ -142,10 +166,9 @@ function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
         {SECTION_ORDER.map((section) => {
           const items = doc.items.filter((it) => it.section === section);
           if (items.length === 0) return null;
-          const meta = SECTION_META[section];
           return (
             <section key={section}>
-              <h2 className="border-l-[3px] border-[#0B46E8] pl-2.5 text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{meta.label}</h2>
+              <h2 className="border-l-[3px] border-[#0B46E8] pl-2.5 text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{sectionLabel(t, section)}</h2>
               <ul className="mt-3 flex flex-col gap-2.5">
                 {items.map((it) => {
                   const range = [it.startDate, it.endDate].map((d) => displayMonth(d ?? "")).filter(Boolean).join(" – ");
@@ -164,7 +187,7 @@ function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
             </section>
           );
         })}
-        {doc.items.length === 0 ? <p className="text-[13.5px] text-[#B0B8C1]">항목을 추가하면 여기에 이력서로 정리돼요.</p> : null}
+        {doc.items.length === 0 ? <p className="text-[13.5px] text-[#B0B8C1]">{t("항목을 추가하면 여기에 이력서로 정리돼요.", "Add items and they'll appear here as your resume.", "添加条目后会在此整理成简历。", "Thêm mục để hiển thị thành hồ sơ tại đây.", "項目を追加すると、ここに履歴書として整理されます。", "Tambahkan item, akan tersusun sebagai resume di sini.")}</p> : null}
       </div>
     </div>
   );

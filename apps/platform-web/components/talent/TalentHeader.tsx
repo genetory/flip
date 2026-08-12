@@ -16,6 +16,7 @@ import { useFollowFeedNotifications, useFollowCompanyPositionNotifications, type
 import { useUnreadNotificationCount } from "../../lib/talent/notifications";
 import { useSavedDeadlineNotifications } from "../../lib/talent/deadline-notify";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
+import { usePlatformT } from "../../lib/i18n";
 
 export function TalentHeader() {
   const pathname = usePathname() ?? "";
@@ -23,6 +24,7 @@ export function TalentHeader() {
   const isTalentUser = isAuthenticated && (user?.role === "STUDENT" || user?.role === "OPERATOR");
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const t = usePlatformT();
   const navLabel = useTalentNavLabel();
   const brandCta = useTalentBrandCta();
 
@@ -31,7 +33,7 @@ export function TalentHeader() {
     setMenuOpen(false);
   }, [pathname]);
 
-  const name = user?.realName || user?.name || "나";
+  const name = user?.realName || user?.name || t("나", "Me", "我", "Tôi", "私", "Saya");
   const homeHref = isTalentUser ? talentAppRoutes.home : "/talent";
 
   // 팔로잉한 사람의 새 글을 알림으로 적재(백그라운드 감시) + 벨 배지 카운트.
@@ -49,7 +51,7 @@ export function TalentHeader() {
           {isTalentUser ? (
             <button
               type="button"
-              aria-label="메뉴"
+              aria-label={t("메뉴", "Menu", "菜单", "Menu", "メニュー", "Menu")}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((v) => !v)}
               className="-ml-1.5 flex h-9 w-9 items-center justify-center rounded-2xl text-[#4E5968] transition hover:bg-[#F6F8FB] md:hidden"
@@ -57,14 +59,14 @@ export function TalentHeader() {
               {menuOpen ? <X className="h-5 w-5" /> : <List className="h-5 w-5" />}
             </button>
           ) : null}
-          <Link href={homeHref} aria-label={`${talentBrand.name} 홈`} className="flex items-center">
+          <Link href={homeHref} aria-label={t(`${talentBrand.name} 홈`, `${talentBrand.name} home`, `${talentBrand.name} 主页`, `Trang chủ ${talentBrand.name}`, `${talentBrand.name} ホーム`, `Beranda ${talentBrand.name}`)} className="flex items-center">
             <Image src="/img_logo.webp" alt={talentBrand.name} width={72} height={24} className="h-5 w-auto" priority />
           </Link>
         </div>
 
         {/* 로그인 Talent: GNB 4탭(데스크톱) */}
         {isTalentUser ? (
-          <nav aria-label="주요 메뉴" className="hidden items-center gap-2.5 md:flex">
+          <nav aria-label={t("주요 메뉴", "Main menu", "主菜单", "Menu chính", "メインメニュー", "Menu utama")} className="hidden items-center gap-2.5 md:flex">
             {talentMainNav.map((item) => {
               const active = isTabActive(pathname, item.href);
               return (
@@ -91,7 +93,7 @@ export function TalentHeader() {
             {/* 알림 */}
             <Link
               href={talentAppRoutes.notifications}
-              aria-label={unreadCount > 0 ? `알림 ${unreadCount}개` : "알림"}
+              aria-label={unreadCount > 0 ? t(`알림 ${unreadCount}개`, `${unreadCount} notifications`, `${unreadCount} 条通知`, `${unreadCount} thông báo`, `通知 ${unreadCount}件`, `${unreadCount} notifikasi`) : t("알림", "Notifications", "通知", "Thông báo", "通知", "Notifikasi")}
               className="relative flex h-9 w-9 items-center justify-center rounded-2xl text-[#4E5968] transition hover:bg-[#F6F8FB]"
             >
               <Bell className="h-[22px] w-[22px]" weight="regular" />
@@ -105,7 +107,7 @@ export function TalentHeader() {
             {/* 프로필 — 클릭 시 팝업 없이 내 프로필(계정 설정)로 이동 */}
             <Link
               href={talentAppRoutes.settings}
-              aria-label="내 프로필"
+              aria-label={t("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "マイプロフィール", "Profil saya")}
               className="inline-flex max-w-[140px] items-center rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]"
             >
               <span className="truncate">{name}</span>
@@ -124,7 +126,7 @@ export function TalentHeader() {
 
       {/* 모바일 메뉴(햄버거) */}
       {isTalentUser && menuOpen ? (
-        <nav aria-label="주요 메뉴" className="border-t border-[#EEF1F5] bg-white px-3 py-2 md:hidden">
+        <nav aria-label={t("주요 메뉴", "Main menu", "主菜单", "Menu chính", "メインメニュー", "Menu utama")} className="border-t border-[#EEF1F5] bg-white px-3 py-2 md:hidden">
           <ul className="flex flex-col">
             {talentMainNav.map((item) => {
               const active = isTabActive(pathname, item.href);

@@ -7,6 +7,25 @@ import { COVER_QUESTIONS, type CoverDoc } from "../../../lib/talent/cover-doc";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
 import { packBlocks } from "./ResumeA4";
 import { PdfBrandFooter } from "./pdf-print";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
+
+// 자소서 문항 헤더 표시용 라벨(COVER_QUESTIONS 값은 데이터 키로 유지, 화면 표기만 번역).
+function questionLabel(t: PlatformT, q: string): string {
+  switch (q) {
+    case "지원 동기":
+      return t("지원 동기", "Motivation", "应聘动机", "Động lực ứng tuyển", "志望動機", "Motivasi melamar");
+    case "나의 강점과 준비된 경험":
+      return t("나의 강점과 준비된 경험", "Strengths & experience", "我的优势与经验", "Điểm mạnh & kinh nghiệm", "強みと準備した経験", "Kekuatan & pengalaman");
+    case "성장 과정":
+      return t("성장 과정", "Background", "成长经历", "Quá trình trưởng thành", "成長過程", "Latar belakang");
+    case "성격의 장단점":
+      return t("성격의 장단점", "Strengths & weaknesses", "性格优缺点", "Ưu & nhược điểm", "性格の長所短所", "Kelebihan & kekurangan");
+    case "입사 후 포부":
+      return t("입사 후 포부", "Goals after joining", "入职后抱负", "Mục tiêu sau khi vào", "入社後の抱負", "Aspirasi setelah bergabung");
+    default:
+      return q;
+  }
+}
 
 const PAGE_W = 794;
 const PAGE_H = 1123;
@@ -82,6 +101,7 @@ export function CoverA4Preview({ doc, info, maxWidth }: { doc: CoverDoc; info: B
 
 // A4 본문(고정 폭, 자연 높이). 세로 패딩·바닥글 없음.
 function CoverA4Body({ doc, info }: { doc: CoverDoc; info: BasicInfo }) {
+  const t = usePlatformT();
   const contact = [info.email, info.phone, info.address].filter(Boolean);
   return (
     <div className="w-full bg-white px-[56px] text-[#191F28]">
@@ -94,7 +114,7 @@ function CoverA4Body({ doc, info }: { doc: CoverDoc; info: BasicInfo }) {
           </span>
         ) : null}
         <div className="min-w-0 flex-1">
-          <p className="text-[32px] font-black leading-tight tracking-[-0.02em] text-[#0B1227]">{info.realName || "이름"}</p>
+          <p className="text-[32px] font-black leading-tight tracking-[-0.02em] text-[#0B1227]">{info.realName || t("이름", "Name", "姓名", "Họ tên", "氏名", "Nama")}</p>
           <div className="mt-4 flex flex-col gap-1 text-[13px] leading-relaxed text-[#4E5968]">
             {contact.map((c, i) => (
               <span key={i}>{c}</span>
@@ -105,14 +125,14 @@ function CoverA4Body({ doc, info }: { doc: CoverDoc; info: BasicInfo }) {
 
       <div className="mt-8 flex flex-col gap-7 pb-2">
         {doc.items.length === 0 ? (
-          <p className="text-[13.5px] text-[#B0B8C1]">문항에 답을 채우면 여기에 자기소개서로 정리돼요.</p>
+          <p className="text-[13.5px] text-[#B0B8C1]">{t("문항에 답을 채우면 여기에 자기소개서로 정리돼요.", "Answer the prompts and they'll appear here as your cover letter.", "填写问题答案后会在此整理成自我介绍。", "Trả lời các câu hỏi để hiển thị thành thư giới thiệu tại đây.", "設問に答えると、ここに自己紹介書として整理されます。", "Jawab pertanyaan, akan tersusun sebagai surat lamaran di sini.")}</p>
         ) : null}
         {COVER_QUESTIONS.map((q) => {
           const items = doc.items.filter((it) => it.question === q);
           if (items.length === 0) return null;
           return (
             <section key={q}>
-              <h2 className="border-l-[3px] border-[#0B46E8] pl-2.5 text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{q}</h2>
+              <h2 className="border-l-[3px] border-[#0B46E8] pl-2.5 text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{questionLabel(t, q)}</h2>
               <div className="mt-3 flex flex-col gap-2.5">
                 {items.map((it) => (
                   <p key={it.id} className="whitespace-pre-line break-keep text-[13.5px] leading-[1.9] text-[#333D4B]">{it.text}</p>
