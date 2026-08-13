@@ -193,7 +193,14 @@ export function ProfilePage() {
 
   async function handleWithdraw(app: MyApplication) {
     const confirmed = window.confirm(
-      `'${app.positionTitle}' 지원을 철회하시겠습니까? 철회 후에는 다시 지원하기 어려울 수 있어요.`
+      tr(
+        `'${app.positionTitle}' 지원을 철회하시겠습니까? 철회 후에는 다시 지원하기 어려울 수 있어요.`,
+        `Withdraw your application to '${app.positionTitle}'? You may not be able to apply again.`,
+        `确定撤回对“${app.positionTitle}”的申请吗？撤回后可能难以再次申请。`,
+        `Rút đơn ứng tuyển vào '${app.positionTitle}'? Bạn có thể khó ứng tuyển lại.`,
+        `'${app.positionTitle}'への応募を取り下げますか？取り下げ後は再応募が難しい場合があります。`,
+        `Tarik lamaran Anda untuk '${app.positionTitle}'? Anda mungkin tidak bisa melamar lagi.`
+      )
     );
     if (!confirmed) return;
     setWithdrawingId(app.id);
@@ -203,7 +210,7 @@ export function ProfilePage() {
         prev.map((a) => (a.id === app.id ? { ...a, status: "WITHDRAWN" as const } : a))
       );
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "철회에 실패했습니다.");
+      window.alert(err instanceof Error ? err.message : tr("철회에 실패했습니다.", "Failed to withdraw.", "撤回失败。", "Không thể rút đơn.", "取り下げに失敗しました。", "Gagal menarik lamaran."));
     } finally {
       setWithdrawingId(null);
     }

@@ -6,15 +6,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Target } from "@phosphor-icons/react";
 import { paperlogy } from "../../lib/fonts";
-import { useLanguage } from "../i18n/LanguageProvider";
 import { MATCHING_QUEST_ENABLED } from "../../lib/feature-flags";
+import { usePlatformT } from "../../lib/i18n";
 
 export const CoverSection = () => {
-  const { locale } = useLanguage();
   const router = useRouter();
   const [searchInput, setSearchInput] = useState("");
-  const t = (ko: string, en: string, zh?: string, vi?: string, ja?: string, id?: string) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? (zh ?? en) : locale === "vi" ? (vi ?? en) : locale === "ja" ? (ja ?? en) : locale === "id" ? (id ?? en) : en;
+  const t = usePlatformT();
 
   function submitSearch() {
     const q = searchInput.trim();

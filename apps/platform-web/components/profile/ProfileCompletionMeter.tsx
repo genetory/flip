@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CheckCircle, Circle } from "@phosphor-icons/react";
 import { readAccessToken } from "../../lib/auth-client";
+import { usePlatformT } from "../../lib/i18n";
 
 type CompletionItem = {
   key: string;
@@ -44,6 +45,7 @@ function authHeaders(): Record<string, string> {
 }
 
 export function ProfileCompletionMeter() {
+  const t = usePlatformT();
   const [data, setData] = useState<CompletionPayload | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -73,8 +75,8 @@ export function ProfileCompletionMeter() {
         <div className="flex items-center gap-3">
           <CheckCircle size={24} weight="fill" color="#047857" />
           <div>
-            <p className="text-sm font-semibold text-emerald-700">프로필 100% 완료</p>
-            <p className="mt-0.5 text-xs text-emerald-700/80">모든 정보가 입력되어 있어요. 매칭 가능성이 가장 높은 상태!</p>
+            <p className="text-sm font-semibold text-emerald-700">{t("프로필 100% 완료", "Profile 100% complete", "资料 100% 完成", "Hồ sơ hoàn thành 100%", "プロフィール100%完成", "Profil 100% lengkap")}</p>
+            <p className="mt-0.5 text-xs text-emerald-700/80">{t("모든 정보가 입력되어 있어요. 매칭 가능성이 가장 높은 상태!", "All info is filled in. You have the highest matching potential!", "所有信息都已填写，匹配可能性最高！", "Tất cả thông tin đã điền. Cơ hội ghép cặp cao nhất!", "すべての情報が入力済み。マッチング可能性が最も高い状態です！", "Semua info sudah terisi. Peluang pencocokan tertinggi!")}</p>
           </div>
         </div>
       </article>
@@ -88,9 +90,16 @@ export function ProfileCompletionMeter() {
     <article className="rounded-2xl border border-border/70 bg-card p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-foreground">프로필 완성도</p>
+          <p className="text-sm font-semibold text-foreground">{t("프로필 완성도", "Profile completion", "资料完成度", "Mức độ hoàn thiện hồ sơ", "プロフィール完成度", "Kelengkapan profil")}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {data.filledCount}/{data.total} 항목 작성 — 완성도를 높이면 매칭 확률이 올라가요.
+            {t(
+              `${data.filledCount}/${data.total} 항목 작성 — 완성도를 높이면 매칭 확률이 올라가요.`,
+              `${data.filledCount}/${data.total} items filled — completing more boosts your matching odds.`,
+              `已填写 ${data.filledCount}/${data.total} 项 — 完成度越高，匹配几率越大。`,
+              `Đã điền ${data.filledCount}/${data.total} mục — hoàn thiện hơn giúp tăng cơ hội ghép cặp.`,
+              `${data.filledCount}/${data.total} 項目入力 — 完成度を高めるとマッチ率が上がります。`,
+              `${data.filledCount}/${data.total} item terisi — melengkapi lebih banyak meningkatkan peluang pencocokan.`
+            )}
           </p>
         </div>
         <p className="text-2xl font-bold" style={{ color }}>
@@ -109,7 +118,7 @@ export function ProfileCompletionMeter() {
       </div>
       {missing.length > 0 ? (
         <div className="mt-4">
-          <p className="text-xs font-semibold text-muted-foreground">아직 작성 안 한 항목</p>
+          <p className="text-xs font-semibold text-muted-foreground">{t("아직 작성 안 한 항목", "Items not filled yet", "尚未填写的项目", "Mục chưa điền", "まだ入力していない項目", "Item yang belum terisi")}</p>
           <ul className="mt-2 grid gap-1 sm:grid-cols-2">
             {missing.map((it) => {
               const href = ITEM_LINK[it.key];
@@ -121,7 +130,7 @@ export function ProfileCompletionMeter() {
                       className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
                     >
                       <Circle size={14} weight="duotone" />
-                      <span>{it.label} 추가하기 →</span>
+                      <span>{t(`${it.label} 추가하기 →`, `Add ${it.label} →`, `添加${it.label} →`, `Thêm ${it.label} →`, `${it.label}を追加 →`, `Tambah ${it.label} →`)}</span>
                     </Link>
                   ) : (
                     <span className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground">
