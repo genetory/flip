@@ -106,7 +106,8 @@ function Content() {
         <SectionHead title={t("모의 면접으로 연습해요","Practice with mock interviews","用模拟面试练习","Luyện tập với phỏng vấn thử","模擬面接で練習する","Latihan wawancara simulasi")} desc={t("내 이력서·자기소개서를 바탕으로 예상 질문을 풀고 AI 피드백을 받아요.","Answer likely questions based on your resume and cover letter, and get AI feedback.","根据你的简历和求职信回答预测问题，并获得 AI 反馈。","Trả lời câu hỏi dự kiến dựa trên CV và thư xin việc, nhận phản hồi AI.","履歴書・自己PRをもとに予想質問に答え、AIフィードバックを受けよう。","Jawab pertanyaan berdasarkan CV dan surat lamaranmu, dapat masukan AI.")} />
         <button
           type="button"
-          onClick={() => setMockGateOpen(true)}
+          // 이력서·자기소개서가 모두 준비(100%)됐으면 게이트를 건너뛰고 바로 유형 선택으로.
+          onClick={() => (rp >= 100 && cp >= 100 ? setMockOpen(true) : setMockGateOpen(true))}
           className="flex items-center gap-3.5 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4 text-left transition hover:border-[#0B46E8]/40"
         >
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] shadow-[0_2px_10px_rgba(11,70,232,0.1)]" aria-hidden>🎤</span>
