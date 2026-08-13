@@ -212,16 +212,27 @@ function ItemRow({
 }) {
   const t = usePlatformT();
   const isExperience = section === "experience";
+  // 모든 섹션에 '타이틀/이름' 입력란(학력=학교명, 프로젝트=프로젝트명, 스킬=스킬명 등). 경험처럼 편집 가능.
+  const namePlaceholder =
+    section === "education" ? t("학교명","School","学校名称","Tên trường","学校名","Nama sekolah")
+    : section === "project" ? t("프로젝트명","Project name","项目名称","Tên dự án","プロジェクト名","Nama proyek")
+    : section === "certificate" ? t("자격증·발급기관","Certificate / issuer","证书·发证机构","Chứng chỉ / nơi cấp","資格・発行機関","Sertifikat / penerbit")
+    : section === "activity" ? t("활동·단체명","Activity / org","活动·团体","Hoạt động / tổ chức","活動・団体名","Aktivitas / organisasi")
+    : section === "award" ? t("수상명·기관","Award / issuer","奖项·机构","Giải thưởng / nơi cấp","受賞名・機関","Penghargaan / penerbit")
+    : section === "skill" ? t("역량·스킬명","Skill","技能名称","Tên kỹ năng","スキル名","Nama keahlian")
+    : t("소속 (회사·기관)","Organization (company)","所属（公司·机构）","Nơi công tác (công ty)","所属（会社・機関）","Instansi (perusahaan)");
+  const textPlaceholder =
+    section === "education" ? t("전공·학위·학점 (선택)","Major / degree / GPA (optional)","专业·学位·GPA（选填）","Chuyên ngành / bằng cấp (tùy chọn)","専攻・学位・成績（任意）","Jurusan / gelar (opsional)")
+    : isExperience ? t("한 일·성과 (선택)","What you did / achievements (optional)","工作内容·成果（选填）","Việc đã làm / thành tích (tùy chọn)","業務・成果（任意）","Yang dikerjakan / hasil (opsional)")
+    : undefined;
   return (
     <div className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
-      {isExperience ? (
-        <input
-          value={company}
-          onChange={(e) => onCompanyChange(e.target.value)}
-          placeholder={t("소속 (회사·기관)","Organization (company)","所属（公司·机构）","Nơi công tác (công ty)","所属（会社・機関）","Instansi (perusahaan)")}
-          className="mb-2.5 w-full rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] font-bold text-[#191F28] outline-none placeholder:font-normal placeholder:text-[#B0B8C1]"
-        />
-      ) : null}
+      <input
+        value={company}
+        onChange={(e) => onCompanyChange(e.target.value)}
+        placeholder={namePlaceholder}
+        className="mb-2.5 w-full rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] font-bold text-[#191F28] outline-none placeholder:font-normal placeholder:text-[#B0B8C1]"
+      />
       {showDate ? (
         <div className="mb-2.5 flex flex-col gap-2">
           <div className="flex items-center gap-2">
