@@ -17,6 +17,7 @@ import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useBasicInfo, isBasicInfoComplete, type BasicInfo } from "../../../lib/talent/basic-info";
 import { useCareerFeed, ensureFeedEntry } from "../../../lib/talent/career-feed";
 import { classifyCareerNote, SECTION_META, type CareerSection } from "../../../lib/talent/career-chat";
+import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import { careerAssist } from "../../../lib/talent/career-assist-client";
 import { useResumeDoc, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, addResumeItem, refineText, SECTION_HAS_DATE, type ResumeDoc } from "../../../lib/talent/resume-doc";
 import { usePlatformT } from "../../../lib/i18n";
@@ -134,7 +135,7 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
             <CollapsibleSection
               key={section}
               emoji={meta.emoji}
-              label={meta.label}
+              label={sectionLabelOf(t, section)}
               count={items.length}
               defaultOpen={items.length > 0}
               addLabel={t("직접 추가","Add","直接添加","Thêm","直接追加","Tambah")}
@@ -309,7 +310,7 @@ function ItemRow({
             className="w-full appearance-none rounded-lg bg-[#F5F6F8] py-1.5 pl-2.5 pr-7 text-[12px] font-semibold text-[#4E5968] outline-none [color-scheme:light]"
           >
             {CHIP_ORDER.map((s) => (
-              <option key={s} value={s}>{SECTION_META[s].label}</option>
+              <option key={s} value={s}>{sectionLabelOf(t, s)}</option>
             ))}
           </select>
           <CaretDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8B95A1]" weight="bold" />
@@ -370,12 +371,13 @@ function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, r
     }
 
     const meta = SECTION_META[res.section];
+    const secLabel = sectionLabelOf(t, res.section);
     const id = onAdd(trimmed, res.section, res.refined, res.startDate, res.endDate);
     // 커리어 기록(피드)에도 요약 리스팅.
-    ensureFeedEntry(`resume:${id}`, res.refined, res.section, { label: `${t("이력서","Resume","简历","CV","履歴書","CV")} · ${meta.label}`, href: talentAppRoutes.resume });
+    ensureFeedEntry(`resume:${id}`, res.refined, res.section, { label: `${t("이력서","Resume","简历","CV","履歴書","CV")} · ${secLabel}`, href: talentAppRoutes.resume });
     setMessages((m) => [
       ...m,
-      { id: ++seq.current, role: "ai", text: `${meta.emoji} ${t(`${meta.label}에 정리했어요.`, `Organized under ${meta.label}.`, `已整理到「${meta.label}」。`, `Đã sắp xếp vào ${meta.label}.`, `${meta.label}に整理しました。`, `Disusun di ${meta.label}.`)} ${res.followUp}`.trim() }
+      { id: ++seq.current, role: "ai", text: `${meta.emoji} ${t(`${secLabel}에 정리했어요.`, `Organized under ${secLabel}.`, `已整理到「${secLabel}」。`, `Đã sắp xếp vào ${secLabel}.`, `${secLabel}に整理しました。`, `Disusun di ${secLabel}.`)} ${res.followUp}`.trim() }
     ]);
     setPending(false);
   }
@@ -412,7 +414,7 @@ function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, r
       {/* 섹션 선택 */}
       <div className="flex flex-wrap gap-1.5 px-3 pt-3">
         {CHIP_ORDER.map((s) => (
-          <SectionChip key={s} label={`${SECTION_META[s].emoji} ${SECTION_META[s].label}`} active={choice === s} onClick={() => setChoice(s)} />
+          <SectionChip key={s} label={`${SECTION_META[s].emoji} ${sectionLabelOf(t, s)}`} active={choice === s} onClick={() => setChoice(s)} />
         ))}
       </div>
 

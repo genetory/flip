@@ -12,6 +12,7 @@ import { useLaunchT } from "../../lib/launch/i18n";
 import { LaunchNotificationBell } from "./LaunchNotificationBell";
 import { TalentTicketBadge } from "../talent/TalentTicketBadge";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
+import { getStoredProfilePhoto, PROFILE_PHOTO_CHANGED_EVENT } from "../../lib/profile-media";
 
 export function CareerLaunchHeader() {
   const t = useLaunchT();
@@ -25,6 +26,16 @@ export function CareerLaunchHeader() {
   }, [pathname]);
 
   const name = user?.name?.trim() || user?.email || t("학생", "Student", "学生", "Sinh viên", "学生", "Siswa");
+
+  // 계정 프로필 사진 — talent/partner GNB와 동일 소스.
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  useEffect(() => {
+    const read = () => setProfilePhoto(user ? (user.profileImageUrl ?? getStoredProfilePhoto(user.id)) : null);
+    read();
+    if (typeof window === "undefined") return;
+    window.addEventListener(PROFILE_PHOTO_CHANGED_EVENT, read);
+    return () => window.removeEventListener(PROFILE_PHOTO_CHANGED_EVENT, read);
+  }, [user?.id, user?.profileImageUrl]);
 
   const nav = [
     { key: "home", href: "/career-launch/dashboard", label: t("홈", "Home", "首页", "Trang chủ", "ホーム", "Beranda") },
@@ -86,9 +97,16 @@ export function CareerLaunchHeader() {
             <Link
               href="/career-launch/settings"
               aria-label={t("내 설정", "My settings", "我的设置", "Cài đặt của tôi", "設定", "Pengaturan")}
-              className="inline-flex max-w-[128px] items-center rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl transition hover:bg-[#F6F8FB]"
             >
-              <span className="truncate">{name}</span>
+              <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-[#F2F4F6] text-[12px] font-bold text-[#4E5968]">
+                {profilePhoto ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span aria-hidden>{name.charAt(0).toUpperCase()}</span>
+                )}
+              </span>
             </Link>
             <LanguageSwitcher />
           </div>

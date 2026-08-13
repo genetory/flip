@@ -6,6 +6,7 @@ import { useState } from "react";
 import { X, CaretDown, Trash } from "@phosphor-icons/react";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { catMeta } from "../../../lib/talent/mock-interview-categories";
+import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { useSelfMock, clearSelfMock, type SelfMockAnswer } from "../../../lib/talent/self-mock";
 import { usePlatformT } from "../../../lib/i18n";
 
@@ -67,7 +68,7 @@ function AnswerCard({ a, defaultOpen }: { a: SelfMockAnswer; defaultOpen?: boole
   return (
     <div className="overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
       <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full flex-col gap-1.5 px-4 py-3.5 text-left">
-        <span className={`inline-flex w-fit shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-bold ${meta.badge}`}>{meta.emoji} {meta.label}</span>
+        <span className={`inline-flex w-fit shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-bold ${meta.badge}`}>{meta.emoji} {mockCategoryLabelOf(t, a.category)}</span>
         <span className="flex w-full items-start gap-2.5">
           <span className="min-w-0 flex-1 break-keep text-[13.5px] font-bold text-[#191F28]">{a.question}</span>
           <CaretDown className={`mt-0.5 h-4 w-4 shrink-0 text-[#B0B8C1] transition ${open ? "rotate-180" : ""}`} weight="bold" />

@@ -11,6 +11,7 @@ import { useCoverDoc } from "../../../lib/talent/cover-doc";
 import { useBasicInfo } from "../../../lib/talent/basic-info";
 import { useSelfMock, saveSelfMockAnswer } from "../../../lib/talent/self-mock";
 import { catMeta, CATEGORY_ORDER } from "../../../lib/talent/mock-interview-categories";
+import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { aiInterviewQuestions, aiInterviewFeedback, recordMockInterviewPractice, type PublicPositionListItem, type InterviewQuestion, type InterviewFeedback } from "../../../lib/member-profile-client";
@@ -382,7 +383,7 @@ function QuestionStep({
       {/* 카테고리 + 질문 */}
       <div>
         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.badge}`}>
-          {meta.emoji} {meta.label}
+          {meta.emoji} {mockCategoryLabelOf(t, q.category)}
         </span>
         <p className="mt-2.5 flex items-start gap-2 break-keep text-[16px] font-bold leading-relaxed text-[#191F28]">
           <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#EDF1FD] text-[11px] font-black text-[#0B46E8]">{index + 1}</span>
@@ -484,7 +485,7 @@ function CategoryChooser({ authored, onPick }: { authored: boolean; onPick: (cat
           <button key={c} type="button" onClick={() => onPick(c)} className="flex items-center gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 text-left transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
             <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-[20px] ${m.badge}`} aria-hidden>{m.emoji}</span>
             <div className="min-w-0 flex-1">
-              <p className="text-[14.5px] font-bold text-[#191F28]">{m.label}</p>
+              <p className="text-[14.5px] font-bold text-[#191F28]">{mockCategoryLabelOf(t, c)}</p>
               <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{categoryDesc(t, c)}</p>
             </div>
             <AiTicketCost feature="interview_questions" tone="muted" size="md" />

@@ -17,6 +17,7 @@ import { useBasicInfo, isBasicInfoComplete, type BasicInfo } from "../../../lib/
 import { useResumeDoc, useRenewalDocsStatus } from "../../../lib/talent/resume-doc";
 import { SECTION_META } from "../../../lib/talent/career-chat";
 import { useCoverDoc, saveCoverDoc, generateCoverDoc, addCoverItem, coverQuestionEmoji, COVER_QUESTIONS, type CoverDoc } from "../../../lib/talent/cover-doc";
+import { coverQuestionLabelOf } from "../../../lib/talent/career-labels";
 import { coverAssist, coverChat } from "../../../lib/talent/cover-assist-client";
 import { ensureFeedEntry } from "../../../lib/talent/career-feed";
 import { usePlatformT } from "../../../lib/i18n";
@@ -89,7 +90,7 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
     onChange({ ...doc, items: doc.items.filter((it) => it.id !== id) });
   }
   function logCover(id: string, question: string, text: string) {
-    ensureFeedEntry(`cover:${id}`, text.trim(), "experience", { emoji: "📝", label: `${t("자기소개서","Cover letter","求职信","Thư xin việc","自己PR","Surat lamaran")} · ${question}`, href: talentAppRoutes.cover });
+    ensureFeedEntry(`cover:${id}`, text.trim(), "experience", { emoji: "📝", label: `${t("자기소개서","Cover letter","求职信","Thư xin việc","自己PR","Surat lamaran")} · ${coverQuestionLabelOf(t, question)}`, href: talentAppRoutes.cover });
   }
   // 대화로 선택 문항에 새 항목 추가.
   function add(question: string, text: string) {
@@ -121,7 +122,7 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
             <CollapsibleSection
               key={q}
               emoji={coverQuestionEmoji(q)}
-              label={q}
+              label={coverQuestionLabelOf(t, q)}
               count={items.length}
               defaultOpen={items.length > 0}
               addLabel={t("직접 추가","Add","直接添加","Thêm","直接追加","Tambah")}
@@ -216,7 +217,8 @@ function ChatPanel({ name, resumeText, onAdd }: { name: string; resumeText: stri
     setPending(true);
     const text = await coverChat({ note: trimmed, question, name, resumeText });
     onAdd(question, text);
-    setMessages((m) => [...m, { id: ++seq.current, role: "ai", text: `${coverQuestionEmoji(question)} ${t(`'${question}'에 항목을 추가했어요. 미리보기에서 확인해보세요.`, `Added an item to '${question}'. Check it in the preview.`, `已向「${question}」添加条目。请在预览中查看。`, `Đã thêm mục vào '${question}'. Xem trong bản xem trước.`, `「${question}」に項目を追加しました。プレビューで確認してください。`, `Menambahkan item ke '${question}'. Cek di pratinjau.`)}` }]);
+    const qLabel = coverQuestionLabelOf(t, question);
+    setMessages((m) => [...m, { id: ++seq.current, role: "ai", text: `${coverQuestionEmoji(question)} ${t(`'${qLabel}'에 항목을 추가했어요. 미리보기에서 확인해보세요.`, `Added an item to '${qLabel}'. Check it in the preview.`, `已向「${qLabel}」添加条目。请在预览中查看。`, `Đã thêm mục vào '${qLabel}'. Xem trong bản xem trước.`, `「${qLabel}」に項目を追加しました。プレビューで確認してください。`, `Menambahkan item ke '${qLabel}'. Cek di pratinjau.`)}` }]);
     setPending(false);
   }
 
@@ -252,7 +254,7 @@ function ChatPanel({ name, resumeText, onAdd }: { name: string; resumeText: stri
       {/* 문항 선택 */}
       <div className="flex flex-wrap gap-1.5 px-3 pt-3">
         {COVER_QUESTIONS.map((q, i) => (
-          <ChipButton key={q} label={`${coverQuestionEmoji(q)} ${q}`} active={choice === i} onClick={() => setChoice(i)} />
+          <ChipButton key={q} label={`${coverQuestionEmoji(q)} ${coverQuestionLabelOf(t, q)}`} active={choice === i} onClick={() => setChoice(i)} />
         ))}
       </div>
 
