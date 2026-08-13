@@ -18,7 +18,9 @@ import { useResumeDoc, useRenewalDocsStatus } from "../../../lib/talent/resume-d
 import { SECTION_META } from "../../../lib/talent/career-chat";
 import { useCoverDoc, saveCoverDoc, generateCoverDoc, addCoverItem, coverQuestionEmoji, COVER_QUESTIONS, type CoverDoc } from "../../../lib/talent/cover-doc";
 import { coverQuestionLabelOf } from "../../../lib/talent/career-labels";
-import { coverAssist, coverChat } from "../../../lib/talent/cover-assist-client";
+import { coverChat } from "../../../lib/talent/cover-assist-client";
+import { polishSelfIntro, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
+import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
 import { ensureFeedEntry } from "../../../lib/talent/career-feed";
 import { usePlatformT } from "../../../lib/i18n";
 
@@ -83,6 +85,13 @@ export function CoverBuilderScreen() {
 
 function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basicInfo: BasicInfo; resumeText: string; onChange: (d: CoverDoc) => void }) {
   const t = usePlatformT();
+  // 포인트 부족(402) 시 충전 모달.
+  const [chargeOpen, setChargeOpen] = useState(false);
+  const [usage, setUsage] = useState<AiUsage | null>(null);
+  async function openCharge() {
+    try { setUsage(await getAiUsage()); } catch { /* ignore */ }
+    setChargeOpen(true);
+  }
   function setText(id: string, text: string) {
     onChange({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, text } : it)) });
   }
@@ -135,11 +144,9 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
                 <ItemRow
                   key={it.id}
                   text={it.text}
-                  question={q}
-                  name={basicInfo.realName}
-                  resumeText={resumeText}
                   onChange={(v) => setText(it.id, v)}
                   onRemove={() => remove(it.id)}
+                  onQuota={openCharge}
                 />
               ))}
             </CollapsibleSection>
@@ -155,6 +162,10 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
         </div>
         <CoverA4Preview doc={doc} info={basicInfo} />
       </aside>
+
+      {chargeOpen && usage ? (
+        <AiTicketStatusModal remaining={usage.remaining} resetAt={usage.resetAt || null} dailyGrant={usage.dailyGrant} onClose={() => setChargeOpen(false)} />
+      ) : null}
     </div>
   );
 }
@@ -297,30 +308,41 @@ function ChipButton({ label, active, onClick }: { label: string; active: boolean
 
 function ItemRow({
   text,
-  question,
-  name,
-  resumeText,
   onChange,
-  onRemove
+  onRemove,
+  onQuota
 }: {
   text: string;
-  question: string;
-  name: string;
-  resumeText: string;
   onChange: (v: string) => void;
   onRemove: () => void;
+  onQuota: () => void;
 }) {
   const t = usePlatformT();
   const [busy, setBusy] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  // AI 다듬기 스타일 3종 — 각 1P 소모. concise=간결 · expand=구체 · professional=정중.
+  const polishChoices: { style: PolishStyle; label: string; hint: string }[] = [
+    { style: "concise", label: t("간결하게","Concise","简洁","Ngắn gọn","簡潔に","Ringkas"), hint: t("핵심만 짧게","Keep only the essentials","只留核心","Chỉ giữ ý chính","要点だけ短く","Inti saja") },
+    { style: "expand", label: t("구체적으로","Detailed","具体","Chi tiết","具体的に","Rinci"), hint: t("맥락·경험을 풍부하게","Add context & detail","补充背景与经历","Thêm bối cảnh, trải nghiệm","文脈・経験を補足","Tambah konteks & pengalaman") },
+    { style: "professional", label: t("정중하게","Professional","正式","Trang trọng","丁寧に","Formal"), hint: t("격식 있는 전문가 톤","Formal, professional tone","专业正式语气","Giọng chuyên nghiệp","丁寧な文体","Nada profesional") }
+  ];
 
   const value = text ?? "";
 
-  async function refine() {
+  async function refine(style: PolishStyle) {
     if (busy || !value.trim()) return;
+    setMenuOpen(false);
     setBusy(true);
-    const result = await coverAssist("refine", { question, answer: value, name, resumeText });
-    if (result) onChange(result);
-    setBusy(false);
+    try {
+      const polished = await polishSelfIntro({ text: value.trim(), style });
+      if (polished) onChange(polished);
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
+    } catch (err) {
+      if (err instanceof AiQuotaError) onQuota();
+      else console.error("[cover/polish] failed", err);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -332,14 +354,42 @@ function ItemRow({
         className="min-h-[116px] w-full resize-y break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-3 text-[14px] leading-[1.8] text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
       />
       <div className="mt-2.5 flex items-center justify-end gap-1.5">
-        <button
-          type="button"
-          onClick={refine}
-          disabled={busy || !value.trim()}
-          className="inline-flex items-center gap-1 rounded-lg bg-[#EDF1FD] px-2.5 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC] disabled:opacity-40"
-        >
-          <Sparkle className="h-3.5 w-3.5" weight="fill" /> {busy ? t("다듬는 중…","Polishing…","润色中…","Đang chỉnh…","整えています…","Memoles…") : t("AI로 다듬기","Polish with AI","用 AI 润色","Chỉnh bằng AI","AIで整える","Poles dengan AI")}
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => { if (!busy && value.trim()) setMenuOpen((v) => !v); }}
+            disabled={busy || !value.trim()}
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            className="inline-flex items-center gap-1 rounded-lg bg-[#EDF1FD] px-2.5 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC] disabled:opacity-40"
+          >
+            <Sparkle className="h-3.5 w-3.5" weight="fill" /> {busy ? t("다듬는 중…","Polishing…","润色中…","Đang chỉnh…","整えています…","Memoles…") : t("AI로 다듬기","Polish with AI","用 AI 润色","Chỉnh bằng AI","AIで整える","Poles dengan AI")}
+            {!busy ? <CaretDown className={`h-3 w-3 transition-transform ${menuOpen ? "rotate-180" : ""}`} weight="bold" /> : null}
+          </button>
+          {menuOpen ? (
+            <>
+              <button type="button" aria-hidden tabIndex={-1} onClick={() => setMenuOpen(false)} className="fixed inset-0 z-10 cursor-default" />
+              <div role="menu" className="absolute right-0 z-20 mt-1 w-56 overflow-hidden rounded-xl border border-[#E5E8EB] bg-white py-1 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+                {polishChoices.map((c) => (
+                  <button
+                    key={c.style}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => refine(c.style)}
+                    className="flex w-full items-start justify-between gap-2 px-3 py-2 text-left transition hover:bg-[#F6F8FB]"
+                  >
+                    <span className="flex flex-col">
+                      <span className="text-[13px] font-bold text-[#0B1227]">{c.label}</span>
+                      <span className="text-[11px] text-[#8B95A1]">{c.hint}</span>
+                    </span>
+                    <span className="mt-0.5 shrink-0 rounded-md bg-[#EDF1FD] px-1.5 py-0.5 text-[10px] font-bold text-[#0B46E8]">1P</span>
+                  </button>
+                ))}
+                <p className="border-t border-[#F2F4F6] px-3 pb-1 pt-1.5 text-[10.5px] text-[#B0B8C1]">{t("다듬기당 AI 1P 소모","1 AI point per polish","每次润色消耗 1P","1P AI mỗi lần","1回につきAI 1P","1P AI per poles")}</p>
+              </div>
+            </>
+          ) : null}
+        </div>
         <button type="button" onClick={onRemove} aria-label={t("삭제","Delete","删除","Xóa","削除","Hapus")} className="flex h-8 w-8 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]">
           <Trash className="h-4 w-4" />
         </button>
