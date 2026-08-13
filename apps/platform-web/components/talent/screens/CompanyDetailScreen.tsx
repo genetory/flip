@@ -82,7 +82,7 @@ export function CompanyDetailScreen({ name }: { name: string }) {
       else next.delete(id);
       return next;
     });
-    if (willSave) notifySavedPosition(id);
+    if (willSave) notifySavedPosition(t, id);
     const req = willSave ? addMyFavoritePosition(id) : removeMyFavoritePosition(id);
     void req.catch(() => {
       setSavedIds((prev) => {
@@ -134,7 +134,7 @@ export function CompanyDetailScreen({ name }: { name: string }) {
               {positions.length ? (
                 <div className="flex flex-col gap-3">
                   {positions.map((item) => (
-                    <PositionCard key={item.id} view={toPositionView(item)} saved={savedIds.has(item.id)} onToggleSave={toggleSave} onShowCip={() => setCipOpen(true)} />
+                    <PositionCard key={item.id} view={toPositionView(item, t)} saved={savedIds.has(item.id)} onToggleSave={toggleSave} onShowCip={() => setCipOpen(true)} />
                   ))}
                 </div>
               ) : (

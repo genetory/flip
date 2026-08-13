@@ -118,7 +118,7 @@ function Row({ n, last }: { n: Notification; last: boolean }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className={`text-[11px] font-normal ${s.text}`}>{s.label}</span>
-          <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(n.createdAt)}</span>
+          <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(n.createdAt, undefined, t)}</span>
         </div>
         <p className={`mt-1.5 truncate text-[14.5px] ${n.unread ? "font-bold text-[#191F28]" : "font-semibold text-[#4E5968]"}`}>{n.title}</p>
         <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{n.body}</p>

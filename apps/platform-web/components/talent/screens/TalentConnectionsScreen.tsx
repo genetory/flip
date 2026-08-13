@@ -129,7 +129,7 @@ export function TalentConnectionsScreen() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <p className="truncate text-[15px] font-bold text-[#191F28]">{c.orgName}</p>
-                            <span className="shrink-0 text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(new Date(c.createdAt).getTime())}</span>
+                            <span className="shrink-0 text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(new Date(c.createdAt).getTime(), undefined, t)}</span>
                           </div>
                           {c.message ? <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#4E5968]">“{c.message}”</p> : null}
                           {c.status === "ACCEPTED" && c.partnerEmail ? (

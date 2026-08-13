@@ -9,6 +9,7 @@ import { CaretRight, Plus, X } from "@phosphor-icons/react";
 import { useJobInterests, saveJobInterests } from "../../../lib/talent/job-interest";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { usePlatformT } from "../../../lib/i18n";
+import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 import { JobInterestModal } from "./JobInterestModal";
 
 export function JobInterestCard({ variant = "link" }: { variant?: "link" | "edit" }) {
@@ -26,11 +27,11 @@ export function JobInterestCard({ variant = "link" }: { variant?: "link" | "edit
           <div className="flex flex-wrap gap-2">
             {interests.map((r) => (
               <span key={r} className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] py-1.5 pl-3.5 pr-2 text-[12.5px] font-bold text-[#0B46E8]">
-                {r}
+                {jobTaxonomyLabelOf(t, r)}
                 <button
                   type="button"
                   onClick={() => remove(r)}
-                  aria-label={t(`${r} 삭제`, `Remove ${r}`, `删除 ${r}`, `Xóa ${r}`, `${r} を削除`, `Hapus ${r}`)}
+                  aria-label={t(`${jobTaxonomyLabelOf(t, r)} 삭제`, `Remove ${jobTaxonomyLabelOf(t, r)}`, `删除 ${jobTaxonomyLabelOf(t, r)}`, `Xóa ${jobTaxonomyLabelOf(t, r)}`, `${jobTaxonomyLabelOf(t, r)} を削除`, `Hapus ${jobTaxonomyLabelOf(t, r)}`)}
                   className="flex h-4 w-4 items-center justify-center rounded-full text-[#8AA6EF] transition hover:bg-white/70 hover:text-[#0B46E8]"
                 >
                   <X className="h-3 w-3" weight="bold" />
@@ -78,7 +79,7 @@ export function JobInterestCard({ variant = "link" }: { variant?: "link" | "edit
               <p className="text-[15px] font-bold text-[#191F28]">{t("나의 관심 직무", "My job interests", "我的兴趣职位", "Nghề tôi quan tâm", "私の関心職種", "Minat pekerjaan saya")}</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {interests.map((r) => (
-                  <span key={r} className="rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[12px] font-bold text-[#0B46E8]">{r}</span>
+                  <span key={r} className="rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[12px] font-bold text-[#0B46E8]">{jobTaxonomyLabelOf(t, r)}</span>
                 ))}
               </div>
             </>

@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
 import { setBookmarks, snapshotBookmarks, subscribeDocs, syncUser } from "./renewal-docs-store";
 import { notifySavedFeed } from "./activity-log";
+import type { PlatformT } from "../i18n";
 
 const EMPTY: string[] = [];
 
@@ -11,13 +12,13 @@ export function isFeedBookmarked(postId: string): boolean {
   return (snapshotBookmarks() ?? []).includes(postId);
 }
 
-export function toggleFeedBookmark(postId: string): void {
+export function toggleFeedBookmark(postId: string, t: PlatformT): void {
   const list = snapshotBookmarks() ?? [];
   if (list.includes(postId)) {
     setBookmarks(list.filter((id) => id !== postId));
   } else {
     setBookmarks([postId, ...list]);
-    notifySavedFeed(postId); // 내 활동 알림 — 저장할 때만.
+    notifySavedFeed(t, postId); // 내 활동 알림 — 저장할 때만.
   }
 }
 

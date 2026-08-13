@@ -8,6 +8,7 @@ import { readPersona, writePersona } from "./persona-state";
 import type { TalentSnapshot } from "./types";
 import type { TalentPersonaId } from "./types";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
+import { usePlatformT } from "../i18n";
 
 export type AsyncStatus = "loading" | "ready" | "error";
 
@@ -23,6 +24,7 @@ function withAuthUser(snapshot: TalentSnapshot, name: string | null): TalentSnap
 
 export function useTalentSnapshot() {
   const { user } = useAuthSession();
+  const t = usePlatformT();
   const [persona, setPersonaState] = useState<TalentPersonaId | null>(null);
   const [snapshot, setSnapshot] = useState<TalentSnapshot | null>(null);
   const [status, setStatus] = useState<AsyncStatus>("loading");
@@ -35,13 +37,13 @@ export function useTalentSnapshot() {
   const load = useCallback(async (id: TalentPersonaId) => {
     setStatus("loading");
     try {
-      const data = await getTalentRepository().getSnapshot(id);
+      const data = await getTalentRepository().getSnapshot(id, t);
       setSnapshot(data);
       setStatus("ready");
     } catch {
       setStatus("error");
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (persona) void load(persona);

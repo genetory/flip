@@ -49,7 +49,7 @@ export function FeedPostList({ posts }: { posts: FeedPost[] }) {
             bookmarked={bookmarkSet.has(p.id)}
             reflected={reflectedRefIds.has(`feed:${p.id}`)}
             onOpenProfile={() => setProfile({ name: p.authorName, role: p.authorRole })}
-            onToggleFollow={() => toggleFollow({ name: p.authorName, role: p.authorRole })}
+            onToggleFollow={() => toggleFollow({ name: p.authorName, role: p.authorRole }, t)}
           />
         ))}
       </div>
@@ -91,11 +91,11 @@ function PostCard({
             <button type="button" onClick={onOpenProfile} className="truncate text-[13.5px] font-bold text-[#191F28] hover:underline">{post.authorName}</button>
             <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold ${post.authorRole === "PARTNER" ? "bg-[#EAF7EE] text-[#1F8B4C]" : "bg-[#EDF1FD] text-[#0B46E8]"}`}>{roleLabel(post.authorRole)}</span>
           </div>
-          <p className="text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(post.createdAt)}</p>
+          <p className="text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(post.createdAt, undefined, t)}</p>
         </div>
         <button
           type="button"
-          onClick={() => toggleFeedBookmark(post.id)}
+          onClick={() => toggleFeedBookmark(post.id, t)}
           aria-label={bookmarked ? t("즐겨찾기 취소", "Remove bookmark", "取消收藏", "Bỏ lưu", "ブックマーク解除", "Hapus markah") : t("즐겨찾기", "Bookmark", "收藏", "Lưu", "ブックマーク", "Markah")}
           aria-pressed={bookmarked}
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition ${bookmarked ? "text-[#0B46E8]" : "text-[#B0B8C1] hover:bg-[#F2F4F6] hover:text-[#4E5968]"}`}
@@ -157,7 +157,7 @@ function AuthorProfileModal({ author, posts, meKey, onClose }: { author: FeedAut
           {!mine ? (
             <button
               type="button"
-              onClick={() => toggleFollow(author)}
+              onClick={() => toggleFollow(author, t)}
               className={`mt-4 w-full rounded-xl px-4 py-2.5 text-[14px] font-bold transition ${
                 isFollowed ? "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]" : "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]"
               }`}
@@ -175,7 +175,7 @@ function AuthorProfileModal({ author, posts, meKey, onClose }: { author: FeedAut
               {authored.map((p) => (
                 <div key={p.id} className="rounded-xl bg-[#F9FAFB] p-3.5">
                   <p className="whitespace-pre-line break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{p.text}</p>
-                  <p className="mt-1.5 text-[11px] text-[#B0B8C1]">{formatRelativeTime(p.createdAt)}</p>
+                  <p className="mt-1.5 text-[11px] text-[#B0B8C1]">{formatRelativeTime(p.createdAt, undefined, t)}</p>
                 </div>
               ))}
             </div>

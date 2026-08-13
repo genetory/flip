@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { X, MagnifyingGlass } from "@phosphor-icons/react";
 import { saveJobInterests } from "../../../lib/talent/job-interest";
 import { JOB_TAXONOMY } from "../../../lib/talent/job-taxonomy";
+import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { usePlatformT } from "../../../lib/i18n";
 
@@ -94,7 +95,7 @@ export function JobInterestModal({ initial, onClose }: { initial: string[]; onCl
                 onClick={() => toggle(m)}
                 className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]"
               >
-                {m} <X className="h-3 w-3" weight="bold" />
+                {jobTaxonomyLabelOf(t, m)} <X className="h-3 w-3" weight="bold" />
               </button>
             ))}
           </div>
@@ -133,7 +134,7 @@ export function JobInterestModal({ initial, onClose }: { initial: string[]; onCl
               <div className="flex flex-col gap-5">
                 {results.map((g) => (
                   <div key={g.label}>
-                    <p className="mb-2 text-[13px] font-bold text-[#191F28]">{g.label}</p>
+                    <p className="mb-2 text-[13px] font-bold text-[#191F28]">{jobTaxonomyLabelOf(t, g.label)}</p>
                     <div className="flex flex-wrap gap-2">
                       {g.minors.map((minor) => {
                         const on = selected.includes(minor);
@@ -149,7 +150,7 @@ export function JobInterestModal({ initial, onClose }: { initial: string[]; onCl
                               on ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB] disabled:opacity-40 disabled:hover:bg-[#F2F4F6]"
                             }`}
                           >
-                            {minor}
+                            {jobTaxonomyLabelOf(t, minor)}
                           </button>
                         );
                       })}
@@ -177,7 +178,7 @@ export function JobInterestModal({ initial, onClose }: { initial: string[]; onCl
                   }`}
                 >
                   <span aria-hidden>{mj.emoji}</span>
-                  <span className="min-w-0 flex-1 break-keep">{mj.label}</span>
+                  <span className="min-w-0 flex-1 break-keep">{jobTaxonomyLabelOf(t, mj.label)}</span>
                   {count ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden /> : null}
                 </button>
               );
@@ -189,7 +190,7 @@ export function JobInterestModal({ initial, onClose }: { initial: string[]; onCl
             <div className="flex flex-col gap-5">
               {active.middles.map((mid) => (
                 <div key={mid.label}>
-                  <p className="mb-2 text-[13px] font-bold text-[#191F28]">{mid.label}</p>
+                  <p className="mb-2 text-[13px] font-bold text-[#191F28]">{jobTaxonomyLabelOf(t, mid.label)}</p>
                   <div className="flex flex-wrap gap-2">
                     {mid.minors.map((minor) => {
                       const on = selected.includes(minor);

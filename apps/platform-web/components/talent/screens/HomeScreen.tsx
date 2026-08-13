@@ -281,13 +281,14 @@ function HomeCompanies() {
 /* 최상단 피처드 배너 — 광고·이벤트 (무한 루프 캐러셀 + 페이지 도트 + 자동 넘김) */
 function FeaturedBanners() {
   const t = usePlatformT();
+  const banners = featuredBanners(t);
   const ref = useRef<HTMLDivElement>(null);
   const settleRef = useRef<number | null>(null);
   const [active, setActive] = useState(0);
-  const n = featuredBanners.length;
+  const n = banners.length;
   const loop = n > 1;
   // 무한 루프: 양끝에 클론(마지막·처음) 추가. 실제 슬라이드는 인덱스 1..n.
-  const slides = loop ? [featuredBanners[n - 1], ...featuredBanners, featuredBanners[0]] : featuredBanners;
+  const slides = loop ? [banners[n - 1], ...banners, banners[0]] : banners;
 
   // 시작 위치를 첫 실제 슬라이드(index 1)로.
   useEffect(() => {
@@ -352,7 +353,7 @@ function FeaturedBanners() {
       </div>
       {loop ? (
         <div className="mt-3 flex justify-center gap-1.5">
-          {featuredBanners.map((b, i) => (
+          {banners.map((b, i) => (
             <button
               key={b.id}
               type="button"
@@ -419,11 +420,11 @@ function GreetingHeader() {
 /* 오늘의 팁 — 랜덤, 우측 새로고침으로 다른 팁 */
 function TodayTip() {
   const t = usePlatformT();
-  const [tip, setTip] = useState(() => pickRandomTip());
+  const [tip, setTip] = useState(() => pickRandomTip(t));
   function refresh() {
     setTip((prev) => {
-      let next = pickRandomTip();
-      for (let i = 0; i < 6 && next === prev; i++) next = pickRandomTip();
+      let next = pickRandomTip(t);
+      for (let i = 0; i < 6 && next === prev; i++) next = pickRandomTip(t);
       return next;
     });
   }
@@ -500,7 +501,7 @@ function GuideSection() {
       </div>
       <div className="-mx-4 overflow-x-auto md:mx-0">
         <div className="flex gap-3 pb-1 pl-4 md:pl-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {careerGuides.map((g) => (
+          {careerGuides(t).map((g) => (
             <button
               key={g.title}
               type="button"
@@ -609,7 +610,7 @@ function RecommendedJobs() {
           for (const it of page?.items ?? []) {
             if (seen.has(it.id) || merged.length >= 5) continue;
             seen.add(it.id);
-            merged.push({ view: toPositionView(it), matched });
+            merged.push({ view: toPositionView(it, t), matched });
           }
         }
       };
@@ -635,7 +636,7 @@ function RecommendedJobs() {
       else next.delete(id);
       return next;
     });
-    if (willSave) notifySavedPosition(id);
+    if (willSave) notifySavedPosition(t, id);
     const req = willSave ? addMyFavoritePosition(id) : removeMyFavoritePosition(id);
     void req.catch(() => {
       setSavedIds((prev) => {

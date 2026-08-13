@@ -22,8 +22,9 @@ export function InsightsScreen() {
   const [active, setActive] = useState<CareerGuide | null>(null);
   const [visa, setVisa] = useState<string | null>(null);
 
-  const feature = jobHunting[0];
-  const howtos = jobHunting.slice(1);
+  const jobHuntingGuides = jobHunting(t);
+  const feature = jobHuntingGuides[0];
+  const howtos = jobHuntingGuides.slice(1);
 
   return (
     <TalentAppShell>
@@ -56,7 +57,7 @@ export function InsightsScreen() {
         <section className="flex flex-col gap-4">
           <EditorialHeader kicker="JOBS" title={t("직무, 이런 일을 해요", "What each role really does", "职位，是做这些工作", "Mỗi nghề làm gì", "職種はこんな仕事です", "Apa yang dikerjakan tiap peran")} desc={t("관심 직무가 실제로 무슨 일을 하는지 살펴봐요.", "See what your target role actually involves.", "了解你感兴趣的职位实际做什么。", "Xem nghề bạn quan tâm thực sự làm gì.", "関心のある職種が実際に何をするのか見てみましょう。", "Lihat apa yang sebenarnya dilakukan peran incaran Anda.")} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {roleInsights.map((g) => (
+            {roleInsights(t).map((g) => (
               <button
                 key={g.title}
                 type="button"
@@ -98,7 +99,7 @@ export function InsightsScreen() {
         <section className="rounded-3xl bg-[#F5F8FF] p-6">
           <EditorialHeader kicker="GLOBAL" title={t("외국인을 위한 비자 안내", "Visa guide for foreigners", "外国人签证指南", "Hướng dẫn visa cho người nước ngoài", "外国人向けビザ案内", "Panduan visa untuk WNA")} desc={t("구직·취업에 관련된 비자를 쉽게 정리했어요.", "A simple rundown of job- and work-related visas.", "简单整理了求职和就业相关的签证。", "Tóm tắt đơn giản về visa tìm việc và làm việc.", "求職・就職に関わるビザをわかりやすくまとめました。", "Ringkasan sederhana visa kerja dan pencarian kerja.")} />
           <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            {jobVisas.map((v) => (
+            {jobVisas(t).map((v) => (
               <button
                 key={v.code}
                 type="button"
@@ -125,11 +126,11 @@ export function InsightsScreen() {
         <section className="flex flex-col gap-4">
           <EditorialHeader kicker="TIPS" title={t("알아두면 좋은 취업 팁", "Handy job-hunting tips", "值得了解的求职小贴士", "Mẹo tìm việc hữu ích", "知っておきたい就活のヒント", "Tips kerja yang berguna")} desc={t("가볍게 읽고 바로 써먹는 한 줄 팁이에요.", "Quick one-liners you can use right away.", "轻松阅读、即可实用的一句话贴士。", "Mẹo ngắn gọn dùng được ngay.", "サッと読んですぐ使える一言ヒントです。", "Tips singkat yang langsung bisa dipakai.")} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {homeTips.map((t) => (
-              <div key={t.title} className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+            {homeTips(t).map((tip) => (
+              <div key={tip.title} className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
                 <span className="text-[30px] font-black leading-none text-[#E4EDFB]" aria-hidden>“</span>
-                <p className="mt-1 break-keep text-[14.5px] font-bold leading-snug text-[#191F28]">{t.title}</p>
-                <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t.desc}</p>
+                <p className="mt-1 break-keep text-[14.5px] font-bold leading-snug text-[#191F28]">{tip.title}</p>
+                <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{tip.desc}</p>
               </div>
             ))}
           </div>

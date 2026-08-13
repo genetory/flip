@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
 import { setBasicInfo as storeSetBasicInfo, snapshotBasicInfo, subscribeDocs, syncUser } from "./renewal-docs-store";
+import type { PlatformT } from "../i18n";
 
 export interface BasicInfo {
   realName: string;
@@ -21,12 +22,28 @@ export const EMPTY_BASIC_INFO: BasicInfo = {
 };
 
 // 등록 완료에 필요한 필수 항목.
-export const basicInfoFields: { key: keyof BasicInfo; label: string; optional?: boolean }[] = [
-  { key: "realName", label: "실명" },
-  { key: "email", label: "이메일" },
-  { key: "phone", label: "연락처" },
-  { key: "address", label: "주소" }
+export const basicInfoFields: { key: keyof BasicInfo; optional?: boolean }[] = [
+  { key: "realName" },
+  { key: "email" },
+  { key: "phone" },
+  { key: "address" }
 ];
+
+// 필드 라벨 다국어 — 화면에 노출되므로 t로 번역.
+function basicInfoFieldLabel(key: keyof BasicInfo, t: PlatformT): string {
+  switch (key) {
+    case "realName":
+      return t("실명", "Full name", "真实姓名", "Họ tên", "氏名", "Nama lengkap");
+    case "email":
+      return t("이메일", "Email", "邮箱", "Email", "メール", "Email");
+    case "phone":
+      return t("연락처", "Contact", "联系方式", "Liên hệ", "連絡先", "Kontak");
+    case "address":
+      return t("주소", "Address", "地址", "Địa chỉ", "住所", "Alamat");
+    default:
+      return key;
+  }
+}
 
 // 저장 — 계정(서버)에 반영. 실제 쓰기는 공유 스토어가 debounce 처리한다.
 export function saveBasicInfo(info: BasicInfo): void {
@@ -57,10 +74,10 @@ export interface BasicInfoCheckItem {
   optional: boolean;
 }
 
-export function basicInfoChecklist(info: BasicInfo): BasicInfoCheckItem[] {
+export function basicInfoChecklist(info: BasicInfo, t: PlatformT): BasicInfoCheckItem[] {
   return basicInfoFields.map((f) => ({
     key: f.key,
-    label: f.label,
+    label: basicInfoFieldLabel(f.key, t),
     done: Boolean(info[f.key] && info[f.key].trim()),
     optional: Boolean(f.optional)
   }));

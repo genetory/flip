@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
 import { setCareerFeed, snapshotCareerFeed, setCareerFeedDismissed, snapshotCareerFeedDismissed, subscribeDocs, syncUser } from "./renewal-docs-store";
 import type { CareerSection } from "./career-chat";
+import type { PlatformT } from "../i18n";
 
 export interface FeedEntry {
   id: string;
@@ -94,15 +95,28 @@ export function useCareerFeed(): FeedEntry[] {
 }
 
 // 상대 시간 표시("방금 전 / N분 전 / N시간 전 / N일 전 / 날짜").
-export function formatRelativeTime(ts: number, now: number = Date.now()): string {
+// t 미제공 시 한국어로 폴백(파트너·운영 등 아직 다국어화 안 된 소비자 호환).
+export function formatRelativeTime(ts: number, now: number = Date.now(), t?: PlatformT): string {
+  const tr: PlatformT = t ?? ((ko) => ko);
   const diff = Math.max(0, now - ts);
   const min = 60_000;
   const hour = 60 * min;
   const day = 24 * hour;
-  if (diff < min) return "방금 전";
-  if (diff < hour) return `${Math.floor(diff / min)}분 전`;
-  if (diff < day) return `${Math.floor(diff / hour)}시간 전`;
-  if (diff < 7 * day) return `${Math.floor(diff / day)}일 전`;
+  if (diff < min) return tr("방금 전", "just now", "刚刚", "vừa xong", "たった今", "baru saja");
+  if (diff < hour) {
+    const n = Math.floor(diff / min);
+    return tr(`${n}분 전`, `${n}m ago`, `${n}分钟前`, `${n} phút trước`, `${n}分前`, `${n} menit lalu`);
+  }
+  if (diff < day) {
+    const n = Math.floor(diff / hour);
+    return tr(`${n}시간 전`, `${n}h ago`, `${n}小时前`, `${n} giờ trước`, `${n}時間前`, `${n} jam lalu`);
+  }
+  if (diff < 7 * day) {
+    const n = Math.floor(diff / day);
+    return tr(`${n}일 전`, `${n}d ago`, `${n}天前`, `${n} ngày trước`, `${n}日前`, `${n} hari lalu`);
+  }
   const d = new Date(ts);
-  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  const mo = d.getMonth() + 1;
+  const da = d.getDate();
+  return tr(`${mo}월 ${da}일`, `${mo}/${da}`, `${mo}月${da}日`, `${da}/${mo}`, `${mo}月${da}日`, `${da}/${mo}`);
 }

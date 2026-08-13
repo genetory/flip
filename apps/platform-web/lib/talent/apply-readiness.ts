@@ -6,6 +6,7 @@ import { useBasicInfo, isBasicInfoComplete, basicInfoChecklist } from "./basic-i
 import { useResumeDoc, resumeCompleteness, useRenewalDocsStatus } from "./resume-doc";
 import { useCoverDoc, coverCompleteness } from "./cover-doc";
 import { talentAppRoutes } from "./app-nav";
+import { usePlatformT } from "../i18n";
 
 export interface ReadinessStep {
   key: "basic" | "resume" | "cover";
@@ -25,21 +26,22 @@ export interface ApplyReadiness {
 }
 
 export function useApplyReadiness(): ApplyReadiness {
+  const t = usePlatformT();
   const status = useRenewalDocsStatus();
   const basic = useBasicInfo();
   const resume = useResumeDoc();
   const cover = useCoverDoc();
 
-  const checklist = basicInfoChecklist(basic).filter((c) => !c.optional);
+  const checklist = basicInfoChecklist(basic, t).filter((c) => !c.optional);
   const basicDone = checklist.filter((c) => c.done).length;
   const basicPct = checklist.length ? Math.round((basicDone / checklist.length) * 100) : 0;
   const resumePct = resumeCompleteness(resume);
   const coverPct = coverCompleteness(cover);
 
   const steps: ReadinessStep[] = [
-    { key: "basic", label: "기본 정보", pct: basicPct, done: isBasicInfoComplete(basic), href: talentAppRoutes.profile, cta: basicPct === 0 ? "등록하기" : "완성하기" },
-    { key: "resume", label: "이력서", pct: resumePct, done: resumePct >= 100, href: talentAppRoutes.resume, cta: resumePct === 0 ? "만들기" : "완성하기" },
-    { key: "cover", label: "자기소개서", pct: coverPct, done: coverPct >= 100, href: talentAppRoutes.cover, cta: coverPct === 0 ? "만들기" : "완성하기" }
+    { key: "basic", label: t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar"), pct: basicPct, done: isBasicInfoComplete(basic), href: talentAppRoutes.profile, cta: basicPct === 0 ? t("등록하기", "Add", "填写", "Thêm", "登録", "Isi") : t("완성하기", "Complete", "完成", "Hoàn thành", "完成", "Lengkapi") },
+    { key: "resume", label: t("이력서", "Resume", "简历", "CV", "履歴書", "Resume"), pct: resumePct, done: resumePct >= 100, href: talentAppRoutes.resume, cta: resumePct === 0 ? t("만들기", "Create", "制作", "Tạo", "作成", "Buat") : t("완성하기", "Complete", "完成", "Hoàn thành", "完成", "Lengkapi") },
+    { key: "cover", label: t("자기소개서", "Cover letter", "自荐信", "Thư giới thiệu", "自己PR", "Surat lamaran"), pct: coverPct, done: coverPct >= 100, href: talentAppRoutes.cover, cta: coverPct === 0 ? t("만들기", "Create", "制作", "Tạo", "作成", "Buat") : t("완성하기", "Complete", "完成", "Hoàn thành", "完成", "Lengkapi") }
   ];
 
   const ready = steps.every((s) => s.done);

@@ -262,7 +262,7 @@ function MessageModal({ app, onClose }: { app: MyApplication; onClose: () => voi
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 ${mine ? "bg-[#0B46E8] text-white" : "border border-[#EEF1F5] bg-white text-[#191F28]"}`}>
                     <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed">{m.content}</p>
-                    <p className={`mt-1 text-[10.5px] ${mine ? "text-white/60" : "text-[#B0B8C1]"}`}>{formatRelativeTime(new Date(m.createdAt).getTime())}</p>
+                    <p className={`mt-1 text-[10.5px] ${mine ? "text-white/60" : "text-[#B0B8C1]"}`}>{formatRelativeTime(new Date(m.createdAt).getTime(), undefined, tr)}</p>
                   </div>
                 </div>
               );
@@ -541,7 +541,7 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview, onTimeline }: 
       <div className="flex items-center gap-2">
         <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${statusCls}`}>{statusLabel}</span>
         {app.unreadMessages > 0 ? <span className="rounded-md bg-[#FDECEE] px-2 py-1 text-[11px] font-bold text-[#F04452]">{tr("문의", "Msg", "消息", "Tin", "連絡", "Pesan")} {app.unreadMessages}</span> : null}
-        <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{tr("지원", "Applied", "申请", "Ứng tuyển", "応募", "Dilamar")} · {formatRelativeTime(new Date(app.submittedAt).getTime())}</span>
+        <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{tr("지원", "Applied", "申请", "Ứng tuyển", "応募", "Dilamar")} · {formatRelativeTime(new Date(app.submittedAt).getTime(), undefined, tr)}</span>
       </div>
 
       <p className="mt-3 text-[16px] font-bold leading-snug tracking-[-0.01em] text-[#191F28]">{app.positionTitle}</p>

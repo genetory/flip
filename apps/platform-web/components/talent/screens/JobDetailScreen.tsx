@@ -92,7 +92,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   function toggleSave() {
     const willSave = !saved;
     setSaved(willSave);
-    if (willSave) notifySavedPosition(jobId, view?.title);
+    if (willSave) notifySavedPosition(t, jobId, view?.title);
     const req = willSave ? addMyFavoritePosition(jobId) : removeMyFavoritePosition(jobId);
     void req.catch(() => {
       setSaved(!willSave);
@@ -108,14 +108,14 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
       .then(() => {
         setApplied(true);
         setApplyOpen(false);
-        notifyApplied(jobId, view?.title ?? "", view?.company ?? "");
+        notifyApplied(t, jobId, view?.title ?? "", view?.company ?? "");
         toast.success(t("지원이 접수됐어요", "Your application was received", "已收到您的申请", "Đã nhận đơn ứng tuyển của bạn", "応募を受け付けました", "Lamaran Anda telah diterima"));
       })
       .catch(() => toast.error(t("지원에 실패했어요. 잠시 후 다시 시도해주세요.", "Application failed. Please try again shortly.", "申请失败，请稍后重试。", "Ứng tuyển thất bại. Vui lòng thử lại sau.", "応募に失敗しました。しばらくして再試行してください。", "Lamaran gagal. Coba lagi sebentar.")))
       .finally(() => setApplying(false));
   }
 
-  const view = item ? toPositionView(item) : null;
+  const view = item ? toPositionView(item, t) : null;
 
   return (
     <TalentAppShell maxWidth="4xl">
@@ -344,7 +344,7 @@ function CompanyFollowButton({ name }: { name: string }) {
   return (
     <button
       type="button"
-      onClick={() => toggleCompanyFollow(name)}
+      onClick={() => toggleCompanyFollow(name, t)}
       aria-pressed={interested}
       className={`inline-flex shrink-0 items-center gap-1 rounded-xl px-3 py-1.5 text-[12.5px] font-bold transition ${
         interested ? "bg-[#EDF1FD] text-[#0B46E8] hover:bg-[#E1E9FC]" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
@@ -360,7 +360,7 @@ function CompanyFollowButton({ name }: { name: string }) {
 // 공고 상세 헤더 카드 — 지원자·파트너 공용. onShowCip 있으면 CIP 뱃지 노출.
 export function PositionDetailHeaderCard({ item, onShowCip }: { item: PublicPositionListItem; onShowCip?: () => void }) {
   const t = usePlatformT();
-  const view = toPositionView(item);
+  const view = toPositionView(item, t);
   const heroImage = item.thumbnailImages?.[0] || null;
   return (
     <TCard className="overflow-hidden p-0">
@@ -377,7 +377,7 @@ export function PositionDetailHeaderCard({ item, onShowCip }: { item: PublicPosi
         </div>
         <h1 className="mt-3 text-[24px] font-black leading-[1.25] tracking-[-0.02em] text-[#0B1227]">{view.title}</h1>
         <p className="mt-2 text-[15px] font-semibold text-[#4E5968]">
-          {view.isInternal && view.company && view.company !== "비공개 기업" ? (
+          {view.isInternal && view.company && !view.isUndisclosedCompany ? (
             <Link href={`/talent/company/${encodeURIComponent(view.company)}`} className="transition hover:text-[#0B46E8] hover:underline">{view.company}</Link>
           ) : (
             view.company

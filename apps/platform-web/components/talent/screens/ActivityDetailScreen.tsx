@@ -97,7 +97,7 @@ export function ActivityDetailScreen({ type }: { type: string }) {
           // 채용공고와 동일한 카드 UI/UX로 리스팅.
           <div className="flex flex-col gap-3">
             {favPositions.map((item) => (
-              <PositionCard key={item.id} view={toPositionView(item)} saved onToggleSave={unsavePosition} onShowCip={() => setCipOpen(true)} />
+              <PositionCard key={item.id} view={toPositionView(item, tr)} saved onToggleSave={unsavePosition} onShowCip={() => setCipOpen(true)} />
             ))}
           </div>
         ) : t === "following-companies" ? (

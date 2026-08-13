@@ -10,7 +10,7 @@ import { usePlatformT } from "../../../lib/i18n";
 export function ProfileGate() {
   const t = usePlatformT();
   const info = useBasicInfo();
-  const items = basicInfoChecklist(info);
+  const items = basicInfoChecklist(info, t);
 
   return (
     <section className="overflow-hidden rounded-[24px] border border-[#EEF1F5] bg-white shadow-[0_10px_30px_-12px_rgba(11,18,39,0.12)]">

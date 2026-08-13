@@ -115,7 +115,7 @@ function AddExperienceFlow({ onClose, onSaved }: { onClose: () => void; onSaved:
     if (!type) return;
     setSaving(true);
     const title = answers.what?.slice(0, 24) || experienceTypeLabel(type);
-    const result = await getTalentRepository().draftExperience({ type, title, answers });
+    const result = await getTalentRepository().draftExperience({ type, title, answers }, t);
     setDraft(result);
     setSummaryText(result.summary ?? "");
     setSaving(false);

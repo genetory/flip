@@ -28,6 +28,7 @@ import {
 import { toPositionView } from "../../../lib/talent/positions-adapter";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
+import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { notifySavedPosition } from "../../../lib/talent/activity-log";
 
@@ -139,7 +140,7 @@ export function JobsScreen() {
       else next.delete(id);
       return next;
     });
-    if (willSave) notifySavedPosition(id);
+    if (willSave) notifySavedPosition(t, id);
     const req = willSave ? addMyFavoritePosition(id) : removeMyFavoritePosition(id);
     void req
       .then(() => {
@@ -164,7 +165,7 @@ export function JobsScreen() {
   }
 
   const source = tab === "saved" ? savedItems : items;
-  const views = useMemo(() => source.map(toPositionView), [source]);
+  const views = useMemo(() => source.map((it) => toPositionView(it, t)), [source, t]);
 
   return (
     <TalentAppShell>
@@ -203,7 +204,7 @@ export function JobsScreen() {
             <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-[#EEF1F5] bg-white px-4 py-3">
               <div className="flex min-w-0 flex-wrap gap-1.5">
                 {interests.map((r) => (
-                  <span key={r} className="rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[12px] font-bold text-[#0B46E8]">{r}</span>
+                  <span key={r} className="rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[12px] font-bold text-[#0B46E8]">{jobTaxonomyLabelOf(t, r)}</span>
                 ))}
               </div>
               <button type="button" onClick={() => setPickerOpen(true)} className="shrink-0 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">

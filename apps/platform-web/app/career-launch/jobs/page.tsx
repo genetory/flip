@@ -11,7 +11,7 @@ import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeade
 import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
-import { useJobReason, useJobName } from "../../../lib/launch/data-i18n";
+import { useJobReason, useJobName, useJobSkills } from "../../../lib/launch/data-i18n";
 
 // Week 1 — AI와 실제로 대화하며 관심 직무를 이끌어낸다. 백엔드(/career-launch/job-chat)가
 // 대화를 이어받아 다음 질문 + 후보 풀에서 고른 추천 직무를 돌려주고, 채팅 안에서 바로
@@ -26,6 +26,7 @@ export default function LaunchJobsPage() {
   const t = useLaunchT();
   const jobReason = useJobReason();
   const jobName = useJobName();
+  const jobSkills = useJobSkills();
   const { user, isReady } = useAuthSession();
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
@@ -255,7 +256,7 @@ export default function LaunchJobsPage() {
                           </div>
                           <p className="mt-1.5 pl-7 text-[12.5px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p>
                           <div className="mt-2 flex flex-wrap gap-1.5 pl-7">
-                            {job.skills.map((s) => (
+                            {jobSkills(job.skills).map((s) => (
                               <span key={s} className="rounded-full bg-[#F2F4F6] px-2 py-0.5 text-[11px] font-semibold text-[#4E5968]">
                                 {s}
                               </span>

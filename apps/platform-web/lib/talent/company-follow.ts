@@ -6,6 +6,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
 import { getMyFollowedCompanies, followCompany as apiFollow, unfollowCompany as apiUnfollow } from "../member-profile-client";
 import { notifyFollowedCompany } from "./activity-log";
+import type { PlatformT } from "../i18n";
 
 const listeners = new Set<() => void>();
 const EMPTY: string[] = [];
@@ -47,12 +48,12 @@ export function isCompanyFollowed(name: string): boolean {
   return (names ?? []).includes(name);
 }
 
-export function followCompanyName(name: string): void {
+export function followCompanyName(name: string, t: PlatformT): void {
   const cur = names ?? [];
   if (cur.includes(name)) return;
   names = [name, ...cur]; // 낙관적 반영
   emit();
-  notifyFollowedCompany(name); // 내 활동 알림
+  notifyFollowedCompany(t, name); // 내 활동 알림
   void apiFollow(name)
     .then((list) => {
       names = list;
@@ -74,9 +75,9 @@ export function unfollowCompanyName(name: string): void {
     .catch(() => {});
 }
 
-export function toggleCompanyFollow(name: string): void {
+export function toggleCompanyFollow(name: string, t: PlatformT): void {
   if (isCompanyFollowed(name)) unfollowCompanyName(name);
-  else followCompanyName(name);
+  else followCompanyName(name, t);
 }
 
 export function useFollowedCompanies(): string[] {

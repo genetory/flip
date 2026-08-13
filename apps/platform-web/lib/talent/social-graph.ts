@@ -10,6 +10,7 @@ import { useSocialFeed, type FeedAuthorRole } from "./social-feed";
 import { addNotification } from "./notifications";
 import { notifyFollowedCompany, notifyFollowedUser } from "./activity-log";
 import { talentAppRoutes } from "./app-nav";
+import type { PlatformT } from "../i18n";
 import { getPublicPositionsPage } from "../member-profile-client";
 
 export interface FeedAuthor {
@@ -47,14 +48,14 @@ export function isFollowing(author: FeedAuthor): boolean {
   return read().includes(authorKey(author));
 }
 
-export function followAuthor(author: FeedAuthor): void {
+export function followAuthor(author: FeedAuthor, t: PlatformT): void {
   const key = authorKey(author);
   const list = read();
   if (list.includes(key)) return;
   write([key, ...list]);
   // 내 활동 알림 — 회사(PARTNER)면 관심 회사, 아니면 사용자 팔로우.
-  if (author.role === "PARTNER") notifyFollowedCompany(author.name);
-  else notifyFollowedUser(author.name);
+  if (author.role === "PARTNER") notifyFollowedCompany(t, author.name);
+  else notifyFollowedUser(t, author.name);
 }
 
 export function unfollowAuthor(author: FeedAuthor): void {
@@ -62,9 +63,9 @@ export function unfollowAuthor(author: FeedAuthor): void {
   write(read().filter((k) => k !== key));
 }
 
-export function toggleFollow(author: FeedAuthor): void {
+export function toggleFollow(author: FeedAuthor, t: PlatformT): void {
   if (isFollowing(author)) unfollowAuthor(author);
-  else followAuthor(author);
+  else followAuthor(author, t);
 }
 
 // 내가 팔로잉하는 사람 키 목록(계정 귀속, useSyncExternalStore로 화면 간 동기화).

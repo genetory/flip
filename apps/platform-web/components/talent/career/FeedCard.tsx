@@ -50,7 +50,7 @@ export function FeedCard({ entry, onDelete }: { entry: FeedEntry; onDelete?: (id
         <div className={`min-w-0 flex-1 ${onDelete ? "pr-7" : ""}`}>
           <p className="truncate text-[14px] font-bold text-[#191F28]">{title}</p>
           <p className="mt-0.5 break-keep text-[13px] leading-relaxed text-[#4E5968] line-clamp-2">{entry.text}</p>
-          <p className="mt-1 text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(entry.createdAt)}</p>
+          <p className="mt-1 text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(entry.createdAt, undefined, t)}</p>
         </div>
         {onDelete ? null : <CaretRight className="mt-1 h-4 w-4 shrink-0 text-[#C4CAD2]" />}
       </Link>

@@ -31,9 +31,10 @@ function Content({ snapshot, resumeId }: { snapshot: TalentSnapshot; resumeId: s
   const resumeStatusLabel = useResumeStatusLabel();
   const toast = useTalentPopup();
   const resume = snapshot.resumes.find((r) => r.id === resumeId) ?? snapshot.resumes[0];
-  const [templateKey, setTemplateKey] = useState(resumeTemplates[0].key);
-  const preview = useMemo(() => buildResumePreview(snapshot, resume?.targetRole), [snapshot, resume?.targetRole]);
-  const template = resumeTemplates.find((t) => t.key === templateKey) ?? resumeTemplates[0];
+  const templates = resumeTemplates(t);
+  const [templateKey, setTemplateKey] = useState(templates[0].key);
+  const preview = useMemo(() => buildResumePreview(snapshot, t, resume?.targetRole), [snapshot, t, resume?.targetRole]);
+  const template = templates.find((tpl) => tpl.key === templateKey) ?? templates[0];
 
   if (!resume) {
     return (
@@ -87,19 +88,19 @@ function Content({ snapshot, resumeId }: { snapshot: TalentSnapshot; resumeId: s
       <div>
         <p className="mb-2.5 text-[13px] font-bold text-[#8B95A1]">{t("템플릿","Template","模板","Mẫu","テンプレート","Templat")}</p>
         <div className="flex gap-2">
-          {resumeTemplates.map((t) => {
-            const on = t.key === templateKey;
+          {templates.map((tpl) => {
+            const on = tpl.key === templateKey;
             return (
               <button
-                key={t.key}
+                key={tpl.key}
                 type="button"
-                onClick={() => setTemplateKey(t.key)}
+                onClick={() => setTemplateKey(tpl.key)}
                 aria-pressed={on}
                 className={`flex-1 rounded-2xl border p-3 text-left transition ${on ? "border-[#0B46E8] bg-[#F5F8FF]" : "border-[#EEF1F5] bg-white hover:border-[#D7DCE3]"}`}
               >
-                <span className="block h-1.5 w-6 rounded-full" style={{ backgroundColor: t.accent }} />
-                <p className="mt-2 text-[13.5px] font-bold text-[#191F28]">{t.label}</p>
-                <p className="mt-0.5 text-[11.5px] text-[#8B95A1]">{t.desc}</p>
+                <span className="block h-1.5 w-6 rounded-full" style={{ backgroundColor: tpl.accent }} />
+                <p className="mt-2 text-[13.5px] font-bold text-[#191F28]">{tpl.label}</p>
+                <p className="mt-0.5 text-[11.5px] text-[#8B95A1]">{tpl.desc}</p>
               </button>
             );
           })}

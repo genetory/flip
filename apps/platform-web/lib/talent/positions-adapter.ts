@@ -1,11 +1,13 @@
 // 실제 포지션(PublicPositionListItem)을 Talent 카드용 뷰로 변환.
 // 데이터·기능은 aply.global 포지션 탐색과 동일한 API를 쓰고, 표시만 Talent 톤으로 맞춘다.
 import type { PublicPositionListItem } from "../member-profile-client";
+import type { PlatformT } from "../i18n";
 
 export interface PositionView {
   id: string;
   title: string;
   company: string;
+  isUndisclosedCompany: boolean; // 회사명이 비공개(fallback)라 회사 상세 링크 대상 아님
   location: string;
   employmentLabel: string;
   isInternOrNew: boolean;
@@ -21,33 +23,54 @@ export interface PositionView {
   hasMockInterview: boolean; // 회사가 모의 면접(의도/대표질문)을 등록한 내부 공고
 }
 
-const sourceLabels: Record<PublicPositionListItem["sourceProvider"], string | null> = {
-  INTERNAL: null,
-  WANTED: "원티드",
-  BUDDIES: "Buddies",
-  OTHER: "외부"
-};
+function sourceLabel(provider: PublicPositionListItem["sourceProvider"], t: PlatformT): string | null {
+  switch (provider) {
+    case "WANTED":
+      return t("원티드", "Wanted", "Wanted", "Wanted", "Wanted", "Wanted");
+    case "BUDDIES":
+      return "Buddies"; // 브랜드명 — 번역하지 않음
+    case "OTHER":
+      return t("외부", "External", "外部", "Bên ngoài", "外部", "Eksternal");
+    default:
+      return null; // INTERNAL
+  }
+}
 
-const employmentLabels: Record<PublicPositionListItem["employmentType"], string> = {
-  FULL_TIME: "정규직",
-  INTERN: "인턴",
-  PART_TIME: "아르바이트",
-  UNPAID_INTERN: "인턴"
-};
+function employmentLabel(type: PublicPositionListItem["employmentType"], t: PlatformT): string {
+  switch (type) {
+    case "FULL_TIME":
+      return t("정규직", "Full-time", "全职", "Toàn thời gian", "正社員", "Penuh waktu");
+    case "PART_TIME":
+      return t("아르바이트", "Part-time", "兼职", "Bán thời gian", "アルバイト", "Paruh waktu");
+    case "INTERN":
+    case "UNPAID_INTERN":
+      return t("인턴", "Intern", "实习", "Thực tập", "インターン", "Magang");
+    default:
+      return t("채용", "Hiring", "招聘", "Tuyển dụng", "採用", "Rekrutmen");
+  }
+}
 
-const workTypeLabels: Record<NonNullable<PublicPositionListItem["workType"]>, string> = {
-  "On-site": "사무실",
-  Hybrid: "하이브리드",
-  Remote: "재택"
-};
+function workTypeLabel(workType: NonNullable<PublicPositionListItem["workType"]>, t: PlatformT): string {
+  switch (workType) {
+    case "On-site":
+      return t("사무실", "On-site", "办公室", "Tại văn phòng", "オフィス", "Kantor");
+    case "Hybrid":
+      return t("하이브리드", "Hybrid", "混合办公", "Kết hợp", "ハイブリッド", "Hibrida");
+    case "Remote":
+      return t("재택", "Remote", "远程", "Từ xa", "リモート", "Jarak jauh");
+    default:
+      return workType;
+  }
+}
 
-export function toPositionView(item: PublicPositionListItem): PositionView {
-  const company = item.partnerOrganization?.name || item.sourceCompanyName || "비공개 기업";
-  const location = item.workLocation || item.partnerOrganization?.officeAddress || "지역 미정";
+export function toPositionView(item: PublicPositionListItem, t: PlatformT): PositionView {
+  const realCompany = item.partnerOrganization?.name || item.sourceCompanyName;
+  const company = realCompany || t("비공개 기업", "Undisclosed company", "未公开企业", "Công ty ẩn danh", "非公開企業", "Perusahaan dirahasiakan");
+  const location = item.workLocation || item.partnerOrganization?.officeAddress || t("지역 미정", "Location TBD", "地点待定", "Chưa xác định địa điểm", "勤務地未定", "Lokasi belum ditentukan");
   const isIntern = item.employmentType === "INTERN" || item.employmentType === "UNPAID_INTERN";
 
   let deadlineText: string | null = null;
-  if (item.sourceDeadlineRolling) deadlineText = "상시 채용";
+  if (item.sourceDeadlineRolling) deadlineText = t("상시 채용", "Always hiring", "常年招聘", "Tuyển liên tục", "常時採用", "Rekrutmen berkelanjutan");
   else if (item.sourceDeadlineDate) deadlineText = `~${item.sourceDeadlineDate.slice(0, 10)}`;
 
   // Aply 내부 = sourceProvider INTERNAL. 원티드/버디스/기타는 외부 → 원본 링크로 지원.
@@ -58,17 +81,18 @@ export function toPositionView(item: PublicPositionListItem): PositionView {
     id: item.id,
     title: item.title,
     company,
+    isUndisclosedCompany: !realCompany,
     location,
-    employmentLabel: employmentLabels[item.employmentType] ?? "채용",
+    employmentLabel: employmentLabel(item.employmentType, t),
     isInternOrNew: isIntern,
-    workTypeLabel: item.workType ? workTypeLabels[item.workType] : null,
+    workTypeLabel: item.workType ? workTypeLabel(item.workType, t) : null,
     deadlineText,
     foreignerOk: (item.eligibleVisas?.length ?? 0) > 0,
     external: !isInternal,
     externalUrl: item.sourceUrl,
     isInternal,
     sourceProvider: item.sourceProvider,
-    sourceLabel: sourceLabels[item.sourceProvider] ?? null,
+    sourceLabel: sourceLabel(item.sourceProvider, t),
     thumbnail: item.thumbnailImages?.[0] ?? null,
     hasMockInterview
   };
