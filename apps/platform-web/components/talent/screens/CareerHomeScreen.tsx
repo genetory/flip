@@ -3,6 +3,7 @@
 // 내 커리어 — 오늘의 한 걸음 히어로 + 이력서/자기소개서 + 커리어 기록.
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, Sparkle } from "@phosphor-icons/react";
 import { MockInterviewModal } from "../jobs/MockInterviewModal";
 import { MockGateModal } from "../jobs/MockGateModal";
@@ -104,20 +105,19 @@ function Content() {
         <button
           type="button"
           onClick={() => setAdvisorOpen(true)}
-          className="group relative flex items-center gap-4 overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B46E8] via-[#2C5BF0] to-[#6C4DFF] p-5 text-left shadow-[0_14px_34px_-10px_rgba(11,70,232,0.55)] transition hover:shadow-[0_18px_42px_-10px_rgba(11,70,232,0.65)]"
+          className="group flex items-center gap-4 rounded-3xl border border-[#E5E8EB] bg-white p-4 text-left shadow-[0_6px_20px_-10px_rgba(11,18,39,0.18)] transition hover:border-[#0B46E8]/40 hover:shadow-[0_12px_28px_-10px_rgba(11,70,232,0.3)]"
         >
-          {/* 장식 광원 */}
-          <span aria-hidden className="pointer-events-none absolute -right-6 -top-12 h-36 w-36 rounded-full bg-white/15 blur-2xl" />
-          <span aria-hidden className="pointer-events-none absolute -bottom-14 right-20 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
-          <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-[24px] ring-1 ring-white/30 backdrop-blur-sm" aria-hidden>🧭</span>
-          <div className="relative min-w-0 flex-1">
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10.5px] font-black uppercase tracking-[0.12em] text-white ring-1 ring-white/25">
+          <span className="relative flex h-28 w-28 shrink-0 items-center justify-center" aria-hidden>
+            <Image src="/images/img_career_position_ai.webp" alt="" width={112} height={112} className="h-full w-full object-contain" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[10.5px] font-black uppercase tracking-[0.12em] text-[#0B46E8]">
               <Sparkle className="h-3 w-3" weight="fill" /> AI
             </span>
-            <p className="mt-1.5 text-[16px] font-black tracking-[-0.02em] text-white">{t("AI 커리어 상담 시작하기","Start an AI career chat","开始 AI 职业咨询","Bắt đầu tư vấn nghề AI","AIキャリア相談を始める","Mulai konsultasi karier AI")}</p>
-            <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-white/85">{t("나에게 어울리는 일을 함께 찾고, 관심 직무로 담아드려요.","Find work that fits you and save it to your interests.","一起找到适合你的工作并加入兴趣职位。","Cùng tìm việc phù hợp và lưu vào nghề quan tâm.","自分に合う仕事を一緒に見つけて関心職種に保存します。","Temukan pekerjaan yang cocok dan simpan ke minatmu.")}</p>
+            <p className="mt-1.5 text-[16px] font-black tracking-[-0.02em] text-[#0B1227]">{t("AI 커리어 상담 시작하기","Start an AI career chat","开始 AI 职业咨询","Bắt đầu tư vấn nghề AI","AIキャリア相談を始める","Mulai konsultasi karier AI")}</p>
+            <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("나에게 어울리는 일을 함께 찾고, 관심 직무로 담아드려요.","Find work that fits you and save it to your interests.","一起找到适合你的工作并加入兴趣职位。","Cùng tìm việc phù hợp và lưu vào nghề quan tâm.","自分に合う仕事を一緒に見つけて関心職種に保存します。","Temukan pekerjaan yang cocok dan simpan ke minatmu.")}</p>
           </div>
-          <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#0B46E8] shadow-sm transition group-hover:translate-x-0.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0B46E8] text-white shadow-sm transition group-hover:translate-x-0.5">
             <ArrowRight className="h-5 w-5" weight="bold" />
           </span>
         </button>
