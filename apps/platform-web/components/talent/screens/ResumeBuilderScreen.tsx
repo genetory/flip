@@ -5,7 +5,7 @@
 // 1개 문서. 초안 생성/다듬기는 mock(규칙 기반), 추후 실제 LLM으로 교체.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Sparkle, PaperPlaneTilt, Trash, Eye, ArrowSquareOut, CaretDown } from "@phosphor-icons/react";
+import { Sparkle, PaperPlaneTilt, Trash, Eye, ArrowSquareOut, CaretDown, Plus } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TalentBackButton } from "../TalentBackButton";
 import { ProfileGate } from "../career/ProfileGate";
@@ -110,6 +110,11 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
     onChange(next);
     return id;
   }
+  // AI 없이 해당 섹션에 빈 항목을 바로 추가(직접 작성용).
+  function addBlank(section: CareerSection) {
+    const { doc: next } = addResumeItem(doc, section, "", "", "");
+    onChange(next);
+  }
 
   return (
     <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-6">
@@ -124,10 +129,20 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
 
         {CHIP_ORDER.map((section) => {
           const items = doc.items.filter((it) => it.section === section);
-          if (items.length === 0) return null;
           const meta = SECTION_META[section];
           return (
-            <CollapsibleSection key={section} emoji={meta.emoji} label={meta.label} count={items.length}>
+            <CollapsibleSection
+              key={section}
+              emoji={meta.emoji}
+              label={meta.label}
+              count={items.length}
+              defaultOpen={items.length > 0}
+              addLabel={t("직접 추가","Add","直接添加","Thêm","直接追加","Tambah")}
+              onAdd={() => addBlank(section)}
+            >
+              {items.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-[#E5E8EB] bg-[#FAFBFC] px-4 py-5 text-center text-[13px] text-[#B0B8C1]">{t("‘직접 추가’로 항목을 직접 작성하거나, 위 AI 대화로 추가하세요.","Use ‘Add’ to write an item, or add via the AI chat above.","用“直接添加”手动填写，或通过上方 AI 对话添加。","Dùng ‘Thêm’ để tự viết, hoặc thêm qua AI phía trên.","「直接追加」で自分で書くか、上のAI対話で追加してください。","Gunakan ‘Tambah’ untuk menulis, atau via chat AI di atas.")}</p>
+              ) : null}
               {items.map((it) => (
                 <ItemRow
                   key={it.id}
@@ -165,17 +180,30 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
 }
 
 
-// 접을 수 있는 섹션 — 길어지면 헤더를 눌러 닫아둔다.
-function CollapsibleSection({ emoji, label, count, children }: { emoji: string; label: string; count: number; children: React.ReactNode }) {
-  const [open, setOpen] = useState(true);
+// 접을 수 있는 섹션 — 길어지면 헤더를 눌러 닫아둔다. 헤더에 '직접 추가' 버튼(상시 노출).
+function CollapsibleSection({ emoji, label, count, children, defaultOpen = true, onAdd, addLabel }: { emoji: string; label: string; count: number; children: React.ReactNode; defaultOpen?: boolean; onAdd?: () => void; addLabel?: string }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <section className="flex flex-col gap-2.5 border-t border-[#EEF1F5] pt-5">
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-1.5 text-left">
-        <span aria-hidden>{emoji}</span>
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{label}</h2>
-        <span className="text-[13px] font-bold text-[#B0B8C1]">{count}</span>
-        <CaretDown className={`ml-auto h-4 w-4 shrink-0 text-[#C4CAD2] transition-transform ${open ? "rotate-180" : ""}`} weight="bold" />
-      </button>
+      <div className="flex w-full items-center gap-1.5">
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={label} className="flex flex-1 items-center gap-1.5 text-left">
+          <span aria-hidden>{emoji}</span>
+          <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{label}</h2>
+          <span className="text-[13px] font-bold text-[#B0B8C1]">{count}</span>
+        </button>
+        {onAdd ? (
+          <button
+            type="button"
+            onClick={() => { onAdd(); setOpen(true); }}
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#EDF1FD] px-2.5 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]"
+          >
+            <Plus className="h-3.5 w-3.5" weight="bold" /> {addLabel}
+          </button>
+        ) : null}
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={label} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#C4CAD2] transition hover:bg-[#F2F4F6]">
+          <CaretDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} weight="bold" />
+        </button>
+      </div>
       {open ? <div className="flex flex-col gap-2.5">{children}</div> : null}
     </section>
   );
@@ -267,9 +295,9 @@ function ItemRow({
       <textarea
         value={text}
         onChange={(e) => onChange(e.target.value)}
-        rows={3}
-        placeholder={isExperience ? t("한 일·성과 (선택)","What you did / achievements (optional)","工作内容·成果（选填）","Việc đã làm / thành tích (tùy chọn)","業務・成果（任意）","Yang dikerjakan / hasil (opsional)") : undefined}
-        className="min-h-[84px] w-full resize-y break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
+        rows={4}
+        placeholder={textPlaceholder}
+        className="min-h-[116px] w-full resize-y break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
       />
       <div className="mt-2 flex items-center justify-between gap-1.5">
         {/* 사후 수정 — 섹션 이동(자동 분류 교정). 드롭다운 화살표는 phosphor CaretDown */}
