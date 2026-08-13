@@ -2,9 +2,10 @@
 
 // AI 커리어 상담 — 대화하며 나에게 어울리는 직무·방향을 찾고, 추천 직무를 관심 직무로 담는다.
 import { useEffect, useRef, useState } from "react";
-import { X, PaperPlaneTilt, Plus, Check, Sparkle, CircleNotch } from "@phosphor-icons/react";
+import { X, PaperPlaneTilt, Plus, Check, Sparkle, CircleNotch, ArrowClockwise } from "@phosphor-icons/react";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { careerAdvise, type AdvisorMsg } from "../../../lib/talent/career-advisor-client";
+import { loadAdvisorChat, saveAdvisorChat, clearAdvisorChat } from "../../../lib/talent/career-advisor-store";
 import { useJobInterests, saveJobInterests } from "../../../lib/talent/job-interest";
 import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 import { usePlatformT } from "../../../lib/i18n";
@@ -18,6 +19,7 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const started = useRef(false);
@@ -47,17 +49,38 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
 
-  // 첫 진입 — 인사말 요청.
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
+  // 인사말 요청(대화 처음 시작할 때).
+  function kickoff() {
     setLoading(true);
     void careerAdvise([], interests)
       .then((r) => setMessages([{ role: "bot", text: r.reply || greetFallback, roles: r.recommendedRoles }]))
       .catch(() => setMessages([{ role: "bot", text: greetFallback }]))
       .finally(() => setLoading(false));
+  }
+
+  // 첫 진입 — 저장된 대화가 있으면 이어보고, 없으면 인사말.
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    const saved = loadAdvisorChat();
+    if (saved.length) setMessages(saved as Msg[]);
+    else kickoff();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 대화가 바뀌면 로컬에 저장 → 다시 열어도 이어볼 수 있게.
+  useEffect(() => {
+    if (messages.length) saveAdvisorChat(messages);
+  }, [messages]);
+
+  // 완전히 새로 시작 — 저장 기록 삭제 후 인사말부터.
+  function resetChat() {
+    clearAdvisorChat();
+    setConfirmReset(false);
+    setInput("");
+    setMessages([]);
+    kickoff();
+  }
 
   function send() {
     const text = input.trim();
@@ -82,14 +105,24 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4">
-      <div className="flex h-[92vh] w-full max-w-[560px] flex-col overflow-hidden rounded-t-3xl bg-white sm:h-[720px] sm:rounded-3xl">
+      <div className="relative flex h-[92vh] w-full max-w-[560px] flex-col overflow-hidden rounded-t-3xl bg-white sm:h-[720px] sm:rounded-3xl">
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 text-[15px] font-black tracking-[-0.02em] text-[#0B1227]"><Sparkle className="h-4 w-4 text-[#0B46E8]" weight="fill" /> {t("AI 커리어 상담", "AI career chat", "AI 职业咨询", "Tư vấn nghề AI", "AIキャリア相談", "Konsultasi karier AI")}</p>
             <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{t("나에게 어울리는 직무와 방향을 함께 찾아요", "Find roles and direction that fit you", "一起找到适合你的职位与方向", "Cùng tìm vị trí và hướng đi phù hợp", "自分に合う職種と方向を一緒に探す", "Temukan peran & arah yang cocok")}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
+          <div className="flex shrink-0 items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => setConfirmReset(true)}
+              disabled={messages.length === 0}
+              className="flex h-9 items-center gap-1 rounded-2xl px-2.5 text-[12px] font-bold text-[#8B95A1] transition hover:bg-[#F2F4F6] disabled:opacity-40"
+            >
+              <ArrowClockwise className="h-4 w-4" weight="bold" /> {t("새로 시작", "Restart", "重新开始", "Bắt đầu lại", "やり直す", "Mulai ulang")}
+            </button>
+            <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
+          </div>
         </div>
 
         {/* 대화 */}
@@ -161,6 +194,20 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
             </button>
           </div>
         </div>
+
+        {/* 새로 시작 확인 — 대화가 날아가기 전에 한번 더 확인 */}
+        {confirmReset ? (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#0B1227]/35 p-6 backdrop-blur-sm">
+            <div className="w-full max-w-[320px] rounded-2xl bg-white p-5 shadow-[0_20px_60px_rgba(11,18,39,0.22)]">
+              <p className="text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{t("대화를 새로 시작할까요?", "Restart the conversation?", "重新开始对话？", "Bắt đầu lại cuộc trò chuyện?", "会話をやり直しますか？", "Mulai ulang percakapan?")}</p>
+              <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("지금까지의 상담 내용이 모두 지워지고 처음부터 다시 시작해요.", "Your whole conversation so far will be erased and start over.", "目前的咨询内容将全部清除并从头开始。", "Toàn bộ nội dung tư vấn sẽ bị xóa và bắt đầu lại.", "これまでの相談内容がすべて消えて最初からになります。", "Seluruh percakapan akan dihapus dan dimulai ulang.")}</p>
+              <div className="mt-4 flex gap-2">
+                <button type="button" onClick={() => setConfirmReset(false)} className="flex-1 rounded-xl bg-[#F2F4F6] py-2.5 text-[13.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</button>
+                <button type="button" onClick={resetChat} className="flex-1 rounded-xl bg-[#F04452] py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#D93A48]">{t("새로 시작", "Restart", "重新开始", "Bắt đầu lại", "やり直す", "Mulai ulang")}</button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
