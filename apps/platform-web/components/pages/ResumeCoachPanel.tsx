@@ -172,7 +172,7 @@ export function ResumeCoachPanel({
           setCoach(c);
         }
       } catch (err) {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : "코치 데이터를 불러오지 못했어요.");
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : tr("코치 데이터를 불러오지 못했어요.", "Couldn't load coach data.", "无法加载教练数据。", "Không tải được dữ liệu coach.", "コーチデータを読み込めませんでした。", "Tidak dapat memuat data coach."));
       }
     })();
     // 가능한 포지션 — 일반 공개 포지션 API 를 살짝 호출해서 6개. 코치 데이터
@@ -214,7 +214,7 @@ export function ResumeCoachPanel({
       });
       setSuggestion(s);
     } catch (err) {
-      setSuggestionError(err instanceof Error ? err.message : "AI 제안을 받지 못했어요.");
+      setSuggestionError(err instanceof Error ? err.message : tr("AI 제안을 받지 못했어요.", "Couldn't get an AI suggestion.", "无法获取AI建议。", "Không nhận được gợi ý AI.", "AI提案を取得できませんでした。", "Tidak bisa mendapatkan saran AI."));
     } finally {
       setSuggestionBusy(false);
     }
@@ -249,7 +249,7 @@ export function ResumeCoachPanel({
       setSuggestionFor(null);
       setSuggestion(null);
     } catch (err) {
-      setSuggestionError(err instanceof Error ? err.message : "적용에 실패했어요.");
+      setSuggestionError(err instanceof Error ? err.message : tr("적용에 실패했어요.", "Failed to apply.", "应用失败。", "Áp dụng thất bại.", "適用に失敗しました。", "Gagal menerapkan."));
     } finally {
       setApplying(false);
     }
@@ -283,7 +283,7 @@ export function ResumeCoachPanel({
       // 있도록 알림. 이 컴포넌트는 곧 key 변경으로 언마운트되거나 빈 상태로 전환.
       onResumeDeleted?.(resumeId);
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "삭제에 실패했어요.");
+      setDeleteError(err instanceof Error ? err.message : tr("삭제에 실패했어요.", "Failed to delete.", "删除失败。", "Xóa thất bại.", "削除に失敗しました。", "Gagal menghapus."));
       setDeleting(false);
     }
   }
@@ -303,7 +303,7 @@ export function ResumeCoachPanel({
   if (loadError || !coach || !resume) {
     return (
       <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
-        {loadError ?? "이력서를 찾을 수 없어요."}
+        {loadError ?? tr("이력서를 찾을 수 없어요.", "Resume not found.", "找不到简历。", "Không tìm thấy hồ sơ.", "履歴書が見つかりません。", "Resume tidak ditemukan.")}
       </div>
     );
   }

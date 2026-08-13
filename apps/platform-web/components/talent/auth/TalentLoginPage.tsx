@@ -77,8 +77,8 @@ export function TalentLoginPage() {
 
   return (
     <TalentAuthLayout
-      title={t("취업 준비를 시작해요", "Start preparing for your career", "开始你的求职准备", "Bắt đầu chuẩn bị xin việc", "就活準備を始めましょう", "Mulai persiapan karier Anda")}
-      subtitle={t("로그인하거나, 처음이라면 가입해서 시작하세요.", "Log in, or sign up if you're new.", "登录，或首次使用请注册开始。", "Đăng nhập, hoặc đăng ký nếu bạn mới.", "ログイン、または初めての方は登録して始めましょう。", "Masuk, atau daftar jika Anda baru.")}
+      title={t("첫 커리어, 여기서 시작해요", "Your career starts here", "你的职业，从这里开始", "Sự nghiệp bắt đầu từ đây", "はじめてのキャリアはここから", "Karier Anda dimulai di sini")}
+      subtitle={t("로그인하고 이력서부터 첫 지원까지 이어가세요.", "Sign in and go from resume to your first application.", "登录，从简历到首次投递一气呵成。", "Đăng nhập và đi từ hồ sơ đến lần ứng tuyển đầu tiên.", "ログインして履歴書から初応募まで進めましょう。", "Masuk dan lanjutkan dari resume hingga lamaran pertama.")}
       footer={
         <p className="text-[14px] text-[#8B95A1]">
           {copy.signupPrompt}{" "}

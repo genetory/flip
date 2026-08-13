@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { usePlatformT } from "../../lib/i18n";
 
 // ---------------------------------------------------------------------------
 // MBTI landing — chat-style flow, quiz-only.
@@ -75,6 +76,7 @@ function BotAvatar() {
 export function MbtiLandingPage() {
   const router = useRouter();
   const apiBase = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000", []);
+  const t = usePlatformT();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [step, setStep] = useState<Step>({ kind: "intro" });
@@ -112,15 +114,27 @@ export function MbtiLandingPage() {
             id: makeId(),
             role: "bot",
             stepKey: null,
-            text:
-              "안녕하세요! Aply 매칭 봇이에요 ✨\nMBTI에 잘 맞는 한국 회사·직무와 실제 채용 공고까지 추천해드릴게요."
+            text: t(
+              "안녕하세요! Aply 매칭 봇이에요 ✨\nMBTI에 잘 맞는 한국 회사·직무와 실제 채용 공고까지 추천해드릴게요.",
+              "Hi! I'm the Aply matching bot ✨\nI'll recommend Korean companies, roles, and real job openings that fit your MBTI.",
+              "你好！我是 Aply 匹配机器人 ✨\n我会推荐适合你 MBTI 的韩国公司、职务和真实招聘。",
+              "Xin chào! Mình là bot ghép nối Aply ✨\nMình sẽ gợi ý công ty, vị trí Hàn Quốc và tin tuyển dụng hợp MBTI của bạn.",
+              "こんにちは！Aplyマッチングボットです ✨\nMBTIに合う韓国の会社・職種、実際の求人までおすすめします。",
+              "Hai! Aku bot pencocokan Aply ✨\nAku akan merekomendasikan perusahaan, peran Korea, dan lowongan nyata yang cocok dengan MBTI-mu."
+            )
           },
           {
             id: makeId(),
             role: "bot",
             stepKey: null,
-            text:
-              "MBTI를 잘 모르셔도 괜찮아요. 가벼운 퀴즈 12문항으로 같이 알아볼게요 🔍"
+            text: t(
+              "MBTI를 잘 모르셔도 괜찮아요. 가벼운 퀴즈 12문항으로 같이 알아볼게요 🔍",
+              "Don't know your MBTI? No worries — let's find out with a quick 12-question quiz 🔍",
+              "不知道自己的 MBTI 也没关系，用 12 道轻松小测一起来看看 🔍",
+              "Chưa biết MBTI cũng không sao — cùng khám phá qua bài quiz 12 câu nhé 🔍",
+              "MBTIが分からなくても大丈夫。かんたんな12問クイズで一緒に調べましょう 🔍",
+              "Belum tahu MBTI-mu? Santai — yuk cari tahu lewat kuis singkat 12 soal 🔍"
+            )
           }
         ]);
         setStep({ kind: "quiz-question", index: 0 });
@@ -137,11 +151,32 @@ export function MbtiLandingPage() {
       if (!q) return; // wait for quiz to load
       text = `Q${step.index + 1}. ${q.question}`;
     } else if (step.kind === "ask-name") {
-      text = "결과 카드에 띄울 이름이 있으신가요? (생략하셔도 괜찮아요)";
+      text = t(
+        "결과 카드에 띄울 이름이 있으신가요? (생략하셔도 괜찮아요)",
+        "Any name to show on your result card? (You can skip this)",
+        "结果卡片上想显示的名字？（可以跳过）",
+        "Tên hiển thị trên thẻ kết quả? (Có thể bỏ qua)",
+        "結果カードに載せる名前はありますか？（省略OK）",
+        "Nama untuk ditampilkan di kartu hasil? (Boleh dilewati)"
+      );
     } else if (step.kind === "ask-nationality") {
-      text = "국적도 알려주시면 카드에 같이 표시해드릴게요 🌍 (생략 가능)";
+      text = t(
+        "국적도 알려주시면 카드에 같이 표시해드릴게요 🌍 (생략 가능)",
+        "Tell me your nationality and I'll show it on the card too 🌍 (optional)",
+        "告诉我你的国籍，也会显示在卡片上 🌍（可选）",
+        "Cho mình biết quốc tịch để hiển thị trên thẻ nhé 🌍 (tùy chọn)",
+        "国籍も教えてくれたらカードに表示します 🌍（省略可）",
+        "Beri tahu kewarganegaraanmu, akan ditampilkan di kartu juga 🌍 (opsional)"
+      );
     } else if (step.kind === "ready") {
-      text = "준비 끝났어요! 결과 보러 가볼까요? 🎁";
+      text = t(
+        "준비 끝났어요! 결과 보러 가볼까요? 🎁",
+        "All set! Ready to see your result? 🎁",
+        "准备好啦！要看看结果吗？🎁",
+        "Xong rồi! Xem kết quả nhé? 🎁",
+        "準備完了！結果を見に行きましょう？🎁",
+        "Siap! Mau lihat hasilnya? 🎁"
+      );
     }
     if (text) {
       setMessages((prev) => [...prev, { id: makeId(), role: "bot", text: text!, stepKey: key }]);
@@ -157,7 +192,7 @@ export function MbtiLandingPage() {
       .then((data) => {
         if (data.ok && data.questions) setQuestions(data.questions);
       })
-      .catch(() => setError("질문지를 불러오지 못했어요."))
+      .catch(() => setError(t("질문지를 불러오지 못했어요.", "Couldn't load the questions.", "无法载入题目。", "Không thể tải câu hỏi.", "質問を読み込めませんでした。", "Tidak dapat memuat pertanyaan.")))
       .finally(() => setQuizLoading(false));
   }, [apiBase, step.kind, questions.length, quizLoading]);
 
@@ -179,7 +214,7 @@ export function MbtiLandingPage() {
 
   function submitText(kind: "ask-name" | "ask-nationality") {
     const value = pendingText.trim();
-    const display = value || "(생략)";
+    const display = value || t("(생략)", "(skipped)", "(已跳过)", "(đã bỏ qua)", "(省略)", "(dilewati)");
     if (kind === "ask-name") {
       pushUser(display, "ask-name");
       setName(value);
@@ -195,11 +230,11 @@ export function MbtiLandingPage() {
 
   function skipText(kind: "ask-name" | "ask-nationality") {
     if (kind === "ask-name") {
-      pushUser("(생략)", "ask-name");
+      pushUser(t("(생략)", "(skipped)", "(已跳过)", "(đã bỏ qua)", "(省略)", "(dilewati)"), "ask-name");
       setPendingText("");
       setStep({ kind: "ask-nationality" });
     } else {
-      pushUser("(생략)", "ask-nationality");
+      pushUser(t("(생략)", "(skipped)", "(已跳过)", "(đã bỏ qua)", "(省略)", "(dilewati)"), "ask-nationality");
       setPendingText("");
       setStep({ kind: "ready" });
     }
@@ -261,11 +296,11 @@ export function MbtiLandingPage() {
       });
       const payload = (await response.json()) as { ok?: boolean; shareSlug?: string; message?: string };
       if (!response.ok || !payload.ok || !payload.shareSlug) {
-        throw new Error(payload.message ?? "결과 생성에 실패했습니다.");
+        throw new Error(payload.message ?? t("결과 생성에 실패했습니다.", "Couldn't create your result.", "结果生成失败。", "Không thể tạo kết quả.", "結果の生成に失敗しました。", "Gagal membuat hasil."));
       }
       router.push(`/events/mbti/result/${encodeURIComponent(payload.shareSlug)}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "결과 생성에 실패했습니다.");
+      setError(err instanceof Error ? err.message : t("결과 생성에 실패했습니다.", "Couldn't create your result.", "结果生成失败。", "Không thể tạo kết quả.", "結果の生成に失敗しました。", "Gagal membuat hasil."));
       setSubmitting(false);
       setStep({ kind: "ready" });
     }
@@ -280,7 +315,7 @@ export function MbtiLandingPage() {
         return (
           <InlineHint>
             <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-primary" />
-            <span>퀴즈 준비 중이에요...</span>
+            <span>{t("퀴즈 준비 중이에요...", "Getting the quiz ready...", "正在准备测验...", "Đang chuẩn bị quiz...", "クイズを準備中です...", "Menyiapkan kuis...")}</span>
           </InlineHint>
         );
       }
@@ -300,7 +335,9 @@ export function MbtiLandingPage() {
       );
     }
     if (step.kind === "ask-name" || step.kind === "ask-nationality") {
-      const placeholder = step.kind === "ask-name" ? "이름 입력" : "예: 베트남, 인도네시아";
+      const placeholder = step.kind === "ask-name"
+        ? t("이름 입력", "Enter name", "输入姓名", "Nhập tên", "名前を入力", "Masukkan nama")
+        : t("예: 베트남, 인도네시아", "e.g. Vietnam, Indonesia", "例：越南、印尼", "VD: Việt Nam, Indonesia", "例：ベトナム、インドネシア", "mis. Vietnam, Indonesia");
       return (
         <InlineInputRow>
           <input
@@ -319,14 +356,14 @@ export function MbtiLandingPage() {
             onClick={() => submitText(step.kind as "ask-name" | "ask-nationality")}
             className="h-10 shrink-0 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground"
           >
-            보내기
+            {t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
           </button>
           <button
             type="button"
             onClick={() => skipText(step.kind as "ask-name" | "ask-nationality")}
             className="h-10 shrink-0 rounded-full border border-border/50 bg-white px-3 text-xs font-semibold text-muted-foreground"
           >
-            생략
+            {t("생략", "Skip", "跳过", "Bỏ qua", "省略", "Lewati")}
           </button>
         </InlineInputRow>
       );
@@ -340,7 +377,9 @@ export function MbtiLandingPage() {
             disabled={submitting}
             className="h-12 w-full max-w-sm rounded-2xl bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50"
           >
-            {submitting ? "결과 만드는 중..." : "결과 보러 가기 🎁"}
+            {submitting
+              ? t("결과 만드는 중...", "Creating result...", "正在生成结果...", "Đang tạo kết quả...", "結果を作成中...", "Membuat hasil...")
+              : t("결과 보러 가기 🎁", "See my result 🎁", "查看结果 🎁", "Xem kết quả 🎁", "結果を見る 🎁", "Lihat hasil 🎁")}
           </button>
         </div>
       );
@@ -349,7 +388,7 @@ export function MbtiLandingPage() {
       return (
         <InlineHint>
           <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-primary" />
-          <span>결과 만드는 중이에요... 잠시만요 ⏳</span>
+          <span>{t("결과 만드는 중이에요... 잠시만요 ⏳", "Creating your result... hang tight ⏳", "正在生成结果... 请稍候 ⏳", "Đang tạo kết quả... đợi chút nhé ⏳", "結果を作成中です... 少々お待ちください ⏳", "Membuat hasilmu... tunggu sebentar ⏳")}</span>
         </InlineHint>
       );
     }
@@ -368,7 +407,14 @@ export function MbtiLandingPage() {
               Aply × MBTI
             </p>
             <h1 className="font-display text-[22px] font-black leading-tight tracking-[-0.02em]">
-              내 MBTI에 잘 맞는<br />한국 회사는? 🎯
+              {t(
+                "내 MBTI에 잘 맞는 한국 회사는? 🎯",
+                "Which Korean company fits your MBTI? 🎯",
+                "哪家韩国公司最合你的 MBTI？🎯",
+                "Công ty Hàn nào hợp MBTI của bạn? 🎯",
+                "あなたのMBTIに合う韓国企業は？🎯",
+                "Perusahaan Korea mana yang cocok dengan MBTI-mu? 🎯"
+              )}
             </h1>
           </header>
 
@@ -392,16 +438,16 @@ export function MbtiLandingPage() {
             {/* Footer note */}
             <div className="border-t border-border/40 bg-muted/20 px-4 py-2.5 text-center">
               <p className="text-[10px] leading-relaxed text-muted-foreground">
-                MBTI를 더 정확히 알고 싶다면{" "}
+                {t("MBTI를 더 정확히 알고 싶다면", "Want a more accurate MBTI? Try", "想更准确了解 MBTI？可参考", "Muốn biết MBTI chính xác hơn? Thử", "MBTIをもっと正確に知りたいなら", "Ingin MBTI lebih akurat? Coba")}{" "}
                 <a
                   href="https://www.16personalities.com/ko/%EB%AC%B4%EB%A3%8C-%EC%84%B1%EA%B2%A9-%EC%9C%A0%ED%98%95-%EA%B2%80%EC%82%AC"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary underline"
                 >
-                  16personalities 무료 검사
+                  {t("16personalities 무료 검사", "the free 16personalities test", "16personalities 免费测试", "bài test miễn phí 16personalities", "16personalitiesの無料診断", "tes gratis 16personalities")}
                 </a>
-                도 참고해 보세요.
+                {t("도 참고해 보세요.", ".", "。", ".", "も参考にしてみてください。", ".")}
               </p>
             </div>
           </section>
@@ -422,6 +468,7 @@ function ChatBubble({
   message: Message;
   onEdit: (id: string) => void;
 }) {
+  const t = usePlatformT();
   if (message.role === "bot") {
     return (
       <div className="flex items-start gap-2.5">
@@ -444,7 +491,7 @@ function ChatBubble({
           onClick={() => onEdit(message.id)}
           className="text-[11px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline"
         >
-          수정
+          {t("수정", "Edit", "修改", "Sửa", "修正", "Ubah")}
         </button>
       ) : null}
     </div>

@@ -77,8 +77,8 @@ export function PartnerLoginPage() {
     <TalentAuthLayout
       badge={t("파트너", "Partner", "合作伙伴", "Đối tác", "パートナー", "Partner")}
       backHref="/partner"
-      title={t("채용을 시작해요", "Start hiring", "开始招聘", "Bắt đầu tuyển dụng", "採用を始めましょう", "Mulai merekrut")}
-      subtitle={t("로그인하거나, 처음이라면 가입해서 시작하세요.", "Sign in, or sign up if it's your first time.", "登录，或首次使用请注册开始。", "Đăng nhập, hoặc đăng ký nếu lần đầu.", "ログイン、初めての方は登録して始めましょう。", "Masuk, atau daftar jika baru pertama kali.")}
+      title={t("좋은 인재를 여기서 만나요", "Meet great talent here", "在这里遇见优秀人才", "Gặp nhân tài ngay tại đây", "優秀な人材とここで出会う", "Temui talenta hebat di sini")}
+      subtitle={t("로그인하고 공고 등록부터 채용까지 한 곳에서.", "Sign in and manage everything from posting to hiring.", "登录，从发布职位到录用一站式完成。", "Đăng nhập và quản lý từ đăng tin đến tuyển dụng.", "ログインして求人掲載から採用まで一箇所で。", "Masuk dan kelola dari pasang lowongan hingga rekrut.")}
       footer={
         <p className="text-[14px] text-[#8B95A1]">
           {copy.signupPrompt}{" "}

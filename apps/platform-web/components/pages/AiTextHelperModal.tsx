@@ -121,7 +121,7 @@ export function AiTextHelperModal({
       });
       setDraft(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "AI 호출에 실패했어요.");
+      setError(err instanceof Error ? err.message : tr("AI 호출에 실패했어요.", "AI request failed.", "AI 调用失败。", "Gọi AI thất bại.", "AI呼び出しに失敗しました。", "Permintaan AI gagal."));
     } finally {
       setBusy(false);
     }

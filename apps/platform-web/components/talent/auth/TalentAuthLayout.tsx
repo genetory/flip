@@ -47,7 +47,6 @@ export function TalentAuthLayout({
           <Link href={backHref} className="mb-6 inline-flex items-center gap-1 text-[13.5px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">
             <ArrowLeft className="h-4 w-4" /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
           </Link>
-          <Image src="/img_logo.webp" alt={talentBrand.name} width={96} height={32} className="mb-6 h-7 w-auto" priority />
           <h1 className="text-[28px] font-black leading-[1.2] tracking-[-0.03em] text-[#0B1227] md:text-[32px]">{title}</h1>
           {subtitle ? <p className="mt-3 break-keep text-[15px] leading-[1.6] text-[#4E5968]">{subtitle}</p> : null}
           <div className="mt-9">{children}</div>

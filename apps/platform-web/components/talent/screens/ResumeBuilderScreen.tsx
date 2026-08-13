@@ -22,7 +22,8 @@ import { useResumeDoc, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, a
 import { usePlatformT } from "../../../lib/i18n";
 
 // 섹션 칩 · 편집 리스트 순서 — 학력은 맨 오른쪽/맨 아래.
-const CHIP_ORDER: CareerSection[] = ["experience", "project", "certificate", "skill", "award", "activity", "education"];
+// 기본 이력서 순서 — 학력 먼저, 이후 경험·프로젝트·자격증·스킬·대외활동·수상.
+const CHIP_ORDER: CareerSection[] = ["education", "experience", "project", "certificate", "skill", "activity", "award"];
 
 export function ResumeBuilderScreen() {
   const t = usePlatformT();
@@ -256,9 +257,9 @@ function ItemRow({
       <textarea
         value={text}
         onChange={(e) => onChange(e.target.value)}
-        rows={2}
+        rows={3}
         placeholder={isExperience ? t("한 일·성과 (선택)","What you did / achievements (optional)","工作内容·成果（选填）","Việc đã làm / thành tích (tùy chọn)","業務・成果（任意）","Yang dikerjakan / hasil (opsional)") : undefined}
-        className="min-h-[52px] w-full resize-y break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
+        className="min-h-[84px] w-full resize-y break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
       />
       <div className="mt-2 flex items-center justify-between gap-1.5">
         {/* 사후 수정 — 섹션 이동(자동 분류 교정) */}

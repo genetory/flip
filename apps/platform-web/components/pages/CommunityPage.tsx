@@ -163,32 +163,34 @@ type CommunityAuthor = {
   intro: string | null;
 };
 
-const COMMUNITY_JOB_ROLE_LABEL: Record<string, string> = {
-  SOFTWARE_DEVELOPMENT: "개발",
-  FRONTEND_DEVELOPMENT: "프론트엔드",
-  BACKEND_DEVELOPMENT: "백엔드",
-  DATA_ANALYSIS_SCIENCE: "데이터",
-  UI_UX_DESIGN: "UI/UX 디자인",
-  PRODUCT_MANAGER: "PM",
-  MARKETING: "마케팅",
-  SALES: "영업",
-  HR: "HR",
-  FINANCE_ACCOUNTING: "재무·회계",
-  OPERATIONS_PLANNING: "운영·기획",
-  OTHER: "기타"
+type CommunityLabel = { ko: string; en: string; zh: string; vi: string; ja: string; id: string };
+
+const COMMUNITY_JOB_ROLE_LABEL: Record<string, CommunityLabel> = {
+  SOFTWARE_DEVELOPMENT: { ko: "개발", en: "Dev", zh: "开发", vi: "Lập trình", ja: "開発", id: "Dev" },
+  FRONTEND_DEVELOPMENT: { ko: "프론트엔드", en: "Frontend", zh: "前端", vi: "Frontend", ja: "フロント", id: "Frontend" },
+  BACKEND_DEVELOPMENT: { ko: "백엔드", en: "Backend", zh: "后端", vi: "Backend", ja: "バックエンド", id: "Backend" },
+  DATA_ANALYSIS_SCIENCE: { ko: "데이터", en: "Data", zh: "数据", vi: "Dữ liệu", ja: "データ", id: "Data" },
+  UI_UX_DESIGN: { ko: "UI/UX 디자인", en: "UI/UX", zh: "UI/UX设计", vi: "UI/UX", ja: "UI/UX", id: "UI/UX" },
+  PRODUCT_MANAGER: { ko: "PM", en: "PM", zh: "PM", vi: "PM", ja: "PM", id: "PM" },
+  MARKETING: { ko: "마케팅", en: "Marketing", zh: "市场", vi: "Marketing", ja: "マーケ", id: "Marketing" },
+  SALES: { ko: "영업", en: "Sales", zh: "销售", vi: "Kinh doanh", ja: "営業", id: "Sales" },
+  HR: { ko: "HR", en: "HR", zh: "HR", vi: "HR", ja: "HR", id: "HR" },
+  FINANCE_ACCOUNTING: { ko: "재무·회계", en: "Finance", zh: "财务", vi: "Tài chính", ja: "財務", id: "Keuangan" },
+  OPERATIONS_PLANNING: { ko: "운영·기획", en: "Ops", zh: "运营", vi: "Vận hành", ja: "運営", id: "Operasi" },
+  OTHER: { ko: "기타", en: "Other", zh: "其他", vi: "Khác", ja: "その他", id: "Lainnya" }
 };
 
-const COMMUNITY_VISA_LABEL: Record<string, string> = {
-  D2_STUDENT: "D-2 유학",
-  D4_GENERAL_TRAINING: "D-4 연수",
-  D10_JOB_SEEKING: "D-10 구직",
-  E7_SPECIFIC_ACTIVITY: "E-7 전문직",
-  F2_RESIDENCE: "F-2 거주",
-  F4_OVERSEAS_KOREAN: "F-4 재외동포",
-  F5_PERMANENT_RESIDENCE: "F-5 영주",
-  F6_MARRIAGE_IMMIGRATION: "F-6 결혼이민",
-  H1_WORKING_HOLIDAY: "H-1 워홀",
-  OTHER: "기타"
+const COMMUNITY_VISA_LABEL: Record<string, CommunityLabel> = {
+  D2_STUDENT: { ko: "D-2 유학", en: "D-2 Study", zh: "D-2 留学", vi: "D-2 Du học", ja: "D-2 留学", id: "D-2 Studi" },
+  D4_GENERAL_TRAINING: { ko: "D-4 연수", en: "D-4 Training", zh: "D-4 研修", vi: "D-4 Đào tạo", ja: "D-4 研修", id: "D-4 Pelatihan" },
+  D10_JOB_SEEKING: { ko: "D-10 구직", en: "D-10 Job seek", zh: "D-10 求职", vi: "D-10 Tìm việc", ja: "D-10 求職", id: "D-10 Cari kerja" },
+  E7_SPECIFIC_ACTIVITY: { ko: "E-7 전문직", en: "E-7 Skilled", zh: "E-7 专业", vi: "E-7 Chuyên môn", ja: "E-7 専門職", id: "E-7 Ahli" },
+  F2_RESIDENCE: { ko: "F-2 거주", en: "F-2 Resident", zh: "F-2 居住", vi: "F-2 Cư trú", ja: "F-2 居住", id: "F-2 Tinggal" },
+  F4_OVERSEAS_KOREAN: { ko: "F-4 재외동포", en: "F-4 Overseas KR", zh: "F-4 侨胞", vi: "F-4 Kiều bào", ja: "F-4 在外同胞", id: "F-4 Diaspora" },
+  F5_PERMANENT_RESIDENCE: { ko: "F-5 영주", en: "F-5 Permanent", zh: "F-5 永住", vi: "F-5 Định cư", ja: "F-5 永住", id: "F-5 Permanen" },
+  F6_MARRIAGE_IMMIGRATION: { ko: "F-6 결혼이민", en: "F-6 Marriage", zh: "F-6 结婚", vi: "F-6 Hôn nhân", ja: "F-6 結婚", id: "F-6 Menikah" },
+  H1_WORKING_HOLIDAY: { ko: "H-1 워홀", en: "H-1 WH", zh: "H-1 打工度假", vi: "H-1 WH", ja: "H-1 ワーホリ", id: "H-1 WH" },
+  OTHER: { ko: "기타", en: "Other", zh: "其他", vi: "Khác", ja: "その他", id: "Lainnya" }
 };
 
 function formatRelativeTime(input: string, locale: "ko" | "en" | "zh-CN" | "vi" | "ja" | "id") {
@@ -1578,14 +1580,20 @@ export const CommunityPage = () => {
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {authorProfile.visaType ? (
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[12px] font-medium text-slate-700">
-                      {COMMUNITY_VISA_LABEL[authorProfile.visaType] ?? authorProfile.visaType}
+                      {(() => {
+                        const l = COMMUNITY_VISA_LABEL[authorProfile.visaType];
+                        return l ? t(l.ko, l.en, l.zh, l.vi, l.ja, l.id) : authorProfile.visaType;
+                      })()}
                     </span>
                   ) : null}
-                  {authorProfile.jobRoles.slice(0, 3).map((r) => (
-                    <span key={r} className="rounded-full bg-primary/10 px-2.5 py-1 text-[12px] font-medium text-primary">
-                      {COMMUNITY_JOB_ROLE_LABEL[r] ?? r}
-                    </span>
-                  ))}
+                  {authorProfile.jobRoles.slice(0, 3).map((r) => {
+                    const l = COMMUNITY_JOB_ROLE_LABEL[r];
+                    return (
+                      <span key={r} className="rounded-full bg-primary/10 px-2.5 py-1 text-[12px] font-medium text-primary">
+                        {l ? t(l.ko, l.en, l.zh, l.vi, l.ja, l.id) : r}
+                      </span>
+                    );
+                  })}
                   {authorProfile.residence ? (
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[12px] font-medium text-slate-700">
                       {authorProfile.residence}

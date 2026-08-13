@@ -109,10 +109,14 @@ export function VisaDetailPage({ code }: Props) {
         titleEn="Visa Detail"
         titleZh="签证详情"
         titleVi="Chi tiết visa"
+        titleJa="ビザ詳細"
+        titleId="Detail Visa"
         descKo="요청하신 비자 정보를 찾지 못했어요."
         descEn="We couldn't find the requested visa information."
         descZh="未找到你请求的签证信息。"
         descVi="Không tìm thấy thông tin visa bạn yêu cầu."
+        descJa="ご要望のビザ情報が見つかりませんでした。"
+        descId="Informasi visa yang Anda minta tidak ditemukan."
         hideHero
       >
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -132,16 +136,22 @@ export function VisaDetailPage({ code }: Props) {
       titleEn={`${visa.code} Visa Detail`}
       titleZh={`${visa.code} 签证详情`}
       titleVi={`Chi tiết visa ${visa.code}`}
+      titleJa={`${visa.code} ビザ詳細`}
+      titleId={`Detail Visa ${visa.code}`}
       descKo="내부에 저장된 비자 상세 정보를 코드별로 정리해 보여드려요."
       descEn="We show visa details from internally stored static data."
       descZh="按代码展示系统内保存的签证详情数据。"
       descVi="Hiển thị thông tin chi tiết visa theo mã từ dữ liệu tĩnh đã lưu trong hệ thống."
+      descJa="内部に保存されたビザ詳細情報をコード別に整理して表示します。"
+      descId="Kami menampilkan detail visa berdasarkan kode dari data statis yang tersimpan di sistem."
       hideHero
       backHref="/resources/visa"
       backKo="비자 목록으로"
       backEn="Back to visa list"
       backZh="返回签证列表"
       backVi="Quay lại danh sách visa"
+      backJa="ビザ一覧へ"
+      backId="Ke daftar visa"
     >
       <section className="rounded-3xl border border-slate-200 bg-white p-6 md:p-7">
         <div>

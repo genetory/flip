@@ -262,7 +262,7 @@ export function PricingPage() {
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("기간", "Duration", "期间", "Thời gian", "期間", "Durasi")}</th><td className="px-3 py-2">{t("3주 ~ 16주", "3–16 weeks", "3周~16周", "3–16 tuần", "3週間〜16週間", "3–16 minggu")}</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("목적", "Purpose", "目的", "Mục đích", "目的", "Tujuan")}</th><td className="px-3 py-2">{t("교육 목적", "Education", "教育目的", "Mục đích giáo dục", "教育目的", "Pendidikan")}</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("급여", "Salary", "薪资", "Lương", "給与", "Gaji")}</th><td className="px-3 py-2">{t("없음", "None", "无", "Không", "なし", "Tidak ada")}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("참여비", "Applicant fee", "参与费", "Phí tham gia", "参加費", "Biaya partisipasi")}</th><td className="px-3 py-2">2,000,000원</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("참여비", "Applicant fee", "参与费", "Phí tham gia", "参加費", "Biaya partisipasi")}</th><td className="px-3 py-2">{t("2,000,000원", "₩2,000,000", "2,000,000韩元", "2.000.000 KRW", "2,000,000ウォン", "₩2.000.000")}</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("기업 수수료", "Company fee", "企业费用", "Phí doanh nghiệp", "企業手数料", "Biaya perusahaan")}</th><td className="px-3 py-2">{t("없음", "None", "无", "Không", "なし", "Tidak ada")}</td></tr>
                           <tr><th className="bg-muted/30 px-3 py-2 font-semibold">{t("채용 전환", "Conversion", "转正可能性", "Chuyển đổi tuyển dụng", "採用転換", "Konversi rekrut")}</th><td className="px-3 py-2">{t("가능 (보장 X)", "Possible (not guaranteed)", "可转正（不保证）", "Có thể (không đảm bảo)", "可能（保証なし）", "Mungkin (tidak dijamin)")}</td></tr>
                         </tbody>
@@ -337,7 +337,7 @@ export function PricingPage() {
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("기간", "Duration", "期间", "Thời gian", "期間", "Durasi")}</th><td className="px-3 py-2">{t("3주 ~ 16주", "3–16 weeks", "3周~16周", "3–16 tuần", "3週間〜16週間", "3–16 minggu")}</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("목적", "Purpose", "目的", "Mục đích", "目的", "Tujuan")}</th><td className="px-3 py-2">{t("교육 목적", "Education", "教育目的", "Mục đích giáo dục", "教育目的", "Pendidikan")}</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("급여", "Salary", "薪资", "Lương", "給与", "Gaji")}</th><td className="px-3 py-2">{t("없음", "None", "无", "Không", "なし", "Tidak ada")}</td></tr>
-                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("지원자 참여비", "Applicant fee", "参与费", "Phí tham gia", "参加費", "Biaya partisipasi")}</th><td className="px-3 py-2">2,000,000원</td></tr>
+                          <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("지원자 참여비", "Applicant fee", "参与费", "Phí tham gia", "参加費", "Biaya partisipasi")}</th><td className="px-3 py-2">{t("2,000,000원", "₩2,000,000", "2,000,000韩元", "2.000.000 KRW", "2,000,000ウォン", "₩2.000.000")}</td></tr>
                           <tr className="border-b border-border/60"><th className="bg-muted/30 px-3 py-2 font-semibold">{t("기업 수수료", "Company fee", "企业费用", "Phí doanh nghiệp", "企業手数料", "Biaya perusahaan")}</th><td className="px-3 py-2">{t("없음", "None", "无", "Không", "なし", "Tidak ada")}</td></tr>
                           <tr><th className="bg-muted/30 px-3 py-2 font-semibold">{t("채용 전환", "Conversion", "转正可能性", "Chuyển đổi tuyển dụng", "採用転換", "Konversi rekrut")}</th><td className="px-3 py-2">{t("가능 (보장 X)", "Possible (not guaranteed)", "可转正（不保证）", "Có thể (không đảm bảo)", "可能（保証なし）", "Mungkin (tidak dijamin)")}</td></tr>
                         </tbody>
@@ -476,7 +476,7 @@ export function PricingPage() {
                   <div className="overflow-hidden bg-muted">
                     <Image
                       src="/img_housing_0.webp"
-                      alt="Private Room (1인실)"
+                      alt={copy.housing.privateRoom.name}
                       width={1200}
                       height={800}
                       className="h-[200px] w-full object-cover md:h-[220px]"
@@ -495,7 +495,7 @@ export function PricingPage() {
                   <div className="overflow-hidden bg-muted">
                     <Image
                       src="/img_housing_1.webp"
-                      alt="Shared Room (2인실)"
+                      alt={copy.housing.sharedRoom.name}
                       width={1200}
                       height={800}
                       className="h-[200px] w-full object-cover md:h-[220px]"

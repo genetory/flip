@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowRight, GraduationCap, Buildings, Sparkle, Globe, IdentificationCard, type Icon } from "@phosphor-icons/react";
+import { ArrowRight, Sparkle, Globe, IdentificationCard, type Icon } from "@phosphor-icons/react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { AplyFooter } from "../AplyFooter";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
@@ -43,7 +43,7 @@ function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; 
 
 const cards = (t: PlatformT): { icon: ReactNode; tag: string; title: string; desc: string; cta: string; href: string }[] => [
   {
-    icon: <GraduationCap className="h-6 w-6" weight="fill" />,
+    icon: <Image src="/images/img_talent_card.webp" alt="" width={208} height={208} className="h-24 w-24 rounded-2xl object-cover shadow-[0_6px_18px_rgba(11,70,232,0.14)]" />,
     tag: t("구직자", "Job seeker", "求职者", "Người tìm việc", "求職者", "Pencari kerja"),
     title: t("첫 이력서부터 첫 지원까지", "From first resume to first application", "从第一份简历到第一次投递", "Từ hồ sơ đến ứng tuyển đầu tiên", "初めての履歴書から初応募まで", "Dari resume hingga lamaran pertama"),
     desc: t(
@@ -58,7 +58,7 @@ const cards = (t: PlatformT): { icon: ReactNode; tag: string; title: string; des
     href: "/talent"
   },
   {
-    icon: <Buildings className="h-6 w-6" weight="fill" />,
+    icon: <Image src="/images/img_partner_card.webp" alt="" width={208} height={208} className="h-24 w-24 rounded-2xl object-cover shadow-[0_6px_18px_rgba(11,70,232,0.14)]" />,
     tag: t("파트너", "Partner", "合作伙伴", "Đối tác", "パートナー", "Partner"),
     title: t("좋은 인재를 만나는 채용", "Hiring that meets great talent", "遇见优秀人才的招聘", "Tuyển dụng gặp nhân tài", "優秀な人材と出会う採用", "Rekrutmen bertemu talenta hebat"),
     desc: t(
@@ -163,7 +163,7 @@ export function CommonLanding() {
 function AudienceCard({ icon, tag, title, desc, cta, href }: { icon: ReactNode; tag: string; title: string; desc: string; cta: string; href: string }) {
   return (
     <Link href={href} className="group flex h-full flex-col rounded-3xl border border-[#EEF1F5] bg-[#FAFBFC] p-7 transition duration-300 hover:-translate-y-0.5 hover:border-[#0B46E8]/30 hover:bg-[#F5F8FF] hover:shadow-[0_12px_32px_rgba(11,70,232,0.1)]">
-      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#0B46E8] shadow-[0_2px_10px_rgba(11,70,232,0.1)]">{icon}</span>
+      <span className="inline-flex">{icon}</span>
       <p className="mt-5 text-[12px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{tag}</p>
       <h2 className="mt-1.5 break-keep text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
       <p className="mt-2 whitespace-pre-line text-[13.5px] leading-relaxed text-[#8B95A1]">{desc}</p>

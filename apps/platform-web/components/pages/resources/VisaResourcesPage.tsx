@@ -1133,10 +1133,14 @@ export function VisaResourcesPage() {
       titleEn="Korean Visa Information"
       titleZh="韩国签证信息"
       titleVi="Thông tin visa Hàn Quốc"
+      titleJa="韓国ビザ情報"
+      titleId="Informasi Visa Korea"
       descKo="공식 비자 안내 기준으로 코드, 신청대상, 체류기간을 보기 쉽게 정리해뒀어요."
       descEn="Based on official visa guidance, we organized visa code, applicant scope, and stay period."
       descZh="依据官方签证指南，将签证代码、申请对象和停留期限整理得一目了然。"
       descVi="Tổng hợp mã visa, đối tượng nộp hồ sơ và thời gian lưu trú dễ xem theo hướng dẫn visa chính thức."
+      descJa="公式ビザ案内を基準に、コード・申請対象・滞在期間を見やすく整理しました。"
+      descId="Berdasarkan panduan visa resmi, kami menyusun kode, sasaran pengajuan, dan periode tinggal agar mudah dilihat."
       hideHero
     >
       <section className="rounded-3xl border border-slate-200 bg-white p-6 md:p-7">

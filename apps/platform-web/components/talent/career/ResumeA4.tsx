@@ -37,7 +37,8 @@ const PAGE_H = 1123;
 const PAGE_PAD = 52; // 각 페이지 위·아래 여백(px).
 const FOOTER_H = 44; // 바닥글이 차지하는 하단 예약 높이.
 const CONTENT_H = PAGE_H - PAGE_PAD * 2 - FOOTER_H; // 페이지당 콘텐츠 영역(바닥글 공간 제외).
-const SECTION_ORDER: CareerSection[] = ["education", "experience", "project", "certificate", "skill", "award", "activity"];
+// 기본 이력서 순서 — 학력 → 경험 → 프로젝트 → 자격증 → 역량·스킬 → 대외활동 → 수상.
+const SECTION_ORDER: CareerSection[] = ["education", "experience", "project", "certificate", "skill", "activity", "award"];
 
 // 블록(헤더·섹션, 필요 시 [data-break] 문단) 단위로 페이지를 나눈다 — 한 블록이 현재 페이지에
 // 안 들어가면 통째로 다음 장으로 내린다(섹션 중간 안 잘림). 한 블록이 한 장보다 크면(예외)
