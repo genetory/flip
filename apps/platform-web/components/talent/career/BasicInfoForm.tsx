@@ -7,7 +7,8 @@ import { Camera, CheckCircle, UserCircle } from "@phosphor-icons/react";
 import { TalentButton } from "../TalentButton";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
-import { getStoredProfilePhoto, setStoredProfilePhoto, PROFILE_PHOTO_CHANGED_EVENT } from "../../../lib/profile-media";
+import { getStoredProfilePhoto, setStoredProfilePhoto } from "../../../lib/profile-media";
+import { updateMyBasicInfo } from "../../../lib/member-profile-client";
 import { useBasicInfo, saveBasicInfo, isBasicInfoComplete, type BasicInfo } from "../../../lib/talent/basic-info";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 
@@ -22,16 +23,20 @@ export function BasicInfoForm({ defaultName }: { defaultName?: string }) {
   const t = usePlatformT();
   const stored = useBasicInfo();
   const toast = useTalentPopup();
-  const { user } = useAuthSession();
+  const { user, setAuthenticatedUser } = useAuthSession();
   const FIELDS = buildFields(t);
   const [form, setForm] = useState<BasicInfo>(stored);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // 서비스(계정) 프로필 사진 — GNB·기본정보와 공유(이력서/자소서 사진과는 별개).
+  // 저장하기를 눌러야 백엔드 계정 사진으로 반영(profileImageData). photoDirty=새로 고른 사진.
   const [accountPhoto, setAccountPhoto] = useState<string | null>(null);
+  const [photoDirty, setPhotoDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
   useEffect(() => {
     if (!user) { setAccountPhoto(null); return; }
     setAccountPhoto(user.profileImageUrl ?? getStoredProfilePhoto(user.id));
+    setPhotoDirty(false);
   }, [user?.id, user?.profileImageUrl]);
 
   // 저장소가 바뀌면(다른 탭 등) 반영 + 실명은 로그인 이름으로 선제안.
@@ -50,22 +55,48 @@ export function BasicInfoForm({ defaultName }: { defaultName?: string }) {
     if (!file || !user) return;
     const reader = new FileReader();
     reader.onload = () => {
-      const url = String(reader.result);
-      setAccountPhoto(url);
-      setStoredProfilePhoto(user.id, url); // 계정 사진으로 저장 + GNB/기본정보 브로드캐스트
+      setAccountPhoto(String(reader.result)); // 미리보기만 — 저장은 '저장하기'에서 백엔드로.
+      setPhotoDirty(true);
     };
     reader.readAsDataURL(file);
   }
 
   function removePhoto() {
     setAccountPhoto(null);
-    if (user) setStoredProfilePhoto(user.id, "");
+    setPhotoDirty(true);
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  function onSave() {
-    saveBasicInfo(form);
-    toast.success(t("기본 정보를 저장했어요", "Basic info saved", "已保存基本信息", "Đã lưu thông tin cơ bản", "基本情報を保存しました", "Info dasar tersimpan"));
+  async function onSave() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      saveBasicInfo(form); // 이력서용 기본정보(로컬)
+      // 새로 고른 계정 사진이 있으면 백엔드 계정 사진으로 저장 + 세션 갱신(GNB/기본정보 즉시 반영).
+      if (photoDirty) {
+        const updated = await updateMyBasicInfo({ profileImageData: accountPhoto ?? null });
+        setAuthenticatedUser({
+          id: updated.id,
+          email: updated.email,
+          realName: updated.realName ?? null,
+          name: updated.name ?? null,
+          phoneNumber: updated.phoneNumber ?? null,
+          birthDate: updated.birthDate ?? null,
+          gender: updated.gender ?? null,
+          role: updated.role,
+          profileImageUrl: updated.profileImageUrl ?? null,
+          partnerType: updated.partnerType ?? null
+        });
+        setStoredProfilePhoto(updated.id, updated.profileImageUrl ?? ""); // 폴백 + 이벤트 브로드캐스트
+        setAccountPhoto(updated.profileImageUrl ?? null);
+        setPhotoDirty(false);
+      }
+      toast.success(t("기본 정보를 저장했어요", "Basic info saved", "已保存基本信息", "Đã lưu thông tin cơ bản", "基本情報を保存しました", "Info dasar tersimpan"));
+    } catch {
+      toast.error(t("저장에 실패했어요. 잠시 후 다시 시도해주세요.", "Couldn't save. Please try again.", "保存失败，请稍后再试。", "Lưu thất bại. Vui lòng thử lại.", "保存に失敗しました。しばらくして再試行してください。", "Gagal menyimpan. Coba lagi."));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -135,8 +166,8 @@ export function BasicInfoForm({ defaultName }: { defaultName?: string }) {
       </div>
 
       <div className="mt-5">
-        <TalentButton onClick={onSave} variant="primary" size="lg" fullWidth aria-label={t("기본 정보 저장", "Save basic info", "保存基本信息", "Lưu thông tin cơ bản", "基本情報を保存", "Simpan info dasar")}>
-          {t("저장하기", "Save", "保存", "Lưu", "保存する", "Simpan")}
+        <TalentButton onClick={onSave} disabled={saving} variant="primary" size="lg" fullWidth aria-label={t("기본 정보 저장", "Save basic info", "保存基本信息", "Lưu thông tin cơ bản", "基本情報を保存", "Simpan info dasar")}>
+          {saving ? t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…") : t("저장하기", "Save", "保存", "Lưu", "保存する", "Simpan")}
         </TalentButton>
       </div>
     </section>
