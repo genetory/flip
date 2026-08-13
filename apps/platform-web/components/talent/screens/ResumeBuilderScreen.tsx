@@ -89,8 +89,13 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
   function setDate(id: string, field: "startDate" | "endDate", value: string) {
     onChange({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, [field]: value } : it)) });
   }
-  function refine(id: string) {
-    onChange({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, text: refineText(it.text) } : it)) });
+  // AI로 다듬기 — 서버 AI(career-assist)로 이력서용 문어체로 다듬음. 실패 시 로컬 규칙 폴백.
+  async function refine(id: string, text: string, section: CareerSection): Promise<void> {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const res = await careerAssist(trimmed, section);
+    const next = res.refined && res.refined.trim() ? res.refined.trim() : refineText(trimmed);
+    onChange({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, text: next } : it)) });
   }
   function remove(id: string) {
     onChange({ ...doc, items: doc.items.filter((it) => it.id !== id) });
@@ -158,7 +163,7 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
                   onSectionChange={(s) => setSection(it.id, s)}
                   onStartChange={(v) => setDate(it.id, "startDate", v)}
                   onEndChange={(v) => setDate(it.id, "endDate", v)}
-                  onRefine={() => refine(it.id)}
+                  onRefine={() => refine(it.id, it.text, section)}
                   onRemove={() => remove(it.id)}
                 />
               ))}
@@ -236,10 +241,11 @@ function ItemRow({
   onSectionChange: (s: CareerSection) => void;
   onStartChange: (v: string) => void;
   onEndChange: (v: string) => void;
-  onRefine: () => void;
+  onRefine: () => Promise<void> | void;
   onRemove: () => void;
 }) {
   const t = usePlatformT();
+  const [refining, setRefining] = useState(false);
   const isExperience = section === "experience";
   // 모든 섹션에 '타이틀/이름' 입력란(학력=학교명, 프로젝트=프로젝트명, 스킬=스킬명 등). 경험처럼 편집 가능.
   const namePlaceholder =
@@ -318,10 +324,11 @@ function ItemRow({
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={onRefine}
-            className="inline-flex items-center gap-1 rounded-lg bg-[#EDF1FD] px-2.5 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]"
+            onClick={async () => { if (refining || !text.trim()) return; setRefining(true); try { await onRefine(); } finally { setRefining(false); } }}
+            disabled={refining || !text.trim()}
+            className="inline-flex items-center gap-1 rounded-lg bg-[#EDF1FD] px-2.5 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC] disabled:opacity-40"
           >
-            <Sparkle className="h-3.5 w-3.5" weight="fill" /> {t("AI로 다듬기","Polish with AI","用 AI 润色","Chỉnh bằng AI","AIで整える","Poles dengan AI")}
+            <Sparkle className="h-3.5 w-3.5" weight="fill" /> {refining ? t("다듬는 중…","Polishing…","润色中…","Đang chỉnh…","整えています…","Memoles…") : t("AI로 다듬기","Polish with AI","用 AI 润色","Chỉnh bằng AI","AIで整える","Poles dengan AI")}
           </button>
           <button type="button" onClick={onRemove} aria-label={t("삭제","Delete","删除","Xóa","削除","Hapus")} className="flex h-8 w-8 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]">
             <Trash className="h-4 w-4" />
