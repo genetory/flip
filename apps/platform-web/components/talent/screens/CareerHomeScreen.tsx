@@ -7,6 +7,7 @@ import { ArrowRight, Sparkle } from "@phosphor-icons/react";
 import { MockInterviewModal } from "../jobs/MockInterviewModal";
 import { MockGateModal } from "../jobs/MockGateModal";
 import { SelfMockResultModal } from "../jobs/SelfMockResultModal";
+import { JobInterestCard } from "../jobs/JobInterestCard";
 import { CareerLayout } from "../career/CareerLayout";
 import { ProfileGate } from "../career/ProfileGate";
 import { FeedCard } from "../career/FeedCard";
@@ -99,6 +100,12 @@ function Content() {
       <section className="flex flex-col gap-4">
         <SectionHead title={t("지원 서류를 만들어요","Create your documents","制作申请材料","Tạo hồ sơ ứng tuyển","応募書類を作る","Buat dokumen lamaran")} desc={t("AI 챗으로 편하게 채우고, 미리보기로 확인해요.","Fill it in easily with AI chat and check the preview.","用 AI 聊天轻松填写，并通过预览查看。","Điền dễ dàng bằng AI chat và xem trước.","AIチャットで手軽に入力し、プレビューで確認。","Isi mudah dengan AI chat dan cek pratinjau.")} />
         <CareerFunnelCards showPreview />
+      </section>
+
+      {/* 관심 직무 — 방향을 정하면 맞춤 공고 추천 */}
+      <section className="flex flex-col gap-4">
+        <SectionHead title={t("관심 직무를 골라요","Pick your target roles","选择意向职位","Chọn vị trí quan tâm","関心職種を選ぶ","Pilih posisi incaran")} desc={t("관심 직무를 정하면 나에게 맞는 공고를 추천해드려요.","Set your target roles and we'll recommend matching jobs.","设定意向职位后，我们会推荐匹配的职位。","Đặt vị trí quan tâm và chúng tôi gợi ý việc phù hợp.","関心職種を決めると自分に合う求人をおすすめします。","Tetapkan posisi incaran dan kami rekomendasikan lowongan yang cocok.")} />
+        <JobInterestCard variant="edit" />
       </section>
 
       {/* 모의 면접 — 내 이력서·자기소개서 기반 self 연습 */}
