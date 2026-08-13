@@ -261,15 +261,9 @@ function ChatPanel({ name, resumeText, onAdd }: { name: string; resumeText: stri
           <textarea
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            rows={1}
+            rows={4}
             placeholder={t("예) 카페 알바에서 배운 책임감을 지원 동기에 녹여줘","e.g. Weave the responsibility I learned at a cafe job into my motivation","例）把在咖啡店打工学到的责任感融入应聘动机","VD) Lồng tinh thần trách nhiệm học được khi làm quán cà phê vào động cơ ứng tuyển","例）カフェバイトで学んだ責任感を志望動機に盛り込んで","Cth) Masukkan rasa tanggung jawab dari kerja kafe ke motivasi")}
-            className="max-h-32 flex-1 resize-none bg-transparent px-3 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
+            className="min-h-[112px] flex-1 resize-y bg-transparent px-3 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
           />
           <button
             type="button"

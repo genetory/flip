@@ -421,16 +421,9 @@ function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, r
           <textarea
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => {
-              // 한글 IME 조합 중 Enter 는 무시(마지막 글자 잘림 방지).
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            rows={1}
+            rows={4}
             placeholder={t("예) 데이터 분석 프로젝트 완료 · 토익 900 취득","e.g. Completed a data analysis project · Scored 900 on TOEIC","例）完成数据分析项目 · 托业 900 分","VD) Hoàn thành dự án phân tích dữ liệu · TOEIC 900","例）データ分析プロジェクト完了・TOEIC900取得","Cth) Selesaikan proyek analisis data · TOEIC 900")}
-            className="max-h-32 flex-1 resize-none bg-transparent px-3 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
+            className="min-h-[112px] flex-1 resize-y bg-transparent px-3 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
           />
           <button
             type="button"
