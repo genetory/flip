@@ -17,26 +17,32 @@ import { useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
 import { getMyFavoritePositions, getPublicPositionsPage, removeMyFavoritePosition, type PublicPositionListItem } from "../../../lib/member-profile-client";
 import { toPositionView } from "../../../lib/talent/positions-adapter";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 
 export type ActivityType = "following-users" | "following-companies" | "favorite-positions" | "favorite-feed";
 
-const TITLES: Record<ActivityType, string> = {
-  "following-users": "팔로우한 사용자",
-  "following-companies": "관심 회사",
-  "favorite-positions": "즐겨찾기한 포지션",
-  "favorite-feed": "즐겨찾기한 피드"
-};
+function titles(t: PlatformT): Record<ActivityType, string> {
+  return {
+    "following-users": t("팔로우한 사용자", "Following", "关注的人", "Đang theo dõi", "フォロー中のユーザー", "Yang diikuti"),
+    "following-companies": t("관심 회사", "Companies", "关注的公司", "Công ty quan tâm", "関心のある会社", "Perusahaan diminati"),
+    "favorite-positions": t("즐겨찾기한 포지션", "Saved positions", "收藏的职位", "Vị trí đã lưu", "保存したポジション", "Posisi tersimpan"),
+    "favorite-feed": t("즐겨찾기한 피드", "Saved posts", "收藏的动态", "Bài đã lưu", "保存したフィード", "Postingan tersimpan")
+  };
+}
 
-const EMPTY: Record<ActivityType, string> = {
-  "following-users": "피드에서 관심 있는 사람을 팔로우해보세요.",
-  "following-companies": "피드에서 관심 있는 회사를 팔로우해보세요.",
-  "favorite-positions": "포지션 탐색에서 즐겨찾기한 공고가 여기 모여요.",
-  "favorite-feed": "피드에서 즐겨찾기한 글이 여기 모여요."
-};
+function empties(t: PlatformT): Record<ActivityType, string> {
+  return {
+    "following-users": t("피드에서 관심 있는 사람을 팔로우해보세요.", "Follow people you're interested in from the feed.", "在动态中关注你感兴趣的人。", "Theo dõi người bạn quan tâm từ bảng tin.", "フィードで気になる人をフォローしてみましょう。", "Ikuti orang yang kamu minati dari feed."),
+    "following-companies": t("피드에서 관심 있는 회사를 팔로우해보세요.", "Follow companies you're interested in from the feed.", "在动态中关注你感兴趣的公司。", "Theo dõi công ty bạn quan tâm từ bảng tin.", "フィードで気になる会社をフォローしてみましょう。", "Ikuti perusahaan yang kamu minati dari feed."),
+    "favorite-positions": t("포지션 탐색에서 즐겨찾기한 공고가 여기 모여요.", "Positions you save while browsing appear here.", "你在浏览职位时收藏的招聘会汇集在这里。", "Các vị trí bạn lưu khi tìm sẽ tập hợp ở đây.", "ポジション探しで保存した求人がここに集まります。", "Posisi yang kamu simpan saat menjelajah muncul di sini."),
+    "favorite-feed": t("피드에서 즐겨찾기한 글이 여기 모여요.", "Posts you save from the feed appear here.", "你在动态中收藏的帖子汇集在这里。", "Bài bạn lưu từ bảng tin sẽ tập hợp ở đây.", "フィードで保存した投稿がここに集まります。", "Postingan yang kamu simpan dari feed muncul di sini.")
+  };
+}
 
 export function ActivityDetailScreen({ type }: { type: string }) {
-  const t = (Object.keys(TITLES) as ActivityType[]).includes(type as ActivityType) ? (type as ActivityType) : "following-users";
+  const tr = usePlatformT();
+  const activityTypes: ActivityType[] = ["following-users", "following-companies", "favorite-positions", "favorite-feed"];
+  const t = activityTypes.includes(type as ActivityType) ? (type as ActivityType) : "following-users";
 
   const { locale } = useLanguage();
   const following = useFollowing();
@@ -79,11 +85,11 @@ export function ActivityDetailScreen({ type }: { type: string }) {
       <div className="flex flex-col gap-10">
         <div>
           <TalentBackButton className="mb-3" />
-          <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{TITLES[t]}</h1>
+          <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{titles(tr)[t]}</h1>
         </div>
 
         {isEmpty ? (
-          <TCard className="px-5 py-10 text-center text-[13.5px] text-[#8B95A1]">{EMPTY[t]}</TCard>
+          <TCard className="px-5 py-10 text-center text-[13.5px] text-[#8B95A1]">{empties(tr)[t]}</TCard>
         ) : t === "favorite-feed" ? (
           // 피드와 동일한 UI/UX로 리스팅.
           <FeedPostList posts={bookmarkedPosts} />
@@ -112,12 +118,15 @@ export function ActivityDetailScreen({ type }: { type: string }) {
 }
 
 // 포지션 카드와 비슷한 톤의 회사 카드 — 좌측 썸네일/아바타 + 이름 + 간단 정보(산업·규모·지역·포지션 수) + 관심 토글.
-const COMPANY_SIZE_LABELS: Record<string, string> = {
-  SIZE_1_10: "1~10인",
-  SIZE_UNDER_30: "30인 이하",
-  SIZE_UNDER_50: "50인 이하",
-  SIZE_OVER_100: "100인 이상"
-};
+function companySizeLabel(t: PlatformT, size: string): string | undefined {
+  const map: Record<string, string> = {
+    SIZE_1_10: t("1~10인", "1–10", "1~10人", "1–10 người", "1~10人", "1–10 orang"),
+    SIZE_UNDER_30: t("30인 이하", "Under 30", "30人以下", "Dưới 30 người", "30人以下", "Di bawah 30"),
+    SIZE_UNDER_50: t("50인 이하", "Under 50", "50人以下", "Dưới 50 người", "50人以下", "Di bawah 50"),
+    SIZE_OVER_100: t("100인 이상", "100+", "100人以上", "Trên 100 người", "100人以上", "100+ orang")
+  };
+  return map[size];
+}
 
 function CompanyCard({ name }: { name: string }) {
   const t = usePlatformT();
@@ -135,7 +144,7 @@ function CompanyCard({ name }: { name: string }) {
         setInfo({
           count: mine.length,
           industry: org?.industry ? partnerIndustryLabel(org.industry) : undefined,
-          size: org?.companySize ? COMPANY_SIZE_LABELS[org.companySize] ?? undefined : undefined,
+          size: org?.companySize ? companySizeLabel(t, org.companySize) ?? undefined : undefined,
           location,
           logo: org?.companyLogoImageData || undefined
         });

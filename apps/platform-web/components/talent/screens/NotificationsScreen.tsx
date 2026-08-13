@@ -10,21 +10,25 @@ import { TalentBackButton } from "../TalentBackButton";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useNotifications, markAllNotificationsRead, markNotificationRead, type Notification, type NotificationKind } from "../../../lib/talent/notifications";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 
 type Filter = "all" | "activity" | "update";
 
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: "all", label: "전체" },
-  { key: "activity", label: "내 활동" },
-  { key: "update", label: "소식" }
-];
+function filters(t: PlatformT): { key: Filter; label: string }[] {
+  return [
+    { key: "all", label: t("전체", "All", "全部", "Tất cả", "すべて", "Semua") },
+    { key: "activity", label: t("내 활동", "My activity", "我的活动", "Hoạt động của tôi", "自分の活動", "Aktivitas saya") },
+    { key: "update", label: t("소식", "Updates", "动态", "Tin tức", "お知らせ", "Kabar") }
+  ];
+}
 
 // 동적 알림이 없을 때 노출할 추천(정적).
-const SUGGESTIONS = [
-  { id: "tip-resume", emoji: "📝", title: "이력서를 완성해보세요", body: "기본 정보를 등록하면 이력서를 만들 수 있어요.", href: talentAppRoutes.resume },
-  { id: "tip-jobs", emoji: "💼", title: "새로운 추천 공고가 있어요", body: "관심 직무에 맞는 공고를 확인해보세요.", href: talentAppRoutes.jobs }
-];
+function suggestions(t: PlatformT) {
+  return [
+    { id: "tip-resume", emoji: "📝", title: t("이력서를 완성해보세요", "Complete your resume", "完善你的简历", "Hoàn thành hồ sơ", "履歴書を完成させましょう", "Lengkapi resume kamu"), body: t("기본 정보를 등록하면 이력서를 만들 수 있어요.", "Add basic info to create your resume.", "填写基本信息即可创建简历。", "Điền thông tin cơ bản để tạo hồ sơ.", "基本情報を登録すると履歴書を作れます。", "Isi info dasar untuk membuat resume."), href: talentAppRoutes.resume },
+    { id: "tip-jobs", emoji: "💼", title: t("새로운 추천 공고가 있어요", "New recommended jobs", "有新的推荐职位", "Có việc gợi ý mới", "新しいおすすめ求人があります", "Ada lowongan rekomendasi baru"), body: t("관심 직무에 맞는 공고를 확인해보세요.", "Check jobs matching your interests.", "查看符合你兴趣的职位。", "Xem việc phù hợp với sở thích.", "関心のある職種に合う求人を確認しましょう。", "Cek lowongan sesuai minatmu."), href: talentAppRoutes.jobs }
+  ];
+}
 
 export function NotificationsScreen() {
   const t = usePlatformT();
@@ -59,7 +63,7 @@ export function NotificationsScreen() {
 
         {/* 카테고리 탭 — 포지션 탐색과 동일한 언더라인 탭 바 */}
         <div className="flex gap-6">
-          {FILTERS.map((f) => {
+          {filters(t).map((f) => {
             const active = filter === f.key;
             return (
               <button
@@ -90,14 +94,17 @@ export function NotificationsScreen() {
   );
 }
 
-const KIND_STYLE: Record<NotificationKind, { text: string; label: string; avatar: string }> = {
-  activity: { text: "text-[#8B95A1]", label: "내 활동", avatar: "bg-[#EDF1FD]" },
-  update: { text: "text-[#8B95A1]", label: "소식", avatar: "bg-[#F2F4F6]" }
-};
+function kindStyle(t: PlatformT): Record<NotificationKind, { text: string; label: string; avatar: string }> {
+  return {
+    activity: { text: "text-[#8B95A1]", label: t("내 활동", "My activity", "我的活动", "Hoạt động của tôi", "自分の活動", "Aktivitas saya"), avatar: "bg-[#EDF1FD]" },
+    update: { text: "text-[#8B95A1]", label: t("소식", "Updates", "动态", "Tin tức", "お知らせ", "Kabar"), avatar: "bg-[#F2F4F6]" }
+  };
+}
 
 function Row({ n, last }: { n: Notification; last: boolean }) {
   const t = usePlatformT();
-  const s = KIND_STYLE[n.kind] ?? KIND_STYLE.update;
+  const style = kindStyle(t);
+  const s = style[n.kind] ?? style.update;
   return (
     <Link
       href={n.href}
@@ -138,11 +145,11 @@ function EmptyState({ filter }: { filter: Filter }) {
       </div>
       {filter !== "update" ? (
         <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
-          {SUGGESTIONS.map((sug, i) => (
+          {suggestions(t).map((sug, i, arr) => (
             <Link
               key={sug.id}
               href={sug.href}
-              className={`flex items-start gap-3.5 px-4 py-4 transition hover:bg-[#F6F8FB] ${i === SUGGESTIONS.length - 1 ? "" : "border-b border-[#F2F4F6]"}`}
+              className={`flex items-start gap-3.5 px-4 py-4 transition hover:bg-[#F6F8FB] ${i === arr.length - 1 ? "" : "border-b border-[#F2F4F6]"}`}
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F2F4F6] text-[19px]" aria-hidden>{sug.emoji}</span>
               <div className="min-w-0 flex-1">

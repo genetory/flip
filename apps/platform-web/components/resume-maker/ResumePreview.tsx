@@ -48,13 +48,13 @@ const SECTION_LABELS: Record<PlatformLocale, Record<SectionKey, string>> = {
 };
 
 // 미리보기 크롬(이름 자리표시·비자 접두어·기간 '현재'·페이지 안내) — 6개 언어.
-const CHROME: Record<PlatformLocale, { name: string; visa: string; present: string; a4: (n: number) => string; pageWarn: (n: number) => string }> = {
-  ko: { name: "이름", visa: "비자", present: "현재", a4: (n) => `A4 · ${n}페이지`, pageWarn: (n) => `현재 내용이 ${n}페이지입니다. 일부 문장을 줄이면 1페이지로 정리할 수 있어요.` },
-  en: { name: "Name", visa: "Visa", present: "Present", a4: (n) => `A4 · ${n} page${n > 1 ? "s" : ""}`, pageWarn: (n) => `Your content is ${n} pages. Trimming some lines can fit it on 1 page.` },
-  "zh-CN": { name: "姓名", visa: "签证", present: "至今", a4: (n) => `A4 · ${n}页`, pageWarn: (n) => `当前内容有 ${n} 页。精简部分语句可整理为 1 页。` },
-  vi: { name: "Tên", visa: "Visa", present: "Hiện tại", a4: (n) => `A4 · ${n} trang`, pageWarn: (n) => `Nội dung hiện dài ${n} trang. Rút gọn một số câu có thể gói gọn trong 1 trang.` },
-  ja: { name: "氏名", visa: "ビザ", present: "現在", a4: (n) => `A4 · ${n}ページ`, pageWarn: (n) => `現在の内容は${n}ページです。一部の文を減らすと1ページにまとめられます。` },
-  id: { name: "Nama", visa: "Visa", present: "Sekarang", a4: (n) => `A4 · ${n} halaman`, pageWarn: (n) => `Konten Anda ${n} halaman. Memangkas beberapa kalimat bisa memuatnya dalam 1 halaman.` }
+const CHROME: Record<PlatformLocale, { name: string; visa: string; present: string; contact: string; a4: (n: number) => string; pageWarn: (n: number) => string }> = {
+  ko: { name: "이름", visa: "비자", present: "현재", contact: "연락처", a4: (n) => `A4 · ${n}페이지`, pageWarn: (n) => `현재 내용이 ${n}페이지입니다. 일부 문장을 줄이면 1페이지로 정리할 수 있어요.` },
+  en: { name: "Name", visa: "Visa", present: "Present", contact: "Contact", a4: (n) => `A4 · ${n} page${n > 1 ? "s" : ""}`, pageWarn: (n) => `Your content is ${n} pages. Trimming some lines can fit it on 1 page.` },
+  "zh-CN": { name: "姓名", visa: "签证", present: "至今", contact: "联系方式", a4: (n) => `A4 · ${n}页`, pageWarn: (n) => `当前内容有 ${n} 页。精简部分语句可整理为 1 页。` },
+  vi: { name: "Tên", visa: "Visa", present: "Hiện tại", contact: "Liên hệ", a4: (n) => `A4 · ${n} trang`, pageWarn: (n) => `Nội dung hiện dài ${n} trang. Rút gọn một số câu có thể gói gọn trong 1 trang.` },
+  ja: { name: "氏名", visa: "ビザ", present: "現在", contact: "連絡先", a4: (n) => `A4 · ${n}ページ`, pageWarn: (n) => `現在の内容は${n}ページです。一部の文を減らすと1ページにまとめられます。` },
+  id: { name: "Nama", visa: "Visa", present: "Sekarang", contact: "Kontak", a4: (n) => `A4 · ${n} halaman`, pageWarn: (n) => `Konten Anda ${n} halaman. Memangkas beberapa kalimat bisa memuatnya dalam 1 halaman.` }
 };
 
 export function ResumeSheet({
@@ -344,7 +344,7 @@ export function ResumeSheet({
               {contactItems.length ? (
                 <div>
                   <h4 className="mb-2 text-[11px] font-extrabold uppercase tracking-wide" style={{ color: accent }}>
-                    연락처
+                    {chrome.contact}
                   </h4>
                   <div className="space-y-0.5 text-slate-700">
                     {contactItems.map((it, i) => (

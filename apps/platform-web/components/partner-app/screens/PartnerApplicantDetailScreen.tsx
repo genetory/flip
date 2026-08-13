@@ -69,15 +69,15 @@ function fmtWhen(iso: string): string {
 }
 
 // 확정된 면접을 면접관 캘린더에 추가하는 구글 캘린더 링크.
-function partnerGcalUrl(slot: InterviewSlot, candidate: string, positionTitle: string): string {
+function partnerGcalUrl(t: PlatformT, slot: InterviewSlot, candidate: string, positionTitle: string): string {
   const start = new Date(slot.startsAt);
   const end = slot.endsAt ? new Date(slot.endsAt) : new Date(start.getTime() + 60 * 60 * 1000);
   const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const params = new URLSearchParams({
     action: "TEMPLATE",
-    text: `${candidate} 면접 · ${positionTitle}`,
+    text: t(`${candidate} 면접 · ${positionTitle}`, `${candidate} interview · ${positionTitle}`, `${candidate} 面试 · ${positionTitle}`, `Phỏng vấn ${candidate} · ${positionTitle}`, `${candidate} 面接 · ${positionTitle}`, `Wawancara ${candidate} · ${positionTitle}`),
     dates: `${fmt(start)}/${fmt(end)}`,
-    details: "Aply 지원자 면접 일정입니다."
+    details: t("Aply 지원자 면접 일정입니다.", "Aply applicant interview schedule.", "Aply 申请者面试日程。", "Lịch phỏng vấn ứng viên Aply.", "Aply 応募者の面接予定です。", "Jadwal wawancara pelamar Aply.")
   });
   if (slot.location) params.set("location", slot.location);
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
@@ -350,7 +350,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                     {selected.location ? <p className="mt-0.5 text-[12px] text-[#8B95A1]">{selected.location}</p> : null}
                   </div>
                   <a
-                    href={partnerGcalUrl(selected, app.name, app.positionTitle)}
+                    href={partnerGcalUrl(t, selected, app.name, app.positionTitle)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="ml-auto inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#0A9B59] shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition hover:bg-[#F0FBF5]"

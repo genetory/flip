@@ -13,7 +13,7 @@ import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { getMyApplications, withdrawMyApplication, getApplicationMessages, sendApplicationMessage, getInterviewSlotsForApplication, selectInterviewSlot, getApplicationTimeline, type MyApplication, type ApplicationMessage, type InterviewSlot, type ApplicationTimelineEvent } from "../../../lib/member-profile-client";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 
 // 면접 시간 표기 — 8월 12일 (화) 오후 2:00
 function formatWhen(iso: string): string {
@@ -23,27 +23,49 @@ function formatWhen(iso: string): string {
 type Tab = "all" | "submitted" | "interview_wait" | "interview_set" | "accepted" | "rejected" | "withdrawn";
 
 // 탭 = 상태 + (면접은 일정 확정 여부)로 세분화.
-const TABS: { key: Tab; label: string; match: (a: MyApplication) => boolean }[] = [
-  { key: "all", label: "전체", match: () => true },
-  { key: "submitted", label: "지원 완료", match: (a) => a.status === "SUBMITTED" },
-  { key: "interview_wait", label: "면접 대기", match: (a) => a.status === "INTERVIEW" && !a.interviewSelectedAt },
-  { key: "interview_set", label: "면접 확정", match: (a) => a.status === "INTERVIEW" && !!a.interviewSelectedAt },
-  { key: "accepted", label: "합격", match: (a) => a.status === "ACCEPTED" },
-  { key: "rejected", label: "불합격", match: (a) => a.status === "REJECTED" },
-  { key: "withdrawn", label: "철회", match: (a) => a.status === "WITHDRAWN" }
+const TABS: { key: Tab; match: (a: MyApplication) => boolean }[] = [
+  { key: "all", match: () => true },
+  { key: "submitted", match: (a) => a.status === "SUBMITTED" },
+  { key: "interview_wait", match: (a) => a.status === "INTERVIEW" && !a.interviewSelectedAt },
+  { key: "interview_set", match: (a) => a.status === "INTERVIEW" && !!a.interviewSelectedAt },
+  { key: "accepted", match: (a) => a.status === "ACCEPTED" },
+  { key: "rejected", match: (a) => a.status === "REJECTED" },
+  { key: "withdrawn", match: (a) => a.status === "WITHDRAWN" }
 ];
+
+function tabLabel(t: PlatformT, key: Tab): string {
+  switch (key) {
+    case "all": return t("전체", "All", "全部", "Tất cả", "すべて", "Semua");
+    case "submitted": return t("지원 완료", "Submitted", "已提交", "Đã nộp", "応募完了", "Terkirim");
+    case "interview_wait": return t("면접 대기", "Interview pending", "待面试", "Chờ phỏng vấn", "面接待ち", "Menunggu");
+    case "interview_set": return t("면접 확정", "Interview set", "面试确定", "Đã chốt PV", "面接確定", "Terjadwal");
+    case "accepted": return t("합격", "Accepted", "已录取", "Trúng tuyển", "合格", "Diterima");
+    case "rejected": return t("불합격", "Rejected", "未录取", "Không trúng", "不合格", "Ditolak");
+    case "withdrawn": return t("철회", "Withdrawn", "已撤回", "Đã rút", "取り消し", "Ditarik");
+  }
+}
 
 function inTab(a: MyApplication, tab: Tab): boolean {
   return (TABS.find((t) => t.key === tab) ?? TABS[0]).match(a);
 }
 
-export const APPLICATION_STATUS: Record<MyApplication["status"], { label: string; cls: string }> = {
-  SUBMITTED: { label: "지원 완료", cls: "bg-[#EDF1FD] text-[#0B46E8]" },
-  INTERVIEW: { label: "면접 진행", cls: "bg-[#FFF3E6] text-[#E8890C]" },
-  ACCEPTED: { label: "합격", cls: "bg-[#E7F8EF] text-[#12B76A]" },
-  REJECTED: { label: "불합격", cls: "bg-[#FDECEE] text-[#F04452]" },
-  WITHDRAWN: { label: "지원 철회", cls: "bg-[#F2F4F6] text-[#8B95A1]" }
+export const APPLICATION_STATUS_CLS: Record<MyApplication["status"], string> = {
+  SUBMITTED: "bg-[#EDF1FD] text-[#0B46E8]",
+  INTERVIEW: "bg-[#FFF3E6] text-[#E8890C]",
+  ACCEPTED: "bg-[#E7F8EF] text-[#12B76A]",
+  REJECTED: "bg-[#FDECEE] text-[#F04452]",
+  WITHDRAWN: "bg-[#F2F4F6] text-[#8B95A1]"
 };
+
+function applicationStatusLabel(t: PlatformT, status: MyApplication["status"]): string {
+  switch (status) {
+    case "SUBMITTED": return t("지원 완료", "Submitted", "已提交", "Đã nộp", "応募完了", "Terkirim");
+    case "INTERVIEW": return t("면접 진행", "Interviewing", "面试中", "Đang phỏng vấn", "面接中", "Wawancara");
+    case "ACCEPTED": return t("합격", "Accepted", "已录取", "Trúng tuyển", "合格", "Diterima");
+    case "REJECTED": return t("불합격", "Rejected", "未录取", "Không trúng", "不合格", "Ditolak");
+    case "WITHDRAWN": return t("지원 철회", "Withdrawn", "已撤回", "Đã rút", "取り消し", "Ditarik");
+  }
+}
 
 export function ApplicationsScreen() {
   const tr = usePlatformT();
@@ -125,7 +147,7 @@ export function ApplicationsScreen() {
                     aria-current={active ? "page" : undefined}
                     className={`relative shrink-0 pb-1.5 text-[15px] font-bold transition ${active ? "text-[#191F28]" : "text-[#B0B8C1] hover:text-[#8B95A1]"}`}
                   >
-                    {t.label} ({n})
+                    {tabLabel(tr, t.key)} ({n})
                     {active ? <span className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-[#0B46E8]" /> : null}
                   </button>
                 );
@@ -345,16 +367,16 @@ function WithdrawModal({ app, withdrawing, onClose, onConfirm }: { app: MyApplic
 type StageState = "done" | "current" | "upcoming" | "good" | "bad";
 type Stage = { key: string; label: string; state: StageState };
 
-function stagesFor(app: MyApplication): Stage[] {
+function stagesFor(t: PlatformT, app: MyApplication): Stage[] {
   const s = app.status;
   // 면접: 진행 중이면 current, 합격이면 done, 불합격은 실제 확정 면접이 있었을 때만 done(서류 탈락은 건너뜀).
   const interview: StageState =
     s === "INTERVIEW" ? "current" : s === "ACCEPTED" ? "done" : s === "REJECTED" ? (app.interviewSelectedAt ? "done" : "upcoming") : "upcoming";
   const result: StageState = s === "ACCEPTED" ? "good" : s === "REJECTED" ? "bad" : "upcoming";
-  const resultLabel = s === "ACCEPTED" ? "합격" : s === "REJECTED" ? "불합격" : "결과";
+  const resultLabel = s === "ACCEPTED" ? t("합격", "Accepted", "已录取", "Trúng tuyển", "合格", "Diterima") : s === "REJECTED" ? t("불합격", "Rejected", "未录取", "Không trúng", "不合格", "Ditolak") : t("결과", "Result", "结果", "Kết quả", "結果", "Hasil");
   return [
-    { key: "applied", label: "지원 완료", state: "done" },
-    { key: "interview", label: "면접", state: interview },
+    { key: "applied", label: t("지원 완료", "Applied", "已申请", "Đã ứng tuyển", "応募完了", "Dilamar"), state: "done" },
+    { key: "interview", label: t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara"), state: interview },
     { key: "result", label: resultLabel, state: result }
   ];
 }
@@ -381,8 +403,9 @@ function lineColor(right: StageState): string {
 }
 
 function ApplicationTimeline({ app }: { app: MyApplication }) {
+  const tr = usePlatformT();
   if (app.status === "WITHDRAWN") return null;
-  const stages = stagesFor(app);
+  const stages = stagesFor(tr, app);
   return (
     <div>
       <div className="flex items-center">
@@ -413,30 +436,33 @@ function ApplicationTimeline({ app }: { app: MyApplication }) {
 }
 
 // 확정된 면접 일정을 구글 캘린더에 추가하는 링크.
-function gcalUrl(app: MyApplication): string {
+function gcalUrl(t: PlatformT, app: MyApplication): string {
   const startIso = app.interviewSelectedAt ?? "";
   const start = new Date(startIso);
   const end = app.interviewSelectedEndsAt ? new Date(app.interviewSelectedEndsAt) : new Date(start.getTime() + 60 * 60 * 1000);
   const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const text = `${app.positionTitle} 면접${app.partnerOrganizationName ? ` · ${app.partnerOrganizationName}` : ""}`;
+  const text = `${app.positionTitle} ${t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara")}${app.partnerOrganizationName ? ` · ${app.partnerOrganizationName}` : ""}`;
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text,
     dates: `${fmt(start)}/${fmt(end)}`,
-    details: "Aply를 통해 지원한 공고의 면접 일정입니다."
+    details: t("Aply를 통해 지원한 공고의 면접 일정입니다.", "Interview for a job you applied to via Aply.", "通过 Aply 申请职位的面试安排。", "Lịch phỏng vấn cho vị trí bạn đã ứng tuyển qua Aply.", "Aplyで応募した求人の面接予定です。", "Jadwal wawancara untuk lowongan yang kamu lamar via Aply.")
   });
   if (app.interviewLocation) params.set("location", app.interviewLocation);
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
-const TIMELINE_EVENT_META: Record<string, { emoji: string; label: string }> = {
-  applied: { emoji: "📮", label: "지원 완료" },
-  interview_proposed: { emoji: "📅", label: "회사가 면접 시간을 제안했어요" },
-  interview_confirmed: { emoji: "✅", label: "면접 시간을 확정했어요" },
-  accepted: { emoji: "🎉", label: "합격했어요" },
-  rejected: { emoji: "🙏", label: "불합격했어요" },
-  withdrawn: { emoji: "↩️", label: "지원을 철회했어요" }
-};
+function timelineEventMeta(t: PlatformT, code: string): { emoji: string; label: string } {
+  const map: Record<string, { emoji: string; label: string }> = {
+    applied: { emoji: "📮", label: t("지원 완료", "Applied", "已申请", "Đã ứng tuyển", "応募完了", "Dilamar") },
+    interview_proposed: { emoji: "📅", label: t("회사가 면접 시간을 제안했어요", "Company proposed interview times", "公司提议了面试时间", "Công ty đề xuất giờ phỏng vấn", "会社が面接時間を提案しました", "Perusahaan mengusulkan waktu wawancara") },
+    interview_confirmed: { emoji: "✅", label: t("면접 시간을 확정했어요", "Interview time confirmed", "已确定面试时间", "Đã chốt giờ phỏng vấn", "面接時間を確定しました", "Waktu wawancara dikonfirmasi") },
+    accepted: { emoji: "🎉", label: t("합격했어요", "You got the offer", "已被录取", "Bạn đã trúng tuyển", "合格しました", "Kamu diterima") },
+    rejected: { emoji: "🙏", label: t("불합격했어요", "Not selected this time", "未通过", "Chưa trúng tuyển", "不合格でした", "Belum lolos") },
+    withdrawn: { emoji: "↩️", label: t("지원을 철회했어요", "Application withdrawn", "已撤回申请", "Đã rút đơn", "応募を取り消しました", "Lamaran ditarik") }
+  };
+  return map[code] ?? { emoji: "•", label: code };
+}
 
 // 진행 내역 — 상태 변경·면접 이벤트를 시간순으로 보여주는 활동 타임라인.
 function ProgressModal({ app, onClose }: { app: MyApplication; onClose: () => void }) {
@@ -478,7 +504,7 @@ function ProgressModal({ app, onClose }: { app: MyApplication; onClose: () => vo
           ) : (
             <ol className="flex flex-col">
               {events.map((ev, i) => {
-                const m = TIMELINE_EVENT_META[ev.code] ?? { emoji: "•", label: ev.code };
+                const m = timelineEventMeta(tr, ev.code);
                 const last = i === events.length - 1;
                 return (
                   <li key={i} className="flex gap-3">
@@ -503,7 +529,8 @@ function ProgressModal({ app, onClose }: { app: MyApplication; onClose: () => vo
 
 function AppCard({ app, onWithdraw, onMessage, onSelectInterview, onTimeline }: { app: MyApplication; onWithdraw: () => void; onMessage: () => void; onSelectInterview: () => void; onTimeline: () => void }) {
   const tr = usePlatformT();
-  const s = APPLICATION_STATUS[app.status];
+  const statusCls = APPLICATION_STATUS_CLS[app.status];
+  const statusLabel = applicationStatusLabel(tr, app.status);
   const canWithdraw = app.status === "SUBMITTED" || app.status === "INTERVIEW";
   const canMessage = app.status !== "WITHDRAWN";
   const dimmed = app.status === "WITHDRAWN" || app.status === "REJECTED";
@@ -512,7 +539,7 @@ function AppCard({ app, onWithdraw, onMessage, onSelectInterview, onTimeline }: 
     <div className={`rounded-2xl border border-[#EEF1F5] p-5 ${dimmed ? "bg-[#FAFBFC]" : "bg-white"}`}>
       {/* 헤더 — 상태 + 문의 + 지원일 */}
       <div className="flex items-center gap-2">
-        <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
+        <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${statusCls}`}>{statusLabel}</span>
         {app.unreadMessages > 0 ? <span className="rounded-md bg-[#FDECEE] px-2 py-1 text-[11px] font-bold text-[#F04452]">{tr("문의", "Msg", "消息", "Tin", "連絡", "Pesan")} {app.unreadMessages}</span> : null}
         <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{tr("지원", "Applied", "申请", "Ứng tuyển", "応募", "Dilamar")} · {formatRelativeTime(new Date(app.submittedAt).getTime())}</span>
       </div>
@@ -587,12 +614,12 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
         {app.interviewLocation ? <p className="mt-0.5 text-[12px] text-[#8B95A1]">{app.interviewLocation}</p> : null}
         <div className="mt-2.5 flex flex-wrap gap-2">
           <a
-            href={gcalUrl(app)}
+            href={gcalUrl(tr, app)}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#E8890C] shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition hover:bg-[#FFF9F0]"
           >
-            <CalendarPlus className="h-4 w-4" weight="bold" /> 캘린더에 추가
+            <CalendarPlus className="h-4 w-4" weight="bold" /> {tr("캘린더에 추가", "Add to calendar", "添加到日历", "Thêm vào lịch", "カレンダーに追加", "Tambah ke kalender")}
           </a>
           <Link
             href={`${talentAppRoutes.jobs}/${app.positionId}`}
@@ -629,7 +656,7 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
           href={`${talentAppRoutes.jobs}/${app.positionId}`}
           className="mt-2.5 inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition hover:bg-[#F5F8FF]"
         >
-          🎤 모의 면접으로 준비하기
+          {tr("🎤 모의 면접으로 준비하기", "🎤 Prep with a mock interview", "🎤 用模拟面试准备", "🎤 Luyện với phỏng vấn thử", "🎤 模擬面接で準備する", "🎤 Latihan wawancara simulasi")}
         </Link>
       </div>
     );

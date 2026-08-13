@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, CircleNotch, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { paperlogy } from "../../lib/fonts";
+import { usePlatformT } from "../../lib/i18n";
 import { useShellCopy } from "../../lib/resume-maker-i18n/shell";
 import { useQuotaCopy } from "../../lib/resume-maker-i18n/quota";
 import { useAiUsage } from "../../lib/resume-maker-ai-usage";
@@ -67,6 +68,7 @@ export function ResumeMakerShell({
   const router = useRouter();
   const pathname = usePathname();
   const t = useShellCopy();
+  const pt = usePlatformT();
   const { hasResume } = useResumePresence(); // 이력서가 없으면(=false) 도구 메뉴를 잠근다.
 
   // 현재 이력서(세 도구 공유) — 이력서 화면에 들어가면 그 id 를 활성으로 기억하고,
@@ -156,7 +158,7 @@ export function ResumeMakerShell({
                 Career Launch
               </Link>
             ) : (
-              <Link href="/" className="flex shrink-0 items-center" title="aply.global 홈으로">
+              <Link href="/" className="flex shrink-0 items-center" title={pt("aply.global 홈으로", "To aply.global home", "前往 aply.global 首页", "Về trang chủ aply.global", "aply.global ホームへ", "Ke beranda aply.global")}>
                 <Image src="/img_logo.webp" alt="Aply logo" width={180} height={48} className="h-6 w-auto md:h-7" priority />
               </Link>
             )}

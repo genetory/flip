@@ -21,7 +21,7 @@ import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { useSelfMock } from "../../../lib/talent/self-mock";
 import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
 import { useDailyStep, markStepDoneToday } from "../../../lib/talent/daily-step";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 export function CareerHomeScreen() {
   return (
     <CareerLayout>
@@ -81,7 +81,7 @@ function Content() {
   const hasCover = cover !== null;
   const rp = resumeCompleteness(resume);
   const cp = coverCompleteness(cover);
-  const mission = todaysMission(hasResume, rp, hasCover, cp, applied);
+  const mission = todaysMission(t, hasResume, rp, hasCover, cp, applied);
   const workItems = resume?.items.filter((i) => i.section === "experience") ?? [];
 
   return (
@@ -197,13 +197,13 @@ interface Mission {
 }
 
 // 현재 상태에 맞는 오늘의 미션(작은 한 걸음) 하나.
-function todaysMission(hasResume: boolean, rp: number, hasCover: boolean, cp: number, applied: boolean): Mission {
-  if (!hasResume) return { text: "오늘은 이력서를 만들어볼까요?", sub: "5분이면 시작할 수 있어요. 완벽하지 않아도 괜찮아요.", cta: "이력서 만들기", href: talentAppRoutes.resume };
-  if (rp < 100) return { text: "이력서에 경험 한 줄을 더 채워봐요.", sub: "알바·프로젝트 무엇이든, 한 줄이면 충분해요.", cta: "이력서 이어서 쓰기", href: talentAppRoutes.resume };
-  if (!hasCover) return { text: "자기소개서 지원 동기를 써볼까요?", sub: "빈 화면 대신 문항 하나에 답하듯 시작해봐요.", cta: "자기소개서 만들기", href: talentAppRoutes.cover };
-  if (cp < 100) return { text: "자기소개서 한 문항을 더 채워봐요.", sub: "오늘은 한 문항만 채워도 좋아요.", cta: "자기소개서 이어서 쓰기", href: talentAppRoutes.cover };
-  if (!applied) return { text: "마음에 드는 공고 하나를 저장해봐요.", sub: "관심 직무에 맞는 공고부터 둘러보면 좋아요.", cta: "포지션 탐색하기", href: talentAppRoutes.jobs };
-  return { text: "오늘도 새 공고를 둘러볼까요?", sub: "새로 올라온 공고에서 기회를 찾아봐요.", cta: "포지션 탐색하기", href: talentAppRoutes.jobs };
+function todaysMission(t: PlatformT, hasResume: boolean, rp: number, hasCover: boolean, cp: number, applied: boolean): Mission {
+  if (!hasResume) return { text: t("오늘은 이력서를 만들어볼까요?", "Shall we create your resume today?", "今天来制作简历吧？", "Hôm nay cùng tạo CV nhé?", "今日は履歴書を作ってみましょうか？", "Buat CV hari ini, yuk?"), sub: t("5분이면 시작할 수 있어요. 완벽하지 않아도 괜찮아요.", "You can start in 5 minutes. It doesn't have to be perfect.", "5分钟就能开始，不完美也没关系。", "Chỉ 5 phút là bắt đầu được. Không cần hoàn hảo.", "5分で始められます。完璧でなくても大丈夫。", "Cukup 5 menit untuk mulai. Tak harus sempurna."), cta: t("이력서 만들기", "Create resume", "制作简历", "Tạo CV", "履歴書を作成", "Buat CV"), href: talentAppRoutes.resume };
+  if (rp < 100) return { text: t("이력서에 경험 한 줄을 더 채워봐요.", "Add one more line of experience to your resume.", "在简历里再补充一行经历吧。", "Thêm một dòng kinh nghiệm vào CV nhé.", "履歴書に経験を一行足してみましょう。", "Tambah satu baris pengalaman di CV."), sub: t("알바·프로젝트 무엇이든, 한 줄이면 충분해요.", "A part-time job, a project—one line is enough.", "兼职、项目都行，一行就够了。", "Việc làm thêm hay dự án, một dòng là đủ.", "アルバイトもプロジェクトも、一行で十分。", "Kerja paruh waktu atau proyek, satu baris cukup."), cta: t("이력서 이어서 쓰기", "Continue resume", "继续写简历", "Viết tiếp CV", "履歴書の続きを書く", "Lanjutkan CV"), href: talentAppRoutes.resume };
+  if (!hasCover) return { text: t("자기소개서 지원 동기를 써볼까요?", "Shall we write your cover letter's motivation?", "来写求职信的应聘动机吧？", "Cùng viết động lực ứng tuyển trong thư nhé?", "自己PRの志望動機を書いてみましょうか？", "Tulis motivasi lamaran di surat, yuk?"), sub: t("빈 화면 대신 문항 하나에 답하듯 시작해봐요.", "Instead of a blank page, start by answering one question.", "别对着空白页，从回答一个问题开始吧。", "Thay vì trang trắng, bắt đầu bằng cách trả lời một câu hỏi.", "空白の画面ではなく、一つの設問に答えるように始めましょう。", "Alih-alih halaman kosong, mulai dengan menjawab satu pertanyaan."), cta: t("자기소개서 만들기", "Create cover letter", "制作求职信", "Tạo thư xin việc", "自己PRを作成", "Buat surat lamaran"), href: talentAppRoutes.cover };
+  if (cp < 100) return { text: t("자기소개서 한 문항을 더 채워봐요.", "Fill in one more cover letter question.", "再填一道求职信的问题吧。", "Điền thêm một câu hỏi trong thư xin việc.", "自己PRの設問をもう一つ埋めてみましょう。", "Isi satu pertanyaan lagi di surat lamaran."), sub: t("오늘은 한 문항만 채워도 좋아요.", "Filling just one question today is great.", "今天只填一道也很好。", "Hôm nay chỉ điền một câu cũng tốt.", "今日は一問だけでも大丈夫。", "Hari ini satu pertanyaan saja sudah bagus."), cta: t("자기소개서 이어서 쓰기", "Continue cover letter", "继续写求职信", "Viết tiếp thư xin việc", "自己PRの続きを書く", "Lanjutkan surat lamaran"), href: talentAppRoutes.cover };
+  if (!applied) return { text: t("마음에 드는 공고 하나를 저장해봐요.", "Save one job posting you like.", "收藏一个你喜欢的职位吧。", "Lưu một tin tuyển dụng bạn thích.", "気に入った求人を一つ保存してみましょう。", "Simpan satu lowongan yang kamu suka."), sub: t("관심 직무에 맞는 공고부터 둘러보면 좋아요.", "Start by browsing postings that match your interests.", "从符合你兴趣的职位开始浏览吧。", "Bắt đầu bằng cách xem các tin phù hợp sở thích.", "興味のある職種の求人から見てみましょう。", "Mulai dengan menelusuri lowongan yang sesuai minatmu."), cta: t("포지션 탐색하기", "Explore positions", "探索职位", "Khám phá vị trí", "求人を探す", "Jelajahi posisi"), href: talentAppRoutes.jobs };
+  return { text: t("오늘도 새 공고를 둘러볼까요?", "Shall we browse new postings today too?", "今天也来看看新职位吧？", "Hôm nay cùng xem tin mới nhé?", "今日も新しい求人を見てみましょうか？", "Lihat lowongan baru hari ini juga, yuk?"), sub: t("새로 올라온 공고에서 기회를 찾아봐요.", "Find opportunities in the newest postings.", "在最新发布的职位中寻找机会吧。", "Tìm cơ hội trong các tin mới đăng.", "新しく掲載された求人からチャンスを探しましょう。", "Temukan peluang di lowongan terbaru."), cta: t("포지션 탐색하기", "Explore positions", "探索职位", "Khám phá vị trí", "求人を探す", "Jelajahi posisi"), href: talentAppRoutes.jobs };
 }
 
 function DailyStepHero({ mission }: { mission: Mission }) {

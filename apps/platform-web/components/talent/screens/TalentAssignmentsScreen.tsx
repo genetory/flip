@@ -8,14 +8,16 @@ import { TalentBackButton } from "../TalentBackButton";
 import { TLoading, TError } from "../ui/primitives";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { getMyAssignments, submitAssignment, type MyAssignment } from "../../../lib/member-profile-client";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 
-const STATUS: Record<MyAssignment["status"], { label: string; cls: string }> = {
-  ASSIGNED: { label: "제출 대기", cls: "bg-[#FFF3E6] text-[#E8890C]" },
-  SUBMITTED: { label: "제출 완료", cls: "bg-[#EDF1FD] text-[#0B46E8]" },
-  REVIEWED: { label: "검토 완료", cls: "bg-[#E7F8EF] text-[#0A9B59]" },
-  CANCELLED: { label: "취소", cls: "bg-[#F2F4F6] text-[#8B95A1]" }
-};
+function statusInfo(t: PlatformT): Record<MyAssignment["status"], { label: string; cls: string }> {
+  return {
+    ASSIGNED: { label: t("제출 대기", "To submit", "待提交", "Chờ nộp", "提出待ち", "Menunggu"), cls: "bg-[#FFF3E6] text-[#E8890C]" },
+    SUBMITTED: { label: t("제출 완료", "Submitted", "已提交", "Đã nộp", "提出済み", "Terkirim"), cls: "bg-[#EDF1FD] text-[#0B46E8]" },
+    REVIEWED: { label: t("검토 완료", "Reviewed", "已审阅", "Đã duyệt", "確認済み", "Ditinjau"), cls: "bg-[#E7F8EF] text-[#0A9B59]" },
+    CANCELLED: { label: t("취소", "Cancelled", "已取消", "Đã hủy", "取消", "Dibatalkan"), cls: "bg-[#F2F4F6] text-[#8B95A1]" }
+  };
+}
 
 function fmt(iso: string | null): string {
   if (!iso) return "-";
@@ -24,12 +26,14 @@ function fmt(iso: string | null): string {
 }
 
 type Tab = "ALL" | MyAssignment["status"];
-const TABS: { key: Tab; label: string }[] = [
-  { key: "ALL", label: "전체" },
-  { key: "ASSIGNED", label: "제출 대기" },
-  { key: "SUBMITTED", label: "제출 완료" },
-  { key: "REVIEWED", label: "검토 완료" }
-];
+function tabs(t: PlatformT): { key: Tab; label: string }[] {
+  return [
+    { key: "ALL", label: t("전체", "All", "全部", "Tất cả", "すべて", "Semua") },
+    { key: "ASSIGNED", label: t("제출 대기", "To submit", "待提交", "Chờ nộp", "提出待ち", "Menunggu") },
+    { key: "SUBMITTED", label: t("제출 완료", "Submitted", "已提交", "Đã nộp", "提出済み", "Terkirim") },
+    { key: "REVIEWED", label: t("검토 완료", "Reviewed", "已审阅", "Đã duyệt", "確認済み", "Ditinjau") }
+  ];
+}
 
 export function TalentAssignmentsScreen() {
   const tr = usePlatformT();
@@ -77,7 +81,7 @@ export function TalentAssignmentsScreen() {
         {status === "ready" ? (
           <>
             <div className="flex gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {TABS.map((t) => {
+              {tabs(tr).map((t) => {
                 const on = tab === t.key;
                 return (
                   <button key={t.key} type="button" onClick={() => setTab(t.key)} aria-current={on ? "page" : undefined} className={`relative shrink-0 pb-1.5 text-[15px] font-bold transition ${on ? "text-[#191F28]" : "text-[#B0B8C1] hover:text-[#8B95A1]"}`}>
@@ -110,7 +114,7 @@ export function TalentAssignmentsScreen() {
 
 function AssignmentCard({ a, onSubmitted, onError, onDone }: { a: MyAssignment; onSubmitted: (u: MyAssignment) => void; onError: () => void; onDone: () => void }) {
   const t = usePlatformT();
-  const s = STATUS[a.status];
+  const s = statusInfo(t)[a.status];
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState("");
   const [links, setLinks] = useState("");

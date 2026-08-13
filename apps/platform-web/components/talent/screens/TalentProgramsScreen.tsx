@@ -7,13 +7,20 @@ import { TalentAppShell } from "../app/TalentAppShell";
 import { TalentBackButton } from "../TalentBackButton";
 import { TLoading, TError } from "../ui/primitives";
 import { getMyPrograms, type MyProgram } from "../../../lib/member-profile-client";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 
-const STATUS: Record<MyProgram["status"], { label: string; cls: string }> = {
-  ACTIVE: { label: "진행 중", cls: "bg-[#EDF1FD] text-[#0B46E8]" },
-  COMPLETED: { label: "완료", cls: "bg-[#E7F8EF] text-[#0A9B59]" },
-  CANCELLED: { label: "취소", cls: "bg-[#F2F4F6] text-[#8B95A1]" }
+const STATUS_CLS: Record<MyProgram["status"], string> = {
+  ACTIVE: "bg-[#EDF1FD] text-[#0B46E8]",
+  COMPLETED: "bg-[#E7F8EF] text-[#0A9B59]",
+  CANCELLED: "bg-[#F2F4F6] text-[#8B95A1]"
 };
+function statusLabel(t: PlatformT, s: MyProgram["status"]): string {
+  switch (s) {
+    case "ACTIVE": return t("진행 중", "In progress", "进行中", "Đang tiến hành", "進行中", "Berjalan");
+    case "COMPLETED": return t("완료", "Completed", "已完成", "Hoàn thành", "完了", "Selesai");
+    case "CANCELLED": return t("취소", "Cancelled", "已取消", "Đã hủy", "キャンセル", "Dibatalkan");
+  }
+}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "-";
@@ -65,13 +72,12 @@ export function TalentProgramsScreen() {
           ) : (
             <div className="flex flex-col gap-2.5">
               {items.map((p) => {
-                const s = STATUS[p.status];
                 const upcoming = p.meetings.find((m) => m.status === "SCHEDULED");
                 return (
                   <div key={p.id} className="rounded-2xl border border-[#EEF1F5] bg-white p-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-[15px] font-bold text-[#191F28]">{p.application.position.title}</p>
-                      <span className={`rounded-md px-2.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
+                      <span className={`rounded-md px-2.5 py-0.5 text-[11px] font-bold ${STATUS_CLS[p.status]}`}>{statusLabel(t, p.status)}</span>
                     </div>
                     <p className="mt-1 flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]">
                       <Buildings className="h-3.5 w-3.5 text-[#B0B8C1]" /> {p.application.position.partnerOrganization?.name ?? t("회사", "Company", "公司", "Công ty", "会社", "Perusahaan")}

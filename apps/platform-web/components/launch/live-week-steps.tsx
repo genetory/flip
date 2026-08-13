@@ -10,12 +10,12 @@ export type DiagResult = { percent: number; level: string; strengths?: string[];
 
 // 정리한 직무 정보는 '직무명: 내용' 형식으로 쌓인다. 앞의 직무명으로 묶어
 // 직무별로 볼 수 있게 그룹핑한다(접두어가 없으면 '기타'로 모은다).
-function groupMaterialsByJob(materials: string[]): { job: string; items: string[] }[] {
+function groupMaterialsByJob(materials: string[], otherLabel: string): { job: string; items: string[] }[] {
   const groups: { job: string; items: string[] }[] = [];
   const index = new Map<string, number>();
   for (const raw of materials) {
     const m = raw.match(/^\s*([^:：]{1,40})[:：]\s*(.+)$/);
-    const job = m ? m[1].trim() : "기타";
+    const job = m ? m[1].trim() : otherLabel;
     const item = m ? m[2].trim() : raw.trim();
     if (!item) continue;
     if (!index.has(job)) {
@@ -186,7 +186,7 @@ export function LiveWeekSteps({
                     </span>
                   </div>
                   <div className="mt-2.5 space-y-2.5">
-                    {groupMaterialsByJob(materials).map((g) => (
+                    {groupMaterialsByJob(materials, t("기타", "Other", "其他", "Khác", "その他", "Lainnya")).map((g) => (
                       <div key={g.job} className="rounded-lg bg-white/70 p-2.5">
                         <p className="text-[12.5px] font-bold text-[#191F28]">{g.job}</p>
                         <ul className="mt-1.5 space-y-1">

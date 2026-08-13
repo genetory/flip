@@ -11,16 +11,18 @@ import { TalentButton } from "../TalentButton";
 import { useOnboardingGoals, useOnboardingSteps } from "../../../lib/talent/labels";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import type { OnboardingGoal } from "../../../lib/talent/types";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 
 // 목표별 첫 작업 연결.
-const goalDestination: Record<OnboardingGoal, { href: string; label: string }> = {
-  explore: { href: talentAppRoutes.career, label: "커리어 여정 시작하기" },
-  resume: { href: talentAppRoutes.resumes, label: "첫 이력서 만들기" },
-  cover: { href: talentAppRoutes.coverLetters, label: "자기소개서 시작하기" },
-  jobs: { href: talentAppRoutes.jobs, label: "맞는 공고 찾아보기" },
-  interview: { href: talentAppRoutes.interviews, label: "면접 준비 시작하기" }
-};
+function goalDestinations(t: PlatformT): Record<OnboardingGoal, { href: string; label: string }> {
+  return {
+    explore: { href: talentAppRoutes.career, label: t("커리어 여정 시작하기", "Start your career journey", "开启职业旅程", "Bắt đầu hành trình nghề nghiệp", "キャリアの旅を始める", "Mulai perjalanan karier") },
+    resume: { href: talentAppRoutes.resumes, label: t("첫 이력서 만들기", "Create your first resume", "创建第一份简历", "Tạo hồ sơ đầu tiên", "最初の履歴書を作る", "Buat resume pertama") },
+    cover: { href: talentAppRoutes.coverLetters, label: t("자기소개서 시작하기", "Start a cover letter", "开始写自我介绍", "Bắt đầu thư giới thiệu", "自己PRを始める", "Mulai surat lamaran") },
+    jobs: { href: talentAppRoutes.jobs, label: t("맞는 공고 찾아보기", "Find matching jobs", "寻找合适的职位", "Tìm việc phù hợp", "合う求人を探す", "Cari lowongan yang cocok") },
+    interview: { href: talentAppRoutes.interviews, label: t("면접 준비 시작하기", "Start interview prep", "开始面试准备", "Bắt đầu luyện phỏng vấn", "面接準備を始める", "Mulai persiapan wawancara") }
+  };
+}
 
 export function OnboardingScreen() {
   return (
@@ -45,7 +47,8 @@ function OnboardingFlow() {
   const currentQuestion = !isGoalStep && !isDone ? onboardingSteps[step - 1] : null;
   const progress = useMemo(() => Math.round((Math.min(step, totalSteps) / totalSteps) * 100), [step, totalSteps]);
 
-  const dest = goal ? goalDestination[goal] : goalDestination.explore;
+  const destinations = goalDestinations(t);
+  const dest = goal ? destinations[goal] : destinations.explore;
 
   // 완료 화면에 도달하면 온보딩을 봤다고 계정에 기록(웰컴 카드 다시 안 뜸).
   useEffect(() => {

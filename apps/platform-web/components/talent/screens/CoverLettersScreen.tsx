@@ -11,13 +11,15 @@ import { useTalentSnapshot } from "../../../lib/talent/useTalentData";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
 import { useTailoredCoverQuestions } from "../../../lib/talent/labels";
 import type { CoverLetter, CoverLetterType, TalentSnapshot } from "../../../lib/talent/types";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 
-const basicQuestions = [
-  "나를 한 문장으로 소개한다면?",
-  "가장 자신 있는 강점은 무엇인가요?",
-  "앞으로 어떤 일을 하고 싶나요?"
-];
+function basicQuestions(t: PlatformT): string[] {
+  return [
+    t("나를 한 문장으로 소개한다면?", "If you introduced yourself in one sentence?", "用一句话介绍自己？", "Giới thiệu bản thân trong một câu?", "自分を一文で紹介するなら？", "Perkenalkan dirimu dalam satu kalimat?"),
+    t("가장 자신 있는 강점은 무엇인가요?", "What's your greatest strength?", "你最有信心的优势是什么？", "Điểm mạnh nhất của bạn là gì?", "一番自信のある強みは何ですか？", "Apa kelebihan terbesarmu?"),
+    t("앞으로 어떤 일을 하고 싶나요?", "What kind of work do you want to do?", "将来想做什么样的工作？", "Bạn muốn làm công việc gì trong tương lai?", "これからどんな仕事をしたいですか？", "Pekerjaan apa yang ingin kamu lakukan?")
+  ];
+}
 
 export function CoverLettersScreen() {
   const t = usePlatformT();
@@ -122,7 +124,7 @@ function TypeChooser({ onClose, onPick }: { onClose: () => void; onPick: (type: 
 function CoverFlow({ type, snapshot, onClose }: { type: CoverLetterType; snapshot: TalentSnapshot; onClose: () => void }) {
   const t = usePlatformT();
   const tailoredCoverQuestions = useTailoredCoverQuestions();
-  const questions = type === "tailored" ? tailoredCoverQuestions : basicQuestions;
+  const questions = type === "tailored" ? tailoredCoverQuestions : basicQuestions(t);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<string[]>(questions.map(() => ""));
   const [done, setDone] = useState(false);
