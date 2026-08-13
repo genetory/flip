@@ -17,7 +17,7 @@ import { useUnreadNotificationCount } from "../../lib/talent/notifications";
 import { useSavedDeadlineNotifications } from "../../lib/talent/deadline-notify";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { usePlatformT } from "../../lib/i18n";
-import { getStoredProfilePhoto } from "../../lib/profile-media";
+import { getStoredProfilePhoto, PROFILE_PHOTO_CHANGED_EVENT } from "../../lib/profile-media";
 
 export function TalentHeader() {
   const pathname = usePathname() ?? "";
@@ -40,8 +40,11 @@ export function TalentHeader() {
   // 이력서·자소서에 들어가는 사진(BasicInfo.photoUrl)과는 별개.
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   useEffect(() => {
-    if (!user) { setProfilePhoto(null); return; }
-    setProfilePhoto(user.profileImageUrl ?? getStoredProfilePhoto(user.id) ?? null);
+    const read = () => setProfilePhoto(user ? (user.profileImageUrl ?? getStoredProfilePhoto(user.id)) : null);
+    read();
+    if (typeof window === "undefined") return;
+    window.addEventListener(PROFILE_PHOTO_CHANGED_EVENT, read);
+    return () => window.removeEventListener(PROFILE_PHOTO_CHANGED_EVENT, read);
   }, [user?.id, user?.profileImageUrl]);
   const homeHref = isTalentUser ? talentAppRoutes.home : "/talent";
 

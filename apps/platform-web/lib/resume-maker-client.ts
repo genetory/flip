@@ -431,6 +431,13 @@ export async function getAiUsage(): Promise<AiUsage> {
   };
 }
 
+// 포인트 획득 내역(웰컴/매일 적립/쿠폰 충전). 최신순.
+export type AiPointLogEntry = { id: string; amount: number; reason: string; createdAt: string };
+export async function getAiPointHistory(): Promise<AiPointLogEntry[]> {
+  const payload = (await authedJsonFetch<unknown>("/members/me/ai/history", { method: "GET" })) as { history?: AiPointLogEntry[] };
+  return Array.isArray(payload?.history) ? payload.history : [];
+}
+
 function isQuotaError(err: unknown): boolean {
   return !!err && typeof err === "object" && (err as { status?: number }).status === 402;
 }

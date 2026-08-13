@@ -4,7 +4,7 @@
 // 지원 현황 + 내 활동 + 알림 + 계정. 각 섹션은 관련 상세 화면으로 이어진다.
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { CaretRight, SealCheck, SignOut, PencilSimple, Sparkle } from "@phosphor-icons/react";
+import { CaretRight, SealCheck, SignOut, PencilSimple } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { JobInterestCard } from "../jobs/JobInterestCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
@@ -19,8 +19,8 @@ import { useFollowedCompanies } from "../../../lib/talent/company-follow";
 import { useSocialFeed } from "../../../lib/talent/social-feed";
 import { useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
 import { getMyFavoritePositions, type PublicPositionListItem } from "../../../lib/member-profile-client";
-import { getAiUsage, type AiUsage } from "../../../lib/resume-maker-client";
-import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
+import { PointsBalanceCard } from "../PointsBalanceCard";
+import { getStoredProfilePhoto, PROFILE_PHOTO_CHANGED_EVENT } from "../../../lib/profile-media";
 import { usePlatformT } from "../../../lib/i18n";
 
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -36,45 +36,13 @@ function SectionHeader({ title }: { title: string }) {
   return <p className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</p>;
 }
 
-// 내 포인트 — 보유 AI 포인트 잔액 + 상세/충전 모달(GNB 티켓 뱃지와 동일 소스).
+// 내 포인트 — 공용 잔액 카드(내역 페이지 이동 + 충전 팝업).
 function MyPointsSection() {
   const t = usePlatformT();
-  const [usage, setUsage] = useState<AiUsage | null>(null);
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const refresh = () => {
-      getAiUsage().then(setUsage).catch(() => {});
-    };
-    refresh();
-    if (typeof window !== "undefined") window.addEventListener("aply:ai-usage-changed", refresh);
-    return () => {
-      if (typeof window !== "undefined") window.removeEventListener("aply:ai-usage-changed", refresh);
-    };
-  }, []);
   return (
     <section>
       <SectionHeader title={t("내 포인트", "My points", "我的积分", "Điểm của tôi", "マイポイント", "Poin saya")} />
-      <div className="rounded-3xl bg-[#F5F8FF] p-6">
-        <div className="flex items-center gap-4">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">
-            <Sparkle className="h-7 w-7" weight="fill" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-[#8B95A1]">{t("보유 AI 포인트", "AI points", "AI 积分", "Điểm AI", "AIポイント", "Poin AI")}</p>
-            <p className="text-[24px] font-black tracking-[-0.02em] text-[#0B1227] tabular-nums">{usage ? usage.remaining.toLocaleString() : "—"}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3.5 py-2.5 text-[13px] font-bold text-[#4E5968] shadow-[0_2px_10px_rgba(11,18,39,0.06)] transition hover:text-[#0B46E8]"
-          >
-            {t("상세", "Details", "详情", "Chi tiết", "詳細", "Detail")}
-          </button>
-        </div>
-      </div>
-      {open && usage ? (
-        <AiTicketStatusModal remaining={usage.remaining} resetAt={usage.resetAt || null} dailyGrant={usage.dailyGrant} onClose={() => setOpen(false)} />
-      ) : null}
+      <PointsBalanceCard />
     </section>
   );
 }
@@ -133,6 +101,16 @@ export function SettingsScreen() {
   const [favPositions, setFavPositions] = useState<PublicPositionListItem[]>([]);
 
   const name = user?.realName || user?.name || t("나", "Me", "我", "Tôi", "私", "Saya");
+
+  // 계정 프로필 사진 — GNB·프로필편집과 동일 소스. 이력서 사진(BasicInfo.photoUrl)과는 별개.
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  useEffect(() => {
+    const read = () => setProfilePhoto(user ? (user.profileImageUrl ?? getStoredProfilePhoto(user.id)) : null);
+    read();
+    if (typeof window === "undefined") return;
+    window.addEventListener(PROFILE_PHOTO_CHANGED_EVENT, read);
+    return () => window.removeEventListener(PROFILE_PHOTO_CHANGED_EVENT, read);
+  }, [user?.id, user?.profileImageUrl]);
   const emailVerified = Boolean(user?.emailVerified);
 
   // 사용자 팔로우는 social-graph(클라), 관심 회사는 서버(company-follow).
@@ -161,8 +139,13 @@ export function SettingsScreen() {
           <SectionHeader title={t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")} />
           <div className="rounded-3xl bg-[#F5F8FF] p-6">
           <div className="flex items-center gap-4">
-            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[24px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">
-              {name.slice(0, 1)}
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white text-[24px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">
+              {profilePhoto ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
+              ) : (
+                name.slice(0, 1)
+              )}
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">

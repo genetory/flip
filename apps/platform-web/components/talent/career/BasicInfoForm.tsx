@@ -1,10 +1,13 @@
 "use client";
 
-// 기본 정보 등록 폼 — 실명·이메일·연락처·주소 + (선택)이력서용 프로필 사진.
+// 기본 정보 등록 폼 — 실명·이메일·연락처·주소 + (선택)서비스 프로필 사진(계정 사진).
+// 사진은 서비스 계정 사진으로, GNB·기본정보와 공유. 이력서/자소서용 사진은 각 페이지에서 별도 관리.
 import { useEffect, useRef, useState } from "react";
 import { Camera, CheckCircle, UserCircle } from "@phosphor-icons/react";
 import { TalentButton } from "../TalentButton";
 import { useTalentPopup } from "../feedback/TalentPopupProvider";
+import { useAuthSession } from "../../auth/AuthSessionProvider";
+import { getStoredProfilePhoto, setStoredProfilePhoto, PROFILE_PHOTO_CHANGED_EVENT } from "../../../lib/profile-media";
 import { useBasicInfo, saveBasicInfo, isBasicInfoComplete, type BasicInfo } from "../../../lib/talent/basic-info";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 
@@ -19,9 +22,17 @@ export function BasicInfoForm({ defaultName }: { defaultName?: string }) {
   const t = usePlatformT();
   const stored = useBasicInfo();
   const toast = useTalentPopup();
+  const { user } = useAuthSession();
   const FIELDS = buildFields(t);
   const [form, setForm] = useState<BasicInfo>(stored);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // 서비스(계정) 프로필 사진 — GNB·기본정보와 공유(이력서/자소서 사진과는 별개).
+  const [accountPhoto, setAccountPhoto] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user) { setAccountPhoto(null); return; }
+    setAccountPhoto(user.profileImageUrl ?? getStoredProfilePhoto(user.id));
+  }, [user?.id, user?.profileImageUrl]);
 
   // 저장소가 바뀌면(다른 탭 등) 반영 + 실명은 로그인 이름으로 선제안.
   useEffect(() => {
@@ -36,14 +47,19 @@ export function BasicInfoForm({ defaultName }: { defaultName?: string }) {
 
   function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
     const reader = new FileReader();
-    reader.onload = () => set("photoUrl", String(reader.result));
+    reader.onload = () => {
+      const url = String(reader.result);
+      setAccountPhoto(url);
+      setStoredProfilePhoto(user.id, url); // 계정 사진으로 저장 + GNB/기본정보 브로드캐스트
+    };
     reader.readAsDataURL(file);
   }
 
   function removePhoto() {
-    set("photoUrl", "");
+    setAccountPhoto(null);
+    if (user) setStoredProfilePhoto(user.id, "");
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -64,18 +80,18 @@ export function BasicInfoForm({ defaultName }: { defaultName?: string }) {
         )}
       </div>
 
-      {/* 프로필 사진(이력서용, 세로 비율) */}
+      {/* 서비스 프로필 사진(계정 사진) — 정방형. GNB·기본정보와 공유. */}
       <div className="mb-5 flex items-center gap-4">
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          className="relative h-[92px] w-[72px] shrink-0"
+          className="relative h-[80px] w-[80px] shrink-0"
           aria-label={t("프로필 사진 업로드", "Upload profile photo", "上传头像", "Tải ảnh hồ sơ", "プロフィール写真をアップロード", "Unggah foto profil")}
         >
           <span className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-[#E5E8EB] bg-[#F2F4F6]">
-            {form.photoUrl ? (
+            {accountPhoto ? (
               /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={form.photoUrl} alt="" className="h-full w-full object-cover" />
+              <img src={accountPhoto} alt="" className="h-full w-full object-cover" />
             ) : (
               <UserCircle className="h-9 w-9 text-[#C4CAD2]" weight="fill" />
             )}
@@ -85,9 +101,9 @@ export function BasicInfoForm({ defaultName }: { defaultName?: string }) {
           </span>
         </button>
         <div className="min-w-0">
-          <p className="text-[13.5px] font-semibold text-[#191F28]">{t("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")}</p>
-          <p className="mt-0.5 text-[12px] text-[#8B95A1]">{t("선택 · 이력서에 들어가는 사진이에요", "Optional · shown on your resume", "可选 · 会显示在简历上", "Tùy chọn · hiển thị trên CV", "任意 · 履歴書に載る写真です", "Opsional · tampil di resume")}</p>
-          {form.photoUrl ? (
+          <p className="text-[13.5px] font-semibold text-[#191F28]">{t("서비스 프로필 사진", "Profile photo", "服务头像", "Ảnh hồ sơ dịch vụ", "サービスプロフィール写真", "Foto profil layanan")}</p>
+          <p className="mt-0.5 text-[12px] text-[#8B95A1]">{t("선택 · GNB·프로필에 쓰여요 (이력서 사진은 이력서에서 따로)", "Optional · used in the app profile (resume photo is set on the resume)", "可选 · 用于应用资料（简历照片在简历中单独设置）", "Tùy chọn · dùng cho hồ sơ ứng dụng (ảnh CV đặt riêng ở CV)", "任意 · アプリのプロフィールに使用（履歴書写真は履歴書で別途）", "Opsional · dipakai di profil aplikasi (foto CV diatur di CV)")}</p>
+          {accountPhoto ? (
             <div className="mt-2 flex items-center gap-2">
               <button type="button" onClick={() => fileRef.current?.click()} className="rounded-lg bg-[#F2F4F6] px-2.5 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]">
                 {t("변경", "Change", "更换", "Đổi", "変更", "Ubah")}

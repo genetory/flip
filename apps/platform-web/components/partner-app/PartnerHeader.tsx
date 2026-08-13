@@ -11,7 +11,7 @@ import { partnerMainNav, partnerRoutes, isPartnerTabActive, usePartnerNavLabel }
 import { getMyNotifications } from "../../lib/member-profile-client";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { usePlatformT } from "../../lib/i18n";
-import { getStoredProfilePhoto } from "../../lib/profile-media";
+import { getStoredProfilePhoto, PROFILE_PHOTO_CHANGED_EVENT } from "../../lib/profile-media";
 
 export function PartnerHeader() {
   const t = usePlatformT();
@@ -25,8 +25,11 @@ export function PartnerHeader() {
   // 계정 프로필 사진 — 프로필 편집/기본정보와 동일 소스. 이력서 사진과는 별개.
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   useEffect(() => {
-    if (!user) { setProfilePhoto(null); return; }
-    setProfilePhoto(user.profileImageUrl ?? getStoredProfilePhoto(user.id) ?? null);
+    const read = () => setProfilePhoto(user ? (user.profileImageUrl ?? getStoredProfilePhoto(user.id)) : null);
+    read();
+    if (typeof window === "undefined") return;
+    window.addEventListener(PROFILE_PHOTO_CHANGED_EVENT, read);
+    return () => window.removeEventListener(PROFILE_PHOTO_CHANGED_EVENT, read);
   }, [user?.id, user?.profileImageUrl]);
 
   useEffect(() => {

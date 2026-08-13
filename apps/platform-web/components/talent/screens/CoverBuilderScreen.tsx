@@ -9,7 +9,7 @@ import { TalentAppShell } from "../app/TalentAppShell";
 import { TalentBackButton } from "../TalentBackButton";
 import { ProfileGate } from "../career/ProfileGate";
 import { ProfileCard } from "../career/ProfileCard";
-import { PhotoToggleRow } from "../career/PhotoToggleRow";
+import { ResumePhotoRow } from "../career/ResumePhotoRow";
 import { CoverA4Preview } from "../career/CoverA4";
 import { TLoading } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
@@ -105,9 +105,7 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
       <div className="flex flex-col gap-5">
         <ProfileCard info={basicInfo} showPhoto={doc.showPhoto === true} />
 
-        {basicInfo.photoUrl ? (
-          <PhotoToggleRow label={t("자기소개서에 프로필 사진 표시","Show profile photo on cover letter","在求职信上显示头像","Hiển thị ảnh trên thư xin việc","自己PRに証明写真を表示","Tampilkan foto di surat lamaran")} on={doc.showPhoto === true} onChange={(v) => onChange({ ...doc, showPhoto: v })} />
-        ) : null}
+        <ResumePhotoRow label={t("자기소개서 사진","Cover letter photo","求职信照片","Ảnh thư xin việc","自己PR写真","Foto surat lamaran")} on={doc.showPhoto === true} onChange={(v) => onChange({ ...doc, showPhoto: v })} />
 
         <ChatPanel name={basicInfo.realName} resumeText={resumeText} onAdd={add} />
 

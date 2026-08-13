@@ -55,6 +55,7 @@ model User {
   couponRedemptions                    CouponRedemption[]
   aiUsages                             AiUsage[]
   aiWallet                             AiWallet?
+  aiPointLogs                          AiPointLog[]
   sgcApplication                       SgcApplication?               @relation("SgcApplicationUser")
   refreshTokens                        RefreshToken[]
   emailVerificationTokens              EmailVerificationToken[]
@@ -1514,6 +1515,19 @@ model AiWallet {
   updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// AI 포인트 획득 내역(원장) — 웰컴/매일 적립/쿠폰 충전 등 '받은' 기록. 내역 페이지 표시용.
+model AiPointLog {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Int // 지급된 포인트(양수)
+  reason    String // "welcome" | "daily" | "coupon"
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 // AI 티켓 쿠폰 — 코드로 1회성(또는 제한 횟수) 충전. 사용자당 같은 코드는 한 번만.

@@ -14642,6 +14642,16 @@ function aiQuotaResetAt(): string {
 
 type AiCreditStatus = { limit: number; used: number; remaining: number; resetAt: string; dailyGrant: number };
 
+// 포인트 '획득' 내역 기록(원장). 표시용이라 실패해도 흐름을 막지 않는다.
+async function logAiPoints(userId: string, amount: number, reason: string): Promise<void> {
+  if (amount <= 0) return;
+  try {
+    await prisma.aiPointLog.create({ data: { userId, amount, reason } });
+  } catch (err) {
+    console.error("[ai/point-log] failed", err);
+  }
+}
+
 // 지갑을 불러오며 가입 보너스 + 경과 일수만큼 일일 적립(상한)을 반영한다.
 // 변경이 있으면 저장하고, 항상 최신 잔액을 반환한다.
 async function aiWalletReconcile(userId: string): Promise<number> {
@@ -14652,6 +14662,7 @@ async function aiWalletReconcile(userId: string): Promise<number> {
     const created = await prisma.aiWallet.create({
       data: { userId, balance: AI_WELCOME_GRANT, lastGrantDay: today, welcomed: true }
     });
+    await logAiPoints(userId, AI_WELCOME_GRANT, "welcome");
     return created.balance;
   }
   // 날이 바뀌었으면 경과 일수만큼 적립(상한까지). 잔액이 이미 상한 이상이면 유지.
@@ -14663,6 +14674,7 @@ async function aiWalletReconcile(userId: string): Promise<number> {
       where: { userId },
       data: { balance, lastGrantDay: today }
     });
+    await logAiPoints(userId, balance - wallet.balance, "daily");
     return updated.balance;
   }
   return wallet.balance;
@@ -14771,6 +14783,7 @@ app.post(
           : res.status(409).json({ ok: false, code: "COUPON_ALREADY", message: "이미 사용한 코드예요." });
       }
       const wallet = await prisma.aiWallet.update({ where: { userId }, data: { balance: { increment: coupon.tickets } } });
+      await logAiPoints(userId, coupon.tickets, "coupon");
       return res.json({ ok: true, tickets: coupon.tickets, balance: wallet.balance });
     } catch (err) {
       console.error("[ai/redeem-code] failed", err);
@@ -14966,6 +14979,29 @@ app.get(
     } catch (err) {
       console.error("[ai/usage] failed", err);
       return res.status(500).json({ ok: false, message: "failed to load usage" });
+    }
+  }
+);
+
+// GET /members/me/ai/history — 포인트 획득 내역(웰컴/매일 적립/쿠폰 충전). 최신순 최대 100건.
+app.get(
+  "/members/me/ai/history",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  async (req, res) => {
+    try {
+      const logs = await prisma.aiPointLog.findMany({
+        where: { userId: req.auth!.userId },
+        orderBy: { createdAt: "desc" },
+        take: 100
+      });
+      return res.json({
+        ok: true,
+        history: logs.map((l) => ({ id: l.id, amount: l.amount, reason: l.reason, createdAt: l.createdAt.toISOString() }))
+      });
+    } catch (err) {
+      console.error("[ai/history] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to load history" });
     }
   }
 );
