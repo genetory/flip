@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CheckCircle, Circle } from "@phosphor-icons/react";
+import { CheckCircle, Circle, CaretRight } from "@phosphor-icons/react";
 import { readAccessToken } from "../../lib/auth-client";
 import { usePlatformT } from "../../lib/i18n";
 
@@ -130,7 +130,8 @@ export function ProfileCompletionMeter() {
                       className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
                     >
                       <Circle size={14} weight="duotone" />
-                      <span>{t(`${it.label} 추가하기 →`, `Add ${it.label} →`, `添加${it.label} →`, `Thêm ${it.label} →`, `${it.label}を追加 →`, `Tambah ${it.label} →`)}</span>
+                      <span>{t(`${it.label} 추가하기`, `Add ${it.label}`, `添加${it.label}`, `Thêm ${it.label}`, `${it.label}を追加`, `Tambah ${it.label}`)}</span>
+                      <CaretRight size={14} className="ml-auto shrink-0" />
                     </Link>
                   ) : (
                     <span className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground">
