@@ -24,19 +24,25 @@ export function PricingPage() {
       "내 상황에 맞춰 선택하는 이용 플랜",
       "Service plans tailored to your situation",
       "为你量身定制的服务套餐",
-      "Gói dịch vụ phù hợp với tình huống của bạn"
+      "Gói dịch vụ phù hợp với tình huống của bạn",
+      "自分の状況に合わせて選べる利用プラン",
+      "Paket layanan yang disesuaikan dengan situasi Anda"
     ),
     description: t(
       "Aply는 시작부터 확장까지, 현재 상황에 맞게 부담 없이 선택할 수 있는 플랜을 제공합니다.",
       "From getting started to scaling, Aply provides plans you can choose with confidence based on your current situation.",
       "从入门到扩展,Aply 提供可以根据当前情况轻松选择的套餐。",
-      "Từ khởi đầu đến mở rộng, Aply cung cấp các gói phù hợp với hoàn cảnh hiện tại của bạn."
+      "Từ khởi đầu đến mở rộng, Aply cung cấp các gói phù hợp với hoàn cảnh hiện tại của bạn.",
+      "Aplyは、始めから拡大まで、現在の状況に合わせて気軽に選べるプランを提供します。",
+      "Dari memulai hingga berkembang, Aply menyediakan paket yang dapat Anda pilih dengan yakin sesuai situasi Anda saat ini."
     ),
     note: t(
       "정확한 비용은 포지션 수, 운영 범위, 지원 형태에 따라 달라질 수 있어요.",
       "Final pricing may vary depending on the number of positions, operating scope, and support format.",
       "最终费用可能因职位数量、运营范围和支持形式而有所不同。",
-      "Chi phí cuối cùng có thể thay đổi tùy theo số lượng vị trí, phạm vi vận hành và hình thức hỗ trợ."
+      "Chi phí cuối cùng có thể thay đổi tùy theo số lượng vị trí, phạm vi vận hành và hình thức hỗ trợ.",
+      "正確な費用は、ポジション数、運営範囲、支援形態によって異なる場合があります。",
+      "Biaya akhir dapat bervariasi tergantung jumlah posisi, cakupan operasional, dan bentuk dukungan."
     ),
     refundCard: {
       title: t("탈락 시 100% 환불", "100% Refund if Not Accepted", "未通过 100% 退款", "Hoàn 100% nếu không được chọn", "不合格時は100％返金", "Pengembalian 100% jika tidak diterima"),
@@ -45,7 +51,9 @@ export function PricingPage() {
         "결제 후 서류 제출과 면접 심사를 진행합니다. 심사에 통과한 분만 프로그램에 참여하며, 탈락 시 결제 금액은 100% 전액 환불됩니다.",
         "After payment, you will proceed with document submission and interview screening. Only candidates who pass the review join the program, and those not accepted receive a full 100% refund.",
         "付款后将进行材料提交和面试审核。仅通过审核的人员可参与项目,未通过者将获得 100% 全额退款。",
-        "Sau khi thanh toán, bạn sẽ nộp hồ sơ và phỏng vấn. Chỉ ứng viên vượt qua kỳ thẩm định mới được tham gia chương trình, người không được chọn sẽ được hoàn 100% chi phí."
+        "Sau khi thanh toán, bạn sẽ nộp hồ sơ và phỏng vấn. Chỉ ứng viên vượt qua kỳ thẩm định mới được tham gia chương trình, người không được chọn sẽ được hoàn 100% chi phí.",
+        "決済後に書類提出と面接審査を行います。審査に通過した方のみプログラムに参加でき、不合格の場合は決済金額を100％全額返金いたします。",
+        "Setelah pembayaran, Anda akan melanjutkan pengajuan dokumen dan seleksi wawancara. Hanya kandidat yang lolos seleksi yang mengikuti program, dan yang tidak diterima menerima pengembalian penuh 100%."
       ),
       processSteps: [
         { label: t("결제 완료", "Payment complete", "完成付款", "Hoàn tất thanh toán", "決済完了", "Pembayaran selesai"), imageSrc: "/img_process_0.webp" },
@@ -61,13 +69,17 @@ export function PricingPage() {
         "Aply 참가자에게만 제공되는 프리미엄 주거 옵션",
         "Premium housing options available exclusively for Aply participants",
         "仅 Aply 参与者可享的高端住宿选择",
-        "Lựa chọn nhà ở cao cấp dành riêng cho thành viên Aply"
+        "Lựa chọn nhà ở cao cấp dành riêng cho thành viên Aply",
+        "Aply参加者だけに提供されるプレミアム住居オプション",
+        "Pilihan tempat tinggal premium yang tersedia khusus untuk peserta Aply"
       ),
       note: t(
         "💡 주거 옵션은 프로그램 참가의 필수 조건이 아닙니다. 숙소가 필요하신 분만 별도로 신청하실 수 있습니다.",
         "💡 Housing is not required to participate in the program. You may apply separately only if accommodation is needed.",
         "💡 住宿不是参与项目的必要条件,如需住宿可单独申请。",
-        "💡 Nhà ở không bắt buộc khi tham gia chương trình. Chỉ những ai cần chỗ ở mới đăng ký riêng."
+        "💡 Nhà ở không bắt buộc khi tham gia chương trình. Chỉ những ai cần chỗ ở mới đăng ký riêng.",
+        "💡 住居オプションはプログラム参加の必須条件ではありません。宿泊が必要な方のみ別途お申し込みいただけます。",
+        "💡 Tempat tinggal bukan syarat wajib untuk mengikuti program. Anda dapat mendaftar terpisah hanya jika membutuhkan akomodasi."
       ),
       privateRoom: {
         name: t("Private Room (1인실)", "Private Room (Single)", "Private Room (单人间)", "Private Room (Phòng đơn)", "Private Room（個室）", "Private Room (Kamar tunggal)"),
@@ -75,19 +87,25 @@ export function PricingPage() {
           "📍 서울 내 위치, 교통 편리",
           "📍 Located in Seoul with convenient transportation",
           "📍 位于首尔,交通便利",
-          "📍 Tại Seoul, giao thông thuận tiện"
+          "📍 Tại Seoul, giao thông thuận tiện",
+          "📍 ソウル市内に位置、交通便利",
+          "📍 Berlokasi di Seoul dengan transportasi yang nyaman"
         ),
         summary: t(
           "나만의 편안한 휴식 공간",
           "Your own private and comfortable living space",
           "属于你自己的舒适私人空间",
-          "Không gian riêng tư và thoải mái của bạn"
+          "Không gian riêng tư và thoải mái của bạn",
+          "自分だけの快適な休息空間",
+          "Ruang hunian pribadi dan nyaman milik Anda sendiri"
         ),
         price: t(
           "₩700,000~2,000,000 월 (1인당)",
           "₩700,000~2,000,000 per month (per person)",
           "₩700,000~2,000,000 每月 (每人)",
-          "₩700,000~2,000,000 mỗi tháng (mỗi người)"
+          "₩700,000~2,000,000 mỗi tháng (mỗi người)",
+          "₩700,000~2,000,000 月額（1人あたり）",
+          "₩700.000~2.000.000 per bulan (per orang)"
         )
       },
       sharedRoom: {
@@ -96,26 +114,34 @@ export function PricingPage() {
           "📍 서울 내 위치, 교통 편리",
           "📍 Located in Seoul with convenient transportation",
           "📍 位于首尔,交通便利",
-          "📍 Tại Seoul, giao thông thuận tiện"
+          "📍 Tại Seoul, giao thông thuận tiện",
+          "📍 ソウル市内に位置、交通便利",
+          "📍 Berlokasi di Seoul dengan transportasi yang nyaman"
         ),
         summary: t(
           "합리적인 비용과 네트워킹",
           "A cost-effective option with built-in networking opportunities",
           "经济实惠并有社交机会",
-          "Tiết kiệm chi phí và có cơ hội kết nối"
+          "Tiết kiệm chi phí và có cơ hội kết nối",
+          "手頃な費用とネットワーキング",
+          "Hemat biaya dengan peluang membangun jaringan"
         ),
         price: t(
           "₩400,000~1,100,000 월 (1인당)",
           "₩400,000~1,100,000 per month (per person)",
           "₩400,000~1,100,000 每月 (每人)",
-          "₩400,000~1,100,000 mỗi tháng (mỗi người)"
+          "₩400,000~1,100,000 mỗi tháng (mỗi người)",
+          "₩400,000~1,100,000 月額（1人あたり）",
+          "₩400.000~1.100.000 per bulan (per orang)"
         )
       },
       disclaimer: t(
         "※ 제휴된 숙소의 예약 현황에 따라 실제 배정되는 숙소는 상이할 수 있습니다.",
         "※ Actual accommodation assignments may vary depending on availability at partnered properties.",
         "※ 实际分配的住宿可能因合作住宿的预订情况而有所不同。",
-        "※ Nhà ở thực tế được phân bổ có thể khác nhau tùy theo tình trạng đặt phòng tại các cơ sở liên kết."
+        "※ Nhà ở thực tế được phân bổ có thể khác nhau tùy theo tình trạng đặt phòng tại các cơ sở liên kết.",
+        "※ 提携宿泊施設の予約状況により、実際に割り当てられる宿泊施設は異なる場合があります。",
+        "※ Akomodasi yang benar-benar dialokasikan dapat berbeda tergantung ketersediaan di properti mitra."
       )
     }
   };
@@ -411,7 +437,9 @@ export function PricingPage() {
                     "인턴십, 계약직(파트타임/풀타임), 정규직 트랙은\n향후 서비스 고도화 단계에서 순차적으로 제공될 예정입니다.\n기업과 지원자 모두에게 더 실질적인 연결이 되도록 완성도를 높여가고 있습니다.",
                     "Internship, Contract (part-time/full-time), and Regular tracks\nwill be introduced step by step as the service evolves.\nWe are continuously improving the experience to create more practical outcomes for both companies and candidates.",
                     "实习、合同制(兼职/全职)、正式员工三种轨道将\n在服务升级阶段陆续推出。\n我们持续完善体验,让企业与求职者建立更实质的连接。",
-                    "Các tuyến thực tập, hợp đồng (bán thời gian/toàn thời gian) và nhân viên chính thức\nsẽ được giới thiệu dần trong các giai đoạn nâng cấp dịch vụ.\nChúng tôi không ngừng hoàn thiện để tạo kết nối thực chất hơn cho cả doanh nghiệp và ứng viên."
+                    "Các tuyến thực tập, hợp đồng (bán thời gian/toàn thời gian) và nhân viên chính thức\nsẽ được giới thiệu dần trong các giai đoạn nâng cấp dịch vụ.\nChúng tôi không ngừng hoàn thiện để tạo kết nối thực chất hơn cho cả doanh nghiệp và ứng viên.",
+                    "インターンシップ、契約職(パートタイム/フルタイム)、正社員トラックは\n今後のサービス高度化の段階で順次提供される予定です。\n企業と応募者の双方にとってより実質的なつながりとなるよう、完成度を高めています。",
+                    "Trek magang, kontrak (paruh waktu/penuh waktu), dan karyawan tetap\nakan diperkenalkan secara bertahap seiring peningkatan layanan.\nKami terus menyempurnakan pengalaman agar tercipta koneksi yang lebih nyata bagi perusahaan maupun kandidat."
                   )}
                 </p>
               </article>

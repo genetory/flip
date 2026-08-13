@@ -512,7 +512,9 @@ export function PartnerPositionCreatePage({
             "이미지 변환에 실패했어요. 다른 이미지로 다시 시도해주세요.",
             "Image conversion failed. Please try with a different image.",
             "图片转换失败。请尝试使用其他图片。",
-            "Chuyển đổi hình ảnh thất bại. Vui lòng thử với hình ảnh khác."
+            "Chuyển đổi hình ảnh thất bại. Vui lòng thử với hình ảnh khác.",
+            "画像の変換に失敗しました。別の画像でもう一度お試しください。",
+            "Konversi gambar gagal. Silakan coba dengan gambar lain."
           )
         );
       } else if (failedCount > 0) {
@@ -521,7 +523,9 @@ export function PartnerPositionCreatePage({
             "일부 이미지는 변환되지 않아 제외되었어요.",
             "Some images could not be converted and were skipped.",
             "部分图片未能转换已被跳过。",
-            "Một số hình ảnh không thể chuyển đổi và đã bị bỏ qua."
+            "Một số hình ảnh không thể chuyển đổi và đã bị bỏ qua.",
+            "一部の画像は変換できず除外されました。",
+            "Beberapa gambar tidak dapat dikonversi dan dilewati."
           )
         );
       }

@@ -1010,7 +1010,9 @@ export function ProfilePage() {
                               "파트너 정보를 등록하거나 초대 코드로 합류하면 정보·포지션·알림을 관리할 수 있어요.",
                               "Register your partner info or join via invite code to manage details, positions, and notifications.",
                               "注册合作伙伴信息或通过邀请码加入后，即可管理信息、职位和通知。",
-                              "Đăng ký thông tin đối tác hoặc tham gia bằng mã mời để quản lý thông tin, vị trí và thông báo."
+                              "Đăng ký thông tin đối tác hoặc tham gia bằng mã mời để quản lý thông tin, vị trí và thông báo.",
+                              "パートナー情報を登録するか、招待コードで参加すると、情報・ポジション・通知を管理できます。",
+                              "Daftarkan informasi mitra atau bergabung dengan kode undangan untuk mengelola informasi, posisi, dan notifikasi."
                             )}
                           </p>
                         </div>
