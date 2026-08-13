@@ -8,11 +8,11 @@ import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getMyAssignments, submitAssignment, type MyAssignment } from "../../lib/member-profile-client";
 
-const STATUS_LABEL: Record<MyAssignment["status"], { label: string; className: string }> = {
-  ASSIGNED: { label: "제출 대기", className: "bg-amber-100 text-amber-700" },
-  SUBMITTED: { label: "제출 완료", className: "bg-blue-100 text-blue-700" },
-  REVIEWED: { label: "검토 완료", className: "bg-green-100 text-green-700" },
-  CANCELLED: { label: "취소", className: "bg-gray-100 text-gray-500" }
+const STATUS_LABEL: Record<MyAssignment["status"], { className: string }> = {
+  ASSIGNED: { className: "bg-amber-100 text-amber-700" },
+  SUBMITTED: { className: "bg-blue-100 text-blue-700" },
+  REVIEWED: { className: "bg-green-100 text-green-700" },
+  CANCELLED: { className: "bg-gray-100 text-gray-500" }
 };
 
 function formatDateTime(iso: string | null | undefined) {
@@ -25,6 +25,14 @@ export function MyAssignmentsPage() {
   const { locale } = useLanguage();
   const tr = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
     locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  const statusLabel = (s: MyAssignment["status"]) =>
+    s === "ASSIGNED"
+      ? tr("제출 대기", "Pending", "待提交", "Chờ nộp", "提出待ち", "Menunggu")
+      : s === "SUBMITTED"
+        ? tr("제출 완료", "Submitted", "已提交", "Đã nộp", "提出済み", "Terkirim")
+        : s === "REVIEWED"
+          ? tr("검토 완료", "Reviewed", "已审核", "Đã xem xét", "確認済み", "Ditinjau")
+          : tr("취소", "Cancelled", "已取消", "Đã hủy", "キャンセル", "Dibatalkan");
   const [items, setItems] = useState<MyAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +47,7 @@ export function MyAssignmentsPage() {
       const data = await getMyAssignments();
       setItems(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "과제 목록을 불러오지 못했습니다.");
+      setError(err instanceof Error ? err.message : tr("과제 목록을 불러오지 못했습니다.", "Failed to load assignments.", "无法加载作业列表。", "Không thể tải danh sách bài tập.", "課題一覧を読み込めませんでした。", "Gagal memuat daftar tugas."));
     } finally {
       setLoading(false);
     }
@@ -68,7 +76,7 @@ export function MyAssignmentsPage() {
   async function handleSubmit(assignmentId: string) {
     const d = draft[assignmentId];
     if (!d || !d.content.trim()) {
-      setError("제출 내용을 입력해 주세요.");
+      setError(tr("제출 내용을 입력해 주세요.", "Please enter your submission.", "请输入提交内容。", "Vui lòng nhập nội dung bài nộp.", "提出内容を入力してください。", "Silakan masukkan konten pengiriman."));
       return;
     }
     setSubmitting(assignmentId);
@@ -83,7 +91,7 @@ export function MyAssignmentsPage() {
         return next;
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "제출에 실패했습니다.");
+      setError(err instanceof Error ? err.message : tr("제출에 실패했습니다.", "Submission failed.", "提交失败。", "Nộp bài thất bại.", "提出に失敗しました。", "Pengiriman gagal."));
     } finally {
       setSubmitting(null);
     }
@@ -125,7 +133,7 @@ export function MyAssignmentsPage() {
         <div className="mb-4 flex flex-wrap gap-2">
           {(["ALL", "ASSIGNED", "SUBMITTED", "REVIEWED", "CANCELLED"] as const).map((key) => {
             const active = filterStatus === key;
-            const label = key === "ALL" ? tr("전체", "All", "全部", "Tất cả", "すべて", "Semua") : STATUS_LABEL[key].label;
+            const label = key === "ALL" ? tr("전체", "All", "全部", "Tất cả", "すべて", "Semua") : statusLabel(key);
             return (
               <button
                 key={key}
@@ -172,7 +180,7 @@ export function MyAssignmentsPage() {
                         {it.dueAt ? ` · ${tr("마감", "Due", "截止", "Hạn nộp", "締切", "Batas waktu")}: ${formatDateTime(it.dueAt)}` : ""}
                       </p>
                     </div>
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${badge.className}`}>{badge.label}</span>
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${badge.className}`}>{statusLabel(it.status)}</span>
                   </header>
 
                   <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{it.description}</p>

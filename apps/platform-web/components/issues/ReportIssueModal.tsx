@@ -2,17 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { readAccessToken } from "../../lib/auth-client";
+import { usePlatformT, type PlatformT } from "../../lib/i18n";
 
 export type IssueType = "NO_SHOW" | "BEHAVIOR" | "DROPOUT" | "ATTITUDE" | "PAYMENT" | "OTHER";
 
-const TYPE_OPTIONS: { value: IssueType; label: string }[] = [
-  { value: "NO_SHOW", label: "노쇼 (면접·면담 불참)" },
-  { value: "BEHAVIOR", label: "행동·태도 문제" },
-  { value: "DROPOUT", label: "참여 중단" },
-  { value: "ATTITUDE", label: "커뮤니케이션 문제" },
-  { value: "PAYMENT", label: "정산/결제 이슈" },
-  { value: "OTHER", label: "기타" }
-];
+function typeOptions(t: PlatformT): { value: IssueType; label: string }[] {
+  return [
+    { value: "NO_SHOW", label: t("노쇼 (면접·면담 불참)", "No-show (missed interview/meeting)", "爽约（未参加面试·面谈）", "Vắng mặt (bỏ lỡ phỏng vấn/gặp mặt)", "無断欠席（面接・面談不参加）", "Tidak hadir (lewatkan wawancara)") },
+    { value: "BEHAVIOR", label: t("행동·태도 문제", "Behavior issue", "行为态度问题", "Vấn đề hành vi", "行動・態度の問題", "Masalah perilaku") },
+    { value: "DROPOUT", label: t("참여 중단", "Dropout", "中途退出", "Ngừng tham gia", "参加中止", "Berhenti") },
+    { value: "ATTITUDE", label: t("커뮤니케이션 문제", "Communication issue", "沟通问题", "Vấn đề giao tiếp", "コミュニケーションの問題", "Masalah komunikasi") },
+    { value: "PAYMENT", label: t("정산/결제 이슈", "Payment issue", "结算/支付问题", "Vấn đề thanh toán", "精算・決済の問題", "Masalah pembayaran") },
+    { value: "OTHER", label: t("기타", "Other", "其他", "Khác", "その他", "Lainnya") }
+  ];
+}
 
 export function ReportIssueModal({
   open,
@@ -29,6 +32,7 @@ export function ReportIssueModal({
   defaultApplicationId?: string;
   defaultSubjectUserId?: string;
 }) {
+  const t = usePlatformT();
   const [type, setType] = useState<IssueType>("OTHER");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -54,7 +58,7 @@ export function ReportIssueModal({
 
   async function submit() {
     if (!title.trim() || !description.trim()) {
-      setError("제목과 설명을 입력해주세요.");
+      setError(t("제목과 설명을 입력해주세요.", "Please enter a title and description.", "请输入标题和说明。", "Vui lòng nhập tiêu đề và mô tả.", "タイトルと説明を入力してください。", "Masukkan judul dan deskripsi."));
       return;
     }
     setSubmitting(true);
@@ -81,7 +85,7 @@ export function ReportIssueModal({
       if (onSubmitted) onSubmitted();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "신고를 접수하지 못했습니다.");
+      setError(err instanceof Error ? err.message : t("신고를 접수하지 못했습니다.", "Failed to submit the report.", "提交举报失败。", "Không gửi được báo cáo.", "報告を送信できませんでした。", "Gagal mengirim laporan."));
     } finally {
       setSubmitting(false);
     }
@@ -118,20 +122,20 @@ export function ReportIssueModal({
         }}
       >
         <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <p style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>이슈 리포트</p>
-          <button type="button" onClick={onClose} aria-label="닫기" style={{ background: "transparent", border: 0, fontSize: 22, cursor: "pointer", color: "#6b7280", lineHeight: 1 }}>
+          <p style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>{t("이슈 리포트", "Report an issue", "问题举报", "Báo cáo sự cố", "問題を報告", "Laporkan isu")}</p>
+          <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} style={{ background: "transparent", border: 0, fontSize: 22, cursor: "pointer", color: "#6b7280", lineHeight: 1 }}>
             ✕
           </button>
         </div>
         <div style={{ padding: 20, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
           <label style={{ display: "block" }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>유형</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>{t("유형", "Type", "类型", "Loại", "種類", "Jenis")}</span>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as IssueType)}
               style={{ width: "100%", padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 14 }}
             >
-              {TYPE_OPTIONS.map((opt) => (
+              {typeOptions(t).map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -139,21 +143,21 @@ export function ReportIssueModal({
             </select>
           </label>
           <label style={{ display: "block" }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>제목</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>{t("제목", "Title", "标题", "Tiêu đề", "タイトル", "Judul")}</span>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: 면접 약속 시간에 나타나지 않음"
+              placeholder={t("예: 면접 약속 시간에 나타나지 않음", "e.g. Did not show up for the interview", "例如：未按约定时间参加面试", "VD: Không đến buổi phỏng vấn đã hẹn", "例：面接の約束時間に現れなかった", "Cth: Tidak hadir saat wawancara")}
               style={{ width: "100%", padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 14 }}
             />
           </label>
           <label style={{ display: "block" }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>상황 설명</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>{t("상황 설명", "Description", "情况说明", "Mô tả tình huống", "状況の説明", "Deskripsi situasi")}</span>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="언제 · 어디서 · 어떤 일이 있었는지 자세히 적어주세요. 가능하면 증빙(이메일/캡처)도 함께 언급해주세요."
+              placeholder={t("언제 · 어디서 · 어떤 일이 있었는지 자세히 적어주세요. 가능하면 증빙(이메일/캡처)도 함께 언급해주세요.", "Describe when, where, and what happened in detail. If possible, mention evidence (emails/screenshots).", "请详细说明何时·何地·发生了什么。如有可能，请一并提供证据（邮件/截图）。", "Mô tả chi tiết khi nào, ở đâu và điều gì đã xảy ra. Nếu có thể, hãy đề cập bằng chứng (email/ảnh chụp).", "いつ・どこで・何が起きたか詳しく記入してください。可能であれば証拠（メール・スクショ）も添えてください。", "Jelaskan kapan, di mana, dan apa yang terjadi secara rinci. Jika bisa, sebutkan bukti (email/tangkapan layar).")}
               rows={6}
               style={{ width: "100%", padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 14, resize: "vertical" }}
             />
@@ -167,7 +171,7 @@ export function ReportIssueModal({
             disabled={submitting}
             style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#fff", color: "#0B1227", fontWeight: 600, fontSize: 13, cursor: submitting ? "wait" : "pointer" }}
           >
-            취소
+            {t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
           </button>
           <button
             type="button"
@@ -175,7 +179,7 @@ export function ReportIssueModal({
             disabled={submitting}
             style={{ padding: "8px 14px", borderRadius: 8, border: 0, background: "#0B1227", color: "#fff", fontWeight: 600, fontSize: 13, cursor: submitting ? "wait" : "pointer" }}
           >
-            {submitting ? "접수 중..." : "리포트 보내기"}
+            {submitting ? t("접수 중...", "Submitting...", "提交中...", "Đang gửi...", "送信中...", "Mengirim...") : t("리포트 보내기", "Send report", "发送举报", "Gửi báo cáo", "レポートを送信", "Kirim laporan")}
           </button>
         </div>
       </div>

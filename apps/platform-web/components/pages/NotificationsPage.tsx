@@ -7,6 +7,7 @@ import { Footer } from "../site/Footer";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { readAccessToken } from "../../lib/auth-client";
+import type { PlatformT } from "../../lib/i18n";
 
 type Notification = {
   id: string;
@@ -27,15 +28,15 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function formatRelative(iso: string) {
+function formatRelative(t: PlatformT, iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   const min = Math.floor(diff / 60000);
-  if (min < 1) return "방금 전";
-  if (min < 60) return `${min}분 전`;
+  if (min < 1) return t("방금 전", "Just now", "刚刚", "Vừa xong", "たった今", "Baru saja");
+  if (min < 60) return t(`${min}분 전`, `${min}m ago`, `${min}分钟前`, `${min} phút trước`, `${min}分前`, `${min} menit lalu`);
   const hour = Math.floor(min / 60);
-  if (hour < 24) return `${hour}시간 전`;
+  if (hour < 24) return t(`${hour}시간 전`, `${hour}h ago`, `${hour}小时前`, `${hour} giờ trước`, `${hour}時間前`, `${hour} jam lalu`);
   const day = Math.floor(hour / 24);
-  if (day < 30) return `${day}일 전`;
+  if (day < 30) return t(`${day}일 전`, `${day}d ago`, `${day}天前`, `${day} ngày trước`, `${day}日前`, `${day} hari lalu`);
   return new Date(iso).toLocaleDateString("ko-KR");
 }
 
@@ -43,20 +44,47 @@ function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
 }
 
-const TYPE_LABEL: Record<string, { label: string; emoji: string }> = {
-  APPLICATION_STATUS_CHANGED: { label: "지원 상태", emoji: "📌" },
-  INTERVIEW_SLOTS_PROPOSED: { label: "면접 일정", emoji: "🗓" },
-  INTERVIEW_SLOT_SELECTED: { label: "면접 일정", emoji: "🗓" },
-  ASSIGNMENT_CREATED: { label: "과제", emoji: "📝" },
-  ASSIGNMENT_SUBMITTED: { label: "과제", emoji: "📝" },
-  ASSIGNMENT_REVIEWED: { label: "과제 피드백", emoji: "💬" },
-  ISSUE_REPORTED: { label: "이슈", emoji: "⚠️" },
-  SCHOOL_CREDIT_REQUESTED: { label: "학점 인정", emoji: "🎓" },
-  SCHOOL_CREDIT_REVIEWED: { label: "학점 인정", emoji: "🎓" },
-  APPLICATION_COMMENT_FROM_CANDIDATE: { label: "댓글", emoji: "💬" },
-  APPLICATION_COMMENT_FROM_COMPANY: { label: "댓글", emoji: "💬" },
-  APPLICATION_WITHDRAWN: { label: "지원 철회", emoji: "🚫" }
+const TYPE_EMOJI: Record<string, string> = {
+  APPLICATION_STATUS_CHANGED: "📌",
+  INTERVIEW_SLOTS_PROPOSED: "🗓",
+  INTERVIEW_SLOT_SELECTED: "🗓",
+  ASSIGNMENT_CREATED: "📝",
+  ASSIGNMENT_SUBMITTED: "📝",
+  ASSIGNMENT_REVIEWED: "💬",
+  ISSUE_REPORTED: "⚠️",
+  SCHOOL_CREDIT_REQUESTED: "🎓",
+  SCHOOL_CREDIT_REVIEWED: "🎓",
+  APPLICATION_COMMENT_FROM_CANDIDATE: "💬",
+  APPLICATION_COMMENT_FROM_COMPANY: "💬",
+  APPLICATION_WITHDRAWN: "🚫"
 };
+
+function typeMeta(t: PlatformT, type: string): { label: string; emoji: string } {
+  const emoji = TYPE_EMOJI[type];
+  if (!emoji) return { label: type, emoji: "🔔" };
+  switch (type) {
+    case "APPLICATION_STATUS_CHANGED":
+      return { label: t("지원 상태", "Application status", "申请状态", "Trạng thái ứng tuyển", "応募状況", "Status lamaran"), emoji };
+    case "INTERVIEW_SLOTS_PROPOSED":
+    case "INTERVIEW_SLOT_SELECTED":
+      return { label: t("면접 일정", "Interview schedule", "面试日程", "Lịch phỏng vấn", "面接日程", "Jadwal wawancara"), emoji };
+    case "ASSIGNMENT_CREATED":
+    case "ASSIGNMENT_SUBMITTED":
+      return { label: t("과제", "Assignment", "作业", "Bài tập", "課題", "Tugas"), emoji };
+    case "ASSIGNMENT_REVIEWED":
+      return { label: t("과제 피드백", "Assignment feedback", "作业反馈", "Phản hồi bài tập", "課題フィードバック", "Umpan balik tugas"), emoji };
+    case "ISSUE_REPORTED":
+      return { label: t("이슈", "Issue", "问题", "Sự cố", "問題", "Isu"), emoji };
+    case "SCHOOL_CREDIT_REQUESTED":
+    case "SCHOOL_CREDIT_REVIEWED":
+      return { label: t("학점 인정", "Course credit", "学分认定", "Công nhận tín chỉ", "単位認定", "Pengakuan kredit"), emoji };
+    case "APPLICATION_COMMENT_FROM_CANDIDATE":
+    case "APPLICATION_COMMENT_FROM_COMPANY":
+      return { label: t("댓글", "Comment", "评论", "Bình luận", "コメント", "Komentar"), emoji };
+    default:
+      return { label: t("지원 철회", "Application withdrawn", "撤回申请", "Rút đơn", "応募取り消し", "Tarik lamaran"), emoji };
+  }
+}
 
 export function NotificationsPage() {
   const { isReady, isAuthenticated } = useAuthSession();
@@ -208,7 +236,7 @@ export function NotificationsPage() {
         ) : (
           <ul className="space-y-2">
             {filtered.map((it) => {
-              const meta = TYPE_LABEL[it.type] ?? { label: it.type, emoji: "🔔" };
+              const meta = typeMeta(tr, it.type);
               const unread = !it.readAt;
               const inner = (
                 <div
@@ -228,7 +256,7 @@ export function NotificationsPage() {
                         <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{it.message}</p>
                       ) : null}
                       <p className="mt-2 text-xs text-muted-foreground">
-                        {formatRelative(it.createdAt)} · {formatDateTime(it.createdAt)}
+                        {formatRelative(tr, it.createdAt)} · {formatDateTime(it.createdAt)}
                       </p>
                     </div>
                     {unread ? <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-primary" aria-hidden /> : null}

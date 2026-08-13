@@ -14,6 +14,7 @@ import { Reveal } from "../site/Reveal";
 import { TalentSectionHeader } from "../talent/TalentSectionHeader";
 import { TalentButton } from "../talent/TalentButton";
 import { AplyFooter } from "../AplyFooter";
+import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 
 const SIGNUP_HREF = "/partner/login"; // 랜딩 CTA는 로그인으로(가입 링크 포함) → 이후 홈으로
 const LOGIN_HREF = "/partner/login";
@@ -72,7 +73,10 @@ export function PartnerLandingPage() {
             </Link>
             <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{t("파트너", "Partner", "合作伙伴", "Đối tác", "パートナー", "Partner")}</span>
           </div>
-          <Link href={LOGIN_HREF} className="rounded-lg px-3 py-2 text-[13.5px] font-semibold text-[#4E5968] transition hover:text-[#191F28]">{t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}</Link>
+          <div className="flex items-center gap-1.5">
+            <Link href={LOGIN_HREF} className="rounded-lg px-3 py-2 text-[13.5px] font-semibold text-[#4E5968] transition hover:text-[#191F28]">{t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}</Link>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 

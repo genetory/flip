@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PaperPlaneRight, X } from "@phosphor-icons/react";
 import { getApplicationMessages, sendApplicationMessage, type ApplicationMessage } from "../../lib/member-profile-client";
+import { usePlatformT } from "../../lib/i18n";
 
 type Props = {
   open: boolean;
@@ -18,6 +19,7 @@ function formatTime(iso: string) {
 
 // 지원자 ↔ 회사 메시지(쪽지) 스레드 — 질문·일정 조율 등. 지원 건별로 열린다.
 export function ApplicationMessagesModal({ open, applicationId, positionTitle, companyName, onClose }: Props) {
+  const t = usePlatformT();
   const [messages, setMessages] = useState<ApplicationMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export function ApplicationMessagesModal({ open, applicationId, positionTitle, c
     setError(null);
     getApplicationMessages(applicationId)
       .then((items) => setMessages(items))
-      .catch((err) => setError(err instanceof Error ? err.message : "메시지를 불러오지 못했습니다."))
+      .catch((err) => setError(err instanceof Error ? err.message : t("메시지를 불러오지 못했습니다.", "Failed to load messages.", "无法加载消息。", "Không thể tải tin nhắn.", "メッセージを読み込めませんでした。", "Gagal memuat pesan.")))
       .finally(() => setLoading(false));
   }, [open, applicationId]);
 
@@ -52,13 +54,13 @@ export function ApplicationMessagesModal({ open, applicationId, positionTitle, c
       const items = await getApplicationMessages(applicationId);
       setMessages(items);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "전송에 실패했습니다.");
+      setError(err instanceof Error ? err.message : t("전송에 실패했습니다.", "Failed to send.", "发送失败。", "Gửi không thành công.", "送信に失敗しました。", "Gagal mengirim."));
     } finally {
       setSending(false);
     }
   }
 
-  const company = companyName?.trim() || "회사";
+  const company = companyName?.trim() || t("회사", "Company", "公司", "Công ty", "会社", "Perusahaan");
 
   return (
     <div
@@ -74,13 +76,13 @@ export function ApplicationMessagesModal({ open, applicationId, positionTitle, c
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-3 border-b border-[#F2F4F6] p-5">
           <div className="min-w-0">
-            <h2 className="text-[16px] font-bold text-[#191F28]">회사에 문의하기</h2>
+            <h2 className="text-[16px] font-bold text-[#191F28]">{t("회사에 문의하기", "Contact the company", "联系公司", "Liên hệ công ty", "会社に問い合わせる", "Hubungi perusahaan")}</h2>
             <p className="mt-0.5 truncate text-[12.5px] text-muted-foreground">
               {company}
               {positionTitle ? ` · ${positionTitle}` : ""}
             </p>
           </div>
-          <button type="button" onClick={onClose} className="shrink-0 rounded-lg p-1 text-muted-foreground transition hover:bg-muted" aria-label="닫기">
+          <button type="button" onClick={onClose} className="shrink-0 rounded-lg p-1 text-muted-foreground transition hover:bg-muted" aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}>
             <X className="h-5 w-5" aria-hidden />
           </button>
         </div>
@@ -88,10 +90,10 @@ export function ApplicationMessagesModal({ open, applicationId, positionTitle, c
         {/* 스레드 */}
         <div className="flex-1 space-y-3 overflow-y-auto bg-[#F9FAFB] p-4">
           {loading ? (
-            <p className="py-8 text-center text-[13px] text-muted-foreground">불러오는 중…</p>
+            <p className="py-8 text-center text-[13px] text-muted-foreground">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
           ) : messages.length === 0 ? (
             <p className="py-8 text-center text-[13px] text-muted-foreground">
-              아직 주고받은 메시지가 없어요.<br />궁금한 점이나 일정 조율을 회사에 남겨보세요.
+              {t("아직 주고받은 메시지가 없어요.", "No messages yet.", "还没有消息。", "Chưa có tin nhắn nào.", "まだメッセージがありません。", "Belum ada pesan.")}<br />{t("궁금한 점이나 일정 조율을 회사에 남겨보세요.", "Leave a question or scheduling request for the company.", "向公司留言提问或协调日程吧。", "Hãy để lại câu hỏi hoặc điều chỉnh lịch cho công ty.", "質問や日程調整を会社に残してみましょう。", "Sampaikan pertanyaan atau penyesuaian jadwal kepada perusahaan.")}
             </p>
           ) : (
             messages.map((m) => {
@@ -100,7 +102,7 @@ export function ApplicationMessagesModal({ open, applicationId, positionTitle, c
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[78%] ${mine ? "items-end" : "items-start"} flex flex-col gap-1`}>
                     <span className="px-1 text-[10.5px] font-semibold text-muted-foreground">
-                      {mine ? "나" : company}
+                      {mine ? t("나", "Me", "我", "Tôi", "自分", "Saya") : company}
                     </span>
                     <div
                       className={`whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-relaxed ${
@@ -133,7 +135,7 @@ export function ApplicationMessagesModal({ open, applicationId, positionTitle, c
               }}
               rows={2}
               maxLength={4000}
-              placeholder="메시지를 입력하세요… (⌘/Ctrl+Enter 전송)"
+              placeholder={t("메시지를 입력하세요… (⌘/Ctrl+Enter 전송)", "Type a message… (⌘/Ctrl+Enter to send)", "输入消息…（⌘/Ctrl+Enter 发送）", "Nhập tin nhắn… (⌘/Ctrl+Enter để gửi)", "メッセージを入力… (⌘/Ctrl+Enterで送信)", "Ketik pesan… (⌘/Ctrl+Enter untuk kirim)")}
               className="max-h-32 min-h-[44px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3 py-2.5 text-[13.5px] text-[#191F28] placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:outline-none"
             />
             <button
@@ -143,7 +145,7 @@ export function ApplicationMessagesModal({ open, applicationId, positionTitle, c
               className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#0A3FCF] disabled:opacity-50"
             >
               <PaperPlaneRight weight="fill" className="h-4 w-4" aria-hidden />
-              전송
+              {t("전송", "Send", "发送", "Gửi", "送信", "Kirim")}
             </button>
           </div>
         </div>

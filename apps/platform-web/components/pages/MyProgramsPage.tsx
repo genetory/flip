@@ -28,10 +28,10 @@ type MyProgram = {
   schoolCreditRequest: { id: string; status: string } | null;
 };
 
-const STATUS: Record<MyProgram["status"], { label: string; className: string }> = {
-  ACTIVE: { label: "진행 중", className: "bg-blue-100 text-blue-700" },
-  COMPLETED: { label: "완료", className: "bg-green-100 text-green-700" },
-  CANCELLED: { label: "취소", className: "bg-gray-100 text-gray-500" }
+const STATUS: Record<MyProgram["status"], { className: string }> = {
+  ACTIVE: { className: "bg-blue-100 text-blue-700" },
+  COMPLETED: { className: "bg-green-100 text-green-700" },
+  CANCELLED: { className: "bg-gray-100 text-gray-500" }
 };
 
 function formatDate(iso: string | null) {
@@ -65,7 +65,7 @@ export function MyProgramsPage() {
         const payload = (await response.json()) as { items?: MyProgram[] };
         setItems(payload.items ?? []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "프로그램 목록을 불러오지 못했습니다.");
+        setError(err instanceof Error ? err.message : tr("프로그램 목록을 불러오지 못했습니다.", "Failed to load programs.", "无法加载项目列表。", "Không thể tải danh sách chương trình.", "プログラム一覧を読み込めませんでした。", "Gagal memuat daftar program."));
       } finally {
         setLoading(false);
       }
@@ -113,6 +113,12 @@ export function MyProgramsPage() {
           <div className="grid gap-4 md:grid-cols-2">
             {items.map((p) => {
               const badge = STATUS[p.status];
+              const statusLabel =
+                p.status === "ACTIVE"
+                  ? tr("진행 중", "In progress", "进行中", "Đang tiến hành", "進行中", "Berlangsung")
+                  : p.status === "COMPLETED"
+                    ? tr("완료", "Completed", "已完成", "Hoàn thành", "完了", "Selesai")
+                    : tr("취소", "Cancelled", "已取消", "Đã hủy", "キャンセル", "Dibatalkan");
               const upcoming = p.meetings.find((m) => m.status === "SCHEDULED");
               return (
                 <Link
@@ -127,7 +133,7 @@ export function MyProgramsPage() {
                       </h2>
                       <p className="mt-1 text-xs text-muted-foreground">{p.application.position.title}</p>
                     </div>
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${badge.className}`}>{badge.label}</span>
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${badge.className}`}>{statusLabel}</span>
                   </div>
                   <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                     <div>

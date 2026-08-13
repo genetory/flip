@@ -435,7 +435,7 @@ export function ResumeEditPage({ resumeId }: { resumeId: string }) {
         <main className="container flex flex-col items-center gap-4 py-24 text-center">
           <Lock className="h-8 w-8 text-primary" />
           <Button asChild className="h-12">
-            <Link href="/login?next=/profile?tab=resume">{tr("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}</Link>
+            <Link href="/login?next=/profile?tab=resume">{tr("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}</Link>
           </Button>
         </main>
       </div>

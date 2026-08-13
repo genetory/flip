@@ -111,8 +111,8 @@ export function CareerLaunchLoginPage() {
           />
         </TalentField>
         {errorMessage ? <p className="text-[13.5px] font-medium text-[#F04452]">{errorMessage}</p> : null}
-        <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth aria-label={t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}>
-          {isSubmitting ? t("로그인 중…", "Logging in…", "登录中…", "Đang đăng nhập…", "ログイン中…", "Sedang masuk…") : t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}
+        <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth aria-label={t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}>
+          {isSubmitting ? t("로그인 중…", "Logging in…", "登录中…", "Đang đăng nhập…", "ログイン中…", "Sedang masuk…") : t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}
         </TalentButton>
       </form>
 

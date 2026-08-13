@@ -37,17 +37,16 @@ export function TalentAuthLayout({
             </Link>
             {badge ? <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{badge}</span> : null}
           </div>
-          <div className="flex items-center gap-1">
-            <Link href={backHref} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">
-              <ArrowLeft className="h-4 w-4" /> {t("랜딩으로", "Home", "首页", "Trang chủ", "トップへ", "Beranda")}
-            </Link>
-            <LanguageSwitcher />
-          </div>
+          <LanguageSwitcher />
         </div>
       </header>
 
       <main className="flex flex-1 items-start justify-center px-5 py-14 md:py-20">
         <div className="w-full max-w-[400px]">
+          {/* 뒤로가기 — 다른 페이지와 동일하게 콘텐츠 좌측 상단 */}
+          <Link href={backHref} className="mb-6 inline-flex items-center gap-1 text-[13.5px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">
+            <ArrowLeft className="h-4 w-4" /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
+          </Link>
           <Image src="/img_logo.webp" alt={talentBrand.name} width={96} height={32} className="mb-6 h-7 w-auto" priority />
           <h1 className="text-[28px] font-black leading-[1.2] tracking-[-0.03em] text-[#0B1227] md:text-[32px]">{title}</h1>
           {subtitle ? <p className="mt-3 break-keep text-[15px] leading-[1.6] text-[#4E5968]">{subtitle}</p> : null}

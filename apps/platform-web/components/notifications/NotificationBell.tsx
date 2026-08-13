@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell } from "@phosphor-icons/react";
 import { readAccessToken } from "../../lib/auth-client";
+import { usePlatformT, type PlatformT } from "../../lib/i18n";
 
 type Notification = {
   id: string;
@@ -24,19 +25,20 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function formatRelative(iso: string) {
+function formatRelative(t: PlatformT, iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   const min = Math.floor(diff / 60000);
-  if (min < 1) return "방금 전";
-  if (min < 60) return `${min}분 전`;
+  if (min < 1) return t("방금 전", "Just now", "刚刚", "Vừa xong", "たった今", "Baru saja");
+  if (min < 60) return t(`${min}분 전`, `${min}m ago`, `${min}分钟前`, `${min} phút trước`, `${min}分前`, `${min} menit lalu`);
   const hour = Math.floor(min / 60);
-  if (hour < 24) return `${hour}시간 전`;
+  if (hour < 24) return t(`${hour}시간 전`, `${hour}h ago`, `${hour}小时前`, `${hour} giờ trước`, `${hour}時間前`, `${hour} jam lalu`);
   const day = Math.floor(hour / 24);
-  if (day < 30) return `${day}일 전`;
+  if (day < 30) return t(`${day}일 전`, `${day}d ago`, `${day}天前`, `${day} ngày trước`, `${day}日前`, `${day} hari lalu`);
   return new Date(iso).toLocaleDateString("ko-KR");
 }
 
 export function NotificationBell() {
+  const t = usePlatformT();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -172,7 +174,7 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => (open ? setOpen(false) : openMenu())}
-        aria-label="알림"
+        aria-label={t("알림", "Notifications", "通知", "Thông báo", "通知", "Notifikasi")}
         style={{
           width: 36,
           height: 36,
@@ -230,22 +232,22 @@ export function NotificationBell() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #f3f4f6" }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>알림</p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>{t("알림", "Notifications", "通知", "Thông báo", "通知", "Notifikasi")}</p>
             {unreadCount > 0 ? (
               <button
                 type="button"
                 onClick={() => void markAllRead()}
                 style={{ fontSize: 12, color: "#6b7280", background: "none", border: 0, cursor: "pointer" }}
               >
-                모두 읽음
+                {t("모두 읽음", "Mark all read", "全部已读", "Đọc tất cả", "すべて既読", "Tandai semua")}
               </button>
             ) : null}
           </div>
 
           {loading && items.length === 0 ? (
-            <p style={{ padding: "20px 16px", fontSize: 13, color: "#6b7280", margin: 0 }}>불러오는 중...</p>
+            <p style={{ padding: "20px 16px", fontSize: 13, color: "#6b7280", margin: 0 }}>{t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</p>
           ) : items.length === 0 ? (
-            <p style={{ padding: "24px 16px", fontSize: 13, color: "#6b7280", margin: 0, textAlign: "center" }}>새 알림이 없습니다.</p>
+            <p style={{ padding: "24px 16px", fontSize: 13, color: "#6b7280", margin: 0, textAlign: "center" }}>{t("새 알림이 없습니다.", "No new notifications.", "没有新通知。", "Không có thông báo mới.", "新しい通知はありません。", "Tidak ada notifikasi baru.")}</p>
           ) : (
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
               {items.map((it) => {
@@ -265,7 +267,7 @@ export function NotificationBell() {
                     {it.message ? (
                       <p style={{ fontSize: 12, color: "#374151", margin: "4px 0 0", whiteSpace: "pre-wrap" }}>{it.message}</p>
                     ) : null}
-                    <p style={{ fontSize: 11, color: "#9ca3af", margin: "4px 0 0" }}>{formatRelative(it.createdAt)}</p>
+                    <p style={{ fontSize: 11, color: "#9ca3af", margin: "4px 0 0" }}>{formatRelative(t, it.createdAt)}</p>
                   </div>
                 );
                 return (
@@ -304,7 +306,7 @@ export function NotificationBell() {
               onClick={() => setOpen(false)}
               style={{ fontSize: 12, color: "#1d4ed8", textDecoration: "none", fontWeight: 600 }}
             >
-              모든 알림 보기 →
+              {t("모든 알림 보기 →", "View all notifications →", "查看全部通知 →", "Xem tất cả thông báo →", "すべての通知を見る →", "Lihat semua notifikasi →")}
             </Link>
           </div>
         </div>

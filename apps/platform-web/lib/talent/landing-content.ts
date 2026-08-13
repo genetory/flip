@@ -187,7 +187,7 @@ export function useTalentNav(): { label: string; href: string; external?: boolea
 export function useTalentBrandCta(): { login: string; start: string } {
   const t = usePlatformT();
   return {
-    login: t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk"),
+    login: t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk"),
     start: t("지금 시작하기", "Get started", "立即开始", "Bắt đầu ngay", "今すぐ始める", "Mulai sekarang")
   };
 }

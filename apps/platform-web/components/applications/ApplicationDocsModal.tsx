@@ -5,6 +5,7 @@ import { X } from "@phosphor-icons/react/dist/ssr";
 import { CoverLetterSheet } from "../resume-maker/CoverLetterToolPreview";
 import { ResumeBuilderPreviewPage } from "../resume-maker/ResumeBuilderPreviewPage";
 import type { ResumeContent } from "../../lib/member-profile-client";
+import { usePlatformT } from "../../lib/i18n";
 
 const A4_W = 794;
 
@@ -24,6 +25,7 @@ export function ApplicationDocsModal({
   initialTab: "resume" | "cover";
   onClose: () => void;
 }) {
+  const t = usePlatformT();
   const hasResume = Boolean(resumeContent);
   const hasCover = Boolean(coverLetter && (coverLetter.items ?? []).some((it) => it?.answer?.trim()));
   const [tab, setTab] = useState<"resume" | "cover">(initialTab === "cover" && hasCover ? "cover" : hasResume ? "resume" : "cover");
@@ -52,7 +54,7 @@ export function ApplicationDocsModal({
                 onClick={() => setTab("resume")}
                 className={`rounded-full px-3 py-1.5 text-[13px] font-semibold transition ${tab === "resume" ? "bg-[#0B46E8] text-white" : "text-[#4E5968]"}`}
               >
-                이력서
+                {t("이력서", "Resume", "简历", "Sơ yếu lý lịch", "履歴書", "Resume")}
               </button>
             ) : null}
             {hasCover ? (
@@ -61,11 +63,11 @@ export function ApplicationDocsModal({
                 onClick={() => setTab("cover")}
                 className={`rounded-full px-3 py-1.5 text-[13px] font-semibold transition ${tab === "cover" ? "bg-[#0B46E8] text-white" : "text-[#4E5968]"}`}
               >
-                자기소개서
+                {t("자기소개서", "Cover Letter", "自我介绍信", "Thư giới thiệu bản thân", "自己紹介書", "Surat Lamaran")}
               </button>
             ) : null}
           </div>
-          <button type="button" onClick={onClose} className="rounded-full bg-white p-2 text-[#4E5968] shadow transition hover:text-[#191F28]" aria-label="닫기">
+          <button type="button" onClick={onClose} className="rounded-full bg-white p-2 text-[#4E5968] shadow transition hover:text-[#191F28]" aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}>
             <X weight="bold" className="h-4 w-4" />
           </button>
         </div>
@@ -83,7 +85,7 @@ export function ApplicationDocsModal({
             <div style={{ zoom: scale } as React.CSSProperties}>
               <CoverLetterSheet
                 items={(coverLetter.items ?? []).map((it) => ({ id: it.id ?? "", prompt: it.prompt ?? "", answer: it.answer ?? "" }))}
-                title="자기소개서"
+                title={t("자기소개서", "Cover Letter", "自我介绍信", "Thư giới thiệu bản thân", "自己紹介書", "Surat Lamaran")}
                 companyName={coverLetter.company?.trim() || undefined}
                 emptyLabel=""
               />

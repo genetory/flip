@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { readAccessToken } from "../../lib/auth-client";
+import { usePlatformT, type PlatformT } from "../../lib/i18n";
 
 export type AssignmentStatus = "ASSIGNED" | "SUBMITTED" | "REVIEWED" | "CANCELLED";
 
@@ -48,12 +49,18 @@ type Props = {
   viewer?: "operator" | "partner";
 };
 
-const STATUS_LABEL: Record<AssignmentStatus, string> = {
-  ASSIGNED: "부여됨",
-  SUBMITTED: "제출됨",
-  REVIEWED: "검토 완료",
-  CANCELLED: "취소"
-};
+function statusLabel(status: AssignmentStatus, t: PlatformT): string {
+  switch (status) {
+    case "ASSIGNED":
+      return t("부여됨", "Assigned", "已布置", "Đã giao", "割り当て済み", "Ditugaskan");
+    case "SUBMITTED":
+      return t("제출됨", "Submitted", "已提交", "Đã nộp", "提出済み", "Dikirim");
+    case "REVIEWED":
+      return t("검토 완료", "Reviewed", "已审阅", "Đã đánh giá", "レビュー完了", "Ditinjau");
+    case "CANCELLED":
+      return t("취소", "Cancelled", "已取消", "Đã hủy", "キャンセル", "Dibatalkan");
+  }
+}
 
 const STATUS_PILL: Record<AssignmentStatus, string> = {
   ASSIGNED: "ops-pill-amber",
@@ -77,6 +84,7 @@ function formatDateTime(iso: string | null) {
 }
 
 export function AssignmentDetailModal({ open, assignment, onClose, onUpdated, viewer = "operator" }: Props) {
+  const t = usePlatformT();
   const applicantBasePath = viewer === "partner"
     ? "/dashboard/partner/applicants"
     : "/dashboard/ops/operations/applications";
@@ -106,7 +114,7 @@ export function AssignmentDetailModal({ open, assignment, onClose, onUpdated, vi
           setRatingDraft(f.feedbackRating ? String(f.feedbackRating) : "");
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "과제 상세를 불러오지 못했습니다.");
+        setError(err instanceof Error ? err.message : t("과제 상세를 불러오지 못했습니다.", "Failed to load assignment details.", "无法加载任务详情。", "Không thể tải chi tiết bài tập.", "課題の詳細を読み込めませんでした。", "Gagal memuat detail tugas."));
       } finally {
         setLoading(false);
       }
@@ -119,7 +127,7 @@ export function AssignmentDetailModal({ open, assignment, onClose, onUpdated, vi
   async function submitReview() {
     if (!full) return;
     if (!feedbackDraft.trim()) {
-      setError("피드백 내용을 입력해 주세요.");
+      setError(t("피드백 내용을 입력해 주세요.", "Please enter feedback.", "请输入反馈内容。", "Vui lòng nhập nội dung phản hồi.", "フィードバック内容を入力してください。", "Harap masukkan isi umpan balik."));
       return;
     }
     setSaving(true);
@@ -137,7 +145,7 @@ export function AssignmentDetailModal({ open, assignment, onClose, onUpdated, vi
       onUpdated();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "피드백 저장 실패");
+      setError(err instanceof Error ? err.message : t("피드백 저장 실패", "Failed to save feedback", "保存反馈失败", "Không thể lưu phản hồi", "フィードバックの保存に失敗しました", "Gagal menyimpan umpan balik"));
     } finally {
       setSaving(false);
     }
@@ -179,32 +187,32 @@ export function AssignmentDetailModal({ open, assignment, onClose, onUpdated, vi
             </p>
           </div>
           <Link href={`${applicantBasePath}/${assignment.applicationId}`} className="ops-btn">
-            지원 상세 →
+            {t("지원 상세 →", "Application details →", "申请详情 →", "Chi tiết đơn ứng tuyển →", "応募詳細 →", "Detail lamaran →")}
           </Link>
         </div>
 
         {loading ? (
-          <p className="ops-card-subtle" style={{ margin: 0 }}>불러오는 중...</p>
+          <p className="ops-card-subtle" style={{ margin: 0 }}>{t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</p>
         ) : !full ? (
-          <p className="ops-card-subtle" style={{ margin: 0 }}>과제를 찾을 수 없습니다.</p>
+          <p className="ops-card-subtle" style={{ margin: 0 }}>{t("과제를 찾을 수 없습니다.", "Assignment not found.", "找不到任务。", "Không tìm thấy bài tập.", "課題が見つかりません。", "Tugas tidak ditemukan.")}</p>
         ) : (
           <>
             <div className="ops-tag-row" style={{ marginBottom: 12 }}>
-              <span className={`ops-pill ${STATUS_PILL[full.status]}`}>{STATUS_LABEL[full.status]}</span>
+              <span className={`ops-pill ${STATUS_PILL[full.status]}`}>{statusLabel(full.status, t)}</span>
             </div>
 
             <article className="ops-soft-card">
-              <p className="ops-form-label">과제 설명</p>
+              <p className="ops-form-label">{t("과제 설명", "Task description", "任务说明", "Mô tả bài tập", "課題説明", "Deskripsi tugas")}</p>
               <p style={{ fontSize: 13, color: "#374151", whiteSpace: "pre-wrap", margin: "4px 0 0" }}>{full.description}</p>
               <p className="ops-card-subtle" style={{ marginTop: 8 }}>
-                부여 {formatDateTime(full.assignedAt)} · 마감 {formatDateTime(full.dueAt)}
-                {full.assignedBy ? ` · 담당 ${full.assignedBy.name ?? "-"}` : ""}
+                {t("부여", "Assigned", "布置", "Đã giao", "割り当て", "Ditugaskan")} {formatDateTime(full.assignedAt)} · {t("마감", "Due", "截止", "Hạn nộp", "締切", "Batas")} {formatDateTime(full.dueAt)}
+                {full.assignedBy ? ` · ${t("담당", "Assigned by", "负责人", "Người giao", "担当", "Ditugaskan oleh")} ${full.assignedBy.name ?? "-"}` : ""}
               </p>
             </article>
 
             {full.submissionContent ? (
               <article className="ops-card">
-                <h3 className="ops-section-title">제출 ({formatDateTime(full.submittedAt)})</h3>
+                <h3 className="ops-section-title">{t("제출", "Submission", "提交", "Đã nộp", "提出", "Pengiriman")} ({formatDateTime(full.submittedAt)})</h3>
                 <p style={{ fontSize: 13, color: "#374151", whiteSpace: "pre-wrap", margin: 0 }}>{full.submissionContent}</p>
                 {full.submissionLinks.length > 0 ? (
                   <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 12 }}>
@@ -222,11 +230,11 @@ export function AssignmentDetailModal({ open, assignment, onClose, onUpdated, vi
 
             {full.feedbackContent ? (
               <article className="ops-card">
-                <h3 className="ops-section-title">기존 피드백</h3>
+                <h3 className="ops-section-title">{t("기존 피드백", "Existing feedback", "现有反馈", "Phản hồi hiện có", "既存のフィードバック", "Umpan balik yang ada")}</h3>
                 <div style={{ padding: 12, background: "#ecfdf5", borderRadius: 10 }}>
                   <p className="ops-card-subtle" style={{ color: "#047857", margin: 0, fontWeight: 600 }}>
                     {formatDateTime(full.reviewedAt)}
-                    {full.feedbackRating ? ` · 평가 ${full.feedbackRating}/5` : ""}
+                    {full.feedbackRating ? ` · ${t("평가", "Rating", "评分", "Đánh giá", "評価", "Nilai")} ${full.feedbackRating}/5` : ""}
                     {full.reviewedBy ? ` · ${full.reviewedBy.name ?? "-"}` : ""}
                   </p>
                   <p style={{ fontSize: 13, color: "#065f46", whiteSpace: "pre-wrap", margin: "6px 0 0" }}>{full.feedbackContent}</p>
@@ -236,17 +244,17 @@ export function AssignmentDetailModal({ open, assignment, onClose, onUpdated, vi
 
             {full.status === "SUBMITTED" || full.status === "REVIEWED" ? (
               <article className="ops-card">
-                <h3 className="ops-section-title">{full.feedbackContent ? "피드백 수정" : "피드백 작성"}</h3>
+                <h3 className="ops-section-title">{full.feedbackContent ? t("피드백 수정", "Edit feedback", "修改反馈", "Chỉnh sửa phản hồi", "フィードバックの修正", "Edit umpan balik") : t("피드백 작성", "Write feedback", "撰写反馈", "Viết phản hồi", "フィードバックの作成", "Tulis umpan balik")}</h3>
                 <textarea
                   value={feedbackDraft}
                   onChange={(e) => setFeedbackDraft(e.target.value)}
                   rows={4}
-                  placeholder="피드백 내용을 입력해 주세요"
+                  placeholder={t("피드백 내용을 입력해 주세요", "Enter feedback", "请输入反馈内容", "Nhập nội dung phản hồi", "フィードバック内容を入力してください", "Masukkan umpan balik")}
                   className="ops-textarea"
                 />
                 <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                   <label className="ops-form-label" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    평가 (1-5, 선택)
+                    {t("평가 (1-5, 선택)", "Rating (1-5, optional)", "评分（1-5，可选）", "Đánh giá (1-5, tùy chọn)", "評価（1-5、任意）", "Nilai (1-5, opsional)")}
                     <input
                       type="number"
                       min={1}
@@ -258,7 +266,7 @@ export function AssignmentDetailModal({ open, assignment, onClose, onUpdated, vi
                     />
                   </label>
                   <button type="button" onClick={() => void submitReview()} disabled={saving} className="ops-btn ops-btn-primary">
-                    {saving ? "저장 중..." : "피드백 저장"}
+                    {saving ? t("저장 중...", "Saving...", "保存中...", "Đang lưu...", "保存中...", "Menyimpan...") : t("피드백 저장", "Save feedback", "保存反馈", "Lưu phản hồi", "フィードバックを保存", "Simpan umpan balik")}
                   </button>
                 </div>
               </article>
@@ -270,7 +278,7 @@ export function AssignmentDetailModal({ open, assignment, onClose, onUpdated, vi
 
         <div className="ops-row-end" style={{ marginTop: 12 }}>
           <button type="button" onClick={onClose} className="ops-btn">
-            닫기
+            {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
           </button>
         </div>
       </div>
