@@ -56,6 +56,7 @@ function MonthYearPicker({
   onChange: (v: string) => void;
   placeholder?: { year: string; month: string };
 }) {
+  const tr = useTr();
   const [localYear, setLocalYear] = useState("");
   const [localMonth, setLocalMonth] = useState("");
 
@@ -95,7 +96,7 @@ function MonthYearPicker({
     <div className="grid grid-cols-2 gap-2">
       <div className="relative">
         <select value={localYear} onChange={(e) => handleYear(e.target.value)} className={selectCls}>
-          <option value="">{placeholder?.year ?? "연도"}</option>
+          <option value="">{placeholder?.year ?? tr("연도", "Year", "年份", "Năm", "年", "Tahun")}</option>
           {years.map((y) => (
             <option key={y} value={y}>{y}</option>
           ))}
@@ -104,9 +105,9 @@ function MonthYearPicker({
       </div>
       <div className="relative">
         <select value={localMonth} onChange={(e) => handleMonth(e.target.value)} className={selectCls}>
-          <option value="">{placeholder?.month ?? "월"}</option>
+          <option value="">{placeholder?.month ?? tr("월", "Month", "月", "Tháng", "月", "Bulan")}</option>
           {months.map((mo) => (
-            <option key={mo} value={mo}>{Number(mo)}월</option>
+            <option key={mo} value={mo}>{Number(mo)}{tr("월", "", "月", "", "月", "")}</option>
           ))}
         </select>
         <span aria-hidden className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">▾</span>

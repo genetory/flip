@@ -105,11 +105,11 @@ function RequiredMark() {
   return <span className="ml-1 text-red-500">*</span>;
 }
 
-async function readFileAsDataUrl(file: File) {
+async function readFileAsDataUrl(file: File, readFailed: string) {
   return await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(new Error("썸네일 파일을 읽지 못했습니다."));
+    reader.onerror = () => reject(new Error(readFailed));
     reader.readAsDataURL(file);
   });
 }
@@ -128,7 +128,7 @@ async function convertImageFileToWebpDataUrl(
   file: File,
   readFailed: string
 ) {
-  const originalDataUrl = await readFileAsDataUrl(file);
+  const originalDataUrl = await readFileAsDataUrl(file, readFailed);
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -477,7 +477,7 @@ export function PartnerPositionCreatePage({
       let failedCount = 0;
       for (const file of selected.slice(0, remain)) {
         try {
-          let data = await readFileAsDataUrl(file);
+          let data = await readFileAsDataUrl(file, t("파일을 읽지 못했습니다.", "Failed to read file.", "无法读取文件。", "Không thể đọc tệp.", "ファイルを読み込めませんでした。", "Gagal membaca file."));
           if (estimateDataUrlBytes(data) > 5 * 1024 * 1024) {
             data = await convertImageFileToWebpDataUrl(
               file,
@@ -491,7 +491,7 @@ export function PartnerPositionCreatePage({
           converted.push(data);
         } catch {
           try {
-            const fallback = await readFileAsDataUrl(file);
+            const fallback = await readFileAsDataUrl(file, t("파일을 읽지 못했습니다.", "Failed to read file.", "无法读取文件。", "Không thể đọc tệp.", "ファイルを読み込めませんでした。", "Gagal membaca file."));
             if (fallback && estimateDataUrlBytes(fallback) <= 5 * 1024 * 1024) {
               converted.push(fallback);
             } else {

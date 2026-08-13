@@ -55,7 +55,7 @@ export function SharedResumePage({ slug, preloaded }: { slug: string; preloaded?
         const r = await getSharedResume(slug);
         if (!cancelled) setResume(r);
       } catch (err) {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : "이력서를 불러오지 못했어요.");
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : tr("이력서를 불러오지 못했어요.", "Couldn't load the resume.", "无法加载简历。", "Không thể tải hồ sơ.", "履歴書を読み込めませんでした。", "Gagal memuat resume."));
       }
     })();
     return () => {
