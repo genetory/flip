@@ -422,12 +422,6 @@ function FeedbackCard({ fb }: { fb: InterviewFeedback }) {
   const t = usePlatformT();
   return (
     <div className="mt-1 flex flex-col gap-2.5 rounded-2xl bg-[#F8FAFB] p-4">
-      {fb.strengths.length ? (
-        <div>
-          <p className="text-[11.5px] font-bold text-[#0A9B59]">{t("잘한 점", "Strengths", "亮点", "Điểm mạnh", "良かった点", "Kelebihan")}</p>
-          <ul className="mt-1 flex flex-col gap-0.5">{fb.strengths.map((s, i) => <li key={i} className="break-keep text-[12.5px] text-[#4E5968]">· {s}</li>)}</ul>
-        </div>
-      ) : null}
       {fb.improvements.length ? (
         <div>
           <p className="text-[11.5px] font-bold text-[#E8890C]">{t("개선하면 좋아요", "Areas to improve", "可改进之处", "Cần cải thiện", "改善するとよい点", "Perlu diperbaiki")}</p>
