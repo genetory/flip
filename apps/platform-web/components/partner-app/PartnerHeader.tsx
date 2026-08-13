@@ -11,6 +11,7 @@ import { partnerMainNav, partnerRoutes, isPartnerTabActive, usePartnerNavLabel }
 import { getMyNotifications } from "../../lib/member-profile-client";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { usePlatformT } from "../../lib/i18n";
+import { getStoredProfilePhoto } from "../../lib/profile-media";
 
 export function PartnerHeader() {
   const t = usePlatformT();
@@ -20,6 +21,13 @@ export function PartnerHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const name = user?.realName || user?.name || t("파트너", "Partner", "合作伙伴", "Đối tác", "パートナー", "Partner");
+
+  // 계정 프로필 사진 — 프로필 편집/기본정보와 동일 소스. 이력서 사진과는 별개.
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user) { setProfilePhoto(null); return; }
+    setProfilePhoto(user.profileImageUrl ?? getStoredProfilePhoto(user.id) ?? null);
+  }, [user?.id, user?.profileImageUrl]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -81,9 +89,9 @@ export function PartnerHeader() {
           </Link>
           {/* 프로필 — 정방형 아바타(사진 없으면 이름 첫 글자). 닉네임 길이와 무관하게 GNB 간격 유지 */}
           <Link href={partnerRoutes.settings} aria-label={t("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "マイプロフィール", "Profil saya")} className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#F2F4F6] text-[13.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
-            {user?.profileImageUrl ? (
+            {profilePhoto ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
+              <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
             ) : (
               <span aria-hidden>{name.charAt(0).toUpperCase()}</span>
             )}

@@ -17,6 +17,7 @@ import { useUnreadNotificationCount } from "../../lib/talent/notifications";
 import { useSavedDeadlineNotifications } from "../../lib/talent/deadline-notify";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { usePlatformT } from "../../lib/i18n";
+import { getStoredProfilePhoto } from "../../lib/profile-media";
 
 export function TalentHeader() {
   const pathname = usePathname() ?? "";
@@ -34,6 +35,14 @@ export function TalentHeader() {
   }, [pathname]);
 
   const name = user?.realName || user?.name || t("나", "Me", "我", "Tôi", "私", "Saya");
+
+  // 계정 프로필 사진 — 프로필 편집/기본정보와 동일 소스(profileImageUrl → localStorage 폴백).
+  // 이력서·자소서에 들어가는 사진(BasicInfo.photoUrl)과는 별개.
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user) { setProfilePhoto(null); return; }
+    setProfilePhoto(user.profileImageUrl ?? getStoredProfilePhoto(user.id) ?? null);
+  }, [user?.id, user?.profileImageUrl]);
   const homeHref = isTalentUser ? talentAppRoutes.home : "/talent";
 
   // 팔로잉한 사람의 새 글을 알림으로 적재(백그라운드 감시) + 벨 배지 카운트.
@@ -110,9 +119,9 @@ export function TalentHeader() {
               aria-label={t("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "マイプロフィール", "Profil saya")}
               className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#F2F4F6] text-[13.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]"
             >
-              {user?.profileImageUrl ? (
+              {profilePhoto ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
+                <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
               ) : (
                 <span aria-hidden>{name.charAt(0).toUpperCase()}</span>
               )}
