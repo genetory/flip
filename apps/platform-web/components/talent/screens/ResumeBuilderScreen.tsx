@@ -261,17 +261,20 @@ function ItemRow({
         className="min-h-[84px] w-full resize-y break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
       />
       <div className="mt-2 flex items-center justify-between gap-1.5">
-        {/* 사후 수정 — 섹션 이동(자동 분류 교정) */}
-        <select
-          aria-label={t("섹션 변경","Change section","更改分类","Đổi mục","セクション変更","Ubah bagian")}
-          value={section}
-          onChange={(e) => onSectionChange(e.target.value as CareerSection)}
-          className="max-w-[45%] rounded-lg bg-[#F5F6F8] px-2.5 py-1.5 text-[12px] font-semibold text-[#4E5968] outline-none [color-scheme:light]"
-        >
-          {CHIP_ORDER.map((s) => (
-            <option key={s} value={s}>{SECTION_META[s].label}</option>
-          ))}
-        </select>
+        {/* 사후 수정 — 섹션 이동(자동 분류 교정). 드롭다운 화살표는 phosphor CaretDown */}
+        <div className="relative max-w-[45%]">
+          <select
+            aria-label={t("섹션 변경","Change section","更改分类","Đổi mục","セクション変更","Ubah bagian")}
+            value={section}
+            onChange={(e) => onSectionChange(e.target.value as CareerSection)}
+            className="w-full appearance-none rounded-lg bg-[#F5F6F8] py-1.5 pl-2.5 pr-7 text-[12px] font-semibold text-[#4E5968] outline-none [color-scheme:light]"
+          >
+            {CHIP_ORDER.map((s) => (
+              <option key={s} value={s}>{SECTION_META[s].label}</option>
+            ))}
+          </select>
+          <CaretDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8B95A1]" weight="bold" />
+        </div>
         <div className="flex items-center gap-1.5">
           <button
             type="button"
