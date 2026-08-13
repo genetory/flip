@@ -4,7 +4,7 @@
 // 지원 현황 + 내 활동 + 알림 + 계정. 각 섹션은 관련 상세 화면으로 이어진다.
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { CaretRight, SealCheck, SignOut, PencilSimple } from "@phosphor-icons/react";
+import { CaretRight, SealCheck, SignOut, PencilSimple, Sparkle } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { JobInterestCard } from "../jobs/JobInterestCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
@@ -19,6 +19,8 @@ import { useFollowedCompanies } from "../../../lib/talent/company-follow";
 import { useSocialFeed } from "../../../lib/talent/social-feed";
 import { useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
 import { getMyFavoritePositions, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import { getAiUsage, type AiUsage } from "../../../lib/resume-maker-client";
+import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
 import { usePlatformT } from "../../../lib/i18n";
 
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -32,6 +34,49 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
 // 섹션 헤더 — 타이틀.
 function SectionHeader({ title }: { title: string }) {
   return <p className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</p>;
+}
+
+// 내 포인트 — 보유 AI 포인트 잔액 + 상세/충전 모달(GNB 티켓 뱃지와 동일 소스).
+function MyPointsSection() {
+  const t = usePlatformT();
+  const [usage, setUsage] = useState<AiUsage | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const refresh = () => {
+      getAiUsage().then(setUsage).catch(() => {});
+    };
+    refresh();
+    if (typeof window !== "undefined") window.addEventListener("aply:ai-usage-changed", refresh);
+    return () => {
+      if (typeof window !== "undefined") window.removeEventListener("aply:ai-usage-changed", refresh);
+    };
+  }, []);
+  return (
+    <section>
+      <SectionHeader title={t("내 포인트", "My points", "我的积分", "Điểm của tôi", "マイポイント", "Poin saya")} />
+      <div className="rounded-3xl bg-[#F5F8FF] p-6">
+        <div className="flex items-center gap-4">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">
+            <Sparkle className="h-7 w-7" weight="fill" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-[#8B95A1]">{t("보유 AI 포인트", "AI points", "AI 积分", "Điểm AI", "AIポイント", "Poin AI")}</p>
+            <p className="text-[24px] font-black tracking-[-0.02em] text-[#0B1227] tabular-nums">{usage ? usage.remaining.toLocaleString() : "—"}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3.5 py-2.5 text-[13px] font-bold text-[#4E5968] shadow-[0_2px_10px_rgba(11,18,39,0.06)] transition hover:text-[#0B46E8]"
+          >
+            {t("상세", "Details", "详情", "Chi tiết", "詳細", "Detail")}
+          </button>
+        </div>
+      </div>
+      {open && usage ? (
+        <AiTicketStatusModal remaining={usage.remaining} resetAt={usage.resetAt || null} dailyGrant={usage.dailyGrant} onClose={() => setOpen(false)} />
+      ) : null}
+    </section>
+  );
 }
 
 // 섹션 하단 더 보기 버튼 — 홈 포지션 리스트 하단 버튼과 동일한 스타일.
@@ -139,6 +184,9 @@ export function SettingsScreen() {
           </div>
           </div>
         </section>
+
+        {/* 내 포인트 — 기본정보 바로 아래. AI 포인트는 학생 전용(GNB 티켓 뱃지와 동일). */}
+        {user?.role === "STUDENT" ? <MyPointsSection /> : null}
 
         {/* 내 활동 — 팔로우/관심(SNS 스타일 묶음). 프로필 카드 바로 아래. */}
         <section>
