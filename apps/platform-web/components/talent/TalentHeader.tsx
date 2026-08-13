@@ -104,13 +104,18 @@ export function TalentHeader() {
               ) : null}
             </Link>
 
-            {/* 프로필 — 클릭 시 팝업 없이 내 프로필(계정 설정)로 이동 */}
+            {/* 프로필 — 정방형 아바타(사진 없으면 이름 첫 글자). 닉네임이 길어도 GNB 간격 유지 */}
             <Link
               href={talentAppRoutes.settings}
               aria-label={t("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "マイプロフィール", "Profil saya")}
-              className="inline-flex max-w-[140px] items-center rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]"
+              className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#F2F4F6] text-[13.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]"
             >
-              <span className="truncate">{name}</span>
+              {user?.profileImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span aria-hidden>{name.charAt(0).toUpperCase()}</span>
+              )}
             </Link>
             <LanguageSwitcher />
           </div>
