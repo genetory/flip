@@ -5,7 +5,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft } from "@phosphor-icons/react";
+import { TalentBackButton } from "../TalentBackButton";
 import { talentBrand } from "../../../lib/talent/landing-content";
 import { AplyFooter } from "../../AplyFooter";
 import { LanguageSwitcher } from "../../i18n/LanguageSwitcher";
@@ -43,10 +43,8 @@ export function TalentAuthLayout({
 
       <main className="flex flex-1 items-start justify-center px-5 py-14 md:py-20">
         <div className="w-full max-w-[400px]">
-          {/* 뒤로가기 — 다른 페이지와 동일하게 콘텐츠 좌측 상단 */}
-          <Link href={backHref} className="mb-6 inline-flex items-center gap-1 text-[13.5px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">
-            <ArrowLeft className="h-4 w-4" /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
-          </Link>
+          {/* 뒤로가기 — /talent/career/resume 등과 동일: 콘텐츠 상단 TalentBackButton */}
+          <TalentBackButton className="mb-3" fallback={backHref} />
           <h1 className="text-[28px] font-black leading-[1.2] tracking-[-0.03em] text-[#0B1227] md:text-[32px]">{title}</h1>
           {subtitle ? <p className="mt-3 break-keep text-[15px] leading-[1.6] text-[#4E5968]">{subtitle}</p> : null}
           <div className="mt-9">{children}</div>
