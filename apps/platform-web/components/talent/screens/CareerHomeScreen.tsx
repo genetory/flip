@@ -8,6 +8,7 @@ import { MockInterviewModal } from "../jobs/MockInterviewModal";
 import { MockGateModal } from "../jobs/MockGateModal";
 import { SelfMockResultModal } from "../jobs/SelfMockResultModal";
 import { JobInterestCard } from "../jobs/JobInterestCard";
+import { CareerAdvisorModal } from "../career/CareerAdvisorModal";
 import { CareerLayout } from "../career/CareerLayout";
 import { ProfileGate } from "../career/ProfileGate";
 import { FeedCard } from "../career/FeedCard";
@@ -47,6 +48,7 @@ function Content() {
   const [mockGateOpen, setMockGateOpen] = useState(false);
   const [mockOpen, setMockOpen] = useState(false);
   const [mockResultOpen, setMockResultOpen] = useState(false);
+  const [advisorOpen, setAdvisorOpen] = useState(false);
   const selfMock = useSelfMock();
   const mockAnsweredCount = selfMock?.answers?.length ?? 0;
 
@@ -96,10 +98,27 @@ function Content() {
       {/* 오늘의 한 걸음 히어로 */}
       <DailyStepHero mission={mission} />
 
-      {/* 관심 직무 — 방향을 정하면 맞춤 공고 추천 */}
+      {/* AI 커리어 상담 — 나에 대해 알아가며 어울리는 직무·방향을 찾는다 */}
       <section className="flex flex-col gap-4">
-        <SectionHead title={t("관심 직무를 골라요","Pick your target roles","选择意向职位","Chọn vị trí quan tâm","関心職種を選ぶ","Pilih posisi incaran")} desc={t("관심 직무를 정하면 나에게 맞는 공고를 추천해드려요.","Set your target roles and we'll recommend matching jobs.","设定意向职位后，我们会推荐匹配的职位。","Đặt vị trí quan tâm và chúng tôi gợi ý việc phù hợp.","関心職種を決めると自分に合う求人をおすすめします。","Tetapkan posisi incaran dan kami rekomendasikan lowongan yang cocok.")} />
-        <JobInterestCard variant="edit" />
+        <SectionHead title={t("AI와 나를 알아가요","Get to know yourself with AI","用 AI 认识我自己","Hiểu bản thân cùng AI","AIで自分を知る","Kenali dirimu dengan AI")} desc={t("AI와 대화하며 나에게 어울리는 직무·직업, 봐야 할 공고, 이력서·자기소개서 방향까지 찾아요.","Chat with AI to find fitting roles, which jobs to target, and how to write your resume and cover letter.","与 AI 对话，找到适合的职位、该看的招聘和简历自我介绍的方向。","Trò chuyện với AI để tìm nghề phù hợp, tin tuyển nên xem và cách viết CV, thư xin việc.","AIと対話して自分に合う職種、見るべき求人、履歴書・自己PRの方向まで見つけます。","Ngobrol dengan AI untuk menemukan peran cocok, lowongan yang perlu dilihat, dan cara menulis resume & surat lamaran.")} />
+        <button
+          type="button"
+          onClick={() => setAdvisorOpen(true)}
+          className="flex items-center gap-3.5 rounded-2xl border border-[#E4EDFB] bg-gradient-to-br from-[#F5F8FF] to-[#EDF2FF] p-4 text-left transition hover:border-[#0B46E8]/40"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] shadow-[0_2px_10px_rgba(11,70,232,0.1)]" aria-hidden>🧭</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[14.5px] font-bold text-[#191F28]">{t("AI 커리어 상담 시작하기","Start an AI career chat","开始 AI 职业咨询","Bắt đầu tư vấn nghề AI","AIキャリア相談を始める","Mulai konsultasi karier AI")}</p>
+            <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("나에게 어울리는 일을 함께 찾고, 관심 직무로 담아드려요.","Find work that fits you and save it to your interests.","一起找到适合你的工作并加入兴趣职位。","Cùng tìm việc phù hợp và lưu vào nghề quan tâm.","自分に合う仕事を一緒に見つけて関心職種に保存します。","Temukan pekerjaan yang cocok dan simpan ke minatmu.")}</p>
+          </div>
+          <Sparkle className="h-5 w-5 shrink-0 text-[#0B46E8]" weight="fill" />
+        </button>
+
+        {/* 결과 확인·직접 수정 */}
+        <div className="flex flex-col gap-1.5">
+          <p className="px-1 text-[12px] font-semibold text-[#8B95A1]">{t("관심 직무 — 직접 고르거나 수정하기","Job interests — pick or edit directly","兴趣职位 — 直接选择或修改","Nghề quan tâm — tự chọn hoặc sửa","関心職種 — 直接選ぶ・修正","Minat pekerjaan — pilih atau ubah")}</p>
+          <JobInterestCard variant="edit" />
+        </div>
       </section>
 
       {/* 이력서 · 자기소개서 */}
@@ -193,6 +212,7 @@ function Content() {
       ) : null}
       {mockOpen ? <MockInterviewModal onClose={() => setMockOpen(false)} /> : null}
       {mockResultOpen ? <SelfMockResultModal onClose={() => setMockResultOpen(false)} /> : null}
+      {advisorOpen ? <CareerAdvisorModal onClose={() => setAdvisorOpen(false)} /> : null}
     </div>
   );
 }
