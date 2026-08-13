@@ -120,14 +120,16 @@ export function TalentHeader() {
             <Link
               href={talentAppRoutes.settings}
               aria-label={t("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "マイプロフィール", "Profil saya")}
-              className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#F2F4F6] text-[13.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl transition hover:bg-[#F6F8FB]"
             >
-              {profilePhoto ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <span aria-hidden>{name.charAt(0).toUpperCase()}</span>
-              )}
+              <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-[#F2F4F6] text-[12px] font-bold text-[#4E5968]">
+                {profilePhoto ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span aria-hidden>{name.charAt(0).toUpperCase()}</span>
+                )}
+              </span>
             </Link>
             <LanguageSwitcher />
           </div>

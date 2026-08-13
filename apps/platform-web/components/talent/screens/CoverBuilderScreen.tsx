@@ -103,7 +103,8 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
   return (
     <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-6">
       <div className="flex flex-col gap-5">
-        <ProfileCard info={basicInfo} showPhoto={doc.showPhoto === true} />
+        {/* 상단 기본정보 카드에는 사진 미표시 — 사진은 문서(미리보기)에만. */}
+        <ProfileCard info={basicInfo} showPhoto={false} />
 
         <ResumePhotoRow label={t("자기소개서 사진","Cover letter photo","求职信照片","Ảnh thư xin việc","自己PR写真","Foto surat lamaran")} on={doc.showPhoto === true} onChange={(v) => onChange({ ...doc, showPhoto: v })} />
 

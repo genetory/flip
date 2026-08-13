@@ -22,8 +22,8 @@ import { useResumeDoc, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, a
 import { usePlatformT } from "../../../lib/i18n";
 
 // 섹션 칩 · 편집 리스트 순서 — 학력은 맨 오른쪽/맨 아래.
-// 기본 이력서 순서 — 학력 먼저, 이후 경험·프로젝트·자격증·스킬·대외활동·수상.
-const CHIP_ORDER: CareerSection[] = ["education", "experience", "project", "certificate", "skill", "activity", "award"];
+// 이력서 순서 — 경험·프로젝트·자격증·스킬·대외활동·수상, 학력은 맨 아래.
+const CHIP_ORDER: CareerSection[] = ["experience", "project", "certificate", "skill", "activity", "award", "education"];
 
 export function ResumeBuilderScreen() {
   const t = usePlatformT();
@@ -115,7 +115,8 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
     <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-6">
       {/* 편집 */}
       <div className="flex flex-col gap-5">
-        <ProfileCard info={basicInfo} showPhoto={doc.showPhoto === true} />
+        {/* 상단 기본정보 카드에는 사진 미표시 — 사진은 문서(미리보기)에만. */}
+        <ProfileCard info={basicInfo} showPhoto={false} />
 
         <ResumePhotoRow label={t("이력서 사진","Resume photo","简历照片","Ảnh CV","履歴書写真","Foto CV")} on={doc.showPhoto === true} onChange={(v) => onChange({ ...doc, showPhoto: v })} />
 
