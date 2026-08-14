@@ -3,7 +3,7 @@
 import { JOB_TAXONOMY } from "./job-taxonomy";
 
 export type AdvisorMsg = { role: "user" | "assistant"; content: string };
-export type AdvisorResult = { reply: string; recommendedRoles: string[] };
+export type AdvisorResult = { reply: string };
 
 // 직무 후보 풀 — 소분류(leaf) 전체.
 function jobPool(): string[] {
@@ -24,14 +24,11 @@ export async function careerAdvise(messages: AdvisorMsg[], interests: string[] =
       body: JSON.stringify({ messages, interests, pool: jobPool() })
     });
     if (res.ok) {
-      const d = (await res.json()) as { reply?: string; recommendedRoles?: string[] };
-      return {
-        reply: (d.reply ?? "").trim(),
-        recommendedRoles: Array.isArray(d.recommendedRoles) ? d.recommendedRoles : []
-      };
+      const d = (await res.json()) as { reply?: string };
+      return { reply: (d.reply ?? "").trim() };
     }
   } catch {
     // 네트워크 실패 → 폴백
   }
-  return { reply: "", recommendedRoles: [] };
+  return { reply: "" };
 }

@@ -1,21 +1,18 @@
 "use client";
 
-// AI 커리어 상담 — 대화하며 나에게 어울리는 직무·방향을 찾고, 추천 직무를 관심 직무로 담는다.
+// AI 커리어 상담 — 대화로 '무엇을 하고 싶은지'를 깊이 탐색하고, 마지막에 어울리는 포지션을 정리해 준다.
 import { useEffect, useRef, useState } from "react";
-import { X, PaperPlaneTilt, Plus, Check, Sparkle, CircleNotch, ArrowClockwise } from "@phosphor-icons/react";
+import { X, PaperPlaneTilt, Sparkle, CircleNotch, ArrowClockwise } from "@phosphor-icons/react";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { careerAdvise, type AdvisorMsg } from "../../../lib/talent/career-advisor-client";
 import { loadAdvisorChat, saveAdvisorChat, clearAdvisorChat } from "../../../lib/talent/career-advisor-store";
-import { useJobInterests, saveJobInterests, MAX_JOB_INTERESTS } from "../../../lib/talent/job-interest";
-import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 import { usePlatformT } from "../../../lib/i18n";
 
-type Msg = { role: "bot" | "user"; text: string; roles?: string[] };
+type Msg = { role: "bot" | "user"; text: string };
 
 export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
   const t = usePlatformT();
   useLockBodyScroll();
-  const interests = useJobInterests();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,12 +25,12 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
   const history = (msgs: Msg[]): AdvisorMsg[] => msgs.map((m) => ({ role: m.role === "bot" ? "assistant" : "user", content: m.text }));
 
   const greetFallback = t(
-    "안녕하세요! 저는 당신에게 어울리는 일을 함께 찾아갈 AI 커리어 상담사예요. 요즘 어떤 일이나 분야에 마음이 가는지, 편하게 이야기해 주실래요? 😊",
-    "Hi! I'm your AI career counselor, here to find work that fits you. What kind of work or field are you drawn to lately? Feel free to share. 😊",
-    "你好！我是你的 AI 职业顾问，帮你找到适合的工作。最近对什么样的工作或领域感兴趣呢？随便聊聊吧。😊",
-    "Xin chào! Tôi là cố vấn nghề nghiệp AI, giúp bạn tìm công việc phù hợp. Gần đây bạn quan tâm đến công việc hay lĩnh vực nào? Cứ chia sẻ nhé. 😊",
-    "こんにちは！あなたに合う仕事を一緒に探すAIキャリア相談員です。最近どんな仕事や分野に興味がありますか？気軽に話してください。😊",
-    "Hai! Saya konselor karier AI, membantu menemukan pekerjaan yang cocok untukmu. Akhir-akhir ini tertarik pada bidang apa? Ceritakan saja. 😊"
+    "안녕하세요! 저는 당신에게 어울리는 일을 함께 찾아갈 AI 커리어 상담사예요. 혹시 지금 마음에 두고 있는, 하고 싶은 직무가 있으세요? 있으면 그 일에 대해 더 깊이 이야기 나눠보고, 아직 없다면 함께 찾아드릴게요. 😊",
+    "Hi! I'm your AI career counselor, here to find work that fits you. Do you already have a role in mind you'd like to do? If so, let's dig into it together — if not, we'll figure one out. 😊",
+    "你好！我是你的 AI 职业顾问，帮你找到适合的工作。你现在心里有想做的职位吗？有的话我们就深入聊聊，没有的话就一起找找。😊",
+    "Xin chào! Tôi là cố vấn nghề nghiệp AI, giúp bạn tìm công việc phù hợp. Bạn đã có vị trí nào muốn làm chưa? Nếu có, hãy cùng tìm hiểu sâu hơn — nếu chưa, mình sẽ cùng tìm nhé. 😊",
+    "こんにちは！あなたに合う仕事を一緒に探すAIキャリア相談員です。今、やってみたい職種はありますか？あれば一緒に深く掘り下げ、まだなら一緒に見つけましょう。😊",
+    "Hai! Saya konselor karier AI, membantu menemukan pekerjaan yang cocok untukmu. Sudah ada posisi yang ingin kamu jalani? Kalau ada, mari bahas lebih dalam — kalau belum, kita cari bersama. 😊"
   );
   const errFallback = t(
     "지금은 대화를 잇기 어려워요 😥 잠시 후 다시 시도해 주실래요?",
@@ -52,8 +49,8 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
   // 인사말 요청(대화 처음 시작할 때).
   function kickoff() {
     setLoading(true);
-    void careerAdvise([], interests)
-      .then((r) => setMessages([{ role: "bot", text: r.reply || greetFallback, roles: r.recommendedRoles }]))
+    void careerAdvise([])
+      .then((r) => setMessages([{ role: "bot", text: r.reply || greetFallback }]))
       .catch(() => setMessages([{ role: "bot", text: greetFallback }]))
       .finally(() => setLoading(false));
   }
@@ -89,20 +86,14 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
     setMessages(next);
     setInput("");
     setLoading(true);
-    void careerAdvise(history(next), interests)
-      .then((r) => setMessages((cur) => [...cur, { role: "bot", text: r.reply || errFallback, roles: r.recommendedRoles }]))
+    void careerAdvise(history(next))
+      .then((r) => setMessages((cur) => [...cur, { role: "bot", text: r.reply || errFallback }]))
       .catch(() => setMessages((cur) => [...cur, { role: "bot", text: errFallback }]))
       .finally(() => {
         setLoading(false);
         inputRef.current?.focus();
       });
   }
-
-  function addRole(role: string) {
-    if (interests.includes(role) || interests.length >= MAX_JOB_INTERESTS) return;
-    saveJobInterests([...interests, role]);
-  }
-  const interestsFull = interests.length >= MAX_JOB_INTERESTS;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4">
@@ -130,37 +121,12 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4">
           <div className="flex flex-col gap-3">
             {messages.map((m, i) => (
-              <div key={i} className={m.role === "user" ? "flex justify-end" : "flex flex-col items-start gap-2"}>
+              <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                 <div className={m.role === "user"
                   ? "max-w-[82%] whitespace-pre-wrap break-keep rounded-2xl rounded-tr-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white"
                   : "max-w-[88%] whitespace-pre-wrap break-keep rounded-2xl rounded-tl-md bg-[#F4F6F9] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28]"}>
                   {m.text}
                 </div>
-                {/* 추천 직무 칩 — 관심 직무로 담기 */}
-                {m.role === "bot" && m.roles && m.roles.length ? (
-                  <div className="flex flex-col gap-1.5 pl-0.5">
-                    <p className="text-[11px] font-bold text-[#8B95A1]">{t("추천 직무 — 눌러서 관심 직무에 담기", "Suggested roles — tap to save", "推荐职位 — 点击收藏", "Vị trí gợi ý — chạm để lưu", "おすすめ職種 — タップで保存", "Peran disarankan — ketuk untuk simpan")}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {m.roles.map((r) => {
-                        const added = interests.includes(r);
-                        return (
-                          <button
-                            key={r}
-                            type="button"
-                            onClick={() => addRole(r)}
-                            disabled={added || interestsFull}
-                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-bold transition ${
-                              added ? "bg-[#E7F8EF] text-[#0A9B59]" : "border border-[#C7D6F7] text-[#0B46E8] hover:bg-[#F0F5FF] disabled:border-[#E5E8EB] disabled:text-[#B0B8C1] disabled:hover:bg-transparent"
-                            }`}
-                          >
-                            {added ? <Check className="h-3.5 w-3.5" weight="bold" /> : <Plus className="h-3.5 w-3.5" weight="bold" />}
-                            {jobTaxonomyLabelOf(t, r)}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
               </div>
             ))}
             {loading ? (
