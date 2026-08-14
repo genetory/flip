@@ -15,7 +15,7 @@ import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { PARTNER_APPLICANT_STATUS, PARTNER_POSITION_STATUS, usePartnerApplicantStatusLabel, usePartnerPositionStatusLabel } from "../../../lib/partner/labels";
-import { blindTalentName, blindCode } from "../../../lib/partner/blind";
+import { blindTalentName } from "../../../lib/partner/blind";
 import {
   getMyPartnerApplicantById,
   getMyPartnerPositionById,
@@ -276,8 +276,8 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
   const chat = messages.filter((m) => m.visibility === "CANDIDATE");
   const rejected = app?.status === "REJECTED" || app?.status === "WITHDRAWN";
 
-  // 블라인드 — 면접 단계 전에는 이름이 null → 익명 코드네임(인재 #XXXX)으로 표시.
-  const displayName = app?.name ?? blindTalentName(t, app?.id ?? "");
+  // 블라인드 — 면접 단계 전에는 이름이 null → '블라인드 인재'로 표시.
+  const displayName = app?.name ?? blindTalentName(t, null);
 
   return (
     <PartnerAppShell>
@@ -290,7 +290,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
           {/* 상단 전폭 — 프로필 + 단계 + 상태 변경 */}
           <section className="rounded-3xl bg-[#F5F8FF] p-6">
             <div className="flex items-center gap-4">
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">{app.name ? app.name.slice(0, 1) : blindCode(app.id).slice(0, 2)}</span>
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">{displayName.slice(0, 1)}</span>
               <div className="min-w-0 flex-1">
                 <h1 className="truncate text-[22px] font-black tracking-[-0.02em] text-[#0B1227]">{displayName}</h1>
                 {app.appliedAt ? <p className="mt-0.5 truncate text-[13.5px] text-[#8B95A1]">{new Date(app.appliedAt).toLocaleDateString("ko-KR")} {t("지원", "applied", "申请", "đã ứng tuyển", "応募", "melamar")}</p> : null}

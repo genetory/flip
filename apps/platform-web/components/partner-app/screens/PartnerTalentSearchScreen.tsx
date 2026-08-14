@@ -11,7 +11,7 @@ import { PartnerEmptyCard } from "../ui/cards";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { getPartnerCandidates, searchPartnerCandidatesAI, getSavedCandidates, saveCandidate, unsaveCandidate, type PartnerCandidateCard } from "../../../lib/member-profile-client";
-import { blindCode, blindTalentName } from "../../../lib/partner/blind";
+import { blindTalentName } from "../../../lib/partner/blind";
 
 type Mode = "search" | "saved";
 
@@ -174,7 +174,7 @@ function CandidateCard({ c, saved, onToggleSave }: { c: PartnerCandidateCard; sa
   return (
     <Link href={`${partnerRoutes.talent}/${encodeURIComponent(c.candidateUserId)}`} className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
       <div className="flex items-start gap-3.5">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[15px] font-black text-[#0B46E8]">{c.name ? c.name.slice(0, 1) : blindCode(c.candidateUserId).slice(0, 2)}</span>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[17px] font-black text-[#0B46E8]">{(c.name ?? blindTalentName(t, c.desiredJobRole)).slice(0, 1)}</span>
         <div className="order-last flex shrink-0 items-center gap-1.5">
           {c.interestCount && c.interestCount > 0 ? (
             <span
@@ -200,7 +200,7 @@ function CandidateCard({ c, saved, onToggleSave }: { c: PartnerCandidateCard; sa
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <p className="text-[15px] font-bold text-[#191F28]">{c.name ?? blindTalentName(t, c.candidateUserId)}</p>
+            <p className="text-[15px] font-bold text-[#191F28]">{c.name ?? blindTalentName(t, c.desiredJobRole)}</p>
             {typeof c.score === "number" ? <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{t(`적합 ${c.score}`, `Match ${c.score}`, `匹配 ${c.score}`, `Phù hợp ${c.score}`, `適合 ${c.score}`, `Cocok ${c.score}`)}</span> : null}
             {c.connectionStatus === "ACCEPTED" ? (
               <span className="rounded-md bg-[#E7F8EF] px-2.5 py-0.5 text-[11px] font-bold text-[#0A9B59]">{t("연결됨", "Connected", "已连接", "Đã kết nối", "接続済み", "Terhubung")}</span>
@@ -208,7 +208,7 @@ function CandidateCard({ c, saved, onToggleSave }: { c: PartnerCandidateCard; sa
               <span className="rounded-md bg-[#F2F4F6] px-2.5 py-0.5 text-[11px] font-bold text-[#8B95A1]">{t("요청 보냄", "Requested", "已请求", "Đã gửi", "送信済み", "Diminta")}</span>
             ) : null}
           </div>
-          {c.desiredJobRole ? <p className="mt-1 truncate text-[13px] font-semibold text-[#4E5968]">{c.desiredJobRole}</p> : null}
+          {c.name && c.desiredJobRole ? <p className="mt-1 truncate text-[13px] font-semibold text-[#4E5968]">{c.desiredJobRole}</p> : null}
 
           <div className="mt-2 flex flex-col gap-1">
             {edu ? <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><GraduationCap className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> <span className="truncate">{edu}</span></span> : null}
