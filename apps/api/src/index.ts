@@ -21860,7 +21860,7 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
 
 // 카드 목록에 캐시된 AI 요약(ApplicantDocSummary)을 붙인다 — version(이력서 updatedAt)이 일치할 때만.
 // 리스트에서 대량 LLM 생성은 하지 않고, 이미 캐시된(열람했거나 인재풀 등록 시 선생성된) 요약만 노출.
-async function attachCachedDocSummaries<T extends { candidateUserId: string; updatedAt: string; resumeBullets: string[]; coverBullets: string[] }>(cards: T[]): Promise<void> {
+async function attachCachedDocSummaries<T extends { candidateUserId: string; updatedAt: string; resumeBullets: string[]; coverBullets: string[]; contactUnlocked?: boolean }>(cards: T[]): Promise<void> {
   if (cards.length === 0) return;
   const rows = await prisma.applicantDocSummary.findMany({ where: { candidateUserId: { in: cards.map((c) => c.candidateUserId) } } });
   const byUser = new Map(rows.map((r) => [r.candidateUserId, r]));
@@ -21869,8 +21869,10 @@ async function attachCachedDocSummaries<T extends { candidateUserId: string; upd
     // version = `${updatedAtMs}:${contentSig}` (구버전은 접두 ms 만) — 대표 이력서 updatedAt 이 일치하면 사용.
     const ms = String(new Date(c.updatedAt).getTime());
     if (row && (row.version === ms || row.version.startsWith(`${ms}:`))) {
-      c.resumeBullets = row.resumeBullets;
-      c.coverBullets = row.coverBullets;
+      // 블라인드 — 요약 bullets의 TOPIK도 '한국어 등급'으로 중립화.
+      const blind = c.contactUnlocked === false;
+      c.resumeBullets = blind ? row.resumeBullets.map(neutralizeTopik) : row.resumeBullets;
+      c.coverBullets = blind ? row.coverBullets.map(neutralizeTopik) : row.coverBullets;
     }
   }
 }

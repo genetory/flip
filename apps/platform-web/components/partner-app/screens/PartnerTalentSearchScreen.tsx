@@ -217,17 +217,34 @@ function CandidateCard({ c, saved, onToggleSave }: { c: PartnerCandidateCard; sa
             </div>
           ) : null}
 
-          {c.resumeBullets && c.resumeBullets.length ? (
-            <div className="mt-2 rounded-lg bg-[#F8FAFB] px-3 py-2">
-              <p className="flex items-center gap-1 text-[10.5px] font-bold text-[#8B95A1]"><Sparkle className="h-3 w-3 text-[#0B46E8]" weight="fill" /> {t("AI 이력서 요약", "AI resume summary", "AI简历摘要", "Tóm tắt hồ sơ AI", "AI履歴書要約", "Ringkasan resume AI")}</p>
-              <ul className="mt-1 flex flex-col gap-0.5">
-                {c.resumeBullets.slice(0, 3).map((b, i) => (
-                  <li key={i} className="flex gap-1.5 text-[12px] leading-relaxed text-[#4E5968]">
-                    <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
-                    <span className="min-w-0 flex-1 break-keep">{b}</span>
-                  </li>
-                ))}
-              </ul>
+          {(c.resumeBullets?.length || c.coverBullets?.length) ? (
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {c.resumeBullets?.length ? (
+                <div className="rounded-lg bg-[#F8FAFB] px-3 py-2">
+                  <p className="flex items-center gap-1 text-[10.5px] font-bold text-[#8B95A1]"><Sparkle className="h-3 w-3 text-[#0B46E8]" weight="fill" /> {t("AI 이력서 요약", "AI resume summary", "AI简历摘要", "Tóm tắt hồ sơ AI", "AI履歴書要約", "Ringkasan resume AI")}</p>
+                  <ul className="mt-1 flex flex-col gap-0.5">
+                    {c.resumeBullets.slice(0, 3).map((b, i) => (
+                      <li key={i} className="flex gap-1.5 text-[12px] leading-relaxed text-[#4E5968]">
+                        <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
+                        <span className="min-w-0 flex-1 break-keep">{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {c.coverBullets?.length ? (
+                <div className="rounded-lg bg-[#F8FAFB] px-3 py-2">
+                  <p className="flex items-center gap-1 text-[10.5px] font-bold text-[#8B95A1]"><Sparkle className="h-3 w-3 text-[#0A9B59]" weight="fill" /> {t("AI 자소서 요약", "AI cover summary", "AI求职信摘要", "Tóm tắt thư AI", "AI自己PR要約", "Ringkasan surat AI")}</p>
+                  <ul className="mt-1 flex flex-col gap-0.5">
+                    {c.coverBullets.slice(0, 3).map((b, i) => (
+                      <li key={i} className="flex gap-1.5 text-[12px] leading-relaxed text-[#4E5968]">
+                        <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[#0A9B59]" aria-hidden />
+                        <span className="min-w-0 flex-1 break-keep">{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
