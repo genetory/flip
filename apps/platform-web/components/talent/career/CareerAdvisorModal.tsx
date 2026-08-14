@@ -178,7 +178,7 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }}
               rows={1}
               placeholder={t("편하게 이야기해 주세요…", "Share freely…", "随便聊聊…", "Cứ chia sẻ…", "気軽に話してください…", "Ceritakan saja…")}
               className="max-h-[120px] min-h-[44px] flex-1 resize-none break-keep rounded-2xl bg-[#F5F6F8] px-3.5 py-3 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
