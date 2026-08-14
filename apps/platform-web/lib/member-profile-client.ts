@@ -845,6 +845,23 @@ export async function getMyApplications() {
   return (result.items ?? []) as MyApplication[];
 }
 
+// '나에게 관심을 준 회사' — 파트너가 나를 관심 목록에 담으면 여기서 보인다.
+export type InterestedCompany = {
+  organizationId: string;
+  slug: string;
+  name: string;
+  industry: string;
+  companySize: string | null;
+  website: string | null;
+  summary: string | null;
+  logo: string | null;
+  interestedAt: string;
+};
+export async function getInterestedCompanies(): Promise<InterestedCompany[]> {
+  const result = (await authedJsonFetch<unknown>("/members/me/interested-companies", { method: "GET" })) as { items?: InterestedCompany[] };
+  return Array.isArray(result?.items) ? result.items : [];
+}
+
 // 지원 이후 여정 — 진행 내역(상태 변경 + 면접 슬롯 이벤트) 시간순.
 export type ApplicationTimelineEvent = { at: string; code: string };
 export async function getApplicationTimeline(applicationId: string): Promise<ApplicationTimelineEvent[]> {

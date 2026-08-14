@@ -21764,12 +21764,19 @@ function isContactUnlockedForApplication(applicationStatus: string, hasInterview
   return applicationStatus === "INTERVIEW" || applicationStatus === "ACCEPTED" || hasInterviewSlot;
 }
 
-function maskRenewalBasicInfo(raw: unknown, unlocked: boolean): unknown {
+// blind=true 면 연락처뿐 아니라 이름·국적·사진까지 가린다(편견 없는 능력 기반 열람).
+function maskRenewalBasicInfo(raw: unknown, unlocked: boolean, blind = false): unknown {
   if (unlocked || !raw || typeof raw !== "object") return raw ?? null;
-  return { ...(raw as Record<string, unknown>), email: "", phone: "", address: "", photoUrl: "" };
+  const base: Record<string, unknown> = { ...(raw as Record<string, unknown>), email: "", phone: "", address: "", photoUrl: "" };
+  if (blind) {
+    base.realName = "";
+    base.name = "";
+    base.nationality = "";
+  }
+  return base;
 }
 
-function maskResumeContentForPartner(raw: unknown, unlocked: boolean): Record<string, unknown> {
+function maskResumeContentForPartner(raw: unknown, unlocked: boolean, blind = false): Record<string, unknown> {
   const c = { ...((raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>) };
   delete c.poolOptIn;
   if (!unlocked) {
@@ -21778,8 +21785,14 @@ function maskResumeContentForPartner(raw: unknown, unlocked: boolean): Record<st
     delete c.basicResidence;
     delete c.basicPhotoUrl;
     delete c.links;
-    // 리뉴얼 이력서의 기본정보에 담긴 연락처도 가린다(이름만 유지).
-    if (c.renewalBasicInfo) c.renewalBasicInfo = maskRenewalBasicInfo(c.renewalBasicInfo, false);
+    if (blind) {
+      // 블라인드 — 이름·국적 등 편견 유발 식별정보 제거(능력만 노출).
+      delete c.basicName;
+      delete c.nationality;
+      delete c.basicNationality;
+    }
+    // 리뉴얼 이력서의 기본정보에 담긴 연락처(+블라인드 시 이름/국적)도 가린다.
+    if (c.renewalBasicInfo) c.renewalBasicInfo = maskRenewalBasicInfo(c.renewalBasicInfo, false, blind);
   }
   return c;
 }
@@ -21796,10 +21809,12 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
   const languages = Array.isArray(content.languages)
     ? (content.languages as Record<string, unknown>[]).map((l) => [l?.language, l?.level].filter((x) => typeof x === "string" && x).join(" ")).filter(Boolean)
     : [];
+  // 블라인드 — 능력만으로 판단하도록, 연결 수락(ACCEPTED) 전에는 이름·국적을 가린다.
+  const unlocked = status === "ACCEPTED";
   return {
     candidateUserId: r.userId,
-    name: r.user?.realName || r.user?.name || (content.basicName as string) || null,
-    nationality: r.user?.nationality ?? (content.nationality as string) ?? null,
+    name: unlocked ? (r.user?.realName || r.user?.name || (content.basicName as string) || null) : null,
+    nationality: unlocked ? (r.user?.nationality ?? (content.nationality as string) ?? null) : null,
     school: (edu?.schoolName as string) ?? null,
     major: (edu?.major as string) ?? null,
     desiredJobRole: (content.desiredJobRole as string) ?? null,
@@ -21970,6 +21985,48 @@ app.delete("/partner/saved-candidates/:candidateUserId", authenticate, requireRo
   }
 });
 
+// GET /members/me/interested-companies — '나에게 관심을 준 회사' — 파트너가 나를 관심 목록에
+// 담으면 여기서 보인다(조직 기준 중복 제거, 최신 관심순).
+app.get("/members/me/interested-companies", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const saved = await prisma.partnerSavedCandidate.findMany({
+      where: { candidateUserId: userId },
+      orderBy: { createdAt: "desc" },
+      select: { organizationId: true, createdAt: true }
+    });
+    if (saved.length === 0) return res.json({ ok: true, items: [] });
+    const orgIds = Array.from(new Set(saved.map((s) => s.organizationId)));
+    const orgs = await prisma.partnerOrganization.findMany({
+      where: { id: { in: orgIds } },
+      select: { id: true, slug: true, name: true, industry: true, companySize: true, website: true, descriptionSummary: true, companyLogoImageData: true }
+    });
+    const orgById = new Map(orgs.map((o) => [o.id, o] as const));
+    const seen = new Set<string>();
+    const items = saved
+      .filter((s) => orgById.has(s.organizationId) && !seen.has(s.organizationId))
+      .map((s) => {
+        seen.add(s.organizationId);
+        const o = orgById.get(s.organizationId)!;
+        return {
+          organizationId: o.id,
+          slug: o.slug,
+          name: o.name,
+          industry: o.industry as string,
+          companySize: (o.companySize as string) ?? null,
+          website: o.website ?? null,
+          summary: o.descriptionSummary ?? null,
+          logo: o.companyLogoImageData ?? null,
+          interestedAt: s.createdAt.toISOString()
+        };
+      });
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error("[members/me/interested-companies] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load interested companies" });
+  }
+});
+
 // 자연어 LLM 매칭 검색 — 파트너의 요구사항 문장으로 인재풀에서 적합 후보를 랭킹(적합도 0~100 + 이유).
 const partnerAiSearchSchema = z.object({ query: z.string().trim().min(1).max(500) });
 const CANDIDATE_MATCH_SCHEMA = {
@@ -22088,10 +22145,11 @@ app.get("/partner/candidates/:candidateUserId", authenticate, requireRoles([Memb
       ok: true,
       item: {
         candidateUserId,
-        name: resume.user?.realName || resume.user?.name || null,
-        nationality: resume.user?.nationality ?? null,
+        // 블라인드 — 연결 수락 전에는 이름·국적을 가린다(능력만으로 판단).
+        name: unlocked ? (resume.user?.realName || resume.user?.name || null) : null,
+        nationality: unlocked ? (resume.user?.nationality ?? null) : null,
         contact: unlocked ? { email: resume.user?.email ?? null, phone: resume.user?.phoneNumber ?? null } : null,
-        content: maskResumeContentForPartner(resume.content, unlocked),
+        content: maskResumeContentForPartner(resume.content, unlocked, !unlocked),
         coverLetter: cover && coverItems.length ? { title: cover.title, company: cover.company, items: coverItems } : null,
         updatedAt: resume.updatedAt.toISOString(),
         connectionStatus: conn?.status ?? null,
