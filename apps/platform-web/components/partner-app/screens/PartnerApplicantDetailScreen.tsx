@@ -445,10 +445,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                     <div className="flex flex-col gap-3.5">
                       {app.mockInterview.answers.map((a, i) => (
                         <div key={i} className="rounded-xl bg-[#F8FAFB] p-3.5">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="min-w-0 flex-1 break-keep text-[13px] font-bold text-[#191F28]">Q{i + 1}. {a.question}</p>
-                            {a.score != null ? <span className="shrink-0 rounded-md bg-white px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{t(`${a.score}점`, `${a.score} pts`, `${a.score}分`, `${a.score} điểm`, `${a.score}点`, `${a.score} poin`)}</span> : null}
-                          </div>
+                          <p className="break-keep text-[13px] font-bold text-[#191F28]">Q{i + 1}. {a.question}</p>
                           <p className="mt-1.5 whitespace-pre-wrap break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{a.answer}</p>
                         </div>
                       ))}

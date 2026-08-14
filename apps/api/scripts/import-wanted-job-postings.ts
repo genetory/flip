@@ -242,10 +242,10 @@ function normalize(job: WantedJob, foreignerEligible: boolean): NormalizedExtern
     ? job.url!.trim()
     : `https://www.wanted.co.kr/wd/${externalId}`;
 
-  const eligibleVisas: string[] = [];
-  if (foreignerEligible || job.additional_apply_type?.includes("foreigner")) {
-    eligibleVisas.push("FOREIGNER_FRIENDLY");
-  }
+  // 원티드 전체 공고를 훑되, '외국인 지원 가능'만 수집한다. (그 외는 버림)
+  const isForeignerEligible = foreignerEligible || (job.additional_apply_type?.includes("foreigner") ?? false);
+  if (!isForeignerEligible) return null;
+  const eligibleVisas: string[] = ["FOREIGNER_FRIENDLY"];
 
   return {
     externalId,

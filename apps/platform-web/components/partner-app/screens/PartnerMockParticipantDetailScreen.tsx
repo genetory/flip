@@ -118,10 +118,7 @@ export function PartnerMockParticipantDetailScreen({ positionId, userId }: { pos
               <div className="flex flex-col gap-3">
                 {m.answers.map((a, i) => (
                   <div key={i} className="rounded-2xl border border-[#EEF1F5] bg-white p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="min-w-0 flex-1 break-keep text-[13.5px] font-bold text-[#191F28]">Q{i + 1}. {a.question}</p>
-                      {a.score != null ? <span className="shrink-0 rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{t(`${a.score}점`, `${a.score}`, `${a.score}分`, `${a.score}`, `${a.score}点`, `${a.score}`)}</span> : null}
-                    </div>
+                    <p className="break-keep text-[13.5px] font-bold text-[#191F28]">Q{i + 1}. {a.question}</p>
                     <p className="mt-2 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#4E5968]">{a.answer || t("답변 없음", "No answer", "无回答", "Không có câu trả lời", "回答なし", "Tanpa jawaban")}</p>
                   </div>
                 ))}
