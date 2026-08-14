@@ -74,7 +74,7 @@ export function JobInterestModal({ initial, onClose }: { initial: string[]; onCl
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("직무 검색 (예: 마케팅, 백엔드)", "Search roles (e.g. Marketing, Backend)", "搜索职位（如：市场、后端）", "Tìm nghề (vd: Marketing, Backend)", "職種を検索（例：マーケ、バックエンド）", "Cari peran (mis. Marketing, Backend)")}
+              placeholder={t("직무 검색 또는 직접 입력 (예: 마케팅)", "Search or type your own (e.g. Marketing)", "搜索或直接输入（如：市场）", "Tìm hoặc tự nhập (vd: Marketing)", "検索または直接入力（例：マーケ）", "Cari atau ketik sendiri (mis. Marketing)")}
               className="min-w-0 flex-1 bg-transparent text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
             />
             {query ? (
