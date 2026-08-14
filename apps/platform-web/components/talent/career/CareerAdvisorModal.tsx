@@ -6,7 +6,7 @@ import { X, PaperPlaneTilt, Plus, Check, Sparkle, CircleNotch, ArrowClockwise } 
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { careerAdvise, type AdvisorMsg } from "../../../lib/talent/career-advisor-client";
 import { loadAdvisorChat, saveAdvisorChat, clearAdvisorChat } from "../../../lib/talent/career-advisor-store";
-import { useJobInterests, saveJobInterests } from "../../../lib/talent/job-interest";
+import { useJobInterests, saveJobInterests, MAX_JOB_INTERESTS } from "../../../lib/talent/job-interest";
 import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 import { usePlatformT } from "../../../lib/i18n";
 
@@ -99,9 +99,10 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
   }
 
   function addRole(role: string) {
-    if (interests.includes(role)) return;
+    if (interests.includes(role) || interests.length >= MAX_JOB_INTERESTS) return;
     saveJobInterests([...interests, role]);
   }
+  const interestsFull = interests.length >= MAX_JOB_INTERESTS;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4">
@@ -147,9 +148,9 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
                             key={r}
                             type="button"
                             onClick={() => addRole(r)}
-                            disabled={added}
+                            disabled={added || interestsFull}
                             className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-bold transition ${
-                              added ? "bg-[#E7F8EF] text-[#0A9B59]" : "border border-[#C7D6F7] text-[#0B46E8] hover:bg-[#F0F5FF]"
+                              added ? "bg-[#E7F8EF] text-[#0A9B59]" : "border border-[#C7D6F7] text-[#0B46E8] hover:bg-[#F0F5FF] disabled:border-[#E5E8EB] disabled:text-[#B0B8C1] disabled:hover:bg-transparent"
                             }`}
                           >
                             {added ? <Check className="h-3.5 w-3.5" weight="bold" /> : <Plus className="h-3.5 w-3.5" weight="bold" />}

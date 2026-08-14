@@ -1,15 +1,15 @@
 "use client";
 
-// 관심 직무 선택 — 2단(왼쪽 대분류 · 오른쪽 중/소분류). 소분류 최대 3개 선택해 저장.
+// 관심 직무 선택 — 2단(왼쪽 대분류 · 오른쪽 중/소분류). 소분류 최대 5개 선택해 저장.
 import { useMemo, useState } from "react";
 import { X, MagnifyingGlass } from "@phosphor-icons/react";
-import { saveJobInterests } from "../../../lib/talent/job-interest";
+import { saveJobInterests, MAX_JOB_INTERESTS } from "../../../lib/talent/job-interest";
 import { JOB_TAXONOMY } from "../../../lib/talent/job-taxonomy";
 import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { usePlatformT } from "../../../lib/i18n";
 
-const MAX = 3;
+const MAX = MAX_JOB_INTERESTS;
 
 export function JobInterestModal({ initial, onClose }: { initial: string[]; onClose: () => void }) {
   const t = usePlatformT();
