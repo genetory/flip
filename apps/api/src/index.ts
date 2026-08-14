@@ -20389,6 +20389,8 @@ async function listPartnerApplicantsForUser(userId: string, opts: { includeWithd
     // 연락처(이메일)는 면접 단계 이후에만 공개 — 공용 헬퍼로 통합.
     // 블라인드 — 면접 단계 전에는 이름·국적도 가려 편견 없이 능력만 보게 한다.
     const contactUnlocked = isContactUnlockedForWorkflowStatus(applicantStatus);
+    const blindTerms = contactUnlocked ? [] : identityTerms(user?.realName, user?.name, user?.nationality);
+    const scrub = (s: string | null | undefined) => (s ? redactIdentityText(s, blindTerms) : (s ?? null));
     items.push({
       id: stateKey,
       candidateUserId,
@@ -20405,8 +20407,8 @@ async function listPartnerApplicantsForUser(userId: string, opts: { includeWithd
       appliedAt: app.submittedAt?.toISOString?.() ?? null,
       recommendation: languages.length >= 2 ? "HIGH" : "NORMAL",
       status: applicantStatus,
-      summary: profile?.selfIntroduction ?? null,
-      motivation: profile?.programMotivation ?? null,
+      summary: scrub(profile?.selfIntroduction),
+      motivation: scrub(profile?.programMotivation),
       portfolioUrl: null,
       availableStartDate: profile?.programStartDate ? profile.programStartDate.toISOString().slice(0, 10) : null,
       memo: state?.memo ?? null,
@@ -21769,11 +21771,14 @@ function isContactUnlockedForApplication(applicationStatus: string, hasInterview
 // 시험명·급수를 지우고 '한국어 <등급>'으로 중립화(능력은 유지). TOEIC은 국적 힌트가 아니라 그대로 둔다.
 function neutralizeTopik(text: string): string {
   if (!text || typeof text !== "string") return text;
-  return text.replace(/(TOPIK|토픽|한국어\s*능력\s*시험)\s*(?:레벨\s*|level\s*)?([1-6])?\s*급?/gi, (_m, _brand, lv) => {
-    const n = lv ? parseInt(lv, 10) : NaN;
-    if (Number.isNaN(n)) return "한국어";
-    return n >= 5 ? "한국어 고급" : n >= 3 ? "한국어 중급" : "한국어 초급";
-  });
+  return text
+    // 급수가 붙은 경우: TOPIK/토픽/한국어능력시험 + 레벨 → '한국어 등급'.
+    .replace(/(?:TOPIK|토픽|한국어\s*능력\s*시험)\s*(?:레벨\s*|level\s*)?([1-6])\s*급?/gi, (_m, lv) => {
+      const n = parseInt(lv, 10);
+      return n >= 5 ? "한국어 고급" : n >= 3 ? "한국어 중급" : "한국어 초급";
+    })
+    // 급수 없이 시험명만: TOPIK / 한국어능력시험 → '한국어'. ('토픽'은 topic 오인 방지로 제외)
+    .replace(/TOPIK|한국어\s*능력\s*시험/gi, "한국어");
 }
 // 문자열을 재귀적으로 중립화(중첩된 이력서 content 전체에 적용).
 function neutralizeTopikDeep<T>(v: T): T {
@@ -21782,6 +21787,34 @@ function neutralizeTopikDeep<T>(v: T): T {
   if (v && typeof v === "object") {
     const o: Record<string, unknown> = {};
     for (const [k, val] of Object.entries(v as Record<string, unknown>)) o[k] = neutralizeTopikDeep(val);
+    return o as unknown as T;
+  }
+  return v;
+}
+
+// 블라인드 — 자유 텍스트(자기소개·경험 설명·자소서 등)에 섞인 후보의 이름·국적을 제거해
+// 신원이 새는 것을 막는다. 서버가 아는 실명·국적 문자열을 '○○'로 치환.
+function identityTerms(realName?: string | null, name?: string | null, nationality?: string | null): string[] {
+  const out: string[] = [];
+  for (const x of [realName, name, nationality]) {
+    const s = (x ?? "").trim();
+    if (s.length >= 2) out.push(s);
+  }
+  return Array.from(new Set(out));
+}
+function redactIdentityText(text: string, terms: string[]): string {
+  if (!text || typeof text !== "string" || terms.length === 0) return text;
+  let s = text;
+  for (const term of terms) s = s.split(term).join("○○");
+  return s;
+}
+function redactIdentityDeep<T>(v: T, terms: string[]): T {
+  if (terms.length === 0) return v;
+  if (typeof v === "string") return redactIdentityText(v, terms) as unknown as T;
+  if (Array.isArray(v)) return v.map((x) => redactIdentityDeep(x, terms)) as unknown as T;
+  if (v && typeof v === "object") {
+    const o: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) o[k] = redactIdentityDeep(val, terms);
     return o as unknown as T;
   }
   return v;
@@ -21835,6 +21868,9 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
     : [];
   // 블라인드 — 능력만으로 판단하도록, 연결 수락(ACCEPTED) 전에는 이름·국적을 가린다.
   const unlocked = status === "ACCEPTED";
+  // 요약(자기소개)에 섞인 이름·국적 제거 + TOPIK 중립화.
+  const terms = unlocked ? [] : identityTerms(r.user?.realName, r.user?.name, r.user?.nationality);
+  const summaryOut = summary ? (unlocked ? summary : redactIdentityText(neutralizeTopik(summary), terms)).slice(0, 180) : null;
   return {
     candidateUserId: r.userId,
     name: unlocked ? (r.user?.realName || r.user?.name || (content.basicName as string) || null) : null,
@@ -21849,7 +21885,7 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
     languages: unlocked ? languages : languages.map(neutralizeTopik),
     careerCount: careers.length,
     activityCount: activities.length,
-    summary: summary ? (unlocked ? summary : neutralizeTopik(summary)).slice(0, 180) : null,
+    summary: summaryOut,
     updatedAt: r.updatedAt.toISOString(),
     connectionStatus: status,
     contactUnlocked: status === "ACCEPTED",
@@ -21860,11 +21896,12 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
 }
 
 // 카드에 '관심 횟수'(이 후보를 관심 목록에 담은 조직 수)를 붙인다 — 핫한 인재 식별용.
-async function attachInterestCounts<T extends { candidateUserId: string; interestCount: number }>(cards: T[]): Promise<void> {
+async function attachInterestCounts<T extends { candidateUserId: string; interestCount: number }>(cards: T[], excludeOrgId?: string): Promise<void> {
   if (cards.length === 0) return;
+  // 본인 org 는 제외 — 🔥는 '다른 회사들도 관심'이라는 핫함 신호로.
   const grouped = await prisma.partnerSavedCandidate.groupBy({
     by: ["candidateUserId"],
-    where: { candidateUserId: { in: cards.map((c) => c.candidateUserId) } },
+    where: { candidateUserId: { in: cards.map((c) => c.candidateUserId) }, ...(excludeOrgId ? { organizationId: { not: excludeOrgId } } : {}) },
     _count: { candidateUserId: true }
   });
   const byUser = new Map(grouped.map((g) => [g.candidateUserId, g._count.candidateUserId]));
@@ -21877,15 +21914,24 @@ async function attachCachedDocSummaries<T extends { candidateUserId: string; upd
   if (cards.length === 0) return;
   const rows = await prisma.applicantDocSummary.findMany({ where: { candidateUserId: { in: cards.map((c) => c.candidateUserId) } } });
   const byUser = new Map(rows.map((r) => [r.candidateUserId, r]));
+  // 블라인드 후보의 이름·국적 — 요약 bullets에서 신원 제거용.
+  const blindIds = cards.filter((c) => c.contactUnlocked === false).map((c) => c.candidateUserId);
+  const termsByUser = new Map<string, string[]>();
+  if (blindIds.length) {
+    const users = await prisma.user.findMany({ where: { id: { in: blindIds } }, select: { id: true, realName: true, name: true, nationality: true } });
+    for (const u of users) termsByUser.set(u.id, identityTerms(u.realName, u.name, u.nationality));
+  }
   for (const c of cards) {
     const row = byUser.get(c.candidateUserId);
     // version = `${updatedAtMs}:${contentSig}` (구버전은 접두 ms 만) — 대표 이력서 updatedAt 이 일치하면 사용.
     const ms = String(new Date(c.updatedAt).getTime());
     if (row && (row.version === ms || row.version.startsWith(`${ms}:`))) {
-      // 블라인드 — 요약 bullets의 TOPIK도 '한국어 등급'으로 중립화.
+      // 블라인드 — 요약 bullets에서 이름·국적 제거 + TOPIK '한국어 등급' 중립화.
       const blind = c.contactUnlocked === false;
-      c.resumeBullets = blind ? row.resumeBullets.map(neutralizeTopik) : row.resumeBullets;
-      c.coverBullets = blind ? row.coverBullets.map(neutralizeTopik) : row.coverBullets;
+      const terms = termsByUser.get(c.candidateUserId) ?? [];
+      const scrub = (b: string) => redactIdentityText(neutralizeTopik(b), terms);
+      c.resumeBullets = blind ? row.resumeBullets.map(scrub) : row.resumeBullets;
+      c.coverBullets = blind ? row.coverBullets.map(scrub) : row.coverBullets;
     }
   }
 }
@@ -21955,7 +22001,7 @@ app.get("/partner/candidates", authenticate, requireRoles([MemberRole.PARTNER]),
     const page = parsed.data.page ?? 1;
     const paged = all.slice((page - 1) * pageSize, page * pageSize);
     await attachCachedDocSummaries(paged);
-    await attachInterestCounts(paged);
+    await attachInterestCounts(paged, affiliation?.organization?.id);
     return res.json({ ok: true, items: paged, total: all.length, page, pageSize });
   } catch (err) {
     console.error("[partner/candidates] failed", err);
@@ -21987,7 +22033,7 @@ app.get("/partner/saved-candidates", authenticate, requireRoles([MemberRole.PART
       .map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null))
       .sort((a, b) => (order.get(a.candidateUserId) ?? 0) - (order.get(b.candidateUserId) ?? 0));
     await attachCachedDocSummaries(items);
-    await attachInterestCounts(items);
+    await attachInterestCounts(items, affiliation?.organization?.id);
     return res.json({ ok: true, items });
   } catch (err) {
     console.error("[partner/saved-candidates] failed", err);
@@ -22123,7 +22169,7 @@ app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PA
         .slice(0, 24)
         .map((x) => x.c);
       await attachCachedDocSummaries(items);
-    await attachInterestCounts(items);
+    await attachInterestCounts(items, affiliation?.organization?.id);
       return res.json({ ok: true, items, ai: false });
     }
 
@@ -22152,7 +22198,7 @@ app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PA
       .slice(0, 30)
       .map((m) => ({ ...cards[m.index], score: m.score, reason: m.reason }));
     await attachCachedDocSummaries(items);
-    await attachInterestCounts(items);
+    await attachInterestCounts(items, affiliation?.organization?.id);
     return res.json({ ok: true, items, ai: true });
   } catch (err) {
     console.error("[partner/candidates/search] failed", err);
@@ -22188,6 +22234,9 @@ app.get("/partner/candidates/:candidateUserId", authenticate, requireRoles([Memb
           .map((x) => ({ prompt: typeof x.prompt === "string" ? x.prompt : typeof x.question === "string" ? (x.question as string) : "", answer: typeof x.answer === "string" ? x.answer : "" }))
           .filter((x) => x.answer.trim())
       : [];
+    // 블라인드 — 이력서/자소서 자유텍스트에서 이름·국적 제거.
+    const terms = unlocked ? [] : identityTerms(resume.user?.realName, resume.user?.name, resume.user?.nationality);
+    const maskedContent = maskResumeContentForPartner(resume.content, unlocked, !unlocked);
     return res.json({
       ok: true,
       item: {
@@ -22196,8 +22245,8 @@ app.get("/partner/candidates/:candidateUserId", authenticate, requireRoles([Memb
         name: unlocked ? (resume.user?.realName || resume.user?.name || null) : null,
         nationality: unlocked ? (resume.user?.nationality ?? null) : null,
         contact: unlocked ? { email: resume.user?.email ?? null, phone: resume.user?.phoneNumber ?? null } : null,
-        content: maskResumeContentForPartner(resume.content, unlocked, !unlocked),
-        coverLetter: cover && coverItems.length ? { title: cover.title, company: cover.company, items: coverItems } : null,
+        content: unlocked ? maskedContent : redactIdentityDeep(maskedContent, terms),
+        coverLetter: cover && coverItems.length ? { title: cover.title, company: cover.company, items: unlocked ? coverItems : redactIdentityDeep(coverItems, terms) } : null,
         updatedAt: resume.updatedAt.toISOString(),
         connectionStatus: conn?.status ?? null,
         contactUnlocked: unlocked
@@ -26699,18 +26748,20 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
     let resumeDoc: unknown = null;
     let resumeBasicInfo: unknown = null;
     let coverDoc: unknown = null;
+    let idTerms: string[] = [];
     try {
       const primary = await prisma.resume.findFirst({
         where: { userId: found.candidateUserId },
         orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
-        select: { content: true }
+        select: { content: true, user: { select: { realName: true, name: true, nationality: true } } }
       });
       const c = (primary?.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>;
-      // 블라인드 — 면접 단계 전에는 연락처·이름·국적을 가리고, 이력서/자소서의 TOPIK도 '한국어 등급'으로 중립화.
+      // 블라인드 — 면접 단계 전에는 연락처·이름·국적을 가리고, TOPIK 중립화 + 자유텍스트의 이름·국적 제거.
       const blindApplicant = !found.contactUnlocked;
-      resumeDoc = blindApplicant ? neutralizeTopikDeep(c.renewalResume ?? null) : (c.renewalResume ?? null);
+      idTerms = blindApplicant ? identityTerms(primary?.user?.realName, primary?.user?.name, primary?.user?.nationality) : [];
+      resumeDoc = blindApplicant ? redactIdentityDeep(neutralizeTopikDeep(c.renewalResume ?? null), idTerms) : (c.renewalResume ?? null);
       resumeBasicInfo = maskRenewalBasicInfo(c.renewalBasicInfo, found.contactUnlocked, blindApplicant);
-      coverDoc = blindApplicant ? neutralizeTopikDeep(c.renewalCover ?? null) : (c.renewalCover ?? null);
+      coverDoc = blindApplicant ? redactIdentityDeep(neutralizeTopikDeep(c.renewalCover ?? null), idTerms) : (c.renewalCover ?? null);
     } catch {
       // 미리보기 데이터는 실패해도 상세 응답은 정상 반환.
     }
@@ -26741,8 +26792,8 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
         appliedAt: found.appliedAt,
         recommendation: found.recommendation,
         status: found.status,
-        summary: found.summary,
-        motivation: found.motivation,
+        summary: found.summary ? redactIdentityText(found.summary, idTerms) : found.summary,
+        motivation: found.motivation ? redactIdentityText(found.motivation, idTerms) : found.motivation,
         portfolioUrl: found.portfolioUrl,
         availableStartDate: found.availableStartDate,
         memo: found.memo,
@@ -26925,6 +26976,19 @@ app.get("/partner/candidates/:candidateUserId/document-summary", authenticate, r
       : "";
 
     const out = await getOrCreateDocSummary(candidateUserId, poolResumeContentToText(poolResume.content), coverText);
+    // 블라인드 — 연결 수락 전에는 요약 bullets에서 이름·국적 제거 + TOPIK 중립화.
+    const conn = await prisma.candidateConnectionRequest.findUnique({
+      where: { partnerUserId_candidateUserId: { partnerUserId: req.auth!.userId, candidateUserId } },
+      select: { status: true }
+    });
+    if (conn?.status !== "ACCEPTED") {
+      const u = await prisma.user.findUnique({ where: { id: candidateUserId }, select: { realName: true, name: true, nationality: true } });
+      const terms = identityTerms(u?.realName, u?.name, u?.nationality);
+      const scrub = (b: string) => redactIdentityText(neutralizeTopik(b), terms);
+      const o = out as { resumeBullets?: string[]; coverBullets?: string[] };
+      if (Array.isArray(o.resumeBullets)) o.resumeBullets = o.resumeBullets.map(scrub);
+      if (Array.isArray(o.coverBullets)) o.coverBullets = o.coverBullets.map(scrub);
+    }
     return res.json({ ok: true, ...out });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });

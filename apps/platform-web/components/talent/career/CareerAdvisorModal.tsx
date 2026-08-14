@@ -6,6 +6,7 @@ import { X, PaperPlaneTilt, Sparkle, CircleNotch, ArrowClockwise } from "@phosph
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { careerAdvise, type AdvisorMsg } from "../../../lib/talent/career-advisor-client";
 import { loadAdvisorChat, saveAdvisorChat, clearAdvisorChat } from "../../../lib/talent/career-advisor-store";
+import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { usePlatformT } from "../../../lib/i18n";
 
 type Msg = { role: "bot" | "user"; text: string };
@@ -13,6 +14,8 @@ type Msg = { role: "bot" | "user"; text: string };
 export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
   const t = usePlatformT();
   useLockBodyScroll();
+  const { user } = useAuthSession();
+  const uid = user?.id ?? "anon";
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -59,7 +62,7 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    const saved = loadAdvisorChat();
+    const saved = loadAdvisorChat(uid);
     if (saved.length) setMessages(saved as Msg[]);
     else kickoff();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -67,12 +70,12 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
 
   // 대화가 바뀌면 로컬에 저장 → 다시 열어도 이어볼 수 있게.
   useEffect(() => {
-    if (messages.length) saveAdvisorChat(messages);
+    if (messages.length) saveAdvisorChat(uid, messages);
   }, [messages]);
 
   // 완전히 새로 시작 — 저장 기록 삭제 후 인사말부터.
   function resetChat() {
-    clearAdvisorChat();
+    clearAdvisorChat(uid);
     setConfirmReset(false);
     setInput("");
     setMessages([]);
