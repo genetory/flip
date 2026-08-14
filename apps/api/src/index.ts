@@ -5540,16 +5540,9 @@ const careerReadinessNarrativeSchema = z.object({
   recommendedRoles: z.array(z.string().min(1).max(80)).min(2).max(5)
 });
 
-async function generateCareerReadinessNarrative(input: CareerReadinessProfile, score: number, locale: "ko" | "en" | "zh-CN" | "vi" | "ja" | "id") {
+async function generateCareerReadinessNarrative(input: CareerReadinessProfile, score: number, _locale?: "ko" | "en" | "zh-CN" | "vi" | "ja" | "id") {
   if (!openai) throw new Error("openai_unavailable");
 
-  const localeName =
-    locale === "ko" ? "Korean"
-      : locale === "zh-CN" ? "Simplified Chinese"
-        : locale === "vi" ? "Vietnamese"
-          : locale === "ja" ? "Japanese"
-            : locale === "id" ? "Indonesian"
-              : "English";
   const summary = {
     score,
     user: {
@@ -5586,7 +5579,7 @@ async function generateCareerReadinessNarrative(input: CareerReadinessProfile, s
           "Strengths: 3-5 short bullets highlighting what the candidate already has going for them in the Korean job market.",
           "Improvements: 3-5 short bullets pointing out concrete, actionable gaps.",
           "RecommendedRoles: 3-5 specific role titles realistic for this candidate (e.g., 'Global Marketing Assistant', 'Market Research Intern', 'Translation Support').",
-          `All bullets must be written in ${localeName}.`,
+          "반드시 모든 항목(strengths·improvements·recommendedRoles의 각 bullet)을 한국어로, 다정하고 예의 바른 존댓말로 작성해줘. 딱딱한 평가체가 아니라 응원하는 톤으로.",
           "Keep each bullet under 120 characters and avoid generic platitudes."
         ].join(" ")
       },
@@ -14557,23 +14550,14 @@ app.post(
   }
 );
 
-// resume-maker AI 출력 언어 — 외국인 사용자가 고른 UI 언어로 답하도록 프롬프트에
-// 덧붙이는 지시. 클라이언트가 locale 을 보내면 그 언어로, 없으면 한국어(기본).
-const AI_LANG_NAMES: Record<string, string> = {
-  ko: "Korean (한국어)",
-  en: "English",
-  "zh-CN": "Simplified Chinese (简体中文)",
-  vi: "Vietnamese (Tiếng Việt)",
-  ja: "Japanese (日本語)",
-  id: "Indonesian (Bahasa Indonesia)"
-};
-function aiLangDirective(locale?: string): string {
-  const name = AI_LANG_NAMES[locale ?? "ko"] ?? AI_LANG_NAMES.ko;
+// 서비스 전체 생성형 LLM의 말투·언어 통일 — 항상 한국어, 다정하고 예의 바른 존댓말.
+// (번역·영문 자기소개 등 '다른 언어 출력'이 목적인 기능은 이 지시를 붙이지 않는다.)
+// locale 인자는 하위호환을 위해 남겨두되 무시한다.
+function aiLangDirective(_locale?: string): string {
   return (
-    `\n\n[CRITICAL — OUTPUT LANGUAGE] Write your ENTIRE response in ${name}. ` +
-    `Every question, sentence, summary, note, label, helper text, and option must be in ${name}. ` +
-    `The user may not understand Korean. ` +
-    `Keep all JSON field names exactly as specified (in English), and keep proper nouns, company/school names, and technical/skill terms (e.g., Python, Excel) as-is.`
+    "\n\n[말투·언어 — 필수] 반드시 한국어로만 답해줘. 다정하고 따뜻하며 예의 바른 존댓말로, " +
+    "취업이 처음인 사람도 편하게 느낄 만큼 친근하게. 평가·훈계하는 말투나 딱딱한 지시문은 피하고 응원하는 톤으로. " +
+    "단, JSON 필드명은 지정된 대로 영어로 두고, 고유명사·회사/학교명·기술/스킬 용어(예: Python, Excel)는 그대로 유지해줘."
   );
 }
 
