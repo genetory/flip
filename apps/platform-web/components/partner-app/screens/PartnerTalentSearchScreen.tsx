@@ -11,13 +11,14 @@ import { PartnerEmptyCard } from "../ui/cards";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { getPartnerCandidates, searchPartnerCandidatesAI, getSavedCandidates, saveCandidate, unsaveCandidate, type PartnerCandidateCard } from "../../../lib/member-profile-client";
+import { blindCode, blindTalentName } from "../../../lib/partner/blind";
 
-type Mode = "keyword" | "ai" | "saved";
+type Mode = "search" | "saved";
 
 export function PartnerTalentSearchScreen() {
   const t = usePlatformT();
   const toast = useTalentPopup();
-  const [mode, setMode] = useState<Mode>("keyword");
+  const [mode, setMode] = useState<Mode>("search");
   const [query, setQuery] = useState("");
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [items, setItems] = useState<PartnerCandidateCard[]>([]);
@@ -28,27 +29,28 @@ export function PartnerTalentSearchScreen() {
   // 처음 진입 시 최신 인재풀 + 관심 인재 목록 로드.
   useEffect(() => {
     void getSavedCandidates().then((list) => setSavedIds(new Set(list.map((c) => c.candidateUserId)))).catch(() => {});
-    run("keyword", "");
+    run("search", "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 검색 = 하나로 통합 — 검색어가 있으면 AI 검색(키워드까지 커버), 비어있으면 전체 목록.
   function run(m: Mode, q: string) {
     setStatus("loading");
     const p =
-      m === "ai"
-        ? searchPartnerCandidatesAI(q).then((r) => {
-            setItems(r.items);
-            setTotal(r.items.length);
-            setAiUsed(r.ai);
+      m === "saved"
+        ? getSavedCandidates().then((list) => {
+            setItems(list);
+            setTotal(list.length);
+            setAiUsed(false);
+            setSavedIds(new Set(list.map((c) => c.candidateUserId)));
           })
-        : m === "saved"
-          ? getSavedCandidates().then((list) => {
-              setItems(list);
-              setTotal(list.length);
-              setAiUsed(false);
-              setSavedIds(new Set(list.map((c) => c.candidateUserId)));
+        : q.trim()
+          ? searchPartnerCandidatesAI(q.trim()).then((r) => {
+              setItems(r.items);
+              setTotal(r.items.length);
+              setAiUsed(r.ai);
             })
-          : getPartnerCandidates({ q: q || undefined }).then((r) => {
+          : getPartnerCandidates({}).then((r) => {
               setItems(r.items);
               setTotal(r.total);
               setAiUsed(false);
@@ -79,8 +81,7 @@ export function PartnerTalentSearchScreen() {
   }
 
   function submit() {
-    if (mode === "ai" && !query.trim()) return;
-    run(mode, query.trim());
+    run("search", query.trim());
   }
 
   return (
@@ -97,20 +98,19 @@ export function PartnerTalentSearchScreen() {
           <p className="break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{t("이름·사진·성별·국적은 가려지고 스킬·경험·언어 능력만 보여요. 관심 인재로 저장하면 후보에게 관심이 전해지고, 연결을 수락하면 신원과 연락처가 공개돼요.", "Names, photos, gender, and nationality are hidden — you see only skills, experience, and language. Saving a candidate signals your interest; identity and contact are revealed once they accept your connection.", "姓名、照片、性别、国籍均隐藏，仅显示技能、经验和语言能力。收藏人才即向其传达关注；对方接受连接后公开身份与联系方式。", "Tên, ảnh, giới tính, quốc tịch được ẩn — chỉ hiện kỹ năng, kinh nghiệm, ngôn ngữ. Lưu ứng viên sẽ gửi tín hiệu quan tâm; danh tính và liên hệ hiện khi họ chấp nhận kết nối.", "名前・写真・性別・国籍は隠され、スキル・経験・語学力のみ表示。人材を保存すると関心が伝わり、接続を承諾すると身元と連絡先が公開されます。", "Nama, foto, gender, dan kebangsaan disembunyikan — hanya keahlian, pengalaman, dan bahasa yang terlihat. Menyimpan kandidat menandakan minat; identitas dan kontak muncul saat mereka menerima koneksi.")}</p>
         </div>
 
-        {/* 검색 모드 */}
+        {/* 검색 / 관심 인재 */}
         <div className="flex items-center gap-1 self-start rounded-full bg-[#F2F4F6] p-0.5">
-          {([["keyword", t("키워드", "Keyword", "关键词", "Từ khóa", "キーワード", "Kata kunci")], ["ai", t("AI 검색", "AI search", "AI搜索", "Tìm AI", "AI検索", "Cari AI")], ["saved", t("관심 인재", "Saved", "收藏", "Đã lưu", "保存済み", "Tersimpan")]] as const).map(([key, label]) => (
+          {([["search", t("인재 검색", "Search", "人才搜索", "Tìm kiếm", "人材検索", "Cari")], ["saved", t("관심 인재", "Saved", "收藏", "Đã lưu", "保存済み", "Tersimpan")]] as const).map(([key, label]) => (
             <button
               key={key}
               type="button"
               onClick={() => {
                 setMode(key);
-                if (key === "saved") run("saved", "");
-                else if (key === "keyword") run("keyword", query.trim());
+                run(key, key === "search" ? query.trim() : "");
               }}
               className={`inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition ${mode === key ? "bg-white text-[#191F28] shadow-[0_1px_4px_rgba(11,18,39,0.08)]" : "text-[#8B95A1]"}`}
             >
-              {key === "ai" ? <Sparkle className="h-3.5 w-3.5" weight="fill" /> : key === "saved" ? <BookmarkSimple className="h-3.5 w-3.5" weight="fill" /> : null}
+              {key === "search" ? <Sparkle className="h-3.5 w-3.5" weight="fill" /> : <BookmarkSimple className="h-3.5 w-3.5" weight="fill" />}
               {label}
             </button>
           ))}
@@ -127,7 +127,7 @@ export function PartnerTalentSearchScreen() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") submit();
               }}
-              placeholder={mode === "ai" ? t("예: 중국어 가능한 마케터, 개발 인턴 경험 있는 사람", "e.g. Marketer who speaks Chinese, someone with dev internship experience", "例：会中文的市场营销、有开发实习经验的人", "VD: Marketer biết tiếng Trung, người có kinh nghiệm thực tập lập trình", "例：中国語ができるマーケター、開発インターン経験者", "Mis: Marketer yang bisa bahasa Mandarin, orang dengan pengalaman magang dev") : t("이름·학교·전공·직무·스킬·국적 검색", "Search name, school, major, role, skill, nationality", "搜索姓名·学校·专业·职务·技能·国籍", "Tìm tên·trường·chuyên ngành·vị trí·kỹ năng·quốc tịch", "名前·学校·専攻·職務·スキル·国籍で検索", "Cari nama·sekolah·jurusan·posisi·skill·kebangsaan")}
+              placeholder={t("예: 중국어 가능한 마케터 · 또는 직무·스킬 키워드", "e.g. Marketer who speaks Chinese · or role/skill keywords", "例：会中文的市场营销 · 或职务/技能关键词", "VD: Marketer biết tiếng Trung · hoặc từ khóa vị trí/kỹ năng", "例：中国語ができるマーケター · または職務・スキル", "Mis: Marketer bisa Mandarin · atau kata kunci peran/skill")}
               className="w-full rounded-2xl border border-[#EEF1F5] bg-white py-3 pl-11 pr-10 text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
             />
             {query ? (
@@ -148,7 +148,7 @@ export function PartnerTalentSearchScreen() {
             mode === "saved" ? (
               <PartnerEmptyCard emoji="⭐" title={t("저장한 관심 인재가 없어요", "No saved talent yet", "还没有收藏的人才", "Chưa có nhân tài đã lưu", "保存した人材がありません", "Belum ada talenta tersimpan")} desc={t("키워드·AI 검색에서 마음에 드는 인재의 별을 눌러 모아보세요.", "Tap the star on talent you like in keyword or AI search to collect them.", "在关键词或AI搜索中点击喜欢人才的星标即可收藏。", "Nhấn dấu sao trên nhân tài bạn thích trong tìm kiếm từ khóa hoặc AI để lưu lại.", "キーワード·AI検索で気になる人材の星を押して集めましょう。", "Ketuk bintang pada talenta yang Anda suka di pencarian kata kunci atau AI untuk menyimpannya.")} />
             ) : (
-              <PartnerEmptyCard emoji="🔍" title={t("검색 결과가 없어요", "No results", "没有搜索结果", "Không có kết quả", "検索結果がありません", "Tidak ada hasil")} desc={mode === "ai" ? t("다른 표현으로 다시 검색해보세요.", "Try searching with different wording.", "换个说法再搜索。", "Thử tìm với cách diễn đạt khác.", "別の表現で再検索してみてください。", "Coba cari dengan kata lain.") : t("다른 키워드로 다시 검색해보세요.", "Try searching with different keywords.", "换个关键词再搜索。", "Thử tìm với từ khóa khác.", "別のキーワードで再検索してみてください。", "Coba cari dengan kata kunci lain.")} />
+              <PartnerEmptyCard emoji="🔍" title={t("검색 결과가 없어요", "No results", "没有搜索结果", "Không có kết quả", "検索結果がありません", "Tidak ada hasil")} desc={t("다른 키워드나 표현으로 다시 검색해보세요.", "Try different keywords or wording.", "换个关键词或说法再搜索。", "Thử từ khóa hoặc cách diễn đạt khác.", "別のキーワードや表現で再検索してみてください。", "Coba kata kunci atau ungkapan lain.")} />
             )
           ) : (
             <>
@@ -174,7 +174,7 @@ function CandidateCard({ c, saved, onToggleSave }: { c: PartnerCandidateCard; sa
   return (
     <Link href={`${partnerRoutes.talent}/${encodeURIComponent(c.candidateUserId)}`} className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
       <div className="flex items-start gap-3.5">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[17px] font-black text-[#0B46E8]">{(c.name ?? "?").slice(0, 1)}</span>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[15px] font-black text-[#0B46E8]">{c.name ? c.name.slice(0, 1) : blindCode(c.candidateUserId).slice(0, 2)}</span>
         <button
           type="button"
           aria-label={saved ? t("관심 인재 해제", "Unsave", "取消收藏", "Bỏ lưu", "保存解除", "Batal simpan") : t("관심 인재로 저장", "Save talent", "收藏人才", "Lưu nhân tài", "人材を保存", "Simpan talenta")}
@@ -190,7 +190,7 @@ function CandidateCard({ c, saved, onToggleSave }: { c: PartnerCandidateCard; sa
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <p className="text-[15px] font-bold text-[#191F28]">{c.name ?? t("이름 비공개", "Name hidden", "姓名保密", "Ẩn tên", "名前非公開", "Nama disembunyikan")}</p>
+            <p className="text-[15px] font-bold text-[#191F28]">{c.name ?? blindTalentName(t, c.candidateUserId)}</p>
             {typeof c.score === "number" ? <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{t(`적합 ${c.score}`, `Match ${c.score}`, `匹配 ${c.score}`, `Phù hợp ${c.score}`, `適合 ${c.score}`, `Cocok ${c.score}`)}</span> : null}
             {c.connectionStatus === "ACCEPTED" ? (
               <span className="rounded-md bg-[#E7F8EF] px-2.5 py-0.5 text-[11px] font-bold text-[#0A9B59]">{t("연결됨", "Connected", "已连接", "Đã kết nối", "接続済み", "Terhubung")}</span>
