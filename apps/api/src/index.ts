@@ -21854,8 +21854,21 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
     connectionStatus: status,
     contactUnlocked: status === "ACCEPTED",
     resumeBullets: [] as string[],
-    coverBullets: [] as string[]
+    coverBullets: [] as string[],
+    interestCount: 0 // 몇 개 회사가 관심(저장)했는지 — attachInterestCounts 로 채움
   };
+}
+
+// 카드에 '관심 횟수'(이 후보를 관심 목록에 담은 조직 수)를 붙인다 — 핫한 인재 식별용.
+async function attachInterestCounts<T extends { candidateUserId: string; interestCount: number }>(cards: T[]): Promise<void> {
+  if (cards.length === 0) return;
+  const grouped = await prisma.partnerSavedCandidate.groupBy({
+    by: ["candidateUserId"],
+    where: { candidateUserId: { in: cards.map((c) => c.candidateUserId) } },
+    _count: { candidateUserId: true }
+  });
+  const byUser = new Map(grouped.map((g) => [g.candidateUserId, g._count.candidateUserId]));
+  for (const c of cards) c.interestCount = byUser.get(c.candidateUserId) ?? 0;
 }
 
 // 카드 목록에 캐시된 AI 요약(ApplicantDocSummary)을 붙인다 — version(이력서 updatedAt)이 일치할 때만.
@@ -21942,6 +21955,7 @@ app.get("/partner/candidates", authenticate, requireRoles([MemberRole.PARTNER]),
     const page = parsed.data.page ?? 1;
     const paged = all.slice((page - 1) * pageSize, page * pageSize);
     await attachCachedDocSummaries(paged);
+    await attachInterestCounts(paged);
     return res.json({ ok: true, items: paged, total: all.length, page, pageSize });
   } catch (err) {
     console.error("[partner/candidates] failed", err);
@@ -21973,6 +21987,7 @@ app.get("/partner/saved-candidates", authenticate, requireRoles([MemberRole.PART
       .map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null))
       .sort((a, b) => (order.get(a.candidateUserId) ?? 0) - (order.get(b.candidateUserId) ?? 0));
     await attachCachedDocSummaries(items);
+    await attachInterestCounts(items);
     return res.json({ ok: true, items });
   } catch (err) {
     console.error("[partner/saved-candidates] failed", err);
@@ -22108,6 +22123,7 @@ app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PA
         .slice(0, 24)
         .map((x) => x.c);
       await attachCachedDocSummaries(items);
+    await attachInterestCounts(items);
       return res.json({ ok: true, items, ai: false });
     }
 
@@ -22136,6 +22152,7 @@ app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PA
       .slice(0, 30)
       .map((m) => ({ ...cards[m.index], score: m.score, reason: m.reason }));
     await attachCachedDocSummaries(items);
+    await attachInterestCounts(items);
     return res.json({ ok: true, items, ai: true });
   } catch (err) {
     console.error("[partner/candidates/search] failed", err);

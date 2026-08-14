@@ -1530,6 +1530,7 @@ export type PartnerCandidateCard = {
   coverBullets?: string[];
   score?: number;
   reason?: string;
+  interestCount?: number; // 관심(저장)한 회사 수 — 핫한 인재 뱃지
 };
 export async function getPartnerCandidates(params: { q?: string; skill?: string; jobRole?: string; page?: number } = {}): Promise<{ items: PartnerCandidateCard[]; total: number; page: number; pageSize: number }> {
   const qs = new URLSearchParams();

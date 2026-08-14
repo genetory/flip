@@ -3,7 +3,7 @@
 // 파트너 인재 검색 — aply 인재풀(이력서 등록 + 공개 동의)에서 키워드/AI로 후보를 찾는다.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MagnifyingGlass, X, Sparkle, GraduationCap, Globe, Translate, Briefcase, BookmarkSimple, ShieldCheck } from "@phosphor-icons/react";
+import { MagnifyingGlass, X, Sparkle, GraduationCap, Globe, Translate, Briefcase, BookmarkSimple, ShieldCheck, Fire } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { usePlatformT } from "../../../lib/i18n";
 import { TListSkeleton, TError } from "../../talent/ui/primitives";
@@ -175,19 +175,29 @@ function CandidateCard({ c, saved, onToggleSave }: { c: PartnerCandidateCard; sa
     <Link href={`${partnerRoutes.talent}/${encodeURIComponent(c.candidateUserId)}`} className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
       <div className="flex items-start gap-3.5">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[15px] font-black text-[#0B46E8]">{c.name ? c.name.slice(0, 1) : blindCode(c.candidateUserId).slice(0, 2)}</span>
-        <button
-          type="button"
-          aria-label={saved ? t("관심 인재 해제", "Unsave", "取消收藏", "Bỏ lưu", "保存解除", "Batal simpan") : t("관심 인재로 저장", "Save talent", "收藏人才", "Lưu nhân tài", "人材を保存", "Simpan talenta")}
-          aria-pressed={saved}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onToggleSave();
-          }}
-          className={`order-last shrink-0 rounded-full p-1.5 transition ${saved ? "text-[#0B46E8]" : "text-[#C4CAD2] hover:text-[#4E5968]"}`}
-        >
-          <BookmarkSimple className="h-5 w-5" weight={saved ? "fill" : "regular"} />
-        </button>
+        <div className="order-last flex shrink-0 items-center gap-1.5">
+          {c.interestCount && c.interestCount > 0 ? (
+            <span
+              title={t("관심을 표한 회사 수", "Companies interested", "关注公司数", "Số công ty quan tâm", "関心を示した会社数", "Jumlah perusahaan tertarik")}
+              className="inline-flex items-center gap-0.5 rounded-full bg-[#FFF1EC] px-2 py-0.5 text-[11px] font-black text-[#F5533D]"
+            >
+              <Fire className="h-3.5 w-3.5" weight="fill" /> {c.interestCount}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            aria-label={saved ? t("관심 인재 해제", "Unsave", "取消收藏", "Bỏ lưu", "保存解除", "Batal simpan") : t("관심 인재로 저장", "Save talent", "收藏人才", "Lưu nhân tài", "人材を保存", "Simpan talenta")}
+            aria-pressed={saved}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleSave();
+            }}
+            className={`rounded-full p-1.5 transition ${saved ? "text-[#0B46E8]" : "text-[#C4CAD2] hover:text-[#4E5968]"}`}
+          >
+            <BookmarkSimple className="h-5 w-5" weight={saved ? "fill" : "regular"} />
+          </button>
+        </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <p className="text-[15px] font-bold text-[#191F28]">{c.name ?? blindTalentName(t, c.candidateUserId)}</p>
