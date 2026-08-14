@@ -58,7 +58,10 @@ export function PartnerTalentSearchScreen() {
     p.then(() => setStatus("ready")).catch(() => setStatus("error"));
   }
 
-  // 관심 인재 저장/해제(낙관적).
+  // 관심 인재 저장/해제(낙관적) — 별표 + 관심 횟수 뱃지도 즉시 증감.
+  function bumpInterest(id: string, delta: number) {
+    setItems((prev) => prev.map((c) => (c.candidateUserId === id ? { ...c, interestCount: Math.max(0, (c.interestCount ?? 0) + delta) } : c)));
+  }
   function toggleSave(id: string) {
     const willSave = !savedIds.has(id);
     setSavedIds((prev) => {
@@ -67,6 +70,7 @@ export function PartnerTalentSearchScreen() {
       else n.delete(id);
       return n;
     });
+    bumpInterest(id, willSave ? 1 : -1);
     const req = willSave ? saveCandidate(id) : unsaveCandidate(id);
     void req.catch(() => {
       setSavedIds((prev) => {
@@ -75,6 +79,7 @@ export function PartnerTalentSearchScreen() {
         else n.add(id);
         return n;
       });
+      bumpInterest(id, willSave ? -1 : 1); // 실패 시 되돌리기
       toast.error(t("저장에 실패했어요", "Couldn't save", "保存失败", "Không thể lưu", "保存に失敗しました", "Gagal menyimpan"));
     });
     if (!willSave && mode === "saved") setItems((prev) => prev.filter((c) => c.candidateUserId !== id));
