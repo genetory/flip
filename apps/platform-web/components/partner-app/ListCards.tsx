@@ -50,7 +50,7 @@ export function PartnerApplicantCard({ a, onSetStatus, selectable, selected, onT
             <p className="min-w-0 truncate text-[15px] font-bold text-[#191F28]">{a.name ?? blindTalentName(t, null)}</p>
             <span className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{applicantLabel(a.status)}</span>
             {waitingDays >= 3 ? <span className="shrink-0 whitespace-nowrap rounded-md bg-[#FDECEE] px-2.5 py-0.5 text-[11px] font-bold text-[#F04452]">🕒 {t(`${waitingDays}일 대기`, `${waitingDays}d waiting`, `等待 ${waitingDays} 天`, `chờ ${waitingDays} ngày`, `${waitingDays}日待機`, `menunggu ${waitingDays} hari`)}</span> : null}
-            {a.mockInterviewPracticed ? <span className="shrink-0 whitespace-nowrap rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">🎤 {t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}{a.mockInterviewScore != null ? ` ${a.mockInterviewScore}${t("점", "pts", "分", "đ", "点", "poin")}` : ""}</span> : null}
+            {a.mockInterviewPracticed ? <span className="shrink-0 whitespace-nowrap rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">🎤 {t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}</span> : null}
           </div>
           <p className="mt-1 truncate text-[13px] font-semibold text-[#4E5968]">{a.positionTitle}</p>
 
@@ -99,7 +99,7 @@ export function PartnerParticipantCard({ m, onPropose }: { m: OrgMockInterviewPa
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="min-w-0 truncate text-[15px] font-bold text-[#191F28]">{m.name}</p>
-            {m.bestScore != null ? <span className="shrink-0 whitespace-nowrap rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">🎤 {m.bestScore}{t("점", "pts", "分", "đ", "点", "poin")}</span> : null}
+            <span className="shrink-0 whitespace-nowrap rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">🎤 {t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}</span>
             {m.applied ? <span className="shrink-0 whitespace-nowrap rounded-md bg-[#E7F8EF] px-2.5 py-0.5 text-[11px] font-bold text-[#0A9B59]">{t("지원함", "Applied", "已申请", "Đã ứng tuyển", "応募済み", "Melamar")}</span> : <span className="shrink-0 whitespace-nowrap rounded-md bg-[#F2F4F6] px-2.5 py-0.5 text-[11px] font-bold text-[#8B95A1]">{t("미지원", "Not applied", "未申请", "Chưa ứng tuyển", "未応募", "Belum melamar")}</span>}
           </div>
           <p className="mt-1 truncate text-[13px] font-semibold text-[#4E5968]">{m.positionTitle}</p>

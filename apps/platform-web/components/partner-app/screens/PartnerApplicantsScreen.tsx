@@ -377,7 +377,7 @@ function CompareModal({ applicants, onClose }: { applicants: PartnerApplicantLis
     { label: t("국적", "Nationality", "国籍", "Quốc tịch", "国籍", "Kebangsaan"), get: (a) => a.nationality ?? "-" },
     { label: t("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa"), get: (a) => (a.languages?.length ? a.languages.join(", ") : "-") },
     { label: t("추천", "Recommend", "推荐", "Đề xuất", "推薦", "Rekomendasi"), get: (a) => rec[a.recommendation] },
-    { label: t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi"), get: (a) => (a.mockInterviewPracticed ? (a.mockInterviewScore != null ? t(`${a.mockInterviewScore}점`, `${a.mockInterviewScore} pts`, `${a.mockInterviewScore}分`, `${a.mockInterviewScore} điểm`, `${a.mockInterviewScore}点`, `${a.mockInterviewScore} poin`) : t("응시", "Taken", "已参加", "Đã làm", "受験", "Ikut")) : "-") },
+    { label: t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi"), get: (a) => (a.mockInterviewPracticed ? t("응시", "Taken", "已参加", "Đã làm", "受験", "Ikut") : "-") },
     { label: t("지원일", "Applied date", "申请日期", "Ngày ứng tuyển", "応募日", "Tanggal melamar"), get: (a) => (a.appliedAt ? new Date(a.appliedAt).toLocaleDateString("ko-KR") : "-") }
   ];
   return (

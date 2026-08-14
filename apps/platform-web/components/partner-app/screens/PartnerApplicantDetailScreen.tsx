@@ -296,7 +296,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                 {app.appliedAt ? <p className="mt-0.5 truncate text-[13.5px] text-[#8B95A1]">{new Date(app.appliedAt).toLocaleDateString("ko-KR")} {t("지원", "applied", "申请", "đã ứng tuyển", "応募", "melamar")}</p> : null}
               </div>
               {app.mockInterviewPracticed ? (
-                <span className="hidden shrink-0 rounded-md bg-[#EDF1FD] px-2 py-1 text-[11px] font-bold text-[#0B46E8] sm:inline">🎤 {t("모의 면접 완료", "Mock interview done", "模拟面试完成", "Đã phỏng vấn thử", "模擬面接済み", "Wawancara simulasi selesai")}{app.mockInterviewScore != null ? t(` · ${app.mockInterviewScore}점`, ` · ${app.mockInterviewScore} pts`, ` · ${app.mockInterviewScore}分`, ` · ${app.mockInterviewScore} điểm`, ` · ${app.mockInterviewScore}点`, ` · ${app.mockInterviewScore} poin`) : ""}</span>
+                <span className="hidden shrink-0 rounded-md bg-[#EDF1FD] px-2 py-1 text-[11px] font-bold text-[#0B46E8] sm:inline">🎤 {t("모의 면접 완료", "Mock interview done", "模拟面试完成", "Đã phỏng vấn thử", "模擬面接済み", "Wawancara simulasi selesai")}</span>
               ) : null}
             </div>
 
@@ -439,7 +439,6 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                 <section>
                   <SectionHeader
                     title={t("모의 면접 결과", "Mock interview results", "模拟面试结果", "Kết quả phỏng vấn thử", "模擬面接の結果", "Hasil wawancara simulasi")}
-                    right={app.mockInterview.score != null ? <span className="rounded-md bg-[#EDF1FD] px-2 py-1 text-[11.5px] font-bold text-[#0B46E8]">{t(`최고 ${app.mockInterview.score}점`, `Best ${app.mockInterview.score}`, `最高${app.mockInterview.score}分`, `Cao nhất ${app.mockInterview.score}`, `最高${app.mockInterview.score}点`, `Terbaik ${app.mockInterview.score}`)}</span> : undefined}
                   />
                   <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
                     <p className="mb-3 text-[12px] text-[#8B95A1]">{t(`지원자가 이 공고 모의 면접에 답한 내용이에요. (답변 ${app.mockInterview.answeredCount}개)`, `The applicant's answers to this posting's mock interview. (${app.mockInterview.answeredCount} answers)`, `申请者对该职位模拟面试的回答。（${app.mockInterview.answeredCount}个回答）`, `Câu trả lời của ứng viên cho phỏng vấn thử của tin này. (${app.mockInterview.answeredCount} câu trả lời)`, `この求人の模擬面接に応募者が答えた内容です。（回答${app.mockInterview.answeredCount}件）`, `Jawaban pelamar untuk wawancara simulasi lowongan ini. (${app.mockInterview.answeredCount} jawaban)`)}</p>

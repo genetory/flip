@@ -54,7 +54,7 @@ export function InterviewsScreen() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[14.5px] font-bold text-[#191F28]">{m.positionTitle}</p>
                     <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">
-                      {m.companyName ? `${m.companyName} · ` : ""}{t("답변", "Answers", "回答", "Câu trả lời", "回答", "Jawaban")} {m.answeredCount}{m.bestScore != null ? ` · ${t("최고", "Best", "最高", "Cao nhất", "最高", "Terbaik")} ${m.bestScore}` : ""} · {formatRelativeTime(new Date(m.lastPracticedAt).getTime(), undefined, t)}
+                      {m.companyName ? `${m.companyName} · ` : ""}{t("답변", "Answers", "回答", "Câu trả lời", "回答", "Jawaban")} {m.answeredCount} · {formatRelativeTime(new Date(m.lastPracticedAt).getTime(), undefined, t)}
                     </p>
                   </div>
                   <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />

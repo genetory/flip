@@ -53,7 +53,7 @@ export function PartnerMockParticipantDetailScreen({ positionId, userId }: { pos
                   ) : (
                     <span className="rounded-md bg-[#F2F4F6] px-2.5 py-0.5 text-[11px] font-bold text-[#8B95A1]">{t("미지원", "Not applied", "未申请", "Chưa ứng tuyển", "未応募", "Belum melamar")}</span>
                   )}
-                  {m.bestScore != null ? <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{t(`🎤 최고 ${m.bestScore}점`, `🎤 Best ${m.bestScore}`, `🎤 最高 ${m.bestScore}分`, `🎤 Cao nhất ${m.bestScore}`, `🎤 最高 ${m.bestScore}点`, `🎤 Terbaik ${m.bestScore}`)}</span> : null}
+                  <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">🎤 {t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}</span>
                 </div>
                 <p className="mt-1.5 truncate text-[13px] font-semibold text-[#4E5968]">{m.positionTitle}</p>
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-[#8B95A1]">
