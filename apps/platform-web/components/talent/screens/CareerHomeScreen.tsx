@@ -117,9 +117,6 @@ function Content() {
             <p className="mt-1.5 text-[16px] font-black tracking-[-0.02em] text-[#0B1227]">{t("AI 커리어 상담 시작하기","Start an AI career chat","开始 AI 职业咨询","Bắt đầu tư vấn nghề AI","AIキャリア相談を始める","Mulai konsultasi karier AI")}</p>
             <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("나에게 어울리는 일을 함께 찾고, 관심 직무로 담아드려요.","Find work that fits you and save it to your interests.","一起找到适合你的工作并加入兴趣职位。","Cùng tìm việc phù hợp và lưu vào nghề quan tâm.","自分に合う仕事を一緒に見つけて関心職種に保存します。","Temukan pekerjaan yang cocok dan simpan ke minatmu.")}</p>
           </div>
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0B46E8] text-white shadow-sm transition group-hover:translate-x-0.5">
-            <ArrowRight className="h-5 w-5" weight="bold" />
-          </span>
         </button>
 
         {/* 결과 확인·직접 수정 */}
