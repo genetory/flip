@@ -3,7 +3,7 @@
 // 파트너 인재 검색 — aply 인재풀(이력서 등록 + 공개 동의)에서 키워드/AI로 후보를 찾는다.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MagnifyingGlass, X, Sparkle, GraduationCap, Globe, Translate, Briefcase, BookmarkSimple } from "@phosphor-icons/react";
+import { MagnifyingGlass, X, Sparkle, GraduationCap, Globe, Translate, Briefcase, BookmarkSimple, ShieldCheck } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { usePlatformT } from "../../../lib/i18n";
 import { TListSkeleton, TError } from "../../talent/ui/primitives";
@@ -89,6 +89,12 @@ export function PartnerTalentSearchScreen() {
         <div>
           <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("인재 검색", "Talent search", "人才搜索", "Tìm nhân tài", "人材検索", "Cari talenta")}</h1>
           <p className="mt-1 text-[13.5px] text-[#8B95A1]">{t("Aply에 이력서를 등록하고 공개에 동의한 인재를 찾아보세요.", "Find talent who registered a resume on Aply and agreed to be listed.", "查找在 Aply 上传简历并同意公开的人才。", "Tìm nhân tài đã đăng hồ sơ trên Aply và đồng ý công khai.", "Aplyに履歴書を登録し公開に同意した人材を探しましょう。", "Temukan talenta yang mendaftar resume di Aply dan setuju ditampilkan.")}</p>
+        </div>
+
+        {/* 블라인드 안내 — 편견 없는 능력 기반 열람 */}
+        <div className="flex items-start gap-2.5 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] px-4 py-3">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#0B46E8]" weight="fill" />
+          <p className="break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{t("이름·사진·성별·국적은 가려지고 스킬·경험·언어 능력만 보여요. 관심 인재로 저장하면 후보에게 관심이 전해지고, 연결을 수락하면 신원과 연락처가 공개돼요.", "Names, photos, gender, and nationality are hidden — you see only skills, experience, and language. Saving a candidate signals your interest; identity and contact are revealed once they accept your connection.", "姓名、照片、性别、国籍均隐藏，仅显示技能、经验和语言能力。收藏人才即向其传达关注；对方接受连接后公开身份与联系方式。", "Tên, ảnh, giới tính, quốc tịch được ẩn — chỉ hiện kỹ năng, kinh nghiệm, ngôn ngữ. Lưu ứng viên sẽ gửi tín hiệu quan tâm; danh tính và liên hệ hiện khi họ chấp nhận kết nối.", "名前・写真・性別・国籍は隠され、スキル・経験・語学力のみ表示。人材を保存すると関心が伝わり、接続を承諾すると身元と連絡先が公開されます。", "Nama, foto, gender, dan kebangsaan disembunyikan — hanya keahlian, pengalaman, dan bahasa yang terlihat. Menyimpan kandidat menandakan minat; identitas dan kontak muncul saat mereka menerima koneksi.")}</p>
         </div>
 
         {/* 검색 모드 */}
