@@ -43,10 +43,10 @@ export function PartnerApplicantCard({ a, onSetStatus, selectable, selected, onT
             <Check className="h-3.5 w-3.5" weight="bold" />
           </button>
         ) : null}
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[17px] font-black text-[#0B46E8]">{a.name.slice(0, 1)}</span>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[17px] font-black text-[#0B46E8]">{(a.name ?? "?").slice(0, 1)}</span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="min-w-0 truncate text-[15px] font-bold text-[#191F28]">{a.name}</p>
+            <p className="min-w-0 truncate text-[15px] font-bold text-[#191F28]">{a.name ?? t("이름 비공개", "Name hidden", "姓名保密", "Ẩn tên", "名前非公開", "Nama disembunyikan")}</p>
             <span className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-0.5 text-[11px] font-bold ${s.cls}`}>{applicantLabel(a.status)}</span>
             {waitingDays >= 3 ? <span className="shrink-0 whitespace-nowrap rounded-md bg-[#FDECEE] px-2.5 py-0.5 text-[11px] font-bold text-[#F04452]">🕒 {t(`${waitingDays}일 대기`, `${waitingDays}d waiting`, `等待 ${waitingDays} 天`, `chờ ${waitingDays} ngày`, `${waitingDays}日待機`, `menunggu ${waitingDays} hari`)}</span> : null}
             {a.mockInterviewPracticed ? <span className="shrink-0 whitespace-nowrap rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">🎤 {t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}{a.mockInterviewScore != null ? ` ${a.mockInterviewScore}${t("점", "pts", "分", "đ", "点", "poin")}` : ""}</span> : null}

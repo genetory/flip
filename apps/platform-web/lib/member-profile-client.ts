@@ -1381,7 +1381,7 @@ export type PartnerApplicantStatus =
 
 export type PartnerApplicantListItem = {
   id: string;
-  name: string;
+  name: string | null; // 블라인드 — 면접 단계 전에는 null(이름 비공개)
   nationality: string | null;
   email: string | null;
   contactUnlocked?: boolean;

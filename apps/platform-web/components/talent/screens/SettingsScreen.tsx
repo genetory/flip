@@ -3,7 +3,7 @@
 // 내 프로필 — 프로필 허브. 프로필 요약 + 내 커리어(이력서·자소서) + 관심 직무 +
 // 지원 현황 + 내 활동 + 알림 + 계정. 각 섹션은 관련 상세 화면으로 이어진다.
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CaretRight, SealCheck, SignOut, PencilSimple } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { JobInterestCard } from "../jobs/JobInterestCard";
@@ -14,11 +14,8 @@ import { useLanguage } from "../../i18n/LanguageProvider";
 import { PLATFORM_LOCALES, type PlatformLocale } from "../../../lib/auth-messages";
 import { useNotifPrefs } from "../../../lib/talent/notif-prefs";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
-import { useFollowing, parseAuthorKey, type FeedAuthor } from "../../../lib/talent/social-graph";
 import { useFollowedCompanies } from "../../../lib/talent/company-follow";
-import { useSocialFeed } from "../../../lib/talent/social-feed";
-import { useFeedBookmarks } from "../../../lib/talent/feed-bookmarks";
-import { getMyFavoritePositions, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import { getMyFavoritePositions, getInterestedCompanies, type PublicPositionListItem } from "../../../lib/member-profile-client";
 import { PointsBalanceCard } from "../PointsBalanceCard";
 import { getStoredProfilePhoto, PROFILE_PHOTO_CHANGED_EVENT } from "../../../lib/profile-media";
 import { usePlatformT } from "../../../lib/i18n";
@@ -95,10 +92,8 @@ export function SettingsScreen() {
   const { user, logout, getAccountUrl } = useAuthSession();
   const { locale, setLocale } = useLanguage();
   const { pushOn, emailOn, setPushOn, setEmailOn } = useNotifPrefs();
-  const following = useFollowing();
-  const bookmarks = useFeedBookmarks();
-  const feedPosts = useSocialFeed();
   const [favPositions, setFavPositions] = useState<PublicPositionListItem[]>([]);
+  const [interestedCount, setInterestedCount] = useState(0);
 
   const name = user?.realName || user?.name || t("나", "Me", "我", "Tôi", "私", "Saya");
 
@@ -113,23 +108,18 @@ export function SettingsScreen() {
   }, [user?.id, user?.profileImageUrl]);
   const emailVerified = Boolean(user?.emailVerified);
 
-  // 사용자 팔로우는 social-graph(클라), 관심 회사는 서버(company-follow).
-  const followedAuthors = following.map(parseAuthorKey).filter((a): a is FeedAuthor => a !== null);
-  const followedUsers = followedAuthors.filter((a) => a.role !== "PARTNER");
+  // 관심 회사(내가 팔로우) — 서버(company-follow).
   const followedCompanies = useFollowedCompanies();
 
-  // 즐겨찾기한 포지션(서버) 로드.
+  // 즐겨찾기한 포지션 + 나에게 관심 준 회사 수(서버) 로드.
   useEffect(() => {
     void getMyFavoritePositions()
       .then((list) => setFavPositions(list))
       .catch(() => setFavPositions([]));
+    void getInterestedCompanies()
+      .then((list) => setInterestedCount(list.length))
+      .catch(() => setInterestedCount(0));
   }, []);
-
-  // 즐겨찾기한 피드 = 북마크 id ∩ 현재 피드 글(최신순 유지).
-  const bookmarkedPosts = useMemo(() => {
-    const set = new Set(bookmarks);
-    return feedPosts.filter((p) => set.has(p.id));
-  }, [bookmarks, feedPosts]);
 
   return (
     <TalentAppShell maxWidth="4xl">
@@ -171,14 +161,13 @@ export function SettingsScreen() {
         {/* 내 포인트 — 기본정보 바로 아래. AI 포인트는 학생 전용(GNB 티켓 뱃지와 동일). */}
         {user?.role === "STUDENT" ? <MyPointsSection /> : null}
 
-        {/* 내 활동 — 팔로우/관심(SNS 스타일 묶음). 프로필 카드 바로 아래. */}
+        {/* 내 활동 — 나에게 관심 준 회사 + 관심 회사/포지션. */}
         <section>
           <SectionHeader title={t("내 활동", "My activity", "我的活动", "Hoạt động của tôi", "マイアクティビティ", "Aktivitas saya")} />
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard title={t("팔로우한 사용자", "Following", "关注的用户", "Đang theo dõi", "フォロー中", "Mengikuti")} count={followedUsers.length} href="/talent/activity/following-users" />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <StatCard title={t("나에게 관심 준 회사", "Interested in you", "对你感兴趣的公司", "Công ty quan tâm bạn", "あなたに関心", "Tertarik padamu")} count={interestedCount} href={talentAppRoutes.feed} />
             <StatCard title={t("관심 회사", "Followed companies", "关注的公司", "Công ty theo dõi", "関心のある企業", "Perusahaan diikuti")} count={followedCompanies.length} href="/talent/activity/following-companies" />
             <StatCard title={t("즐겨찾기한 포지션", "Saved jobs", "收藏的职位", "Vị trí đã lưu", "保存した求人", "Lowongan tersimpan")} count={favPositions.length} href="/talent/activity/favorite-positions" />
-            <StatCard title={t("즐겨찾기한 피드", "Saved posts", "收藏的动态", "Bài đã lưu", "保存した投稿", "Postingan tersimpan")} count={bookmarkedPosts.length} href="/talent/activity/favorite-feed" />
           </div>
         </section>
 

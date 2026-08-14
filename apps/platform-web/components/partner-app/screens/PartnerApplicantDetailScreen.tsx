@@ -275,6 +275,9 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
   const chat = messages.filter((m) => m.visibility === "CANDIDATE");
   const rejected = app?.status === "REJECTED" || app?.status === "WITHDRAWN";
 
+  // 블라인드 — 면접 단계 전에는 이름이 null → '이름 비공개'로 표시.
+  const displayName = app?.name ?? t("이름 비공개", "Name hidden", "姓名保密", "Ẩn tên", "名前非公開", "Nama disembunyikan");
+
   return (
     <PartnerAppShell>
       <TalentBackButton className="mb-4" />
@@ -286,9 +289,9 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
           {/* 상단 전폭 — 프로필 + 단계 + 상태 변경 */}
           <section className="rounded-3xl bg-[#F5F8FF] p-6">
             <div className="flex items-center gap-4">
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[24px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">{app.name.slice(0, 1)}</span>
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[24px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">{displayName.slice(0, 1)}</span>
               <div className="min-w-0 flex-1">
-                <h1 className="truncate text-[22px] font-black tracking-[-0.02em] text-[#0B1227]">{app.name}</h1>
+                <h1 className="truncate text-[22px] font-black tracking-[-0.02em] text-[#0B1227]">{displayName}</h1>
                 {app.appliedAt ? <p className="mt-0.5 truncate text-[13.5px] text-[#8B95A1]">{new Date(app.appliedAt).toLocaleDateString("ko-KR")} {t("지원", "applied", "申请", "đã ứng tuyển", "応募", "melamar")}</p> : null}
               </div>
               {app.mockInterviewPracticed ? (
@@ -350,7 +353,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                     {selected.location ? <p className="mt-0.5 text-[12px] text-[#8B95A1]">{selected.location}</p> : null}
                   </div>
                   <a
-                    href={partnerGcalUrl(t, selected, app.name, app.positionTitle)}
+                    href={partnerGcalUrl(t, selected, displayName, app.positionTitle)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="ml-auto inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#0A9B59] shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition hover:bg-[#F0FBF5]"
@@ -407,7 +410,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                       <DocItem
                         href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/resume`}
                         emoji="📄"
-                        title={t(`${app.name} 이력서`, `${app.name} Resume`, `${app.name} 简历`, `Sơ yếu lý lịch ${app.name}`, `${app.name} 履歴書`, `Resume ${app.name}`)}
+                        title={t(`${displayName} 이력서`, `${displayName} Resume`, `${displayName} 简历`, `Sơ yếu lý lịch ${displayName}`, `${displayName} 履歴書`, `Resume ${displayName}`)}
                         sub={t("이력서 보기", "View resume", "查看简历", "Xem sơ yếu lý lịch", "履歴書を見る", "Lihat resume")}
                         bullets={summary?.resumeBullets ?? []}
                         loading={summaryLoading}
@@ -417,7 +420,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                       <DocItem
                         href={`${partnerRoutes.applicants}/${encodeURIComponent(applicantId)}/cover`}
                         emoji="✍️"
-                        title={t(`${app.name} 자기소개서`, `${app.name} Cover letter`, `${app.name} 求职信`, `Thư xin việc ${app.name}`, `${app.name} 志望動機書`, `Surat lamaran ${app.name}`)}
+                        title={t(`${displayName} 자기소개서`, `${displayName} Cover letter`, `${displayName} 求职信`, `Thư xin việc ${displayName}`, `${displayName} 志望動機書`, `Surat lamaran ${displayName}`)}
                         sub={t("자기소개서 보기", "View cover letter", "查看求职信", "Xem thư xin việc", "志望動機書を見る", "Lihat surat lamaran")}
                         bullets={summary?.coverBullets ?? []}
                         loading={summaryLoading}
@@ -569,7 +572,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
 
       {pending && app ? (
         <ConfirmStatusModal
-          name={app.name}
+          name={displayName}
           next={pending}
           busy={updating}
           hasApplication={Boolean(app.applicationId)}

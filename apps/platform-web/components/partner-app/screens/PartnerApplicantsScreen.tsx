@@ -335,7 +335,7 @@ export function PartnerApplicantsScreen() {
         <ProposeCandidateModal
           positionId={proposeTarget.positionId}
           userId={proposeTarget.userId}
-          name={proposeTarget.name}
+          name={proposeTarget.name ?? t("이름 비공개", "Name hidden", "姓名保密", "Ẩn tên", "名前非公開", "Nama disembunyikan")}
           onClose={() => setProposeTarget(null)}
           onDone={() => {
             setParticipants((prev) => prev.map((p) => (p.userId === proposeTarget.userId ? { ...p, connectionStatus: "PENDING" } : p)));
@@ -391,7 +391,7 @@ function CompareModal({ applicants, onClose }: { applicants: PartnerApplicantLis
             <thead>
               <tr>
                 <th className="sticky left-0 z-10 bg-white p-2" />
-                {applicants.map((a) => <th key={a.id} className="min-w-[110px] p-2 text-[13px] font-black text-[#191F28]">{a.name}</th>)}
+                {applicants.map((a) => <th key={a.id} className="min-w-[110px] p-2 text-[13px] font-black text-[#191F28]">{a.name ?? t("이름 비공개", "Name hidden", "姓名保密", "Ẩn tên", "名前非公開", "Nama disembunyikan")}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -471,7 +471,7 @@ function RejectModal({ target, onClose, onConfirm }: { target: PartnerApplicantL
         <div className="flex items-start justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0">
             <p className="text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">{t("불합격 처리", "Reject applicant", "标记未录用", "Đánh dấu không đạt", "不合格にする", "Tolak pelamar")}</p>
-            <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{target.name} · {target.positionTitle}</p>
+            <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{target.name ?? t("이름 비공개", "Name hidden", "姓名保密", "Ẩn tên", "名前非公開", "Nama disembunyikan")} · {target.positionTitle}</p>
           </div>
           <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
         </div>

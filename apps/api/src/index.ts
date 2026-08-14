@@ -20298,7 +20298,7 @@ async function listPartnerApplicantsForUser(userId: string, opts: { includeWithd
     candidateUserId: string;
     positionId: string;
     positionTitle: string;
-    name: string;
+    name: string | null;
     nationality: string | null;
     email: string | null;
     contactUnlocked: boolean;
@@ -20387,14 +20387,15 @@ async function listPartnerApplicantsForUser(userId: string, opts: { includeWithd
     const applicantStatus: PartnerApplicantWorkflowStatus =
       app.status === "WITHDRAWN" ? "WITHDRAWN" : ((state?.status as PartnerApplicantWorkflowStatus | undefined) ?? applicationStatusToWorkflow(app.status));
     // 연락처(이메일)는 면접 단계 이후에만 공개 — 공용 헬퍼로 통합.
+    // 블라인드 — 면접 단계 전에는 이름·국적도 가려 편견 없이 능력만 보게 한다.
     const contactUnlocked = isContactUnlockedForWorkflowStatus(applicantStatus);
     items.push({
       id: stateKey,
       candidateUserId,
       positionId,
       positionTitle: positionMap.get(positionId) ?? "-",
-      name: displayName,
-      nationality: user?.nationality ?? null,
+      name: contactUnlocked ? displayName : null,
+      nationality: contactUnlocked ? (user?.nationality ?? null) : null,
       email: contactUnlocked ? user?.email ?? null : null,
       contactUnlocked,
       languages,
@@ -22071,7 +22072,8 @@ app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PA
       const tokens = parsed.data.query.toLowerCase().split(/[\s,]+/).filter((t) => t.length >= 2);
       const items = cards
         .map((c) => {
-          const hay = [c.name, c.school, c.major, c.desiredJobRole, c.summary, c.skills.join(" "), c.languages.join(" "), c.nationality].map((x) => String(x ?? "").toLowerCase()).join(" ");
+          // 블라인드 — 이름·국적은 매칭에 쓰지 않는다(능력만).
+          const hay = [c.school, c.major, c.desiredJobRole, c.summary, c.skills.join(" "), c.languages.join(" ")].map((x) => String(x ?? "").toLowerCase()).join(" ");
           const n = tokens.length ? tokens.filter((t) => hay.includes(t)).length : 0;
           return { c, n };
         })
@@ -22083,17 +22085,19 @@ app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PA
       return res.json({ ok: true, items, ai: false });
     }
 
+    // 블라인드 — LLM에 이름·국적을 넘기지 않는다. 직무·스킬·경험·어학만.
     const poolText = cards
-      .map((c, i) => `[${i}] ${c.name ?? "이름없음"} · ${c.nationality ?? "-"} · ${[c.school, c.major].filter(Boolean).join(" ")} · 희망:${c.desiredJobRole ?? "-"} · 스킬:${c.skills.join(",") || "-"} · 어학:${c.languages.join("/") || "-"} · 경력${c.careerCount}/활동${c.activityCount} · ${c.summary ?? ""}`)
+      .map((c, i) => `[${i}] ${[c.school, c.major].filter(Boolean).join(" ")} · 희망:${c.desiredJobRole ?? "-"} · 스킬:${c.skills.join(",") || "-"} · 어학:${c.languages.join("/") || "-"} · 경력${c.careerCount}/활동${c.activityCount} · ${c.summary ?? ""}`)
       .join("\n");
     const systemPrompt =
       "너는 기업 채용을 돕는 인재 매칭 도우미다. 파트너의 인재 요구사항에 맞춰 아래 후보 풀에서 적합한 사람을 골라 0~100 적합도 점수와 한 줄 이유(한국어)를 매겨라.\n" +
+      "[블라인드 — 매우 중요] 후보의 이름·성별·국적은 제공되지 않는다. 오직 직무·스킬·경험·어학 능력만으로 판단하라. 이유(reason)에도 이름·성별·국적을 절대 언급하지 말고, 직무·스킬·경험·어학 근거만 써라.\n" +
       "[가중치 규칙 — 매우 중요]\n" +
-      "1) 요구에서 '직무/역할'을 최우선 기준으로 삼아라. 예: '중국 디자이너'는 '디자이너 직무 + 중국(국적·어학)'이며 핵심은 디자이너다.\n" +
-      "2) 요구한 직무와 다른 직무의 후보는 국적·어학·스킬이 아무리 맞아도 크게 감점해 낮은 점수를 줘라(상위에 두지 마라). 예: '중국 디자이너' 검색에 '중국 백엔드 개발자'나 '중국어 가능 CX'는 직무 불일치이므로 디자이너보다 뒤에 와야 한다.\n" +
-      "3) 국적·어학·스킬은 '직무가 맞는 후보들 사이'의 보조 가점 기준이다. 여러 조건이 함께 있으면 모두 충족하는 후보가 가장 높다.\n" +
+      "1) 요구에서 '직무/역할'을 최우선 기준으로 삼아라. 예: '중국어 가능 디자이너'의 핵심은 디자이너 직무이며, 중국어는 보조 어학 조건이다.\n" +
+      "2) 요구한 직무와 다른 직무의 후보는 어학·스킬이 아무리 맞아도 크게 감점해 낮은 점수를 줘라(상위에 두지 마라). 예: '중국어 가능 디자이너' 검색에 '중국어 가능 백엔드 개발자'는 직무 불일치이므로 디자이너보다 뒤에 와야 한다.\n" +
+      "3) 어학·스킬은 '직무가 맞는 후보들 사이'의 보조 가점 기준이다. 여러 조건을 함께 충족하는 후보가 가장 높다.\n" +
       "4) 관련 직무는 인정하라 — 예: 디자이너 = UX·UI·그래픽·프로덕트 디자이너.\n" +
-      "어학 능력은 명시된 어학뿐 아니라 후보의 국적(모국어)도 참고하라 — 예: 중국 국적이면 중국어 원어민.\n" +
+      "어학 조건은 후보의 '어학' 항목(언어·수준)만으로 판단하라(국적으로 모국어를 추측하지 마라).\n" +
       "요구와 무관하면 낮은 점수를 주고 제외해도 된다. 상위 적합자 위주로 최대 30명. 존재하는 index 만 사용.\n" +
       'JSON 한 개 객체로만: { "matches": [{ "index": number, "score": number(0~100), "reason": string }] }';
     const userPrompt = `[파트너 인재 요구]\n${parsed.data.query}\n\n[후보 풀]\n${poolText}`;
@@ -26660,8 +26664,8 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
       });
       const c = (primary?.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>;
       resumeDoc = c.renewalResume ?? null;
-      // 연락처는 면접 단계 이후에만 공개 — 그 전에는 이름만.
-      resumeBasicInfo = maskRenewalBasicInfo(c.renewalBasicInfo, found.contactUnlocked);
+      // 블라인드 — 면접 단계 전에는 연락처뿐 아니라 이름·국적·사진까지 가린다.
+      resumeBasicInfo = maskRenewalBasicInfo(c.renewalBasicInfo, found.contactUnlocked, !found.contactUnlocked);
       coverDoc = c.renewalCover ?? null;
     } catch {
       // 미리보기 데이터는 실패해도 상세 응답은 정상 반환.
