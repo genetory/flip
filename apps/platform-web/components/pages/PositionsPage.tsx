@@ -1427,7 +1427,7 @@ export const PositionRow = ({
         />
       )}
       <div className={`absolute z-20 text-right ${compact ? "right-2.5 top-2" : "right-3 top-2.5 md:right-4 md:top-3"}`}>
-        <p className={`${compact ? "text-[10px]" : "text-[11px]"} text-muted-foreground`}>{formatPostedDate(p, locale)}</p>
+        <p suppressHydrationWarning className={`${compact ? "text-[10px]" : "text-[11px]"} text-muted-foreground`}>{formatPostedDate(p, locale)}</p>
         {p.sourceDeadlineDate ? (
           <p className={`mt-0.5 font-medium text-rose-600 ${compact ? "text-[10px]" : "text-[11px]"}`}>
             {formatDeadlineDday(p.sourceDeadlineDate, locale)}
@@ -1656,7 +1656,7 @@ export const PositionGridCard = ({
         />
       )}
       <div className="mb-2 flex items-center gap-2 text-[11px]">
-        <p className="text-muted-foreground">{formatPostedDate(p, locale)}</p>
+        <p suppressHydrationWarning className="text-muted-foreground">{formatPostedDate(p, locale)}</p>
         {p.sourceDeadlineDate ? (
           <p className="font-medium text-rose-600">
             {formatDeadlineDday(p.sourceDeadlineDate, locale)}

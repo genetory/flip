@@ -718,7 +718,7 @@ export function PositionDetailPage({
                   </div>
                   <div className="flex items-start justify-between gap-4 pb-1">
                     <p className="text-sm font-medium text-muted-foreground">{copy.postedAt}</p>
-                    <p className="font-medium">{postedLabel}</p>
+                    <p suppressHydrationWarning className="font-medium">{postedLabel}</p>
                   </div>
                 </div>
               </div>
