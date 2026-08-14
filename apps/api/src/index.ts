@@ -21765,6 +21765,28 @@ function isContactUnlockedForApplication(applicationStatus: string, hasInterview
   return applicationStatus === "INTERVIEW" || applicationStatus === "ACCEPTED" || hasInterviewSlot;
 }
 
+// 블라인드 — TOPIK(한국어능력시험)은 외국인만 응시하므로 국적 힌트가 된다.
+// 시험명·급수를 지우고 '한국어 <등급>'으로 중립화(능력은 유지). TOEIC은 국적 힌트가 아니라 그대로 둔다.
+function neutralizeTopik(text: string): string {
+  if (!text || typeof text !== "string") return text;
+  return text.replace(/(TOPIK|토픽|한국어\s*능력\s*시험)\s*(?:레벨\s*|level\s*)?([1-6])?\s*급?/gi, (_m, _brand, lv) => {
+    const n = lv ? parseInt(lv, 10) : NaN;
+    if (Number.isNaN(n)) return "한국어";
+    return n >= 5 ? "한국어 고급" : n >= 3 ? "한국어 중급" : "한국어 초급";
+  });
+}
+// 문자열을 재귀적으로 중립화(중첩된 이력서 content 전체에 적용).
+function neutralizeTopikDeep<T>(v: T): T {
+  if (typeof v === "string") return neutralizeTopik(v) as unknown as T;
+  if (Array.isArray(v)) return v.map((x) => neutralizeTopikDeep(x)) as unknown as T;
+  if (v && typeof v === "object") {
+    const o: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) o[k] = neutralizeTopikDeep(val);
+    return o as unknown as T;
+  }
+  return v;
+}
+
 // blind=true 면 연락처뿐 아니라 이름·국적·사진까지 가린다(편견 없는 능력 기반 열람).
 function maskRenewalBasicInfo(raw: unknown, unlocked: boolean, blind = false): unknown {
   if (unlocked || !raw || typeof raw !== "object") return raw ?? null;
@@ -21795,7 +21817,8 @@ function maskResumeContentForPartner(raw: unknown, unlocked: boolean, blind = fa
     // 리뉴얼 이력서의 기본정보에 담긴 연락처(+블라인드 시 이름/국적)도 가린다.
     if (c.renewalBasicInfo) c.renewalBasicInfo = maskRenewalBasicInfo(c.renewalBasicInfo, false, blind);
   }
-  return c;
+  // 블라인드 — 이력서 전체 텍스트에서 TOPIK을 '한국어 등급'으로 중립화(국적 힌트 제거).
+  return blind ? neutralizeTopikDeep(c) : c;
 }
 
 // 인재풀 이력서 행 → 검색 카드(점수 없음). GET/AI 검색 공용.
@@ -21821,11 +21844,12 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
     desiredJobRole: (content.desiredJobRole as string) ?? null,
     workType: (content.workType as string) ?? null,
     visa: (content.basicVisa as string) ?? null,
-    skills: skills.slice(0, 12),
-    languages,
+    // 블라인드 — 스킬·요약의 TOPIK도 '한국어 등급'으로 중립화.
+    skills: (unlocked ? skills : skills.map(neutralizeTopik)).slice(0, 12),
+    languages: unlocked ? languages : languages.map(neutralizeTopik),
     careerCount: careers.length,
     activityCount: activities.length,
-    summary: summary ? summary.slice(0, 180) : null,
+    summary: summary ? (unlocked ? summary : neutralizeTopik(summary)).slice(0, 180) : null,
     updatedAt: r.updatedAt.toISOString(),
     connectionStatus: status,
     contactUnlocked: status === "ACCEPTED",
@@ -26663,10 +26687,11 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
         select: { content: true }
       });
       const c = (primary?.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>;
-      resumeDoc = c.renewalResume ?? null;
-      // 블라인드 — 면접 단계 전에는 연락처뿐 아니라 이름·국적·사진까지 가린다.
-      resumeBasicInfo = maskRenewalBasicInfo(c.renewalBasicInfo, found.contactUnlocked, !found.contactUnlocked);
-      coverDoc = c.renewalCover ?? null;
+      // 블라인드 — 면접 단계 전에는 연락처·이름·국적을 가리고, 이력서/자소서의 TOPIK도 '한국어 등급'으로 중립화.
+      const blindApplicant = !found.contactUnlocked;
+      resumeDoc = blindApplicant ? neutralizeTopikDeep(c.renewalResume ?? null) : (c.renewalResume ?? null);
+      resumeBasicInfo = maskRenewalBasicInfo(c.renewalBasicInfo, found.contactUnlocked, blindApplicant);
+      coverDoc = blindApplicant ? neutralizeTopikDeep(c.renewalCover ?? null) : (c.renewalCover ?? null);
     } catch {
       // 미리보기 데이터는 실패해도 상세 응답은 정상 반환.
     }
