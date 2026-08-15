@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ArrowClockwise } from "@phosphor-icons/react";
 import Link from "next/link";
 import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
 import { fetchDocsSummary } from "../../lib/launch/feedback-client";
@@ -24,25 +25,27 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
   const [resume, setResume] = useState<ResumeData>({});
   const [cover, setCover] = useState<CoverData>({});
   const [ready, setReady] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  // 진행 상태 로드/재동기화 — 자동수집(이력서·자소서)이 늦게 반영될 때 수동 새로고침용.
+  const load = async () => {
+    setSyncing(true);
+    try {
+      const [p, r, c] = await Promise.all([fetchProgress(), fetchResumeData().catch(() => ({ data: {} })), fetchCoverData().catch(() => ({ data: {} }))]);
+      setProg(p);
+      setResume(r.data ?? {});
+      setCover(c.data ?? {});
+    } catch {
+      // 조회 실패 시 빈 상태 유지
+    } finally {
+      setReady(true);
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const [p, r, c] = await Promise.all([fetchProgress(), fetchResumeData().catch(() => ({ data: {} })), fetchCoverData().catch(() => ({ data: {} }))]);
-        if (!alive) return;
-        setProg(p);
-        setResume(r.data ?? {});
-        setCover(c.data ?? {});
-      } catch {
-        // 조회 실패 시 빈 상태
-      } finally {
-        if (alive) setReady(true);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const eduN = resume.educations?.length ?? 0;
@@ -264,6 +267,16 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
           <div className="h-full rounded-full bg-[#0B46E8] transition-[width]" style={{ width: `${steps.length ? (doneN / steps.length) * 100 : 0}%` }} />
         </div>
         <span className="shrink-0 text-[12px] font-bold text-[#4E5968]">{t(`${doneN}/${steps.length} 완료`, `${doneN}/${steps.length} done`, `${doneN}/${steps.length} 完成`, `${doneN}/${steps.length} hoàn thành`, `${doneN}/${steps.length} 完了`, `${doneN}/${steps.length} selesai`)}</span>
+        <button
+          type="button"
+          onClick={() => void load()}
+          disabled={syncing}
+          title={t("최신 상태로 동기화", "Sync latest", "同步最新", "Đồng bộ mới nhất", "最新に同期", "Sinkron terbaru")}
+          aria-label={t("동기화", "Sync", "同步", "Đồng bộ", "同期", "Sinkron")}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#4E5968] disabled:opacity-50"
+        >
+          <ArrowClockwise className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} weight="bold" />
+        </button>
       </div>
     <ol className="space-y-1">
       {steps.map((s, i) => {
