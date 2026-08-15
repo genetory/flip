@@ -9,6 +9,7 @@ import { WeekStepper } from "../../../../components/launch/week-stepper";
 import { WeekDocs } from "../../../../components/launch/week-docs";
 import { WeekGate } from "../../../../components/launch/week-gate";
 import { WeekAutoFeedback } from "../../../../components/launch/week-auto-feedback";
+import { InterviewPrepChecklist } from "../../../../components/launch/InterviewPrepChecklist";
 import { WeekSeminar } from "../../../../components/launch/week-seminar";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../../components/AplyFooter";
@@ -79,6 +80,14 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
               <div>
                 <SectionTitle>{t("피드백", "Feedback", "反馈", "Phản hồi", "フィードバック", "Umpan balik")}</SectionTitle>
                 <WeekAutoFeedback week={plan.week} />
+              </div>
+            ) : null}
+
+            {/* 4주차 — 면접 준비 체크리스트(점수 대신 준비도로 자신감) */}
+            {plan.week === 4 ? (
+              <div>
+                <SectionTitle sub={t("실전 전에 하나씩 체크하며 준비해요", "Check off each item before the real thing", "在实战前逐项准备", "Đánh dấu từng mục trước khi thực chiến", "本番前に一つずつ準備", "Centang tiap item sebelum wawancara asli")}>{t("면접 준비", "Interview prep", "面试准备", "Chuẩn bị phỏng vấn", "面接準備", "Persiapan wawancara")}</SectionTitle>
+                <InterviewPrepChecklist />
               </div>
             ) : null}
 
