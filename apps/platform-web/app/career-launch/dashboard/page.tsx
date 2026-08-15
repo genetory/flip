@@ -220,6 +220,25 @@ export default function LaunchDashboardPage() {
           </div>
           </Reveal>
 
+          {/* 완주 시 — 수료증 발급 CTA */}
+          {overall === 100 ? (
+            <Reveal delayMs={60}>
+            <Link
+              href="/career-launch/certificate"
+              className="group mt-3 flex items-center justify-between gap-4 rounded-2xl border border-[#E4EDFB] bg-gradient-to-br from-[#F5F8FF] to-[#EDF2FF] p-5 transition hover:border-[#0B46E8]/40"
+            >
+              <div className="flex min-w-0 items-center gap-3.5">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[22px] shadow-[0_2px_10px_rgba(11,70,232,0.12)]" aria-hidden>🎓</span>
+                <div className="min-w-0">
+                  <p className="text-[15px] font-black text-[#0B1227]">{t("수료증 발급받기", "Get your certificate", "领取结业证书", "Nhận chứng chỉ", "修了証を発行", "Ambil sertifikat")}</p>
+                  <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("4주 완주 수료증 · 인쇄/PDF 저장", "4-week completion certificate · print/PDF", "四周完成证书 · 打印/PDF", "Chứng chỉ 4 tuần · in/PDF", "4週間修了証 · 印刷/PDF", "Sertifikat 4 minggu · cetak/PDF")}</p>
+                </div>
+              </div>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0B46E8] text-white transition group-hover:translate-x-0.5">→</span>
+            </Link>
+            </Reveal>
+          ) : null}
+
           {/* 다음 할 일 — 흑백 다크 CTA(주 액션 강조), 미완료 첫 주차로 이동 */}
           {overall < 100 && nextWeek ? (
             <Reveal delayMs={80}>
