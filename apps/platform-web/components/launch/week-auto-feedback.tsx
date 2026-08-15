@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkle, CircleNotch } from "@phosphor-icons/react";
+import Link from "next/link";
+import { Sparkle, CircleNotch, ArrowRight } from "@phosphor-icons/react";
 import { fetchWeekFeedback } from "../../lib/launch/feedback-client";
 import { Card, Pill } from "./ui";
 import { RichText } from "./rich-text";
@@ -77,7 +78,22 @@ export function WeekAutoFeedback({ week }: { week: number }) {
       {state === "loading" ? (
         <p className="mt-3 text-[13px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
       ) : state === "done" ? (
-        <p className="mt-3 whitespace-pre-wrap rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]"><RichText text={text} /></p>
+        <div className="mt-3">
+          <p className="whitespace-pre-wrap rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]"><RichText text={text} /></p>
+          {/* 능동 코치 — 분석에서 멈추지 않고 다음 주차 행동으로 이어준다 */}
+          {week < 4 ? (
+            <Link
+              href={`/career-launch/week/${week + 1}`}
+              className="group mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#191F28] px-4 py-3 transition hover:bg-[#0B1227]"
+            >
+              <span className="min-w-0">
+                <span className="block text-[10.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("다음 액션", "Next action", "下一步", "Việc tiếp theo", "次のアクション", "Aksi berikutnya")}</span>
+                <span className="mt-0.5 block truncate text-[14px] font-bold text-white">{t(`${week + 1}주차로 이어가기`, `Continue to Week ${week + 1}`, `继续第${week + 1}周`, `Tiếp tục Tuần ${week + 1}`, `${week + 1}週目へ進む`, `Lanjut ke Minggu ${week + 1}`)}</span>
+              </span>
+              <ArrowRight className="h-5 w-5 shrink-0 text-white transition group-hover:translate-x-0.5" weight="bold" />
+            </Link>
+          ) : null}
+        </div>
       ) : state === "ready" ? (
         <div className="mt-3">
           <p className="text-[13px] leading-relaxed text-[#8B95A1]">{t("이번 주 결과물을 코치가 검토해 피드백을 드려요.", "Your coach reviews this week's work and gives you feedback.", "教练会审阅本周成果并给出反馈。", "Huấn luyện viên sẽ xem xét kết quả tuần này và đưa phản hồi.", "コーチが今週の成果を確認してフィードバックします。", "Pelatih meninjau hasil minggu ini dan memberi umpan balik.")}</p>
