@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchOpsPrompts, saveOpsPrompt, resetOpsPrompt, type OpsPrompt } from "../../../../lib/launch/ops-client";
+import { fetchOpsPrompts, saveOpsPrompt, resetOpsPrompt, fetchOpsPromptHistory, rollbackOpsPrompt, type OpsPrompt, type PromptHistoryEntry } from "../../../../lib/launch/ops-client";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 
 // 운영자 프롬프트 편집 — 각 스텝 대화의 시스템 프롬프트를 편집/기본값 복원.
@@ -60,6 +60,29 @@ export default function LaunchOpsPromptsPage() {
       setSavedKey(p.key);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("복원하지 못했어요.", "Couldn't restore.", "恢复失败。", "Không thể khôi phục.", "復元できませんでした。", "Gagal memulihkan."));
+    } finally {
+      setSavingKey("");
+    }
+  };
+
+  // 이전 버전 이력 + 롤백(오변경 복구).
+  const [historyKey, setHistoryKey] = useState("");
+  const [history, setHistory] = useState<PromptHistoryEntry[]>([]);
+  const toggleHistory = async (p: OpsPrompt) => {
+    if (historyKey === p.key) { setHistoryKey(""); return; }
+    setHistoryKey(p.key);
+    setHistory([]);
+    try { setHistory(await fetchOpsPromptHistory(p.key)); } catch { /* ignore */ }
+  };
+  const doRollback = async (p: OpsPrompt, index: number) => {
+    setSavingKey(p.key);
+    try {
+      await rollbackOpsPrompt(p.key, index);
+      await load();
+      setHistoryKey("");
+      setSavedKey(p.key);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("되돌리지 못했어요.", "Couldn't roll back.", "回滚失败。", "Không thể hoàn tác.", "戻せませんでした。", "Gagal mengembalikan."));
     } finally {
       setSavingKey("");
     }
@@ -151,10 +174,39 @@ export default function LaunchOpsPromptsPage() {
                               {t("기본값으로 복원", "Restore default", "恢复默认", "Khôi phục mặc định", "デフォルトに復元", "Pulihkan bawaan")}
                             </button>
                           ) : null}
+                          <button
+                            type="button"
+                            className="ops-btn"
+                            onClick={() => void toggleHistory(p)}
+                          >
+                            {historyKey === p.key ? t("이전 버전 닫기", "Close history", "关闭历史", "Đóng lịch sử", "履歴を閉じる", "Tutup riwayat") : t("이전 버전", "History", "历史版本", "Lịch sử", "以前の版", "Riwayat")}
+                          </button>
                           {savedKey === p.key && !dirty ? (
                             <span className="ops-status-badge ops-status-approved">{t("저장됨", "Saved", "已保存", "Đã lưu", "保存済み", "Tersimpan")}</span>
                           ) : null}
                         </div>
+
+                        {historyKey === p.key ? (
+                          <div style={{ marginTop: 10, borderTop: "1px solid #EEF1F5", paddingTop: 10 }}>
+                            {history.length === 0 ? (
+                              <p style={{ fontSize: 12.5, color: "#8B95A1" }}>{t("이전 버전이 없어요. (저장할 때마다 자동으로 쌓여요)", "No previous versions yet. (Saved automatically on each edit)", "暂无历史版本。（每次保存自动记录）", "Chưa có phiên bản cũ. (Tự động lưu mỗi lần chỉnh)", "以前の版はありません。（保存ごとに自動記録）", "Belum ada versi lama. (Otomatis tiap simpan)")}</p>
+                            ) : (
+                              <ul style={{ display: "flex", flexDirection: "column", gap: 8, listStyle: "none", padding: 0, margin: 0 }}>
+                                {history.map((h, idx) => (
+                                  <li key={idx} style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "#F7F9FC", borderRadius: 10, padding: 10 }}>
+                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                      <p style={{ fontSize: 11, fontWeight: 700, color: "#8B95A1", margin: 0 }} suppressHydrationWarning>{new Date(h.at).toLocaleString("ko-KR")}</p>
+                                      <p style={{ fontSize: 12, color: "#4E5968", margin: "4px 0 0", whiteSpace: "pre-wrap", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{h.value.slice(0, 160)}</p>
+                                    </div>
+                                    <button type="button" className="ops-btn" disabled={savingKey === p.key} onClick={() => void doRollback(p, idx)} style={{ flexShrink: 0 }}>
+                                      {t("되돌리기", "Restore", "回滚", "Hoàn tác", "戻す", "Pulihkan")}
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        ) : null}
                       </section>
                     );
                   })}
