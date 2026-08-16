@@ -16984,12 +16984,37 @@ app.get("/career-launch/ops/prompts", authenticate, requireRoles([MemberRole.OPE
 
 // PUT /career-launch/ops/prompts/:key — 프롬프트 편집분 저장.
 const careerPromptPutSchema = z.object({ value: z.string().trim().min(1).max(20000) });
+// 운영 안전장치 — AppSetting 저장 전 현재값을 이력에 스냅샷(최근 10개). 오변경 시 롤백용.
+async function snapshotAppSettingHistory(key: string): Promise<void> {
+  const cur = await prisma.appSetting.findUnique({ where: { key }, select: { value: true } });
+  if (!cur?.value) return; // 저장된 편집분이 없으면 스냅샷 불필요
+  const hKey = `${key}__history`;
+  const hRow = await prisma.appSetting.findUnique({ where: { key: hKey }, select: { value: true } });
+  let hist: { value: string; at: string }[] = [];
+  try {
+    const p = hRow?.value ? JSON.parse(hRow.value) : [];
+    if (Array.isArray(p)) hist = p.filter((x) => x && typeof x.value === "string");
+  } catch { hist = []; }
+  hist.unshift({ value: cur.value, at: new Date().toISOString() });
+  hist = hist.slice(0, 10);
+  const v = JSON.stringify(hist);
+  await prisma.appSetting.upsert({ where: { key: hKey }, update: { value: v }, create: { key: hKey, value: v, description: `이력(롤백용): ${key}` } });
+}
+async function readAppSettingHistory(key: string): Promise<{ value: string; at: string }[]> {
+  const row = await prisma.appSetting.findUnique({ where: { key: `${key}__history` }, select: { value: true } });
+  try {
+    const p = row?.value ? JSON.parse(row.value) : [];
+    return Array.isArray(p) ? (p.filter((x) => x && typeof x.value === "string") as { value: string; at: string }[]) : [];
+  } catch { return []; }
+}
+
 app.put("/career-launch/ops/prompts/:key", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const key = typeof req.params.key === "string" ? req.params.key : "";
   if (!CAREER_PROMPTS[key]) return res.status(404).json({ ok: false, message: "unknown prompt key" });
   const parsed = careerPromptPutSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
   try {
+    await snapshotAppSettingHistory(`career_prompt_${key}`); // 저장 전 현재값 스냅샷
     await prisma.appSetting.upsert({
       where: { key: `career_prompt_${key}` },
       update: { value: parsed.data.value, description: `Career Launch 프롬프트: ${CAREER_PROMPTS[key].label}` },
@@ -17930,10 +17955,65 @@ app.put("/career-launch/ops/content", authenticate, requireRoles([MemberRole.OPE
     // 빈 문자열만 있는 항목은 저장하지 않는다 — 그래야 기본값으로 되돌아간다.
     const clean = JSON.parse(JSON.stringify(parsed.data), (_k, v) => (v === "" ? undefined : v));
     const value = JSON.stringify(clean ?? {});
+    await snapshotAppSettingHistory(CAREER_CONTENT_KEY); // 저장 전 현재값 스냅샷
     await prisma.appSetting.upsert({
       where: { key: CAREER_CONTENT_KEY },
       update: { value },
       create: { key: CAREER_CONTENT_KEY, value, description: "Career Launch 주차·스텝 문구 오버라이드(운영자 편집)" }
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET 이력 + POST 롤백 — 프롬프트/콘텐츠 오변경 시 이전 버전으로 되돌린다(운영 안전장치).
+app.get("/career-launch/ops/prompts/:key/history", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const key = typeof req.params.key === "string" ? req.params.key : "";
+  if (!CAREER_PROMPTS[key]) return res.status(404).json({ ok: false, message: "unknown prompt key" });
+  try {
+    return res.json({ ok: true, history: await readAppSettingHistory(`career_prompt_${key}`) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+app.post("/career-launch/ops/prompts/:key/rollback", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const key = typeof req.params.key === "string" ? req.params.key : "";
+  if (!CAREER_PROMPTS[key]) return res.status(404).json({ ok: false, message: "unknown prompt key" });
+  const idx = Number((req.body as { index?: unknown } | undefined)?.index);
+  try {
+    const hist = await readAppSettingHistory(`career_prompt_${key}`);
+    const entry = Number.isInteger(idx) ? hist[idx] : undefined;
+    if (!entry) return res.status(404).json({ ok: false, message: "history entry not found" });
+    await snapshotAppSettingHistory(`career_prompt_${key}`); // 롤백 전 현재값도 이력에
+    await prisma.appSetting.upsert({
+      where: { key: `career_prompt_${key}` },
+      update: { value: entry.value },
+      create: { key: `career_prompt_${key}`, value: entry.value, description: `Career Launch 프롬프트: ${CAREER_PROMPTS[key].label}` }
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+app.get("/career-launch/ops/content/history", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    return res.json({ ok: true, history: await readAppSettingHistory(CAREER_CONTENT_KEY) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+app.post("/career-launch/ops/content/rollback", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const idx = Number((req.body as { index?: unknown } | undefined)?.index);
+  try {
+    const hist = await readAppSettingHistory(CAREER_CONTENT_KEY);
+    const entry = Number.isInteger(idx) ? hist[idx] : undefined;
+    if (!entry) return res.status(404).json({ ok: false, message: "history entry not found" });
+    await snapshotAppSettingHistory(CAREER_CONTENT_KEY);
+    await prisma.appSetting.upsert({
+      where: { key: CAREER_CONTENT_KEY },
+      update: { value: entry.value },
+      create: { key: CAREER_CONTENT_KEY, value: entry.value, description: "Career Launch 주차·스텝 문구 오버라이드(운영자 편집)" }
     });
     return res.json({ ok: true });
   } catch (error) {
