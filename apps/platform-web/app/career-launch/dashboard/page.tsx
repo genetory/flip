@@ -13,6 +13,7 @@ import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-da
 import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data";
 import { weekDoneCount, weekUnlocked, isWeekComplete, type LaunchData } from "../../../lib/launch/step-status";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
+import { CohortPulseCard } from "../../../components/launch/CohortPulseCard";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { Reveal } from "../../../components/site/Reveal";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -256,6 +257,9 @@ export default function LaunchDashboardPage() {
             </Link>
             </Reveal>
           ) : null}
+
+          {/* 내 기수와 함께 — 익명 진행률(동기부여). 동기 2명 이상일 때만 노출 */}
+          {overall < 100 ? <div className="mt-3"><CohortPulseCard /></div> : null}
 
           {/* 완주 시 — 이력서·자소서·면접 종합 최종 피드백(프로그램 소개처럼 섹션) */}
           {overall === 100 ? (

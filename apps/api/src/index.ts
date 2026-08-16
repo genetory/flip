@@ -16447,6 +16447,35 @@ app.get("/career-launch/progress", authenticate, requireCareerEnrollment, async 
   }
 });
 
+// GET /career-launch/cohort-stats — 내 기수 익명 진행률 요약(함께 달리는 동기부여용).
+// 개인 식별정보 없이 인원수·평균 완료 주차·내 위치만 반환. weeksCompleted = w{n}s4 완료 수.
+app.get("/career-launch/cohort-stats", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const myEnroll = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, orderBy: { createdAt: "desc" }, select: { cohortId: true } });
+    if (!myEnroll) return res.json({ ok: true, stats: null });
+    const enrolls = await prisma.careerEnrollment.findMany({ where: { cohortId: myEnroll.cohortId }, select: { studentUserId: true } });
+    const ids = Array.from(new Set(enrolls.map((e) => e.studentUserId)));
+    const rows = await prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, state: true } });
+    const weeksOf = (state: unknown): number => {
+      const st = (state && typeof state === "object" ? (state as Record<string, unknown>) : {});
+      const done = Array.isArray(st.doneSteps) ? (st.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
+      return [1, 2, 3, 4].filter((w) => done.includes(`w${w}s4`)).length;
+    };
+    const byUser = new Map(rows.map((r) => [r.studentUserId, weeksOf(r.state)] as const));
+    const peerWeeks = ids.map((id) => byUser.get(id) ?? 0);
+    const myWeeks = byUser.get(userId) ?? 0;
+    const peerCount = ids.length;
+    const avgWeeks = peerCount ? Math.round((peerWeeks.reduce((a, b) => a + b, 0) / peerCount) * 10) / 10 : 0;
+    // 나보다 덜 진행한 동기 비율(=상위 백분위 근사). 나 자신 제외.
+    const behind = peerWeeks.filter((w) => w < myWeeks).length;
+    const aheadOfPct = peerCount > 1 ? Math.round((behind / (peerCount - 1)) * 100) : 0;
+    return res.json({ ok: true, stats: { peerCount, avgWeeks, myWeeks, aheadOfPct } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // 학생 주차 게이팅용 — 본인 기수의 주차 오픈 일정 + 서버 현재시각.
 // forceOpen 이거나 opensAt<=now 면 그 주차는 날짜상 열림(미설정이면 프론트가 진행 기반으로 폴백).
 app.get("/career-launch/week-schedule", authenticate, requireCareerEnrollment, async (req, res) => {

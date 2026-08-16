@@ -49,6 +49,17 @@ export async function fetchProgress(): Promise<CareerProgress> {
   return (d.state as CareerProgress) ?? {};
 }
 
+// 내 기수 익명 진행률 요약 — 함께 달리는 동기부여용(개인 식별정보 없음).
+export type CohortStats = { peerCount: number; avgWeeks: number; myWeeks: number; aheadOfPct: number };
+export async function fetchCohortStats(): Promise<CohortStats | null> {
+  try {
+    const d = await req("/career-launch/cohort-stats", { headers: authHeaders() });
+    return (d.stats ?? null) as CohortStats | null;
+  } catch {
+    return null;
+  }
+}
+
 // 기수 주차 오픈 일정(본인 기수) — 주차 게이팅에 사용.
 export type WeekScheduleEntry = { week: number; opensAt: string | null; forceOpen: boolean };
 export async function fetchWeekSchedule(): Promise<{ weekSchedule: WeekScheduleEntry[]; serverNow: string }> {
