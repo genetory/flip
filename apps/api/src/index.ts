@@ -14593,15 +14593,16 @@ const AI_FEATURE_COST: Record<string, number> = {
   suggest_skills: 1,
   translate_texts: 1,
   interview_feedback: 1,
-  // Career Launch — 모든 AI 사용처(대화 1턴당 1, 최종 리포트 2)
-  career_resume_chat: 1,
-  career_cover_chat: 1,
-  career_job_chat: 1,
-  career_material_chat: 1,
-  career_diagnosis_chat: 1,
-  career_interview_chat: 1,
-  career_week_feedback: 1,
-  career_final_feedback: 2,
+  // Career Launch — 프로그램 참가자에겐 모든 AI 기능 무료(포인트 차감·게이트 없음).
+  // 유료 전환하려면 값을 되돌린다.
+  career_resume_chat: 0,
+  career_cover_chat: 0,
+  career_job_chat: 0,
+  career_material_chat: 0,
+  career_diagnosis_chat: 0,
+  career_interview_chat: 0,
+  career_week_feedback: 0,
+  career_final_feedback: 0,
   career_docs_summary: 0
 };
 function aiFeatureCost(feature: string): number {
