@@ -383,6 +383,8 @@ const kakaoOAuthClientSecret = process.env.KAKAO_OAUTH_CLIENT_SECRET?.trim() ?? 
 const kakaoOAuthRedirectUri = process.env.KAKAO_OAUTH_REDIRECT_URI?.trim() || `http://localhost:${port}/auth/kakao/callback`;
 const azureStorageConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING?.trim() ?? "";
 const azureStorageContainerName = process.env.AZURE_STORAGE_CONTAINER_NAME?.trim() || "uploads";
+// Career Launch 주차 오픈 등 이메일 리마인더 — 기본 OFF(운영 준비 후 켠다).
+const careerReminderEnabled = String(process.env.CAREER_REMINDER_ENABLED ?? "false").toLowerCase() === "true";
 const crawlSchedulerEnabled = String(process.env.CRAWL_SCHEDULER_ENABLED ?? "false").toLowerCase() === "true";
 const crawlSchedulerHourKst = Math.max(0, Math.min(23, Number(process.env.CRAWL_SCHEDULER_HOUR_KST ?? 4)));
 const crawlSchedulerMinuteKst = Math.max(0, Math.min(59, Number(process.env.CRAWL_SCHEDULER_MINUTE_KST ?? 10)));
@@ -1561,6 +1563,45 @@ async function runAutoNudgesAndReminders() {
         logKey: "application_stale_nudge_email"
       });
       await prisma.application.update({ where: { id: app.id }, data: { partnerNudgedAt: new Date() } });
+    }
+
+    // 4) Career Launch 주차 오픈 리마인더 — 최근 24h 내 opensAt 도래한 코호트 주차 → 등록 학생에게 1회(이메일).
+    //    (기본 OFF: CAREER_REMINDER_ENABLED=true 일 때만. 중복은 progress.state.weekOpenReminders 로 방지.)
+    if (careerReminderEnabled) {
+      const since = new Date(now - 24 * 3600 * 1000);
+      const openedWeeks = await prisma.careerCohortWeek.findMany({
+        where: { opensAt: { gte: since, lte: new Date(now) }, cohort: { status: "active" } },
+        take: 20,
+        include: { cohort: { select: { enrollments: { select: { student: { select: { id: true, email: true, name: true } } } } } } }
+      });
+      for (const w of openedWeeks) {
+        for (const en of w.cohort.enrollments) {
+          const st = en.student;
+          if (!st?.email) continue;
+          const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: st.id }, select: { state: true } });
+          const state = (prog?.state && typeof prog.state === "object" ? (prog.state as Record<string, unknown>) : {});
+          const sent = Array.isArray(state.weekOpenReminders) ? ((state.weekOpenReminders as unknown[]).filter((x) => typeof x === "number") as number[]) : [];
+          if (sent.includes(w.week)) continue;
+          void sendNotificationEmail({
+            toUser: { id: st.id, email: st.email },
+            subject: `[Aply] Career Launch ${w.week}주차가 열렸어요`,
+            previewText: `${w.week}주차 미션이 열렸어요`,
+            title: "Career Launch",
+            headline: `${w.week}주차가 열렸어요`,
+            contextLine: "이번 주 미션을 시작해 취업 준비를 이어가요.",
+            bodyText: `${st.name?.trim() ? st.name.trim() + "님, " : ""}Career Launch ${w.week}주차 미션이 열렸어요. 지금 들어가 이번 주 할 일을 시작해 보세요.`,
+            ctaLabel: "이번 주 미션 보기",
+            ctaPath: `/career-launch/week/${w.week}`,
+            footerNote: "본 메일은 Career Launch 주차 오픈 안내입니다.",
+            logKey: `cl_week_open_${w.week}_${st.id}`
+          });
+          await prisma.careerLaunchProgress.upsert({
+            where: { studentUserId: st.id },
+            create: { studentUserId: st.id, state: { weekOpenReminders: [w.week] } },
+            update: { state: { ...state, weekOpenReminders: [...sent, w.week] } }
+          });
+        }
+      }
     }
   } catch (error) {
     console.error("auto_nudges_reminders_failed", { error: getErrorMessage(error) });
