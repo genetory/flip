@@ -24,10 +24,11 @@ import { RESUME_TOOLS_WIP } from "../../lib/resume-maker-flags";
 
 // GNB 우측 — 공용 AI 티켓 잔량(전 화면 공통). 잔량을 모르면(비STUDENT 등) 숨김.
 function GnbTicket() {
-  const { remaining, resetAt, dailyGrant } = useAiUsage();
+  const { remaining, resetAt, dailyGrant, hidePoints } = useAiUsage();
   const q = useQuotaCopy();
   const [open, setOpen] = useState(false);
-  if (remaining === null) return null;
+  // Career Launch 등 포인트 비노출 컨텍스트에서는 잔량 배지 자체를 숨긴다.
+  if (hidePoints || remaining === null) return null;
   return (
     <>
       <button
