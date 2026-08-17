@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "@phosphor-icons/react";
+import { ArrowRight, Check, Lock } from "@phosphor-icons/react";
 import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { useStepText, useJobReason, useStepActionLabel, useJobName } from "../../lib/launch/data-i18n";
@@ -86,7 +86,7 @@ export function LiveWeekSteps({
                   done ? "bg-[#0B46E8] text-white" : locked ? "border-2 border-[#E5E8EB] bg-[#F8FAFC] text-[#C9CDD2]" : "border-2 border-[#D7DCE3] bg-white text-[#4E5968]"
                 } ${toggleable && !locked ? "hover:border-[#0B46E8] hover:text-[#0B46E8]" : "cursor-default"}`}
               >
-                {done ? "✓" : locked ? "🔒" : i + 1}
+                {done ? <Check className="h-[15px] w-[15px]" weight="bold" aria-hidden /> : locked ? <Lock className="h-3.5 w-3.5" weight="fill" aria-hidden /> : i + 1}
               </button>
               {!last ? <span className="mt-1.5 w-[2px] flex-1 rounded bg-[#E5E8EB]" /> : null}
             </div>
@@ -219,7 +219,7 @@ export function LiveWeekSteps({
                 </div>
               ) : locked ? (
                 <p className="mt-2 inline-flex items-center gap-1 text-[12.5px] font-medium text-[#B0B8C1]">
-                  🔒 {t("이전 단계를 완료하면 시작할 수 있어요", "Finish the previous step to start this one.", "完成上一步后即可开始。", "Hoàn thành bước trước để bắt đầu bước này.", "前のステップを完了すると始められます。", "Selesaikan langkah sebelumnya untuk memulai.")}
+                  <Lock className="inline h-3.5 w-3.5 align-text-bottom" weight="fill" aria-hidden /> {t("이전 단계를 완료하면 시작할 수 있어요", "Finish the previous step to start this one.", "完成上一步后即可开始。", "Hoàn thành bước trước để bắt đầu bước này.", "前のステップを完了すると始められます。", "Selesaikan langkah sebelumnya untuk memulai.")}
                 </p>
               ) : s.action ? (
                 <Link
