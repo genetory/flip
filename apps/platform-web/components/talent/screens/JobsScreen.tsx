@@ -6,6 +6,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { MagnifyingGlass, CircleNotch } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
+import { useLoginGate } from "../app/LoginRequiredModal";
 import { TEmpty, TError, TListSkeleton, TPageHeader } from "../ui/primitives";
 import { PositionCard } from "../jobs/PositionCard";
 import { ApplyReadinessBanner } from "../ApplyReadinessBanner";
@@ -41,6 +42,7 @@ export function JobsScreen() {
   const { locale } = useLanguage();
   const toast = useTalentPopup();
   const interests = useJobInterests();
+  const { ensure, modal: loginModal } = useLoginGate(); // 게스트가 저장 시 로그인 유도
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const [tab, setTab] = useState<Tab>("all");
@@ -286,7 +288,7 @@ export function JobsScreen() {
               <div className="flex flex-col gap-3">
                 {views.map((v, idx) => (
                   <Fragment key={v.id}>
-                    <PositionCard view={v} saved={savedIds.has(v.id)} onToggleSave={toggleSave} onShowCip={() => setCipOpen(true)} />
+                    <PositionCard view={v} saved={savedIds.has(v.id)} onToggleSave={(id) => ensure(() => toggleSave(id))} onShowCip={() => setCipOpen(true)} />
                     {(idx + 1) % 4 === 0 && idx + 1 < views.length ? <InFeedAd /> : null}
                   </Fragment>
                 ))}
@@ -315,7 +317,7 @@ export function JobsScreen() {
             ) : (
               <div className="flex flex-col gap-3">
                 {views.map((v) => (
-                  <PositionCard key={v.id} view={v} saved={savedIds.has(v.id)} onToggleSave={toggleSave} onShowCip={() => setCipOpen(true)} />
+                  <PositionCard key={v.id} view={v} saved={savedIds.has(v.id)} onToggleSave={(id) => ensure(() => toggleSave(id))} onShowCip={() => setCipOpen(true)} />
                 ))}
               </div>
             )
@@ -325,6 +327,7 @@ export function JobsScreen() {
 
       {cipOpen ? <TalentCipModal locale={locale} onClose={() => setCipOpen(false)} /> : null}
       {pickerOpen ? <JobInterestModal initial={interests} onClose={() => setPickerOpen(false)} /> : null}
+      {loginModal}
     </TalentAppShell>
   );
 }

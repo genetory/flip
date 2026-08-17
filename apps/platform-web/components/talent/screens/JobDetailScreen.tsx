@@ -13,6 +13,7 @@ import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { TalentAppShell } from "../app/TalentAppShell";
+import { useLoginGate } from "../app/LoginRequiredModal";
 import { TCard, TChip, TError, TLoading } from "../ui/primitives";
 import { TalentButton } from "../TalentButton";
 import { AplyCipBadgeButton } from "../../positions/AplyCipBadge";
@@ -58,6 +59,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   const t = usePlatformT();
   const toast = useTalentPopup();
   const { locale } = useLanguage();
+  const { ensure, modal: loginModal } = useLoginGate(); // 게스트가 저장·지원·모의면접 시 로그인 유도
   const [item, setItem] = useState<PublicPositionListItem | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [saved, setSaved] = useState(false);
@@ -135,7 +137,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
           {/* 모의 면접 — 회사가 준비했거나(CIP 내부) 공고 JD가 있으면(외부 원티드 등) 노출 */}
           {item.mockInterviewIntent || (item.mockInterviewQuestions?.length ?? 0) > 0 || item.mainResponsibilities || item.requiredQualifications ? (
             <div className="mt-4">
-              <button type="button" onClick={() => setMockGateOpen(true)} className="group/mock flex w-full items-center gap-3 overflow-hidden rounded-2xl border border-[#DCE7FF] bg-gradient-to-br from-[#E8F0FF] to-[#F6FAFF] py-4 pl-5 pr-3 text-left transition hover:border-[#0B46E8]/45">
+              <button type="button" onClick={() => ensure(() => setMockGateOpen(true))} className="group/mock flex w-full items-center gap-3 overflow-hidden rounded-2xl border border-[#DCE7FF] bg-gradient-to-br from-[#E8F0FF] to-[#F6FAFF] py-4 pl-5 pr-3 text-left transition hover:border-[#0B46E8]/45">
                 <span className="min-w-0 flex-1">
                   <span className="block break-keep text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{item.sourceProvider === "INTERNAL" ? t("이 회사 모의 면접 미리 풀기", "Try this company's mock interview", "提前练习该公司模拟面试", "Thử phỏng vấn thử của công ty này", "この会社の模擬面接を先に解く", "Coba wawancara simulasi perusahaan ini") : t("이 공고 기반 모의 면접 풀기", "Try a mock interview from this posting", "基于该职位的模拟面试", "Phỏng vấn thử dựa trên tin tuyển dụng này", "この求人を基にした模擬面接", "Wawancara simulasi berdasarkan lowongan ini")}</span>
                   <span className="mt-1 block break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{t("지원 전에 예상 질문을 풀고 AI 피드백을 받아보세요.", "Practice likely questions and get AI feedback before applying.", "申请前练习可能的问题并获得 AI 反馈。", "Luyện câu hỏi dự kiến và nhận phản hồi AI trước khi ứng tuyển.", "応募前に予想質問を解いてAIフィードバックを受けましょう。", "Latih pertanyaan dan dapat umpan balik AI sebelum melamar.")}</span>
@@ -154,7 +156,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
           {/* 상단 액션 (데스크톱) */}
           <div className="mt-4 hidden justify-end gap-2 md:flex">
             <TalentButton
-              onClick={toggleSave}
+              onClick={() => ensure(toggleSave)}
               variant={saved ? "soft" : "secondary"}
               size="lg"
               aria-label={saved ? t("저장 취소", "Unsave", "取消收藏", "Bỏ lưu", "保存を解除", "Batal simpan") : t("저장", "Save", "收藏", "Lưu", "保存", "Simpan")}
@@ -162,7 +164,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
             >
               <BookmarkSimple className="h-4 w-4" weight={saved ? "fill" : "regular"} /> {saved ? t("저장됨", "Saved", "已收藏", "Đã lưu", "保存済み", "Tersimpan") : t("저장", "Save", "收藏", "Lưu", "保存", "Simpan")}
             </TalentButton>
-            <ApplyButton view={view} applied={applied} applying={applying} onApply={() => setApplyOpen(true)} />
+            <ApplyButton view={view} applied={applied} applying={applying} onApply={() => ensure(() => setApplyOpen(true))} />
           </div>
 
           {/* 핵심 정보 · 상세 안내 · 기업 정보 */}
@@ -171,7 +173,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
           {/* 데스크톱 액션 */}
           <div className="mt-6 hidden justify-end gap-2 md:flex">
             <TalentButton
-              onClick={toggleSave}
+              onClick={() => ensure(toggleSave)}
               variant={saved ? "soft" : "secondary"}
               size="lg"
               aria-label={saved ? t("저장 취소", "Unsave", "取消收藏", "Bỏ lưu", "保存を解除", "Batal simpan") : t("저장", "Save", "收藏", "Lưu", "保存", "Simpan")}
@@ -179,7 +181,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
             >
               <BookmarkSimple className="h-4 w-4" weight={saved ? "fill" : "regular"} /> {saved ? t("저장됨", "Saved", "已收藏", "Đã lưu", "保存済み", "Tersimpan") : t("저장", "Save", "收藏", "Lưu", "保存", "Simpan")}
             </TalentButton>
-            <ApplyButton view={view} applied={applied} applying={applying} onApply={() => setApplyOpen(true)} />
+            <ApplyButton view={view} applied={applied} applying={applying} onApply={() => ensure(() => setApplyOpen(true))} />
           </div>
 
           {/* 모바일 하단 고정 CTA */}
@@ -187,14 +189,14 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
             <div className="mx-auto flex max-w-4xl items-center gap-2">
               <button
                 type="button"
-                onClick={toggleSave}
+                onClick={() => ensure(toggleSave)}
                 aria-label={saved ? t("저장 취소", "Unsave", "取消收藏", "Bỏ lưu", "保存を解除", "Batal simpan") : t("저장", "Save", "收藏", "Lưu", "保存", "Simpan")}
                 className={`flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-xl ${saved ? "bg-[#EDF1FD] text-[#0B46E8]" : "bg-[#F2F4F6] text-[#8B95A1]"}`}
               >
                 <BookmarkSimple className="h-5 w-5" weight={saved ? "fill" : "regular"} />
               </button>
               <div className="flex-1">
-                <ApplyButton view={view} applied={applied} applying={applying} onApply={() => setApplyOpen(true)} fullWidth />
+                <ApplyButton view={view} applied={applied} applying={applying} onApply={() => ensure(() => setApplyOpen(true))} fullWidth />
               </div>
             </div>
           </div>
@@ -214,6 +216,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
         />
       ) : null}
       {applyOpen ? <ApplyModal applying={applying} onClose={() => setApplyOpen(false)} onConfirm={submitApply} /> : null}
+      {loginModal}
     </TalentAppShell>
   );
 }
