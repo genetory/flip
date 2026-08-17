@@ -18453,7 +18453,8 @@ app.post(
 // POST /members/me/ai/interview-questions — 이력서(+선택 공고)를 바탕으로 예상 면접
 // 질문을 생성한다. 모의 면접 연습용. intent 는 면접관이 보려는 포인트(사용자 힌트).
 const interviewQuestionsSchema = z.object({
-  resumeText: z.string().trim().min(1).max(8000),
+  // 이력서 없이도 모의면접 가능 — 없으면 개인 이력과 무관한 표준/공고 기반 질문만 생성.
+  resumeText: z.string().trim().max(8000).optional(),
   jobText: z.string().trim().max(6000).optional(),
   coverLetterText: z.string().trim().max(8000).optional(),
   desiredJobRole: z.string().trim().max(120).optional(),
@@ -18476,7 +18477,13 @@ app.post(
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
-      const { resumeText, jobText, coverLetterText, desiredJobRole, askedQuestions, count, category, locale } = parsed.data;
+      const { jobText, coverLetterText, desiredJobRole, askedQuestions, count, category, locale } = parsed.data;
+      const resumeText = (parsed.data.resumeText ?? "").trim();
+      const hasResume = resumeText.length > 0 || (coverLetterText ?? "").trim().length > 0;
+      // 이력서·공고 둘 다 없으면 생성할 근거가 없다 — 공고/직무/일반 질문이라도 만들려면 최소한 하나는 필요.
+      if (!hasResume && !(jobText ?? "").trim() && !desiredJobRole) {
+        return res.status(400).json({ ok: false, message: "need resume, job posting, or desired role" });
+      }
       const n = count ?? 6;
       const asked = (askedQuestions ?? []).map((q) => q.trim()).filter(Boolean).slice(0, 60);
       const catLabel: Record<string, string> = {
@@ -18491,11 +18498,14 @@ app.post(
         : category
         ? `1. 질문 ${n}개. 모든 질문을 오직 '${catLabel[category]}' 유형으로만 만드세요(다른 유형 섞지 말 것).\n`
         : `1. 질문 ${n}개. 자기소개/지원동기, 경험 심층, 직무 역량/문제해결, 상황/약점 유형을 골고루 섞으세요.\n`;
+      const rule2 = hasResume
+        ? "2. 이력서·자기소개서에 적힌 실제 경험·동기를 근거로 개인화된 질문을 만드세요(일반론 X). 자기소개서가 있으면 거기 담긴 지원동기·가치관·일화도 적극 활용하세요. 없는 사실을 단정하지 마세요.\n"
+        : "2. 이력서·자기소개서가 제공되지 않았습니다. 지원자의 개인 경험·이력·신상을 지어내거나 언급하지 말고, [채용 공고]와 직무 특성에 근거한 표준적인 예상 질문만 만드세요(예: 해당 직무 일반 역량·상황 대처). '지원자의 이력서를 보니…' 같은 표현 금지.\n";
       const systemPrompt =
         "당신은 한국 기업 채용 면접을 돕는 면접 코치입니다. 지원자의 이력서·자기소개서(와 있다면 채용 공고)를 보고, 실제로 나올 법한 면접 질문을 만듭니다.\n\n" +
         "규칙:\n" +
         rule1 +
-        "2. 이력서·자기소개서에 적힌 실제 경험·동기를 근거로 개인화된 질문을 만드세요(일반론 X). 자기소개서가 있으면 거기 담긴 지원동기·가치관·일화도 적극 활용하세요. 없는 사실을 단정하지 마세요.\n" +
+        rule2 +
         "3. 각 항목의 question 에는 물음을 하나만 담으세요. 여러 질문을 '그리고/또한'으로 한 문장에 합치지 마세요(한 번에 하나씩 묻습니다).\n" +
         "4. intent: 그 질문으로 면접관이 무엇을 보려는지 한 문장으로(지원자에게 도움이 되도록).\n" +
         "5. category: 질문 분류. 반드시 다음 영문 키 중 하나만(번역하지 말 것): \"intro\"(자기소개·지원동기), \"experience\"(경험 심층), \"competency\"(직무 역량·문제해결), \"weakness\"(상황·약점).\n" +
@@ -18507,7 +18517,7 @@ app.post(
       const userPrompt =
         `${desiredJobRole ? `희망 직무: ${desiredJobRole}\n` : ""}` +
         `${jobText ? `\n[채용 공고]\n${jobText}\n` : ""}` +
-        `\n[이력서]\n${resumeText}` +
+        `${resumeText ? `\n[이력서]\n${resumeText}` : "\n(이력서 미제공 — 개인 이력과 무관한 표준/공고 기반 질문만 생성)"}` +
         `${coverLetterText ? `\n\n[자기소개서]\n${coverLetterText}` : ""}` +
         `${asked.length ? `\n\n[이미 물어본 질문 — 겹치지 않게]\n${asked.map((q) => `- ${q}`).join("\n")}` : ""}`;
       const completion = await openai.chat.completions.create({

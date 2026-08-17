@@ -114,8 +114,9 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
     };
   }, []);
 
-  // 이력서가 있으면 계속(무한) 새 질문을 생성할 수 있다.
-  const canGenerate = !!resumeText;
+  // 이력서가 있거나(개인화) 공고(item)가 있으면(JD/직무 기반) 계속 새 질문을 생성할 수 있다.
+  // 이력서 없이 공고만 있으면 개인 이력과 무관한 공고/직무 기반 질문이 생성된다.
+  const canGenerate = !!resumeText || !!item;
 
   // 이미 물어본 질문(중복 회피용) + 새 질문 생성 후 중복 제거.
   async function generate(count: number, asked: string[], cat?: string): Promise<InterviewQuestion[]> {
@@ -249,7 +250,8 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
       .finally(() => setBusy(false));
   }
 
-  const noSource = !resumeText && !(item?.mockInterviewQuestions ?? []).length;
+  // 공고(item)가 있으면 이력서 없이도 진행 가능(공고/직무 기반). 자유 모의(self)만 이력서가 필요.
+  const noSource = !resumeText && !item;
 
   return (
     <>
@@ -470,7 +472,7 @@ function CategoryChooser({ authored, jobBased, onPick }: { authored: boolean; jo
     <div className="flex flex-col gap-3">
       <div>
         <p className="text-[16px] font-black tracking-[-0.02em] text-[#0B1227]">{t("어떤 유형으로 연습할까요?", "Which type would you like to practice?", "想练习哪种类型？", "Bạn muốn luyện loại nào?", "どのタイプで練習しますか？", "Tipe apa yang ingin dilatih?")}</p>
-        <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("고른 유형에 맞는 질문을 내 이력서·자기소개서 기반으로 만들어드려요. 유형은 언제든 다시 고를 수 있어요.", "We'll create questions for your chosen type based on your resume and cover letter. You can switch types anytime.", "我们会根据你的简历和自我介绍，为所选类型生成问题。类型可随时更换。", "Chúng tôi tạo câu hỏi theo loại bạn chọn, dựa trên CV và thư xin việc. Có thể đổi loại bất cứ lúc nào.", "選んだタイプに合う質問を履歴書・自己PRに基づいて作ります。タイプはいつでも変更できます。", "Kami buat pertanyaan sesuai tipe pilihan, berdasarkan resume dan surat lamaran. Ganti tipe kapan saja.")}</p>
+        <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("고른 유형에 맞춰 예상 질문을 만들어드려요. 이력서가 있으면 내 경험에 맞춰, 없으면 공고·직무 기반으로 만들어요. 유형은 언제든 다시 고를 수 있어요.", "We'll create questions for your chosen type. With a resume we tailor to your experience; without one, we base them on the posting and role. You can switch types anytime.", "我们会按所选类型生成问题。有简历则按你的经历定制，没有则基于职位与岗位生成。类型可随时更换。", "Chúng tôi tạo câu hỏi theo loại bạn chọn. Có CV thì cá nhân hóa; không có thì dựa trên tin tuyển dụng và vị trí. Có thể đổi loại bất cứ lúc nào.", "選んだタイプで質問を作成します。履歴書があれば経験に合わせ、なければ求人・職務に基づいて作ります。タイプはいつでも変更できます。", "Kami buat pertanyaan sesuai tipe. Dengan resume disesuaikan pengalaman; tanpa itu berdasarkan lowongan dan peran. Ganti tipe kapan saja.")}</p>
       </div>
       {jobBased ? (
         <button type="button" onClick={() => onPick("job")} className="flex items-center gap-3.5 rounded-2xl border border-[#CFE0FF] bg-[#F5F8FF] p-4 text-left transition hover:border-[#0B46E8]/50">
