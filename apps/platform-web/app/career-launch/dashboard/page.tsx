@@ -159,7 +159,7 @@ export default function LaunchDashboardPage() {
         emoji: "🎉",
         title: t("4주 프로그램을 완주했어요!", "You finished the 4-week program!", "你完成了4周项目！", "Bạn đã hoàn thành chương trình 4 tuần!", "4週間プログラムを完走しました！", "Kamu menyelesaikan program 4 minggu!"),
         body: t("이제 실제 공고에 지원해볼까요? APLY에서 이어가요.", "Ready to apply to real jobs? Continue on APLY.", "现在去投递真实职位吧，在 APLY 继续。", "Sẵn sàng ứng tuyển việc thật? Tiếp tục trên APLY.", "実際の求人に応募してみましょう。APLYで続けます。", "Siap melamar pekerjaan nyata? Lanjutkan di APLY."),
-        href: "/positions"
+        href: "/talent/jobs"
       });
     }
     // 베타 설문 — 주차 완료 시점에 알림으로(카드 대신). W4 완료 시 전체 설문, 아니면 W2 완료 시 중간 설문.
@@ -272,7 +272,7 @@ export default function LaunchDashboardPage() {
                 <SectionTitle sub={t("결과물을 실제 지원으로 이어가요", "Turn your results into real applications", "把成果转化为实际投递", "Biến kết quả thành ứng tuyển thực tế", "成果を実際の応募につなげましょう", "Ubah hasil menjadi lamaran nyata")}>{t("다음 행동", "Next actions", "下一步行动", "Hành động tiếp theo", "次のアクション", "Aksi berikutnya")}</SectionTitle>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   {[
-                    { href: "/positions", emoji: "🔎", label: t("지금 지원할 공고 보기", "Browse jobs to apply", "查看可投递的职位", "Xem vị trí để ứng tuyển", "今すぐ応募できる求人を見る", "Lihat lowongan untuk dilamar"), action: "browse_positions", external: false },
+                    { href: "/talent/jobs", emoji: "🔎", label: t("지금 지원할 공고 보기", "Browse jobs to apply", "查看可投递的职位", "Xem vị trí để ứng tuyển", "今すぐ応募できる求人を見る", "Lihat lowongan untuk dilamar"), action: "browse_positions", external: false },
                     { href: "/resume-maker", emoji: "📄", label: t("이력서 최종 수정하기", "Polish your resume", "最终修改简历", "Hoàn thiện hồ sơ", "履歴書を仕上げる", "Sempurnakan resume"), action: "edit_resume", external: true },
                     { href: "/career-launch/interview", emoji: "🎤", label: t("모의면접 한 번 더", "One more mock interview", "再来一次模拟面试", "Phỏng vấn thử lần nữa", "模擬面接をもう一度", "Wawancara simulasi lagi"), action: "mock_interview", external: false }
                   ].map((a) => (
