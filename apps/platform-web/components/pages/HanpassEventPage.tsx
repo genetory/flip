@@ -1164,7 +1164,7 @@ function AlreadyRespondedView({ t, onRespondAgain }: { t: Copy; onRespondAgain: 
               {t.ctaRespondAgain}
             </Button>
             <Button asChild variant="outline" size="lg">
-              <Link href="/positions">{t.ctaBrowse}</Link>
+              <Link href="/talent/jobs">{t.ctaBrowse}</Link>
             </Button>
           </div>
         </div>
@@ -1207,7 +1207,7 @@ function CompletionView({
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t.doneAuthedBody}</p>
             <div className="mt-5 flex justify-center">
               <Button asChild variant="outline" size="lg">
-                <Link href="/positions">{t.ctaBrowse}</Link>
+                <Link href="/talent/jobs">{t.ctaBrowse}</Link>
               </Button>
             </div>
           </div>
@@ -1242,7 +1242,7 @@ function CompletionView({
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
               {isAuthenticated ? (
                 <Button asChild variant="dark" size="lg">
-                  <Link href="/positions">
+                  <Link href="/talent/jobs">
                     {t.ctaBrowse}
                     <ArrowRight weight="bold" />
                   </Link>
@@ -1256,7 +1256,7 @@ function CompletionView({
                     </Link>
                   </Button>
                   <Button asChild variant="outline" size="lg">
-                    <Link href="/positions">{t.ctaBrowse}</Link>
+                    <Link href="/talent/jobs">{t.ctaBrowse}</Link>
                   </Button>
                 </>
               )}

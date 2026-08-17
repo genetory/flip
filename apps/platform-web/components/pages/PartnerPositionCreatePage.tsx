@@ -419,7 +419,7 @@ export function PartnerPositionCreatePage({
               ? t("수정사항이 저장되었습니다.", "Changes saved.", "修改已保存。", "Đã lưu thay đổi.", "変更が保存されました。", "Perubahan disimpan.")
               : t("수정사항이 저장되어 바로 반영되었습니다.", "Changes saved and published right away.", "修改已保存并立即生效。", "Các thay đổi đã được lưu và áp dụng ngay.", "変更が保存され、すぐに反映されました。", "Perubahan disimpan dan langsung diterapkan.")
           );
-          router.push(`/positions/${encodeURIComponent(positionId)}`);
+          router.push(`/partner/positions/${encodeURIComponent(positionId)}`);
         }
       } else {
         const created = await createMyPartnerPosition(payload);
@@ -431,7 +431,7 @@ export function PartnerPositionCreatePage({
               ? t("포지션이 즉시 게시되었습니다.", "Position published.", "职位已立即发布。", "Vị trí đã được đăng ngay.", "ポジションが即時公開されました。", "Posisi langsung diterbitkan.")
               : t("포지션이 등록되어 바로 게시되었습니다.", "Position created and published right away.", "职位已创建并立即发布。", "Vị trí đã được tạo và đăng ngay.", "ポジションが登録され、すぐに公開されました。", "Posisi dibuat dan langsung diterbitkan.")
           );
-          router.push(`/positions/${encodeURIComponent(created.id)}`);
+          router.push(`/partner/positions/${encodeURIComponent(created.id)}`);
         }
       }
       router.refresh();
@@ -559,7 +559,7 @@ export function PartnerPositionCreatePage({
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">{t("파트너회원·운영자만 포지션을 생성할 수 있습니다.", "Only partner or operator accounts can create positions.", "只有合作伙伴或运营账户可以创建职位。", "Chỉ tài khoản đối tác hoặc vận hành mới có thể tạo vị trí.", "パートナー会員・運営者のみポジションを作成できます。", "Hanya akun mitra atau operator yang dapat membuat posisi.")}</p>
               <Button variant="outline" asChild>
-                <Link href="/positions">{t("포지션 목록으로", "Go to positions", "前往职位列表", "Đi đến danh sách vị trí", "ポジション一覧へ", "Ke daftar posisi")}</Link>
+                <Link href="/partner/positions">{t("포지션 목록으로", "Go to positions", "前往职位列表", "Đi đến danh sách vị trí", "ポジション一覧へ", "Ke daftar posisi")}</Link>
               </Button>
             </div>
           ) : mode === "edit" && isLoadingPosition ? (

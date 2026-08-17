@@ -158,7 +158,7 @@ export const Positions = () => {
             className="h-11 rounded-xl border-0 bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
             asChild
           >
-            <Link href="/positions">
+            <Link href="/talent/jobs">
               {copy.viewAll}
             </Link>
           </Button>
@@ -171,7 +171,7 @@ export const Positions = () => {
                 key={`${position.id}-list`}
                 className="relative rounded-2xl border border-slate-200 bg-[#f8fafc] p-3 shadow-[0_12px_26px_-20px_rgba(15,23,42,0.4)] transition-all duration-300"
               >
-                <Link href="/positions" aria-label={copy.viewAll} className="absolute inset-0 z-10 rounded-xl" />
+                <Link href="/talent/jobs" aria-label={copy.viewAll} className="absolute inset-0 z-10 rounded-xl" />
                 <div className="flex items-start gap-2.5">
                   <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white">
                     {position.thumbnailUrl ? (
@@ -241,7 +241,7 @@ export const Positions = () => {
                   zIndex: deckItems.length - visualIndex
                 }}
               >
-                <Link href="/positions" aria-label={copy.viewAll} className="absolute inset-0 z-10 rounded-xl" />
+                <Link href="/talent/jobs" aria-label={copy.viewAll} className="absolute inset-0 z-10 rounded-xl" />
                 <div className="mb-2 overflow-hidden rounded-lg border border-[#DBEAFE] bg-slate-50">
                   {position.thumbnailUrl ? (
                     <img src={position.thumbnailUrl} alt={position.title} className="aspect-video w-full object-cover" />

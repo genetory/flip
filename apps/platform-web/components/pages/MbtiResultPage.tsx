@@ -485,7 +485,7 @@ export function MbtiResultPage({ slug }: { slug: string }) {
                         {positions.map((p) => (
                           <Link
                             key={p.id}
-                            href={`/positions/${p.id}`}
+                            href={`/talent/jobs/${p.id}`}
                             className="block rounded-xl border border-border/60 bg-muted/20 px-4 py-3 transition hover:border-primary/40 hover:bg-primary/5"
                           >
                             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">

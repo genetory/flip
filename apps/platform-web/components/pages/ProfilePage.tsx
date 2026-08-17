@@ -1598,7 +1598,7 @@ export function ProfilePage() {
                                     : tr("아직 즐겨찾기한 포지션이 없습니다.", "No favorite positions yet.", "尚未收藏任何职位。", "Chưa có vị trí yêu thích nào.", "まだお気に入りのポジションはありません。", "Belum ada posisi favorit.")}
                                 </p>
                                 <Link
-                                  href="/positions"
+                                  href="/talent/jobs"
                                   className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#0B46E8] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#0A3FCF]"
                                 >
                                   {tr("포지션 둘러보기", "Browse positions", "浏览职位", "Xem vị trí", "ポジションを見る", "Lihat posisi")}

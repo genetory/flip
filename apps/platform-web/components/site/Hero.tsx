@@ -43,7 +43,7 @@ export const Hero = () => {
               className="h-11 rounded-xl border-0 bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
               asChild
             >
-              <Link href="/positions">
+              <Link href="/talent/jobs">
                 {copy.primaryCta}
               </Link>
             </Button>

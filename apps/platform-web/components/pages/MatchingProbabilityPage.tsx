@@ -988,7 +988,7 @@ export function MatchingProbabilityPage() {
 
                       <div className="mt-4">
                         <Button variant="outline" size="sm" asChild>
-                          <Link href="/positions">{t("열린 포지션 둘러보기", "Browse open positions", "浏览开放职位", "Xem các vị trí đang mở", "募集中のポジションを見る", "Lihat posisi yang tersedia")}</Link>
+                          <Link href="/talent/jobs">{t("열린 포지션 둘러보기", "Browse open positions", "浏览开放职位", "Xem các vị trí đang mở", "募集中のポジションを見る", "Lihat posisi yang tersedia")}</Link>
                         </Button>
                       </div>
                     </article>

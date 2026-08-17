@@ -788,7 +788,7 @@ export function PositionsPage() {
                     {premiumBanners.map((banner) => (
                       <Link
                         key={banner.id}
-                        href={`/positions/${banner.positionId}`}
+                        href={`/talent/jobs/${banner.positionId}`}
                         className="block w-[calc(160px*16/9)] shrink-0 rounded-xl border border-border/60 bg-card p-4"
                       >
                         <div className="h-[160px] overflow-hidden rounded-lg bg-muted">
@@ -1401,7 +1401,7 @@ export const PositionRow = ({
             />
           )
           : copy.externalLink;
-  const detailHref = externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? `/positions/${p.id}`;
+  const detailHref = externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? `/talent/jobs/${p.id}`;
   return (
     <article className={`group relative rounded-xl border bg-card ${selected ? "border-primary ring-2 ring-inset ring-primary" : "border-border/60"} ${compact ? "p-2.5" : "p-3 md:p-4"}`}>
       {onSelect ? (
@@ -1570,7 +1570,7 @@ export const PositionRow = ({
               )
             ) : (
               <Button variant="dark" size="sm" asChild>
-                <Link href={`/positions/${p.id}`}>{copy.apply}</Link>
+                <Link href={`/talent/jobs/${p.id}`}>{copy.apply}</Link>
               </Button>
             )}
           </div>
@@ -1637,7 +1637,7 @@ export const PositionGridCard = ({
             />
           )
           : copy.externalLink;
-  const detailHref = externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? `/positions/${p.id}`;
+  const detailHref = externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? `/talent/jobs/${p.id}`;
   return (
     <article className="group relative flex h-full flex-col rounded-xl border border-border/60 bg-card p-4">
       {isExternalSource(p.sourceKind) && p.sourceUrl ? (
@@ -1740,7 +1740,7 @@ export const PositionGridCard = ({
           </Button>
         ) : (
           <Button variant="dark" className="h-10 flex-1 text-sm" asChild>
-            <Link href={`/positions/${p.id}`}>{copy.apply}</Link>
+            <Link href={`/talent/jobs/${p.id}`}>{copy.apply}</Link>
           </Button>
         )}
       </div>

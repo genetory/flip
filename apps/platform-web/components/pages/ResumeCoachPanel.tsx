@@ -531,7 +531,7 @@ export function ResumeCoachPanel({
                   {tr("가능한 포지션", "Open for you", "可申请职位", "Vị trí phù hợp", "応募可能ポジション", "Posisi yang sesuai")}
                 </h3>
               </div>
-              <Link href="/positions" className="inline-flex items-center gap-0.5 text-[12px] font-semibold text-muted-foreground hover:text-foreground">
+              <Link href="/talent/jobs" className="inline-flex items-center gap-0.5 text-[12px] font-semibold text-muted-foreground hover:text-foreground">
                 {tr("모두 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}
                 <CaretRight className="h-3 w-3" weight="bold" />
               </Link>

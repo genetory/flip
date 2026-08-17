@@ -99,7 +99,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const countSuffix = isKo ? "개" : isZh ? " 个" : isJa ? "件" : "";
 
   const referer = headerStore.get("referer");
-  const backHref = referer && referer.trim() ? referer : "/positions";
+  const backHref = referer && referer.trim() ? referer : "/talent/jobs";
   const { id } = await params;
   const companyId = decodeURIComponent(id).trim();
 

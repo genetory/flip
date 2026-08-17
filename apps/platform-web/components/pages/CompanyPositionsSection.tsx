@@ -353,7 +353,7 @@ const PositionRow = ({
   return (
     <article className="group relative rounded-xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-elevated">
       <Link
-        href={`/positions/${p.id}`}
+        href={`/talent/jobs/${p.id}`}
         aria-label={`${p.role} ${copy.viewDetailSuffix}`}
         className="absolute inset-0 z-10 rounded-xl"
       />
@@ -416,7 +416,7 @@ const PositionRow = ({
               </Button>
             ) : (
               <Button variant="dark" size="sm" asChild>
-                <Link href={`/positions/${p.id}`}>{copy.apply}</Link>
+                <Link href={`/talent/jobs/${p.id}`}>{copy.apply}</Link>
               </Button>
             )}
           </div>
@@ -452,7 +452,7 @@ const PositionGridCard = ({
   return (
     <article className="group relative flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-elevated">
       <Link
-        href={`/positions/${p.id}`}
+        href={`/talent/jobs/${p.id}`}
         aria-label={`${p.role} ${copy.viewDetailSuffix}`}
         className="absolute inset-0 z-10 rounded-xl"
       />
@@ -504,7 +504,7 @@ const PositionGridCard = ({
           </Button>
         ) : (
           <Button variant="dark" className="h-10 flex-1 text-sm" asChild>
-            <Link href={`/positions/${p.id}`}>{copy.apply}</Link>
+            <Link href={`/talent/jobs/${p.id}`}>{copy.apply}</Link>
           </Button>
         )}
       </div>

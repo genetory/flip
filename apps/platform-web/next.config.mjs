@@ -25,6 +25,19 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      // 레거시 /positions(공고 목록·상세) → 새 /talent/jobs 로 영구 이관.
+      // 파트너 생성(/positions/create)·수정(/positions/:id/edit)은 보존해야 하므로
+      // 목록은 정확 매치, 상세는 단일 세그먼트에서 create 만 제외한다.
+      {
+        source: "/positions",
+        destination: "/talent/jobs",
+        permanent: true
+      },
+      {
+        source: "/positions/:id((?!create$)[^/]+)",
+        destination: "/talent/jobs/:id",
+        permanent: true
+      },
       {
         source: "/:path*",
         has: [{ type: "host", value: "www.aply.global" }],

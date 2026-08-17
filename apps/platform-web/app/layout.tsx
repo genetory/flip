@@ -101,7 +101,7 @@ const siteJsonLd = [
     url: siteUrl,
     potentialAction: {
       "@type": "SearchAction",
-      target: `${siteUrl}/positions?q={search_term_string}`,
+      target: `${siteUrl}/talent/jobs?q={search_term_string}`,
       "query-input": "required name=search_term_string"
     }
   },
