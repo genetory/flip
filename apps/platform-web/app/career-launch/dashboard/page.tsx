@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Lock, CaretRight, ArrowRight, Monitor, MapPin, CircleNotch, ChatCircleText, GraduationCap, PenNib } from "@phosphor-icons/react";
 import { STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, SectionTitle } from "../../../components/launch/ui";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
@@ -190,7 +191,7 @@ export default function LaunchDashboardPage() {
   if (!isReady || !isAuthenticated) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <span className="text-[13px] text-[#8B95A1]">{t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
+        <span className="inline-flex items-center gap-2 text-[13px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
       </main>
     );
   }
@@ -234,7 +235,7 @@ export default function LaunchDashboardPage() {
                   {t(`${nextWeek.week}주차`, `Week ${nextWeek.week}`, `第${nextWeek.week}周`, `Tuần ${nextWeek.week}`, `${nextWeek.week}週目`, `Minggu ${nextWeek.week}`)} · {WEEK_DELIVERABLE[nextWeek.week]}
                 </p>
               </div>
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-[17px] text-white transition group-hover:bg-white/20 group-hover:translate-x-0.5">→</span>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition group-hover:bg-white/20 group-hover:translate-x-0.5"><ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden /></span>
             </Link>
             </Reveal>
           ) : null}
@@ -290,12 +291,12 @@ export default function LaunchDashboardPage() {
                   </p>
                   <div className="mt-5 flex flex-wrap gap-2">
                     {[
-                      { e: "💬", t: t("대화로 만드는 이력서·자기소개서", "Resume & cover letter built through conversation", "对话即可完成简历与求职信", "Hồ sơ & thư tự giới thiệu tạo qua trò chuyện", "会話で作る履歴書・自己紹介書", "Resume & cover letter dari percakapan") },
-                      { e: "🎓", t: t("주간 세미나", "Weekly seminar", "每周研讨会", "Hội thảo hằng tuần", "週間セミナー", "Seminar mingguan") },
-                      { e: "✍️", t: t("코치 1:1 피드백", "1:1 coach feedback", "教练一对一反馈", "Phản hồi 1:1 từ coach", "コーチ1:1フィードバック", "Umpan balik coach 1:1") }
+                      { Icon: ChatCircleText, t: t("대화로 만드는 이력서·자기소개서", "Resume & cover letter built through conversation", "对话即可完成简历与求职信", "Hồ sơ & thư tự giới thiệu tạo qua trò chuyện", "会話で作る履歴書・自己紹介書", "Resume & cover letter dari percakapan") },
+                      { Icon: GraduationCap, t: t("주간 세미나", "Weekly seminar", "每周研讨会", "Hội thảo hằng tuần", "週間セミナー", "Seminar mingguan") },
+                      { Icon: PenNib, t: t("코치 1:1 피드백", "1:1 coach feedback", "教练一对一反馈", "Phản hồi 1:1 từ coach", "コーチ1:1フィードバック", "Umpan balik coach 1:1") }
                     ].map((f) => (
                       <span key={f.t} className="inline-flex items-center gap-1.5 rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12px] font-semibold text-[#4E5968]">
-                        <span>{f.e}</span>
+                        <f.Icon className="h-3.5 w-3.5 text-[#0B46E8]" weight="fill" aria-hidden />
                         {f.t}
                       </span>
                     ))}
@@ -350,7 +351,7 @@ export default function LaunchDashboardPage() {
                       : t("시작 전", "Not started", "未开始", "Chưa bắt đầu", "未開始", "Belum mulai");
                     const inner = (
                       <div className="flex items-center gap-4 py-5">
-                        <span className={`w-14 shrink-0 text-[13px] font-black ${unlocked ? "text-[#191F28]" : "text-[#D7DCE3]"}`}>{unlocked ? t(`${w.week}주차`, `Week ${w.week}`, `第${w.week}周`, `Tuần ${w.week}`, `${w.week}週目`, `Minggu ${w.week}`) : "🔒"}</span>
+                        <span className={`flex w-14 shrink-0 items-center text-[13px] font-black ${unlocked ? "text-[#191F28]" : "text-[#C4CAD2]"}`}>{unlocked ? t(`${w.week}주차`, `Week ${w.week}`, `第${w.week}周`, `Tuần ${w.week}`, `${w.week}週目`, `Minggu ${w.week}`) : <Lock className="h-4 w-4" weight="fill" aria-hidden />}</span>
                         <div className="min-w-0 flex-1">
                           <p className={`truncate text-[15.5px] font-bold tracking-[-0.01em] ${unlocked ? "text-[#191F28]" : "text-[#B0B8C1]"}`}>{weekText(w.week, "title")}</p>
                           <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">
@@ -358,7 +359,7 @@ export default function LaunchDashboardPage() {
                           </p>
                         </div>
                         <span className={`shrink-0 text-[12.5px] font-medium ${unlocked && done === total ? "text-[#191F28]" : "text-[#B0B8C1]"}`}>{status}</span>
-                        {unlocked ? <span className="shrink-0 text-[15px] text-[#C4CAD2] transition group-hover:translate-x-0.5">→</span> : null}
+                        {unlocked ? <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2] transition group-hover:translate-x-0.5" weight="bold" aria-hidden /> : null}
                       </div>
                     );
                     return <li key={w.week}>{unlocked ? <Link href={`/career-launch/week/${w.week}`} className="group -mx-2 block rounded-xl px-2 transition hover:bg-[#FAFBFC]">{inner}</Link> : inner}</li>;
@@ -383,7 +384,7 @@ export default function LaunchDashboardPage() {
                       const time = valid ? dt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" }) : "";
                       return (
                         <Card key={s.week} className="flex items-start gap-3 !p-4">
-                          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-[#F2F4F6] text-[18px]">{s.online ? "💻" : "📍"}</span>
+                          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[#0B46E8]">{s.online ? <Monitor className="h-5 w-5" weight="fill" aria-hidden /> : <MapPin className="h-5 w-5" weight="fill" aria-hidden />}</span>
                           <div className="min-w-0">
                             <p className="text-[13.5px] font-bold text-[#191F28]">{s.title || t(`Week ${s.week} 세미나`, `Week ${s.week} seminar`, `第${s.week}周研讨会`, `Hội thảo Tuần ${s.week}`, `Week ${s.week} セミナー`, `Seminar Minggu ${s.week}`)}</p>
                             <p className="mt-0.5 text-[12.5px] text-[#4E5968]">{[date, time].filter(Boolean).join(" · ")}</p>
