@@ -212,6 +212,8 @@ const port = Number(process.env.API_PORT ?? 4000);
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 const openaiMatchingModel = process.env.OPENAI_MATCHING_MODEL ?? "gpt-4o";
 const openaiTranslationModel = process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-4o-mini";
+// 모의면접 질문·피드백 전용 모델 — 번역 등 공용 모델과 분리해 품질↑(비용은 면접에만).
+const openaiInterviewModel = process.env.OPENAI_INTERVIEW_MODEL ?? "gpt-4o";
 const openaiMatchingMaxPool = Number(process.env.OPENAI_MATCHING_MAX_POOL ?? 120);
 const openaiMatchingPrefilterMultiplier = Math.max(1, Number(process.env.OPENAI_MATCHING_PREFILTER_MULTIPLIER ?? 4));
 const openaiMatchingMinCompletionPercent = Math.max(0, Math.min(100, Number(process.env.OPENAI_MATCHING_MIN_COMPLETION_PERCENT ?? 45)));
@@ -18521,7 +18523,7 @@ app.post(
         `${coverLetterText ? `\n\n[자기소개서]\n${coverLetterText}` : ""}` +
         `${asked.length ? `\n\n[이미 물어본 질문 — 겹치지 않게]\n${asked.map((q) => `- ${q}`).join("\n")}` : ""}`;
       const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
+        model: openaiInterviewModel,
         temperature: 0.6,
         response_format: { type: "json_object" },
         messages: [
@@ -18703,7 +18705,7 @@ app.post(
         `${resumeText ? `\n[이력서 요약]\n${resumeText}\n` : ""}` +
         `\n[면접 질문]\n${question}\n\n[지원자 답변]\n${answer}`;
       const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
+        model: openaiInterviewModel,
         temperature: 0.5,
         response_format: { type: "json_object" },
         messages: [
