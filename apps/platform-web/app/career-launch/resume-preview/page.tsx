@@ -1,5 +1,5 @@
 "use client";
-import { CaretLeft } from "@phosphor-icons/react";
+import { CaretLeft, CircleNotch } from "@phosphor-icons/react";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -58,7 +58,7 @@ export default function ResumePreviewPage() {
           </Link>
           <div className="mt-6">
             {state === "loading" ? (
-              <div className="rounded-2xl border border-[#E5E8EB] bg-white p-8 text-center text-[14px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</div>
+              <div className="flex items-center justify-center gap-2 rounded-2xl border border-[#E5E8EB] bg-white p-8 text-[14px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</div>
             ) : (
               <div className="rounded-2xl border border-dashed border-[#D7DCE3] bg-white p-8 text-center">
                 <p className="text-[14px] font-semibold text-[#4E5968]">{t("아직 채운 이력서 정보가 없어요.", "You haven't filled in any resume details yet.", "你还没有填写任何简历信息。", "Bạn chưa điền thông tin sơ yếu lý lịch nào.", "まだ入力された履歴書の情報がありません。", "Kamu belum mengisi detail resume apa pun.")}</p>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { CircleNotch } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -121,7 +122,7 @@ export default function CareerSurveyPage() {
           </p>
 
           {loading ? (
-            <div className="mt-6 rounded-2xl bg-white p-5 text-[14px] text-[#8B95A1] shadow-[0_1px_2px_rgba(0,0,0,.04),0_4px_16px_rgba(0,0,0,.05)]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</div>
+            <div className="mt-6 flex items-center gap-2 rounded-2xl bg-white p-5 text-[14px] text-[#8B95A1] shadow-[0_1px_2px_rgba(0,0,0,.04),0_4px_16px_rgba(0,0,0,.05)]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</div>
           ) : error && !data ? (
             <div className="mt-6 rounded-2xl bg-white p-5 text-[14px] text-[#e5484d] shadow-[0_1px_2px_rgba(0,0,0,.04),0_4px_16px_rgba(0,0,0,.05)]">{error}</div>
           ) : (

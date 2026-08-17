@@ -6,7 +6,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CaretLeft, SignOut, CaretRight } from "@phosphor-icons/react";
+import { CaretLeft, SignOut, CaretRight, CircleNotch } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { Card, SectionTitle } from "../../../components/launch/ui";
@@ -25,7 +25,7 @@ export default function CareerLaunchSettingsPage() {
   if (!isReady || !isAuthenticated) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#F6F8FB]">
-        <span className="text-[13px] text-[#8B95A1]">{t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
+        <span className="inline-flex items-center gap-2 text-[13px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
       </main>
     );
   }

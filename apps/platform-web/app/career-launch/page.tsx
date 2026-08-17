@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { CircleNotch } from "@phosphor-icons/react";
 import { CareerLaunchLoginPage } from "../../components/launch/CareerLaunchLoginPage";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../lib/launch/i18n";
@@ -22,7 +23,7 @@ export default function LaunchLoginRoute() {
   if (!isReady || isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
-        <span className="text-[13px] text-[#8B95A1]">{t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
+        <span className="inline-flex items-center gap-2 text-[13px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
       </div>
     );
   }

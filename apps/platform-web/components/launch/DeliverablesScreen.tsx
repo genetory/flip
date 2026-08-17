@@ -4,7 +4,7 @@
 // 진단·이력서·자기소개서·면접·최종 리포트. 이력서/자소서는 A4 썸네일 + 크게보기.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight } from "@phosphor-icons/react";
+import { ArrowRight, ArrowUpRight, CircleNotch } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
 import { AplyFooter } from "../AplyFooter";
 import { Reveal } from "../site/Reveal";
@@ -119,7 +119,7 @@ export function DocCard({ title, ready, loading, editHref, fullHref, emptyLabel,
         </Link>
       </div>
       {loading ? (
-        <div className="flex aspect-[210/297] items-center justify-center rounded-lg border border-[#E5E8EB] bg-white text-[12.5px] text-[#B0B8C1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</div>
+        <div className="flex aspect-[210/297] items-center justify-center gap-2 rounded-lg border border-[#E5E8EB] bg-white text-[12.5px] text-[#B0B8C1]"><CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</div>
       ) : ready ? (
         <div className="relative mx-auto w-full max-w-[300px]">
           <div className="relative aspect-[210/297] overflow-hidden rounded-lg border border-[#E5E8EB] bg-white shadow-[0_2px_14px_rgba(11,18,39,0.06)]">
