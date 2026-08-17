@@ -36,13 +36,13 @@ export function PositionCard({
   onShowCip?: () => void;
 }) {
   const t = usePlatformT();
-  // 외부 공고 + 원본 URL이 있으면 새 창 연결, 아니면 내부 상세로.
-  const isExternal = view.external && !!view.externalUrl;
-  const linkHref = isExternal ? view.externalUrl! : `${talentAppRoutes.jobs}/${view.id}`;
+  // 외부 공고도 상세 JD를 수집하므로 카드 클릭은 항상 내부 상세 페이지로 이동한다(CIP와 동일).
+  // 원티드 원문 지원은 상세 페이지의 '지원하기' 버튼에서만 새 창으로 연결.
+  const linkHref = `${talentAppRoutes.jobs}/${view.id}`;
   return (
     <div className="group relative rounded-2xl border border-[#EEF1F5] bg-white p-5 transition hover:border-[#D7DCE3] hover:shadow-[0_6px_20px_rgba(11,18,39,0.05)]">
       {/* 카드 전체 클릭 → 상세(내부) 또는 원본(외부). 저장·CIP·회사명은 z-10로 위에 둬 각자 동작. */}
-      <CardLink isExternal={isExternal} href={linkHref} className="absolute inset-0 z-0 rounded-2xl">
+      <CardLink isExternal={false} href={linkHref} className="absolute inset-0 z-0 rounded-2xl">
         <span className="sr-only">{view.title}</span>
       </CardLink>
       <div className="pointer-events-none flex gap-4">
