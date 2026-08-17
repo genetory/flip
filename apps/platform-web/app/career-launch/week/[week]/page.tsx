@@ -3,6 +3,7 @@
 import { use } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { CaretRight, ArrowRight } from "@phosphor-icons/react";
 import { WEEKS } from "../../../../lib/launch/data";
 import { SectionTitle } from "../../../../components/launch/ui";
 import { WeekStepper } from "../../../../components/launch/week-stepper";
@@ -107,7 +108,7 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
                       {isCurrent ? (
                         <span className="shrink-0 text-[12px] font-bold text-[#0B46E8]">{t("보는 중", "Viewing", "查看中", "Đang xem", "表示中", "Sedang dilihat")}</span>
                       ) : (
-                        <span className="shrink-0 text-[15px] text-[#C4CAD2] transition group-hover:translate-x-0.5">→</span>
+                        <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2] transition group-hover:translate-x-0.5" weight="bold" aria-hidden />
                       )}
                     </div>
                   );
@@ -132,7 +133,7 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
               className="group mt-10 flex items-center justify-between gap-4 rounded-2xl bg-[#191F28] p-5 transition hover:bg-[#0B1227] md:p-6"
             >
               <span className="text-[15px] font-bold text-white md:text-[16.5px]">{t("완성한 내 결과물 보러 가기", "See my finished deliverables", "去查看我完成的成果", "Xem kết quả đã hoàn thành của tôi", "完成した私の成果物を見に行く", "Lihat hasil saya yang sudah selesai")}</span>
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-[17px] text-white transition group-hover:bg-white/20 group-hover:translate-x-0.5">→</span>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition group-hover:bg-white/20 group-hover:translate-x-0.5"><ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden /></span>
             </Link>
           ) : null}
         </div>

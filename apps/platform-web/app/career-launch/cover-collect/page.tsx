@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Check, CircleNotch, Eye, Sparkle } from "@phosphor-icons/react";
+import { Check, CircleNotch, Eye, Sparkle, ArrowUpRight } from "@phosphor-icons/react";
 import { CoverRender } from "../../../components/launch/cover-render";
 import { SectionTitle } from "../../../components/launch/ui";
 import { SectionChatModal } from "../../../components/launch/SectionChatModal";
@@ -208,7 +208,7 @@ export default function CoverCollectPage() {
                   <CoverRender data={preview} />
                 </div>
                 <Link href="/career-launch/cover-preview" target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">
-                  {t("전체 화면으로 보기", "Open full screen", "全屏查看", "Xem toàn màn hình", "全画面で見る", "Lihat layar penuh")} ↗
+                  {t("전체 화면으로 보기", "Open full screen", "全屏查看", "Xem toàn màn hình", "全画面で見る", "Lihat layar penuh")} <ArrowUpRight className="inline h-3.5 w-3.5 align-text-bottom" weight="bold" aria-hidden />
                 </Link>
               </div>
             </div>

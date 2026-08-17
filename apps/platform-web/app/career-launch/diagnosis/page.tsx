@@ -1,4 +1,5 @@
 "use client";
+import { CaretLeft } from "@phosphor-icons/react";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -129,8 +130,8 @@ export default function LaunchDiagnosisPage() {
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
           {/* 상단바 */}
           <div className="flex items-center justify-between gap-3">
-            <Link href="/career-launch/week/1" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              ← {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
+            <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+              <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
             </Link>
             <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
           </div>

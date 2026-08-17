@@ -4,7 +4,7 @@
 // 진단·이력서·자기소개서·면접·최종 리포트. 이력서/자소서는 A4 썸네일 + 크게보기.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "@phosphor-icons/react";
+import { ArrowRight, ArrowUpRight } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
 import { AplyFooter } from "../AplyFooter";
 import { Reveal } from "../site/Reveal";
@@ -127,7 +127,7 @@ export function DocCard({ title, ready, loading, editHref, fullHref, emptyLabel,
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white via-white/85 to-transparent" />
           </div>
           <Link href={fullHref} target="_blank" rel="noopener noreferrer" className="absolute inset-x-0 bottom-3 mx-auto flex w-max items-center gap-1 rounded-full border border-[#E5E8EB] bg-white px-4 py-2 text-[12.5px] font-bold text-[#191F28] shadow-[0_2px_10px_rgba(11,18,39,0.12)] transition hover:bg-[#F6F8FB]">
-            {t("크게보기", "View larger", "放大查看", "Xem lớn hơn", "大きく見る", "Lihat lebih besar")} ↗
+            {t("크게보기", "View larger", "放大查看", "Xem lớn hơn", "大きく見る", "Lihat lebih besar")} <ArrowUpRight className="h-3.5 w-3.5" weight="bold" aria-hidden />
           </Link>
         </div>
       ) : (

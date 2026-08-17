@@ -1,4 +1,5 @@
 "use client";
+import { CaretLeft } from "@phosphor-icons/react";
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -58,8 +59,8 @@ export default function CultureLessonPage() {
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
-          <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-            ← {t("대시보드", "Dashboard", "仪表盘", "Bảng điều khiển", "ダッシュボード", "Dasbor")}
+          <Link href="/career-launch/dashboard" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+            <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("대시보드", "Dashboard", "仪表盘", "Bảng điều khiển", "ダッシュボード", "Dasbor")}
           </Link>
 
           {!lesson ? (

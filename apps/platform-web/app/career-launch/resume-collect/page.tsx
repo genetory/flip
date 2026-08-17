@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Plus, Trash, Check, CircleNotch, Eye, Sparkle, CaretUp, CaretDown, SortAscending } from "@phosphor-icons/react";
+import { Plus, Trash, Check, CircleNotch, Eye, Sparkle, CaretUp, CaretDown, SortAscending, ArrowUpRight } from "@phosphor-icons/react";
 import { toResumeContent } from "../../../components/launch/resume-render";
 import { ResumePreview } from "../../../components/resume-maker/ResumePreview";
 import { DEFAULT_DESIGN } from "../../../lib/resume-maker-types";
@@ -302,7 +302,7 @@ export default function ResumeCollectPage() {
                   <ResumePreview content={toResumeContent(data)} design={DEFAULT_DESIGN} preserveOrder />
                 </div>
                 <Link href="/career-launch/resume-preview" target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">
-                  {t("전체 화면으로 보기", "Open full screen", "全屏查看", "Xem toàn màn hình", "全画面で見る", "Lihat layar penuh")} ↗
+                  {t("전체 화면으로 보기", "Open full screen", "全屏查看", "Xem toàn màn hình", "全画面で見る", "Lihat layar penuh")} <ArrowUpRight className="inline h-3.5 w-3.5 align-text-bottom" weight="bold" aria-hidden />
                 </Link>
               </div>
             </div>

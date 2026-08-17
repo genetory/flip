@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { ArrowUpRight } from "@phosphor-icons/react";
 import { fetchResumeData, hasResumeContent, type ResumeData } from "../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
 import { ResumeRender } from "./resume-render";
@@ -124,7 +125,7 @@ function DocThumb({ children, href, moreLabel }: { children: ReactNode; href: st
           rel="noopener noreferrer"
           className="absolute inset-x-0 bottom-3 mx-auto flex w-max items-center gap-1 rounded-full border border-[#E5E8EB] bg-white px-4 py-2 text-[12.5px] font-bold text-[#191F28] shadow-[0_2px_10px_rgba(11,18,39,0.12)] transition hover:bg-[#F6F8FB]"
         >
-          {moreLabel} ↗
+          {moreLabel} <ArrowUpRight className="h-3.5 w-3.5" weight="bold" aria-hidden />
         </Link>
       </div>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowClockwise } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowRight } from "@phosphor-icons/react";
 import Link from "next/link";
 import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
 import { fetchDocsSummary } from "../../lib/launch/feedback-client";
@@ -348,7 +348,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
                   href={s.action.href}
                   className="group mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
                 >
-                  {actionLabel(s.action.label)} <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
+                  {actionLabel(s.action.label)} <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" weight="bold" aria-hidden />
                 </Link>
               ) : null}
             </div>

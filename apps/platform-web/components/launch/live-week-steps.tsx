@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowRight } from "@phosphor-icons/react";
 import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { useStepText, useJobReason, useStepActionLabel, useJobName } from "../../lib/launch/data-i18n";
@@ -225,7 +226,7 @@ export function LiveWeekSteps({
                   href={s.action.href}
                   className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-3.5 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]"
                 >
-                  {actionLabel(s.action.label)} <span aria-hidden>→</span>
+                  {actionLabel(s.action.label)} <ArrowRight className="h-3.5 w-3.5" weight="bold" aria-hidden />
                 </Link>
               ) : null}
             </div>
