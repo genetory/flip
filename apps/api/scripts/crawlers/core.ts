@@ -18,6 +18,11 @@ export type NormalizedExternalPosition = {
   eligibleVisas?: string[];
   additionalNotes?: string | null;
   sourceDeadlineDate?: Date | null;
+  // 상세 JD(있으면) — 내부(CIP) 공고와 동일한 상세 페이지를 채우기 위한 필드.
+  mainResponsibilities?: string | null;
+  requiredQualifications?: string | null;
+  preferredQualifications?: string | null;
+  hiringProcess?: string | null;
 };
 
 const HASH_MARKER = "[[sourceSyncHash:";
@@ -63,7 +68,11 @@ export async function upsertExternalPositions(prisma: PrismaClient, providerName
       communicationLanguages,
       eligibleVisas,
       additionalNotes: row.additionalNotes ?? null,
-      sourceDeadlineDate: row.sourceDeadlineDate ? row.sourceDeadlineDate.toISOString() : null
+      sourceDeadlineDate: row.sourceDeadlineDate ? row.sourceDeadlineDate.toISOString() : null,
+      mainResponsibilities: row.mainResponsibilities ?? null,
+      requiredQualifications: row.requiredQualifications ?? null,
+      preferredQualifications: row.preferredQualifications ?? null,
+      hiringProcess: row.hiringProcess ?? null
     });
 
     const additionalNotes = [
@@ -111,7 +120,11 @@ export async function upsertExternalPositions(prisma: PrismaClient, providerName
           thumbnailImages,
           communicationLanguages,
           eligibleVisas,
-          additionalNotes
+          additionalNotes,
+          mainResponsibilities: row.mainResponsibilities ?? null,
+          requiredQualifications: row.requiredQualifications ?? null,
+          preferredQualifications: row.preferredQualifications ?? null,
+          hiringProcess: row.hiringProcess ?? null
         }
       });
       positionId = existing.id;
@@ -134,7 +147,11 @@ export async function upsertExternalPositions(prisma: PrismaClient, providerName
           thumbnailImages,
           communicationLanguages,
           eligibleVisas,
-          additionalNotes
+          additionalNotes,
+          mainResponsibilities: row.mainResponsibilities ?? null,
+          requiredQualifications: row.requiredQualifications ?? null,
+          preferredQualifications: row.preferredQualifications ?? null,
+          hiringProcess: row.hiringProcess ?? null
         },
         select: { id: true }
       });

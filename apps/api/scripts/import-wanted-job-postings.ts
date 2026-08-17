@@ -123,6 +123,16 @@ type ForeignerFilter =
   | { kind: "additional_apply_type"; label: "foreigner_friendly_company" }
   | { kind: "tag"; tagId: 10526; label: "foreigner_open_to_apply" };
 
+// Wanted rate limit(≤10 calls/10s) — 목록·상세 모든 호출이 공유하는 최소 간격 게이트.
+let lastCallAt = 0;
+async function throttle() {
+  const elapsed = Date.now() - lastCallAt;
+  if (lastCallAt > 0 && elapsed < REQUEST_DELAY_MS) {
+    await sleep(REQUEST_DELAY_MS - elapsed);
+  }
+  lastCallAt = Date.now();
+}
+
 // filter === null → 전체 공고(한국인 포함) 조회. 필터가 있으면 외국인 신호별 조회.
 async function fetchJobs(offset: number, limit: number, filter: ForeignerFilter | null): Promise<WantedJobsResponse> {
   const params = new URLSearchParams();
@@ -135,6 +145,7 @@ async function fetchJobs(offset: number, limit: number, filter: ForeignerFilter 
   }
 
   const url = `${BASE_URL}${JOBS_PATH}?${params.toString()}`;
+  await throttle();
   const response = await fetch(url, {
     method: "GET",
     headers: buildHeaders()
@@ -146,6 +157,60 @@ async function fetchJobs(offset: number, limit: number, filter: ForeignerFilter 
   }
 
   return (await response.json()) as WantedJobsResponse;
+}
+
+// 상세 JD — v1 개별 공고 엔드포인트(/v1/jobs/{id}). v2 목록엔 본문이 없어 여기서 보강한다.
+type WantedJobDetailBody = {
+  detail?: {
+    intro?: string | null;
+    main_tasks?: string | null;
+    requirements?: string | null;
+    preferred_points?: string | null;
+    benefits?: string | null;
+    hire_rounds?: string | null;
+  } | null;
+  company?: { description?: string | null } | null;
+  skill_tags?: Array<{ title?: string | null }> | null;
+};
+
+async function fetchJobDetail(externalId: string): Promise<WantedJobDetailBody | null> {
+  if (!externalId) return null;
+  await throttle();
+  try {
+    const response = await fetch(`${BASE_URL}/v1/jobs/${encodeURIComponent(externalId)}`, {
+      method: "GET",
+      headers: buildHeaders()
+    });
+    if (!response.ok) return null;
+    const json = (await response.json()) as { data?: WantedJobDetailBody } | WantedJobDetailBody;
+    return (json && typeof json === "object" && "data" in json ? (json as { data?: WantedJobDetailBody }).data : json) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// 상세 응답 → 우리 Position JD 필드로 매핑. 빈 문자열은 null.
+// 우대사항엔 원티드 preferred_points 에 더해 복지·혜택(benefits)을 함께 담아 정보 손실을 줄인다.
+function pickDetailFields(detail: WantedJobDetailBody | null): {
+  mainResponsibilities: string | null;
+  requiredQualifications: string | null;
+  preferredQualifications: string | null;
+  hiringProcess: string | null;
+} {
+  const norm = (s: string | null | undefined): string | null => {
+    const v = (s ?? "").trim();
+    return v.length > 0 ? v : null;
+  };
+  const d = detail?.detail ?? null;
+  const preferred = norm(d?.preferred_points);
+  const benefits = norm(d?.benefits);
+  const preferredCombined = [preferred, benefits ? `[복지·혜택]\n${benefits}` : null].filter(Boolean).join("\n\n") || null;
+  return {
+    mainResponsibilities: norm(d?.main_tasks),
+    requiredQualifications: norm(d?.requirements),
+    preferredQualifications: preferredCombined,
+    hiringProcess: norm(d?.hire_rounds)
+  };
 }
 
 function pickTitle(job: WantedJob): string {
@@ -220,7 +285,7 @@ function pickSourceDeadlineDate(job: WantedJob): Date | null {
 
 // foreignerEligible: 외국인 필터 조회에서 확인된 공고면 true. 태그 경로로만
 // 외국인 가능인 공고는 payload의 additional_apply_type엔 안 나오므로, 이 인자로 보강한다.
-function normalize(job: WantedJob, foreignerEligible: boolean): NormalizedExternalPosition | null {
+function normalize(job: WantedJob, foreignerEligible: boolean, detail: WantedJobDetailBody | null = null): NormalizedExternalPosition | null {
   if (!isActiveJob(job)) return null;
 
   const externalIdRaw = job.id;
@@ -245,6 +310,8 @@ function normalize(job: WantedJob, foreignerEligible: boolean): NormalizedExtern
     eligibleVisas.push("FOREIGNER_FRIENDLY");
   }
 
+  const jd = pickDetailFields(detail); // 상세 JD(있으면) — CIP 동일 상세 페이지용
+
   return {
     externalId,
     title,
@@ -260,7 +327,11 @@ function normalize(job: WantedJob, foreignerEligible: boolean): NormalizedExtern
     communicationLanguages: [],
     eligibleVisas,
     additionalNotes: pickAdditionalNotes(job),
-    sourceDeadlineDate: pickSourceDeadlineDate(job)
+    sourceDeadlineDate: pickSourceDeadlineDate(job),
+    mainResponsibilities: jd.mainResponsibilities,
+    requiredQualifications: jd.requiredQualifications,
+    preferredQualifications: jd.preferredQualifications,
+    hiringProcess: jd.hiringProcess
   };
 }
 
@@ -291,7 +362,6 @@ async function main() {
   }
 
   const totals = { created: 0, updated: 0, skipped: 0, seen: 0 };
-  let lastCallAt = 0;
   // Encode receive order into postedAt so that Wanted's latest_order survives
   // through `ORDER BY createdAt DESC`. The first job we see gets the most recent
   // timestamp; subsequent jobs are 1 second older.
@@ -314,16 +384,9 @@ async function main() {
     console.info(`[wanted-import] Phase: ${label}`);
     for (let page = 0; page < maxPages; page += 1) {
       const offset = page * PAGE_SIZE;
-      // Guarantee the minimum gap *before* each network call (not after), so
-      // the limiter is robust to fast responses and unrelated work between pages.
-      const elapsed = Date.now() - lastCallAt;
-      if (lastCallAt > 0 && elapsed < REQUEST_DELAY_MS) {
-        await sleep(REQUEST_DELAY_MS - elapsed);
-      }
       let payload: WantedJobsResponse;
-      lastCallAt = Date.now();
       try {
-        payload = await fetchJobs(offset, PAGE_SIZE, filter);
+        payload = await fetchJobs(offset, PAGE_SIZE, filter); // 레이트리밋(throttle) 내장
       } catch (error) {
         console.error(`[wanted-import] Failed to fetch [${label}] page ${page} (offset=${offset}):`, error);
         break;
@@ -344,17 +407,18 @@ async function main() {
         return true;
       });
 
-      const normalized = fresh
-        .map((job) => normalize(job, resolveForeigner(jobKey(job.id))))
-        .filter((row): row is NormalizedExternalPosition => Boolean(row))
-        .map((row) => {
-          const stamped: NormalizedExternalPosition = {
-            ...row,
-            postedAt: new Date(importStartedAt - globalOrder * 1000)
-          };
-          globalOrder += 1;
-          return stamped;
-        });
+      // 공고별로 상세 JD(/v1/jobs/{id})를 받아 normalize 에 넘긴다(레이트리밋 공유).
+      // 상세 호출이 추가되므로 활성 공고만 조회해 낭비를 줄인다.
+      const normalized: NormalizedExternalPosition[] = [];
+      for (const job of fresh) {
+        if (!isActiveJob(job)) continue;
+        const key = jobKey(job.id);
+        const detail = await fetchJobDetail(key);
+        const row = normalize(job, resolveForeigner(key), detail);
+        if (!row) continue;
+        normalized.push({ ...row, postedAt: new Date(importStartedAt - globalOrder * 1000) });
+        globalOrder += 1;
+      }
 
       const result = await upsertExternalPositions(prisma, "import-wanted-job-postings", normalized);
       totals.created += result.created;

@@ -416,6 +416,9 @@ export function PositionDetailSections({ item }: { item: PublicPositionListItem 
         <div className="mt-4 flex flex-col gap-5">
           <DetailBlock title={t("주요 업무", "Responsibilities", "主要职责", "Nhiệm vụ chính", "主な業務", "Tanggung jawab")} text={orDash(t, item.mainResponsibilities)} />
           <DetailBlock title={t("필수 자격 요건", "Requirements", "任职要求", "Yêu cầu bắt buộc", "必須要件", "Persyaratan")} text={orDash(t, item.requiredQualifications)} />
+          {item.preferredQualifications ? (
+            <DetailBlock title={t("우대 사항", "Preferred", "加分项", "Ưu tiên", "優遇事項", "Nilai plus")} text={item.preferredQualifications} />
+          ) : null}
           <DetailBlock title={t("채용 프로세스", "Hiring process", "招聘流程", "Quy trình tuyển dụng", "採用プロセス", "Proses rekrutmen")} text={orDash(t, item.hiringProcess)} />
         </div>
       </TCard>
