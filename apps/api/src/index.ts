@@ -4379,10 +4379,9 @@ async function runExternalCrawlers(
   }
 
   try {
-    const buddies = source === "all" || source === "buddies"
-      ? await runCrawlerScript("scripts/import-buddies-job-postings.ts")
-      : null;
-    const wanted = source === "all" || source === "wanted"
+    // Buddies 소스는 폐지(원티드만 사용). source 값과 무관하게 실행하지 않는다.
+    const buddies: CrawlerRunSummary | null = null;
+    const wanted = source === "all" || source === "wanted" || source === "buddies"
       ? await runCrawlerScript("scripts/import-wanted-job-postings.ts")
       : null;
     const elapsedMs = Date.now() - startedAt.getTime();
@@ -4396,7 +4395,7 @@ async function runExternalCrawlers(
             ok: true,
             finishedAt: new Date(),
             elapsedMs,
-            buddiesResult: (buddies ?? Prisma.DbNull) as Prisma.InputJsonValue,
+            buddiesResult: Prisma.DbNull, // Buddies 폐지 — 항상 null
             wantedResult: (wanted ?? Prisma.DbNull) as Prisma.InputJsonValue
           }
         });
