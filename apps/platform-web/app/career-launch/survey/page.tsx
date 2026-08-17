@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { GraduationCap } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -127,14 +126,6 @@ export default function CareerSurveyPage() {
             <div className="mt-6 rounded-2xl bg-white p-5 text-[14px] text-[#e5484d] shadow-[0_1px_2px_rgba(0,0,0,.04),0_4px_16px_rgba(0,0,0,.05)]">{error}</div>
           ) : (
             <>
-              {data?.certificate ? (
-                <div className="mt-6 rounded-2xl bg-[#e8f2fe] p-5">
-                  <p className="flex items-center gap-1.5 text-[13px] font-bold text-[#1b64da]"><GraduationCap size={16} weight="bold" aria-hidden /> {t("수료증 발급됨", "Certificate issued", "已颁发结业证书", "Đã cấp chứng nhận", "修了証発行済み", "Sertifikat terbit")}</p>
-                  <p className="mt-1 text-[15px] font-extrabold text-[#191F28]">{data.certificate.certificateNo}</p>
-                  <p className="mt-1 text-[12.5px] text-[#4E5968]">{t("4주 Career Launch 프로그램을 완주하셨습니다. 축하합니다!", "You completed the 4-week Career Launch program. Congratulations!", "您已完成为期 4 周的 Career Launch 项目。恭喜！", "Bạn đã hoàn thành chương trình Career Launch 4 tuần. Chúc mừng!", "4週間のCareer Launchプログラムを完走されました。おめでとうございます！", "Anda menyelesaikan program Career Launch 4 minggu. Selamat!")}</p>
-                </div>
-              ) : null}
-
               <div className="mt-6 rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,.04),0_4px_16px_rgba(0,0,0,.05)]">
                 <p className="text-[15px] font-bold text-[#191F28]">{t("현재 취업 상태", "Current employment status", "当前就业状态", "Tình trạng việc làm hiện tại", "現在の就職状況", "Status kerja saat ini")}</p>
                 <div className="mt-3 flex flex-col gap-2">

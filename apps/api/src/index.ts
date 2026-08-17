@@ -16588,7 +16588,11 @@ app.get("/career-launch/week-schedule", authenticate, requireCareerEnrollment, a
 // PATCH /career-launch/progress — 제공된 키만 얕게 병합해 저장(부분 갱신).
 const progressPatchSchema = z.record(z.string(), z.unknown());
 // 완주 시 수료증 자동 발급 — 모의면접 3라운드 + 이력서 + 자소서 완성이면 수료증 생성(중복 방지) + 알림.
+// 수료증 발급 일시 중단(추후 재개). 발급/알림 로직은 보존하되 실제 발급은 하지 않는다.
+// 재개하려면 CAREER_CERTIFICATE_ENABLED 를 true 로 되돌리면 된다.
+const CAREER_CERTIFICATE_ENABLED = false;
 async function maybeAutoIssueCareerCertificate(userId: string, state: Record<string, unknown>) {
+  if (!CAREER_CERTIFICATE_ENABLED) return;
   try {
     const interview = (state.interview && typeof state.interview === "object" ? state.interview : {}) as { practiced?: unknown };
     const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]) : [];

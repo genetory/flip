@@ -15,7 +15,6 @@ import { PLATFORM_LOCALES, type PlatformLocale } from "../../../lib/auth-message
 import { useNotifPrefs } from "../../../lib/talent/notif-prefs";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useFollowedCompanies } from "../../../lib/talent/company-follow";
-import { useCareerLaunchCompleted } from "../../../lib/launch/completion";
 import { getMyFavoritePositions, getInterestedCompanies, type PublicPositionListItem } from "../../../lib/member-profile-client";
 import { PointsBalanceCard } from "../PointsBalanceCard";
 import { getStoredProfilePhoto, PROFILE_PHOTO_CHANGED_EVENT } from "../../../lib/profile-media";
@@ -108,7 +107,6 @@ export function SettingsScreen() {
     return () => window.removeEventListener(PROFILE_PHOTO_CHANGED_EVENT, read);
   }, [user?.id, user?.profileImageUrl]);
   const emailVerified = Boolean(user?.emailVerified);
-  const launchCompleted = useCareerLaunchCompleted();
 
   // 관심 회사(내가 팔로우) — 서버(company-follow).
   const followedCompanies = useFollowedCompanies();
@@ -131,7 +129,7 @@ export function SettingsScreen() {
           <SectionHeader title={t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")} />
           <div className="rounded-3xl bg-[#F5F8FF] p-6">
           <div className="flex items-center gap-4">
-            <span className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white text-[24px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)] ${launchCompleted ? "ring-2 ring-[#0B46E8] ring-offset-2" : ""}`}>
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white text-[24px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">
               {profilePhoto ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
@@ -147,9 +145,6 @@ export function SettingsScreen() {
                 ) : (
                   <span className="shrink-0 rounded-md bg-[#FFF3E6] px-2.5 py-0.5 text-[10.5px] font-bold text-[#E8890C]">{t("인증 안됨", "Not verified", "未验证", "Chưa xác minh", "未認証", "Belum terverifikasi")}</span>
                 )}
-                {launchCompleted ? (
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[10.5px] font-black text-[#0B46E8]">🎓 {t("Career Launch 수료", "Career Launch grad", "Career Launch 结业", "Tốt nghiệp Career Launch", "Career Launch 修了", "Lulus Career Launch")}</span>
-                ) : null}
               </div>
               {user?.email ? <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{user.email}</p> : null}
             </div>

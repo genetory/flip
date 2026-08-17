@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { Check, ArrowRight, CaretLeft, Sparkle } from "@phosphor-icons/react";
 import { LAUNCH, type Mission, type MissionStatus, type Step } from "../../lib/launch/data";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { useStepActionLabel } from "../../lib/launch/data-i18n";
@@ -57,9 +58,9 @@ export function Checklist({ items }: { items: Mission[] }) {
               className="flex w-full items-center gap-3 rounded-xl border border-[#EEF1F5] bg-white px-3.5 py-3 text-left transition hover:bg-[#FAFBFC]"
             >
               <span
-                className={`flex h-5 w-5 flex-none items-center justify-center rounded-md border-2 text-[12px] font-black ${checked ? "border-[#0B46E8] bg-[#0B46E8] text-white" : "border-[#C9CDD2] text-transparent"}`}
+                className={`flex h-5 w-5 flex-none items-center justify-center rounded-md border-2 ${checked ? "border-[#0B46E8] bg-[#0B46E8]" : "border-[#C9CDD2]"}`}
               >
-                ✓
+                {checked ? <Check className="h-3 w-3 text-white" weight="bold" /> : null}
               </span>
               <span className={`text-[14px] ${checked ? "text-[#8B95A1] line-through" : "font-medium text-[#191F28]"}`}>{m.label}</span>
             </button>
@@ -94,7 +95,7 @@ export function Stepper({ steps }: { steps: Step[] }) {
                   done ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#4E5968] hover:border-[#0B46E8] hover:text-[#0B46E8]"
                 }`}
               >
-                {done ? "✓" : i + 1}
+                {done ? <Check className="h-[15px] w-[15px]" weight="bold" /> : i + 1}
               </button>
               {!last ? <span className="mt-1.5 w-[2px] flex-1 rounded bg-[#E5E8EB]" /> : null}
             </div>
@@ -114,9 +115,10 @@ export function Stepper({ steps }: { steps: Step[] }) {
               {s.action ? (
                 <Link
                   href={s.action.href}
-                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#EDF1FD] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]"
+                  className="group/act mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#EDF1FD] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]"
                 >
-                  {actionLabel(s.action.label)} <span aria-hidden>→</span>
+                  {actionLabel(s.action.label)}
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/act:translate-x-0.5" weight="bold" aria-hidden />
                 </Link>
               ) : null}
             </div>
@@ -160,15 +162,15 @@ export function SubmissionBox({ label, initialStatus }: { label: string; initial
   const [value, setValue] = useState("");
   if (status === "reviewed") {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-[13.5px] font-semibold text-emerald-700">
-        ✓ {t("제출 완료 · 피드백까지 받았어요", "Submitted · Feedback received", "已提交 · 已收到反馈", "Đã nộp · Đã nhận phản hồi", "提出完了 · フィードバックも受け取りました", "Terkirim · Umpan balik diterima")}
+      <div className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-[13.5px] font-semibold text-emerald-700">
+        <Check className="h-4 w-4 flex-none" weight="bold" /> {t("제출 완료 · 피드백까지 받았어요", "Submitted · Feedback received", "已提交 · 已收到反馈", "Đã nộp · Đã nhận phản hồi", "提出完了 · フィードバックも受け取りました", "Terkirim · Umpan balik diterima")}
       </div>
     );
   }
   if (status === "submitted") {
     return (
       <div className="flex items-center justify-between rounded-xl border border-[#CFE0FF] bg-[#EDF1FD] px-4 py-3.5">
-        <span className="text-[13.5px] font-semibold text-[#0B46E8]">✓ {t("제출 완료 · 피드백 대기 중", "Submitted · Awaiting feedback", "已提交 · 等待反馈中", "Đã nộp · Đang chờ phản hồi", "提出完了 · フィードバック待ち", "Terkirim · Menunggu umpan balik")}</span>
+        <span className="flex items-center gap-1.5 text-[13.5px] font-semibold text-[#0B46E8]"><Check className="h-4 w-4 flex-none" weight="bold" /> {t("제출 완료 · 피드백 대기 중", "Submitted · Awaiting feedback", "已提交 · 等待反馈中", "Đã nộp · Đang chờ phản hồi", "提出完了 · フィードバック待ち", "Terkirim · Menunggu umpan balik")}</span>
         <button type="button" onClick={() => setStatus("todo")} className="text-[12px] font-semibold text-[#8B95A1] underline">
           {t("다시 제출", "Resubmit", "重新提交", "Nộp lại", "再提出", "Kirim ulang")}
         </button>
@@ -202,8 +204,8 @@ export function AutoSubmitStatus({ label, status, source }: { label: string; sta
       }`}
     >
       <div className="flex items-start gap-3">
-        <span className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl text-[18px] ${done ? "bg-emerald-100" : "bg-[#EDF1FD]"}`}>
-          {done ? "✓" : "🪄"}
+        <span className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl ${done ? "bg-emerald-100" : "bg-[#EDF1FD]"}`}>
+          {done ? <Check className="h-5 w-5 text-emerald-600" weight="bold" /> : <Sparkle className="h-5 w-5 text-[#0B46E8]" weight="fill" />}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -254,8 +256,8 @@ export function LaunchTopBar({ back }: { back?: { href: string; label: string } 
     <header className="sticky top-0 z-30 border-b border-[#EEF1F5] bg-white/90 backdrop-blur">
       <LaunchContainer className="flex h-14 items-center justify-between">
         {back ? (
-          <Link href={back.href} className="text-[13px] font-semibold text-[#8B95A1] hover:text-[#191F28]">
-            ← {back.label}
+          <Link href={back.href} className="flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+            <CaretLeft className="h-4 w-4" weight="bold" /> {back.label}
           </Link>
         ) : (
           <Link href="/career-launch" className="flex items-center gap-2">

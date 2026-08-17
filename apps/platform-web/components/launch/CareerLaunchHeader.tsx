@@ -10,17 +10,14 @@ import { List, X } from "@phosphor-icons/react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { LaunchNotificationBell } from "./LaunchNotificationBell";
-import { TalentTicketBadge } from "../talent/TalentTicketBadge";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { getStoredProfilePhoto, PROFILE_PHOTO_CHANGED_EVENT } from "../../lib/profile-media";
-import { useCareerLaunchCompleted } from "../../lib/launch/completion";
 
 export function CareerLaunchHeader() {
   const t = useLaunchT();
   const { user } = useAuthSession();
   const pathname = usePathname() ?? "";
   const [menuOpen, setMenuOpen] = useState(false);
-  const launchCompleted = useCareerLaunchCompleted(); // 수료 → 아바타 링·🎓 뱃지
 
   // 경로 바뀌면 모바일 메뉴 닫기.
   useEffect(() => {
@@ -94,14 +91,13 @@ export function CareerLaunchHeader() {
 
         {user ? (
           <div className="flex items-center gap-1.5">
-            <TalentTicketBadge />
             <LaunchNotificationBell />
             <Link
               href="/career-launch/settings"
-              aria-label={launchCompleted ? t("내 설정 · Career Launch 수료", "My settings · Career Launch graduate", "我的设置 · Career Launch 结业", "Cài đặt của tôi · Tốt nghiệp Career Launch", "設定 · Career Launch 修了", "Pengaturan · Lulusan Career Launch") : t("내 설정", "My settings", "我的设置", "Cài đặt của tôi", "設定", "Pengaturan")}
-              className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl transition hover:bg-[#F6F8FB]"
+              aria-label={t("내 설정", "My settings", "我的设置", "Cài đặt của tôi", "設定", "Pengaturan")}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl transition hover:bg-[#F6F8FB]"
             >
-              <span className={`flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-[#F2F4F6] text-[12px] font-bold text-[#4E5968] ${launchCompleted ? "ring-2 ring-[#0B46E8] ring-offset-1 ring-offset-white" : ""}`}>
+              <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-[#F2F4F6] text-[12px] font-bold text-[#4E5968]">
                 {profilePhoto ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
@@ -109,9 +105,6 @@ export function CareerLaunchHeader() {
                   <span aria-hidden>{name.charAt(0).toUpperCase()}</span>
                 )}
               </span>
-              {launchCompleted ? (
-                <span aria-hidden className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[9px] leading-none">🎓</span>
-              ) : null}
             </Link>
             <LanguageSwitcher />
           </div>

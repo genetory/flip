@@ -145,7 +145,7 @@ export default function InterviewPage() {
             ) : null}
             <div ref={endRef} />
           </div>
-          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 자동 저장 · ⚡ 메시지당 AI 포인트 1개 소모", "💬 Feel free to answer in your own language · 💾 auto-saved · ⚡ 1 AI point per message", "💬 可以用你的母语回答 · 💾 自动保存 · ⚡ 每条消息消耗1个AI积分", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 tự động lưu · ⚡ 1 điểm AI mỗi tin nhắn", "💬 母国語で答えてOK · 💾 自動保存 · ⚡ メッセージごとにAIポイント1", "💬 Boleh menjawab dalam bahasa ibumu · 💾 tersimpan otomatis · ⚡ 1 poin AI per pesan")}</p>
+          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 자동 저장", "💬 Feel free to answer in your own language · 💾 auto-saved", "💬 可以用你的母语回答 · 💾 自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 tự động lưu", "💬 母国語で答えてOK · 💾 自動保存", "💬 Boleh menjawab dalam bahasa ibumu · 💾 tersimpan otomatis")}</p>
 
           {done ? (
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
