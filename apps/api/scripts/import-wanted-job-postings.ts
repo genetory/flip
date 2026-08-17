@@ -206,7 +206,9 @@ function pickEmploymentType(job: WantedJob): string | null {
 
 function pickAdditionalNotes(job: WantedJob): string | null {
   const lines: string[] = [];
-  if (job.company?.name?.trim()) lines.push(`Company: ${job.company.name.trim()}`);
+  // API(extractSourceCompanyName)는 'sourceCompanyName:' 접두사 라인만 회사명으로 인식한다.
+  // (buddies 크롤러와 동일 규약) 'Company:' 로 쓰면 파싱되지 않아 '비공개 기업'으로 표시된다.
+  if (job.company?.name?.trim()) lines.push(`sourceCompanyName: ${job.company.name.trim()}`);
   const due = job.due_time?.trim() ?? "";
   if (due) lines.push(`Deadline: ${due}`);
   const employment = job.employment_type?.trim();
