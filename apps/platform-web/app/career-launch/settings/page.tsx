@@ -1,6 +1,7 @@
 "use client";
 
-// Career Launch 설정 — partner/talent 설정과 동일한 역할(프로필·언어·계정·로그아웃).
+// Career Launch 설정 — partner/talent 설정과 동일한 역할(프로필·계정·로그아웃).
+// 언어 변경은 GNB 우측 언어 선택기에서 제공(설정 내 언어 섹션은 제거).
 // 헤더 프로필 pill 클릭 시 이곳으로 이동.
 import { useEffect } from "react";
 import Link from "next/link";
@@ -10,24 +11,12 @@ import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeade
 import { AplyFooter } from "../../../components/AplyFooter";
 import { Card, SectionTitle } from "../../../components/launch/ui";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
-import { useLanguage } from "../../../components/i18n/LanguageProvider";
-import { PLATFORM_LOCALES, type PlatformLocale } from "../../../lib/auth-messages";
 import { useLaunchT } from "../../../lib/launch/i18n";
-
-const LOCALE_LABELS: Record<PlatformLocale, string> = {
-  ko: "한국어",
-  en: "English",
-  "zh-CN": "中文",
-  vi: "Tiếng Việt",
-  ja: "日本語",
-  id: "Bahasa"
-};
 
 export default function CareerLaunchSettingsPage() {
   const t = useLaunchT();
   const router = useRouter();
   const { user, isReady, isAuthenticated, logout, getAccountUrl } = useAuthSession();
-  const { locale, setLocale } = useLanguage();
 
   useEffect(() => {
     if (isReady && !isAuthenticated) router.replace("/career-launch");
@@ -62,26 +51,6 @@ export default function CareerLaunchSettingsPage() {
                 {user?.email ? <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{user.email}</p> : null}
               </div>
             </Card>
-
-            {/* 언어 */}
-            <div>
-              <SectionTitle>{t("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa")}</SectionTitle>
-              <Card className="flex items-center gap-3 !py-4">
-                <span className="flex-1 text-[14.5px] text-[#191F28]">{t("표시 언어", "Display language", "显示语言", "Ngôn ngữ hiển thị", "表示言語", "Bahasa tampilan")}</span>
-                <select
-                  value={locale}
-                  onChange={(e) => setLocale(e.target.value as PlatformLocale)}
-                  aria-label={t("표시 언어", "Display language", "显示语言", "Ngôn ngữ hiển thị", "表示言語", "Bahasa tampilan")}
-                  className="rounded-xl border border-[#E5E8EB] bg-white px-3 py-2 text-[13.5px] font-semibold text-[#191F28] outline-none [color-scheme:light] focus:border-[#0B46E8]"
-                >
-                  {PLATFORM_LOCALES.map((l) => (
-                    <option key={l} value={l}>
-                      {LOCALE_LABELS[l]}
-                    </option>
-                  ))}
-                </select>
-              </Card>
-            </div>
 
             {/* 계정 */}
             <div>
