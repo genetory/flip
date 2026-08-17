@@ -28,6 +28,8 @@ export function sectionLabelOf(t: PlatformT, section: CareerSection): string {
 // 모의 면접 카테고리 라벨(CATEGORY_META 값 → 표시 라벨).
 export function mockCategoryLabelOf(t: PlatformT, category: string): string {
   switch (category) {
+    case "job":
+      return t("이 공고 맞춤", "Tailored to this posting", "针对该职位", "Theo tin tuyển dụng này", "この求人に特化", "Sesuai lowongan ini");
     case "intro":
       return t("자기소개·지원동기", "Intro & motivation", "自我介绍·动机", "Giới thiệu & động lực", "自己紹介・志望動機", "Perkenalan & motivasi");
     case "competency":

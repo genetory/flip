@@ -87,6 +87,8 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
   const [loadingMore, setLoadingMore] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
   const authoredQuestions = (item?.mockInterviewQuestions ?? []).filter(Boolean);
+  // 공고(JD)가 있으면 '이 공고 맞춤' 카테고리 제공 — 주요업무·자격요건 근거 질문.
+  const hasJd = Boolean(item?.mainResponsibilities || item?.requiredQualifications);
   // 이어가기 생성에 쓸 카테고리(회사 대표 질문 경로는 골고루).
   const genCategory = category && category !== "authored" ? category : undefined;
 
@@ -278,7 +280,7 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
               <Link href={talentAppRoutes.resume} className="mt-4 inline-flex h-[44px] items-center justify-center rounded-xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("이력서 만들기", "Create resume", "创建简历", "Tạo CV", "履歴書を作成", "Buat resume")}</Link>
             </div>
           ) : category === null ? (
-            <CategoryChooser authored={authoredQuestions.length > 0} onPick={startCategory} />
+            <CategoryChooser authored={authoredQuestions.length > 0} jobBased={hasJd} onPick={startCategory} />
           ) : loading ? (
             <div className="flex flex-col items-center justify-center gap-3 py-14">
               <CircleNotch className="h-7 w-7 animate-spin text-[#0B46E8]" weight="bold" />
@@ -461,7 +463,7 @@ function categoryDesc(t: PlatformT, c: string): string {
 }
 
 // 유형 선택 화면 — 고른 유형에 맞춰 질문을 생성한다(생성 시 티켓 사용).
-function CategoryChooser({ authored, onPick }: { authored: boolean; onPick: (cat: string) => void }) {
+function CategoryChooser({ authored, jobBased, onPick }: { authored: boolean; jobBased?: boolean; onPick: (cat: string) => void }) {
   const t = usePlatformT();
   const cats = CATEGORY_ORDER.filter((c) => c !== "other");
   return (
@@ -470,6 +472,16 @@ function CategoryChooser({ authored, onPick }: { authored: boolean; onPick: (cat
         <p className="text-[16px] font-black tracking-[-0.02em] text-[#0B1227]">{t("어떤 유형으로 연습할까요?", "Which type would you like to practice?", "想练习哪种类型？", "Bạn muốn luyện loại nào?", "どのタイプで練習しますか？", "Tipe apa yang ingin dilatih?")}</p>
         <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("고른 유형에 맞는 질문을 내 이력서·자기소개서 기반으로 만들어드려요. 유형은 언제든 다시 고를 수 있어요.", "We'll create questions for your chosen type based on your resume and cover letter. You can switch types anytime.", "我们会根据你的简历和自我介绍，为所选类型生成问题。类型可随时更换。", "Chúng tôi tạo câu hỏi theo loại bạn chọn, dựa trên CV và thư xin việc. Có thể đổi loại bất cứ lúc nào.", "選んだタイプに合う質問を履歴書・自己PRに基づいて作ります。タイプはいつでも変更できます。", "Kami buat pertanyaan sesuai tipe pilihan, berdasarkan resume dan surat lamaran. Ganti tipe kapan saja.")}</p>
       </div>
+      {jobBased ? (
+        <button type="button" onClick={() => onPick("job")} className="flex items-center gap-3.5 rounded-2xl border border-[#CFE0FF] bg-[#F5F8FF] p-4 text-left transition hover:border-[#0B46E8]/50">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] shadow-[0_2px_10px_rgba(11,70,232,0.1)]" aria-hidden>📌</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[14.5px] font-bold text-[#191F28]">{t("이 공고 맞춤 질문", "Tailored to this posting", "针对该职位的问题", "Câu hỏi theo tin tuyển dụng", "この求人に特化した質問", "Pertanyaan sesuai lowongan")}</p>
+            <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("공고의 주요 업무·자격 요건에 근거한 질문으로 연습해요.", "Practice with questions based on the posting's responsibilities and requirements.", "根据职位的主要职责与任职要求练习。", "Luyện với câu hỏi dựa trên nhiệm vụ và yêu cầu của tin tuyển dụng.", "求人の主な業務・応募要件に基づく質問で練習します。", "Latih dengan pertanyaan berdasarkan tugas dan syarat lowongan.")}</p>
+          </div>
+          <AiTicketCost feature="interview_questions" tone="muted" size="md" />
+        </button>
+      ) : null}
       {authored ? (
         <button type="button" onClick={() => onPick("authored")} className="flex items-center gap-3.5 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4 text-left transition hover:border-[#0B46E8]/40">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] shadow-[0_2px_10px_rgba(11,70,232,0.1)]" aria-hidden>🏢</span>

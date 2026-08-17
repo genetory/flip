@@ -18461,7 +18461,8 @@ const interviewQuestionsSchema = z.object({
   askedQuestions: z.array(z.string().trim().max(400)).max(60).optional(),
   count: z.number().int().min(1).max(8).optional(),
   // 특정 카테고리로만 생성(사용자가 유형 선택). 미지정이면 유형을 골고루.
-  category: z.enum(["intro", "competency", "experience", "weakness"]).optional(),
+  // "job" = 이 공고(JD)의 주요 업무·자격요건에 직접 근거한 공고 맞춤 질문.
+  category: z.enum(["intro", "competency", "experience", "weakness", "job"]).optional(),
   locale: z.string().max(10).optional()
 });
 app.post(
@@ -18482,9 +18483,12 @@ app.post(
         intro: "자기소개·지원동기",
         competency: "직무 역량·문제해결",
         experience: "경험 심층",
-        weakness: "인성·상황·약점"
+        weakness: "인성·상황·약점",
+        job: "이 공고 맞춤"
       };
-      const rule1 = category
+      const rule1 = category === "job"
+        ? `1. 질문 ${n}개. 모든 질문을 [채용 공고]의 주요 업무·자격 요건·우대 사항에 직접 근거한 실무 중심 질문으로 만드세요. 지원자 이력서의 경험을 그 공고 요구사항과 연결해 물으세요(공고와 무관한 일반 질문 X).\n`
+        : category
         ? `1. 질문 ${n}개. 모든 질문을 오직 '${catLabel[category]}' 유형으로만 만드세요(다른 유형 섞지 말 것).\n`
         : `1. 질문 ${n}개. 자기소개/지원동기, 경험 심층, 직무 역량/문제해결, 상황/약점 유형을 골고루 섞으세요.\n`;
       const systemPrompt =
