@@ -1603,6 +1603,84 @@ async function runAutoNudgesAndReminders() {
         }
       }
     }
+
+    // 5) 마감 임박 — 다음 주차가 24h 내 열리는데 이전 주차 미완료인 학생 → 마무리 넛지.
+    if (careerReminderEnabled) {
+      const soon = new Date(now + 24 * 3600 * 1000);
+      const openingSoon = await prisma.careerCohortWeek.findMany({
+        where: { opensAt: { gt: new Date(now), lte: soon }, week: { gt: 1 }, cohort: { status: "active" } },
+        take: 20,
+        include: { cohort: { select: { enrollments: { select: { student: { select: { id: true, email: true, name: true } } } } } } }
+      });
+      for (const w of openingSoon) {
+        const prevWeek = w.week - 1;
+        for (const en of w.cohort.enrollments) {
+          const st = en.student;
+          if (!st?.email) continue;
+          const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: st.id }, select: { state: true } });
+          const state = (prog?.state && typeof prog.state === "object" ? (prog.state as Record<string, unknown>) : {});
+          const done = Array.isArray(state.doneSteps) ? ((state.doneSteps as unknown[]).filter((x): x is string => typeof x === "string")) : [];
+          if (done.includes(`w${prevWeek}s4`)) continue; // 이미 완료 → 넛지 불필요
+          const sent = Array.isArray(state.deadlineReminders) ? ((state.deadlineReminders as unknown[]).filter((x) => typeof x === "number") as number[]) : [];
+          if (sent.includes(prevWeek)) continue;
+          void sendNotificationEmail({
+            toUser: { id: st.id, email: st.email },
+            subject: `[Aply] ${prevWeek}주차 마무리 · 곧 ${w.week}주차가 열려요`,
+            previewText: `${prevWeek}주차를 마무리해요`,
+            title: "Career Launch",
+            headline: `${prevWeek}주차, 곧 마감이에요`,
+            contextLine: `${w.week}주차가 24시간 내 열려요.`,
+            bodyText: `${st.name?.trim() ? st.name.trim() + "님, " : ""}${prevWeek}주차 미션이 아직 남아 있어요. 곧 ${w.week}주차가 열리니 지금 마무리해 리듬을 이어가요.`,
+            ctaLabel: `${prevWeek}주차 마무리하기`,
+            ctaPath: `/career-launch/week/${prevWeek}`,
+            footerNote: "본 메일은 Career Launch 마감 임박 안내입니다.",
+            logKey: `cl_deadline_${prevWeek}_${st.id}`
+          });
+          await prisma.careerLaunchProgress.upsert({
+            where: { studentUserId: st.id },
+            create: { studentUserId: st.id, state: { deadlineReminders: [prevWeek] } },
+            update: { state: { ...state, deadlineReminders: [...sent, prevWeek] } }
+          });
+        }
+      }
+
+      // 6) 피드백 준비됨 — 1~3주차를 완료했는데 아직 피드백 안내를 못 받은 학생.
+      const activeStudents = await prisma.careerEnrollment.findMany({
+        where: { cohort: { status: "active" } },
+        select: { student: { select: { id: true, email: true, name: true } } },
+        take: 500
+      });
+      const seenFb = new Set<string>();
+      for (const en of activeStudents) {
+        const st = en.student;
+        if (!st?.email || seenFb.has(st.id)) continue;
+        seenFb.add(st.id);
+        const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: st.id }, select: { state: true } });
+        const state = (prog?.state && typeof prog.state === "object" ? (prog.state as Record<string, unknown>) : {});
+        const done = Array.isArray(state.doneSteps) ? ((state.doneSteps as unknown[]).filter((x): x is string => typeof x === "string")) : [];
+        const fbSent = Array.isArray(state.feedbackReminders) ? ((state.feedbackReminders as unknown[]).filter((x) => typeof x === "number") as number[]) : [];
+        const target = [1, 2, 3].find((wk) => done.includes(`w${wk}s4`) && !fbSent.includes(wk));
+        if (!target) continue;
+        void sendNotificationEmail({
+          toUser: { id: st.id, email: st.email },
+          subject: `[Aply] ${target}주차 코치 피드백이 준비됐어요`,
+          previewText: "코치 피드백을 받아보세요",
+          title: "Career Launch",
+          headline: `${target}주차 피드백을 받아보세요`,
+          contextLine: "이번 주 결과물을 코치가 검토해 드려요.",
+          bodyText: `${st.name?.trim() ? st.name.trim() + "님, " : ""}${target}주차 미션을 마쳤어요! 코치 피드백을 받아 다음 주차를 더 탄탄하게 준비해요.`,
+          ctaLabel: "피드백 받기",
+          ctaPath: `/career-launch/week/${target}`,
+          footerNote: "본 메일은 Career Launch 피드백 안내입니다.",
+          logKey: `cl_feedback_${target}_${st.id}`
+        });
+        await prisma.careerLaunchProgress.upsert({
+          where: { studentUserId: st.id },
+          create: { studentUserId: st.id, state: { feedbackReminders: [target] } },
+          update: { state: { ...state, feedbackReminders: [...fbSent, target] } }
+        });
+      }
+    }
   } catch (error) {
     console.error("auto_nudges_reminders_failed", { error: getErrorMessage(error) });
   }
