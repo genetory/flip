@@ -11,7 +11,9 @@ import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { usePlatformT } from "../../../lib/i18n";
 
-export function MockGateModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
+// allowWithoutDocs: 공고 기반 모의면접처럼 이력서·자기소개서가 없어도 진행 가능한 경우.
+// true면 강제하지 않고 '유무 차이'만 안내하며 시작 버튼을 항상 열어둔다.
+export function MockGateModal({ onClose, onConfirm, allowWithoutDocs = false }: { onClose: () => void; onConfirm: () => void; allowWithoutDocs?: boolean }) {
   const t = usePlatformT();
   useLockBodyScroll();
   useEffect(() => {
@@ -34,7 +36,7 @@ export function MockGateModal({ onClose, onConfirm }: { onClose: () => void; onC
         <div className="flex items-start justify-between gap-3 px-7 pt-7">
           <div>
             <h2 className="text-[19px] font-black tracking-[-0.02em] text-[#0B1227]">{t("모의 면접을 시작할까요?", "Start the mock interview?", "开始模拟面试？", "Bắt đầu phỏng vấn thử?", "模擬面接を始めますか？", "Mulai wawancara simulasi?")}</h2>
-            <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">{t("지원과 동일하게 이력서·자기소개서가 준비돼야 시작할 수 있어요.", "Like applying, your resume and cover letter must be ready to start.", "与申请一样，需准备好简历和自我介绍才能开始。", "Giống như ứng tuyển, CV và thư xin việc phải sẵn sàng.", "応募と同様、履歴書・自己PRが準備できると始められます。", "Seperti melamar, resume dan surat lamaran harus siap.")}</p>
+            <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">{allowWithoutDocs ? t("이력서·자기소개서가 없어도 바로 시작할 수 있어요.", "You can start even without a resume or cover letter.", "没有简历或自我介绍也能直接开始。", "Bạn có thể bắt đầu ngay cả khi chưa có CV hay thư xin việc.", "履歴書・自己PRがなくてもすぐ始められます。", "Bisa mulai walau tanpa resume atau surat lamaran.") : t("지원과 동일하게 이력서·자기소개서가 준비돼야 시작할 수 있어요.", "Like applying, your resume and cover letter must be ready to start.", "与申请一样，需准备好简历和自我介绍才能开始。", "Giống như ứng tuyển, CV và thư xin việc phải sẵn sàng.", "応募と同様、履歴書・自己PRが準備できると始められます。", "Seperti melamar, resume dan surat lamaran harus siap.")}</p>
           </div>
           <button type="button" aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} onClick={onClose} className="-mr-1.5 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
             <X className="h-5 w-5" />
@@ -46,7 +48,13 @@ export function MockGateModal({ onClose, onConfirm }: { onClose: () => void; onC
           <DocStatus label={t("자기소개서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Surat lamaran")} pct={cp} href={talentAppRoutes.cover} />
         </div>
 
-        {!ready ? (
+        {allowWithoutDocs ? (
+          <p className="mx-7 mt-4 rounded-xl bg-[#F5F8FF] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[#4E5968]">
+            {ready
+              ? t("이력서·자기소개서를 바탕으로 내 경험에 맞춘 질문이 나와요.", "Questions are tailored to your experience from your resume and cover letter.", "将根据你的简历与自我介绍，生成贴合你经历的问题。", "Câu hỏi được cá nhân hóa theo CV và thư xin việc của bạn.", "履歴書・自己PRを基に、あなたの経験に合わせた質問が出ます。", "Pertanyaan disesuaikan dengan pengalamanmu dari resume dan surat lamaran.")
+              : t("지금은 서류가 없어 공고·직무 기반의 일반 질문이 나와요. 이력서·자기소개서를 완성하면 내 경험에 맞춘 질문으로 더 정확해져요.", "Without documents, you'll get general questions based on the posting and role. Completing your resume and cover letter makes them tailored to your experience.", "目前没有材料，将生成基于职位与岗位的通用问题。完善简历与自我介绍后，会更贴合你的经历。", "Chưa có hồ sơ nên sẽ là câu hỏi chung theo tin tuyển dụng và vị trí. Hoàn thiện CV và thư xin việc sẽ chính xác hơn theo bạn.", "書類がない今は求人・職務ベースの一般質問です。履歴書・自己PRを完成すると、あなたの経験に合わせて精度が上がります。", "Tanpa dokumen, pertanyaan bersifat umum berdasarkan lowongan dan peran. Melengkapi resume dan surat lamaran membuatnya sesuai pengalamanmu.")}
+          </p>
+        ) : !ready ? (
           <p className="mx-7 mt-4 rounded-xl bg-[#FDECEE] px-3.5 py-2.5 text-[12.5px] font-semibold leading-relaxed text-[#F04452]">
             {t("서류를 완성해야 모의 면접을 볼 수 있어요. 미완성 서류를 마저 채워주세요.", "Complete your documents to take the mock interview. Please finish the unfinished ones.", "完成材料后才能进行模拟面试。请补全未完成的材料。", "Hoàn tất hồ sơ để phỏng vấn thử. Hãy hoàn thiện phần còn thiếu.", "書類を完成させると模擬面接を受けられます。未完成の書類を仕上げてください。", "Lengkapi dokumen untuk wawancara simulasi. Selesaikan yang belum selesai.")}
           </p>
@@ -56,7 +64,7 @@ export function MockGateModal({ onClose, onConfirm }: { onClose: () => void; onC
           <button
             type="button"
             onClick={onConfirm}
-            disabled={!ready}
+            disabled={!allowWithoutDocs && !ready}
             className="inline-flex h-[52px] w-full items-center justify-center rounded-2xl bg-[#0B46E8] px-5 text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {t("모의 면접 시작하기", "Start mock interview", "开始模拟面试", "Bắt đầu phỏng vấn thử", "模擬面接を始める", "Mulai wawancara simulasi")}

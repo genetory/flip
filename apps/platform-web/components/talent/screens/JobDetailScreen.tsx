@@ -135,13 +135,13 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
           {/* 모의 면접 — 회사가 준비했거나(CIP 내부) 공고 JD가 있으면(외부 원티드 등) 노출 */}
           {item.mockInterviewIntent || (item.mockInterviewQuestions?.length ?? 0) > 0 || item.mainResponsibilities || item.requiredQualifications ? (
             <div className="mt-4">
-              <button type="button" onClick={() => setMockGateOpen(true)} className="flex w-full items-center gap-3 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4 text-left transition hover:border-[#0B46E8]/40">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] shadow-[0_2px_10px_rgba(11,70,232,0.1)]" aria-hidden>🎤</span>
+              <button type="button" onClick={() => setMockGateOpen(true)} className="group/mock flex w-full items-center gap-3 rounded-2xl bg-gradient-to-br from-[#0B46E8] via-[#2C63F0] to-[#4D82FF] p-4 text-left shadow-[0_10px_26px_-10px_rgba(11,70,232,0.55)] transition hover:brightness-[1.05] active:scale-[0.995]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-[20px] backdrop-blur-sm" aria-hidden>🎤</span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[14.5px] font-bold text-[#191F28]">{item.sourceProvider === "INTERNAL" ? t("이 회사 모의 면접 미리 풀기", "Try this company's mock interview", "提前练习该公司模拟面试", "Thử phỏng vấn thử của công ty này", "この会社の模擬面接を先に解く", "Coba wawancara simulasi perusahaan ini") : t("이 공고 기반 모의 면접 풀기", "Try a mock interview from this posting", "基于该职位的模拟面试", "Phỏng vấn thử dựa trên tin tuyển dụng này", "この求人を基にした模擬面接", "Wawancara simulasi berdasarkan lowongan ini")}</span>
-                  <span className="mt-0.5 block text-[12.5px] text-[#8B95A1]">{t("지원 전에 예상 질문을 풀고 AI 피드백을 받아보세요.", "Practice likely questions and get AI feedback before applying.", "申请前练习可能的问题并获得 AI 反馈。", "Luyện câu hỏi dự kiến và nhận phản hồi AI trước khi ứng tuyển.", "応募前に予想質問を解いてAIフィードバックを受けましょう。", "Latih pertanyaan dan dapat umpan balik AI sebelum melamar.")}</span>
+                  <span className="block text-[14.5px] font-bold text-white">{item.sourceProvider === "INTERNAL" ? t("이 회사 모의 면접 미리 풀기", "Try this company's mock interview", "提前练习该公司模拟面试", "Thử phỏng vấn thử của công ty này", "この会社の模擬面接を先に解く", "Coba wawancara simulasi perusahaan ini") : t("이 공고 기반 모의 면접 풀기", "Try a mock interview from this posting", "基于该职位的模拟面试", "Phỏng vấn thử dựa trên tin tuyển dụng này", "この求人を基にした模擬面接", "Wawancara simulasi berdasarkan lowongan ini")}</span>
+                  <span className="mt-0.5 block text-[12.5px] text-white/85">{t("지원 전에 예상 질문을 풀고 AI 피드백을 받아보세요.", "Practice likely questions and get AI feedback before applying.", "申请前练习可能的问题并获得 AI 反馈。", "Luyện câu hỏi dự kiến và nhận phản hồi AI trước khi ứng tuyển.", "応募前に予想質問を解いてAIフィードバックを受けましょう。", "Latih pertanyaan dan dapat umpan balik AI sebelum melamar.")}</span>
                 </span>
-                <Sparkle className="h-5 w-5 shrink-0 text-[#0B46E8]" weight="fill" />
+                <Sparkle className="h-5 w-5 shrink-0 text-white transition group-hover/mock:scale-110" weight="fill" />
               </button>
               {item.sourceProvider !== "INTERNAL" ? (
                 <p className="mt-1.5 break-keep px-1 text-[11.5px] leading-relaxed text-[#8B95A1]">
@@ -205,6 +205,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
       {mockOpen && item ? <MockInterviewModal item={item} onClose={() => setMockOpen(false)} /> : null}
       {mockGateOpen ? (
         <MockGateModal
+          allowWithoutDocs
           onClose={() => setMockGateOpen(false)}
           onConfirm={() => {
             setMockGateOpen(false);
