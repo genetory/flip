@@ -118,7 +118,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   const view = item ? toPositionView(item, t) : null;
 
   return (
-    <TalentAppShell maxWidth="4xl">
+    <TalentAppShell maxWidth="4xl" allowGuest>
       <TalentBackButton className="mb-4" />
 
       {status === "loading" ? <TLoading /> : null}

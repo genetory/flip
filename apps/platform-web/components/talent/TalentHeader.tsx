@@ -79,18 +79,19 @@ export function TalentHeader() {
         <nav aria-label={t("주요 메뉴", "Main menu", "主菜单", "Menu chính", "メインメニュー", "Menu utama")} className="hidden items-center gap-2.5 md:flex">
           {talentMainNav.map((item) => {
             const active = isTabActive(pathname, item.href);
+            const gated = !isTalentUser && !item.guest; // 게스트 공개 탭(포지션·가이드)은 잠금 없음
             return (
               <Link
                 key={item.key}
-                href={isTalentUser ? item.href : `${talentRoutes.login}?next=${encodeURIComponent(item.href)}`}
+                href={gated ? `${talentRoutes.login}?next=${encodeURIComponent(item.href)}` : item.href}
                 aria-current={active ? "page" : undefined}
-                title={isTalentUser ? undefined : t("로그인이 필요해요", "Login required", "需要登录", "Cần đăng nhập", "ログインが必要です", "Perlu masuk")}
+                title={gated ? t("로그인이 필요해요", "Login required", "需要登录", "Cần đăng nhập", "ログインが必要です", "Perlu masuk") : undefined}
                 className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-[13px] font-semibold transition ${
                   active ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-[#4E5968] hover:bg-[#F6F8FB] hover:text-[#191F28]"
                 }`}
               >
                 {navLabel(item.key)}
-                {!isTalentUser ? <Lock className="h-3 w-3 text-[#B0B8C1]" weight="fill" aria-hidden /> : null}
+                {gated ? <Lock className="h-3 w-3 text-[#B0B8C1]" weight="fill" aria-hidden /> : null}
               </Link>
             );
           })}
@@ -149,10 +150,11 @@ export function TalentHeader() {
             {talentMainNav.map((item) => {
               const active = isTabActive(pathname, item.href);
               const Icon = item.icon;
+              const gated = !isTalentUser && !item.guest;
               return (
                 <li key={item.key}>
                   <Link
-                    href={isTalentUser ? item.href : `${talentRoutes.login}?next=${encodeURIComponent(item.href)}`}
+                    href={gated ? `${talentRoutes.login}?next=${encodeURIComponent(item.href)}` : item.href}
                     aria-current={active ? "page" : undefined}
                     onClick={() => setMenuOpen(false)}
                     className={`flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-semibold transition ${
@@ -161,7 +163,7 @@ export function TalentHeader() {
                   >
                     <Icon className="h-5 w-5" weight={active ? "fill" : "regular"} />
                     <span className="flex-1">{navLabel(item.key)}</span>
-                    {!isTalentUser ? <Lock className="h-3.5 w-3.5 text-[#B0B8C1]" weight="fill" aria-hidden /> : null}
+                    {gated ? <Lock className="h-3.5 w-3.5 text-[#B0B8C1]" weight="fill" aria-hidden /> : null}
                   </Link>
                 </li>
               );

@@ -8,7 +8,7 @@ import { AplyFooter } from "../../AplyFooter";
 import { DevPersonaSwitcher } from "./DevPersonaSwitcher";
 import { useServerNotificationSync } from "../../../lib/talent/server-notification-sync";
 
-export function TalentAppShell({ children, maxWidth = "5xl", wide = false }: { children: ReactNode; maxWidth?: "4xl" | "5xl"; wide?: boolean }) {
+export function TalentAppShell({ children, maxWidth = "5xl", wide = false, allowGuest = false }: { children: ReactNode; maxWidth?: "4xl" | "5xl"; wide?: boolean; allowGuest?: boolean }) {
   // 모든 리뉴얼 앱 화면을 이력서 작성 페이지와 동일한 폭(max-w-5xl)으로 통일.
   void maxWidth;
   void wide;
@@ -27,7 +27,7 @@ export function TalentAppShell({ children, maxWidth = "5xl", wide = false }: { c
     };
   }, []);
   return (
-    <TalentGuard>
+    <TalentGuard allowGuest={allowGuest}>
       <div className="flex min-h-screen flex-col bg-[#FAFBFC]">
         <TalentHeader />
         <main className={`mx-auto w-full flex-1 px-4 pb-16 pt-5 md:px-6 md:pb-12 md:pt-7 ${widthCls}`}>{children}</main>

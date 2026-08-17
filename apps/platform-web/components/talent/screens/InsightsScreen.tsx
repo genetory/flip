@@ -27,7 +27,7 @@ export function InsightsScreen() {
   const howtos = jobHuntingGuides.slice(1);
 
   return (
-    <TalentAppShell>
+    <TalentAppShell allowGuest>
       <div className="flex flex-col gap-10">
         {/* 매스트헤드 */}
         <header>

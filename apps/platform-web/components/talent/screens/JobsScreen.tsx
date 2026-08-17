@@ -168,7 +168,7 @@ export function JobsScreen() {
   const views = useMemo(() => source.map((it) => toPositionView(it, t)), [source, t]);
 
   return (
-    <TalentAppShell>
+    <TalentAppShell allowGuest>
       <TPageHeader title={t("포지션 탐색", "Explore jobs", "职位探索", "Khám phá việc làm", "求人を探す", "Jelajahi lowongan")} description={t("나에게 맞는 인턴·신입 공고를 찾아 지원을 시작해요.", "Find intern and entry-level jobs that fit you and start applying.", "找到适合你的实习和应届职位并开始申请。", "Tìm việc thực tập, mới ra trường phù hợp và bắt đầu ứng tuyển.", "自分に合うインターン・新卒求人を見つけて応募を始めましょう。", "Temukan lowongan magang dan pemula yang cocok, lalu mulai melamar.")} />
 
       <ApplyReadinessBanner variant="compact" className="mb-5" />

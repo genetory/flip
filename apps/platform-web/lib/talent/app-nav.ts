@@ -35,6 +35,8 @@ export interface TalentNavItem {
   label: string;
   href: string;
   icon: Icon;
+  // 로그인 없이도 열람 가능한 공개 탭(포지션 탐색·취업 가이드). 미지정은 로그인 필요.
+  guest?: boolean;
 }
 
 // 하단/상단 공용 메인 탭.
@@ -42,9 +44,9 @@ export interface TalentNavItem {
 export const talentMainNav: TalentNavItem[] = [
   { key: "home", label: "홈", href: talentAppRoutes.home, icon: House },
   { key: "career", label: "내 커리어", href: talentAppRoutes.career, icon: Compass },
-  { key: "jobs", label: "포지션 탐색", href: talentAppRoutes.jobs, icon: Briefcase },
+  { key: "jobs", label: "포지션 탐색", href: talentAppRoutes.jobs, icon: Briefcase, guest: true },
   { key: "applications", label: "지원 현황", href: talentAppRoutes.applications, icon: ClipboardText },
-  { key: "insights", label: "취업 가이드", href: talentAppRoutes.insights, icon: Newspaper }
+  { key: "insights", label: "취업 가이드", href: talentAppRoutes.insights, icon: Newspaper, guest: true }
 ];
 
 // 현재 경로가 해당 탭에 속하는지 판단.
