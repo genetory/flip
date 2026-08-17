@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpRight } from "@phosphor-icons/react";
+import { ArrowUpRight, CircleNotch } from "@phosphor-icons/react";
 import { fetchResumeData, hasResumeContent, type ResumeData } from "../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
 import { ResumeRender } from "./resume-render";
@@ -16,22 +16,18 @@ export function WeekDocs({ week }: { week: number }) {
   const t = useLaunchT();
   const [resume, setResume] = useState<ResumeData>({});
   const [cover, setCover] = useState<CoverData>({});
-  const [ready, setReady] = useState(false);
+  // 이력서·자소서를 함께 기다리지 않고 각각 도착하는 대로 표시(체감 속도 개선).
+  const [resumeReady, setResumeReady] = useState(false);
+  const [coverReady, setCoverReady] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    void (async () => {
-      try {
-        const [r, c] = await Promise.all([fetchResumeData().catch(() => ({ data: {} })), fetchCoverData().catch(() => ({ data: {} }))]);
-        if (!alive) return;
-        setResume(r.data ?? {});
-        setCover(c.data ?? {});
-      } catch {
-        // 무시
-      } finally {
-        if (alive) setReady(true);
-      }
-    })();
+    void fetchResumeData()
+      .then((r) => { if (alive) { setResume(r.data ?? {}); setResumeReady(true); } })
+      .catch(() => { if (alive) setResumeReady(true); });
+    void fetchCoverData()
+      .then((c) => { if (alive) { setCover(c.data ?? {}); setCoverReady(true); } })
+      .catch(() => { if (alive) setCoverReady(true); });
     return () => {
       alive = false;
     };
@@ -50,8 +46,8 @@ export function WeekDocs({ week }: { week: number }) {
         <div className="grid gap-5 sm:grid-cols-2">
           <DocCard
             title={t("내 이력서", "My resume", "我的简历", "CV của tôi", "私の履歴書", "Resume saya")}
-            ready={ready && hasResumeContent(resume)}
-            loading={!ready}
+            ready={resumeReady && hasResumeContent(resume)}
+            loading={!resumeReady}
             editHref="/career-launch/resume-collect"
             fullHref="/career-launch/resume-preview"
             emptyLabel={t("2주차에서 작성해요", "Build it in Week 2", "在第2周撰写", "Viết ở Tuần 2", "Week 2で作成", "Susun di Minggu 2")}
@@ -61,8 +57,8 @@ export function WeekDocs({ week }: { week: number }) {
           </DocCard>
           <DocCard
             title={t("내 자기소개서", "My cover letter", "我的自我介绍书", "Thư giới thiệu của tôi", "私の自己紹介書", "Surat lamaran saya")}
-            ready={ready && hasCoverContent(cover)}
-            loading={!ready}
+            ready={coverReady && hasCoverContent(cover)}
+            loading={!coverReady}
             editHref="/career-launch/cover-collect"
             fullHref="/career-launch/cover-preview"
             emptyLabel={t("3주차에서 작성해요", "Write it in Week 3", "在第3周撰写", "Viết ở Tuần 3", "Week 3で作成", "Tulis di Minggu 3")}
@@ -80,8 +76,8 @@ export function WeekDocs({ week }: { week: number }) {
       {showResume ? (
       <div>
         <SectionTitle>{t("내 이력서", "My resume", "我的简历", "CV của tôi", "私の履歴書", "Resume saya")}</SectionTitle>
-        {!ready ? (
-          <Card className="!p-4 text-[13px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</Card>
+        {!resumeReady ? (
+          <Card className="!p-4"><span className="inline-flex items-center gap-2 text-[13px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</span></Card>
         ) : hasResumeContent(resume) ? (
           <DocThumb href="/career-launch/resume-preview" moreLabel={t("크게보기", "View larger", "放大查看", "Xem lớn hơn", "大きく見る", "Lihat lebih besar")}>
             <ResumeRender data={resume} />
@@ -95,8 +91,8 @@ export function WeekDocs({ week }: { week: number }) {
       {showCover ? (
         <div>
           <SectionTitle>{t("내 자기소개서", "My cover letter", "我的自我介绍书", "Thư giới thiệu bản thân của tôi", "私の自己紹介書", "Surat lamaran saya")}</SectionTitle>
-          {!ready ? (
-            <Card className="!p-4 text-[13px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</Card>
+          {!coverReady ? (
+            <Card className="!p-4"><span className="inline-flex items-center gap-2 text-[13px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</span></Card>
           ) : hasCoverContent(cover) ? (
             <DocThumb href="/career-launch/cover-preview" moreLabel={t("크게보기", "View larger", "放大查看", "Xem lớn hơn", "大きく見る", "Lihat lebih besar")}>
               <CoverRender data={cover} />
