@@ -108,7 +108,8 @@ export function DeliverablesScreen() {
 }
 
 // 서류 카드 — 준비되면 A4 썸네일 + 크게보기, 아니면 안내 + 작성하러 가기.
-function DocCard({ title, ready, loading, editHref, fullHref, emptyLabel, children, t }: { title: string; ready: boolean; loading: boolean; editHref: string; fullHref: string; emptyLabel: string; children: React.ReactNode; t: ReturnType<typeof useLaunchT> }) {
+// 주차 페이지(week-docs)에서도 4주차 지원 서류 2컬럼에 동일하게 재사용한다.
+export function DocCard({ title, ready, loading, editHref, fullHref, emptyLabel, children, t }: { title: string; ready: boolean; loading: boolean; editHref: string; fullHref: string; emptyLabel: string; children: React.ReactNode; t: ReturnType<typeof useLaunchT> }) {
   return (
     <div className="rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
       <div className="mb-3 flex items-center justify-between">

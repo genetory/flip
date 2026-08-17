@@ -7,6 +7,7 @@ import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launc
 import { ResumeRender } from "./resume-render";
 import { CoverRender } from "./cover-render";
 import { SectionTitle, Card } from "./ui";
+import { DocCard } from "./DeliverablesScreen";
 import { useLaunchT } from "../../lib/launch/i18n";
 
 // 주차 페이지 우측 컬럼 — 대화로 만드는 이력서(2주차~)와 자기소개서(3주차~)를 항상 미리보기.
@@ -38,6 +39,40 @@ export function WeekDocs({ week }: { week: number }) {
   // 2주차: 이력서 · 3주차: 자기소개서 · 4주차: 이력서 + 자기소개서. (1주차는 노출 안 함)
   const showResume = week === 2 || week >= 4;
   const showCover = week >= 3;
+  const both = showResume && showCover; // 4주차 — 결과물 페이지 지원서류와 동일하게 2컬럼
+
+  // 4주차: '지원 서류' 한 섹션 아래 이력서·자기소개서를 2컬럼 DocCard 로(결과물 페이지와 동일).
+  if (both) {
+    return (
+      <div>
+        <SectionTitle sub={t("대화·편집으로 완성한 지원 서류", "Your application documents", "通过对话与编辑完成的申请文件", "Hồ sơ ứng tuyển bạn đã hoàn thành", "対話・編集で仕上げた応募書類", "Dokumen lamaran yang kamu selesaikan")}>{t("지원 서류", "Application documents", "申请文件", "Hồ sơ ứng tuyển", "応募書類", "Dokumen lamaran")}</SectionTitle>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <DocCard
+            title={t("내 이력서", "My resume", "我的简历", "CV của tôi", "私の履歴書", "Resume saya")}
+            ready={ready && hasResumeContent(resume)}
+            loading={!ready}
+            editHref="/career-launch/resume-collect"
+            fullHref="/career-launch/resume-preview"
+            emptyLabel={t("2주차에서 작성해요", "Build it in Week 2", "在第2周撰写", "Viết ở Tuần 2", "Week 2で作成", "Susun di Minggu 2")}
+            t={t}
+          >
+            <ResumeRender data={resume} />
+          </DocCard>
+          <DocCard
+            title={t("내 자기소개서", "My cover letter", "我的自我介绍书", "Thư giới thiệu của tôi", "私の自己紹介書", "Surat lamaran saya")}
+            ready={ready && hasCoverContent(cover)}
+            loading={!ready}
+            editHref="/career-launch/cover-collect"
+            fullHref="/career-launch/cover-preview"
+            emptyLabel={t("3주차에서 작성해요", "Write it in Week 3", "在第3周撰写", "Viết ở Tuần 3", "Week 3で作成", "Tulis di Minggu 3")}
+            t={t}
+          >
+            <CoverRender data={cover} />
+          </DocCard>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
