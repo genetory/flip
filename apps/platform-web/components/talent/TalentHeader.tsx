@@ -18,6 +18,7 @@ import { useSavedDeadlineNotifications } from "../../lib/talent/deadline-notify"
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { usePlatformT } from "../../lib/i18n";
 import { getStoredProfilePhoto, PROFILE_PHOTO_CHANGED_EVENT } from "../../lib/profile-media";
+import { useCareerLaunchCompleted } from "../../lib/launch/completion";
 
 export function TalentHeader() {
   const pathname = usePathname() ?? "";
@@ -54,6 +55,7 @@ export function TalentHeader() {
   useFollowCompanyPositionNotifications();
   useSavedDeadlineNotifications();
   const unreadCount = useUnreadNotificationCount();
+  const launchCompleted = useCareerLaunchCompleted(); // Career Launch 수료 → 아바타 링·🎓 뱃지
 
   return (
     <header className="sticky top-0 z-40 border-b border-[#EEF1F5] bg-white">
@@ -119,10 +121,10 @@ export function TalentHeader() {
             {/* 프로필 — 정방형 아바타(사진 없으면 이름 첫 글자). 닉네임이 길어도 GNB 간격 유지 */}
             <Link
               href={talentAppRoutes.settings}
-              aria-label={t("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "マイプロフィール", "Profil saya")}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl transition hover:bg-[#F6F8FB]"
+              aria-label={launchCompleted ? t("내 프로필 · Career Launch 수료", "My profile · Career Launch graduate", "我的资料 · Career Launch 结业", "Hồ sơ của tôi · Tốt nghiệp Career Launch", "マイプロフィール · Career Launch 修了", "Profil saya · Lulusan Career Launch") : t("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "マイプロフィール", "Profil saya")}
+              className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl transition hover:bg-[#F6F8FB]"
             >
-              <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-[#F2F4F6] text-[12px] font-bold text-[#4E5968]">
+              <span className={`flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-[#F2F4F6] text-[12px] font-bold text-[#4E5968] ${launchCompleted ? "ring-2 ring-[#0B46E8] ring-offset-1 ring-offset-white" : ""}`}>
                 {profilePhoto ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
@@ -130,6 +132,9 @@ export function TalentHeader() {
                   <span aria-hidden>{name.charAt(0).toUpperCase()}</span>
                 )}
               </span>
+              {launchCompleted ? (
+                <span aria-hidden className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[9px] leading-none">🎓</span>
+              ) : null}
             </Link>
             <LanguageSwitcher />
           </div>

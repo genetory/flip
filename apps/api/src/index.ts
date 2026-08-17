@@ -16554,6 +16554,16 @@ app.get("/career-launch/cohort-stats", authenticate, requireCareerEnrollment, as
   }
 });
 
+// GNB 수료 뱃지용 — 본인 수료증 발급 여부(가벼운 단일 조회). 미수강자는 false.
+app.get("/career-launch/completed", authenticate, async (req, res) => {
+  try {
+    const cert = await prisma.careerLaunchCertificate.findFirst({ where: { studentUserId: req.auth!.userId }, select: { id: true } });
+    return res.json({ ok: true, completed: Boolean(cert) });
+  } catch {
+    return res.json({ ok: true, completed: false });
+  }
+});
+
 // 학생 주차 게이팅용 — 본인 기수의 주차 오픈 일정 + 서버 현재시각.
 // forceOpen 이거나 opensAt<=now 면 그 주차는 날짜상 열림(미설정이면 프론트가 진행 기반으로 폴백).
 app.get("/career-launch/week-schedule", authenticate, requireCareerEnrollment, async (req, res) => {
