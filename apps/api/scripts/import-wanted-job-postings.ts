@@ -123,11 +123,6 @@ type ForeignerFilter =
   | { kind: "additional_apply_type"; label: "foreigner_friendly_company" }
   | { kind: "tag"; tagId: 10526; label: "foreigner_open_to_apply" };
 
-const FOREIGNER_FILTERS: ForeignerFilter[] = [
-  { kind: "additional_apply_type", label: "foreigner_friendly_company" },
-  { kind: "tag", tagId: 10526, label: "foreigner_open_to_apply" }
-];
-
 // filter === null → 전체 공고(한국인 포함) 조회. 필터가 있으면 외국인 신호별 조회.
 async function fetchJobs(offset: number, limit: number, filter: ForeignerFilter | null): Promise<WantedJobsResponse> {
   const params = new URLSearchParams();
@@ -294,8 +289,6 @@ async function main() {
   let globalOrder = 0;
   // Dedup across all phases — a job id is upserted at most once per run.
   const seenJobIds = new Set<string>();
-  // 외국인 필터로 확인된 job id 모음. 전체 크롤 단계에서 이 Set으로 외국인 여부를 보강한다.
-  const foreignerIds = new Set<string>();
 
   const jobKey = (id: WantedJob["id"]): string =>
     typeof id === "number" ? String(id) : typeof id === "string" ? id.trim() : "";
@@ -364,22 +357,15 @@ async function main() {
     }
   }
 
-  // 1단계: 외국인 필터 2개 → 외국인 공고를 먼저 수집(정확히 FOREIGNER_FRIENDLY 태깅)하고
-  //        id를 foreignerIds에 기록. (이 단계 공고는 전부 외국인 가능)
-  for (const filter of FOREIGNER_FILTERS) {
-    await crawlPhase(filter.label, filter, MAX_PAGES, (key) => {
-      if (key) foreignerIds.add(key);
-      return true;
-    });
-  }
-
-  // 2단계: 필터 없이 전체 공고(한국인 포함) → 1단계에서 본 id는 dedup으로 건너뛰고,
-  //        나머지는 payload의 additional_apply_type(normalize 내부)만으로 외국인 여부 판정.
-  await crawlPhase("all_jobs", null, GENERAL_MAX_PAGES, (key) => foreignerIds.has(key));
+  // 원티드 '일반' 피드를 넓게 수집한다(외국인·비외국인 자연 혼합).
+  // 외국인 여부는 각 공고의 additional_apply_type('foreigner') — 회사가 '외국인 지원 가능'을
+  // 명시한 정확한 신호 — 만으로 판정한다(normalize 내부). 과거의 tag=10526 필터는 사실상
+  // 대부분 공고를 외국인으로 잡아(≈100%) 토글이 무의미해지므로 사용하지 않는다.
+  await crawlPhase("all_jobs", null, GENERAL_MAX_PAGES, () => false);
 
   console.info(
     `[wanted-import] Done · seen=${totals.seen} created=${totals.created} ` +
-    `updated=${totals.updated} skipped=${totals.skipped} foreignerTagged=${foreignerIds.size}`
+    `updated=${totals.updated} skipped=${totals.skipped}`
   );
 }
 
