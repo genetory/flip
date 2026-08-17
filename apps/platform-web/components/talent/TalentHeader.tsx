@@ -7,7 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Bell, List, X } from "@phosphor-icons/react";
+import { Bell, List, X, Lock } from "@phosphor-icons/react";
 import { talentBrand, talentRoutes, useTalentBrandCta } from "../../lib/talent/landing-content";
 import { talentMainNav, isTabActive, talentAppRoutes, useTalentNavLabel } from "../../lib/talent/app-nav";
 import { useAuthSession } from "../auth/AuthSessionProvider";
@@ -59,43 +59,42 @@ export function TalentHeader() {
     <header className="sticky top-0 z-40 border-b border-[#EEF1F5] bg-white">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
         <div className="flex items-center gap-1.5">
-          {/* 모바일 햄버거 */}
-          {isTalentUser ? (
-            <button
-              type="button"
-              aria-label={t("메뉴", "Menu", "菜单", "Menu", "メニュー", "Menu")}
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((v) => !v)}
-              className="-ml-1.5 flex h-9 w-9 items-center justify-center rounded-2xl text-[#4E5968] transition hover:bg-[#F6F8FB] md:hidden"
-            >
-              {menuOpen ? <X className="h-5 w-5" /> : <List className="h-5 w-5" />}
-            </button>
-          ) : null}
+          {/* 모바일 햄버거 — 로그아웃 시에도 노출(GNB 그대로). */}
+          <button
+            type="button"
+            aria-label={t("메뉴", "Menu", "菜单", "Menu", "メニュー", "Menu")}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+            className="-ml-1.5 flex h-9 w-9 items-center justify-center rounded-2xl text-[#4E5968] transition hover:bg-[#F6F8FB] md:hidden"
+          >
+            {menuOpen ? <X className="h-5 w-5" /> : <List className="h-5 w-5" />}
+          </button>
           <Link href={homeHref} aria-label={t(`${talentBrand.name} 홈`, `${talentBrand.name} home`, `${talentBrand.name} 主页`, `Trang chủ ${talentBrand.name}`, `${talentBrand.name} ホーム`, `Beranda ${talentBrand.name}`)} className="flex items-center">
             <Image src="/img_logo.webp" alt={talentBrand.name} width={72} height={24} className="h-5 w-auto" priority />
           </Link>
         </div>
 
-        {/* 로그인 Talent: GNB 4탭(데스크톱) */}
-        {isTalentUser ? (
-          <nav aria-label={t("주요 메뉴", "Main menu", "主菜单", "Menu chính", "メインメニュー", "Menu utama")} className="hidden items-center gap-2.5 md:flex">
-            {talentMainNav.map((item) => {
-              const active = isTabActive(pathname, item.href);
-              return (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={`rounded-lg px-3 py-2 text-[13px] font-semibold transition ${
-                    active ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-[#4E5968] hover:bg-[#F6F8FB] hover:text-[#191F28]"
-                  }`}
-                >
-                  {navLabel(item.key)}
-                </Link>
-              );
-            })}
-          </nav>
-        ) : null}
+        {/* GNB 탭(데스크톱) — 로그아웃 시에도 그대로 노출. 로그인 필요한 탭은 클릭 시
+            가드가 /login?next= 로 유도(로그인 필요 표시). */}
+        <nav aria-label={t("주요 메뉴", "Main menu", "主菜单", "Menu chính", "メインメニュー", "Menu utama")} className="hidden items-center gap-2.5 md:flex">
+          {talentMainNav.map((item) => {
+            const active = isTabActive(pathname, item.href);
+            return (
+              <Link
+                key={item.key}
+                href={isTalentUser ? item.href : `${talentRoutes.login}?next=${encodeURIComponent(item.href)}`}
+                aria-current={active ? "page" : undefined}
+                title={isTalentUser ? undefined : t("로그인이 필요해요", "Login required", "需要登录", "Cần đăng nhập", "ログインが必要です", "Perlu masuk")}
+                className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-[13px] font-semibold transition ${
+                  active ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-[#4E5968] hover:bg-[#F6F8FB] hover:text-[#191F28]"
+                }`}
+              >
+                {navLabel(item.key)}
+                {!isTalentUser ? <Lock className="h-3 w-3 text-[#B0B8C1]" weight="fill" aria-hidden /> : null}
+              </Link>
+            );
+          })}
+        </nav>
 
         {/* 우측 */}
         {isTalentUser ? (
@@ -143,8 +142,8 @@ export function TalentHeader() {
         )}
       </div>
 
-      {/* 모바일 메뉴(햄버거) */}
-      {isTalentUser && menuOpen ? (
+      {/* 모바일 메뉴(햄버거) — 로그아웃 시에도 노출, 로그인 필요 탭은 잠금 표시 + 로그인으로 유도 */}
+      {menuOpen ? (
         <nav aria-label={t("주요 메뉴", "Main menu", "主菜单", "Menu chính", "メインメニュー", "Menu utama")} className="border-t border-[#EEF1F5] bg-white px-3 py-2 md:hidden">
           <ul className="flex flex-col">
             {talentMainNav.map((item) => {
@@ -153,7 +152,7 @@ export function TalentHeader() {
               return (
                 <li key={item.key}>
                   <Link
-                    href={item.href}
+                    href={isTalentUser ? item.href : `${talentRoutes.login}?next=${encodeURIComponent(item.href)}`}
                     aria-current={active ? "page" : undefined}
                     onClick={() => setMenuOpen(false)}
                     className={`flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-semibold transition ${
@@ -161,7 +160,8 @@ export function TalentHeader() {
                     }`}
                   >
                     <Icon className="h-5 w-5" weight={active ? "fill" : "regular"} />
-                    {navLabel(item.key)}
+                    <span className="flex-1">{navLabel(item.key)}</span>
+                    {!isTalentUser ? <Lock className="h-3.5 w-3.5 text-[#B0B8C1]" weight="fill" aria-hidden /> : null}
                   </Link>
                 </li>
               );
