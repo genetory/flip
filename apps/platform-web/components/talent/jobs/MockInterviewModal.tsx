@@ -262,6 +262,13 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
           <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
         </div>
 
+        {/* 외부(비-CIP) 공고 면책 — 공고 기반 연습이며 실제 회사 면접과 무관 */}
+        {item && item.sourceProvider !== "INTERNAL" ? (
+          <div className="border-b border-[#F6ECD6] bg-[#FFFBF3] px-5 py-2.5">
+            <p className="break-keep text-[11.5px] leading-relaxed text-[#8B6D3F]">{t("공고 내용을 기반으로 한 연습이에요. 실제 이 회사의 면접 방식·질문과는 무관합니다.", "This practice is based on the job posting only — it has no connection to this company's actual interview.", "本练习仅基于职位描述，与该公司实际面试无关。", "Bài luyện này chỉ dựa trên tin tuyển dụng — không liên quan đến phỏng vấn thực tế của công ty.", "この練習は求人内容に基づくもので、実際のこの会社の面接とは関係ありません。", "Latihan ini hanya berdasarkan lowongan — tidak terkait wawancara asli perusahaan.")}</p>
+          </div>
+        ) : null}
+
         {/* 본문 */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {noSource ? (
