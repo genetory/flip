@@ -4,7 +4,7 @@
 // 핵심 정보 / 상세 안내 / 기업 정보 + 저장·지원.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MapPin, BookmarkSimple, ArrowSquareOut, Buildings, LinkSimple, Star, X, Sparkle } from "@phosphor-icons/react";
+import { MapPin, BookmarkSimple, ArrowSquareOut, Buildings, LinkSimple, Star, X } from "@phosphor-icons/react";
 import { TalentBackButton } from "../TalentBackButton";
 import { toggleCompanyFollow, useFollowedCompanies } from "../../../lib/talent/company-follow";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
@@ -135,13 +135,13 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
           {/* 모의 면접 — 회사가 준비했거나(CIP 내부) 공고 JD가 있으면(외부 원티드 등) 노출 */}
           {item.mockInterviewIntent || (item.mockInterviewQuestions?.length ?? 0) > 0 || item.mainResponsibilities || item.requiredQualifications ? (
             <div className="mt-4">
-              <button type="button" onClick={() => setMockGateOpen(true)} className="group/mock flex w-full items-center gap-3.5 rounded-2xl bg-gradient-to-br from-[#0B46E8] via-[#2C63F0] to-[#4D82FF] px-5 py-6 text-left transition hover:brightness-[1.05] active:scale-[0.995]">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-[20px] backdrop-blur-sm" aria-hidden>🎤</span>
+              <button type="button" onClick={() => setMockGateOpen(true)} className="group/mock flex w-full items-center gap-3 overflow-hidden rounded-2xl border border-[#DCE7FF] bg-gradient-to-br from-[#E8F0FF] to-[#F6FAFF] py-4 pl-5 pr-3 text-left transition hover:border-[#0B46E8]/45">
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[14.5px] font-bold text-white">{item.sourceProvider === "INTERNAL" ? t("이 회사 모의 면접 미리 풀기", "Try this company's mock interview", "提前练习该公司模拟面试", "Thử phỏng vấn thử của công ty này", "この会社の模擬面接を先に解く", "Coba wawancara simulasi perusahaan ini") : t("이 공고 기반 모의 면접 풀기", "Try a mock interview from this posting", "基于该职位的模拟面试", "Phỏng vấn thử dựa trên tin tuyển dụng này", "この求人を基にした模擬面接", "Wawancara simulasi berdasarkan lowongan ini")}</span>
-                  <span className="mt-0.5 block text-[12.5px] text-white/85">{t("지원 전에 예상 질문을 풀고 AI 피드백을 받아보세요.", "Practice likely questions and get AI feedback before applying.", "申请前练习可能的问题并获得 AI 反馈。", "Luyện câu hỏi dự kiến và nhận phản hồi AI trước khi ứng tuyển.", "応募前に予想質問を解いてAIフィードバックを受けましょう。", "Latih pertanyaan dan dapat umpan balik AI sebelum melamar.")}</span>
+                  <span className="block break-keep text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{item.sourceProvider === "INTERNAL" ? t("이 회사 모의 면접 미리 풀기", "Try this company's mock interview", "提前练习该公司模拟面试", "Thử phỏng vấn thử của công ty này", "この会社の模擬面接を先に解く", "Coba wawancara simulasi perusahaan ini") : t("이 공고 기반 모의 면접 풀기", "Try a mock interview from this posting", "基于该职位的模拟面试", "Phỏng vấn thử dựa trên tin tuyển dụng này", "この求人を基にした模擬面接", "Wawancara simulasi berdasarkan lowongan ini")}</span>
+                  <span className="mt-1 block break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{t("지원 전에 예상 질문을 풀고 AI 피드백을 받아보세요.", "Practice likely questions and get AI feedback before applying.", "申请前练习可能的问题并获得 AI 反馈。", "Luyện câu hỏi dự kiến và nhận phản hồi AI trước khi ứng tuyển.", "応募前に予想質問を解いてAIフィードバックを受けましょう。", "Latih pertanyaan dan dapat umpan balik AI sebelum melamar.")}</span>
                 </span>
-                <Sparkle className="h-5 w-5 shrink-0 text-white transition group-hover/mock:scale-110" weight="fill" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/images/img_ai_interview.webp" alt="" aria-hidden className="h-[96px] w-[96px] shrink-0 object-contain transition group-hover/mock:scale-105" />
               </button>
               {item.sourceProvider !== "INTERNAL" ? (
                 <p className="mt-1.5 break-keep px-1 text-[11.5px] leading-relaxed text-[#8B95A1]">
