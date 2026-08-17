@@ -6,7 +6,7 @@ import { PartnerGuard } from "./PartnerGuard";
 import { PartnerHeader } from "./PartnerHeader";
 import { AplyFooter } from "../AplyFooter";
 
-export function PartnerAppShell({ children }: { children: ReactNode }) {
+export function PartnerAppShell({ children, allowGuest = false }: { children: ReactNode; allowGuest?: boolean }) {
   useEffect(() => {
     const html = document.documentElement;
     const prev = html.style.backgroundColor;
@@ -16,7 +16,7 @@ export function PartnerAppShell({ children }: { children: ReactNode }) {
     };
   }, []);
   return (
-    <PartnerGuard>
+    <PartnerGuard allowGuest={allowGuest}>
       <div className="flex min-h-screen flex-col bg-[#FAFBFC]">
         <PartnerHeader />
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 pt-5 md:px-6 md:pb-12 md:pt-7">{children}</main>

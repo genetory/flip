@@ -74,17 +74,17 @@ export function PartnerLandingPage() {
             </Link>
             <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{t("파트너", "Partner", "合作伙伴", "Đối tác", "パートナー", "Partner")}</span>
           </div>
-          {/* GNB 탭 — 파트너 콘솔은 전부 로그인 필요라 잠금 표시 + 로그인으로 유도 */}
+          {/* GNB 탭 — 인재 검색(마스킹)은 로그인 없이 열람, 나머지는 잠금 + 로그인 유도 */}
           <nav aria-label={t("주요 메뉴", "Main menu", "主菜单", "Menu chính", "メインメニュー", "Menu utama")} className="hidden items-center gap-2.5 md:flex">
             {partnerMainNav.map((item) => (
               <Link
                 key={item.key}
-                href={`${LOGIN_HREF}?next=${encodeURIComponent(item.href)}`}
-                title={t("로그인이 필요해요", "Login required", "需要登录", "Cần đăng nhập", "ログインが必要です", "Perlu masuk")}
+                href={item.guest ? item.href : `${LOGIN_HREF}?next=${encodeURIComponent(item.href)}`}
+                title={item.guest ? undefined : t("로그인이 필요해요", "Login required", "需要登录", "Cần đăng nhập", "ログインが必要です", "Perlu masuk")}
                 className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-[13px] font-semibold text-[#4E5968] transition hover:bg-[#F6F8FB] hover:text-[#191F28]"
               >
                 {navLabel(item.key)}
-                <Lock className="h-3 w-3 text-[#B0B8C1]" weight="fill" aria-hidden />
+                {!item.guest ? <Lock className="h-3 w-3 text-[#B0B8C1]" weight="fill" aria-hidden /> : null}
               </Link>
             ))}
           </nav>

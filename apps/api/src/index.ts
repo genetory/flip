@@ -38,6 +38,7 @@ import {
 import { z } from "zod";
 import {
   authenticate,
+  authenticateOptional,
   hashPassword,
   hashToken,
   requireRoles,
@@ -22248,19 +22249,25 @@ const partnerCandidatesQuerySchema = z.object({
   page: z.coerce.number().int().min(1).max(200).optional()
 });
 
-app.get("/partner/candidates", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+app.get("/partner/candidates", authenticateOptional, async (req, res) => {
   const parsed = partnerCandidatesQuerySchema.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
   try {
-    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
-    if (req.auth!.role !== MemberRole.OPERATOR && !affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    // 마스킹된 인재풀은 비회원(게스트)도 열람 가능. 파트너면 소속·연결상태 등 부가정보를 채운다.
+    const isPartner = req.auth?.role === MemberRole.PARTNER || req.auth?.role === MemberRole.OPERATOR;
+    if (isPartner && req.auth!.role !== MemberRole.OPERATOR) {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    }
     const rows = await prisma.resume.findMany({
       where: POOL_RESUME_WHERE,
       orderBy: { updatedAt: "desc" },
       take: 300,
       select: { userId: true, updatedAt: true, content: true, user: { select: { name: true, realName: true, nationality: true } } }
     });
-    const conns = await prisma.candidateConnectionRequest.findMany({ where: { partnerUserId: req.auth!.userId }, select: { candidateUserId: true, status: true } });
+    const conns = req.auth?.userId
+      ? await prisma.candidateConnectionRequest.findMany({ where: { partnerUserId: req.auth.userId }, select: { candidateUserId: true, status: true } })
+      : [];
     const statusByCand = new Map(conns.map((c) => [c.candidateUserId, c.status] as const));
     const q = parsed.data.q?.toLowerCase();
     const skill = parsed.data.skill?.toLowerCase();
@@ -22414,19 +22421,24 @@ const CANDIDATE_MATCH_SCHEMA = {
   }
 } as const;
 
-app.post("/partner/candidates/search", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+app.post("/partner/candidates/search", authenticateOptional, async (req, res) => {
   const parsed = partnerAiSearchSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
-    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
-    if (req.auth!.role !== MemberRole.OPERATOR && !affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    // 마스킹된 인재풀 검색 — 게스트도 가능. 파트너면 소속 확인 + 연결상태를 채운다.
+    if (req.auth?.role === MemberRole.PARTNER) {
+      const affiliation = await resolvePartnerAffiliation(req.auth.userId);
+      if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    }
     const rows = await prisma.resume.findMany({
       where: POOL_RESUME_WHERE,
       orderBy: { updatedAt: "desc" },
       take: 150,
       select: { userId: true, updatedAt: true, content: true, user: { select: { name: true, realName: true, nationality: true } } }
     });
-    const conns = await prisma.candidateConnectionRequest.findMany({ where: { partnerUserId: req.auth!.userId }, select: { candidateUserId: true, status: true } });
+    const conns = req.auth?.userId
+      ? await prisma.candidateConnectionRequest.findMany({ where: { partnerUserId: req.auth.userId }, select: { candidateUserId: true, status: true } })
+      : [];
     const statusByCand = new Map(conns.map((c) => [c.candidateUserId, c.status] as const));
     // 이력서·자기소개서가 어느정도 완성된 인재만.
     const coverSet = await usersWithCoverLetter(rows.map((r) => r.userId));

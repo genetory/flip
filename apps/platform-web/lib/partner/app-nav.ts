@@ -16,11 +16,13 @@ export interface PartnerNavItem {
   key: string;
   label: string;
   href: string;
+  // 로그인 없이도 열람 가능(인재 검색은 마스킹돼 있어 게스트 공개). 미지정은 로그인 필요.
+  guest?: boolean;
 }
 
 export const partnerMainNav: PartnerNavItem[] = [
   { key: "home", label: "홈", href: partnerRoutes.home },
-  { key: "talent", label: "인재 검색", href: partnerRoutes.talent },
+  { key: "talent", label: "인재 검색", href: partnerRoutes.talent, guest: true },
   { key: "positions", label: "공고 관리", href: partnerRoutes.positions },
   { key: "applicants", label: "지원자 관리", href: partnerRoutes.applicants },
   { key: "company", label: "회사 프로필", href: partnerRoutes.company }

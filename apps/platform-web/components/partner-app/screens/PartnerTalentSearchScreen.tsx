@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MagnifyingGlass, X, Sparkle, GraduationCap, Globe, Translate, Briefcase, BookmarkSimple, ShieldCheck, Fire } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
+import { useLoginGate } from "../../talent/app/LoginRequiredModal";
 import { usePlatformT } from "../../../lib/i18n";
 import { TListSkeleton, TError } from "../../talent/ui/primitives";
 import { PartnerEmptyCard } from "../ui/cards";
@@ -18,6 +19,7 @@ type Mode = "search" | "saved";
 export function PartnerTalentSearchScreen() {
   const t = usePlatformT();
   const toast = useTalentPopup();
+  const { ensure, modal: loginModal } = useLoginGate({ loginPath: "/partner/login" }); // 게스트가 저장·상세 시 로그인 유도
   const [mode, setMode] = useState<Mode>("search");
   const [query, setQuery] = useState("");
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
@@ -90,7 +92,8 @@ export function PartnerTalentSearchScreen() {
   }
 
   return (
-    <PartnerAppShell>
+    <PartnerAppShell allowGuest>
+      {loginModal}
       <div className="flex flex-col gap-5">
         <div>
           <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("인재 검색", "Talent search", "人才搜索", "Tìm nhân tài", "人材検索", "Cari talenta")}</h1>
@@ -162,7 +165,7 @@ export function PartnerTalentSearchScreen() {
               </p>
               <div className="flex flex-col gap-2.5">
                 {items.map((c) => (
-                  <CandidateCard key={c.candidateUserId} c={c} saved={savedIds.has(c.candidateUserId)} onToggleSave={() => toggleSave(c.candidateUserId)} />
+                  <CandidateCard key={c.candidateUserId} c={c} saved={savedIds.has(c.candidateUserId)} ensure={ensure} onToggleSave={() => toggleSave(c.candidateUserId)} />
                 ))}
               </div>
             </>
@@ -173,11 +176,15 @@ export function PartnerTalentSearchScreen() {
   );
 }
 
-function CandidateCard({ c, saved, onToggleSave }: { c: PartnerCandidateCard; saved: boolean; onToggleSave: () => void }) {
+function CandidateCard({ c, saved, onToggleSave, ensure }: { c: PartnerCandidateCard; saved: boolean; onToggleSave: () => void; ensure: (action?: () => void) => boolean }) {
   const t = usePlatformT();
   const edu = [c.school, c.major].filter(Boolean).join(" · ");
   return (
-    <Link href={`${partnerRoutes.talent}/${encodeURIComponent(c.candidateUserId)}`} className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
+    <Link
+      href={`${partnerRoutes.talent}/${encodeURIComponent(c.candidateUserId)}`}
+      onClick={(e) => { if (!ensure()) e.preventDefault(); }}
+      className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]"
+    >
       <div className="flex items-start gap-3.5">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[17px] font-black text-[#0B46E8]">{(c.name ?? blindTalentName(t, c.desiredJobRole)).slice(0, 1)}</span>
         <div className="order-last flex shrink-0 items-center gap-1.5">
@@ -196,7 +203,7 @@ function CandidateCard({ c, saved, onToggleSave }: { c: PartnerCandidateCard; sa
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              onToggleSave();
+              ensure(onToggleSave);
             }}
             className={`rounded-full p-1.5 transition ${saved ? "text-[#0B46E8]" : "text-[#C4CAD2] hover:text-[#4E5968]"}`}
           >

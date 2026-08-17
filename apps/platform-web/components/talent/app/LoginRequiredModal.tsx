@@ -9,7 +9,7 @@ import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { usePlatformT } from "../../../lib/i18n";
 
-export function useLoginGate() {
+export function useLoginGate(opts: { loginPath?: string } = {}) {
   const { isAuthenticated } = useAuthSession();
   const [open, setOpen] = useState(false);
   // 로그인돼 있으면 action 실행, 아니면 로그인 팝업. 반환값: 진행 가능 여부.
@@ -24,11 +24,11 @@ export function useLoginGate() {
     },
     [isAuthenticated]
   );
-  const modal = open ? <LoginRequiredModal onClose={() => setOpen(false)} /> : null;
+  const modal = open ? <LoginRequiredModal onClose={() => setOpen(false)} loginPath={opts.loginPath} /> : null;
   return { ensure, modal };
 }
 
-export function LoginRequiredModal({ onClose }: { onClose: () => void }) {
+export function LoginRequiredModal({ onClose, loginPath = "/login" }: { onClose: () => void; loginPath?: string }) {
   const t = usePlatformT();
   const router = useRouter();
   const pathname = usePathname() ?? "/talent/jobs";
@@ -39,7 +39,7 @@ export function LoginRequiredModal({ onClose }: { onClose: () => void }) {
     const qs = search?.toString();
     const here = qs ? `${pathname}?${qs}` : pathname;
     onClose();
-    router.push(`/login?next=${encodeURIComponent(here)}`);
+    router.push(`${loginPath}?next=${encodeURIComponent(here)}`);
   };
 
   return (
