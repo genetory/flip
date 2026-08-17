@@ -14819,6 +14819,27 @@ function hasChatUserTurn(req: import("express").Request): boolean {
 }
 
 // when 이 주어지면 그 조건이 참일 때만 과금·게이트(예: 실제 사용자 메시지 턴).
+// Career Launch 활성 기수 수강생은 프로그램을 '서비스'로 제공받으므로 AI를 포인트 차감 없이 쓴다.
+// (수강 기간 동안 모든 AI 기능 무료 — resume-maker·면접·최종 피드백 등 포함) 짧은 캐시로 매 호출 DB 조회를 줄인다.
+const careerLaunchStudentCache = new Map<string, { ok: boolean; exp: number }>();
+async function isActiveCareerLaunchStudent(userId: string): Promise<boolean> {
+  const now = Date.now();
+  const cached = careerLaunchStudentCache.get(userId);
+  if (cached && cached.exp > now) return cached.ok;
+  let ok = false;
+  try {
+    const enrolled = await prisma.careerEnrollment.findFirst({
+      where: { studentUserId: userId, cohort: { status: "active" } },
+      select: { id: true }
+    });
+    ok = Boolean(enrolled);
+  } catch {
+    ok = false; // 조회 실패 시 면제하지 않음(정상 과금 경로로)
+  }
+  careerLaunchStudentCache.set(userId, { ok, exp: now + 5 * 60_000 });
+  return ok;
+}
+
 function aiCharge(feature: string, when?: (req: import("express").Request) => boolean): import("express").RequestHandler {
   return async (req, res, next) => {
     const cost = aiFeatureCost(feature);
@@ -14826,6 +14847,7 @@ function aiCharge(feature: string, when?: (req: import("express").Request) => bo
     if (when && !when(req)) return next();
     const userId = req.auth?.userId;
     if (!userId) return next();
+    if (await isActiveCareerLaunchStudent(userId)) return next(); // CL 수강생 — 서비스 제공, 무료
     let status: AiCreditStatus;
     try {
       status = await aiCreditStatus(userId);
