@@ -14706,34 +14706,34 @@ function aiLangDirective(_locale?: string): string {
 // 무거운(전체 생성/파싱) 3 티켓. 보조성(웹 fetch)은 0(과금 안 함). KST 월 단위 리셋.
 // 초기 정책: 넉넉히 10000 지급(런칭/테스트 단계에서 사실상 막히지 않게).
 // 공용 AI 티켓 지갑 — 가입 시 1회 보너스 + 매일 적립(상한). 사용 시 차감.
-const AI_WELCOME_GRANT = 100; // 가입(첫 사용) 시 1회 지급
-const AI_DAILY_GRANT = 20; // 매일 적립
-const AI_DAILY_CAP = 200; // 적립 누적 상한
+const AI_WELCOME_GRANT = 1000; // 가입(첫 사용) 시 1회 지급 (10배 스케일)
+const AI_DAILY_GRANT = 200; // 매일 적립 (10배 스케일)
+const AI_DAILY_CAP = 2000; // 적립 누적 상한 (10배 스케일)
 
 // 기능별 티켓 비용. 없는 키는 0(과금 안 함).
 const AI_FEATURE_COST: Record<string, number> = {
-  // 무거움(3) — 이력서/자소서 전체 파싱·면접 질문 세트 생성
-  import_resume: 3,
-  import_cover_letter: 3,
-  interview_questions: 3,
-  // 보통(2) — 분석·초안 생성
-  tailor_analyze: 2,
-  draft_intro: 2,
-  generate_english_intro: 2,
-  cover_letter: 2,
-  // 가벼움(1) — 다듬기·제안·번역·단건 평가·단일 필드 개선
-  draft_resume_text: 1,
-  experience_interview: 1,
-  experience_bullets: 1,
-  experience_title: 1,
-  experience_tasks: 1,
-  polish_intro: 1,
-  polish_experience: 1,
-  summarize_intro: 1,
-  suggest_skills: 1,
-  translate_texts: 1,
-  // gpt-4o 사용(원가 높음) — 티켓당 원가가 다른 기능과 맞도록 2로 책정.
-  interview_feedback: 2,
+  // 무거움(30) — 이력서/자소서 전체 파싱·면접 질문 세트 생성 (10배 스케일)
+  import_resume: 30,
+  import_cover_letter: 30,
+  interview_questions: 30,
+  // 보통(20) — 분석·초안 생성
+  tailor_analyze: 20,
+  draft_intro: 20,
+  generate_english_intro: 20,
+  cover_letter: 20,
+  // 가벼움(10) — 다듬기·제안·번역·단건 평가·단일 필드 개선
+  draft_resume_text: 10,
+  experience_interview: 10,
+  experience_bullets: 10,
+  experience_title: 10,
+  experience_tasks: 10,
+  polish_intro: 10,
+  polish_experience: 10,
+  summarize_intro: 10,
+  suggest_skills: 10,
+  translate_texts: 10,
+  // gpt-4o 사용(원가 높음) — 티켓당 원가가 다른 기능과 맞도록 20으로 책정.
+  interview_feedback: 20,
   // Career Launch — 프로그램 참가자에겐 모든 AI 기능 무료(포인트 차감·게이트 없음).
   // 유료 전환하려면 값을 되돌린다.
   career_resume_chat: 0,
@@ -29561,6 +29561,26 @@ if (process.env.VERCEL !== "1") {
     }
   }
 
+  // 1회성 마이그레이션 — SCALE_AI_POINTS_10X=true 시 기동 때 기존 지갑 잔액·쿠폰 티켓을 ×10.
+  // AppSetting 마커로 정확히 1회만(재실행 시 ×100 방지). 실행 후 앱 설정 플래그를 해제한다.
+  async function runAiPointsScale10xOnBoot() {
+    if (String(process.env.SCALE_AI_POINTS_10X ?? "false").toLowerCase() !== "true") return;
+    const MARKER = "ai_points_scaled_10x";
+    try {
+      const done = await prisma.appSetting.findUnique({ where: { key: MARKER } });
+      if (done) {
+        console.info("[scale-10x] already applied — skip");
+        return;
+      }
+      const wallets = await prisma.aiWallet.updateMany({ data: { balance: { multiply: 10 } } });
+      const coupons = await prisma.coupon.updateMany({ data: { tickets: { multiply: 10 } } });
+      await prisma.appSetting.create({ data: { key: MARKER, value: "done", description: "AI 포인트 10배 스케일 마이그레이션 완료" } });
+      console.info(`[scale-10x] done. wallets=${wallets.count} coupons=${coupons.count}`);
+    } catch (e) {
+      console.error("[scale-10x] failed:", e);
+    }
+  }
+
   app.listen(port, () => {
     console.log(`API server listening on http://localhost:${port}`);
     console.info("[runtime-config]", {
@@ -29574,6 +29594,7 @@ if (process.env.VERCEL !== "1") {
     });
     startCrawlerScheduler();
     void runInternalForeignerBackfillOnBoot();
+    void runAiPointsScale10xOnBoot();
   });
 }
 
