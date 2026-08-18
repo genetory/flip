@@ -73,7 +73,7 @@ export function PartnerHeader() {
                 aria-current={active ? "page" : undefined}
                 title={gated ? t("로그인이 필요해요", "Login required", "需要登录", "Cần đăng nhập", "ログインが必要です", "Perlu masuk") : undefined}
                 className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-[13px] font-semibold transition ${
-                  active ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-[#4E5968] hover:bg-[#F6F8FB] hover:text-[#191F28]"
+                  gated ? "text-[#B0B8C1] hover:bg-[#F6F8FB]" : active ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-[#4E5968] hover:bg-[#F6F8FB] hover:text-[#191F28]"
                 }`}
               >
                 {navLabel(item.key)}
@@ -130,7 +130,7 @@ export function PartnerHeader() {
                     aria-current={active ? "page" : undefined}
                     onClick={() => setMenuOpen(false)}
                     className={`flex items-center gap-2 rounded-xl px-3 py-3 text-[15px] font-semibold transition ${
-                      active ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-[#4E5968] hover:bg-[#F6F8FB]"
+                      gated ? "text-[#B0B8C1] hover:bg-[#F6F8FB]" : active ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-[#4E5968] hover:bg-[#F6F8FB]"
                     }`}
                   >
                     <span className="flex-1">{navLabel(item.key)}</span>
