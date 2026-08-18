@@ -340,13 +340,20 @@ function FeaturedBanners() {
           <div key={`${b.id}-${i}`} className="w-full min-w-full snap-center px-1.5 md:px-2">
             <Link
               href={b.href}
-              className="relative flex h-[210px] w-full flex-col justify-center overflow-hidden rounded-2xl bg-[#111111] px-6 text-white md:h-[280px] md:px-8"
+              className="relative flex h-[210px] w-full flex-col justify-center overflow-hidden rounded-2xl px-6 text-white md:h-[280px] md:px-8"
+              style={{ background: `linear-gradient(135deg, ${b.from}, ${b.to})` }}
             >
               <span className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" aria-hidden />
               <span className="pointer-events-none absolute -bottom-10 right-16 h-24 w-24 rounded-full bg-white/5" aria-hidden />
-              <span className="relative inline-flex w-fit items-center rounded-full bg-white/20 px-2.5 py-0.5 text-[11.5px] font-bold">{b.tag}</span>
-              <p className="relative mt-2 whitespace-pre-line text-[18px] font-black leading-[1.3] tracking-[-0.02em] md:text-[22px]">{b.title}</p>
-              <p className="relative mt-1 text-[12.5px] text-white/85 md:text-[13.5px]">{b.subtitle}</p>
+              {b.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={b.image} alt="" aria-hidden className="pointer-events-none absolute bottom-0 right-1 h-[94%] max-w-[48%] object-contain object-bottom md:right-3" />
+              ) : null}
+              <div className="relative z-10" style={{ maxWidth: b.image ? "60%" : undefined }}>
+                <span className="inline-flex w-fit items-center rounded-full bg-white/20 px-2.5 py-0.5 text-[11.5px] font-bold">{b.tag}</span>
+                <p className="mt-2 whitespace-pre-line text-[18px] font-black leading-[1.3] tracking-[-0.02em] md:text-[22px]">{b.title}</p>
+                <p className="mt-1 text-[12.5px] text-white/85 md:text-[13.5px]">{b.subtitle}</p>
+              </div>
             </Link>
           </div>
         ))}
