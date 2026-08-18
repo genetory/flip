@@ -1538,9 +1538,17 @@ export async function getPartnerCandidates(params: { q?: string; skill?: string;
   if (params.skill) qs.set("skill", params.skill);
   if (params.jobRole) qs.set("jobRole", params.jobRole);
   if (params.page) qs.set("page", String(params.page));
-  const result = await authedJsonFetch<PartnerCandidateCard>(`/partner/candidates${qs.toString() ? `?${qs.toString()}` : ""}`, { method: "GET" });
-  const r = result as { items?: PartnerCandidateCard[]; total?: number; page?: number; pageSize?: number };
-  return { items: (r.items ?? []) as PartnerCandidateCard[], total: r.total ?? 0, page: r.page ?? 1, pageSize: r.pageSize ?? 20 };
+  // 옵셔널 인증 — 비회원(게스트)도 마스킹된 인재 카드를 볼 수 있다(authenticateOptional).
+  // 토큰이 있으면 보내고, 없거나 만료면 서버가 게스트로 폴백한다.
+  const response = await fetch(`${getApiBaseUrl()}/partner/candidates${qs.toString() ? `?${qs.toString()}` : ""}`, {
+    method: "GET",
+    headers: withOptionalBearerHeader()
+  });
+  const payload = (await readApiPayload(response)) as { ok?: boolean; message?: string; items?: PartnerCandidateCard[]; total?: number; page?: number; pageSize?: number };
+  if (!response.ok || payload.ok !== true) {
+    throw new Error(resolveApiErrorMessage(payload, "인재 목록을 불러오지 못했습니다."));
+  }
+  return { items: (payload.items ?? []) as PartnerCandidateCard[], total: payload.total ?? 0, page: payload.page ?? 1, pageSize: payload.pageSize ?? 20 };
 }
 // 관심 인재 shortlist — 저장/해제/목록.
 export async function getSavedCandidates(): Promise<PartnerCandidateCard[]> {
@@ -1555,9 +1563,17 @@ export async function unsaveCandidate(candidateUserId: string) {
 }
 
 export async function searchPartnerCandidatesAI(query: string): Promise<{ items: PartnerCandidateCard[]; ai: boolean }> {
-  const result = await authedJsonFetch<PartnerCandidateCard>(`/partner/candidates/search`, { method: "POST", body: JSON.stringify({ query }) });
-  const r = result as { items?: PartnerCandidateCard[]; ai?: boolean };
-  return { items: (r.items ?? []) as PartnerCandidateCard[], ai: Boolean(r.ai) };
+  // 옵셔널 인증 — 게스트도 마스킹된 검색 결과 열람 가능(authenticateOptional).
+  const response = await fetch(`${getApiBaseUrl()}/partner/candidates/search`, {
+    method: "POST",
+    headers: withOptionalBearerHeader({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ query })
+  });
+  const payload = (await readApiPayload(response)) as { ok?: boolean; message?: string; items?: PartnerCandidateCard[]; ai?: boolean };
+  if (!response.ok || payload.ok !== true) {
+    throw new Error(resolveApiErrorMessage(payload, "검색에 실패했습니다."));
+  }
+  return { items: (payload.items ?? []) as PartnerCandidateCard[], ai: Boolean(payload.ai) };
 }
 
 export type PartnerCandidateDetail = {
