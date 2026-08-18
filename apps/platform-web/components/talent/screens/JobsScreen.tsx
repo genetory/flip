@@ -2,9 +2,9 @@
 
 // 채용공고 — aply.global 포지션 탐색과 동일한 실 API·기능·검색/필터 동작으로.
 // 소스 탭(전체 / Aply 채용) + 저장, 검색(입력→적용+트래킹), 직무 필터(서버), 정렬, 20개 페이징.
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { MagnifyingGlass, CaretLeft, CaretRight, X } from "@phosphor-icons/react";
+import { MagnifyingGlass, CaretLeft, CaretRight, CaretDown, Check, X } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { useLoginGate } from "../app/LoginRequiredModal";
 import { TEmpty, TError, TListSkeleton, TPageHeader } from "../ui/primitives";
@@ -19,7 +19,6 @@ import { useTalentPopup } from "../feedback/TalentPopupProvider";
 import { trackPositionSearch } from "../../../lib/analytics";
 import {
   getPublicPositionsPage,
-  getPositionFacets,
   getMyFavoritePositions,
   addMyFavoritePosition,
   removeMyFavoritePosition,
@@ -27,7 +26,6 @@ import {
   type PublicPositionListItem,
   type PublicPremiumPositionBannerItem
 } from "../../../lib/member-profile-client";
-import { jobCategoryLabel } from "../../../lib/job-categories";
 import { toPositionView } from "../../../lib/talent/positions-adapter";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
@@ -60,12 +58,10 @@ export function JobsScreen() {
   const [sort, setSort] = useState<Sort>("latest");
   // 외국인 지원 가능(FOREIGNER_FRIENDLY)만 — 한국인/외국인 공고 공용 목록에서 서버 필터로 좁힌다.
   const [foreignerOnly, setForeignerOnly] = useState(false);
-  // 추가 필터 — 고용형태 / 지역(시·도) / 직무 카테고리. 서버 필터.
+  // 추가 필터 — 고용형태 / 지역(시·도). 드롭다운 다중 선택. (직무 필터는 보류)
   const [empTypes, setEmpTypes] = useState<EmploymentType[]>([]);
   const [locs, setLocs] = useState<string[]>([]);
-  const [roleCats, setRoleCats] = useState<string[]>([]);
-  const [facetRoles, setFacetRoles] = useState<Array<{ value: string; count: number }>>([]);
-  const activeFilterCount = empTypes.length + locs.length + roleCats.length + (foreignerOnly ? 1 : 0);
+  const activeFilterCount = empTypes.length + locs.length;
   // 소스 탭 → 서버 sourceProviders. Aply 채용 = INTERNAL 만.
   const sourceProviders: PublicPositionListItem["sourceProvider"][] | undefined = tab === "aply" ? ["INTERNAL"] : undefined;
   // 관심 직무(소분류) → 공고 vocabulary(JobCategory)로 변환해야 원티드·CIP가 매칭된다.
@@ -94,9 +90,6 @@ export function JobsScreen() {
     void getPublicPremiumPositionBanners()
       .then((list) => setBanners(list))
       .catch(() => setBanners([]));
-    void getPositionFacets()
-      .then((f) => setFacetRoles(f.jobRoles))
-      .catch(() => setFacetRoles([]));
   }, []);
 
   // 목록: 특정 페이지 로드(offset 기반 번호 페이징).
@@ -111,8 +104,7 @@ export function JobsScreen() {
     setStatus("loading");
     try {
       const providers = tab === "aply" ? (["INTERNAL"] as PublicPositionListItem["sourceProvider"][]) : undefined;
-      // 관심 직무 탭이면 관심 기반, 아니면 직접 선택한 직무 카테고리 필터.
-      const roles = tab === "interest" ? interestRoles : (roleCats.length ? roleCats : undefined);
+      const roles = tab === "interest" ? interestRoles : undefined;
       const res = await getPublicPositionsPage({
         page: p,
         limit: PAGE_SIZE,
@@ -131,7 +123,7 @@ export function JobsScreen() {
     } catch {
       setStatus("error");
     }
-  }, [appliedSearch, sort, tab, interestRoles, roleCats, empTypes, locs, foreignerOnly, locale, interests.length]);
+  }, [appliedSearch, sort, tab, interestRoles, empTypes, locs, foreignerOnly, locale, interests.length]);
 
   // 검색/직무/정렬/소스/탭 변경 → 1페이지부터 다시.
   useEffect(() => {
@@ -284,51 +276,52 @@ export function JobsScreen() {
             </button>
           </div>
 
-          {/* 정렬(우) + 필터 초기화 */}
-          <div className="mb-2.5 flex items-center justify-between gap-3">
-            {activeFilterCount > 0 ? (
-              <button
-                type="button"
-                onClick={() => { setEmpTypes([]); setLocs([]); setRoleCats([]); setForeignerOnly(false); }}
-                className="flex items-center gap-1 text-[12px] font-bold text-[#8B95A1] transition hover:text-[#4E5968]"
-              >
-                <X size={13} weight="bold" />
-                {t("필터 초기화", "Reset", "重置", "Đặt lại", "リセット", "Reset")}
-                <span className="rounded-full bg-[#0B46E8] px-1.5 text-[11px] font-bold text-white">{activeFilterCount}</span>
-              </button>
-            ) : <span />}
+          {/* 외국인 지원 가능 — 별도 토글로 잘 보이게(행 전체 클릭) */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={foreignerOnly}
+            onClick={() => setForeignerOnly((v) => !v)}
+            className="mb-3 flex w-full items-center justify-between gap-3 rounded-xl bg-[#F2F4F6] px-3.5 py-2.5 text-left"
+          >
+            <span className="text-[13px] font-bold text-[#191F28]">🌏 {t("외국인 지원 가능만 보기", "Foreigner-eligible only", "仅外国人可申请", "Chỉ dành cho người nước ngoài", "外国人応募可のみ", "Hanya untuk WNA")}</span>
+            <ToggleSwitch on={foreignerOnly} />
+          </button>
+
+          {/* 드롭다운 필터(좌) · 정렬(우) */}
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
+            <div className="flex items-center gap-2">
+              <FilterDropdown
+                label={t("고용형태", "Type", "类型", "Loại", "形態", "Tipe")}
+                selected={empTypes}
+                options={([
+                  ["FULL_TIME", t("정규직", "Full-time", "正式", "Toàn thời gian", "正社員", "Penuh waktu")],
+                  ["INTERN", t("인턴", "Intern", "实习", "Thực tập", "インターン", "Magang")],
+                  ["PART_TIME", t("파트타임", "Part-time", "兼职", "Bán thời gian", "パート", "Paruh waktu")]
+                ] as [EmploymentType, string][]).map(([value, label]) => ({ value, label }))}
+                onToggle={(v) => setEmpTypes((a) => toggleValue(a, v as EmploymentType))}
+              />
+              <FilterDropdown
+                label={t("지역", "Region", "地区", "Khu vực", "地域", "Wilayah")}
+                selected={locs}
+                options={REGIONS.map((r) => ({ value: r, label: r }))}
+                onToggle={(v) => setLocs((a) => toggleValue(a, v))}
+              />
+              {activeFilterCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => { setEmpTypes([]); setLocs([]); }}
+                  className="flex items-center gap-0.5 text-[12px] font-bold text-[#8B95A1] transition hover:text-[#4E5968]"
+                >
+                  <X size={13} weight="bold" />
+                  {t("초기화", "Reset", "重置", "Đặt lại", "リセット", "Reset")}
+                </button>
+              ) : null}
+            </div>
             <div className="flex items-center gap-3.5">
               <SortText on={sort === "latest"} onClick={() => setSort("latest")}>{t("최신순", "Latest", "最新", "Mới nhất", "新着順", "Terbaru")}</SortText>
               <SortText on={sort === "deadline"} onClick={() => setSort("deadline")}>{t("마감 임박순", "Deadline", "临近截止", "Sắp hết hạn", "締切間近", "Tenggat")}</SortText>
             </div>
-          </div>
-
-          {/* 카테고리별 필터 칩 — 항상 노출, 그룹별 가로 스크롤 */}
-          <div className="mb-5 flex flex-col gap-2">
-            <FilterGroup label={t("고용형태", "Type", "类型", "Loại", "形態", "Tipe")}>
-              {([
-                ["FULL_TIME", t("정규직", "Full-time", "正式", "Toàn thời gian", "正社員", "Penuh waktu")],
-                ["INTERN", t("인턴", "Intern", "实习", "Thực tập", "インターン", "Magang")],
-                ["PART_TIME", t("파트타임", "Part-time", "兼职", "Bán thời gian", "パート", "Paruh waktu")]
-              ] as [EmploymentType, string][]).map(([v, label]) => (
-                <FilterChip key={v} on={empTypes.includes(v)} onClick={() => setEmpTypes((a) => toggleValue(a, v))}>{label}</FilterChip>
-              ))}
-              <FilterChip on={foreignerOnly} onClick={() => setForeignerOnly((v) => !v)}>{t("외국인 가능", "Foreigners OK", "外国人可", "Cho WNA", "外国人可", "WNA OK")}</FilterChip>
-            </FilterGroup>
-
-            {tab !== "interest" && facetRoles.length ? (
-              <FilterGroup label={t("직무", "Job", "职务", "Nghề", "職種", "Bidang")}>
-                {facetRoles.map((r) => (
-                  <FilterChip key={r.value} on={roleCats.includes(r.value)} onClick={() => setRoleCats((a) => toggleValue(a, r.value))}>{jobCategoryLabel(r.value, locale)}</FilterChip>
-                ))}
-              </FilterGroup>
-            ) : null}
-
-            <FilterGroup label={t("지역", "Region", "地区", "Khu vực", "地域", "Wilayah")}>
-              {REGIONS.map((r) => (
-                <FilterChip key={r} on={locs.includes(r)} onClick={() => setLocs((a) => toggleValue(a, r))}>{r}</FilterChip>
-              ))}
-            </FilterGroup>
           </div>
 
           {status === "loading" ? <TListSkeleton /> : null}
@@ -390,26 +383,59 @@ export function JobsScreen() {
 }
 
 // 정렬 — 뱃지 대신 텍스트 하이라이트(선택 시 진하게)/비하이라이트.
-// 필터 그룹 — 좌측 고정 라벨 + 우측 가로 스크롤 칩 줄(모바일에서 세로 폭 절약).
-function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
+// 다중 선택 드롭다운 — 버튼(라벨 + 선택 개수) + 체크박스 팝오버. 바깥 클릭 시 닫힘.
+function FilterDropdown({ label, options, selected, onToggle }: { label: string; options: Array<{ value: string; label: string }>; selected: string[]; onToggle: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+  const count = selected.length;
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-11 shrink-0 text-[12px] font-bold text-[#8B95A1]">{label}</span>
-      <div className="flex flex-1 gap-1.5 overflow-x-auto py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{children}</div>
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={`flex items-center gap-1 rounded-xl border px-3 py-2 text-[13px] font-bold transition ${count > 0 ? "border-[#0B46E8] bg-[#0B46E8]/[0.06] text-[#0B46E8]" : "border-[#E5E8EB] text-[#4E5968] hover:bg-[#F2F4F6]"}`}
+      >
+        {label}
+        {count > 0 ? <span className="rounded-full bg-[#0B46E8] px-1.5 text-[11px] font-bold text-white">{count}</span> : null}
+        <CaretDown size={13} weight="bold" className={`transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-[calc(100%+6px)] z-30 max-h-64 w-44 overflow-y-auto rounded-xl border border-[#E5E8EB] bg-white p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.12)]">
+          {options.map((o) => {
+            const on = selected.includes(o.value);
+            return (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => onToggle(o.value)}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-[#191F28] transition hover:bg-[#F2F4F6]"
+              >
+                <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${on ? "border-[#0B46E8] bg-[#0B46E8] text-white" : "border-[#B0B8C1]"}`}>
+                  {on ? <Check size={11} weight="bold" /> : null}
+                </span>
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function FilterChip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+// 시각 전용 스위치(클릭 처리는 감싸는 버튼이 담당).
+function ToggleSwitch({ on }: { on: boolean }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-[13px] font-medium transition ${on ? "border-[#0B46E8] bg-[#0B46E8] text-white" : "border-[#E5E8EB] bg-white text-[#4E5968] hover:border-[#B0B8C1]"}`}
-    >
-      {children}
-    </button>
+    <span className={`relative inline-flex h-[24px] w-[42px] shrink-0 items-center rounded-full transition ${on ? "bg-[#0B46E8]" : "bg-[#D1D6DB]"}`}>
+      <span className={`inline-block h-[20px] w-[20px] transform rounded-full bg-white shadow-sm transition ${on ? "translate-x-[20px]" : "translate-x-[2px]"}`} />
+    </span>
   );
 }
 
