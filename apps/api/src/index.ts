@@ -14706,7 +14706,8 @@ const AI_FEATURE_COST: Record<string, number> = {
   summarize_intro: 1,
   suggest_skills: 1,
   translate_texts: 1,
-  interview_feedback: 1,
+  // gpt-4o 사용(원가 높음) — 티켓당 원가가 다른 기능과 맞도록 2로 책정.
+  interview_feedback: 2,
   // Career Launch — 프로그램 참가자에겐 모든 AI 기능 무료(포인트 차감·게이트 없음).
   // 유료 전환하려면 값을 되돌린다.
   career_resume_chat: 0,
@@ -14721,6 +14722,29 @@ const AI_FEATURE_COST: Record<string, number> = {
 };
 function aiFeatureCost(feature: string): number {
   return AI_FEATURE_COST[feature] ?? 0;
+}
+
+// gpt-4o(고원가) 기능 — 무료 티켓 폭주로 인한 손실 방지용, 사용자당 하루 호출 상한.
+// 정상 사용자는 도달하지 않는 수준(anti-abuse ceiling). aiUsage 테이블 재사용(읽기 전용 통계와 분리된 네임스페이스).
+const AI_PREMIUM_FEATURES = new Set(["interview_questions", "interview_feedback"]);
+const AI_PREMIUM_DAILY_CAP = 40;
+const AI_PREMIUM_USAGE_FEATURE = "__premium_daily__";
+async function aiPremiumUsedToday(userId: string): Promise<number> {
+  const periodKey = String(aiKstDayIndex());
+  const row = await prisma.aiUsage
+    .findUnique({ where: { userId_feature_periodKey: { userId, feature: AI_PREMIUM_USAGE_FEATURE, periodKey } }, select: { count: true } })
+    .catch(() => null);
+  return row?.count ?? 0;
+}
+async function aiPremiumMarkUsed(userId: string): Promise<void> {
+  const periodKey = String(aiKstDayIndex());
+  await prisma.aiUsage
+    .upsert({
+      where: { userId_feature_periodKey: { userId, feature: AI_PREMIUM_USAGE_FEATURE, periodKey } },
+      create: { userId, feature: AI_PREMIUM_USAGE_FEATURE, periodKey, count: 1 },
+      update: { count: { increment: 1 } }
+    })
+    .catch(() => {});
 }
 
 // KST(UTC+9) 기준 epoch-day 인덱스(자정 단위 정수). 적립 일수 계산에 사용.
@@ -14853,11 +14877,17 @@ function aiCharge(feature: string, when?: (req: import("express").Request) => bo
       res.status(402).json({ ok: false, message: "ai quota exceeded", quota: status });
       return;
     }
+    // gpt-4o 고원가 기능 — 하루 호출 상한(무료 티켓 폭주로 인한 손실 방지).
+    if (AI_PREMIUM_FEATURES.has(feature) && (await aiPremiumUsedToday(userId)) >= AI_PREMIUM_DAILY_CAP) {
+      res.status(402).json({ ok: false, code: "AI_DAILY_LIMIT", message: "오늘 이용 한도에 도달했어요. 내일 다시 이용할 수 있어요." });
+      return;
+    }
     const origJson = res.json.bind(res) as (body: unknown) => unknown;
     res.json = ((body: unknown) => {
       const b = body as { ok?: unknown } | null;
       if (b && b.ok === true && res.statusCode >= 200 && res.statusCode < 300) {
         void aiQuotaConsume(userId, feature);
+        if (AI_PREMIUM_FEATURES.has(feature)) void aiPremiumMarkUsed(userId);
       }
       return origJson(body);
     }) as typeof res.json;

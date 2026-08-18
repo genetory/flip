@@ -21,7 +21,8 @@ export const AI_TICKET_COST: Record<string, number> = {
   summarize_intro: 1,
   suggest_skills: 1,
   translate_texts: 1,
-  interview_feedback: 1
+  // gpt-4o 사용(원가 높음) — 서버 AI_FEATURE_COST와 동일하게 2.
+  interview_feedback: 2
 };
 
 export function ticketCost(feature: string): number {
