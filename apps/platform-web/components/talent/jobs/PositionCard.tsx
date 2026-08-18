@@ -75,8 +75,8 @@ export function PositionCard({
                   ) : null}
                   {/* 회사가 모의 면접을 등록한 공고 — 카드 탭 시 상세에서 시작. */}
                   {view.hasMockInterview ? (
-                    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[#EDF1FD] px-2 py-1 text-[10px] font-bold leading-none text-[#0B46E8]">
-                      🎤 {t("모의면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Simulasi")}
+                    <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-[#EDF1FD] px-2 py-1 text-[10px] font-bold leading-none text-[#0B46E8]">
+                      {t("모의면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Simulasi")}
                     </span>
                   ) : null}
                 </div>

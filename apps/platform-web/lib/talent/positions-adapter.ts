@@ -75,7 +75,11 @@ export function toPositionView(item: PublicPositionListItem, t: PlatformT): Posi
 
   // Aply 내부 = sourceProvider INTERNAL. 원티드/버디스/기타는 외부 → 원본 링크로 지원.
   const isInternal = item.sourceProvider === "INTERNAL" && item.sourceKind !== "EXTERNAL";
-  const hasMockInterview = isInternal && (!!item.mockInterviewIntent?.trim() || (item.mockInterviewQuestions?.length ?? 0) > 0);
+  // 모의 면접 가능 = 회사가 등록(내부 CIP) 했거나, 공고 JD(주요업무·자격요건)가 있으면(원티드 등 외부 포함).
+  const hasMockInterview =
+    (isInternal && (!!item.mockInterviewIntent?.trim() || (item.mockInterviewQuestions?.length ?? 0) > 0)) ||
+    !!item.mainResponsibilities?.trim() ||
+    !!item.requiredQualifications?.trim();
 
   return {
     id: item.id,
