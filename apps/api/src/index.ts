@@ -22256,7 +22256,16 @@ app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDE
 
 // 인재풀 동의 대표 이력서 조회 조건 공통.
 // 인재풀 노출 = 대표 이력서 + 유저 레벨 동의(talentPoolConsentedAt). 대표 이력서 교체와 무관하게 유지.
-const POOL_RESUME_WHERE = { isPrimary: true, user: { talentPoolConsentedAt: { not: null } } } as const;
+// 인재풀 노출 기준 — 대표 이력서 + 동의. 동의 신호는 둘: User.talentPoolConsentedAt(원천)
+// 또는 이력서 content.poolOptIn(이력서 빌더 옵트인 경로). 둘 다 진짜 동의이므로 어느 쪽이든
+// 노출한다. (이전엔 talentPoolConsentedAt만 봐서, 이력서에서 동의한 회원이 인재검색에 안 떴음.)
+const POOL_RESUME_WHERE: Prisma.ResumeWhereInput = {
+  isPrimary: true,
+  OR: [
+    { user: { talentPoolConsentedAt: { not: null } } },
+    { content: { path: ["poolOptIn", "consentedAt"], not: Prisma.JsonNull } }
+  ]
+};
 
 // 연결 전 노출 금지 PII 제거 + 내부 메타 제거.
 // 리뉴얼 기본정보(renewalBasicInfo = {realName,email,phone,address,photoUrl})에서 연락 PII 제거.
@@ -22453,17 +22462,6 @@ async function attachCachedDocSummaries<T extends { candidateUserId: string; upd
 }
 
 // 자기소개서에 실제 답변이 있는 유저 집합.
-async function usersWithCoverLetter(userIds: string[]): Promise<Set<string>> {
-  if (userIds.length === 0) return new Set();
-  const rows = await prisma.coverLetter.findMany({ where: { userId: { in: userIds } }, select: { userId: true, items: true } });
-  const set = new Set<string>();
-  for (const r of rows) {
-    const has = Array.isArray(r.items) && (r.items as unknown[]).some((x) => x && typeof x === "object" && typeof (x as Record<string, unknown>).answer === "string" && ((x as Record<string, unknown>).answer as string).trim());
-    if (has) set.add(r.userId);
-  }
-  return set;
-}
-
 // 이력서가 "어느정도 완성" 됐는지 — 핵심 신호 2개 이상.
 type CandidateCardShape = ReturnType<typeof buildCandidateCard>;
 function isResumeReasonablyComplete(c: CandidateCardShape): boolean {
@@ -22507,10 +22505,10 @@ app.get("/partner/candidates", authenticateOptional, async (req, res) => {
     const q = parsed.data.q?.toLowerCase();
     const skill = parsed.data.skill?.toLowerCase();
     const jobRole = parsed.data.jobRole?.toLowerCase();
-    // 이력서·자기소개서가 어느정도 완성된 인재만 노출.
-    const coverSet = await usersWithCoverLetter(rows.map((r) => r.userId));
+    // 이력서가 어느정도 완성된 인재만 노출. (자기소개서는 선택 — 서버 자소서 필수 조건은
+    // 리뉴얼에서 자소서를 서버에 안 남긴 동의 회원까지 전부 가려버려 완화함.)
     const all = rows.map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null)).filter((it) => {
-      if (!isResumeReasonablyComplete(it) || !coverSet.has(it.candidateUserId)) return false;
+      if (!isResumeReasonablyComplete(it)) return false;
       if (skill && !it.skills.some((s) => s.toLowerCase().includes(skill))) return false;
       if (jobRole && !String(it.desiredJobRole ?? "").toLowerCase().includes(jobRole)) return false;
       if (q) {
@@ -22675,11 +22673,10 @@ app.post("/partner/candidates/search", authenticateOptional, async (req, res) =>
       ? await prisma.candidateConnectionRequest.findMany({ where: { partnerUserId: req.auth.userId }, select: { candidateUserId: true, status: true } })
       : [];
     const statusByCand = new Map(conns.map((c) => [c.candidateUserId, c.status] as const));
-    // 이력서·자기소개서가 어느정도 완성된 인재만.
-    const coverSet = await usersWithCoverLetter(rows.map((r) => r.userId));
+    // 이력서가 어느정도 완성된 인재만. (자기소개서는 선택 — 위 candidates와 동일 정책.)
     const cards = rows
       .map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null))
-      .filter((c) => isResumeReasonablyComplete(c) && coverSet.has(c.candidateUserId));
+      .filter((c) => isResumeReasonablyComplete(c));
 
     // openai 없으면 키워드 폴백 — 문장을 토큰으로 쪼개 '토큰 매칭 수' 많은 순으로.
     if (!openai) {
