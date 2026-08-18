@@ -3423,6 +3423,8 @@ const listPositionsQuerySchema = z.object({
 });
 const listPublicPositionsCursorQuerySchema = z.object({
   cursor: z.string().trim().min(1).optional(),
+  // page: 1-based 번호 페이징(무한스크롤 대신). 주어지면 offset 모드(skip/take) + total 반환.
+  page: z.coerce.number().int().min(1).max(10000).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   search: z.string().trim().max(120).optional(),
   sourceProvider: z.union([positionSourceProviderEnum, z.array(positionSourceProviderEnum)]).optional(),
@@ -9277,6 +9279,7 @@ function positionsCacheKey(params: {
   search: string;
   limit: number;
   cursor: string | undefined;
+  page: number; // 번호 페이징 — 페이지마다 캐시 슬롯을 분리(안 그러면 page 2/3이 page 1 캐시에 충돌).
   sortMode: string;
   sortOrder: string;
   jobRoles: string[];
@@ -9290,6 +9293,7 @@ function positionsCacheKey(params: {
     s: params.search,
     l: params.limit,
     c: params.cursor ?? "",
+    pg: params.page,
     sm: params.sortMode,
     so: params.sortOrder,
     j: [...params.jobRoles].sort(),
@@ -9307,6 +9311,11 @@ app.get("/positions", async (req, res) => {
   }
 
   const limit = parsedQuery.data.limit ?? 20;
+  // 번호 페이징 — page 가 주어지면 offset 모드. (없으면 기존 커서/무한 모드)
+  const pageParam = parsedQuery.data.page;
+  const usePageMode = pageParam != null;
+  const pageNum = pageParam ?? 1;
+  const pageOffset = (pageNum - 1) * limit;
   const search = parsedQuery.data.search?.trim();
   const sourceProviders = parsedQuery.data.sourceProvider
     ? Array.from(new Set(Array.isArray(parsedQuery.data.sourceProvider) ? parsedQuery.data.sourceProvider : [parsedQuery.data.sourceProvider]))
@@ -9332,6 +9341,7 @@ app.get("/positions", async (req, res) => {
     search: search ?? "",
     limit,
     cursor: parsedQuery.data.cursor,
+    page: pageParam ?? 1,
     sortMode,
     sortOrder,
     jobRoles,
@@ -9577,7 +9587,9 @@ app.get("/positions", async (req, res) => {
         }
         return b.score - a.score;
       });
-      const top = relevant.slice(0, limit).map((entry) => entry.item);
+      // 번호 페이징 — 관련 결과 전체를 total 로, 현재 페이지 구간만 잘라서 반환.
+      const searchTotal = relevant.length;
+      const top = relevant.slice(pageOffset, pageOffset + limit).map((entry) => entry.item);
 
       // 목록은 번역을 기다리지 않는다 — 캐시가 없으면 원문을 보여주고 뒤에서 채운다.
       const hybridTranslations = wantTranslation
@@ -9590,6 +9602,9 @@ app.get("/positions", async (req, res) => {
         ok: true,
         items: top.map((item) => toPublicPositionItem(item, viewer, hybridTranslations.get(item.id) ?? null)),
         nextCursor: null,
+        total: searchTotal,
+        page: pageNum,
+        pageSize: limit,
         searchMode: "hybrid" as const
       });
       } // end of `if (distanceById.size > 0)`
@@ -9620,6 +9635,49 @@ app.get("/positions", async (req, res) => {
         }
       : {})
   };
+
+  // 번호 페이징(offset) 모드 — total + 해당 페이지 구간만. page 가 있을 때만.
+  if (usePageMode) {
+    const [total, pageRows] = await Promise.all([
+      prisma.position.count({ where: baseWhere }),
+      prisma.position.findMany({
+        where: baseWhere,
+        orderBy: sortMode === "deadline"
+          ? [{ sourceDeadlineDate: { sort: "asc", nulls: "last" } }, { id: "asc" }]
+          : [{ createdAt: sortOrder }, { id: sortOrder }],
+        skip: pageOffset,
+        take: limit,
+        include: {
+          partnerOrganization: {
+            select: {
+              id: true,
+              name: true,
+              industry: true,
+              companySize: true,
+              officeAddress: true,
+              description: true,
+              strengths: true,
+              website: true,
+              socialMedia: true,
+              companyLogoImageData: true
+            }
+          },
+          matchingParticipants: { select: { id: true } }
+        }
+      })
+    ]);
+    const pageTr = wantTranslation
+      ? await getPositionTranslationsCachedOnly(prisma, pageRows.filter((i) => i.sourceKind === PositionSourceKind.INTERNAL))
+      : new Map<string, PositionTranslatableFields>();
+    return sendAndMaybeCache({
+      ok: true,
+      items: pageRows.map((item) => toPublicPositionItem(item, viewer, pageTr.get(item.id) ?? null)),
+      nextCursor: null,
+      total,
+      page: pageNum,
+      pageSize: limit
+    });
+  }
 
   const cursorWhere = sortMode === "deadline"
     ? deadlineCursor

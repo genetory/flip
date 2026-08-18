@@ -4,7 +4,7 @@
 // 소스 탭(전체 / Aply 채용) + 저장, 검색(입력→적용+트래킹), 직무 필터(서버), 정렬, 20개 페이징.
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { MagnifyingGlass, CircleNotch } from "@phosphor-icons/react";
+import { MagnifyingGlass, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { useLoginGate } from "../app/LoginRequiredModal";
 import { TEmpty, TError, TListSkeleton, TPageHeader } from "../ui/primitives";
@@ -59,9 +59,10 @@ export function JobsScreen() {
   const jobRoles = tab === "interest" && interestRoles.length ? interestRoles : undefined;
 
   const [items, setItems] = useState<PublicPositionListItem[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [page, setPage] = useState(1); // 번호 페이징(무한스크롤 대신)
+  const [total, setTotal] = useState(0);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [loadingMore, setLoadingMore] = useState(false);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [savedItems, setSavedItems] = useState<PublicPositionListItem[]>([]);
@@ -80,12 +81,12 @@ export function JobsScreen() {
       .catch(() => setBanners([]));
   }, []);
 
-  // 목록: 검색/직무/정렬/소스 변경 시 리셋 로드.
-  const loadFirst = useCallback(async () => {
+  // 목록: 특정 페이지 로드(offset 기반 번호 페이징).
+  const load = useCallback(async (p: number) => {
     // 관심 직무 탭인데 설정된 직무가 없으면 빈 상태.
     if (tab === "interest" && interests.length === 0) {
       setItems([]);
-      setCursor(null);
+      setTotal(0);
       setStatus("ready");
       return;
     }
@@ -93,32 +94,28 @@ export function JobsScreen() {
     try {
       const providers = tab === "aply" ? (["INTERNAL"] as PublicPositionListItem["sourceProvider"][]) : undefined;
       const roles = tab === "interest" ? interestRoles : undefined;
-      const page = await getPublicPositionsPage({ limit: PAGE_SIZE, search: appliedSearch, sort, sourceProviders: providers, jobRoles: roles, foreignerEligible: foreignerOnly, locale });
-      setItems(page.items);
-      setCursor(page.nextCursor);
+      const res = await getPublicPositionsPage({ page: p, limit: PAGE_SIZE, search: appliedSearch, sort, sourceProviders: providers, jobRoles: roles, foreignerEligible: foreignerOnly, locale });
+      setItems(res.items);
+      setTotal(res.total ?? res.items.length);
       setStatus("ready");
     } catch {
       setStatus("error");
     }
-  }, [appliedSearch, sort, tab, interestRoles, foreignerOnly, locale]);
+  }, [appliedSearch, sort, tab, interestRoles, foreignerOnly, locale, interests.length]);
 
+  // 검색/직무/정렬/소스/탭 변경 → 1페이지부터 다시.
   useEffect(() => {
     if (tab === "saved") return;
-    void loadFirst();
-  }, [loadFirst, tab]);
+    setPage(1);
+    void load(1);
+  }, [load, tab]);
 
-  async function loadMore() {
-    if (!cursor || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const page = await getPublicPositionsPage({ limit: PAGE_SIZE, search: appliedSearch, sort, sourceProviders, jobRoles, foreignerEligible: foreignerOnly, cursor, locale });
-      setItems((prev) => [...prev, ...page.items]);
-      setCursor(page.nextCursor);
-    } catch {
-      toast.error(t("공고를 더 불러오지 못했어요", "Couldn't load more jobs", "无法加载更多职位", "Không thể tải thêm tin", "求人を追加で読み込めませんでした", "Gagal memuat lowongan lain"));
-    } finally {
-      setLoadingMore(false);
-    }
+  // 페이지 이동 — 로드 후 목록 상단으로 스크롤.
+  function goToPage(p: number) {
+    if (p < 1 || p > totalPages || p === page || status === "loading") return;
+    setPage(p);
+    void load(p);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   // 저장 탭 진입 시 저장 목록 로드.
@@ -267,7 +264,7 @@ export function JobsScreen() {
           </div>
 
           {status === "loading" ? <TListSkeleton /> : null}
-          {status === "error" ? <TError onRetry={loadFirst} /> : null}
+          {status === "error" ? <TError onRetry={() => load(page)} /> : null}
           {status === "ready" ? (
             views.length === 0 ? (
               tab === "interest" && interests.length === 0 ? (
@@ -292,16 +289,8 @@ export function JobsScreen() {
                     {(idx + 1) % 4 === 0 && idx + 1 < views.length ? <InFeedAd /> : null}
                   </Fragment>
                 ))}
-                {cursor ? (
-                  <button
-                    type="button"
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                    className="mt-1 flex items-center justify-center gap-2 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB] disabled:opacity-60"
-                  >
-                    {loadingMore ? <CircleNotch className="h-4 w-4 animate-spin" /> : null}
-                    {loadingMore ? t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…") : t("더 보기", "Load more", "加载更多", "Xem thêm", "もっと見る", "Muat lagi")}
-                  </button>
+                {totalPages > 1 ? (
+                  <Pagination page={page} totalPages={totalPages} onPage={goToPage} t={t} />
                 ) : null}
               </div>
             )
@@ -343,6 +332,46 @@ function SortText({ on, onClick, children }: { on: boolean; onClick: () => void;
     >
       {children}
     </button>
+  );
+}
+
+// 번호 페이징 — 처음/현재±2/끝을 보여주고 나머지는 …로 접는다.
+function Pagination({ page, totalPages, onPage, disabled, t }: { page: number; totalPages: number; onPage: (p: number) => void; disabled?: boolean; t: ReturnType<typeof usePlatformT> }) {
+  const pages: (number | "ellipsis")[] = [];
+  const start = Math.max(2, page - 2);
+  const end = Math.min(totalPages - 1, page + 2);
+  pages.push(1);
+  if (start > 2) pages.push("ellipsis");
+  for (let p = start; p <= end; p += 1) pages.push(p);
+  if (end < totalPages - 1) pages.push("ellipsis");
+  if (totalPages > 1) pages.push(totalPages);
+
+  const navBtn = "flex h-9 w-9 items-center justify-center rounded-lg text-[#4E5968] transition hover:bg-[#F2F4F6] disabled:opacity-35 disabled:hover:bg-transparent";
+  return (
+    <nav className="mt-2 flex items-center justify-center gap-1" aria-label={t("페이지 이동", "Pagination", "分页", "Phân trang", "ページ移動", "Paginasi")}>
+      <button type="button" onClick={() => onPage(page - 1)} disabled={disabled || page <= 1} aria-label={t("이전", "Previous", "上一页", "Trước", "前へ", "Sebelumnya")} className={navBtn}>
+        <CaretLeft className="h-4 w-4" weight="bold" />
+      </button>
+      {pages.map((p, i) =>
+        p === "ellipsis" ? (
+          <span key={`e${i}`} className="px-1 text-[13px] text-[#B0B8C1]">…</span>
+        ) : (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onPage(p)}
+            disabled={disabled}
+            aria-current={p === page ? "page" : undefined}
+            className={`h-9 min-w-9 rounded-lg px-2 text-[13px] font-bold tabular-nums transition ${p === page ? "bg-[#0B46E8] text-white" : "text-[#4E5968] hover:bg-[#F2F4F6]"} disabled:opacity-60`}
+          >
+            {p}
+          </button>
+        )
+      )}
+      <button type="button" onClick={() => onPage(page + 1)} disabled={disabled || page >= totalPages} aria-label={t("다음", "Next", "下一页", "Sau", "次へ", "Berikutnya")} className={navBtn}>
+        <CaretRight className="h-4 w-4" weight="bold" />
+      </button>
+    </nav>
   );
 }
 

@@ -532,6 +532,9 @@ export type PublicPositionListItem = {
 export type PublicPositionsPage = {
   items: PublicPositionListItem[];
   nextCursor: string | null;
+  total?: number | null;
+  page?: number | null;
+  pageSize?: number | null;
 };
 
 export type PublicPremiumPositionBannerItem = {
@@ -693,6 +696,7 @@ export async function getPositionsMeta() {
 
 export async function getPublicPositionsPage(input?: {
   cursor?: string | null;
+  page?: number; // 번호 페이징(offset). 주어지면 total 반환.
   limit?: number;
   search?: string;
   jobRoles?: string[];
@@ -709,6 +713,7 @@ export async function getPublicPositionsPage(input?: {
 }) {
   const params = new URLSearchParams();
   if (input?.cursor) params.set("cursor", input.cursor);
+  if (input?.page && Number.isFinite(input.page)) params.set("page", String(Math.max(1, Math.floor(input.page))));
   if (input?.limit && Number.isFinite(input.limit)) params.set("limit", String(Math.max(1, Math.floor(input.limit))));
   if (input?.search && input.search.trim()) params.set("search", input.search.trim());
   if (input?.jobRoles?.length) {
@@ -737,13 +742,19 @@ export async function getPublicPositionsPage(input?: {
     message?: string;
     items?: PublicPositionListItem[];
     nextCursor?: string | null;
+    total?: number;
+    page?: number;
+    pageSize?: number;
   };
   if (!response.ok || payload.ok !== true) {
     throw new Error(resolveApiErrorMessage(payload, "포지션 목록을 불러오지 못했습니다."));
   }
   return {
     items: payload.items ?? [],
-    nextCursor: typeof payload.nextCursor === "string" && payload.nextCursor.trim() ? payload.nextCursor : null
+    nextCursor: typeof payload.nextCursor === "string" && payload.nextCursor.trim() ? payload.nextCursor : null,
+    total: typeof payload.total === "number" ? payload.total : null,
+    page: typeof payload.page === "number" ? payload.page : null,
+    pageSize: typeof payload.pageSize === "number" ? payload.pageSize : null
   } satisfies PublicPositionsPage;
 }
 
