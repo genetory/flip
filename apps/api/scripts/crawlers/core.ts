@@ -1,6 +1,14 @@
 import { createHash } from "node:crypto";
-import { PositionSourceKind, PositionSourceProvider, PositionStatus, PrismaClient } from "@prisma/client";
+import { PositionEmploymentType, PositionSourceKind, PositionSourceProvider, PositionStatus, PrismaClient } from "@prisma/client";
 import { embedAndSavePosition } from "../../src/embedding/position-embedding";
+
+// 크롤 normalize가 내보내는 문자열을 유효한 enum으로 강제. 미상/누락은 FULL_TIME으로.
+// (스키마 default가 UNPAID_INTERN이라 매핑을 빠뜨리면 외부 공고가 전부 '무급 인턴'으로 저장됨)
+function coerceEmploymentType(value?: string | null): PositionEmploymentType {
+  const v = (value ?? "").trim().toUpperCase();
+  if (v in PositionEmploymentType) return PositionEmploymentType[v as keyof typeof PositionEmploymentType];
+  return PositionEmploymentType.FULL_TIME;
+}
 
 export type NormalizedExternalPosition = {
   externalId: string;
@@ -63,6 +71,7 @@ export async function upsertExternalPositions(prisma: PrismaClient, providerName
       sourceUrl: row.sourceUrl,
       workLocation: row.workLocation ?? null,
       workType: row.workType ?? null,
+      employmentType: coerceEmploymentType(row.employmentType),
       preferredJobRole: row.preferredJobRole ?? null,
       thumbnailImages,
       communicationLanguages,
@@ -116,6 +125,7 @@ export async function upsertExternalPositions(prisma: PrismaClient, providerName
           status,
           workLocation: row.workLocation ?? null,
           workType: row.workType ?? null,
+          employmentType: coerceEmploymentType(row.employmentType),
           preferredJobRole: row.preferredJobRole ?? null,
           thumbnailImages,
           communicationLanguages,
@@ -143,6 +153,7 @@ export async function upsertExternalPositions(prisma: PrismaClient, providerName
           status,
           workLocation: row.workLocation ?? null,
           workType: row.workType ?? null,
+          employmentType: coerceEmploymentType(row.employmentType),
           preferredJobRole: row.preferredJobRole ?? null,
           thumbnailImages,
           communicationLanguages,
