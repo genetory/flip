@@ -4,17 +4,16 @@
 // Talent 랜딩과 동일한 멀티섹션 구성(히어로+고민+가치+이용방법+CTA) + Reveal 모션.
 import { useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Lock } from "@phosphor-icons/react";
+import { ArrowRight } from "@phosphor-icons/react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { usePlatformT } from "../../lib/i18n";
-import { partnerRoutes, partnerMainNav, usePartnerNavLabel } from "../../lib/partner/app-nav";
+import { partnerRoutes } from "../../lib/partner/app-nav";
+import { PartnerHeader } from "./PartnerHeader";
 import { Reveal } from "../site/Reveal";
 import { TalentSectionHeader } from "../talent/TalentSectionHeader";
 import { TalentButton } from "../talent/TalentButton";
 import { AplyFooter } from "../AplyFooter";
-import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 
 const SIGNUP_HREF = "/partner/login"; // 랜딩 CTA는 로그인으로(가입 링크 포함) → 이후 홈으로
 const LOGIN_HREF = "/partner/login";
@@ -53,7 +52,6 @@ const steps = (t: PlatformT): { no: string; title: string; desc: string }[] => [
 export function PartnerLandingPage() {
   const t = usePlatformT();
   const router = useRouter();
-  const navLabel = usePartnerNavLabel();
   const { user, isReady, isAuthenticated } = useAuthSession();
 
   useEffect(() => {
@@ -65,35 +63,8 @@ export function PartnerLandingPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* 헤더 */}
-      <header className="sticky top-0 z-40 border-b border-[#EEF1F5] bg-white/90 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
-          <div className="flex items-center gap-2">
-            <Link href="/" aria-label={t("APLY 홈", "APLY home", "APLY 主页", "Trang chủ APLY", "APLYホーム", "Beranda APLY")} className="flex items-center">
-              <Image src="/img_logo.webp" alt="APLY" width={72} height={24} className="h-5 w-auto" priority />
-            </Link>
-            <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{t("파트너", "Partner", "合作伙伴", "Đối tác", "パートナー", "Partner")}</span>
-          </div>
-          {/* GNB 탭 — 인재 검색(마스킹)은 로그인 없이 열람, 나머지는 잠금 + 로그인 유도 */}
-          <nav aria-label={t("주요 메뉴", "Main menu", "主菜单", "Menu chính", "メインメニュー", "Menu utama")} className="hidden items-center gap-2.5 md:flex">
-            {partnerMainNav.map((item) => (
-              <Link
-                key={item.key}
-                href={item.guest ? item.href : `${LOGIN_HREF}?next=${encodeURIComponent(item.href)}`}
-                title={item.guest ? undefined : t("로그인이 필요해요", "Login required", "需要登录", "Cần đăng nhập", "ログインが必要です", "Perlu masuk")}
-                className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-[13px] font-semibold text-[#4E5968] transition hover:bg-[#F6F8FB] hover:text-[#191F28]"
-              >
-                {navLabel(item.key)}
-                {!item.guest ? <Lock className="h-3 w-3 text-[#B0B8C1]" weight="fill" aria-hidden /> : null}
-              </Link>
-            ))}
-          </nav>
-          <div className="flex items-center gap-1.5">
-            <Link href={LOGIN_HREF} className="rounded-lg px-3 py-2 text-[13.5px] font-semibold text-[#4E5968] transition hover:text-[#191F28]">{t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}</Link>
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
+      {/* 헤더 — 앱과 동일한 GNB(햄버거·모바일 메뉴 포함, 게스트 인지) */}
+      <PartnerHeader />
 
       <main>
         <Hero />

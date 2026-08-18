@@ -56,7 +56,7 @@ export function PartnerHeader() {
           >
             {menuOpen ? <X className="h-5 w-5" /> : <List className="h-5 w-5" />}
           </button>
-          <Link href={partnerRoutes.home} aria-label={t("파트너 홈", "Partner home", "合作伙伴主页", "Trang chủ đối tác", "パートナーホーム", "Beranda partner")} className="flex items-center gap-2">
+          <Link href={isPartnerUser ? partnerRoutes.home : "/partner"} aria-label={t("파트너 홈", "Partner home", "合作伙伴主页", "Trang chủ đối tác", "パートナーホーム", "Beranda partner")} className="flex items-center gap-2">
             <Image src="/img_logo.webp" alt="" width={72} height={24} className="h-5 w-auto" priority />
             <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{t("파트너", "Partner", "合作伙伴", "Đối tác", "パートナー", "Partner")}</span>
           </Link>
