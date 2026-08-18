@@ -1,7 +1,7 @@
 "use client";
 
 // Talent 로그인 후 화면 접근 가드.
-// - 미로그인 → /login
+// - 미로그인 → /talent/login (리뉴얼 로그인. 구형 /login 으로 보내지 않는다)
 // - PARTNER → /business (파트너 콘솔)
 // - STUDENT / OPERATOR 허용 (운영자는 학생 기능 슈퍼유저)
 import { useEffect, type ReactNode } from "react";
@@ -23,7 +23,7 @@ export function TalentGuard({ children, allowGuest = false }: { children: ReactN
     if (!isAuthenticated) {
       // 로그인 페이지는 ?next= 만 신뢰(same-origin 내부 경로). 로그인 후 원래 화면으로 복귀.
       const here = window.location.pathname + window.location.search;
-      router.replace(`/login?next=${encodeURIComponent(here)}`);
+      router.replace(`/talent/login?next=${encodeURIComponent(here)}`);
       return;
     }
     if (user?.role === "PARTNER") {

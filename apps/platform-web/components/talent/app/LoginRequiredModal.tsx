@@ -28,7 +28,7 @@ export function useLoginGate(opts: { loginPath?: string } = {}) {
   return { ensure, modal };
 }
 
-export function LoginRequiredModal({ onClose, loginPath = "/login" }: { onClose: () => void; loginPath?: string }) {
+export function LoginRequiredModal({ onClose, loginPath = "/talent/login" }: { onClose: () => void; loginPath?: string }) {
   const t = usePlatformT();
   const router = useRouter();
   const pathname = usePathname() ?? "/talent/jobs";

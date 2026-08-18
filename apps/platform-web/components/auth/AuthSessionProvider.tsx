@@ -85,7 +85,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const getAccountUrl = useCallback(() => {
-    if (!user) return "/login";
+    if (!user) return "/talent/login";
     // 리뉴얼 앱의 모던 프로필로 — 레거시 /profile 로 새지 않게.
     if (user.role === "PARTNER") return "/partner/profile";
     if (user.role === "OPERATOR") return "/dashboard/ops";
