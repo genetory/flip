@@ -9399,10 +9399,10 @@ app.get("/positions", async (req, res) => {
       const providerFilter = sourceProviders.length
         ? Prisma.sql`AND "sourceProvider"::text = ANY(${sourceProviders.map((p) => String(p))}::text[])`
         : Prisma.empty;
-      // 외국인 지원 가능 = 원티드 외국인 태그(FOREIGNER_FRIENDLY) OR APLY CIP(INTERNAL,
-      // 외국인 맞춤 프로그램이라 전부 외국인 대상).
+      // 외국인 지원 가능 = 공고별 FOREIGNER_FRIENDLY 태그(내부·외부 동일 기준).
+      // 내부 공고는 파트너가 에디터에서 켠 경우에만 태그가 붙는다.
       const visaFilter = foreignerEligible
-        ? Prisma.sql`AND ("sourceProvider"::text = 'INTERNAL' OR 'FOREIGNER_FRIENDLY' = ANY("eligibleVisas"))`
+        ? Prisma.sql`AND 'FOREIGNER_FRIENDLY' = ANY("eligibleVisas")`
         : Prisma.empty;
 
       const annResults = await prisma.$queryRaw<Array<{ id: string; distance: number }>>`
@@ -9438,7 +9438,7 @@ app.get("/positions", async (req, res) => {
           ? Prisma.sql`AND p."sourceProvider"::text = ANY(${sourceProviders.map((p) => String(p))}::text[])`
           : Prisma.empty;
         const qualifiedVisaFilter = foreignerEligible
-          ? Prisma.sql`AND (p."sourceProvider"::text = 'INTERNAL' OR 'FOREIGNER_FRIENDLY' = ANY(p."eligibleVisas"))`
+          ? Prisma.sql`AND 'FOREIGNER_FRIENDLY' = ANY(p."eligibleVisas")`
           : Prisma.empty;
         // ILIKE on title/workLocation/preferredJobRole + partner org name via join.
         // %candidate% built server-side to keep parameter list small.
@@ -9554,18 +9554,11 @@ app.get("/positions", async (req, res) => {
     ...(sourceProviders.length ? { sourceProvider: { in: sourceProviders } } : {}),
     // 특정 회사(파트너 조직명) 정확 일치 — 회사 상세/관심 회사용.
     ...(company ? { partnerOrganization: { is: { name: company } } } : {}),
-    // 외국인 지원 가능 = FOREIGNER_FRIENDLY 태그 OR APLY CIP(INTERNAL). search가 이미
+    // 외국인 지원 가능 = 공고별 FOREIGNER_FRIENDLY 태그(내부·외부 동일 기준). search가 이미
     // 최상위 OR를 쓰므로 AND로 감싸 키 충돌을 피한다.
     ...(foreignerEligible
       ? {
-          AND: [
-            {
-              OR: [
-                { sourceProvider: PositionSourceProvider.INTERNAL },
-                { eligibleVisas: { has: "FOREIGNER_FRIENDLY" } }
-              ]
-            }
-          ]
+          AND: [{ eligibleVisas: { has: "FOREIGNER_FRIENDLY" } }]
         }
       : {})
   };

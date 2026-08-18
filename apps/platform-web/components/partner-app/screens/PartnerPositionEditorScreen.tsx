@@ -74,6 +74,7 @@ type Form = {
   preferredQualifications: string;
   hiringProcess: string;
   additionalNotes: string;
+  foreignerFriendly: boolean;
   thumbnailImages: string[];
   mockInterviewIntent: string;
   mockInterviewQuestions: string[];
@@ -93,6 +94,7 @@ const EMPTY: Form = {
   preferredQualifications: "",
   hiringProcess: "",
   additionalNotes: "",
+  foreignerFriendly: true,
   thumbnailImages: [],
   mockInterviewIntent: "",
   mockInterviewQuestions: []
@@ -113,6 +115,7 @@ function fromPosition(p: PartnerPosition): Form {
     preferredQualifications: p.preferredQualifications ?? "",
     hiringProcess: p.hiringProcess ?? "",
     additionalNotes: p.additionalNotes ?? "",
+    foreignerFriendly: Array.isArray(p.eligibleVisas) && p.eligibleVisas.includes("FOREIGNER_FRIENDLY"),
     thumbnailImages: Array.isArray(p.thumbnailImages) ? p.thumbnailImages : [],
     mockInterviewIntent: p.mockInterviewIntent ?? "",
     mockInterviewQuestions: Array.isArray(p.mockInterviewQuestions) ? p.mockInterviewQuestions : []
@@ -135,6 +138,8 @@ function toInput(f: Form) {
     preferredQualifications: f.preferredQualifications.trim() || undefined,
     hiringProcess: f.hiringProcess.trim() || undefined,
     additionalNotes: f.additionalNotes.trim() || undefined,
+    // 외국인 지원 가능 → FOREIGNER_FRIENDLY 태그로 저장(끄면 태그 제거). 필터·카드 뱃지의 기준.
+    eligibleVisas: f.foreignerFriendly ? ["FOREIGNER_FRIENDLY"] : [],
     thumbnailImages: f.thumbnailImages,
     mockInterviewIntent: f.mockInterviewIntent.trim() || null,
     mockInterviewQuestions: f.mockInterviewQuestions.map((q) => q.trim()).filter(Boolean)
@@ -326,6 +331,23 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
               </div>
               <Field label={t("근무 시간", "Work hours", "工作时间", "Giờ làm việc", "勤務時間", "Jam kerja")}><Input value={form.workingHours} onChange={(v) => set("workingHours", v)} placeholder={t("예) 주 5일 · 09:00~18:00", "e.g. 5 days/week · 09:00–18:00", "例) 每周 5 天 · 09:00~18:00", "VD) 5 ngày/tuần · 09:00~18:00", "例) 週5日 · 09:00~18:00", "Cth) 5 hari/minggu · 09:00~18:00")} /></Field>
               <Field label={t("선호 직무", "Preferred role", "偏好岗位", "Vị trí ưu tiên", "希望職種", "Peran diutamakan")}><Input value={form.preferredJobRole} onChange={(v) => set("preferredJobRole", v)} placeholder={t("예) 서버 개발", "e.g. Server development", "例) 服务器开发", "VD) Phát triển server", "例) サーバー開発", "Cth) Pengembangan server")} /></Field>
+              {/* 외국인 지원 가능 — 켜면 포지션 탐색의 '외국인 지원 가능' 뱃지·필터 노출 대상이 된다. */}
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-[#EEF1F5] bg-[#FAFBFC] px-3.5 py-3">
+                <div className="min-w-0">
+                  <p className="text-[13.5px] font-bold text-[#191F28]">{t("외국인 지원 가능", "Open to foreigners", "外国人可申请", "Người nước ngoài có thể ứng tuyển", "外国人応募可", "Terbuka untuk WNA")}</p>
+                  <p className="mt-0.5 break-keep text-[12px] leading-relaxed text-[#8B95A1]">{t("켜면 포지션 탐색에서 '외국인 지원 가능' 뱃지와 외국인 필터에 노출돼요.", "When on, this posting shows the 'Open to foreigners' badge and appears in the foreigner filter.", "开启后，该职位会显示‘外国人可申请’徽章并出现在外国人筛选中。", "Khi bật, tin này hiển thị nhãn 'Người nước ngoài có thể ứng tuyển' và xuất hiện trong bộ lọc.", "オンにすると『外国人応募可』バッジと外国人フィルターに表示されます。", "Jika aktif, lowongan ini menampilkan lencana 'Terbuka untuk WNA' dan muncul di filter.")}</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={form.foreignerFriendly}
+                  aria-label={t("외국인 지원 가능", "Open to foreigners", "外国人可申请", "Người nước ngoài có thể ứng tuyển", "外国人応募可", "Terbuka untuk WNA")}
+                  onClick={() => set("foreignerFriendly", !form.foreignerFriendly)}
+                  className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${form.foreignerFriendly ? "bg-[#0B46E8]" : "bg-[#E5E8EB]"}`}
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${form.foreignerFriendly ? "translate-x-[22px]" : "translate-x-1"}`} />
+                </button>
+              </div>
             </div>
             </div>
           </section>

@@ -91,9 +91,9 @@ export function toPositionView(item: PublicPositionListItem, t: PlatformT): Posi
     isInternOrNew: isIntern,
     workTypeLabel: item.workType ? workTypeLabel(item.workType, t) : null,
     deadlineText,
-    // 외국인 지원 가능 = 서버 '외국인도 지원 가능' 필터와 동일 기준:
-    // 내부(APLY CIP)는 전부 대상, 외부(원티드 등)는 FOREIGNER_FRIENDLY 태그가 있는 공고.
-    foreignerOk: isInternal || (item.eligibleVisas ?? []).includes("FOREIGNER_FRIENDLY"),
+    // 외국인 지원 가능 = 서버 '외국인도 지원 가능' 필터와 동일 기준: 공고별 FOREIGNER_FRIENDLY 태그.
+    // 내부(CIP)는 파트너가 에디터에서 켠 경우, 외부(원티드)는 외국인 지원 유형 공고에 태그가 붙는다.
+    foreignerOk: (item.eligibleVisas ?? []).includes("FOREIGNER_FRIENDLY"),
     external: !isInternal,
     externalUrl: item.sourceUrl,
     isInternal,
