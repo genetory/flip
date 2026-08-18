@@ -273,7 +273,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
           disabled={syncing}
           title={t("최신 상태로 동기화", "Sync latest", "同步最新", "Đồng bộ mới nhất", "最新に同期", "Sinkron terbaru")}
           aria-label={t("동기화", "Sync", "同步", "Đồng bộ", "同期", "Sinkron")}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#4E5968] disabled:opacity-50"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#4E5968] disabled:opacity-50"
         >
           <ArrowClockwise className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} weight="bold" />
         </button>
@@ -295,7 +295,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
                 disabled={!toggleable}
                 onClick={toggleable ? () => toggle(s.id) : undefined}
                 aria-label={toggleable ? (done ? t("완료 취소", "Undo complete", "取消完成", "Hủy hoàn thành", "完了を取り消す", "Batalkan selesai") : t("완료로 표시", "Mark as complete", "标记为完成", "Đánh dấu hoàn thành", "完了にする", "Tandai selesai")) : undefined}
-                className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[14px] font-black shadow-sm transition ${
+                className={`flex h-10 w-10 flex-none items-center justify-center rounded-full text-[14px] font-black shadow-sm transition ${
                   done
                     ? "bg-[#0B46E8] text-white"
                     : locked

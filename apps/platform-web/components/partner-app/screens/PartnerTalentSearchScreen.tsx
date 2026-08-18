@@ -205,7 +205,7 @@ function CandidateCard({ c, saved, onToggleSave, ensure }: { c: PartnerCandidate
               e.stopPropagation();
               ensure(onToggleSave);
             }}
-            className={`rounded-full p-1.5 transition ${saved ? "text-[#0B46E8]" : "text-[#C4CAD2] hover:text-[#4E5968]"}`}
+            className={`-m-1 rounded-full p-2.5 transition ${saved ? "text-[#0B46E8]" : "text-[#C4CAD2] hover:text-[#4E5968]"}`}
           >
             <BookmarkSimple className="h-5 w-5" weight={saved ? "fill" : "regular"} />
           </button>

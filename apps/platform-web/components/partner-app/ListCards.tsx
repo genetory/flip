@@ -79,7 +79,7 @@ export function PartnerApplicantCard({ a, onSetStatus, selectable, selected, onT
                 e.stopPropagation();
                 onSetStatus(a.id, act.next);
               }}
-              className={`rounded-lg border px-2.5 py-1.5 text-[12px] font-bold transition ${act.danger ? "border-[#FBD9DE] bg-white text-[#F04452] hover:bg-[#FDECEE]" : "border-[#E5E8EB] bg-white text-[#4E5968] hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"}`}
+              className={`rounded-lg border px-2.5 py-2.5 text-[12px] font-bold transition ${act.danger ? "border-[#FBD9DE] bg-white text-[#F04452] hover:bg-[#FDECEE]" : "border-[#E5E8EB] bg-white text-[#4E5968] hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"}`}
             >
               {act.label}
             </button>
@@ -119,7 +119,7 @@ export function PartnerParticipantCard({ m, onPropose }: { m: OrgMockInterviewPa
               e.stopPropagation();
               onPropose();
             }}
-            className="shrink-0 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12px] font-bold text-white transition hover:bg-[#0A3ECB]"
+            className="shrink-0 rounded-lg bg-[#0B46E8] px-3 py-2.5 text-[12px] font-bold text-white transition hover:bg-[#0A3ECB]"
           >
             {t("제안하기", "Propose", "发送提议", "Đề nghị", "提案する", "Ajukan")}
           </button>

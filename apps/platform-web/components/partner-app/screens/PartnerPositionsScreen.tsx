@@ -321,7 +321,7 @@ function PositionCard({ p, applicants, mockCount, onSetStatus }: { p: PartnerPos
                   key={a.next}
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSetStatus(p.id, a.next); }}
-                  className="rounded-lg border border-[#E5E8EB] bg-white px-2.5 py-1 text-[12px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
+                  className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-2.5 text-[12px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
                 >
                   {a.label}
                 </button>

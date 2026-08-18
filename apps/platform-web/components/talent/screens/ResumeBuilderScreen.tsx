@@ -225,7 +225,7 @@ function CollapsibleSection({ emoji, label, count, children, defaultOpen = true,
             <Plus className="h-3.5 w-3.5" weight="bold" /> {addLabel}
           </button>
         ) : null}
-        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={label} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#C4CAD2] transition hover:bg-[#F2F4F6]">
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={label} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#C4CAD2] transition hover:bg-[#F2F4F6]">
           <CaretDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} weight="bold" />
         </button>
       </div>
@@ -385,7 +385,7 @@ function ItemRow({
               </>
             ) : null}
           </div>
-          <button type="button" onClick={onRemove} aria-label={t("삭제","Delete","删除","Xóa","削除","Hapus")} className="flex h-8 w-8 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]">
+          <button type="button" onClick={onRemove} aria-label={t("삭제","Delete","删除","Xóa","削除","Hapus")} className="flex h-9 w-9 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]">
             <Trash className="h-4 w-4" />
           </button>
         </div>

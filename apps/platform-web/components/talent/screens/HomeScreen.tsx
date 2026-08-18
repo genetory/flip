@@ -82,7 +82,7 @@ function WelcomeOnboardingCard() {
           markOnboardingSeen();
           setHidden(true);
         }}
-        className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full text-white/70 transition hover:bg-white/15"
+        className="absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/15"
       >
         <X className="h-4 w-4" />
       </button>

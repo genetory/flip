@@ -98,12 +98,12 @@ function PostCard({
           onClick={() => toggleFeedBookmark(post.id, t)}
           aria-label={bookmarked ? t("즐겨찾기 취소", "Remove bookmark", "取消收藏", "Bỏ lưu", "ブックマーク解除", "Hapus markah") : t("즐겨찾기", "Bookmark", "收藏", "Lưu", "ブックマーク", "Markah")}
           aria-pressed={bookmarked}
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition ${bookmarked ? "text-[#0B46E8]" : "text-[#B0B8C1] hover:bg-[#F2F4F6] hover:text-[#4E5968]"}`}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${bookmarked ? "text-[#0B46E8]" : "text-[#B0B8C1] hover:bg-[#F2F4F6] hover:text-[#4E5968]"}`}
         >
           <BookmarkSimple className="h-4 w-4" weight={bookmarked ? "fill" : "regular"} />
         </button>
         {mine ? (
-          <button type="button" onClick={() => removeFeedPost(post.id)} aria-label={t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")} className="flex h-8 w-8 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]">
+          <button type="button" onClick={() => removeFeedPost(post.id)} aria-label={t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")} className="flex h-9 w-9 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]">
             <Trash className="h-4 w-4" />
           </button>
         ) : (
@@ -125,7 +125,7 @@ function FollowButton({ following, onClick }: { following: boolean; onClick: () 
       type="button"
       onClick={onClick}
       aria-pressed={following}
-      className={`shrink-0 rounded-lg px-3 py-1.5 text-[12px] font-bold transition ${
+      className={`shrink-0 rounded-lg px-3 py-2.5 text-[12px] font-bold transition ${
         following ? "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]" : "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]"
       }`}
     >
