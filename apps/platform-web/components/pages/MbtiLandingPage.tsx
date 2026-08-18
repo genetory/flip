@@ -108,6 +108,7 @@ export function MbtiLandingPage() {
   const [copied, setCopied] = useState(false);
 
   const threadRef = useRef<HTMLDivElement | null>(null);
+  const endRef = useRef<HTMLDivElement | null>(null);
 
   // 공유 — 사주 페이지와 동일 패턴(모바일: 네이티브 공유 시트, 그 외: 링크 복사).
   async function copyShareLink(url: string) {
@@ -174,11 +175,15 @@ export function MbtiLandingPage() {
     setMessages((prev) => [...prev, { id: makeId(), role: "user", text, stepKey }]);
   }, []);
 
-  // Auto-scroll on each new message / step transition.
+  // Auto-scroll on each new message / step transition — 선택·질문 추가 시 항상 최하단으로.
+  // 페이지 스크롤/스레드 내부 스크롤 어느 쪽이든 동작하도록 sentinel scrollIntoView + 폴백.
   useEffect(() => {
-    const el = threadRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    const raf = requestAnimationFrame(() => {
+      endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      const el = threadRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+    return () => cancelAnimationFrame(raf);
   }, [messages, step]);
 
   // Post the next bot prompt as the step advances. Dedupe by `stepKey`
@@ -566,6 +571,7 @@ export function MbtiLandingPage() {
                 <p className="ml-10 text-xs text-red-300">{error}</p>
               ) : null}
               {renderInlineInput()}
+              <div ref={endRef} className="h-px w-full" />
             </div>
 
             {/* Footer note */}
