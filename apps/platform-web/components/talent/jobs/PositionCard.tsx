@@ -61,7 +61,7 @@ export function PositionCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              {(view.isInternal && onShowCip) || view.sourceLabel || view.hasMockInterview ? (
+              {(view.isInternal && onShowCip) || view.sourceLabel || view.foreignerOk || view.hasMockInterview ? (
                 <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                   {view.isInternal && onShowCip ? (
                     <span className="pointer-events-auto relative z-10 inline-flex">
@@ -71,6 +71,12 @@ export function PositionCard({
                     // 외부 출처(원티드 등) — CIP 배지와 동일 위치·크기의 뱃지로.
                     <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-[#EEF1F5] px-2 py-1 text-[10px] font-bold leading-none text-[#4E5968]">
                       {view.sourceLabel}
+                    </span>
+                  ) : null}
+                  {/* 외국인 지원 가능 — 모의면접 뱃지 왼쪽. 원티드와 동일한 UX(텍스트 pill). */}
+                  {view.foreignerOk ? (
+                    <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-[#E7F8EF] px-2 py-1 text-[10px] font-bold leading-none text-[#0A9B59]">
+                      {t("외국인 지원 가능", "Open to foreigners", "外国人可申请", "Người nước ngoài có thể ứng tuyển", "外国人応募可", "Terbuka untuk WNA")}
                     </span>
                   ) : null}
                   {/* 회사가 모의 면접을 등록한 공고 — 카드 탭 시 상세에서 시작. */}
