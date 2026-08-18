@@ -22089,6 +22089,17 @@ function redactIdentityText(text: string, terms: string[]): string {
   for (const term of terms) s = s.split(term).join("○○");
   return s;
 }
+// 블라인드 — 실명 치환(redactIdentityText)이 못 잡는, 후보가 자유 텍스트에 직접 적은 연락처
+// (이메일·URL·전화번호·카톡/인스타 등 메신저 아이디)를 제거. 비회원 열람 시 신원·연락 경로가 새는 것을 막는다.
+function redactContactText(text: string): string {
+  if (!text || typeof text !== "string") return text;
+  let s = text;
+  s = s.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "○○"); // 이메일
+  s = s.replace(/\b(?:https?:\/\/|www\.)\S+/gi, "○○"); // URL
+  s = s.replace(/(?:kakao|카카오|카톡|톡|instagram|insta|인스타|telegram|텔레|wechat|위챗|line|라인)\s*(?:id|아이디)?\s*[:：]?\s*@?[A-Za-z0-9._-]{2,}/gi, "○○"); // 메신저 아이디
+  s = s.replace(/\+?\d[\d\s().-]{7,}\d/g, (m) => (m.replace(/\D/g, "").length >= 9 ? "○○" : m)); // 전화번호(숫자 9자리 이상)
+  return s;
+}
 function redactIdentityDeep<T>(v: T, terms: string[]): T {
   if (terms.length === 0) return v;
   if (typeof v === "string") return redactIdentityText(v, terms) as unknown as T;
@@ -22151,7 +22162,7 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
   const unlocked = status === "ACCEPTED";
   // 요약(자기소개)에 섞인 이름·국적 제거 + TOPIK 중립화.
   const terms = unlocked ? [] : identityTerms(r.user?.realName, r.user?.name, r.user?.nationality);
-  const summaryOut = summary ? (unlocked ? summary : redactIdentityText(neutralizeTopik(summary), terms)).slice(0, 180) : null;
+  const summaryOut = summary ? (unlocked ? summary : redactContactText(redactIdentityText(neutralizeTopik(summary), terms))).slice(0, 180) : null;
   return {
     candidateUserId: r.userId,
     name: unlocked ? (r.user?.realName || r.user?.name || (content.basicName as string) || null) : null,
@@ -22160,7 +22171,8 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
     major: (edu?.major as string) ?? null,
     desiredJobRole: (content.desiredJobRole as string) ?? null,
     workType: (content.workType as string) ?? null,
-    visa: (content.basicVisa as string) ?? null,
+    // 국적을 가리는 것과 동일하게, 국적 프록시가 되는 비자/체류자격도 연결 수락 전에는 가린다.
+    visa: unlocked ? ((content.basicVisa as string) ?? null) : null,
     // 블라인드 — 스킬·요약의 TOPIK도 '한국어 등급'으로 중립화.
     skills: (unlocked ? skills : skills.map(neutralizeTopik)).slice(0, 12),
     languages: unlocked ? languages : languages.map(neutralizeTopik),
@@ -22210,7 +22222,7 @@ async function attachCachedDocSummaries<T extends { candidateUserId: string; upd
       // 블라인드 — 요약 bullets에서 이름·국적 제거 + TOPIK '한국어 등급' 중립화.
       const blind = c.contactUnlocked === false;
       const terms = termsByUser.get(c.candidateUserId) ?? [];
-      const scrub = (b: string) => redactIdentityText(neutralizeTopik(b), terms);
+      const scrub = (b: string) => redactContactText(redactIdentityText(neutralizeTopik(b), terms));
       c.resumeBullets = blind ? row.resumeBullets.map(scrub) : row.resumeBullets;
       c.coverBullets = blind ? row.coverBullets.map(scrub) : row.coverBullets;
     }
@@ -27276,7 +27288,7 @@ app.get("/partner/candidates/:candidateUserId/document-summary", authenticate, r
     if (conn?.status !== "ACCEPTED") {
       const u = await prisma.user.findUnique({ where: { id: candidateUserId }, select: { realName: true, name: true, nationality: true } });
       const terms = identityTerms(u?.realName, u?.name, u?.nationality);
-      const scrub = (b: string) => redactIdentityText(neutralizeTopik(b), terms);
+      const scrub = (b: string) => redactContactText(redactIdentityText(neutralizeTopik(b), terms));
       const o = out as { resumeBullets?: string[]; coverBullets?: string[] };
       if (Array.isArray(o.resumeBullets)) o.resumeBullets = o.resumeBullets.map(scrub);
       if (Array.isArray(o.coverBullets)) o.coverBullets = o.coverBullets.map(scrub);
