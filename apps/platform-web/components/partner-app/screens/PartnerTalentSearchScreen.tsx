@@ -113,6 +113,8 @@ export function PartnerTalentSearchScreen() {
               key={key}
               type="button"
               onClick={() => {
+                // 관심 인재(저장 목록)는 회원 전용 — 게스트면 로그인 팝업을 띄우고 전환하지 않는다.
+                if (key === "saved" && !ensure()) return;
                 setMode(key);
                 run(key, key === "search" ? query.trim() : "");
               }}
