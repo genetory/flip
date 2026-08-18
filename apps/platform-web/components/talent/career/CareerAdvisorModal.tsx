@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, PaperPlaneTilt, Sparkle, CircleNotch, ArrowClockwise } from "@phosphor-icons/react";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
+import { useVisualViewport } from "../../../lib/useVisualViewport";
 import { careerAdvise, type AdvisorMsg } from "../../../lib/talent/career-advisor-client";
 import { loadAdvisorChat, saveAdvisorChat, clearAdvisorChat } from "../../../lib/talent/career-advisor-store";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
@@ -14,6 +15,7 @@ type Msg = { role: "bot" | "user"; text: string };
 export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
   const t = usePlatformT();
   useLockBodyScroll();
+  const vp = useVisualViewport();
   const { user } = useAuthSession();
   const uid = user?.id ?? "anon";
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -99,8 +101,8 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm">
-      <div className="relative flex h-[92vh] w-full max-w-[560px] flex-col overflow-hidden rounded-3xl bg-white sm:h-[720px] sm:rounded-3xl">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" style={vp ? { top: vp.offsetTop, height: vp.height, bottom: "auto" } : undefined}>
+      <div className="relative flex h-full w-full max-w-[560px] flex-col overflow-hidden rounded-3xl bg-white sm:h-[720px] sm:rounded-3xl">
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0">

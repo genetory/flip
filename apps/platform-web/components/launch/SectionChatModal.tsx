@@ -7,6 +7,8 @@ import { useEffect, useRef, useState } from "react";
 import { X, PaperPlaneTilt, CircleNotch, Sparkle } from "@phosphor-icons/react";
 import { RichText } from "./rich-text";
 import { useLaunchT } from "../../lib/launch/i18n";
+import { useLockBodyScroll } from "../../lib/talent/useLockBodyScroll";
+import { useVisualViewport } from "../../lib/useVisualViewport";
 
 type Msg = { role: "bot" | "user"; text: string };
 
@@ -20,6 +22,8 @@ export function SectionChatModal({
   onClose: () => void;
 }) {
   const t = useLaunchT();
+  useLockBodyScroll();
+  const vp = useVisualViewport();
   // AI 포인트 소진(402) 감지 → 안내 메시지.
   const isQuota = (e: unknown) => e instanceof Error && /quota|402|포인트|ticket/i.test(e.message);
   const quotaText = t(
@@ -84,8 +88,8 @@ export function SectionChatModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0B1227]/40 p-4" onClick={onClose}>
-      <div className="flex h-[82vh] w-full max-w-[460px] flex-col overflow-hidden rounded-3xl bg-white sm:h-[76vh] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0B1227]/40 p-4" style={vp ? { top: vp.offsetTop, height: vp.height, bottom: "auto" } : undefined} onClick={onClose}>
+      <div className="flex h-full w-full max-w-[460px] flex-col overflow-hidden rounded-3xl bg-white sm:h-[76vh] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
         <div className="flex items-center justify-between gap-2 border-b border-[#EEF1F5] px-5 py-3.5">
           <div className="flex items-center gap-2.5">

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { X, Sparkle, CaretLeft, CaretRight, CircleNotch } from "@phosphor-icons/react";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
+import { useVisualViewport } from "../../../lib/useVisualViewport";
 import { useResumeDoc } from "../../../lib/talent/resume-doc";
 import { useCoverDoc } from "../../../lib/talent/cover-doc";
 import { useBasicInfo } from "../../../lib/talent/basic-info";
@@ -67,6 +68,7 @@ function isQuota(err: unknown): boolean {
 export function MockInterviewModal({ item, onClose }: { item?: PublicPositionListItem; onClose: () => void }) {
   const t = usePlatformT();
   useLockBodyScroll();
+  const vp = useVisualViewport();
   const doc = useResumeDoc();
   const coverDoc = useCoverDoc();
   const info = useBasicInfo();
@@ -255,8 +257,8 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
 
   return (
     <>
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="flex h-[90vh] w-full max-w-[560px] flex-col overflow-hidden rounded-3xl bg-white sm:h-[680px] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" style={vp ? { top: vp.offsetTop, height: vp.height, bottom: "auto" } : undefined} onClick={onClose}>
+      <div className="flex h-full w-full max-w-[560px] flex-col overflow-hidden rounded-3xl bg-white sm:h-[680px] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0">

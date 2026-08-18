@@ -8,6 +8,7 @@ import { STUDENT } from "../../../lib/launch/data";
 import { requestInterviewChat, type InterviewChatMsg, type InterviewFocus } from "../../../lib/launch/interview";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../components/AplyFooter";
+import { useVisualViewport } from "../../../lib/useVisualViewport";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { trackCareerStepComplete, trackCareerFunnel } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -34,6 +35,7 @@ export default function InterviewPage() {
   };
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
+  const vp = useVisualViewport();
   const startedRef = useRef(false);
   const [focus, setFocus] = useState<InterviewFocus>("self");
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -106,7 +108,7 @@ export default function InterviewPage() {
     <div className="flex min-h-screen flex-col bg-white">
       <CareerLaunchHeader />
       <main className="flex-1">
-        <div className="mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-5xl flex-col px-5 pt-4 md:pt-6" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}>
+        <div className="mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-5xl flex-col px-5 pt-4 md:pt-6" style={{ height: vp ? vp.height - 56 : undefined, paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}>
           <div className="flex items-center justify-between gap-3">
             <Link href="/career-launch/week/4" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("4주차", "Week 4", "第4周", "Tuần 4", "4週目", "Minggu 4")}
