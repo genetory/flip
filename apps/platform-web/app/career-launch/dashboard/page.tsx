@@ -399,29 +399,18 @@ export default function LaunchDashboardPage() {
                 <SectionTitle sub={t("이력서·자기소개서·면접을 종합한 코치 피드백", "Coach feedback across your resume, cover letter, and interview", "综合简历、求职信与面试的教练反馈", "Phản hồi từ coach tổng hợp hồ sơ, thư tự giới thiệu và phỏng vấn", "履歴書・自己紹介書・面接を総合したコーチのフィードバック", "Umpan balik coach dari resume, cover letter, dan wawancara")}>{t("최종 피드백", "Final feedback", "最终反馈", "Phản hồi cuối cùng", "最終フィードバック", "Umpan balik akhir")}</SectionTitle>
                 <FinalFeedbackCard />
 
-                {/* 다음 행동 — 분석으로 끝내지 말고 실제 지원 행동으로 연결 */}
-                <div className="mt-6">
-                  <SectionTitle sub={t("결과물을 실제 지원으로 이어가요", "Turn your results into real applications", "把成果转化为实际投递", "Biến kết quả thành ứng tuyển thực tế", "成果を実際の応募につなげましょう", "Ubah hasil menjadi lamaran nyata")}>{t("다음 행동", "Next actions", "下一步行动", "Hành động tiếp theo", "次のアクション", "Aksi berikutnya")}</SectionTitle>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    {[
-                      { href: "/talent/jobs", emoji: "🔎", label: t("지금 지원할 공고 보기", "Browse jobs to apply", "查看可投递的职位", "Xem vị trí để ứng tuyển", "今すぐ応募できる求人を見る", "Lihat lowongan untuk dilamar"), action: "browse_positions", external: false },
-                      { href: "/resume-maker", emoji: "📄", label: t("이력서 최종 수정하기", "Polish your resume", "最终修改简历", "Hoàn thiện hồ sơ", "履歴書を仕上げる", "Sempurnakan resume"), action: "edit_resume", external: true },
-                      { href: "/career-launch/interview", emoji: "🎤", label: t("모의면접 한 번 더", "One more mock interview", "再来一次模拟面试", "Phỏng vấn thử lần nữa", "模擬面接をもう一度", "Wawancara simulasi lagi"), action: "mock_interview", external: false }
-                    ].map((a) => (
-                      <Link
-                        key={a.action}
-                        href={a.href}
-                        target={a.external ? "_blank" : undefined}
-                        rel={a.external ? "noopener noreferrer" : undefined}
-                        onClick={() => trackCareerFunnel("next_action_clicked", { action: a.action })}
-                        className="flex items-center gap-3 rounded-2xl border border-[#E5E8EB] bg-white px-4 py-4 transition hover:border-[#0B46E8]/40 hover:bg-[#F7F9FF]"
-                      >
-                        <span className="text-[22px]">{a.emoji}</span>
-                        <span className="text-[14px] font-bold text-[#0B1227]">{a.label}</span>
-                      </Link>
-                    ))}
+                {/* APLY(탤런트)로 이어가기 — 완주 후 실제 취업 활동으로 연결 */}
+                <Link
+                  href="/talent/home"
+                  onClick={() => trackCareerFunnel("next_action_clicked", { action: "go_talent" })}
+                  className="group mt-6 flex items-center justify-between gap-4 rounded-2xl bg-[#0B1227] px-5 py-5 text-left transition hover:bg-[#1A2440]"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-black text-white">{t("APLY에서 취업 이어가기", "Continue your job search on APLY", "在 APLY 继续求职", "Tiếp tục tìm việc trên APLY", "APLYで就職活動を続ける", "Lanjutkan pencarian kerja di APLY")}</p>
+                    <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-white/70">{t("완성한 이력서·자기소개서로 실제 공고에 지원하고 취업을 이어가요.", "Apply to real jobs with your finished resume and cover letter.", "用完成的简历与求职信投递真实职位。", "Ứng tuyển việc thật với hồ sơ và thư đã hoàn thành.", "完成した履歴書・自己紹介書で実際の求人に応募しましょう。", "Lamar pekerjaan nyata dengan resume dan surat lamaranmu.")}</p>
                   </div>
-                </div>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition group-hover:translate-x-0.5"><ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden /></span>
+                </Link>
               </div>
             ) : null}
           </div>
