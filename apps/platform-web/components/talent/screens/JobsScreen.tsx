@@ -61,7 +61,7 @@ export function JobsScreen() {
   // 추가 필터 — 고용형태 / 지역(시·도). 드롭다운 다중 선택. (직무 필터는 보류)
   const [empTypes, setEmpTypes] = useState<EmploymentType[]>([]);
   const [locs, setLocs] = useState<string[]>([]);
-  const activeFilterCount = empTypes.length + locs.length;
+  const activeFilterCount = empTypes.length + locs.length + (foreignerOnly ? 1 : 0);
   // 소스 탭 → 서버 sourceProviders. Aply 채용 = INTERNAL 만.
   const sourceProviders: PublicPositionListItem["sourceProvider"][] | undefined = tab === "aply" ? ["INTERNAL"] : undefined;
   // 관심 직무(소분류) → 공고 vocabulary(JobCategory)로 변환해야 원티드·CIP가 매칭된다.
@@ -276,21 +276,9 @@ export function JobsScreen() {
             </button>
           </div>
 
-          {/* 외국인 지원 가능 — 별도 토글로 잘 보이게(행 전체 클릭) */}
-          <button
-            type="button"
-            role="switch"
-            aria-checked={foreignerOnly}
-            onClick={() => setForeignerOnly((v) => !v)}
-            className="mb-3 flex w-full items-center justify-between gap-3 rounded-xl bg-[#F2F4F6] px-3.5 py-2.5 text-left"
-          >
-            <span className="text-[13px] font-bold text-[#191F28]">🌏 {t("외국인 지원 가능만 보기", "Foreigner-eligible only", "仅外国人可申请", "Chỉ dành cho người nước ngoài", "外国人応募可のみ", "Hanya untuk WNA")}</span>
-            <ToggleSwitch on={foreignerOnly} />
-          </button>
-
-          {/* 드롭다운 필터(좌) · 정렬(우) */}
+          {/* 필터(좌: 드롭다운 + 외국인 칩) · 정렬(우) */}
           <div className="mb-5 flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <FilterDropdown
                 label={t("고용형태", "Type", "类型", "Loại", "形態", "Tipe")}
                 selected={empTypes}
@@ -307,10 +295,19 @@ export function JobsScreen() {
                 options={REGIONS.map((r) => ({ value: r, label: r }))}
                 onToggle={(v) => setLocs((a) => toggleValue(a, v))}
               />
+              {/* 외국인 지원 가능 — 다른 필터와 같은 줄, 선택 가능한 칩 */}
+              <button
+                type="button"
+                aria-pressed={foreignerOnly}
+                onClick={() => setForeignerOnly((v) => !v)}
+                className={`rounded-xl border px-3 py-2 text-[13px] font-bold transition ${foreignerOnly ? "border-[#0B46E8] bg-[#0B46E8]/[0.06] text-[#0B46E8]" : "border-[#E5E8EB] text-[#4E5968] hover:bg-[#F2F4F6]"}`}
+              >
+                🌏 {t("외국인 가능", "Foreigners OK", "外国人可", "Cho WNA", "外国人可", "WNA OK")}
+              </button>
               {activeFilterCount > 0 ? (
                 <button
                   type="button"
-                  onClick={() => { setEmpTypes([]); setLocs([]); }}
+                  onClick={() => { setEmpTypes([]); setLocs([]); setForeignerOnly(false); }}
                   className="flex items-center gap-0.5 text-[12px] font-bold text-[#8B95A1] transition hover:text-[#4E5968]"
                 >
                   <X size={13} weight="bold" />
@@ -430,14 +427,6 @@ function FilterDropdown({ label, options, selected, onToggle }: { label: string;
   );
 }
 
-// 시각 전용 스위치(클릭 처리는 감싸는 버튼이 담당).
-function ToggleSwitch({ on }: { on: boolean }) {
-  return (
-    <span className={`relative inline-flex h-[24px] w-[42px] shrink-0 items-center rounded-full transition ${on ? "bg-[#0B46E8]" : "bg-[#D1D6DB]"}`}>
-      <span className={`inline-block h-[20px] w-[20px] transform rounded-full bg-white shadow-sm transition ${on ? "translate-x-[20px]" : "translate-x-[2px]"}`} />
-    </span>
-  );
-}
 
 function SortText({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
