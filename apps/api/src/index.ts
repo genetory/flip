@@ -29482,6 +29482,29 @@ process.on("unhandledRejection", (reason) => {
 });
 
 if (process.env.VERCEL !== "1") {
+  // 1회성 백필 — BACKFILL_INTERNAL_FOREIGNER=true 앱 설정 시 기동 때 실행하고, 이후 플래그를 해제한다.
+  // 태그 없는 INTERNAL 공고에 FOREIGNER_FRIENDLY 를 부여해 '외국인=공고별 태그' 전환 시 현재 노출을 보존.
+  async function runInternalForeignerBackfillOnBoot() {
+    if (String(process.env.BACKFILL_INTERNAL_FOREIGNER ?? "false").toLowerCase() !== "true") return;
+    const TAG = "FOREIGNER_FRIENDLY";
+    try {
+      const targets = await prisma.position.findMany({
+        where: { sourceProvider: PositionSourceProvider.INTERNAL, NOT: { eligibleVisas: { has: TAG } } },
+        select: { id: true, eligibleVisas: true }
+      });
+      console.info(`[backfill-internal-foreigner] targets: ${targets.length}`);
+      let updated = 0;
+      for (const p of targets) {
+        const next = Array.from(new Set([...(p.eligibleVisas ?? []), TAG]));
+        await prisma.position.update({ where: { id: p.id }, data: { eligibleVisas: next } });
+        updated += 1;
+      }
+      console.info(`[backfill-internal-foreigner] done. updated ${updated} positions.`);
+    } catch (e) {
+      console.error("[backfill-internal-foreigner] failed:", e);
+    }
+  }
+
   app.listen(port, () => {
     console.log(`API server listening on http://localhost:${port}`);
     console.info("[runtime-config]", {
@@ -29494,6 +29517,7 @@ if (process.env.VERCEL !== "1") {
       }
     });
     startCrawlerScheduler();
+    void runInternalForeignerBackfillOnBoot();
   });
 }
 
