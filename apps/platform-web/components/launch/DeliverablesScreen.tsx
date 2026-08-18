@@ -4,7 +4,7 @@
 // 진단·이력서·자기소개서·면접·최종 리포트. 이력서/자소서는 A4 썸네일 + 크게보기.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, CircleNotch } from "@phosphor-icons/react";
+import { ArrowRight, ArrowUpRight, CircleNotch, Sparkle, Lightbulb, Target } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
 import { AplyFooter } from "../AplyFooter";
 import { Reveal } from "../site/Reveal";
@@ -13,6 +13,7 @@ import { ResumeRender } from "./resume-render";
 import { CoverRender } from "./cover-render";
 import { fetchResumeData, hasResumeContent, type ResumeData } from "../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
+import { fetchProgress, type CareerProgress } from "../../lib/launch/progress-client";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLaunchT } from "../../lib/launch/i18n";
 
@@ -21,6 +22,7 @@ export function DeliverablesScreen() {
   const { isReady } = useAuthSession();
   const [resume, setResume] = useState<ResumeData>({});
   const [cover, setCover] = useState<CoverData>({});
+  const [prog, setProg] = useState<CareerProgress | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -28,10 +30,15 @@ export function DeliverablesScreen() {
     let alive = true;
     void (async () => {
       try {
-        const [r, c] = await Promise.all([fetchResumeData().catch(() => ({ data: {} as ResumeData })), fetchCoverData().catch(() => ({ data: {} as CoverData }))]);
+        const [r, c, p] = await Promise.all([
+          fetchResumeData().catch(() => ({ data: {} as ResumeData })),
+          fetchCoverData().catch(() => ({ data: {} as CoverData })),
+          fetchProgress().catch(() => null)
+        ]);
         if (!alive) return;
         setResume(r.data ?? {});
         setCover(c.data ?? {});
+        setProg(p);
       } finally {
         if (alive) setLoaded(true);
       }
@@ -88,15 +95,19 @@ export function DeliverablesScreen() {
               </div>
             </div>
 
-            {/* 그 외 결과물 — 진단 · 면접 · 최종 리포트 */}
+            {/* 취업 준비 프로필 — 4주간의 진단을 한 장으로(준비도 추이·강점·보완점·관심 직무) */}
             <div>
-              <SectionTitle sub={t("주차별로 완성한 결과와 리포트", "Results and reports from each week", "各周完成的结果与报告", "Kết quả và báo cáo mỗi tuần", "各週で完成した結果とレポート", "Hasil dan laporan tiap minggu")}>{t("진단 · 면접 · 리포트", "Diagnosis · Interview · Report", "诊断·面试·报告", "Chẩn đoán · Phỏng vấn · Báo cáo", "診断・面接・レポート", "Diagnosis · Wawancara · Laporan")}</SectionTitle>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <LinkCard emoji="🧭" href="/career-launch/diagnosis" title={t("취업 준비 진단", "Job-readiness diagnosis", "求职准备诊断", "Chẩn đoán mức độ sẵn sàng", "就職準備診断", "Diagnosis kesiapan kerja")} desc={t("1주차 · 준비도와 직무 방향", "Week 1 · Readiness & direction", "第1周 · 准备度与方向", "Tuần 1 · Mức độ sẵn sàng & định hướng", "Week 1 · 準備度と方向性", "Minggu 1 · Kesiapan & arah")} />
-                <LinkCard emoji="🎤" href="/career-launch/interview" title={t("모의면접 준비", "Mock interview prep", "模拟面试准备", "Chuẩn bị phỏng vấn thử", "模擬面接準備", "Persiapan wawancara")} desc={t("4주차 · 유형별 예상 질문·피드백", "Week 4 · Questions & feedback by type", "第4周 · 分类型问题与反馈", "Tuần 4 · Câu hỏi & phản hồi theo loại", "Week 4 · タイプ別質問・フィードバック", "Minggu 4 · Pertanyaan & umpan balik per jenis")} />
-                <LinkCard emoji="📊" href="/career-launch/diagnosis?final=1" title={t("최종 수료 리포트", "Final completion report", "最终结业报告", "Báo cáo hoàn thành", "最終修了レポート", "Laporan kelulusan akhir")} desc={t("완주 · 종합 진단과 다음 단계", "Completion · Overall diagnosis & next steps", "结业 · 综合诊断与后续", "Hoàn thành · Chẩn đoán tổng thể & bước tiếp", "修了 · 総合診断と次のステップ", "Selesai · Diagnosis menyeluruh & langkah berikut")} />
-                <LinkCard emoji="🔎" href="/talent/jobs" title={t("APLY에서 지원하기", "Apply on APLY", "在 APLY 投递", "Ứng tuyển trên APLY", "APLYで応募する", "Lamar di APLY")} desc={t("완성한 서류로 실제 공고에 지원", "Use your documents on real jobs", "用完成的文件投递真实职位", "Dùng hồ sơ cho việc làm thật", "完成した書類で実際の求人に応募", "Gunakan dokumenmu untuk lowongan nyata")} />
-              </div>
+              <SectionTitle sub={t("4주 진단으로 정리한 나의 준비 상태", "Your readiness from the 4-week diagnosis", "4周诊断整理的准备状态", "Tình trạng sẵn sàng qua chẩn đoán 4 tuần", "4週間の診断でまとめた準備状態", "Kesiapan dari diagnosis 4 minggu")}>{t("취업 준비 프로필", "Job-readiness profile", "求职准备档案", "Hồ sơ sẵn sàng", "就職準備プロフィール", "Profil kesiapan kerja")}</SectionTitle>
+              <ReadinessProfile prog={prog} t={t} />
+
+              {/* 완성한 자산 → 실제 지원으로 */}
+              <Link href="/talent/jobs" className="group mt-3 flex items-center justify-between gap-3 rounded-2xl border border-[#E4EDFB] bg-gradient-to-br from-[#F5F8FF] to-[#EDF2FF] p-4 transition hover:border-[#0B46E8]/40">
+                <div className="min-w-0">
+                  <p className="text-[14px] font-bold text-[#0B1227]">{t("APLY에서 지원하기", "Apply on APLY", "在 APLY 投递", "Ứng tuyển trên APLY", "APLYで応募する", "Lamar di APLY")}</p>
+                  <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("완성한 서류로 실제 공고에 지원", "Use your documents on real jobs", "用完成的文件投递真实职位", "Dùng hồ sơ cho việc làm thật", "完成した書類で実際の求人に応募", "Gunakan dokumenmu untuk lowongan nyata")}</p>
+                </div>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#0B46E8] shadow-[0_2px_8px_rgba(11,70,232,0.12)] transition group-hover:translate-x-0.5"><ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden /></span>
+              </Link>
             </div>
           </div>
           </Reveal>
@@ -141,21 +152,111 @@ export function DocCard({ title, ready, loading, editHref, fullHref, emptyLabel,
   );
 }
 
-function LinkCard({ emoji, href, title, desc, external }: { emoji: string; href: string; title: string; desc: string; external?: boolean }) {
-  const inner = (
-    <>
-      <span className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-[#F2F4F6] text-[19px]">{emoji}</span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[14.5px] font-bold text-[#191F28]">{title}</p>
-        <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{desc}</p>
+// 취업 준비 프로필 — 진단 결과(준비도 추이·강점·보완점·관심 직무)를 이력서·자기소개서와 동급의 결과물로 한 장에.
+function ReadinessProfile({ prog, t }: { prog: CareerProgress | null; t: ReturnType<typeof useLaunchT> }) {
+  const diag = prog?.diagnosis ?? null;
+
+  // 진단 전 — 비어있는 상태.
+  if (!diag) {
+    return (
+      <div className="rounded-2xl border border-dashed border-[#DDE3EA] bg-[#FAFBFC] p-6 text-center">
+        <p className="text-[14px] font-bold text-[#191F28]">{t("아직 취업 준비 프로필이 없어요", "No readiness profile yet", "还没有求职准备档案", "Chưa có hồ sơ sẵn sàng", "まだ準備プロフィールがありません", "Belum ada profil kesiapan")}</p>
+        <p className="mx-auto mt-1.5 max-w-[300px] break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("1주차 진단을 마치면 준비도·강점·보완점이 여기에 정리돼요.", "Finish the Week 1 diagnosis and your readiness, strengths, and gaps appear here.", "完成第1周诊断后，准备度、优势与不足会整理在这里。", "Hoàn thành chẩn đoán Tuần 1 để xem mức độ sẵn sàng, điểm mạnh và điểm cần cải thiện tại đây.", "Week 1の診断を終えると、準備度・強み・改善点がここにまとまります。", "Selesaikan diagnosis Minggu 1, kesiapan, kekuatan, dan kekurangan muncul di sini.")}</p>
+        <Link href="/career-launch/diagnosis" className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#0B46E8] px-4 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECF]">
+          {t("진단 시작하기", "Start diagnosis", "开始诊断", "Bắt đầu chẩn đoán", "診断を始める", "Mulai diagnosis")}
+          <ArrowRight className="h-4 w-4" weight="bold" aria-hidden />
+        </Link>
       </div>
-      <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-[#C4CAD2]" weight="bold" />
-    </>
-  );
-  const cls = "flex items-start gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#0B46E8]/30 hover:bg-[#F7F9FF]";
-  return external ? (
-    <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>{inner}</a>
-  ) : (
-    <Link href={href} className={cls}>{inner}</Link>
+    );
+  }
+
+  const initPct = prog?.diagnosisInitial?.percent;
+  const finalPct = prog?.diagnosisFinal?.percent;
+  const current = finalPct ?? diag.percent;
+  const delta = finalPct != null && initPct != null ? finalPct - initPct : null;
+  const strengths = (diag.strengths ?? []).filter((s) => s?.trim()).slice(0, 3);
+  const improvements = (diag.improvements ?? []).filter((s) => s?.trim()).slice(0, 3);
+  const jobs = (prog?.selectedJobs ?? []).filter((j) => j?.trim()).slice(0, 6);
+
+  return (
+    <div className="rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-5">
+      {/* 준비도 — 큰 숫자 + 추이 + 게이지 */}
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[13px] font-bold text-[#8B95A1]">{t("취업 준비도", "Job readiness", "求职准备度", "Mức độ sẵn sàng", "就職準備度", "Kesiapan kerja")}</p>
+        <Link href="/career-launch/diagnosis" className="shrink-0 text-[12px] font-bold text-[#0B46E8] transition hover:underline">{t("다시 진단", "Re-check", "重新诊断", "Kiểm tra lại", "再診断", "Cek lagi")}</Link>
+      </div>
+      <div className="mt-1.5 flex items-end gap-2.5">
+        <span className="text-[38px] font-black leading-none text-[#0B46E8]">
+          {current}
+          <span className="text-[18px]">%</span>
+        </span>
+        <div className="mb-1 min-w-0">
+          <p className="truncate text-[13.5px] font-bold text-[#191F28]">{diag.level}</p>
+          {delta != null && delta > 0 ? (
+            <p className="mt-0.5 text-[12px] font-bold text-[#0A9B59]">{t("사전", "Before", "初始", "Trước", "事前", "Awal")} {initPct}% → {t("현재", "Now", "现在", "Hiện tại", "現在", "Kini")} {current}% · ▲{delta}</p>
+          ) : initPct != null ? (
+            <p className="mt-0.5 text-[12px] text-[#8B95A1]">{t("사전 진단", "Initial diagnosis", "初始诊断", "Chẩn đoán ban đầu", "事前診断", "Diagnosis awal")} {initPct}%</p>
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[#EEF1F5]">
+        <div className="h-full rounded-full bg-gradient-to-r from-[#5B8DEF] to-[#0B46E8]" style={{ width: `${Math.min(100, Math.max(0, current))}%` }} />
+      </div>
+
+      {/* 강점 · 보완점 */}
+      {strengths.length > 0 || improvements.length > 0 ? (
+        <div className="mt-5 grid gap-x-5 gap-y-4 sm:grid-cols-2">
+          {strengths.length > 0 ? (
+            <div>
+              <p className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-[#191F28]">
+                <Sparkle className="h-4 w-4 text-[#0A9B59]" weight="fill" aria-hidden />
+                {t("강점", "Strengths", "优势", "Điểm mạnh", "強み", "Kekuatan")}
+              </p>
+              <ul className="space-y-1.5">
+                {strengths.map((s, i) => (
+                  <li key={i} className="flex gap-2 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">
+                    <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-[#0A9B59]" aria-hidden />
+                    <span>{s}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {improvements.length > 0 ? (
+            <div>
+              <p className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-[#191F28]">
+                <Lightbulb className="h-4 w-4 text-[#F0A020]" weight="fill" aria-hidden />
+                {t("보완점", "To improve", "待提升", "Cần cải thiện", "改善点", "Perlu ditingkatkan")}
+              </p>
+              <ul className="space-y-1.5">
+                {improvements.map((s, i) => (
+                  <li key={i} className="flex gap-2 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">
+                    <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-[#F0A020]" aria-hidden />
+                    <span>{s}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* 관심 직무 — 프로그램 중 선정한 직무 방향 */}
+      {jobs.length > 0 ? (
+        <div className="mt-5 border-t border-[#EEF1F5] pt-4">
+          <p className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-[#191F28]">
+            <Target className="h-4 w-4 text-[#0B46E8]" weight="fill" aria-hidden />
+            {t("관심 직무", "Target roles", "关注职务", "Vị trí quan tâm", "関心職務", "Peran incaran")}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {jobs.map((j, i) => (
+              <span key={i} className="inline-flex items-center rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[12px] font-bold text-[#0B46E8]">
+                {j}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
