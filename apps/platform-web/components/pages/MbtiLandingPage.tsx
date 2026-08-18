@@ -3,8 +3,10 @@
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Export as ShareIcon, Check } from "@phosphor-icons/react";
+import { Export as ShareIcon, Globe, CaretDown, Sparkle } from "@phosphor-icons/react";
 import { usePlatformT } from "../../lib/i18n";
+import { useLanguage } from "../i18n/LanguageProvider";
+import { PLATFORM_LOCALES, type PlatformLocale } from "../../lib/auth-messages";
 
 // ---------------------------------------------------------------------------
 // MBTI landing — chat-style flow, quiz-only.
@@ -74,10 +76,21 @@ function BotAvatar() {
   );
 }
 
+const LOCALE_LABELS: Record<PlatformLocale, string> = {
+  ko: "한국어",
+  en: "English",
+  "zh-CN": "中文",
+  vi: "Tiếng Việt",
+  ja: "日本語",
+  id: "Bahasa Indonesia"
+};
+
 export function MbtiLandingPage() {
   const router = useRouter();
   const apiBase = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000", []);
   const t = usePlatformT();
+  const { locale, setLocale } = useLanguage();
+  const [langOpen, setLangOpen] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [step, setStep] = useState<Step>({ kind: "intro" });
@@ -448,31 +461,57 @@ export function MbtiLandingPage() {
           <span className="absolute left-1/2 top-16 h-72 w-72 -translate-x-1/2 rounded-full bg-amber-500/20 blur-3xl" />
         </div>
 
-        {/* 상단 바 — 독립 공유 페이지: 뒤로가기 대신 공유 버튼 */}
-        <div className="relative z-10 flex items-center justify-between gap-2 px-4 py-3">
-          <p className="text-[14px] font-bold tracking-[-0.01em] text-white/90">{t("직무 MBTI", "Job MBTI", "职务MBTI", "MBTI nghề nghiệp", "職務MBTI", "MBTI kerja")}</p>
+        {/* 언어 선택 — 좌측 상단(사주와 동일) */}
+        <div className="absolute left-4 top-4 z-20">
           <button
             type="button"
-            onClick={() => void handleShare()}
-            aria-label={t("공유하기", "Share", "分享", "Chia sẻ", "共有", "Bagikan")}
-            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-semibold backdrop-blur-sm transition ${copied ? "bg-emerald-400/20 text-emerald-200" : "bg-white/10 text-white/85 active:bg-white/20"}`}
+            onClick={() => setLangOpen((v) => !v)}
+            aria-haspopup="listbox"
+            aria-expanded={langOpen}
+            className="inline-flex h-9 items-center gap-1 rounded-full bg-white/5 pl-3 pr-2 text-[12px] text-white/80 backdrop-blur-sm transition active:bg-white/10 active:text-white"
           >
-            {copied ? (
-              <>
-                <Check className="h-4 w-4" weight="bold" aria-hidden /> {t("링크 복사됨", "Link copied", "已复制链接", "Đã sao chép", "リンクをコピー", "Tautan disalin")}
-              </>
-            ) : (
-              <>
-                <ShareIcon className="h-4 w-4" weight="bold" aria-hidden /> {t("공유", "Share", "分享", "Chia sẻ", "共有", "Bagikan")}
-              </>
-            )}
+            <Globe weight="bold" className="h-3.5 w-3.5" />
+            <span>{LOCALE_LABELS[locale]}</span>
+            <CaretDown weight="bold" className={`h-3 w-3 transition ${langOpen ? "rotate-180" : ""}`} />
           </button>
+          {langOpen ? (
+            <ul role="listbox" className="absolute left-0 top-11 min-w-[140px] overflow-hidden rounded-xl border border-white/10 bg-[#2a1608]/95 py-1 text-[12px] shadow-lg backdrop-blur">
+              {PLATFORM_LOCALES.map((code) => (
+                <li key={code}>
+                  <button
+                    type="button"
+                    onClick={() => { setLocale(code); setLangOpen(false); }}
+                    className={`block w-full px-3 py-2 text-left transition ${code === locale ? "bg-yellow-300/10 text-yellow-100" : "text-white/75 active:bg-white/10"}`}
+                  >
+                    {LOCALE_LABELS[code]}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
 
+        {/* 공유 — 우측 상단(사주와 동일: 원형 아이콘, 복사 시 pill) */}
+        <button
+          type="button"
+          onClick={() => void handleShare()}
+          aria-label={t("공유하기", "Share", "分享", "Chia sẻ", "共有", "Bagikan")}
+          className={`absolute right-4 top-4 z-20 inline-flex h-9 items-center justify-center gap-1.5 rounded-full transition ${copied ? "px-3 text-[12px] font-medium text-white" : "w-9 bg-white/5 text-white/80 backdrop-blur-sm active:bg-white/10 active:text-white"}`}
+        >
+          {copied ? (
+            <span className="whitespace-nowrap">{t("링크 복사됨", "Link copied", "已复制链接", "Đã sao chép", "リンクをコピー", "Tautan disalin")}</span>
+          ) : (
+            <ShareIcon weight="bold" className="h-4 w-4" />
+          )}
+        </button>
+
         <main className="relative z-10 flex flex-1 flex-col px-4 pb-5">
-          <header className="pb-3 text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-[11px] font-medium text-amber-100">Aply × MBTI</span>
-            <h1 className="mt-3 whitespace-pre-line break-keep text-[23px] font-black leading-[1.3] tracking-[-0.02em]">
+          <header className="px-1 pt-16 pb-3 text-center">
+            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-yellow-300/40 bg-yellow-300/10 px-3 py-1 text-[11px] font-medium text-yellow-100">
+              <Sparkle weight="fill" className="h-3 w-3" />
+              Aply × MBTI
+            </div>
+            <h1 className="whitespace-pre-line break-keep text-[26px] font-bold leading-tight">
               <span className="bg-gradient-to-r from-yellow-200 via-amber-300 to-yellow-200 bg-clip-text text-transparent">
                 {t(
                   "내 MBTI에 잘 맞는\n한국 회사는? 🎯",
