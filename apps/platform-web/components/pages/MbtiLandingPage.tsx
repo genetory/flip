@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Export as ShareIcon, Check } from "@phosphor-icons/react";
 import { usePlatformT } from "../../lib/i18n";
 
 // ---------------------------------------------------------------------------
@@ -60,7 +61,7 @@ function makeId(): string {
 // ---------------------------------------------------------------------------
 function BotAvatar() {
   return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white ring-1 ring-border/60 overflow-hidden">
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white ring-1 ring-white/20 overflow-hidden">
       <Image
         src="/aply_logo.webp"
         alt="Aply"
@@ -90,8 +91,47 @@ export function MbtiLandingPage() {
   const [name, setName] = useState("");
   const [nationality, setNationality] = useState("");
   const [pendingText, setPendingText] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const threadRef = useRef<HTMLDivElement | null>(null);
+
+  // 공유 — 사주 페이지와 동일 패턴(모바일: 네이티브 공유 시트, 그 외: 링크 복사).
+  async function copyShareLink(url: string) {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* 무시 */
+    }
+  }
+  async function handleShare() {
+    if (typeof window === "undefined") return;
+    const url = `${window.location.origin}/events/mbti`;
+    const shareTitle = t("내 MBTI에 잘 맞는 한국 직장은?", "Which Korean company fits your MBTI?", "哪家韩国公司最合你的MBTI？", "Công ty Hàn nào hợp MBTI của bạn?", "あなたのMBTIに合う韓国企業は？", "Perusahaan Korea mana yang cocok dengan MBTI-mu?");
+    const shareText = t("Aply의 직무 MBTI로 나에게 맞는 직업을 추천받아보세요.", "Get an Aply job-MBTI career match.", "用 Aply 职务MBTI 匹配适合你的职业。", "Nhận gợi ý nghề nghiệp qua MBTI của Aply.", "Aplyの職務MBTIで自分に合う職業を診断。", "Dapatkan rekomendasi karier lewat MBTI Aply.");
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
+    if (isMobile && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: shareTitle, text: shareText, url });
+        return;
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+      }
+    }
+    await copyShareLink(url);
+  }
 
   const pushUser = useCallback((text: string, stepKey: string | null) => {
     setMessages((prev) => [...prev, { id: makeId(), role: "user", text, stepKey }]);
@@ -314,7 +354,7 @@ export function MbtiLandingPage() {
       if (quizLoading && questions.length === 0) {
         return (
           <InlineHint>
-            <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-primary" />
+            <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-amber-300" />
             <span>{t("퀴즈 준비 중이에요...", "Getting the quiz ready...", "正在准备测验...", "Đang chuẩn bị quiz...", "クイズを準備中です...", "Menyiapkan kuis...")}</span>
           </InlineHint>
         );
@@ -345,7 +385,7 @@ export function MbtiLandingPage() {
             onChange={(e) => setPendingText(e.target.value)}
             placeholder={placeholder}
             maxLength={40}
-            className="h-10 flex-1 min-w-0 rounded-full border border-border/50 bg-white px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-11 flex-1 min-w-0 rounded-full border border-white/10 bg-white/10 px-4 text-[16px] text-white outline-none placeholder:text-white/40 focus:border-amber-300/60 focus:ring-2 focus:ring-amber-300/40"
             onKeyDown={(e) => {
               if (e.key === "Enter") submitText(step.kind as "ask-name" | "ask-nationality");
             }}
@@ -354,14 +394,14 @@ export function MbtiLandingPage() {
           <button
             type="button"
             onClick={() => submitText(step.kind as "ask-name" | "ask-nationality")}
-            className="h-10 shrink-0 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground"
+            className="h-11 shrink-0 rounded-full bg-gradient-to-r from-yellow-300 to-amber-400 px-4 text-sm font-bold text-[#2a1608] transition active:opacity-90"
           >
             {t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
           </button>
           <button
             type="button"
             onClick={() => skipText(step.kind as "ask-name" | "ask-nationality")}
-            className="h-10 shrink-0 rounded-full border border-border/50 bg-white px-3 text-xs font-semibold text-muted-foreground"
+            className="h-11 shrink-0 rounded-full border border-white/10 bg-white/10 px-3 text-xs font-semibold text-white/70 transition active:bg-white/20"
           >
             {t("생략", "Skip", "跳过", "Bỏ qua", "省略", "Lewati")}
           </button>
@@ -375,7 +415,7 @@ export function MbtiLandingPage() {
             type="button"
             onClick={() => void submitResult()}
             disabled={submitting}
-            className="h-12 w-full max-w-sm rounded-2xl bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50"
+            className="h-13 w-full max-w-sm rounded-2xl bg-gradient-to-r from-yellow-300 to-amber-400 py-3.5 text-[15px] font-bold text-[#2a1608] shadow-[0_8px_24px_-12px_rgba(251,191,36,0.6)] transition active:opacity-90 disabled:opacity-50"
           >
             {submitting
               ? t("결과 만드는 중...", "Creating result...", "正在生成结果...", "Đang tạo kết quả...", "結果を作成中...", "Membuat hasil...")
@@ -387,7 +427,7 @@ export function MbtiLandingPage() {
     if (step.kind === "submitting") {
       return (
         <InlineHint>
-          <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-primary" />
+          <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-amber-300" />
           <span>{t("결과 만드는 중이에요... 잠시만요 ⏳", "Creating your result... hang tight ⏳", "正在生成结果... 请稍候 ⏳", "Đang tạo kết quả... đợi chút nhé ⏳", "結果を作成中です... 少々お待ちください ⏳", "Membuat hasilmu... tunggu sebentar ⏳")}</span>
         </InlineHint>
       );
@@ -396,30 +436,60 @@ export function MbtiLandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background font-sans text-foreground antialiased">
-      {/* Saju-style mobile-web shell: centered 480px column on desktop,
-          full width on mobile. Header/Footer are intentionally dropped
-          to keep the focus on the chat thread. */}
-      <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-background">
-        <main className="flex flex-1 flex-col px-4 py-5">
-          <header className="space-y-2 text-center pb-4">
-            <p className="inline-flex items-center rounded-full border border-border/60 bg-white px-3 py-1 text-[11px] font-semibold text-primary">
-              Aply × MBTI
-            </p>
-            <h1 className="font-display text-[22px] font-black leading-tight tracking-[-0.02em]">
-              {t(
-                "내 MBTI에 잘 맞는 한국 회사는? 🎯",
-                "Which Korean company fits your MBTI? 🎯",
-                "哪家韩国公司最合你的 MBTI？🎯",
-                "Công ty Hàn nào hợp MBTI của bạn? 🎯",
-                "あなたのMBTIに合う韓国企業は？🎯",
-                "Perusahaan Korea mana yang cocok dengan MBTI-mu? 🎯"
-              )}
+    <div className="min-h-screen bg-[#1c0f05] font-sans text-white antialiased">
+      {/* 사주 페이지와 동일 톤 — 다크 코스믹 배경 + 별·글로우 + 그라데이션 히어로 */}
+      <div className="relative mx-auto flex min-h-screen max-w-[480px] flex-col overflow-hidden bg-gradient-to-b from-[#1c0f05] via-[#3a230c] to-[#1c0f05]">
+        {/* 별·글로우 장식 */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <span className="absolute left-[26%] top-14 h-2 w-2 rounded-full bg-yellow-200/70 blur-[1px]" />
+          <span className="absolute right-[18%] top-24 h-1.5 w-1.5 rounded-full bg-white/80" />
+          <span className="absolute left-8 top-52 h-1 w-1 rounded-full bg-yellow-100/60" />
+          <span className="absolute right-9 top-72 h-1.5 w-1.5 rounded-full bg-white/70" />
+          <span className="absolute left-1/2 top-16 h-72 w-72 -translate-x-1/2 rounded-full bg-amber-500/20 blur-3xl" />
+        </div>
+
+        {/* 상단 바 — 독립 공유 페이지: 뒤로가기 대신 공유 버튼 */}
+        <div className="relative z-10 flex items-center justify-between gap-2 px-4 py-3">
+          <p className="text-[14px] font-bold tracking-[-0.01em] text-white/90">{t("직무 MBTI", "Job MBTI", "职务MBTI", "MBTI nghề nghiệp", "職務MBTI", "MBTI kerja")}</p>
+          <button
+            type="button"
+            onClick={() => void handleShare()}
+            aria-label={t("공유하기", "Share", "分享", "Chia sẻ", "共有", "Bagikan")}
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-semibold backdrop-blur-sm transition ${copied ? "bg-emerald-400/20 text-emerald-200" : "bg-white/10 text-white/85 active:bg-white/20"}`}
+          >
+            {copied ? (
+              <>
+                <Check className="h-4 w-4" weight="bold" aria-hidden /> {t("링크 복사됨", "Link copied", "已复制链接", "Đã sao chép", "リンクをコピー", "Tautan disalin")}
+              </>
+            ) : (
+              <>
+                <ShareIcon className="h-4 w-4" weight="bold" aria-hidden /> {t("공유", "Share", "分享", "Chia sẻ", "共有", "Bagikan")}
+              </>
+            )}
+          </button>
+        </div>
+
+        <main className="relative z-10 flex flex-1 flex-col px-4 pb-5">
+          <header className="pb-3 text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-[11px] font-medium text-amber-100">Aply × MBTI</span>
+            <h1 className="mt-3 whitespace-pre-line break-keep text-[23px] font-black leading-[1.3] tracking-[-0.02em]">
+              <span className="bg-gradient-to-r from-yellow-200 via-amber-300 to-yellow-200 bg-clip-text text-transparent">
+                {t(
+                  "내 MBTI에 잘 맞는\n한국 회사는? 🎯",
+                  "Which Korean company\nfits your MBTI? 🎯",
+                  "哪家韩国公司\n最合你的 MBTI？🎯",
+                  "Công ty Hàn nào\nhợp MBTI của bạn? 🎯",
+                  "あなたのMBTIに合う\n韓国企業は？🎯",
+                  "Perusahaan Korea mana\nyang cocok dengan MBTI-mu? 🎯"
+                )}
+              </span>
             </h1>
+            {/* 캐릭터 히어로 */}
+            <Image src="/images/img_mbti_event_characters.webp" alt="" width={300} height={200} priority className="mx-auto mt-3 h-auto w-[64%] max-w-[280px] object-contain" />
           </header>
 
-          {/* Chat panel — one scrollable area with inline input at the end */}
-          <section className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-border/40 bg-white">
+          {/* Chat panel — glass 카드(다크) */}
+          <section className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-sm">
             <div
               ref={threadRef}
               className="flex-1 space-y-3 overflow-y-auto px-3.5 py-4"
@@ -430,20 +500,20 @@ export function MbtiLandingPage() {
 
               {/* Inline input at the end of the thread */}
               {error ? (
-                <p className="ml-10 text-xs text-destructive">{error}</p>
+                <p className="ml-10 text-xs text-red-300">{error}</p>
               ) : null}
               {renderInlineInput()}
             </div>
 
             {/* Footer note */}
-            <div className="border-t border-border/40 bg-muted/20 px-4 py-2.5 text-center">
-              <p className="text-[10px] leading-relaxed text-muted-foreground">
+            <div className="border-t border-white/10 px-4 py-2.5 text-center">
+              <p className="text-[10px] leading-relaxed text-white/45">
                 {t("MBTI를 더 정확히 알고 싶다면", "Want a more accurate MBTI? Try", "想更准确了解 MBTI？可参考", "Muốn biết MBTI chính xác hơn? Thử", "MBTIをもっと正確に知りたいなら", "Ingin MBTI lebih akurat? Coba")}{" "}
                 <a
                   href="https://www.16personalities.com/ko/%EB%AC%B4%EB%A3%8C-%EC%84%B1%EA%B2%A9-%EC%9C%A0%ED%98%95-%EA%B2%80%EC%82%AC"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary underline"
+                  className="text-amber-200 underline"
                 >
                   {t("16personalities 무료 검사", "the free 16personalities test", "16personalities 免费测试", "bài test miễn phí 16personalities", "16personalitiesの無料診断", "tes gratis 16personalities")}
                 </a>
@@ -473,7 +543,7 @@ function ChatBubble({
     return (
       <div className="flex items-start gap-2.5">
         <BotAvatar />
-        <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-muted/40 px-3.5 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap">
+        <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-white/10 px-3.5 py-2.5 text-[14px] leading-relaxed text-white whitespace-pre-wrap">
           {message.text}
         </div>
       </div>
@@ -482,14 +552,14 @@ function ChatBubble({
   const editable = Boolean(message.stepKey);
   return (
     <div className="flex flex-col items-end gap-1">
-      <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-3.5 py-2.5 text-[14px] leading-relaxed text-primary-foreground whitespace-pre-wrap">
+      <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-gradient-to-r from-amber-400 to-orange-500 px-3.5 py-2.5 text-[14px] leading-relaxed text-white whitespace-pre-wrap">
         {message.text}
       </div>
       {editable ? (
         <button
           type="button"
           onClick={() => onEdit(message.id)}
-          className="text-[11px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline"
+          className="text-[11px] text-white/45 hover:text-amber-200 underline-offset-2 hover:underline"
         >
           {t("수정", "Edit", "修改", "Sửa", "修正", "Ubah")}
         </button>
@@ -513,7 +583,7 @@ function InlineInputRow({ children }: { children: React.ReactNode }) {
 function InlineHint({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex justify-end">
-      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-[11px] text-white/50">
         {children}
       </div>
     </div>
@@ -537,7 +607,7 @@ function ChoiceCard({
           inline-flex flex-col gap-2.5
           max-w-full
           rounded-2xl rounded-tr-sm
-          border border-primary/30 bg-primary/10
+          border border-white/10 bg-white/[0.05]
           p-3
         "
       >
@@ -548,10 +618,10 @@ function ChoiceCard({
             onClick={() => onPick(opt.key)}
             className="
               inline-flex items-center
-              rounded-xl border border-primary/15 bg-white
+              rounded-xl border border-white/10 bg-white/10
               px-6 py-5 text-left text-[14px] font-semibold leading-snug
-              text-primary
-              transition hover:border-primary hover:bg-primary hover:text-primary-foreground
+              text-white
+              transition hover:border-amber-400 hover:bg-amber-500 hover:text-white
             "
           >
             <span className="whitespace-nowrap">{opt.label}</span>
