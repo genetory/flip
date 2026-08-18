@@ -92,6 +92,7 @@ type Position = {
   title: string;
   preferredJobRole: string | null;
   partnerOrganization: { id: string; name: string } | null;
+  sourceCompanyName: string | null;
   matchReason: string | null;
 };
 
@@ -207,14 +208,21 @@ export function MbtiResultPage({ slug }: { slug: string }) {
     : encodeURIComponent(`/events/mbti/result/${slug}`);
 
   return (
-    <div className="min-h-screen bg-background font-sans text-foreground antialiased">
-      <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-background">
-        <main className="flex-1 px-4 py-5">
+    <div className="min-h-screen bg-[#1c0f05] font-sans text-white antialiased">
+      <div className="relative mx-auto flex min-h-screen max-w-[480px] flex-col overflow-hidden bg-gradient-to-b from-[#1c0f05] via-[#3a230c] to-[#1c0f05]">
+        {/* 별·글로우 장식 — 랜딩과 동일 톤 */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <span className="absolute left-[26%] top-14 h-2 w-2 rounded-full bg-yellow-200/70 blur-[1px]" />
+          <span className="absolute right-[18%] top-24 h-1.5 w-1.5 rounded-full bg-white/80" />
+          <span className="absolute left-8 top-52 h-1 w-1 rounded-full bg-yellow-100/60" />
+          <span className="absolute left-1/2 top-16 h-72 w-72 -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl" />
+        </div>
+        <main className="relative z-10 flex-1 px-4 py-5">
           <div className="space-y-4">
             {loading ? (
-              <p className="text-center text-sm text-muted-foreground">{t("결과를 불러오는 중...", "Loading your result...", "正在载入结果...", "Đang tải kết quả...", "結果を読み込み中...", "Memuat hasil...")}</p>
+              <p className="text-center text-sm text-white/50">{t("결과를 불러오는 중...", "Loading your result...", "正在载入结果...", "Đang tải kết quả...", "結果を読み込み中...", "Memuat hasil...")}</p>
             ) : error ? (
-              <p className="text-center text-sm text-destructive">{error}</p>
+              <p className="text-center text-sm text-red-300">{error}</p>
             ) : prediction ? (
               <>
                 {/* ========================================================
@@ -222,35 +230,35 @@ export function MbtiResultPage({ slug }: { slug: string }) {
                     ====================================================== */}
 
                 {/* Hero card */}
-                <section className="rounded-3xl bg-gradient-to-br from-primary/10 via-white to-white p-6 text-center">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-primary">Aply × MBTI</p>
+                <section className="rounded-3xl bg-gradient-to-br from-amber-400/15 via-[#2a1608] to-[#1c0f05] p-6 text-center">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-amber-200">Aply × MBTI</p>
                   {prediction.name ? (
-                    <p className="mt-2 text-sm text-muted-foreground">{prediction.name}{t("의 결과", "'s result", "的结果", " — kết quả", "さんの結果", " — hasil")}</p>
+                    <p className="mt-2 text-sm text-white/50">{prediction.name}{t("의 결과", "'s result", "的结果", " — kết quả", "さんの結果", " — hasil")}</p>
                   ) : null}
-                  <p className="mt-3 font-display text-5xl font-black tracking-tight">
-                    {prediction.mbtiType}
+                  <p className="mt-3 text-5xl font-black tracking-tight">
+                    <span className="bg-gradient-to-r from-yellow-200 via-amber-300 to-yellow-200 bg-clip-text text-transparent">{prediction.mbtiType}</span>
                   </p>
-                  <p className="mt-3 text-sm font-semibold text-foreground">
+                  <p className="mt-3 text-sm font-semibold text-white">
                     {prediction.cultureSummary}
                   </p>
                 </section>
 
                 {/* Interpretation */}
-                <section className="rounded-2xl bg-white p-5">
-                  <h2 className="text-sm font-semibold text-muted-foreground">{t("한 줄 해석", "One-line reading", "一句话解读", "Tóm tắt một dòng", "ひとこと診断", "Ringkasan singkat")}</h2>
-                  <p className="mt-3 text-[14px] leading-relaxed text-foreground whitespace-pre-wrap">
+                <section className="rounded-2xl bg-white/[0.05] p-5">
+                  <h2 className="text-sm font-semibold text-white/50">{t("한 줄 해석", "One-line reading", "一句话解读", "Tóm tắt một dòng", "ひとこと診断", "Ringkasan singkat")}</h2>
+                  <p className="mt-3 text-[14px] leading-relaxed text-white whitespace-pre-wrap">
                     {prediction.interpretation}
                   </p>
                 </section>
 
                 {/* Recommended role categories (chips) */}
-                <section className="rounded-2xl bg-white p-5">
-                  <h2 className="text-sm font-semibold text-muted-foreground">{t("어울리는 직무", "Roles that fit", "适合的职务", "Nghề phù hợp", "合う職種", "Peran yang cocok")}</h2>
+                <section className="rounded-2xl bg-white/[0.05] p-5">
+                  <h2 className="text-sm font-semibold text-white/50">{t("어울리는 직무", "Roles that fit", "适合的职务", "Nghề phù hợp", "合う職種", "Peran yang cocok")}</h2>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {prediction.recommendedRoleNames.map((code) => (
                       <span
                         key={code}
-                        className="inline-flex items-center rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary"
+                        className="inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-200"
                       >
                         {roleLabel(code, t)}
                       </span>
@@ -316,14 +324,14 @@ export function MbtiResultPage({ slug }: { slug: string }) {
                     ====================================================== */}
 
                 {revealMore && prediction.strengths.length > 0 ? (
-                  <section className="rounded-2xl bg-white p-5">
-                    <h2 className="text-sm font-semibold text-muted-foreground">
+                  <section className="rounded-2xl bg-white/[0.05] p-5">
+                    <h2 className="text-sm font-semibold text-white/50">
                       💪 {prediction.mbtiType} {t("강점", "strengths", "的优势", "điểm mạnh", "の強み", "kekuatan")}
                     </h2>
-                    <ul className="mt-3 space-y-2 text-[14px] text-foreground">
+                    <ul className="mt-3 space-y-2 text-[14px] text-white">
                       {prediction.strengths.map((s, i) => (
                         <li key={i} className="flex gap-2">
-                          <span className="text-primary mt-1">•</span>
+                          <span className="text-amber-200 mt-1">•</span>
                           <span>{s}</span>
                         </li>
                       ))}
@@ -332,11 +340,11 @@ export function MbtiResultPage({ slug }: { slug: string }) {
                 ) : null}
 
                 {revealMore && prediction.koreanWorkplaceChallenges.length > 0 ? (
-                  <section className="rounded-2xl bg-white p-5">
-                    <h2 className="text-sm font-semibold text-muted-foreground">
+                  <section className="rounded-2xl bg-white/[0.05] p-5">
+                    <h2 className="text-sm font-semibold text-white/50">
                       {t("⚠️ 한국 직장에서 주의할 점", "⚠️ Watch-outs at Korean workplaces", "⚠️ 韩国职场需注意的点", "⚠️ Lưu ý tại nơi làm việc Hàn", "⚠️ 韓国の職場での注意点", "⚠️ Hal yang perlu diwaspadai di kerja Korea")}
                     </h2>
-                    <ul className="mt-3 space-y-2 text-[14px] text-foreground">
+                    <ul className="mt-3 space-y-2 text-[14px] text-white">
                       {prediction.koreanWorkplaceChallenges.map((s, i) => (
                         <li key={i} className="flex gap-2">
                           <span className="text-amber-600 mt-1">•</span>
@@ -350,29 +358,29 @@ export function MbtiResultPage({ slug }: { slug: string }) {
                 {revealMore && (prediction.companySizeFit || prediction.teamVibe) ? (
                   <section className="grid grid-cols-1 gap-3">
                     {prediction.companySizeFit ? (
-                      <div className="rounded-2xl bg-white p-5">
-                        <h2 className="text-xs font-semibold text-muted-foreground">{t("🏢 어울리는 회사 규모", "🏢 Company size that fits", "🏢 合适的公司规模", "🏢 Quy mô công ty phù hợp", "🏢 合う会社規模", "🏢 Skala perusahaan yang cocok")}</h2>
-                        <p className="mt-2 text-[14px] leading-relaxed text-foreground">{prediction.companySizeFit}</p>
+                      <div className="rounded-2xl bg-white/[0.05] p-5">
+                        <h2 className="text-xs font-semibold text-white/50">{t("🏢 어울리는 회사 규모", "🏢 Company size that fits", "🏢 合适的公司规模", "🏢 Quy mô công ty phù hợp", "🏢 合う会社規模", "🏢 Skala perusahaan yang cocok")}</h2>
+                        <p className="mt-2 text-[14px] leading-relaxed text-white">{prediction.companySizeFit}</p>
                       </div>
                     ) : null}
                     {prediction.teamVibe ? (
-                      <div className="rounded-2xl bg-white p-5">
-                        <h2 className="text-xs font-semibold text-muted-foreground">{t("🌱 어울리는 팀 분위기", "🌱 Team vibe that fits", "🌱 合适的团队氛围", "🌱 Không khí nhóm phù hợp", "🌱 合うチームの雰囲気", "🌱 Suasana tim yang cocok")}</h2>
-                        <p className="mt-2 text-[14px] leading-relaxed text-foreground">{prediction.teamVibe}</p>
+                      <div className="rounded-2xl bg-white/[0.05] p-5">
+                        <h2 className="text-xs font-semibold text-white/50">{t("🌱 어울리는 팀 분위기", "🌱 Team vibe that fits", "🌱 合适的团队氛围", "🌱 Không khí nhóm phù hợp", "🌱 合うチームの雰囲気", "🌱 Suasana tim yang cocok")}</h2>
+                        <p className="mt-2 text-[14px] leading-relaxed text-white">{prediction.teamVibe}</p>
                       </div>
                     ) : null}
                   </section>
                 ) : null}
 
                 {revealMore && prediction.interviewTips.length > 0 ? (
-                  <section className="rounded-2xl bg-white p-5">
-                    <h2 className="text-sm font-semibold text-muted-foreground">
+                  <section className="rounded-2xl bg-white/[0.05] p-5">
+                    <h2 className="text-sm font-semibold text-white/50">
                       🎯 {t("한국 면접 팁", "Korean interview tips", "韩国面试技巧", "Mẹo phỏng vấn Hàn", "韓国面接のコツ", "Tips wawancara Korea")} · {prediction.mbtiType}
                     </h2>
-                    <ul className="mt-3 space-y-2 text-[14px] text-foreground">
+                    <ul className="mt-3 space-y-2 text-[14px] text-white">
                       {prediction.interviewTips.map((s, i) => (
                         <li key={i} className="flex gap-2">
-                          <span className="text-primary mt-1 font-semibold">{i + 1}.</span>
+                          <span className="text-amber-200 mt-1 font-semibold">{i + 1}.</span>
                           <span>{s}</span>
                         </li>
                       ))}
@@ -381,41 +389,41 @@ export function MbtiResultPage({ slug }: { slug: string }) {
                 ) : null}
 
                 {revealMore && prediction.famousKoreans.length > 0 ? (
-                  <section className="rounded-2xl bg-white p-5">
-                    <h2 className="text-sm font-semibold text-muted-foreground">
+                  <section className="rounded-2xl bg-white/[0.05] p-5">
+                    <h2 className="text-sm font-semibold text-white/50">
                       🎤 {t("같은", "Same", "同款", "Cùng", "同じ", "Sama")} {prediction.mbtiType} K-pop {t("아이돌", "idols", "偶像", "idol", "アイドル", "idol")}
                     </h2>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {prediction.famousKoreans.map((name, i) => (
                         <span
                           key={i}
-                          className="inline-flex items-center rounded-full border border-border/60 bg-muted/30 px-3 py-1 text-xs font-semibold text-foreground"
+                          className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05]/[0.04] px-3 py-1 text-xs font-semibold text-white"
                         >
                           {name}
                         </span>
                       ))}
                     </div>
-                    <p className="mt-3 text-[11px] text-muted-foreground">
+                    <p className="mt-3 text-[11px] text-white/50">
                       {t("※ 인터넷·공개 인터뷰에서 회자되는 정보 기준이며, 실제 검사 결과는 아닙니다.", "※ Based on info circulating online / public interviews, not actual test results.", "※ 基于网络及公开采访流传的信息，并非实际测试结果。", "※ Dựa trên thông tin lan truyền trên mạng / phỏng vấn công khai, không phải kết quả kiểm tra thực tế.", "※ ネットや公開インタビューで語られる情報に基づくもので、実際の検査結果ではありません。", "※ Berdasarkan info yang beredar online / wawancara publik, bukan hasil tes sebenarnya.")}
                     </p>
                   </section>
                 ) : null}
 
                 {revealMore && prediction.goodMatchMbtis.length > 0 ? (
-                  <section className="rounded-2xl bg-white p-5">
-                    <h2 className="text-sm font-semibold text-muted-foreground">
+                  <section className="rounded-2xl bg-white/[0.05] p-5">
+                    <h2 className="text-sm font-semibold text-white/50">
                       {t("🤝 함께 일하면 시너지가 좋은 MBTI", "🤝 MBTIs you work great with", "🤝 合作有默契的 MBTI", "🤝 MBTI hợp tác ăn ý", "🤝 一緒に働くと相性のいいMBTI", "🤝 MBTI yang cocok diajak kerja")}
                     </h2>
                     <div className="mt-3 grid grid-cols-1 gap-2">
                       {prediction.goodMatchMbtis.map((m) => (
                         <div
                           key={m.type}
-                          className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-3"
+                          className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-3"
                         >
-                          <p className="font-display text-base font-black tracking-tight text-primary">
+                          <p className="text-base font-black tracking-tight text-amber-200">
                             {m.type}
                           </p>
-                          <p className="mt-1 text-[12px] leading-relaxed text-foreground">
+                          <p className="mt-1 text-[12px] leading-relaxed text-white">
                             {m.reason}
                           </p>
                         </div>
@@ -439,11 +447,11 @@ export function MbtiResultPage({ slug }: { slug: string }) {
                 {isAuthenticated && (prediction.greenFlags.length > 0 || prediction.redFlags.length > 0) ? (
                   <section className="grid grid-cols-1 gap-3">
                     {prediction.greenFlags.length > 0 ? (
-                      <div className="rounded-2xl bg-white p-5">
-                        <h2 className="text-sm font-semibold text-muted-foreground">
+                      <div className="rounded-2xl bg-white/[0.05] p-5">
+                        <h2 className="text-sm font-semibold text-white/50">
                           {t("✅ 잘 맞는 회사 시그널", "✅ Good-fit company signals", "✅ 合适公司的信号", "✅ Dấu hiệu công ty hợp", "✅ 相性のいい会社のサイン", "✅ Sinyal perusahaan yang cocok")}
                         </h2>
-                        <ul className="mt-3 space-y-2 text-[14px] text-foreground">
+                        <ul className="mt-3 space-y-2 text-[14px] text-white">
                           {prediction.greenFlags.map((s, i) => (
                             <li key={i} className="flex gap-2">
                               <span className="text-emerald-600 mt-1">•</span>
@@ -454,11 +462,11 @@ export function MbtiResultPage({ slug }: { slug: string }) {
                       </div>
                     ) : null}
                     {prediction.redFlags.length > 0 ? (
-                      <div className="rounded-2xl bg-white p-5">
-                        <h2 className="text-sm font-semibold text-muted-foreground">
+                      <div className="rounded-2xl bg-white/[0.05] p-5">
+                        <h2 className="text-sm font-semibold text-white/50">
                           {t("🚩 피하면 좋은 회사 시그널", "🚩 Company signals to avoid", "🚩 应避开公司的信号", "🚩 Dấu hiệu công ty nên tránh", "🚩 避けたい会社のサイン", "🚩 Sinyal perusahaan yang dihindari")}
                         </h2>
-                        <ul className="mt-3 space-y-2 text-[14px] text-foreground">
+                        <ul className="mt-3 space-y-2 text-[14px] text-white">
                           {prediction.redFlags.map((s, i) => (
                             <li key={i} className="flex gap-2">
                               <span className="text-rose-500 mt-1">•</span>
@@ -472,12 +480,12 @@ export function MbtiResultPage({ slug }: { slug: string }) {
                 ) : null}
 
                 {isAuthenticated ? (
-                  <section className="rounded-2xl bg-white p-5">
-                    <h2 className="text-sm font-semibold text-muted-foreground">
+                  <section className="rounded-2xl bg-white/[0.05] p-5">
+                    <h2 className="text-sm font-semibold text-white/50">
                       {t("추천 채용 공고", "Recommended job openings", "推荐招聘公告", "Tin tuyển dụng gợi ý", "おすすめ求人", "Lowongan rekomendasi")} · {prediction.mbtiType}
                     </h2>
                     {positions.length === 0 ? (
-                      <p className="mt-3 text-sm text-muted-foreground">
+                      <p className="mt-3 text-sm text-white/50">
                         {t("현재 매칭되는 채용 공고가 없어요. 새 공고가 올라오면 자동으로 알려드립니다.", "No matching openings right now. We'll notify you automatically when new ones are posted.", "目前没有匹配的招聘公告。有新公告时我们会自动通知你。", "Hiện chưa có tin phù hợp. Chúng tôi sẽ tự động báo khi có tin mới.", "現在マッチする求人はありません。新しい求人が出たら自動でお知らせします。", "Belum ada lowongan yang cocok. Kami akan memberi tahu otomatis saat ada yang baru.")}
                       </p>
                     ) : (
@@ -486,19 +494,19 @@ export function MbtiResultPage({ slug }: { slug: string }) {
                           <Link
                             key={p.id}
                             href={`/talent/jobs/${p.id}`}
-                            className="block rounded-xl border border-border/60 bg-muted/20 px-4 py-3 transition hover:border-primary/40 hover:bg-primary/5"
+                            className="block rounded-xl border border-white/10 bg-white/[0.05]/[0.03] px-4 py-3 transition hover:border-amber-300/40 hover:bg-amber-300/10"
                           >
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                              {p.partnerOrganization?.name ?? t("파트너 기업", "Partner company", "合作企业", "Công ty đối tác", "パートナー企業", "Perusahaan mitra")}
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-white/50">
+                              {p.partnerOrganization?.name ?? p.sourceCompanyName ?? t("기업", "Company", "企业", "Công ty", "企業", "Perusahaan")}
                             </p>
-                            <p className="mt-0.5 text-sm font-semibold text-foreground">{p.title}</p>
+                            <p className="mt-0.5 text-sm font-semibold text-white">{p.title}</p>
                             {p.preferredJobRole ? (
-                              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                              <p className="mt-0.5 text-[11px] text-white/50">
                                 {roleLabel(p.preferredJobRole, t)}
                               </p>
                             ) : null}
                             {p.matchReason ? (
-                              <p className="mt-2 inline-flex items-center gap-1 rounded-md bg-primary/5 px-2 py-1 text-[11px] font-semibold text-primary">
+                              <p className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-300/10 px-2 py-1 text-[11px] font-semibold text-amber-200">
                                 ✨ {p.matchReason}
                               </p>
                             ) : null}
@@ -513,18 +521,18 @@ export function MbtiResultPage({ slug }: { slug: string }) {
                     Bottom controls — always visible
                     ====================================================== */}
 
-                <section className="rounded-2xl bg-white p-5 space-y-3">
+                <section className="rounded-2xl bg-white/[0.05] p-5 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={copyShareLink}
-                      className="h-11 rounded-xl border border-border/60 bg-white text-sm font-semibold"
+                      className="h-11 rounded-xl border border-white/10 bg-white/[0.05] text-sm font-semibold"
                     >
                       {copied ? t("복사됨!", "Copied!", "已复制！", "Đã sao chép!", "コピー完了！", "Tersalin!") : t("결과 링크 복사", "Copy link", "复制链接", "Sao chép link", "リンクをコピー", "Salin tautan")}
                     </button>
                     <Link
                       href="/events/mbti"
-                      className="h-11 flex items-center justify-center rounded-xl border border-border/60 bg-white text-sm font-semibold"
+                      className="h-11 flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-sm font-semibold"
                     >
                       {t("다시 하기", "Try again", "再试一次", "Làm lại", "もう一度", "Coba lagi")}
                     </Link>
@@ -556,13 +564,13 @@ function LockedTeaser({
 }) {
   const t = usePlatformT();
   return (
-    <section className="rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/5 to-white p-6">
-      <p className="text-center text-[15px] font-bold text-foreground">{title}</p>
+    <section className="rounded-3xl border border-amber-300/25 bg-gradient-to-br from-amber-400/10 to-[#1c0f05] p-6">
+      <p className="text-center text-[15px] font-bold text-white">{title}</p>
       <ul className="mt-4 space-y-2">
         {items.map((label) => (
           <li
             key={label}
-            className="flex items-center gap-2.5 rounded-xl bg-muted/30 px-3.5 py-2.5 text-[13px] text-muted-foreground"
+            className="flex items-center gap-2.5 rounded-xl bg-white/[0.05]/[0.04] px-3.5 py-2.5 text-[13px] text-white/50"
           >
             <span className="text-base">🔒</span>
             <span>{label}</span>
@@ -572,11 +580,11 @@ function LockedTeaser({
       <button
         type="button"
         onClick={onCta}
-        className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-[15px] font-semibold text-primary-foreground transition hover:bg-primary/90"
+        className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-amber-400 text-[15px] font-semibold text-[#2a1608] transition hover:bg-amber-400"
       >
         {ctaLabel} →
       </button>
-      <p className="mt-2 text-center text-[11px] text-muted-foreground">
+      <p className="mt-2 text-center text-[11px] text-white/50">
         {t("가입 없이 1분이면 가능해요", "Takes a minute, no signup", "无需注册，1分钟即可", "Chỉ 1 phút, không cần đăng ký", "登録不要、1分でOK", "1 menit, tanpa daftar")}
       </p>
     </section>
@@ -623,14 +631,14 @@ function ProfileForm(props: {
   const langLevels = getLangLevels(t);
   const contactTypes = getContactTypes(t);
   const inputCls =
-    "h-11 w-full rounded-xl border-0 bg-muted/40 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
+    "h-11 w-full rounded-xl border-0 bg-white/[0.05]/[0.06] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50";
   const selectCls =
-    "h-11 w-full appearance-none rounded-xl border-0 bg-muted/40 px-3 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
+    "h-11 w-full appearance-none rounded-xl border-0 bg-white/[0.05]/[0.06] px-3 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50";
 
   return (
-    <section className="rounded-3xl border border-primary/25 bg-white p-5">
-      <p className="text-[15px] font-bold text-foreground">{t("실제 내 이력으로 추천 가능성 확인하기", "Check your fit with your real background", "用真实背景查看推荐可能性", "Kiểm tra độ phù hợp với hồ sơ thật", "実際の経歴で推薦可能性をチェック", "Cek kecocokan dengan latar belakang aslimu")}</p>
-      <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+    <section className="rounded-3xl border border-amber-300/25 bg-white/[0.05] p-5">
+      <p className="text-[15px] font-bold text-white">{t("실제 내 이력으로 추천 가능성 확인하기", "Check your fit with your real background", "用真实背景查看推荐可能性", "Kiểm tra độ phù hợp với hồ sơ thật", "実際の経歴で推薦可能性をチェック", "Cek kecocokan dengan latar belakang aslimu")}</p>
+      <p className="mt-1 text-[12px] leading-relaxed text-white/50">
         {t("국적·전공·비자·언어 조건만 입력하면 한국 기업 매칭 가능성을 바로 확인해드려요.", "Just your nationality, major, visa & language — we'll check your match with Korean companies right away.", "只需输入国籍·专业·签证·语言，立即查看与韩国企业的匹配可能性。", "Chỉ cần quốc tịch, chuyên ngành, visa & ngôn ngữ — kiểm tra ngay khả năng phù hợp với doanh nghiệp Hàn.", "国籍・専攻・ビザ・言語だけで、韓国企業とのマッチング可能性をすぐに確認します。", "Cukup kewarganegaraan, jurusan, visa & bahasa — langsung cek kecocokan dengan perusahaan Korea.")}
       </p>
 
@@ -661,7 +669,7 @@ function ProfileForm(props: {
                 <option key={role} value={role}>{role}</option>
               ))}
             </select>
-            <span aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">▾</span>
+            <span aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/50">▾</span>
           </div>
         </div>
 
@@ -704,7 +712,7 @@ function ProfileForm(props: {
               ))}
               <option value="OTHER">{t("기타", "Other", "其他", "Khác", "その他", "Lainnya")}</option>
             </select>
-            <span aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">▾</span>
+            <span aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/50">▾</span>
           </div>
         </div>
 
@@ -720,7 +728,7 @@ function ProfileForm(props: {
                   type="button"
                   onClick={() => props.onChangeKorean(active ? "" : opt.value)}
                   className={`h-10 rounded-xl border text-[12px] font-semibold ${
-                    active ? "border-primary bg-primary/5 text-primary" : "border-border/60 bg-muted/30"
+                    active ? "border-amber-400 bg-amber-300/10 text-amber-200" : "border-white/10 bg-white/[0.05]/[0.04]"
                   }`}
                 >
                   {opt.label}
@@ -742,7 +750,7 @@ function ProfileForm(props: {
                   type="button"
                   onClick={() => props.onChangeEnglish(active ? "" : opt.value)}
                   className={`h-10 rounded-xl border text-[12px] font-semibold ${
-                    active ? "border-primary bg-primary/5 text-primary" : "border-border/60 bg-muted/30"
+                    active ? "border-amber-400 bg-amber-300/10 text-amber-200" : "border-white/10 bg-white/[0.05]/[0.04]"
                   }`}
                 >
                   {opt.label}
@@ -760,7 +768,7 @@ function ProfileForm(props: {
               type="button"
               onClick={() => props.onChangeHasResume(props.hasResume === true ? null : true)}
               className={`h-10 rounded-xl border text-[12px] font-semibold ${
-                props.hasResume === true ? "border-primary bg-primary/5 text-primary" : "border-border/60 bg-muted/30"
+                props.hasResume === true ? "border-amber-400 bg-amber-300/10 text-amber-200" : "border-white/10 bg-white/[0.05]/[0.04]"
               }`}
             >
               {t("있어요", "Yes", "有", "Đã có", "あります", "Punya")}
@@ -769,7 +777,7 @@ function ProfileForm(props: {
               type="button"
               onClick={() => props.onChangeHasResume(props.hasResume === false ? null : false)}
               className={`h-10 rounded-xl border text-[12px] font-semibold ${
-                props.hasResume === false ? "border-primary bg-primary/5 text-primary" : "border-border/60 bg-muted/30"
+                props.hasResume === false ? "border-amber-400 bg-amber-300/10 text-amber-200" : "border-white/10 bg-white/[0.05]/[0.04]"
               }`}
             >
               {t("아직 없어요", "Not yet", "还没有", "Chưa có", "まだです", "Belum")}
@@ -791,7 +799,7 @@ function ProfileForm(props: {
                   <option key={c.value} value={c.value}>{c.label}</option>
                 ))}
               </select>
-              <span aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">▾</span>
+              <span aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/50">▾</span>
             </div>
             <input
               value={props.contact}
@@ -805,7 +813,7 @@ function ProfileForm(props: {
       </div>
 
       {/* Consents */}
-      <div className="mt-5 space-y-2.5 border-t border-border/40 pt-4">
+      <div className="mt-5 space-y-2.5 border-t border-white/10 pt-4">
         <ConsentRow
           checked={props.consentCareer}
           onChange={props.onChangeConsentCareer}
@@ -824,26 +832,26 @@ function ProfileForm(props: {
         />
       </div>
 
-      <p className="mt-3 text-[10.5px] leading-relaxed text-muted-foreground">
+      <p className="mt-3 text-[10.5px] leading-relaxed text-white/50">
         {t("수집 항목: 국적·학교·전공·비자·언어·희망 직무·연락처 / 이용 목적: 커리어 추천 및 한국 기업 매칭 / 보유 기간: 회원 미가입 시 수집일로부터 1년 후 파기.", "Collected: nationality, school, major, visa, language, preferred role, contact. Purpose: career recommendations & matching with Korean companies. Retention: deleted 1 year after collection if you don't sign up.", "收集项目：国籍·学校·专业·签证·语言·期望职位·联系方式 / 使用目的：职业推荐及韩国企业匹配 / 保存期限：未注册则自收集之日起 1 年后销毁。", "Thu thập: quốc tịch, trường, chuyên ngành, visa, ngôn ngữ, vị trí mong muốn, liên hệ. Mục đích: gợi ý nghề nghiệp & kết nối với doanh nghiệp Hàn. Lưu trữ: xóa sau 1 năm nếu không đăng ký.", "収集項目：国籍・学校・専攻・ビザ・言語・希望職種・連絡先 / 利用目的：キャリア推薦および韓国企業とのマッチング / 保有期間：未登録の場合は収集日から1年後に破棄。", "Dikumpulkan: kewarganegaraan, sekolah, jurusan, visa, bahasa, peran yang diinginkan, kontak. Tujuan: rekomendasi karier & pencocokan dengan perusahaan Korea. Penyimpanan: dihapus 1 tahun setelah pengumpulan jika tidak mendaftar.")}
       </p>
 
       {props.error ? (
-        <p className="mt-3 text-[12.5px] text-destructive">{props.error}</p>
+        <p className="mt-3 text-[12.5px] text-red-300">{props.error}</p>
       ) : null}
 
       <div className="mt-5 grid grid-cols-3 gap-2">
         <button
           type="button"
           onClick={props.onBack}
-          className="h-12 rounded-xl border border-border/60 bg-white text-sm font-semibold text-muted-foreground"
+          className="h-12 rounded-xl border border-white/10 bg-white/[0.05] text-sm font-semibold text-white/50"
         >
           {t("이전", "Back", "上一步", "Quay lại", "戻る", "Kembali")}
         </button>
         <button
           type="button"
           onClick={props.onSubmit}
-          className="col-span-2 h-12 rounded-xl bg-primary text-sm font-semibold text-primary-foreground"
+          className="col-span-2 h-12 rounded-xl bg-amber-400 text-sm font-semibold text-[#2a1608]"
         >
           {t("결과 더 보기", "See more results", "查看更多结果", "Xem thêm kết quả", "結果をもっと見る", "Lihat hasil lainnya")} →
         </button>
@@ -854,7 +862,7 @@ function ProfileForm(props: {
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="flex items-center gap-1 text-[12px] font-semibold text-foreground">
+    <label className="flex items-center gap-1 text-[12px] font-semibold text-white">
       {children}
       {required ? <span className="text-rose-500">*</span> : null}
     </label>
@@ -863,7 +871,7 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
 
 function OptionalTag() {
   const t = usePlatformT();
-  return <span className="text-[11px] font-normal text-muted-foreground">{t("(선택)", "(optional)", "(可选)", "(tùy chọn)", "(任意)", "(opsional)")}</span>;
+  return <span className="text-[11px] font-normal text-white/50">{t("(선택)", "(optional)", "(可选)", "(tùy chọn)", "(任意)", "(opsional)")}</span>;
 }
 
 function ConsentRow({
@@ -879,16 +887,16 @@ function ConsentRow({
 }) {
   const t = usePlatformT();
   return (
-    <label className="flex cursor-pointer items-start gap-2.5 text-[12.5px] leading-relaxed text-foreground">
+    <label className="flex cursor-pointer items-start gap-2.5 text-[12.5px] leading-relaxed text-white">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-4 w-4 shrink-0 rounded border-border/60 text-primary focus-visible:ring-2 focus-visible:ring-ring"
+        className="mt-0.5 h-4 w-4 shrink-0 rounded border-white/10 text-amber-200 focus-visible:ring-2 focus-visible:ring-amber-300/50"
       />
       <span>
         {label}{" "}
-        <span className={required ? "text-rose-500" : "text-muted-foreground"}>
+        <span className={required ? "text-rose-500" : "text-white/50"}>
           ({required ? t("필수", "required", "必填", "bắt buộc", "必須", "wajib") : t("선택", "optional", "可选", "tùy chọn", "任意", "opsional")})
         </span>
       </span>
@@ -899,15 +907,15 @@ function ConsentRow({
 function SignupGate({ apiBase, nextParam }: { apiBase: string; nextParam: string }) {
   const t = usePlatformT();
   return (
-    <section className="rounded-3xl border border-border/60 bg-white p-6 text-center">
-      <p className="text-[15px] font-bold text-foreground">
+    <section className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 text-center">
+      <p className="text-[15px] font-bold text-white">
         {t("🔒 회원가입하면 더 자세한 결과가 열려요", "🔒 Sign up to unlock the full result", "🔒 注册解锁更详细的结果", "🔒 Đăng ký để mở khóa kết quả đầy đủ", "🔒 会員登録で詳しい結果が開きます", "🔒 Daftar untuk buka hasil lengkap")}
       </p>
-      <ul className="mt-3 space-y-1.5 text-[13px] text-muted-foreground">
+      <ul className="mt-3 space-y-1.5 text-[13px] text-white/50">
         <li>{t("✅ 잘 맞는 / 🚩 피해야 할 회사 시그널", "✅ Good-fit / 🚩 avoid company signals", "✅ 合适 / 🚩 应避开的公司信号", "✅ Hợp / 🚩 nên tránh — dấu hiệu công ty", "✅ 相性◎ / 🚩 避けたい会社のサイン", "✅ Cocok / 🚩 dihindari — sinyal perusahaan")}</li>
         <li>{t("🎯 MBTI 매칭 채용 공고 + 사유", "🎯 MBTI-matched jobs + why", "🎯 MBTI 匹配招聘 + 理由", "🎯 Việc làm hợp MBTI + lý do", "🎯 MBTIに合う求人＋理由", "🎯 Lowongan cocok MBTI + alasan")}</li>
       </ul>
-      <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
+      <p className="mt-3 text-[12px] leading-relaxed text-white/50">
         {t("Aply 가입하면 결과를 저장하고, 새 공고가 올라올 때 자동으로 매칭 알림을 보내드려요.", "Sign up for Aply to save your result and get automatic match alerts when new jobs are posted.", "注册 Aply 即可保存结果，有新公告时自动发送匹配提醒。", "Đăng ký Aply để lưu kết quả và nhận thông báo phù hợp tự động khi có tin mới.", "Aplyに登録すると結果を保存し、新しい求人が出たら自動でマッチ通知をお送りします。", "Daftar Aply untuk menyimpan hasil dan menerima notifikasi kecocokan otomatis saat ada lowongan baru.")}
       </p>
       <div className="mt-5 flex w-full flex-col gap-2">
@@ -929,7 +937,7 @@ function SignupGate({ apiBase, nextParam }: { apiBase: string; nextParam: string
         </a>
         <a
           href={`${apiBase}/auth/google/start?next=${nextParam}`}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border/60 bg-white text-[14px] font-semibold text-foreground transition active:bg-muted/30"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] text-[14px] font-semibold text-white transition active:bg-white/[0.05]/[0.04]"
         >
           <svg aria-hidden className="h-4 w-4" viewBox="0 0 48 48">
             <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
@@ -941,7 +949,7 @@ function SignupGate({ apiBase, nextParam }: { apiBase: string; nextParam: string
         </a>
         <Link
           href={`/signup?next=${nextParam}`}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border/60 bg-muted/30 text-[14px] font-semibold text-foreground transition active:bg-muted/40"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.05]/[0.04] text-[14px] font-semibold text-white transition active:bg-white/[0.05]/[0.06]"
         >
           {t("이메일로 가입", "Sign up with email", "使用邮箱注册", "Đăng ký bằng email", "メールで登録", "Daftar dengan email")}
         </Link>

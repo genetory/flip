@@ -657,10 +657,9 @@ function ChatBubble({
 // User-side text-input row (이름/국적). Right-aligned so it matches the
 // user bubble side of the thread.
 function InlineInputRow({ children }: { children: React.ReactNode }) {
+  // 이름·국적 입력은 좌우 꽉 채우되 양쪽 패딩만 살짝 준다.
   return (
-    <div className="flex justify-end">
-      <div className="flex w-full max-w-[85%] flex-wrap gap-2">{children}</div>
-    </div>
+    <div className="flex w-full flex-wrap items-center gap-2 px-1">{children}</div>
   );
 }
 

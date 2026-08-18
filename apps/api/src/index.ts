@@ -8563,30 +8563,56 @@ app.get("/mbti/result/:slug", async (req, res) => {
   const prediction = await prisma.mbtiPrediction.findUnique({ where: { shareSlug: slug } });
   if (!prediction) return res.status(404).json({ ok: false, message: "not found" });
 
-  const positions = prediction.recommendedPositionIds.length
-    ? await prisma.position.findMany({
-        where: { id: { in: prediction.recommendedPositionIds }, status: PositionStatus.OPEN },
-        include: { partnerOrganization: { select: { id: true, name: true } } }
-      })
-    : [];
-  // Preserve the ranked order we stored.
-  const byId = new Map(positions.map((p) => [p.id, p]));
-  // Static reasons live in the data module; resolve at read time so old
-  // predictions get the latest copy without a migration.
   const isType = isMbtiType(prediction.mbtiType);
   const mbtiType = isType ? (prediction.mbtiType as MbtiType) : null;
-  const orderedPositions = prediction.recommendedPositionIds
-    .map((id) => byId.get(id))
-    .filter((p): p is NonNullable<typeof p> => Boolean(p))
-    .map((p) => ({
-      id: p.id,
-      title: p.title,
-      preferredJobRole: p.preferredJobRole,
-      partnerOrganization: p.partnerOrganization
-        ? { id: p.partnerOrganization.id, name: p.partnerOrganization.name }
-        : null,
-      matchReason: mbtiType ? getMatchReason(mbtiType, p.preferredJobRole as MbtiRoleCode | null) : null
-    }));
+
+  // 실제 공고를 라이브로 추천 — 저장된 고정 IDs 대신 현재 열려있는 공고에서 뽑는다.
+  // CIP(APLY 자체·INTERNAL)를 우선하고, 외부(원티드 등)로 채운다. 오래된 결과도 최신 공고가 보인다.
+  const roles = (prediction.recommendedRoleNames ?? []) as CandidatePreferredJobRole[];
+  const posSelect = {
+    id: true,
+    title: true,
+    preferredJobRole: true,
+    sourceCompanyName: true,
+    createdAt: true,
+    partnerOrganization: { select: { id: true, name: true } }
+  } as const;
+  const internalRows = await prisma.position.findMany({
+    where: {
+      status: PositionStatus.OPEN,
+      sourceProvider: PositionSourceProvider.INTERNAL,
+      ...(roles.length ? { preferredJobRole: { in: roles } } : {})
+    },
+    orderBy: { createdAt: "desc" },
+    take: 12,
+    select: posSelect
+  });
+  const externalRows = await prisma.position.findMany({
+    where: { status: PositionStatus.OPEN, sourceProvider: { not: PositionSourceProvider.INTERNAL } },
+    orderBy: { createdAt: "desc" },
+    take: 12,
+    select: posSelect
+  });
+  // CIP 우선(최대 4) → 외부로 채움(최대 6) → 남으면 CIP 로 백필.
+  type PosRow = (typeof internalRows)[number];
+  const picked: PosRow[] = [];
+  const pushUnique = (rows: PosRow[], cap: number) => {
+    for (const r of rows) {
+      if (picked.length >= cap) break;
+      if (!picked.some((p) => p.id === r.id)) picked.push(r);
+    }
+  };
+  pushUnique(internalRows, 4);
+  pushUnique(externalRows, 6);
+  pushUnique(internalRows, 6);
+  const orderedPositions = picked.map((p) => ({
+    id: p.id,
+    title: p.title,
+    preferredJobRole: p.preferredJobRole,
+    partnerOrganization: p.partnerOrganization ? { id: p.partnerOrganization.id, name: p.partnerOrganization.name } : null,
+    sourceCompanyName: p.sourceCompanyName ?? null,
+    matchReason: mbtiType ? getMatchReason(mbtiType, p.preferredJobRole as MbtiRoleCode | null) : null
+  }));
 
   // Rich profile fields are static per-type, so we read them out of the
   // catalog at response time rather than persisting them in the row.
