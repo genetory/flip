@@ -412,7 +412,7 @@ function QuestionStep({
         onChange={(e) => onChange(e.target.value)}
         rows={5}
         placeholder={t("답변을 적어보세요. (STAR: 상황·과제·행동·결과)", "Write your answer. (STAR: Situation, Task, Action, Result)", "写下你的回答。（STAR：情境·任务·行动·结果）", "Viết câu trả lời. (STAR: Tình huống·Nhiệm vụ·Hành động·Kết quả)", "回答を書いてください。（STAR：状況・課題・行動・結果）", "Tulis jawaban Anda. (STAR: Situasi·Tugas·Aksi·Hasil)")}
-        className="w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[13.5px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
+        className="w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[16px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
       />
       <button
         type="button"
