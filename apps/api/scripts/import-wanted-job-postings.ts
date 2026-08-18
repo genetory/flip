@@ -351,14 +351,14 @@ async function main() {
     `foreignerPages=${MAX_PAGES} generalPages=${GENERAL_MAX_PAGES} delayMs=${REQUEST_DELAY_MS}`
   );
 
-  // WANTED_PURGE_BEFORE_IMPORT=true 이면 크롤 전에 기존 외부 크롤 공고(WANTED·BUDDIES)를 전부
-  // 삭제하고 새로 넣는다. Buddies 폐지 + 누적 잔재 정리용 1회성 스위치(기본 false).
-  // onDelete: Cascade 로 자식 레코드는 자동 정리된다.
+  // WANTED_PURGE_BEFORE_IMPORT=true 이면 크롤 전에 기존 외부 크롤 공고를 전부 삭제하고 새로 넣는다.
+  // 대상: 모든 EXTERNAL(원티드·버디즈·코워크/OTHER) — Aply CIP(INTERNAL)는 건드리지 않는다.
+  // 누적 잔재 정리용 1회성 스위치(기본 false). onDelete: Cascade 로 자식 레코드는 자동 정리.
   if (String(process.env.WANTED_PURGE_BEFORE_IMPORT ?? "false").toLowerCase() === "true") {
     const del = await prisma.position.deleteMany({
-      where: { sourceKind: PositionSourceKind.EXTERNAL, sourceProvider: { in: [PositionSourceProvider.WANTED, PositionSourceProvider.BUDDIES] } }
+      where: { sourceKind: PositionSourceKind.EXTERNAL }
     });
-    console.info(`[wanted-import] PURGE_BEFORE_IMPORT=true — deleted ${del.count} external(WANTED/BUDDIES) positions`);
+    console.info(`[wanted-import] PURGE_BEFORE_IMPORT=true — deleted ${del.count} external(ALL: WANTED/BUDDIES/OTHER) positions`);
   }
 
   const totals = { created: 0, updated: 0, skipped: 0, seen: 0 };
