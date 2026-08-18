@@ -223,10 +223,10 @@ function CandidateCard({ c, saved, onToggleSave, ensure }: { c: PartnerCandidate
           {c.name && c.desiredJobRole ? <p className="mt-1 truncate text-[13px] font-semibold text-[#4E5968]">{c.desiredJobRole}</p> : null}
 
           <div className="mt-2 flex flex-col gap-1">
-            {edu ? <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><GraduationCap className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> <span className="truncate">{edu}</span></span> : null}
+            {edu ? <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><GraduationCap className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> <span className="truncate">{edu}</span></span> : null}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               {c.nationality ? <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><Globe className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> {c.nationality}</span> : null}
-              {c.languages.length ? <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><Translate className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> <span className="truncate">{c.languages.slice(0, 2).join(", ")}</span></span> : null}
+              {c.languages.length ? <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><Translate className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> <span className="truncate">{c.languages.slice(0, 2).join(", ")}</span></span> : null}
               {c.careerCount > 0 ? <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><Briefcase className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> {t(`경력 ${c.careerCount}`, `Career ${c.careerCount}`, `经历 ${c.careerCount}`, `Kinh nghiệm ${c.careerCount}`, `経歴 ${c.careerCount}`, `Pengalaman ${c.careerCount}`)}</span> : null}
             </div>
           </div>

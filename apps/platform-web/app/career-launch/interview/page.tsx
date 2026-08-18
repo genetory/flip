@@ -106,7 +106,7 @@ export default function InterviewPage() {
     <div className="flex min-h-screen flex-col bg-white">
       <CareerLaunchHeader />
       <main className="flex-1">
-        <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-5xl flex-col px-5 pb-4 pt-4 md:pt-6">
+        <div className="mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-5xl flex-col px-5 pt-4 md:pt-6" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}>
           <div className="flex items-center justify-between gap-3">
             <Link href="/career-launch/week/4" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("4주차", "Week 4", "第4周", "Tuần 4", "4週目", "Minggu 4")}
@@ -197,7 +197,7 @@ export default function InterviewPage() {
                   rows={1}
                   placeholder={t("면접관의 질문에 답해보세요", "Answer the interviewer's question", "请回答面试官的问题", "Hãy trả lời câu hỏi của người phỏng vấn", "面接官の質問に答えてみましょう", "Jawab pertanyaan pewawancara")}
                   disabled={loading}
-                  className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
+                  className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[16px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
                 />
                 <button
                   type="submit"

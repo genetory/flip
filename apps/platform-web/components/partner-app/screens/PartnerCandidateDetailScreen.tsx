@@ -255,8 +255,8 @@ function ConnectModal({ candidateUserId, name, onClose, onDone }: { candidateUse
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div className="w-full max-w-[440px] overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-[440px] overflow-hidden rounded-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 pt-6">
           <p className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t(`${name}에게 연결 요청`, `Connect with ${name}`, `向 ${name} 发送连接请求`, `Kết nối với ${name}`, `${name}さんへつながり申請`, `Terhubung dengan ${name}`)}</p>
           <p className="mt-1 text-[12.5px] text-[#8B95A1]">{t("수락하면 연락처가 공유돼요. 간단한 인사를 남겨보세요.", "Once accepted, contact info is shared. Leave a short greeting.", "接受后将共享联系方式。留下简短问候吧。", "Khi được chấp nhận, thông tin liên hệ sẽ được chia sẻ. Hãy để lại lời chào ngắn.", "承認されると連絡先が共有されます。簡単な挨拶を残してください。", "Setelah diterima, kontak akan dibagikan. Tinggalkan sapaan singkat.")}</p>

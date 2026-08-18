@@ -64,8 +64,8 @@ export function ProposeCandidateModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div className="w-full max-w-[440px] overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-[440px] overflow-hidden rounded-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 pt-6">
           <p className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t(`${name} 님에게 제안`, `Propose to ${name}`, `向 ${name} 发送提议`, `Đề nghị với ${name}`, `${name} さんへ提案`, `Ajukan ke ${name}`)}</p>
           <p className="mt-1 text-[12.5px] text-[#8B95A1]">{t("수락하면 연락처가 공유돼요. 면접 시간을 함께 제안할 수 있어요.", "If accepted, contact details are shared. You can also propose an interview time.", "对方接受后将共享联系方式，您还可一并提议面试时间。", "Nếu chấp nhận, thông tin liên hệ sẽ được chia sẻ. Bạn cũng có thể đề nghị giờ phỏng vấn.", "承諾されると連絡先が共有されます。面接時間も一緒に提案できます。", "Jika diterima, kontak akan dibagikan. Anda juga bisa mengusulkan waktu wawancara.")}</p>

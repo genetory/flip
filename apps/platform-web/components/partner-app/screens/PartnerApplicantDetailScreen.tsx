@@ -492,9 +492,9 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                   ) : slots.length ? (
                     <ul className="flex flex-col gap-2">
                       {slots.map((s) => (
-                        <li key={s.id} className="flex items-center justify-between rounded-xl bg-[#F5F6F8] px-3.5 py-2.5">
-                          <span className="text-[13px] text-[#191F28]">{fmtWhen(s.startsAt)}{s.location ? ` · ${s.location}` : ""}</span>
-                          <span className={`text-[11.5px] font-bold ${s.status === "SELECTED" ? "text-[#12B76A]" : s.status === "CANCELLED" ? "text-[#B0B8C1]" : "text-[#E8890C]"}`}>
+                        <li key={s.id} className="flex items-center justify-between gap-2 rounded-xl bg-[#F5F6F8] px-3.5 py-2.5">
+                          <span className="min-w-0 truncate text-[13px] text-[#191F28]">{fmtWhen(s.startsAt)}{s.location ? ` · ${s.location}` : ""}</span>
+                          <span className={`shrink-0 text-[11.5px] font-bold ${s.status === "SELECTED" ? "text-[#12B76A]" : s.status === "CANCELLED" ? "text-[#B0B8C1]" : "text-[#E8890C]"}`}>
                             {s.status === "SELECTED" ? t("확정", "Confirmed", "已确定", "Đã xác nhận", "確定", "Dikonfirmasi") : s.status === "CANCELLED" ? t("취소", "Cancelled", "已取消", "Đã hủy", "取消", "Dibatalkan") : t("대기", "Pending", "待定", "Chờ", "保留", "Menunggu")}
                           </span>
                         </li>
@@ -679,8 +679,8 @@ function ConfirmStatusModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div className="max-h-[88vh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="max-h-[88vh] w-full max-w-[440px] overflow-y-auto rounded-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 pt-6">
           <p className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t(`상태를 ‘${label}’로 변경할까요?`, `Change status to '${label}'?`, `将状态改为'${label}'吗？`, `Đổi trạng thái thành '${label}'?`, `ステータスを'${label}'に変更しますか？`, `Ubah status menjadi '${label}'?`)}</p>
           <p className="mt-2 text-[13.5px] leading-relaxed text-[#4E5968]">
@@ -739,8 +739,8 @@ function ProposeModal({ applicationId, onClose, onDone }: { applicationId: strin
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div className="w-full max-w-[440px] overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-[440px] overflow-hidden rounded-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-[#F2F4F6] px-5 py-4">
           <p className="text-[15px] font-bold text-[#191F28]">{t("면접 시간 제안", "Propose interview times", "提议面试时间", "Đề xuất giờ phỏng vấn", "面接時間を提案", "Usulkan waktu wawancara")}</p>
           <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>

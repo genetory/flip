@@ -97,7 +97,7 @@ export function PositionCard({
                 aria-label={saved ? t("저장 취소", "Unsave", "取消收藏", "Bỏ lưu", "保存を解除", "Batal simpan") : t("저장", "Save", "收藏", "Lưu", "保存", "Simpan")}
                 aria-pressed={saved}
                 onClick={() => onToggleSave(view.id)}
-                className={`pointer-events-auto relative z-10 rounded-full p-1.5 transition ${saved ? "text-[#0B46E8]" : "text-[#B0B8C1] hover:text-[#4E5968]"}`}
+                className={`pointer-events-auto relative z-10 -m-1 rounded-full p-2.5 transition ${saved ? "text-[#0B46E8]" : "text-[#B0B8C1] hover:text-[#4E5968]"}`}
               >
                 <BookmarkSimple className="h-5 w-5" weight={saved ? "fill" : "regular"} />
               </button>

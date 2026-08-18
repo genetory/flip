@@ -84,8 +84,8 @@ export function SectionChatModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-[#0B1227]/40 p-0 sm:items-center sm:p-4" onClick={onClose}>
-      <div className="flex h-[82vh] w-full max-w-[460px] flex-col overflow-hidden rounded-t-3xl bg-white sm:h-[76vh] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0B1227]/40 p-4" onClick={onClose}>
+      <div className="flex h-[82vh] w-full max-w-[460px] flex-col overflow-hidden rounded-3xl bg-white sm:h-[76vh] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
         <div className="flex items-center justify-between gap-2 border-b border-[#EEF1F5] px-5 py-3.5">
           <div className="flex items-center gap-2.5">

@@ -381,8 +381,8 @@ function CompareModal({ applicants, onClose }: { applicants: PartnerApplicantLis
     { label: t("지원일", "Applied date", "申请日期", "Ngày ứng tuyển", "応募日", "Tanggal melamar"), get: (a) => (a.appliedAt ? new Date(a.appliedAt).toLocaleDateString("ko-KR") : "-") }
   ];
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div className="flex max-h-[90vh] w-full max-w-[640px] flex-col overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-full max-w-[640px] flex-col overflow-hidden rounded-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <p className="text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">{t("지원자 비교", "Compare applicants", "申请者比较", "So sánh ứng viên", "応募者比較", "Bandingkan pelamar")} ({applicants.length})</p>
           <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
@@ -467,8 +467,8 @@ function RejectModal({ target, onClose, onConfirm }: { target: PartnerApplicantL
   const [send, setSend] = useState(true);
   const canMessage = !!target.applicationId;
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div className="flex max-h-[90vh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-full max-w-[480px] flex-col overflow-hidden rounded-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0">
             <p className="text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">{t("불합격 처리", "Reject applicant", "标记未录用", "Đánh dấu không đạt", "不合格にする", "Tolak pelamar")}</p>

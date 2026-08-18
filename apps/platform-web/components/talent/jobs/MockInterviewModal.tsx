@@ -255,8 +255,8 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
 
   return (
     <>
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div className="flex h-[90vh] w-full max-w-[560px] flex-col overflow-hidden rounded-t-3xl bg-white sm:h-[680px] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex h-[90vh] w-full max-w-[560px] flex-col overflow-hidden rounded-3xl bg-white sm:h-[680px] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0">

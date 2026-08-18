@@ -258,7 +258,7 @@ export function JobsScreen() {
           </div>
 
           {/* 외국인 필터(좌) · 정렬(우) */}
-          <div className="mb-5 flex items-center justify-between gap-3">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <ToggleSwitch on={foreignerOnly} onChange={setForeignerOnly} label={t("외국인도 지원 가능", "Open to foreigners", "外国人可申请", "Người nước ngoài có thể ứng tuyển", "外国人も応募可", "Terbuka untuk WNA")} />
             <div className="flex items-center gap-3.5">
               <SortText on={sort === "latest"} onClick={() => setSort("latest")}>{t("최신순", "Latest", "最新", "Mới nhất", "新着順", "Terbaru")}</SortText>

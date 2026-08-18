@@ -350,8 +350,8 @@ function ChatModal({ applicationId, applicantId, name, positionTitle, onClose, o
   const chat = messages.filter((m) => m.visibility === "CANDIDATE");
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div className="flex h-[80vh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-3xl bg-white sm:h-[560px] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex h-[80vh] w-full max-w-[440px] flex-col overflow-hidden rounded-3xl bg-white sm:h-[560px] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0">
             <p className="truncate text-[15px] font-bold text-[#191F28]">{name}</p>

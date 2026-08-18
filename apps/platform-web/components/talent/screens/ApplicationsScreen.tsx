@@ -233,8 +233,8 @@ function MessageModal({ app, onClose }: { app: MyApplication; onClose: () => voi
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div className="flex h-[82vh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-3xl bg-white sm:h-[560px] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex h-[82vh] w-full max-w-[480px] flex-col overflow-hidden rounded-3xl bg-white sm:h-[560px] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
         <div className="flex items-center gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0 flex-1">
@@ -485,8 +485,8 @@ function ProgressModal({ app, onClose }: { app: MyApplication; onClose: () => vo
   }, [app.id]);
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div className="flex max-h-[85vh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex max-h-[85vh] w-full max-w-[480px] flex-col overflow-hidden rounded-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0">
             <p className="text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">{tr("진행 내역", "Progress", "进度记录", "Tiến trình", "進捗履歴", "Progres")}</p>
@@ -720,8 +720,8 @@ function InterviewSlotModal({ app, onClose }: { app: MyApplication; onClose: () 
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0B1227]/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div className="flex max-h-[85vh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex max-h-[85vh] w-full max-w-[440px] flex-col overflow-hidden rounded-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-bold text-[#191F28]">{tr("면접 시간 선택", "Choose interview time", "选择面试时间", "Chọn giờ phỏng vấn", "面接時間の選択", "Pilih waktu wawancara")}</p>

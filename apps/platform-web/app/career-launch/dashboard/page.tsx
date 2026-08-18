@@ -375,7 +375,7 @@ export default function LaunchDashboardPage() {
               {/* 내 결과물 — 이력서·자기소개서 미리보기(없으면 점선 placeholder) */}
               <div id="deliverables" className="scroll-mt-20 space-y-4">
                 <SectionTitle sub={t("대화로 만드는 이력서와 자기소개서", "A resume and cover letter built through conversation", "对话即可完成的简历与求职信", "Hồ sơ và thư tự giới thiệu tạo qua trò chuyện", "会話で作る履歴書と自己紹介書", "Resume dan cover letter dari percakapan")}>{t("내 결과물", "My deliverables", "我的成果", "Kết quả của tôi", "私の成果物", "Hasil saya")}</SectionTitle>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <DeliverableCard
                     title={t("내 이력서", "My resume", "我的简历", "Hồ sơ của tôi", "私の履歴書", "Resume saya")}
                     ready={resumeReady}
