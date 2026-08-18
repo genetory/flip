@@ -9530,6 +9530,7 @@ app.get("/positions", async (req, res) => {
       const scored = candidates.map((item) => {
         const distance = distanceById.get(item.id) ?? 1;
         const semantic = Math.max(0, 1 - distance);
+        // 랭킹용 — JD 본문 포함 전체 필드로 점수.
         const lexical = keywordScore(
           {
             title: item.title,
@@ -9542,10 +9543,28 @@ app.get("/positions", async (req, res) => {
           },
           trimmedSearch
         );
-        return { item, score: SEMANTIC_WEIGHT * semantic + KEYWORD_WEIGHT * lexical };
+        // 게이트용 — 제목·직무·지역·회사명만(강한 신호). JD 본문의 우연한 부분 매칭
+        // (예: '의사'가 '의사소통'에 걸림)으로 무관 공고가 남는 것을 막는다.
+        const lexicalStrong = keywordScore(
+          {
+            title: item.title,
+            preferredJobRole: item.preferredJobRole,
+            workLocation: item.workLocation,
+            mainResponsibilities: null,
+            requiredQualifications: null,
+            preferredQualifications: null,
+            partnerOrganizationName: item.partnerOrganization?.name ?? null
+          },
+          trimmedSearch
+        );
+        return { item, semantic, lexicalStrong, score: SEMANTIC_WEIGHT * semantic + KEYWORD_WEIGHT * lexical };
       });
       scored.sort((a, b) => b.score - a.score);
-      const top = scored.slice(0, limit).map((entry) => entry.item);
+      // 관련성 하한 — 무관한 검색어에도 '가장 가까운' 공고를 채워 넣던 문제 방지.
+      // 제목·직무·회사·지역에 키워드가 있거나(강한 매칭) 시맨틱이 충분히 가까운 것만 남긴다.
+      const SEMANTIC_FLOOR = 0.65;
+      const relevant = scored.filter((e) => e.lexicalStrong > 0 || e.semantic >= SEMANTIC_FLOOR);
+      const top = relevant.slice(0, limit).map((entry) => entry.item);
 
       // 목록은 번역을 기다리지 않는다 — 캐시가 없으면 원문을 보여주고 뒤에서 채운다.
       const hybridTranslations = wantTranslation
