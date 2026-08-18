@@ -70,8 +70,12 @@ const nextConfig = {
       { source: "/partner-profile/verification/:path*", destination: "/partner/company", permanent: true },
       { source: "/partner-profile/:path*", destination: "/partner/profile", permanent: true },
 
-      // 공개 이벤트·마케팅(리뉴얼 트윈 없음) → 리뉴얼 랜딩
-      { source: "/events/:path*", destination: "/", permanent: true },
+      // 공개 이벤트·마케팅(리뉴얼 트윈 없음) → 리뉴얼 랜딩.
+      // 단, MBTI·사주(/events/mbti·/events/saju)는 탤런트 홈 배너에서 쓰므로 예외(차단하지 않음).
+      { source: "/events", destination: "/", permanent: true },
+      { source: "/events/hanpass/:path*", destination: "/", permanent: true },
+      { source: "/events/visa/:path*", destination: "/", permanent: true },
+      { source: "/events/seoul-global-center/:path*", destination: "/", permanent: true },
       { source: "/business/:path*", destination: "/", permanent: true },
       { source: "/pricing", destination: "/", permanent: true },
       { source: "/community", destination: "/", permanent: true },
