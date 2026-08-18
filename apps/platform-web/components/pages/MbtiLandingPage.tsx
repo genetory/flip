@@ -91,6 +91,7 @@ export function MbtiLandingPage() {
   const t = usePlatformT();
   const { locale, setLocale } = useLanguage();
   const [langOpen, setLangOpen] = useState(false);
+  const [pendingLocale, setPendingLocale] = useState<PlatformLocale | null>(null);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [step, setStep] = useState<Step>({ kind: "intro" });
@@ -144,6 +145,29 @@ export function MbtiLandingPage() {
       }
     }
     await copyShareLink(url);
+  }
+
+  // 언어 선택 — 진행 중이면 초기화 확인 팝업, 아니면 바로 변경.
+  function chooseLanguage(code: PlatformLocale) {
+    setLangOpen(false);
+    if (code === locale) return;
+    const hasProgress = Object.keys(quizAnswers).length > 0 || !!name || !!nationality;
+    if (hasProgress) setPendingLocale(code);
+    else setLocale(code);
+  }
+  // 확인 시 — 언어 변경 + 진행 상태 초기화(intro effect가 새 언어로 재시작).
+  function confirmLanguageChange() {
+    if (!pendingLocale) return;
+    setLocale(pendingLocale);
+    setPendingLocale(null);
+    setMessages([]);
+    setStep({ kind: "intro" });
+    setQuizAnswers({});
+    setName("");
+    setNationality("");
+    setPendingText("");
+    setError(null);
+    setSubmitting(false);
   }
 
   const pushUser = useCallback((text: string, stepKey: string | null) => {
@@ -480,7 +504,7 @@ export function MbtiLandingPage() {
                 <li key={code}>
                   <button
                     type="button"
-                    onClick={() => { setLocale(code); setLangOpen(false); }}
+                    onClick={() => chooseLanguage(code)}
                     className={`block w-full px-3 py-2 text-left transition ${code === locale ? "bg-yellow-300/10 text-yellow-100" : "text-white/75 active:bg-white/10"}`}
                   >
                     {LOCALE_LABELS[code]}
@@ -561,6 +585,23 @@ export function MbtiLandingPage() {
             </div>
           </section>
         </main>
+
+        {/* 언어 변경 확인 — 진행 내용 초기화 안내 */}
+        {pendingLocale ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setPendingLocale(null)}>
+            <div className="w-full max-w-[340px] rounded-3xl border border-white/10 bg-gradient-to-b from-[#3a230c] to-[#1c0f05] p-6 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="mx-auto mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-yellow-300/15 text-yellow-100">
+                <Globe weight="bold" className="h-5 w-5" />
+              </div>
+              <p className="text-[16px] font-bold text-white">{t("언어를 변경할까요?", "Change language?", "要更改语言吗？", "Đổi ngôn ngữ?", "言語を変更しますか？", "Ubah bahasa?")}</p>
+              <p className="mx-auto mt-2 max-w-[280px] break-keep text-[13px] leading-relaxed text-white/70">{t("지금까지 진행한 내용이 초기화되고, 선택한 언어로 처음부터 다시 시작해요.", "Your progress will reset and start over in the selected language.", "当前进度将重置，并以所选语言重新开始。", "Tiến trình hiện tại sẽ đặt lại và bắt đầu lại bằng ngôn ngữ đã chọn.", "現在の進行内容がリセットされ、選択した言語で最初からやり直します。", "Progres saat ini akan direset dan dimulai ulang dalam bahasa yang dipilih.")}</p>
+              <div className="mt-5 flex gap-2">
+                <button type="button" onClick={() => setPendingLocale(null)} className="h-11 flex-1 rounded-xl bg-white/10 text-[14px] font-semibold text-white/80 transition active:bg-white/20">{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</button>
+                <button type="button" onClick={confirmLanguageChange} className="h-11 flex-1 rounded-xl bg-gradient-to-r from-yellow-300 to-amber-400 text-[14px] font-bold text-[#2a1608] transition active:opacity-90">{t("변경하기", "Change", "更改", "Đổi", "変更する", "Ubah")}</button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
