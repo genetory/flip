@@ -9559,11 +9559,24 @@ app.get("/positions", async (req, res) => {
         );
         return { item, semantic, lexicalStrong, score: SEMANTIC_WEIGHT * semantic + KEYWORD_WEIGHT * lexical };
       });
-      scored.sort((a, b) => b.score - a.score);
       // 관련성 하한 — 무관한 검색어에도 '가장 가까운' 공고를 채워 넣던 문제 방지.
       // 제목·직무·회사·지역에 키워드가 있거나(강한 매칭) 시맨틱이 충분히 가까운 것만 남긴다.
       const SEMANTIC_FLOOR = 0.65;
       const relevant = scored.filter((e) => e.lexicalStrong > 0 || e.semantic >= SEMANTIC_FLOOR);
+      // 검색 결과도 사용자 정렬(최신순/마감임박순)을 따른다 — 비검색 목록과 동일 기준.
+      // 동점(같은 날짜/마감)은 관련도 점수로 보조 정렬한다.
+      relevant.sort((a, b) => {
+        if (sortMode === "deadline") {
+          const ad = a.item.sourceDeadlineDate ? a.item.sourceDeadlineDate.getTime() : Number.POSITIVE_INFINITY;
+          const bd = b.item.sourceDeadlineDate ? b.item.sourceDeadlineDate.getTime() : Number.POSITIVE_INFINITY;
+          if (ad !== bd) return ad - bd; // 임박한(이른) 마감 먼저, NULL은 뒤로
+        } else {
+          const ac = a.item.createdAt.getTime();
+          const bc = b.item.createdAt.getTime();
+          if (ac !== bc) return sortOrder === "asc" ? ac - bc : bc - ac; // 최신순(desc 기본)
+        }
+        return b.score - a.score;
+      });
       const top = relevant.slice(0, limit).map((entry) => entry.item);
 
       // 목록은 번역을 기다리지 않는다 — 캐시가 없으면 원문을 보여주고 뒤에서 채운다.
