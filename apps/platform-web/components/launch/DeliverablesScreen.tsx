@@ -185,12 +185,12 @@ function ReadinessProfile({ prog, t }: { prog: CareerProgress | null; t: ReturnT
         <p className="text-[13px] font-bold text-[#8B95A1]">{t("취업 준비도", "Job readiness", "求职准备度", "Mức độ sẵn sàng", "就職準備度", "Kesiapan kerja")}</p>
         <Link href="/career-launch/diagnosis" className="shrink-0 text-[12px] font-bold text-[#0B46E8] transition hover:underline">{t("다시 진단", "Re-check", "重新诊断", "Kiểm tra lại", "再診断", "Cek lagi")}</Link>
       </div>
-      <div className="mt-1.5 flex items-end gap-2.5">
+      <div className="mt-1.5 flex items-center gap-2.5">
         <span className="text-[38px] font-black leading-none text-[#0B46E8]">
           {current}
           <span className="text-[18px]">%</span>
         </span>
-        <div className="mb-1 min-w-0">
+        <div className="min-w-0">
           <p className="truncate text-[13.5px] font-bold text-[#191F28]">{diag.level}</p>
           {delta != null && delta > 0 ? (
             <p className="mt-0.5 text-[12px] font-bold text-[#0A9B59]">{t("사전", "Before", "初始", "Trước", "事前", "Awal")} {initPct}% → {t("현재", "Now", "现在", "Hiện tại", "現在", "Kini")} {current}% · ▲{delta}</p>
